@@ -3,7 +3,7 @@ import { expectPressFill } from '../../support/press-feedback'
 import { deliverTitleLines } from '../../support/sheet-title-layout'
 import { createTokensV2 } from '@/lib/theme'
 import React from 'react'
-import { AccessibilityInfo, Pressable, StyleSheet, Text } from 'react-native'
+import { AccessibilityInfo, Platform, Pressable, StyleSheet, Text } from 'react-native'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { TrueSheet } from '@lodev09/react-native-true-sheet'
 import {
@@ -576,6 +576,51 @@ describe('Sheet (mobile)', () => {
     })
 
     expect(scrollTo).toHaveBeenCalledWith({ y: 298 + (footerHeight ? footerHeight + safeArea.bottom : 0), animated: true })
+  })
+
+  it.each(['android', 'ios'] as const)('measures the %s keyboard edge from where the presented sheet draws its body', async (platform) => {
+    const previous = Platform.OS
+    Object.defineProperty(Platform, 'OS', { configurable: true, value: platform })
+    const SHEET_TOP = 160
+    const HEADER = 72
+    const FOOTER = 76
+    const KEYBOARD_TOP = 590
+    const field = { y: 400, height: 54 }
+    vi.stubGlobal('requestAnimationFrame', (callback: (time: number) => void) => setTimeout(() => callback(0), 0))
+    vi.useFakeTimers()
+    const scrollTo = vi.fn()
+    __setMeasureInWindowImpl((callback, _props, name) => name === 'ScrollView' ? callback(0, HEADER, 360, 580) : callback(0, field.y, 100, field.height))
+    __setScrollToImpl(scrollTo)
+    let tree!: ReturnType<typeof TestRenderer.create>
+    try {
+      await TestRenderer.act(async () => {
+        tree = TestRenderer.create(
+          <Sheet open title="Edit habit" onClose={vi.fn()} actions={<PillButton onClick={vi.fn()}>Save</PillButton>}>
+            <BottomSheetAppTextInput testID="note-input" value="" />
+          </Sheet>,
+        )
+        await Promise.resolve()
+      })
+      const nativeSheet = tree.root.findByType(TrueSheet)
+      TestRenderer.act(() => {
+        nativeSheet.props.header.props.onLayout({ nativeEvent: { layout: { height: HEADER } } })
+        nativeSheet.props.footer.props.onLayout({ nativeEvent: { layout: { height: FOOTER } } })
+      })
+      TestRenderer.act(() => tree.root.findByType(TrueSheet).props.onDidPresent({ nativeEvent: { index: 0, position: SHEET_TOP, detent: 1 } }))
+      TestRenderer.act(() => {
+        tree.root.findAllByType('TextInput').find((node: { props: { testID?: string } }) => node.props.testID === 'note-input')!.props.onFocus({})
+        __emitKeyboardEvent('keyboardDidShow', { endCoordinates: { screenY: KEYBOARD_TOP } })
+        vi.advanceTimersByTime(60)
+      })
+      const keyboardEdgeInSheet = KEYBOARD_TOP - FOOTER - safeArea.bottom - (platform === 'android' ? SHEET_TOP : 0)
+      const lift = Math.max(0, field.y + field.height - (keyboardEdgeInSheet - 24))
+      if (lift) expect(scrollTo).toHaveBeenLastCalledWith({ y: lift, animated: true })
+      else expect(scrollTo).not.toHaveBeenCalled()
+      expect(platform === 'android' ? lift : 0).toBe(platform === 'android' ? 148 : 0)
+    } finally {
+      TestRenderer.act(() => tree.unmount())
+      Object.defineProperty(Platform, 'OS', { configurable: true, value: previous })
+    }
   })
 
   it.each([0, 24])('reserves the measured footer above a %i bottom inset and uses its full height for the keyboard', async (bottomInset) => {

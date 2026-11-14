@@ -10,6 +10,7 @@ import {
 } from '../../../test-mocks/react-native'
 import {
   KeyboardAwareFlatList,
+  KeyboardAwareScreenShiftProvider,
   KeyboardAwareSheetScrollView,
   KeyboardAwareScrollView,
   KeyboardAwareView,
@@ -378,6 +379,44 @@ describe('KeyboardAwareSheetScrollView (mobile)', () => {
     })
     expect(tree!.root.findByType('ScrollView').props.nestedScrollEnabled).toBe(true)
     expect(onScroll).toHaveBeenCalledWith(event)
+  })
+
+  it('lifts a focused sheet field above the footer and keyboard when the sheet draws below where its content is measured', () => {
+    const SHEET_TOP = 160
+    const KEYBOARD_TOP = 590
+    const FOOTER = 100
+    const REVEAL_MARGIN = 24
+    const field = { y: 400, height: 54 }
+    vi.stubGlobal('requestAnimationFrame', (callback: (time: number) => void) => {
+      callback(0)
+      return 0
+    })
+    const scrollTo = vi.fn()
+    __setScrollToImpl(scrollTo)
+    __setMeasureInWindowImpl((callback, _props, name) => {
+      if (name === 'ScrollView') callback(0, 70, 375, 580)
+      else callback(0, field.y, 375, field.height)
+    })
+    let tree!: ReturnType<typeof TestRenderer.create>
+    try {
+      TestRenderer.act(() => {
+        tree = TestRenderer.create(
+          <KeyboardAwareScreenShiftProvider value={() => SHEET_TOP}>
+            <KeyboardAwareSheetScrollView keyboardVerticalOffset={FOOTER}>
+              <TypedTextInput accessibilityLabel="Anything to note?" />
+            </KeyboardAwareSheetScrollView>
+          </KeyboardAwareScreenShiftProvider>,
+        )
+      })
+      TestRenderer.act(() => tree.root.findByType(TextInput).props.onFocus({ nativeEvent: {} }))
+      TestRenderer.act(() => __emitKeyboardEvent('keyboardDidShow', { endCoordinates: { screenY: KEYBOARD_TOP } }))
+      const keyboardEdgeInSheet = KEYBOARD_TOP - SHEET_TOP - FOOTER
+      expect(scrollTo).toHaveBeenLastCalledWith({ y: field.y + field.height - (keyboardEdgeInSheet - REVEAL_MARGIN), animated: true })
+      expect(StyleSheet.flatten(tree.root.findByType(ScrollView).props.contentContainerStyle).paddingBottom).toBe(70 + 580 - keyboardEdgeInSheet + REVEAL_MARGIN)
+    } finally {
+      TestRenderer.act(() => tree.unmount())
+      vi.unstubAllGlobals()
+    }
   })
 })
 

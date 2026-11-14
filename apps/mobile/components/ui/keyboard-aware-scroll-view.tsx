@@ -106,6 +106,11 @@ interface KeyboardAwareContextValue {
 
 const KeyboardAwareContext = createContext<KeyboardAwareContextValue | null>(null)
 
+/** How far below its measured position the enclosing surface draws its content, or null while unknown. */
+export type KeyboardAwareScreenShift = () => number | null
+const KeyboardAwareScreenShiftContext = createContext<KeyboardAwareScreenShift | null>(null)
+export const KeyboardAwareScreenShiftProvider = KeyboardAwareScreenShiftContext.Provider
+
 const REVEAL_MARGIN = 24
 
 function resolveKeyboardBehavior(
@@ -194,6 +199,7 @@ function useKeyboardAwareContextValue(
   const keyboardFrameRef = useRef<KeyboardAwareKeyboardFrame | null>(null)
   const scrollOffsetYRef = useRef(0)
   const [keyboardSpace, setKeyboardSpace] = useState(0)
+  const screenShift = useContext(KeyboardAwareScreenShiftContext)
 
   const refresh = useCallback(() => {
     const scrollable = scrollableRef.current
@@ -203,7 +209,7 @@ function useKeyboardAwareContextValue(
     viewport.measureInWindow?.((_x, y, _width, viewportHeight) => {
       const visibleBottom = Math.min(
         y + viewportHeight,
-        frame.top - keyboardVerticalOffset,
+        frame.top - (screenShift?.() ?? 0) - keyboardVerticalOffset,
       )
       const revealSpace = focusedInputRef.current ? REVEAL_MARGIN : 0
       setKeyboardSpace(Math.max(0, y + viewportHeight - visibleBottom) + revealSpace)
@@ -215,7 +221,7 @@ function useKeyboardAwareContextValue(
         REVEAL_MARGIN,
       )
     })
-  }, [keyboardVerticalOffset, scrollableRef])
+  }, [keyboardVerticalOffset, screenShift, scrollableRef])
   const scheduleFocusRefresh = useCallback(() => {
     if (!keyboardFrameRef.current) return
     if (focusFrameRef.current !== null) cancelAnimationFrame(focusFrameRef.current)
