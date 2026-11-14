@@ -15,6 +15,7 @@ import { shouldRetryQuery } from '@orbit/shared/query'
 import { queryClient as productionQueryClient } from '@/lib/query-client'
 
 const mocks = vi.hoisted(() => ({ fetch: vi.fn(), report: vi.fn() }))
+vi.unmock('@/hooks/use-flag')
 vi.mock('@/lib/api-client', () => ({ apiClient: mocks.fetch }))
 vi.mock('@sentry/react-native', () => ({ captureException: mocks.report }))
 
