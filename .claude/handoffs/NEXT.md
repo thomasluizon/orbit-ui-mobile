@@ -18,14 +18,14 @@ Reply to the owner in the language of his latest message. His orders stand: fini
 
 ## In flight
 
-UI `main` `1f1c6d312`; API `main` `1cf355934`; landing `main` `381b253fa`. Nothing merged in the last session. Two heads were pushed; every other fix is a LOCAL commit in its worktree.
+UI `main` `4afd790f0`; API `main` `1cf355934`; landing `main` `381b253fa`. `ui#2454` merged in the last session. Two heads are pushed; every other fix is a LOCAL commit in its worktree.
 
 | Item | Disposition |
 | --- | --- |
-| `#2074` round time | Six parts on local branches; built: UI harness, UI tests, landing. Read the drain results for the other three. One merge agent joins the four UI parts; local review; push; protection changes; the brain ADR. |
-| `ui#2454` (`#2096`) at `c21978804` | Pushed. Start `chain-review.sh ui 2454`; merge at the bar. |
+| `#2074` round time | Six parts on local branches; all six are built. Read the drain results. One merge agent joins the four UI parts; local review; push; protection changes; the brain ADR. |
+| `ui#2454` (`#2096`) | MERGED. Base-merge every open UI branch, then one web release. |
 | `ui#2448` (`#2132`) at `53c184035` | Pushed. Start `chain-review.sh ui 2448`; it needs a new Windows installed proof before the merge. |
-| `ui#2444` (`#2119`) at `c53c4eda4` | Local `b1298a8dc` is ready. Read the narrow review result, then ledger comments, body, resolve, push, chain. |
+| `ui#2444` (`#2119`) at `b1298a8dc` | Pushed, threads resolved. Base-merge, then `chain-review.sh ui 2444`. |
 | `api#1111` (`#2129`) at `b1ab3e924` | Read the fix agent's drain result; one narrow review; body, resolve, push, chain. |
 | `ui#2447` (`#2131`) at `a55538a33` | Read the fix agent's drain result; push, staging web of the branch, the device proof (Android first), chain. |
 | `landing#134` | Not approved (Node floor). Read the fix agent's drain result and `live-plan-landing-node.md`; run the Render change; push to the Dependabot branch; open the API Terraform pull request; chain. It gates every landing pull request. |
@@ -36,7 +36,7 @@ UI `main` `1f1c6d312`; API `main` `1cf355934`; landing `main` `381b253fa`. Nothi
 
 Read scratchpad `handoff-notes.md` after the carry: the lessons, the detail of each row, the protection changes done and still to do, and `## Results that arrived during the relay drain`.
 
-Inventory: open pull requests ui `#2444`, `#2447`, `#2448`, `#2450`, `#2451`, `#2453`, `#2454`, `#2388`; api `#1111`; landing `#134`. Running workers: none after the relay. Stashes: none. Dirty worktrees: read `git status` first in each worktree that `handoff-notes.md` names (never discard uncommitted work). Local only, not pushed: each branch that `handoff-notes.md` names, the six `#2074` branches included. Leave the detached worktrees `combined-2065`, api `scratch-1090-merge` and api `scratch-877-timing`. Waiters to arm: `chain-review.sh <key> <pr>` after each push and for `ui#2454` and `ui#2448` now, `wait-release.mjs` for each release run, `wait-auto-work.mjs` always.
+Inventory: open pull requests ui `#2444`, `#2447`, `#2448`, `#2450`, `#2451`, `#2453`, `#2388`; api `#1111`; landing `#134`. Running workers: none after the relay. Stashes: none. Dirty worktrees: read `git status` first in each worktree that `handoff-notes.md` names (never discard uncommitted work). Local only, not pushed: each branch that `handoff-notes.md` names, the six `#2074` branches included. Leave the detached worktrees `combined-2065`, api `scratch-1090-merge` and api `scratch-877-timing`. Waiters to arm: `chain-review.sh <key> <pr>` after each push and for `ui#2448` and `ui#2444` now, `wait-release.mjs` for each release run, `wait-auto-work.mjs` always.
 
 ## Then, in this order
 
@@ -56,7 +56,7 @@ Unattended: never ask the owner; decide with the best option and log it. Keep a 
 
 ## Previous prompt, disposition
 
-- Done: three `#2074` parts built; `ui#2454` and `ui#2448` pushed; five delta reviews; the `#2120` and `#2121` gate checks; one intake cycle; the first landing protection change.
+- Done: all six `#2074` parts built; `ui#2454` merged; `ui#2448` and `ui#2444` pushed; five delta reviews; the `#2120` and `#2121` gate checks; one intake cycle; the first landing protection change.
 - Changed: `landing#134` now merges before the landing `#2074` pull request; the `#2120` ring width goes back to the base values.
 - Carried: every merge and release; the rest of the `#2074` build and its measurement on or after 16 November 2026; the `ui#2447` proof; the stack; Batch M; `#1561`, `#1563`, `#315`, `#33`.
 
