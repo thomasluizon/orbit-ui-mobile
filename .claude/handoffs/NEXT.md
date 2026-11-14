@@ -55,7 +55,7 @@ Unattended: never ask the owner; decide with the best option and log it. Keep a 
 
 ## Previous prompt, disposition
 
-- Done: fix rounds delivered on the four red reviews; the `ui#2447` fix agent started; `#2120` slices A and B built; the `#2122` part merge started; one intake cycle (Sentry `ORBIT-MOBILE-S` is under `#2131`); ten merged worktrees removed for disk.
+- Done: fix rounds on the four red reviews; the three `#2120` slices built; one intake cycle; ten merged worktrees removed.
 - Changed: `ui#2448` keeps the macOS overlay bar with a native title bar fallback. The `#2121` parts need a merge note.
 - Carried: every merge and the web release after it; the `ui#2447` proof; the stack merges; Batch M; `#1561`, `#1563`, `#315`, `#33`; the `#2074` measurement on or after 16 November 2026.
 
