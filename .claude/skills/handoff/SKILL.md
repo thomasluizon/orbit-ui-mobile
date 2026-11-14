@@ -37,7 +37,7 @@ prompts, unrelated runs and disabled auto-work cannot inherit it. Keep intake ou
 
 `--relay` is the unattended context transition requested by `relay-at-threshold.mjs`.
 It includes `--sleep`, and `--crank` automatically when the run state has `crank: true`.
-It never invokes `/questions`, asks the owner anything, or ends the session before a successor
+It never asks the owner anything, and it never ends the session before a successor
 is confirmed. This is the exception to the owner handoff's ending
 rule below. Every other inventory, spec, prompt, commit and push requirement still applies.
 
@@ -52,11 +52,15 @@ until it exits; a plain shell polling loop does not.
 Relay mode waits for every live background Workflow run and background subagent to finish before ending the session, with the hook and relay tool checking recorded launch and completion evidence and the owning process start identity.
 
 Read the open chain with `openSessionChain` from `tools/lib/session-chain.mjs`, using this
-session's exact id. Carry every chain entry's complete decisions and open owner questions,
-along with the current decision log. Put every unresolved owner question in the spec's
-`## Open questions` and the run state's `openOwnerQuestions` array. Record who must answer and
-what it blocks; defer it without asking. Retain questions from earlier chain entries even if
-the current session did not discover them.
+session's exact id. Carry every chain entry's complete decisions, along with the current
+decision log.
+
+Before writing the spec or the prompt, invoke `/questions --relay`. It answers or decides every
+queued question the run can settle, and it records each disposition where the work reads it. Only
+the owner's questions stay in the run state's `openOwnerQuestions`, each once, with every source
+and blocker. The spec's `## Open questions` holds exactly those rows, each with who must answer and
+what it blocks. A step the spec lists as owner-only, never reminded, stays out of the queue. The
+successor inherits the queue, and the owner answers it only through his own `/questions`.
 
 Add this one timeless line to the spec: `The session chain ledger lives untracked at .git/orbit-session-chain.json.`
 Keep session ids, timestamps, terminal handles and timed decision logs in that ledger.

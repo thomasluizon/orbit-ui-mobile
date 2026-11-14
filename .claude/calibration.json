@@ -1,5 +1,5 @@
 {
-  "calibratedAt": "2026-11-09",
+  "calibratedAt": "2026-11-14",
   "classifier": {
     "model": "claude-sonnet-5-5",
     "promptDigest": "780092b4659dfd6e",
@@ -228,8 +228,8 @@
     ".claude/skills/handoff/SKILL.md": {
       "model": null,
       "effort": "high",
-      "digest": "18e31fc16d5480a0",
-      "calibratedAt": "2026-11-09",
+      "digest": "f91662f2ba705bf8",
+      "calibratedAt": "2026-11-14",
       "verdict": "current: high effort; the skill decides which durable rules enter the spec and when handoff must end the session."
     },
     ".claude/skills/investigate/SKILL.md": {
@@ -270,8 +270,8 @@
     ".claude/skills/orchestrate/SKILL.md": {
       "model": null,
       "effort": "high",
-      "digest": "a53756644b66f5dc",
-      "calibratedAt": "2026-11-09",
+      "digest": "9c9cdf1d89a33358",
+      "calibratedAt": "2026-11-14",
       "verdict": "current: high effort; the skill plans the queue, verifies each pull request disposition and merge commit, interprets gate results, and controls merge authority."
     },
     ".claude/skills/prod-readiness/SKILL.md": {
@@ -291,8 +291,8 @@
     ".claude/skills/questions/SKILL.md": {
       "model": null,
       "effort": "high",
-      "digest": "02c39d450f1a3180",
-      "calibratedAt": "2026-11-09",
+      "digest": "704d1e44ac1a998a",
+      "calibratedAt": "2026-11-14",
       "verdict": "current: high effort, because the filter decides what NOT to ask, and a wrong call either wastes the owner's attention or ships a guess as a decision."
     },
     ".claude/skills/release/SKILL.md": {
@@ -312,8 +312,8 @@
     ".claude/skills/sleep/SKILL.md": {
       "model": null,
       "effort": null,
-      "digest": "fa136d35469355a9",
-      "calibratedAt": "2026-11-09",
+      "digest": "45f1198d68c1d179",
+      "calibratedAt": "2026-11-14",
       "verdict": "undeclared, inherits the session: it makes overnight queue decisions, including whether configured lanes are available."
     },
     ".claude/skills/ticket/SKILL.md": {

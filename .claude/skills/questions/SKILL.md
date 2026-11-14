@@ -1,7 +1,7 @@
 ---
 name: questions
-description: Filter every question you were about to ask the owner, answer the ones you can, and put only what survives to him through AskUserQuestion with a recommendation. Then give him a numbered step-by-step for every manual action only he can do, after the same kind of gate. Use before asking him anything, when a run is blocked on a decision, or when he says /questions.
-argument-hint: [optional scope, for example "the redesign" or "ticket 67"]
+description: Filter every question you were about to ask the owner, answer the ones you can, and put only what survives to him through AskUserQuestion with a recommendation. Then give him a numbered step-by-step for every manual action only he can do, after the same kind of gate. Use before asking him anything, when a run is blocked on a decision, or when he says /questions. A context relay runs /questions --relay, which filters the queue and asks nothing.
+argument-hint: [--relay] [optional scope, for example "the redesign" or "ticket 67"]
 effort: high
 ---
 
@@ -20,11 +20,10 @@ sources rather than your memory of them: the opening prompt of this session, the
 `questions.md`, each relevant ticket's body and comments, and any "blocked" or "needs the owner" note
 anywhere in the run.
 
-Read `openSessionChain` from `tools/lib/session-chain.mjs` with the current session id.
-Add every entry's `openOwnerQuestions` to the candidate list, plus the current run state's
-questions. Deduplicate identical questions while retaining every source and what it blocks.
-Apply the same filter and give every surviving chain question a disposition. Keep the chain
-open until the owner's `/handoff` completes. Context relays never invoke this skill.
+Run `node tools/owner-questions.mjs --list`. It prints the queue of the open session chain and the
+current run state: one row per distinct question, with every source and what it blocks. Add every
+row to the candidate list, apply the same filter, and give every row a disposition. Keep the chain
+open until the owner's `/handoff` completes.
 
 A question you never wrote down cannot be filtered, cannot be asked, and disappears silently. That
 is the failure this list exists to prevent.
@@ -98,6 +97,31 @@ difference is taste or positioning rather than quality.
 What is left is genuinely his: product, copy, pricing, positioning, brand, design direction, and
 any choice where two answers are both defensible and only he knows which one he wants.
 
+## Relay mode: filter the queue, ask nothing
+
+`--relay` is the pass that `/handoff --relay` runs before it writes the handoff. It runs the
+candidate list and the filter above, then stops. It never calls `AskUserQuestion` and it gives no
+manual steps. Only a `/questions` that the owner types asks him and gives him his steps.
+
+In this mode `queued` replaces **asked**. Each row from `--list` leaves with exactly one of these:
+
+| disposition | what it requires |
+|---|---|
+| `answered` | the answer, written where the work reads it; `record` names that place |
+| `decided` | the decision and its reasoning, written where the work reads it; `record` names that place |
+| `owner-step` | the row is a manual step that the spec lists as owner-only, never reminded; `record` names that spec line |
+| `duplicate` | another row asks the same question in other words; `of` names the `id` of that row |
+| `queued` | the question passed the whole filter, so it is his |
+
+Write each answer and each decision first: a ticket comment, the spec, or the decision log, whichever
+the work reads. Then pipe one JSON row per candidate to `node tools/owner-questions.mjs --record`,
+as `{ id, disposition, record, of, blocks }`. `blocks` adds what a queued question blocks. The tool
+refuses a candidate with no disposition. It writes only the queued rows to the run state's
+`openOwnerQuestions`, each once, with every source and blocker. `node tools/relay-session.mjs`
+refuses the relay until that record covers the queue.
+
+A queued question waits for the owner's own `/questions`. The successor inherits it and never asks it.
+
 ## Asking
 
 `AskUserQuestion` takes at most four questions per call, so ask in rounds of four until every
@@ -122,6 +146,10 @@ Write the options in product terms. He should be able to answer without opening 
 
 Record each answer where the work will read it: a comment on the ticket that needed it, and an ADR
 in the brain when it is a decision that outlives the ticket. Then unblock whatever was waiting.
+
+When `--list` printed rows, pipe their final dispositions to `node tools/owner-questions.mjs --record`
+as relay mode does. A question that got its answer is `answered` with its record. A question that
+is still open stays `queued`. The queue then holds only what is still open.
 
 ## Then: the manual steps only he can do
 
