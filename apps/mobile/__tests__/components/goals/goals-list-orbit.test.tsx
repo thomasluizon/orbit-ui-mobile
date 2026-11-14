@@ -91,6 +91,8 @@ describe('goals list on the Orbit logic', () => {
     expect(ringValue('read')).toBe(25)
     expect(ring('read').props['data-ring-sweep']).toBe('sweeping')
     expect(ring('run').props['data-ring-sweep'], 'a goal with no change is still').toBe('rest')
+    expect(byProp(ring('read'), 'sweepDuration', 'slow'), 'the sweep runs on motionDurations.slow').toBeDefined()
+    expect(byProp(ring('run'), 'sweepDuration', 'base')).toBeDefined()
     await nextFrames()
     expect(ringValue('read')).toBe(50)
     expect(ring('read').props['data-ring-sweep']).toBe('rest')

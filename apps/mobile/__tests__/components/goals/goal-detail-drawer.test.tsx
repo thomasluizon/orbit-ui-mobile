@@ -509,7 +509,7 @@ describe('GoalDetailDrawer', () => {
     TestRenderer.act(() => tree.unmount())
   })
 
-  it('opens Astra after sheet dismissal with the selected synced goal', () => {
+  it('opens the conversation after sheet dismissal with the selected synced goal', () => {
     detailGoal = { ...detailGoal, title: 'Synced goal' }
     const onClose = vi.fn()
     sheetTestControls.defer(true)
@@ -528,7 +528,7 @@ describe('GoalDetailDrawer', () => {
     expect(mockPush).not.toHaveBeenCalled()
   })
 
-  it('retains inline goal detail and the existing draft when Astra opens', () => {
+  it('retains inline goal detail and the existing draft when the conversation opens', () => {
     useChatStore.setState({ draft: 'My unfinished message' })
     const onClose = vi.fn()
     let tree: ReturnType<typeof TestRenderer.create>

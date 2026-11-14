@@ -386,7 +386,7 @@ describe('GoalDetailDrawer', () => {
     expect(updateProgressMutateAsync).not.toHaveBeenCalled()
   })
 
-  it('opens Astra with the selected goal while retaining inline detail for return', () => {
+  it('opens the conversation with the selected goal while retaining inline detail for return', () => {
     const onOpenChange = vi.fn()
     detailGoal = { ...detailGoal, title: 'Synced goal' }
     render(<GoalDetailDrawer inline open onOpenChange={onOpenChange} goalId="1" />)
@@ -400,7 +400,7 @@ describe('GoalDetailDrawer', () => {
     expect(screen.getByRole('heading', { name: 'Synced goal' })).toBeTruthy()
   })
 
-  it('waits for the goal sheet exit before opening Astra', async () => {
+  it('waits for the goal sheet exit before opening the conversation', async () => {
     let finishExit!: () => void
     const exitFinished = new Promise<void>(resolve => { finishExit = resolve })
     const onOpenChange = vi.fn()

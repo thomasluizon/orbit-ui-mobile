@@ -19,7 +19,7 @@ function GoalIndicator({ goal, sweepFrom }: Readonly<{ goal: Goal; sweepFrom: nu
   if (goal.status === 'Abandoned') return null
   const label = t('goals.progressPercentage', { pct: Math.round(goal.progressPercentage) })
   if (goal.status === 'Completed' || goal.progressPercentage >= 100) return <StatusRing status="done" size={30} label={label} />
-  return <View testID={`goal-ring-${goal.id}`} data-ring-sweep={shown === goal.progressPercentage ? 'rest' : 'sweeping'}><ProgressRing value={shown} size={44} label={label} /></View>
+  return <View testID={`goal-ring-${goal.id}`} data-ring-sweep={shown === goal.progressPercentage ? 'rest' : 'sweeping'}><ProgressRing value={shown} size={44} label={label} sweepDuration={sweepFrom === null ? 'base' : 'slow'} /></View>
 }
 
 /** The painted goal card surface: the hover fill while pressed and the granted lifted state while dragged. */

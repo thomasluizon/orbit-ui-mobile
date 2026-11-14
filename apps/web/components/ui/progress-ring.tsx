@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react'
 import type { ProgressRingProps } from '@orbit/shared/contracts/display'
 
 /** A circular progress sweep over a neutral track. */
-export function ProgressRing({ value = 0, size = 64, label }: Readonly<ProgressRingProps>) {
+export function ProgressRing({ value = 0, size = 64, label, sweepDuration = 'base' }: Readonly<ProgressRingProps>) {
   const clamped = Math.min(100, Math.max(0, value))
   const complete = clamped === 100
   const strokeWidth = Math.max(2, size / 16)
@@ -39,8 +39,9 @@ export function ProgressRing({ value = 0, size = 64, label }: Readonly<ProgressR
       <circle
         ref={measure}
         key={size}
+        data-sweep-duration={sweepDuration}
         className={canAnimate
-          ? 'transition-[stroke-dashoffset] duration-[var(--dur-base)] ease-[var(--ease-standard)] motion-reduce:transition-none'
+          ? `transition-[stroke-dashoffset] ${sweepDuration === 'slow' ? 'duration-[var(--dur-slow)]' : 'duration-[var(--dur-base)]'} ease-[var(--ease-standard)] motion-reduce:transition-none`
           : undefined}
         visibility={circumference > 0 && clamped > 0 ? undefined : 'hidden'}
         cx={size / 2}

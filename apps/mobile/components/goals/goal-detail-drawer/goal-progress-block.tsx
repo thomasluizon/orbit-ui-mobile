@@ -21,7 +21,7 @@ function GoalDetailIndicator({ goal, label, sweepFrom }: Readonly<{ goal: Goal; 
   const shown = useRingSweep(goal.progressPercentage, sweepFrom)
   if (goal.status === 'Abandoned') return null
   if (goal.status === 'Completed' || goal.progressPercentage >= 100) return <StatusRing status="done" size={44} label={label} />
-  return <View testID="goal-detail-ring" data-ring-sweep={shown === goal.progressPercentage ? 'rest' : 'sweeping'}><ProgressRing value={shown} size={60} label={label} /></View>
+  return <View testID="goal-detail-ring" data-ring-sweep={shown === goal.progressPercentage ? 'rest' : 'sweeping'}><ProgressRing value={shown} size={60} label={label} sweepDuration={sweepFrom === null ? 'base' : 'slow'} /></View>
 }
 
 function GoalDerivedProgress({ goal }: Readonly<{ goal: Goal }>) {

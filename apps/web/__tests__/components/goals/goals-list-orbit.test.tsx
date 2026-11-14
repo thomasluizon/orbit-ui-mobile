@@ -87,6 +87,8 @@ describe('goals list on the Orbit logic', () => {
     expect(ring('Read 12 books')).toHaveAttribute('aria-valuenow', '25')
     expect(ring('Read 12 books').parentElement).toHaveAttribute('data-ring-sweep', 'sweeping')
     expect(ring('Run 100 km').parentElement, 'a goal with no change is still').toHaveAttribute('data-ring-sweep', 'rest')
+    expect(ring('Read 12 books').querySelector('[data-sweep-duration]'), 'the sweep runs on motionDurations.slow').toHaveAttribute('data-sweep-duration', 'slow')
+    expect(ring('Run 100 km').querySelector('[data-sweep-duration]')).toHaveAttribute('data-sweep-duration', 'base')
     await nextFrames()
     expect(ring('Read 12 books')).toHaveAttribute('aria-valuenow', '50')
     expect(ring('Read 12 books').parentElement).toHaveAttribute('data-ring-sweep', 'rest')
