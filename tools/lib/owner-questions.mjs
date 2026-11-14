@@ -26,13 +26,15 @@ const questionRow = (row, holderSessionId) => {
 
 /**
  * One row per distinct question that still needs a disposition. A recorded filter settled every
- * question older than its own survivors, so the list starts at the newest chain entry that has one.
+ * question older than its own survivors, so the list starts at the newest record: this session's
+ * own filter, which leaves only its run state, or else the newest chain entry that has one.
  */
 export const ownerQuestionCandidates = (sessionId, repoRoot = REPO_ROOT) => {
   const state = readRunState(repoRoot)
+  const owned = state?.sessionId === sessionId ? [state] : []
   const predecessors = openSessionChain(sessionId, repoRoot)?.entries.filter((entry) => entry.sessionId !== sessionId) ?? []
   const settled = predecessors.findLastIndex((entry) => entry.questionFilter)
-  const holders = [...predecessors.slice(Math.max(settled, 0)), ...(state?.sessionId === sessionId ? [state] : [])]
+  const holders = owned[0]?.questionFilter?.sessionId === sessionId ? owned : [...predecessors.slice(Math.max(settled, 0)), ...owned]
   const candidates = new Map()
   for (const holder of holders) {
     for (const row of (holder.openOwnerQuestions ?? []).map((entry) => questionRow(entry, holder.sessionId))) {
@@ -70,7 +72,10 @@ const survivingRows = (candidates, dispositions) => dispositions.filter((row) =>
     blocks: union(...asked.map((candidate) => candidate.blocks), ...joined.map((entry) => entry.blocks ?? [])) }
 })
 
-/** Writes the filter and the surviving queue in one update, so the queue never holds a question the filter took out. */
+/**
+ * Writes the filter and the surviving queue in one update, so the queue never holds a question the filter took out.
+ * A later pass in the same session keeps the earlier settled rows it does not name, because its candidates no longer hold them.
+ */
 export const recordQuestionFilter = (sessionId, dispositions, repoRoot = REPO_ROOT) => {
   const candidates = ownerQuestionCandidates(sessionId, repoRoot)
   const failures = dispositionFailures(candidates, dispositions)
@@ -80,7 +85,9 @@ export const recordQuestionFilter = (sessionId, dispositions, repoRoot = REPO_RO
     ({ id, question: candidates.find((candidate) => candidate.id === id).question, disposition, ...(record ? { record } : {}), ...(of ? { of } : {}) }))
   updateRunState((state) => {
     if (state?.sessionId !== sessionId) throw new Error("no run state for this session")
-    return { ...state, openOwnerQuestions, questionFilter: { sessionId, recordedAt: new Date().toISOString(), dispositions: recorded } }
+    const earlier = state.questionFilter?.sessionId === sessionId ? state.questionFilter.dispositions : []
+    const kept = earlier.filter((row) => row.disposition !== "queued" && !recorded.some((named) => named.id === row.id))
+    return { ...state, openOwnerQuestions, questionFilter: { sessionId, recordedAt: new Date().toISOString(), dispositions: [...kept, ...recorded] } }
   }, repoRoot, { sessionId })
   return openOwnerQuestions
 }

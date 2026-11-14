@@ -102,8 +102,32 @@ const legacyCases = () => {
   T("owner-questions: a queued question with other fields leaves no gap", questionFilterGaps("current", checkout).length === 0, questionFilterGaps("current", checkout).join())
 }
 
+/** `s1` filtered and queued the price question; `current` inherits it, as the relay adoption leaves it, and settles it itself. */
+const sameSessionCases = () => {
+  const raised = "Does the widget ship in the first release?"
+  const checkout = stageQuestionChain("same-session", 0, () => [])
+  writeRunState({ sessionId: "s1", sleep: true, openOwnerQuestions: [{ question: PRODUCT, blocks: ["#2101"] }] }, checkout)
+  const [price] = ownerQuestionCandidates("s1", checkout)
+  recordQuestionFilter("s1", [{ id: price.id, disposition: "queued" }], checkout)
+  const { openOwnerQuestions, questionFilter } = readRunState(checkout)
+  appendChainEntry({ sessionId: "s1", openOwnerQuestions, questionFilter }, checkout)
+  confirmChainSuccessor("s1", "current", "term_2", 1, checkout)
+  writeRunState({ ...readRunState(checkout), sessionId: "current" }, checkout)
+  recordQuestionFilter("current", [{ id: price.id, disposition: "answered", record: "ticket #2101 comment" }], checkout)
+  updateRunState((state) => ({ ...state, openOwnerQuestions: [...state.openOwnerQuestions, raised] }), checkout, { sessionId: "current" })
+  const listed = ownerQuestionCandidates("current", checkout)
+  T("owner-questions: a question this session answered never comes back to its list", listed.map((row) => row.question).join("|") === raised, JSON.stringify(listed.map((row) => row.question)))
+  T("owner-questions: after this session's own filter, only the new question is a gap", questionFilterGaps("current", checkout).join() === `no disposition for: ${raised}`, questionFilterGaps("current", checkout).join())
+  const second = refusal(() => recordQuestionFilter("current", [{ id: listed.find((row) => row.question === raised).id, disposition: "queued" }], checkout))
+  T("owner-questions: a second filter in one session needs a disposition only for the new question", second === "" && questionFilterGaps("current", checkout).length === 0, second)
+  const recorded = readRunState(checkout).questionFilter.dispositions
+  T("owner-questions: a second filter keeps the answer of the first", recorded.map((row) => `${row.question}=${row.disposition}`).join("|") === `${PRODUCT}=answered|${raised}=queued` &&
+    recorded[0].record === "ticket #2101 comment", JSON.stringify(recorded))
+}
+
 export const cases = async () => {
   answerableCases()
   await survivorCases()
   legacyCases()
+  sameSessionCases()
 }

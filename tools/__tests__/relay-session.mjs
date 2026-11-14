@@ -8,6 +8,7 @@ import { ownerQuestionCandidates, questionFilterGaps, recordQuestionFilter } fro
 import { processStartIdentity, readRunState, readWakeSourceStates, registerWakeSource, updateRunState, writeRunState } from "../lib/run-state.mjs"
 import { readHandoffRequest, recordHandoffRequest } from "../lib/handoff-prompt.mjs"
 import { T, realOrchestratorConfig, stageRepo, toolPath } from "./_harness.mjs"
+import { ANSWERABLE, PRODUCT } from "./owner-questions-core.mjs"
 import { checkRelayStop } from "../../.claude/hooks/_lib/rules-relay.mjs"
 
 const usage = JSON.parse(readFileSync(new URL("./fixtures/session-usage.json", import.meta.url), "utf8"))
@@ -243,8 +244,7 @@ const fileWaiterCase = async () => {
 
 const questionFilterCases = async () => {
   const relay = (staged, operations = []) => failure({ repoRoot: staged.checkout, sessionId: "predecessor", execute: executeFor(staged.checkout, { commands: operations }), wait: async () => {}, confirmMilliseconds: 10 })
-  const answerable = Array.from({ length: 16 }, (_, index) => `Which layer owns contract ${index + 1}?`)
-  const duplicated = fixture("questions-answerable", { questions: answerable, chain: 7, filter: false })
+  const duplicated = fixture("questions-answerable", { questions: ANSWERABLE, chain: 7, filter: false })
   const unfilteredOperations = []
   const unfiltered = await relay(duplicated, unfilteredOperations)
   T("relay-session: a relay with no recorded question filter is refused before any launch", /relay question filter: no recorded filter/.test(unfiltered) && unfilteredOperations.length === 0 && readRunState(duplicated.checkout).sessionId === "predecessor", String(unfiltered))
@@ -256,8 +256,8 @@ const questionFilterCases = async () => {
   const settledEntry = openSessionChain(emptied.sessionId, duplicated.checkout).entries.at(-1)
   T("relay-session: the chain keeps the 16 dispositions and the successor owes none of them again", settledEntry.questionFilter.dispositions.length === 16 && ownerQuestionCandidates(emptied.sessionId, duplicated.checkout).length === 0)
 
-  const product = { question: "Is the yearly plan priced below ten monthly payments?", blocks: ["#2101"] }
-  const surviving = fixture("questions-product", { questions: [...answerable, product], chain: 3, filter: false })
+  const product = { question: PRODUCT, blocks: ["#2101"] }
+  const surviving = fixture("questions-product", { questions: [...ANSWERABLE, product], chain: 3, filter: false })
   const filter = () => recordQuestionFilter("predecessor", ownerQuestionCandidates("predecessor", surviving.checkout).map((row) =>
     row.question === product.question ? { id: row.id, disposition: "queued" } : { id: row.id, disposition: "decided", record: "decision log" }), surviving.checkout)
   filter()
