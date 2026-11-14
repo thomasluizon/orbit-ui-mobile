@@ -146,7 +146,7 @@
       "effort": "low",
       "digest": "fb87f04b9dccf820",
       "calibratedAt": "2026-11-14",
-      "verdict": "current: derives version and track from workflow runs, verifies the exact remote ref, and dispatches only after owner confirmation; its checks are procedural, so low effort remains right."
+      "verdict": "current: takes the open and production version from mobile-version-pair.js plan, hands the same version to /ios-release, verifies the exact remote ref, and dispatches only after owner confirmation; its checks are procedural, so low effort remains right."
     },
     ".claude/skills/astra-eval/SKILL.md": {
       "model": null,

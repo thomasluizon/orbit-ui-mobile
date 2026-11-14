@@ -62,7 +62,7 @@ const VERDICTS = {
   ".claude/skills/android-generate/SKILL.md":
     "current: a mechanical gradle build and emulator install, so low effort is right.",
   ".claude/skills/android-release/SKILL.md":
-    "current: derives version and track from workflow runs, verifies the exact remote ref, and dispatches only after owner confirmation; its checks are procedural, so low effort remains right.",
+    "current: takes the open and production version from mobile-version-pair.js plan, hands the same version to /ios-release, verifies the exact remote ref, and dispatches only after owner confirmation; its checks are procedural, so low effort remains right.",
   ".claude/skills/astra-eval/SKILL.md":
     "undeclared, inherits the session: runs or extends the configured Astra eval corpus and distinguishes failed behavior from incomplete tool evidence; it declares no model or effort override.",
   ".claude/skills/audit-code-quality/SKILL.md":
