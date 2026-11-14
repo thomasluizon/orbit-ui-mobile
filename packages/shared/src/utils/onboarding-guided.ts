@@ -56,7 +56,7 @@ export function describeOnboardingCadence(schedule: OnboardingSchedule, timed: b
   const quantity = schedule.frequencyQuantity ?? 1
   if (schedule.isFlexible) return { key: `${CADENCE}.${at('flexible')}.${lowerUnit(schedule.frequencyUnit, 'week')}`, count: quantity }
   if (schedule.frequencyUnit === null && !schedule.isGeneral) return { key: `${CADENCE}.${at('once')}`, count: 1 }
-  if (schedule.days.length === 0 && schedule.isGeneral) return { key: `onboarding.flow.guided.cadence.${at('noDays')}`, count: 1 }
+  if (schedule.days.length === 0 && schedule.isGeneral) return { key: `onboarding.flow.guided.cadence.${at('noDate')}`, count: 1 }
   if (schedule.days.length === 7 && schedule.intervalWeeks === 1) return { key: `${CADENCE}.${at('daily')}`, count: 1 }
   if (schedule.days.length > 0 && schedule.intervalWeeks === 1) return { key: `${CADENCE}.${at('fixed')}`, count: 1 }
   if (schedule.days.length > 0) return { key: `${CADENCE}.${at('intervalDays')}`, count: schedule.intervalWeeks }

@@ -108,7 +108,7 @@ describe.each([{ language: 'en', messages: en }, { language: 'pt-BR', messages: 
     for (const [index, intro] of [guided.intro.talk, guided.intro.routine, guided.intro.restart].entries()) {
       expect(heading(tree)).toBe(intro.title)
       expect(texts(tree)).toContain(intro.body)
-      expect(progress(tree)).toBe(guided.progress.replace('{position}', String(index + 1)).replace('{total}', '3'))
+      expect(progress(tree)).toBe(messages.habits.flow.progress.replace('{position}', String(index + 1)).replace('{total}', '3'))
       expect(texts(tree)).toContain(guided.intro.skip)
       await press(tree, flow.continue)
     }
@@ -131,7 +131,7 @@ describe.each([{ language: 'en', messages: en }, { language: 'pt-BR', messages: 
     expect(texts(tree)).toContain(messages.habits.flow.what.lineEmpty)
     await typePhrase(tree, messages, language === 'en' ? 'Walk every Monday at 18:00' : 'Caminhar toda segunda às 18:00')
     expect(heading(tree)).toBe(guided.summary.question)
-    expect(progress(tree)).toBe(guided.progress.replace('{position}', '2').replace('{total}', '3'))
+    expect(progress(tree)).toBe(messages.habits.flow.progress.replace('{position}', '2').replace('{total}', '3'))
   })
 
   it('asks how it repeats when the phrase has no schedule, then the days, then the summary', async () => {

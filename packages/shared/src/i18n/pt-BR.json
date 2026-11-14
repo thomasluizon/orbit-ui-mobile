@@ -3315,7 +3315,6 @@
       },
       "guided": {
         "screenLabel": "Primeiros passos no Orbit",
-        "progress": "Passo {position} de {total}",
         "intro": {
           "talk": {
             "title": "Eu sou o Orbit",
@@ -3370,8 +3369,8 @@
         },
         "creating": "Estou criando o seu hábito.",
         "cadence": {
-          "noDays": "sem dia certo",
-          "noDaysAt": "sem dia certo, às {time}"
+          "noDate": "sem data",
+          "noDateAt": "sem data, às {time}"
         }
       },
       "meetAstra": {

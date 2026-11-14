@@ -390,7 +390,7 @@ export function GuidedOnboardingFlow(props: Readonly<GuidedOnboardingProps>) {
         line={stepView.line}
         position={progress.position}
         total={progress.total}
-        progressLabel={t('onboarding.flow.guided.progress', progress)}
+        progressLabel={t('habits.flow.progress', progress)}
         backLabel={t('onboarding.flow.back')}
         closeLabel={t('onboarding.flow.skip')}
         onBack={back}
