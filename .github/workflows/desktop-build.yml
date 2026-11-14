@@ -30,15 +30,42 @@ permissions:
   contents: read
 
 jobs:
+  # The two cross targets read their own native inputs, so a pull request that changes the shell compiles all four.
+  # A pull request that changes only the root manifests compiles the two native targets.
+  targets:
+    name: Select desktop targets
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    outputs:
+      matrix: ${{ steps.select.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+      - name: Select the targets that the pull request can break
+        id: select
+        run: |
+          set -euo pipefail
+          git diff --name-only --no-renames HEAD^1 HEAD > "$RUNNER_TEMP/desktop-paths.txt"
+          if grep -Eq '^apps/desktop/|^\.github/workflows/desktop-build\.yml$|^\.github/actions/desktop-nsis-tools/' "$RUNNER_TEMP/desktop-paths.txt"; then
+            echo 'matrix=["aarch64-apple-darwin", "x86_64-apple-darwin", "x86_64-pc-windows-msvc", "aarch64-pc-windows-msvc"]' >> "$GITHUB_OUTPUT"
+          else
+            echo 'matrix=["aarch64-apple-darwin", "x86_64-pc-windows-msvc"]' >> "$GITHUB_OUTPUT"
+          fi
+
   build:
     name: Desktop ${{ matrix.target }}
-    # The two cross targets compile on the same host type as their native leg, so a pull request runs the native legs only.
+    needs: targets
+    # A push to main and a dispatch compile all four targets. A failed selection compiles all four instead of skipping.
+    if: ${{ !cancelled() }}
     runs-on: ${{ endsWith(matrix.target, '-apple-darwin') && 'macos-15' || 'windows-2025' }}
     timeout-minutes: 25
     strategy:
       fail-fast: false
       matrix:
-        target: ${{ fromJSON(github.event_name == 'pull_request' && '["aarch64-apple-darwin", "x86_64-pc-windows-msvc"]' || '["aarch64-apple-darwin", "x86_64-apple-darwin", "x86_64-pc-windows-msvc", "aarch64-pc-windows-msvc"]') }}
+        target: ${{ fromJSON(needs.targets.outputs.matrix || '["aarch64-apple-darwin", "x86_64-apple-darwin", "x86_64-pc-windows-msvc", "aarch64-pc-windows-msvc"]') }}
     defaults:
       run:
         shell: bash
