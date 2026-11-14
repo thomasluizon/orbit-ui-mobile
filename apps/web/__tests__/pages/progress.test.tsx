@@ -149,6 +149,7 @@ vi.mock('next-intl', async (importOriginal) => ({
 }))
 vi.mock('next/navigation', () => ({ useRouter: () => mocks.router, usePathname: () => '/progress' }))
 vi.mock('@/hooks/use-notification-inbox', () => ({ useNotificationInbox: () => ({ visibleUnreadCount: 0 }) }))
+vi.mock('@/hooks/use-flag', () => ({ useFlag: () => false }))
 vi.mock('@/components/goals/goal-detail-drawer', () => ({ GoalDetailDrawer: ({ goalId, inline, onOpenChange }: { goalId: string; inline?: boolean; onOpenChange: (open: boolean) => void }) => <div role={inline ? 'region' : 'dialog'} aria-label="goal-detail">{goalId}<button onClick={() => onOpenChange(false)}>Back to goals</button></div> }))
 vi.mock('@/components/ui/pro-badge', () => ({ ProBadge: () => <span>PRO</span> }))
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => mocks.account }))

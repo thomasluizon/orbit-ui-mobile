@@ -1,15 +1,12 @@
 'use client'
 
-import { ListMotionItem, ListPresence } from '@/components/motion/list-motion'
 import { StreakFigure } from '@/components/gamification/streak-figure'
 
 import { IconButton } from '@/components/ui/icon-button'
-import { SMALL_PILL_VISIBLE_MIN } from '@orbit/shared/theme'
 
 import { ShareCardEntryButton } from '@/components/share/share-card-entry-button'
 
 import { ActionRow } from '@/components/ui/action-row'
-import { CreateGoalSheet } from '@/components/goals/create-goal-sheet'
 
 import { PersonalText } from '@/components/ui/personal-text'
 import { PersonalTextAction } from '@/components/ui/personal-text-action'
@@ -19,6 +16,8 @@ import { PROGRESS_SUBMENUS, type ProgressSubmenuId } from '@orbit/shared/utils/p
 import { ListRow } from '@/components/ui/list-row'
 import { SettingsGroup } from '@/components/ui/settings-group'
 import { ProgressSubscreen } from './progress-subscreen'
+import { ProgressLoading } from './progress-loading'
+import { ProgressGoalsContent } from './goals/progress-goals-content'
 import { RootNotificationHeader } from '@/components/navigation/root-notification-header'
 
 import {
@@ -27,59 +26,42 @@ import {
   useMemo,
   useRef,
   useState,
-  type KeyboardEvent,
   type MouseEventHandler,
   type ReactNode,
 } from 'react'
-import { useDragAccessibility } from '@/components/ui/drag-accessibility'
-import { DndContext, closestCenter } from '@dnd-kit/core'
-import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { useLocale, useTranslations } from 'next-intl'
-import type { Goal } from '@orbit/shared/types/goal'
 import {
-  buildGoalMovePositions,
   buildProtectedDayLabels,
   buildStreakWeekDays,
   deriveStreakRepairState,
   extractBackendErrorCode,
   extractBackendStatus,
-  filterProgressGoals,
   formatStreakDate,
   formatStreakRepairDates,
   getBestRetrospectiveWeekdayKey,
-  getProgressGoalLabelKey,
   getStreakRepairErrorMessageKey,
   getStreakTierLabelKey,
   isPayGateError,
   visibleProgressAchievements,
   mapCompletionSeries,
-  type ProgressGoalFilter,
   type StreakRepairState,
 } from '@orbit/shared/utils'
-import { Badge } from '@/components/ui/badge'
 import { BarChart } from '@/components/ui/bar-chart'
 import { CapacityNotice } from '@/components/ui/capacity-notice'
 import { ConfirmSheet } from '@/components/ui/confirm-sheet'
-import { useGoalDrag } from './use-goal-drag'
 import { DayStrip } from '@/components/dates/day-strip'
-import { GoalDetailDrawer } from '@/components/goals/goal-detail-drawer'
 import { EmptyState } from '@/components/ui/empty-state'
-import { ShellCentredRegion } from '@/components/shell/shell-centred-region'
 import { ErrorState } from '@/components/ui/error-state'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { FreezeBank } from '@/components/ui/freeze-bank'
-import { ChevronDown, ChevronRight, Lock, Snowflake, RefreshCw, Plus } from '@/components/ui/icons'
+import { ChevronDown, ChevronRight, Lock, Snowflake, RefreshCw } from '@/components/ui/icons'
 import { AchievementTile } from '@/components/gamification/achievement-tile'
 import { LevelSummary } from '@/components/gamification/level-summary'
 import { PillButton, PillLink } from '@/components/ui/pill-button'
-import { ProgressRing } from '@/components/ui/progress-ring'
 import { ProBadge } from '@/components/ui/pro-badge'
-import * as Menu from '@/components/ui/dropdown-menu'
 import { Skeleton } from '@/components/ui/skeleton'
 import { StatTile } from '@/components/ui/stat-tile'
-import { StatusRing } from '@/components/ui/status-ring'
 import { useGamificationProfile, useRepairStreak, useStreakFreeze } from '@/hooks/use-gamification'
-import { useGoals, useReorderGoals } from '@/hooks/use-goals'
 
 import { useIsDesktop } from '@/hooks/use-is-desktop'
 import { useProfile } from '@/hooks/use-profile'
@@ -135,19 +117,6 @@ function LockedCard({ title, body, action }: Readonly<{ title: string; body: str
       <PillLink href="/upgrade" variant="ghost" size="sm">{action}</PillLink>
     </div>
   )
-}
-
-function ProgressLoading({ label, screen }: Readonly<{ label: string; screen: ProgressSubmenuId }>) {
-  return <div className="flex flex-col gap-8" role="progressbar" aria-label={label} aria-busy="true">
-    {screen !== 'goals' ? <Skeleton variant="settings" grouped /> : null}
-    {screen === 'streak' ? <>
-      <div className="h-[20px]"><Skeleton variant="fill" grouped /></div>
-      <div className="flex flex-wrap gap-4"><Skeleton variant="stat-tile" grouped /><Skeleton variant="stat-tile" grouped /></div>
-      <Skeleton variant="settings" rows={3} grouped />
-    </> : <div className="flex flex-col gap-3">
-      {Array.from({ length: 3 }, (_, index) => <Skeleton key={index} variant="habit-row" grouped />)}
-    </div>}
-  </div>
 }
 
 function FrozenTodayStatus({ isFrozenToday }: Readonly<{ isFrozenToday: boolean }>) {
@@ -387,136 +356,6 @@ function StreakSection({ accountProfile, canView, gamificationProfile }: Readonl
   )
 }
 
-function GoalIndicator({ goal }: Readonly<{ goal: Goal }>) {
-  const t = useTranslations()
-  if (goal.status === 'Abandoned') return null
-  const label = t('goals.progressPercentage', { pct: Math.round(goal.progressPercentage) })
-  if (goal.status === 'Completed' || goal.progressPercentage >= 100) return <StatusRing status="done" size={30} label={label} />
-  return <ProgressRing value={goal.progressPercentage} size={44} label={label} />
-}
-
-function GoalCard({ goal, index, total, canReorder, onMove, onOpen }: Readonly<{
-  goal: Goal
-  index: number
-  total: number
-  canReorder: boolean
-  onMove: (goalId: string, target: number) => void
-  onOpen: () => void
-}>) {
-  const t = useTranslations()
-  const { attributes, setNodeRef, listeners, transform, isDragging } = useSortable({ id: goal.id, disabled: !canReorder, attributes: { roleDescription: t('dragAndDrop.roleDescription') } })
-  const labelKey = getProgressGoalLabelKey(goal)
-  const abandoned = goal.status === 'Abandoned'
-  const state = t(labelKey ?? 'goals.status.active')
-  const position = t('progressScreen.goals.position', { position: index + 1, total })
-  const accessibilityLabel = abandoned
-    ? t('progressScreen.goals.accessibleLabelWithoutProgress', { title: goal.title, state, position })
-    : t('progressScreen.goals.accessibleLabel', {
-        title: goal.title,
-        state,
-        progress: t('progressScreen.goals.progress', { current: goal.currentValue, target: goal.targetValue, unit: goal.unit }),
-        position,
-      })
-  const handleKeyDown = (event: KeyboardEvent<HTMLElement>) => {
-    if (!event.altKey || (event.key !== 'ArrowUp' && event.key !== 'ArrowDown')) return
-    event.preventDefault()
-    onMove(goal.id, index + (event.key === 'ArrowUp' ? -1 : 1))
-  }
-  // WHY: the card presses its surface inside a target that keeps its full size, so a press at its edge never shrinks out from under the pointer and loses its click. https://github.com/thomasluizon/orbit-tickets/issues/2096
-  return (
-    <button type="button" aria-label={accessibilityLabel} data-goal-id={goal.id} data-dragging={isDragging}
-      ref={setNodeRef} {...listeners}
-      style={{
-        translate: transform ? `${transform.x}px ${transform.y}px` : undefined,
-        transform: transform ? `scaleX(${transform.scaleX}) scaleY(${transform.scaleY})` : undefined,
-      }}
-      aria-roledescription={canReorder ? attributes['aria-roledescription'] : undefined}
-      aria-describedby={canReorder ? attributes['aria-describedby'] : undefined}
-      aria-keyshortcuts={canReorder ? 'Alt+ArrowUp Alt+ArrowDown' : undefined}
-      onKeyDown={canReorder ? handleKeyDown : undefined}
-      onClick={onOpen}
-      className="group/goal-card orbit-hover-text relative flex w-full cursor-pointer select-none rounded-[20px] text-left data-[dragging=true]:z-[2] data-[dragging=true]:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--primary)]">
-      <span data-slot="goal-card-surface" className="[transition-property:background-color,box-shadow,scale] [transition-duration:var(--dur-hover),var(--dur-hover),var(--dur-press)] [transition-timing-function:var(--ease-standard),var(--ease-standard),var(--ease-out)] flex min-w-0 flex-1 items-center gap-3 rounded-[20px] bg-[var(--bg-card)] p-record-inset shadow-[inset_0_0_0_1px_var(--hairline-ghost)] group-hover/goal-card:bg-[var(--bg-hover)] group-hover/goal-card:shadow-[inset_0_0_0_1px_var(--hairline-strong)] motion-safe:group-active/goal-card:scale-[0.96] motion-safe:group-data-[dragging=true]/goal-card:scale-[0.96] group-data-[dragging=true]/goal-card:shadow-[var(--sh-2),inset_0_0_0_1px_var(--hairline-strong)]">
-        <span className="flex min-w-0 flex-1 flex-col gap-1">
-          <PersonalText className={`  text-[17px] font-medium ${abandoned ? 'text-[var(--fg-2)]' : 'text-[var(--fg-1)]'}`}>{goal.title}</PersonalText>
-          <span className="flex flex-wrap items-center gap-2">
-            {labelKey ? <Badge variant={abandoned ? 'outline' : 'solid'}>{t(labelKey)}</Badge> : null}
-            {!abandoned ? <span className="font-[var(--font-mono)] text-[12px] tabular-nums text-[var(--fg-2)]">{t('progressScreen.goals.progress', { current: goal.currentValue, target: goal.targetValue, unit: goal.unit })}</span> : null}
-          </span>
-        </span>
-        <GoalIndicator goal={goal} />
-      </span>
-    </button>
-  )
-}
-
-function GoalsEmptyState({ inSection = false, onCreate }: Readonly<{ inSection?: boolean; onCreate: () => void }>) {
-  const t = useTranslations()
-  const isDesktop = useIsDesktop()
-  const action = <PillButton variant={isDesktop ? 'secondary' : 'primary'} size="sm" onClick={onCreate}>{t('progressScreen.goals.createAction')}</PillButton>
-
-  if (!inSection) return <EmptyState title={t('progressScreen.goals.empty')} action={action} />
-  return <div data-goals-empty className="flex flex-col items-start gap-2 rounded-[12px] bg-[var(--bg-well)] p-4"><p className="text-[14px] text-[var(--fg-2)]">{t('progressScreen.goals.empty')}</p><div data-empty-state-action>{action}</div></div>
-}
-
-function GoalsSection({ goals, onOpenGoal, onCreate, filter, setFilter }: Readonly<{ goals: readonly Goal[]; onCreate: () => void; filter: ProgressGoalFilter; setFilter: (filter: ProgressGoalFilter) => void; onOpenGoal: (goalId: string) => void }>) {
-
-  const t = useTranslations()
-  const dragAccessibility = useDragAccessibility(t, (id) => goals.find((goal) => goal.id === id)?.title, t('dragAndDrop.goalInstructions'))
-  const reorder = useReorderGoals()
-  const [filterOpen, setFilterOpen] = useState(false)
-  // WHY: Repeated text must move between mounted regions so assistive technology sees a DOM change. https://github.com/thomasluizon/orbit-tickets/issues/480
-  const [reorderAnnouncements, setReorderAnnouncements] = useState<readonly [string, string]>(['', ''])
-  const announceReorderResult = (message: string) => {
-    setReorderAnnouncements(([first]) => first === '' ? [message, ''] : ['', message])
-  }
-  const filtered = filterProgressGoals(goals, filter)
-  const commitMove = (positions: NonNullable<ReturnType<typeof buildGoalMovePositions>>, goalId: string, target: number) => {
-    const goal = goals.find((item) => item.id === goalId)
-    if (!goal) return
-    reorder.mutate(positions, {
-      onSuccess: () => announceReorderResult(t('progressScreen.goals.reorderMoved', { title: goal.title, position: target + 1, total: goals.length })),
-    })
-  }
-  const drag = useGoalDrag(goals, filter === 'all' && !reorder.isPending, reorder.mutate)
-  const move = (goalId: string, target: number) => {
-    const currentIndex = goals.findIndex((item) => item.id === goalId)
-    const goal = goals[currentIndex]
-    if (!goal) return
-    const boundedTarget = Math.max(0, Math.min(goals.length - 1, target))
-    const positions = buildGoalMovePositions(goals, goalId, target)
-    if (!positions) {
-      announceReorderResult(t('progressScreen.goals.reorderBoundary', { title: goal.title, position: currentIndex + 1, total: goals.length }))
-      return
-    }
-    commitMove(positions, goalId, boundedTarget)
-  }
-  const options = [
-    { value: 'all', label: t('progressScreen.goals.all') }, { value: 'active', label: t('progressScreen.goals.active') },
-    { value: 'completed', label: t('progressScreen.goals.completed') }, { value: 'abandoned', label: t('progressScreen.goals.abandoned') },
-  ] as const
-  return (
-    <section aria-label={t('progressScreen.sections.goals')} className="flex flex-col gap-section-title-gap">
-      {goals.length > 0 ? <Menu.Root open={filterOpen} onOpenChange={setFilterOpen}><ActionRow><Menu.Trigger asChild><PillButton variant="ghost" size="sm" minimumHeight={SMALL_PILL_VISIBLE_MIN} accessibleName={`${t('progressScreen.goals.filter')}: ${t(`progressScreen.goals.${filter}`)}`}>{t(`progressScreen.goals.${filter}`)}</PillButton></Menu.Trigger><IconButton label={t('goals.create')} onClick={onCreate}><Plus size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton></ActionRow>
-        <Menu.Content title={t('progressScreen.goals.views')} shortTitle={t('progressScreen.goals.filter')} presentation="sheet"
-          items={options.map((option) => ({ id: option.value, label: option.label, checked: option.value === filter }))}
-          onSelect={(id) => { const option = options.find((item) => item.value === id); if (option) setFilter(option.value) }} /></Menu.Root> : null}
-      {goals.length === 0 ? <GoalsEmptyState onCreate={onCreate} inSection /> : null}
-      {goals.length > 0 && filtered.length === 0 ? <div data-goals-empty className="flex flex-col items-start gap-2 rounded-[12px] bg-[var(--bg-well)] p-4"><p className="text-[14px] text-[var(--fg-2)]">{t('progressScreen.goals.filterEmpty')}</p><PillButton variant="ghost" size="sm" minimumHeight={48} onClick={() => setFilter('all')}>{t('progressScreen.goals.clearFilter')}</PillButton></div> : null}
-      <DndContext accessibility={dragAccessibility} sensors={drag.sensors} onDragEnd={drag.onDragEnd} collisionDetection={closestCenter}><SortableContext items={filtered.map((goal) => goal.id)} strategy={verticalListSortingStrategy}><div className="flex flex-col gap-3">
-          <ListPresence>{filtered.map((goal) => {
-            const index = goals.findIndex((item) => item.id === goal.id)
-            return <ListMotionItem key={goal.id}><GoalCard goal={goal} index={index} total={goals.length} canReorder={filter === 'all' && !reorder.isPending} onMove={move} onOpen={() => onOpenGoal(goal.id)} /></ListMotionItem>
-          })}</ListPresence>
-        </div></SortableContext></DndContext>
-      {reorderAnnouncements.map((message, index) => (
-        <p key={index} role="status" aria-live="polite" aria-atomic="true" data-testid="goal-reorder-status" className="sr-only">{message}</p>
-      ))}
-      {reorder.isError ? <p role="alert" className="text-[14px] text-[var(--fg-2)]">{t('progressScreen.goals.reorderError')}</p> : null}
-    </section>
-  )
-}
-
 function TopHabitRow({ habit }: Readonly<{ habit?: { name: string; emoji: string | null; habitId?: string | null } }>) {
   const t = useTranslations()
   const [expanded, setExpanded] = useState(false)
@@ -605,53 +444,6 @@ function AchievementsSection({ gamificationAvailable, profile, xpProgress }: Rea
         {achievements.length === 0 ? <EmptyState title={t('progressScreen.achievements.empty')} action={<PillLink href="/" variant="primary" size="sm">{t('progressScreen.achievements.emptyAction')}</PillLink>} /> : categories.map((category) => <div key={category} className="flex flex-col gap-section-title-gap"><h2 className="pt-1 text-[14px] font-medium leading-5 text-[var(--fg-2)]">{t(`gamification.categories.${category}`)}</h2><div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,260px),1fr))] gap-3 lg:gap-4">{achievements.filter((achievement) => achievement.category === category).map((achievement) => <AchievementTile key={achievement.id} achievement={achievement} />)}</div></div>)}
       </Section>
     </>
-  )
-}
-
-function ProgressGoalsContent() {
-  const [goalFilter, setGoalFilter] = useAccountScopedState<ProgressGoalFilter>('all')
-  const [creating, setCreating] = useAccountScopedState(false)
-  const [createdGoalId, setCreatedGoalId] = useAccountScopedState<string | null>(null)
-  const openCreateGoal = () => { setCreatedGoalId(null); setCreating(true) }
-  const contentRef = useRef<HTMLDivElement>(null)
-  useEffect(() => {
-    if (creating || !createdGoalId) return
-    const card = Array.from(contentRef.current?.querySelectorAll<HTMLElement>('[data-goal-id]') ?? []).find((element) => element.dataset.goalId === createdGoalId)
-    const destination = card ?? contentRef.current?.querySelector<HTMLElement>('[data-progress-focus]')
-    destination?.focus()
-  }, [creating, createdGoalId])
-  const [detailGoalId, setDetailGoalId] = useAccountScopedState<string | null>(null)
-  const openingGoalId = useRef<string | null>(null)
-  useEffect(() => {
-    if (detailGoalId) { openingGoalId.current = detailGoalId; return }
-    const previousGoal = openingGoalId.current
-    if (!previousGoal) return
-    const card = Array.from(contentRef.current?.querySelectorAll<HTMLElement>('[data-goal-id]') ?? []).find((element) => element.dataset.goalId === previousGoal)
-    ;(card ?? contentRef.current?.querySelector<HTMLElement>('[data-progress-focus]'))?.focus()
-    openingGoalId.current = null
-  }, [detailGoalId])
-  const t = useTranslations()
-
-  const goals = useGoals()
-  const allGoals = goals.data?.allGoals ?? []
-  const error = goals.isError
-  const loading = !error && goals.isLoading
-  const empty = !loading && !error && allGoals.length === 0
-  const retry = () => { void goals.refetch() }
-  return (
-    <div ref={contentRef} className="mx-auto flex w-full min-w-0 max-w-[740px] flex-1 flex-col">
-      {creating ? <CreateGoalSheet open restoreFocusOnCreate={false} onCreated={(goalId) => { setGoalFilter('all'); setCreatedGoalId(goalId) }} onClose={() => setCreating(false)} /> : null}
-      {detailGoalId ? <div className="px-screen-gutter pt-4"><GoalDetailDrawer key={detailGoalId} inline open onOpenChange={(open) => { if (!open) setDetailGoalId(null) }} goalId={detailGoalId} /></div> : null}
-      <div hidden={detailGoalId !== null} className="flex w-full flex-1 flex-col">
-        <ProgressSubscreen screen="goals" hideHeader={detailGoalId !== null}>
-          <p data-progress-focus tabIndex={-1} className="sr-only">{t('progressScreen.sections.goals')}</p>
-          {loading ? <ProgressLoading label={t('progressScreen.loading')} screen="goals" /> : null}
-          {error ? <div className="w-full"><ErrorState message={t('progressScreen.error')} action={<IconButton label={t('progressScreen.retry')} onClick={retry}><RefreshCw size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton>} /></div> : null}
-          {empty ? <ShellCentredRegion><GoalsEmptyState onCreate={openCreateGoal} /></ShellCentredRegion> : null}
-          {!loading && !error && !empty ? <GoalsSection filter={goalFilter} setFilter={setGoalFilter} onCreate={openCreateGoal} onOpenGoal={setDetailGoalId} goals={allGoals} /> : null}
-        </ProgressSubscreen>
-      </div>
-    </div>
   )
 }
 
