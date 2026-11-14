@@ -142,6 +142,9 @@ module.exports = {
       if (FULL_TURN_RE.test(value.trim())) drawsFullTurn = true
     }
     return {
+      ExportSpecifier(node) {
+        if ([node.local, node.exported].some((name) => spinnerName(name?.name ?? name?.value))) context.report({ node, messageId: 'noSpinner' })
+      },
       Property(node) {
         const key = node.key.type === 'Identifier' ? node.key.name : node.key.value
         if (key === 'repeat' && isInfinity(node.value)) loopCalls.push(node)

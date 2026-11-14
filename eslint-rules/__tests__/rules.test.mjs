@@ -700,6 +700,7 @@ ruleTester.run('no-spinner', rule('no-spinner'), {
     "rotation.value = withTiming(open ? 180 : 0)",
     "<motion.span animate={{ rotate: 360 }} transition={{ duration: 0.3 }} />",
     "<motion.span animate={{ opacity: [1, 0.55, 1] }} transition={{ repeat: Infinity }} />",
+    "export { IconRefresh as RefreshCw } from '@tabler/icons-react'",
   ],
   invalid: [
     { code: "import { ActivityIndicator, View } from 'react-native'", errors: [{ messageId: 'noSpinner' }] },
@@ -729,6 +730,9 @@ ruleTester.run('no-spinner', rule('no-spinner'), {
     { code: 'Animated.loop(Animated.timing(spin, { toValue: 360, useNativeDriver: true }))', errors: [{ messageId: 'noSpinner' }] },
     { code: '<motion.span animate={{ rotate: 360 }} transition={{ repeat: Infinity, ease: "linear" }} />', errors: [{ messageId: 'noSpinner' }] },
     { code: '<motion.div animate={{ rotateZ: -360 }} transition={{ repeat: Number.POSITIVE_INFINITY }} />', errors: [{ messageId: 'noSpinner' }] },
+    { code: "export { IconLoader2 as Loader2 } from '@tabler/icons-react'", errors: [{ messageId: 'noSpinner' }] },
+    { code: "export { IconLoader2 as Busy } from '@tabler/icons-react'", errors: [{ messageId: 'noSpinner' }] },
+    { code: "export { Spinner } from './spinner'", errors: [{ messageId: 'noSpinner' }] },
     { code: `<RefreshControl refreshing={false} onRefresh={refetch} colors={['transparent']} progressBackgroundColor="transparent" tintColor={tokens.primary} progressViewOffset={-192} />`, errors: [{ messageId: 'visibleRefreshIndicator' }] },
     { code: `<RN.RefreshControl refreshing={false} colors={['transparent']} progressBackgroundColor="transparent" tintColor="transparent" progressViewOffset={20} />`, errors: [{ messageId: 'visibleRefreshIndicator' }] },
     { code: `<RefreshControl refreshing={false} colors={[tokens.primary]} progressBackgroundColor="transparent" tintColor="transparent" progressViewOffset={-192} />`, errors: [{ messageId: 'visibleRefreshIndicator' }] },
