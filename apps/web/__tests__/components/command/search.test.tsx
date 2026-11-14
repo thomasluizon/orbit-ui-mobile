@@ -216,6 +216,7 @@ describe('habit search', () => {
       if (query) fireEvent.change(screen.getByRole('combobox'), { target: { value: query } })
       act(() => { vi.advanceTimersByTime(301) })
       expect(palette.container.querySelectorAll('.skeleton-pulse').length).toBeGreaterThan(0)
+      for (const block of palette.container.querySelectorAll('.skeleton-pulse')) expect(block).toHaveClass('rounded-[var(--r-well)]', 'bg-[var(--bg-well)]')
       expect(palette.container.querySelectorAll('[data-search-skeleton-row]')).toHaveLength(skeleton ? 0 : 3)
       expect(screen.queryByRole('status')).toBe(skeleton ? null : screen.getByRole('status'))
     } finally { vi.useRealTimers() }
