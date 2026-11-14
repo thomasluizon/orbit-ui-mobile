@@ -290,7 +290,7 @@ describe.each([
     const parts = i18n.language === 'en' ? 'every day at 08:00' : 'todo dia às 08:00'
     expect(tree.hosts().some((node) => node.props.children === flowCopy().what.lineUnderstood.replace('{parts}', parts))).toBe(true)
     expect(tree.hosts().some((node) => node.props.accessibilityLabel === (i18n.language === 'en' ? en : ptBR).habits.form.understood)).toBe(true)
-    expect(tree.hosts().find((node) => node.props.accessibilityLabel === flowCopy().what.label && 'maxLength' in node.props)?.props.maxLength).toBe(200)
+    expect((tree.hosts().find((node) => node.props.accessibilityLabel === flowCopy().what.label && 'maxLength' in node.props)?.props as { maxLength?: number } | undefined)?.maxLength).toBe(200)
     tree.unmount()
   })
 
