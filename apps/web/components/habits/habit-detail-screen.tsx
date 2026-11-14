@@ -6,7 +6,7 @@ import { IconButton } from '@/components/ui/icon-button'
 
 import { OrbitMascot } from '@/components/ui/orbit-mascot'
 
-import { computeHabitRowNextDueHint, getHabitTypeLabelKey, getHabitRowTypeLabelKey, splitDescriptionLinks } from '@orbit/shared/utils'
+import { computeHabitRowNextDueHint, getHabitTypeLabelKey, getHabitRowTypeLabelKey, splitDescriptionLinks, STAT_VALUE_SIZER } from '@orbit/shared/utils'
 
 import { DescriptionCopyButton } from './description-copy-button'
 
@@ -335,6 +335,7 @@ function MetricsSection({ visible, loading, error, metrics, isBadHabit }: Readon
               <span aria-hidden="true" className="invisible w-0">0</span>
               <span data-habit-detail-stat-value="">{loading ? <span data-habit-detail-stat-skeleton="" className="block h-[22px] w-12 self-center"><Skeleton variant="fill" grouped /></span> : item.value}</span>
             </span>
+            <span aria-hidden="true" data-habit-detail-stat-sizer="" className="invisible col-start-1 row-start-1">{STAT_VALUE_SIZER}</span>
           </span>
         </div>
       ))}

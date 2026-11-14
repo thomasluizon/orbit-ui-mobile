@@ -177,7 +177,7 @@ describe('habit detail stat card geometry', () => {
     const view = renderDetail()
     const page = await browser.newPage({ viewport: { width, height: 915 } })
     try {
-      const scaledStyles = fontScale === 2 ? '[data-habit-detail-stat-label] { font-size: 28px; line-height: 40px; } [data-habit-detail-stat-value] { font-size: 44px; line-height: 1.3; } [data-habit-detail-stat-value] > span { font-size: 28px; } [data-habit-detail-stat-label] + span { font-size: 44px; } [data-habit-detail-stat-label] + span > [aria-hidden] { font-size: 28px; }' : ''
+      const scaledStyles = fontScale === 2 ? '[data-habit-detail-stat-label] { font-size: 28px; line-height: 40px; } [data-habit-detail-stat-value] { font-size: 44px; line-height: 1.3; } [data-habit-detail-stat-value] > span { font-size: 28px; } [data-habit-detail-stat-label] + span { font-size: 44px; }' : ''
       const markup = view.container.querySelector('[data-habit-detail-content]')!.outerHTML
       await page.setContent(`<style>${stylesheet}${scaledStyles}</style>${markup}`)
       await page.evaluate(() => document.fonts.ready)

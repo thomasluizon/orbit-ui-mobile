@@ -55,6 +55,7 @@ export {
   hasAuthoritativeHabitRelationshipState,
   HABIT_DETAIL_FREQUENCY_UNITS,
   HABIT_DETAIL_WEEKDAYS,
+  STAT_VALUE_SIZER,
   mergeHabitDetailWithScopedHabit,
   parseHabitHistoryDate,
   removeHabitDetailChild,

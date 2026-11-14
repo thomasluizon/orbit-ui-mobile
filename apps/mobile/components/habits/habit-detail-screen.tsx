@@ -51,6 +51,7 @@ import {
   shouldShowHabitMetrics,
   getHabitTypeLabelKey,
   getHabitRowTypeLabelKey,
+  STAT_VALUE_SIZER,
 } from '@orbit/shared/utils'
 import { prepareChatRequest } from '@orbit/shared/stores'
 import { useChatStore } from '@/stores/chat-store'
@@ -175,6 +176,7 @@ function Metrics({ visible, loading, error, metrics, isBadHabit, tokens }: Reado
                 ? <View testID="habit-detail-stat-skeleton" style={styles.statValueSkeleton}><Skeleton variant="fill" grouped /></View>
                 : <Text testID="habit-detail-stat-value" style={[styles.statValue, { color: tokens.fg1 }]}>{item.value}</Text>}
             </View>
+            <Text accessible={false} accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={[styles.statValue, styles.statValueSizer, { color: tokens.fg1 }]}>{STAT_VALUE_SIZER}</Text>
           </View>
         </View>
       ))}
@@ -677,6 +679,7 @@ const styles = StyleSheet.create({
   statValueSlot: { marginStart: 'auto', flexShrink: 0, maxWidth: '100%', alignItems: 'flex-end' },
   statValueLine: { flexDirection: 'row', alignItems: 'baseline' },
   statValueStrut: { width: 0, opacity: 0 },
+  statValueSizer: { height: 0, opacity: 0 },
   statValue: { minWidth: 0, textAlign: 'right', fontFamily: 'SpaceGrotesk_600SemiBold', fontSize: 22, lineHeight: 28.6, fontVariant: ['tabular-nums'] },
   statValueSkeleton: { width: 48, height: 22, alignSelf: 'center' },
   headerMetadata: { paddingTop: SPACING.s12 },
