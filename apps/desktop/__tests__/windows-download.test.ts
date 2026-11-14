@@ -38,11 +38,13 @@ $ErrorActionPreference = 'Stop'
 $script:attempts = 0
 function Invoke-WebRequest {
     param($Uri, $OutFile, [switch]$UseBasicParsing, $TimeoutSec)
-    if ($OutFile -like "*$($env:TEST_ARTIFACT)*") {
+    # WHY: Match the file name only. The random temp folder in the full path can contain an artifact name.
+    $isTestArtifact = [System.IO.Path]::GetFileName($OutFile) -like "$($env:TEST_ARTIFACT).*"
+    if ($isTestArtifact) {
         $script:attempts++
         Add-Content (Join-Path $env:TEST_ROOT 'attempts') $script:attempts
     }
-    if ($OutFile -like "*$($env:TEST_ARTIFACT)*" -and ($env:TEST_MODE -eq 'always' -or ($env:TEST_MODE -eq 'transient' -and $script:attempts -lt 3))) {
+    if ($isTestArtifact -and ($env:TEST_MODE -eq 'always' -or ($env:TEST_MODE -eq 'transient' -and $script:attempts -lt 3))) {
         [System.IO.File]::WriteAllText($OutFile, 'partial')
         throw 'simulated network failure'
     }
