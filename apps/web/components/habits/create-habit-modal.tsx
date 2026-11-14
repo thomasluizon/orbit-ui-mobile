@@ -358,8 +358,12 @@ export function CreateHabitModal({
     else showError(message)
   }, [formHelpers, guided, showError, translate, createErrorKey, createErrorEntity])
 
+  const submittingRef = useRef(false)
   const submitForm = useCallback(
     async (completion?: GuidedHabitCompletion) => {
+      if (submittingRef.current) return
+      submittingRef.current = true
+      try {
       const submittingAccount = getAccountGeneration()
 
       const subHabitValues = subHabits.map((entry) => entry.value)
@@ -401,6 +405,7 @@ export function CreateHabitModal({
         if (getAccountGeneration() !== submittingAccount) return
         reportCreateFailure(error)
       }
+      } finally { submittingRef.current = false }
     },
     [guided, reportCreateFailure, requestReminderPermission, finishClose, createHabit, createSubHabit, formHelpers, isOnline, isSubHabitMode, locale, onCreated, onOpenChange, parentHabit, reminderTimes, selectedGoalIds, showError, subHabits, tags],
   )
