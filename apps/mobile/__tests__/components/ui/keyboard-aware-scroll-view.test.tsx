@@ -2,6 +2,7 @@ import React from 'react'
 import { Platform, ScrollView, StyleSheet, TextInput, View } from 'react-native'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
+  AccessibilityInfo as TestAccessibilityInfo,
   __emitKeyboardEvent,
   __resetTestHostConfig,
   __setHostRefsNull,
@@ -290,6 +291,25 @@ describe('KeyboardAwareScrollView (mobile)', () => {
       TestRenderer.act(() => tree.root.findByType(TextInput).props.onFocus({ nativeEvent: {} }))
       TestRenderer.act(() => __emitKeyboardEvent('keyboardDidShow', { endCoordinates: { screenY: KEYBOARD_TOP } }))
       expect(scrollTo).toHaveBeenLastCalledWith({ y: 300 + 243 - (KEYBOARD_TOP - REVEAL_MARGIN), animated: true })
+    })
+
+    it.each([true, false])('lifts the group with no animation exactly when reduce motion is on, as web jumps (reduce motion: %s)', (reduced) => {
+      const listeners = new Set<(enabled: boolean) => void>()
+      const subscription = vi.spyOn(TestAccessibilityInfo, 'addEventListener').mockImplementation((event, listener) => {
+        if (event === 'reduceMotionChanged') listeners.add(listener)
+        return { remove: () => { listeners.delete(listener) } }
+      })
+      const { tree, scrollTo } = renderFieldAndAction({ current: { y: 300, height: 243 } })
+      try {
+        TestRenderer.act(() => listeners.forEach((listener) => listener(reduced)))
+        TestRenderer.act(() => tree.root.findByType(TextInput).props.onFocus({ nativeEvent: {} }))
+        TestRenderer.act(() => __emitKeyboardEvent('keyboardDidShow', { endCoordinates: { screenY: KEYBOARD_TOP } }))
+        expect(scrollTo).toHaveBeenLastCalledWith({ y: 300 + 243 - (KEYBOARD_TOP - REVEAL_MARGIN), animated: !reduced })
+      } finally {
+        TestRenderer.act(() => listeners.forEach((listener) => listener(false)))
+        TestRenderer.act(() => tree.unmount())
+        subscription.mockRestore()
+      }
     })
 
     it('lifts the group again when it grows while the field keeps focus', () => {

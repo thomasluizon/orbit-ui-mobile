@@ -31,6 +31,7 @@ import {
   type StyleProp,
   type ViewStyle,
 } from 'react-native'
+import { usePrefersReducedMotion } from '@/lib/motion'
 interface KeyboardAwareViewProps {
   children: ReactNode
   style?: StyleProp<ViewStyle>
@@ -130,6 +131,7 @@ function scrollFocusedInputIntoView(
   keyboardFrame: KeyboardAwareKeyboardFrame | null,
   currentScrollY: number,
   additionalOffset: number,
+  animated: boolean,
 ) {
   if (!scrollable || !input || !keyboardFrame) {
     return
@@ -161,12 +163,12 @@ function scrollFocusedInputIntoView(
     const nextScrollY = Math.max(0, currentScrollY + delta)
 
     if (typeof scrollable.scrollToOffset === 'function') {
-      scrollable.scrollToOffset({ offset: nextScrollY, animated: true })
+      scrollable.scrollToOffset({ offset: nextScrollY, animated })
       return
     }
 
     if (typeof scrollable.scrollTo === 'function') {
-      scrollable.scrollTo({ y: nextScrollY, animated: true })
+      scrollable.scrollTo({ y: nextScrollY, animated })
       return
     }
 
@@ -206,6 +208,11 @@ function useKeyboardAwareContextValue(
   const screenShift = useContext(KeyboardAwareScreenShiftContext)
   const yieldEnclosingRevealMargin = useContext(KeyboardAwareContext)?.yieldRevealMargin ?? null
   const marginYieldsRef = useRef(0)
+  const prefersReducedMotion = usePrefersReducedMotion()
+  const prefersReducedMotionRef = useRef(prefersReducedMotion)
+  useEffect(() => {
+    prefersReducedMotionRef.current = prefersReducedMotion
+  }, [prefersReducedMotion])
 
   const refresh = useCallback(() => {
     const scrollable = scrollableRef.current
@@ -225,6 +232,7 @@ function useKeyboardAwareContextValue(
         { top: visibleBottom, visibleTop: y },
         scrollOffsetYRef.current,
         REVEAL_MARGIN,
+        !prefersReducedMotionRef.current,
       )
     })
   }, [keyboardVerticalOffset, screenShift, scrollableRef])
