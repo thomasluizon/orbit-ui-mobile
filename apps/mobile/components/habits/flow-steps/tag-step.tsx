@@ -21,7 +21,8 @@ import { useTagStepActions, type TagStepActions } from '@/hooks/use-tag-step-act
 import { useThemeTokens } from '@/hooks/use-theme-tokens'
 import { TagStepRows } from './tag-step-list'
 
-const QUICK_TAGS = 4
+/** Three tags and `Sem tag` keep the step at four quick options, the 2 by 2 grid. More tags than this put every tag behind the search. */
+const QUICK_TAGS = 3
 
 export interface TagStepProps {
   /** The tag selection the habit form owns. The step is a view over it. */
@@ -64,7 +65,7 @@ function TagStepFree({ tags, actions, onPressTag }: Readonly<{ tags: TagSelectio
     <>
       {tags.atTagLimit ? <Text testID="tag-limit" style={[styles.note, { color: tokens.fg3 }]}>{t('habits.form.tagLimit')}</Text> : null}
       <Input label={t('habits.form.newTag')} value={tags.newTagName} maxLength={MAX_TAG_NAME_LENGTH} placeholder={t('habits.form.tagName')}
-        error={actions.newTagError} focusRequest={actions.newTagFocusRequest} disabled={actions.creating} onChange={actions.changeNewTagName} onSubmit={create} />
+        error={actions.newTagError} focusRequest={actions.newTagFocusRequest} disabled={actions.creating || tags.atTagLimit} onChange={actions.changeNewTagName} onSubmit={create} />
       <View style={styles.add}>
         <IconButton label={t('common.add')} loading={actions.creating} disabled={tags.atTagLimit} onPress={create}><Plus size={20} color={tokens.fg1} strokeWidth={1.5} /></IconButton>
       </View>

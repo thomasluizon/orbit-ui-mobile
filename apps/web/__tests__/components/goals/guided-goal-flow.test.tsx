@@ -124,6 +124,9 @@ describe('the guided goal create flow', () => {
     await press('Continue')
     await press('No deadline')
     await press('Continue')
+    await press(/^By when/)
+    expect(screen.getByRole('button', { name: 'No deadline' }), 'back keeps the answer').toHaveAttribute('aria-pressed', 'true')
+    await press('No deadline')
     await press('Create goal')
     const draft = { ...createGoalDraft(), goalType: 'Streak' as const, description: 'Gym days', targetValue: '30', unit: en.goals.form.streakUnit, deadline: '' }
     expect(mocks.create).toHaveBeenCalledWith(buildGoalCreationRequest(draft))
@@ -366,6 +369,8 @@ describe('the guided goal edit flow', () => {
   const goal = { id: 'g1', title: 'Run 100km', targetValue: 100, unit: 'km', deadline: '2026-12-31', type: 'Standard' }
 
   it('opens on the summary with the stored values and saves one change with the request of the current modal', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date('2026-11-13T12:00:00Z'))
     const onOpenChange = vi.fn()
     renderWith('en', <EditGoalModal open onOpenChange={onOpenChange} goal={goal} />)
     expect(heading()).toHaveTextContent('Is this right?')
@@ -374,6 +379,7 @@ describe('the guided goal edit flow', () => {
     expect(screen.getByText('Progress')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /Tracking/ })).not.toBeInTheDocument()
     await press(/^By when/)
+    expect(screen.getByRole('button', { name: 'End of the year' }), 'the stored deadline is the answer of an edit').toHaveAttribute('aria-pressed', 'true')
     await press('No deadline')
     expect(heading()).toHaveTextContent('Is this right?')
     await press('Save')

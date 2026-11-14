@@ -21,7 +21,8 @@ import type { TagSelectionState } from '@/hooks/use-tag-selection'
 import { useTagStepActions, type TagStepActions } from '@/hooks/use-tag-step-actions'
 import { TagStepRows } from './tag-step-list'
 
-const QUICK_TAGS = 4
+/** Three tags and `Sem tag` keep the step at four quick options, the 2 by 2 grid. More tags than this put every tag behind the search. */
+const QUICK_TAGS = 3
 
 export interface TagStepProps {
   /** The tag selection the habit form owns. The step is a view over it. */
@@ -64,7 +65,7 @@ function TagStepFree({ tags, actions, onPressTag }: Readonly<{ tags: TagSelectio
     <>
       {tags.atTagLimit ? <p data-tag-limit="" className="text-center text-sm text-[var(--fg-3)]">{t('habits.form.tagLimit')}</p> : null}
       <Input label={t('habits.form.newTag')} name="newTag" value={tags.newTagName} maxLength={MAX_TAG_NAME_LENGTH} placeholder={t('habits.form.tagName')}
-        error={actions.newTagError} focusRequest={actions.newTagFocusRequest} disabled={actions.creating} onChange={actions.changeNewTagName} onSubmit={create} />
+        error={actions.newTagError} focusRequest={actions.newTagFocusRequest} disabled={actions.creating || tags.atTagLimit} onChange={actions.changeNewTagName} onSubmit={create} />
       <div className="flex justify-end">
         <IconButton label={t('common.add')} loading={actions.creating} disabled={tags.atTagLimit} onClick={create}><Plus size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton>
       </div>

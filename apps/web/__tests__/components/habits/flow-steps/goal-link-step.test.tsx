@@ -103,10 +103,10 @@ describe('the goal step', () => {
     expect(onContinue).toHaveBeenCalledTimes(1)
   })
 
-  it('puts the selected goals first and every goal behind the search when there are more than four', async () => {
+  it('puts the selected goals first and every goal behind the search when there are more than three', async () => {
     state.goals = goals(6)
     render(<Harness initial={['goal-6']} />)
-    expect(options().map((option) => option.textContent)).toEqual(['Meta 6, 50%', 'Meta 1, 0%', 'Meta 2, 10%', 'Meta 3, 20%', 'Criar meta'])
+    expect(options().map((option) => option.textContent)).toEqual(['Meta 6, 50%', 'Meta 1, 0%', 'Meta 2, 10%', 'Criar meta'])
     await act(async () => { fireEvent.change(screen.getByRole('searchbox', { name: 'Buscar metas' }), { target: { value: 'meta 5' } }) })
     await press('Meta 5')
     expect(state.selected).toEqual(['goal-6', 'goal-5'])
@@ -114,8 +114,8 @@ describe('the goal step', () => {
     expect(screen.getByText('Nenhuma meta com esse nome.')).toBeInTheDocument()
   })
 
-  it('shows no search while four goals or fewer fit the options', () => {
-    state.goals = goals(4)
+  it('shows no search while three goals or fewer fit the options', () => {
+    state.goals = goals(3)
     render(<Harness />)
     expect(screen.queryByRole('searchbox')).not.toBeInTheDocument()
   })

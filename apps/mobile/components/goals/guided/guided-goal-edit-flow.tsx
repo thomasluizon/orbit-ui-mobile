@@ -53,7 +53,7 @@ function GoalEditRun({ goal, onClose, onSaved }: Readonly<GuidedGoalEditFlowProp
       if (!backendErrors.reportBackendErrors(failure).handled) setFormError(getFriendlyErrorMessage(failure, translate, 'goals.errors.update', 'goal'))
     }
   }
-  const context = { draft: port, hint: hints.hint, submit: hints.submit, advance: flow.advance }
+  const context = { draft: port, hint: hints.hint, submit: hints.submit, advance: flow.advance, deadlineAnswered: true }
   const views: Partial<Record<GoalFlowStep, FlowStepView>> = {
     what: useWhatView(context),
     amount: useAmountView(context),

@@ -16,8 +16,8 @@ import { useThemeTokens } from '@/hooks/use-theme-tokens'
 
 const useGoalLinking = createUseGoalLinking(useAccountScopedState)
 
-/** The quick options show this many goals, the selected ones first. More goals than this put every goal behind the search. */
-const QUICK_GOALS = 4
+/** Three goals and `Criar meta` keep the step at four quick options, the 2 by 2 grid. More goals than this put every goal behind the search. */
+const QUICK_GOALS = 3
 
 export interface GoalLinkStepProps {
   /** Absent while the habit is not saved yet. */

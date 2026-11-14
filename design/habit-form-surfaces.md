@@ -116,9 +116,9 @@ owners keep. No noun stands alone as a title, a heading, a row label or a list t
 
 | Step | Hook and owner on both platforms | Question, quick options and free path |
 |---|---|---|
-| Tags | `useTagStepView`, `flow-steps/tag-step.tsx` over `use-tag-selection`, `use-tags`, `use-tag-suggestions` | Quer juntar com coisas parecidas?; up to 4 of the person's tags (selected first) and Sem tag; Nova tag, a search over every tag above 4, rename and delete behind Quer mudar o nome ou apagar uma tag?, and the AI suggestion in the `proposed` state |
+| Tags | `useTagStepView`, `flow-steps/tag-step.tsx` over `use-tag-selection`, `use-tags`, `use-tag-suggestions` | Quer juntar com coisas parecidas?; up to 3 of the person's tags (those selected when the step opens first) and Sem tag, so the step keeps four quick options; Nova tag, a search over every tag above 3, rename and delete behind Quer mudar o nome ou apagar uma tag?, and the AI suggestion in the `proposed` state |
 | Checklist and templates | `useChecklistStepView`, `flow-steps/checklist-step.tsx` and `flow-steps/template-step.tsx` over `HabitChecklist` (edit mode) and `use-checklist-templates` | Tem passos dentro disso?; Não and Usar um modelo; the item editor. Não never drops typed steps: with steps it waits for a clear and says why. The template question (each template with its item count, a load, a delete) and the save question (one name field) are questions inside the step |
-| Goals | `useGoalLinkStepView`, `flow-steps/goal-link-step.tsx` over `createUseGoalLinking` | Isso ajuda em alguma meta?; up to 4 active goals and Criar meta; a search over every active goal above 4. Criar meta opens the goal create flow with the habit, and the new goal returns selected |
+| Goals | `useGoalLinkStepView`, `flow-steps/goal-link-step.tsx` over `createUseGoalLinking` | Isso ajuda em alguma meta?; up to 3 active goals with their progress and Criar meta; a search over every active goal above 3. Criar meta opens the goal create flow with the habit, and the new goal returns selected |
 
 The tag line after a press reads the cache that holds every habit, `useHabits({})` with `enabled: false`, the same query
 the linked-habit picker uses. `buildTagLineItems` (`packages/shared/src/utils/tag-flow-line.ts`)

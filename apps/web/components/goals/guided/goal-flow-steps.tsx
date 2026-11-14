@@ -50,6 +50,8 @@ export interface GoalStepContext {
   /** Validates the step, then shows its hint or moves on. */
   submit: (step: GoalFlowStep) => void
   advance: () => void
+  /** True when the deadline already holds an answer, as the stored goal of an edit does. A fresh draft has none, so no deadline option shows as chosen. */
+  deadlineAnswered?: boolean
 }
 
 function hintFor(hint: GoalStepHint | null, field: GoalStepHint['field']) {
@@ -106,15 +108,16 @@ const DEADLINE_CHOICES: readonly { choice: GoalDeadlineChoice; label: string }[]
   { choice: 'yearEnd', label: 'goals.flow.deadline.yearEnd' },
 ]
 
-export function useDeadlineView({ draft, advance }: GoalStepContext): FlowStepView {
+export function useDeadlineView({ draft, advance, deadlineAnswered = false }: GoalStepContext): FlowStepView {
   const t = useTranslations()
   const locale = useLocale()
   const { profile } = useProfile()
   const [words, setWords] = useState('')
   const [issue, setIssue] = useState<string | undefined>()
+  const [answered, setAnswered] = useState(deadlineAnswered)
   const now = new Date()
   const today = getAccountDay(now, profile?.timeZone)
-  const choose = (deadline: string) => { setIssue(undefined); draft.setDeadline(deadline); advance() }
+  const choose = (deadline: string) => { setIssue(undefined); setAnswered(true); draft.setDeadline(deadline); advance() }
   const submitWords = () => {
     if (words.trim().length === 0) { advance(); return }
     const read = parseDatePhrase(words, { referenceDate: today, locale, timeZone: profile?.timeZone })
@@ -128,7 +131,7 @@ export function useDeadlineView({ draft, advance }: GoalStepContext): FlowStepVi
     options: <>
       {DEADLINE_CHOICES.map(({ choice, label }) => {
         const value = resolveGoalDeadlineChoice(choice, now, profile?.timeZone)
-        return <OptionCard key={choice} label={t(label)} selected={value !== '' && draft.deadline === value} onSelect={() => choose(value)} />
+        return <OptionCard key={choice} label={t(label)} selected={answered && draft.deadline === value} onSelect={() => choose(value)} />
       })}
     </>,
     free: <>

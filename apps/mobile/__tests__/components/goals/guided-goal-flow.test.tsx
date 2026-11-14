@@ -154,6 +154,9 @@ describe('the guided goal create flow on Android', () => {
     await tap(tree, 'Continue')
     await tap(tree, 'No deadline')
     await tap(tree, 'Continue')
+    await tap(tree, /^By when/)
+    expect(control(tree, 'No deadline').props.accessibilityState?.selected, 'back keeps the answer').toBe(true)
+    await tap(tree, 'No deadline')
     await tap(tree, 'Create goal')
     const draft = { ...createGoalDraft(), goalType: 'Streak' as const, description: 'Gym days', targetValue: '30', unit: i18n.t('goals.form.streakUnit'), deadline: '' }
     expect(mocks.create).toHaveBeenCalledWith(buildGoalCreationRequest(draft))
@@ -310,6 +313,8 @@ describe('the guided goal edit flow on Android', () => {
   const goal = { id: 'g1', title: 'Run 100km', targetValue: 100, unit: 'km', deadline: '2026-12-31', type: 'Standard' }
 
   it('opens on the summary with the stored values and saves one change with the request of the current modal', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date('2026-11-13T12:00:00Z'))
     await i18n.changeLanguage('en')
     const onClose = vi.fn()
     const tree = renderNavigation(<EditGoalModal open onClose={onClose} goal={goal} />)
@@ -318,6 +323,7 @@ describe('the guided goal edit flow on Android', () => {
     expect(control(tree, /^How much, 100 km$/)).toBeDefined()
     expect(tree.hosts().some((node) => /^Tracking/.test(node.props.accessibilityLabel ?? '') && node.props.onPress)).toBe(false)
     await tap(tree, /^By when/)
+    expect(control(tree, 'End of the year').props.accessibilityState?.selected, 'the stored deadline is the answer of an edit').toBe(true)
     await tap(tree, 'No deadline')
     await tap(tree, 'Save')
     expect(mocks.update).toHaveBeenCalledWith({ goalId: 'g1', data: { title: 'Run 100km', targetValue: 100, unit: 'km', deadline: null } })

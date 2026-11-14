@@ -107,6 +107,7 @@ describe('tag selection', () => {
     expect(selected()).toBe('tag-0,tag-1,tag-2,tag-3,tag-4')
     expect(screen.getAllByText(en.habits.form.tagLimit).filter((node) => !node.closest('[hidden]'))).toHaveLength(1)
     expect(document.querySelector('[data-tag-limit]')).toHaveTextContent(en.habits.form.tagLimit)
+    expect(screen.getByRole('textbox', { name: en.habits.form.newTag }), 'no new tag past the limit').toBeDisabled()
     fireEvent.change(screen.getByRole('searchbox', { name: en.habits.form.searchTags }), { target: { value: 'F' } })
     expect(screen.getByRole('button', { name: 'F', pressed: false })).toBeDisabled()
     expect(screen.queryByRole('link')).toBeNull()
@@ -116,13 +117,13 @@ describe('tag selection', () => {
     expect(document.querySelector('[data-tag-limit]')).toBeNull()
   })
 
-  it('shows four quick options, the selected first, and every tag behind the search', () => {
+  it('shows three quick tags and Sem tag, the selected first, and every tag behind the search', () => {
     tagStepState.tags = buildTags(['A', 'B', 'C', 'D', 'E', 'F'])
     render(<TagStepHarness initialIds={['tag-5']} onContinue={vi.fn()} />)
-    expect(quickOptions()).toEqual(['F', 'A', 'B', 'C', 'No tag'])
-    fireEvent.click(screen.getByRole('button', { name: 'C' }))
-    expect(quickOptions(), 'a press never moves the other options').toEqual(['F', 'A', 'B', 'C', 'No tag'])
-    fireEvent.click(screen.getByRole('button', { name: 'C' }))
+    expect(quickOptions()).toEqual(['F', 'A', 'B', 'No tag'])
+    fireEvent.click(screen.getByRole('button', { name: 'B' }))
+    expect(quickOptions(), 'a press never moves the other options').toEqual(['F', 'A', 'B', 'No tag'])
+    fireEvent.click(screen.getByRole('button', { name: 'B' }))
     const search = screen.getByRole('searchbox', { name: en.habits.form.searchTags })
     fireEvent.change(search, { target: { value: 'e' } })
     const rows = document.querySelector('[data-tag-step-rows]') as HTMLElement

@@ -116,10 +116,10 @@ describe('the goal step on Android', () => {
     tree.unmount()
   })
 
-  it('puts the selected goals first and every goal behind the search when there are more than four', async () => {
+  it('puts the selected goals first and every goal behind the search when there are more than three', async () => {
     state.goals = goals(6)
     const tree = renderNavigation(<Harness initial={['goal-6']} />)
-    expect(optionLabels(tree)).toEqual(['Meta 6, 50%', 'Meta 1, 0%', 'Meta 2, 10%', 'Meta 3, 20%', 'Criar meta'])
+    expect(optionLabels(tree)).toEqual(['Meta 6, 50%', 'Meta 1, 0%', 'Meta 2, 10%', 'Criar meta'])
     await search(tree, 'meta 5')
     await tap(row(tree, 'Meta 5'))
     expect(state.selected).toEqual(['goal-6', 'goal-5'])
@@ -128,8 +128,8 @@ describe('the goal step on Android', () => {
     tree.unmount()
   })
 
-  it('shows no search while four goals or fewer fit the options', () => {
-    state.goals = goals(4)
+  it('shows no search while three goals or fewer fit the options', () => {
+    state.goals = goals(3)
     const tree = renderNavigation(<Harness />)
     expect(tree.hosts().some((node) => node.props.accessibilityLabel === 'Buscar metas')).toBe(false)
     tree.unmount()
