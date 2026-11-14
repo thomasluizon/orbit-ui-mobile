@@ -112,8 +112,8 @@ const usage = () => `usage: file-ledger.mjs [--repo <path>] [--also-search <path
 
   Mode 4, candidates. Selects the rows that the hygiene finder of /prod-readiness judges, writes them to a
   file and prints the hygiene entry of the repository for the Workflow call, so the call never carries rows.
-    --candidates <ledger>  the emitted ledger of the repository at --repo; it must list exactly the files
-                           that the repository tracks
+    --candidates <ledger>  the emitted ledger of the repository at --repo; it must list each file that the
+                           repository tracks exactly once, with the fields that the emit mode writes
   A candidate gets the first kind whose signal fires, in this order (${CANDIDATE_KINDS.join(", ")}):
     outdated   unresolvedReferences is not empty; or agentInstruction is true and a second instruction file
                in the same folder has different content
@@ -854,6 +854,27 @@ const conflictingInstructions = (rows) => {
   )
 }
 
+const isCountPair = (counts) => Number.isInteger(counts?.byPath) && Number.isInteger(counts?.byBasename)
+/** The fields of an emitted row that the kinds read, each with the shape that the emit mode writes. */
+const SIGNAL_FIELDS = {
+  agentInstruction: (value) => typeof value === "boolean",
+  empty: (value) => typeof value === "boolean",
+  inboundByPath: Number.isInteger,
+  inboundByBasename: Number.isInteger,
+  crossRepositoryInbound: (value) => value !== null && typeof value === "object" && Object.values(value).every(isCountPair),
+  duplicateOf: Array.isArray,
+  crossRepositoryDuplicateOf: Array.isArray,
+  unresolvedReferences: Array.isArray,
+  temporaryPattern: (value) => value === null || typeof value === "string",
+}
+
+const requireSignalFields = (rows, ledger) => {
+  for (const row of rows) {
+    const missing = Object.keys(SIGNAL_FIELDS).find((field) => !SIGNAL_FIELDS[field](row[field]))
+    if (missing) throw new UsageError(`${ledger} row ${row.path} has no valid ${missing}; run the emit mode on it again`)
+  }
+}
+
 const hasNoReader = (row) =>
   row.inboundByPath === 0 &&
   row.inboundByBasename === 0 &&
@@ -892,6 +913,7 @@ const candidates = ({ repo, ledger }) => {
   if (listed.size !== rows.length || listed.size !== tracked.length || tracked.some((path) => !listed.has(path))) {
     throw new UsageError(`${ledger} does not list exactly the tracked files of ${root}; run the emit mode on it again`)
   }
+  requireSignalFields(rows, ledger)
   const isRecord = createRecordTest(root, tracked)
   const conflicting = conflictingInstructions(rows)
   const untracked = readUntracked(root).map((path) => ({ path, class: classify(path), untracked: true }))

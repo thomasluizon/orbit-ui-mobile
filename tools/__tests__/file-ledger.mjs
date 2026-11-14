@@ -490,8 +490,19 @@ const caseCandidateRefusals = () => {
   const tool = { path: candidatesTool() }
   check(TOOL, "candidates refuses a ledger that misses a tracked file", ["--candidates", writeLedger("candidates-short", [quietRow("a.md")]), "--repo", fixture.repository], { status: 2, stderr: /does not list exactly the tracked files/ }, tool)
   check(TOOL, "candidates refuses a ledger with a path that is not tracked", ["--candidates", writeLedger("candidates-ghost", [quietRow("a.md"), quietRow("b.md"), quietRow("ghost.md")]), "--repo", fixture.repository], { status: 2, stderr: /does not list exactly/ }, tool)
+  check(TOOL, "candidates refuses a ledger with two rows for one path", ["--candidates", writeLedger("candidates-duplicate-row", [quietRow("a.md"), quietRow("a.md"), quietRow("b.md")]), "--repo", fixture.repository], { status: 2, stderr: /does not list exactly/ }, tool)
+  check(TOOL, "candidates refuses a row without the signal fields of the emit mode, with exit 2 and no stack", ["--candidates", writeLedger("candidates-no-signals", [quietRow("a.md"), { path: "b.md" }]), "--repo", fixture.repository], { status: 2, stderr: /row b\.md has no valid \w+; run the emit mode/ }, tool)
   check(TOOL, "candidates refuses --also-search", ["--candidates", fixture.ledger, "--also-search", fixture.repository], { status: 2, stderr: /does not apply to the candidates mode/ }, tool)
   check(TOOL, "--candidates together with --render exits 2", ["--candidates", fixture.ledger, "--render", fixture.ledger], { status: 2, stderr: /separate modes/ }, tool)
+}
+
+const caseCandidateRerun = () => {
+  const fixture = makeCandidatesFixture("candidates-rerun", [quietRow("a.md", NO_READER), quietRow("b.md", { ...NO_READER, temporaryPattern: "segment:drafts" })])
+  const first = selectCandidates(fixture)
+  const second = selectCandidates({ repository: fixture.repository, ledger: writeLedger("candidates-rerun-second", [quietRow("a.md", NO_READER), quietRow("b.md")]) })
+  T(`${TOOL}: a second candidates run on one repository replaces the file of the first run`,
+    first.rows.length === 2 && second.entry?.candidatesFile === first.entry?.candidatesFile && second.rows.map((row) => row.path).join() === "a.md",
+    `first ${first.rows.map((row) => row.path).join()}, second ${second.rows.map((row) => row.path).join()}`)
 }
 
 export const cases = () => {
@@ -511,4 +522,5 @@ export const cases = () => {
   caseCandidateKinds()
   caseCandidateCap()
   caseCandidateRefusals()
+  caseCandidateRerun()
 }
