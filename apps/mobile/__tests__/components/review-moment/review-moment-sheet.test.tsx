@@ -6,6 +6,7 @@ import { createTokensV2, tintFromPrimary } from '@/lib/theme'
 import { useUIStore } from '@/stores/ui-store'
 import { useEngagementPromptStore } from '@/stores/referral-prompt-store'
 import { expectSmallSheetActions, sheetActionsUseActionPair, sheetSlotButtons } from '@/__tests__/support/sheet-slots'
+import { enableTestFlags } from '@orbit/shared/test-support/flag-state'
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
@@ -135,10 +136,6 @@ describe('ReviewMomentSheet (mobile)', () => {
     await settle()
 
     expect(findByType(tree, 'Sheet')).toHaveLength(1)
-    const mark = tree.root.findAll(
-      (node) => typeof node.type === 'string' && node.props.accessibilityLabel === 'reviewMoment.eyebrow',
-    )
-    expect(mark).toHaveLength(0)
     const glyphs = tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'orbit-mascot')
     expect(glyphs).toHaveLength(0)
     expect(JSON.stringify(tree.toJSON())).not.toContain(primaryTint)
@@ -177,6 +174,32 @@ describe('ReviewMomentSheet (mobile)', () => {
 
     expect(findByType(tree, 'Sheet')).toHaveLength(1)
     expect(JSON.stringify(tree.toJSON())).toContain('reviewMoment.levelTitle')
+  })
+
+  it.each([
+    { key: 'review-streak-7', title: 'reviewMoment.streakTitle', body: 'reviewMoment.streakBody' },
+    { key: 'review-level-5', title: 'reviewMoment.levelTitle', body: 'reviewMoment.levelBody' },
+  ])('holds no Orbit and no Orbit line for $key, and renders the same sheet with orbit_guided_flows on and off', async ({ key, title, body }) => {
+    const current = await render()
+    await armReview(key)
+    await settle()
+    const withoutNativeTags = (tree: RenderedTree) => JSON.stringify(tree.toJSON()).replaceAll(/"__nativeTag":\d+/g, '')
+    const currentSheet = withoutNativeTags(current)
+    TestRenderer.act(() => current.unmount())
+    currentTree = null
+    resetStores()
+
+    enableTestFlags('orbit_guided_flows')
+    const tree = await render()
+    await armReview(key)
+    await settle()
+
+    expect(withoutNativeTags(tree)).toBe(currentSheet)
+    expect(findByType(tree, 'Sheet')[0]!.props.title).toBe(title)
+    expect(tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'orbit-mascot')).toHaveLength(0)
+    expect(tree.root.findAll((node) => node.type === 'Text' && typeof node.props.children === 'string')
+      .map((node) => node.props.children)).toEqual([title, body])
+    expect(sheetSlotButtons(tree.root, 'SheetActions')).toEqual(['reviewMoment.notNow', 'reviewMoment.cta'])
   })
 
   it('stays hidden while a celebration is in flight', async () => {
