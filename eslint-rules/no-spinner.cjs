@@ -19,6 +19,9 @@ const SPIN_CLASS_RE = /(?:^|[\s:])animate-(?:spin(?![\w-])|\[spin)/
 const SPIN_ANIMATION_RE = /(?:^|[\s,])spin\s+\d*\.?\d+m?s\b/
 /** A full turn, the rotation a busy wheel repeats. */
 const FULL_TURN_RE = /^-?(?:360deg|1turn)$/
+/** A rotation key whose numeric value counts in degrees. */
+const ROTATION_KEYS = new Set(['rotate', 'rotateZ', 'rotation', 'toValue'])
+const TIMING_CALLS = new Set(['withTiming', 'withSpring'])
 /** A list that builds its own `RefreshControl` from `onRefresh` and `refreshing` (VirtualizedList renders the native wheel). */
 const LIST_ELEMENT_RE = /(?:FlatList|SectionList|ScrollView|VirtualizedList|FlashList)$/
 const RING_ELEMENTS = new Set(['svg', 'Svg', 'circle', 'Circle'])
@@ -92,6 +95,23 @@ function rendersRing(node) {
   }
 }
 
+/** A numeric full turn: `360` or `-360` as the first argument of a timing call or as the value of a rotation key. */
+function isNumericFullTurn(node) {
+  const turn = node.parent?.type === 'UnaryExpression' && node.parent.operator === '-' ? node.parent : node
+  const parent = turn.parent
+  if (!parent) return false
+  if (parent.type === 'CallExpression' && parent.arguments[0] === turn && parent.callee.type === 'Identifier') return TIMING_CALLS.has(parent.callee.name)
+  if (parent.type !== 'Property' || parent.value !== turn) return false
+  const key = parent.key.type === 'Identifier' ? parent.key.name : parent.key.value
+  return ROTATION_KEYS.has(key)
+}
+
+function isInfinity(node) {
+  if (node.type === 'Identifier') return node.name === 'Infinity'
+  return node.type === 'MemberExpression' && !node.computed && node.object.type === 'Identifier' && node.object.name === 'Number'
+    && node.property.type === 'Identifier' && node.property.name === 'POSITIVE_INFINITY'
+}
+
 function isLoopCall(node) {
   const callee = node.callee
   if (callee.type === 'Identifier') return callee.name === 'withRepeat'
@@ -122,6 +142,10 @@ module.exports = {
       if (FULL_TURN_RE.test(value.trim())) drawsFullTurn = true
     }
     return {
+      Property(node) {
+        const key = node.key.type === 'Identifier' ? node.key.name : node.key.value
+        if (key === 'repeat' && isInfinity(node.value)) loopCalls.push(node)
+      },
       ImportDeclaration(node) {
         for (const specifier of node.specifiers) {
           if (spinnerName(specifier.imported?.name ?? specifier.local?.name)) context.report({ node: specifier, messageId: 'noSpinner' })
@@ -144,6 +168,7 @@ module.exports = {
       },
       Literal(node) {
         reportString(node, node.value)
+        if (Math.abs(node.value) === 360 && typeof node.value === 'number' && isNumericFullTurn(node)) drawsFullTurn = true
       },
       TemplateElement(node) {
         reportString(node, node.value.cooked)
