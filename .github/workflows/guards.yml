@@ -341,7 +341,7 @@ jobs:
           echo "All three artifacts are byte-identical across two runs."
         if: ${{ !cancelled() && (github.event_name == 'pull_request' || github.ref == 'refs/heads/main') }}
       - id: react-doctor__1
-        timeout-minutes: 15
+        timeout-minutes: 6
         name: "React Doctor: Fail on new React issues in changed files"
         run: |
           npx -y react-doctor@0.7.6 . --blocking error --scope changed --base origin/${{ github.base_ref }} --no-dead-code --no-supply-chain --no-score --yes

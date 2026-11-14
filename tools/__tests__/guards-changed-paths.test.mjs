@@ -338,7 +338,7 @@ test("script guards share one checkout and install, and run after another guard 
 
 test("calibration stays advisory and React Doctor retains its time limit", () => {
   assert.equal(guardGroups(workflow).calibration.steps.find((step) => step.name === "Report calibration drift")["continue-on-error"], true)
-  assert.equal(guardGroups(workflow)["react-doctor"].steps.find((step) => step.id === "react-doctor__1")["timeout-minutes"], 15)
+  assert.equal(guardGroups(workflow)["react-doctor"].steps.find((step) => step.id === "react-doctor__1")["timeout-minutes"], 6)
 })
 
 test("pull requests run each source check through one owner", () => {
