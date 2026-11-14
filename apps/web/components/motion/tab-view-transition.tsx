@@ -35,9 +35,9 @@ export function TabViewTransition({ children }: Readonly<{ children: ReactNode }
       name={TAB_VIEW_TRANSITION_NAME}
       default="none"
       update={direction === null ? 'none' : TAB_VIEW_TRANSITION_CLASS}
-      onUpdate={(instance: ViewTransitionInstance) => animateTabViewTransition(
+      onUpdate={direction === null ? undefined : (instance: ViewTransitionInstance) => animateTabViewTransition(
         instance,
-        direction ?? 1,
+        direction,
         mediaQueryMatches('(prefers-reduced-motion: reduce)', true),
       )}
     >

@@ -132,6 +132,13 @@ describe('TabViewTransition', () => {
     expect(captured.props).toMatchObject({ name: 'orbit-tab-page', default: 'none', update: 'none' })
   })
 
+  it('binds no update handler on a commit that has no direction', () => {
+    render(<TabViewTransition><main>Today</main></TabViewTransition>)
+
+    expect(captured.props!.update).toBe('none')
+    expect(captured.props!.onUpdate).toBeUndefined()
+  })
+
   it('runs the tab switch on the commit that changes the pathname after a tab press, then stands down', () => {
     expect(switchTabs('/calendar', '/')).toEqual(['orbit-tab-switch', 'none'])
     expect(screen.getByRole('main')).toHaveTextContent('/')
