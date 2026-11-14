@@ -635,16 +635,17 @@
       "checklist": {
         "line": "The steps become a list you check off as you go.",
         "useTemplate": "Use a template",
-        "saveTemplate": "Save as a template"
+        "noWithItems": "Clear the list to go on with no steps."
       },
       "templates": {
         "question": "Which template do you want to use?",
         "line": "A template is a list of steps you saved to use again.",
         "lineEmpty": "You have no saved templates yet. Write the steps and I keep them for next time.",
         "option": "{name}, {count, plural, one {# item} other {# items}}",
-        "write": "Write the steps",
+        "write": "Write steps",
         "saveQuestion": "What do you want to call this template?",
-        "saveLine": "I keep these steps so you can use them on another habit."
+        "saveLine": "I keep these steps so you can use them on another habit.",
+        "nameHint": "Write a name for the template."
       },
       "goals": {
         "line": "A goal adds up the progress of the habits linked to it.",

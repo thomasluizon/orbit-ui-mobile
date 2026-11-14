@@ -635,16 +635,17 @@
       "checklist": {
         "line": "Os passos viram uma lista que você marca enquanto faz.",
         "useTemplate": "Usar um modelo",
-        "saveTemplate": "Guardar como modelo"
+        "noWithItems": "Limpe a lista para seguir sem passos."
       },
       "templates": {
         "question": "Qual modelo você quer usar?",
         "line": "Um modelo é uma lista de passos que você guardou para usar de novo.",
         "lineEmpty": "Você ainda não guardou nenhum modelo. Escreva os passos e eu guardo para a próxima.",
         "option": "{name}, {count, plural, =0 {# itens} one {# item} other {# itens}}",
-        "write": "Escrever os passos",
+        "write": "Escrever passos",
         "saveQuestion": "Que nome vai ter esse modelo?",
-        "saveLine": "Eu guardo estes passos para você usar em outro hábito."
+        "saveLine": "Eu guardo estes passos para você usar em outro hábito.",
+        "nameHint": "Escreva um nome para o modelo."
       },
       "goals": {
         "line": "Uma meta soma o progresso dos hábitos ligados a ela.",
