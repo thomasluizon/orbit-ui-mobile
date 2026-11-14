@@ -149,6 +149,54 @@ test("handoff-size: the step fails an oversized changed relay document and ignor
   }
 })
 
+function movedFileRepository(prefix, from, to) {
+  const directory = mkdtempSync(join(tmpdir(), prefix))
+  git(directory, "init", "-q")
+  git(directory, "config", "user.email", "test@example.invalid")
+  git(directory, "config", "user.name", "Test")
+  mkdirSync(dirname(join(directory, from)), { recursive: true })
+  writeFileSync(join(directory, from), "export const moved = 1\n")
+  git(directory, "add", from)
+  git(directory, "commit", "-qm", "base")
+  git(directory, "update-ref", "refs/remotes/origin/base", git(directory, "rev-parse", "HEAD"))
+  mkdirSync(dirname(join(directory, to)), { recursive: true })
+  git(directory, "mv", from, to)
+  git(directory, "commit", "-qm", "move")
+  return directory
+}
+
+test("every diff reader lists the old path of a moved file", () => {
+  const [from, to] = ["apps/web/lib/moved.ts", "tools/moved.ts"]
+  const guards = movedFileRepository("guards-moved-file-", from, to)
+  try {
+    const script = join(repositoryRoot, ".github/scripts/changed-paths.sh")
+    const resolved = spawnSync("bash", [script, "base", guards], { cwd: guards, encoding: "utf8" })
+    assert.equal(resolved.status, 0, resolved.stderr)
+    assert.deepEqual(readFileSync(join(guards, "changed-paths.txt"), "utf8").trim().split("\n").sort(), [from, to])
+    assert.deepEqual(readFileSync(join(guards, "changed-paths-present.nul"), "utf8").split("\0").filter(Boolean), [to],
+      "a tool that reads files receives only the path that exists")
+  } finally {
+    rmSync(guards, { recursive: true, force: true })
+  }
+  const plan = testWorkflow.jobs.plan.steps.find((step) => step.id === "plan")
+  const diff = plan.run.split("\n").find((line) => line.includes("git diff --name-only"))
+  assert.ok(diff, "Plan must read the changed paths of the merge commit")
+  const planned = movedFileRepository("plan-moved-file-", from, to)
+  try {
+    const read = spawnSync("bash", ["-e", "-c", diff], { cwd: planned, env: { ...process.env, EVENT_NAME: "pull_request", RUNNER_TEMP: planned }, encoding: "utf8" })
+    assert.equal(read.status, 0, read.stderr)
+    assert.deepEqual(readFileSync(join(planned, "changed-paths.txt"), "utf8").trim().split("\n").sort(), [from, to],
+      "a file that leaves apps/web still plans the web jobs")
+  } finally {
+    rmSync(planned, { recursive: true, force: true })
+  }
+  for (const path of [".github/workflows/test.yml", ".github/workflows/android-startup.yml"]) {
+    for (const line of readFileSync(join(repositoryRoot, path), "utf8").split("\n").filter((candidate) => candidate.includes("git diff --name-only"))) {
+      assert.match(line, /git diff --name-only --no-renames HEAD\^1 HEAD/, `${path}: ${line.trim()}`)
+    }
+  }
+})
+
 test("feature parity runs for every input of the check and skips an unrelated change", () => {
   const step = workflow.jobs.guards.steps.find((candidate) => candidate.id === "feature-parity__1")
   const directory = mkdtempSync(join(tmpdir(), "guards-feature-parity-"))

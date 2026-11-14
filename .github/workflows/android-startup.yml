@@ -47,7 +47,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          paths=$(git diff --name-only HEAD^1 HEAD)
+          paths=$(git diff --name-only --no-renames HEAD^1 HEAD)
           if grep -Eq '^\.github/actions/android-boot/|^\.github/workflows/android-startup\.yml$|^tools/android-boot\.mjs$' <<< "$paths"; then
             echo 'boot=true' >> "$GITHUB_OUTPUT"
           else

@@ -70,7 +70,7 @@ jobs:
         run: |
           set -euo pipefail
           npx --yes "turbo@$TURBO_VERSION" run test --dry=json > "$RUNNER_TEMP/turbo-test.json"
-          if [ "$EVENT_NAME" = pull_request ]; then git diff --name-only HEAD^1 HEAD > "$RUNNER_TEMP/changed-paths.txt"; fi
+          if [ "$EVENT_NAME" = pull_request ]; then git diff --name-only --no-renames HEAD^1 HEAD > "$RUNNER_TEMP/changed-paths.txt"; fi
           node .github/scripts/plan-test-jobs.mjs --event "$EVENT_NAME" --turbo-dry "$RUNNER_TEMP/turbo-test.json" \
             --workflow .github/workflows/test.yml --changed-files "$RUNNER_TEMP/changed-paths.txt" | tee -a "$GITHUB_OUTPUT"
 
@@ -251,7 +251,7 @@ jobs:
         env:
           EVENT_NAME: ${{ github.event_name }}
         run: |
-          if [ "$EVENT_NAME" != pull_request ] || git diff --name-only HEAD^1 HEAD | grep -Eq '(^|/)package(-lock)?\.json$'; then
+          if [ "$EVENT_NAME" != pull_request ] || git diff --name-only --no-renames HEAD^1 HEAD | grep -Eq '(^|/)package(-lock)?\.json$'; then
             npm ls --all
           else
             echo "Dependency tree check skipped: no package manifest changed."
