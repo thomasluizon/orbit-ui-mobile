@@ -4,7 +4,7 @@ import { createRequire } from 'node:module'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, expect, it, vi } from 'vitest'
-import { channelAdvance, channelVersion, planShellRelease, shellFloor, sourceOnMain } from '../scripts/release-plan.ts'
+import { channelAdvance, channelVersion, desktopLockClosure, planShellRelease, shellFloor, sourceOnMain } from '../scripts/release-plan.ts'
 import compatibility from '../../web/web-compatibility.json'
 import channel from '../__fixtures__/channel-staging.json'
 
@@ -153,6 +153,39 @@ it('publishes changed shell sources and skips reserved versions after a failed p
   expect(planShellRelease('production', source, null, [])).toBe('0.1.0')
   expect(planShellRelease('staging', source, '0.1.1', [], '1.0.0')).toBe('1.0.0')
 }, gitTestTimeout)
+
+/** A lockfile in npm's v3 shape: the desktop workspace installs the Tauri CLI, and the web installs node-forge. */
+const lockfile = (cli: string, platformCli: string, forge: string) => JSON.stringify({
+  lockfileVersion: 3,
+  packages: {
+    '': { workspaces: ['apps/*'] },
+    'apps/desktop': { devDependencies: { '@tauri-apps/cli': cli } },
+    'apps/web': { dependencies: { 'node-forge': forge } },
+    'node_modules/@orbit/desktop': { resolved: 'apps/desktop', link: true },
+    'node_modules/@tauri-apps/cli': { version: cli, integrity: `sha512-cli-${cli}`, optionalDependencies: { '@tauri-apps/cli-darwin-arm64': platformCli } },
+    'node_modules/@tauri-apps/cli-darwin-arm64': { version: platformCli, integrity: `sha512-darwin-${platformCli}`, optional: true },
+    'node_modules/node-forge': { version: forge, integrity: `sha512-forge-${forge}` },
+  },
+})
+
+it('keeps the published shell when the lockfile changes only outside the desktop closure', () => {
+  repository()
+  const baseline = commit('package-lock.json', lockfile('2.12.4', '2.12.4', '1.4.1'))
+  git('tag', '-f', 'desktop-staging-v0.1.1', baseline)
+  const web = commit('package-lock.json', lockfile('2.12.4', '2.12.4', '1.4.3'))
+  expect(planShellRelease('staging', web, '0.1.1', [])).toBeNull()
+  const platform = commit('package-lock.json', lockfile('2.12.4', '2.12.5', '1.4.3'))
+  expect(planShellRelease('staging', platform, '0.1.1', [])).toBe('0.1.2')
+}, gitTestTimeout)
+
+it('reads the installed desktop closure from the real lockfile', () => {
+  const closure = (JSON.parse(desktopLockClosure(readFileSync(new URL('../../../package-lock.json', import.meta.url), 'utf8'))) as [string][])
+    .map(([path]) => path)
+  expect(closure).toContain('apps/desktop')
+  expect(closure).toContain('node_modules/@tauri-apps/cli')
+  expect(closure.some(path => path.endsWith('node_modules/next'))).toBe(false)
+  expect(desktopLockClosure(null)).toBe('')
+})
 
 it('publishes a shell meeting a raised web-owned compatibility floor', () => {
   repository()
