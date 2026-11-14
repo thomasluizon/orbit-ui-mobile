@@ -3,45 +3,103 @@ name: CodeQL
 # Default setup does not publish Analyze checks on Dependabot pull requests.
 # Advanced setup runs as a standard workflow and gives the analysis token the
 # permission it needs to upload results. Keep these job names and languages in
-# sync with the required checks on main.
+# sync with the required checks on main. Each language is its own job: a job
+# that a job-level if skips reports success under its literal name, while a
+# skipped matrix job reports its unexpanded name and the required check never
+# arrives.
 
 on:
   push:
     branches: [main]
   pull_request:
     branches: [main]
-  schedule:
-    - cron: "0 5 * * 1"
 
 permissions:
   contents: read
 
-jobs:
-  analyze:
-    name: Analyze (${{ matrix.language }})
-    runs-on: ubuntu-latest
-    timeout-minutes: 45
+concurrency:
+  group: codeql-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
+jobs:
+  changes:
+    name: Select CodeQL languages
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    outputs:
+      javascript: ${{ steps.languages.outputs.javascript }}
+      actions: ${{ steps.languages.outputs.actions }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+
+      # The patterns are the default inputs of the CodeQL javascript extractor
+      # (FileExtractor.java, AutoBuild.java) and the actions extractor
+      # (actions/extractor/tools/baseline-config.json) in github/codeql.
+      - name: Select the languages that the pull request changes
+        id: languages
+        run: |
+          set -euo pipefail
+          git diff --name-only --no-renames HEAD^1 HEAD > "$RUNNER_TEMP/codeql-paths.txt"
+          select_language() {
+            if grep -Eiq "$2" "$RUNNER_TEMP/codeql-paths.txt"; then
+              echo "$1=true" >> "$GITHUB_OUTPUT"
+            else
+              echo "$1=false" >> "$GITHUB_OUTPUT"
+            fi
+          }
+          select_language javascript '\.(js|jsx|mjs|cjs|es6|es|xsjs|xsjslib|ts|tsx|mts|cts|htm|html|xhtm|xhtml|vue|hbs|ejs|njk|erb|jsp|dot|json|lock|raml|yaml|yml)$|(^|/)[^./]+$|(^|/)\.(eslintrc[^/]*|xsaccess)$'
+          select_language actions '^\.github/workflows/[^/]+\.ya?ml$|^\.github/reusable_workflows/.+\.ya?ml$|(^|/)action\.ya?ml$|(^|/)actions\.lock$'
+
+  analyze-javascript-typescript:
+    name: Analyze (javascript-typescript)
+    needs: changes
+    # A push to main always analyzes. A failed selection analyzes instead of skipping.
+    if: ${{ !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.javascript == 'true') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       security-events: write
       actions: read
       contents: read
-
-    strategy:
-      fail-fast: false
-      matrix:
-        language: [javascript-typescript, actions]
-
     steps:
       - uses: actions/checkout@v7
 
       - name: Initialize CodeQL
         uses: github/codeql-action/init@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
         with:
-          languages: ${{ matrix.language }}
+          languages: javascript-typescript
           build-mode: none
 
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
         with:
-          category: "/language:${{ matrix.language }}"
+          category: "/language:javascript-typescript"
+
+  analyze-actions:
+    name: Analyze (actions)
+    needs: changes
+    # A push to main always analyzes. A failed selection analyzes instead of skipping.
+    if: ${{ !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.actions == 'true') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      security-events: write
+      actions: read
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
+        with:
+          languages: actions
+          build-mode: none
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
+        with:
+          category: "/language:actions"
