@@ -45,13 +45,19 @@ const read = createMockGoal({ id: 'read', title: 'Read 12 books', currentValue: 
 const run = createMockGoal({ id: 'run', title: 'Run 100 km', currentValue: 25, targetValue: 100, unit: 'km', progressPercentage: 25 })
 const seenKey = () => accountStorageKey(GOAL_SEEN_PROGRESS_STORAGE_KEY)
 
+/** The local test renderer types expose `findAll` only, and props as unknown. */
+const byProp = (root: ReactTestInstance, name: string, value: unknown) => root.findAll((node) => node.props[name] === value)[0]!
+const allByProp = (root: ReactTestInstance, name: string, value: unknown) => root.findAll((node) => node.props[name] === value)
+const call = (node: ReactTestInstance, prop: string, ...values: unknown[]) => (node.props[prop] as (...args: unknown[]) => unknown)(...values)
+const isType = (node: ReactTestInstance, name: string) => String(node.type) === name
+
 let tree: ReactTestRenderer
 async function renderGoals() {
   await act(async () => { tree = TestRenderer.create(<GoalsPage />); await Promise.resolve() })
   await act(async () => { await Promise.resolve() })
 }
-const ring = (goalId: string): ReactTestInstance => tree.root.findByProps({ testID: `goal-ring-${goalId}` })
-const ringValue = (goalId: string) => ring(goalId).findByProps({ accessibilityRole: 'progressbar' }).props.accessibilityValue.now as number
+const ring = (goalId: string): ReactTestInstance => byProp(tree.root, 'testID', `goal-ring-${goalId}`)
+const ringValue = (goalId: string) => (byProp(ring(goalId), 'accessibilityRole', 'progressbar').props.accessibilityValue as { now: number }).now
 async function nextFrames() {
   await act(async () => { await new Promise((resolve) => setTimeout(resolve, 5)) })
 }
@@ -69,14 +75,14 @@ describe('goals list on the Orbit logic', () => {
   it('shows Orbit at rest, the title and one action in the empty state', async () => {
     mocks.goals = { data: { allGoals: [] }, isError: false, isLoading: false, refetch: vi.fn() }
     await renderGoals()
-    const empty = tree.root.findByProps({ testID: 'empty-state' })
-    expect(empty.findByProps({ testID: 'orbit-mascot' }).props['data-orbit-state']).toBe('parado')
-    expect(empty.findByProps({ testID: 'orbit-mascot' }).props.width).toBe(96)
+    const empty = byProp(tree.root, 'testID', 'empty-state')
+    expect(byProp(empty, 'testID', 'orbit-mascot').props['data-orbit-state']).toBe('parado')
+    expect(byProp(empty, 'testID', 'orbit-mascot').props.width).toBe(96)
     expect(empty.findAll((node) => node.props.children === 'progressScreen.goals.empty' && typeof node.type === 'string')).not.toHaveLength(0)
     const actions = empty.findAll((node) => node.props.accessibilityRole === 'button' && typeof node.type === 'string')
     expect(actions).toHaveLength(1)
-    await act(() => { actions[0]!.props.onPress() })
-    expect(tree.root.findAll((node) => node.type === 'CreateGoal')).toHaveLength(1)
+    await act(() => { call(actions[0]!, 'onPress') })
+    expect(tree.root.findAll((node) => isType(node, 'CreateGoal'))).toHaveLength(1)
   })
 
   it('sweeps the ring once from the value of the last visit and stores what it shows now', async () => {
@@ -93,11 +99,11 @@ describe('goals list on the Orbit logic', () => {
 
   it('opens the created goal from the filled action of the result dialog', async () => {
     await renderGoals()
-    await act(() => { tree.root.findAll((node) => node.props.accessibilityLabel === 'goals.create' && typeof node.props.onPress === 'function')[0]!.props.onPress() })
-    const sheet = tree.root.findAll((node) => node.type === 'CreateGoal')[0]!
-    await act(() => { sheet.props.onClose(); sheet.props.onOpenGoal?.('read') })
-    expect(tree.root.findAll((node) => node.type === 'CreateGoal')).toHaveLength(0)
-    expect(tree.root.findAll((node) => node.type === 'GoalDetail')[0]!.props.goalId).toBe('read')
+    await act(() => { call(tree.root.findAll((node) => node.props.accessibilityLabel === 'goals.create' && typeof node.props.onPress === 'function')[0]!, 'onPress') })
+    const sheet = tree.root.findAll((node) => isType(node, 'CreateGoal'))[0]!
+    await act(() => { call(sheet, 'onClose'); call(sheet, 'onOpenGoal', 'read') })
+    expect(tree.root.findAll((node) => isType(node, 'CreateGoal'))).toHaveLength(0)
+    expect(tree.root.findAll((node) => isType(node, 'GoalDetail'))[0]!.props.goalId).toBe('read')
   })
 
   it('does not sweep on a first visit', async () => {
@@ -125,12 +131,12 @@ describe('goals list on the Orbit logic', () => {
 
   it('keeps the move actions, the create action and the open press', async () => {
     await renderGoals()
-    const card = tree.root.findByProps({ testID: 'goal-card-read' })
-    await act(() => { card.props.onAccessibilityAction({ nativeEvent: { actionName: 'increment' } }) })
+    const card = byProp(tree.root, 'testID', 'goal-card-read')
+    await act(() => { call(card, 'onAccessibilityAction', { nativeEvent: { actionName: 'increment' } }) })
     expect(mocks.reorder.mutate).toHaveBeenCalledWith([{ id: 'run', position: 0 }, { id: 'read', position: 1 }], expect.anything())
     expect(tree.root.findAll((node) => node.props.accessibilityLabel === 'goals.create' && typeof node.props.onPress === 'function')).not.toHaveLength(0)
-    await act(() => { tree.root.findByProps({ testID: 'goal-card-run' }).props.onPress() })
-    expect(tree.root.findAll((node) => node.type === 'GoalDetail')[0]!.props.goalId).toBe('run')
+    await act(() => { call(byProp(tree.root, 'testID', 'goal-card-run'), 'onPress') })
+    expect(tree.root.findAll((node) => isType(node, 'GoalDetail'))[0]!.props.goalId).toBe('run')
   })
 
   it('shows the loading skeleton and the error with retry', async () => {
@@ -141,7 +147,7 @@ describe('goals list on the Orbit logic', () => {
     const refetch = vi.fn()
     mocks.goals = { data: undefined, isError: true, isLoading: false, refetch }
     await renderGoals()
-    await act(() => { tree.root.findAll((node) => node.props.accessibilityLabel === 'progressScreen.retry' && typeof node.props.onPress === 'function')[0]!.props.onPress() })
+    await act(() => { call(tree.root.findAll((node) => node.props.accessibilityLabel === 'progressScreen.retry' && typeof node.props.onPress === 'function')[0]!, 'onPress') })
     expect(refetch).toHaveBeenCalled()
   })
 })

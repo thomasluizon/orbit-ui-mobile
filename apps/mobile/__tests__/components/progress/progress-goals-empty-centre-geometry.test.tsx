@@ -39,7 +39,8 @@ it.each([360, 412, 840])('centres the Metas empty group with Orbit at rest betwe
   const group = boxes.get('empty-state')!
   expect(free.bottom - free.top).toBeGreaterThan(group.bottom - group.top)
   expect(Math.abs((group.top + group.bottom) / 2 - (free.top + free.bottom) / 2)).toBeLessThanOrEqual(1)
-  const orbit = tree.root.findByProps({ testID: 'empty-state-mark' }).findByProps({ testID: 'orbit-mascot' })
+  const mark = tree.root.findAll((node) => node.props.testID === 'empty-state-mark')[0]!
+  const orbit = mark.findAll((node) => node.props.testID === 'orbit-mascot')[0]!
   expect(orbit.props['data-orbit-state']).toBe('parado')
   expect(orbit.props.width).toBe(width >= 1024 ? 128 : 96)
 })

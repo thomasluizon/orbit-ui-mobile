@@ -25,6 +25,12 @@ const ORBIT_STATES = ['parado', 'olhando', 'pensando', 'feliz', 'descansando']
 const listGoal = createMockGoal({ id: '1', title: 'Read 12 books', currentValue: 3, targetValue: 12, unit: 'books', progressPercentage: 25 })
 let detailGoal: GoalDetailWithMetrics['goal'] = { ...listGoal, progressHistory: [] }
 
+/** The local test renderer types expose `findAll` only, and props as unknown. */
+const byProp = (root: ReactTestInstance, name: string, value: unknown) => root.findAll((node) => node.props[name] === value)[0]!
+const allByProp = (root: ReactTestInstance, name: string, value: unknown) => root.findAll((node) => node.props[name] === value)
+const call = (node: ReactTestInstance, prop: string, ...values: unknown[]) => (node.props[prop] as (...args: unknown[]) => unknown)(...values)
+const isType = (node: ReactTestInstance, name: string) => String(node.type) === name
+
 vi.mock('react-i18next', () => ({
   initReactI18next: { type: '3rdParty', init: () => undefined },
   useTranslation: () => ({ t: (key: string, values?: Record<string, unknown>) => mocks.t.current(key, values), i18n: { language: mocks.t.language } }),
@@ -76,16 +82,16 @@ const pressables = (label: string) => tree.root.findAll((node) => (node.props.ac
 async function press(label: string) {
   const [node] = pressables(label)
   if (!node) throw new Error(`Button not found: ${label}`)
-  await act(async () => { await node.props.onPress(); await Promise.resolve() })
+  await act(async () => { await call(node, 'onPress'); await Promise.resolve() })
 }
 const resultDialog = () => tree.root.findAll((node) => node.props.testID === 'result-dialog' && typeof node.type === 'string')[0]
-const resultOrbitState = () => tree.root.findByProps({ testID: 'result-dialog-orbit' }).findByProps({ testID: 'orbit-mascot' }).props['data-orbit-state'] as string
+const resultOrbitState = () => byProp(byProp(tree.root, 'testID', 'result-dialog-orbit'), 'testID', 'orbit-mascot').props['data-orbit-state'] as string
 async function changeEntry(label: string, value: string) {
   const input = tree.root.findAll((node) => node.props.accessibilityLabel === label && typeof node.props.onChangeText === 'function')[0]!
-  await act(() => { input.props.onChangeText(value) })
+  await act(() => { call(input, 'onChangeText', value) })
 }
-const detailRing = (): ReactTestInstance => tree.root.findByProps({ testID: 'goal-detail-ring' })
-const ringValue = () => detailRing().findByProps({ accessibilityRole: 'progressbar' }).props.accessibilityValue.now as number
+const detailRing = (): ReactTestInstance => byProp(tree.root, 'testID', 'goal-detail-ring')
+const ringValue = () => (byProp(detailRing(), 'accessibilityRole', 'progressbar').props.accessibilityValue as { now: number }).now
 
 describe('goal detail on the Orbit logic', () => {
   beforeEach(async () => {
@@ -113,15 +119,15 @@ describe('goal detail on the Orbit logic', () => {
     await useCatalog(locale)
     detailGoal = { ...detailGoal, deadline }
     await renderDetail()
-    const line = tree.root.findByProps({ testID: 'today-astra-slot' })
+    const line = byProp(tree.root, 'testID', 'today-astra-slot')
     expect(line.props.accessibilityLabel).toBe(sentence)
-    expect(line.findByProps({ testID: 'orbit-mascot' }).props['data-orbit-face'], 'the line row draws the still small face').toBe('small')
+    expect(byProp(line, 'testID', 'orbit-mascot').props['data-orbit-face'], 'the line row draws the still small face').toBe('small')
   })
 
   it('states a passed deadline with its date', async () => {
     detailGoal = { ...detailGoal, deadline: '2026-10-03' }
     await renderDetail()
-    expect(tree.root.findByProps({ testID: 'today-astra-slot' }).props.accessibilityLabel).toBe(`The deadline was ${formatLocaleDate('2026-10-03', 'en')}.`)
+    expect(byProp(tree.root, 'testID', 'today-astra-slot').props.accessibilityLabel).toBe(`The deadline was ${formatLocaleDate('2026-10-03', 'en')}.`)
   })
 
   it('opens the conversation with the seeded question from the line row, the one way in', async () => {
@@ -134,7 +140,7 @@ describe('goal detail on the Orbit logic', () => {
 
   it('has no line with no deadline and keeps the ask row', async () => {
     await renderDetail()
-    expect(tree.root.findAllByProps({ testID: 'today-astra-slot' })).toHaveLength(0)
+    expect(allByProp(tree.root, 'testID', 'today-astra-slot')).toHaveLength(0)
     await press(`${i18n.t('goals.detail.askAstraEyebrow')}: ${i18n.t('goals.detail.askAstraDefault')}`)
     expect(useUIStore.getState().astraConversationOpen).toBe(true)
   })
@@ -143,7 +149,7 @@ describe('goal detail on the Orbit logic', () => {
     mocks.guided = false
     detailGoal = { ...detailGoal, deadline: '2026-11-20' }
     await renderDetail()
-    expect(tree.root.findAllByProps({ testID: 'today-astra-slot' })).toHaveLength(0)
+    expect(allByProp(tree.root, 'testID', 'today-astra-slot')).toHaveLength(0)
     await press(i18n.t('goals.detail.markAbandoned'))
     expect(mocks.updateStatus).toHaveBeenCalled()
     expect(resultDialog()).toBeUndefined()
@@ -171,7 +177,7 @@ describe('goal detail on the Orbit logic', () => {
     const confirmSheet = tree.root.findAll((node) => node.props.title === i18n.t('goals.detail.delete') && node.props.destructive === true)[0]!
     expect(confirmSheet.findAll((node) => node.props.testID === 'orbit-mascot'), 'no mascot inside a destructive confirmation').toHaveLength(0)
     expect(confirmSheet.findAll((node) => node.props.testID === 'button-destructive-sm')).not.toHaveLength(0)
-    await act(async () => { await confirmation.at(-1)!.props.onPress(); await Promise.resolve() })
+    await act(async () => { await call(confirmation.at(-1)!, 'onPress'); await Promise.resolve() })
     expect(mocks.deleted).toHaveBeenCalledWith('1')
     expect(resultDialog()!.props.accessibilityHint).toBe('The goal "Read 12 books" was deleted.')
     expect(resultOrbitState()).toBe('parado')
@@ -183,7 +189,7 @@ describe('goal detail on the Orbit logic', () => {
   it('runs the same undo from the delete dialog and keeps the goal detail', async () => {
     await renderDetail()
     await press(i18n.t('goals.detail.delete'))
-    await act(async () => { await tree.root.findAll((node) => node.props.testID === 'button-destructive-sm').at(-1)!.props.onPress(); await Promise.resolve() })
+    await act(async () => { await call(tree.root.findAll((node) => node.props.testID === 'button-destructive-sm').at(-1)!, 'onPress'); await Promise.resolve() })
     await press(i18n.t('undo.action'))
     expect(mocks.undo).toHaveBeenCalledOnce()
     expect(resultDialog()).toBeUndefined()
