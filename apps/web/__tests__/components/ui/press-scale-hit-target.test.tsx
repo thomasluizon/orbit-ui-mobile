@@ -21,6 +21,7 @@ import { CheckCircle } from '@/components/habits/habit-row-check-circle'
 import { HabitRowTrailing } from '@/components/habits/habit-row-trailing'
 import { SelectionTray } from '@/components/habits/selection-tray'
 import { OnboardingCreateHabit } from '@/components/onboarding/onboarding-create-habit'
+import { AstraButton } from '@/components/shell/astra-button'
 import { Chip } from '@/components/ui/chip'
 import { PillAnchor } from '@/components/ui/pill-anchor'
 import { PillButton } from '@/components/ui/pill-button'
@@ -74,6 +75,7 @@ const controls: [string, () => ReactElement, (page: Page) => Locator][] = [
     (page) => page.getByRole('link', { name: 'Open the billing portal in your browser', exact: true })],
   ['a resting chip', () => <Chip onClick={vi.fn()}>Morning routine</Chip>, (page) => page.getByRole('button', { name: 'Morning routine', exact: true })],
   ['a selected chip', () => <Chip active onClick={vi.fn()}>Morning routine</Chip>, (page) => page.getByRole('button', { name: 'Morning routine', exact: true })],
+  ['the conversation entry', () => <AstraButton />, (page) => page.getByRole('button', { name: en.shell.astraButton.open, exact: true })],
   // WHY: these eight scale their whole 48px target. The scale removes 0.96px at each edge, which is under 1px, so a press at the exact edge keeps its click. Each case guards that band. https://github.com/thomasluizon/orbit-tickets/issues/2096
   ['the answer block habit check', () => <AnswerBlock definition={{ kind: 'pickList', block: pickListBlockFixture }} />,
     (page) => page.locator('[data-habit-row-control="check"]').first()],

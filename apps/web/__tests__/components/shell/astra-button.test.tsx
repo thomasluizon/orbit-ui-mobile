@@ -8,6 +8,7 @@ import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { AstraButton } from '@/components/shell/astra-button'
 import { ShellWide } from '@/components/shell/shell-wide'
 import { useUIStore } from '@/stores/ui-store'
+import { classNamesIn, compileClassRules, MOTION_SAFE } from '@/__tests__/support/compiled-class-rules'
 
 vi.mock('@/hooks/use-is-desktop', () => ({ useIsWideDesktop: () => false }))
 
@@ -126,6 +127,16 @@ it('scales the conversation entry to 0.96 on the press tokens only when motion i
   expect(button.className).toContain('[transition-timing-function:var(--ease-standard),var(--ease-out)]')
   expect(button.className.split(' ').filter(name => name.includes('scale-[0.96]'))).toEqual(['motion-safe:active:scale-[0.96]'])
 })
+
+it('keeps its whole 60 press target while pressed: the unpainted hit layer takes the inverse press scale only when motion is allowed', async () => {
+  mount()
+  const button = openButton()
+  const rules = await compileClassRules(classNamesIn(document))
+  const layer = rules.rulesFor(button).filter(rule => /^::before(?:,|$)/.test(rule.state))
+  expect(layer.map(rule => [rule.declarations.get('position'), rule.declarations.get('inset'), rule.declarations.has('background-color')])).toEqual([['absolute', '0', false]])
+  const pressed = rules.rulesFor(button).filter(rule => /^:active::before(?:,|$)/.test(rule.state))
+  expect(pressed.map(rule => [rule.media, rule.declarations.get('scale')])).toEqual([[[MOTION_SAFE], 'calc(1 / 0.96)']])
+}, 60_000)
 
 it('paints the neutral hover fill of its round target on pointer hover only, with no resting background and no hover transform', () => {
   mount()
