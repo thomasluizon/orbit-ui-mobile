@@ -253,8 +253,6 @@ These facts hold for the hermetic layout project and the Chromium geometry cases
 - **`.github/workflows/guards.yml`** - one `Guards` job with one checkout and install. Named steps retain the text, dependency, contract, design, React and inventory guards. Each guard uses `!cancelled()` so another guard failing cannot skip it. On a pull request, workflow syntax runs only when a workflow or local action changed, feature parity only when an app, shared or parity input changed, and the dependency edit check only when a manifest, install script or local package changed. Calibration retains its advisory exit behavior. `Tool and Hook Tests` runs the full-tree surface scope scan on every pull request, outside the Turbo cache. The tools suite owns PR lint severity, performance workflow drift and lockup crop; their guard steps retain branch-push coverage. Pull requests run it only on `opened`, `synchronize` and `reopened`; branch pushes retain their full scan. Release, build, test, layout and security analysis jobs run separately.
 - **`Tool and Hook Tests`** - an aggregate job that keeps the required check name. It needs four `Tool tests (i/4)` shards and the `Hook and workflow tests` job. It fails unless every one of them succeeded. Each shard runs `npm ci`, then `node tools/test-tools.mjs --shard i/4`, with an 8 minute job `timeout-minutes`, about 1.5 times the slowest four-shard job (325 s) on run 42961275542. `tools/test-tools-timings.json` holds the CI seconds of every case module from the run in its `sourceRun` field, and each shard prints one `# tool-timings` JSON line at the end of its log. The tools harness asserts the partition and a projection. It fails when a module runs in no shard or in two. The projection is the committed snapshot's seconds for the slowest shard (its module seconds plus `fixedSeconds`). It fails when that projection exceeds the 290 second harness budget, or when one module alone exceeds it. The projection changes only when you regenerate the snapshot with `node tools/record-tool-timings.mjs <run-id>`, which merges the timing line of every `Tool tests (i/n)` job and refuses a missing or doubled shard. The live guard is the job's `timeout-minutes: 8`. When a shard is too slow, split its slowest case module or add shards to the matrix, then regenerate. `node tools/test-tools.mjs` with no flag still runs every module. The `Hook and workflow tests` job runs `npm ci`, validates the dependency tree with `npm ls --all` when a package manifest changed (a push always validates it), runs the workflow behavior tests (including the critical production CVE gate tests), then `node tools/check-surface-scope.mjs --graphic-floor-only` and `node .claude/hooks/test-hooks.mjs` as separate steps, each judged by exit code. The scanner step owns the full-tree graphic floor assertion moved from `surface-graphic-contrast.test.ts`: graphic floor findings and scanner errors fail; other findings remain advisory. That Vitest file uses `--files-stdin` to check only its 14 named web and mobile sites, retaining per-site graphic floor and surface resolution assertions. No job has a changed-path filter or a build dependency, so a UI producer change runs both harnesses. The workflow behavior tests, the graphic floor scan and the hooks harness each run after a preceding test failure. Run both locally after touching `tools/**` or `.claude/**`.
 - **`.github/workflows/pr-metadata.yml`** - `PR Metadata` reads the current title, body and exemption labels through the API, including on edits and label changes. It checks dashes, platform parity and its exemption justification without installing dependencies. Its check name is separate from `Guards`.
-- **`.github/workflows/mutation.yml`** - nightly and manually dispatched full Stryker runs on `main`, with `--force` and a report artifact. Mutation thresholds remain report-only.
-- **`.github/workflows/sonarcloud.yml`** - nightly and manually dispatched coverage analysis for `main`. PR analysis continues to consume `Unit Tests` coverage. Scheduled workflows activate from the default branch.
 - **`.github/workflows/release.yml` smoke job** - the Playwright smoke suite, post-deploy against the live production deployment.
 - **Layout guard (`Layout shard` jobs in `test.yml`)** - runs the hermetic `layout` Playwright project on PRs to `main` whose web inputs changed. The shards restore the `web-hermetic-build` artifact of `Build` and split the cases eight ways. Each shard uses two workers and parallel cases in CI. A spec that needs a loading frame holds its response with a route gate until it measured the frame, never with a fixed delay. Fixture overrides, mutation transitions and journal reads and clears are isolated by the page's fixture session; sessionless journal requests use a separate bucket. Local layout defaults remain serial. `Upgrade layout geometry` succeeds only when the build and every shard succeed, including when an upstream job is skipped or cancelled. Chromium is pinned through `package-lock.json`; a push to `main` saves its download and the shards restore it. Each shard owns both local servers and its session setup. Measures text geometry without screenshots and uploads per-shard failure diagnostics.
 - **Lighthouse budget (`Authed Today Lighthouse budget` in `test.yml`)** - runs on PRs whose web inputs changed (`apps/web/**`, `packages/shared/**`, `package.json`, `package-lock.json`, `tsconfig.base.json`; pinned `ubuntu-24.04`, no secrets). It restores the `Build` artifact, boots the hermetic mock orbit-api, and runs `apps/web/perf/run-lighthouse.mjs` with hermetic cookie injection under an 8 minute step limit. The runner asserts median TBT and script size; it kills a Chrome whose launch failed and exits after cleanup, so a failed launch ends the job. The following step reports LCP from the same five reports. The signed-in `/` (Today) surface is the only measured URL. The job uploads `.lighthouseci/` reports.
@@ -337,14 +335,13 @@ npm ci --prefix evals/astra --workspaces=false
 The harness imports shared TypeScript source, whose dependencies resolve from the root install.
 The shared workspace install skips lifecycle scripts and does not install the app workspaces.
 From `evals/astra`, run `npx promptfoo eval` after preparing the environment below.
-The `.github/workflows/astra-eval.yml` Action uses the same two install commands and runs the
-clean-install regression check before preparing credentials. Run it locally with
+Run the clean-install regression check with
 `npm test --prefix evals/astra -- __tests__/install.test.mjs`. The check
 copies tracked harness and workspace inputs to a temporary directory, runs these documented installs,
 imports every runtime harness module and executes the real promptfoo CLI with offline providers
 through all hooks.
 The check requires npm registry access or a populated npm cache; it uses no Orbit or grader credentials.
-The Action has only `workflow_dispatch`; it never runs on a schedule, push, or pull request.
+The live eval runs only on demand from a local checkout; no schedule, push or pull request starts it.
 Runs record real message usage and incur endpoint and rubric-grader charges. The main account's
 flag exempts its per-account daily message, model-call and spend ceilings; the refusal accounts
 remain metered. All eval accounts remain subject to the shared eval ceiling.
@@ -706,11 +703,11 @@ These keys are account selectors in `vars.credentialKey`, not preconfigured bear
 Before every attempt, the hook sends `POST /api/auth/refresh` with `api-version: 2.0`, atomically
 replaces that account's `refreshToken` in the same mode-600 file, then sets `process.env[credentialKey]`.
 A missing, rejected or malformed refresh clears the old bearer and stops before fixture or chat
-requests. Private `.rotated` and `.refresh-failed` sibling markers distinguish durable token rotation
-from failed or interrupted refresh submissions. Credential validation, lock acquisition and health-wait
-failures before submission affect only that attempt; they allow later healthy accounts to refresh and
-earlier rotations to persist. A failed or uncertain submitted refresh blocks further refreshes from
-that file and prevents Action persistence, even if an earlier attempt rotated successfully. Recover a fresh session,
+requests. A private `.refresh-failed` sibling marker records a failed or interrupted refresh
+submission. Credential validation, lock acquisition and health-wait
+failures before submission affect only that attempt; they allow later healthy accounts to refresh, and
+earlier rotations stay in the file. A failed or uncertain submitted refresh blocks further refreshes from
+that file, even if an earlier attempt rotated successfully. Recover a fresh session,
 replace the private file, and remove its markers before any permitted attempt. A quota or ceiling
 stop still ends the run. No token or server error body is logged. Concurrent callers in one
 process share the same in-flight account refresh; different accounts queue their rotations against the shared file. A private lock rejects rotation by another process;
@@ -722,8 +719,7 @@ Refresh submissions are never retried: transport failures, unreadable responses 
 and report `TRANSIENT_INFRASTRUCTURE` as unavailable case evidence without calling the chat provider.
 The eval credentials contain no unattended sign-in credential. Recover through the existing sign-in
 flow, replace the private credentials file and remove its markers before the gate's permitted rerun.
-For Action runs, replace `ORBIT_EVAL_CREDENTIALS_JSON` under **Settings > Environments > astra-eval >
-Environment secrets** before dispatching that rerun. Health probes remain safe to retry before submission.
+Health probes remain safe to retry before submission.
 
 The hook calls `evals/astra/fixtures/reset.mjs` in process after refresh. The same executable can
 be invoked independently from `evals/astra` as `./fixtures/reset.mjs single-read-en`; standalone
@@ -854,27 +850,6 @@ merging, and a case without complete evidence remains incomplete. A window pass 
 Keep one settled API/prompt/tool surface across the launch gate's windows. A changed surface is validated
 offline in fix rounds and never authorizes an additional live run.
 
-For the manual Action, create the **astra-eval** environment in GitHub
-**Settings > Environments > New environment**. Under **astra-eval > Environment secrets**, add
-`ORBIT_EVAL_CREDENTIALS_JSON` containing the private file contents, then remove the same-named
-repository secret from **Settings > Secrets and variables > Actions**. The job references this
-environment and persists with `gh secret set --env astra-eval`, so queued runs read the latest
-rotation at job start. GitHub documents this distinction in its
-[secrets reference](https://docs.github.com/en/actions/reference/security/secrets).
-
-Configure `ORBIT_EVAL_BASE_URL`, `ORBIT_EVAL_GRADER`, and `ORBIT_EVAL_SECRETS_TOKEN` under
-**astra-eval > Environment secrets**. The last key needs this repository's Environments write
-permission to update an environment secret; repository Actions secrets write permission alone
-is insufficient. `OPENAI_API_KEY` is only needed if explicitly selecting an OpenAI API grader.
-Dispatch **Actions > Astra eval > Run workflow** with a comma-separated `case_ids` set for the
-day's window. It creates a mode-600 temporary credentials file, persists only successful token
-rotations when no refresh failed, uploads sanitized summaries, then deletes local credentials and
-markers. Persistence still runs after unrelated eval failures. A failed or interrupted refresh or
-secret write requires session recovery before any permitted dispatch; never reuse the stale secret.
-Do not run local and Action jobs against the same sessions. Download each window artifact and merge
-locally as above. Successful resets, environment-secret persistence and a permitted subsequent
-window using the rotated session prove configuration took effect. There is no automatic dispatch.
-
 ### Codex rubric grader
 
 From `evals/astra`, set `ORBIT_EVAL_GRADER=file://codex-grader.mjs`. Install the Codex CLI on the
@@ -882,8 +857,7 @@ runner and authenticate its existing account session through `codex login` befor
 the executable must be on the runner's normal `PATH`. The grader removes every `node_modules/.bin`
 entry, including normalized relative entries, before launching the CLI so npm and npx cannot select
 promptfoo's bundled copy. A missing or failing installed CLI fails the rubric closed.
-This provider needs no purchased OpenAI API key. The hosted Action runner does not provision a
-Codex session: selecting this provider there requires an installed, authenticated CLI on that runner.
+This provider needs no purchased OpenAI API key.
 The local command is ready to use with the coordinator's authenticated CLI. The provider executes
 `codex exec -m gpt-6.1-sol -s read-only --skip-git-repo-check --ephemeral --output-schema <schema file> -o <output file>`
 with the grading prompt on stdin in a private temporary directory. It removes Orbit eval environment

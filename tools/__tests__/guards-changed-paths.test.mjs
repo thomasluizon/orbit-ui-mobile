@@ -163,29 +163,71 @@ test("each diff reader resolves paths before using them", () => {
   assert.doesNotMatch(readFileSync(join(repositoryRoot, ".github/workflows/guards.yml"), "utf8"), /git diff --name-only/)
 })
 
-test("Astra eval exports temporary paths before evaluation without job-level runner expressions", () => {
-  const astra = yaml.load(readFileSync(join(repositoryRoot, ".github/workflows/astra-eval.yml"), "utf8"))
-  assert.deepEqual(Object.keys(astra.on), ["workflow_dispatch"])
-  const job = astra.jobs.evaluate
-  assert.doesNotMatch(JSON.stringify(job.env), /runner\.temp/)
-  const setup = job.steps[0]
-  assert.equal(setup["working-directory"], "${{ runner.temp }}")
-  const directory = mkdtempSync(join(tmpdir(), "astra eval paths "))
-  try {
-    const environmentFile = join(directory, "environment")
-    const result = spawnSync("bash", ["-e", "-c", setup.run], {
-      cwd: directory,
-      env: { ...process.env, RUNNER_TEMP: directory, GITHUB_ENV: environmentFile },
-      encoding: "utf8",
-    })
-    assert.equal(result.status, 0, result.stderr)
-    assert.deepEqual(readFileSync(environmentFile, "utf8").trim().split("\n"), [
-      `ORBIT_EVAL_CREDENTIALS_FILE=${directory}/astra-credentials.json`,
-      `PROMPTFOO_CONFIG_DIR=${directory}/astra-promptfoo`,
-    ])
-  } finally {
-    rmSync(directory, { recursive: true, force: true })
+test("CodeQL reports both required names and analyzes a language only when its inputs change", () => {
+  const codeql = yaml.load(readFileSync(join(repositoryRoot, ".github/workflows/codeql.yml"), "utf8"))
+  assert.deepEqual(Object.keys(codeql.on), ["push", "pull_request"])
+  assert.deepEqual(codeql.concurrency, {
+    group: "codeql-${{ github.event.pull_request.number || github.sha }}",
+    "cancel-in-progress": "${{ github.event_name == 'pull_request' }}",
+  })
+  assert.equal(codeql.jobs.changes.if, "github.event_name == 'pull_request'")
+  for (const [output, jobId, name] of [
+    ["javascript", "analyze-javascript-typescript", "Analyze (javascript-typescript)"],
+    ["actions", "analyze-actions", "Analyze (actions)"],
+  ]) {
+    const job = codeql.jobs[jobId]
+    assert.equal(job.name, name)
+    assert.equal(job.strategy, undefined, "a skipped matrix job reports its unexpanded name")
+    assert.equal(job.needs, "changes")
+    assert.equal(job.if, `\${{ !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.${output} == 'true') }}`)
+    assert.ok(job["timeout-minutes"] <= 10)
   }
+  const selection = codeql.jobs.changes.steps.find((step) => step.id === "languages")
+  const select = (change) => {
+    const directory = mkdtempSync(join(tmpdir(), "codeql-languages-"))
+    const repository = join(directory, "repository")
+    try {
+      mkdirSync(join(repository, "apps/web"), { recursive: true })
+      git(repository, "init", "-q")
+      git(repository, "config", "user.email", "test@example.invalid")
+      git(repository, "config", "user.name", "Test")
+      writeFileSync(join(repository, "README.md"), "base\n")
+      writeFileSync(join(repository, "apps/web/old.ts"), "export const old = 1\n")
+      git(repository, "add", ".")
+      git(repository, "commit", "-qm", "base")
+      change(repository)
+      git(repository, "add", "-A")
+      git(repository, "commit", "-qm", "change")
+      const output = join(directory, "output")
+      const result = spawnSync("bash", ["-e", "-c", selection.run], {
+        cwd: repository, env: { ...process.env, RUNNER_TEMP: directory, GITHUB_OUTPUT: output }, encoding: "utf8",
+      })
+      assert.equal(result.status, 0, result.stderr)
+      return Object.fromEntries(readFileSync(output, "utf8").trim().split("\n").map((line) => line.split("=")))
+    } finally {
+      rmSync(directory, { recursive: true, force: true })
+    }
+  }
+  const add = (...paths) => (repository) => {
+    for (const path of paths) {
+      mkdirSync(dirname(join(repository, path)), { recursive: true })
+      writeFileSync(join(repository, path), "changed\n")
+    }
+  }
+  const neither = { javascript: "false", actions: "false" }
+  const javascript = { javascript: "true", actions: "false" }
+  const both = { javascript: "true", actions: "true" }
+  assert.deepEqual(select(add("docs/plan.md", "design/canvas/screen.png", ".claude/specs/run.md")), neither)
+  assert.deepEqual(select(add("apps/web/app/page.tsx")), javascript)
+  assert.deepEqual(select(add("packages/shared/package.json")), javascript)
+  assert.deepEqual(select(add("apps/mobile/android/gradlew")), javascript, "the extractor reads extension-less files")
+  assert.deepEqual(select(add(".github/workflows/test.yml")), both)
+  assert.deepEqual(select(add(".github/actions/android-boot/action.yml")), both)
+  assert.deepEqual(select((repository) => rmSync(join(repository, "apps/web/old.ts"))), javascript, "a deleted source file closes its alerts")
+  assert.deepEqual(select((repository) => {
+    mkdirSync(join(repository, "docs"))
+    git(repository, "mv", "apps/web/old.ts", "docs/old.md")
+  }), javascript, "a rename out of a language still analyzes the old path")
 })
 
 test("Guards checks every workflow with a checksum-pinned actionlint and no baseline", () => {
