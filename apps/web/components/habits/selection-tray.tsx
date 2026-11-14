@@ -69,7 +69,7 @@ function BulkBtn({ icon: Icon, label, iconColor, onClick, disabled = false, reas
       className={`appearance-none border-0 bg-transparent shrink-0 overflow-hidden flex items-center justify-center transition-[background-color,scale] [transition-duration:var(--dur-hover-control),var(--dur-press)] [transition-timing-function:var(--ease-standard),var(--ease-out)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--primary)] ${
         disabled
           ? 'opacity-45'
-          : 'cursor-pointer hover:bg-[var(--bg-hover-opaque)] active:bg-[var(--bg-hover-opaque)] motion-safe:active:scale-[0.96]'
+          : 'cursor-pointer hover:bg-[var(--bg-hover-opaque)] active:bg-[var(--bg-hover-opaque)] press-hit-layer motion-safe:active:scale-[0.96]'
       }`}
       style={{
         width: TOUCH_TARGET_MIN,

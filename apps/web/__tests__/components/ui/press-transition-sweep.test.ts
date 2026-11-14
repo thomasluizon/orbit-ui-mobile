@@ -90,10 +90,7 @@ const HIT_LAYER_CLASS = /(?:^|[\s"'`])(?:press-hit-layer|chip|orbit-pill-action)
 
 /** Control families that still scale their own target; each later commit of this change moves one family onto the hit layer. */
 const PENDING_HIT_LAYER = new Set([
-    'components/habits/habit-row-check-circle.tsx', 'components/habits/habit-row.tsx', 'components/habits/habit-row-trailing.tsx',
-  'components/habits/habit-list/habit-drill.tsx', 'components/habits/selection-tray.tsx', 'components/habits/habit-checklist.tsx',
-  'components/habits/checklist-templates.tsx', 'components/ui/picker-row.tsx',
-  'components/ui/fab.tsx', 'components/ui/page-header.tsx', 'components/shell/shell-wide.tsx', 'components/shell/sidebar-account.tsx',
+          'components/ui/fab.tsx', 'components/ui/page-header.tsx', 'components/shell/shell-wide.tsx', 'components/shell/sidebar-account.tsx',
   'components/gamification/streak-badge.tsx',
   'components/ui/segmented-control.tsx', 'components/ui/select.tsx', 'components/ui/select-check.tsx', 'components/chat/answer-block.tsx',
   'components/ui/list-row.tsx',
@@ -169,6 +166,7 @@ describe('web press scale transitions', () => {
     expect(declarationsOf(':is(.press-hit-layer, .chip):focus-visible:active')).toEqual([{ media: '(prefers-reduced-motion: no-preference)', layered: false, values: { 'outline-style': 'none' } }])
     expect(declarationsOf(':is(.press-hit-layer, .chip):focus-visible:active::before')).toEqual([{ media: '(prefers-reduced-motion: no-preference)', layered: false,
       values: { outline: '2px solid', 'outline-color': 'inherit', 'outline-offset': 'inherit' } }])
+    expect(declarationsOf('.orbit-list-action-surface .orbit-list-row-body.press-hit-layer:focus-visible:active::before')).toEqual([{ media: '(prefers-reduced-motion: no-preference)', layered: false, values: { outline: 'none' } }])
   })
 
   it('applies every pressed scale rule only when motion is allowed', () => {

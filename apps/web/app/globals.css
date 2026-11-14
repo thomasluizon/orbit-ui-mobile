@@ -1014,6 +1014,11 @@ select[aria-hidden="true"] {
     outline-color: inherit;
     outline-offset: inherit;
   }
+
+  /* An action surface draws the focus ring of its row body, so that body's hit layer draws no second ring. */
+  .orbit-list-action-surface .orbit-list-row-body.press-hit-layer:focus-visible:active::before {
+    outline: none;
+  }
 }
 
 :root {
