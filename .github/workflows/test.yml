@@ -443,6 +443,18 @@ jobs:
           test -s packages/shared/coverage/lcov.info
           test -s eslint-rules/coverage/lcov.info
 
+      - name: Upload coverage reports
+        uses: actions/upload-artifact@v7
+        with:
+          name: unit-test-coverage
+          path: |
+            apps/web/coverage/lcov.info
+            apps/mobile/coverage/lcov.info
+            apps/desktop/coverage/lcov.info
+            packages/shared/coverage/lcov.info
+            eslint-rules/coverage/lcov.info
+          if-no-files-found: error
+
       - name: Save web unit results
         if: github.event_name != 'pull_request' && needs.web-tests.result == 'success'
         uses: actions/cache/save@v6

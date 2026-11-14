@@ -282,7 +282,9 @@ test("Unit Tests merges coverage under the unchanged thresholds and ends with th
   assert.ok(unitSteps.indexOf(stepNamed(unitSteps, "Verify coverage reports")) < unitSteps.length - 2)
   assert.equal(unitSteps.find((step) => step.uses?.startsWith("actions/checkout@")).with["fetch-depth"], 0, "Sonar reads the new-code blame")
   assert.equal(workflow.jobs.sonarcloud, undefined)
-  assert.equal(unitSteps.some((step) => step.with?.name === "unit-test-coverage"), false)
+  const upload = unitSteps.find((step) => step.with?.name === "unit-test-coverage")
+  assert.equal(upload.with["if-no-files-found"], "error")
+  assert.deepEqual(upload.with.path.trim().split("\n"), ["apps/web", "apps/mobile", ...workspaceDirectories].map((directory) => `${directory}/coverage/lcov.info`))
 })
 
 test("Sonar coverage merge normalizes desktop scripts measured by the web workspace", () => {

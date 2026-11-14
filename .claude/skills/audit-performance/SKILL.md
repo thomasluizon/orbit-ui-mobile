@@ -1,7 +1,7 @@
 ---
 name: audit-performance
 description: >-
-  Performance-risk audit across both Orbit repos, opening one GitHub ticket per verified risk after a human approval gate (D10). API side: N+1 queries, missing indexes, synchronous slow work in request paths. Frontend side: render thrash, over-eager or stale caching, waterfalls. EXCLUDES what the gates own (D11): the perf.yml web LCP/TBT/bundle budgets, the N+1 guard test's three query shapes, and react-doctor's perf rules. Each finding carries file:line evidence and a remediation, calibrated to Orbit's solo-dev scale. Use when the user asks to audit performance, find slowdowns, or check for scaling risks. Not for running benchmarks.
+  Performance-risk audit across both Orbit repos, opening one GitHub ticket per verified risk after a human approval gate (D10). API side: N+1 queries, missing indexes, synchronous slow work in request paths. Frontend side: render thrash, over-eager or stale caching, waterfalls. EXCLUDES what the gates own (D11): the test.yml Lighthouse web LCP/TBT/bundle budgets, the N+1 guard test's three query shapes, and react-doctor's perf rules. Each finding carries file:line evidence and a remediation, calibrated to Orbit's solo-dev scale. Use when the user asks to audit performance, find slowdowns, or check for scaling risks. Not for running benchmarks.
 argument-hint: <path | repo | blank=both repos>
 ---
 
@@ -132,8 +132,8 @@ runs).
 ### D11 scope: judgement only, never what a gate checks
 
 Read **`.claude/skills/_shared/gate-owned-exclusions.md`**. This audit does NOT re-flag: the
-web LCP / TBT / script-bundle-size budgets on the authed-Today surface (`perf.yml` owns
-those), an N+1 regression on the three query shapes already under the round-trip guard test
+web LCP / TBT / script-bundle-size budgets on the authed-Today surface (the `test.yml`
+Lighthouse job owns those), an N+1 regression on the three query shapes already under the round-trip guard test
 (`tests/Orbit.Infrastructure.Tests/Persistence/QueryRoundTripCountTests.cs`), or render-thrash
 patterns react-doctor's perf rules already fail on. It DOES own the judgement layer no gate
 sees: N+1 on any OTHER query, a missing index on a hot `Where`/`OrderBy`/FK, sync slow work in

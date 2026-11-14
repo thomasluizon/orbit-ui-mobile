@@ -23,7 +23,7 @@ Hermetic layout facts live in `TESTING.md` `### Hermetic layout harness facts`.
 ## CI and checks
 
 - Read test results by exit code, never by summary text: with the locale unset, the summary prints in Portuguese.
-- A body edit re-runs Guards, and its concurrency group cancels the push's run. Read `gh run list --commit <sha>` before you call a check red.
+- A body edit or a label change re-runs only `PR Metadata`; `Guards` and `PR Tests` run on `opened`, `synchronize` and `reopened`. Read `gh run list --commit <sha>` before you call a check red.
 - A pull request that conflicts with its base runs no CI. "Settled with no failing checks" is not green until the rollup shows the workflow checks; merge the base forward first.
 - A rerun of a `pull_request` workflow reuses the merge commit of its first trigger, so a red caused by an older base never clears on a rerun. Settle it with the local merge-result check, which counts when the pull request shares no file with the base change, or with a base merge.
 - A pull request event runs the workflows of its test merge commit, which GitHub recomputes lazily. After the base changes its workflows or required checks, read `gh api repos/<owner>/<repo>/pulls/<n>` (it recomputes `merge_commit_sha`), confirm the merge commit's parent is the current base, then edit the body to run `PR Metadata`, or close and reopen at the same head to run every workflow.
