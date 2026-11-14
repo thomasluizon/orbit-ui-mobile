@@ -103,6 +103,8 @@ vi.mock('@/hooks/use-goals', () => ({
   useDeleteGoal: () => ({ mutateAsync: vi.fn() }),
 }))
 vi.mock('@/hooks/use-app-toast', () => ({ useAppToast: () => ({ showError: vi.fn() }) }))
+vi.mock('@/hooks/use-flag', () => ({ useFlag: () => false }))
+vi.mock('@/hooks/use-profile', async (importOriginal) => ({ ...await importOriginal<typeof import('@/hooks/use-profile')>(), useProfile: () => ({ profile: undefined }) }))
 vi.mock('@/components/goals/edit-goal-modal', () => ({ EditGoalModal: () => null }))
 vi.mock('@/components/ui/confirm-sheet', () => ({ ConfirmSheet: () => null }))
 vi.mock('@/components/goals/goal-detail-drawer/goal-progress-block', () => ({ GoalProgressBlock: () => null }))
