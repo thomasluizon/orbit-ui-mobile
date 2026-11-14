@@ -21,17 +21,17 @@ UI `main` `4afd790f0`; API `main` `de4a8db30`; landing `main` `381b253fa`. Scrat
 | Item | Disposition |
 | --- | --- |
 | Owner AI order (`#2129`) | `/g-best-implementation` done: `best-impl-orbit-ai.md` picks "one typed change plan" (6 steps; detail in `handoff-notes.md`). Next: the second account on Fable 5.2 must AGREE (`CLAUDE_CONFIG_DIR="$ORBIT_WORKER_CLAUDE_CONFIG_DIR" claude -p --model claude-fable-5-2`); iterate until it does; then explain to the owner, in plain words, what changes. |
-| `api#1113` (`#2074` API) | Pushed `77d09d857`. At approval: protection changes before and after the merge (`body-api-2074-final.md`), merge, D150 rows DONE. |
-| `#2074` UI | Local `f44469008`; agents: N4 suites plus body, narrow review. Then push, open the PR (`body-ui-2074-final.md`), chain. |
+| `api#1113` (`#2074` API) | Pushed `77d09d857`; all 14 checks pass (12 minute round); request the review now (`wait-ci` cannot settle while `main` still requires the 4 removed contexts). At approval: protection changes before and after the merge (`body-api-2074-final.md`), merge, D150 rows DONE. |
+| `#2074` UI | Local `f44469008`, suites green; fix review nits R2-1 and R2-2 first. Then push, open the PR (`body-ui-2074-final.md`), chain. |
 | `#2074` landing | `e5672b4`; after `landing#134` merges: base-merge, push, open, protection, merge. |
 | `landing#134` | Local `407c9203f` (import nit plus test loader): narrow review, resolve the thread, push, chain, merge, landing release. |
 | `ui#2447` (`#2131`) | Pushed `77206077f`, CI green; one App Review thread on the custom Apple button: verify Apple's HIG, fix at the root, push, device proof (Android first), merge, web release, mobile pair. |
 | `ui#2448` (`#2132`) | Pushed `f0c6384d1`, CI running: rewrite the body evidence for that head, then request the review. |
 | `ui#2444` (`#2119`) | Local `ab9bb1ff4` plus the import walk fix; add the `permissions.deny` rules (decided); push, chain, merge, retarget `ui#2450`. |
-| `api#1111` (`#2129`) | Local `6b9c84d0a`; narrow review running → `narrow-review-api-1111-r10.md`. |
-| `ui#2450` (`#2120`) | Round 3 agent running (`fix-ui-2450-r3-result.md`). |
-| `#2122` Parts 5, 6, 7 | Workers running (`part-2122-<n>-result.md`); then merge into `feature/ticket-2122-destinations`. |
-| `#2133` | Worker running; then review, push, PR. |
+| `api#1111` (`#2129`) | Local `6b9c84d0a`; review PUSH with 2 emoji nits to fix first (`narrow-review-api-1111-r10.md`). |
+| `ui#2450` (`#2120`) | Local `2f8937f96`, round 3 done; 51 Chromium tests in 7 files still red: fix those the branch causes first. |
+| `#2122` Parts 5, 6, 7 | Built (13, 4 and 13 commits); Part 5 needs its acceptance check; critic passes; then merge into `feature/ticket-2122-destinations`. |
+| `#2133` | `ui#2455` open at `405ca3eb4`: narrow review, then chain. |
 | `ui#2388` | This relay's docs branch. Never request a review for it. |
 
 Uncommitted on purpose in the main checkout: `.claude/orchestrator.json` and `tools/__tests__/launch-worker.mjs` (ride the `#2074` UI pull request). Stashes: none. Leave the detached worktrees `combined-2065`, api `scratch-1090-merge`, api `scratch-877-timing`, landing `dependabot-134-astro` (holds `407c9203f`). Waiters to arm: `chain-review.sh` after each push, `wait-release.mjs` for each release, `wait-auto-work.mjs` always. Sentry was listed at 16:00Z (4 issues, all carried).
