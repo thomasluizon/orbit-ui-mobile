@@ -10,7 +10,7 @@ import { holdAccount } from '@/__tests__/support/account-change'
 const mocks = vi.hoisted(() => ({
   push: vi.fn(), completed: vi.fn(), event: vi.fn(), suggest: vi.fn(), subscribe: vi.fn(), requestPermission: vi.fn(),
   createHabit: vi.fn(), updateHabit: vi.fn(), recordCompletion: vi.fn(), finishOnboarding: vi.fn(), deferPush: vi.fn(),
-  plan: 'Pro' as 'Pro' | 'Free', online: true, suggestionAvailable: false,
+  plan: 'Pro' as 'Pro' | 'Free', online: true, suggestionAvailable: false, flag: false,
 }))
 
 vi.mock('next/navigation', async (importOriginal) => ({ ...await importOriginal<typeof import('next/navigation')>(), useRouter: () => ({ push: mocks.push, replace: mocks.push }), useSearchParams: () => new URLSearchParams() }))
@@ -30,9 +30,16 @@ vi.mock('@/hooks/use-push-notification-preferences', () => ({
 vi.mock('@/lib/actions/profile', () => ({ updateTimezone: vi.fn() }))
 vi.mock('@/lib/posthog', async (importOriginal) => ({ ...await importOriginal<typeof import('@/lib/posthog')>(), captureGuidedFlowCompleted: mocks.completed, captureGuidedFlowEvent: mocks.event }))
 vi.mock('@/components/onboarding/onboarding-pro-step', () => ({ OnboardingProStep: () => <p data-testid="pro-step">pro</p> }))
+vi.mock('@/hooks/use-flag', () => ({ useFlag: () => mocks.flag }))
+vi.mock('@/components/onboarding/onboarding-actions-context', async (importOriginal) => ({
+  ...await importOriginal<typeof import('@/components/onboarding/onboarding-actions-context')>(),
+  useLiveOnboardingActions: () => actions(),
+}))
 
 import { OnboardingActionsProvider, type OnboardingActions } from '@/components/onboarding/onboarding-actions-context'
 import { OnboardingFlow } from '@/components/onboarding/onboarding-flow'
+import { RetainedOnboardingOverlay } from '@/components/onboarding/retained-onboarding-overlay'
+import { motionPresets } from '@orbit/shared/theme'
 import { useOnboardingDraftStore } from '@/stores/onboarding-draft-store'
 
 const locales = [{ locale: 'en', messages: en }, { locale: 'pt-BR', messages: ptBR }] as const
@@ -91,6 +98,7 @@ beforeEach(() => {
   mocks.plan = 'Pro'
   mocks.online = true
   mocks.suggestionAvailable = false
+  mocks.flag = false
   mocks.createHabit.mockResolvedValue({ id: 'habit-1', title: 'Walk' })
   mocks.updateHabit.mockResolvedValue(undefined)
   mocks.recordCompletion.mockResolvedValue(undefined)
@@ -280,7 +288,20 @@ describe('guided onboarding requests', () => {
     await typePhrase(en, 'Walk')
     expect(mocks.suggest).toHaveBeenCalledWith({ title: 'Walk', language: 'en' })
     expect(heading()).toBe(en.onboarding.flow.guided.summary.question)
-    expect(screen.getByRole('group', { name: en.onboarding.flow.guided.summary.question })).toHaveTextContent('🚶')
+    const summary = screen.getByRole('group', { name: en.onboarding.flow.guided.summary.question })
+    expect(summary).toHaveTextContent('🚶')
+    expect(summary.querySelectorAll('[data-proposed]').length).toBeGreaterThan(0)
+  })
+
+  it('keeps the completion failure message on the reminder step', async () => {
+    mocks.recordCompletion.mockRejectedValueOnce(new Error('offline'))
+    useOnboardingDraftStore.setState({ introSeen: true })
+    mount('en', en)
+    await typePhrase(en, 'Walk every Monday at 18:00')
+    await act(async () => { press(en.onboarding.flow.create) })
+    await act(async () => { press(en.onboarding.flow.remind.deny) })
+    expect(await screen.findByText(en.onboarding.flow.completionFailed)).toBeInTheDocument()
+    expect(document.querySelector('[data-result-dialog]')).toBeNull()
   })
 
   it('shows Orbit in Pensando while the model reads the phrase', async () => {
@@ -303,7 +324,33 @@ describe.each([false, true])('guided onboarding motion with reduced motion %s', 
     const sentence = document.querySelector<HTMLElement>('[data-intro-sentence]')!
     expect(sentence).toHaveTextContent(en.onboarding.flow.guided.intro.talk.body)
     expect(sentence.style.opacity).toBe(reducedMotion ? '1' : '0')
+    const preset = motionPresets['route-push']
+    expect(document.querySelector('[data-flow-screen-motion]')?.getAttribute('data-enter-duration')).toBe(String(reducedMotion ? preset.reducedMotion.enterDuration : preset.enterDuration))
     expect(document.querySelector('[data-question-flow] [data-asset="orbit-mascot"]')?.getAttribute('data-orbit-loop')).toBe(reducedMotion ? 'still' : document.querySelector('[data-question-flow] [data-asset="orbit-mascot"]')?.getAttribute('data-orbit-loop'))
+  })
+})
+
+describe('retained onboarding', () => {
+  function mountRetained(finalStepOnly: boolean) {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    return render(
+      <QueryClientProvider client={client}>
+        <NextIntlClientProvider locale="en" messages={en} timeZone="UTC"><RetainedOnboardingOverlay finalStepOnly={finalStepOnly} /></NextIntlClientProvider>
+      </QueryClientProvider>,
+    )
+  }
+
+  it.each([[true, 'mounts the guided flow'], [false, 'keeps the current flow']] as const)('with orbit_guided_flows %s it %s for the signed-in account', async (flag) => {
+    mocks.flag = flag
+    mountRetained(false)
+    expect(await screen.findByRole('heading', { level: 1, name: flag ? en.onboarding.flow.guided.intro.talk.title : en.onboarding.flow.what.title })).toBeInTheDocument()
+    expect(document.querySelector('[data-question-flow]') !== null).toBe(flag)
+  })
+
+  it('keeps the final-step-only mode on the Pro step', async () => {
+    mocks.flag = true
+    mountRetained(true)
+    expect(await screen.findByTestId('pro-step')).toBeInTheDocument()
   })
 })
 

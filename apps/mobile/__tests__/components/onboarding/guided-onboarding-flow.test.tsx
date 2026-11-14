@@ -224,6 +224,7 @@ describe.each([false, true])('Android guided onboarding with reduced motion %s',
     expect(textOf(sentence)).toBe(en.onboarding.flow.guided.intro.talk.body)
     const opacity = (sentence.props.style as { opacity: { value: number } }).opacity
     expect(opacity.value).toBe(reducedMotion ? 1 : 0)
+    expect(hosts(tree).find((node) => node.type === 'Modal')?.props.animationType).toBe(reducedMotion ? 'none' : 'fade')
   })
 })
 
