@@ -78,7 +78,7 @@ it.each(windows)('centres Todos actions, calendar navigation and figures at $wid
     const figures = tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'calendar-figure-default')
     expect(figures).toHaveLength(3)
     for (const figure of figures) expect(StyleSheet.flatten(figure.props.style as StyleProp<ViewStyle>).alignItems).toBe('flex-start')
-    const boxes = measureSafeArea(tree.toJSON(), (host) => host.props.testID === 'button-primary-sm' ? 'astra-action' : host.props.testID, viewport)
+    const boxes = measureSafeArea(tree.toJSON(), (host) => host.props.testID === 'button-ghost-sm' && JSON.stringify(host).includes(ptBR.habits.askAstra) ? 'astra-action' : host.props.testID, viewport)
     const actionBounds = boxes.get('astra-action')!
     expect(actionBounds.width).toBeGreaterThan(48)
     expect(actionBounds.bottom - actionBounds.top).toBeGreaterThanOrEqual(SMALL_PILL_VISIBLE_MIN)
