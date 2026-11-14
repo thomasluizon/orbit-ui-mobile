@@ -212,8 +212,9 @@ export const cases = async () => {
   T("wait-ci: settled result names failing checks", failingResult.status === 6 && JSON.parse(failingResult.stdout).pullRequests[0].failingChecks.includes("Lint"), failingResult.stderr)
 
   /**
-   * Shapes copied from the real check runs of ui#2419 head 25f27997b: a failed Unit Tests job skips
-   * the SonarCloud Analysis job, so the SonarCloud app never posts the required SonarCloud Code Analysis check.
+   * Shapes copied from the real check runs of ui#2419 head 25f27997b, before the scan moved into
+   * Unit Tests: a failed Unit Tests job skips the SonarCloud Analysis job, so the SonarCloud app never
+   * posts the required SonarCloud Code Analysis check.
    */
   const sonarProtection = { kind: "protection", stdout: JSON.stringify({ ...confirmed.protection,
     contexts: ["Unit Tests", "SonarCloud Code Analysis"],
