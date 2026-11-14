@@ -102,6 +102,10 @@ interface KeyboardAwareContextValue {
   clearInput: (input: KeyboardAwareInputTarget) => void
   keyboardSpace: number
   recordScroll: (offset: number) => void
+  /** This scroller and every scroller around it reserve no reveal margin until the returned release runs. */
+  yieldRevealMargin: () => () => void
+  /** The same for the scrollers around this one only, or null when none encloses it. */
+  yieldEnclosingRevealMargin: (() => () => void) | null
 }
 
 const KeyboardAwareContext = createContext<KeyboardAwareContextValue | null>(null)
@@ -200,6 +204,8 @@ function useKeyboardAwareContextValue(
   const scrollOffsetYRef = useRef(0)
   const [keyboardSpace, setKeyboardSpace] = useState(0)
   const screenShift = useContext(KeyboardAwareScreenShiftContext)
+  const yieldEnclosingRevealMargin = useContext(KeyboardAwareContext)?.yieldRevealMargin ?? null
+  const marginYieldsRef = useRef(0)
 
   const refresh = useCallback(() => {
     const scrollable = scrollableRef.current
@@ -207,21 +213,22 @@ function useKeyboardAwareContextValue(
     if (!scrollable || !frame) return
     const viewport = scrollable.getNativeScrollRef?.() ?? scrollable
     viewport.measureInWindow?.((_x, y, _width, viewportHeight) => {
-      const keyboardEdge = frame.top - (screenShift?.() ?? 0) - keyboardVerticalOffset
-      const visibleBottom = Math.min(y + viewportHeight, keyboardEdge)
-      const revealMargin = y + viewportHeight > keyboardEdge - REVEAL_MARGIN ? REVEAL_MARGIN : 0
-      const revealSpace = focusedInputRef.current ? revealMargin : 0
+      const visibleBottom = Math.min(
+        y + viewportHeight,
+        frame.top - (screenShift?.() ?? 0) - keyboardVerticalOffset,
+      )
+      const revealSpace = marginYieldsRef.current > 0 ? 0 : REVEAL_MARGIN
       setKeyboardSpace(Math.max(0, y + viewportHeight - visibleBottom) + revealSpace)
       scrollFocusedInputIntoView(
         scrollable,
         focusedInputRef.current,
         { top: visibleBottom, visibleTop: y },
         scrollOffsetYRef.current,
-        revealMargin,
+        REVEAL_MARGIN,
       )
     })
   }, [keyboardVerticalOffset, screenShift, scrollableRef])
-  const scheduleFocusRefresh = useCallback(() => {
+  const refreshNextFrame = useCallback(() => {
     if (!keyboardFrameRef.current) return
     if (focusFrameRef.current !== null) cancelAnimationFrame(focusFrameRef.current)
     focusFrameRef.current = requestAnimationFrame(() => {
@@ -231,13 +238,21 @@ function useKeyboardAwareContextValue(
   }, [refresh])
   const revealInput = useCallback((input: KeyboardAwareInputTarget) => {
     focusedInputRef.current = input
-    scheduleFocusRefresh()
-  }, [scheduleFocusRefresh])
+    refreshNextFrame()
+  }, [refreshNextFrame])
   const clearInput = useCallback((input: KeyboardAwareInputTarget) => {
-    if (focusedInputRef.current !== input) return
-    focusedInputRef.current = null
-    scheduleFocusRefresh()
-  }, [scheduleFocusRefresh])
+    if (focusedInputRef.current === input) focusedInputRef.current = null
+  }, [])
+  const yieldRevealMargin = useCallback(() => {
+    marginYieldsRef.current += 1
+    const releaseEnclosing = yieldEnclosingRevealMargin?.()
+    refreshNextFrame()
+    return () => {
+      marginYieldsRef.current -= 1
+      releaseEnclosing?.()
+      refreshNextFrame()
+    }
+  }, [yieldEnclosingRevealMargin, refreshNextFrame])
   const recordScroll = useCallback((offset: number) => {
     scrollOffsetYRef.current = offset
   }, [])
@@ -251,8 +266,8 @@ function useKeyboardAwareContextValue(
   useKeyboardFrameListener(keyboardFrameRef, refresh, setKeyboardSpace)
 
   return useMemo(
-    () => ({ revealInput, clearInput, handleScroll, recordScroll, refresh, keyboardSpace }),
-    [revealInput, clearInput, handleScroll, recordScroll, refresh, keyboardSpace],
+    () => ({ revealInput, clearInput, handleScroll, recordScroll, refresh, keyboardSpace, yieldRevealMargin, yieldEnclosingRevealMargin }),
+    [revealInput, clearInput, handleScroll, recordScroll, refresh, keyboardSpace, yieldRevealMargin, yieldEnclosingRevealMargin],
   )
 }
 

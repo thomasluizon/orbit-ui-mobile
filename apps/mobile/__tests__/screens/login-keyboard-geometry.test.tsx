@@ -14,8 +14,8 @@ import { __emitKeyboardEvent, __resetTestHostConfig, __setMeasureInWindowImpl, _
 
 const { act, create } = require('react-test-renderer')
 
-const SE = { width: 375, height: 667, top: 20, bottom: 0, keyboardTop: 432 }
-const IPHONE_17 = { width: 402, height: 874, top: 62, bottom: 34, keyboardTop: 572 }
+const SE = { width: 375, height: 667, scale: 2, top: 20, bottom: 0, keyboardTop: 432 }
+const IPHONE_17 = { width: 402, height: 874, scale: 3, top: 62, bottom: 34, keyboardTop: 572 }
 const device = { ...SE }
 const FLEXIBLE_CHALLENGE_HEIGHT = 65
 const STEP_GAP = 24
@@ -65,7 +65,7 @@ function withIosKeyboardAvoidingPadding(host: GeometryHost | string): GeometryHo
 
 function layout() {
   const root = withIosKeyboardAvoidingPadding(geometry.tree!.toJSON()) as GeometryHost
-  return measureSafeArea(root, (host) => keyOf(host.type, host.props, host.children), { width: device.width, height: device.height })
+  return measureSafeArea(root, (host) => keyOf(host.type, host.props, host.children), { width: device.width, height: device.height }, device.scale)
 }
 
 function screenBox(key: string) {
@@ -155,7 +155,7 @@ function closeKeyboard(tree: Tree) {
 function useDevice(next: typeof SE) {
   Object.assign(device, next)
   mocks.insets = { top: next.top, bottom: next.bottom }
-  __setWindowDimensions({ width: next.width, height: next.height, scale: 2, fontScale: 1 })
+  __setWindowDimensions({ width: next.width, height: next.height, scale: next.scale, fontScale: 1 })
 }
 
 describe('mobile sign-in on iPhone inside the flow viewport', () => {
