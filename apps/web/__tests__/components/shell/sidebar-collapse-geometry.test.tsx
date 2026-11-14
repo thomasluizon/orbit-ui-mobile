@@ -36,7 +36,7 @@ describe('collapsed sidebar geometry in Chromium', () => {
   })
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
 
-  it.each(cases.filter(({ height }) => height === 600))('shows the Astra name with sibling row treatment at $width in $locale and $theme', async ({ locale, width, height, theme }) => {
+  it.each(cases.filter(({ height }) => height === 600))('shows the Orbit name with sibling row treatment at $width in $locale and $theme', async ({ locale, width, height, theme }) => {
     const messages = locale === 'en' ? en : ptBR
     const props = {
       items: SHELL_DESTINATION_IDS.map(id => ({ id, href: '/', label: messages.nav[DESTINATION_ICONS[id].labelKey.split('.')[1] as keyof typeof messages.nav], icon: id })),
@@ -54,12 +54,12 @@ describe('collapsed sidebar geometry in Chromium', () => {
           for (const [property, value] of Object.entries(variables)) document.documentElement.style.setProperty(property, value)
         }, resolveWebThemeVariables('orange', theme))
         await page.mouse.move(0, 0)
-        const row = page.getByRole('button', { name: 'Astra', exact: true })
+        const row = page.getByRole('button', { name: messages.nav.astra, exact: true })
         await row.evaluate(async element => {
           element.getBoundingClientRect()
           await Promise.all(element.getAnimations().map(animation => animation.finished))
         })
-        expect(await row.innerText()).toBe('Astra')
+        expect(await row.innerText()).toBe(messages.nav.astra)
         expect(await row.getAttribute('aria-expanded')).toBe(String(open))
         const anatomy = await page.locator('[data-shell-sidebar] nav').evaluate(element => {
           return [...element.children].map(target => {
