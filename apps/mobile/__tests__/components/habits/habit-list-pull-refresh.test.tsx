@@ -54,7 +54,7 @@ function skeletonRows() {
   return tree!.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'skeleton-unit-habit-row')
 }
 
-it('pulls to refresh with no native wheel and holds the list with its skeleton rows until the request settles', async () => {
+it('pulls to refresh with no native wheel, keeps the rows for 300 ms, then holds the list with its skeleton rows until the request settles', async () => {
   vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true)
   vi.useFakeTimers()
   vi.setSystemTime(new Date('2026-09-12T09:00:00Z'))
@@ -89,6 +89,13 @@ it('pulls to refresh with no native wheel and holds the list with its skeleton r
   await act(() => { refreshControl().props.onRefresh!() })
   expect(listReads).toBeGreaterThan(readsBeforePull)
   expect(refreshControl().props.refreshing).toBe(false)
+  expect(titles()).toEqual(['Refresh habit'])
+  expect(skeletonRows()).toHaveLength(0)
+  expect(list().props.accessibilityState).toEqual({ busy: true })
+  await act(async () => { await vi.advanceTimersByTimeAsync(299) })
+  expect(titles()).toEqual(['Refresh habit'])
+  expect(skeletonRows()).toHaveLength(0)
+  await act(async () => { await vi.advanceTimersByTimeAsync(1) })
   expect(titles()).toEqual([])
   expect(list().props.accessibilityState).toEqual({ busy: true })
   expect(skeletonRows()).toHaveLength(5)
@@ -99,4 +106,39 @@ it('pulls to refresh with no native wheel and holds the list with its skeleton r
   expect(titles()).toEqual(['Refreshed habit'])
   expect(list().props.accessibilityState).toEqual({ busy: false })
   expect(skeletonRows()).toHaveLength(0)
+})
+
+it('keeps the rows and never draws the skeleton when a pull settles inside 300 ms', async () => {
+  vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true)
+  vi.useFakeTimers()
+  vi.setSystemTime(new Date('2026-09-12T09:00:00Z'))
+  await testI18n.changeLanguage('en')
+  configCache.setAccount('refresh-account')
+  let listReads = 0
+  request.mockImplementation((url: string) => {
+    const key = url.split('?')[0]!
+    if (key === API.profile.get) return Promise.resolve(createMockProfile({ language: 'en' }))
+    if (key === API.config.get) return Promise.resolve(DEFAULT_CONFIG)
+    if (key === API.habits.count) return Promise.resolve({ count: 1 })
+    if (key !== API.habits.list) return Promise.resolve({ items: [], totalCount: 0, totalPages: 1, page: 1, pageSize: 200 })
+    listReads += 1
+    if (listReads === 1) return Promise.resolve(page('Refresh habit'))
+    return new Promise((resolve) => { setTimeout(() => resolve(page('Refreshed habit')), 100) })
+  })
+  client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  await act(() => {
+    tree = TestRenderer.create(<I18nextProvider i18n={testI18n}><QueryClientProvider client={client}>
+      <HabitList view="today" filters={{ dateFrom: '2026-09-12', dateTo: '2026-09-12', includeOverdue: true }} showCompleted onCreatePress={vi.fn()} />
+    </QueryClientProvider></I18nextProvider>)
+  })
+  for (let tick = 0; tick < 5; tick += 1) await act(async () => { await vi.advanceTimersByTimeAsync(20) })
+  await act(() => { refreshControl().props.onRefresh!() })
+  let sawSkeleton = false
+  for (let elapsed = 0; elapsed < 400; elapsed += 20) {
+    await act(async () => { await vi.advanceTimersByTimeAsync(20) })
+    if (skeletonRows().length > 0 || titles().length === 0) sawSkeleton = true
+  }
+  expect(sawSkeleton).toBe(false)
+  expect(titles()).toEqual(['Refreshed habit'])
+  expect(list().props.accessibilityState).toEqual({ busy: false })
 })

@@ -4,10 +4,11 @@ import { ContentFade } from '@/components/motion/content-fade'
 import { ListScope } from '@/components/motion/list-scope'
 import { TodayLaunchContent } from '@/components/today/today-launch-content'
 import { SPACING } from '@orbit/shared/theme'
-import { forwardRef,useCallback,useLayoutEffect,useMemo,useRef,useState,type ReactElement,type RefObject } from 'react'
+import { forwardRef,useCallback,useEffect,useLayoutEffect,useMemo,useRef,useState,type ReactElement,type RefObject } from 'react'
 import { View,Text,RefreshControl } from 'react-native'
 import DraggableFlatList,{ type RenderItemParams } from 'react-native-draggable-flatlist'
 import { canLogHabitOnDate,formatAPIDate,getAllDoneOnDate,type HabitResolution } from '@orbit/shared/utils'
+import { createUseDelayedLoading } from '@orbit/shared/hooks'
 import type { NormalizedHabit,HabitsFilter,BulkMoveHabitParentResult } from '@orbit/shared/types/habit'
 import { useUIStore } from '@/stores/ui-store'
 import { CreateHabitModal } from '@/components/habits/create-habit-modal'
@@ -232,7 +233,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
           onLayout={event => { keyboard.onLayout?.(event); measureList(event) }}
           onFocus={revealListFocus}
           data={status === 'ready' ? presentation.items : NO_ITEMS}
-          accessibilityState={{ busy: status === 'loading' }}
+          accessibilityState={{ busy: status === 'loading' || state.refresh.pending }}
           keyboardShouldPersistTaps={KEYBOARD_SHOULD_PERSIST_TAPS}
           renderItem={renderItem}
           keyExtractor={keyExtractor}
@@ -413,6 +414,9 @@ type HabitListRefreshInputs = Pick<ReturnType<typeof useHabitListQueries>, 'refe
  * Android's circle keeps a 4 dp shadow with a transparent fill, so it starts 192 dp above the list: it moves at most two
  * 64 dp targets (androidx swiperefreshlayout 1.1.0 `moveSpinner`, `ReactSwipeRefreshLayout.setProgressViewOffset`).
  */
+/** The skeleton rows replace the kept rows only once a pull outlasts the shared skeleton delay (DESIGN.md States). */
+const useDelayedLoading = createUseDelayedLoading({ useState, useEffect })
+
 function useHabitListRefresh({ refetch }: HabitListRefreshInputs) {
   const [refreshing, setRefreshing] = useState(false)
   const refreshControl = useMemo(
@@ -431,7 +435,7 @@ function useHabitListRefresh({ refetch }: HabitListRefreshInputs) {
     ),
     [refetch],
   )
-  return { refreshControl, refreshing }
+  return { refreshControl, refreshing: useDelayedLoading(refreshing, 'pull'), pending: refreshing }
 }
 
 type getHabitListCompletionInputs = { view: NonNullable<HabitListProps['view']> } & Pick<HabitListProps, 'filters' | 'onSeeUpcoming'> & Pick<ReturnType<typeof useHabitListAccount>, 'accountHabitCount' | 'selectedDateStr' | 'todayStr' | 'styles'> & Pick<ReturnType<typeof useHabitListQueries>, 'habitsById' | 'childrenByParent'> & Pick<ReturnType<typeof useHabitListEmptyRendering>, 'listHeaderComponent'>
@@ -653,7 +657,7 @@ function renderHabitAllState(state: Readonly<HabitListScreenState & { commonOver
       testID="habit-list-all"
       onLayout={measureList}
       data={status === 'ready' ? presentation.items : NO_ITEMS}
-      accessibilityState={{ busy: status === 'loading' }}
+      accessibilityState={{ busy: status === 'loading' || state.refresh.pending }}
       keyExtractor={keyExtractor}
       renderItem={({ item, index }) => <HabitListMotionRow id={item.id} phase={presentation.rows[index]!.phase} offset={presentation.rows[index]!.offset} itemIds={presentation.itemIds} measure={presentation.measure}>
         {groupHeadings.has(item.id) ? <Text accessibilityRole="header" style={[styles.dateGroupHeading, index === 0 && { paddingTop: SPACING.s0 }]}>{groupHeadings.get(item.id)}</Text> : null}
