@@ -149,6 +149,34 @@ test("handoff-size: the step fails an oversized changed relay document and ignor
   }
 })
 
+test("feature parity runs for every input of the check and skips an unrelated change", () => {
+  const step = workflow.jobs.guards.steps.find((candidate) => candidate.id === "feature-parity__1")
+  const directory = mkdtempSync(join(tmpdir(), "guards-feature-parity-"))
+  try {
+    const ran = (path) => {
+      writeFileSync(join(directory, "changed-paths.txt"), `${path}\n`)
+      const result = spawnSync("bash", ["-e", "-c", `node() { echo GATE_RAN; }\n${step.run}`], {
+        cwd: directory, env: { ...process.env, RUNNER_TEMP: directory, BASE_REF: "main" }, encoding: "utf8",
+      })
+      assert.equal(result.status, 0, result.stderr)
+      return result.stdout.includes("GATE_RAN")
+    }
+    for (const path of ["apps/web/app/page.tsx", "apps/mobile/app/index.tsx", "packages/shared/src/i18n/en.json",
+      "tools/check-feature-parity.mjs", "tools/feature-parity-rules.json", "DESIGN.md", ".claude/specs/orbit-prod-release.md"]) {
+      assert.equal(ran(path), true, `${path} is an input of the parity check`)
+    }
+    for (const path of ["docs/DESIGN.md", "tools/check-copy.mjs", ".claude/specs/other.md"]) {
+      assert.equal(ran(path), false, `${path} is not an input of the parity check`)
+    }
+  } finally {
+    rmSync(directory, { recursive: true, force: true })
+  }
+  const tool = readFileSync(join(repositoryRoot, "tools/check-feature-parity.mjs"), "utf8")
+  for (const input of ["tools/feature-parity-rules.json", "DESIGN.md", ".claude/specs/orbit-prod-release.md"]) {
+    assert.ok(tool.includes(`'${input}'`), `${input} must still be an input of the tool`)
+  }
+})
+
 test("each diff reader resolves paths before using them", () => {
   const readers = ["mobile-styles", "root-allowlist", "dashes", "mobile-fonts", "copy", "i18n-usage",
     "expo-pin", "surface-manifest", "gate-charter"]

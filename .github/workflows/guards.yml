@@ -74,7 +74,7 @@ jobs:
           BASE_REF: ${{ github.base_ref }}
         run: |
           # WHY: Compare with the queued merge's own base so later restorations cannot create false losses (https://github.com/thomasluizon/orbit-tickets/issues/1495).
-          if [ "$BASE_REF" = main ] && grep -Eq '^(apps/(web|mobile)|packages/shared)/|^tools/check-feature-parity\.mjs$|^\.claude/manifests/feature-parity\.json$' "$RUNNER_TEMP/changed-paths.txt"; then
+          if [ "$BASE_REF" = main ] && grep -Eq '^(apps/(web|mobile)|packages/shared)/|^tools/check-feature-parity\.mjs$|^tools/feature-parity-rules\.json$|^DESIGN\.md$|^\.claude/specs/orbit-prod-release\.md$' "$RUNNER_TEMP/changed-paths.txt"; then
             node tools/check-feature-parity.mjs --write --ci --production "HEAD^1" --base "HEAD^1"
           else
             echo "Feature parity skipped: no app, shared or parity input changed."
