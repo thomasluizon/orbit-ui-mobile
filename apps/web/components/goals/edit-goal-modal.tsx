@@ -12,7 +12,7 @@ import { useAppToast } from '@/hooks/use-app-toast'
 import { useDismissGuard } from '@/hooks/use-dismiss-guard'
 import { useUpdateGoal } from '@/hooks/use-goals'
 import { useFlag } from '@/hooks/use-flag'
-import { GuidedGoalEditFlow } from './guided/guided-goal-flow'
+import { GuidedGoalEditFlow } from './guided/guided-goal-edit-flow'
 import {
   getFriendlyErrorMessage,
   translateErrorKey,
