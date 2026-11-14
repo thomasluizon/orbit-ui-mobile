@@ -12,14 +12,14 @@ import { useGoalLinkStepView } from '@/components/habits/flow-steps/goal-link-st
 import { i18n } from '@/lib/i18n'
 import { press, renderNavigation } from '../../ui/navigation-render'
 
-const state = vi.hoisted(() => ({ goals: [] as Goal[], selected: [] as string[] }))
+const state = vi.hoisted(() => ({ goals: [] as Goal[], selected: [] as string[], goalsQuery: 'ready', refetch: vi.fn() }))
 
 vi.mock('react-i18next', () => ({
   initReactI18next: { type: '3rdParty', init: () => {} },
   useTranslation: () => ({ t: (key: string, params?: Record<string, unknown>) => i18n.t(key, params), i18n: { language: i18n.language } }),
 }))
 vi.mock('@/lib/posthog', () => ({ captureGuidedFlowEvent: vi.fn() }))
-vi.mock('@/components/habits/goal-linking-field', () => ({ useLinkableGoals: () => ({ data: state.goals }) }))
+vi.mock('@/components/habits/goal-linking-field', () => ({ useLinkableGoals: () => ({ data: state.goalsQuery === 'ready' ? state.goals : undefined, isSuccess: state.goalsQuery === 'ready', isLoading: state.goalsQuery === 'loading', isError: state.goalsQuery === 'error', refetch: state.refetch }) }))
 vi.mock('@/components/goals/create-goal-sheet', () => ({
   CreateGoalSheet: ({ initialHabitIds = [], fromHabit, onCreated, onClose }: { initialHabitIds?: string[]; fromHabit?: { title: string }; onCreated?: (id: string, habitIds: string[]) => void; onClose: () => void }) =>
     <View testID="goal-create-flow">
@@ -72,6 +72,8 @@ beforeEach(async () => {
   await i18n.changeLanguage('pt-BR')
   state.goals = []
   state.selected = []
+  state.goalsQuery = 'ready'
+  state.refetch = vi.fn()
 })
 
 describe('the goal step on Android', () => {
@@ -82,6 +84,20 @@ describe('the goal step on Android', () => {
     expect(header(tree).props).toMatchObject({ accessibilityHint: i18n.t('habits.flow.goals.lineEmpty') })
     expect(optionLabels(tree)).toEqual([i18n.t('habits.form.createGoal')])
     tree.unmount()
+  })
+
+  it('shows a skeleton while the goals load and a retry after an error, never the line of a person with no goal', async () => {
+    state.goalsQuery = 'loading'
+    const loading = renderNavigation(<Harness />)
+    expect(header(loading).props).toMatchObject({ accessibilityHint: i18n.t('habits.flow.goals.line') })
+    expect(loading.hosts().some((node) => node.props.accessibilityLabel === i18n.t('common.loading'))).toBe(true)
+    loading.unmount()
+    state.goalsQuery = 'error'
+    const failed = renderNavigation(<Harness />)
+    expect(header(failed).props).toMatchObject({ accessibilityHint: i18n.t('habits.flow.goals.line') })
+    await tap(failed.hosts().find((node) => node.props.accessibilityLabel === i18n.t('common.retry') && node.props.onPress))
+    expect(state.refetch).toHaveBeenCalledTimes(1)
+    failed.unmount()
   })
 
   it('shows the active goals as options that toggle without advancing, and continues on its own action', async () => {

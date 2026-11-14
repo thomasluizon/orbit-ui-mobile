@@ -645,6 +645,7 @@
         "write": "Write steps",
         "saveQuestion": "What do you want to call this template?",
         "saveLine": "I keep these steps so you can use them on another habit.",
+        "loadError": "Could not load your templates. Try again.",
         "nameHint": "Write a name for the template."
       },
       "goals": {
@@ -652,7 +653,8 @@
         "lineEmpty": "You have no goals yet. A goal adds up the progress of the habits linked to it.",
         "limit": "Choose up to 10 goals",
         "searchMiss": "No goal with that name.",
-        "option": "{title}, {percent}%"
+        "option": "{title}, {percent}%",
+        "loadError": "Could not load your goals. Try again."
       },
       "orbit": {
         "offline": "No connection. I read on the device and you can go on the same way.",

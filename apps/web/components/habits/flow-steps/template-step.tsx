@@ -11,6 +11,7 @@ import { Icon } from '@/components/ui/icon'
 import { Input } from '@/components/ui/input'
 import { OptionCard } from '@/components/ui/option-card'
 import { PillButton } from '@/components/ui/pill-button'
+import { InlineLoadError } from '@/components/ui/inline-load-error'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useChecklistTemplates, useCreateChecklistTemplate, useDeleteChecklistTemplate } from '@/hooks/use-checklist-templates'
 import { useAccountScopedState } from '@/hooks/use-session-reset'
@@ -41,7 +42,7 @@ function TemplateRow({ template, label, loadable, onLoad, onDelete }: Readonly<{
 /** The question "Qual modelo você quer usar?": a press on a template loads its items. Delete stays on each template. */
 export function useTemplateQuestionView({ onLoad, onWrite }: Readonly<{ onLoad: (items: ChecklistItem[]) => void; onWrite: () => void }>): FlowStepView {
   const t = useTranslations()
-  const { data: templates = [], isLoading } = useChecklistTemplates()
+  const { data: templates = [], isLoading, isError, refetch } = useChecklistTemplates()
   const deleteTemplate = useDeleteChecklistTemplate()
   const [deleteError, setDeleteError] = useState('')
   const label = (template: ChecklistTemplate) => t('habits.flow.templates.option', { name: template.name, count: template.items.length })
@@ -50,9 +51,10 @@ export function useTemplateQuestionView({ onLoad, onWrite }: Readonly<{ onLoad: 
     setDeleteError('')
     deleteTemplate.mutate(id, { onError: () => setDeleteError(t('habits.form.deleteTemplateError')) })
   }
-  const empty = !isLoading && templates.length === 0
+  const empty = !isLoading && !isError && templates.length === 0
   let free = <PillButton variant="ghost" onClick={onWrite}>{t('habits.flow.templates.write')}</PillButton>
   if (isLoading) free = <Skeleton variant="settings" rows={2} label={t('common.loading')} />
+  else if (isError) free = <><InlineLoadError message={t('habits.flow.templates.loadError')} onRetry={() => void refetch()} />{free}</>
   else if (!empty) free = <div className="flex flex-col gap-1">
     <ListPresence>{templates.map((template) => <ListMotionItem key={template.id}>
       <TemplateRow template={template} label={label(template)} loadable={templates.length > QUICK_TEMPLATES} onLoad={() => load(template)} onDelete={() => remove(template.id)} />

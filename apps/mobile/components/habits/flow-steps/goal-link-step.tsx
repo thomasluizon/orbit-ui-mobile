@@ -7,7 +7,9 @@ import { createUseGoalLinking } from '@orbit/shared/hooks'
 import { CreateGoalSheet } from '@/components/goals/create-goal-sheet'
 import { useLinkableGoals } from '@/components/habits/goal-linking-field'
 import { Input } from '@/components/ui/input'
+import { InlineLoadError } from '@/components/ui/inline-load-error'
 import { OptionCard } from '@/components/ui/option-card'
+import { Skeleton } from '@/components/ui/skeleton'
 import { PickerRow } from '@/components/ui/picker-row'
 import { useAccountScopedState } from '@/hooks/use-session-reset'
 import { useThemeTokens } from '@/hooks/use-theme-tokens'
@@ -56,13 +58,14 @@ function GoalSearch({ goals, selected, atGoalLimit, onToggleGoal }: Readonly<{ g
 export function useGoalLinkStepView(props: Readonly<GoalLinkStepProps>): FlowStepView {
   const { habitTitle, atGoalLimit, onToggleGoal, onContinue } = props
   const { t } = useTranslation()
-  const { data: goals } = useLinkableGoals()
+  const goalsQuery = useLinkableGoals()
+  const goals = goalsQuery.data
   const linking = useGoalLinking({ ...props, onGoalCreated: props.onGoalCreated ?? onToggleGoal }, goals, (afterDismiss) => afterDismiss())
   const limitReason = t('habits.flow.goals.limit')
   const { activeGoals, selectedSet } = linking
   return {
     question: t('habits.flow.optional.goals'),
-    line: activeGoals.length > 0 ? t('habits.flow.goals.line') : t('habits.flow.goals.lineEmpty'),
+    line: !goalsQuery.isSuccess || activeGoals.length > 0 ? t('habits.flow.goals.line') : t('habits.flow.goals.lineEmpty'),
     options: <>
       {quickGoals(activeGoals, selectedSet).map((goal) => {
         const selected = selectedSet.has(goal.id)
@@ -71,6 +74,8 @@ export function useGoalLinkStepView(props: Readonly<GoalLinkStepProps>): FlowSte
       <OptionCard label={t('habits.form.createGoal')} disabled={atGoalLimit} disabledReason={limitReason} onSelect={linking.openCreateGoal} />
     </>,
     free: <>
+      {goalsQuery.isLoading ? <Skeleton variant="settings" rows={2} label={t('common.loading')} /> : null}
+      {goalsQuery.isError ? <InlineLoadError message={t('habits.flow.goals.loadError')} onRetry={() => void goalsQuery.refetch()} /> : null}
       {activeGoals.length > QUICK_GOALS ? <GoalSearch goals={activeGoals} selected={selectedSet} atGoalLimit={atGoalLimit} onToggleGoal={onToggleGoal} /> : null}
       {linking.creating ? <CreateGoalSheet open initialHabitIds={linking.initialHabitIds} fromHabit={{ title: habitTitle }} onCreated={linking.handleCreated} onClose={() => linking.setCreating(false)} /> : null}
     </>,

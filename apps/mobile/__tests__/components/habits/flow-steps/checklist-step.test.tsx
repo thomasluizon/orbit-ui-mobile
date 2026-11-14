@@ -14,6 +14,8 @@ import { press, renderNavigation } from '../../ui/navigation-render'
 const state = vi.hoisted(() => ({
   templates: [] as ChecklistTemplate[],
   loading: false,
+  templatesError: false,
+  refetchTemplates: vi.fn(),
   reduced: false,
   create: vi.fn(),
   remove: vi.fn(),
@@ -27,7 +29,7 @@ vi.mock('react-i18next', () => ({
 vi.mock('@/lib/posthog', () => ({ captureGuidedFlowEvent: vi.fn() }))
 vi.mock('@/lib/motion', async (importOriginal) => ({ ...await importOriginal<typeof import('@/lib/motion')>(), usePrefersReducedMotion: () => state.reduced }))
 vi.mock('@/hooks/use-checklist-templates', () => ({
-  useChecklistTemplates: () => ({ data: state.templates, isLoading: state.loading }),
+  useChecklistTemplates: () => ({ data: state.templates, isLoading: state.loading, isError: state.templatesError, refetch: state.refetchTemplates }),
   useCreateChecklistTemplate: () => ({ mutate: state.create, isPending: false }),
   useDeleteChecklistTemplate: () => ({ mutate: state.remove }),
 }))
@@ -76,6 +78,8 @@ beforeEach(async () => {
   await i18n.changeLanguage('pt-BR')
   state.templates = []
   state.loading = false
+  state.templatesError = false
+  state.refetchTemplates = vi.fn()
   state.reduced = false
   state.create.mockReset()
   state.remove.mockReset()
@@ -183,6 +187,19 @@ describe('the template question inside the checklist step on Android', () => {
     const tree = renderNavigation(<Harness />)
     await tap(tree, 'Usar um modelo')
     expect(textOf(tree)).toContain('Você ainda não guardou nenhum modelo. Escreva os passos e eu guardo para a próxima.')
+    await tap(tree, 'Escrever passos')
+    expect(headings(tree)).toEqual(['Tem passos dentro disso?'])
+    tree.unmount()
+  })
+
+  it('says the templates did not load, offers a retry and keeps the item editor, never the line of no template', async () => {
+    state.templatesError = true
+    const tree = renderNavigation(<Harness />)
+    await tap(tree, 'Usar um modelo')
+    expect(textOf(tree)).toContain('Não foi possível carregar seus modelos. Tente de novo.')
+    expect(textOf(tree)).not.toContain('Você ainda não guardou nenhum modelo. Escreva os passos e eu guardo para a próxima.')
+    await tap(tree, i18n.t('common.retry'))
+    expect(state.refetchTemplates).toHaveBeenCalledTimes(1)
     await tap(tree, 'Escrever passos')
     expect(headings(tree)).toEqual(['Tem passos dentro disso?'])
     tree.unmount()

@@ -12,14 +12,14 @@ import { toggleSelectedId } from '@orbit/shared/utils'
 import { QuestionFlow } from '@/components/ui/question-flow'
 import { useGoalLinkStepView } from '@/components/habits/flow-steps/goal-link-step'
 
-const state = vi.hoisted(() => ({ locale: 'pt-BR' as 'en' | 'pt-BR', goals: [] as Goal[], selected: [] as string[] }))
+const state = vi.hoisted(() => ({ locale: 'pt-BR' as 'en' | 'pt-BR', goals: [] as Goal[], selected: [] as string[], goalsQuery: 'ready' as 'ready' | 'loading' | 'error', refetch: vi.fn() }))
 
 vi.mock('next-intl', async (importOriginal) => {
   const actual = await importOriginal<typeof import('next-intl')>()
   return { ...actual, useLocale: () => state.locale, useTranslations: () => actual.createTranslator({ locale: state.locale, messages: state.locale === 'en' ? en : ptBR }) }
 })
 vi.mock('@/lib/posthog', () => ({ captureGuidedFlowEvent: vi.fn() }))
-vi.mock('@/components/habits/goal-linking-field', () => ({ useLinkableGoals: () => ({ data: state.goals }) }))
+vi.mock('@/components/habits/goal-linking-field', () => ({ useLinkableGoals: () => ({ data: state.goalsQuery === 'ready' ? state.goals : undefined, isSuccess: state.goalsQuery === 'ready', isLoading: state.goalsQuery === 'loading', isError: state.goalsQuery === 'error', refetch: state.refetch }) }))
 vi.mock('@/components/goals/create-goal-sheet', () => ({
   CreateGoalSheet: ({ initialHabitIds = [], fromHabit, onCreated, onClose }: { initialHabitIds?: string[]; fromHabit?: { title: string }; onCreated?: (id: string, habitIds: string[]) => void; onClose: () => void }) =>
     <div role="dialog" aria-label="goal create flow">
@@ -57,6 +57,8 @@ beforeEach(() => {
   state.locale = 'pt-BR'
   state.goals = []
   state.selected = []
+  state.goalsQuery = 'ready'
+  state.refetch = vi.fn()
   vi.stubGlobal('matchMedia', (query: string) => ({ matches: false, media: query, addEventListener: noop, removeEventListener: noop }))
 })
 
@@ -68,6 +70,20 @@ describe('the goal step', () => {
     expect(heading()).toHaveTextContent(t('habits.flow.optional.goals'))
     expect(heading()).toHaveAccessibleDescription(t('habits.flow.goals.lineEmpty'))
     expect(options().map((option) => option.textContent)).toEqual([t('habits.form.createGoal')])
+  })
+
+  it('shows a skeleton while the goals load and a retry after an error, never the line of a person with no goal', () => {
+    state.goalsQuery = 'loading'
+    const view = render(<Harness />)
+    expect(heading()).toHaveAccessibleDescription('Uma meta soma o progresso dos hábitos ligados a ela.')
+    expect(screen.getByLabelText(ptBR.common.loading)).toBeInTheDocument()
+    view.unmount()
+    state.goalsQuery = 'error'
+    render(<Harness />)
+    expect(heading()).toHaveAccessibleDescription('Uma meta soma o progresso dos hábitos ligados a ela.')
+    expect(screen.getByText('Não foi possível carregar suas metas. Tente de novo.')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: ptBR.common.retry }))
+    expect(state.refetch).toHaveBeenCalledTimes(1)
   })
 
   it('shows the active goals as options that toggle without advancing, and continues on its own action', async () => {

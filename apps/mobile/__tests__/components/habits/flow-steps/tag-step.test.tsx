@@ -85,6 +85,17 @@ describe.each(['en', 'pt-BR'] as const)('the tag step on Android in %s', (locale
     expect(selected(root)).toBe('created')
   })
 
+  it('asks before it leaves a typed tag name behind, and continues after a discard', async () => {
+    const onContinue = vi.fn()
+    const root = mount(<TagStepHarness onContinue={onContinue} />)
+    type(field(root, text.habits.form.newTag), 'Saúde')
+    await press(pressable(root, text.habits.flow.continue))
+    expect(onContinue).not.toHaveBeenCalled()
+    await press(pressable(root, text.common.discardChangesAction))
+    expect(onContinue).toHaveBeenCalledTimes(1)
+    expect(field(root, text.habits.form.newTag).props.value).toBe('')
+  })
+
   it('changes the Orbit line to the items of the pressed tag with no request', async () => {
     tagStepState.tags = buildTags(['Health', 'Mind'])
     tagStepState.habits = [{ title: 'Run', tags: [{ id: 'tag-0' }] }, { title: 'Swim', tags: [{ id: 'tag-0' }] }]

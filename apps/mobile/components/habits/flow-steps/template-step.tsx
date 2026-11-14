@@ -11,6 +11,7 @@ import { Input } from '@/components/ui/input'
 import { MotionPressable } from '@/components/ui/motion-pressable'
 import { OptionCard } from '@/components/ui/option-card'
 import { PillButton } from '@/components/ui/pill-button'
+import { InlineLoadError } from '@/components/ui/inline-load-error'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useChecklistTemplates, useCreateChecklistTemplate, useDeleteChecklistTemplate } from '@/hooks/use-checklist-templates'
 import { nestedControlFill, useRowFeedback } from '@/hooks/use-row-feedback'
@@ -54,7 +55,7 @@ export function useTemplateQuestionView({ onLoad, onWrite }: Readonly<{ onLoad: 
   const { t } = useTranslation()
   const tokens = useThemeTokens()
   const motion = useListRowMotion()
-  const { data: templates = [], isLoading } = useChecklistTemplates()
+  const { data: templates = [], isLoading, isError, refetch } = useChecklistTemplates()
   const deleteTemplate = useDeleteChecklistTemplate()
   const [deleteError, setDeleteError] = useState('')
   const label = (template: ChecklistTemplate) => t('habits.flow.templates.option', { name: template.name, count: template.items.length })
@@ -63,9 +64,10 @@ export function useTemplateQuestionView({ onLoad, onWrite }: Readonly<{ onLoad: 
     setDeleteError('')
     deleteTemplate.mutate(id, { onError: () => setDeleteError(t('habits.form.deleteTemplateError')) })
   }
-  const empty = !isLoading && templates.length === 0
+  const empty = !isLoading && !isError && templates.length === 0
   let free = <PillButton variant="ghost" onClick={onWrite}>{t('habits.flow.templates.write')}</PillButton>
   if (isLoading) free = <Skeleton variant="settings" rows={2} label={t('common.loading')} />
+  else if (isError) free = <><InlineLoadError message={t('habits.flow.templates.loadError')} onRetry={() => void refetch()} />{free}</>
   else if (!empty) free = <View style={staticStyles.rows}>
     {templates.map((template) => <Animated.View key={template.id} entering={motion.entering} exiting={motion.exiting} layout={motion.layout}>
       <TemplateRow template={template} label={label(template)} loadable={templates.length > QUICK_TEMPLATES} tokens={tokens} onLoad={() => load(template)} onDelete={() => remove(template.id)} />

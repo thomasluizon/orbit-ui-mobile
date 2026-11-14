@@ -15,6 +15,8 @@ const state = vi.hoisted(() => ({
   locale: 'pt-BR' as 'en' | 'pt-BR',
   templates: [] as ChecklistTemplate[],
   loading: false,
+  templatesError: false,
+  refetchTemplates: vi.fn(),
   create: vi.fn(),
   remove: vi.fn(),
   items: [] as ChecklistItem[],
@@ -26,7 +28,7 @@ vi.mock('next-intl', async (importOriginal) => {
 })
 vi.mock('@/lib/posthog', () => ({ captureGuidedFlowEvent: vi.fn() }))
 vi.mock('@/hooks/use-checklist-templates', () => ({
-  useChecklistTemplates: () => ({ data: state.templates, isLoading: state.loading }),
+  useChecklistTemplates: () => ({ data: state.templates, isLoading: state.loading, isError: state.templatesError, refetch: state.refetchTemplates }),
   useCreateChecklistTemplate: () => ({ mutate: state.create, isPending: false }),
   useDeleteChecklistTemplate: () => ({ mutate: state.remove }),
 }))
@@ -59,6 +61,8 @@ beforeEach(() => {
   state.locale = 'pt-BR'
   state.templates = []
   state.loading = false
+  state.templatesError = false
+  state.refetchTemplates = vi.fn()
   state.create.mockReset()
   state.remove.mockReset()
   stubMedia(false)
@@ -150,6 +154,18 @@ describe('the template question inside the checklist step', () => {
     await press('Usar um modelo')
     expect(heading()).toHaveAccessibleDescription('Você ainda não guardou nenhum modelo. Escreva os passos e eu guardo para a próxima.')
     expect(screen.queryByRole('group', { name: 'Qual modelo você quer usar?' })).not.toBeInTheDocument()
+    await press('Escrever passos')
+    expect(heading()).toHaveTextContent('Tem passos dentro disso?')
+  })
+
+  it('says the templates did not load, offers a retry and keeps the item editor, never the line of no template', async () => {
+    state.templatesError = true
+    render(<Harness />)
+    await press('Usar um modelo')
+    expect(heading()).toHaveAccessibleDescription('Um modelo é uma lista de passos que você guardou para usar de novo.')
+    expect(screen.getByText('Não foi possível carregar seus modelos. Tente de novo.')).toBeInTheDocument()
+    await press(ptBR.common.retry)
+    expect(state.refetchTemplates).toHaveBeenCalledTimes(1)
     await press('Escrever passos')
     expect(heading()).toHaveTextContent('Tem passos dentro disso?')
   })

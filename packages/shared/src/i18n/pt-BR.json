@@ -645,6 +645,7 @@
         "write": "Escrever passos",
         "saveQuestion": "Que nome vai ter esse modelo?",
         "saveLine": "Eu guardo estes passos para você usar em outro hábito.",
+        "loadError": "Não foi possível carregar seus modelos. Tente de novo.",
         "nameHint": "Escreva um nome para o modelo."
       },
       "goals": {
@@ -652,7 +653,8 @@
         "lineEmpty": "Você ainda não tem metas. Uma meta soma o progresso dos hábitos ligados a ela.",
         "limit": "Escolha até 10 metas",
         "searchMiss": "Nenhuma meta com esse nome.",
-        "option": "{title}, {percent}%"
+        "option": "{title}, {percent}%",
+        "loadError": "Não foi possível carregar suas metas. Tente de novo."
       },
       "orbit": {
         "offline": "Sem conexão. Eu leio no aparelho e você segue do mesmo jeito.",

@@ -40,6 +40,17 @@ describe.each(['en', 'pt-BR'] as const)('the tag step in %s', (locale) => {
     expect(selected()).toBe('created')
   })
 
+  it('asks before it leaves a typed tag name behind, and continues after a discard', async () => {
+    const onContinue = vi.fn()
+    render(<TagStepHarness onContinue={onContinue} />)
+    fireEvent.change(screen.getByRole('textbox', { name: text.habits.form.newTag }), { target: { value: 'Saúde' } })
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: text.habits.flow.continue })) })
+    expect(onContinue).not.toHaveBeenCalled()
+    await act(async () => { fireEvent.click(await screen.findByRole('button', { name: text.common.discardChangesAction })) })
+    await waitFor(() => expect(onContinue).toHaveBeenCalledTimes(1))
+    expect(screen.getByRole('textbox', { name: text.habits.form.newTag })).toHaveValue('')
+  })
+
   it('changes the Orbit line to the items of the pressed tag with no request', () => {
     tagStepState.tags = buildTags(['Health', 'Mind'])
     tagStepState.habits = [{ title: 'Run', tags: [{ id: 'tag-0' }] }, { title: 'Swim', tags: [{ id: 'tag-0' }] }]
