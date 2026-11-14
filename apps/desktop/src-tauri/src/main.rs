@@ -46,7 +46,9 @@ fn desktop_builder(identifier: String) -> tauri::Builder<tauri::Wry> {
     #[cfg(feature = "bench-loopback")]
     let window_state = window_state.skip_initial_state("main");
     #[cfg(target_os = "macos")]
-    let builder = builder.activate_ignoring_other_apps(false);
+    let builder = builder
+        .activate_ignoring_other_apps(false)
+        .on_web_content_process_terminate(window_bar::content_process_ended);
     builder
         .invoke_handler(tauri::generate_handler![
             desktop_login::commit_desktop_login,
