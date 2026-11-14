@@ -16,7 +16,10 @@ export const DESKTOP_WINDOW_BAR_END_INSET = 4
 /** Each action is an `IconButton`, which `actionStyle` makes as wide as the larger of the small pill height and the visible minimum. */
 export const DESKTOP_WINDOW_CONTROL_WIDTH = Math.max(SMALL_PILL_VISIBLE_MIN, BUTTON_SIZES.sm.height)
 
-/** The room the macOS traffic lights take at the start of the bar. */
+/**
+ * The room the macOS traffic lights take at the start of the bar. `src/window_bar.rs` puts the first light at
+ * `TRAFFIC_LIGHT_START`, and `apps/desktop/__tests__/config.test.ts` fails when the three lights reach this inset.
+ */
 export const DESKTOP_WINDOW_TRAFFIC_LIGHT_INSET = 80
 
 export const DESKTOP_MAXIMIZE_HOVER_EVENT = 'orbit-window-maximize-hover'

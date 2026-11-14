@@ -19,6 +19,14 @@ pub enum Action {
 const BAR_HEIGHT: f64 = 48.0;
 const BAR_END_INSET: f64 = 4.0;
 
+// AppKit draws each macOS traffic light 14px square, 9px above the bottom of its title bar view (macOS 27,
+// `NSWindow.standardWindowButton`). tao `inset_traffic_lights` (view.rs) makes that view `14 + y` tall from the window top
+// and keeps each light 9px above its bottom, so the top of a light is at `y - 9`. The bar keeps
+// `DESKTOP_WINDOW_TRAFFIC_LIGHT_INSET` (apps/web/lib/desktop-window.ts) clear for the three lights.
+const TRAFFIC_LIGHT_SIZE: f64 = 14.0;
+const TRAFFIC_LIGHT_BOTTOM: f64 = 9.0;
+const TRAFFIC_LIGHT_START: f64 = 16.0;
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Platform {
     Windows,
@@ -57,9 +65,11 @@ pub fn configure_frame(config: &mut WindowConfig, platform: Platform) {
         Platform::MacOs => {
             config.title_bar_style = tauri::utils::TitleBarStyle::Overlay;
             config.hidden_title = true;
-            // tao `inset_traffic_lights` (view.rs) sets the button row height to the button height plus `y`, so 17 centres the 14px buttons in the 48px bar.
-            config.traffic_light_position =
-                Some(tauri::utils::config::LogicalPosition { x: 16.0, y: 17.0 });
+            // The lights are centred in the height of the bar.
+            config.traffic_light_position = Some(tauri::utils::config::LogicalPosition {
+                x: TRAFFIC_LIGHT_START,
+                y: (BAR_HEIGHT - TRAFFIC_LIGHT_SIZE) / 2.0 + TRAFFIC_LIGHT_BOTTOM,
+            });
             // wry `acceptsFirstMouse:` (wkwebview/class/wry_web_view.rs) returns this. So the first press on an inactive
             // window reaches the drag area of the bar and drags the window, as the native title bar does.
             config.accept_first_mouse = true;
@@ -466,7 +476,7 @@ mod tests {
         assert_eq!(config.title_bar_style, tauri::utils::TitleBarStyle::Overlay);
         assert!(config.hidden_title);
         let position = config.traffic_light_position.unwrap();
-        assert_eq!((position.x, position.y), (16.0, 17.0));
+        assert_eq!((position.x, position.y), (16.0, 26.0));
         assert!(config.accept_first_mouse);
     }
 

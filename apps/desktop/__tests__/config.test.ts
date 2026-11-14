@@ -181,6 +181,18 @@ it('keeps the native snap region, the page bar and the stylesheet on one geometr
   expect(read('../src-tauri/native/windows/launch.cpp')).not.toMatch(/DWMWA_CAPTION_COLOR|dwmapi/)
 })
 
+it('centres the macOS traffic lights in the bar and keeps the bar content clear of them', () => {
+  const read = (path: string) => readFileSync(new URL(path, import.meta.url), 'utf8')
+  const page = read('../../web/lib/desktop-window.ts')
+  const frame = read('../src-tauri/src/window_bar.rs').split('#[cfg(test)]')[0]!
+  const light = (name: string) => Number(frame.match(new RegExp(`const TRAFFIC_LIGHT_${name}: f64 = (\\d+)\\.0;`))?.[1])
+  const appKitLightSpacingOnMacos27 = 23
+  for (const name of ['SIZE', 'BOTTOM', 'START']) expect(light(name)).toBeGreaterThan(0)
+  const inset = Number(page.match(/DESKTOP_WINDOW_TRAFFIC_LIGHT_INSET = (\d+)/)?.[1])
+  expect(light('START') + 2 * appKitLightSpacingOnMacos27 + light('SIZE')).toBeLessThanOrEqual(inset)
+  expect(frame).toMatch(/traffic_light_position = Some\(tauri::utils::config::LogicalPosition \{\s*x: TRAFFIC_LIGHT_START,\s*y: \(BAR_HEIGHT - TRAFFIC_LIGHT_SIZE\) \/ 2\.0 \+ TRAFFIC_LIGHT_BOTTOM,\s*\}\);/)
+})
+
 it('gives the native frame back to a document without the bar, and answers in the snap region only under a drawn bar', () => {
   const read = (path: string) => readFileSync(new URL(path, import.meta.url), 'utf8')
   const entrypoint = read('../src-tauri/src/main.rs')
