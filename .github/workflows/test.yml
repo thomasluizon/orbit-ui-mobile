@@ -330,13 +330,16 @@ jobs:
       # The scanner resolves tsconfig extends and dependency types from node_modules.
       - run: npm ci
 
+      # download-artifact v8 extracts a lone pattern match at `path` and several matches into folders named
+      # after each artifact. merge-multiple extracts at `path` for any count, and each artifact holds one
+      # folder with its own name, so select-artifact-attempts always sees one folder per artifact.
       - name: Download web shard reports
         if: needs.web-tests.result == 'success'
         uses: actions/download-artifact@v8
         with:
           pattern: web-unit-shard-*
           path: .artifacts/downloads/web
-          merge-multiple: false
+          merge-multiple: true
 
       - name: Select latest web report attempts
         if: needs.web-tests.result == 'success'
@@ -382,7 +385,7 @@ jobs:
         with:
           pattern: mobile-unit-shard-*
           path: .artifacts/downloads/mobile
-          merge-multiple: false
+          merge-multiple: true
 
       - name: Select latest mobile report attempts
         if: needs.mobile-tests.result == 'success'
@@ -406,7 +409,7 @@ jobs:
         with:
           pattern: workspace-unit-coverage-*
           path: .artifacts/downloads/workspaces
-          merge-multiple: false
+          merge-multiple: true
 
       - name: Select latest workspace coverage attempt
         if: needs.workspace-tests.result == 'success'
@@ -532,6 +535,8 @@ jobs:
     if: needs.plan.outputs.web-unit-hit != 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    env:
+      ARTIFACT_NAME: web-unit-shard-${{ matrix.project }}-${{ matrix.shard }}-attempt-${{ github.run_attempt }}
     strategy:
       fail-fast: false
       matrix:
@@ -570,12 +575,16 @@ jobs:
           --reporter=default --reporter=blob --reporter=json
           --outputFile.blob=.artifacts/unit-tests/blobs/${{ matrix.project }}-${{ matrix.shard }}.json
           --outputFile.json=.artifacts/unit-tests/timings/${{ matrix.project }}-${{ matrix.shard }}.json
+      # Unit Tests extracts every artifact at one path, so the artifact holds one folder with its own name.
+      - name: Stage web shard reports under the artifact name
+        if: ${{ always() }}
+        run: mkdir -p .artifacts/upload && mv apps/web/.artifacts/unit-tests ".artifacts/upload/$ARTIFACT_NAME"
       - name: Upload web shard reports
         if: ${{ always() }}
         uses: actions/upload-artifact@v7
         with:
-          name: web-unit-shard-${{ matrix.project }}-${{ matrix.shard }}-attempt-${{ github.run_attempt }}
-          path: apps/web/.artifacts/unit-tests
+          name: ${{ env.ARTIFACT_NAME }}
+          path: .artifacts/upload
           include-hidden-files: true
           if-no-files-found: error
 
@@ -586,6 +595,8 @@ jobs:
     if: needs.plan.outputs.mobile-unit-hit != 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 13
+    env:
+      ARTIFACT_NAME: mobile-unit-shard-${{ matrix.shard }}-attempt-${{ github.run_attempt }}
     strategy:
       fail-fast: false
       matrix:
@@ -609,12 +620,16 @@ jobs:
           --coverage.thresholds.functions=0 --coverage.thresholds.lines=0
           --reporter=default --reporter=blob
           --outputFile.blob=.artifacts/unit-tests/blobs/mobile-${{ matrix.shard }}.json
+      # Unit Tests extracts every artifact at one path, so the artifact holds one folder with its own name.
+      - name: Stage mobile shard reports under the artifact name
+        if: ${{ always() }}
+        run: mkdir -p .artifacts/upload && mv apps/mobile/.artifacts/unit-tests ".artifacts/upload/$ARTIFACT_NAME"
       - name: Upload mobile shard reports
         if: ${{ always() }}
         uses: actions/upload-artifact@v7
         with:
-          name: mobile-unit-shard-${{ matrix.shard }}-attempt-${{ github.run_attempt }}
-          path: apps/mobile/.artifacts/unit-tests
+          name: ${{ env.ARTIFACT_NAME }}
+          path: .artifacts/upload
           include-hidden-files: true
           if-no-files-found: error
 
@@ -625,6 +640,8 @@ jobs:
     if: needs.plan.outputs.workspace-unit-hit != 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 9
+    env:
+      ARTIFACT_NAME: workspace-unit-coverage-attempt-${{ github.run_attempt }}
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -637,18 +654,19 @@ jobs:
       - name: Run workspaces with coverage thresholds
         timeout-minutes: 6
         run: npx turbo run test --filter=@orbit/desktop --filter=@orbit/shared --filter=@orbit/eslint-rules --concurrency=1 -- --coverage
-      # Preserve repository paths when the artifact is combined with the other test groups.
+      # Preserve repository paths under one folder with the artifact's own name: Unit Tests extracts every
+      # artifact at one path.
       - name: Stage workspace coverage
         run: |
           for directory in apps/desktop packages/shared eslint-rules; do
             test -s "$directory/coverage/lcov.info"
-            mkdir -p ".artifacts/workspace-coverage/$directory/coverage"
-            cp "$directory/coverage/lcov.info" ".artifacts/workspace-coverage/$directory/coverage/lcov.info"
+            mkdir -p ".artifacts/workspace-coverage/$ARTIFACT_NAME/$directory/coverage"
+            cp "$directory/coverage/lcov.info" ".artifacts/workspace-coverage/$ARTIFACT_NAME/$directory/coverage/lcov.info"
           done
       - name: Upload workspace coverage
         uses: actions/upload-artifact@v7
         with:
-          name: workspace-unit-coverage-attempt-${{ github.run_attempt }}
+          name: ${{ env.ARTIFACT_NAME }}
           path: .artifacts/workspace-coverage
           include-hidden-files: true
           if-no-files-found: error

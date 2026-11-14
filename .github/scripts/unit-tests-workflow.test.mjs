@@ -1,7 +1,7 @@
 import assert from "node:assert/strict"
 import { spawnSync } from "node:child_process"
-import { mkdirSync, mkdtempSync, readFileSync, readdirSync, renameSync, rmSync, writeFileSync } from "node:fs"
-import { dirname, join, resolve } from "node:path"
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, renameSync, rmSync, writeFileSync } from "node:fs"
+import { dirname, join, relative, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 import test from "node:test"
 import yaml from "js-yaml"
@@ -15,6 +15,87 @@ const mobileShardCount = workflow.jobs["mobile-tests"].strategy.matrix.total[0]
 const workspaceDirectories = ["apps/desktop", "packages/shared", "eslint-rules"]
 const unitSteps = workflow.jobs["unit-tests"].steps
 const stepNamed = (steps, name) => steps.find((step) => step.name === name)
+const webLegs = [...jsdomShards, ...Array.from({ length: chromiumShardCount }, (_, index) => ({ project: "chromium", shard: index + 1, total: chromiumShardCount }))]
+const mobileLegs = Array.from({ length: mobileShardCount }, (_, index) => ({ shard: index + 1, total: mobileShardCount }))
+const webReports = ({ project, shard }, label) => ({
+  [`apps/web/.artifacts/unit-tests/blobs/${project}-${shard}.json`]: `${label} report`,
+  [`apps/web/.artifacts/unit-tests/timings/${project}-${shard}.json`]: `${label} timing`,
+})
+const mobileReports = ({ shard }, label) => ({ [`apps/mobile/.artifacts/unit-tests/blobs/mobile-${shard}.json`]: `${label} report` })
+const workspaceReports = (label) => Object.fromEntries(workspaceDirectories.map((path) => [`${path}/coverage/lcov.info`, `${path} ${label}`]))
+const aggregateGroups = [
+  ["Download web shard reports", "Select latest web report attempts", "Verify every web report arrived"],
+  ["Download mobile shard reports", "Select latest mobile report attempts", "Verify every mobile report arrived"],
+  ["Download workspace coverage", "Select latest workspace coverage attempt"],
+]
+const runIn = (directory, command, environment = {}) => spawnSync("bash", ["-e", "-c", command], { cwd: directory, env: { ...process.env, ...environment }, encoding: "utf8" })
+const localTool = (command) => command.replaceAll("node tools/select-artifact-attempts.mjs", `node "${join(root, "tools/select-artifact-attempts.mjs")}"`)
+const writeFiles = (directory, files) => {
+  for (const [path, contents] of Object.entries(files)) {
+    if (existsSync(join(directory, path))) assert.fail(`two artifacts write ${path}, and download-artifact downloads in parallel`)
+    mkdirSync(dirname(join(directory, path)), { recursive: true })
+    writeFileSync(join(directory, path), contents)
+  }
+}
+const expandExpressions = (template, values) => template.replace(/\$\{\{ ([\w.-]+) \}\}/g, (expression, key) => {
+  assert.ok(key in values, `the artifact model cannot resolve ${expression}`)
+  return String(values[key])
+})
+
+// actions/upload-artifact v7.0.2 src/shared/search.ts roots a one-directory `path` at that directory.
+// Runs the steps between the test run and the upload, then returns the artifact's name and files.
+const uploadArtifact = (jobId, { attempt, matrix = {}, reports }) => {
+  const job = workflow.jobs[jobId]
+  const values = { "github.run_attempt": attempt, ...Object.fromEntries(Object.entries(matrix).map(([key, value]) => [`matrix.${key}`, value])) }
+  const environment = Object.fromEntries(Object.entries(job.env ?? {}).map(([key, value]) => [key, expandExpressions(value, values)]))
+  for (const [key, value] of Object.entries(environment)) values[`env.${key}`] = value
+  const uploadIndex = job.steps.findIndex((step) => step.uses?.startsWith("actions/upload-artifact@"))
+  const upload = job.steps[uploadIndex]
+  assert.equal(upload.uses, "actions/upload-artifact@v7", "the artifact model reads upload-artifact v7")
+  assert.doesNotMatch(upload.with.path, /[\n*?]/, "the artifact model covers a one-directory upload path")
+  const runner = mkdtempSync(join(root, ".tmp-unit-runner-"))
+  try {
+    writeFiles(runner, reports)
+    const testIndex = job.steps.findLastIndex((step, index) => index < uploadIndex && step.name?.startsWith("Run "))
+    for (const step of job.steps.slice(testIndex + 1, uploadIndex)) {
+      const result = runIn(runner, expandExpressions(step.run, values), environment)
+      assert.equal(result.status, 0, `${step.name}: ${result.stderr}`)
+    }
+    const artifactRoot = join(runner, upload.with.path)
+    const files = Object.fromEntries(readdirSync(artifactRoot, { recursive: true, withFileTypes: true })
+      .filter((entry) => entry.isFile())
+      .map((entry) => [relative(artifactRoot, join(entry.parentPath, entry.name)), readFileSync(join(entry.parentPath, entry.name), "utf8")]))
+    return { name: expandExpressions(upload.with.name, values), files }
+  } finally {
+    rmSync(runner, { recursive: true, force: true })
+  }
+}
+
+// actions/download-artifact v8.0.2 src/download-artifact.ts extracts at `path` for a name download, for
+// merge-multiple: true, or for exactly one match, and under `path/<artifact name>` only for several matches.
+const downloadArtifacts = (directory, stepName, artifacts) => {
+  const step = stepNamed(unitSteps, stepName)
+  assert.equal(step.uses, "actions/download-artifact@v8", "the artifact model reads download-artifact v8")
+  assert.match(step.with.pattern, /^[\w-]+\*$/, "the artifact model covers a prefix pattern")
+  const matched = artifacts.filter(({ name }) => name.startsWith(step.with.pattern.slice(0, -1)))
+  for (const { name, files } of matched) {
+    const extractsAtPath = step.with["merge-multiple"] === true || matched.length === 1
+    writeFiles(join(directory, step.with.path, extractsAtPath ? "" : name), files)
+  }
+}
+const firstAttemptArtifacts = () => [
+  ...webLegs.map((leg) => uploadArtifact("web-tests", { attempt: 1, matrix: leg, reports: webReports(leg, "first") })),
+  ...mobileLegs.map((leg) => uploadArtifact("mobile-tests", { attempt: 1, matrix: leg, reports: mobileReports(leg, "first") })),
+  uploadArtifact("workspace-tests", { attempt: 1, reports: workspaceReports("first") }),
+]
+const selectAndVerify = (directory, artifacts) => {
+  for (const [download, select, verify] of aggregateGroups) {
+    downloadArtifacts(directory, download, artifacts)
+    const selected = runIn(directory, localTool(stepNamed(unitSteps, select).run))
+    assert.equal(selected.status, 0, `${select}: ${selected.stderr}`)
+    if (verify) assert.equal(runIn(directory, stepNamed(unitSteps, verify).run).status, 0, `${verify} must pass`)
+  }
+}
 
 test("configured Chromium shards split recorded time evenly and leave room for growth and coverage", async () => {
   const web = workflow.jobs["web-tests"]
@@ -153,8 +234,10 @@ test("every pull request distributes Chromium without increasing browser concurr
   assert.match(run, /--reporter=blob/)
   assert.match(run, /--reporter=json/)
   assert.doesNotMatch(run, /maxWorkers|fileParallelism|passWithNoTests/)
+  assert.equal(web.env.ARTIFACT_NAME, "web-unit-shard-${{ matrix.project }}-${{ matrix.shard }}-attempt-${{ github.run_attempt }}")
+  assert.equal(stepNamed(web.steps, "Stage web shard reports under the artifact name").if, "${{ always() }}")
   const upload = web.steps.find((step) => step.uses?.startsWith("actions/upload-artifact@"))
-  assert.equal(upload.with.name, "web-unit-shard-${{ matrix.project }}-${{ matrix.shard }}-attempt-${{ github.run_attempt }}")
+  assert.equal(upload.with.name, "${{ env.ARTIFACT_NAME }}")
   assert.equal(upload.if, "${{ always() }}")
   assert.equal(upload.with["include-hidden-files"], true)
   assert.equal(upload.with["if-no-files-found"], "error")
@@ -198,7 +281,11 @@ test("mobile shards merge their blobs under the unchanged mobile thresholds", ()
   assert.match(run.run, /--shard=\$\{\{ matrix.shard \}\}\/\$\{\{ matrix.total \}\}/)
   assert.match(run.run, /--coverage\.thresholds\.lines=0/)
   assert.match(run.run, /--outputFile\.blob=\.artifacts\/unit-tests\/blobs\/mobile-\$\{\{ matrix.shard \}\}\.json/)
-  assert.equal(mobile.steps.find((step) => step.uses?.startsWith("actions/upload-artifact@")).with.name, "mobile-unit-shard-${{ matrix.shard }}-attempt-${{ github.run_attempt }}")
+  assert.equal(mobile.env.ARTIFACT_NAME, "mobile-unit-shard-${{ matrix.shard }}-attempt-${{ github.run_attempt }}")
+  assert.equal(stepNamed(mobile.steps, "Stage mobile shard reports under the artifact name").if, "${{ always() }}")
+  const upload = mobile.steps.find((step) => step.uses?.startsWith("actions/upload-artifact@"))
+  assert.equal(upload.with.name, "${{ env.ARTIFACT_NAME }}")
+  assert.equal(upload.if, "${{ always() }}")
   const verify = stepNamed(unitSteps, "Verify every mobile report arrived")
   const directory = mkdtempSync(join(root, ".tmp-unit-reports-"))
   try {
@@ -228,8 +315,9 @@ test("every test workspace runs in exactly one test job", () => {
   assert.equal(workspaces.strategy, undefined)
   assert.equal(stepNamed(workspaces.steps, "Run workspaces with coverage thresholds").run,
     "npx turbo run test --filter=@orbit/desktop --filter=@orbit/shared --filter=@orbit/eslint-rules --concurrency=1 -- --coverage")
+  assert.equal(workspaces.env.ARTIFACT_NAME, "workspace-unit-coverage-attempt-${{ github.run_attempt }}")
   const upload = workspaces.steps.find((step) => step.uses?.startsWith("actions/upload-artifact@"))
-  assert.equal(upload.with.name, "workspace-unit-coverage-attempt-${{ github.run_attempt }}")
+  assert.equal(upload.with.name, "${{ env.ARTIFACT_NAME }}")
   assert.equal(upload.with.path, ".artifacts/workspace-coverage")
   assert.equal(upload.with["include-hidden-files"], true)
   assert.equal(upload.with["if-no-files-found"], "error")
@@ -239,7 +327,8 @@ test("workspace coverage keeps its directory tree and the gate rejects missing r
   const stage = stepNamed(workflow.jobs["workspace-tests"].steps, "Stage workspace coverage").run
   const verify = stepNamed(unitSteps, "Verify coverage reports").run
   const directory = mkdtempSync(join(root, ".tmp-unit-reports-"))
-  const run = (command) => spawnSync("bash", ["-e", "-c", command], { cwd: directory, encoding: "utf8" })
+  const artifactName = "workspace-unit-coverage-attempt-1"
+  const run = (command) => spawnSync("bash", ["-e", "-c", command], { cwd: directory, env: { ...process.env, ARTIFACT_NAME: artifactName }, encoding: "utf8" })
   try {
     for (const workspace of ["apps/web", "apps/mobile"]) {
       mkdirSync(join(directory, workspace, "coverage"), { recursive: true })
@@ -253,7 +342,7 @@ test("workspace coverage keeps its directory tree and the gate rejects missing r
     const staged = run(stage)
     assert.equal(staged.status, 0, staged.stderr)
     for (const workspace of workspaceDirectories) {
-      assert.equal(readFileSync(join(directory, ".artifacts/workspace-coverage", workspace, "coverage/lcov.info"), "utf8"), `${workspace} coverage`)
+      assert.equal(readFileSync(join(directory, ".artifacts/workspace-coverage", artifactName, workspace, "coverage/lcov.info"), "utf8"), `${workspace} coverage`)
     }
     assert.equal(run(verify).status, 0)
     for (const workspace of ["apps/web", "apps/mobile", ...workspaceDirectories]) {
@@ -277,7 +366,7 @@ test("Unit Tests merges coverage under the unchanged thresholds and ends with th
   assert.doesNotMatch(merge.run, /thresholds|--project|--shard|--reporter=blob/)
   const download = stepNamed(unitSteps, "Download workspace coverage")
   assert.equal(download.with.pattern, "workspace-unit-coverage-*")
-  assert.equal(download.with["merge-multiple"], false)
+  assert.equal(download.with["merge-multiple"], true)
   assert.equal(unitSteps.at(-1).uses, "SonarSource/sonarqube-scan-action@e805d875275f728fac1885b413934be6d7c63f65")
   assert.equal(unitSteps.at(-1).if, undefined)
   assert.equal(unitSteps.at(-2).name, "Merge Coverage Reports")
@@ -307,13 +396,13 @@ test("Sonar coverage merge normalizes desktop scripts measured by the web worksp
   }
 })
 
-test("aggregate downloads retain attempt directories until selection before verification", () => {
+test("aggregate downloads extract every artifact's own folder at one path, then select before verification", () => {
   for (const [group, input, output, verify] of [
     ["web", ".artifacts/downloads/web", "apps/web/.artifacts/unit-tests", "Verify every web report arrived"],
     ["mobile", ".artifacts/downloads/mobile", "apps/mobile/.artifacts/unit-tests", "Verify every mobile report arrived"],
   ]) {
     const download = stepNamed(unitSteps, `Download ${group} shard reports`)
-    assert.equal(download.with["merge-multiple"], false)
+    assert.equal(download.with["merge-multiple"], true)
     assert.equal(download.with.path, input)
     const select = stepNamed(unitSteps, `Select latest ${group} report attempts`)
     assert.equal(select.run, `node tools/select-artifact-attempts.mjs --input-dir ${input} --output-dir ${output}`)
@@ -326,47 +415,57 @@ test("aggregate downloads retain attempt directories until selection before veri
   assert.ok(unitSteps.indexOf(select) < unitSteps.indexOf(stepNamed(unitSteps, "Verify coverage reports")))
 })
 
-test("workflow selects partial reruns before the existing missing-report gate", () => {
+test("a first attempt of every test job reaches the coverage gate through the pinned artifact actions", () => {
   const directory = mkdtempSync(join(root, ".tmp-unit-reports-"))
-  const invoke = (command) => spawnSync("bash", ["-e", "-c", command], { cwd: directory, encoding: "utf8" })
-  const local = (command) => command.replaceAll("node tools/select-artifact-attempts.mjs", `node "${join(root, "tools/select-artifact-attempts.mjs")}"`)
-  const stageArtifact = (job, stepName, matrix, attempt, files) => {
-    const template = workflow.jobs[job].steps.find((step) => step.uses?.startsWith("actions/upload-artifact@")).with.name
-    let name = template.replaceAll("${{ github.run_attempt }}", String(attempt))
-    for (const [key, value] of Object.entries(matrix)) name = name.replaceAll(`\${{ matrix.${key} }}`, String(value))
-    const artifact = join(directory, stepNamed(unitSteps, stepName).with.path, name)
-    for (const [path, contents] of Object.entries(files)) {
-      mkdirSync(dirname(join(artifact, path)), { recursive: true })
-      writeFileSync(join(artifact, path), contents)
-    }
-    return artifact
-  }
   try {
-    for (const { project, shard } of [...jsdomShards, ...Array.from({ length: chromiumShardCount }, (_, index) => ({ project: "chromium", shard: index + 1 }))]) {
-      stageArtifact("web-tests", "Download web shard reports", { project, shard }, 1, { [`blobs/${project}-${shard}.json`]: "original report", [`timings/${project}-${shard}.json`]: "original timing" })
-    }
-    const older = stageArtifact("web-tests", "Download web shard reports", { project: "chromium", shard: 10 }, 1, { "stale-only.json": "must not survive" })
-    const newer = stageArtifact("web-tests", "Download web shard reports", { project: "chromium", shard: 10 }, 2, { "blobs/chromium-10.json": "passing rerun", "timings/chromium-10.json": "passing timing" })
-    for (const attempt of [1, 2]) {
-      stageArtifact("workspace-tests", "Download workspace coverage", {}, attempt,
-        Object.fromEntries(workspaceDirectories.map((path) => [`${path}/coverage/lcov.info`, `${path} coverage ${attempt}`])))
-    }
-    const selectWeb = local(stepNamed(unitSteps, "Select latest web report attempts").run)
-    const result = invoke(selectWeb)
-    assert.equal(result.status, 0, result.stderr)
-    assert.equal(invoke(local(stepNamed(unitSteps, "Select latest workspace coverage attempt").run)).status, 0)
-    const reports = join(directory, "apps/web/.artifacts/unit-tests")
-    assert.equal(readFileSync(join(reports, "blobs/chromium-10.json"), "utf8"), "passing rerun")
-    assert.equal(readdirSync(reports).includes("stale-only.json"), false)
-    assert.equal(invoke(stepNamed(unitSteps, "Verify every web report arrived").run).status, 0)
-    for (const path of workspaceDirectories) assert.equal(readFileSync(join(directory, path, "coverage/lcov.info"), "utf8"), `${path} coverage 2`)
-    rmSync(older, { recursive: true })
-    rmSync(join(directory, "apps/web"), { recursive: true })
-    rmSync(newer, { recursive: true })
-    assert.equal(invoke(selectWeb).status, 0)
-    assert.notEqual(invoke(stepNamed(unitSteps, "Verify every web report arrived").run).status, 0, "a shard missing at every attempt must still fail")
+    selectAndVerify(directory, firstAttemptArtifacts())
+    for (const path of workspaceDirectories) assert.equal(readFileSync(join(directory, path, "coverage/lcov.info"), "utf8"), `${path} first`)
   } finally {
     rmSync(directory, { recursive: true, force: true })
+  }
+})
+
+test("workflow selects partial reruns before the existing missing-report gate", () => {
+  const directory = mkdtempSync(join(root, ".tmp-unit-reports-"))
+  const rerunLeg = { project: "chromium", shard: 10, total: chromiumShardCount }
+  const rerunLegName = uploadArtifact("web-tests", { attempt: 1, matrix: rerunLeg, reports: webReports(rerunLeg, "probe") }).name
+  const isRerunLeg = (name) => name === rerunLegName
+  try {
+    const firstAttempt = firstAttemptArtifacts().map((artifact) => isRerunLeg(artifact.name)
+      ? uploadArtifact("web-tests", { attempt: 1, matrix: rerunLeg, reports: { ...webReports(rerunLeg, "failed"), "apps/web/.artifacts/unit-tests/stale-only.json": "must not survive" } })
+      : artifact)
+    const rerun = [
+      uploadArtifact("web-tests", { attempt: 2, matrix: rerunLeg, reports: webReports(rerunLeg, "passing") }),
+      uploadArtifact("workspace-tests", { attempt: 2, reports: workspaceReports("second") }),
+    ]
+    selectAndVerify(directory, [...firstAttempt, ...rerun])
+    const reports = join(directory, "apps/web/.artifacts/unit-tests")
+    assert.equal(readFileSync(join(reports, "blobs/chromium-10.json"), "utf8"), "passing report")
+    assert.equal(readFileSync(join(reports, "timings/chromium-10.json"), "utf8"), "passing timing")
+    assert.equal(readdirSync(reports).includes("stale-only.json"), false)
+    for (const path of workspaceDirectories) assert.equal(readFileSync(join(directory, path, "coverage/lcov.info"), "utf8"), `${path} second`)
+  } finally {
+    rmSync(directory, { recursive: true, force: true })
+  }
+  const missing = mkdtempSync(join(root, ".tmp-unit-reports-"))
+  try {
+    downloadArtifacts(missing, "Download web shard reports", firstAttemptArtifacts().filter(({ name }) => !isRerunLeg(name)))
+    assert.equal(runIn(missing, localTool(stepNamed(unitSteps, "Select latest web report attempts").run)).status, 0)
+    assert.notEqual(runIn(missing, stepNamed(unitSteps, "Verify every web report arrived").run).status, 0, "a shard missing at every attempt must still fail")
+  } finally {
+    rmSync(missing, { recursive: true, force: true })
+  }
+})
+
+test("every pattern download in every workflow extracts at one path whatever the match count", () => {
+  const workflows = resolve(root, ".github/workflows")
+  for (const file of readdirSync(workflows).filter((name) => /\.ya?ml$/.test(name))) {
+    for (const [id, job] of Object.entries(yaml.load(readFileSync(join(workflows, file), "utf8")).jobs)) {
+      for (const step of job.steps ?? []) {
+        if (!step.uses?.startsWith("actions/download-artifact@") || step.with?.pattern === undefined) continue
+        assert.equal(step.with["merge-multiple"], true, `${file} ${id} "${step.name ?? step.with.pattern}": without merge-multiple, one match extracts at the path and several matches each get a folder`)
+      }
+    }
   }
 })
 
