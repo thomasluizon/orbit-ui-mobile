@@ -370,7 +370,7 @@ describe('DestinationShell', () => {
     fireEvent.click(screen.getByRole('button', { name: 'nav.createHabit' }))
     expect(onCreate).toHaveBeenCalledOnce()
     fireEvent.click(screen.getByRole('link', { name: 'nav.progress' }))
-    expect(mocks.push).toHaveBeenCalledWith('/progress', { transitionTypes: ['orbit-tab-forward'] })
+    expect(mocks.push).toHaveBeenCalledWith('/progress')
     expect(screen.getByTestId('command-palette')).toBeInTheDocument()
     expect(mocks.keyboardEnabled).toHaveBeenCalledWith(true)
   })
@@ -531,16 +531,16 @@ describe('DestinationShell', () => {
   })
 
   it.each([
-    ['/', 'nav.calendar', '/calendar', 'orbit-tab-forward'],
-    ['/profile', 'nav.progress', '/progress', 'orbit-tab-back'],
-    ['/calendar', 'nav.today', '/', 'orbit-tab-back'],
-  ])('types the tab switch from %s through %s for the view transition', (from, label, route, type) => {
+    ['/', 'nav.calendar', '/calendar'],
+    ['/profile', 'nav.progress', '/progress'],
+    ['/calendar', 'nav.today', '/'],
+  ])('marks the tab switch from %s through %s for the view transition', (from, label, route) => {
     mocks.pathname = from
     render(<DestinationShell onCreate={() => {}}><h1>Page</h1></DestinationShell>)
 
     fireEvent.click(screen.getByRole('link', { name: label }))
 
-    expect(mocks.push).toHaveBeenCalledExactlyOnceWith(route, { transitionTypes: [type] })
+    expect(mocks.push).toHaveBeenCalledExactlyOnceWith(route)
     expect(getCurrentRouteTransitionIntent()).toBe('tab')
   })
 
@@ -595,9 +595,9 @@ describe('DestinationShell', () => {
   })
 
   it.each([
-    ['with the tab view transition', false, ['/', { transitionTypes: ['orbit-tab-back'] }]],
-    ['at once under reduced motion', true, ['/']],
-  ] as const)('keeps the leaving page at its scroll position until Today commits %s', (_label, reducedMotion, pushed) => {
+    ['with the tab view transition', false, 'tab'],
+    ['at once under reduced motion', true, 'neutral'],
+  ] as const)('keeps the leaving page at its scroll position until Today commits %s', (_label, reducedMotion, intent) => {
     if (reducedMotion) {
       vi.stubGlobal('matchMedia', (query: string) => ({
         matches: query === '(prefers-reduced-motion: reduce)',
@@ -618,7 +618,8 @@ describe('DestinationShell', () => {
 
       fireEvent.click(screen.getByRole('link', { name: 'nav.today' }))
 
-      expect(mocks.push).toHaveBeenCalledExactlyOnceWith(...pushed)
+      expect(mocks.push).toHaveBeenCalledExactlyOnceWith('/')
+      expect(getCurrentRouteTransitionIntent()).toBe(intent)
       expect(offsetAtPush).toBe(480)
       expect(scroller.scrollTop).toBe(480)
 

@@ -37,7 +37,7 @@ import {
   resetRouteTransitionIntent,
   setRouteTransitionIntent,
 } from '@/lib/motion/route-intent'
-import { getTabTransitionTypes } from '@/lib/motion/tab-view-transition'
+import { shouldAnimateTabSwitch } from '@/lib/motion/tab-view-transition'
 import { mediaQueryMatches } from '@/lib/media-query'
 import { AstraButton } from './astra-button'
 import { ShellWide } from './shell-wide'
@@ -257,19 +257,15 @@ function DestinationShellContent({
     (id: ShellDestinationId) => {
       const route = SHELL_DESTINATION_PATHS[id]
       const reselected = route === pathname
-      const transitionTypes = getTabTransitionTypes(
+      const animated = shouldAnimateTabSwitch(
         pathname,
         route,
         getCurrentRouteTransitionIntent(),
         mediaQueryMatches('(prefers-reduced-motion: reduce)', true),
       )
       const pushRoute = () => {
-        if (!transitionTypes) {
-          router.push(route)
-          return
-        }
-        setRouteTransitionIntent('tab')
-        router.push(route, { transitionTypes })
+        if (animated) setRouteTransitionIntent('tab')
+        router.push(route)
       }
       if (id === 'hoje') {
         requestHabitCreateNavigation(() => {
