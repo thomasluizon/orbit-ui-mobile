@@ -38,7 +38,6 @@ const LISTED_PRESS_CONTROLS = [
   'components/upgrade/pricing-section.tsx',
   'app/(tabs)/calendar/_components/calendar-time-grid.tsx',
   'components/chat/answer-block.tsx',
-  'components/gamification/streak-badge.tsx',
   'components/habits/habit-row-check-circle.tsx',
   'components/habits/habit-row-trailing.tsx',
   'components/habits/habit-row.tsx',

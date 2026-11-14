@@ -2584,39 +2584,6 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
     background: color-mix(in srgb, var(--fg-1) 90%, var(--bg));
   }
 }
-.orbit-streak-badge {
-  isolation: isolate;
-}
-
-.orbit-streak-badge::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  border-radius: inherit;
-  pointer-events: none;
-  background-color: transparent;
-  transition: background-color var(--dur-hover-control) var(--ease-standard);
-}
-
-.orbit-streak-badge:active::after {
-  background-color: var(--bg-hover-opaque);
-}
-
-.orbit-streak-badge:active {
-  --streak-count-color: var(--fg-2);
-}
-
-@media (hover: hover) and (pointer: fine) {
-  .orbit-streak-badge:hover::after {
-    background-color: var(--bg-hover-opaque);
-  }
-
-  .orbit-streak-badge:hover {
-    --streak-count-color: var(--fg-2);
-  }
-}
-
 .orbit-calendar-grid-frame {
   container-name: calendar-grid;
   container-type: inline-size;

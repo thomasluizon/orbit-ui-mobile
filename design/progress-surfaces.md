@@ -10,8 +10,9 @@ and Android. The Progresso amendment in `DESIGN.md` and `design/canvas/README.md
 | Metas, `/progress/goals` | `apps/web/app/(app)/progress/goals/page.tsx` | `apps/mobile/app/progress/goals.tsx` | Create sheet, status filter, clear filter, drag and accessible reordering, goal status and progress, inline detail, linked habits, history, editing, manual progress, completion, reopening, abandonment and deletion |
 | Conquistas, `/progress/achievements` | `apps/web/app/(app)/progress/achievements/page.tsx` | `apps/mobile/app/progress/achievements.tsx` | Level, title, XP and next-level bar, visible achievement categories, earned states and individual progress; social categories remain hidden |
 
-The implementation lives in each platform's `progress-content.tsx`, with a `progress-subscreen.tsx`
-frame for pushed details. The shared `progress-navigation.ts` defines the three entries.
+Each platform's `progress-content.tsx` routes the four screens and owns Metas. The overview lives in
+`progress-overview.tsx` and `progress-window.tsx`, Sequência in `progress-streak.tsx`, Conquistas in
+`progress-achievements.tsx`, and `progress-subscreen.tsx` frames the pushed details. The shared `progress-navigation.ts` defines the three entries.
 Each entry is one tap from the overview, including while its summary is unavailable. The
 Conquistas row names level and XP in its supporting line. No additional settings or explanatory
 controls live on the overview.
@@ -42,7 +43,7 @@ Wrapped notifications retain their separate period-aware route. Notifications ca
 detail routes are accepted directly. Other retired insights and retrospective notifications open
 the overview, preserving their query and fragment.
 
-Streak badges and the Orbit streak card open Sequência. The Orbit goal-list action opens Metas;
+The Orbit streak card opens Sequência. The Orbit goal-list action opens Metas;
 the gamification feature-explanation link opens Conquistas. Root navigation and general progress
 summaries continue to open the overview.
 
@@ -101,3 +102,40 @@ query date anchors the strip and protected dates; live hooks cannot replace the 
 Streak-only answers use the frame heading; combined answers add a separate streak heading.
 The eval projects the same figures, days and freeze facts. Paired read-block tests cover both
 streak selections, absence for level and achievements, and replacement through signed refresh.
+
+## Orbit answers, then the person asks the next thing
+
+The flag `orbit_guided_flows` turns this form on for the overview and Sequência on both platforms.
+With the flag off, each screen renders the form above. Conquistas keeps its structure either way.
+
+| Surface | Web owner | Android owner |
+|---|---|---|
+| Overview | `_components/guided-progress-overview.tsx` | `components/progress/guided-progress-overview.tsx` |
+| Sequência | `_components/guided-streak-section.tsx` | `components/progress/guided-streak-section.tsx` |
+| Repair flow | `_components/streak-repair-flow.tsx` in the sub-screen layer | `components/progress/streak-repair-flow.tsx` in a full-screen modal |
+| Sub-screen error | `_components/progress-surface-error.tsx` | `components/progress/progress-surface-error.tsx` |
+
+The overview draws one live Orbit at 96, or 128 at 1024 and above, centred above one line. The
+shared `resolveProgressOrbitLine` picks the line from the 30-day read the screen already makes:
+the active days, the selected day, the return after a gap, or the empty window. The line is
+absent while the window loads, fails or sits behind the Pro gate, and Orbit stays in Parado.
+A gap is the one `getReturningIntervalBetween` rule that Hoje also reads. The section headings
+are the questions `Como foram seus 30 dias?` and `O que você quer ver?`.
+
+A press on a bar changes the line to that day, and Orbit looks at the bar. The same bar again,
+or a press outside the chart, returns the default line. No request starts. The readout moves on
+the selection preset and the line cross-fades on the micro duration. A figure that changed since
+the last visit on this device rolls once on the slow duration. The UI store keeps the seen
+figures, and a first visit rolls nothing. Reduced motion keeps each of these still.
+
+Sequência draws Orbit at 48 beside one fact: the streak and the days to the next freeze, only the
+streak at a full bank, or the gap sentence in a gap. The repair action and the unavailable,
+partial and capped cases stay on the screen. The Freezes sheet keeps every figure, the legend and
+the bank-full notice, and it opens on one sentence about what a freeze does. The repair is a one-question flow with the `streak_repair` flow id. It sends
+the same request as the confirm, keeps each error inside the flow, and closes with the result
+dialog that states the count the server returned.
+
+Verification owners are the web `progress-guided.test.tsx` and `progress-guided-geometry.test.tsx`,
+the Android `progress-guided.test.tsx`, `progress-guided-centre-geometry.test.tsx` and
+`progress-guided-label-fit.test.ts`, and the shared `progress-orbit-line.test.ts` and
+`progress-figures.test.ts`.

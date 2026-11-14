@@ -3,6 +3,7 @@ import type { ShellDestinationId } from "../utils/shell-destinations";
 import { getAccountDay } from "../utils/dates";
 import { getAllDoneOnDate } from "../utils/all-done";
 import { isRecord } from "../utils/is-record";
+import { parseProgressFigures, type ProgressFigureValues } from "../utils/progress-figures";
 import {
   activateNextCelebration,
   clearCelebrationKind,
@@ -54,6 +55,7 @@ export interface PersistedUIState {
   activeFilters: HabitsFilter;
   activeView: ActiveView;
   calendarShowRecurring: boolean;
+  progressFiguresSeen: ProgressFigureValues | null;
 }
 
 export function migratePersistedUIState(
@@ -71,6 +73,7 @@ export function migratePersistedUIState(
     activeFilters,
     calendarShowRecurring: typeof state.calendarShowRecurring === "boolean" ? state.calendarShowRecurring : true,
     activeView: isActiveView(state.activeView) ? state.activeView : "today",
+    progressFiguresSeen: parseProgressFigures(state.progressFiguresSeen),
   };
 }
 
@@ -86,6 +89,9 @@ export interface UIStoreState {
   setCalendarShowRecurring: (show: boolean) => void;
   activeView: ActiveView;
   setActiveView: (view: ActiveView) => void;
+  /** The Progresso root figures as the person last saw them on this device. */
+  progressFiguresSeen: ProgressFigureValues | null;
+  setProgressFiguresSeen: (figures: ProgressFigureValues) => void;
   todayResetVersion: number;
   resetToday: () => void;
 
@@ -171,6 +177,7 @@ export function getPersistedUIState(state: UIStoreState): PersistedUIState {
     activeView: state.activeView,
     calendarShowRecurring: state.calendarShowRecurring,
     setupChecklistDismissed: state.setupChecklistDismissed,
+    progressFiguresSeen: state.progressFiguresSeen,
   };
 }
 
@@ -242,6 +249,8 @@ export function createUIStoreState(
     setCalendarShowRecurring: (calendarShowRecurring) => set({ calendarShowRecurring }),
     activeView: "today",
     setActiveView: (view) => set({ activeView: view }),
+    progressFiguresSeen: null,
+    setProgressFiguresSeen: (progressFiguresSeen) => set({ progressFiguresSeen }),
     todayResetVersion: 0,
     resetToday: () => set((state) => ({
       todayResetVersion: state.todayResetVersion + 1,

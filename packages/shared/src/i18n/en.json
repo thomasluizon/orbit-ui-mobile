@@ -3146,6 +3146,10 @@
   },
   "result": {
     "title": "Done!",
+    "streak": {
+      "repaired": "Your streak is back to {count, plural, one {# day} other {# days}}.",
+      "see": "See the streak"
+    },
     "task": {
       "dated": "The task is set for {date}.",
       "datedTimed": "The task is set for {date} at {time}.",
@@ -3865,7 +3869,19 @@
       "streak": "Streak",
       "goals": "Goals",
       "window": "Last 30 days",
+      "windowQuestion": "How were your 30 days?",
       "achievements": "Achievements"
+    },
+    "sectionsQuestion": "What do you want to see?",
+    "orbit": {
+      "activeDays": "{days, plural, one {You showed up on # of the last 30 days.} other {You showed up on # of the last 30 days.}}",
+      "quietWindow": "Nothing is logged in the last 30 days yet.",
+      "day": "{weekday}, {date}: {done} of {total}.",
+      "dayUnscheduled": "{weekday}, {date}: nothing was scheduled.",
+      "returned": "You are back. We go on from here.",
+      "empty": "There is nothing to measure yet.",
+      "streak": "{count, plural, one {# day in a row} other {# days in a row}}. {days, plural, one {# more day} other {# more days}} for the next freeze.",
+      "streakOnly": "{count, plural, one {# day in a row.} other {# days in a row.}}"
     },
     "streak": {
       "currentLabel": "{count, plural, one {day in a row} other {days in a row}}",
@@ -3905,7 +3921,15 @@
       "repairCapped": "This gap needs {needed, plural, one {# freeze} other {# freezes}} and {banked} is the most you can bank, so it cannot be repaired.",
       "repairError": "The gap could not be repaired. Try again.",
       "repairRateLimited": "There were too many repair attempts. Try again shortly.",
-      "bankFull": "{count, plural, one {# freeze is the limit. The next one arrives after you spend one.} other {# freezes is the limit. The next one arrives after you spend one.}}"
+      "bankFull": "{count, plural, one {# freeze is the limit. The next one arrives after you spend one.} other {# freezes is the limit. The next one arrives after you spend one.}}",
+      "freezeSummary": "Each freeze covers a day with nothing logged, and you can bank up to {ceiling, plural, one {# freeze} other {# freezes}}.",
+      "repairFlow": {
+        "question": "Save your streak with {count, plural, one {# freeze} other {# freezes}}?",
+        "line": "I will cover {dates}, and it cannot be undone.",
+        "repair": "Save it",
+        "notNow": "Not now",
+        "saving": "Saving your streak"
+      }
     },
     "goals": {
       "views": "Goal views",

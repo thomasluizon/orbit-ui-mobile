@@ -152,6 +152,7 @@ vi.mock('@/hooks/use-notification-inbox', () => ({ useNotificationInbox: () => (
 vi.mock('@/components/goals/goal-detail-drawer', () => ({ GoalDetailDrawer: ({ goalId, inline, onOpenChange }: { goalId: string; inline?: boolean; onOpenChange: (open: boolean) => void }) => <div role={inline ? 'region' : 'dialog'} aria-label="goal-detail">{goalId}<button onClick={() => onOpenChange(false)}>Back to goals</button></div> }))
 vi.mock('@/components/ui/pro-badge', () => ({ ProBadge: () => <span>PRO</span> }))
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => mocks.account }))
+vi.mock('@/hooks/use-flag', () => ({ useFlag: () => false }))
 vi.mock('@/hooks/use-goals', () => ({
   useCreateGoal: () => mocks.create,
   useGoals: () => mocks.goals,
@@ -481,7 +482,7 @@ describe('ProgressContent', () => {
       const page = await browser.newPage({ viewport: { width, height: 900 } })
       try {
         const { container } = render(
-          <ShellWide astraRow={{ label: 'Astra', onOpen: () => {} }} items={[]} activeId="progresso" navLabel="Navigation"
+          <ShellWide astraRow={{ label: 'Orbit', onOpen: () => {} }} items={[]} activeId="progresso" navLabel="Navigation"
             conversation={<button>Conversation</button>}
             conversationOpen={panelOpen} conversationLabel="Conversation">
             <ProgressPage />
@@ -956,7 +957,7 @@ describe('ProgressContent', () => {
     expect(useUIStore.getState().astraConversationOpen).toBe(false)
   })
 
-  it('keeps an unsent Astra draft when starting a goal', () => {
+  it('keeps an unsent conversation draft when starting a goal', () => {
     useChatStore.getState().setDraft('Unsent note')
     const { rerender } = render(<QueryClientProvider client={queryClient}><GoalsPage /></QueryClientProvider>)
 

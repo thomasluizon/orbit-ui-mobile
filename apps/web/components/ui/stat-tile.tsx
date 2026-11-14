@@ -1,4 +1,11 @@
+'use client'
+
+import { motion } from 'motion/react'
 import type { StatTileProps } from '@orbit/shared/contracts/display'
+import { motionDurations, motionEasings, motionLayerTiming } from '@orbit/shared/theme'
+import { useViewportMatch } from '@/hooks/use-viewport-match'
+
+const ROLL = { duration: motionDurations.slow / 1000, ease: [...motionEasings.standard] as [number, number, number, number] }
 
 function shownStatValue(props: StatTileProps): string {
   if (props.state === 'empty') return props.emptyLabel
@@ -6,12 +13,20 @@ function shownStatValue(props: StatTileProps): string {
   return String(props.value)
 }
 
-function TileValue({ shownValue, isEmpty }: Readonly<{
+/** A changed figure rolls up into its own line once, inside a clip. Reduced motion keeps it still. */
+function TileValue({ shownValue, isEmpty, roll }: Readonly<{
   shownValue: string
   isEmpty: boolean
+  roll: boolean
 }>) {
+  const reducedMotion = useViewportMatch('(prefers-reduced-motion: reduce)')
+  const rolling = roll && !reducedMotion
   return (
-    <span
+    <motion.span
+      initial={rolling ? { y: motionLayerTiming.routeShift, opacity: 0 } : false}
+      animate={{ y: 0, opacity: 1 }}
+      transition={ROLL}
+      data-figure-motion={roll ? (rolling ? 'roll' : 'still') : undefined}
       className="min-w-0 max-w-full"
       title={shownValue}
       style={{
@@ -25,7 +40,7 @@ function TileValue({ shownValue, isEmpty }: Readonly<{
       }}
     >
       {shownValue}
-    </span>
+    </motion.span>
   )
 }
 
@@ -34,6 +49,7 @@ export function StatTile(props: Readonly<StatTileProps>) {
   const isEmpty = state === 'empty'
   const isLoading = state === 'loading'
   const shownValue = shownStatValue(props)
+  const roll = (props.state === undefined || props.state === 'default') && props.roll === true
 
   return (
     <div
@@ -50,7 +66,7 @@ export function StatTile(props: Readonly<StatTileProps>) {
           <span className="invisible">0</span><span className="absolute inset-x-0 top-1/2 h-[22px] -translate-y-1/2 skeleton-pulse rounded-[8px] bg-[var(--bg-elev-2)]" />
         </span>
       ) : (
-        <TileValue shownValue={shownValue} isEmpty={isEmpty} />
+        roll ? <span className="flex min-w-0 max-w-full overflow-hidden"><TileValue shownValue={shownValue} isEmpty={isEmpty} roll /></span> : <TileValue shownValue={shownValue} isEmpty={isEmpty} roll={false} />
       )}
       <span
         className="relative min-w-0"

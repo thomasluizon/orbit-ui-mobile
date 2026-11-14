@@ -1,5 +1,6 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState, type Ref } from 'react'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
+import Animated, { Easing, LinearTransition } from 'react-native-reanimated'
 import type { PressableProps } from 'react-native'
 import { Gesture, GestureDetector } from 'react-native-gesture-handler'
 import Svg, { Path } from 'react-native-svg'
@@ -12,16 +13,21 @@ import {
   resolveBarChartSelection,
   stepSelection,
 } from '@orbit/shared/contracts/display'
+import { motionEasings, motionPresets } from '@orbit/shared/theme'
 import { useTranslation } from 'react-i18next'
+import { usePrefersReducedMotion } from '@/lib/motion'
 import { createTokensV2, type AppTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
-function BarChartColumn({ left, width, bar, selected, tokens, ...targetProps }: Readonly<{
+const READOUT_MOVE = LinearTransition.duration(motionPresets.selection.enterDuration).easing(Easing.bezier(...motionEasings.standard))
+
+function BarChartColumn({ left, width, bar, selected, tokens, columnRef, ...targetProps }: Readonly<{
   left: number
   width: number
   bar?: BarGeometry
   selected: boolean
   tokens: AppTokensV2
+  columnRef: Ref<View>
 } & Pick<PressableProps, 'accessibilityLabel' | 'accessibilityState' | 'onAccessibilityAction' | 'onPress' | 'onFocus' | 'onBlur'>>) {
   const [hovered, setHovered] = useState(false)
   const hoverGesture = useMemo(() => Gesture.Hover()
@@ -34,6 +40,7 @@ function BarChartColumn({ left, width, bar, selected, tokens, ...targetProps }: 
   return (
     <GestureDetector gesture={hoverGesture}>
       <Pressable
+        ref={columnRef}
         {...targetProps}
         accessible
         accessibilityRole="radio"
@@ -52,8 +59,15 @@ function BarChartColumn({ left, width, bar, selected, tokens, ...targetProps }: 
   )
 }
 
-export function BarChart({ points, label }: Readonly<{ points: readonly BarChartPoint[]; label: string }>) {
+/** `onSelectPoint` reports each selection the person makes, by press, focus or accessibility action, with the bar that holds it. */
+export function BarChart({ points, label, onSelectPoint }: Readonly<{
+  points: readonly BarChartPoint[]
+  label: string
+  onSelectPoint?: (point: BarChartPoint, bar: View | null) => void
+}>) {
   const { t } = useTranslation()
+  const reducedMotion = usePrefersReducedMotion()
+  const columnRefs = useRef<(View | null)[]>([])
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const [width, setWidth] = useState(0)
@@ -62,6 +76,12 @@ export function BarChart({ points, label }: Readonly<{ points: readonly BarChart
   const [focused, setFocused] = useState<number | null>(null)
   const selectedIndex = resolveBarChartSelection(points, selectedDate)
   const bars = resolveBarChartGeometry(points.map((point) => point.rate), width)
+
+  function select(index: number) {
+    const point = points[index]!
+    setSelectedDate(point.startDate)
+    onSelectPoint?.(point, columnRefs.current[index] ?? null)
+  }
 
   function describePoint(point: BarChartPoint) {
     return point.scheduled === 0
@@ -72,9 +92,9 @@ export function BarChart({ points, label }: Readonly<{ points: readonly BarChart
   if (points.length === 0) return null
   return (
     <View style={styles.container} testID="bar-chart">
-      <Text testID="bar-chart-readout" accessibilityLiveRegion="polite" onLayout={(event) => setReadoutWidth(event.nativeEvent.layout.width)} style={[styles.readout, { color: tokens.fg1, left: resolveBarChartReadout(width, readoutWidth, selectedIndex, points.length) }, focused === null ? null : { borderColor: tokens.fg1 }]}>
+      <Animated.Text testID="bar-chart-readout" layout={reducedMotion ? undefined : READOUT_MOVE} accessibilityLiveRegion="polite" onLayout={(event) => setReadoutWidth(event.nativeEvent.layout.width)} style={[styles.readout, { color: tokens.fg1, left: resolveBarChartReadout(width, readoutWidth, selectedIndex, points.length) }, focused === null ? null : { borderColor: tokens.fg1 }]}>
         {describePoint(points[selectedIndex]!)}
-      </Text>
+      </Animated.Text>
       <View accessibilityRole="radiogroup" accessibilityLabel={label} onLayout={(event) => setWidth(event.nativeEvent.layout.width)} style={styles.plot} testID="bar-chart-control">
         {points.map((point, index) => <BarChartColumn
           key={point.startDate}
@@ -83,14 +103,15 @@ export function BarChart({ points, label }: Readonly<{ points: readonly BarChart
           bar={bars[index]}
           selected={index === selectedIndex}
           tokens={tokens}
+          columnRef={(element) => { columnRefs.current[index] = element }}
           accessibilityLabel={describePoint(point)}
           accessibilityState={{ checked: index === selectedIndex }}
           onAccessibilityAction={(event) => {
             const direction = event.nativeEvent.actionName === 'increment' ? 'right' : 'left'
-            setSelectedDate(points[stepSelection(selectedIndex, points.length, direction)]!.startDate)
+            select(stepSelection(selectedIndex, points.length, direction))
           }}
-          onPress={() => setSelectedDate(point.startDate)}
-          onFocus={() => { setFocused(index); setSelectedDate(point.startDate) }}
+          onPress={() => select(index)}
+          onFocus={() => { setFocused(index); select(index) }}
           onBlur={() => setFocused(null)}
         />)}
       </View>

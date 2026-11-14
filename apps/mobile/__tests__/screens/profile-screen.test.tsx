@@ -389,10 +389,6 @@ vi.mock('@/app/(tabs)/profile/_components/profile-nav-card', () => ({
   ProfileNavCard: () => null,
 }))
 
-vi.mock('@/components/gamification/streak-badge', () => ({
-  StreakBadge: () => React.createElement('StreakBadge'),
-}))
-
 
 
 vi.mock('@/components/ui/section-label', () => ({

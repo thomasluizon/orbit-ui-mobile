@@ -113,11 +113,13 @@ Drawn references: [Orbit conversation](canvas/Orbit%20Astra%20Conversation.dc.ht
 | [apps/mobile/components/profile/profile-api-keys.tsx:287](../apps/mobile/components/profile/profile-api-keys.tsx#L287) | `{copied ? t('orbitMcp.copied') : t('orbitMcp.copy')}` | Copy |
 | [apps/mobile/components/profile/profile-mcp-guide.tsx:44](../apps/mobile/components/profile/profile-mcp-guide.tsx#L44) | `{copyState === 'copied' ? t('orbitMcp.copied') : t('orbitMcp.copy')}` | Copy |
 | [apps/mobile/components/profile/push-devices-row.tsx:63](../apps/mobile/components/profile/push-devices-row.tsx#L63) | `{t('settings.notifications.openSettings')}` | Settings |
-| [apps/mobile/components/progress/progress-content.tsx:303](../apps/mobile/components/progress/progress-content.tsx#L303) | `{t('progressScreen.retry')}` | RefreshCw |
-| [apps/mobile/components/progress/progress-content.tsx:439](../apps/mobile/components/progress/progress-content.tsx#L439) | `{t('goals.create')}` | Plus |
-| [apps/mobile/components/progress/progress-content.tsx:494](../apps/mobile/components/progress/progress-content.tsx#L494) | `{t('progressScreen.retry')}` | RefreshCw |
-| [apps/mobile/components/progress/progress-content.tsx:623](../apps/mobile/components/progress/progress-content.tsx#L623) | `{t('progressScreen.retry')}` | RefreshCw |
-| [apps/mobile/components/progress/progress-content.tsx:693](../apps/mobile/components/progress/progress-content.tsx#L693) | `{t('progressScreen.retry')}` | RefreshCw |
+| [apps/mobile/components/progress/guided-progress-overview.tsx:107](../apps/mobile/components/progress/guided-progress-overview.tsx#L107) | `{t('progressScreen.retry')}` | RefreshCw |
+| [apps/mobile/components/progress/progress-content.tsx:161](../apps/mobile/components/progress/progress-content.tsx#L161) | `{t('goals.create')}` | Plus |
+| [apps/mobile/components/progress/progress-content.tsx:233](../apps/mobile/components/progress/progress-content.tsx#L233) | `{t('progressScreen.retry')}` | RefreshCw |
+| [apps/mobile/components/progress/progress-gamification-content.tsx:36](../apps/mobile/components/progress/progress-gamification-content.tsx#L36) | `{t('progressScreen.retry')}` | RefreshCw |
+| [apps/mobile/components/progress/progress-streak.tsx:200](../apps/mobile/components/progress/progress-streak.tsx#L200) | `{t('progressScreen.retry')}` | RefreshCw |
+| [apps/mobile/components/progress/progress-surface-error.tsx:17](../apps/mobile/components/progress/progress-surface-error.tsx#L17) | `{t('progressScreen.retry')}` | RefreshCw |
+| [apps/mobile/components/progress/progress-window.tsx:115](../apps/mobile/components/progress/progress-window.tsx#L115) | `{t('progressScreen.retry')}` | RefreshCw |
 | [apps/mobile/components/referral/referral-drawer.tsx:201](../apps/mobile/components/referral/referral-drawer.tsx#L201) | `{t('common.cancel')}` | Drawn ghost text (`sm`) |
 | [apps/mobile/components/referral/referral-drawer.tsx:202](../apps/mobile/components/referral/referral-drawer.tsx#L202) | `{t('referral.drawer.share')}` | Drawn consequence text (`sm`) |
 | [apps/mobile/components/search/search-results.tsx:48](../apps/mobile/components/search/search-results.tsx#L48) | `{t(onClearSearch ? 'common.clear' : 'habits.search.create')}` | X |
@@ -142,11 +144,13 @@ Drawn references: [Orbit conversation](canvas/Orbit%20Astra%20Conversation.dc.ht
 | [apps/web/app/(app)/profile/_components/fresh-start-modal.tsx:284](../apps/web/app/(app)/profile/_components/fresh-start-modal.tsx#L284) | `{t('common.cancel')}` | Drawn ghost text (`sm`) |
 | [apps/web/app/(app)/profile/_components/profile-astra-content.tsx:79](../apps/web/app/(app)/profile/_components/profile-astra-content.tsx#L79) | `{t('upgrade.billing.retry')}` | RefreshCw |
 | [apps/web/app/(app)/profile/_components/profile-subscreen.tsx:35](../apps/web/app/(app)/profile/_components/profile-subscreen.tsx#L35) | `{t('common.retry')}` | RefreshCw |
-| [apps/web/app/(app)/progress/_components/progress-content.tsx:361](../apps/web/app/(app)/progress/_components/progress-content.tsx#L361) | `{t('progressScreen.retry')}` | RefreshCw |
-| [apps/web/app/(app)/progress/_components/progress-content.tsx:498](../apps/web/app/(app)/progress/_components/progress-content.tsx#L498) | `{t('goals.create')}` | Plus |
-| [apps/web/app/(app)/progress/_components/progress-content.tsx:553](../apps/web/app/(app)/progress/_components/progress-content.tsx#L553) | `{t('progressScreen.retry')}` | RefreshCw |
-| [apps/web/app/(app)/progress/_components/progress-content.tsx:647](../apps/web/app/(app)/progress/_components/progress-content.tsx#L647) | `{t('progressScreen.retry')}` | RefreshCw |
-| [apps/web/app/(app)/progress/_components/progress-content.tsx:680](../apps/web/app/(app)/progress/_components/progress-content.tsx#L680) | `{t('progressScreen.retry')}` | RefreshCw |
+| [apps/web/app/(app)/progress/_components/guided-progress-overview.tsx:105](../apps/web/app/(app)/progress/_components/guided-progress-overview.tsx#L105) | `{t('progressScreen.retry')}` | RefreshCw |
+| [apps/web/app/(app)/progress/_components/progress-content.tsx:160](../apps/web/app/(app)/progress/_components/progress-content.tsx#L160) | `{t('goals.create')}` | Plus |
+| [apps/web/app/(app)/progress/_components/progress-content.tsx:218](../apps/web/app/(app)/progress/_components/progress-content.tsx#L218) | `{t('progressScreen.retry')}` | RefreshCw |
+| [apps/web/app/(app)/progress/_components/progress-gamification-content.tsx:22](../apps/web/app/(app)/progress/_components/progress-gamification-content.tsx#L22) | `{t('progressScreen.retry')}` | RefreshCw |
+| [apps/web/app/(app)/progress/_components/progress-streak.tsx:235](../apps/web/app/(app)/progress/_components/progress-streak.tsx#L235) | `{t('progressScreen.retry')}` | RefreshCw |
+| [apps/web/app/(app)/progress/_components/progress-surface-error.tsx:18](../apps/web/app/(app)/progress/_components/progress-surface-error.tsx#L18) | `{t('progressScreen.retry')}` | RefreshCw |
+| [apps/web/app/(app)/progress/_components/progress-window.tsx:94](../apps/web/app/(app)/progress/_components/progress-window.tsx#L94) | `{t('progressScreen.retry')}` | RefreshCw |
 | [apps/web/app/(app)/search/page.tsx:70](../apps/web/app/(app)/search/page.tsx#L70) | `{t('habits.search.previous')}` | ChevronLeft |
 | [apps/web/app/(app)/search/page.tsx:71](../apps/web/app/(app)/search/page.tsx#L71) | `{t('habits.search.next')}` | ChevronRight |
 | [apps/web/app/(app)/today-page-client.tsx:100](../apps/web/app/(app)/today-page-client.tsx#L100) | `{t('common.retry')}` | RefreshCw |
