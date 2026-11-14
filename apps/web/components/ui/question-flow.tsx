@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useId, useRef } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import { motion } from 'motion/react'
 import type { QuestionFlowProps } from '@orbit/shared/contracts/flow'
 import { motionDurations, motionEasings } from '@orbit/shared/theme'
@@ -56,6 +56,20 @@ function mascotLook<Look>(orbitState: QuestionFlowProps['orbitState'], lookAt: L
   return orbitState === 'parado' ? lookAt : null
 }
 
+/** The Orbit line. A step remounts it, so only a new `lineKey` inside one step fades the new line in. */
+function FlowLine({ id, line, lineKey, reducedMotion }: Readonly<{ id: string; line: string; lineKey: string | undefined; reducedMotion: boolean }>) {
+  const [shown, setShown] = useState({ lineKey, fade: false })
+  if (shown.lineKey !== lineKey) setShown({ lineKey, fade: true })
+  const fade = shown.lineKey !== lineKey || shown.fade
+  if (lineKey === undefined) return <p id={id} className="text-base leading-6 text-[var(--fg-2)]">{line}</p>
+  return (
+    <motion.p key={lineKey} id={id} data-line-key={lineKey} data-line-duration={reducedMotion ? motionDurations.instant : motionDurations.micro}
+      initial={fade && !reducedMotion ? { opacity: 0 } : false} animate={{ opacity: 1 }}
+      transition={{ duration: reducedMotion ? 0 : motionDurations.micro / 1000, ease: [...motionEasings.standard] as [number, number, number, number] }}
+      className="text-base leading-6 text-[var(--fg-2)]">{line}</motion.p>
+  )
+}
+
 function stepTravel(direction: 1 | -1, shift: number | undefined) {
   if (shift === undefined) return { x: `${direction * 100}%`, opacity: 1 }
   return { x: direction * shift, opacity: 0 }
@@ -63,7 +77,7 @@ function stepTravel(direction: 1 | -1, shift: number | undefined) {
 
 /** The one-question flow frame. It holds no habit-specific code: a second consumer mounts it with its own content. */
 export function QuestionFlow(props: Readonly<QuestionFlowProps>) {
-  const { flow, question, line, stepKey, direction, orbitState = 'parado', showOrbit = true, statusText, options, children, primary, footer } = props
+  const { flow, question, line, lineKey, stepKey, direction, orbitState = 'parado', showOrbit = true, statusText, options, children, primary, footer } = props
   const wide = useViewportMatch('(min-width: 1024px)')
   const sm = useViewportMatch('(min-width: 640px)')
   const reducedMotion = useViewportMatch('(prefers-reduced-motion: reduce)')
@@ -95,7 +109,7 @@ export function QuestionFlow(props: Readonly<QuestionFlowProps>) {
           className="my-auto flex w-full max-w-[592px] flex-col items-center gap-6 py-4 text-center"
         >
           {showOrbit ? <span ref={mascotRef} aria-hidden="true"><OrbitMascot size={wide ? 128 : 96} state={orbitState} lookAt={mascotLook(orbitState, lookAt)} turnKey={stepKey} /></span> : null}
-          {line ? <p id={lineId} className="text-base leading-6 text-[var(--fg-2)]">{line}</p> : null}
+          {line ? <FlowLine id={lineId} line={line} lineKey={lineKey} reducedMotion={reducedMotion} /> : null}
           <h1 ref={headingRef} tabIndex={-1} aria-describedby={line ? lineId : undefined} className="orbit-flow-question text-balance font-display text-[28px] leading-[1.18] text-[var(--fg-1)] lg:text-[34px] lg:leading-[1.15]">{question}</h1>
           {options ? <div role="group" aria-label={question} data-option-group="" className="grid w-full grid-cols-2 gap-3">{options}</div> : null}
           {children ? <div className="flex w-full flex-col gap-3 text-start">{children}</div> : null}

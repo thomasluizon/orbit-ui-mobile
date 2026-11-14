@@ -8,6 +8,8 @@ export interface QuestionFlowProps {
   question: string
   /** The Orbit line. Absent when no job applies, and the block closes up. */
   line?: string | null
+  /** Changes when the line changes with no step change, such as after a press on a tag. A new key fades the line in with `motionDurations.micro`, at once under reduced motion. Absent, the line swaps with no motion. */
+  lineKey?: string
   /** Changes on each step. A change moves focus to the question and slides the step. */
   stepKey: string
   position: number
