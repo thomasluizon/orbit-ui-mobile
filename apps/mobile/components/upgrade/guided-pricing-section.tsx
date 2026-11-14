@@ -245,7 +245,7 @@ const localStyles = StyleSheet.create({
   questionWide: { fontSize: 34, lineHeight: 39 },
   choice: { width: '100%', gap: 12 },
   options: { width: '100%', gap: 12 },
-  option: { minHeight: 72, borderRadius: 20, borderWidth: 2, borderColor: 'transparent', gap: 8, padding: 16 },
+  option: { minHeight: 72, borderRadius: 20, borderWidth: 2, borderColor: 'transparent', overflow: 'hidden', gap: 8, padding: 16 },
   disabled: { opacity: 0.5 },
   centred: { textAlign: 'center' },
   primary: { width: '100%' },
