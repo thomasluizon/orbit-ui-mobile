@@ -10,8 +10,9 @@ import { AstraConversation } from '@/components/chat/conversation'
 import { DestinationShell } from '@/components/shell/destination-shell'
 import { useUIStore } from '@/stores/ui-store'
 import { useShellStore } from '@/stores/shell-store'
+import { getCurrentRouteTransitionIntent, resetRouteTransitionIntent } from '@/lib/motion/route-intent'
 
-const navigation = vi.hoisted(() => ({ pathname: '/', push: vi.fn(), replace: vi.fn(), wide: true }))
+const navigation = vi.hoisted(() => ({ pathname: '/', push: vi.fn(), pushedIntents: [] as string[], replace: vi.fn(), wide: true }))
 vi.mock('next/navigation', () => ({
   usePathname: () => navigation.pathname,
   useParams: () => ({}),
@@ -62,10 +63,15 @@ function App({ draft = '', chat, block }: Readonly<{ draft?: string; chat?: Chat
 beforeEach(() => {
   navigation.pathname = '/'
   navigation.wide = true
-  navigation.push.mockReset().mockImplementation((pathname: string) => { navigation.pathname = pathname })
+  navigation.pushedIntents = []
+  navigation.push.mockReset().mockImplementation((pathname: string) => {
+    navigation.pushedIntents.push(getCurrentRouteTransitionIntent())
+    navigation.pathname = pathname
+  })
   navigation.replace.mockReset().mockImplementation((pathname: string) => { navigation.pathname = pathname })
   useUIStore.setState({ astraConversationOpen: false })
   useShellStore.setState({ paletteOpen: false })
+  resetRouteTransitionIntent()
   vi.stubGlobal('matchMedia', vi.fn((query: string) => ({
     matches: navigation.wide && /min-width/.test(query), media: query, addEventListener: vi.fn(), removeEventListener: vi.fn(),
   })))
@@ -134,10 +140,10 @@ it.each([false, true])('hands attachment-menu focus back to the composer on Tab 
 })
 
 it.each([
-  ['notifications.bell', '/notifications', 'button'],
-  ['nav.createHabit', '/habits/new', 'button'], ['nav.today', '/', 'link'], ['nav.calendar', '/calendar', 'link'],
-  ['nav.progress', '/progress', 'link'], ['nav.profile', '/profile', 'link'],
-])('closes Astra before sidebar navigation through %s', (label, pathname, role) => {
+  ['notifications.bell', '/notifications', 'button', ['forward']],
+  ['nav.createHabit', '/habits/new', 'button', ['neutral']], ['nav.today', '/', 'link', []], ['nav.calendar', '/calendar', 'link', ['tab']],
+  ['nav.progress', '/progress', 'link', ['tab']], ['nav.profile', '/profile', 'link', ['tab']],
+])('closes Astra before sidebar navigation through %s', (label, pathname, role, pushedIntents) => {
   const view = render(<App />)
   fireEvent.click(screen.getByRole('button', { name: 'Astra' }))
   const control = screen.getByRole(role, { name: label })
@@ -147,6 +153,7 @@ it.each([
   if (role === 'link') expect(control).toHaveAttribute('href', pathname)
   if (pathname === '/') expect(navigation.replace).toHaveBeenCalledWith(pathname)
   if (pathname !== '/') expect(navigation.push).toHaveBeenCalledWith(pathname)
+  expect(navigation.pushedIntents).toEqual(pushedIntents)
   view.rerender(<App />)
   expect(screen.getByRole('heading', { name: pathname })).toBeVisible()
 })

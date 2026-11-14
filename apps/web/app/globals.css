@@ -1323,8 +1323,10 @@ button {
 
 /* ═══════════════════════════════════════════════════════
    PRIMARY TAB SWITCH
-   The orbit-tab-page boundary is the only view transition in the
-   app, so every active view transition is a tab switch.
+   Every view transition in the app starts from the orbit-tab-page
+   boundary, either a tab switch or the first mount of the shell
+   (React starts one when a transition commit inserts the boundary).
+   These rules match any active view transition for that reason.
    animateTabViewTransition drives both legs from the shared
    tab-switch preset. The shell chrome changes at once, and taps
    reach the live page while the legs run.

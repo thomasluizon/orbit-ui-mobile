@@ -29,6 +29,7 @@ vi.mock('next/navigation', () => ({ usePathname: () => navigation.pathname }))
 vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
 vi.mock('@/components/ui/lockup', () => ({ Lockup: () => <div>Orbit</div> }))
 
+import { RouteTransitionShell } from '@/components/motion/route-transition-shell'
 import { TabViewTransition } from '@/components/motion/tab-view-transition'
 import { ShellWide } from '@/components/shell/shell-wide'
 import { getCurrentRouteTransitionIntent, resetRouteTransitionIntent, setRouteTransitionIntent } from '@/lib/motion/route-intent'
@@ -152,6 +153,7 @@ describe('TabViewTransition', () => {
     navigation.pathname = '/calendar'
     act(() => resetRouteTransitionIntent())
     window.matchMedia = originalMatchMedia
+    vi.useRealTimers()
   })
 
   it('names the page boundary and runs no transition while the pathname stays', () => {
@@ -190,6 +192,25 @@ describe('TabViewTransition', () => {
     view.rerender(<TabViewTransition><main>Calendar</main></TabViewTransition>)
     expect(captured.renders.map((props) => props.update)).toContain('orbit-tab-switch')
     expect(captured.props!.update).toBe('none')
+  })
+
+  it('keeps a tab press made before the route shell clears the intent of the last commit', () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    const page = (path: string) => <TabViewTransition><RouteTransitionShell><main>{path}</main></RouteTransitionShell></TabViewTransition>
+    navigation.pathname = '/calendar'
+    const view = render(page('/calendar'))
+    act(() => setRouteTransitionIntent('tab'))
+    navigation.pathname = '/'
+    view.rerender(page('/'))
+
+    act(() => setRouteTransitionIntent('tab'))
+    act(() => { vi.runOnlyPendingTimers() })
+    expect(getCurrentRouteTransitionIntent()).toBe('tab')
+
+    captured.renders = []
+    navigation.pathname = '/calendar'
+    view.rerender(page('/calendar'))
+    expect(captured.renders.map((props) => props.update)).toContain('orbit-tab-switch')
   })
 
   it('runs no tab switch for a pathname change that no tab press started', () => {
@@ -254,7 +275,7 @@ describe('globals.css tab view transition', () => {
     captured.props = null
   })
 
-  it('scopes the tab switch rules to any active view transition because the tab page is the only one', () => {
+  it('scopes the tab switch rules to any active view transition because every one starts from the tab page boundary', () => {
     expect(viewTransitionSources()).toEqual(['components/motion/tab-view-transition.tsx'])
     expect(crossDocumentViewTransitionRules()).toEqual([])
   })
