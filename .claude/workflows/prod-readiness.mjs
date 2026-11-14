@@ -361,10 +361,16 @@ const verdicts = (
       ).then((v) => ({ f, v, layer }))
     )
   )
-).filter(Boolean)
+  // parallel resolves a skeptic that throws to null, so it takes the same path as a skeptic that returned no verdict.
+).map((verdict, index) => verdict ?? { ...verifyTargets[index], v: null })
 
 const survivorsByLayer = { ops: [], a11y: [], hygiene: [] }
 for (const { f, v, layer } of verdicts) {
+  // A hygiene finding that no skeptic judged is not verified, so it is deferred, as a finding beyond the cap is.
+  if (!v && layer === 'hygiene') {
+    hygieneDeferred.push({ check: f.check, path: f.location || '', reason: 'the skeptic died or failed, so no skeptic judged it; run the sweep again on it' })
+    continue
+  }
   // A skeptic that cannot open the file has judged nothing, so the finding is never dropped as refuted.
   if (v && v.deferred && layer === 'hygiene') {
     hygieneDeferred.push({ check: f.check, path: f.location || '', reason: `the skeptic could not open the cited file under ${f.root}: ${v.note}` })
@@ -377,7 +383,7 @@ for (const { f, v, layer } of verdicts) {
   }
   if (v && v.refuted) continue
   if (v && v.adjustedSeverity) f.severity = v.adjustedSeverity
-  if (!v) f.unverified = 'the skeptic died — kept unchallenged (a dead verifier is not a clean pass); re-verify before acting'
+  if (!v) f.unverified = 'the skeptic died or failed — kept unchallenged (a dead verifier is not a clean pass); re-verify before acting'
   survivorsByLayer[layer].push(f)
 }
 // A hygiene finding without a skeptic is not verified, so it is deferred. An ops or a11y gap stays visible with unverified.

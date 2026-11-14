@@ -80,7 +80,7 @@ export const cases = async () => {
     Object.values(hygiene?.repositories?.[label.slice("hygiene:".length)]?.counts ?? {}).reduce((total, count) => total + count.judged, 0)
   const finderAnswer = (hygiene, label, answer) =>
     answer && label.startsWith("hygiene:") && answer.rowsRead === undefined ? { ...answer, rowsRead: judgedCountOf(hygiene, label) } : answer
-  const runReadiness = async ({ hygiene, refute = true, verdict = { refuted: refute, note: "checked" }, scope = "both", finderFindings = {}, finderResults = {} }) => {
+  const runReadiness = async ({ hygiene, refute = true, verdict = { refuted: refute, note: "checked" }, scope = "both", finderFindings = {}, finderResults = {}, throwing = () => false }) => {
     const prompts = {}
     const labels = []
     const scripted = (label) => {
@@ -109,11 +109,13 @@ export const cases = async () => {
       args: { roots: { ui: "/checkout/ui", api: "/checkout/api" }, scope, hygiene },
       phase() {},
       log() {},
-      parallel: (calls) => Promise.all(calls.map((call) => call())),
+      // The workflow runtime resolves a thunk that throws to null, and parallel itself never rejects.
+      parallel: (calls) => Promise.all(calls.map((call) => Promise.resolve().then(call).catch(() => null))),
       workflow: async (_, input) => ({ kind: input.kind, findings: [], counts: {}, coverage: [], deferred: [], converged: true }),
       agent: async (prompt, options) => {
         prompts[options.label] = prompt
         labels.push(options.label)
+        if (throwing(options.label)) throw new Error(`${options.label} failed`)
         return finderAnswer(hygiene, options.label, scripted(options.label))
       },
     }
@@ -191,7 +193,21 @@ export const cases = async () => {
     opsOverflow.labels.filter((label) => label.startsWith("verify:")).length === 60 && opsOverflow.result.opsFindings.length === 61 && unchallengedOps.length === 1 &&
       opsOverflow.result.hygieneDeferred.filter((item) => /adversarial-verify cap of 60/.test(item.reason)).length === 2,
     `${opsOverflow.result.opsFindings.length} ops findings, ${unchallengedOps.length} unchallenged`)
-  const verifyPhaseDetail = /title: 'Verify', detail: '([^']*)'/.exec(readFileSync(new URL("../../.claude/workflows/prod-readiness.mjs", import.meta.url), "utf8"))?.[1] ?? ""
+  for (const [label, options] of [["dies", { verdict: null }], ["throws", { throwing: (name) => name.startsWith("verify:") }]]) {
+    const unjudged = await runReadiness({ hygiene: hygieneArgument, ...options })
+    const deferredBySkeptic = unjudged.result.hygieneDeferred.filter((item) => /the skeptic died or failed/.test(item.reason)).map((item) => item.path)
+    T(`${NAME}: a hygiene finding whose skeptic ${label} is deferred, never filed unchecked`,
+      unjudged.result.hygieneFindings.length === 0 && JSON.stringify(deferredBySkeptic.sort()) === JSON.stringify(["orbit-ui-mobile x.md", "thomas-brain drafts/z.md"]),
+      JSON.stringify([unjudged.result.hygieneFindings, unjudged.result.hygieneDeferred]))
+    T(`${NAME}: an ops finding whose skeptic ${label} is kept with unverified`,
+      unjudged.result.opsFindings.length === 1 && /skeptic died or failed/.test(unjudged.result.opsFindings[0].unverified ?? ""), JSON.stringify(unjudged.result.opsFindings))
+  }
+  const updateFinding = { severity: "Medium", check: "hygiene-outdated", title: "Stale path", location: "orbit-ui-mobile docs/a.md", risk: "an agent follows it", evidence: "unresolvedReferences docs/gone.md", fix: "update docs/a.md to name docs/new.md" }
+  const updateOnly = await runReadiness({ hygiene: hygieneArgument, finderFindings: { "hygiene:ui": [updateFinding] } })
+  T(`${NAME}: a Medium update hygiene finding needs no skeptic and is kept`,
+    updateOnly.result.hygieneFindings.some((finding) => finding.location === "orbit-ui-mobile docs/a.md") && !updateOnly.labels.includes("verify:hygiene-outdated"),
+    JSON.stringify(updateOnly.result.hygieneFindings))
+  const verifyPhaseDetail =/title: 'Verify', detail: '([^']*)'/.exec(readFileSync(new URL("../../.claude/workflows/prod-readiness.mjs", import.meta.url), "utf8"))?.[1] ?? ""
   T(`${NAME}: the Verify phase detail names the hygiene findings and the cap`, /hygiene/.test(verifyPhaseDetail) && /60/.test(verifyPhaseDetail), verifyPhaseDetail)
   const absent = await runReadiness({})
   T(`${NAME}: a run with no hygiene argument defers all five repositories and never reads as clean`,

@@ -204,9 +204,9 @@ same severity. The workflow returns:
 
 The workflow fails closed on its own machinery. A check whose finder died lands in
 `opsChecksFailed` / `a11yChecksFailed`, never in `*ChecksRun`: its inventory item is
-**coverage UNKNOWN** (forces at most CONDITIONAL), never clean. A serious finding whose
-skeptic died is kept, carrying `unverified` — treat it as real until re-verified, and say so
-in the ticket. Each skeptic gets the root of the repository, the evidence and the fix. A file the
+**coverage UNKNOWN** (forces at most CONDITIONAL), never clean. A serious ops or a11y finding
+whose skeptic died or threw is kept, carrying `unverified` — treat it as real until re-verified, and say so
+in the ticket. A hygiene finding whose skeptic died or threw goes to `hygieneDeferred`, never to a ticket. Each skeptic gets the root of the repository, the evidence and the fix. A file the
 skeptic cannot open is never a refutation: an ops or a11y finding is then kept with `unverified`,
 and a hygiene finding goes to `hygieneDeferred`. A finding beyond the skeptic cap is never
 returned as verified: an ops or a11y finding is kept with `unverified`, and a hygiene finding goes
