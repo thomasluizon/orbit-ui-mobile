@@ -1540,8 +1540,9 @@ The CI waiter exits 0 only for a settled passing head; 4 means the head moved, 5
 pull request closed, and 6 means settled failing checks. Re-read delivery on 4 or 5 and fix
 failures on 6; none is successful CI. Exit 3 is the ceiling; 1 or 2 is a read or usage error.
 When CI is the remaining work, start `node tools/wait-ci.mjs --repo <key> --pr <n>` in the
-background. When the review is the remaining work, first ask for it with `list-bot-threads.mjs`, then
-start the waiter with `--require-check pullfrog-approval`. Without the request, that waiter reaches
+background. When the review is the remaining work, first run the local review gate on a head that
+has no request. Then ask for the review with `list-bot-threads.mjs --head <sha>`, and start the
+waiter with `--require-check pullfrog-approval`. Without the request, that waiter reaches
 its ceiling, because Pullfrog reviews only on request.
 The worker launcher, Cloud receipt watcher, CI waiter, release waiter, file waiter and relay tool
 each register a live wake source. For a detached local check, start
