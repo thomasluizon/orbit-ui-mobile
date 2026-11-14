@@ -937,7 +937,7 @@ export async function cases() {
   const signed = job('installed-signed')
   const sameRepository = "github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository"
   T('native acceptance retains both VMs, per-ref cancellation and always-uploaded evidence, including the Windows caption captures',
-    unsigned.includes(`runner: \${{ fromJSON((${sameRepository}) && '["windows-latest"]' || '["macos-latest", "windows-latest"]') }}`) &&
+    unsigned.includes('runs-on: windows-latest') && !unsigned.includes('matrix') &&
       signed.includes(`if: ${sameRepository}`) && signed.includes('runs-on: macos-latest') &&
       workflow.includes('desktop-acceptance-${{ github.ref }}') && unsigned.includes('if: always()') && signed.includes('if: always()') &&
       unsigned.includes('${{ runner.temp }}/orbit-desktop-acceptance/caption-*.png'))
@@ -949,9 +949,11 @@ export async function cases() {
   T('APNs values reach only the signed macOS job, and WNS values only the job that runs Windows',
     ['ORBIT_APPLE_TEAM_ID', 'ORBIT_APNS_KEY_ID', 'ORBIT_APNS_PRIVATE_KEY'].every((name) => signed.includes(`${name}: `) && !unsigned.includes(name)) &&
       ['ORBIT_DESKTOP_WNS_OBJECT_ID', 'ORBIT_WNS_TENANT_ID', 'ORBIT_WNS_CLIENT_ID', 'ORBIT_WNS_CLIENT_SECRET'].every((name) => unsigned.includes(`${name}: `) && !signed.includes(name)))
-  T('the native producer step runs the acceptance, caption, push, reader, launch and child limit regressions in both jobs',
-    ['test-acceptance.ts', 'test-acceptance-caption.ts', 'test-acceptance-push.ts', 'test-acceptance-readers.ts', 'test-acceptance-launch.ts', 'test-child-limit.ts'].every((file) => setup.includes(`node --import tsx tools/desktop-bench/${file}`)) &&
-      [unsigned, signed].every((text) => text.includes('uses: ./.github/actions/desktop-acceptance-setup')) &&
+  // The producer regressions run once, in this suite (Tool and Hook Tests), so neither VM job repeats them.
+  T('both jobs share the setup action, which leaves the producer regressions to this suite, and both read the Rust compile cache that only main saves',
+    !setup.includes('tools/desktop-bench/test-') &&
+      [unsigned, signed].every((text) => text.includes('uses: ./.github/actions/desktop-acceptance-setup') &&
+        text.includes('uses: Swatinem/rust-cache@') && text.includes("save-if: ${{ github.ref == 'refs/heads/main' }}")) &&
       workflow.includes("- '.github/actions/desktop-acceptance-setup/**'"))
 }
 

@@ -364,11 +364,13 @@ function checkSourceIdentity() {
 function checkPinnedRelease() {
   const parsed = load(workflow)
   const checkout = parsed.jobs.build.steps.find((step) => step.uses?.startsWith("actions/checkout@"))
-  T("build checks out the selected SHA with complete branch history", checkout.with.ref === "${{ steps.selection.outputs.sha }}" && checkout.with["fetch-depth"] === 0)
+  T("build checks out the selected SHA with complete branch history", parsed.jobs.build.needs === "select" &&
+    parsed.jobs.select.outputs.sha === "${{ steps.selection.outputs.sha }}" && checkout.with.ref === "${{ needs.select.outputs.sha }}" && checkout.with["fetch-depth"] === 0)
   const resolve = stepScript("Resolve source")
   T("source resolution verifies checkout identity and branch ancestry", resolve.includes('"$sha" != "$SOURCE_SHA"') && resolve.includes('git merge-base --is-ancestor "$SOURCE_SHA" "refs/remotes/origin/$SOURCE_BRANCH"'))
-  const admission = parsed.jobs.production.steps.find((step) => step.name === "Require healthy staging commit")
-  T("production admits staging before deploying", !!admission && parsed.jobs.production.steps.indexOf(admission) < parsed.jobs.production.steps.findIndex((step) => step.name === "Deploy web digest"))
+  const admission = parsed.jobs.admission.steps.find((step) => step.name === "Require healthy staging commit")
+  T("production admits staging before deploying", !!admission && parsed.jobs.production.needs.includes("admission") &&
+    !parsed.jobs.production.steps.some((step) => step.name === "Require healthy staging commit"))
   if (!admission) return
   T("production retains staging admission", admission.if === "inputs.environment == 'production'")
   const summary = stage("release-admission/summary", "")
@@ -404,7 +406,7 @@ function checkAppleClientId() {
   // .github/scripts/release-admission.test.mjs (web and Android) and apps/mobile/__tests__/ios-workflows.test.ts (iOS).
   const read = (file) => load(readFileSync(toolPath(`../.github/workflows/${file}`), "utf8"))
   const targets = [
-    { label: "web", steps: read("release.yml").jobs.build.steps, name: "Validate browser build variables", before: ["Build and push production image", "Build and push staging image"],
+    { label: "web", steps: read("release.yml").jobs.select.steps, name: "Validate browser build variables", before: [],
       wiring: { PRODUCTION_APPLE_CLIENT_ID: "${{ vars.PRODUCTION_NEXT_PUBLIC_APPLE_CLIENT_ID }}", STAGING_APPLE_CLIENT_ID: "${{ vars.STAGING_NEXT_PUBLIC_APPLE_CLIENT_ID }}" } },
     { label: "android", steps: read("android-release.yml").jobs["release-android"].steps, name: "Validate release secrets",
       before: ["Resolve Google Play track", "Submit build to Google Play"],
@@ -413,6 +415,9 @@ function checkAppleClientId() {
       before: ["Install dependencies", "Install signing credentials", "Archive the embedded app"],
       jobWiring: { EXPO_PUBLIC_APPLE_CLIENT_ID: "${{ vars.EXPO_PUBLIC_APPLE_CLIENT_ID }}" }, jobEnv: read("ios-release.yml").jobs.release.env },
   ]
+  // The web guard runs in the select job, and the image build needs that job.
+  T("web release guard runs before the image build", read("release.yml").jobs.build.needs === "select" &&
+    read("release.yml").jobs.build.steps.some((step) => step.name === "Build and push production image"))
   for (const { label, steps, name, before, wiring, jobWiring, jobEnv } of targets) {
     const index = steps.findIndex((step) => step.name === name)
     T(`${label} release guard exists`, index >= 0)
