@@ -1,6 +1,9 @@
 'use client'
 
-import { SPACING } from '@orbit/shared/theme'
+import { SPACING, motionSprings, resolveMotionPreset } from '@orbit/shared/theme'
+import { useEffect, useRef, useState } from 'react'
+import { animate } from 'motion/react'
+import { useViewportMatch } from '@/hooks/use-viewport-match'
 
 
 import { PersonalTextAction } from '@/components/ui/personal-text-action'
@@ -110,6 +113,41 @@ function personalContentClassName(leading: CheckRowProps['leading']) {
   return leading ? 'flex items-center gap-2' : 'flex flex-col justify-center'
 }
 
+/** A log pops the check: it settles from the success-feedback scale on the completion spring. The first render and reduced motion draw it still. */
+function useCheckSettle(checked: boolean): number | null {
+  const reducedMotion = useViewportMatch('(prefers-reduced-motion: reduce)')
+  const [shown, setShown] = useState(checked)
+  const [logged, setLogged] = useState(false)
+  if (checked !== shown) {
+    setShown(checked)
+    setLogged(checked)
+  }
+  return logged && !reducedMotion ? resolveMotionPreset('success-feedback').scaleFrom : null
+}
+
+function CalendarDayCheck({ checked, loading }: Readonly<{ checked: boolean; loading: boolean }>) {
+  const settleFrom = useCheckSettle(checked)
+  const checkRef = useRef<HTMLSpanElement>(null)
+  useEffect(() => {
+    const check = checkRef.current
+    if (settleFrom === null || !check) return undefined
+    const settle = animate(settleFrom, 1, {
+      type: 'spring', ...motionSprings.completion,
+      onUpdate: (scale) => { check.style.transform = `scale(${scale})` },
+      onComplete: () => check.style.removeProperty('transform'),
+    })
+    return () => {
+      settle.stop()
+      check.style.removeProperty('transform')
+    }
+  }, [settleFrom])
+  const CircleIcon = checked ? CheckCircle : Circle
+  return <span ref={checkRef} data-check-settle={settleFrom === null ? undefined : ''} className="relative isolate grid size-6 place-items-center rounded-full">
+    {loading ? <SkeletonFace /> : null}
+    <CircleIcon data-slot="calendar-day-circle" size={24} stroke={1.5} aria-hidden="true" focusable="false" className="text-[var(--fg-1)]" />
+  </span>
+}
+
 function PersonalCheckRow({ leading, label, selection = false, placement, variant, onOpenLabel, labelExpanded, labelControls, checked, onChange, description, error, value, disabled, loading }: Readonly<CheckRowProps>) {
   const calendarDay = variant === 'calendar-day'
   return (
@@ -124,19 +162,11 @@ function PersonalCheckRow({ leading, label, selection = false, placement, varian
       </button>} />
       <button type="button" role="checkbox" style={personalControlStyle(selection)} data-variant={variant} aria-label={label} aria-checked={checked} aria-busy={loading || undefined} disabled={disabled || loading} onClick={() => onChange(!checked)} data-loading={loading ? '' : undefined} className={`orbit-check-row-control orbit-press-content relative grid ${calendarDay ? 'size-6' : 'size-[56px]'} shrink-0 place-items-center rounded-[12px] border-0 bg-transparent transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] ${dimWhenDisabled(loading)}`}>
         <span aria-hidden="true" data-press-fill="" className="orbit-check-row-fill grid place-items-center p-2">
-          {calendarDay ? <CalendarDayCircle checked={checked} loading={Boolean(loading)} /> : <Checkbox checked={checked} onChange={onChange} error={Boolean(error)} loading={loading} as="span" />}
+          {calendarDay ? <CalendarDayCheck checked={checked} loading={Boolean(loading)} /> : <Checkbox checked={checked} onChange={onChange} error={Boolean(error)} loading={loading} as="span" />}
         </span>
       </button>
     </div>
   )
-}
-
-function CalendarDayCircle({ checked, loading }: Readonly<{ checked: boolean; loading: boolean }>) {
-  const CircleIcon = checked ? CheckCircle : Circle
-  return <span className="relative isolate grid size-6 place-items-center rounded-full">
-    {loading ? <SkeletonFace /> : null}
-    <CircleIcon data-slot="calendar-day-circle" size={24} stroke={1.5} aria-hidden="true" focusable="false" className="text-[var(--fg-1)]" />
-  </span>
 }
 
 /** A waiting row keeps its full tone, because its control shows the skeleton; only a disabled row dims. */

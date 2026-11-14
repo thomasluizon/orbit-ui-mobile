@@ -1328,6 +1328,24 @@
     "options": "Calendar options",
     "monthPicker": "Month and year",
     "legendTitle": "Legend",
+    "legendQuestion": "What does each mark mean?",
+    "monthPickerQuestion": "Where do you want to go?",
+    "monthPickerLastMonth": "Last month",
+    "monthPickerTyped": "In your own words",
+    "monthPickerTypedPlaceholder": "The 20th or Friday, the 20th",
+    "monthPickerTypedSubmit": "Show day",
+    "monthPickerTypedUnresolved": "I could not find that date. Try something like the 20th.",
+    "orbit": {
+      "dayFull": "The {day, selectordinal, one {#st} two {#nd} few {#rd} other {#th}}: all done.",
+      "dayPartial": "The {day, selectordinal, one {#st} two {#nd} few {#rd} other {#th}}: {done} of {total} done.",
+      "dayLoggable": "You can still log this day.",
+      "dayFuture": "{count, plural, one {{weekday} has # thing planned.} other {{weekday} has # things planned.}}",
+      "dayNone": "Nothing planned that day.",
+      "monthEmpty": "Nothing planned in {month}.",
+      "monthFuture": "This month has not arrived yet.",
+      "askDay": "Tell me about {date} in my calendar.",
+      "askMonth": "Tell me about {month} in my calendar."
+    },
     "title": "Google Calendar",
     "fetchingEvents": "Fetching your calendar events...",
     "noEvents": "No events",
@@ -3145,6 +3163,9 @@
       "week": "{count, plural, one {every week} other {every # weeks}}",
       "month": "{count, plural, one {every month} other {every # months}}",
       "year": "{count, plural, one {every year} other {every # years}}"
+    },
+    "calendar": {
+      "imported": "{count, plural, one {# habit was created from your calendar.} other {# habits were created from your calendar.}}"
     },
     "seeToday": "View in Today",
     "account": {

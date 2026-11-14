@@ -204,21 +204,22 @@ describe('DayCell', () => {
   })
 
   it('draws the partial arc from the exact completion fraction', () => {
+    const circumference = Math.PI * 32
+    const arcOffset = (tree: ReturnType<typeof render>) => {
+      const arc = tree.root.findAll((node) => node.props.testID === 'day-arc' && Array.isArray(node.props.strokeDasharray))[0]!
+      expect(arc.props.strokeDasharray).toEqual([circumference, circumference])
+      const offset = arc.props.strokeDashoffset as number | { value: number }
+      return typeof offset === 'number' ? offset : offset.value
+    }
     const oneThird = render(<DayCell day={15} label="March 15" words={cellWords} scheduled={3} done={1} />)
-    const oneThirdArc = oneThird.root.findAll(
-      (node) => node.type === 'Circle' && Array.isArray(node.props.strokeDasharray),
-    )[0]
     const oneThirdTrack = oneThird.root.findAll(
       (node) => node.type === 'Circle' && node.props.strokeDasharray === undefined,
     )[0]
     expect(oneThirdTrack?.props.stroke).toBe(createTokensV2('purple', 'dark').statusEmpty)
-    expect(oneThirdArc?.props.strokeDasharray).toEqual([Math.PI * 32 / 3, Math.PI * 32])
+    expect(arcOffset(oneThird)).toBeCloseTo(circumference * (1 - 1 / 3))
 
     const twoThirds = render(<DayCell day={15} label="March 15" words={cellWords} scheduled={3} done={2} />)
-    const twoThirdsArc = twoThirds.root.findAll(
-      (node) => node.type === 'Circle' && Array.isArray(node.props.strokeDasharray),
-    )[0]
-    expect(twoThirdsArc?.props.strokeDasharray).toEqual([Math.PI * 32 * 2 / 3, Math.PI * 32])
+    expect(arcOffset(twoThirds)).toBeCloseTo(circumference * (1 - 2 / 3))
   })
 
   it('uses the quiet habit-history treatment for completed, missed, and unscheduled days', () => {

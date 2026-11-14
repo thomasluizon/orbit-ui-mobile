@@ -27,12 +27,13 @@ describe('web Orbit line on Hoje', () => {
   })
   afterEach(cleanup)
 
-  it('draws Orbit still at 48 beside the sentence and names the row by the sentence', () => {
+  it('draws the live Orbit at 48 beside the sentence and names the row by the sentence', () => {
     enableTestFlags('orbit_guided_flows')
     const { container } = renderLine()
     expect(mascot(container)).toHaveAttribute('width', '48')
     expect(mascot(container)).toHaveAttribute('data-orbit-state', 'parado')
-    expect(mascot(container)).toHaveAttribute('data-orbit-loop', 'still')
+    expect(mascot(container)).toHaveAttribute('data-orbit-face', 'rig')
+    expect(mascot(container)).toHaveAttribute('data-orbit-loop', 'running')
     expect(screen.getByRole('button', { name: 'Check in' })).toHaveAccessibleDescription('todayAstra.openConversation')
   })
 

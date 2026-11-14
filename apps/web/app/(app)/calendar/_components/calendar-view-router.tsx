@@ -1,7 +1,8 @@
 import { useTranslations } from 'next-intl'
-import { PADDING } from '@orbit/shared/theme'
+import { PADDING, motionDurations, motionEasings, resolveMotionPreset } from '@orbit/shared/theme'
 import { calendarDayLoadingLabel, calendarStatState } from '@orbit/shared/utils/calendar-navigation'
-import { type ReactNode } from 'react'
+import { useEffect, useRef, type ReactNode } from 'react'
+import { useViewportMatch } from '@/hooks/use-viewport-match'
 import { format } from 'date-fns'
 import { type CalendarMonthDisplayState } from '@orbit/shared/utils'
 import { CalendarGrid } from '@/components/calendar/calendar-grid'
@@ -13,12 +14,15 @@ import { CalendarRangeView } from '@/components/calendar/calendar-range-view'
 import { CalendarAgendaView } from '@/components/calendar/calendar-agenda-view'
 import { PillButton } from '@/components/ui/pill-button'
 import { OfflineRefusal } from '@/components/ui/offline-refusal'
+import { useFlag } from '@/hooks/use-flag'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
+import { buildHabitCreateHref } from '@orbit/shared/utils'
 import type { CalendarScreenState } from './use-calendar-screen-state'
 
 interface CalendarMonthFeedbackProps {
   state: CalendarMonthDisplayState
-  emptyText: string
-  futureText: string
+  /** Absent when the Orbit line states the month. */
+  text: string | null
   createLabel: string
   createVariant: 'primary' | 'secondary'
   onCreate: () => void
@@ -27,17 +31,16 @@ interface CalendarMonthFeedbackProps {
 
 function CalendarMonthFeedback({
   state,
-  emptyText,
-  futureText,
+  text,
   createLabel,
   createVariant,
   onCreate,
   createRefusal,
 }: Readonly<CalendarMonthFeedbackProps>) {
-  if (state !== 'empty' && state !== 'future') return null
+  if (state !== 'empty' && (state !== 'future' || !text)) return null
   return (
     <div className="flex flex-col items-start gap-3 px-4 py-4" data-testid="calendar-month-empty">
-      <p className="text-[var(--fg-2)]">{state === 'future' ? futureText : emptyText}</p>
+      {text ? <p className="text-[var(--fg-2)]">{text}</p> : null}
       {state === 'empty' ? (
         <PillButton variant={createVariant} size="sm" onClick={onCreate}>
           {createLabel}
@@ -48,16 +51,46 @@ function CalendarMonthFeedback({
   )
 }
 
-function CalendarDayCardSlot({ children }: Readonly<{ children: ReactNode }>) {
-  return <div data-testid="calendar-day-card-slot" style={{ paddingInline: PADDING.screenGutter, paddingBlockStart: PADDING.sectionGap }}>{children}</div>
+const DAY_CARD_FADE = { duration: motionDurations.base, easing: `cubic-bezier(${motionEasings.standard.join(', ')})` }
+
+/** A new selected day cross-fades the day card on the base duration. The first day and reduced motion show at once. */
+function CalendarDayCardSlot({ dayKey, children }: Readonly<{ dayKey: string; children: ReactNode }>) {
+  const slotRef = useRef<HTMLDivElement>(null)
+  const reducedMotion = useViewportMatch('(prefers-reduced-motion: reduce)')
+  const shownDay = useRef(dayKey)
+  useEffect(() => {
+    if (shownDay.current === dayKey) return undefined
+    shownDay.current = dayKey
+    const slot = slotRef.current
+    if (reducedMotion || !slot || typeof slot.animate !== 'function') return undefined
+    const fade = slot.animate([{ opacity: 0 }, { opacity: 1 }], DAY_CARD_FADE)
+    return () => fade.cancel()
+  }, [dayKey, reducedMotion])
+  return <div ref={slotRef} data-testid="calendar-day-card-slot" style={{ paddingInline: PADDING.screenGutter, paddingBlockStart: PADDING.sectionGap }}>{children}</div>
 }
 
 function calendarActionVariant(wide: boolean): 'primary' | 'secondary' {
   return wide ? 'secondary' : 'primary'
 }
+/** With the guided flows on, the create action of an empty month opens the create flow on the selected day. */
+function useCreateOnSelectedDay(state: CalendarScreenState, guided: boolean): () => void {
+  const router = useRouter()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
+  const { isOnline, setShowCreateRefusal, selectedDay, openHabitCreation } = state
+  if (!guided) return openHabitCreation
+  return () => {
+    if (!isOnline) { setShowCreateRefusal(true); return }
+    const query = searchParams.size ? `?${searchParams}` : ''
+    router.push(buildHabitCreateHref({ from: `${pathname}${query}`, date: selectedDay }))
+  }
+}
+
 function CalendarMonthView({ state }: Readonly<{ state: CalendarScreenState }>) {
   const t = useTranslations()
-  const { currentMonth, selectedDay, todayKey, weekStartsOn, isOnline, isWideDesktop, showCreateRefusal, openImport, showRecurring, showEventSource, calendarEventsState, refetchCalendarEvents, openOrbitPro, isLoading, displayMonthDayMap, openDay, monthDayEntries, selectedCalendarEvents, selectedDayLoggable, pendingEntryStates, changeSelectedEntry, monthDisplayState, monthStatTiles, monthSlide, handleTouchStart, handleTouchEnd, openHabitCreation } = state
+  const guided = useFlag('orbit_guided_flows')
+  const createOnSelectedDay = useCreateOnSelectedDay(state, guided)
+  const { currentMonth, selectedDay, todayKey, weekStartsOn, isOnline, isWideDesktop, showCreateRefusal, openImport, showRecurring, showEventSource, calendarEventsState, refetchCalendarEvents, openOrbitPro, isLoading, displayMonthDayMap, openDay, monthDayEntries, selectedCalendarEvents, selectedDayLoggable, pendingEntryStates, changeSelectedEntry, monthDisplayState, monthStatTiles, monthSlide, handleTouchStart, handleTouchEnd } = state
   const monthKey = format(currentMonth, 'yyyy-MM')
   return (<div className="flex min-w-0 flex-col">
     <CalendarSlide
@@ -81,15 +114,14 @@ function CalendarMonthView({ state }: Readonly<{ state: CalendarScreenState }>) 
 
     <CalendarMonthFeedback
       state={monthDisplayState}
-      emptyText={t('calendar.emptyMonth')}
-      futureText={t('calendar.futureMonth')}
+      text={guided ? null : t(monthDisplayState === 'future' ? 'calendar.futureMonth' : 'calendar.emptyMonth')}
       createLabel={t('habits.createHabit')}
       createVariant={calendarActionVariant(isWideDesktop)}
-      onCreate={openHabitCreation}
+      onCreate={createOnSelectedDay}
       createRefusal={monthDisplayState === 'empty' && showCreateRefusal && !isOnline ? <OfflineRefusal icon="create" title={t('offline.create.title')} reason={t('offline.create.reason')} /> : null}
     />
 
-    <CalendarDayCardSlot>
+    <CalendarDayCardSlot dayKey={selectedDay}>
       <CalendarDayDetail
         loadingLabel={calendarDayLoadingLabel(monthDisplayState, t('calendar.loading'))}
         dateStr={selectedDay}
@@ -117,7 +149,33 @@ function CalendarMonthView({ state }: Readonly<{ state: CalendarScreenState }>) 
   </div>)
 }
 
+const VIEW_ORDER: readonly CalendarScreenState['view'][] = ['month', 'week', 'range', 'agenda']
+
+/** A view switch enters on the tab-switch preset, shifted toward the side of the chosen segment. Reduced motion swaps the view at once. */
+function CalendarViewSwitch({ view, children }: Readonly<{ view: CalendarScreenState['view']; children: ReactNode }>) {
+  const viewRef = useRef<HTMLDivElement>(null)
+  const reducedMotion = useViewportMatch('(prefers-reduced-motion: reduce)')
+  const shownView = useRef(view)
+  useEffect(() => {
+    const before = shownView.current
+    if (before === view) return undefined
+    shownView.current = view
+    const element = viewRef.current
+    if (reducedMotion || !element || typeof element.animate !== 'function') return undefined
+    const preset = resolveMotionPreset('tab-switch')
+    const shift = (VIEW_ORDER.indexOf(view) > VIEW_ORDER.indexOf(before) ? 1 : -1) * preset.shift
+    const enter = element.animate([{ opacity: 0, transform: `translateX(${shift}px)` }, { opacity: 1, transform: 'translateX(0)' }],
+      { duration: preset.enterDuration, easing: `cubic-bezier(${preset.enterEasing.join(', ')})` })
+    return () => enter.cancel()
+  }, [view, reducedMotion])
+  return <div ref={viewRef} data-calendar-view={view} className="flex min-h-0 flex-1 flex-col">{children}</div>
+}
+
 export function CalendarViewRouter({ state }: Readonly<{ state: CalendarScreenState }>) {
+  return <CalendarViewSwitch view={state.view}><CalendarViewBody state={state} /></CalendarViewSwitch>
+}
+
+function CalendarViewBody({ state }: Readonly<{ state: CalendarScreenState }>) {
   const t = useTranslations()
   const { view, timeZone, todayKey, weekSlide, displayTime, dateFnsLocale, agendaStart, rangeLoading, displayRangeDayMap, gridColumns, openDay, rangeLabel, rangeModel, weekdayLabels, rangeStatTiles } = state
   if (view === 'month') return (<CalendarMonthView state={state} />)

@@ -250,6 +250,17 @@ With the flag `orbit_guided_flows` on, the multi-field Perfil surfaces run on th
 - `apps/mobile/__tests__/components/profile/perfil-flow-centre-geometry.test.tsx` measures each Perfil flow block centre within 1 px of the free area centre at 320, 360, 384 and 412.
 - `packages/shared/src/__tests__/profile-routes.test.ts`, `packages/shared/src/__tests__/astra-offers.test.ts`, `apps/web/__tests__/pages/profile-legacy-redirects.test.ts` and `apps/mobile/__tests__/screens/profile-legacy-redirects.test.tsx` cover the AI settings slug `/profile/ai` and every redirect source, including `/profile/astra`. The Rust tests in `apps/desktop/src-tauri/src/links.rs` cover both slugs in the desktop allowlist.
 
+### Calendário Orbit line, month question and motion
+
+Calendário has one Orbit line, a month picker that asks one question, and motion on each press. Each part has a Vitest suite on web and Android, in both locales, with reduced motion on and off. The suites assert behavior and data attributes, never class names.
+
+- `packages/shared/src/__tests__/calendar-orbit-line.test.ts` covers the sentence choice: each case, the future month, each pair of cases that can apply together, the plural forms in both locales, the missed count that never shows, the request that a press offers, the page turn count and the typed date ("dia 20", "sexta, dia 20", a text that cannot resolve).
+- `apps/web/__tests__/components/calendar/calendar-orbit-line.test.tsx` and `apps/mobile/__tests__/components/calendar-orbit-line.test.tsx` cover the line: absent with `orbit_guided_flows` off, Orbit at 48, a day select with no request, the month sentences, the press that opens the conversation, the limit and offline reasons with Descansando, the skeleton with no spinner, the week span and the ring turn.
+- `apps/web/__tests__/components/today/root-orbit-line-row.test.tsx` and `apps/mobile/__tests__/components/today/root-orbit-line-row.test.tsx` cover the shared root line row: Orbit at 48, the caller's state and the sentence fade.
+- `apps/web/__tests__/components/calendar/calendar-month-question.test.tsx` and the month picker cases in `apps/mobile/__tests__/components/calendar-shell.test.tsx` cover the question title, the quick options, the month grid and year control as the free path, the typed date and its guidance, and the legend question.
+- `apps/web/__tests__/components/calendar/calendar-day-motion.test.tsx` and `apps/mobile/__tests__/components/calendar-day-motion.test.tsx` cover the arc sweep and its dash offset, the full day disc, the check pop, the day card fade, the view switch, and the empty and future month under the line.
+- `apps/web/__tests__/components/calendar/calendar-import-result.test.tsx`, `apps/mobile/__tests__/components/calendar-import-result.test.tsx` and the hand-off cases in `apps/web/__tests__/app/calendar-sync-page.test.tsx` and `apps/mobile/__tests__/screens/calendar-sync.test.tsx` cover the import result dialog, the server count and the partial failure that stays in the sheet.
+
 ### How the authed-Today Lighthouse budget gate works
 
 - **Hermetic mock API.** `perf.yml` builds the web app, boots the mock orbit-api (`test-support/hermetic/mock-api/server.ts`, `127.0.0.1:5099`) with a job-level `API_BASE` pointing the Next BFF at it, and lets LHCI manage `next start`. The fixture server validates every response against its `@orbit/shared` schema at boot. No prod, no secrets, no real orbit-api.

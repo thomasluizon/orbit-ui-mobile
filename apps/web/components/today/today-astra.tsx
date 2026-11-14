@@ -29,7 +29,7 @@ export function TodayAstra({ today, isTodaySelected, suppressed }: Readonly<Toda
   }, t)
 
   if (!line) return null
-  if (rest && line !== 'summary') return <TodayAstraLine resting text={t(rest)} destination={t('todayAstra.openConversation')} onPress={() => useUIStore.getState().setAstraConversationOpen(true)} />
+  if (rest && line !== 'summary') return <TodayAstraLine mascotState="descansando" text={t(rest)} destination={t('todayAstra.openConversation')} onPress={() => useUIStore.getState().setAstraConversationOpen(true)} />
   if (line === 'summary') return <TodayAISummary date={today} />
   return <TodayAstraLine text={line.text} destination={line.destination}
     href={line.item ? undefined : '/progress'}

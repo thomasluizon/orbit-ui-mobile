@@ -1328,6 +1328,24 @@
     "options": "Opções do calendário",
     "monthPicker": "Mês e ano",
     "legendTitle": "Legenda",
+    "legendQuestion": "O que cada marca quer dizer?",
+    "monthPickerQuestion": "Para quando você quer ir?",
+    "monthPickerLastMonth": "Mês passado",
+    "monthPickerTyped": "Escreva do seu jeito",
+    "monthPickerTypedPlaceholder": "Dia 20 ou sexta, dia 20",
+    "monthPickerTypedSubmit": "Ver dia",
+    "monthPickerTypedUnresolved": "Não achei essa data. Tente algo como dia 20.",
+    "orbit": {
+      "dayFull": "Dia {day}: tudo feito.",
+      "dayPartial": "Dia {day}: {done} de {total, plural, =0 {# feitos} one {# feito} other {# feitos}}.",
+      "dayLoggable": "Ainda dá para registrar esse dia.",
+      "dayFuture": "{count, plural, =0 {{weekday} não tem nada marcado.} one {{weekday} tem # coisa marcada.} other {{weekday} tem # coisas marcadas.}}",
+      "dayNone": "Nada marcado nesse dia.",
+      "monthEmpty": "Nada marcado em {month}.",
+      "monthFuture": "Este mês ainda não chegou.",
+      "askDay": "Me fala sobre o dia {date} no meu calendário.",
+      "askMonth": "Me fala sobre {month} no meu calendário."
+    },
     "title": "Google Agenda",
     "fetchingEvents": "Buscando seus eventos...",
     "noEvents": "Nenhum evento",
@@ -3145,6 +3163,9 @@
       "week": "{count, plural, =0 {a cada # semanas} one {toda semana} other {a cada # semanas}}",
       "month": "{count, plural, =0 {a cada # meses} one {todo mês} other {a cada # meses}}",
       "year": "{count, plural, =0 {a cada # anos} one {todo ano} other {a cada # anos}}"
+    },
+    "calendar": {
+      "imported": "{count, plural, =0 {Nenhum hábito foi criado a partir da sua agenda.} one {# hábito foi criado a partir da sua agenda.} other {# hábitos foram criados a partir da sua agenda.}}"
     },
     "seeToday": "Ver no Hoje",
     "account": {

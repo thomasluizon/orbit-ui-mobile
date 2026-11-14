@@ -16,6 +16,12 @@ The calendar drawing governs the geometry; existing fill tokens retain their rol
 | Period loading grid | calendar-range-view and Skeleton | calendar-range-view and Skeleton | circular placeholders in full-column slots |
 | Weekday header | MonthGrid | MonthGrid | constant 8 gap to day rows, including narrow grids with no column gap |
 
+A log sweeps the partial arc from the old share to the new one on the slow duration, drawn as
+`stroke-dashoffset` on a path length of 100 on web and on the measured circumference on Android.
+A day that becomes full turns into the neutral disc. The day card check settles on the completion
+spring, and a new selected day cross-fades the card on the base duration. Reduced motion draws
+each final state at once.
+
 Selected and focused controls have one position indicator. The calendar slot paints
 nothing. Read-only dates retain selection targets in the month view; logging remains
 bounded by the existing write window. The period figures retain their drawn 16 gap.

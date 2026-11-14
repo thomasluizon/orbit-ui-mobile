@@ -40,10 +40,11 @@ describe('Android Orbit line on Hoje', () => {
     useUIStore.setState({ astraConversationOpen: false })
   })
 
-  it('draws Orbit still at 48 and names the row by the sentence', async () => {
+  it('draws the live Orbit at 48 and names the row by the sentence', async () => {
     enableTestFlags('orbit_guided_flows')
     const tree = await renderLine()
-    expect(probe(tree)).toMatchObject({ size: 48, still: true, state: 'parado' })
+    expect(probe(tree)).toMatchObject({ size: 48, state: 'parado' })
+    expect(probe(tree).still).toBeUndefined()
     expect(row(tree).props.accessibilityLabel).toBe('Check in')
     expect(row(tree).props.accessibilityHint).toBe('todayAstra.openConversation')
   })

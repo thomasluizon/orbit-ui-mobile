@@ -36,7 +36,8 @@ describe('Android habit detail Orbit line', () => {
   it('states how many of the last 7 days the habit was done, with Orbit at 48, and opens the review conversation', async () => {
     enableTestFlags('orbit_guided_flows')
     const tree = await mount(<HabitDetailOrbitLine habit={habit} days={week(5)} />)
-    expect(probes(tree)[0]!.props).toMatchObject({ size: 48, still: true, state: 'parado' })
+    expect(probes(tree)[0]!.props).toMatchObject({ size: 48, state: 'parado' })
+    expect(probes(tree)[0]!.props.still).toBeUndefined()
     expect(row(tree)[0]!.props.accessibilityLabel).toBe('habits.detail.orbit.lastSevenDays:5')
     await renderer.act(() => { (row(tree)[0]!.props.onPress as () => void)() })
     expect(useUIStore.getState().astraConversationOpen).toBe(true)

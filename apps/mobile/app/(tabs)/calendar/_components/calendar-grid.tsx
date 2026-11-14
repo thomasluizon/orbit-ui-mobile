@@ -39,7 +39,8 @@ interface CalendarGridProps {
   slideDirection?: CalendarSlideDirection | null
   swipeGesture?: PanGesture
   gridRef?: RefObject<View | null>
-  todayRef?: RefObject<View | null>
+  /** The slot of the selected day, so Orbit can look toward it. */
+  selectedRef?: RefObject<View | null>
   onSelectDay: (dateStr: string) => void
   language: string
   t: (key: string) => string
@@ -55,7 +56,7 @@ interface CalendarGridDayProps {
   onSelectDay: (dateStr: string) => void
   selected: boolean
   selectedWord: string
-  todayRef?: RefObject<View | null>
+  selectedRef?: RefObject<View | null>
   words: DayCellWords
   todayKey: string
 }
@@ -94,7 +95,7 @@ function CalendarGridDay({
   onSelectDay,
   selected,
   selectedWord,
-  todayRef,
+  selectedRef,
   words,
   todayKey,
 }: Readonly<CalendarGridDayProps>) {
@@ -123,7 +124,7 @@ function CalendarGridDay({
 
   return (
     <View
-      ref={today ? todayRef : undefined}
+      ref={selected ? selectedRef : undefined}
       collapsable={false}
       testID={`calendar-day-slot-${cell.dateStr}`}
       style={styles.daySlot}
@@ -163,7 +164,7 @@ export function CalendarGrid({
   slideDirection = null,
   swipeGesture,
   gridRef,
-  todayRef,
+  selectedRef,
   onSelectDay,
   language,
   t,
@@ -204,7 +205,7 @@ export function CalendarGrid({
             onSelectDay={onSelectDay}
             selected={selected}
             selectedWord={t('calendar.dayCell.selected')}
-            todayRef={todayRef}
+            selectedRef={selectedRef}
             words={words}
             todayKey={todayKey}
           />

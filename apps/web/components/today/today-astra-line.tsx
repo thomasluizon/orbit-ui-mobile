@@ -1,9 +1,12 @@
 'use client'
 
-import { useId } from 'react'
+import { useId, useState, type Ref } from 'react'
 import Link from 'next/link'
+import type { OrbitLookTarget } from '@orbit/shared/contracts/brand'
+import { motionDurations, motionEasings } from '@orbit/shared/theme'
 import { OrbitMascot } from '@/components/ui/orbit-mascot'
 import { useFlag } from '@/hooks/use-flag'
+import { useViewportMatch } from '@/hooks/use-viewport-match'
 
 interface TodayAstraLineProps {
   text: string
@@ -14,21 +17,39 @@ interface TodayAstraLineProps {
   busy?: boolean
   announce?: boolean
   loading?: boolean
-  /** Descansando when the AI is absent: offline or at the message limit. */
-  resting?: boolean
+  /** Descansando when the AI is absent: offline or at the message limit. The row never shows another state. */
+  mascotState?: 'parado' | 'descansando'
   /** The Hoje slot keeps the screen gutter. A destination that already insets its content turns it off. */
   gutter?: boolean
+  /** The control Orbit looks toward, measured from `mascotRef`. */
+  lookAt?: OrbitLookTarget | null
+  /** A page change the person caused: the ring turns once. */
+  turnKey?: string | number
+  mascotRef?: Ref<HTMLSpanElement>
 }
 
-export function TodayAstraLine({ text, destination, href, onPress, disabled = false, busy = false, announce = false, loading = false, resting = false, gutter = true }: Readonly<TodayAstraLineProps>) {
+const SENTENCE_CHANGE = `today-astra-sentence-in ${motionDurations.micro}ms cubic-bezier(${motionEasings.standard.join(', ')})`
+
+/** True after the first change of the sentence, so the first render never fades in. */
+function useSentenceChanged(text: string): boolean {
+  const [first] = useState(text)
+  const [changed, setChanged] = useState(false)
+  if (!changed && text !== first) setChanged(true)
+  return changed
+}
+
+export function TodayAstraLine({ text, destination, href, onPress, disabled = false, busy = false, announce = false, loading = false, mascotState = 'parado', gutter = true, lookAt, turnKey, mascotRef }: Readonly<TodayAstraLineProps>) {
   const guided = useFlag('orbit_guided_flows')
   const destinationId = useId()
+  const reducedMotion = useViewportMatch('(prefers-reduced-motion: reduce)')
+  const fade = useSentenceChanged(text) && !reducedMotion
   const content = <>
-    <span aria-hidden="true" className="relative flex w-[48px] shrink-0 items-center justify-center">
-      {guided ? <OrbitMascot size={48} still state={resting ? 'descansando' : 'parado'} /> : <OrbitMascot size={20} color="var(--fg-3)" />}
+    <span ref={mascotRef} aria-hidden="true" className="relative flex w-[48px] shrink-0 items-center justify-center">
+      {guided ? <OrbitMascot size={48} state={mascotState} lookAt={lookAt} turnKey={turnKey} /> : <OrbitMascot size={20} color="var(--fg-3)" />}
     </span>
     <span className="today-astra-sentence" aria-live={announce ? 'polite' : undefined}>
-      {loading ? <><span className="sr-only">{text}</span><span data-summary-skeleton aria-hidden="true" className="flex min-h-[2lh] flex-col justify-center gap-2"><span className="h-[14px] w-full rounded-[8px] bg-[var(--hairline-strong)]" /><span className="h-[14px] w-2/3 rounded-[8px] bg-[var(--hairline-strong)]" /></span></> : text}
+      {loading ? <><span className="sr-only">{text}</span><span data-summary-skeleton aria-hidden="true" className="flex min-h-[2lh] flex-col justify-center gap-2"><span className="h-[14px] w-full rounded-[8px] bg-[var(--hairline-strong)]" /><span className="h-[14px] w-2/3 rounded-[8px] bg-[var(--hairline-strong)]" /></span></>
+        : <span key={text} data-sentence-change={fade ? '' : undefined} style={fade ? { animation: SENTENCE_CHANGE } : undefined}>{text}</span>}
     </span>
   </>
   return <div className={gutter ? 'px-screen-gutter' : undefined} data-today-astra-slot aria-busy={busy}>

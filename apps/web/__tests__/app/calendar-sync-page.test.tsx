@@ -17,7 +17,7 @@ const toastError = vi.hoisted(() => vi.fn())
 const useCalendarEventsMock = vi.fn()
 const bulkMutateMock = vi.fn()
 const dismissMutateMock = vi.fn()
-const pageState = vi.hoisted(() => ({ reviewMode: false, suggestions: [] as unknown[], initialEventId: null as string | null }))
+const pageState = vi.hoisted(() => ({ reviewMode: false, suggestions: [] as unknown[], initialEventId: null as string | null, onImported: undefined as ((count: number) => void) | undefined }))
 const syncNowMock = vi.hoisted(() => vi.fn())
 const setAutoSyncMock = vi.hoisted(() => vi.fn())
 const clockState = vi.hoisted(() => ({ language: 'en', uses24HourClock: true, hasProAccess: true, neverSynced: false }))
@@ -83,7 +83,7 @@ function CalendarSyncScreen({ inSheet = false }: Readonly<{ inSheet?: boolean }>
   const actionRef = useRef<CalendarImportActionHandle>(null)
   const t = useTranslations()
   const content = <>
-    <div data-testid="sheet-body"><CalendarImportContent reviewMode={pageState.reviewMode} initialEventId={pageState.initialEventId} onClose={() => {}} onGoToHabits={() => {}} actionRef={actionRef} onActionStateChange={setAction} /></div>
+    <div data-testid="sheet-body"><CalendarImportContent reviewMode={pageState.reviewMode} initialEventId={pageState.initialEventId} onClose={() => {}} onGoToHabits={() => {}} actionRef={actionRef} onActionStateChange={setAction} onImported={pageState.onImported} /></div>
     {action ? <div data-testid="sheet-actions"><button disabled={action.disabled} onClick={() => actionRef.current?.importSelected()}>{t('calendar.importButton', { count: action.count })}</button></div> : null}
   </>
   return inSheet ? <Sheet title={t(calendarImportTitleKey(pageState.reviewMode))} onClose={() => {}}>{content}</Sheet> : content
@@ -128,6 +128,7 @@ describe('CalendarSyncPage pagination', () => {
     pageState.reviewMode = false
     pageState.suggestions = []
     pageState.initialEventId = null
+    pageState.onImported = undefined
     syncNowMock.mockReset()
     setAutoSyncMock.mockReset()
     clockState.language = 'en'
@@ -364,6 +365,36 @@ describe('CalendarSyncPage pagination', () => {
     })
     renderPage()
     expect(screen.getByText(expected)).toBeInTheDocument()
+  })
+
+  it.each([
+    ['hands a full success to the result dialog with the count the server returned', [{ status: 'Success', habitId: 'h0', title: 'Event 0' }, { status: 'Success', habitId: 'h1', title: 'Event 1' }], 2],
+    ['keeps a partial failure in the sheet with its per-item result', [{ status: 'Success', habitId: 'h0', title: 'Event 0' }, { status: 'Failed', title: 'Event 1', error: 'Taken' }], null],
+  ] as const)('%s when the guided flows are on', async (_case, results, handedCount) => {
+    const onImported = vi.fn()
+    pageState.onImported = onImported
+    useCalendarEventsMock.mockReturnValue({ data: { status: 'connected', events: buildEvents(2) }, isLoading: false, isError: false, refetch: vi.fn() })
+    bulkMutateMock.mockImplementation((_request, options) => { options.onSuccess({ results }) })
+    renderPage()
+    const selectAll = screen.queryByRole('checkbox', { name: /calendar\.selectAll/ }) ?? screen.queryByRole('button', { name: /calendar\.selectAll/ })
+    if (selectAll) fireEvent.click(selectAll)
+    fireEvent.click(screen.getByText('calendar.importButton({"count":2})'))
+    if (handedCount === null) {
+      await waitFor(() => expect(screen.getByText('calendar.importDone')).toBeInTheDocument())
+      expect(onImported).not.toHaveBeenCalled()
+      expect(screen.getByText(/calendar\.importPartialFailure/)).toBeInTheDocument()
+    } else {
+      await waitFor(() => expect(onImported).toHaveBeenCalledWith(handedCount))
+      expect(screen.queryByText('calendar.importDone')).not.toBeInTheDocument()
+    }
+  })
+
+  it('keeps the in-sheet done stage when the guided flows are off', async () => {
+    useCalendarEventsMock.mockReturnValue({ data: { status: 'connected', events: buildEvents(1) }, isLoading: false, isError: false, refetch: vi.fn() })
+    bulkMutateMock.mockImplementation((_request, options) => { options.onSuccess({ results: [{ status: 'Success', habitId: 'h0', title: 'Event 0' }] }) })
+    renderPage()
+    fireEvent.click(screen.getByText('calendar.importButton({"count":1})'))
+    await waitFor(() => expect(screen.getByText('calendar.importDone')).toBeInTheDocument())
   })
 
   it('shows text-bearing recovery when importing an event is blocked', async () => {

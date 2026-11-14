@@ -4,14 +4,23 @@ import type { CalendarHeaderNavigationProps } from '@orbit/shared/utils/calendar
 
 import { useId, useRef, useState, type ReactNode } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
+import { subMonths } from 'date-fns'
 import { ChevronDown, ChevronLeft, ChevronRight } from '@/components/ui/icons'
 import { YearPicker } from '@/components/ui/year-picker'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { IconButton } from '@/components/ui/icon-button'
-import { formatCalendarMonthHeading, formatLocaleDate } from '@orbit/shared/utils'
+import { Input } from '@/components/ui/input'
+import { OptionCard } from '@/components/ui/option-card'
+import { PillButton } from '@/components/ui/pill-button'
+import { formatAPIDate, formatCalendarMonthHeading, formatLocaleDate, parseAPIDate, resolveCalendarJumpPhrase } from '@orbit/shared/utils'
 
 interface CalendarHeaderProps extends CalendarHeaderNavigationProps {
   viewSelector?: ReactNode
+  /** The Orbit line row, between the period navigation and the view switch. It brings its own gutter. */
+  orbitLine?: ReactNode
+  /** The guided flows: the month picker asks one question with quick options and a typed date. */
+  guided?: boolean
+  onSelectDate?: (date: string) => void
 }
 
 const controlButton = 'inline-flex min-h-12 min-w-12 shrink-0 items-center justify-center border-0 text-[var(--fg-2)] cursor-pointer transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] focus-visible:bg-[var(--bg-hover)] focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--fg-1)]'
@@ -28,6 +37,40 @@ function CalendarMonthPicker({ currentMonth, onSelectMonth, choosingYear, year, 
           style={{ boxShadow: month === currentMonth.getMonth() && year === currentMonth.getFullYear() ? 'inset 0 0 0 2px var(--fg-1)' : undefined }}
           onClick={() => onSelectMonth(month, year)}>{formatLocaleDate(new Date(year, month, 1), locale, { month: 'short' })}</button>)}
       </div>}
+  </div>
+}
+
+interface CalendarJumpQuestionProps {
+  currentMonth: Date
+  todayKey: string
+  onToday: () => void
+  onMonth: (month: number, year: number) => void
+  onDate: (date: string) => void
+}
+
+/** The quick options and the typed date of the month picker. The typed date is read on the device: "dia 20" is day 20 of the shown month. */
+function CalendarJumpQuestion({ currentMonth, todayKey, onToday, onMonth, onDate }: Readonly<CalendarJumpQuestionProps>) {
+  const t = useTranslations()
+  const locale = useLocale()
+  const [phrase, setPhrase] = useState('')
+  const [unresolved, setUnresolved] = useState(false)
+  const lastMonth = subMonths(parseAPIDate(todayKey), 1)
+  const submit = () => {
+    const date = resolveCalendarJumpPhrase(phrase, { monthStart: formatAPIDate(new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1)), todayKey, locale, timeZone: null })
+    if (date) onDate(date)
+    else setUnresolved(true)
+  }
+  return <div data-testid="calendar-jump-question" className="flex flex-col gap-6">
+    <div data-option-group="" className="grid grid-cols-2 gap-3">
+      <OptionCard label={t('dates.today')} onSelect={onToday} />
+      <OptionCard label={t('calendar.monthPickerLastMonth')} onSelect={() => onMonth(lastMonth.getMonth(), lastMonth.getFullYear())} />
+    </div>
+    <div className="flex flex-col gap-3">
+      <Input label={t('calendar.monthPickerTyped')} value={phrase} placeholder={t('calendar.monthPickerTypedPlaceholder')} autoComplete="off"
+        onChange={(value) => { setPhrase(value); setUnresolved(false) }} onSubmit={submit}
+        error={unresolved ? t('calendar.monthPickerTypedUnresolved') : undefined} />
+      <div className="flex"><PillButton size="sm" variant="secondary" onClick={submit}>{t('calendar.monthPickerTypedSubmit')}</PillButton></div>
+    </div>
   </div>
 }
 
@@ -55,7 +98,7 @@ function CalendarNavigationTitle({ currentMonth, todayKey, isTodaySelected, peri
       </div>
 }
 
-export function CalendarHeader({ currentMonth, todayKey, isTodaySelected = false, previousMonthLabel, nextMonthLabel, onPreviousMonth, onNextMonth, onCurrentMonth, onSelectMonth, period, viewSelector }: Readonly<CalendarHeaderProps>) {
+export function CalendarHeader({ currentMonth, todayKey, isTodaySelected = false, previousMonthLabel, nextMonthLabel, onPreviousMonth, onNextMonth, onCurrentMonth, onSelectMonth, period, viewSelector, orbitLine, guided = false, onSelectDate }: Readonly<CalendarHeaderProps>) {
   const pickerId = useId()
   const yearButtonRef = useRef<HTMLButtonElement>(null)
   const t = useTranslations()
@@ -64,19 +107,22 @@ export function CalendarHeader({ currentMonth, todayKey, isTodaySelected = false
   const [choosingYear, setChoosingYear] = useState(false)
   const { sheetRef, closeSheet } = useSheetHost()
   const returnToToday = () => { if (!isTodaySelected) (period?.onCurrent ?? onCurrentMonth)() }
-  const chooseMonth = (month: number, year: number) => closeSheet(() => { setPickerOpen(false); onSelectMonth(month, year) })
-  return <div data-testid="calendar-header-group" className="flex flex-col gap-4 px-4 pt-3 pb-6">
-    <div data-testid={period ? `calendar-${period.view === 'agenda' ? 'week' : period.view}-navigation` : 'calendar-month-navigation'} className="flex min-h-12 flex-wrap items-center justify-center gap-2">
+  const closePicker = (choose: () => void) => closeSheet(() => { setPickerOpen(false); choose() })
+  const chooseMonth = (month: number, year: number) => closePicker(() => onSelectMonth(month, year))
+  return <div data-testid="calendar-header-group" className="flex flex-col gap-4 pt-3 pb-6">
+    <div data-testid={period ? `calendar-${period.view === 'agenda' ? 'week' : period.view}-navigation` : 'calendar-month-navigation'} className="flex min-h-12 flex-wrap items-center justify-center gap-2 px-4">
       <IconButton borderless={false} label={period?.previousLabel ?? previousMonthLabel} onClick={period?.onPrevious ?? onPreviousMonth}><ChevronLeft size={20} strokeWidth={2} aria-hidden="true" /></IconButton>
       <CalendarNavigationTitle currentMonth={currentMonth} todayKey={todayKey} isTodaySelected={isTodaySelected} period={period}
         pickerId={pickerId} pickerOpen={pickerOpen} onReturn={returnToToday}
         onOpenPicker={() => { setYear(currentMonth.getFullYear()); setChoosingYear(false); setPickerOpen(true) }} />
       <IconButton borderless={false} label={period?.nextLabel ?? nextMonthLabel} onClick={period?.onNext ?? onNextMonth} disabled={period?.nextDisabled}><ChevronRight size={20} strokeWidth={2} aria-hidden="true" /></IconButton>
     </div>
-    {viewSelector}
-    {pickerOpen ? <Sheet ref={sheetRef} open accessibleTitle={t('calendar.monthPicker')} onClose={() => setPickerOpen(false)} virtualizedBody={choosingYear}
+    {orbitLine}
+    {viewSelector ? <div className="px-4">{viewSelector}</div> : null}
+    {pickerOpen ? <Sheet ref={sheetRef} open title={guided ? t('calendar.monthPickerQuestion') : undefined} accessibleTitle={guided ? undefined : t('calendar.monthPicker')} onClose={() => setPickerOpen(false)} virtualizedBody={choosingYear}
       headerAccessory={<button ref={yearButtonRef} type="button" className={`${titleButton} px-3`} aria-label={`${year}, ${t('common.selectYear')}`} aria-expanded={choosingYear} aria-controls={pickerId} onClick={() => setChoosingYear(!choosingYear)}>{year}<ChevronDown size={16} strokeWidth={2} aria-hidden="true" /></button>}>
-      <div id={pickerId} className="flex min-h-0 flex-col"><CalendarMonthPicker currentMonth={currentMonth} onSelectMonth={chooseMonth} choosingYear={choosingYear} year={year} onSelectYear={(nextYear) => { setYear(nextYear); setChoosingYear(false); yearButtonRef.current?.focus() }} /></div>
+      <div id={pickerId} className="flex min-h-0 flex-col gap-6">{guided && !choosingYear ? <CalendarJumpQuestion currentMonth={currentMonth} todayKey={todayKey}
+        onToday={() => closePicker(onCurrentMonth)} onMonth={chooseMonth} onDate={(date) => closePicker(() => onSelectDate?.(date))} /> : null}<CalendarMonthPicker currentMonth={currentMonth} onSelectMonth={chooseMonth} choosingYear={choosingYear} year={year} onSelectYear={(nextYear) => { setYear(nextYear); setChoosingYear(false); yearButtonRef.current?.focus() }} /></div>
     </Sheet> : null}
   </div>
 }

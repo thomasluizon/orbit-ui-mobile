@@ -10,14 +10,64 @@ import { createTokensV2 } from '@/lib/theme'
 import { YearPicker } from '@/components/ui/year-picker'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { ThemedIconButton } from '@/components/ui/icon-button'
-import { formatCalendarMonthHeading, formatLocaleDate } from '@orbit/shared/utils'
+import { formatAPIDate, formatCalendarMonthHeading, formatLocaleDate, parseAPIDate, resolveCalendarJumpPhrase } from '@orbit/shared/utils'
+import { subMonths } from 'date-fns'
+import { Input } from '@/components/ui/input'
+import { OptionCard } from '@/components/ui/option-card'
+import { PillButton } from '@/components/ui/pill-button'
 
 type Tokens = ReturnType<typeof createTokensV2>
 
 interface CalendarHeaderProps extends CalendarHeaderNavigationProps {
   viewSelector?: ReactNode
+  /** The Orbit line row, between the period navigation and the view switch. */
+  orbitLine?: ReactNode
+  /** The guided flows: the month picker asks one question with quick options and a typed date. */
+  guided?: boolean
+  onSelectDate?: (date: string) => void
   tokens: Tokens
 }
+
+interface CalendarJumpQuestionProps {
+  currentMonth: Date
+  todayKey: string
+  onToday: () => void
+  onMonth: (month: number, year: number) => void
+  onDate: (date: string) => void
+}
+
+/** The quick options and the typed date of the month picker. The typed date is read on the device: "dia 20" is day 20 of the shown month. */
+function CalendarJumpQuestion({ currentMonth, todayKey, onToday, onMonth, onDate }: Readonly<CalendarJumpQuestionProps>) {
+  const { t, i18n } = useTranslation()
+  const [phrase, setPhrase] = useState('')
+  const [unresolved, setUnresolved] = useState(false)
+  const lastMonth = subMonths(parseAPIDate(todayKey), 1)
+  const submit = () => {
+    const date = resolveCalendarJumpPhrase(phrase, { monthStart: formatAPIDate(new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1)), todayKey, locale: i18n.language, timeZone: null })
+    if (date) onDate(date)
+    else setUnresolved(true)
+  }
+  return <View testID="calendar-jump-question" style={jumpStyles.question}>
+    <View style={jumpStyles.options}>
+      <View style={jumpStyles.option}><OptionCard label={t('dates.today')} onSelect={onToday} /></View>
+      <View style={jumpStyles.option}><OptionCard label={t('calendar.monthPickerLastMonth')} onSelect={() => onMonth(lastMonth.getMonth(), lastMonth.getFullYear())} /></View>
+    </View>
+    <View style={jumpStyles.freePath}>
+      <Input label={t('calendar.monthPickerTyped')} value={phrase} placeholder={t('calendar.monthPickerTypedPlaceholder')} autoComplete="off"
+        onChange={(value) => { setPhrase(value); setUnresolved(false) }} onSubmit={submit}
+        error={unresolved ? t('calendar.monthPickerTypedUnresolved') : undefined} />
+      <View style={jumpStyles.action}><PillButton size="sm" variant="secondary" onClick={submit}>{t('calendar.monthPickerTypedSubmit')}</PillButton></View>
+    </View>
+  </View>
+}
+
+const jumpStyles = StyleSheet.create({
+  question: { gap: SPACING.s24 },
+  options: { flexDirection: 'row', gap: SPACING.s12 },
+  option: { flex: 1, minWidth: 0 },
+  freePath: { gap: SPACING.s12 },
+  action: { flexDirection: 'row' },
+})
 
 function CalendarTitleControl({ tokens, compact = false, insetPaint = false, ...props }: Readonly<Pick<PressableProps, 'children' | 'accessibilityLabel' | 'accessibilityState' | 'onPress'> & { tokens: Tokens; compact?: boolean; insetPaint?: boolean }>) {
   const [hovered, setHovered] = useState(false)
@@ -49,16 +99,35 @@ function CalendarMonthPicker({ currentMonth, tokens, onSelectMonth, choosingYear
   </View>
 }
 
-export function CalendarHeader({ currentMonth, todayKey, isTodaySelected = false, previousMonthLabel, nextMonthLabel, onPreviousMonth, onNextMonth, onCurrentMonth, onSelectMonth, period, viewSelector, tokens }: Readonly<CalendarHeaderProps>) {
+interface CalendarMonthPickerSheetProps extends Pick<CalendarHeaderProps, 'currentMonth' | 'todayKey' | 'tokens' | 'guided' | 'onCurrentMonth' | 'onSelectMonth' | 'onSelectDate'> {
+  onClose: () => void
+}
+
+/** The month picker. With the guided flows on it asks one question: two quick options, then the typed date and the month grid as the free path. */
+function CalendarMonthPickerSheet({ currentMonth, todayKey, tokens, guided = false, onCurrentMonth, onSelectMonth, onSelectDate, onClose }: Readonly<CalendarMonthPickerSheetProps>) {
+  const { t } = useTranslation()
+  const styles = createStyles(tokens)
+  const [year, setYear] = useState(currentMonth.getFullYear())
+  const [choosingYear, setChoosingYear] = useState(false)
+  const { sheetRef, closeSheet } = useSheetHost()
+  const closePicker = (choose: () => void) => closeSheet(() => { onClose(); choose() })
+  const chooseMonth = (month: number, nextYear: number) => closePicker(() => onSelectMonth(month, nextYear))
+  return <Sheet ref={sheetRef} open title={guided ? t('calendar.monthPickerQuestion') : undefined} accessibleTitle={guided ? undefined : t('calendar.monthPicker')} onClose={onClose} virtualizedBody={choosingYear}
+    headerAccessory={<CalendarTitleControl tokens={tokens} accessibilityLabel={`${year}, ${t('common.selectYear')}`} accessibilityState={{ expanded: choosingYear }} onPress={() => setChoosingYear(!choosingYear)}><Text style={styles.label}>{year}</Text><ChevronDown size={16} color={tokens.fg2} strokeWidth={2} /></CalendarTitleControl>}>
+    <View style={styles.pickerBody}>
+      {guided && !choosingYear ? <CalendarJumpQuestion currentMonth={currentMonth} todayKey={todayKey}
+        onToday={() => closePicker(onCurrentMonth)} onMonth={chooseMonth} onDate={(date) => closePicker(() => onSelectDate?.(date))} /> : null}
+      <CalendarMonthPicker currentMonth={currentMonth} tokens={tokens} onSelectMonth={chooseMonth} choosingYear={choosingYear} year={year} onSelectYear={(nextYear) => { setYear(nextYear); setChoosingYear(false) }} />
+    </View>
+  </Sheet>
+}
+
+export function CalendarHeader({ currentMonth, todayKey, isTodaySelected = false, previousMonthLabel, nextMonthLabel, onPreviousMonth, onNextMonth, onCurrentMonth, onSelectMonth, period, viewSelector, orbitLine, guided = false, onSelectDate, tokens }: Readonly<CalendarHeaderProps>) {
   const { t, i18n } = useTranslation()
   const styles = createStyles(tokens)
   const heading = formatCalendarMonthHeading(currentMonth, todayKey, i18n.language)
-  const [year, setYear] = useState(currentMonth.getFullYear())
   const [pickerOpen, setPickerOpen] = useState(false)
-  const [choosingYear, setChoosingYear] = useState(false)
-  const { sheetRef, closeSheet } = useSheetHost()
   const returnToToday = () => { if (!isTodaySelected) (period?.onCurrent ?? onCurrentMonth)() }
-  const chooseMonth = (month: number, year: number) => closeSheet(() => { setPickerOpen(false); onSelectMonth(month, year) })
   return <View testID="calendar-header-group" style={styles.header}>
     <View testID={period ? `calendar-${period.view === 'agenda' ? 'week' : period.view}-navigation` : 'calendar-month-navigation'} style={styles.navigation}>
       <ThemedIconButton tokens={tokens} borderless={false} label={period?.previousLabel ?? previousMonthLabel} onPress={period?.onPrevious ?? onPreviousMonth}><ChevronLeft size={20} color={tokens.fg2} strokeWidth={2} /></ThemedIconButton>
@@ -68,17 +137,16 @@ export function CalendarHeader({ currentMonth, todayKey, isTodaySelected = false
           accessibilityState={{ disabled: isTodaySelected }} onPress={returnToToday}>
           {period ? <Text style={styles.span}>{period.label}</Text> : <Text style={styles.title}>{heading.month}{heading.year ? <Text style={styles.year}> {heading.year}</Text> : null}</Text>}
         </CalendarTitleControl>
-        {!period ? <CalendarTitleControl tokens={tokens} insetPaint accessibilityLabel={`${heading.month}${heading.year ? ` ${heading.year}` : ''}, ${t('calendar.monthPicker')}`} accessibilityState={{ expanded: pickerOpen }} onPress={() => { setYear(currentMonth.getFullYear()); setChoosingYear(false); setPickerOpen(true) }}>
+        {!period ? <CalendarTitleControl tokens={tokens} insetPaint accessibilityLabel={`${heading.month}${heading.year ? ` ${heading.year}` : ''}, ${t('calendar.monthPicker')}`} accessibilityState={{ expanded: pickerOpen }} onPress={() => setPickerOpen(true)}>
           <ChevronDown size={16} color={tokens.fg2} strokeWidth={2} />
         </CalendarTitleControl> : null}
       </View>
       <ThemedIconButton tokens={tokens} borderless={false} label={period?.nextLabel ?? nextMonthLabel} onPress={period?.onNext ?? onNextMonth} disabled={period?.nextDisabled}><ChevronRight size={20} color={tokens.fg2} strokeWidth={2} /></ThemedIconButton>
     </View>
+    {orbitLine}
     {viewSelector}
-    {pickerOpen ? <Sheet ref={sheetRef} open accessibleTitle={t('calendar.monthPicker')} onClose={() => setPickerOpen(false)} virtualizedBody={choosingYear}
-      headerAccessory={<CalendarTitleControl tokens={tokens} accessibilityLabel={`${year}, ${t('common.selectYear')}`} accessibilityState={{ expanded: choosingYear }} onPress={() => setChoosingYear(!choosingYear)}><Text style={styles.label}>{year}</Text><ChevronDown size={16} color={tokens.fg2} strokeWidth={2} /></CalendarTitleControl>}>
-      <CalendarMonthPicker currentMonth={currentMonth} tokens={tokens} onSelectMonth={chooseMonth} choosingYear={choosingYear} year={year} onSelectYear={(nextYear) => { setYear(nextYear); setChoosingYear(false) }} />
-    </Sheet> : null}
+    {pickerOpen ? <CalendarMonthPickerSheet currentMonth={currentMonth} todayKey={todayKey} tokens={tokens} guided={guided} onCurrentMonth={onCurrentMonth}
+      onSelectMonth={onSelectMonth} onSelectDate={onSelectDate} onClose={() => setPickerOpen(false)} /> : null}
   </View>
 }
 
@@ -120,6 +188,7 @@ function createStyles(tokens: Tokens) {
     label: { fontFamily: 'Geist_500Medium', fontSize: 16, color: tokens.fg1 },
     selectedMonth: { borderWidth: 2, borderColor: tokens.fg1 },
     picker: { gap: 16, flexShrink: 1, minHeight: 0 },
+    pickerBody: { gap: SPACING.s24, flexShrink: 1, minHeight: 0 },
     months: { flexDirection: 'row', flexWrap: 'wrap' },
     month: { minHeight: 48, padding: SPACING.s8, alignItems: 'center', justifyContent: 'center', borderRadius: 12, overflow: 'hidden', backgroundColor: tokens.bgField },
     legend: { gap: 16 },

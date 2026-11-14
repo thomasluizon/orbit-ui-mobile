@@ -13,7 +13,9 @@ import { calendarImportInitialEventId } from '@orbit/shared/utils/calendar-sync'
 
 import { CalendarOptions } from './calendar/_components/calendar-options'
 
-import { useMemo, type ReactNode } from "react"
+import { CalendarImportResult } from './calendar/_components/calendar-import-result'
+
+import { useMemo, useState, type ReactNode } from "react"
 
 import { View, Text, FlatList } from "react-native"
 
@@ -28,6 +30,8 @@ import type { CalendarDayEntry } from "@orbit/shared/types/calendar"
 import { useCalendarData } from '@/hooks/use-calendar-data'
 
 import { useProfile } from "@/hooks/use-profile"
+
+import { useFlag } from '@/hooks/use-flag'
 
 import type { createTokensV2 } from "@/lib/theme"
 
@@ -105,12 +109,15 @@ function CalendarBody({ profileReady, profileError, onRetryProfile, error, onRet
 
 function CalendarScreenContent(props: Readonly<CalendarScreenContentProps>) {
   const state = useCalendarScreenState(props)
+  const guided = useFlag('orbit_guided_flows')
+  const [importedCount, setImportedCount] = useState<number | null>(null)
+  const finishImport = (count: number) => closeImportSheet(() => { closeImport(); setImportedCount(count) })
   const { profile, profileError, onRetryProfile, selectedDay, view, router, t, openImport, tokens, listRef, displayTime, styles, clearance, isDayDetailOpen, sheetRef, openDayDisclosure, setIsEventsOpen, openHabit, disclosedWeekDay, isEventsOpen, showImportSheet, importSheetRef, closeImport, reviewRequested, importActionState, commitCalendarImport, importRequested, params, initialImportEventId, importActionRef, setImportActionState, closeImportSheet, setIsImportOpen, showEventSource, calendarEventsState, refetchCalendarEvents, openOrbitPro, rangeLoadingLabel, closeDayDetail, activeError, activeRefresh, formattedSelectedDate, selectedCalendarEvents, completedCount, selectedDayLoggable, pendingEntryStates, changeSelectedEntry, filteredEntries, goToSelectedDay, openGoogleCalendar, calendarHeader } = state
 
   return (
     <View style={[styles.safeArea, { backgroundColor: tokens.bg }]}>
       <ScreenReaderHeading title={t('nav.calendar')} />
-      <CalendarOptions tokens={tokens} onGoogleCalendar={profile ? openGoogleCalendar : undefined} />
+      <CalendarOptions tokens={tokens} onGoogleCalendar={profile ? openGoogleCalendar : undefined} guided={guided} />
 
       <FlatList
         ref={listRef}
@@ -182,8 +189,10 @@ function CalendarScreenContent(props: Readonly<CalendarScreenContentProps>) {
             setIsImportOpen(false)
             router.push('/(tabs)')
           })}
+          onImported={guided ? finishImport : undefined}
         />
       </Sheet>) : null}
+      <CalendarImportResult count={importedCount} onClose={() => setImportedCount(null)} />
     </View>
   )
 }

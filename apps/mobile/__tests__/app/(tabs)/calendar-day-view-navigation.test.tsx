@@ -27,6 +27,7 @@ let autoSyncQueryOptions: {
 let calendarDayMap = new Map<string, CalendarDayEntry[]>()
 const mockLogHabit = vi.fn(async () => {})
 vi.mock('@/hooks/use-calendars', () => ({ useCalendars: () => ({ data: [] }) }))
+vi.mock('@/hooks/use-flag', () => ({ useFlag: () => false }))
 vi.mock('react-native', async () => {
   const ReactLib = require('react')
   const reactNative = await import('../../../test-mocks/react-native')

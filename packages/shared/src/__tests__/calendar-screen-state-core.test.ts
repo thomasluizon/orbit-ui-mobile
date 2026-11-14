@@ -47,6 +47,10 @@ describe('calendar screen state', () => {
     actions.selectMonth(3, 2027)
     expect(setSelectedDay).toHaveBeenLastCalledWith('2027-04-01')
     expect(setMonthSlide).toHaveBeenLastCalledWith(null)
+    actions.prevMonth()
+    actions.selectDate('2026-12-20')
+    expect(setSelectedDay).toHaveBeenLastCalledWith('2026-12-20')
+    expect(setMonthSlide).toHaveBeenLastCalledWith(null)
   })
 
   it('navigates from today or the selected week and returns to the current week', () => {
