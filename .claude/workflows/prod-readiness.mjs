@@ -182,13 +182,12 @@ const ordersDelete = (f) => /\bdelete\b/i.test(f.fix || '')
 const trimmedPath = (path) => String(path ?? '').replace(/[\\/]+$/, '')
 
 /**
- * A finder read nothing when it could not open its root or its candidates file, when it read no line of a file that
- * holds rows, or when its unreadable candidates are as many as the judged rows.
+ * A finder read nothing when it could not open its root, when it read no line of its candidates file (a file it
+ * could not open included), or when its unreadable candidates are as many as the judged rows.
  */
-function readNothing({ root, candidatesFile, judgedCount, result }) {
+function readNothing({ root, judgedCount, result }) {
   const unreadable = new Set((result.deferred || []).filter((item) => item?.check === 'hygiene-unreadable').map((item) => trimmedPath(item.path)))
-  if (unreadable.has(trimmedPath(root)) || unreadable.has(trimmedPath(candidatesFile))) return true
-  return judgedCount > 0 && (!(result.rowsRead > 0) || unreadable.size >= judgedCount)
+  return unreadable.has(trimmedPath(root)) || !(result.rowsRead > 0) || unreadable.size >= judgedCount
 }
 
 function a11yPrompt(c) {
@@ -278,6 +277,7 @@ const a11yRaw = a11yResults.filter((x) => x && x.result).flatMap((x) => x.result
 
 phase('Hygiene')
 const hygieneDeferred = []
+const hygieneSwept = []
 const hygieneRuns = []
 const hygieneCandidates = {}
 for (const c of HYGIENE_CHECKS) {
@@ -294,7 +294,13 @@ for (const c of HYGIENE_CHECKS) {
     const kinds = unjudged.map(([kind, count]) => `${kind} ${count.deferred} of ${count.judged + count.deferred}`).join(', ')
     hygieneDeferred.push({ check: `hygiene-${c.repository}`, path: c.name, reason: `candidates beyond the cap of tools/file-ledger.mjs --candidates were not judged (${kinds})` })
   }
+  hygieneSwept.push(c.repository)
   const judgedCount = Object.values(counts).reduce((total, count) => total + count.judged, 0)
+  // A repository with no candidate has nothing to judge, so no finder starts.
+  if (judgedCount === 0) {
+    log(`hygiene: ${c.name} has no candidate, so no finder starts`)
+    continue
+  }
   hygieneRuns.push({ c, root, candidatesFile, kinds: Object.keys(counts), judgedCount })
 }
 const hygieneResults = await parallel(
@@ -412,7 +418,7 @@ return {
   opsChecksFailed,
   a11yChecksRun: a11yInScope ? A11Y_CHECKS.filter((c) => !a11yChecksFailed.includes(c.check)).map((c) => c.check) : [],
   a11yChecksFailed,
-  hygieneChecksRun: hygieneRuns.map(({ c }) => c.repository).filter((repository) => !hygieneChecksFailed.includes(repository)),
+  hygieneChecksRun: hygieneSwept.filter((repository) => !hygieneChecksFailed.includes(repository)),
   hygieneChecksFailed,
   hygieneCandidates,
   hygieneDeferred,

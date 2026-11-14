@@ -269,6 +269,11 @@ export const cases = async () => {
     JSON.stringify(partial.result.hygieneChecksRun) === JSON.stringify(["ui"]) && partial.result.hygieneFindings.length === 1 &&
       partial.result.hygieneDeferred.some((item) => item.check === "hygiene-unreadable" && /read 120 of the 300 candidate rows/.test(item.reason)),
     JSON.stringify(partial.result.hygieneDeferred))
+  const noCandidate = await runReadiness({ hygiene: { repositories: { ui: hygieneEntry("/checkout/ui", "orbit-ui-mobile") } } })
+  T(`${NAME}: a repository with no candidate starts no finder and counts as swept`,
+    !noCandidate.labels.includes("hygiene:ui") && JSON.stringify(noCandidate.result.hygieneChecksRun) === JSON.stringify(["ui"]) && noCandidate.result.hygieneChecksFailed.length === 0 &&
+      noCandidate.result.hygieneFindings.length === 0 && !noCandidate.result.hygieneDeferred.some((item) => item.check === "hygiene-unreadable" || item.check === "hygiene-ui"),
+    JSON.stringify([noCandidate.labels, noCandidate.result.hygieneChecksRun, noCandidate.result.hygieneDeferred]))
 
   // The handoff at the size of orbit-ui-mobile at c53c4ed (outdated 43, duplicate 58, old 1,714): the ledger tool
   // selects the candidates, and the Workflow call carries only the file and the counts of every candidate.
