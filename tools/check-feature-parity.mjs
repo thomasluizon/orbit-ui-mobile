@@ -28,6 +28,7 @@ CI preserves the base's legacyProduction and every retained production snapshot.
 Protects the deduplicated union of legacy and active production, including newer controls.
 Mappings may qualify fallback evidence with owners, a nonempty list of same-platform source paths.
 Content targets still require rendered consumers; owners qualify those consumers, not literals.
+A consumer is the rendered sink and each JSX call site that passes the value through a component to it.
 For main pull requests use --production HEAD^1 --base HEAD^1 on the queued merge.
 
 No stdin. Exit codes: 0 retained or advisory base debt in CI, 1 missing capability,
@@ -329,15 +330,17 @@ function traceBindingParameter(node, path, next, calls, context) {
     next(context[origin].call.arguments[position], path, context.slice(0, origin))
     return
   }
+  // A JSX call site that passes the value toward the rendered sink also consumes it, so the trace records the site it crosses.
+  const enter = (value, suffix) => next(value, suffix, context, value)
   for (const call of calls.get(fn) ?? []) {
     if (ts.isCallExpression(call)) next(call.arguments[position])
     else if (position === 0 && path.length) {
       for (const attribute of call.attributes.properties) {
-        if (ts.isJsxSpreadAttribute(attribute)) next(attribute.expression)
-        else if (attribute.name.getText() === path[0] && attribute.initializer && ts.isJsxExpression(attribute.initializer)) next(attribute.initializer.expression, path.slice(1))
+        if (ts.isJsxSpreadAttribute(attribute)) enter(attribute.expression, path)
+        else if (attribute.name.getText() === path[0] && attribute.initializer && ts.isJsxExpression(attribute.initializer)) enter(attribute.initializer.expression, path.slice(1))
       }
       if (path[0] === 'children' && ts.isJsxOpeningElement(call) && ts.isJsxElement(call.parent)) {
-        for (const child of call.parent.children) if (ts.isJsxExpression(child)) next(child.expression, path.slice(1))
+        for (const child of call.parent.children) if (ts.isJsxExpression(child)) enter(child.expression, path.slice(1))
       }
     }
   }
@@ -372,22 +375,27 @@ function bindingConsumers(graph, origins) {
   const inputs = bindingInputs(graph, bindingSymbols(graph))
   const { declaration, assignments, stateWrites, arrayWrites, calls, returned, sinks } = inputs
   const callIds = new Map([...calls.values()].flat().map((call, index) => [call, index]))
+  const siteIds = new Map()
   const consumers = new Map()
+  const consume = (id, node) => {
+    if (!consumers.has(id)) consumers.set(id, [])
+    const location = evidence(node.getSourceFile(), node)
+    if (!consumers.get(id).some((item) => item.file === location.file && item.line === location.line)) consumers.get(id).push(location)
+  }
   for (const { node: sink, path: sinkPath } of sinks) {
     const seen = new Map()
-    function trace(node, path = [], context = []) {
+    // `sites` holds each JSX call site the trace crossed between the sink and this node, so a wrapper's caller owns the value it passes.
+    function trace(node, path = [], context = [], sites = []) {
       if (!node || path.length > 20) return
-      const key = `${path.join('.')}|${context.map((frame) => callIds.get(frame.call)).join(',')}`
+      const key = `${path.join('.')}|${context.map((frame) => callIds.get(frame.call)).join(',')}|${sites.map((site) => siteIds.get(site)).sort((left, right) => left - right).join(',')}`
       if (!seen.has(node)) seen.set(node, new Set())
       if (seen.get(node).has(key)) return
       seen.get(node).add(key)
-      if (!path.length && origins.has(node)) {
-        const id = origins.get(node)
-        if (!consumers.has(id)) consumers.set(id, [])
-        const location = evidence(sink.getSourceFile(), sink)
-        if (!consumers.get(id).some((item) => item.file === location.file && item.line === location.line)) consumers.get(id).push(location)
+      if (!path.length && origins.has(node)) for (const consumer of [sink, ...sites]) consume(origins.get(node), consumer)
+      const next = (value, suffix = path, caller = context, site = null) => {
+        if (site && !siteIds.has(site)) siteIds.set(site, siteIds.size)
+        trace(value, suffix, caller, site && !sites.includes(site) ? [...sites, site] : sites)
       }
-      const next = (value, suffix = path, caller = context) => trace(value, suffix, caller)
       if (ts.isIdentifier(node) || ts.isShorthandPropertyAssignment(node)) next(declaration(node))
       else if (ts.isPropertyAccessExpression(node)) next(node.expression, [node.name.text, ...path])
       else if (ts.isElementAccessExpression(node)) next(node.expression, [ts.isStringLiteral(node.argumentExpression) ? node.argumentExpression.text : '*', ...path])
