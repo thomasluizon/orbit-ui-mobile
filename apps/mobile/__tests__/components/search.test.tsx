@@ -304,7 +304,7 @@ describe('mobile search', () => {
       expect(StyleSheet.flatten(row.props.style)).toMatchObject({ minHeight: 48, padding: 12, gap: 12, flexDirection: 'row', alignItems: 'center', borderWidth: 1 })
       expect(row.findAll((node) => node.type === Skeleton && node.props.grouped === true)).toHaveLength(3)
     }
-    expect(tree.root.findAll((node) => node.type === 'ActivityIndicator')).toHaveLength(0)
+    expect(tree.root.findAll((node) => String(node.type) === 'ActivityIndicator')).toHaveLength(0)
   })
 
   it('shows the initial for a habit without an emoji', async () => {

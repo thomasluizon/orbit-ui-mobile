@@ -1178,6 +1178,14 @@ describe('habit tag suggestions', () => {
   }
   const selected = () => tree.root.findAll((node: { type: unknown; props: Record<string, unknown> }) => node.type === 'Text' && node.props.testID === 'selected-tags')[0]!.props.children
   const text = (value: string) => tree.root.findAll((node: { type: unknown; props: Record<string, unknown> }) => node.type === 'Text' && node.props.children === value)
+  const expectAcceptSkeleton = () => {
+    expect(text('common.loading')).toHaveLength(0)
+    const status = tree.root.findAll((node: { type: unknown; props: Record<string, unknown> }) => typeof node.type === 'string' && node.props.testID === 'tag-status-skeleton')
+    expect(status).toHaveLength(1)
+    expect(status[0]!.props.accessibilityLiveRegion).toBe('polite')
+    const unit = status[0]!.findAll((node: { type: unknown; props: Record<string, unknown> }) => typeof node.type === 'string' && node.props.testID === 'skeleton-unit-fill')[0]!
+    expect(unit.props).toMatchObject({ accessibilityRole: 'progressbar', accessibilityLabel: 'common.loading', accessibilityState: { busy: true } })
+  }
   beforeEach(() => {
     tagCollection.tags = []
     tagMutations.suggest.mockReset()
@@ -1276,7 +1284,7 @@ describe('habit tag suggestions', () => {
     await TestRenderer.act(() => button('Reading').props.onPress())
     expect(tree.root.findByType(BottomSheetAppTextInput)).toBeDefined()
     expect(button('Outdoors')?.props.disabled).toBe(true)
-    expect(text('common.loading')).toHaveLength(1)
+    expectAcceptSkeleton()
     expect(button('habits.form.suggestTags').props.disabled).toBe(true)
     if (outcome === 'success') {
       await TestRenderer.act(() => complete({ id: 'created' }))
@@ -1356,7 +1364,7 @@ describe('habit tag suggestions', () => {
     await TestRenderer.act(() => button('habits.form.suggestTags').props.onPress())
     await TestRenderer.act(() => button('Reading').props.onPress())
     expect(button('Reading').props.disabled).toBe(true)
-    expect(text('common.loading')[0]!.props.accessibilityLiveRegion).toBe('polite')
+    expectAcceptSkeleton()
     expect(button('habits.form.suggestTags').props.disabled).toBe(true)
     await TestRenderer.act(() => reject(new Error('Unavailable')))
     expect(selected()).toBe('')

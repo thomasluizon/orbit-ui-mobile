@@ -134,7 +134,9 @@ describe('habit detail stat card', () => {
     expect(card).toHaveAttribute('aria-busy', 'true')
     const rows = card.querySelectorAll('[data-habit-detail-stat-row]')
     expect(rows).toHaveLength(3)
-    for (const row of rows) expect(within(row.querySelector('[data-habit-detail-stat-value]') as HTMLElement).getByText(en.common.loading)).toBeInTheDocument()
+    expect(card).toHaveAttribute('aria-label', en.common.loading)
+    for (const row of rows) expect(row.querySelector('[data-habit-detail-stat-value] [data-habit-detail-stat-skeleton] .skeleton-pulse')).toHaveClass('bg-[var(--bg-well)]')
+    expect(within(card as HTMLElement).queryByText(en.common.loading)).not.toBeInTheDocument()
     expect(StatTile).not.toHaveBeenCalled()
     mocks.loading = false
     mocks.metrics = habitMetricsSchema.parse({ currentStreak: 2, longestStreak: 4, weeklyCompletionRate: 80, monthlyCompletionRate: 75, totalCompletions: 2, lastCompletedDate: null })

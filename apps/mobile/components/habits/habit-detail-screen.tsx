@@ -122,7 +122,8 @@ function Surface({ children }: Readonly<{ children: React.ReactNode }>) {
 function DayHabitsStatus({ reasonKey, onRetry, tokens }: Readonly<{ reasonKey: ReturnType<typeof getHabitDetailChildUnavailableReasonKey>; onRetry: () => void; tokens: ReturnType<typeof createTokensV2> }>) {
   const { t } = useTranslation()
   if (reasonKey === 'calendar.dayCell.notScheduled') return null
-  return <View style={styles.dayHabitsStatus}><Text style={[styles.muted, { color: tokens.fg2 }]}>{t(reasonKey)}</Text>{reasonKey === 'habits.detail.dayHabitsLoadError' ? <IconButton label={t('habits.detail.retry')} onClick={onRetry}><RefreshCw size={20} strokeWidth={1.5} accessible={false} /></IconButton> : null}</View>
+  if (reasonKey === 'habits.detail.dayHabitsLoading') return <View testID="day-habits-skeleton" style={styles.dayHabitsStatus}><View style={styles.dayHabitsSkeleton}><Skeleton variant="fill" label={t(reasonKey)} /></View></View>
+  return <View style={styles.dayHabitsStatus}><Text style={[styles.muted, { color: tokens.fg2 }]}>{t(reasonKey)}</Text><IconButton label={t('habits.detail.retry')} onClick={onRetry}><RefreshCw size={20} strokeWidth={1.5} accessible={false} /></IconButton></View>
 }
 
 function UnscheduledChildReason({ reason, notScheduledReason, tokens }: Readonly<{ reason?: string; notScheduledReason: string; tokens: ReturnType<typeof createTokensV2> }>) {
@@ -170,11 +171,10 @@ function Metrics({ visible, loading, error, metrics, isBadHabit, tokens }: Reado
           <View style={styles.statValueSlot}>
             <View style={styles.statValueLine}>
               <Text accessible={false} accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={[styles.statValue, styles.statValueStrut, { color: tokens.fg1 }]}>0</Text>
-              <Text testID="habit-detail-stat-value" style={[styles.statValue, { color: tokens.fg1 }]}>
-                {loading ? <Text style={styles.statLoadingValue}>{t('common.loading')}</Text> : item.value}
-              </Text>
+              {loading
+                ? <View testID="habit-detail-stat-skeleton" style={styles.statValueSkeleton}><Skeleton variant="fill" grouped /></View>
+                : <Text testID="habit-detail-stat-value" style={[styles.statValue, { color: tokens.fg1 }]}>{item.value}</Text>}
             </View>
-            <Text accessible={false} accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={[styles.statValueSizer, { color: tokens.fg1 }]}>{t('common.loading')}</Text>
           </View>
         </View>
       ))}
@@ -664,6 +664,7 @@ const styles = StyleSheet.create({
   sectionTitle: { fontFamily: 'Geist_500Medium', fontSize: 14, lineHeight: 24 },
   sectionHeader: { gap: 8 },
   dayHabitsStatus: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 12, paddingVertical: SPACING.s12 },
+  dayHabitsSkeleton: { width: '50%', height: 20 },
   childReason: { alignSelf: 'flex-end', paddingTop: SPACING.s4 + INTERACTION_FILL_CLEARANCE, paddingRight: SPACING.s12, paddingBottom: SPACING.s8 },
   historyActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   statCard: { padding: SPACING.s24, borderRadius: 20 },
@@ -673,9 +674,8 @@ const styles = StyleSheet.create({
   statValueSlot: { marginStart: 'auto', flexShrink: 0, maxWidth: '100%', alignItems: 'flex-end' },
   statValueLine: { flexDirection: 'row', alignItems: 'baseline' },
   statValueStrut: { width: 0, opacity: 0 },
-  statValueSizer: { height: 0, opacity: 0, fontFamily: 'SpaceGrotesk_600SemiBold', fontSize: 14, fontWeight: '600' },
   statValue: { minWidth: 0, textAlign: 'right', fontFamily: 'SpaceGrotesk_600SemiBold', fontSize: 22, lineHeight: 28.6, fontVariant: ['tabular-nums'] },
-  statLoadingValue: { fontSize: 14, lineHeight: 18.2 },
+  statValueSkeleton: { width: 48, height: 22, alignSelf: 'center' },
   headerMetadata: { paddingTop: SPACING.s12 },
   tags: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   tag: { minWidth: 0, maxWidth: '100%', borderWidth: 1, borderRadius: 8 },

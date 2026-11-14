@@ -17,6 +17,7 @@ import type { Profile } from '@orbit/shared/types/profile'
 import { API_KEY_EXPIRY_DEFAULT, apiKeyFormSchema, getApiKeyNameError, validateApiKeyExpiry } from '@orbit/shared/validation'
 import { getMcpEndpointUrl } from '@orbit/shared/utils/advanced-settings'
 import { McpCodeClient } from '@/components/profile/mcp-code-client'
+import { Skeleton } from '@/components/ui/skeleton'
 import { requestApiKeyCreationChallenge } from '@/lib/actions/api-keys'
 import { ConfirmSheet } from '@/components/ui/confirm-sheet'
 import { DiscardChangesSheet } from '@/components/ui/discard-changes-sheet'
@@ -81,7 +82,7 @@ interface ApiKeyListProps {
 function ApiKeyList({ apiKeys, isLoading, loadError, onRevoke, onRetry }: Readonly<ApiKeyListProps>) {
   const t = useTranslations()
   if (isLoading) {
-    return <output className="block text-sm text-[var(--fg-3)]">{t('common.loading')}</output>
+    return <Skeleton variant="settings" rows={2} label={t('common.loading')} />
   }
   if (loadError) {
     return <InlineLoadError message={t('orbitMcp.apiKeysError')} onRetry={onRetry} />
