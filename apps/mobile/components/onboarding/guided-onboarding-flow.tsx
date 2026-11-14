@@ -41,7 +41,6 @@ import { OrbitMascot } from '@/components/ui/orbit-mascot'
 import { PillButton } from '@/components/ui/pill-button'
 import { Proposed } from '@/components/ui/proposed'
 import { QuestionFlow } from '@/components/ui/question-flow'
-import { SegmentedControl } from '@/components/ui/segmented-control'
 import { TimeField } from '@/components/ui/time-field'
 import { WeekdayPicker } from '@/components/ui/weekday-picker'
 import { useTimeFormat } from '@/hooks/use-time-format'
@@ -49,7 +48,7 @@ import { usePrefersReducedMotion } from '@/lib/motion'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { useOnboardingDraftStore } from '@/stores/onboarding-draft-store'
-import { Stepper } from './onboarding-create-habit'
+import { FrequencyUnitControl, Stepper } from './onboarding-create-habit'
 import type { OnboardingDecisionProps } from './onboarding-flow'
 
 const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'] as const
@@ -183,15 +182,6 @@ function modeView(props: GuidedOnboardingProps, t: Translate, onMode: (mode: Onb
   }
 }
 
-function unitOptions(t: Translate) {
-  return [
-    { value: 'Day', label: t('onboarding.flow.when.units.day') },
-    { value: 'Week', label: t('onboarding.flow.when.units.week') },
-    { value: 'Month', label: t('onboarding.flow.when.units.month') },
-    { value: 'Year', label: t('onboarding.flow.when.units.year') },
-  ] as const
-}
-
 function daysView(props: GuidedOnboardingProps, t: Translate, tokens: Tokens, onDone: () => void): StepView {
   const setDays = (target: readonly string[]) => {
     for (const day of DAYS) if (props.schedule.days.includes(day) !== target.includes(day)) props.onToggleDay(day)
@@ -222,7 +212,7 @@ function countView(props: GuidedOnboardingProps, t: Translate, tokens: Tokens, k
     question: t(`onboarding.flow.guided.${kind}.question`),
     line: null,
     free: <>
-      <SegmentedControl fullWidth label={t('onboarding.flow.when.frequencyUnitLabel')} value={props.schedule.frequencyUnit ?? 'Week'} options={unitOptions(t)} onChange={props.onFrequencyUnit} />
+      <FrequencyUnitControl value={props.schedule.frequencyUnit ?? 'Week'} onChange={props.onFrequencyUnit} />
       <Stepper value={count} minimum={1} lessLabel={t(kind === 'quantity' ? 'onboarding.flow.when.quantityLess' : 'onboarding.flow.when.frequencyLess')}
         moreLabel={t(kind === 'quantity' ? 'onboarding.flow.when.quantityMore' : 'onboarding.flow.when.frequencyMore')} description={description} colors={tokens} onChange={props.onQuantity} />
     </>,
