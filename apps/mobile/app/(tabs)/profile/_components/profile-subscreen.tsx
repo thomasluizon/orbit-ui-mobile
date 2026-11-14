@@ -42,7 +42,7 @@ export function ProfileSubscreen({ screen }: Readonly<{ screen: ProfileSubmenuId
   return <SafeAreaView edges={pageEnd.safeAreaEdges} style={[styles.safeArea, { backgroundColor: tokens.bg }]}>
     <PageHeader title={t(submenu.labelKey)} backLabel={t('common.backToProfile')} onBack={() => router.dismissTo('/profile')} />
     <ShellContent style={{ flex: 1 }}><ScrollView testID={`profile-settings-group-${screen}`} style={styles.container} contentContainerStyle={[contentFrameStyle, styles.content, { paddingBottom: pageEnd.paddingBottom }]}>
-      {isLoading ? <Skeleton variant="settings" rows={8} label={t('profile.loading')} /> : error ? <ErrorState message={t('errors.loadProfile')} action={<IconButton label={t('common.retry')} onClick={() => void refetch()}><RefreshCw size={20} strokeWidth={1.5} accessible={false} /></IconButton>} /> : <Content profile={profile} patchProfile={patchProfile} />}
+      {isLoading ? <Skeleton variant="settings" rows={8} label={t('profile.loading')} /> : error ? <ErrorState fullSurface message={t('errors.loadProfile')} action={<IconButton label={t('common.retry')} onClick={() => void refetch()}><RefreshCw size={20} strokeWidth={1.5} accessible={false} /></IconButton>} /> : <Content profile={profile} patchProfile={patchProfile} />}
     </ScrollView></ShellContent>
   </SafeAreaView>
 }

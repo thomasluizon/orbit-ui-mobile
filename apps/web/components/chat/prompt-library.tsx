@@ -25,6 +25,8 @@ type PromptLibraryProps = {
   hasProAccess: boolean
   hasGoogleConnection: boolean
   disabledReason?: string
+  /** Descansando while the AI is the missing part (offline or at a limit): Orbit rests beside the reason. */
+  mascotState?: 'parado' | 'descansando'
 }
 
 function CatalogGroup({ group, searching, disabled, onSelect }: Readonly<{ group: PromptIdeaGroup; searching: boolean; disabled: boolean; onSelect: PromptLibraryProps['onSelect'] }>) {
@@ -52,7 +54,7 @@ export function PromptLibrary(props: Readonly<PromptLibraryProps>) {
       <AppBar title={t('chat.templates.title')} titleVariant="screen" titleRef={headingRef} onBack={props.onBack} backLabel={t('chat.templates.back')} />
     </div>
     <div className="flex shrink-0 flex-col gap-3 px-4">
-      {props.disabledReason ? <CapacityNotice message={props.disabledReason} /> : null}
+      {props.disabledReason ? <CapacityNotice message={props.disabledReason} mascotState={props.mascotState === 'descansando' ? 'descansando' : undefined} /> : null}
       <Input kind="search" name="prompt-search" autoComplete="off" hideLabel label={t('chat.templates.searchQuestion')} placeholder={t('chat.templates.search')} value={query} onChange={value => dispatch({ type: 'query', query: value })} />
       <div role="group" aria-label={t('chat.templates.title')} data-prompt-categories="" className="flex min-w-0 flex-nowrap gap-3 overflow-x-scroll pb-2">
         {categories.map(item => <div key={item} className="shrink-0"><Chip active={item === activeCategory && !query.trim()} onClick={() => { dispatch({ type: 'category', category: item }) }}>{t(`chat.templates.categories.${item}`)}</Chip></div>)}

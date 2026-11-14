@@ -7,6 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import TodayScreen from '@/app/(tabs)/index'
 import { useUIStore } from '@/stores/ui-store'
+import { ErrorState } from '@/components/ui/error-state'
 vi.mock('@/hooks/use-push-notifications', () => ({ usePushNotifications: () => ({ requestFirstUsePermission: vi.fn(async () => {}) }) }))
 
 const mocks = vi.hoisted(() => ({
@@ -20,6 +21,7 @@ const mocks = vi.hoisted(() => ({
   isError: false,
   geometry: false,
   profileReady: true,
+  profileError: false,
   hasProAccess: true,
   timeZone: 'UTC',
   today: '2026-08-29',
@@ -49,14 +51,14 @@ vi.mock('@orbit/shared/utils', async (importOriginal) => ({
   parseShowGeneralOnTodayPreference: () => false,
 }))
 vi.mock('@/hooks/use-profile', () => ({
-  useProfile: () => ({ profile: mocks.profileReady ? { timeZone: mocks.timeZone, lastCompletionDate: mocks.lastCompletionDate, hasProAccess: mocks.hasProAccess, aiSummaryEnabled: false, language: 'en' } : undefined }),
+  useProfile: () => ({ profile: mocks.profileReady ? { timeZone: mocks.timeZone, lastCompletionDate: mocks.lastCompletionDate, hasProAccess: mocks.hasProAccess, aiSummaryEnabled: false, language: 'en' } : undefined, isError: mocks.profileError, refetch: vi.fn() }),
 }))
 vi.mock('@/hooks/use-proactive-item', () => ({
   useProactiveItem: () => ({ item: mocks.proactiveItem, openItem: vi.fn() }),
 }))
 vi.mock('@/hooks/use-summary', () => ({ useSummary: vi.fn() }))
 vi.mock('@/hooks/use-offline', () => ({ useOffline: () => ({ isOnline: true }) }))
-vi.mock('@/components/ui/orbit-mascot', () => ({ OrbitMascot: () => null }))
+vi.mock('@/components/ui/orbit-mascot', () => ({ OrbitMascot: () => null, useStateMascotSize: () => 96 }))
 vi.mock('@/hooks/use-habits', () => ({
   EMPTY_HABITS_BY_ID: new Map(),
   useHabits: () => ({
@@ -169,6 +171,19 @@ function isSuppressed(tree: ReturnType<typeof TestRenderer.create>): boolean {
 }
 
 describe('mobile Today Astra owned surfaces', () => {
+  it('stands Orbit in Parado over the whole of Hoje when the profile fails to load', async () => {
+    mocks.profileReady = false
+    mocks.profileError = true
+    let tree!: ReturnType<typeof TestRenderer.create>
+    try {
+      await TestRenderer.act(() => { tree = createTestTree(<TodayScreen />) })
+      expect(tree.root.findByType(ErrorState).props).toMatchObject({ fullSurface: true, message: 'common.error' })
+    } finally {
+      mocks.profileReady = true
+      mocks.profileError = false
+      await TestRenderer.act(() => tree.unmount())
+    }
+  })
   it.each([false, true])('clears the Astra slot for completion and restores it on undo, proactive=%s', async (proactive) => {
     mocks.hasProAccess = false
     mocks.proactiveItem = proactive ? createMockProactiveItem({ text: 'Day complete' }) : null

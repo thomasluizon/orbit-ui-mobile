@@ -17,6 +17,8 @@ export type ErrorStateTypeContract = [
   Assert<IsExactWidth<ErrorStateProps['action'], React.ReactElement | undefined>>,
   Assert<IsExact<{ message: 'Try again' }, ErrorStateProps>>,
   Assert<IsExact<{ message: 'Try again'; action: typeof _action }, ErrorStateProps>>,
+  Assert<IsExactWidth<ErrorStateProps['fullSurface'], boolean | undefined>>,
+  Assert<IsExact<{ message: 'Try again'; fullSurface: true }, ErrorStateProps>>,
   // @ts-expect-error error message is required
   Assert<IsExact<{ action: typeof _action }, ErrorStateProps>>,
   // @ts-expect-error error codes cannot reach the surface

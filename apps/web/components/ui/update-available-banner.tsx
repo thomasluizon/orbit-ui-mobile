@@ -10,6 +10,7 @@ import { useVersionGateStore } from '@/stores/version-gate-store'
 import { PillButton } from '@/components/ui/pill-button'
 import { DesktopUpdateNotice } from '@/components/desktop-update-notice'
 import { useDesktopUpdateStore } from '@/stores/desktop-update-store'
+import { OrbitMascot } from '@/components/ui/orbit-mascot'
 
 export function UpdateAvailableBanner({ modalId, active = true, inset = true }: Readonly<{ modalId?: string; active?: boolean; inset?: boolean | 'inline' }>) {
   const [mounted, setMounted] = useState(false)
@@ -35,13 +36,16 @@ function VersionUpdateNotice() {
     ? t('errors.api.accountChanged')
     : reloadReason === 'appUpdated' ? t('errors.api.appUpdated') : null
   return <div className="rounded-[var(--r-card)] bg-[var(--bg-elev)] p-4 text-[var(--fg-1)]"><ActionRow>
-    <div className="min-w-0 flex-1 basis-[240px]">
-      <p className="text-sm font-medium leading-[1.4]" translate={reloadMessage ? undefined : 'no'}>
-        {reloadMessage ?? t('forceUpdate.banner')}
-      </p>
-      {!reloadReason && minVersion && <p className="text-[14px] leading-[1.5] text-[var(--fg-3)]">
-        {t('forceUpdate.bannerVersion', { minVersion })}
-      </p>}
+    <div className="flex min-w-0 flex-1 basis-[240px] items-center gap-3">
+      <OrbitMascot size={48} />
+      <div className="min-w-0 flex-1">
+        <p className="text-sm font-medium leading-[1.4]" translate={reloadMessage ? undefined : 'no'}>
+          {reloadMessage ?? t('forceUpdate.banner')}
+        </p>
+        {!reloadReason && minVersion && <p className="text-[14px] leading-[1.5] text-[var(--fg-3)]">
+          {t('forceUpdate.bannerVersion', { minVersion })}
+        </p>}
+      </div>
     </div>
     {!reloadReason && <PillButton size="sm" variant="ghost" onClick={dismissUpdate}>{t('versionUpdate.laterCta')}</PillButton>}
     <IconButton label={reloadReason ? t('errors.api.reload') : t('forceUpdate.refresh')} onClick={() => globalThis.location.reload()}><RefreshCw size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton>

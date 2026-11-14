@@ -150,6 +150,8 @@ describe('VersionUpdateDrawer close path', () => {
     let tree: ReturnType<typeof render>
     await TestRenderer.act(() => { tree = render() })
     expect(sheetCount(tree)).toBe(1)
+    const face = tree!.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'orbit-mascot')
+    expect(face.map((node) => [node.props.width, node.props['data-orbit-state']])).toEqual([[48, 'parado']])
     expect(mocks.flexibleActive).toBe(false)
     pressPill(tree, 'versionUpdate.updateCta')
     expect(mocks.flexibleActive).toBe(false)

@@ -145,6 +145,7 @@ describe.each(['en', 'pt-BR'])('derived offline notice in %s', (locale) => {
     expect(StyleSheet.flatten(slot.props.style)).toMatchObject({ gap: 12 })
     expect(tree.root.findAllByType(Toast)).toHaveLength(2)
     expect(tree.root.findAllByType('View').filter((node) => node.props.testID === 'offline-notice')).toHaveLength(1)
+    expect(tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'orbit-mascot')).toHaveLength(0)
   })
 
   it.each([1, 2])('shows the queued and sending notice for %s changes through ICU', (count) => {
