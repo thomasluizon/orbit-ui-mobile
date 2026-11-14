@@ -117,6 +117,9 @@ const headers = (tree: Tree) => tree.hosts().filter((node) => node.props.accessi
 /** The states of the live mascots on screen. The small static face of a list icon is not a live mascot. */
 const orbitStates = (tree: Tree) => tree.hosts().map((node) => node.props as Record<string, unknown>).filter((props) => props['data-orbit-face'] === 'rig').map((props) => props['data-orbit-state'])
 const screenText = (tree: Tree) => tree.hosts().filter((node) => node.type === 'Text').map((node) => renderedText(node)).join('\n')
+const scrollers = (tree: Tree) => tree.hosts().filter((node) => node.type === 'ScrollView')
+const holds = (container: Host, testID: string) => container.findAll((node) => node.props.testID === testID).length > 0
+const primaryIn = (container: Host, label: string) => container.findAll((node) => typeof node.type === 'string' && node.props.accessibilityLabel === label && node.props.onPress !== undefined)
 const hint = (node: Host) => (node.props as Record<string, unknown>).accessibilityHint
 
 function confirmPurchase() {
@@ -163,6 +166,30 @@ describe('the plan question of the Android upgrade route', () => {
     mocks.status = { ...freeStatus, aiMessagesUsed: 1, aiMessagesLimit: 1 }
     const tree = renderNavigation(<UpgradeScreen />)
     expect(renderedText(byTestId(tree, 'upgrade-orbit-line'))).toBe(line)
+    tree.unmount()
+  })
+
+  it('pins the primary action under the scroller in the compact shell at 375 x 667, so it never covers a plan card', () => {
+    __setWindowDimensions({ width: 375, height: 667, scale: 2, fontScale: 1 })
+    const tree = renderNavigation(<UpgradeScreen />)
+    const footer = byTestId(tree, 'upgrade-plan-footer')!
+    expect(scrollers(tree).some((scroller) => holds(scroller, 'upgrade-block'))).toBe(true)
+    expect(scrollers(tree).some((scroller) => holds(scroller, 'upgrade-plan-footer'))).toBe(false)
+    expect(primaryIn(byTestId(tree, 'upgrade-block')!, 'Subscribe Annual, recommended')).toHaveLength(0)
+    const [primary] = primaryIn(footer, 'Subscribe Annual, recommended')
+    press(byTestId(tree, 'upgrade-plan-option-monthly')!)
+    press(primaryIn(footer, 'Subscribe Monthly')[0]!)
+    expect(primary).toBeDefined()
+    expect(mocks.playBilling.purchase).toHaveBeenCalledExactlyOnceWith('monthly')
+    tree.unmount()
+  })
+
+  it.each([[1024, false], [412, true]] as const)('keeps the primary action in the block at %i wide (guided flows off: %s), with no footer', (width, flagOff) => {
+    if (flagOff) resetTestFlags()
+    __setWindowDimensions({ width, height: 915, scale: 1, fontScale: 1 })
+    const tree = renderNavigation(<UpgradeScreen />)
+    expect(byTestId(tree, 'upgrade-plan-footer')).toBeUndefined()
+    expect(scrollers(tree).some((scroller) => primaryIn(scroller, 'Subscribe Annual, recommended').length === 1)).toBe(true)
     tree.unmount()
   })
 

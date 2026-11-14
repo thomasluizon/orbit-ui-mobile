@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { AccessibilityInfo, Platform, StyleSheet, Text, View, useWindowDimensions } from 'react-native'
+import { SPACING } from '@orbit/shared/theme'
 import type { SubscriptionPlans } from '@orbit/shared/types/subscription'
 import { resolveUpgradeOrbitLine, type AstraAllowance } from '@orbit/shared/utils'
 import { Badge } from '@/components/ui/badge'
@@ -52,6 +53,8 @@ export interface GuidedPricingSectionProps {
   onRetryPlans: () => void
   t: UpgradeTextFn
   tokens: Tokens
+  /** The host draws the primary action in `GuidedPlanFooter`, under its scroller. The block then leaves it out. */
+  primaryInFooter?: boolean
 }
 
 type PlanState = 'loading' | 'error' | 'ready' | 'absent'
@@ -172,10 +175,42 @@ function orbitLineText(line: ReturnType<typeof resolveUpgradeOrbitLine>, t: Upgr
   return line.key === 'upgrade.orbitLine.usage' ? t(line.key, { used: line.used, limit: line.limit }) : t(line.key)
 }
 
+type PlanPrimaryProps = Pick<GuidedPricingSectionProps, 'plans' | 'isLoadingPlans' | 'isPlansError' | 'isLoadingProducts' | 'isProductsError' | 'isOnline'
+  | 'monthlyOffer' | 'yearlyOffer' | 'selectedInterval' | 'checkoutLoading' | 'checkoutDisabled' | 'onCheckout' | 't'>
+
+/** The primary action of the plan question. It starts the handoff of the selected plan, and a wait keeps its label on the skeleton face. */
+function PlanPrimary(props: Readonly<PlanPrimaryProps>) {
+  const { selectedInterval, checkoutLoading, checkoutDisabled, onCheckout, t } = props
+  return (
+    <PillButton
+      loading={checkoutLoading !== null}
+      disabled={resolvePlanState(props) !== 'ready' || checkoutDisabled}
+      accessibleName={t(selectedInterval === 'yearly' ? 'upgrade.plans.checkoutLabelRecommended' : 'upgrade.plans.checkoutLabel', { interval: t(`upgrade.plans.${selectedInterval}.name`) })}
+      onClick={() => onCheckout(selectedInterval)}
+    >
+      {t('upgrade.plans.cta')}
+    </PillButton>
+  )
+}
+
+/** True in the compact shell, where the primary action of the plan question is pinned to the bottom, under the scroller. */
+export function usePinnedPlanPrimary(): boolean {
+  return useWindowDimensions().width < WIDE_WIDTH
+}
+
+/** The pinned footer of the compact shell. The host draws it under its scroller, so the scroller ends above it and it never covers a plan card. */
+export function GuidedPlanFooter({ endInset = SPACING.s16, tokens, ...props }: Readonly<PlanPrimaryProps & { tokens: Tokens; endInset?: number }>) {
+  return (
+    <View testID="upgrade-plan-footer" style={[localStyles.footer, { paddingBottom: endInset, backgroundColor: tokens.bg }]}>
+      <PlanPrimary {...props} />
+    </View>
+  )
+}
+
 /** The plan question of the upgrade route: Orbit in Parado with one usage fact, the question, the plan cards as its options and one primary action. */
 export function GuidedPricingSection(props: Readonly<GuidedPricingSectionProps>) {
   const { headingId, dateHint, focusOnMount = false, profile, usage, plans, isOnline, trialDaysLeft, selectedInterval, onSelectInterval, onStayFree,
-    checkoutLoading, checkoutError, checkoutDisabled, onCheckout, isRestoring, onRestore, t, tokens } = props
+    checkoutLoading, checkoutError, isRestoring, onRestore, primaryInFooter = false, t, tokens } = props
   const { width } = useWindowDimensions()
   const wide = width >= WIDE_WIDTH
   const headingRef = useRef<Text>(null)
@@ -184,7 +219,6 @@ export function GuidedPricingSection(props: Readonly<GuidedPricingSectionProps>)
   const line = orbitLineText(resolveUpgradeOrbitLine({ isOnline, isLoadingPlans: planState === 'loading', isPlansError: planState === 'error', usage }), t)
   const announcement = useFlowAnnouncement(line, 'plan')
   const checkoutPending = checkoutLoading !== null
-  const selectedName = t(`upgrade.plans.${selectedInterval}.name`)
   const showNotes = Boolean(plans) || Platform.OS === 'ios'
   useEffect(() => {
     if (focusOnMount && headingRef.current) AccessibilityInfo.sendAccessibilityEvent(headingRef.current, 'focus')
@@ -218,16 +252,7 @@ export function GuidedPricingSection(props: Readonly<GuidedPricingSectionProps>)
           <PlanOptions {...props} state={planState} disabled={checkoutPending} onLook={lookAtControl} onLookAway={lookAway} />
         </View>
         <Text accessibilityRole="alert" accessibilityLiveRegion="assertive" style={[styles.errorText, localStyles.centred, { color: tokens.fg2 }]}>{checkoutError}</Text>
-        <View style={wide ? localStyles.primaryWide : localStyles.primary}>
-          <PillButton
-            loading={checkoutPending}
-            disabled={planState !== 'ready' || checkoutDisabled}
-            accessibleName={t(selectedInterval === 'yearly' ? 'upgrade.plans.checkoutLabelRecommended' : 'upgrade.plans.checkoutLabel', { interval: selectedName })}
-            onClick={() => onCheckout(selectedInterval)}
-          >
-            {t('upgrade.plans.cta')}
-          </PillButton>
-        </View>
+        {primaryInFooter && !wide ? null : <View style={wide ? localStyles.primaryWide : localStyles.primary}><PlanPrimary {...props} /></View>}
         {!isOnline ? <Text testID="upgrade-offline-reason" style={[styles.errorText, localStyles.centred, { color: tokens.fg2 }]}>{t('upgrade.billing.offline')}</Text> : null}
         <StayFreeLink disabled={checkoutPending} onStayFree={onStayFree} t={t} tokens={tokens} />
         <Text accessibilityLiveRegion="polite" style={localStyles.announcement}>{announcement}</Text>
@@ -250,6 +275,7 @@ const localStyles = StyleSheet.create({
   centred: { textAlign: 'center' },
   primary: { width: '100%' },
   primaryWide: { width: '100%', maxWidth: 360 },
+  footer: { width: '100%', paddingTop: SPACING.s8 },
   announcement: { position: 'absolute', width: 1, height: 1, opacity: 0 },
   support: { width: '100%', gap: 32 },
   facts: { gap: 8 },

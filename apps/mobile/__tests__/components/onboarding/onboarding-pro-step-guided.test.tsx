@@ -1,4 +1,5 @@
 import React from 'react'
+import { View } from 'react-native'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
 import { enableTestFlags } from '@orbit/shared/test-support/flag-state'
@@ -69,6 +70,22 @@ describe('the Android onboarding Pro step', () => {
     expect(byTestId(tree, 'upgrade-plan-option-monthly')).toBeDefined()
     const rigs = tree.hosts().map((node) => node.props as Record<string, unknown>).filter((props) => props['data-orbit-face'] === 'rig')
     expect(rigs.map((props) => props['data-orbit-state'])).toEqual(['parado'])
+    tree.unmount()
+  })
+
+  it('hands the pinned plan footer to the host frame apart from the body, with the flag on', async () => {
+    enableTestFlags('orbit_guided_flows')
+    const frame = (body: React.ReactNode, footer: React.ReactNode) => <><View testID="frame-body">{body}</View><View testID="frame-footer">{footer}</View></>
+    const tree = renderNavigation(<OnboardingProStep onFinish={vi.fn(async () => {})} frame={frame} />)
+    const body = byTestId(tree, 'frame-body')!
+    const footer = byTestId(tree, 'frame-footer')!
+    expect(body.findAll((node) => node.props.testID === 'upgrade-block').length).toBeGreaterThan(0)
+    expect(body.findAll((node) => node.props.accessibilityLabel === 'Subscribe Annual, recommended')).toHaveLength(0)
+    const primary = footer.findAll((node) => typeof node.type === 'string' && node.props.accessibilityLabel === 'Subscribe Annual, recommended' && node.props.onPress !== undefined)
+    expect(primary).toHaveLength(1)
+    press(primary[0]!)
+    await settle()
+    expect(mocks.purchase).toHaveBeenCalledExactlyOnceWith('yearly')
     tree.unmount()
   })
 

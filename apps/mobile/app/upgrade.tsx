@@ -46,7 +46,7 @@ import { getUpgradeFallbackRoute } from '@/lib/upgrade-route'
 import { PageHeader } from '@/components/ui/page-header'
 import { BillingDashboard } from '@/components/upgrade/billing-dashboard'
 import { PlayBillingDashboard } from '@/components/upgrade/play-billing-dashboard'
-import { GuidedPricingSection, type GuidedPricingSectionProps } from '@/components/upgrade/guided-pricing-section'
+import { GuidedPlanFooter, GuidedPricingSection, usePinnedPlanPrimary, type GuidedPricingSectionProps } from '@/components/upgrade/guided-pricing-section'
 import { PricingSection } from '@/components/upgrade/pricing-section'
 import { PurchaseResult } from '@/components/upgrade/purchase-result'
 import { SubscriptionNotice } from '@/components/upgrade/subscription-notice'
@@ -108,9 +108,9 @@ function UpgradeContent({
 }
 
 /** The plan question with the guided flows on, and the current pitch with them off. Both start the same purchase. */
-function UpgradePitchSection({ guided, usage, monthlyDisplayPrice, yearlyDisplayPrice, inset, ...props }: ComponentProps<typeof PricingSection> & Pick<GuidedPricingSectionProps, 'usage'> & { guided: boolean }) {
+function UpgradePitchSection({ guided, usage, primaryInFooter, monthlyDisplayPrice, yearlyDisplayPrice, inset, ...props }: ComponentProps<typeof PricingSection> & Pick<GuidedPricingSectionProps, 'usage' | 'primaryInFooter'> & { guided: boolean }) {
   return guided
-    ? <GuidedPricingSection {...props} usage={usage} />
+    ? <GuidedPricingSection {...props} usage={usage} primaryInFooter={primaryInFooter} />
     : <PricingSection {...props} inset={inset} monthlyDisplayPrice={monthlyDisplayPrice} yearlyDisplayPrice={yearlyDisplayPrice} />
 }
 
@@ -154,6 +154,7 @@ export default function UpgradeScreen() {
   const { isOnline } = useOffline()
   const { showSuccess } = useAppToast()
   const guided = useFlag('orbit_guided_flows')
+  const pinnedPrimary = usePinnedPlanPrimary()
   const router = useRouter()
   const [purchaseConfirmed, setPurchaseConfirmed] = useState(false)
   const locale = i18n.language
@@ -321,35 +322,42 @@ export default function UpgradeScreen() {
     />
   )
 
+  const planPrimary = {
+    plans,
+    isLoadingPlans,
+    isPlansError,
+    isLoadingProducts: playBilling.isLoadingProducts,
+    isProductsError: playBilling.isProductsError,
+    isOnline,
+    monthlyOffer: playBilling.monthlyOffer,
+    yearlyOffer: playBilling.yearlyOffer,
+    selectedInterval,
+    checkoutLoading,
+    checkoutDisabled: !isOnline || playBilling.isProcessing || playBilling.isRestoring,
+    onCheckout: handleCheckout,
+    t,
+  }
+  const footerPrimary = guided && pinnedPrimary && !lapsedNoticeStatus && model.content === 'pitch' && model.state !== 'loading' && model.state !== 'load-failed'
+
   const pitchContent = lapsedNoticeStatus ? (
     <SubscriptionNotice status={lapsedNoticeStatus} locale={locale} onResubscribe={() => setShowPitch(true)} t={t} tokens={tokens} />
   ) : (
     <View style={{ gap: 24 }}>
       <UpgradePitchSection
+        {...planPrimary}
         guided={guided}
+        primaryInFooter={footerPrimary}
         usage={status}
         inset={false}
         focusOnMount={showPitch}
         profile={status}
-        plans={plans}
-        isLoadingPlans={isLoadingPlans}
-        isPlansError={isPlansError}
-        isLoadingProducts={playBilling.isLoadingProducts}
-        isProductsError={playBilling.isProductsError}
-        isOnline={isOnline}
         dateHint={getProfileTrialEndHint(status, locale, t)}
         trialDaysLeft={trialDaysLeft}
-        selectedInterval={selectedInterval}
         onSelectInterval={setSelectedInterval}
         onStayFree={() => goBackOrFallback(fallbackRoute)}
-        monthlyOffer={playBilling.monthlyOffer}
-        yearlyOffer={playBilling.yearlyOffer}
         monthlyDisplayPrice={playBilling.monthlyOffer?.displayPrice}
         yearlyDisplayPrice={playBilling.yearlyOffer?.displayPrice}
-        checkoutLoading={checkoutLoading}
         checkoutError={checkoutError}
-        checkoutDisabled={!isOnline || playBilling.isProcessing || playBilling.isRestoring}
-        onCheckout={handleCheckout}
         isRestoring={playBilling.isRestoring}
         onRestore={() => { if (isOnline) void playBilling.restorePurchases() }}
         onRetryPlans={() => { if (isOnline) { playBilling.retryProducts(); refetchPlans().catch(() => {}) } }}
@@ -388,6 +396,7 @@ export default function UpgradeScreen() {
           />
         </View>
       </ScrollView></ShellContent>
+      {footerPrimary ? <ShellContent><View style={contentFrameStyle}><GuidedPlanFooter {...planPrimary} tokens={tokens} /></View></ShellContent> : null}
       <PurchaseResult
         purchaseConfirmed={purchaseConfirmed}
         status={settledStatus(model.state, status)}

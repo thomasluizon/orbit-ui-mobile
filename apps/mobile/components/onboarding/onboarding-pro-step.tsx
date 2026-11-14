@@ -9,7 +9,7 @@ import { buildAccountScopedStorageKey, getTrialDaysLeft, TRIAL_EXPIRED_SEEN_KEY 
 import { ErrorState } from '@/components/ui/error-state'
 import { OrbitMascot, useStateMascotSize } from '@/components/ui/orbit-mascot'
 import { PillButton } from '@/components/ui/pill-button'
-import { GuidedPricingSection } from '@/components/upgrade/guided-pricing-section'
+import { GuidedPlanFooter, GuidedPricingSection, usePinnedPlanPrimary } from '@/components/upgrade/guided-pricing-section'
 import { PricingSection } from '@/components/upgrade/pricing-section'
 import { ProPitch } from '@/components/upgrade/pro-pitch'
 import type { SubscriptionInterval } from '@/components/upgrade/types'
@@ -26,13 +26,25 @@ import { createTokensV2, radius } from '@/lib/theme'
 
 export interface OnboardingProExit { exit: (destination?: string) => void }
 
-export function OnboardingProStep({ onFinish, ref }: Readonly<{ onFinish: (destination?: string) => Promise<void>; ref?: Ref<OnboardingProExit> }>) {
+/** How a host lays out the step: the body in its scroller, and the pinned plan footer under it. */
+export type OnboardingProFrame = (body: ReactNode, footer: ReactNode) => ReactNode
+
+const inlineFrame: OnboardingProFrame = (body, footer) => <>{body}{footer}</>
+
+/** The paywall of a free person pins its primary action under the host's scroller in the compact shell. */
+function usePaywallFooter(guided: boolean, plan: ReturnType<typeof useOnboardingPlan>['plan']): boolean {
+  const pinned = usePinnedPlanPrimary()
+  return guided && pinned && plan === 'Free'
+}
+
+export function OnboardingProStep({ onFinish, ref, frame = inlineFrame }: Readonly<{ onFinish: (destination?: string) => Promise<void>; ref?: Ref<OnboardingProExit>; frame?: OnboardingProFrame }>) {
   const { t, i18n } = useTranslation()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const { plan, profile, retry } = useOnboardingPlan()
   const { isOnline } = useOffline()
   const guided = useFlag('orbit_guided_flows')
+  const paywallFooter = usePaywallFooter(guided, plan)
   const { showSuccess } = useAppToast()
   const plans = useSubscriptionPlans({ enabled: plan === 'Free', handlesError: true })
   const [finishing, setFinishing] = useState(false)
@@ -110,9 +122,10 @@ export function OnboardingProStep({ onFinish, ref }: Readonly<{ onFinish: (desti
   if (plan === 'loading' || plan === 'Pro' || plan === null) content = <PlanReadState guided={guided} failed={plan === null} title={title} exitAction={exitAction} skeletonColor={tokens.bgWell} onRetry={retry} t={t} />
   else if (plan === 'Trial') content = <View testID="onboarding-step-trial" style={styles.pitch}><GuidedOrbit guided={guided} /><ProPitch inset={false} focusOnMount headingId="onboarding-title" profile={profile ?? null} trialDaysLeft={getTrialDaysLeft(profile)} titleKey="onboarding.flow.trial.title" bodyKey="onboarding.flow.trial.body" dateHint={profile?.trialEndsAt ? t('upgrade.billing.plan.trialHint', { date: new Intl.DateTimeFormat(i18n.language, { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(profile.trialEndsAt)) }) : undefined} t={t} tokens={tokens} /><PillButton loading={finishing} onClick={() => exit()}>{t('onboarding.flow.done.seeDay')}</PillButton></View>
   else content = <View testID="onboarding-step-paywall" style={styles.stack}>{guided
-    ? <GuidedPricingSection headingId="onboarding-title" focusOnMount usage={profile ?? null} {...pricing} />
+    ? <GuidedPricingSection headingId="onboarding-title" focusOnMount usage={profile ?? null} primaryInFooter={paywallFooter} {...pricing} />
     : <>{title}{!isOnline ? <ErrorState message={t('upgrade.billing.offline')} /> : null}<PricingSection inset={false} {...pricing} /></>}</View>
-  return <View style={styles.root}>{content}<Text accessibilityRole="alert" accessibilityLiveRegion="polite" style={{ color: tokens.fg2 }}>{finishFailed ? t('onboarding.flow.completionFailed') : ''}</Text></View>
+  const body = <View style={styles.root}>{content}<Text accessibilityRole="alert" accessibilityLiveRegion="polite" style={{ color: tokens.fg2 }}>{finishFailed ? t('onboarding.flow.completionFailed') : ''}</Text></View>
+  return frame(body, paywallFooter ? <GuidedPlanFooter {...pricing} tokens={tokens} /> : null)
 }
 
 /** The plan read that loads or that failed. With the guided flows on, Orbit sits above it in place of the pitch heading and names the error. */

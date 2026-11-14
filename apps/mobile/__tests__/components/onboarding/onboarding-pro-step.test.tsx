@@ -10,6 +10,7 @@ import { OverlayHost } from '@/components/ui/overlay-host'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
+import { enableTestFlags } from '@orbit/shared/test-support/flag-state'
 import type { SubscriptionPlans } from '@orbit/shared/types/subscription'
 import en from '@orbit/shared/i18n/en.json'
 import ptBr from '@orbit/shared/i18n/pt-BR.json'
@@ -226,6 +227,29 @@ describe('Android final Pro step', () => {
     expect(action(tree.root, en.upgrade.convert.stayFree).props.disabled).toBe(true)
     await act(() => exit.current?.exit())
     expect(finish).not.toHaveBeenCalled()
+  })
+})
+
+describe('the onboarding host of the Android Pro step', () => {
+  it.each([[true, 1], [false, 0]] as const)('draws the plan footer under its scroller at 375 x 667 with the guided flows %s', async (guided, footers) => {
+    if (guided) enableTestFlags('orbit_guided_flows')
+    __setWindowDimensions({ width: 375, height: 667, scale: 2, fontScale: 1 })
+    let tree!: ReturnType<typeof TestRenderer.create>
+    await act(async () => { tree = TestRenderer.create(<OverlayHost><OnboardingFlow finalStepOnly /></OverlayHost>); await Promise.resolve() })
+    try {
+      const footer = tree.root.findAll((node) => String(node.type) === 'View' && node.props.testID === 'upgrade-plan-footer')
+      expect(footer).toHaveLength(footers)
+      const scroller = tree.root.findAll((node) => node.type === ScrollView && node.findAll((inner) => inner.props.testID === 'onboarding-step-paywall').length > 0).at(-1)!
+      expect(scroller).toBeDefined()
+      expect(scroller.findAll((node) => node.props.testID === 'upgrade-plan-footer')).toHaveLength(0)
+      const frame = Reflect.get(Reflect.get(scroller, 'parent') as object, 'parent') as ReactTestInstance
+      expect(frame.findAll((node) => String(node.type) === 'View' && node.props.testID === 'upgrade-plan-footer')).toHaveLength(footers)
+      for (const pinned of footer) {
+        expect(all(pinned, 'PillButton').map((button) => button.props.children)).toEqual([translate('upgrade.plans.cta')])
+      }
+    } finally {
+      await act(() => tree.unmount())
+    }
   })
 })
 
