@@ -1,39 +1,62 @@
 import React from 'react'
-import type { ReactTestInstance, ReactTestRenderer } from 'react-test-renderer'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { createApiClientError } from '@orbit/shared/utils'
 import { buildTags, resetTagStepState, tagStepState, TagStepHarness } from './tag-step-harness'
 
+/** The host shape these tests read. The renderer types name only DOM element types, so the native host names need their own type. */
+interface Host {
+  type: unknown
+  props: {
+    [prop: string]: unknown
+    testID?: string
+    accessibilityLabel?: string
+    accessibilityRole?: string
+    accessibilityHint?: string
+    accessibilityState?: { selected?: boolean; disabled?: boolean }
+    disabled?: boolean
+    onPress?: () => unknown
+    onChangeText?: (value: string) => void
+    style?: unknown
+  }
+  children: (Host | string)[]
+  findAll: (predicate: (node: Host) => boolean) => Host[]
+}
+interface Root {
+  root: Host
+  update: (element: React.ReactElement) => void
+  unmount: () => void
+}
+
 const renderer = require('react-test-renderer') as typeof import('react-test-renderer')
 const copy = { en, 'pt-BR': ptBR } as const
-let tree: ReactTestRenderer | null = null
+let tree: Root | null = null
 
-function mount(element: React.ReactElement): ReactTestRenderer {
-  void renderer.act(() => { tree = renderer.create(element) })
+function mount(element: React.ReactElement): Root {
+  void renderer.act(() => { tree = renderer.create(element) as unknown as Root })
   return tree!
 }
-const hosts = (root: ReactTestRenderer): ReactTestInstance[] => root.root.findAll((node) => typeof node.type === 'string')
-const textOf = (node: ReactTestInstance): string => node.children.map((child) => typeof child === 'string' ? child : textOf(child)).join('')
-const texts = (root: ReactTestRenderer) => hosts(root).filter((node) => node.type === 'Text' || node.type === 'AnimatedText').map(textOf)
-const pressable = (root: ReactTestRenderer, label: string, scope?: string) => {
+const hosts = (root: Root): Host[] => root.root.findAll((node) => typeof node.type === 'string')
+const textOf = (node: Host): string => node.children.map((child) => typeof child === 'string' ? child : textOf(child)).join('')
+const texts = (root: Root) => hosts(root).filter((node) => node.type === 'Text' || node.type === 'AnimatedText').map(textOf)
+const pressable = (root: Root, label: string, scope?: string) => {
   const nodes = scope ? root.root.findAll((node) => node.props.testID === scope).flatMap((node) => node.findAll((child) => typeof child.type === 'string')) : hosts(root)
   return nodes.find((node) => typeof node.props.onPress === 'function' && (node.props.accessibilityLabel ?? textOf(node)) === label)
 }
-const option = (root: ReactTestRenderer, label: string) => hosts(root).find((node) => node.props.testID === 'option-card' && node.props.accessibilityLabel === label)
-const field = (root: ReactTestRenderer, label: string) => hosts(root).find((node) => node.type === 'TextInput' && node.props.accessibilityLabel === label)
-const selected = (root: ReactTestRenderer) => textOf(root.root.find((node) => node.props.testID === 'selected-tags' && typeof node.type === 'string'))
-const quickOptions = (root: ReactTestRenderer) => hosts(root).filter((node) => node.props.testID === 'option-card').map((node) => node.props.accessibilityLabel as string)
-const line = (root: ReactTestRenderer) => hosts(root).find((node) => node.props.testID === 'question-flow-line')
+const option = (root: Root, label: string) => hosts(root).find((node) => node.props.testID === 'option-card' && node.props.accessibilityLabel === label)
+const field = (root: Root, label: string) => hosts(root).find((node) => node.type === 'TextInput' && node.props.accessibilityLabel === label)
+const selected = (root: Root) => textOf(hosts(root).find((node) => node.props.testID === 'selected-tags')!)
+const quickOptions = (root: Root) => hosts(root).filter((node) => node.props.testID === 'option-card').map((node) => node.props.accessibilityLabel)
+const line = (root: Root) => hosts(root).find((node) => node.props.testID === 'question-flow-line')
 
-async function press(node: ReactTestInstance | undefined) {
+async function press(node: Host | undefined) {
   expect(node).toBeDefined()
-  await renderer.act(async () => { if (!node!.props.disabled) await node!.props.onPress() })
+  await renderer.act(async () => { if (!node!.props.disabled) await node!.props.onPress!() })
 }
-function type(node: ReactTestInstance | undefined, value: string) {
+function type(node: Host | undefined, value: string) {
   expect(node).toBeDefined()
-  void renderer.act(() => { node!.props.onChangeText(value) })
+  void renderer.act(() => { node!.props.onChangeText!(value) })
 }
 
 beforeEach(() => resetTagStepState())
@@ -81,7 +104,7 @@ describe('tag selection on Android', () => {
     const root = mount(<TagStepHarness onContinue={onContinue} />)
     await press(option(root, 'Health'))
     expect(selected(root)).toBe('tag-0')
-    expect(option(root, 'Health')?.props.accessibilityState.selected).toBe(true)
+    expect(option(root, 'Health')?.props.accessibilityState?.selected).toBe(true)
     expect(onContinue).not.toHaveBeenCalled()
     await press(hosts(root).find((node) => node.props.testID === 'button-primary-sm'))
     expect(onContinue).toHaveBeenCalledOnce()
@@ -106,7 +129,7 @@ describe('tag selection on Android', () => {
     expect(texts(root).filter((value) => value === en.habits.form.tagLimit)).toHaveLength(1)
     expect(hosts(root).some((node) => node.props.testID === 'tag-limit')).toBe(true)
     type(field(root, en.habits.form.searchTags), 'F')
-    expect(pressable(root, 'F', 'tag-step-rows')?.props.accessibilityState.disabled).toBe(true)
+    expect(pressable(root, 'F', 'tag-step-rows')?.props.accessibilityState?.disabled).toBe(true)
     expect(texts(root).some((value) => /pro|upgrade/i.test(value))).toBe(false)
   })
 
@@ -179,23 +202,23 @@ describe('tag create, rename and delete on Android', () => {
 })
 
 describe('tag suggestions in the step on Android', () => {
-  const flowState = (root: ReactTestRenderer) => hosts(root).find((node) => node.props.testID === 'question-flow-step-optional:tags')
-    ?.findAll((node) => node.props.state !== undefined && node.props.size === 96)[0]?.props.state as string | undefined
+  const flowState = (root: Root) => hosts(root).find((node) => node.props.testID === 'question-flow-step-optional:tags')
+    ?.findAll((node) => node.props.state !== undefined && node.props.size === 96)[0]?.props.state
 
   it('needs a title before it suggests and stops at the limit', () => {
     const root = mount(<TagStepHarness title=" " onContinue={vi.fn()} />)
-    expect(pressable(root, en.habits.form.suggestTags)?.props.accessibilityState.disabled).toBe(true)
+    expect(pressable(root, en.habits.form.suggestTags)?.props.accessibilityState?.disabled).toBe(true)
     void renderer.act(() => root.unmount())
     tagStepState.tags = buildTags(['A', 'B', 'C', 'D', 'E'])
     const full = mount(<TagStepHarness initialIds={['tag-0', 'tag-1', 'tag-2', 'tag-3', 'tag-4']} onContinue={vi.fn()} />)
-    expect(pressable(full, en.habits.form.suggestTags)?.props.accessibilityState.disabled).toBe(true)
+    expect(pressable(full, en.habits.form.suggestTags)?.props.accessibilityState?.disabled).toBe(true)
   })
 
   it('shows Orbit thinking while it runs, then the proposals, and a press creates and selects', async () => {
     let complete!: (response: { tags: { name: string; color: string; isExisting: boolean; id: string | null }[] }) => void
     tagStepState.suggest.mockImplementation(() => new Promise((resolve) => { complete = resolve }))
     const root = mount(<TagStepHarness onContinue={vi.fn()} />)
-    void renderer.act(() => { pressable(root, en.habits.form.suggestTags)!.props.onPress() })
+    void renderer.act(() => { void pressable(root, en.habits.form.suggestTags)!.props.onPress!() })
     expect(flowState(root)).toBe('pensando')
     expect(texts(root)).toContain(en.habits.form.suggestingTags)
     await renderer.act(async () => { complete({ tags: [{ name: 'Reading', color: '#7c3aed', isExisting: false, id: null }] }); await Promise.resolve() })
