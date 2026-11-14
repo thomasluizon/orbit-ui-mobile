@@ -47,8 +47,9 @@ export function Checkbox({
       checked={checked}
       aria-label={label}
       aria-busy={loading || undefined}
-      disabled={disabled || loading}
-      onCheckedChange={(next) => onChange(next === true)}
+      aria-disabled={loading && !disabled ? true : undefined}
+      disabled={disabled}
+      onCheckedChange={(next) => { if (!loading) onChange(next === true) }}
       data-checked={checked ? '' : undefined}
       data-loading={loading ? '' : undefined}
       data-error={error ? '' : undefined}
