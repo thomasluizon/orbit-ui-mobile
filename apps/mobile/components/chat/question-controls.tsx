@@ -31,7 +31,7 @@ function QuestionScale({ question, answer, disabled, controller, words }: Questi
           {({ pressed, focused }) => <View data-slot="question-scale-fill" style={[styles.scaleFill, {
             backgroundColor: pressed || focused ? tokens.bgHover : answer?.number === number ? tokens.bgWell : 'transparent',
           }]}>
-            <SelectionRing shape={styles.scaleFill} color={tokens.primary} shown={answer?.number === number} inset={focused ? focusRingInnerEdge(0, SCALE_FOCUS_OFFSET, false) : 0} reducedMotion={reducedMotion} />
+            <SelectionRing shape={styles.scaleFill} width={2} color={tokens.primary} shown={answer?.number === number} inset={focused ? focusRingInnerEdge(0, SCALE_FOCUS_OFFSET, false) : 0} reducedMotion={reducedMotion} />
             <Text style={{ color: tokens.fg1, fontSize: 16, lineHeight: 24, fontFamily: 'Geist_400Regular' }}>{number}</Text>
           </View>}
         </InsetFocusPressable>

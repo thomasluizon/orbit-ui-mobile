@@ -268,7 +268,7 @@ describe('a selected control keeps its selection ring under keyboard focus', () 
       await verifyRenderedChoices(<GoalTypeSelector goalType={goalType} onTypeChange={vi.fn()} />, '[role="radio"]', theme)
     })
     it(`the DateField today circle yields to its focused button, ${theme}`, async () => {
-      const { container } = render(<button type="button" className="group"><span className="[box-shadow:inset_0_0_0_var(--selection-ring-width)_var(--primary)] group-focus-visible:[box-shadow:none]">Today</span></button>)
+      const { container } = render(<button type="button" className="group"><span className="[box-shadow:inset_0_0_0_1px_var(--primary)] group-focus-visible:[box-shadow:none]">Today</span></button>)
       const page = await browser.newPage()
       try {
         await page.setContent(`<style>${stylesheet}:root { ${Object.entries(resolveWebThemeVariables('orange', theme)).map(([key, value]) => `${key}:${value};`).join('')} }</style>${container.innerHTML}`)

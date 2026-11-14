@@ -32,7 +32,7 @@ export function Chip({
   return (
     <Pressable
       focusInset
-      selectionRing
+      selectionRingWidth={isPeriod ? 1.5 : 1}
       selectionRingColor={isPeriod ? tokens.primary : tintFromPrimary(tokens, 0.45)}
       selectionRingRestColor={tokens.hairline}
       onPress={onPress}

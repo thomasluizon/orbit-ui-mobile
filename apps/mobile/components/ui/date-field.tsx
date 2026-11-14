@@ -153,7 +153,7 @@ function DatePickerDay({ day, isSelected, isToday, isCurrentMonth, locale, onSel
       })}
     >{({ pressed, focused }) =>
       <View style={[styles.dayCell, isSelected && styles.dayCellSelected]}>
-        {isToday && !isSelected ? <SelectionRing shape={styles.dayCell} color={tokens.primary} shown={!focused} reducedMotion={reducedMotion} /> : null}
+        {isToday && !isSelected ? <SelectionRing shape={styles.dayCell} width={1} color={tokens.primary} shown={!focused} reducedMotion={reducedMotion} /> : null}
         <Text
           style={[
             styles.dayText,

@@ -27,7 +27,7 @@ function ReminderWhenOption({ label, selected, onSelect, styles, tokens }: Reado
 }>) {
   const { disabled, guard } = useHabitFormInteraction()
   return (
-    <RadioItem selected={selected} onSelect={guard(onSelect)} disabled={disabled}><Pressable disabled={disabled} focusInset selectionRing selectionRingRestColor={tokens.hairline}
+    <RadioItem selected={selected} onSelect={guard(onSelect)} disabled={disabled}><Pressable disabled={disabled} focusInset selectionRingWidth={1} selectionRingRestColor={tokens.hairline}
       style={({ pressed }) => [
         styles.whenButton,
         selected && styles.whenButtonActive,

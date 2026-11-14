@@ -43,7 +43,7 @@ function SegmentOption<TValue extends string>({
     selected,
   })
   return (
-    <Primitive.Item value={option.value} disabled={disabled} asChild><Pressable focusInset selectionRing
+    <Primitive.Item value={option.value} disabled={disabled} asChild><Pressable focusInset selectionRingWidth={2}
       onLayout={onLayout}
       onFocus={onFocus} focusable={focusable}
       ref={elementRef}

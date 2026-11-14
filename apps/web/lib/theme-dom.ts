@@ -1,5 +1,5 @@
 import type { ThemeMode } from '@orbit/shared/types/profile'
-import { TOUCH_TARGET_MIN, MONTH_GRID_TARGET_MIN, SMALL_PILL_VISIBLE_MIN, SELECTION_RING_WIDTH } from '@orbit/shared/theme'
+import { TOUCH_TARGET_MIN, MONTH_GRID_TARGET_MIN, SMALL_PILL_VISIBLE_MIN } from '@orbit/shared/theme'
 import {
   motionDurations,
   motionEasings,
@@ -48,7 +48,6 @@ export function resolveWebThemeVariables(
   return {
     ...resolveWebMotionVariables(),
     '--touch-min': `${TOUCH_TARGET_MIN}px`,
-    '--selection-ring-width': `${SELECTION_RING_WIDTH}px`,
     '--month-grid-touch-min': `${MONTH_GRID_TARGET_MIN}px`,
     '--pill-visible-min': `${SMALL_PILL_VISIBLE_MIN}px`,
     '--bg': neutral.bg,

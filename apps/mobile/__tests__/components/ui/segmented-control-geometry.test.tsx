@@ -7,7 +7,7 @@ import { Resvg } from '@resvg/resvg-js'
 import { afterEach, expect, it, vi } from 'vitest'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
-import { INTERACTION_FILL_CLEARANCE, SELECTION_RING_WIDTH } from '@orbit/shared/theme'
+import { INTERACTION_FILL_CLEARANCE } from '@orbit/shared/theme'
 import { getSegmentedControlLayout } from '@orbit/shared/utils'
 import { OnboardingCreateHabit } from '@/components/onboarding/onboarding-create-habit'
 import { FlowShell } from '@/components/shell/flow-shell'
@@ -224,7 +224,7 @@ it('leaves at least 8px spare for the four Portuguese calendar views in a 288px 
     expect(segment.paddingHorizontal).toBeGreaterThanOrEqual(8)
     expect(insets.gap).toBeGreaterThanOrEqual(INTERACTION_FILL_CLEARANCE)
     const ring = radio.findAll((node) => String(node.type) === 'View' && Boolean(node.props.style) && StyleSheet.flatten(node.props.style as StyleProp<ViewStyle>).borderColor === createTokensV2('orange', 'dark').primary)[0]!
-    expect(StyleSheet.flatten(ring.props.style as StyleProp<ViewStyle>)).toMatchObject({ position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, borderWidth: SELECTION_RING_WIDTH })
+    expect(StyleSheet.flatten(ring.props.style as StyleProp<ViewStyle>)).toMatchObject({ position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, borderWidth: 2 })
     const measured = await measureSegments(tree, 320, 1)
     try { expect(measured.radios).toHaveLength(4) }
     finally { measured.layout.freeRecursive() }

@@ -287,7 +287,7 @@ export function DateField({
                                 : ''
                             } ${
                               isToday && !isSelected
-                                ? '[box-shadow:inset_0_0_0_var(--selection-ring-width)_var(--primary)] group-focus-visible:[box-shadow:none]'
+                                ? '[box-shadow:inset_0_0_0_1px_var(--primary)] group-focus-visible:[box-shadow:none]'
                                 : ''
                             }`}
                           >

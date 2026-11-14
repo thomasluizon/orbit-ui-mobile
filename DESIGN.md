@@ -1359,8 +1359,8 @@ Web in `apps/web/components/`, mobile mirror in `apps/mobile/components/`: same 
 
 Segmented view tracks retain 8px between full-segment fills, 8px segment inline padding and
 48px minimum targets. Their well has no inline padding and keeps 4px block padding. The paired
-`ui/segmented-control.tsx` owners measure those same insets; both platforms paint the position ring
-as the one selection ring, an inset ring that consumes no label width. The four Portuguese calendar labels leave
+`ui/segmented-control.tsx` owners measure those same insets; Android paints its 2px position ring
+as an absolute overlay so it consumes no label width. The four Portuguese calendar labels leave
 at least 8px spare in a 288px frame before spare width is shared among segments. Unit geometry
 cases compute that budget from the real labels, padding, gap and `getSegmentedControlLayout`.
 
@@ -1956,7 +1956,7 @@ to `--bg-hover`, and light uses the stronger opaque-control hover value.
 - **Press feedback** is `scale(0.96)` on pointer-down, never on release, and stays continuous for the whole duration of a drag or sheet gesture.
 - **Press feedback uses `motionDurations.press` (150ms) on both platforms.** The check and the drill-back control scale on that token, and reduced motion removes the scale.
 - **The press scales the face, never the target.** The paint and the content scale; the press target keeps its laid-out box, so its hit area and its focus ring stay whole. Web keeps the hit area on the unscaled `.press-hit-layer` (and the chip's hit layer) and draws a pressed control's focus ring there; Android's `MotionPressable` scales a face inside an unscaled target. Every web press scale class carries `motion-safe:`.
-- **One selection ring.** A selected option, day, segment, chip or row draws one inset ring of `SELECTION_RING_WIDTH` (1.5px, `packages/shared/src/theme/interaction.ts`, `--selection-ring-width` on web). It takes no layout, so a selection never moves the content.
+- **A selection ring takes no layout.** A selected option, day, segment, chip or row draws its ring inset in its own shape, so a selection never moves the content.
 - **Logging a habit plays the `completion` feedback once.** The check settles from `scale(0.92)` to 1 on `motionSprings.completion`, with no overshoot. It plays only when a mounted check turns done while the date, search and filters stay the same, never on first render or with a list scope change, and reduced motion plays nothing. The `celebration`, `completePop`, `completeSpark` and `orbitalMotion.completion` tokens have no role and do not exist.
 - **Search, filters and a background refetch never remount, dim or move the Today list.** The content fade runs once when the view or the account changes. A date change runs only the date slide.
 - **A reorder moves on the `soft` spring on both platforms.** The web drag adapter converts its response (390ms) to the one CSS transition `dnd-kit` accepts, with the `enter` easing. A sub-habit group changes height at once and moves only `opacity` and `transform` on expand.

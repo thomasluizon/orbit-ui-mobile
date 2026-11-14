@@ -1,7 +1,6 @@
 import { useMemo, useState, type ReactNode, type Ref } from 'react'
 import { Pressable, StyleSheet, View, type ColorValue, type PressableProps, type PressableStateCallbackType, type ViewStyle } from 'react-native'
 import Animated from 'react-native-reanimated'
-import { SELECTION_RING_WIDTH } from '@orbit/shared/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { createTokensV2 } from '@/lib/theme'
 import { usePrefersReducedMotion } from '@/lib/motion'
@@ -18,8 +17,8 @@ export interface InsetFocusPressableProps extends Omit<PressableProps, 'children
   focusOffset?: number
   focusColor?: ColorValue
   focusContrastColor?: ColorValue
-  /** Draws the selection ring of a selected or checked control. */
-  selectionRing?: boolean
+  /** Draws the selection ring of a selected or checked control at this width. */
+  selectionRingWidth?: number
   selectionRingColor?: ColorValue
   /** The ring colour at rest, such as a chip's hairline; transparent by default. */
   selectionRingRestColor?: ColorValue
@@ -45,11 +44,11 @@ export function focusRingInnerEdge(focusInset: number, focusOffset: number, cont
 }
 
 /**
- * The selection ring of a ringed control: one inset ring of `SELECTION_RING_WIDTH` inside the control's own shape, as
- * the web inset ring is. It takes no layout, and its colour settles on the selection preset. While focus shows, `inset`
- * moves it directly inside the focus ring, so a focused option keeps its selected cue.
+ * The selection ring of a ringed control: one inset ring of the control's own `width` inside its shape, as the web
+ * inset ring is. It takes no layout, and its colour settles on the selection preset. While focus shows, `inset` moves
+ * it directly inside the focus ring, so a focused option keeps its selected cue.
  */
-export function SelectionRing({ shape, color, restColor = 'transparent', shown, inset = 0, reducedMotion }: Readonly<{ shape: ViewStyle | undefined; color: ColorValue; restColor?: ColorValue; shown: boolean; inset?: number; reducedMotion: boolean }>) {
+export function SelectionRing({ shape, width, color, restColor = 'transparent', shown, inset = 0, reducedMotion }: Readonly<{ shape: ViewStyle | undefined; width: number; color: ColorValue; restColor?: ColorValue; shown: boolean; inset?: number; reducedMotion: boolean }>) {
   return (
     <AnimatedRing
       testID="selection-ring"
@@ -60,7 +59,7 @@ export function SelectionRing({ shape, color, restColor = 'transparent', shown, 
         StyleSheet.absoluteFill,
         cornerRadii(shape, inset),
         { top: inset, right: inset, bottom: inset, left: inset },
-        { borderWidth: shown ? SELECTION_RING_WIDTH : RESTING_RING_WIDTH, borderColor: shown ? color : restColor, transition: selectionSettleTransition('border-color', shown, reducedMotion) },
+        { borderWidth: shown ? width : RESTING_RING_WIDTH, borderColor: shown ? color : restColor, transition: selectionSettleTransition('border-color', shown, reducedMotion) },
       ]}
     />
   )
@@ -75,7 +74,7 @@ export function InsetFocusPressable({
   focusOffset = -4,
   focusColor,
   focusContrastColor,
-  selectionRing = false,
+  selectionRingWidth,
   selectionRingColor,
   selectionRingRestColor,
   ...props
@@ -96,8 +95,8 @@ export function InsetFocusPressable({
       {(state) => {
         const shape = StyleSheet.flatten<ViewStyle | undefined>(typeof style === 'function' ? style(state) : style)
         return <>
-          {selectionRing ? <SelectionRing shape={shape} color={selectionRingColor ?? tokens.primary} restColor={selectionRingRestColor} shown={selected}
-            inset={focusShown ? focusRingInnerEdge(focusInset, focusOffset, Boolean(focusContrastColor)) : 0} reducedMotion={reducedMotion} /> : null}
+          {selectionRingWidth === undefined ? null : <SelectionRing shape={shape} width={selectionRingWidth} color={selectionRingColor ?? tokens.primary} restColor={selectionRingRestColor} shown={selected}
+            inset={focusShown ? focusRingInnerEdge(focusInset, focusOffset, Boolean(focusContrastColor)) : 0} reducedMotion={reducedMotion} />}
           {typeof children === 'function' ? children({ ...state, focused }) : children}
           {focusShown ? <View
             pointerEvents="none"

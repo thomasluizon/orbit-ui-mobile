@@ -8,7 +8,7 @@ import type { ReactTestInstance, ReactTestRenderer } from 'react-test-renderer'
 import { questionBlockFixture as block, questionAnswersFixture } from '@orbit/shared/test-support/chat-fixtures'
 import type { BlockAnswerInteraction, QuestionBlockProps } from '@orbit/shared/chat'
 import { questionBlockSchema } from '@orbit/shared/types/question-block'
-import { INTERACTION_FILL_CLEARANCE, SELECTION_RING_WIDTH } from '@orbit/shared/theme'
+import { INTERACTION_FILL_CLEARANCE } from '@orbit/shared/theme'
 import en from '@orbit/shared/i18n/en.json'
 import pt from '@orbit/shared/i18n/pt-BR.json'
 import { QuestionBlock } from '@/components/chat/question-block'
@@ -146,7 +146,7 @@ it.each(['pressed', 'focused', 'selected'] as const)('insets the Android scale p
   expect(target.style.borderWidth ?? 0).toBe(0)
   expect(fill.style).toMatchObject({ borderRadius: 12, overflow: 'hidden' })
   expect(fill.style.backgroundColor).not.toBe('transparent')
-  if (state === 'selected') expect(StyleSheet.flatten(selectionRingOf(roles('radio').find(node => node.props.accessibilityLabel === '3')!).props.style)).toMatchObject({ borderWidth: SELECTION_RING_WIDTH, top: 0 })
+  if (state === 'selected') expect(StyleSheet.flatten(selectionRingOf(roles('radio').find(node => node.props.accessibilityLabel === '3')!).props.style)).toMatchObject({ borderWidth: 2, top: 0 })
   if (state === 'focused') {
     const ring = parts.find(part => part.ancestors.includes(target.slot) && part.style.outlineWidth === 2)!
     expect(ring.left).toBe(fill.left)
@@ -168,7 +168,7 @@ it.each([false, true])('draws the Android scale focus ring in the foreground col
   expect(rings, 'the focused option draws one focus ring').toHaveLength(1)
   expect(StyleSheet.flatten(rings[0]!.props.style)).toMatchObject({ outlineColor: tokens.fg1, outlineOffset: -2 })
   const selectionRing = StyleSheet.flatten(selectionRingOf(scale()).props.style as StyleProp<ViewStyle>)
-  if (scale().props.accessibilityState.checked) expect(selectionRing, 'a focused selected option keeps its selection ring directly inside the focus ring').toMatchObject({ borderColor: tokens.primary, borderWidth: SELECTION_RING_WIDTH, top: 2 })
+  if (scale().props.accessibilityState.checked) expect(selectionRing, 'a focused selected option keeps its selection ring directly inside the focus ring').toMatchObject({ borderColor: tokens.primary, borderWidth: 2, top: 2 })
   else expect(selectionRing.borderColor).toBe('transparent')
   expect(tokens.fg1).not.toBe(tokens.primary)
 })

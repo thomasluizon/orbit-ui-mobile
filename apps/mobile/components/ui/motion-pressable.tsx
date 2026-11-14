@@ -45,8 +45,8 @@ export interface MotionPressableProps extends Omit<PressableProps, 'children' | 
   focusInset?: boolean
   focusOffset?: number
   focusColor?: ColorValue
-  /** Draws the selection ring of a selected or checked control. */
-  selectionRing?: boolean
+  /** Draws the selection ring of a selected or checked control at this width. */
+  selectionRingWidth?: number
   selectionRingColor?: ColorValue
   /** The ring colour at rest, such as a chip's hairline; transparent by default. */
   selectionRingRestColor?: ColorValue
@@ -57,7 +57,7 @@ export interface MotionPressableProps extends Omit<PressableProps, 'children' | 
  * target keeps its laid-out box, so the hit area, the focus ring and the hit slop stay whole. Reduced motion keeps the face at rest.
  */
 function useMotionPressableElement(
-  { static: isStatic = false, focusInset = false, focusOffset = FOCUS_OFFSET, focusColor, selectionRing = false, selectionRingColor, selectionRingRestColor,
+  { static: isStatic = false, focusInset = false, focusOffset = FOCUS_OFFSET, focusColor, selectionRingWidth, selectionRingColor, selectionRingRestColor,
     style, children, onPressIn, onPressOut, onFocus, onBlur, ...props }: Readonly<MotionPressableProps>,
   ref: ForwardedRef<View>,
   tokens: AppTokensV2,
@@ -80,8 +80,8 @@ function useMotionPressableElement(
       style={[target, focusShown ? { outlineWidth: 2, outlineOffset: focusOffset, outlineStyle: 'solid', outlineColor: focusColor ?? tokens.fg1 } : null]}
     >
       <PressScale pressed={pressed && !isStatic} disabled={Boolean(props.disabled)} style={[face, styles.face]}>
-        {selectionRing ? <SelectionRing shape={face} color={selectionRingColor ?? tokens.primary} restColor={selectionRingRestColor} shown={selected}
-          inset={focusShown ? focusRingInnerEdge(0, focusOffset, false) : 0} reducedMotion={reducedMotion} /> : null}
+        {selectionRingWidth === undefined ? null : <SelectionRing shape={face} width={selectionRingWidth} color={selectionRingColor ?? tokens.primary} restColor={selectionRingRestColor} shown={selected}
+          inset={focusShown ? focusRingInnerEdge(0, focusOffset, false) : 0} reducedMotion={reducedMotion} />}
         {typeof children === 'function' ? children({ pressed, focused }) : children}
       </PressScale>
     </Pressable>

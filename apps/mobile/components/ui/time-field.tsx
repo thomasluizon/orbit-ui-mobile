@@ -89,7 +89,7 @@ function TimeOption({
   })
   return (
     <GestureDetector gesture={tapGesture}><RadioItem selected={selected} onSelect={onSelect}>
-      <InsetFocusPressable selectionRing
+      <InsetFocusPressable selectionRingWidth={2}
         focusColor={tokens.fg1}
         accessibilityLabel={formattedValue}
         accessibilityRole="radio"
