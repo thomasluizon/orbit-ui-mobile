@@ -3,7 +3,7 @@
 import { useLayoutEffect, useState, ViewTransition, type ReactNode, type ViewTransitionInstance } from 'react'
 import { usePathname } from 'next/navigation'
 import { mediaQueryMatches } from '@/lib/media-query'
-import { resetRouteTransitionIntent, useRouteTransitionIntent } from '@/lib/motion/route-intent'
+import { resetRouteTransitionIntentIfCurrent, useRouteTransitionIntent } from '@/lib/motion/route-intent'
 import {
   animateTabViewTransition,
   resolveTabViewTransitionDirection,
@@ -27,8 +27,8 @@ export function TabViewTransition({ children }: Readonly<{ children: ReactNode }
     ? resolveTabViewTransitionDirection(route.previous, route.current, routeIntent.intent)
     : null
   useLayoutEffect(() => {
-    if (direction !== null) resetRouteTransitionIntent()
-  }, [direction])
+    if (direction !== null) resetRouteTransitionIntentIfCurrent(route.intentVersion)
+  }, [direction, route.intentVersion])
 
   return (
     <ViewTransition

@@ -1,7 +1,7 @@
 import { readdirSync, readFileSync } from 'node:fs'
 import { relative, resolve } from 'node:path'
 import postcss, { type Rule } from 'postcss'
-import type { ReactElement, ReactNode, ViewTransitionInstance, ViewTransitionProps } from 'react'
+import { useLayoutEffect, type ReactElement, type ReactNode, type ViewTransitionInstance, type ViewTransitionProps } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { act, render, screen } from '@testing-library/react'
 import { motionPresets } from '@orbit/shared/theme'
@@ -113,18 +113,20 @@ function webBundlePath(path: string) {
 function viewTransitionSources() {
   return WEB_BUNDLE_ROOTS.flatMap(productFiles)
     .filter((path) => /\.[cm]?[jt]sx?$/.test(path))
-    .filter((path) => /\bViewTransition\b|startViewTransition/.test(readFileSync(path, 'utf8')))
+    .filter((path) => /\bViewTransition\b|startViewTransition|@view-transition/.test(readFileSync(path, 'utf8')))
     .map(webBundlePath)
 }
 
+function webBundleStylesheets() {
+  return WEB_BUNDLE_ROOTS.flatMap(productFiles).filter((path) => path.endsWith('.css'))
+}
+
 function crossDocumentViewTransitionRules() {
-  return WEB_BUNDLE_ROOTS.flatMap(productFiles)
-    .filter((path) => path.endsWith('.css'))
-    .flatMap((path) => {
-      const rules: string[] = []
-      postcss.parse(readFileSync(path, 'utf8')).walkAtRules('view-transition', (rule) => { rules.push(`${webBundlePath(path)}: ${rule.toString()}`) })
-      return rules
-    })
+  return webBundleStylesheets().flatMap((path) => {
+    const rules: string[] = []
+    postcss.parse(readFileSync(path, 'utf8')).walkAtRules('view-transition', (rule) => { rules.push(`${webBundlePath(path)}: ${rule.toString()}`) })
+    return rules
+  })
 }
 
 function renderTodayShell() {
@@ -213,6 +215,41 @@ describe('TabViewTransition', () => {
     expect(captured.renders.map((props) => props.update)).toContain('orbit-tab-switch')
   })
 
+  it('clears a route intent that is not a tab press after the commit that used it', () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    const page = (path: string) => <TabViewTransition><RouteTransitionShell><main>{path}</main></RouteTransitionShell></TabViewTransition>
+    navigation.pathname = '/calendar'
+    const view = render(page('/calendar'))
+    act(() => setRouteTransitionIntent('forward'))
+    navigation.pathname = '/notifications'
+    view.rerender(page('/notifications'))
+    expect(getCurrentRouteTransitionIntent()).toBe('forward')
+
+    act(() => { vi.runOnlyPendingTimers() })
+    expect(getCurrentRouteTransitionIntent()).toBe('neutral')
+  })
+
+  it('keeps a newer tab press when the layout effect of the last tab switch runs after it', () => {
+    function TabPressBeforeLayoutEffect({ press }: Readonly<{ press: boolean }>) {
+      useLayoutEffect(() => {
+        if (press) setRouteTransitionIntent('tab')
+      }, [press])
+      return null
+    }
+    const page = (path: string, press: boolean) => <TabViewTransition><main>{path}</main><TabPressBeforeLayoutEffect press={press} /></TabViewTransition>
+    navigation.pathname = '/calendar'
+    const view = render(page('/calendar', false))
+    act(() => setRouteTransitionIntent('tab'))
+    navigation.pathname = '/'
+    view.rerender(page('/', true))
+    expect(getCurrentRouteTransitionIntent()).toBe('tab')
+
+    captured.renders = []
+    navigation.pathname = '/calendar'
+    view.rerender(page('/calendar', true))
+    expect(captured.renders.map((props) => props.update)).toContain('orbit-tab-switch')
+  })
+
   it('runs no tab switch for a pathname change that no tab press started', () => {
     expect(new Set(switchTabs('/calendar', '/', 'neutral'))).toEqual(new Set(['none']))
   })
@@ -277,6 +314,7 @@ describe('globals.css tab view transition', () => {
 
   it('scopes the tab switch rules to any active view transition because every one starts from the tab page boundary', () => {
     expect(viewTransitionSources()).toEqual(['components/motion/tab-view-transition.tsx'])
+    expect(webBundleStylesheets().map(webBundlePath)).toContain('app/globals.css')
     expect(crossDocumentViewTransitionRules()).toEqual([])
   })
 
