@@ -268,6 +268,7 @@ const caseRender = () => {
   T(`${TOOL}: render folds the other-ticket rows into one line for each class`, (all.match(/\| other-ticket \|/g) ?? []).length === 1 && /\| 5 files \| source \| other-ticket/.test(all) && !/src\/other-0\.ts/.test(all), all.slice(0, 200))
   T(`${TOOL}: render lists its parts on stdout`, result.stdout.trim().split("\n").length === parts.length)
   check(TOOL, "render refuses a --max-chars below 1000", ["--render", ledgerPath, "--repo", fixture.repository, "--base", fixture.base, "--out-dir", outDir, "--max-chars", "10"], { status: 2 })
+  check(TOOL, "render refuses a --max-chars above the GitHub comment limit of 65536", ["--render", ledgerPath, "--repo", fixture.repository, "--base", fixture.base, "--out-dir", outDir, "--max-chars", "65537"], { status: 2, stderr: /at most 65536/ })
 }
 
 const caseUsage = () => {

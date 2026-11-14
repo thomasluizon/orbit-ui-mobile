@@ -5,7 +5,10 @@ import { existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, realpathSy
 import { basename, dirname, extname, join, posix, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 
-// GitHub rejects a comment above this many characters. The value comes from a real post, not from memory.
+// GitHub rejects a longer comment body with "Body is too long (maximum is 65536 characters)". GitHub does not document
+// the limit; golang/build commit 823a5f2 records that error text, and github.com/dead-claudia/github-limits measured it.
+const GITHUB_COMMENT_LIMIT = 65536
+// The default part keeps a margin below that limit.
 const DEFAULT_MAX_CHARS = 60000
 // The hygiene finder of /prod-readiness judges at most this many candidates of one repository.
 const CANDIDATE_CAP = 300
@@ -103,7 +106,7 @@ const usage = () => `usage: file-ledger.mjs [--repo <path>] [--also-search <path
     --render <ledger>     the verified ledger
     --out-dir <dir>       folder for ledger-part-NN-of-MM.md (older files of this name are removed first)
     --base <commit>       base commit for the first line (default: the merge base with origin/main)
-    --max-chars <n>       longest part in characters (default: ${DEFAULT_MAX_CHARS})
+    --max-chars <n>       longest part in characters (default: ${DEFAULT_MAX_CHARS}; at most ${GITHUB_COMMENT_LIMIT}, the GitHub limit)
   The first line of each part names the repository, the part number, the count of parts and the two commit
   SHAs. Each row is in exactly one part. Rows with other-ticket fold to one line for each class.
 
@@ -946,7 +949,9 @@ const parseArguments = (argv) => {
   if (mode === "verify" && options["--base"] === undefined) throw new UsageError("--verify needs --base <commit>")
   if (mode === "render" && options["--out-dir"] === undefined) throw new UsageError("--render needs --out-dir <dir>")
   const maxChars = options["--max-chars"] === undefined ? DEFAULT_MAX_CHARS : Number(options["--max-chars"])
-  if (!Number.isInteger(maxChars) || maxChars < 1000) throw new UsageError("--max-chars must be an integer of at least 1000")
+  if (!Number.isInteger(maxChars) || maxChars < 1000 || maxChars > GITHUB_COMMENT_LIMIT) {
+    throw new UsageError(`--max-chars must be an integer of at least 1000 and at most ${GITHUB_COMMENT_LIMIT}`)
+  }
   return { mode, options, maxChars }
 }
 
