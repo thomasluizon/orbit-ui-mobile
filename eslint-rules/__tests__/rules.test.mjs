@@ -703,6 +703,9 @@ ruleTester.run('no-spinner', rule('no-spinner'), {
     "export { IconRefresh as RefreshCw } from '@tabler/icons-react'",
     'const habitId = 10n',
     'const turns = 360n',
+    'const wheel = withRepeat(withTiming(1), -1); const half = interpolate(progress.value, [0, 1], [0, 180])',
+    'const wheel = withRepeat(withTiming(1), -1); const share = interpolate(angle.value, [0, 360], [0, 1])',
+    'const listProps = { data: rows, renderItem: renderRow }; const list = <FlatList {...listProps} />',
   ],
   invalid: [
     { code: "import { ActivityIndicator, View } from 'react-native'", errors: [{ messageId: 'noSpinner' }] },
@@ -744,6 +747,11 @@ ruleTester.run('no-spinner', rule('no-spinner'), {
     { code: "const wheel = Animated.loop(Animated.timing(turn, { toValue: 1, useNativeDriver: true })); const rotate = turn.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] })", errors: [{ messageId: 'noSpinner' }] },
     { code: "const wheel = withRepeat(withTiming(1, { duration: 900 }), -1); const turn = '1turn'", errors: [{ messageId: 'noSpinner' }] },
     { code: "<div style={{ animation: 'spin 1s linear infinite' }} />", errors: [{ messageId: 'noSpinner' }] },
+    { code: 'turn.value = withRepeat(withTiming(1, { duration: 900 }), -1); const style = { transform: [{ rotate: `${interpolate(turn.value, [0, 1], [0, 360])}deg` }] }', errors: [{ messageId: 'noSpinner' }] },
+    { code: 'turn.value = withRepeat(withTiming(1), -1); const angle = Reanimated.interpolate(turn.value, [0, 1], [0, -360])', errors: [{ messageId: 'noSpinner' }] },
+    { code: 'const listProps = { data: rows, onRefresh: refetch, refreshing: busy }; const list = <FlatList {...listProps} />', errors: [{ messageId: 'visibleRefreshIndicator' }] },
+    { code: 'function Rows({ onRefresh }) { const base = { onRefresh }; const listProps = { ...base, data: rows }; return <Animated.FlatList {...listProps} /> }', errors: [{ messageId: 'visibleRefreshIndicator' }] },
+    { code: '<ScrollView {...{ onRefresh: refetch, refreshing: busy }} />', errors: [{ messageId: 'visibleRefreshIndicator' }] },
   ],
 })
 

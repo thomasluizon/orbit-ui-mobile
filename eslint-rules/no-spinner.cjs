@@ -37,6 +37,34 @@ function attributeNamed(opening, name) {
   return opening.attributes.find((attribute) => attribute.type === 'JSXAttribute' && attribute.name.name === name)
 }
 
+/** The `const` initializer a name resolves to in the scope of `node`, or `undefined` when it is a parameter or a `let`. */
+function constInitializer(sourceCode, node, name) {
+  for (let scope = sourceCode.getScope(node); scope; scope = scope.upper) {
+    const definition = scope.set.get(name)?.defs[0]
+    if (!definition) continue
+    return definition.type === 'Variable' && definition.parent.kind === 'const' ? definition.node.init ?? undefined : undefined
+  }
+  return undefined
+}
+
+/**
+ * Whether an object passes `key`: an object literal that names it, directly or through a spread of another `const`
+ * object literal. A spread of a parameter or of a call result is not read, so a list that takes `onRefresh` that way
+ * is not reported.
+ */
+function objectPasses(sourceCode, node, key, depth = 0) {
+  const object = node?.type === 'Identifier' ? constInitializer(sourceCode, node, node.name) : node
+  if (object?.type !== 'ObjectExpression' || depth > 4) return false
+  return object.properties.some((property) => property.type === 'SpreadElement'
+    ? objectPasses(sourceCode, property.argument, key, depth + 1)
+    : !property.computed && (property.key.type === 'Identifier' ? property.key.name : property.key.value) === key)
+}
+
+function passesAttribute(sourceCode, opening, name) {
+  return Boolean(attributeNamed(opening, name))
+    || opening.attributes.some((attribute) => attribute.type === 'JSXSpreadAttribute' && objectPasses(sourceCode, attribute.argument, name))
+}
+
 /** The static value of an attribute: a string, a number, a boolean, an array of those, or `undefined` when it is computed. */
 function staticValue(node) {
   if (!node) return undefined
@@ -95,11 +123,26 @@ function rendersRing(node) {
   }
 }
 
-/** A numeric full turn: `360` or `-360` as the first argument of a timing call or as the value of a rotation key. */
+/** Whether `turn` ends the output range of an `interpolate(value, input, output)` call, as Reanimated maps progress to degrees. */
+function endsInterpolatedOutput(turn) {
+  const range = turn.parent
+  if (range.type !== 'ArrayExpression' || range.elements.at(-1) !== turn) return false
+  const call = range.parent
+  if (call?.type !== 'CallExpression' || call.arguments[2] !== range) return false
+  const callee = call.callee
+  const name = callee.type === 'MemberExpression' && !callee.computed ? callee.property.name : callee.name
+  return name === 'interpolate'
+}
+
+/**
+ * A numeric full turn: `360` or `-360` as the first argument of a timing call, as the value of a rotation key, or as the
+ * end of an `interpolate` output range.
+ */
 function isNumericFullTurn(node) {
   const turn = node.parent?.type === 'UnaryExpression' && node.parent.operator === '-' ? node.parent : node
   const parent = turn.parent
   if (!parent) return false
+  if (parent.type === 'ArrayExpression') return endsInterpolatedOutput(turn)
   if (parent.type === 'CallExpression' && parent.arguments[0] === turn && parent.callee.type === 'Identifier') return TIMING_CALLS.has(parent.callee.name)
   if (parent.type !== 'Property' || parent.value !== turn) return false
   const key = parent.key.type === 'Identifier' ? parent.key.name : parent.key.value
@@ -158,7 +201,7 @@ module.exports = {
         const name = getElementName(node)
         if (spinnerName(name)) context.report({ node, messageId: 'noSpinner' })
         if (name?.split('.').pop() === 'RefreshControl' && !isHiddenRefreshControl(node)) context.report({ node, messageId: 'visibleRefreshIndicator' })
-        if (name && LIST_ELEMENT_RE.test(name) && attributeNamed(node, 'onRefresh')) context.report({ node, messageId: 'visibleRefreshIndicator' })
+        if (name && LIST_ELEMENT_RE.test(name) && passesAttribute(context.sourceCode, node, 'onRefresh')) context.report({ node, messageId: 'visibleRefreshIndicator' })
       },
       JSXElement(node) {
         if (isIndeterminateProgressbar(node.openingElement) && node.children.some(rendersRing)) context.report({ node: node.openingElement, messageId: 'noSpinner' })
