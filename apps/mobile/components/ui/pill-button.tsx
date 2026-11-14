@@ -167,9 +167,8 @@ export function PillLink({ onPress, children }: Readonly<{ onPress: () => void; 
 }
 
 /** A provider pill grows around a title that large text wraps and keeps its resting capsule radius, so no corner cuts the title. */
-function signInPillStyle(signIn: SignInButtonSpec): ViewStyle {
-  const { paddingX, paddingY, gap } = signIn
-  return { minHeight: SIGN_IN_BUTTON_HEIGHT, borderRadius: SIGN_IN_BUTTON_HEIGHT / 2, paddingVertical: paddingY, paddingHorizontal: paddingX, paddingStart: paddingX, paddingEnd: 'paddingEnd' in signIn ? signIn.paddingEnd : paddingX, gap }
+function signInPillStyle({ paddingX, paddingY, gap }: SignInButtonSpec): ViewStyle {
+  return { minHeight: SIGN_IN_BUTTON_HEIGHT, borderRadius: SIGN_IN_BUTTON_HEIGHT / 2, paddingVertical: paddingY, paddingHorizontal: paddingX, paddingStart: paddingX, gap }
 }
 
 /** A provider pill holds its mark in a slot of the resting content height at the top, so a wrapped title keeps the mark on its first line. */

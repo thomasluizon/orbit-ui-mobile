@@ -172,7 +172,9 @@ export function measureProfileRow(host: HostRow, width: number, scale: number, s
     return { height: layout.getComputedHeight(), boxes: boxes.map(({ node, testID }) => ({ testID, ...position(node) })), parts: parts.map(({ node, slot, style }) => ({ slot, style, ...position(node) })), controls: controls.map(({ node, labels, accessibilityLabel, contentIndexes, hitWidth, hitHeight }) => {
       const bounds = position(node)
       const content = contentIndexes.map((index) => position(node.getChild(index)))
-      return { labels, accessibilityLabel, ...bounds, targetWidth: bounds.width + hitWidth, targetHeight: bounds.height + hitHeight, inlineClearance: Math.min(Math.min(...content.map((child) => child.left)) - bounds.left, bounds.right - Math.max(...content.map((child) => child.right))) }
+      const startClearance = Math.min(...content.map((child) => child.left)) - bounds.left
+      const endClearance = bounds.right - Math.max(...content.map((child) => child.right))
+      return { labels, accessibilityLabel, ...bounds, targetWidth: bounds.width + hitWidth, targetHeight: bounds.height + hitHeight, startClearance, endClearance, inlineClearance: Math.min(startClearance, endClearance) }
     }), texts: texts.map(({ node, label, style, limit, textPixels }) => {
       const lines = wrappedLines(label, node.getComputedWidth(), style, textPixels(Number(style.fontSize ?? 17)) / Number(style.fontSize ?? 17))
       return { label, ...position(node), lines: Math.min(lines, limit ?? lines), clipped: limit !== undefined && lines > limit, lineHeightRatio: Number(style.lineHeight ?? Number(style.fontSize ?? 17) * 1.4) / Number(style.fontSize) }

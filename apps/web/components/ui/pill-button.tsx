@@ -33,15 +33,14 @@ function buttonStyle(size: ButtonSize, withinRow: boolean, { minimumHeight, icon
  * A provider pill grows around a title that large text wraps: the title follows the root text size, and the
  * pill keeps its resting capsule radius, so no corner cuts the title.
  */
-function signInPillStyle(signIn: SignInButtonSpec, titleSize: number): CSSProperties {
-  const { paddingX, paddingY, gap } = signIn
+function signInPillStyle({ paddingX, paddingY, gap }: SignInButtonSpec, titleSize: number): CSSProperties {
   return {
     height: undefined,
     minHeight: SIGN_IN_BUTTON_HEIGHT,
     borderRadius: SIGN_IN_BUTTON_HEIGHT / 2,
     paddingBlock: paddingY,
     paddingInlineStart: paddingX,
-    paddingInlineEnd: 'paddingEnd' in signIn ? signIn.paddingEnd : paddingX,
+    paddingInlineEnd: paddingX,
     gap,
     fontSize: `${titleSize / 16}rem`,
     whiteSpace: 'normal',

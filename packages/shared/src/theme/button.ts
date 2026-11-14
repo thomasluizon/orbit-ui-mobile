@@ -53,10 +53,12 @@ export const GOOGLE_SIGN_IN_BUTTON = { paddingX: 12, paddingY: SPACING.s4, gap: 
  * white button on a dark background and a black button on a light one.
  */
 export const APPLE_SIGN_IN_BUTTON = {
-  paddingX: GOOGLE_SIGN_IN_BUTTON.paddingX,
+  /**
+   * Apple's minimum margin between the title and the trailing edge is 8% of the button width. The leading
+   * edge gets the same inset, which Apple permits, so the logo and title stay centred.
+   */
+  paddingX: '8%',
   paddingY: 0,
-  /** Apple's minimum margin between the title and the button's trailing edge: 8% of the button width. */
-  paddingEnd: '8%',
   gap: 0,
   titleToHeight: 0.43,
   colors: { dark: { fill: '#FFFFFF', ink: '#000000' }, light: { fill: '#000000', ink: '#FFFFFF' } },

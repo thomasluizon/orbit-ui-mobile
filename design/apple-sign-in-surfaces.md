@@ -31,12 +31,15 @@ The [Human Interface Guidelines](https://developer.apple.com/design/human-interf
 say: "App Review evaluates all custom Sign in with Apple buttons." A custom button uses only Apple's
 logo artwork, a logo file as tall as the button, a black or white logo and title, the system's
 title-to-height proportion, and a margin of "at least 8% of the button's width" between the title
-and the trailing edge. `APPLE_SIGN_IN_BUTTON` in `packages/shared/src/theme/button.ts` holds the
-proportion, the margin and the two colour pairs. The busy state replaces the logo with the spinner,
-as it does for Google.
+and the trailing edge. The Android and web pills use 8% on both inline edges, so the logo and title
+stay centred, as on the Google pill. The guidelines permit the larger leading inset: "you can adjust
+the space between the logo and the button's leading edge." `APPLE_SIGN_IN_BUTTON` in
+`packages/shared/src/theme/button.ts` holds the proportion, the inset and the two colour pairs. The
+busy state replaces the logo with the spinner, as it does for Google.
 
-The web uses the Design Resources file. Section 2A of the license in Apple's
-`Logo-Sign-in-with-Apple.dmg` permits the artwork in apps that "run on Apple's iOS, macOS, watchOS,
+The web uses the Design Resources file. Section 2A of the Developer Artwork License Agreement for
+Sign in with Apple (the agreement that Apple's `Logo-Sign-in-with-Apple.dmg` shows when you open it)
+permits the artwork in apps that "run on Apple's iOS, macOS, watchOS,
 or tvOS operating system software (and corresponding web-based or other versions of your software
 applications that have the same title and substantially equivalent features and functionality as
 your software applications for Apple's iOS, macOS, watchOS, or tvOS)". Android uses the logo

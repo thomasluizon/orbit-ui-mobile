@@ -35,11 +35,10 @@ function renderBesideGoogle(props: { disabled: boolean; loading?: boolean; onPre
   return tree
 }
 
-/** The accessibility state of the view that wraps Apple's iPhone control. */
-function iPhoneControlState(tree: ReturnType<typeof TestRenderer.create>) {
-  const wrappers = tree.root.findAll((node: { props: { accessibilityState?: unknown }; findAllByType: (type: string) => unknown[] }) =>
-    node.props.accessibilityState !== undefined && node.findAllByType('NativeAppleButton').length === 1)
-  return wrappers[0]?.props.accessibilityState
+/** The view that wraps Apple's iPhone control: the element VoiceOver reads and activates. */
+function iPhoneAccessibilityElement(tree: ReturnType<typeof TestRenderer.create>) {
+  return tree.root.findAll((node: { type: unknown; props: { accessible?: boolean }; findAllByType: (type: string) => unknown[] }) =>
+    node.type === View && node.props.accessible === true && node.findAllByType('NativeAppleButton').length === 1)[0]!
 }
 
 describe('Apple sign-in controls', () => {
@@ -66,20 +65,27 @@ describe('Apple sign-in controls', () => {
     TestRenderer.act(() => tree.unmount())
   })
 
-  it('blocks a disabled iPhone action', () => {
+  it('blocks a disabled iPhone action, for a tap and for VoiceOver', () => {
     vi.stubEnv('EXPO_PUBLIC_APPLE_CLIENT_ID', 'client-id')
     const onPress = vi.fn()
     const tree = renderBesideGoogle({ disabled: true, onPress })
     TestRenderer.act(() => tree.root.findByType('NativeAppleButton').props.onPress())
+    TestRenderer.act(() => iPhoneAccessibilityElement(tree).props.onAccessibilityTap())
     expect(onPress).not.toHaveBeenCalled()
-    expect(iPhoneControlState(tree)).toEqual({ disabled: true, busy: false })
+    expect(iPhoneAccessibilityElement(tree).props.accessibilityState).toEqual({ disabled: true, busy: false })
     TestRenderer.act(() => tree.unmount())
   })
 
-  it('reports a starting iPhone sign-in as busy to assistive technology', () => {
+  it('gives VoiceOver one Apple button that reads busy while sign-in starts and starts it on activation', () => {
     vi.stubEnv('EXPO_PUBLIC_APPLE_CLIENT_ID', 'client-id')
-    const tree = renderBesideGoogle({ disabled: true, loading: true, onPress: vi.fn() })
-    expect(iPhoneControlState(tree)).toEqual({ disabled: true, busy: true })
+    const onPress = vi.fn()
+    let tree = renderBesideGoogle({ disabled: true, loading: true, onPress })
+    expect(iPhoneAccessibilityElement(tree).props).toMatchObject({ accessibilityRole: 'button', accessibilityLabel: 'auth.signInWithApple', accessibilityState: { disabled: true, busy: true } })
+    TestRenderer.act(() => tree.unmount())
+    tree = renderBesideGoogle({ disabled: false, onPress })
+    expect(iPhoneAccessibilityElement(tree).props.accessibilityState).toEqual({ disabled: false, busy: false })
+    TestRenderer.act(() => iPhoneAccessibilityElement(tree).props.onAccessibilityTap())
+    expect(onPress).toHaveBeenCalledOnce()
     TestRenderer.act(() => tree.unmount())
   })
 
@@ -124,7 +130,10 @@ describe('Apple sign-in controls', () => {
       expect(title.top).toBeGreaterThanOrEqual(pill.top)
       expect(title.bottom).toBeLessThanOrEqual(pill.bottom)
       if (label === words.auth.signInWithApple) expect(pill.right - title.right, 'Apple title keeps 8% of the width before the trailing edge').toBeGreaterThanOrEqual(pill.width * 0.08 - LAYOUT_UNIT)
-      if (fontScale === 1) expect({ height: pill.height, lines: title.lines }, `${label} rests on one line`).toEqual({ height: SMALL_PILL_VISIBLE_MIN, lines: 1 })
+      if (fontScale === 1) {
+        expect({ height: pill.height, lines: title.lines }, `${label} rests on one line`).toEqual({ height: SMALL_PILL_VISIBLE_MIN, lines: 1 })
+        expect(Math.abs(pill.startClearance - pill.endClearance), `${label} mark and title rest centred`).toBeLessThanOrEqual(LAYOUT_UNIT)
+      }
     }
     TestRenderer.act(() => tree.unmount())
   })

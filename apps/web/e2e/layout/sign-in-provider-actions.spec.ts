@@ -8,6 +8,7 @@ import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { APPLE_SIGN_IN_BUTTON, SMALL_PILL_VISIBLE_MIN } from '@orbit/shared/theme'
 import { test } from './layout-test'
+import { loadAppFonts } from '../../__tests__/support/app-fonts'
 
 /** Chromium lays out boxes in 1/64 px units. */
 const LAYOUT_UNIT = 1 / 64
@@ -36,6 +37,7 @@ test.beforeAll(async () => {
 async function readAction(action: Locator) {
   return action.evaluate((pill) => {
     const label = pill.querySelector(':scope > span:not([aria-hidden])')!
+    const markSlot = pill.querySelector(':scope > span[aria-hidden]')!.getBoundingClientRect()
     const mark = pill.querySelector('svg')!.getBoundingClientRect()
     const box = pill.getBoundingClientRect()
     const text = label.getBoundingClientRect()
@@ -44,9 +46,11 @@ async function readAction(action: Locator) {
       height: box.height,
       radius: Math.min(Number.parseFloat(getComputedStyle(pill).borderTopLeftRadius), box.height / 2),
       fontSize: Number.parseFloat(style.fontSize),
+      fontFamily: style.fontFamily,
       lines: Math.round(text.height / Number.parseFloat(style.lineHeight)),
       markHeight: mark.height,
       markTop: mark.top - box.top,
+      startGap: markSlot.left - box.left,
       endMargin: box.right - text.right,
       width: box.width,
       clipped: label.scrollWidth > label.clientWidth || text.left < box.left || text.right > box.right || text.top < box.top || text.bottom > box.bottom,
@@ -63,6 +67,7 @@ async function openSignIn(page: Page, locale: string) {
   }))
   await page.goto(fixtureUrl)
   await page.addScriptTag({ content: fixtureScript })
+  await loadAppFonts(page)
 }
 
 for (const width of [320, 360, 412]) {
@@ -76,6 +81,8 @@ for (const width of [320, 360, 412]) {
         await expect(apple).toBeVisible()
 
         const [appleAtRest, googleAtRest] = [await readAction(apple), await readAction(google)]
+        expect(await page.evaluate(() => document.fonts.check('500 19px Geist')), 'the titles render in Geist').toBe(true)
+        expect(appleAtRest.fontFamily, 'the titles render in Geist').toMatch(/^"?Geist"?,/)
         expect(appleAtRest.height, 'Apple pill rests at the small pill height').toBe(SMALL_PILL_VISIBLE_MIN)
         expect(googleAtRest.height, 'Google pill rests at the small pill height').toBe(SMALL_PILL_VISIBLE_MIN)
         expect(appleAtRest.fontSize, 'Apple title follows Apple\'s title-to-height rule').toBe(Math.round(SMALL_PILL_VISIBLE_MIN * APPLE_SIGN_IN_BUTTON.titleToHeight))
@@ -84,6 +91,7 @@ for (const width of [320, 360, 412]) {
           expect(action.radius, `${name} pill is a capsule`).toBe(SMALL_PILL_VISIBLE_MIN / 2)
           expect(action.lines, `${name} title holds one line at default text`).toBe(1)
           expect(action.clipped, `${name} title is whole at default text`).toBe(false)
+          expect(Math.abs(action.startGap - action.endMargin), `${name} mark and title rest centred`).toBeLessThanOrEqual(LAYOUT_UNIT)
         }
 
         await page.evaluate(() => { document.documentElement.style.fontSize = '200%' })
