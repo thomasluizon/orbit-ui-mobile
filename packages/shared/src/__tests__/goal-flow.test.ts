@@ -54,4 +54,10 @@ describe('goal flow', () => {
     expect(getGoalFlowStepError('amount', { description: 'Read', targetValue: '12', unit: 'books' })).toBeNull()
     expect(getGoalFlowStepError('deadline', empty)).toBeNull()
   })
+
+  it('lets an edit keep an empty title, as the edit modal builds one from the target and the unit', () => {
+    const empty = { description: '', targetValue: '12', unit: 'books' }
+    expect(getGoalFlowStepError('what', empty, 'edit')).toBeNull()
+    expect(getGoalFlowStepError('what', { ...empty, description: 'x'.repeat(201) }, 'edit')).toEqual({ field: 'description', key: 'goals.form.titleTooLong' })
+  })
 })

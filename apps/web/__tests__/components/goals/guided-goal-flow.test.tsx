@@ -381,6 +381,16 @@ describe('the guided goal edit flow', () => {
     expect(onOpenChange).toHaveBeenCalledWith(false)
   })
 
+  it('keeps an empty title in an edit and saves the title the current modal builds from the target and the unit', async () => {
+    renderWith('en', <EditGoalModal open onOpenChange={vi.fn()} goal={goal} />)
+    await press(/^Your goal/)
+    await type('What do you want to reach?', '')
+    await press('Continue')
+    expect(heading()).toHaveTextContent('Is this right?')
+    await press('Save')
+    expect(mocks.update).toHaveBeenCalledWith({ goalId: 'g1', data: { title: '100 km', targetValue: 100, unit: 'km', deadline: '2026-12-31' } })
+  })
+
   it('closes an unchanged edit with no discard prompt', async () => {
     const onOpenChange = vi.fn()
     renderWith('pt-BR', <EditGoalModal open onOpenChange={onOpenChange} goal={goal} />)

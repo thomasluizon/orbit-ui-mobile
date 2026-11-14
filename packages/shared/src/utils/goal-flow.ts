@@ -65,11 +65,14 @@ export interface GoalFlowStepError {
   key: string
 }
 
-/** The hint a step shows on an empty or invalid continue. The same keys the current form shows for the same values. */
-export function getGoalFlowStepError(step: GoalFlowStep, draft: GoalFlowStepDraft): GoalFlowStepError | null {
+/**
+ * The hint a step shows on an empty or invalid continue. The same keys the current form shows for the same values:
+ * the create sheet requires a title, and the edit modal builds one from the target and the unit when it is empty.
+ */
+export function getGoalFlowStepError(step: GoalFlowStep, draft: GoalFlowStepDraft, mode: GoalFlowOptions['mode'] = 'create'): GoalFlowStepError | null {
   if (step === 'what') {
     const description = draft.description.trim()
-    if (description.length === 0) return { field: 'description', key: 'goals.form.titleRequired' }
+    if (description.length === 0) return mode === 'create' ? { field: 'description', key: 'goals.form.titleRequired' } : null
     return description.length > MAX_GOAL_TITLE_LENGTH ? { field: 'description', key: 'goals.form.titleTooLong' } : null
   }
   if (step !== 'amount') return null

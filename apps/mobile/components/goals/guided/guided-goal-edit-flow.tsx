@@ -35,7 +35,7 @@ function GoalEditRun({ goal, onClose, onSaved }: Readonly<GuidedGoalEditFlowProp
   const flow = useGuidedGoalFlow({ mode: 'edit', fromHabit: false })
   const [formError, setFormError] = useState('')
   const [draft, setDraft] = useState(() => createGoalEditDraft(goal))
-  const hints = useStepHints(draft, flow)
+  const hints = useStepHints(draft, flow, 'edit')
   const port = editPort(goal, draft, (change) => { hints.clear(); setDraft((current) => ({ ...current, ...change })) })
   const discard = useDismissGuard({ isDirty: isGoalEditDirty(draft, goal), onDismiss: onClose })
   const save = async () => {

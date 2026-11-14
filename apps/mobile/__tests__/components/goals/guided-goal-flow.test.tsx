@@ -324,6 +324,18 @@ describe('the guided goal edit flow on Android', () => {
     tree.unmount()
   })
 
+  it('keeps an empty title in an edit and saves the title the current modal builds from the target and the unit', async () => {
+    await i18n.changeLanguage('en')
+    const tree = renderNavigation(<EditGoalModal open onClose={vi.fn()} goal={goal} />)
+    await tap(tree, /^Your goal/)
+    await type(tree, 'What do you want to reach?', '')
+    await tap(tree, 'Continue')
+    expect(heading(tree)).toBe('Is this right?')
+    await tap(tree, 'Save')
+    expect(mocks.update).toHaveBeenCalledWith({ goalId: 'g1', data: { title: '100 km', targetValue: 100, unit: 'km', deadline: '2026-12-31' } })
+    tree.unmount()
+  })
+
   it('closes an unchanged edit with no discard prompt and asks before it drops a change', async () => {
     const onClose = vi.fn()
     const tree = renderNavigation(<EditGoalModal open onClose={onClose} goal={goal} />)

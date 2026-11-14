@@ -14,12 +14,12 @@ import type { GuidedGoalFlowNavigation } from './use-guided-goal-flow'
 export interface SavedGoal { goalId: string; title: string; deadline: string }
 
 /** The hint state of the flow: a step validates its answer and shows the hint of the current form beside the field. */
-export function useStepHints(draft: Pick<GoalDraftPort, 'description' | 'targetValue' | 'unit'>, flow: GuidedGoalFlowNavigation) {
+export function useStepHints(draft: Pick<GoalDraftPort, 'description' | 'targetValue' | 'unit'>, flow: GuidedGoalFlowNavigation, mode: 'create' | 'edit' = 'create') {
   const t = useTranslations()
   const [hint, setHint] = useState<GoalStepHint | null>(null)
   const show = (error: GoalFlowStepError) => setHint((current) => ({ field: error.field, message: t(error.key), request: (current?.request ?? 0) + 1 }))
   const submit = (step: GoalFlowStep) => {
-    const error = getGoalFlowStepError(step, draft)
+    const error = getGoalFlowStepError(step, draft, mode)
     if (error) { show(error); return }
     setHint(null)
     flow.advance()
