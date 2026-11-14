@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { enableTestFlags } from '@orbit/shared/test-support/flag-state'
 import { render, screen, fireEvent } from '@testing-library/react'
 import { StrictMode } from 'react'
 
@@ -67,6 +68,16 @@ describe('ExpiryWarning', () => {
     const action = screen.getByRole('button', { name: 'auth.login' })
     expect(action).toHaveAttribute('data-size', 'sm')
     expect(action).toHaveAttribute('data-variant', 'ghost')
+  })
+
+  it.each([false, true])('keeps the message and the sign in action, and shows Orbit in Parado only with the guided flows on (%s)', (guided) => {
+    if (guided) enableTestFlags('orbit_guided_flows')
+    mockSessionRefreshFailed = true
+    render(<ExpiryWarning />)
+    expect(screen.getByText('auth.sessionSignedOut')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'auth.login' })).toBeInTheDocument()
+    expect(document.querySelectorAll('[data-orbit-face="rig"][data-orbit-state="parado"]')).toHaveLength(guided ? 1 : 0)
+    expect(document.querySelector('[data-orbit-state="feliz"]')).toBeNull()
   })
 
   it('navigates through logout when sign in is clicked', () => {

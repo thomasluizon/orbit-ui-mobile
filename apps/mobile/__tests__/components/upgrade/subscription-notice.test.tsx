@@ -1,6 +1,8 @@
 import React from 'react'
+import { enableTestFlags } from '@orbit/shared/test-support/flag-state'
 import { describe, expect, it, vi } from 'vitest'
 import type { SubscriptionStatus } from '@orbit/shared/types/profile'
+import { renderedText } from '@/__tests__/support/react-test-renderer'
 import { SubscriptionNotice } from '@/components/upgrade/subscription-notice'
 import { UsageCard } from '@/components/upgrade/usage-card'
 import type { UpgradeTextFn } from '@/components/upgrade/types'
@@ -52,6 +54,26 @@ describe('lapsed subscription notice (mobile)', () => {
     expect(text).toContain('upgrade.billing.lapsed.lostMessages:')
     expect(text).toContain('limit\\":5')
     expect(UsageCard).not.toHaveBeenCalled()
+  })
+
+  it.each([false, true])('keeps the notice and its action, and shows Orbit in Parado only with the guided flows on (%s)', (guided) => {
+    if (guided) enableTestFlags('orbit_guided_flows')
+    const onResubscribe = vi.fn()
+    let tree: import('react-test-renderer').ReactTestRenderer | undefined
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(<SubscriptionNotice status={status} locale="en" onResubscribe={onResubscribe} t={t} tokens={tokens} />)
+    })
+    const hosts = tree!.root.findAll((node) => typeof node.type === 'string')
+    const text = hosts.filter((node) => node.type === 'Text').map((node) => renderedText(node)).join(' ')
+    expect(text).toContain('upgrade.billing.lapsed.title')
+    expect(text).toContain('upgrade.billing.lapsed.paymentFix')
+    const rigs = hosts.filter((node) => node.props['data-orbit-face'] === 'rig')
+    expect(rigs.map((node) => node.props['data-orbit-state'] as string)).toEqual(guided ? ['parado'] : [])
+    expect(hosts.some((node) => node.props['data-orbit-state'] === 'feliz')).toBe(false)
+    const action = hosts.find((node) => typeof node.props.onPress === 'function' && renderedText(node) === 'upgrade.billing.lapsed.action')!
+    TestRenderer.act(() => { (action.props.onPress as () => void)() })
+    expect(onResubscribe).toHaveBeenCalledTimes(1)
+    TestRenderer.act(() => tree!.unmount())
   })
 
   it('lists each lost entitlement separately with the current message allowance', () => {

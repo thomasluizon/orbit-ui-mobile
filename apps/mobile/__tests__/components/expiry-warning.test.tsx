@@ -1,4 +1,5 @@
 import React from 'react'
+import { enableTestFlags } from '@orbit/shared/test-support/flag-state'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { AppState, StyleSheet, type AppStateStatus } from 'react-native'
 import { I18nextProvider } from 'react-i18next'
@@ -390,6 +391,15 @@ describe('ExpiryWarning', () => {
     expect(mocks.clearSessionAndResetAuth).not.toHaveBeenCalled()
     expect(mocks.authState.isAuthenticated).toBe(false)
     expect(hostNodes(instance, 'View')).toHaveLength(0)
+  })
+
+  it.each([false, true])('keeps the message and its action, and shows Orbit in Parado only with the guided flows on (%s)', async (guided) => {
+    if (guided) enableTestFlags('orbit_guided_flows')
+    const instance = await renderExpiredWarning()
+    expect(renderedText(instance)).toContain(i18n.t('auth.sessionRefreshFailed'))
+    expect(action(instance, i18n.t('auth.refresh'))).toBeDefined()
+    const rigs = instance.root.findAll((node) => typeof node.type === 'string' && node.props['data-orbit-face'] === 'rig')
+    expect(rigs.map((node) => node.props['data-orbit-state'] as string)).toEqual(guided ? ['parado'] : [])
   })
 
   it('keeps recovery available when a server failure is retryable', async () => {
