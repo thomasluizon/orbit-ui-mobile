@@ -88,15 +88,7 @@ const OWN_BOX_PRESS_SCALE = /(?:^|[\s"'`])motion-safe:(?:enabled:)?active:scale-
 /** The unscaled hit layer: `.press-hit-layer`, or the pill base and the chip, which carry it. */
 const HIT_LAYER_CLASS = /(?:^|[\s"'`])(?:press-hit-layer|chip|orbit-pill-action)(?:[\s"'`]|$)/
 
-/** Control families that still scale their own target; each later commit of this change moves one family onto the hit layer. */
-const PENDING_HIT_LAYER = new Set([
-                  'components/habits/habit-form-fields/reminder-section.tsx', 'components/habits/habit-form-fields/scheduled-reminder-section.tsx',
-  'components/habits/habit-form-fields/tag-editor-row.tsx', 'components/habits/habit-form-fields/tag-picker-field.tsx',
-  'components/habits/habit-form-fields/habit-understanding.tsx', 'components/habits/create-habit-modal/sub-habit-editor.tsx',
-  'components/onboarding/onboarding-create-habit.tsx',
-])
-
-const ownBoxPressElements = pressScaleElements.filter(({ path, line }) => !FRAGMENT_FILES.includes(path) && !PENDING_HIT_LAYER.has(path)
+const ownBoxPressElements = pressScaleElements.filter(({ path, line }) => !FRAGMENT_FILES.includes(path)
   && OWN_BOX_PRESS_SCALE.test(sources.find((source) => source.path === path)!.lines[line - 1]!))
 
 function rulesWith(selector: string): Rule[] {

@@ -123,7 +123,7 @@ export function ChecklistTemplates({ items, onLoad }: Readonly<ChecklistTemplate
           />
           <button
             type="button"
-            className="press-hit-layer habit-control-motion shrink-0 rounded-full bg-[var(--primary)] text-[var(--fg-on-primary)] disabled:opacity-40 enabled:hover:bg-[var(--primary-hover)] enabled:active:bg-[var(--primary-pressed)] motion-safe:enabled:active:scale-[0.96]"
+            className="habit-control-motion press-hit-layer shrink-0 rounded-full bg-[var(--primary)] text-[var(--fg-on-primary)] disabled:opacity-40 enabled:hover:bg-[var(--primary-hover)] enabled:active:bg-[var(--primary-pressed)] motion-safe:enabled:active:scale-[0.96]"
             style={{
               padding: "var(--orbit-space-8) var(--orbit-space-12)",
               fontFamily: 'var(--font-sans)',
@@ -138,7 +138,7 @@ export function ChecklistTemplates({ items, onLoad }: Readonly<ChecklistTemplate
           </button>
           <button
             type="button"
-            className="press-hit-layer habit-control-motion shrink-0 grid size-[var(--touch-min)] place-items-center rounded-full text-[var(--fg-3)] enabled:hover:bg-[var(--bg-hover)] enabled:hover:text-[var(--fg-1)] enabled:active:bg-[var(--bg-hover)] motion-safe:enabled:active:scale-[0.96]"
+            className="habit-control-motion press-hit-layer shrink-0 grid size-[var(--touch-min)] place-items-center rounded-full text-[var(--fg-3)] enabled:hover:bg-[var(--bg-hover)] enabled:hover:text-[var(--fg-1)] enabled:active:bg-[var(--bg-hover)] motion-safe:enabled:active:scale-[0.96]"
             onClick={cancelEditor}
             aria-label={t('common.close')}
           >
