@@ -20,15 +20,15 @@ UI `main` `4afd790f0` (on production web); API `main` `de4a8db30`; landing `main
 
 | Item | Disposition |
 | --- | --- |
-| `#2074` UI | Worker on the worker account (Fable 5.2) fixes both review files in worktree `ticket-2074-round-time` → `fix-ui-2074-r1-result.md`. Outcome unknown: read `git log` there first. Then read the diff, push, open the pull request (`body-ui-2074-final.md`), chain. No protection change. |
+| `#2074` UI | Worker done (worker account, Fable 5.2): `7e7143319`, every review finding fixed, not pushed. One narrow review of `1be26f362..7e7143319`, then push, open the pull request (`body-ui-2074-final.md`), chain. No protection change. |
 | `#2074` API | Fixed at `9878b61ab` (api worktree `ticket-2074-round-time`, not pushed), all suites green (`fix-api-2074-result.md`). Read the diff, push, open the pull request (`body-api-2074-final.md`), chain; protection before and after the merge as the result file lists. |
 | `#2074` landing | `e5672b4`, ready. After `landing#134` merges: base-merge, push, open, protection, chain. |
-| `landing#134` | Local `7e212b0` moves Vite into Astro's range (graph 23,447 bytes). Narrow review → `narrow-review-landing-134-vite.md`. Then push to the Dependabot branch, resolve `PRRT_kwDORqm3lM63bF7U` with `reply-landing-134-vite.md`, chain, merge, landing release. |
-| `ui#2444` (`#2119`) | Pushed `1e8be67a1`, threads resolved. Start `chain-review.sh ui 2444`; merge at approval; retarget `ui#2450` to `main`. |
+| `landing#134` | Local `7e212b0` moves Vite into Astro range; review: delete the dead pricing spreads `src/i18n/translations.ts:212` and `:344`, then push, resolve `PRRT_kwDORqm3lM63bF7U` (`reply-landing-134-vite.md`), chain, merge, landing release. |
+| `ui#2444` (`#2119`) | Pushed `1e8be67a1`, CI red: `tools/__tests__/orchestrator-config.mjs:295` must also stage `tools/lib/doc-references.mjs`. Fix, push, chain; merge at approval; retarget `ui#2450` to `main`. |
 | `ui#2447` (`#2131`) | Local `335d7e42e` (Turnstile retry). One narrow review, push, resolve the thread from the last section of `report-ui-2447-r3.md`, staging web, device proof (Android first), chain. |
-| `ui#2448` (`#2132`) | Fix agent result `fix-2448-flakes-result.md` (outcome unknown). Read, push, Windows installed proof, chain. |
-| `api#1111` (`#2129`) | Fix agent result `fix-api-1111-r8-result.md` (outcome unknown). Read, body, resolve, push, chain. |
-| `ui#2450` (`#2120`) | Fix agent with the critic and review lists → `fix-2120-critic2-result.md` (outcome unknown). Read, push, merge up the stack. |
+| `ui#2448` (`#2132`) | Local `26dfa52b3`: both flaky tests fixed, `main` merged. Read, push, Windows installed proof, chain. |
+| `api#1111` (`#2129`) | Local `0f61b4d55`: all 4 findings fixed, suites green. Fix the emoji-only title guard (`ProcessUserChatCommand.Resolution.cs:281`), one narrow review, body, resolve, push, chain. |
+| `ui#2450` (`#2120`) | Local `87d13b5ae`: every critic gap and review finding fixed. Read the diff, finding 10 of `local-review-ui-2450.md`, push, merge up the stack. |
 | `ui#2451`, `ui#2453` | `#2121` local `bb361d3a7`; `#2122` local `c46822fbe` (holds `#2121`). Next: `#2122` Parts 5, 6, 7 as worker part builds. |
 | `ui#2388` | This relay's docs branch. Never request a review for it. |
 
