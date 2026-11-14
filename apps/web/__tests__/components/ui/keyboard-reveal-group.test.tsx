@@ -8,6 +8,7 @@ const FULL_HEIGHT = 667
 const KEYBOARD_OPEN_HEIGHT = 380
 
 class FakeVisualViewport extends EventTarget {
+  width = 375
   height = FULL_HEIGHT
   scale = 1
   resizeTo(height: number, scale = 1) {

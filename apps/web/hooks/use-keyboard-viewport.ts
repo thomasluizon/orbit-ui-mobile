@@ -37,18 +37,21 @@ export function needsKeyboardViewportResize(viewport: VisualViewport) {
   return viewport.scale === 1 && viewport.height < document.documentElement.clientHeight
 }
 
-const fullViewportHeights = new WeakMap<VisualViewport, number>()
+const fullViewportHeights = new WeakMap<VisualViewport, { width: number, fullHeight: number }>()
 
 /**
  * Whether an on-screen keyboard covers part of the page at zoom 1: the visual viewport is shorter than the layout
- * viewport (iOS) or than the tallest zoom-1 height any caller saw on this page (Android, where the keyboard shortens
- * both). Every call records that height, so a caller that mounts while the Android keyboard is open still sees it open.
+ * viewport (iOS) or than the tallest zoom-1 height any caller saw at the current width (Android, where the keyboard
+ * shortens both). Every call records that height, so a caller that mounts while the Android keyboard is open still
+ * sees it open. A keyboard changes the height only, so a new width (a rotation or a window resize) starts a new record.
  */
 export function isKeyboardViewportOpen(viewport: VisualViewport) {
   if (viewport.scale !== 1) return false
-  const fullHeight = Math.max(fullViewportHeights.get(viewport) ?? 0, viewport.height)
-  fullViewportHeights.set(viewport, fullHeight)
-  return viewport.height < Math.max(fullHeight, document.documentElement.clientHeight)
+  const { width, height } = viewport
+  const record = fullViewportHeights.get(viewport)
+  const fullHeight = record?.width === width ? Math.max(record.fullHeight, height) : height
+  fullViewportHeights.set(viewport, { width, fullHeight })
+  return height < Math.max(fullHeight, document.documentElement.clientHeight)
 }
 
 function revealField(root: HTMLElement, viewport: VisualViewport) {

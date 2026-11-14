@@ -17,6 +17,7 @@ const check = <div data-testid="check" />
 const scrollIntoView = vi.fn()
 
 class FakeVisualViewport extends EventTarget {
+  width = 375
   height = 667
   scale = 1
 }
