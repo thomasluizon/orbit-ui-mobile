@@ -45,7 +45,7 @@ describe('sidebar account menu geometry in Chromium', () => {
       '@sentry/nextjs': 'export const captureException = error => { throw error; };',
       '@/components/ui/sheet': "export { Sheet, useSheetHost } from './__tests__/support/sheet-double';",
       '@/hooks/use-habit-search': "export const useHabitSearch = () => ({ text: '', query: '', changeText: () => {} });",
-      'next/navigation': 'export const useRouter = () => ({ push() {}, back() { document.documentElement.dataset.searchBack = "true"; } });',
+      'next/navigation': 'export const useRouter = () => ({ push() {}, back() { document.documentElement.dataset.searchBack = "true"; } }); export const usePathname = () => "/profile";',
     })
   })
   afterAll(async () => { await closeChrome(launch) }, 30_000)

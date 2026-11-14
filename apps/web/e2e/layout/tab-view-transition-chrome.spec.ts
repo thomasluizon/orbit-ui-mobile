@@ -15,7 +15,6 @@ declare global {
 }
 
 const TAB_PAGE_LEG = '(orbit-tab-page)'
-const TAB_BACK_TYPE = 'orbit-tab-back'
 const SHELL_SCROLLER = '[data-shell-scroller]'
 const SAMPLE = 24
 const LEAVING_SCROLL_OFFSET = 40
@@ -33,10 +32,10 @@ async function seedHabits(context: BrowserContext, count: number) {
 }
 
 async function recordLeavingScrollOffset(page: Page) {
-  await page.evaluate(({ type, scrollerSelector }) => {
+  await page.evaluate((scrollerSelector) => {
     const start = document.startViewTransition.bind(document)
     document.startViewTransition = (options) => {
-      if (typeof options !== 'object' || !options.types?.includes(type)) return start(options)
+      if (typeof options !== 'object') return start(options)
       return start({
         ...options,
         update: () => {
@@ -45,7 +44,7 @@ async function recordLeavingScrollOffset(page: Page) {
         },
       })
     }
-  }, { type: TAB_BACK_TYPE, scrollerSelector: SHELL_SCROLLER })
+  }, SHELL_SCROLLER)
 }
 
 async function holdTabLegsAtMidpoint(page: Page) {

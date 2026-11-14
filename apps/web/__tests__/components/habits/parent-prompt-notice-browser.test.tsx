@@ -68,7 +68,7 @@ describe('parent undo presentation with mounted modal transitions', () => {
     script = bundleGeometry(entry, {
       'next/dynamic': "export { default } from 'next/dist/shared/lib/app-dynamic';",
       '@/hooks/use-time-format': 'export const useTimeFormat = () => ({displayTime: value => value});',
-      'next/navigation': "export { unstable_isUnrecognizedActionError } from 'next/dist/client/components/unrecognized-action-error'; export const useRouter = () => ({push: () => {}});",
+      'next/navigation': "export { unstable_isUnrecognizedActionError } from 'next/dist/client/components/unrecognized-action-error'; export const useRouter = () => ({push: () => {}}); export const usePathname = () => '/';",
     })
   }, 60_000)
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
