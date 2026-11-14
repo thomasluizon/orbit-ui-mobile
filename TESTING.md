@@ -240,6 +240,15 @@ With the flag `orbit_guided_flows` on, the multi-field Perfil surfaces run on th
 - `apps/mobile/__tests__/components/profile/perfil-flow-centre-geometry.test.tsx` measures each Perfil flow block centre within 1 px of the free area centre at 320, 360, 384 and 412.
 - `packages/shared/src/__tests__/profile-routes.test.ts`, `packages/shared/src/__tests__/astra-offers.test.ts`, `apps/web/__tests__/pages/profile-legacy-redirects.test.ts` and `apps/mobile/__tests__/screens/profile-legacy-redirects.test.tsx` cover the AI settings slug `/profile/ai` and every redirect source, including `/profile/astra`. The Rust tests in `apps/desktop/src-tauri/src/links.rs` cover both slugs in the desktop allowlist.
 
+### Guided onboarding
+
+With the flag `orbit_guided_flows` on, onboarding runs the Orbit intro and then one question at a time on the guided flow primitives. Every suite also proves the current onboarding with the flag off, and the behavior scenarios run in `en` and `pt-BR`.
+
+- `apps/web/__tests__/components/onboarding/guided-onboarding-flow.test.tsx` and `apps/mobile/__tests__/components/onboarding/guided-onboarding-flow.test.tsx` mount the real `OnboardingFlow` with the flag on: the three intro screens before the first question, skip from each intro screen and no second intro, the phrase that goes straight to the summary, the open schedule that asks how it repeats, the starter that fills and advances, a summary value that opens its step and returns, the kept habit and retry after a failed create, the two reminder answers, the result dialog sentence from the saved schedule with the completed event, the Pro step on the free plan, the account link before sign-in, the unchanged create and suggestion requests, and the still intro sentence under reduced motion.
+- `apps/web/__tests__/components/onboarding/guided-onboarding-layout.test.tsx` (Chromium) holds each intro title and action label on one line, the first question in two lines at most and no clipped body sentence, and centres the block, at 320, 360, 384 and 412 in both locales.
+- `apps/mobile/__tests__/components/onboarding/guided-onboarding-geometry.test.tsx` measures the intro and first question block centre within 1 px of the free area centre at 320, 360, 384 and 412.
+- `packages/shared/src/__tests__/onboarding-guided.test.ts` covers the cadence question, the step after each repeat mode, the progress of the steps that remain, the cadence and result keys in both locales, and the intro seen mark on the install.
+
 ### How the authed-Today Lighthouse budget gate works
 
 - **Hermetic mock API.** `perf.yml` builds the web app, boots the mock orbit-api (`test-support/hermetic/mock-api/server.ts`, `127.0.0.1:5099`) with a job-level `API_BASE` pointing the Next BFF at it, and lets LHCI manage `next start`. The fixture server validates every response against its `@orbit/shared` schema at boot. No prod, no secrets, no real orbit-api.
