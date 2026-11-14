@@ -149,22 +149,26 @@ describe('press shape hover sampling in Chromium', () => {
     }
   })
 
-  it('settles reduced motion transitions without waiting on an infinite loading animation', async () => {
+  it('settles hover without waiting on an infinite pulse, and reduced motion settles the pulse at once', async () => {
     const page = await renderPill(`
       [data-loading] { animation: loading 1s linear infinite; }
       @keyframes loading { 50% { opacity: 0.55; } }
     `)
     try {
-      await page.emulateMedia({ reducedMotion: 'reduce' })
       await page.evaluate(() => {
         const loading = document.createElement('span')
         loading.setAttribute('data-loading', '')
         loading.setAttribute('aria-hidden', 'true')
         document.querySelector('button')!.append(loading)
       })
-      expect(await page.locator('[data-loading]').evaluate((element) =>
-        element.getAnimations()[0]!.effect!.getComputedTiming().endTime)).toBe(Infinity)
+      const pulseEnds = () => page.locator('[data-loading]').evaluate((element) => element.getAnimations().map((animation) => animation.effect!.getComputedTiming().endTime))
+      expect(await pulseEnds()).toEqual([Infinity])
       const control = page.getByRole('button', { name: 'Cancel' })
+      await control.hover()
+      await expectHoverOnHitArea(control, 'pill', '--bg-hover')
+      await page.mouse.move(0, 0)
+      await page.emulateMedia({ reducedMotion: 'reduce' })
+      await expect.poll(pulseEnds).toEqual([])
       await control.hover()
       await expectHoverOnHitArea(control, 'pill', '--bg-hover')
     } finally {
