@@ -210,7 +210,6 @@ const TextInput = createHostComponent('TextInput')
 const Switch = createHostComponent('Switch')
 const Image = createHostComponent('Image')
 const Modal = createHostComponent('Modal')
-const ActivityIndicator = createHostComponent('ActivityIndicator')
 const AnimatedView = createHostComponent('AnimatedView')
 const AnimatedText = createHostComponent('AnimatedText')
 const KeyboardAvoidingView = createHostComponent('KeyboardAvoidingView')
@@ -387,7 +386,6 @@ export const LayoutAnimation = {
 }
 
 export {
-  ActivityIndicator,
   FlatList,
   Image,
   KeyboardAvoidingView,
@@ -403,7 +401,6 @@ export {
 }
 
 export default {
-  ActivityIndicator,
   Animated,
   AppState,
   AccessibilityInfo,
