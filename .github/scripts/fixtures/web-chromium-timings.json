@@ -139,7 +139,6 @@
     "__tests__/components/ui/settings-text-geometry.test.tsx": 9481,
     "__tests__/components/ui/sheet.test.tsx": 13186,
     "__tests__/components/ui/stat-tile.test.tsx": 12501,
-    "__tests__/components/ui/state-surfaces-centre-geometry.test.tsx": 1078,
     "__tests__/components/ui/time-field-scroll.test.tsx": 3992,
     "__tests__/components/ui/time-field.test.tsx": 6298,
     "__tests__/components/ui/toast-geometry.test.tsx": 8440,
