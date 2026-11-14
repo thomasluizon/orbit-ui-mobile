@@ -20,6 +20,7 @@ import {
   resetRouteTransitionIntent,
   useRouteTransitionIntent,
 } from '@/lib/motion/route-intent'
+import { resolveTabViewTransitionDirection } from '@/lib/motion/tab-view-transition'
 
 interface RouteTransitionShellProps {
   children: ReactNode
@@ -80,7 +81,7 @@ export function RouteTransitionShell({
     })
   }
   const tabSwitchDirection = routePaths.intent === 'instant' ? null : resolveTabSwitchDirection(routePaths.previous, pathname)
-  const tabViewTransitionOwnsSwitch = tabSwitchDirection !== null && routePaths.intent === 'tab'
+  const tabViewTransitionOwnsSwitch = resolveTabViewTransitionDirection(routePaths.previous, pathname, routePaths.intent) !== null
 
   useEffect(() => {
     if (committedPathnameRef.current === pathname) {

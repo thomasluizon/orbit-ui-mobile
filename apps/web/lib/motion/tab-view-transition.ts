@@ -24,8 +24,7 @@ export function resolveTabViewTransitionDirection(
   pathname: string,
   intent: MotionNavigationIntent,
 ): -1 | 1 | null {
-  if (intent !== 'tab' || previousPathname === pathname) return null
-  return resolveTabSwitchDirection(previousPathname, pathname)
+  return intent === 'tab' ? resolveTabSwitchDirection(previousPathname, pathname) : null
 }
 
 function toCssEasing(easing: MotionBezier): string {
