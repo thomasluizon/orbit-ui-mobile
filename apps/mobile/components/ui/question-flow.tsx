@@ -75,9 +75,27 @@ function useQuestionFocus(stepKey: string, onStepChange: () => void) {
   return headingRef
 }
 
+/** The Orbit line. A step remounts it, so only a new `lineKey` inside one step fades the new line in, at once under reduced motion. */
+function FlowLine({ line, lineKey, color }: Readonly<{ line: string; lineKey: string | undefined; color: string }>) {
+  const reducedMotion = usePrefersReducedMotion()
+  const [opacity] = useState(() => new Animated.Value(1))
+  const shownKey = useRef(lineKey)
+  useEffect(() => {
+    if (shownKey.current === lineKey) return
+    shownKey.current = lineKey
+    opacity.setValue(reducedMotion ? 1 : 0)
+    if (reducedMotion) return
+    const animation = Animated.timing(opacity, { toValue: 1, duration: motionDurations.micro, useNativeDriver: true, easing: Easing.bezier(...motionEasings.standard) })
+    animation.start()
+    return () => animation.stop()
+  }, [lineKey, opacity, reducedMotion])
+  if (lineKey === undefined) return <Text style={[styles.line, { color }]}>{line}</Text>
+  return <Animated.Text testID="question-flow-line" style={[styles.line, { color, opacity }]}>{line}</Animated.Text>
+}
+
 /** The one-question flow frame. It holds no habit-specific code: a second consumer mounts it with its own content. */
 export function QuestionFlow(props: Readonly<QuestionFlowProps>) {
-  const { flow, question, line, stepKey, direction, orbitState = 'parado', showOrbit = true, statusText, options, children, primary, footer } = props
+  const { flow, question, line, lineKey, stepKey, direction, orbitState = 'parado', showOrbit = true, statusText, options, children, primary, footer } = props
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(() => createTokensV2(currentScheme, currentTheme), [currentScheme, currentTheme])
   const { width } = useWindowDimensions()
@@ -107,7 +125,7 @@ export function QuestionFlow(props: Readonly<QuestionFlowProps>) {
                 <OrbitMascot size={wide ? 128 : 96} state={orbitState} lookAt={shownLook} turnKey={stepKey} />
               </View>
             ) : null}
-            {line ? <Text style={[styles.line, { color: tokens.fg2 }]}>{line}</Text> : null}
+            {line ? <FlowLine line={line} lineKey={lineKey} color={tokens.fg2} /> : null}
             <Text ref={headingRef} accessibilityRole="header" accessibilityHint={line ?? undefined} style={[styles.question, wide ? styles.questionWide : null, { color: tokens.fg1 }]} textBreakStrategy="balanced">{question}</Text>
             {options ? <View style={styles.options}>{options}</View> : null}
             {children ? <View style={styles.freePath}>{children}</View> : null}
