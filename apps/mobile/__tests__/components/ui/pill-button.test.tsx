@@ -168,6 +168,17 @@ describe('PillButton (mobile)', () => {
     expect(textContents(tree)).toContain('Copy')
   })
 
+  it.each(['primary', 'secondary', 'ghost'] as const)('keeps Orbit in its own inks inside a %s pill while a plain glyph takes the label colour', (variant) => {
+    const tokens = createTokensV2('purple', theme.mode)
+    const tree = renderPill(<PillButton size="sm" variant={variant} quiet leadingIcon={<OrbitMascot size={16} />}>Ask</PillButton>)
+    const face = tree.root.findAll((node: any) => typeof node.type === 'string' && node.props.testID === 'orbit-mascot')[0]
+    expect(face.props.color).toBe(tokens.fg1)
+    const iconOnly = renderPill(<PillButton iconOnly label="Ask" variant={variant} quiet><OrbitMascot size={20} /></PillButton>)
+    expect(iconOnly.root.findAll((node: any) => typeof node.type === 'string' && node.props.testID === 'orbit-mascot')[0].props.color).toBe(tokens.fg1)
+    const plain = renderPill(<PillButton size="sm" variant={variant} leadingIcon={<Copy size={16} aria-hidden />}>Copy</PillButton>)
+    expect(plain.root.findByType(Copy).props.color).toBe({ primary: tokens.fgOnPrimary, secondary: tokens.bg, ghost: tokens.fg1 }[variant])
+  })
+
   it('fires onPress when pressed', () => {
     const onPress = vi.fn()
     const tree = renderPill(<PillButton onClick={onPress}>Continue</PillButton>)

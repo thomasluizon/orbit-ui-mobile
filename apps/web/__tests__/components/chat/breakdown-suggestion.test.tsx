@@ -87,6 +87,10 @@ it('disables approval when every proposed row has been removed', async () => {
     fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'confirm-remove' }))
   }
   expect(screen.getByText('chat.breakdown.empty')).toBeInTheDocument()
+  const face = document.querySelector('[data-asset="orbit-mascot"][data-orbit-face="rig"]')!
+  expect(face).toHaveAttribute('width', '96')
+  expect(face).toHaveAttribute('data-orbit-loop', 'still')
+  expect(face).toHaveAttribute('color', 'var(--fg-1)')
   expect(screen.getByRole('button', { name: 'habits.breakdown.addHabit' })).toHaveAttribute('data-variant', 'ghost')
   expect(screen.getByRole('button', { name: 'chat.preview.approve' })).toHaveAttribute('data-variant', 'secondary')
   fireEvent.pointerDown(screen.getByRole('button', { name: 'habits.actions.more' }), { button: 0, ctrlKey: false })

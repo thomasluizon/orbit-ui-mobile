@@ -121,7 +121,17 @@ it('is the live Orbit at 48 with no circle, fill or border, in a 60 press target
 it('scales the conversation entry to 0.96 on the press tokens only when motion is allowed', () => {
   mount()
   const button = openButton()
-  expect(button.className).toContain('[transition-duration:var(--dur-press)]')
-  expect(button.className).toContain('transition-[scale]')
+  expect(button.className).toContain('transition-[background-color,scale]')
+  expect(button.className).toContain('[transition-duration:var(--dur-hover-control),var(--dur-press)]')
+  expect(button.className).toContain('[transition-timing-function:var(--ease-standard),var(--ease-out)]')
   expect(button.className.split(' ').filter(name => name.includes('scale-[0.96]'))).toEqual(['motion-safe:active:scale-[0.96]'])
+})
+
+it('paints the neutral hover fill of its round target on pointer hover only, with no resting background and no hover transform', () => {
+  mount()
+  const button = openButton()
+  const classes = button.className.split(' ')
+  expect(classes).toEqual(expect.arrayContaining(['rounded-full', 'bg-transparent', 'hover:bg-[var(--bg-hover)]']))
+  expect(classes.filter(name => name.startsWith('hover:'))).toEqual(['hover:bg-[var(--bg-hover)]'])
+  expect(classes.filter(name => name.startsWith('active:bg') || name.includes('press-fill'))).toEqual([])
 })
