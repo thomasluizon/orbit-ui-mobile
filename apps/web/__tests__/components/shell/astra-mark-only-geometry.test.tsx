@@ -68,7 +68,7 @@ it.each(cases)('keeps habit content clear at $width by $height', async ({ width,
       const scroller = document.querySelector<HTMLElement>('[data-shell-scroller]')!
       scroller.scrollTop = scroller.scrollHeight
       const last = document.querySelector('[data-last-habit-row]')!.getBoundingClientRect()
-      const controls = [...document.querySelectorAll('button')].filter(button => !button.hasAttribute('data-shell-astra-row') && button.querySelector('[data-asset^="astra-mark"]') && button.getBoundingClientRect().height > 0)
+      const controls = [...document.querySelectorAll('button')].filter(button => !button.hasAttribute('data-shell-astra-row') && button.querySelector('[data-asset="orbit-mascot"]') && button.getBoundingClientRect().height > 0)
       return {
         composerTop: composer.getBoundingClientRect().top,
         composerHeight: composer.getBoundingClientRect().height,
@@ -81,7 +81,7 @@ it.each(cases)('keeps habit content clear at $width by $height', async ({ width,
     expect(result.scrollerBottom).toBeLessThanOrEqual(result.composerTop + 1)
     expect(result.controls.length).toBeGreaterThan(0)
     for (const control of result.controls) {
-      expect(control.text).not.toMatch(/Astra/)
+      expect(control.text).not.toMatch(/Astra|Orbit/)
       expect(control.name).toBeTruthy()
     }
   } finally { await page.close() }
@@ -101,7 +101,7 @@ it.each([320, 480, 800].flatMap(width => [en, ptBR].flatMap(messages =>
     await page.setContent(`<html class="dark" style="${themeVariables};font-size:${16 * fontScale}px"><style>${stylesheet}</style><body>${view.container.innerHTML}</body></html>`)
     const targets = await page.locator('[data-composer-trailing-controls] button').evaluateAll(buttons => buttons.map(button => ({
       ...button.getBoundingClientRect().toJSON(), text: button.textContent,
-      marks: button.querySelectorAll('[data-asset^="astra-mark"]').length,
+      marks: button.querySelectorAll('[data-asset="orbit-mascot"]').length,
       name: button.getAttribute('aria-label'), icons: button.querySelectorAll('svg').length,
     })))
     expect(targets).toHaveLength(state === 'sending' ? 2 : 3)
@@ -134,7 +134,7 @@ it.each([en, ptBR].flatMap(messages => [false, true].map(pending => ({ messages,
       for (const name of [messages.habits.form.suggestEmoji, messages.habits.form.suggestTags]) {
         const action = page.getByRole('button', { name, exact: true })
         expect(await action.innerText()).toBe('')
-        expect(await action.locator('[data-asset="astra-mark"]').count()).toBe(1)
+        expect(await action.locator('[data-asset="orbit-mascot"]').count()).toBe(1)
         expect(await action.locator('[data-slot="skeleton-face"]').count()).toBe(pending ? 1 : 0)
         expect(await action.locator('svg').count()).toBe(1)
         const bounds = (await action.boundingBox())!
