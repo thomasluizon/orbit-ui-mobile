@@ -156,6 +156,9 @@ describe('HabitListEmptyState', () => {
     expect(texts).toContain('Ask Astra')
     expect(pressableWithLabel(tree, 'Ask Astra')).toBeTruthy()
     expect(texts).toContain('Create habit')
+    expect(tree.root.findAll((node) => node.type === 'Pressable' && typeof node.props.testID === 'string').map((node) => node.props.testID)).toEqual(['button-ghost-sm', 'button-ghost-sm'])
+    const face = tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'orbit-mascot').at(-1)!
+    expect(face.props.color).toBe(createTokensV2('purple', 'dark').fg1)
   })
 
   it('renders the create pill without the Astra pill when no Astra handler is given', () => {

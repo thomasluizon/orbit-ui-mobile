@@ -109,7 +109,7 @@ export function HabitListEmptyState({
           )}
           {showAstraAction && askAstraLabel && (
             <PillButton
-
+              variant="ghost"
               leadingIcon={<OrbitMascot size={16} />}
             onClick={onAskAstra}
 
