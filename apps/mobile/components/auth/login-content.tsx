@@ -1,7 +1,7 @@
 import { ShellContent } from '@/components/shell/shell-content'
 import { getPendingAuthProvider, getAuthCallbackErrorKey } from '@orbit/shared/utils'
 import { SPACING } from '@orbit/shared/theme'
-import { useLayoutEffect, useRef, useState } from 'react'
+import { useCallback, useLayoutEffect, useRef, useState } from 'react'
 import { Platform, Text, View, useWindowDimensions, type ScrollView } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { createTokensV2 } from '@/lib/theme'
@@ -15,7 +15,7 @@ import { useLoginFlow } from '@/app/use-login-flow'
 import { LoginHeader, ReferralBanner, LoginStepStage, LoginValidationMessage } from './login-sections'
 import { EmailStep } from './email-step'
 import { CodeStep } from './code-step'
-import { SteadyColumn } from './steady-column'
+import { SteadyColumn, steadyLength } from './steady-column'
 
 export interface LoginCallback {
   provider?: 'apple' | 'google'
@@ -26,7 +26,7 @@ export interface LoginCallback {
 
 export function LoginContent({ callback }: Readonly<{ callback?: LoginCallback }>) {
   const insets = useSafeAreaInsets()
-  const { width } = useWindowDimensions()
+  const { width, scale } = useWindowDimensions()
   const wide = width >= 768
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
@@ -39,7 +39,7 @@ export function LoginContent({ callback }: Readonly<{ callback?: LoginCallback }
   useLayoutEffect(() => {
     scrollRef.current?.getNativeScrollRef()?.measureInWindow((_x, _y, _width, height) => setViewportHeight(height))
   })
-  const check = useMeasuredCheck(flow)
+  const check = useMeasuredCheck(flow, scale)
   function continueAccount() {
     if (callback?.state === 'account') callback.onContinue()
     else void flow.continueAccount()
@@ -94,11 +94,12 @@ export function LoginContent({ callback }: Readonly<{ callback?: LoginCallback }
   </View>
 }
 
-function useMeasuredCheck(flow: ReturnType<typeof useLoginFlow>) {
+function useMeasuredCheck(flow: ReturnType<typeof useLoginFlow>, pixelRatio: number) {
   const [height, setHeight] = useState(0)
+  const reportSpace = useCallback((space: number) => setHeight((current) => steadyLength(current, space, pixelRatio)), [pixelRatio])
   const widget = flow.turnstileSiteKey && flow.isOnline
     ? <TurnstileWidget key={flow.turnstileResetKey} siteKey={flow.turnstileSiteKey} resetKey={flow.turnstileResetKey} onToken={flow.onTurnstileToken}
-      onSpaceChange={setHeight} />
+      onSpaceChange={reportSpace} />
     : null
   return { widget, height: widget ? height : 0 }
 }

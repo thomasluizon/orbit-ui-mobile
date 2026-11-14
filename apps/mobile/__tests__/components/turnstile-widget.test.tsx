@@ -250,6 +250,27 @@ it('reports the space it takes in the commit of each state change, without waiti
   expect(onSpaceChange).toHaveBeenLastCalledWith(0)
 })
 
+it('keeps one native root in every state, so a pass never moves the check into a root Android creates in that commit', async () => {
+  let renderer!: ReturnType<typeof TestRenderer.create>
+  const rootStates: unknown[] = []
+  const record = () => rootStates.push(renderer.toJSON().props.collapsable)
+  TestRenderer.act(() => {
+    renderer = TestRenderer.create(<TurnstileWidget siteKey="site-key" resetKey={0} onToken={vi.fn()} />)
+  })
+  onTestFinished(() => TestRenderer.act(() => renderer.unmount()))
+  record()
+  await TestRenderer.act(() => Promise.resolve())
+  record()
+  for (const state of ['interactive', 'solved', 'expired', 'loading', 'failed']) {
+    await TestRenderer.act(async () => {
+      renderer.root.findByType('WebView').props.onMessage({ nativeEvent: { data: JSON.stringify({ state }) } })
+      await Promise.resolve()
+    })
+    record()
+  }
+  expect(rootStates).toEqual(Array(7).fill(false))
+})
+
 it('shows the loading sentence only while no challenge waits for the person and takes no space otherwise', async () => {
   let renderer!: ReturnType<typeof TestRenderer.create>
   await TestRenderer.act(async () => {

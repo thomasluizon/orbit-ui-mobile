@@ -76,7 +76,8 @@ export function TurnstileWidget({
   }
 
   return (
-    <View ref={rootRef} style={{ alignItems: 'center', alignSelf: 'stretch',
+    // WHY: the clip of the idle and solved states makes Fabric create the root only then, and Android lost the moved check when it passed (Unable to find viewState). https://github.com/facebook/react-native/blob/v0.88.1/packages/react-native/ReactCommon/react/renderer/components/view/ViewShadowNode.cpp#L44-L52
+    <View ref={rootRef} collapsable={false} style={{ alignItems: 'center', alignSelf: 'stretch',
       ...(takesNoSpace ? { position: 'absolute', left: 0, right: 0, height: 0, overflow: 'hidden' } as const : {}) }}>
       <View testID="turnstile-challenge" style={{ alignSelf: 'stretch', height: challengeHostHeight, overflow: 'hidden' }}>
         <WebView
