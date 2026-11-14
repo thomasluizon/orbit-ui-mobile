@@ -1,6 +1,6 @@
 # Review & audit discipline
 
-**At a glance:** 12 standing rules for `/audit-*`, `/prod-readiness`, a Pullfrog review you must act on, and any fan-out assessment. Judgement-bound; none is gate-checkable. See `README.md` for the tier's contract.
+**At a glance:** 13 standing rules for `/audit-*`, `/prod-readiness`, a Pullfrog review you must act on, and any fan-out assessment. Judgement-bound; none is gate-checkable. See `README.md` for the tier's contract.
 
 ## What a review is allowed to say
 
