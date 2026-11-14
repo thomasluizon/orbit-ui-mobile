@@ -33,7 +33,7 @@ const consumers = [
     'tools/__tests__/android-deployment-fixture.json',
   ] },
   { workspace: 'apps/web', name: '@orbit/web', inputs: [
-    'tools/check-surface-scope.mjs', 'DESIGN.md', 'design/brand/png/orbit-platform-icon-512.png',
+    'tools/check-surface-scope.mjs', 'tools/arch-map.mjs', 'tools/lib/escape-regex.mjs', 'DESIGN.md', 'design/brand/png/orbit-platform-icon-512.png',
     'apps/mobile/components/ui/list-row.tsx', 'packages/shared/src/__tests__/contrast.ts',
   ] },
   { workspace: 'eslint-rules', name: '@orbit/eslint-rules', inputs: [
