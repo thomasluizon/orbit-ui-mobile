@@ -13,14 +13,13 @@ export function useAstraButtonBlocked(enabled: boolean) {
 }
 
 /** The conversation entry: the live Orbit at 48 with no background at rest, in a 60 press target. A pointer hover
- *  paints the neutral hover fill of that circle, and keyboard focus draws the web focus ring around it. */
+ *  paints the neutral hover fill of that circle on the pressed face, and keyboard focus draws the web focus ring around the unscaled target. */
 export function AstraButton() {
   const { t } = useTranslation()
   const openConversation = useUIStore(state => state.setAstraConversationOpen)
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(() => createTokensV2(currentScheme, currentTheme), [currentScheme, currentTheme])
   const [hovered, setHovered] = useState(false)
-  const [focused, setFocused] = useState(false)
   return <MotionPressable
     testID="astra-button"
     accessibilityRole="button"
@@ -28,13 +27,10 @@ export function AstraButton() {
     onPress={() => openConversation(true)}
     onHoverIn={() => setHovered(true)}
     onHoverOut={() => setHovered(false)}
-    onFocus={() => setFocused(true)}
-    onBlur={() => setFocused(false)}
-    style={[
-      styles.target,
-      hovered ? { backgroundColor: tokens.bgHover } : null,
-      focused ? { outlineColor: tokens.primary, outlineOffset: 2, outlineStyle: 'solid', outlineWidth: 2 } : null,
-    ]}
+    focusInset
+    focusOffset={2}
+    focusColor={tokens.primary}
+    style={[styles.target, hovered ? { backgroundColor: tokens.bgHover } : null]}
   >
     <OrbitMascot size={48} lead />
   </MotionPressable>
