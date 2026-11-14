@@ -54,16 +54,18 @@ Happy-path-only; rubber-stamp / assertion-free; "asserts a mock was called" taut
 ### Android startup gates
 
 `android-startup.yml` exports the production Android Hermes bundle with source maps for
-pull requests touching mobile, shared code or dependency manifests. The bundle job uses no
+pull requests touching mobile or shared source or dependency manifests (tests and docs excluded). The bundle job uses no
 emulator. `tools/check-android-bundle.mjs` inspects the exported module inventory, resolves
 original sources against installed packages and rejects native package roots or native component
 names with multiple owners. Metro's virtual paths are matched against original source bytes;
 missing package sources or missing source content fail the check. This complements the lockfile
 native-copy guard by checking modules Metro actually includes.
 
-The independent boot proof job runs for gate and release-workflow changes, plus proof branch
-pushes. Other mobile pull requests run the bundle check without an emulator. The boot job builds
-an AAB without Play credentials and exercises the same composite action as `android-release.yml`.
+The independent boot proof job runs when the boot harness changed (`.github/actions/android-boot/**`,
+`tools/android-boot.mjs`, `android-startup.yml`) and no pass exists for the same harness hash. Other
+mobile pull requests run the bundle check without an emulator. The boot job builds an AAB without
+Play credentials and exercises the same composite action as `android-release.yml`, which runs it
+again on the shipping AAB before every Play upload.
 Before prebuild, it selects the newest successful `android-release.yml` run on `main` for the
 open or production track and exports its version through `ORBIT_APP_VERSION`. An unavailable or
 unrecognized release fails preparation. The release workflow retains its dispatched `app_version`.
@@ -256,7 +258,7 @@ These facts hold for the hermetic layout project and the Chromium geometry cases
 - **`.github/workflows/release.yml` smoke job** - the Playwright smoke suite, post-deploy against the live production deployment.
 - **`.github/workflows/layout.yml`** - builds the production web app and runs the hermetic `layout` Playwright project on PRs to `main`. Builds the hermetic app once, checks client output, and distributes that build to three shards. Each shard uses two workers and parallel cases in CI. Fixture overrides, mutation transitions and journal reads and clears are isolated by the page's fixture session; sessionless journal requests use a separate bucket. Local layout defaults remain serial. `Upgrade layout geometry` succeeds only when the build and every shard succeed, including when an upstream job is skipped or cancelled. Chromium is pinned through `package-lock.json`; each shard owns both local servers and its session setup. Measures text geometry without screenshots and uploads per-shard failure diagnostics.
 - **`.github/workflows/perf.yml`** - the authed-Today Lighthouse job, on PRs touching `apps/web/**` or `packages/shared/**` (pinned `ubuntu-24.04`, no secrets). Builds the web app, boots the hermetic mock orbit-api, and runs `apps/web/perf/run-lighthouse.mjs` with hermetic cookie injection. The runner asserts median TBT and script size; the following step reports LCP from the same five reports. The signed-in `/` (Today) surface is the only measured URL. The job uploads `.lighthouseci/` reports.
-- **`.github/workflows/mobile-build.yml`** - release compilation keeps npm and NDK caches, enables the Gradle task-output cache and saves Gradle cache entries for subsequent PR runs. Layout and Lighthouse cache the Next compiler with the same hermetic build inputs; Lighthouse retains all five cold-browser measurements and both budgets.
+- **`.github/workflows/mobile-build.yml`** and **`ios-build.yml`** - compile only when a native input changed (manifests, app config, assets, plugins, local modules, the build script), and skip the compile when a pass marker exists for the same input hash. Pull requests read the npm, NDK, Gradle and compiler caches; only `main` saves them. Layout and Lighthouse cache the Next compiler with the same hermetic build inputs; Lighthouse retains all five cold-browser measurements and both budgets.
 - **Android widget host instrumented test** - local only. CI has no emulator, so an orchestrator runs it on a booted API 31+ device or emulator before merge.
 
 ## Astra capability eval
