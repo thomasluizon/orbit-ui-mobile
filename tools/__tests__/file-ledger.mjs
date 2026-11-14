@@ -5,6 +5,7 @@ import { dirname, join } from "node:path"
 import { REPO_ROOT, T, check, root, run, stage, toolPath } from "./_harness.mjs"
 
 const TOOL = "file-ledger.mjs"
+const LIBRARY = "lib/doc-references.mjs"
 const FIXTURE_DATE = "2026-03-04"
 
 const writeTree = (repository, files) => {
@@ -163,8 +164,11 @@ const caseCrossRepository = () => {
 }
 
 const caseRelativePaths = () => {
-  // A copy of the tool in a small checkout one folder deeper, so its own root and the working directory differ.
-  const checkout = makeRepository("relative-tool/checkout", { [`tools/${TOOL}`]: readFileSync(toolPath(TOOL), "utf8") })
+  // A copy of the tool and its library in a small checkout one folder deeper, so its own root and the working directory differ.
+  const checkout = makeRepository("relative-tool/checkout", {
+    [`tools/${TOOL}`]: readFileSync(toolPath(TOOL), "utf8"),
+    [`tools/${LIBRARY}`]: readFileSync(toolPath(LIBRARY), "utf8"),
+  })
   const fromCheckout = (argv, cwd) => emitWith(argv, { cwd, path: join(checkout, "tools", TOOL) })
   const repository = makeRepository("relative-main", { "docs/shared.md": "shared text\n", "only-here.md": "here\n" })
   makeRepository("relative-sibling", { "notes.md": "read docs/shared.md here\n" })
@@ -180,7 +184,7 @@ const caseRelativePaths = () => {
 
   const defaultRoot = fromCheckout([], repository)
   const defaultPaths = defaultRoot.rows.map((row) => row.path).join()
-  T(`${TOOL}: without --repo the rows are the files of the checkout that holds the tool`, defaultRoot.status === 0 && defaultPaths === `tools/${TOOL}`, `exit ${defaultRoot.status}, rows ${defaultPaths}`)
+  T(`${TOOL}: without --repo the rows are the files of the checkout that holds the tool`, defaultRoot.status === 0 && defaultPaths === `tools/${TOOL},tools/${LIBRARY}`, `exit ${defaultRoot.status}, rows ${defaultPaths}`)
 }
 
 const caseDatesAndDeterminism = () => {
@@ -395,8 +399,11 @@ const makeCandidatesFixture = (label, rows, files = {}) => {
   return { repository, ledger: writeLedger(label, ordered) }
 }
 
-// A copy of the tool in its own checkout, so each candidates file lands under the suite root.
-const candidatesTool = () => stage(join("file-ledger", "candidates-checkout", "tools", TOOL), readFileSync(toolPath(TOOL), "utf8"))
+// A copy of the tool and its library in its own checkout, so each candidates file lands under the suite root.
+const candidatesTool = () => {
+  stage(join("file-ledger", "candidates-checkout", "tools", LIBRARY), readFileSync(toolPath(LIBRARY), "utf8"))
+  return stage(join("file-ledger", "candidates-checkout", "tools", TOOL), readFileSync(toolPath(TOOL), "utf8"))
+}
 
 const selectCandidates = ({ repository, ledger }) => {
   const result = run(TOOL, ["--candidates", ledger, "--repo", repository], { path: candidatesTool() })
