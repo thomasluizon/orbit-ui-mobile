@@ -5,7 +5,7 @@ export const meta = {
     { title: 'Audits', detail: 'the four /audit workflows in parallel' },
     { title: 'Ops', detail: 'observability · multi-instance · background durability · staging · concurrency' },
     { title: 'A11y', detail: 'static WCAG 2.2 AA sweep — web + mobile' },
-    { title: 'Hygiene', detail: 'old · outdated · duplicate · temporary files — five repositories' },
+    { title: 'Hygiene', detail: 'the candidates of tools/file-ledger.mjs --candidates — five repositories' },
     { title: 'Verify', detail: 'at most 60 skeptics: one per Blocker/High ops or a11y finding, then one per High or delete hygiene finding; default refuted' },
   ],
 }
@@ -17,15 +17,19 @@ if (!absolutePath(parsedArgs.roots?.ui) || !absolutePath(parsedArgs.roots?.api))
 }
 const { ui: UI, api: API } = parsedArgs.roots
 const hygieneRepositories = parsedArgs.hygiene?.repositories ?? {}
-// The cap shares its judged slots across the kinds in this order, so the outdated rows that feed the High tier come first.
-const HYGIENE_KINDS = ['outdated', 'temporary', 'duplicate', 'old']
+const isCount = (value) => Number.isInteger(value) && value >= 0
+// tools/file-ledger.mjs --candidates owns the kinds, the record rules and the cap. An entry carries the file of the
+// judged rows and the counts of every candidate, never the rows, so the args stay small for any repository size.
 for (const [key, repository] of Object.entries(hygieneRepositories)) {
-  if (repository?.root != null && !absolutePath(repository.root)) {
-    throw new Error(`prod-readiness workflow requires an absolute hygiene root for ${key}`)
+  if (repository?.root == null) continue
+  if (!absolutePath(repository.root)) throw new Error(`prod-readiness workflow requires an absolute hygiene root for ${key}`)
+  if (repository.candidates !== undefined) {
+    throw new Error(`prod-readiness workflow takes no hygiene candidate rows for ${key}: pass the line that tools/file-ledger.mjs --candidates printed`)
   }
-  const unkinded = (Array.isArray(repository?.candidates) ? repository.candidates : []).filter((row) => !HYGIENE_KINDS.includes(row?.kind))
-  if (unkinded.length) {
-    throw new Error(`prod-readiness workflow requires a kind (${HYGIENE_KINDS.join(', ')}) on each hygiene candidate of ${key}; ${unkinded.length} have none`)
+  const counts = Object.entries(repository.counts ?? {})
+  const countsValid = counts.length > 0 && counts.every(([kind, count]) => /^[a-z]+$/.test(kind) && isCount(count?.judged) && isCount(count?.deferred))
+  if (!absolutePath(repository.candidatesFile) || !countsValid) {
+    throw new Error(`prod-readiness workflow requires the candidatesFile and counts that tools/file-ledger.mjs --candidates printed for ${key}`)
   }
 }
 
@@ -132,33 +136,9 @@ const HYGIENE_SCHEMA = {
         required: ['check', 'path', 'reason'],
       },
     },
+    rowsRead: { type: 'integer' },
   },
-  required: ['findings', 'deferred'],
-}
-
-const HYGIENE_CANDIDATE_CAP = 300
-
-/**
- * Splits the cap across the kinds: each kind gets an equal share, and a share that a small kind leaves
- * unused goes to the other kinds. The judged rows keep the HYGIENE_KINDS order and, inside a kind, the given order.
- */
-function judgeByKind(candidates, cap) {
-  const groups = HYGIENE_KINDS.map((kind) => ({ kind, rows: candidates.filter((row) => row.kind === kind), taken: 0 }))
-  let left = cap
-  let open = groups.filter((group) => group.rows.length > 0)
-  while (left > 0 && open.length > 0) {
-    const share = Math.max(1, Math.floor(left / open.length))
-    for (const group of open) {
-      const take = Math.min(share, group.rows.length - group.taken, left)
-      group.taken += take
-      left -= take
-    }
-    open = open.filter((group) => group.taken < group.rows.length)
-  }
-  return {
-    judged: groups.flatMap((group) => group.rows.slice(0, group.taken)),
-    counts: Object.fromEntries(groups.map((group) => [group.kind, { judged: group.taken, deferred: group.rows.length - group.taken }])),
-  }
+  required: ['findings', 'deferred', 'rowsRead'],
 }
 
 const HYGIENE_CHECKS = [
@@ -184,16 +164,16 @@ const HYGIENE_CHECKS = [
   },
 ]
 
-function hygienePrompt(c, root, candidates) {
+function hygienePrompt(c, { root, candidatesFile, kinds, judgedCount }) {
   return [
-    `Repository hygiene check for ${c.name}, rooted at ${root}. The four kinds are old, outdated, duplicate and temporary. You have Read, Grep and Glob and no shell. This is a read-only judgement over file ledger rows; a candidate is a signal and not a verdict.`,
+    `Repository hygiene check for ${c.name}, rooted at ${root}. The kinds are ${kinds.join(', ')}. You have Read, Grep and Glob and no shell. This is a read-only judgement over file ledger rows; a candidate is a signal and not a verdict.`,
     `A root or a file you cannot open is not a clean result. First open the root with Glob. When you cannot open the root, return no finding and one deferred entry with the check "hygiene-unreadable", the path ${root} and the error you got. When you cannot open a candidate, return it in deferred with the check "hygiene-unreadable", the path of its row and the error. Never return an empty result for a root or a candidate you did not read.`,
+    `The candidates are the ${judgedCount} lines of ${candidatesFile}, one JSON row each: a file ledger row plus kind, or a file that git does not track with untracked: true. Read every line with Read, at most 100 lines in one call with offset and limit. When you cannot open this file, return no finding and one deferred entry with the check "hygiene-unreadable", the path ${candidatesFile} and the error you got. Return rowsRead: the count of lines that you read from this file.`,
     `The ledger rule, word for word: ${LEDGER_RULE}`,
     `For each candidate row, search for a reader. A reader can write no path: a framework convention, a tool that walks a folder, a config key, a person that a pointer sends to the file. Return a finding only when answer 1 is absent (the fix is delete) or when answer 1 exists and answer 2 fails (the fix is update). Name what the file says and what the code says.`,
     `A file under a public web folder, an app asset folder or a store asset folder can have a deployed reader. Do not return a delete finding for it. Return it in deferred with the check "hygiene-deployed-readers". A record is never a finding: a migration, a vault decision, a journal note, a raw inbox file, a published post, a vendored file with a lock entry.`,
-    `Severity ladder: [${HYGIENE_LADDER}]. For each finding return: severity, check ("hygiene-old", "hygiene-outdated", "hygiene-duplicate" or "hygiene-temporary"), title, location (the repository name, then the path), risk (who reads the file and acts on it), evidence (the ledger row and the search terms with their result), fix (delete or update, and what the update says).`,
-    `Each candidate carries kind: the first signal that selected it, in the order outdated, temporary, duplicate, old. Judge every kind that the row shows, not only that one.`,
-    `Candidates (${candidates.length}), one JSON row each: ${candidates.map((row) => JSON.stringify(row)).join('\n')}`,
+    `Severity ladder: [${HYGIENE_LADDER}]. For each finding return: severity, check (${kinds.map((kind) => `"hygiene-${kind}"`).join(', ')}), title, location (the repository name, then the path), risk (who reads the file and acts on it), evidence (the ledger row and the search terms with their result), fix (delete or update, and what the update says).`,
+    `Each candidate carries kind: the first signal that selected it, in the order ${kinds.join(', ')}. Judge every kind that the row shows, not only that one.`,
   ].join('\n')
 }
 
@@ -201,11 +181,14 @@ const ordersDelete = (f) => /\bdelete\b/i.test(f.fix || '')
 
 const trimmedPath = (path) => String(path ?? '').replace(/[\\/]+$/, '')
 
-/** A finder read nothing when it could not open its root, or when it could open none of its candidates. */
-function readNothing({ root, judged, result }) {
+/**
+ * A finder read nothing when it could not open its root or its candidates file, when it read no line of a file that
+ * holds rows, or when its unreadable candidates are as many as the judged rows.
+ */
+function readNothing({ root, candidatesFile, judgedCount, result }) {
   const unreadable = new Set((result.deferred || []).filter((item) => item?.check === 'hygiene-unreadable').map((item) => trimmedPath(item.path)))
-  if (unreadable.has(trimmedPath(root))) return true
-  return judged.length > 0 && judged.every((row) => unreadable.has(trimmedPath(row.path)) || unreadable.has(`${trimmedPath(root)}/${row.path}`))
+  if (unreadable.has(trimmedPath(root)) || unreadable.has(trimmedPath(candidatesFile))) return true
+  return judgedCount > 0 && (!(result.rowsRead > 0) || unreadable.size >= judgedCount)
 }
 
 function a11yPrompt(c) {
@@ -303,19 +286,21 @@ for (const c of HYGIENE_CHECKS) {
     hygieneDeferred.push({ check: `hygiene-${c.repository}`, path: c.name, reason: repository?.reason || 'the root is not on this machine, or the scope excludes it' })
     continue
   }
-  const { judged, counts } = judgeByKind(Array.isArray(repository.candidates) ? repository.candidates : [], HYGIENE_CANDIDATE_CAP)
+  const { root, candidatesFile, counts } = repository
+  // The counts come from every candidate that the tool selected, so a row beyond its cap reads as deferred, never as judged or absent.
   hygieneCandidates[c.repository] = counts
   const unjudged = Object.entries(counts).filter(([, count]) => count.deferred > 0)
   if (unjudged.length) {
     const kinds = unjudged.map(([kind, count]) => `${kind} ${count.deferred} of ${count.judged + count.deferred}`).join(', ')
-    hygieneDeferred.push({ check: `hygiene-${c.repository}`, path: c.name, reason: `candidates beyond the cap of ${HYGIENE_CANDIDATE_CAP} were not judged (${kinds}); run again on the remainder` })
+    hygieneDeferred.push({ check: `hygiene-${c.repository}`, path: c.name, reason: `candidates beyond the cap of tools/file-ledger.mjs --candidates were not judged (${kinds})` })
   }
-  hygieneRuns.push({ c, root: repository.root, judged })
+  const judgedCount = Object.values(counts).reduce((total, count) => total + count.judged, 0)
+  hygieneRuns.push({ c, root, candidatesFile, kinds: Object.keys(counts), judgedCount })
 }
 const hygieneResults = await parallel(
-  hygieneRuns.map(({ c, root, judged }) => () =>
-    agent(hygienePrompt(c, root, judged), { label: `hygiene:${c.repository}`, phase: 'Hygiene', model: 'haiku', agentType: 'audit-readonly', schema: HYGIENE_SCHEMA })
-      .then((r) => ({ repository: c.repository, root, judged, result: r }))
+  hygieneRuns.map((run) => () =>
+    agent(hygienePrompt(run.c, run), { label: `hygiene:${run.c.repository}`, phase: 'Hygiene', model: 'haiku', agentType: 'audit-readonly', schema: HYGIENE_SCHEMA })
+      .then((r) => ({ ...run, repository: run.c.repository, result: r }))
   )
 )
 const hygieneChecksFailed = hygieneRuns
@@ -325,6 +310,10 @@ if (hygieneChecksFailed.length) log(`hygiene: ${hygieneChecksFailed.join(', ')} 
 const hygieneReturned = hygieneResults.filter((x) => x && x.result)
 for (const x of hygieneReturned) {
   for (const item of x.result.deferred || []) hygieneDeferred.push(item)
+  const rowsRead = Number.isInteger(x.result.rowsRead) ? x.result.rowsRead : 0
+  if (rowsRead < x.judgedCount) {
+    hygieneDeferred.push({ check: 'hygiene-unreadable', path: x.candidatesFile, reason: `the finder read ${rowsRead} of the ${x.judgedCount} candidate rows, so the rest were not judged` })
+  }
 }
 // A finder that read nothing has not run, as a dead finder has not: its findings are dropped and its hygiene-unreadable entries stay deferred.
 const hygieneUnread = hygieneReturned.filter(readNothing).map((x) => x.repository)

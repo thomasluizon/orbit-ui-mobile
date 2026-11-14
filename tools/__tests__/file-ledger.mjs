@@ -1,8 +1,8 @@
 import { spawnSync } from "node:child_process"
-import { mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs"
+import { mkdirSync, readFileSync, readdirSync, realpathSync, writeFileSync } from "node:fs"
 import { dirname, join } from "node:path"
 
-import { T, check, root, run, toolPath } from "./_harness.mjs"
+import { REPO_ROOT, T, check, root, run, stage, toolPath } from "./_harness.mjs"
 
 const TOOL = "file-ledger.mjs"
 const FIXTURE_DATE = "2026-03-04"
@@ -269,6 +269,7 @@ const caseRender = () => {
 const caseUsage = () => {
   check(TOOL, "--help exits 0 with usage on stdout", ["--help"], { status: 0, stdout: /usage: file-ledger\.mjs[\s\S]*crossRepositoryDuplicateOf[\s\S]*unresolvedReferences[\s\S]*exit codes/ })
   check(TOOL, "-h exits 0", ["-h"], { status: 0, stdout: /Class rule/ })
+  check(TOOL, "--help names the candidates mode, its four kinds in order and its cap", ["--help"], { status: 0, stdout: /Mode 4, candidates[\s\S]*\(outdated, temporary, duplicate, old\)[\s\S]*at most 300 candidates/ })
   check(TOOL, "an unknown flag exits 2", ["--orbit-not-a-flag"], { status: 2, stderr: /unknown argument/ })
   check(TOOL, "a flag with no value exits 2", ["--repo"], { status: 2 })
   check(TOOL, "--verify without --base exits 2", ["--verify", "ledger.jsonl"], { status: 2, stderr: /needs --base/ })
@@ -321,6 +322,125 @@ const caseUnresolvedReferences = () => {
   T(`${TOOL}: a folder reference resolves when the folder is tracked`, row("tools/root-allowlist.json").unresolvedReferences.length === 0)
 }
 
+/** A ledger row with a reader and no signal; `fields` sets the signals of one case. */
+const quietRow = (path, fields = {}) => ({
+  path, class: "doc", agentInstruction: false, bytes: 1, lastCommit: FIXTURE_DATE, inboundByPath: 1, inboundByBasename: 1,
+  crossRepositoryInbound: { sibling: { byPath: 0, byBasename: 0 } }, duplicateOf: [], crossRepositoryDuplicateOf: [],
+  unresolvedReferences: [], empty: false, temporaryPattern: null, ...fields,
+})
+const NO_READER = { inboundByPath: 0, inboundByBasename: 0 }
+
+/** A repository that tracks one file for each row, and the ledger of those rows in path order. */
+const makeCandidatesFixture = (label, rows, files = {}) => {
+  const bodies = Object.fromEntries(rows.map((row, index) => [row.path, files[row.path] ?? `body ${index}\n`]))
+  const repository = makeRepository(label, bodies)
+  const ordered = [...rows].sort((left, right) => (left.path < right.path ? -1 : 1))
+  return { repository, ledger: writeLedger(label, ordered) }
+}
+
+// A copy of the tool in its own checkout, so each candidates file lands under the suite root.
+const candidatesTool = () => stage(join("file-ledger", "candidates-checkout", "tools", TOOL), readFileSync(toolPath(TOOL), "utf8"))
+
+const selectCandidates = ({ repository, ledger }) => {
+  const result = run(TOOL, ["--candidates", ledger, "--repo", repository], { path: candidatesTool() })
+  const entry = result.status === 0 ? JSON.parse(result.stdout) : null
+  const rows = entry ? readFileSync(entry.candidatesFile, "utf8").split("\n").filter(Boolean).map((line) => JSON.parse(line)) : []
+  return { ...result, entry, rows }
+}
+
+const caseCandidateKinds = () => {
+  const rows = [
+    quietRow("docs/stale.md", { ...NO_READER, unresolvedReferences: ["docs/gone.md"] }),
+    quietRow("app/CLAUDE.md", { agentInstruction: true }),
+    quietRow("app/AGENTS.md", { agentInstruction: true }),
+    quietRow("web/CLAUDE.md", { agentInstruction: true, duplicateOf: ["web/AGENTS.md"] }),
+    quietRow("web/AGENTS.md", { agentInstruction: true, duplicateOf: ["web/CLAUDE.md"] }),
+    quietRow("notes.bak", { ...NO_READER, temporaryPattern: "extension:.bak" }),
+    quietRow("img/a.png", { ...NO_READER, class: "asset", duplicateOf: ["img/b.png"] }),
+    quietRow("img/b.png", { ...NO_READER, class: "asset", duplicateOf: ["img/a.png"] }),
+    quietRow("old/newer.md", { ...NO_READER, lastCommit: "2026-01-01" }),
+    quietRow("old/older.md", { ...NO_READER, lastCommit: "2025-01-01" }),
+    quietRow("old/oldest.md", { ...NO_READER, lastCommit: "2024-06-01" }),
+    quietRow("old/sibling-read.md", { ...NO_READER, crossRepositoryInbound: { sibling: { byPath: 0, byBasename: 1 } } }),
+    quietRow("kept.md"),
+    quietRow(".gitignore", { class: "config" }),
+    quietRow("src/Orbit.Infrastructure/Migrations/20260101_Init.cs", { ...NO_READER, class: "source" }),
+    quietRow("2 Areas/Decisions/choice.md", NO_READER),
+    quietRow("5 Journal/2026-01-01.md", NO_READER),
+    quietRow("0 Inbox/raw/2026-01-01.md", NO_READER),
+    quietRow("posts/hello/meta.md"),
+    quietRow("posts/hello/caption.md", NO_READER),
+    quietRow("posts/hello/post.png", { ...NO_READER, class: "asset" }),
+    quietRow("posts/draft/meta.md"),
+    quietRow("posts/draft/caption.md", NO_READER),
+    quietRow("skills-lock.json", { class: "config" }),
+    quietRow(".claude/skills/VENDOR.md", { class: "agent" }),
+    quietRow(".claude/skills/locked/SKILL.md", { ...NO_READER, class: "agent" }),
+    quietRow(".claude/skills/named/SKILL.md", { ...NO_READER, class: "agent" }),
+    quietRow(".claude/skills/own/SKILL.md", { ...NO_READER, class: "agent" }),
+  ]
+  const fixture = makeCandidatesFixture("candidates-kinds", rows, {
+    "app/CLAUDE.md": "claude rules\n",
+    "app/AGENTS.md": "other rules\n",
+    "web/CLAUDE.md": "same rules\n",
+    "web/AGENTS.md": "same rules\n",
+    ".gitignore": "ignored.log\n",
+    "posts/hello/meta.md": "- **Status**: Published\n",
+    "posts/draft/meta.md": "- **Status:** Draft\n",
+    "skills-lock.json": `${JSON.stringify({ version: 2, skills: { locked: { source: "owner/repository" } } })}\n`,
+    ".claude/skills/VENDOR.md": "`named` is copied from a source repository.\n",
+  })
+  writeTree(fixture.repository, { "scratch.txt": "untracked\n", "ignored.log": "ignored\n" })
+  const { status, stdout, stderr, entry, rows: judged } = selectCandidates(fixture)
+  T(`${TOOL}: candidates exits 0 and prints one JSON line with the root, the candidates file and the counts`,
+    status === 0 && stdout.trim().split("\n").length === 1 && Object.keys(entry ?? {}).join() === "root,candidatesFile,counts" && entry.root === realpathSync(fixture.repository), `exit ${status} ${stdout} ${stderr}`)
+  T(`${TOOL}: candidates counts each kind`,
+    JSON.stringify(entry?.counts) === JSON.stringify({ outdated: { judged: 3, deferred: 0 }, temporary: { judged: 2, deferred: 0 }, duplicate: { judged: 4, deferred: 0 }, old: { judged: 6, deferred: 0 } }), JSON.stringify(entry?.counts))
+  const order = judged.map((row) => `${row.kind}:${row.path}`)
+  const expected = [
+    "outdated:app/AGENTS.md", "outdated:app/CLAUDE.md", "outdated:docs/stale.md", "temporary:notes.bak", "temporary:scratch.txt",
+    "duplicate:img/a.png", "duplicate:img/b.png", "duplicate:web/AGENTS.md", "duplicate:web/CLAUDE.md",
+    "old:old/oldest.md", "old:old/older.md", "old:old/newer.md", "old:.claude/skills/own/SKILL.md", "old:posts/draft/caption.md", "old:posts/hello/post.png",
+  ]
+  T(`${TOOL}: the candidates file holds the first kind that fires for each row, by kind, with the oldest old row first`, order.join() === expected.join(), order.join("\n"))
+  T(`${TOOL}: an untracked file that git does not ignore is a temporary candidate marked untracked`,
+    judged.find((row) => row.path === "scratch.txt")?.untracked === true && !judged.some((row) => row.path === "ignored.log"))
+  T(`${TOOL}: two instruction files of one folder with the same content are duplicates, not outdated`,
+    judged.filter((row) => row.path.startsWith("web/") && row.kind === "duplicate").length === 2 && !judged.some((row) => row.path.startsWith("web/") && row.kind !== "duplicate"))
+  T(`${TOOL}: a migration, a decision, a journal note, a raw inbox note, a published post and a pinned skill are records, never candidates`,
+    stderr.includes("7 records left out") && ![".cs", "Decisions", "Journal", "Inbox", "hello/caption", "skills/locked", "skills/named"].some((part) => judged.some((row) => row.path.includes(part))), stderr)
+  T(`${TOOL}: the candidates file lands in .claude/sweeps/hygiene of the checkout that holds the tool`,
+    entry?.candidatesFile === join(root, "file-ledger", "candidates-checkout", ".claude", "sweeps", "hygiene", "candidates-kinds.jsonl"), entry?.candidatesFile)
+  const ignored = spawnSync("git", ["-C", REPO_ROOT, "check-ignore", "-q", ".claude/sweeps/hygiene/orbit-ui-mobile.jsonl"])
+  T(`${TOOL}: git ignores the candidates folder of this repository`, ignored.status === 0, `git check-ignore exit ${ignored.status}`)
+}
+
+const caseCandidateCap = () => {
+  const rowsOf = (kind, count, fields) => Array.from({ length: count }, (_, index) => quietRow(`${kind}/${String(index).padStart(3, "0")}.md`, { ...NO_READER, ...fields }))
+  const signals = { outdated: { unresolvedReferences: ["gone.md"] }, temporary: { temporaryPattern: "segment:drafts" }, duplicate: { duplicateOf: ["twin.md"] }, old: {} }
+  const mixed = selectCandidates(makeCandidatesFixture("candidates-mixed", [
+    ...rowsOf("old", 300, signals.old), ...rowsOf("outdated", 29, signals.outdated), ...rowsOf("temporary", 5, signals.temporary), ...rowsOf("duplicate", 10, signals.duplicate),
+  ]))
+  T(`${TOOL}: the cap judges every outdated, temporary and duplicate candidate before old rows use up the cap`,
+    JSON.stringify(mixed.entry?.counts) === JSON.stringify({ outdated: { judged: 29, deferred: 0 }, temporary: { judged: 5, deferred: 0 }, duplicate: { judged: 10, deferred: 0 }, old: { judged: 256, deferred: 44 } }),
+    JSON.stringify(mixed.entry?.counts))
+  T(`${TOOL}: the candidates file holds exactly the judged rows, the outdated rows first`,
+    mixed.rows.length === 300 && mixed.rows[0].kind === "outdated" && mixed.rows.filter((row) => row.kind === "old").length === 256, `${mixed.rows.length} ${mixed.rows[0]?.kind}`)
+  const crowded = selectCandidates(makeCandidatesFixture("candidates-crowded", Object.entries(signals).flatMap(([kind, fields]) => rowsOf(kind, 100, fields))))
+  T(`${TOOL}: each kind gets an equal share of the cap when every kind exceeds it`,
+    Object.values(crowded.entry?.counts ?? {}).length === 4 && Object.values(crowded.entry.counts).every((count) => count.judged === 75 && count.deferred === 25) && crowded.rows.length === 300,
+    JSON.stringify(crowded.entry?.counts))
+}
+
+const caseCandidateRefusals = () => {
+  const fixture = makeCandidatesFixture("candidates-refusals", [quietRow("a.md"), quietRow("b.md")])
+  const tool = { path: candidatesTool() }
+  check(TOOL, "candidates refuses a ledger that misses a tracked file", ["--candidates", writeLedger("candidates-short", [quietRow("a.md")]), "--repo", fixture.repository], { status: 2, stderr: /does not list exactly the tracked files/ }, tool)
+  check(TOOL, "candidates refuses a ledger with a path that is not tracked", ["--candidates", writeLedger("candidates-ghost", [quietRow("a.md"), quietRow("b.md"), quietRow("ghost.md")]), "--repo", fixture.repository], { status: 2, stderr: /does not list exactly/ }, tool)
+  check(TOOL, "candidates refuses --also-search", ["--candidates", fixture.ledger, "--also-search", fixture.repository], { status: 2, stderr: /does not apply to the candidates mode/ }, tool)
+  check(TOOL, "--candidates together with --render exits 2", ["--candidates", fixture.ledger, "--render", fixture.ledger], { status: 2, stderr: /separate modes/ }, tool)
+}
+
 export const cases = () => {
   caseEmitRows()
   caseClasses()
@@ -334,4 +454,7 @@ export const cases = () => {
   caseRender()
   caseUsage()
   caseUnresolvedReferences()
+  caseCandidateKinds()
+  caseCandidateCap()
+  caseCandidateRefusals()
 }

@@ -1,5 +1,5 @@
 {
-  "calibratedAt": "2026-11-13",
+  "calibratedAt": "2026-11-14",
   "classifier": {
     "model": "claude-sonnet-5-5",
     "promptDigest": "780092b4659dfd6e",
@@ -277,8 +277,8 @@
     ".claude/skills/prod-readiness/SKILL.md": {
       "model": null,
       "effort": null,
-      "digest": "4113c24ad7a3f30d",
-      "calibratedAt": "2026-11-13",
+      "digest": "e1b77743d4d0dacd",
+      "calibratedAt": "2026-11-14",
       "verdict": "undeclared, inherits the session: it judges four child audits before producing a launch verdict."
     },
     ".claude/skills/progress/SKILL.md": {

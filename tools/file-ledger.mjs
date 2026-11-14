@@ -7,6 +7,12 @@ import { fileURLToPath } from "node:url"
 
 // GitHub rejects a comment above this many characters. The value comes from a real post, not from memory.
 const DEFAULT_MAX_CHARS = 60000
+// The hygiene finder of /prod-readiness judges at most this many candidates of one repository.
+const CANDIDATE_CAP = 300
+// The first kind whose signal fires names a candidate, so the outdated rows that feed the High tier come first.
+const CANDIDATE_KINDS = ["outdated", "temporary", "duplicate", "old"]
+// Git ignores this folder, and a workflow agent of a session in this checkout reads it without an approval prompt.
+const CANDIDATES_FOLDER = posix.join(".claude", "sweeps", "hygiene")
 
 
 // ---------------------------------------------------------------------------------------------
@@ -70,6 +76,7 @@ const nameToSearch = (path, fileClass) => {
 const usage = () => `usage: file-ledger.mjs [--repo <path>] [--also-search <path>]...
        file-ledger.mjs --verify <ledger> --base <commit> [--repo <path>] [--other-ticket <ID>]
        file-ledger.mjs --render <ledger> --out-dir <dir> [--repo <path>] [--base <commit>] [--max-chars <n>]
+       file-ledger.mjs --candidates <ledger> [--repo <path>]
 
   The file ledger: one row for each tracked file of a repository, with the evidence a reviewer needs to
   decide whether the file keeps its current form. The default verdict for every file is delete or update.
@@ -99,6 +106,29 @@ const usage = () => `usage: file-ledger.mjs [--repo <path>] [--also-search <path
     --max-chars <n>       longest part in characters (default: ${DEFAULT_MAX_CHARS})
   The first line of each part names the repository, the part number, the count of parts and the two commit
   SHAs. Each row is in exactly one part. Rows with other-ticket fold to one line for each class.
+
+  Mode 4, candidates. Selects the rows that the hygiene finder of /prod-readiness judges, writes them to a
+  file and prints the hygiene entry of the repository for the Workflow call, so the call never carries rows.
+    --candidates <ledger>  the emitted ledger of the repository at --repo; it must list exactly the files
+                           that the repository tracks
+  A candidate gets the first kind whose signal fires, in this order (${CANDIDATE_KINDS.join(", ")}):
+    outdated   unresolvedReferences is not empty; or agentInstruction is true and a second instruction file
+               in the same folder has different content
+    temporary  temporaryPattern is not null; or git does not track or ignore the file (a row with path,
+               class and untracked: true)
+    duplicate  duplicateOf or crossRepositoryDuplicateOf is not empty
+    old        inboundByPath, inboundByBasename and each crossRepositoryInbound count are zero; the oldest
+               lastCommit comes first
+  A record is never a candidate: a file under src/Orbit.Infrastructure/Migrations/, a Decisions/ folder,
+  5 Journal/ or 0 Inbox/raw/; a .md, .mdx or .txt file in the folder of a meta.md that says
+  "**Status**: Published"; a file in a folder under .claude/skills/ that skills-lock.json lists or
+  .claude/skills/VENDOR.md names in backticks.
+  The finder judges at most ${CANDIDATE_CAP} candidates of the repository. Each kind gets an equal share of that cap,
+  and a share that one kind leaves unused goes to the other kinds. The judged rows, each with its kind, go to
+  ${CANDIDATES_FOLDER}/<repository>.jsonl in the checkout that holds this tool, one JSON line each. Git
+  ignores that folder, and a workflow agent of a session in this checkout reads it without an approval prompt.
+  Stdout is one JSON line, {"root", "candidatesFile", "counts": {<kind>: {"judged", "deferred"}}}: the counts
+  come from every candidate, so a deferred row never reads as judged or as absent.
 
   Row fields: path; class; agentInstruction; bytes; lastCommit (date of the last commit that changed the
   path); inboundByPath (other tracked files that contain the path); inboundByBasename (other tracked files
@@ -130,7 +160,8 @@ const usage = () => `usage: file-ledger.mjs [--repo <path>] [--also-search <path
 
   Untracked files that git does not ignore are listed on stderr with the counts by class.
 
-exit codes: 0 done, 1 verify found defects, 2 usage error, unreadable input or a path that is not a git repository`
+exit codes: 0 done, 1 verify found defects, 2 usage error, unreadable input, a ledger that does not match --repo or a
+path that is not a git repository`
 
 // ---------------------------------------------------------------------------------------------
 // Git
@@ -756,14 +787,126 @@ const render = ({ repo, ledger, base, outDir, maxChars }) => {
 }
 
 // ---------------------------------------------------------------------------------------------
+// Mode 4: candidates
+// ---------------------------------------------------------------------------------------------
+
+const PUBLISHED_STATUS = /^\s*-\s*\*\*Status(?:\*\*:|:\*\*)\s*Published\b/im
+
+const readJson = (root, path) => {
+  const text = readText(root, path)
+  try {
+    return text === null ? null : JSON.parse(text)
+  } catch {
+    throw new UsageError(`${join(root, path)} is not JSON`)
+  }
+}
+
+/** The skill folders that skills-lock.json lists or that .claude/skills/VENDOR.md names in backticks. */
+const pinnedSkillFolders = (root) => {
+  const locked = Object.keys(readJson(root, "skills-lock.json")?.skills ?? {})
+  const named = [...(readText(root, ".claude/skills/VENDOR.md") ?? "").matchAll(/`([\w.-]+)`/g)].map((match) => match[1])
+  return new Set([...locked, ...named].map((name) => `.claude/skills/${name}/`))
+}
+
+/** Each record is a file that keeps its history by design, so it is never a hygiene candidate. */
+const createRecordTest = (root, paths) => {
+  const pinned = pinnedSkillFolders(root)
+  const posts = paths
+    .filter((path) => posix.basename(path) === "meta.md" && PUBLISHED_STATUS.test(readText(root, path) ?? ""))
+    .map((path) => `${posix.dirname(path)}/`)
+  return (path) => {
+    const folders = path.split("/").slice(0, -1)
+    if (path.startsWith("src/Orbit.Infrastructure/Migrations/") || folders.includes("Decisions")) return true
+    if (path.startsWith("5 Journal/") || path.startsWith("0 Inbox/raw/")) return true
+    if (DOC_EXTENSIONS.has(extname(path).toLowerCase()) && posts.some((folder) => path.startsWith(folder))) return true
+    return [...pinned].some((folder) => path.startsWith(folder))
+  }
+}
+
+/** The instruction files that share a folder with a second instruction file of different content. */
+const conflictingInstructions = (rows) => {
+  const byFolder = Map.groupBy(rows.filter((row) => row.agentInstruction), (row) => posix.dirname(row.path))
+  const sameContent = (row, other) => row.duplicateOf.includes(other.path) || (row.empty && other.empty)
+  return new Set(
+    [...byFolder.values()].flatMap((group) => group.filter((row) => group.some((other) => other !== row && !sameContent(row, other)))).map((row) => row.path),
+  )
+}
+
+const hasNoReader = (row) =>
+  row.inboundByPath === 0 &&
+  row.inboundByBasename === 0 &&
+  Object.values(row.crossRepositoryInbound).every((counts) => counts.byPath === 0 && counts.byBasename === 0)
+
+const kindOf = (row, conflicting) => {
+  if (row.untracked) return "temporary"
+  if (row.unresolvedReferences.length > 0 || conflicting.has(row.path)) return "outdated"
+  if (row.temporaryPattern !== null) return "temporary"
+  if (row.duplicateOf.length > 0 || row.crossRepositoryDuplicateOf.length > 0) return "duplicate"
+  return hasNoReader(row) ? "old" : null
+}
+
+/** The judged count of each kind: an equal share of the cap each, and a share that a small kind leaves unused goes to the others. */
+const shareCap = (groups, cap) => {
+  const taken = new Map(CANDIDATE_KINDS.map((kind) => [kind, 0]))
+  let left = cap
+  let open = CANDIDATE_KINDS.filter((kind) => groups.get(kind).length > 0)
+  while (left > 0 && open.length > 0) {
+    const share = Math.max(1, Math.floor(left / open.length))
+    for (const kind of open) {
+      const take = Math.min(share, groups.get(kind).length - taken.get(kind), left)
+      taken.set(kind, taken.get(kind) + take)
+      left -= take
+    }
+    open = open.filter((kind) => taken.get(kind) < groups.get(kind).length)
+  }
+  return taken
+}
+
+const candidates = ({ repo, ledger }) => {
+  const root = requireRepository(repo)
+  const rows = readLedger(ledger)
+  const tracked = readIndex(root).map((entry) => entry.path)
+  const listed = new Set(rows.map((row) => row.path))
+  if (listed.size !== rows.length || listed.size !== tracked.length || tracked.some((path) => !listed.has(path))) {
+    throw new UsageError(`${ledger} does not list exactly the tracked files of ${root}; run the emit mode on it again`)
+  }
+  const isRecord = createRecordTest(root, tracked)
+  const conflicting = conflictingInstructions(rows)
+  const untracked = readUntracked(root).map((path) => ({ path, class: classify(path), untracked: true }))
+  const groups = new Map(CANDIDATE_KINDS.map((kind) => [kind, []]))
+  let records = 0
+  for (const row of [...rows, ...untracked]) {
+    const kind = kindOf(row, conflicting)
+    if (kind === null) continue
+    if (isRecord(row.path)) records += 1
+    else groups.get(kind).push({ ...row, kind })
+  }
+  const dateOf = (row) => row.lastCommit ?? ""
+  groups.get("old").sort((left, right) => (dateOf(left) < dateOf(right) ? -1 : dateOf(left) > dateOf(right) ? 1 : 0))
+  const taken = shareCap(groups, CANDIDATE_CAP)
+  const judged = CANDIDATE_KINDS.flatMap((kind) => groups.get(kind).slice(0, taken.get(kind)))
+  const counts = Object.fromEntries(CANDIDATE_KINDS.map((kind) => [kind, { judged: taken.get(kind), deferred: groups.get(kind).length - taken.get(kind) }]))
+  const name = repositoryName(root)
+  const candidatesFile = join(defaultRepository, CANDIDATES_FOLDER, `${name}.jsonl`)
+  mkdirSync(dirname(candidatesFile), { recursive: true })
+  writeFileSync(candidatesFile, judged.map((row) => `${JSON.stringify(row)}\n`).join(""))
+  console.log(JSON.stringify({ root, candidatesFile, counts }))
+  const summary = CANDIDATE_KINDS.map((kind) => `${kind} ${counts[kind].judged} of ${counts[kind].judged + counts[kind].deferred}`).join(", ")
+  console.error(`file-ledger: ${name}: judged candidates ${summary}; ${records} records left out; wrote ${candidatesFile}`)
+  return 0
+}
+
+// ---------------------------------------------------------------------------------------------
 // Arguments
 // ---------------------------------------------------------------------------------------------
 
-const VALUE_FLAGS = ["--repo", "--also-search", "--verify", "--render", "--base", "--other-ticket", "--out-dir", "--max-chars"]
+const VALUE_FLAGS = ["--repo", "--also-search", "--verify", "--render", "--candidates", "--base", "--other-ticket", "--out-dir", "--max-chars"]
+const MODE_FLAGS = { "--verify": "verify", "--render": "render", "--candidates": "candidates" }
 const ALLOWED_FLAGS = {
   emit: ["--repo", "--also-search"],
   verify: ["--verify", "--repo", "--base", "--other-ticket"],
   render: ["--render", "--repo", "--base", "--out-dir", "--max-chars"],
+  candidates: ["--candidates", "--repo"],
 }
 
 const parseArguments = (argv) => {
@@ -781,8 +924,9 @@ const parseArguments = (argv) => {
     else if (options[flag] !== undefined) throw new UsageError(`${flag} was given twice`)
     else options[flag] = value
   }
-  const mode = options["--verify"] === undefined ? (options["--render"] === undefined ? "emit" : "render") : "verify"
-  if (options["--verify"] !== undefined && options["--render"] !== undefined) throw new UsageError("--verify and --render are separate modes")
+  const modeFlags = Object.keys(MODE_FLAGS).filter((flag) => options[flag] !== undefined)
+  if (modeFlags.length > 1) throw new UsageError(`${modeFlags.join(" and ")} are separate modes`)
+  const mode = modeFlags.length === 0 ? "emit" : MODE_FLAGS[modeFlags[0]]
   const given = [...Object.keys(options).filter((key) => key.startsWith("--")), ...(options.alsoSearch.length > 0 ? ["--also-search"] : [])]
   const misplaced = given.filter((flag) => !ALLOWED_FLAGS[mode].includes(flag))
   if (misplaced.length > 0) throw new UsageError(`${misplaced.join(", ")} does not apply to the ${mode} mode`)
@@ -802,6 +946,7 @@ const main = () => {
   if (mode === "render") {
     return render({ repo, ledger: options["--render"], base: options["--base"], outDir: resolve(options["--out-dir"]), maxChars })
   }
+  if (mode === "candidates") return candidates({ repo, ledger: options["--candidates"] })
   return emit({ repo, alsoSearch: options.alsoSearch.map((path) => resolve(path)) })
 }
 
