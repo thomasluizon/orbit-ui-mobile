@@ -1,7 +1,7 @@
 import { spawn, spawnSync } from "node:child_process"
 import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
-import { dirname, join, resolve } from "node:path"
+import { dirname, join, posix, resolve } from "node:path"
 
 /**
  * Injected by the runner. These are live bindings: configure() runs before any case
@@ -19,6 +19,27 @@ export const configure = ({ toolsDir, self }) => {
 
 /** The one path helper case modules use, so injection failure surfaces as a wrong path. */
 export const toolPath = (file) => join(TOOLS_DIR, file)
+
+const RELATIVE_IMPORT = /^(?:import|export)\b[^"'`]*?\bfrom\s*(["'])(\.{1,2}\/[^"']+)\1|\bimport\s*\(\s*(["'])(\.{1,2}\/[^"']+)\3\s*\)/gm
+
+/**
+ * The tool and every module it imports transitively through a relative specifier, as paths
+ * under tools/ with the tool first. A staged copy of a tool carries all of them, so a module
+ * that moves into tools/lib/ cannot leave the copy unable to load.
+ */
+export const toolModules = (file) => {
+  const modules = []
+  const pending = [posix.normalize(file)]
+  while (pending.length > 0) {
+    const module = pending.shift()
+    if (modules.includes(module)) continue
+    modules.push(module)
+    for (const match of readFileSync(toolPath(module), "utf8").matchAll(RELATIVE_IMPORT)) {
+      pending.push(posix.join(posix.dirname(module), match[2] ?? match[4]))
+    }
+  }
+  return modules
+}
 
 /** Case keys naming a file that is not in tools/. A skip here would exit 0 on a typo. */
 export const orphanCaseKeys = (caseKeys, toolsDir) => caseKeys.filter((file) => !existsSync(join(toolsDir, file)))

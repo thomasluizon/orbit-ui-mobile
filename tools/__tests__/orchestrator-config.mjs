@@ -5,7 +5,7 @@ import { fileURLToPath, pathToFileURL } from "node:url"
 import { runInNewContext } from "node:vm"
 
 import { AUTO_COMPACT_TOKENS } from "../lib/session-context.mjs"
-import { T, root, realOrchestratorConfig, run, stage, stageRepo, toolPath } from "./_harness.mjs"
+import { T, root, realOrchestratorConfig, run, stage, stageRepo, toolModules, toolPath } from "./_harness.mjs"
 
 const NAME = "orchestrator-config.mjs"
 /** The shipped claude model for each worker tier, in escalation order. */
@@ -291,8 +291,9 @@ export const cases = async () => {
   handoff.git(["commit", "-q", "-m", "ledger rows"])
   writeFileSync(join(handoff.path, "scratch.tmp"), "untracked\n")
   const emitted = run("file-ledger.mjs", ["--repo", handoff.path])
-  // A copy of the tool in a staged checkout, so the candidates file lands under the suite root.
-  const handoffTool = stage("hygiene-handoff/checkout/tools/file-ledger.mjs", readFileSync(toolPath("file-ledger.mjs"), "utf8"))
+  // A copy of the tool and every module it imports in a staged checkout, so the candidates file lands under the suite root.
+  for (const module of toolModules("file-ledger.mjs")) stage(join("hygiene-handoff", "checkout", "tools", module), readFileSync(toolPath(module), "utf8"))
+  const handoffTool = join(root, "hygiene-handoff", "checkout", "tools", "file-ledger.mjs")
   const selected = run("file-ledger.mjs", ["--candidates", stage("hygiene-handoff/ledger.jsonl", emitted.stdout), "--repo", handoff.path], { path: handoffTool })
   const entry = selected.status === 0 ? JSON.parse(selected.stdout) : { counts: {} }
   const handoffArgument = { repositories: { ui: entry } }
