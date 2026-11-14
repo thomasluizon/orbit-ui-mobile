@@ -34,9 +34,8 @@ public sealed class OrbitWindowBarAction {
     public int[] pixels;
 }
 
-// The open popup menu of the installed app: its window, its rectangle and its menu handle, in physical pixels.
+// The open popup menu of the installed app: its menu handle, and its rectangle in physical pixels.
 public sealed class OrbitPopupMenu {
-    public long handle;
     public long menu;
     public int[] rect;
     // Where the shell anchors the popup: the start of the menu action, under the bar.
@@ -216,7 +215,7 @@ public static class OrbitWindowBarReader {
         var origin = new NativePoint();
         if (!ClientToScreen(window, ref origin)) throw new Win32Exception();
         uint dpi = GetDpiForWindow(window);
-        return new OrbitPopupMenu { handle = found.ToInt64(), menu = SendMessageW(found, MenuHandle, IntPtr.Zero, IntPtr.Zero).ToInt64(),
+        return new OrbitPopupMenu { menu = SendMessageW(found, MenuHandle, IntPtr.Zero, IntPtr.Zero).ToInt64(),
             rect = new[] { rect.Left, rect.Top, rect.Right, rect.Bottom },
             anchor = new[] { origin.X + Scale(EndCssInset, dpi), origin.Y + Scale(BarCssHeight, dpi) } };
     }
