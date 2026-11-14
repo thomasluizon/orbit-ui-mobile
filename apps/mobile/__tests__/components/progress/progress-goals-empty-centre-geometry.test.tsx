@@ -16,6 +16,7 @@ vi.mock('react-native-safe-area-context', async (original) => ({
 }))
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: createMockProfile({ hasProAccess: true }), isLoading: false, isError: false }) }))
 vi.mock('expo-router', () => ({ useRouter: () => ({ push: vi.fn(), dismissTo: vi.fn() }) }))
+vi.mock('@/hooks/use-flag', () => ({ useFlag: () => true }))
 vi.mock('@/hooks/use-goals', () => ({
   useCreateGoal: vi.fn(),
   useGoals: () => ({ data: { allGoals: [] }, isLoading: false, isError: false, refetch: vi.fn() }),
@@ -28,7 +29,7 @@ const HEIGHT = 915
 let tree: GeometryTree
 afterEach(async () => { await act(() => tree.unmount()) })
 
-it.each([360, 412, 840])('centres the Metas empty group between the header and the tab bar at %i px', async width => {
+it.each([360, 412, 840])('centres the Metas empty group with Orbit at rest between the header and the tab bar at %i px', async width => {
   __setWindowDimensions({ width, height: HEIGHT, scale: 1, fontScale: 1 })
   await act(() => { tree = create(<Shell412 safeAreaTop={false} notice={<></>} tabBar={<View testID="tab-bar" style={{ height: 80 }} />}>
     <ProgressContent screen="goals" />
@@ -38,4 +39,7 @@ it.each([360, 412, 840])('centres the Metas empty group between the header and t
   const group = boxes.get('empty-state')!
   expect(free.bottom - free.top).toBeGreaterThan(group.bottom - group.top)
   expect(Math.abs((group.top + group.bottom) / 2 - (free.top + free.bottom) / 2)).toBeLessThanOrEqual(1)
+  const orbit = tree.root.findByProps({ testID: 'empty-state-mark' }).findByProps({ testID: 'orbit-mascot' })
+  expect(orbit.props['data-orbit-state']).toBe('parado')
+  expect(orbit.props.width).toBe(width >= 1024 ? 128 : 96)
 })
