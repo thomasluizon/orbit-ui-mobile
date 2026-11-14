@@ -93,7 +93,7 @@ describe.each(['en', 'pt-BR'] as const)('the tag step on Android in %s', (locale
     expect(onContinue).not.toHaveBeenCalled()
     await press(pressable(root, text.common.discardChangesAction))
     expect(onContinue).toHaveBeenCalledTimes(1)
-    expect(field(root, text.habits.form.newTag).props.value).toBe('')
+    expect(field(root, text.habits.form.newTag)?.props.value).toBe('')
   })
 
   it('changes the Orbit line to the items of the pressed tag with no request', async () => {

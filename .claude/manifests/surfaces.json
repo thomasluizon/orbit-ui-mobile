@@ -565,7 +565,6 @@
         "apps/web/app/(app)/today-page-client.tsx",
         "apps/web/components/today/setup-checklist-card.tsx",
         "apps/web/components/today/today-ai-summary.tsx",
-        "apps/web/components/today/today-astra-line.tsx",
         "apps/web/components/today/today-astra.tsx",
         "apps/web/hooks/use-proactive-item.ts",
         "apps/web/hooks/use-summary.ts"
@@ -585,7 +584,6 @@
         "apps/web/app/(app)/today-page-client.tsx",
         "apps/web/components/today/setup-checklist-card.tsx",
         "apps/web/components/today/today-ai-summary.tsx",
-        "apps/web/components/today/today-astra-line.tsx",
         "apps/web/components/today/today-astra.tsx",
         "apps/web/hooks/use-proactive-item.ts",
         "apps/web/hooks/use-summary.ts"
@@ -605,7 +603,6 @@
         "apps/web/app/(app)/today-page-client.tsx",
         "apps/web/components/today/setup-checklist-card.tsx",
         "apps/web/components/today/today-ai-summary.tsx",
-        "apps/web/components/today/today-astra-line.tsx",
         "apps/web/components/today/today-astra.tsx",
         "apps/web/hooks/use-proactive-item.ts",
         "apps/web/hooks/use-summary.ts"
@@ -625,7 +622,6 @@
         "apps/web/app/(app)/today-page-client.tsx",
         "apps/web/components/today/setup-checklist-card.tsx",
         "apps/web/components/today/today-ai-summary.tsx",
-        "apps/web/components/today/today-astra-line.tsx",
         "apps/web/components/today/today-astra.tsx",
         "apps/web/hooks/use-proactive-item.ts",
         "apps/web/hooks/use-summary.ts"
@@ -645,7 +641,6 @@
         "apps/web/app/(app)/today-page-client.tsx",
         "apps/web/components/today/setup-checklist-card.tsx",
         "apps/web/components/today/today-ai-summary.tsx",
-        "apps/web/components/today/today-astra-line.tsx",
         "apps/web/components/today/today-astra.tsx",
         "apps/web/hooks/use-proactive-item.ts",
         "apps/web/hooks/use-summary.ts"
@@ -665,7 +660,6 @@
         "apps/web/app/(app)/today-page-client.tsx",
         "apps/web/components/today/setup-checklist-card.tsx",
         "apps/web/components/today/today-ai-summary.tsx",
-        "apps/web/components/today/today-astra-line.tsx",
         "apps/web/components/today/today-astra.tsx",
         "apps/web/hooks/use-proactive-item.ts",
         "apps/web/hooks/use-summary.ts"
@@ -685,7 +679,6 @@
         "apps/web/app/(app)/today-page-client.tsx",
         "apps/web/components/today/setup-checklist-card.tsx",
         "apps/web/components/today/today-ai-summary.tsx",
-        "apps/web/components/today/today-astra-line.tsx",
         "apps/web/components/today/today-astra.tsx",
         "apps/web/hooks/use-proactive-item.ts",
         "apps/web/hooks/use-summary.ts"
@@ -705,7 +698,6 @@
         "apps/web/app/(app)/today-page-client.tsx",
         "apps/web/components/today/setup-checklist-card.tsx",
         "apps/web/components/today/today-ai-summary.tsx",
-        "apps/web/components/today/today-astra-line.tsx",
         "apps/web/components/today/today-astra.tsx",
         "apps/web/hooks/use-proactive-item.ts",
         "apps/web/hooks/use-summary.ts"
