@@ -132,7 +132,7 @@ const caseTemporaryPatterns = () => {
 const caseInboundCounts = () => {
   const repository = makeRepository("inbound", {
     "docs/target.md": "I am the target\n",
-    "docs/by-path.md": "see docs/target.md for the target\n",
+    "docs/by-path.md": "see docs/target.md for the target, from docs/by-path.md\n",
     "docs/by-basename.md": "see only other-name.md here\n",
     "docs/other-name.md": "other-name.md names itself\n",
     "src/helper.ts": "export const helper = 1\n",
@@ -141,7 +141,7 @@ const caseInboundCounts = () => {
   const { row } = emit(repository)
   T(`${TOOL}: a file that another file names by path has inboundByPath 1`, row("docs/target.md").inboundByPath === 1 && row("docs/target.md").inboundByBasename === 1)
   T(`${TOOL}: a file named only by basename has inboundByBasename 1 and inboundByPath 0`, row("docs/other-name.md").inboundByBasename === 1 && row("docs/other-name.md").inboundByPath === 0)
-  T(`${TOOL}: a file that names itself counts 0`, row("docs/by-path.md").inboundByPath === 0 && row("docs/by-path.md").inboundByBasename === 0)
+  T(`${TOOL}: a file that names its own path counts 0`, row("docs/by-path.md").inboundByPath === 0 && row("docs/by-path.md").inboundByBasename === 0)
   T(`${TOOL}: a source file named by an import without an extension counts by its stem`, row("src/helper.ts").inboundByBasename === 1 && row("src/helper.ts").inboundByPath === 0)
 }
 
@@ -294,11 +294,16 @@ const caseUnresolvedReferences = () => {
       "Bare `present.md` resolves, bare `nowhere.md` does not. A [link](docs/gone-link.md#anchor) and a [web](https://example.com/x.md).",
       "Command `node tools/missing-tool.mjs --help` and a relative `./present.md`.",
       "Dot folders: missing `.claude/specs/gone.md` and [a workflow](.github/workflows/gone.yml), present `.claude/rules/core.md` and `.github/workflows/test.yml`, hidden `.env.example`.",
+      "Folder tail `nested/deep/`, sibling by name `../../references-sibling/sibling-only/notes.md`, relative `../top.md`, spaced `docs/Orbit Today.md`.",
+      "Line `docs/present.md:3`, missing line `docs/gone-line.md:12`, a [query](docs/present.md?plain=1) and a [missing query](docs/gone-query.md?plain=1).",
       "```",
       "`fenced/ignored.md`",
       "```",
     ].join("\n"),
     "docs/present.md": "text\n",
+    "docs/Orbit Today.md": "spaced\n",
+    "other/nested/deep/file.md": "deep\n",
+    "top.md": "top\n",
     ".claude/rules/core.md": "rules\n",
     ".github/workflows/test.yml": "name: test\n",
     "tools/root-allowlist.json":`${JSON.stringify({ files: ["generated.json"], directories: [] })}\n`,
@@ -310,7 +315,7 @@ const caseUnresolvedReferences = () => {
   const sibling = makeRepository("references-sibling", { "sibling-only/notes.md": "notes\n" })
   const { row } = emit(repository, [sibling])
   const found = row("docs/guide.md").unresolvedReferences
-  const expected = [".claude/specs/gone.md", ".github/workflows/gone.yml", "docs/gone-link.md", "docs/gone.md", "nowhere.md", "tools/missing-tool.mjs"]
+  const expected = [".claude/specs/gone.md", ".github/workflows/gone.yml", "docs/gone-line.md", "docs/gone-link.md", "docs/gone-query.md", "docs/gone.md", "nowhere.md", "tools/missing-tool.mjs"]
   T(`${TOOL}: unresolvedReferences holds each missing path and only those`, found.join() === expected.join(), found.join())
   T(`${TOOL}: a missing path under a dot folder is reported and a tracked one resolves`,
     found.includes(".claude/specs/gone.md") && found.includes(".github/workflows/gone.yml") && !found.some((path) => /core\.md|test\.yml/.test(path)), found.join())
@@ -319,7 +324,22 @@ const caseUnresolvedReferences = () => {
   T(`${TOOL}: a URL, a glob, a placeholder, a flag and a branch prefix are never references`, !found.some((path) => /example|\*|<|--flag|feature|dc\.html|Next|1\.2\.3/.test(path)))
   T(`${TOOL}: a fenced code block is skipped`, !found.includes("fenced/ignored.md"))
   T(`${TOOL}: a source file and an asset get an empty list`, row("src/code.ts").unresolvedReferences.length === 0 && row("design/page.html").unresolvedReferences.length === 0)
-  T(`${TOOL}: a folder reference resolves when the folder is tracked`, row("tools/root-allowlist.json").unresolvedReferences.length === 0)
+  T(`${TOOL}: a reference to the tail of a tracked folder resolves`, !found.some((path) => path.startsWith("nested/")), found.join())
+  T(`${TOOL}: a ../ path into an --also-search root by its name resolves`, !found.some((path) => path.includes("references-sibling")), found.join())
+  T(`${TOOL}: a path relative to the folder of the doc resolves`, !found.includes("../top.md"), found.join())
+  T(`${TOOL}: a span with a space that names a tracked file resolves as one path`, !found.some((path) => path.includes("Today")), found.join())
+  T(`${TOOL}: a :line suffix and a ?query are stripped before the check`,
+    found.includes("docs/gone-line.md") && found.includes("docs/gone-query.md") && !found.some((path) => path.includes("present")), found.join())
+}
+
+const caseRepositoryIdentity = () => {
+  const repository = makeRepository("identity", { "docs/a.md": "a\n" })
+  check(TOOL, "a --repo below the root of a git repository exits 2", ["--repo", join(repository, "docs")], { status: 2, stderr: /is not the root of a git repository/ })
+  const first = makeRepository("shared-name-a/same", { "a.md": "a\n" })
+  const second = makeRepository("shared-name-b/same", { "b.md": "b\n" })
+  check(TOOL, "two --also-search roots with one name exit 2", ["--repo", repository, "--also-search", first, "--also-search", second], { status: 2, stderr: /share a name: same, same/ })
+  gitIn(repository, ["remote", "add", "origin", "https://example.com/acme/real-name.git"])
+  check(TOOL, "the summary names the repository by its origin remote, not its folder", ["--repo", repository], { status: 0, stderr: /^file-ledger: real-name: 1 tracked files/m })
 }
 
 /** A ledger row with a reader and no signal; `fields` sets the signals of one case. */
@@ -454,6 +474,7 @@ export const cases = () => {
   caseRender()
   caseUsage()
   caseUnresolvedReferences()
+  caseRepositoryIdentity()
   caseCandidateKinds()
   caseCandidateCap()
   caseCandidateRefusals()
