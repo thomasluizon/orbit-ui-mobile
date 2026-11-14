@@ -120,6 +120,9 @@ describe('tag selection', () => {
     tagStepState.tags = buildTags(['A', 'B', 'C', 'D', 'E', 'F'])
     render(<TagStepHarness initialIds={['tag-5']} onContinue={vi.fn()} />)
     expect(quickOptions()).toEqual(['F', 'A', 'B', 'C', 'No tag'])
+    fireEvent.click(screen.getByRole('button', { name: 'C' }))
+    expect(quickOptions(), 'a press never moves the other options').toEqual(['F', 'A', 'B', 'C', 'No tag'])
+    fireEvent.click(screen.getByRole('button', { name: 'C' }))
     const search = screen.getByRole('searchbox', { name: en.habits.form.searchTags })
     fireEvent.change(search, { target: { value: 'e' } })
     const rows = document.querySelector('[data-tag-step-rows]') as HTMLElement

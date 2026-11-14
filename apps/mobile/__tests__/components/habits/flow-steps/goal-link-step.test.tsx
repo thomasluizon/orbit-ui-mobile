@@ -108,6 +108,7 @@ describe('the goal step on Android', () => {
     expect(optionLabels(tree), 'each quick goal shows its progress').toEqual(['Meta 1, 0%', 'Meta 2, 10%', 'Meta 3, 20%', 'Criar meta'])
     await tap(option(tree, 'Meta 2, 10%'))
     expect(option(tree, 'Meta 2, 10%').props.accessibilityState).toMatchObject({ selected: true })
+    expect(optionLabels(tree), 'a press never moves the other options').toEqual(['Meta 1, 0%', 'Meta 2, 10%', 'Meta 3, 20%', 'Criar meta'])
     expect(state.selected).toEqual(['goal-2'])
     expect(onContinue).not.toHaveBeenCalled()
     await tap(byTestId(tree, 'button-primary-sm') ?? tree.hosts().find((node) => node.props.testID?.startsWith('button-primary')))

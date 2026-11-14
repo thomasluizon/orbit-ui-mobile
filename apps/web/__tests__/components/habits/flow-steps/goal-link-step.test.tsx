@@ -94,6 +94,7 @@ describe('the goal step', () => {
     expect(options().map((option) => option.textContent), 'each quick goal shows its progress').toEqual(['Meta 1, 0%', 'Meta 2, 10%', 'Meta 3, 20%', 'Criar meta'])
     await press('Meta 2, 10%')
     expect(screen.getByRole('button', { name: 'Meta 2, 10%' })).toHaveAttribute('aria-pressed', 'true')
+    expect(options().map((option) => option.textContent), 'a press never moves the other options').toEqual(['Meta 1, 0%', 'Meta 2, 10%', 'Meta 3, 20%', 'Criar meta'])
     expect(state.selected).toEqual(['goal-2'])
     expect(onContinue).not.toHaveBeenCalled()
     await press('Meta 2, 10%')

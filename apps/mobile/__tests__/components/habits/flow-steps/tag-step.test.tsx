@@ -146,10 +146,13 @@ describe('tag selection on Android', () => {
     expect(texts(root).some((value) => /pro|upgrade/i.test(value))).toBe(false)
   })
 
-  it('shows four quick options, the selected first, and every tag behind the search', () => {
+  it('shows four quick options, the selected first, and every tag behind the search', async () => {
     tagStepState.tags = buildTags(['A', 'B', 'C', 'D', 'E', 'F'])
     const root = mount(<TagStepHarness initialIds={['tag-5']} onContinue={vi.fn()} />)
     expect(quickOptions(root)).toEqual(['F', 'A', 'B', 'C', 'No tag'])
+    await press(pressable(root, 'C'))
+    expect(quickOptions(root), 'a press never moves the other options').toEqual(['F', 'A', 'B', 'C', 'No tag'])
+    await press(pressable(root, 'C'))
     type(field(root, en.habits.form.searchTags), 'e')
     expect(pressable(root, 'E', 'tag-step-rows')).toBeDefined()
     type(field(root, en.habits.form.searchTags), 'zz')

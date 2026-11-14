@@ -33,10 +33,9 @@ export interface TagStepProps {
   onContinue: () => void
 }
 
-/** The selected tags first, then the order the list has today. */
-function quickTags(available: readonly HabitTag[], selectedIds: readonly string[]): HabitTag[] {
-  const selected = new Set(selectedIds)
-  return [...available.filter((tag) => selected.has(tag.id)), ...available.filter((tag) => !selected.has(tag.id))].slice(0, QUICK_TAGS)
+/** The tags selected when the step opened lead, then the order the list has today. The order stays while the person presses. */
+function quickTags(available: readonly HabitTag[], leading: ReadonlySet<string>): HabitTag[] {
+  return [...available.filter((tag) => leading.has(tag.id)), ...available.filter((tag) => !leading.has(tag.id))].slice(0, QUICK_TAGS)
 }
 
 /** The line reads the cache that holds every habit and never fetches it: with no cached list the intro line stays. */
@@ -95,6 +94,7 @@ export function useTagStepView({ tags, title, description, onContinue }: Readonl
   const t = useTranslations()
   const actions = useTagStepActions(tags, { title, description })
   const [pressedTagId, setPressedTagId] = useState<string | null>(null)
+  const [leading] = useState(() => new Set(tags.selectedTagIds))
   const line = useTagLine(pressedTagId, actions.availableTags)
   const pressTag = (tagId: string) => { tags.toggleTag(tagId); setPressedTagId(tagId) }
   const selected = new Set(tags.selectedTagIds)
@@ -107,7 +107,7 @@ export function useTagStepView({ tags, title, description, onContinue }: Readonl
     orbitState: thinking ? 'pensando' : 'parado',
     statusText: thinking ? t('habits.form.suggestingTags') : undefined,
     options: <>
-      {quickTags(actions.availableTags, tags.selectedTagIds).map((tag) => (
+      {quickTags(actions.availableTags, leading).map((tag) => (
         <OptionCard key={tag.id} label={tag.name} selected={selected.has(tag.id)} disabled={!selected.has(tag.id) && tags.atTagLimit} disabledReason={t('habits.form.tagLimit')} onSelect={() => pressTag(tag.id)} />
       ))}
       <OptionCard label={t('habits.flow.tags.none')} onSelect={() => editor.leave(() => { tags.resetTags([]); onContinue() })} />

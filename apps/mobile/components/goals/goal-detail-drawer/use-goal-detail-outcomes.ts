@@ -1,5 +1,6 @@
 import { useCallback, useRef, useState } from 'react'
 import type { Goal } from '@orbit/shared/types/goal'
+import { useAccountScopedState } from '@/hooks/use-session-reset'
 import type { GoalStatusResult } from './goal-status-result-dialog'
 
 /**
@@ -7,7 +8,7 @@ import type { GoalStatusResult } from './goal-status-result-dialog'
  * delete, and one ring sweep after the progress sheet closes. Off (`guided` false), it records nothing.
  */
 export function useGoalDetailOutcomes(goal: Goal | null, guided: boolean, reducedMotion: boolean) {
-  const [result, setResult] = useState<GoalStatusResult | null>(null)
+  const [result, setResult] = useAccountScopedState<GoalStatusResult | null>(null)
   const [progressSweep, setProgressSweep] = useState<{ from: number; key: number } | null>(null)
   const progressBefore = useRef<number | null>(null)
   const deletedTitle = useRef('')

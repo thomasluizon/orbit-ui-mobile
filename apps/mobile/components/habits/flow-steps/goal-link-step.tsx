@@ -32,8 +32,9 @@ export interface GoalLinkStepProps {
   onContinue: () => void
 }
 
-function quickGoals(goals: Goal[], selected: Set<string>): Goal[] {
-  return [...goals.filter((goal) => selected.has(goal.id)), ...goals.filter((goal) => !selected.has(goal.id))].slice(0, QUICK_GOALS)
+/** The goals selected when the step opened lead, then the list order. The order stays while the person presses. */
+function quickGoals(goals: Goal[], leading: ReadonlySet<string>): Goal[] {
+  return [...goals.filter((goal) => leading.has(goal.id)), ...goals.filter((goal) => !leading.has(goal.id))].slice(0, QUICK_GOALS)
 }
 
 function GoalSearch({ goals, selected, atGoalLimit, onToggleGoal }: Readonly<{ goals: Goal[]; selected: Set<string>; atGoalLimit: boolean; onToggleGoal: (goalId: string) => void }>) {
@@ -59,6 +60,7 @@ export function useGoalLinkStepView(props: Readonly<GoalLinkStepProps>): FlowSte
   const { habitTitle, atGoalLimit, onToggleGoal, onContinue } = props
   const { t } = useTranslation()
   const goalsQuery = useLinkableGoals()
+  const [leading] = useState(() => new Set(props.selectedGoalIds))
   const goals = goalsQuery.data
   const linking = useGoalLinking({ ...props, onGoalCreated: props.onGoalCreated ?? onToggleGoal }, goals, (afterDismiss) => afterDismiss())
   const limitReason = t('habits.flow.goals.limit')
@@ -67,7 +69,7 @@ export function useGoalLinkStepView(props: Readonly<GoalLinkStepProps>): FlowSte
     question: t('habits.flow.optional.goals'),
     line: !goalsQuery.isSuccess || activeGoals.length > 0 ? t('habits.flow.goals.line') : t('habits.flow.goals.lineEmpty'),
     options: <>
-      {quickGoals(activeGoals, selectedSet).map((goal) => {
+      {quickGoals(activeGoals, leading).map((goal) => {
         const selected = selectedSet.has(goal.id)
         return <OptionCard key={goal.id} label={t('habits.flow.goals.option', { title: goal.title, percent: Math.round(goal.progressPercentage) })} selected={selected} disabled={!selected && atGoalLimit} disabledReason={limitReason} onSelect={() => onToggleGoal(goal.id)} />
       })}
