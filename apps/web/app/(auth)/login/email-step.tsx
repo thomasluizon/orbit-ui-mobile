@@ -63,7 +63,7 @@ export function EmailStep({ email, emailFocusRequest, onEmailChange, isSubmittin
         {process.env.NEXT_PUBLIC_APPLE_CLIENT_ID ? <div className="flex flex-col">
           {/* eslint-disable-next-line local/max-button-words -- Apple's approved sign-in wording labels the browser action. */}
           <PillButton variant="ghost" leadingIcon={<AppleMark size={20} aria-hidden />} disabled={isBusy || !isOnline}
-            onClick={onSignInWithApple}>{t('auth.signInWithApple')}</PillButton>
+            loading={isAppleLoading} onClick={onSignInWithApple}>{t('auth.signInWithApple')}</PillButton>
         </div> : null}
         {!isOnline && <p className="text-sm text-[var(--fg-3)]">{t('auth.googleOffline')}</p>}
         {googleError && <p role="alert" className="text-sm text-[var(--status-bad-text)]">{googleError}</p>}
