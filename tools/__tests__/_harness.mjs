@@ -1,7 +1,8 @@
 import { spawn, spawnSync } from "node:child_process"
 import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
-import { dirname, join, posix, resolve } from "node:path"
+import { dirname, isAbsolute, join, posix, relative, resolve, sep } from "node:path"
+import { fileURLToPath, pathToFileURL } from "node:url"
 
 /**
  * Injected by the runner. These are live bindings: configure() runs before any case
@@ -20,25 +21,58 @@ export const configure = ({ toolsDir, self }) => {
 /** The one path helper case modules use, so injection failure surfaces as a wrong path. */
 export const toolPath = (file) => join(TOOLS_DIR, file)
 
-const RELATIVE_IMPORT = /^(?:import|export)\b[^"'`]*?\bfrom\s*(["'])(\.{1,2}\/[^"']+)\1|\bimport\s*\(\s*(["'])(\.{1,2}\/[^"']+)\3\s*\)/gm
+/** The import forms the walk follows. Group 2 of each holds a "./" or "../" specifier. */
+const RELATIVE_IMPORTS = [
+  /^(?:import|export)\b[^"'`]*?\bfrom\s*(["'])(\.{1,2}\/[^"'\n]+)\1/gm, // static import or re-export, at line start
+  /^import\s*(["'])(\.{1,2}\/[^"'\n]+)\1/gm, // side-effect import, at line start
+  /\bimport\s*\(\s*(["'`])(\.{1,2}\/(?:(?!\$\{)[^"'`\n])+)\1\s*\)/g, // import() with quotes, or a template with no substitution
+]
+/**
+ * A `new URL` call with a literal and import.meta.url. Group 2 holds the literal. The walk lists the
+ * file it names and reads that file only when it is a module. It skips a URL with another scheme, and
+ * a URL whose path ends in a slash, such as "..".
+ */
+const MODULE_RELATIVE_URL = /\bnew\s+URL\s*\(\s*(["'`])((?:(?!\$\{)[^"'`\n])+)\1\s*,\s*import\.meta\.url\s*\)/g
+const MODULE_FILE = /\.(?:mjs|js|cjs)$/
 
 /**
- * The tool and every module it imports transitively through a relative specifier, as paths
- * under tools/ with the tool first. A staged copy of a tool carries all of them, so a module
- * that moves into tools/lib/ cannot leave the copy unable to load.
+ * The path under toolsDir that specifier names from module, or null for a directory or a URL with
+ * another scheme. It throws on a path outside the repository root, because a staged copy cannot hold it.
  */
-export const toolModules = (file) => {
-  const modules = []
+const pathFrom = (toolsDir, module, specifier) => {
+  const target = new URL(specifier, pathToFileURL(join(toolsDir, module)))
+  if (target.protocol !== "file:" || target.pathname.endsWith("/")) return null
+  const path = fileURLToPath(target)
+  const fromRoot = relative(resolve(toolsDir, ".."), path)
+  if (fromRoot === ".." || fromRoot.startsWith(`..${sep}`) || isAbsolute(fromRoot)) {
+    throw new Error(`${module} names ${specifier}, which is outside the repository root`)
+  }
+  return relative(toolsDir, path).split(sep).join("/")
+}
+
+/**
+ * The tool and every file it loads through a literal relative path, as paths under toolsDir, tool first.
+ * The walk reads each .mjs, .js and .cjs file it lists for the forms above, in comments and strings too.
+ * It skips node: and package specifiers, and throws on a path outside the repository root. It does not
+ * follow require(), a specifier with a substitution or a variable, or a URL with another base.
+ */
+export const toolFiles = (file, toolsDir = TOOLS_DIR) => {
+  const files = []
   const pending = [posix.normalize(file)]
   while (pending.length > 0) {
-    const module = pending.shift()
-    if (modules.includes(module)) continue
-    modules.push(module)
-    for (const match of readFileSync(toolPath(module), "utf8").matchAll(RELATIVE_IMPORT)) {
-      pending.push(posix.join(posix.dirname(module), match[2] ?? match[4]))
+    const current = pending.shift()
+    if (files.includes(current)) continue
+    files.push(current)
+    if (!MODULE_FILE.test(current)) continue
+    const source = readFileSync(join(toolsDir, current), "utf8")
+    for (const pattern of [...RELATIVE_IMPORTS, MODULE_RELATIVE_URL]) {
+      for (const match of source.matchAll(pattern)) {
+        const path = pathFrom(toolsDir, current, match[2])
+        if (path !== null) pending.push(path)
+      }
     }
   }
-  return modules
+  return files
 }
 
 /** Case keys naming a file that is not in tools/. A skip here would exit 0 on a typo. */
