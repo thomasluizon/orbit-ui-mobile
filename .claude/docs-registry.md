@@ -2,6 +2,8 @@
 
 **At a glance:** every repository doc that `CLAUDE.md` does not load, with its purpose and when to read it. `CLAUDE.md` points here.
 
+The harness loads each `CLAUDE.md`, each agent under `.claude/agents/` and each skill's `SKILL.md` by itself, so one of those has a row only when a procedure reads it by path.
+
 Grep a doc's `At a glance` header before loading it. Registry rows and glance headers describe stable purposes; update them only when a purpose changes. Record amendments in the document body.
 
 | Doc | Purpose |
@@ -79,4 +81,31 @@ Grep a doc's `At a glance` header before loading it. Registry rows and glance he
 | `.claude/skills/android-release/SKILL.md` | Dispatching `android-release.yml` to a Google Play track. |
 | `.claude/skills/ios-release/SKILL.md` | Internal TestFlight releases, app and widget signing, and Apple enrollment prerequisites. |
 | `.claude/skills/release/SKILL.md` | Planning production and staging gaps, with pinned releases and live commit verification. |
+| `README.md` | Product overview, workspace layout and local setup for a new reader of the repository. |
+| `.github/pull_request_template.md` | The two body sections every pull request fills: what changed and the test evidence. |
+| `tools/README.md` | Catalog of every script in `tools/`: what each one does and how to call it. |
+| `tools/CONVENTIONS.md` | The contract every `tools/` script follows: `--help`, exit codes, stdin for large payloads and the gate rules. |
+| `tools/lib/ticket-classifier-prompt.md` | The prompt that `tools/lib/ticket-executability.mjs` sends to classify whether a worker can execute a ticket; its digest is calibrated. |
+| `tools/desktop-bench/README.md` | Desktop performance acceptance: how `run.mjs` measures the native release shells against one hermetic web build. |
+| `apps/desktop/README.md` | The Tauri desktop shell: which deployed app it loads, external links, Google sign-in, updates, native reminders, the build and an updater release. |
+| `design/brand/README.md` | The source Orbit and Astra marks, their variants, the raster and manual upload exports and the three type families. |
+| `packages/decode-uri-component/README.md` | Why the CommonJS port of `decode-uri-component` 0.5.0 exists for Expo Router and where its code comes from. |
+| `packages/shared/scripts/__fixtures__/README.md` | Provenance of the producer fixtures: the `orbit-api` commit they come from; evidence, never runtime inputs. |
+| `.claude/pending-lessons.md` | Staged lesson candidates that the SessionStart hook surfaces until each one graduates or is dropped. |
+| `.claude/hooks/_lib/README.md` | The shared rule core of the session hooks and the thin adapter contract of each hook file. |
+| `.claude/handoffs/NEXT.md` | The relay prompt that `/handoff` writes for the next session; read it only to start that session. |
+| `.claude/playbooks/README.md` | The on-demand judgement tier: which playbook to read for which activity, and the tier contract. |
+| `.claude/playbooks/debugging.md` | Standing rules for a bug, a triage, `/investigate` and a merge conflict. |
+| `.claude/playbooks/review-and-audit.md` | Standing rules for `/audit-*`, `/prod-readiness`, a Pullfrog review to act on and any fan-out assessment. |
+| `.claude/playbooks/planning-and-artifacts.md` | Standing rules for `/ticket`, `/orchestrate`, ticket writing, prototyping, ADRs and handoff. |
+| `.claude/playbooks/context-engineering.md` | Standing rules for authoring anything an agent reads: a rule, playbook, skill, agent, tool or ticket. |
+| `.claude/playbooks/operations.md` | Standing rules for launching a worker, waiting on CI, merging, releasing, infrastructure and a browser, console or device. |
+| `.claude/rules/product-and-content.md` | Path-scoped rules for i18n copy, the landing page, JSON-LD, the design system and any subtraction pass. |
+| `.claude/skills/_shared/audit-to-tickets.md` | The shared synthesis contract of every `/audit-*` and `/prod-readiness` run: findings become GitHub tickets behind one approval gate. |
+| `.claude/skills/_shared/gate-owned-exclusions.md` | The D11 list of what the gates own, so no audit flags it. |
+| `.claude/skills/_shared/scope-completeness.md` | The search and evidence contract that `/ticket` and `/orchestrate` run before work starts. |
+| `.claude/skills/_shared/verification-protocol.md` | The shared verify, coverage and Deferred ledger layer of every audit skill. |
+| `.claude/skills/audit-performance/checklist.md` | The pattern list that `/audit-performance` walks; its only consumer. |
+| `.claude/skills/audit-security/checklist.md` | The category list that `/audit-security` walks; its only consumer. |
+| `.claude/skills/audit-tests/rubric.md` | The intelligent-test rubric that `/audit-tests` scores against; its only consumer. |
 | **D1..D42 register** | Historical decision record in the brain vault: `2 Areas/20-29 Orbit Engineering/Decisions/`. Current ticket routing is defined in `CLAUDE.md`. |
