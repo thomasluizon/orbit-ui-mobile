@@ -27,6 +27,7 @@ interface GoalsSectionProps {
   onRegisterGoal: (goalId: string, instance: View | null) => void
   /** The value each card's ring sweeps from once, or null for a card with no change since the last visit. */
   sweepFrom: (goal: Goal) => number | null
+  onSwept: (goalId: string) => void
 }
 
 function GoalSeparator() {
@@ -37,7 +38,7 @@ function announceReorderResult(message: string) {
   AccessibilityInfo.announceForAccessibility(message)
 }
 
-export function GoalsSection({ goals, tokens, onOpenGoal, onRegisterGoal, onCreate, filter, setFilter, sweepFrom }: Readonly<GoalsSectionProps>) {
+export function GoalsSection({ goals, tokens, onOpenGoal, onRegisterGoal, onCreate, filter, setFilter, sweepFrom, onSwept }: Readonly<GoalsSectionProps>) {
   const { t } = useTranslation()
   const reorder = useReorderGoals()
   const reducedListMotion = usePrefersReducedMotion()
@@ -70,7 +71,7 @@ export function GoalsSection({ goals, tokens, onOpenGoal, onRegisterGoal, onCrea
   const cellMotion = createListCellMotion(reducedListMotion)
   const renderGoal = ({ item, getIndex, drag, isActive }: RenderItemParams<Goal>) => {
     const index = getIndex() ?? goals.findIndex((goal) => goal.id === item.id)
-    return <GoalCard goal={item} index={index} total={goals.length} canReorder={filter === 'all' && !reorder.isPending} isDragging={isActive} sweepFrom={sweepFrom(item)} onDrag={drag} onMove={move} onOpen={() => onOpenGoal(item.id)} onRegister={onRegisterGoal} tokens={tokens} />
+    return <GoalCard goal={item} index={index} total={goals.length} canReorder={filter === 'all' && !reorder.isPending} isDragging={isActive} sweepFrom={sweepFrom(item)} onSwept={() => onSwept(item.id)} onDrag={drag} onMove={move} onOpen={() => onOpenGoal(item.id)} onRegister={onRegisterGoal} tokens={tokens} />
   }
   return (
     <View testID="progress-goals-section" style={styles.goalsSection}>
@@ -80,7 +81,7 @@ export function GoalsSection({ goals, tokens, onOpenGoal, onRegisterGoal, onCrea
           onSelect={(id) => { const option = options.find((item) => item.value === id); if (option) setFilter(option.value) }} /></Menu.Root>
       {filtered.length === 0 ? <View style={[styles.emptyLine, { backgroundColor: tokens.bgWell }]}><Text style={[styles.body, { color: tokens.fg2 }]}>{t('progressScreen.goals.filterEmpty')}</Text><PillButton variant="ghost" size="sm" minimumHeight={48} onClick={() => setFilter('all')}>{t('progressScreen.goals.clearFilter')}</PillButton></View> : null}
       {filtered.length > 0 && filter === 'all' ? <NestableDraggableFlatList {...cellMotion} data={filtered} keyExtractor={(goal) => goal.id} renderItem={renderGoal} onDragEnd={handleDragEnd} activationDistance={5} ItemSeparatorComponent={GoalSeparator} /> : null}
-      {filter !== 'all' ? filtered.map((goal) => <ContentFade key={goal.id}><GoalCard goal={goal} index={goals.findIndex((item) => item.id === goal.id)} total={goals.length} canReorder={false} isDragging={false} sweepFrom={sweepFrom(goal)} onMove={move} onOpen={() => onOpenGoal(goal.id)} onRegister={onRegisterGoal} tokens={tokens} /></ContentFade>) : null}
+      {filter !== 'all' ? filtered.map((goal) => <ContentFade key={goal.id}><GoalCard goal={goal} index={goals.findIndex((item) => item.id === goal.id)} total={goals.length} canReorder={false} isDragging={false} sweepFrom={sweepFrom(goal)} onSwept={() => onSwept(goal.id)} onMove={move} onOpen={() => onOpenGoal(goal.id)} onRegister={onRegisterGoal} tokens={tokens} /></ContentFade>) : null}
       {reorder.isError ? <Text accessibilityRole="alert" style={[styles.body, { color: tokens.fg2 }]}>{t('progressScreen.goals.reorderError')}</Text> : null}
     </View>
   )

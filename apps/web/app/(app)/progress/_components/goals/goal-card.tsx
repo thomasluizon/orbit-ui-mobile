@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import type { KeyboardEvent } from 'react'
 import { useSortable } from '@dnd-kit/sortable'
 import { useTranslations } from 'next-intl'
@@ -11,13 +12,14 @@ import { PersonalText } from '@/components/ui/personal-text'
 import { ProgressRing } from '@/components/ui/progress-ring'
 import { StatusRing } from '@/components/ui/status-ring'
 
-function GoalIndicator({ goal, sweepFrom }: Readonly<{ goal: Goal; sweepFrom: number | null }>) {
+function GoalIndicator({ goal, sweepFrom, onSwept }: Readonly<{ goal: Goal; sweepFrom: number | null; onSwept?: () => void }>) {
   const t = useTranslations()
-  const shown = useRingSweep(goal.progressPercentage, sweepFrom)
+  const shown = useRingSweep(goal.progressPercentage, sweepFrom, onSwept)
+  const [planned] = useState(sweepFrom !== null)
   if (goal.status === 'Abandoned') return null
   const label = t('goals.progressPercentage', { pct: Math.round(goal.progressPercentage) })
   if (goal.status === 'Completed' || goal.progressPercentage >= 100) return <StatusRing status="done" size={30} label={label} />
-  return <span data-ring-sweep={shown === goal.progressPercentage ? 'rest' : 'sweeping'} className="flex"><ProgressRing value={shown} size={44} label={label} sweepDuration={sweepFrom === null ? 'base' : 'slow'} /></span>
+  return <span data-ring-sweep={shown === goal.progressPercentage ? 'rest' : 'sweeping'} className="flex"><ProgressRing value={shown} size={44} label={label} sweepDuration={planned ? 'slow' : 'base'} /></span>
 }
 
 interface GoalCardProps {
@@ -27,11 +29,13 @@ interface GoalCardProps {
   canReorder: boolean
   /** The value the ring sweeps from once, when the goal changed since the last visit. Null draws the ring at rest. */
   sweepFrom: number | null
+  /** Reports that this card's ring swept, so the list never sweeps it again in this visit. */
+  onSwept?: () => void
   onMove: (goalId: string, target: number) => void
   onOpen: () => void
 }
 
-export function GoalCard({ goal, index, total, canReorder, sweepFrom, onMove, onOpen }: Readonly<GoalCardProps>) {
+export function GoalCard({ goal, index, total, canReorder, sweepFrom, onSwept, onMove, onOpen }: Readonly<GoalCardProps>) {
   const t = useTranslations()
   const { attributes, setNodeRef, listeners, transform, isDragging } = useSortable({ id: goal.id, disabled: !canReorder, attributes: { roleDescription: t('dragAndDrop.roleDescription') } })
   const labelKey = getProgressGoalLabelKey(goal)
@@ -73,7 +77,7 @@ export function GoalCard({ goal, index, total, canReorder, sweepFrom, onMove, on
             {!abandoned ? <span className="font-[var(--font-mono)] text-[12px] tabular-nums text-[var(--fg-2)]">{t('progressScreen.goals.progress', { current: goal.currentValue, target: goal.targetValue, unit: goal.unit })}</span> : null}
           </span>
         </span>
-        <GoalIndicator goal={goal} sweepFrom={sweepFrom} />
+        <GoalIndicator goal={goal} sweepFrom={sweepFrom} onSwept={onSwept} />
       </span>
     </button>
   )

@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { getGoalDeadlineFact } from '../utils/goal-detail-line'
 import { goalProgressSweepStart, parseGoalSeenProgress, recordGoalSeenProgress } from '../utils/goal-seen-progress'
 import { createUseRingSweep } from '../hooks/ring-sweep-core'
@@ -61,16 +61,19 @@ describe('ring sweep', () => {
       requestFrame: (callback) => frames.push(callback),
       cancelFrame: () => {},
     })
-    return { render: (value: number) => harness.render(() => useRingSweep(value, from)), frames }
+    const onDone = vi.fn()
+    return { render: (value: number) => harness.render(() => useRingSweep(value, from, onDone)), frames, onDone }
   }
 
   it('draws the old value, then the new value two frames later', () => {
-    const { render, frames } = setup(25)
+    const { render, frames, onDone } = setup(25)
     expect(render(40)).toBe(25)
     frames.shift()?.()
     expect(frames).toHaveLength(1)
+    expect(onDone).not.toHaveBeenCalled()
     frames.shift()?.()
     expect(render(40)).toBe(40)
+    expect(onDone, 'the list hears once that the ring swept').toHaveBeenCalledTimes(1)
   })
 
   it('draws the current value at once with nothing to sweep', () => {

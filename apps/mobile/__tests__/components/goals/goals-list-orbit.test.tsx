@@ -12,14 +12,15 @@ const mocks = vi.hoisted(() => ({
   guided: true,
   reducedMotion: false,
   storage: new Map<string, string>(),
+  storageRefused: false,
   goals: { data: undefined as { allGoals: Goal[] } | undefined, isError: false, isLoading: false, refetch: vi.fn() },
   reorder: { mutate: vi.fn(), isPending: false, isError: false },
 }))
 
 vi.mock('@react-native-async-storage/async-storage', () => ({
   default: {
-    getItem: (key: string) => Promise.resolve(mocks.storage.get(key) ?? null),
-    setItem: (key: string, value: string) => { mocks.storage.set(key, value); return Promise.resolve() },
+    getItem: (key: string) => (mocks.storageRefused ? Promise.reject(new Error('denied')) : Promise.resolve(mocks.storage.get(key) ?? null)),
+    setItem: (key: string, value: string) => { if (mocks.storageRefused) return Promise.reject(new Error('denied')); mocks.storage.set(key, value); return Promise.resolve() },
   },
 }))
 vi.mock('react-i18next', async (original) => ({
@@ -67,6 +68,7 @@ describe('goals list on the Orbit logic', () => {
     mocks.guided = true
     mocks.reducedMotion = false
     mocks.storage.clear()
+    mocks.storageRefused = false
     mocks.goals = { data: { allGoals: [read, run] }, isError: false, isLoading: false, refetch: vi.fn() }
     mocks.reorder = { mutate: vi.fn(), isPending: false, isError: false }
   })
@@ -97,6 +99,24 @@ describe('goals list on the Orbit logic', () => {
     expect(ringValue('read')).toBe(50)
     expect(ring('read').props['data-ring-sweep']).toBe('rest')
     expect(JSON.parse(mocks.storage.get(seenKey())!)).toEqual({ read: 50, run: 25 })
+  })
+
+  it('sweeps a ring only once in a visit, so a filter change never replays it', async () => {
+    mocks.storage.set(seenKey(), JSON.stringify({ read: 25, run: 25 }))
+    await renderGoals()
+    await nextFrames()
+    const menu = tree.root.findAll((node) => Array.isArray(node.props.items) && typeof node.props.onSelect === 'function')[0]!
+    await act(async () => { call(menu, 'onSelect', 'active'); await Promise.resolve() })
+    expect(ringValue('read')).toBe(50)
+    expect(ring('read').props['data-ring-sweep'], 'a remounted card stays at rest').toBe('rest')
+  })
+
+  it('reads refused storage as no last visit, shows the list and draws every ring at rest', async () => {
+    mocks.storageRefused = true
+    await renderGoals()
+    await act(async () => { await Promise.resolve() })
+    expect(ringValue('read')).toBe(50)
+    expect(ring('read').props['data-ring-sweep']).toBe('rest')
   })
 
   it('opens the created goal from the filled action of the result dialog', async () => {

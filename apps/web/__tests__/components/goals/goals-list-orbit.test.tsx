@@ -95,6 +95,24 @@ describe('goals list on the Orbit logic', () => {
     expect(JSON.parse(localStorage.getItem(seenKey())!)).toEqual({ read: 50, run: 25 })
   })
 
+  it('sweeps a ring only once in a visit, so a filter change never replays it', async () => {
+    localStorage.setItem(seenKey(), JSON.stringify({ read: 25, run: 25 }))
+    renderGoals()
+    await nextFrames()
+    fireEvent.click(screen.getByRole('button', { name: `${en.progressScreen.goals.filter}: ${en.progressScreen.goals.all}` }))
+    fireEvent.click(await screen.findByRole('menuitemcheckbox', { name: en.progressScreen.goals.active }))
+    expect(ring('Read 12 books')).toHaveAttribute('aria-valuenow', '50')
+    expect(ring('Read 12 books').parentElement).toHaveAttribute('data-ring-sweep', 'rest')
+  })
+
+  it('reads refused storage as no last visit and draws every ring at rest', () => {
+    vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => { throw new Error('denied') })
+    renderGoals()
+    expect(ring('Read 12 books')).toHaveAttribute('aria-valuenow', '50')
+    expect(ring('Read 12 books').parentElement).toHaveAttribute('data-ring-sweep', 'rest')
+    vi.mocked(Storage.prototype.getItem).mockRestore()
+  })
+
   it('opens the created goal from the filled action of the result dialog', () => {
     renderGoals()
     fireEvent.click(screen.getByRole('button', { name: en.goals.create }))

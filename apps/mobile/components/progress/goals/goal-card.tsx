@@ -13,13 +13,14 @@ import { StatusRing } from '@/components/ui/status-ring'
 import { shadowsV2, type AppTokensV2 } from '@/lib/theme'
 import { useGoalDrag } from '../use-goal-drag'
 
-function GoalIndicator({ goal, sweepFrom }: Readonly<{ goal: Goal; sweepFrom: number | null }>) {
+function GoalIndicator({ goal, sweepFrom, onSwept }: Readonly<{ goal: Goal; sweepFrom: number | null; onSwept?: () => void }>) {
   const { t } = useTranslation()
-  const shown = useRingSweep(goal.progressPercentage, sweepFrom)
+  const shown = useRingSweep(goal.progressPercentage, sweepFrom, onSwept)
+  const [planned] = useState(sweepFrom !== null)
   if (goal.status === 'Abandoned') return null
   const label = t('goals.progressPercentage', { pct: Math.round(goal.progressPercentage) })
   if (goal.status === 'Completed' || goal.progressPercentage >= 100) return <StatusRing status="done" size={30} label={label} />
-  return <View testID={`goal-ring-${goal.id}`} data-ring-sweep={shown === goal.progressPercentage ? 'rest' : 'sweeping'}><ProgressRing value={shown} size={44} label={label} sweepDuration={sweepFrom === null ? 'base' : 'slow'} /></View>
+  return <View testID={`goal-ring-${goal.id}`} data-ring-sweep={shown === goal.progressPercentage ? 'rest' : 'sweeping'}><ProgressRing value={shown} size={44} label={label} sweepDuration={planned ? 'slow' : 'base'} /></View>
 }
 
 /** The painted goal card surface: the hover fill while pressed and the granted lifted state while dragged. */
@@ -59,6 +60,8 @@ interface GoalCardProps {
   isDragging: boolean
   /** The value the ring sweeps from once, when the goal changed since the last visit. Null draws the ring at rest. */
   sweepFrom: number | null
+  /** Reports that this card's ring swept, so the list never sweeps it again in this visit. */
+  onSwept?: () => void
   onDrag?: () => void
   onMove: (goalId: string, target: number) => void
   onOpen: () => void
@@ -66,7 +69,7 @@ interface GoalCardProps {
   tokens: AppTokensV2
 }
 
-export function GoalCard({ goal, index, total, canReorder, isDragging, sweepFrom, onDrag, onMove, onOpen, onRegister, tokens }: Readonly<GoalCardProps>) {
+export function GoalCard({ goal, index, total, canReorder, isDragging, sweepFrom, onSwept, onDrag, onMove, onOpen, onRegister, tokens }: Readonly<GoalCardProps>) {
   const { t } = useTranslation()
   const { suppressPress, ...gesture } = useGoalDrag(canReorder ? onDrag : undefined)
   const focusRef = useRef<View>(null)
@@ -94,7 +97,7 @@ export function GoalCard({ goal, index, total, canReorder, isDragging, sweepFrom
             {!abandoned ? <Text style={[styles.meta, { color: tokens.fg2 }]}>{t('progressScreen.goals.progress', { current: goal.currentValue, target: goal.targetValue, unit: goal.unit })}</Text> : null}
           </View>
         </View>
-        <GoalIndicator goal={goal} sweepFrom={sweepFrom} />
+        <GoalIndicator goal={goal} sweepFrom={sweepFrom} onSwept={onSwept} />
       </PressScale>
     </Pressable>
   )
