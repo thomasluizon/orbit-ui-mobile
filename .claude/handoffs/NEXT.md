@@ -28,7 +28,7 @@ UI `main` `471448e01`; API `main` `1d2a826b8`; landing `main` `7e6d150e0`. Owner
 | `ui#2457` (`#2074`) | Round 8 (rule 13 evidence for seven reads; cache thread `PRRT_kwDOR5Siws63nOTi`): worktree `ticket-2074-round-time` holds unpushed commits; see `fix-2457-r8-result.md`, `body-2457-r8.md`. Review, resolve, push, chain. At approval: P14, merge. |
 | `ui#2459` (`#2135`) | The r7 false pass is fixed in `9b95eba34` (the grader reads the model's clear calls from the trace; core 200 and eval 2493 tests green; `corpusDigest` unchanged); worktree `ticket-2129-eval-gate` holds `ca5188207`, `91962f0f3`, `9b95eba34`, unpushed. Next: a narrow review of `9b95eba34`, resolve both threads with the replies in `fix-2459-r6-result.md`, merge `main`, push, chain. |
 | `#2121` sign-in | Worker on `feature/ticket-2121-part5-sign-in` (worktree `ticket-2121-part5-sign-in`, order `order-2121-part5.md`, outcome unknown). Read its commits, merge into the ticket branch. |
-| `#2122` | Local branch has Parts 1 to 7; an agent adds reduced-motion tests (`build-2122-motion-result.md`). Then the order in the spec. |
+| `#2122` | Local branch has Parts 1 to 7 and the motion tests (`b19e927c3`). Then the spec order. |
 | `ui#2388` | Relay docs branch, never reviewed. |
 
 The relay stops this session's chains, waiters and agents: restart `chain-review.sh` for each open pull request without a verdict, and `wait-release` for an unverified release. Uncommitted on purpose: `.claude/orchestrator.json` (tiers on `claude-fable-5-2`) and `tools/__tests__/launch-worker.mjs`. No stash, no detached work.
