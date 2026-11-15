@@ -1,8 +1,8 @@
-import React, { useLayoutEffect } from 'react'
+import React from 'react'
 import { readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { dirname, join } from 'node:path'
-import { Platform, StyleSheet, View, type LayoutChangeEvent } from 'react-native'
+import { Platform, StyleSheet, View } from 'react-native'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createLoginScreenFixture } from '@orbit/shared/__tests__/auth-screen-fixtures'
 import { resolveMotionPreset, type MotionScenario } from '@orbit/shared/theme'
@@ -18,7 +18,6 @@ const SE = { width: 375, height: 667, scale: 2, top: 20, bottom: 0, keyboardTop:
 const IPHONE_17 = { width: 402, height: 874, scale: 3, top: 62, bottom: 34, keyboardTop: 572 }
 const device = { ...SE }
 const FLEXIBLE_CHALLENGE_HEIGHT = 65
-const STEP_GAP = 24
 type CheckState = 'none' | 'challenge'
 const CHECK_HEIGHTS: Record<CheckState, number> = { none: 0, challenge: FLEXIBLE_CHALLENGE_HEIGHT }
 
@@ -31,11 +30,8 @@ vi.mock('react-i18next', async (importActual) => ({
 vi.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ ...mocks.insets, left: 0, right: 0 }) }))
 vi.mock('@/app/use-login-flow', () => ({ useLoginFlow: () => mocks.flow }))
 vi.mock('@/components/auth/turnstile-widget', () => ({
-  TurnstileWidget: ({ onLayout, onSpaceChange }: { onLayout?: (event: LayoutChangeEvent) => void; onSpaceChange?: (height: number) => void }) => {
-    useLayoutEffect(() => onSpaceChange?.(CHECK_HEIGHTS[mocks.check]))
-    return React.createElement(View, { testID: 'check', onLayout, style: mocks.check === 'none'
-      ? { position: 'absolute', left: 0, right: 0, height: 0 } : { height: CHECK_HEIGHTS[mocks.check] } })
-  },
+  TurnstileWidget: () => React.createElement(View, { testID: 'check', style: mocks.check === 'none'
+    ? { position: 'absolute', left: 0, right: 0, height: 0 } : { height: CHECK_HEIGHTS[mocks.check] } }),
 }))
 vi.mock('@/lib/use-app-theme', () => ({ useAppTheme: () => ({ currentScheme: 'purple', currentTheme: 'light' }) }))
 vi.mock('@/lib/motion', () => ({ usePrefersReducedMotion: () => true, toAnimatedEasing: (value: unknown) => value, useResolvedMotionPreset: (scenario: MotionScenario) => resolveMotionPreset(scenario, true) }))
@@ -229,8 +225,7 @@ describe('mobile sign-in on iPhone inside the flow viewport', () => {
     const column = screenBox('login-column')
     const topGap = column.top - IPHONE_17.top
     const bottomGap = IPHONE_17.height - IPHONE_17.bottom - column.bottom
-    const checkSpace = check === 'none' ? 0 : FLEXIBLE_CHALLENGE_HEIGHT + STEP_GAP
-    expect(Math.abs(topGap - (bottomGap + checkSpace))).toBeLessThanOrEqual(1)
+    expect(Math.abs(topGap - bottomGap)).toBeLessThanOrEqual(1)
   })
 })
 

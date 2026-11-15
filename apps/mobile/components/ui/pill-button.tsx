@@ -12,7 +12,7 @@ import {
   useWindowDimensions,
 } from 'react-native'
 import type { ThemeMode } from '@orbit/shared/types/profile'
-import { SPACING, APPLE_SIGN_IN_BUTTON, APPLE_SIGN_IN_TITLE_SIZE, ICON_ACTION_START_HANG, BUTTON_SIZES, MATCHED_PILL_WIDTH, TOUCH_TARGET_MIN, SIGN_IN_BUTTON_HEIGHT, SMALL_PILL_VISIBLE_MIN, signInButtonSpec, type ButtonVariant, type SignInButtonSpec } from '@orbit/shared/theme'
+import { SPACING, APPLE_SIGN_IN_BUTTON, APPLE_SIGN_IN_TITLE_SIZE, ICON_ACTION_START_HANG, BUTTON_SIZES, MATCHED_PILL_WIDTH, TOUCH_TARGET_MIN, SIGN_IN_BUTTON_HEIGHT, SMALL_PILL_VISIBLE_MIN, signInButtonSpec, signInLeadHeight, type ButtonVariant, type SignInButtonSpec } from '@orbit/shared/theme'
 import { createTokensV2, mixHex, radius, type AppTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { ThemedMotionPressable } from './motion-pressable'
@@ -37,6 +37,11 @@ function buttonFocusStyle(variant: ButtonVariant, outlineColor: string): ViewSty
     outlineOffset: -2,
     ...(variant === 'ghost' ? { borderColor: 'transparent' } : null),
   }
+}
+
+/** The ghost outline that React Native lays out inside the pill height. Apple's pill has none. */
+function ghostOutlineWidth(variant: ButtonVariant, brand: ButtonProps['brand'], borderless: boolean) {
+  return variant === 'ghost' && brand !== 'apple' && !borderless ? 1.5 : 0
 }
 
 type NativeButtonProps = Readonly<ButtonProps & { retainLeadingIcon?: boolean } & Omit<PressableProps, 'children' | 'onFocus' | 'onBlur'> & { ref?: Ref<View>; buttonRef?: Ref<View>; accessibilityRole?: 'button' | 'link'; quiet?: boolean; borderless?: boolean; expanded?: boolean; onFocus?: () => void; onBlur?: () => void; onHoverIn?: () => void; onHoverOut?: () => void }>
@@ -96,7 +101,7 @@ export function ThemedButton({
 
   const ghostPressedFill = elevated ? tokens.bgElevHover : quiet ? tokens.bgHoverOpaque : tokens.bgHover
   const ghostFill = elevated ? tokens.bgElev : 'transparent'
-  const ghostBorderWidth = borderless ? 0 : 1.5
+  const outlineWidth = ghostOutlineWidth(variant, brand, borderless)
   const variantStyle = (pressed: boolean): ViewStyle => {
     if (variant === 'secondary') {
       return { backgroundColor: pressed ? mixHex(tokens.fg1, tokens.bg, 0.1) : tokens.fg1 }
@@ -106,7 +111,7 @@ export function ThemedButton({
       const active = pressed || (hovered && !disabled && !loading)
       return {
         backgroundColor: active ? ghostPressedFill : ghostFill,
-        borderWidth: ghostBorderWidth,
+        borderWidth: outlineWidth,
         borderColor: tokens.hairlineStrong,
       }
     }
@@ -156,7 +161,7 @@ export function ThemedButton({
       ]}
     >
       <ButtonContents loading={loading} retainLeadingIcon={retainLeadingIcon} iconOnly={iconOnly} leadingGlyph={leadingGlyph} textColor={textColor} sizeSpec={sizeSpec}
-        signIn={signIn} labelSize={appleColors ? APPLE_SIGN_IN_TITLE_SIZE : sizeSpec.fontSize}>{children}</ButtonContents>
+        signIn={signIn} outlineWidth={outlineWidth} labelSize={appleColors ? APPLE_SIGN_IN_TITLE_SIZE : sizeSpec.fontSize}>{children}</ButtonContents>
     </ThemedMotionPressable>
   )
 }
@@ -172,8 +177,8 @@ function signInPillStyle({ paddingX, paddingY, gap }: SignInButtonSpec): ViewSty
 }
 
 /** A provider pill holds its mark in a slot of the resting content height at the top, so a wrapped title keeps the mark on its first line. */
-function ButtonLead({ signIn, children }: Readonly<{ signIn: SignInButtonSpec; children: React.ReactNode }>) {
-  return <View style={{ height: SIGN_IN_BUTTON_HEIGHT - signIn.paddingY * 2, alignSelf: 'flex-start', justifyContent: 'center' }}>{children}</View>
+function ButtonLead({ signIn, outlineWidth, children }: Readonly<{ signIn: SignInButtonSpec; outlineWidth: number; children: React.ReactNode }>) {
+  return <View style={{ height: signInLeadHeight(signIn, outlineWidth), alignSelf: 'flex-start', justifyContent: 'center' }}>{children}</View>
 }
 
 /** A provider title wraps whenever it does not fit; another label with a retained icon wraps above font scale 1.3. */
@@ -186,8 +191,8 @@ function iconOnlyStyle(side: number, edge: 'start' | undefined): ViewStyle {
   return { height: side, width: side, paddingHorizontal: SPACING.s0, gap: 0, marginStart: edge === 'start' ? ICON_ACTION_START_HANG : undefined }
 }
 
-function ButtonContents({ loading, retainLeadingIcon, iconOnly, leadingGlyph, children, textColor, sizeSpec, signIn, labelSize }: Readonly<Pick<ButtonProps, 'children' | 'iconOnly'> & {
-  loading: boolean; retainLeadingIcon: boolean; leadingGlyph: React.ReactNode; textColor: string; sizeSpec: typeof BUTTON_SIZES.sm; signIn: SignInButtonSpec | null; labelSize: number
+function ButtonContents({ loading, retainLeadingIcon, iconOnly, leadingGlyph, children, textColor, sizeSpec, signIn, outlineWidth, labelSize }: Readonly<Pick<ButtonProps, 'children' | 'iconOnly'> & {
+  loading: boolean; retainLeadingIcon: boolean; leadingGlyph: React.ReactNode; textColor: string; sizeSpec: typeof BUTTON_SIZES.sm; signIn: SignInButtonSpec | null; outlineWidth: number; labelSize: number
 }>) {
   const { fontScale } = useWindowDimensions()
   const iconColor = isValidElement<{ color?: string }>(children) ? children.props.color : undefined
@@ -196,7 +201,7 @@ function ButtonContents({ loading, retainLeadingIcon, iconOnly, leadingGlyph, ch
     <ActivityIndicator size="small" color={textColor} />
   ) : iconOnly ? buttonLeadingGlyph(children, iconColor ?? textColor) : leadingGlyph
   return <>
-      {signIn && lead ? <ButtonLead signIn={signIn}>{lead}</ButtonLead> : lead}
+      {signIn && lead ? <ButtonLead signIn={signIn} outlineWidth={outlineWidth}>{lead}</ButtonLead> : lead}
       {iconOnly ? null : (
         <Text
           numberOfLines={wrapping.numberOfLines}

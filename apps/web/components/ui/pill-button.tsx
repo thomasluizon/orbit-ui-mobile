@@ -8,7 +8,7 @@ import { actionClasses, actionStyle } from './pill-action-style'
 import { ActionRowContext } from './action-row'
 import type { ButtonProps } from '@orbit/shared/contracts/actions'
 import { Loader2 } from '@/components/ui/icons'
-import { APPLE_SIGN_IN_TITLE_SIZE, ICON_ACTION_START_HANG, BUTTON_SIZES, SIGN_IN_BUTTON_HEIGHT, signInButtonSpec, type ButtonSize, type ButtonVariant, type SignInButtonSpec } from '@orbit/shared/theme'
+import { APPLE_SIGN_IN_TITLE_SIZE, ICON_ACTION_START_HANG, BUTTON_SIZES, SIGN_IN_BUTTON_HEIGHT, signInButtonSpec, signInLeadHeight, type ButtonSize, type ButtonVariant, type SignInButtonSpec } from '@orbit/shared/theme'
 
 function buttonDescriptionIds(descriptionId: string | undefined, hintId: string, hint: string | undefined) {
   return [descriptionId, hint ? hintId : undefined].filter(Boolean).join(' ') || undefined
@@ -56,10 +56,13 @@ const APPLE_SIGN_IN_COLOURS: CSSProperties = {
   outlineColor: 'currentColor',
 }
 
-/** A provider pill holds its mark in a slot of the resting content height at the top, so a wrapped title keeps the mark on its first line. */
+/**
+ * A provider pill holds its mark in a slot of the resting content height at the top, so a wrapped title keeps the mark on its first line.
+ * The web ghost outline is an inset shadow and the pill has no border, so no outline takes part of the height.
+ */
 function ButtonLead({ signIn, children }: Readonly<{ signIn: SignInButtonSpec | null; children: ReactNode }>) {
   if (!signIn) return children
-  return <span aria-hidden="true" style={{ display: 'inline-flex', flexShrink: 0, alignItems: 'center', alignSelf: 'flex-start', height: SIGN_IN_BUTTON_HEIGHT - signIn.paddingY * 2 }}>{children}</span>
+  return <span aria-hidden="true" style={{ display: 'inline-flex', flexShrink: 0, alignItems: 'center', alignSelf: 'flex-start', height: signInLeadHeight(signIn, 0) }}>{children}</span>
 }
 
 function ButtonIcon({ size, loading, retainLeadingIcon, iconOnly, children, leadingIcon }: Readonly<Pick<ButtonProps, 'loading' | 'iconOnly' | 'children' | 'leadingIcon'> & { size: ButtonSize; retainLeadingIcon: boolean }>) {

@@ -8,8 +8,8 @@ export function createLoginStyles(tokens: AppTokensV2) {
     container: { flex: 1 },
     scrollContent: { flexGrow: 1, alignItems: 'center', justifyContent: 'center' },
     scrollWide: { justifyContent: 'center', padding: SPACING.s32 },
-    formColumn: { width: '100%', paddingTop: SPACING.s32, paddingHorizontal: SPACING.s16, paddingBottom: SPACING.s16, gap: 32 },
-    formCompact: { paddingTop: SPACING.s16 },
+    /** The centre of the scroll content gives the column its top and bottom space, so a short screen takes that space before it scrolls. */
+    formColumn: { width: '100%', paddingHorizontal: SPACING.s16, gap: 32 },
     panel: { width: 420, padding: SPACING.s32, backgroundColor: tokens.bgCard, borderRadius: radius.xl,
       borderWidth: 1, borderColor: tokens.hairlineGhost },
     step: { gap: 24 },

@@ -1,8 +1,9 @@
 import { IconButton } from '@/components/ui/icon-button'
 import { RefreshCw } from '@/components/ui/icons'
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Text, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
+import { TURNSTILE_MAX_AUTOMATIC_RETRIES, TURNSTILE_RETRY_INTERVAL_MS } from '@orbit/shared/hooks/turnstile-token-core'
 import { WebView, type WebViewMessageEvent } from 'react-native-webview'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -18,21 +19,20 @@ export function TurnstileWidget({
   siteKey,
   resetKey,
   onToken,
-  onSpaceChange,
 }: Readonly<{
   siteKey: string
   resetKey: number
   onToken: (token: string | null) => void
-  onSpaceChange?: (height: number) => void
 }>) {
   const { t, i18n } = useTranslation()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(() => createTokensV2(currentScheme, currentTheme), [currentScheme, currentTheme])
   const [state, setState] = useState<WidgetState>('idle')
   const [attempt, setAttempt] = useState(0)
+  const automaticLoads = useRef(0)
+  const loadTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const challengeHostHeight = state === 'interactive' ? FLEXIBLE_CHALLENGE_HEIGHT : 0
   const takesNoSpace = state === 'idle' || state === 'solved'
-  const rootRef = useRef<View>(null)
   const bridgeUrl = `${APP_LINK_ORIGIN}/turnstile-bridge?siteKey=${encodeURIComponent(siteKey)}&theme=${currentTheme}&language=${encodeURIComponent(i18n.language)}`
 
   useEffect(() => {
@@ -41,12 +41,20 @@ export function TurnstileWidget({
     return () => { active = false }
   }, [resetKey])
 
-  // WHY: a layout read in a layout effect lands in the commit that changed the check, an onLayout state update paints a frame late. https://reactnative.dev/architecture/landing-page#synchronous-layout-and-effects
-  useLayoutEffect(() => {
-    if (!onSpaceChange) return
-    if (takesNoSpace) onSpaceChange(0)
-    else rootRef.current?.measureInWindow((_x, _y, _width, height) => onSpaceChange(height))
-  })
+  useEffect(() => () => clearTimeout(loadTimer.current), [])
+
+  /** The web widget in the bridge runs a failed challenge again itself. A bridge page that does not load never starts that rule, so the app loads the bridge again under the same limits. */
+  function failLoad() {
+    onToken(null)
+    clearTimeout(loadTimer.current)
+    if (automaticLoads.current >= TURNSTILE_MAX_AUTOMATIC_RETRIES) {
+      setState('failed')
+      return
+    }
+    automaticLoads.current += 1
+    setState('loading')
+    loadTimer.current = setTimeout(() => setAttempt((value) => value + 1), TURNSTILE_RETRY_INTERVAL_MS)
+  }
 
   function onMessage(event: WebViewMessageEvent) {
     let message: unknown
@@ -65,19 +73,23 @@ export function TurnstileWidget({
       message.state === 'loading' || message.state === 'interactive' || message.state === 'solved' ||
       message.state === 'failed' || message.state === 'expired'
     )) {
+      clearTimeout(loadTimer.current)
+      automaticLoads.current = 0
       setState(message.state)
     }
   }
 
   function retry() {
     onToken(null)
+    clearTimeout(loadTimer.current)
+    automaticLoads.current = 0
     setState('loading')
     setAttempt((value) => value + 1)
   }
 
   return (
     // WHY: the clip of the idle and solved states makes Fabric create the root only then, and Android lost the moved check when it passed (Unable to find viewState). https://github.com/facebook/react-native/blob/v0.88.1/packages/react-native/ReactCommon/react/renderer/components/view/ViewShadowNode.cpp#L44-L52
-    <View ref={rootRef} collapsable={false} style={{ alignItems: 'center', alignSelf: 'stretch',
+    <View collapsable={false} style={{ alignItems: 'center', alignSelf: 'stretch',
       ...(takesNoSpace ? { position: 'absolute', left: 0, right: 0, height: 0, overflow: 'hidden' } as const : {}) }}>
       <View testID="turnstile-challenge" style={{ alignSelf: 'stretch', height: challengeHostHeight, overflow: 'hidden' }}>
         <WebView
@@ -95,8 +107,8 @@ export function TurnstileWidget({
           domStorageEnabled
           thirdPartyCookiesEnabled
           onMessage={onMessage}
-          onError={() => { setState('failed'); onToken(null) }}
-          onHttpError={() => { setState('failed'); onToken(null) }}
+          onError={failLoad}
+          onHttpError={failLoad}
         />
       </View>
       <View style={{ alignItems: 'center', gap: 8 }}>

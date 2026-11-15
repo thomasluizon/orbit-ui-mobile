@@ -2,8 +2,9 @@
 
 import { IconButton } from '@/components/ui/icon-button'
 import { RefreshCw } from '@/components/ui/icons'
-import { useEffect, useRef, useState, type Ref } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
+import { TURNSTILE_MAX_AUTOMATIC_RETRIES, TURNSTILE_RETRY_INTERVAL_MS } from '@orbit/shared/hooks/turnstile-token-core'
 import { useCurrentTheme } from '@/stores/theme-store'
 
 type WidgetState = 'idle' | 'loading' | 'interactive' | 'solved' | 'failed' | 'expired'
@@ -29,9 +30,6 @@ interface TurnstileApi {
 // WHY: Cloudflare marks these codes Retry: Yes, but api.js with retry auto skips its retry for 200500 and during a reset, so the widget runs them again itself https://developers.cloudflare.com/turnstile/troubleshooting/client-side-errors/error-codes/
 const RETRIED_ERROR_CODES = new Set(['110600', '110620', '200500'])
 const RETRIED_ERROR_FAMILIES = ['300', '600']
-// WHY: the first challenge of a fresh WebView fails once, so the widget waits this long, not the 8000 ms retry-interval default, before the next run https://developers.cloudflare.com/turnstile/get-started/client-side-rendering/widget-configurations/
-const RETRY_INTERVAL_MS = 2000
-const MAX_AUTOMATIC_RETRIES = 2
 
 function isRetriedFailure(code: string): boolean {
   return RETRIED_ERROR_CODES.has(code) || RETRIED_ERROR_FAMILIES.some((family) => code.startsWith(family))
@@ -84,7 +82,6 @@ function useChallengeVisibility() {
 }
 
 export function TurnstileWidget({
-  ref,
   siteKey,
   resetKey,
   onToken,
@@ -93,7 +90,6 @@ export function TurnstileWidget({
   language,
   quiet = false,
 }: Readonly<{
-  ref?: Ref<HTMLDivElement>
   siteKey: string
   resetKey: number
   onToken: (token: string | null) => void
@@ -139,17 +135,25 @@ export function TurnstileWidget({
       callbacksRef.current.onToken(token)
     }
 
-    function fail(code: string) {
-      if (automaticRetriesRef.current >= MAX_AUTOMATIC_RETRIES || !isRetriedFailure(code)) {
+    function runAgain(run: () => void) {
+      if (automaticRetriesRef.current >= TURNSTILE_MAX_AUTOMATIC_RETRIES) {
         update('failed')
-        return true
+        return
       }
       automaticRetriesRef.current += 1
       update('loading')
-      retryTimerRef.current = window.setTimeout(() => {
-        const widgetId = widgetIdRef.current
-        if (active && widgetId != null) getTurnstile()?.reset(widgetId)
-      }, RETRY_INTERVAL_MS)
+      retryTimerRef.current = window.setTimeout(() => { if (active) run() }, TURNSTILE_RETRY_INTERVAL_MS)
+    }
+
+    function fail(code: string) {
+      if (isRetriedFailure(code)) {
+        runAgain(() => {
+          const widgetId = widgetIdRef.current
+          if (widgetId != null) getTurnstile()?.reset(widgetId)
+        })
+      } else {
+        update('failed')
+      }
       return true
     }
 
@@ -175,7 +179,7 @@ export function TurnstileWidget({
       })
     }
 
-    void loadTurnstile().then(renderWidget, () => update('failed'))
+    void loadTurnstile().then(renderWidget, () => { if (active) runAgain(() => setAttempt((value) => value + 1)) })
 
     return () => {
       active = false
@@ -215,7 +219,7 @@ export function TurnstileWidget({
   if (quiet) return <div ref={containerRef} style={{ position, ...challengeStyle }} />
 
   return (
-    <div ref={ref} className="flex flex-col items-center text-center text-sm text-[var(--fg-2)]" style={{ gap: 8, position }}>
+    <div className="flex flex-col items-center text-center text-sm text-[var(--fg-2)]" style={{ gap: 8, position }}>
       <div ref={containerRef} className="w-full" style={challengeStyle} />
       <p role="status" className={state === 'loading' ? '' : 'sr-only'}>
         {state === 'loading' ? t('auth.turnstileLoading') : ''}

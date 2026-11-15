@@ -2,7 +2,7 @@ import { render, screen } from '@testing-library/react'
 import { NextIntlClientProvider, createTranslator } from 'next-intl'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import en from '@orbit/shared/i18n/en.json'
-import { SMALL_PILL_VISIBLE_MIN } from '@orbit/shared/theme'
+import { SIGN_IN_BUTTON_HEIGHT, SMALL_PILL_VISIBLE_MIN } from '@orbit/shared/theme'
 import { EmailStep } from '@/app/(auth)/login/email-step'
 import { resolveWebThemeVariables } from '@/lib/theme-dom'
 
@@ -40,6 +40,16 @@ describe('web Apple sign-in action', () => {
     const logo = apple.querySelector('svg[data-asset="apple-sign-in-logo"]')
     expect(logo?.getAttribute('height')).toBe(String(SMALL_PILL_VISIBLE_MIN))
     expect(logo?.querySelector('path')?.getAttribute('fill')).toBe('currentColor')
+  })
+
+  it('rests the Apple and Google actions at one outer height from the shared rule', () => {
+    const { apple, google } = renderEmailStep(false)
+    const restingHeights = [google, apple].map((action) => {
+      const mark = action.querySelector<HTMLElement>(':scope > span[aria-hidden="true"]')!
+      expect(action.className.split(' '), 'the pill has no border: the ghost outline is an inset shadow').toContain('border-0')
+      return 2 * Number.parseFloat(action.style.paddingBlock) + Number.parseFloat(mark.style.height)
+    })
+    expect(restingHeights).toEqual([SIGN_IN_BUTTON_HEIGHT, SIGN_IN_BUTTON_HEIGHT])
   })
 
   it.each([['dark', '#FFFFFF', '#000000'], ['light', '#000000', '#FFFFFF']] as const)('gives the %s theme Apple\'s button and title colours in every browser', (theme, fill, ink) => {

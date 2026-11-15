@@ -1,3 +1,8 @@
+/** A human check that fails runs again by itself this many times before the person gets the Retry action. */
+export const TURNSTILE_MAX_AUTOMATIC_RETRIES = 2
+// WHY: the first challenge of a fresh WebView fails once, so the next run waits this long, not the 8000 ms retry-interval default https://developers.cloudflare.com/turnstile/get-started/client-side-rendering/widget-configurations/
+export const TURNSTILE_RETRY_INTERVAL_MS = 2000
+
 export interface TurnstileTokenState {
   token: string | null
   resetKey: number

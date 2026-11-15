@@ -1,155 +1,140 @@
-import React, { useLayoutEffect } from 'react'
-import { View, type LayoutChangeEvent } from 'react-native'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { createLoginScreenFixture } from '@orbit/shared/__tests__/auth-screen-fixtures'
+import React from 'react'
+import { View } from 'react-native'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { authTranslator, createLoginScreenFixture } from '@orbit/shared/__tests__/auth-screen-fixtures'
 import { resolveMotionPreset, type MotionScenario } from '@orbit/shared/theme'
 import { LoginContent } from '@/components/auth/login-content'
-import { measureSafeArea, type GeometryHost } from '@/__tests__/support/safe-area-geometry'
-import { __resetTestHostConfig, __setMeasureInWindowImpl, __setWindowDimensions } from '../../test-mocks/react-native'
+import { measureProfileRow } from '@/__tests__/support/profile-row-geometry'
+import { __resetTestHostConfig, __setWindowDimensions } from '../../test-mocks/react-native'
 
 const { act, create } = require('react-test-renderer')
 
 type CheckState = 'none' | 'loading' | 'challenge'
-const MEASURED_LOADING_MOVE = 20.5
-const STEP_GAP = 24
+// WHY: Cloudflare sizes the flexible widget at 65px height https://developers.cloudflare.com/turnstile/get-started/client-side-rendering/widget-configurations/
 const FLEXIBLE_CHALLENGE_HEIGHT = 65
-const CHECK_HEIGHTS: Record<CheckState, number> = { none: 0, loading: 2 * MEASURED_LOADING_MOVE - STEP_GAP, challenge: FLEXIBLE_CHALLENGE_HEIGHT }
+const LOADING_SENTENCE_HEIGHT = 19
 const CHECK_STYLES: Record<CheckState, object> = {
   none: { position: 'absolute', left: 0, right: 0, height: 0 },
-  loading: { height: CHECK_HEIGHTS.loading },
-  challenge: { height: CHECK_HEIGHTS.challenge },
+  loading: { height: LOADING_SENTENCE_HEIGHT },
+  challenge: { height: FLEXIBLE_CHALLENGE_HEIGHT },
 }
-const SE = { width: 375, height: 667, statusBar: 20, keyboardTop: 432 }
+/** The proof devices: an Android phone with a 24 dp status bar and a 24 dp gesture bar, and the iPhone SE with a 20 pt status bar and a home button. */
+const SMALL_ANDROID = { name: '320 x 640 Android', width: 320, height: 640, top: 24, bottom: 24, keyboardTop: 0 }
+const SE_SIZE_ANDROID = { name: '375 x 667 Android', width: 375, height: 667, top: 24, bottom: 24, keyboardTop: 0 }
+const IPHONE_SE = { name: '375 x 667 iPhone SE', width: 375, height: 667, top: 20, bottom: 0, keyboardTop: 432 }
+type Device = typeof IPHONE_SE
 const REVEAL_MARGIN = 24
+/** Layout engines round positions to 1/64 of a pixel. */
+const LAYOUT_UNIT = 1 / 64
 
-const mocks = vi.hoisted((): { flow: Record<string, unknown>; check: CheckState } => ({ flow: {}, check: 'loading' }))
-vi.mock('react-i18next', async (importActual) => ({
-  ...(await importActual<typeof import('react-i18next')>()),
-  useTranslation: () => ({ t: (key: string) => key, i18n: { language: 'en' } }),
-}))
+const mocks = vi.hoisted((): { flow: Record<string, unknown>; check: CheckState; insets: { top: number; bottom: number }; words: (key: string, params?: Record<string, string | number>) => string } =>
+  ({ flow: {}, check: 'none', insets: { top: 0, bottom: 0 }, words: (key) => key }))
+vi.mock('react-i18next', async () => {
+  const { default: catalog } = await import('@orbit/shared/i18n/pt-BR.json')
+  const sentence = (key: string) => key.split('.').reduce<unknown>((value, part) => (value as Record<string, unknown>)[part], catalog) as string
+  return {
+    useTranslation: () => ({ t: mocks.words, i18n: { language: 'pt-BR' } }),
+    Trans: ({ i18nKey }: { i18nKey: string }) => sentence(i18nKey).replaceAll(/<\/?\w+>/g, ''),
+  }
+})
+vi.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ ...mocks.insets, left: 0, right: 0 }) }))
 vi.mock('@/app/use-login-flow', () => ({ useLoginFlow: () => mocks.flow }))
 vi.mock('@/components/auth/turnstile-widget', () => ({
-  TurnstileWidget: ({ onLayout, onSpaceChange }: { onLayout?: (event: LayoutChangeEvent) => void; onSpaceChange?: (height: number) => void }) => {
-    useLayoutEffect(() => onSpaceChange?.(CHECK_HEIGHTS[mocks.check]))
-    return React.createElement(View, { testID: 'check', onLayout, style: CHECK_STYLES[mocks.check] })
-  },
+  TurnstileWidget: () => React.createElement(View, { testID: 'check', style: CHECK_STYLES[mocks.check] }),
 }))
 vi.mock('@/lib/use-app-theme', () => ({ useAppTheme: () => ({ currentScheme: 'purple', currentTheme: 'dark' }) }))
 vi.mock('@/lib/motion', () => ({ usePrefersReducedMotion: () => true, toAnimatedEasing: (value: unknown) => value, useResolvedMotionPreset: (scenario: MotionScenario) => resolveMotionPreset(scenario, true) }))
 vi.mock('@/components/ui/keyboard-aware-scroll-view', async () => {
   const { View: HostView } = await import('react-native')
-  const { useImperativeHandle, useRef } = await import('react')
-  return { useKeyboardAwareInputReveal: () => null, KeyboardAwareScrollView: ({ children, contentContainerStyle, onLayout, ref }: {
-    children: React.ReactNode; contentContainerStyle: unknown; onLayout: (event: LayoutChangeEvent) => void; ref?: React.Ref<{ getNativeScrollRef: () => View | null }>
-  }) => {
-    const viewport = useRef<View>(null)
-    useImperativeHandle(ref, () => ({ getNativeScrollRef: () => viewport.current }))
-    return <HostView ref={viewport} testID="login-scroll-content" onLayout={onLayout} style={contentContainerStyle as React.ComponentProps<typeof View>['style']}>{children}</HostView>
-  } }
+  return { useKeyboardAwareInputReveal: () => null, KeyboardAwareScrollView: ({ children, containerStyle, contentContainerStyle }: {
+    children: React.ReactNode; containerStyle: React.ComponentProps<typeof View>['style']; contentContainerStyle: React.ComponentProps<typeof View>['style']
+  }) => <HostView testID="login-scroll" style={containerStyle}><HostView testID="login-scroll-content" style={contentContainerStyle}>{children}</HostView></HostView> }
 })
 
 interface Node { type: unknown; props: Record<string, unknown>; findAll: (predicate: (node: Node) => boolean) => Node[] }
-type Tree = { root: Node; unmount: () => void; update: (element: React.ReactElement) => void; toJSON: () => GeometryHost }
+type Host = Parameters<typeof measureProfileRow>[0]
+type Tree = { root: Node; unmount: () => void; update: (element: React.ReactElement) => void; toJSON: () => Host }
+
+/** React Native SVG sizes its view from the width and height props, and the layout reads only the style. */
+function withSvgSizes(host: Host | string): Host | string {
+  if (typeof host === 'string') return host
+  const { width, height } = host.props as { width?: unknown; height?: unknown }
+  const style = host.type === 'Svg' && typeof width === 'number' && typeof height === 'number' ? { width, height } : host.props.style
+  return { ...host, props: { ...host.props, style }, children: host.children?.map(withSvgSizes) ?? null }
+}
 
 function textOf(node: Node): string {
   return node.findAll((child) => child.type === 'Text')
     .flatMap((child) => [child.props.children].flat(Infinity)).filter((child) => typeof child === 'string').join('')
 }
 
-function screen() {
-  return <View style={{ width: SE.width, height: SE.height - SE.statusBar }}><LoginContent /></View>
+function screen(device: Device) {
+  return <View style={{ width: device.width, height: device.height }}><LoginContent /></View>
 }
 
-function hostWith(tree: Tree, testID: string) {
-  return tree.root.findAll((node) => node.type === 'View' && node.props.testID === testID)[0]
-}
-
-const MEASURED_IDS = new Set(['login-column', 'check', 'login-field-action', 'login-scroll-content'])
-const rendered: { tree: Tree | null } = { tree: null }
-
-function layoutOnce(tree: Tree) {
-  return measureSafeArea(tree.toJSON(), (host) => {
-    const testID = host.props.testID
-    return testID && MEASURED_IDS.has(testID) ? testID : undefined
-  }, { width: SE.width, height: SE.height - SE.statusBar })
-}
-
-function settle(tree: Tree) {
-  const layout = (testID: string, height: number) => hostWith(tree, testID)?.props.onLayout
-    && act(() => (hostWith(tree, testID)!.props.onLayout as (event: { nativeEvent: { layout: { height: number } } }) => void)(
-      { nativeEvent: { layout: { height } } }))
-  for (let pass = 0; pass < 3; pass += 1) {
-    const bounds = layoutOnce(tree)
-    layout('login-scroll-content', SE.height - SE.statusBar)
-    for (const testID of ['login-column', 'check']) {
-      const box = bounds.get(testID)
-      if (box) layout(testID, box.bottom - box.top)
-    }
-  }
-  return layoutOnce(tree)
-}
-
-function render(step: 'email' | 'code') {
+function render(step: 'email' | 'code', device: Device) {
+  vi.stubEnv('EXPO_PUBLIC_APPLE_CLIENT_ID', 'client-id')
+  __setWindowDimensions({ width: device.width, height: device.height, scale: 2, fontScale: 1 })
+  mocks.insets = { top: device.top, bottom: device.bottom }
+  mocks.words = authTranslator('pt-BR')
   mocks.flow = { ...createLoginScreenFixture(step, 'pt-BR'), turnstileSiteKey: 'site-key', turnstileResetKey: 0, onTurnstileToken: vi.fn(),
     setEmail: vi.fn(), sendCode: vi.fn(), verifyCode: vi.fn(), resendCode: vi.fn(), backToEmail: vi.fn(), onCodeChange: vi.fn() }
-  act(() => { rendered.tree = create(screen()) })
-  return rendered.tree!
+  let tree!: Tree
+  act(() => { tree = create(screen(device)) })
+  return tree
 }
 
-describe('mobile sign-in at 375 x 667', () => {
-  beforeEach(() => {
-    __setMeasureInWindowImpl((callback, props) => {
-      const box = rendered.tree ? layoutOnce(rendered.tree).get(props.testID as string) : undefined
-      if (box) callback(box.left, box.top, box.width, box.bottom - box.top)
-      else callback(0, 0, 0, 0)
-    })
-  })
+/** The column holds the sign-in content from the Orbit mark to the last line of the step, with no space of its own above or below. */
+function placement(tree: Tree, device: Device) {
+  const measured = measureProfileRow(withSvgSizes(tree.toJSON()) as Host, device.width, 1, undefined, true)
+  const box = (testID: string) => measured.boxes.find((candidate) => candidate.testID === testID)!
+  const column = box('login-column')
+  return { group: box('login-field-action'), topGap: column.top - device.top, bottomGap: device.height - device.bottom - column.bottom,
+    scrollOverflow: Math.max(0, box('login-scroll-content').bottom - device.height) }
+}
 
+function showCheck(tree: Tree, device: Device, check: CheckState) {
+  mocks.check = check
+  act(() => tree.update(screen(device)))
+  return placement(tree, device)
+}
+
+describe('mobile sign-in on a small screen', () => {
   afterEach(() => {
-    mocks.check = 'loading'
-    rendered.tree = null
+    mocks.check = 'none'
+    vi.unstubAllEnvs()
     __resetTestHostConfig()
     __setWindowDimensions({ width: 412, height: 892, scale: 1, fontScale: 1 })
   })
 
-  it.each(['email', 'code'] as const)('keeps the %s column still in the first frame of the screen and of each check change', (step) => {
-    __setWindowDimensions({ width: SE.width, height: SE.height, scale: 2, fontScale: 1 })
-    mocks.check = 'none'
-    const resting = render(step)
-    const restingTop = settle(resting).get('login-column')!.top
-    act(() => resting.unmount())
-    mocks.check = 'loading'
-    const tree = render(step)
-    const firstFrameTops = [layoutOnce(tree).get('login-column')!.top]
-    for (const check of ['none', 'loading', 'challenge', 'loading', 'none'] as const) {
-      mocks.check = check
-      act(() => tree.update(screen()))
-      firstFrameTops.push(layoutOnce(tree).get('login-column')!.top)
+  const centreCases = [IPHONE_SE, SE_SIZE_ANDROID].flatMap((device) => (['email', 'code'] as const).map((step) => ({ step, device, name: device.name })))
+  it.each(centreCases)('centres the $step content in the safe area of the $name with and without the check block', ({ step, device }) => {
+    const tree = render(step, device)
+    for (const check of ['none', 'loading', 'challenge', 'none'] as const) {
+      const { topGap, bottomGap } = showCheck(tree, device, check)
+      expect(topGap, `${check}: the content starts inside the safe area`).toBeGreaterThanOrEqual(0)
+      expect(Math.abs(topGap - bottomGap) / 2, `${check}: off centre with a top gap of ${topGap} and a bottom gap of ${bottomGap}`).toBeLessThanOrEqual(LAYOUT_UNIT)
     }
-    expect(firstFrameTops).toEqual(firstFrameTops.map(() => restingTop))
     act(() => tree.unmount())
   })
 
-  it.each(['email', 'code'] as const)('keeps the %s column still while the check appears, changes and leaves', (step) => {
-    __setWindowDimensions({ width: SE.width, height: SE.height, scale: 2, fontScale: 1 })
-    const tree = render(step)
-    const tops = (['none', 'loading', 'challenge', 'loading', 'none'] as const).map((check) => {
-      mocks.check = check
-      act(() => tree.update(screen()))
-      const bounds = settle(tree)
-      return bounds.get('login-column')!.top
-    })
-    expect(new Set(tops).size).toBe(1)
+  const clearanceCases = [SMALL_ANDROID, SE_SIZE_ANDROID, IPHONE_SE].flatMap((device) => (['email', 'code'] as const).map((step) => ({ step, device, name: device.name })))
+  it.each(clearanceCases)('keeps the whole $step content above the bottom safe area edge of the $name while the check shows, without a scroll', ({ step, device }) => {
+    const tree = render(step, device)
+    for (const check of ['none', 'loading', 'challenge'] as const) {
+      const { topGap, bottomGap, scrollOverflow } = showCheck(tree, device, check)
+      expect(topGap, `${check}: the Orbit mark stays under the status bar`).toBeGreaterThanOrEqual(0)
+      expect(bottomGap, `${check}: the last line stays above the bottom safe area edge`).toBeGreaterThanOrEqual(0)
+      expect(scrollOverflow, `${check}: the content fits, so the screen does not scroll`).toBe(0)
+    }
     act(() => tree.unmount())
   })
 
   it.each(['email', 'code'] as const)('fits the %s field, its check and its primary action above the keyboard', (step) => {
-    __setWindowDimensions({ width: SE.width, height: SE.height, scale: 2, fontScale: 1 })
-    mocks.check = 'challenge'
-    const tree = render(step)
-    const group = settle(tree).get('login-field-action')!
-    expect(group.bottom - group.top).toBeLessThanOrEqual(SE.keyboardTop - SE.statusBar - 2 * REVEAL_MARGIN)
-    const groupHost = hostWith(tree, 'login-field-action')!
+    const tree = render(step, IPHONE_SE)
+    const { group } = showCheck(tree, IPHONE_SE, 'challenge')
+    expect(group.bottom - group.top).toBeLessThanOrEqual(IPHONE_SE.keyboardTop - IPHONE_SE.top - 2 * REVEAL_MARGIN)
+    const groupHost = tree.root.findAll((node) => node.type === 'View' && node.props.testID === 'login-field-action')[0]!
     const t = mocks.flow.t as (key: string) => string
     expect(groupHost.findAll((node) => node.type === 'TextInput')).toHaveLength(1)
     const primaryLabel = t(step === 'email' ? 'auth.sendCode' : 'auth.verify')

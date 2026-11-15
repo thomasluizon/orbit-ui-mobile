@@ -63,13 +63,15 @@ function settleLayout() {
   for (let pass = 0; pass < 3; pass += 1) act(() => { for (const callback of [...observers]) callback() })
 }
 
-function columnTop(main: HTMLElement) {
+/** The page frame centres the column box. An inset on the column or on a parent moves the content down from that centre. */
+function gaps(main: HTMLElement) {
   let inset = 0
   for (let element = main.querySelector<HTMLElement>('[data-field-surface]'); element && element !== main; element = element.parentElement) {
     inset += Number.parseFloat(element.style.marginTop || '0') + Number.parseFloat(element.style.paddingTop || '0')
   }
-  const outer = inset + geometry.column + checkSpace()
-  return Math.max(0, (VIEWPORT - outer) / 2) + inset
+  const content = geometry.column + checkSpace()
+  const top = Math.max(0, (VIEWPORT - inset - content) / 2) + inset
+  return { top, bottom: VIEWPORT - top - content }
 }
 
 async function renderSignIn(step: 'email' | 'code', column: number) {
@@ -108,27 +110,16 @@ describe('web sign-in column at 375 x 667', () => {
   it.each([
     { step: 'email', column: 486 },
     { step: 'code', column: 486 },
-    { step: 'email', column: 600 },
-    { step: 'code', column: 600 },
-  ] as const)('keeps the $step column of $column still while the check appears, changes and leaves', async ({ step, column }) => {
+    { step: 'email', column: 540 },
+    { step: 'code', column: 540 },
+  ] as const)('centres the $step column of $column while the check appears, changes and leaves', async ({ step, column }) => {
     const { main, changes } = await renderSignIn(step, column)
-    const tops = (['none', 'loading', 'challenge', 'loading', 'none'] as const).map((check) => {
+    for (const check of ['none', 'loading', 'challenge', 'loading', 'none'] as const) {
       act(() => changes[check]())
       geometry.check = check
       settleLayout()
-      return columnTop(main)
-    })
-    expect(tops).toEqual(Array.from({ length: 5 }, () => Math.max(0, (VIEWPORT - column) / 2)))
-  })
-
-  it.each(['email', 'code'] as const)('places the %s column in the resize callback that sees the check, before React renders again', async (step) => {
-    const { main, changes } = await renderSignIn(step, 486)
-    const tops = (['none', 'loading', 'none'] as const).map((check) => {
-      act(() => changes[check]())
-      geometry.check = check
-      for (const callback of [...observers]) callback()
-      return columnTop(main)
-    })
-    expect(tops).toEqual([80.5, 80.5, 80.5])
+      const { top, bottom } = gaps(main)
+      expect({ check, top, bottom }).toEqual({ check, top: (VIEWPORT - column - checkSpace()) / 2, bottom: (VIEWPORT - column - checkSpace()) / 2 })
+    }
   })
 })

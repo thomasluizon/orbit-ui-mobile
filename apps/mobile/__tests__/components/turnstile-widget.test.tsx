@@ -221,35 +221,6 @@ it('names the challenge without making it one element, so screen readers reach t
   }
 })
 
-it('reports the space it takes in the commit of each state change, without waiting for a layout event', async () => {
-  const LOADING_LINE_HEIGHT = 17
-  const { __setMeasureInWindowImpl, __resetTestHostConfig } = await import('../../test-mocks/react-native')
-  onTestFinished(() => __resetTestHostConfig())
-  const onSpaceChange = vi.fn()
-  let renderer!: ReturnType<typeof TestRenderer.create>
-  const flowHeight = () => {
-    const root = StyleSheet.flatten(renderer.toJSON().props.style)
-    if (root.position === 'absolute') return 0
-    const challenge = StyleSheet.flatten(renderer.root.findByProps({ testID: 'turnstile-challenge' }).props.style).height as number
-    return challenge + (renderer.root.findAllByType('Text').length > 0 ? LOADING_LINE_HEIGHT : 0)
-  }
-  __setMeasureInWindowImpl((callback) => callback(0, 0, 343, flowHeight()))
-  await TestRenderer.act(async () => {
-    renderer = TestRenderer.create(<TurnstileWidget siteKey="site-key" resetKey={0} onToken={vi.fn()} onSpaceChange={onSpaceChange} />)
-    await Promise.resolve()
-  })
-  onTestFinished(() => TestRenderer.act(() => renderer.unmount()))
-  expect(renderer.toJSON().props.onLayout).toBeUndefined()
-  expect(onSpaceChange).toHaveBeenLastCalledWith(LOADING_LINE_HEIGHT)
-  const send = (state: string) => TestRenderer.act(() => {
-    renderer.root.findByType('WebView').props.onMessage({ nativeEvent: { data: JSON.stringify({ state }) } })
-  })
-  await send('interactive')
-  expect(onSpaceChange).toHaveBeenLastCalledWith(65)
-  await send('solved')
-  expect(onSpaceChange).toHaveBeenLastCalledWith(0)
-})
-
 it('keeps one native root in every state, so a pass never moves the check into a root Android creates in that commit', async () => {
   let renderer!: ReturnType<typeof TestRenderer.create>
   const rootStates: unknown[] = []
@@ -329,4 +300,69 @@ it('offers Retry when the bridge stops its own retries with failed, and Retry lo
   expect(renderer.root.findByType('WebView')).not.toBe(failedBridge)
   expect(renderer.root.findAllByType('Text').some((node: { props: { children: unknown } }) =>
     node.props.children === 'auth.turnstileLoading')).toBe(true)
+})
+
+function shownSentences(renderer: ReturnType<typeof TestRenderer.create>) {
+  return renderer.root.findAllByType('Text').map((node: { props: { children: unknown } }) => node.props.children)
+}
+
+it('loads the bridge again by itself after a load error, at most twice and 2 s apart, then offers Retry', async () => {
+  const onToken = vi.fn()
+  let renderer!: ReturnType<typeof TestRenderer.create>
+  await TestRenderer.act(async () => {
+    renderer = TestRenderer.create(<TurnstileWidget siteKey="site-key" resetKey={0} onToken={onToken} />)
+    await Promise.resolve()
+  })
+  onTestFinished(() => TestRenderer.act(() => renderer.unmount()))
+  vi.useFakeTimers()
+  onTestFinished(() => { vi.useRealTimers() })
+  const bridges = [renderer.root.findByType('WebView')]
+
+  for (const fail of ['onError', 'onHttpError'] as const) {
+    TestRenderer.act(() => bridges.at(-1)!.props[fail]())
+    expect(onToken).toHaveBeenLastCalledWith(null)
+    expect(shownSentences(renderer), `after ${fail}`).toEqual(['auth.turnstileLoading'])
+    expect(renderer.root.findAllByProps({ label: 'auth.turnstileRetry' })).toHaveLength(0)
+    TestRenderer.act(() => { vi.advanceTimersByTime(1999) })
+    expect(renderer.root.findByType('WebView'), 'the next load waits for 2 s').toBe(bridges.at(-1))
+    TestRenderer.act(() => { vi.advanceTimersByTime(1) })
+    expect(bridges).not.toContain(renderer.root.findByType('WebView'))
+    bridges.push(renderer.root.findByType('WebView'))
+  }
+
+  TestRenderer.act(() => bridges.at(-1)!.props.onError())
+  expect(shownSentences(renderer)).toEqual(['auth.turnstileFailed'])
+  TestRenderer.act(() => { vi.runAllTimers() })
+  expect(renderer.root.findByType('WebView'), 'no load runs after the last allowed one').toBe(bridges.at(-1))
+
+  TestRenderer.act(() => renderer.root.findByProps({ label: 'auth.turnstileRetry' }).props.onClick())
+  expect(bridges).not.toContain(renderer.root.findByType('WebView'))
+  TestRenderer.act(() => renderer.root.findByType('WebView').props.onError())
+  expect(shownSentences(renderer), 'Retry gives two automatic loads again').toEqual(['auth.turnstileLoading'])
+})
+
+it('keeps a bridge that loads while a new load waits, and gives two automatic loads again', async () => {
+  let renderer!: ReturnType<typeof TestRenderer.create>
+  await TestRenderer.act(async () => {
+    renderer = TestRenderer.create(<TurnstileWidget siteKey="site-key" resetKey={0} onToken={vi.fn()} />)
+    await Promise.resolve()
+  })
+  onTestFinished(() => TestRenderer.act(() => renderer.unmount()))
+  vi.useFakeTimers()
+  onTestFinished(() => { vi.useRealTimers() })
+  const bridge = renderer.root.findByType('WebView')
+
+  TestRenderer.act(() => bridge.props.onHttpError())
+  TestRenderer.act(() => bridge.props.onMessage({ nativeEvent: { data: JSON.stringify({ state: 'interactive' }) } }))
+  TestRenderer.act(() => { vi.runAllTimers() })
+  expect(renderer.root.findByType('WebView')).toBe(bridge)
+  expect(shownSentences(renderer)).toEqual([])
+
+  for (const _run of [1, 2]) {
+    TestRenderer.act(() => renderer.root.findByType('WebView').props.onError())
+    expect(shownSentences(renderer)).toEqual(['auth.turnstileLoading'])
+    TestRenderer.act(() => { vi.advanceTimersByTime(2000) })
+  }
+  TestRenderer.act(() => renderer.root.findByType('WebView').props.onError())
+  expect(shownSentences(renderer)).toEqual(['auth.turnstileFailed'])
 })

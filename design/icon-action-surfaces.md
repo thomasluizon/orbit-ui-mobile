@@ -50,7 +50,7 @@ Drawn references: [Astra conversation](canvas/Orbit%20Astra%20Conversation.dc.ht
 | [apps/mobile/app/search.tsx:82](../apps/mobile/app/search.tsx#L82) | `{t('habits.search.previous')}` | ChevronLeft |
 | [apps/mobile/app/search.tsx:83](../apps/mobile/app/search.tsx#L83) | `{t('habits.search.next')}` | ChevronRight |
 | [apps/mobile/app/upgrade.tsx:79](../apps/mobile/app/upgrade.tsx#L79) | `{t('upgrade.billing.retry')}` | RefreshCw |
-| [apps/mobile/components/auth/turnstile-widget.tsx:90](../apps/mobile/components/auth/turnstile-widget.tsx#L90) | `{t('auth.turnstileRetry')}` | RefreshCw |
+| [apps/mobile/components/auth/turnstile-widget.tsx:123](../apps/mobile/components/auth/turnstile-widget.tsx#L123) | `{t('auth.turnstileRetry')}` | RefreshCw |
 | [apps/mobile/components/calendar-sync/calendar-import-content.tsx:496](../apps/mobile/components/calendar-sync/calendar-import-content.tsx#L496) | `{t('common.goBack')}` | ChevronLeft |
 | [apps/mobile/components/calendar-sync/calendar-import-content.tsx:549](../apps/mobile/components/calendar-sync/calendar-import-content.tsx#L549) | `{t('calendar.showMore')}` | ChevronDown |
 | [apps/mobile/components/calendar-sync/calendar-import-content.tsx:629](../apps/mobile/components/calendar-sync/calendar-import-content.tsx#L629) | `{t('common.goBack')}` | ChevronLeft |
@@ -154,7 +154,7 @@ Drawn references: [Astra conversation](canvas/Orbit%20Astra%20Conversation.dc.ht
 | [apps/web/app/(app)/wrapped/_components/wrapped-cover.tsx:89](../apps/web/app/(app)/wrapped/_components/wrapped-cover.tsx#L89) | `{t('wrapped.retry')}` | RefreshCw |
 | [apps/web/app/(app)/wrapped/_components/wrapped-slide.tsx:125](../apps/web/app/(app)/wrapped/_components/wrapped-slide.tsx#L125) | `{t('wrapped.retry')}` | RefreshCw |
 | [apps/web/app/(auth)/error.tsx:14](../apps/web/app/(auth)/error.tsx#L14) | `{t('common.retry')}` | RefreshCw |
-| [apps/web/components/auth/turnstile-widget.tsx:181](../apps/web/components/auth/turnstile-widget.tsx#L181) | `{t('auth.turnstileRetry')}` | RefreshCw |
+| [apps/web/components/auth/turnstile-widget.tsx:232](../apps/web/components/auth/turnstile-widget.tsx#L232) | `{t('auth.turnstileRetry')}` | RefreshCw |
 | [apps/web/components/calendar-sync/calendar-import-content.tsx:390](../apps/web/components/calendar-sync/calendar-import-content.tsx#L390) | `{t('common.goBack')}` | ChevronLeft |
 | [apps/web/components/calendar-sync/calendar-import-content.tsx:437](../apps/web/components/calendar-sync/calendar-import-content.tsx#L437) | `{t('calendar.showMore')}` | ChevronDown |
 | [apps/web/components/calendar-sync/calendar-import-content.tsx:555](../apps/web/components/calendar-sync/calendar-import-content.tsx#L555) | `{t('common.goBack')}` | ChevronLeft |
