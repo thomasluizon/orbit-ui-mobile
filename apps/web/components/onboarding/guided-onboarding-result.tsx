@@ -6,8 +6,7 @@ import { ErrorState } from '@/components/ui/error-state'
 import { IconButton } from '@/components/ui/icon-button'
 import { RefreshCw } from '@/components/ui/icons'
 import { OrbitMascot } from '@/components/ui/orbit-mascot'
-import { ResultDialog } from '@/components/ui/result-dialog'
-import { Sheet } from '@/components/ui/sheet'
+import { ResultDialog, ResultDialogFrame } from '@/components/ui/result-dialog'
 import { useHabitDetail } from '@/hooks/use-habit-queries'
 import { useTimeFormat } from '@/hooks/use-time-format'
 import { useOnboardingDraftStore } from '@/stores/onboarding-draft-store'
@@ -45,14 +44,14 @@ function OnboardingResultReadError({ retrying, onRetry, onClose }: Readonly<{ re
   const t = useTranslations()
   const message = t('onboarding.flow.done.readFailed')
   return (
-    <Sheet centred accessibleTitle={message} onClose={onClose}>
+    <ResultDialogFrame label={message} onClose={onClose}>
       <div data-onboarding-result-error="" data-orbit-state="parado" className="flex flex-col items-center px-6 pb-6 pt-2 text-center">
         <span aria-hidden="true"><OrbitMascot size={128} state="parado" /></span>
         <ErrorState message={message} action={
           <IconButton label={t('common.retry')} loading={retrying} onClick={onRetry}><RefreshCw size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton>
         } />
       </div>
-    </Sheet>
+    </ResultDialogFrame>
   )
 }
 
