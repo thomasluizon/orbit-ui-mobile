@@ -24,8 +24,10 @@ runs:
       shell: bash
       run: echo "path=$(npm config get cache)" >> "$GITHUB_OUTPUT"
     # A changed lockfile restores the newest main entry by prefix, and npm ci downloads only the difference.
+    # macOS has no entry: there npm ci took 53 to 59 s without the cache and 48 to 88 s after a 5 to 14 s restore.
     - name: Restore the npm cache
       id: restore
+      if: runner.os != 'macOS'
       uses: actions/cache/restore@v6
       env:
         # Bound stalled cache segments so npm ci can continue with a cold cache.

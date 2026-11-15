@@ -23,7 +23,7 @@ on:
       - "apps/mobile/scripts/android-release-apk.js"
       - "apps/mobile/scripts/fix-hoisting.js"
       - ".github/workflows/mobile-build.yml"
-  # A main run saves the Gradle, NDK and compiler caches and the pass marker that pull requests read.
+  # A main run saves the Gradle and compiler caches and the pass marker that pull requests read.
   push:
     branches: [main]
     paths:
@@ -134,13 +134,6 @@ jobs:
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "path=$ANDROID_HOME/ndk/$version" >> "$GITHUB_OUTPUT"
 
-      - name: Restore the Android NDK
-        id: ndk-cache
-        uses: actions/cache/restore@v6
-        with:
-          path: ${{ steps.ndk.outputs.path }}
-          key: ubuntu-24.04-x64-ndk-v1-${{ steps.ndk.outputs.version }}
-
       - name: Install and verify the Android NDK
         shell: bash
         env:
@@ -149,7 +142,7 @@ jobs:
         run: |
           set -euo pipefail
           if [ -d "$NDK_PATH" ]; then
-            echo "Using cached or preinstalled Android NDK $NDK_VERSION."
+            echo "Using the preinstalled Android NDK $NDK_VERSION."
           else
             # The runner image installs sdkmanager here and leaves it off PATH.
             sdkmanager="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
@@ -157,9 +150,18 @@ jobs:
               echo "::error::sdkmanager is missing at $sdkmanager; Gradle will not start."
               exit 1
             fi
-            echo "Installing Android NDK $NDK_VERSION with sdkmanager."
-            if ! "$sdkmanager" --sdk_root="$ANDROID_HOME" --install "ndk;$NDK_VERSION"; then
-              echo "::error::Android NDK $NDK_VERSION installation failed before Gradle; rerun to retry the SDK download."
+            # No cache entry: a 0.62 GB entry saved about 20 s of this step, the lowest value per GB of the main caches.
+            installed=false
+            for attempt in 1 2 3; do
+              echo "Installing Android NDK $NDK_VERSION with sdkmanager, attempt $attempt."
+              if "$sdkmanager" --sdk_root="$ANDROID_HOME" --install "ndk;$NDK_VERSION"; then
+                installed=true
+                break
+              fi
+              rm -rf "$NDK_PATH"
+            done
+            if [ "$installed" != true ]; then
+              echo "::error::Android NDK $NDK_VERSION installation failed 3 times before Gradle."
               exit 1
             fi
           fi
@@ -174,14 +176,6 @@ jobs:
             exit 1
           fi
           echo "Verified Android NDK $NDK_VERSION before Gradle."
-
-      # A pull request never saves: the NDK entry is about 600 MB, and main keeps the one entry that every run reads.
-      - name: Save the Android NDK
-        if: github.ref == 'refs/heads/main' && steps.ndk-cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v6
-        with:
-          path: ${{ steps.ndk.outputs.path }}
-          key: ubuntu-24.04-x64-ndk-v1-${{ steps.ndk.outputs.version }}
 
       # The Gradle build cache does not cover the CMake tasks of the native modules. CMake reads the compiler
       # launcher from these variables, and the Android release uses the same compiler cache prefix.

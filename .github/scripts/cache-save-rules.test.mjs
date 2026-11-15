@@ -103,6 +103,20 @@ test("every job that installs from the lockfile restores the npm cache first, an
   assert.match(desktop.jobs.build["runs-on"], /macos-15.*windows-2025/)
 })
 
+// Measured: macOS npm ci took 53 to 59 s with no entry and 48 to 88 s after a 5 to 14 s restore of
+// 0.47 GB, and the 0.62 GB NDK entry saved about 20 s of an Android build of 600 to 1400 s.
+test("macOS restores and saves no npm entry, and no workflow caches the Android NDK", () => {
+  const action = actions.find(({ file }) => file === "restore-npm-cache/action.yml").steps
+  assert.equal(action.find((step) => step.id === "restore").if, "runner.os != 'macOS'")
+  const desktopSave = load(".github/workflows/desktop-build.yml").jobs.build.steps.find((step) => step.name === "Save the npm cache")
+  assert.match(desktopSave.if, /^runner\.os == 'Windows' && /)
+  const ndkCaches = [...uses("actions/cache/restore@"), ...uses("actions/cache/save@"), ...uses("actions/cache@")]
+    .filter(({ step }) => /ndk/i.test(`${step.with?.key ?? ""} ${step.with?.path ?? ""}`))
+  assert.deepEqual(ndkCaches.map(({ where }) => where), [])
+  const install = load(".github/workflows/mobile-build.yml").jobs.build.steps.find((step) => step.name === "Install and verify the Android NDK")
+  assert.match(install.run, /for attempt in 1 2 3; do/)
+})
+
 // gradle/actions at 8da46b539cd8fe6ab27ca75128919a18d757604c, setup-gradle/action.yml: cache-read-only defaults to
 // github.event.repository != null && github.ref_name != github.event.repository.default_branch.
 test("no setup-gradle step overrides the default that writes the Gradle caches from the default branch only", () => {
