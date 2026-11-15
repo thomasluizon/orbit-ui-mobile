@@ -445,7 +445,7 @@ interface StepUpChallengeProps extends SharedStepUpViewProps {
 function StepUpChallenge(props: Readonly<StepUpChallengeProps>) {
   const { checking, code, cooldownSeconds, email, expired, onCancel, onCodeChange, onConfirm, onResend, operationLabel, otpError, requestError, requesting, t } = props
   /** With `orbit_guided_flows` on, the title is the question the code field answers. */
-  const liveTitle = useFlag('orbit_guided_flows') ? t('codeLabel') : t('title')
+  const questionTitle = useFlag('orbit_guided_flows')
   const action = expired ? (
     <PillButton loading={requesting} onClick={onResend}>{t('resend')}</PillButton>
   ) : (
@@ -453,7 +453,7 @@ function StepUpChallenge(props: Readonly<StepUpChallengeProps>) {
   )
   return (
     <FlowShell nav={false} notice={<UpdateAvailableBanner inset={false} mascot={false} />} action={action}>
-      <StepUpHeader body={expired ? t('expiredBody') : t('body', { email })} operationLabel={operationLabel} t={t} title={expired ? t('expiredTitle') : liveTitle} />
+      <StepUpHeader body={expired ? t('expiredBody') : t('body', { email })} operationLabel={operationLabel} t={t} title={expired ? t('expiredTitle') : questionTitle ? t('codeLabel') : t('title')} />
       <OtpInput id="step-up-code" value={code} onChange={onCodeChange} error={otpError} hint={expired ? undefined : t('codeHint')} disabled={checking || expired} autoFocus={!expired} label={t('codeLabel')} />
       {!expired ? <StepUpResend cooldownSeconds={cooldownSeconds} onResend={onResend} requesting={requesting} t={t} /> : null}
       {requestError ? <p role="alert" style={{ color: 'var(--status-bad-text)' }}>{requestError}</p> : null}

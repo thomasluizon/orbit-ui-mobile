@@ -430,7 +430,7 @@ interface MobileStepUpChallengeProps extends SharedMobileStepUpProps {
 function MobileStepUpChallenge(props: Readonly<MobileStepUpChallengeProps>) {
   const { checking, code, cooldownSeconds, email, expired, onCancel, onCodeChange, onConfirm, onResend, operationLabel, otpError, requestError, requesting, t, tokens } = props
   /** With `orbit_guided_flows` on, the title is the question the code field answers. */
-  const liveTitle = useFlag('orbit_guided_flows') ? t('stepUp.codeLabel') : t('stepUp.title')
+  const questionTitle = useFlag('orbit_guided_flows')
   const action = expired ? (
     <PillButton loading={requesting} onClick={onResend}>{t('stepUp.resend')}</PillButton>
   ) : (
@@ -439,7 +439,7 @@ function MobileStepUpChallenge(props: Readonly<MobileStepUpChallengeProps>) {
   return (
     <FlowShell nav={false} action={action}>
       <View style={styles.column}>
-        <MobileStepUpHeader body={expired ? t('stepUp.expiredBody') : t('stepUp.body', { email })} operationLabel={operationLabel} t={t} title={expired ? t('stepUp.expiredTitle') : liveTitle} tokens={tokens} />
+        <MobileStepUpHeader body={expired ? t('stepUp.expiredBody') : t('stepUp.body', { email })} operationLabel={operationLabel} t={t} title={expired ? t('stepUp.expiredTitle') : questionTitle ? t('stepUp.codeLabel') : t('stepUp.title')} tokens={tokens} />
         <OtpInput value={code} onChange={onCodeChange} error={otpError} hint={expired ? undefined : t('stepUp.codeHint')} disabled={checking || expired} autoFocus={!expired} label={t('stepUp.codeLabel')} />
         {!expired ? <MobileStepUpResend cooldownSeconds={cooldownSeconds} onResend={onResend} requesting={requesting} t={t} tokens={tokens} /> : null}
         {requestError ? <Text accessibilityRole="alert" style={[styles.secondary, { color: tokens.statusBadText }]}>{requestError}</Text> : null}
