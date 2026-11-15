@@ -632,6 +632,7 @@
         "endDate": "Tem data para acabar?",
         "parent": "Isso faz parte de outro item?",
         "parentRow": "Faz parte de",
+        "parentPicker": "Faz parte de qual item?",
         "none": "Sem data",
         "yes": "Sim",
         "no": "Não",

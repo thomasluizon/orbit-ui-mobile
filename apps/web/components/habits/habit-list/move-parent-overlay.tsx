@@ -65,6 +65,7 @@ function MoveInventoryStatus({ state, onRetry, t, selectionOnly }: Readonly<{
 
 export function MoveParentOverlay({
   selectionOnly = false,
+  selectionTitle,
   t,
   open,
   isMoving,
@@ -84,7 +85,7 @@ export function MoveParentOverlay({
   const [searchQuery, setSearchQuery] = useState('')
   const hasPositionedRef = useRef(false)
   useEffect(() => { if (!open || inventoryState) hasPositionedRef.current = false }, [open, inventoryState])
-  const title = selectionOnly ? t('habits.form.parentHabit') : movingHabitCount === undefined ? t('habits.moveParent.title')
+  const title = selectionOnly ? selectionTitle ?? t('habits.form.parentHabit') : movingHabitCount === undefined ? t('habits.moveParent.title')
     : plural(t('habits.moveParent.titleMany', { count: movingHabitCount }), movingHabitCount)
   async function confirmMove() {
     if (await onConfirm() === true) {

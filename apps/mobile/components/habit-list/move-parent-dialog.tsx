@@ -33,8 +33,8 @@ function MoveDialogDescription({
   return <Text style={styles.moveDialogDescription}>{t('habits.moveParent.description', { name })}</Text>
 }
 
-function getMoveDialogTitle(t: MoveParentDialogProps['t'], selectionOnly: boolean, movingHabitCount?: number) {
-  return selectionOnly ? t('habits.form.parentHabit') : movingHabitCount === undefined ? t('habits.moveParent.title')
+function getMoveDialogTitle(t: MoveParentDialogProps['t'], selectionOnly: boolean, selectionTitle: string | undefined, movingHabitCount?: number) {
+  return selectionOnly ? selectionTitle ?? t('habits.form.parentHabit') : movingHabitCount === undefined ? t('habits.moveParent.title')
     : plural(t('habits.moveParent.titleMany', { count: movingHabitCount }), movingHabitCount)
 }
 
@@ -84,6 +84,7 @@ function MoveInventoryStatus({ state, onRetry, t, selectionOnly }: Readonly<{
  *  owns the move state and supplies the validated option list plus handlers. */
 export function MoveParentDialog({
   selectionOnly = false,
+  selectionTitle,
   t,
   visible,
   isPending,
@@ -127,7 +128,7 @@ export function MoveParentDialog({
       contentLaidOutRef.current = false
     }
   }, [visible, inventoryState])
-  const title = getMoveDialogTitle(t, selectionOnly, movingHabitCount)
+  const title = getMoveDialogTitle(t, selectionOnly, selectionTitle, movingHabitCount)
   async function confirmMove() {
     if (await onConfirm() === true) {
       closeSheet(hideDialog, hideDialog)
