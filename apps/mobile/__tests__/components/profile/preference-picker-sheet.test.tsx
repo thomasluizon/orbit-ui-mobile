@@ -16,6 +16,8 @@ vi.mock('@orbit/shared/utils', async (importOriginal) => ({
     'Delta/Keep',
   ],
 }))
+const flag = vi.hoisted(() => ({ guided: false }))
+vi.mock('@/hooks/use-flag', () => ({ useFlag: () => flag.guided }))
 vi.mock('@/components/marketing-consent/marketing-consent-section', () => ({
   MarketingConsentSection: () => null,
 }))
@@ -63,6 +65,36 @@ function baseProps() {
 describe('PreferencePickerSheet', () => {
   beforeEach(() => {
     __resetTestHostConfig()
+    flag.guided = false
+  })
+
+  it.each([
+    ['clock', '12 hour', 'onClockFormatChange', false],
+    ['weekStart', 'Sunday', 'onWeekStartChange', 0],
+    ['language', 'Português', 'onLanguageChange', 'pt-BR'],
+  ] as const)('shows the %s answers as quick options with the flag on: one press answers once and closes', (picker, answer, handler, value) => {
+    flag.guided = true
+    const props = { ...baseProps(), activePicker: picker }
+    let tree: any
+    void act(() => { tree = create(withFocusProvenance(<PreferencePickerSheet {...props} />)) })
+    expect(tree.root.findAll((node: any) => typeof node.type === 'string' && node.props.accessibilityRole === 'radio')).toHaveLength(0)
+    const cards = tree.root.findAll((node: any) => typeof node.props.onPress === 'function' && node.props.testID === 'option-card')
+    const labels = [...new Set(cards.map((card: any) => card.props.accessibilityLabel))]
+    expect(labels).toHaveLength(2)
+    expect(cards.filter((card: any) => card.props.accessibilityState.selected).map((card: any) => card.props.accessibilityLabel)).not.toContain(answer)
+    void act(() => cards.find((card: any) => card.props.accessibilityLabel === answer).props.onPress())
+    expect(props[handler]).toHaveBeenCalledOnce()
+    expect(props[handler]).toHaveBeenCalledWith(value)
+    expect(props.onHidden).toHaveBeenCalledOnce()
+  })
+
+  it('keeps the time zone search and its list with the flag on', () => {
+    flag.guided = true
+    const props = { ...baseProps(), activePicker: 'timeZone' as const }
+    let tree: any
+    void act(() => { tree = create(withFocusProvenance(<PreferencePickerSheet {...props} />)) })
+    expect(tree.root.findAll((node: any) => typeof node.type === 'string' && node.props.accessibilityRole === 'radio').length).toBeGreaterThan(0)
+    expect(tree.root.findAll((node: any) => node.props.testID === 'option-card')).toHaveLength(0)
   })
 
   it('checks the current clock and commits one selection', () => {

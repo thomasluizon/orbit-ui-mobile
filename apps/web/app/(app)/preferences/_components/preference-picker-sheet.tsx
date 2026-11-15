@@ -11,6 +11,8 @@ import type { SupportedLocale } from '@orbit/shared/types/profile'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { RadioRow } from '@/components/ui/select-check'
 import { RadioGroup } from '@/components/ui/radio-group'
+import { OptionCard } from '@/components/ui/option-card'
+import { useFlag } from '@/hooks/use-flag'
 
 export type { PreferencePicker }
 
@@ -53,6 +55,22 @@ function PickerOptions<Value extends string | number>({
         />
       ))}
     </RadioGroup>
+  )
+}
+
+/** With `orbit_guided_flows` on, a short picker shows its answers as quick options: a press answers and closes the sheet. Arrow keys move focus and never select. */
+function QuickOptions<Value extends string | number>({ label, options, selected, onCommit }: Readonly<{
+  label: string
+  options: readonly { value: Value; label: string }[]
+  selected: Value | null
+  onCommit: (value: Value) => void
+}>) {
+  return (
+    <div role="group" aria-label={label} data-option-group="" className="grid grid-cols-2 gap-3">
+      {options.map((option) => (
+        <OptionCard key={String(option.value)} label={option.label} selected={selected === option.value} onSelect={() => onCommit(option.value)} />
+      ))}
+    </div>
   )
 }
 
@@ -143,6 +161,7 @@ function PickerContent({
   props: PreferencePickerSheetProps
   commitSelection: (apply: () => void) => void
 }>) {
+  const guided = useFlag('orbit_guided_flows')
   if (props.activePicker === null) return null
   const model = buildPreferencePickerModel({ ...props, activePicker: props.activePicker, ready: props.mounted })
   if (model.kind === 'timeZone') {
@@ -154,7 +173,8 @@ function PickerContent({
       onCommit={(value) => commitSelection(() => model.onCommit(value))}
     />
   }
-  return <PickerOptions
+  const Options = guided ? QuickOptions : PickerOptions
+  return <Options
     label={model.label}
     options={model.options}
     selected={model.selected}

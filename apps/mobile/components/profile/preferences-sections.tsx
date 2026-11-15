@@ -2,7 +2,7 @@ import { ChevronDown } from '@/components/ui/icons'
 
 import { IconButton } from '@/components/ui/icon-button'
 import { useMemo, useRef, useState, type Ref } from 'react'
-import { View, Text } from 'react-native'
+import { StyleSheet, View, Text } from 'react-native'
 import {
   getTimezoneList,
   buildPreferencePickerModel,
@@ -11,6 +11,8 @@ import {
 import { Sheet, type SheetHandle } from '@/components/ui/sheet'
 import { RadioRow } from '@/components/ui/select-check'
 import { RadioGroup } from '@/components/ui/radio-group'
+import { OptionCard } from '@/components/ui/option-card'
+import { useFlag } from '@/hooks/use-flag'
 import { BottomSheetAppTextInput } from '@/components/ui/bottom-sheet-app-text-input'
 
 import { styles, type Tokens } from '@/app/preferences-styles'
@@ -58,6 +60,24 @@ function PickerOptions<Value extends string | number>({
     </RadioGroup>
   )
 }
+
+/** With `orbit_guided_flows` on, a short picker shows its answers as quick options: a press answers and closes the sheet. */
+function QuickOptions<Value extends string | number>({ label, options, selected, onCommit }: Readonly<{
+  label: string
+  options: readonly { value: Value; label: string }[]
+  selected: Value | null
+  onCommit: (value: Value) => void
+}>) {
+  return (
+    <View testID="preference-quick-options" accessibilityLabel={label} style={quickOptions.grid}>
+      {options.map((option) => (
+        <OptionCard key={String(option.value)} label={option.label} selected={selected === option.value} onSelect={() => onCommit(option.value)} />
+      ))}
+    </View>
+  )
+}
+
+const quickOptions = StyleSheet.create({ grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', rowGap: 12 } })
 
 function TimeZoneOptions({
   tokens,
@@ -147,6 +167,7 @@ function PickerContent({ props, commitSelection }: Readonly<{
   props: PreferencePickerSheetProps
   commitSelection: (apply: () => void) => void
 }>) {
+  const guided = useFlag('orbit_guided_flows')
   if (props.activePicker === null) return null
   const model = buildPreferencePickerModel({ ...props, activePicker: props.activePicker, ready: true })
   if (model.kind === 'timeZone') {
@@ -159,7 +180,8 @@ function PickerContent({ props, commitSelection }: Readonly<{
       onCommit={(value) => commitSelection(() => model.onCommit(value))}
     />
   }
-  return <PickerOptions
+  const Options = guided ? QuickOptions : PickerOptions
+  return <Options
     label={model.label}
     options={model.options}
     selected={model.selected}

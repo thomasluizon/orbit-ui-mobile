@@ -7,6 +7,9 @@ vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
 }))
 
+const flag = vi.hoisted(() => ({ guided: false }))
+vi.mock('@/hooks/use-flag', () => ({ useFlag: () => flag.guided }))
+
 vi.mock('dompurify', () => ({
   default: { sanitize: (html: string) => html },
 }))
@@ -49,6 +52,35 @@ function baseProps() {
 describe('PreferencePickerSheet', () => {
   beforeEach(() => {
     document.body.innerHTML = ''
+    flag.guided = false
+  })
+
+  it.each([
+    ['clock', '12 hour', '24 hour', 'onClockFormatChange', false],
+    ['weekStart', 'Sunday', 'Monday', 'onWeekStartChange', 0],
+    ['language', 'Português', 'English', 'onLanguageChange', 'pt-BR'],
+  ] as const)('shows the %s answers as quick options with the flag on: one press answers once and closes', (picker, answer, current, handler, value) => {
+    flag.guided = true
+    const props = { ...baseProps(), activePicker: picker }
+    render(<PreferencePickerSheet {...props} />)
+    expect(screen.queryByRole('radio')).not.toBeInTheDocument()
+    const group = screen.getByRole('group', { name: pickerTitles[picker] })
+    expect(group.querySelectorAll('[data-option-card]')).toHaveLength(2)
+    expect(screen.getByRole('button', { name: current })).toHaveAttribute('data-selected')
+    expect(screen.getByRole('button', { name: answer })).not.toHaveAttribute('data-selected')
+    fireEvent.keyDown(screen.getByRole('button', { name: current }), { key: 'ArrowRight' })
+    expect(props[handler]).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: answer }))
+    expect(props[handler]).toHaveBeenCalledOnce()
+    expect(props[handler]).toHaveBeenCalledWith(value)
+    expect(props.onClose).toHaveBeenCalledOnce()
+  })
+
+  it('keeps the time zone search and its list with the flag on', () => {
+    flag.guided = true
+    render(<PreferencePickerSheet {...baseProps()} activePicker="timeZone" />)
+    expect(screen.getByRole('textbox', { name: 'Search timezones' })).toBeInTheDocument()
+    expect(screen.getAllByRole('radio').length).toBeGreaterThan(0)
   })
 
   it('shows the selected clock and commits one choice', () => {
