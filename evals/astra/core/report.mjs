@@ -15,9 +15,14 @@ function writePrivateJson(path, value) {
   renameSync(next, path)
 }
 
+// The kinds of attempt that give no evidence of the build. Each `unavailable` verdict of the core set comes from one of
+// them, and the report heading of their reasons names each one.
+const noEvidenceKinds = ['a throttle', 'a spend ceiling', 'a failed precondition', 'a failed rubric grader',
+  'a card turn without the trace that its answer needs', 'a preview turn without the trace that shows a `stored` field']
+
 // One attempt of one case: its verdict, the questions that came before its preview, its measured model calls and the
 // seconds that the person waited. Two kinds of attempt are neither a pass nor a fail: an attempt that gave no evidence
-// (a failed precondition, a throttle, a spend ceiling, a failed rubric grader) and an attempt that the grader could not read.
+// (one of `noEvidenceKinds`) and an attempt that the grader could not read.
 function attemptOf(entry, repeat) {
   const output = entry.response?.output ?? {}
   const questions = output.questionsBeforePreview
@@ -206,7 +211,7 @@ export function writeReport(summary, directory) {
     ...summary.groups.map((entry) => `| ${entry.family} | ${entry.locale} | ${entry.passed}/${entry.cases} | ${entry.passRate} | ${entry.passK} |`),
     ...reasonLines('Behavior failures:', summary.cases, 'reasons'),
     ...reasonLines('Grader limits (the grader could not read the reply; no verdict on the assistant):', summary.cases, 'graderLimitReasons'),
-    ...reasonLines('No evidence (a throttle, a spend ceiling, a failed precondition or a failed rubric grader):', summary.cases, 'unavailableReasons'),
+    ...reasonLines(`No evidence (${noEvidenceKinds.slice(0, -1).join(', ')}, or ${noEvidenceKinds.at(-1)}):`, summary.cases, 'unavailableReasons'),
     '',
     'A must-pass case passes only when each of its 3 attempts passes. No rerun on the same build replaces a failed attempt or a grader limit.',
     'Incomplete is not a pass. A held preview proves a proposal; the saved state readback proves the write.',
