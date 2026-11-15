@@ -33,6 +33,7 @@ import {
   readStepUpTiming,
 } from '@/lib/step-up-storage'
 import { PROFILE_STEP_UP_DESTINATIONS } from '@orbit/shared/utils/profile-routes'
+import { getBackLabel } from '@orbit/shared/utils/back-label'
 import { useProfile } from '@/hooks/use-profile'
 import { useDateFormat } from '@/hooks/use-date-format'
 import { useLogout } from '@/hooks/use-logout'
@@ -278,11 +279,7 @@ function StepUpScreenContent() {
       <MobileStepUpExhausted
         {...sharedView}
         lockSeconds={lockSeconds}
-        backLabel={t('common.backToDestination', {
-          destination: operation === 'keys'
-            ? t('profile.groups.astra')
-            : t('profile.submenus.account'),
-        })}
+        backLabel={getBackLabel(returnDestination, t)}
         onBack={() => router.replace(returnDestination)}
       />
     )

@@ -18,6 +18,7 @@ import {
   getFriendlyErrorMessage,
 } from '@orbit/shared/utils'
 import { PROFILE_STEP_UP_DESTINATIONS } from '@orbit/shared/utils/profile-routes'
+import { getBackLabel } from '@orbit/shared/utils/back-label'
 import { useProfile } from '@/hooks/use-profile'
 import { useDateFormat } from '@/hooks/use-date-format'
 import { getHeldAccountId, useAuthStore, useHeldAccountId } from '@/stores/auth-store'
@@ -292,11 +293,7 @@ function StepUpScreenContent({
       <StepUpExhausted
         {...sharedView}
         lockSeconds={lockSeconds}
-        backLabel={translate('common.backToDestination', {
-          destination: operation === 'keys'
-            ? translate('profile.groups.astra')
-            : translate('profile.submenus.account'),
-        })}
+        backLabel={getBackLabel(returnDestination, translate)}
         onBack={() => router.replace(returnDestination)}
       />
     )

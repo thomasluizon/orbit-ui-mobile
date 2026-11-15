@@ -1448,7 +1448,7 @@ it.each([{ locale: 'en', messages: en }, { locale: 'pt-BR', messages: ptBR }])('
     rejected: 'The 2 changes were rejected. Nothing was saved.', more: 'and 3 more', open: 'Open details: Water',
   } : {
     group: 'Onde colocar Water', option: 'Item do checklist de Morning routine',
-    recommendation: 'Orbit sugere: Item do checklist de Morning routine. Você já tem 4 itens no checklist aqui.',
+    recommendation: 'O Orbit sugere: Item do checklist de Morning routine. Você já tem 4 itens no checklist aqui.',
     rejected: 'As 2 mudanças foram rejeitadas. Nada foi salvo.', more: 'e mais 3', open: 'Abrir detalhes: Water',
   })
   expect(formatPreviewMeta('Every day · at 08:00')).toBe('Every day · at\u00a008:00')

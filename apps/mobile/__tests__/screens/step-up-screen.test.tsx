@@ -566,8 +566,7 @@ describe('mobile step up screen', () => {
     expect(findText(tree.root, 'stepUp.exhaustedNotice').length).toBeGreaterThan(0)
     expect(queryButton(tree.root, 'stepUp.resend')).toBeUndefined()
     expect(mocks.apiClient).not.toHaveBeenCalled()
-    const destination = operation === 'keys' ? 'profile.groups.astra' : 'profile.submenus.account'
-    const back = findButton(tree.root, `common.backToDestination:${JSON.stringify({ destination })}`)
+    const back = findButton(tree.root, operation === 'keys' ? 'common.backToOrbit' : 'common.backToDestination:{"destination":"profile.submenus.account"}')
     await TestRenderer.act(() => { (back.props.onPress as () => void)() })
     expect(mocks.router.replace).toHaveBeenCalledWith(operation === 'keys' ? '/profile/astra' : '/profile/account')
   })

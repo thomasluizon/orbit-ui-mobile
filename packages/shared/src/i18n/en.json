@@ -115,6 +115,7 @@
     "backToToday": "Back to Today",
     "backToParentHabit": "Back to the parent habit",
     "backToHabit": "Back to the habit",
+    "backToOrbit": "Back to Orbit",
     "backToDestination": "Back to {destination}",
     "closeConversation": "Close conversation",
     "appName": "Orbit",
@@ -3001,7 +3002,7 @@
       "astraCeiling": "250 AI messages a week",
       "calendarSync": "Calendar sync",
       "retrospective": "Periodic retrospective",
-      "proactiveAstra": "Orbit check-ins",
+      "proactiveAstra": "Orbit notifications",
       "savings": "Annual saves {percent}%",
       "subscribe": "View plans",
       "continueFree": "Stay free"
@@ -3437,8 +3438,8 @@
         "aiMessages": "Today",
         "aiMessagesWeekly": "This week",
         "aiMessagesOf": "{used} of {limit}",
-        "nearLimit": "You are close to today's AI limit",
-        "nearLimitWeekly": "You are close to this week's AI limit"
+        "nearLimit": "You are close to today's AI message limit",
+        "nearLimitWeekly": "You are close to this week's AI message limit"
       },
       "invoices": {
         "title": "Invoice history",

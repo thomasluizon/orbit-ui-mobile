@@ -115,6 +115,7 @@
     "backToToday": "Voltar para Hoje",
     "backToParentHabit": "Voltar para o hábito principal",
     "backToHabit": "Voltar para o hábito",
+    "backToOrbit": "Voltar para o Orbit",
     "backToDestination": "Voltar para {destination}",
     "closeConversation": "Fechar conversa",
     "appName": "Orbit",
@@ -1341,7 +1342,7 @@
         "new_parent": "Novo hábito principal"
       },
       "recommended": "Recomendado",
-      "recommendation": "Orbit sugere: {placement}.",
+      "recommendation": "O Orbit sugere: {placement}.",
       "checklistNote": "Este item segue as configurações do hábito principal. As configurações do rascunho ficam guardadas se você escolher de novo uma opção de hábito."
     },
     "operationUpdated": "Veja o resultado atualizado acima.",
@@ -3001,7 +3002,7 @@
       "astraCeiling": "250 mensagens de IA por semana",
       "calendarSync": "Sincronização do calendário",
       "retrospective": "Retrospectiva periódica",
-      "proactiveAstra": "Avisos do Orbit",
+      "proactiveAstra": "Notificações do Orbit",
       "savings": "Anual: {percent}% a menos",
       "subscribe": "Ver planos",
       "continueFree": "Continuar grátis"
@@ -3355,7 +3356,7 @@
       "trialLastDay": "Último dia do teste",
       "trialHeading": "250 por semana.",
       "freeEyebrow": "Você está no plano grátis",
-      "freeHeading": "7x mais respostas.",
+      "freeHeading": "7x mais mensagens.",
       "trustLine": "Sem fidelidade, e nenhum cartão fica guardado no Orbit.",
       "cancelAnytime": "Cancele quando quiser.",
       "handOff": "O pagamento é feito pelo nosso provedor. O Orbit nunca guarda os dados do seu cartão.",
@@ -3437,8 +3438,8 @@
         "aiMessages": "Hoje",
         "aiMessagesWeekly": "Nesta semana",
         "aiMessagesOf": "{used} de {limit}",
-        "nearLimit": "Você está perto do limite de IA de hoje",
-        "nearLimitWeekly": "Você está perto do limite semanal de IA"
+        "nearLimit": "Você está perto do limite de mensagens de IA de hoje",
+        "nearLimitWeekly": "Você está perto do limite semanal de mensagens de IA"
       },
       "invoices": {
         "title": "Histórico de faturas",

@@ -363,8 +363,7 @@ describe('web step up screen', () => {
     expect(await screen.findByText('exhaustedNotice')).toBeInTheDocument()
     expect(screen.queryByText('resend')).not.toBeInTheDocument()
     expect(mocks.serverAuthMutate).not.toHaveBeenCalled()
-    const destination = operation === 'keys' ? 'profile.groups.astra' : 'profile.submenus.account'
-    fireEvent.click(screen.getByText(`common.backToDestination:${JSON.stringify({ destination })}`))
+    fireEvent.click(screen.getByText(operation === 'keys' ? 'common.backToOrbit' : 'common.backToDestination:{"destination":"profile.submenus.account"}'))
     expect(mocks.router.replace).toHaveBeenCalledWith(operation === 'keys' ? '/profile/astra' : '/profile/account')
   })
 
