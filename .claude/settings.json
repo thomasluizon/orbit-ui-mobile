@@ -21,7 +21,7 @@
         ]
       },
       {
-        "matcher": "Bash",
+        "matcher": "Bash|Monitor",
         "hooks": [
           { "type": "command", "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/git-guardrails.mjs\"" },
           { "type": "command", "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/forbid-raw-ticket-mutation.mjs\"" },
@@ -30,12 +30,6 @@
           { "type": "command", "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/forbid-worker-browser.mjs\"" },
           { "type": "command", "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/require-handoff-prompt.mjs\"" },
           { "type": "command", "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/forbid-node-modules-write.mjs\"" },
-          { "type": "command", "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/forbid-approval-prompt.mjs\"" }
-        ]
-      },
-      {
-        "matcher": "Monitor",
-        "hooks": [
           { "type": "command", "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/forbid-approval-prompt.mjs\"" }
         ]
       },

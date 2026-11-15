@@ -70,6 +70,22 @@ T("wiring: every hook on disk is wired in settings.json", onDisk.filter((name) =
 T("wiring: the scan is not vacuous", wired.size > 0 && onDisk.length > 0, true)
 const staleMatchers = settings.hooks.PreToolUse.filter((entry) => entry.hooks.some((hook) => hook.command.includes("forbid-stale-text.mjs"))).map((entry) => entry.matcher)
 T("wiring: stale text hook is registered once per matcher", staleMatchers.length, new Set(staleMatchers).size)
+// The Monitor tool runs its `tool_input.command` through the same permission check as the Bash tool, so every
+// shell guard runs for both. A plain `|` matcher names each tool exactly.
+const hookFileOf = (hook) => /\.claude[/\\]hooks[/\\]([A-Za-z0-9._-]+\.mjs)/.exec(hook?.command ?? "")?.[1]
+const guardsOn = (entries, tool) => entries.filter((entry) => (entry.matcher ?? "").split("|").includes(tool)).flatMap((entry) => entry.hooks.map(hookFileOf))
+const missingFromMonitor = (entries) => guardsOn(entries, "Bash").filter((file) => !guardsOn(entries, "Monitor").includes(file))
+const BASH_GUARDS = guardsOn(settings.hooks.PreToolUse, "Bash")
+T("wiring: every guard on the Bash matcher also runs for the Monitor tool", missingFromMonitor(settings.hooks.PreToolUse), [])
+T("wiring: the Monitor tool runs the guards of the Bash tool in the same order", guardsOn(settings.hooks.PreToolUse, "Monitor"), BASH_GUARDS)
+T("wiring: every shell guard on the Bash matcher also runs for the PowerShell tool, except the approval hook",
+  guardsOn(settings.hooks.PreToolUse, "PowerShell"), BASH_GUARDS.filter((file) => file !== "forbid-approval-prompt.mjs"))
+// The check broken: a copy that moves Monitor to its own entry without git-guardrails must name that guard.
+const monitorSplit = settings.hooks.PreToolUse.flatMap((entry) => guardsOn([entry], "Bash").length && guardsOn([entry], "Monitor").length
+  ? [{ ...entry, matcher: "Bash" }, { ...entry, matcher: "Monitor", hooks: entry.hooks.filter((hook) => hookFileOf(hook) !== "git-guardrails.mjs") }]
+  : [entry])
+T("wiring: the Monitor check names a Bash guard that a copy leaves off Monitor", missingFromMonitor(monitorSplit), ["git-guardrails.mjs"])
+T("wiring: the Monitor check is not vacuous", BASH_GUARDS.length >= 8 && BASH_GUARDS.every(Boolean), true)
 
 const metadataWorkflow = readFileSync(join(repoRoot, ".github/workflows/pr-metadata.yml"), "utf8")
 T("parity gate: metadata invokes the live-label validator", metadataWorkflow.includes("node .github/scripts/check-pr-metadata.mjs"), true)
@@ -157,7 +173,7 @@ T("engine: Orca shell terminal remains permitted", checkEngineInvocation('orca t
 // The admin-merge prohibition is absolute for every agent and takes no context:
 // banning only the CLI flag would leave both raw API paths open, which is the
 // exact bypass shape it exists to close. (The rule lives in rules-orchestrator,
-// not rules-git; both hooks are wired to Bash and PowerShell.)
+// not rules-git; both hooks are wired to Bash, Monitor and PowerShell.)
 T(`admin-merge: gh pr merge ${ADMIN} blocks`, blocks(checkAdminMerge(`gh pr merge 667 --squash ${ADMIN}`)), true)
 T("admin-merge: an ordinary gh pr merge --squash allows", checkAdminMerge("gh pr merge 667 --squash --delete-branch"), null)
 for (const [label, method] of [
@@ -428,6 +444,12 @@ const approvalRules = [
   ["unreadable-script", 'bash -c "alias wipe=rm; rm -rf dist"', "rm -rf dist"],
 ]
 T("approval: every removal rule has a refusal case", approvalRules.map(([rule]) => rule), REMOVAL_RULES.map((rule) => rule.name))
+// The README rule table names each rule and the `covers` text of its refusal, so a changed rule fails here.
+const readmeRules = Object.fromEntries([...readFileSync(join(hooksDir, "_lib", "README.md"), "utf8").matchAll(/^\| `([a-z-]+)` \| (`\w+`(?:, `\w+`)*) \|$/gm)]
+  .map(([, rule, covers]) => [rule, covers.replaceAll("`", "")]))
+const refusalCovers = (command) => /dangerous removal \(([^)]+)\)/.exec(checkApprovalPrompt(command, approvalOptions)?.message ?? "")?.[1] ?? null
+T("approval: the README rule table lists each removal rule in source order", Object.keys(readmeRules), REMOVAL_RULES.map((rule) => rule.name))
+T("approval: the README rule table gives the covers text of each refusal", approvalRules.map(([rule, refused]) => [rule, refusalCovers(refused)]), approvalRules.map(([rule]) => [rule, readmeRules[rule] ?? null]))
 for (const [rule, refused, rewritten] of approvalRules) {
   T(`approval ${rule}: refused`, refusedBy(refused), rule)
   // The guard broken: with this one rule removed the same command passes, so the refusal belongs to the rule.
@@ -1111,6 +1133,16 @@ for (const hook of ["surface-pending-lessons", "record-handoff-request", "relay-
 }
 const bash = (command, cwd = root) => ({ tool_name: "Bash", tool_input: { command }, cwd })
 const powershell = (command, cwd = root) => ({ tool_name: "PowerShell", tool_input: { command }, cwd })
+// The Monitor tool input of Claude Code 2.1.325: `description`, `timeout_ms`, `persistent`, and `command` or `ws`.
+const monitor = (command, cwd = root) => ({ tool_name: "Monitor", tool_input: { command, description: "Watch the run", timeout_ms: 300000, persistent: false }, cwd })
+const monitorSocket = { tool_name: "Monitor", tool_input: { ws: { url: "wss://events.example.com/stream" }, description: "Events", timeout_ms: 300000, persistent: false }, cwd: root }
+/** One command as a Bash payload and as a Monitor payload. It records the guard, so a guard with no Monitor case fails below. */
+const monitorRefusalGuards = new Set()
+const bashAndMonitor = (file, command, { cwd = root, env, extra = {} } = {}) => {
+  monitorRefusalGuards.add(file)
+  return [runHook(file, { ...bash(command, cwd), ...extra }, env), runHook(file, { ...monitor(command, cwd), ...extra }, env)]
+}
+for (const file of BASH_GUARDS) T(`adapter ${file}: a Monitor that opens a WebSocket has no command -> 0`, runHook(file, monitorSocket), 0)
 const STALE_TEXT = "forbid-stale-text.mjs"
 const plantedOwner = ["Tho", "mas"].join("")
 T("adapter timeless: a new owner attribution -> 2", runHook(STALE_TEXT, {
@@ -1259,6 +1291,7 @@ T("adapter lessons: malformed drift state exits 0 and emits the overdue line", {
 }, { status: 0, stdout: "Workflow drift review is overdue. Run /drift-review.", stderr: "" })
 
 T("adapter git-guardrails: push main -> 2", runHook("git-guardrails.mjs", bash("git push origin main")), 2)
+T("adapter git-guardrails: the same push from Bash and from Monitor -> 2, 2", bashAndMonitor("git-guardrails.mjs", "git push origin main"), [2, 2])
 T("adapter git-guardrails: push feature -> 0", runHook("git-guardrails.mjs", bash("git push origin feature/x")), 0)
 T("adapter git-guardrails: worktree remove --force -> 2", runHook("git-guardrails.mjs", bash("git worktree remove --force .claude/worktrees/x")), 2)
 
@@ -1271,6 +1304,7 @@ for (const [shape, command] of descriptorSafetyRefusals) {
 }
 T("adapter orchestrator: codex exec -> 2", runHook(ORCH, bash('codex exec "do the thing"')), 2)
 T(`adapter orchestrator: gh pr merge ${ADMIN} -> 2`, runHook(ORCH, bash(`gh pr merge 1 --squash ${ADMIN}`)), 2)
+T(`adapter orchestrator: the same gh pr merge ${ADMIN} from Bash and from Monitor -> 2, 2`, bashAndMonitor(ORCH, `gh pr merge 1 --squash ${ADMIN}`), [2, 2])
 T("adapter orchestrator: gh pr merge --squash -> 0", runHook(ORCH, bash("gh pr merge 1 --squash")), 0)
 T("adapter orchestrator: codex --version -> 0", runHook(ORCH, bash("codex --version")), 0)
 T("adapter orchestrator: grep over a codex pattern -> 0", runHook(ORCH, bash("grep -rnE 'claude|codex' tools/")), 0)
@@ -1298,6 +1332,7 @@ T(
 const BROWSER = "forbid-worker-browser.mjs"
 T("adapter worker-browser: a worker starting a dev server -> 2", runHook(BROWSER, bash("npm run dev"), { ORBIT_LAUNCH_WORKER: "1" }), 2)
 T("adapter worker-browser: a worker running playwright -> 2", runHook(BROWSER, bash("npx playwright test"), { ORBIT_LAUNCH_WORKER: "1" }), 2)
+T("adapter worker-browser: the same playwright run from Bash and from Monitor -> 2, 2", bashAndMonitor(BROWSER, "npx playwright test", { env: { ORBIT_LAUNCH_WORKER: "1" } }), [2, 2])
 T("adapter worker-browser: a worker running the tests -> 0", runHook(BROWSER, bash("npm test", repoRoot), { ORBIT_LAUNCH_WORKER: "1" }), 0)
 T("adapter worker-browser: a workspace layout script -> 2", runHook(BROWSER, bash("npm run test:layout -w apps/web", repoRoot), { ORBIT_LAUNCH_WORKER: "1" }), 2)
 T("adapter worker-browser: the same dev server outside a worker -> 0", runHook(BROWSER, bash("npm run dev")), 0)
@@ -1339,6 +1374,7 @@ T("adapter dependency-write: Edit through a relative path -> 2", runHook(DEPENDE
 T("adapter dependency-write: MultiEdit on the repository's own source -> 0", runHook(DEPENDENCY, edit("MultiEdit", "apps/mobile/app/index.tsx")), 0)
 T("adapter dependency-write: a worker redirect into a dependency -> 2", runHook(DEPENDENCY, bash("echo true > node_modules/react-native/flags.kt", dependencyTree), { ORBIT_LAUNCH_WORKER: "1" }), 2)
 T("adapter dependency-write: the same redirect outside a worker still -> 2", runHook(DEPENDENCY, bash("echo true > node_modules/react-native/flags.kt", dependencyTree)), 2)
+T("adapter dependency-write: the same redirect from Bash and from Monitor -> 2, 2", bashAndMonitor(DEPENDENCY, "echo true > node_modules/react-native/flags.kt", { cwd: dependencyTree }), [2, 2])
 T("adapter dependency-write: the PowerShell tool is guarded too -> 2", runHook(DEPENDENCY, powershell("Set-Content -Path node_modules/react-native/flags.kt -Value true", dependencyTree)), 2)
 T("adapter dependency-write: a case-different spelling -> 2", runHook(DEPENDENCY, edit("Write", "NODE_MODULES/react-native/flags.kt")), 2)
 T("adapter dependency-write: npx -y patch-package -> 2", runHook(DEPENDENCY, bash("npx -y patch-package react-native", dependencyTree)), 2)
@@ -1363,6 +1399,7 @@ T(
   runHook(IDENT_HOOK, { tool_name: "PowerShell", tool_input: { command: resolveCommand(INVENTED) }, cwd: repoRoot, session_id: IDENT_SESSION }),
   2,
 )
+T("adapter identifier: the same id from Bash and from Monitor -> 2, 2", bashAndMonitor(IDENT_HOOK, resolveCommand(INVENTED), { cwd: repoRoot, extra: { session_id: IDENT_SESSION } }), [2, 2])
 
 const scratchpadArtifact = join(tmpdir(), "claude", "orbit-hooks-gate-project", IDENT_SESSION, "scratchpad", "threads.json")
 mkdirSync(dirname(scratchpadArtifact), { recursive: true })
@@ -1451,6 +1488,9 @@ T("adapter approval: a PowerShell command is outside the removal check -> 0", ap
 const monitorRemoval = { ...heldRemoval("Monitor"), tool_input: { command: 'until test -f "$OUT/done"; do sleep 5; done; rm -rf "$OUT/$d"', description: "Wait for the build", timeout_ms: 300000 } }
 const refusedMonitor = approvalHook(monitorRemoval)
 T("adapter approval: a Monitor command that removes a variable path -> 2", refusedMonitor.status, 2)
+// The approval hook runs from the staged checkout, so it records its own case for the parity check.
+T("adapter approval: the same held removal from Monitor -> 2", approvalHook(heldRemoval("Monitor")).status, 2)
+monitorRefusalGuards.add(APPROVAL_HOOK)
 T("adapter approval: the Monitor refusal gives the guarded rewrite", refusedMonitor.stderr.includes('"${OUT:?}/${d:?}"'), true)
 T("adapter approval: a Monitor command with a guarded removal -> 0", approvalHook({ ...monitorRemoval, tool_input: { ...monitorRemoval.tool_input, command: 'until test -f "$OUT/done"; do sleep 5; done; rm -rf "${OUT:?}/${d:?}"' } }).status, 0)
 T("adapter approval: a Monitor that opens a WebSocket has no command -> 0", approvalHook({ ...heldRemoval("Monitor"), tool_input: { ws: { url: "wss://events.example.com/stream" }, description: "Events", timeout_ms: 300000 } }).status, 0)
@@ -2204,6 +2244,7 @@ T("wake merged: the adapter surfaces the merged ending and its sha, the way it s
 // The ticket guard is wired to BOTH events: the shell call and source that would issue it later.
 const TICKET_HOOK = "forbid-raw-ticket-mutation.mjs"
 T("adapter tickets: raw issue edit -> 2", runHook(TICKET_HOOK, bash(`gh issue edit 215 --repo ${TICKET_REPO} --add-label Bug`)), 2)
+T("adapter tickets: the same raw issue edit from Bash and from Monitor -> 2, 2", bashAndMonitor(TICKET_HOOK, `gh issue edit 215 --repo ${TICKET_REPO} --add-label Bug`), [2, 2])
 T("adapter tickets: pull request read -> 0", runHook(TICKET_HOOK, bash(`gh pr view 12 --repo ${CODE_REPO}`)), 0)
 const mutatingScript = { tool_name: "Write", tool_input: { file_path: join(root, "post.mjs"), content: `gh issue comment 215 --repo ${TICKET_REPO} --body fixed` } }
 T("adapter tickets: a written script that mutates -> 2", runHook(TICKET_HOOK, mutatingScript), 2)
@@ -2608,6 +2649,7 @@ T("handoff git: an unstaged edit yields the working copy", promptsForCommit(hand
 const handoffHook = join(hooksDir, "require-handoff-prompt.mjs")
 const handoffHookRun = (command) => spawnSync(process.execPath, [handoffHook], { input: JSON.stringify({ hook_event_name: "PreToolUse", session_id: "s-handoff-none", cwd: handoffGitRepo, tool_input: { command } }), encoding: "utf8" }).status
 T("handoff hook: a directory pathspec commit of an invalid prompt is refused", handoffHookRun("git commit -m x -- .claude/handoffs"), 2)
+T("handoff hook: the same commit from Bash and from Monitor is refused", bashAndMonitor("require-handoff-prompt.mjs", "git commit -m x -- .claude/handoffs", { cwd: handoffGitRepo, extra: { hook_event_name: "PreToolUse", session_id: "s-handoff-none" } }), [2, 2])
 T("handoff hook: a glob pathspec commit of an invalid prompt is refused", handoffHookRun("git commit -m x -- '.claude/*'"), 2)
 inHandoffRepo("add", ".")
 writeFileSync(handoffFile, attendedPrompt)
@@ -2705,6 +2747,8 @@ const emptyResult = secondOpinionReply("")
 T("second-opinion: an empty response degrades", [emptyResult.status, emptyResult.reason], ["UNAVAILABLE", "empty response from claude"])
 const noFindingResult = secondOpinionReply(placeholderVerdict, "success", " ")
 T("second-opinion: no dossier degrades", [noFindingResult.status, noFindingResult.reason], ["UNAVAILABLE", "no finding text on stdin"])
+
+T("monitor parity: each guard on the Bash matcher refuses one command from Bash and from Monitor in a test", BASH_GUARDS.filter((file) => !monitorRefusalGuards.has(file)), [])
 
 console.log(`\n${fails === 0 ? "ORBIT HOOKS OK" : `ORBIT HOOKS FAILED (${fails})`}`)
 process.exit(fails === 0 ? 0 : 1)

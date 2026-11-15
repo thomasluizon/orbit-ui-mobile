@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// PreToolUse(Bash, PowerShell) and Stop adapter for the handoff prompt gate. The rules live in
+// PreToolUse(Bash, Monitor, PowerShell) and Stop adapter for the handoff prompt gate. The rules live in
 // _lib/rules-handoff.mjs. Exits 0 (allow) or 2 + stderr (block). Adapter errors block with a diagnostic.
 
 import { handoffDocsChanged, operationInProgress, syncRelayCheckout } from "../../tools/lib/relay-checkout.mjs"

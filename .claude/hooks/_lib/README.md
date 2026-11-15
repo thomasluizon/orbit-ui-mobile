@@ -5,28 +5,37 @@ directory. The `.mjs` files in `.claude/hooks/` are thin adapters: read the stdi
 payload, call a `_lib` rule, `exit 2` + stderr on a block. Wired in
 `.claude/settings.json` (`SessionStart` / `PreToolUse` / `PostToolUse`).
 
-Every `PreToolUse` guard is registered on **PowerShell** and `Bash` so either
-shell receives the same checks. `forbid-approval-prompt` is the one exception:
-it mirrors a check that Claude Code runs for the Bash tool and the Monitor tool,
-so it is registered on `Bash` and `Monitor`. It is also registered on each tool
-in `PERSON_PROMPT_TOOLS`, which waits for the answer of a person.
+Every shell guard in `PreToolUse` is registered on the `Bash|Monitor` matcher and on
+**PowerShell**, so each tool that runs a shell command receives the same checks. In Claude
+Code 2.1.325 the Monitor tool takes a shell command as `tool_input.command` and sends it through
+the permission check of the Bash tool. A Monitor that opens a WebSocket (`tool_input.ws`) has no
+command, and each guard allows it. `forbid-approval-prompt` is the one exception: it mirrors that
+shared check, so it is on `Bash|Monitor` and not on `PowerShell`. It is also registered on each
+tool in `PERSON_PROMPT_TOOLS`, which waits for the answer of a person. `test-hooks.mjs` fails when
+a guard on the Bash matcher does not run for the Monitor tool, or has no Monitor refusal test.
 
 Deterministic checks live in ESLint, Roslyn, and `guards.yml`.
 Session hooks block commands or edits before they happen.
 
 | `_lib` module | rules | Claude Code hook |
 |---|---|---|
-| `rules-git.mjs` | git workflow (protected main, no-verify, worktree junction footgun) | git-guardrails (PreToolUse Bash, PowerShell) |
-| `rules-orchestrator.mjs` | model spend routes through the launcher; no agent admin merge | orchestrator-guardrails (PreToolUse Bash, PowerShell) |
+| `rules-git.mjs` | git workflow (protected main, no-verify, worktree junction footgun) | git-guardrails (PreToolUse Bash, Monitor, PowerShell) |
+| `rules-orchestrator.mjs` | model spend routes through the launcher; no agent admin merge | orchestrator-guardrails (PreToolUse Bash, Monitor, PowerShell) |
 | `rules-lessons.mjs` | count unreviewed lesson headings before `## Graduated` | surface-pending-lessons (SessionStart) |
 | `rules-source.mjs` | idempotent raw index SQL in EF migrations | forbid-ef-migration-raw-index (PostToolUse Edit/Write) |
-| `rules-dependencies.mjs` | nothing writes inside `node_modules`, for any caller | forbid-node-modules-write (PreToolUse Write/Edit/MultiEdit, Bash, PowerShell) |
+| `rules-tickets.mjs` | writes to the ticket repository and its project board go through the repository tools | forbid-raw-ticket-mutation (PreToolUse Bash, Monitor, PowerShell; PostToolUse Edit/Write/MultiEdit) |
+| `rules-identifier.mjs` | a GitHub node id in a command comes from output that this run read | forbid-invented-identifier (PreToolUse Bash, Monitor, PowerShell) |
+| `rules-worker.mjs` | a launched worker starts no dev server, browser driver or emulator | forbid-worker-browser (PreToolUse Bash, Monitor, PowerShell) |
+| `rules-dependencies.mjs` | nothing writes inside `node_modules`, for any caller | forbid-node-modules-write (PreToolUse Write/Edit/MultiEdit/NotebookEdit, Bash, Monitor, PowerShell) |
 | `rules-approval.mjs` | an unattended run refuses each shell command that Claude Code holds for an approval, and each tool that waits for the answer of a person | forbid-approval-prompt (PreToolUse Bash, Monitor, and each tool in `PERSON_PROMPT_TOOLS`) |
 | `working-directories.mjs` | the directories that the settings files add to the working directories of a session | forbid-approval-prompt |
 | `repo-roots.mjs` | which repository owns a path, and the linked worktree that resolves to its main checkout | orchestrator-guardrails, forbid-worker-browser, forbid-invented-identifier |
-| `rules-handoff.mjs` | a committed or stopping `NEXT.md` matches the handoff mode the owner asked for | require-handoff-prompt (PreToolUse Bash, PowerShell; Stop) |
+| `rules-handoff.mjs` | a committed or stopping `NEXT.md` matches the handoff mode the owner asked for | require-handoff-prompt (PreToolUse Bash, Monitor, PowerShell; Stop) |
 | `handoff-git.mjs` | every `NEXT.md` version a commit could record, and the newest committed one on any branch | require-handoff-prompt |
-| `io.mjs` | payload normalizers | both |
+| `rules-relay.mjs` | the context relay: drain sources, thresholds, and the superseded session | relay-at-threshold (PostToolUse, Stop), require-wake-source (Stop), forbid-superseded-session (PreToolUse, UserPromptSubmit) |
+| `rules-sleep.mjs` | an unattended run never ends a turn with no live wake source | require-wake-source (Stop) |
+| `command-expander.mjs` | shell bodies read as words and commands, with no part run | the shell rules above |
+| `io.mjs` | payload normalizers | each adapter |
 
 `rules-orchestrator.mjs` is **cost-raising defence in depth and never the control**:
 it is bypassable through another tool, a shell wrapper, or script-file indirection,
@@ -53,6 +62,22 @@ changes; do not extend it from memory.
 | `outsideReadsBlocked` | `permissions.blockReadsOutsideWorkingDirectories` | none: this repository does not set it |
 | `isolatePeerMachines` | the SendMessage tool | none: not a shell command |
 | `connectorFileSend` | a connector tool | none: not a shell command |
+
+The 10 rules in `REMOVAL_RULES`, in source order, and the `removalRule` values
+that each one covers (the `covers` text of its refusal):
+
+| rule | covers |
+|---|---|
+| `command-substitution` | `wholeSubstitution`, `emptyExpansion` |
+| `variable-path` | `variable_path`, `variable_path_set_in_command`, `var_root_child`, `placeholder_root_child` |
+| `brace-expansion` | `inline_shell_unchecked` |
+| `windows-path` | `backslash_only`, `windows_unplaceable_path` |
+| `derived-variable` | `derived_var` |
+| `glob-target` | `unresolvable_target`, `relative_glob_after_cd`, `multi_level_glob` |
+| `critical-path` | `root`, `home`, `tmp`, `other_critical_path` |
+| `working-directory` | `working_directory` |
+| `mounted-drive` | `mounted_drive_path` |
+| `unreadable-script` | `inline_shell_unchecked`, `eval_trap_string`, `unparsed_line` |
 
 Each removal rule refuses a superset of the `removalRule` values it names, because the analyzer
 behind them is not a stable interface. Three values depend on the state of that analyzer and have no

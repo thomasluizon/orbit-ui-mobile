@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// PreToolUse(Bash) adapter for the git-workflow guard. Thin: the reusable core is
+// PreToolUse(Bash, Monitor, PowerShell) adapter for the git-workflow guard. Thin: the reusable core is
 // the pure functions in _lib/rules-git.mjs (opencode was dropped from this repo,
 // D22). Exits 0 (allow) or 2 + stderr (block). Errors block the command and name this hook.
 
