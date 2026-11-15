@@ -5,6 +5,7 @@ import { getPendingAuthProvider, getAuthCallbackErrorKey } from '@orbit/shared/u
 import { useState } from 'react'
 import { LazyMotion, domMin } from 'motion/react'
 import { AuthPagePanel } from '@/components/auth/auth-page-panel'
+import { useSteadyColumn } from '@/components/auth/use-steady-column'
 import { Lockup } from '@/components/ui/lockup'
 import { PillButton } from '@/components/ui/pill-button'
 import { TurnstileWidget } from '@/components/auth/turnstile-widget'
@@ -24,6 +25,7 @@ export function LoginContent({ callback }: Readonly<{ callback?: LoginCallback }
   const flow = useLoginFlow(Boolean(callback))
   const { t } = flow
   const [callbackDismissed, setCallbackDismissed] = useState(false)
+  const { columnRef, blockRef } = useSteadyColumn()
   function continueAccount() {
     if (callback?.state === 'account') callback.onContinue()
     else void flow.continueAccount()
@@ -31,11 +33,12 @@ export function LoginContent({ callback }: Readonly<{ callback?: LoginCallback }
   const account = Boolean(flow.accountBack) || callback?.state === 'account'
   const canSubmitTurnstile = !flow.turnstileSiteKey || Boolean(flow.turnstileToken)
   const turnstileWidget = flow.turnstileSiteKey && flow.isOnline
-    ? <TurnstileWidget key={flow.turnstileResetKey} siteKey={flow.turnstileSiteKey} resetKey={flow.turnstileResetKey} onToken={flow.onTurnstileToken} />
+    ? <TurnstileWidget ref={blockRef} key={flow.turnstileResetKey} siteKey={flow.turnstileSiteKey} resetKey={flow.turnstileResetKey}
+      onToken={flow.onTurnstileToken} />
     : null
   return (
     <LazyMotion features={domMin}>
-    <AuthPagePanel>
+    <AuthPagePanel ref={columnRef}>
       {flow.referralCode && !account && <ReferralBanner t={t} />}
       <Lockup />
       <p role="status" aria-live="polite" aria-atomic="true" className="sr-only">{flow.successMessage}</p>

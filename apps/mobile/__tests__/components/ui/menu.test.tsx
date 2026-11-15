@@ -102,7 +102,7 @@ describe('Menu (mobile)', () => {
       const sheet = tree.root.findAll((node) => node.type === TrueSheet)[0]!
       await TestRenderer.act(() => {
         const onDidPresent = sheet.props.onDidPresent
-        if (typeof onDidPresent === 'function') onDidPresent()
+        if (typeof onDidPresent === 'function') onDidPresent({ nativeEvent: { index: 0, position: 400, detent: 1 } })
       })
       const cancel = tree.root.findAll((node) => String(node.type) === 'Pressable' && node.props.testID === 'button-ghost-sm')[0]!
       expect(__getFocusedNativeTag()).toBe(cancel.props.__nativeTag)
