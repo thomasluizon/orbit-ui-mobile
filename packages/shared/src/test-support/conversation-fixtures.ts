@@ -120,7 +120,6 @@ function storedPreview(execution: StoredExecution): PendingAgentOperation {
   }
 }
 
-/** The smallest tier `orbit-api` stores when a revised preview does not fit: each item keeps only its `title` field and `changes` is empty. */
 function titleOnlyRevisedPreview(): PendingOperationChangePreview {
   const preview = makeRevisedCreatePreview()
   return { ...preview, changes: [], items: preview.items?.map(item => ({ ...item, fields: item.fields.filter(field => field.field === 'title') })) }

@@ -12,7 +12,6 @@ const AnimatedPressable = Animated.createAnimatedComponent(Pressable)
 
 interface MotionPressableProps extends PressableProps {
   active?: boolean
-  /** Keeps the press scale at rest, as for a busy pill (the `static` prop of `DESIGN.md` Press feedback). */
   static?: boolean
   focusInset?: boolean
   selectionRingWidth?: number

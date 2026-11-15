@@ -192,7 +192,6 @@ describe('a habit on chosen days of the month', () => {
 
   const captured = (entityId: string, entityName: string, changes: readonly Omit<PendingOperationChange, 'entityId' | 'entityName'>[]): PendingOperationChange[] => changes.map((row) => ({ entityId, entityName, ...row }))
 
-  /** Each item below is one habit's rows from a real staging `bulk_update_habits` preview. */
   const stagingBulkMoveRent = captured('f73a6a5e-b9f9-445b-aeea-070aad6e6621', 'Rent rb2 348ba0', [
     { field: 'month_days', oldValue: '8, 15', newValue: '10, 20', valueType: 'text', proposedValue: [10, 20], isEditable: true, provenance: 'requested' },
     { field: 'due_date', oldValue: '2026-11-08', newValue: '2026-11-10', valueType: 'date', proposedValue: '2026-11-10', isEditable: true, provenance: 'stored' },
@@ -212,7 +211,6 @@ describe('a habit on chosen days of the month', () => {
     { field: 'month_days', oldValue: '(none)', newValue: '5, 25', valueType: 'text', proposedValue: [5, 25], isEditable: true, provenance: 'requested' },
     { field: 'due_date', oldValue: '2026-11-20', newValue: '2026-11-25', valueType: 'date', proposedValue: '2026-11-25', isEditable: true, provenance: 'stored' },
   ])
-  /** The rows of a real staging `update_habit` preview that makes a monthly habit one-time. */
   const stagingUpdateMonthToOneTime = captured('f73a6a5e-b9f9-445b-aeea-070aad6e6621', 'Rent rb2 348ba0', [
     { field: 'frequency_unit', oldValue: 'Month', newValue: null, valueType: 'text', proposedValue: null, isEditable: true, provenance: 'stored' },
     { field: 'habit_id', oldValue: null, newValue: 'f73a6a5e-b9f9-445b-aeea-070aad6e6621', valueType: 'text', proposedValue: 'f73a6a5e-b9f9-445b-aeea-070aad6e6621', isEditable: false, provenance: 'requested' },

@@ -2,7 +2,6 @@ import { render, waitFor } from '@testing-library/react'
 import { expect, it } from 'vitest'
 import { HabitCheck } from '@/components/habits/habit-check'
 
-/** These tests drive the real `motion` frame loop, which runs on `requestAnimationFrame`. */
 function nextFrames(count: number): Promise<void> {
   return new Promise((resolve) => {
     const step = (remaining: number) => {

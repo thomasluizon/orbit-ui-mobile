@@ -72,10 +72,6 @@ async function waitForWeekGeometry(scroller: Locator) {
   })).toBe(true)
 }
 
-/**
- * Waits until the horizontal scroll holds still on a column snap position or a scroll edge. A wheel gesture can
- * rest between columns for a few frames before the browser applies the mandatory snap.
- */
 async function waitForSnappedRest(scroller: Locator) {
   await expect.poll(() => scroller.evaluate(async (node) => {
     const before = node.scrollLeft

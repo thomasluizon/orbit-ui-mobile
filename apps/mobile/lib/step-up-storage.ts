@@ -23,10 +23,6 @@ export const {
   clearApiKeyCreationGrant,
 } = createStepUpSessionState()
 
-/**
- * Persists a timing record under the account that owns it. `AsyncStorage` survives a sign
- * out and the next sign in on the same device, so the entry has to name its account.
- */
 async function persistStepUpTiming(
   record: StepUpTimingRecord,
   accountId: string | null,

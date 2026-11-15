@@ -83,7 +83,6 @@ function pressPill(tree: any, label: string) {
   })
 }
 
-/** Wait for native dismissal before clearing the state that holds TrueSheet open. */
 describe('VersionUpdateDrawer close path', () => {
   beforeEach(() => {
     mocks.platform = 'android'

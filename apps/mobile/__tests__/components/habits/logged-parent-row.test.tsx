@@ -33,7 +33,6 @@ vi.mock('@/lib/api-client', () => ({ apiClient: (url: string, init?: { method?: 
     if (path !== API.habits.log('parent')) return Promise.reject(new Error(`Unexpected write: ${path}`))
     const unlog = api.writes.length > 1
     api.items = unlog ? dueTodayTree() : parentLoggedTree()
-    /** Source: orbit-api `LogHabitCommand` answers a log with the new log id, and an unlog with the removed log id and no first completion. */
     return Promise.resolve(unlog
       ? { logId: 'log-parent', isFirstCompletionToday: false, previousStreak: 1, currentStreak: 0, linkedGoalUpdates: [] }
       : { logId: 'log-parent', isFirstCompletionToday: true, previousStreak: 0, currentStreak: 1, linkedGoalUpdates: [], xpEarned: 0, newAchievementIds: [] })
@@ -77,7 +76,6 @@ function child(id: string, title: string) {
     instances: [{ date: TODAY, status: 'Pending', logId: null }] })
 }
 
-/** A daily parent that is due today, with two daily sub-habits that are due today. Nothing has a log. */
 function dueTodayTree(): HabitScheduleItem[] {
   return [createMockHabitScheduleItem({
     id: 'parent', title: 'Parent', dueDate: TODAY, scheduledDates: [TODAY], hasSubHabits: true,
@@ -86,11 +84,6 @@ function dueTodayTree(): HabitScheduleItem[] {
   })]
 }
 
-/**
- * The same tree after the API accepts the parent log. Source: orbit-api `Habit.Log` advances a
- * recurring habit to its next due date and keeps `IsCompleted` false, `MapToScheduleItem` sets
- * `isLoggedInRange` from the log, and no code path logs the children.
- */
 function parentLoggedTree(): HabitScheduleItem[] {
   const [parent] = dueTodayTree()
   return [{ ...parent!, isCompleted: false, isLoggedInRange: true, dueDate: TOMORROW,
@@ -107,7 +100,6 @@ function renderList() {
   </QueryClientProvider></I18nextProvider>
 }
 
-/** The list renders its rows through `renderItem`; this mounts what it returns for every item, as the native list does. */
 async function renderRows(): Promise<ReactTestInstance> {
   const list = tree!.root.findAll((node) => node.props.testID === 'habit-list')[0]!
   const items = list.props.data as unknown[]
@@ -180,7 +172,6 @@ async function logParentFromTodayList() {
   }
   await act(async () => { press(checkControl(row(before, 'Parent'))); await Promise.resolve() })
   await settle()
-  /** The row keeps a "recently completed" state for `motionDurations.micro` from the tap; move the fake clock past it. */
   await act(async () => { await vi.advanceTimersByTimeAsync(motionDurations.micro) })
   await settle()
   return { beforeState, after: await renderRows() }

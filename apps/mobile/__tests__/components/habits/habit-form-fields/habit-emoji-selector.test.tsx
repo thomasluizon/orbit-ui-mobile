@@ -66,7 +66,6 @@ function press(node: TestNode) {
   });
 }
 
-/** The scale the rendered host shows at rest and while held: `MotionPressable` owns it, not the caller's style. */
 function renderedPressScale(tree: TestTree, label: string) {
   const host = () => tree.root.findAll((node) => typeof node.type === "string" && node.props.accessibilityRole === "button" && node.props.accessibilityLabel === label)[0]!;
   const scale = () => (StyleSheet.flatten(host().props.style) as ViewStyle).transform;

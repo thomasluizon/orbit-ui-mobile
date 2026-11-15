@@ -60,11 +60,6 @@ export function TrialExpiredModal({ suppressed = false }: Readonly<{ suppressed?
   const unregisterOpenOverlay = useUIStore((state) => state.unregisterOpenOverlay)
   const reservationId = `${promptId}:${scopedKey ?? ''}`
 
-  /**
-   * Moves a notice dismissed before this key carried an account on to the account signed in now,
-   * then consumes the old key. Left in place it would answer for every later account too, which
-   * is the defect rather than a milder version of it.
-   */
   useEffect(() => {
     if (scopedKey === null) return
     let cancelled = false

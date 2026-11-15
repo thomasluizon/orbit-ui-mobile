@@ -103,7 +103,6 @@ function WindowFigureGrid({ children }: Readonly<{ children: ReactNode[] }>) {
   )
 }
 
-/** One busy region covers the figures and the habit row. */
 function WindowFigureLoading({ label }: Readonly<{ label: string }>) {
   const { t } = useTranslation()
   return (
@@ -332,7 +331,6 @@ function GoalIndicator({ goal }: Readonly<{ goal: Goal }>) {
   return <ProgressRing value={goal.progressPercentage} size={44} label={label} />
 }
 
-/** The painted goal card surface: the hover fill while pressed and the granted lifted state while dragged. */
 function goalCardSurfaceStyle(pressed: boolean, isDragging: boolean, tokens: AppTokensV2) {
   return [
     styles.goalCard,
@@ -343,7 +341,6 @@ function goalCardSurfaceStyle(pressed: boolean, isDragging: boolean, tokens: App
 
 type GoalTranslate = ReturnType<typeof useTranslation>['t']
 
-/** The goal card's spoken name: title, state, progress unless the goal is abandoned, and list position. */
 function goalAccessibilityLabel(goal: Goal, labelKey: ReturnType<typeof getProgressGoalLabelKey>, position: string, t: GoalTranslate) {
   const state = t(labelKey ?? 'goals.status.active')
   if (goal.status === 'Abandoned') return t('progressScreen.goals.accessibleLabelWithoutProgress', { title: goal.title, state, position })
@@ -355,7 +352,6 @@ function goalAccessibilityLabel(goal: Goal, labelKey: ReturnType<typeof getProgr
   })
 }
 
-/** Moves the goal one place up or down from the screen reader's adjustable actions. */
 function moveGoalByAccessibilityAction(actionName: string, goalId: string, index: number, onMove: (goalId: string, target: number) => void) {
   if (actionName === 'decrement') onMove(goalId, index - 1)
   if (actionName === 'increment') onMove(goalId, index + 1)

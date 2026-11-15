@@ -59,7 +59,6 @@ export interface HabitRowActions {
 }
 
 const EMPTY_HABIT_ROW_ACTIONS: HabitRowActions = {}
-/** The overflow menu the row shows outside selection; the trailing group and the menu render only then. */
 function buildMenuItems(
   actions: HabitRowActions,
   completionReadOnly: boolean,
@@ -260,7 +259,6 @@ function habitRowSpacing(depth: number, panelEnd: boolean): ViewStyle {
   return { paddingLeft: depth * SPACING.s16, paddingBottom: panelEnd ? SPACING.s12 : SPACING.s8 }
 }
 
-/** Measures the title block and the metadata tokens for `habitRowMetaNeedsSupportingLine`, keyed from the list `HabitRowMetaStrip` draws. */
 function useHabitRowMetadataFit(visibleMetaParts: HabitRowMetaPart[], fitWholeStrip: boolean) {
   const [measurements, setMeasurements] = useState<{ contentWidth: number; widths: Record<string, number> }>({ contentWidth: Infinity, widths: {} })
   const keys = visibleMetaParts.map((part, index) => habitRowMetaPartKey(part, index))

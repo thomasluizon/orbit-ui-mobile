@@ -23,7 +23,6 @@ function parent(overrides: Partial<NormalizedHabit> = {}): NormalizedHabit {
     frequencyUnit: 'Day', frequencyQuantity: 1, scheduledDates: [], ...overrides })
 }
 
-/** The detail screen scopes `isCompleted` and `isLoggedInRange` of a child to the selected date. */
 function detailChildParent(): NormalizedHabit {
   const scoped = parent({ instances: [{ date: LOGGED_PARENT_TODAY, status: 'Completed', logId: 'log-parent' }] })
   return buildHabitDetailChildDateModel(parent({ isLoggedInRange: false }), scoped, LOGGED_PARENT_TODAY, LOGGED_PARENT_TODAY).habit

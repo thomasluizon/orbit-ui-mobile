@@ -13,7 +13,6 @@ interface UseOverlayEscapeOptions {
   open: boolean
   onDismiss: (reason: OverlayCloseReason) => void
   initialFocusRef?: RefObject<HTMLElement | null>
-  /** When provided, Tab/Shift+Tab cycle inside this element while the layer is top-most. */
   panelRef?: RefObject<HTMLElement | null>
   restoreFocus?: boolean
 }

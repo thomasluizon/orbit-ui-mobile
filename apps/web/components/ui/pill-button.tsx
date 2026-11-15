@@ -29,10 +29,6 @@ function buttonStyle(size: ButtonSize, withinRow: boolean, { minimumHeight, icon
   }
 }
 
-/**
- * A provider pill grows around a title that large text wraps: the title follows the root text size, and the
- * pill keeps its resting capsule radius, so no corner cuts the title.
- */
 function signInPillStyle({ paddingX, paddingY, gap }: SignInButtonSpec, titleSize: number): CSSProperties {
   return {
     height: undefined,
@@ -48,7 +44,6 @@ function signInPillStyle({ paddingX, paddingY, gap }: SignInButtonSpec, titleSiz
   }
 }
 
-/** The root theme variables carry Apple's black or white pair, so every browser and the server render draw it. */
 const APPLE_SIGN_IN_COLOURS: CSSProperties = {
   backgroundColor: 'var(--apple-sign-in-fill)',
   color: 'var(--apple-sign-in-ink)',
@@ -56,7 +51,6 @@ const APPLE_SIGN_IN_COLOURS: CSSProperties = {
   outlineColor: 'currentColor',
 }
 
-/** A provider pill holds its mark in a slot of the resting content height at the top, so a wrapped title keeps the mark on its first line. */
 function ButtonLead({ signIn, children }: Readonly<{ signIn: SignInButtonSpec | null; children: ReactNode }>) {
   if (!signIn) return children
   return <span aria-hidden="true" style={{ display: 'inline-flex', flexShrink: 0, alignItems: 'center', alignSelf: 'flex-start', height: SIGN_IN_BUTTON_HEIGHT - signIn.paddingY * 2 }}>{children}</span>

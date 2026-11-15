@@ -40,11 +40,6 @@ let sessionReadVersion = 0
 
 let lastObservedAccountId: string | null = null
 
-/**
- * The auth cookie belongs to every tab at once, so a sign in elsewhere replaces the account
- * under a tab that keeps running. Account-scoped state and queries reset on transitions,
- * including teardown, so a replacement account cannot inherit the previous one.
- */
 function startAccountScopedSession(nextAccountId: string | null, preserveAnonymousDraft = false): void {
   const accountChanged = nextAccountId !== null && nextAccountId !== lastObservedAccountId
   if (accountChanged && lastObservedAccountId !== null) resetPostHogUser()
@@ -59,11 +54,6 @@ function startAccountScopedSession(nextAccountId: string | null, preserveAnonymo
   if (accountChanged) identifyPostHogUser(nextAccountId)
 }
 
-/**
- * Drops every unsent thing the previous account left in this tab. Both drafts live under one
- * key with no account in it, so one of them left behind is the next person reading, and
- * sending, text that is not theirs.
- */
 function forgetPreviousAccountContent(mode: 'signed-in' | 'signed-out' = 'signed-in'): void {
   void resetAccountQueries(getQueryClient(), mode)
   useChatStore.getState().resetAccountScopedChat()
@@ -77,12 +67,6 @@ function clearAccountScopedSessionState(): void {
   clearStepUpState()
 }
 
-/**
- * Ends the session in this tab, with nothing of the account left behind and no request sent.
- * A sign out in one tab signs the browser out of all of them, so a tab that hears about it
- * has to reach the state the tab that pressed the button reaches, not a lesser version of
- * it.
- */
 function endSessionLocally(): void {
   clearDesignCookie()
   useOnboardingDraftStore.getState().markOnboardingLocallyDone()
@@ -95,11 +79,6 @@ function endSessionLocally(): void {
   useOnboardingDraftStore.getState().reset()
 }
 
-/**
- * Reads the account the cookie now names. A first check resets only if the cookie differs
- * from the account named by the server render; that render's data already belongs to the
- * matching account.
- */
 function adoptSessionAccount(userId: string | null): boolean {
   if (userId === null) return false
   if (lastObservedAccountId === userId) return false
@@ -234,10 +213,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     set({ isAuthenticated: true, sessionInactive: false, user: null, sessionRefreshFailed: false })
   },
 
-  /**
-   * Signals trigger cookie reconciliation before publishing authentication or account scope.
-   * Their account ids can arrive after later writes, so neither name nor sign-out is proof.
-   */
   adoptAccountFromSignal: () => {
     sessionReadVersion += 1
     void get().checkSession()
@@ -346,11 +321,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
   },
 
-  /**
-   * Watches the session two ways. The cross-tab signal arrives the moment another tab replaces the
-   * account, and the poll stays as the detector for any browser or context the signal never
-   * reaches. The poll is the safety net, not the mechanism, so neither one is removed.
-   */
   startExpiryMonitor: () => {
     void get().checkSession()
     let remainingRecoveryChecks = SESSION_RECOVERY_CHECK_LIMIT

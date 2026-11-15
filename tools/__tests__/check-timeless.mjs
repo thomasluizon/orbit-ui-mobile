@@ -1,9 +1,9 @@
 import { spawnSync } from "node:child_process"
-import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs"
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 
-import { T, toolPath } from "./_harness.mjs"
+import { REPO_ROOT, T, toolPath } from "./_harness.mjs"
 
 const checker = toolPath("check-timeless.mjs")
 const run = (cwd, args, input) => spawnSync(process.execPath, [join(cwd, "tools", "check-timeless.mjs"), ...args], { cwd, input, encoding: "utf8" })
@@ -22,6 +22,12 @@ const fixture = (label, path, content) => {
   git(root, "add", "tools/check-timeless.mjs", "tools/timeless-allowlist.json", path)
   git(root, "commit", "-qm", "base")
   return root
+}
+
+const landedEdit = (root, name, written, { session = root, filePath = join(root, name), edit = { old_string: "unrelated", new_string: "unrelated" }, envelope } = {}) => {
+  writeFileSync(join(root, name), written)
+  const payload = envelope ?? { tool_name: "Edit", tool_input: { file_path: filePath, ...edit }, tool_response: {} }
+  return run(session, ["--hook"], JSON.stringify({ hook_event_name: "PostToolUse", ...payload }))
 }
 
 export const cases = () => {
@@ -58,26 +64,145 @@ export const cases = () => {
     rmSync(root, { recursive: true, force: true })
   }
 
-  const repeated = fixture("replace-all", "sample.js", 'const word = "clean";\n// clean\n')
-  const repeatedPayload = { tool_input: { file_path: join(repeated, "sample.js"), old_string: "clean", new_string: date, replace_all: true } }
-  T("replace_all scans the later occurrence", run(repeated, ["--hook"], JSON.stringify(repeatedPayload)).status === 2)
-  const literal = fixture("literal-replacement", "sample.md", `${owner} clean\n`)
-  const literalPayload = { tool_input: { file_path: join(literal, "sample.md"), old_string: "clean", new_string: "$`" } }
-  T("replacement dollar stays literal", run(literal, ["--hook"], JSON.stringify(literalPayload)).status === 0)
-  writeFileSync(join(literal, "sample.md"), `clean ${owner}\n`)
-  T("replacement dollar suffix stays literal", run(literal, ["--hook"], JSON.stringify({ tool_input: {
-    file_path: join(literal, "sample.md"), old_string: "clean", new_string: "$'",
-  } })).status === 0)
-  rmSync(repeated, { recursive: true, force: true })
-  rmSync(literal, { recursive: true, force: true })
   const safe = fixture("literals", "sample.js", `const message = "${date}";\nconst pattern = /${date}/;\n// one\n// two\n// three\n// four\n// five\n// six\n`)
+  const ownerFinding = (name) => `${name}:1: owner-name: ${owner}`
+  const rejects = (result, finding) => result.status === 2 && result.stderr.trim() === finding
+
+  const repeated = fixture("replace-all", "sample.js", 'const word = "clean";\n// clean\n')
+  const everyOccurrence = landedEdit(repeated, "sample.js", `const word = "${date}";\n// ${date}\n`, { edit: { old_string: "clean", new_string: date, replace_all: true } })
+  T("a landed replace_all Edit is checked at the later occurrence", rejects(everyOccurrence, `sample.js:2: dated-anecdote: ${date}`), everyOccurrence.stderr)
+  rmSync(repeated, { recursive: true, force: true })
+  const literal = fixture("literal-replacement", "sample.md", `${owner} clean\n`)
+  const dollarPrefix = landedEdit(literal, "sample.md", `${owner} $\`\n`, { edit: { old_string: "clean", new_string: "$`" } })
+  T("a landed replacement dollar stays literal", dollarPrefix.status === 0, dollarPrefix.stderr)
+  writeFileSync(join(literal, "sample.md"), `clean ${owner}\n`)
+  git(literal, "commit", "-qam", "suffix")
+  const dollarSuffix = landedEdit(literal, "sample.md", `$' ${owner}\n`, { edit: { old_string: "clean", new_string: "$'" } })
+  T("a landed replacement dollar suffix stays literal", dollarSuffix.status === 0, dollarSuffix.stderr)
+  rmSync(literal, { recursive: true, force: true })
+
   const editRoot = fixture("edit-payloads", "sample.md", "clean\n")
-  const editInput = { file_path: join(editRoot, "sample.md"), old_string: "clean", new_string: owner }
-  T("Edit rejects an added finding", run(editRoot, ["--hook"], JSON.stringify({ tool_name: "Edit", tool_input: editInput, cwd: editRoot })).status === 2)
-  T("the hook does not depend on envelope field names", run(editRoot, ["--hook"], JSON.stringify({ nested: editInput })).status === 2)
-  T("MultiEdit rejects an added finding without a container-field assumption", run(editRoot, ["--hook"], JSON.stringify({ tool_name: "MultiEdit", tool_input: { file_path: editInput.file_path, operations: [editInput] }, cwd: editRoot })).status === 2)
-  T("a hook opened in another repository delegates to the target checker", run(safe, ["--hook"], JSON.stringify({ tool_name: "Edit", tool_input: editInput, cwd: safe })).status === 2)
+  const editFile = join(editRoot, "sample.md")
+  const editInput = { file_path: editFile, old_string: "clean", new_string: owner }
+  const planted = landedEdit(editRoot, "sample.md", `${owner}\n`, { edit: editInput })
+  T("a landed Edit is checked on the bytes in the file", rejects(planted, ownerFinding("sample.md")), planted.stderr)
+  const claimed = landedEdit(editRoot, "sample.md", "clean\n", { edit: editInput })
+  T("a landed Edit is not checked on its old_string and new_string", claimed.status === 0, claimed.stderr)
+  const beforeLanding = run(editRoot, ["--hook"], JSON.stringify({ hook_event_name: "PreToolUse", tool_name: "Edit", tool_input: editInput, cwd: editRoot }))
+  T("an Edit before it lands is not checked", beforeLanding.status === 0, beforeLanding.stderr)
+  const nested = landedEdit(editRoot, "sample.md", `${owner}\n`, { envelope: { nested: { file_path: editFile } } })
+  T("the hook does not depend on envelope field names", rejects(nested, ownerFinding("sample.md")), nested.stderr)
+  const multiEdit = landedEdit(editRoot, "sample.md", `${owner}\n`, { envelope: { tool_name: "MultiEdit", tool_input: { file_path: editFile, operations: [editInput] }, cwd: editRoot } })
+  T("a landed MultiEdit rejects an added finding without a container-field assumption", rejects(multiEdit, ownerFinding("sample.md")), multiEdit.stderr)
   rmSync(editRoot, { recursive: true, force: true })
+
+  const created = fixture("empty-old-string", "sample.md", "clean\n")
+  const emptyOldString = landedEdit(created, "new.md", `Ask ${owner}.\n`, { edit: { old_string: "", new_string: `Ask ${owner}.\n`, replace_all: true } })
+  T("a landed Edit with an empty old_string is checked on the file it set", rejects(emptyOldString, ownerFinding("new.md")), emptyOldString.stderr)
+  rmSync(created, { recursive: true, force: true })
+
+  const commentLines = (tag, count) => Array.from({ length: count }, (_, index) => `// ${tag} ${index}\n`).join("")
+  const joined = fixture("deletion-line-break", "sample.js", `${commentLines("first", 3)}const value = 1\n${commentLines("second", 4)}`)
+  const deletion = landedEdit(joined, "sample.js", `${commentLines("first", 3)}${commentLines("second", 4)}`, { edit: { old_string: "const value = 1", new_string: "" } })
+  T("a landed deletion that also removes the line break is checked on the joined comment lines", rejects(deletion, "sample.js:1: comment-length: 7 lines"), deletion.stderr)
+  rmSync(joined, { recursive: true, force: true })
+
+  const carriage = fixture("crlf-match", "sample.md", "clean\r\nline\r\n")
+  git(carriage, "config", "core.autocrlf", "false")
+  const crlfMatch = landedEdit(carriage, "sample.md", `Ask ${owner}.\r\nline\r\n`, { edit: { old_string: "clean\nline", new_string: `Ask ${owner}.\nline` } })
+  T("a landed Edit whose old_string has a line break is checked in a CRLF file", rejects(crlfMatch, ownerFinding("sample.md")), crlfMatch.stderr)
+  rmSync(carriage, { recursive: true, force: true })
+
+  const curly = fixture("curly-quotes", "sample.md", "The note is \u201cclean\u201d.\n")
+  const quoteMatch = landedEdit(curly, "sample.md", `The note is \u201cAsk ${owner}\u201d.\n`, { edit: { old_string: '"clean"', new_string: `"Ask ${owner}"` } })
+  T("a landed Edit whose straight quotes matched curly quotes is checked", rejects(quoteMatch, ownerFinding("sample.md")), quoteMatch.stderr)
+  rmSync(curly, { recursive: true, force: true })
+
+  const escaped = fixture("unicode-escape", "sample.md", "caf\u00e9 clean\n")
+  const escapeMatch = landedEdit(escaped, "sample.md", `Ask ${owner}.\n`, { edit: { old_string: "caf\\u00e9 clean", new_string: `Ask ${owner}.` } })
+  T("a landed Edit whose escape matched the decoded text is checked", rejects(escapeMatch, ownerFinding("sample.md")), escapeMatch.stderr)
+  rmSync(escaped, { recursive: true, force: true })
+
+  const baseline = fixture("head-baseline", "sample.mjs", `// ${date}\nconst other = 1\n`)
+  const movedFinding = landedEdit(baseline, "sample.mjs", `const other = 2\n// ${date}\n`)
+  T("a landed Edit does not report a finding the HEAD blob already has", movedFinding.status === 0, movedFinding.stderr)
+  writeFileSync(join(baseline, "sample.md"), `Ask ${owner}.\n`)
+  git(baseline, "add", "sample.md")
+  const stagedFinding = landedEdit(baseline, "sample.md", `Ask ${owner}.\nmore\n`)
+  T("a landed Edit is judged against HEAD, not the index", rejects(stagedFinding, ownerFinding("sample.md")), stagedFinding.stderr)
+  rmSync(baseline, { recursive: true, force: true })
+
+  const marker = ["ses", "sion"].join("")
+  const lineFeedBlob = fixture("crlf-checkout", "Sample.cs", `/* ${marker}\n   abcdef1234 */\nvar x = 1;\n`)
+  const crlfCheckout = landedEdit(lineFeedBlob, "Sample.cs", `/* ${marker}\r\n   abcdef1234 */\r\nvar x = 2;\r\n`)
+  T("a landed Edit in a CRLF checkout of an LF blob does not report a finding the blob already has", crlfCheckout.status === 0, crlfCheckout.stderr)
+  rmSync(lineFeedBlob, { recursive: true, force: true })
+  const carriageBlob = fixture("crlf-blob", "Sample.cs", "clean\n")
+  git(carriageBlob, "config", "core.autocrlf", "false")
+  writeFileSync(join(carriageBlob, "Sample.cs"), `/* ${marker}\r\n   abcdef1234 */\r\nvar x = 1;\r\n`)
+  git(carriageBlob, "add", "Sample.cs")
+  git(carriageBlob, "commit", "-qm", "crlf")
+  T("the fixture commits a CRLF blob", git(carriageBlob, "cat-file", "-p", "HEAD:Sample.cs").stdout.includes(`${marker}\r\n`))
+  const crlfBlob = landedEdit(carriageBlob, "Sample.cs", `/* ${marker}\r\n   abcdef1234 */\r\nvar x = 2;\r\n`)
+  T("a landed Edit on a CRLF blob does not report a finding the blob already has", crlfBlob.status === 0, crlfBlob.stderr)
+  rmSync(carriageBlob, { recursive: true, force: true })
+
+  const writeHook = (session, filePath, content) => run(session, ["--hook"], JSON.stringify({ tool_name: "Write", tool_input: { file_path: filePath, content } }))
+  for (const [session, other] of [["orbit-ui-mobile", "orbit-api"], ["orbit-api", "orbit-ui-mobile"]]) {
+    const label = `a hook in ${session} judges a file of ${other}`
+    const sessionRoot = fixture("session-repository", "sample.md", "clean\n")
+    const otherRoot = fixture("other-repository", "kept.md", `Ask ${owner}.\n`)
+    writeFileSync(join(otherRoot, "tools", "check-timeless.mjs"), "process.exit(0)\n")
+    writeFileSync(join(otherRoot, ".gitignore"), "local/\n")
+    const keptFinding = landedEdit(otherRoot, "kept.md", `Ask ${owner}.\nmore\n`, { session: sessionRoot })
+    T(`${label} against the HEAD blob of ${other}`, keptFinding.status === 0, keptFinding.stderr)
+    const otherPlanted = landedEdit(otherRoot, "sample.md", `Ask ${owner}.\n`, { session: sessionRoot })
+    T(`${label} itself, not through its checker`, rejects(otherPlanted, ownerFinding("sample.md")), otherPlanted.stderr)
+    const otherWritten = writeHook(sessionRoot, join(otherRoot, "new.md"), `Ask ${owner}.\n`)
+    T(`${label} at a Write before it lands`, rejects(otherWritten, ownerFinding("new.md")), otherWritten.stderr)
+    mkdirSync(join(otherRoot, "local"))
+    const otherIgnored = landedEdit(otherRoot, "local/notes.md", `Ask ${owner}.\n`, { session: sessionRoot })
+    T(`${label} with the ignored paths of ${other}`, otherIgnored.status === 0, otherIgnored.stderr)
+    writeFileSync(join(otherRoot, "tools", "timeless-allowlist.json"), JSON.stringify([{ path: "sample.md", rule: "owner-name", match: owner, reason: "reviewed" }]))
+    const otherAllowed = landedEdit(otherRoot, "sample.md", `Ask ${owner}.\n`, { session: sessionRoot })
+    T(`${label} with the allowlist of ${other}`, otherAllowed.status === 0, otherAllowed.stderr)
+    rmSync(sessionRoot, { recursive: true, force: true })
+    rmSync(otherRoot, { recursive: true, force: true })
+  }
+
+  const cased = fixture("path-case", "README.md", `Ask ${owner}.\n`)
+  const misCased = cased.replace(/[^/\\]+$/, (name) => name.toUpperCase())
+  if (existsSync(join(misCased, "readme.md"))) {
+    const misCasedWrite = writeHook(cased, join(misCased, "sample.md"), `Ask ${owner}.\n`)
+    T("a Write through a mis-cased directory is judged at the case the file system stores", rejects(misCasedWrite, ownerFinding("sample.md")), misCasedWrite.stderr)
+    const misCasedEdit = landedEdit(cased, "sample.md", `Ask ${owner}.\n`, { filePath: join(misCased, "sample.md") })
+    T("a landed Edit through a mis-cased directory is judged at the case the file system stores", rejects(misCasedEdit, ownerFinding("sample.md")), misCasedEdit.stderr)
+    const misCasedName = landedEdit(cased, "README.md", `Ask ${owner}.\nmore\n`, { filePath: join(cased, "readme.md") })
+    T("a landed Edit through a mis-cased file name reads the HEAD blob at the stored case", misCasedName.status === 0, misCasedName.stderr)
+  } else console.log("SKIP check-timeless.mjs: a mis-cased path names another file (this file system is case-sensitive)")
+  rmSync(cased, { recursive: true, force: true })
+
+  const skipped = fixture("skipped-paths", "sample.md", "clean\n")
+  const outside = mkdtempSync(join(tmpdir(), "timeless-outside-"))
+  writeFileSync(join(skipped, ".gitignore"), "local/\n")
+  mkdirSync(join(skipped, "local"))
+  T("a Write to a path git ignores is not checked", writeHook(skipped, join(skipped, "local/new.md"), `Ask ${owner}.\n`).status === 0)
+  T("a landed Edit of a path git ignores is not checked", landedEdit(skipped, "local/notes.md", `Ask ${owner}.\n`).status === 0)
+  writeFileSync(join(outside, "target.md"), "clean\n")
+  symlinkSync(join(outside, "target.md"), join(skipped, "outside.md"))
+  T("a landed Edit of a path in no repository is not checked", landedEdit(skipped, "outside.md", `Ask ${owner}.\n`).status === 0)
+  git(outside, "init", "-q")
+  T("a landed Edit in a repository without the checker is not checked", landedEdit(skipped, "outside.md", `Ask ${owner}.\n`).status === 0)
+  T("a Write in a repository without the checker is not checked", writeHook(skipped, join(outside, "new.md"), `Ask ${owner}.\n`).status === 0)
+  rmSync(skipped, { recursive: true, force: true })
+  rmSync(outside, { recursive: true, force: true })
+
+  const settings = JSON.parse(readFileSync(join(REPO_ROOT, ".claude", "settings.json"), "utf8"))
+  const staleTextMatchers = (event) => (settings.hooks[event] ?? [])
+    .filter(({ hooks }) => hooks.some(({ command }) => command.includes("forbid-stale-text.mjs")))
+    .map(({ matcher }) => matcher)
+  T("the settings check a Write before it lands", JSON.stringify(staleTextMatchers("PreToolUse")) === JSON.stringify(["Write"]), JSON.stringify(staleTextMatchers("PreToolUse")))
+  T("the settings check an Edit after it lands", JSON.stringify(staleTextMatchers("PostToolUse")) === JSON.stringify(["Edit|MultiEdit"]), JSON.stringify(staleTextMatchers("PostToolUse")))
 
   const growing = fixture("growing-comment", "sample.js", Array.from({ length: 6 }, (_, index) => `// reason ${index}`).join("\n") + "\n")
   const seventh = "// reason 6\n"
@@ -133,10 +258,9 @@ export const cases = () => {
   const wrapped = `/* ${sourceLine} */\n`
   const wrapRoot = fixture("comment-wrap", "sample.js", `${sourceLine}\n`)
   symlinkSync(join(checker, "..", "..", "node_modules"), join(wrapRoot, "node_modules"), "dir")
-  const wrapPayload = { tool_name: "Edit", tool_input: { file_path: join(wrapRoot, "sample.js"), old_string: sourceLine, new_string: `/* ${sourceLine} */` } }
-  T("wrapping an existing source line in a comment fails hook", run(wrapRoot, ["--hook"], JSON.stringify(wrapPayload)).status === 2)
+  const wrapEdit = landedEdit(wrapRoot, "sample.js", wrapped, { edit: { old_string: sourceLine, new_string: `/* ${sourceLine} */` } })
+  T("wrapping an existing source line in a comment fails a landed Edit", rejects(wrapEdit, `sample.js:1: dated-anecdote: ${date}`), wrapEdit.stderr)
   const wrapBase = git(wrapRoot, "rev-parse", "HEAD").stdout.trim()
-  writeFileSync(join(wrapRoot, "sample.js"), wrapped)
   git(wrapRoot, "add", "sample.js")
   T("wrapping an existing source line in a comment fails staged", run(wrapRoot, ["--staged"]).status === 1)
   git(wrapRoot, "commit", "-qm", "wrap")
@@ -285,7 +409,6 @@ export const cases = () => {
     baseWiden.status === 1 && baseWiden.stderr.includes("notes.md:1: dated-anecdote: 2025/01/02"))
   rmSync(widened, { recursive: true, force: true })
 
-  const ownerFinding = (name) => `${name}:1: owner-name: ${owner}`
   const touchChecker = (root) => {
     const file = join(root, "tools", "check-timeless.mjs")
     writeFileSync(file, `${readFileSync(file, "utf8")}// note\n`)

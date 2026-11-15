@@ -144,7 +144,6 @@ for (const width of [412, 1280]) {
           expect(geometry.copyInset).toBe(geometry.columnInset)
           expect(geometry.copyFollowsControls).toBe(true)
           expect(geometry.controlsContainWell).toBe(true)
-          /** The habit detail header fill clearance amendment reserves 8px on both sides of the title. */
           expect(geometry.controlsToCopy).toBe(8)
           expect(geometry.wellAboveCopy).toBe(true)
           expect(geometry.copyEndsHeader).toBe(true)

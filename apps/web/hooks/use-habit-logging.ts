@@ -136,7 +136,6 @@ function createLogHabitOnMutate(context: ReturnType<typeof useLogHabitContext>) 
   const callback: NonNullable<HabitLogOptions['onMutate']> = ({ habitId, date, intent }) => {
     const occurrenceDate = date ?? getAccountDay(new Date(), queryClient.getQueryData<Profile>(profileKeys.detail())?.timeZone)
     const hadPendingListRefetch = queryClient.isFetching({ queryKey: habitKeys.lists() }) > 0
-    /** Start canceling refetches without delaying the optimistic completion. */
     void queryClient.cancelQueries({ queryKey: habitKeys.lists() })
     if (date) void queryClient.cancelQueries({ queryKey: habitKeys.calendarPrefix() })
 

@@ -15,11 +15,6 @@ import { expectInteractionFill } from './label-interaction-fill'
 import { setLayoutProfileSession, setLayoutFixtureSession } from './profile-session'
 import { test } from './upgrade-fixtures'
 
-/** Surface inventory:
- * Web full-screen empty conversation; Android empty conversation.
- * Web and Android conversation composer strips.
- * Web and Android habit detail composer strips.
- */
 const title = 'Caminhar pelo bairro e cuidar da rotina da casa com todos os detalhes '.repeat(3)
 const habit = habitDetailSchema.parse({ ...makeHabitDetail(), title, children: [], checklistItems: [] })
 const habits = createPaginatedSchema(habitScheduleItemSchema).parse({

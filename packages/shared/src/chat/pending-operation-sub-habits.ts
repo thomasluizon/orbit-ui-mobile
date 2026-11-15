@@ -14,7 +14,6 @@ const subHabitSchema = z.looseObject({
 
 const storedChildSchema = z.looseObject({ emoji: z.string().nullable().optional() })
 
-/** A create preview's `sub_habits.oldValue` is a JSON list of each proposed child's stored values, in the same order. */
 function storedChildEmojis(oldValue: string | null): readonly (string | null | undefined)[] {
   if (!oldValue) return []
   let stored: unknown

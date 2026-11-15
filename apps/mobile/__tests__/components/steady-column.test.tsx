@@ -5,7 +5,6 @@ import { __resetTestHostConfig, __setMeasureInWindowImpl, __setWindowDimensions 
 
 const { act, create } = require('react-test-renderer')
 
-/** The 420 dpi proof emulator: one device pixel is 1 / 2.625 dp. */
 const PIXEL_RATIO = 2.625
 const VIEWPORT = 1452 / PIXEL_RATIO
 const BLOCK = 233 / PIXEL_RATIO
@@ -18,7 +17,6 @@ function column() {
   return <SteadyColumn viewportHeight={VIEWPORT} blockSpace={BLOCK} style={null}><React.Fragment /></SteadyColumn>
 }
 
-/** The height Yoga sets: the snapped bottom edge minus the snapped top edge, both from the absolute position. */
 function snappedColumnHeight(inset: number) {
   const top = OUTER_TOP_PX + inset * PIXEL_RATIO
   return (Math.round(top + RAW_COLUMN_PX) - Math.round(top)) / PIXEL_RATIO

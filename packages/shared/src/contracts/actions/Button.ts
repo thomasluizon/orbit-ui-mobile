@@ -1,11 +1,5 @@
 
-/**
- * AN ICON-ONLY BUTTON CANNOT RENDER WITHOUT ITS NAME, discriminated in the type the same way
- * Fab's `label` is. A control whose only child is a glyph has no text node to name it, so
- * `iconOnly` pairs with a REQUIRED `label` and neither can be passed without the other.
- */
 interface ButtonBase {
-  /** primary carries the accent fill; ghost is hairline; secondary is the neutral fill; destructive and caution carry status hues */
   variant?: 'primary' | 'ghost' | 'secondary' | 'destructive' | 'caution'
   size?: 'md' | 'sm'
   loading?: boolean
@@ -13,14 +7,10 @@ interface ButtonBase {
   minimumHeight?: number
   elevated?: boolean
   disabled?: boolean
-  /** Matches the width of its partner in a stacked dialog action pair. */
   matchedWidth?: boolean
   onClick?: () => void
-  /** Associates a web submit button with a form outside its DOM subtree. Native ignores this adapter hint. */
   formId?: string
-  /** Announces why an action is unavailable. */
   hint?: string
-  /** Web adapter id for visible descriptive text. */
   descriptionId?: string
 }
 

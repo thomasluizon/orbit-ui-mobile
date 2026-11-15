@@ -33,7 +33,6 @@ interface ArmedRedirect {
 interface SelectionFocusContextValue {
   accessibilityHint?: string
   commit: () => void
-  /** Null without a FocusProvenanceView ancestor, because entry and movement are then the same event. */
   onFocus: ((id: string, onSelect?: () => void) => void) | null
   register: (id: string, nativeHandle: number | null) => () => void
   setElement: (id: string, element: View, nativeHandle: number | null) => void
@@ -189,7 +188,6 @@ export function useSelectionFocusItem({
     nativeHandleRef.current = nativeHandle
     setGroupElement?.(id, element, nativeHandle)
   }, [id, setGroupElement])
-  /** A group without focus provenance reads every focus as entry, so it falls back to the standalone rule rather than redirecting on every move. */
   const onFocus = useCallback(() => {
     if (handleGroupFocus) {
       handleGroupFocus(id, onSelect)

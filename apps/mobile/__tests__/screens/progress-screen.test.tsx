@@ -320,7 +320,6 @@ function findGoalCard(root: TestNode, title: string): TestNode {
     && String(node.props.accessibilityLabel).includes(`\"title\":\"${title}\"`))[0]!
 }
 
-/** The painted goal card surface: the press scale layer inside the card's press target. */
 function goalSurface(card: TestNode): ViewStyle & { transition?: string } {
   const layers = card.findAll((node) => typeof node.type === 'string' && node.props['data-slot'] === 'press-scale')
   expect(layers, 'one press scale layer paints the card inside its press target').toHaveLength(1)
@@ -942,7 +941,6 @@ describe('mobile ProgressContent', () => {
       expect(headings, label).toHaveLength(1)
       const heading = headings[0]!
 
-      /** No ancestor re-names the section, which is the "named twice" half of the defect. */
       for (let ancestor = heading.parent; ancestor; ancestor = ancestor.parent) {
         expect(ancestor.props.accessibilityLabel, label).not.toBe(label)
         expect(ancestor.props.accessibilityLabelledBy, label).toBeUndefined()

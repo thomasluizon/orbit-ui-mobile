@@ -17,16 +17,10 @@ function sourceFiles(directory: string): string[] {
 const sources = ['app', 'components'].flatMap((directory) => sourceFiles(join(root, directory)))
   .map((path) => ({ path: relative(root, path), lines: readFileSync(path, 'utf8').split('\n') }))
 
-/**
- * Tailwind `active:scale-[0.96]` sets the CSS `scale` property, so only a transition on `scale` (or on `transition-transform`, which lists it) eases the press.
- * A `group-active` scale presses a surface inside a press target that keeps its full size, and `group-enabled` holds it still while that target is disabled.
- */
 const PRESS_SCALE_CLASS = /(?:^|[\s"'`])(?:motion-safe:)?(?:(?:group-)?enabled(?:\/[\w-]+)?:)?(?:group-)?active(?:\/[\w-]+)?:scale-\[(?:0\.96|0\.99)\]/
 
-/** Classes whose CSS rule owns the press transition. The rules are checked in the stylesheet test below. */
 const PRESS_TRANSITION_CLASSES = ['habit-control-motion', 'orbit-pill-action', 'orbit-list-row-body', 'orbit-list-row-action', 'icon-btn']
 
-/** Files that hold class fragments only. The element class carrying the transition sits on another line of the same file. */
 const FRAGMENT_FILES = ['components/ui/pill-action-style.ts']
 
 function listOf(text: string | undefined): string[] | undefined {
@@ -39,10 +33,6 @@ function firstMatch(text: string, pattern: RegExp): string | undefined {
   return pattern.exec(text)?.[1]
 }
 
-/**
- * Reads the three paired lists of the Tailwind transition class that names `scale`, as the duration and the easing
- * at the index of `scale`. A list shorter than the property list repeats, as CSS does.
- */
 function pressTransitionOf(classes: string): { duration: string; easing: string } | 'none' {
   const named = [
     ...[...classes.matchAll(new RegExp(`${BOUNDARY}transition-transform(?=[\\s"'\`]|$)`, 'g'))].map((match) => ({ index: match.index, scaleIndex: 0, listed: false })),
@@ -57,7 +47,6 @@ function pressTransitionOf(classes: string): { duration: string; easing: string 
   return { duration: durations?.[at % durations.length] ?? 'unset', easing: easings?.[at % easings.length] ?? 'unset' }
 }
 
-/** The class text of one element: from the nearest `className` line above the press class to the next `className` line below it. */
 function elementClasses(lines: string[], index: number): string {
   let start = index
   for (let step = 0; step < 8 && start > 0 && !/className|Class(?:es)?\b/.test(lines[start]!); step++) start--
@@ -66,14 +55,12 @@ function elementClasses(lines: string[], index: number): string {
   return lines.slice(start, end + 1).join(' ')
 }
 
-/** The source of one element's opening tag: from the nearest line above the press class that opens a JSX element to the press class. */
 function openingTag(lines: string[], index: number): string {
   let start = index
   for (let step = 0; step < 16 && start > 0 && !/<[A-Za-z][\w.]*(?:\s|$)/.test(lines[start]!); step++) start--
   return lines.slice(start, index + 1).join(' ')
 }
 
-/** An inline `style.transition` beats every `transition-*` utility, so the class text of that element never applies. */
 const INLINE_TRANSITION = /\btransition:\s*['"`]/
 
 const pressScaleElements = sources.flatMap(({ path, lines }) => lines.flatMap((line, index) => PRESS_SCALE_CLASS.test(line)

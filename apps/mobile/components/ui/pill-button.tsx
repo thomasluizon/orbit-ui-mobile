@@ -166,17 +166,14 @@ export function PillLink({ onPress, children }: Readonly<{ onPress: () => void; 
   return <Button accessibilityRole="link" onClick={onPress}>{children}</Button>
 }
 
-/** A provider pill grows around a title that large text wraps and keeps its resting capsule radius, so no corner cuts the title. */
 function signInPillStyle({ paddingX, paddingY, gap }: SignInButtonSpec): ViewStyle {
   return { minHeight: SIGN_IN_BUTTON_HEIGHT, borderRadius: SIGN_IN_BUTTON_HEIGHT / 2, paddingVertical: paddingY, paddingHorizontal: paddingX, paddingStart: paddingX, gap }
 }
 
-/** A provider pill holds its mark in a slot of the resting content height at the top, so a wrapped title keeps the mark on its first line. */
 function ButtonLead({ signIn, children }: Readonly<{ signIn: SignInButtonSpec; children: React.ReactNode }>) {
   return <View style={{ height: SIGN_IN_BUTTON_HEIGHT - signIn.paddingY * 2, alignSelf: 'flex-start', justifyContent: 'center' }}>{children}</View>
 }
 
-/** A provider title wraps whenever it does not fit; another label with a retained icon wraps above font scale 1.3. */
 function labelWrapping(signIn: SignInButtonSpec | null, retainLeadingIcon: boolean, fontScale: number) {
   if (signIn) return { numberOfLines: undefined, shrink: styles.labelShrink }
   return { numberOfLines: retainLeadingIcon && fontScale > 1.3 ? undefined : 1, shrink: retainLeadingIcon ? styles.labelShrink : null }

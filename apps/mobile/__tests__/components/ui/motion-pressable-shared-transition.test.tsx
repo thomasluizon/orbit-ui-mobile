@@ -4,7 +4,6 @@ import { beforeAll, describe, expect, it, vi } from 'vitest'
 import { StyleSheet } from 'react-native'
 import { MotionPressable } from '@/components/ui/motion-pressable'
 
-/** The installed Reanimated filter, loaded past the test double at run time so the type check does not compile Reanimated's source. */
 const REANIMATED_STYLE_FILTER = resolve('../../node_modules/react-native-reanimated/src/css/utils/props.ts')
 type StyleFilter = (style: Record<string, unknown>) => readonly [unknown, unknown, unknown, unknown]
 let filterCSSAndStyleProperties: StyleFilter
@@ -26,7 +25,6 @@ async function renderHost() {
   return { tree, host: tree.root.findAll((node) => typeof node.type === 'string')[0]! }
 }
 
-/** The transition Reanimated sends to native: React Native flattens the host style (`AnimatedComponent.native.tsx`), then Reanimated filters it. */
 function nativeTransition(host: ReactTestInstance) {
   return filterCSSAndStyleProperties(StyleSheet.flatten(host.props.style) as Record<string, unknown>)[1]
 }

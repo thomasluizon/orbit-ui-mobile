@@ -7,11 +7,6 @@ export interface JwtSessionPayload {
   'http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier'?: string
 }
 
-/**
- * A JWT payload segment is unpadded base64url, never base64. `atob` rejects the legal `-`
- * and `_` characters, so a token carrying either decoded to null and read as a foreign
- * account.
- */
 function decodeBase64Url(segment: string): string {
   const normalized = segment.replaceAll('-', '+').replaceAll('_', '/')
   const padded = normalized.padEnd(

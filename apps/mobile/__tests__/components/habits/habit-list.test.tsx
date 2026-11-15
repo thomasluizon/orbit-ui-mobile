@@ -628,7 +628,6 @@ function seedHabits(habits: NormalizedHabit[]) {
   }
 }
 
-/** The sheet double renders every sheet as a `Sheet` host node carrying its title. */
 function confirmationSheets(tree: any, title: string) {
   return tree.root.findAll(
     (node: any) => node.type === 'Sheet' && node.props?.title === title && node.props.open,

@@ -14,7 +14,6 @@ function mediaConditions(node: Node): string[] {
   return conditions
 }
 
-/** The comma-separated legs of the one `transition` declaration on a rule whose selector list holds `selector`. */
 function transitionLegs(selector: string): string[] {
   const legs: string[][] = []
   postcss.parse(readFileSync('app/globals.css', 'utf8')).walkRules((rule) => {

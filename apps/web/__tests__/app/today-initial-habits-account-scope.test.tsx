@@ -23,10 +23,6 @@ vi.mock('@/lib/api-fetch', async (importOriginal) => ({
   fetchJson: (...args: unknown[]) => mocks.fetchJson(...args),
 }))
 
-/**
- * The real query client observes account transitions, so a mocked `useQuery` would hide
- * a previous account's preload surviving the reset.
- */
 function wrapper({ children }: Readonly<{ children: ReactNode }>) {
   return <QueryClientProvider client={getQueryClient()}>
     <RenderedAccountSeed accountId="user-1">{children}</RenderedAccountSeed>
@@ -35,7 +31,6 @@ function wrapper({ children }: Readonly<{ children: ReactNode }>) {
 
 const DATE = '2025-01-01'
 
-/** Built through the schema the API response is parsed by, so the fixture cannot drift off it. */
 function scheduleItem(id: string, title: string): HabitScheduleItem {
   return habitScheduleItemSchema.parse({
     ...createMockHabit({ id, title, dueDate: DATE, scheduledDates: [DATE] }),
@@ -44,7 +39,6 @@ function scheduleItem(id: string, title: string): HabitScheduleItem {
   })
 }
 
-/** The same producers `today-initial-data.ts` runs on the server, so the key matches the client's. */
 function initialHabitsFor(item: HabitScheduleItem) {
   const filters = buildTodayFilters({
     dateStr: DATE,

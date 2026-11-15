@@ -1529,7 +1529,6 @@ describe('useLogHabit onSuccess', () => {
     mockSetStreakCelebration.mockClear()
   })
 
-  /** The server awards no XP for a bad habit, so the fixture must return zero. */
   it('does not celebrate a bad sub-habit completion, and the server sends it no XP', async () => {
     const { logHabit } = await import('@/lib/actions/habits')
     vi.mocked(logHabit).mockResolvedValue({
@@ -1594,7 +1593,6 @@ describe('useLogHabit onSuccess', () => {
     expect(mockSetStreakCelebration).not.toHaveBeenCalled()
   })
 
-  /** Rewards must update when a deep link leaves the habit absent from the list cache. */
   it('banks XP and refreshes achievements for a habit that is not in the list cache', async () => {
     const { logHabit } = await import('@/lib/actions/habits')
     vi.mocked(logHabit).mockResolvedValue({
@@ -1623,8 +1621,6 @@ describe('useLogHabit onSuccess', () => {
     expect(invalidateSpy).toHaveBeenCalledWith(
       expect.objectContaining({ queryKey: gamificationKeys.all }),
     )
-    /** The celebration still needs a KNOWN good habit, because an unresolvable one could be a bad
-     * habit whose "streak" is abstinence. Reconciling is safe; celebrating on a guess is not. */
     expect(mockSetStreakCelebration).not.toHaveBeenCalled()
   })
 

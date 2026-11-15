@@ -8,11 +8,9 @@ import { afterAll, beforeAll, expect, it } from 'vitest'
 const native = fileURLToPath(new URL('../src-tauri/native/windows', import.meta.url))
 const shell = process.platform === 'win32' ? 'powershell.exe' : 'pwsh'
 const available = process.platform === 'win32' || spawnSync(shell, ['-NoProfile', '-Command', 'exit 0']).status === 0
-/** WHY: Windows CI uses the build's PowerShell host; other hosts run these cases when pwsh is installed. */
 const downloadTest = it.skipIf(!available)
 if (!available) process.stderr.write(`PowerShell download tests skipped: ${shell} is unavailable\n`)
 
-/** WHY: One cold PowerShell start took 0.34 to 2.4 s on healthy Windows runners and 20.6 to 22.4 s on a slow runner, so every case starts at once and 120 s is about five times the slowest start. */
 const caseTimeoutMilliseconds = 120_000
 
 interface Scenario { mode: string; cached?: string; architecture?: string; artifact?: string; complete?: boolean; signature?: string; url?: string }

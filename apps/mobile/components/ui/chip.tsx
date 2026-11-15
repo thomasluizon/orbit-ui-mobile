@@ -10,7 +10,6 @@ interface ChipProps {
   active?: boolean
   onPress?: () => void
   leading?: ReactNode
-  /** Accessibility label override. Defaults to the chip text content. */
   accessibilityLabel?: string
   variant?: 'default' | 'period'
 }

@@ -32,9 +32,7 @@ interface HabitRowContentProps {
   descriptionId?: string
   largeText?: boolean
   typeOnSupportingLine?: boolean
-  /** The tokens the inline strip draws, from `visibleHabitRowMetaTokens`. */
   visibleMeta: HabitRowMetaToken[]
-  /** The next due label of a row that does not show it, for screen readers only (#898). */
   hiddenNextDueLabel?: string
 }
 

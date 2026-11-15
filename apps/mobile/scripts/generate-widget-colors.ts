@@ -38,7 +38,6 @@ const COLOR_ROLES = [
   ['statusEmpty', 'trackEmpty'],
 ] as const satisfies readonly (readonly [string, PaletteKey])[]
 
-/** The granted canvas palette and its token provenance for generated outputs. */
 const PALETTES = {
   dark: {
     bg: ['#09090B', '--bg'],
@@ -149,11 +148,6 @@ export async function generateWidgetColors() {
   }
 }
 
-/**
- * WHY: no package above this file declares `"type": "module"`, so tsx transforms it to CommonJS and
- * esbuild refuses a top-level await outright. Handling the promise keeps the command runnable while
- * still failing loudly and nonzero, which `void` alone leaves to a default flag.
- */
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   generateWidgetColors().catch((error: unknown) => {
     process.exitCode = 1

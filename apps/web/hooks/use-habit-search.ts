@@ -9,11 +9,6 @@ import { formatAPIDateInTimeZone } from '@orbit/shared/utils'
 export function useHabitSearch() {
   const { profile } = useProfile()
   const today = formatAPIDateInTimeZone(new Date(), profile?.timeZone)
-  /**
-   * The typed text, the committed query and the page are the render source for the search box
-   * and its results. `showLoading` stays a plain `useState`, because the effect below rewrites
-   * it from `busy` on the same render.
-   */
   const [text, setText] = useAccountScopedState('')
   const [query, setQuery] = useAccountScopedState('')
   const [page, setPage] = useAccountScopedState(1)

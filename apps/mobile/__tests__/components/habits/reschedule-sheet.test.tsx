@@ -171,7 +171,6 @@ describe('RescheduleSheet (mobile)', () => {
       pressButton(tree.root, 'habits.reschedule.upgrade')
     })
 
-    /** The sheet is still presented, so neither the close nor the navigation may run yet. */
     expect(sheetTestControls.isDismissPending).toBe(true)
     expect(onOpenChange).not.toHaveBeenCalled()
     expect(mockPush).not.toHaveBeenCalled()

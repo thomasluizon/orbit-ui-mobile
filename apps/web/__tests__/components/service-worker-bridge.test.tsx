@@ -48,7 +48,6 @@ function postFromWorker(container: EventTarget, data: unknown, ports: MessagePor
   })
 }
 
-/** The reply port `public/sw.js` sends with a click, so it can tell a window with no bridge from one that took it. */
 function createReplyPort() {
   const channel = new MessageChannel()
   const receipts: unknown[] = []

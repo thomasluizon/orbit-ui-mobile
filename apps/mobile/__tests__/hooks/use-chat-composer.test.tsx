@@ -265,14 +265,12 @@ vi.mock('expo-file-system', () => ({
       return mocks.readFileText()
     }
 
-    /** Mirrors expo-file-system src/File.ts slice(), which builds the Blob from a typed array that the React Native Blob typings omit. */
     slice(start?: number, end?: number, contentType?: string): Blob {
       return new Blob([this.bytesSync().slice(start, end)] as unknown as Blob[], { type: contentType } as ConstructorParameters<typeof Blob>[1])
     }
   },
 }))
 
-/** React Native Libraries/Blob/BlobManager.js createFromParts rejects typed-array parts. */
 class ReactNativeBlob extends Blob {
   constructor(parts: unknown[] = [], options?: ConstructorParameters<typeof Blob>[1]) {
     if (parts.some(part => part instanceof ArrayBuffer || ArrayBuffer.isView(part))) {
@@ -282,7 +280,6 @@ class ReactNativeBlob extends Blob {
   }
 }
 
-/** React Native Libraries/Network/FormData.js stores each appended pair in _parts; expo/src/winter/runtime.native.ts then installs the Expo patch on it. */
 class ReactNativeFormData {
   _parts: [string, unknown][] = []
 
