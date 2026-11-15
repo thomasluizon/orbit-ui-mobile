@@ -20,7 +20,7 @@ UI `main` `1823697fe`; API `main` `1d2a826b8` (live in production and staging); 
 
 | Item | Disposition |
 | --- | --- |
-| `ui#2457` (`#2074` UI) | Pushed `6d95f4ac7`; thread resolved; chain running (rerun `chain-review.sh ui 2457` if its waiter died). At approval: P14, merge; then the `wait-ci` follow-up on `#2074`. |
+| `ui#2457` (`#2074` UI) | Pushed `6d95f4ac7`; thread resolved. CI settled red only because Layout shard 4 was cancelled in "Check upgrade layout" (run 43663268878); its failed jobs were rerun once: if it fails again, diagnose as a real defect (an in-process agent), else run `chain-review.sh ui 2457`. At approval: P14, merge; then the `wait-ci` follow-up on `#2074`. |
 | `landing#135` (`#2074` landing) | Pushed `fd007023b`; chain running. At approval: protection P1 to P7 (required: `Build`, `PR Text`, `GitGuardian Security Checks`, `pullfrog-approval`), merge, P8; mark the brain D150 rows. |
 | `ui#2447` (`#2131`) | Pushed `6e2d89793` (CI fix); chain running. At approval: merge, web release, Android Open then TestFlight at the same version, device proof (Android first, then VoiceOver on an SE-size iPhone). |
 | `ui#2444` (`#2119`) | MERGED `8c2801331`; `ui#2450` retargeted to `main`. Close `#2119` if the merge did not. |
