@@ -2789,16 +2789,20 @@
       "offlineReason": "Sem conexão. O que você escreveu fica guardado neste aparelho, então você pode enviar quando a conexão voltar.",
       "subjects": {
         "problem": {
-          "label": "Algo não funciona"
+          "label": "Algo não funciona",
+          "option": "Um erro"
         },
         "billing": {
-          "label": "Cobrança ou plano"
+          "label": "Cobrança ou plano",
+          "option": "Pagamento"
         },
         "account": {
-          "label": "Conta e acesso"
+          "label": "Conta e acesso",
+          "option": "Minha conta"
         },
         "other": {
-          "label": "Outro assunto"
+          "label": "Outro assunto",
+          "option": "Outra coisa"
         }
       },
       "subjectRequired": "Escolha um assunto para a gente encaminhar certo.",

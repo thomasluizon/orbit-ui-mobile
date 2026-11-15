@@ -41,7 +41,7 @@ function SubjectOptions({ props }: Readonly<{ props: SupportFlowProps }>) {
   return SUPPORT_SUBJECT_OPTIONS.map((option) => (
     <OptionCard
       key={option.id}
-      label={t(option.labelKey)}
+      label={t(option.optionKey)}
       selected={props.subject === option.id}
       disabled={props.isSending}
       disabledReason={t('profile.support.subjectSendingReason')}

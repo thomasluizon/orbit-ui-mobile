@@ -63,7 +63,7 @@ describe.each([{ language: 'en', messages: en }, { language: 'pt-BR', messages: 
       const tree = await render()
       expect(heading(tree)).toBe(messages.profile.support.subject)
       expect(hosts(tree).some((node) => node.props.testID === 'orbit-mascot')).toBe(false)
-      await press(tree, messages.profile.support.subjects.billing.label)
+      await press(tree, messages.profile.support.subjects.billing.option)
       expect(heading(tree)).toBe(messages.profile.support.message)
       await press(tree, messages.profile.support.send)
       expect(mocks.apiClient).not.toHaveBeenCalled()
@@ -83,7 +83,7 @@ describe.each([{ language: 'en', messages: en }, { language: 'pt-BR', messages: 
     mocks.language = language
     mocks.apiClient.mockRejectedValue(new Error('Failed'))
     const tree = await render()
-    await press(tree, messages.profile.support.subjects.problem.label)
+    await press(tree, messages.profile.support.subjects.problem.option)
     await type(tree, 'It broke.')
     await press(tree, messages.profile.support.send)
     expect(texts(tree)).toContain(messages.profile.support.failureTitle)
@@ -95,7 +95,7 @@ describe.each([{ language: 'en', messages: en }, { language: 'pt-BR', messages: 
     mocks.language = language
     mocks.online = false
     const tree = await render()
-    await press(tree, messages.profile.support.subjects.other.label)
+    await press(tree, messages.profile.support.subjects.other.option)
     await type(tree, 'Later.')
     await press(tree, messages.profile.support.send)
     expect(texts(tree)).toContain(messages.profile.support.offlineReason)

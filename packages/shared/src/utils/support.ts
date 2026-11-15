@@ -68,22 +68,27 @@ export function getSupportSendReasonKey({
   return null
 }
 
+/** Each subject: the label of the current form, and the shorter quick option of the guided flow, which holds one line at 320. */
 export const SUPPORT_SUBJECT_OPTIONS = [
   {
     id: 'problem',
     labelKey: 'profile.support.subjects.problem.label',
+    optionKey: 'profile.support.subjects.problem.option',
   },
   {
     id: 'billing',
     labelKey: 'profile.support.subjects.billing.label',
+    optionKey: 'profile.support.subjects.billing.option',
   },
   {
     id: 'account',
     labelKey: 'profile.support.subjects.account.label',
+    optionKey: 'profile.support.subjects.account.option',
   },
   {
     id: 'other',
     labelKey: 'profile.support.subjects.other.label',
+    optionKey: 'profile.support.subjects.other.option',
   },
 ] as const
 

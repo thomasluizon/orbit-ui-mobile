@@ -2789,16 +2789,20 @@
       "offlineReason": "No connection. Your words stay on this device, so you can send when the connection returns.",
       "subjects": {
         "problem": {
-          "label": "Not working"
+          "label": "Not working",
+          "option": "A bug"
         },
         "billing": {
-          "label": "Billing or plan"
+          "label": "Billing or plan",
+          "option": "Billing"
         },
         "account": {
-          "label": "Account and access"
+          "label": "Account and access",
+          "option": "My account"
         },
         "other": {
-          "label": "Something else"
+          "label": "Something else",
+          "option": "Other"
         }
       },
       "subjectRequired": "Pick a subject so we can route it properly.",
