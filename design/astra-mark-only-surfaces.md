@@ -18,7 +18,7 @@ Suggestion chips, idea cards and proactive prose retain their request text witho
 brand name. Their accessible names contain the request once. These suggestions describe what a
 selection sends; they are distinct from the standalone form and object actions.
 
-Composer send shows one upward arrow, replaced by one spinner while sending. It has no Orbit mascot
+Composer send shows one upward arrow. While sending it keeps the arrow and draws no spinner. It has no Orbit mascot
 or visible text and keeps the localized Send name. Its 48px target shares one equal gap of the shared
 fill clearance (`INTERACTION_FILL_CLEARANCE`) with the other 48px trailing targets, including the
 text-action slot and the attach control. The composer drawing uses the matching
