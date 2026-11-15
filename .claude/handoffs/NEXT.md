@@ -16,7 +16,7 @@ The owner is present now and then; answer him first, in English. `#2074` is MAX 
 
 ## In flight
 
-UI `main` `0134c198b`; API `main` `07a9b0898`; landing `main` `7e6d150e0`. Owner question queue: empty. No stash; the relay checkout is clean.
+UI `main` after `ui#2466`; API `main` `07a9b0898`; landing `main` `7e6d150e0`. Owner question queue: empty. No stash; the relay checkout is clean.
 
 | Item | Disposition |
 | --- | --- |
@@ -24,7 +24,7 @@ UI `main` `0134c198b`; API `main` `07a9b0898`; landing `main` `7e6d150e0`. Owner
 | `ui#2465` (`#2138`) | Local `29852207e` in worktree `ticket-2138-stale-files`: both Pullfrog threads fixed (`fix-2465-r2-result.md`; tools 7386, hooks 1297). Last-pass review agent on `29852207e` and `54aaebfc9`, then resolve `PRRT_kwDOR5Siws63silr` and `PRRT_kwDOR5Siws63silw` with `reply-2465-silr.md` and `reply-2465-silw.md`, body `body-2465-r2.md`, push, chain. |
 | `ui#2459` (`#2135`) | Local `7a16d5e25` in worktree `ticket-2129-eval-gate`: thread fixed in `a026034a4`, main merged `a25c0c2b4` (astra-eval workflow deletion kept), core 270, eval 2493, tools 7266, hooks 1284 (`fix-2459-r11-result.md`). Last-pass review agent, then resolve `PRRT_kwDOR5Siws63sN6D` with `reply-2459-sN6D.md`, body `body-2459-r11.md`, push, chain. |
 | `ui#2450` (`#2120`) | Pushed `0d8e39462`, chain running when the relay started: restart `chain-review.sh ui 2450`. At approval merge; then merge that head into `#2121` and `#2122`. |
-| `ui#2466` (`#2074` order 3) | Pushed `fc1eb18ba`: restart its chain; merge at approval. |
+| `ui#2466` (`#2074` order 3) | Merged to `main` (newest check run rule). A body edit after a push no longer reds `wait-ci.mjs`. After this merge, base-merge every open pull request before its review. |
 | `ui#2463` (`#2074`) | Pushed `e4b032d8f`: restart its chain; merge at approval; then base-merge `ui#2448` (same macOS cause) and chain it. |
 | Worker `#2131` | Stopped by the coordinator at a clean tree for the relay drain: `fix/ticket-2131-height-centre` holds `3976a7538` (provider heights, centring with the human check, retry; order `ticket-2131-r3-order.md`). Its broader suite may not have run: run web jsdom, web Chromium, mobile and both `tsc`; review agent; push, open the pull request, chain, merge, release the Android and iOS pair, prove on devices again. |
 | Workers `#2074` | Landing `fix/ticket-2074-comment-lint` finished at `2592046` (worktree `orbit-landing-page/ticket-2074-comment-lint`): review, push, open, chain. UI `fix/ticket-2074-ci-cache` and `fix/ticket-2074-comment-lint` (worktrees `ticket-2074-ci-cache`, `ticket-2074-comment-lint`) started about 15:47, outcome unknown: read each worktree; review, push, open, chain. |
