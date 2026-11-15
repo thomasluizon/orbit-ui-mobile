@@ -749,8 +749,10 @@
         "thomasluizon",
         "--format",
         "json",
+        "--query",
+        "is:issue is:open",
         "--limit",
-        "1000"
+        "100"
       ],
       "observedExitCode": 0,
       "paths": {
@@ -824,26 +826,6 @@
             "string"
           ]
         },
-        "$.items[].priority": {
-          "types": [
-            "string"
-          ]
-        },
-        "$.items[].repository": {
-          "types": [
-            "string"
-          ]
-        },
-        "$.items[].status": {
-          "types": [
-            "string"
-          ]
-        },
-        "$.items[].title": {
-          "types": [
-            "string"
-          ]
-        },
         "$.items[].milestone": {
           "types": [
             "object"
@@ -864,6 +846,31 @@
             "string"
           ]
         },
+        "$.items[].priority": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.items[].repository": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.items[].status": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.items[].title": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.totalCount": {
+          "types": [
+            "number"
+          ]
+        },
         "$.items[].linked pull requests": {
           "types": [
             "array"
@@ -875,11 +882,6 @@
           ]
         },
         "$.items[].estimate": {
-          "types": [
-            "number"
-          ]
-        },
-        "$.totalCount": {
           "types": [
             "number"
           ]
