@@ -1,5 +1,5 @@
 import { spawnSync } from "node:child_process"
-import { readFileSync } from "node:fs"
+import { readdirSync, readFileSync } from "node:fs"
 import { join } from "node:path"
 import yaml from "js-yaml"
 
@@ -65,8 +65,8 @@ export const cases = () => {
 
   const gate = workflow.jobs["tool-hook-tests"]
   const gateStep = gate?.steps?.find((step) => step.name === "Require every tool shard and the hook tests")
-  T(`${TOOL}: Tool and Hook Tests keeps its required name, runs always and needs the shards and the hook job`,
-    gate?.name === "Tool and Hook Tests" && gate.if === "${{ always() }}" && JSON.stringify(gate.needs) === JSON.stringify(["tool-tests", "hook-tests"]) &&
+  T(`${TOOL}: Tool and Hook Tests keeps its required name, runs unless cancelled and needs the shards and the hook job`,
+    gate?.name === "Tool and Hook Tests" && gate.if === "${{ !cancelled() }}" && JSON.stringify(gate.needs) === JSON.stringify(["tool-tests", "hook-tests"]) &&
       JSON.stringify(gateStep?.env) === JSON.stringify({ TOOL_RESULT: "${{ needs.tool-tests.result }}", HOOK_RESULT: "${{ needs.hook-tests.result }}" }),
     JSON.stringify(gate))
   if (BASH) {
@@ -83,6 +83,15 @@ export const cases = () => {
     workflow.jobs["hook-tests"]?.needs === undefined && hookCommands.includes("node .claude/hooks/test-hooks.mjs") &&
       hookCommands.some((command) => command.includes("tools/__tests__/guards-changed-paths.test.mjs")),
     JSON.stringify(hookCommands))
+  // No other job runs these files, so a file that leaves the step leaves CI without a red check.
+  const nodeTestFiles = [".github/scripts", "tools/__tests__"].flatMap((directory) =>
+    readdirSync(join(REPO_ROOT, directory)).filter((name) => name.endsWith(".test.mjs")).map((name) => `${directory}/${name}`))
+  const behaviorTests = (hookCommands.find((command) => command.startsWith("node --test ")) ?? "").split(" ").slice(2)
+  const unlisted = nodeTestFiles.filter((file) => !behaviorTests.includes(file))
+  T(`${TOOL}: the hook job runs every node test file, the critical CVE gate test among them`,
+    nodeTestFiles.includes(".github/scripts/check-critical-production-cves.test.mjs") && unlisted.length === 0 &&
+      behaviorTests.every((file) => nodeTestFiles.includes(file)),
+    JSON.stringify({ unlisted, behaviorTests }))
 
   const everyModule = listModules()
   T(`${TOOL}: --list names every registered case module`, everyModule.length > 100 && new Set(everyModule).size === everyModule.length,

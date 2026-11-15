@@ -1,40 +1,89 @@
 name: Mobile iOS Build
 
+# Compile the native module graph when a native input changes. The Android Hermes
+# export in android-startup.yml proves the JavaScript bundle: no iOS-only source exists.
+
 on:
-  # Default-branch caches are available to new pull requests.
+  # A main run saves the compiler cache and the pass marker that pull requests read.
   push:
     branches: [main]
     paths:
-      - 'apps/mobile/**'
-      - 'packages/shared/**'
       - 'package.json'
       - 'package-lock.json'
+      - 'apps/mobile/package.json'
+      - 'apps/mobile/app.json'
+      - 'apps/mobile/app.config.js'
+      - 'apps/mobile/babel.config.js'
+      - 'apps/mobile/metro.config.js'
+      - 'apps/mobile/assets/**'
+      - 'apps/mobile/locales/**'
+      - 'apps/mobile/plugins/**'
+      - 'apps/mobile/modules/**'
+      - '!apps/mobile/modules/**/*.md'
+      - 'apps/mobile/scripts/fix-hoisting.js'
+      - 'apps/mobile/__tests__/lib/ios-widget-native.test.ts'
+      - 'apps/mobile/__tests__/support/ios-widget-*.swift'
       - '.github/workflows/ios-build.yml'
-      - '.github/workflows/ios-release.yml'
   pull_request:
     branches: [main]
     paths:
-      - 'apps/mobile/**'
-      - 'packages/shared/**'
       - 'package.json'
       - 'package-lock.json'
+      - 'apps/mobile/package.json'
+      - 'apps/mobile/app.json'
+      - 'apps/mobile/app.config.js'
+      - 'apps/mobile/babel.config.js'
+      - 'apps/mobile/metro.config.js'
+      - 'apps/mobile/assets/**'
+      - 'apps/mobile/locales/**'
+      - 'apps/mobile/plugins/**'
+      - 'apps/mobile/modules/**'
+      - '!apps/mobile/modules/**/*.md'
+      - 'apps/mobile/scripts/fix-hoisting.js'
+      - 'apps/mobile/__tests__/lib/ios-widget-native.test.ts'
+      - 'apps/mobile/__tests__/support/ios-widget-*.swift'
       - '.github/workflows/ios-build.yml'
-      - '.github/workflows/ios-release.yml'
   workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
   cancel-in-progress: true
 
 jobs:
+  plan:
+    name: Select the iOS compile
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    outputs:
+      compile: ${{ github.event_name == 'workflow_dispatch' || steps.pass.outputs.cache-hit != 'true' }}
+      pass-key: ${{ steps.key.outputs.value }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      # The path filter matches the whole pull request diff, so every push of a native change starts this
+      # workflow. A pass recorded for the same native inputs skips the macOS compile.
+      - name: Hash the native inputs
+        id: key
+        run: echo "value=ios-compile-pass-v1-${{ hashFiles('package.json', 'package-lock.json', 'apps/mobile/package.json', 'apps/mobile/app.json', 'apps/mobile/app.config.js', 'apps/mobile/babel.config.js', 'apps/mobile/metro.config.js', 'apps/mobile/assets/**', 'apps/mobile/locales/**', 'apps/mobile/plugins/**', 'apps/mobile/modules/**', 'apps/mobile/scripts/fix-hoisting.js', 'apps/mobile/__tests__/lib/ios-widget-native.test.ts', 'apps/mobile/__tests__/support/ios-widget-*.swift', '.github/workflows/ios-build.yml') }}" >> "$GITHUB_OUTPUT"
+      - name: Look up a pass for these native inputs
+        id: pass
+        uses: actions/cache/restore@v6
+        with:
+          path: .ci-pass/ios-compile
+          key: ${{ steps.key.outputs.value }}
+          lookup-only: true
+
   compile:
     name: iOS simulator compile
+    needs: plan
+    if: needs.plan.outputs.compile == 'true'
     runs-on: macos-26
-    # A cold compiler cache compiles every native source once for the arm64 simulator inside this limit.
-    timeout-minutes: 60
+    # The arm64 slice with no bundle phase; a cold compiler cache compiles every native source once inside this limit.
+    timeout-minutes: 40
     env:
       ORBIT_APP_VARIANT: staging
       EXPO_NO_TELEMETRY: '1'
@@ -47,6 +96,8 @@ jobs:
       CCACHE_COMPILERCHECK: content
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - name: Select Xcode
         run: |
           sudo xcode-select --switch /Applications/Xcode_26.6.app/Contents/Developer
@@ -58,9 +109,10 @@ jobs:
           node-version: 22
           cache: npm
       - name: Install dependencies
-        run: npm ci
+        run: npm ci --prefer-offline --no-audit --fund=false
       - name: Install the compiler cache
         run: brew install ccache
+      # Keyed on the native inputs only: main saves one entry per input set plus a partial entry after a failed compile; a pull request only reads.
       - name: Restore compiler outputs
         id: compiler-cache
         uses: actions/cache/restore@v6
@@ -68,9 +120,9 @@ jobs:
           SEGMENT_DOWNLOAD_TIMEOUT_MINS: '1'
         with:
           path: ${{ env.CCACHE_DIR }}
-          key: macos-26-${{ runner.arch }}-xcode-26.6-ios-release-ccache-v1-${{ hashFiles('package-lock.json', 'apps/mobile/app.json', 'apps/mobile/app.config.js', 'apps/mobile/plugins/**', 'apps/mobile/modules/**', '.github/workflows/ios-build.yml') }}-${{ github.run_id }}-${{ github.run_attempt }}
+          key: macos-26-${{ runner.arch }}-xcode-26.6-ios-release-ccache-v2-${{ hashFiles('package-lock.json', 'apps/mobile/app.json', 'apps/mobile/app.config.js', 'apps/mobile/plugins/**', 'apps/mobile/modules/**', '.github/workflows/ios-build.yml') }}
           restore-keys: |
-            macos-26-${{ runner.arch }}-xcode-26.6-ios-release-ccache-v1-${{ hashFiles('package-lock.json', 'apps/mobile/app.json', 'apps/mobile/app.config.js', 'apps/mobile/plugins/**', 'apps/mobile/modules/**', '.github/workflows/ios-build.yml') }}-
+            macos-26-${{ runner.arch }}-xcode-26.6-ios-release-ccache-v2-
       - name: Reset compiler cache statistics
         run: ccache --zero-stats
       - name: Test the compiled widget state and session adapter
@@ -82,6 +134,11 @@ jobs:
       - name: Compile without signing or launching a simulator
         id: compile
         working-directory: apps/mobile
+        env:
+          # The Android Hermes export proves the JavaScript bundle. react-native-xcode.sh and expo-updates skip their
+          # bundle step on this variable; the Sentry wrapper never reads it, and with SENTRY_DISABLE_AUTO_UPLOAD it runs
+          # react-native-xcode.sh directly.
+          SKIP_BUNDLING: '1'
         run: |
           set -euo pipefail
           # React Native's compiler wrappers read CCACHE_BINARY from the process environment.
@@ -92,13 +149,15 @@ jobs:
             -configuration Release -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' \
             -derivedDataPath "$RUNNER_TEMP/orbit-ios-build" ARCHS=arm64 \
             CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO build
-      # Save after a failed or timed-out compile too, so the next attempt reuses its entries; ccache checksums each entry.
+      # A key is written once, so a passing main compile saves the input key. A failed or timed-out main compile saves
+      # a run-scoped partial entry instead: the restore step finds it by prefix, so the next attempt is not cold, and
+      # the input key stays free for the passing compile. ccache checksums each entry.
       - name: Save compiler outputs
-        if: ${{ always() && steps.compile.outcome != 'skipped' }}
+        if: ${{ always() && steps.compile.outcome != 'skipped' && github.ref == 'refs/heads/main' && steps.compiler-cache.outputs.cache-hit != 'true' }}
         uses: actions/cache/save@v6
         with:
           path: ${{ env.CCACHE_DIR }}
-          key: ${{ steps.compiler-cache.outputs.cache-primary-key }}
+          key: ${{ steps.compile.outcome == 'success' && steps.compiler-cache.outputs.cache-primary-key || format('{0}-partial-{1}-{2}', steps.compiler-cache.outputs.cache-primary-key, github.run_id, github.run_attempt) }}
       - name: Report compiler cache statistics
         if: ${{ !cancelled() }}
         run: |
@@ -111,3 +170,18 @@ jobs:
             echo "::error::ccache recorded zero cacheable compiler calls; check CCACHE_BINARY and the generated compiler settings." >&2
             exit 1
           fi
+
+  # The marker is saved from Linux, where the plan job reads it.
+  record:
+    name: Record the iOS compile pass
+    needs: [plan, compile]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    steps:
+      - name: Record the pass for these native inputs
+        run: mkdir -p .ci-pass && echo "$GITHUB_SHA" > .ci-pass/ios-compile
+      - name: Save the pass marker
+        uses: actions/cache/save@v6
+        with:
+          path: .ci-pass/ios-compile
+          key: ${{ needs.plan.outputs.pass-key }}

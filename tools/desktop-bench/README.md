@@ -107,11 +107,17 @@ It reuses the benchmark build entry, process host, hermetic fixture producer, mo
 and proxy. The release build uses the same staging prepare and package commands as
 `desktop-release.yml`, with no optional Cargo features and no deployed credentials.
 
-The Windows job and a fork pull request's macOS job build with `--no-sign`. A workflow dispatch or a
-pull request from this repository runs macOS in the separate `installed-signed` job instead. That job
-takes the `desktop-staging` environment with `deployment: false`, and the Windows job takes no
-environment. GitHub passes no secrets to a workflow that a fork triggers, so a fork pull request gets
-no signing material and keeps the unsigned APNs skip. The signed build follows `desktop-release.yml`:
+The Windows job builds with `--no-sign`. A workflow dispatch or a pull request from this repository runs
+macOS in the separate `installed-signed` job. That job takes the `desktop-staging` environment with
+`deployment: false`, and the Windows job takes no environment. GitHub passes no secrets to a workflow that
+a fork triggers, so a fork pull request runs the Windows job only. The VM jobs run no producer
+regression. `Tool and Hook Tests` runs every producer test file (`test-acceptance*.ts`,
+`test-child-limit.ts`) on `ubuntu-latest`, where the cases gated on `process.platform` skip.
+`desktop-acceptance-producers.yml` runs each file with such a gate on `windows-latest` and
+`macos-latest`, beside the VM jobs. It also starts when a pull request changes only a producer test or a
+fixture, which the VM jobs skip. `node tools/test-tools.mjs --only desktop-acceptance` fails when a
+gated file is missing from that job or a gated platform has no runner there. Both VM jobs restore the Rust compile cache that `Desktop Build` saves on `main`. A pull request never
+saves it. The signed build follows `desktop-release.yml`:
 
 - `tauri build --no-bundle` compiles the shell without signing credentials.
 - The harness writes the Developer ID provisioning profile into a signing config overlay. It requires

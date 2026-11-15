@@ -73,6 +73,7 @@ env:
 jobs:
   validate:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     environment: desktop-${{ inputs.variant }}
     outputs:
       shell_changed: ${{ steps.plan.outputs.shell_changed }}
@@ -180,11 +181,20 @@ jobs:
         run: |
           rustup toolchain install stable --profile minimal --target "$DESKTOP_TARGET"
           rustup default stable
-      - name: Validate shell and prepare channel config
+      - name: Restore the Rust compile cache
+        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          workspaces: apps/desktop/src-tauri -> target
+          shared-key: desktop-${{ matrix.target }}
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+      # The two legs of one operating system run the same host tests, and PR Tests proves the types on this SHA.
+      - name: Test the shell on the native leg of each operating system
+        if: matrix.target == 'aarch64-apple-darwin' || matrix.target == 'x86_64-pc-windows-msvc'
         run: |
-          npm run type-check -w @orbit/desktop
           npm run test -w @orbit/desktop
           cargo test --locked --manifest-path apps/desktop/src-tauri/Cargo.toml
+      - name: Prepare channel config
+        run: |
           node --experimental-strip-types apps/desktop/scripts/release.ts prepare \
             "$DESKTOP_VARIANT" "$DESKTOP_VERSION" apps/desktop/release-config.json
       - name: Package without operating system or updater signing
@@ -567,6 +577,7 @@ jobs:
     if: always()
     needs: [validate, build, notarize, staple, publish]
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     env:
       PLAN_RESULT: ${{ needs.validate.result }}
       SHELL_CHANGED: ${{ needs.validate.outputs.shell_changed }}
