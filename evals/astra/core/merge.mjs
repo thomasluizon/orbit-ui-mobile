@@ -21,8 +21,7 @@ function windowCase(entry, descriptor) {
 }
 
 // The rerun on the fixed build takes the place of a failed case and of a case with a grader limit. A grader limit is no
-// verdict on the assistant, but its attempt was measured: it is final on its build, and the attempt evidence keeps its
-// held previews for an offline regrade.
+// verdict on the assistant, but its attempt was measured: it is final on its build, and only this rerun clears it.
 const takesRerun = (entry) => entry.passK === 'fail' || entry.graderLimits > 0
 
 // The cases of the windows of one build: the must-pass run and the other run, each continued across UTC-day windows.

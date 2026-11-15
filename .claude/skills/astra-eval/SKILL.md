@@ -41,12 +41,22 @@ manual dispatch (`gate` input).
 
 No rerun on the same build replaces a failure. A failed attempt fails its case for that build, and the merge refuses
 a second result for a case that passed or failed. A failure of the build is a failed attempt: a wrong preview, a reply
-that is no preview and no question, a text that reports a change as done (also when it ends with a question), HTTP
-5xx, a stream without a final event, a failed approval. Only a throttle, a spend ceiling stop or a failed precondition
-is no evidence; it leaves the case incomplete, and only such a case continues in a later window. A reply that the
-grader cannot read is a grader limit, not a behavior failure: the case has no verdict, and the limit is final on its
-build like a verdict. The private `attempts/` evidence keeps the held previews of the attempt; extend the grader and
-regrade them offline.
+without a preview and without a choice, question or fitting list card (a question in text is never a valid ask), HTTP
+5xx, a stream without a final event, a failed approval. Only a throttle, a spend ceiling stop, a failed precondition or
+a list card turn without the eval trace is no evidence; it leaves the case incomplete, and only such a case continues
+in a later window.
+
+A reply that the grader cannot read is a grader limit, not a behavior failure: the case has no verdict, and the merge
+refuses a later window of the same build for it. Each kind clears only through `--rerun` on a later API commit of the
+pull request; until then the gate of that build stays incomplete. Extend the grader before that rerun.
+
+- A preview limit (`The grader cannot classify a held preview`): `attempts/<case>-r<n>.json` keeps the held previews
+  as `heldPreviews`, so the extended grader regrades them offline with `gradePreview`. Record that verdict on the
+  work ticket; the merge does not take it.
+- A readback limit (`The grader cannot read back a saved ...`): the preview matched and nothing was approved, so no
+  saved state exists to regrade. Only the rerun measures it.
+- A card limit (a same-title or list card that the grader cannot answer): the attempt ended at the card, before any
+  preview, so the evidence keeps no preview. Only the rerun measures it.
 
 After a fix, the failed cases and the cases with a grader limit run once more live on the fixed build. This is the
 single permitted rerun. Give its summaries to the merge with `--rerun`: the rerun takes the place of the first result,

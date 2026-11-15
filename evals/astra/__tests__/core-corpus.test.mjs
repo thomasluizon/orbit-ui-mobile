@@ -183,6 +183,17 @@ it('keeps the single rerun of the failed cases after a fix as a merged gate verd
   }
 })
 
+// A grader limit is final on its build. What the evidence keeps differs by kind: only a preview limit stores the held
+// previews for an offline regrade, and no kind clears without the rerun on a later API commit.
+it('states for each kind of grader limit what the evidence keeps and what clears it, in the skill and in TESTING.md', () => {
+  for (const path of ['.claude/skills/astra-eval/SKILL.md', 'TESTING.md']) {
+    const text = repository(path).replace(/\s+/gu, ' ')
+    for (const kind of ['A preview limit', 'A readback limit', 'A card limit']) expect(text, `${path}: ${kind}`).toContain(kind)
+    expect(text, path).toContain('Each kind clears only through `--rerun` on a later API commit of the pull request')
+    expect(text, path).not.toMatch(/extend the grader and regrade them offline/u)
+  }
+})
+
 // Producer: orbit-api ChatController.MaxChatRequestBytes limits the whole chat form to 10 MB.
 it('holds the image of the owner image turn as a PNG inside the chat request limit', () => {
   const image = readFileSync(new URL('../core/fixtures/cinema-ticket.png', import.meta.url))

@@ -12,7 +12,7 @@
 #               person's messages of them are sent first, in the conversation of the case, and the assistant gives its
 #               own replies; the phrasing is sent when no preview came before it.
 # expected      the outcome. questions: how many questions may come before the preview. A question is a choice or
-#               question card, a list card whose action can hold the request, or a text that asks.
+#               question card, or a list card whose action can hold the request; a text-only reply is never one.
 #               changes: the normalized change list of the held previews (kind, target records, changed fields).
 #               previews: how many previews hold the request (default 1). read: the rubric for the text of a read answer.
 # answer        what the person decides when the assistant asks. A card takes the answer through blockAnswer; `text` is

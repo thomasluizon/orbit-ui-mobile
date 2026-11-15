@@ -7,9 +7,10 @@ import { shownCards } from '../same-title-card.mjs'
 import { visibleAnswer } from '../visible-answer.mjs'
 import { safeFailureMessage } from '../credentials.mjs'
 
-// Only a throttle or a spend ceiling is no evidence of the build: the case stays incomplete and continues in a later
-// window. Each other failure is the build under test failing the person: an HTTP 5xx, a stream that stops or ends
-// without a final event, a failed approval. It fails the attempt, so no later window runs the case again.
+// Only a throttle, a spend ceiling or a list card turn without the eval trace is no evidence of the build: the case
+// stays incomplete and continues in a later window. Each other failure is the build under test failing the person: an
+// HTTP 5xx, a stream that stops or ends without a final event, a failed approval. It fails the attempt, so no later
+// window runs the case again.
 const ceilingCodes = ['AI_DAILY_BUDGET_EXCEEDED', 'AI_PROVIDER_QUOTA_EXHAUSTED']
 const failure = (turn, step) => ({ unavailable: turn.status === 429 || ceilingCodes.includes(turn.code),
   error: `${step} failed${turn.status ? ` with HTTP ${turn.status}` : ''}${turn.code ? ` (${turn.code})` : ''}: ${turn.error}` })
@@ -89,7 +90,11 @@ export async function runCase(vars, { send = sendTurn, api = publicApi(vars.cred
     if (output.questionsBeforePreview > maxQuestions) break
     if (output.turns < typed.length) { attempted = typedMessage(output.turns); continue }
     const answer = answerQuestion(turn, vars)
-    if (!answer.pass) { Object.assign(output, { answerFailure: answer.reason, graderLimit: answer.graderLimit === true }); break }
+    if (!answer.pass) {
+      Object.assign(output, answer.unavailable ? { unavailable: true, error: answer.reason }
+        : { answerFailure: answer.reason, graderLimit: answer.graderLimit === true })
+      break
+    }
     attempted = { content: answer.message, ...(answer.blockAnswer ? { blockAnswer: answer.blockAnswer } : {}) }
   }
   output.composition = turn.response

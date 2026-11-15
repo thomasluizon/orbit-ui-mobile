@@ -230,8 +230,19 @@ describe('a reply without a preview', () => {
       expect(sent[1]).toEqual({ content: 'The second one in the list' })
     })
 
+    // Producer: both paths that issue a list card record its ask in the eval trace (ProcessUserChatCommand.Tools.cs
+    // RecordToolRound, ProcessUserChatCommand.SelectionAsk.cs), so a turn without a trace is a missing precondition of the
+    // run, not a limit of the grader: the case stays open and continues in a later window.
+    it('gives no evidence when the turn returns no trace, and does not answer', async () => {
+      const { sent, output, verdict } = await answered([])
+      expect(sent).toHaveLength(1)
+      expect(output).toMatchObject({ unavailable: true,
+        error: 'The list card answer needs the eval trace of the turn, and the turn returned none.' })
+      expect(output.graderLimit).toBeUndefined()
+      expect(verdict).toMatchObject({ pass: false, metadata: { unavailable: true } })
+    })
+
     it.each([
-      ['no trace', []],
       ['a row without a record', [askTrace(duplicates.first, null)]],
       ['an ask call with other rows', [{ calls: [{ ...askTrace(duplicates.first, duplicates.second).calls[0], arguments: { input: {
         ...askTrace(duplicates.first, duplicates.second).calls[0].arguments.input, items: [] } } }] }]],
@@ -243,48 +254,40 @@ describe('a reply without a preview', () => {
     })
   })
 
+  // Producer: orbit-api ends a reply with a question only through a valid, accepted ask, which is a choice, question or
+  // list card (AskTool.cs, ProcessUserChatCommand.Ask.cs). A question in text comes from an invalid ask, from the
+  // server fallback after the model did not ask, or from the model asking in prose. So a text-only reply is never the
+  // question, whatever its words: a real question in text and a false report of the work fail the same way.
+  const noCard = 'The reply holds no preview and no question card.'
   it.each([
-    ['a text that asks, in the message', textReply('Quais 2 dos 6 hábitos você quer excluir?')],
-    ['a text that asks, in a text part', textReply(null, [{ type: 'text', text: 'Quais 2 dos 6 hábitos você quer excluir?' }])],
-    ['a text that asks after a fact about the request', textReply('Encontrei 6 hábitos Water - 710ml. Quais 2 você quer que eu exclua?')],
-  ])('counts %s as a question, and types the answer', async (_name, reply) => {
-    const { sent, output, verdict } = await scripted([reply, finalOf('complete', 1)])
-    expect(sent.map(({ content }) => content)).toEqual([request.vars.input, 'Exclui os 2 últimos e renomeia os 4 primeiros'])
-    expect(sent[1].blockAnswer).toBeUndefined()
-    expect(output.questionsBeforePreview).toBe(1)
-    expect(verdict.pass).toBe(true)
-  })
-
-  it.each([
-    ['a text that asks nothing', textReply('Entendi o pedido.')],
-    ['a reply without text and without a card', textReply(null)],
-  ])('fails %s, and counts no question', async (_name, reply) => {
-    const { sent, output, verdict } = await scripted([reply, finalOf('complete', 1)])
+    ['owner-water-request-pt-BR-1', textReply('Quais 2 dos 6 hábitos você quer excluir?')],
+    ['owner-water-request-pt-BR-1', textReply(null, [{ type: 'text', text: 'Quais 2 dos 6 hábitos você quer excluir?' }])],
+    ['owner-water-request-pt-BR-1', textReply('Pronto, encontrei 6 hábitos Water - 710ml. Quais 2 você quer excluir?')],
+    ['owner-water-request-pt-BR-1', textReply('Registrei que há 6 hábitos iguais. Quais 2 você quer excluir?')],
+    ['owner-water-request-en-1', textReply('I created a list of your 6 Water habits below. Which 2 should I delete?')],
+    ['owner-water-request-pt-BR-1', textReply('Pronto! Excluí os dois e renomeei os outros quatro. Quer mais alguma coisa?')],
+    ['owner-water-request-pt-BR-1', textReply('Tudo pronto! Quer mais alguma coisa?')],
+    ['owner-water-request-pt-BR-1', textReply('Feito ✅ Quer mais alguma coisa?')],
+    ['owner-water-request-pt-BR-1', textReply('Já está feito! Posso ajudar com mais algo?')],
+    ['owner-water-request-pt-BR-1', textReply('As alterações foram feitas! Quer mais alguma coisa?')],
+    ['owner-water-request-pt-BR-1', textReply('Excluídos os 2 últimos e renomeados os outros 4. Mais alguma coisa?')],
+    ['owner-water-request-pt-BR-1', textReply('Mudanças aplicadas! Precisa de mais alguma coisa?')],
+    ['owner-water-request-en-1', textReply('Done! I deleted the two and renamed the other four. Anything else?')],
+    ['owner-water-request-en-1', textReply('Done ✅ Anything else?')],
+    ['owner-water-request-en-1', textReply('All done, anything else?')],
+    ['owner-water-request-en-1', textReply('Deleted 2 and renamed the other 4. Anything else?')],
+    ['owner-water-request-en-1', textReply('Your habits are updated. Anything else I can help with?')],
+    ['owner-water-request-en-1', textReply('The changes are saved. Want anything else?')],
+    ['owner-water-request-pt-BR-1', textReply('Entendi o pedido.')],
+    ['owner-water-request-en-1', textReply(null)],
+    ['ask-which-duplicate-pt-BR-1', textReply('Registrei a Caminhada. Quer mais alguma coisa?')],
+    ['ask-which-duplicate-en-1', textReply('Which walk did you mean, the first or the second?')],
+    ['same-title-singular-pt-BR-1', textReply('Entendi.')],
+  ])('fails the text-only reply of %s (%#), and counts no question', async (id, reply) => {
+    const { sent, output, verdict } = await scripted([reply, finalOf('complete', 1)], caseOf(id))
     expect(sent).toHaveLength(1)
     expect(output.questionsBeforePreview).toBe(0)
-    expect(verdict).toMatchObject({ pass: false, reason: 'The reply holds no preview, no question card and no question.' })
-  })
-
-  // A sign-off question after a false report of the work asks nothing about the request. The request cases allow one
-  // question; the duplicate cases need one.
-  it.each([
-    ['owner-water-request-pt-BR-1', 'Pronto! Excluí os dois e renomeei os outros quatro. Quer mais alguma coisa?'],
-    ['owner-water-request-en-1', 'Done! I deleted the two and renamed the other four. Anything else?'],
-    ['owner-water-request-pt-BR-2', 'Pronto, já fiz as mudanças. Posso ajudar com mais algo?'],
-    ['owner-water-request-en-2', 'The two habits have been deleted and the other four renamed. Anything else?'],
-    ['ask-which-duplicate-pt-BR-1', 'Registrei a Caminhada. Quer mais alguma coisa?'],
-    ['ask-which-duplicate-en-1', 'I logged Walk. Anything else?'],
-  ])('fails %s when a text reports the change as done and ends with a sign-off question', async (id, text) => {
-    const { sent, output, verdict } = await scripted([textReply(text), finalOf('complete', 1)], caseOf(id))
-    expect(sent).toHaveLength(1)
-    expect(output.questionsBeforePreview).toBe(0)
-    expect(verdict).toMatchObject({ pass: false, reason: 'The reply reports a change as done, and no preview holds it.' })
-  })
-
-  it('does not take a text that asks nothing as the question that a request needs', async () => {
-    const singular = caseOf('same-title-singular-pt-BR-1')
-    const { verdict } = await scripted([textReply('Entendi.'), finalOf('complete', 1)], singular)
-    expect(verdict).toMatchObject({ pass: false, reason: 'The reply holds no preview, no question card and no question.' })
+    expect(verdict).toMatchObject({ pass: false, reason: noCard })
   })
 })
 

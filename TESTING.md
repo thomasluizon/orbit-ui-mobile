@@ -441,14 +441,16 @@ Each case runs as a person with a shipped client (`core/client-turn.mjs`, `core/
 - The request is `POST /api/chat/stream` with an `Idempotency-Key`, built by the shared
   `buildChatClientContext` (with a `conversationId` and the clock setting of the account profile) and
   `buildRecentChatHistory`, and read through the shared `sendChatStreamTurn` loop and stream parser.
-- A reply without a preview is a question when it shows a choice or question card, a list card whose
-  action can hold the request, or a text that asks and reports no change as done. The person answers a
-  card through `blockAnswer` when the card can hold the decision of the case, and types the decision when
-  no card can. The record of a list row comes from the ask arguments in the trace; a row that the trace
-  does not map to one record is a grader limit.
-- A list card of another action fails the case, and so does a text that reports a change as done (also
-  when it ends with a question, `completionClaims` in `core/answers.mjs`) and a reply that asks nothing.
-  The person does not answer them. One question past the allowed count is recorded and not answered.
+- A reply without a preview is a question only when it shows a choice or question card, or a list card
+  whose action can hold the request. `orbit-api` ends a reply with a question only through a valid,
+  accepted `ask`, which is always one of these cards; a question in text comes from an invalid ask or
+  from the server fallback after the model did not ask. So a text-only reply fails the case, whatever it
+  says, and so does a list card of another action. The person does not answer them. One question past
+  the allowed count is recorded and not answered.
+- The person answers a card through `blockAnswer` when the card can hold the decision of the case, and
+  types the decision when no card can. The record of a list row comes from the `ask` arguments in the
+  eval trace, so the list card answer needs the `astra_eval_trace` flag: a list card turn without a trace
+  gives no evidence, and a trace whose `ask` call does not map each row to one record is a grader limit.
 - A later owner turn starts from the recorded messages that came before it. The class e turn
   `owner-water-typed-answer` runs live instead: the earlier owner messages go first, in one conversation,
   so the server holds the state that it held for the owner.
@@ -500,18 +502,26 @@ a later window or a rerun replaced. Without it the gate stays incomplete. A turn
 trace, so its model calls are not counted and the cost of one model call reads a little high.
 
 No rerun on the same build replaces a failure. An attempt that fails, fails its case for that build:
-a wrong preview, a reply that is no preview and no question, HTTP 5xx, a stream that ends without a final
-event, or a failed approval. Only HTTP 429, `AI_DAILY_BUDGET_EXCEEDED`, `AI_PROVIDER_QUOTA_EXHAUSTED` and a
-failed precondition are no evidence. Such an attempt leaves its case incomplete, and only such a case
+a wrong preview, a reply without a preview and without a question card, HTTP 5xx, a stream that ends
+without a final event, or a failed approval. Only HTTP 429, `AI_DAILY_BUDGET_EXCEEDED`,
+`AI_PROVIDER_QUOTA_EXHAUSTED`, a failed precondition and a list card turn without the eval trace are no
+evidence. Such an attempt leaves its case incomplete, and only such a case
 may appear again in a later window. The merge refuses a second result for a case that passed, failed or
 holds a grader limit, a window of another API commit, and a case whose `k` differs from the corpus.
 
-A preview that the grader cannot classify, a change whose saved state it cannot read back, and a card
-that it cannot answer are grader limits. The case has no verdict, nothing is approved, and the report
-lists grader limits apart from behavior failures. The limit is final on its build, as a verdict is. The
-private evidence of the attempt (`attempts/<case>-r<n>.json`, `heldPreviews`) keeps its held previews,
-with each record id replaced by the name that the case gives the record, so an extended grader regrades
-them offline with `gradePreview`.
+A reply that the grader cannot read is a grader limit. The case has no verdict, nothing is approved, and
+the report lists grader limits apart from behavior failures. The merge refuses a later window of the same
+build for the case, as for a verdict. Each kind clears only through `--rerun` on a later API commit of the
+pull request; until then the gate of that build stays incomplete. Extend the grader before that rerun.
+
+- A preview limit (`The grader cannot classify a held preview`): the private evidence of the attempt
+  (`attempts/<case>-r<n>.json`, `heldPreviews`) keeps its held previews, with each record id replaced by
+  the name that the case gives the record. The extended grader regrades them offline with `gradePreview`;
+  record that verdict on the work ticket, because the merge does not take it.
+- A readback limit (`The grader cannot read back a saved ...`): the preview matched and nothing was
+  approved, so no saved state exists to regrade. Only the rerun measures it.
+- A card limit (a same-title or list card that the grader cannot answer): the attempt ended at the card,
+  before any preview, so the evidence keeps no preview. Only the rerun measures it.
 
 After a fix, run the failed cases and the cases with a grader limit once more on the fixed build, and
 give those summaries to the merge with `--rerun`:
