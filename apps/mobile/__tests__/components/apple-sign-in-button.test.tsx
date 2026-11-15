@@ -6,6 +6,7 @@ import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { GOOGLE_SIGN_IN_BUTTON, SMALL_PILL_VISIBLE_MIN, SPACING } from '@orbit/shared/theme'
 import { AppleSignInButton } from '@/components/auth/apple-sign-in-button'
+import { AppleSignInLogo } from '@/components/auth/apple-sign-in-logo'
 import { PillButton } from '@/components/ui/pill-button'
 import { GoogleMark } from '@/components/auth/google-mark'
 import { pressableStyle } from '@/__tests__/support/press-feedback'
@@ -132,6 +133,26 @@ describe('Apple sign-in controls', () => {
     expect(StyleSheet.flatten(tree.root.findByProps({ testID: 'apple-sign-in-logo' }).props.style)).toMatchObject({ height: SMALL_PILL_VISIBLE_MIN })
     TestRenderer.act(() => apple!.props.onPress())
     expect(onPress).toHaveBeenCalledOnce()
+    TestRenderer.act(() => tree.unmount())
+  })
+
+  /** The opaque background of each Apple logo tile (`apple-sign-in-logo-on-white.png` for the dark theme, `-on-black` for the light). */
+  const LOGO_TILE_BACKGROUND = { dark: '#FFFFFF', light: '#000000' } as const
+
+  it.each([['dark', '#FFFFFF', '#000000'], ['light', '#000000', '#FFFFFF']] as const)('keeps Apple\'s face, logo and title on a busy Android action in the %s theme and dims it to the disabled opacity, as the iPhone control does', (mode, fill, ink) => {
+    Platform.OS = 'android'
+    theme.mode = mode
+    vi.stubEnv('EXPO_PUBLIC_APPLE_CLIENT_ID', 'client-id')
+    const tree = renderBesideGoogle({ disabled: false, loading: true, onPress: vi.fn() })
+    const [, apple] = tree.root.findAllByType('Pressable') as { props: Record<string, unknown>; findAll: (predicate: (node: { props: Record<string, unknown> }) => boolean) => { props: Record<string, unknown> }[] }[]
+    expect(apple!.props.accessibilityState).toMatchObject({ busy: true, disabled: true })
+    expect(pressableStyle(apple!, false)).toMatchObject({ backgroundColor: fill, opacity: 0.4 })
+    expect(apple!.findAll((node) => node.props.testID === 'skeleton-face'), 'no skeleton face covers Apple\'s face').toHaveLength(0)
+    const logo = tree.root.findByType(AppleSignInLogo)
+    expect(LOGO_TILE_BACKGROUND[logo.props.theme as 'dark' | 'light'], 'the opaque logo tile sits on its own colour, so it draws no square').toBe(fill)
+    const title = StyleSheet.flatten(tree.root.find((node: { type: unknown; props: { children: unknown } }) =>
+      node.type === 'Text' && node.props.children === 'auth.signInWithApple').props.style)
+    expect(title).toMatchObject({ color: ink })
     TestRenderer.act(() => tree.unmount())
   })
 

@@ -35,6 +35,14 @@ function waitingTextColor(tokens: AppTokensV2, variant: ButtonVariant, quiet: bo
   return variant === 'ghost' && quiet ? tokens.fg2 : tokens.fg1
 }
 
+/**
+ * A waiting pill takes the skeleton face. Apple's sign-in rules keep Apple's face, logo and title, so a waiting Apple pill
+ * dims to the existing disabled opacity instead, as Apple's iPhone control does.
+ */
+function waitsOnSkeletonFace(loading: boolean, apple: boolean): boolean {
+  return loading && !apple
+}
+
 /** The waiting face clears the variant fill for the skeleton and keeps the ghost border width, so the size stays. */
 function waitingFaceStyle(variant: ButtonVariant, ghostBorderWidth: number): ViewStyle {
   return { backgroundColor: 'transparent', borderWidth: variant === 'ghost' ? ghostBorderWidth : 0, borderColor: 'transparent' }
@@ -162,7 +170,8 @@ export function ThemedButton({
 
   const signIn = signInButtonSpec(brand)
   const appleColors = brand === 'apple' ? APPLE_SIGN_IN_BUTTON.colors[themeMode] : null
-  const textColor = loading ? waitingTextColor(tokens, variant, quiet) : appleColors?.ink ?? buttonTextColors(tokens, quiet)[variant]
+  const skeletonWaiting = waitsOnSkeletonFace(loading, appleColors !== null)
+  const textColor = skeletonWaiting ? waitingTextColor(tokens, variant, quiet) : appleColors?.ink ?? buttonTextColors(tokens, quiet)[variant]
   const leadingGlyph = buttonLeadingGlyph(leadingIcon, textColor)
 
   const ghostBorderWidth = borderless ? 0 : 1.5
@@ -190,12 +199,12 @@ export function ThemedButton({
         retainLeadingIcon ? { maxWidth: '100%' } : null,
         pillBoxStyle({ sizeSpec, iconOnly, minimumHeight, edge, matchedWidth, hasLeadingIcon: Boolean(leadingIcon), signIn: signIn !== null }),
         signIn ? signInPillStyle(signIn) : null,
-        loading ? waitingFaceStyle(variant, ghostBorderWidth) : variantFaceStyle({ variant, tokens, pressed: pressed && !disabled, hovered: hovered && !disabled, elevated, quiet, ghostBorderWidth, brandFill: appleColors?.fill }),
-        focused ? buttonFocusStyle(variant, appleColors && !loading ? appleColors.ink : tokens.fg1) : null,
-        disabled && !loading ? styles.disabled : null,
+        skeletonWaiting ? waitingFaceStyle(variant, ghostBorderWidth) : variantFaceStyle({ variant, tokens, pressed: pressed && !disabled, hovered: hovered && !disabled, elevated, quiet, ghostBorderWidth, brandFill: appleColors?.fill }),
+        focused ? buttonFocusStyle(variant, appleColors?.ink ?? tokens.fg1) : null,
+        nativelyDisabled && !skeletonWaiting ? styles.disabled : null,
       ]}
     >
-      <ButtonContents tokens={tokens} loading={loading} retainLeadingIcon={retainLeadingIcon} iconOnly={iconOnly} leadingGlyph={leadingGlyph} textColor={textColor}
+      <ButtonContents tokens={tokens} skeletonWaiting={skeletonWaiting} retainLeadingIcon={retainLeadingIcon} iconOnly={iconOnly} leadingGlyph={leadingGlyph} textColor={textColor}
         signIn={signIn} labelSize={appleColors ? APPLE_SIGN_IN_TITLE_SIZE : sizeSpec.fontSize}>{children}</ButtonContents>
     </ThemedMotionPressable>
   )
@@ -227,15 +236,15 @@ function labelWrapping(signIn: SignInButtonSpec | null, retainLeadingIcon: boole
 }
 
 /** The face, glyph and label. A waiting action keeps its glyph and label on the skeleton face. */
-function ButtonContents({ tokens, loading, retainLeadingIcon, iconOnly, leadingGlyph, children, textColor, signIn, labelSize }: Readonly<Pick<ButtonProps, 'children' | 'iconOnly'> & {
-  tokens: AppTokensV2; loading: boolean; retainLeadingIcon: boolean; leadingGlyph: React.ReactNode; textColor: string; signIn: SignInButtonSpec | null; labelSize: number
+function ButtonContents({ tokens, skeletonWaiting, retainLeadingIcon, iconOnly, leadingGlyph, children, textColor, signIn, labelSize }: Readonly<Pick<ButtonProps, 'children' | 'iconOnly'> & {
+  tokens: AppTokensV2; skeletonWaiting: boolean; retainLeadingIcon: boolean; leadingGlyph: React.ReactNode; textColor: string; signIn: SignInButtonSpec | null; labelSize: number
 }>) {
   const { fontScale } = useWindowDimensions()
   const iconColor = isValidElement<{ color?: string }>(children) ? children.props.color : undefined
   const wrapping = labelWrapping(signIn, retainLeadingIcon, fontScale)
   const lead = iconOnly ? buttonLeadingGlyph(children, iconColor ?? textColor) : leadingGlyph
   return <>
-      {loading ? <SkeletonFace tokens={tokens} /> : null}
+      {skeletonWaiting ? <SkeletonFace tokens={tokens} /> : null}
       {signIn && lead ? <ButtonLead signIn={signIn}>{lead}</ButtonLead> : lead}
       {iconOnly ? null : (
         <Text

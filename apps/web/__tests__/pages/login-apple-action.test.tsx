@@ -51,4 +51,15 @@ describe('web Apple sign-in action', () => {
     expect(apple).toHaveAttribute('aria-busy', 'true')
     expect(google).not.toHaveAttribute('aria-busy')
   })
+
+  it('keeps Apple\'s face, logo and title on a busy action and dims it to the disabled opacity, as the iPhone control does', () => {
+    const { apple } = renderEmailStep(true)
+    expect(apple).toBeDisabled()
+    expect(apple).toHaveAttribute('aria-busy', 'true')
+    expect(apple.style.backgroundColor).toBe('var(--apple-sign-in-fill)')
+    expect(apple.style.color).toBe('var(--apple-sign-in-ink)')
+    expect(apple.querySelector('[data-slot="skeleton-face"]'), 'no skeleton face covers Apple\'s face').toBeNull()
+    expect(apple.querySelector('svg[data-asset="apple-sign-in-logo"] path')?.getAttribute('fill')).toBe('currentColor')
+    expect(apple.className.split(' ')).toContain('disabled:opacity-40')
+  })
 })

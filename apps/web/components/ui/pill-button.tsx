@@ -14,7 +14,7 @@ function buttonDescriptionIds(descriptionId: string | undefined, hintId: string,
   return [descriptionId, hint ? hintId : undefined].filter(Boolean).join(' ') || undefined
 }
 
-function buttonStyle(size: ButtonSize, withinRow: boolean, { minimumHeight, iconOnly, matchedWidth, leadingIcon, brand, variant, quiet, edge, loading }: Readonly<Pick<ButtonProps, 'minimumHeight' | 'iconOnly' | 'matchedWidth' | 'leadingIcon' | 'brand' | 'variant' | 'edge' | 'loading'> & { quiet: boolean }>): CSSProperties {
+function buttonStyle(size: ButtonSize, withinRow: boolean, { minimumHeight, iconOnly, matchedWidth, leadingIcon, brand, variant, quiet, edge }: Readonly<Pick<ButtonProps, 'minimumHeight' | 'iconOnly' | 'matchedWidth' | 'leadingIcon' | 'brand' | 'variant' | 'edge'> & { quiet: boolean }>): CSSProperties {
   const sizeSpec = BUTTON_SIZES[size]
   const signIn = signInButtonSpec(brand)
   return {
@@ -25,7 +25,7 @@ function buttonStyle(size: ButtonSize, withinRow: boolean, { minimumHeight, icon
     color: variant === 'ghost' && quiet ? 'var(--fg-2)' : undefined,
     marginInlineStart: iconOnly && edge === 'start' ? ICON_ACTION_START_HANG : undefined,
     ...(signIn ? signInPillStyle(signIn, brand === 'apple' ? APPLE_SIGN_IN_TITLE_SIZE : sizeSpec.fontSize) : undefined),
-    ...(brand === 'apple' && !loading ? APPLE_SIGN_IN_COLOURS : undefined),
+    ...(brand === 'apple' ? APPLE_SIGN_IN_COLOURS : undefined),
   }
 }
 
@@ -63,12 +63,20 @@ function ButtonLead({ signIn, children }: Readonly<{ signIn: SignInButtonSpec | 
 }
 
 /** The face, glyph and label. A waiting action keeps its glyph and label on the skeleton face. */
-function ButtonContent({ loading, iconOnly, children, leadingIcon, signIn }: Readonly<Pick<ButtonProps, 'loading' | 'iconOnly' | 'children' | 'leadingIcon'> & { signIn: SignInButtonSpec | null }>) {
+function ButtonContent({ skeletonWaiting, iconOnly, children, leadingIcon, signIn }: Readonly<Pick<ButtonProps, 'iconOnly' | 'children' | 'leadingIcon'> & { skeletonWaiting: boolean; signIn: SignInButtonSpec | null }>) {
   return <>
-    {loading ? <SkeletonFace /> : null}
+    {skeletonWaiting ? <SkeletonFace /> : null}
     <ButtonLead signIn={signIn}>{iconOnly ? children : leadingIcon}</ButtonLead>
     {iconOnly ? null : <span>{children}</span>}
   </>
+}
+
+/**
+ * A waiting pill takes the skeleton face. Apple's sign-in rules keep Apple's face, logo and title, so a waiting Apple pill
+ * keeps the resting classes and dims through the existing disabled opacity instead, as Apple's iPhone control does.
+ */
+function waitsOnSkeletonFace(loading: boolean, brand: ButtonProps['brand']): boolean {
+  return loading && brand !== 'apple'
 }
 
 function persistentButtonStyle(style: CSSProperties, retain: boolean): CSSProperties {
@@ -115,6 +123,7 @@ export function Button({
   const hintId = useId()
   const descriptionIds = buttonDescriptionIds(descriptionId, hintId, hint)
   const size = withinRow ? 'sm' : requestedSize
+  const skeletonWaiting = waitsOnSkeletonFace(loading, brand)
 
   return (
     <><button
@@ -139,10 +148,10 @@ export function Button({
       data-size={size}
       data-loading={loading || undefined}
       data-borderless={borderless || undefined}
-      className={actionClasses(variant, size, 'button', loading, quiet, elevated, borderless)}
-      style={persistentButtonStyle(buttonStyle(size, withinRow, { minimumHeight, iconOnly, matchedWidth, leadingIcon, brand, variant, quiet, edge, loading }), retainLeadingIcon)}
+      className={actionClasses(variant, size, 'button', skeletonWaiting, quiet, elevated, borderless)}
+      style={persistentButtonStyle(buttonStyle(size, withinRow, { minimumHeight, iconOnly, matchedWidth, leadingIcon, brand, variant, quiet, edge }), retainLeadingIcon)}
     >
-      <ButtonContent loading={loading} iconOnly={iconOnly} leadingIcon={leadingIcon} signIn={signInButtonSpec(brand)}>{children}</ButtonContent>
+      <ButtonContent skeletonWaiting={skeletonWaiting} iconOnly={iconOnly} leadingIcon={leadingIcon} signIn={signInButtonSpec(brand)}>{children}</ButtonContent>
     </button>{hint ? <span id={hintId} hidden>{hint}</span> : null}</>
   )
 }
