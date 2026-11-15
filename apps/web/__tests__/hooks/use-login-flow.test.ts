@@ -15,6 +15,7 @@ import { resolveSessionTokens } from '@/lib/auth-api'
 import { hydrateProfilePresentation } from '@/lib/profile-presentation'
 import { applyThemeTokensToDOM } from '@/lib/theme-dom'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
+import { jsonResponse, requestBodyFor, toUrlString, typeCode, type LoginFetch } from '../support/login-flow'
 
 vi.mock('@/lib/auth-api', () => ({
   ACCOUNT_ID_HEADER: 'x-account-id',
@@ -98,24 +99,11 @@ const loginResponse = {
   wasReactivated: false,
 }
 
-const fetchMock = vi.fn<(input: RequestInfo | URL, init?: RequestInit) => Promise<Response>>()
-
-function jsonResponse(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'content-type': 'application/json' },
-  })
-}
+const fetchMock: LoginFetch = vi.fn()
 
 interface VerifyOutcome {
   body: unknown
   status: number
-}
-
-function toUrlString(input: RequestInfo | URL): string {
-  if (typeof input === 'string') return input
-  if (input instanceof URL) return input.href
-  return input.url
 }
 
 function wireAuthNetwork(verify: VerifyOutcome = { body: loginResponse, status: 200 }) {
@@ -129,13 +117,6 @@ function wireAuthNetwork(verify: VerifyOutcome = { body: loginResponse, status: 
   })
 }
 
-function requestBodyFor(pathFragment: string): Record<string, unknown> {
-  const call = fetchMock.mock.calls.find(([input]) => toUrlString(input).includes(pathFragment))
-  if (!call) throw new Error(`no fetch call matched ${pathFragment}`)
-  const rawBody = call[1]?.body
-  return JSON.parse(typeof rawBody === 'string' ? rawBody : '{}') as Record<string, unknown>
-}
-
 function setNavigatorOnline(value: boolean) {
   Object.defineProperty(navigator, 'onLine', { configurable: true, get: () => value })
 }
@@ -144,12 +125,6 @@ async function advanceToCodeStep(result: { current: ReturnType<typeof useLoginFl
   act(() => result.current.setEmail('user@test.com'))
   await act(async () => {
     await result.current.sendCode()
-  })
-}
-
-function typeCode(result: { current: ReturnType<typeof useLoginFlow> }, code: string) {
-  act(() => {
-    result.current.onCodeChange(code)
   })
 }
 
@@ -247,78 +222,6 @@ it('carries an anonymous onboarding push through the proxy and code login return
   window.history.replaceState(null, '', '/')
 })
 
-it('uses a fresh token for web send, resend, and verify requests', async () => {
-  vi.stubEnv('NEXT_PUBLIC_TURNSTILE_SITE_KEY', 'test-site-key')
-  vi.useFakeTimers()
-  const { result } = renderHook(() => useLoginFlow())
-  act(() => result.current.setEmail('user@test.com'))
-
-  await act(async () => { await result.current.sendCode() })
-  expect(fetchMock).not.toHaveBeenCalled()
-  act(() => result.current.onTurnstileToken('send-token'))
-  await act(async () => { await result.current.sendCode() })
-  expect(requestBodyFor('/api/auth/send-code')).toMatchObject({ turnstileToken: 'send-token' })
-  expect(result.current.turnstileToken).toBeNull()
-  expect(result.current.turnstileResetKey).toBe(1)
-
-  await act(async () => { await result.current.verifyCode('123456') })
-  expect(fetchMock).toHaveBeenCalledTimes(1)
-  act(() => { vi.advanceTimersByTime(60_000) })
-  act(() => result.current.onTurnstileToken('resend-token'))
-  await act(async () => { await result.current.resendCode() })
-  const sendBodies = fetchMock.mock.calls
-    .filter(([url]) => toUrlString(url).includes('/api/auth/send-code'))
-    .map(([, options]) => JSON.parse(typeof options?.body === 'string' ? options.body : '{}') as Record<string, unknown>)
-  expect(sendBodies.map((body) => body.turnstileToken)).toEqual(['send-token', 'resend-token'])
-
-  act(() => result.current.onTurnstileToken('verify-token'))
-  await act(async () => { await result.current.verifyCode('123456') })
-  expect(requestBodyFor('/api/auth/verify-code')).toMatchObject({ turnstileToken: 'verify-token' })
-  expect(result.current.turnstileResetKey).toBe(3)
-})
-
-it('submits a completed code when a delayed widget token arrives', async () => {
-  vi.stubEnv('NEXT_PUBLIC_TURNSTILE_SITE_KEY', 'test-site-key')
-  const { result } = renderHook(() => useLoginFlow())
-  act(() => result.current.setEmail('user@test.com'))
-  act(() => result.current.onTurnstileToken('send-token'))
-  await act(async () => { await result.current.sendCode() })
-
-  act(() => result.current.onCodeChange('123456'))
-  expect(fetchMock).toHaveBeenCalledTimes(1)
-  act(() => result.current.onTurnstileToken('delayed-verify-token'))
-  await waitFor(() => expect(requestBodyFor('/api/auth/verify-code')).toMatchObject({
-    code: '123456', turnstileToken: 'delayed-verify-token',
-  }))
-  expect(fetchMock).toHaveBeenCalledTimes(2)
-})
-
-it.each(['before', 'during'])('does not replay a code completed %s an offline interval', async (timing) => {
-  vi.stubEnv('NEXT_PUBLIC_TURNSTILE_SITE_KEY', 'test-site-key')
-  const { result, rerender } = renderHook(() => useLoginFlow())
-  act(() => result.current.setEmail('user@test.com'))
-  act(() => result.current.onTurnstileToken('send-token'))
-  await act(async () => { await result.current.sendCode() })
-
-  if (timing === 'before') typeCode(result, '123456')
-  mocks.isOnline = false
-  rerender()
-  if (timing === 'during') typeCode(result, '123456')
-  expect(fetchMock).toHaveBeenCalledTimes(1)
-
-  mocks.isOnline = true
-  rerender()
-  act(() => result.current.onTurnstileToken('fresh-verify-token'))
-  expect(fetchMock).toHaveBeenCalledTimes(1)
-  expect(result.current.codeDigits.join('')).toBe('123456')
-
-  await act(async () => { await result.current.verifyCode() })
-  expect(requestBodyFor('/api/auth/verify-code')).toMatchObject({
-    code: '123456', turnstileToken: 'fresh-verify-token',
-  })
-  expect(fetchMock).toHaveBeenCalledTimes(2)
-})
-
 describe('useLoginFlow send-code step', () => {
   it('rejects an invalid email through the real validator without hitting the network', async () => {
     const { result } = renderHook(() => useLoginFlow())
@@ -353,7 +256,7 @@ describe('useLoginFlow send-code step', () => {
 
     await advanceToCodeStep(result)
 
-    expect(requestBodyFor('/api/auth/send-code')).toEqual({ email: 'user@test.com', language: 'en' })
+    expect(requestBodyFor(fetchMock, '/api/auth/send-code')).toEqual({ email: 'user@test.com', language: 'en' })
     expect(result.current.step).toBe('code')
     expect(result.current.successMessage).toBe('auth.codeSent')
     expect(result.current.canResend).toBe(false)
@@ -387,7 +290,7 @@ describe('useLoginFlow verify-code success', () => {
     expect(mocks.push).toHaveBeenCalledExactlyOnceWith(destination)
     expect([...loginUrl.searchParams.keys()]).toEqual(['returnUrl'])
     expect(result.current.errorMessage).toBeNull()
-    expect(requestBodyFor('/api/auth/verify-code')).toMatchObject({ email: 'user@test.com' })
+    expect(requestBodyFor(fetchMock, '/api/auth/verify-code')).toMatchObject({ email: 'user@test.com' })
   })
 
   it('verifies the code, stores the session, and redirects to a safe returnUrl', async () => {
@@ -399,7 +302,7 @@ describe('useLoginFlow verify-code success', () => {
       await result.current.verifyCode('123456')
     })
 
-    expect(requestBodyFor('/api/auth/verify-code')).toEqual({
+    expect(requestBodyFor(fetchMock, '/api/auth/verify-code')).toEqual({
       email: 'user@test.com',
       code: '123456',
       language: 'en',
@@ -468,7 +371,7 @@ describe('useLoginFlow verify-code success', () => {
       await result.current.verifyCode('123456')
     })
 
-    expect(requestBodyFor('/api/auth/verify-code')).toMatchObject({ referralCode: 'friend-42' })
+    expect(requestBodyFor(fetchMock, '/api/auth/verify-code')).toMatchObject({ referralCode: 'friend-42' })
     expect(result.current.accountBack).toMatchObject({ wasReactivated: true })
     expect(mocks.push).not.toHaveBeenCalled()
     await act(async () => result.current.continueAccount())
@@ -482,7 +385,7 @@ describe('useLoginFlow verify-code success', () => {
     typeCode(result, '246810')
 
     await waitFor(() => expect(mocks.setAuth).toHaveBeenCalledWith(loginResponse))
-    expect(requestBodyFor('/api/auth/verify-code')).toMatchObject({ code: '246810' })
+    expect(requestBodyFor(fetchMock, '/api/auth/verify-code')).toMatchObject({ code: '246810' })
     expect(mocks.push).toHaveBeenCalledTimes(1)
   })
 })
@@ -921,7 +824,7 @@ describe('email-link attempt ownership', () => {
     act(() => result.current.onCodeChange('123456'))
     await act(async () => { await Promise.resolve() })
     expect(verificationCount()).toBe(1)
-    expect(requestBodyFor('/api/auth/verify-code').email === 'user@test.com').toBe(true)
+    expect(requestBodyFor(fetchMock, '/api/auth/verify-code').email === 'user@test.com').toBe(true)
     expect(mocks.push).toHaveBeenCalledExactlyOnceWith('/progress')
   })
 
@@ -942,7 +845,7 @@ describe('email-link attempt ownership', () => {
     expect(verificationCount()).toBe(0)
     act(() => result.current.onCodeChange('123457'))
     await waitFor(() => expect(verificationCount()).toBe(1))
-    expect(requestBodyFor('/api/auth/verify-code').code === '123457').toBe(true)
+    expect(requestBodyFor(fetchMock, '/api/auth/verify-code').code === '123457').toBe(true)
   })
 
   it('retains an offline link until connectivity permits its first completion', async () => {

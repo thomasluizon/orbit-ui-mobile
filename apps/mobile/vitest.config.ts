@@ -248,7 +248,7 @@ export default defineConfig({
         replacement: path.resolve(__dirname, './test-mocks/expo-iap.ts'),
       },
       {
-        find: /\.(png|jpg|jpeg|gif|webp)$/,
+        find: /^.+\.(png|jpg|jpeg|gif|webp)$/,
         replacement: path.resolve(__dirname, './test-mocks/file-asset.ts'),
       },
       {

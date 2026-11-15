@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import type { ReactNode, Ref } from 'react'
 
 export const AUTH_PAGE_PANEL_STYLES = `
 .orbit-auth-panel { display:flex; width:100%; min-width:0; flex-direction:column; gap:32px; padding:16px 8px; }
@@ -6,8 +6,8 @@ export const AUTH_PAGE_PANEL_STYLES = `
 @media (min-width:768px) { .orbit-auth-panel { max-width:420px; border-radius:var(--r-card); background:var(--bg-card); padding:32px; box-shadow:inset 0 0 0 1px var(--hairline-ghost); } }
 `
 
-export function AuthPagePanel({ children }: Readonly<{ children: ReactNode }>) {
-  return <div data-field-surface="responsive-card" className="orbit-auth-panel">
+export function AuthPagePanel({ ref, children }: Readonly<{ ref?: Ref<HTMLDivElement>; children: ReactNode }>) {
+  return <div ref={ref} data-field-surface="responsive-card" className="orbit-auth-panel">
     <style>{AUTH_PAGE_PANEL_STYLES}</style>
     {children}
   </div>
