@@ -1,5 +1,5 @@
 import React from 'react'
-import { Animated, View } from 'react-native'
+import { Animated, Platform, View } from 'react-native'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { setI18n } from 'react-i18next'
 import { authLocales, authScreenStates, createLoginScreenFixture, type AuthScreenState } from '@orbit/shared/__tests__/auth-screen-fixtures'
@@ -8,6 +8,7 @@ import { measureSafeArea, type GeometryHost } from '@/__tests__/support/safe-are
 import { testI18n } from '@/__tests__/support/i18n'
 import { LoginContent, type LoginCallback } from '@/components/auth/login-content'
 import { GuidedSignInContext } from '@/components/auth/guided-sign-in'
+import { Input } from '@/components/ui/input'
 import { __setWindowDimensions } from '@/test-mocks/react-native'
 
 const { act, create } = require('react-test-renderer')
@@ -244,13 +245,27 @@ describe.each(authLocales)('guided sign-in on Android in %s', (locale) => {
   })
 })
 
-describe('guided sign-in field contract on Android', () => {
+describe('guided sign-in field contract on Android and iPhone', () => {
   it.each([true, false])('keeps the name, the autocomplete value and the order of every field, guided %s', (guided) => {
     show('email', 'en', { guided })
+    const emailFields = tree!.root.findAll((node) => node.type === Input)
+    expect(emailFields.map((field) => [field.props.name, field.props.autoComplete, field.props.kind])).toEqual([['email', 'email', 'email']])
     expect(inputs().map((input) => [input.props.autoComplete, input.props.keyboardType, input.props.textContentType])).toEqual([['email', 'email-address', undefined]])
     close()
     show('code', 'en', { guided })
     expect(inputs().map((input) => [input.props.autoComplete, input.props.textContentType])).toEqual([['email-otp', undefined]])
+  })
+
+  it.each([true, false])('keeps the one-time-code content type of the code field on iPhone, guided %s', (guided) => {
+    const previous = Platform.OS
+    Object.defineProperty(Platform, 'OS', { configurable: true, value: 'ios' })
+    try {
+      show('code', 'en', { guided })
+      expect(inputs().map((input) => [input.props.autoComplete, input.props.textContentType])).toEqual([[undefined, 'oneTimeCode']])
+    } finally {
+      close()
+      Object.defineProperty(Platform, 'OS', { configurable: true, value: previous })
+    }
   })
 })
 
