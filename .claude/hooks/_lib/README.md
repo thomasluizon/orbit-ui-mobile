@@ -8,11 +8,15 @@ payload, call a `_lib` rule, `exit 2` + stderr on a block. Wired in
 Every shell guard in `PreToolUse` is registered on the `Bash|Monitor` matcher and on
 **PowerShell**, so each tool that runs a shell command receives the same checks. In Claude
 Code 2.1.325 the Monitor tool takes a shell command as `tool_input.command` and sends it through
-the permission check of the Bash tool. A Monitor that opens a WebSocket (`tool_input.ws`) has no
-command, and each guard allows it. `forbid-approval-prompt` is the one exception: it mirrors that
-shared check, so it is on `Bash|Monitor` and not on `PowerShell`. It is also registered on each
-tool in `PERSON_PROMPT_TOOLS`, which waits for the answer of a person. `test-hooks.mjs` fails when
-a guard on the Bash matcher does not run for the Monitor tool, or has no Monitor refusal test.
+the permission check of the Bash tool. Claude Code 2.1.325 also runs the hooks of a `Bash`
+matcher for a Monitor call that has a command, and sends them `tool_name: "Bash"`. That rule is
+internal to Claude Code, so the matcher names `Monitor` explicitly: each guard then gets
+`tool_name: "Monitor"` and the full Monitor input, and the guarantee does not depend on that rule.
+A Monitor that opens a WebSocket (`tool_input.ws`) has no command, and each guard allows it.
+`forbid-approval-prompt` is the one exception: it mirrors that shared check, so it is on
+`Bash|Monitor` and not on `PowerShell`. It is also registered on each tool in
+`PERSON_PROMPT_TOOLS`, which waits for the answer of a person. `test-hooks.mjs` fails when a guard
+on the Bash matcher is not also on the Monitor matcher, or has no Monitor refusal test.
 
 Deterministic checks live in ESLint, Roslyn, and `guards.yml`.
 Session hooks block commands or edits before they happen.

@@ -71,7 +71,8 @@ T("wiring: the scan is not vacuous", wired.size > 0 && onDisk.length > 0, true)
 const staleMatchers = settings.hooks.PreToolUse.filter((entry) => entry.hooks.some((hook) => hook.command.includes("forbid-stale-text.mjs"))).map((entry) => entry.matcher)
 T("wiring: stale text hook is registered once per matcher", staleMatchers.length, new Set(staleMatchers).size)
 // The Monitor tool runs its `tool_input.command` through the same permission check as the Bash tool, so every
-// shell guard runs for both. A plain `|` matcher names each tool exactly.
+// shell guard runs for both. Claude Code 2.1.325 also selects a `Bash` matcher for a Monitor call that has a command
+// and sends it `tool_name: "Bash"`. That rule is internal, so the matcher names `Monitor` and this check keeps it there.
 const hookFileOf = (hook) => /\.claude[/\\]hooks[/\\]([A-Za-z0-9._-]+\.mjs)/.exec(hook?.command ?? "")?.[1]
 const guardsOn = (entries, tool) => entries.filter((entry) => (entry.matcher ?? "").split("|").includes(tool)).flatMap((entry) => entry.hooks.map(hookFileOf))
 const missingFromMonitor = (entries) => guardsOn(entries, "Bash").filter((file) => !guardsOn(entries, "Monitor").includes(file))
