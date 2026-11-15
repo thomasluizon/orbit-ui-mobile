@@ -288,14 +288,22 @@ const describeStuckRun = (run, lastProgress, now) => {
   }
 }
 
+/** True only when the repository reads the commit and a remote branch holds it. */
+const remoteHolds = (commit, repoRoot) => {
+  if (!/^[0-9a-f]{40,64}$/.test(commit ?? "")) return false
+  const result = git(repoRoot, ["rev-list", "--count", commit, "--not", "--remotes"])
+  return result.status === 0 && result.stdout.trim() === "0"
+}
+
 /**
- * An entry of an earlier session names work to recover. That work is gone when its worktree no longer exists, and it
- * is carried when the worktree holds no uncommitted change and no unpushed commit. An unknown or unreadable worktree
- * proves neither, so its entry stays.
+ * An entry of an earlier session names work to recover. That work is carried when the worktree holds no uncommitted
+ * change and no unpushed commit. A removed worktree loses its uncommitted changes, but its commits stay on the branch
+ * in the repository, so its entry leaves only when the record counted no unpushed commit or a remote now holds the
+ * last commit. An unknown or unreadable worktree proves neither, so its entry stays.
  */
-const workIsSettled = (entry) => {
+const workIsSettled = (entry, repoRoot) => {
   if (typeof entry.worktree !== "string" || !entry.worktree) return false
-  if (!existsSync(entry.worktree)) return true
+  if (!existsSync(entry.worktree)) return entry.unpushedCommits === 0 || remoteHolds(entry.lastCommit, repoRoot)
   const work = readWorkState(entry.worktree)
   return work.uncommittedChanges === 0 && work.unpushedCommits === 0
 }
@@ -305,7 +313,7 @@ const entryKey = (entry) => JSON.stringify([entry.sessionId, entry.id])
  * The background runs that a turn end or a relay drain still waits on, and the stuck ones it stops waiting on.
  * `stuckBackgroundRuns` in the run state names each run of this session that is stuck now: a run that makes
  * progress again, or that ends, leaves it. The relay successor inherits the entries of an earlier session as work
- * to recover, and an inherited entry leaves when that work is gone or carried.
+ * to recover, and an inherited entry leaves when no commit or change of that work remains only on this machine.
  */
 export const readDrainBlockers = (sessionId, repoRoot = REPO_ROOT, now = Date.now()) => {
   const runs = readBackgroundRuns(sessionId, repoRoot)
@@ -318,7 +326,7 @@ export const readDrainBlockers = (sessionId, repoRoot = REPO_ROOT, now = Date.no
   const current = (entry) => entry.sessionId === sessionId && stuck.has(entry.id)
   // The git reads stay outside the run state lock, so a slow repository cannot hold another writer.
   const added = runs.filter((run) => stuck.has(run.id) && !recorded.some((entry) => current(entry) && entry.id === run.id)).map((run) => describeStuckRun(run, stuck.get(run.id), now))
-  const settled = new Set(recorded.filter((entry) => entry.sessionId !== sessionId && workIsSettled(entry)).map(entryKey))
+  const settled = new Set(recorded.filter((entry) => entry.sessionId !== sessionId && workIsSettled(entry, repoRoot)).map(entryKey))
   const stale = recorded.some((entry) => entry.sessionId === sessionId && !stuck.has(entry.id))
   if (added.length || stale || settled.size) {
     updateRunState((latest) => {

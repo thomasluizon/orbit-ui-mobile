@@ -254,18 +254,37 @@ const inheritedCases = () => {
     gone: join(dirname(repoRoot), "background-inherited-removed-worktree"),
   }
   mkdirSync(worktrees.unreadable, { recursive: true })
-  const entry = (id, path) => ({ id, type: "subagent", sessionId: "predecessor", worktree: path, branch: `fix/${id}`, lastCommit: null, lastProgressAt: "2026-01-05T10:00:00.000Z", stuckAt: "2026-01-05T10:30:00.000Z" })
-  const inherited = [...Object.entries(worktrees).map(([id, path]) => entry(id, path)), entry("unknown", null)]
+  // A removed worktree keeps its commits on the branch: `git worktree remove` deletes the directory, not the branch.
+  const removed = (name, afterCommit) => {
+    const path = worktree(name, (directory) => repo.git(["commit", "-q", "--allow-empty", "-m", `${name} work`], directory))
+    const lastCommit = repo.git(["rev-parse", "HEAD"], path).stdout.trim()
+    afterCommit(path)
+    repo.git(["worktree", "remove", "--force", path])
+    return { path, lastCommit }
+  }
+  const removedUnpushed = removed("removed-unpushed", () => {})
+  const removedPushedLater = removed("removed-pushed-later", pushed)
+  const entry = (id, path, recorded = {}) => ({ id, type: "subagent", sessionId: "predecessor", worktree: path, branch: `fix/${id}`, lastCommit: null, lastProgressAt: "2026-01-05T10:00:00.000Z", stuckAt: "2026-01-05T10:30:00.000Z", ...recorded })
+  const inherited = [
+    ...Object.entries(worktrees).map(([id, path]) => entry(id, path, id === "gone" ? { uncommittedChanges: 2, unpushedCommits: 0 } : {})),
+    entry("unknown", null),
+    entry("removed-unpushed", removedUnpushed.path, { lastCommit: removedUnpushed.lastCommit, uncommittedChanges: 0, unpushedCommits: 1 }),
+    entry("removed-pushed-later", removedPushedLater.path, { lastCommit: removedPushedLater.lastCommit, uncommittedChanges: 0, unpushedCommits: 1 }),
+  ]
   writeRunState({ sessionId: "successor", sleep: true, remaining: [], stuckBackgroundRuns: inherited }, repoRoot)
   T("background-inherited: the fixture holds a gone worktree and a clean pushed worktree", !existsSync(worktrees.gone) && repo.git(["status", "--porcelain"], worktrees.carried).stdout === "" &&
     repo.git(["rev-list", "--count", "@{upstream}..HEAD"], worktrees.carried).stdout.trim() === "0")
+  T("background-inherited: the fixture removed two worktrees, and the branch of one still holds a commit that no remote holds",
+    !existsSync(removedUnpushed.path) && !existsSync(removedPushedLater.path) && repo.git(["rev-list", "--count", "fix/removed-unpushed", "--not", "--remotes"]).stdout.trim() === "1")
   const drain = readDrainBlockers("successor", repoRoot, Date.parse("2026-01-05T12:00:00.000Z"))
   const kept = (readRunState(repoRoot).stuckBackgroundRuns ?? []).map((run) => run.id)
-  T("background-inherited: an entry whose worktree no longer exists leaves", !kept.includes("gone"), JSON.stringify(kept))
+  T("background-inherited: an entry whose worktree no longer exists and whose record counted no unpushed commit leaves", !kept.includes("gone"), JSON.stringify(kept))
   T("background-inherited: an entry whose worktree is clean and holds nothing unpushed leaves, because its work is carried", !kept.includes("carried"), JSON.stringify(kept))
+  T("background-inherited: an entry whose removed worktree left its commit on the branch stays", kept.includes("removed-unpushed"), JSON.stringify(kept))
+  T("background-inherited: an entry whose removed worktree left a commit that a remote now holds leaves", !kept.includes("removed-pushed-later"), JSON.stringify(kept))
   T("background-inherited: every other entry stays: uncommitted changes, an unpushed commit, an unreadable worktree, an unknown worktree",
-    kept.join() === "uncommitted,unpushed,unreadable,unknown", JSON.stringify(kept))
+    kept.join() === "uncommitted,unpushed,unreadable,unknown,removed-unpushed", JSON.stringify(kept))
   T("background-inherited: the kept entries are unchanged", JSON.stringify(readRunState(repoRoot).stuckBackgroundRuns) === JSON.stringify(inherited.filter((run) => kept.includes(run.id))))
   T("background-inherited: the drain of the successor waits on none of them", drain.waiting.length === 0 && drain.stuck.length === 0, JSON.stringify(drain))
-  T("background-inherited: a run state of another session is not changed", readDrainBlockers("other", repoRoot).stuck.length === 0 && readRunState(repoRoot).stuckBackgroundRuns.length === 4)
+  T("background-inherited: a run state of another session is not changed", readDrainBlockers("other", repoRoot).stuck.length === 0 && readRunState(repoRoot).stuckBackgroundRuns.length === 5)
 }
