@@ -148,13 +148,15 @@ jobs:
             -configuration Release -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' \
             -derivedDataPath "$RUNNER_TEMP/orbit-ios-build" ARCHS=arm64 \
             CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO build
-      # A key is written once, so only a passing main compile saves it; a partial entry would stay until the inputs change.
+      # A key is written once, so a passing main compile saves the input key. A failed or timed-out main compile saves
+      # a run-scoped partial entry instead: the restore step finds it by prefix, so the next attempt is not cold, and
+      # the input key stays free for the passing compile. ccache checksums each entry.
       - name: Save compiler outputs
-        if: ${{ steps.compile.outcome == 'success' && github.ref == 'refs/heads/main' && steps.compiler-cache.outputs.cache-hit != 'true' }}
+        if: ${{ always() && steps.compile.outcome != 'skipped' && github.ref == 'refs/heads/main' && steps.compiler-cache.outputs.cache-hit != 'true' }}
         uses: actions/cache/save@v6
         with:
           path: ${{ env.CCACHE_DIR }}
-          key: ${{ steps.compiler-cache.outputs.cache-primary-key }}
+          key: ${{ steps.compile.outcome == 'success' && steps.compiler-cache.outputs.cache-primary-key || format('{0}-partial-{1}-{2}', steps.compiler-cache.outputs.cache-primary-key, github.run_id, github.run_attempt) }}
       - name: Report compiler cache statistics
         if: ${{ !cancelled() }}
         run: |

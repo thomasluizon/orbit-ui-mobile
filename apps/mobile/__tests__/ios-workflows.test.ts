@@ -120,8 +120,12 @@ describe('iOS build and release boundaries', () => {
     expect(compileId).toBeTypeOf('string')
     const saveIndex = steps.findIndex((step) => step.uses === 'actions/cache/save@v6')
     expect(saveIndex).toBeGreaterThan(compileIndex)
-    expect(steps[saveIndex]?.if).toBe(`\${{ steps.${compileId}.outcome == 'success' && github.ref == 'refs/heads/main' && steps.${cache.id}.outputs.cache-hit != 'true' }}`)
-    expect(steps[saveIndex]?.with).toEqual({ path: cache.with?.path, key: `\${{ steps.${cache.id}.outputs.cache-primary-key }}` })
+    expect(steps[saveIndex]?.if).toBe(`\${{ always() && steps.${compileId}.outcome != 'skipped' && github.ref == 'refs/heads/main' && steps.${cache.id}.outputs.cache-hit != 'true' }}`)
+    const primaryKey = `steps.${cache.id}.outputs.cache-primary-key`
+    expect(steps[saveIndex]?.with).toEqual({
+      path: cache.with?.path,
+      key: `\${{ steps.${compileId}.outcome == 'success' && ${primaryKey} || format('{0}-partial-{1}-{2}', ${primaryKey}, github.run_id, github.run_attempt) }}`,
+    })
     expect(steps.some((step) => step.run?.includes('ccache --zero-stats'))).toBe(true)
     expect(steps.some((step) => step.run?.includes('ccache --show-stats'))).toBe(true)
     expect(workflow.on.push?.branches).toEqual(['main'])

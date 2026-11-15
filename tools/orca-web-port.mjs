@@ -3,17 +3,22 @@ import { spawn, spawnSync } from "node:child_process"
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { basename, dirname, join, resolve } from "node:path"
 import { createRequire } from "node:module"
+import { fileURLToPath } from "node:url"
 
 const DEFAULT_PORT = 3000
+/** The API base the web app falls back to when nothing sets API_BASE (apps/web/lib/server-fetch.ts). */
+const DEFAULT_API_BASE = "http://localhost:5000"
 const PORT_START = 3100
 const PORT_COUNT = 1000
 const MARKER_RELATIVE_PATH = join(".orca", "web-port")
-const USAGE = `usage: orca-web-port.mjs [--setup | --derive --name <worktree-name> | --next-dev]
+const USAGE = `usage: orca-web-port.mjs [--setup | --derive --name <worktree-name> | --next-dev | --api-base]
 
   Reports the assigned web port for this checkout.
   --setup                    assign and persist this linked worktree's port
   --derive --name <name>     print the deterministic port for a worktree name
   --next-dev                 start Next dev on this checkout's assigned port
+  --api-base                 print only the API_BASE that Next dev loads for apps/web,
+                             so no session reads the secret .env files themselves
   --help, -h                 print this usage and exit 0
 
 exit codes: 0 success, 1 no assignment or collision, 2 invalid usage, 3 setup error`
@@ -29,19 +34,20 @@ if (args.includes("--help") || args.includes("-h")) {
   process.exit(0)
 }
 
-const options = { setup: false, derive: false, nextDev: false, name: null }
+const options = { setup: false, derive: false, nextDev: false, apiBase: false, name: null }
 for (let index = 0; index < args.length; index++) {
   const arg = args[index]
   if (arg === "--setup") options.setup = true
   else if (arg === "--derive") options.derive = true
   else if (arg === "--next-dev") options.nextDev = true
+  else if (arg === "--api-base") options.apiBase = true
   else if (arg === "--name") {
     options.name = args[++index]
     if (!options.name) fail("--name requires a worktree name", 2)
   } else fail(`unknown argument ${arg}\n\n${USAGE}`, 2)
 }
 
-if ([options.setup, options.derive, options.nextDev].filter(Boolean).length > 1) fail("--setup, --derive, and --next-dev are alternatives", 2)
+if ([options.setup, options.derive, options.nextDev, options.apiBase].filter(Boolean).length > 1) fail("--setup, --derive, --next-dev, and --api-base are alternatives", 2)
 if (options.name && !options.derive) fail("--name requires --derive", 2)
 if (options.derive && !options.name) fail("--derive requires --name", 2)
 
@@ -128,10 +134,23 @@ const nextDev = (repository) => {
   child.on("exit", (code, signal) => process.exit(code ?? (signal ? 1 : 0)))
 }
 
+/**
+ * Loads the env files of apps/web with the @next/env loader that Next dev uses, so the order of files and
+ * the shell variable that wins match the dev server. The loader comes from the next package of this tool's
+ * own checkout, because a checkout under test can have no node_modules.
+ */
+const apiBase = (repository) => {
+  const next = createRequire(fileURLToPath(new URL("../apps/web/package.json", import.meta.url))).resolve("next/dist/bin/next")
+  const { loadEnvConfig } = createRequire(next)("@next/env")
+  const { combinedEnv } = loadEnvConfig(join(repository.root, "apps", "web"), true)
+  console.log(combinedEnv.API_BASE ?? DEFAULT_API_BASE)
+}
+
 if (options.derive) console.log(derivePort(options.name))
 else {
   const repository = findRepository(process.cwd())
   if (options.setup) setup(repository)
+  else if (options.apiBase) apiBase(repository)
   else if (options.nextDev) nextDev(repository)
   else report(repository)
 }

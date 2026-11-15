@@ -131,7 +131,7 @@ no invocation flag overrides it. Pool sizing for an enabled Cloud lane is detail
                      left · re-run a CI job proven infra. NEVER write code, revert, force, merge.
                      A SALVAGED PR RE-ENTERS HERE and runs 7, 8 and 9 like any other.
  8  CLEAR PULLFROG   Pullfrog reviews only on request. The request goes out at the push, beside CI.
-                     LOCAL REVIEW before every push: review-and-audit.md rule 13
+                     LOCAL REVIEW before every push: review-and-audit.md rule 14
                      node tools/list-bot-threads.mjs --pr <n> --repo <key> -> threads[] AND reviewBody
                      then wait-ci --require-check pullfrog-approval in the background
                      FIX every finding that breaks behaviour, security or data integrity
@@ -355,7 +355,7 @@ The ticket is the prompt (D2): quoted verbatim into the worker prompt, never par
 | `AMBIGUOUS_REPO` | two `repo:*` labels. `repo:both` does not exist (D4) |
 | `CLOSED` | already Done, Canceled or Duplicate |
 | `NOT_REPRODUCED` | the body says NOT REPRODUCED, asks for a device or emulator repro, or makes obtaining one the first Scope item. ORB-128 and ORB-208 are both Android runtime bugs whose competing hypotheses only a device can tell apart |
-| `NOT_CODE_WORK` | the body says no code in any repo, Ops-only, or HUMAN-ONLY. ORB-27, ORB-28, ORB-83 |
+| `NOT_CODE_WORK` | the body says no code in any repo, Ops-only, or HUMAN-ONLY. ORB-27, ORB-28, ORB-83. A ticket whose Scope starts with the coordinator marker of `_shared/audit-to-tickets.md` §2 is yours: change its `thomas-brain` or vault file by hand |
 | `MULTI_PR` | the body scopes itself to several pull requests, which breaks D4 before the harness sees it. ORB-25, ORB-26 |
 | `NEEDS_CONVERSATION` | **`--sleep` only.** The ticket can be executed headlessly, but not CORRECTLY without asking first: a human grant in its acceptance criteria, a body that contradicts itself about which tool is current, a choice left to the implementer, or a product/brand/copy/price call the repository cannot supply. the owner is asleep, so it defers WITH its open questions printed. ORB-30 (#36) |
 
@@ -939,7 +939,7 @@ console settings `review.mode` `none` and `review.re-review` `false` stop the re
 push. The review runs beside CI, so a round costs the slower of the two. The merge bar does not
 change: green checks, an approval at the exact head, zero unresolved threads and `behind_by=0`.
 
-**Run the local review gate, `.claude/playbooks/review-and-audit.md` rule 13, before every push of a
+**Run the local review gate, `.claude/playbooks/review-and-audit.md` rule 14, before every push of a
 pull request head and before you ask for the review of a head that a worker pushed.** That gate is
 what keeps a head that fails CI, or that carries a finding the reviewer will open, from costing a
 review round.

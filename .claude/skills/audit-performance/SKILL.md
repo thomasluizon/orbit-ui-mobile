@@ -35,20 +35,22 @@ and the React/Next.js + TanStack Query render-and-cache canon, specialized to Or
 single WHY-with-URL the comment policy allows.
 
 The finder/skeptic agents remain code-read-only. The calling session collects production
-statistics through the read-only Supabase connector and passes a normalized measurement
+statistics through the read-only Render Postgres query tool and passes a normalized measurement
 into the workflow. No finder receives database credentials or a write-capable tool.
 
 ---
 
 ## Phase 1: Measure production before reading code
 
-Use the read-only Supabase connector. Resolve the live Orbit project from the real
-`list_projects` response. Before reading any field from the statistics views, query
-`information_schema.columns` and retain the complete selected key/type set for the pull
-request evidence. Required sources are:
+Use the read-only Render Postgres query tool (`mcp__render__query_render_postgres`, the tool
+`/investigate` uses). Select the Orbit workspace as `/investigate` does, then the production
+database that `render_postgres.production` names in `orbit-api/infra/production.tf`. Find the
+schema that holds `pg_stat_statements` through `pg_extension` and `pg_namespace`; never assume
+it. Before reading any field from the statistics views, query `information_schema.columns` and
+retain the complete selected key/type set for the pull request evidence. Required sources are:
 
-- `extensions.pg_stat_statements`: `userid`, `dbid`, `queryid`, `query`, `calls`, `rows`.
-- `extensions.pg_stat_statements_info`: `stats_reset`.
+- `pg_stat_statements`: `userid`, `dbid`, `queryid`, `query`, `calls`, `rows`.
+- `pg_stat_statements_info`: `stats_reset`.
 - `pg_catalog.pg_stat_user_tables`: `schemaname`, `relname`, `seq_scan`, `seq_tup_read`,
   `n_live_tup`.
 - `pg_catalog.pg_roles`: `oid`, `rolname`.
@@ -63,7 +65,7 @@ calls before code reading. Also read table scans and account skew:
 select s.queryid::text as query_id, r.rolname as role_name, s.calls, s.rows,
        s.query as query_shape,
        (regexp_match(s.query, 'FROM "([^"]+)"'))[1] as root_table
-from extensions.pg_stat_statements s
+from pg_stat_statements s
 join pg_catalog.pg_roles r on r.oid = s.userid
 where s.dbid = (select oid from pg_catalog.pg_database where datname = current_database())
   and s.calls > 0
@@ -208,7 +210,7 @@ sections, and re-invoke with a narrowed scope for any slice it missed.
 Run the shared pipeline in **`.claude/skills/_shared/audit-to-tickets.md`**: one GitHub
 ticket per verified risk, drafted to the 6.2 template, validated by
 re-read against the 6.2 template, presented behind ONE approval gate, then created via
-`gh issue create` and re-validated from the created issue.
+`node tools/create-ticket.mjs` and re-validated from the created issue.
 
 Performance-specific mapping into the 6.2 body:
 

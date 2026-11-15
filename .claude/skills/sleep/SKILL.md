@@ -145,7 +145,7 @@ pull request closed, and 6 means settled failing checks. Re-read delivery on 4 o
 failures on 6; none is successful CI. Exit 3 is the ceiling; 1 or 2 is a read or usage error.
   When work waits on CI, start `tools/wait-ci.mjs` in the background for those pull requests.
   Pullfrog reviews only on request. When work waits on review, first run the local review gate
-  (`.claude/playbooks/review-and-audit.md` rule 13) on a head that has no request. Then ask with
+  (`.claude/playbooks/review-and-audit.md` rule 14) on a head that has no request. Then ask with
   `tools/list-bot-threads.mjs --repo <key> --pr <n> --head <sha>`. It exits 4 with no verdict when a
   later push moves the head away: run it again with the new head after the local review gate passes
   on that head. Then start the waiter with `--require-check pullfrog-approval`.

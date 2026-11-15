@@ -69,7 +69,7 @@ Enter through `/orchestrate`: a headless Claude worker writes every code change,
 is configured and on the main account when none is (`orchestrate/SKILL.md` §5.4.1);
 the orchestrating session never edits code itself, except a review fix (`orchestrate/SKILL.md` step 8).
 A bare ticket stays local.
-Redesign queues use `/orchestrate --cloud --parallel` for UI, a small local pool for `api`/`landing` (D89).
+Redesign queues run as parallel local worktrees: Cloud stays disabled (D96) and nothing uses Codex (D149).
 D76 covers the thirteen redesign screens; groundwork runs autonomously. See `.claude/playbooks/redesign-screen.md`.
 Until shipping, D90 suspends D76 steps 1/3/7/8 and D88's hold; steps 2/4/5/6 stand. No human wait; screens merge like groundwork. D76/D88 then return.
 `design/canvas/`, authoritative `DESIGN.md` under D42, step 6 ui-skills sweep, Pullfrog and gates still apply.

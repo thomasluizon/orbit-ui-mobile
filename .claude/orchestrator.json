@@ -129,5 +129,9 @@
     "ui": ".",
     "api": "../orbit-api",
     "landing": "../orbit-landing-page"
+  },
+  "hygieneRoots": {
+    "workshop": "../thomas-brain",
+    "vault": "../brain"
   }
 }
