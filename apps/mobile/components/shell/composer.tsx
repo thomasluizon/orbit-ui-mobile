@@ -23,6 +23,7 @@ import { useAuthStore } from '@/stores/auth-store'
 import { getAccountGeneration, subscribeToAccountGeneration } from '@/lib/session-epoch'
 import { useUIStore } from '@/stores/ui-store'
 import { InsetFocusPressable } from '@/components/ui/inset-focus-pressable'
+import { PressScalePressable } from '@/components/motion/press-scale'
 import { ArrowUp, Clipboard as ClipboardIcon, FileText, Image, Mic, Plus, RefreshCw, Square, X } from '@/components/ui/icons'
 import { ThemedIconButton } from '@/components/ui/icon-button'
 import { OrbitMascot } from '@/components/ui/orbit-mascot'
@@ -108,7 +109,7 @@ function SuggestionStrip({
         contentContainerStyle={[styles.suggestions, { gap: layout.gap, paddingStart: layout.paddingStart }]}
       >
         {suggestions.map(suggestion => (
-          <InsetFocusPressable
+          <PressScalePressable
             key={suggestion.id}
             accessibilityRole="button"
             accessibilityLabel={suggestion.label}
@@ -133,7 +134,7 @@ function SuggestionStrip({
               {suggestion.icon ? <View style={[styles.suggestionIcon, { height: 20 * fontScale }]}>{suggestion.icon}</View> : null}
               <View style={[styles.suggestionIcon, { height: 20 * fontScale }]}><OrbitMascot size={16} color={tokens.fg2} /></View><Text style={[styles.suggestionText, { color: tokens.fg2 }]}>{suggestion.label}</Text>
             </View>
-          </InsetFocusPressable>
+          </PressScalePressable>
         ))}
       </ScrollView>
     </View>
