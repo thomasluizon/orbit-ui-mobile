@@ -16,6 +16,7 @@ import { PillButton } from '@/components/ui/pill-button'
 import { ActionRow } from '@/components/ui/action-row'
 import { RadioGroup } from '@/components/ui/radio-group'
 import { RadioRow } from '@/components/ui/select-check'
+import { useFlag } from '@/hooks/use-flag'
 
 export type { MoveParentOption } from '@orbit/shared/utils/move-parent'
 
@@ -63,6 +64,23 @@ function MoveInventoryStatus({ state, onRetry, t, selectionOnly }: Readonly<{
   </>
 }
 
+/** The heading of the move sheet. With the guided flows on, the title is the question and the subject is the line under it. */
+function useMoveParentHeading(t: MoveParentOverlayProps['t'], selectionOnly: boolean, movingHabitCount?: number) {
+  const asksOneQuestion = useFlag('orbit_guided_flows') && !selectionOnly
+  const question = t('habits.moveParent.destinations', { count: movingHabitCount ?? 1 })
+  const moveSubject = movingHabitCount === undefined ? t('habits.moveParent.title') : plural(t('habits.moveParent.titleMany', { count: movingHabitCount }), movingHabitCount)
+  const subject = selectionOnly ? t('habits.form.parentHabit') : moveSubject
+  return { asksOneQuestion, question, subject, title: asksOneQuestion ? question : subject }
+}
+
+function MoveSubjectLine({ visible, subject }: Readonly<{ visible: boolean; subject: string }>) {
+  return visible ? <p className="text-sm text-[var(--fg-3)]">{subject}</p> : null
+}
+
+function MoveQuestionLabel({ visible, question }: Readonly<{ visible: boolean; question: string }>) {
+  return visible ? <span data-field-question="" aria-hidden="true" className="text-sm font-medium text-[var(--fg-2)]">{question}</span> : null
+}
+
 export function MoveParentOverlay({
   selectionOnly = false,
   t,
@@ -84,8 +102,7 @@ export function MoveParentOverlay({
   const [searchQuery, setSearchQuery] = useState('')
   const hasPositionedRef = useRef(false)
   useEffect(() => { if (!open || inventoryState) hasPositionedRef.current = false }, [open, inventoryState])
-  const title = selectionOnly ? t('habits.form.parentHabit') : movingHabitCount === undefined ? t('habits.moveParent.title')
-    : plural(t('habits.moveParent.titleMany', { count: movingHabitCount }), movingHabitCount)
+  const { asksOneQuestion, question, subject, title } = useMoveParentHeading(t, selectionOnly, movingHabitCount)
   async function confirmMove() {
     if (await onConfirm() === true) {
       closeSheet(finishClose)
@@ -141,6 +158,7 @@ export function MoveParentOverlay({
             {t('habits.moveParent.description', { name: movingHabitTitle })}
           </p>
         ) : null}
+        <MoveSubjectLine visible={asksOneQuestion && movingHabitCount !== undefined} subject={subject} />
         {showSearch && (
           <Input
             label={t('habits.moveParent.searchQuestion')}
@@ -155,12 +173,10 @@ export function MoveParentOverlay({
         )}
 
         <div data-move-parent-destinations="" className="flex flex-col min-h-0" style={{ gap: 8 }}>
-        {treeRows.length > 0 && (
-          <span data-field-question="" aria-hidden="true" className="text-sm font-medium text-[var(--fg-2)]">{t('habits.moveParent.destinations', { count: movingHabitCount ?? 1 })}</span>
-        )}
+        <MoveQuestionLabel visible={treeRows.length > 0 && !asksOneQuestion} question={question} />
 
         <RadioGroup
-          aria-label={t('habits.moveParent.destinations', { count: movingHabitCount ?? 1 })}
+          aria-label={question}
           className="flex flex-col min-h-0"
         >
           {rootOption && (
