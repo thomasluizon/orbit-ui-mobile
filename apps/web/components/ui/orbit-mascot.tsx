@@ -20,16 +20,16 @@ import {
 } from '@orbit/shared/utils'
 import { useEffect, useId, useRef, useState, useSyncExternalStore } from 'react'
 import { useViewportMatch } from '@/hooks/use-viewport-match'
-import { useOrbitOverlayLayer } from '@/components/ui/orbit-overlay-layer'
+import { useOrbitOverlay } from '@/components/ui/orbit-overlay-layer'
 import { OrbitMascotDrawing } from '@/components/ui/orbit-mascot-drawing'
 
 /** The idle loop clock in milliseconds. It runs only while this mascot holds the one live slot, the
- *  person has not paused Orbit, no overlay covers its layer, the mascot is on screen and the tab is in
+ *  person has not paused Orbit, it sits in the overlay opened last (or on the page), the mascot is on screen and the tab is in
  *  the foreground. It never runs under reduced motion. An Orbit off screen, such as a hidden conversation
  *  entry, gives the slot to the next Orbit in view. */
 function useOrbitLoopClock(wantsLoop: boolean, lead: boolean, target: React.RefObject<SVGSVGElement | null>) {
   const [claim] = useState(() => Symbol('orbit-mascot'))
-  const layer = useOrbitOverlayLayer()
+  const overlay = useOrbitOverlay()
   const reducedMotion = useViewportMatch('(prefers-reduced-motion: reduce)')
   const candidate = wantsLoop && !reducedMotion
   const [onScreen, setOnScreen] = useState(true)
@@ -38,7 +38,7 @@ function useOrbitLoopClock(wantsLoop: boolean, lead: boolean, target: React.RefO
   const elapsed = useRef(0)
   useSyncExternalStore(subscribeOrbitLoop, getOrbitLoopVersion, getOrbitLoopVersion)
 
-  useEffect(() => (candidate && onScreen ? claimOrbitLiveSlot(claim, layer, lead) : undefined), [candidate, onScreen, claim, layer, lead])
+  useEffect(() => (candidate && onScreen ? claimOrbitLiveSlot(claim, overlay, lead) : undefined), [candidate, onScreen, claim, overlay, lead])
 
   useEffect(() => {
     const element = target.current

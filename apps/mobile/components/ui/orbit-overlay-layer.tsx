@@ -1,22 +1,24 @@
-import { createContext, useContext, useLayoutEffect, type ReactNode } from 'react'
-import { pauseOrbitLoopForOverlay } from '@orbit/shared/utils'
+import { createContext, useContext, useLayoutEffect, useState, type ReactNode } from 'react'
+import { pauseOrbitLoopForOverlay, type OrbitOverlay } from '@orbit/shared/utils'
 
-const OrbitOverlayLayerContext = createContext(0)
+const OrbitOverlayContext = createContext<OrbitOverlay>(null)
 
-/** The number of overlays around the caller: 0 on the page, 1 inside a sheet. */
-export function useOrbitOverlayLayer(): number {
-  return useContext(OrbitOverlayLayerContext)
+/** The overlay around the caller, or `null` on the page. */
+export function useOrbitOverlay(): OrbitOverlay {
+  return useContext(OrbitOverlayContext)
 }
 
-/** An overlay wraps its content in this layer: every Orbit under it pauses, and an Orbit inside it may run. */
+/** An overlay wraps its content in this layer: every Orbit outside it pauses, and an Orbit inside it may run. Only the
+ *  overlay opened last runs its Orbit, whether it opened inside another overlay or beside it. */
 export function OrbitOverlayLayer({ active = true, children }: Readonly<{ active?: boolean; children: ReactNode }>) {
-  const parentLayer = useOrbitOverlayLayer()
-  useLayoutEffect(() => (active ? pauseOrbitLoopForOverlay() : undefined), [active])
-  return <OrbitOverlayLayerContext.Provider value={active ? parentLayer + 1 : parentLayer}>{children}</OrbitOverlayLayerContext.Provider>
+  const parent = useOrbitOverlay()
+  const [overlay] = useState(() => Symbol('orbit-overlay'))
+  useLayoutEffect(() => (active ? pauseOrbitLoopForOverlay(overlay, parent) : undefined), [active, overlay, parent])
+  return <OrbitOverlayContext.Provider value={active ? overlay : parent}>{children}</OrbitOverlayContext.Provider>
 }
 
-/** Carries a layer through a portal. A portal renders its children under `PortalHost`, outside this context, so an
- *  overlay that portals its content gives the content its own layer again with this. */
-export function OrbitOverlayLayerPortal({ layer, children }: Readonly<{ layer: number; children: ReactNode }>) {
-  return <OrbitOverlayLayerContext.Provider value={layer}>{children}</OrbitOverlayLayerContext.Provider>
+/** Carries an overlay through a portal. A portal renders its children under `PortalHost`, outside this context, so an
+ *  overlay that portals its content gives the content its own overlay again with this. */
+export function OrbitOverlayLayerPortal({ overlay, children }: Readonly<{ overlay: OrbitOverlay; children: ReactNode }>) {
+  return <OrbitOverlayContext.Provider value={overlay}>{children}</OrbitOverlayContext.Provider>
 }

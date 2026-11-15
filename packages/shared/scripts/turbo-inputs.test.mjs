@@ -16,6 +16,7 @@ const consumers = [
     'apps/web/e2e/layout/interaction-fill-clearance.spec.ts',
     'apps/mobile/__tests__/components/ui/interaction-fill-clearance.test.tsx',
     'design/canvas/Orbit Widget Android.dc.html', `${tokenDirectory}/typography.css`,
+    'design/brand/orbit-mascot-feliz.svg', 'design/brand/orbit-lockup.svg', 'DESIGN.md', 'evals/astra/catalog.yaml',
     '.gitignore', 'apps/mobile/.gitignore', 'eslint-rules/no-comments.cjs', 'tsconfig.base.json',
   ] },
   { workspace: 'apps/desktop', name: '@orbit/desktop', inputs: [

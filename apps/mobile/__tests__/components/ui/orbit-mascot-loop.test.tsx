@@ -71,6 +71,11 @@ function loops(tree: TestTree) {
   return mascots(tree).map((node) => node.props['data-orbit-loop'])
 }
 
+/** Each mascot's loop state, keyed by its face. */
+function loopsByState(tree: TestTree) {
+  return Object.fromEntries(mascots(tree).map((node) => [node.props['data-orbit-state'], node.props['data-orbit-loop']]))
+}
+
 function moonOf(tree: TestTree) {
   const moon = tree.root.findAll((node) => typeof node.type === 'string' && node.props.fill === moonFill && node.props.cx !== undefined)[0]
   return `${String(moon?.props.cx)},${String(moon?.props.cy)}`
@@ -204,6 +209,77 @@ describe('Orbit idle loop on Android', () => {
     TestRenderer.act(() => tree.update(page(false)))
     advance(1000)
     expect(byState()).toEqual({ parado: 'running' })
+    tree.unmount()
+  })
+
+  it('runs only the Orbit in the overlay opened last when two overlays sit side by side', () => {
+    const view = (second: boolean) => <View>
+      <OrbitMascot size={96} />
+      <OrbitOverlayLayer><OrbitMascot size={48} state="feliz" /></OrbitOverlayLayer>
+      {second ? <OrbitOverlayLayer><OrbitMascot size={48} state="pensando" /></OrbitOverlayLayer> : null}
+    </View>
+    const tree = render(view(false))
+    expect(loopsByState(tree)).toEqual({ parado: 'still', feliz: 'running' })
+    TestRenderer.act(() => tree.update(view(true)))
+    expect(loopsByState(tree)).toEqual({ parado: 'still', feliz: 'still', pensando: 'running' })
+    TestRenderer.act(() => tree.update(view(false)))
+    expect(loopsByState(tree)).toEqual({ parado: 'still', feliz: 'running' })
+    tree.unmount()
+  })
+
+  it('keeps the top overlay Orbit running when an overlay under it closes out of order', () => {
+    const view = (nested: boolean, sibling: boolean) => <View>
+      <OrbitMascot size={96} />
+      <OrbitOverlayLayer>
+        <OrbitMascot size={48} state="feliz" />
+        {nested ? <OrbitOverlayLayer><OrbitMascot size={48} state="descansando" /></OrbitOverlayLayer> : null}
+      </OrbitOverlayLayer>
+      {sibling ? <OrbitOverlayLayer><OrbitMascot size={48} state="pensando" /></OrbitOverlayLayer> : null}
+    </View>
+    const tree = render(view(false, false))
+    TestRenderer.act(() => tree.update(view(true, false)))
+    expect(loopsByState(tree)).toEqual({ parado: 'still', feliz: 'still', descansando: 'running' })
+    TestRenderer.act(() => tree.update(view(true, true)))
+    expect(loopsByState(tree)).toEqual({ parado: 'still', feliz: 'still', descansando: 'still', pensando: 'running' })
+    TestRenderer.act(() => tree.update(view(false, true)))
+    expect(loopsByState(tree)).toEqual({ parado: 'still', feliz: 'still', pensando: 'running' })
+    TestRenderer.act(() => tree.update(view(false, false)))
+    expect(loopsByState(tree)).toEqual({ parado: 'still', feliz: 'running' })
+    tree.unmount()
+  })
+
+  it('runs the Orbit in the inner overlay when an overlay and an overlay inside it open together', () => {
+    const view = (open: boolean) => <View>
+      <OrbitMascot size={96} />
+      <OrbitOverlayLayer active={open}>
+        <OrbitMascot size={48} state="feliz" />
+        <OrbitOverlayLayer active={open}><OrbitMascot size={48} state="pensando" /></OrbitOverlayLayer>
+      </OrbitOverlayLayer>
+    </View>
+    const tree = render(view(false))
+    TestRenderer.act(() => tree.update(view(true)))
+    expect(loopsByState(tree)).toEqual({ parado: 'still', feliz: 'still', pensando: 'running' })
+    tree.unmount()
+    const opened = render(view(true))
+    expect(loopsByState(opened)).toEqual({ parado: 'still', feliz: 'still', pensando: 'running' })
+    opened.unmount()
+  })
+
+  it('runs the Orbit in the native dialog opened last when two dialogs sit side by side', () => {
+    const page = (second: boolean) => (
+      <OverlayHost>
+        <OrbitMascot size={96} />
+        <NativeDialog open title="First" onOpenChange={() => {}}><OrbitMascot size={96} state="feliz" /></NativeDialog>
+        <NativeDialog open={second} title="Second" onOpenChange={() => {}}><OrbitMascot size={96} state="pensando" /></NativeDialog>
+      </OverlayHost>
+    )
+    const tree = render(page(false))
+    expect(loopsByState(tree)).toEqual({ parado: 'still', feliz: 'running' })
+    TestRenderer.act(() => tree.update(page(true)))
+    expect(loopsByState(tree)).toEqual({ parado: 'still', feliz: 'still', pensando: 'running' })
+    TestRenderer.act(() => tree.update(page(false)))
+    advance(1000)
+    expect(loopsByState(tree)).toEqual({ parado: 'still', feliz: 'running' })
     tree.unmount()
   })
 
