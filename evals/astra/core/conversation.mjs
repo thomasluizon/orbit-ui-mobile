@@ -2,6 +2,7 @@ import { clientContextOf, openConversation, sendTurn } from './client-turn.mjs'
 import { answerQuestion, questionCards, questionOf } from './answers.mjs'
 import { imageBytes } from './corpus.mjs'
 import { detailFields, gradePreview, savedRecords } from './outcome.mjs'
+import { clearedFields } from './change-list.mjs'
 import { approvePendingOperation, publicApi } from '../fixtures/api.mjs'
 import { visibleAnswer } from '../visible-answer.mjs'
 import { safeFailureMessage } from '../credentials.mjs'
@@ -72,6 +73,7 @@ export async function runCase(vars, { send = sendTurn, api = publicApi(vars.cred
     ...(image && index === typed.length - 1 ? { image: { name: image, type: 'image/png', bytes: imageBytes(image) } } : {}) })
   let attempted = typedMessage(0)
   let waited = 0
+  let counted = 0
   let turn
   for (;;) {
     const sent = now()
@@ -80,7 +82,7 @@ export async function runCase(vars, { send = sendTurn, api = publicApi(vars.cred
     output.seconds = Number((waited / 1000).toFixed(1))
     if (turn.kind === 'failed') return { ...output, ...failure(turn, 'The chat turn') }
     output.turns++
-    const counted = output.modelCalls
+    counted = output.modelCalls
     output.modelCalls = counted === null || turn.trace?.modelCalls == null ? null : counted + turn.trace.modelCalls
     output.previews = turn.response.pendingOperations ?? []
     if (output.previews.length || expected.read) break
@@ -103,6 +105,9 @@ export async function runCase(vars, { send = sendTurn, api = publicApi(vars.cred
   output.asked = questionCards(turn.response).length > 0
   output.trace = turn.trace ? { state: 'available', requestId: turn.trace.requestId, responseRequestId: turn.responseRequestId,
     calls: turn.trace.calls, timing: turn.trace.timing } : null
+  // The fields that the held writes of the preview turn clear: the change list needs them to tell a field that the model
+  // clears from one that the server derives, and the evidence keeps them for an offline regrade without the trace.
+  output.cleared = clearedFields(turn.trace)
   try {
     output.answer = visibleAnswer(turn.response, vars.clientContext, vars.accountDate, vars.accountTimeZone)
   } catch (error) {
@@ -110,6 +115,9 @@ export async function runCase(vars, { send = sendTurn, api = publicApi(vars.cred
   }
   if (expected.read) return output
   const preview = gradePreview(output, vars)
+  // A preview turn without the trace that its grading needs adds no counted model calls, as a card turn without it adds
+  // none, so a later window that replaces this attempt keeps the cost of the run measured.
+  if (preview.metadata.unavailable) return Object.assign(output, { unavailable: true, error: preview.reason, modelCalls: counted })
   if (preview.metadata.graderLimit) output.graderLimit = true
   if (!preview.pass) return output
   if (resend) output.resend = await sendTurnAgain(turn, api)

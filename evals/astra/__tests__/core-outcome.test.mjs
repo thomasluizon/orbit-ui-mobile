@@ -1,11 +1,14 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { tsImport } from 'tsx/esm/api'
 import { coreCases, coreDescriptors } from '../core/corpus.mjs'
 import { runCase } from '../core/conversation.mjs'
-import { changeList, clearedFields } from '../core/change-list.mjs'
+import { changeList } from '../core/change-list.mjs'
 import { mergeRuns } from '../core/merge.mjs'
 import { gradePreview, matchesField, outcome } from '../core/outcome.mjs'
-import { summarize } from '../core/report.mjs'
+import { summarize, writeResults } from '../core/report.mjs'
 import { publicApi } from '../fixtures/api.mjs'
 import { captures } from './fixtures/core-streams.mjs'
 import { recordedApi, recordedStream, requestVars } from './fixtures/core-replay.mjs'
@@ -739,7 +742,7 @@ describe('an offer of the assistant in the preview', () => {
     const { output, verdict } = await scripted([finalOf('complete', 0), offeredTurn((item) => repeatReminder(item))], request,
       { traces: [null, offeredReminder] })
     expect(verdict).toMatchObject({ pass: true, reason: 'The saved state matches the approved changes.' })
-    expect(changeList(output.previews, clearedFields(output.trace)).changes.find((change) => change.target === captures.complete.children[0]))
+    expect(changeList(output.previews, output.cleared).changes.find((change) => change.target === captures.complete.children[0]))
       .toMatchObject({ fields: { title: 'Water - 1.18L' }, offered: { repeat_reminder: JSON.stringify(repeatValue) }, derived: { reminder_enabled: 'true' } })
   })
 
@@ -757,10 +760,70 @@ describe('an offer of the assistant in the preview', () => {
     expect(calls).toEqual([])
   })
 
+  // Producer: a revision of the held preview carries its edits as the JSON text edits_json (RevisePendingChangesTool.cs:38-39,
+  // :75), and a null edit of a clearable field clears it (ReviseClearField, PendingOperationRevisionService.cs:546-561). The
+  // trace keeps the revision with the status PendingConfirmation (ProcessUserChatCommand.Tools.cs:683-685, :735-755).
+  const revisionOf = (edits) => ({ id: 'call-revise', name: 'revise_pending_changes', arguments: {
+    pending_operation_id: '88888888-8888-4888-8888-888888888888', answer_question: false, remove_item_ids: null,
+    items: [{ item_id: captures.complete.children[0], edits_json: JSON.stringify(edits), remove_suggested_fields: null }] },
+  resultStatus: 'PendingConfirmation', result: null })
+
+  it.each([
+    ['the due time with a null edit', { due_time: null }, 'due_time', (item) => [storedRow(item, 'due_time', '08:00', null, 'time', null)]],
+    ['the month days with an empty array', { month_days: [] }, 'month_days', (item) => [storedRow(item, 'month_days', '5, 25', '(none)', 'text', [])]],
+  ])('fails a rename whose revision in the same turn also clears %s, which the preview marks stored, and approves nothing',
+    async (_name, edits, field, rows) => {
+      const trace = traceOf({})
+      trace.calls.push(revisionOf(edits))
+      const { verdict, calls } = await scripted([finalOf('complete', 0), offeredTurn(rows)], request, { traces: [null, trace] })
+      expect(verdict).toMatchObject({ pass: false, reason: `A update of the preview changes title, ${field} where the request changes title.` })
+      expect(calls).toEqual([])
+    })
+
   it('gives no evidence when the preview shows a stored row and the turn returns no trace, and approves nothing', async () => {
     const { verdict, calls } = await scripted([finalOf('complete', 0), offeredTurn((item) => repeatReminder(item))])
     expect(verdict).toMatchObject({ pass: false, metadata: { unavailable: true } })
     expect(calls).toEqual([])
+  })
+
+  // The measured run cost holds the spend of each window, so a later window that replaces the attempt keeps the model
+  // calls of its traced turns. The preview turn without a trace adds none, as a card turn without a trace adds none.
+  it('keeps the cost measured when a later window replaces a preview turn without a trace', async () => {
+    const asked = { requestId: '77777777-7777-4777-8777-777777777777', calls: [], timing: null, modelCalls: 2 }
+    const { output, verdict } = await scripted([finalOf('complete', 0), offeredTurn((item) => repeatReminder(item))], request,
+      { traces: [asked, null] })
+    expect(verdict).toMatchObject({ pass: false, metadata: { unavailable: true } })
+    expect(output).toMatchObject({ unavailable: true, modelCalls: 2 })
+    const descriptor = coreDescriptors().find(({ id }) => id === request.metadata.id)
+    const passed = promptfooResult(descriptor, { turns: 2, questionsBeforePreview: 1, previews: [{ id: 'preview', actionKey: 'deleteHabits', items: [] }],
+      modelCalls: 3, seconds: 2 }, { pass: true, reason: 'The saved state matches the approved changes.' })
+    const first = summarize([passed, passed, promptfooResult(descriptor, output, verdict)], [descriptor], build)
+    const later = summarize([passed, passed, passed], [descriptor], build)
+    const merged = mergeRuns([first, later], { asBaseline: true, runCostUsd: 0.0136, descriptors: [descriptor] })
+    expect(merged.cases[0]).toMatchObject({ passK: 'pass', modelCalls: [3, 3, 3], supersededModelCalls: [3, 3, 2] })
+    expect(merged.cost).toMatchObject({ modelCalls: 17, perModelCallUsd: 0.0008, status: 'pass' })
+    expect(merged.status).toBe('pass')
+  })
+
+  // The evidence of an attempt keeps the held previews so that an extended grader regrades them offline with gradePreview
+  // (astra-eval SKILL.md). The evidence keeps no tool arguments of the trace for that, so it keeps the cleared fields.
+  it.each([
+    ['the reminder flag that an offer derives', offeredReminder, (item) => repeatReminder(item),
+      { pass: true, reason: 'The held previews hold exactly the requested changes.' }],
+    ['a field that the model clears', traceOf({ clear_fields: ['due_time'] }), (item) => [storedRow(item, 'due_time', '08:00', null, 'time', null)],
+      { pass: false, reason: 'A update of the preview changes title, due_time where the request changes title.' }],
+  ])('regrades the held previews of the evidence offline as the run graded them, with %s', async (_name, trace, rows, expected) => {
+    const { output, vars, verdict } = await scripted([finalOf('complete', 0), offeredTurn(rows)], request, { traces: [null, trace] })
+    const target = mkdtempSync(join(tmpdir(), 'core-regrade-'))
+    try {
+      writeResults([{ testCase: { metadata: request.metadata, vars }, success: verdict.pass, response: { output },
+        gradingResult: { componentResults: [verdict] } }], target)
+      const { questionsBeforePreview, heldPreviews } = JSON.parse(readFileSync(join(target, `attempts/${request.metadata.id}-r1.json`), 'utf8'))
+      expect(gradePreview({ questionsBeforePreview, previews: heldPreviews.previews, cleared: heldPreviews.cleared },
+        { ...vars, accountDate: heldPreviews.accountDate, core: { ...vars.core, records: heldPreviews.records } })).toMatchObject(expected)
+    } finally {
+      rmSync(target, { recursive: true, force: true })
+    }
   })
 
   it('fails a rename whose preview shows a reminder flag that the model wrote, and approves nothing', async () => {

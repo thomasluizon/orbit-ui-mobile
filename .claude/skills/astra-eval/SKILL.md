@@ -24,8 +24,8 @@ pt-BR. Each case sends `POST /api/chat/stream` as a shipped client does (the sha
 change list of the held previews (kind, target records, changed fields), the questions that came before the preview,
 and the saved state after approval. An offer (`suggested` with a removal) and a field that the server derives are not
 requested changes: the change list keeps them apart, and the person approves the preview as shown. A `stored` field is
-derived unless a held write in the eval trace clears it (`clear_fields`, `clear_parent` or an empty array). It grades
-no tool name. `llm-rubric` grades only the text of a read answer.
+derived unless a held write in the eval trace clears it (`clear_fields`, `clear_parent`, an empty array, or a null edit
+in the `edits_json` of a held revision). It grades no tool name. `llm-rubric` grades only the text of a read answer.
 
 The gate is two runs from `evals/astra`, then one merge:
 
@@ -55,8 +55,9 @@ refuses a later window of the same build for it. Each kind clears only through `
 pull request; until then the gate of that build stays incomplete. Extend the grader before that rerun.
 
 - A preview limit (`The grader cannot classify a held preview`): `attempts/<case>-r<n>.json` keeps the held previews
-  as `heldPreviews`, so the extended grader regrades them offline with `gradePreview`. Record that verdict on the
-  work ticket; the merge does not take it.
+  as `heldPreviews`, with the fields that the held writes clear (`cleared`), so the extended grader regrades them
+  offline with `gradePreview({ questionsBeforePreview, previews, cleared })`. Record that verdict on the work ticket;
+  the merge does not take it.
 - A readback limit (`The grader cannot read back a saved ...`): the preview matched and nothing was approved, so no
   saved state exists to regrade. Only the rerun measures it.
 - A card limit (a same-title or list card that the grader cannot answer): the attempt ended at the card, before any

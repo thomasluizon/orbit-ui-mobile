@@ -463,8 +463,9 @@ The outcome grader (`core/outcome.mjs`) reads no tool name:
   record and its changed fields. It compares that list with the expected list of the situation. A field
   that the preview marks `suggested` with a removal is an offer of the assistant. A field marked `stored`
   is a change that the server derives, unless a held write in the eval trace clears it (`clear_fields`,
-  `clear_parent` or an empty array). The list keeps offers and derived changes apart from the requested
-  changes. A field that the request did not name and that is neither an offer nor derived fails the case.
+  `clear_parent`, an empty array, or a null edit in the `edits_json` of a held revision). The list keeps
+  offers and derived changes apart from the requested changes. A field that the request did not name and
+  that is neither an offer nor derived fails the case.
   A preview turn without the trace that shows a `stored` field gives no evidence.
 - It counts the questions that came before the preview, against the minimum and the maximum of the case.
 - When the preview matches, the eval approves it as the client does and reads the saved state back
@@ -528,7 +529,8 @@ pull request; until then the gate of that build stays incomplete. Extend the gra
 
 - A preview limit (`The grader cannot classify a held preview`): the private evidence of the attempt
   (`attempts/<case>-r<n>.json`, `heldPreviews`) keeps its held previews, with each record id replaced by
-  the name that the case gives the record. The extended grader regrades them offline with `gradePreview`;
+  the name that the case gives the record, and the fields that the held writes clear (`cleared`). The
+  extended grader regrades them offline with `gradePreview({ questionsBeforePreview, previews, cleared })`;
   record that verdict on the work ticket, because the merge does not take it.
 - A readback limit (`The grader cannot read back a saved ...`): the preview matched and nothing was
   approved, so no saved state exists to regrade. Only the rerun measures it.

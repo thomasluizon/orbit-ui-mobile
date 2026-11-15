@@ -337,7 +337,8 @@ describe('the report files', () => {
     expect(heldPreviews).toEqual({ accountDate: '2026-11-13', records: { water: 'water', walk: 'walk', first: 'water', second: 'walk' },
       previews: [{ id: 'id-1', actionKey: 'applyAccountChanges', items: [
         { itemId: '0/walk', entityId: 'walk', entityName: 'Walk', fields: [{ entityId: 'walk', entityName: 'Walk', field: 'title', valueType: 'text', oldValue: 'Walk', newValue: 'Walk 2' }] },
-        { itemId: '1/no-record', entityId: null, entityName: 'Read', fields: [{ entityId: null, entityName: 'Read', field: 'title', valueType: 'text', oldValue: null, newValue: 'Read 2' }] }] }] })
+        { itemId: '1/no-record', entityId: null, entityName: 'Read', fields: [{ entityId: null, entityName: 'Read', field: 'title', valueType: 'text', oldValue: null, newValue: 'Read 2' }] }] }],
+      cleared: null })
     expect(changeList(heldPreviews.previews).changes.map(({ kind, target: record, fields }) => ({ kind, record, fields }))).toEqual([
       { kind: 'update', record: 'walk', fields: { title: 'Walk 2' } }, { kind: 'create', record: null, fields: { title: 'Read 2' } }])
   })

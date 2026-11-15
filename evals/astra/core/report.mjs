@@ -1,6 +1,6 @@
 import { chmodSync, mkdirSync, renameSync, writeFileSync } from 'node:fs'
 import { attemptEvidence } from '../evidence.mjs'
-import { changeList, clearedFields, recordId } from './change-list.mjs'
+import { changeList, recordId } from './change-list.mjs'
 import { corpusDigest } from './corpus.mjs'
 
 const evidencePath = (caseId, repeat) => `attempts/${encodeURIComponent(caseId)}-r${repeat}.json`
@@ -51,11 +51,12 @@ const recordIdSource = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]
 const wholeRecordId = new RegExp(`^${recordIdSource}$`, 'iu')
 const recordIds = new RegExp(recordIdSource, 'giu')
 
-// The held previews of an attempt, kept so that an extended grader regrades the attempt offline with gradePreview, and
-// the records of the case under the same names. The evidence holds no record id: the id of a fixture record becomes
+// The held previews of an attempt, kept so that an extended grader regrades the attempt offline with gradePreview, the
+// records of the case under the same names, and the fields that the held writes clear (`cleared`, which gradePreview
+// reads in place of the trace). The evidence holds no record id: the id of a fixture record becomes
 // the name that the case gives it (`children[4]`, `walk`), the empty id of a row without a stored record becomes null
 // (`no-record` inside a longer text; the change list reads both as no record), and each other id becomes `id-<n>`.
-function heldPreviewsOf(previews, vars) {
+function heldPreviewsOf(previews, cleared, vars) {
   const names = new Map()
   for (const [name, value] of Object.entries(vars?.core?.records ?? {})) {
     for (const [index, id] of [value].flat().entries()) if (!names.has(id)) names.set(id, Array.isArray(value) ? `${name}[${index}]` : name)
@@ -73,7 +74,7 @@ function heldPreviewsOf(previews, vars) {
     if (Array.isArray(value)) return value.map(named)
     return value && typeof value === 'object' ? Object.fromEntries(Object.entries(value).map(([key, child]) => [key, named(child)])) : value
   }
-  return { accountDate: vars?.accountDate ?? null, records: named(vars?.core?.records ?? {}), previews: named(previews) }
+  return { accountDate: vars?.accountDate ?? null, records: named(vars?.core?.records ?? {}), previews: named(previews), cleared }
 }
 
 // Private evidence of each attempt for the triage of a failure: the sanitized tool calls and answer of the last turn,
@@ -86,8 +87,8 @@ export function writeResults(results, directory) {
   const attempts = attemptsOf(results).map(({ entry, attempt }) => {
     const output = entry.response?.output ?? {}
     const evidence = attemptEvidence(entry, { ...attempt,
-      heldChanges: changeList(output.previews, clearedFields(output.trace)).changes.map(({ kind, fields }) => ({ kind, fields })),
-      heldPreviews: output.previews?.length ? heldPreviewsOf(output.previews, entry.testCase.vars) : null,
+      heldChanges: changeList(output.previews, output.cleared ?? null).changes.map(({ kind, fields }) => ({ kind, fields })),
+      heldPreviews: output.previews?.length ? heldPreviewsOf(output.previews, output.cleared ?? null, entry.testCase.vars) : null,
       resend: output.resend ?? null })
     writePrivateJson(`${directory}/${evidencePath(attempt.caseId, attempt.repeat)}`, evidence)
     return Object.fromEntries(Object.keys(attempt).map((key) => [key, evidence[key]]))

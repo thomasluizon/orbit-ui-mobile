@@ -1,4 +1,4 @@
-import { changeList, clearedFields } from './change-list.mjs'
+import { changeList } from './change-list.mjs'
 import { dateOffset } from '../fixtures/reset.mjs'
 
 const verdict = (pass, reason, metadata = {}) => ({ pass, score: pass ? 1 : 0, reason, metadata })
@@ -115,7 +115,7 @@ export function gradePreview(output, vars) {
   if (!previews.length) return verdict(false, `No preview came after ${questions} question(s).`)
   if (questions < min) return verdict(false, 'The assistant held a change without the question that the request needs.')
   if (!withinRange(previews.length, expected.previews, 1)) return verdict(false, `The request is held in ${previews.length} previews.`)
-  const { changes, unclassified } = changeList(previews, clearedFields(output.trace))
+  const { changes, unclassified } = changeList(previews, output.cleared ?? null)
   if (unclassified.length) {
     return verdict(false, `The grader cannot classify a held preview: ${unclassified.join(', ')}.`, { graderLimit: true })
   }
