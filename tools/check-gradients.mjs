@@ -87,8 +87,11 @@ function isAllowedGradientLine(path, line) {
   return allowlist.get(path)?.gradientLines?.some((pattern) => pattern.test(line)) ?? false
 }
 
-/** A full rotation in a `transform: rotate()` function or a `rotate` property, in degrees, gradians, turns, or radians (2π). */
-const FULL_TURN = /\brotate[XYZ]?\(\s*-?(?:360deg|400grad|1turn|6\.28\d*rad)\s*\)|\brotate\s*:\s*-?(?:360deg|400grad|1turn|6\.28\d*rad)\b/
+/**
+ * A full rotation in a `transform: rotate()` function or a `rotate` property, in degrees, gradians, turns, or radians (2π).
+ * `hue-rotate()` turns a colour, not the element, so it does not count.
+ */
+const FULL_TURN = /(?<![\w-])rotate[XYZ]?\(\s*-?(?:360deg|400grad|1turn|6\.28\d*rad)\s*\)|(?<![\w-])rotate\s*:\s*-?(?:360deg|400grad|1turn|6\.28\d*rad)\b/
 const KEYFRAMES_START = /@keyframes\s+([\w-]+)\s*\{/g
 const SPIN_ANIMATION = /\banimation(?:-name)?\s*:[^;{}]*(?<![\w-])spin(?![\w-])/
 

@@ -115,6 +115,16 @@ export const cases = () => {
     { status: 0, stdout: /Gradient guard passed/ },
   )
 
+  const hueLoop = stageRepository("hue-rotation-loop", {
+    "apps/web/app/globals.css": "@keyframes hue-cycle { to { filter: hue-rotate(360deg); } }\n.tint { animation: hue-cycle 4s linear infinite; }\n",
+  })
+  check(
+    "check-gradients.mjs",
+    "accepts a hue rotation loop",
+    ["--root", hueLoop],
+    { status: 0, stdout: /Gradient guard passed/ },
+  )
+
   const timeGridFunctional = stageRepository("time-grid-functional", {
     "apps/web/components/calendar/calendar-time-grid.tsx":
       "export const pane = {\n  backgroundImage: 'linear-gradient(var(--bg-card), var(--bg-card))',\n}\nexport const lines =\n  'repeating-linear-gradient(to bottom, var(--hairline) 0, var(--hairline) 1px, transparent 1px, transparent ' +\n  '56px)'\n",
