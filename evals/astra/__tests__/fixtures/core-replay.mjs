@@ -5,7 +5,7 @@ const walkId = '55555555-5555-4555-8555-555555555555'
 const habit = (id, title) => ({ id, title, logs: [] })
 
 // The offline account of one recorded capture: the parent, its six recorded children in list order, and Walk.
-export function recordedAccount(name) {
+function recordedAccount(name) {
   const { children } = captures[name]
   return { records: { parent: parentId, children: [...children], walk: walkId },
     habits: [habit(parentId, 'Water'), ...children.map((id) => habit(id, 'Water - 710ml')), habit(walkId, 'Walk')] }

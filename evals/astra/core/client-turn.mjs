@@ -24,7 +24,7 @@ export const clientContextOf = (conversation) => buildChatClientContext({
 
 // useChatRequestPayload.buildChatFormData of apps/web and apps/mobile, field for field. A typed message is already the
 // last stored message when the form is built; a card answer is stored only after the server accepts it.
-export function buildChatForm(conversation, attempted) {
+function buildChatForm(conversation, attempted) {
   const form = new FormData()
   form.append('message', attempted.content)
   if (attempted.blockAnswer) form.append('blockAnswer', JSON.stringify(attempted.blockAnswer))

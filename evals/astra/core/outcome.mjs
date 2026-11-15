@@ -44,7 +44,7 @@ function fieldFailure(expected, change, accountDate) {
 // Compares the change list of the held previews with the expected list: each expected change is held over exactly its
 // records with exactly its fields, no record is in two changes, and nothing else is held. Returns the changes each
 // expected entry matched, so the saved state after approval is read back against the same records.
-export function compareChanges(expected, actual, { records, accountDate }, answered) {
+function compareChanges(expected, actual, { records, accountDate }, answered) {
   const targets = actual.map((change) => change.target).filter(Boolean)
   if (new Set(targets).size !== targets.length) return { failure: 'One record is in two changes of the preview.' }
   const remaining = [...actual]
