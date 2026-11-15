@@ -145,7 +145,7 @@ This amendment does not make row previews interactive or add a Markdown renderer
 
 ### Full-editor parent relationship
 
-The edit state of `Orbit Habit Create.dc.html` adds Parent habit / Hábito principal beside tags
+The full editor adds Parent habit / Hábito principal beside tags
 and goals inside More details. Its existing ListRow opens the existing radio sheet with exact
 No parent (top level) / Sem hábito principal (nível raiz), current selection and full destination
 names. Choosing and closing retain a local relationship draft. Only the outer Save persists it;
@@ -453,7 +453,7 @@ One amendment covers every active drawing. Each Astra glyph, each hollow Orbit m
 
 ## The create flow drawing
 
-`Orbit Criar.dc.html` is the granted drawing for the create flow on a phone. It replaces the superseded drawing in `superseded/`, and it takes that drawing's surface ids. It draws the one-question flow, the Orbit line, the quick options with one free path, the summary and the result dialog. Where it conflicts with a rule that protects people, `DESIGN.md` wins. Each row below is an amendment to the drawing.
+`Orbit Criar.dc.html` is the granted drawing for the create flow on a phone. It replaces the retired Habit Create drawing and takes that drawing's surface ids. It draws the one-question flow, the Orbit line, the quick options with one free path, the summary and the result dialog. Where it conflicts with a rule that protects people, `DESIGN.md` wins. Each row below is an amendment to the drawing.
 
 | The drawing draws | The rule that wins |
 |---|---|
