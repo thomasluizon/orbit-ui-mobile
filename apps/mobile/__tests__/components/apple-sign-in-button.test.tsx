@@ -76,11 +76,36 @@ describe('Apple sign-in controls', () => {
     TestRenderer.act(() => tree.unmount())
   })
 
+  it('blocks a busy iPhone action, for a tap and for VoiceOver, as the Android and web pills do', () => {
+    vi.stubEnv('EXPO_PUBLIC_APPLE_CLIENT_ID', 'client-id')
+    const onPress = vi.fn()
+    const tree = renderBesideGoogle({ disabled: false, loading: true, onPress })
+    TestRenderer.act(() => tree.root.findByType('NativeAppleButton').props.onPress())
+    TestRenderer.act(() => iPhoneAccessibilityElement(tree).props.onAccessibilityTap())
+    expect(onPress).not.toHaveBeenCalled()
+    expect(iPhoneAccessibilityElement(tree).props.accessibilityState).toEqual({ disabled: true, busy: true })
+    expect(StyleSheet.flatten(iPhoneAccessibilityElement(tree).props.style)).toMatchObject({ opacity: 0.4, pointerEvents: 'none' })
+    TestRenderer.act(() => tree.unmount())
+  })
+
+  it('lets VoiceOver read the title that Apple\'s iPhone control draws, not the app language', () => {
+    vi.stubEnv('EXPO_PUBLIC_APPLE_CLIENT_ID', 'client-id')
+    copy.words = { 'auth.signInWithApple': ptBR.auth.signInWithApple }
+    const tree = renderBesideGoogle({ disabled: false, onPress: vi.fn() })
+    const element = iPhoneAccessibilityElement(tree)
+    expect(element.props.accessibilityLabel, 'React Native names the element from the control title only when it sets no label').toBeUndefined()
+    expect(tree.root.findAll((node: { props: { accessibilityLabel?: string } }) => node.props.accessibilityLabel === ptBR.auth.signInWithApple)).toHaveLength(0)
+    const hidden = element.findAll((node: { props: { accessibilityElementsHidden?: boolean; importantForAccessibility?: string } }) =>
+      node.props.accessibilityElementsHidden === true || node.props.importantForAccessibility === 'no-hide-descendants')
+    expect(hidden, 'nothing hides the control title from the element name').toHaveLength(0)
+    TestRenderer.act(() => tree.unmount())
+  })
+
   it('gives VoiceOver one Apple button that reads busy while sign-in starts and starts it on activation', () => {
     vi.stubEnv('EXPO_PUBLIC_APPLE_CLIENT_ID', 'client-id')
     const onPress = vi.fn()
     let tree = renderBesideGoogle({ disabled: true, loading: true, onPress })
-    expect(iPhoneAccessibilityElement(tree).props).toMatchObject({ accessibilityRole: 'button', accessibilityLabel: 'auth.signInWithApple', accessibilityState: { disabled: true, busy: true } })
+    expect(iPhoneAccessibilityElement(tree).props).toMatchObject({ accessibilityRole: 'button', accessibilityState: { disabled: true, busy: true } })
     TestRenderer.act(() => tree.unmount())
     tree = renderBesideGoogle({ disabled: false, onPress })
     expect(iPhoneAccessibilityElement(tree).props.accessibilityState).toEqual({ disabled: false, busy: false })

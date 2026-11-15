@@ -7,17 +7,21 @@ import { useAppTheme } from '@/lib/use-app-theme'
 import { PillButton } from '@/components/ui/pill-button'
 import { AppleSignInLogo } from './apple-sign-in-logo'
 
-/** On iOS the wrapper is the accessibility element, so VoiceOver reads the busy and disabled state that Apple's system control cannot carry. */
+/**
+ * On iOS the wrapper is the accessibility element, so VoiceOver reads the busy and disabled state that Apple's system control cannot carry.
+ * It sets no label: React Native then names it from the control's own title, which follows the iPhone language, so the spoken name matches the visible words.
+ */
 export function AppleSignInButton({ disabled, loading, onPress }: Readonly<{
   disabled: boolean; loading: boolean; onPress: () => void
 }>) {
   const { t } = useTranslation()
   const { currentTheme } = useAppTheme()
   if (!isAppleAuthConfigured()) return null
-  const press = () => { if (!disabled) onPress() }
-  if (Platform.OS === 'ios') return <View accessible accessibilityRole="button" accessibilityLabel={t('auth.signInWithApple')}
-    accessibilityState={{ disabled, busy: loading }} onAccessibilityTap={press}
-    style={{ width: '100%', opacity: disabled ? 0.4 : 1, pointerEvents: disabled ? 'none' : 'auto' }}>
+  const blocked = disabled || loading
+  const press = () => { if (!blocked) onPress() }
+  if (Platform.OS === 'ios') return <View accessible accessibilityRole="button"
+    accessibilityState={{ disabled: blocked, busy: loading }} onAccessibilityTap={press}
+    style={{ width: '100%', opacity: blocked ? 0.4 : 1, pointerEvents: blocked ? 'none' : 'auto' }}>
     <AppleAuthenticationButton buttonType={AppleAuthenticationButtonType.CONTINUE} cornerRadius={SIGN_IN_BUTTON_HEIGHT / 2}
       buttonStyle={currentTheme === 'dark' ? AppleAuthenticationButtonStyle.WHITE : AppleAuthenticationButtonStyle.BLACK}
       onPress={press} style={{ width: '100%', height: SIGN_IN_BUTTON_HEIGHT }} />
