@@ -18,14 +18,19 @@ beforeEach(() => {
   useAuthStore.getState().setAuth({ userId: 'account-a', name: 'Alex', email: 'alex@example.com' })
 })
 
-function mount(profile: ReturnType<typeof createMockProfile>, patchProfile = vi.fn()) {
+function mount(profile: ReturnType<typeof createMockProfile>) {
   const queryClient = new QueryClient({ defaultOptions: { mutations: { retry: false }, queries: { retry: false } } })
   const wrapper = ({ children }: { children: React.ReactNode }) => (
     <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
   )
+  const patchProfile = vi.fn()
   const rendered = renderHook(() => {
-    useOrbitMotionSync(profile)
-    return useMascotMotionSwitch(profile, patchProfile)
+    const [current, setCurrent] = React.useState(profile)
+    useOrbitMotionSync(current)
+    return useMascotMotionSwitch(current, (patch) => {
+      patchProfile(patch)
+      setCurrent((previous) => ({ ...previous, ...patch }))
+    })
   }, { wrapper })
   return { ...rendered, patchProfile }
 }
@@ -49,20 +54,31 @@ describe('the Orbit em movimento switch on web', () => {
     release()
   })
 
-  it('applies the change at once and sends one write', async () => {
+  it('applies the change at once, stops the loop and sends one write', async () => {
     mocks.updateMascotMotion.mockReturnValue(new Promise(() => {}))
+    const claim = Symbol('claim')
+    const release = claimOrbitLiveSlot(claim)
     const { result, patchProfile } = mount(createMockProfile({ mascotMotionEnabled: true }))
+    expect(mayOrbitRunLoop(claim)).toBe(true)
     act(() => result.current.toggle())
     expect(patchProfile).toHaveBeenCalledWith({ mascotMotionEnabled: false })
-    await waitFor(() => expect(result.current.pending).toBe(true))
-    expect(mocks.updateMascotMotion).toHaveBeenCalledTimes(1)
+    expect(result.current.enabled).toBe(false)
+    expect(mayOrbitRunLoop(claim)).toBe(false)
+    await waitFor(() => expect(mocks.updateMascotMotion).toHaveBeenCalledTimes(1))
     expect(mocks.updateMascotMotion.mock.calls[0]![0]).toEqual({ enabled: false })
+    release()
   })
 
-  it('restores the previous value when the write fails', async () => {
+  it('restores the previous value and the loop when the write fails', async () => {
     mocks.updateMascotMotion.mockRejectedValue(new Error('offline'))
+    const claim = Symbol('claim')
+    const release = claimOrbitLiveSlot(claim)
     const { result, patchProfile } = mount(createMockProfile({ mascotMotionEnabled: true }))
     act(() => result.current.toggle())
+    expect(mayOrbitRunLoop(claim)).toBe(false)
     await waitFor(() => expect(patchProfile).toHaveBeenLastCalledWith({ mascotMotionEnabled: true }))
+    expect(result.current.enabled).toBe(true)
+    expect(mayOrbitRunLoop(claim)).toBe(true)
+    release()
   })
 })

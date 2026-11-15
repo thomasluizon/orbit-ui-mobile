@@ -10,6 +10,7 @@ import {
   ORBIT_MASCOT_FACES,
   ORBIT_MASCOT_LIVE_SIZES,
   ORBIT_MASCOT_SMALL_SIZES,
+  ORBIT_MASCOT_VIEW_BOX,
   ORBIT_SMALL_FACE_BOX_RATIO,
   ORBIT_SMALL_FACES,
   isOrbitMascotSmallSize,
@@ -26,6 +27,12 @@ const pathsOf = (svg: string, fill: string) =>
 const strokesOf = (svg: string) => [...svg.matchAll(/<path fill="none" stroke="[^"]+" stroke-width="17" stroke-linecap="round" d="([^"]+)"\/>/g)].map((match) => match[1])
 
 const EYE_FILL = 'var(--bg, #09090B)'
+
+/** The x of every point in an eye path: the path holds only absolute M, L, C, Q and Z commands, so its numbers come in x, y pairs. */
+function eyeXs(d: string): number[] {
+  const numbers = (d.match(/-?\d+(?:\.\d+)?/g) ?? []).map(Number)
+  return numbers.filter((_value, index) => index % 2 === 0)
+}
 
 describe('mascot geometry matches the design sources', () => {
   it.each([
@@ -56,8 +63,13 @@ describe('mascot geometry matches the design sources', () => {
     }
   })
 
-  it('draws each eye 22 units wide in a box 420 wide, so at 48 it is above the 2px floor', () => {
-    expect((22 / 420) * 48).toBeGreaterThan(2)
+  it.each(Object.keys(ORBIT_MASCOT_FACES) as (keyof typeof ORBIT_MASCOT_FACES)[])('draws each %s eye at least 2px wide at 48, measured from its path', (state) => {
+    const boxWidth = Number(ORBIT_MASCOT_VIEW_BOX.split(' ')[2])
+    for (const eye of ORBIT_MASCOT_FACES[state].eyes) {
+      const xs = eyeXs(eye.d)
+      const stroke = eye.kind === 'stroke' ? eye.width : 0
+      expect(((Math.max(...xs) - Math.min(...xs) + stroke) / boxWidth) * 48, `${state} ${eye.d}`).toBeGreaterThanOrEqual(2)
+    }
   })
 })
 
