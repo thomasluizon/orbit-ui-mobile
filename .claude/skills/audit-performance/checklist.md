@@ -28,8 +28,8 @@ render-thrash patterns react-doctor's perf rules already fail on.
 
 ## 0. Production measurement, before code reading
 
-- [ ] Read `extensions.pg_stat_statements` and `extensions.pg_stat_statements_info` only
-  after confirming their complete live column/type shape. Rank the `postgres` role by rows
+- [ ] Read `pg_stat_statements` and `pg_stat_statements_info` only
+  after confirming their schema and complete live column/type shape. Rank the application role by rows
   and calls. Keep the normalized query text and query ID so each statement can be mapped to
   its LINQ or EF source.
 - [ ] Read `pg_stat_user_tables` for `seq_scan`, `seq_tup_read`, and live-row counts. A hot

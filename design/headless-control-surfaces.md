@@ -85,7 +85,7 @@ Re-derive the consumed interfaces from the installed packages:
   unavailable item before the primitive can commit.
 - `@radix-ui/react-toast/dist/index.js`, `ToastProvider`, `ToastAnnounce` and `ToastImpl`:
   `announcerContainer` controls the announcement portal, and `onEscapeKeyDown` precedes the
-  primitive close callback. `dist/index.d.ts` declares the container as an element or document
+  primitive close callback. `@radix-ui/react-toast/dist/index.d.ts` declares the container as an element or document
   fragment. Escape from an unrelated control also reaches the primitive's dismissal listener.
 - `@radix-ui/react-select/dist/index.js`, `SelectPopperPosition`: the complete runtime property
   mapping is content transform origin to Popper transform origin, content available width and

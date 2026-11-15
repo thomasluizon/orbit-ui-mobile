@@ -26,7 +26,7 @@ Return, per proposed surface:
    no screenshot requirement.
 5. **System gaps**: anything the ask needs that DESIGN.md lacks (a token, a pattern, a
    component). NEVER improvise an addition: name the gap, its role, and why the
-   current system cannot do the job, as a question for the owner (core.md rule 5).
+   current system cannot do the job, as a question for the owner (core.md rule 6).
 
 Hard rule: if DESIGN.md is mid-rewrite (the #539 ticket 0), say which version you read
 and flag tickets that should wait for the new spec.

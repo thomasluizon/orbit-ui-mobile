@@ -11,7 +11,7 @@ Every concrete text control and input-producing primitive or wrapper in the web 
 | Standard Input, form-input, AppTextInput, BottomSheetAppTextInput, goal FieldWell | 16 | Granted design-system Input; minimum height 54. Busca, move-parent, emoji, tag, goal and time-zone searches inherit this family. Tag and goal search keep their keyboard-aware native wrapper with exact Input padding and minimum height. |
 | Composer | 8 | The #1607 amendment in `design/canvas/README.md` retains pill padding 4 and input padding 8. Text starts at 12 in conversation, or 4 plus the measured glyph-and-name entry width plus 8 on compact Hoje and habit detail. Entry and trailing controls keep the 48 target minimum. Native positioned placeholder and measurement text use logical start/end 8. |
 | Sentence / multiline Input | 16 | Granted Habit Create sentence field and design-system multiline Input. Habit phrase overlays match the textarea/TextInput padding. |
-| Other inline add, template name, tag editor, custom reminder, detail quantity, chat record filter and breakdown edit | 12 | Granted Habit Create, Habit Detail and Astra inline wells. Checklist add rows use the standard Input family. |
+| Other inline add, template name, tag editor, custom reminder, chat record filter and breakdown edit | 12 | Granted Habit Create, Habit Detail and Astra inline wells. Checklist add rows use the standard Input family. |
 | Checklist item edit | 8 with drag grip; 12 without grip | Granted Habit Create checklist. Both shipped editors always include their grip; their add rows use the standard Input inset of 16. |
 | Numbered subhabit row | 8 after index | Granted Habit Create compound row. Input padding is 0; the row provides leading padding and an 8 gap after its 16-wide index. |
 | Habit title edit | 16 | Existing full editor Input; the detail reading heading is static and the named pencil opens this field. |
@@ -33,110 +33,160 @@ The checklist add row uses the shared Input and a separate ghost small icon-only
 
 | Surface | Owner |
 | --- | --- |
-| Web habit create, More details | `apps/web/components/habits/habit-form-fields.tsx` |
-| Web habit detail, More details | `apps/web/components/habits/habit-detail-fields.tsx` |
-| Android habit create, More details | `apps/mobile/components/habits/habit-form-fields.tsx` |
-| Android habit detail, More details | `apps/mobile/components/habits/habit-detail-fields.tsx` |
+| Web habit create and edit, More details | `apps/web/components/habits/habit-form-fields.tsx` |
+| Android habit create and edit, More details | `apps/mobile/components/habits/habit-form-fields.tsx` |
+
+Habit detail has no checklist add row: its pencil opens the edit modal, which composes the same form fields.
 
 Both checklist implementations retain empty, populated, typed, disabled and at-capacity states, localized names and keyboard additions. Geometry coverage includes narrow and wide widths, both themes and both locales on web; native Vitest inspects the actual shared control styles and behavior.
 
 ## Code inventory
 
-Paths are repository-relative. Repeated rows are separate controls within one owner. Standard entries name call sites as well as the actual input producers, so a caller cannot hide behind an audited primitive. The buffered wrapper has no current callers.
+Paths are repository-relative. Repeated rows are separate controls within one owner. Standard entries name call sites as well as the actual input producers, so a caller cannot hide behind an audited primitive. The table holds each text element (`input`, `textarea`, `TextInput` and the typed adapters) and each call site of `Input`, `AppTextInput`, `BottomSheetAppTextInput`, `FieldWell`, `PickerList`, `TimeField`, `OtpInput` and `CommandInput` in the app source outside tests. A checkbox input is not a text control.
 
 | Owner | Line | Control | Family | Drawn padding |
 |---|---:|---|---|---|
 | `apps/mobile/app/(tabs)/calendar/_components/calendar-day-events.tsx` | 50 | `Input` | standard | 16 |
-| `apps/mobile/app/(tabs)/calendar/_components/calendar-entry-details.tsx` | 29 | `Input` | standard | 16 |
-| `apps/mobile/app/(tabs)/profile/_components/edit-name-sheet.tsx` | 107 | `AppTextInput` | standard | 16 |
-| `apps/mobile/app/(tabs)/profile/_components/fresh-start-modal.tsx` | 300 | `AppTextInput` | standard | 16 |
-| `apps/mobile/app/search.tsx` | 59 | `Input` | standard | 16 |
-| `apps/mobile/app/support.tsx` | 181 | `Input` | standard | 16 |
-| `apps/mobile/components/auth/email-step.tsx` | 38 | `Input` | standard | 16 |
-| `apps/mobile/components/chat/breakdown-suggestion.tsx` | 26 | `TextInput` | inline add | 12 |
-| `apps/mobile/components/chat/pending-operation-card.tsx` | 37 | `Input` | standard | 16 |
-| `apps/mobile/components/chat/pending-operation-card.tsx` | 47 | `Input` | standard | 16 |
-| `apps/mobile/components/chat/pending-operation-card.tsx` | 110 | `Input` | standard | 16 |
-| `apps/mobile/components/chat/pending-operation-card.tsx` | 123 | `Input` | standard | 16 |
-| `apps/mobile/components/chat/record-list-card.tsx` | 107 | `TextInput` | inline add | 12 |
+| `apps/mobile/app/(tabs)/calendar/_components/calendar-entry-details.tsx` | 32 | `Input` | standard | 16 |
+| `apps/mobile/app/(tabs)/index.tsx` | 68 | `Input` | standard | 16 |
+| `apps/mobile/app/(tabs)/profile/_components/edit-name-sheet.tsx` | 115 | `AppTextInput` | standard | 16 |
+| `apps/mobile/app/(tabs)/profile/_components/fresh-start-modal.tsx` | 293 | `AppTextInput` | standard | 16 |
+| `apps/mobile/app/search.tsx` | 64 | `Input` | standard | 16 |
+| `apps/mobile/app/step-up.tsx` | 422 | `OtpInput` | otp | centred |
+| `apps/mobile/app/support.tsx` | 190 | `Input` | standard | 16 |
+| `apps/mobile/components/auth/code-step.tsx` | 72 | `OtpInput` | otp | centred |
+| `apps/mobile/components/auth/email-step.tsx` | 44 | `Input` | standard | 16 |
+| `apps/mobile/components/chat/answer-block.tsx` | 41 | `Input` | standard | 16 |
+| `apps/mobile/components/chat/breakdown-suggestion.tsx` | 33 | `TypedTextInput` | inline add | 12 |
+| `apps/mobile/components/chat/habit-suggestions-card.tsx` | 68 | `Input` | standard | 16 |
+| `apps/mobile/components/chat/pending-operation-card.tsx` | 44 | `Input` | standard | 16 |
+| `apps/mobile/components/chat/pending-operation-card.tsx` | 52 | `TimeField` | time | 16 |
+| `apps/mobile/components/chat/pending-operation-card.tsx` | 54 | `Input` | standard | 16 |
+| `apps/mobile/components/chat/pending-operation-card.tsx` | 138 | `Input` | standard | 16 |
+| `apps/mobile/components/chat/pending-operation-card.tsx` | 155 | `TimeField` | time | 16 |
+| `apps/mobile/components/chat/pending-operation-card.tsx` | 157 | `Input` | standard | 16 |
+| `apps/mobile/components/chat/pending-operation-card.tsx` | 216 | `OtpInput` | otp | centred |
+| `apps/mobile/components/chat/preview-item-title.tsx` | 30 | `Input` | standard | 16 |
+| `apps/mobile/components/chat/prompt-library.tsx` | 75 | `Input` | standard | 16 |
+| `apps/mobile/components/chat/question-controls.tsx` | 59 | `Input` | standard | 16 |
+| `apps/mobile/components/chat/record-list-card.tsx` | 114 | `TypedTextInput` | inline add | 12 |
+| `apps/mobile/components/chat/structured-preview-field.tsx` | 25 | `TimeField` | time | 16 |
+| `apps/mobile/components/chat/structured-preview-field.tsx` | 26 | `Input` | standard | 16 |
+| `apps/mobile/components/goals/create-goal-sheet.tsx` | 32 | `BottomSheetAppTextInput` | standard | 16 |
+| `apps/mobile/components/goals/edit-goal-modal.tsx` | 199 | `BottomSheetAppTextInput` | standard | 16 |
 | `apps/mobile/components/goals/edit-goal-modal/edit-goal-target-fields.tsx` | 40 | `BottomSheetAppTextInput` | standard | 16 |
 | `apps/mobile/components/goals/edit-goal-modal/edit-goal-target-fields.tsx` | 62 | `BottomSheetAppTextInput` | standard | 16 |
-| `apps/mobile/components/goals/edit-goal-modal.tsx` | 192 | `BottomSheetAppTextInput` | standard | 16 |
-| `apps/mobile/components/habit-list/move-parent-dialog.tsx` | 158 | `Input` | standard | 16 |
-| `apps/mobile/components/habits/checklist-templates.tsx` | 131 | `BottomSheetAppTextInput` | inline add | 12 |
-| `apps/mobile/components/habits/create-goal-from-habit/goal-target-fields.tsx` | 37 | `BottomSheetAppTextInput` | standard | 16 |
-| `apps/mobile/components/habits/create-goal-from-habit/goal-target-fields.tsx` | 58 | `BottomSheetAppTextInput` | standard | 16 |
-| `apps/mobile/components/habits/create-goal-from-habit-sheet.tsx` | 199 | `BottomSheetAppTextInput` | standard | 16 |
-| `apps/mobile/components/habits/create-habit-modal/sub-habit-editor.tsx` | 58 | `BottomSheetAppTextInput` | subhabit | 0; 8 after index |
-| `apps/mobile/components/habits/goal-linking-field.tsx` | 70 | `BottomSheetAppTextInput` | standard | 16 |
-| `apps/mobile/components/habits/habit-checklist.tsx` | 119 | `BottomSheetAppTextInput` | checklist edit | 8 with grip |
-| `apps/mobile/components/habits/habit-checklist.tsx` | 222 | `Input` | standard inline add | 16 |
-| `apps/mobile/components/habits/habit-detail-fields.tsx` | 78 | `TextInput` | inline add | 12 |
-| `apps/mobile/components/habits/habit-detail-fields.tsx` | 144 | `Input` | standard | 16 |
-| `apps/mobile/components/habits/habit-detail-screen.tsx` | 187 | `TextInput` | heading | 0; title alignment |
-| `apps/mobile/components/habits/habit-form-fields/habit-emoji-selector.tsx` | 108 | `BottomSheetAppTextInput` | standard | 16 |
-| `apps/mobile/components/habits/habit-form-fields/habit-understanding.tsx` | 69 | `TypedTextInput` | sentence | 16 |
-| `apps/mobile/components/habits/habit-form-fields/reminder-section.tsx` | 198 | `BottomSheetAppTextInput` | inline add | 12 |
-| `apps/mobile/components/habits/habit-form-fields/tag-editor-row.tsx` | 37 | `BottomSheetAppTextInput` | inline add | 12 |
-| `apps/mobile/components/habits/habit-form-fields/tag-picker-field.tsx` | 60 | `BottomSheetAppTextInput` | standard | 16 |
-| `apps/mobile/components/habits/habit-form-fields.tsx` | 482 | `Input` | standard | 16 |
-| `apps/mobile/components/onboarding/onboarding-welcome.tsx` | 21 | `Input` | standard | 16 |
-| `apps/mobile/components/profile/preferences-sections.tsx` | 100 | `BottomSheetAppTextInput` | standard | 16 |
-| `apps/mobile/components/profile/profile-api-keys.tsx` | 133 | `Input` | standard | 16 |
-| `apps/mobile/components/shell/composer.tsx` | 257 | `TextInput` | composer | 8 |
-| `apps/mobile/components/ui/app-text-input.tsx` | 72 | `TextInput` | standard | 16 |
-| `apps/mobile/components/ui/bottom-sheet-app-text-input.tsx` | 98 | `TextInput` | standard | 16 |
-| `apps/mobile/components/ui/input.tsx` | 32 | `TextInput` | standard | 16 |
-| `apps/mobile/components/ui/otp-input.tsx` | 43 | `TextInput` | otp | centred |
-| `apps/mobile/components/ui/time-field.tsx` | 234 | `TextInput` | time | 16 |
-| `apps/mobile/components/ui/typed-text-input.tsx` | 10 | `TextInput` | foreground adapter | caller-owned |
-| `apps/web/app/(app)/layout.tsx` | 376 | `input` | file | glyphless |
-| `apps/web/app/(app)/layout.tsx` | 383 | `input` | file | glyphless |
-| `apps/web/app/(app)/preferences/_components/preference-picker-sheet.tsx` | 85 | `input` | standard | 16 |
-| `apps/web/app/(app)/profile/_components/edit-name-sheet.tsx` | 93 | `Input` | standard | 16 |
-| `apps/web/app/(app)/profile/_components/fresh-start-modal.tsx` | 353 | `Input` | standard | 16 |
-| `apps/web/app/(app)/support/_components/support-form.tsx` | 127 | `Input` | standard | 16 |
-| `apps/web/app/(auth)/login/email-step.tsx` | 33 | `Input` | standard | 16 |
+| `apps/mobile/components/goals/goal-detail-drawer/goal-progress-form.tsx` | 50 | `Input` | standard | 16 |
+| `apps/mobile/components/goals/goal-detail-drawer/goal-progress-form.tsx` | 51 | `Input` | standard | 16 |
+| `apps/mobile/components/goals/goal-habits-field.tsx` | 46 | `BottomSheetAppTextInput` | standard | 16 |
+| `apps/mobile/components/habit-list/move-parent-dialog.tsx` | 178 | `Input` | standard | 16 |
+| `apps/mobile/components/habits/checklist-templates.tsx` | 154 | `BottomSheetAppTextInput` | inline add | 12 |
+| `apps/mobile/components/habits/create-goal-from-habit/goal-target-fields.tsx` | 42 | `BottomSheetAppTextInput` | standard | 16 |
+| `apps/mobile/components/habits/create-goal-from-habit/goal-target-fields.tsx` | 65 | `BottomSheetAppTextInput` | standard | 16 |
+| `apps/mobile/components/habits/create-habit-modal/sub-habit-editor.tsx` | 61 | `BottomSheetAppTextInput` | subhabit | 0; 8 after index |
+| `apps/mobile/components/habits/goal-linking-field.tsx` | 47 | `BottomSheetAppTextInput` | standard | 16 |
+| `apps/mobile/components/habits/habit-checklist.tsx` | 110 | `BottomSheetAppTextInput` | checklist edit | 8 with grip |
+| `apps/mobile/components/habits/habit-checklist.tsx` | 198 | `Input` | standard inline add | 16 |
+| `apps/mobile/components/habits/habit-form-fields.tsx` | 477 | `Input` | standard | 16 |
+| `apps/mobile/components/habits/habit-form-fields/habit-date-field.tsx` | 104 | `Input` | standard | 16 |
+| `apps/mobile/components/habits/habit-form-fields/habit-emoji-selector.tsx` | 147 | `BottomSheetAppTextInput` | standard | 16 |
+| `apps/mobile/components/habits/habit-form-fields/habit-schedule-fields.tsx` | 45 | `Input` | standard | 16 |
+| `apps/mobile/components/habits/habit-form-fields/habit-timing-field.tsx` | 63 | `TimeField` | time | 16 |
+| `apps/mobile/components/habits/habit-form-fields/habit-timing-field.tsx` | 66 | `TimeField` | time | 16 |
+| `apps/mobile/components/habits/habit-form-fields/habit-understanding.tsx` | 118 | `TypedTextInput` | sentence | 16 |
+| `apps/mobile/components/habits/habit-form-fields/reminder-section.tsx` | 155 | `BottomSheetAppTextInput` | inline add | 12 |
+| `apps/mobile/components/habits/habit-form-fields/repeat-reminder-section.tsx` | 51 | `TimeField` | time | 16 |
+| `apps/mobile/components/habits/habit-form-fields/repeat-reminder-section.tsx` | 54 | `TimeField` | time | 16 |
+| `apps/mobile/components/habits/habit-form-fields/repeat-reminder-section.tsx` | 55 | `TimeField` | time | 16 |
+| `apps/mobile/components/habits/habit-form-fields/scheduled-reminder-section.tsx` | 153 | `TimeField` | time | 16 |
+| `apps/mobile/components/habits/habit-form-fields/tag-editor-row.tsx` | 54 | `BottomSheetAppTextInput` | inline add | 12 |
+| `apps/mobile/components/habits/habit-form-fields/tag-picker-field.tsx` | 73 | `BottomSheetAppTextInput` | standard | 16 |
+| `apps/mobile/components/habits/repeat-reminder-detail.tsx` | 70 | `TimeField` | time | 16 |
+| `apps/mobile/components/onboarding/onboarding-create-habit.tsx` | 98 | `TimeField` | time | 16 |
+| `apps/mobile/components/onboarding/onboarding-welcome.tsx` | 22 | `Input` | standard | 16 |
+| `apps/mobile/components/profile/preferences-sections.tsx` | 95 | `BottomSheetAppTextInput` | standard | 16 |
+| `apps/mobile/components/profile/profile-api-keys.tsx` | 203 | `Input` | standard | 16 |
+| `apps/mobile/components/profile/profile-api-keys.tsx` | 219 | `Input` | standard | 16 |
+| `apps/mobile/components/profile/profile-api-keys.tsx` | 235 | `Input` | standard | 16 |
+| `apps/mobile/components/shell/composer.tsx` | 327 | `TypedTextInput` | composer | 8 |
+| `apps/mobile/components/ui/app-text-input.tsx` | 53 | `TypedTextInput` | standard | 16 |
+| `apps/mobile/components/ui/bottom-sheet-app-text-input.tsx` | 83 | `TypedTextInput` | standard | 16 |
+| `apps/mobile/components/ui/input.tsx` | 43 | `TypedTextInput` | standard | 16 |
+| `apps/mobile/components/ui/otp-input.tsx` | 49 | `TypedTextInput` | otp | centred |
+| `apps/mobile/components/ui/time-field.tsx` | 231 | `TypedTextInput` | time | 16 |
+| `apps/mobile/components/ui/typed-text-input.tsx` | 30 | `TextInput` | foreground adapter | caller-owned |
+| `apps/web/app/(app)/layout.tsx` | 382 | `input` | file | glyphless |
+| `apps/web/app/(app)/layout.tsx` | 389 | `input` | file | glyphless |
+| `apps/web/app/(app)/preferences/_components/preference-picker-sheet.tsx` | 89 | `input` | standard | 16 |
+| `apps/web/app/(app)/profile/_components/edit-name-sheet.tsx` | 103 | `Input` | standard | 16 |
+| `apps/web/app/(app)/profile/_components/fresh-start-modal.tsx` | 344 | `Input` | standard | 16 |
+| `apps/web/app/(app)/support/_components/support-form.tsx` | 130 | `Input` | standard | 16 |
+| `apps/web/app/(app)/today-page-view.tsx` | 59 | `Input` | standard | 16 |
+| `apps/web/app/(auth)/login/code-step.tsx` | 58 | `OtpInput` | otp | centred |
+| `apps/web/app/(auth)/login/email-step.tsx` | 39 | `Input` | standard | 16 |
+| `apps/web/app/step-up/step-up-screen.tsx` | 435 | `OtpInput` | otp | centred |
 | `apps/web/components/calendar/calendar-day-events.tsx` | 48 | `Input` | standard | 16 |
-| `apps/web/components/calendar/calendar-entry-details.tsx` | 26 | `Input` | standard | 16 |
-| `apps/web/components/chat/breakdown-suggestion.tsx` | 30 | `input` | inline add | 12 |
-| `apps/web/components/chat/pending-operation-card.tsx` | 38 | `Input` | standard | 16 |
-| `apps/web/components/chat/pending-operation-card.tsx` | 48 | `Input` | standard | 16 |
-| `apps/web/components/chat/pending-operation-card.tsx` | 98 | `Input` | standard | 16 |
-| `apps/web/components/chat/pending-operation-card.tsx` | 111 | `Input` | standard | 16 |
-| `apps/web/components/chat/record-list-card.tsx` | 90 | `input` | inline add | 12 |
-| `apps/web/components/command/command-menu-chrome.tsx` | 83 | `CommandInput` | search | 16 |
+| `apps/web/components/calendar/calendar-entry-details.tsx` | 32 | `Input` | standard | 16 |
+| `apps/web/components/chat/answer-block.tsx` | 42 | `Input` | standard | 16 |
+| `apps/web/components/chat/breakdown-suggestion.tsx` | 32 | `input` | inline add | 12 |
+| `apps/web/components/chat/habit-suggestions-card.tsx` | 55 | `Input` | standard | 16 |
+| `apps/web/components/chat/pending-operation-card.tsx` | 47 | `Input` | standard | 16 |
+| `apps/web/components/chat/pending-operation-card.tsx` | 55 | `TimeField` | time | 16 |
+| `apps/web/components/chat/pending-operation-card.tsx` | 57 | `Input` | standard | 16 |
+| `apps/web/components/chat/pending-operation-card.tsx` | 126 | `Input` | standard | 16 |
+| `apps/web/components/chat/pending-operation-card.tsx` | 143 | `TimeField` | time | 16 |
+| `apps/web/components/chat/pending-operation-card.tsx` | 145 | `Input` | standard | 16 |
+| `apps/web/components/chat/pending-operation-card.tsx` | 204 | `OtpInput` | otp | centred |
+| `apps/web/components/chat/preview-item-title.tsx` | 20 | `Input` | standard | 16 |
+| `apps/web/components/chat/prompt-library.tsx` | 56 | `Input` | standard | 16 |
+| `apps/web/components/chat/question-controls.tsx` | 47 | `Input` | standard | 16 |
+| `apps/web/components/chat/record-list-card.tsx` | 97 | `input` | inline add | 12 |
+| `apps/web/components/chat/structured-preview-field.tsx` | 19 | `TimeField` | time | 16 |
+| `apps/web/components/chat/structured-preview-field.tsx` | 20 | `Input` | standard | 16 |
+| `apps/web/components/command/command-menu-chrome.tsx` | 77 | `CommandInput` | search | 16 |
+| `apps/web/components/goals/create-goal-sheet.tsx` | 61 | `FieldWell` | standard | 16 |
+| `apps/web/components/goals/edit-goal-modal.tsx` | 193 | `FieldWell` | standard | 16 |
 | `apps/web/components/goals/edit-goal-modal/edit-goal-target-fields.tsx` | 32 | `FieldWell` | standard | 16 |
 | `apps/web/components/goals/edit-goal-modal/edit-goal-target-fields.tsx` | 44 | `FieldWell` | standard | 16 |
-| `apps/web/components/goals/edit-goal-modal.tsx` | 186 | `FieldWell` | standard | 16 |
 | `apps/web/components/goals/field-well.tsx` | 46 | `input` | standard | 16 |
-| `apps/web/components/habits/checklist-templates.tsx` | 100 | `input` | inline add | 12 |
-| `apps/web/components/habits/create-goal-from-habit/goal-target-fields.tsx` | 27 | `FieldWell` | standard | 16 |
-| `apps/web/components/habits/create-goal-from-habit/goal-target-fields.tsx` | 38 | `FieldWell` | standard | 16 |
-| `apps/web/components/habits/create-goal-from-habit-sheet.tsx` | 239 | `FieldWell` | standard | 16 |
-| `apps/web/components/habits/create-habit-modal/sub-habit-editor.tsx` | 42 | `input` | subhabit | 0; 8 after index |
-| `apps/web/components/habits/goal-linking-field.tsx` | 64 | `input` | standard | 16 |
-| `apps/web/components/habits/habit-checklist.tsx` | 331 | `input` | checklist edit | 8 with grip |
-| `apps/web/components/habits/habit-checklist.tsx` | 423 | `Input` | standard inline add | 16 |
-| `apps/web/components/habits/habit-detail-fields.tsx` | 71 | `input` | inline add | 12 |
-| `apps/web/components/habits/habit-detail-fields.tsx` | 140 | `Input` | standard | 16 |
-| `apps/web/components/habits/habit-detail-screen.tsx` | 187 | `input` | heading | 0; title alignment |
-| `apps/web/components/habits/habit-form-fields/habit-emoji-selector.tsx` | 87 | `input` | standard | 16 |
-| `apps/web/components/habits/habit-form-fields/habit-understanding.tsx` | 60 | `textarea` | sentence | 16 |
-| `apps/web/components/habits/habit-form-fields/reminder-section.tsx` | 173 | `input` | inline add | 12 |
-| `apps/web/components/habits/habit-form-fields/tag-editor-row.tsx` | 29 | `input` | inline add | 12 |
-| `apps/web/components/habits/habit-form-fields/tag-picker-field.tsx` | 78 | `input` | standard | 16 |
-| `apps/web/components/habits/habit-form-fields.tsx` | 533 | `Input` | standard | 16 |
+| `apps/web/components/goals/goal-detail-drawer/goal-progress-form.tsx` | 49 | `Input` | standard | 16 |
+| `apps/web/components/goals/goal-detail-drawer/goal-progress-form.tsx` | 50 | `Input` | standard | 16 |
+| `apps/web/components/goals/goal-habits-field.tsx` | 36 | `PickerList` | standard | 16 |
+| `apps/web/components/habits/checklist-templates.tsx` | 111 | `input` | inline add | 12 |
+| `apps/web/components/habits/create-goal-from-habit/goal-target-fields.tsx` | 33 | `FieldWell` | standard | 16 |
+| `apps/web/components/habits/create-goal-from-habit/goal-target-fields.tsx` | 46 | `FieldWell` | standard | 16 |
+| `apps/web/components/habits/create-habit-modal/sub-habit-editor.tsx` | 47 | `input` | subhabit | 0; 8 after index |
+| `apps/web/components/habits/goal-linking-field.tsx` | 57 | `PickerList` | standard | 16 |
+| `apps/web/components/habits/habit-checklist.tsx` | 327 | `input` | checklist edit | 8 with grip |
+| `apps/web/components/habits/habit-checklist.tsx` | 405 | `Input` | standard inline add | 16 |
+| `apps/web/components/habits/habit-form-fields.tsx` | 450 | `Input` | standard | 16 |
+| `apps/web/components/habits/habit-form-fields/habit-date-field.tsx` | 92 | `Input` | standard | 16 |
+| `apps/web/components/habits/habit-form-fields/habit-emoji-selector.tsx` | 145 | `input` | standard | 16 |
+| `apps/web/components/habits/habit-form-fields/habit-schedule-fields.tsx` | 34 | `Input` | standard | 16 |
+| `apps/web/components/habits/habit-form-fields/habit-timing-field.tsx` | 59 | `TimeField` | time | 16 |
+| `apps/web/components/habits/habit-form-fields/habit-timing-field.tsx` | 62 | `TimeField` | time | 16 |
+| `apps/web/components/habits/habit-form-fields/habit-understanding.tsx` | 111 | `TypedTextarea` | sentence | 16 |
+| `apps/web/components/habits/habit-form-fields/reminder-section.tsx` | 136 | `input` | inline add | 12 |
+| `apps/web/components/habits/habit-form-fields/repeat-reminder-section.tsx` | 45 | `TimeField` | time | 16 |
+| `apps/web/components/habits/habit-form-fields/repeat-reminder-section.tsx` | 48 | `TimeField` | time | 16 |
+| `apps/web/components/habits/habit-form-fields/repeat-reminder-section.tsx` | 49 | `TimeField` | time | 16 |
+| `apps/web/components/habits/habit-form-fields/scheduled-reminder-section.tsx` | 112 | `TimeField` | time | 16 |
+| `apps/web/components/habits/habit-form-fields/tag-editor-row.tsx` | 44 | `input` | inline add | 12 |
+| `apps/web/components/habits/habit-form-fields/tag-picker-field.tsx` | 77 | `PickerList` | standard | 16 |
 | `apps/web/components/habits/habit-list/move-parent-overlay.tsx` | 145 | `Input` | standard | 16 |
-| `apps/web/components/onboarding/onboarding-welcome.tsx` | 24 | `Input` | standard | 16 |
-| `apps/web/components/profile/profile-api-keys.tsx` | 129 | `Input` | standard | 16 |
-| `apps/web/components/shell/composer.tsx` | 246 | `textarea` | composer | 8 |
-| `apps/web/components/ui/input.tsx` | 47 | `textarea` | standard | 16 |
-| `apps/web/components/ui/input.tsx` | 48 | `input` | standard | 16 |
-| `apps/web/components/ui/otp-input.tsx` | 38 | `input` | otp | centred |
-| `apps/web/components/ui/picker-list.tsx` | 51 | `input` | standard | 16 |
-| `apps/web/components/ui/time-field.tsx` | 141 | `input` | time | 16 |
-| `apps/web/components/ui/typed-textarea.tsx` | 6 | `textarea` | foreground adapter | caller-owned |
+| `apps/web/components/habits/repeat-reminder-detail.tsx` | 65 | `TimeField` | time | 16 |
+| `apps/web/components/onboarding/onboarding-create-habit.tsx` | 130 | `TimeField` | time | 16 |
+| `apps/web/components/onboarding/onboarding-welcome.tsx` | 25 | `Input` | standard | 16 |
+| `apps/web/components/profile/profile-api-keys.tsx` | 195 | `Input` | standard | 16 |
+| `apps/web/components/profile/profile-api-keys.tsx` | 211 | `Input` | standard | 16 |
+| `apps/web/components/profile/profile-api-keys.tsx` | 227 | `Input` | standard | 16 |
+| `apps/web/components/shell/composer.tsx` | 391 | `TypedTextarea` | composer | 8 |
+| `apps/web/components/ui/input.tsx` | 52 | `TypedTextarea` | standard | 16 |
+| `apps/web/components/ui/input.tsx` | 53 | `input` | standard | 16 |
+| `apps/web/components/ui/otp-input.tsx` | 44 | `input` | otp | centred |
+| `apps/web/components/ui/picker-list.tsx` | 54 | `input` | standard | 16 |
+| `apps/web/components/ui/time-field.tsx` | 134 | `input` | time | 16 |
+| `apps/web/components/ui/typed-textarea.tsx` | 8 | `textarea` | foreground adapter | caller-owned |
 
 ## Typed foreground ownership
 
@@ -151,7 +201,7 @@ Visible native text controls use `TypedTextInput`, which applies `fg1` after cal
 | Astra and shell composers | `shell/composer.tsx` | same relative component | Native `TypedTextInput`, web `TypedTextarea` |
 | Astra record filter and breakdown rename | `chat/record-list-card.tsx`, `chat/breakdown-suggestion.tsx` | same relative components | Native `TypedTextInput`, web input with `--fg-1` |
 | Search and move-parent search | `app/search.tsx`, `habit-list/move-parent-dialog.tsx` | `app/(app)/search/page.tsx`, `habits/habit-list/move-parent-overlay.tsx` | Shared `Input` |
-| Goal title, target and unit | `goals/edit-goal-modal.tsx`, `goals/edit-goal-modal/edit-goal-target-fields.tsx`, `habits/create-goal-from-habit-sheet.tsx`, `habits/create-goal-from-habit/goal-target-fields.tsx` | same relative components | Native `BottomSheetAppTextInput`, web `FieldWell` with `--fg-1` |
+| Goal title, target and unit | `goals/edit-goal-modal.tsx`, `goals/edit-goal-modal/edit-goal-target-fields.tsx`, `goals/create-goal-sheet.tsx`, `habits/create-goal-from-habit/goal-target-fields.tsx` | same relative components | Native `BottomSheetAppTextInput`, web `FieldWell` with `--fg-1` |
 | Profile name and reset confirmation | `app/(tabs)/profile/_components/edit-name-sheet.tsx`, `fresh-start-modal.tsx` | `app/(app)/profile/_components/edit-name-sheet.tsx`, `fresh-start-modal.tsx` | Native `AppTextInput`, web `Input` |
 | Profile time-zone search and key name | `profile/preferences-sections.tsx`, `profile/profile-api-keys.tsx` | preferences picker and `profile/profile-api-keys.tsx` | Native `BottomSheetAppTextInput` or `Input`, web explicit `--fg-1` |
 | Virtualized picker search | No additional native producer | `ui/picker-list.tsx` | Web `form-input` resolves to `--fg-1` |

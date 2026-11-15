@@ -1,7 +1,7 @@
 # The canvas documents
 
 > **At a glance** - the granted canvas export and design tokens for every redesign surface.
-> Build from the active drawings and their amendments below. The documents in `superseded/` are not targets.
+> Build from the active drawings and their amendments below.
 
 ### Settled preview row amendment (#2048)
 
@@ -241,7 +241,7 @@ The paired owners and verification boundaries are in `design/astra-preview-surfa
 
 **Thomas granted this export on 2026-08-25**, which is what gives it authority. `DESIGN.md` records
 the grant in its D42 paragraph, and `CLAUDE.md` points here. Without that grant a canvas export
-carries nothing, and the eleven in `superseded/` still carry nothing.
+carries nothing.
 
 **Amendments since the grant, listed so no reader treats the export as byte-identical to it.** An
 amendment lands here and in the shipped tokens together, never in one alone, because a canvas token
@@ -544,57 +544,15 @@ Flattening it silently breaks every stylesheet reference.
 
 ### The component contracts
 
-`_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/components/` holds **48 `.d.ts` prop contracts**, at the exact
-paths the manifest names and the redesign tickets cite. They are pulled from the design-system project
-itself, because the downloadable archive omits them.
+The binding prop contracts live in `packages/shared/src/contracts/`, one folder for each component group. Both
+platforms' components consume them. Each group folder holds at least one `*.type-test.ts` file, but not every
+contract file has its own type test. This folder holds no copy of them.
+Where a screen and a contract disagree, the contract is the stricter artifact and the screen is a prototype: a
+`.dc.html` is never type-checked, so several screens omit a word a contract requires. Build to the contract and
+supply the word.
 
-**These are the reference an implementer builds against, and they are not binding yet.** Nothing
-imports them and they sit in no `tsconfig` include, so today they are inert reference material.
-
-**Moving a group into `packages/shared/src/contracts/` is necessary but it is not sufficient.** A
-declaration in an included folder still binds nothing until a component imports it and is typed by
-it. `#351` goes first and is the only ticket that edits `packages/shared/package.json`; each porting
-ticket then makes its own group binding by having both platforms' components consume it.
-
-**Two things do not port straight across, and a porting ticket has to reconcile both.**
-
-*The handler name.* These contracts are drawn for the canvas's own React, so they say `onClick`. Web
-matches that, because it renders DOM. Mobile does not: `apps/mobile` is React Native and its
-components take `onPress`. So a single shared declaration cannot type both platforms unchanged. The
-handler name is a platform adapter under the parity rule, the same way the storage and styling layers
-are, so the split is allowed; what is not allowed is the two sides drifting on anything below it.
-
-*The `any`s.* Every one of the 48 contracts uses `any`, 94 times in total, for node-typed slots like
-`children`, `trailing` and `control`. That is fine while these files are inert reference material,
-and it stops being fine the moment a group moves: `packages/shared/eslint.config.mjs` turns
-`@typescript-eslint/no-explicit-any` off only for test files, so a contract landing as ordinary
-source under `src/contracts/` is linted like any other source and a verbatim copy fails. Porting a
-group means giving each node-typed slot a real type, not carrying `any` across and suppressing it.
-
-They are written to survive that move, which is why the canvas held its rules across three drawing
-sessions and prose did not:
-
-* `StatTile` discriminates on `state`, so an empty tile cannot accept `value` and can never render a `0`
-  that reads as a real measurement.
-* `Columns` has no date, start, interval or ordering prop at all, so a category set cannot become a time
-  axis whose gaps carry meaning.
-* `Button` accepts only visible text on its ordinary path. Passing a glyph or any other opaque node
-  requires `iconOnly: true` and the word in `label`, the same guarantee `Fab.label` and
-  `NavHeader.backLabel` already carry.
-* `Sheet.open` accepts only the literal `true`, so a kept-and-toggled instance does not compile.
-* `StepUp` has no `children` and no node-typed prop, so a credential field cannot be nested into it.
-* `Toast` is four discriminated kinds; `lost` cannot be constructed without both what was lost and the
-  way back.
-
-**Where a screen and a contract disagree, the contract is the stricter artifact and the screen is a
-prototype.** A `.dc.html` is never type-checked, so several screens omit a word a contract requires:
-`StatTile`'s `loadingLabel` and `BlockFrame`'s `staleMessage` are both drawn without them. Build to
-the contract and supply the word. The two places where the drawing and the contract genuinely
-conflict are filed as tickets rather than settled here.
-
-The matching `.jsx` implementations and `.prompt.md` files stay in the project and are not mirrored
-here: the contract is what an implementer builds against, and the canvas's own React source is not the
-app's.
+The matching `.jsx` implementations and `.prompt.md` files stay in the Claude Design project and are not
+mirrored here: the canvas's own React source is not the app's.
 
 `CanvasControls` is deliberately absent. It is the canvas review bar, chrome for the drawing tool
 rather than a product surface.
@@ -607,18 +565,7 @@ rather than a product surface.
 4. The Agenda entry-details sheet, preserving full habit text, time and status on both platforms.
 5. The granted Calendário drawing at both widths, including shared navigation and the Agenda details disclosure.
 
-## `superseded/`
-
-Eleven documents from the pass that predates the information architecture (2026-08-16). They reskin
-the app that existed and draw a habit tracker with a chat tab, so **every one of them contradicts
-`DESIGN.md` section `## Information architecture`**. They are kept as a record of what the canvas
-produces when the prompt describes the screen that exists instead of the job the screen does.
-
-They live in their own folder rather than beside the authority because prose asking an implementer to
-ignore a file in front of them is not a control. `Orbit Insights.dc.html` was deleted on 2026-08-16
-with the `/insights` route.
-
-### Astra glyph surface inventory
+## Astra glyph surface inventory
 
 Each row names the paired web and Android component unless a platform is explicit.
 The glyph primitives provide the asset; their consumers below own its placement.
