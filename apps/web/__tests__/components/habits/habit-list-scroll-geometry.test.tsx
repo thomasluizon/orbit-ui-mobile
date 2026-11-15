@@ -3,7 +3,7 @@ import en from '@orbit/shared/i18n/en.json'
 import { SPACING } from '@orbit/shared/theme'
 import { measureShellScrollEnd, shellScrollViewports } from '@/e2e/layout/shell-scroll-extent'
 import { settleAnimations } from '@/e2e/layout/settle-animations'
-import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
+import { closeChrome, registerChromeLaunchHook, setUpPage, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 import { buildHabitListScrollAssets } from '@/__tests__/support/habit-list-scroll-assets'
 import { observeBulkSkip } from '@/__tests__/support/habit-list-scroll-observation'
 
@@ -17,12 +17,13 @@ afterAll(async () => { await closeChrome(launch) })
 
 it.each(shellScrollViewports)('bounds Hoje after rows leave at $width x $height', async ({ width, height }) => {
   const page = await browser.newPage({ viewport: { width, height }, reducedMotion: 'reduce' })
-  page.setDefaultTimeout(3000)
   try {
-    await page.route('https://habit-list.test/', route => route.fulfill({ contentType: 'text/html', body: `<!doctype html><style>${stylesheet}</style><div id="root"></div>` }))
-    await page.goto('https://habit-list.test/')
-    await page.addScriptTag({ content: script })
-    await page.waitForFunction(() => document.querySelectorAll('[data-testid="habit-row"]').length === 30)
+    await setUpPage(page, 3000, async () => {
+      await page.route('https://habit-list.test/', route => route.fulfill({ contentType: 'text/html', body: `<!doctype html><style>${stylesheet}</style><div id="root"></div>` }))
+      await page.goto('https://habit-list.test/')
+      await page.addScriptTag({ content: script })
+      await page.waitForFunction(() => document.querySelectorAll('[data-testid="habit-row"]').length === 30)
+    })
     await page.locator('[data-habit-row-control="menu"]').first().click()
     await page.getByRole('menuitem', { name: en.common.select, exact: true }).click()
     for (let index = 0; index < 9; index++) {

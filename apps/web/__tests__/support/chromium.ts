@@ -1,4 +1,4 @@
-import { chromium, type Browser, type BrowserServer } from '@playwright/test'
+import { chromium, type Browser, type BrowserServer, type Page } from '@playwright/test'
 
 export type { Browser }
 export type BrowserLaunch = Promise<Browser> & { close: () => Promise<void> }
@@ -116,6 +116,16 @@ export function registerChromeLaunchHook(
   options?: Parameters<typeof chromium.launchServer>[0],
 ): void {
   registerHook(async () => { await useBrowserLaunch(launchChrome(options)) }, CHROME_LAUNCH_HOOK_TIMEOUT_MS)
+}
+
+// WHY: page.goto and page.setContent take the page default timeout; CI job 132852684001 loaded the sweep page past 3000 ms, and a CPU-starved local render took 10.9 s for all its steps, so each setup step gets 10 s, under the 15 s case limit. https://github.com/thomasluizon/orbit-ui-mobile/actions/runs/43727552146/job/132852684001
+export const PAGE_SETUP_TIMEOUT_MS = 10_000
+
+export async function setUpPage<Result>(page: Page, interactionTimeout: number, setup: () => Promise<Result>): Promise<Result> {
+  page.setDefaultTimeout(PAGE_SETUP_TIMEOUT_MS)
+  const result = await setup()
+  page.setDefaultTimeout(interactionTimeout)
+  return result
 }
 
 export async function closeChrome(browserLaunch: BrowserLaunch | undefined): Promise<void> {

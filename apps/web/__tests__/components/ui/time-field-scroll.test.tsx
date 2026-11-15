@@ -5,7 +5,7 @@ import postcss from 'postcss'
 import tailwind from '@tailwindcss/postcss'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
+import { closeChrome, registerChromeLaunchHook, setUpPage, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 import { readSettledScroll } from '@/__tests__/support/settled-scroll'
 
 describe('TimeField scroll ownership in the web Sheet', () => {
@@ -64,11 +64,12 @@ describe('TimeField scroll ownership in the web Sheet', () => {
     const page = await browser.newPage({ viewport: { width: configuration.width, height: configuration.height }, reducedMotion: 'reduce' })
     const runtimeErrors: string[] = []
     page.on('pageerror', (error) => runtimeErrors.push(error.message))
-    page.setDefaultTimeout(5000)
     try {
-      await page.setContent(`<style>${stylesheet}</style><div id="root"></div><output id="committed"></output><script id="configuration" type="application/json">${JSON.stringify(configuration)}</script>`)
-      await page.addScriptTag({ content: componentScript })
-      await page.getByRole('button').waitFor().catch(() => { throw new Error(runtimeErrors.join('\n')) })
+      await setUpPage(page, 5000, async () => {
+        await page.setContent(`<style>${stylesheet}</style><div id="root"></div><output id="committed"></output><script id="configuration" type="application/json">${JSON.stringify(configuration)}</script>`)
+        await page.addScriptTag({ content: componentScript })
+        await page.getByRole('button').waitFor().catch(() => { throw new Error(runtimeErrors.join('\n')) })
+      })
       expect(runtimeErrors).toEqual([])
       await page.getByRole('button').click()
       await page.getByRole('dialog').waitFor()
@@ -142,10 +143,12 @@ describe('TimeField scroll ownership in the web Sheet', () => {
     { width: 915, height: 240, hourCycle: 'h12', value: '11:59' },
   ])('keeps a wheel past the last minute out of the overflowing sheet body at $width x $height ($hourCycle)', async (configuration) => {
     const page = await browser.newPage({ viewport: { width: configuration.width, height: configuration.height }, reducedMotion: 'reduce' })
-    page.setDefaultTimeout(5000)
     try {
-      await page.setContent(`<style>${stylesheet}</style><div id="root"></div><output id="committed"></output><script id="configuration" type="application/json">${JSON.stringify(configuration)}</script>`)
-      await page.addScriptTag({ content: componentScript })
+      await setUpPage(page, 5000, async () => {
+        await page.setContent(`<style>${stylesheet}</style><div id="root"></div><output id="committed"></output><script id="configuration" type="application/json">${JSON.stringify(configuration)}</script>`)
+        await page.addScriptTag({ content: componentScript })
+        await page.getByRole('button').waitFor()
+      })
       await page.getByRole('button').click()
       await page.getByRole('dialog').waitFor()
       const minutes = page.getByRole('radiogroup', { name: 'common.minutes' })

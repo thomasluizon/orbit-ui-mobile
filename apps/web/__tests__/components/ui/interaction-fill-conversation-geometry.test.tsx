@@ -11,7 +11,7 @@ import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { resolveWebThemeVariables } from '@/lib/theme-dom'
 import { inspectControls } from '@/e2e/layout/interaction-fill-states'
 import { inspectInteractionFill } from '@/e2e/layout/interaction-fill-geometry'
-import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
+import { closeChrome, registerChromeLaunchHook, setUpPage, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 
 function bundleConversation() {
   const contents = `import React, { createRef, lazy, Suspense, useState } from 'react';
@@ -113,12 +113,13 @@ describe('interaction fill guard with the mounted conversation owners', () => {
 
   async function mount(width: number, locale: 'en' | 'pt-BR', route: string, open: boolean, draft: string, delayed = false, settleToday: boolean | 'empty' | 'error' = false) {
     const page = await browser.newPage({ viewport: { width, height: 915 }, reducedMotion: 'reduce' })
-    page.setDefaultTimeout(2000)
     const variables = Object.entries(resolveWebThemeVariables('orange', 'dark')).map(([key, value]) => `${key}:${value}`).join(';')
-    await page.setContent(`<html class="dark" style="${variables}"><style>${stylesheet}</style><div id="root"></div>
-      <script id="configuration" type="application/json">${JSON.stringify({ locale, route, open, draft, delayed, settleToday })}</script></html>`)
-    await page.addScriptTag({ content: script })
-    await page.locator('[data-shell]').waitFor()
+    await setUpPage(page, 2000, async () => {
+      await page.setContent(`<html class="dark" style="${variables}"><style>${stylesheet}</style><div id="root"></div>
+        <script id="configuration" type="application/json">${JSON.stringify({ locale, route, open, draft, delayed, settleToday })}</script></html>`)
+      await page.addScriptTag({ content: script })
+      await page.locator('[data-shell]').waitFor()
+    })
     return page
   }
 

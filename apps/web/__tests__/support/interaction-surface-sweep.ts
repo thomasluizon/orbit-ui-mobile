@@ -12,7 +12,7 @@ import { inspectInteractionSurface } from '@/__tests__/support/interaction-surfa
 import { settleAnimations } from '@/e2e/layout/settle-animations'
 import { loadAppFonts } from '@/__tests__/support/app-fonts'
 import { resolveWebThemeVariables } from '@/lib/theme-dom'
-import { closeChrome, type registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
+import { closeChrome, setUpPage, type registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 
 const controls = 'button:not(:disabled), a[href], input:not([type="hidden"]):not(:disabled), textarea:not(:disabled), select:not(:disabled), summary, [role="button"], [role="switch"], [role="checkbox"], [role="radio"], [role="tab"], [role="menuitem"], [role="combobox"], [contenteditable="true"], [tabindex]:not([tabindex="-1"])'
 function bundleDestinations() {
@@ -147,33 +147,34 @@ export function interactionSurfaceSweep(route: '/' | '/calendar' | '/progress' |
     afterAll(async () => { await closeChrome(launch) }, 30_000)
 
     async function renderDestination(page: Page, collapsed: boolean, failures: string[], assert: typeof expect) {
-      page.setDefaultTimeout(3000)
       page.on('pageerror', failure => failures.push(failure.message))
-      await page.exposeFunction('surfaceFixture', (path: string) => fixture(path.replace(/^\/api\/proxy/, '')))
-      const variables = Object.entries(resolveWebThemeVariables('orange', 'dark')).map(([key, value]) => `${key}:${value}`).join(';')
-      const documentUrl = `https://surface.example.test${route}`
-      await page.route(documentUrl, request => request.fulfill({
-        contentType: 'text/html',
-        body: `<!doctype html><html class="dark" lang="${locale}" style="${variables}"><head><style>${stylesheet}</style></head><body><div id="root"></div><script id="configuration" type="application/json">${JSON.stringify({ route, locale, collapsed })}</script></body></html>`,
-      }))
-      await page.goto(documentUrl)
-      await page.route('**/*', intercepted => intercepted.request().isNavigationRequest() ? intercepted.abort('aborted') : intercepted.continue())
-      assert(await page.evaluate(() => window.location.origin)).toBe('https://surface.example.test')
-      await page.evaluate(() => {
-        let cookie = ''
-        Object.defineProperty(document, 'cookie', { configurable: true, get: () => cookie, set: value => { cookie = value } })
-        for (const name of ['localStorage', 'sessionStorage']) {
-          const entries = new Map<string, string>()
-          Object.defineProperty(window, name, { configurable: true, value: { getItem: (key: string) => entries.get(key) ?? null, setItem: (key: string, value: string) => entries.set(key, value), removeItem: (key: string) => entries.delete(key), clear: () => entries.clear(), key: (index: number) => [...entries.keys()][index] ?? null, get length() { return entries.size } } })
-        }
+      await setUpPage(page, 3000, async () => {
+        await page.exposeFunction('surfaceFixture', (path: string) => fixture(path.replace(/^\/api\/proxy/, '')))
+        const variables = Object.entries(resolveWebThemeVariables('orange', 'dark')).map(([key, value]) => `${key}:${value}`).join(';')
+        const documentUrl = `https://surface.example.test${route}`
+        await page.route(documentUrl, request => request.fulfill({
+          contentType: 'text/html',
+          body: `<!doctype html><html class="dark" lang="${locale}" style="${variables}"><head><style>${stylesheet}</style></head><body><div id="root"></div><script id="configuration" type="application/json">${JSON.stringify({ route, locale, collapsed })}</script></body></html>`,
+        }))
+        await page.goto(documentUrl)
+        await page.route('**/*', intercepted => intercepted.request().isNavigationRequest() ? intercepted.abort('aborted') : intercepted.continue())
+        assert(await page.evaluate(() => window.location.origin)).toBe('https://surface.example.test')
+        await page.evaluate(() => {
+          let cookie = ''
+          Object.defineProperty(document, 'cookie', { configurable: true, get: () => cookie, set: value => { cookie = value } })
+          for (const name of ['localStorage', 'sessionStorage']) {
+            const entries = new Map<string, string>()
+            Object.defineProperty(window, name, { configurable: true, value: { getItem: (key: string) => entries.get(key) ?? null, setItem: (key: string, value: string) => entries.set(key, value), removeItem: (key: string) => entries.delete(key), clear: () => entries.clear(), key: (index: number) => [...entries.keys()][index] ?? null, get length() { return entries.size } } })
+          }
+        })
+        await page.addScriptTag({ content: script })
+        await assert.poll(() => failures).toEqual([])
+        await page.locator('[data-shell-column]').waitFor().catch(async cause => {
+          throw new Error(JSON.stringify({ route, failures, rendered: await page.locator('#root').innerHTML() }), { cause })
+        })
+        await page.waitForFunction('window.surfaceClient.isFetching() === 0')
+        await loadAppFonts(page)
       })
-      await page.addScriptTag({ content: script })
-      await assert.poll(() => failures).toEqual([])
-      await page.locator('[data-shell-column]').waitFor({ timeout: 3000 }).catch(async cause => {
-        throw new Error(JSON.stringify({ route, failures, rendered: await page.locator('#root').innerHTML() }), { cause })
-      })
-      await page.waitForFunction('window.surfaceClient.isFetching() === 0')
-      await loadAppFonts(page)
       assert(failures, route).toEqual([])
     }
 
