@@ -2729,6 +2729,7 @@
       "scopeLabel": "O que ela pode acessar?",
       "setExpiry": "Definir validade?",
       "expiryQuestion": "Ela expira?",
+      "expiryDayLabel": "Último dia em que funciona",
       "accessQuestion": "O que ela pode fazer?",
       "scopeAction": "Criar",
       "mcpTitle": "Conectar por MCP",

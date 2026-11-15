@@ -78,7 +78,7 @@ describe.each([{ language: 'en', messages: en }, { language: 'pt-BR', messages: 
       expect(heading(tree)).toBe(messages.profile.apiKeys.expiryQuestion)
       expect(hosts(tree).some((node) => node.type === 'TextInput')).toBe(false)
       expect(texts(tree)).not.toContain(messages.orbitMcp.expiryFormatExample)
-      expect(datePicker(tree).props.label).toBe(messages.orbitMcp.expiresAtLabel)
+      expect(datePicker(tree).props.label).toBe(messages.profile.apiKeys.expiryDayLabel)
       await press(tree, messages.common.never)
       expect(onCreate).toHaveBeenCalledWith({ name: 'Claude Desktop', expiresAtUtc: null }, expect.any(Function))
       expect(heading(tree)).toBe(messages.orbitMcp.revealHeading)

@@ -2729,6 +2729,7 @@
       "scopeLabel": "What can it access?",
       "setExpiry": "Set expiry?",
       "expiryQuestion": "Does it expire?",
+      "expiryDayLabel": "Last day it works",
       "accessQuestion": "What can it do?",
       "scopeAction": "Create",
       "mcpTitle": "Connect over MCP",
