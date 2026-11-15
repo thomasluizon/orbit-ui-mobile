@@ -5,6 +5,7 @@ import { join } from 'node:path'
 import { corpusDigest } from '../core/corpus.mjs'
 import { COST_PER_MODEL_CALL_LIMIT_USD, mergeRunFiles, mergeRuns } from '../core/merge.mjs'
 import { summarize, writeReport, writeResults } from '../core/report.mjs'
+import { changeList } from '../core/change-list.mjs'
 
 const descriptor = (id, overrides = {}) => ({ id, situation: id, family: 'owner-turns', defectClass: 'b', locale: 'en',
   mustPass: true, k: 3, maxQuestions: 1, ...overrides })
@@ -126,6 +127,13 @@ describe('the gate report of the two runs', () => {
   it('keeps the gate incomplete while the grader cannot read an attempt', () => {
     const summary = merged([requiredRun([...attempts(required, 2), result(required, { graderLimit: true })]), otherRun([result(optional)])], { runCostUsd: 0.006 })
     expect(summary).toMatchObject({ status: 'incomplete', criteria: { mustPass: { passed: 0, status: 'incomplete' } } })
+    expect(summary.cases[0]).toMatchObject({ passK: 'incomplete', graderLimits: 1, graderLimitReasons: [classify] })
+  })
+
+  it('never lets a later window of the same build replace a case that holds a grader limit', () => {
+    const limited = requiredRun([result(required), result(required, { graderLimit: true }), result(required, { unavailable: true })])
+    expect(() => merged([limited, requiredRun(attempts(required, 3))]))
+      .toThrow('Case required holds a grader limit, which is final on its build; no rerun on the same build replaces it.')
   })
 
   it('continues an incomplete case in a later window, and counts the UTC-day windows', () => {
@@ -133,7 +141,15 @@ describe('the gate report of the two runs', () => {
     const continued = { ...requiredRun(attempts(required, 3)), utcDay: '2099-01-02' }
     const summary = merged([stopped, continued, otherRun([result(optional)])], { runCostUsd: 0.006 })
     expect(summary).toMatchObject({ status: 'pass', utcDayWindows: 2 })
-    expect(summary.cases[0]).toMatchObject({ passK: 'pass', attempts: 3, sourceWindow: 2 })
+    expect(summary.cases[0]).toMatchObject({ passK: 'pass', attempts: 3, sourceWindow: 2, modelCalls: [2, 2, 2], supersededModelCalls: [2, 2, 0] })
+  })
+
+  it('keeps the model calls of a replaced window, and counts them once in the totals and the cost', () => {
+    const stopped = requiredRun([...attempts(required, 2), result(required, { unavailable: true })])
+    const summary = merged([stopped, requiredRun(attempts(required, 3)), otherRun([result(optional)])], { runCostUsd: 0.006 })
+    expect(summary.cost).toMatchObject({ modelCalls: 12, perModelCallUsd: 0.0005 })
+    expect(summary.totals.modelCalls).toBe(summary.cost.modelCalls)
+    expect(summary.cases.map(({ costUsd }) => costUsd)).toEqual([0.005, 0.001])
   })
 
   it.each(['fail', 'pass'])('never lets a later window of the same build replace a case with the verdict %s', (verdict) => {
@@ -148,6 +164,8 @@ describe('the gate report of the two runs', () => {
     expect(() => merged([{ ...window, cases: [{ ...window.cases[0], k: 1 }] }])).toThrow(/k policy/u)
     expect(() => merged([{ ...window, cases: [{ ...window.cases[0], attempts: 2, passed: 2 }] }])).toThrow(/claims a pass/u)
     expect(() => merged([{ ...window, cases: [{ ...window.cases[0], passed: 4 }] }])).toThrow(/invalid attempt counts/u)
+    expect(() => merged([{ ...window, cases: [{ ...window.cases[0], graderLimits: 4 }] }])).toThrow(/invalid attempt counts/u)
+    expect(() => merged([{ ...window, cases: [{ ...window.cases[0], graderLimits: undefined }] }])).toThrow(/invalid attempt counts/u)
   })
 
   it('reports a case that no window holds as incomplete', () => {
@@ -217,7 +235,16 @@ describe('the rerun of the failed cases after a fix', () => {
   it('shares the measured cost over the model calls of both builds', () => {
     const summary = merged(failedFirst(), [fixed()])
     expect(summary.cost).toMatchObject({ runUsd: 0.0105, modelCalls: 14, perModelCallUsd: 0.00075, status: 'pass' })
+    expect(summary.totals.modelCalls).toBe(14)
     expect(summary.cases.map(({ costUsd }) => costUsd)).toEqual([0.009, 0.0015])
+  })
+
+  it('takes the rerun of a case with a grader limit from the fixed build', () => {
+    const limited = [run([result(required), result(required, { graderLimit: true }), result(required)], [required], 'must-pass'),
+      run([result(optional)], [optional], 'other')]
+    const summary = merged(limited, [fixed()])
+    expect(summary).toMatchObject({ status: 'pass', rerunApiCommit: fixedBuild })
+    expect(summary.cases[0]).toMatchObject({ id: 'required', passK: 'pass', rerun: true, graderLimits: 0, supersededModelCalls: [2, 2, 2] })
   })
 
   it('keeps the failure when the rerun fails again', () => {
@@ -232,7 +259,7 @@ describe('the rerun of the failed cases after a fix', () => {
 
   it('refuses the rerun of a case that did not fail, and a second rerun', () => {
     expect(() => merged(failedFirst(), [run([result(optional)], [optional], 'other', fixedBuild)]))
-      .toThrow('Case optional did not fail; only a failed case has a rerun.')
+      .toThrow('Case optional did not fail and holds no grader limit; only such a case has a rerun.')
     expect(() => merged(failedFirst(), [fixed([...attempts(required, 2), result(required, { pass: false })]), fixed()]))
       .toThrow('Case required already has the verdict fail; no rerun on the same build replaces it.')
     expect(() => merged(failedFirst(), [fixed(), run(attempts(required, 3), [required], 'must-pass', 'c'.repeat(40))]))
@@ -289,6 +316,25 @@ describe('the report files', () => {
     for (const path of ['results.json', 'attempts/required-r1.json', 'attempts/required-r3.json']) {
       expect(statSync(join(target, path)).mode & 0o777).toBe(0o600)
     }
+  })
+
+  it('keeps the held previews of an attempt with the names of their records, and no record id', () => {
+    const target = directory()
+    const [first, second, preview] = ['11111111-1111-4111-8111-111111111111', '22222222-2222-4222-8222-222222222222', '44444444-4444-4444-8444-444444444444']
+    const empty = '00000000-0000-0000-0000-000000000000'
+    const entry = result(required)
+    Object.assign(entry.testCase.vars, { accountDate: '2026-11-13', core: { records: { water: first, walk: second, first, second } } })
+    const row = (id, index, title) => ({ itemId: `${index}/${id}`, entityId: id, entityName: title, fields: [{ entityId: id, entityName: title,
+      field: 'title', valueType: 'text', oldValue: id === empty ? null : title, newValue: `${title} 2` }] })
+    entry.response.output.previews = [{ id: preview, actionKey: 'applyAccountChanges', items: [row(second, 0, 'Walk'), row(empty, 1, 'Read')] }]
+    writeResults([entry], target)
+    const { heldPreviews } = JSON.parse(readFileSync(join(target, 'attempts/required-r1.json'), 'utf8'))
+    expect(heldPreviews).toEqual({ accountDate: '2026-11-13', records: { water: 'water', walk: 'walk', first: 'water', second: 'walk' },
+      previews: [{ id: 'id-1', actionKey: 'applyAccountChanges', items: [
+        { itemId: '0/walk', entityId: 'walk', entityName: 'Walk', fields: [{ entityId: 'walk', entityName: 'Walk', field: 'title', valueType: 'text', oldValue: 'Walk', newValue: 'Walk 2' }] },
+        { itemId: '1/no-record', entityId: null, entityName: 'Read', fields: [{ entityId: null, entityName: 'Read', field: 'title', valueType: 'text', oldValue: null, newValue: 'Read 2' }] }] }] })
+    expect(changeList(heldPreviews.previews).changes.map(({ kind, target: record, fields }) => ({ kind, record, fields }))).toEqual([
+      { kind: 'update', record: 'walk', fields: { title: 'Walk 2' } }, { kind: 'create', record: null, fields: { title: 'Read 2' } }])
   })
 
   it('merges summary files from the command line arguments', () => {

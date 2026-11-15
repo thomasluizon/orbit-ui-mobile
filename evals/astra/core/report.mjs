@@ -44,16 +44,49 @@ function attemptsOf(results) {
   })
 }
 
+const recordIdSource = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'
+const wholeRecordId = new RegExp(`^${recordIdSource}$`, 'iu')
+const recordIds = new RegExp(recordIdSource, 'giu')
+const emptyRecordId = /^[0-]+$/u
+
+// The held previews of an attempt, kept so that an extended grader regrades the attempt offline with gradePreview, and
+// the records of the case under the same names. The evidence holds no record id: the id of a fixture record becomes
+// the name that the case gives it (`children[4]`, `walk`), the empty id of a row without a stored record becomes null
+// (`no-record` inside a longer text; the change list reads both as no record), and each other id becomes `id-<n>`.
+function heldPreviewsOf(previews, vars) {
+  const names = new Map()
+  for (const [name, value] of Object.entries(vars?.core?.records ?? {})) {
+    for (const [index, id] of [value].flat().entries()) if (!names.has(id)) names.set(id, Array.isArray(value) ? `${name}[${index}]` : name)
+  }
+  let others = 0
+  const nameOf = (id) => {
+    if (emptyRecordId.test(id)) return null
+    if (!names.has(id)) names.set(id, `id-${++others}`)
+    return names.get(id)
+  }
+  const named = (value) => {
+    if (typeof value === 'string') {
+      return wholeRecordId.test(value) ? nameOf(value) : value.replace(recordIds, (id) => nameOf(id) ?? 'no-record')
+    }
+    if (Array.isArray(value)) return value.map(named)
+    return value && typeof value === 'object' ? Object.fromEntries(Object.entries(value).map(([key, child]) => [key, named(child)])) : value
+  }
+  return { accountDate: vars?.accountDate ?? null, records: named(vars?.core?.records ?? {}), previews: named(previews) }
+}
+
 // Private evidence of each attempt for the triage of a failure: the sanitized tool calls and answer of the last turn,
-// the held change list and the saved state verdict. The summary files hold case identifiers and counts only.
+// the held change list, the held previews and the saved state verdict. The summary files hold case identifiers and
+// counts only.
 export function writeResults(results, directory) {
   mkdirSync(`${directory}/attempts`, { recursive: true, mode: 0o700 })
   chmodSync(directory, 0o700)
   chmodSync(`${directory}/attempts`, 0o700)
   const attempts = attemptsOf(results).map(({ entry, attempt }) => {
     const output = entry.response?.output ?? {}
-    const evidence = attemptEvidence(entry, { ...attempt, heldChanges: changeList(output.previews).changes
-      .map(({ kind, fields }) => ({ kind, fields })), resend: output.resend ?? null })
+    const evidence = attemptEvidence(entry, { ...attempt,
+      heldChanges: changeList(output.previews).changes.map(({ kind, fields }) => ({ kind, fields })),
+      heldPreviews: output.previews?.length ? heldPreviewsOf(output.previews, entry.testCase.vars) : null,
+      resend: output.resend ?? null })
     writePrivateJson(`${directory}/${evidencePath(attempt.caseId, attempt.repeat)}`, evidence)
     return Object.fromEntries(Object.keys(attempt).map((key) => [key, evidence[key]]))
   })
@@ -92,12 +125,15 @@ export function groupsOf(cases) {
   })
 }
 
+// The model calls of a case: those of its attempts, and those of the attempts that a later window or a rerun replaced.
+export const callsOf = (entry) => [...entry.modelCalls, ...(entry.supersededModelCalls ?? [])]
+
 // The measured figures of a set of cases: the pass^k rate, the questions that came before a preview against the count
 // each case allows, and the model calls.
 export function totalsOf(cases) {
   const observed = cases.flatMap((entry) => entry.questionsBeforePreview.filter((count) => count !== null)
     .map((count) => ({ count, allowed: entry.maxQuestions })))
-  const calls = cases.flatMap((entry) => entry.modelCalls)
+  const calls = cases.flatMap(callsOf)
   const passed = cases.filter((entry) => entry.passK === 'pass').length
   return { cases: cases.length, passed, passRate: cases.length ? rounded(passed / cases.length, 4) : null,
     attempts: cases.reduce((sum, entry) => sum + entry.attempts, 0),
@@ -168,7 +204,7 @@ export function writeReport(summary, directory) {
     ...reasonLines('Grader limits (the grader could not read the reply; no verdict on the assistant):', summary.cases, 'graderLimitReasons'),
     ...reasonLines('No evidence (a throttle, a spend ceiling, a failed precondition or a failed rubric grader):', summary.cases, 'unavailableReasons'),
     '',
-    'A must-pass case passes only when each of its 3 attempts passes. No rerun on the same build replaces a failed attempt.',
+    'A must-pass case passes only when each of its 3 attempts passes. No rerun on the same build replaces a failed attempt or a grader limit.',
     'Incomplete is not a pass. A held preview proves a proposal; the saved state readback proves the write.',
     'Seconds are the time that the person waits for the turns of one attempt.',
     'A turn that fails returns no trace, so its model calls are not counted and the cost of one model call reads a little high.',

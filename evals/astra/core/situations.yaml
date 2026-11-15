@@ -20,7 +20,7 @@
 # A write case that passes its preview is approved, and the saved state is read back.
 
 exchanges:
-  # The Water conversation of the owner, 12 November 2026. The person's messages and the second and fourth assistant
+  # The Water conversation of the owner (#2127 and #2129). The person's messages and the second and fourth assistant
   # messages are the recorded text. The first and third assistant messages were cards whose question text is not on
   # record: the first is the owner's own report of the question, the third restates its recorded answer option.
   water:
@@ -69,9 +69,10 @@ situations:
         - 'I have a bunch of repeated Water - 710ml habits. Delete two and rename the other four to Water - 1.18L'
         - 'Out of my Water - 710ml habits, remove 2 and rename the remaining 4 to Water - 1.18L'
 
-  # The same owner message on staging, 15 November 2026 (the #2127 capture, run 5): the reply held no question and no
-  # preview, only a list card that logs habits, which cannot hold a delete or a rename. The request ends in a preview,
-  # after one question at most. This situation sends it as the mobile client.
+  # The same owner message on staging (the #2127 capture, run 5): the reply held no question and no preview, only a list
+  # card that logs habits, which cannot hold a delete or a rename. The request ends in a preview, after one question at
+  # most. The capture sent the message as the web client, as owner-water-request does. This situation sends it as the
+  # mobile client on purpose, so the same request is also measured on the mobile path.
   - id: owner-water-run-5
     family: owner-turns
     defectClass: c
@@ -157,7 +158,7 @@ situations:
         - 'look, it is simple: delete the last 2 water 710ml and change the first 4 to Water - 1.18L'
         - 'again: delete the last 2 water 710ml habits and rename the first 4 to Water - 1.18L'
 
-  # The image turn of 5 November 2026: a phone screenshot of a cinema ticket (Cinesystem Pompéia, Cara-De-Barro,
+  # The image turn of the owner (#2036): a phone screenshot of a cinema ticket (Cinesystem Pompéia, Cara-De-Barro,
   # session 07/11 at 21:15, room 5, seats H 10 and H 9) with the message "cria pra mim". The image is a drawn copy
   # with the same lines; the owner's screenshot is not in the repository.
   - id: owner-image-create

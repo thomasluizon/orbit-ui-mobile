@@ -82,6 +82,22 @@ it.each([true, false])('gives the clock setting %s of the account profile to the
   expect(test.vars.uses24HourClock).toBe(uses24HourClock)
 })
 
+// Producer: orbit-api GetProfileQuery returns TimeFormatResolver.Uses24HourClock(preference, timeZone), so an account
+// without a stored preference reads the 12-hour clock in America/New_York and the 24-hour clock in UTC.
+it('reads the clock setting of the profile after the reset moves the account to UTC', async () => {
+  const test = scenario('pro')
+  const source = globalThis.fetch
+  let timeZone = 'America/New_York'
+  vi.stubGlobal('fetch', async (url, options) => {
+    const response = await source(url, options)
+    const path = new URL(url).pathname
+    if (path === '/api/profile/timezone') timeZone = JSON.parse(options.body).timeZone
+    return path === '/api/profile' ? Response.json({ ...await response.json(), timeZone, uses24HourClock: timeZone === 'UTC' }) : response
+  })
+  await resetFixture(test)
+  expect(test.vars).toMatchObject({ accountTimeZone: 'UTC', uses24HourClock: true })
+})
+
 it.each(['en', 'pt-BR'])('GW resets the behind %s fixture during the former timezone gap without chat', async (locale) => {
   vi.setSystemTime(new Date('2031-06-10T10:30:00Z'))
   const test = structuredClone(corpus.find((entry) => entry.metadata.id === `offers-goal-behind-${locale}`))
@@ -286,7 +302,7 @@ it('does not cycle capacity roots or reset counters on repeated free attempts', 
 })
 it('rejects budget setup beyond five ordinary requests without spending a chat message', async () => {
   await expect(resetFixture(scenario('budget-exhausted'))).rejects.toThrow('more than five')
-  expect(requests.map(({ path }) => path)).toEqual(['profile', 'eval/pending-operations', 'eval/pending-operations', 'profile/timezone', 'profile/language'])
+  expect(requests.map(({ path }) => path)).toEqual(['profile', 'eval/pending-operations', 'eval/pending-operations', 'profile/timezone', 'profile', 'profile/language'])
 })
 it('keeps old positive history and IDs intact when public undo cannot restore zero history', async () => {
   await resetFixture(scenario('pro'))
@@ -394,7 +410,8 @@ it.each(['free-at-limit', 'budget-exhausted'])('keeps the metered %s fixture pat
     expect(habits.filter((habit) => !habit.deleted)).toHaveLength(capacity)
     expect(requests.some(({ path, body }) => path === 'habits/bulk' && body.habits.length > capacity)).toBe(true)
   } else {
-    expect(requests.filter(({ path }) => path === 'profile')).toHaveLength(2)
+    // Each of the two resets reads the profile, then reads its clock setting again after the time zone write.
+    expect(requests.filter(({ path }) => path === 'profile')).toHaveLength(4)
     expect(requests.some(({ path }) => path === 'chat')).toBe(false)
   }
 })

@@ -2,26 +2,33 @@
 import { readFileSync } from 'node:fs'
 import { pathToFileURL } from 'node:url'
 import { coreDescriptors, corpusDigest } from './corpus.mjs'
-import { caseOf, groupsOf, totalsOf, writeReport } from './report.mjs'
+import { callsOf, caseOf, groupsOf, totalsOf, writeReport } from './report.mjs'
 
 // D147 limit: the warm mean cost of one model call (orbit-api tests/Orbit.Infrastructure.Tests/AI/AiInputBudgetTests).
 export const COST_PER_MODEL_CALL_LIMIT_USD = 0.0009
 
 const verdicts = ['pass', 'fail', 'incomplete']
 const overall = (statuses) => statuses.includes('fail') ? 'fail' : statuses.includes('incomplete') ? 'incomplete' : 'pass'
+const count = (value, limit) => Number.isInteger(value) && value >= 0 && value <= limit
 
 function windowCase(entry, descriptor) {
   if (!descriptor) throw new Error(`Case ${entry.id} is not in the core set.`)
   if (entry.k !== descriptor.k || entry.mustPass !== descriptor.mustPass) throw new Error(`Case ${entry.id} disagrees with the k policy of the core set.`)
-  if (!verdicts.includes(entry.passK) || !Number.isInteger(entry.attempts) || entry.attempts < 0 || entry.attempts > entry.k
-    || !Number.isInteger(entry.passed) || entry.passed > entry.attempts) throw new Error(`Case ${entry.id} holds invalid attempt counts.`)
+  if (!verdicts.includes(entry.passK) || !count(entry.attempts, entry.k) || !count(entry.passed, entry.attempts)
+    || !count(entry.graderLimits, entry.attempts)) throw new Error(`Case ${entry.id} holds invalid attempt counts.`)
   if (entry.passK === 'pass' && (entry.attempts !== entry.k || entry.passed !== entry.k)) throw new Error(`Case ${entry.id} claims a pass without ${entry.k} passed attempts.`)
   return entry
 }
 
+// The rerun on the fixed build takes the place of a failed case and of a case with a grader limit. A grader limit is no
+// verdict on the assistant, but its attempt was measured: it is final on its build, and the attempt evidence keeps its
+// held previews for an offline regrade.
+const takesRerun = (entry) => entry.passK === 'fail' || entry.graderLimits > 0
+
 // The cases of the windows of one build: the must-pass run and the other run, each continued across UTC-day windows.
-// A later window may hold a case again only while its earlier entry is incomplete. A passed or failed case is final on
-// its build: no rerun on the same build replaces it.
+// A later window may hold a case again only while its earlier entry has no verdict and no grader limit. No rerun on the
+// same build replaces a passed or failed case or a grader limit. A later window keeps the model calls of the window it
+// replaces, for the cost.
 function casesOfBuild(windows, descriptors, { firstInput, anotherBuild }) {
   const collected = new Map()
   for (const [index, window] of windows.entries()) {
@@ -31,16 +38,20 @@ function casesOfBuild(windows, descriptors, { firstInput, anotherBuild }) {
     if (window.apiCommit !== windows[0].apiCommit) throw new Error(anotherBuild(input))
     for (const entry of window.cases) {
       const previous = collected.get(entry.id)
+      if (previous?.passK === 'incomplete' && previous.graderLimits > 0) {
+        throw new Error(`Case ${entry.id} holds a grader limit, which is final on its build; no rerun on the same build replaces it.`)
+      }
       if (previous && previous.passK !== 'incomplete') throw new Error(`Case ${entry.id} already has the verdict ${previous.passK}; no rerun on the same build replaces it.`)
-      collected.set(entry.id, { ...windowCase(entry, descriptors.find(({ id }) => id === entry.id)), sourceWindow: input })
+      collected.set(entry.id, { ...windowCase(entry, descriptors.find(({ id }) => id === entry.id)), sourceWindow: input,
+        ...(previous ? { supersededModelCalls: callsOf(previous) } : {}) })
     }
   }
   return collected
 }
 
-// Joins the run summaries of one gate run. After a fix, the failed cases run once more on the fixed build: that rerun
-// takes the place of the failure, keeps the model calls of the failed attempts for the cost, and is marked in the
-// report. Each other case keeps its verdict of the first build.
+// Joins the run summaries of one gate run. After a fix, the failed cases and the cases with a grader limit run once
+// more on the fixed build: that rerun takes the place of the first result, keeps the model calls of the first build for
+// the cost, and is marked in the report. Each other case keeps its verdict of the first build.
 function joinRuns(windows, reruns, descriptors) {
   const cases = casesOfBuild(windows, descriptors, { firstInput: 1,
     anotherBuild: (input) => `Input ${input} measured another API commit; one gate run measures one build.` })
@@ -50,20 +61,17 @@ function joinRuns(windows, reruns, descriptors) {
   const fixed = casesOfBuild(reruns, descriptors, { firstInput: windows.length + 1,
     anotherBuild: () => 'The rerun measured more than one build; a failed case has one rerun.' })
   for (const [id, entry] of fixed) {
-    const failed = cases.get(id)
-    if (failed?.passK !== 'fail') throw new Error(`Case ${id} did not fail; only a failed case has a rerun.`)
-    cases.set(id, { ...entry, rerun: true, supersededModelCalls: failed.modelCalls })
+    const first = cases.get(id)
+    if (!first || !takesRerun(first)) throw new Error(`Case ${id} did not fail and holds no grader limit; only such a case has a rerun.`)
+    cases.set(id, { ...entry, rerun: true, supersededModelCalls: [...callsOf(first), ...(entry.supersededModelCalls ?? [])] })
   }
   return descriptors.map((descriptor) => cases.get(descriptor.id) ?? caseOf(descriptor, []))
 }
 
 // The measured cost of the run comes from the API's daily `AI cost` line for the eval purpose. The API returns no cost
 // for one turn, so each case takes the share of the run cost that its measured model calls hold, with the calls of the
-// failed attempts that a rerun replaced.
-function costOf(cases, runCostUsd) {
-  const callsOf = (entry) => [...entry.modelCalls, ...(entry.supersededModelCalls ?? [])]
-  const counted = cases.flatMap(callsOf)
-  const modelCalls = counted.every((count) => count !== null) ? counted.reduce((sum, count) => sum + count, 0) : null
+// attempts that a later window or a rerun replaced.
+function costOf(cases, runCostUsd, modelCalls) {
   const measured = runCostUsd !== undefined && modelCalls
   const perModelCallUsd = measured ? Number((runCostUsd / modelCalls).toFixed(6)) : null
   return { cases: cases.map((entry) => ({ ...entry,
@@ -111,7 +119,7 @@ export function mergeRuns(windows, { baseline, asBaseline = false, reruns = [], 
   const baselineRate = baseline ? baselineRateOf(baseline, descriptors) : null
   const joined = joinRuns(windows, reruns, descriptors)
   const totals = totalsOf(joined)
-  const { cases, cost } = costOf(joined, runCostUsd)
+  const { cases, cost } = costOf(joined, runCostUsd, totals.modelCalls)
   const criteria = criteriaOf(cases, totals, cost, baselineRate)
   return { gate: 'core', run: 'merged', apiCommit: windows[0].apiCommit, ...(reruns.length ? { rerunApiCommit: reruns[0].apiCommit } : {}),
     corpusDigest, utcDayWindows: new Set([...windows, ...reruns].map((window) => window.utcDay)).size,

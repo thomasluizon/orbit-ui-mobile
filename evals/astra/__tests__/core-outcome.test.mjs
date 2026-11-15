@@ -36,17 +36,20 @@ async function replay(name, source = request, { turns, vars: overrides, response
   return { output, vars, requests, calls, verdict: outcome(output, { vars }) }
 }
 
-// Runs one case against replies that the test gives in order, in place of the stream driver.
-async function scripted(replies, source = request, { api, now } = {}) {
+// Runs one case against replies that the test gives in order, in place of the stream driver. `traces` gives the trace
+// of each reply, and `records` the fixture records of another fixture.
+async function scripted(replies, source = request, { api, now, traces = [], records } = {}) {
   const sent = []
   const calls = []
   const { account, vars } = offlineVars('complete', source)
+  if (records) vars.core.records = records
   let turn = 0
   const send = async (_conversation, attempted) => {
     sent.push(attempted)
+    const trace = traces[turn] ?? null
     const reply = replies[turn++]
     return reply.kind === 'failed' ? reply : { kind: 'final', response: reply, requestId: vars.evalRequestId,
-      responseRequestId: vars.evalRequestId, trace: null, sendAgain: async () => ({ kind: 'final', replayed: true, previewIds: [] }) }
+      responseRequestId: vars.evalRequestId, trace, sendAgain: async () => ({ kind: 'final', replayed: true, previewIds: [] }) }
   }
   const output = await runCase(vars, { send, api: api?.(account) ?? recordedApi('complete', account, calls), ...(now ? { now } : {}) })
   return { output, vars, sent, calls, verdict: outcome(output, { vars }) }
@@ -195,19 +198,55 @@ describe('a reply without a preview', () => {
     expect(verdict).toMatchObject({ pass: false, reason: listCard })
   })
 
-  it('takes a list card as a question when its action can hold the request', async () => {
+  // Producer: orbit-api AskTool gives each row of a log list the arguments { habit_id, date } of one bulk log item, as an
+  // object or as its JSON string, and the eval trace keeps the arguments of the ask call.
+  describe('a list card whose action can hold the request', () => {
     const logWalk = caseOf('ask-which-duplicate-en-1')
-    const card = structuredClone(finalOf('run5', 0))
-    const { sent, output } = await scripted([card, card], logWalk)
-    expect(output.questionsBeforePreview).toBe(2)
-    expect(output.answerFailure).toBeUndefined()
-    expect(sent.map(({ content, blockAnswer }) => ({ content, blockAnswer }))).toEqual([
-      { content: logWalk.vars.input, blockAnswer: undefined }, { content: 'The second one in the list', blockAnswer: undefined }])
+    const duplicates = { first: '11111111-1111-4111-8111-111111111111', second: '22222222-2222-4222-8222-222222222222',
+      other: '44444444-4444-4444-8444-444444444444' }
+    const rows = [{ id: 'walk-1', label: 'Walk', detail: '1 of 2' }, { id: 'walk-2', label: 'Walk', detail: '2 of 2' }]
+    function listReply() {
+      const reply = structuredClone(finalOf('run5', 0))
+      Object.assign(reply.parts[0].block, { title: 'Which walk?', items: rows })
+      return reply
+    }
+    const askTrace = (first, second) => ({ calls: [{ name: 'ask', resultStatus: 'Succeeded', arguments: { input: { form: 'pickList',
+      action: 'log_habits', title: 'Which walk?', items: [{ ...rows[0], arguments: { habit_id: first, date: '2026-11-13' } },
+        { ...rows[1], arguments: JSON.stringify({ habit_id: second, date: '2026-11-13' }) }] } } }] })
+    const answered = (traces) => scripted([listReply(), listReply()], logWalk, { traces, records: duplicates })
+
+    it('takes the list card as a question, and answers through blockAnswer with the row of the record', async () => {
+      const card = listReply().parts[0].block
+      const { sent, output } = await answered([askTrace(duplicates.first, duplicates.second)])
+      expect(output.questionsBeforePreview).toBe(2)
+      expect(output.answerFailure).toBeUndefined()
+      expect(sent.map(({ content, blockAnswer }) => ({ content, blockAnswer }))).toEqual([
+        { content: logWalk.vars.input, blockAnswer: undefined },
+        { content: 'Walk', blockAnswer: { blockId: card.blockId, selectedIds: ['walk-2'] } }])
+    })
+
+    it('types the decision when no row stands for the record', async () => {
+      const { sent } = await answered([askTrace(duplicates.first, duplicates.other)])
+      expect(sent[1]).toEqual({ content: 'The second one in the list' })
+    })
+
+    it.each([
+      ['no trace', []],
+      ['a row without a record', [askTrace(duplicates.first, null)]],
+      ['an ask call with other rows', [{ calls: [{ ...askTrace(duplicates.first, duplicates.second).calls[0], arguments: { input: {
+        ...askTrace(duplicates.first, duplicates.second).calls[0].arguments.input, items: [] } } }] }]],
+    ])('marks a grader limit when the trace holds %s, and does not answer', async (_name, traces) => {
+      const { sent, output, verdict } = await answered(traces)
+      expect(sent).toHaveLength(1)
+      expect(output).toMatchObject({ graderLimit: true, answerFailure: 'The grader cannot tell which record each row of the list card stands for.' })
+      expect(verdict).toMatchObject({ pass: false, metadata: { graderLimit: true } })
+    })
   })
 
   it.each([
     ['a text that asks, in the message', textReply('Quais 2 dos 6 hábitos você quer excluir?')],
     ['a text that asks, in a text part', textReply(null, [{ type: 'text', text: 'Quais 2 dos 6 hábitos você quer excluir?' }])],
+    ['a text that asks after a fact about the request', textReply('Encontrei 6 hábitos Water - 710ml. Quais 2 você quer que eu exclua?')],
   ])('counts %s as a question, and types the answer', async (_name, reply) => {
     const { sent, output, verdict } = await scripted([reply, finalOf('complete', 1)])
     expect(sent.map(({ content }) => content)).toEqual([request.vars.input, 'Exclui os 2 últimos e renomeia os 4 primeiros'])
@@ -217,7 +256,7 @@ describe('a reply without a preview', () => {
   })
 
   it.each([
-    ['a text that asks nothing', textReply('Pronto, já fiz as mudanças.')],
+    ['a text that asks nothing', textReply('Entendi o pedido.')],
     ['a reply without text and without a card', textReply(null)],
   ])('fails %s, and counts no question', async (_name, reply) => {
     const { sent, output, verdict } = await scripted([reply, finalOf('complete', 1)])
@@ -226,9 +265,25 @@ describe('a reply without a preview', () => {
     expect(verdict).toMatchObject({ pass: false, reason: 'The reply holds no preview, no question card and no question.' })
   })
 
+  // A sign-off question after a false report of the work asks nothing about the request. The request cases allow one
+  // question; the duplicate cases need one.
+  it.each([
+    ['owner-water-request-pt-BR-1', 'Pronto! Excluí os dois e renomeei os outros quatro. Quer mais alguma coisa?'],
+    ['owner-water-request-en-1', 'Done! I deleted the two and renamed the other four. Anything else?'],
+    ['owner-water-request-pt-BR-2', 'Pronto, já fiz as mudanças. Posso ajudar com mais algo?'],
+    ['owner-water-request-en-2', 'The two habits have been deleted and the other four renamed. Anything else?'],
+    ['ask-which-duplicate-pt-BR-1', 'Registrei a Caminhada. Quer mais alguma coisa?'],
+    ['ask-which-duplicate-en-1', 'I logged Walk. Anything else?'],
+  ])('fails %s when a text reports the change as done and ends with a sign-off question', async (id, text) => {
+    const { sent, output, verdict } = await scripted([textReply(text), finalOf('complete', 1)], caseOf(id))
+    expect(sent).toHaveLength(1)
+    expect(output.questionsBeforePreview).toBe(0)
+    expect(verdict).toMatchObject({ pass: false, reason: 'The reply reports a change as done, and no preview holds it.' })
+  })
+
   it('does not take a text that asks nothing as the question that a request needs', async () => {
     const singular = caseOf('same-title-singular-pt-BR-1')
-    const { verdict } = await scripted([textReply('Feito.'), finalOf('complete', 1)], singular)
+    const { verdict } = await scripted([textReply('Entendi.'), finalOf('complete', 1)], singular)
     expect(verdict).toMatchObject({ pass: false, reason: 'The reply holds no preview, no question card and no question.' })
   })
 })

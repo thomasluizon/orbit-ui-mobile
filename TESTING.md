@@ -273,8 +273,8 @@ at low effort.
 Each pull request that changes the assistant gets one live run of the core set (`### Core set gate`), by
 manual dispatch, on a staging build of that branch, before merge. The app-launch live gate runs the launch
 corpus once, with one attempt per case and a 2 USD spend ceiling for that run; the ceiling returns to
-0.50 USD a day after it. After a fix, the failed cases run once more live on the fixed build. A rerun on
-the same build never replaces a failed case. There is no
+0.50 USD a day after it. After a fix, the failed cases and the cases with a grader limit run once more
+live on the fixed build. A rerun on the same build never replaces a failed case. There is no
 other live run. A fix round never calls the provider: it replays recorded real provider
 responses offline at the model-service port, following the `orbit-api`
 `tests/Orbit.Application.Tests/Fixtures/` pattern, or uses a fake completion client.
@@ -442,10 +442,13 @@ Each case runs as a person with a shipped client (`core/client-turn.mjs`, `core/
   `buildChatClientContext` (with a `conversationId` and the clock setting of the account profile) and
   `buildRecentChatHistory`, and read through the shared `sendChatStreamTurn` loop and stream parser.
 - A reply without a preview is a question when it shows a choice or question card, a list card whose
-  action can hold the request, or a text that asks. The person answers a choice or question card through
-  `blockAnswer` when the card can hold the decision of the case, and types the decision when no card can.
-- A list card of another action fails the case, and so does a reply that asks nothing. The person does
-  not answer them. One question past the allowed count is recorded and not answered.
+  action can hold the request, or a text that asks and reports no change as done. The person answers a
+  card through `blockAnswer` when the card can hold the decision of the case, and types the decision when
+  no card can. The record of a list row comes from the ask arguments in the trace; a row that the trace
+  does not map to one record is a grader limit.
+- A list card of another action fails the case, and so does a text that reports a change as done (also
+  when it ends with a question, `completionClaims` in `core/answers.mjs`) and a reply that asks nothing.
+  The person does not answer them. One question past the allowed count is recorded and not answered.
 - A later owner turn starts from the recorded messages that came before it. The class e turn
   `owner-water-typed-answer` runs live instead: the earlier owner messages go first, in one conversation,
   so the server holds the state that it held for the owner.
@@ -492,32 +495,35 @@ passes `--as-baseline` in place of `--baseline`. A merge without one of the two 
 
 The API returns no cost for one turn. Read the run's cost from the API's daily `AI cost` line for the
 eval purpose and pass it as `--run-cost-usd`; each case takes the share that its measured model calls
-hold (one `model_call` phase of the opt-in trace is one model call). Without it the gate stays incomplete.
-A turn that fails returns no trace, so its model calls are not counted and the cost of one model call
-reads a little high.
+hold (one `model_call` phase of the opt-in trace is one model call), with the calls of the attempts that
+a later window or a rerun replaced. Without it the gate stays incomplete. A turn that fails returns no
+trace, so its model calls are not counted and the cost of one model call reads a little high.
 
 No rerun on the same build replaces a failure. An attempt that fails, fails its case for that build:
 a wrong preview, a reply that is no preview and no question, HTTP 5xx, a stream that ends without a final
 event, or a failed approval. Only HTTP 429, `AI_DAILY_BUDGET_EXCEEDED`, `AI_PROVIDER_QUOTA_EXHAUSTED` and a
-failed precondition are no evidence. Such an attempt leaves its case incomplete, and only an incomplete
-case may appear again in a later window. The merge refuses a second result for a case that passed or
-failed, a window of another API commit, and a case whose `k` differs from the corpus.
+failed precondition are no evidence. Such an attempt leaves its case incomplete, and only such a case
+may appear again in a later window. The merge refuses a second result for a case that passed, failed or
+holds a grader limit, a window of another API commit, and a case whose `k` differs from the corpus.
 
-A preview that the grader cannot classify, or whose saved state it cannot read back, is a grader limit.
-The case stays incomplete and nothing is approved. The report lists grader limits apart from behavior
-failures. Extend the grader, then run the case in a later window.
+A preview that the grader cannot classify, a change whose saved state it cannot read back, and a card
+that it cannot answer are grader limits. The case has no verdict, nothing is approved, and the report
+lists grader limits apart from behavior failures. The limit is final on its build, as a verdict is. The
+private evidence of the attempt (`attempts/<case>-r<n>.json`, `heldPreviews`) keeps its held previews,
+with each record id replaced by the name that the case gives the record, so an extended grader regrades
+them offline with `gradePreview`.
 
-After a fix, run the failed cases once more on the fixed build, and give those summaries to the merge
-with `--rerun`:
+After a fix, run the failed cases and the cases with a grader limit once more on the fixed build, and
+give those summaries to the merge with `--rerun`:
 
 ```sh
 node core/merge.mjs --run-cost-usd <measured cost of both builds> --baseline <baseline summary.json> \
   <first-run summaries> --rerun <fixed-build must-pass summary> --rerun <fixed-build other summary>
 ```
 
-The rerun takes the place of the failure. The report names both API commits and marks each rerun case.
-Each other case keeps its verdict of the first build. The merge refuses a rerun on the same build, a
-rerun of a case that did not fail, and a second rerun build.
+The rerun takes the place of the first result. The report names both API commits and marks each rerun
+case. Each other case keeps its verdict of the first build. The merge refuses a rerun on the same build, a
+rerun of a case that neither failed nor holds a grader limit, and a second rerun build.
 
 Offline checks (`npm test --prefix evals/astra -- __tests__/core-outcome.test.mjs __tests__/core-corpus.test.mjs
 __tests__/core-report.test.mjs __tests__/core-cli.test.mjs`) replay recorded staging streams of the

@@ -12,10 +12,14 @@ const headers = { Authorization: 'Bearer pro-access', 'api-version': '2.0' }
 const fixture = (method, path, body) => fixtureApi(`https://offline.invalid/api/${path}`, { method, headers, ...(body ? { body: JSON.stringify(body) } : {}) })
 
 // The recorded record ids, mapped to the six children that the fixture reset created in the offline account.
+// CORE_TEST_ACTION_KEY gives the held preview another action key, as an API key that the grader does not know.
 async function recordedEvents(turn) {
   const { habits } = await (await fixture('GET', 'eval/snapshot')).json()
   const children = habits.filter((habit) => habit.title === 'Water - 710ml').map((habit) => habit.id)
-  return capture.children.reduce((text, id, index) => text.replaceAll(id, children[index]), JSON.stringify(capture.turns[turn]))
+  const events = JSON.parse(capture.children.reduce((text, id, index) => text.replaceAll(id, children[index]), JSON.stringify(capture.turns[turn])))
+  const actionKey = process.env.CORE_TEST_ACTION_KEY
+  if (actionKey) for (const preview of events.at(-1).response.pendingOperations) preview.actionKey = actionKey
+  return JSON.stringify(events)
 }
 
 // The chat context holds the clock setting of the profile, as the clients send it; pt-BR alone gives the 24-hour clock.

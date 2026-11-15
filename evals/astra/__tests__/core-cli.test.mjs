@@ -4,7 +4,9 @@ import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { fileURLToPath } from 'node:url'
 import { resolve } from 'node:path'
-import { MUST_PASS_ATTEMPTS, corpusDigest } from '../core/corpus.mjs'
+import { MUST_PASS_ATTEMPTS, coreCases, corpusDigest } from '../core/corpus.mjs'
+import { mergeRuns } from '../core/merge.mjs'
+import { gradePreview } from '../core/outcome.mjs'
 import { offlineCredentials } from './fixtures/credentials.mjs'
 
 const root = fileURLToPath(new URL('..', import.meta.url))
@@ -15,14 +17,14 @@ afterEach(() => { vi.unstubAllEnvs(); vi.unstubAllGlobals(); for (const path of 
 
 // Runs the committed must-pass config through the real promptfoo CLI: the hooks, the stream driver, the outcome
 // grader and the report, with the recorded staging stream of one capture in place of the API.
-function runGate(capture, caseId = requestId) {
+function runGate(capture, caseId = requestId, environment = {}) {
   offlineCredentials()
   const directory = mkdtempSync(resolve(tmpdir(), 'core-gate-'))
   scratch.push(directory)
   const run = spawnSync(process.execPath, ['--import', resolve(root, '__tests__/fixtures/core-preload.mjs'), cli, 'eval',
     '--config', resolve(root, 'core/must-pass.promptfooconfig.yaml'), '--no-write', '--no-share', '--no-cache', '--no-table',
     '--filter-metadata', `id=${caseId}`], { cwd: directory, encoding: 'utf8', timeout: 180000,
-    env: { ...process.env, CORE_TEST_CAPTURE: capture, ORBIT_EVAL_GRADER: `file://${root}/__tests__/fixtures/grader.mjs`,
+    env: { ...process.env, ...environment, CORE_TEST_CAPTURE: capture, ORBIT_EVAL_GRADER: `file://${root}/__tests__/fixtures/grader.mjs`,
       PROMPTFOO_CONFIG_DIR: resolve(directory, '.promptfoo'), PROMPTFOO_DISABLE_TELEMETRY: '1', PROMPTFOO_DISABLE_SHARING: '1' } })
   const summaryPath = resolve(directory, 'reports/core-must-pass/summary.json')
   expect(run.error, run.stdout + run.stderr).toBeUndefined()
@@ -61,5 +63,28 @@ describe('the must-pass run through the real promptfoo CLI', () => {
     expect(summary.cases[0]).toMatchObject({ id: 'owner-water-run-5-pt-BR-1', family: 'owner-turns', mustPass: true, attempts: 3, passed: 0,
       passK: 'fail', graderLimits: 0, questionsBeforePreview: [null, null, null],
       reasons: ['The reply shows a list card that can only log habits; the request needs delete and update.'] })
+  })
+
+  it('keeps a grader limit final on its build, and stores the held previews for an offline regrade', () => {
+    const unknownKey = 'The grader cannot classify a held preview: moveHabit.'
+    const limited = runGate('complete', requestId, { CORE_TEST_ACTION_KEY: 'moveHabit' })
+    expect(limited.summary.cases[0]).toMatchObject({ id: requestId, attempts: 3, passed: 0, graderLimits: 3, passK: 'incomplete',
+      reasons: [], graderLimitReasons: [unknownKey] })
+    const later = runGate('complete')
+    expect(later.summary.cases[0]).toMatchObject({ id: requestId, passK: 'pass' })
+    expect(() => mergeRuns([limited.summary, later.summary], { asBaseline: true }))
+      .toThrow(`Case ${requestId} holds a grader limit, which is final on its build; no rerun on the same build replaces it.`)
+    const evidence = JSON.parse(readFileSync(resolve(limited.directory, 'reports/core-must-pass/attempts', `${requestId}-r1.json`), 'utf8'))
+    const { heldPreviews } = evidence
+    expect(heldPreviews.records).toMatchObject({ parent: 'parent', walk: 'walk',
+      children: ['children[0]', 'children[1]', 'children[2]', 'children[3]', 'children[4]', 'children[5]'] })
+    expect(JSON.stringify(heldPreviews)).not.toMatch(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/u)
+    const vars = { accountDate: heldPreviews.accountDate, core: { ...coreCases().find(({ metadata }) => metadata.id === requestId).vars.core,
+      records: heldPreviews.records } }
+    const recorded = { questionsBeforePreview: evidence.questionsBeforePreview, previews: heldPreviews.previews }
+    expect(gradePreview(recorded, vars)).toMatchObject({ pass: false, reason: unknownKey, metadata: { graderLimit: true } })
+    // A grader that reads the key as the change set of the recorded API grades the recorded attempt without a model call.
+    const extended = { ...recorded, previews: heldPreviews.previews.map((preview) => ({ ...preview, actionKey: 'applyAccountChanges' })) }
+    expect(gradePreview(extended, vars)).toMatchObject({ pass: true, reason: 'The held previews hold exactly the requested changes.' })
   })
 })
