@@ -24,10 +24,25 @@ const html = new Set([".html", ".htm", ".svg", ".xml", ".astro", ".csproj", ".fs
 const hash = new Set([".yml", ".yaml", ".sh", ".bash", ".zsh", ".toml", ".properties", ".editorconfig", ".gitignore"])
 const parsers = new Map()
 
-function git(args, cwd = ROOT) {
-  const result = spawnSync("git", args, { cwd, encoding: "utf8", maxBuffer: 32 * 1024 * 1024 })
-  if (result.error || result.status !== 0) throw new Error(result.stderr?.trim() || result.error?.message || `git exited ${result.status}`)
+function git(args, options = {}) {
+  const result = spawnSync("git", args, { cwd: ROOT, encoding: "utf8", maxBuffer: 32 * 1024 * 1024, ...options })
+  if (result.error || result.status !== 0) throw new Error(result.stderr?.toString().trim() || result.error?.message || `git exited ${result.status}`)
   return result.stdout
+}
+
+/** Reads every object in one `git cat-file --batch` call; a missing object reads as null. */
+function blobs(specs) {
+  const output = git(["cat-file", "--batch"], { input: Buffer.from(specs.map((spec) => `${spec}\n`).join("")), encoding: "buffer", maxBuffer: 1024 * 1024 * 1024 })
+  const contents = []
+  for (let offset = 0; contents.length < specs.length;) {
+    const headerEnd = output.indexOf(10, offset)
+    const header = output.toString("utf8", offset, headerEnd).split(" ")
+    if (header.at(-1) === "missing") { contents.push(null); offset = headerEnd + 1; continue }
+    const end = headerEnd + 1 + Number(header.at(-1))
+    contents.push(output.toString("utf8", headerEnd + 1, end))
+    offset = end + 1
+  }
+  return contents
 }
 
 function typescript(root) {
@@ -248,9 +263,8 @@ function newFindings(path, before, after, root = ROOT) {
   return added
 }
 
-function allowlist(root) {
-  const path = join(root, ALLOWLIST)
-  const entries = existsSync(path) ? JSON.parse(readFileSync(path, "utf8")) : []
+function allowlist(text) {
+  const entries = text === null ? [] : JSON.parse(text)
   if (!Array.isArray(entries) || entries.some((entry) =>
     !entry || typeof entry.path !== "string" || !entry.path || typeof entry.reason !== "string" || !entry.reason ||
     !["machine-path", "owner-name", "dated-anecdote", "comment-length"].includes(entry.rule) ||
@@ -287,14 +301,11 @@ function report(results, allowed, checked, usage = results) {
   return failures.length ? 1 : 0
 }
 
-/** A change to a covered file, the allowlist or the checker can leave an entry unused: recheck the entries whose scope it touches, or every entry. */
-function changedEntryUsage(allowed, touched, tracked, read) {
-  const everyEntry = touched.some((path) => path === ALLOWLIST || path === CHECKER)
-  const checked = [...allowed.keys()].filter((index) => everyEntry || touched.some((path) => covers(allowed[index], path)))
+/** A change to a covered file can leave an entry unused: recheck the entries whose scope it touches. */
+function changedEntryUsage(allowed, touched, tracked, scan) {
+  const checked = [...allowed.keys()].filter((index) => touched.some((path) => covers(allowed[index], path)))
   if (!checked.length) return { checked, usage: [] }
-  const usage = tracked().filter((path) => checked.some((index) => covers(allowed[index], path)))
-    .flatMap((path) => findings(path, read(path)))
-  return { checked, usage }
+  return { checked, usage: scan(tracked().filter((path) => checked.some((index) => covers(allowed[index], path)))) }
 }
 
 function hook() {
@@ -335,7 +346,9 @@ function hook() {
   const edits = isWrite ? [{ old_string: current, new_string: input.content }] : pairs(input)
   const proposed = isWrite ? input.content
     : edits.reduce((body, edit) => edit.replace_all ? body.split(String(edit.old_string ?? "")).join(String(edit.new_string ?? "")) : body.replace(String(edit.old_string ?? ""), () => String(edit.new_string ?? "")), current)
-  return report(newFindings(path, current, proposed, root), allowlist(root), []) ? 2 : 0
+  const allowlistPath = join(root, ALLOWLIST)
+  const allowed = allowlist(existsSync(allowlistPath) ? readFileSync(allowlistPath, "utf8") : null)
+  return report(newFindings(path, current, proposed, root), allowed, []) ? 2 : 0
 }
 
 try {
@@ -345,32 +358,33 @@ try {
   if (!((args.length === 1 && ["--all", "--staged"].includes(args[0])) || (args.length === 2 && args[0] === "--base"))) {
     console.error(USAGE); process.exit(2)
   }
-  let changes, oldRef
-  if (args[0] === "--all") changes = null
-  else if (args[0] === "--staged") {
+  let changes = null, oldRef
+  if (args[0] === "--staged") {
     oldRef = "HEAD"
     changes = changedPaths(["--cached"])
   }
-  else {
+  else if (args[0] === "--base") {
     oldRef = git(["merge-base", args[1], "HEAD"]).trim()
     changes = changedPaths([oldRef, "HEAD"])
   }
-  const selected = changes?.filter(({ status }) => "ACMT".includes(status))
-  const read = (path) => args[0] === "--staged" ? git(["show", `:${path}`]) : git(["show", `HEAD:${path}`])
-  const paths = selected ?? git(["ls-files", "-z"]).split("\0").filter(Boolean).map((path) => ({ path }))
-  const results = []
-  for (const { path, status } of paths) {
-    const absolute = join(ROOT, path)
-    if (!selected && !existsSync(absolute)) continue
-    const content = selected ? read(path) : readFileSync(absolute, "utf8")
-    const before = selected && status !== "A" ? git(["show", `${oldRef}:${path}`]) : ""
-    results.push(...(selected ? newFindings(path, before, content) : findings(path, content)))
+  const state = args[0] === "--staged" ? ":" : "HEAD:"
+  const contents = (paths) => changes ? blobs(paths.map((path) => state + path))
+    : paths.map((path) => existsSync(join(ROOT, path)) ? readFileSync(join(ROOT, path), "utf8") : null)
+  const scan = (paths) => {
+    const texts = contents(paths)
+    return paths.flatMap((path, index) => texts[index] === null ? [] : findings(path, texts[index]))
   }
-  const allowed = allowlist(ROOT)
-  if (!changes) process.exit(report(results, allowed, allowed.keys()))
-  const tracked = () => (args[0] === "--staged" ? git(["ls-files", "-z"]) : git(["ls-tree", "-r", "-z", "--name-only", "HEAD"]))
+  const tracked = () => (args[0] === "--base" ? git(["ls-tree", "-r", "-z", "--name-only", "HEAD"]) : git(["ls-files", "-z"]))
     .split("\0").filter(Boolean)
-  const { checked, usage } = changedEntryUsage(allowed, changes.map(({ path }) => path), tracked, read)
+  const allowed = allowlist(contents([ALLOWLIST])[0])
+  // A change to the allowlist or the checker can expose any finding or leave any entry unused: scan the whole state, as --all does.
+  if (!changes || changes.some(({ path }) => path === ALLOWLIST || path === CHECKER)) process.exit(report(scan(tracked()), allowed, allowed.keys()))
+  const results = []
+  for (const { path, status } of changes.filter(({ status }) => "ACMT".includes(status))) {
+    const before = status === "A" ? "" : git(["show", `${oldRef}:${path}`])
+    results.push(...newFindings(path, before, git(["show", state + path])))
+  }
+  const { checked, usage } = changedEntryUsage(allowed, changes.map(({ path }) => path), tracked, scan)
   process.exit(report(results, allowed, checked, usage))
 } catch (error) {
   console.error(error.message)
