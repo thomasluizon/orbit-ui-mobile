@@ -176,7 +176,7 @@ describe('mobile sign-in on a small screen', () => {
   const centreCases = [IPHONE_SE, SE_SIZE_ANDROID, SMALL_ANDROID].flatMap((device) => (['email', 'code'] as const).map((step) => ({ step, device, name: device.name })))
   it.each(centreCases)('centres the $step column in the safe area of the $name in every state of the check', async ({ step, device }) => {
     const tree = await render(step, device)
-    for (const check of ['loading', 'interactive', 'failed', 'solved', 'interactive'] as const) {
+    for (const check of ['loading', 'interactive', 'solved', 'interactive', 'failed'] as const) {
       const { topGap, bottomGap, column, safeHeight } = showCheck(tree, check)
       const centred = Math.max(0, (safeHeight - column.height) / 2)
       expect(Math.abs(topGap - centred), `${check}: the column starts ${topGap} under the status bar, and the centre is ${centred}`).toBeLessThanOrEqual(LAYOUT_UNIT)

@@ -4,6 +4,8 @@ import { StyleSheet } from 'react-native'
 import { expect, it, onTestFinished, vi } from 'vitest'
 import type * as WebViewShared from 'react-native-webview/lib/WebViewShared'
 import type { ShouldStartLoadRequestEvent } from 'react-native-webview/lib/WebViewTypes'
+import { addBreadcrumb } from '@sentry/react-native'
+import { TURNSTILE_LOAD_DEADLINE_MS, TURNSTILE_RETRY_INTERVAL_MS } from '@orbit/shared/hooks/turnstile-token-core'
 import { TurnstileWidget } from '@/components/auth/turnstile-widget'
 import type appJson from '../../app.json'
 
@@ -116,12 +118,7 @@ it('passes WebView tokens to the login flow and reloads after consumption', asyn
   })
   expect(onToken).toHaveBeenLastCalledWith(null)
   expect(renderer!.root.findAllByProps({ accessibilityRole: 'alert' }).length).toBeGreaterThan(0)
-
-  await TestRenderer.act(async () => {
-    third.props.onHttpError()
-    await Promise.resolve()
-  })
-  expect(onToken).toHaveBeenLastCalledWith(null)
+  expect(renderer!.root.findAllByType('WebView')).toHaveLength(0)
 })
 
 it('keeps the WebView mounted when the token callback changes', async () => {
@@ -306,63 +303,130 @@ function shownSentences(renderer: ReturnType<typeof TestRenderer.create>) {
   return renderer.root.findAllByType('Text').map((node: { props: { children: unknown } }) => node.props.children)
 }
 
-it('loads the bridge again by itself after a load error, at most twice and 2 s apart, then offers Retry', async () => {
-  const onToken = vi.fn()
+type BridgeNode = { props: { source: { uri: string }; onError: (event: object) => void; onHttpError: (event: object) => void; onMessage: (event: object) => void } }
+
+function bridges(renderer: ReturnType<typeof TestRenderer.create>): BridgeNode[] {
+  return renderer.root.findAllByType('WebView')
+}
+
+/** The Android shape of `onReceivedHttpError` in react-native-webview 14.0.1 (`RNCWebViewClient.java`): the event base, the status code and the reason phrase. */
+function httpError(url: string, statusCode: number, description: string) {
+  return { nativeEvent: { url, statusCode, description, title: '', loading: false, canGoBack: false, canGoForward: false, lockIdentifier: 0 } }
+}
+
+async function renderWithFakeClock(onToken = vi.fn()) {
+  vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] })
+  onTestFinished(() => { vi.useRealTimers() })
   let renderer!: ReturnType<typeof TestRenderer.create>
   await TestRenderer.act(async () => {
     renderer = TestRenderer.create(<TurnstileWidget siteKey="site-key" resetKey={0} onToken={onToken} />)
     await Promise.resolve()
   })
   onTestFinished(() => TestRenderer.act(() => renderer.unmount()))
-  vi.useFakeTimers()
-  onTestFinished(() => { vi.useRealTimers() })
-  const bridges = [renderer.root.findByType('WebView')]
+  return renderer
+}
 
-  for (const fail of ['onError', 'onHttpError'] as const) {
-    TestRenderer.act(() => bridges.at(-1)!.props[fail]())
+it('keeps the loading state while a waking bridge host answers 503, loads the bridge again every 2 s, and shows the check the bridge then posts', async () => {
+  const onToken = vi.fn()
+  const renderer = await renderWithFakeClock(onToken)
+  const loaded: BridgeNode[] = []
+  for (let elapsed = 0; elapsed < 23_500; elapsed += TURNSTILE_RETRY_INTERVAL_MS) {
+    const [bridge] = bridges(renderer)
+    expect(loaded, `a new WebView loads the bridge at ${elapsed} ms`).not.toContain(bridge)
+    loaded.push(bridge!)
+    TestRenderer.act(() => bridge!.props.onHttpError(httpError(bridge!.props.source.uri, 503, 'Service Unavailable')))
     expect(onToken).toHaveBeenLastCalledWith(null)
-    expect(shownSentences(renderer), `after ${fail}`).toEqual(['auth.turnstileLoading'])
+    expect(shownSentences(renderer), `after the 503 at ${elapsed} ms`).toEqual(['auth.turnstileLoading'])
     expect(renderer.root.findAllByProps({ label: 'auth.turnstileRetry' })).toHaveLength(0)
-    TestRenderer.act(() => { vi.advanceTimersByTime(1999) })
-    expect(renderer.root.findByType('WebView'), 'the next load waits for 2 s').toBe(bridges.at(-1))
+    TestRenderer.act(() => { vi.advanceTimersByTime(TURNSTILE_RETRY_INTERVAL_MS - 1) })
+    expect(bridges(renderer), 'the next load waits for 2 s').toEqual([bridge])
     TestRenderer.act(() => { vi.advanceTimersByTime(1) })
-    expect(bridges).not.toContain(renderer.root.findByType('WebView'))
-    bridges.push(renderer.root.findByType('WebView'))
   }
 
-  TestRenderer.act(() => bridges.at(-1)!.props.onError())
-  expect(shownSentences(renderer)).toEqual(['auth.turnstileFailed'])
-  TestRenderer.act(() => { vi.runAllTimers() })
-  expect(renderer.root.findByType('WebView'), 'no load runs after the last allowed one').toBe(bridges.at(-1))
-
-  TestRenderer.act(() => renderer.root.findByProps({ label: 'auth.turnstileRetry' }).props.onClick())
-  expect(bridges).not.toContain(renderer.root.findByType('WebView'))
-  TestRenderer.act(() => renderer.root.findByType('WebView').props.onError())
-  expect(shownSentences(renderer), 'Retry gives two automatic loads again').toEqual(['auth.turnstileLoading'])
+  const [awake] = bridges(renderer)
+  TestRenderer.act(() => awake!.props.onMessage({ nativeEvent: { data: JSON.stringify({ state: 'interactive' }) } }))
+  expect(shownSentences(renderer)).toEqual([])
+  expect(StyleSheet.flatten(renderer.root.findByProps({ testID: 'turnstile-challenge' }).props.style).height).toBe(65)
+  TestRenderer.act(() => { vi.advanceTimersByTime(TURNSTILE_LOAD_DEADLINE_MS) })
+  expect(bridges(renderer), 'the posted bridge ends the load deadline').toEqual([awake])
+  expect(shownSentences(renderer)).toEqual([])
 })
 
-it('keeps a bridge that loads while a new load waits, and gives two automatic loads again', async () => {
-  let renderer!: ReturnType<typeof TestRenderer.create>
-  await TestRenderer.act(async () => {
-    renderer = TestRenderer.create(<TurnstileWidget siteKey="site-key" resetKey={0} onToken={vi.fn()} />)
-    await Promise.resolve()
-  })
-  onTestFinished(() => TestRenderer.act(() => renderer.unmount()))
-  vi.useFakeTimers()
-  onTestFinished(() => { vi.useRealTimers() })
-  const bridge = renderer.root.findByType('WebView')
+it('shows the failure only at the shared load deadline and removes the WebView, so a late bridge page cannot replace the failure', async () => {
+  const onToken = vi.fn()
+  const renderer = await renderWithFakeClock(onToken)
+  let last!: BridgeNode
+  for (let elapsed = 0; elapsed < TURNSTILE_LOAD_DEADLINE_MS; elapsed += TURNSTILE_RETRY_INTERVAL_MS) {
+    expect(shownSentences(renderer), `at ${elapsed} ms`).toEqual(['auth.turnstileLoading'])
+    last = bridges(renderer)[0]!
+    TestRenderer.act(() => last.props.onError({ nativeEvent: { url: last.props.source.uri, code: -2, description: 'net::ERR_NAME_NOT_RESOLVED', title: '', loading: false, canGoBack: false, canGoForward: false, lockIdentifier: 0 } }))
+    TestRenderer.act(() => { vi.advanceTimersByTime(TURNSTILE_RETRY_INTERVAL_MS) })
+  }
 
-  TestRenderer.act(() => bridge.props.onHttpError())
-  TestRenderer.act(() => bridge.props.onMessage({ nativeEvent: { data: JSON.stringify({ state: 'interactive' }) } }))
+  expect(shownSentences(renderer)).toEqual(['auth.turnstileFailed'])
+  expect(onToken).toHaveBeenLastCalledWith(null)
+  expect(bridges(renderer), 'the failed state has no WebView left to post').toHaveLength(0)
   TestRenderer.act(() => { vi.runAllTimers() })
-  expect(renderer.root.findByType('WebView')).toBe(bridge)
+  expect(bridges(renderer), 'no load runs after the deadline').toHaveLength(0)
+
+  TestRenderer.act(() => renderer.root.findByProps({ label: 'auth.turnstileRetry' }).props.onClick())
+  const fresh = bridges(renderer)[0]!
+  expect(fresh).not.toBe(last)
+  TestRenderer.act(() => fresh.props.onHttpError(httpError(fresh.props.source.uri, 502, 'Bad Gateway')))
+  TestRenderer.act(() => { vi.advanceTimersByTime(TURNSTILE_LOAD_DEADLINE_MS - 1) })
+  expect(shownSentences(renderer), 'Retry starts a new load deadline').toEqual(['auth.turnstileLoading'])
+  TestRenderer.act(() => { vi.advanceTimersByTime(1) })
+  expect(shownSentences(renderer)).toEqual(['auth.turnstileFailed'])
+})
+
+it('fails at once on a status that does not pass, and removes the WebView', async () => {
+  const renderer = await renderWithFakeClock()
+  const [bridge] = bridges(renderer)
+  TestRenderer.act(() => bridge!.props.onHttpError(httpError(bridge!.props.source.uri, 404, 'Not Found')))
+  expect(shownSentences(renderer)).toEqual(['auth.turnstileFailed'])
+  expect(bridges(renderer)).toHaveLength(0)
+  TestRenderer.act(() => { vi.runAllTimers() })
+  expect(bridges(renderer)).toHaveLength(0)
+})
+
+it('keeps a bridge that posts while a new load waits, and a later load error starts a new load deadline', async () => {
+  const renderer = await renderWithFakeClock()
+  const [bridge] = bridges(renderer)
+  TestRenderer.act(() => bridge!.props.onHttpError(httpError(bridge!.props.source.uri, 503, 'Service Unavailable')))
+  TestRenderer.act(() => { vi.advanceTimersByTime(TURNSTILE_RETRY_INTERVAL_MS - 1) })
+  TestRenderer.act(() => bridge!.props.onMessage({ nativeEvent: { data: JSON.stringify({ state: 'interactive' }) } }))
+  TestRenderer.act(() => { vi.advanceTimersByTime(TURNSTILE_LOAD_DEADLINE_MS) })
+  expect(bridges(renderer)).toEqual([bridge])
   expect(shownSentences(renderer)).toEqual([])
 
-  for (const _run of [1, 2]) {
-    TestRenderer.act(() => renderer.root.findByType('WebView').props.onError())
-    expect(shownSentences(renderer)).toEqual(['auth.turnstileLoading'])
-    TestRenderer.act(() => { vi.advanceTimersByTime(2000) })
-  }
-  TestRenderer.act(() => renderer.root.findByType('WebView').props.onError())
+  TestRenderer.act(() => bridge!.props.onError({ nativeEvent: { url: bridge!.props.source.uri, code: -6, description: 'net::ERR_CONNECTION_REFUSED' } }))
+  expect(shownSentences(renderer)).toEqual(['auth.turnstileLoading'])
+  TestRenderer.act(() => { vi.advanceTimersByTime(TURNSTILE_LOAD_DEADLINE_MS - 1) })
+  expect(shownSentences(renderer)).toEqual(['auth.turnstileLoading'])
+  TestRenderer.act(() => { vi.advanceTimersByTime(1) })
   expect(shownSentences(renderer)).toEqual(['auth.turnstileFailed'])
+})
+
+it('leaves a Sentry breadcrumb for each main-frame load failure with the status or code, the description and the host only', async () => {
+  vi.mocked(addBreadcrumb).mockClear()
+  const renderer = await renderWithFakeClock()
+  const [bridge] = bridges(renderer)
+  const bridgeUrl = bridge!.props.source.uri
+  expect(bridgeUrl).toContain('siteKey=site-key')
+  TestRenderer.act(() => bridge!.props.onHttpError(httpError(bridgeUrl, 503, 'Service Unavailable')))
+  TestRenderer.act(() => { vi.advanceTimersByTime(TURNSTILE_RETRY_INTERVAL_MS) })
+  const [next] = bridges(renderer)
+  // WHY: the iOS load error event carries the NSError domain, code and localizedDescription https://github.com/react-native-webview/react-native-webview/blob/v14.0.1/apple/RNCWebViewImpl.m#L1519-L1526
+  TestRenderer.act(() => next!.props.onError({ nativeEvent: { url: bridgeUrl, domain: 'NSURLErrorDomain', code: -1009, description: 'The Internet connection appears to be offline.', title: '', loading: false, canGoBack: false, canGoForward: false, lockIdentifier: 0 } }))
+  TestRenderer.act(() => { vi.advanceTimersByTime(TURNSTILE_RETRY_INTERVAL_MS) })
+  // WHY: the iOS HTTP error event carries the URL and the status code and no description https://github.com/react-native-webview/react-native-webview/blob/v14.0.1/apple/RNCWebViewImpl.m#L1462-L1471
+  TestRenderer.act(() => bridges(renderer)[0]!.props.onHttpError({ nativeEvent: { url: bridgeUrl, statusCode: 429, title: '', loading: false, canGoBack: false, canGoForward: false, lockIdentifier: 0 } }))
+
+  const host = new URL(bridgeUrl).hostname
+  expect(vi.mocked(addBreadcrumb).mock.calls.map(([breadcrumb]) => breadcrumb)).toEqual([
+    { category: 'auth.turnstile', level: 'warning', message: 'Human check bridge HTTP error', data: { statusCode: 503, code: undefined, description: 'Service Unavailable', host } },
+    { category: 'auth.turnstile', level: 'warning', message: 'Human check bridge load error', data: { statusCode: undefined, code: -1009, description: 'The Internet connection appears to be offline.', host } },
+    { category: 'auth.turnstile', level: 'warning', message: 'Human check bridge HTTP error', data: { statusCode: 429, code: undefined, description: undefined, host } },
+  ])
+  expect(JSON.stringify(vi.mocked(addBreadcrumb).mock.calls)).not.toMatch(/site-key|siteKey|turnstile-bridge/)
 })

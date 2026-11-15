@@ -4,7 +4,7 @@ import { IconButton } from '@/components/ui/icon-button'
 import { RefreshCw } from '@/components/ui/icons'
 import { useEffect, useRef, useState } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
-import { TURNSTILE_MAX_AUTOMATIC_RETRIES, TURNSTILE_RETRY_INTERVAL_MS } from '@orbit/shared/hooks/turnstile-token-core'
+import { TURNSTILE_LOAD_DEADLINE_MS, TURNSTILE_MAX_AUTOMATIC_RETRIES, TURNSTILE_RETRY_INTERVAL_MS } from '@orbit/shared/hooks/turnstile-token-core'
 import { useCurrentTheme } from '@/stores/theme-store'
 
 type WidgetState = 'idle' | 'loading' | 'interactive' | 'solved' | 'failed' | 'expired'
@@ -108,6 +108,7 @@ export function TurnstileWidget({
   const widgetIdRef = useRef<unknown>(null)
   const automaticRetriesRef = useRef(0)
   const retryTimerRef = useRef<number | undefined>(undefined)
+  const loadDeadlineRef = useRef<number | null>(null)
   const callbacksRef = useRef({ onToken, onStateChange })
   const [state, setState] = useState<WidgetState>('idle')
   const [attempt, setAttempt] = useState(0)
@@ -179,10 +180,27 @@ export function TurnstileWidget({
       })
     }
 
-    void loadTurnstile().then(renderWidget, () => { if (active) runAgain(() => setAttempt((value) => value + 1)) })
+    function loadAgain() {
+      if (!active) return
+      update('loading')
+      retryTimerRef.current = window.setTimeout(() => { if (active) setAttempt((value) => value + 1) }, TURNSTILE_RETRY_INTERVAL_MS)
+    }
+
+    loadDeadlineRef.current ??= Date.now() + TURNSTILE_LOAD_DEADLINE_MS
+    const loadDeadline = window.setTimeout(() => {
+      loadDeadlineRef.current = null
+      update('failed')
+      active = false
+    }, loadDeadlineRef.current - Date.now())
+    void loadTurnstile().then(() => {
+      window.clearTimeout(loadDeadline)
+      loadDeadlineRef.current = null
+      renderWidget()
+    }, loadAgain)
 
     return () => {
       active = false
+      window.clearTimeout(loadDeadline)
       window.clearTimeout(retryTimerRef.current)
       const widgetId = widgetIdRef.current
       if (widgetId != null) getTurnstile()?.remove(widgetId)
@@ -199,6 +217,7 @@ export function TurnstileWidget({
   }, [resetKey])
 
   function retry() {
+    loadDeadlineRef.current = null
     onToken(null)
     setState('loading')
     onStateChange?.('loading')
