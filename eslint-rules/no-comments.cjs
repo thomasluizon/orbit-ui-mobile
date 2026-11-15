@@ -1,5 +1,8 @@
 const DIRECTIVE =
-  /^(eslint-disable|eslint-enable|eslint-disable-line|eslint-disable-next-line|eslint-env|global\s|globals\s|exported\s|@ts-|ts-|prettier-ignore|@jsx|c8\s|v8\s|istanbul\s|webpack|@vite|@vitest|@license|@preserve|@__PURE__|#__PURE__)/
+  /^(@ts-|ts-|prettier-ignore|@jsx|c8\s|v8\s|istanbul\s|@vite|@vitest|@license|@preserve|@__PURE__|#__PURE__)/
+const ESLINT_BLOCK_DIRECTIVE = /^(eslint(?:-env|-enable|-disable(?:(?:-next)?-line)?)?|exported|globals?)(?:\s|$)/
+const ESLINT_LINE_DIRECTIVE = /^eslint-disable-(?:next-)?line(?:\s|$)/
+const WEBPACK_MAGIC_COMMENT = /^webpack[A-Z]\w*\s*:/
 const URL_RE = /https?:\/\//
 const TYPE_ANNOTATION = /@(?:type|typedef|satisfies|template|import)(?![\w-])|@(?:param|returns)\s*\{/
 const JAVASCRIPT_FILE = /\.[cm]?jsx?$/
@@ -181,11 +184,14 @@ module.exports = {
 
     function isAllowed(comment) {
       if (URL_RE.test(comment.value)) return true
-      const isDocComment = comment.type === 'Block' && comment.value.startsWith('*')
-      const value = (isDocComment ? comment.value.replace(/^\*+/, '') : comment.value).trim()
+      const isBlock = comment.type === 'Block'
+      const isDocComment = isBlock && comment.value.startsWith('*')
+      const raw = comment.value.trim()
+      const value = (isBlock ? comment.value.replace(/^[ \t]*\*+/gm, '') : comment.value).trim()
       if (comment.type === 'Line' && value.startsWith('/')) return true
       if (DIRECTIVE.test(value)) return true
-      if (!isDocComment) return false
+      if (comment.type === 'Line') return ESLINT_LINE_DIRECTIVE.test(raw)
+      if (!isDocComment) return ESLINT_BLOCK_DIRECTIVE.test(raw) || WEBPACK_MAGIC_COMMENT.test(raw)
       if (JAVASCRIPT_FILE.test(filename) && TYPE_ANNOTATION.test(comment.value)) return true
       return isOnExportedSymbol(comment)
     }
