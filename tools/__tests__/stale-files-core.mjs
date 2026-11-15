@@ -288,6 +288,51 @@ const removalCases = () => {
   T("stale-files: removal reports the change of free space as a number", Number.isFinite(outcome.freed))
 }
 
+/** A worktree inside another one goes first, and when git refuses it, the outer one stays: its removal would take the inner tree. */
+const nestedRemovalCases = () => {
+  const machine = stageMachine("nested-removal")
+  const outer = join(machine.base, "outer")
+  const inner = join(outer, ".claude", "worktrees", "inner")
+  mkdirSync(inner, { recursive: true })
+  const listing = { ...collectListing(machine.context, { probes: quietProbes }), stale: [outer, inner].map((path) => ({ kind: "worktree", path, repository: machine.checkout, reason: "pull request #1 merged" })) }
+  const removals = []
+  const probes = { ...quietProbes, git: (cwd, args) => {
+    if (args[0] !== "worktree" || args[1] !== "remove") return ""
+    removals.push(args[2])
+    return args[2] === inner ? null : ""
+  } }
+  const outcome = removeListed(listing, listing, {}, { probes })
+  same("stale-files: the removal asks git for the inner worktree only, never for the worktree around it", removals, [inner])
+  same("stale-files: the inner worktree that git refused is reported as failed", outcome.failed.map((item) => item.path), [inner])
+  same("stale-files: the worktree around a refused inner worktree is skipped with the reason", outcome.skipped.map((item) => `${item.path}: ${item.reason}`), [`${outer}: ${inner} in it could not be removed`])
+}
+
+/** The walk of a finished worktree's tree runs only inside the listing's time limit; past it, the worktree stays. */
+const deadlineCases = () => {
+  const machine = stageMachine("deadline")
+  const finished = join(machine.base, "finished")
+  mkdirSync(finished)
+  const walked = []
+  const realNow = Date.now
+  try {
+    const listing = collectListing({ ...machine.context, repositories: { ui: machine.checkout } }, { probes: { ...quietProbes,
+      git: (cwd, args) => (args[0] === "worktree" ? `worktree ${machine.checkout}\nHEAD 1\nbranch refs/heads/main\n\nworktree ${finished}\nHEAD 2\nbranch refs/heads/done\n` : args[0] === "rev-list" ? "0" : ""),
+      // The GitHub read of the worktree's branch is the step that runs past the time limit.
+      pullRequests: () => {
+        Date.now = () => realNow() + 24 * 3_600_000
+        return [{ number: 1, state: "MERGED", headRefOid: "2" }]
+      },
+      repositories: (path) => {
+        walked.push(path)
+        return []
+      } } })
+    same("stale-files: a finished worktree whose check ends past the time limit stays with the reason", reasonOf(listing, finished), "the listing reached its time limit before this check")
+    same("stale-files: the tree of a worktree past the time limit is never walked", walked.filter((path) => path === finished), [])
+  } finally {
+    Date.now = realNow
+  }
+}
+
 /** The review's repository-wide grep: every export of the library has an importer, so no export stays just in case. */
 const exportCases = () => {
   const repositoryRoot = join(dirname(fileURLToPath(import.meta.url)), "..", "..")
@@ -332,6 +377,8 @@ export const cases = () => {
   raceCases()
   recordCases()
   removalCases()
+  nestedRemovalCases()
+  deadlineCases()
   exportCases()
   reportCases()
 }

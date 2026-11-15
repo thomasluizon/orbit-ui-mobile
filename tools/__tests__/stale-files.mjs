@@ -14,6 +14,7 @@ const LATER = "55555555-0000-4000-8000-000000000005"
 const NESTED_OPEN = "66666666-0000-4000-8000-000000000006"
 const NESTED_UNPUSHED = "77777777-0000-4000-8000-000000000007"
 const NESTED_DONE = "88888888-0000-4000-8000-000000000008"
+const NESTED_REPOSITORY = "99999999-0000-4000-8000-000000000009"
 
 const base = join(root, "stale-cli")
 const home = join(base, "home")
@@ -46,7 +47,8 @@ const stageRepository = () => {
   for (const args of [["init", "-q", "--initial-branch=main"], ["config", "user.email", "gate@orbit.test"], ["config", "user.name", "Orbit Gate"]]) {
     if (git(primary, args).status !== 0) return null
   }
-  writeFileSync(join(primary, ".gitignore"), "node_modules/\n")
+  // Claude Code makes its own worktrees under `.claude/worktrees/`, which the repository ignores.
+  writeFileSync(join(primary, ".gitignore"), "node_modules/\n.claude/worktrees/\nbuild/\n")
   for (const args of [["add", ".gitignore"], ["commit", "-q", "-m", "base"], ["remote", "add", "origin", origin], ["push", "-q", "-u", "origin", "main"]]) {
     if (git(primary, args).status !== 0) return null
   }
@@ -60,7 +62,24 @@ const stageRepository = () => {
   worktrees["nested-open"] = stageWorktree("nested-open", { path: nested(NESTED_OPEN) })
   worktrees["nested-unpushed"] = stageWorktree("nested-unpushed", { detach: true, path: nested(NESTED_UNPUSHED) })
   worktrees["nested-done"] = stageWorktree("nested-done", { detach: true, commit: false, path: nested(NESTED_DONE) })
+  // A finished worktree can hold a second registered worktree in an ignored path, which `git worktree remove` takes with it.
+  for (const name of ["holds-dirty", "clean-outer", "holds-detached", "holds-repository", "linked-build"]) worktrees[name] = stageWorktree(name)
+  const inner = (outer, name) => join(worktreeRoot, outer, ".claude", "worktrees", name)
+  worktrees["nested-dirty"] = stageWorktree("nested-dirty", { path: inner("holds-dirty", "nested-dirty") })
+  worktrees["nested-clean"] = stageWorktree("nested-clean", { path: inner("clean-outer", "nested-clean") })
+  worktrees["detached-inner"] = stageWorktree("detached-inner", { detach: true, commit: false, path: inner("holds-detached", "detached-inner") })
   if (Object.values(worktrees).some((worktree) => worktree === null)) return null
+  writeFileSync(join(worktrees["nested-dirty"].path, "nested-dirty.txt"), "edited, not committed\n")
+  writeFileSync(join(worktrees["nested-dirty"].path, "untracked.txt"), "never added\n")
+  // A repository of its own in an ignored path: its commit lives only in its own object store.
+  const vendored = join(worktrees["holds-repository"].path, "node_modules", "vendored")
+  mkdirSync(vendored, { recursive: true })
+  writeFileSync(join(vendored, "local.txt"), "a commit no remote has\n")
+  for (const args of [["init", "-q"], ["add", "local.txt"], ["-c", "user.email=gate@orbit.test", "-c", "user.name=Orbit Gate", "commit", "-q", "-m", "local"]]) {
+    if (git(vendored, args).status !== 0) return null
+  }
+  mkdirSync(join(worktrees["linked-build"].path, "build"))
+  writeFileSync(join(worktrees["linked-build"].path, "build", "app.bin"), "built\n")
   // `merged` and `unpushed` lost their remote branch at the merge; `unpushed` then gained a local commit.
   if (!dropRemoteBranch(worktrees.merged) || !dropRemoteBranch(worktrees.unpushed)) return null
   writeFileSync(join(worktrees.unpushed.path, "later.txt"), "never pushed\n")
@@ -77,7 +96,9 @@ const pullRequestPlan = (worktrees) => {
   const one = (name, number, state, headRefOid = worktrees[name].tip) => reply(worktrees[name].branch, [{ headRefOid, number, state }])
   // `unreadable` has no reply on purpose: the shim then fails the read, as an offline gh does.
   return [one("merged", 11, "MERGED"), one("closed", 12, "CLOSED"), one("open", 13, "OPEN"), one("unpushed", 14, "MERGED"), one("dirty", 15, "MERGED"),
-    one("in-use", 17, "MERGED"), one("locked", 18, "MERGED"), one("nested-open", 19, "OPEN"), reply("feature/whole", [{ headRefOid: worktrees.part.tip, number: 16, state: "MERGED" }]),
+    one("in-use", 17, "MERGED"), one("locked", 18, "MERGED"), one("nested-open", 19, "OPEN"),
+    one("holds-dirty", 21, "MERGED"), one("clean-outer", 22, "MERGED"), one("nested-clean", 23, "MERGED"), one("holds-detached", 24, "MERGED"), one("holds-repository", 25, "MERGED"),
+    one("linked-build", 26, "MERGED"), reply("feature/whole", [{ headRefOid: worktrees.part.tip, number: 16, state: "MERGED" }]),
     reply(worktrees.part.branch, []), reply(worktrees.unmerged.branch, []), reply(worktrees.contained.branch, [])]
 }
 
@@ -87,6 +108,13 @@ const stageDirectories = (worktrees) => {
   writeFileSync(join(outside, "sentinel.txt"), "must survive\n")
   symlinkSync(outside, join(sessionRoot, STALE, "scratchpad", "outside"), "dir")
   writeFileSync(join(sessionRoot, STALE, "scratchpad", "notes.txt"), "old notes\n")
+  // This session reads a build directory of a finished worktree through its scratchpad.
+  symlinkSync(join(worktrees["linked-build"].path, "build"), join(sessionRoot, THIS, "scratchpad", "build"), "dir")
+  // An old session left a clone with a file nobody committed in its scratchpad.
+  const clone = join(sessionRoot, NESTED_REPOSITORY, "scratchpad", "clone")
+  mkdirSync(clone, { recursive: true })
+  writeFileSync(join(clone, "draft.txt"), "not committed\n")
+  git(clone, ["init", "-q"])
   for (const [name, hours] of [["durable-0a0a0a0a", 30], ["durable-0b0b0b0b", 20], ["durable-0c0c0c0c", 10]]) {
     mkdirSync(join(carryRoot, name), { recursive: true })
     utimesSync(join(carryRoot, name), new Date(Date.now() - hours * 3_600_000), new Date(Date.now() - hours * 3_600_000))
@@ -115,7 +143,8 @@ export const cases = async () => {
     const listed = tool(["--list", "--json", "--session", THIS, "--session-root", sessionRoot])
     same("stale-files: --list --json exits 0", listed.status, 0)
     const listing = listed.status === 0 ? JSON.parse(listed.stdout) : { stale: [], kept: [] }
-    const expectedStale = [session(STALE), session(NESTED_DONE), copy("durable-0a0a0a0a"), worktrees.merged.path, worktrees.closed.path, worktrees.part.path, worktrees.contained.path].sort()
+    const expectedStale = [session(STALE), session(NESTED_DONE), copy("durable-0a0a0a0a"), worktrees.merged.path, worktrees.closed.path, worktrees.part.path, worktrees.contained.path,
+      worktrees["clean-outer"].path, worktrees["nested-clean"].path].sort()
     same("stale-files: the listing marks each stale class and nothing else", listing.stale.map((item) => item.path).sort(), expectedStale)
     const staleReason = (path) => listing.stale.find((item) => item.path === path)?.reason ?? ""
     for (const [name, path, reason] of [
@@ -134,11 +163,20 @@ export const cases = async () => {
       ["a locked worktree", worktrees.locked.path, /locked/], ["the newest durable copy", copy("durable-0c0c0c0c"), /newest two/], ["the second durable copy", copy("durable-0b0b0b0b"), /newest two/],
       ["a session directory that holds an open pull request's worktree", session(NESTED_OPEN), /pull request #19 is open/],
       ["a session directory that holds a worktree with an unpushed commit", session(NESTED_UNPUSHED), /holds a commit that no remote has/],
+      ["a finished worktree that holds a worktree with an uncommitted change", worktrees["holds-dirty"].path,
+        new RegExp(`^worktree ${worktrees["nested-dirty"].path} in it stays: it holds an uncommitted change$`)],
+      ["the worktree with an uncommitted change inside a finished worktree", worktrees["nested-dirty"].path, /^it holds an uncommitted change$/],
+      ["a finished worktree that holds a kept detached worktree", worktrees["holds-detached"].path, new RegExp(`^worktree ${worktrees["detached-inner"].path} in it stays: its HEAD is detached`)],
+      ["a finished worktree that holds a repository with a commit no remote has", worktrees["holds-repository"].path,
+        new RegExp(`^repository ${join(worktrees["holds-repository"].path, "node_modules", "vendored")} in it stays: it holds a commit that no remote has$`)],
+      ["a session directory that holds a repository with an uncommitted change", session(NESTED_REPOSITORY),
+        new RegExp(`^repository ${join(session(NESTED_REPOSITORY), "scratchpad", "clone")} in it stays: it holds an uncommitted change$`)],
+      ["a finished worktree that the scratchpad of this session links into", worktrees["linked-build"].path, /^the scratchpad of session 00000000 links into it$/],
     ]) T(`stale-files: ${name} is kept`, reason.test(keptReason(path)), `reason: ${keptReason(path)}`)
 
     const text = tool(["--list", "--session", THIS])
     T("stale-files: --list reuses the stored session root and prints each item, the total and the removal command", text.status === 0
-      && text.stdout.includes(`STALE session ${session(STALE)} (`) && /TOTAL 7 items, .* \(2 session directories, 1 durable carry copy, 4 worktrees\)/.test(text.stdout)
+      && text.stdout.includes(`STALE session ${session(STALE)} (`) && /TOTAL 9 items, .* \(2 session directories, 1 durable carry copy, 6 worktrees\)/.test(text.stdout)
       && text.stdout.includes(`node tools/stale-files.mjs --delete --listing ${listing.listingId}`), text.stdout + text.stderr)
     same("stale-files: the listing is stored in the git directory", JSON.parse(readFileSync(join(staged.base, ".git", "orbit-stale-files.json"), "utf8")).listingId, listing.listingId)
     same("stale-files: no session identity is a usage error", tool(["--list"]).status, 2)
@@ -156,12 +194,18 @@ export const cases = async () => {
     same("stale-files: --delete removes exactly the listed items that are still stale", gone.filter((path) => existsSync(path)), [])
     same("stale-files: --delete prints one line for each removed item", gone.filter((path) => !new RegExp(`^REMOVED \\w+ ${path} \\(`, "m").test(removed.stdout)), [])
     T("stale-files: a listed worktree with a new uncommitted file is skipped and survives", removed.stdout.includes(`SKIPPED worktree ${worktrees.closed.path}: it holds an uncommitted change`) && existsSync(join(worktrees.closed.path, "new-work.txt")), removed.stdout)
-    T("stale-files: --delete prints what it freed", /^FREED 6 items, .* \(2 session directories, 1 durable carry copy, 3 worktrees\); free space changed by [+-]/m.test(removed.stdout), removed.stdout)
+    T("stale-files: --delete prints what it freed", /^FREED 8 items, .* \(2 session directories, 1 durable carry copy, 5 worktrees\); free space changed by [+-]/m.test(removed.stdout), removed.stdout)
     T("stale-files: a session directory that went stale after the listing survives", existsSync(session(LATER)))
-    const keptPaths = [session(THIS), session(PREDECESSOR), session(LIVE), session(WORKED_IN), session(NESTED_OPEN), session(NESTED_UNPUSHED), copy("durable-0b0b0b0b"), copy("durable-0c0c0c0c"),
-      ...["open", "unpushed", "dirty", "unmerged", "detached", "in-use", "unreadable", "locked", "nested-open", "nested-unpushed"].map((name) => worktrees[name].path)]
+    const keptPaths = [session(THIS), session(PREDECESSOR), session(LIVE), session(WORKED_IN), session(NESTED_OPEN), session(NESTED_UNPUSHED), session(NESTED_REPOSITORY),
+      copy("durable-0b0b0b0b"), copy("durable-0c0c0c0c"), ...["open", "unpushed", "dirty", "unmerged", "detached", "in-use", "unreadable", "locked", "nested-open", "nested-unpushed",
+        "holds-dirty", "nested-dirty", "holds-detached", "detached-inner", "holds-repository", "linked-build"].map((name) => worktrees[name].path)]
     same("stale-files: every protected item survives", keptPaths.filter((path) => !existsSync(path)), [])
     same("stale-files: a link inside a removed session directory keeps its target", readFileSync(join(outside, "sentinel.txt"), "utf8"), "must survive\n")
+    T("stale-files: the uncommitted and untracked files of a worktree inside a finished worktree survive --delete",
+      existsSync(join(worktrees["nested-dirty"].path, "nested-dirty.txt")) && existsSync(join(worktrees["nested-dirty"].path, "untracked.txt")))
+    T("stale-files: the commit of a repository inside a finished worktree survives --delete", git(join(worktrees["holds-repository"].path, "node_modules", "vendored"), ["log", "--oneline"]).stdout.includes("local"))
+    T("stale-files: a finished worktree inside a finished worktree is removed by git, so no registration of it is left",
+      !removed.stderr.includes(worktrees["nested-clean"].path) && !git(primary, ["worktree", "list", "--porcelain"]).stdout.includes(worktrees["nested-clean"].path), removed.stdout + removed.stderr)
     T("stale-files: a removed worktree leaves the worktree list and keeps its branch", !git(primary, ["worktree", "list", "--porcelain"]).stdout.includes(worktrees.merged.path)
       && git(primary, ["rev-parse", "--verify", "--quiet", worktrees.merged.branch]).status === 0)
     T("stale-files: a worktree inside a removed session directory leaves the worktree list", !git(primary, ["worktree", "list", "--porcelain"]).stdout.includes(worktrees["nested-done"].path))

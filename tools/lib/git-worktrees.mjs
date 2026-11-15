@@ -1,4 +1,13 @@
-/** The one reader of `git worktree list --porcelain`, for every tool that lists, judges or removes worktrees. */
+/**
+ * What a worktree removal can take: the registered worktrees, from the one reader of `git worktree list --porcelain`,
+ * and every repository under a directory. `git worktree remove` deletes an ignored directory with all it holds.
+ */
+
+import { spawnSync } from "node:child_process"
+import { dirname } from "node:path"
+
+/** A worktree with installed dependencies holds several hundred thousand files. */
+const WALK_TIMEOUT_MS = 120_000
 
 /**
  * `{ path, branch, locked, prunable }` for each record of `git worktree list --porcelain`, the primary checkout first.
@@ -13,3 +22,12 @@ export const parseWorktreeList = (porcelain) => porcelain.split(/\r?\n(?:\r?\n)+
   }))
   return { path: fields.get("worktree"), branch: fields.get("branch")?.replace(/^refs\/heads\//, "") ?? null, locked: fields.has("locked"), prunable: fields.has("prunable") }
 })
+
+/**
+ * The directory of each `.git` entry under `path`, the path itself included; null when the walk fails or runs out of time.
+ * A symbolic link is never followed, as neither `rm` nor `git worktree remove` follows one.
+ */
+export const findRepositories = (path) => {
+  const result = spawnSync("find", [path, "-name", ".git", "-print0", "-prune"], { encoding: "utf8", timeout: WALK_TIMEOUT_MS, maxBuffer: 16 * 1024 * 1024 })
+  return result.status === 0 ? result.stdout.split("\0").filter(Boolean).map((entry) => dirname(entry)) : null
+}

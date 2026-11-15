@@ -12,7 +12,7 @@ import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "nod
 
 import { claudeConfigDirectory, gitDirectoryOf, liveSessionProcesses, processIsAlive, readRunState, REPO_ROOT } from "./run-state.mjs"
 import { readSessionChain } from "./session-chain.mjs"
-import { parseWorktreeList } from "./git-worktrees.mjs"
+import { findRepositories, parseWorktreeList } from "./git-worktrees.mjs"
 
 /** The hook starts a new listing when the stored one is older than this. */
 export const LISTING_MAX_AGE_MS = 15 * 60_000
@@ -108,7 +108,8 @@ const measureBytes = (path) => {
   return kilobytes ? Number(kilobytes[1]) * 1024 : null
 }
 
-export const systemProbes = { processes: readProcesses, liveSessions: readLiveSessions, git: runGit, pullRequests: readPullRequests, measure: measureBytes }
+export const systemProbes = { processes: readProcesses, liveSessions: readLiveSessions, git: runGit, pullRequests: readPullRequests, measure: measureBytes,
+  repositories: findRepositories }
 
 /** Each place a symbolic link passes through, hop by hop, so a link that points at a second link protects both targets. */
 const linkHops = (link) => {
@@ -239,16 +240,39 @@ const nestedWorktreeHold = (worktree, probes) => {
   return probes.git(worktree.path, ["rev-list", "--count", "HEAD", "--not", "--remotes"]) === "0" ? null : "it holds a commit that no remote has"
 }
 
-/** Why a directory outside the worktree class must stay: the scratchpad of a session that stays links into it, or a worktree in it must stay. */
+/**
+ * Why a repository that is no registered worktree must stay; null when removing it loses nothing. Its own object store
+ * goes with the directory, so a commit on any of its references that no remote has would be lost.
+ */
+const nestedRepositoryHold = (directory, probes) => {
+  // A broken `.git` makes git search upward, and then it reads the repository around this one.
+  const top = probes.git(directory, ["rev-parse", "--show-toplevel"])
+  if (top === null || canonical(top) !== canonical(directory)) return "git cannot read it"
+  if (probes.git(directory, ["status", "--porcelain"]) !== "") return "it holds an uncommitted change"
+  return probes.git(directory, ["rev-list", "--count", "--all", "--not", "--remotes"]) === "0" ? null : "it holds a commit that no remote has"
+}
+
+/**
+ * Why an item must stay for what lives under its path: the scratchpad of a session that stays links into it, or a
+ * registered worktree or a repository in it must stay. A removal takes the whole tree, and `git worktree remove` takes
+ * an ignored directory too, with every worktree and repository in it.
+ */
 const holdOf = (path, evidence, probes) => {
   const link = evidence.links.find((entry) => within(entry.target, path))
   if (link) return `the scratchpad of session ${link.sessionId.slice(0, 8)} links into it`
   if (evidence.linksUnread) return evidence.linksUnread
   // A worktree git could not list is invisible here, and it can be the tree of an open pull request.
   if (evidence.unlistedRepositories.length > 0) return `the worktrees of ${evidence.unlistedRepositories.join(", ")} could not be listed`
-  for (const worktree of evidence.worktrees.filter((candidate) => within(candidate.path, path))) {
+  for (const worktree of evidence.worktrees.filter((candidate) => candidate.path !== path && within(candidate.path, path))) {
     const hold = nestedWorktreeHold(worktree, probes)
     if (hold) return `worktree ${worktree.path} in it stays: ${hold}`
+  }
+  const repositories = probes.repositories(path)
+  if (repositories === null) return "the repositories in it could not be listed"
+  const registered = new Set(evidence.worktrees.map((worktree) => worktree.path))
+  for (const directory of repositories.filter((candidate) => !registered.has(canonical(candidate)))) {
+    const hold = nestedRepositoryHold(directory, probes)
+    if (hold) return `repository ${directory} in it stays: ${hold}`
   }
   return null
 }
@@ -361,8 +385,19 @@ const classifyWorktrees = (evidence, probes, deadline) => evidence.worktrees
       ?? (probes.git(worktree.path, ["status", "--porcelain"]) === "" ? null : "it holds an uncommitted change")
       ?? (Date.now() > deadline ? "the listing reached its time limit before this check" : null)
     const verdict = keep === null ? judgeBranch(worktree, probes) : { stale: false, reason: keep }
-    return { kind: "worktree", path: worktree.path, repository: worktree.repository, ...verdict }
+    // Only a finished worktree pays for the walk of its tree, and only inside the listing's time limit.
+    const hold = !verdict.stale ? null : Date.now() > deadline ? "the listing reached its time limit before this check" : holdOf(worktree.path, evidence, probes)
+    return { kind: "worktree", path: worktree.path, repository: worktree.repository, ...(hold ? { stale: false, reason: hold } : verdict) }
   })
+
+/** A removal takes everything under its path, so an item stays while a kept item lives in it. */
+const keepContainers = (items) => {
+  const kept = items.filter((item) => !item.stale)
+  return items.map((item) => {
+    const inner = item.stale ? kept.find((candidate) => candidate.path !== item.path && within(candidate.path, item.path)) : undefined
+    return inner ? { ...item, stale: false, reason: `${KIND_NAMES[inner.kind][0]} ${inner.path} in it stays: ${inner.reason}` } : item
+  })
+}
 
 /** A stable name for one exact set of stale items, so a removal acts only on the set the owner saw. */
 export const listingIdOf = (stale) => createHash("sha256").update(stale.map((item) => `${item.kind}\t${item.path}`).sort().join("\n")).digest("hex").slice(0, 12)
@@ -380,7 +415,7 @@ export const collectListing = (context, { probes = systemProbes, knownSizes = ne
   const links = [...(sessions ?? []), ...(otherSessions ?? [])].filter((session) => session.owner !== null).map(scratchpadLinks)
   const evidence = { ...gathered, otherSessions, links: links.filter((targets) => targets !== null).flat(),
     linksUnread: sessions === null || otherSessions === null || links.includes(null) ? "the scratchpads of the sessions that stay could not be read, and one of them can link into it" : null }
-  const items = [...classifySessions(sessions ?? [], evidence, probes), ...classifyCarryCopies(evidence, probes), ...classifyWorktrees(evidence, probes, deadline)]
+  const items = keepContainers([...classifySessions(sessions ?? [], evidence, probes), ...classifyCarryCopies(evidence, probes), ...classifyWorktrees(evidence, probes, deadline)])
   const stale = items.filter((item) => item.stale).map(({ stale: _stale, ...item }) => ({ ...item,
     bytes: knownSizes.get(item.path) ?? (measure && Date.now() <= deadline ? probes.measure(item.path) : null) }))
   const kept = items.filter((item) => !item.stale).map(({ kind, path, reason }) => ({ kind, path, reason }))
@@ -465,6 +500,9 @@ const freeBytes = (path) => {
   return Number(volume.bavail) * Number(volume.bsize)
 }
 
+/** The nearest directory at or above `path` that still exists: the removal of a worktree takes the parent of a worktree inside it. */
+const existingAncestor = (path) => (existsSync(path) || dirname(path) === path ? path : existingAncestor(dirname(path)))
+
 /** A session directory or a carry copy: only a real directory directly under its root. A link is never followed. */
 const removeDirectory = (item, root) => {
   if (root === null || dirname(item.path) !== root || !lstatSync(item.path).isDirectory()) throw new Error(`${item.path} is not a directory directly under ${root}`)
@@ -485,10 +523,16 @@ export const removeListed = (stored, fresh, repositories, { probes = systemProbe
   const keptNow = new Map(fresh.kept.map((item) => [`${item.kind}\t${item.path}`, item.reason]))
   const outcome = { removed: [], skipped: [], failed: [], freed: 0 }
   const volumes = new Map()
-  for (const item of stored.stale) {
+  // The deepest item goes first: git then removes a worktree inside another one itself, and a failed one keeps its container.
+  for (const item of [...stored.stale].sort((left, right) => right.path.length - left.path.length)) {
     const key = `${item.kind}\t${item.path}`
     if (!stillStale.has(key)) {
       outcome.skipped.push({ ...item, reason: keptNow.get(key) ?? "it no longer exists" })
+      continue
+    }
+    const failedInside = outcome.failed.find((inner) => within(inner.path, item.path))
+    if (failedInside) {
+      outcome.skipped.push({ ...item, reason: `${failedInside.path} in it could not be removed` })
       continue
     }
     try {
@@ -506,6 +550,6 @@ export const removeListed = (stored, fresh, repositories, { probes = systemProbe
   if (outcome.removed.some((item) => item.kind !== "worktree")) {
     for (const repository of Object.values(repositories).filter((path) => existsSync(path))) probes.git(repository, ["worktree", "prune"])
   }
-  for (const volume of volumes.values()) outcome.freed += freeBytes(volume.path) - volume.before
+  for (const volume of volumes.values()) outcome.freed += freeBytes(existingAncestor(volume.path)) - volume.before
   return outcome
 }

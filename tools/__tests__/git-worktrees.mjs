@@ -1,8 +1,8 @@
 import { spawnSync } from "node:child_process"
-import { mkdirSync, realpathSync, renameSync, writeFileSync } from "node:fs"
+import { mkdirSync, realpathSync, renameSync, symlinkSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 
-import { parseWorktreeList } from "../lib/git-worktrees.mjs"
+import { findRepositories, parseWorktreeList } from "../lib/git-worktrees.mjs"
 import { T, root } from "./_harness.mjs"
 
 const same = (name, got, want) => T(name, JSON.stringify(got) === JSON.stringify(want), `got ${JSON.stringify(got)}, want ${JSON.stringify(want)}`)
@@ -25,7 +25,19 @@ const stageRepository = () => {
   return listed.status === 0 ? { base: realpathSync(base), porcelain: listed.stdout } : null
 }
 
+/** A repository, a linked worktree's `.git` file, a link to a repository and a `.git` directory that holds another one. */
+const walkCases = () => {
+  const base = join(root, "git-worktrees-walk")
+  for (const directory of ["repository", "linked", "plain/deeper", "repository/.git/modules/inner/.git"]) mkdirSync(join(base, directory), { recursive: true })
+  writeFileSync(join(base, "linked", ".git"), "gitdir: /elsewhere\n")
+  symlinkSync(join(base, "repository"), join(base, "plain", "link"), "dir")
+  same("git-worktrees: the walk finds each .git directory and file, and never follows a link or enters a .git directory",
+    findRepositories(base)?.sort(), [join(base, "linked"), join(base, "repository")])
+  same("git-worktrees: a walk of a missing path is null, never an empty list", findRepositories(join(base, "missing")), null)
+}
+
 export const cases = () => {
+  walkCases()
   const staged = stageRepository()
   T("git-worktrees: the git fixture stages", staged !== null)
   if (staged === null) return

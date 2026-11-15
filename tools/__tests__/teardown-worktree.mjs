@@ -216,6 +216,23 @@ export const assertRepositoryLabel = (ticket, repoKey) => {
     return
   }
 
+  // A session in the worktree made a worktree of its own in an ignored directory, so `git status` of the outer tree shows nothing.
+  const nestedWorktree = stageTeardownWorktree("nested-worktree", { changed: true, fastForwardMerged: true })
+  const inner = join(nestedWorktree.child, "node_modules", "inner")
+  const innerAdded = spawnSync("git", ["-C", nestedWorktree.primary, "worktree", "add", "-q", "-b", "feature/inner", inner], { encoding: "utf8" })
+  if (innerAdded.status === 0) writeFileSync(join(inner, "unsaved.txt"), "uncommitted work of the inner worktree\n")
+  check(TOOL, "refuses a worktree that holds another registered worktree", ["--issue", "ORB-124"],
+    { status: 1, stderr: /UNMET no-nested-repository: .*node_modules\/inner/ }, { env: orcaEnv(teardownPlan(nestedWorktree)) })
+  T(`${TOOL}: the uncommitted file of the inner worktree survives`, innerAdded.status === 0 && existsSync(join(inner, "unsaved.txt")), innerAdded.stderr)
+  const nestedRepository = stageTeardownWorktree("nested-repository", { changed: true, fastForwardMerged: true })
+  const vendored = join(nestedRepository.child, "node_modules", "vendored")
+  mkdirSync(vendored, { recursive: true })
+  const initialized = spawnSync("git", ["-C", vendored, "init", "-q"], { encoding: "utf8" })
+  writeFileSync(join(vendored, "local.txt"), "only in this repository\n")
+  check(TOOL, "refuses a worktree that holds a repository of its own", ["--issue", "ORB-124"],
+    { status: 1, stderr: /UNMET no-nested-repository: .*node_modules\/vendored/ }, { env: orcaEnv(teardownPlan(nestedRepository)) })
+  T(`${TOOL}: the file of the inner repository survives`, initialized.status === 0 && existsSync(join(vendored, "local.txt")), initialized.stderr)
+
   const switched = stageTeardownWorktree("ticket-124-contract-switch", { changed: true, fastForwardMerged: true, contractSwitch: true })
   pointConfigAt(switched)
   const switchedResult = check(
