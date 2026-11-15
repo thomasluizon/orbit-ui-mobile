@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { spawnSync } from "node:child_process"
-import { existsSync, lstatSync, readFileSync, realpathSync } from "node:fs"
+import { existsSync, lstatSync, readFileSync, readlinkSync, realpathSync } from "node:fs"
 import { createRequire } from "node:module"
 import { dirname, extname, join, relative, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
@@ -9,8 +9,8 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..")
 const SELF = fileURLToPath(import.meta.url)
 const ALLOWLIST = "tools/timeless-allowlist.json"
 const CHECKER = "tools/check-timeless.mjs"
-/** Only regular files are scanned: a symlink target is its own tracked file, and a gitlink has no text. */
-const REGULAR = new Set(["100644", "100755"])
+/** Regular files and symlinks are scanned; a symlink reads as its link text and is never followed, and a gitlink has no text. */
+const SCANNED_MODES = new Set(["100644", "100755", "120000"])
 const USAGE = "usage: check-timeless.mjs --all | --base <ref> | --staged | --hook"
 const machine = new RegExp([
   "/" + "Users/", "[A-Za-z]:\\\\+Users", "/private/" + "tmp", "/private/" + "var", "/var/" + "folders",
@@ -354,21 +354,25 @@ try {
   }
   const state = args[0] === "--staged" ? ":" : "HEAD:"
   const contents = (paths) => changes ? blobs(paths.map((path) => state + path))
-    : paths.map((path) => existsSync(join(ROOT, path)) ? readFileSync(join(ROOT, path), "utf8") : null)
+    : paths.map((path) => {
+      const absolute = join(ROOT, path), stat = lstatSync(absolute, { throwIfNoEntry: false })
+      if (stat?.isSymbolicLink()) return readlinkSync(absolute, "utf8")
+      return stat?.isFile() ? readFileSync(absolute, "utf8") : null
+    })
   const scan = (paths) => {
     const texts = contents(paths)
     return paths.flatMap((path, index) => texts[index] === null ? [] : findings(path, texts[index]))
   }
   const tracked = () => changes
     ? (args[0] === "--base" ? git(["ls-tree", "-r", "-z", "HEAD"]) : git(["ls-files", "-s", "-z"])).split("\0")
-      .filter((entry) => REGULAR.has(entry.slice(0, entry.indexOf(" ")))).map((entry) => entry.slice(entry.indexOf("\t") + 1))
-    : git(["ls-files", "-z"]).split("\0").filter((path) => path && lstatSync(join(ROOT, path), { throwIfNoEntry: false })?.isFile())
+      .filter((entry) => SCANNED_MODES.has(entry.slice(0, entry.indexOf(" ")))).map((entry) => entry.slice(entry.indexOf("\t") + 1))
+    : git(["ls-files", "-z"]).split("\0").filter(Boolean)
   const allowed = allowlist(contents([ALLOWLIST])[0])
   // A change to the allowlist or the checker can expose any finding or leave any entry unused: scan the whole state, as --all does.
   if (!changes || changes.some(({ path }) => path === ALLOWLIST || path === CHECKER)) process.exit(report(scan(tracked()), allowed, allowed.keys()))
   const results = []
-  for (const { path, oldMode } of changes.filter(({ newMode }) => REGULAR.has(newMode))) {
-    const before = REGULAR.has(oldMode) ? git(["show", `${oldRef}:${path}`]) : ""
+  for (const { path, oldMode } of changes.filter(({ newMode }) => SCANNED_MODES.has(newMode))) {
+    const before = SCANNED_MODES.has(oldMode) ? git(["show", `${oldRef}:${path}`]) : ""
     results.push(...newFindings(path, before, git(["show", state + path])))
   }
   const { checked, usage } = changedEntryUsage(allowed, changes.map(({ path }) => path), tracked, scan)

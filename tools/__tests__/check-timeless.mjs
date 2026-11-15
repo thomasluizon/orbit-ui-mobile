@@ -335,7 +335,9 @@ export const cases = () => {
   linkRuns.push(run(linked, ["--staged"]), run(linked, ["--all"]))
   git(linked, "commit", "-qm", "links")
   linkRuns.push(run(linked, ["--base", linkBase]))
-  T("a tracked symlink is skipped in staged, all and base", linkRuns.every((result) => result.status === 0))
+  const linkFinding = `machine-link:1: machine-path: ${["/", "Users/"].join("")}`
+  T("a tracked symlink is scanned as its link text, never followed, in staged, all and base",
+    linkRuns.every((result) => result.status === 1 && result.stderr.trim() === linkFinding))
   rmSync(linked, { recursive: true, force: true })
 
   const commentBlock = (count, tag) => Array.from({ length: count }, (_, index) => `// ${tag} ${index}`).join("\n") + "\n"
