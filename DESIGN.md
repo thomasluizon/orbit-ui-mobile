@@ -225,7 +225,7 @@ The conversation row uses destination geometry: minimum height 48, radius 12, 12
 The visible label supplies the accessible name once. Collapsing the sidebar hides the label in
 the same way as the other destination names, retaining its accessible name and tooltip.
 Hover, press, focus and active treatment match the sibling destination rows.
-The list gap is 4. While the conversation is open, only the conversation row draws the current-position
+The list gap is 8, so sibling feedback fills keep 8 apart. While the conversation is open, only the conversation row draws the current-position
 treatment: the `--primary-soft` label. Its small static face keeps the `--fg-1` planet and ring at rest and
 while open, because the moon is the face's one accent (Identity). The destination retains
 `aria-current="page"` because the route stays unchanged, but draws no current-position treatment.
