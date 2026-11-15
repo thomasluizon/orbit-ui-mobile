@@ -125,7 +125,7 @@ describe('buildGuidedTimeZoneOptions', () => {
 
   it('finds Bogotá, Belém, Cuiabá and Maceió in the full list', () => {
     const everyZone = ['America/Bogota', 'America/Belem', 'America/Cuiaba', 'America/Maceio', 'America/Sao_Paulo']
-    for (const [query, zone] of [['Bogotá', 'America/Bogota'], ['Belém', 'America/Belem'], ['Cuiabá', 'America/Cuiaba'], ['Maceió', 'America/Maceio']]) {
+    for (const [query, zone] of [['Bogotá', 'America/Bogota'], ['Belém', 'America/Belem'], ['Cuiabá', 'America/Cuiaba'], ['Maceió', 'America/Maceio']] as const) {
       expect(buildGuidedTimeZoneOptions({ ...base, zones: everyZone, query }).visible).toEqual([zone])
     }
   })

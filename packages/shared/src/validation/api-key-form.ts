@@ -55,8 +55,7 @@ export function apiKeyExpiryDay(value: string, timeZone?: string | null): string
 export function apiKeyExpiryFromDay(day: string, timeZone?: string | null): string {
   if (!day) return API_KEY_EXPIRY_DEFAULT
   const zone = expiryZone(timeZone)
-  const [year, month, date] = day.split('-').map(Number)
-  const noon = Date.UTC(year, month - 1, date, 12)
+  const noon = Date.UTC(Number(day.slice(0, 4)), Number(day.slice(5, 7)) - 1, Number(day.slice(8, 10)), 12)
   const inside = getAccountDay(new Date(noon), zone) > day ? noon - TWELVE_HOURS : noon
   const lastSecond = inside + millisecondsUntilNextDay(new Date(inside), zone) - 1000
   return new Date(lastSecond).toISOString().slice(0, 19)
