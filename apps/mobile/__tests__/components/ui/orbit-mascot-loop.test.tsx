@@ -1,9 +1,9 @@
 import type { Context, ReactElement } from 'react'
-import { AppState, View } from 'react-native'
+import { AccessibilityInfo, AppState, View } from 'react-native'
 import { ORBIT_MASCOT_FACES, ORBIT_MASCOT_VIEW_BOX, ORBIT_SMALL_FACES, orbitMascotFrame, orbitOutlineCutout } from '@orbit/shared/contracts/brand'
 import { mascotMotion } from '@orbit/shared/theme'
 import { setOrbitMotionEnabled } from '@orbit/shared/utils'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { OrbitMascot } from '@/components/ui/orbit-mascot'
 import { OrbitOverlayLayer } from '@/components/ui/orbit-overlay-layer'
 import { NativeDialog } from '@/components/ui/native-dialog'
@@ -11,7 +11,7 @@ import { OverlayHost } from '@/components/ui/overlay-host'
 import { orbitScreenLayout } from '@/components/navigation/orbit-screen-layout'
 import { createTokensV2 } from '@/lib/theme'
 import { __resetTestHostConfig, __setMeasureInWindowImpl } from '@/test-mocks/react-native'
-import { reanimatedTestState } from '@/test-mocks/react-native-reanimated'
+import { getPrefersReducedMotion, usePrefersReducedMotion } from '@/lib/motion'
 
 /** The route focus a navigator gives each screen; `useIsFocused` reads it as the real hook reads its route. */
 const route = vi.hoisted(() => ({ Focus: require('react').createContext(true) as Context<boolean> }))
@@ -33,10 +33,33 @@ interface TestTree {
 
 const moonFill = createTokensV2('purple', 'dark').primary
 const appStateListeners: ((status: string) => void)[] = []
+const reduceMotionListeners = new Set<(enabled: boolean) => void>()
 
+/** Holds one reduced motion listener for the whole test, so a change reaches the shared preference even before a mascot mounts. */
+function ReducedMotionProbe() {
+  usePrefersReducedMotion()
+  return null
+}
+let probe: TestTree | undefined
+
+/** Changes the system reduced motion setting the way Android reports it: one `reduceMotionChanged` event. */
+function setReducedMotion(enabled: boolean) {
+  TestRenderer.act(() => { for (const listener of [...reduceMotionListeners]) listener(enabled) })
+}
+
+/** The vertical scale of the eyes: 1 is open, and the blink closes them toward 0.1. */
+function eyeScaleOf(tree: TestTree) {
+  const eye = tree.root.findAll((node) => typeof node.type === 'string' && typeof node.props.transform === 'string' && String(node.props.transform).startsWith('matrix('))[0]
+  return Number(/^matrix\(1 0 0 ([\d.]+) /.exec(String(eye?.props.transform))?.[1])
+}
+
+const mounted: TestTree[] = []
+
+/** Mounts a tree and remembers it, so a failed test cannot leave a live claim that steals the slot from the next test. */
 function render(element: ReactElement): TestTree {
   let tree: TestTree | undefined
   TestRenderer.act(() => { tree = TestRenderer.create(element) })
+  mounted.push(tree!)
   return tree!
 }
 
@@ -57,20 +80,32 @@ function advance(milliseconds: number) {
   TestRenderer.act(() => { vi.advanceTimersByTime(milliseconds) })
 }
 
+beforeAll(async () => {
+  await getPrefersReducedMotion()
+})
+
 beforeEach(() => {
   appStateListeners.length = 0
-  reanimatedTestState.reducedMotion = false
+  reduceMotionListeners.clear()
+  AppState.currentState = 'active'
   vi.useFakeTimers()
   vi.spyOn(AppState, 'addEventListener').mockImplementation((_event, listener) => {
     appStateListeners.push(listener as (status: string) => void)
     return { remove: () => {} }
   })
+  vi.spyOn(AccessibilityInfo, 'addEventListener').mockImplementation((event, listener) => {
+    if (String(event) === 'reduceMotionChanged') reduceMotionListeners.add(listener as (enabled: boolean) => void)
+    return { remove: () => { reduceMotionListeners.delete(listener as (enabled: boolean) => void) } }
+  })
+  probe = render(<ReducedMotionProbe />)
 })
 
 afterEach(() => {
+  setReducedMotion(false)
+  TestRenderer.act(() => { for (const tree of mounted.splice(0)) tree.unmount() })
   __resetTestHostConfig()
   setOrbitMotionEnabled(undefined)
-  reanimatedTestState.reducedMotion = false
+  AppState.currentState = 'active'
   vi.useRealTimers()
   vi.restoreAllMocks()
 })
@@ -80,15 +115,51 @@ describe('Orbit idle loop on Android', () => {
     const tree = render(<OrbitMascot size={96} />)
     expect(loops(tree)).toEqual(['running'])
     const rest = moonOf(tree)
-    advance(10)
-    expect(moonOf(tree)).toBe(rest)
-    advance(400)
-    expect(moonOf(tree)).not.toBe(rest)
+    advance(48)
+    const drawn = moonOf(tree)
+    expect(drawn).not.toBe(rest)
+    advance(16)
+    expect(moonOf(tree)).toBe(drawn)
+    advance(32)
+    expect(moonOf(tree)).not.toBe(drawn)
+    tree.unmount()
+  })
+
+  it.each([
+    ['Orbit em movimento turns off', () => setOrbitMotionEnabled(false)],
+    ['the app goes to the background', () => { for (const listener of appStateListeners) listener('background') }],
+  ])('opens its eyes when %s in the middle of a blink', (_cause, pause) => {
+    const tree = render(<OrbitMascot size={96} />)
+    for (let step = 0; step < 100 && eyeScaleOf(tree) >= 0.5; step += 1) advance(48)
+    expect(eyeScaleOf(tree)).toBeLessThan(0.5)
+    TestRenderer.act(() => { pause() })
+    expect(loops(tree)).toEqual(['still'])
+    expect(eyeScaleOf(tree)).toBe(1)
+    tree.unmount()
+  })
+
+  it('stops the loop at once when the person turns on reduced motion while the app runs, and resumes when it turns off', () => {
+    const tree = render(<OrbitMascot size={96} />)
+    expect(loops(tree)).toEqual(['running'])
+    setReducedMotion(true)
+    expect(loops(tree)).toEqual(['still'])
+    setReducedMotion(false)
+    expect(loops(tree)).toEqual(['running'])
+    tree.unmount()
+  })
+
+  it('reads the foreground again when its app state listener starts, so a missed resume does not keep it still', () => {
+    setReducedMotion(true)
+    AppState.currentState = 'background'
+    const tree = render(<OrbitMascot size={96} />)
+    AppState.currentState = 'active'
+    setReducedMotion(false)
+    expect(loops(tree)).toEqual(['running'])
     tree.unmount()
   })
 
   it('stays still and swaps the face at once under reduced motion', () => {
-    reanimatedTestState.reducedMotion = true
+    setReducedMotion(true)
     const tree = render(<OrbitMascot size={96} />)
     const rest = moonOf(tree)
     advance(400)
@@ -223,7 +294,7 @@ describe('Orbit on-screen probe on Android', () => {
 
   it.each([
     ['Orbit em movimento is off', () => setOrbitMotionEnabled(false)],
-    ['reduced motion is on', () => { reanimatedTestState.reducedMotion = true }],
+    ['reduced motion is on', () => setReducedMotion(true)],
     ['the app is in the background', () => {}],
   ] as const)('never measures its window position while %s', (name, arrange) => {
     const counter = countMeasures()

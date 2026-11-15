@@ -25,6 +25,12 @@ function moonOf(container: HTMLElement) {
   return `${moon?.getAttribute('cx')},${moon?.getAttribute('cy')}`
 }
 
+/** The vertical scale of the eyes: 1 is open, and the blink closes them toward 0.1. */
+function eyeScaleOf(container: HTMLElement) {
+  const transform = container.querySelector('[data-part="eye"]')?.getAttribute('transform') ?? ''
+  return Number(/^matrix\(1 0 0 ([\d.]+) /.exec(transform)?.[1])
+}
+
 function setReducedMotion(reduce: boolean) {
   vi.stubGlobal('matchMedia', (query: string) => ({
     matches: reduce && query.includes('prefers-reduced-motion'),
@@ -52,10 +58,25 @@ describe('Orbit idle loop on web', () => {
     const { container } = render(<OrbitMascot size={96} />)
     expect(loopOf(container)).toBe('running')
     const rest = moonOf(container)
-    act(() => { vi.advanceTimersByTime(20) })
-    expect(moonOf(container)).toBe(rest)
-    act(() => { vi.advanceTimersByTime(400) })
-    expect(moonOf(container)).not.toBe(rest)
+    act(() => { vi.advanceTimersByTime(48) })
+    const drawn = moonOf(container)
+    expect(drawn).not.toBe(rest)
+    act(() => { vi.advanceTimersByTime(16) })
+    expect(moonOf(container)).toBe(drawn)
+    act(() => { vi.advanceTimersByTime(32) })
+    expect(moonOf(container)).not.toBe(drawn)
+  })
+
+  it.each([
+    ['Orbit em movimento turns off', () => setOrbitMotionEnabled(false)],
+    ['the mascot goes off screen', () => observers.at(-1)?.([{ isIntersecting: false }])],
+  ])('opens its eyes when %s in the middle of a blink', (_cause, pause) => {
+    const { container } = render(<OrbitMascot size={96} />)
+    for (let step = 0; step < 100 && eyeScaleOf(container) >= 0.5; step += 1) act(() => { vi.advanceTimersByTime(48) })
+    expect(eyeScaleOf(container)).toBeLessThan(0.5)
+    act(() => { pause() })
+    expect(loopOf(container)).toBe('still')
+    expect(eyeScaleOf(container)).toBe(1)
   })
 
   it('stays still and draws the rest frame under reduced motion', () => {

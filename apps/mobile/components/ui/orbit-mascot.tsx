@@ -27,10 +27,10 @@ import {
 } from '@orbit/shared/utils'
 import { useEffect, useId, useMemo, useRef, useState, useSyncExternalStore, type ReactNode, type RefObject } from 'react'
 import { AppState, useWindowDimensions } from 'react-native'
-import { useReducedMotion } from 'react-native-reanimated'
 import Svg, { Circle, ClipPath, Defs, G, Path } from 'react-native-svg'
 import { createTokensV2, type AppTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
+import { usePrefersReducedMotion } from '@/lib/motion'
 import { useOrbitOverlayLayer } from '@/components/ui/orbit-overlay-layer'
 import { useOrbitScreenFocused } from '@/components/ui/orbit-screen-focus'
 
@@ -70,7 +70,7 @@ function useOnScreen(target: RefObject<WindowMeasurable | null>, active: boolean
 function useOrbitLoopClock(wantsLoop: boolean, lead: boolean, target: RefObject<WindowMeasurable | null>) {
   const [claim] = useState(() => Symbol('orbit-mascot'))
   const layer = useOrbitOverlayLayer()
-  const reducedMotion = useReducedMotion()
+  const reducedMotion = usePrefersReducedMotion()
   const screenFocused = useOrbitScreenFocused()
   const candidate = wantsLoop && !reducedMotion && screenFocused
   const [foreground, setForeground] = useState(AppState.currentState === 'active')
@@ -83,7 +83,9 @@ function useOrbitLoopClock(wantsLoop: boolean, lead: boolean, target: RefObject<
 
   useEffect(() => {
     if (!candidate) return undefined
-    const subscription = AppState.addEventListener('change', (next) => setForeground(next === 'active'))
+    const update = (status: string) => setForeground(status === 'active')
+    update(AppState.currentState)
+    const subscription = AppState.addEventListener('change', update)
     return () => subscription.remove()
   }, [candidate, claim])
 
@@ -107,6 +109,11 @@ function useOrbitLoopClock(wantsLoop: boolean, lead: boolean, target: RefObject<
   }, [running])
 
   return { clock: candidate ? clock : 0, running }
+}
+
+/** A paused Orbit keeps its pose, but its eyes are open: half-closed eyes held still read as Descansando. */
+function pausedFrame(frame: OrbitMascotFrame, running: boolean): OrbitMascotFrame {
+  return running ? frame : { ...frame, blinkScale: 1 }
 }
 
 interface Palette {
@@ -200,7 +207,7 @@ function OrbitMascotDrawing({ size, state = 'parado', still = false, color, lead
   const svgRef = useRef<Svg | null>(null)
   const small = isOrbitMascotSmallSize(size)
   const { clock, running } = useOrbitLoopClock(!small && !still, lead, svgRef)
-  const frame = orbitMascotFrame(clock, mascotMotion)
+  const frame = pausedFrame(orbitMascotFrame(clock, mascotMotion), running)
   const palette = paletteFrom(tokens)
 
   return (

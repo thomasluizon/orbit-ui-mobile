@@ -85,6 +85,11 @@ function useOrbitLoopClock(wantsLoop: boolean, lead: boolean, target: React.RefO
   return { clock: candidate ? clock : 0, running }
 }
 
+/** A paused Orbit keeps its pose, but its eyes are open: half-closed eyes held still read as Descansando. */
+function pausedFrame(frame: OrbitMascotFrame, running: boolean): OrbitMascotFrame {
+  return running ? frame : { ...frame, blinkScale: 1 }
+}
+
 function Eye({ shape, blink }: Readonly<{ shape: OrbitEyeShape; blink?: string }>) {
   if (shape.kind === 'fill') return <path d={shape.d} fill="var(--bg)" transform={blink} data-part="eye" />
   return (
@@ -160,7 +165,7 @@ export function OrbitMascot({ size, state = 'parado', still = false, color, lead
   const svgRef = useRef<SVGSVGElement | null>(null)
   const small = isOrbitMascotSmallSize(size)
   const { clock, running } = useOrbitLoopClock(!small && !still, lead, svgRef)
-  const frame = orbitMascotFrame(clock, mascotMotion)
+  const frame = pausedFrame(orbitMascotFrame(clock, mascotMotion), running)
 
   return (
     <svg
