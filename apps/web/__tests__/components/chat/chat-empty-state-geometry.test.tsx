@@ -13,6 +13,7 @@ import pt from '@orbit/shared/i18n/pt-BR.json'
 import { expectLabelsFit, markRequiredLabels } from '@/e2e/layout/label-fit-contract'
 import { AstraConversation } from '@/components/chat/conversation'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
+import { enableTestFlags, resetTestFlags } from '@orbit/shared/test-support/flag-state'
 
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn() }) }))
 vi.mock('@/components/shell/composer', () => ({
@@ -113,6 +114,37 @@ describe('Empty conversation geometry in Chromium', () => {
       }
     } finally {
       await page.close()
+    }
+  })
+
+  it.each([320, 360, 384, 412].flatMap((width) => (['en', 'pt-BR'] as const).map((locale) => ({ width, locale }))))('centres the guided Orbit group within 1 px of the thread area above the composer at $width in $locale', async ({ width, locale }) => {
+    enableTestFlags('orbit_guided_flows')
+    const messages = locale === 'en' ? en : pt
+    const { container } = render(
+      <NextIntlClientProvider locale={locale} messages={messages}>
+        <div style={{ width, height: 600 }}><AstraConversation chat={emptyChat()} /></div>
+      </NextIntlClientProvider>,
+    )
+    const page = await browser.newPage({ viewport: { width, height: 600 } })
+    try {
+      await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+      await loadAppFonts(page)
+      const geometry = await page.evaluate(() => {
+        const scroller = document.querySelector<HTMLElement>('[role="feed"]')!
+        const group = scroller.querySelector('[data-empty-state]')!.getBoundingClientRect()
+        const bounds = scroller.getBoundingClientRect()
+        const style = getComputedStyle(scroller)
+        return {
+          groupTop: group.top, groupBottom: group.bottom,
+          areaTop: bounds.top + parseFloat(style.paddingTop), areaBottom: bounds.bottom - parseFloat(style.paddingBottom),
+          states: Array.from(scroller.querySelectorAll('[data-orbit-state]')).map((node) => node.getAttribute('data-orbit-state')),
+        }
+      })
+      expect(geometry.states).toEqual(['parado'])
+      expect(Math.abs((geometry.groupTop + geometry.groupBottom) / 2 - (geometry.areaTop + geometry.areaBottom) / 2), JSON.stringify(geometry)).toBeLessThanOrEqual(1)
+    } finally {
+      await page.close()
+      resetTestFlags()
     }
   })
 })
