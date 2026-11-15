@@ -39,7 +39,8 @@
         "$TURBO_ROOT$/design/canvas/Orbit Wrapped.dc.html",
         "$TURBO_ROOT$/design/canvas/Orbit Widget Android.dc.html",
         "$TURBO_ROOT$/design/canvas/_ds/*/tokens/typography.css",
-        "$TURBO_ROOT$/eslint-rules/*.cjs"
+        "$TURBO_ROOT$/eslint-rules/*.cjs",
+        "$TURBO_ROOT$/evals/astra/catalog.yaml"
       ]
     },
     "@orbit/desktop#test": {
