@@ -55,4 +55,12 @@ describe('Android habit detail Orbit line', () => {
     expect(row(tree)).toHaveLength(0)
     expect(probes(tree)[0]!.props.size).toBe(24)
   })
+
+  it('shows Orbit in Pensando while the reschedule suggestion loads', async () => {
+    enableTestFlags('orbit_guided_flows')
+    const tree = await mount(<HabitDetailOrbitLine habit={habit} days={week(5)} thinking />)
+    expect(probes(tree)[0]!.props.state).toBe('pensando')
+    await renderer.act(async () => { tree.update(<HabitDetailOrbitLine habit={habit} days={week(5)} />); await Promise.resolve() })
+    expect(probes(tree)[0]!.props.state).toBe('parado')
+  })
 })

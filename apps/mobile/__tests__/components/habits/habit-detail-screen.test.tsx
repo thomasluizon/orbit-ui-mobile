@@ -368,7 +368,7 @@ vi.mock('@/lib/theme', async (importOriginal) => {
 vi.mock('@/lib/use-app-theme', () => ({
   useAppTheme: () => ({ currentScheme: 'purple', currentTheme: mocks.theme, surfaces: { screen: { backgroundColor: '#111111' } } }),
 }))
-vi.mock('@/components/ui/orbit-mascot', () => ({ OrbitMascot: ({ size, color }: { size: number; color?: string }) => React.createElement('OrbitMascot', { size, color }) }))
+vi.mock('@/components/ui/orbit-mascot', () => ({ useStateMascotSize: () => 96, OrbitMascot: ({ size, color }: { size: number; color?: string }) => React.createElement('OrbitMascot', { size, color }) }))
 vi.mock('@/components/ui/confirm-sheet', () => ({
   ConfirmSheet: ({ open, title, message, confirmLabel, onConfirm, onCancel }: { open: boolean; title: string; message: string; confirmLabel: string; onConfirm: () => void; onCancel: () => void }) => open
     ? React.createElement('ConfirmSheet', { testID: `confirm-${title}`, title, message, confirmLabel, onConfirm, onCancel })

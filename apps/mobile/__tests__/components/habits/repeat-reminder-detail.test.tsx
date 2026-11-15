@@ -7,6 +7,7 @@ import { RepeatReminderDetail } from '@/components/habits/repeat-reminder-detail
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
 import { createTimeDisplay } from '@orbit/shared/utils'
 import en from '@orbit/shared/i18n/en.json'
+import { enableTestFlags } from '@orbit/shared/test-support/flag-state'
 import { renderedText } from '../../support/react-test-renderer'
 const TestRenderer = require('react-test-renderer')
 const mutation = vi.hoisted(() => ({ mutateAsync: vi.fn(), isPending: false }))
@@ -72,5 +73,30 @@ it('offers the reminder time as a named clock icon action', () => {
   const button = tree.root.findAll((node) => String(node.type) === 'Pressable').find((node) => node.props.accessibilityLabel === en.habits.useReminderTime)!
   expect(button).toBeDefined()
   expect(renderedText(button)).toBe('')
+  TestRenderer.act(() => tree.update(<></>))
+})
+
+it('asks when the dose was done as one question, and the quick option saves the reminder time in one press', async () => {
+  enableTestFlags('orbit_guided_flows')
+  let tree!: import('react-test-renderer').ReactTestRenderer
+  TestRenderer.act(() => { tree = TestRenderer.create(<RepeatReminderDetail habit={habit} logs={[log]} />) })
+  TestRenderer.act(() => press(tree.root, en.habits.changeTakenAt))
+  const group = tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'dose-quick-options')[0]!
+  expect(group.props.accessibilityLabel).toBe(en.habits.takenAtQuestion)
+  const options = tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'option-card')
+  expect(options.map((node) => node.props.accessibilityLabel)).toEqual([en.habits.useReminderTime])
+  await TestRenderer.act(async () => { (options[0]!.props.onPress as () => void)(); await Promise.resolve() })
+  expect(mutation.mutateAsync).toHaveBeenCalledExactlyOnceWith({ logId: log.id, takenAtUtc: '2026-10-29T02:00:30.125Z' })
+  TestRenderer.act(() => tree.update(<></>))
+})
+
+it('keeps Save for the date and the time fields, and shows no quick option without a reminder time', async () => {
+  enableTestFlags('orbit_guided_flows')
+  let tree!: import('react-test-renderer').ReactTestRenderer
+  TestRenderer.act(() => { tree = TestRenderer.create(<RepeatReminderDetail habit={habit} logs={[{ ...log, reminderAtUtc: null }]} />) })
+  TestRenderer.act(() => press(tree.root, en.habits.changeTakenAt))
+  expect(tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'option-card')).toHaveLength(0)
+  await TestRenderer.act(async () => { press(tree.root, 'Save'); await Promise.resolve() })
+  expect(mutation.mutateAsync).toHaveBeenCalledExactlyOnceWith({ logId: log.id, takenAtUtc: '2026-10-29T02:30:00.000Z' })
   TestRenderer.act(() => tree.update(<></>))
 })

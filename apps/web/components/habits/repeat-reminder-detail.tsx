@@ -16,6 +16,8 @@ import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { PillButton } from '@/components/ui/pill-button'
 import { IconButton } from '@/components/ui/icon-button'
 import { Pencil, Clock } from '@/components/ui/icons'
+import { OptionCard } from '@/components/ui/option-card'
+import { useFlag } from '@/hooks/use-flag'
 
 export function RepeatReminderDetail({ habit, logs }: Readonly<{ habit: NormalizedHabit; logs: HabitLog[] }>) {
   const t = useTranslations()
@@ -43,9 +45,10 @@ function DoseTimeEditor({ habitId, log, onClose }: Readonly<{ habitId: string; l
   const saving = useRef(false)
   const mutation = useCorrectHabitDose(habitId)
   const { sheetRef, closeSheet } = useSheetHost()
-  async function save() {
+  const guided = useFlag('orbit_guided_flows')
+  async function save(answer?: string) {
     if (saving.current) return
-    const takenAtUtc = exactInstant ?? repeatReminderInstant(date, clock, timeZone)
+    const takenAtUtc = answer ?? exactInstant ?? repeatReminderInstant(date, clock, timeZone)
     if (!takenAtUtc) { setError(t('habits.form.invalidTime')); return }
     saving.current = true
     setError('')
@@ -55,15 +58,18 @@ function DoseTimeEditor({ habitId, log, onClose }: Readonly<{ habitId: string; l
     } catch { setError(t('habits.doseSaveError')) }
     finally { saving.current = false }
   }
-  return <Sheet ref={sheetRef} open title={t('habits.changeTakenAt')} onClose={mutation.isPending ? undefined : onClose} actions={<ActionRow>
+  return <Sheet ref={sheetRef} open title={t(guided ? 'habits.takenAtQuestion' : 'habits.changeTakenAt')} onClose={mutation.isPending ? undefined : onClose} actions={<ActionRow>
     <PillButton size="sm" variant="ghost" disabled={mutation.isPending} onClick={() => closeSheet()}>{t('common.cancel')}</PillButton>
     <PillButton size="sm" loading={mutation.isPending} disabled={mutation.isPending} onClick={() => void save()}>{t('common.save')}</PillButton>
   </ActionRow>}>
     <div className="flex min-w-0 flex-col gap-3">
       {error ? <p role="alert" className="text-sm text-[var(--status-bad-text)]">{error}</p> : null}
+      {guided && log.reminderAtUtc ? <div role="group" aria-label={t('habits.takenAtQuestion')} data-option-group="" className="grid w-full pb-3">
+        <OptionCard label={t('habits.useReminderTime')} disabled={mutation.isPending} onSelect={() => void save(new Date(log.reminderAtUtc!).toISOString())} />
+      </div> : null}
       <fieldset disabled={mutation.isPending}><DateField label={t('habits.doseDate')} value={date} onChange={(value) => { setExactInstant(null); setDate(value) }} /></fieldset>
       <TimeField label={t('habits.doseTime')} value={toTime24(clock)} onChange={(value) => { setExactInstant(null); setClock(value) }} disabled={mutation.isPending} />
-      {log.reminderAtUtc ? <IconButton label={t('habits.useReminderTime')} disabled={mutation.isPending} onClick={() => {
+      {log.reminderAtUtc && !guided ? <IconButton label={t('habits.useReminderTime')} disabled={mutation.isPending} onClick={() => {
         setExactInstant(new Date(log.reminderAtUtc!).toISOString())
         setDate(getAccountDateTime(new Date(log.reminderAtUtc!), timeZone).date)
         setClock(repeatReminderClock(log.reminderAtUtc!, timeZone))

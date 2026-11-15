@@ -61,10 +61,10 @@ import { AppBar } from '@/components/ui/app-bar'
 import { Badge } from '@/components/ui/badge'
 import { ConfirmSheet } from '@/components/ui/confirm-sheet'
 import { ChecklistCompletePrompt, LogDatePrompt } from '@/components/habits/habit-detail-prompts'
+import { HabitDetailLoadError } from '@/components/habits/habit-detail-load-error'
 import { DayCell } from '@/components/dates/day-cell'
 import { DayColumnContent } from '@/components/dates/day-column-content'
 import { DayStrip } from '@/components/dates/day-strip'
-import { ErrorState } from '@/components/ui/error-state'
 import { ListRow } from '@/components/ui/list-row'
 import { HabitDetailOrbitLine, HabitDetailReviewRow } from '@/components/habits/habit-detail-orbit-line'
 import { HabitDetailResultDialog, useHabitDetailResult } from '@/components/habits/habit-detail-result'
@@ -450,7 +450,7 @@ function HabitDetailProfile({ habitId, date, fromToday = false, parentId }: Read
       else router.push(date ? `/?date=${date}` : '/')
     }} />}>
       {isError
-        ? <ErrorState message={t('common.error')} action={<IconButton label={t('habits.detail.retry')} onClick={() => void refetch()}><RefreshCw size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton>} />
+        ? <HabitDetailLoadError message={t('common.error')} retryLabel={t('habits.detail.retry')} onRetry={() => void refetch()} />
         : <div role="status" aria-busy="true" aria-label={t('profile.loading')} className="flex flex-col gap-4">
             <Skeleton variant="habit-row" grouped />
             <Skeleton variant="stat-tile" grouped />
@@ -626,7 +626,7 @@ function HabitDetailContent({ habitId, date, fromToday = false, parentId, profil
   }
 
   if (detailQuery.isLoading) return <HabitDetailFrame header={<HabitDetailNavigation parentId={parentId} titleIsHeading onBack={goBack} />}><div className="flex flex-col gap-4"><Skeleton variant="habit-row" label={t('habits.detail.loading')} /><Skeleton variant="stat-tile" label={t('habits.detail.loading')} /><HistoryLoading /></div></HabitDetailFrame>
-  if (detailQuery.isError || !habit) return <HabitDetailFrame header={<HabitDetailNavigation parentId={parentId} titleIsHeading onBack={goBack} />}><ErrorState message={t('habits.detail.loadError')} action={<IconButton label={t('habits.detail.retry')} onClick={retryFailedQueries}><RefreshCw size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton>} /></HabitDetailFrame>
+  if (detailQuery.isError || !habit) return <HabitDetailFrame header={<HabitDetailNavigation parentId={parentId} titleIsHeading onBack={goBack} />}><HabitDetailLoadError message={t('habits.detail.loadError')} retryLabel={t('habits.detail.retry')} onRetry={retryFailedQueries} /></HabitDetailFrame>
 
   const children = (detailQuery.data as HabitDetail).children.map((sourceChild) => {
     const child = normalizeDrillDetailChild(sourceChild, habit.id, dateStr)
@@ -659,7 +659,7 @@ function HabitDetailContent({ habitId, date, fromToday = false, parentId, profil
         <CompletionBoundaryReason disabled={completionDisabled} reason={completionReason} />
         <HabitDueDate habit={habit} language={language} />
       </div>
-      <HabitDetailOrbitLine habit={habit} days={strip?.days} />
+      <HabitDetailOrbitLine habit={habit} days={strip?.days} thinking={rescue.open && hasProAccess && rescue.query.isLoading} />
       {habit.repeatReminder || habit.nextReminderAtUtc ? <RepeatReminderDetail habit={habit} logs={logs} /> : null}
       <HabitChecklist items={habit.checklistItems} interactive onToggle={(index) => void toggleChecklist(index)} onReset={() => { void updateItems(habit.checklistItems.map((item) => ({ ...item, isChecked: false }))) }} />
       {children.length > 0 ? <Surface>

@@ -668,6 +668,7 @@
     },
     "nextReminder": "Next at {time}",
     "takenAt": "Done at {time}",
+    "takenAtQuestion": "When did you do this?",
     "changeTakenAt": "Change time",
     "doseDate": "Date",
     "doseTime": "Time",

@@ -5,6 +5,7 @@ import { RepeatReminderDetail } from '@/components/habits/repeat-reminder-detail
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
 import { createTimeDisplay } from '@orbit/shared/utils'
 import en from '@orbit/shared/i18n/en.json'
+import { enableTestFlags } from '@orbit/shared/test-support/flag-state'
 
 const mutation = vi.hoisted(() => ({ mutateAsync: vi.fn(), isPending: false }))
 vi.mock('@/hooks/use-correct-habit-dose', () => ({ useCorrectHabitDose: () => mutation }))
@@ -56,4 +57,25 @@ it('offers the reminder time as a named clock icon action', () => {
   const useReminderTime = screen.getByRole('button', { name: en.habits.useReminderTime })
   expect(useReminderTime).toHaveTextContent('')
   expect(useReminderTime.querySelector('svg')).not.toBeNull()
+})
+
+it('asks when the dose was done as one question, and the quick option saves the reminder time in one press', async () => {
+  enableTestFlags('orbit_guided_flows')
+  render(<RepeatReminderDetail habit={habit} logs={[log]} />)
+  fireEvent.click(screen.getByRole('button', { name: 'Change time' }))
+  const group = screen.getByRole('group', { name: en.habits.takenAtQuestion })
+  const option = group.querySelector<HTMLButtonElement>('[data-option-card]')!
+  expect(option).toHaveTextContent(en.habits.useReminderTime)
+  expect(screen.getAllByRole('button', { name: en.habits.useReminderTime })).toHaveLength(1)
+  fireEvent.click(option)
+  await waitFor(() => expect(mutation.mutateAsync).toHaveBeenCalledExactlyOnceWith({ logId: log.id, takenAtUtc: '2026-10-29T02:00:30.125Z' }))
+})
+
+it('keeps Save for the date and the time fields, and shows no quick option without a reminder time', async () => {
+  enableTestFlags('orbit_guided_flows')
+  render(<RepeatReminderDetail habit={habit} logs={[{ ...log, reminderAtUtc: null }]} />)
+  fireEvent.click(screen.getByRole('button', { name: 'Change time' }))
+  expect(document.querySelector('[data-option-card]')).toBeNull()
+  fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+  await waitFor(() => expect(mutation.mutateAsync).toHaveBeenCalledExactlyOnceWith({ logId: log.id, takenAtUtc: '2026-10-29T02:30:00.000Z' }))
 })

@@ -668,6 +668,7 @@
     },
     "nextReminder": "Próximo às {time}",
     "takenAt": "Feito às {time}",
+    "takenAtQuestion": "Quando você fez isso?",
     "changeTakenAt": "Alterar horário",
     "doseDate": "Data",
     "doseTime": "Horário",

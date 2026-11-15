@@ -19,7 +19,7 @@ interface TodayAstraLineProps {
   announce?: boolean
   loading?: boolean
   /** Descansando when the AI is absent: offline or at the message limit. The row never shows another state. */
-  mascotState?: 'parado' | 'descansando'
+  mascotState?: 'parado' | 'pensando' | 'descansando'
   /** The control Orbit looks toward, measured from `mascotRef`. */
   lookAt?: OrbitLookTarget | null
   /** A page change the person caused: the ring turns once. */

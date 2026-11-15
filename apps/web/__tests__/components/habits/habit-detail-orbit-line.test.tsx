@@ -44,4 +44,12 @@ describe('web habit detail Orbit line', () => {
     expect(screen.getAllByRole('button', { name: 'habits.detail.askAstra' })).toHaveLength(1)
     expect(container.querySelector('[data-today-astra-slot]')).toBeNull()
   })
+
+  it('shows Orbit in Pensando while the reschedule suggestion loads', () => {
+    enableTestFlags('orbit_guided_flows')
+    const { container, rerender } = render(<HabitDetailOrbitLine habit={habit} days={week(5)} thinking />)
+    expect(mascot(container)).toHaveAttribute('data-orbit-state', 'pensando')
+    rerender(<HabitDetailOrbitLine habit={habit} days={week(5)} />)
+    expect(mascot(container)).toHaveAttribute('data-orbit-state', 'parado')
+  })
 })

@@ -24,14 +24,14 @@ function useOpenHabitReview(habit: NormalizedHabit) {
   }
 }
 
-/** The Orbit line under the header: one fact from the strip. It opens the conversation with the review of this habit. A habit with no day done in the window shows the review label, because a count of zero reads as a miss. */
-export function HabitDetailOrbitLine({ habit, days }: Readonly<{ habit: NormalizedHabit; days: readonly HabitDayValue[] | undefined }>) {
+/** The Orbit line under the header: one fact from the strip. Orbit is Pensando while the reschedule suggestion loads. It opens the conversation with the review of this habit. A habit with no day done in the window shows the review label, because a count of zero reads as a miss. */
+export function HabitDetailOrbitLine({ habit, days, thinking = false }: Readonly<{ habit: NormalizedHabit; days: readonly HabitDayValue[] | undefined; thinking?: boolean }>) {
   const { t } = useTranslation()
   const guided = useFlag('orbit_guided_flows')
   const openReview = useOpenHabitReview(habit)
   if (!guided) return null
   const done = days ? countDoneInRecentDays(days, RECENT_DAYS) : 0
-  return <TodayAstraLine text={done > 0 ? t('habits.detail.orbit.lastSevenDays', { done }) : t('habits.detail.askAstra')} destination={t('habits.detail.askAstra')} onPress={openReview} />
+  return <TodayAstraLine text={done > 0 ? t('habits.detail.orbit.lastSevenDays', { done }) : t('habits.detail.askAstra')} destination={t('habits.detail.askAstra')} mascotState={thinking ? 'pensando' : 'parado'} onPress={openReview} />
 }
 
 /** The review row of the current surface, kept while the flag is off. */
