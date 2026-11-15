@@ -36,6 +36,8 @@ export interface HabitFlowAnswerFields {
   subHabitTitles?: readonly string[]
   /** The parent the edit holds, in words. */
   parentValue?: string
+  /** The goals the habit links, with their titles: the names of the goal row before or beyond the goal list. */
+  linkedGoals?: readonly { id: string; title: string }[]
 }
 
 /** The names the person chose, as one list in their language: the answer of a row of the optional list. Undefined with no name, so the row shows no answer. */
@@ -44,7 +46,10 @@ export function habitFlowNamesAnswer(names: readonly string[], locale: string): 
   return written.length > 0 ? formatConjunctionList(written, locale) : undefined
 }
 
-/** The names of the selected items, in the order the person selected them. An id the list does not hold yet has no name and is left out. */
+/**
+ * The names of the selected items, in the order the person selected them. The first item that holds an id names it.
+ * While a selected id has no name yet, the answer is the count of the selection, so a chosen row never reads as empty.
+ */
 export function habitFlowSelectionAnswer<Item extends { id: string }>(
   selectedIds: readonly string[], items: readonly Item[] | undefined, nameOf: (item: Item) => string, locale: string,
 ): string | undefined {
@@ -52,6 +57,7 @@ export function habitFlowSelectionAnswer<Item extends { id: string }>(
     const item = items?.find((candidate) => candidate.id === id)
     return item ? [nameOf(item)] : []
   })
+  if (names.length < selectedIds.length) return String(selectedIds.length)
   return habitFlowNamesAnswer(names, locale)
 }
 

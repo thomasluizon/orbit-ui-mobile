@@ -698,7 +698,7 @@ export function CreateHabitModal({
       <GuidedHabitFlow
         key={flowRun}
         formHelpers={formHelpers}
-        fields={{ ...buildFieldProps(), subHabitTitles: subHabits.map((entry) => entry.value) }}
+        fields={{ ...buildFieldProps(), subHabitTitles: subHabits.map((entry) => entry.value), linkedGoals: parentHabit?.linkedGoals }}
         lockedGeneral={lockedGeneral}
         fromConversation={fromConversation}
         pending={isPending}

@@ -59,17 +59,17 @@ const helpers = () => state.helpers as ReturnType<typeof useHabitForm>
 
 interface HarnessProps {
   mode?: 'create' | 'edit'; saveError?: string | null; lockedGeneral?: boolean | null; initial?: Record<string, unknown>; parentField?: ReactNode; subHabits?: boolean
-  goalIds?: string[]; subHabitTitles?: string[]; parentValue?: string
+  goalIds?: string[]; subHabitTitles?: string[]; parentValue?: string; linkedGoals?: { id: string; title: string }[]
 }
 
-function Harness({ mode = 'create', saveError = null, lockedGeneral = null, initial = {}, parentField, subHabits = true, goalIds = [], subHabitTitles, parentValue }: Readonly<HarnessProps>) {
+function Harness({ mode = 'create', saveError = null, lockedGeneral = null, initial = {}, parentField, subHabits = true, goalIds = [], subHabitTitles, parentValue, linkedGoals }: Readonly<HarnessProps>) {
   const formHelpers = useHabitForm({ initialData: { dueDate: '', ...initial } })
   const tags = useTagSelection()
   const [reminderTimes, setReminderTimes] = useState([0, 15])
   useEffect(() => { state.helpers = formHelpers; state.reminderTimes = reminderTimes })
   const fields: GuidedHabitFields = {
     tags, selectedGoalIds: goalIds, atGoalLimit: false, onToggleGoal: state.goalToggle, reminderTimes, onReminderTimesChange: setReminderTimes,
-    parentField, children: subHabits ? () => <p>sub-habit-editor</p> : undefined, subHabitTitles, parentValue,
+    parentField, children: subHabits ? () => <p>sub-habit-editor</p> : undefined, subHabitTitles, parentValue, linkedGoals,
   }
   return (
     <GuidedHabitFlow mode={mode} formHelpers={formHelpers} fields={fields} lockedGeneral={lockedGeneral} fromConversation={false} pending={false}
@@ -427,6 +427,16 @@ describe.each(['pt-BR', 'en'] as const)('the detail questions in %s', (locale) =
     expect(optionalRow('tags').querySelector('[data-question-value]')).toHaveTextContent(/^Saúde$/)
     expect(optionalRow('goals').querySelector('[data-question-value]')).toHaveTextContent(/^Correr 5 km$/)
     expect(optionalRow('subHabits').querySelector('[data-question-value]')).toHaveTextContent(locale === 'en' ? /^Alongar and Beber água$/ : /^Alongar e Beber água$/)
+  })
+
+  it('scenario 17: names a linked goal the goal list does not hold from the links of the habit, and counts a goal with no name yet', async () => {
+    const view = render(<Harness mode="edit" goalIds={['goal-77', 'goal-1']} linkedGoals={[{ id: 'goal-77', title: 'Ler 12 livros' }]} subHabits={false} initial={{ title: 'Correr', itemType: 'habit', frequencyUnit: 'Day', frequencyQuantity: 1, dueDate: '2026-11-13' }} />)
+    await press(messages().more)
+    expect(optionalRow('goals').querySelector('[data-question-value]')).toHaveTextContent(locale === 'en' ? /^Ler 12 livros and Correr 5 km$/ : /^Ler 12 livros e Correr 5 km$/)
+    view.unmount()
+    render(<Harness mode="edit" goalIds={['goal-77', 'goal-99']} linkedGoals={[{ id: 'goal-77', title: 'Ler 12 livros' }]} subHabits={false} initial={{ title: 'Correr', itemType: 'habit', frequencyUnit: 'Day', frequencyQuantity: 1, dueDate: '2026-11-13' }} />)
+    await press(messages().more)
+    expect(optionalRow('goals').querySelector('[data-question-value]')).toHaveTextContent(/^2$/)
   })
 
   it('scenario 17: leaves the tag, goal and sub-item rows with no answer when the person chose none', async () => {

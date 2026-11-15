@@ -120,7 +120,7 @@ function useOptionalValues({ formHelpers, fields }: Readonly<Omit<DetailInput, '
     avoid: form.watch('isBadHabit') ? t('habits.flow.optional.yes') : t('habits.flow.optional.no'),
     parent: fields.parentValue,
     tags: habitFlowSelectionAnswer(fields.tags.selectedTagIds, tags, (tag) => tag.name, locale),
-    goals: habitFlowSelectionAnswer(fields.selectedGoalIds, goals, (goal) => goal.title, locale),
+    goals: habitFlowSelectionAnswer(fields.selectedGoalIds, [...(fields.linkedGoals ?? []), ...(goals ?? [])], (goal) => goal.title, locale),
     endDate: endDate ? formatLocaleDate(endDate, locale) : undefined,
   }
 }

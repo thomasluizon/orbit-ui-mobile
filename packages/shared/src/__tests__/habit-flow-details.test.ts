@@ -27,11 +27,18 @@ describe('the answers of the optional list', () => {
     expect(habitFlowSelectionAnswer(['tag-1', 'tag-2', 'tag-3'], tags, (tag) => tag.name, 'en')).toBe('Saúde, Casa, and Trabalho')
   })
 
-  it('shows no answer with no selection, and leaves out an id the list does not hold', () => {
+  it('shows no answer with no selection, and the count of the selection when a selected id has no name yet', () => {
     expect(habitFlowSelectionAnswer([], tags, (tag) => tag.name, 'en')).toBeUndefined()
-    expect(habitFlowSelectionAnswer(['tag-9'], tags, (tag) => tag.name, 'en')).toBeUndefined()
-    expect(habitFlowSelectionAnswer(['tag-1'], undefined, (tag: { id: string; name: string }) => tag.name, 'en')).toBeUndefined()
-    expect(habitFlowSelectionAnswer(['tag-9', 'tag-3'], tags, (tag) => tag.name, 'en')).toBe('Trabalho')
+    expect(habitFlowSelectionAnswer(['tag-9'], tags, (tag) => tag.name, 'en')).toBe('1')
+    expect(habitFlowSelectionAnswer(['tag-1'], undefined, (tag: { id: string; name: string }) => tag.name, 'en')).toBe('1')
+    expect(habitFlowSelectionAnswer(['tag-9', 'tag-3'], tags, (tag) => tag.name, 'en')).toBe('2')
+  })
+
+  it('takes a name from the first source that holds the id: the links the record carries, then the list', () => {
+    const linked = [{ id: 'goal-77', title: 'Ler 12 livros' }]
+    const list = [{ id: 'goal-1', title: 'Correr 5 km' }, { id: 'goal-77', title: 'Old title' }]
+    expect(habitFlowSelectionAnswer(['goal-77', 'goal-1'], [...linked, ...list], (goal) => goal.title, 'pt-BR')).toBe('Ler 12 livros e Correr 5 km')
+    expect(habitFlowSelectionAnswer(['goal-77'], linked, (goal) => goal.title, 'en')).toBe('Ler 12 livros')
   })
 
   it('leaves out a sub-item row the person left empty', () => {
