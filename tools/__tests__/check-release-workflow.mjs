@@ -588,6 +588,37 @@ function checkMirrorIndependence() {
   T("the android build sets no compiler launcher of its own", !Object.keys(build.env ?? {}).some((key) => key.endsWith("_COMPILER_LAUNCHER")))
 }
 
+/** The Android compile saves one compiler cache entry per lockfile on main, and the Android release restores it by prefix. */
+function checkAndroidCompileCache() {
+  const read = (name) => load(readFileSync(toolPath(`../.github/workflows/${name}`), "utf8"))
+  const restoreKeysOf = (step) => step.with["restore-keys"].trim().split("\n").map((line) => line.trim())
+  const steps = read("mobile-build.yml").jobs.build.steps
+  const restore = steps.find((step) => step.name === "Restore the ccache directory")
+  const compile = steps.find((step) => step.name === "Build the release APK")
+  const save = steps.find((step) => step.name === "Save the ccache directory")
+  T("the android compile has an identified ccache restore, compile and save", !!restore?.id && !!compile?.id && !!save)
+  if (!restore?.id || !compile?.id || !save) return
+  const { key, path } = restore.with
+  T("the android compile ccache key does not change on every run", !/run_id|run_attempt/.test(key), key)
+  T("the android compile restores the ccache without a post-step save",
+    restore.uses === "actions/cache/restore@v6" && !steps.some((step) => step.uses === "actions/cache@v6"))
+  const restoreKeys = restoreKeysOf(restore)
+  T("each android compile restore key is a prefix of its key", restoreKeys.length > 0 && restoreKeys.every((prefix) => key.startsWith(prefix)),
+    restoreKeys.join())
+  const primaryKey = `steps.${restore.id}.outputs.cache-primary-key`
+  T("only main saves the android compile ccache, and only when its key missed", save.if ===
+    `\${{ always() && env.CCACHE_AVAILABLE == 'true' && steps.${compile.id}.outcome != 'skipped' && github.ref == 'refs/heads/main' && steps.${restore.id}.outputs.cache-hit != 'true' }}`,
+    save.if)
+  T("a failed android compile saves a run-scoped partial entry", save.with.key ===
+    `\${{ steps.${compile.id}.outcome == 'success' && ${primaryKey} || format('{0}-partial-{1}-{2}', ${primaryKey}, github.run_id, github.run_attempt) }}`,
+    save.with.key)
+  T("the android compile saves the directory it restores", save.with.path === path)
+  const release = read("android-release.yml").jobs["release-android"].steps.find((step) => step.name === "Restore the ccache directory")
+  const releaseKeys = release ? restoreKeysOf(release) : []
+  T("the android release restores the compile entry of its lockfile by prefix", release?.with.path === path &&
+    releaseKeys.includes(restoreKeys[0]) && key.startsWith(releaseKeys[0]), releaseKeys.join())
+}
+
 export async function cases() {
   T("release workflow exposes only production and staging", JSON.stringify(load(workflow).on.workflow_dispatch.inputs.environment.options) === JSON.stringify(["production", "staging"]))
   T("release selection guard is present", typeof guard === "string")
@@ -629,4 +660,5 @@ export async function cases() {
   checkAppleClientId()
   checkExpoDependencyStep()
   checkMirrorIndependence()
+  checkAndroidCompileCache()
 }
