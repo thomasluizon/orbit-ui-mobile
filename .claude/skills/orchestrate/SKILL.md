@@ -1516,8 +1516,8 @@ wake this session; finish the drain without introducing another wakeup status sc
 Live background Workflow runs and background subagents also hold the relay drain open until completion; a record is stale only when the owning Stop omits the run, a terminal workflow snapshot proves it settled, or its recorded process start identity is no longer live.
 
 When no drain source remains, invoke `/handoff --relay --sleep`, then `node tools/relay-session.mjs`.
-Never run `/questions` or ask the owner during this transition. Record unresolved owner
-questions in the spec and run state. The tool verifies the pushed spec and prompt, stops this
+The handoff filters the owner questions through `/questions --relay`, so only the questions that
+survive stay in the spec and run state. Never ask the owner during this transition. The tool verifies the pushed spec and prompt, stops this
 session's CI and file waiters and confirms a nominated successor from its run-state write. CI and
 file waiters may remain live during the drain; neither blocks it. A local check detached with
 `setsid` keeps running when its waiter stops. Carry the check and its absolute completion file

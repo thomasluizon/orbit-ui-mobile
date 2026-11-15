@@ -1,13 +1,14 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
-import { spawn } from "node:child_process"
+import { spawn, spawnSync } from "node:child_process"
 import { join } from "node:path"
 import { pathToFileURL } from "node:url"
 import { setTimeout as wait } from "node:timers/promises"
 import { Worker } from "node:worker_threads"
 
 import { T, TOOLS_DIR, root } from "./_harness.mjs"
+import { claudeProcessFields, exitedPid, reusedPidRecord, stageClaudeSessions } from "./owner-questions-core.mjs"
 
-const { clearWakeSource, readRunState, readWakeSources, readWorkerLaunches, registerWakeSource, reserveWorkerLaunch, runStatePath, updateRunState, wakeSourceDirectory, workerLaunchDirectory, writeRunState } = await import("../lib/run-state.mjs")
+const { clearWakeSource, liveSessionProcess, readRunState, readWakeSources, readWorkerLaunches, registerWakeSource, reserveWorkerLaunch, runStatePath, unseenSessions, updateRunState, wakeSourceDirectory, workerLaunchDirectory, writeRunState } = await import("../lib/run-state.mjs")
 
 const TOOL = "lib/run-state.mjs"
 
@@ -159,7 +160,84 @@ for (;;) {
   return outcomes
 }
 
+/** A new session's first whole-record write, run as a child so it reads the staged Claude session records. */
+const strandedQueueCases = () => {
+  const queued = { question: "Is the yearly plan priced below ten monthly payments?", blocks: ["#2101"] }
+  const firstWrite = (label, previous, sessions, { written = { sessionId: "fresh", sleep: true }, damaged = false } = {}) => {
+    const checkout = stageCheckout(`carry-${label}`)
+    writeRunState(previous, checkout)
+    const claudeDirectory = stageClaudeSessions(`run-state-carry-${label}`, sessions)
+    if (damaged) writeFileSync(join(claudeDirectory, "sessions", "damaged.json"), `{"pid": ${process.pid}, "sessionId": "dam`)
+    const moduleUrl = pathToFileURL(join(TOOLS_DIR, "lib", "run-state.mjs")).href
+    const script = `import { readRunState, writeRunState } from ${JSON.stringify(moduleUrl)}
+writeRunState(${JSON.stringify(written)}, ${JSON.stringify(checkout)})
+process.stdout.write(JSON.stringify(readRunState(${JSON.stringify(checkout)}).openOwnerQuestions ?? null))`
+    const child = spawnSync(process.execPath, ["--input-type=module", "-e", script], { encoding: "utf8", env: { ...process.env, CLAUDE_CONFIG_DIR: claudeDirectory } })
+    return child.status === 0 ? JSON.parse(child.stdout) : child.stderr
+  }
+  const carried = firstWrite("gone", { sessionId: "finished", sleep: false, openOwnerQuestions: [queued, "Which plan ships first?"] }, { fresh: process.pid })
+  T(`${TOOL}: a new session's first write carries the owner questions of a run whose session is gone`, Array.isArray(carried) && carried.length === 2 &&
+    carried[0].sources.join() === "finished" && carried[0].blocks.join() === "#2101" && carried[1].question === "Which plan ships first?" &&
+    carried[1].sources.join() === "finished", JSON.stringify(carried))
+  const live = firstWrite("live", { sessionId: "attended", sleep: false, openOwnerQuestions: [queued] }, { fresh: process.pid, attended: process.pid })
+  T(`${TOOL}: a new session's first write never takes the owner questions of a live session's run`, live === null, JSON.stringify(live))
+  const stranded = { sessionId: "finished", sleep: false, openOwnerQuestions: [queued] }
+  const unseen = firstWrite("unseen", stranded, { fresh: undefined })
+  T(`${TOOL}: a new session that cannot find its own Claude session record carries no owner questions`, unseen === null, JSON.stringify(unseen))
+  const own = firstWrite("own-queue", stranded, { fresh: process.pid }, { written: { sessionId: "fresh", sleep: true, openOwnerQuestions: [] } })
+  T(`${TOOL}: a first write that sets its own owner questions carries none`, Array.isArray(own) && own.length === 0, JSON.stringify(own))
+  const damaged = firstWrite("damaged", stranded, { fresh: process.pid }, { damaged: true })
+  T(`${TOOL}: a damaged Claude session record never stops a new session's first write, and the write carries nothing`, damaged === null, JSON.stringify(damaged))
+}
+
+/**
+ * Session records in the format the Claude Code 2.1.325 writer uses on this platform. A record from another pid domain,
+ * or a start this tool cannot read, refuses with the reason instead of reading as a live or a gone session.
+ */
+const sessionRecordCases = () => {
+  const own = claudeProcessFields(process.pid)
+  // Off macOS and Linux the record format is unconfirmed, so the lookup reads no start there.
+  if (!own.pidDomain) return
+  // The record of the other platform, in the shapes a real record carries: macOS lstart, and Linux start ticks.
+  const foreign = own.pidDomain === "darwin" ? { pidDomain: "linux:0123456789abcdef0123456789abcdef:pid:[4026531836]", procStart: "6227" }
+    : { pidDomain: "darwin", procStart: "Fri Nov 13 21:05:00 2026" }
+  // A start the writer never produces here. On macOS: `ps -o lstart=` under LC_ALL=pt_BR.UTF-8 and the local time zone,
+  // the text if the writer stopped forcing C and UTC. On Linux: a macOS lstart in place of the start ticks.
+  const unreadable = own.pidDomain === "darwin" ? "sex 13 nov 18:05:00 2026" : "Fri Nov 13 21:05:00 2026"
+  const lookup = (label, record, extraRecords = {}) => {
+    const claudeDirectory = stageClaudeSessions(`record-${label}`, { probe: { pid: process.pid, ...record } })
+    for (const [name, extra] of Object.entries(extraRecords)) writeFileSync(join(claudeDirectory, "sessions", name), JSON.stringify({ sessionId: "probe", ...extra }))
+    try { return { claudeDirectory, live: liveSessionProcess("probe", claudeDirectory) } }
+    catch (error) { return { claudeDirectory, refusal: error.message } }
+  }
+  const recordPath = (claudeDirectory) => join(claudeDirectory, "sessions", "probe.json")
+  const live = lookup("live", {})
+  T(`${TOOL}: a session record in this platform's Claude Code format names its live process`, live.live?.pid === process.pid, JSON.stringify(live))
+  const omitted = lookup("no-start", { procStart: undefined })
+  T(`${TOOL}: a session record without procStart proves the live pid alone`, omitted.live?.pid === process.pid, JSON.stringify(omitted))
+  const reused = lookup("reused", reusedPidRecord(process.pid))
+  T(`${TOOL}: a session record whose pid a later process reuses names no live process`, reused.live === null, JSON.stringify(reused))
+  const crossed = lookup("foreign-domain", foreign)
+  T(`${TOOL}: a session record from another pid domain refuses and names both domains`, crossed.refusal ===
+    `cannot tell whether session probe is live: its record ${recordPath(crossed.claudeDirectory)} names pid domain ${JSON.stringify(foreign.pidDomain)}, and this process runs in pid domain ${JSON.stringify(own.pidDomain)}`,
+    JSON.stringify(crossed))
+  const drifted = lookup("unreadable-start", { procStart: unreadable })
+  T(`${TOOL}: a session record whose procStart is not the Claude Code format refuses and names the value`, drifted.refusal?.startsWith(
+    `cannot tell whether session probe is live: its record ${recordPath(drifted.claudeDirectory)} carries procStart ${JSON.stringify(unreadable)}, not the `) === true,
+    JSON.stringify(drifted))
+  let ownRefusal = null
+  try { unseenSessions("probe", "unattended", drifted.claudeDirectory) } catch (error) { ownRefusal = error.message }
+  T(`${TOOL}: this session's own record in an unreadable format names that reason, not a missing record`, ownRefusal === drifted.refusal, ownRefusal)
+  const foreignExited = lookup("foreign-domain-exited", { ...foreign, pid: exitedPid() })
+  T(`${TOOL}: a session record from another pid domain refuses even when no process here has its pid`, foreignExited.refusal?.includes(`names pid domain ${JSON.stringify(foreign.pidDomain)}`) === true,
+    JSON.stringify(foreignExited))
+  const beside = lookup("stale-beside-live", {}, { "1.json": { pid: process.pid, ...foreign } })
+  T(`${TOOL}: an unreadable record of a session never hides that session's live record`, beside.live?.pid === process.pid, JSON.stringify(beside))
+}
+
 export const cases = async () => {
+  strandedQueueCases()
+  sessionRecordCases()
   const raced = await raceDisableAgainstWakeSaves()
   const lost = raced.filter((outcome) => !outcome.kept)
   T(`${TOOL}: every race trial saved wake marks before the disable`, raced.every((outcome) => outcome.exercised),
