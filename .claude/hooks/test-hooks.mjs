@@ -2295,6 +2295,8 @@ const handoffSkill = readFileSync(join(repoRoot, ".claude", "skills", "handoff",
 const relayPassInvocations = handoffSkill.replace(/\s+/g, " ").split(/(?<=\.) /).filter((sentence) => sentence.includes("invoke `/questions --relay`"))
 T("handoff owner path: only a --relay handoff invokes the relay questions pass", relayPassInvocations.length > 0 && relayPassInvocations.every((sentence) => sentence.startsWith("With `--relay`,")), true)
 T("handoff owner path: an owner handoff never runs the relay questions pass", handoffSkill.replace(/\s+/g, " ").includes("An owner `/handoff` never runs `/questions --relay`."), true)
+const ownerCheckAt = handoffSkill.replace(/\s+/g, " ").indexOf("An owner `/handoff` runs `node tools/relay-session.mjs --owner-check` first, before it writes anything.")
+T("handoff owner path: the owner check runs before the handoff writes its outputs", ownerCheckAt >= 0 && ownerCheckAt < handoffSkill.replace(/\s+/g, " ").indexOf("Two outputs, both committed files in this repo"), true)
 writeRunState(activeBeforeIntent, wakeCheckout)
 
 const handoffGitRepo = mkdtempSync(join(tmpdir(), "orbit-handoff-git-"))

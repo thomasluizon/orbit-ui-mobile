@@ -1,5 +1,5 @@
 import { spawn, spawnSync } from "node:child_process"
-import { cpSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
+import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 import { setTimeout as wait } from "node:timers/promises"
 import { closeRelayTerminal, relaySession } from "../relay-session.mjs"
@@ -301,12 +301,43 @@ const ownerHandoffCases = () => {
     unownedClosed.status === 0 && unownedClosed.stderr === "" && untouched.sessionId === "finished" && untouched.questionFilter === undefined &&
     untouched.openOwnerQuestions.length === ANSWERABLE.length + 1, `${relayPassRefusal} ${unownedClosed.stderr}`)
 
-  for (const [label, run] of [["sleep", { sleep: true }], ["auto-work", { sleep: false, autoWork: true }]]) {
+  /** Every file under the checkout, its git directory included, plus the refs its origin holds. */
+  const snapshot = (repo) => {
+    const files = {}
+    const walk = (directory) => {
+      for (const entry of readdirSync(directory, { withFileTypes: true })) {
+        const path = join(directory, entry.name)
+        if (entry.isDirectory()) walk(path)
+        else files[path] = readFileSync(path, "base64")
+      }
+    }
+    walk(repo.path)
+    return JSON.stringify({ files, origin: repo.git(["ls-remote", "origin"]).stdout })
+  }
+  const nextSteps = {
+    sleep: "session unattended runs unattended in this checkout; say stop in that session, then run this handoff again",
+    "auto-work handoff": "session unattended handed off an auto-work run that no successor adopted yet; start that successor from the committed NEXT.md, then run this handoff again",
+  }
+  for (const [label, run] of [["sleep", { sleep: true }], ["auto-work handoff", { sleep: false, autoWork: true, ownerHandoff: { from: "unattended", promptHash: "bound" } }]]) {
+    const repo = stageRepo(`relay-owner-check-${label.replace(/\W+/g, "-")}`)
+    cpSync(toolPath("lib"), join(repo.path, "tools", "lib"), { recursive: true })
+    cpSync(toolPath("relay-session.mjs"), join(repo.path, "tools", "relay-session.mjs"))
+    writeRunState({ sessionId: "unattended", ...run }, repo.path)
+    recordHandoffRequest("owner", { command: "wrap-up", sleep: true, crank: false, origin: "owner" }, new Date().toISOString(), repo.path)
+    const before = snapshot(repo)
+    const checked = spawnSync(process.execPath, [join(repo.path, "tools", "relay-session.mjs"), "--owner-check"], { encoding: "utf8", env: { ...process.env, CLAUDE_CODE_SESSION_ID: "owner" } })
+    T(`relay-session: --owner-check beside another session's ${label} names the owner's next step and writes or pushes nothing`, checked.status === 1 &&
+      checked.stderr === `RELAY_FAILED: ${nextSteps[label]}\n` && snapshot(repo) === before, checked.stderr)
     const beside = ownerCheckout(() => ({ sessionId: "unattended", ...run }))
     const refused = beside.invoke("--close-chain")
-    T(`relay-session: an owner handoff beside another session's ${label} run is refused and binds no intake carry`, refused.status === 1 &&
-      refused.stderr.includes("run state belongs to the unattended run of session unattended") && readRunState(beside.checkout).ownerHandoff === undefined, refused.stderr)
+    T(`relay-session: --close-chain beside another session's ${label} repeats that refusal and binds no carry for the owner`, refused.status === 1 &&
+      refused.stderr === `RELAY_FAILED: ${nextSteps[label]}\n` && readRunState(beside.checkout).ownerHandoff?.from !== "owner", refused.stderr)
   }
+  const stopped = ownerCheckout(() => ({ sessionId: "stopped", sleep: false, autoWork: true }))
+  const stoppedCheck = stopped.invoke("--owner-check")
+  const stoppedClose = stopped.invoke("--close-chain")
+  T("relay-session: a stopped auto-work run of another session never blocks an owner handoff", stoppedCheck.status === 0 && stoppedClose.status === 0 &&
+    readRunState(stopped.checkout).ownerHandoff === undefined, `${stoppedCheck.stderr} ${stoppedClose.stderr}`)
 
   const foreignChain = ownerCheckout(finishedRun)
   appendChainEntry({ sessionId: "earlier" }, foreignChain.checkout)

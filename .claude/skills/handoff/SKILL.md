@@ -12,6 +12,10 @@ effort: high
 next session whose entry point is `/sleep`. Nobody has to add anything before it runs. Anything else
 is extra work for the NEXT session. You never do that work now.
 
+An owner `/handoff` runs `node tools/relay-session.mjs --owner-check` first, before it writes
+anything. It refuses while another session's unattended run owns this checkout's run state. Then
+write and push nothing, and give the owner its message, which names his next step.
+
 `--crank` or `/crank` includes `--sleep`. Read the current session's run state with
 `readRunState` from `tools/lib/run-state.mjs`: `crank: true` includes it automatically,
 including on a context relay. The prompt then carries a `## Crank` section telling the next
@@ -83,8 +87,7 @@ An owner-origin `/handoff` clears a pending drain through `record-handoff-reques
 After an owner handoff has finished its committed and pushed outputs, run
 `node tools/relay-session.mjs --close-chain` before the final reply. When this session has an open
 reporting chain, the tool records the session and closes that chain; with no open chain it records
-nothing. It refuses while another session's unattended run owns the run state, because this
-handoff cannot carry that run: report the refusal to the owner. An automatic relay leaves the chain open.
+nothing. It repeats the `--owner-check` refusal as a backstop. An automatic relay leaves the chain open.
 
 Two outputs, both committed files in this repo:
 

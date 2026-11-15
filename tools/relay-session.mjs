@@ -13,7 +13,7 @@ import { questionFilterGaps } from "./lib/owner-questions.mjs"
 import { HANDOFF_PROMPT_PATH, checkoutSpecVersions, handoffAutoWork, handoffCrank, openingSpecPaths, prepareOwnerHandoffRun, readHandoffRequest, recordHandoffRequest, validateHandoffPrompt } from "./lib/handoff-prompt.mjs"
 import { REPO_ROOT, acquireRelayLock, clearWakeSource, isRelayWaiter, isWakeSourceAlive, readRunState, readWakeSourceStates, readWorkerLaunches, registerWakeSource, updateRunState } from "./lib/run-state.mjs"
 
-const USAGE = `usage: relay-session.mjs [--retry-wake | --close-chain | --close-terminal <payload>]
+const USAGE = `usage: relay-session.mjs [--retry-wake | --owner-check | --close-chain | --close-terminal <payload>]
 
   Relays the current unattended orchestrator through a committed and pushed NEXT.md.
   Refuses while a candidate owner question has no disposition recorded through
@@ -21,9 +21,12 @@ const USAGE = `usage: relay-session.mjs [--retry-wake | --close-chain | --close-
   Reads session identity from CLAUDE_CODE_SESSION_ID, context from its transcript,
   and model and permission mode from machine observations. Accepts no model claim.
   --retry-wake   background wake source until the failed relay's ten minute retry time
-  --close-chain prepare owner auto-work intake carry, then record and close this session's open
-                chain. Needs no question filter, and no run state when no chain is open; refuses
-                while another session's unattended run owns the run state
+  --owner-check refuse, before an owner handoff writes anything, while another session's
+                unattended run or unadopted auto-work handoff owns this checkout's run state;
+                the refusal names the owner's next step. Reads only; writes nothing
+  --close-chain repeat that check, prepare owner auto-work intake carry, then record and close
+                this session's open chain. Needs no question filter, and no run state when no
+                chain is open
   --close-terminal <payload> internal detached cleanup; base64 JSON with repoRoot,
     sessionId, successorSessionId, terminal and terminalHandle; rechecks the fence
   --help, -h    print usage and exit 0
@@ -32,6 +35,19 @@ exit codes: 0 successor confirmed or requested lifecycle action complete,
   1 RELAY_FAILED with predecessor retained, 2 usage error`
 
 const delay = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds))
+
+/**
+ * Why an owner handoff from this session would replace a NEXT.md that another session's run still needs,
+ * as one sentence that names the owner's next step; null when it would not. A stopped run holds nothing.
+ */
+const foreignRunConflict = (sessionId, state) => {
+  if (!state?.sessionId || state.sessionId === sessionId) return null
+  if (state.sleep === true) return `session ${state.sessionId} runs unattended in this checkout; say stop in that session, then run this handoff again`
+  if (state.autoWork === true && state.ownerHandoff?.from === state.sessionId) {
+    return `session ${state.sessionId} handed off an auto-work run that no successor adopted yet; start that successor from the committed NEXT.md, then run this handoff again`
+  }
+  return null
+}
 const cleanEnvironment = (environment) => Object.fromEntries(Object.entries(environment).filter(([key]) =>
   !["CLAUDE_CONFIG_DIR", "GH_TOKEN", "ORBIT_LAUNCH_WORKER"].includes(key)))
 const orcaCommand = () => process.env.ORCA_CLI_COMMAND || (process.env.ORCA_DEV_REPO_ROOT ? "orca-dev" : process.platform === "linux" ? "orca-ide" : "orca")
@@ -293,17 +309,20 @@ const main = async () => {
     closeRelayTerminal(request)
     return
   }
-  if (args.length > 1 || args.some((argument) => !["--retry-wake", "--close-chain"].includes(argument))) {
+  if (args.length > 1 || args.some((argument) => !["--retry-wake", "--owner-check", "--close-chain"].includes(argument))) {
     process.stderr.write(`${USAGE}\n`); process.exitCode = 2; return
   }
   const sessionId = process.env.CLAUDE_CODE_SESSION_ID
   const state = readRunState()
   if (!sessionId) throw new Error("no matching CLAUDE_CODE_SESSION_ID")
+  const conflict = foreignRunConflict(sessionId, state)
+  if (args[0] === "--owner-check") {
+    if (conflict) throw new Error(conflict)
+    return
+  }
   if (args[0] === "--close-chain") {
     const owned = state?.sessionId === sessionId
-    if (!owned && (state?.sleep === true || state?.autoWork === true)) {
-      throw new Error(`run state belongs to the unattended run of session ${state.sessionId}; an owner handoff from another session cannot carry or close it`)
-    }
+    if (conflict) throw new Error(conflict)
     prepareOwnerHandoffRun(sessionId)
     if (!openSessionChain(sessionId)) return
     if (!owned) throw new Error("no matching CLAUDE_CODE_SESSION_ID")
