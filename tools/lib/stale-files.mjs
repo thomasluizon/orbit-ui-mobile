@@ -12,6 +12,7 @@ import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "nod
 
 import { claudeConfigDirectory, gitDirectoryOf, liveSessionProcesses, processIsAlive, readRunState, REPO_ROOT } from "./run-state.mjs"
 import { readSessionChain } from "./session-chain.mjs"
+import { parseWorktreeList } from "./git-worktrees.mjs"
 
 /** The hook starts a new listing when the stored one is older than this. */
 export const LISTING_MAX_AGE_MS = 15 * 60_000
@@ -183,14 +184,8 @@ const protectedSessionsOf = (sessionId, repoRoot = REPO_ROOT, liveSessionIds = [
 const listWorktrees = (repositoryPath, probes) => {
   const porcelain = probes.git(repositoryPath, ["worktree", "list", "--porcelain"])
   if (porcelain === null) return null
-  return porcelain.split(/\n\s*\n/).filter(Boolean).slice(1).map((record) => {
-    const fields = Object.fromEntries(record.split("\n").map((line) => {
-      const separator = line.indexOf(" ")
-      return separator === -1 ? [line, true] : [line.slice(0, separator), line.slice(separator + 1)]
-    }))
-    return { repository: repositoryPath, path: fields.worktree, branch: typeof fields.branch === "string" ? fields.branch.replace(/^refs\/heads\//, "") : null,
-      locked: fields.locked !== undefined, missing: fields.prunable !== undefined || !existsSync(fields.worktree) }
-  })
+  return parseWorktreeList(porcelain).slice(1).map((worktree) => ({ repository: repositoryPath, path: worktree.path, branch: worktree.branch,
+    locked: worktree.locked, missing: worktree.prunable || !existsSync(worktree.path) }))
 }
 
 /**

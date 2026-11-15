@@ -5,6 +5,7 @@ import { existsSync, lstatSync, renameSync, rmSync } from "node:fs"
 import { resolve } from "node:path"
 import { assertRepositoryLabel, readTicket, resolveTicket } from "./lib/github-issues.mjs"
 import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
+import { parseWorktreeList } from "./lib/git-worktrees.mjs"
 
 const USAGE = `usage: teardown-worktree.mjs (--issue <ORB-N|#N|N> | --worktree <path>) --repo <ui|api|landing> [--base <ref>]
 
@@ -83,14 +84,7 @@ try {
   fail(1, `ticket assertion failed: ${error.message}`)
 }
 
-const porcelain = git(repositoryPath, ["worktree", "list", "--porcelain"])
-const worktrees = porcelain.split(/\n\s*\n/).filter(Boolean).map((record) => {
-  const fields = Object.fromEntries(record.split("\n").map((line) => {
-    const separator = line.indexOf(" ")
-    return separator === -1 ? [line, true] : [line.slice(0, separator), line.slice(separator + 1)]
-  }))
-  return { path: fields.worktree, branch: typeof fields.branch === "string" ? fields.branch : null }
-})
+const worktrees = parseWorktreeList(git(repositoryPath, ["worktree", "list", "--porcelain"]))
 const ticketNumberFromName = (path) => {
   const match = normalize(path).split("/").at(-1)?.match(/(?:^|[-_])ticket[-_](\d+)(?:[-_]|$)/i)
   return match ? Number(match[1]) : null
@@ -112,7 +106,7 @@ try {
 }
 
 const path = worktree.path
-const branch = (worktree.branch ?? git(path, ["rev-parse", "--abbrev-ref", "HEAD"])).replace(/^refs\/heads\//, "")
+const branch = worktree.branch ?? git(path, ["rev-parse", "--abbrev-ref", "HEAD"])
 let pullRequest
 try {
   const baseFilter = requestedBase ? ["--base", requestedBase] : []
@@ -177,7 +171,7 @@ const listWorktrees = () => {
   if (listing === null) fail(3, `git worktree list failed against ${commonDir}; refusing to guess whether ${path} is still registered`)
   return listing
 }
-const isStillListed = () => listWorktrees().split("\n").some((line) => line.startsWith("worktree ") && normalize(line.slice("worktree ".length)) === normalize(path))
+const isStillListed = () => parseWorktreeList(listWorktrees()).some((entry) => normalize(entry.path) === normalize(path))
 
 /** A path can be replaced after Git releases the registration. Device, inode, and birth time are
  * read before removal and again from the staged directory entry, so only the same filesystem object
