@@ -128,9 +128,13 @@ export function useSignInCompletion(completed: boolean) {
 /** A provider callback that failed: a full-surface state with Orbit in Parado, the message and the way back to the sign-in question. */
 function GuidedCallbackFailure({ flow, provider, onRetry }: Readonly<{ flow: LoginFlow; provider: LoginCallback['provider']; onRetry: () => void }>) {
   const { t } = flow
-  return <ErrorState fullSurface message={t(getAuthCallbackErrorKey(provider))} action={
-    <IconButton label={t('common.retry')} onClick={onRetry}><RefreshCw size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton>
-  } />
+  return (
+    <main data-callback-failure="" className="flex w-full flex-1 flex-col">
+      <ErrorState fullSurface message={t(getAuthCallbackErrorKey(provider))} action={
+        <IconButton label={t('common.retry')} onClick={onRetry}><RefreshCw size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton>
+      } />
+    </main>
+  )
 }
 
 /**

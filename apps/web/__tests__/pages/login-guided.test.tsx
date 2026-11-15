@@ -200,6 +200,7 @@ describe.each(authLocales)('guided sign-in in %s', (locale) => {
     expect(state).toHaveTextContent(t(provider === 'apple' ? 'auth.errors.appleError' : 'auth.errors.googleError'))
     expect(state.querySelector('[data-asset="orbit-mascot"]')).toHaveAttribute('data-orbit-state', 'parado')
     expect(state.querySelector('[data-asset="orbit-mascot"]')).toHaveAttribute('data-orbit-face', 'rig')
+    expect(screen.getByRole('main')).toContainElement(state)
     expect(container.querySelector('[data-question-flow]')).toBeNull()
     expect(screen.queryByRole('textbox')).toBeNull()
     expect(screen.getAllByRole('button')).toHaveLength(1)

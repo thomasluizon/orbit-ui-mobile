@@ -342,6 +342,15 @@ describe.each([320, 360, 384, 412])('guided sign-in block at %i px', (width) => 
     expect(Math.abs((block.top + block.bottom) / 2 - (free.top + free.bottom) / 2)).toBeLessThanOrEqual(1)
   })
 
+  it.each(authLocales.flatMap((locale) => (['google', 'apple'] as const).map((provider) => ({ locale, provider }))))('centres the failed $provider callback state in the screen in $locale', ({ locale, provider }) => {
+    show('email', locale, { width, callback: { state: 'failed', provider, onContinue: vi.fn() } })
+    const boxes = measureSafeArea(tree!.toJSON(), (host) => host.props.testID === 'guided-callback-failure' ? 'free-area' : host.props.testID === 'error-state' ? 'block' : undefined, { width, height: HEIGHT })
+    const free = boxes.get('free-area')!
+    const block = boxes.get('block')!
+    expect(free.bottom - free.top).toBeGreaterThan(block.bottom - block.top)
+    expect(Math.abs((block.top + block.bottom) / 2 - (free.top + free.bottom) / 2)).toBeLessThanOrEqual(1)
+  })
+
   it.each(authLocales)('centres the account that came back in the screen in %s', (locale) => {
     show('account back', locale, { width })
     const boxes = measureSafeArea(tree!.toJSON(), (host) => host.props.testID === 'guided-account-back' ? 'free-area' : host.props.testID === 'guided-account-back-block' ? 'block' : undefined, { width, height: HEIGHT })
