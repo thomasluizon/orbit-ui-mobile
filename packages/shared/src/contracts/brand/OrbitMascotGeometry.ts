@@ -78,6 +78,11 @@ export function isOrbitMascotSmallSize(size: number): size is OrbitMascotSmallSi
   return size < ORBIT_MASCOT_LIVE_MIN_SIZE
 }
 
+/** The drawn height of a mascot `size` px wide: the 7:5 box of the live rig, or the 4:3 box of the small face. */
+export function orbitMascotHeight(size: OrbitMascotSize): number {
+  return isOrbitMascotSmallSize(size) ? size * ORBIT_SMALL_FACE_BOX_RATIO : (size * ORBIT_MASCOT_BOX_HEIGHT) / ORBIT_MASCOT_BOX_WIDTH
+}
+
 /** Where the ring and the moon are at one moment of the idle loop. */
 export interface OrbitMascotFrame {
   readonly ringBack: string

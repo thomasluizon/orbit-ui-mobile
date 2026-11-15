@@ -15,6 +15,7 @@ import {
   ORBIT_SMALL_FACES,
   isOrbitMascotSmallSize,
   orbitMascotFrame,
+  orbitMascotHeight,
   orbitMascotSizeFor,
   orbitOutlineCutout,
 } from '../contracts/brand'
@@ -96,6 +97,10 @@ describe('mascot sizes', () => {
     'a slot of %i px takes the %i tier',
     (slot, tier) => expect(orbitMascotSizeFor(slot)).toBe(tier),
   )
+
+  it.each([[16, 12], [20, 15], [24, 18], [48, 48 * 5 / 7], [96, 96 * 5 / 7], [128, 128 * 5 / 7]] as const)('draws a %i px mascot %f px tall', (size, height) => {
+    expect(orbitMascotHeight(size)).toBeCloseTo(height, 10)
+  })
 
   it.each([...ORBIT_MASCOT_SMALL_SIZES])('draws the small static face at %i px', (size) => {
     expect(isOrbitMascotSmallSize(size)).toBe(true)

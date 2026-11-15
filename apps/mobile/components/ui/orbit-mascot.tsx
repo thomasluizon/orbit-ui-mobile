@@ -1,15 +1,13 @@
 import {
-  ORBIT_MASCOT_BOX_HEIGHT,
-  ORBIT_MASCOT_BOX_WIDTH,
   ORBIT_MASCOT_FACES,
   ORBIT_MASCOT_MAX_FRAME_STEP_MS,
   ORBIT_MASCOT_PLANET_RADIUS,
   ORBIT_MASCOT_VIEW_BOX,
-  ORBIT_SMALL_FACE_BOX_RATIO,
   ORBIT_SMALL_FACES,
   isOrbitMascotSmallSize,
   orbitBlinkMatrix,
   orbitMascotFrame,
+  orbitMascotHeight,
   orbitMascotSizeFor,
   orbitOutlineCutout,
   type OrbitEyeShape,
@@ -214,7 +212,7 @@ function OrbitMascotDrawing({ size, state = 'parado', still = false, color, lead
     <Svg
       ref={svgRef}
       width={size}
-      height={small ? size * ORBIT_SMALL_FACE_BOX_RATIO : (size * ORBIT_MASCOT_BOX_HEIGHT) / ORBIT_MASCOT_BOX_WIDTH}
+      height={orbitMascotHeight(size)}
       viewBox={small ? ORBIT_SMALL_FACES[size].viewBox : ORBIT_MASCOT_VIEW_BOX}
       fill="none"
       color={color ?? tokens.fg1}

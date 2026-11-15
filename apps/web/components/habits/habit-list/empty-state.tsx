@@ -3,6 +3,7 @@
 import { IconButton } from '@/components/ui/icon-button'
 import { RefreshCw } from '@/components/ui/icons'
 import { OrbitMascot, useStateMascotSize } from '@/components/ui/orbit-mascot'
+import { orbitMascotHeight } from '@orbit/shared/contracts/brand'
 
 import { SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 
@@ -142,7 +143,7 @@ export function HabitListAllDone({ onSeeUpcoming }: Readonly<{ onSeeUpcoming?: (
   const t = useTranslations()
   return (
     <div data-testid="habit-list-all-done" className="flex min-w-0 flex-col items-center text-center" style={{ gap: 24, padding: 'var(--orbit-space-48) var(--orbit-space-24)' }}>
-      <div data-testid="completed-day-mark" className="relative flex shrink-0 items-center justify-center" style={{ width: 96, height: 69 }} aria-hidden="true">
+      <div data-testid="completed-day-mark" className="relative flex shrink-0 items-center justify-center" style={{ width: 96, height: orbitMascotHeight(96) }} aria-hidden="true">
         <OrbitMascot size={96} state="feliz" />
       </div>
       <div className="flex min-w-0 flex-col items-center" style={{ gap: 8 }}>

@@ -1,6 +1,7 @@
 import { IconButton } from '@/components/ui/icon-button'
 import { RefreshCw } from '@/components/ui/icons'
 import { OrbitMascot, useStateMascotSize } from '@/components/ui/orbit-mascot'
+import { orbitMascotHeight } from '@orbit/shared/contracts/brand'
 import { SPACING, TOUCH_TARGET_MIN, WIDE_DESKTOP_BREAKPOINT } from '@orbit/shared/theme'
 
 import { ActionRow } from '@/components/ui/action-row'
@@ -158,7 +159,7 @@ const styles = StyleSheet.create({
   },
   allDoneMark: {
     width: 96,
-    height: 69,
+    height: orbitMascotHeight(96),
     alignItems: 'center',
     justifyContent: 'center',
   },

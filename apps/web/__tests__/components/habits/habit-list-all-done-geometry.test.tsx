@@ -72,7 +72,7 @@ describe('Hoje completion text and action geometry', () => {
         expect(geometry.mark!.width).toBe(96)
         expect(geometry.mark!.height).toBeCloseTo((96 * ORBIT_MASCOT_BOX_HEIGHT) / ORBIT_MASCOT_BOX_WIDTH, 1)
         expect(geometry.carrier!.width).toBe(96)
-        expect(Math.abs(geometry.carrier!.height - geometry.mark!.height)).toBeLessThan(1)
+        expect(geometry.carrier!.height).toBeCloseTo(geometry.mark!.height, 2)
         expect(geometry.mark!.centre).toBeCloseTo(geometry.carrier!.centre, 2)
         expect(geometry.markCentreY!).toBeCloseTo(geometry.carrierCentreY!, 2)
         expect(geometry.mark!.centre).toBeCloseTo(geometry.finish.centre, 0)
