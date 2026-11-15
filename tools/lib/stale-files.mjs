@@ -262,7 +262,8 @@ const holdOf = (path, evidence, probes) => {
 const readSessions = (sessionRoot, evidence) => {
   let names
   try { names = readdirSync(sessionRoot).filter((name) => SESSION_ID.test(name)) } catch { return null }
-  return names.map((name) => ({ name, path: join(sessionRoot, name) })).filter((session) => lstatSync(session.path).isDirectory())
+  // A removal by another session or the system's /tmp clean can take an entry after the listing; any error but ENOENT throws.
+  return names.map((name) => ({ name, path: join(sessionRoot, name) })).filter((session) => lstatSync(session.path, { throwIfNoEntry: false })?.isDirectory())
     .map((session) => ({ ...session, owner: evidence.protectedSessions.get(session.name) ?? useOf(session.path, evidence, session.name) }))
 }
 
@@ -297,8 +298,9 @@ const classifySessions = (sessions, evidence, probes) => sessions.map((session) 
 const classifyCarryCopies = (evidence, probes) => {
   let names
   try { names = readdirSync(evidence.carryRoot).filter((name) => DURABLE_COPY.test(name)) } catch { return [] }
-  const copies = names.map((name) => ({ name, path: join(evidence.carryRoot, name), entry: lstatSync(join(evidence.carryRoot, name)) }))
-    .filter((copy) => copy.entry.isDirectory())
+  // A removal by another checkout's session can take a copy after the listing; any error but ENOENT throws.
+  const copies = names.map((name) => ({ name, path: join(evidence.carryRoot, name), entry: lstatSync(join(evidence.carryRoot, name), { throwIfNoEntry: false }) }))
+    .filter((copy) => copy.entry?.isDirectory())
     .sort((left, right) => right.entry.mtimeMs - left.entry.mtimeMs || right.name.localeCompare(left.name))
   const protectedPrefixes = new Map([...evidence.protectedSessions].map(([sessionId, reason]) => [sessionId.slice(0, 8), reason]))
   return copies.map((copy, position) => {

@@ -1,4 +1,5 @@
-import { chmodSync, existsSync, mkdirSync, readFileSync, symlinkSync, utimesSync, writeFileSync } from "node:fs"
+import fs, { chmodSync, existsSync, mkdirSync, readFileSync, realpathSync, rmSync, symlinkSync, utimesSync, writeFileSync } from "node:fs"
+import { syncBuiltinESMExports } from "node:module"
 import { join } from "node:path"
 
 import {
@@ -168,6 +169,66 @@ const rootCases = () => {
   T("stale-files: with no session root, a worktree inside a session directory is kept", /in a session directory, .* could not be read/.test(reasonOf(rootless, runWorktree) ?? ""), `reason: ${reasonOf(rootless, runWorktree)}`)
 }
 
+/**
+ * Runs `list` while the first listing of `directory` removes its entry `name` right after it reads the names, as a removal by
+ * another session or the system's /tmp clean can. `removed` proves that the listing reached the race.
+ */
+const listWithRemovalAfterListing = (directory, name, list) => {
+  const target = realpathSync.native(directory)
+  const listDirectory = fs.readdirSync
+  let removed = false
+  fs.readdirSync = function (path, ...options) {
+    const names = listDirectory.call(this, path, ...options)
+    if (!removed && String(path) === target) {
+      removed = true
+      rmSync(join(target, name), { recursive: true })
+    }
+    return names
+  }
+  syncBuiltinESMExports()
+  try {
+    return { listing: list(), removed }
+  } catch (error) {
+    return { error, removed }
+  } finally {
+    fs.readdirSync = listDirectory
+    syncBuiltinESMExports()
+  }
+}
+
+/** An entry that goes away between the listing of its root and its own stat is gone; it never ends the whole listing. */
+const raceCases = () => {
+  const machine = stageMachine("race")
+  const carryRoot = join(root, "stale-core", "race-carry")
+  const otherRoot = join(machine.base, "other-project")
+  mkdirSync(join(otherRoot, LIVE_ELSEWHERE, "scratchpad"), { recursive: true })
+  for (const [name, age] of [["durable-0a0a0a0a", 30], ["durable-0d0d0d0d", 20], ["durable-0e0e0e0e", 10]]) {
+    mkdirSync(join(carryRoot, name), { recursive: true })
+    utimesSync(join(carryRoot, name), new Date(Date.now() - age * 3_600_000), new Date(Date.now() - age * 3_600_000))
+  }
+  const context = { ...machine.context, carryRoot }
+  const outcome = (raced) => raced.error ? `threw ${raced.error.code}: ${raced.error.message}` : `removed: ${raced.removed}, stale: ${JSON.stringify(raced.listing.stale)}`
+  const items = (raced) => [...raced.listing.stale, ...raced.listing.kept].map((item) => item.path)
+  const stale = join(machine.sessionRoot, STALE)
+  const elsewhere = listWithRemovalAfterListing(otherRoot, LIVE_ELSEWHERE, () => collectListing(context, { probes: quietProbes }))
+  T("stale-files: a session directory of another project root that goes away between the listing and its stat is skipped", elsewhere.removed && !elsewhere.error
+    && stalePaths(elsewhere.listing, "session").includes(stale), outcome(elsewhere))
+  const own = listWithRemovalAfterListing(machine.sessionRoot, STALE, () => collectListing(context, { probes: quietProbes }))
+  T("stale-files: a session directory of the listing's own root that goes away between the listing and its stat is no item", own.removed && !own.error
+    && !items(own).includes(stale) && /nominated successor/.test(reasonOf(own.listing, join(machine.sessionRoot, SUCCESSOR)) ?? ""), outcome(own))
+  const oldest = join(carryRoot, "durable-0a0a0a0a")
+  const carry = listWithRemovalAfterListing(carryRoot, "durable-0a0a0a0a", () => collectListing(context, { probes: quietProbes }))
+  T("stale-files: a durable copy that goes away between the listing and its stat is no item", carry.removed && !carry.error
+    && !items(carry).includes(oldest) && stalePaths(carry.listing, "carry").length === 0, outcome(carry))
+  // Only a missing entry is skipped. An entry of a root that can be listed and not searched still stops the listing.
+  if (process.getuid?.() === 0) return
+  mkdirSync(join(otherRoot, LIVE_ELSEWHERE))
+  chmodSync(otherRoot, 0o444)
+  let sealed
+  try { sealed = collectListing(context, { probes: quietProbes }) } catch (error) { sealed = { error } } finally { chmodSync(otherRoot, 0o755) }
+  T("stale-files: an entry whose stat fails with an error other than ENOENT still stops the listing", sealed.error?.code === "EACCES", sealed.error ? `threw ${sealed.error.code}` : "the listing completed")
+}
+
 /** The real session record reader: the records Claude Code writes, judged as the run state judges them. */
 const recordCases = () => {
   const machine = stageMachine("records")
@@ -254,6 +315,7 @@ export const cases = () => {
   sessionCases()
   carryCases()
   rootCases()
+  raceCases()
   recordCases()
   removalCases()
   reportCases()
