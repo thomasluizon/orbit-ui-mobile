@@ -1654,6 +1654,35 @@ for (const [type, tool] of [["workflow", "Workflow"], ["subagent", "Agent"]]) {
   writeFileSync(recordPath, JSON.stringify({ ...record, processStartIdentity: "previous process" }))
   T(`relay adapter: stale ${type} does not strand the pending drain`, backgroundHook({ ...relayPayload, hook_event_name: "PostToolUse", tool_name: "Bash", tool_response: {} }).stdout.includes("drain is complete"), true)
 }
+// A subagent that waits on a prompt stays live in every Stop payload and writes no more transcript.
+writeRunState(relayState, wakeCheckout)
+backgroundHook({ ...relayPayload, hook_event_name: "PostToolUse", tool_name: "Agent", tool_response: backgroundLaunches.subagent })
+const heldAgent = backgroundLaunches.subagent.agentId
+const heldStop = { ...relayPayload, background_tasks: [{ id: heldAgent, type: "subagent", status: "running", description: "Background work" }] }
+const heldRecordPath = join(wakeCheckout, ".git", "orbit-background-runs", relayPayload.session_id, `${heldAgent}.json`)
+const heldRecord = JSON.parse(readFileSync(heldRecordPath, "utf8"))
+const wakeStop = (payload) => spawnSync(process.execPath, [join(wakeHooks, WAKE_HOOK)], { input: JSON.stringify(payload), encoding: "utf8", env: { ...process.env, CLAUDE_CONFIG_DIR: claudeDirectory } })
+T("stuck limit: the launch record names the subagent transcript", heldRecord.transcript, join(dirname(relayTranscript), relayPayload.session_id, "subagents", `agent-${heldAgent}.jsonl`))
+T("stuck limit: a live subagent below the limit holds the drain", backgroundHook(heldStop).stdout, "")
+const unwatchedDrain = wakeStop(heldStop)
+T("stuck limit: a drain that waits on a subagent with no waiter refuses the turn end", { status: unwatchedDrain.status, names: unwatchedDrain.stderr.includes("node tools/wait-background-runs.mjs") && unwatchedDrain.stderr.includes(`subagent ${heldAgent}`) }, { status: 2, names: true })
+const silentSince = new Date(Date.now() - 31 * 60_000).toISOString()
+writeFileSync(heldRecordPath, JSON.stringify({ ...heldRecord, observedAt: silentSince }))
+const releasedDrain = backgroundHook(heldStop)
+T("stuck limit: 30 minutes with no transcript progress completes the drain", releasedDrain.stdout.includes("drain is complete"), true)
+T("stuck limit: the drain message names the stuck subagent for the handoff", releasedDrain.stdout.includes(`subagent ${heldAgent}`) && releasedDrain.stdout.includes("stuckBackgroundRuns"), true)
+T("stuck limit: the run state records the stuck subagent", readRunState(wakeCheckout).stuckBackgroundRuns?.map((run) => [run.id, run.type, run.lastProgressAt]), [[heldAgent, "subagent", silentSince]])
+T("stuck limit: the turn end no longer waits on the stuck subagent", wakeStop(heldStop).status, 0)
+// The guard broken: with no limit the same silent subagent holds the drain, as it did before the limit existed.
+const stuckLimitSource = readFileSync(join(wakeCheckout, "tools", "lib", "background-runs.mjs"), "utf8")
+const stuckLimitLine = "export const STUCK_RUN_MILLISECONDS = 30 * 60_000"
+T("stuck limit: the broken guard targets the production limit", stuckLimitSource.includes(stuckLimitLine), true)
+writeFileSync(join(wakeCheckout, "tools", "lib", "background-runs.mjs"), stuckLimitSource.replace(stuckLimitLine, "export const STUCK_RUN_MILLISECONDS = Infinity"))
+T("stuck limit: with the limit removed the silent subagent holds the drain again", backgroundHook(heldStop).stdout, "")
+T("stuck limit: with the limit removed the turn end waits again", wakeStop(heldStop).status, 2)
+writeFileSync(join(wakeCheckout, "tools", "lib", "background-runs.mjs"), stuckLimitSource)
+T("stuck limit: with the limit restored the drain completes again", backgroundHook(heldStop).stdout.includes("drain is complete"), true)
+backgroundHook(relayPayload)
 const backgroundModulePath = join(wakeCheckout, "tools", "lib", "background-runs.mjs")
 const backgroundModuleSource = readFileSync(backgroundModulePath, "utf8")
 const probeMarker = join(claudeDirectory, "identity-probe-entered")

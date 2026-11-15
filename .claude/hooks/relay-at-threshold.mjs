@@ -4,7 +4,7 @@ import { readOrchestratorConfig } from "../../tools/lib/orchestrator-config.mjs"
 import { acquireRelayLock, readRunState, readWakeSourceStates, updateRunState } from "../../tools/lib/run-state.mjs"
 import { recordHandoffRequest } from "../../tools/lib/handoff-prompt.mjs"
 import { appendChainEntry } from "../../tools/lib/session-chain.mjs"
-import { observeBackgroundRuns, readBackgroundRuns } from "../../tools/lib/background-runs.mjs"
+import { observeBackgroundRuns, readDrainBlockers } from "../../tools/lib/background-runs.mjs"
 import { readStdinJson } from "./_lib/io.mjs"
 import { checkRelayStop } from "./_lib/rules-relay.mjs"
 
@@ -35,8 +35,9 @@ try {
         ? { ...current, relay: { ...current.relay, fallbackUntilCompacted: false, armed: false } } : undefined, undefined, caller) ?? readRunState()
     }
     const sources = readWakeSourceStates()
+    const drain = readDrainBlockers(input.session_id)
     const verdict = checkRelayStop({ ...config.relay, state, sessionId: input.session_id, measuredTokens, hookEventName: input.hook_event_name,
-      wakeSources: sources.live, orphaned: sources.orphaned, backgroundRuns: readBackgroundRuns(input.session_id), stopHookActive: input.stop_hook_active === true })
+      wakeSources: sources.live, orphaned: sources.orphaned, backgroundRuns: drain.waiting, stuckRuns: drain.stuck, stopHookActive: input.stop_hook_active === true })
     // A record that changed after the verdict skips the write and its message; the next hook decides again.
     let applied = true
     if (verdict?.arm) {

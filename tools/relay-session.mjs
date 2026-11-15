@@ -7,7 +7,7 @@ import { fileURLToPath, pathToFileURL } from "node:url"
 import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
 import { redactSecrets } from "./lib/github-auth.mjs"
 import { readSessionContext, readSessionMetrics } from "./lib/session-context.mjs"
-import { readBackgroundRuns } from "./lib/background-runs.mjs"
+import { readDrainBlockers } from "./lib/background-runs.mjs"
 import { appendChainEntry, closeSessionChain, confirmChainSuccessor, openSessionChain, readSessionChain, refreshChainMetrics, sessionChainEntry, supersededSession, writeSessionChain } from "./lib/session-chain.mjs"
 import { questionFilterGaps } from "./lib/owner-questions.mjs"
 import { HANDOFF_PROMPT_PATH, checkoutSpecVersions, handoffAutoWork, handoffCrank, openingSpecPaths, prepareOwnerHandoffRun, readHandoffRequest, recordHandoffRequest, validateHandoffPrompt } from "./lib/handoff-prompt.mjs"
@@ -16,6 +16,9 @@ import { REPO_ROOT, acquireRelayLock, clearWakeSource, foreignRunHold, isRelayWa
 const USAGE = `usage: relay-session.mjs [--retry-wake | --owner-check | --close-chain | --close-terminal <payload>]
 
   Relays the current unattended orchestrator through a committed and pushed NEXT.md.
+  Waits on no background run that made no transcript progress for 30 minutes: such a run
+  counts as stuck, and the run state records its worktree, branch and last commit in
+  stuckBackgroundRuns for the successor.
   Refuses while a candidate owner question has no disposition recorded through
   owner-questions.mjs --record; the successor inherits only the queued questions.
   Reads session identity from CLAUDE_CODE_SESSION_ID, context from its transcript,
@@ -181,7 +184,8 @@ const assertDrained = (repoRoot, sessionId) => {
   const blockers = [...sources.live.filter((source) => !isRelayWaiter(source) && source.what !== "Context relay retry"), ...sources.orphaned]
   const launchers = readWorkerLaunches(repoRoot).filter((launch) => isWakeSourceAlive({ pid: launch.launcherPid, processStartIdentity: launch.launcherProcessStartIdentity }))
   const pids = [...new Set([...blockers.map((source) => source.workerPid ?? source.pid), ...launchers.map((launch) => launch.launcherPid)])]
-  const backgroundRuns = readBackgroundRuns(sessionId, repoRoot)
+  // A stuck run leaves the drain here: the run state now names it for the successor.
+  const backgroundRuns = readDrainBlockers(sessionId, repoRoot).waiting
   const blockersMessage = [pids.length ? `live pid ${pids.join(", ")}` : "",
     ...backgroundRuns.map((run) => `background ${run.type} ${run.id}`)].filter(Boolean)
   if (blockersMessage.length) throw new Error(`relay drain has ${blockersMessage.join("; ")}`)

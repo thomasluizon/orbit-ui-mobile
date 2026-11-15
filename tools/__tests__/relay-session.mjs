@@ -1,5 +1,5 @@
 import { spawn, spawnSync } from "node:child_process"
-import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs"
+import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, utimesSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 import { setTimeout as wait } from "node:timers/promises"
 import { closeRelayTerminal, relaySession } from "../relay-session.mjs"
@@ -555,6 +555,31 @@ export const cases = async () => {
   T("relay-session: stale background records allow the successor to proceed", await failure({
     repoRoot: background.checkout, sessionId: "predecessor", execute: executeFor(background.checkout), wait: async () => {}, confirmMilliseconds: 10,
   }) === null)
+  // A subagent that waits on a prompt keeps its owner alive and writes nothing, so only the limit can end the drain's wait.
+  const stuckRun = fixture("stuck-subagent")
+  const stuckDirectory = join(stuckRun.checkout, ".git", "orbit-background-runs", "predecessor")
+  const stuckTranscript = join(stuckRun.checkout, ".git", "agent-stuck-task.jsonl")
+  mkdirSync(stuckDirectory, { recursive: true })
+  writeFileSync(stuckTranscript, `${JSON.stringify({ type: "assistant", agentId: "stuck-task", cwd: stuckRun.checkout })}\n`)
+  const stuckRecord = (silentMinutes) => {
+    const silentSince = new Date(Date.now() - silentMinutes * 60_000)
+    utimesSync(stuckTranscript, silentSince, silentSince)
+    writeFileSync(join(stuckDirectory, "stuck-task.json"), JSON.stringify({ id: "stuck-task", type: "subagent", sessionId: "predecessor", pid: process.pid, processStartIdentity: identity,
+      observedAt: new Date(Date.now() - 120 * 60_000).toISOString(), transcript: stuckTranscript }))
+  }
+  stuckRecord(29)
+  const belowLimit = await failure({ repoRoot: stuckRun.checkout, sessionId: "predecessor", execute: executeFor(stuckRun.checkout), wait: async () => {}, confirmMilliseconds: 10 })
+  T("relay-session: a subagent below the stuck limit holds the drain", /relay drain has background subagent stuck-task/.test(belowLimit ?? ""), String(belowLimit))
+  T("relay-session: a held drain records no stuck run", readRunState(stuckRun.checkout).stuckBackgroundRuns === undefined)
+  updateRunState((state) => ({ ...state, relay: { ...state.relay, lastAttemptAt: undefined, failures: undefined } }), stuckRun.checkout, { sessionId: null })
+  stuckRecord(31)
+  const stuckHead = spawnSync("git", ["-C", stuckRun.checkout, "rev-parse", "HEAD"], { encoding: "utf8" }).stdout.trim()
+  const afterLimit = await failure({ repoRoot: stuckRun.checkout, sessionId: "predecessor", execute: executeFor(stuckRun.checkout), wait: async () => {}, confirmMilliseconds: 10 })
+  T("relay-session: a subagent with no transcript progress for the limit lets the relay proceed", afterLimit === null, String(afterLimit))
+  const inherited = readRunState(stuckRun.checkout)
+  T("relay-session: the successor inherits the stuck run with its worktree, branch and last commit", inherited.sessionId !== "predecessor" && inherited.relay?.from === "predecessor" &&
+    inherited.stuckBackgroundRuns?.length === 1 && inherited.stuckBackgroundRuns[0].id === "stuck-task" && inherited.stuckBackgroundRuns[0].worktree === stuckRun.checkout &&
+    inherited.stuckBackgroundRuns[0].branch === "relay-docs" && inherited.stuckBackgroundRuns[0].lastCommit === stuckHead, JSON.stringify(inherited.stuckBackgroundRuns))
   const release = fixture("release")
   registerWakeSource({ pid: process.pid, what: "Release ui run 1" }, release.checkout)
   T("relay-session: release watcher blocks handoff", (await failure({ repoRoot: release.checkout, sessionId: "predecessor" })).includes(String(process.pid)))

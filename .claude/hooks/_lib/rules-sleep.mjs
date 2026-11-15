@@ -1,9 +1,12 @@
+import { BACKGROUND_RUN_WAITER } from "../../../tools/lib/run-state.mjs"
+
 /**
- * @param options `{ state, wakeSources, sessionId, stopHookActive, isWakeSourceAlive, receiptVerdict }`
+ * @param options `{ state, wakeSources, backgroundRuns, sessionId, stopHookActive, isWakeSourceAlive, receiptVerdict }`
+ * `backgroundRuns` holds the live background workflows and subagents that do not count as stuck.
  * `isWakeSourceAlive(source)` must compare the persisted identity with a fresh OS observation.
  * @returns `{ block, message }` when an unattended run is about to go quiet, else null
  */
-export function checkSleepStop({ state, wakeSources = [], orphanedWakeSources = [], sessionId = "", stopHookActive = false, relayEnabled = true, isWakeSourceAlive = () => false, receiptVerdict = () => null } = {}) {
+export function checkSleepStop({ state, wakeSources = [], orphanedWakeSources = [], backgroundRuns = [], sessionId = "", stopHookActive = false, relayEnabled = true, isWakeSourceAlive = () => false, receiptVerdict = () => null } = {}) {
   // A blocked stop that blocks again is an infinite loop, and Claude Code sets this flag on the
   // second pass for exactly that reason.
   if (stopHookActive) return null
@@ -11,7 +14,21 @@ export function checkSleepStop({ state, wakeSources = [], orphanedWakeSources = 
   // A record from a PREVIOUS run must never block today's session. The session id is exact, so
   // staleness needs no timestamp heuristic.
   if (typeof state.sessionId === "string" && state.sessionId !== "" && sessionId !== "" && state.sessionId !== sessionId) return null
-  if (relayEnabled && state.relay?.pending === true) return { block: false, terminal: "RELAY_DRAIN", message: "Launch nothing; wait for the live launchers, release watchers, background workflows and background subagents, or relay when drained." }
+  const live = wakeSources.filter((source) => Number.isInteger(source?.pid) && isWakeSourceAlive(source))
+  if (relayEnabled && state.relay?.pending === true) {
+    // A subagent that waits on a prompt never ends, so the drain needs a waiter that the stuck limit ends.
+    if (backgroundRuns.length > 0 && !live.some((source) => source.kind === BACKGROUND_RUN_WAITER)) {
+      return {
+        block: true,
+        message:
+          `The relay drain waits on ${backgroundRuns.map((run) => `${run.type} ${run.id}`).join(", ")}, and nothing limits that wait.\n` +
+          "Start `node tools/wait-background-runs.mjs` as a background task, then end the turn. It registers a wake source\n" +
+          "and ends when each background run finishes or makes no transcript progress for 30 minutes. A run with no\n" +
+          "progress counts as stuck: the drain stops its wait, and the run state records its worktree, branch and last commit.",
+      }
+    }
+    return { block: false, terminal: "RELAY_DRAIN", message: "Launch nothing; wait for the live launchers, release watchers, background workflows and background subagents, or relay when drained." }
+  }
 
   const remaining = Array.isArray(state.remaining) ? state.remaining.filter((entry) => typeof entry === "string" && entry !== "") : []
   const rawPullRequests = [
@@ -37,7 +54,6 @@ export function checkSleepStop({ state, wakeSources = [], orphanedWakeSources = 
    * ends BLOCKED. Every other unwritten receipt remains an invalid identity. */
   const unwrittenReceipts = openPullRequests.filter((entry) => entry.receiptWritten === false && !(entry.closed === true && hasRecordedBlocker(entry)))
   const invalidPullRequestIdentities = rawPullRequests.length - pullRequests.length + unwrittenReceipts.length
-  const live = wakeSources.filter((source) => Number.isInteger(source?.pid) && isWakeSourceAlive(source))
   if (orphanedWakeSources.length > 0) {
     return {
       block: true,
@@ -116,7 +132,9 @@ export function checkSleepStop({ state, wakeSources = [], orphanedWakeSources = 
       "When work waits on CI, start `node tools/wait-ci.mjs --repo <key> --pr <n>` as a background\n" +
       "task. It registers a live wake source until checks settle. Pullfrog reviews only on request:\n" +
       "when work waits on review, ask with `node tools/list-bot-threads.mjs --repo <key> --pr <n>`,\n" +
-      "then add `--require-check pullfrog-approval` to the waiter.\n\n" +
+      "then add `--require-check pullfrog-approval` to the waiter. When work waits on a background\n" +
+      "workflow or subagent, start `node tools/wait-background-runs.mjs` as a background task: it ends\n" +
+      "when each one finishes or makes no transcript progress for 30 minutes.\n\n" +
       "A pull request listed in pullRequests has not reached simultaneous final-head readiness. Run\n" +
       "the readiness loop, then drop it only after its receipt says READY. A salvaged pull request\n" +
       "is not an exception: opening it is the middle of salvage, never the end.\n\n" +

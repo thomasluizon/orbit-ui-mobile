@@ -650,7 +650,8 @@ export const readWakeSourceStates = (repoRoot = REPO_ROOT) => {
 export const readWakeSources = (repoRoot = REPO_ROOT) => readWakeSourceStates(repoRoot).live
 
 /** Relay waiters observe work that can outlive the session and are stopped at succession. */
-export const isRelayWaiter = (source) => source.kind === "auto-work-waiter" || source.kind === "file-waiter" || source.what?.startsWith("CI ") === true
+export const BACKGROUND_RUN_WAITER = "background-run-waiter"
+export const isRelayWaiter = (source) => source.kind === "auto-work-waiter" || source.kind === "file-waiter" || source.kind === BACKGROUND_RUN_WAITER || source.what?.startsWith("CI ") === true
 
 export const registerWakeSource = (source, repoRoot = REPO_ROOT) => {
   try {
