@@ -451,6 +451,17 @@ export const stageWithConfig = (label, tool, config) => {
 }
 
 /** A real git repository with a bare origin and one commit on main, under the fixture root. */
+/**
+ * A subagent transcript in the shape that Claude Code 2.1.325 writes. The fixture holds lines of a real subagent
+ * transcript with each value replaced and each path a token. The agent works in `worktree` through `cd` and absolute
+ * file paths, visits `otherRepository` once, and every entry carries the session directory as `cwd`.
+ */
+export const subagentTranscript = ({ worktree, sessionDirectory, otherRepository, scratchpad }) => {
+  const tokens = { WORKTREE: worktree, SESSION_DIRECTORY: sessionDirectory, OTHER_REPOSITORY: otherRepository, SCRATCHPAD: scratchpad }
+  return readFileSync(new URL("./fixtures/claude-subagent-transcript.jsonl", import.meta.url), "utf8")
+    .replace(/\{\{([A-Z_]+)\}\}/g, (_token, name) => JSON.stringify(tokens[name]).slice(1, -1))
+}
+
 export const stageRepo = (label) => {
   const path = join(root, "repos", label)
   const origin = join(root, "repos", `${label}.git`)

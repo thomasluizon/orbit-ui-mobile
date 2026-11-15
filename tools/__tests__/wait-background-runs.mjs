@@ -2,7 +2,7 @@ import { spawn } from "node:child_process"
 import { mkdirSync, rmSync, utimesSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 import { setTimeout as wait } from "node:timers/promises"
-import { T, realOrchestratorConfig, run, stageWithConfig } from "./_harness.mjs"
+import { T, realOrchestratorConfig, run, stageRepo, stageWithConfig, subagentTranscript } from "./_harness.mjs"
 import { BACKGROUND_RUN_WAITER, isRelayWaiter, isWakeSourceAlive, processStartIdentity, readRunState, readWakeSourceStates, writeRunState } from "../lib/run-state.mjs"
 import { checkSleepStop } from "../../.claude/hooks/_lib/rules-sleep.mjs"
 
@@ -33,7 +33,10 @@ export async function cases() {
   const directory = join(installation.base, ".git", "orbit-background-runs", SESSION)
   const transcript = join(installation.base, ".git", "agent-held-task.jsonl")
   mkdirSync(directory, { recursive: true })
-  writeFileSync(transcript, `${JSON.stringify({ type: "assistant", cwd: installation.base })}\n`)
+  // The agent works in its own checkout; every transcript entry carries the session directory as `cwd`.
+  const agentCheckout = stageRepo("wait-background-runs-agent")
+  const agentHead = agentCheckout.git(["rev-parse", "HEAD"]).stdout.trim()
+  writeFileSync(transcript, subagentTranscript({ worktree: agentCheckout.path, sessionDirectory: installation.base, otherRepository: installation.base, scratchpad: join(installation.base, ".git") }))
   const record = (silentMinutes) => {
     const silentSince = new Date(Date.now() - silentMinutes * 60_000)
     utimesSync(transcript, silentSince, silentSince)
@@ -69,7 +72,7 @@ export async function cases() {
     const status = await stuck.closed
     const result = JSON.parse(stuck.output.stdout)
     T("background waiter: a subagent with no transcript progress for 30 minutes ends the wait", status === 0 && result.reason === "STUCK" && result.stuck.length === 1 &&
-      result.stuck[0].id === "held-task" && result.stuck[0].worktree === installation.base, stuck.output.stdout + stuck.output.stderr)
+      result.stuck[0].id === "held-task" && result.stuck[0].worktree === agentCheckout.path && result.stuck[0].branch === "main" && result.stuck[0].lastCommit === agentHead, stuck.output.stdout + stuck.output.stderr)
     T("background waiter: one JSON result line", stuck.output.stdout.trim().split("\n").length === 1 && Number.isFinite(result.waitedSeconds))
     T("background waiter: the run state names the stuck run", readRunState(installation.base).stuckBackgroundRuns?.[0]?.id === "held-task")
   } finally { stuck.child.kill("SIGKILL"); await stuck.closed; clearTimeout(stuck.watchdog) }

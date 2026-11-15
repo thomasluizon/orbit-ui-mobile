@@ -1,0 +1,25 @@
+{
+  "launchedBySession": {
+    "agentType": "<value>",
+    "isBuiltIn": true,
+    "launchedWithDefaults": true,
+    "description": "<value>",
+    "toolUseId": "<value>",
+    "spawnDepth": 1,
+    "requestShape": "background",
+    "requestNonInteractive": true,
+    "pickedEffortModel": "<value>"
+  },
+  "launchedByAgent": {
+    "agentType": "<value>",
+    "isBuiltIn": false,
+    "launchedWithDefaults": true,
+    "description": "<value>",
+    "toolUseId": "<value>",
+    "parentAgentId": "<parent agent id>",
+    "spawnDepth": 2,
+    "requestShape": "background",
+    "requestNonInteractive": true,
+    "pickedEffortModel": "<value>"
+  }
+}

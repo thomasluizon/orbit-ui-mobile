@@ -1,7 +1,8 @@
 // Refuses, in an unattended run, each shell command that Claude Code holds for an approval in every
 // permission mode: no person answers there, so the prompt stops the run. The only such check with a
-// command shape is the dangerous removal check on `rm` and `rmdir`. Each rule refuses a superset of
-// the `removalRule` values it names, because the analyzer behind them is not a stable interface.
+// command shape is the dangerous removal check on `rm` and `rmdir`, which Claude Code runs for the
+// Bash tool and the Monitor tool. Each rule refuses a superset of the `removalRule` values it names,
+// because the analyzer behind them is not a stable interface.
 // ./README.md lists the checks, their source, and the ones that no command shape can predict.
 
 import { homedir } from "node:os"
@@ -9,6 +10,9 @@ import { posix } from "node:path"
 
 import { commandWords, inspectCommands } from "./command-expander.mjs"
 import { stripHeredocBodies } from "./rules-git.mjs"
+
+/** The tools whose permission check runs the Claude Code removal check. Each one takes the shell command as `tool_input.command`. */
+export const REMOVAL_CHECK_TOOLS = ["Bash", "Monitor"]
 
 /** The launcher exports this into every worker it starts (tools/launch-worker.mjs). A worker is headless. */
 const LAUNCHER_MARKER = "ORBIT_LAUNCH_WORKER"
@@ -229,11 +233,13 @@ export const REMOVAL_RULES = [
   },
   {
     name: "unreadable-script",
-    judgeCommand: ({ command }) => !quotesAreBalanced(stripHeredocBodies(command)) ||
-      (INLINE_SCRIPT.test(command) && (UNREADABLE_SCRIPT.test(command) || command.length > INLINE_SCRIPT_MAX_LENGTH))
+    judgeCommand: ({ command }) => {
+      const read = stripComments(stripHeredocBodies(command))
+      return read === null || (INLINE_SCRIPT.test(read) && (UNREADABLE_SCRIPT.test(read) || command.length > INLINE_SCRIPT_MAX_LENGTH))
       ? refuse("inline_shell_unchecked, eval_trap_string, unparsed_line", "the command runs a removal inside a script or a quoted string that no check can read with certainty",
         "Run each removal as its own direct command, with a literal path.")
-      : null,
+        : null
+    },
   },
 ]
 
@@ -245,14 +251,24 @@ function placeTarget(target, { directory, home }) {
   return { full, base: full.replace(TRAILING_STARS, "") || "/" }
 }
 
-function quotesAreBalanced(source) {
+/** The source as the shell reads it, with no `#` comment: an apostrophe in a comment opens no quote. Null when a quote stays open. */
+function stripComments(source) {
+  let read = ""
   let quote = ""
   for (let index = 0; index < source.length; index++) {
     const character = source[index]
-    if (character === "\\" && quote !== "'") { index++; continue }
-    if (quote) { if (character === quote) quote = "" } else if (character === '"' || character === "'") quote = character
+    if (character === "\\" && quote !== "'") { read += source.slice(index, index + 2); index++; continue }
+    if (quote) { if (character === quote) quote = "" }
+    else if (character === '"' || character === "'") quote = character
+    else if (character === "#" && (index === 0 || /[\s;|&()]/.test(source[index - 1]))) {
+      const lineEnd = source.indexOf("\n", index)
+      if (lineEnd < 0) break
+      index = lineEnd - 1
+      continue
+    }
+    read += character
   }
-  return quote === ""
+  return quote === "" ? read : null
 }
 
 /** The first refusal in `source`, with the count of removals it runs; a nested script is read in the directory that reaches it. */
@@ -293,7 +309,7 @@ export const isUnattendedRun = ({ env = {}, state = null, sessionId = "" } = {})
   (state?.sleep === true && (typeof state.sessionId !== "string" || state.sessionId === "" || sessionId === "" || state.sessionId === sessionId))
 
 /**
- * @param command the Bash command about to run
+ * @param command the shell command about to run, from a tool in `REMOVAL_CHECK_TOOLS`
  * @param options `{ cwd, home, workingDirectories, rules, windows }`; `rules` defaults to every removal rule
  * @returns `{ block, message, rule }` when Claude Code would hold the command for an approval, else null
  */

@@ -1,13 +1,14 @@
 import { spawn, spawnSync } from "node:child_process"
 import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, utimesSync, writeFileSync } from "node:fs"
-import { join } from "node:path"
+import { dirname, join } from "node:path"
 import { setTimeout as wait } from "node:timers/promises"
+import { readDrainBlockers } from "../lib/background-runs.mjs"
 import { closeRelayTerminal, relaySession } from "../relay-session.mjs"
 import { adoptRelayRun, appendChainEntry, confirmChainSuccessor, openSessionChain, readSessionChain, writeSessionChain } from "../lib/session-chain.mjs"
 import { ownerQuestionCandidates, questionFilterGaps, recordQuestionFilter } from "../lib/owner-questions.mjs"
 import { processStartIdentity, readRunState, readWakeSourceStates, registerWakeSource, updateRunState, writeRunState } from "../lib/run-state.mjs"
 import { readHandoffRequest, recordHandoffRequest } from "../lib/handoff-prompt.mjs"
-import { T, realOrchestratorConfig, stageRepo, stageWithConfig, toolPath } from "./_harness.mjs"
+import { T, realOrchestratorConfig, stageRepo, stageWithConfig, subagentTranscript, toolPath } from "./_harness.mjs"
 import { ANSWERABLE, PRODUCT, exitedPid, reusedPidRecord, stageClaudeSessions } from "./owner-questions-core.mjs"
 import { checkRelayStop } from "../../.claude/hooks/_lib/rules-relay.mjs"
 
@@ -557,10 +558,14 @@ export const cases = async () => {
   }) === null)
   // A subagent that waits on a prompt keeps its owner alive and writes nothing, so only the limit can end the drain's wait.
   const stuckRun = fixture("stuck-subagent")
+  // The stuck agent works in its own worktree and branch; every transcript entry carries the coordinator checkout as `cwd`.
+  const stuckWorktree = join(dirname(stuckRun.checkout), "relay-stuck-subagent-agent")
+  stuckRun.git(["worktree", "add", "-q", "-b", "fix/stuck-agent", stuckWorktree])
+  stuckRun.git(["commit", "-q", "--allow-empty", "-m", "agent work"], stuckWorktree)
   const stuckDirectory = join(stuckRun.checkout, ".git", "orbit-background-runs", "predecessor")
   const stuckTranscript = join(stuckRun.checkout, ".git", "agent-stuck-task.jsonl")
   mkdirSync(stuckDirectory, { recursive: true })
-  writeFileSync(stuckTranscript, `${JSON.stringify({ type: "assistant", agentId: "stuck-task", cwd: stuckRun.checkout })}\n`)
+  writeFileSync(stuckTranscript, subagentTranscript({ worktree: stuckWorktree, sessionDirectory: stuckRun.checkout, otherRepository: background.checkout, scratchpad: dirname(stuckRun.checkout) }))
   const stuckRecord = (silentMinutes) => {
     const silentSince = new Date(Date.now() - silentMinutes * 60_000)
     utimesSync(stuckTranscript, silentSince, silentSince)
@@ -573,13 +578,17 @@ export const cases = async () => {
   T("relay-session: a held drain records no stuck run", readRunState(stuckRun.checkout).stuckBackgroundRuns === undefined)
   updateRunState((state) => ({ ...state, relay: { ...state.relay, lastAttemptAt: undefined, failures: undefined } }), stuckRun.checkout, { sessionId: null })
   stuckRecord(31)
-  const stuckHead = spawnSync("git", ["-C", stuckRun.checkout, "rev-parse", "HEAD"], { encoding: "utf8" }).stdout.trim()
+  const stuckHead = spawnSync("git", ["-C", stuckWorktree, "rev-parse", "HEAD"], { encoding: "utf8" }).stdout.trim()
+  const coordinatorHead = spawnSync("git", ["-C", stuckRun.checkout, "rev-parse", "HEAD"], { encoding: "utf8" }).stdout.trim()
   const afterLimit = await failure({ repoRoot: stuckRun.checkout, sessionId: "predecessor", execute: executeFor(stuckRun.checkout), wait: async () => {}, confirmMilliseconds: 10 })
   T("relay-session: a subagent with no transcript progress for the limit lets the relay proceed", afterLimit === null, String(afterLimit))
   const inherited = readRunState(stuckRun.checkout)
-  T("relay-session: the successor inherits the stuck run with its worktree, branch and last commit", inherited.sessionId !== "predecessor" && inherited.relay?.from === "predecessor" &&
-    inherited.stuckBackgroundRuns?.length === 1 && inherited.stuckBackgroundRuns[0].id === "stuck-task" && inherited.stuckBackgroundRuns[0].worktree === stuckRun.checkout &&
-    inherited.stuckBackgroundRuns[0].branch === "relay-docs" && inherited.stuckBackgroundRuns[0].lastCommit === stuckHead, JSON.stringify(inherited.stuckBackgroundRuns))
+  T("relay-session: the successor inherits the stuck run with the worktree, branch and last commit of the agent", inherited.sessionId !== "predecessor" && inherited.relay?.from === "predecessor" &&
+    inherited.stuckBackgroundRuns?.length === 1 && inherited.stuckBackgroundRuns[0].id === "stuck-task" && inherited.stuckBackgroundRuns[0].sessionId === "predecessor" &&
+    inherited.stuckBackgroundRuns[0].worktree === stuckWorktree && inherited.stuckBackgroundRuns[0].branch === "fix/stuck-agent" &&
+    inherited.stuckBackgroundRuns[0].lastCommit === stuckHead && stuckHead !== coordinatorHead, JSON.stringify(inherited.stuckBackgroundRuns))
+  T("relay-session: a read by the successor keeps the stuck run that it inherited", readDrainBlockers(inherited.sessionId, stuckRun.checkout).stuck.length === 0 &&
+    readRunState(stuckRun.checkout).stuckBackgroundRuns?.[0]?.id === "stuck-task")
   const release = fixture("release")
   registerWakeSource({ pid: process.pid, what: "Release ui run 1" }, release.checkout)
   T("relay-session: release watcher blocks handoff", (await failure({ repoRoot: release.checkout, sessionId: "predecessor" })).includes(String(process.pid)))

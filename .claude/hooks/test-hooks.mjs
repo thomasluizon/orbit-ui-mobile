@@ -19,7 +19,8 @@ import { newestCommittedPrompt, promptsForCommit, specsForCommit } from "./_lib/
 import { adoptOwnerHandoffRun, parseHandoffRequest, prepareOwnerHandoffRun, readHandoffRequest, recordHandoffRequest, validateHandoffPrompt } from "../../tools/lib/handoff-prompt.mjs"
 import { checkDependencyCommand, checkDependencyFileWrite } from "./_lib/rules-dependencies.mjs"
 import { checkWorkerBrowser } from "./_lib/rules-worker.mjs"
-import { REMOVAL_RULES, checkApprovalPrompt, isUnattendedRun } from "./_lib/rules-approval.mjs"
+import { REMOVAL_CHECK_TOOLS, REMOVAL_RULES, checkApprovalPrompt, isUnattendedRun } from "./_lib/rules-approval.mjs"
+import { additionalWorkingDirectories } from "./_lib/working-directories.mjs"
 import { declaredRepoRoots } from "./_lib/repo-roots.mjs"
 import { operationInProgress } from "../../tools/lib/relay-checkout.mjs"
 import { readRunState, writeRunState } from "../../tools/lib/run-state.mjs"
@@ -465,6 +466,9 @@ for (const [command, rule] of [
   ["rmdir -p apps/web/*", "glob-target"],
   ["rm -rf \\\\", "windows-path"],
   ['rm -rf build "unbalanced', "unreadable-script"],
+  // A comment hides nothing from the rules: the removal before it is still read.
+  ['rm -rf "$DST" # it\'s stale', "variable-path"],
+  ["rm -rf build 'unbalanced # not a comment", "unreadable-script"],
 ]) T(`approval: ${command} is refused by ${rule}`, refusedBy(command), rule)
 for (const command of [
   "rm -rf build",
@@ -486,10 +490,46 @@ for (const command of [
   'grep -rn "rm -rf" tools',
   "cat > cleanup.sh <<'EOF'\nrm -rf \"$TMP\"\nEOF",
   "npm run build",
+  // The shell does not read a comment, so an apostrophe or a script word there changes nothing.
+  "rm -rf dist # it's stale",
+  "rm -rf dist # don't keep it\nnpm run build # it's fast",
+  "bash -c 'rm -rf dist' # the alias function() is gone",
 ]) T(`approval: ${command} passes`, refusedBy(command), null)
 T("approval windows: the top level of a drive is critical", refusedBy("rm -rf C:/work", { ...approvalOptions, cwd: "C:\\work\\repo", windows: true }), "critical-path")
 T("approval windows: a deeper drive path passes", refusedBy("rm -rf C:/work/other/build", { ...approvalOptions, cwd: "C:\\work\\repo", windows: true }), null)
 T("approval: a non-string command passes", checkApprovalPrompt(undefined, approvalOptions), null)
+T("approval: the removal check runs for the Bash tool and the Monitor tool", REMOVAL_CHECK_TOOLS, ["Bash", "Monitor"])
+// Each settings scope that Claude Code reads adds working directories; a relative entry resolves from the project directory.
+const settingsScopes = join(mkdtempSync(join(tmpdir(), "orbit-settings-")), "scopes")
+const scopeProject = join(settingsScopes, "work", "project")
+const scopeAccount = join(settingsScopes, "account")
+const scopeManaged = join(settingsScopes, "managed")
+const scopeOptions = { configDirectory: scopeAccount, home: join(settingsScopes, "home"), managedDirectory: scopeManaged }
+for (const directory of [join(scopeProject, ".claude"), scopeAccount, join(scopeManaged, "managed-settings.d")]) mkdirSync(directory, { recursive: true })
+const writeScope = (path, directories) => writeFileSync(path, JSON.stringify({ permissions: { additionalDirectories: directories } }))
+T("additional directories: no settings file adds none", additionalWorkingDirectories(scopeProject, scopeOptions), [])
+writeScope(join(scopeAccount, "settings.json"), [join(settingsScopes, "vault"), "~/notes", "~"])
+writeScope(join(scopeProject, ".claude", "settings.json"), ["../api", "../landing"])
+writeScope(join(scopeProject, ".claude", "settings.local.json"), [join(settingsScopes, "local-only"), "../api"])
+writeScope(join(scopeManaged, "managed-settings.json"), [join(settingsScopes, "managed-root")])
+writeScope(join(scopeManaged, "managed-settings.d", "10-team.json"), [join(settingsScopes, "managed-drop-in")])
+T("additional directories: the user, project, local and managed scopes each add their entries, once each", additionalWorkingDirectories(scopeProject, scopeOptions), [
+  join(settingsScopes, "vault"), join(settingsScopes, "home", "notes"), join(settingsScopes, "home"),
+  join(settingsScopes, "work", "api"), join(settingsScopes, "work", "landing"), join(settingsScopes, "local-only"),
+  join(settingsScopes, "managed-root"), join(settingsScopes, "managed-drop-in"),
+])
+writeFileSync(join(scopeProject, ".claude", "settings.local.json"), "{ not json")
+writeFileSync(join(scopeManaged, "managed-settings.json"), JSON.stringify({ permissions: { additionalDirectories: "not a list" } }))
+writeFileSync(join(scopeManaged, "managed-settings.d", "10-team.json"), JSON.stringify({ permissions: { additionalDirectories: [7, "", join(settingsScopes, "managed-drop-in")] } }))
+T("additional directories: a file that does not parse, a value that is not a list and an entry that is not a path add nothing", additionalWorkingDirectories(scopeProject, scopeOptions), [
+  join(settingsScopes, "vault"), join(settingsScopes, "home", "notes"), join(settingsScopes, "home"),
+  join(settingsScopes, "work", "api"), join(settingsScopes, "work", "landing"), join(settingsScopes, "managed-drop-in"),
+])
+T("approval: removal of a directory that a settings scope adds is refused", refusedBy(`rm -rf ${join(settingsScopes, "vault")}`, { ...approvalOptions, workingDirectories: additionalWorkingDirectories(scopeProject, scopeOptions) }), "working-directory")
+T("approval: the same removal passes with no settings scope read", refusedBy(`rm -rf ${join(settingsScopes, "vault")}`), null)
+// The real project settings of this repository add the two sibling repositories, as a real session lists them.
+T("additional directories: the real project settings add the sibling repositories", additionalWorkingDirectories(repoRoot, { ...scopeOptions, configDirectory: scopeManaged })
+  .map((directory) => directory.slice(dirname(resolve(repoRoot)).length + 1)).filter((name) => ["orbit-api", "orbit-landing-page"].includes(name)), ["orbit-api", "orbit-landing-page"])
 const sleepingRun = { sleep: true, sessionId: "coordinator" }
 T("approval scope: the coordinator of an unattended run", isUnattendedRun({ state: sleepingRun, sessionId: "coordinator" }), true)
 // A subagent's tool hooks carry the session id of the coordinator, so the same record covers it.
@@ -1404,9 +1444,51 @@ writeRunState({ sessionId: "approval-coordinator", sleep: true, remaining: [] },
 const refusedRemoval = approvalHook(heldRemoval())
 T("adapter approval: the held removal in an unattended run -> 2", refusedRemoval.status, 2)
 T("adapter approval: the refusal tells the agent how to rewrite the command", refusedRemoval.stderr.includes('"${DST:?}/${d:?}/node_modules"') && refusedRemoval.stderr.includes("literal path"), true)
-// Claude Code raises this check for its Bash tool only, and the guarded rewrite is Bash syntax.
-T("adapter approval: a PowerShell command is outside the Bash check -> 0", approvalHook(heldRemoval("PowerShell")).status, 0)
-T("adapter approval: the hook is wired to the Bash tool only", settings.hooks.PreToolUse.filter((entry) => entry.hooks.some((hook) => hook.command.includes(APPROVAL_HOOK))).map((entry) => entry.matcher), ["Bash"])
+// Claude Code runs its removal check for the Bash tool and the Monitor tool, and the guarded rewrite is Bash syntax.
+T("adapter approval: a PowerShell command is outside the removal check -> 0", approvalHook(heldRemoval("PowerShell")).status, 0)
+const monitorRemoval = { ...heldRemoval("Monitor"), tool_input: { command: 'until test -f "$OUT/done"; do sleep 5; done; rm -rf "$OUT/$d"', description: "Wait for the build", timeout_ms: 300000 } }
+const refusedMonitor = approvalHook(monitorRemoval)
+T("adapter approval: a Monitor command that removes a variable path -> 2", refusedMonitor.status, 2)
+T("adapter approval: the Monitor refusal gives the guarded rewrite", refusedMonitor.stderr.includes('"${OUT:?}/${d:?}"'), true)
+T("adapter approval: a Monitor command with a guarded removal -> 0", approvalHook({ ...monitorRemoval, tool_input: { ...monitorRemoval.tool_input, command: 'until test -f "$OUT/done"; do sleep 5; done; rm -rf "${OUT:?}/${d:?}"' } }).status, 0)
+T("adapter approval: a Monitor that opens a WebSocket has no command -> 0", approvalHook({ ...heldRemoval("Monitor"), tool_input: { ws: { url: "wss://events.example.com/stream" }, description: "Events", timeout_ms: 300000 } }).status, 0)
+T("adapter approval: the hook is wired to each tool that runs the removal check", settings.hooks.PreToolUse.filter((entry) => entry.hooks.some((hook) => hook.command.includes(APPROVAL_HOOK))).flatMap((entry) => entry.matcher.split("|")).sort(), ["Bash", "Monitor"])
+// The guard broken: with Monitor removed from the tool list the same command passes, as it did before the list held it.
+const approvalRulesPath = join(wakeHooks, "_lib", "rules-approval.mjs")
+const approvalRulesSource = readFileSync(approvalRulesPath, "utf8")
+const removalToolsLine = 'export const REMOVAL_CHECK_TOOLS = ["Bash", "Monitor"]'
+T("adapter approval: the broken guard targets the production tool list", approvalRulesSource.includes(removalToolsLine), true)
+writeFileSync(approvalRulesPath, approvalRulesSource.replace(removalToolsLine, 'export const REMOVAL_CHECK_TOOLS = ["Bash"]'))
+T("adapter approval: with Monitor removed from the tool list the Monitor command passes -> 0", approvalHook(monitorRemoval).status, 0)
+writeFileSync(approvalRulesPath, approvalRulesSource)
+T("adapter approval: with the tool list restored the Monitor command is refused again -> 2", approvalHook(monitorRemoval).status, 2)
+// Claude Code adds `permissions.additionalDirectories` of each settings scope to the working directories of the session.
+const approvalAccount = join(root, "approval-account")
+const addedDirectories = { user: join(root, "added-by-user", "notes"), project: join(root, "added-by-project", "site"), local: join(root, "added-by-local", "vault") }
+mkdirSync(approvalAccount, { recursive: true })
+const settingsWith = (directories) => JSON.stringify({ permissions: { additionalDirectories: directories } })
+const scopeFiles = { user: join(approvalAccount, "settings.json"), project: join(wakeCheckout, ".claude", "settings.json"), local: join(wakeCheckout, ".claude", "settings.local.json") }
+const removalOf = (directory) => approvalHook({ ...heldRemoval(), tool_input: { command: `rm -rf ${directory}` } }, { CLAUDE_CONFIG_DIR: approvalAccount }).status
+for (const scope of Object.keys(scopeFiles)) {
+  T(`adapter approval: a directory that no settings file adds can be removed (${scope}) -> 0`, removalOf(addedDirectories[scope]), 0)
+  // The project entry is relative, as the real project settings write it: Claude Code resolves it from the project directory.
+  writeFileSync(scopeFiles[scope], settingsWith([scope === "project" ? "../added-by-project/site" : addedDirectories[scope]]))
+  T(`adapter approval: removal of a directory that the ${scope} settings add -> 2`, removalOf(addedDirectories[scope]), 2)
+  T(`adapter approval: removal of a parent of a directory that the ${scope} settings add -> 2`, removalOf(dirname(addedDirectories[scope])), 2)
+  T(`adapter approval: removal of an entry inside a directory that the ${scope} settings add -> 0`, removalOf(join(addedDirectories[scope], "build")), 0)
+  rmSync(scopeFiles[scope])
+}
+// The guard broken: with the settings read removed the directory that the user settings add can be removed again.
+writeFileSync(scopeFiles.user, settingsWith([addedDirectories.user]))
+const approvalAdapterPath = join(wakeHooks, APPROVAL_HOOK)
+const approvalAdapterSource = readFileSync(approvalAdapterPath, "utf8")
+const settingsRead = ", ...additionalWorkingDirectories(repoRoot)]"
+T("adapter approval: the broken guard targets the production settings read", approvalAdapterSource.includes(settingsRead), true)
+writeFileSync(approvalAdapterPath, approvalAdapterSource.replace(settingsRead, "]"))
+T("adapter approval: with the settings read removed the added directory passes -> 0", removalOf(addedDirectories.user), 0)
+writeFileSync(approvalAdapterPath, approvalAdapterSource)
+T("adapter approval: with the settings read restored the added directory is refused again -> 2", removalOf(addedDirectories.user), 2)
+rmSync(scopeFiles.user)
 T("adapter approval: a subagent carries the coordinator session -> 2", approvalHook({ ...heldRemoval(), agent_id: "fix-agent", agent_type: "general-purpose" }).status, 2)
 T("adapter approval: the guarded rewrite -> 0", approvalHook({ ...heldRemoval(), tool_input: { command: 'rm "${DST:?}/${d:?}/node_modules"' } }).status, 0)
 T("adapter approval: removal of the checkout itself -> 2", approvalHook({ ...heldRemoval(), tool_input: { command: `rm -rf ${wakeCheckout}` } }).status, 2)
@@ -1671,15 +1753,28 @@ T("stuck limit: a drain that waits on a subagent with no waiter refuses the turn
 // A whole second: Node 22 utimes cuts the fraction to microseconds after a float multiply, so a millisecond time can read back 1 ms early.
 const silentTime = new Date(Math.floor((Date.now() - 31 * 60_000) / 1000) * 1000)
 const silentSince = silentTime.toISOString()
+// The held agent works in its own worktree and branch. Every entry of its transcript carries the coordinator checkout as `cwd`.
+const heldWorktree = join(root, "wake-identity-held-agent")
+T("stuck limit: the agent worktree is created", stagingGit(["worktree", "add", "-b", "fix/held-agent", heldWorktree], wakeCheckout).status, 0)
+T("stuck limit: the agent commits in its worktree", stagingGit(["commit", "--allow-empty", "-m", "agent work"], heldWorktree).status, 0)
+const headOf = (directory) => stagingGit(["rev-parse", "HEAD"], directory).stdout.trim()
+const transcriptTokens = { WORKTREE: heldWorktree, SESSION_DIRECTORY: wakeCheckout, OTHER_REPOSITORY: wakeOrigin, SCRATCHPAD: root }
+const heldTranscript = readFileSync(join(repoRoot, "tools", "__tests__", "fixtures", "claude-subagent-transcript.jsonl"), "utf8")
+  .replace(/\{\{([A-Z_]+)\}\}/g, (_token, name) => JSON.stringify(transcriptTokens[name]).slice(1, -1))
+writeFileSync(heldRecordPath, JSON.stringify({ ...heldRecord, observedAt: new Date(Date.now() - 29 * 60_000).toISOString() }))
+T("stuck limit: a subagent with no transcript on disk holds the drain below the limit", backgroundHook(heldStop).stdout, "")
 writeFileSync(heldRecordPath, JSON.stringify({ ...heldRecord, observedAt: new Date(silentTime.getTime() - 60_000).toISOString() }))
-T("stuck limit: a subagent with no transcript on disk holds the drain at any age", backgroundHook(heldStop).stdout, "")
 mkdirSync(dirname(heldRecord.transcript), { recursive: true })
-writeFileSync(heldRecord.transcript, `${JSON.stringify({ type: "assistant", agentId: heldAgent, cwd: wakeCheckout })}\n`)
+writeFileSync(heldRecord.transcript, heldTranscript)
 utimesSync(heldRecord.transcript, silentTime, silentTime)
 const releasedDrain = backgroundHook(heldStop)
 T("stuck limit: 30 minutes with no transcript progress completes the drain", releasedDrain.stdout.includes("drain is complete"), true)
 T("stuck limit: the drain message names the stuck subagent for the handoff", releasedDrain.stdout.includes(`subagent ${heldAgent}`) && releasedDrain.stdout.includes("stuckBackgroundRuns"), true)
-T("stuck limit: the run state records the stuck subagent", readRunState(wakeCheckout).stuckBackgroundRuns?.map((run) => [run.id, run.type, run.worktree, run.branch, run.lastProgressAt]), [[heldAgent, "subagent", wakeCheckout, "relay-fixture", silentSince]])
+T("stuck limit: the drain message names the worktree and the branch of the agent", releasedDrain.stdout.includes(`worktree ${JSON.stringify(heldWorktree).slice(1, -1)}`) && releasedDrain.stdout.includes("branch fix/held-agent"), true)
+T("stuck limit: the run state records the worktree, branch and last commit of the stuck subagent, not of the coordinator",
+  readRunState(wakeCheckout).stuckBackgroundRuns?.map((run) => [run.id, run.type, run.sessionId, run.worktree, run.branch, run.lastCommit, run.lastProgressAt]),
+  [[heldAgent, "subagent", relayPayload.session_id, heldWorktree, "fix/held-agent", headOf(heldWorktree), silentSince]])
+T("stuck limit: the agent and the coordinator have different last commits", headOf(heldWorktree) === headOf(wakeCheckout), false)
 T("stuck limit: the turn end no longer waits on the stuck subagent", wakeStop(heldStop).status, 0)
 // The guard broken: with no limit the same silent subagent holds the drain, as it did before the limit existed.
 const stuckLimitSource = readFileSync(join(wakeCheckout, "tools", "lib", "background-runs.mjs"), "utf8")

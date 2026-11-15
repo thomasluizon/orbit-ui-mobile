@@ -6,7 +6,8 @@ import { fileURLToPath } from "node:url"
 import { readRunState } from "../../tools/lib/run-state.mjs"
 import { readStdinJson } from "./_lib/io.mjs"
 import { declaredRepoRoots } from "./_lib/repo-roots.mjs"
-import { checkApprovalPrompt, isUnattendedRun } from "./_lib/rules-approval.mjs"
+import { REMOVAL_CHECK_TOOLS, checkApprovalPrompt, isUnattendedRun } from "./_lib/rules-approval.mjs"
+import { additionalWorkingDirectories } from "./_lib/working-directories.mjs"
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), "..", "..")
 
@@ -17,10 +18,10 @@ const runState = () => {
 
 try {
   const input = readStdinJson()
-  // Claude Code raises the removal check for its Bash tool only, and the rewrite it asks for is Bash syntax.
-  if (input?.tool_name !== "Bash") process.exit(0)
+  if (!REMOVAL_CHECK_TOOLS.includes(input?.tool_name)) process.exit(0)
   if (!isUnattendedRun({ env: process.env, state: runState(), sessionId: input?.session_id ?? "" })) process.exit(0)
-  const verdict = checkApprovalPrompt(input?.tool_input?.command, { cwd: input?.cwd ?? "", workingDirectories: declaredRepoRoots(repoRoot) })
+  const workingDirectories = [...declaredRepoRoots(repoRoot), ...additionalWorkingDirectories(repoRoot)]
+  const verdict = checkApprovalPrompt(input?.tool_input?.command, { cwd: input?.cwd ?? "", workingDirectories })
   if (verdict?.block) {
     process.stderr.write(verdict.message)
     process.exit(2)

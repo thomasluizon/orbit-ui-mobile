@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 
-import { writeFileSync } from "node:fs"
-import { isAbsolute, resolve } from "node:path"
+import { existsSync, writeFileSync } from "node:fs"
+import { dirname, isAbsolute, join, resolve } from "node:path"
+import { fileURLToPath } from "node:url"
 import { assertRepositoryLabel, readComments, readTicket, resolveTicket } from "./lib/github-issues.mjs"
 import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
 import { CLOUD_FINISHING_CONTRACT } from "./lib/cloud-worker.mjs"
@@ -145,6 +146,20 @@ Playwright, Maestro or Cypress, nothing under \`e2e/\`, no layout guard, no navi
 on any port, no logging in to the app. If the ticket says screenshots are required, do not gather
 them in this worker. A fresh worktree has no seeded session.`
 
+/**
+ * The approval hook loads only in a checkout that holds it. A worker in another repository gets the same rule
+ * with the hook of this repository as its source, so no brief names a file that its worker cannot find.
+ */
+const APPROVAL_HOOK = ".claude/hooks/forbid-approval-prompt.mjs"
+const toolRepository = dirname(dirname(fileURLToPath(import.meta.url)))
+const approvalInstruction = [worktree, repoPath].some((checkout) => checkout && existsSync(join(checkout, APPROVAL_HOOK)))
+  ? `Run no command that Claude Code holds for an approval:
+\`${APPROVAL_HOOK}\` refuses each one and gives the rewrite. Follow that rewrite.`
+  : `Run no command that Claude Code holds for an approval. The ${repoKey} repository does not load the hook that refuses them,
+so nothing stops such a command before Claude Code holds it. Before you run \`rm\` or \`rmdir\`, read the rules and each rewrite in
+\`${join(toolRepository, ".claude", "hooks", "_lib", "rules-approval.mjs")}\`, the rule source of the hook
+\`${join(toolRepository, APPROVAL_HOOK)}\`.`
+
 const assumptionDestination = cloud
   ? "the committed handoff's `assumptions` array"
   : reviewBatch ? "your final report's `## Assumptions` section" : "the PR body's `## Assumptions` section"
@@ -190,8 +205,7 @@ run \`patch-package\` or an equivalent, and never stage or commit a path under \
 \`npm ci\` is allowed and expected when an installed package is missing; it installs the tree from
 the lockfile. Do not run \`npm install\` or change the lockfile unless the ticket says to.
 
-${cloud ? "" : `**No person answers a prompt.** Run no command that Claude Code holds for an approval:
-\`.claude/hooks/forbid-approval-prompt.mjs\` refuses each one and gives the rewrite. Follow that rewrite.
+${cloud ? "" : `**No person answers a prompt.** ${approvalInstruction}
 
 `}**Stage only named paths.** Never run \`git add -A\`, \`git add --all\`, \`git add -u\`, \`git add
 --update\`, a dot path, a wildcard, or a non-literal magic pathspec. Inspect \`git status --short\`,
