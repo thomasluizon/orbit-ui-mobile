@@ -85,7 +85,7 @@ function progress() {
 }
 
 async function typePhrase(messages: Messages, phrase: string) {
-  fireEvent.change(screen.getByLabelText(messages.onboarding.flow.what.title, { selector: 'textarea' }), { target: { value: phrase } })
+  fireEvent.change(screen.getByLabelText(messages.onboarding.flow.guided.what.question, { selector: 'textarea' }), { target: { value: phrase } })
   await act(async () => { press(messages.onboarding.flow.continue) })
 }
 
@@ -125,7 +125,7 @@ describe.each(locales)('guided onboarding in $locale', ({ locale, messages }) =>
       expect(screen.getByRole('button', { name: guided.intro.skip })).toBeInTheDocument()
       press(flow.continue)
     })
-    expect(heading()).toBe(flow.what.title)
+    expect(heading()).toBe(guided.what.question)
     expect(useOnboardingDraftStore.getState().introSeen).toBe(true)
   })
 
@@ -133,10 +133,10 @@ describe.each(locales)('guided onboarding in $locale', ({ locale, messages }) =>
     mount(locale, messages)
     for (let index = 0; index < screenIndex; index += 1) press(flow.continue)
     skipIntro(messages)
-    expect(heading()).toBe(flow.what.title)
+    expect(heading()).toBe(guided.what.question)
     cleanup()
     mount(locale, messages)
-    expect(heading()).toBe(flow.what.title)
+    expect(heading()).toBe(guided.what.question)
   })
 
   it('walks back through the intro and from the first question to the last intro screen', () => {
@@ -197,11 +197,81 @@ describe.each(locales)('guided onboarding in $locale', ({ locale, messages }) =>
     expect(screen.getByRole('group', { name: guided.summary.question })).toHaveTextContent(/8:00\sAM|08:00/)
   })
 
+  it('asks the period on its own step before the count, with one quick option for each period and no segmented control', async () => {
+    useOnboardingDraftStore.setState({ introSeen: true })
+    mount(locale, messages)
+    await typePhrase(messages, locale === 'en' ? 'Meditate' : 'Meditar')
+    press(guided.mode.flexible)
+    expect(heading()).toBe(flow.when.frequencyUnitLabel)
+    expect(progress()).toBe(messages.habits.flow.progress.replace('{position}', '3').replace('{total}', '6'))
+    const periods = within(screen.getByRole('group', { name: flow.when.frequencyUnitLabel })).getAllByRole('button')
+    expect(periods.map((option) => option.textContent)).toEqual([flow.when.units.day, flow.when.units.week, flow.when.units.month, flow.when.units.year])
+    expect(screen.queryByRole('radiogroup')).toBeNull()
+    press(flow.when.units.month)
+    expect(heading()).toBe(guided.quantity.question)
+    expect(progress()).toBe(messages.habits.flow.progress.replace('{position}', '4').replace('{total}', '6'))
+    expect(screen.queryByRole('radiogroup')).toBeNull()
+    expect(screen.queryByRole('radio')).toBeNull()
+    press(flow.when.quantityMore)
+    press(flow.continue)
+    expect(heading()).toBe(guided.summary.question)
+    press(flow.back)
+    expect(heading()).toBe(guided.quantity.question)
+    press(flow.back)
+    expect(heading()).toBe(flow.when.frequencyUnitLabel)
+  })
+
+  it('shows the period as a summary value that opens its own step and returns with the answer', async () => {
+    useOnboardingDraftStore.setState({ introSeen: true })
+    mount(locale, messages)
+    await typePhrase(messages, locale === 'en' ? 'Meditate' : 'Meditar')
+    press(guided.mode.interval)
+    press(flow.when.units.week)
+    expect(heading()).toBe(guided.interval.question)
+    press(flow.continue)
+    const summary = () => screen.getByRole('group', { name: guided.summary.question })
+    const periodRow = () => within(summary()).getByRole('button', { name: new RegExp(`^${guided.summary.unit}`) })
+    expect(periodRow()).toHaveTextContent(flow.when.units.week)
+    fireEvent.click(periodRow())
+    expect(heading()).toBe(flow.when.frequencyUnitLabel)
+    press(flow.when.units.day)
+    expect(heading()).toBe(guided.summary.question)
+    expect(periodRow()).toHaveTextContent(flow.when.units.day)
+    await act(async () => { press(flow.create) })
+    expect(mocks.createHabit).toHaveBeenCalledWith(expect.objectContaining({ frequencyUnit: 'Day', frequencyQuantity: 2 }))
+  })
+
+  it('has no period value on the summary of a habit with set days', async () => {
+    useOnboardingDraftStore.setState({ introSeen: true })
+    mount(locale, messages)
+    await typePhrase(messages, locale === 'en' ? 'Walk every Monday' : 'Caminhar toda segunda')
+    expect(within(screen.getByRole('group', { name: guided.summary.question })).queryByRole('button', { name: new RegExp(`^${guided.summary.unit}`) })).toBeNull()
+  })
+
+  it('shows the emoji as a summary value that opens the emoji picker, and saves the chosen emoji', async () => {
+    useOnboardingDraftStore.setState({ introSeen: true })
+    mount(locale, messages)
+    const phrase = locale === 'en' ? 'Walk every Monday at 18:00' : 'Caminhar toda segunda às 18:00'
+    await typePhrase(messages, phrase)
+    const summary = screen.getByRole('group', { name: guided.summary.question })
+    const title = within(summary).getByRole('button', { name: new RegExp(`^${guided.summary.what}`) })
+    expect(title.textContent).toBe(`${guided.summary.what}${locale === 'en' ? 'Walk' : 'Caminhar'}`)
+    fireEvent.click(within(summary).getByRole('button', { name: messages.habits.form.emojiOpenPicker }))
+    const picker = await screen.findByRole('dialog', { name: messages.habits.form.emojiPickerTitle })
+    const emoji = within(picker).getAllByRole('option')[0]!
+    const chosen = emoji.textContent!
+    await act(async () => { fireEvent.click(emoji) })
+    await waitFor(() => expect(within(screen.getByRole('group', { name: guided.summary.question })).getByRole('button', { name: messages.habits.form.emojiOpenPicker })).toHaveTextContent(chosen))
+    expect(heading()).toBe(guided.summary.question)
+    await act(async () => { press(flow.create) })
+    expect(mocks.createHabit).toHaveBeenCalledWith(expect.objectContaining({ emoji: chosen }))
+  })
+
   it('shows the hint beside the field on an empty submit and stays on the phrase', () => {
     useOnboardingDraftStore.setState({ introSeen: true })
     mount(locale, messages)
     press(flow.continue)
-    expect(heading()).toBe(flow.what.title)
+    expect(heading()).toBe(guided.what.question)
     expect(screen.getByText(flow.what.continueReason)).toBeInTheDocument()
   })
 
@@ -289,8 +359,16 @@ describe('guided onboarding requests', () => {
     expect(mocks.suggest).toHaveBeenCalledWith({ title: 'Walk', language: 'en' })
     expect(heading()).toBe(en.onboarding.flow.guided.summary.question)
     const summary = screen.getByRole('group', { name: en.onboarding.flow.guided.summary.question })
-    expect(summary).toHaveTextContent('🚶')
-    expect(summary.querySelectorAll('[data-proposed]').length).toBeGreaterThan(0)
+    const emojiControl = () => within(screen.getByRole('group', { name: en.onboarding.flow.guided.summary.question })).getByRole('button', { name: en.habits.form.emojiOpenPicker })
+    expect(emojiControl()).toHaveTextContent('🚶')
+    expect(emojiControl().querySelector('[data-emoji-well]')).toHaveAttribute('data-proposed')
+    expect(summary.querySelectorAll('[data-proposed]').length).toBeGreaterThan(1)
+    fireEvent.click(emojiControl())
+    const picker = await screen.findByRole('dialog', { name: en.habits.form.emojiPickerTitle })
+    const other = within(picker).getAllByRole('option').find((option) => option.textContent !== '🚶')!
+    await act(async () => { fireEvent.click(other) })
+    await waitFor(() => expect(emojiControl()).toHaveTextContent(other.textContent!))
+    expect(emojiControl().querySelector('[data-emoji-well]')).not.toHaveAttribute('data-proposed')
   })
 
   it('keeps the completion failure message on the reminder step', async () => {

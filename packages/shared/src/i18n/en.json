@@ -3394,6 +3394,9 @@
           },
           "skip": "Skip intro"
         },
+        "what": {
+          "question": "What do you want to keep doing?"
+        },
         "mode": {
           "fixed": "Set days",
           "flexible": "When I can",
@@ -3420,6 +3423,7 @@
           "question": "Is this right?",
           "what": "What you will do",
           "mode": "How it repeats",
+          "unit": "Which period",
           "days": "Which days",
           "quantity": "How many times",
           "interval": "How often",

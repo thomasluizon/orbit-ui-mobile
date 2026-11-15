@@ -3394,6 +3394,9 @@
           },
           "skip": "Pular introdução"
         },
+        "what": {
+          "question": "Que hábito você quer criar?"
+        },
         "mode": {
           "fixed": "Dias certos",
           "flexible": "Quando der",
@@ -3420,6 +3423,7 @@
           "question": "É isso?",
           "what": "O que você vai fazer",
           "mode": "Como se repete",
+          "unit": "Em qual período",
           "days": "Em quais dias",
           "quantity": "Quantas vezes",
           "interval": "Com que frequência",

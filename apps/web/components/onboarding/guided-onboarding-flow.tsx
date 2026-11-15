@@ -24,9 +24,11 @@ import {
   ONBOARDING_WHEN_STEP,
   getHabitPhraseTitle,
   onboardingGuidedPosition,
-  onboardingModeDetailStep,
+  onboardingModeDetailSteps,
   onboardingModeKey,
   onboardingNeedsCadence,
+  onboardingStepAfterAnswer,
+  ONBOARDING_UNIT_OPTIONS,
   phraseLineKey,
   toTime24,
   type OnboardingIntroScreen,
@@ -35,6 +37,7 @@ import {
   type OnboardingScheduleMode,
 } from '@orbit/shared/utils'
 import { PhraseField } from '@/components/habits/guided/phrase-field'
+import { HabitEmojiSelector } from '@/components/habits/habit-form-fields/habit-emoji-selector'
 import { CapacityNotice } from '@/components/ui/capacity-notice'
 import { FlowScreen } from '@/components/ui/flow-screen'
 import { ListRow } from '@/components/ui/list-row'
@@ -48,15 +51,18 @@ import { WeekdayPicker } from '@/components/ui/weekday-picker'
 import { useTimeFormat } from '@/hooks/use-time-format'
 import { useViewportMatch } from '@/hooks/use-viewport-match'
 import { useOnboardingDraftStore } from '@/stores/onboarding-draft-store'
-import { FrequencyUnitControl, Stepper } from './onboarding-create-habit'
+import { Stepper } from './onboarding-create-habit'
 import type { OnboardingDecisionProps } from './onboarding-flow'
 
 const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'] as const
 const WEEKDAYS: readonly string[] = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday']
 
 export interface GuidedOnboardingProps extends OnboardingDecisionProps {
-  /** The emoji the model proposed, or empty. */
-  proposedEmoji: string
+  /** The emoji of the habit: the one the model proposed or the one the person chose, or empty. */
+  habitEmoji: string
+  /** True while the emoji is the proposal of the model. A choice of the person clears it. */
+  emojiProposed: boolean
+  onEmoji: (emoji: string) => void
   completionPending: boolean
   offline: boolean
   /** The current shell notices: the update banner, the completion error and the read verification. */
@@ -80,6 +86,8 @@ interface Navigation {
   cadencePath: OnboardingQuestionStep[]
   /** A step opened from the summary returns to it. */
   editing: boolean
+  /** True while the flow walks the steps of a repeat mode, after the mode answer. Each answer then opens the next step of the mode. */
+  walking: boolean
   /** The step a reminder state opens on the summary step, such as the time. */
   pendingEdit: OnboardingQuestionStep | null
 }
@@ -139,13 +147,13 @@ function usePhraseView(props: GuidedOnboardingProps, cadenceOfPhrase: string | n
   }
   const line = props.offline ? t('habits.flow.orbit.offline') : t(phraseLineKey(props.sentence, cadenceOfPhrase !== null), { parts: cadenceOfPhrase ?? '' })
   return {
-    question: t('onboarding.flow.what.title'),
+    question: t('onboarding.flow.guided.what.question'),
     line,
     options: ONBOARDING_STARTERS.map((key) => (
       <OptionCard key={key} label={t(`onboarding.flow.what.starterLabels.${key}`)} selected={props.sentence === t(`onboarding.flow.what.starters.${key}`)}
         onSelect={() => props.onStarter(t(`onboarding.flow.what.starters.${key}`))} />
     )),
-    free: <PhraseField label={t('onboarding.flow.what.title')} value={props.sentence} placeholder={t('onboarding.flow.what.placeholder')} maxLength={100} hint={hint}
+    free: <PhraseField label={t('onboarding.flow.guided.what.question')} value={props.sentence} placeholder={t('onboarding.flow.what.placeholder')} maxLength={100} hint={hint}
       marks={props.marks} marksLabel={t('onboarding.flow.what.marksLabel')} focusRequest={focusRequest}
       onChange={(value) => { setHint(undefined); props.onSentence(value) }} />,
     primary: { label: t('onboarding.flow.continue'), onPress: submit, loading: props.suggestionPending },
@@ -189,6 +197,18 @@ function daysView(props: GuidedOnboardingProps, t: Translate, onDone: () => void
   }
 }
 
+/** The period of a count or an interval: one quick option for each period. A press answers and the flow moves on. */
+function unitView(props: GuidedOnboardingProps, t: Translate, onDone: () => void): StepView {
+  const current = props.schedule.frequencyUnit ?? 'Week'
+  return {
+    question: t('onboarding.flow.when.frequencyUnitLabel'),
+    line: null,
+    options: ONBOARDING_UNIT_OPTIONS.map((unit) => (
+      <OptionCard key={unit} label={t(`onboarding.flow.when.units.${unit.toLowerCase()}`)} selected={current === unit} onSelect={() => { props.onFrequencyUnit(unit); onDone() }} />
+    )),
+  }
+}
+
 function countView(props: GuidedOnboardingProps, t: Translate, kind: 'quantity' | 'interval', onDone: () => void): StepView {
   const count = props.schedule.frequencyQuantity ?? 1
   const unit = (props.schedule.frequencyUnit ?? (kind === 'quantity' ? 'Week' : 'Day')).toLowerCase()
@@ -196,11 +216,8 @@ function countView(props: GuidedOnboardingProps, t: Translate, kind: 'quantity' 
   return {
     question: t(`onboarding.flow.guided.${kind}.question`),
     line: null,
-    free: <>
-      <FrequencyUnitControl value={props.schedule.frequencyUnit ?? 'Week'} onChange={props.onFrequencyUnit} />
-      <Stepper value={count} minimum={1} lessLabel={t(kind === 'quantity' ? 'onboarding.flow.when.quantityLess' : 'onboarding.flow.when.frequencyLess')}
-        moreLabel={t(kind === 'quantity' ? 'onboarding.flow.when.quantityMore' : 'onboarding.flow.when.frequencyMore')} description={description} onChange={props.onQuantity} />
-    </>,
+    free: <Stepper value={count} minimum={1} lessLabel={t(kind === 'quantity' ? 'onboarding.flow.when.quantityLess' : 'onboarding.flow.when.frequencyLess')}
+      moreLabel={t(kind === 'quantity' ? 'onboarding.flow.when.quantityMore' : 'onboarding.flow.when.frequencyMore')} description={description} onChange={props.onQuantity} />,
     primary: { label: t('onboarding.flow.continue'), onPress: onDone },
   }
 }
@@ -221,27 +238,40 @@ function useTimeView(props: GuidedOnboardingProps, onDone: () => void): StepView
   }
 }
 
+/** The value each summary row shows for its step. */
+function useSummaryValue(props: GuidedOnboardingProps, habitTitle: string, cadenceText: (timed: boolean) => string) {
+  const t = useTranslations()
+  const { displayTime } = useTimeFormat()
+  return (step: OnboardingQuestionStep): string => {
+    if (step === 'what') return habitTitle
+    if (step === 'mode') return t(onboardingModeKey(props.schedule))
+    if (step === 'unit') return t(`onboarding.flow.when.units.${(props.schedule.frequencyUnit ?? 'Week').toLowerCase()}`)
+    if (step === 'time') return props.schedule.dueTime ? displayTime(props.schedule.dueTime) : t('onboarding.flow.when.anyTime')
+    return cadenceText(false)
+  }
+}
+
 function useSummaryView(props: GuidedOnboardingProps, habitTitle: string, cadenceText: (timed: boolean) => string, open: (step: OnboardingQuestionStep) => void): StepView {
   const t = useTranslations()
   const locale = useLocale()
-  const { displayTime } = useTimeFormat()
   const translate = createAstraAllowanceTranslator(t, { aiMessagesPeriod: props.allowancePeriod }, locale)
-  const mode = getOnboardingScheduleMode(props.schedule)
-  const detail = onboardingModeDetailStep(mode)
-  const title = props.proposedEmoji ? `${props.proposedEmoji} ${habitTitle}` : habitTitle
-  const row = (step: OnboardingQuestionStep, value: string) => (
+  const value = useSummaryValue(props, habitTitle, cadenceText)
+  const row = (step: OnboardingQuestionStep) => (
     <Proposed key={step} proposed={props.proposed && step !== 'what'} scope="row" label={t('onboarding.flow.when.proposedBy')} keepMounted>
-      <ListRow placement="field" title={t(`onboarding.flow.guided.summary.${step}`)} value={value} onClick={() => open(step)} />
+      <ListRow placement="field" title={t(`onboarding.flow.guided.summary.${step}`)} value={value(step)} onClick={() => open(step)} />
     </Proposed>
   )
   return {
     question: t('onboarding.flow.guided.summary.question'),
     line: t('habits.flow.what.lineUnderstood', { parts: cadenceText(true) }),
     free: <div role="group" aria-label={t('onboarding.flow.guided.summary.question')} className="flex flex-col gap-3">
-      {row('what', title)}
-      {row('mode', t(onboardingModeKey(props.schedule)))}
-      {detail ? row(detail, cadenceText(false)) : null}
-      {row('time', props.schedule.dueTime ? displayTime(props.schedule.dueTime) : t('onboarding.flow.when.anyTime'))}
+      <div className="flex min-w-0 items-center gap-3">
+        <HabitEmojiSelector selectedEmoji={props.habitEmoji} proposed={props.emojiProposed} onSelect={props.onEmoji} />
+        <div className="min-w-0 flex-1">{row('what')}</div>
+      </div>
+      {row('mode')}
+      {onboardingModeDetailSteps(getOnboardingScheduleMode(props.schedule)).map(row)}
+      {row('time')}
       {props.atLimit ? <CapacityNotice message={translate('onboarding.flow.when.limit', { allowance: props.allowance })} /> : null}
       {props.createFailed ? <p role="alert" className="text-center text-sm text-[var(--status-bad-text)]">{t('onboarding.flow.createFailed')}</p> : null}
     </div>,
@@ -293,7 +323,7 @@ function initialView(step: number, introRun: boolean): FlowView {
 
 function useGuidedNavigation(props: GuidedOnboardingProps) {
   const [introRun] = useState(() => props.step === ONBOARDING_WHAT_STEP && !useOnboardingDraftStore.getState().introSeen)
-  const [navigation, setNavigation] = useState<Navigation>(() => ({ view: initialView(props.step, introRun), direction: 1, cadencePath: [], editing: false, pendingEdit: null }))
+  const [navigation, setNavigation] = useState<Navigation>(() => ({ view: initialView(props.step, introRun), direction: 1, cadencePath: [], editing: false, walking: false, pendingEdit: null }))
   const [trackedStep, setTrackedStep] = useState(props.step)
   if (trackedStep !== props.step) {
     setTrackedStep(props.step)
@@ -334,25 +364,33 @@ export function GuidedOnboardingFlow(props: Readonly<GuidedOnboardingProps>) {
   const locale = useLocale() === 'pt-BR' ? 'pt-BR' : 'en'
   const { navigation, introRun, go } = useGuidedNavigation(props)
   const { view, direction, cadencePath, editing } = navigation
-  const toSummary = () => go('summary', 1, { editing: false })
+  const toSummary = () => go('summary', 1, { editing: false, walking: false })
+  /** An answer inside the repeat steps opens the next step of the mode, or the summary. */
+  const answered = (step: OnboardingQuestionStep) => {
+    const next = onboardingStepAfterAnswer(getOnboardingScheduleMode(props.schedule), step, navigation.walking)
+    if (next === 'summary') toSummary()
+    else go(next, 1)
+  }
   const phraseSchedule = buildOnboardingScheduleFromPhrase(props.sentence, locale)
   const phraseRead = phraseSchedule.isGeneral && !phraseSchedule.dueTime ? null : phraseSchedule
   const cadenceOfPhrase = useCadenceText(phraseSchedule)
   const cadenceText = useCadenceText(props.schedule)
   const answerMode = (mode: OnboardingScheduleMode) => {
     props.onMode(mode)
-    const detail = onboardingModeDetailStep(mode)
-    if (!detail) { toSummary(); return }
-    go(detail, 1, editing ? {} : { cadencePath: ['mode', detail] })
+    const steps = onboardingModeDetailSteps(mode)
+    const first = steps[0]
+    if (!first) { toSummary(); return }
+    go(first, 1, editing ? { walking: true } : { walking: true, cadencePath: ['mode', ...steps] })
   }
   const views: Record<OnboardingQuestionStep, StepView> = {
     what: usePhraseView(props, phraseRead ? cadenceOfPhrase(true) : null),
     mode: modeView(props, t, answerMode),
+    unit: unitView(props, t, () => answered('unit')),
     days: daysView(props, t, toSummary),
     quantity: countView(props, t, 'quantity', toSummary),
     interval: countView(props, t, 'interval', toSummary),
     time: useTimeView(props, toSummary),
-    summary: useSummaryView(props, getHabitPhraseTitle(props.sentence, locale), cadenceText, (step) => go(step, 1, { editing: true })),
+    summary: useSummaryView(props, getHabitPhraseTitle(props.sentence, locale), cadenceText, (step) => go(step, 1, { editing: true, walking: false })),
     remind: useRemindView(props, (step) => { go(view, 1, { pendingEdit: step }); props.onEditSchedule() }),
   }
   const nextIntro = (screen: OnboardingIntroScreen) => {

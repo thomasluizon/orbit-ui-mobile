@@ -8,7 +8,8 @@ import {
   describeOnboardingCadence,
   describeOnboardingResult,
   onboardingGuidedPosition,
-  onboardingModeDetailStep,
+  onboardingModeDetailSteps,
+  onboardingStepAfterAnswer,
   onboardingModeKey,
   onboardingNeedsCadence,
   type OnboardingSchedule,
@@ -28,11 +29,25 @@ describe('guided onboarding navigation', () => {
     expect(onboardingNeedsCadence(buildOnboardingScheduleFromPhrase('Caminhar 3 vezes por semana', 'pt-BR'), false)).toBe(false)
   })
 
-  it('follows each repeat mode with the step that holds its value', () => {
-    expect(onboardingModeDetailStep('fixed')).toBe('days')
-    expect(onboardingModeDetailStep('flexible')).toBe('quantity')
-    expect(onboardingModeDetailStep('interval')).toBe('interval')
-    expect(onboardingModeDetailStep('oneTime')).toBeNull()
+  it('follows each repeat mode with the steps that hold its values, the period before the count', () => {
+    expect(onboardingModeDetailSteps('fixed')).toEqual(['days'])
+    expect(onboardingModeDetailSteps('flexible')).toEqual(['unit', 'quantity'])
+    expect(onboardingModeDetailSteps('interval')).toEqual(['unit', 'interval'])
+    expect(onboardingModeDetailSteps('oneTime')).toEqual([])
+  })
+
+  it('walks the steps of a mode in order and then returns to the summary', () => {
+    expect(onboardingStepAfterAnswer('flexible', 'mode', true)).toBe('unit')
+    expect(onboardingStepAfterAnswer('flexible', 'unit', true)).toBe('quantity')
+    expect(onboardingStepAfterAnswer('flexible', 'quantity', true)).toBe('summary')
+    expect(onboardingStepAfterAnswer('interval', 'unit', true)).toBe('interval')
+    expect(onboardingStepAfterAnswer('fixed', 'mode', true)).toBe('days')
+    expect(onboardingStepAfterAnswer('oneTime', 'mode', true)).toBe('summary')
+  })
+
+  it('returns a step the summary opened by itself straight to the summary', () => {
+    expect(onboardingStepAfterAnswer('flexible', 'unit', false)).toBe('summary')
+    expect(onboardingStepAfterAnswer('interval', 'interval', false)).toBe('summary')
   })
 
   it('counts only the steps that remain for the draft', () => {
@@ -41,6 +56,8 @@ describe('guided onboarding navigation', () => {
     expect(onboardingGuidedPosition('remind', [])).toEqual({ position: 3, total: 3 })
     expect(onboardingGuidedPosition('days', ['mode', 'days'])).toEqual({ position: 3, total: 5 })
     expect(onboardingGuidedPosition('time', ['mode', 'days'])).toEqual({ position: 4, total: 5 })
+    expect(onboardingGuidedPosition('unit', ['mode', 'unit', 'quantity'])).toEqual({ position: 3, total: 6 })
+    expect(onboardingGuidedPosition('quantity', ['mode', 'unit', 'quantity'])).toEqual({ position: 4, total: 6 })
   })
 })
 

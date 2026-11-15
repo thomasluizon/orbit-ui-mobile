@@ -72,7 +72,7 @@ async function press(tree: TestTree, label: string) {
 }
 
 async function typePhrase(tree: TestTree, messages: Messages, phrase: string) {
-  const field = hosts(tree).find((node) => node.type === 'TextInput' && node.props.accessibilityLabel === messages.onboarding.flow.what.title)!
+  const field = hosts(tree).find((node) => node.type === 'TextInput' && node.props.accessibilityLabel === messages.onboarding.flow.guided.what.question)!
   await TestRenderer.act(() => { (field.props.onChangeText as (value: string) => void)(phrase) })
   await press(tree, messages.onboarding.flow.continue)
 }
@@ -112,7 +112,7 @@ describe.each([{ language: 'en', messages: en }, { language: 'pt-BR', messages: 
       expect(texts(tree)).toContain(guided.intro.skip)
       await press(tree, flow.continue)
     }
-    expect(heading(tree)).toBe(flow.what.title)
+    expect(heading(tree)).toBe(guided.what.question)
     expect(useOnboardingDraftStore.getState().introSeen).toBe(true)
   })
 
@@ -120,9 +120,9 @@ describe.each([{ language: 'en', messages: en }, { language: 'pt-BR', messages: 
     const tree = await mount()
     for (let index = 0; index < screenIndex; index += 1) await press(tree, flow.continue)
     await press(tree, guided.intro.skip)
-    expect(heading(tree)).toBe(flow.what.title)
+    expect(heading(tree)).toBe(guided.what.question)
     const again = await mount()
-    expect(heading(again)).toBe(flow.what.title)
+    expect(heading(again)).toBe(guided.what.question)
   })
 
   it('goes from a phrase with a schedule and a time straight to the summary', async () => {
@@ -161,6 +161,72 @@ describe.each([{ language: 'en', messages: en }, { language: 'pt-BR', messages: 
     expect(heading(tree)).toBe(guided.time.question)
     await press(tree, guided.time.none)
     expect(heading(tree)).toBe(guided.summary.question)
+  })
+
+  const optionCards = (tree: TestTree) => hosts(tree).filter((node) => node.props.testID === 'option-card').map((node) => node.props.accessibilityLabel)
+  const summaryRow = (tree: TestTree, label: string) => hosts(tree).find((node) => node.props.accessibilityRole === 'button' && String(node.props.accessibilityLabel).startsWith(`${label},`))
+  const radios = (tree: TestTree) => hosts(tree).filter((node) => node.props.accessibilityRole === 'radio' || node.props.accessibilityRole === 'radiogroup')
+
+  it('asks the period on its own step before the count, with one quick option for each period and no segmented control', async () => {
+    useOnboardingDraftStore.setState({ introSeen: true })
+    const tree = await mount()
+    await typePhrase(tree, messages, language === 'en' ? 'Meditate' : 'Meditar')
+    await press(tree, guided.mode.flexible)
+    expect(heading(tree)).toBe(flow.when.frequencyUnitLabel)
+    expect(progress(tree)).toBe(messages.habits.flow.progress.replace('{position}', '3').replace('{total}', '6'))
+    expect(optionCards(tree)).toEqual([flow.when.units.day, flow.when.units.week, flow.when.units.month, flow.when.units.year])
+    expect(radios(tree)).toHaveLength(0)
+    await press(tree, flow.when.units.month)
+    expect(heading(tree)).toBe(guided.quantity.question)
+    expect(progress(tree)).toBe(messages.habits.flow.progress.replace('{position}', '4').replace('{total}', '6'))
+    expect(radios(tree)).toHaveLength(0)
+    await press(tree, flow.when.quantityMore)
+    await press(tree, flow.continue)
+    expect(heading(tree)).toBe(guided.summary.question)
+    await press(tree, flow.back)
+    expect(heading(tree)).toBe(guided.quantity.question)
+    await press(tree, flow.back)
+    expect(heading(tree)).toBe(flow.when.frequencyUnitLabel)
+  })
+
+  it('shows the period as a summary value that opens its own step and returns with the answer', async () => {
+    useOnboardingDraftStore.setState({ introSeen: true })
+    const tree = await mount()
+    await typePhrase(tree, messages, language === 'en' ? 'Meditate' : 'Meditar')
+    await press(tree, guided.mode.interval)
+    await press(tree, flow.when.units.week)
+    expect(heading(tree)).toBe(guided.interval.question)
+    await press(tree, flow.continue)
+    expect(summaryRow(tree, guided.summary.unit)?.props.accessibilityLabel).toBe(`${guided.summary.unit}, ${flow.when.units.week}`)
+    await TestRenderer.act(() => { (summaryRow(tree, guided.summary.unit)!.props.onPress as () => void)() })
+    expect(heading(tree)).toBe(flow.when.frequencyUnitLabel)
+    await press(tree, flow.when.units.day)
+    expect(heading(tree)).toBe(guided.summary.question)
+    expect(summaryRow(tree, guided.summary.unit)?.props.accessibilityLabel).toBe(`${guided.summary.unit}, ${flow.when.units.day}`)
+    await press(tree, flow.create)
+    expect(mocks.createHabit).toHaveBeenCalledWith(expect.objectContaining({ frequencyUnit: 'Day', frequencyQuantity: 2 }))
+  })
+
+  it('has no period value on the summary of a habit with set days', async () => {
+    useOnboardingDraftStore.setState({ introSeen: true })
+    const tree = await mount()
+    await typePhrase(tree, messages, language === 'en' ? 'Walk every Monday' : 'Caminhar toda segunda')
+    expect(summaryRow(tree, guided.summary.unit)).toBeUndefined()
+  })
+
+  it('shows the emoji as a summary value that opens the emoji picker, and saves the chosen emoji', async () => {
+    useOnboardingDraftStore.setState({ introSeen: true })
+    const tree = await mount()
+    await typePhrase(tree, messages, language === 'en' ? 'Walk every Monday at 18:00' : 'Caminhar toda segunda às 18:00')
+    expect(summaryRow(tree, guided.summary.what)?.props.accessibilityLabel).toBe(`${guided.summary.what}, ${language === 'en' ? 'Walk' : 'Caminhar'}`)
+    await press(tree, messages.habits.form.emojiOpenPicker)
+    expect(texts(tree)).toContain(messages.habits.form.emojiPickerTitle)
+    const option = hosts(tree).find((node) => node.props.accessibilityRole === 'button' && String(node.props.accessibilityLabel).startsWith(`${messages.habits.form.emoji}: `))!
+    const chosen = String(option.props.accessibilityLabel).slice(`${messages.habits.form.emoji}: `.length)
+    await TestRenderer.act(async () => { (option.props.onPress as () => void)(); await Promise.resolve(); await Promise.resolve() })
+    expect(heading(tree)).toBe(guided.summary.question)
+    await press(tree, flow.create)
+    expect(mocks.createHabit).toHaveBeenCalledWith(expect.objectContaining({ emoji: chosen }))
   })
 
   it('keeps the typed habit on the summary after a failed create, offers retry, and opens no dialog', async () => {
@@ -236,6 +302,9 @@ it('sends the suggestion the same body as the current flow', async () => {
   await typePhrase(tree, en, 'Walk')
   expect(mocks.suggest).toHaveBeenCalledWith({ title: 'Walk', language: 'en' })
   expect(heading(tree)).toBe(en.onboarding.flow.guided.summary.question)
+  const emojiControl = hosts(tree).find((node) => node.props.accessibilityRole === 'button' && node.props.accessibilityLabel === en.habits.form.emojiOpenPicker)!
+  expect(textOf(emojiControl)).toBe('🚶')
+  expect(emojiControl.props.accessibilityHint).toBe(en.habits.form.proposedByAstra)
 })
 
 it('renders the current Android onboarding with the flag off', async () => {

@@ -25,7 +25,8 @@ import { useOnboardingDraftStore } from '@/stores/onboarding-draft-store'
 
 const LOCALES = [{ locale: 'en', messages: en }, { locale: 'pt-BR', messages: ptBR }] as const
 const WIDTHS = [320, 360, 384, 412] as const
-const HEIGHT = 667
+/** The intro fits a short phone. The first question holds the starters, the phrase field and the account link, so it fits a tall phone only. */
+const HEIGHTS = [667, 844] as const
 const actions = { createHabit: vi.fn(), updateHabit: vi.fn(), createHabitsBulk: vi.fn(), logHabit: vi.fn(), createGoal: vi.fn(), setWeekStartDay: vi.fn(), deferPushRegistration: vi.fn(), recordCompletion: vi.fn(), finishOnboarding: vi.fn() } satisfies OnboardingActions
 
 /** Each screen of the intro and the first question, as markup, rendered still so the measure reads the resting layout. */
@@ -71,6 +72,7 @@ async function measure(page: Page) {
       labels: [...flow.querySelectorAll('button')].filter((button) => button.textContent.trim()).map((button) => ({ label: button.textContent.trim(), lines: lineCount(button) })),
       sentenceClipped: sentence ? sentence.scrollHeight > sentence.clientHeight + 1 || sentence.scrollWidth > sentence.clientWidth + 1 : false,
       centreOffset: Math.abs((block.top + block.bottom) / 2 - (main.top + main.bottom) / 2),
+      underHeaderOffset: Math.abs(block.top - main.top),
       blockFits: block.height < main.height,
     }
   })
@@ -87,19 +89,21 @@ describe('guided onboarding layout', () => {
   }, 30_000)
   afterAll(async () => { await closeChrome(launch) }, 30_000)
 
-  it.each(LOCALES.flatMap(({ locale, messages }) => WIDTHS.map((width) => ({ locale, messages, width }))))('holds each intro title and action label on one line, the first question in two lines at most, and centres the block at $width in $locale', async ({ locale, messages, width }) => {
+  it.each(LOCALES.flatMap(({ locale, messages }) => WIDTHS.flatMap((width) => HEIGHTS.map((height) => ({ locale, messages, width, height })))))('holds each intro title and action label on one line, the first question in two lines at most, and centres the block that fits at $width by $height in $locale', async ({ locale, messages, width, height }) => {
     const screens = captureScreens(locale, messages)
     const tokens = Object.entries(resolveWebThemeVariables('orange', 'dark')).map(([key, value]) => `${key}:${value}`).join(';')
-    const page = await browser.newPage({ viewport: { width, height: HEIGHT }, reducedMotion: 'reduce' })
+    const page = await browser.newPage({ viewport: { width, height }, reducedMotion: 'reduce' })
     try {
       for (const [index, markup] of screens.entries()) {
-        await page.setContent(`<!doctype html><style>${stylesheet}:root{${tokens}}body{margin:0;background:var(--bg)}#frame{display:flex;flex-direction:column;width:${width}px;height:${HEIGHT}px}</style><div id="frame">${markup}</div>`)
+        await page.setContent(`<!doctype html><style>${stylesheet}:root{${tokens}}body{margin:0;background:var(--bg)}#frame{display:flex;flex-direction:column;width:${width}px;height:${height}px}</style><div id="frame">${markup}</div>`)
         await loadAppFonts(page)
         const result = await measure(page)
         expect(result.title, `title of screen ${index}`).toBeLessThanOrEqual(index < 3 ? 1 : 2)
         for (const label of result.labels) expect(label.lines, label.label).toBe(1)
         expect(result.sentenceClipped).toBe(false)
-        expect(result.centreOffset).toBeLessThanOrEqual(1)
+        if (index < 3 || height === HEIGHTS[1]) expect(result.blockFits, `screen ${index} fits`).toBe(true)
+        if (result.blockFits) expect(result.centreOffset, `centre of screen ${index}`).toBeLessThanOrEqual(1)
+        else expect(result.underHeaderOffset, `screen ${index} is taller than the space, so it starts under the header`).toBeLessThanOrEqual(1)
       }
     } finally { await page.close() }
   }, 60_000)

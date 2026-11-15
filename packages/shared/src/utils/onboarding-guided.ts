@@ -1,3 +1,4 @@
+import type { FrequencyUnit } from '../types/habit'
 import { describeHabitResult, type HabitResultSentence } from './habit-flow'
 import { getOnboardingScheduleMode, type OnboardingSchedule, type OnboardingScheduleMode } from './onboarding'
 
@@ -6,15 +7,18 @@ export const ONBOARDING_INTRO_SCREENS = ['talk', 'routine', 'restart'] as const
 export type OnboardingIntroScreen = (typeof ONBOARDING_INTRO_SCREENS)[number]
 
 /** The question steps of the guided onboarding, after the intro. */
-export type OnboardingQuestionStep = 'what' | 'mode' | 'days' | 'quantity' | 'interval' | 'time' | 'summary' | 'remind'
+export type OnboardingQuestionStep = 'what' | 'mode' | 'unit' | 'days' | 'quantity' | 'interval' | 'time' | 'summary' | 'remind'
 
 export const ONBOARDING_MODE_OPTIONS: readonly OnboardingScheduleMode[] = ['fixed', 'flexible', 'interval', 'oneTime']
 
-const DETAIL_STEP_BY_MODE: Record<OnboardingScheduleMode, OnboardingQuestionStep | null> = {
-  fixed: 'days',
-  flexible: 'quantity',
-  interval: 'interval',
-  oneTime: null,
+/** The periods of a count or an interval, as the quick options of the period question. */
+export const ONBOARDING_UNIT_OPTIONS: readonly FrequencyUnit[] = ['Day', 'Week', 'Month', 'Year']
+
+const DETAIL_STEPS_BY_MODE: Record<OnboardingScheduleMode, readonly OnboardingQuestionStep[]> = {
+  fixed: ['days'],
+  flexible: ['unit', 'quantity'],
+  interval: ['unit', 'interval'],
+  oneTime: [],
 }
 
 /** Whether the read left the schedule open: no repeat, no day and no count. Only then the flow asks how it repeats. */
@@ -23,9 +27,19 @@ export function onboardingNeedsCadence(schedule: OnboardingSchedule, proposed: b
   return schedule.isGeneral && schedule.frequencyUnit === null && schedule.days.length === 0 && !schedule.isFlexible
 }
 
-/** The step that holds the value of a repeat mode. A one-time habit has none. */
-export function onboardingModeDetailStep(mode: OnboardingScheduleMode): OnboardingQuestionStep | null {
-  return DETAIL_STEP_BY_MODE[mode]
+/** The steps that hold the values of a repeat mode, in the order the flow asks them. A count or an interval asks its period first. A one-time habit has none. */
+export function onboardingModeDetailSteps(mode: OnboardingScheduleMode): readonly OnboardingQuestionStep[] {
+  return DETAIL_STEPS_BY_MODE[mode]
+}
+
+/**
+ * The step after an answer inside the repeat steps. While the flow walks the steps of a mode, it is the next
+ * step of that mode, then the summary. A step the summary opened by itself returns to the summary.
+ */
+export function onboardingStepAfterAnswer(mode: OnboardingScheduleMode, answered: OnboardingQuestionStep, walking: boolean): OnboardingQuestionStep {
+  if (!walking) return 'summary'
+  const steps = onboardingModeDetailSteps(mode)
+  return steps[steps.indexOf(answered) + 1] ?? 'summary'
 }
 
 /**
