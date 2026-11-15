@@ -179,7 +179,7 @@
     ".claude/skills/audit-tests/SKILL.md": {
       "model": null,
       "effort": null,
-      "digest": "f7c158149b0bc8fd",
+      "digest": "d9d6ac51e6c5646b",
       "calibratedAt": "2026-11-15",
       "verdict": "undeclared, inherits the session: the test audit judges coverage and opens tickets."
     },
