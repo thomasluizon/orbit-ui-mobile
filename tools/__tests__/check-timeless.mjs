@@ -284,6 +284,74 @@ export const cases = () => {
   T("a checker change that matches an unchanged file fails base",
     baseWiden.status === 1 && baseWiden.stderr.includes("notes.md:1: dated-anecdote: 2025/01/02"))
   rmSync(widened, { recursive: true, force: true })
+
+  const ownerFinding = (name) => `${name}:1: owner-name: ${owner}`
+  const touchChecker = (root) => {
+    const file = join(root, "tools", "check-timeless.mjs")
+    writeFileSync(file, `${readFileSync(file, "utf8")}// note\n`)
+    git(root, "add", "tools/check-timeless.mjs")
+  }
+  const gitlinked = fixture("gitlink", "a.md", "clean\n")
+  const gitlinkBase = git(gitlinked, "rev-parse", "HEAD").stdout.trim()
+  git(gitlinked, "update-index", "--add", "--cacheinfo", `160000,${"1".repeat(40)},b-sub`)
+  mkdirSync(join(gitlinked, "b-sub"))
+  writeFileSync(join(gitlinked, "z.md"), `Ask ${owner}.\n`)
+  git(gitlinked, "add", "z.md")
+  touchChecker(gitlinked)
+  const gitlinkRuns = [run(gitlinked, ["--staged"]), run(gitlinked, ["--all"])]
+  git(gitlinked, "commit", "-qm", "gitlink")
+  gitlinkRuns.push(run(gitlinked, ["--base", gitlinkBase]))
+  T("a gitlink does not shift the later files in staged, all and base",
+    gitlinkRuns.every((result) => result.status === 1 && result.stderr.trim() === ownerFinding("z.md")))
+  rmSync(gitlinked, { recursive: true, force: true })
+
+  const oddNames = fixture("odd-path-names", "design/canvas/x.md", `On ${date}.\n`)
+  writeFileSync(join(oddNames, "tools", "timeless-allowlist.json"), JSON.stringify(canvasEntries.slice(1)))
+  writeFileSync(join(oddNames, "a\nb.md"), "clean\n")
+  writeFileSync(join(oddNames, "c\r"), `Ask ${owner}.\n`)
+  git(oddNames, "add", "-A")
+  git(oddNames, "commit", "-qm", "names")
+  const oddBase = git(oddNames, "rev-parse", "HEAD").stdout.trim()
+  touchChecker(oddNames)
+  const oddRuns = [run(oddNames, ["--staged"]), run(oddNames, ["--all"])]
+  git(oddNames, "commit", "-qm", "checker")
+  oddRuns.push(run(oddNames, ["--base", oddBase]))
+  T("a path with a newline or a carriage return keeps its own content in staged, all and base",
+    oddRuns.every((result) => result.status === 1 && result.stderr.trim() === ownerFinding("c\r")))
+  rmSync(oddNames, { recursive: true, force: true })
+
+  const linked = fixture("symlinks", "design/canvas/kept.md", `Ask ${owner}.\n`)
+  writeFileSync(join(linked, "tools", "timeless-allowlist.json"), JSON.stringify(canvasEntries.slice(0, 1)))
+  git(linked, "add", "tools/timeless-allowlist.json")
+  git(linked, "commit", "-qm", "allow")
+  const linkBase = git(linked, "rev-parse", "HEAD").stdout.trim()
+  mkdirSync(join(linked, "docs"))
+  symlinkSync("../design/canvas/kept.md", join(linked, "docs", "link.md"))
+  symlinkSync("design/canvas", join(linked, "canvaslink"))
+  symlinkSync(path, join(linked, "machine-link"))
+  git(linked, "add", "-A")
+  const linkRuns = [run(linked, ["--staged"])]
+  touchChecker(linked)
+  linkRuns.push(run(linked, ["--staged"]), run(linked, ["--all"]))
+  git(linked, "commit", "-qm", "links")
+  linkRuns.push(run(linked, ["--base", linkBase]))
+  T("a tracked symlink is skipped in staged, all and base", linkRuns.every((result) => result.status === 0))
+  rmSync(linked, { recursive: true, force: true })
+
+  const commentBlock = (count, tag) => Array.from({ length: count }, (_, index) => `// ${tag} ${index}`).join("\n") + "\n"
+  const shortened = fixture("comment-shortened", "src/a.js", `${commentBlock(12, "first")}const a = 1\n${commentBlock(12, "second")}`)
+  writeFileSync(join(shortened, "tools", "timeless-allowlist.json"), JSON.stringify([{ path: "src/a.js", rule: "comment-length", match: "12 lines", reason: "reviewed" }]))
+  git(shortened, "add", "tools/timeless-allowlist.json")
+  git(shortened, "commit", "-qm", "allow")
+  const shortenedBase = git(shortened, "rev-parse", "HEAD").stdout.trim()
+  writeFileSync(join(shortened, "src", "a.js"), `${commentBlock(9, "first")}const a = 1\n${commentBlock(12, "second")}`)
+  git(shortened, "add", "src/a.js")
+  const shortenedRuns = [run(shortened, ["--staged"])]
+  git(shortened, "commit", "-qm", "shorten")
+  shortenedRuns.push(run(shortened, ["--base", shortenedBase]))
+  T("a long comment that gets shorter but stays over the limit fails staged and base",
+    shortenedRuns.every((result) => result.status === 1 && result.stderr.includes("src/a.js:1: comment-length: 9 lines")))
+  rmSync(shortened, { recursive: true, force: true })
   writeFileSync(join(safe, "tools", "timeless-allowlist.json"), JSON.stringify([{ path: "sample.js", rule: "owner-name", match: owner, reason: "unused" }]))
   T("an unused allowlist entry fails", run(safe, ["--all"]).status === 1)
   const scratch = join(tmpdir(), "timeless-scratchpad.txt")

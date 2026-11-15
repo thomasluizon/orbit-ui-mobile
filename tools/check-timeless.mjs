@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { spawnSync } from "node:child_process"
-import { existsSync, readFileSync, realpathSync } from "node:fs"
+import { existsSync, lstatSync, readFileSync, realpathSync } from "node:fs"
 import { createRequire } from "node:module"
 import { dirname, extname, join, relative, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
@@ -9,6 +9,8 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..")
 const SELF = fileURLToPath(import.meta.url)
 const ALLOWLIST = "tools/timeless-allowlist.json"
 const CHECKER = "tools/check-timeless.mjs"
+/** Only regular files are scanned: a symlink target is its own tracked file, and a gitlink has no text. */
+const REGULAR = new Set(["100644", "100755"])
 const USAGE = "usage: check-timeless.mjs --all | --base <ref> | --staged | --hook"
 const machine = new RegExp([
   "/" + "Users/", "[A-Za-z]:\\\\+Users", "/private/" + "tmp", "/private/" + "var", "/var/" + "folders",
@@ -30,15 +32,19 @@ function git(args, options = {}) {
   return result.stdout
 }
 
-/** Reads every object in one `git cat-file --batch` call; a missing object reads as null. */
+/** Reads every blob in one NUL-separated `git cat-file --batch -Z` call; a missing object reads as null. */
 function blobs(specs) {
-  const output = git(["cat-file", "--batch"], { input: Buffer.from(specs.map((spec) => `${spec}\n`).join("")), encoding: "buffer", maxBuffer: 1024 * 1024 * 1024 })
+  const output = git(["cat-file", "--batch", "-Z"], { input: Buffer.from(specs.map((spec) => `${spec}\0`).join("")), encoding: "buffer", maxBuffer: 1024 * 1024 * 1024 })
   const contents = []
-  for (let offset = 0; contents.length < specs.length;) {
-    const headerEnd = output.indexOf(10, offset)
-    const header = output.toString("utf8", offset, headerEnd).split(" ")
-    if (header.at(-1) === "missing") { contents.push(null); offset = headerEnd + 1; continue }
-    const end = headerEnd + 1 + Number(header.at(-1))
+  let offset = 0
+  for (const spec of specs) {
+    const headerEnd = output.indexOf(0, offset)
+    const header = output.toString("utf8", offset, Math.max(headerEnd, offset)).split(" ")
+    if (headerEnd >= 0 && header.at(-1) === "missing") { contents.push(null); offset = headerEnd + 1; continue }
+    const end = headerEnd + 1 + Number(header[2])
+    if (headerEnd < 0 || header.length !== 3 || header[1] !== "blob" || !/^\d+$/.test(header[2]) || output[end] !== 0) {
+      throw new Error(`git cat-file returned an unexpected record for ${JSON.stringify(spec)}`)
+    }
     contents.push(output.toString("utf8", headerEnd + 1, end))
     offset = end + 1
   }
@@ -221,46 +227,25 @@ function findings(path, content, root = ROOT) {
 }
 
 function changedPaths(args) {
-  const parts = git(["diff", "--no-renames", "--name-status", "-z", ...args]).split("\0")
+  const parts = git(["diff", "--no-renames", "--raw", "-z", ...args]).split("\0")
   const paths = []
   for (let index = 0; index + 1 < parts.length; index += 2) {
-    if (parts[index]) paths.push({ status: parts[index], path: parts[index + 1] })
+    if (!parts[index]) continue
+    const [oldMode, newMode] = parts[index].slice(1).split(" ")
+    paths.push({ path: parts[index + 1], oldMode, newMode })
   }
   return paths
 }
 
 function newFindings(path, before, after, root = ROOT) {
-  const previous = findings(path, before, root)
-  const current = findings(path, after, root)
-  const counts = new Map(), lengths = []
-  for (const item of previous) {
-    if (item.rule === "comment-length") lengths.push(Number.parseInt(item.match, 10))
-    else {
-      const key = JSON.stringify([item.rule, item.match])
-      counts.set(key, (counts.get(key) ?? 0) + 1)
-    }
-  }
-  lengths.sort((left, right) => left - right)
-  const added = []
-  const ordered = [
-    ...current.filter((item) => item.rule !== "comment-length"),
-    ...current.filter((item) => item.rule === "comment-length")
-      .sort((left, right) => Number.parseInt(right.match, 10) - Number.parseInt(left.match, 10)),
-  ]
-  for (const item of ordered) {
-    if (item.rule === "comment-length") {
-      const length = Number.parseInt(item.match, 10)
-      const index = lengths.findIndex((previousLength) => previousLength >= length)
-      if (index < 0) added.push(item)
-      else lengths.splice(index, 1)
-    } else {
-      const key = JSON.stringify([item.rule, item.match])
-      const count = counts.get(key) ?? 0
-      if (count) counts.set(key, count - 1)
-      else added.push(item)
-    }
-  }
-  return added
+  const key = (item) => JSON.stringify([item.rule, item.match])
+  const counts = new Map()
+  for (const item of findings(path, before, root)) counts.set(key(item), (counts.get(key(item)) ?? 0) + 1)
+  return findings(path, after, root).filter((item) => {
+    const count = counts.get(key(item)) ?? 0
+    if (count) counts.set(key(item), count - 1)
+    return !count
+  })
 }
 
 function allowlist(text) {
@@ -374,14 +359,16 @@ try {
     const texts = contents(paths)
     return paths.flatMap((path, index) => texts[index] === null ? [] : findings(path, texts[index]))
   }
-  const tracked = () => (args[0] === "--base" ? git(["ls-tree", "-r", "-z", "--name-only", "HEAD"]) : git(["ls-files", "-z"]))
-    .split("\0").filter(Boolean)
+  const tracked = () => changes
+    ? (args[0] === "--base" ? git(["ls-tree", "-r", "-z", "HEAD"]) : git(["ls-files", "-s", "-z"])).split("\0")
+      .filter((entry) => REGULAR.has(entry.slice(0, entry.indexOf(" ")))).map((entry) => entry.slice(entry.indexOf("\t") + 1))
+    : git(["ls-files", "-z"]).split("\0").filter((path) => path && lstatSync(join(ROOT, path), { throwIfNoEntry: false })?.isFile())
   const allowed = allowlist(contents([ALLOWLIST])[0])
   // A change to the allowlist or the checker can expose any finding or leave any entry unused: scan the whole state, as --all does.
   if (!changes || changes.some(({ path }) => path === ALLOWLIST || path === CHECKER)) process.exit(report(scan(tracked()), allowed, allowed.keys()))
   const results = []
-  for (const { path, status } of changes.filter(({ status }) => "ACMT".includes(status))) {
-    const before = status === "A" ? "" : git(["show", `${oldRef}:${path}`])
+  for (const { path, oldMode } of changes.filter(({ newMode }) => REGULAR.has(newMode))) {
+    const before = REGULAR.has(oldMode) ? git(["show", `${oldRef}:${path}`]) : ""
     results.push(...newFindings(path, before, git(["show", state + path])))
   }
   const { checked, usage } = changedEntryUsage(allowed, changes.map(({ path }) => path), tracked, scan)
