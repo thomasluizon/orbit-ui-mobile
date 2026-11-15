@@ -75,12 +75,12 @@ describe('the goal step', () => {
   it('shows a skeleton while the goals load and a retry after an error, never the line of a person with no goal', () => {
     state.goalsQuery = 'loading'
     const view = render(<Harness />)
-    expect(heading()).toHaveAccessibleDescription('Uma meta soma o progresso dos hábitos ligados a ela.')
+    expect(heading()).toHaveAccessibleDescription('Eu somo o progresso dos hábitos ligados a uma meta.')
     expect(screen.getByLabelText(ptBR.common.loading)).toBeInTheDocument()
     view.unmount()
     state.goalsQuery = 'error'
     render(<Harness />)
-    expect(heading()).toHaveAccessibleDescription('Uma meta soma o progresso dos hábitos ligados a ela.')
+    expect(heading()).toHaveAccessibleDescription('Eu somo o progresso dos hábitos ligados a uma meta.')
     expect(screen.getByText('Não foi possível carregar suas metas. Tente de novo.')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: ptBR.common.retry }))
     expect(state.refetch).toHaveBeenCalledTimes(1)
@@ -90,7 +90,7 @@ describe('the goal step', () => {
     state.goals = [...goals(3), createMockGoal({ id: 'done', title: 'Meta concluída', status: 'Completed' })]
     const onContinue = vi.fn()
     render(<Harness onContinue={onContinue} />)
-    expect(heading()).toHaveAccessibleDescription('Uma meta soma o progresso dos hábitos ligados a ela.')
+    expect(heading()).toHaveAccessibleDescription('Eu somo o progresso dos hábitos ligados a uma meta.')
     expect(options().map((option) => option.textContent), 'each quick goal shows its progress').toEqual(['Meta 1, 0%', 'Meta 2, 10%', 'Meta 3, 20%', 'Criar meta'])
     await press('Meta 2, 10%')
     expect(screen.getByRole('button', { name: 'Meta 2, 10%' })).toHaveAttribute('aria-pressed', 'true')

@@ -134,7 +134,7 @@ describe('the template question inside the checklist step', () => {
     render(<Harness />)
     await press('Usar modelo')
     expect(heading()).toHaveTextContent('Qual modelo você quer usar?')
-    expect(heading()).toHaveAccessibleDescription('Um modelo é uma lista de passos que você guardou para usar de novo.')
+    expect(heading()).toHaveAccessibleDescription('Um modelo é uma lista de passos que eu guardei para você usar de novo.')
     await press('Treino, 2 itens')
     expect(state.items).toEqual(items('Alongar', 'Correr'))
     expect(heading()).toHaveTextContent('Tem passos dentro disso?')
@@ -152,7 +152,7 @@ describe('the template question inside the checklist step', () => {
   it('says there is no template and offers the item editor', async () => {
     render(<Harness />)
     await press('Usar modelo')
-    expect(heading()).toHaveAccessibleDescription('Você ainda não guardou nenhum modelo. Escreva os passos e eu guardo para a próxima.')
+    expect(heading()).toHaveAccessibleDescription('Ainda não tenho modelos seus, então escreva os passos que eu guardo.')
     expect(screen.queryByRole('group', { name: 'Qual modelo você quer usar?' })).not.toBeInTheDocument()
     await press('Escrever passos')
     expect(heading()).toHaveTextContent('Tem passos dentro disso?')
@@ -162,7 +162,7 @@ describe('the template question inside the checklist step', () => {
     state.templatesError = true
     render(<Harness />)
     await press('Usar modelo')
-    expect(heading()).toHaveAccessibleDescription('Um modelo é uma lista de passos que você guardou para usar de novo.')
+    expect(heading()).toHaveAccessibleDescription('Um modelo é uma lista de passos que eu guardei para você usar de novo.')
     expect(screen.getByText('Não foi possível carregar seus modelos. Tente de novo.')).toBeInTheDocument()
     await press(ptBR.common.retry)
     expect(state.refetchTemplates).toHaveBeenCalledTimes(1)

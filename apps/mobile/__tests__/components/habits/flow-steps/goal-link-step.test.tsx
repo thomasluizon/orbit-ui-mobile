@@ -104,7 +104,7 @@ describe('the goal step on Android', () => {
     state.goals = [...goals(3), createMockGoal({ id: 'done', title: 'Meta concluída', status: 'Completed' })]
     const onContinue = vi.fn()
     const tree = renderNavigation(<Harness onContinue={onContinue} />)
-    expect(header(tree).props).toMatchObject({ accessibilityHint: 'Uma meta soma o progresso dos hábitos ligados a ela.' })
+    expect(header(tree).props).toMatchObject({ accessibilityHint: 'Eu somo o progresso dos hábitos ligados a uma meta.' })
     expect(optionLabels(tree), 'each quick goal shows its progress').toEqual(['Meta 1, 0%', 'Meta 2, 10%', 'Meta 3, 20%', 'Criar meta'])
     await tap(option(tree, 'Meta 2, 10%'))
     expect(option(tree, 'Meta 2, 10%').props.accessibilityState).toMatchObject({ selected: true })

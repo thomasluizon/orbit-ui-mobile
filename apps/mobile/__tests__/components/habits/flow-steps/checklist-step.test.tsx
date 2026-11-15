@@ -192,7 +192,7 @@ describe('the template question inside the checklist step on Android', () => {
   it('says there is no template and offers the item editor', async () => {
     const tree = renderNavigation(<Harness />)
     await tap(tree, 'Usar modelo')
-    expect(textOf(tree)).toContain('Você ainda não guardou nenhum modelo. Escreva os passos e eu guardo para a próxima.')
+    expect(textOf(tree)).toContain('Ainda não tenho modelos seus, então escreva os passos que eu guardo.')
     await tap(tree, 'Escrever passos')
     expect(headings(tree)).toEqual(['Tem passos dentro disso?'])
     tree.unmount()
@@ -203,7 +203,7 @@ describe('the template question inside the checklist step on Android', () => {
     const tree = renderNavigation(<Harness />)
     await tap(tree, 'Usar modelo')
     expect(textOf(tree)).toContain('Não foi possível carregar seus modelos. Tente de novo.')
-    expect(textOf(tree)).not.toContain('Você ainda não guardou nenhum modelo. Escreva os passos e eu guardo para a próxima.')
+    expect(textOf(tree)).not.toContain('Ainda não tenho modelos seus, então escreva os passos que eu guardo.')
     await tap(tree, i18n.t('common.retry'))
     expect(state.refetchTemplates).toHaveBeenCalledTimes(1)
     await tap(tree, 'Escrever passos')

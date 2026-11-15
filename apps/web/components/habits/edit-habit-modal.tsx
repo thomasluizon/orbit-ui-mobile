@@ -521,7 +521,7 @@ function EditHabitDraft({
     emojiSuggestionLimitReached: emojiFailure?.habitId === sessionHabitId && emojiFailure.title === watchedTitle && emojiFailure.atLimit,
     isSuggesting: suggestion.isPending,
     lockedGeneral: parent.lockedGeneral,
-    parentField: <EditorParentField parent={{ ...parent, select: (id) => { if (!submittingRef.current) parent.select(id) } }} disabled={saving || detailFieldsPending} onRetryDetail={() => void refetchDetail()} />,
+    parentField: <EditorParentField parent={{ ...parent, select: (id) => { if (!submittingRef.current) parent.select(id) } }} disabled={saving || detailFieldsPending} guided={guided} onRetryDetail={() => void refetchDetail()} />,
     defaultExpanded: true,
     startDate: habit && getHabitDisplayStartDate(habit),
   }

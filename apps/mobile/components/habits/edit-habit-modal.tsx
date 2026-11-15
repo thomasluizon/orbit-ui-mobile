@@ -558,7 +558,7 @@ function EditHabitDraft({
     isEmojiSuggesting,
     ...emojiFailureFields(visibleFailure),
     isSuggesting: suggestion.isPending,
-    parentField: <EditorParentField parent={{ ...parent, select: (id) => { if (!submittingRef.current) parent.select(id) } }} disabled={saving || detailFieldsPending} onRetryDetail={() => void refetchDetail()} />,
+    parentField: <EditorParentField parent={{ ...parent, select: (id) => { if (!submittingRef.current) parent.select(id) } }} disabled={saving || detailFieldsPending} guided={guided} onRetryDetail={() => void refetchDetail()} />,
     defaultExpanded: true,
     lockedGeneral: parent.lockedGeneral,
     onUpgrade: navigateToUpgrade,

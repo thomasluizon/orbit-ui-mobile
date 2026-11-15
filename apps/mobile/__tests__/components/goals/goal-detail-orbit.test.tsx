@@ -109,12 +109,12 @@ describe('goal detail on the Orbit logic', () => {
   afterEach(async () => { await act(() => tree.unmount()); vi.useRealTimers() })
 
   it.each([
-    ['en', '2026-11-20', '7 days left until the deadline.'],
-    ['pt-BR', '2026-11-20', 'Faltam 7 dias para o prazo.'],
-    ['en', '2026-11-14', '1 day left until the deadline.'],
-    ['pt-BR', '2026-11-14', 'Falta 1 dia para o prazo.'],
-    ['en', '2026-11-13', 'The deadline is today.'],
-    ['pt-BR', '2026-11-13', 'O prazo é hoje.'],
+    ['en', '2026-11-20', 'By my count, 7 days are left until the deadline.'],
+    ['pt-BR', '2026-11-20', 'Pelas minhas contas, faltam 7 dias para o prazo.'],
+    ['en', '2026-11-14', 'By my count, 1 day is left until the deadline.'],
+    ['pt-BR', '2026-11-14', 'Pelas minhas contas, falta 1 dia para o prazo.'],
+    ['en', '2026-11-13', 'By my count, the deadline is today.'],
+    ['pt-BR', '2026-11-13', 'Pelas minhas contas, o prazo é hoje.'],
   ] as const)('states one date fact in the Orbit line in %s for %s', async (locale, deadline, sentence) => {
     await useCatalog(locale)
     detailGoal = { ...detailGoal, deadline }
@@ -130,13 +130,13 @@ describe('goal detail on the Orbit logic', () => {
   it('states a passed deadline with its date', async () => {
     detailGoal = { ...detailGoal, deadline: '2026-10-03' }
     await renderDetail()
-    expect(byProp(tree.root, 'testID', 'today-astra-slot').props.accessibilityLabel).toBe(`The deadline was ${formatLocaleDate('2026-10-03', 'en')}.`)
+    expect(byProp(tree.root, 'testID', 'today-astra-slot').props.accessibilityLabel).toBe(`By my count, the deadline ended on ${formatLocaleDate('2026-10-03', 'en')}.`)
   })
 
   it('opens the conversation with the seeded question from the line row, the one way in', async () => {
     detailGoal = { ...detailGoal, deadline: '2026-11-20' }
     await renderDetail()
-    await press('7 days left until the deadline.')
+    await press('By my count, 7 days are left until the deadline.')
     expect(useUIStore.getState().astraConversationOpen).toBe(true)
     expect(pressables(`${i18n.t('goals.detail.askAstraEyebrow')}: ${i18n.t('goals.detail.askAstraDefault')}`)).toHaveLength(0)
   })

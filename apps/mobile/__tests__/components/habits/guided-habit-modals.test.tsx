@@ -123,7 +123,7 @@ describe('the Android create surface behind orbit_guided_flows', () => {
       title: 'ligar para o João', isBadHabit: false, dueDate: '2026-11-14', dueTime: '08:00', reminderEnabled: false, reminderTimes: [], relativeReminders: [],
     })
     expect(state.completed).toHaveBeenCalledWith('habit_create', 5, false)
-    expect(tree.hosts().some((node) => typeof node.props.children === 'string' && node.props.children.includes('08:00') && node.props.children.startsWith('A tarefa foi criada para'))).toBe(true)
+    expect(tree.hosts().some((node) => typeof node.props.children === 'string' && node.props.children.includes('08:00') && node.props.children.startsWith('A tarefa ficou marcada para'))).toBe(true)
     tree.unmount()
   })
 })
