@@ -50,7 +50,7 @@ Drawn references: [Orbit conversation](canvas/Orbit%20Astra%20Conversation.dc.ht
 | [apps/mobile/app/search.tsx:82](../apps/mobile/app/search.tsx#L82) | `{t('habits.search.previous')}` | ChevronLeft |
 | [apps/mobile/app/search.tsx:83](../apps/mobile/app/search.tsx#L83) | `{t('habits.search.next')}` | ChevronRight |
 | [apps/mobile/app/upgrade.tsx:79](../apps/mobile/app/upgrade.tsx#L79) | `{t('upgrade.billing.retry')}` | RefreshCw |
-| [apps/mobile/components/auth/turnstile-widget.tsx:90](../apps/mobile/components/auth/turnstile-widget.tsx#L90) | `{t('auth.turnstileRetry')}` | RefreshCw |
+| [apps/mobile/components/auth/turnstile-widget.tsx:117](../apps/mobile/components/auth/turnstile-widget.tsx#L117) | `{t('auth.turnstileRetry')}` | RefreshCw |
 | [apps/mobile/components/calendar-sync/calendar-import-content.tsx:496](../apps/mobile/components/calendar-sync/calendar-import-content.tsx#L496) | `{t('common.goBack')}` | ChevronLeft |
 | [apps/mobile/components/calendar-sync/calendar-import-content.tsx:549](../apps/mobile/components/calendar-sync/calendar-import-content.tsx#L549) | `{t('calendar.showMore')}` | ChevronDown |
 | [apps/mobile/components/calendar-sync/calendar-import-content.tsx:629](../apps/mobile/components/calendar-sync/calendar-import-content.tsx#L629) | `{t('common.goBack')}` | ChevronLeft |
@@ -108,7 +108,7 @@ Drawn references: [Orbit conversation](canvas/Orbit%20Astra%20Conversation.dc.ht
 | [apps/mobile/components/onboarding/onboarding-flow.tsx:124](../apps/mobile/components/onboarding/onboarding-flow.tsx#L124) | `{t('onboarding.flow.retry')}` | RefreshCw |
 | [apps/mobile/components/onboarding/onboarding-pro-step.tsx:83](../apps/mobile/components/onboarding/onboarding-pro-step.tsx#L83) | `{t('upgrade.billing.retry')}` | RefreshCw |
 | [apps/mobile/components/profile/notion-connection-sheet.tsx:55](../apps/mobile/components/profile/notion-connection-sheet.tsx#L55) | `{t('common.retry')}` | RefreshCw |
-| [apps/mobile/components/profile/preferences-sections.tsx:116](../apps/mobile/components/profile/preferences-sections.tsx#L116) | `{showMoreLabel}` | ChevronDown |
+| [apps/mobile/components/profile/preferences-sections.tsx:136](../apps/mobile/components/profile/preferences-sections.tsx#L136) | `{showMoreLabel}` | ChevronDown |
 | [apps/mobile/components/profile/profile-api-keys.tsx:197](../apps/mobile/components/profile/profile-api-keys.tsx#L197) | `{t('common.cancel')}` | Drawn ghost text (`sm`) |
 | [apps/mobile/components/profile/profile-api-keys.tsx:287](../apps/mobile/components/profile/profile-api-keys.tsx#L287) | `{copied ? t('orbitMcp.copied') : t('orbitMcp.copy')}` | Copy |
 | [apps/mobile/components/profile/profile-mcp-guide.tsx:44](../apps/mobile/components/profile/profile-mcp-guide.tsx#L44) | `{copyState === 'copied' ? t('orbitMcp.copied') : t('orbitMcp.copy')}` | Copy |
@@ -135,7 +135,7 @@ Drawn references: [Orbit conversation](canvas/Orbit%20Astra%20Conversation.dc.ht
 | [apps/mobile/components/upgrade/provider-handoff.tsx:54](../apps/mobile/components/upgrade/provider-handoff.tsx#L54) | `{t('upgrade.billing.retry')}` | RefreshCw |
 | [apps/mobile/components/wrapped/wrapped-cover.tsx:99](../apps/mobile/components/wrapped/wrapped-cover.tsx#L99) | `{t('wrapped.retry')}` | RefreshCw |
 | [apps/mobile/components/wrapped/wrapped-slide.tsx:121](../apps/mobile/components/wrapped/wrapped-slide.tsx#L121) | `{t('wrapped.retry')}` | RefreshCw |
-| [apps/web/app/(app)/preferences/_components/preference-picker-sheet.tsx:111](../apps/web/app/(app)/preferences/_components/preference-picker-sheet.tsx#L111) | `{showMoreLabel}` | ChevronDown |
+| [apps/web/app/(app)/preferences/_components/preference-picker-sheet.tsx:129](../apps/web/app/(app)/preferences/_components/preference-picker-sheet.tsx#L129) | `{showMoreLabel}` | ChevronDown |
 | [apps/web/app/(app)/profile/_components/delete-account-modal.tsx:129](../apps/web/app/(app)/profile/_components/delete-account-modal.tsx#L129) | `{t('common.cancel')}` | Drawn ghost text (`sm`) |
 | [apps/web/app/(app)/profile/_components/edit-name-sheet.tsx:95](../apps/web/app/(app)/profile/_components/edit-name-sheet.tsx#L95) | `{t('common.cancel')}` | Drawn ghost text (`sm`) |
 | [apps/web/app/(app)/profile/_components/fresh-start-modal.tsx:258](../apps/web/app/(app)/profile/_components/fresh-start-modal.tsx#L258) | `{t('common.cancel')}` | Drawn ghost text (`sm`) |
@@ -154,7 +154,7 @@ Drawn references: [Orbit conversation](canvas/Orbit%20Astra%20Conversation.dc.ht
 | [apps/web/app/(app)/wrapped/_components/wrapped-cover.tsx:89](../apps/web/app/(app)/wrapped/_components/wrapped-cover.tsx#L89) | `{t('wrapped.retry')}` | RefreshCw |
 | [apps/web/app/(app)/wrapped/_components/wrapped-slide.tsx:125](../apps/web/app/(app)/wrapped/_components/wrapped-slide.tsx#L125) | `{t('wrapped.retry')}` | RefreshCw |
 | [apps/web/app/(auth)/error.tsx:14](../apps/web/app/(auth)/error.tsx#L14) | `{t('common.retry')}` | RefreshCw |
-| [apps/web/components/auth/turnstile-widget.tsx:181](../apps/web/components/auth/turnstile-widget.tsx#L181) | `{t('auth.turnstileRetry')}` | RefreshCw |
+| [apps/web/components/auth/turnstile-widget.tsx:235](../apps/web/components/auth/turnstile-widget.tsx#L235) | `{t('auth.turnstileRetry')}` | RefreshCw |
 | [apps/web/components/calendar-sync/calendar-import-content.tsx:390](../apps/web/components/calendar-sync/calendar-import-content.tsx#L390) | `{t('common.goBack')}` | ChevronLeft |
 | [apps/web/components/calendar-sync/calendar-import-content.tsx:437](../apps/web/components/calendar-sync/calendar-import-content.tsx#L437) | `{t('calendar.showMore')}` | ChevronDown |
 | [apps/web/components/calendar-sync/calendar-import-content.tsx:555](../apps/web/components/calendar-sync/calendar-import-content.tsx#L555) | `{t('common.goBack')}` | ChevronLeft |
