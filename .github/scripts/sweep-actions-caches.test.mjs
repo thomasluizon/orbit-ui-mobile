@@ -17,7 +17,9 @@ const pullRequestRef = "refs/pull/2463/merge"
 const total = (entries) => entries.reduce((sum, cache) => sum + cache.size_in_bytes, 0)
 const isMarker = (cache) => /-pass-v\d+-/.test(cache.key)
 const keysFor = (selection, reason) => selection.filter((entry) => entry.reason === reason).map((entry) => entry.cache.key)
-const select = (overrides = {}) => selectCachesToDelete({ caches, openPullRequests: [2463], defaultRef, ...overrides })
+// The time of the recorded list: one hour after its most recent read.
+const recordedAt = Date.parse(caches.map((cache) => cache.last_accessed_at).sort().at(-1)) + 3_600_000
+const select = (overrides = {}) => selectCachesToDelete({ caches, openPullRequests: [2463], defaultRef, now: recordedAt, ...overrides })
 
 test("the fixture is the real list: seven fields per entry, one pull request ref and the pass markers on main", () => {
   assert.equal(response.total_count, caches.length)
@@ -42,7 +44,7 @@ test("every entry on the merge ref of a closed pull request is deleted, and an o
 test("a pass marker is never deleted: not on a closed pull request ref, and not when the total is over the cap", () => {
   const marker = caches.find(isMarker)
   const closedMarker = { ...marker, id: marker.id + 1, ref: "refs/pull/2462/merge" }
-  const selection = selectCachesToDelete({ caches: [...caches, closedMarker], openPullRequests: [], defaultRef, capBytes: 0 })
+  const selection = selectCachesToDelete({ caches: [...caches, closedMarker], openPullRequests: [], defaultRef, now: recordedAt, capBytes: 0 })
   assert.deepEqual(selection.filter((entry) => isMarker(entry.cache)), [])
   const kept = [...caches, closedMarker].filter((cache) => !selection.some((entry) => entry.cache === cache))
   assert.ok(kept.includes(closedMarker))
@@ -56,7 +58,7 @@ test("only the newest CodeQL overlay base database of each ref stays", () => {
   const newest = caches.find((cache) => cache.key.startsWith("codeql-overlay-base-database-"))
   assert.match(newest.key, /^codeql-overlay-base-database-1-[0-9a-f]+-javascript-[\d.]+-[0-9a-f]{40}-\d+-\d+$/)
   const older = { ...newest, id: newest.id - 1, key: newest.key.replace(/[0-9a-f]{40}-\d+-\d+$/, "e590374a82871f6628b5d0caf203785294541abc-43721544925-1"), created_at: "2026-11-15T17:20:00.000000Z", last_accessed_at: "2026-11-15T18:30:00.000000Z" }
-  const selection = selectCachesToDelete({ caches: [older, ...caches], openPullRequests: [2463], defaultRef, capBytes: Infinity })
+  const selection = selectCachesToDelete({ caches: [older, ...caches], openPullRequests: [2463], defaultRef, now: recordedAt, capBytes: Infinity })
   assert.deepEqual(selection, [{ cache: older, reason: "superseded overlay base database" }])
   assert.deepEqual(select({ capBytes: Infinity }), [], "one overlay base database is the newest and stays")
 })
@@ -75,7 +77,7 @@ test("a key family drops its version parts, so a new lockfile, toolchain or comm
 
 test("over the cap, pull request entries go first, then older main versions, and the newest entry of each main family stays", () => {
   const withOlder = [olderNpm, ...caches]
-  const selection = selectCachesToDelete({ caches: withOlder, openPullRequests: [2463], defaultRef })
+  const selection = selectCachesToDelete({ caches: withOlder, openPullRequests: [2463], defaultRef, now: recordedAt })
   assert.ok(total(withOlder) > CAP_BYTES)
   assert.deepEqual(new Set(selection.map((entry) => entry.reason)), new Set(["over the cap"]))
   const deleted = selection.map((entry) => entry.cache)
@@ -85,7 +87,33 @@ test("over the cap, pull request entries go first, then older main versions, and
   assert.deepEqual(pullRequestReads, [...pullRequestReads].sort(), "least recently read first")
   assert.deepEqual(deleted.slice(largeOnPullRequest.length), [olderNpm], "then the older version on main, and no entry main restores")
   assert.ok(total(withOlder) - total(deleted) > CAP_BYTES, "the newest main entries alone are over the cap in this recorded list")
-  assert.deepEqual(selectCachesToDelete({ caches: withOlder, openPullRequests: [2463], defaultRef, capBytes: total(withOlder) - 1 }).map((entry) => entry.cache.key), [largeOnPullRequest.sort((left, right) => left.last_accessed_at.localeCompare(right.last_accessed_at))[0].key], "the sweep stops at the first entry that makes the total fit")
+  assert.deepEqual(selectCachesToDelete({ caches: withOlder, openPullRequests: [2463], defaultRef, now: recordedAt, capBytes: total(withOlder) - 1 }).map((entry) => entry.cache.key), [largeOnPullRequest.sort((left, right) => left.last_accessed_at.localeCompare(right.last_accessed_at))[0].key], "the sweep stops at the first entry that makes the total fit")
+})
+
+test("over the cap, a newest main entry that nobody read for 24 hours goes after the older versions, and one read within 24 hours stays", () => {
+  const now = Date.parse("2026-11-17T12:00:00Z")
+  const readAt = (cache, time) => ({ ...cache, last_accessed_at: time })
+  const live = [olderNpm, ...caches].map((cache) => cache === olderNpm ? cache : readAt(cache, "2026-11-17T11:00:00.000000Z"))
+  const replace = (prefix, time) => {
+    const index = live.findIndex((cache) => cache.key.startsWith(prefix))
+    live[index] = readAt(live[index], time)
+    return live[index]
+  }
+  // Orphaned families: main stopped reading them, like the dropped macOS npm and Android NDK entries.
+  const macNpm = replace("node-cache-macOS-arm64-npm-", "2026-11-15T19:19:00.000000Z")
+  const ndk = replace("ubuntu-24.04-x64-ndk-v1-", "2026-11-16T11:59:59.000000Z")
+  const playwright = replace("Linux-playwright-chromium-", "2026-11-16T12:00:01.000000Z")
+  const selection = selectCachesToDelete({ caches: live, openPullRequests: [2463], defaultRef, now })
+  const deleted = selection.map((entry) => entry.cache)
+  const largeOnPullRequest = live.filter((cache) => cache.ref === pullRequestRef && cache.size_in_bytes >= LARGE_ENTRY_BYTES)
+  assert.deepEqual(new Set(deleted.slice(0, largeOnPullRequest.length)), new Set(largeOnPullRequest))
+  assert.deepEqual(deleted.slice(largeOnPullRequest.length), [olderNpm, macNpm, ndk], "older version, then orphans least recently read first")
+  assert.ok(total(live) - total(deleted) <= CAP_BYTES, "the orphans bring the total under the cap")
+  const everything = selectCachesToDelete({ caches: live, openPullRequests: [2463], defaultRef, now, capBytes: 0 }).map((entry) => entry.cache)
+  assert.ok(everything.includes(macNpm) && everything.includes(ndk))
+  assert.ok(!everything.includes(playwright), "an entry read 23 h 59 min 59 s ago is still in use")
+  const newestReadRecently = live.filter((cache) => cache.ref === defaultRef && cache !== olderNpm && cache !== macNpm && cache !== ndk)
+  assert.deepEqual(everything.filter((cache) => newestReadRecently.includes(cache)), [], "no newest main entry read within 24 hours is ever deleted")
 })
 
 test("the cap leaves headroom under the 10 GB repository limit", () => {
@@ -113,26 +141,26 @@ function fakeGh({ failDelete = false } = {}) {
 test("the sweep reads every page, then deletes each selected entry by the id that the list returned", () => {
   const { gh, calls } = fakeGh()
   const lines = []
-  sweep({ gh, repository: "orbit/example", dryRun: false, log: (line) => lines.push(line) })
+  sweep({ gh, repository: "orbit/example", dryRun: false, now: recordedAt, log: (line) => lines.push(line) })
   assert.deepEqual(calls.slice(0, 3), [
     ["api", "--paginate", "--slurp", "repos/orbit/example/actions/caches?per_page=100"],
     ["api", "--paginate", "--slurp", "repos/orbit/example/pulls?state=open&per_page=100"],
     ["api", "repos/orbit/example"],
   ])
-  const expected = selectCachesToDelete({ caches, openPullRequests: [2466, 2450], defaultRef })
+  const expected = selectCachesToDelete({ caches, openPullRequests: [2466, 2450], defaultRef, now: recordedAt })
   assert.equal(expected.filter((entry) => entry.reason === "closed pull request").length, 7)
   assert.deepEqual(calls.slice(3), expected.map((entry) => ["api", "--method", "DELETE", `repos/orbit/example/actions/caches/${entry.cache.id}`]))
   assert.match(lines.at(-2), /^41 entries, 10777\.5 MB before; 7 selected, 9930\.5 MB after; cap 9000\.0 MB$/)
-  assert.match(lines.at(-1), /^::warning::The newest main entries keep the total over the cap/)
+  assert.match(lines.at(-1), /^::warning::The main entries read within 24 hours keep the total over the cap/)
 })
 
 test("a dry run deletes nothing, and a failed delete fails the sweep after every delete ran", () => {
   const dry = fakeGh()
-  sweep({ gh: dry.gh, repository: "orbit/example", dryRun: true, log: () => {} })
+  sweep({ gh: dry.gh, repository: "orbit/example", dryRun: true, now: recordedAt, log: () => {} })
   assert.equal(dry.calls.filter((call) => call.includes("DELETE")).length, 0)
   const failing = fakeGh({ failDelete: true })
-  assert.throws(() => sweep({ gh: failing.gh, repository: "orbit/example", dryRun: false, log: () => {} }), /delete requests failed/)
-  assert.equal(failing.calls.filter((call) => call.includes("DELETE")).length, selectCachesToDelete({ caches, openPullRequests: [2466, 2450], defaultRef }).length)
+  assert.throws(() => sweep({ gh: failing.gh, repository: "orbit/example", dryRun: false, now: recordedAt, log: () => {} }), /delete requests failed/)
+  assert.equal(failing.calls.filter((call) => call.includes("DELETE")).length, selectCachesToDelete({ caches, openPullRequests: [2466, 2450], defaultRef, now: recordedAt }).length)
 })
 
 test("the command rejects a call without one repository", () => {
