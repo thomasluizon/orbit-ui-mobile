@@ -449,6 +449,18 @@ function graded(change, { questions = 1, source = request } = {}) {
 }
 const retarget = (item, id) => { item.entityId = id; item.itemId = `${item.itemId.split('/')[0]}/${id}`; for (const field of item.fields) field.entityId = id }
 
+// Producer: orbit-api 1d2a826b8. The core context sends a conversationId, so offers are on (ProactiveProposal.cs:16-20).
+// AnnotateOfferField (PendingOperationChangePreviewer.Offers.cs:376-383) marks a field that the model listed in
+// suggested_fields `suggested`, editable and removable under its offer key (ProactiveProposal.Key, :229-233), and marks
+// a field that the model set without listing it `requested`. AddChildOfferFields (:400-414) gives a suggestion of a
+// child draft the row path `sub_habits/<n>/<field>`. ResolveValueType gives an emoji the value type `emoji`.
+function suggestion(item, field, proposedValue, { newValue = String(proposedValue), valueType = 'text', entityId = item.entityId } = {}) {
+  return { entityId, entityName: item.entityName, field, oldValue: null, newValue, valueType, proposedValue, isEditable: true,
+    provenance: 'suggested', removal: { offerKey: `preview:${entityId}:3F9A0C1B2D4E5F6A7B8C9D0E:${field}`, field, fields: [field] } }
+}
+const requestedRow = (row) => ({ ...row, provenance: 'requested', removal: undefined })
+const unannotatedRow = (row) => ({ ...row, provenance: undefined, removal: undefined })
+
 describe('the change list comparison', () => {
   it('passes the recorded preview unchanged', () => {
     expect(graded()).toMatchObject({ pass: true })
@@ -512,7 +524,7 @@ describe('the change list comparison', () => {
 
   it('reads a create preview of the producer as one create with its fields', () => {
     expect(changeList([preview('Dentist')]).changes).toEqual([{ kind: 'create', target: null,
-      preview: preview().id, fields: { due_time: '15:50', frequency_unit: 'OneTime' } }])
+      preview: preview().id, fields: { due_time: '15:50', frequency_unit: 'OneTime' }, suggested: {}, suggestedRecords: 0 }])
   })
 })
 
@@ -604,6 +616,98 @@ describe('the saved state of a created record', () => {
       `POST ai/pending-operations/${held.id}/execute`, 'GET eval/snapshot', `GET habits/${createdId}`])
     expect(output.readback.after.find((habit) => habit.id === createdId)).toMatchObject({ dueTime: '15:00:00', logs: [] })
     expect(verdict).toMatchObject({ pass: true })
+  })
+
+  // Producer: CreationFields (PendingOperationChangePreviewer.Reuse.cs:61-67) gives a create preview one `sub_habits` row
+  // whose proposedValue holds the child drafts with their own children, and the approval saves each draft as a record.
+  describe('with suggested sub-habits', () => {
+    const drafts = [{ title: 'Warm up', sub_habits: [{ title: 'Breathe' }] }, { title: 'Stretch' }]
+    function offeredCreate(mark = (row) => row) {
+      const held = createPreview('Read', { frequency_unit: 'Week', frequency_quantity: '3' })
+      const [item] = held.items
+      const nullId = item.fields[0].entityId
+      item.fields.push(mark(suggestion(item, 'sub_habits', drafts, { newValue: 'Warm up, Stretch', valueType: 'list', entityId: nullId })),
+        suggestion(item, 'sub_habits/0/sub_habits', drafts[0].sub_habits, { newValue: 'Breathe', valueType: 'list', entityId: nullId }),
+        suggestion(item, 'sub_habits/1/emoji', '🤸', { valueType: 'emoji', entityId: nullId }))
+      return held
+    }
+    const savedChildren = (titles) => titles.map((title, index) => savedRow({ id: `99999999-9999-4999-8999-99999999990${index}`, title,
+      dueDate: '2026-11-13', frequencyUnit: 'Week', frequencyQuantity: 3 }))
+    function gradeSaved(held, childTitles) {
+      const vars = { accountDate: '2026-11-13', core: { ...structuredClone(caseOf('create-three-per-week-en-1').vars.core), baseline: [], records: {} } }
+      const parent = savedRow({ title: 'Read', dueDate: '2026-11-13', frequencyUnit: 'Week', frequencyQuantity: 3 })
+      return outcome({ turns: 1, questionsBeforePreview: 0, previews: [held],
+        readback: { baseline: [], held: [], after: [parent, ...savedChildren(childTitles)] } }, { vars })
+    }
+
+    it('passes when the approval saves the requested record and each suggested draft once', () => {
+      expect(gradeSaved(offeredCreate(), ['Warm up', 'Breathe', 'Stretch'])).toMatchObject({ pass: true,
+        reason: 'The saved state matches the approved changes.' })
+      expect(changeList([offeredCreate()]).changes).toEqual([{ kind: 'create', target: null, preview: preview().id,
+        fields: { title: 'Read', frequency_unit: 'Week', frequency_quantity: '3' },
+        suggested: { sub_habits: 'Warm up, Stretch', 'sub_habits/0/sub_habits': 'Breathe', 'sub_habits/1/emoji': '🤸' }, suggestedRecords: 3 }])
+    })
+
+    it.each([
+      ['a record that no draft holds', () => gradeSaved(offeredCreate(), ['Warm up', 'Breathe', 'Stretch', 'Extra'])],
+      ['fewer records than the drafts', () => gradeSaved(offeredCreate(), ['Warm up', 'Stretch'])],
+      ['the sub-habits that the preview marks requested', () => gradeSaved(offeredCreate(requestedRow), ['Warm up', 'Breathe', 'Stretch'])],
+    ])('fails when the approval saves %s', (_name, grade) => {
+      expect(grade()).toMatchObject({ pass: false, reason: 'The created records differ from the approved changes.' })
+    })
+  })
+})
+
+describe('a suggestion that the assistant offers in the preview', () => {
+  const renameOf = (held) => held.items.find((item) => item.fields.some((field) => field.field === 'title'))
+  // The recorded preview turn, with rows that the test adds to the first rename, in its item and in the flat changes.
+  function offeredTurn(rows) {
+    const response = structuredClone(finalOf('complete', 1))
+    const [held] = response.pendingOperations
+    const added = rows(renameOf(held))
+    renameOf(held).fields.push(...added)
+    held.changes.push(...added)
+    return response
+  }
+  const emoji = (item) => suggestion(item, 'emoji', '💧', { valueType: 'emoji' })
+  const frequency = (item) => [suggestion(item, 'frequency_unit', 'Day'), suggestion(item, 'frequency_quantity', 1, { valueType: 'number' })]
+
+  it('passes a rename that also offers an emoji, and approves the preview as shown', async () => {
+    const { output, verdict, calls } = await scripted([finalOf('complete', 0), offeredTurn((item) => [emoji(item)])])
+    expect(verdict).toMatchObject({ pass: true, reason: 'The saved state matches the approved changes.' })
+    expect(calls.map(({ method, path }) => `${method} ${path}`)).toContain(`POST ai/pending-operations/${output.previews[0].id}/execute`)
+    const target = captures.complete.children[0]
+    expect(changeList(output.previews).changes.find((change) => change.target === target))
+      .toMatchObject({ kind: 'update', fields: { title: 'Water - 1.18L' }, suggested: { emoji: '💧' }, suggestedRecords: 0 })
+  })
+
+  it.each([
+    ['marks requested', requestedRow],
+    ['leaves unannotated', unannotatedRow],
+  ])('fails a rename that also changes an emoji the preview %s, and approves nothing', async (_name, mark) => {
+    const { verdict, calls } = await scripted([finalOf('complete', 0), offeredTurn((item) => [mark(emoji(item))])])
+    expect(verdict).toMatchObject({ pass: false, reason: 'A update of the preview changes title, emoji where the request changes title.' })
+    expect(calls).toEqual([])
+  })
+
+  // Producer: MergeStoredSuggestion (PendingOperationChangePreviewer.Offers.cs:279-291) keeps a suggested scalar only
+  // where the stored value is empty, so a suggested frequency reaches a habit that holds none, as the Water children do.
+  async function savedFrequency(rows, savedOn = captures.complete.children[0]) {
+    const { output, vars } = await scripted([finalOf('complete', 0), offeredTurn(rows)])
+    if (!output.readback) return outcome(output, { vars })
+    Object.assign(output.readback.after.find((habit) => habit.id === savedOn), { frequencyUnit: 'Day', frequencyQuantity: 1 })
+    return outcome(output, { vars })
+  }
+
+  it('passes when the approval saves the suggested frequency of the renamed record', async () => {
+    expect(await savedFrequency(frequency)).toMatchObject({ pass: true, reason: 'The saved state matches the approved changes.' })
+  })
+
+  it.each([
+    ['a preview without the suggestion', () => savedFrequency(() => [])],
+    ['another record than the one it is suggested for', () => savedFrequency(frequency, captures.complete.children[1])],
+  ])('fails when the approval saves a frequency on %s', async (_name, grade) => {
+    expect(await grade()).toMatchObject({ pass: false, reason: 'The saved records differ from the approved changes.' })
   })
 })
 

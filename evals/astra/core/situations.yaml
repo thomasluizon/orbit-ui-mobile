@@ -13,11 +13,12 @@
 #               own replies; the phrasing is sent when no preview came before it.
 # expected      the outcome. questions: how many questions may come before the preview. A question is a choice or
 #               question card, or a list card whose action can hold the request; a text-only reply is never one.
-#               changes: the normalized change list of the held previews (kind, target records, changed fields).
+#               changes: the normalized change list of the held previews (kind, target records, changed fields). A
+#               field that the preview marks `suggested` is an offer of the assistant and is not a change of the list.
 #               previews: how many previews hold the request (default 1). read: the rubric for the text of a read answer.
 # answer        what the person decides when the assistant asks. A card takes the answer through blockAnswer; `text` is
 #               typed when no card can hold it.
-# A write case that passes its preview is approved, and the saved state is read back.
+# A write case that passes its preview is approved as shown, suggestions included, and the saved state is read back.
 
 exchanges:
   # The Water conversation of the owner (#2127 and #2129). The person's messages and the second and fourth assistant

@@ -1,6 +1,6 @@
 import { chmodSync, mkdirSync, renameSync, writeFileSync } from 'node:fs'
 import { attemptEvidence } from '../evidence.mjs'
-import { changeList } from './change-list.mjs'
+import { changeList, recordId } from './change-list.mjs'
 import { corpusDigest } from './corpus.mjs'
 
 const evidencePath = (caseId, repeat) => `attempts/${encodeURIComponent(caseId)}-r${repeat}.json`
@@ -50,7 +50,6 @@ function attemptsOf(results) {
 const recordIdSource = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'
 const wholeRecordId = new RegExp(`^${recordIdSource}$`, 'iu')
 const recordIds = new RegExp(recordIdSource, 'giu')
-const emptyRecordId = /^[0-]+$/u
 
 // The held previews of an attempt, kept so that an extended grader regrades the attempt offline with gradePreview, and
 // the records of the case under the same names. The evidence holds no record id: the id of a fixture record becomes
@@ -63,7 +62,7 @@ function heldPreviewsOf(previews, vars) {
   }
   let others = 0
   const nameOf = (id) => {
-    if (emptyRecordId.test(id)) return null
+    if (!recordId(id)) return null
     if (!names.has(id)) names.set(id, `id-${++others}`)
     return names.get(id)
   }

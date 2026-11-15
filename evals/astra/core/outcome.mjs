@@ -138,8 +138,9 @@ function savedFailure(expected, habit, accountDate) {
   return wrong ? `gives ${wrong} the value ${JSON.stringify(savedField[wrong](habit) ?? null)}` : null
 }
 
-// Each expected create is saved as one new record that holds each field the request names, and no other record is new.
-function gradeCreated(creates, created, accountDate) {
+// Each expected create is saved as one new record that holds each field the request names, and the only other new
+// records are the ones that the suggested drafts of the approved preview add.
+function gradeCreated(creates, created, suggestedRecords, accountDate) {
   const unmatched = [...created]
   for (const expected of creates) {
     const index = unmatched.findIndex((habit) => !savedFailure(expected, habit, accountDate))
@@ -147,12 +148,14 @@ function gradeCreated(creates, created, accountDate) {
     if (index < 0) return verdict(false, 'The created records differ from the approved changes.')
     unmatched.splice(index, 1)
   }
-  return unmatched.length ? verdict(false, 'The created records differ from the approved changes.')
+  return unmatched.length !== suggestedRecords ? verdict(false, 'The created records differ from the approved changes.')
     : verdict(true, 'The saved state matches the approved changes.')
 }
 
 // The saved state after approval, read back from the account: each deleted record is gone, each log is saved, each
-// updated and each created record holds each field the request names, and every other record is as it was.
+// updated and each created record holds each field the request names, and every other record is as it was. The person
+// approves the preview as shown, so a field that it suggests holds what the approval saved, and each record that its
+// suggested drafts add is new.
 function gradeSavedState(readback, matched, vars) {
   if (!readback) return verdict(false, 'The approved preview has no saved state readback.')
   if (readback.error) return verdict(false, readback.error, readback.unavailable ? { unavailable: true } : {})
@@ -162,7 +165,7 @@ function gradeSavedState(readback, matched, vars) {
     return verdict(false, 'The held preview changed the account before its approval.')
   }
   const differ = verdict(false, 'The saved records differ from the approved changes.')
-  const changes = matched.flatMap(({ expected, held }) => held.map((change) => ({ expected, target: change.target })))
+  const changes = matched.flatMap(({ expected, held }) => held.map((change) => ({ ...change, expected })))
   const wanted = new Map(before.map((habit) => [habit.id, { ...habit }]))
   for (const { expected, target } of changes) {
     if (expected.kind === 'delete') wanted.delete(target)
@@ -170,15 +173,16 @@ function gradeSavedState(readback, matched, vars) {
   }
   const kept = readback.after.filter((habit) => before.some((stored) => stored.id === habit.id))
   if (kept.length !== wanted.size) return differ
-  for (const { expected, target } of changes.filter(({ expected }) => expected.kind === 'update')) {
+  for (const { expected, target, suggested } of changes.filter(({ expected }) => expected.kind === 'update')) {
     const habit = kept.find((saved) => saved.id === target)
     const wrong = habit ? savedFailure(expected, habit, date) : null
     if (wrong) return verdict(false, `A saved update ${wrong}.`)
-    for (const field of Object.keys(expected.fields).filter((name) => habit && name in wanted.get(target))) wanted.get(target)[field] = savedField[field](habit)
+    const approved = [...Object.keys(expected.fields), ...Object.keys(suggested)]
+    for (const field of approved.filter((name) => habit && name in wanted.get(target))) wanted.get(target)[field] = savedField[field](habit)
   }
   if (savedRecords(kept, date).some((habit) => JSON.stringify(habit) !== JSON.stringify(wanted.get(habit.id)))) return differ
   return gradeCreated(changes.filter(({ expected }) => expected.kind === 'create').map(({ expected }) => expected),
-    readback.after.filter((habit) => !kept.includes(habit)), date)
+    readback.after.filter((habit) => !kept.includes(habit)), changes.reduce((count, change) => count + change.suggestedRecords, 0), date)
 }
 
 // A turn sent again with its turn key is the same turn: the server replays it and holds no second preview.
