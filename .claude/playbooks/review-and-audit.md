@@ -1,6 +1,6 @@
 # Review & audit discipline
 
-**At a glance:** 13 standing rules for `/audit-*`, `/prod-readiness`, a Pullfrog review you must act on, and any fan-out assessment. Judgement-bound; none is gate-checkable. See `README.md` for the tier's contract.
+**At a glance:** 14 standing rules for `/audit-*`, `/prod-readiness`, a Pullfrog review you must act on, the local review before every push of a pull request head, and any fan-out assessment. Judgement-bound; none is gate-checkable. See `README.md` for the tier's contract.
 
 ## What a review is allowed to say
 
@@ -82,3 +82,49 @@ Paste the complete key set with types, and replace the values. Absence cannot be
 Never write the fixture that agrees with the guess. A fixture built from a guess makes the harness prove that the code matches the belief. If the field cannot be confirmed, do not read it. Use a value that the interface already returns, or make success depend only on the exit code, and say in the pull request body which field was wanted. An unconfirmed field is not a failure signal: "the write failed" and "the field does not exist" arrive as the same value.
 
 Redact before you paste. Never include a token, key, cookie or credential, and replace each personal, customer or account value with a placeholder. A pull request body is permanent and every person with repository access reads it.
+
+## Before every push of a pull request head
+
+### 14. Review the whole diff locally before every push
+Pullfrog reviews a head as soon as it is asked, with no CI wait, so each push costs one review round. This gate makes the first review of a head able to approve, and it keeps a head that fails CI from costing a review. Do these steps before you push a pull request head, and before you ask for the review of a head that a worker pushed. A worker does not run this gate, because it cannot start a review agent; the orchestrator runs it before it asks for the review of the worker's head. No hook and no receipt enforce this gate.
+
+1. Start one read-only review agent on Opus. Give it the brief below and the head SHA. It reads the whole diff of the pull request against its merge base.
+2. Fix every finding that the agent confirms. All the fixes go in the same push.
+3. Run the local checks that the change affects: lint, type check, and the focused tests of each changed workspace or tool. Each one must pass.
+4. After a fix round, start a second agent with the same brief. It reads only the new commits (`git diff <reviewed head>..<new head>`). Fix what it confirms, and run the affected checks again.
+5. Push. Then ask for the review as `orchestrate/SKILL.md` step 8 says.
+
+#### The review brief
+
+You review ONE open pull request before its next push. Find everything that the GitHub reviewer (Pullfrog) would open a thread for, so that the next round can approve. You are READ-ONLY: you edit no file, you commit nothing, you push nothing, and you post nothing to GitHub. You may run read-only commands (`git diff`, `git show`, `git log`, `grep`, `gh pr view`, `gh api` GET) and a focused test or type check when it confirms a finding. Never run Playwright, an emulator or a simulator.
+
+What to read:
+
+1. The whole diff of the pull request against its merge base (`git diff <base>...<head>` at the head SHA that your order names). When another agent edits the worktree at the same time, read with `git show <head>:<path>`. Read the hunks of every changed file and the code around each one. For a diff above 60 files, read the source and test files in full and scan the generated and data files; say which files you scanned.
+2. The pull request body (`gh pr view <n> --repo <slug> --json body --jq .body`). Every claim in it must be true at the head.
+3. The `CLAUDE.md` of the repository. For a UI diff, also `DESIGN.md` `## Bans` and `BRAND.md`.
+4. The earlier review threads (`gh api "repos/<slug>/pulls/<n>/comments?per_page=100" --jq '.[]|[.path,.line,(.body|.[0:160])]|@tsv'`). They show what this reviewer looks for. Do not report a finding that an earlier thread settled, unless the head breaks it again.
+
+The lenses:
+
+- A body that does not match the head: a number, a file name, a behaviour, a test count, a manual step.
+- Dead code: an export, a prop, a branch, a helper or a test helper that nothing uses after this diff.
+- One rule written in two places: a list, a constant, a selector or a field catalog that is copied across files or layers and must stay equal by hand. It needs one owner, or a test that fails when the copies differ.
+- A file over 1000 lines, or a function over about 100 lines.
+- A doc, inventory or README row in the wrong table, missing for a file that this diff adds, or left for a file that this diff deletes.
+- A guard or a test that cannot see what it claims to catch: a scan that skips a directory, a regex that misses a form, an assertion that passes when the code under test is deleted.
+- A behaviour path with no test, or a fix with no test that fails without it.
+- A platform path with no fallback: Windows path separators, a web, Android or iOS branch that the other platform lacks (web and mobile must match below the shell), reduced motion, a missing error path.
+- A wrong claim in a comment or a doc comment.
+- A correctness defect: a race, a state that leaks across turns, an early return that skips cleanup, an unchecked external value.
+- Copy: a visible string in one locale only, or a pt-BR string translated word for word.
+- A gate edit that weakens a gate (an ESLint rule, a baseline, an inventory, an allowlist) without a reason.
+
+What a finding is: something you confirmed in the code at the head, with `path:line`, the concrete failure (the inputs or state, then the wrong result), and the smallest correct fix. Rank each one BLOCKING (the reviewer will open a thread), LIKELY, or NIT. Skip a nit unless its fix is under one line. Do not pad: a finding you could not confirm goes under `## Not confirmed`, with what would confirm it. Zero findings is a valid result: say "NO FINDINGS" and name what you read.
+
+Your final message, at most 60 lines, with repository-relative paths only:
+
+- `HEAD: <sha you reviewed>`, `FILES READ: <n of m>`.
+- `## Findings`: one numbered item each, with the rank, `path:line`, the failure in one or two sentences, and the fix in one sentence.
+- `## Body`: each body line that is wrong at the head, with the correct text.
+- `## Not confirmed`.

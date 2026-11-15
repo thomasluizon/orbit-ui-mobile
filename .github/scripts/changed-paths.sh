@@ -12,7 +12,8 @@ if ! git rev-parse --verify --quiet "$base^{commit}" > /dev/null; then
   fi
 fi
 
-if ! git diff --name-only --diff-filter=ACMRD -z "$base...HEAD" > "$output_dir/changed-paths.nul"; then
+# --no-renames lists the old path of a moved file, so a filter on the source directory still matches.
+if ! git diff --name-only --no-renames --diff-filter=ACMRD -z "$base...HEAD" > "$output_dir/changed-paths.nul"; then
   echo "::error::Cannot diff base ref $base_ref against HEAD." >&2
   exit 1
 fi

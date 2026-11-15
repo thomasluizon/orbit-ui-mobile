@@ -15,61 +15,109 @@ concurrency:
 permissions:
   contents: read
 
+# Unit test results cached by the Turbo hash of their inputs. A push or a dispatch saves them; a pull request
+# whose inputs match main restores them instead of starting the test jobs. Pull requests save no cache.
+env:
+  WEB_UNIT_RESULTS: apps/web/coverage/lcov.info
+  MOBILE_UNIT_RESULTS: apps/mobile/coverage/lcov.info
+  WORKSPACE_UNIT_RESULTS: |
+    apps/desktop/coverage/lcov.info
+    packages/shared/coverage/lcov.info
+    eslint-rules/coverage/lcov.info
+
 jobs:
-  web-image:
-    name: Web image build
+  # Pull requests skip a job whose inputs did not change; every other event runs every job.
+  plan:
+    name: Plan
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: read
+    timeout-minutes: 3
+    outputs:
+      web: ${{ steps.plan.outputs.web }}
+      type-check: ${{ steps.plan.outputs.type-check }}
+      lint: ${{ steps.plan.outputs.lint }}
+      web-unit-key: ${{ steps.plan.outputs.web-unit-key }}
+      mobile-unit-key: ${{ steps.plan.outputs.mobile-unit-key }}
+      workspace-unit-key: ${{ steps.plan.outputs.workspace-unit-key }}
+      web-unit-hit: ${{ steps.web-unit.outputs.cache-hit }}
+      mobile-unit-hit: ${{ steps.mobile-unit.outputs.cache-hit }}
+      workspace-unit-hit: ${{ steps.workspace-unit.outputs.cache-hit }}
     steps:
       - uses: actions/checkout@v7
-      - uses: docker/setup-buildx-action@v4
         with:
-          # Use the engine's BuildKit so setup needs no Docker Hub driver image.
-          driver: docker
-      - uses: docker/login-action@v4
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Build web image
-        uses: docker/build-push-action@v7
-        with:
-          context: .
-          file: Dockerfile
-          platforms: linux/amd64
-          load: true
-          push: false
-          tags: orbit-web:smoke
-          build-args: |
-            NODE_IMAGE=ghcr.io/thomasluizon/orbit-node-base:22-bookworm-slim
-            WEB_COMMIT_SHA=${{ github.sha }}
-            NEXT_PUBLIC_GOOGLE_CLIENT_ID=${{ vars.STAGING_NEXT_PUBLIC_GOOGLE_CLIENT_ID }}
-            NEXT_PUBLIC_APPLE_CLIENT_ID=${{ vars.STAGING_NEXT_PUBLIC_APPLE_CLIENT_ID }}
-            NEXT_PUBLIC_VAPID_PUBLIC_KEY=${{ vars.STAGING_NEXT_PUBLIC_VAPID_PUBLIC_KEY }}
-            NEXT_PUBLIC_EVENT_API_BASE=${{ vars.STAGING_NEXT_PUBLIC_EVENT_API_BASE }}
-            NEXT_PUBLIC_SITE_URL=${{ vars.STAGING_NEXT_PUBLIC_SITE_URL }}
-            NEXT_PUBLIC_TURNSTILE_SITE_KEY=${{ vars.STAGING_NEXT_PUBLIC_TURNSTILE_SITE_KEY }}
-            NEXT_PUBLIC_SENTRY_DSN=${{ vars.STAGING_NEXT_PUBLIC_SENTRY_DSN }}
-            NEXT_PUBLIC_SENTRY_ENVIRONMENT=staging
-            NEXT_PUBLIC_POSTHOG_KEY=${{ vars.STAGING_NEXT_PUBLIC_POSTHOG_KEY }}
-            NEXT_PUBLIC_UPLOAD_BUCKET_ORIGIN=https://orbit-uploads-staging-713285551626.s3.us-east-2.amazonaws.com
-      - name: Smoke test container
-        run: |
-          docker run -d --name orbit-web-smoke -p 3000:3000 orbit-web:smoke
-          for attempt in $(seq 1 30); do
-            echo "Health attempt ${attempt}"
-            if curl -fsS http://localhost:3000/api/health | jq -e --arg sha "$GITHUB_SHA" '.status == "ok" and .commit == $sha'; then exit 0; fi
-            sleep 2
-          done
-          docker logs orbit-web-smoke
-          exit 1
+          fetch-depth: 2
 
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          package-manager-cache: false
+
+      - name: Read the locked Turbo version
+        id: turbo
+        run: echo "version=$(node -p "require('./package-lock.json').packages['node_modules/turbo'].version")" >> "$GITHUB_OUTPUT"
+
+      - name: Restore the Turbo download
+        id: turbo-download
+        uses: actions/cache/restore@v6
+        with:
+          path: ~/.npm/_cacache
+          key: ${{ runner.os }}-turbo-cli-${{ steps.turbo.outputs.version }}
+
+      - name: Hash the test tasks and read the changed paths
+        id: plan
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          TURBO_VERSION: ${{ steps.turbo.outputs.version }}
+        run: |
+          set -euo pipefail
+          npx --yes "turbo@$TURBO_VERSION" run test --dry=json > "$RUNNER_TEMP/turbo-test.json"
+          if [ "$EVENT_NAME" = pull_request ]; then git diff --name-only --no-renames HEAD^1 HEAD > "$RUNNER_TEMP/changed-paths.txt"; fi
+          node .github/scripts/plan-test-jobs.mjs --event "$EVENT_NAME" --turbo-dry "$RUNNER_TEMP/turbo-test.json" \
+            --workflow .github/workflows/test.yml --changed-files "$RUNNER_TEMP/changed-paths.txt" | tee -a "$GITHUB_OUTPUT"
+
+      - name: Save the Turbo download
+        if: github.event_name != 'pull_request' && steps.turbo-download.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: ~/.npm/_cacache
+          key: ${{ steps.turbo-download.outputs.cache-primary-key }}
+
+      - name: Look up cached web unit results
+        id: web-unit
+        if: github.event_name == 'pull_request'
+        uses: actions/cache/restore@v6
+        with:
+          path: ${{ env.WEB_UNIT_RESULTS }}
+          key: ${{ steps.plan.outputs.web-unit-key }}
+          lookup-only: true
+
+      - name: Look up cached mobile unit results
+        id: mobile-unit
+        if: github.event_name == 'pull_request'
+        uses: actions/cache/restore@v6
+        with:
+          path: ${{ env.MOBILE_UNIT_RESULTS }}
+          key: ${{ steps.plan.outputs.mobile-unit-key }}
+          lookup-only: true
+
+      - name: Look up cached workspace unit results
+        id: workspace-unit
+        if: github.event_name == 'pull_request'
+        uses: actions/cache/restore@v6
+        with:
+          path: ${{ env.WORKSPACE_UNIT_RESULTS }}
+          key: ${{ steps.plan.outputs.workspace-unit-key }}
+          lookup-only: true
+
+  # One hermetic web build serves the required Build check, the layout shards and the Lighthouse budget.
   build:
     name: Build
-    runs-on: ubuntu-latest
-
+    needs: plan
+    if: needs.plan.outputs.web == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    env:
+      API_BASE: http://127.0.0.1:5099
+      NEXT_PUBLIC_EVENT_API_BASE: http://127.0.0.1:5099
     steps:
       - uses: actions/checkout@v7
 
@@ -81,17 +129,69 @@ jobs:
           node-version: 22
           cache: npm
 
-      - run: npm ci
+      - run: npm ci --prefer-offline --no-audit --fund=false
 
-      - name: Cache turbo
-        uses: actions/cache@v6
+      - name: Restore the Next compiler cache
+        id: next-cache
+        uses: actions/cache/restore@v6
         with:
-          path: .turbo
-          key: ${{ runner.os }}-turbo-${{ github.job }}-${{ github.sha }}
+          path: apps/web/.next/cache
+          key: ${{ runner.os }}-next-hermetic-${{ hashFiles('package-lock.json') }}
           restore-keys: |
-            ${{ runner.os }}-turbo-${{ github.job }}-
+            ${{ runner.os }}-next-hermetic-
 
-      - run: npm run build
+      - name: Build web
+        run: npm run build:hermetic -w apps/web
+
+      # build:hermetic runs this check too; this step keeps the registered gate visible to the gate charter.
+      - name: Check hermetic client output
+        run: node tools/check-hermetic-web-build.mjs
+
+      - name: Save the Next compiler cache
+        if: github.event_name != 'pull_request' && steps.next-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: apps/web/.next/cache
+          key: ${{ steps.next-cache.outputs.cache-primary-key }}
+
+      - name: Pack hermetic build
+        if: github.event_name == 'pull_request'
+        run: tar -C apps/web --exclude='.next/cache' -czf "$RUNNER_TEMP/web-hermetic-build.tgz" .next
+
+      - name: Upload hermetic build
+        if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@v7
+        with:
+          name: web-hermetic-build
+          path: ${{ runner.temp }}/web-hermetic-build.tgz
+          if-no-files-found: error
+          retention-days: 1
+
+      # The layout shards run only on pull requests, so main fills their browser cache here.
+      - name: Read the locked Playwright version
+        id: playwright
+        if: github.event_name != 'pull_request'
+        run: echo "version=$(npx playwright --version | cut -d' ' -f2)" >> "$GITHUB_OUTPUT"
+
+      - name: Look up the Playwright Chromium download
+        id: playwright-cache
+        if: github.event_name != 'pull_request'
+        uses: actions/cache/restore@v6
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-chromium-${{ steps.playwright.outputs.version }}
+          lookup-only: true
+
+      - name: Download lockfile-pinned Playwright Chromium
+        if: github.event_name != 'pull_request' && steps.playwright-cache.outputs.cache-hit != 'true'
+        run: npx playwright install chromium
+
+      - name: Save the Playwright Chromium download
+        if: github.event_name != 'pull_request' && steps.playwright-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ steps.playwright-cache.outputs.cache-primary-key }}
 
   # Each shard runs a deterministic share of the tools harness case modules.
   # tools/test-tools-timings.json holds CI seconds per module from the run in its sourceRun field, and the tools
@@ -129,8 +229,11 @@ jobs:
   hook-tests:
     name: Hook and workflow tests
     runs-on: ubuntu-latest
+    timeout-minutes: 6
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 2
 
       - uses: actions/setup-node@v7
         env:
@@ -145,10 +248,17 @@ jobs:
       - run: npm ci
 
       - name: Validate the dependency tree
-        run: npm ls --all
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          if [ "$EVENT_NAME" != pull_request ] || git diff --name-only --no-renames HEAD^1 HEAD | grep -Eq '(^|/)package(-lock)?\.json$'; then
+            npm ls --all
+          else
+            echo "Dependency tree check skipped: no package manifest changed."
+          fi
 
       - name: Test CI workflow behavior
-        run: node --test .github/scripts/check-web-test-budget.test.mjs tools/__tests__/guards-changed-paths.test.mjs tools/__tests__/ci-minutes.test.mjs tools/__tests__/npm-cache-workflows.test.mjs .github/scripts/check-pr-metadata.test.mjs .github/scripts/desktop-build-workflow.test.mjs .github/scripts/unit-tests-workflow.test.mjs .github/scripts/release-admission.test.mjs
+        run: node --test .github/scripts/check-web-test-budget.test.mjs tools/__tests__/guards-changed-paths.test.mjs tools/__tests__/ci-minutes.test.mjs tools/__tests__/npm-cache-workflows.test.mjs .github/scripts/check-pr-metadata.test.mjs .github/scripts/desktop-build-workflow.test.mjs .github/scripts/unit-tests-workflow.test.mjs .github/scripts/release-admission.test.mjs .github/scripts/check-critical-production-cves.test.mjs .github/scripts/plan-test-jobs.test.mjs .github/scripts/record-web-shard-timings.test.mjs
 
       # This step owns the full-tree graphic floor assertion outside cached unit shards.
       # Other findings stay advisory; graphic floor findings and scanner errors fail.
@@ -162,9 +272,10 @@ jobs:
 
   tool-hook-tests:
     name: Tool and Hook Tests
-    if: ${{ always() }}
+    if: ${{ !cancelled() }}
     needs: [tool-tests, hook-tests]
     runs-on: ubuntu-latest
+    timeout-minutes: 2
     steps:
       - name: Require every tool shard and the hook tests
         env:
@@ -174,24 +285,40 @@ jobs:
           test "$TOOL_RESULT" = success
           test "$HOOK_RESULT" = success
 
+  # The required check: every test group passed here or has a cached result at the same inputs.
+  # The SonarCloud scan runs last, so the SonarCloud Code Analysis context arrives whenever this job passes.
   unit-tests:
     name: Unit Tests
-    if: ${{ always() }}
-    needs: [build, web-tests, workspace-tests]
+    if: ${{ !cancelled() }}
+    needs: [plan, web-tests, mobile-tests, workspace-tests]
     runs-on: ubuntu-latest
+    # On main the old Unit Tests job (103 s at worst) and the old SonarCloud job (516 s at worst) sum to 619 s. The limit is 1.5 times that.
+    timeout-minutes: 16
 
     steps:
-      - name: Require every test job
+      - name: Require every test job or its cached result
         env:
-          BUILD_RESULT: ${{ needs.build.result }}
+          PLAN_RESULT: ${{ needs.plan.result }}
           WEB_RESULT: ${{ needs.web-tests.result }}
+          WEB_HIT: ${{ needs.plan.outputs.web-unit-hit }}
+          MOBILE_RESULT: ${{ needs.mobile-tests.result }}
+          MOBILE_HIT: ${{ needs.plan.outputs.mobile-unit-hit }}
           WORKSPACE_RESULT: ${{ needs.workspace-tests.result }}
+          WORKSPACE_HIT: ${{ needs.plan.outputs.workspace-unit-hit }}
         run: |
-          test "$BUILD_RESULT" = success
-          test "$WEB_RESULT" = success
-          test "$WORKSPACE_RESULT" = success
+          test "$PLAN_RESULT" = success
+          for group in WEB MOBILE WORKSPACE; do
+            result="${group}_RESULT"
+            hit="${group}_HIT"
+            if [ "${!result}" != success ] && { [ "${!result}" != skipped ] || [ "${!hit}" != true ]; }; then
+              echo "::error::The ${group} unit tests ended ${!result} and have no cached result."
+              exit 1
+            fi
+          done
 
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-node@v7
         env:
@@ -200,34 +327,32 @@ jobs:
           node-version: 22
           cache: npm
 
+      # The scanner resolves tsconfig extends and dependency types from node_modules.
       - run: npm ci
 
+      # download-artifact v8 extracts a lone pattern match at `path` and several matches into folders named
+      # after each artifact. merge-multiple extracts at `path` for any count, and each artifact holds one
+      # folder with its own name, so select-artifact-attempts always sees one folder per artifact.
       - name: Download web shard reports
+        if: needs.web-tests.result == 'success'
         uses: actions/download-artifact@v8
         with:
           pattern: web-unit-shard-*
           path: .artifacts/downloads/web
-          merge-multiple: false
+          merge-multiple: true
 
-      - name: Download workspace coverage
-        uses: actions/download-artifact@v8
-        with:
-          pattern: workspace-unit-coverage-*
-          path: .artifacts/downloads/workspaces
-          merge-multiple: false
-
-      - name: Select latest report attempts
-        run: |
-          node tools/select-artifact-attempts.mjs --input-dir .artifacts/downloads/web --output-dir apps/web/.artifacts/unit-tests
-          node tools/select-artifact-attempts.mjs --input-dir .artifacts/downloads/workspaces --output-dir .
+      - name: Select latest web report attempts
+        if: needs.web-tests.result == 'success'
+        run: node tools/select-artifact-attempts.mjs --input-dir .artifacts/downloads/web --output-dir apps/web/.artifacts/unit-tests
 
       - name: Verify every web report arrived
+        if: needs.web-tests.result == 'success'
         run: |
-          for shard in $(seq 1 2); do
+          for shard in $(seq 1 4); do
             test -s "apps/web/.artifacts/unit-tests/blobs/jsdom-${shard}.json"
             test -s "apps/web/.artifacts/unit-tests/timings/jsdom-${shard}.json"
           done
-          for shard in $(seq 1 20); do
+          for shard in $(seq 1 16); do
             test -s "apps/web/.artifacts/unit-tests/blobs/chromium-${shard}.json"
             test -s "apps/web/.artifacts/unit-tests/timings/chromium-${shard}.json"
           done
@@ -235,14 +360,16 @@ jobs:
       # The five next-slowest healthy files in run 40121666845 have a median of 129.165s.
       # Double that median for headroom and round up to ten seconds: 260s per file.
       - name: Enforce web test file budget
+        if: needs.web-tests.result == 'success'
         run: node .github/scripts/check-web-test-budget.mjs apps/web/.artifacts/unit-tests/timings 260000
 
       - name: Merge web reports and enforce coverage thresholds
+        if: needs.web-tests.result == 'success'
         working-directory: apps/web
         run: npx vitest run --merge-reports=.artifacts/unit-tests/blobs --coverage --reporter=default --reporter=json --outputFile.json=.artifacts/unit-tests/merged.json
 
       - name: Upload web test timings
-        if: ${{ always() }}
+        if: ${{ !cancelled() && needs.web-tests.result == 'success' }}
         uses: actions/upload-artifact@v7
         with:
           name: web-unit-timings
@@ -251,6 +378,66 @@ jobs:
             apps/web/.artifacts/unit-tests/merged.json
           include-hidden-files: true
           if-no-files-found: error
+
+      - name: Download mobile shard reports
+        if: needs.mobile-tests.result == 'success'
+        uses: actions/download-artifact@v8
+        with:
+          pattern: mobile-unit-shard-*
+          path: .artifacts/downloads/mobile
+          merge-multiple: true
+
+      - name: Select latest mobile report attempts
+        if: needs.mobile-tests.result == 'success'
+        run: node tools/select-artifact-attempts.mjs --input-dir .artifacts/downloads/mobile --output-dir apps/mobile/.artifacts/unit-tests
+
+      - name: Verify every mobile report arrived
+        if: needs.mobile-tests.result == 'success'
+        run: |
+          for shard in $(seq 1 3); do
+            test -s "apps/mobile/.artifacts/unit-tests/blobs/mobile-${shard}.json"
+          done
+
+      - name: Merge mobile reports and enforce coverage thresholds
+        if: needs.mobile-tests.result == 'success'
+        working-directory: apps/mobile
+        run: npx vitest run --merge-reports=.artifacts/unit-tests/blobs --coverage --reporter=default
+
+      - name: Download workspace coverage
+        if: needs.workspace-tests.result == 'success'
+        uses: actions/download-artifact@v8
+        with:
+          pattern: workspace-unit-coverage-*
+          path: .artifacts/downloads/workspaces
+          merge-multiple: true
+
+      - name: Select latest workspace coverage attempt
+        if: needs.workspace-tests.result == 'success'
+        run: node tools/select-artifact-attempts.mjs --input-dir .artifacts/downloads/workspaces --output-dir .
+
+      - name: Restore cached web unit results
+        if: needs.web-tests.result == 'skipped'
+        uses: actions/cache/restore@v6
+        with:
+          path: ${{ env.WEB_UNIT_RESULTS }}
+          key: ${{ needs.plan.outputs.web-unit-key }}
+          fail-on-cache-miss: true
+
+      - name: Restore cached mobile unit results
+        if: needs.mobile-tests.result == 'skipped'
+        uses: actions/cache/restore@v6
+        with:
+          path: ${{ env.MOBILE_UNIT_RESULTS }}
+          key: ${{ needs.plan.outputs.mobile-unit-key }}
+          fail-on-cache-miss: true
+
+      - name: Restore cached workspace unit results
+        if: needs.workspace-tests.result == 'skipped'
+        uses: actions/cache/restore@v6
+        with:
+          path: ${{ env.WORKSPACE_UNIT_RESULTS }}
+          key: ${{ needs.plan.outputs.workspace-unit-key }}
+          fail-on-cache-miss: true
 
       - name: Verify coverage reports
         run: |
@@ -272,129 +459,26 @@ jobs:
             eslint-rules/coverage/lcov.info
           if-no-files-found: error
 
-  web-tests:
-    name: Web unit (${{ matrix.project }} ${{ matrix.shard }}/${{ matrix.total }})
-    runs-on: ubuntu-latest
-    timeout-minutes: 25
-    strategy:
-      fail-fast: false
-      matrix:
-        project: [chromium]
-        shard: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
-        total: [20]
-        include:
-          - project: jsdom
-            shard: 1
-            total: 2
-          - project: jsdom
-            shard: 2
-            total: 2
-    steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
-        env:
-          SEGMENT_DOWNLOAD_TIMEOUT_MINS: '1'
+      - name: Save web unit results
+        if: github.event_name != 'pull_request' && needs.web-tests.result == 'success'
+        uses: actions/cache/save@v6
         with:
-          node-version: 22
-          cache: npm
-      - run: npm ci
-      # Partial runs collect coverage; Unit Tests applies the unchanged gate to their union.
-      # Twenty shards keep measured test time below seven minutes, leaving setup and coverage headroom.
-      - name: Run web shard with coverage
-        timeout-minutes: 15
-        working-directory: apps/web
-        run: >-
-          npx vitest run --project=${{ matrix.project }} --shard=${{ matrix.shard }}/${{ matrix.total }}
-          --coverage --coverage.thresholds.statements=0 --coverage.thresholds.branches=0
-          --coverage.thresholds.functions=0 --coverage.thresholds.lines=0
-          --reporter=default --reporter=blob --reporter=json
-          --outputFile.blob=.artifacts/unit-tests/blobs/${{ matrix.project }}-${{ matrix.shard }}.json
-          --outputFile.json=.artifacts/unit-tests/timings/${{ matrix.project }}-${{ matrix.shard }}.json
-      - name: Upload web shard reports
-        if: ${{ always() }}
-        uses: actions/upload-artifact@v7
-        with:
-          name: web-unit-shard-${{ matrix.project }}-${{ matrix.shard }}-attempt-${{ github.run_attempt }}
-          path: apps/web/.artifacts/unit-tests
-          include-hidden-files: true
-          if-no-files-found: error
+          path: ${{ env.WEB_UNIT_RESULTS }}
+          key: ${{ needs.plan.outputs.web-unit-key }}
 
-  workspace-tests:
-    name: Workspace unit (${{ matrix.workspace }})
-    runs-on: ubuntu-latest
-    timeout-minutes: 25
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - workspace: mobile
-            directory: apps/mobile
-            step-timeout-minutes: 22
-          - workspace: desktop
-            directory: apps/desktop
-            step-timeout-minutes: 5
-          - workspace: shared
-            directory: packages/shared
-            step-timeout-minutes: 5
-          - workspace: eslint-rules
-            directory: eslint-rules
-            step-timeout-minutes: 5
-    steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
-        env:
-          SEGMENT_DOWNLOAD_TIMEOUT_MINS: '1'
+      - name: Save mobile unit results
+        if: github.event_name != 'pull_request' && needs.mobile-tests.result == 'success'
+        uses: actions/cache/save@v6
         with:
-          node-version: 22
-          cache: npm
-      - run: npm ci
-      # Step limits come from the longest successful "Run workspace with coverage thresholds" step in the
-      # last 60 test.yml runs, read from the step started_at and
-      # completed_at fields of `gh api repos/{owner}/{repo}/actions/runs/{id}/jobs`: mobile 864 s,
-      # shared 150 s, desktop 35 s, eslint-rules 17 s. Each limit is the maximum times 1.5, rounded up
-      # to whole minutes, with a 5 minute minimum. The slowest successful mobile job took 929 s in total,
-      # and its 22 minute step limit leaves the 25 minute job limit room for setup.
-      - name: Run workspace with coverage thresholds
-        timeout-minutes: ${{ matrix.step-timeout-minutes }}
-        run: npx turbo run test --filter="@orbit/${{ matrix.workspace }}" --concurrency=1 -- --coverage
-      # Preserve repository paths when artifacts from independent jobs are combined.
-      - name: Stage workspace coverage
-        run: |
-          test -s "${{ matrix.directory }}/coverage/lcov.info"
-          mkdir -p ".artifacts/workspace-coverage/${{ matrix.directory }}/coverage"
-          cp "${{ matrix.directory }}/coverage/lcov.info" ".artifacts/workspace-coverage/${{ matrix.directory }}/coverage/lcov.info"
-      - name: Upload workspace coverage
-        uses: actions/upload-artifact@v7
+          path: ${{ env.MOBILE_UNIT_RESULTS }}
+          key: ${{ needs.plan.outputs.mobile-unit-key }}
+
+      - name: Save workspace unit results
+        if: github.event_name != 'pull_request' && needs.workspace-tests.result == 'success'
+        uses: actions/cache/save@v6
         with:
-          name: workspace-unit-coverage-${{ matrix.workspace }}-attempt-${{ github.run_attempt }}
-          path: .artifacts/workspace-coverage
-          include-hidden-files: true
-          if-no-files-found: error
-
-  sonarcloud:
-    name: SonarCloud Analysis
-    needs: unit-tests
-    runs-on: ubuntu-latest
-
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
-
-      - uses: actions/setup-node@v7
-        env:
-          SEGMENT_DOWNLOAD_TIMEOUT_MINS: '1'
-        with:
-          node-version: 22
-          cache: npm
-
-      # The scanner resolves tsconfig extends and dependency types from node_modules.
-      - run: npm ci
-
-      - name: Download coverage reports
-        uses: actions/download-artifact@v8
-        with:
-          name: unit-test-coverage
+          path: ${{ env.WORKSPACE_UNIT_RESULTS }}
+          key: ${{ needs.plan.outputs.workspace-unit-key }}
 
       - name: Merge Coverage Reports
         run: |
@@ -443,9 +527,156 @@ jobs:
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
+  # Shards split files by the recorded durations in apps/web/vitest/shard-timings.json (TimedSequencer).
+  # Partial runs collect coverage; Unit Tests applies the unchanged gate to their union.
+  web-tests:
+    name: Web unit (${{ matrix.project }} ${{ matrix.shard }}/${{ matrix.total }})
+    needs: plan
+    if: needs.plan.outputs.web-unit-hit != 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      ARTIFACT_NAME: web-unit-shard-${{ matrix.project }}-${{ matrix.shard }}-attempt-${{ github.run_attempt }}
+    strategy:
+      fail-fast: false
+      matrix:
+        project: [chromium]
+        shard: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
+        total: [16]
+        include:
+          - project: jsdom
+            shard: 1
+            total: 4
+          - project: jsdom
+            shard: 2
+            total: 4
+          - project: jsdom
+            shard: 3
+            total: 4
+          - project: jsdom
+            shard: 4
+            total: 4
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        env:
+          SEGMENT_DOWNLOAD_TIMEOUT_MINS: '1'
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Run web shard with coverage
+        timeout-minutes: 12
+        working-directory: apps/web
+        run: >-
+          npx vitest run --project=${{ matrix.project }} --shard=${{ matrix.shard }}/${{ matrix.total }}
+          --coverage --coverage.thresholds.statements=0 --coverage.thresholds.branches=0
+          --coverage.thresholds.functions=0 --coverage.thresholds.lines=0
+          --reporter=default --reporter=blob --reporter=json
+          --outputFile.blob=.artifacts/unit-tests/blobs/${{ matrix.project }}-${{ matrix.shard }}.json
+          --outputFile.json=.artifacts/unit-tests/timings/${{ matrix.project }}-${{ matrix.shard }}.json
+      # Unit Tests extracts every artifact at one path, so the artifact holds one folder with its own name.
+      - name: Stage web shard reports under the artifact name
+        if: ${{ always() }}
+        run: mkdir -p .artifacts/upload && mv apps/web/.artifacts/unit-tests ".artifacts/upload/$ARTIFACT_NAME"
+      - name: Upload web shard reports
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ env.ARTIFACT_NAME }}
+          path: .artifacts/upload
+          include-hidden-files: true
+          if-no-files-found: error
+
+  # Step limit: the slowest successful mobile step (864 s) split three ways, times 1.5, rounded up.
+  mobile-tests:
+    name: Mobile unit (${{ matrix.shard }}/${{ matrix.total }})
+    needs: plan
+    if: needs.plan.outputs.mobile-unit-hit != 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 13
+    env:
+      ARTIFACT_NAME: mobile-unit-shard-${{ matrix.shard }}-attempt-${{ github.run_attempt }}
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
+        total: [3]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        env:
+          SEGMENT_DOWNLOAD_TIMEOUT_MINS: '1'
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Run mobile shard with coverage
+        timeout-minutes: 10
+        working-directory: apps/mobile
+        run: >-
+          npx vitest run --shard=${{ matrix.shard }}/${{ matrix.total }}
+          --coverage --coverage.thresholds.statements=0 --coverage.thresholds.branches=0
+          --coverage.thresholds.functions=0 --coverage.thresholds.lines=0
+          --reporter=default --reporter=blob
+          --outputFile.blob=.artifacts/unit-tests/blobs/mobile-${{ matrix.shard }}.json
+      # Unit Tests extracts every artifact at one path, so the artifact holds one folder with its own name.
+      - name: Stage mobile shard reports under the artifact name
+        if: ${{ always() }}
+        run: mkdir -p .artifacts/upload && mv apps/mobile/.artifacts/unit-tests ".artifacts/upload/$ARTIFACT_NAME"
+      - name: Upload mobile shard reports
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ env.ARTIFACT_NAME }}
+          path: .artifacts/upload
+          include-hidden-files: true
+          if-no-files-found: error
+
+  # Step limit: the longest successful steps (shared 150 s, desktop 35 s, eslint-rules 17 s) summed, times 1.5, rounded up.
+  workspace-tests:
+    name: Workspace unit (desktop, shared, eslint-rules)
+    needs: plan
+    if: needs.plan.outputs.workspace-unit-hit != 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 9
+    env:
+      ARTIFACT_NAME: workspace-unit-coverage-attempt-${{ github.run_attempt }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        env:
+          SEGMENT_DOWNLOAD_TIMEOUT_MINS: '1'
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Run workspaces with coverage thresholds
+        timeout-minutes: 6
+        run: npx turbo run test --filter=@orbit/desktop --filter=@orbit/shared --filter=@orbit/eslint-rules --concurrency=1 -- --coverage
+      # Preserve repository paths under one folder with the artifact's own name: Unit Tests extracts every
+      # artifact at one path.
+      - name: Stage workspace coverage
+        run: |
+          for directory in apps/desktop packages/shared eslint-rules; do
+            test -s "$directory/coverage/lcov.info"
+            mkdir -p ".artifacts/workspace-coverage/$ARTIFACT_NAME/$directory/coverage"
+            cp "$directory/coverage/lcov.info" ".artifacts/workspace-coverage/$ARTIFACT_NAME/$directory/coverage/lcov.info"
+          done
+      - name: Upload workspace coverage
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ env.ARTIFACT_NAME }}
+          path: .artifacts/workspace-coverage
+          include-hidden-files: true
+          if-no-files-found: error
+
   type-check:
     name: Type Check
+    needs: plan
+    if: needs.plan.outputs.type-check == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 6
 
     steps:
       - uses: actions/checkout@v7
@@ -459,20 +690,30 @@ jobs:
 
       - run: npm ci
 
-      - name: Cache turbo
-        uses: actions/cache@v6
+      - name: Restore turbo
+        id: turbo-cache
+        uses: actions/cache/restore@v6
         with:
           path: .turbo
-          key: ${{ runner.os }}-turbo-${{ github.job }}-${{ github.sha }}
+          key: ${{ runner.os }}-turbo-type-check-${{ github.sha }}
           restore-keys: |
-            ${{ runner.os }}-turbo-${{ github.job }}-
+            ${{ runner.os }}-turbo-type-check-
 
       - run: npx turbo run type-check
 
+      - name: Save turbo
+        if: github.event_name != 'pull_request'
+        uses: actions/cache/save@v6
+        with:
+          path: .turbo
+          key: ${{ steps.turbo-cache.outputs.cache-primary-key }}
+
   lint:
-    if: github.event_name == 'pull_request'
     name: Lint
+    needs: plan
+    if: github.event_name == 'pull_request' && needs.plan.outputs.lint == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 5
 
     steps:
       - uses: actions/checkout@v7
@@ -493,14 +734,6 @@ jobs:
           cache: npm
 
       - run: npm ci
-
-      - name: Cache turbo
-        uses: actions/cache@v6
-        with:
-          path: .turbo
-          key: ${{ runner.os }}-turbo-${{ github.job }}-${{ github.sha }}
-          restore-keys: |
-            ${{ runner.os }}-turbo-${{ github.job }}-
 
       - name: Lint only files changed by this pull request
         shell: bash
@@ -528,3 +761,143 @@ jobs:
           if [ "${#shared[@]}" -gt 0 ]; then npm exec --workspace @orbit/shared -- eslint -- "${shared[@]}"; fi
           if [ "${#desktop[@]}" -gt 0 ]; then npm exec --workspace @orbit/desktop -- eslint -- "${desktop[@]}"; fi
           echo "Linted ${#web[@]} web, ${#mobile[@]} mobile, ${#shared[@]} shared and ${#desktop[@]} desktop files."
+
+  layout-shards:
+    name: Layout shard ${{ matrix.shard }}
+    needs: [plan, build]
+    if: github.event_name == 'pull_request' && needs.plan.outputs.web == 'true'
+    runs-on: ubuntu-24.04
+    # Shard 4 holds most of interaction-fill-clearance.spec.ts and took up to 912 s in the last 5 pull request runs.
+    # The limit is 1.5 times that.
+    timeout-minutes: 23
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4, 5, 6, 7, 8]
+    env:
+      API_BASE: http://127.0.0.1:5099
+      NEXT_PUBLIC_EVENT_API_BASE: http://127.0.0.1:5099
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        env:
+          SEGMENT_DOWNLOAD_TIMEOUT_MINS: '1'
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci --prefer-offline --no-audit --fund=false
+
+      - uses: actions/download-artifact@v8
+        with:
+          name: web-hermetic-build
+          path: ${{ runner.temp }}
+
+      - name: Restore hermetic build
+        run: tar -C apps/web -xzf "$RUNNER_TEMP/web-hermetic-build.tgz"
+
+      - name: Read the locked Playwright version
+        id: playwright
+        run: echo "version=$(npx playwright --version | cut -d' ' -f2)" >> "$GITHUB_OUTPUT"
+
+      - name: Restore the Playwright Chromium download
+        uses: actions/cache/restore@v6
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-chromium-${{ steps.playwright.outputs.version }}
+
+      - name: Install lockfile-pinned Playwright Chromium
+        run: npx playwright install chromium
+
+      - name: Check upgrade layout
+        run: npm run test:layout -w apps/web -- --shard=${{ matrix.shard }}/8
+
+      - name: Upload failure diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: layout-diagnostics-${{ matrix.shard }}
+          path: apps/web/e2e/.results
+          include-hidden-files: true
+          if-no-files-found: ignore
+          retention-days: 14
+
+  layout:
+    name: Upgrade layout geometry
+    needs: [plan, build, layout-shards]
+    if: ${{ !cancelled() && github.event_name == 'pull_request' && needs.plan.outputs.web == 'true' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    steps:
+      - name: Require the build and every shard
+        env:
+          BUILD_RESULT: ${{ needs.build.result }}
+          SHARD_RESULT: ${{ needs.layout-shards.result }}
+        run: test "$BUILD_RESULT" = success && test "$SHARD_RESULT" = success
+
+  lighthouse:
+    name: Authed Today Lighthouse budget
+    needs: [plan, build]
+    if: github.event_name == 'pull_request' && needs.plan.outputs.web == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      API_BASE: http://127.0.0.1:5099
+      NEXT_PUBLIC_EVENT_API_BASE: http://127.0.0.1:5099
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        env:
+          SEGMENT_DOWNLOAD_TIMEOUT_MINS: '1'
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci --prefer-offline --no-audit --fund=false
+
+      - uses: actions/download-artifact@v8
+        with:
+          name: web-hermetic-build
+          path: ${{ runner.temp }}
+
+      - name: Restore hermetic build
+        run: tar -C apps/web -xzf "$RUNNER_TEMP/web-hermetic-build.tgz"
+
+      - name: Start mock orbit-api and wait for health
+        run: |
+          set -euo pipefail
+          npx tsx apps/web/test-support/hermetic/mock-api/server.ts &
+          echo "MOCK_PID=$!" >> "$GITHUB_ENV"
+          for _ in $(seq 1 30); do
+            if curl -sf http://127.0.0.1:5099/health >/dev/null 2>&1; then
+              echo "mock orbit-api healthy on :5099"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "::error::mock orbit-api failed to become healthy on :5099"
+          exit 1
+
+      - name: Run median TBT and script budget gates
+        timeout-minutes: 8
+        run: node apps/web/perf/run-lighthouse.mjs
+
+      - name: Report authed Today LCP
+        if: always()
+        run: node apps/web/perf/report-lcp.mjs
+
+      - name: Stop mock orbit-api
+        if: always()
+        run: kill "${MOCK_PID}" 2>/dev/null || true
+
+      - name: Upload Lighthouse reports
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: lighthouse-reports
+          path: .lighthouseci
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 14
