@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { SPACING } from '@orbit/shared/theme'
 import type { ApiKeyCreateRequest, ApiKeyCreateResponse } from '@orbit/shared/types'
+import { markGuidedFlowCompleted } from '@orbit/shared/utils'
 import { apiKeyExpiryDay, apiKeyExpiryFirstDay, apiKeyExpiryFromDay, apiKeyFormSchema, getApiKeyNameError, validateApiKeyExpiry } from '@orbit/shared/validation'
 import { DateField } from '@/components/ui/date-field'
 import { DiscardChangesSheet } from '@/components/ui/discard-changes-sheet'
@@ -106,7 +107,11 @@ export function ApiKeyCreateFlow(props: Readonly<ApiKeyCreateFlowProps>) {
       return
     }
     const scopes = props.scoped ? { scopes: [flow.scope.trim()] } : {}
-    const result = await props.onCreate({ name: form.data.name, ...scopes, expiresAtUtc: form.data.expiresAt }, () => Promise.resolve(props.onCreateGrantRequired()))
+    const continueInCodeQuestion = () => {
+      markGuidedFlowCompleted('api_key_create')
+      return Promise.resolve(props.onCreateGrantRequired())
+    }
+    const result = await props.onCreate({ name: form.data.name, ...scopes, expiresAtUtc: form.data.expiresAt }, continueInCodeQuestion)
     if (result) props.onCreated(result)
   }
 

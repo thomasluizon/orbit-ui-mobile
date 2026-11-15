@@ -6,6 +6,7 @@ import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import type { ApiKeyCreateResponse } from '@orbit/shared/types'
 import { ApiKeyCreateFlow } from '@/components/profile/api-key-create-flow'
+import { captureGuidedFlowEvent } from '@/lib/posthog'
 
 vi.mock('@/lib/posthog', async (importOriginal) => ({ ...await importOriginal<typeof import('@/lib/posthog')>(), captureGuidedFlowEvent: vi.fn() }))
 vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))
@@ -24,8 +25,10 @@ function Harness({ scoped = false, draft = '', timeZone = 'America/Sao_Paulo', o
   const [readOnly, setReadOnly] = useState(false)
   const [expiresAt, setExpiresAt] = useState(draft)
   const [created, setCreated] = useState<ApiKeyCreateResponse | null>(null)
+  const [handedOff, setHandedOff] = useState(false)
+  if (handedOff) return null
   return <ApiKeyCreateFlow scoped={scoped} busy={false} error={null} isReadOnly={readOnly} onReadOnlyChange={setReadOnly} expiresAt={expiresAt} timeZone={timeZone} onExpiryChange={setExpiresAt}
-    createdKey={created} onCreate={onCreate} onCreateGrantRequired={vi.fn()} onCreated={setCreated} onClose={onClose} />
+    createdKey={created} onCreate={onCreate} onCreateGrantRequired={() => setHandedOff(true)} onCreated={setCreated} onClose={onClose} />
 }
 
 function mount(locale: string, messages: typeof en, props: Parameters<typeof Harness>[0]) {
@@ -90,6 +93,21 @@ describe.each([{ locale: 'en', messages: en }, { locale: 'pt-BR', messages: ptBR
     expect(screen.getByRole('button', { name: messages.common.never })).toHaveAttribute('aria-pressed', 'false')
     await act(async () => { fireEvent.click(screen.getByRole('button', { name: messages.profile.apiKeys.scopeAction })) })
     expect(onCreate).toHaveBeenCalledWith({ name: 'Script', scopes: ['habits:read'], expiresAtUtc: '2026-11-20T14:59:59.000Z' }, expect.any(Function))
+  })
+
+  it('hands the flow to the code question without reporting it as left', async () => {
+    vi.mocked(captureGuidedFlowEvent).mockClear()
+    const onCreate = vi.fn(async (_request: unknown, onCreateGrantRequired: () => Promise<void>) => { await onCreateGrantRequired(); return null })
+    mount(locale, messages, { onCreate: onCreate as (...args: unknown[]) => Promise<ApiKeyCreateResponse | null>, onClose: vi.fn() })
+    fireEvent.change(screen.getByRole('textbox', { name: messages.orbitMcp.keyName }), { target: { value: 'Script' } })
+    fireEvent.click(screen.getByRole('button', { name: messages.common.continue }))
+    fireEvent.click(screen.getByRole('button', { name: messages.orbitMcp.permReadOnly }))
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: messages.common.never })) })
+    expect(onCreate).toHaveBeenCalledOnce()
+    expect(screen.queryByRole('heading', { level: 1 })).toBeNull()
+    const events = vi.mocked(captureGuidedFlowEvent).mock.calls.map(([event]) => event.name)
+    expect(events).toContain('guided_flow_step_viewed')
+    expect(events).not.toContain('guided_flow_abandoned')
   })
 
   it('refuses a kept expiry draft that is in the past, with the reason under the date', async () => {

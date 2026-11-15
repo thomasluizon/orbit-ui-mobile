@@ -147,6 +147,23 @@ describe.each([{ language: 'en', messages: en }, { language: 'pt-BR', messages: 
     expect(mocks.push).toHaveBeenCalledWith('/step-up?operation=delete')
   })
 
+  it('hands the flow to the code question without reporting it as left', async () => {
+    mocks.language = language
+    function Harness() {
+      const [open, setOpen] = React.useState(true)
+      return <DeleteAccountModal open={open} guided profile={proProfile} onClose={() => setOpen(false)} />
+    }
+    const tree = await render(<Harness />)
+    await press(tree, messages.common.continue)
+    await press(tree, messages.profile.deleteAccount.sendCode)
+    await settle()
+    expect(mocks.push).toHaveBeenCalledWith('/step-up?operation=delete')
+    expect(hosts(tree)).toHaveLength(0)
+    const events = mocks.event.mock.calls.map(([event]) => (event as { name: string }).name)
+    expect(events).toContain('guided_flow_step_viewed')
+    expect(events).not.toContain('guided_flow_abandoned')
+  })
+
   it('blocks the flow offline with the reason and no action', async () => {
     mocks.language = language
     mocks.online = false

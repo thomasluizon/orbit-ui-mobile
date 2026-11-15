@@ -1,5 +1,6 @@
 import { act, fireEvent, render, screen } from '@testing-library/react'
 import { NextIntlClientProvider } from 'next-intl'
+import { useState } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
@@ -129,6 +130,21 @@ describe.each(locales)('delete account flow in $locale', ({ locale, messages }) 
     await act(async () => { fireEvent.click(screen.getByRole('button', { name: messages.profile.deleteAccount.sendCode })) })
     expect(mocks.requestDeletion).toHaveBeenCalledOnce()
     expect(mocks.push).toHaveBeenCalledWith('/step-up?operation=delete')
+  })
+
+  it('hands the flow to the code question without reporting it as left', async () => {
+    function Harness() {
+      const [open, setOpen] = useState(true)
+      return <DeleteAccountModal open={open} guided profile={proProfile} onOpenChange={setOpen} />
+    }
+    render(withIntl(locale, messages, <Harness />))
+    fireEvent.click(screen.getByRole('button', { name: messages.common.continue }))
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: messages.profile.deleteAccount.sendCode })) })
+    expect(mocks.push).toHaveBeenCalledWith('/step-up?operation=delete')
+    expect(screen.queryByRole('heading', { level: 1 })).toBeNull()
+    const events = mocks.event.mock.calls.map(([event]) => (event as { name: string }).name)
+    expect(events).toContain('guided_flow_step_viewed')
+    expect(events).not.toContain('guided_flow_abandoned')
   })
 
   it('states the free warning for a free plan', () => {
