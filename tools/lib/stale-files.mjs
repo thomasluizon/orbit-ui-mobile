@@ -19,6 +19,8 @@ export const LISTING_MAX_AGE_MS = 15 * 60_000
 export const LISTING_CEILING_MS = 10 * 60_000
 const COMMAND_TIMEOUT_MS = 30_000
 const MEASURE_TIMEOUT_MS = 120_000
+/** A worktree with installed dependencies holds several hundred thousand files; a removal that stops halfway leaves a broken tree. */
+const REMOVAL_TIMEOUT_MS = 10 * 60_000
 const SESSION_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 const DURABLE_COPY = /^durable-([0-9a-f]{8})/
 const LINK_HOP_LIMIT = 40
@@ -87,8 +89,8 @@ export const claudeConfigDirectories = (environment = process.env) => [...new Se
   claudeConfigDirectory(), join(homedir(), ".claude"), environment.ORBIT_WORKER_CLAUDE_CONFIG_DIR,
 ].filter((directory) => typeof directory === "string" && directory !== "").map((directory) => resolve(directory)))]
 
-const runGit = (cwd, args) => {
-  const result = spawnSync(process.env.GIT_BIN || "git", ["-C", cwd, ...args], { encoding: "utf8", timeout: COMMAND_TIMEOUT_MS, maxBuffer: 32 * 1024 * 1024 })
+const runGit = (cwd, args, timeoutMs = COMMAND_TIMEOUT_MS) => {
+  const result = spawnSync(process.env.GIT_BIN || "git", ["-C", cwd, ...args], { encoding: "utf8", timeout: timeoutMs, maxBuffer: 32 * 1024 * 1024 })
   return result.status === 0 ? result.stdout.trim() : null
 }
 
@@ -388,7 +390,7 @@ const removeDirectory = (item, root) => {
 
 /** Git refuses a tree with a tracked or untracked change, and a locked one. The local branch stays. */
 const removeWorktree = (item, probes) => {
-  if (probes.git(item.repository, ["worktree", "remove", item.path]) === null) throw new Error(`git worktree remove refused ${item.path}`)
+  if (probes.git(item.repository, ["worktree", "remove", item.path], REMOVAL_TIMEOUT_MS) === null) throw new Error(`git worktree remove refused ${item.path}`)
 }
 
 /**
