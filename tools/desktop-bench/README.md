@@ -400,8 +400,10 @@ shortcut handlers act on the key name, and the runner never posts a key again af
 it. cmdk ignores a claimed Down, so a claimed Down fails as an input method claim before the focus check.
 If the page records no keydown of the key within 5 seconds, the runner sends it again, with at most 6
 posts (30 seconds) per key. A key that never arrives fails with `OS key delivery failed`, before the
-runner checks the app. After a repost, a key from an earlier post can still arrive, so the page gets one
-more 5 second window, and a second keydown also fails with `OS key delivery failed`. Thus a run report
+runner checks the app. After a repost, a key from an earlier post can still arrive. The runner then
+assumes that every key of this run has the delay of the first post, and watches until the last post's
+key would arrive with that delay, plus one 5 second window. A second keydown in that time also fails
+with `OS key delivery failed`. One key takes at most about 100 seconds. Thus a run report
 tells a lost or doubled OS event from an app defect. `report.json` `keyDelivery` keeps every post of
 every key with its native reply and, for a post with no receipt, every event of that probe kind that the
 page recorded after the post. The job log prints one `Key <name>: post N of 6` line per post.

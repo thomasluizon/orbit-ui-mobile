@@ -619,7 +619,13 @@ async function keyDeliveryCases() {
     'late-and-repost': (post, at) => post === 1 ? [{ at: at + 5050, key: 'Escape', keyCode: 27 }] : [{ at: at + 100, key: 'Escape', keyCode: 27 }],
     'late-then-lost': (post, at) => post === 1 ? [{ at: at + 5050, key: 'Escape', keyCode: 27 }] : [],
     'never': (_post, at) => [{ at, key: 'Process', keyCode: 229 }],
+    // The reviewer's timing: each post takes 300 ms and every key reaches the page 6 s after its post ends.
+    'equal-delay': (_post, at) => [{ at: at + 6000, key: 'Escape', keyCode: 27 }],
+    'equal-delay-repost-lost': (post, at) => post === 1 ? [{ at: at + 6000, key: 'Escape', keyCode: 27 }] : [],
+    // Two outstanding posts: the first key arrives 12 s late during post 3, post 2 is lost, and post 3's key has the same delay.
+    'two-outstanding': (post, at) => post === 2 ? [] : [{ at: at + 12000, key: 'Escape', keyCode: 27 }],
   }
+  const postDuration = { 'equal-delay': 300, 'equal-delay-repost-lost': 300, 'two-outstanding': 300 }
   for (const [name, arrivals] of Object.entries(scenarios)) {
     let clock = 0
     const context = { Date: { now: () => clock }, delay: async (milliseconds) => { clock += milliseconds } }
@@ -636,6 +642,7 @@ async function keyDeliveryCases() {
         post: async () => {
           posts.push(clock)
           if (posts.length === keyPosts + 1) throw new Error('posted past the bound')
+          clock += postDuration[name] ?? 0
           page.push(...arrivals(posts.length, clock))
           return { sent: 'escape', post: posts.length }
         } })
@@ -674,6 +681,21 @@ async function keyDeliveryCases() {
           posts.length === keyPosts && clock === keyPosts * keyReceiptWindow && attempts.length === keyPosts &&
           attempts.every((attempt) => !attempt.received && attempt.keys.length === 1 && attempt.keys[0].key === 'Process'),
         failure?.message ?? JSON.stringify({ posts, record }))
+    }
+    if (name === 'equal-delay') {
+      T('a repost key with the same delay as the late first key arrives after a fixed 5 s guard and still fails as OS delivery',
+        failure?.message === 'OS key delivery failed: the page received 2 escape keydowns from 2 posts; a key arrived after its window together with its repost' &&
+          posts.length === 2 && clock >= 11600 && clock < 11700, failure?.message ?? JSON.stringify({ clock, posts, attempts }))
+    }
+    if (name === 'equal-delay-repost-lost') {
+      T('the repeat guard ends one receipt window after the last post key would arrive with the first key delay, when no second key comes',
+        !failure && posts.length === 2 && clock >= 16900 && clock < 17000, failure?.message ?? JSON.stringify({ clock, posts }))
+    }
+    if (name === 'two-outstanding') {
+      T('the repeat guard covers every outstanding post: a lost second post and a late third key still fail as OS delivery',
+        failure?.message === 'OS key delivery failed: the page received 2 escape keydowns from 3 posts; a key arrived after its window together with its repost' &&
+          posts.length === 3 && JSON.stringify(received) === '[false,false,true]' && clock >= 22900 && clock < 23000,
+        failure?.message ?? JSON.stringify({ clock, posts, attempts }))
     }
   }
   T('a claimed key is keyCode 229 or a composition', claimedKey({ keyCode: 229 }) && claimedKey({ keyCode: 40, composing: true }) && !claimedKey({ keyCode: 40, composing: false }))

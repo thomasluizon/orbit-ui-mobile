@@ -122,16 +122,19 @@ export const keyPosts = 6
 
 // A native key post can return without reaching WebKit, so only the page's keydown receipt proves delivery (#1560). A key
 // posts again only while the page has recorded no keydown of that key, and a key that never arrives fails as OS delivery,
-// apart from the app check that follows. After a repost, a key from an earlier post can still arrive late, so the page gets
-// one more window, and a second keydown fails before a toggle key (Command+K) can mislead the app check.
+// apart from the app check that follows. After a repost, a key from an earlier post can still arrive late, so a second
+// keydown fails before a toggle key (Command+K) or a second Down can mislead the app check.
 export async function deliverKey({ name, post, events, matches, waitFor, now, record, log }) {
   const receipts = () => events().filter(matches)
   const before = receipts().length
   const attempts = []
+  const posted = []
   record.push({ key: name, attempts })
   for (let attempt = 1; attempt <= keyPosts && receipts().length === before; attempt++) {
     const seen = events().length
+    const start = now()
     const reply = await post()
+    posted.push({ start, end: now() })
     const deadline = now() + keyReceiptWindow
     await waitFor(() => receipts().length > before || now() >= deadline, `${name} keydown receipt`)
     const received = receipts().length > before
@@ -143,8 +146,12 @@ export async function deliverKey({ name, post, events, matches, waitFor, now, re
       'report.json keyDelivery lists every other key the page recorded after each post')
   }
   if (attempts.length > 1) {
-    const deadline = now() + keyReceiptWindow
-    await waitFor(() => receipts().length > before + 1 || now() >= deadline, `late ${name} keydown`)
+    // The receipt may be the first post's key, delayed by up to (receipt time - first post start). With that same delay, the
+    // key of the last post, sent by its end, arrives by receipt time + (last post end - first post start); one more receipt
+    // window covers its loopback POST. Six posts of at most 7.5 s (5 s window plus a 2.5 s raise) make this guard at most
+    // 50 s, so one key takes at most about 100 s and five keys about 8.5 min, inside the 60 min job limit.
+    const until = now() + (posted.at(-1).end - posted[0].start) + keyReceiptWindow
+    await waitFor(() => receipts().length > before + 1 || now() >= until, `late ${name} keydown`)
   }
   const received = receipts().length - before
   if (received > 1) {
