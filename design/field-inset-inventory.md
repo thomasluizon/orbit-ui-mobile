@@ -53,11 +53,12 @@ Paths are repository-relative. Repeated rows are separate controls within one ow
 | `apps/mobile/app/(tabs)/profile/_components/fresh-start-flow.tsx` | 64 | `Input` | standard | 16 |
 | `apps/mobile/app/(tabs)/profile/_components/fresh-start-modal.tsx` | 291 | `AppTextInput` | standard | 16 |
 | `apps/mobile/app/search.tsx` | 64 | `Input` | standard | 16 |
-| `apps/mobile/app/step-up.tsx` | 443 | `OtpInput` | otp | centred |
+| `apps/mobile/app/step-up.tsx` | 447 | `OtpInput` | otp | centred |
 | `apps/mobile/app/support.tsx` | 195 | `Input` | standard | 16 |
 | `apps/mobile/components/auth/code-step.tsx` | 62 | `OtpInput` | otp | centred |
 | `apps/mobile/components/auth/email-step.tsx` | 74 | `Input` | standard | 16 |
-| `apps/mobile/components/auth/guided-login.tsx` | 71 | `Input` | standard | 16 |
+| `apps/mobile/components/auth/guided-login.tsx` | 70 | `Input` | standard | 16 |
+| `apps/mobile/components/auth/guided-step-up.tsx` | 73 | `OtpInput` | otp | centred |
 | `apps/mobile/components/chat/answer-block.tsx` | 41 | `Input` | standard | 16 |
 | `apps/mobile/components/chat/breakdown-suggestion.tsx` | 33 | `TypedTextInput` | inline add | 12 |
 | `apps/mobile/components/chat/habit-suggestions-card.tsx` | 69 | `Input` | standard | 16 |
@@ -81,10 +82,10 @@ Paths are repository-relative. Repeated rows are separate controls within one ow
 | `apps/mobile/components/goals/goal-detail-drawer/goal-progress-form.tsx` | 52 | `Input` | standard | 16 |
 | `apps/mobile/components/goals/goal-detail-drawer/goal-progress-form.tsx` | 53 | `Input` | standard | 16 |
 | `apps/mobile/components/goals/goal-habits-field.tsx` | 48 | `BottomSheetAppTextInput` | standard | 16 |
-| `apps/mobile/components/goals/guided/goal-flow-steps.tsx` | 67 | `Input` | standard | 16 |
-| `apps/mobile/components/goals/guided/goal-flow-steps.tsx` | 95 | `Input` | standard | 16 |
-| `apps/mobile/components/goals/guided/goal-flow-steps.tsx` | 98 | `Input` | standard | 16 |
-| `apps/mobile/components/goals/guided/goal-flow-steps.tsx` | 137 | `Input` | standard | 16 |
+| `apps/mobile/components/goals/guided/goal-flow-steps.tsx` | 68 | `Input` | standard | 16 |
+| `apps/mobile/components/goals/guided/goal-flow-steps.tsx` | 96 | `Input` | standard | 16 |
+| `apps/mobile/components/goals/guided/goal-flow-steps.tsx` | 99 | `Input` | standard | 16 |
+| `apps/mobile/components/goals/guided/goal-flow-steps.tsx` | 138 | `Input` | standard | 16 |
 | `apps/mobile/components/goals/guided/goal-habits-step.tsx` | 44 | `Input` | standard | 16 |
 | `apps/mobile/components/habit-list/move-parent-dialog.tsx` | 178 | `Input` | standard | 16 |
 | `apps/mobile/components/habits/checklist-templates.tsx` | 154 | `BottomSheetAppTextInput` | inline add | 12 |
@@ -94,12 +95,12 @@ Paths are repository-relative. Repeated rows are separate controls within one ow
 | `apps/mobile/components/habits/flow-steps/goal-link-step.tsx` | 48 | `Input` | standard | 16 |
 | `apps/mobile/components/habits/flow-steps/tag-step.tsx` | 67 | `Input` | standard | 16 |
 | `apps/mobile/components/habits/flow-steps/tag-step.tsx` | 72 | `Input` | standard | 16 |
-| `apps/mobile/components/habits/flow-steps/template-step.tsx` | 113 | `Input` | standard | 16 |
+| `apps/mobile/components/habits/flow-steps/template-step.tsx` | 114 | `Input` | standard | 16 |
 | `apps/mobile/components/habits/goal-linking-field.tsx` | 52 | `BottomSheetAppTextInput` | standard | 16 |
-| `apps/mobile/components/habits/guided/guided-detail-views.tsx` | 106 | `TimeField` | time | 16 |
-| `apps/mobile/components/habits/guided/guided-detail-views.tsx` | 195 | `Input` | standard | 16 |
-| `apps/mobile/components/habits/guided/guided-step-views.tsx` | 124 | `Input` | standard | 16 |
-| `apps/mobile/components/habits/guided/guided-step-views.tsx` | 142 | `TimeField` | time | 16 |
+| `apps/mobile/components/habits/guided/guided-detail-views.tsx` | 110 | `TimeField` | time | 16 |
+| `apps/mobile/components/habits/guided/guided-detail-views.tsx` | 203 | `Input` | standard | 16 |
+| `apps/mobile/components/habits/guided/guided-step-views.tsx` | 129 | `Input` | standard | 16 |
+| `apps/mobile/components/habits/guided/guided-step-views.tsx` | 147 | `TimeField` | time | 16 |
 | `apps/mobile/components/habits/guided/phrase-field.tsx` | 23 | `Input` | standard | 16 |
 | `apps/mobile/components/habits/habit-checklist.tsx` | 114 | `BottomSheetAppTextInput` | checklist edit | 8 with grip |
 | `apps/mobile/components/habits/habit-checklist.tsx` | 204 | `Input` | standard inline add | 16 |
@@ -121,10 +122,10 @@ Paths are repository-relative. Repeated rows are separate controls within one ow
 | `apps/mobile/components/onboarding/guided-onboarding-flow.tsx` | 234 | `TimeField` | time | 16 |
 | `apps/mobile/components/onboarding/onboarding-create-habit.tsx` | 99 | `TimeField` | time | 16 |
 | `apps/mobile/components/onboarding/onboarding-welcome.tsx` | 22 | `Input` | standard | 16 |
-| `apps/mobile/components/profile/api-key-create-flow.tsx` | 181 | `Input` | standard | 16 |
-| `apps/mobile/components/profile/api-key-create-flow.tsx` | 184 | `Input` | standard | 16 |
-| `apps/mobile/components/profile/api-key-create-flow.tsx` | 190 | `Input` | standard | 16 |
-| `apps/mobile/components/profile/preferences-sections.tsx` | 115 | `BottomSheetAppTextInput` | standard | 16 |
+| `apps/mobile/components/profile/api-key-create-flow.tsx` | 182 | `Input` | standard | 16 |
+| `apps/mobile/components/profile/api-key-create-flow.tsx` | 185 | `Input` | standard | 16 |
+| `apps/mobile/components/profile/preferences-sections.tsx` | 120 | `BottomSheetAppTextInput` | standard | 16 |
+| `apps/mobile/components/profile/preferences-sections.tsx` | 161 | `Input` | standard | 16 |
 | `apps/mobile/components/profile/profile-api-keys.tsx` | 129 | `Input` | standard | 16 |
 | `apps/mobile/components/profile/profile-api-keys.tsx` | 145 | `Input` | standard | 16 |
 | `apps/mobile/components/profile/profile-api-keys.tsx` | 161 | `Input` | standard | 16 |
@@ -138,7 +139,8 @@ Paths are repository-relative. Repeated rows are separate controls within one ow
 | `apps/mobile/components/ui/typed-text-input.tsx` | 42 | `TextInput` | foreground adapter | caller-owned |
 | `apps/web/app/(app)/layout.tsx` | 385 | `input` | file | glyphless |
 | `apps/web/app/(app)/layout.tsx` | 392 | `input` | file | glyphless |
-| `apps/web/app/(app)/preferences/_components/preference-picker-sheet.tsx` | 107 | `input` | standard | 16 |
+| `apps/web/app/(app)/preferences/_components/preference-picker-sheet.tsx` | 101 | `input` | standard | 16 |
+| `apps/web/app/(app)/preferences/_components/preference-picker-sheet.tsx` | 151 | `Input` | standard | 16 |
 | `apps/web/app/(app)/profile/_components/edit-name-sheet.tsx` | 105 | `Input` | standard | 16 |
 | `apps/web/app/(app)/profile/_components/fresh-start-flow.tsx` | 29 | `Input` | standard | 16 |
 | `apps/web/app/(app)/profile/_components/fresh-start-modal.tsx` | 314 | `Input` | standard | 16 |
@@ -147,8 +149,9 @@ Paths are repository-relative. Repeated rows are separate controls within one ow
 | `apps/web/app/(app)/today-page-view.tsx` | 59 | `Input` | standard | 16 |
 | `apps/web/app/(auth)/login/code-step.tsx` | 47 | `OtpInput` | otp | centred |
 | `apps/web/app/(auth)/login/email-step.tsx` | 73 | `Input` | standard | 16 |
-| `apps/web/app/(auth)/login/guided-login.tsx` | 64 | `Input` | standard | 16 |
-| `apps/web/app/step-up/step-up-screen.tsx` | 457 | `OtpInput` | otp | centred |
+| `apps/web/app/(auth)/login/guided-login.tsx` | 63 | `Input` | standard | 16 |
+| `apps/web/app/step-up/guided-step-up.tsx` | 75 | `OtpInput` | otp | centred |
+| `apps/web/app/step-up/step-up-screen.tsx` | 461 | `OtpInput` | otp | centred |
 | `apps/web/components/calendar/calendar-day-events.tsx` | 48 | `Input` | standard | 16 |
 | `apps/web/components/calendar/calendar-entry-details.tsx` | 32 | `Input` | standard | 16 |
 | `apps/web/components/chat/answer-block.tsx` | 42 | `Input` | standard | 16 |
@@ -176,10 +179,10 @@ Paths are repository-relative. Repeated rows are separate controls within one ow
 | `apps/web/components/goals/goal-detail-drawer/goal-progress-form.tsx` | 51 | `Input` | standard | 16 |
 | `apps/web/components/goals/goal-detail-drawer/goal-progress-form.tsx` | 52 | `Input` | standard | 16 |
 | `apps/web/components/goals/goal-habits-field.tsx` | 38 | `PickerList` | standard | 16 |
-| `apps/web/components/goals/guided/goal-flow-steps.tsx` | 67 | `Input` | standard | 16 |
-| `apps/web/components/goals/guided/goal-flow-steps.tsx` | 95 | `Input` | standard | 16 |
-| `apps/web/components/goals/guided/goal-flow-steps.tsx` | 98 | `Input` | standard | 16 |
-| `apps/web/components/goals/guided/goal-flow-steps.tsx` | 138 | `Input` | standard | 16 |
+| `apps/web/components/goals/guided/goal-flow-steps.tsx` | 68 | `Input` | standard | 16 |
+| `apps/web/components/goals/guided/goal-flow-steps.tsx` | 96 | `Input` | standard | 16 |
+| `apps/web/components/goals/guided/goal-flow-steps.tsx` | 99 | `Input` | standard | 16 |
+| `apps/web/components/goals/guided/goal-flow-steps.tsx` | 139 | `Input` | standard | 16 |
 | `apps/web/components/goals/guided/goal-habits-step.tsx` | 43 | `Input` | standard | 16 |
 | `apps/web/components/habits/checklist-templates.tsx` | 111 | `input` | inline add | 12 |
 | `apps/web/components/habits/create-goal-from-habit/goal-target-fields.tsx` | 33 | `FieldWell` | standard | 16 |
@@ -188,12 +191,12 @@ Paths are repository-relative. Repeated rows are separate controls within one ow
 | `apps/web/components/habits/flow-steps/goal-link-step.tsx` | 46 | `Input` | standard | 16 |
 | `apps/web/components/habits/flow-steps/tag-step.tsx` | 67 | `Input` | standard | 16 |
 | `apps/web/components/habits/flow-steps/tag-step.tsx` | 72 | `Input` | standard | 16 |
-| `apps/web/components/habits/flow-steps/template-step.tsx` | 96 | `Input` | standard | 16 |
+| `apps/web/components/habits/flow-steps/template-step.tsx` | 97 | `Input` | standard | 16 |
 | `apps/web/components/habits/goal-linking-field.tsx` | 57 | `PickerList` | standard | 16 |
-| `apps/web/components/habits/guided/guided-detail-views.tsx` | 99 | `TimeField` | time | 16 |
-| `apps/web/components/habits/guided/guided-detail-views.tsx` | 187 | `Input` | standard | 16 |
-| `apps/web/components/habits/guided/guided-step-views.tsx` | 115 | `Input` | standard | 16 |
-| `apps/web/components/habits/guided/guided-step-views.tsx` | 133 | `TimeField` | time | 16 |
+| `apps/web/components/habits/guided/guided-detail-views.tsx` | 103 | `TimeField` | time | 16 |
+| `apps/web/components/habits/guided/guided-detail-views.tsx` | 195 | `Input` | standard | 16 |
+| `apps/web/components/habits/guided/guided-step-views.tsx` | 120 | `Input` | standard | 16 |
+| `apps/web/components/habits/guided/guided-step-views.tsx` | 138 | `TimeField` | time | 16 |
 | `apps/web/components/habits/guided/phrase-field.tsx` | 25 | `Input` | standard | 16 |
 | `apps/web/components/habits/habit-checklist.tsx` | 326 | `input` | checklist edit | 8 with grip |
 | `apps/web/components/habits/habit-checklist.tsx` | 404 | `Input` | standard inline add | 16 |
@@ -216,9 +219,8 @@ Paths are repository-relative. Repeated rows are separate controls within one ow
 | `apps/web/components/onboarding/guided-onboarding-flow.tsx` | 219 | `TimeField` | time | 16 |
 | `apps/web/components/onboarding/onboarding-create-habit.tsx` | 131 | `TimeField` | time | 16 |
 | `apps/web/components/onboarding/onboarding-welcome.tsx` | 25 | `Input` | standard | 16 |
-| `apps/web/components/profile/api-key-create-flow.tsx` | 177 | `Input` | standard | 16 |
-| `apps/web/components/profile/api-key-create-flow.tsx` | 180 | `Input` | standard | 16 |
-| `apps/web/components/profile/api-key-create-flow.tsx` | 186 | `Input` | standard | 16 |
+| `apps/web/components/profile/api-key-create-flow.tsx` | 178 | `Input` | standard | 16 |
+| `apps/web/components/profile/api-key-create-flow.tsx` | 181 | `Input` | standard | 16 |
 | `apps/web/components/profile/profile-api-keys.tsx` | 124 | `Input` | standard | 16 |
 | `apps/web/components/profile/profile-api-keys.tsx` | 140 | `Input` | standard | 16 |
 | `apps/web/components/profile/profile-api-keys.tsx` | 156 | `Input` | standard | 16 |
