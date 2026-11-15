@@ -389,6 +389,6 @@ function adminMergeReason(shape) {
     `${shape} performs an administrator merge, which bypasses the required checks.\n` +
     "The override exists for the owner alone. If a merge genuinely needs one, STOP and ask the owner to\n" +
     "merge it; never perform the override yourself.\n" +
-    "See the git conventions in CLAUDE.md and the guardrails in AGENTS.md."
+    "See the git conventions in CLAUDE.md."
   )
 }

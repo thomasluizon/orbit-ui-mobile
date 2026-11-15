@@ -26,7 +26,7 @@ it isn't a finding.
 
 ## Phase 0 — Provenance & self-containment
 
-This skill is the one consumer of `.claude/skills/pr-review/rubric.md`, and that file is the
+This skill is the one consumer of `.claude/skills/audit-code-quality/rubric.md`, and that file is the
 single place its dimensions live. Those dimensions were adapted at authoring time from
 the **code-review base on claudeskills.info** (https://claudeskills.info) and specialized
 to Orbit's ten Code Standards, the orbit-api hard rules, `eslint-rules/no-comments.cjs`,
@@ -57,7 +57,7 @@ Parse `$ARGUMENTS` into a `{scope}` token for the workflow.
 | `orbit-api` | `.claude/orchestrator.json` `repos.api` |
 
 The workflow excludes generated / vendored / test-fixture code (`node_modules`, `.next`,
-`dist`, `build`, `bin`, `obj`, `coverage`, `.turbo`, `Migrations/`, `design/handoff/`,
+`dist`, `build`, `bin`, `obj`, `coverage`, `.turbo`, `Migrations/` and
 `.claude/`). Load **`.claude/skills/_shared/verification-protocol.md`** (the workflow
 executes §1/§2/§3; you carry the Verify summary + Deferred ledger §4/§5 into the approval
 gate) and **`.claude/skills/_shared/audit-to-tickets.md`** (the D10 ticket-emission pipeline
@@ -69,7 +69,7 @@ Read **`.claude/skills/_shared/gate-owned-exclusions.md`**. The rubric was writt
 review over a diff; as a standing audit this skill audits ONLY the rubric dimensions no
 gate enforces. It does NOT re-flag: comment policy (ESLint `local/no-comments` + Roslyn
 `ORBIT0001`), the enumerated spacing scale (`local/spacing-scale`), `console` / `any` bans,
-dashes, copy register, React correctness (`react-doctor.yml`), or any other `local/*` /
+dashes, copy register, React correctness (the `guards.yml` React Doctor step), or any other `local/*` /
 `guards.yml` / `ORBIT0001..0005` concern. It DOES own: dead/stale code, SOLID/clean-arch
 (state or data models that cause branch proliferation, function size over the ~50/~100-line
 caps, nesting past ~3, pass-through or magical abstractions, giant multi-responsibility
@@ -95,7 +95,7 @@ Workflow({ scriptPath: '.claude/workflows/audit.mjs', args: { kind: 'code-qualit
 
 It fans out **one Haiku finder per area** — `apps/web` · `apps/mobile` · `packages/shared`
 · `orbit-api/src/Orbit.Application` · `orbit-api/src/{Orbit.Domain,Orbit.Infrastructure,
-Orbit.Api}` — each reading `.claude/skills/pr-review/rubric.md`; runs a **Haiku skeptic**
+Orbit.Api}` — each reading `.claude/skills/audit-code-quality/rubric.md`; runs a **Haiku skeptic**
 per **Critical/High** finding (default-refuted, re-runs the zero-reference grep for dead-code
 claims); loops a completeness critic until dry (cap 2 dry rounds). It returns:
 
@@ -143,7 +143,7 @@ require the zero-reference proof.
 Run the shared pipeline in **`.claude/skills/_shared/audit-to-tickets.md`**: one GitHub
 ticket per verified debt, drafted to the 6.2 template, validated by
 re-read against the 6.2 template, presented behind ONE approval gate, then created via
-`gh issue create` and re-validated from the created issue.
+`node tools/create-ticket.mjs` and re-validated from the created issue.
 
 Code-quality-specific mapping into the 6.2 body:
 
@@ -173,7 +173,7 @@ to a diff review) and the convergence state.
 
 ## Guardrails — do NOT
 
-- **Fork the rubric.** The workflow's finders read `.claude/skills/pr-review/rubric.md`;
+- **Fork the rubric.** The workflow's finders read `.claude/skills/audit-code-quality/rubric.md`;
   never inline a copy of the dimensions here. One file, zero drift.
 - **Re-derive security or contract findings.** Point at `/audit-security` and
   `/audit-tests`; stay in the quality lane.
