@@ -7,7 +7,7 @@ import { PassThrough } from 'node:stream'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { runInNewContext } from 'node:vm'
 import { JSDOM } from 'jsdom'
-import { assertAccessibleTree, assertCookieEvidence, assertPaletteFocus, deliverKey, keyPosts, keyReceiptWindow, usableKey } from '../desktop-bench/acceptance-contract.mjs'
+import { assertAccessibleTree, assertCookieEvidence, assertPaletteFocus, claimedKey, deliverKey, keyPosts, keyReceiptWindow } from '../desktop-bench/acceptance-contract.mjs'
 import { T, REPO_ROOT, check, configure, failureCount, root, stage } from './_harness.mjs'
 import { networkCases } from './desktop-acceptance-network.mjs'
 import { pushPhaseCases } from './desktop-acceptance-push.mjs'
@@ -504,7 +504,7 @@ async function paletteTimingCases(dom, readState, reports) {
     const events = [{ kind: 'focus', ...readState() }]
     const report = {}
     const captures = []
-    const context = { previous: readState(), handle: { child: { pid: 321 } }, report, Date, deliverKey, usableKey, process: { stdout: { write() {} } },
+    const context = { previous: readState(), handle: { child: { pid: 321 } }, report, Date, deliverKey, claimedKey, process: { stdout: { write() {} } },
       proxy: {
         events: () => [...events, ...reports.slice(start)],
         send: () => { if (timing === 'after-input') events.push({ kind: 'focus', ...readState() }) },
@@ -554,7 +554,7 @@ async function paletteDeliveryCases(dom, readState, reports) {
     const report = {}
     let pendingFocus = null
     let clock = 0
-    const context = { previous: readState(), handle: { child: { pid: 321 } }, report, Date: { now: () => clock }, deliverKey, usableKey, process: { stdout: { write() {} } },
+    const context = { previous: readState(), handle: { child: { pid: 321 } }, report, Date: { now: () => clock }, deliverKey, claimedKey, process: { stdout: { write() {} } },
       // The real proxy forwards every probe report in arrival order; the probe answers focus-N only at that exact index.
       proxy: {
         events: () => {
@@ -579,7 +579,7 @@ async function paletteDeliveryCases(dom, readState, reports) {
     let failure
     try { await context.traverse() } catch (error) { failure = error }
     const order = report.paletteFocus?.map((event) => event.selected).join(',')
-    const undelivered = report.keyDelivery?.flatMap((entry, step) => entry.attempts.filter((attempt) => !attempt.delivered).map((attempt) => ({ step: step + 1, ...attempt }))) ?? []
+    const undelivered = report.keyDelivery?.flatMap((entry, step) => entry.attempts.filter((attempt) => !attempt.received).map((attempt) => ({ step: step + 1, ...attempt }))) ?? []
     if (name === 'first-press-lost' || name === 'second-press-lost') {
       T(`palette traversal posts a Down again only after the page received no Down (${name}) and still requires each result in order`,
         !failure && order === '1,2' && captures.join(',') === 'palette-result-1,palette-result-2' && posts.length === 3 &&
@@ -587,7 +587,7 @@ async function paletteDeliveryCases(dom, readState, reports) {
     }
     if (name === 'never-delivered') {
       T('palette traversal stops after a bounded number of undelivered Down posts and names OS delivery as the cause',
-        /^OS key delivery failed: the page received no usable down keydown after 6 posts/.test(failure?.message) && posts.length === keyPosts &&
+        /^OS key delivery failed: the page received no down keydown after 6 posts/.test(failure?.message) && posts.length === keyPosts &&
           undelivered.length === keyPosts && clock >= keyPosts * keyReceiptWindow, failure?.message)
     }
     if (name === 'received-without-selection') {
@@ -595,62 +595,88 @@ async function paletteDeliveryCases(dom, readState, reports) {
         failure?.message === 'Timed out waiting for palette result focus' && posts.length === 1, failure?.message)
     }
     if (scenario.claimed) {
-      const claimed = undelivered.flatMap((entry) => entry.keys)
-      T(`a Down the input method claimed (${name}) counts as undelivered and ends in the bounded failure, not the focus timeout`,
-        /^OS key delivery failed/.test(failure?.message) && /keyCode 229 or composing/.test(failure?.message) && posts.length === keyPosts &&
-          undelivered.length === keyPosts && claimed.length === keyPosts &&
-          claimed.every((key) => key.key === 'ArrowDown' && scenario.claimed(key) && key.targetInput && key.before.selected === 0),
+      const receipt = report.keyDelivery?.[0]?.attempts
+      T(`a Down the input method claimed (${name}) is never posted again and fails as an input method claim, not the focus timeout`,
+        /^OS input method claimed the native Down for palette step 1 \(keyCode 229 or composing\)/.test(failure?.message) && posts.length === 1 &&
+          undelivered.length === 0 && receipt?.length === 1 && receipt[0].received === true,
         failure?.message ?? JSON.stringify({ posts, report }))
     }
     if (name === 'late-duplicate') {
       T('a step that receives two Downs fails explicitly instead of skipping a result',
-        /received 2 native Down keys/.test(failure?.message) && posts.length === 1, failure?.message)
+        /^OS key delivery failed: the page received 2 down keydowns from 1 post;/.test(failure?.message) && posts.length === 1, failure?.message)
     }
   }
 }
 
-// A fake page counter drives the shared helper directly: the page receives the key on the post that the scenario names, or never.
+// A fake page clock drives the shared helper directly: each keydown becomes visible at its arrival time.
 async function keyDeliveryCases() {
   const waitForSource = readFileSync(join(REPO_ROOT, 'tools/desktop-bench/host.mjs'), 'utf8')
   const waitForBody = waitForSource.slice(waitForSource.indexOf('export async function waitFor'), waitForSource.indexOf('export async function waitForHttp')).replace('export ', '')
-  for (const [name, arrives] of [['first-post', 1], ['third-post', 3], ['never', null], ['claimed', null]]) {
+  const scenarios = {
+    'first-post': (post, at) => post === 1 ? [{ at, key: 'Escape', keyCode: 27 }] : [],
+    'third-post': (post, at) => [{ at, key: 'Process', keyCode: 229 }, ...post === 3 ? [{ at, key: 'Escape', keyCode: 27 }] : []],
+    'claimed': (post, at) => post === 1 ? [{ at, key: 'Escape', keyCode: 229 }] : [],
+    'late-and-repost': (post, at) => post === 1 ? [{ at: at + 5050, key: 'Escape', keyCode: 27 }] : [{ at: at + 100, key: 'Escape', keyCode: 27 }],
+    'late-then-lost': (post, at) => post === 1 ? [{ at: at + 5050, key: 'Escape', keyCode: 27 }] : [],
+    'never': (_post, at) => [{ at, key: 'Process', keyCode: 229 }],
+  }
+  for (const [name, arrivals] of Object.entries(scenarios)) {
     let clock = 0
     const context = { Date: { now: () => clock }, delay: async (milliseconds) => { clock += milliseconds } }
     runInNewContext(`${waitForBody}\nglobalThis.waitFor = waitFor`, context)
-    const receipts = [{ kind: 'astra-key', key: 'Escape', keyCode: 27 }]
+    const page = [{ at: 0, key: 'Escape', keyCode: 27 }]
     const posts = []
     const logs = []
     const record = []
     let failure
-    let attempts
+    let receipt
     try {
-      attempts = await deliverKey({ name: 'escape', waitFor: context.waitFor, now: () => clock, record, log: (line) => logs.push(line), receipts: () => receipts,
+      receipt = await deliverKey({ name: 'escape', waitFor: context.waitFor, now: () => clock, record, log: (line) => logs.push(line),
+        events: () => page.filter((event) => event.at <= clock), matches: (event) => event.key === 'Escape',
         post: async () => {
           posts.push(clock)
           if (posts.length === keyPosts + 1) throw new Error('posted past the bound')
-          if (name === 'claimed') receipts.push({ kind: 'astra-key', key: 'Escape', keyCode: 229 })
-          if (posts.length === arrives) receipts.push({ kind: 'astra-key', key: 'Escape', keyCode: 27 })
+          page.push(...arrivals(posts.length, clock))
           return { sent: 'escape', post: posts.length }
         } })
     } catch (error) { failure = error }
-    if (arrives) {
-      T(`a key the page receives on post ${arrives} returns after that post and records every earlier post as undelivered (${name})`,
-        !failure && posts.length === arrives && attempts === record[0].attempts && record[0].key === 'escape' &&
-          JSON.stringify(attempts.map((attempt) => attempt.delivered)) === JSON.stringify([...Array(arrives - 1).fill(false), true]) &&
+    const attempts = record[0]?.attempts ?? []
+    const received = attempts.map((attempt) => attempt.received)
+    if (name === 'first-post' || name === 'third-post') {
+      const arrives = name === 'first-post' ? 1 : 3
+      T(`a key the page receives on post ${arrives} returns its receipt and records every earlier post with the other keys the page got (${name})`,
+        !failure && receipt?.key === 'Escape' && posts.length === arrives && record[0].key === 'escape' &&
+          JSON.stringify(received) === JSON.stringify([...Array(arrives - 1).fill(false), true]) &&
           attempts.every((attempt, index) => attempt.reply.post === index + 1) &&
+          attempts.slice(0, -1).every((attempt) => attempt.keys.length === 1 && attempt.keys[0].key === 'Process') &&
           posts.every((at, index) => at === index * keyReceiptWindow) && logs.length === arrives &&
-          logs.at(-1) === `Key escape: post ${arrives} of ${keyPosts} reached the page` &&
-          logs.slice(0, -1).every((line, index) => line === `Key escape: post ${index + 1} of ${keyPosts} had no usable keydown receipt in 5 s`),
+          logs.at(-1) === `Key escape: post ${arrives} of ${keyPosts}: the page recorded the keydown in this window` &&
+          logs.slice(0, -1).every((line, index) => line === `Key escape: post ${index + 1} of ${keyPosts}: no escape keydown in 5 s`),
         failure?.message ?? JSON.stringify({ posts, attempts, logs }))
-    } else {
-      T(`a key the page never receives fails as OS key delivery after ${keyPosts} posts within ${keyPosts * keyReceiptWindow / 1000} s (${name})`,
-        failure?.message === `OS key delivery failed: the page received no usable escape keydown after ${keyPosts} posts 5 s apart; ` +
-          'each key was missing or claimed by the input method (keyCode 229 or composing)' &&
-          posts.length === keyPosts && clock === keyPosts * keyReceiptWindow && record[0].attempts.length === keyPosts &&
-          record[0].attempts.every((attempt) => !attempt.delivered && attempt.keys.length === (name === 'claimed' ? 1 : 0)),
+    }
+    if (name === 'claimed') {
+      T('a key the input method claimed (keyCode 229) still counts as received, because the app acts on the key name, and is never posted again',
+        !failure && posts.length === 1 && receipt?.keyCode === 229 && JSON.stringify(received) === '[true]', failure?.message)
+    }
+    if (name === 'late-and-repost') {
+      T('a key that arrives after its window together with its repost fails as OS delivery with both keydowns counted',
+        failure?.message === 'OS key delivery failed: the page received 2 escape keydowns from 2 posts; a key arrived after its window together with its repost' &&
+          posts.length === 2, failure?.message ?? JSON.stringify({ posts, attempts }))
+    }
+    if (name === 'late-then-lost') {
+      T('a late key ends the posts as received, and a repost the page never gets leaves one keydown after the extra window',
+        !failure && posts.length === 2 && JSON.stringify(received) === '[false,true]' && clock >= 2 * keyReceiptWindow, failure?.message ?? JSON.stringify({ posts, attempts }))
+    }
+    if (name === 'never') {
+      T(`a key the page never receives fails as OS key delivery after ${keyPosts} posts within ${keyPosts * keyReceiptWindow / 1000} s, with every other key kept`,
+        failure?.message === `OS key delivery failed: the page received no escape keydown after ${keyPosts} posts 5 s apart; ` +
+          'report.json keyDelivery lists every other key the page recorded after each post' &&
+          posts.length === keyPosts && clock === keyPosts * keyReceiptWindow && attempts.length === keyPosts &&
+          attempts.every((attempt) => !attempt.received && attempt.keys.length === 1 && attempt.keys[0].key === 'Process'),
         failure?.message ?? JSON.stringify({ posts, record }))
     }
   }
+  T('a claimed key is keyCode 229 or a composition', claimedKey({ keyCode: 229 }) && claimedKey({ keyCode: 40, composing: true }) && !claimedKey({ keyCode: 40, composing: false }))
 }
 
 async function pendingPaletteCases({ dom, context, reports, mount, Palette, createElement, flushSync }) {

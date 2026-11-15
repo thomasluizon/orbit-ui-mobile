@@ -111,32 +111,45 @@ export function assertExpiredDone({ logs, habitId, visible, signIn }) {
   return { logs: 0, windowVisible: true, route: signIn.route }
 }
 
-// WebKit gives a key that the macOS input method claimed keyCode 229, and the page ignores a composing or 229 keydown (#1560).
-export const usableKey = (event) => event.keyCode !== 229 && !event.composing
+// WebKit gives a key that the macOS input method claimed keyCode 229 or a composition (#1560). cmdk ignores such a key,
+// but the Astra and palette shortcut handlers act on the key name alone, so a claimed key still counts as received.
+export const claimedKey = (event) => event.keyCode === 229 || Boolean(event.composing)
 
 // The probe POSTs each receipt from its keydown capture listener, so 5 s bounds one loopback request (#2369).
 export const keyReceiptWindow = 5000
 // On a 5 vCPU macOS runner one Down step lost 3 posts in a row (run 43456283933), so each key gets twice that: 30 s at most.
 export const keyPosts = 6
 
-// A native key post can return without reaching WebKit, so only the page's keydown receipt proves delivery (#1560). Each key
-// posts again only after a window with no usable receipt, and a key that never arrives fails as OS delivery, apart from the
-// app check that follows a delivered key.
-export async function deliverKey({ name, post, receipts, waitFor, now, record, log }) {
-  const usable = () => receipts().filter(usableKey).length
-  const before = usable()
+// A native key post can return without reaching WebKit, so only the page's keydown receipt proves delivery (#1560). A key
+// posts again only while the page has recorded no keydown of that key, and a key that never arrives fails as OS delivery,
+// apart from the app check that follows. After a repost, a key from an earlier post can still arrive late, so the page gets
+// one more window, and a second keydown fails before a toggle key (Command+K) can mislead the app check.
+export async function deliverKey({ name, post, events, matches, waitFor, now, record, log }) {
+  const receipts = () => events().filter(matches)
+  const before = receipts().length
   const attempts = []
   record.push({ key: name, attempts })
-  for (let attempt = 1; attempt <= keyPosts; attempt++) {
-    const seen = receipts().length
+  for (let attempt = 1; attempt <= keyPosts && receipts().length === before; attempt++) {
+    const seen = events().length
     const reply = await post()
     const deadline = now() + keyReceiptWindow
-    await waitFor(() => usable() > before || now() >= deadline, `${name} keydown receipt`)
-    const delivered = usable() > before
-    attempts.push(delivered ? { post: attempt, delivered, reply } : { post: attempt, delivered, reply, keys: receipts().slice(seen) })
-    log(`Key ${name}: post ${attempt} of ${keyPosts} ${delivered ? 'reached the page' : `had no usable keydown receipt in ${keyReceiptWindow / 1000} s`}`)
-    if (delivered) return attempts
+    await waitFor(() => receipts().length > before || now() >= deadline, `${name} keydown receipt`)
+    const received = receipts().length > before
+    attempts.push(received ? { post: attempt, received, reply } : { post: attempt, received, reply, keys: events().slice(seen) })
+    log(`Key ${name}: post ${attempt} of ${keyPosts}: ${received ? 'the page recorded the keydown in this window' : `no ${name} keydown in ${keyReceiptWindow / 1000} s`}`)
   }
-  throw new Error(`OS key delivery failed: the page received no usable ${name} keydown after ${keyPosts} posts ` +
-    `${keyReceiptWindow / 1000} s apart; each key was missing or claimed by the input method (keyCode 229 or composing)`)
+  if (receipts().length === before) {
+    throw new Error(`OS key delivery failed: the page received no ${name} keydown after ${keyPosts} posts ${keyReceiptWindow / 1000} s apart; ` +
+      'report.json keyDelivery lists every other key the page recorded after each post')
+  }
+  if (attempts.length > 1) {
+    const deadline = now() + keyReceiptWindow
+    await waitFor(() => receipts().length > before + 1 || now() >= deadline, `late ${name} keydown`)
+  }
+  const received = receipts().length - before
+  if (received > 1) {
+    throw new Error(`OS key delivery failed: the page received ${received} ${name} keydowns from ${attempts.length} post${attempts.length === 1 ? '' : 's'}; ` +
+      'a key arrived after its window together with its repost')
+  }
+  return receipts()[before]
 }

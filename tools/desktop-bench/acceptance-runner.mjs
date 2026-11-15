@@ -10,7 +10,7 @@ import { readFixtures } from './build.mjs'
 import { startProxy } from './server.mjs'
 import { assertFree, delay, execute, start, stop, stopAll, waitFor, waitForHttp } from './host.mjs'
 import { activateUnelevated, apsdReceipt, buildInstaller, capturePushDiagnostics, desktopOrigin, install, isolateOrigins, keepInstalledLaunchCopy, launchContext, launchUnelevated, startHttpsListener, startPushServices, startRecording } from './acceptance-platform.mjs'
-import { NativeTreePendingError, assertAccessibleTree, assertCookieEvidence, assertPaletteFocus, corruptSignature, deliverKey, usableKey } from './acceptance-contract.mjs'
+import { NativeTreePendingError, assertAccessibleTree, assertCookieEvidence, assertPaletteFocus, claimedKey, corruptSignature, deliverKey } from './acceptance-contract.mjs'
 import { exercisePush, pushSender, signedApsEnvironment, unsignedReason } from './acceptance-push.mjs'
 
 const require = createRequire(import.meta.url)
@@ -153,25 +153,25 @@ async function inspectSurfaces(proxy, native, handle, output, report) {
   else {
     // The probe records palette keys from the Astra close on, so the Command+K that opens the palette has a receipt too.
     const modifier = process.platform === 'win32' ? 'ctrlKey' : 'metaKey'
-    await pressKey(proxy, native, handle, report, 'palette', (event) => event.kind === 'palette-key' && event.key.toLowerCase() === 'k' && event[modifier])
+    await pressKey(proxy, native, handle, report, 'palette', 'palette-key', (event) => event.key.toLowerCase() === 'k' && event[modifier])
     proxy.send('palette-ready')
   }
   const previous = await waitFor(() => proxy.read('palette'), 'palette surface')
   const tree = await dump('palette')
   if (tree.denied) { report.paletteFocus = { skipped: tree.error }; return }
   await traversePalette(proxy, native, handle, dump, previous, report)
-  await pressKey(proxy, native, handle, report, 'escape', (event) => event.kind === 'palette-key' && event.key === 'Escape')
+  await pressKey(proxy, native, handle, report, 'escape', 'palette-key', (event) => event.key === 'Escape')
 }
 
-// Every native key waits for its page keydown receipt, so report.json keyDelivery keeps each post with its native reply,
-// and the job log prints one line per post.
-function pressKey(proxy, native, handle, report, command, receipt) {
-  return deliverKey({ name: command, post: () => native(handle.child.pid, command), receipts: () => proxy.events().filter(receipt),
-    waitFor, now: () => Date.now(), record: report.keyDelivery ??= [], log: (line) => process.stdout.write(`${line}\n`) })
+// Every native key waits for its page keydown receipt. report.json keyDelivery keeps each post with its native reply and,
+// for a post with no receipt, every key event of that probe kind; the job log prints one line per post.
+function pressKey(proxy, native, handle, report, command, kind, matches) {
+  return deliverKey({ name: command, post: () => native(handle.child.pid, command), events: () => proxy.events().filter((event) => event.kind === kind),
+    matches, waitFor, now: () => Date.now(), record: report.keyDelivery ??= [], log: (line) => process.stdout.write(`${line}\n`) })
 }
 
 async function dismissAstra(proxy, native, handle, output, report) {
-  await pressKey(proxy, native, handle, report, 'escape', (event) => event.kind === 'astra-key' && event.key === 'Escape')
+  await pressKey(proxy, native, handle, report, 'escape', 'astra-key', (event) => event.key === 'Escape')
   proxy.send('astra-closed')
   try {
     await waitFor(() => proxy.read('astra-closed'), 'Astra dismissal')
@@ -188,17 +188,13 @@ async function dismissAstra(proxy, native, handle, output, report) {
 
 async function traversePalette(proxy, native, handle, dump, previous, report) {
   const focus = []
-  const downKey = (event) => event.kind === 'palette-key' && event.key === 'ArrowDown'
-  const downKeys = () => proxy.events().filter((event) => downKey(event) && usableKey(event)).length
   for (let index = 0; index < 2; index++) {
     const before = proxy.events().filter((event) => event.kind === 'focus').length
-    const received = downKeys()
-    await pressKey(proxy, native, handle, report, 'down', downKey)
+    const receipt = await pressKey(proxy, native, handle, report, 'down', 'palette-key', (event) => event.key === 'ArrowDown')
+    // cmdk ignores a claimed Down, so the selection cannot move; that is the input method's failure, not the palette's.
+    if (claimedKey(receipt)) throw new Error(`OS input method claimed the native Down for palette step ${index + 1} (keyCode 229 or composing), and cmdk ignores a claimed key`)
     proxy.send(`focus-${previous.selected + 1}`)
-    const current = await waitFor(() => {
-      if (downKeys() > received + 1) throw new Error(`Palette step ${index + 1} received ${downKeys() - received} native Down keys`)
-      return proxy.events().filter((event) => event.kind === 'focus')[before]
-    }, 'palette result focus')
+    const current = await waitFor(() => proxy.events().filter((event) => event.kind === 'focus')[before], 'palette result focus')
     const selectedTree = await dump(`palette-result-${index + 1}`)
     assertPaletteFocus(previous, current, selectedTree)
     focus.push(current)

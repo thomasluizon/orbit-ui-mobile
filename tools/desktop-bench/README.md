@@ -393,15 +393,19 @@ next selected result in both the DOM and platform tree. Platform focus may be on
 selected active descendant inside the controlled listbox, matched by captured automation identifiers.
 Every native key (the Astra Escape, the Command+K or Ctrl+K that opens the palette, each palette Down
 and the Escape that closes the palette) goes through one helper, `deliverKey` in `acceptance-contract.mjs`.
-A key counts as sent only when the page records a keydown for it that the input method did not claim.
-WebKit marks a claimed key with key code 229 or a composition, and the page ignores it. The page records
-keydowns in `astra-key` events while Astra is open, and in `palette-key` events from the Astra close on.
-If the page records no usable keydown within 5 seconds, the runner sends the key again, with at most 6
+A key counts as sent when the page records a keydown with its name. The page records keydowns in
+`astra-key` events while Astra is open, and in `palette-key` events from the Astra close on. A key that
+the input method claimed (key code 229 or a composition) still counts, because the Astra and palette
+shortcut handlers act on the key name, and the runner never posts a key again after the page recorded
+it. cmdk ignores a claimed Down, so a claimed Down fails as an input method claim before the focus check.
+If the page records no keydown of the key within 5 seconds, the runner sends it again, with at most 6
 posts (30 seconds) per key. A key that never arrives fails with `OS key delivery failed`, before the
-runner checks the app, so a run report tells a lost OS event from an app defect. `report.json`
-`keyDelivery` keeps every post of every key with its native reply, and the keys the page recorded for an
-undelivered post. The job log prints one `Key <name>: post N of 6` line per post. A palette step that records two usable
-ArrowDown keys fails. A received Down that does not move the selection still fails the focus check.
+runner checks the app. After a repost, a key from an earlier post can still arrive, so the page gets one
+more 5 second window, and a second keydown also fails with `OS key delivery failed`. Thus a run report
+tells a lost or doubled OS event from an app defect. `report.json` `keyDelivery` keeps every post of
+every key with its native reply and, for a post with no receipt, every event of that probe kind that the
+page recorded after the post. The job log prints one `Key <name>: post N of 6` line per post.
+A received Down that does not move the selection still fails the focus check.
 Each run also logs `Runner vCPUs: N` (`sysctl -n hw.ncpu` on macOS) and keeps it in `report.json`
 `runner.cpus`, because native keys are lost more often on the 5 vCPU macOS runner class.
 
