@@ -272,9 +272,32 @@ const questionFilterCases = async () => {
   T("relay-session: the surviving question keeps every source and blocker", inherited.openOwnerQuestions[0].sources.join() === "earlier-1,earlier-2,earlier-3,predecessor" && inherited.openOwnerQuestions[0].blocks.join() === "#2101", JSON.stringify(inherited.openOwnerQuestions))
 }
 
+/** An owner handoff never runs /questions --relay, so its chain closure must not need that pass or its run state. */
+const ownerHandoffCases = () => {
+  const closeChain = (checkout, sessionId) => {
+    cpSync(toolPath("lib"), join(checkout, "tools", "lib"), { recursive: true })
+    cpSync(toolPath("relay-session.mjs"), join(checkout, "tools", "relay-session.mjs"))
+    return spawnSync(process.execPath, [join(checkout, "tools", "relay-session.mjs"), "--close-chain"], { encoding: "utf8", env: { ...process.env, CLAUDE_CODE_SESSION_ID: sessionId } })
+  }
+  const unfiltered = fixture("questions-owner", { questions: [...ANSWERABLE, PRODUCT], chain: 2, filter: false })
+  recordHandoffRequest("predecessor", { command: "wrap-up", origin: "owner" }, new Date().toISOString(), unfiltered.checkout)
+  const closed = closeChain(unfiltered.checkout, "predecessor")
+  const closedEntry = readSessionChain(unfiltered.checkout).chains.find((chain) => chain.entries.some((entry) => entry.sessionId === "predecessor"))?.entries.at(-1)
+  T("relay-session: an owner handoff closes its chain with an unfiltered question queue", closed.status === 0 && openSessionChain("predecessor", unfiltered.checkout) === null &&
+    readRunState(unfiltered.checkout).questionFilter === undefined && closedEntry?.openOwnerQuestions.length === ANSWERABLE.length + 1, closed.stderr)
+
+  const unowned = fixture("questions-owner-unowned", { filter: false })
+  let relayPassRefusal = null
+  try { recordQuestionFilter("owner", [], unowned.checkout) } catch (error) { relayPassRefusal = error.message }
+  const unownedClosed = closeChain(unowned.checkout, "owner")
+  T("relay-session: an owner handoff that owns no run state closes without the relay pass that would refuse it", relayPassRefusal === "no run state for this session" &&
+    unownedClosed.status === 0 && unownedClosed.stderr === "" && readRunState(unowned.checkout).sessionId === "predecessor", `${relayPassRefusal} ${unownedClosed.stderr}`)
+}
+
 export const cases = async () => {
   await fileWaiterCase()
   await questionFilterCases()
+  ownerHandoffCases()
   for (const [label, options, message] of [["below", { tokens: relayThreshold - 1 }, /below the soft threshold/], ["young", { calls: 19 }, /at least 20/]]) {
     const staged = fixture(label, options)
     T(`relay-session: refuses ${label}`, message.test(await failure({ repoRoot: staged.checkout, sessionId: "predecessor" })))

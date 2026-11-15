@@ -55,12 +55,16 @@ Read the open chain with `openSessionChain` from `tools/lib/session-chain.mjs`, 
 session's exact id. Carry every chain entry's complete decisions, along with the current
 decision log.
 
-Before writing the spec or the prompt, invoke `/questions --relay`. It answers or decides every
-queued question the run can settle, and it records each disposition where the work reads it. Only
-the owner's questions stay in the run state's `openOwnerQuestions`, each once, with every source
-and blocker. The spec's `## Open questions` holds exactly those rows, each with who must answer and
-what it blocks. A step the spec lists as owner-only, never reminded, stays out of the queue. The
-successor inherits the queue, and the owner answers it only through his own `/questions`.
+With `--relay`, invoke `/questions --relay` before writing the spec or the prompt. It answers or
+decides every queued question the run can settle, and it records each disposition where the work
+reads it. Only the owner's questions stay in the run state's `openOwnerQuestions`, each once, with
+every source and blocker. A step the spec lists as owner-only, never reminded, stays out of the
+queue. The successor inherits the queue, and the owner answers it only through his own `/questions`.
+
+An owner `/handoff` never runs `/questions --relay`. The owner filters the queue only through his
+own `/questions`, which `/wrap-up` runs before this skill. In both modes, the spec's
+`## Open questions` holds exactly the rows that `node tools/owner-questions.mjs --list` prints, each
+with who must answer and what it blocks.
 
 Add this one timeless line to the spec: `The session chain ledger lives untracked at .git/orbit-session-chain.json.`
 Keep session ids, timestamps, terminal handles and timed decision logs in that ledger.

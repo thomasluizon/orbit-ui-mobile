@@ -21,7 +21,8 @@ const USAGE = `usage: relay-session.mjs [--retry-wake | --close-chain | --close-
   Reads session identity from CLAUDE_CODE_SESSION_ID, context from its transcript,
   and model and permission mode from machine observations. Accepts no model claim.
   --retry-wake   background wake source until the failed relay's ten minute retry time
-  --close-chain prepare owner auto-work intake carry, then record and close any open chain
+  --close-chain prepare owner auto-work intake carry, then record and close any open chain;
+                an owner handoff needs no question filter, and no run state when no chain is open
   --close-terminal <payload> internal detached cleanup; base64 JSON with repoRoot,
     sessionId, successorSessionId, terminal and terminalHandle; rechecks the fence
   --help, -h    print usage and exit 0
@@ -296,16 +297,18 @@ const main = async () => {
   }
   const sessionId = process.env.CLAUDE_CODE_SESSION_ID
   const state = readRunState()
-  if (!sessionId || state?.sessionId !== sessionId) throw new Error("no matching CLAUDE_CODE_SESSION_ID")
+  if (!sessionId) throw new Error("no matching CLAUDE_CODE_SESSION_ID")
   if (args[0] === "--close-chain") {
     prepareOwnerHandoffRun(sessionId)
     if (!openSessionChain(sessionId)) return
+    if (state?.sessionId !== sessionId) throw new Error("no matching CLAUDE_CODE_SESSION_ID")
     if (readHandoffRequest(sessionId)?.origin !== "owner") throw new Error("chain closure requires an owner-origin handoff")
     appendChainEntry(await sessionChainEntry(state, state.transcriptPath ?? state.relay?.transcriptPath))
     await refreshChainMetrics(sessionId)
     closeSessionChain(sessionId)
     return
   }
+  if (state?.sessionId !== sessionId) throw new Error("no matching CLAUDE_CODE_SESSION_ID")
   if (args[0] === "--retry-wake") {
     if (!state.relay?.pending || !state.relay.lastAttemptAt) throw new Error("no failed relay to retry")
     if (!registerWakeSource({ pid: process.pid, sessionId, what: "Context relay retry" })) throw new Error("retry wake registration failed")

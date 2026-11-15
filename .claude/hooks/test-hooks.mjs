@@ -2291,6 +2291,10 @@ const crankSkill = readFileSync(join(repoRoot, ".claude", "skills", "crank", "SK
 T("standalone crank: no-run entry retains the canonical sleep lifecycle", /If enabling with no active[^.]+invoke `?\.claude\/skills\/sleep\/SKILL\.md`? first/s.test(crankSkill), true)
 const wrapUpSkill = readFileSync(join(repoRoot, ".claude", "skills", "wrap-up", "SKILL.md"), "utf8")
 T("wrap-up crank: instructions never enter sleep to establish a run", !/enter `\/sleep` through/.test(wrapUpSkill), true)
+const handoffSkill = readFileSync(join(repoRoot, ".claude", "skills", "handoff", "SKILL.md"), "utf8")
+const relayPassInvocations = handoffSkill.replace(/\s+/g, " ").split(/(?<=\.) /).filter((sentence) => sentence.includes("invoke `/questions --relay`"))
+T("handoff owner path: only a --relay handoff invokes the relay questions pass", relayPassInvocations.length > 0 && relayPassInvocations.every((sentence) => sentence.startsWith("With `--relay`,")), true)
+T("handoff owner path: an owner handoff never runs the relay questions pass", handoffSkill.replace(/\s+/g, " ").includes("An owner `/handoff` never runs `/questions --relay`."), true)
 writeRunState(activeBeforeIntent, wakeCheckout)
 
 const handoffGitRepo = mkdtempSync(join(tmpdir(), "orbit-handoff-git-"))

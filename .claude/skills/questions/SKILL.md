@@ -99,9 +99,10 @@ any choice where two answers are both defensible and only he knows which one he 
 
 ## Relay mode: filter the queue, ask nothing
 
-`--relay` is the pass that `/handoff --relay` runs before it writes the handoff. It runs the
-candidate list and the filter above, then stops. It never calls `AskUserQuestion` and it gives no
-manual steps. Only a `/questions` that the owner types asks him and gives him his steps.
+`--relay` is the pass that only `/handoff --relay` runs, before it writes the handoff; an owner
+`/handoff` never runs it. It runs the candidate list and the filter above, then stops. It never
+calls `AskUserQuestion` and it gives no manual steps. Only the owner's own `/questions`, typed or
+run by `/wrap-up`, asks him and gives him his steps.
 
 In this mode `queued` replaces **asked**. Each row from `--list` leaves with exactly one of these:
 
