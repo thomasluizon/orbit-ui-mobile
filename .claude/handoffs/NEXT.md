@@ -26,7 +26,7 @@ UI `main` `471448e01`; API `main` `1d2a826b8`; landing `main` `7e6d150e0`. Owner
 | `ui#2463` (`#2074`) | macOS bundle retry, chain running. Merge at approval. |
 | `api#1114` (`#2074`) | Timeless port, chain running. Merge at approval (API, no release needed for tools). |
 | `ui#2457` (`#2074`) | Round 8 fix agent: body rule 13 evidence for seven reads and the `mobile-build.yml:233` cache thread. Worktree `ticket-2074-round-time` holds 2 unpushed commits (`395021d59`); result `fix-2457-r8-result.md`, body `body-2457-r8.md`. Read, review, resolve `PRRT_kwDOR5Siws63nOTi`, push, chain. At approval: P14, merge. |
-| `ui#2459` (`#2135`) | Fix agent on the r7 false pass (`stored` rows of model-cleared fields); worktree `ticket-2129-eval-gate` has `ca5188207`, `91962f0f3` and uncommitted work. Then a narrow review, resolve both threads with the replies in `fix-2459-r6-result.md`, push, chain. |
+| `ui#2459` (`#2135`) | The r7 false pass is fixed in `9b95eba34` (the grader reads the model's clear calls from the trace; core 200 and eval 2493 tests green; `corpusDigest` unchanged); worktree `ticket-2129-eval-gate` holds `ca5188207`, `91962f0f3`, `9b95eba34`, unpushed. Next: a narrow review of `9b95eba34`, resolve both threads with the replies in `fix-2459-r6-result.md`, merge `main`, push, chain. |
 | `#2121` sign-in | Worker on `feature/ticket-2121-part5-sign-in` (worktree `ticket-2121-part5-sign-in`, order `order-2121-part5.md`, outcome unknown). Read its commits, merge into the ticket branch. |
 | `#2122` | Local branch has Parts 1 to 7; an agent adds reduced-motion tests (`build-2122-motion-result.md`). Then the order in the spec. |
 | `ui#2388` | This relay's docs branch. Never request a review for it. |
