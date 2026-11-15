@@ -1,12 +1,27 @@
-import { afterEach, expect, it, vi } from 'vitest'
+import { afterEach, expect, it, onTestFinished, vi } from 'vitest'
 import { act, render, screen, waitFor } from '@testing-library/react'
 import { TurnstileBridge } from '@/app/turnstile-bridge/turnstile-bridge'
+import TurnstileBridgePage from '@/app/turnstile-bridge/page'
 
 vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key, useLocale: () => 'en' }))
 
 afterEach(() => {
   delete (window as Window & { turnstile?: unknown }).turnstile
   delete window.ReactNativeWebView
+})
+
+it('asks Cloudflare for the dark challenge when the dark app opens the bridge', async () => {
+  const renderWidget = vi.fn((..._args: unknown[]) => 'widget-1')
+  ;(window as Window & { turnstile?: unknown }).turnstile = { render: renderWidget, reset: vi.fn(), remove: vi.fn() }
+  document.documentElement.style.colorScheme = 'light'
+  try {
+    const page = await TurnstileBridgePage({ searchParams: Promise.resolve({ siteKey: 'mobile-site-key', theme: 'dark', language: 'pt-BR' }) })
+    render(page!)
+    await waitFor(() => expect(renderWidget).toHaveBeenCalledTimes(1))
+    expect(renderWidget.mock.calls[0]![1]).toMatchObject({ theme: 'dark', sitekey: 'mobile-site-key' })
+  } finally {
+    document.documentElement.style.colorScheme = ''
+  }
 })
 
 it('draws only the Cloudflare challenge and leaves status and retry to the native host', async () => {
@@ -27,8 +42,8 @@ it('draws only the Cloudflare challenge and leaves status and retry to the nativ
   }
   expectNoStatusSurface()
 
-  const callbacks = renderWidget.mock.calls[0]![1] as { 'error-callback': () => boolean; 'expired-callback': () => void }
-  act(() => { callbacks['error-callback']() })
+  const callbacks = renderWidget.mock.calls[0]![1] as { 'error-callback': (code: string) => boolean; 'expired-callback': () => void }
+  act(() => { callbacks['error-callback']('200100') })
   expectNoStatusSurface()
   act(() => callbacks['expired-callback']())
   expectNoStatusSurface()
@@ -38,4 +53,49 @@ it('draws only the Cloudflare challenge and leaves status and retry to the nativ
     { state: 'expired' },
     { token: null },
   ])
+})
+
+it('tells the native host the check is still loading while the widget runs a failed first challenge again', async () => {
+  const renderWidget = vi.fn((..._args: unknown[]) => 'widget-1')
+  ;(window as Window & { turnstile?: unknown }).turnstile = { render: renderWidget, reset: vi.fn(), remove: vi.fn() }
+  const postMessage = vi.fn()
+  window.ReactNativeWebView = { postMessage }
+  render(<TurnstileBridge siteKey="mobile-site-key" theme="dark" language="en" />)
+  await waitFor(() => expect(renderWidget).toHaveBeenCalledTimes(1))
+  const callbacks = renderWidget.mock.calls[0]![1] as {
+    'error-callback': (code: string) => boolean
+    'before-interactive-callback': () => void
+  }
+
+  act(() => { callbacks['error-callback']('600010') })
+  act(() => callbacks['before-interactive-callback']())
+
+  expect(postMessage.mock.calls.map(([message]) => JSON.parse(message as string))).toEqual([
+    { state: 'loading' },
+    { token: null },
+    { state: 'interactive' },
+    { token: null },
+  ])
+})
+
+it('tells the native host the check failed when the challenge frame keeps failing to load, so the host offers Retry', async () => {
+  const renderWidget = vi.fn((..._args: unknown[]) => 'widget-1')
+  const reset = vi.fn()
+  ;(window as Window & { turnstile?: unknown }).turnstile = { render: renderWidget, reset, remove: vi.fn() }
+  const postMessage = vi.fn()
+  window.ReactNativeWebView = { postMessage }
+  render(<TurnstileBridge siteKey="mobile-site-key" theme="dark" language="en" />)
+  await waitFor(() => expect(renderWidget).toHaveBeenCalledTimes(1))
+  const callbacks = renderWidget.mock.calls[0]![1] as { 'error-callback': (code: string) => boolean }
+  vi.useFakeTimers()
+  onTestFinished(() => { vi.useRealTimers() })
+
+  for (let run = 0; run < 3; run++) {
+    act(() => { callbacks['error-callback']('200500') })
+    act(() => { vi.advanceTimersByTime(2000) })
+  }
+
+  expect(reset).toHaveBeenCalledTimes(2)
+  expect(postMessage.mock.calls.map(([message]) => JSON.parse(message as string)).filter((message) => 'state' in message))
+    .toEqual([{ state: 'loading' }, { state: 'loading' }, { state: 'failed' }])
 })

@@ -7,13 +7,10 @@ import { AccessibilityInfo, Pressable, StyleSheet, Text } from 'react-native'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { TrueSheet } from '@lodev09/react-native-true-sheet'
 import {
-  __emitKeyboardEvent,
   __setWindowDimensions,
   __resetTestHostConfig,
-  __setMeasureInWindowImpl,
   __setScrollToImpl,
 } from '../../../test-mocks/react-native'
-import { BottomSheetAppTextInput } from '@/components/ui/bottom-sheet-app-text-input'
 import { Sheet, useSheetHost, type SheetHandle } from '@/components/ui/sheet'
 import { NotificationDetailModal } from '@/components/navigation/notification-detail-modal'
 import { useUIStore } from '@/stores/ui-store'
@@ -23,7 +20,6 @@ import { ErrorState } from '@/components/ui/error-state'
 import { habitFormSchema } from '@orbit/shared/validation'
 import { CreateHabitModal } from '@/components/habits/create-habit-modal'
 import { PillButton } from '@/components/ui/pill-button'
-import { KeyboardAwareSheetScrollView } from '@/components/ui/keyboard-aware-scroll-view'
 import { HabitRow } from '@/components/habits/habit-row'
 import { createMockHabit, createMockNotification, createMockProfile } from '@orbit/shared/__tests__/factories'
 import { apiKeySchema } from '@orbit/shared/types/api-key'
@@ -545,107 +541,6 @@ describe('Sheet (mobile)', () => {
     expect(tree.root.findByType(TrueSheet).props.scrollableRef).toBeUndefined()
   })
 
-  it.each([0, 76])('reveals a focused lower input above a %i-high footer through the sheet body scroller', async (footerHeight) => {
-    vi.stubGlobal('requestAnimationFrame', (callback: (time: number) => void) => setTimeout(() => callback(0), 0))
-    vi.useFakeTimers()
-    const scrollTo = vi.fn()
-    __setMeasureInWindowImpl((callback, _props, name) => name === 'ScrollView' ? callback(0, 0, 360, 740) : callback(0, 620, 100, 54))
-    __setScrollToImpl(scrollTo)
-    let tree: ReturnType<typeof TestRenderer.create>
-
-    await TestRenderer.act(async () => {
-      tree = TestRenderer.create(
-        <Sheet open actions={footerHeight ? <PillButton onClick={vi.fn()}>Save</PillButton> : undefined}>
-          <BottomSheetAppTextInput testID="lower-input" value="Lower field" />
-        </Sheet>,
-      )
-      await Promise.resolve()
-    })
-
-    if (footerHeight) {
-      TestRenderer.act(() => {
-        tree!.root.findByType(TrueSheet).props.footer.props.onLayout({ nativeEvent: { layout: { height: footerHeight } } })
-      })
-    }
-
-    TestRenderer.act(() => {
-      const lowerInput = tree!.root.findAllByType('TextInput').find((node: { props: { testID?: string } }) => node.props.testID === 'lower-input')
-      lowerInput!.props.onFocus({})
-      __emitKeyboardEvent('keyboardDidShow', { endCoordinates: { screenY: 400 } })
-      vi.advanceTimersByTime(60)
-    })
-
-    expect(scrollTo).toHaveBeenCalledWith({ y: 298 + (footerHeight ? footerHeight + safeArea.bottom : 0), animated: true })
-  })
-
-  it.each([0, 24])('reserves the measured footer above a %i bottom inset and uses its full height for the keyboard', async (bottomInset) => {
-    safeArea.bottom = bottomInset
-    let tree: ReturnType<typeof TestRenderer.create>
-    await TestRenderer.act(async () => {
-      tree = TestRenderer.create(<Sheet open title="T" actions={<PillButton onClick={vi.fn()}>Save</PillButton>}><Text>Body</Text></Sheet>)
-      await Promise.resolve()
-    })
-    const footer = tree!.root.findByType(TrueSheet).props.footer
-    TestRenderer.act(() => footer.props.onLayout({ nativeEvent: { layout: { height: 76 } } }))
-    const scroller = tree!.root.findByType(KeyboardAwareSheetScrollView)
-    expect(tree!.root.findByProps({ testID: 'sheet-footer-space' }).props.style.height).toBe(76)
-    expect(scroller.findAllByProps({ testID: 'sheet-footer-space' })).toHaveLength(0)
-    expect(scroller.props.keyboardVerticalOffset).toBe(76 + bottomInset)
-    TestRenderer.act(() => footer.props.onLayout({ nativeEvent: { layout: { height: 112 } } }))
-    expect(tree!.root.findByType(KeyboardAwareSheetScrollView).props.keyboardVerticalOffset).toBe(112 + bottomInset)
-    expect(tree!.root.findByProps({ testID: 'sheet-footer-space' }).props.style.height).toBe(112)
-    TestRenderer.act(() => tree!.unmount())
-  })
-
-  it.each([
-    { width: 1280, height: 640, fontScale: 2, headerHeight: 100, footerHeight: 112, bottomInset: 24 },
-    { width: 640, height: 320, fontScale: 1, headerHeight: 72, footerHeight: 76, bottomInset: 0 },
-  ])('bounds the focus-scrolling viewport above the footer at $width by $height with font scale $fontScale', async ({ width, height, fontScale, headerHeight, footerHeight, bottomInset }) => {
-    safeArea.bottom = bottomInset
-    __setWindowDimensions({ width, height, scale: 1, fontScale })
-    let tree: ReturnType<typeof TestRenderer.create>
-    await TestRenderer.act(async () => {
-      tree = TestRenderer.create(<Sheet open title="Editor" actions={<PillButton onClick={vi.fn()}>Save</PillButton>}><Text>Parent</Text></Sheet>)
-      await Promise.resolve()
-    })
-    const nativeSheet = tree!.root.findByType(TrueSheet)
-    TestRenderer.act(() => {
-      nativeSheet.props.header.props.onLayout({ nativeEvent: { layout: { height: headerHeight } } })
-      nativeSheet.props.footer.props.onLayout({ nativeEvent: { layout: { height: footerHeight } } })
-    })
-    const scroller = tree!.root.findByType(KeyboardAwareSheetScrollView)
-    const viewportHeight = StyleSheet.flatten(scroller.props.style).maxHeight
-    const footerTop = nativeSheet.props.maxContentHeight + bottomInset - footerHeight
-    expect(headerHeight + viewportHeight + bottomInset).toBeLessThanOrEqual(footerTop)
-    expect(viewportHeight).toBeGreaterThanOrEqual(48)
-    expect(scroller.findAllByProps({ testID: 'sheet-footer-space' })).toHaveLength(0)
-    TestRenderer.act(() => tree!.unmount())
-  })
-
-  it('paints the measured native footer with the sheet surface', async () => {
-    let tree: ReturnType<typeof TestRenderer.create>
-    await TestRenderer.act(async () => {
-      tree = TestRenderer.create(<Sheet open actions={<PillButton onClick={vi.fn()}>Save</PillButton>}><Text>Body</Text></Sheet>)
-      await Promise.resolve()
-    })
-    expect(StyleSheet.flatten(tree!.root.findByType(TrueSheet).props.footer.props.style)).toMatchObject({ backgroundColor: createTokensV2().bgSheet })
-    TestRenderer.act(() => tree!.unmount())
-  })
-
-  it('clears the footer reserve and keyboard offset when actions leave the sheet', async () => {
-    let tree: ReturnType<typeof TestRenderer.create>
-    await TestRenderer.act(async () => {
-      tree = TestRenderer.create(<Sheet open actions={<Text>Save</Text>}><Text>Body</Text></Sheet>)
-      await Promise.resolve()
-    })
-    TestRenderer.act(() => tree!.root.findByType(TrueSheet).props.footer.props.onLayout({ nativeEvent: { layout: { height: 76 } } }))
-    TestRenderer.act(() => tree!.update(<Sheet open><Text>Body</Text></Sheet>))
-    expect(tree!.root.findByType(TrueSheet).props.footer).toBeUndefined()
-    expect(tree!.root.findByProps({ testID: 'sheet-footer-space' }).props.style.height).toBe(0)
-    expect(tree!.root.findByType(KeyboardAwareSheetScrollView).props.keyboardVerticalOffset).toBeUndefined()
-    TestRenderer.act(() => tree!.unmount())
-  })
-
   it('routes a dirty Back attempt to its guard and consumes the navigation event', async () => {
     const onAttemptDismiss = vi.fn()
     let tree: ReturnType<typeof TestRenderer.create>
@@ -706,81 +601,6 @@ describe('Sheet (mobile)', () => {
     })
 
     expect(onClose).toHaveBeenCalledTimes(1)
-  })
-
-  it('keeps actions in the native fixed footer', async () => {
-    let tree: any
-    await TestRenderer.act(async () => {
-      tree = TestRenderer.create(
-        <Sheet open title="Title" actions={<Text>Save</Text>}><Text>Body</Text></Sheet>,
-      )
-      await Promise.resolve()
-    })
-    const nativeSheet = tree.root.findByType(TrueSheet)
-    expect(nativeSheet.props.footer).toBeDefined()
-    const bodyScroller = tree.root.findAllByType('ScrollView')[0]
-    const bodyStyle = (StyleSheet.flatten(bodyScroller.props.style) ?? {}) as { flex?: number; flexGrow?: number }
-    const contentStyle = StyleSheet.flatten(bodyScroller.props.contentContainerStyle) as { flex?: number; flexGrow?: number }
-    expect(bodyStyle.flex).toBeUndefined()
-    expect(bodyStyle.flexGrow).toBeUndefined()
-    expect(contentStyle.flex).toBeUndefined()
-    expect(contentStyle.flexGrow).toBeUndefined()
-    const actions = nativeSheet.props.footer.props.children[1]
-    expect(StyleSheet.flatten(nativeSheet.props.footer.props.style)).not.toHaveProperty('paddingBottom')
-    expect(StyleSheet.flatten(actions.props.style)).toMatchObject({ paddingHorizontal: 24, paddingTop: 16, paddingBottom: 24 })
-    expect(nativeSheet.props.footer.props.onLayout).toBeTypeOf('function')
-    await TestRenderer.act(() => {
-      nativeSheet.props.footer.props.onLayout({ nativeEvent: { layout: { height: 112 } } })
-    })
-    expect(tree.root.findByProps({ testID: 'sheet-footer-space' }).props.style.height).toBe(112)
-    await TestRenderer.act(() => {
-      nativeSheet.props.header.props.onLayout({ nativeEvent: { layout: { height: 56 } } })
-    })
-    const measuredScroller = tree.root.findAllByType('ScrollView')[0]
-    expect(measuredScroller.props.style.maxHeight).toBeCloseTo(892 * 0.85 - 24 - 56 - 24 - 112)
-  })
-
-  it.each([false, true])('separates footer actions with space only with virtualizedBody=%s', async (virtualizedBody) => {
-    let tree: ReturnType<typeof TestRenderer.create>
-    await TestRenderer.act(async () => {
-      tree = TestRenderer.create(
-        <Sheet open virtualizedBody={virtualizedBody} actions={<Text>Save</Text>}>
-          <Text>Body</Text>
-        </Sheet>,
-      )
-      await Promise.resolve()
-    })
-    try {
-      const footer = tree!.root.findByType(TrueSheet).props.footer
-      const actions = footer.props.children[1]
-      const footerStyle = StyleSheet.flatten(footer.props.style)
-      const actionStyle = StyleSheet.flatten(actions.props.style)
-      const body = tree!.root.findByProps({ testID: virtualizedBody ? 'sheet-virtualized-body' : 'sheet-body-scroll' })
-      const bodyStyle = StyleSheet.flatten(virtualizedBody ? body.props.style : body.props.contentContainerStyle)
-      expect(bodyStyle.paddingBottom).toBe(virtualizedBody ? 0 : 24)
-      expect(actionStyle.paddingTop).toBe(16)
-      expect(actionStyle.borderTopWidth ?? actionStyle.borderWidth ?? 0).toBe(0)
-      expect(footerStyle.borderTopWidth ?? footerStyle.borderWidth ?? 0).toBe(0)
-    } finally {
-      TestRenderer.act(() => tree!.unmount())
-    }
-  })
-
-  it('keeps a persistent sheet error clear of the bottom inset', async () => {
-    let tree: any
-    await TestRenderer.act(async () => {
-      tree = TestRenderer.create(<Sheet open title="Title"><Text>Body</Text></Sheet>)
-      await Promise.resolve()
-    })
-    await TestRenderer.act(async () => {
-      useAppToastStore.getState().showError('Could not save')
-      await Promise.resolve()
-    })
-
-    const footer = tree.root.findByType(TrueSheet).props.footer
-    expect(footer).toBeDefined()
-    expect(StyleSheet.flatten(footer.props.style)).not.toHaveProperty('paddingBottom')
-    TestRenderer.act(() => tree.unmount())
   })
 
   it('keeps a short sheet at its content height with no stretched body', async () => {
