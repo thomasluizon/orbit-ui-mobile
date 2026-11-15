@@ -54,7 +54,7 @@ function skeletonRows() {
   return tree!.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'skeleton-unit-habit-row')
 }
 
-it('pulls to refresh with no native wheel, keeps the rows for 300 ms, then holds the list with its skeleton rows until the request settles', async () => {
+it('pulls to refresh with no native wheel, keeps the loaded rows in place and reports busy until the request settles', async () => {
   vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true)
   vi.useFakeTimers()
   vi.setSystemTime(new Date('2026-09-12T09:00:00Z'))
@@ -86,20 +86,16 @@ it('pulls to refresh with no native wheel, keeps the rows for 300 ms, then holds
   expect(refreshControl().props.progressViewOffset).toBeLessThanOrEqual(-128)
 
   const readsBeforePull = listReads
-  await act(() => { refreshControl().props.onRefresh!() })
+  await act(async () => { refreshControl().props.onRefresh!(); await vi.advanceTimersByTimeAsync(0) })
   expect(listReads).toBeGreaterThan(readsBeforePull)
   expect(refreshControl().props.refreshing).toBe(false)
   expect(titles()).toEqual(['Refresh habit'])
   expect(skeletonRows()).toHaveLength(0)
   expect(list().props.accessibilityState).toEqual({ busy: true })
-  await act(async () => { await vi.advanceTimersByTimeAsync(299) })
+  await act(async () => { await vi.advanceTimersByTimeAsync(1000) })
   expect(titles()).toEqual(['Refresh habit'])
   expect(skeletonRows()).toHaveLength(0)
-  await act(async () => { await vi.advanceTimersByTimeAsync(1) })
-  expect(titles()).toEqual([])
   expect(list().props.accessibilityState).toEqual({ busy: true })
-  expect(skeletonRows()).toHaveLength(5)
-  expect(skeletonRows()[0]!.props).toMatchObject({ accessibilityRole: 'progressbar', accessibilityState: { busy: true } })
   expect(tree!.root.findAll((node) => String(node.type) === 'ActivityIndicator')).toHaveLength(0)
 
   await act(async () => { finishRefresh(page('Refreshed habit')); await vi.advanceTimersByTimeAsync(20) })
