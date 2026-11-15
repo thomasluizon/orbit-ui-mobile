@@ -221,7 +221,7 @@ describe('the edit surface behind orbit_guided_flows', () => {
   const summary = () => screen.getByRole('group', { name: ptBR.habits.flow.confirm.question })
   const save = () => screen.getByRole('button', { name: ptBR.common.save })
 
-  it('shows a skeleton for each summary row while the stored details load, with no spinner and with the save off', async () => {
+  it('shows a skeleton for each summary row while the stored details load, with no spinner and the save waiting on its label', async () => {
     state.detailPending = true
     state.detailFetching = true
     mountEdit()
@@ -233,8 +233,11 @@ describe('the edit surface behind orbit_guided_flows', () => {
     expect(screen.queryByRole('button', { name: /^Hora/ })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: ptBR.habits.flow.more })).not.toBeInTheDocument()
     expect(document.querySelector('.animate-spin')).toBeNull()
-    expect(save()).toBeDisabled()
-    expect(save()).not.toHaveAttribute('aria-busy')
+    expect(save()).toBeEnabled()
+    expect(save()).toHaveAttribute('aria-busy', 'true')
+    expect(save()).toHaveAttribute('aria-disabled', 'true')
+    expect(save()).toHaveAttribute('data-loading')
+    expect(save()).toHaveTextContent(ptBR.common.save)
     await act(async () => { save().click() })
     expect(state.update).not.toHaveBeenCalled()
   })
@@ -261,7 +264,8 @@ describe('the edit surface behind orbit_guided_flows', () => {
     await waitFor(() => expect(heading()).toHaveTextContent(ptBR.habits.flow.confirm.question))
     expect(summary().querySelector('[data-summary-skeleton]')).not.toBeNull()
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
-    expect(save()).toBeDisabled()
+    expect(save()).toBeEnabled()
+    expect(save()).toHaveAttribute('aria-busy', 'true')
   })
 
   it('shows the stored values and an enabled save once the details load', async () => {

@@ -255,7 +255,7 @@ export function useSummaryView({ flow, formHelpers, props }: Readonly<ViewInput 
       {props.saveError ? <Text accessibilityRole="alert" style={[styles.error, { color: tokens.statusBadText }]}>{props.saveError}</Text> : null}
       {detailsReady ? <QuestionRow question={t('habits.flow.more')} onPress={() => flow.open('more')} /> : null}
     </View>,
-    primary: { label: props.createLabel, onPress: () => props.onSubmit({ stepCount: flow.steps.length, usedAiRead: flow.usedAiRead }), loading: props.pending, disabled: !detailsReady },
+    primary: { label: props.createLabel, onPress: () => props.onSubmit({ stepCount: flow.steps.length, usedAiRead: flow.usedAiRead }), loading: props.pending || Boolean(props.detailsLoading), disabled: !props.detailsLoading && Boolean(props.detailsError) },
   }
 }
 

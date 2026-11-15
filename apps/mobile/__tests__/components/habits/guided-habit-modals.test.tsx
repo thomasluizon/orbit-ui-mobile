@@ -162,7 +162,7 @@ describe('the Android edit surface behind orbit_guided_flows', () => {
   const saveAction = (tree: Tree) => tree.hosts().find((node) => node.props.testID === 'button-primary-sm' && node.props.accessibilityState !== undefined)
   const alerts = (tree: Tree) => tree.hosts().filter((node) => node.props.accessibilityRole === 'alert')
 
-  it('shows a skeleton for each summary row while the stored details load, with no spinner and with the save off', async () => {
+  it('shows a skeleton for each summary row while the stored details load, with no spinner and the save waiting on its label', async () => {
     state.detailPending = true
     state.detailFetching = true
     const tree = mountEdit()
@@ -175,7 +175,8 @@ describe('the Android edit surface behind orbit_guided_flows', () => {
     expect(control(tree, /^Hora,/)).toBeUndefined()
     expect(control(tree, ptBR.habits.flow.more)).toBeUndefined()
     expect(tree.hosts().some((node) => node.type === 'ActivityIndicator')).toBe(false)
-    expect(saveAction(tree)?.props.accessibilityState).toMatchObject({ disabled: true, busy: false })
+    expect(saveAction(tree)?.props.accessibilityState).toMatchObject({ disabled: false, busy: true })
+    expect(tree.hosts().some((node) => node.type === 'Text' && node.props.children === ptBR.common.save)).toBe(true)
     await act(async () => { saveAction(tree)?.props.onPress?.(); await Promise.resolve() })
     expect(state.update).not.toHaveBeenCalled()
     tree.unmount()
@@ -205,7 +206,7 @@ describe('the Android edit surface behind orbit_guided_flows', () => {
     await settle()
     expect(summarySkeleton(tree)).toBeDefined()
     expect(alerts(tree)).toHaveLength(0)
-    expect(saveAction(tree)?.props.accessibilityState).toMatchObject({ disabled: true })
+    expect(saveAction(tree)?.props.accessibilityState).toMatchObject({ disabled: false, busy: true })
     tree.unmount()
   })
 
