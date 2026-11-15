@@ -190,7 +190,10 @@ run \`patch-package\` or an equivalent, and never stage or commit a path under \
 \`npm ci\` is allowed and expected when an installed package is missing; it installs the tree from
 the lockfile. Do not run \`npm install\` or change the lockfile unless the ticket says to.
 
-**Stage only named paths.** Never run \`git add -A\`, \`git add --all\`, \`git add -u\`, \`git add
+${cloud ? "" : `**No person answers a prompt.** Run no command that Claude Code holds for an approval:
+\`.claude/hooks/forbid-approval-prompt.mjs\` refuses each one and gives the rewrite. Follow that rewrite.
+
+`}**Stage only named paths.** Never run \`git add -A\`, \`git add --all\`, \`git add -u\`, \`git add
 --update\`, a dot path, a wildcard, or a non-literal magic pathspec. Inspect \`git status --short\`,
 then pass every intended path explicitly to \`git --literal-pathspecs add\`. Tracked \`.orca/\` changes
 are source and must never be discarded; only untracked \`.orca/\` runtime residue is disposable.

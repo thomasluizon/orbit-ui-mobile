@@ -18,6 +18,8 @@ const runState = () => {
 
 try {
   const input = readStdinJson()
+  // Claude Code raises the removal check for its Bash tool only, and the rewrite it asks for is Bash syntax.
+  if (input?.tool_name !== "Bash") process.exit(0)
   if (!isUnattendedRun({ env: process.env, state: runState(), sessionId: input?.session_id ?? "" })) process.exit(0)
   const verdict = checkApprovalPrompt(input?.tool_input?.command, {
     cwd: input?.cwd ?? "",

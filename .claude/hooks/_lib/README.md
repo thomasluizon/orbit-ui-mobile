@@ -6,7 +6,8 @@ payload, call a `_lib` rule, `exit 2` + stderr on a block. Wired in
 `.claude/settings.json` (`SessionStart` / `PreToolUse` / `PostToolUse`).
 
 Every `PreToolUse` guard is registered on **PowerShell** and `Bash` so either
-shell receives the same checks.
+shell receives the same checks. `forbid-approval-prompt` is the one exception:
+it mirrors a Claude Code check that exists for the Bash tool only.
 
 Deterministic checks live in ESLint, Roslyn, and `guards.yml`.
 Session hooks block commands or edits before they happen.
@@ -18,7 +19,7 @@ Session hooks block commands or edits before they happen.
 | `rules-lessons.mjs` | count unreviewed lesson headings before `## Graduated` | surface-pending-lessons (SessionStart) |
 | `rules-source.mjs` | idempotent raw index SQL in EF migrations | forbid-ef-migration-raw-index (PostToolUse Edit/Write) |
 | `rules-dependencies.mjs` | nothing writes inside `node_modules`, for any caller | forbid-node-modules-write (PreToolUse Write/Edit/MultiEdit, Bash, PowerShell) |
-| `rules-approval.mjs` | an unattended run refuses each shell command that Claude Code holds for an approval | forbid-approval-prompt (PreToolUse Bash, PowerShell) |
+| `rules-approval.mjs` | an unattended run refuses each Bash command that Claude Code holds for an approval | forbid-approval-prompt (PreToolUse Bash) |
 | `repo-roots.mjs` | which repository owns a path, and the linked worktree that resolves to its main checkout | orchestrator-guardrails, forbid-worker-browser, forbid-invented-identifier |
 | `rules-handoff.mjs` | a committed or stopping `NEXT.md` matches the handoff mode the owner asked for | require-handoff-prompt (PreToolUse Bash, PowerShell; Stop) |
 | `handoff-git.mjs` | every `NEXT.md` version a commit could record, and the newest committed one on any branch | require-handoff-prompt |
@@ -43,7 +44,7 @@ changes; do not extend it from memory.
 
 | circuit breaker | raised by | hook coverage |
 |---|---|---|
-| `dangerousRemoval` | the Bash tool, for `rm` and `rmdir` | `REMOVAL_RULES`, one rule for each group of `removalRule` values |
+| `dangerousRemoval` | the Bash tool only, for `rm` and `rmdir` | `REMOVAL_RULES`, one rule for each group of `removalRule` values |
 | `unfinishedCheck` | a permission check that threw | none: no command shape exists |
 | `restrictedMode` | a session in restricted mode | none: a session setting, not a command |
 | `outsideReadsBlocked` | `permissions.blockReadsOutsideWorkingDirectories` | none: this repository does not set it |

@@ -1505,6 +1505,9 @@ ledger. Launch nothing while existing launchers or release watchers are live. Th
 wake this session; finish the drain without introducing another wakeup status scan.
 
 Live background Workflow runs and background subagents also hold the relay drain open until completion; a record is stale only when the owning Stop omits the run, a terminal workflow snapshot proves it settled, or its recorded process start identity is no longer live.
+No drain waits on one without a limit. While one holds the drain, start `node tools/wait-background-runs.mjs` as a background task; the Stop hook refuses the turn end until that waiter lives. A run with no transcript progress for 30 minutes counts as stuck: the Stop hook and `relay-session.mjs` stop the wait on it, and `stuckBackgroundRuns` in the run state gives the successor its worktree, branch and last commit. Name each stuck run in the handoff.
+
+**Every agent brief in an unattended run forbids commands that ask for an approval.** This applies to a worker order, a subagent prompt and a workflow agent prompt. Point the brief at `.claude/hooks/forbid-approval-prompt.mjs`, which owns the list and gives the rewrite; do not copy the list into the brief. `compose-prompt.mjs` writes that pointer into each local worker order.
 
 When no drain source remains, invoke `/handoff --relay --sleep`, then `node tools/relay-session.mjs`.
 The handoff filters the owner questions through `/questions --relay`, so only the questions that

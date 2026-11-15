@@ -42,8 +42,7 @@
           { "type": "command", "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/forbid-invented-identifier.mjs\"" },
           { "type": "command", "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/forbid-worker-browser.mjs\"" },
           { "type": "command", "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/require-handoff-prompt.mjs\"" },
-          { "type": "command", "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/forbid-node-modules-write.mjs\"" },
-          { "type": "command", "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/forbid-approval-prompt.mjs\"" }
+          { "type": "command", "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/forbid-node-modules-write.mjs\"" }
         ]
       },
       {

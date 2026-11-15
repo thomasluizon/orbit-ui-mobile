@@ -105,15 +105,16 @@ const transcriptFiles = (run) => {
   catch (error) { if (error.code === "ENOTDIR") return [run.transcript]; if (error.code === "ENOENT") return []; throw error }
 }
 
-/** The time of the last transcript write, or of the first observation while no transcript exists; null when neither is known. */
+/** The time of the last transcript write, and never earlier than the first observation; null while no transcript exists. */
 export const lastProgressOf = (run) => {
-  const times = [Date.parse(run.observedAt), ...transcriptFiles(run).map(changedAt)].filter((time) => Number.isFinite(time))
-  return times.length ? Math.max(...times) : null
+  const written = transcriptFiles(run).map(changedAt).filter((time) => time !== null)
+  if (written.length === 0) return null
+  const observed = Date.parse(run.observedAt)
+  return Math.max(...written, Number.isFinite(observed) ? observed : 0)
 }
 
-/** A workflow whose launch reply was not observed has no transcript on record, so it cannot count as stuck. */
+/** A run with no transcript on disk cannot show a missing write, so it keeps the wait: a wrong verdict would abandon live work. */
 const isStuck = (run, now) => {
-  if (run.type !== "subagent" && typeof run.transcript !== "string") return false
   const progress = lastProgressOf(run)
   return progress !== null && now - progress >= STUCK_RUN_MILLISECONDS
 }

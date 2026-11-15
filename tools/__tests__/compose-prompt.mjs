@@ -361,7 +361,19 @@ export const cases = () => {
     )
   }
 
+  // The brief points at the hook that owns the rule; the Codex container has no Claude Code hook to point at.
+  const approvalPointer = /Run no command that Claude Code holds for an approval:\s+`\.claude\/hooks\/forbid-approval-prompt\.mjs` refuses each one/
+  for (const [mode, order, expected] of [["local", prompt, true], ["explicit main", mainPrompt, true], ["Cloud", cloudPrompt, false]]) {
+    T(`${TOOL}: the ${mode} order ${expected ? "forbids" : "omits"} commands that ask for an approval`, approvalPointer.test(order) === expected, order)
+  }
+  T(`${TOOL}: the approval hook that the brief names exists`, existsSync(join(REPO_ROOT, ".claude", "hooks", "forbid-approval-prompt.mjs")))
+
   const orchestrateSkill = readFileSync(join(REPO_ROOT, ".claude", "skills", "orchestrate", "SKILL.md"), "utf8")
+  T(
+    `${TOOL}: the skill makes every unattended agent brief point at the approval hook`,
+    /Every agent brief in an unattended run forbids commands that ask for an approval/.test(orchestrateSkill) &&
+      orchestrateSkill.includes(".claude/hooks/forbid-approval-prompt.mjs") && orchestrateSkill.includes("node tools/wait-background-runs.mjs"),
+  )
   T(
     `${TOOL}: orchestration resolves review batch threads before its single push`,
     /compose its order with `--review-batch`/.test(orchestrateSkill) &&

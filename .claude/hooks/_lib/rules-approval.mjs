@@ -292,7 +292,7 @@ export const isUnattendedRun = ({ env = {}, state = null, sessionId = "" } = {})
   (state?.sleep === true && (typeof state.sessionId !== "string" || state.sessionId === "" || sessionId === "" || state.sessionId === sessionId))
 
 /**
- * @param command the Bash or PowerShell command about to run
+ * @param command the Bash command about to run
  * @param options `{ cwd, home, workingDirectories, rules, windows }`; `rules` defaults to every removal rule
  * @returns `{ block, message, rule }` when Claude Code would hold the command for an approval, else null
  */

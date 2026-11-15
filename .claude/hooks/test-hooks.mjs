@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, statSync, symlinkSync, writeFileSync } from "node:fs"
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, statSync, symlinkSync, utimesSync, writeFileSync } from "node:fs"
 import { spawn, spawnSync } from "node:child_process"
 import { performance } from "node:perf_hooks"
 import { tmpdir } from "node:os"
@@ -1404,7 +1404,9 @@ writeRunState({ sessionId: "approval-coordinator", sleep: true, remaining: [] },
 const refusedRemoval = approvalHook(heldRemoval())
 T("adapter approval: the held removal in an unattended run -> 2", refusedRemoval.status, 2)
 T("adapter approval: the refusal tells the agent how to rewrite the command", refusedRemoval.stderr.includes('"${DST:?}/${d:?}/node_modules"') && refusedRemoval.stderr.includes("literal path"), true)
-T("adapter approval: PowerShell receives the same check -> 2", approvalHook(heldRemoval("PowerShell")).status, 2)
+// Claude Code raises this check for its Bash tool only, and the guarded rewrite is Bash syntax.
+T("adapter approval: a PowerShell command is outside the Bash check -> 0", approvalHook(heldRemoval("PowerShell")).status, 0)
+T("adapter approval: the hook is wired to the Bash tool only", settings.hooks.PreToolUse.filter((entry) => entry.hooks.some((hook) => hook.command.includes(APPROVAL_HOOK))).map((entry) => entry.matcher), ["Bash"])
 T("adapter approval: a subagent carries the coordinator session -> 2", approvalHook({ ...heldRemoval(), agent_id: "fix-agent", agent_type: "general-purpose" }).status, 2)
 T("adapter approval: the guarded rewrite -> 0", approvalHook({ ...heldRemoval(), tool_input: { command: 'rm "${DST:?}/${d:?}/node_modules"' } }).status, 0)
 T("adapter approval: removal of the checkout itself -> 2", approvalHook({ ...heldRemoval(), tool_input: { command: `rm -rf ${wakeCheckout}` } }).status, 2)
@@ -1666,12 +1668,17 @@ T("stuck limit: the launch record names the subagent transcript", heldRecord.tra
 T("stuck limit: a live subagent below the limit holds the drain", backgroundHook(heldStop).stdout, "")
 const unwatchedDrain = wakeStop(heldStop)
 T("stuck limit: a drain that waits on a subagent with no waiter refuses the turn end", { status: unwatchedDrain.status, names: unwatchedDrain.stderr.includes("node tools/wait-background-runs.mjs") && unwatchedDrain.stderr.includes(`subagent ${heldAgent}`) }, { status: 2, names: true })
-const silentSince = new Date(Date.now() - 31 * 60_000).toISOString()
-writeFileSync(heldRecordPath, JSON.stringify({ ...heldRecord, observedAt: silentSince }))
+const silentTime = new Date(Date.now() - 31 * 60_000)
+const silentSince = silentTime.toISOString()
+writeFileSync(heldRecordPath, JSON.stringify({ ...heldRecord, observedAt: new Date(silentTime.getTime() - 60_000).toISOString() }))
+T("stuck limit: a subagent with no transcript on disk holds the drain at any age", backgroundHook(heldStop).stdout, "")
+mkdirSync(dirname(heldRecord.transcript), { recursive: true })
+writeFileSync(heldRecord.transcript, `${JSON.stringify({ type: "assistant", agentId: heldAgent, cwd: wakeCheckout })}\n`)
+utimesSync(heldRecord.transcript, silentTime, silentTime)
 const releasedDrain = backgroundHook(heldStop)
 T("stuck limit: 30 minutes with no transcript progress completes the drain", releasedDrain.stdout.includes("drain is complete"), true)
 T("stuck limit: the drain message names the stuck subagent for the handoff", releasedDrain.stdout.includes(`subagent ${heldAgent}`) && releasedDrain.stdout.includes("stuckBackgroundRuns"), true)
-T("stuck limit: the run state records the stuck subagent", readRunState(wakeCheckout).stuckBackgroundRuns?.map((run) => [run.id, run.type, run.lastProgressAt]), [[heldAgent, "subagent", silentSince]])
+T("stuck limit: the run state records the stuck subagent", readRunState(wakeCheckout).stuckBackgroundRuns?.map((run) => [run.id, run.type, run.worktree, run.branch, run.lastProgressAt]), [[heldAgent, "subagent", wakeCheckout, "relay-fixture", silentSince]])
 T("stuck limit: the turn end no longer waits on the stuck subagent", wakeStop(heldStop).status, 0)
 // The guard broken: with no limit the same silent subagent holds the drain, as it did before the limit existed.
 const stuckLimitSource = readFileSync(join(wakeCheckout, "tools", "lib", "background-runs.mjs"), "utf8")
