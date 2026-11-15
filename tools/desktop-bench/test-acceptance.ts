@@ -17,6 +17,7 @@ import { assertAccessibleTree, corruptSignature } from './acceptance-contract.mj
 import * as acceptanceContract from './acceptance-contract.mjs'
 import { takeSigningMaterial } from './acceptance-platform.mjs'
 import { runChild } from './child-limit.mjs'
+import { button, inspectionContext } from './test-acceptance-support'
 
 const vector = JSON.parse(readFileSync(new URL('../../apps/desktop/__fixtures__/signer-vector.json', import.meta.url), 'utf8')) as { payload: string; signature: string; publicKey: string; version: string }
 const bytes = Buffer.from(vector.payload)
@@ -118,10 +119,6 @@ for (const body of [{ ...sending, code: 'wrong' }, { email: 'foreign@example.inv
 }
 assert.throws(() => emailReply('/api/auth/verify-code', { email: acceptanceEmail }, 'fixture-token'))
 
-const button = { id: '0/0', role: 'Button', name: 'Today', interactive: true, focused: false, selected: false,
-  AutomationId: 'today', ClassName: 'button', FrameworkId: 'Chrome', IsOffscreen: false, IsEnabled: true,
-  IsKeyboardFocusable: true, IsControlElement: true, IsContentElement: true, LocalizedControlType: 'button',
-  BoundingRectangle: { X: 0, Y: 0, Width: 40, Height: 40 } }
 const tree = (controls = [button]) => ({ denied: false, error: null, nodes: [
   { id: '0', role: 'Document', name: 'Today', interactive: false, focused: false, selected: false }, ...controls,
 ] })
@@ -411,23 +408,6 @@ test('surface inspection writes the entire capture before validating or failing 
   }
 })
 
-function inspectionContext(platform: string) {
-  const runner = readFileSync(new URL('./acceptance-runner.mjs', import.meta.url), 'utf8')
-  const inspect = runner.slice(runner.indexOf('async function inspectSurfaces'), runner.indexOf('async function installedLaunch'))
-  const host = readFileSync(new URL('./host.mjs', import.meta.url), 'utf8')
-  const polling = host.slice(host.indexOf('export async function waitFor('), host.indexOf('export async function waitForHttp'))
-    .replace('export async function', 'async function')
-  let elapsed = 0
-  const records: { path: string; value: unknown }[] = []
-  const context = { Error, join, ...acceptanceContract, process: { platform },
-    Date: { now: () => elapsed }, delay: async (milliseconds: number) => { elapsed += milliseconds },
-    record: async (path: string, value: unknown) => { records.push({ path, value }) },
-  }
-  runInNewContext(`${polling}\n${inspect}\nglobalThis.inspect = inspectSurfaces`, context)
-  return { records, elapsed: () => elapsed,
-    inspect: (context as typeof context & { inspect: (...args: unknown[]) => Promise<void> }).inspect }
-}
-
 test('surface inspection primes and polls the native web content without accepting browser chrome', async () => {
   for (const platform of ['win32', 'darwin']) {
     const first = platform === 'win32' ? runtimeTree() : { denied: false, error: null, nodes: [
@@ -504,9 +484,9 @@ test('surface inspection dismisses Astra and waits for its modal focus owner bef
       const events: { kind: string; key?: string }[] = []
       const native = async (_pid: number, command: string) => {
         commands.push(command)
-        if (command === 'escape') { closing = modal; palette = false }
-        if (command === 'palette') openPalette()
-        // The page probe reports every keydown the palette input receives; the runner waits for it before the focus check.
+        // The page probe reports each keydown it receives; the runner waits for that receipt before it checks the app.
+        if (command === 'escape') { events.push({ kind: modal ? 'astra-key' : 'palette-key', key: 'Escape' }); closing = modal; palette = false }
+        if (command === 'palette') { openPalette(); events.push({ kind: 'palette-key', key: 'k', metaKey: true, ctrlKey: true }) }
         if (command === 'down' && palette) { selected++; events.push({ kind: 'palette-key', key: 'ArrowDown' }) }
         if (command !== 'dump') return { sent: command }
         if (denied) return { denied: true, error: 'AX API disabled', nodes: [] }
@@ -534,9 +514,14 @@ test('surface inspection dismisses Astra and waits for its modal focus owner bef
         },
         events: () => events,
       }
-      const report = { accessibility: {}, paletteFocus: undefined as unknown }
+      const report = { accessibility: {}, paletteFocus: undefined as unknown, keyDelivery: undefined as { key: string; attempts: { received: boolean }[] }[] | undefined }
       await context.inspect(proxy, native, { child: { pid: 1 } }, 'output', report)
       assert.equal(dismissalReads, 3)
+      const keys = denied ? [] : ['escape', 'palette', 'down', 'down', 'escape']
+      assert.deepEqual(JSON.parse(JSON.stringify(report.keyDelivery?.map((entry) => entry.key) ?? [])), keys)
+      assert.ok(report.keyDelivery?.every((entry, index) => JSON.stringify(entry.attempts) ===
+        JSON.stringify([{ post: 1, received: true, reply: { sent: keys[index] } }])) ?? denied)
+      assert.deepEqual(context.logs, keys.map((key) => `Key ${key}: post 1 of 6: the page recorded the keydown in this window\n`))
       assert.ok(commands.indexOf(denied ? 'astra-close' : 'escape') < commands.indexOf(denied ? 'palette' : 'palette-ready'))
       if (denied) assert.equal((report.paletteFocus as { skipped: string }).skipped, 'AX API disabled')
       else assert.equal((report.paletteFocus as unknown[]).length, 2)
@@ -552,43 +537,38 @@ test('a timed-out Astra dismissal records the native tree after Escape and the p
   for (const scenario of ['received', 'lost', 'unreadable']) {
     const context = inspectionContext('darwin')
     const commands: string[] = []
+    const escape = { kind: 'astra-key', key: 'Escape', keyCode: 27, trusted: true, targetComposer: true }
+    const events: typeof escape[] = []
     const native = async (_pid: number, command: string) => {
       commands.push(command)
+      if (command === 'escape' && scenario !== 'lost') events.push(escape)
       if (command !== 'dump') return { sent: command, delivery: 'process-event' }
       if (scenario === 'unreadable' && commands.filter((entry) => entry === 'dump').length === 3) throw new Error('AX read failed')
       return astra
     }
-    const events = scenario === 'lost' ? [] : [{ kind: 'astra-key', key: 'Escape', keyCode: 27, trusted: true, targetComposer: true }]
     const proxy = {
       send(command: string) { commands.push(command) },
       read(surface: string) { return surface === 'astra' && {} },
       events: () => events,
     }
     const report: Record<string, unknown> = { accessibility: {} }
-    const count = scenario === 'lost' ? '0 Escape keydowns' : '1 Escape keydown'
+    if (scenario === 'lost') {
+      // A key the OS never delivered fails as OS delivery after the bounded posts, and the app's dismissal is never judged.
+      await assert.rejects(() => context.inspect(proxy, native, { child: { pid: 1 } }, 'output', report),
+        /^Error: OS key delivery failed: the page received no escape keydown after 6 posts 5 s apart;/)
+      assert.deepEqual(commands, ['dump', 'astra', 'dump', ...Array(6).fill('escape')])
+      assert.equal(context.elapsed(), 30000)
+      assert.equal(report.astraKeys, undefined)
+      continue
+    }
     await assert.rejects(() => context.inspect(proxy, native, { child: { pid: 1 } }, 'output', report),
-      new RegExp(`^Error: Timed out waiting for Astra dismissal; the page received ${count}; see trees/astra-after-escape\\.json$`))
+      /^Error: Timed out waiting for Astra dismissal; the page received 1 Escape keydown; see trees\/astra-after-escape\.json$/)
     assert.deepEqual(commands, ['dump', 'astra', 'dump', 'escape', 'astra-closed', 'dump'])
     assert.deepEqual(report.astraKeys, events)
     const capture = context.records.at(-1)!
     assert.equal(capture.path, join('output', 'trees', 'astra-after-escape.json'))
     assert.deepEqual(JSON.parse(JSON.stringify(capture.value)), scenario === 'unreadable' ? { denied: false, error: 'AX read failed', nodes: [] } : astra)
   }
-})
-
-test('every native key reply joins the report with its delivery path, and other native commands do not', async () => {
-  const runner = readFileSync(new URL('./acceptance-runner.mjs', import.meta.url), 'utf8')
-  const context: Record<string, unknown> = {}
-  runInNewContext(`${sourceBlock(runner, 'const keyCommands', '\nfunction menuCommands')}\nglobalThis.recordKeys = recordKeys`, context)
-  const report: { keyDelivery?: unknown[] } = {}
-  const calls: unknown[][] = []
-  const native = (context.recordKeys as (native: unknown, report: unknown) => (...args: unknown[]) => Promise<unknown>)(
-    async (...args: unknown[]) => { calls.push(args); return args[1] === 'dump' ? { nodes: [] } : { sent: args[1], delivery: 'process-event', focusedProcess: 7 } }, report)
-  for (const command of ['dump', 'escape', 'palette', 'down', 'home', 'notification', 'windows']) await native(7, command)
-  assert.deepEqual(JSON.parse(JSON.stringify(await native(7, 'quit', 41))), { sent: 'quit', delivery: 'process-event', focusedProcess: 7 })
-  assert.deepEqual(calls.at(-1), [7, 'quit', 41])
-  assert.deepEqual(JSON.parse(JSON.stringify(report.keyDelivery)), ['escape', 'palette', 'down', 'home', 'quit'].map((command) =>
-    ({ command, sent: command, delivery: 'process-event', focusedProcess: 7 })))
 })
 
 test('the page probe waits for Astra removal before acknowledging dismissal', async () => {
@@ -606,6 +586,11 @@ test('the page probe waits for Astra removal before acknowledging dismissal', as
           return ++reads < 3 ? {} : null
         },
         dispatchEvent(event: { key: string }) { keys.push(event.key) },
+        // The runner posts Command+K as soon as it reads astra-closed, so the palette key listener must be in place first.
+        addEventListener(type: string, listener: { name: string }, capture: boolean) {
+          assert.ok(type === 'keydown' && listener.name === 'recordPaletteKey' && capture)
+          reports.push('palette-key-listener')
+        },
       },
       KeyboardEvent: class { key: string; constructor(_type: string, options: { key: string }) { this.key = options.key } },
       requestAnimationFrame(callback: () => void) { frames++; callback() },
@@ -616,7 +601,7 @@ test('the page probe waits for Astra removal before acknowledging dismissal', as
     assert.equal(reads, 3)
     assert.equal(frames, 2)
     assert.deepEqual(keys, command === 'astra-close' ? ['Escape'] : [])
-    assert.deepEqual(reports, ['astra-closed'])
+    assert.deepEqual(reports, ['palette-key-listener', 'astra-closed'])
   }
 })
 
