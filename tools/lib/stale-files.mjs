@@ -16,7 +16,7 @@ import { readSessionChain } from "./session-chain.mjs"
 /** The hook starts a new listing when the stored one is older than this. */
 export const LISTING_MAX_AGE_MS = 15 * 60_000
 /** One listing never runs longer than this; an item it did not reach has no size or stays kept. */
-export const LISTING_CEILING_MS = 10 * 60_000
+const LISTING_CEILING_MS = 10 * 60_000
 const COMMAND_TIMEOUT_MS = 30_000
 const MEASURE_TIMEOUT_MS = 120_000
 /** A worktree with installed dependencies holds several hundred thousand files; a removal that stops halfway leaves a broken tree. */
@@ -39,7 +39,7 @@ const within = (path, container) => {
 }
 
 /** `{ command, directory }` for every process this user can read; null when the process table is unreadable. */
-export const readProcesses = () => {
+const readProcesses = () => {
   if (process.platform === "linux") {
     return readdirSync("/proc").filter((entry) => /^\d+$/.test(entry)).flatMap((pid) => {
       try {
@@ -75,7 +75,7 @@ const isShell = (command) => SHELLS.has(basename(command.split(" ")[0].replace(/
  * `{ sessionId, cwd }` for each session that runs, from the records Claude Code keeps in `<config>/sessions`, judged by the
  * run state's own reader. A record it cannot judge throws.
  */
-export const readLiveSessions = (configDirectories) => configDirectories.flatMap((directory) => liveSessionProcesses(directory)
+const readLiveSessions = (configDirectories) => configDirectories.flatMap((directory) => liveSessionProcesses(directory)
   .map((live) => ({ sessionId: live.sessionId, cwd: live.cwd ?? null })))
 
 export const claudeConfigDirectories = (environment = process.env) => [...new Set([
@@ -155,7 +155,7 @@ const runCheckoutsOf = (repoRoot) => {
  * nominated: each one still reads its scratchpad. The run record counts whatever session reads it, so a second session
  * in the checkout or in a linked worktree never removes the relay pair of the run.
  */
-export const protectedSessionsOf = (sessionId, repoRoot = REPO_ROOT, liveSessionIds = []) => {
+const protectedSessionsOf = (sessionId, repoRoot = REPO_ROOT, liveSessionIds = []) => {
   const sessions = new Map([[sessionId, "this session"]])
   const add = (id, reason) => {
     if (typeof id === "string" && id !== "" && !sessions.has(id)) sessions.set(id, reason)

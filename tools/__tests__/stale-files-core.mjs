@@ -1,10 +1,13 @@
+import { spawnSync } from "node:child_process"
 import fs, { chmodSync, existsSync, mkdirSync, readFileSync, realpathSync, rmSync, symlinkSync, utimesSync, writeFileSync } from "node:fs"
 import { syncBuiltinESMExports } from "node:module"
-import { join } from "node:path"
+import { dirname, join } from "node:path"
+import { fileURLToPath } from "node:url"
 
 import {
   LISTING_MAX_AGE_MS, collectListing, describeBytes, listingIdOf, offerOf, refreshIsDue, removeListed, summarize, systemProbes,
 } from "../lib/stale-files.mjs"
+import * as staleFiles from "../lib/stale-files.mjs"
 import { T, root } from "./_harness.mjs"
 import { claudeProcessFields, reusedPidRecord } from "./owner-questions-core.mjs"
 
@@ -285,6 +288,17 @@ const removalCases = () => {
   T("stale-files: removal reports the change of free space as a number", Number.isFinite(outcome.freed))
 }
 
+/** The review's repository-wide grep: every export of the library has an importer, so no export stays just in case. */
+const exportCases = () => {
+  const repositoryRoot = join(dirname(fileURLToPath(import.meta.url)), "..", "..")
+  const listed = spawnSync("git", ["-C", repositoryRoot, "ls-files", "--cached", "--others", "--exclude-standard", "--", "tools", ".claude"], { encoding: "utf8" })
+  T("stale-files: git lists the files that can import the library", listed.status === 0, listed.stderr)
+  const importers = listed.stdout.split("\n").filter((file) => file.endsWith(".mjs") && file !== "tools/lib/stale-files.mjs")
+    .map((file) => readFileSync(join(repositoryRoot, file), "utf8")).filter((text) => text.includes("lib/stale-files.mjs\""))
+  const unimported = Object.keys(staleFiles).filter((name) => !importers.some((text) => new RegExp(`\\b${name}\\b`).test(text)))
+  same("stale-files: every export of the library has an importer", unimported, [])
+}
+
 const reportCases = () => {
   const machine = stageMachine("report")
   const present = join(machine.sessionRoot, STALE)
@@ -318,5 +332,6 @@ export const cases = () => {
   raceCases()
   recordCases()
   removalCases()
+  exportCases()
   reportCases()
 }
