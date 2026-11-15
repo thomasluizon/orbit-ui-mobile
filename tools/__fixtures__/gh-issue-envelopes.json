@@ -566,11 +566,11 @@
         "--repo",
         "thomasluizon/orbit-tickets",
         "--state",
-        "all",
+        "open",
         "--limit",
-        "1000",
+        "100",
         "--json",
-        "number,url,title,body,state,stateReason,labels,blockedBy,blocking",
+        "number,url,title,body,state,stateReason,labels,blockedBy,blocking,milestone",
         "--jq",
         "map(if .stateReason == \"\" then .stateReason = null else . end)"
       ],
@@ -651,6 +651,12 @@
             "string"
           ]
         },
+        "$[].milestone": {
+          "types": [
+            "null",
+            "object"
+          ]
+        },
         "$[].number": {
           "types": [
             "number"
@@ -663,8 +669,7 @@
         },
         "$[].stateReason": {
           "types": [
-            "null",
-            "string"
+            "null"
           ]
         },
         "$[].title": {
@@ -673,6 +678,36 @@
           ]
         },
         "$[].url": {
+          "types": [
+            "string"
+          ]
+        },
+        "$[].blocking.nodes[]": {
+          "types": [
+            "object"
+          ]
+        },
+        "$[].blocking.nodes[].id": {
+          "types": [
+            "string"
+          ]
+        },
+        "$[].blocking.nodes[].number": {
+          "types": [
+            "number"
+          ]
+        },
+        "$[].blocking.nodes[].state": {
+          "types": [
+            "string"
+          ]
+        },
+        "$[].blocking.nodes[].title": {
+          "types": [
+            "string"
+          ]
+        },
+        "$[].blocking.nodes[].url": {
           "types": [
             "string"
           ]
@@ -707,32 +742,22 @@
             "string"
           ]
         },
-        "$[].blocking.nodes[]": {
-          "types": [
-            "object"
-          ]
-        },
-        "$[].blocking.nodes[].id": {
+        "$[].milestone.description": {
           "types": [
             "string"
           ]
         },
-        "$[].blocking.nodes[].number": {
+        "$[].milestone.dueOn": {
+          "types": [
+            "null"
+          ]
+        },
+        "$[].milestone.number": {
           "types": [
             "number"
           ]
         },
-        "$[].blocking.nodes[].state": {
-          "types": [
-            "string"
-          ]
-        },
-        "$[].blocking.nodes[].title": {
-          "types": [
-            "string"
-          ]
-        },
-        "$[].blocking.nodes[].url": {
+        "$[].milestone.title": {
           "types": [
             "string"
           ]
@@ -867,21 +892,6 @@
           ]
         },
         "$.totalCount": {
-          "types": [
-            "number"
-          ]
-        },
-        "$.items[].linked pull requests": {
-          "types": [
-            "array"
-          ]
-        },
-        "$.items[].linked pull requests[]": {
-          "types": [
-            "string"
-          ]
-        },
-        "$.items[].estimate": {
           "types": [
             "number"
           ]

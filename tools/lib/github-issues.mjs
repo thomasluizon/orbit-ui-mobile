@@ -7,6 +7,8 @@ import { escapeRegex } from "./escape-regex.mjs"
 import { readOrchestratorConfig } from "./orchestrator-config.mjs"
 
 const ISSUE_FIELDS = "number,url,title,body,state,stateReason,labels,blockedBy,blocking"
+/** The list read carries the milestone, so a milestone scope is matched here and not by gh search. */
+const LIST_ISSUE_FIELDS = `${ISSUE_FIELDS},milestone`
 const COMMAND_TIMEOUT_MS = 30000
 const COMMAND_MAX_BUFFER = 32 * 1024 * 1024
 /**
@@ -802,35 +804,36 @@ export const listBoardState = async () => {
 }
 
 /**
- * gh issue list reports no total, so a read that returns its --limit is not proven complete. It is
- * repeated at twice the limit until a read returns fewer issues than it allowed.
+ * gh answers --label and --milestone through GitHub search, which stops at 1000 issues without an
+ * error. This read passes neither, so gh pages repository.issues to the end. gh issue list reports
+ * no total, so a read that returns its --limit is repeated at twice the limit until it returns less.
  */
-const readEveryIssue = async (tickets, { labels, state, milestone }) => {
+const readEveryOpenIssue = async (tickets) => {
   for (let limit = FIRST_FETCH_LIMIT; ; limit *= 2) {
-    const args = ["issue", "list", "--repo", tickets.repository, "--state", state, "--limit", String(limit), "--json", ISSUE_FIELDS]
-    for (const label of labels) args.push("--label", label)
-    if (milestone !== null) args.push("--milestone", milestone)
-    args.push("--jq", LIST_STATE_REASON_FILTER)
+    const args = ["issue", "list", "--repo", tickets.repository, "--state", "open", "--limit", String(limit), "--json", LIST_ISSUE_FIELDS, "--jq", LIST_STATE_REASON_FILTER]
     const issues = parseGhJson(`gh ${args.join(" ")}`, await runGh(args))
     if (!Array.isArray(issues)) throw new Error("gh issue list returned no issue array")
     if (issues.length < limit) return issues
   }
 }
 
-export const listTickets = async ({ labels = [], state = "open", milestone = null } = {}) => {
-  if (!Array.isArray(labels) || labels.some((label) => typeof label !== "string" || label.trim().length === 0)) {
-    throw new Error("Ticket labels must be an array of non-empty strings")
+const inMilestone = (issue, milestone) => {
+  if (issue?.milestone !== null && typeof issue?.milestone?.title !== "string") {
+    throw new Error(`gh issue list carried no milestone for #${issue?.number}`)
   }
-  if (!new Set(["open", "closed", "all"]).has(state)) throw new Error(`Ticket state must be open, closed, or all, got ${JSON.stringify(state)}`)
+  return issue.milestone?.title === milestone
+}
+
+/** Every open ticket, or the open tickets in one milestone, matched by its exact title. */
+export const listOpenTickets = async ({ milestone = null } = {}) => {
   if (milestone !== null && (typeof milestone !== "string" || milestone.trim().length === 0)) {
     throw new Error("Ticket milestone must be null or a non-empty string")
   }
   const tickets = ticketConfiguration()
-  const normalized = []
-  for (const issue of await readEveryIssue(tickets, { labels, state, milestone })) {
-    normalized.push(normalizeTicket(issue, await projectItemsFor(issue, tickets), tickets.repository))
-  }
-  return normalized
+  const [issues, projectItems] = await Promise.all([readEveryOpenIssue(tickets), readOpenProjectItems(tickets)])
+  return issues
+    .filter((issue) => milestone === null || inMilestone(issue, milestone))
+    .map((issue) => normalizeTicket(issue, projectItems, tickets.repository))
 }
 
 export const assertRepositoryLabel = (ticket, repoKey) => {

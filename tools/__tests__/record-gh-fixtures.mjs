@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs"
+import { readFileSync, writeFileSync } from "node:fs"
 
 import { check, githubIssueReadPlan, orcaEnv, root, T, TOOLS_DIR } from "./_harness.mjs"
 import { join } from "node:path"
@@ -35,7 +35,12 @@ export const cases = () => {
     ],
     totalCount: 1,
   }
-  const plan = (issueEnvelope, board = boardPage([{ number: 2064, state: "OPEN" }]), projectItems = openProjectItems) => orcaEnv([
+  // Milestone shape copied from a live `gh issue list --json milestone` read of thomasluizon/orbit-tickets.
+  const openIssues = [
+    { ...JSON.parse(issue), milestone: { description: "Migrated from the Linear project of the same name.", dueOn: null, number: 5, title: "Harness Context and Calibration" } },
+    { ...JSON.parse(issue), milestone: null, number: 2136, url: "https://github.com/thomasluizon/orbit-tickets/issues/2136" },
+  ]
+  const plan = (issueEnvelope, board = boardPage([{ number: 2064, state: "OPEN" }]), projectItems = openProjectItems, listedIssues = openIssues) => orcaEnv([
     { match: "api graphql -F o=thomasluizon -F r=orbit-tickets -f query=query BoardState", stdout: board },
     /** Before the generic prefix, and non-empty: the recorder refuses to write comment paths it never observed. */
     {
@@ -62,7 +67,7 @@ export const cases = () => {
       stdout: JSON.stringify([61]),
       ticketEnvelope: "issueDependencyNumbers",
     },
-    { match: "issue list --repo thomasluizon/orbit-tickets", stdout: `[${issueEnvelope}]` },
+    { match: "issue list --repo thomasluizon/orbit-tickets", stdout: JSON.stringify(listedIssues) },
     { match: "project item-list 2 --owner thomasluizon", stdout: JSON.stringify(projectItems) },
     { match: "label list --repo thomasluizon/orbit-tickets", stdout: JSON.stringify([{ name: "repo:ui" }]) },
   ])
@@ -117,6 +122,12 @@ export const cases = () => {
       manifest.commands.projectItemList.command.join(" ").endsWith("--query is:issue is:open --limit 100"),
     JSON.stringify(manifest.commands.projectItemList),
   )
+  T(
+    `${TOOL}: derives the milestone paths from the same open list read the adapter makes`,
+    Boolean(manifest.commands.issueList.paths["$[].milestone.title"]) &&
+      manifest.commands.issueList.command.join(" ").includes("--state open --limit 100 --json number,url,title,body,state,stateReason,labels,blockedBy,blocking,milestone --jq"),
+    JSON.stringify(manifest.commands.issueList),
+  )
 
   T(
     `${TOOL}: derives the open board state paths read by the adapter`,
@@ -129,6 +140,14 @@ export const cases = () => {
     { status: 1, stderr: /boardState recorded no open ticket on the configured project with a blocker/ }, { env: plan(issue, boardPage([])) })
   check(TOOL, "a project read with no open item is refused, so the item paths are proven", ["--output", join(root, "recorded-gh-fixtures-no-items.json")],
     { status: 1, stderr: /projectItemList recorded no totalCount with a populated open item/ }, { env: plan(issue, undefined, { items: [], totalCount: 0 }) })
+  check(TOOL, "an open list with no issue in a milestone is refused, so the milestone paths are proven", ["--output", join(root, "recorded-gh-fixtures-no-milestone.json")],
+    { status: 1, stderr: /issueList recorded no open issue in a milestone/ }, { env: plan(issue, undefined, undefined, [openIssues[1]]) })
+
+  /** A path recorded under an earlier command, such as a closed issue's field, is no evidence for the current command. */
+  const earlier = JSON.parse(readFileSync(output, "utf8"))
+  earlier.commands.issueList.command = ["gh", "issue", "list", "--repo", "thomasluizon/orbit-tickets", "--state", "all"]
+  earlier.commands.issueList.paths["$[].closedAt"] = { types: ["string"] }
+  writeFileSync(output, JSON.stringify(earlier))
 
   const rerun = check(TOOL, "a re-recording unions observed types with the manifest on disk", ["--output", output], { status: 0 }, {
     env: plan(issueWith("COMPLETED")),
@@ -139,6 +158,11 @@ export const cases = () => {
     `${TOOL}: a nullable field stays nullable across recordings`,
     JSON.stringify(unioned.commands.issueView.paths["$.stateReason"].types) === JSON.stringify(["null", "string"]),
     JSON.stringify(unioned.commands.issueView.paths["$.stateReason"]),
+  )
+  T(
+    `${TOOL}: a re-recording drops the paths recorded under a different command`,
+    !unioned.commands.issueList.paths["$[].closedAt"] && Boolean(unioned.commands.issueList.paths["$[].milestone.title"]),
+    JSON.stringify(Object.keys(unioned.commands.issueList.paths)),
   )
 
   /**

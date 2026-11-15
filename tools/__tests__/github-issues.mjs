@@ -60,7 +60,7 @@ export const cases = async () => {
   T(
     `${TOOL}: exports only the ticket adapter surface`,
     Object.keys(githubIssues).sort().join(",") ===
-      "addComment,addTicketToProject,assertRepositoryLabel,cancelTicket,completeTicket,createMilestone,createTicket,editBlockers,editLabels,listBoardState,listLabels,listMilestones,listProjectViews,listTickets,preflightTicketCompletion,readComments,readTicket,readTickets,repairTicketStatus,resolveTicket,setProjectViewFilter,setStatus,updateBody,updateTitle",
+      "addComment,addTicketToProject,assertRepositoryLabel,cancelTicket,completeTicket,createMilestone,createTicket,editBlockers,editLabels,listBoardState,listLabels,listMilestones,listOpenTickets,listProjectViews,preflightTicketCompletion,readComments,readTicket,readTickets,repairTicketStatus,resolveTicket,setProjectViewFilter,setStatus,updateBody,updateTitle",
     Object.keys(githubIssues).sort().join(","),
   )
 
@@ -309,20 +309,51 @@ export const cases = async () => {
     const labels = await githubIssues.listLabels()
     T(`${TOOL}: listLabels returns only the names from the recorded label shape`, labels.join(",") === "repo:ui,Improvement", JSON.stringify(labels))
 
+    /**
+     * gh answers --milestone and --label through GitHub search, which stops at 1000 issues without an
+     * error, so the milestone is matched on the unfiltered open list. Milestone shape copied from a live
+     * `gh issue list --json milestone` read of thomasluizon/orbit-tickets.
+     */
+    const milestone = (number, title) => ({ description: "Migrated from the Linear project of the same name.", dueOn: null, number, title })
+    const listArguments = stage("github-issues/list-arguments", "[]")
     applyEnvironment(
       orcaEnv([
         {
-          match: "issue list --repo thomasluizon/orbit-tickets --state all --limit 100 --json number,url,title,body,state,stateReason,labels,blockedBy,blocking --label repo:ui --label harness --milestone Harness Context and Calibration",
-          stdout: JSON.stringify([issue()]),
+          match: "issue list --repo thomasluizon/orbit-tickets --state open --limit 100",
+          stdout: JSON.stringify([
+            issue({ milestone: milestone(5, "Harness Context and Calibration") }),
+            issue({ milestone: milestone(6, "Launch"), number: 33, url: "https://github.com/thomasluizon/orbit-tickets/issues/33" }),
+            issue({ milestone: null, number: 2136, url: "https://github.com/thomasluizon/orbit-tickets/issues/2136" }),
+          ]),
+          argvFile: listArguments,
         },
         { match: "project item-list 2 --owner thomasluizon", stdout: populatedProjectItems },
       ]),
     )
-    const listed = await githubIssues.listTickets({ labels: ["repo:ui", "harness"], state: "all", milestone: "Harness Context and Calibration" })
-    T(`${TOOL}: listTickets normalizes each issue and preserves the mapped identifier`, listed.length === 1 && listed[0].identifier === "ORB-215", JSON.stringify(listed))
+    const listed = await (await freshGithubIssues()).listOpenTickets({ milestone: "Harness Context and Calibration" })
     T(
-      `${TOOL}: listTickets refuses an empty milestone before invoking GitHub`,
-      /must be null or a non-empty string/.test(await messageOf(() => githubIssues.listTickets({ milestone: "" })) ?? ""),
+      `${TOOL}: listOpenTickets keeps only the open tickets in the named milestone and preserves the mapped identifier`,
+      listed.length === 1 && listed[0].identifier === "ORB-215" && listed[0].projectItemId === "PVTI_harness_item",
+      JSON.stringify(listed),
+    )
+    T(
+      `${TOOL}: listOpenTickets never sends a filter that gh answers through the capped search`,
+      !/--(?:label|milestone|search)\b/.test(JSON.parse(readFileSync(listArguments, "utf8")).join(" ")),
+      readFileSync(listArguments, "utf8"),
+    )
+    applyEnvironment(
+      orcaEnv([
+        { match: "issue list --repo thomasluizon/orbit-tickets --state open", stdout: JSON.stringify([issue()]) },
+        { match: "project item-list 2 --owner thomasluizon", stdout: populatedProjectItems },
+      ]),
+    )
+    T(
+      `${TOOL}: listOpenTickets refuses a list read that carries no milestone`,
+      (await messageOf(async () => (await freshGithubIssues()).listOpenTickets({ milestone: "Launch" }))) === "gh issue list carried no milestone for #221",
+    )
+    T(
+      `${TOOL}: listOpenTickets refuses an empty milestone before invoking GitHub`,
+      /must be null or a non-empty string/.test(await messageOf(() => githubIssues.listOpenTickets({ milestone: "" })) ?? ""),
     )
 
     /** The first fetch stops at its limit of 100 items, and the open ticket is item 101. */
@@ -340,14 +371,14 @@ export const cases = async () => {
         { match: "project item-list 2 --owner thomasluizon", stdout: firstFetch, argvFile: firstFetchArguments },
       ]),
     )
-    const [afterFirstFetch] = await (await freshGithubIssues()).listTickets({ state: "open" })
+    const [afterFirstFetch] = await (await freshGithubIssues()).listOpenTickets()
     T(
-      `${TOOL}: listTickets finds an open ticket that sits after the first project fetch`,
+      `${TOOL}: listOpenTickets finds an open ticket that sits after the first project fetch`,
       afterFirstFetch.projectItemId === "PVTI_harness_item" && afterFirstFetch.status === "In Review",
       JSON.stringify(afterFirstFetch),
     )
     T(
-      `${TOOL}: listTickets asks the project for open issues only`,
+      `${TOOL}: listOpenTickets asks the project for open issues only`,
       JSON.parse(readFileSync(firstFetchArguments, "utf8")).join(" ").endsWith("--format json --query is:issue is:open --limit 100"),
       readFileSync(firstFetchArguments, "utf8"),
     )
@@ -359,8 +390,8 @@ export const cases = async () => {
       ]),
     )
     T(
-      `${TOOL}: listTickets refuses a project read that holds fewer items than its own totalCount`,
-      (await messageOf(async () => (await freshGithubIssues()).listTickets({ state: "open" }))) === "gh project item-list returned 1 of 5 items under --limit 100",
+      `${TOOL}: listOpenTickets refuses a project read that holds fewer items than its own totalCount`,
+      (await messageOf(async () => (await freshGithubIssues()).listOpenTickets())) === "gh project item-list returned 1 of 5 items under --limit 100",
     )
 
     /** The first issue fetch returns its limit of 100 issues, so the list is not proven complete. */
@@ -372,9 +403,9 @@ export const cases = async () => {
         { match: "project item-list 2 --owner thomasluizon", stdout: populatedProjectItems },
       ]),
     )
-    const afterFullIssueFetch = await (await freshGithubIssues()).listTickets({ state: "open" })
+    const afterFullIssueFetch = await (await freshGithubIssues()).listOpenTickets()
     T(
-      `${TOOL}: listTickets reads again when the issue fetch returns its limit`,
+      `${TOOL}: listOpenTickets reads again when the issue fetch returns its limit`,
       afterFullIssueFetch.length === 101 && afterFullIssueFetch.at(-1).number === 221 && afterFullIssueFetch.at(-1).projectItemId === "PVTI_harness_item",
       `${afterFullIssueFetch.length} tickets, last #${afterFullIssueFetch.at(-1)?.number}`,
     )
@@ -397,24 +428,6 @@ export const cases = async () => {
       `${TOOL}: a closed ticket in a bulk read takes its Status from its own project item`,
       closedTicket.status === "Done" && closedTicket.projectItemId === "PVTI_harness_item" && existsSync(closedTicketBoardRead),
       JSON.stringify(closedTicket),
-    )
-
-    applyEnvironment(
-      orcaEnv([
-        { match: "issue list --repo thomasluizon/orbit-tickets --state closed", stdout: JSON.stringify([issue({ state: "CLOSED", stateReason: "COMPLETED" })]) },
-        {
-          match: "api graphql -F o=thomasluizon -F r=orbit-tickets -F n=221",
-          stdout: issueProjectItems([{ ...issueProjectItem, fieldValueByName: { name: "Done" } }]),
-          ticketEnvelope: "issueProjectItems",
-        },
-        { match: "project item-list 2 --owner thomasluizon", stdout: JSON.stringify({ items: [], totalCount: 0 }), removePath: closedTicketBoardRead },
-      ]),
-    )
-    const [closedListed] = await (await freshGithubIssues()).listTickets({ state: "closed" })
-    T(
-      `${TOOL}: a closed ticket in a list takes its Status from its own project item`,
-      closedListed.status === "Done" && closedListed.projectItemId === "PVTI_harness_item" && existsSync(closedTicketBoardRead),
-      JSON.stringify(closedListed),
     )
 
     const statusMarker = stage("github-issues/status-write", "must be removed")
