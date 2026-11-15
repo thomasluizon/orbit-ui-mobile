@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { parse } from 'yaml'
 import { completionControls } from './tool-schema.mjs'
 
-export const { tools, legacyTools, postReadTools, habitSetupTools, habitSetupBinding,
+export const { apiCommit, tools, legacyTools, postReadTools, habitSetupTools, habitSetupBinding,
   offerTools = [], offerPostReadTools = [], offerHabitSetupTools = [] } = parse(readFileSync(new URL('./catalog.yaml', import.meta.url), 'utf8'))
 const allTools = [...tools, ...legacyTools, ...postReadTools, ...habitSetupTools, ...offerTools, ...offerPostReadTools, ...offerHabitSetupTools]
 export const toolCompletionControls = new Map(tools.map((tool) => [tool.function.name, completionControls(tool.function.parameters)]))
