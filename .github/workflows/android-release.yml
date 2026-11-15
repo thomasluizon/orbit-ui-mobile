@@ -259,16 +259,11 @@ jobs:
           android: false
 
       - uses: actions/setup-node@v7
-        env:
-          # Bound stalled cache segments so npm ci can continue with a cold cache.
-          SEGMENT_DOWNLOAD_TIMEOUT_MINS: '1'
         with:
           node-version: 22
-          cache: npm
-          cache-dependency-path: |
-            package-lock.json
-            apps/mobile/package.json
-            packages/shared/package.json
+          package-manager-cache: false
+
+      - uses: ./.github/actions/restore-npm-cache
 
       - uses: actions/setup-java@v6
         with:

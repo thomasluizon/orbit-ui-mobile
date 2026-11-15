@@ -503,12 +503,23 @@ jobs:
           path: staging-smoke-source
           persist-credentials: false
       - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          package-manager-cache: false
+      # The steps of .github/actions/restore-npm-cache, inline: this job checks out a release commit that can be older than that action.
+      - name: Read the npm cache directory
+        id: npm-cache-directory
+        shell: bash
+        run: echo "path=$(npm config get cache)" >> "$GITHUB_OUTPUT"
+      - name: Restore the npm cache
+        uses: actions/cache/restore@v6
         env:
           SEGMENT_DOWNLOAD_TIMEOUT_MINS: '1'
         with:
-          node-version: 22
-          cache: npm
-          cache-dependency-path: staging-smoke-source/package-lock.json
+          path: ${{ steps.npm-cache-directory.outputs.path }}
+          key: npm-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('staging-smoke-source/package-lock.json') }}
+          restore-keys: |
+            npm-${{ runner.os }}-${{ runner.arch }}-
       - name: Validate staging smoke settings
         env:
           SMOKE_TEST_EMAIL: ${{ secrets.STAGING_SMOKE_TEST_EMAIL }}
@@ -633,12 +644,23 @@ jobs:
             if [ -z "${!name:-}" ]; then echo "::error::Missing ${name}" >&2; exit 1; fi
           done
       - uses: actions/setup-node@v7
-        env:
-          # Bound stalled cache segments so npm ci can continue with a cold cache.
-          SEGMENT_DOWNLOAD_TIMEOUT_MINS: '1'
         with:
           node-version: 22
-          cache: npm
+          package-manager-cache: false
+      # The steps of .github/actions/restore-npm-cache, inline: this job checks out a release commit that can be older than that action.
+      - name: Read the npm cache directory
+        id: npm-cache-directory
+        shell: bash
+        run: echo "path=$(npm config get cache)" >> "$GITHUB_OUTPUT"
+      - name: Restore the npm cache
+        uses: actions/cache/restore@v6
+        env:
+          SEGMENT_DOWNLOAD_TIMEOUT_MINS: '1'
+        with:
+          path: ${{ steps.npm-cache-directory.outputs.path }}
+          key: npm-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            npm-${{ runner.os }}-${{ runner.arch }}-
       - run: npm ci
       - name: Install Playwright chromium
         run: npx playwright install chromium

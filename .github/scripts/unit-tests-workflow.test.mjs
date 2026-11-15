@@ -551,3 +551,8 @@ test("real Vitest reports combine project coverage and reject incomplete coverag
     rmSync(directory, { recursive: true, force: true })
   }
 })
+
+test("the web test timings upload only after the web report selection ran", () => {
+  assert.equal(stepNamed(unitSteps, "Select latest web report attempts").id, "select-web-reports")
+  assert.equal(stepNamed(unitSteps, "Upload web test timings").if, "${{ !cancelled() && steps.select-web-reports.outcome == 'success' }}")
+})

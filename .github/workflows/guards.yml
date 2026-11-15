@@ -31,12 +31,12 @@ jobs:
       - name: Set up Node
         if: ${{ !cancelled() }}
         uses: actions/setup-node@v7
-        env:
-          # Bound stalled cache segments so npm ci can continue with a cold cache.
-          SEGMENT_DOWNLOAD_TIMEOUT_MINS: '1'
         with:
           node-version: 22
-          cache: npm
+          package-manager-cache: false
+      - name: Restore the npm cache
+        if: ${{ !cancelled() }}
+        uses: ./.github/actions/restore-npm-cache
       - name: Use the repository npm version
         if: ${{ !cancelled() }}
         run: npm install --global "$(node -p "require('./package.json').packageManager")" --no-audit --no-fund

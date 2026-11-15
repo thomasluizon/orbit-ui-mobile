@@ -73,11 +73,10 @@ jobs:
           sudo xcode-select --switch /Applications/Xcode_26.6.app/Contents/Developer
           xcodebuild -version
       - uses: actions/setup-node@v7
-        env:
-          SEGMENT_DOWNLOAD_TIMEOUT_MINS: '1'
         with:
           node-version: 22
-          cache: npm
+          package-manager-cache: false
+      - uses: ./.github/actions/restore-npm-cache
       - name: Validate the release configuration
         env:
           APP_VERSION: ${{ inputs.app_version }}

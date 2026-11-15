@@ -76,12 +76,19 @@ jobs:
         with:
           persist-credentials: false
       - uses: actions/setup-node@v7
-        env:
-          SEGMENT_DOWNLOAD_TIMEOUT_MINS: '1'
         with:
           node-version: 22
-          cache: npm
+          package-manager-cache: false
+      - id: npm-cache
+        uses: ./.github/actions/restore-npm-cache
       - run: npm ci --prefer-offline --no-audit --fund=false
+      # Every macOS and Windows job restores these entries. A changed lockfile starts this workflow on main, so it saves them.
+      - name: Save the npm cache
+        if: github.ref == 'refs/heads/main' && steps.npm-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: ${{ steps.npm-cache.outputs.path }}
+          key: ${{ steps.npm-cache.outputs.cache-primary-key }}
       - name: Point the Windows App SDK download cache
         if: runner.os == 'Windows'
         run: echo "ORBIT_WINDOWS_DOWNLOAD_CACHE=$RUNNER_TEMP/windows-app-sdk-downloads" >> "$GITHUB_ENV"

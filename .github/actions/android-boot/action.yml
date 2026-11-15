@@ -43,14 +43,60 @@ runs:
       run: |
         test -c /dev/kvm
         sudo chmod 666 /dev/kvm
+    # One source for the system image: the install step and the emulator runner read the same three values.
+    - name: Name the emulator system image
+      id: image
+      shell: bash
+      run: |
+        {
+          echo "api-level=35"
+          echo "target=google_apis"
+          echo "arch=x86_64"
+        } >> "$GITHUB_OUTPUT"
+    # The emulator runner downloads the 1.74 GB image one time, and one corrupt download fails the job with
+    # "Error on ZipFile unknown archive". This step installs the same package first, verifies its files and tries
+    # again after it deletes the partial download. The runner then runs the same sdkmanager install command
+    # (reactivecircus/android-emulator-runner at 1dcd0090116d15e7c562f8db72807de5e036a4ed, src/sdk-installer.ts), and
+    # sdkmanager downloads nothing for an installed package: the runner's call for the three packages that the
+    # runner image holds ends in about one second. The image has no cache entry, because its size is one sixth of
+    # the repository cache limit.
+    - name: Install and verify the emulator system image
+      shell: bash
+      env:
+        API_LEVEL: ${{ steps.image.outputs.api-level }}
+        TARGET: ${{ steps.image.outputs.target }}
+        ARCH: ${{ steps.image.outputs.arch }}
+      run: |
+        set -euo pipefail
+        sdkmanager="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+        package="system-images;android-${API_LEVEL};${TARGET};${ARCH}"
+        image="$ANDROID_HOME/system-images/android-${API_LEVEL}/${TARGET}/${ARCH}"
+        if [ ! -x "$sdkmanager" ]; then
+          echo "::error::sdkmanager is missing at $sdkmanager, so the emulator system image cannot install."
+          exit 1
+        fi
+        for attempt in 1 2 3 4; do
+          # The runner installs from channel 0, so the same channel gives the revision that it accepts as installed.
+          if "$sdkmanager" --install "$package" --channel=0 < <(yes) > /dev/null &&
+             [ -s "$image/system.img" ] && [ -s "$image/package.xml" ]; then
+            echo "Installed and verified $package on attempt $attempt."
+            exit 0
+          fi
+          echo "::warning::Attempt $attempt did not install $package."
+          # sdkmanager keeps a partial download and a partial unzip in these two directories of the SDK root.
+          rm -rf "${image:?}" "${ANDROID_HOME:?}/.temp" "${ANDROID_HOME:?}/.downloadIntermediates"
+          if [ "$attempt" -lt 4 ]; then sleep $((attempt * 5)); fi
+        done
+        echo "::error::The emulator system image $package did not install in 4 attempts."
+        exit 1
     - name: Cold start the AAB-derived APK
       uses: reactivecircus/android-emulator-runner@1dcd0090116d15e7c562f8db72807de5e036a4ed
       env:
         BOOT_PACKAGE: ${{ inputs.package }}
       with:
-        api-level: 35
-        target: google_apis
-        arch: x86_64
+        api-level: ${{ steps.image.outputs.api-level }}
+        target: ${{ steps.image.outputs.target }}
+        arch: ${{ steps.image.outputs.arch }}
         emulator-boot-timeout: 300
         disable-linux-hw-accel: false
         emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -camera-back none

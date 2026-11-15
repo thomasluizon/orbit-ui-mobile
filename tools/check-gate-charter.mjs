@@ -74,6 +74,7 @@ function workflowJobs(repositoryRoot, path) {
     const group = step.id?.match(/^([a-zA-Z0-9_-]+)__\d+$/)?.[1]
     if (!group) {
       const prerequisite = step.uses?.startsWith("actions/checkout@") || step.uses?.startsWith("actions/setup-node@") ||
+        step.uses === "./.github/actions/restore-npm-cache" ||
         step.run === "npm ci --no-audit" ||
         step.run === "npm install --global \"$(node -p \"require('./package.json').packageManager\")\" --no-audit --no-fund" ||
         (step.name === "Resolve pull request changed paths" &&

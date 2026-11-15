@@ -1,0 +1,37 @@
+name: Restore the npm cache
+description: Restore the npm download cache that main saves, so a pull request reads it and never saves its own entry
+inputs:
+  lockfile:
+    description: Lockfile whose hash names the cache entry
+    default: package-lock.json
+outputs:
+  cache-hit:
+    description: The string true when the entry of this lockfile was restored
+    value: ${{ steps.restore.outputs.cache-hit }}
+  cache-primary-key:
+    description: Key of the entry of this lockfile, for the save step of a main run
+    value: ${{ steps.restore.outputs.cache-primary-key }}
+  path:
+    description: The npm cache directory, for the save step of a main run
+    value: ${{ steps.directory.outputs.path }}
+runs:
+  using: composite
+  steps:
+    # setup-node reads the same directory and saves it from every ref on a key miss, about 470 MB for each
+    # operating system: actions/setup-node at 949feb2413d6458794dcd2491c4babbbce0c15c1, src/cache-save.ts.
+    - name: Read the npm cache directory
+      id: directory
+      shell: bash
+      run: echo "path=$(npm config get cache)" >> "$GITHUB_OUTPUT"
+    # A changed lockfile restores the newest main entry by prefix, and npm ci downloads only the difference.
+    - name: Restore the npm cache
+      id: restore
+      uses: actions/cache/restore@v6
+      env:
+        # Bound stalled cache segments so npm ci can continue with a cold cache.
+        SEGMENT_DOWNLOAD_TIMEOUT_MINS: '1'
+      with:
+        path: ${{ steps.directory.outputs.path }}
+        key: npm-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles(inputs.lockfile) }}
+        restore-keys: |
+          npm-${{ runner.os }}-${{ runner.arch }}-

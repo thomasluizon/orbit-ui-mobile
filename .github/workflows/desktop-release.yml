@@ -86,10 +86,9 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
       - uses: actions/setup-node@v7
-        env:
-          SEGMENT_DOWNLOAD_TIMEOUT_MINS: '1'
         with:
           node-version: 22
+          package-manager-cache: false
       - name: Plan shell publication
         id: plan
         env:
@@ -155,11 +154,23 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
       - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          package-manager-cache: false
+      # The steps of .github/actions/restore-npm-cache, inline: this job checks out a release commit that can be older than that action.
+      - name: Read the npm cache directory
+        id: npm-cache-directory
+        shell: bash
+        run: echo "path=$(npm config get cache)" >> "$GITHUB_OUTPUT"
+      - name: Restore the npm cache
+        uses: actions/cache/restore@v6
         env:
           SEGMENT_DOWNLOAD_TIMEOUT_MINS: '1'
         with:
-          node-version: 22
-          cache: npm
+          path: ${{ steps.npm-cache-directory.outputs.path }}
+          key: npm-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            npm-${{ runner.os }}-${{ runner.arch }}-
       - run: npm ci --prefer-offline --no-audit --fund=false
       - name: Report Windows PowerShell version
         if: runner.os == 'Windows'
@@ -333,10 +344,9 @@ jobs:
           ref: ${{ inputs.source_sha || github.sha }}
           persist-credentials: false
       - uses: actions/setup-node@v7
-        env:
-          SEGMENT_DOWNLOAD_TIMEOUT_MINS: '1'
         with:
           node-version: 22
+          package-manager-cache: false
       - uses: actions/download-artifact@v8
         with:
           pattern: desktop-macos-notary-*
@@ -372,11 +382,23 @@ jobs:
           ref: ${{ inputs.source_sha || github.sha }}
           persist-credentials: false
       - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          package-manager-cache: false
+      # The steps of .github/actions/restore-npm-cache, inline: this job checks out a release commit that can be older than that action.
+      - name: Read the npm cache directory
+        id: npm-cache-directory
+        shell: bash
+        run: echo "path=$(npm config get cache)" >> "$GITHUB_OUTPUT"
+      - name: Restore the npm cache
+        uses: actions/cache/restore@v6
         env:
           SEGMENT_DOWNLOAD_TIMEOUT_MINS: '1'
         with:
-          node-version: 22
-          cache: npm
+          path: ${{ steps.npm-cache-directory.outputs.path }}
+          key: npm-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            npm-${{ runner.os }}-${{ runner.arch }}-
       - run: npm ci --prefer-offline --no-audit --fund=false
       - uses: actions/download-artifact@v8
         with:
@@ -495,11 +517,23 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
       - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          package-manager-cache: false
+      # The steps of .github/actions/restore-npm-cache, inline: this job checks out a release commit that can be older than that action.
+      - name: Read the npm cache directory
+        id: npm-cache-directory
+        shell: bash
+        run: echo "path=$(npm config get cache)" >> "$GITHUB_OUTPUT"
+      - name: Restore the npm cache
+        uses: actions/cache/restore@v6
         env:
           SEGMENT_DOWNLOAD_TIMEOUT_MINS: '1'
         with:
-          node-version: 22
-          cache: npm
+          path: ${{ steps.npm-cache-directory.outputs.path }}
+          key: npm-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            npm-${{ runner.os }}-${{ runner.arch }}-
       - run: npm ci --prefer-offline --no-audit --fund=false
       - uses: actions/download-artifact@v8
         with:
