@@ -187,7 +187,7 @@ it('keeps the single rerun of the failed cases after a fix as a merged gate verd
 it('runs the live gate only from a local checkout, in the skill and in TESTING.md', () => {
   for (const path of ['.claude/skills/astra-eval/SKILL.md', 'TESTING.md']) {
     const text = repository(path).replace(/\s+/gu, ' ')
-    expect(text, path).not.toMatch(/manual dispatch|Astra eval` workflow|The Action|Actions > Astra eval/u)
+    expect(text, path).not.toMatch(/manual dispatch|manual-only triggering|Astra eval` workflow|The Action|Actions > Astra eval/u)
     expect(text, path).toMatch(/only live run/u)
   }
 })

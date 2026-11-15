@@ -1325,8 +1325,8 @@ rendered consumers; this harness change does not unblock broad rollout by itself
 4. Run `npm test --prefix evals/astra`. Its Vitest tests execute the actual promptfoo CLI with
    local providers: a correct case passes all three trials, a deliberately wrong ID fails all
    three, missing evidence is incomplete, and the rubric grader rejects leaked trace content.
-   HTTP wiring tests replace fetch at the boundary; no server or live endpoint is started. A workflow test enforces manual-only
-   triggering. Live endpoint spot checks remain a separate, explicitly requested run.
+   HTTP wiring tests replace fetch at the boundary; no server or live endpoint is started. No workflow
+   starts the live eval. Live endpoint spot checks remain a separate, explicitly requested run.
 
 ### Interface evidence
 
