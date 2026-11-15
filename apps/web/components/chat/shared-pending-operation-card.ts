@@ -73,7 +73,7 @@ export function SharedPendingOperationCard({
   const approvalBlockedRef = useRef(approvalBlocked)
   useLayoutEffect(() => { approvalBlockedRef.current = approvalBlocked }, [approvalBlocked])
 
-  return createElement(ConversationChange, { changeKey: `${revision.operation.previewFingerprint}:${card.status}:${savedState?.dismissed}` }, renderPendingOperationCard({
+  return createElement(ConversationChange, { changeKey: `${revision.operation.previewFingerprint}:${card.status}:${card.dismissed || revision.rejected}` }, renderPendingOperationCard({
     card: {
       ...card, recordedOutcome: savedState?.recordedOutcome, revision: { ...revision, chooseParent }, onOpenTarget, focusTitleOnMount, parentChoiceFocus: parentChoiceFocus?.sourceId === pendingOperation.id && parentChoiceFocus.sourceFingerprint === pendingOperation.previewFingerprint && parentChoiceFocus.authorizationVersion === revision.authorizationVersion ? parentChoiceFocus : undefined,
       completeStepUp: (result) => { card.completeStepUp(result); onStateChange?.(pendingOperationExecutionPatch(result)) },
