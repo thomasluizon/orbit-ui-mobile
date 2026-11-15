@@ -53,6 +53,8 @@ function steps(copy: Copy): Record<string, Step> {
     'goal amount': { question: goal.form.targetValueQuestion, line: goal.flow.amount.line },
     'goal streak': { question: goal.form.targetValueQuestion, line: goal.flow.amount.streakLine },
     'code locked': { question: copy.auth.verificationCode, line: copy.auth.line.codeLocked.replace('{time}', '14:59') },
+    'onboarding what': { question: onboarding.guided.what.question, line: flow.what.lineEmpty, options: [onboarding.what.starterLabels.water, onboarding.what.starterLabels.walk, onboarding.what.starterLabels.read, onboarding.what.starterLabels.tidy] },
+    'onboarding unit': { question: onboarding.when.frequencyUnitLabel, options: [onboarding.when.units.day, onboarding.when.units.week, onboarding.when.units.month, onboarding.when.units.year] },
     'onboarding mode': { question: flow.repeat.question, options: [onboarding.guided.mode.fixed, onboarding.guided.mode.flexible, onboarding.guided.mode.interval, onboarding.guided.mode.oneTime] },
     'onboarding time': { question: onboarding.guided.time.question, line: onboarding.guided.time.line, options: ['8:00', '14:00', '20:00', onboarding.guided.time.none] },
     'onboarding remind': { question: onboarding.guided.remind.question.replace('{time}', '20:00'), line: onboarding.guided.remind.line, options: [onboarding.guided.remind.allow, onboarding.remind.deny] },

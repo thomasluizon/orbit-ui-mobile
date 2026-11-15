@@ -613,7 +613,7 @@
       "reminderKind": {
         "question": "When do you want a reminder?",
         "scheduled": "At set times",
-        "repeat": "Repeat every"
+        "repeat": "Several times"
       },
       "more": "Want to adjust anything else?",
       "progress": "Step {position} of {total}",
@@ -3397,7 +3397,7 @@
           "skip": "Skip intro"
         },
         "what": {
-          "question": "What do you want to keep doing?"
+          "question": "What habit do you want to build?"
         },
         "mode": {
           "fixed": "Set days",

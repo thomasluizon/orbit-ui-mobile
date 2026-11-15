@@ -282,7 +282,7 @@ With the flag `orbit_guided_flows` on, sign-in asks one question at a time on th
 
 ### Guided flow layout specs
 
-- `apps/web/__tests__/components/ui/guided-flow-label-fit.test.tsx` (Chromium) renders every question of the habit flow and the goal flow with its quick options. It holds each label on one line and each question in two lines at most, and centres the block, at 320, 360, 384 and 412 in both locales.
+- `apps/web/__tests__/components/ui/guided-flow-label-fit.test.tsx` (Chromium) renders every question of the habit flow, the goal flow and the guided onboarding with its quick options. It holds each label on one line, and each question and each Orbit line in two lines at most, and centres the block, at 320, 360, 384 and 412 in both locales.
 - `apps/web/__tests__/components/ui/result-dialog-centre-geometry.test.tsx` (Chromium) centres the result dialog panel in the viewport on both axes and holds each action on one line, for a create, a sent support request, a fresh start and a scheduled account deletion.
 - `apps/web/__tests__/components/profile/perfil-flow-layout.test.tsx` (Chromium) measures each Perfil flow block centre within 1 px of the free area centre and holds each label on one line.
 - `apps/web/__tests__/support/flow-layout.ts` owns the shared stylesheet compile, viewport stub and Chromium measure these suites use.

@@ -612,7 +612,7 @@
       },
       "reminderKind": {
         "question": "Quando você quer um lembrete?",
-        "scheduled": "Na hora certa",
+        "scheduled": "Horário fixo",
         "repeat": "Várias vezes"
       },
       "more": "Quer ajustar mais alguma coisa?",
