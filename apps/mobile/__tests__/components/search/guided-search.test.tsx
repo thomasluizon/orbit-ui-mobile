@@ -64,7 +64,15 @@ async function focusField(focused = true) {
   const field = hosts((node) => typeof node.props.onFocus === 'function' && typeof node.props.onBlur === 'function' && String(node.type) === 'View')[0]!
   await TestRenderer.act(() => { ((focused ? field.props.onFocus : field.props.onBlur) as () => void)() })
 }
-const contentStyle = () => StyleSheet.flatten(byTestId('search-scroller')[0]!.props.contentContainerStyle as ViewStyle)
+const orbitOffset = () => StyleSheet.flatten(byTestId('search-orbit')[0]!.props.style as ViewStyle).marginTop
+/** Hands the scroller, Orbit and the question a height, as the native layout pass does. */
+async function layout() {
+  await TestRenderer.act(() => {
+    for (const [testID, height] of [['search-scroller', 800], ['search-orbit', 120], ['search-question', 100]] as const) {
+      (byTestId(testID)[0]!.props.onLayout as (event: { nativeEvent: { layout: { x: number; y: number; width: number; height: number } } }) => void)({ nativeEvent: { layout: { x: 0, y: 0, width: 412, height } } })
+    }
+  })
+}
 
 beforeEach(() => {
   vi.useFakeTimers()
@@ -106,7 +114,8 @@ describe('the Android search screen on the Orbit logic', () => {
     expect(texts()).toContain(messages.habits.search.title)
     expect(texts().filter((value) => value === messages.habits.search.question)).toHaveLength(1)
     expect(input().props.accessibilityLabel).toBe(messages.habits.search.question)
-    expect(contentStyle()).toMatchObject({ flexGrow: 1, justifyContent: 'center' })
+    await layout()
+    expect(orbitOffset()).toBeGreaterThan(0)
     expect(byTestId('search-orbit-line')).toHaveLength(0)
   })
 
@@ -118,13 +127,15 @@ describe('the Android search screen on the Orbit logic', () => {
     expect(mascots()[0]!.props['data-orbit-state']).toBe('parado')
   })
 
-  it('aligns the group under the header and keeps Orbit in Olhando while the keyboard is open', async () => {
+  it('aligns the block under the header and keeps Orbit in Olhando while the keyboard is open', async () => {
     await mount()
+    await layout()
+    const centred = orbitOffset()
     await TestRenderer.act(() => { __emitKeyboardEvent('keyboardDidShow') })
-    expect(contentStyle().justifyContent).toBeUndefined()
+    expect(orbitOffset()).toBe(0)
     expect(mascots()[0]!.props['data-orbit-state']).toBe('olhando')
     await TestRenderer.act(() => { __emitKeyboardEvent('keyboardDidHide') })
-    expect(contentStyle().justifyContent).toBe('center')
+    expect(orbitOffset()).toBe(centred)
     expect(mascots()[0]!.props['data-orbit-state']).toBe('parado')
   })
 
@@ -145,7 +156,7 @@ describe('the Android search screen on the Orbit logic', () => {
     expect(mascots()[0]!.props['data-orbit-state']).toBe('olhando')
     expect(row.findAll((node) => node.props.testID === 'orbit-mascot').length).toBeGreaterThan(0)
     expect(texts()).not.toContain(locale === 'en' ? `${count} habits` : `${count} hábitos`)
-    expect(contentStyle().justifyContent).toBeUndefined()
+    expect(orbitOffset()).toBe(0)
     expect(hosts((node) => typeof node.props.accessibilityLabel === 'string' && node.props.accessibilityLabel.startsWith(locale === 'en' ? 'Open Walk' : 'Abrir Walk'))).toHaveLength(count)
   })
 
@@ -209,6 +220,17 @@ describe('the Android search screen on the Orbit logic', () => {
     expect(mascots()[0]!.props['data-orbit-state']).toBe('parado')
     await press(ptBR.common.retry)
     expect(mocks.retry).toHaveBeenCalledTimes(1)
+  })
+
+  it('draws no Orbit line and no Orbit in the short wait before the searching status, so the block closes up', async () => {
+    mocks.query.mockReturnValue(result([], { pending: true }))
+    await mount('en')
+    await TestRenderer.act(() => { (input().props.onChangeText as (value: string) => void)('walk') })
+    expect(byTestId('search-orbit-line')).toHaveLength(0)
+    expect(mascots()).toHaveLength(0)
+    await TestRenderer.act(() => { vi.advanceTimersByTime(600) })
+    expect(byTestId('search-orbit-line')).toHaveLength(1)
+    expect(mascots()).toHaveLength(1)
   })
 
   it('keeps the searching status in the line while the search runs, with Orbit in Olhando', async () => {

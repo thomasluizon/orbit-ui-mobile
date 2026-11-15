@@ -312,6 +312,7 @@ Search and the Avisos inbox show Orbit with one sentence or one state, and each 
 - `apps/web/__tests__/components/navigation/notification-inbox-guided.test.tsx` and `apps/mobile/__tests__/components/navigation/notification-inbox-guided.test.tsx` cover the inbox and the bell: the empty and failed states with Orbit in Parado, one detail for a double press, the unread settle of one row, mark all read with its request snapshot, delete with the list exit and undo, the delete failure with retry, the clear all confirm with no Orbit and no result dialog, the three hidden targets, the header back control, the root header bell, and the count roll with its still swap.
 - `apps/web/__tests__/components/navigation/notification-empty-centre-geometry.test.tsx` (Chromium) and `apps/mobile/__tests__/components/navigation/notification-empty-centre-geometry.test.tsx` measure the empty and failed inbox against the centre of the free area, with the guided cases at 320, 360, 384 and 412.
 - The flag cases in `apps/web/__tests__/components/command/command-palette.test.tsx` cover the palette: it opens and closes in the commit of the press, it holds no Orbit, and the log and skip rows send the current requests.
+- `apps/web/__tests__/components/command/command-palette-instant.test.tsx` (Chromium) proves the open palette runs no animation (`document.getAnimations()` is empty) and holds no Orbit, with the guided flows on and off.
 
 ### Wrapped and the share surfaces
 

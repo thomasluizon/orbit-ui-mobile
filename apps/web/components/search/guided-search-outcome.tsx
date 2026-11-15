@@ -22,6 +22,11 @@ interface GuidedSearchOutcomeProps {
 
 function renderQueryText(chunks: ReactNode) { return <span>{chunks}</span> }
 
+/** False in the short wait before the search shows its status. The Orbit line then has no job, so it is absent. */
+export function hasSearchLine(search: Pick<ReturnType<typeof useHabitSearch>, 'busy' | 'showLoading' | 'isError'>): boolean {
+  return !search.busy || search.showLoading || search.isError
+}
+
 /**
  * What the search gave, under the question: Orbit at 48 beside one sentence (the status, the count, the miss or the load error),
  * then the rows. The sentence comes from the result set the search already holds, so it starts no request of its own.
@@ -40,7 +45,7 @@ export function GuidedSearchOutcome({ search, entries, mascotRef, lookAt, onOpen
   else if (found) line = <p data-search-line="count">{count}</p>
   else if (miss) line = <p data-search-line="miss">{t.rich('habits.search.emptyTitle', { query: search.query, queryText: renderQueryText })}</p>
   return <>
-    <SearchOrbitLine mascotRef={mascotRef} lookAt={miss || search.isError ? null : lookAt}>{line}</SearchOrbitLine>
+    {hasSearchLine(search) ? <SearchOrbitLine mascotRef={mascotRef} lookAt={miss || search.isError ? null : lookAt}>{line}</SearchOrbitLine> : null}
     <p role="status" className="sr-only">{announcement}</p>
     {found ? <SearchResults today={search.today} sections={buildSearchSections(entries)} query={search.query} onOpen={onOpen} /> : null}
     {miss ? <SearchEmpty query={search.query} onCreate={onCreate} createRefusal={createRefusal} showTitle={false} /> : null}

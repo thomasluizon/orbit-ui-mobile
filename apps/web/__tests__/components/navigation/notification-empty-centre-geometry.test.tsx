@@ -6,6 +6,7 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import postcss from 'postcss'
 import tailwind from '@tailwindcss/postcss'
+import en from '@orbit/shared/i18n/en.json'
 import ptBr from '@orbit/shared/i18n/pt-BR.json'
 import { enableTestFlags } from '@orbit/shared/test-support/flag-state'
 import { NotificationInbox } from '@/components/navigation/notification-inbox'
@@ -45,11 +46,12 @@ function InboxInShell() {
 
 const cases = [
   ...(['light', 'dark'] as const).flatMap(mode => [
-    ...[360, 412, 600].map(width => ({ width, mode, state: 'empty' as const, guided: false })),
-    { width: 412, mode, state: 'error' as const, guided: false },
+    ...[360, 412, 600].map(width => ({ width, mode, state: 'empty' as const, guided: false, locale: 'pt-BR' as const })),
+    { width: 412, mode, state: 'error' as const, guided: false, locale: 'pt-BR' as const },
   ]),
-  ...[320, 360, 384, 412].flatMap(width => (['empty', 'error'] as const).map(state => ({ width, mode: 'dark' as const, state, guided: true }))),
+  ...(['pt-BR', 'en'] as const).flatMap(locale => [320, 360, 384, 412].flatMap(width => (['empty', 'error'] as const).map(state => ({ width, mode: 'dark' as const, state, guided: true, locale })))),
 ]
+const catalogs = { 'pt-BR': ptBr, en } as const
 
 describe('Avisos empty state centring in Chromium', () => {
   let browserLaunch: BrowserLaunch | undefined
@@ -63,11 +65,12 @@ describe('Avisos empty state centring in Chromium', () => {
   afterEach(cleanup)
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
 
-  it.each(cases)('centres the $state group between the header and the tab bar at $width px in $mode with guided=$guided', async ({ width, mode, state, guided }) => {
+  it.each(cases)('centres the $state group between the header and the tab bar at $width px in $mode and $locale with guided=$guided, the empty title on one line and the failure message within two', async ({ width, mode, state, guided, locale }) => {
+    const messages = catalogs[locale]
     inbox.state = state
     if (guided) enableTestFlags('orbit_guided_flows')
     vi.stubGlobal('matchMedia', (query: string) => ({ matches: width >= Number(query.match(/min-width: (\d+)px/)?.[1]), addEventListener: vi.fn(), removeEventListener: vi.fn() }))
-    const view = render(<NextIntlClientProvider locale="pt-BR" messages={ptBr}><InboxInShell /></NextIntlClientProvider>)
+    const view = render(<NextIntlClientProvider locale={locale} messages={messages}><InboxInShell /></NextIntlClientProvider>)
     const page = await browser.newPage({ reducedMotion: 'reduce', viewport: { width, height: 915 } })
     try {
       const theme = Object.entries(resolveWebThemeVariables('orange', mode)).map(([key, value]) => `${key}:${value}`).join(';')
@@ -77,12 +80,16 @@ describe('Avisos empty state centring in Chromium', () => {
         const tabs = document.querySelector('[data-shell-tab-bar]')!.getBoundingClientRect()
         const line = [...document.querySelectorAll('[data-shell-scroller] p')].find(element => element.textContent === copy)!
         const group = line.parentElement!.getBoundingClientRect()
-        return { free: { top: header.bottom, bottom: tabs.top }, group: { top: group.top, bottom: group.bottom }, mascots: line.parentElement!.querySelectorAll('[data-orbit-state="parado"]').length }
-      }, state === 'empty' ? ptBr.notifications.empty : ptBr.notifications.loadError)
+        return {
+          free: { top: header.bottom, bottom: tabs.top }, group: { top: group.top, bottom: group.bottom }, mascots: line.parentElement!.querySelectorAll('[data-orbit-state="parado"]').length,
+          lines: Math.round(line.getBoundingClientRect().height / Number.parseFloat(getComputedStyle(line).lineHeight)),
+        }
+      }, state === 'empty' ? messages.notifications.empty : messages.notifications.loadError)
       const freeCentre = (geometry.free.top + geometry.free.bottom) / 2
       const groupCentre = (geometry.group.top + geometry.group.bottom) / 2
       expect(Math.abs(groupCentre - freeCentre), JSON.stringify(geometry)).toBeLessThanOrEqual(1)
       expect(geometry.mascots).toBe(guided || state === 'empty' ? 1 : 0)
+      expect(geometry.lines, JSON.stringify(geometry)).toBeLessThanOrEqual(state === 'empty' ? 1 : 2)
     } finally { await page.close(); view.unmount(); vi.unstubAllGlobals() }
   })
 })

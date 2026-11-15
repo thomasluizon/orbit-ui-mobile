@@ -273,12 +273,34 @@ describe('the Android Avisos inbox on the Orbit logic', () => {
     expect(vi.mocked(apiClient).mock.calls.filter(([url]) => url === API.notifications.delete('second'))).toHaveLength(0)
   })
 
-  it('mounts the rows again with no entrance and no exit when the inbox itself changes', async () => {
+  it('brings a new notification with no entrance and keeps every mounted row, and a delete that commits keeps them too', async () => {
     mount()
     const rowsBefore = byTestId('notification-rows')[0]
+    const motionRow = (title: string) => byTestId('notification-row-motion').find((row) => row.findAll((node) => node.props.accessibilityLabel === `${title}. unread`).length > 0)!
+    const firstBefore = motionRow('First')
     seed([createMockNotification({ id: 'new', title: 'New', isRead: false }), ...three()])
     await advance(0)
     expect(rowNames()).toEqual(['New. unread', 'First. unread', 'Second. unread', 'Third. read'])
+    expect(byTestId('notification-rows')[0]).toBe(rowsBefore)
+    expect(motionRow('First')).toBe(firstBefore)
+    expect(motionRow('New').props.entering).toBeUndefined()
+
+    serve([createMockNotification({ id: 'new', title: 'New', isRead: false }), ...three().filter((item) => item.id !== 'second')])
+    press('Delete: Second')
+    await advance(6000)
+    expect(vi.mocked(apiClient).mock.calls.filter(([url]) => url === API.notifications.delete('second'))).toHaveLength(1)
+    await advance(0)
+    expect(rowNames()).toEqual(['New. unread', 'First. unread', 'Third. read'])
+    expect(byTestId('notification-rows')[0]).toBe(rowsBefore)
+    expect(motionRow('First')).toBe(firstBefore)
+  })
+
+  it('mounts the rows again with no exit when a change of the inbox takes a shown row away', async () => {
+    mount()
+    const rowsBefore = byTestId('notification-rows')[0]
+    seed(three().filter((item) => item.id !== 'first'))
+    await advance(0)
+    expect(rowNames()).toEqual(['Second. unread', 'Third. read'])
     expect(byTestId('notification-rows')[0]).not.toBe(rowsBefore)
     expect(hosts((node) => String(node.type) === 'LayoutAnimationConfig')[0]!.props).toMatchObject({ skipEntering: true, skipExiting: true })
   })
@@ -353,6 +375,16 @@ describe('the Android Avisos inbox on the Orbit logic', () => {
     expect(byTestId('notification-count-roll')).toHaveLength(1)
     expect(renderedText(byTestId('notification-count')[0]!.props.children)).toBe('1')
     expect(motionDurations.slow).toBe(280)
+  })
+
+  it('never rolls the first count that the inbox loads on a cold start', async () => {
+    queryClient.removeQueries({ queryKey: notificationKeys.lists() })
+    serve(three())
+    void TestRenderer.act(() => { tree = TestRenderer.create(<QueryClientProvider client={queryClient}><NotificationBell /></QueryClientProvider>) })
+    expect(bellLabel()).toBe('Alerts')
+    await advance(0)
+    expect(bellLabel()).toBe('Alerts, 2 unread')
+    expect(byTestId('notification-count-roll')).toHaveLength(0)
   })
 
   it('keeps the back control of the inbox header, and the bell of the root header as the control that opens the inbox', () => {

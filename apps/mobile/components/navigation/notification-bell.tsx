@@ -18,8 +18,8 @@ import { useUIStore } from '@/stores/ui-store'
 export function NotificationBell() {
   const router = useRouter()
   const pathname = usePathname()
-  const { visibleUnreadCount: count } = useNotificationInbox()
-  return <NotificationBellDisplay count={count}
+  const { visibleUnreadCount: count, data } = useNotificationInbox()
+  return <NotificationBellDisplay count={count} loaded={data !== undefined}
     onPress={pathname === '/notifications' ? undefined : () => requestHabitCreateNavigation(
       () => {
         useUIStore.getState().setAstraConversationOpen(false)
@@ -32,11 +32,13 @@ export function NotificationBell() {
     )} />
 }
 
-/** True from the first change of the count, so the count the bell opens with never rolls. */
-function useCountChanged(count: number): boolean {
-  const [first] = useState(count)
+/** True from the first change of a loaded count. The count the bell opens with, and the first count a cold inbox loads, never roll. */
+function useCountChanged(count: number, loaded: boolean): boolean {
+  const [first, setFirst] = useState<number | null>(loaded ? count : null)
   const [changed, setChanged] = useState(false)
-  if (!changed && count !== first) setChanged(true)
+  if (first === null) {
+    if (loaded) setFirst(count)
+  } else if (!changed && count !== first) setChanged(true)
   return changed
 }
 
@@ -51,13 +53,14 @@ function CountRoll({ children }: Readonly<{ children: ReactNode }>) {
   return <Animated.View testID="notification-count-roll" style={{ opacity: progress, transform: [{ translateY: progress.interpolate({ inputRange: [0, 1], outputRange: [motionLayerTiming.routeShift, 0] }) }] }}>{children}</Animated.View>
 }
 
-export function NotificationBellDisplay({ count, onPress }: { count: number; onPress?: () => void }) {
+/** `loaded` is false while the inbox has no data yet, so the count it then loads does not roll. */
+export function NotificationBellDisplay({ count, onPress, loaded = true }: { count: number; onPress?: () => void; loaded?: boolean }) {
   const { t } = useTranslation()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const styles = createStyles(tokens)
   const reducedMotion = usePrefersReducedMotion()
-  const changed = useCountChanged(count)
+  const changed = useCountChanged(count, loaded)
   const rolls = useFlag('orbit_guided_flows') && changed && !reducedMotion
   const label = count > 0 ? plural(t('notifications.bellWithCount', { count }), count) : t('notifications.bell')
   const glyph = <Bell size={24} color={tokens.fg2} strokeWidth={1.8} />

@@ -21,6 +21,11 @@ interface OrbitLineProps {
   lookAt: OrbitLookTarget | null
 }
 
+/** False in the short wait before the search shows its status. The Orbit line then has no job, so it is absent. */
+export function hasSearchLine(search: Pick<SearchScreenModel['search'], 'busy' | 'showLoading' | 'isError'>): boolean {
+  return !search.busy || search.showLoading || search.isError
+}
+
 function useTokens() {
   const { currentScheme, currentTheme } = useAppTheme()
   return createTokensV2(currentScheme, currentTheme)
@@ -64,7 +69,7 @@ function SearchOutcomeLine({ model, mascotRef, lookAt }: Readonly<{ model: Searc
   else if (found) line = <Text testID="search-line-count" style={[styles.line, { color: tokens.fg2 }]}>{count}</Text>
   else if (miss) line = <Text testID="search-line-miss" style={[styles.line, { color: tokens.fg2 }]}><Trans i18nKey="habits.search.emptyTitle" values={{ query: search.query }} components={{ queryText: <Text /> }} /></Text>
   return <>
-    <SearchOrbitLine mascotRef={mascotRef} lookAt={miss || search.isError ? null : lookAt}>{line}</SearchOrbitLine>
+    {hasSearchLine(search) ? <SearchOrbitLine mascotRef={mascotRef} lookAt={miss || search.isError ? null : lookAt}>{line}</SearchOrbitLine> : null}
     <Text testID="search-line-status" accessibilityLiveRegion="polite" style={styles.status}>{announcement}</Text>
   </>
 }

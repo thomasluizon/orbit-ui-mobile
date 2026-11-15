@@ -34,50 +34,76 @@ async function measure(width: number, height: number) {
   await act(() => { tree = create(<Shell412 safeAreaTop={false} notice={<></>} tabBar={<View testID="tab-bar" style={{ height: 80 }} />}>
     <SearchScreen />
   </Shell412>) as GeometryTree })
+  return settle(width, height)
+}
+
+function boxesOf(width: number, height: number) {
+  const hosts = new Map<string, GeometryHost>()
+  const boxes = measureSafeArea(tree.toJSON(), (host) => {
+    if (typeof host.props.testID === 'string') hosts.set(host.props.testID, host)
+    return host.props.testID
+  }, { width, height })
+  return { boxes, hosts }
+}
+
+/** Hands the measured heights to the layout handlers, as the native layout pass does, then measures again. */
+async function settle(width: number, height: number) {
+  const { boxes } = boxesOf(width, height)
+  await act(() => {
+    for (const id of ['search-scroller', 'search-orbit', 'search-question']) {
+      const box = boxes.get(id)!
+      const host = tree.root.findAll((node: { type: unknown; props: Record<string, unknown> }) => typeof node.type === 'string' && node.props.testID === id)[0]!
+      ;(host.props.onLayout as (event: { nativeEvent: { layout: { x: number; y: number; width: number; height: number } } }) => void)({ nativeEvent: { layout: { x: box.left, y: box.top, width: box.width, height: box.bottom - box.top } } })
+    }
+  })
   return read(width, height)
 }
 
 function read(width: number, height: number) {
-  let scroller: GeometryHost | undefined
-  const boxes = measureSafeArea(tree.toJSON(), (host) => {
-    if (host.props.testID === 'search-scroller') scroller = host
-    return host.props.testID
-  }, { width, height })
-  const padding = StyleSheet.flatten(scroller!.props.contentContainerStyle)
+  const { boxes, hosts } = boxesOf(width, height)
+  const padding = StyleSheet.flatten(hosts.get('search-scroller')!.props.contentContainerStyle)
   const viewport = boxes.get('search-scroller')!
   return {
     free: { top: viewport.top + Number(padding.paddingTop), bottom: boxes.get('tab-bar')!.top - Number(padding.paddingBottom) },
-    group: { top: boxes.get('search-orbit')!.top, bottom: boxes.get('search-rows')!.bottom },
+    block: { top: boxes.get('search-orbit')!.top, bottom: boxes.get('search-question')!.bottom },
+    rows: boxes.get('search-rows')!,
     question: boxes.get('search-question')!,
     scrollerBottom: viewport.bottom,
     tabBarTop: boxes.get('tab-bar')!.top,
   }
 }
 
-describe('the Android search group before a query', () => {
-  it.each([320, 360, 384, 412])('sits in the centre of the free area at %i px wide when the group fits', async (width) => {
+describe('the Android search block before a query', () => {
+  it.each([320, 360, 384, 412])('sits in the centre of the free area at %i px wide, with the rows under it', async (width) => {
     search.habits = 0
-    const { free, group, question, scrollerBottom, tabBarTop } = await measure(width, 1600)
+    const { free, block, rows, question, scrollerBottom, tabBarTop } = await measure(width, 1600)
     expect(scrollerBottom).toBe(tabBarTop)
-    expect(free.bottom - free.top).toBeGreaterThan(group.bottom - group.top)
-    expect(Math.abs((group.top + group.bottom) / 2 - (free.top + free.bottom) / 2)).toBeLessThanOrEqual(1)
+    expect(Math.abs((block.top + block.bottom) / 2 - (free.top + free.bottom) / 2)).toBeLessThanOrEqual(1)
+    expect(rows.top).toBeGreaterThanOrEqual(block.bottom)
     expect(question.left).toBeGreaterThanOrEqual(0)
     expect(question.left + question.width).toBeLessThanOrEqual(width)
   })
 
-  it.each([320, 412])('aligns under the header and scrolls at %i px wide when the group is taller than the free area', async (width) => {
+  it.each([320, 412])('keeps the block in the centre at %i px wide while the rows run past the free area and scroll', async (width) => {
     search.habits = 12
-    const { free, group } = await measure(width, 915)
-    expect(group.bottom - group.top).toBeGreaterThan(free.bottom - free.top)
-    expect(group.top).toBe(free.top)
+    const { free, block, rows } = await measure(width, 915)
+    expect(rows.bottom).toBeGreaterThan(free.bottom)
+    expect(Math.abs((block.top + block.bottom) / 2 - (free.top + free.bottom) / 2)).toBeLessThanOrEqual(1)
   })
 
-  it('aligns under the header while the keyboard is open, also when the group fits', async () => {
+  it('aligns the block under the header when it is taller than the free area', async () => {
+    search.habits = 0
+    const { free, block } = await measure(320, 300)
+    expect(block.bottom - block.top).toBeGreaterThan(free.bottom - free.top)
+    expect(block.top).toBe(free.top)
+  })
+
+  it('aligns under the header while the keyboard is open', async () => {
     search.habits = 0
     await measure(412, 1600)
     await act(() => { __emitKeyboardEvent('keyboardDidShow') })
-    const { free, group } = read(412, 1600)
-    expect(group.top).toBe(free.top)
+    const { free, block } = await settle(412, 1600)
+    expect(block.top).toBe(free.top)
     await act(() => { __emitKeyboardEvent('keyboardDidHide') })
   })
 })

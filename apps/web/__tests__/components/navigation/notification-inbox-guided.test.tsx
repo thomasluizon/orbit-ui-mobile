@@ -335,6 +335,17 @@ describe('the Avisos inbox on the Orbit logic', () => {
     expect(count).toHaveAttribute('aria-hidden', 'true')
   })
 
+  it('never rolls the first count that the inbox loads on a cold start', async () => {
+    queryClient.removeQueries({ queryKey: notificationKeys.lists() })
+    serve(three())
+    const { container } = render(<QueryClientProvider client={queryClient}><NotificationBell /></QueryClientProvider>)
+    expect(screen.getByRole('img', { name: 'Alerts' })).toBeInTheDocument()
+    await advance(0)
+    expect(screen.getByRole('img', { name: 'Alerts, 2 unread' })).toBeInTheDocument()
+    expect(container.querySelector('[data-count-motion]')).toBeNull()
+    expect(container.querySelector('[data-count-roll]')).toBeNull()
+  })
+
   it('keeps the back control of the inbox header, and the bell of the root header as the control that opens the inbox', () => {
     const inbox = mount()
     fireEvent.click(screen.getByRole('button', { name: en.common.back }))

@@ -3,6 +3,7 @@ import { RefreshCw } from '@/components/ui/icons'
 import { ShellCentredRegion } from '@/components/shell/shell-centred-region'
 import { useContentFrameStyle } from '@/hooks/use-content-frame-style'
 import { SPACING } from '@orbit/shared/theme'
+import { useState } from 'react'
 import { View, Text, StyleSheet } from 'react-native'
 import Animated, { LayoutAnimationConfig } from 'react-native-reanimated'
 import { useTranslation } from 'react-i18next'
@@ -30,17 +31,46 @@ type Tokens = ReturnType<typeof createTokensV2>
 /** The scope wrapper skips the entrance of the rows it mounts with, so the row motion holds no snapshot of its own. */
 const NO_SNAPSHOT: readonly string[] = []
 
+interface ScopeMotion {
+  scope: string
+  ids: readonly string[]
+  /** The rows that a change of the inbox brought. They mount with no entrance. */
+  quiet: ReadonlySet<string>
+  /** Grows when a change of the inbox takes a shown row away. The wrapper then mounts again, which skips that exit. */
+  generation: number
+}
+
+/**
+ * Only a row the person deletes or restores moves. A change of `scope` (the inbox itself changed) brings its new rows
+ * with no entrance. It mounts the rows again only when it takes a shown row away, so that row leaves with no exit;
+ * the commit of a pending delete and a new notification keep every mounted row.
+ */
+function useScopeMotion(scope: string, ids: readonly string[]): ScopeMotion {
+  const [previous, setPrevious] = useState<ScopeMotion>(() => ({ scope, ids, quiet: new Set(), generation: 0 }))
+  if (previous.scope === scope && previous.ids.join(' ') === ids.join(' ')) return previous
+  const scopeChanged = previous.scope !== scope
+  const next: ScopeMotion = {
+    scope,
+    ids,
+    quiet: scopeChanged ? new Set(ids.filter((id) => !previous.ids.includes(id))) : new Set(),
+    generation: previous.generation + (scopeChanged && previous.ids.some((id) => !ids.includes(id)) ? 1 : 0),
+  }
+  setPrevious(next)
+  return next
+}
+
 /**
  * The rows on the Orbit logic. A row the person deletes leaves with `list-exit` and the gap closes; undo returns it with
- * `list-enter`. A change of `scope` (the inbox itself changed) mounts the rows again with no entrance and no exit.
+ * `list-enter`. A change of the inbox itself moves no row.
  */
 function GuidedRows({ items, scope, onOpen, onDelete }: Readonly<Pick<NotificationListProps, 'items' | 'scope' | 'onOpen' | 'onDelete'>>) {
   const motion = useListRowMotion(NO_SNAPSHOT)
+  const { quiet, generation } = useScopeMotion(scope, items.map((item) => item.id))
   return (
-    <LayoutAnimationConfig key={scope} skipEntering skipExiting>
+    <LayoutAnimationConfig key={generation} skipEntering skipExiting>
       <View testID="notification-rows" style={styles.rows}>
         {items.map((item) => (
-          <Animated.View key={item.id} testID="notification-row-motion" entering={motion.enteringFor(item.id)} exiting={motion.exiting} layout={motion.layout}>
+          <Animated.View key={item.id} testID="notification-row-motion" entering={quiet.has(item.id) ? undefined : motion.enteringFor(item.id)} exiting={motion.exiting} layout={motion.layout}>
             <NotificationRow item={item} onOpen={onOpen} onDelete={onDelete} />
           </Animated.View>
         ))}

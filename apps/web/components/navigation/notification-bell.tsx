@@ -21,11 +21,13 @@ const COUNT_ROLL = { duration: motionDurations.slow / 1000, ease: [...motionEasi
 /** How the count shows a change: `roll` rolls the new figure in once, `still` swaps it under reduced motion, and null is the surface with the guided flows off. */
 type CountMotion = 'roll' | 'still' | null
 
-/** True from the first change of the count, so the count the bell opens with never rolls. */
-function useCountChanged(count: number): boolean {
-  const [first] = useState(count)
+/** True from the first change of a loaded count. The count the bell opens with, and the first count a cold inbox loads, never roll. */
+function useCountChanged(count: number, loaded: boolean): boolean {
+  const [first, setFirst] = useState<number | null>(loaded ? count : null)
   const [changed, setChanged] = useState(false)
-  if (!changed && count !== first) setChanged(true)
+  if (first === null) {
+    if (loaded) setFirst(count)
+  } else if (!changed && count !== first) setChanged(true)
   return changed
 }
 
@@ -44,18 +46,19 @@ function NotificationBellCount({ count, corner, countMotion }: Readonly<{ count:
 export function NotificationBell({ countPlacement = 'inline' }: { countPlacement?: CountPlacement }) {
   const router = useRouter()
   const pathname = usePathname()
-  const { visibleUnreadCount: count } = useNotificationInbox()
-  return <NotificationBellDisplay countPlacement={countPlacement} count={count} onClick={pathname === '/notifications' ? undefined : () => requestHabitCreateNavigation(() => {
+  const { visibleUnreadCount: count, data } = useNotificationInbox()
+  return <NotificationBellDisplay countPlacement={countPlacement} count={count} loaded={data !== undefined} onClick={pathname === '/notifications' ? undefined : () => requestHabitCreateNavigation(() => {
     setRouteTransitionIntent('forward')
     router.push('/notifications')
   })} />
 }
 
-export function NotificationBellDisplay({ count, onClick, countPlacement = 'inline' }: { count: number; onClick?: () => void; countPlacement?: CountPlacement }) {
+/** `loaded` is false while the inbox has no data yet, so the count it then loads does not roll. */
+export function NotificationBellDisplay({ count, onClick, countPlacement = 'inline', loaded = true }: { count: number; onClick?: () => void; countPlacement?: CountPlacement; loaded?: boolean }) {
   const t = useTranslations()
   const guided = useFlag('orbit_guided_flows')
   const reducedMotion = useViewportMatch('(prefers-reduced-motion: reduce)')
-  const changed = useCountChanged(count)
+  const changed = useCountChanged(count, loaded)
   const countMotion: CountMotion = guided && changed ? (reducedMotion ? 'still' : 'roll') : null
   const label = count > 0 ? plural(t('notifications.bellWithCount', { count }), count) : t('notifications.bell')
   const corner = countPlacement === 'corner'

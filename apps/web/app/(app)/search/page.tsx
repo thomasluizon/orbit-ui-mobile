@@ -13,7 +13,7 @@ import { buildHabitCreateHref, buildSearchEntries, buildSearchSections } from '@
 import { PageHeader } from '@/components/ui/page-header'
 import { CommandSearchField } from '@/components/command/command-menu-chrome'
 import { SearchEmpty, SearchResults, Searching } from '@/components/search/search-results'
-import { GuidedSearchOutcome } from '@/components/search/guided-search-outcome'
+import { GuidedSearchOutcome, hasSearchLine } from '@/components/search/guided-search-outcome'
 import { SearchQuestionBlock } from '@/components/search/search-question-block'
 
 import { useFlag } from '@/hooks/use-flag'
@@ -38,11 +38,14 @@ export default function SearchPage() {
   </>
 }
 
+/** Where Orbit is drawn: above the question, beside the Orbit line, or nowhere while the line has no job. */
+type OrbitPlace = 'block' | 'line' | 'none'
+
 /** Orbit looks at the search field while it holds focus. The look is measured again when Orbit moves between the block and the line. */
-function useFieldLook(resting: boolean) {
+function useFieldLook(place: OrbitPlace) {
   const { mascotRef, lookAt, lookTowards, lookAway } = useOrbitLook()
   const field = useRef<EventTarget | null>(null)
-  useEffect(() => { if (field.current) lookTowards(field.current) }, [resting, lookTowards])
+  useEffect(() => { if (field.current) lookTowards(field.current) }, [place, lookTowards])
   return {
     mascotRef,
     lookAt,
@@ -68,7 +71,7 @@ function HabitSearch({ search, guided, onCreateHabit }: Readonly<{ search: Retur
   const [createRefusal, setCreateRefusal] = useAccountScopedState(false)
   const entries = buildSearchEntries(search.data, search.query, null, search.today)
   const hasQuery = search.text.trim().length > 0
-  const look = useFieldLook(!hasQuery)
+  const look = useFieldLook(hasQuery ? (hasSearchLine(search) ? 'line' : 'none') : 'block')
   function createHabit() {
     if (!isOnline) { setCreateRefusal(true); return }
     onCreateHabit(search.query)

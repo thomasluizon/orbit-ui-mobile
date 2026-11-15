@@ -198,6 +198,16 @@ describe('the search route on the Orbit logic', () => {
     expect(mocks.retry).toHaveBeenCalledTimes(1)
   })
 
+  it('draws no Orbit line and no Orbit in the short wait before the searching status, so the block closes up', async () => {
+    mocks.query.mockReturnValue(result([], { pending: true }))
+    const { container } = mount('en')
+    type('walk')
+    expect(container.querySelector('[data-search-orbit-line]')).toBeNull()
+    expect(container.querySelectorAll('[data-asset="orbit-mascot"]')).toHaveLength(0)
+    expect(await screen.findByRole('status', { name: 'Searching' })).toBeInTheDocument()
+    expect(container.querySelectorAll('[data-asset="orbit-mascot"]')).toHaveLength(1)
+  })
+
   it('keeps the searching status in the line while the search runs, with Orbit in Olhando', async () => {
     mocks.query.mockReturnValue(result([], { pending: true }))
     const { container, field, mascot } = mount('en')
