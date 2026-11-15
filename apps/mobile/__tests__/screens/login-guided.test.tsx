@@ -211,16 +211,39 @@ describe.each(authLocales)('guided sign-in on Android in %s', (locale) => {
     expect(handlers.continueAccount).toHaveBeenCalledOnce()
   })
 
-  it.each(['google', 'apple'] as const)('returns to the email step with Orbit in Parado after the %s callback fails or the person cancels', (provider) => {
+  it.each(['google', 'apple'] as const)('shows a failed %s callback as a full-surface state with Orbit in Parado, the message and the way back to sign-in', (provider) => {
     const t = show('email', locale, { callback: { state: 'failed', provider, onContinue: vi.fn() } })
     const message = t(provider === 'apple' ? 'auth.errors.appleError' : 'auth.errors.googleError')
+    const state = byTestID('guided-callback-failure')[0]!
+    expect(textOf(state)).toContain(message)
+    const mascot = state.findAll((node) => node.props.testID === 'orbit-mascot' && typeof node.type === 'string')[0]!
+    expect(mascot.props['data-orbit-state' as never]).toBe('parado')
+    expect(mascot.props['data-orbit-face' as never]).toBe('rig')
+    expect(byTestID('question-flow')).toHaveLength(0)
+    expect(inputs()).toHaveLength(0)
+    expect(buttons().map(nameOf)).toEqual([t('common.retry')])
+    press(t('common.retry'))
+    expect(byTestID('guided-callback-failure')).toHaveLength(0)
     expect(heading().map(textOf)).toEqual([t('auth.email')])
-    expect(byTestID('orbit-mascot')[0]!.props['data-orbit-state' as never]).toBe('parado')
-    expect(allText()).toContain(message)
-    expect(message).not.toMatch(/\b(you|você)\b/i)
+    expect(allText()).not.toContain(message)
     press(t('auth.signInWithGoogle'))
     expect(handlers.signInWithGoogle).toHaveBeenCalledOnce()
-    expect(allText()).not.toContain(message)
+  })
+
+  it.each(['google', 'apple'] as const)('returns to the email step with Orbit in Parado and no error text after the person cancels %s', (provider) => {
+    const t = show('email', locale, { callback: { state: 'cancelled', provider, onContinue: vi.fn() } })
+    expect(heading().map(textOf)).toEqual([t('auth.email')])
+    expect(byTestID('orbit-mascot')[0]!.props['data-orbit-state' as never]).toBe('parado')
+    expect(byTestID('guided-callback-failure')).toHaveLength(0)
+    expect(allText()).not.toContain(t(provider === 'apple' ? 'auth.errors.appleError' : 'auth.errors.googleError'))
+    expect(tree!.root.findAll((node) => node.props.accessibilityRole === 'alert')).toHaveLength(0)
+    expect(usableControls()).toEqual(expect.arrayContaining([t('auth.signInWithGoogle'), t('auth.sendCode')]))
+  })
+
+  it.each(['failed', 'cancelled'] as const)('keeps the provider line of the current surface with the flag off after a %s callback', (state) => {
+    const t = show('email', locale, { guided: false, callback: { state, provider: 'google', onContinue: vi.fn() } })
+    expect(byTestID('guided-callback-failure')).toHaveLength(0)
+    expect(allText()).toContain(t('auth.errors.googleError'))
   })
 
   it('keeps the provider action busy while the callback waits', () => {

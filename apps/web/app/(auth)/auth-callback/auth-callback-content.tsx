@@ -1,7 +1,7 @@
 'use client'
 
 import { API } from '@orbit/shared/api'
-import { AuthCallbackError, createAuthCallbackFailureReporter, readAuthCallbackInput, type AuthCallbackFailureReason } from '@orbit/shared/utils/auth-callback-failure'
+import { AuthCallbackError, createAuthCallbackFailureReporter, isAuthCallbackCancel, readAuthCallbackInput, type AuthCallbackFailureReason, type AuthCallbackState } from '@orbit/shared/utils/auth-callback-failure'
 import { captureMessage } from '@sentry/nextjs'
 
 import { useEffect, useState, useRef } from 'react'
@@ -14,16 +14,35 @@ import { LoginContent } from '../login/login-content'
 import { getCookieValue } from '../login/login-form-helpers'
 import { hydrateProfilePresentation } from '@/lib/profile-presentation'
 import { setRouteTransitionIntent } from '@/lib/motion/route-intent'
+import { useGuidedSignIn } from '@/components/auth/guided-sign-in'
 import { Lockup } from '@/components/ui/lockup'
+import { OrbitMascot, useStateMascotSize } from '@/components/ui/orbit-mascot'
 import { PillLink } from '@/components/ui/pill-button'
 import { getGoogleAuthAppIntent, resolveAuthCallbackParams } from '@/lib/google-auth-app-intent'
 import type { LoginResponse } from '@orbit/shared/types/auth'
+
+/** The way into the Android app, for a callback the app owns. With `orbit_guided_flows` on it is a state surface: Orbit in Parado, the one line and the one action. */
+function AppHandoff({ href }: Readonly<{ href: string }>) {
+  const t = useTranslations()
+  const guided = useGuidedSignIn()
+  const size = useStateMascotSize()
+  if (!guided) return <div className="flex w-full flex-col gap-8 px-4 py-4 md:w-[420px] md:rounded-[var(--r-card)] md:bg-[var(--bg-card)] md:p-8 md:shadow-[inset_0_0_0_1px_var(--hairline-ghost)]">
+    <Lockup />
+    <div><PillLink href={href}>{t('auth.openInOrbit')}</PillLink></div>
+  </div>
+  return (
+    <main data-app-handoff="" className="flex w-full max-w-[592px] flex-col items-center gap-6 px-4 py-4 text-center">
+      <OrbitMascot size={size} />
+      <h1 className="orbit-flow-question text-balance font-display text-[28px] leading-[1.18] text-[var(--fg-1)] lg:text-[34px] lg:leading-[1.15]">{t('auth.continueInApp')}</h1>
+      <div className="w-full lg:max-w-[360px]"><PillLink href={href}>{t('auth.openInOrbit')}</PillLink></div>
+    </main>
+  )
+}
 
 export function AuthCallbackContent({ pendingWebStates }: Readonly<{
   pendingWebStates: Readonly<Record<'apple' | 'google', string | null>>
 }>) {
   const locale = useLocale()
-  const t = useTranslations()
   const [appIntent, setAppIntent] = useState<string | null>(null)
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -31,7 +50,7 @@ export function AuthCallbackContent({ pendingWebStates }: Readonly<{
   const pendingWebState = pendingWebStates[params.get('provider') === 'apple' ? 'apple' : 'google']
   const [reportFailure] = useState(() => createAuthCallbackFailureReporter(params.get('provider') === 'apple' ? 'apple' : 'google', captureMessage))
   const { setAuth } = useAuthStore()
-  const [state, setState] = useState<'pending' | 'failed' | 'account'>('pending')
+  const [state, setState] = useState<AuthCallbackState>('pending')
   const [accountBack, setAccountBack] = useState<LoginResponse | null>(null)
   const accountBackGeneration = useRef<number | null>(null)
   const [loading, setLoading] = useState(false)
@@ -65,10 +84,10 @@ export function AuthCallbackContent({ pendingWebStates }: Readonly<{
     if (inputFailure) {
       const storedReturn = sessionStorage.getItem('auth_return_url')
       const calendarReturn = storedReturn === '/calendar?import=1' || storedReturn === '/calendar?mode=review'
-      const cancelled = ['access_denied', 'cancel', 'dismiss'].includes(params.get('error') ?? '')
+      const cancelled = isAuthCallbackCancel(params.get('error'))
       const finish = () => {
         if (storedReturn && calendarReturn && cancelled) router.replace(storedReturn)
-        else { reportFailure(inputFailure); setState('failed') }
+        else { reportFailure(inputFailure); setState(cancelled ? 'cancelled' : 'failed') }
       }
       if (oauthState && !apple) {
         void fetchWithUpgradeGuidance(`/api/auth/google/code?state=${encodeURIComponent(oauthState)}`, { method: 'DELETE' })
@@ -150,10 +169,7 @@ export function AuthCallbackContent({ pendingWebStates }: Readonly<{
     finally { setLoading(false) }
   }
 
-  if (appIntent) return <div className="flex w-full flex-col gap-8 px-4 py-4 md:w-[420px] md:rounded-[var(--r-card)] md:bg-[var(--bg-card)] md:p-8 md:shadow-[inset_0_0_0_1px_var(--hairline-ghost)]">
-    <Lockup />
-    <div><PillLink href={appIntent}>{t('auth.openInOrbit')}</PillLink></div>
-  </div>
+  if (appIntent) return <AppHandoff href={appIntent} />
 
   return <LoginContent callback={{ state, provider, onContinue: () => void continueAccount(), loading }} />
 }

@@ -1,6 +1,6 @@
 import { AppleAuthCallback } from '@/components/auth/apple-auth-callback'
 import { captureMessage } from '@sentry/react-native'
-import { AuthCallbackError, createAuthCallbackFailureReporter, readAuthCallbackInput, type AuthCallbackFailureReason } from '@orbit/shared/utils/auth-callback-failure'
+import { AuthCallbackError, createAuthCallbackFailureReporter, isAuthCallbackCancel, readAuthCallbackInput, type AuthCallbackFailureReason } from '@orbit/shared/utils/auth-callback-failure'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useLinkingURL } from 'expo-linking'
 import { useLocalSearchParams, useRouter } from 'expo-router'
@@ -176,5 +176,7 @@ function GoogleAuthCallbackScreen() {
     finally { setLoading(false) }
   }
 
-  return <LoginContent callback={{ state, onContinue: () => void continueAccount(), loading }} />
+  /** A person who left the consent screen of the provider did not fail: the sign-in question shows with no error. */
+  const cancelled = state === 'failed' && candidateUrl !== null && isAuthCallbackCancel(extractGoogleAuthParams(candidateUrl).error)
+  return <LoginContent callback={{ state: cancelled ? 'cancelled' : state, onContinue: () => void continueAccount(), loading }} />
 }

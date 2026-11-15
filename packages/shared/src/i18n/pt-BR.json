@@ -486,6 +486,7 @@
     "genericError": "Ocorreu um erro. Tente de novo.",
     "orContinueWith": "ou",
     "openInOrbit": "Abrir no Orbit",
+    "continueInApp": "Continue no app do Orbit",
     "signInWithGoogle": "Continuar com o Google",
     "signInWithApple": "Continuar com a Apple",
     "googleError": "Não foi possível entrar com o Google. Tente de novo.",

@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
-import { AuthCallbackError, createAuthCallbackFailureReporter, readAuthCallbackInput, type AuthCallbackFailureReason } from '../utils/auth-callback-failure'
+import { AuthCallbackError, createAuthCallbackFailureReporter, isAuthCallbackCancel, readAuthCallbackInput, type AuthCallbackFailureReason } from '../utils/auth-callback-failure'
+import { showsAuthCallbackLine } from '../utils/auth-login'
 
 describe('auth callback input', () => {
   it('prioritizes a provider error over missing credentials', () => {
@@ -32,5 +33,23 @@ describe.each(['apple', 'google'] as const)('%s callback failure reporting', (pr
     expect(capture).toHaveBeenCalledExactlyOnceWith('auth_callback_failed', { level: 'error', tags: { provider, reason } })
     createAuthCallbackFailureReporter(provider, capture)(reason)
     expect(capture).toHaveBeenCalledTimes(2)
+  })
+})
+
+describe('a provider cancel', () => {
+  it.each(['access_denied', 'cancel', 'dismiss'])('reads %s as the person leaving the consent screen', (error) => {
+    expect(isAuthCallbackCancel(error)).toBe(true)
+  })
+
+  it.each(['server_error', 'invalid_request', '', null, undefined])('reads %s as no cancel', (error) => {
+    expect(isAuthCallbackCancel(error)).toBe(false)
+  })
+
+  it('shows the provider line of the current surface after a failure and after a cancel only', () => {
+    expect(showsAuthCallbackLine({ state: 'failed' })).toBe(true)
+    expect(showsAuthCallbackLine({ state: 'cancelled' })).toBe(true)
+    expect(showsAuthCallbackLine({ state: 'pending' })).toBe(false)
+    expect(showsAuthCallbackLine({ state: 'account' })).toBe(false)
+    expect(showsAuthCallbackLine(undefined)).toBe(false)
   })
 })

@@ -7,6 +7,9 @@ import { createLoginStyles, type LoginStyles } from '@/app/login-styles'
 import { useLoginFlow } from '@/app/use-login-flow'
 import { TurnstileWidget } from '@/components/auth/turnstile-widget'
 import { CapacityNotice } from '@/components/ui/capacity-notice'
+import { ErrorState } from '@/components/ui/error-state'
+import { IconButton } from '@/components/ui/icon-button'
+import { RefreshCw } from '@/components/ui/icons'
 import { Input } from '@/components/ui/input'
 import { OrbitMascot, useStateMascotSize } from '@/components/ui/orbit-mascot'
 import { PillButton } from '@/components/ui/pill-button'
@@ -39,18 +42,13 @@ function refusalHint(flow: LoginFlow, canSubmitTurnstile: boolean) {
   return canSubmitTurnstile ? undefined : flow.t('auth.turnstileLabel')
 }
 
-function emailStep({ flow, callback, callbackDismissed, onDismissCallback, canSubmitTurnstile, turnstileWidget, tokens, styles }: GuidedLoginProps): FlowStepView & { footer: ReactNode } {
+function emailStep({ flow, callback, onDismissCallback, canSubmitTurnstile, turnstileWidget, tokens, styles }: GuidedLoginProps): FlowStepView & { footer: ReactNode } {
   const { t } = flow
   const pendingProvider = getPendingAuthProvider(callback)
-  const callbackFailed = callback?.state === 'failed' && !callbackDismissed
   const isGoogleLoading = flow.isGoogleLoading || pendingProvider === 'google'
   const isAppleLoading = flow.isAppleLoading || pendingProvider === 'apple'
   const isBusy = flow.isSubmitting || isGoogleLoading || isAppleLoading
-  const errors = deriveLoginEmailErrors({
-    isOnline: flow.isOnline, fieldError: flow.emailFieldError,
-    errorKey: callbackFailed ? getAuthCallbackErrorKey(callback.provider) : flow.errorKey,
-    errorMessage: callbackFailed ? t(getAuthCallbackErrorKey(callback.provider)) : flow.errorMessage,
-  })
+  const errors = deriveLoginEmailErrors({ isOnline: flow.isOnline, fieldError: flow.emailFieldError, errorKey: flow.errorKey, errorMessage: flow.errorMessage })
   const submit = () => {
     onDismissCallback()
     if (flow.email.trim()) void flow.sendCode()
@@ -126,11 +124,28 @@ function CodeBack({ onBackToEmail }: Readonly<{ onBackToEmail: () => void }>) {
   return null
 }
 
-/** Sign-in as a one-question flow: the email question with the two provider options, then the code question. Orbit is Parado and looks at the field in focus. */
-function GuidedLogin(props: Readonly<GuidedLoginProps>) {
-  const { flow, styles } = props
+/** A provider callback that failed: a full-surface state with Orbit in Parado, the message and the way back to the sign-in question. */
+function GuidedCallbackFailure({ flow, styles, tokens, provider, onRetry }: Readonly<{ flow: LoginFlow; styles: LoginStyles; tokens: AppTokensV2; provider: LoginCallback['provider']; onRetry: () => void }>) {
   const { t } = flow
   const insets = useSafeAreaInsets()
+  return (
+    <View testID="guided-callback-failure" style={[styles.root, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
+      <ErrorState fullSurface message={t(getAuthCallbackErrorKey(provider))} action={
+        <IconButton label={t('common.retry')} onClick={onRetry}><RefreshCw size={20} color={tokens.fg1} strokeWidth={1.5} /></IconButton>
+      } />
+    </View>
+  )
+}
+
+/**
+ * Sign-in as a one-question flow: the email question with the two provider options, then the code question. Orbit is Parado and looks at the field in focus.
+ * A failed provider callback shows its own state first. A cancel shows the email question with no error, because the person only left the provider.
+ */
+function GuidedLogin(props: Readonly<GuidedLoginProps>) {
+  const { flow, styles, callback } = props
+  const { t } = flow
+  const insets = useSafeAreaInsets()
+  if (callback?.state === 'failed' && !props.callbackDismissed) return <GuidedCallbackFailure flow={flow} styles={styles} tokens={props.tokens} provider={callback.provider} onRetry={props.onDismissCallback} />
   const coding = flow.step === 'code'
   const view = coding ? codeStep(props) : emailStep(props)
   const position = coding ? 2 : 1

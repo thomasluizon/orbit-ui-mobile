@@ -1,6 +1,16 @@
 export type AuthCallbackFailureReason = 'missing_code' | 'missing_state' | 'provider_error' | 'state_mismatch'
   | 'exchange_failed' | 'session_changed' | 'profile_hydration_failed'
 
+/** The state a provider callback shows. A cancel is the person leaving the consent screen of the provider, which is not a failure. */
+export type AuthCallbackState = 'pending' | 'failed' | 'cancelled' | 'account'
+
+const CANCEL_ERRORS: readonly string[] = ['access_denied', 'cancel', 'dismiss']
+
+/** Whether the provider reported that the person left its consent screen. */
+export function isAuthCallbackCancel(error: string | null | undefined): boolean {
+  return typeof error === 'string' && CANCEL_ERRORS.includes(error)
+}
+
 export class AuthCallbackError extends Error {
   constructor(readonly reason: AuthCallbackFailureReason) {
     super(reason)

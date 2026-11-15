@@ -194,17 +194,38 @@ describe.each(authLocales)('guided sign-in in %s', (locale) => {
     expect(handlers.continueAccount).toHaveBeenCalledOnce()
   })
 
-  it.each(['google', 'apple'] as const)('returns to the email step with Orbit in Parado after the %s callback fails or the person cancels', (provider) => {
-    const onContinue = vi.fn()
-    const { t, container } = show('email', locale, { callback: { state: 'failed', provider, onContinue } })
+  it.each(['google', 'apple'] as const)('shows a failed %s callback as a full-surface state with Orbit in Parado, the message and the way back to sign-in', (provider) => {
+    const { t, container } = show('email', locale, { callback: { state: 'failed', provider, onContinue: vi.fn() } })
+    const state = container.querySelector<HTMLElement>('[data-error-state]')!
+    expect(state).toHaveTextContent(t(provider === 'apple' ? 'auth.errors.appleError' : 'auth.errors.googleError'))
+    expect(state.querySelector('[data-asset="orbit-mascot"]')).toHaveAttribute('data-orbit-state', 'parado')
+    expect(state.querySelector('[data-asset="orbit-mascot"]')).toHaveAttribute('data-orbit-face', 'rig')
+    expect(container.querySelector('[data-question-flow]')).toBeNull()
+    expect(screen.queryByRole('textbox')).toBeNull()
+    expect(screen.getAllByRole('button')).toHaveLength(1)
+    fireEvent.click(screen.getByRole('button', { name: t('common.retry') }))
+    expect(container.querySelector('[data-error-state]')).toBeNull()
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(t('auth.email'))
-    expect(container.querySelector('[data-question-flow]')).toHaveAttribute('data-orbit-state', 'parado')
-    expect(screen.getByRole('alert')).toHaveTextContent(t(provider === 'apple' ? 'auth.errors.appleError' : 'auth.errors.googleError'))
-    expect(screen.getByRole('alert').textContent).not.toMatch(/\b(you|você)\b/i)
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
     for (const name of [t('auth.signInWithGoogle'), t('auth.signInWithApple'), t('auth.sendCode')]) expect(screen.getByRole('button', { name })).toBeEnabled()
     fireEvent.click(screen.getByRole('button', { name: t('auth.signInWithGoogle') }))
     expect(handlers.signInWithGoogle).toHaveBeenCalledOnce()
+  })
+
+  it.each(['google', 'apple'] as const)('returns to the email step with Orbit in Parado and no error text after the person cancels %s', (provider) => {
+    const { t, container } = show('email', locale, { callback: { state: 'cancelled', provider, onContinue: vi.fn() } })
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(t('auth.email'))
+    expect(container.querySelector('[data-question-flow]')).toHaveAttribute('data-orbit-state', 'parado')
+    expect(container.querySelector('[data-error-state]')).toBeNull()
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(container).not.toHaveTextContent(t(provider === 'apple' ? 'auth.errors.appleError' : 'auth.errors.googleError'))
+    for (const name of [t('auth.signInWithGoogle'), t('auth.signInWithApple'), t('auth.sendCode')]) expect(screen.getByRole('button', { name })).toBeEnabled()
+  })
+
+  it.each(['failed', 'cancelled'] as const)('keeps the provider line of the current surface with the flag off after a %s callback', (state) => {
+    const { t, container } = show('email', locale, { guided: false, callback: { state, provider: 'google', onContinue: vi.fn() } })
+    expect(container.querySelector('[data-error-state]')).toBeNull()
+    expect(container).toHaveTextContent(t('auth.errors.googleError'))
   })
 
   it('keeps the provider action busy while the callback waits', () => {
