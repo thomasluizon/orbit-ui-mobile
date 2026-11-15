@@ -38,7 +38,7 @@ function FlowPrimaryAction({ primary }: Readonly<{ primary: NonNullable<Question
   return (
     <div data-flow-primary="" className="w-full">
       <PrimaryActionSlot>
-        <PillButton variant={primary.variant} loading={primary.loading} focusableWhenLoading hint={primary.hint} onClick={primary.onPress}>{primary.label}</PillButton>
+        <PillButton variant={primary.variant} loading={primary.loading} disabled={primary.disabled} focusableWhenLoading hint={primary.hint} onClick={primary.onPress}>{primary.label}</PillButton>
       </PrimaryActionSlot>
     </div>
   )

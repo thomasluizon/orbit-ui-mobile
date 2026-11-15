@@ -57,16 +57,19 @@ const submit = vi.fn()
 const close = vi.fn()
 const helpers = () => state.helpers as ReturnType<typeof useHabitForm>
 
-interface HarnessProps { mode?: 'create' | 'edit'; saveError?: string | null; lockedGeneral?: boolean | null; initial?: Record<string, unknown>; parentField?: ReactNode; subHabits?: boolean }
+interface HarnessProps {
+  mode?: 'create' | 'edit'; saveError?: string | null; lockedGeneral?: boolean | null; initial?: Record<string, unknown>; parentField?: ReactNode; subHabits?: boolean
+  goalIds?: string[]; subHabitTitles?: string[]; parentValue?: string
+}
 
-function Harness({ mode = 'create', saveError = null, lockedGeneral = null, initial = {}, parentField, subHabits = true }: Readonly<HarnessProps>) {
+function Harness({ mode = 'create', saveError = null, lockedGeneral = null, initial = {}, parentField, subHabits = true, goalIds = [], subHabitTitles, parentValue }: Readonly<HarnessProps>) {
   const formHelpers = useHabitForm({ initialData: { dueDate: '', ...initial } })
   const tags = useTagSelection()
   const [reminderTimes, setReminderTimes] = useState([0, 15])
   useEffect(() => { state.helpers = formHelpers; state.reminderTimes = reminderTimes })
   const fields: GuidedHabitFields = {
-    tags, selectedGoalIds: [], atGoalLimit: false, onToggleGoal: state.goalToggle, reminderTimes, onReminderTimesChange: setReminderTimes,
-    parentField, children: subHabits ? () => <p>sub-habit-editor</p> : undefined,
+    tags, selectedGoalIds: goalIds, atGoalLimit: false, onToggleGoal: state.goalToggle, reminderTimes, onReminderTimesChange: setReminderTimes,
+    parentField, children: subHabits ? () => <p>sub-habit-editor</p> : undefined, subHabitTitles, parentValue,
   }
   return (
     <GuidedHabitFlow mode={mode} formHelpers={formHelpers} fields={fields} lockedGeneral={lockedGeneral} fromConversation={false} pending={false}
@@ -409,6 +412,33 @@ describe.each(['pt-BR', 'en'] as const)('the detail questions in %s', (locale) =
     await press(messages().more)
     await press(new RegExp(messages().optional.parent.replace('?', '\\?')))
     expect(screen.getByText('parent-picker')).toBeInTheDocument()
+  })
+
+  const optionalRow = (id: 'tags' | 'goals' | 'subHabits' | 'parent') =>
+    within(screen.getByRole('list', { name: messages().more })).getByRole('button', { name: new RegExp(messages().optional[id].replace('?', '\\?')) })
+
+  it('scenario 17: answers the tag, goal and sub-item rows with the names the person chose, never a count', async () => {
+    render(<Harness goalIds={['goal-1']} subHabitTitles={['Alongar', '  ', 'Beber água']} />)
+    await phrase(locale === 'en' ? 'run every day at 7' : 'correr todo dia às 7')
+    await press(messages().reminder.no)
+    await openOptional(messages().optional.tags)
+    await press('Saúde')
+    await press(messages().continue)
+    expect(optionalRow('tags').querySelector('[data-question-value]')).toHaveTextContent(/^Saúde$/)
+    expect(optionalRow('goals').querySelector('[data-question-value]')).toHaveTextContent(/^Correr 5 km$/)
+    expect(optionalRow('subHabits').querySelector('[data-question-value]')).toHaveTextContent(locale === 'en' ? /^Alongar and Beber água$/ : /^Alongar e Beber água$/)
+  })
+
+  it('scenario 17: leaves the tag, goal and sub-item rows with no answer when the person chose none', async () => {
+    await toSummary()
+    await press(messages().more)
+    for (const id of ['tags', 'goals', 'subHabits'] as const) expect(optionalRow(id).querySelector('[data-question-value]')).toBeNull()
+  })
+
+  it('scenario 17: answers the parent row with the parent the edit holds', async () => {
+    render(<Harness mode="edit" parentField={<p>parent-picker</p>} parentValue="Rotina da manhã" subHabits={false} initial={{ title: 'Correr', itemType: 'habit', frequencyUnit: 'Day', frequencyQuantity: 1, dueDate: '2026-11-13' }} />)
+    await press(messages().more)
+    expect(optionalRow('parent').querySelector('[data-question-value]')).toHaveTextContent(/^Rotina da manhã$/)
   })
 
   it('scenario 18: asks the reminder kind with one quick option for each kind and no switch, radio or second heading', async () => {

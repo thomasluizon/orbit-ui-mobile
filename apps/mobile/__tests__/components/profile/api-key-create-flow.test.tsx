@@ -15,6 +15,7 @@ vi.mock('expo-clipboard', () => ({ setStringAsync: mocks.copy }))
 vi.mock('@/lib/posthog', async (importOriginal) => ({ ...await importOriginal<typeof import('@/lib/posthog')>(), captureGuidedFlowEvent: vi.fn() }))
 vi.mock('@/lib/motion', async (importOriginal) => ({ ...await importOriginal<typeof import('@/lib/motion')>(), usePrefersReducedMotion: () => mocks.reducedMotion }))
 vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))
+vi.mock('@/components/ui/date-field', () => ({ DateField: (props: Record<string, unknown>) => React.createElement('DateField', props) }))
 
 interface TestNode { type: unknown; props: Record<string, unknown>; children: unknown[]; findAll(predicate: (node: TestNode) => boolean): TestNode[] }
 interface TestTree { root: TestNode }
@@ -22,9 +23,9 @@ const TestRenderer: { create(element: React.ReactNode): TestTree; act(callback: 
 
 const createdKey = { id: 'key-1', name: 'Claude Desktop', keyPrefix: 'orb_', scopes: [], isReadOnly: true, expiresAtUtc: null, createdAtUtc: '2026-11-13T00:00:00Z', lastUsedAtUtc: null, isRevoked: false, key: 'orb_secret_value' } satisfies ApiKeyCreateResponse
 
-function Harness({ scoped = false, onCreate, onClose }: Readonly<{ scoped?: boolean; onCreate: (...args: unknown[]) => Promise<ApiKeyCreateResponse | null>; onClose: () => void }>) {
+function Harness({ scoped = false, draft = '', onCreate, onClose }: Readonly<{ scoped?: boolean; draft?: string; onCreate: (...args: unknown[]) => Promise<ApiKeyCreateResponse | null>; onClose: () => void }>) {
   const [readOnly, setReadOnly] = useState(false)
-  const [expiresAt, setExpiresAt] = useState('')
+  const [expiresAt, setExpiresAt] = useState(draft)
   const [created, setCreated] = useState<ApiKeyCreateResponse | null>(null)
   return <ApiKeyCreateFlow scoped={scoped} busy={false} error={null} isReadOnly={readOnly} onReadOnlyChange={setReadOnly} expiresAt={expiresAt} onExpiryChange={setExpiresAt}
     createdKey={created} onCreate={onCreate} onCreateGrantRequired={vi.fn()} onCreated={setCreated} onClose={onClose} />
@@ -47,6 +48,7 @@ function button(tree: TestTree, label: string) {
 async function press(tree: TestTree, label: string) {
   await TestRenderer.act(async () => { (button(tree, label).props.onPress as () => void)(); await Promise.resolve(); await Promise.resolve() })
 }
+const datePicker = (tree: TestTree) => tree.root.findAll((node) => node.type === 'DateField')[0]!
 async function type(tree: TestTree, value: string) {
   const field = hosts(tree).find((node) => node.type === 'TextInput')!
   await TestRenderer.act(() => { (field.props.onChangeText as (text: string) => void)(value) })
@@ -71,6 +73,9 @@ describe.each([{ language: 'en', messages: en }, { language: 'pt-BR', messages: 
       expect(heading(tree)).toBe(messages.profile.apiKeys.accessQuestion)
       await press(tree, messages.orbitMcp.permReadOnly)
       expect(heading(tree)).toBe(messages.profile.apiKeys.expiryQuestion)
+      expect(hosts(tree).some((node) => node.type === 'TextInput')).toBe(false)
+      expect(texts(tree)).not.toContain(messages.orbitMcp.expiryFormatExample)
+      expect(datePicker(tree).props.label).toBe(messages.orbitMcp.expiresAtLabel)
       await press(tree, messages.common.never)
       expect(onCreate).toHaveBeenCalledWith({ name: 'Claude Desktop', expiresAtUtc: null }, expect.any(Function))
       expect(heading(tree)).toBe(messages.orbitMcp.revealHeading)
@@ -82,9 +87,9 @@ describe.each([{ language: 'en', messages: en }, { language: 'pt-BR', messages: 
     })
   })
 
-  it('asks what a scoped key can reach and rejects a bad expiry date', async () => {
+  it('asks what a scoped key can reach before the expiry, and creates it with a date', async () => {
     mocks.language = language
-    const onCreate = vi.fn(() => Promise.resolve(createdKey))
+    const onCreate = vi.fn((..._args: unknown[]) => Promise.resolve(createdKey))
     const tree = await render({ scoped: true, onCreate, onClose: vi.fn() })
     await type(tree, 'Script')
     await press(tree, messages.common.continue)
@@ -92,9 +97,23 @@ describe.each([{ language: 'en', messages: en }, { language: 'pt-BR', messages: 
     expect(heading(tree)).toBe(messages.profile.apiKeys.scopeLabel)
     await type(tree, 'habits:read')
     await press(tree, messages.common.continue)
-    await type(tree, 'soon')
+    expect(datePicker(tree).props.minDate).toBe(new Date().toISOString().slice(0, 10))
+    await TestRenderer.act(() => { (datePicker(tree).props.onChange as (day: string) => void)('2099-12-31') })
+    expect(datePicker(tree).props.value).toBe('2099-12-31')
+    await press(tree, messages.profile.apiKeys.scopeAction)
+    expect(onCreate).toHaveBeenCalledWith({ name: 'Script', scopes: ['habits:read'], expiresAtUtc: '2099-12-31T23:59:59.000Z' }, expect.any(Function))
+  })
+
+  it('refuses a kept expiry draft that is in the past, with the reason under the date', async () => {
+    mocks.language = language
+    const onCreate = vi.fn((..._args: unknown[]) => Promise.resolve(createdKey))
+    const tree = await render({ draft: '2020-01-01T23:59', onCreate, onClose: vi.fn() })
+    await type(tree, 'Script')
+    await press(tree, messages.common.continue)
+    await press(tree, messages.orbitMcp.permReadWrite)
+    expect(datePicker(tree).props.value).toBe('2020-01-01')
     await press(tree, messages.profile.apiKeys.scopeAction)
     expect(onCreate).not.toHaveBeenCalled()
-    expect(texts(tree)).toContain(messages.orbitMcp.invalidExpiry)
+    expect(hosts(tree).filter((node) => node.props.accessibilityRole === 'alert').map(textOf)).toEqual([messages.orbitMcp.invalidExpiry])
   })
 })

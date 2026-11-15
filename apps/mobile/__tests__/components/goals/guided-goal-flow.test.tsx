@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { StyleSheet } from 'react-native'
 import { act } from 'react-test-renderer'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
 import { buildGoalCreationRequest, createGoalDraft } from '@orbit/shared/hooks'
@@ -6,6 +7,7 @@ import { createApiClientError } from '@orbit/shared/utils'
 import { CreateGoalSheet } from '@/components/goals/create-goal-sheet'
 import { EditGoalModal } from '@/components/goals/edit-goal-modal'
 import { i18n } from '@/lib/i18n'
+import { __setWindowDimensions } from '@/test-mocks/react-native'
 import { press, renderNavigation } from '../ui/navigation-render'
 
 const mocks = vi.hoisted(() => ({
@@ -191,6 +193,18 @@ describe('the guided goal create flow on Android', () => {
     await tap(tree, 'Criar meta')
     expect(mocks.create.mock.calls[0]![0]).toMatchObject({ deadline: '2026-12-31' })
     tree.unmount()
+  })
+
+  it.each([{ width: 412, style: { alignSelf: 'stretch' } }, { width: 1440, style: { alignSelf: 'center', maxWidth: 360 } }])('keeps the continue of the deadline free path in the action slot: at most 360 wide in the centre from 1024 ($width px)', async ({ width, style }) => {
+    __setWindowDimensions({ width, height: 900, scale: 1, fontScale: 1 })
+    const tree = renderNavigation(<CreateGoalSheet open onClose={vi.fn()} />)
+    await answerUpToDeadline(tree, PT)
+    expect(heading(tree)).toBe('Até quando?')
+    const slots = tree.hosts().filter((node) => node.props.testID === 'primary-action-slot')
+    expect(slots.map((node) => textOf(node))).toEqual(['Continuar'])
+    expect(StyleSheet.flatten(slots[0]!.props.style)).toEqual(style)
+    tree.unmount()
+    __setWindowDimensions({ width: 412, height: 900, scale: 1, fontScale: 1 })
   })
 
   it('reads typed words, refuses a past date and takes the date picker', async () => {

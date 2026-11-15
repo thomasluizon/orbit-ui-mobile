@@ -2657,6 +2657,7 @@
       "title": "Conexões",
       "googleCalendar": "Google Agenda",
       "notion": "Notion",
+      "notionQuestion": "O que o Orbit lê no seu Notion?",
       "connected": "Conectado",
       "notConnected": "Não conectado",
       "renew": "Reconexão necessária",
@@ -3358,6 +3359,7 @@
         "continue": "Continuar"
       },
       "done": {
+        "readFailed": "O hábito foi criado, mas não consegui mostrar os detalhes. Tente de novo.",
         "tellAstra": "Da próxima vez, conte ao Orbit no Hoje o que você quer fazer.",
         "title": "Pronto. Ele já está no Hoje.",
         "body": "Quando fizer, marque o anel dele no Hoje para registrar.",
@@ -3459,6 +3461,7 @@
     },
     "featureGuide": {
       "title": "Guia do Orbit",
+      "question": "O que o Orbit faz por você?",
       "habits": "Hábitos",
       "calendar": "Calendário",
       "astra": "Orbit",

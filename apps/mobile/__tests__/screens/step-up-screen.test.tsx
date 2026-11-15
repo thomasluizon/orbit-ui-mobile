@@ -1,6 +1,7 @@
 import React from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
+  takeGuidedFlowCompleted,
   STEP_UP_ATTEMPT_WINDOW_MS,
   STEP_UP_CHALLENGE_DURATION_MS,
   type StepUpTimingRecord,
@@ -49,6 +50,7 @@ const mocks = vi.hoisted(() => ({
   userId: 'user-1',
   reducedMotion: false,
   guided: false,
+  flowCompleted: vi.fn(),
 }))
 
 vi.mock('@/lib/motion', async (importOriginal) => ({ ...(await importOriginal<typeof import('@/lib/motion')>()), usePrefersReducedMotion: () => mocks.reducedMotion }))
@@ -65,8 +67,9 @@ vi.mock('react-i18next', () => ({
 }))
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: mocks.profile }) }))
 vi.mock('@/hooks/use-flag', () => ({ useFlag: () => mocks.guided }))
+vi.mock('@/lib/posthog', async (importOriginal) => ({ ...await importOriginal<typeof import('@/lib/posthog')>(), captureGuidedFlowEvent: vi.fn(), captureGuidedFlowCompleted: mocks.flowCompleted }))
 vi.mock('@/hooks/use-date-format', () => ({
-  useDateFormat: () => ({ displayDate: (value: string) => `local:${value}` }),
+  useDateFormat: () => ({ displayDate: (value: string) => `local:${value}`, displayDateNumeric: (value: string) => `numeric:${value}` }),
 }))
 vi.mock('@/hooks/use-logout', () => ({ useLogout: () => mocks.logout }))
 vi.mock('@/stores/auth-store', () => ({
@@ -240,8 +243,58 @@ describe('mobile step up screen', () => {
     })
   })
 
+  const headings = (tree: TestTree) => tree.root.findAll((node) => node.type === 'Text' && node.props.accessibilityRole === 'header').map((node) => flattenText(node.props.children))
+  const hostsWithTestId = (tree: TestTree, testID: string) => tree.root.findAll((node) => node.props.testID === testID && typeof node.type === 'string')
+  const progressName = (tree: TestTree) => tree.root.findAll((node) => node.props.accessibilityRole === 'list' && typeof node.type === 'string')[0]?.props.accessibilityLabel
+  const backArrow = (tree: TestTree, label: string) => tree.root.findAll((node) => node.props.accessibilityLabel === label && typeof node.props.onPress === 'function' && typeof node.type === 'string')[0]
+
+  it('asks the code in the guided centred question layout with the flag on: the back arrow, the progress of the delete flow, one question and no eyebrow', async () => {
+    mocks.guided = true
+    const tree = await renderScreen()
+    expect(hostsWithTestId(tree, 'guided-step-up')).toHaveLength(1)
+    expect(hostsWithTestId(tree, 'question-flow-step-code')).toHaveLength(1)
+    expect(headings(tree)).toEqual(['stepUp.codeLabel'])
+    expect(findText(tree.root, 'stepUp.eyebrow')).toHaveLength(0)
+    expect(progressName(tree)).toBe('habits.flow.progress:{"position":3,"total":3}')
+    expect(findText(tree.root, 'stepUp.body:{"email":"person@example.com"}').length).toBeGreaterThan(0)
+    expect(findText(tree.root, 'stepUp.neverShare').length).toBeGreaterThan(0)
+    expect(hostsWithTestId(tree, 'shell-action')).toHaveLength(0)
+    await TestRenderer.act(async () => { (backArrow(tree, 'stepUp.cancel')!.props.onPress as () => void)(); await Promise.resolve() })
+    expect(mocks.router.replace).toHaveBeenCalledWith('/profile/account')
+  })
+
+  it('keeps the current layout with the flag off: the eyebrow, the title and the cancel link, with no flow frame', async () => {
+    const tree = await renderScreen()
+    expect(hostsWithTestId(tree, 'question-flow')).toHaveLength(0)
+    expect(findText(tree.root, 'stepUp.eyebrow').length).toBeGreaterThan(0)
+    expect(tree.root.findAll((node) => node.props.accessibilityRole === 'link' && node.props.accessibilityLabel === 'stepUp.cancel').length).toBeGreaterThan(0)
+  })
+
+  it('counts the code of an API key as its own one-step progress with the flag on', async () => {
+    mocks.guided = true
+    mocks.operation = 'keys'
+    const tree = await renderScreen({ operation: 'keys', sentAt: Date.now() })
+    expect(progressName(tree)).toBe('habits.flow.progress:{"position":1,"total":1}')
+    expect(hostsWithTestId(tree, 'question-flow-step-code')).toHaveLength(1)
+  })
+
+  it('shows the expired and exhausted states in the same guided frame with the flag on', async () => {
+    mocks.guided = true
+    const expired = await renderScreen(liveRecord(STEP_UP_CHALLENGE_DURATION_MS + 1000))
+    expect(hostsWithTestId(expired, 'question-flow-step-expired')).toHaveLength(1)
+    expect(headings(expired)).toEqual(['stepUp.expiredTitle'])
+    expect(queryButton(expired.root, 'stepUp.resend')).toBeDefined()
+    expect(queryButton(expired.root, 'stepUp.confirm')).toBeUndefined()
+    const exhausted = await renderScreen({ ...liveRecord(), exhaustedAt: Date.now() })
+    expect(hostsWithTestId(exhausted, 'question-flow-step-exhausted')).toHaveLength(1)
+    expect(headings(exhausted)).toEqual(['stepUp.exhaustedTitle'])
+    expect(hostsWithTestId(exhausted, 'button-primary-sm')).toHaveLength(0)
+    const back = exhausted.root.findAll((node) => typeof node.props.accessibilityLabel === 'string' && /back/i.test(node.props.accessibilityLabel) && typeof node.props.onPress === 'function' && typeof node.type === 'string')[0]!
+    await TestRenderer.act(async () => { (back.props.onPress as () => void)(); await Promise.resolve() })
+    expect(mocks.router.replace).toHaveBeenCalledWith('/profile/account')
+  })
+
   it('asks the code question as the title with the flag on, and keeps the current title with the flag off', async () => {
-    const headings = (tree: TestTree) => tree.root.findAll((node) => node.type === 'Text' && node.props.accessibilityRole === 'header').map((node) => flattenText(node.props.children))
     mocks.guided = true
     const guided = await renderScreen()
     expect(headings(guided)).toEqual(['stepUp.codeLabel'])
@@ -268,6 +321,7 @@ describe('mobile step up screen', () => {
     await confirm(tree)
     const dialog = tree.root.findAll((node) => node.props.testID === 'result-dialog' && typeof node.type === 'string')[0]!
     expect(dialog.props.accessibilityLabel).toBe('result.title')
+    expect(mocks.flowCompleted).toHaveBeenCalledExactlyOnceWith('delete_account', 3, false)
     expect(dialog.props.accessibilityHint).toBe(`result.account.${pro ? 'deletionScheduledPro' : 'deletionScheduled'}:{"date":"local:2026-09-04T03:00:00Z"}`)
     expect(dialog.findAll((node) => node.props.testID === 'orbit-mascot' && typeof node.type === 'string')[0]!.props['data-orbit-state' as never]).toBe('parado')
     await TestRenderer.act(async () => { (findButton(dialog, 'stepUp.signOut').props.onPress as () => void)(); await Promise.resolve() })
@@ -276,7 +330,9 @@ describe('mobile step up screen', () => {
     const modal = tree.root.findAll((node) => typeof node.props.onRequestClose === 'function')[0]!
     await TestRenderer.act(async () => { (modal.props.onRequestClose as () => void)(); await Promise.resolve() })
     expect(tree.root.findAll((node) => node.props.testID === 'result-dialog')).toHaveLength(0)
-    expect(findText(tree.root, 'stepUp.successTitle').length).toBeGreaterThan(0)
+    expect(tree.root.findAll((node) => node.props.testID === 'question-flow-step-done' && typeof node.type === 'string')).toHaveLength(1)
+    expect(headings(tree)).toEqual(['stepUp.successTitle:{"date":"numeric:2026-09-04T03:00:00Z"}'])
+    if (pro) expect(findText(tree.root, 'stepUp.successPro:{"date":"local:2026-09-04T03:00:00Z"}').length).toBeGreaterThan(0)
     await TestRenderer.act(async () => { (findButton(tree.root, 'stepUp.signOut').props.onPress as () => void)(); await Promise.resolve() })
     expect(mocks.logout).toHaveBeenCalledTimes(2)
   })
@@ -723,6 +779,7 @@ describe('mobile step up screen', () => {
     )
     expect(mocks.clearTiming).toHaveBeenCalledWith('keys', 'user-1')
     expect(mocks.markVerified).toHaveBeenCalledWith('keys')
+    expect(takeGuidedFlowCompleted('api_key_create'), 'a verified code is not reported as a flow the person left').toBe(true)
     expect(mocks.router.replace).toHaveBeenCalledWith('/profile/ai')
   })
 })

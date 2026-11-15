@@ -799,7 +799,8 @@ export {
   PROFILE_NAV_ITEMS,
   shouldRedirectProfileNavItem,
 } from './profile-navigation'
-export { buildProfilePickerLabels, deriveProfileAstraFeatures, deriveProfilePreferenceValues } from './profile-preferences'
+export { buildGuidedTimeZoneOptions, buildProfilePickerLabels, deriveProfileAstraFeatures, deriveProfilePreferenceValues, TIME_ZONE_PAGE_SIZE } from './profile-preferences'
+export type { GuidedTimeZoneInput, GuidedTimeZoneOptions } from './profile-preferences'
 export type {
   ProfileNavHintMode,
   ProfileNavIconKey,
@@ -939,8 +940,8 @@ export type {
   HabitFlowStepKey,
 } from './habit-flow-navigation'
 export { answerHabitReminder, answerHabitTime, answerHabitWhen, shiftCalendarDate, HABIT_TIME_OPTIONS } from './habit-flow-answers'
-export { guardHabitReadPatch, habitFlowFieldStep, habitFlowOptionalQuestions, readHabitWhenWords, summaryValueStep } from './habit-flow-details'
-export type { HabitFlowOptionalInput, HabitWhenWords, HabitWhenWordsContext } from './habit-flow-details'
+export { describeEditDetailsError, guardHabitReadPatch, habitFlowFieldStep, habitFlowNamesAnswer, habitFlowOptionalQuestions, habitFlowSelectionAnswer, readHabitWhenWords, resolveGuidedEditDetails, summaryValueStep } from './habit-flow-details'
+export type { EditDetailsRead, GuidedEditDetails, HabitFlowAnswerFields, HabitFlowOptionalInput, HabitWhenWords, HabitWhenWordsContext } from './habit-flow-details'
 export type { HabitFlowFormPort, HabitWhenChoice } from './habit-flow-answers'
 
 export {

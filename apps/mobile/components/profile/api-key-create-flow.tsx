@@ -5,7 +5,8 @@ import { useTranslation } from 'react-i18next'
 import type { TFunction } from 'i18next'
 import { SPACING } from '@orbit/shared/theme'
 import type { ApiKeyCreateRequest, ApiKeyCreateResponse } from '@orbit/shared/types'
-import { apiKeyFormSchema, getApiKeyNameError, validateApiKeyExpiry } from '@orbit/shared/validation'
+import { apiKeyExpiryDay, apiKeyExpiryFirstDay, apiKeyExpiryFromDay, apiKeyFormSchema, getApiKeyNameError, validateApiKeyExpiry } from '@orbit/shared/validation'
+import { DateField } from '@/components/ui/date-field'
 import { DiscardChangesSheet } from '@/components/ui/discard-changes-sheet'
 import { FlowScreen } from '@/components/ui/flow-screen'
 import { IconButton } from '@/components/ui/icon-button'
@@ -141,7 +142,7 @@ export function ApiKeyCreateFlow(props: Readonly<ApiKeyCreateFlowProps>) {
           options={describeOptions(flow, props, t, (expiresAt) => { void submit(expiresAt) })}
           primary={describePrimary(flow.step, props, t, continueFromText, create)}
         >
-          <StepField flow={flow} props={props} onContinue={continueFromText} onCreate={create} />
+          <StepField flow={flow} props={props} onContinue={continueFromText} />
         </QuestionFlow>
       </FlowScreen>
       <DiscardChangesSheet open={dismissGuard.showDiscardDialog} onKeepEditing={dismissGuard.cancelDismiss} onDiscard={dismissGuard.confirmDismiss} />
@@ -172,7 +173,7 @@ function describeOptions(flow: FlowState, props: ApiKeyCreateFlowProps, t: TFunc
   return <OptionCard label={t('common.never')} selected={props.expiresAt === ''} disabled={props.busy} onSelect={() => { props.onExpiryChange(''); onNever('') }} />
 }
 
-function StepField({ flow, props, onContinue, onCreate }: Readonly<{ flow: FlowState; props: ApiKeyCreateFlowProps; onContinue: () => void; onCreate: () => void }>) {
+function StepField({ flow, props, onContinue }: Readonly<{ flow: FlowState; props: ApiKeyCreateFlowProps; onContinue: () => void }>) {
   const { t } = useTranslation()
   const tokens = useThemeTokens()
   if (flow.step === 'reveal' && props.createdKey) return <ApiKeyReveal createdKey={props.createdKey} />
@@ -187,7 +188,8 @@ function StepField({ flow, props, onContinue, onCreate }: Readonly<{ flow: FlowS
   const expiryError = flow.expiryFocus > 0 && !validateApiKeyExpiry(props.expiresAt).valid
   return (
     <>
-      <Input label={t('orbitMcp.expiresAtLabel')} name="api-key-expiry" value={props.expiresAt} onChange={props.onExpiryChange} placeholder={t('common.never')} hint={t('orbitMcp.expiryFormatExample')} error={expiryError ? t('orbitMcp.invalidExpiry') : undefined} focusRequest={flow.expiryFocus} autoComplete="off" mono disabled={props.busy} onSubmit={onCreate} />
+      <DateField label={t('orbitMcp.expiresAtLabel')} value={apiKeyExpiryDay(props.expiresAt)} minDate={apiKeyExpiryFirstDay()} focusRequest={flow.expiryFocus} disabled={props.busy} onChange={(day) => props.onExpiryChange(apiKeyExpiryFromDay(day))} />
+      {expiryError ? <Text accessibilityRole="alert" style={[styles.error, { color: tokens.statusBadText }]}>{t('orbitMcp.invalidExpiry')}</Text> : null}
       {props.error ? <Text accessibilityRole="alert" style={[styles.error, { color: tokens.statusBadText }]}>{props.error}</Text> : null}
     </>
   )

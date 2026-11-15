@@ -17,9 +17,9 @@ function moveFocusBetweenOptions(event: React.KeyboardEvent<HTMLButtonElement>) 
 }
 
 /** A quick option. A press answers. Selection takes the `--primary` ring and focus takes the `--fg-1` ring. */
-export function OptionCard({ label, selected = false, disabled = false, disabledReason, onSelect, onHighlight }: Readonly<OptionCardProps>) {
+export function OptionCard({ label, selected = false, disabled = false, disabledReason, wide = false, onSelect, onHighlight }: Readonly<OptionCardProps>) {
   return (
-    <div className="flex min-w-0 flex-col gap-1">
+    <div data-option-wide={wide || undefined} className={`flex min-w-0 flex-col gap-1${wide ? ' col-span-full' : ''}`}>
       <button
         type="button"
         data-option-card=""

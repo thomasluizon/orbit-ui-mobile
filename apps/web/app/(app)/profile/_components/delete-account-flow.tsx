@@ -1,6 +1,7 @@
 'use client'
 
 import { useTranslations } from 'next-intl'
+import { DELETE_ACCOUNT_FLOW_STEP_COUNT } from '@orbit/shared/utils'
 import { ErrorState } from '@/components/ui/error-state'
 import { FlowScreen } from '@/components/ui/flow-screen'
 import { QuestionFlow } from '@/components/ui/question-flow'
@@ -50,7 +51,7 @@ function StepBody({ props }: Readonly<{ props: DeleteAccountFlowProps }>) {
   return props.error ? <p role="alert" className="text-center text-sm text-[var(--status-bad-text)]">{props.error}</p> : null
 }
 
-/** Delete account as a one-question flow: the warning for the person's plan, then the code request. The code entry is the step-up screen. No mascot in any step. */
+/** Delete account as a one-question flow: the warning for the person's plan, then the code request. The code entry is the step-up screen, the last step of the same progress. No mascot in any step. */
 export function DeleteAccountFlow(props: Readonly<DeleteAccountFlowProps>) {
   const t = useTranslations()
   const step = describeStep(props, t)
@@ -61,9 +62,9 @@ export function DeleteAccountFlow(props: Readonly<DeleteAccountFlowProps>) {
         showOrbit={false}
         stepKey={props.step}
         position={step.position}
-        total={2}
+        total={DELETE_ACCOUNT_FLOW_STEP_COUNT}
         direction={step.direction}
-        progressLabel={t('habits.flow.progress', { position: step.position, total: 2 })}
+        progressLabel={t('habits.flow.progress', { position: step.position, total: DELETE_ACCOUNT_FLOW_STEP_COUNT })}
         backLabel={t('common.back')}
         closeLabel={t('common.close')}
         onClose={props.onClose}

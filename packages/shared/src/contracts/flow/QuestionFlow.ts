@@ -37,6 +37,8 @@ export interface QuestionFlowProps {
     label: string
     onPress: () => void
     loading?: boolean
+    /** Off while the step cannot act yet, such as an edit whose stored values did not load. The step states the reason. */
+    disabled?: boolean
     hint?: string
     /** The tone of a step that deletes, such as the typed confirmation of a fresh start. Default primary. */
     variant?: 'caution' | 'destructive'

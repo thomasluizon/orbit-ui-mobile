@@ -99,6 +99,12 @@ it.each(['connect', 'choosePages', 'reconnect'] as const)('opens the %s URL afte
   expect(opened).toHaveBeenCalledExactlyOnceWith(createNotionAuthorization().authorizeUrl)
   sheetTestControls.defer(false)
 })
+it('names the Notion sheet with its question, never the bare product noun', async () => {
+  mount(); await openNotion()
+  const titles = tree.root.findAll((node: { props: Record<string, unknown> }) => typeof node.props.title === 'string' && 'open' in node.props).map((node: { props: { title: string } }) => node.props.title)
+  expect(titles).toContain(en.profile.connections.notionQuestion)
+  expect(titles).not.toContain(en.profile.connections.notion)
+})
 it.each([
   ['the feature flag turns off', (): void => { mocks.enabled = false }, true],
   ['Pro access ends', (): void => undefined, false],

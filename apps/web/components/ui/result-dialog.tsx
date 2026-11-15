@@ -12,6 +12,21 @@ import { useViewportMatch } from '@/hooks/use-viewport-match'
 
 const HOP_HEIGHT = 12
 
+interface ResultDialogFrameProps {
+  /** The accessible name of the panel, and its description when the panel states one sentence. */
+  label: string
+  hint?: string
+  initialFocus?: React.RefObject<HTMLElement | null>
+  /** Escape and a scrim press. */
+  onClose: () => void
+  children: React.ReactNode
+}
+
+/** The centred panel of the result dialog over the scrim, at every width. The result dialog and its read failure share it. */
+export function ResultDialogFrame({ label, hint, initialFocus, onClose, children }: Readonly<ResultDialogFrameProps>) {
+  return <Sheet centred accessibleTitle={label} accessibleDescription={hint} initialFocus={initialFocus} onClose={onClose}>{children}</Sheet>
+}
+
 /** The result dialog: centred at every width, Orbit at 128, one sentence, a filled action and a ghost action. It asks nothing. */
 export function ResultDialog({ title, sentence, primaryLabel, onPrimary, secondaryLabel, onSecondary, onClose, orbitState = 'feliz' }: Readonly<ResultDialogProps>) {
   const primaryRef = useRef<HTMLButtonElement>(null)
@@ -19,7 +34,7 @@ export function ResultDialog({ title, sentence, primaryLabel, onPrimary, seconda
   const hop = orbitState === 'feliz' && !reducedMotion
   const duration = motionDurations.slow / 1000
   return (
-    <Sheet centred accessibleTitle={title} accessibleDescription={sentence} initialFocus={primaryRef} onClose={onClose}>
+    <ResultDialogFrame label={title} hint={sentence} initialFocus={primaryRef} onClose={onClose}>
       <div data-result-dialog="" data-orbit-state={orbitState} className="flex flex-col items-center gap-6 px-6 pb-6 pt-2 text-center">
         <motion.span aria-hidden="true" animate={hop ? { y: [0, -HOP_HEIGHT, 0] } : { y: 0 }}
           transition={{ duration, ease: [...motionEasings.standard] as [number, number, number, number] }}>
@@ -34,6 +49,6 @@ export function ResultDialog({ title, sentence, primaryLabel, onPrimary, seconda
           {secondaryLabel && onSecondary ? <PillButton variant="ghost" size="sm" onClick={onSecondary}>{secondaryLabel}</PillButton> : null}
         </ActionRow>
       </div>
-    </Sheet>
+    </ResultDialogFrame>
   )
 }

@@ -90,3 +90,33 @@ export function centreOffset(layout: FlowLayout): number {
   if (layout.block.bottom - layout.block.top >= layout.free.bottom - layout.free.top) return Math.max(0, layout.free.top - layout.block.top)
   return Math.abs((layout.block.top + layout.block.bottom) / 2 - (layout.free.top + layout.free.bottom) / 2)
 }
+
+export interface FlowAction {
+  label: string
+  variant: string | null
+  width: number
+  /** The distance between the centre of the action and the centre of the column of the flow. */
+  centreOffset: number
+}
+
+/**
+ * Lays the markup out in Chromium at one width and reads every pill action inside the flow: its width and its place in the column.
+ * At 1024 and above an action hugs its label, at most 360 wide, in the centre, and never spans the content column.
+ */
+export async function measureFlowActions(browser: Browser, stylesheet: string, width: number, markup: string, height = FLOW_HEIGHT): Promise<FlowAction[]> {
+  const page = await browser.newPage({ reducedMotion: 'reduce', viewport: { width, height } })
+  try {
+    const theme = Object.entries(resolveWebThemeVariables('orange', 'dark')).map(([key, value]) => `${key}:${value}`).join(';')
+    await page.setContent(`<!DOCTYPE html><html class="dark" style="${theme}"><style>${stylesheet}</style><body style="margin:0"><div class="flex h-dvh flex-col">${markup}</div></body></html>`)
+    await loadAppFonts(page)
+    return await page.evaluate(() => {
+      const column = document.querySelector('[data-question-flow] main > [role="presentation"]')!.getBoundingClientRect()
+      const columnCentre = (column.left + column.right) / 2
+      return [...document.querySelectorAll<HTMLElement>('[data-question-flow] button[data-variant]')].filter((button) => button.textContent.trim()).map((button) => {
+        const rect = button.getBoundingClientRect()
+        return { label: button.textContent.trim(), variant: button.getAttribute('data-variant'), width: rect.width, centreOffset: Math.abs((rect.left + rect.right) / 2 - columnCentre) }
+      })
+    })
+  } finally { await page.close() }
+}
+

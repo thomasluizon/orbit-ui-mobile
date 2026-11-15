@@ -4,13 +4,17 @@ import { IconButton } from '@/components/ui/icon-button'
 import { useMemo, useRef, useState, type Ref } from 'react'
 import { StyleSheet, View, Text } from 'react-native'
 import {
+  buildGuidedTimeZoneOptions,
+  getClientTimeZone,
   getTimezoneList,
   buildPreferencePickerModel,
+  TIME_ZONE_PAGE_SIZE,
   type PreferencePicker,
 } from '@orbit/shared/utils'
 import { Sheet, type SheetHandle } from '@/components/ui/sheet'
 import { RadioRow } from '@/components/ui/select-check'
 import { RadioGroup } from '@/components/ui/radio-group'
+import { Input } from '@/components/ui/input'
 import { OptionCard } from '@/components/ui/option-card'
 import { useFlag } from '@/hooks/use-flag'
 import { BottomSheetAppTextInput } from '@/components/ui/bottom-sheet-app-text-input'
@@ -20,7 +24,6 @@ import { styles, type Tokens } from '@/app/preferences-styles'
 export type { PreferencePicker }
 
 const TIME_ZONE_OPTIONS = getTimezoneList()
-const TIME_ZONE_PAGE_SIZE = 20
 
 /** Focus moves the draft and only a press commits it, so arrow keys never write a preference per keypress. */
 function PickerOptions<Value extends string | number>({
@@ -79,6 +82,17 @@ function QuickOptions<Value extends string | number>({ label, options, selected,
 
 const quickOptions = StyleSheet.create({ grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', rowGap: 12 } })
 
+interface TimeZoneOptionsProps {
+  tokens: Tokens
+  selected?: string | null
+  /** The question of the sheet: the accessible name of the quick options in guided mode. */
+  questionLabel: string
+  searchLabel: string
+  noResultsLabel: string
+  showMoreLabel: string
+  onCommit: (timeZone: string) => void
+}
+
 function TimeZoneOptions({
   tokens,
   selected,
@@ -86,14 +100,7 @@ function TimeZoneOptions({
   noResultsLabel,
   showMoreLabel,
   onCommit,
-}: Readonly<{
-  tokens: Tokens
-  selected?: string | null
-  searchLabel: string
-  noResultsLabel: string
-  showMoreLabel: string
-  onCommit: (timeZone: string) => void
-}>) {
+}: Readonly<TimeZoneOptionsProps>) {
   const [query, setQuery] = useState('')
   const [visibleCount, setVisibleCount] = useState(TIME_ZONE_PAGE_SIZE)
   const filtered = useMemo(() => {
@@ -140,6 +147,36 @@ function TimeZoneOptions({
   )
 }
 
+/**
+ * With `orbit_guided_flows` on, the time zone question follows the pattern of the short pickers: the stored time zone and the
+ * time zone of the device are the quick options, and the search is the free path to every other time zone. A press answers and closes the sheet.
+ */
+function GuidedTimeZoneOptions({ tokens, selected, questionLabel, searchLabel, noResultsLabel, showMoreLabel, onCommit }: Readonly<TimeZoneOptionsProps>) {
+  const [query, setQuery] = useState('')
+  const [visibleCount, setVisibleCount] = useState(TIME_ZONE_PAGE_SIZE)
+  const [deviceTimeZone] = useState(getClientTimeZone)
+  const { quick, searched, visible, hasMore } = buildGuidedTimeZoneOptions({ zones: TIME_ZONE_OPTIONS, selected, deviceTimeZone, query, visibleCount })
+  const option = (zone: string) => <OptionCard key={zone} wide label={zone} selected={zone === selected} onSelect={() => onCommit(zone)} />
+  return (
+    <View testID="time-zone-question" style={guidedTimeZone.column}>
+      <View testID="time-zone-quick-options" accessibilityLabel={questionLabel} style={guidedTimeZone.options}>{quick.map(option)}</View>
+      <Input kind="search" label={searchLabel} autoComplete="off" value={query} onChange={(value) => { setQuery(value); setVisibleCount(TIME_ZONE_PAGE_SIZE) }} />
+      {searched && visible.length === 0 ? <Text accessibilityLiveRegion="polite" style={[guidedTimeZone.miss, { color: tokens.fg3 }]}>{noResultsLabel}</Text> : null}
+      {visible.length > 0 ? <View accessibilityLabel={searchLabel} style={guidedTimeZone.options}>{visible.map(option)}</View> : null}
+      {hasMore ? <View style={guidedTimeZone.more}>
+        <IconButton label={showMoreLabel} onClick={() => setVisibleCount((count) => count + TIME_ZONE_PAGE_SIZE)}><ChevronDown size={20} strokeWidth={1.5} accessible={false} /></IconButton>
+      </View> : null}
+    </View>
+  )
+}
+
+const guidedTimeZone = StyleSheet.create({
+  column: { gap: 12 },
+  options: { gap: 12 },
+  miss: { fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 20, textAlign: 'center' },
+  more: { alignItems: 'center' },
+})
+
 interface PreferencePickerSheetProps {
   tokens: Tokens
   activePicker: PreferencePicker | null
@@ -171,8 +208,10 @@ function PickerContent({ props, commitSelection }: Readonly<{
   if (props.activePicker === null) return null
   const model = buildPreferencePickerModel({ ...props, activePicker: props.activePicker, ready: true })
   if (model.kind === 'timeZone') {
-    return <TimeZoneOptions
+    const TimeZones = guided ? GuidedTimeZoneOptions : TimeZoneOptions
+    return <TimeZones
       tokens={props.tokens}
+      questionLabel={props.pickerTitles.timeZone}
       selected={model.selected}
       searchLabel={props.timeZoneSearchLabel}
       noResultsLabel={props.timeZoneNoResultsLabel}

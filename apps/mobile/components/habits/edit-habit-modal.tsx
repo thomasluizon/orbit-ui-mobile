@@ -49,6 +49,8 @@ import {
   getHabitDisplayStartDate,
   hasHabitFormProposal,
   rebaseSelectedIds,
+  describeEditDetailsError,
+  resolveGuidedEditDetails,
 } from '@orbit/shared/utils'
 import type { HabitDetail, NormalizedHabit } from '@orbit/shared/types/habit'
 import { buildUpdateHabitRequest } from '@/lib/habit-request-builders'
@@ -210,10 +212,14 @@ function EditHabitDraft({
   const {
     data: habitDetail,
     isPending: detailPending,
+    isFetching: detailFetching,
     error: detailError,
     refetch: refetchDetail,
   } = useHabitDetail(open && habit ? habit.id : null)
+  const sessionHabitId = open && habit ? habit.id : null
   const detailFieldsPending = open && !!habit && detailPending
+  const guidedDetails = resolveGuidedEditDetails({ guided, habitId: sessionHabitId, hasDetail: !!habitDetail, pending: detailPending, fetching: detailFetching, error: detailError })
+  const guidedDetailsError = describeEditDetailsError(guidedDetails.summaryError, translate, () => { void refetchDetail() })
   const parent = useEditorParent(habit, habitDetail, formHelpers.isGeneral, parentIsGeneral, translate)
 
   const { sheetRef, closeSheet } = useSheetHost()
@@ -240,20 +246,20 @@ function EditHabitDraft({
     flushBufferedInputsRef.current = flush
   }, [])
 
+  const detailToastError = guidedDetails.toastError
   useEffect(() => {
-    if (detailError) {
+    if (detailToastError) {
       showError(
         getFriendlyErrorMessage(
-          detailError,
+          detailToastError,
           translate,
           'errors.fetchHabits',
           'habit',
         ),
       )
     }
-  }, [detailError, showError, translate])
+  }, [detailToastError, showError, translate])
 
-  const sessionHabitId = open && habit ? habit.id : null
   useLayoutEffect(() => {
     suggestionRevision.advance()
   }, [sessionHabitId, suggestionRevision])
@@ -405,7 +411,7 @@ function EditHabitDraft({
   }
 
   async function handleSubmit(completion?: GuidedHabitCompletion) {
-    if (!habit || submittingRef.current) return
+    if (!habit || submittingRef.current || guidedDetails.blocked) return
     submittingRef.current = true
     const generation = getAccountGeneration()
     const isCurrent = () => mountedRef.current && getAccountGeneration() === generation
@@ -581,8 +587,8 @@ function EditHabitDraft({
         {saved || !habit ? null : (
           <FlowScreen label={t(formHelpers.isOneTime ? 'habits.editTask' : 'habits.editHabit')} onDismiss={requestDismiss}>
             <HabitFormInteractionProvider disabled={saving}>
-              <GuidedHabitFlow mode="edit" formHelpers={formHelpers} fields={fieldProps} lockedGeneral={parent.lockedGeneral} fromConversation={Boolean(initialSuggestion)}
-                pending={saving} detailsLoading={detailFieldsPending} saveError={saveError} createLabel={t('common.save')}
+              <GuidedHabitFlow mode="edit" formHelpers={formHelpers} fields={{ ...fieldProps, parentValue: parent.value }} lockedGeneral={parent.lockedGeneral} fromConversation={Boolean(initialSuggestion)}
+                pending={saving} detailsLoading={guidedDetails.loading} detailsError={guidedDetailsError} saveError={saveError} createLabel={t('common.save')}
                 onSubmit={(completion) => void handleSubmit(completion)} onClose={requestDismiss} />
             </HabitFormInteractionProvider>
           </FlowScreen>

@@ -11,6 +11,8 @@ const QUESTION_KEYS = [
   'profile.editName.label',
   'profile.language.question',
   'profile.timezonePicker.question',
+  'profile.connections.notionQuestion',
+  'onboarding.featureGuide.question',
   'settings.weekStartDay.question',
   'settings.clock.question',
   'orbitMcp.keyName',

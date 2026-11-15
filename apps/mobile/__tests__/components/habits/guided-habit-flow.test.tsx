@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from 'react'
-import { Text } from 'react-native'
+import { StyleSheet, Text } from 'react-native'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act } from 'react-test-renderer'
 import en from '@orbit/shared/i18n/en.json'
@@ -9,10 +9,12 @@ import { useHabitForm } from '@/hooks/use-habit-form'
 import { useTagSelection } from '@/hooks/use-tag-selection'
 import { buildCreateHabitRequest, buildEmptyHabitFormValues, buildUpdateHabitRequest } from '@orbit/shared/utils'
 import { i18n } from '@/lib/i18n'
+import { __setWindowDimensions } from '@/test-mocks/react-native'
 import { press, renderNavigation } from '../ui/navigation-render'
 
 const state = vi.hoisted(() => ({
   helpers: null as ReturnType<typeof useHabitForm> | null, read: vi.fn(), online: true, pro: true, goalToggle: vi.fn(), messagesUsed: 0, reducedMotion: false, reminderTimes: [] as number[],
+  templates: [{ id: 'template-1', name: 'Manhã', items: ['Separar roupa'] }],
 }))
 
 vi.mock('@/lib/motion', async (importOriginal) => ({ ...await importOriginal<typeof import('@/lib/motion')>(), usePrefersReducedMotion: () => state.reducedMotion }))
@@ -31,7 +33,7 @@ vi.mock('@/hooks/use-app-toast', () => ({ useAppToast: () => ({ showError: vi.fn
 vi.mock('@/hooks/use-reminder-permission', () => ({ useReminderPermission: (_enabled: boolean, onToggle: () => void) => ({ toggleReminder: onToggle, showNotice: true }) }))
 vi.mock('@/lib/posthog', () => ({ captureGuidedFlowEvent: vi.fn(), captureGuidedFlowCompleted: vi.fn() }))
 vi.mock('@/hooks/use-checklist-templates', () => ({
-  useChecklistTemplates: () => ({ data: [{ id: 'template-1', name: 'Manhã', items: ['Separar roupa'] }], isLoading: false, isError: false, refetch: vi.fn() }),
+  useChecklistTemplates: () => ({ data: state.templates, isLoading: false, isError: false, refetch: vi.fn() }),
   useCreateChecklistTemplate: () => ({ mutate: vi.fn(), isPending: false }),
   useDeleteChecklistTemplate: () => ({ mutate: vi.fn() }),
 }))
@@ -54,17 +56,20 @@ const submit = vi.fn()
 const close = vi.fn()
 const helpers = () => state.helpers!
 
-interface HarnessProps { mode?: 'create' | 'edit'; saveError?: string | null; lockedGeneral?: boolean | null; initial?: Record<string, unknown>; parentField?: ReactNode; subHabits?: boolean }
+interface HarnessProps {
+  mode?: 'create' | 'edit'; saveError?: string | null; lockedGeneral?: boolean | null; initial?: Record<string, unknown>; parentField?: ReactNode; subHabits?: boolean
+  goalIds?: string[]; subHabitTitles?: string[]; parentValue?: string
+}
 
-function Harness({ mode = 'create', saveError = null, lockedGeneral = null, initial = {}, parentField, subHabits = true }: Readonly<HarnessProps>) {
+function Harness({ mode = 'create', saveError = null, lockedGeneral = null, initial = {}, parentField, subHabits = true, goalIds = [], subHabitTitles, parentValue }: Readonly<HarnessProps>) {
   const formHelpers = useHabitForm({ initialData: { dueDate: '', ...initial } })
   const tags = useTagSelection()
   const [reminderTimes, setReminderTimes] = useState([0, 15])
   state.helpers = formHelpers
   state.reminderTimes = reminderTimes
   const fields: GuidedHabitFields = {
-    tags, selectedGoalIds: [], atGoalLimit: false, onToggleGoal: state.goalToggle, reminderTimes, onReminderTimesChange: setReminderTimes, onUpgrade: vi.fn(),
-    parentField, children: subHabits ? () => <Text>sub-habit-editor</Text> : undefined,
+    tags, selectedGoalIds: goalIds, atGoalLimit: false, onToggleGoal: state.goalToggle, reminderTimes, onReminderTimesChange: setReminderTimes, onUpgrade: vi.fn(),
+    parentField, children: subHabits ? () => <Text>sub-habit-editor</Text> : undefined, subHabitTitles, parentValue,
   }
   return (
     <GuidedHabitFlow mode={mode} formHelpers={formHelpers} fields={fields} lockedGeneral={lockedGeneral} fromConversation={false} pending={false}
@@ -116,6 +121,7 @@ beforeEach(() => {
   state.pro = true
   state.messagesUsed = 0
   state.goalToggle.mockReset()
+  state.templates = [{ id: 'template-1', name: 'Manhã', items: ['Separar roupa'] }]
   submit.mockReset()
   close.mockReset()
   vi.useFakeTimers({ now: new Date('2026-11-13T12:00:00Z'), toFake: ['Date'] })
@@ -392,6 +398,54 @@ describe.each(['pt-BR', 'en'] as const)('the detail questions on Android in %s',
     await tap(tree, new RegExp(`^${flowCopy().optional.parent.replace('?', '\\?')}`))
     expect(hasText(tree, 'parent-picker')).toBe(true)
     tree.unmount()
+  })
+
+  const optionalRowName = (tree: Tree, id: 'tags' | 'goals' | 'subHabits' | 'parent') =>
+    control(tree, new RegExp(`^${flowCopy().optional[id].replace('?', '\\?')}`))?.props.accessibilityLabel
+
+  it('scenario 17: answers the tag, goal and sub-item rows with the names the person chose, never a count', async () => {
+    const tree = renderNavigation(<Harness goalIds={['goal-1']} subHabitTitles={['Alongar', '  ', 'Beber água']} />)
+    await phrase(tree, locale === 'en' ? 'run every day at 7' : 'correr todo dia às 7')
+    await tap(tree, flowCopy().reminder.no)
+    await openOptional(tree, 'tags')
+    await tap(tree, 'Saúde')
+    await primary(tree)
+    expect(optionalRowName(tree, 'tags')).toBe(`${flowCopy().optional.tags} Saúde`)
+    expect(optionalRowName(tree, 'goals')).toBe(`${flowCopy().optional.goals} Correr 5 km`)
+    expect(optionalRowName(tree, 'subHabits')).toBe(`${flowCopy().optional.subHabits} ${locale === 'en' ? 'Alongar and Beber água' : 'Alongar e Beber água'}`)
+    tree.unmount()
+  })
+
+  it('scenario 17: leaves the tag, goal and sub-item rows with no answer when the person chose none', async () => {
+    const tree = await toSummary()
+    await tap(tree, flowCopy().more)
+    for (const id of ['tags', 'goals', 'subHabits'] as const) expect(optionalRowName(tree, id)).toBe(flowCopy().optional[id])
+    tree.unmount()
+  })
+
+  it('scenario 17: answers the parent row with the parent the edit holds', async () => {
+    const tree = renderNavigation(<Harness mode="edit" parentField={<Text>parent-picker</Text>} parentValue="Rotina da manhã" subHabits={false} initial={{ title: 'Correr', itemType: 'habit', frequencyUnit: 'Day', frequencyQuantity: 1, dueDate: '2026-11-13' }} />)
+    await tap(tree, flowCopy().more)
+    expect(optionalRowName(tree, 'parent')).toBe(`${flowCopy().optional.parent} Rotina da manhã`)
+    tree.unmount()
+  })
+
+  it.each([{ width: 412, style: { alignSelf: 'stretch' } }, { width: 1440, style: { alignSelf: 'center', maxWidth: 360 } }])('keeps the continue of the date free path and the write action of the template question in the action slot: at most 360 wide in the centre from 1024 ($width px)', async ({ width, style }) => {
+    __setWindowDimensions({ width, height: 900, scale: 1, fontScale: 1 })
+    const tree = renderNavigation(<Harness />)
+    await phrase(tree, locale === 'en' ? 'call John' : 'ligar para o João')
+    const slot = () => tree.hosts().filter((node) => node.props.testID === 'primary-action-slot')
+    const slotWords = () => slot().map((node) => textIn(node))
+    expect(slotWords()).toEqual([flowCopy().continue])
+    expect(StyleSheet.flatten(slot()[0]!.props.style)).toEqual(style)
+    await tap(tree, flowCopy().when.noDate)
+    await openOptional(tree, 'checklist')
+    state.templates = []
+    await tap(tree, flowCopy().checklist.useTemplate)
+    expect(slotWords()).toEqual([flowCopy().templates.write])
+    expect(StyleSheet.flatten(slot()[0]!.props.style)).toEqual(style)
+    tree.unmount()
+    __setWindowDimensions({ width: 412, height: 900, scale: 1, fontScale: 1 })
   })
 
   const optionCards = (tree: Tree) => tree.hosts().filter((node) => node.props.testID === 'option-card')

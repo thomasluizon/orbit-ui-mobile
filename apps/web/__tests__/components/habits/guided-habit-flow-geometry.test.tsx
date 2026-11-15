@@ -8,6 +8,7 @@ import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { OptionCard } from '@/components/ui/option-card'
 import { QuestionFlow } from '@/components/ui/question-flow'
+import { QuestionRow } from '@/components/ui/question-row'
 import { resolveWebThemeVariables } from '@/lib/theme-dom'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 
@@ -92,4 +93,20 @@ describe('the guided habit flow block in Chromium', () => {
     const geometry = await measure(width, ptBR)
     expect(Math.round(geometry.primary.width)).toBe(width - 32)
   })
+
+  it.each([320, 412].flatMap((width) => [{ width, locale: 'pt-BR', messages: ptBR }, { width, locale: 'en', messages: en as typeof ptBR }]))(
+    'keeps a long list of chosen names on one line of its optional row at $width px in $locale', async ({ width, messages }) => {
+      const view = render(<div style={{ padding: 16 }}><QuestionRow question={messages.habits.flow.optional.tags} value="Saúde, Trabalho, Casa, Estudos e Família" onPress={() => {}} /></div>)
+      const page = await browser.newPage({ reducedMotion: 'reduce', viewport: { width, height: HEIGHT } })
+      try {
+        await page.setContent(`<!DOCTYPE html><html class="dark"><style>${stylesheet}</style><body style="margin:0">${view.container.innerHTML}</body></html>`)
+        const value = await page.evaluate(() => {
+          const node = document.querySelector<HTMLElement>('[data-question-value]')!
+          const range = document.createRange()
+          range.selectNodeContents(node)
+          return { lines: new Set([...range.getClientRects()].map((rect) => Math.round(rect.top))).size, clipped: node.scrollWidth > node.clientWidth, overflow: getComputedStyle(node).textOverflow, text: node.textContent }
+        })
+        expect(value, JSON.stringify(value)).toMatchObject({ lines: 1, clipped: true, overflow: 'ellipsis', text: 'Saúde, Trabalho, Casa, Estudos e Família' })
+      } finally { await page.close(); view.unmount() }
+    })
 })
