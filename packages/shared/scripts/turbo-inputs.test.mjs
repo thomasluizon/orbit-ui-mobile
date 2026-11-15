@@ -9,6 +9,10 @@ const turbo = resolve(repository, 'node_modules/turbo/bin/turbo')
 const configuration = readFileSync(resolve(repository, 'turbo.json'), 'utf8')
 const { packageManager } = JSON.parse(readFileSync(resolve(repository, 'package.json'), 'utf8'))
 const tokenDirectory = 'design/canvas/_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens'
+const desktopFilesTheWebTestsRead = [
+  'apps/desktop/locales/en.json', 'apps/desktop/locales/pt-BR.json',
+  'apps/desktop/src-tauri/src/launch.js', 'apps/desktop/src-tauri/src/palette.js',
+]
 const consumers = [
   { workspace: 'packages/shared', name: '@orbit/shared', inputs: [
     '.github/workflows/contract-rebaseline.yml',
@@ -17,6 +21,7 @@ const consumers = [
     'apps/mobile/__tests__/components/ui/interaction-fill-clearance.test.tsx',
     'design/canvas/Orbit Widget Android.dc.html', `${tokenDirectory}/typography.css`,
     '.gitignore', 'apps/mobile/.gitignore', 'eslint-rules/no-comments.cjs', 'tsconfig.base.json',
+    'evals/astra/catalog.yaml',
   ] },
   { workspace: 'apps/desktop', name: '@orbit/desktop', inputs: [
     '.github/workflows/desktop-release.yml', '.github/workflows/desktop-acceptance.yml',
@@ -30,17 +35,19 @@ const consumers = [
   { workspace: 'apps/mobile', name: '@orbit/mobile', inputs: [
     '.github/workflows/android-release.yml', '.github/workflows/ios-build.yml', '.github/workflows/ios-release.yml',
     `${tokenDirectory}/colors.css`, 'packages/shared/src/theme/neutral-ramp.ts',
-    'tools/__tests__/android-deployment-fixture.json',
+    'tools/__tests__/android-deployment-fixture.json', 'tsconfig.base.json',
+    'apps/web/test-support/hermetic/fixture-request.ts', 'apps/web/test-support/hermetic/mock-api/server.ts',
   ] },
   { workspace: 'apps/web', name: '@orbit/web', inputs: [
     'tools/check-surface-scope.mjs', 'tools/arch-map.mjs', 'tools/lib/escape-regex.mjs', 'DESIGN.md', 'design/brand/png/orbit-platform-icon-512.png',
-    'apps/mobile/components/ui/list-row.tsx', 'packages/shared/src/__tests__/contrast.ts',
+    'apps/mobile/components/ui/list-row.tsx', 'packages/shared/src/__tests__/contrast.ts', 'tsconfig.base.json',
+    ...desktopFilesTheWebTestsRead,
   ] },
   { workspace: 'eslint-rules', name: '@orbit/eslint-rules', inputs: [
     'apps/web/eslint.config.mjs', 'apps/mobile/eslint.config.js', 'apps/web/tsconfig.json',
     'apps/web/app/globals.css', 'apps/mobile/components/ui/input.css',
     'packages/shared/src/theme/spacing.json', 'packages/shared/src/theme/spacing.css',
-    `${tokenDirectory}/spacing.css`,
+    `${tokenDirectory}/spacing.css`, 'packages/shared/src/i18n/en.json', 'packages/shared/src/i18n/pt-BR.json',
   ] },
 ]
 const fixtures = []
@@ -93,9 +100,32 @@ function expectRun(root, name, status, executions) {
   return result
 }
 
+function taskHash(root, name) {
+  const result = spawnSync(process.execPath, [turbo, 'run', 'test', `--filter=${name}`, '--dry=json'], { cwd: root,
+    encoding: 'utf8', timeout: 30_000,
+    env: { PATH: process.env.PATH, SystemRoot: process.env.SystemRoot, TURBO_TELEMETRY_DISABLED: '1' } })
+  expect(result.status, result.stdout + result.stderr).toBe(0)
+  return JSON.parse(result.stdout).tasks.find((task) => task.taskId === `${name}#test`).hash
+}
+
 afterEach(() => {
   for (const root of fixtures.splice(0)) rmSync(root, { recursive: true, force: true })
 })
+
+it('moves the @orbit/web#test hash that keys the cached web unit results when a desktop file the web tests read changes', () => {
+  const consumer = consumers.find(({ name }) => name === '@orbit/web')
+  const root = fixture(consumer)
+  write(root, 'apps/desktop/src-tauri/src/main.rs', 'fn main() {}')
+  const baseline = taskHash(root, consumer.name)
+  write(root, 'apps/desktop/src-tauri/src/main.rs', 'fn main() { changed() }')
+  expect(taskHash(root, consumer.name)).toBe(baseline)
+  for (const input of desktopFilesTheWebTestsRead) {
+    write(root, input, 'changed')
+    expect(taskHash(root, consumer.name), input).not.toBe(baseline)
+    write(root, input, 'valid')
+  }
+  expect(taskHash(root, consumer.name)).toBe(baseline)
+}, 30_000)
 
 it('demonstrates stale success when workflow inputs are omitted', () => {
   const consumer = consumers[1]
