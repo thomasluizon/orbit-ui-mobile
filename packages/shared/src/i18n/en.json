@@ -3618,7 +3618,7 @@
       "usage": "You used {used} of {limit, plural, one {# AI message} other {# AI messages}}.",
       "loading": "I am fetching the amounts.",
       "plansError": "I could not fetch the amounts.",
-      "billingError": "I could not load your billing details.",
+      "billingError": "I could not load your plan.",
       "offline": "I am offline right now."
     },
     "result": {

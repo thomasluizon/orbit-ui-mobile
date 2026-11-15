@@ -148,7 +148,7 @@ describe('the Android onboarding Pro step', () => {
     mocks.plan = null
     const tree = renderNavigation(<OnboardingProStep onFinish={vi.fn(async () => {})} />)
     expect(orbitStates(tree)).toEqual(['parado'])
-    expect(screenText(tree)).toContain('I could not load your billing details.')
+    expect(screenText(tree)).toContain('I could not load your plan.')
     expect(headers(tree)).not.toContain('Orbit Pro')
     press(byLabel(tree, 'Try again')!)
     expect(mocks.retry).toHaveBeenCalledTimes(1)

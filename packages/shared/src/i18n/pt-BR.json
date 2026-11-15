@@ -3618,7 +3618,7 @@
       "usage": "Você usou {used} de {limit, plural, =0 {# mensagens de IA} one {# mensagem de IA} other {# mensagens de IA}}.",
       "loading": "Estou buscando os valores.",
       "plansError": "Não consegui buscar os valores.",
-      "billingError": "Não consegui carregar os detalhes de cobrança.",
+      "billingError": "Não consegui carregar seu plano.",
       "offline": "Estou sem conexão agora."
     },
     "result": {

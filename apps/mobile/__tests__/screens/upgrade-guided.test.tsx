@@ -307,8 +307,8 @@ describe('the plan question of the Android upgrade route', () => {
 
 describe('the billing error of the Android upgrade route', () => {
   it.each([
-    ['en', 'I could not load your billing details.'],
-    ['pt-BR', 'Não consegui carregar os detalhes de cobrança.'],
+    ['en', 'I could not load your plan.'],
+    ['pt-BR', 'Não consegui carregar seu plano.'],
   ] as const)('names the billing error with Orbit in Parado and reads the subscription again on retry in %s', (locale, line) => {
     mocks.locale = locale
     mocks.statusError = true
