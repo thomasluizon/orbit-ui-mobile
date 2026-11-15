@@ -32,7 +32,7 @@ interface RescheduleSheetProps {
 }
 
 /**
- * Astra-branded sheet that proposes an AI reschedule for an overdue habit. Pro users see the
+ * The Orbit sheet that proposes an AI reschedule for an overdue habit. Pro users see the
  * suggested schedule plus rationale and can accept it in one tap (applied through the existing
  * habit-update path); free users see an upgrade prompt. Mirrors apps/mobile reschedule-sheet.tsx.
  */

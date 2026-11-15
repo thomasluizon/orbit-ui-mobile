@@ -41,7 +41,7 @@ function buildPreferenceRows(
     <ListRow key="language" compact textMode="label" title={t('profile.language.title')} value={controls.selectedLanguage === 'pt-BR' ? t('profile.language.brazilianPortuguese') : languageLabel} onClick={() => controls.setActivePicker('language')} />,
     /* eslint-disable-next-line local/max-button-words -- Orbit Perfil draws the general-habits switch label. */
     <ListRow key="show-general" title={t('settings.homeScreen.showGeneral')} description={t('settings.homeScreen.showGeneralDesc')} toggle={{ checked: controls.showGeneralOnToday, onChange: (next) => void controls.handleShowGeneralToggle(next) }} />,
-    /* eslint-disable-next-line local/max-button-words -- Orbit Perfil draws the Orbit motion switch label. */
+    /* eslint-disable-next-line local/max-button-words -- Ticket #2120 names this switch Orbit em movimento / Animate Orbit. https://github.com/thomasluizon/orbit-tickets/issues/2120 */
     <ListRow key="orbit-motion" title={t('settings.orbitMotion.title')} toggle={{ checked: controls.mascotMotion.enabled, onChange: controls.mascotMotion.toggle }} />,
   ]
 }

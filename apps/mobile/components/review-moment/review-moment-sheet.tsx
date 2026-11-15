@@ -21,7 +21,7 @@ import { useUIStore } from '@/stores/ui-store'
 import { SETTLE_DELAY_MS } from '@orbit/shared/utils'
 
 /**
- * Astra-branded review moment: presents once the armed review prompt's celebration has fully
+ * The Orbit review moment: presents once the armed review prompt's celebration has fully
  * settled, with copy referencing the streak or level that triggered it.
  */
 export function ReviewMomentSheet({ suppressed }: Readonly<{ suppressed: boolean }>) {
