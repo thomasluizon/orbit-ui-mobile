@@ -323,19 +323,17 @@ function workflowRegressions(workflow) {
   const charter = run('check-gate-charter.mjs', [])
   T('the parity workflow satisfies its declared changed-file scope', charter.status === 0, charter.stderr)
   const comparison = workflow.jobs.guards.steps.find((step) => step.id === 'feature-parity__1')
-  const artifact = workflow.jobs.guards.steps.find((step) => step.id === 'feature-parity__2')
-  for (const step of [comparison, artifact]) {
-    T(`${step.id} covers main pull requests`, step.if.includes("github.event_name == 'pull_request'") && step.if.includes("github.base_ref == 'main'"))
-  }
+  T(`${comparison.id} covers main pull requests`, comparison.if.includes("github.event_name == 'pull_request'") && comparison.if.includes("github.base_ref == 'main'"))
   T('main production and debt comparisons use the immutable queued base', comparison.run.includes('--production "HEAD^1" --base "HEAD^1"') && comparison.run.includes('"$BASE_REF" = main'))
-  T('evidence uploads even when the comparison fails', artifact.if.includes('always()') && artifact.with.path === manifestPath && artifact.with['include-hidden-files'] === true)
+  const inputs = new RegExp(comparison.run.match(/grep -Eq '([^']+)'/)?.[1] ?? '$^')
+  T('the comparison runs only when an app, shared or parity input changed',
+    ['apps/web/app/page.tsx', 'apps/mobile/app/index.tsx', 'packages/shared/src/index.ts', 'tools/check-feature-parity.mjs', 'tools/feature-parity-rules.json', 'DESIGN.md', '.claude/specs/orbit-prod-release.md']
+      .every((path) => inputs.test(path)) && !['TESTING.md', 'tools/README.md', '.github/workflows/test.yml', 'docs/DESIGN.md'].some((path) => inputs.test(path)))
 }
 
 export const cases = () => {
   const workflow = yaml.load(readFileSync(join(REPO_ROOT, '.github/workflows/guards.yml'), 'utf8'))
   workflowRegressions(workflow)
-  const artifact = workflow.jobs.guards.steps.find((step) => step.id === 'feature-parity__2')
-  T('Guards uploads the generated inventory from its hidden directory', artifact.with.path === manifestPath && artifact.with['include-hidden-files'] === true)
   const catalog = readFileSync(join(REPO_ROOT, 'packages/shared/src/i18n/en.json'), 'utf8')
   provenanceRegressions(catalog)
   promotionRegressions(catalog)

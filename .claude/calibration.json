@@ -10,7 +10,7 @@
   "workerCommand": "claude",
   "workerTiers": {
     "deep": {
-      "model": "claude-opus-5-5",
+      "model": "claude-fable-5-2",
       "args": [
         "-p",
         "--output-format",
@@ -24,11 +24,11 @@
         "--effort",
         "high",
         "--model",
-        "claude-opus-5-5"
+        "claude-fable-5-2"
       ]
     },
     "default": {
-      "model": "claude-sonnet-5-5",
+      "model": "claude-fable-5-2",
       "args": [
         "-p",
         "--output-format",
@@ -42,11 +42,11 @@
         "--effort",
         "high",
         "--model",
-        "claude-sonnet-5-5"
+        "claude-fable-5-2"
       ]
     },
     "max": {
-      "model": "claude-opus-5-5",
+      "model": "claude-fable-5-2",
       "args": [
         "-p",
         "--output-format",
@@ -60,11 +60,11 @@
         "--effort",
         "high",
         "--model",
-        "claude-opus-5-5"
+        "claude-fable-5-2"
       ]
     },
     "mechanical": {
-      "model": "claude-sonnet-5-5",
+      "model": "claude-fable-5-2",
       "args": [
         "-p",
         "--output-format",
@@ -78,7 +78,7 @@
         "--effort",
         "high",
         "--model",
-        "claude-sonnet-5-5"
+        "claude-fable-5-2"
       ]
     }
   },
@@ -144,7 +144,7 @@
     ".claude/skills/android-release/SKILL.md": {
       "model": null,
       "effort": "low",
-      "digest": "fb87f04b9dccf820",
+      "digest": "3731065e28a2e51e",
       "calibratedAt": "2026-11-15",
       "verdict": "current: takes the open and production version from mobile-version-pair.js plan, hands the same version to /ios-release, verifies the exact remote ref, and dispatches only after owner confirmation; its checks are procedural, so low effort remains right."
     },
@@ -165,8 +165,8 @@
     ".claude/skills/audit-performance/SKILL.md": {
       "model": null,
       "effort": null,
-      "digest": "8728b829bf763f66",
-      "calibratedAt": "2026-11-13",
+      "digest": "46a4286e6185cc50",
+      "calibratedAt": "2026-11-15",
       "verdict": "undeclared, inherits the session: the performance audit makes judgment calls and opens tickets."
     },
     ".claude/skills/audit-security/SKILL.md": {
@@ -186,8 +186,8 @@
     ".claude/skills/auto-work/SKILL.md": {
       "model": null,
       "effort": null,
-      "digest": "b8f91323846bd18c",
-      "calibratedAt": "2026-11-13",
+      "digest": "0012ff9ca4d1616d",
+      "calibratedAt": "2026-11-14",
       "verdict": "undeclared, inherits the session: runs continuous source intake through the existing sleep lifecycle, classifies feedback and preserves independent crank and relay state without changing model or effort routing."
     },
     ".claude/skills/crank/SKILL.md": {
@@ -249,8 +249,8 @@
     ".claude/skills/ios-release/SKILL.md": {
       "model": null,
       "effort": null,
-      "digest": "45186804d6b40c9d",
-      "calibratedAt": "2026-11-13",
+      "digest": "5c095c00fe488d29",
+      "calibratedAt": "2026-11-14",
       "verdict": "undeclared, inherits the session: verifies iOS signing prerequisites, release parameters and internal TestFlight processing through the manual workflow; it declares no model or effort override."
     },
     ".claude/skills/lesson/SKILL.md": {
@@ -270,14 +270,14 @@
     ".claude/skills/orchestrate/SKILL.md": {
       "model": null,
       "effort": "high",
-      "digest": "7c9818e0cac8fd0b",
+      "digest": "9b5caaa751e0908b",
       "calibratedAt": "2026-11-15",
       "verdict": "current: high effort; the skill plans the queue, verifies each pull request disposition and merge commit, interprets gate results, and controls merge authority."
     },
     ".claude/skills/prod-readiness/SKILL.md": {
       "model": null,
       "effort": null,
-      "digest": "099697c985e945b6",
+      "digest": "0ee56c735f815bce",
       "calibratedAt": "2026-11-15",
       "verdict": "undeclared, inherits the session: it judges four child audits before producing a launch verdict."
     },
@@ -298,8 +298,8 @@
     ".claude/skills/release/SKILL.md": {
       "model": null,
       "effort": "high",
-      "digest": "e53a0fac95c1eb4e",
-      "calibratedAt": "2026-11-13",
+      "digest": "9f904a7166861098",
+      "calibratedAt": "2026-11-14",
       "verdict": "current: sequences production and staging releases across services, checks live deployment evidence, and stops on ambiguous runs; high effort is right for decisions that control outward dispatch."
     },
     ".claude/skills/second-opinion/SKILL.md": {
@@ -312,7 +312,7 @@
     ".claude/skills/sleep/SKILL.md": {
       "model": null,
       "effort": null,
-      "digest": "af5ba3900e6fd6d5",
+      "digest": "fe7d2c76fffa9e03",
       "calibratedAt": "2026-11-15",
       "verdict": "undeclared, inherits the session: it makes overnight queue decisions, including whether configured lanes are available."
     },

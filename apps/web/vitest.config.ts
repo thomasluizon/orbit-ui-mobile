@@ -3,6 +3,7 @@ import react from '@vitejs/plugin-react'
 import { readFileSync, readdirSync, statSync } from 'node:fs'
 import path from 'path'
 import { createStallDiagnostics } from './vitest/stall-diagnostics'
+import { TimedSequencer } from './vitest/timed-sequencer.mjs'
 
 function findChromiumTests(directory: string): string[] {
   return readdirSync(directory).flatMap((name) => {
@@ -31,6 +32,7 @@ export default defineConfig({
     maxWorkers: process.env.CI ? '100%' : '25%',
     testTimeout: 15000,
     hookTimeout: 15000,
+    sequence: { sequencer: TimedSequencer },
     // WHY: Chrome owns a process tree per suite, so CPU-based worker percentages do not bound browser contention. https://github.com/thomasluizon/orbit-tickets/issues/1451
     projects: [
       {

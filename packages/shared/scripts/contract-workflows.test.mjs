@@ -88,23 +88,26 @@ describe.each([
     expect(git(staged.publish, 'rev-parse', 'HEAD')).toBe(git(staged.publish, 'rev-parse', `origin/${branch}`))
   })
 
-  it.each(['api.spec.commit', 'api.spec.selection.json'])('detects a %s-only move with identical output', (changed) => {
+  it.each([
+    ['api.spec.commit', false],
+    ['api.spec.selection.json', true],
+    ['api.generated.ts', true],
+  ])('a %s-only move sets moved=%s, so the pin alone never publishes', (changed, moved) => {
     const staged = prepare(base, branch)
     for (const file of contractFiles) {
       if (file === 'api.spec.selection.json') continue
       writeFileSync(resolve(staged.publish, directory, file), git(staged.publish, 'show', `origin/${branch}:${directory}/${file}`) + '\n')
     }
-    if (changed === 'api.spec.commit') {
-      rmSync(resolve(staged.publish, directory, 'api.spec.selection.json'))
-      writeFileSync(resolve(staged.publish, directory, changed), `${'d'.repeat(40)}\n`)
-    }
+    if (changed !== 'api.spec.selection.json') rmSync(resolve(staged.publish, directory, 'api.spec.selection.json'))
+    if (changed === 'api.spec.commit') writeFileSync(resolve(staged.publish, directory, changed), `${'d'.repeat(40)}\n`)
+    if (changed === 'api.generated.ts') writeFileSync(resolve(staged.publish, directory, changed), 'new snapshot\n')
     const step = definition.jobs.generate.steps.find((entry) => entry.id === 'regenerate')
     const script = step.run.slice(step.run.indexOf('branch='))
     const output = resolve(staged.root, 'output')
     const result = spawnSync('bash', ['-c', `set -euo pipefail\n${script}`], { cwd: staged.publish,
       env: { ...process.env, GITHUB_OUTPUT: output }, encoding: 'utf8' })
     expect(result.status, result.stderr).toBe(0)
-    expect(readFileSync(output, 'utf8')).toBe('moved=true\n')
+    expect(readFileSync(output, 'utf8')).toBe(`moved=${moved}\n`)
   })
 
   it('rejects a target race before touching the routine branch', () => {
@@ -125,21 +128,27 @@ describe.each([
     expect(git(staged.publish, 'branch', '--show-current')).toBe(base)
   })
 
-  it('keeps source metadata in artifact transfer, every comparison and every publication', () => {
+  it('keeps source metadata in artifact transfer and publication, and compares output and selection only', () => {
     const generate = definition.jobs.generate
     const upload = generate.steps.find((step) => step.uses?.startsWith('actions/upload-artifact@'))
     const regenerate = generate.steps.find((step) => step.id === 'regenerate')
     for (const file of contractFiles) {
       expect(upload.with.path).toContain(`${directory}/${file}`)
-      expect(regenerate.run).toContain(`${directory}/${file}`)
+      expect(regenerate.run.includes(`${directory}/${file}`)).toBe(file !== 'api.spec.commit')
     }
+    expect(Object.keys(definition.on)).toEqual(['schedule'])
+    const checkoutDepth = (job) => job.steps.find((step) => step.uses?.startsWith('actions/checkout@')).with['fetch-depth']
+    expect(checkoutDepth(generate)).toBe(1)
+    expect(checkoutDepth(definition.jobs.publish)).toBe(0)
+    expect(regenerate.run).toContain('git fetch --depth=1 origin')
     expect(regenerate.run).not.toContain('git checkout')
     expect(regenerate.run).toContain('scripts/generate-contract.mjs --candidate "$api_commit"')
     expect(generate.permissions).toEqual({ contents: 'read' })
     expect(generate.steps.some((step) => step.uses?.startsWith('actions/create-github-app-token@'))).toBe(false)
     expect(JSON.stringify(definition.jobs.publish.steps)).not.toMatch(/npm ci|generate-contract|npx|orval/)
+    expect(publish.run).toContain('git add -- "$snapshot" "$pin"')
     expect(publish.run).toContain('git add -- "$selection"')
-    expect(publish.run).toContain('"$snapshot" "$pin" "$selection"')
+    expect(publish.run).toContain('git diff --quiet origin/main -- "$snapshot" "$selection"')
     expect(definition.concurrency['cancel-in-progress']).toBe(false)
   })
 })

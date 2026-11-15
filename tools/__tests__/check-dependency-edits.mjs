@@ -359,23 +359,31 @@ export const cases = async () => {
   locked.resolved = "https://registry.example/slow-extraction.tgz"
   rewriteLock()
   const fetchShim = stage("dependency-fetch.cjs", `
-const { readFileSync } = require("node:fs")
+const { appendFileSync, readFileSync } = require("node:fs")
 globalThis.fetch = async (url, options) => {
   if (url !== "https://registry.example/slow-extraction.tgz" || !(options.signal instanceof AbortSignal)) {
     throw new Error("unexpected archive request")
   }
+  appendFileSync(process.env.ARCHIVE_REQUESTS, "request,")
+  const requests = readFileSync(process.env.ARCHIVE_REQUESTS, "utf8").split(",").length - 1
+  if (requests <= Number(process.env.ARCHIVE_LOST_REQUESTS)) throw new TypeError("fetch failed")
   return new Response(readFileSync(process.env.ARCHIVE_FIXTURE), { status: Number(process.env.ARCHIVE_STATUS) })
 }
 `)
-  for (const status of [200, 503]) {
-    check(TOOL, `HTTPS archive response ${status} is handled`, ["--root", slow.repository], {
-      status: status === 200 ? 0 : 1,
-      ...(status === 503 ? { stderr: /locked archive request failed \(503\)/ } : {}),
-    }, { env: {
+  const fetchCase = (name, status, lostRequests, expect, expectedRequests) => {
+    const requests = stage(`dependency-fetch-requests-${status}-${lostRequests}.txt`, "")
+    check(TOOL, name, ["--root", slow.repository], expect, { env: {
       NODE_OPTIONS: `--require "${fetchShim.split(sep).join("/")}"`,
-      ARCHIVE_FIXTURE: archivePath, ARCHIVE_STATUS: String(status),
+      ARCHIVE_FIXTURE: archivePath, ARCHIVE_STATUS: String(status), ARCHIVE_LOST_REQUESTS: String(lostRequests), ARCHIVE_REQUESTS: requests,
     } })
+    const made = readFileSync(requests, "utf8").split(",").length - 1
+    T(`${TOOL}: ${name} after ${expectedRequests} request(s)`, made === expectedRequests, `${made} request(s)`)
   }
+  fetchCase("HTTPS archive response 200 is handled", 200, 0, { status: 0 }, 1)
+  fetchCase("two lost archive downloads are tried again and the third answer verifies the package", 200, 2, { status: 0 }, 3)
+  fetchCase("three lost archive downloads in a row are a finding", 200, 3, { status: 1, stderr: /could not verify locked archive: fetch failed/ }, 3)
+  fetchCase("HTTPS archive response 503 is tried three times, then reported", 503, 0, { status: 1, stderr: /locked archive request failed \(503\)/ }, 3)
+  fetchCase("HTTPS archive response 404 is reported at once", 404, 0, { status: 1, stderr: /locked archive request failed \(404\)/ }, 1)
 
   const tar = createRequire(import.meta.url)("next/dist/compiled/tar")
   const alternateArchive = join(slow.repository, "alternate.tgz")

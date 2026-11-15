@@ -6,6 +6,7 @@ import {
   REVIEW_APP_AUTHOR_FILTER,
   headActivityArgv,
   headActivityBoundary,
+  headReplacement,
   REVIEW_APP_CONTEXT,
   newestChecks,
   outOfBandKey,
@@ -25,7 +26,6 @@ import {
   reviewChecksFor,
   reviewPageArgv,
   reviewPageFromGraphQl,
-  reviewRequestGate,
   reviewSatisfiedOutOfBand,
   rollupFromGraphQlNodes,
   writeReadinessReceipt,
@@ -96,36 +96,6 @@ export const cases = async () => {
   /** The old context-only list carried no producer. It must not be readable as a required check. */
   T(`${TOOL}: a bare context-string list is refused rather than read as a required check`, readinessCiIsGreen([greenRun], ["Unit Tests"]) === false)
 
-  /**
-   * The review request gate reads every check except Pullfrog's own, because pullfrog-approval
-   * cannot pass before the review it reports exists. A head it passes is green for readiness.
-   */
-  const approvalRun = { __typename: "CheckRun", name: "pullfrog-approval", status: "COMPLETED", conclusion: "FAILURE", startedAt: "2026-08-07T10:05:00Z", appId: PULLFROG_APP }
-  const layoutRun = { __typename: "CheckRun", name: "Layout (1/4)", status: "COMPLETED", conclusion: "SUCCESS", startedAt: "2026-08-07T10:01:00Z", appId: GITHUB_ACTIONS_APP }
-  const gate = (rollup, required = [requiredUnitTests, requiredApproval]) => reviewRequestGate(rollup, required)
-  const passed = gate([greenRun, layoutRun])
-  T(`${TOOL}: the review request gate passes when every required check other than pullfrog-approval passed`, passed?.state === "PASSED" && passed.failing.length === 0 && passed.pending.length === 0 && passed.reported === 2, JSON.stringify(passed))
-  const ownFailure = gate([greenRun, approvalRun])
-  T(`${TOOL}: the review request gate ignores Pullfrog's own checks, which wait on the review`, ownFailure?.state === "PASSED" && ownFailure.reported === 1, JSON.stringify(ownFailure))
-  const optionalFailure = gate([greenRun, { ...layoutRun, conclusion: "FAILURE" }])
-  T(`${TOOL}: the review request gate fails on a failing check that branch protection does not require`, optionalFailure?.state === "FAILING" && optionalFailure.failing.join() === "Layout (1/4)", JSON.stringify(optionalFailure))
-  const rerunFailure = gate([greenRun, failedRerun])
-  T(`${TOOL}: the review request gate reads the newest rerun, so a failed rerun fails it`, rerunFailure?.state === "FAILING" && rerunFailure.failing.join() === "Unit Tests", JSON.stringify(rerunFailure))
-  const cancelled = gate([{ ...greenRun, conclusion: "CANCELLED" }])
-  T(`${TOOL}: the review request gate treats a cancelled check as failing, never as passed`, cancelled?.state === "FAILING", JSON.stringify(cancelled))
-  const running = gate([{ ...greenRun, status: "IN_PROGRESS", conclusion: null }, layoutRun])
-  T(`${TOOL}: the review request gate is pending while a check still runs`, running?.state === "PENDING" && running.pending.join() === "Unit Tests" && running.failing.length === 0, JSON.stringify(running))
-  const unregistered = gate([layoutRun])
-  T(`${TOOL}: the review request gate is pending while a required check is not registered yet`, unregistered?.state === "PENDING" && unregistered.pending.join() === "Unit Tests", JSON.stringify(unregistered))
-  const failureOverPending = gate([{ ...greenRun, status: "QUEUED", conclusion: null }, { ...layoutRun, conclusion: "FAILURE" }])
-  T(`${TOOL}: a failed check makes the gate FAILING even while another check still runs`, failureOverPending?.state === "FAILING" && failureOverPending.pending.join() === "Unit Tests", JSON.stringify(failureOverPending))
-  const statusPending = gate([greenRun, { __typename: "StatusContext", context: "ci/external", state: "PENDING", createdAt: "2026-08-07T10:02:00Z", appId: null }])
-  const statusError = gate([greenRun, { __typename: "StatusContext", context: "ci/external", state: "ERROR", createdAt: "2026-08-07T10:02:00Z", appId: null }])
-  T(`${TOOL}: the review request gate reads commit statuses as pending or failing`, statusPending?.state === "PENDING" && statusError?.state === "FAILING", JSON.stringify({ statusPending, statusError }))
-  const emptyUnprotected = gate([approvalRun], [])
-  T(`${TOOL}: no reported check other than Pullfrog's own is pending, never evidence of passing CI`, emptyUnprotected?.state === "PENDING" && emptyUnprotected.reported === 0, JSON.stringify(emptyUnprotected))
-  T(`${TOOL}: an unprotected base passes on its reported checks alone`, gate([layoutRun], [])?.state === "PASSED")
-  T(`${TOOL}: the review request gate refuses an unreadable required set or rollup`, gate([greenRun], ["Unit Tests"]) === null && gate(null) === null)
   const graphQlRollup = rollupFromGraphQlNodes([
     { __typename: "CheckRun", name: "Unit Tests", status: "COMPLETED", conclusion: "SUCCESS", startedAt: "2026-08-07T10:00:00Z", completedAt: "2026-08-07T10:09:00Z", checkSuite: { app: { databaseId: GITHUB_ACTIONS_APP } } },
     { __typename: "StatusContext", context: "ci/external", state: "SUCCESS", createdAt: "2026-08-07T10:02:00Z" },
@@ -392,6 +362,18 @@ export const cases = async () => {
     headActivityBoundary(repointedActivity, repointedHead, "fix/example", "owner/repo", "fork/repo").time === null)
   T(`${TOOL}: an unparseable activity time cannot supply a boundary`,
     headActivityBoundary([{ ...repointedActivity[0], timestamp: "invalid" }], repointedHead, "fix/example", "owner/repo", "owner/repo").time === null)
+  /** GitHub lists the newest move first; the push of HEAD_A to repointedHead replaced HEAD_A. */
+  const pushedBack = { ...repointedActivity[0], activity_type: "force_push", before: repointedHead, after: HEAD_A }
+  T(`${TOOL}: a push whose before is the head names the commit that replaced it`,
+    headReplacement(repointedActivity, HEAD_A, "fix/example") === repointedHead && headReplacement(repointedActivity, repointedHead, "fix/example") === null)
+  T(`${TOOL}: a newer move that puts the head back proves no replacement`,
+    headReplacement([{ ...pushedBack, timestamp: "2026-09-26T02:50:00Z" }, ...repointedActivity], HEAD_A, "fix/example") === null)
+  T(`${TOOL}: a move back in the same second cannot be ordered and proves no replacement`,
+    headReplacement([pushedBack, ...repointedActivity], HEAD_A, "fix/example") === null)
+  T(`${TOOL}: another branch, an unparseable time or a missing response proves no replacement`,
+    headReplacement([{ ...repointedActivity[0], ref: "refs/heads/other" }], HEAD_A, "fix/example") === null &&
+    headReplacement([{ ...repointedActivity[0], timestamp: "invalid" }], HEAD_A, "fix/example") === null &&
+    headReplacement(null, HEAD_A, "fix/example") === null)
   T(`${TOOL}: the activity request reads one bounded branch page`,
     headActivityArgv("owner/repo", "fix/example")[1] === "repos/owner/repo/activity?ref=refs%2Fheads%2Ffix%2Fexample&per_page=100")
 

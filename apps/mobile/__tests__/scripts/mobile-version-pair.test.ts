@@ -7,7 +7,7 @@ import { parse } from 'yaml'
 import { afterEach, describe, expect, it } from 'vitest'
 import { createRequire } from 'node:module'
 import { declaredStepEnvironment, deploymentRecord as record, readStubWrites, writeGitHubStub } from '../support/release-step-environment'
-import type { StubDeployments } from '../support/release-step-environment'
+import type { StubDeployments, StubRun } from '../support/release-step-environment'
 
 const require = createRequire(import.meta.url)
 const script = fileURLToPath(new URL('../../scripts/mobile-version-pair.js', import.meta.url))
@@ -18,6 +18,9 @@ const pair = require('../../scripts/mobile-version-pair.js') as {
   newestVersion: (deployments: unknown) => string | null
   planVersions: (newest: { android: string | null; ios: string | null }) => Record<string, unknown>
   recordIosDeployment: (input: Record<string, unknown>) => number
+  awaitsAndroid: (input: Record<string, unknown>) => boolean
+  androidReleaseRunning: (runs: unknown, release: { appVersion: string; environment: string; sha: string }) => boolean
+  waitForAndroid: (input: { decide: () => Record<string, unknown>; waitMinutes: number; pause: (milliseconds: number) => void; now: () => number }) => { allowed: boolean; message: string }
 }
 
 /** The commit of the produced record fixture, and another commit. */
@@ -333,16 +336,69 @@ describe('iOS deployment record', () => {
   })
 })
 
+/** A run of android-release.yml as the list workflow runs response returns it. */
+const androidRun = (title: string, overrides: Partial<StubRun> = {}): StubRun =>
+  ({ display_title: title, head_sha: sha, status: 'in_progress', conclusion: null, ...overrides })
+
+describe('an iOS build beside the Android release', () => {
+  const records = { platformRecords: [record('1.3.153', 'ios-release')], siblingRecords: [record('1.3.153')] }
+
+  it('waits only for an iOS version above both platforms without a platform-only reason', () => {
+    expect(pair.awaitsAndroid({ platform: 'ios', appVersion: '1.3.154', platformOnlyReason: '', ...records })).toBe(true)
+    expect(pair.awaitsAndroid({ platform: 'ios', appVersion: '1.3.153', platformOnlyReason: '', ...records })).toBe(false)
+    expect(pair.awaitsAndroid({ platform: 'ios', appVersion: '1.3.154', platformOnlyReason: 'iOS only crash', ...records })).toBe(false)
+    expect(pair.awaitsAndroid({ platform: 'android', appVersion: '1.3.154', platformOnlyReason: '', ...records })).toBe(false)
+    expect(pair.awaitsAndroid({ platform: 'ios', appVersion: '1.3.154', platformOnlyReason: '', platformRecords: [], siblingRecords: [] })).toBe(true)
+  })
+
+  it.each([
+    ['an unfinished run of the version on the commit for the environment', androidRun('Android Release 1.3.154 (216) to open on main'), true],
+    ['a queued run', androidRun('Android Release 1.3.154 (216) to production on main', { status: 'queued' }), true],
+    ['a completed run', androidRun('Android Release 1.3.154 (216) to open on main', { status: 'completed', conclusion: 'failure' }), false],
+    ['a run of another version', androidRun('Android Release 1.3.155 (216) to open on main'), false],
+    ['a run on another commit', androidRun('Android Release 1.3.154 (216) to open on main', { head_sha: otherSha }), false],
+    ['a run for the other environment', androidRun('Android Release 1.3.154 (216) to internal on main'), false],
+    ['a run with another title', androidRun('Android Release'), false],
+  ] as const)('counts %s as %s', (_name, run, running) => {
+    expect(pair.androidReleaseRunning({ total_count: 1, workflow_runs: [run] }, { appVersion: '1.3.154', environment: 'production', sha })).toBe(running)
+  })
+
+  it('fails closed on a runs response without a list', () => {
+    expect(() => pair.androidReleaseRunning({}, { appVersion: '1.3.154', environment: 'production', sha })).toThrow('unexpected workflow runs response')
+  })
+
+  it('reads again every 30 seconds while Android runs, and allows once Android records the version', () => {
+    const decisions = [{ pending: true, message: 'pending' }, { pending: true, message: 'pending' }, { allowed: true, message: 'allowed' }]
+    const pauses: number[] = []
+    let clock = 0
+    const decision = pair.waitForAndroid({
+      decide: () => decisions.shift()!, waitMinutes: 45, pause: (milliseconds) => { pauses.push(milliseconds); clock += milliseconds }, now: () => clock,
+    })
+    expect(decision.allowed).toBe(true)
+    expect(pauses).toEqual([30_000, 30_000])
+  })
+
+  it('refuses without an upload when the wait ends first', () => {
+    let clock = 0
+    const decision = pair.waitForAndroid({
+      decide: () => ({ allowed: false, pending: true, message: 'Android 1.3.154 runs.' }), waitMinutes: 1,
+      pause: (milliseconds) => { clock += milliseconds }, now: () => clock,
+    })
+    expect(decision.allowed).toBe(false)
+    expect(decision.message).toBe('Android 1.3.154 runs. The upload waited 1 minutes, so it stops without uploading.')
+  })
+})
+
 describe('command line', () => {
   const directories: string[] = []
   afterEach(() => {
     for (const directory of directories.splice(0)) rmSync(directory, { recursive: true, force: true })
   })
 
-  function run(args: string[], deployments: StubDeployments, reason = '') {
+  function run(args: string[], deployments: StubDeployments, reason = '', runs: StubRun[] = []) {
     const directory = mkdtempSync(join(tmpdir(), 'mobile-version-pair-'))
     directories.push(directory)
-    writeGitHubStub(directory, deployments)
+    writeGitHubStub(directory, deployments, runs)
     const summary = join(directory, 'summary.md')
     const result = spawnSync(process.execPath, [script, ...args, ...(reason ? ['--platform-only-reason', reason] : [])], {
       encoding: 'utf8',
@@ -408,6 +464,44 @@ describe('command line', () => {
     expect(result.stderr).toContain('Android open and production pair with iOS production. Android internal pairs with iOS staging.')
     expect(result.summary).toContain('| Environment | `staging` |')
   })
+
+  const iosAt154 = (stage: string, ...extra: string[]) =>
+    ['check', '--platform', 'ios', '--environment', 'production', '--app-version', '1.3.154', '--sha', sha, '--stage', stage, ...extra]
+  const androidAt153: StubDeployments = { production: { android: [record('1.3.153')], ios: [record('1.3.153', 'ios-release')] } }
+  const androidRunning = [androidRun('Android Release 1.3.154 (216) to open on main')]
+
+  it('lets the iOS build start while the Android release of the next version runs on the same commit', () => {
+    const result = run(iosAt154('build'), androidAt153, '', androidRunning)
+    expect(result.status).toBe(0)
+    expect(result.stdout).toContain(`Android 1.3.154 runs on ${sha} and has not recorded its upload yet. The upload step waits for that record.`)
+  })
+
+  it('refuses the iOS build at once when no Android release of the version runs on the commit', () => {
+    const result = run(iosAt154('build'), androidAt153, '', [androidRun('Android Release 1.3.154 (216) to open on main', { head_sha: otherSha })])
+    expect(result.status).toBe(1)
+    expect(result.stderr).toContain('differs from the newest Android version 1.3.153')
+    expect(result.stderr).toContain(`No Android release of 1.3.154 runs on ${sha}: release Android first, or start iOS while it runs.`)
+  })
+
+  it('refuses the iOS upload while Android has not recorded the version when the wait ends', () => {
+    const result = run(iosAt154('upload', '--wait-minutes', '0'), androidAt153, '', androidRunning)
+    expect(result.status).toBe(1)
+    expect(result.stderr).toContain('The upload waited 0 minutes, so it stops without uploading.')
+    expect(result.summary).toContain('| Verdict | refused |')
+  })
+
+  it('allows the iOS upload once Android recorded the version from the same commit', () => {
+    const recorded: StubDeployments = { production: { android: [record('1.3.153'), record('1.3.154')], ios: [record('1.3.153', 'ios-release')] } }
+    const result = run(iosAt154('upload', '--wait-minutes', '45'), recorded, '', androidRunning)
+    expect(result.status).toBe(0)
+    expect(result.summary).toContain('| Verdict | allowed |')
+  })
+
+  it.each([['an unknown stage', ['--stage', 'later']], ['a wait above two hours', ['--wait-minutes', '121']], ['a wait that is not a number', ['--wait-minutes', 'ten']]])(
+    'refuses %s as an invalid argument', (_name, extra) => {
+      const result = run([...iosAt153('production'), ...extra], stagingBehind)
+      expect(result.status).toBe(2)
+    })
 
   it('allows the mismatch with a platform-only reason and records it in the summary', () => {
     const result = run(iosAt153('production'), { production: { android: [record('1.3.152')], ios: [] } }, 'iOS only crash')
@@ -476,7 +570,7 @@ describe('command line', () => {
 })
 
 describe('release workflows', () => {
-  interface Step { name?: string; run?: string; uses?: string; env?: Record<string, string> }
+  interface Step { name?: string; run?: string; uses?: string; if?: string; env?: Record<string, string> }
   interface Workflow {
     on: { workflow_dispatch: { inputs: Record<string, { required?: boolean; type: string; default?: string }> } }
     permissions: Record<string, string>
@@ -489,12 +583,12 @@ describe('release workflows', () => {
   const ahead = '1.3.160'
 
   /** Runs one workflow step in a directory that holds the script and a stub `gh`, with only the declared environment. */
-  function runStep(step: Step, deployments: StubDeployments, values: Record<string, string>, runner: Record<string, string> = {}) {
+  function runStep(step: Step, deployments: StubDeployments, values: Record<string, string>, runner: Record<string, string> = {}, runs: StubRun[] = []) {
     const directory = mkdtempSync(join(tmpdir(), 'orbit-release-step-'))
     try {
       mkdirSync(join(directory, 'apps/mobile/scripts'), { recursive: true })
       copyFileSync(script, join(directory, 'apps/mobile/scripts/mobile-version-pair.js'))
-      writeGitHubStub(directory, deployments)
+      writeGitHubStub(directory, deployments, runs)
       const result = spawnSync('/bin/bash', ['-c', step.run!], {
         cwd: directory, encoding: 'utf8',
         env: {
@@ -527,7 +621,35 @@ describe('release workflows', () => {
     const validate = steps.find((step) => step.name === 'Validate the release configuration')!.run!
     expect(validate).toContain('mobile-version-pair.js check --platform ios')
     expect(validate).toContain('--sha "$GITHUB_SHA"')
+    expect(validate).toContain('--stage build')
     expect(validate.indexOf('mobile-version-pair.js check')).toBeLessThan(validate.indexOf('set-app-version.js'))
+  })
+
+  it('uploads iOS only after the full check finds the Android record of this version and commit', () => {
+    const steps = ios.jobs.release!.steps
+    const wait = index(steps, (step) => step.name === 'Wait for the Android upload of this version')
+    const archive = index(steps, (step) => step.name === 'Archive the embedded app')
+    const upload = index(steps, (step) => step.name === 'Upload to TestFlight with the App Store Connect API key')
+    expect(archive).toBeLessThan(wait)
+    expect(wait).toBe(upload - 1)
+    const step = steps[wait]!
+    expect(step.if).toBeUndefined()
+    expect(step.run).toContain('mobile-version-pair.js check --platform ios')
+    expect(step.run).toContain('--sha "$GITHUB_SHA"')
+    expect(step.run).toContain('--stage upload --wait-minutes 45')
+  })
+
+  it.each([
+    ['refuses while Android has not recorded the version', [record('1.3.153')], 1, 'stops without uploading'],
+    ['allows once Android recorded the version', [record('1.3.153'), record('1.3.154')], 0, 'keeps both platforms on one version'],
+  ] as const)('runs the iOS upload gate: it %s', (_name, androidRecords, status, output) => {
+    const step = ios.jobs.release!.steps.find((candidate) => candidate.name === 'Wait for the Android upload of this version')!
+    const quick = { ...step, run: step.run!.replace('--wait-minutes 45', '--wait-minutes 0') }
+    const result = runStep(quick, { production: { android: [...androidRecords], ios: [record('1.3.153', 'ios-release')] } }, {
+      GH_TOKEN: 'test-token', APP_VERSION: '1.3.154', PLATFORM_ONLY_REASON: '',
+    }, { GITHUB_SHA: sha, ORBIT_APP_VARIANT: 'production' }, [androidRun('Android Release 1.3.154 (216) to open on main')])
+    expect(result.stdout + result.stderr).toContain(output)
+    expect(result.status).toBe(status)
   })
 
   it('defaults the iOS variant to production, the pair of the default Android open track', () => {
@@ -545,7 +667,7 @@ describe('release workflows', () => {
 
   it('gives write access to deployments only to the record job, and keeps the tester job independent of it', () => {
     expect(ios.permissions).toEqual({ contents: 'read' })
-    expect(ios.jobs.release!.permissions).toEqual({ contents: 'read', deployments: 'read' })
+    expect(ios.jobs.release!.permissions).toEqual({ contents: 'read', deployments: 'read', actions: 'read' })
     expect(ios.jobs['testflight-access']!.permissions).toBeUndefined()
     expect(ios.jobs['testflight-access']!.needs).toBe('release')
   })
