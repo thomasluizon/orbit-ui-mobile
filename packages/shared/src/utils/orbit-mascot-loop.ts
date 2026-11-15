@@ -14,6 +14,8 @@ interface LiveClaim {
 
 interface OpenOverlay {
   readonly overlay: symbol
+  /** The overlay this one opened inside, or `null` when it opened on the page. */
+  readonly parent: OrbitOverlay
 }
 
 const listeners = new Set<() => void>()
@@ -54,10 +56,13 @@ export function isOrbitMotionEnabled(): boolean {
 }
 
 /** An open overlay covers the view and pauses every Orbit outside it until the returned function runs. An overlay can
- *  close in any order. */
-export function pauseOrbitLoopForOverlay(overlay: symbol): () => void {
-  const entry: OpenOverlay = { overlay }
-  openOverlays.push(entry)
+ *  close in any order. React opens an inner overlay before the overlay around it when both open in one commit, so an
+ *  overlay goes under any open overlay inside it. */
+export function pauseOrbitLoopForOverlay(overlay: symbol, parent: OrbitOverlay = null): () => void {
+  const entry: OpenOverlay = { overlay, parent }
+  const inner = openOverlays.findIndex((open) => open.parent === overlay)
+  if (inner < 0) openOverlays.push(entry)
+  else openOverlays.splice(inner, 0, entry)
   notify()
   return () => {
     const index = openOverlays.indexOf(entry)

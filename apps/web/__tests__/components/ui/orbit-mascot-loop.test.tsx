@@ -175,6 +175,22 @@ describe('Orbit idle loop on web', () => {
     expect(loopsByState(container)).toEqual({ parado: 'still', feliz: 'running' })
   })
 
+  it('runs the Orbit in the inner overlay when an overlay and an overlay inside it open together', () => {
+    const view = (open: boolean) => <>
+      <OrbitMascot size={96} />
+      <OrbitOverlayLayer active={open}>
+        <OrbitMascot size={48} state="feliz" />
+        <OrbitOverlayLayer active={open}><OrbitMascot size={48} state="pensando" /></OrbitOverlayLayer>
+      </OrbitOverlayLayer>
+    </>
+    const { container, rerender, unmount } = render(view(false))
+    rerender(view(true))
+    expect(loopsByState(container)).toEqual({ parado: 'still', feliz: 'still', pensando: 'running' })
+    unmount()
+    const opened = render(view(true))
+    expect(loopsByState(opened.container)).toEqual({ parado: 'still', feliz: 'still', pensando: 'running' })
+  })
+
   it('runs one live Orbit per view and keeps a still Orbit inside a control', () => {
     const { container } = render(<><OrbitMascot size={96} /><OrbitMascot size={48} /><button type="button"><OrbitMascot size={48} still /></button></>)
     expect([loopOf(container, 0), loopOf(container, 1), loopOf(container, 2)]).toEqual(['running', 'still', 'still'])

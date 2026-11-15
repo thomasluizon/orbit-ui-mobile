@@ -248,6 +248,23 @@ describe('Orbit idle loop on Android', () => {
     tree.unmount()
   })
 
+  it('runs the Orbit in the inner overlay when an overlay and an overlay inside it open together', () => {
+    const view = (open: boolean) => <View>
+      <OrbitMascot size={96} />
+      <OrbitOverlayLayer active={open}>
+        <OrbitMascot size={48} state="feliz" />
+        <OrbitOverlayLayer active={open}><OrbitMascot size={48} state="pensando" /></OrbitOverlayLayer>
+      </OrbitOverlayLayer>
+    </View>
+    const tree = render(view(false))
+    TestRenderer.act(() => tree.update(view(true)))
+    expect(loopsByState(tree)).toEqual({ parado: 'still', feliz: 'still', pensando: 'running' })
+    tree.unmount()
+    const opened = render(view(true))
+    expect(loopsByState(opened)).toEqual({ parado: 'still', feliz: 'still', pensando: 'running' })
+    opened.unmount()
+  })
+
   it('runs the Orbit in the native dialog opened last when two dialogs sit side by side', () => {
     const page = (second: boolean) => (
       <OverlayHost>

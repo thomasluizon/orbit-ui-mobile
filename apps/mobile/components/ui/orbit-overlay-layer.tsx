@@ -13,7 +13,7 @@ export function useOrbitOverlay(): OrbitOverlay {
 export function OrbitOverlayLayer({ active = true, children }: Readonly<{ active?: boolean; children: ReactNode }>) {
   const parent = useOrbitOverlay()
   const [overlay] = useState(() => Symbol('orbit-overlay'))
-  useLayoutEffect(() => (active ? pauseOrbitLoopForOverlay(overlay) : undefined), [active, overlay])
+  useLayoutEffect(() => (active ? pauseOrbitLoopForOverlay(overlay, parent) : undefined), [active, overlay, parent])
   return <OrbitOverlayContext.Provider value={active ? overlay : parent}>{children}</OrbitOverlayContext.Provider>
 }
 
