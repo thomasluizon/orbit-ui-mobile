@@ -212,6 +212,38 @@ export const cases = async () => {
   T("wait-ci: settled result names failing checks", failingResult.status === 6 && JSON.parse(failingResult.stdout).pullRequests[0].failingChecks.includes("Lint"), failingResult.stderr)
 
   /**
+   * Ids, times and suites copied from the real check runs of api#1114 head b60479985: a pull request
+   * edit starts a second PR Text run, and its concurrency group cancels the first one. The response
+   * lists the newer check run first.
+   */
+  const cancelledRun = { ...completed("PR Text", "cancelled"), id: 132844171878, started_at: "2026-11-15T14:30:50Z", completed_at: "2026-11-15T14:30:51Z", check_suite: { id: 118379565597 } }
+  const newerRun = (fields = {}) => ({ ...completed("PR Text"), id: 132844178868, started_at: "2026-11-15T14:30:54Z", completed_at: "2026-11-15T14:31:02Z", check_suite: { id: 118379570345 }, ...fields })
+  const observeChecks = (label, rows, ...extra) => {
+    const sequenceFile = stage(`wait-ci/${label}-reads`, "")
+    const staged = fixture(label, [{ kind: "checks", sequenceFile, stdoutSequence: [checks([completed("Lint"), ...rows])] }])
+    const observed = run(TOOL, argumentsFor(...extra), { path: staged.path, env: staged.env })
+    return { status: observed.status, entry: JSON.parse(observed.stdout).pullRequests[0], reads: Number(readFileSync(sequenceFile, "utf8")), text: observed.stdout + observed.stderr }
+  }
+  const superseded = observeChecks("superseded", [newerRun(), cancelledRun])
+  T("wait-ci: a cancelled run that a newer passing run of the same check superseded settles green",
+    superseded.status === 0 && superseded.entry.settled && superseded.entry.failingChecks.length === 0, superseded.text)
+  const supersededPending = observeChecks("superseded-pending", [newerRun({ status: "queued", conclusion: null, completed_at: null }), cancelledRun], "--ceiling-minutes", "0.05")
+  T("wait-ci: a cancelled run that a newer pending run of the same check superseded is neither failing nor settled",
+    supersededPending.status === 3 && !supersededPending.entry.settled && supersededPending.entry.failingChecks.length === 0 && supersededPending.reads >= 2, supersededPending.text)
+  const sameSecond = observeChecks("superseded-same-second", [newerRun({ started_at: cancelledRun.started_at }), cancelledRun])
+  T("wait-ci: the higher check run id is the newer run when two runs of a check start in the same second",
+    sameSecond.status === 0 && sameSecond.entry.settled && sameSecond.entry.failingChecks.length === 0, sameSecond.text)
+  const loneCancelled = observeChecks("lone-cancelled", [cancelledRun])
+  T("wait-ci: a cancelled run that nothing superseded is failing",
+    loneCancelled.status === 6 && JSON.stringify(loneCancelled.entry.failingChecks) === '["PR Text"]', loneCancelled.text)
+  const newestCancelled = observeChecks("newest-cancelled", [newerRun({ conclusion: "cancelled" }), { ...cancelledRun, conclusion: "success" }])
+  T("wait-ci: a check whose newest run is cancelled is failing although an older run passed",
+    newestCancelled.status === 6 && JSON.stringify(newestCancelled.entry.failingChecks) === '["PR Text"]', newestCancelled.text)
+  const otherApp = observeChecks("cancelled-other-app", [newerRun(), { ...cancelledRun, app: { ...confirmed.check.app, id: 999 } }])
+  T("wait-ci: a newer run from another app never supersedes a cancelled run",
+    otherApp.status === 6 && JSON.stringify(otherApp.entry.failingChecks) === '["PR Text"]', otherApp.text)
+
+  /**
    * Shapes copied from the real check runs of ui#2419 head 25f27997b: a failed Unit Tests job skips
    * the SonarCloud Analysis job, so the SonarCloud app never posts the required SonarCloud Code Analysis check.
    */

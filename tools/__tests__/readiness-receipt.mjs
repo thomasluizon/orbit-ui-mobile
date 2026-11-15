@@ -93,6 +93,26 @@ export const cases = async () => {
   T(`${TOOL}: readiness CI rejects a missing required context`, readinessCiIsGreen([], [requiredUnitTests]) === false)
   const failedRerun = { ...greenRun, conclusion: "FAILURE", startedAt: "2026-08-07T11:00:00Z" }
   T(`${TOOL}: newest failed rerun invalidates same-SHA cached green CI`, readinessCiIsGreen([greenRun, failedRerun], [requiredUnitTests]) === false)
+  /**
+   * A cancelled run can share its start second with the run that superseded it, and GitHub lists the
+   * newer check run first. Ids and shape copied from the real rollup of api#1114 head b60479985.
+   */
+  const sameSecondRollup = (olderConclusion, newerConclusion) => rollupFromGraphQlNodes([
+    { __typename: "CheckRun", databaseId: 132844178868, name: "Unit Tests", status: "COMPLETED", conclusion: newerConclusion, startedAt: "2026-11-15T14:30:50Z", completedAt: "2026-11-15T14:31:02Z", checkSuite: { app: { databaseId: GITHUB_ACTIONS_APP } } },
+    { __typename: "CheckRun", databaseId: 132844171878, name: "Unit Tests", status: "COMPLETED", conclusion: olderConclusion, startedAt: "2026-11-15T14:30:50Z", completedAt: "2026-11-15T14:30:51Z", checkSuite: { app: { databaseId: GITHUB_ACTIONS_APP } } },
+  ])
+  T(`${TOOL}: the higher check run id is the newer run when two runs start in the same second, in either list order`,
+    readinessCiIsGreen(sameSecondRollup("CANCELLED", "SUCCESS"), [requiredUnitTests]) === true &&
+    readinessCiIsGreen(sameSecondRollup("CANCELLED", "SUCCESS").reverse(), [requiredUnitTests]) === true &&
+    readinessCiIsGreen(sameSecondRollup("SUCCESS", "CANCELLED"), [requiredUnitTests]) === false &&
+    reviewRequestGate(sameSecondRollup("CANCELLED", "SUCCESS"), [requiredUnitTests]).state === "PASSED")
+  T(`${TOOL}: a later start outranks a higher check run id`,
+    readinessCiIsGreen([{ ...sameSecondRollup("CANCELLED", "SUCCESS")[1], startedAt: "2026-11-15T14:30:51Z" }, sameSecondRollup("CANCELLED", "SUCCESS")[0]], [requiredUnitTests]) === false)
+  const fingerprintState = { headRefOid: "a".repeat(40), currentBaseSha: "b".repeat(40), baseRefName: "main" }
+  const withoutRunId = sameSecondRollup("CANCELLED", "SUCCESS").map(({ databaseId, ...node }) => node).slice(0, 1)
+  T(`${TOOL}: the check run id stays out of the registration fingerprint, so a recorded fingerprint still matches`,
+    registrationFingerprint(fingerprintState, newestChecks(sameSecondRollup("CANCELLED", "SUCCESS"))) === registrationFingerprint(fingerprintState, newestChecks(withoutRunId)))
+  T(`${TOOL}: the pull request state query reads the check run id`, /on CheckRun \{\s+databaseId\s/.test(pullRequestStateArgv("owner/repo", 716).at(-1)))
   /** The old context-only list carried no producer. It must not be readable as a required check. */
   T(`${TOOL}: a bare context-string list is refused rather than read as a required check`, readinessCiIsGreen([greenRun], ["Unit Tests"]) === false)
 

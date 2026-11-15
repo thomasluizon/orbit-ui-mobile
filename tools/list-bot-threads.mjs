@@ -172,7 +172,7 @@ const QUERY = `query($owner:String!,$repo:String!,$pr:Int!,$threadsAfter:String)
       commits(last:1){nodes{commit{oid}}}
       reviews(last:50){nodes{id author{login} state submittedAt body commit{oid}}}
       comments(last:100){nodes{createdAt url body author{login}}}
-      statusCheckRollup{contexts(first:100){nodes{__typename ... on CheckRun{name status conclusion startedAt completedAt checkSuite{app{databaseId}}} ... on StatusContext{context state createdAt}}}}
+      statusCheckRollup{contexts(first:100){nodes{__typename ... on CheckRun{databaseId name status conclusion startedAt completedAt checkSuite{app{databaseId}}} ... on StatusContext{context state createdAt}}}}
       reviewThreads(first:100,after:$threadsAfter){
         pageInfo{hasNextPage endCursor}
         nodes{

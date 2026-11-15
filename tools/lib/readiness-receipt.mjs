@@ -61,6 +61,7 @@ const PULL_REQUEST_STATE_QUERY = `query PullRequestState($owner: String!, $name:
           nodes {
             __typename
             ... on CheckRun {
+              databaseId
               name
               status
               conclusion
@@ -99,6 +100,7 @@ const normalizeRollupNode = (node) => {
       detailsUrl: node.detailsUrl ?? null,
       workflowName: node.checkSuite?.workflowRun?.workflow?.name ?? null,
       appId: node.checkSuite?.app?.databaseId ?? null,
+      databaseId: node.databaseId ?? null,
     }
   }
   if (node?.__typename === "StatusContext") {
@@ -317,6 +319,14 @@ export const reviewChecksFor = (requiredChecks) =>
 const requiredChecksAreValid = (required) =>
   Array.isArray(required) && required.every((entry) => typeof entry?.context === "string" && entry.context !== "" && (entry.appId === null || Number.isInteger(entry.appId)))
 
+// Two runs of a check can start in the same second, and GitHub lists the newer one first, so the higher check run id is the newer run there.
+const supersedes = (node, previous) => {
+  const started = startedAtOf(node)
+  const previousStarted = startedAtOf(previous)
+  if (started !== previousStarted) return started > previousStarted
+  return !Number.isInteger(node.databaseId) || !Number.isInteger(previous.databaseId) || node.databaseId > previous.databaseId
+}
+
 /**
  * Newest rerun wins, per PRODUCER. A rerun carries the same context and the same app, so it
  * replaces its own earlier entry, which is what the GitHub UI shows and the only reading under
@@ -331,14 +341,15 @@ export const newestChecks = (rollup) => {
     if (context === null) return null
     const key = JSON.stringify([context, node.appId ?? null])
     const previous = newest.get(key)
-    if (!previous || startedAtOf(node) >= startedAtOf(previous)) newest.set(key, node)
+    if (!previous || supersedes(node, previous)) newest.set(key, node)
   }
   return newest
 }
 
+// The check run id only orders two runs. It stays out of the fingerprint, so a recorded fingerprint still matches.
 export const registrationFingerprint = (state, newestByCheck) => JSON.stringify([
   state.headRefOid, state.currentBaseSha, state.baseRefName,
-  [...newestByCheck].sort(([left], [right]) => left.localeCompare(right)),
+  [...newestByCheck].map(([key, { databaseId, ...node }]) => [key, node]).sort(([left], [right]) => left.localeCompare(right)),
 ])
 
 export const findRegisteredCheck = (newest, required) => {
