@@ -295,17 +295,26 @@ const remoteHolds = (commit, repoRoot) => {
   return result.status === 0 && result.stdout.trim() === "0"
 }
 
+/** True when the path is still on the recorded branch and its HEAD contains the recorded last commit. */
+const holdsRecordedWork = (entry, work) => {
+  if (!entry.branch || entry.branch === "(detached)" || work.branch !== entry.branch) return false
+  if (!entry.lastCommit) return true
+  return /^[0-9a-f]{40,64}$/.test(entry.lastCommit) && git(entry.worktree, ["merge-base", "--is-ancestor", entry.lastCommit, "HEAD"]).status === 0
+}
+
 /**
- * An entry of an earlier session names work to recover. That work is carried when the worktree holds no uncommitted
- * change and no unpushed commit. A removed worktree loses its uncommitted changes, but its commits stay on the branch
- * in the repository, so its entry leaves only when the record counted no unpushed commit or a remote now holds the
- * last commit. An unknown or unreadable worktree proves neither, so its entry stays.
+ * An entry of an earlier session leaves when a clean path with nothing unpushed still holds its branch and last commit.
+ * A removed worktree keeps its commits on the branch, and a path that holds other work (a reused path, a switch, a
+ * shared checkout) proves nothing about that branch: either leaves only when the record counted no unpushed commit or a
+ * remote holds the last commit. A dirty, unknown or unreadable path keeps it: a switch carries uncommitted changes.
  */
 const workIsSettled = (entry, repoRoot) => {
   if (typeof entry.worktree !== "string" || !entry.worktree) return false
-  if (!existsSync(entry.worktree)) return entry.unpushedCommits === 0 || remoteHolds(entry.lastCommit, repoRoot)
+  const recordedCommitsAreSafe = () => entry.unpushedCommits === 0 || remoteHolds(entry.lastCommit, repoRoot)
+  if (!existsSync(entry.worktree)) return recordedCommitsAreSafe()
   const work = readWorkState(entry.worktree)
-  return work.uncommittedChanges === 0 && work.unpushedCommits === 0
+  if (work.uncommittedChanges !== 0 || work.unpushedCommits !== 0) return false
+  return holdsRecordedWork(entry, work) || recordedCommitsAreSafe()
 }
 const entryKey = (entry) => JSON.stringify([entry.sessionId, entry.id])
 

@@ -264,27 +264,50 @@ const inheritedCases = () => {
   }
   const removedUnpushed = removed("removed-unpushed", () => {})
   const removedPushedLater = removed("removed-pushed-later", pushed)
+  // The path still exists but holds other work: a new worktree at the same path, a detached switch, or a shared checkout on another branch.
+  const moved = (name, afterCommit, move) => {
+    const path = worktree(name, (directory) => repo.git(["commit", "-q", "--allow-empty", "-m", `${name} work`], directory))
+    const lastCommit = repo.git(["rev-parse", "HEAD"], path).stdout.trim()
+    afterCommit(path)
+    move(path)
+    return { path, lastCommit }
+  }
+  const reusePath = (path) => { repo.git(["worktree", "remove", "--force", path]); repo.git(["worktree", "add", "-q", "-b", "fix/next-ticket", path, "origin/main"]) }
+  const switchAway = (path) => repo.git(["switch", "-q", "--detach", "origin/main"], path)
+  const reusedPath = moved("reused-path", () => {}, reusePath)
+  const switchedAway = moved("switched", () => {}, switchAway)
+  const switchedPushedLater = moved("switched-pushed-later", pushed, switchAway)
   const entry = (id, path, recorded = {}) => ({ id, type: "subagent", sessionId: "predecessor", worktree: path, branch: `fix/${id}`, lastCommit: null, lastProgressAt: "2026-01-05T10:00:00.000Z", stuckAt: "2026-01-05T10:30:00.000Z", ...recorded })
+  // The carried entry records its real last commit, so the path must still hold it for the live read to count.
+  const recordedOf = { gone: { uncommittedChanges: 2, unpushedCommits: 0 }, carried: { lastCommit: repo.git(["rev-parse", "HEAD"], worktrees.carried).stdout.trim() } }
   const inherited = [
-    ...Object.entries(worktrees).map(([id, path]) => entry(id, path, id === "gone" ? { uncommittedChanges: 2, unpushedCommits: 0 } : {})),
+    ...Object.entries(worktrees).map(([id, path]) => entry(id, path, recordedOf[id])),
     entry("unknown", null),
     entry("removed-unpushed", removedUnpushed.path, { lastCommit: removedUnpushed.lastCommit, uncommittedChanges: 0, unpushedCommits: 1 }),
     entry("removed-pushed-later", removedPushedLater.path, { lastCommit: removedPushedLater.lastCommit, uncommittedChanges: 0, unpushedCommits: 1 }),
+    ...[["reused-path", reusedPath], ["switched", switchedAway], ["switched-pushed-later", switchedPushedLater]].map(([id, { path, lastCommit }]) => entry(id, path, { lastCommit, uncommittedChanges: 0, unpushedCommits: 1 })),
   ]
   writeRunState({ sessionId: "successor", sleep: true, remaining: [], stuckBackgroundRuns: inherited }, repoRoot)
   T("background-inherited: the fixture holds a gone worktree and a clean pushed worktree", !existsSync(worktrees.gone) && repo.git(["status", "--porcelain"], worktrees.carried).stdout === "" &&
     repo.git(["rev-list", "--count", "@{upstream}..HEAD"], worktrees.carried).stdout.trim() === "0")
   T("background-inherited: the fixture removed two worktrees, and the branch of one still holds a commit that no remote holds",
     !existsSync(removedUnpushed.path) && !existsSync(removedPushedLater.path) && repo.git(["rev-list", "--count", "fix/removed-unpushed", "--not", "--remotes"]).stdout.trim() === "1")
+  T("background-inherited: the fixture moved three paths off their branches, and two of those branches still hold a commit that no remote holds",
+    [reusedPath, switchedAway, switchedPushedLater].every(({ path }) => existsSync(path) && repo.git(["status", "--porcelain"], path).stdout === "") &&
+    repo.git(["branch", "--show-current"], reusedPath.path).stdout.trim() === "fix/next-ticket" && repo.git(["branch", "--show-current"], switchedAway.path).stdout.trim() === "" &&
+    ["fix/reused-path", "fix/switched"].every((branch) => repo.git(["rev-list", "--count", branch, "--not", "--remotes"]).stdout.trim() === "1"))
   const drain = readDrainBlockers("successor", repoRoot, Date.parse("2026-01-05T12:00:00.000Z"))
   const kept = (readRunState(repoRoot).stuckBackgroundRuns ?? []).map((run) => run.id)
   T("background-inherited: an entry whose worktree no longer exists and whose record counted no unpushed commit leaves", !kept.includes("gone"), JSON.stringify(kept))
   T("background-inherited: an entry whose worktree is clean and holds nothing unpushed leaves, because its work is carried", !kept.includes("carried"), JSON.stringify(kept))
   T("background-inherited: an entry whose removed worktree left its commit on the branch stays", kept.includes("removed-unpushed"), JSON.stringify(kept))
   T("background-inherited: an entry whose removed worktree left a commit that a remote now holds leaves", !kept.includes("removed-pushed-later"), JSON.stringify(kept))
+  T("background-inherited: an entry whose path now holds a new worktree on another branch stays while its branch holds a commit that no remote holds", kept.includes("reused-path"), JSON.stringify(kept))
+  T("background-inherited: an entry whose path switched to a detached HEAD stays while its branch holds a commit that no remote holds", kept.includes("switched"), JSON.stringify(kept))
+  T("background-inherited: an entry whose path switched away after a remote took its last commit leaves", !kept.includes("switched-pushed-later"), JSON.stringify(kept))
   T("background-inherited: every other entry stays: uncommitted changes, an unpushed commit, an unreadable worktree, an unknown worktree",
-    kept.join() === "uncommitted,unpushed,unreadable,unknown,removed-unpushed", JSON.stringify(kept))
+    kept.join() === "uncommitted,unpushed,unreadable,unknown,removed-unpushed,reused-path,switched", JSON.stringify(kept))
   T("background-inherited: the kept entries are unchanged", JSON.stringify(readRunState(repoRoot).stuckBackgroundRuns) === JSON.stringify(inherited.filter((run) => kept.includes(run.id))))
   T("background-inherited: the drain of the successor waits on none of them", drain.waiting.length === 0 && drain.stuck.length === 0, JSON.stringify(drain))
-  T("background-inherited: a run state of another session is not changed", readDrainBlockers("other", repoRoot).stuck.length === 0 && readRunState(repoRoot).stuckBackgroundRuns.length === 5)
+  T("background-inherited: a run state of another session is not changed", readDrainBlockers("other", repoRoot).stuck.length === 0 && readRunState(repoRoot).stuckBackgroundRuns.length === 7)
 }
