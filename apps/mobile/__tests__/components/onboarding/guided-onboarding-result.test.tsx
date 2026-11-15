@@ -1,4 +1,5 @@
 import React from 'react'
+import { StyleSheet } from 'react-native'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
@@ -52,6 +53,7 @@ describe.each([{ language: 'pt-BR', copy: ptBR }, { language: 'en', copy: en }] 
     const current = await mount({ habitId: 'habit-1' })
     const panel = hosts(current, 'onboarding-result-error')[0]!
     expect(panel.props.accessibilityLabel).toBe(copy.onboarding.flow.done.readFailed)
+    expect(StyleSheet.flatten(panel.props.style)).toMatchObject({ gap: 24 })
     expect(panel.findAll((node) => typeof node.type === 'string' && node.props.testID === 'orbit-mascot')[0]!.props['data-orbit-state' as never]).toBe('parado')
     expect(current.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityRole === 'alert').map((node) => node.props.accessibilityLabel)).toEqual([copy.onboarding.flow.done.readFailed])
     expect(hosts(current, 'result-dialog')).toHaveLength(0)

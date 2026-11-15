@@ -45,7 +45,7 @@ function OnboardingResultReadError({ retrying, onRetry, onClose }: Readonly<{ re
   const message = t('onboarding.flow.done.readFailed')
   return (
     <ResultDialogFrame label={message} onClose={onClose}>
-      <div data-onboarding-result-error="" data-orbit-state="parado" className="flex flex-col items-center px-6 pb-6 pt-2 text-center">
+      <div data-onboarding-result-error="" data-orbit-state="parado" className="flex flex-col items-center gap-6 px-6 pb-6 pt-2 text-center">
         <span aria-hidden="true"><OrbitMascot size={128} state="parado" /></span>
         <ErrorState message={message} action={
           <IconButton label={t('common.retry')} loading={retrying} onClick={onRetry}><RefreshCw size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton>
