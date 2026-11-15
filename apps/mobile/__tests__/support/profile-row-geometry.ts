@@ -18,7 +18,8 @@ function textWidth(label: string, style: TextStyle, scale: number): number {
   if (cached !== undefined) return cached
   const mono = style.fontFamily?.startsWith('GeistMono_')
   const family = mono ? 'Geist Mono' : 'Geist'
-  const file = mono ? require.resolve('@expo-google-fonts/geist-mono/400Regular/GeistMono_400Regular.ttf') : require.resolve('@expo-google-fonts/geist/400Regular/Geist_400Regular.ttf')
+  const file = mono ? require.resolve('@expo-google-fonts/geist-mono/400Regular/GeistMono_400Regular.ttf')
+    : style.fontFamily === 'Geist_500Medium' ? require.resolve('@expo-google-fonts/geist/500Medium/Geist_500Medium.ttf') : require.resolve('@expo-google-fonts/geist/400Regular/Geist_400Regular.ttf')
   const escaped = label.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="4000" height="100"><text y="60" font-family="${family}" font-size="${size}" letter-spacing="${Number(style.letterSpacing ?? 0) * scale}">${escaped}</text></svg>`
   const bounds = new Resvg(svg, { font: { fontFiles: [file], loadSystemFonts: false } }).getBBox()
@@ -96,7 +97,7 @@ function applyStyle(node: YogaNode, style: ViewStyle) {
     ['paddingRight', Yoga.EDGE_RIGHT],
   ] as const) {
     const padding = style[property]
-    if (typeof padding === 'number') node.setPadding(edge, padding)
+    if (typeof padding === 'number' || (typeof padding === 'string' && /^\d+(\.\d+)?%$/.test(padding))) node.setPadding(edge, padding as number | `${number}%`)
   }
   for (const [property, edge] of [
     ['margin', Yoga.EDGE_ALL], ['marginHorizontal', Yoga.EDGE_HORIZONTAL],
@@ -107,6 +108,15 @@ function applyStyle(node: YogaNode, style: ViewStyle) {
     const margin = style[property]
     if (typeof margin === 'number') node.setMargin(edge, margin)
   }
+}
+
+/** The child paths of a control's content. The press-scale face fills the target and holds its padding, so the content is what the face lays out. */
+function contentPaths(rows: HostRow[], path: number[]): number[][] {
+  return rows.flatMap((child, index) => {
+    if (child.props['data-slot'] === 'list-row-fill') return []
+    if (child.props['data-slot'] === 'press-scale') return contentPaths((child.children ?? []).filter((inner): inner is HostRow => typeof inner !== 'string'), [...path, index])
+    return [[...path, index]]
+  })
 }
 
 function position(node: YogaNode): { left: number; top: number; right: number; bottom: number; width: number; height: number } {
@@ -129,7 +139,7 @@ export function measureProfileRow(host: HostRow, width: number, scale: number, s
   const boxes: { node: YogaNode; testID: string }[] = []
   const parts: { node: YogaNode; slot: string; style: ViewStyle }[] = []
   const texts: { node: YogaNode; label: string; style: TextStyle; limit: number | undefined; textPixels: (size: number) => number }[] = []
-  const controls: { node: YogaNode; labels: string[]; accessibilityLabel?: string; contentIndexes: number[]; hitWidth: number; hitHeight: number }[] = []
+  const controls: { node: YogaNode; labels: string[]; accessibilityLabel?: string; contentPaths: number[][]; hitWidth: number; hitHeight: number }[] = []
   function labelsOf(host: HostRow): string[] {
     return (host.children ?? []).flatMap((child) => typeof child === 'string' ? [child] : labelsOf(child))
   }
@@ -143,8 +153,7 @@ export function measureProfileRow(host: HostRow, width: number, scale: number, s
     if (host.props['data-slot']) parts.push({ node, slot: host.props['data-slot'], style })
     if (host.type === 'Pressable') {
       const children = (host.children ?? []).filter((child): child is HostRow => typeof child !== 'string')
-      const contentIndexes = children.flatMap((child, index) => child.props['data-slot'] === 'list-row-fill' ? [] : [index])
-      controls.push({ node, labels: labelsOf(host), accessibilityLabel: host.props.accessibilityLabel, contentIndexes, ...hitExtension(host.props) })
+      controls.push({ node, labels: labelsOf(host), accessibilityLabel: host.props.accessibilityLabel, contentPaths: contentPaths(children, []), ...hitExtension(host.props) })
     }
     if (host.type === 'Text') {
       const label = labelsOf(host).join('')
@@ -168,10 +177,12 @@ export function measureProfileRow(host: HostRow, width: number, scale: number, s
   const layout = layoutHost(Array.isArray(host) ? { type: 'View', props: {}, children: host } : host)
   try {
     layout.calculateLayout(width, 'auto', Yoga.DIRECTION_LTR)
-    return { height: layout.getComputedHeight(), boxes: boxes.map(({ node, testID }) => ({ testID, ...position(node) })), parts: parts.map(({ node, slot, style }) => ({ slot, style, ...position(node) })), controls: controls.map(({ node, labels, accessibilityLabel, contentIndexes, hitWidth, hitHeight }) => {
+    return { height: layout.getComputedHeight(), boxes: boxes.map(({ node, testID }) => ({ testID, ...position(node) })), parts: parts.map(({ node, slot, style }) => ({ slot, style, ...position(node) })), controls: controls.map(({ node, labels, accessibilityLabel, contentPaths, hitWidth, hitHeight }) => {
       const bounds = position(node)
-      const content = contentIndexes.map((index) => position(node.getChild(index)))
-      return { labels, accessibilityLabel, ...bounds, targetWidth: bounds.width + hitWidth, targetHeight: bounds.height + hitHeight, inlineClearance: Math.min(Math.min(...content.map((child) => child.left)) - bounds.left, bounds.right - Math.max(...content.map((child) => child.right))) }
+      const content = contentPaths.map((path) => position(path.reduce((parent, index) => parent.getChild(index), node)))
+      const startClearance = Math.min(...content.map((child) => child.left)) - bounds.left
+      const endClearance = bounds.right - Math.max(...content.map((child) => child.right))
+      return { labels, accessibilityLabel, ...bounds, targetWidth: bounds.width + hitWidth, targetHeight: bounds.height + hitHeight, startClearance, endClearance, inlineClearance: Math.min(startClearance, endClearance) }
     }), texts: texts.map(({ node, label, style, limit, textPixels }) => {
       const lines = wrappedLines(label, node.getComputedWidth(), style, textPixels(Number(style.fontSize ?? 17)) / Number(style.fontSize ?? 17))
       return { label, ...position(node), lines: Math.min(lines, limit ?? lines), clipped: limit !== undefined && lines > limit, lineHeightRatio: Number(style.lineHeight ?? Number(style.fontSize ?? 17) * 1.4) / Number(style.fontSize) }

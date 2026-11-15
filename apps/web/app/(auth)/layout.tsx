@@ -6,6 +6,7 @@ import { useAuthStore } from '@/stores/auth-store'
 import { useOnboardingDraftHydrated, useOnboardingDraftStore } from '@/stores/onboarding-draft-store'
 import { UpdateAvailableBanner } from '@/components/ui/update-available-banner'
 import { AppToastHost } from '@/components/ui/app-toast-host'
+import { AuthPageFrame } from '@/components/auth/auth-page-frame'
 import { DesktopAuthBridge } from '@/components/auth/desktop-auth-bridge'
 import { DesktopReleaseBoundary } from '@/components/desktop-release-boundary'
 
@@ -32,11 +33,10 @@ export default function AuthLayout({ children }: Readonly<{ children: React.Reac
   if (!hydrated || showOnboarding) return null
   return <DesktopReleaseBoundary monitor signIn>
     <DesktopAuthBridge />
-    <main data-desktop-reload-safe="" className="flex min-h-dvh w-full flex-col items-center justify-center bg-[var(--bg)] text-[var(--fg-1)]"
-      style={{ paddingTop: 'var(--safe-top)', paddingBottom: 'var(--safe-bottom)', paddingLeft: 'var(--safe-left)', paddingRight: 'var(--safe-right)' }}>
+    <AuthPageFrame>
       {children}
       <AppToastHost placement="page" />
-    </main>
+    </AuthPageFrame>
     <div className="fixed inset-x-0 top-[var(--safe-top)] pl-[var(--safe-left)] pr-[var(--safe-right)] z-sticky text-[var(--fg-1)]">
       <UpdateAvailableBanner />
     </div>
