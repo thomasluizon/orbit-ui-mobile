@@ -5,7 +5,7 @@ import type { HabitPhraseToken } from '@orbit/shared/utils'
 import { ONBOARDING_STARTERS } from '@orbit/shared/utils'
 import { Chip } from '@/components/ui/chip'
 import { Input } from '@/components/ui/input'
-import { OrbitMascot } from '@/components/ui/orbit-mascot'
+import { OrbitMascot, useStateMascotSize } from '@/components/ui/orbit-mascot'
 
 interface OnboardingWelcomeProps {
   sentence: string
@@ -15,10 +15,11 @@ interface OnboardingWelcomeProps {
 
 export function OnboardingWelcome({ sentence, marks, onChange }: Readonly<OnboardingWelcomeProps>) {
   const t = useTranslations('onboarding.flow')
+  const mascotSize = useStateMascotSize()
   return (
     <section className="flex flex-col gap-6">
       <div className="flex flex-col gap-2">
-        <OrbitMascot size={96} />
+        <OrbitMascot size={mascotSize} />
         <h1 id="onboarding-title" className="m-0 text-pretty font-display text-[28px] font-medium leading-[1.15] tracking-[-0.02em] text-[var(--fg-1)] lg:text-[34px] lg:leading-[1.12]">{t('what.title')}</h1>
       </div>
       <Input labelIcon={<OrbitMascot size={16} color="var(--fg-1)" />} label={t('what.label')} value={sentence} onChange={onChange} placeholder={t('what.placeholder')} maxLength={100} multiline rows={3} marks={marks} marksLabel={t('what.marksLabel')} autoFocus />

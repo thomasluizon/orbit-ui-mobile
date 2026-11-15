@@ -5,7 +5,7 @@ import { RefreshCw } from '@/components/ui/icons'
 import { ShellCentredRegion } from '@/components/shell/shell-centred-region'
 import type { NotificationItem } from '@orbit/shared/types/notification'
 import { useTranslations } from 'next-intl'
-import { OrbitMascot } from '@/components/ui/orbit-mascot'
+import { OrbitMascot, useStateMascotSize } from '@/components/ui/orbit-mascot'
 import { Skeleton } from '@/components/ui/skeleton'
 import { NotificationRow } from './notification-row'
 
@@ -21,6 +21,7 @@ export function NotificationList({ items, isLoading, isError, onRetry, onOpen, o
   onDelete: (item: NotificationItem) => void
 }>) {
   const t = useTranslations()
+  const mascotSize = useStateMascotSize()
   return (
     <ul tabIndex={-1} aria-label={t('notifications.title')} aria-busy={isLoading}
       className="orbit-content-frame m-0 flex flex-1 list-none flex-col gap-2 py-4">
@@ -40,7 +41,7 @@ export function NotificationList({ items, isLoading, isError, onRetry, onOpen, o
               <p className="text-sm text-[var(--fg-3)]">{t('notifications.loadError')}</p>
               <IconButton label={t('common.retry')} onClick={onRetry}><RefreshCw size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton>
             </> : <>
-              <OrbitMascot size={96} />
+              <OrbitMascot size={mascotSize} />
               <p className="text-sm text-[var(--fg-3)]">{t('notifications.empty')}</p>
             </>}
           </div></ShellCentredRegion></li>
