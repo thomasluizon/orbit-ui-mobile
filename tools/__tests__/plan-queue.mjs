@@ -86,7 +86,7 @@ export const readTickets = async (numbers) => {
   })
 }
 export const listMilestones = async () => JSON.parse(process.env.ORBIT_MILESTONE_STUB || "[]")
-export const listTickets = async ({ milestone = null } = {}) => tickets
+export const listOpenTickets = async ({ milestone = null } = {}) => tickets
   .filter((ticket) => ticket.state === "OPEN" && (milestone === null || ticket.milestone === milestone))
   .map((ticket) => structuredClone(ticket))
 `,
