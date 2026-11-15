@@ -57,12 +57,10 @@ describe('RescheduleSheet', () => {
     if (state === 'error') {
       const action = screen.getByRole('button', { name: primary })
       expect(action).toHaveTextContent(primary)
-      const face = action.querySelector('[data-asset="orbit-mascot"]')!
-      expect(face).toHaveAttribute('color', 'var(--fg-1)')
-      expect([...face.querySelectorAll('[fill="var(--primary)"]')].map((part) => part.getAttribute('data-part'))).toEqual(['moon'])
+      expect(action.querySelector('[data-asset="orbit-mascot"]')).toBeNull()
     }
     expect(Array.from(actions.querySelectorAll('button')).map((button) => button.getAttribute('data-size'))).toEqual(['sm', 'sm'])
-    expect(Array.from(actions.querySelectorAll('button')).map((button) => button.getAttribute('data-variant'))).toEqual(['ghost', state === 'error' ? 'ghost' : 'primary'])
+    expect(Array.from(actions.querySelectorAll('button')).map((button) => button.getAttribute('data-variant'))).toEqual(['ghost', 'primary'])
   })
   it.each(['free', 'error', 'accept'] as const)('dismisses the %s footer without applying or navigating', (state) => {
     if (state === 'free') h.profile = { hasProAccess: false, language: 'en' }

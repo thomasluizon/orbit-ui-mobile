@@ -15,6 +15,7 @@ import { OfflineRefusal } from '@/components/ui/offline-refusal'
 import { HABIT_FREQUENCY_FILTER_OPTIONS } from '@orbit/shared/utils/habit-frequency-filter'
 import type { HabitFrequencyFilter } from '@orbit/shared/stores'
 import { useUIStore } from '@/stores/ui-store'
+import { useIsWideDesktop } from '@/hooks/use-is-desktop'
 
 const SECONDARY_ACTION_STYLE = {
   fontFamily: 'var(--font-sans)',
@@ -55,6 +56,7 @@ export function HabitListEmptyState({
 }: Readonly<HabitListEmptyStateProps>) {
   const t = useTranslations()
   const mascotSize = useStateMascotSize()
+  const wide = useIsWideDesktop()
   const isAstraPrompt = variant === 'primary'
   const hasDistinctDescription =
     Boolean(description) && description !== title
@@ -109,8 +111,7 @@ export function HabitListEmptyState({
           )}
           {showAstraAction && askAstraLabel && (
             <PillButton
-              variant="ghost"
-              leadingIcon={<OrbitMascot size={16} />}
+              variant={wide ? 'secondary' : 'primary'}
             onClick={onAskAstra}
 
             >

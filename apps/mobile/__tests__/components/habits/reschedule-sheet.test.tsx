@@ -8,7 +8,6 @@ import { sheetTestControls } from '@/__tests__/support/sheet-double'
 import { sheetSlotButtons } from '@/__tests__/support/sheet-slots'
 import { __setWindowDimensions } from '../../../test-mocks/react-native'
 import { pressableStyle } from '@/__tests__/support/press-feedback'
-import { createTokensV2 } from '@/lib/theme'
 
 const TestRenderer = require('react-test-renderer')
 
@@ -91,7 +90,7 @@ describe('RescheduleSheet (mobile)', () => {
     const actions = tree.root.findAll((node) => node.type === 'SheetActions')[0]!
     expect(actions).toBeDefined()
     expect(actions.findAll((node) => node.type === 'View' && node.props.testID === 'action-row')).toHaveLength(1)
-    expect(actions.findAll((node) => node.type === 'Pressable' && typeof node.props.testID === 'string').map((node) => node.props.testID)).toEqual(['button-ghost-sm', state === 'error' ? 'button-ghost-sm' : 'button-primary-sm'])
+    expect(actions.findAll((node) => node.type === 'Pressable' && typeof node.props.testID === 'string').map((node) => node.props.testID)).toEqual(['button-ghost-sm', 'button-primary-sm'])
     const terminalAction = state === 'free' ? 'upgrade' : state === 'error' ? 'askDate' : 'accept'
     expect(sheetSlotButtons(tree.root, 'SheetActions')).toEqual(['habits.reschedule.dismiss', terminalAction === 'askDate' ? 'habits.reschedule.suggestDate' : `habits.reschedule.${terminalAction}`])
     expect(sheetSlotButtons(tree.root, 'SheetBody')).toEqual([])
@@ -99,8 +98,7 @@ describe('RescheduleSheet (mobile)', () => {
       const action = tree.root.findAll(node => node.type === 'Pressable' && node.findAll(child => child.type === 'Text' && child.props.children === 'habits.reschedule.suggestDate').length > 0)[0]!
       expect(action.findAll(node => node.type === 'Text').map(node => node.props.children)).toEqual(['habits.reschedule.suggestDate'])
       expect(pressableStyle(action, false).width).toBeUndefined()
-      const face = action.findAll(node => typeof node.type === 'string' && node.props.testID === 'orbit-mascot')[0]!
-      expect(face.props.color).toBe(createTokensV2('orange', 'dark').fg1)
+      expect(action.findAll(node => typeof node.type === 'string' && node.props.testID === 'orbit-mascot')).toHaveLength(0)
     }
   })
   it.each(['free', 'error'] as const)('dismisses the %s footer without applying or navigating', (state) => {

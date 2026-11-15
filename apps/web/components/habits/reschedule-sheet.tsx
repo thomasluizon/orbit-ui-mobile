@@ -106,7 +106,7 @@ export function RescheduleSheet({ open, onOpenChange, habit }: Readonly<Reschedu
           <PillButton variant="ghost" size="sm" onClick={() => closeSheet()}>
             {t('habits.reschedule.dismiss')}
           </PillButton>
-          <PillButton leadingIcon={<OrbitMascot size={16} />} variant="ghost" size="sm" onClick={() => void refetch()}>
+          <PillButton variant={filledVariant} size="sm" onClick={() => void refetch()}>
             {t('habits.reschedule.suggestDate')}
           </PillButton>
         </>
