@@ -9,7 +9,7 @@ import { graphqlBudgetDecision } from "./lib/github-rate-limit.mjs"
 import { currentRunIdentifier, recordObservedIdentifiers } from "./lib/identifier-ledger.mjs"
 import { runBounded } from "./lib/bounded-process.mjs"
 import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
-import { REVIEW_APP_ID, headActivityArgv, headActivityBoundary, headReplacement } from "./lib/readiness-receipt.mjs"
+import { REVIEW_APP_ID, headActivityArgv, headActivityBoundary, headReplacement, newestChecks } from "./lib/readiness-receipt.mjs"
 import { acquireRelayLock, gitDirectoryOf } from "./lib/run-state.mjs"
 
 const BOT_LOGIN = "pullfrog"
@@ -185,7 +185,7 @@ const QUERY = `query($owner:String!,$repo:String!,$pr:Int!,$threadsAfter:String)
       commits(last:1){nodes{commit{oid}}}
       reviews(last:50){nodes{id author{login} state submittedAt body commit{oid}}}
       comments(last:100){nodes{createdAt url body author{login}}}
-      statusCheckRollup{contexts(first:100){nodes{__typename ... on CheckRun{name status conclusion startedAt completedAt checkSuite{app{databaseId}}}}}}
+      statusCheckRollup{contexts(first:100){nodes{__typename ... on CheckRun{databaseId name status conclusion startedAt completedAt checkSuite{app{databaseId}}}}}}
       reviewThreads(first:100,after:$threadsAfter){
         pageInfo{hasNextPage endCursor}
         nodes{
@@ -385,10 +385,10 @@ const isProgressMarker = (payload, review) =>
 const latestReviewOf = (payload) => currentHeadReviews(payload).at(-1)
 const progressMarkersOf = (payload) => currentHeadReviews(payload).filter((review) => COMPLETED_REVIEW_STATES.has(review.state) && isProgressMarker(payload, review)).length
 
-const approvalCheckOf = (payload) => (payload.statusCheckRollup?.contexts?.nodes ?? [])
+// The shared newest-run rule: two approval runs that start in the same second resolve to the higher check run id.
+const approvalCheckOf = (payload) => [...newestChecks((payload.statusCheckRollup?.contexts?.nodes ?? [])
   .filter((check) => check?.__typename === "CheckRun" && check.name === "pullfrog-approval" && check.checkSuite?.app?.databaseId === REVIEW_APP_ID)
-  .sort((left, right) => Date.parse(left.startedAt ?? "") - Date.parse(right.startedAt ?? ""))
-  .at(-1) ?? null
+  .map((check) => ({ ...check, appId: REVIEW_APP_ID }))).values()][0] ?? null
 
 /**
  * A missing or unparseable submittedAt sorts BELOW every real timestamp, so a review whose age
