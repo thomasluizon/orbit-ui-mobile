@@ -7,6 +7,7 @@ import { fileURLToPath } from "node:url"
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..")
 const SELF = fileURLToPath(import.meta.url)
+const ALLOWLIST = "tools/timeless-allowlist.json"
 const USAGE = "usage: check-timeless.mjs --all | --base <ref> | --staged | --hook"
 const machine = new RegExp([
   "/" + "Users/", "[A-Za-z]:\\\\+Users", "/private/" + "tmp", "/private/" + "var", "/var/" + "folders",
@@ -204,7 +205,7 @@ function findings(path, content, root = ROOT) {
 }
 
 function changedPaths(args) {
-  const parts = git(["diff", "--no-renames", "--name-status", "-z", "--diff-filter=ACMT", ...args]).split("\0")
+  const parts = git(["diff", "--no-renames", "--name-status", "-z", ...args]).split("\0")
   const paths = []
   for (let index = 0; index + 1 < parts.length; index += 2) {
     if (parts[index]) paths.push({ status: parts[index], path: parts[index + 1] })
@@ -247,7 +248,7 @@ function newFindings(path, before, after, root = ROOT) {
 }
 
 function allowlist(root) {
-  const path = join(root, "tools", "timeless-allowlist.json")
+  const path = join(root, ALLOWLIST)
   const entries = existsSync(path) ? JSON.parse(readFileSync(path, "utf8")) : []
   if (!Array.isArray(entries) || entries.some((entry) =>
     !entry || typeof entry.path !== "string" || !entry.path || typeof entry.reason !== "string" || !entry.reason ||
@@ -262,18 +263,37 @@ function allowlist(root) {
   return entries
 }
 
-function report(results, allowed, checkUnused) {
-  const used = new Set(), failures = []
-  for (const item of results) {
-    const index = allowed.findIndex((entry) => entry.rule === item.rule && (entry.scope === "directory"
-      ? item.path.startsWith(entry.path) && !(entry.exclude ?? []).some((prefix) => item.path.startsWith(prefix))
-      : entry.path === item.path && item.match.includes(entry.match)))
-    if (index < 0) failures.push(`${item.path}:${item.line}: ${item.rule}: ${item.match}`)
-    else used.add(index)
+function covers(entry, path) {
+  return entry.scope === "directory"
+    ? path.startsWith(entry.path) && !(entry.exclude ?? []).some((prefix) => path.startsWith(prefix))
+    : entry.path === path
+}
+
+function allowedIndex(allowed, item) {
+  return allowed.findIndex((entry) => entry.rule === item.rule && covers(entry, item.path) &&
+    (entry.scope === "directory" || item.match.includes(entry.match)))
+}
+
+function report(results, allowed, checked, usage = results) {
+  const failures = results.filter((item) => allowedIndex(allowed, item) < 0)
+    .map((item) => `${item.path}:${item.line}: ${item.rule}: ${item.match}`)
+  const used = new Set(usage.map((item) => allowedIndex(allowed, item)))
+  for (const index of checked) {
+    const entry = allowed[index]
+    if (!used.has(index)) failures.push(`unused allowlist: ${entry.path} ${entry.rule} ${entry.match}`)
   }
-  if (checkUnused) allowed.forEach((entry, index) => { if (!used.has(index)) failures.push(`unused allowlist: ${entry.path} ${entry.rule} ${entry.match}`) })
   failures.forEach((failure) => console.error(failure))
   return failures.length ? 1 : 0
+}
+
+/** A change that deletes or edits a covered file can leave an entry unused, so recheck only the entries whose scope the change touches. */
+function changedEntryUsage(allowed, touched, tracked, read) {
+  const checked = [...allowed.keys()].filter((index) =>
+    touched.includes(ALLOWLIST) || touched.some((path) => covers(allowed[index], path)))
+  if (!checked.length) return { checked, usage: [] }
+  const usage = tracked().filter((path) => checked.some((index) => covers(allowed[index], path)))
+    .flatMap((path) => findings(path, read(path)))
+  return { checked, usage }
 }
 
 function hook() {
@@ -314,7 +334,7 @@ function hook() {
   const edits = isWrite ? [{ old_string: current, new_string: input.content }] : pairs(input)
   const proposed = isWrite ? input.content
     : edits.reduce((body, edit) => edit.replace_all ? body.split(String(edit.old_string ?? "")).join(String(edit.new_string ?? "")) : body.replace(String(edit.old_string ?? ""), () => String(edit.new_string ?? "")), current)
-  return report(newFindings(path, current, proposed, root), allowlist(root), false) ? 2 : 0
+  return report(newFindings(path, current, proposed, root), allowlist(root), []) ? 2 : 0
 }
 
 try {
@@ -324,27 +344,33 @@ try {
   if (!((args.length === 1 && ["--all", "--staged"].includes(args[0])) || (args.length === 2 && args[0] === "--base"))) {
     console.error(USAGE); process.exit(2)
   }
-  let selected, oldRef
-  if (args[0] === "--all") selected = null
+  let changes, oldRef
+  if (args[0] === "--all") changes = null
   else if (args[0] === "--staged") {
     oldRef = "HEAD"
-    selected = changedPaths(["--cached"])
+    changes = changedPaths(["--cached"])
   }
   else {
     oldRef = git(["merge-base", args[1], "HEAD"]).trim()
-    selected = changedPaths([oldRef, "HEAD"])
+    changes = changedPaths([oldRef, "HEAD"])
   }
+  const selected = changes?.filter(({ status }) => "ACMT".includes(status))
+  const read = (path) => args[0] === "--staged" ? git(["show", `:${path}`]) : git(["show", `HEAD:${path}`])
   const paths = selected ?? git(["ls-files", "-z"]).split("\0").filter(Boolean).map((path) => ({ path }))
   const results = []
   for (const { path, status } of paths) {
     const absolute = join(ROOT, path)
     if (!selected && !existsSync(absolute)) continue
-    const content = !selected ? readFileSync(absolute, "utf8")
-      : args[0] === "--staged" ? git(["show", `:${path}`]) : git(["show", `HEAD:${path}`])
+    const content = selected ? read(path) : readFileSync(absolute, "utf8")
     const before = selected && status !== "A" ? git(["show", `${oldRef}:${path}`]) : ""
     results.push(...(selected ? newFindings(path, before, content) : findings(path, content)))
   }
-  process.exit(report(results, allowlist(ROOT), !selected))
+  const allowed = allowlist(ROOT)
+  if (!changes) process.exit(report(results, allowed, allowed.keys()))
+  const tracked = () => (args[0] === "--staged" ? git(["ls-files", "-z"]) : git(["ls-tree", "-r", "-z", "--name-only", "HEAD"]))
+    .split("\0").filter(Boolean)
+  const { checked, usage } = changedEntryUsage(allowed, changes.map(({ path }) => path), tracked, read)
+  process.exit(report(results, allowed, checked, usage))
 } catch (error) {
   console.error(error.message)
   process.exit(2)
