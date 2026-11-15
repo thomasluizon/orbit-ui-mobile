@@ -184,6 +184,20 @@ describe('Stripe webhook settlement window', () => {
     expect(location.search).toBe('?keep=1')
   })
 
+  it('keeps settling a trial person until the paid plan replaces the trial, so the trial access alone confirms nothing', async () => {
+    const trial = createMockProfile({ plan: 'pro', hasProAccess: true, isTrialActive: true })
+    const { fetch, wrapper } = mount()
+    fetch.mockResolvedValueOnce(trial).mockResolvedValueOnce(pro)
+    const { result } = renderHook(() => useStripeCheckoutReturn({ toastOnSuccess: false }), { wrapper })
+    await advanceSettlement()
+    expect(result.current).toMatchObject({ hasReturnError: false, isSettling: true, purchaseConfirmed: false })
+    expect(location.search).toBe('?subscription=success&keep=1')
+    await advanceSettlement(1000)
+    expect(fetch).toHaveBeenCalledTimes(2)
+    expect(result.current).toMatchObject({ hasReturnError: false, isSettling: false, purchaseConfirmed: true })
+    expect(location.search).toBe('?keep=1')
+  })
+
   it('never confirms a purchase that the read does not report', async () => {
     const { fetch, wrapper } = mount()
     fetch.mockResolvedValue(free)

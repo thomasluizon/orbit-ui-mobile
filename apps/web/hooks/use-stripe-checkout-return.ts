@@ -15,7 +15,8 @@ import { useAppToast } from '@/hooks/use-app-toast'
 const SETTLEMENT_BACKOFF_MS = [1000, 2000, 4000, 8000]
 
 /**
- * Settles a return from Stripe checkout. `purchaseConfirmed` turns true only after the profile read reports Pro.
+ * Settles a return from Stripe checkout. `purchaseConfirmed` turns true only after the profile read reports a paid Pro plan.
+ * A trial already has Pro access, so the read of a trial person settles only when the trial gives way to the plan.
  * With `toastOnSuccess` off, the caller owns the feedback, such as the result dialog of the upgrade route.
  */
 export function useStripeCheckoutReturn({ toastOnSuccess = true }: { toastOnSuccess?: boolean } = {}) {
@@ -44,7 +45,7 @@ export function useStripeCheckoutReturn({ toastOnSuccess = true }: { toastOnSucc
         queryClient.invalidateQueries({ queryKey: subscriptionKeys.all }, { throwOnError: true }),
       ])
       if (!isCurrentAccount()) return
-      if (!profile.hasProAccess) {
+      if (!profile.hasProAccess || profile.isTrialActive) {
         const delay = SETTLEMENT_BACKOFF_MS[attempt]
         if (delay === undefined) handleFailure()
         else retryTimer = setTimeout(() => { void settle(attempt + 1).catch(handleFailure) }, delay)
