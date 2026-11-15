@@ -128,11 +128,14 @@ const linkHops = (link) => {
   return hops
 }
 
-/** Where the top-level links of one scratchpad point. The relay carry links build directories and never copies them. */
+/**
+ * Where the top-level links of one scratchpad point; null when it exists and cannot be read. The relay carry links build
+ * directories and never copies them.
+ */
 const scratchpadLinks = (session) => {
   const scratchpad = join(session.path, "scratchpad")
   let names
-  try { names = readdirSync(scratchpad) } catch { return [] }
+  try { names = readdirSync(scratchpad) } catch (error) { return error.code === "ENOENT" || error.code === "ENOTDIR" ? [] : null }
   return names.flatMap((name) => linkHops(join(scratchpad, name)).map((target) => ({ sessionId: session.name, target })))
 }
 
@@ -245,6 +248,7 @@ const nestedWorktreeHold = (worktree, probes) => {
 const holdOf = (path, evidence, probes) => {
   const link = evidence.links.find((entry) => within(entry.target, path))
   if (link) return `the scratchpad of session ${link.sessionId.slice(0, 8)} links into it`
+  if (evidence.linksUnread) return evidence.linksUnread
   // A worktree git could not list is invisible here, and it can be the tree of an open pull request.
   if (evidence.unlistedRepositories.length > 0) return `the worktrees of ${evidence.unlistedRepositories.join(", ")} could not be listed`
   for (const worktree of evidence.worktrees.filter((candidate) => within(candidate.path, path))) {
@@ -254,13 +258,35 @@ const holdOf = (path, evidence, probes) => {
   return null
 }
 
-/** Each session directory with the reason a session still owns it; null when no session does. */
-const readSessions = (evidence) => {
-  if (evidence.sessionRoot === null) return []
+/** Each session directory under `sessionRoot` with the reason a session still owns it (null when none does); null when the root cannot be read. */
+const readSessions = (sessionRoot, evidence) => {
   let names
-  try { names = readdirSync(evidence.sessionRoot).filter((name) => SESSION_ID.test(name)) } catch { return [] }
-  return names.map((name) => ({ name, path: join(evidence.sessionRoot, name) })).filter((session) => lstatSync(session.path).isDirectory())
+  try { names = readdirSync(sessionRoot).filter((name) => SESSION_ID.test(name)) } catch { return null }
+  return names.map((name) => ({ name, path: join(sessionRoot, name) })).filter((session) => lstatSync(session.path).isDirectory())
     .map((session) => ({ ...session, owner: evidence.protectedSessions.get(session.name) ?? useOf(session.path, evidence, session.name) }))
+}
+
+/**
+ * The session directories of every other project root beside the listing's own one: Claude Code keeps
+ * `<session base>/<project>/<session id>/scratchpad`, and the run session or a live session can work in another project,
+ * such as the primary checkout of a linked worktree. Null when the session base or one of its roots cannot be read.
+ */
+const readOtherSessions = (evidence) => {
+  if (evidence.sessionRoot === null) return null
+  const base = dirname(evidence.sessionRoot)
+  let roots
+  try { roots = readdirSync(base).map((name) => join(base, name)).filter((root) => root !== evidence.sessionRoot && lstatSync(root).isDirectory()) } catch { return null }
+  const sessions = roots.map((root) => readSessions(root, evidence))
+  return sessions.includes(null) ? null : sessions.flat()
+}
+
+/** Why a worktree in the session directory of another project root stays: that session stays, or it cannot be told. */
+const otherSessionHoldOf = (path, evidence) => {
+  if (evidence.otherSessions === null) {
+    return path.split(sep).some((part) => SESSION_ID.test(part)) ? "it is in a session directory, and the session directories of the other project roots could not be read" : null
+  }
+  const session = evidence.otherSessions.find((candidate) => within(path, candidate.path))
+  return session?.owner ? `it is in the directory of session ${session.name.slice(0, 8)}, which stays: ${session.owner}` : null
 }
 
 const classifySessions = (sessions, evidence, probes) => sessions.map((session) => {
@@ -334,7 +360,7 @@ const classifyWorktrees = (evidence, probes, deadline) => evidence.worktrees
   .filter((worktree) => !(evidence.sessionRoot && within(worktree.path, evidence.sessionRoot)) && !within(worktree.path, evidence.carryRoot))
   .map((worktree) => {
     const keep = (worktree.branch === null ? "its HEAD is detached, so no branch proves its work merged" : null)
-      ?? (worktree.locked ? "it is locked" : null) ?? useOf(worktree.path, evidence)
+      ?? (worktree.locked ? "it is locked" : null) ?? useOf(worktree.path, evidence) ?? otherSessionHoldOf(worktree.path, evidence)
       ?? (probes.git(worktree.path, ["status", "--porcelain"]) === "" ? null : "it holds an uncommitted change")
       ?? (Date.now() > deadline ? "the listing reached its time limit before this check" : null)
     const verdict = keep === null ? judgeBranch(worktree, probes) : { stale: false, reason: keep }
@@ -351,10 +377,13 @@ export const listingIdOf = (stale) => createHash("sha256").update(stale.map((ite
 export const collectListing = (context, { probes = systemProbes, knownSizes = new Map(), measure = true, now = Date.now() } = {}) => {
   const deadline = now + LISTING_CEILING_MS
   const gathered = gatherEvidence(context, probes)
-  const sessions = readSessions(gathered)
-  // A session that stays still reads what its scratchpad links to, in an older session directory or in a carry copy.
-  const evidence = { ...gathered, links: sessions.filter((session) => session.owner !== null).flatMap(scratchpadLinks) }
-  const items = [...classifySessions(sessions, evidence, probes), ...classifyCarryCopies(evidence, probes), ...classifyWorktrees(evidence, probes, deadline)]
+  const sessions = gathered.sessionRoot === null ? null : readSessions(gathered.sessionRoot, gathered)
+  const otherSessions = readOtherSessions(gathered)
+  // A session that stays still reads what its scratchpad links to, in an older session directory or in a carry copy, in any project root.
+  const links = [...(sessions ?? []), ...(otherSessions ?? [])].filter((session) => session.owner !== null).map(scratchpadLinks)
+  const evidence = { ...gathered, otherSessions, links: links.filter((targets) => targets !== null).flat(),
+    linksUnread: sessions === null || otherSessions === null || links.includes(null) ? "the scratchpads of the sessions that stay could not be read, and one of them can link into it" : null }
+  const items = [...classifySessions(sessions ?? [], evidence, probes), ...classifyCarryCopies(evidence, probes), ...classifyWorktrees(evidence, probes, deadline)]
   const stale = items.filter((item) => item.stale).map(({ stale: _stale, ...item }) => ({ ...item,
     bytes: knownSizes.get(item.path) ?? (measure && Date.now() <= deadline ? probes.measure(item.path) : null) }))
   const kept = items.filter((item) => !item.stale).map(({ kind, path, reason }) => ({ kind, path, reason }))

@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, symlinkSync, utimesSync, writeFileSync } from "node:fs"
+import { chmodSync, existsSync, mkdirSync, readFileSync, symlinkSync, utimesSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 
 import {
@@ -20,6 +20,7 @@ const HOLDS_WORK = "99999999-0000-4000-8000-000000000009"
 const STALE = "aaaaaaaa-0000-4000-8000-00000000000a"
 const OTHER = "cccccccc-0000-4000-8000-00000000000c"
 const LIVE_CARRY = "0f0f0f0f-0000-4000-8000-00000000000f"
+const LIVE_ELSEWHERE = "dddddddd-0000-4000-8000-00000000000d"
 const SESSIONS = [THIS, CHAIN_PREDECESSOR, RUN_PREDECESSOR, SUCCESSOR, LIVE_RECORD, LIVE_DIRECTORY, LIVE_COMMAND, LINKED, CHAINED, HOLDS_WORK, STALE]
 
 /** One checkout with a run state and a chain ledger, one session root and one carry root, all under the suite root. */
@@ -126,6 +127,47 @@ const carryCases = () => {
   same("stale-files: other entries of the carry root are never items", [...listing.stale, ...listing.kept].filter((item) => item.kind === "carry").length, 6)
 }
 
+/** Claude Code keeps `<session base>/<project>/<session id>/scratchpad`: the run session and a live session can sit in another project's root. */
+const rootCases = () => {
+  const machine = stageMachine("roots")
+  const listingRoot = join(machine.base, "linked-project")
+  const otherRoot = join(machine.base, "other-project")
+  for (const session of [OTHER, STALE, CHAINED]) mkdirSync(join(listingRoot, session, "scratchpad"), { recursive: true })
+  mkdirSync(join(otherRoot, LIVE_ELSEWHERE, "scratchpad"), { recursive: true })
+  for (const [name, age] of [["durable-0a0a0a0a", 30], ["durable-0d0d0d0d", 20], ["durable-0e0e0e0e", 10]]) {
+    mkdirSync(join(machine.carryRoot, name, "kept-build"), { recursive: true })
+    utimesSync(join(machine.carryRoot, name), new Date(Date.now() - age * 3_600_000), new Date(Date.now() - age * 3_600_000))
+  }
+  const linkedCopy = join(machine.carryRoot, "durable-0a0a0a0a")
+  // The run session's scratchpad, in the primary checkout's project root, links into a copy that is not one of the newest two.
+  symlinkSync(join(linkedCopy, "kept-build"), join(machine.sessionRoot, THIS, "scratchpad", "kept-build"), "dir")
+  // A live session in a third project links into an old session directory of the listing's own root.
+  mkdirSync(join(listingRoot, STALE, "scratchpad", "build"))
+  symlinkSync(join(listingRoot, STALE, "scratchpad", "build"), join(otherRoot, LIVE_ELSEWHERE, "scratchpad", "build"), "dir")
+  // The run session keeps a finished worktree in its scratchpad, and no process works in it at the moment of the listing.
+  const runWorktree = join(machine.sessionRoot, THIS, "scratchpad", "wt")
+  mkdirSync(runWorktree)
+  const probes = { ...quietProbes, liveSessions: liveRecords(OTHER, LIVE_ELSEWHERE),
+    git: (cwd, args) => (args[0] === "worktree" ? `worktree ${machine.checkout}\nHEAD 1\nbranch refs/heads/main\n\nworktree ${runWorktree}\nHEAD 2\nbranch refs/heads/done\n` : "") }
+  const context = { ...machine.context, sessionId: OTHER, sessionRoot: listingRoot, repositories: { ui: machine.checkout } }
+  const listing = collectListing(context, { probes })
+  T("stale-files: a durable copy that the run session's scratchpad in another project root links into is kept", /scratchpad of session 00000000 links into it/.test(reasonOf(listing, linkedCopy) ?? ""), `reason: ${reasonOf(listing, linkedCopy)}`)
+  T("stale-files: a session directory that a live session in another project root links into is kept", /scratchpad of session dddddddd links into it/.test(reasonOf(listing, join(listingRoot, STALE)) ?? ""), `reason: ${reasonOf(listing, join(listingRoot, STALE))}`)
+  same("stale-files: from a linked project root, only the session directory that nothing reads is stale", stalePaths(listing, "session"), [join(listingRoot, CHAINED)])
+  T("stale-files: a worktree in the directory of the run session in another project root is kept", /directory of session 00000000, which stays: the run session/.test(reasonOf(listing, runWorktree) ?? ""), `reason: ${reasonOf(listing, runWorktree)}`)
+  // A scratchpad that exists and cannot be read can link anywhere. The superuser reads it anyway, so the case needs another user.
+  if (process.getuid?.() !== 0) {
+    const runScratchpad = join(machine.sessionRoot, THIS, "scratchpad")
+    chmodSync(runScratchpad, 0o000)
+    let sealed
+    try { sealed = collectListing(context, { probes }) } finally { chmodSync(runScratchpad, 0o755) }
+    T("stale-files: an unreadable scratchpad of a session that stays keeps every durable copy older than the newest two", /scratchpads .* could not be read/.test(reasonOf(sealed, linkedCopy) ?? ""), `reason: ${reasonOf(sealed, linkedCopy)}`)
+  }
+  const rootless = collectListing({ ...context, sessionRoot: null }, { probes })
+  T("stale-files: with no session root, a durable copy older than the newest two is kept", /scratchpads .* could not be read/.test(reasonOf(rootless, linkedCopy) ?? ""), `reason: ${reasonOf(rootless, linkedCopy)}`)
+  T("stale-files: with no session root, a worktree inside a session directory is kept", /in a session directory, .* could not be read/.test(reasonOf(rootless, runWorktree) ?? ""), `reason: ${reasonOf(rootless, runWorktree)}`)
+}
+
 /** The real session record reader: the records Claude Code writes, judged as the run state judges them. */
 const recordCases = () => {
   const machine = stageMachine("records")
@@ -211,6 +253,7 @@ const reportCases = () => {
 export const cases = () => {
   sessionCases()
   carryCases()
+  rootCases()
   recordCases()
   removalCases()
   reportCases()
