@@ -5,6 +5,7 @@ import Yoga, { type Node as YogaNode } from 'yoga-layout'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { I18nextProvider } from 'react-i18next'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
+import { enableTestFlags, resetTestFlags } from '@orbit/shared/test-support/flag-state'
 import { contrastOnSurface } from '@orbit/shared/__tests__/contrast'
 import type { HabitsFilter, NormalizedHabit } from '@orbit/shared/types/habit'
 import { createPaginatedSchema, habitScheduleItemSchema } from '@orbit/shared/types/habit'
@@ -22,7 +23,7 @@ import { i18n } from '@/lib/i18n'
 
 vi.unmock('react-i18next')
 vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true)
-const mocks = vi.hoisted(() => ({ timeZone: 'UTC', theme: 'dark', query: vi.fn(), showError: vi.fn(), pending: false, push: vi.fn(), back: vi.fn(), log: vi.fn(), skip: vi.fn(), retry: vi.fn() }))
+const mocks = vi.hoisted(() => ({ timeZone: 'UTC', theme: 'dark', online: true, query: vi.fn(), showError: vi.fn(), pending: false, push: vi.fn(), back: vi.fn(), log: vi.fn(), skip: vi.fn(), retry: vi.fn() }))
 vi.mock('@/lib/use-app-theme', async (importOriginal) => {
   const original = await importOriginal<typeof import('@/lib/use-app-theme')>()
   return { useAppTheme: () => ({ ...original.useAppTheme(), currentTheme: mocks.theme }) }
@@ -31,6 +32,7 @@ vi.mock('expo-router', () => ({ useRouter: () => ({ push: mocks.push, back: mock
 vi.mock('@/hooks/use-habit-queries', () => ({ useSearchHabits: (filters: HabitsFilter) => mocks.query(filters) }))
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: { timeZone: mocks.timeZone } }) }))
 vi.mock('@/hooks/use-app-toast', () => ({ useAppToast: () => ({ showError: mocks.showError }) }))
+vi.mock('@/hooks/use-offline', () => ({ useOffline: () => ({ isOnline: mocks.online }) }))
 vi.mock('@/hooks/use-habits', () => ({ useLogHabit: () => ({ mutate: mocks.log, isPending: mocks.pending }), useSkipHabit: () => ({ mutate: mocks.skip, isPending: mocks.pending }) }))
 
 vi.mock('@/hooks/use-habit-logging', () => {
@@ -187,9 +189,23 @@ beforeEach(() => {
 afterEach(async () => {
   await TestRenderer.act(() => tree.update(<></>))
   vi.useRealTimers()
+  mocks.online = true
+  resetTestFlags()
 })
 
 describe('mobile search', () => {
+  it.each([false, true])('opens the create flow offline with no refusal, because Android saves a new habit offline (guided flows on: %s)', async (guided) => {
+    if (guided) enableTestFlags('orbit_guided_flows')
+    mocks.online = false
+    mocks.query.mockReturnValue(result([]))
+    await mount()
+    await type('yoga')
+    await pressLabel(en.habits.search.create)
+    expect(mocks.push).toHaveBeenCalledWith('/habits/new?title=yoga&from=%2Fsearch')
+    expect(text()).not.toContain(en.offline.create.title)
+    expect(text()).not.toContain(en.offline.create.reason)
+  })
+
   it.each(['en', 'pt-BR'])('keeps logged bad tasks findable as slips outside completed results in %s', async (locale) => {
     const messages = locale === 'en' ? en : ptBR
     mocks.query.mockReturnValue(result([
