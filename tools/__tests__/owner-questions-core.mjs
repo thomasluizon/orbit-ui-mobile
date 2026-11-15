@@ -1,5 +1,5 @@
 import { spawnSync } from "node:child_process"
-import { writeFileSync } from "node:fs"
+import { readFileSync, readlinkSync, writeFileSync } from "node:fs"
 import { dirname, join } from "node:path"
 import { T, stage, stageRepo } from "./_harness.mjs"
 import { ownerQuestionCandidates, questionFilterGaps, recordQuestionFilter } from "../lib/owner-questions.mjs"
@@ -22,16 +22,34 @@ export const stageQuestionChain = (label, relays, questionsOf) => {
 /** The pid of a process that already exited, so a session record that names it proves no live session. */
 export const exitedPid = () => spawnSync(process.execPath, ["-e", ""]).pid
 
-/** The start time that Claude Code writes as `procStart`: BSD `ps` lstart in UTC. Null off macOS or for a pid that exited. */
-const darwinProcStart = (pid) => {
-  if (process.platform !== "darwin") return null
-  const listed = spawnSync("ps", ["-o", "lstart=", "-p", String(pid)], { encoding: "utf8", env: { ...process.env, LC_ALL: "C", TZ: "UTC0" } })
-  return listed.status === 0 && listed.stdout.trim() ? listed.stdout.trim() : null
+/** Claude Code writes an empty part when it cannot read one, so the fixture spells an unreadable part the same way. */
+const readOrEmpty = (read) => {
+  try { return read() } catch { return "" }
 }
 
 /**
+ * `pidDomain` and `procStart` for `pid` as the Claude Code 2.1.325 session writer spells them. On macOS: "darwin", and
+ * `LC_ALL=C TZ=UTC ps -o lstart= -p <pid>` trimmed. On Linux: `linux:<machine-id>:<link of /proc/self/ns/pid>`, and
+ * field 22 of /proc/<pid>/stat. Empty on another platform, or once the pid exited, because the writer then omits `procStart`.
+ */
+export const claudeProcessFields = (pid) => {
+  if (process.platform === "darwin") {
+    const listed = spawnSync("ps", ["-o", "lstart=", "-p", String(pid)], { encoding: "utf8", env: { ...process.env, LC_ALL: "C", TZ: "UTC" } })
+    return listed.status === 0 && listed.stdout.trim() ? { pidDomain: "darwin", procStart: listed.stdout.trim() } : {}
+  }
+  if (process.platform !== "linux") return {}
+  const stat = readOrEmpty(() => readFileSync(`/proc/${pid}/stat`, "utf8"))
+  if (!stat) return {}
+  const pidDomain = `linux:${readOrEmpty(() => readFileSync("/etc/machine-id", "utf8").trim())}:${readOrEmpty(() => readlinkSync("/proc/self/ns/pid"))}`
+  return { pidDomain, procStart: stat.slice(stat.lastIndexOf(")") + 2).split(" ")[19] }
+}
+
+/** A crashed session's record whose pid a later process reuses: this platform's record for `pid`, with a start no live process has. */
+export const reusedPidRecord = (pid) => ({ ...claudeProcessFields(pid), pid, procStart: process.platform === "darwin" ? "Thu Jan  1 00:00:00 2026" : "1" })
+
+/**
  * A Claude config directory whose `sessions/` holds one record per entry of `sessions`: a pid, or the record fields.
- * On macOS a record also carries `pidDomain` and `procStart` as Claude Code writes them, unless the entry sets its own.
+ * A record also carries `pidDomain` and `procStart` as Claude Code writes them, unless the entry sets its own.
  * An undefined entry writes no record.
  */
 export const stageClaudeSessions = (label, sessions) => {
@@ -39,8 +57,7 @@ export const stageClaudeSessions = (label, sessions) => {
   for (const [sessionId, entry] of Object.entries(sessions)) {
     if (entry === undefined) continue
     const fields = typeof entry === "number" ? { pid: entry } : entry
-    const procStart = darwinProcStart(fields.pid)
-    writeFileSync(join(directory, `${sessionId}.json`), JSON.stringify({ ...(procStart ? { pidDomain: "darwin", procStart } : {}), ...fields, sessionId }))
+    writeFileSync(join(directory, `${sessionId}.json`), JSON.stringify({ ...claudeProcessFields(fields.pid), ...fields, sessionId }))
   }
   return dirname(directory)
 }

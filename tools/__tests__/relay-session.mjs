@@ -8,7 +8,7 @@ import { ownerQuestionCandidates, questionFilterGaps, recordQuestionFilter } fro
 import { processStartIdentity, readRunState, readWakeSourceStates, registerWakeSource, updateRunState, writeRunState } from "../lib/run-state.mjs"
 import { readHandoffRequest, recordHandoffRequest } from "../lib/handoff-prompt.mjs"
 import { T, realOrchestratorConfig, stageRepo, stageWithConfig, toolPath } from "./_harness.mjs"
-import { ANSWERABLE, PRODUCT, exitedPid, stageClaudeSessions } from "./owner-questions-core.mjs"
+import { ANSWERABLE, PRODUCT, exitedPid, reusedPidRecord, stageClaudeSessions } from "./owner-questions-core.mjs"
 import { checkRelayStop } from "../../.claude/hooks/_lib/rules-relay.mjs"
 
 const usage = JSON.parse(readFileSync(new URL("./fixtures/session-usage.json", import.meta.url), "utf8"))
@@ -335,7 +335,7 @@ const ownerHandoffCases = () => {
     T(`relay-session: --close-chain beside another session's ${label} repeats that refusal and binds no carry for the owner`, refused.status === 1 &&
       refused.stderr === `RELAY_FAILED: ${nextSteps[label]}\n` && readRunState(beside.checkout).ownerHandoff?.from !== "owner", refused.stderr)
   }
-  const reusedPid = { pid: process.pid, pidDomain: "darwin", procStart: "Thu Jan  1 00:00:00 2026" }
+  const reusedPid = reusedPidRecord(process.pid)
   for (const [label, sessions] of [["has no session record", {}], ["has a session record of a process that exited", { unattended: exitedPid() }],
     ["has a session record whose pid a later process reuses", { unattended: reusedPid }]]) {
     const gone = ownerCheckout(() => ({ sessionId: "unattended", sleep: true }), stageClaudeSessions(`relay-owner-gone-${label.replace(/\W+/g, "-")}`, { owner: process.pid, ...sessions }))

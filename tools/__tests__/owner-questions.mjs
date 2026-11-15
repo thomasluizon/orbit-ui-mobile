@@ -2,7 +2,7 @@ import { spawnSync } from "node:child_process"
 import { cpSync } from "node:fs"
 import { join } from "node:path"
 import { T, toolPath } from "./_harness.mjs"
-import { ANSWERABLE, PRODUCT, exitedPid, stageClaudeSessions, stageQuestionChain } from "./owner-questions-core.mjs"
+import { ANSWERABLE, PRODUCT, exitedPid, reusedPidRecord, stageClaudeSessions, stageQuestionChain } from "./owner-questions-core.mjs"
 import { readRunState, writeRunState } from "../lib/run-state.mjs"
 
 export const cases = async () => {
@@ -42,7 +42,7 @@ const foreignRunCases = () => {
     const listed = invoke("--list")
     return { checkout, claudeDirectory, invoke, listed, rows: listed.status === 0 ? JSON.parse(listed.stdout) : [] }
   }
-  const reusedPid = { pid: process.pid, pidDomain: "darwin", procStart: "Thu Jan  1 00:00:00 2026" }
+  const reusedPid = reusedPidRecord(process.pid)
   for (const [label, run, sessions] of [
     ["a stopped run of another session", { sessionId: "finished", sleep: false, openOwnerQuestions: [queued] }, {}],
     ["an unattended run of another session whose process is gone", { sessionId: "finished", sleep: true, openOwnerQuestions: [queued] }, { finished: exitedPid() }],
