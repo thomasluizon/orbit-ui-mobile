@@ -137,7 +137,9 @@ function SidebarAstraRow({ row, open, conversationId, collapsed }: Readonly<{
             ].join(' ')}
           >
             <OrbitMascot size={20} />
-            <span translate="no" className={collapsed ? 'sr-only' : 'min-w-0 truncate'}>{row.label}</span>
+            <span className={collapsed ? 'sr-only' : 'min-w-0 truncate'}>
+              {row.label.split(/(Orbit)/).map((part, index) => part === 'Orbit' ? <span key={index} translate="no">{part}</span> : part)}
+            </span>
           </button>
 }
 

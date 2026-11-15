@@ -55,7 +55,7 @@ for (const width of [1280, 1352]) {
     test('renders no Astra button and opens Astra from the sidebar row', async ({ page }) => {
       await openHoje(page)
       await expect(page.locator('[data-astra-button]')).toHaveCount(0)
-      await page.locator('[data-shell-sidebar]').getByRole('button', { name: en.nav.astra, exact: true }).click()
+      await page.locator('[data-shell-sidebar]').getByRole('button', { name: en.shell.astraButton.open, exact: true }).click()
       await expect(page.locator(conversation)).toBeVisible()
     })
   })

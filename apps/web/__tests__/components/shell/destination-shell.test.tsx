@@ -977,7 +977,7 @@ describe('DestinationShell', () => {
     expect(screen.queryByText('One unread')).not.toBeInTheDocument()
   })
 
-  it('replaces the Hoje composer with one Astra button in the compact shell', () => {
+  it('replaces the Hoje composer with one conversation entry in the compact shell', () => {
     mocks.wide = false
     render(<DestinationShell onCreate={() => {}} composer={<span>Old Hoje composer</span>}><h1>Today</h1></DestinationShell>)
     expect(screen.queryByText('Old Hoje composer')).toBeNull()
@@ -987,13 +987,15 @@ describe('DestinationShell', () => {
     useUIStore.getState().setAstraConversationOpen(false)
   })
 
-  it('keeps the sidebar Astra row as the only wide entry on Hoje', () => {
+  it('keeps the labeled sidebar conversation row as the only wide entry on Hoje, named like the compact entry', () => {
     mocks.wide = true
     const view = render(<DestinationShell onCreate={() => {}} composer={<span>Old Hoje composer</span>}><h1>Today</h1></DestinationShell>)
     expect(screen.queryByText('Old Hoje composer')).toBeNull()
-    expect(screen.queryByRole('button', { name: 'shell.astraButton.open' })).toBeNull()
     expect(view.container.querySelector('[data-astra-button]')).toBeNull()
-    fireEvent.click(screen.getByRole('button', { name: 'nav.astra' }))
+    const [row, ...others] = screen.getAllByRole('button', { name: 'shell.astraButton.open' })
+    expect(others).toEqual([])
+    expect(row).toHaveAttribute('data-shell-astra-row')
+    fireEvent.click(row!)
     expect(useUIStore.getState().astraConversationOpen).toBe(true)
     useUIStore.getState().setAstraConversationOpen(false)
   })

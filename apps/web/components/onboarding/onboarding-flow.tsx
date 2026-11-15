@@ -86,7 +86,7 @@ function DoneShell({ onSelect, children, modalId, loginHref }: Readonly<{ onSele
   const t = useTranslations()
   const items = useMemo(() => SHELL_DESTINATION_IDS.map((id) => ({ id, href: loginHref ?? SHELL_DESTINATION_PATHS[id], label: t(DESTINATION_ICONS[id].labelKey), icon: id })), [loginHref, t])
   const tabBar = <BottomTabBar activeId="hoje" label={t('nav.mainNavigation')} items={SHELL_DESTINATION_IDS.map((id) => ({ id, href: loginHref ?? SHELL_DESTINATION_PATHS[id], label: t(DESTINATION_ICONS[id].labelKey), icon: ({ active }) => <DestinationIcon destination={id} active={active} color={active ? 'var(--primary)' : 'var(--fg-3)'} /> }))} onSelect={onSelect} />
-  return <ShellWide astraRow={{ label: t('nav.astra'), onOpen: () => onSelect('astra') }} items={items} activeId="hoje" navLabel={t('nav.mainNavigation')} onSelect={onSelect} tabBar={tabBar} notice={<><UpdateAvailableBanner modalId={modalId} inset={false} /><AppToastHost placement="modal" modalId={modalId} /></>}>
+  return <ShellWide astraRow={{ label: t('shell.astraButton.open'), onOpen: () => onSelect('astra') }} items={items} activeId="hoje" navLabel={t('nav.mainNavigation')} onSelect={onSelect} tabBar={tabBar} notice={<><UpdateAvailableBanner modalId={modalId} inset={false} /><AppToastHost placement="modal" modalId={modalId} /></>}>
     <div className="mx-auto flex min-h-full w-full max-w-[440px] items-center px-4 lg:max-w-[560px] lg:px-0">{children}</div>
   </ShellWide>
 }
