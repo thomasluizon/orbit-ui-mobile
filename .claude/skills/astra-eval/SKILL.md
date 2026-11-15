@@ -33,9 +33,9 @@ The gate is two runs from `evals/astra`, then one merge:
   `reports/core/summary.md`: k and pass^k for each case, pass^k for each family and locale, the questions before a
   preview, the measured model calls, the seconds and the cost of each case, and the gate verdict.
 
-The gate passes when every must-pass case passes, the pass^k rate of the core set is at or above the baseline, the
-mean number of questions before a preview is at or below the allowed mean, and one model call costs at most the D147
-limit. The baseline is the merged report of `main` in which every case has a verdict; the baseline run of `main`
+The gate passes when every must-pass case passes, the pass^k rate of the core set is at or above the baseline, no
+attempt asks more often than its case allows, and one model call costs at most the D147 limit. An attempt stops one
+question past the allowed count and keeps that count. The baseline is the merged report of `main` in which every case has a verdict; the baseline run of `main`
 passes `--as-baseline` in place of `--baseline`. The same runs are available through the `Astra eval` workflow's
 manual dispatch (`gate` input).
 

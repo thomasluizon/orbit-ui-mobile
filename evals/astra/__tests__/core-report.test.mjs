@@ -20,9 +20,11 @@ afterEach(() => { for (const path of scratch.splice(0)) rmSync(path, { recursive
 
 // One promptfoo result of the core provider: a graded attempt, an attempt that the grader could not read, or an attempt
 // without evidence.
+// An attempt that asks more often than its case allows ends before any preview, as runCase stops it.
 function result(target, { pass = true, questions = 0, modelCalls = 2, unavailable = false, graderLimit = false, seconds = 3.2 } = {}) {
+  const previews = questions > target.maxQuestions ? [] : [{ id: 'preview', actionKey: 'deleteHabits', items: [] }]
   const output = unavailable ? { unavailable: true, error: 'The chat turn failed with HTTP 429 (AI_DAILY_BUDGET_EXCEEDED): budget' }
-    : { turns: questions + 1, questionsBeforePreview: questions, previews: [{ id: 'preview', actionKey: 'deleteHabits', items: [] }], modelCalls, seconds,
+    : { turns: questions + 1, questionsBeforePreview: questions, previews, modelCalls, seconds,
       ...(graderLimit ? { graderLimit: true } : {}) }
   const passed = pass && !graderLimit
   return { testCase: { metadata: target, vars: { clientContext: { supportsParts: true } } }, success: passed && !unavailable,
@@ -115,13 +117,16 @@ describe('the gate report of the two runs', () => {
     expect(summary.status).toBe('incomplete')
   })
 
-  it('fails the gate when a must-pass case fails, and when the questions exceed the allowed mean', () => {
+  it('fails the gate when a must-pass case fails, and when one attempt asks more often than its case allows', () => {
     const failed = merged([requiredRun([...attempts(required, 2), result(required, { pass: false })]), otherRun([result(optional)])], { runCostUsd: 0.006 })
     expect(failed).toMatchObject({ status: 'fail', criteria: { mustPass: { passed: 0, status: 'fail' } } })
-    const asked = merged([requiredRun(attempts(required, 3)), otherRun([result(optional, { questions: 1, pass: false })])], { runCostUsd: 0.006 })
-    expect(asked.criteria.questions).toEqual({ mean: 0.25, allowedMean: 0.75, status: 'pass' })
-    const many = merged([requiredRun(attempts(required, 3, { questions: 2, pass: false })), otherRun([result(optional)])], { runCostUsd: 0.006 })
-    expect(many.criteria.questions).toMatchObject({ mean: 1.5, allowedMean: 0.75, status: 'fail' })
+    const within = merged([requiredRun(attempts(required, 3, { questions: 1 })), otherRun([result(optional)])], { runCostUsd: 0.006 })
+    expect(within.criteria.questions).toEqual({ mean: 0.75, allowedMean: 0.75, attemptsOverLimit: 0, status: 'pass' })
+    // The mean of the counts stays under the allowed mean, and the attempt past its own limit still fails the criterion.
+    const over = merged([requiredRun(attempts(required, 3)), otherRun([result(optional, { questions: 1, pass: false })])], { runCostUsd: 0.006 })
+    expect(over.cases[1]).toMatchObject({ questionsBeforePreview: [1], maxQuestions: 0 })
+    expect(over.criteria.questions).toEqual({ mean: 0.25, allowedMean: 0.75, attemptsOverLimit: 1, status: 'fail' })
+    expect(over.status).toBe('fail')
   })
 
   it('keeps the gate incomplete while the grader cannot read an attempt', () => {

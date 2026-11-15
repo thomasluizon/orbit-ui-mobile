@@ -92,8 +92,8 @@ function baselineRateOf(baseline, descriptors) {
   return Number((baseline.cases.filter((entry) => entry.passK === 'pass').length / baseline.cases.length).toFixed(4))
 }
 
-// The gate: every must-pass case passes pass^k, the pass^k rate of the core set is at or above the baseline, the mean
-// number of questions before a preview is at or below the allowed mean, and one model call costs at most the D147 limit.
+// The gate: every must-pass case passes pass^k, the pass^k rate of the core set is at or above the baseline, no attempt
+// asks more often than its case allows, and one model call costs at most the D147 limit.
 function criteriaOf(cases, totals, cost, baselineRate) {
   const required = cases.filter((entry) => entry.mustPass)
   const complete = cases.every((entry) => entry.passK !== 'incomplete')
@@ -103,8 +103,8 @@ function criteriaOf(cases, totals, cost, baselineRate) {
     passRate: { rate: totals.passRate, baselineRate,
       status: !complete ? 'incomplete' : baselineRate === null ? 'baseline' : totals.passRate >= baselineRate ? 'pass' : 'fail' },
     questions: { mean: totals.meanQuestionsBeforePreview, allowedMean: totals.allowedMeanQuestions,
-      status: totals.meanQuestionsBeforePreview === null ? 'incomplete'
-        : totals.meanQuestionsBeforePreview <= totals.allowedMeanQuestions ? 'pass' : 'fail' },
+      attemptsOverLimit: totals.attemptsOverQuestionLimit,
+      status: totals.attemptsOverQuestionLimit ? 'fail' : totals.meanQuestionsBeforePreview === null ? 'incomplete' : 'pass' },
     cost,
   }
 }

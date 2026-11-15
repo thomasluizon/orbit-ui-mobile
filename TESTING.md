@@ -492,7 +492,8 @@ gate verdict. The gate passes when:
 
 - every must-pass case passes;
 - the pass^k rate of the core set is at or above the rate of the `--baseline` report;
-- the mean number of questions before a preview is at or below the allowed mean;
+- no attempt asks more often than its case allows (an attempt stops one question past the allowed count, before
+  any preview, and keeps that count);
 - one model call costs at most 0.0009 USD, the D147 limit of the `orbit-api` `AiInputBudgetTests`.
 
 The baseline is the merged report of `main` in which every case has a verdict. The merge refuses a window

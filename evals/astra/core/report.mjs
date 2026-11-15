@@ -20,6 +20,7 @@ function writePrivateJson(path, value) {
 // (a failed precondition, a throttle, a spend ceiling, a failed rubric grader) and an attempt that the grader could not read.
 function attemptOf(entry, repeat) {
   const output = entry.response?.output ?? {}
+  const questions = output.questionsBeforePreview
   const assertions = entry.gradingResult?.componentResults ?? []
   const unavailable = output.unavailable === true || assertions.some(withoutEvidence)
   const graderLimit = !unavailable && output.graderLimit === true
@@ -27,7 +28,9 @@ function attemptOf(entry, repeat) {
     ...(unavailable ? { unavailable: true } : {}), ...(graderLimit ? { graderLimit: true } : {}),
     reason: output.error ?? entry.error ?? assertions.find((assertion) => assertion.pass !== true)?.reason ?? null,
     turns: output.turns ?? 0,
-    questionsBeforePreview: output.previews?.length ? output.questionsBeforePreview : null,
+    // The questions before the preview. runCase stops an attempt one question past the count its case allows, before
+    // any preview, and that attempt keeps its count. Any other attempt without a preview counts no question.
+    questionsBeforePreview: output.previews?.length || questions > entry.testCase.metadata.maxQuestions ? questions : null,
     modelCalls: output.turns ? output.modelCalls ?? null : 0,
     seconds: output.turns ? output.seconds ?? null : null,
     assertions: assertions.map((assertion, index) => ({
@@ -129,7 +132,7 @@ export function groupsOf(cases) {
 export const callsOf = (entry) => [...entry.modelCalls, ...(entry.supersededModelCalls ?? [])]
 
 // The measured figures of a set of cases: the pass^k rate, the questions that came before a preview against the count
-// each case allows, and the model calls.
+// each case allows (with the attempts that asked past it), and the model calls.
 export function totalsOf(cases) {
   const observed = cases.flatMap((entry) => entry.questionsBeforePreview.filter((count) => count !== null)
     .map((count) => ({ count, allowed: entry.maxQuestions })))
@@ -139,6 +142,7 @@ export function totalsOf(cases) {
     attempts: cases.reduce((sum, entry) => sum + entry.attempts, 0),
     meanQuestionsBeforePreview: rounded(mean(observed.map(({ count }) => count)), 3),
     allowedMeanQuestions: rounded(mean(observed.map(({ allowed }) => allowed)), 3),
+    attemptsOverQuestionLimit: observed.filter(({ count, allowed }) => count > allowed).length,
     modelCalls: calls.every((count) => count !== null) ? calls.reduce((sum, count) => sum + count, 0) : null }
 }
 
@@ -160,7 +164,7 @@ function criteriaRows(criteria) {
   return ['', '| Gate criterion | Measured | Limit | Verdict |', '|---|---|---|---|',
     `| Every must-pass case passes pass^k | ${mustPass.passed}/${mustPass.cases} | ${mustPass.cases}/${mustPass.cases} | ${mustPass.status} |`,
     `| pass^k rate of the core set | ${cell(passRate.rate)} | ${passRate.baselineRate === null ? 'this run is the baseline' : `at or above ${passRate.baselineRate}`} | ${passRate.status} |`,
-    `| Mean questions before a preview | ${cell(questions.mean)} | at or below ${cell(questions.allowedMean)} | ${questions.status} |`,
+    `| Attempts that ask more often than their case allows | ${questions.attemptsOverLimit} (mean questions ${cell(questions.mean)}, allowed mean ${cell(questions.allowedMean)}) | 0 | ${questions.status} |`,
     `| Cost of one model call (USD) | ${cell(cost.perModelCallUsd)} | at or below ${cost.limitUsd} (D147) | ${cost.status} |`]
 }
 

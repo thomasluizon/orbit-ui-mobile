@@ -60,6 +60,10 @@ const textReply = (aiMessage, parts = []) => ({ ...finalOf('complete', 0), aiMes
 const noTrace = 'The card answer needs the eval trace of the turn, and the turn returned none.'
 const choiceCard = (question, options) => ({ type: 'block', kind: 'choice', block: { blockId: '99999999-0000-4000-8000-000000000001',
   question, options, multiSelect: false, allowFreeText: false, expiresAtUtc: '2026-11-14T00:00:00Z' } })
+// The promptfoo result of one graded attempt, as the core hooks give it to the report, and the build of a run window.
+const promptfooResult = (descriptor, output, { pass, reason, metadata }) => ({ testCase: { metadata: descriptor, vars: {} }, success: pass,
+  response: { output }, gradingResult: { componentResults: [{ pass, reason, metadata, assertion: { metric: 'outcome' } }] } })
+const build = { run: 'must-pass', apiCommit: 'a'.repeat(40) }
 
 describe('the client path', () => {
   it('sends each turn to the stream route with the form the shipped clients build', async () => {
@@ -150,6 +154,26 @@ describe('a later owner turn in one live conversation', () => {
     const { requests, verdict } = await replay('complete', later, { turns: [asked, asked, asked] })
     expect(requests).toHaveLength(3)
     expect(verdict).toMatchObject({ pass: false, reason: 'The assistant asked 3 time(s) before a preview; the request allows 2.' })
+  })
+})
+
+// runCase stops one question past the allowed count, before any preview. The attempt keeps that count, so the questions
+// criterion of the gate fails on the output that a real run returns.
+describe('the questions criterion of the gate', () => {
+  it('fails when the attempts of a case ask more often than the case allows', async () => {
+    const asked = captures.complete.turns[0]
+    const descriptor = coreDescriptors().find(({ id }) => id === request.metadata.id)
+    const results = []
+    for (let attempt = 0; attempt < descriptor.k; attempt++) {
+      const { output, verdict, requests } = await replay('complete', request, { turns: [asked, asked, captures.complete.turns[1]] })
+      expect(requests).toHaveLength(2)
+      expect(output).toMatchObject({ questionsBeforePreview: 2, previews: [] })
+      results.push(promptfooResult(descriptor, output, verdict))
+    }
+    const window = summarize(results, [descriptor], build)
+    expect(window.cases[0]).toMatchObject({ passK: 'fail', maxQuestions: 1, questionsBeforePreview: [2, 2, 2] })
+    const merged = mergeRuns([window], { asBaseline: true, descriptors: [descriptor] })
+    expect(merged.criteria.questions).toMatchObject({ mean: 2, allowedMean: 1, attemptsOverLimit: 3, status: 'fail' })
   })
 })
 
@@ -252,12 +276,9 @@ describe('a reply without a preview', () => {
       const { output, verdict } = await answered([])
       expect(output.modelCalls).toBe(0)
       const descriptor = coreDescriptors().find(({ id }) => id === logWalk.metadata.id)
-      const entry = (attempt, { pass, reason, metadata }) => ({ testCase: { metadata: descriptor, vars: {} }, success: pass,
-        response: { output: attempt }, gradingResult: { componentResults: [{ pass, reason, metadata, assertion: { metric: 'outcome' } }] } })
-      const passed = entry({ turns: 2, questionsBeforePreview: 1, previews: [{ id: 'preview', actionKey: 'logHabits', items: [] }],
+      const passed = promptfooResult(descriptor, { turns: 2, questionsBeforePreview: 1, previews: [{ id: 'preview', actionKey: 'logHabits', items: [] }],
         modelCalls: 3, seconds: 2 }, { pass: true, reason: 'The saved state matches the approved changes.' })
-      const build = { run: 'must-pass', apiCommit: 'a'.repeat(40) }
-      const first = summarize([passed, passed, entry(output, verdict)], [descriptor], build)
+      const first = summarize([passed, passed, promptfooResult(descriptor, output, verdict)], [descriptor], build)
       const later = summarize([passed, passed, passed], [descriptor], build)
       const merged = mergeRuns([first, later], { asBaseline: true, runCostUsd: 0.012, descriptors: [descriptor] })
       expect(merged.cases[0]).toMatchObject({ passK: 'pass', modelCalls: [3, 3, 3], supersededModelCalls: [3, 3, 0] })
