@@ -1,6 +1,7 @@
 import { RepeatReminderDetail } from './repeat-reminder-detail'
 import { IconButton } from '@/components/ui/icon-button'
 import { OrbitMascot } from '@/components/ui/orbit-mascot'
+import { CapacityNotice } from '@/components/ui/capacity-notice'
 import { DescriptionCopyButton } from './description-copy-button'
 import { PersonalTextDetails } from '@/components/ui/personal-text-details'
 import { ActionRow } from '@/components/ui/action-row'
@@ -364,12 +365,7 @@ function RescheduleBlock({ habit, rescue: { query, open }, hasPro, locale, today
   return (
     <Proposed proposed scope="block" label={t('habits.form.proposedByAstra')}>
       <View style={card}>
-        <View accessible accessibilityLiveRegion="polite" style={styles.rescueContent}>{suggestion ? renderRescueProposalValues(suggestion, buildRescheduleProposalLabels(suggestion, { locale, today, translate: t, formatTime: displayTime }), t('habits.detail.rescheduleFinePrint'), tokens) : <>
-          {query.error ? <Text style={[styles.muted, { color: tokens.fg3 }]}>{t('habits.detail.rescheduleError')}</Text> : <View testID="rescue-loading-skeleton" style={styles.rescueWait}>
-            <View style={styles.rescueWaitMascot}><OrbitMascot size={48} state="pensando" /></View>
-            <View style={styles.rescueWaitRows}><Skeleton variant="habit-row" label={t('habits.reschedule.loading')} /><Skeleton variant="habit-row" grouped /></View>
-          </View>}
-        </>}</View>
+        <View accessible accessibilityLiveRegion="polite" style={styles.rescueContent}>{suggestion ? renderRescueProposalValues(suggestion, buildRescheduleProposalLabels(suggestion, { locale, today, translate: t, formatTime: displayTime }), t('habits.detail.rescheduleFinePrint'), tokens) : <RescueWait query={query} tokens={tokens} />}</View>
         <View style={styles.rescueActions}><ActionRow>
           {notNow}
           {suggestion ? <PillButton variant={actionVariant} size="sm" loading={updateHabit.isPending} onClick={() => void accept(suggestion)}>{t('habits.detail.rescheduleAccept')}</PillButton> : query.error ? <PillButton leadingIcon={<OrbitMascot size={16} />} variant="ghost" size="sm" onClick={() => void query.refetch()}>{t('habits.reschedule.suggestDate')}</PillButton> : null}
@@ -377,6 +373,18 @@ function RescheduleBlock({ habit, rescue: { query, open }, hasPro, locale, today
       </View>
     </Proposed>
   )
+}
+
+/** The rescue before its proposal: the failure line, Orbit resting while the request waits offline, or Orbit thinking while it runs. */
+function RescueWait({ query, tokens }: Readonly<{ query: Pick<ReturnType<typeof useRescheduleSuggestion>, 'error' | 'isPaused' | 'isFetching'>; tokens: ReturnType<typeof createTokensV2> }>) {
+  const { t } = useTranslation()
+  if (query.error) return <Text style={[styles.muted, { color: tokens.fg3 }]}>{t('habits.detail.rescheduleError')}</Text>
+  if (query.isPaused) return <CapacityNotice message={t('shell.composer.offline.reason')} mascotState="descansando" />
+  if (!query.isFetching) return null
+  return <View testID="rescue-loading-skeleton" style={styles.rescueWait}>
+    <View style={styles.rescueWaitMascot}><OrbitMascot size={48} state="pensando" /></View>
+    <View style={styles.rescueWaitRows}><Skeleton variant="habit-row" label={t('habits.reschedule.loading')} /><Skeleton variant="habit-row" grouped /></View>
+  </View>
 }
 
 function FocusedRescheduleBlock(props: Readonly<Parameters<typeof RescheduleBlock>[0]>) {

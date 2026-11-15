@@ -89,6 +89,7 @@ const mocks = vi.hoisted(() => ({
   suggestion: null as RescheduleSuggestion | null,
   rescheduleOptions: [] as { enabled: boolean }[],
   rescheduleError: null as Error | null,
+  reschedulePaused: false,
   rescheduleRefetch: vi.fn(),
   language: 'en',
   uses24HourClock: undefined as boolean | undefined,
@@ -199,7 +200,8 @@ vi.mock('@/hooks/use-profile', () => ({
 vi.mock('@/hooks/use-reschedule-suggestion', () => ({
   useRescheduleSuggestion: (options: { enabled: boolean }) => {
     mocks.rescheduleOptions.push(options)
-    return { suggestion: mocks.suggestion, error: mocks.rescheduleError, refetch: mocks.rescheduleRefetch }
+    const settled = mocks.suggestion !== null || mocks.rescheduleError !== null
+    return { suggestion: mocks.suggestion, error: mocks.rescheduleError, isFetching: !settled && !mocks.reschedulePaused, isPaused: !settled && mocks.reschedulePaused, refetch: mocks.rescheduleRefetch }
   },
 }))
 
@@ -408,6 +410,7 @@ describe('HabitDetailScreen', () => {
     mocks.scopedCompleteDay = false
     mocks.rescheduleOptions = []
     mocks.rescheduleError = null
+    mocks.reschedulePaused = false
     mocks.rescheduleRefetch.mockReset()
     mocks.language = 'en'
     mocks.uses24HourClock = undefined
@@ -645,6 +648,16 @@ describe('HabitDetailScreen', () => {
     mocks.hasProAccess = false
     view.rerender(<HabitDetailScreen habitId="habit-1" />)
     expect(screen.queryByText('habits.reschedule.freePrompt')).not.toBeInTheDocument()
+  })
+
+  it('rests Orbit with the offline reason, and never thinks, while the rescue request waits offline', () => {
+    openRescueGate()
+    mocks.reschedulePaused = true
+    render(<HabitDetailScreen habitId="habit-1" />)
+    const status = within(screen.getByRole('group', { name: 'habits.form.proposedByAstra' })).getByRole('status')
+    expect(within(status).queryByTestId('rescue-loading-skeleton')).not.toBeInTheDocument()
+    expect(within(status).getAllByTestId('orbit-mascot').map((mascot) => mascot.getAttribute('data-state'))).toEqual(['descansando'])
+    expect(status).toHaveTextContent('shell.composer.offline.reason')
   })
 
   it('shows a rescue only for an older overdue habit and handles request states', () => {

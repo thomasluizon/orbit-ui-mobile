@@ -5,6 +5,7 @@ import { RepeatReminderDetail } from './repeat-reminder-detail'
 import { IconButton } from '@/components/ui/icon-button'
 
 import { OrbitMascot } from '@/components/ui/orbit-mascot'
+import { CapacityNotice } from '@/components/ui/capacity-notice'
 
 import { computeHabitRowNextDueHint, getHabitTypeLabelKey, getHabitRowTypeLabelKey, splitDescriptionLinks, STAT_VALUE_SIZER } from '@orbit/shared/utils'
 
@@ -416,12 +417,7 @@ function RescheduleBlock({ habit, rescue: { query, open }, hasProAccess, locale,
   return (
     <Proposed proposed scope="block" label={t('habits.form.proposedByAstra')}>
       <div ref={cardRef} className={rescueCardClass}>
-        <div role="status" className="flex flex-col gap-3">{suggestion ? renderRescueProposalValues(suggestion, buildRescheduleProposalLabels(suggestion, { locale, today, translate: t, formatTime: displayTime }), t('habits.detail.rescheduleFinePrint')) : <>
-          {query.error ? <p className="text-sm text-[var(--fg-3)]">{t('habits.detail.rescheduleError')}</p> : <div data-testid="rescue-loading-skeleton" className="flex flex-col gap-3">
-            <span className="flex self-start"><OrbitMascot size={48} state="pensando" /></span>
-            <div className="flex flex-col gap-2"><Skeleton variant="habit-row" label={t('habits.reschedule.loading')} /><Skeleton variant="habit-row" grouped /></div>
-          </div>}
-        </>}</div>
+        <div role="status" className="flex flex-col gap-3">{suggestion ? renderRescueProposalValues(suggestion, buildRescheduleProposalLabels(suggestion, { locale, today, translate: t, formatTime: displayTime }), t('habits.detail.rescheduleFinePrint')) : <RescueWait query={query} />}</div>
         <div className="flex flex-wrap gap-2"><ActionRow>
           {notNow}
           {suggestion ? <PillButton variant={actionVariant} size="sm" loading={updateHabit.isPending} onClick={() => void accept(suggestion)}>{t('habits.detail.rescheduleAccept')}</PillButton> : query.error ? <PillButton leadingIcon={<OrbitMascot size={16} />} variant="ghost" size="sm" onClick={() => void query.refetch()}>{t('habits.reschedule.suggestDate')}</PillButton> : null}
@@ -429,6 +425,18 @@ function RescheduleBlock({ habit, rescue: { query, open }, hasProAccess, locale,
       </div>
     </Proposed>
   )
+}
+
+/** The rescue before its proposal: the failure line, Orbit resting while the request waits offline, or Orbit thinking while it runs. */
+function RescueWait({ query }: Readonly<{ query: Pick<ReturnType<typeof useRescheduleSuggestion>, 'error' | 'isPaused' | 'isFetching'> }>) {
+  const t = useTranslations()
+  if (query.error) return <p className="text-sm text-[var(--fg-3)]">{t('habits.detail.rescheduleError')}</p>
+  if (query.isPaused) return <CapacityNotice message={t('shell.composer.offline.reason')} mascotState="descansando" />
+  if (!query.isFetching) return null
+  return <div data-testid="rescue-loading-skeleton" className="flex flex-col gap-3">
+    <span className="flex self-start"><OrbitMascot size={48} state="pensando" /></span>
+    <div className="flex flex-col gap-2"><Skeleton variant="habit-row" label={t('habits.reschedule.loading')} /><Skeleton variant="habit-row" grouped /></div>
+  </div>
 }
 
 function HabitDetailNavigation({ parentId, onBack, titleIsHeading = false }: Readonly<{ parentId?: string | null; onBack: () => void; titleIsHeading?: boolean }>) {

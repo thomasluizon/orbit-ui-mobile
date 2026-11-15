@@ -22,6 +22,7 @@ let mockUpdateIsPending = false
 let mockReschedule: {
   suggestion: RescheduleSuggestion | null
   isLoading: boolean
+  isPaused: boolean
   error: Error | null
   refetch: () => void
 }
@@ -117,7 +118,7 @@ describe('RescheduleSheet (mobile)', () => {
     mockProfile = { hasProAccess: true, language: 'en' }
     mockToday = '2026-08-17'
     mockUpdateIsPending = false
-    mockReschedule = { suggestion: null, isLoading: false, error: null, refetch: mockRefetch }
+    mockReschedule = { suggestion: null, isLoading: false, isPaused: false, error: null, refetch: mockRefetch }
     __setWindowDimensions({ width: 390, height: 892, scale: 1, fontScale: 1 })
   })
 
@@ -252,6 +253,16 @@ describe('RescheduleSheet (mobile)', () => {
       pressButton(tree.root, 'habits.reschedule.suggestDate')
     })
     expect(mockRefetch).toHaveBeenCalled()
+  })
+
+  it('rests Orbit with the offline reason while the suggestion request waits offline', () => {
+    mockReschedule.isPaused = true
+
+    const tree = render(<RescheduleSheet open onOpenChange={vi.fn()} habit={overdueHabit} />)
+
+    expect(tree.root.findAll((node) => node.type === 'Svg' && node.props.testID === 'orbit-mascot')[0]!.props['data-orbit-state']).toBe('descansando')
+    expect(hasText(tree.root, 'shell.composer.offline.reason')).toBe(true)
+    expect(tree.root.findAll((node) => node.type === 'View' && node.props.testID === 'skeleton-unit-habit-row')).toHaveLength(0)
   })
 
   it('shows a schedule-card placeholder while the suggestion is loading', () => {

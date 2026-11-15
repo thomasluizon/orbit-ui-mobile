@@ -141,6 +141,7 @@ const mocks = vi.hoisted(() => ({
   suggestion: null as RescheduleSuggestion | null,
   rescheduleOptions: [] as { enabled: boolean }[],
   rescheduleError: null as Error | null,
+  reschedulePaused: false,
   rescheduleRefetch: vi.fn(),
   language: 'en',
   uses24HourClock: undefined as boolean | undefined,
@@ -356,7 +357,8 @@ vi.mock('@/hooks/use-profile', () => ({
 vi.mock('@/hooks/use-reschedule-suggestion', () => ({
   useRescheduleSuggestion: (options: { enabled: boolean }) => {
     mocks.rescheduleOptions.push(options)
-    return { suggestion: mocks.suggestion, error: mocks.rescheduleError, refetch: mocks.rescheduleRefetch }
+    const settled = mocks.suggestion !== null || mocks.rescheduleError !== null
+    return { suggestion: mocks.suggestion, error: mocks.rescheduleError, isFetching: !settled && !mocks.reschedulePaused, isPaused: !settled && mocks.reschedulePaused, refetch: mocks.rescheduleRefetch }
   },
 }))
 vi.mock('@/lib/theme', async (importOriginal) => {
@@ -557,6 +559,7 @@ describe('HabitDetailScreen', () => {
     mocks.suggestion = null
     mocks.rescheduleOptions = []
     mocks.rescheduleError = null
+    mocks.reschedulePaused = false
     mocks.rescheduleRefetch.mockReset()
     mocks.language = 'en'
     mocks.uses24HourClock = undefined
@@ -936,6 +939,18 @@ describe('HabitDetailScreen', () => {
     mocks.hasProAccess = false
     TestRenderer.act(() => { tree.update(<HabitDetailScreen habitId="habit-1" />) })
     expect(tree.root.findAllByProps({ testID: 'rescue-free-card' })).toHaveLength(0)
+  })
+
+  it('rests Orbit with the offline reason, and never thinks, while the rescue request waits offline', () => {
+    openRescueGate()
+    mocks.reschedulePaused = true
+    let tree!: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" />) })
+    const status = tree.root.findAllByType('Proposed').find(isRescueProposal)!.findByProps({ accessibilityLiveRegion: 'polite' })
+    expect(status.findAll((node: TestNode) => typeof node.type === 'string' && node.props.testID === 'rescue-loading-skeleton')).toHaveLength(0)
+    expect(status.findAllByType('OrbitMascot').map((mascot: TestNode) => mascot.props.state)).toEqual(['descansando'])
+    expect(textsOf(status)).toContain('shell.composer.offline.reason')
+    TestRenderer.act(() => tree.unmount())
   })
 
   it('shows a rescue only for an older overdue habit and handles request states', () => {
