@@ -15,8 +15,10 @@ jobs:
   dependency-review:
     name: Dependency Review
     runs-on: ubuntu-latest
+    timeout-minutes: 3
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/dependency-review-action@v5
+      # The action compares the dependency graph of the base and head through the API and
+      # reads no repository file without a config-file input, so the job needs no checkout.
+      - uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
         with:
           fail-on-severity: high

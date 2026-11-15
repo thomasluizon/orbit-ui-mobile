@@ -9,9 +9,9 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { assertBudgets, config, runLighthouseGate, startProductionServer } from '../../perf/run-lighthouse.mjs'
 import { readLcpValues } from '../../perf/report-lcp.mjs'
 
-const mocks = vi.hoisted(() => ({ spawn: vi.fn(), launch: vi.fn(), connect: vi.fn(), audit: vi.fn(), warm: vi.fn() }))
+const mocks = vi.hoisted(() => ({ spawn: vi.fn(), launch: vi.fn(), killAll: vi.fn(), connect: vi.fn(), audit: vi.fn(), warm: vi.fn() }))
 vi.mock('node:child_process', () => ({ spawn: mocks.spawn, default: { spawn: mocks.spawn } }))
-vi.mock('chrome-launcher', () => ({ launch: mocks.launch, default: { launch: mocks.launch } }))
+vi.mock('chrome-launcher', () => ({ launch: mocks.launch, killAll: mocks.killAll, default: { launch: mocks.launch, killAll: mocks.killAll } }))
 vi.mock('puppeteer-core', () => ({ connect: mocks.connect, default: { connect: mocks.connect } }))
 vi.mock('lighthouse', () => ({ default: mocks.audit }))
 vi.mock('../../perf/warm-hermetic-auth.cjs', () => ({ default: mocks.warm }))
@@ -96,4 +96,16 @@ it.each([false, true])('warms shared Chrome, saves every report and cleans up af
     config.reportDirectory = previousDirectory
     rmSync(directory, { recursive: true, force: true })
   }
+})
+
+it('kills the Chrome that a failed launch leaves running and stops the server', async () => {
+  const server = serverProcess()
+  mocks.spawn.mockImplementation(() => { queueMicrotask(() => server.stdout.emit('data', 'Ready in 100ms')); return server })
+  mocks.launch.mockRejectedValue(new Error('waiting for dynamic debugging port in chrome-err.log'))
+  mocks.killAll.mockReturnValue([])
+  const kill = vi.spyOn(process, 'kill').mockReturnValue(true)
+  await expect(runLighthouseGate()).rejects.toThrow('waiting for dynamic debugging port in chrome-err.log')
+  expect(mocks.killAll).toHaveBeenCalledOnce()
+  expect(mocks.connect).not.toHaveBeenCalled()
+  expect(kill).toHaveBeenCalledWith(-server.pid, 'SIGTERM')
 })

@@ -136,8 +136,8 @@ and it OVERRIDES the ticket's own Evidence section.**${vitestEvidence} No \`npm 
 Playwright, Maestro or Cypress run, no navigating to localhost on any port, no logging in to the app.
 The sole exception to the end-to-end file ban is this: the worker may create or edit files under
 \`apps/web/e2e/layout/\` only. Nothing else under \`e2e/\` may be created or edited. Never run the
-layout guard or Playwright, including local and focused test runs. \`.github/workflows/layout.yml\`
-on the pull request is the only runner and the only evidence. Do not gather screenshots. A fresh
+layout guard or Playwright, including local and focused test runs. The \`Layout shard\` jobs of
+\`.github/workflows/test.yml\` on the pull request are the only runner and the only evidence. Do not gather screenshots. A fresh
 worktree has no seeded session.` : `
 
 **NEVER open the app in a browser and never start a dev or production server. This is unconditional
@@ -216,7 +216,7 @@ are source and must never be discarded; only untracked \`.orca/\` runtime residu
 
 ${layoutGuard ? `**The only end-to-end file exception is \`apps/web/e2e/layout/\`.** Playwright files
 there may be created or edited, but never run by the worker. Never create a visual-regression file
-or another end-to-end or Playwright file. The pull request's \`.github/workflows/layout.yml\` is the
+or another end-to-end or Playwright file. The pull request's \`Layout shard\` jobs in \`.github/workflows/test.yml\` are the
 only evidence for the layout guard.` : `**Never create an end-to-end, visual-regression or Playwright file.** The testing rule in CLAUDE.md
 is Vitest unit and behaviour tests, and no new end-to-end suite. If a behaviour genuinely cannot be
 covered by a Vitest test, say so in the PR body and leave

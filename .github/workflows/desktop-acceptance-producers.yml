@@ -1,0 +1,56 @@
+name: Desktop Acceptance Producers
+
+# The producer test files that gate cases on process.platform run here on the platforms they name.
+# Tool and Hook Tests runs every producer test file on ubuntu-latest, where those cases skip.
+# This job runs beside the installed acceptance VMs, so it adds no time to them.
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    # The inputs of Desktop Installed Acceptance, plus the producer tests, the fixtures that only they read, and the tsx loader in the lockfile.
+    paths:
+      - 'apps/desktop/**'
+      - '!apps/desktop/**/*.md'
+      - '!apps/desktop/__tests__/**'
+      - 'tools/desktop-bench/**'
+      - '!tools/desktop-bench/README.md'
+      - 'package-lock.json'
+      - '.github/workflows/desktop-acceptance-producers.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: desktop-acceptance-producers-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  native:
+    name: producers (${{ matrix.runner }})
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [windows-latest, macos-latest]
+    runs-on: ${{ matrix.runner }}
+    # In Desktop Installed Acceptance runs 43727552118 and 43722095347, the four jobs reached the end of these files 139 to 194 s after the job started.
+    timeout-minutes: 6
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        env:
+          SEGMENT_DOWNLOAD_TIMEOUT_MINS: '1'
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --prefer-offline --no-audit --fund=false
+      - name: Run the platform-gated producer tests
+        run: |
+          node --import tsx tools/desktop-bench/test-acceptance.ts
+          node --import tsx tools/desktop-bench/test-acceptance-push.ts
+          node --import tsx tools/desktop-bench/test-acceptance-readers.ts
+          node --import tsx tools/desktop-bench/test-acceptance-launch.ts

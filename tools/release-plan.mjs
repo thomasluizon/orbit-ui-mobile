@@ -8,6 +8,9 @@ List commits not yet released to production or staging, with planned SHAs and pi
 API and web baselines read live health. Landing reads live Render deploys.
 Unreadable baselines are reported alongside the other service plans.
 Android reads Play upload deployment records for the track.
+A web or Android service with unreleased commits also reports releaseCi: the newest push or
+dispatch run of test.yml and guards.yml at its planned SHA (success, pending, missing or failed).
+Both release workflows refuse a SHA without success, so web gets a dispatchCommand only then.
 The default environment is production. The default Android track is open for production
 and internal for staging. Staging requires --branch.
 Set RENDER_MCP_TOKEN for Render reads.
@@ -22,11 +25,16 @@ const SERVICES = [
   { name: "android", repo: "orbit-ui-mobile", workflow: "android-release.yml" },
 ]
 const SHA = /^[a-f0-9]{40}$/
+/** The workflows whose push or dispatch run release.yml and android-release.yml require at the release SHA. */
+const RELEASE_CI_WORKFLOWS = ["test", "guards"]
+const RELEASE_CI_STATES = ["success", "pending", "missing", "failed"]
 
 export const githubClient = {
   read(path) {
     const projection = path.includes("/actions/variables?")
           ? "{total_count,variables:[.variables[] | {name,value}]}"
+        : path.includes("/actions/workflows/")
+          ? "{workflow_runs:[.workflow_runs[] | {head_sha,path,event,status,conclusion,run_number,run_attempt}]}"
         : path.includes("/deployments?")
           ? "[.[] | {sha,payload:{track:.payload.track}}]"
           : path.includes("/compare/")
@@ -188,6 +196,26 @@ async function planService(client, service, environment, branch, serviceIds, tra
     ...(comparison.behind_by > 0 ? { deployedFromOtherBranch: true } : {}) }
 }
 
+/**
+ * The state of the release CI at `sha`, read as the UI release workflows read it: the newest push or dispatch run of
+ * each workflow decides. The worst state of the two wins, in the order failed, missing, pending, success.
+ */
+async function releaseCi(client, sha) {
+  let worst = "success"
+  for (const workflow of RELEASE_CI_WORKFLOWS) {
+    const path = `repos/${OWNER}/orbit-ui-mobile/actions/workflows/${workflow}.yml/runs?head_sha=${sha}&per_page=100`
+    const response = await client.read(path)
+    const newest = expectArray(response?.workflow_runs, path)
+      .filter((run) => run?.head_sha === sha && run.path === `.github/workflows/${workflow}.yml` && ["push", "workflow_dispatch"].includes(run.event))
+      .sort((left, right) => left.run_number - right.run_number || left.run_attempt - right.run_attempt).at(-1)
+    let state = "missing"
+    if (newest?.status === "completed") state = newest.conclusion === "success" ? "success" : "failed"
+    else if (newest) state = "pending"
+    if (RELEASE_CI_STATES.indexOf(state) > RELEASE_CI_STATES.indexOf(worst)) worst = state
+  }
+  return worst
+}
+
 export async function planRelease(client = githubClient, environment = "production", serviceIds = {},
                                   track = environment === "production" ? "open" : "internal",
                                   branch = environment === "production" ? "main" : null) {
@@ -200,13 +228,25 @@ export async function planRelease(client = githubClient, environment = "producti
     throw new Error("invalid branch for environment")
   }
   const planned = await Promise.all(SERVICES.map((service) => planService(client, service, environment, branch, serviceIds, track)))
-  return { environment, branch, services: planned.map((service) => service.baselineError ? service : ({
-    ...service,
-    plannedSha: service.headSha,
-    ...(service.name !== "android" ? {
-      dispatchCommand: `gh workflow run release.yml --repo ${OWNER}/${service.repo} --ref main -f environment=${environment} -f branch='${branch}' -f sha=${service.headSha}`,
-    } : {}),
-  })) }
+  const ciStates = new Map()
+  for (const service of planned) {
+    if (service.repo === "orbit-ui-mobile" && service.needsRelease && !ciStates.has(service.headSha)) {
+      ciStates.set(service.headSha, await releaseCi(client, service.headSha))
+    }
+  }
+  return { environment, branch, services: planned.map((service) => {
+    if (service.baselineError) return service
+    const ci = service.repo === "orbit-ui-mobile" && service.needsRelease ? ciStates.get(service.headSha) : undefined
+    return {
+      ...service,
+      plannedSha: service.headSha,
+      ...(ci ? { releaseCi: ci } : {}),
+      // A web release of a SHA without successful release CI fails its first step, so the plan prints no command for it.
+      ...(service.name !== "android" && (ci === undefined || ci === "success") ? {
+        dispatchCommand: `gh workflow run release.yml --repo ${OWNER}/${service.repo} --ref main -f environment=${environment} -f branch='${branch}' -f sha=${service.headSha}`,
+      } : {}),
+    }
+  }) }
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
