@@ -5,6 +5,8 @@ import { motionPresets, resolveMotionPreset, type MotionScenario } from '@orbit/
 import { useTodayMotion } from '@/app/(tabs)/use-today-motion'
 import { resolveBulkActionBarEnterShift } from '@/app/(tabs)/today-model'
 import { useUIStore } from '@/stores/ui-store'
+import { enableTestFlags } from '@orbit/shared/test-support/flag-state'
+import { calendarSlideMotion, getOrbitPageTurns } from '@orbit/shared/utils'
 
 const TestRenderer: typeof import('react-test-renderer') = require('react-test-renderer')
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
@@ -17,13 +19,14 @@ vi.mock('@/lib/motion', async (importOriginal) => {
 
 type Motion = ReturnType<typeof useTodayMotion>
 
-async function renderTray() {
+async function renderTray(initialDay = '2026-11-13') {
   let latest!: Motion
-  function Harness() { latest = useTodayMotion({ filterMotionKey: '2026-11-13' }); return null }
+  function Harness({ day }: Readonly<{ day: string }>) { latest = useTodayMotion({ filterMotionKey: day }); return null }
   let tree!: import('react-test-renderer').ReactTestRenderer
-  await TestRenderer.act(() => { tree = TestRenderer.create(<Harness />) })
+  await TestRenderer.act(() => { tree = TestRenderer.create(<Harness day={initialDay} />) })
   return {
     get latest() { return latest },
+    day: (day: string) => TestRenderer.act(() => { tree.update(<Harness day={day} />) }),
     select: (isSelectMode: boolean) => TestRenderer.act(() => { useUIStore.setState({ isSelectMode }) }),
     unmount: () => TestRenderer.act(() => { tree.unmount() }),
   }
@@ -61,5 +64,22 @@ describe('the Android selection tray uses the selection preset', () => {
     expect(timing).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ toValue: 1, duration: motionPresets.selection.reducedMotion.enterDuration }))
     expect(startOf(tray.latest)).toEqual({ shift: 0, scale: 1 })
     await tray.unmount()
+  })
+})
+
+describe('the Android day slide of Hoje under reduced motion', () => {
+  it('shows the new day at once: no slide, full opacity, no timing and no ring turn', async () => {
+    enableTestFlags('orbit_guided_flows')
+    motion.reduced = true
+    const timing = vi.spyOn(Animated, 'timing')
+    const turns = getOrbitPageTurns()
+    const today = await renderTray('2026-11-13')
+    await today.day('2026-11-14')
+    const [slide] = today.latest.dayAnimatedStyle.transform as unknown as [{ translateX: { value: number } }]
+    expect(slide.translateX.value).toBe(0)
+    expect((today.latest.dayAnimatedStyle.opacity as unknown as { value: number }).value).toBe(1)
+    expect(timing).not.toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ duration: calendarSlideMotion.duration }))
+    expect(getOrbitPageTurns()).toBe(turns)
+    await today.unmount()
   })
 })
