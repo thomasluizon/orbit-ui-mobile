@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import { Text } from 'react-native'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act } from 'react-test-renderer'
@@ -7,11 +7,12 @@ import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { GuidedHabitFlow, type GuidedHabitFields } from '@/components/habits/guided/guided-habit-flow'
 import { useHabitForm } from '@/hooks/use-habit-form'
 import { useTagSelection } from '@/hooks/use-tag-selection'
+import { buildCreateHabitRequest, buildEmptyHabitFormValues, buildUpdateHabitRequest } from '@orbit/shared/utils'
 import { i18n } from '@/lib/i18n'
 import { press, renderNavigation } from '../ui/navigation-render'
 
 const state = vi.hoisted(() => ({
-  helpers: null as ReturnType<typeof useHabitForm> | null, read: vi.fn(), online: true, pro: true, goalToggle: vi.fn(), messagesUsed: 0, reducedMotion: false,
+  helpers: null as ReturnType<typeof useHabitForm> | null, read: vi.fn(), online: true, pro: true, goalToggle: vi.fn(), messagesUsed: 0, reducedMotion: false, reminderTimes: [] as number[],
 }))
 
 vi.mock('@/lib/motion', async (importOriginal) => ({ ...await importOriginal<typeof import('@/lib/motion')>(), usePrefersReducedMotion: () => state.reducedMotion }))
@@ -58,9 +59,11 @@ interface HarnessProps { mode?: 'create' | 'edit'; saveError?: string | null; lo
 function Harness({ mode = 'create', saveError = null, lockedGeneral = null, initial = {}, parentField, subHabits = true }: Readonly<HarnessProps>) {
   const formHelpers = useHabitForm({ initialData: { dueDate: '', ...initial } })
   const tags = useTagSelection()
+  const [reminderTimes, setReminderTimes] = useState([0, 15])
   state.helpers = formHelpers
+  state.reminderTimes = reminderTimes
   const fields: GuidedHabitFields = {
-    tags, selectedGoalIds: [], atGoalLimit: false, onToggleGoal: state.goalToggle, reminderTimes: [0, 15], onReminderTimesChange: vi.fn(), onUpgrade: vi.fn(),
+    tags, selectedGoalIds: [], atGoalLimit: false, onToggleGoal: state.goalToggle, reminderTimes, onReminderTimesChange: setReminderTimes, onUpgrade: vi.fn(),
     parentField, children: subHabits ? () => <Text>sub-habit-editor</Text> : undefined,
   }
   return (
@@ -77,6 +80,11 @@ const control = (tree: Tree, name: string | RegExp) => tree.hosts().find((node) 
 const heading = (tree: Tree) => tree.hosts().filter((node) => node.props.accessibilityRole === 'header').map((node) => (typeof node.props.children === 'string' ? node.props.children : ''))[0] ?? ''
 const progress = (tree: Tree) => tree.hosts().find((node) => /^(Passo|Step) \d (de|of) \d$/.test(node.props.accessibilityLabel ?? ''))?.props.accessibilityLabel
 const hasText = (tree: Tree, text: string) => tree.hosts().some((node) => node.props.children === text)
+/** The words a pressable shows, read from its Text hosts. */
+function textIn(node: unknown): string {
+  const hosts = (node as { findAll: (predicate: (child: { type: unknown }) => boolean) => { props: { children?: unknown } }[] }).findAll((child) => child.type === 'Text')
+  return hosts.map((host) => host.props.children).filter((value): value is string => typeof value === 'string').join('')
+}
 async function tap(tree: Tree, name: string | RegExp) {
   const target = control(tree, name)
   if (!target) throw new Error(`no control named ${String(name)}`)
@@ -393,6 +401,73 @@ describe.each(['pt-BR', 'en'] as const)('the detail questions on Android in %s',
     tree.unmount()
   })
 
+  const formCopy = () => copy().habits.form
+  const removeActions = (tree: Tree) => tree.hosts().filter((node) => typeof node.props.onPress === 'function' && [formCopy().removeReminder, formCopy().removeScheduledReminder].includes(node.props.accessibilityLabel ?? ''))
+  async function toReminderKinds() {
+    const tree = await toSummary()
+    await tap(tree, new RegExp(`^${flowCopy().summary.reminder},`))
+    await tap(tree, formCopy().reminder)
+    return tree
+  }
+  async function tapText(tree: Tree, text: string) {
+    const target = tree.hosts().find((node) => typeof node.props.onPress === 'function' && textIn(node) === text)
+    if (!target) throw new Error(`no control with the text ${text}`)
+    await act(async () => { press(target); await Promise.resolve() })
+  }
+  async function setTime(tree: Tree, label: string, value: string) {
+    await type(tree, label, value)
+    const input = tree.hosts().find((node) => (node.props as { onChangeText?: unknown }).onChangeText && node.props.accessibilityLabel === label)
+    await act(async () => { (input?.props as unknown as { onBlur?: () => void }).onBlur?.(); await Promise.resolve() })
+  }
+
+  it('scenario 18: turns the reminder on with the default times and shows the permission notice', async () => {
+    const tree = await toReminderKinds()
+    expect(helpers().form.getValues('reminderEnabled')).toBe(true)
+    expect(tree.hosts().find((node) => node.props.accessibilityRole === 'radio' && node.props.accessibilityLabel === formCopy().definedTimes)?.props.accessibilityState?.checked).toBe(true)
+    expect(state.reminderTimes).toEqual([0, 15])
+    expect(removeActions(tree)).toHaveLength(2)
+    expect(tree.hosts().some((node) => node.props.accessibilityLabel === formCopy().reminderPermissionNeeded)).toBe(true)
+    tree.unmount()
+  })
+
+  it('scenario 18: adds an offset preset, then a custom offset before the time', async () => {
+    const tree = await toReminderKinds()
+    await tapText(tree, formCopy().reminderAdd)
+    await tapText(tree, formCopy().reminder30min)
+    expect(state.reminderTimes).toEqual([30, 15, 0])
+    await tapText(tree, formCopy().reminderAdd)
+    await tapText(tree, formCopy().reminderCustom)
+    await type(tree, formCopy().reminderCustomLabel, '45')
+    await tap(tree, copy().common.add)
+    expect(state.reminderTimes).toEqual([45, 30, 15, 0])
+    expect(removeActions(tree)).toHaveLength(4)
+    tree.unmount()
+  })
+
+  it('scenario 18: adds a clock reminder for the day before', async () => {
+    const tree = await toReminderKinds()
+    await tap(tree, formCopy().scheduledReminderDayBefore)
+    await setTime(tree, formCopy().scheduledReminderTime, '21:00')
+    expect(helpers().form.getValues('scheduledReminders')).toEqual([{ when: 'day_before', time: '21:00' }])
+    expect(removeActions(tree)).toHaveLength(3)
+    tree.unmount()
+  })
+
+  it('scenario 18: repeats every 30 minutes inside the active hours and drops the fixed times', async () => {
+    const tree = await toReminderKinds()
+    await tap(tree, formCopy().repeatEvery)
+    expect(helpers().form.getValues('repeatReminder')).toMatchObject({ intervalMinutes: 30 })
+    expect(state.reminderTimes).toEqual([])
+    await tap(tree, formCopy().repeatAllDay)
+    await setTime(tree, formCopy().repeatActiveStart, '09:00')
+    await setTime(tree, formCopy().repeatActiveEnd, '18:00')
+    expect(helpers().form.getValues('repeatReminder')).toMatchObject({ intervalMinutes: 30, activeStart: '09:00', activeEnd: '18:00' })
+    await primary(tree)
+    expect(heading(tree)).toBe(flowCopy().confirm.question)
+    tree.unmount()
+  })
+
+
   it('opens the end time question from the length value and refuses an end before the start', async () => {
     const tree = await toSummary()
     await tap(tree, new RegExp(`^${flowCopy().summary.duration},`))
@@ -436,6 +511,76 @@ function GuidedFromConversation() {
   return <GuidedHabitFlow mode="edit" formHelpers={formHelpers} lockedGeneral={null} fromConversation pending={false} saveError={null} createLabel="Salvar" onSubmit={submit} onClose={close}
     fields={{ tags, selectedGoalIds: [], atGoalLimit: false, onToggleGoal: vi.fn(), reminderTimes: [], onReminderTimesChange: vi.fn(), onUpgrade: vi.fn() }} />
 }
+
+/** The values the form holds, as the submit handler receives them. */
+const savedValues = () => helpers().form.getValues() as Parameters<typeof buildCreateHabitRequest>[0]
+
+describe('the request body of the guided flow on Android', () => {
+  beforeEach(async () => { await i18n.changeLanguage('pt-BR') })
+
+  it('creates with the body the current form sends for a task tomorrow at 8:00 with a reminder', async () => {
+    const tree = renderNavigation(<Harness />)
+    await phrase(tree, 'ligar para o João')
+    await tap(tree, ptBR.habits.flow.when.tomorrow)
+    await tap(tree, '08:00')
+    await tap(tree, ptBR.habits.flow.reminder.yes)
+    const body = buildCreateHabitRequest(savedValues(), state.reminderTimes, [], [], [])
+    const currentForm = { ...buildEmptyHabitFormValues(''), title: 'ligar para o João', dueDate: '2026-11-14', dueTime: '08:00', reminderEnabled: true }
+    expect(body).toEqual(buildCreateHabitRequest(currentForm, [0, 15], [], [], []))
+    expect(body).toMatchInlineSnapshot(`
+      {
+        "dueDate": "2026-11-14",
+        "dueTime": "08:00",
+        "isBadHabit": false,
+        "relativeReminders": [
+          {
+            "minutesBefore": 0,
+          },
+          {
+            "minutesBefore": 15,
+          },
+        ],
+        "reminderEnabled": true,
+        "reminderTimes": [],
+        "title": "ligar para o João",
+      }
+    `)
+    tree.unmount()
+  })
+
+  it('edits with the body the current form sends when only the time changes', async () => {
+    const stored = { title: 'Correr', itemType: 'habit' as const, frequencyUnit: 'Day' as const, frequencyQuantity: 1, dueDate: '2026-11-13', dueTime: '07:00' }
+    const tree = renderNavigation(<Harness mode="edit" subHabits={false} initial={stored} />)
+    await tap(tree, /^Hora,/)
+    await tap(tree, '20:00')
+    const body = buildUpdateHabitRequest(savedValues(), false, '', state.reminderTimes, [])
+    const currentForm = { ...buildEmptyHabitFormValues(''), ...stored, dueTime: '20:00' }
+    expect(body).toEqual(buildUpdateHabitRequest(currentForm, false, '', [0, 15], []))
+    expect(body).toMatchInlineSnapshot(`
+      {
+        "checklistItems": [],
+        "description": "",
+        "dueEndTime": undefined,
+        "dueTime": "20:00",
+        "emoji": null,
+        "frequencyQuantity": 1,
+        "frequencyUnit": "Day",
+        "goalIds": [],
+        "intervalWeeks": 1,
+        "isBadHabit": false,
+        "isFlexible": false,
+        "isGeneral": false,
+        "relativeReminders": [],
+        "reminderEnabled": false,
+        "reminderTimes": [],
+        "slipAlertEnabled": false,
+        "startDate": "2026-11-13",
+        "title": "Correr",
+      }
+    `)
+    tree.unmount()
+  })
+})
 
 describe('the guided edit flow on Android', () => {
   beforeEach(async () => { await i18n.changeLanguage('pt-BR') })

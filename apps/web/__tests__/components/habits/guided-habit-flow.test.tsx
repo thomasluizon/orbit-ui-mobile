@@ -1,4 +1,4 @@
-import { useEffect, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { act, fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import en from '@orbit/shared/i18n/en.json'
@@ -6,10 +6,11 @@ import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { GuidedHabitFlow, type GuidedHabitFields } from '@/components/habits/guided/guided-habit-flow'
 import { useHabitForm } from '@/hooks/use-habit-form'
 import { useTagSelection } from '@/hooks/use-tag-selection'
+import { HABIT_REMINDER_PRESETS, buildCreateHabitRequest, buildEmptyHabitFormValues, buildUpdateHabitRequest } from '@orbit/shared/utils'
 
 const state = vi.hoisted(() => ({
   locale: 'pt-BR' as 'en' | 'pt-BR', read: vi.fn(), helpers: null as unknown, online: true, pro: true, reducedMotion: false,
-  goalToggle: vi.fn(), messagesUsed: 0,
+  goalToggle: vi.fn(), messagesUsed: 0, reminderTimes: [] as number[],
 }))
 
 function lookup(messages: Record<string, unknown>, key: string): string {
@@ -61,9 +62,10 @@ interface HarnessProps { mode?: 'create' | 'edit'; saveError?: string | null; lo
 function Harness({ mode = 'create', saveError = null, lockedGeneral = null, initial = {}, parentField, subHabits = true }: Readonly<HarnessProps>) {
   const formHelpers = useHabitForm({ initialData: { dueDate: '', ...initial } })
   const tags = useTagSelection()
-  useEffect(() => { state.helpers = formHelpers })
+  const [reminderTimes, setReminderTimes] = useState([0, 15])
+  useEffect(() => { state.helpers = formHelpers; state.reminderTimes = reminderTimes })
   const fields: GuidedHabitFields = {
-    tags, selectedGoalIds: [], atGoalLimit: false, onToggleGoal: state.goalToggle, reminderTimes: [0, 15], onReminderTimesChange: vi.fn(),
+    tags, selectedGoalIds: [], atGoalLimit: false, onToggleGoal: state.goalToggle, reminderTimes, onReminderTimesChange: setReminderTimes,
     parentField, children: subHabits ? () => <p>sub-habit-editor</p> : undefined,
   }
   return (
@@ -419,6 +421,65 @@ describe.each(['pt-BR', 'en'] as const)('the detail questions in %s', (locale) =
     expect(helpers().form.getValues('repeatReminder')).toMatchObject({ intervalMinutes: 30 })
   })
 
+  const formCopy = () => (locale === 'en' ? en : ptBR).habits.form
+  const reminderChips = () => document.querySelectorAll('[data-reminder-chip]')
+  async function toReminderKinds() {
+    await toSummary()
+    await press(new RegExp(`^${messages().summary.reminder}`))
+    await act(async () => { fireEvent.click(screen.getByRole('switch', { name: formCopy().reminder })) })
+  }
+  async function setTime(label: string, value: string) {
+    await act(async () => { fireEvent.change(screen.getByLabelText(label), { target: { value } }) })
+  }
+
+  it('scenario 18: turns the reminder on with the default times and shows the permission notice with its way to the settings', async () => {
+    await toReminderKinds()
+    expect(helpers().form.getValues('reminderEnabled')).toBe(true)
+    expect(screen.getByRole('radio', { name: formCopy().definedTimes })).toHaveAttribute('aria-checked', 'true')
+    expect(state.reminderTimes).toEqual([0, 15])
+    expect(reminderChips()).toHaveLength(2)
+    const notice = screen.getByRole('link', { name: formCopy().reminderPermissionNeeded })
+    expect(notice).toHaveAttribute('href', '/profile/notifications')
+    expect(notice).toHaveAccessibleDescription(formCopy().reminderSettingsDescription)
+  })
+
+  it('scenario 18: adds an offset preset, then a custom offset before the time', async () => {
+    await toReminderKinds()
+    const preset = HABIT_REMINDER_PRESETS.find((item) => item.value === 30)!
+    await press(formCopy().reminderAdd)
+    await press(lookup(locale === 'en' ? en : ptBR, preset.key))
+    expect(state.reminderTimes).toEqual([30, 15, 0])
+    await press(formCopy().reminderAdd)
+    await press(formCopy().reminderCustom)
+    await act(async () => { fireEvent.change(screen.getByRole('spinbutton', { name: formCopy().reminderCustomLabel }), { target: { value: '45' } }) })
+    await press((locale === 'en' ? en : ptBR).common.add)
+    expect(state.reminderTimes).toEqual([45, 30, 15, 0])
+    expect(reminderChips()).toHaveLength(4)
+  })
+
+  it('scenario 18: adds a clock reminder for the day before', async () => {
+    await toReminderKinds()
+    await act(async () => { fireEvent.click(screen.getByRole('radio', { name: formCopy().scheduledReminderDayBefore })) })
+    await setTime(formCopy().scheduledReminderTime, '21:00')
+    await act(async () => { fireEvent.blur(screen.getByLabelText(formCopy().scheduledReminderTime)) })
+    expect(helpers().form.getValues('scheduledReminders')).toEqual([{ when: 'day_before', time: '21:00' }])
+    expect(reminderChips()).toHaveLength(3)
+  })
+
+  it('scenario 18: repeats every 30 minutes inside the active hours and drops the fixed times', async () => {
+    await toReminderKinds()
+    await act(async () => { fireEvent.click(screen.getByRole('radio', { name: new RegExp(formCopy().repeatEvery) })) })
+    expect(helpers().form.getValues('repeatReminder')).toMatchObject({ intervalMinutes: 30 })
+    expect(state.reminderTimes).toEqual([])
+    expect(screen.getByRole('switch', { name: formCopy().repeatAllDay })).toBeChecked()
+    await act(async () => { fireEvent.click(screen.getByRole('switch', { name: formCopy().repeatAllDay })) })
+    await setTime(formCopy().repeatActiveStart, '09:00')
+    await setTime(formCopy().repeatActiveEnd, '18:00')
+    expect(helpers().form.getValues('repeatReminder')).toMatchObject({ intervalMinutes: 30, activeStart: '09:00', activeEnd: '18:00' })
+    await press(messages().continue)
+    expect(heading()).toHaveTextContent(messages().confirm.question)
+  })
+
   it('opens the end time question from the length value and refuses an end before the start', async () => {
     await toSummary()
     await press(new RegExp(`^${messages().summary.duration}`))
@@ -460,6 +521,74 @@ function GuidedFromConversation() {
   return <GuidedHabitFlow mode="edit" formHelpers={formHelpers} lockedGeneral={null} fromConversation pending={false} saveError={null} createLabel="Salvar" onSubmit={submit} onClose={close}
     fields={{ tags, selectedGoalIds: [], atGoalLimit: false, onToggleGoal: vi.fn(), reminderTimes: [], onReminderTimesChange: vi.fn() }} />
 }
+
+/** The values the form holds, as the submit handler receives them. */
+const savedValues = () => helpers().form.getValues() as Parameters<typeof buildCreateHabitRequest>[0]
+
+describe('the request body of the guided flow', () => {
+  beforeEach(() => { state.locale = 'pt-BR'; state.reducedMotion = false })
+
+  it('creates with the body the current form sends for a task tomorrow at 8:00 with a reminder', async () => {
+    render(<Harness />)
+    await phrase('ligar para o João')
+    await press(ptBR.habits.flow.when.tomorrow)
+    await press('08:00')
+    await press(ptBR.habits.flow.reminder.yes)
+    const body = buildCreateHabitRequest(savedValues(), state.reminderTimes, [], [], [])
+    const currentForm = { ...buildEmptyHabitFormValues(''), title: 'ligar para o João', dueDate: '2026-11-14', dueTime: '08:00', reminderEnabled: true }
+    expect(body).toEqual(buildCreateHabitRequest(currentForm, [0, 15], [], [], []))
+    expect(body).toMatchInlineSnapshot(`
+      {
+        "dueDate": "2026-11-14",
+        "dueTime": "08:00",
+        "isBadHabit": false,
+        "relativeReminders": [
+          {
+            "minutesBefore": 0,
+          },
+          {
+            "minutesBefore": 15,
+          },
+        ],
+        "reminderEnabled": true,
+        "reminderTimes": [],
+        "title": "ligar para o João",
+      }
+    `)
+  })
+
+  it('edits with the body the current form sends when only the time changes', async () => {
+    const stored = { title: 'Correr', itemType: 'habit' as const, frequencyUnit: 'Day' as const, frequencyQuantity: 1, dueDate: '2026-11-13', dueTime: '07:00' }
+    render(<Harness mode="edit" subHabits={false} initial={stored} />)
+    await press(/Hora/)
+    await press('20:00')
+    const body = buildUpdateHabitRequest(savedValues(), false, '', state.reminderTimes, [])
+    const currentForm = { ...buildEmptyHabitFormValues(''), ...stored, dueTime: '20:00' }
+    expect(body).toEqual(buildUpdateHabitRequest(currentForm, false, '', [0, 15], []))
+    expect(body).toMatchInlineSnapshot(`
+      {
+        "checklistItems": [],
+        "description": "",
+        "dueEndTime": undefined,
+        "dueTime": "20:00",
+        "emoji": null,
+        "frequencyQuantity": 1,
+        "frequencyUnit": "Day",
+        "goalIds": [],
+        "intervalWeeks": 1,
+        "isBadHabit": false,
+        "isFlexible": false,
+        "isGeneral": false,
+        "relativeReminders": [],
+        "reminderEnabled": false,
+        "reminderTimes": [],
+        "slipAlertEnabled": false,
+        "startDate": "2026-11-13",
+        "title": "Correr",
+      }
+    `)
+  })
+})
 
 describe('the guided edit flow', () => {
   beforeEach(() => { state.locale = 'pt-BR'; state.reducedMotion = false })
