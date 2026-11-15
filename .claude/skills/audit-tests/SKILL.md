@@ -128,7 +128,7 @@ purpose: an audit reads, so its workers carry no write, edit, or shell tools eit
 Run the shared pipeline in **`.claude/skills/_shared/audit-to-tickets.md`**: one GitHub
 ticket per verified gap, drafted to the 6.2 template, validated by
 re-read against the 6.2 template, presented behind ONE approval gate, then created via
-`gh issue create` and re-validated from the created issue.
+`node tools/create-ticket.mjs` and re-validated from the created issue.
 
 Tests-specific mapping into the 6.2 body, where the deliverable of each ticket IS a test:
 
@@ -149,7 +149,7 @@ Tests-specific mapping into the 6.2 body, where the deliverable of each ticket I
 At the approval gate, present **suite health** (files scored, % happy-path-only, % smell-
 carrying, % pinning all three axes) and the **critical-path coverage** table (auth, billing,
 AI/MCP, data-isolation, timezone, validation) as the provenance, plus the **Deferred ledger**
-(High gaps past the verify cap, non-critical paths not scored, policy-excluded E2E) and the
+(Critical and High gaps past the verify cap or whose skeptic died, non-critical paths not scored, policy-excluded E2E) and the
 convergence state, so the owner approves knowing the scale of the rot. None of it is written to
 disk.
 

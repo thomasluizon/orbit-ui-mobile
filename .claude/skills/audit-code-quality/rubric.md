@@ -340,7 +340,7 @@ missing required inventory update, is **High**. A change that makes the in-app g
 
 ### 13. External-interface evidence
 
-> Reference: root AGENTS.md "Never assume an external interface. Check it, then use it." Gated whenever
+> Reference: `.claude/playbooks/review-and-audit.md` rule 13, from `CLAUDE.md` rule 8. Gated whenever
 > the diff adds or changes a read of a CLI, GitHub/provider API, Git response, SDK, or library field,
 > flag, subcommand, exit code, enum, event argument, or response shape.
 

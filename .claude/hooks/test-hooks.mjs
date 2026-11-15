@@ -980,7 +980,7 @@ T("adapter timeless: a new owner attribution -> 2", runHook(STALE_TEXT, {
 }), 2)
 T("adapter timeless: a clean edit -> 0", runHook(STALE_TEXT, {
   tool_name: "Edit",
-  tool_input: { file_path: join(repoRoot, "AGENTS.md"), old_string: "clean", new_string: "still clean" },
+  tool_input: { file_path: join(repoRoot, "CLAUDE.md"), old_string: "clean", new_string: "still clean" },
   cwd: repoRoot,
 }), 0)
 T("adapter timeless: a scratchpad write -> 0", runHook(STALE_TEXT, {
