@@ -61,8 +61,9 @@ describe('the search question block centring in Chromium', () => {
         const group = block.getBoundingClientRect()
         const question = block.querySelector('h1')!
         const field = block.querySelector('input')!.getBoundingClientRect()
+        const scroller = document.querySelector<HTMLElement>('[data-shell-scroller]')!
         return {
-          free: { top: header.bottom, bottom: tabs.top },
+          free: { top: header.bottom, bottom: tabs.top, centreX: scroller.getBoundingClientRect().left + scroller.clientWidth / 2 },
           group: { top: group.top, bottom: group.bottom, left: group.left, right: group.right },
           questionLines: Math.round(question.getBoundingClientRect().height / Number.parseFloat(getComputedStyle(question).lineHeight)),
           field: { height: field.height, left: field.left, right: field.right },
@@ -72,7 +73,7 @@ describe('the search question block centring in Chromium', () => {
       const freeCentre = (geometry.free.top + geometry.free.bottom) / 2
       const groupCentre = (geometry.group.top + geometry.group.bottom) / 2
       expect(Math.abs(groupCentre - freeCentre), JSON.stringify(geometry)).toBeLessThanOrEqual(1)
-      expect(Math.abs((geometry.group.left + geometry.group.right) / 2 - geometry.viewport / 2), JSON.stringify(geometry)).toBeLessThanOrEqual(1)
+      expect(Math.abs((geometry.group.left + geometry.group.right) / 2 - geometry.free.centreX), JSON.stringify(geometry)).toBeLessThanOrEqual(1)
       expect(geometry.questionLines).toBeLessThanOrEqual(2)
       expect(geometry.field.height).toBeGreaterThanOrEqual(48)
       expect(geometry.field.left).toBeGreaterThanOrEqual(0)
