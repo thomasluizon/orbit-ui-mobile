@@ -6,6 +6,8 @@ import { setOrbitMotionEnabled } from '@orbit/shared/utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { OrbitMascot } from '@/components/ui/orbit-mascot'
 import { OrbitOverlayLayer } from '@/components/ui/orbit-overlay-layer'
+import { NativeDialog } from '@/components/ui/native-dialog'
+import { OverlayHost } from '@/components/ui/overlay-host'
 import { orbitScreenLayout } from '@/components/navigation/orbit-screen-layout'
 import { createTokensV2 } from '@/lib/theme'
 import { __resetTestHostConfig, __setMeasureInWindowImpl } from '@/test-mocks/react-native'
@@ -113,6 +115,22 @@ describe('Orbit idle loop on Android', () => {
     expect(loops(tree)).toEqual(['still', 'running'])
     TestRenderer.act(() => tree.update(<View><OrbitMascot size={96} /><OrbitOverlayLayer active={false}>{null}</OrbitOverlayLayer></View>))
     expect(loops(tree)).toEqual(['running'])
+    tree.unmount()
+  })
+
+  it('runs the Orbit inside an open native dialog and pauses the page Orbit under it', () => {
+    const page = (open: boolean) => (
+      <OverlayHost>
+        <OrbitMascot size={96} />
+        <NativeDialog open={open} title="Welcome" onOpenChange={() => {}}><OrbitMascot size={96} state="feliz" /></NativeDialog>
+      </OverlayHost>
+    )
+    const tree = render(page(true))
+    const byState = () => Object.fromEntries(mascots(tree).map((node) => [node.props['data-orbit-state'], node.props['data-orbit-loop']]))
+    expect(byState()).toEqual({ parado: 'still', feliz: 'running' })
+    TestRenderer.act(() => tree.update(page(false)))
+    advance(1000)
+    expect(byState()).toEqual({ parado: 'running' })
     tree.unmount()
   })
 
