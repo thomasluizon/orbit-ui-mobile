@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, type ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import { motion } from 'motion/react'
 import { useLocale, useTranslations } from 'next-intl'
 import { motionDurations, motionEasings, motionLayerTiming } from '@orbit/shared/theme'
@@ -16,6 +16,7 @@ import {
   getOnboardingReminderPreviewTime,
   getOnboardingScheduleMode,
   HABIT_TIME_OPTIONS,
+  ONBOARDING_INTRO_POSES,
   ONBOARDING_INTRO_SCREENS,
   ONBOARDING_MODE_OPTIONS,
   ONBOARDING_REMIND_STEP,
@@ -131,6 +132,8 @@ function introView(screen: OnboardingIntroScreen, t: Translate, onNext: () => vo
   return {
     question: t(`onboarding.flow.guided.intro.${screen}.title`),
     line: null,
+    orbitState: ONBOARDING_INTRO_POSES[screen].state,
+    orbitLook: ONBOARDING_INTRO_POSES[screen].look,
     free: <IntroSentence>{t(`onboarding.flow.guided.intro.${screen}.body`)}</IntroSentence>,
     primary: { label: t('onboarding.flow.continue'), onPress: onNext },
     footer: <PillButton variant="ghost" size="sm" minimumHeight={48} onClick={onSkipIntro}>{t('onboarding.flow.guided.intro.skip')}</PillButton>,
@@ -329,7 +332,6 @@ function useGuidedNavigation(props: GuidedOnboardingProps) {
     setTrackedStep(props.step)
     setNavigation((current) => viewAfterStep(current, trackedStep, props.step, onboardingNeedsCadence(props.schedule, props.proposed)))
   }
-  useEffect(() => { if (introRun) useOnboardingDraftStore.getState().markIntroSeen() }, [introRun])
   const go = (view: FlowView, direction: 1 | -1, patch: Partial<Navigation> = {}) => setNavigation((current) => ({ ...current, ...patch, view, direction }))
   return { navigation, introRun, go }
 }
@@ -393,11 +395,17 @@ export function GuidedOnboardingFlow(props: Readonly<GuidedOnboardingProps>) {
     summary: useSummaryView(props, getHabitPhraseTitle(props.sentence, locale), cadenceText, (step) => go(step, 1, { editing: true, walking: false })),
     remind: useRemindView(props, (step) => { go(view, 1, { pendingEdit: step }); props.onEditSchedule() }),
   }
-  const nextIntro = (screen: OnboardingIntroScreen) => {
-    const index = ONBOARDING_INTRO_SCREENS.indexOf(screen)
-    go(ONBOARDING_INTRO_SCREENS[index + 1] ?? 'what', 1)
+  /** The intro is seen once the person completes it or skips it. A person who quits on a screen sees it again. */
+  const leaveIntro = () => {
+    useOnboardingDraftStore.getState().markIntroSeen()
+    go('what', 1)
   }
-  const stepView = isIntro(view) ? introView(view, t, () => nextIntro(view), () => go('what', 1)) : views[view]
+  const nextIntro = (screen: OnboardingIntroScreen) => {
+    const next = ONBOARDING_INTRO_SCREENS[ONBOARDING_INTRO_SCREENS.indexOf(screen) + 1]
+    if (next) go(next, 1)
+    else leaveIntro()
+  }
+  const stepView = isIntro(view) ? introView(view, t, () => nextIntro(view), leaveIntro) : views[view]
   const back = backAction(backTarget(navigation, introRun), props.onBack, go)
   const close = props.onSkip ?? props.onContinueWithout
   const progress = isIntro(view) ? { position: ONBOARDING_INTRO_SCREENS.indexOf(view) + 1, total: ONBOARDING_INTRO_SCREENS.length } : onboardingGuidedPosition(view, cadencePath)
@@ -418,7 +426,8 @@ export function GuidedOnboardingFlow(props: Readonly<GuidedOnboardingProps>) {
         closeLabel={t('onboarding.flow.skip')}
         onBack={back}
         onClose={close}
-        orbitState={statusKey ? 'pensando' : 'parado'}
+        orbitState={statusKey ? 'pensando' : stepView.orbitState ?? 'parado'}
+        orbitLook={stepView.orbitLook}
         statusText={statusKey ? t(statusKey) : undefined}
         options={stepView.options}
         primary={stepView.primary}

@@ -111,8 +111,11 @@ describe.each([{ language: 'en', messages: en }, { language: 'pt-BR', messages: 
 
   it('explains Orbit on three intro screens before the first question, and reaches it in three taps', async () => {
     const tree = await mount()
+    const poses = ['olhando', 'pensando', 'parado']
     for (const [index, intro] of [guided.intro.talk, guided.intro.routine, guided.intro.restart].entries()) {
       expect(heading(tree)).toBe(intro.title)
+      expect(hosts(tree).find((node) => node.props.testID === 'orbit-mascot')?.props['data-orbit-state'], `the pose of intro screen ${index}`).toBe(poses[index])
+      expect(useOnboardingDraftStore.getState().introSeen, `the intro is not seen on screen ${index}`).toBe(false)
       expect(texts(tree)).toContain(intro.body)
       expect(progress(tree)).toBe(messages.habits.flow.progress.replace('{position}', String(index + 1)).replace('{total}', '3'))
       expect(texts(tree)).toContain(guided.intro.skip)
@@ -129,6 +132,13 @@ describe.each([{ language: 'en', messages: en }, { language: 'pt-BR', messages: 
     expect(heading(tree)).toBe(guided.what.question)
     const again = await mount()
     expect(heading(again)).toBe(guided.what.question)
+  })
+
+  it.each([0, 1, 2])('shows the intro again from its first screen to a person who quit on screen %i', async (screenIndex) => {
+    const tree = await mount()
+    for (let index = 0; index < screenIndex; index += 1) await press(tree, flow.continue)
+    const again = await mount()
+    expect(heading(again)).toBe(guided.intro.talk.title)
   })
 
   it('goes from a phrase with a schedule and a time straight to the summary', async () => {
