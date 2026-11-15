@@ -103,7 +103,7 @@ function FlowLine({ line, lineKey, color }: Readonly<{ line: string; lineKey: st
 
 /** The one-question flow frame. It holds no habit-specific code: a second consumer mounts it with its own content. */
 export function QuestionFlow(props: Readonly<QuestionFlowProps>) {
-  const { flow, question, line, lineKey, stepKey, direction, orbitState = 'parado', orbitLook = null, showOrbit = true, statusText, options, children, primary, footer } = props
+  const { flow, question, line, lineKey, stepKey, direction, orbitState = 'parado', showOrbit = true, statusText, options, children, primary, footer } = props
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(() => createTokensV2(currentScheme, currentTheme), [currentScheme, currentTheme])
   const { width } = useWindowDimensions()
@@ -115,7 +115,7 @@ export function QuestionFlow(props: Readonly<QuestionFlowProps>) {
   const announcement = useFlowAnnouncement(line, stepKey)
   useGuidedFlowTracking(flow, stepKey, props.total)
   const travel = useStepTravel(stepKey, direction)
-  const shownLook = orbitState === 'parado' ? lookAt ?? (keyboardOpen ? KEYBOARD_LOOK : orbitLook) : null
+  const shownLook = orbitState === 'parado' ? lookAt ?? (keyboardOpen ? KEYBOARD_LOOK : null) : null
   const primaryAction = primary ? (
     <View style={wide ? styles.primaryWide : styles.primaryCompact}>
       <PillButton variant={primary.variant} loading={primary.loading} focusableWhenLoading hint={primary.hint} onClick={primary.onPress}>{primary.label}</PillButton>

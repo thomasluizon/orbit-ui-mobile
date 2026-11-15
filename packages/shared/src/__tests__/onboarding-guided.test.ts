@@ -7,8 +7,6 @@ import {
   buildOnboardingScheduleFromPhrase,
   describeOnboardingCadence,
   describeOnboardingResult,
-  ONBOARDING_INTRO_POSES,
-  ONBOARDING_INTRO_SCREENS,
   describeSavedOnboardingResult,
   onboardingScheduleFromSaved,
   onboardingGuidedPosition,
@@ -139,16 +137,5 @@ describe('the result sentence of the saved onboarding habit', () => {
 
   it('names a saved habit with no day as one with no date', () => {
     expect(describeSavedOnboardingResult({ isGeneral: true }, '2026-11-13').sentence.key).toBe('result.task.undated')
-  })
-})
-
-describe('the Orbit pose of each intro screen', () => {
-  it('gives each screen its own pose from the shipped states', () => {
-    const shown = ONBOARDING_INTRO_SCREENS.map((screen) => {
-      const pose = ONBOARDING_INTRO_POSES[screen]
-      return pose.state === 'parado' && pose.look ? 'olhando' : pose.state
-    })
-    expect(shown).toEqual(['olhando', 'pensando', 'parado'])
-    expect(new Set(shown).size).toBe(ONBOARDING_INTRO_SCREENS.length)
   })
 })

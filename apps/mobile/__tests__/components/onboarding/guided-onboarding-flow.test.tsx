@@ -111,10 +111,9 @@ describe.each([{ language: 'en', messages: en }, { language: 'pt-BR', messages: 
 
   it('explains Orbit on three intro screens before the first question, and reaches it in three taps', async () => {
     const tree = await mount()
-    const poses = ['olhando', 'pensando', 'parado']
     for (const [index, intro] of [guided.intro.talk, guided.intro.routine, guided.intro.restart].entries()) {
       expect(heading(tree)).toBe(intro.title)
-      expect(hosts(tree).find((node) => node.props.testID === 'orbit-mascot')?.props['data-orbit-state'], `the pose of intro screen ${index}`).toBe(poses[index])
+      expect(hosts(tree).find((node) => node.props.testID === 'orbit-mascot')?.props['data-orbit-state'], `the pose of intro screen ${index}`).toBe('parado')
       expect(useOnboardingDraftStore.getState().introSeen, `the intro is not seen on screen ${index}`).toBe(false)
       expect(texts(tree)).toContain(intro.body)
       expect(progress(tree)).toBe(messages.habits.flow.progress.replace('{position}', String(index + 1)).replace('{total}', '3'))

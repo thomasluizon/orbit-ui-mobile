@@ -1,4 +1,3 @@
-import type { OrbitLookTarget } from '../contracts/brand/OrbitMascot'
 import type { FrequencyUnit } from '../types/habit'
 import { describeHabitResult, type HabitResultSentence } from './habit-flow'
 import { getOnboardingScheduleMode, type OnboardingSchedule, type OnboardingScheduleMode } from './onboarding'
@@ -6,22 +5,6 @@ import { getOnboardingScheduleMode, type OnboardingSchedule, type OnboardingSche
 /** The three intro screens, in order: who Orbit is, what it does with the words, and the restart after a miss. */
 export const ONBOARDING_INTRO_SCREENS = ['talk', 'routine', 'restart'] as const
 export type OnboardingIntroScreen = (typeof ONBOARDING_INTRO_SCREENS)[number]
-
-export interface OnboardingIntroPose {
-  state: 'parado' | 'pensando'
-  /** Where Orbit looks on the screen. Parado with a look shows Olhando. */
-  look: OrbitLookTarget | null
-}
-
-/**
- * One Orbit pose for each intro screen, from the shipped states only. Orbit looks down at the words of the person,
- * then thinks the routine out, then stands calm: after a missed day Orbit is Parado.
- */
-export const ONBOARDING_INTRO_POSES: Record<OnboardingIntroScreen, OnboardingIntroPose> = {
-  talk: { state: 'parado', look: { x: 0, y: 1 } },
-  routine: { state: 'pensando', look: null },
-  restart: { state: 'parado', look: null },
-}
 
 /** The question steps of the guided onboarding, after the intro. */
 export type OnboardingQuestionStep = 'what' | 'mode' | 'unit' | 'days' | 'quantity' | 'interval' | 'time' | 'summary' | 'remind'

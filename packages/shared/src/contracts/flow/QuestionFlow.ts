@@ -1,5 +1,4 @@
 import type { GuidedFlowId } from '../../utils/guided-flow-events'
-import type { OrbitLookTarget } from '../brand/OrbitMascot'
 
 /** The one-question flow frame: header row, centred block, free path and the pinned primary action. It holds no habit-specific code. */
 export interface QuestionFlowProps {
@@ -27,8 +26,6 @@ export interface QuestionFlowProps {
   /** 1 forward, -1 back. */
   direction: 1 | -1
   orbitState?: 'parado' | 'pensando' | 'feliz' | 'descansando'
-  /** Where Orbit looks while no control holds its look, such as down at the one sentence of an intro screen. A control in focus wins, and only Parado looks. */
-  orbitLook?: OrbitLookTarget | null
   /** False on a flow that holds no mascot, such as a Perfil flow with a destructive step. The block then starts at the question. Default true. */
   showOrbit?: boolean
   /** The plain-text status that stands for a visible Orbit state to assistive technology. */
@@ -49,7 +46,7 @@ export interface QuestionFlowProps {
 }
 
 /** What one step shows. A step owner returns it and the flow host passes it to the frame: `free` becomes the children. */
-export type FlowStepView = Pick<QuestionFlowProps, 'question' | 'line' | 'options' | 'primary' | 'orbitState' | 'orbitLook' | 'statusText'> & {
+export type FlowStepView = Pick<QuestionFlowProps, 'question' | 'line' | 'options' | 'primary' | 'orbitState' | 'statusText'> & {
   free?: React.ReactNode
   /** Changes when the Orbit line changes with no step change, such as after a press on a tag. The host passes it to the frame, which cross-fades the line. */
   lineKey?: string

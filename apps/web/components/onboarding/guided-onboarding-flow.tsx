@@ -16,7 +16,6 @@ import {
   getOnboardingReminderPreviewTime,
   getOnboardingScheduleMode,
   HABIT_TIME_OPTIONS,
-  ONBOARDING_INTRO_POSES,
   ONBOARDING_INTRO_SCREENS,
   ONBOARDING_MODE_OPTIONS,
   ONBOARDING_REMIND_STEP,
@@ -132,8 +131,6 @@ function introView(screen: OnboardingIntroScreen, t: Translate, onNext: () => vo
   return {
     question: t(`onboarding.flow.guided.intro.${screen}.title`),
     line: null,
-    orbitState: ONBOARDING_INTRO_POSES[screen].state,
-    orbitLook: ONBOARDING_INTRO_POSES[screen].look,
     free: <IntroSentence>{t(`onboarding.flow.guided.intro.${screen}.body`)}</IntroSentence>,
     primary: { label: t('onboarding.flow.continue'), onPress: onNext },
     footer: <PillButton variant="ghost" size="sm" minimumHeight={48} onClick={onSkipIntro}>{t('onboarding.flow.guided.intro.skip')}</PillButton>,
@@ -426,8 +423,7 @@ export function GuidedOnboardingFlow(props: Readonly<GuidedOnboardingProps>) {
         closeLabel={t('onboarding.flow.skip')}
         onBack={back}
         onClose={close}
-        orbitState={statusKey ? 'pensando' : stepView.orbitState ?? 'parado'}
-        orbitLook={stepView.orbitLook}
+        orbitState={statusKey ? 'pensando' : 'parado'}
         statusText={statusKey ? t(statusKey) : undefined}
         options={stepView.options}
         primary={stepView.primary}

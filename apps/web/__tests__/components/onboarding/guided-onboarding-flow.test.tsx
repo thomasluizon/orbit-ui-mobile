@@ -123,12 +123,11 @@ describe.each(locales)('guided onboarding in $locale', ({ locale, messages }) =>
   it('explains Orbit on three intro screens before the first question, and reaches it in three taps', () => {
     mount(locale, messages)
     const intros = [guided.intro.talk, guided.intro.routine, guided.intro.restart]
-    const poses = ['olhando', 'pensando', 'parado']
     intros.forEach((intro, index) => {
       expect(heading()).toBe(intro.title)
       expect(screen.getByText(intro.body)).toBeInTheDocument()
       expect(progress()).toBe(messages.habits.flow.progress.replace('{position}', String(index + 1)).replace('{total}', '3'))
-      expect(document.querySelector('[data-question-flow] [data-asset="orbit-mascot"]')?.getAttribute('data-orbit-state'), `the pose of intro screen ${index}`).toBe(poses[index])
+      expect(document.querySelector('[data-question-flow] [data-asset="orbit-mascot"]')?.getAttribute('data-orbit-state'), `the pose of intro screen ${index}`).toBe('parado')
       expect(screen.getByRole('button', { name: guided.intro.skip })).toBeInTheDocument()
       expect(useOnboardingDraftStore.getState().introSeen, `the intro is not seen on screen ${index}`).toBe(false)
       press(flow.continue)

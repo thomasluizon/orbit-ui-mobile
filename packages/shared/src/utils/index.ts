@@ -434,8 +434,6 @@ export {
   ONBOARDING_MODE_OPTIONS,
   onboardingGuidedPosition,
   onboardingModeDetailSteps,
-  ONBOARDING_INTRO_POSES,
-  type OnboardingIntroPose,
   onboardingScheduleFromSaved,
   describeSavedOnboardingResult,
   type OnboardingSavedHabit,
