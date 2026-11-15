@@ -19,6 +19,7 @@ import { newestCommittedPrompt, promptsForCommit, specsForCommit } from "./_lib/
 import { adoptOwnerHandoffRun, parseHandoffRequest, prepareOwnerHandoffRun, readHandoffRequest, recordHandoffRequest, validateHandoffPrompt } from "../../tools/lib/handoff-prompt.mjs"
 import { checkDependencyCommand, checkDependencyFileWrite } from "./_lib/rules-dependencies.mjs"
 import { checkWorkerBrowser } from "./_lib/rules-worker.mjs"
+import { REMOVAL_RULES, checkApprovalPrompt, isUnattendedRun } from "./_lib/rules-approval.mjs"
 import { declaredRepoRoots } from "./_lib/repo-roots.mjs"
 import { operationInProgress } from "../../tools/lib/relay-checkout.mjs"
 import { readRunState, writeRunState } from "../../tools/lib/run-state.mjs"
@@ -140,6 +141,9 @@ T("git: an unresolvable remote still blocks (fails safe)", blocks(checkGitComman
 // A heredoc body is data: writing ABOUT a banned flag is not using it.
 T(`git: a heredoc message naming ${NV} allows`, checkGitCommand(`git commit -F - <<'EOF'\nfix: stop passing ${NV} in CI\nEOF`), null)
 T("git: a heredoc feeding a shell keeps its body in scope", blocks(checkGitCommand("bash <<'EOF'\ngit push origin main\nEOF")), true)
+// A file named for a shell is not a shell: the body is data that the command writes.
+T("git: a heredoc written to a .sh file is data", checkGitCommand("cat > push.sh <<'EOF'\ngit push origin main\nEOF"), null)
+T("git: a heredoc feeding a shell by path keeps its body in scope", blocks(checkGitCommand("/bin/bash <<'EOF'\ngit push origin main\nEOF")), true)
 // git worktree remove --force follows a Windows junction and deletes the target.
 T("git-worktree: --force blocks", blocks(checkGitWorktreeRemove("git worktree remove --force .claude/worktrees/x")), true)
 T("git-worktree: no force allows", checkGitWorktreeRemove("git worktree remove .claude/worktrees/x"), null)
@@ -400,6 +404,100 @@ T("worker-browser: a script reaching Playwright through npm run blocks", blocks(
 T("worker-browser: a recursive script fails closed", blocks(worker("npm run test:cycle", { cwd: scriptChainRoot })), true)
 T("worker-browser: an allowed mobile Vitest script passes", worker("npm test -w @orbit/mobile"), null)
 T("worker-browser: curl to a public host allows while localhost blocks", worker("curl https://example.com") === null && blocks(worker("curl http://localhost:3000")), true)
+
+console.log("\n# forbid-approval-prompt (_lib/rules-approval.mjs)")
+const approvalOptions = { cwd: "/work/checkouts/repo", home: "/home/someone", workingDirectories: ["/work/checkouts/api"], windows: false }
+const refusedBy = (command, options = approvalOptions) => checkApprovalPrompt(command, options)?.rule ?? null
+const HELD_REMOVAL = 'rm "$DST/$d/node_modules"'
+T("approval: the held removal is refused", refusedBy(HELD_REMOVAL), "variable-path")
+T("approval: the refusal gives the guarded rewrite", checkApprovalPrompt(HELD_REMOVAL, approvalOptions).message.includes('"${DST:?}/${d:?}/node_modules"'), true)
+T("approval: the refusal gives the literal path rewrite", checkApprovalPrompt(HELD_REMOVAL, approvalOptions).message.includes("Write the literal path"), true)
+T("approval: the refusal names the reason and the command", ["no person is present", HELD_REMOVAL, "dangerous removal"].every((text) => checkApprovalPrompt(HELD_REMOVAL, approvalOptions).message.includes(text)), true)
+// Each row is one rule: a command it refuses, and the rewrite its refusal asks for.
+const approvalRules = [
+  ["command-substitution", 'rm -rf "$(git rev-parse --show-toplevel)/dist"', "rm -rf /work/checkouts/repo/dist"],
+  ["variable-path", HELD_REMOVAL, 'rm "${DST:?}/${d:?}/node_modules"'],
+  ["brace-expansion", "rm -rf dist/{web,mobile}", "rm -rf dist/web dist/mobile"],
+  ["windows-path", "rm -rf C:work", "rm -rf C:/work/build"],
+  ["derived-variable", 'ROOT=$(git rev-parse --show-toplevel); rm -rf "${ROOT:?}"', "rm -rf /work/checkouts/repo/dist"],
+  ["glob-target", "cd apps && rm -rf ./*", "rm -rf /work/checkouts/repo/apps/web/.next"],
+  ["critical-path", "rm -rf /tmp", "rm -rf /tmp/orbit-build"],
+  ["working-directory", "rm -rf .", "rm -rf dist"],
+  ["mounted-drive", "rm -rf /Volumes/Backup", "rm -rf /Volumes/Backup/orbit/old"],
+  ["unreadable-script", 'bash -c "alias wipe=rm; rm -rf dist"', "rm -rf dist"],
+]
+T("approval: every removal rule has a refusal case", approvalRules.map(([rule]) => rule), REMOVAL_RULES.map((rule) => rule.name))
+for (const [rule, refused, rewritten] of approvalRules) {
+  T(`approval ${rule}: refused`, refusedBy(refused), rule)
+  // The guard broken: with this one rule removed the same command passes, so the refusal belongs to the rule.
+  T(`approval ${rule}: passes with the rule removed`, refusedBy(refused, { ...approvalOptions, rules: REMOVAL_RULES.filter((candidate) => candidate.name !== rule) }), null)
+  // The guard restored: the full rule set refuses again, and the rewrite the refusal asks for passes.
+  T(`approval ${rule}: refused again with the rule restored`, refusedBy(refused, { ...approvalOptions, rules: REMOVAL_RULES }), rule)
+  T(`approval ${rule}: the rewrite passes`, refusedBy(rewritten), null)
+}
+for (const [command, rule] of [
+  ['for d in web mobile; do rm "$DST/$d/node_modules"; done', "variable-path"],
+  ["rm -rf $1", "variable-path"],
+  ['rm -rf "${TMP:-/tmp}/build"', "variable-path"],
+  ['rm -rf "$DST" 2>/dev/null', "variable-path"],
+  ['rmdir "$DST"', "variable-path"],
+  ['sudo -u root rm -rf "$DST"', "variable-path"],
+  ['xargs rm -rf "$DST"', "variable-path"],
+  ['find "$DST" -name "*.tmp" -exec rm -f "$DST/x" \\;', "variable-path"],
+  [`bash -c 'rm -rf "$DST/"'`, "variable-path"],
+  [`trap 'rm -rf "$TMP"' EXIT`, "variable-path"],
+  ["bash <<'EOF'\nrm -rf \"$TMP\"\nEOF", "variable-path"],
+  ["rm -rf `pwd`/dist", "command-substitution"],
+  ["docker exec box sh -c 'rm -rf /'", "critical-path"],
+  ["rm -rf /", "critical-path"],
+  ["rm -rf ~", "critical-path"],
+  ['rm -rf "${HOME:?}"', "critical-path"],
+  [`rm -rf ${["", "private", "tmp"].join("/")}`, "critical-path"],
+  ["rm -rf /usr/", "critical-path"],
+  ["rm -rf ./*", "working-directory"],
+  ["rm -rf *", "working-directory"],
+  ["rm -rf ..", "working-directory"],
+  ["rm -rf /work/checkouts", "working-directory"],
+  ["rm -rf /work/checkouts/api", "working-directory"],
+  ["rm -rf apps/*/*", "glob-target"],
+  ["rm -rf ~/*", "glob-target"],
+  ["rm -rf ../*", "glob-target"],
+  ["rmdir -p apps/web/*", "glob-target"],
+  ["rm -rf \\\\", "windows-path"],
+  ['rm -rf build "unbalanced', "unreadable-script"],
+]) T(`approval: ${command} is refused by ${rule}`, refusedBy(command), rule)
+for (const command of [
+  "rm -rf build",
+  "rm -rf node_modules && npm ci",
+  'rm -rf "apps/web/.next" apps/mobile/dist',
+  "rm -f dist/*.js",
+  "rm -rf dist/*",
+  "rm -rf ~/cache/orbit",
+  'rm -rf "${HOME:?}/cache/orbit"',
+  "rm -rf /tmp/orbit-build",
+  "rm -rf '$literal/x'",
+  "rm -- -weird",
+  'TMP=$(mktemp -d); rm -rf "${TMP:?}"',
+  'find . -name "*.tmp" -exec rm -rf {} +',
+  // Text that names a removal does not run one.
+  'git rm -r "$DST"',
+  'echo "rm -rf $DST"',
+  'git commit -m "rm \\"$DST/\\" stops"',
+  'grep -rn "rm -rf" tools',
+  "cat > cleanup.sh <<'EOF'\nrm -rf \"$TMP\"\nEOF",
+  "npm run build",
+]) T(`approval: ${command} passes`, refusedBy(command), null)
+T("approval windows: the top level of a drive is critical", refusedBy("rm -rf C:/work", { ...approvalOptions, cwd: "C:\\work\\repo", windows: true }), "critical-path")
+T("approval windows: a deeper drive path passes", refusedBy("rm -rf C:/work/other/build", { ...approvalOptions, cwd: "C:\\work\\repo", windows: true }), null)
+T("approval: a non-string command passes", checkApprovalPrompt(undefined, approvalOptions), null)
+const sleepingRun = { sleep: true, sessionId: "coordinator" }
+T("approval scope: the coordinator of an unattended run", isUnattendedRun({ state: sleepingRun, sessionId: "coordinator" }), true)
+// A subagent's tool hooks carry the session id of the coordinator, so the same record covers it.
+T("approval scope: a session with no id fails closed", isUnattendedRun({ state: sleepingRun }), true)
+T("approval scope: a launched worker", isUnattendedRun({ env: { ORBIT_LAUNCH_WORKER: "1" }, state: null }), true)
+T("approval scope: an attended run", isUnattendedRun({ state: { sleep: false, sessionId: "coordinator" }, sessionId: "coordinator" }), false)
+T("approval scope: another session beside an unattended run", isUnattendedRun({ state: sleepingRun, sessionId: "owner" }), false)
+T("approval scope: no run record", isUnattendedRun({ env: {}, state: null, sessionId: "owner" }), false)
 
 console.log("\n# forbid-node-modules-write (_lib/rules-dependencies.mjs)")
 // the package was extracted, npm install left them alone, and four contradictory citations of
@@ -961,7 +1059,7 @@ const runHookResult = (file, input, env) =>
     env: { ...process.env, ORBIT_LAUNCH_WORKER: "", ...env },
   })
 const runHook = (file, payload, env) => runHookResult(file, JSON.stringify(payload), env).status
-for (const hook of ["git-guardrails", "orchestrator-guardrails", "forbid-invented-identifier", "forbid-worker-browser", "forbid-node-modules-write", "forbid-raw-ticket-mutation", "forbid-ef-migration-raw-index", "require-handoff-prompt", "require-wake-source", "forbid-superseded-session"]) {
+for (const hook of ["git-guardrails", "orchestrator-guardrails", "forbid-invented-identifier", "forbid-worker-browser", "forbid-node-modules-write", "forbid-approval-prompt", "forbid-raw-ticket-mutation", "forbid-ef-migration-raw-index", "require-handoff-prompt", "require-wake-source", "forbid-superseded-session"]) {
   const result = runHookResult(`${hook}.mjs`, "not json")
   T(`adapter ${hook}: malformed stdin blocks`, result.status, 2)
   T(`adapter ${hook}: failure identifies the hook`, result.stderr.includes(hook), true)
@@ -1291,7 +1389,30 @@ T("relay fixture: local origin initializes", stagingGit(["init", "--bare", wakeO
 T("relay fixture: local origin is configured", stagingGit(["remote", "add", "origin", wakeOrigin], wakeCheckout).status, 0)
 T("relay fixture: main is published locally", stagingGit(["push", "origin", "HEAD:refs/heads/main"], wakeCheckout).status, 0)
 T("relay fixture: base configuration is available", stagingGit(["update-ref", "refs/remotes/origin/redesign/main", "HEAD"], wakeCheckout).status, 0)
-for (const name of ["relay-at-threshold.mjs", "forbid-superseded-session.mjs", "record-handoff-request.mjs", "require-handoff-prompt.mjs"]) cpSync(join(hooksDir, name), join(wakeHooks, name))
+for (const name of ["relay-at-threshold.mjs", "forbid-superseded-session.mjs", "record-handoff-request.mjs", "require-handoff-prompt.mjs", "forbid-approval-prompt.mjs"]) cpSync(join(hooksDir, name), join(wakeHooks, name))
+// The staged checkout owns its run record, so the run that executes this suite cannot change the verdict.
+const APPROVAL_HOOK = "forbid-approval-prompt.mjs"
+const approvalHook = (payload, env = {}) => spawnSync(process.execPath, [join(wakeHooks, APPROVAL_HOOK)], {
+  input: JSON.stringify(payload), encoding: "utf8", env: { ...process.env, ORBIT_LAUNCH_WORKER: "", ...env },
+})
+const heldRemoval = (toolName = "Bash", sessionId = "approval-coordinator") => ({ tool_name: toolName, tool_input: { command: HELD_REMOVAL }, cwd: wakeCheckout, session_id: sessionId })
+T("adapter approval: no run record -> 0", approvalHook(heldRemoval()).status, 0)
+writeRunState({ sessionId: "approval-coordinator", sleep: false, remaining: [] }, wakeCheckout)
+T("adapter approval: an attended run -> 0", approvalHook(heldRemoval()).status, 0)
+T("adapter approval: a worker in an attended run -> 2", approvalHook(heldRemoval(), { ORBIT_LAUNCH_WORKER: "1" }).status, 2)
+writeRunState({ sessionId: "approval-coordinator", sleep: true, remaining: [] }, wakeCheckout)
+const refusedRemoval = approvalHook(heldRemoval())
+T("adapter approval: the held removal in an unattended run -> 2", refusedRemoval.status, 2)
+T("adapter approval: the refusal tells the agent how to rewrite the command", refusedRemoval.stderr.includes('"${DST:?}/${d:?}/node_modules"') && refusedRemoval.stderr.includes("literal path"), true)
+T("adapter approval: PowerShell receives the same check -> 2", approvalHook(heldRemoval("PowerShell")).status, 2)
+T("adapter approval: a subagent carries the coordinator session -> 2", approvalHook({ ...heldRemoval(), agent_id: "fix-agent", agent_type: "general-purpose" }).status, 2)
+T("adapter approval: the guarded rewrite -> 0", approvalHook({ ...heldRemoval(), tool_input: { command: 'rm "${DST:?}/${d:?}/node_modules"' } }).status, 0)
+T("adapter approval: removal of the checkout itself -> 2", approvalHook({ ...heldRemoval(), tool_input: { command: `rm -rf ${wakeCheckout}` } }).status, 2)
+T("adapter approval: another session beside the unattended run -> 0", approvalHook(heldRemoval("Bash", "owner-session")).status, 0)
+writeFileSync(runStatePath(wakeCheckout), "not json")
+T("adapter approval: an unreadable run record fails closed -> 2", approvalHook(heldRemoval()).status, 2)
+T("adapter approval: an unreadable run record still allows a safe command -> 0", approvalHook({ ...heldRemoval(), tool_input: { command: "npm test" } }).status, 0)
+rmSync(runStatePath(wakeCheckout))
 const relayDecisionLog = join(wakeCheckout, ".git", "relay-decisions.md")
 writeFileSync(relayDecisionLog, "No open decisions.\n")
 const relayState = { autoWork: false, sessionId: "relay-parent", sleep: true, remaining: ["#1091"], decisionLogPath: relayDecisionLog }

@@ -1,4 +1,14 @@
 {
+  ".claude/hooks/forbid-approval-prompt.mjs": {
+    "scope": "changed-files",
+    "snapshot": "none",
+    "constants": [
+      {
+        "name": "inline script length limit",
+        "source": "Claude Code 2.1.325 Bash permission check, the inline shell script length it reads"
+      }
+    ]
+  },
   ".claude/hooks/forbid-ef-migration-raw-index.mjs": {
     "scope": "changed-files",
     "snapshot": "none",

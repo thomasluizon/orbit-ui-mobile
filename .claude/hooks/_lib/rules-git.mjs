@@ -52,10 +52,10 @@ export function unquotedHeredocRunsCommand(command) {
   return false
 }
 
-/** Strip heredoc bodies so a message that NAMES a flag is not read as using it. */
+/** Strip heredoc bodies so a message that NAMES a flag is not read as using it. A body that a shell reads stays; a file named `x.sh` is not a shell. */
 export function stripHeredocBodies(command) {
   return command.replace(heredoc, (match, beforeOperator, _quote, _tag, restOfLine) =>
-    /\b(?:ba|z)?sh[ \t]+$/.test(beforeOperator) ? match : `${beforeOperator}${restOfLine}`,
+    /(?:^|[\s;&|(/])(?:ba|z)?sh[ \t]+$/.test(beforeOperator) ? match : `${beforeOperator}${restOfLine}`,
   )
 }
 
