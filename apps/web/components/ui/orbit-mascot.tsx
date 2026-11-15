@@ -1,23 +1,12 @@
 'use client'
 
 import {
-  ORBIT_MASCOT_BOX_HEIGHT,
-  ORBIT_MASCOT_BOX_WIDTH,
-  ORBIT_MASCOT_FACES,
   ORBIT_MASCOT_MAX_FRAME_STEP_MS,
-  ORBIT_MASCOT_PLANET_RADIUS,
-  ORBIT_MASCOT_VIEW_BOX,
-  ORBIT_SMALL_FACE_BOX_RATIO,
-  ORBIT_SMALL_FACES,
   isOrbitMascotSmallSize,
-  orbitBlinkMatrix,
   orbitMascotFrame,
   orbitMascotSizeFor,
-  orbitOutlineCutout,
-  type OrbitEyeShape,
   type OrbitMascotFrame,
   type OrbitMascotProps,
-  type OrbitMascotSmallSize,
 } from '@orbit/shared/contracts/brand'
 import { mascotMotion } from '@orbit/shared/theme'
 import {
@@ -29,6 +18,7 @@ import {
 import { useEffect, useId, useRef, useState, useSyncExternalStore } from 'react'
 import { useViewportMatch } from '@/hooks/use-viewport-match'
 import { useOrbitOverlayLayer } from '@/components/ui/orbit-overlay-layer'
+import { OrbitMascotDrawing } from '@/components/ui/orbit-mascot-drawing'
 
 /** The idle loop clock in milliseconds. It runs only while this mascot holds the one live slot, the
  *  person has not paused Orbit, no overlay covers its layer, the mascot is on screen and the tab is in
@@ -90,76 +80,6 @@ function pausedFrame(frame: OrbitMascotFrame, running: boolean): OrbitMascotFram
   return running ? frame : { ...frame, blinkScale: 1 }
 }
 
-function Eye({ shape, blink }: Readonly<{ shape: OrbitEyeShape; blink?: string }>) {
-  if (shape.kind === 'fill') return <path d={shape.d} fill="var(--bg)" transform={blink} data-part="eye" />
-  return (
-    <path
-      d={shape.d}
-      fill="none"
-      stroke="var(--bg)"
-      strokeWidth={shape.width}
-      strokeLinecap="round"
-      data-part="eye"
-    />
-  )
-}
-
-function Moon({ frame }: Readonly<{ frame: OrbitMascotFrame }>) {
-  return <circle cx={frame.moon.x} cy={frame.moon.y} r={frame.moon.radius} fill="var(--primary)" data-part="moon" />
-}
-
-/** The planet and its eyes, clipped by the ring outline cut-out, so the outline shows whatever surface is behind the mascot. */
-function Planet({ viewBox, outline, clipId, children }: Readonly<{ viewBox: string; outline: string; clipId: string; children: React.ReactNode }>) {
-  return (
-    <>
-      <defs>
-        <clipPath id={clipId}>
-          <path d={orbitOutlineCutout(viewBox, outline)} clipRule="evenodd" data-part="outline-cutout" />
-        </clipPath>
-      </defs>
-      <g clipPath={`url(#${clipId})`} clipRule="evenodd" data-part="planet">
-        {children}
-      </g>
-    </>
-  )
-}
-
-function Rig({ state, frame, clipId }: Readonly<{ state: NonNullable<OrbitMascotProps['state']>; frame: OrbitMascotFrame; clipId: string }>) {
-  const face = ORBIT_MASCOT_FACES[state]
-  const blink = face.blinkCentreY === null ? undefined : orbitBlinkMatrix(frame.blinkScale, face.blinkCentreY)
-  return (
-    <>
-      <path d={frame.ringBack} fill="currentColor" />
-      {frame.moon.front ? null : <Moon frame={frame} />}
-      <Planet viewBox={ORBIT_MASCOT_VIEW_BOX} outline={frame.ringOutline} clipId={clipId}>
-        <circle cx="0" cy="0" r={ORBIT_MASCOT_PLANET_RADIUS} fill="currentColor" />
-        {face.eyes.map((shape) => (
-          <Eye key={shape.d} shape={shape} blink={blink} />
-        ))}
-      </Planet>
-      <path d={frame.ringFront} fill="currentColor" />
-      {frame.moon.front ? <Moon frame={frame} /> : null}
-    </>
-  )
-}
-
-function SmallFace({ size, clipId }: Readonly<{ size: OrbitMascotSmallSize; clipId: string }>) {
-  const face = ORBIT_SMALL_FACES[size]
-  return (
-    <>
-      <path d={face.ringBack} fill="currentColor" />
-      <Planet viewBox={face.viewBox} outline={face.ringOutline} clipId={clipId}>
-        <path d={face.planet} fill="currentColor" />
-        {face.eyes.map((eye) => (
-          <path key={eye} d={eye} fill="var(--bg)" data-part="eye" />
-        ))}
-      </Planet>
-      <path d={face.ringFront} fill="currentColor" />
-      <path d={face.moon} fill="var(--primary)" data-part="moon" />
-    </>
-  )
-}
-
 export function OrbitMascot({ size, state = 'parado', still = false, color, lead = false }: Readonly<OrbitMascotProps>) {
   const clipId = `orbit-planet-${useId().replaceAll(':', '')}`
   const svgRef = useRef<SVGSVGElement | null>(null)
@@ -167,23 +87,7 @@ export function OrbitMascot({ size, state = 'parado', still = false, color, lead
   const { clock, running } = useOrbitLoopClock(!small && !still, lead, svgRef)
   const frame = pausedFrame(orbitMascotFrame(clock, mascotMotion), running)
 
-  return (
-    <svg
-      ref={svgRef}
-      width={size}
-      height={small ? size * ORBIT_SMALL_FACE_BOX_RATIO : (size * ORBIT_MASCOT_BOX_HEIGHT) / ORBIT_MASCOT_BOX_WIDTH}
-      viewBox={small ? ORBIT_SMALL_FACES[size].viewBox : ORBIT_MASCOT_VIEW_BOX}
-      fill="none"
-      color={color ?? 'var(--fg-1)'}
-      aria-hidden="true"
-      data-asset="orbit-mascot"
-      data-orbit-state={state}
-      data-orbit-face={small ? 'small' : 'rig'}
-      data-orbit-loop={running ? 'running' : 'still'}
-    >
-      {small ? <SmallFace size={size} clipId={clipId} /> : <Rig state={state} frame={frame} clipId={clipId} />}
-    </svg>
-  )
+  return <OrbitMascotDrawing ref={svgRef} size={size} state={state} color={color} clipId={clipId} frame={frame} running={running} />
 }
 
 /** The AI marker where a slot takes an icon component: the small static face at the tier of the slot. */
