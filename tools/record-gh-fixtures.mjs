@@ -150,7 +150,7 @@ const commands = {
   restIssue: ["api", `repos/${config.repository}/issues/${sampleNumber}`, "--jq", restIssueFilter],
   issueDependencyNumbers: ["api", "--paginate", `repos/${config.repository}/issues/${dependencySampleNumber}/dependencies/blocked_by?per_page=100`, "--jq", "[.[].number]"],
   issueList: ["issue", "list", "--repo", config.repository, "--state", "all", "--limit", "1000", "--json", issueFields, "--jq", `map(${stateReasonFilter})`],
-  projectItemList: ["project", "item-list", String(config.projectNumber), "--owner", config.projectOwner, "--format", "json", "--limit", "1000"],
+  projectItemList: ["project", "item-list", String(config.projectNumber), "--owner", config.projectOwner, "--format", "json", "--query", "is:issue is:open", "--limit", "100"],
   labelList: ["label", "list", "--repo", config.repository, "--limit", "1000", "--json", "name"],
 }
 
@@ -215,6 +215,10 @@ const record = (name, command) => {
         !nodes.some((node) => node?.blockedBy?.nodes?.length > 0)) {
       throw new Error("boardState recorded no open ticket on the configured project with a blocker, so its paths would be missing rather than proven")
     }
+  }
+  if (name === "projectItemList" && (!Number.isInteger(value?.totalCount) ||
+      !value.items?.some((item) => typeof item?.id === "string" && Number.isInteger(item?.content?.number)))) {
+    throw new Error("projectItemList recorded no totalCount with a populated open item, so the paths the adapter reads would be missing rather than proven")
   }
   if (name === "issueDependencyNumbers" && (!Array.isArray(value) || value.length === 0 || value.some((number) => !Number.isInteger(number)))) {
     throw new Error(`issueDependencyNumbers recorded no populated dependency array on issue ${dependencySampleNumber}`)

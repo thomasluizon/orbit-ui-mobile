@@ -25,7 +25,17 @@ export const cases = () => {
     nodes: [{ number: 2065, updatedAt: "2026-11-08T22:53:42Z", projectItems: { totalCount: 1, nodes: [{ project: { id: "PVT_kwHOBE6dNc4Bfy2y" } }] },
       blockedBy: { totalCount: blockers.length, nodes: blockers } }],
   } } } })
-  const plan = (issueEnvelope, board = boardPage([{ number: 2064, state: "OPEN" }])) => orcaEnv([
+  const openProjectItems = {
+    items: [
+      {
+        content: { number: 221, repository: "thomasluizon/orbit-tickets", type: "Issue" },
+        id: "PVTI_harness_item",
+        status: "In Review",
+      },
+    ],
+    totalCount: 1,
+  }
+  const plan = (issueEnvelope, board = boardPage([{ number: 2064, state: "OPEN" }]), projectItems = openProjectItems) => orcaEnv([
     { match: "api graphql -F o=thomasluizon -F r=orbit-tickets -f query=query BoardState", stdout: board },
     /** Before the generic prefix, and non-empty: the recorder refuses to write comment paths it never observed. */
     {
@@ -53,19 +63,7 @@ export const cases = () => {
       ticketEnvelope: "issueDependencyNumbers",
     },
     { match: "issue list --repo thomasluizon/orbit-tickets", stdout: `[${issueEnvelope}]` },
-    {
-      match: "project item-list 2 --owner thomasluizon",
-      stdout: JSON.stringify({
-        items: [
-          {
-            content: { number: 221, repository: "thomasluizon/orbit-tickets", type: "Issue" },
-            id: "PVTI_harness_item",
-            status: "In Review",
-          },
-        ],
-        totalCount: 1,
-      }),
-    },
+    { match: "project item-list 2 --owner thomasluizon", stdout: JSON.stringify(projectItems) },
     { match: "label list --repo thomasluizon/orbit-tickets", stdout: JSON.stringify([{ name: "repo:ui" }]) },
   ])
   const result = check(TOOL, "records only read-only live command shapes", ["--output", output], { status: 0, stdout: /record-gh-fixtures: wrote/ }, {
@@ -115,8 +113,9 @@ export const cases = () => {
     `${TOOL}: derives the populated project item paths read by the adapter`,
     ["content.type", "content.number", "content.repository", "id", "status"].every(
       (path) => manifest.commands.projectItemList.paths[`$.items[].${path}`],
-    ),
-    JSON.stringify(manifest.commands.projectItemList.paths),
+    ) && Boolean(manifest.commands.projectItemList.paths["$.totalCount"]) &&
+      manifest.commands.projectItemList.command.join(" ").endsWith("--query is:issue is:open --limit 100"),
+    JSON.stringify(manifest.commands.projectItemList),
   )
 
   T(
@@ -128,6 +127,8 @@ export const cases = () => {
   )
   check(TOOL, "a board page with no blocker is refused, so the blocker paths are proven", ["--output", join(root, "recorded-gh-fixtures-unblocked.json")],
     { status: 1, stderr: /boardState recorded no open ticket on the configured project with a blocker/ }, { env: plan(issue, boardPage([])) })
+  check(TOOL, "a project read with no open item is refused, so the item paths are proven", ["--output", join(root, "recorded-gh-fixtures-no-items.json")],
+    { status: 1, stderr: /projectItemList recorded no totalCount with a populated open item/ }, { env: plan(issue, undefined, { items: [], totalCount: 0 }) })
 
   const rerun = check(TOOL, "a re-recording unions observed types with the manifest on disk", ["--output", output], { status: 0 }, {
     env: plan(issueWith("COMPLETED")),
