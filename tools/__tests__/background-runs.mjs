@@ -1,4 +1,4 @@
-import { appendFileSync, mkdirSync, readFileSync, utimesSync, writeFileSync } from "node:fs"
+import { appendFileSync, existsSync, mkdirSync, readFileSync, utimesSync, writeFileSync } from "node:fs"
 import { spawn } from "node:child_process"
 import { dirname, join } from "node:path"
 import { STUCK_RUN_MILLISECONDS, observeBackgroundRuns, readBackgroundRuns, readDrainBlockers } from "../lib/background-runs.mjs"
@@ -187,7 +187,7 @@ const stuckCases = async () => {
   T("background-runs: a transcript that names no directory records an unknown worktree", worktreeOf(`${JSON.stringify({ type: "assistant", agentId: "agent-task" })}\n`) === null && recorded()[0].branch === null && recorded()[0].lastCommit === null &&
     recorded()[0].uncommittedChanges === null && recorded()[0].workStateError === "no worktree is known", JSON.stringify(recorded()))
 
-  // The successor inherits the entries of its predecessor as work to recover, so only this session's entries leave.
+  // The successor inherits the entries of its predecessor as work to recover. This one stays: its worktree holds a commit that no remote holds.
   const inherited = { id: "old-task", type: "subagent", sessionId: "predecessor", worktree: agentWorktree, branch: "fix/agent-work", lastCommit: agentHead, lastProgressAt: at(0), stuckAt: at(30) }
   updateRunState((state) => ({ ...state, stuckBackgroundRuns: [inherited, ...state.stuckBackgroundRuns] }), repoRoot, { sessionId: "coordinator" })
   observeBackgroundRuns({ ...input, hook_event_name: "Stop", background_tasks: [] }, options)
@@ -232,4 +232,40 @@ const stuckCases = async () => {
   const workflowStuck = drain(70)
   T("background-runs: a workflow with no agent progress for the limit is stuck", workflowStuck.waiting.length === 0 && workflowStuck.stuck.some((run) => run.id === "workflow-task" && run.worktree === agentWorktree && run.lastCommit === agentHead), JSON.stringify(workflowStuck))
   T("background-runs: another session's read records nothing", readDrainBlockers("other", repoRoot, minutes(500)).stuck.length === 0)
+  inheritedCases()
+}
+
+/** A successor removes an inherited stuck entry whose work no worktree can lose, and keeps every other one. */
+const inheritedCases = () => {
+  const repo = stageRepo("background-inherited")
+  const repoRoot = repo.path
+  const worktree = (name, setup) => {
+    const path = join(dirname(repoRoot), `background-inherited-${name}`)
+    repo.git(["worktree", "add", "-q", "-b", `fix/${name}`, path])
+    setup(path)
+    return path
+  }
+  const pushed = (path) => repo.git(["push", "-q", "-u", "origin", "HEAD"], path)
+  const worktrees = {
+    carried: worktree("carried", (path) => { repo.git(["commit", "-q", "--allow-empty", "-m", "carried work"], path); pushed(path) }),
+    uncommitted: worktree("uncommitted", (path) => { pushed(path); writeFileSync(join(path, "draft.txt"), "draft\n") }),
+    unpushed: worktree("unpushed", (path) => { pushed(path); repo.git(["commit", "-q", "--allow-empty", "-m", "unpushed work"], path) }),
+    unreadable: join(dirname(repoRoot), "background-inherited-plain-directory"),
+    gone: join(dirname(repoRoot), "background-inherited-removed-worktree"),
+  }
+  mkdirSync(worktrees.unreadable, { recursive: true })
+  const entry = (id, path) => ({ id, type: "subagent", sessionId: "predecessor", worktree: path, branch: `fix/${id}`, lastCommit: null, lastProgressAt: "2026-01-05T10:00:00.000Z", stuckAt: "2026-01-05T10:30:00.000Z" })
+  const inherited = [...Object.entries(worktrees).map(([id, path]) => entry(id, path)), entry("unknown", null)]
+  writeRunState({ sessionId: "successor", sleep: true, remaining: [], stuckBackgroundRuns: inherited }, repoRoot)
+  T("background-inherited: the fixture holds a gone worktree and a clean pushed worktree", !existsSync(worktrees.gone) && repo.git(["status", "--porcelain"], worktrees.carried).stdout === "" &&
+    repo.git(["rev-list", "--count", "@{upstream}..HEAD"], worktrees.carried).stdout.trim() === "0")
+  const drain = readDrainBlockers("successor", repoRoot, Date.parse("2026-01-05T12:00:00.000Z"))
+  const kept = (readRunState(repoRoot).stuckBackgroundRuns ?? []).map((run) => run.id)
+  T("background-inherited: an entry whose worktree no longer exists leaves", !kept.includes("gone"), JSON.stringify(kept))
+  T("background-inherited: an entry whose worktree is clean and holds nothing unpushed leaves, because its work is carried", !kept.includes("carried"), JSON.stringify(kept))
+  T("background-inherited: every other entry stays: uncommitted changes, an unpushed commit, an unreadable worktree, an unknown worktree",
+    kept.join() === "uncommitted,unpushed,unreadable,unknown", JSON.stringify(kept))
+  T("background-inherited: the kept entries are unchanged", JSON.stringify(readRunState(repoRoot).stuckBackgroundRuns) === JSON.stringify(inherited.filter((run) => kept.includes(run.id))))
+  T("background-inherited: the drain of the successor waits on none of them", drain.waiting.length === 0 && drain.stuck.length === 0, JSON.stringify(drain))
+  T("background-inherited: a run state of another session is not changed", readDrainBlockers("other", repoRoot).stuck.length === 0 && readRunState(repoRoot).stuckBackgroundRuns.length === 4)
 }

@@ -289,10 +289,23 @@ const describeStuckRun = (run, lastProgress, now) => {
 }
 
 /**
+ * An entry of an earlier session names work to recover. That work is gone when its worktree no longer exists, and it
+ * is carried when the worktree holds no uncommitted change and no unpushed commit. An unknown or unreadable worktree
+ * proves neither, so its entry stays.
+ */
+const workIsSettled = (entry) => {
+  if (typeof entry.worktree !== "string" || !entry.worktree) return false
+  if (!existsSync(entry.worktree)) return true
+  const work = readWorkState(entry.worktree)
+  return work.uncommittedChanges === 0 && work.unpushedCommits === 0
+}
+const entryKey = (entry) => JSON.stringify([entry.sessionId, entry.id])
+
+/**
  * The background runs that a turn end or a relay drain still waits on, and the stuck ones it stops waiting on.
  * `stuckBackgroundRuns` in the run state names each run of this session that is stuck now: a run that makes
- * progress again, or that ends, leaves it. The entries of an earlier session stay, because the relay successor
- * inherits them as work to recover.
+ * progress again, or that ends, leaves it. The relay successor inherits the entries of an earlier session as work
+ * to recover, and an inherited entry leaves when that work is gone or carried.
  */
 export const readDrainBlockers = (sessionId, repoRoot = REPO_ROOT, now = Date.now()) => {
   const runs = readBackgroundRuns(sessionId, repoRoot)
@@ -305,12 +318,13 @@ export const readDrainBlockers = (sessionId, repoRoot = REPO_ROOT, now = Date.no
   const current = (entry) => entry.sessionId === sessionId && stuck.has(entry.id)
   // The git reads stay outside the run state lock, so a slow repository cannot hold another writer.
   const added = runs.filter((run) => stuck.has(run.id) && !recorded.some((entry) => current(entry) && entry.id === run.id)).map((run) => describeStuckRun(run, stuck.get(run.id), now))
+  const settled = new Set(recorded.filter((entry) => entry.sessionId !== sessionId && workIsSettled(entry)).map(entryKey))
   const stale = recorded.some((entry) => entry.sessionId === sessionId && !stuck.has(entry.id))
-  if (added.length || stale) {
+  if (added.length || stale || settled.size) {
     updateRunState((latest) => {
       if (latest?.sessionId !== sessionId) return undefined
       const { stuckBackgroundRuns = [], ...rest } = latest
-      const kept = stuckBackgroundRuns.filter((entry) => entry.sessionId !== sessionId || (stuck.has(entry.id) && !added.some((run) => run.id === entry.id)))
+      const kept = stuckBackgroundRuns.filter((entry) => entry.sessionId !== sessionId ? !settled.has(entryKey(entry)) : stuck.has(entry.id) && !added.some((run) => run.id === entry.id))
       return kept.length + added.length ? { ...rest, stuckBackgroundRuns: [...kept, ...added] } : rest
     }, repoRoot, { sessionId })
   }
