@@ -242,8 +242,17 @@ jobs:
           for key in APPLE_CERTIFICATE APPLE_CERTIFICATE_PASSWORD APPLE_SIGNING_IDENTITY TAURI_SIGNING_PRIVATE_KEY; do
             if [ -z "${!key}" ]; then echo "::error::Missing $key"; exit 1; fi
           done
-          npm run "bundle:${DESKTOP_VARIANT}" -- --config release-config.json \
-            --config "$ORBIT_MACOS_SIGNING/signing-config.json" --target "$DESKTOP_TARGET" --bundles app,dmg --ci
+          # WHY: Tauri's bundle_dmg.sh runs hdiutil create once, and hosted runners can report "Resource busy";
+          # retry as create-dmg/create-dmg#198 does (5 retries, doubling waits). Upstream report: create-dmg/create-dmg#143.
+          log="$RUNNER_TEMP/macos-bundle.log"
+          retries=0
+          until npm run "bundle:${DESKTOP_VARIANT}" -- --config release-config.json \
+            --config "$ORBIT_MACOS_SIGNING/signing-config.json" --target "$DESKTOP_TARGET" --bundles app,dmg --ci 2>&1 | tee "$log"; do
+            if [ "$retries" -ge 5 ] || ! grep -q 'bundle_dmg.sh: .*Resource busy' "$log"; then exit 1; fi
+            retries=$((retries + 1))
+            echo "::warning::bundle_dmg.sh reported hdiutil busy; retry $retries of 5"
+            sleep $((2 ** retries))
+          done
       - name: Submit the DMG for notarization without waiting
         if: runner.os == 'macOS'
         env:

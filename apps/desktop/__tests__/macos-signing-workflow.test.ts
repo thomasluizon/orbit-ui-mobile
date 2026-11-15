@@ -83,8 +83,12 @@ if (args[0] === 'stapler' && args[1] === 'staple') {
   const target = args[2].endsWith('.app') ? args[2] + '/Contents/CodeResources' : args[2]
   fs.appendFileSync(target, 'ticket')
 }`,
-  npm: '',
+  npm: `const attempts = fs.readFileSync(process.env.COMMAND_LOG, 'utf8').split('\\n').filter(entry => entry.startsWith('["npm"')).length
+if (attempts <= Number(process.env.FAKE_NPM_FAILURES ?? 0)) { process.stderr.write(process.env.FAKE_NPM_ERROR + '\\n'); process.exit(1) }`,
+  sleep: '',
 }
+/** The error the pinned Tauri CLI printed when hdiutil create was busy on a hosted macOS runner. */
+const dmgBusy = 'failed to bundle project: error running bundle_dmg.sh: `failed to run /work/bundle/dmg/bundle_dmg.sh: hdiutil: create failed - Resource busy`'
 
 function fixture() {
   const directory = mkdtempSync(join(tmpdir(), 'orbit-desktop-macos-'))
@@ -290,25 +294,45 @@ shellTest.each(['staging', 'production'])('packages Windows %s unsigned and comp
     '--target', target, '--no-bundle', '--ci', '--', '--locked'])
 })
 
+const signingCredentials = { APPLE_CERTIFICATE: 'certificate', APPLE_CERTIFICATE_PASSWORD: 'password', APPLE_SIGNING_IDENTITY: 'identity',
+  TAURI_SIGNING_PRIVATE_KEY: 'updater' }
+
 shellTest.each(['staging', 'production'])('bundles the %s app and DMG with operating system signing and the provisioning profile overlay', (variant) => {
   const { directory, bin, log } = fixture()
-  const credentials = { APPLE_CERTIFICATE: 'certificate', APPLE_CERTIFICATE_PASSWORD: 'password', APPLE_SIGNING_IDENTITY: 'identity',
-    TAURI_SIGNING_PRIVATE_KEY: 'updater' }
-  const signed = run('Sign the macOS app and DMG', directory, bin, log, { ...credentials, DESKTOP_VARIANT: variant })
+  const signed = run('Sign the macOS app and DMG', directory, bin, log, { ...signingCredentials, DESKTOP_VARIANT: variant })
   expect(signed.result.status, signed.result.stderr).toBe(0)
   const signing = join(directory, 'tmp/macos-signing')
   expect(signed.commands).toEqual([['npm', 'run', `bundle:${variant}`, '--', '--config', 'release-config.json',
     '--config', join(signing, 'signing-config.json'), '--target', target, '--bundles', 'app,dmg', '--ci']])
   expect(JSON.parse(readFileSync(`${log}.env`, 'utf8'))).toEqual({})
-  for (const missing of Object.keys(credentials)) {
-    const failed = run('Sign the macOS app and DMG', directory, bin, log, { ...credentials, [missing]: '', DESKTOP_VARIANT: variant })
+  for (const missing of Object.keys(signingCredentials)) {
+    const failed = run('Sign the macOS app and DMG', directory, bin, log, { ...signingCredentials, [missing]: '', DESKTOP_VARIANT: variant })
     expect(failed.result.status).not.toBe(0)
     expect(failed.result.stdout).toContain(`Missing ${missing}`)
     expect(failed.commands).toEqual([])
   }
 })
 
-const notaryKeys = { APP_STORE_CONNECT_API_KEY_ID: 'key', APP_STORE_CONNECT_API_ISSUER_ID: 'issuer' }
+shellTest('retries the bundle after bundle_dmg.sh reports hdiutil busy, waiting longer each time', () => {
+  const { directory, bin, log } = fixture()
+  const signed = run('Sign the macOS app and DMG', directory, bin, log, { ...signingCredentials, FAKE_NPM_FAILURES: '2', FAKE_NPM_ERROR: dmgBusy })
+  expect(signed.result.status, signed.result.stderr).toBe(0)
+  expect(signed.commands.map(command => command[0] === 'sleep' ? command.join(' ') : command[0])).toEqual(['npm', 'sleep 2', 'npm', 'sleep 4', 'npm'])
+  expect(signed.result.stdout).toContain('hdiutil: create failed - Resource busy')
+})
+
+shellTest.each([
+  { case: 'after five busy retries', failures: 6, error: dmgBusy, attempts: 6 },
+  { case: 'at once on any other bundle error', failures: 1, error: 'failed to bundle project: failed codesign application', attempts: 1 },
+])('fails the bundle $case', ({ failures, error, attempts }) => {
+  const { directory, bin, log } = fixture()
+  const signed = run('Sign the macOS app and DMG', directory, bin, log, { ...signingCredentials, FAKE_NPM_FAILURES: String(failures), FAKE_NPM_ERROR: error })
+  expect(signed.result.status).not.toBe(0)
+  expect(signed.commands.filter(command => command[0] === 'npm')).toHaveLength(attempts)
+  expect(signed.commands.filter(command => command[0] === 'sleep').map(command => command[1])).toEqual(['2', '4', '8', '16', '32'].slice(0, attempts - 1))
+})
+
+const notaryKeys ={ APP_STORE_CONNECT_API_KEY_ID: 'key', APP_STORE_CONNECT_API_ISSUER_ID: 'issuer' }
 
 shellTest('submits the signed DMG once without waiting and records its submission id', () => {
   const { directory, bin, log } = fixture()
