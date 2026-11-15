@@ -799,7 +799,7 @@ export {
   PROFILE_NAV_ITEMS,
   shouldRedirectProfileNavItem,
 } from './profile-navigation'
-export { buildGuidedTimeZoneOptions, buildProfilePickerLabels, deriveProfileAstraFeatures, deriveProfilePreferenceValues, TIME_ZONE_PAGE_SIZE } from './profile-preferences'
+export { buildGuidedTimeZoneOptions, buildProfilePickerLabels, deriveProfileAstraFeatures, deriveProfilePreferenceValues, filterTimeZones, TIME_ZONE_PAGE_SIZE } from './profile-preferences'
 export type { GuidedTimeZoneInput, GuidedTimeZoneOptions } from './profile-preferences'
 export type {
   ProfileNavHintMode,

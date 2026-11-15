@@ -5,7 +5,7 @@ import { ChevronDown } from '@/components/ui/icons'
 import { IconButton } from '@/components/ui/icon-button'
 
 import { useMemo, useRef, useState } from 'react'
-import { buildGuidedTimeZoneOptions, buildPreferencePickerModel, getClientTimeZone, getTimezoneList, TIME_ZONE_PAGE_SIZE, type PreferencePicker } from '@orbit/shared/utils'
+import { buildGuidedTimeZoneOptions, filterTimeZones, buildPreferencePickerModel, getClientTimeZone, getTimezoneList, TIME_ZONE_PAGE_SIZE, type PreferencePicker } from '@orbit/shared/utils'
 import type { SupportedLocale } from '@orbit/shared/types/profile'
 
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
@@ -83,12 +83,7 @@ function TimeZoneOptions({
 }: Readonly<TimeZoneOptionsProps>) {
   const [query, setQuery] = useState('')
   const [visibleCount, setVisibleCount] = useState(TIME_ZONE_PAGE_SIZE)
-  const filtered = useMemo(() => {
-    const normalized = query.trim().toLocaleLowerCase()
-    return normalized
-      ? TIME_ZONE_OPTIONS.filter((option) => option.toLocaleLowerCase().includes(normalized))
-      : TIME_ZONE_OPTIONS
-  }, [query])
+  const filtered = useMemo(() => filterTimeZones(TIME_ZONE_OPTIONS, query), [query])
   const ordered = selected && filtered.includes(selected)
     ? [selected, ...filtered.filter((option) => option !== selected)]
     : filtered

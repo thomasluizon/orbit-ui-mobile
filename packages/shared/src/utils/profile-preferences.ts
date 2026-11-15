@@ -111,16 +111,33 @@ export interface GuidedTimeZoneOptions {
   hasMore: boolean
 }
 
+/** Lower case with the accents removed, so a search matches a name with or without its accents. */
+function foldSearchText(text: string): string {
+  return text.normalize('NFD').replaceAll(/\p{M}/gu, '').toLocaleLowerCase()
+}
+
+function timeZoneSearchTerm(query: string): string {
+  return foldSearchText(query.trim()).replaceAll(/\s+/g, '_')
+}
+
+/**
+ * The time zones that match the words of the person: a space matches the underscore of a time zone name, and
+ * accents fold away on both sides, so "São Paulo" finds `America/Sao_Paulo`. No words keep every time zone.
+ */
+export function filterTimeZones(zones: readonly string[], query: string): string[] {
+  const term = timeZoneSearchTerm(query)
+  return term ? zones.filter((zone) => foldSearchText(zone).includes(term)) : [...zones]
+}
+
 /**
  * The time zone question in the guided pattern: the stored time zone and the time zone of the device are the
- * quick options, and every other time zone stays behind the search. A space in the search matches the
- * underscore of a time zone name, so "sao paulo" finds `America/Sao_Paulo`.
+ * quick options, and every other time zone stays behind the search (`filterTimeZones`).
  */
 export function buildGuidedTimeZoneOptions(input: GuidedTimeZoneInput): GuidedTimeZoneOptions {
   const device = input.deviceTimeZone && input.zones.includes(input.deviceTimeZone) ? input.deviceTimeZone : null
   const quick = [...new Set([input.selected, device].filter((zone): zone is string => Boolean(zone)))]
-  const term = input.query.trim().toLocaleLowerCase().replaceAll(/\s+/g, '_')
-  const matches = term ? input.zones.filter((zone) => zone.toLocaleLowerCase().includes(term)) : []
-  return { quick, searched: term.length > 0, visible: matches.slice(0, input.visibleCount), hasMore: matches.length > input.visibleCount }
+  const searched = timeZoneSearchTerm(input.query).length > 0
+  const matches = searched ? filterTimeZones(input.zones, input.query) : []
+  return { quick, searched, visible: matches.slice(0, input.visibleCount), hasMore: matches.length > input.visibleCount }
 }
 

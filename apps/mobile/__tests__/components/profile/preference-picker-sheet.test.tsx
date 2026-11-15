@@ -129,6 +129,15 @@ describe('PreferencePickerSheet', () => {
       expect(props.onHidden).toHaveBeenCalledOnce()
     })
 
+    it('finds a time zone through the search when the words carry accents', () => {
+      const { props, tree } = open()
+      void act(() => search(tree).props.onChangeText('Kéép'))
+      expect(hosts(tree, (node) => node.props.accessibilityLiveRegion === 'polite' && node.props.children === 'No timezones found')).toHaveLength(0)
+      expect(names(tree)).toEqual(['America/Sao_Paulo', 'Charlie/Three', 'Bravo/Keep', 'Delta/Keep'])
+      void act(() => cards(tree)[2].props.onPress())
+      expect(props.onTimeZoneChange).toHaveBeenCalledExactlyOnceWith('Bravo/Keep')
+    })
+
     it('states a search with no match, with the quick options still in reach', () => {
       const { tree } = open()
       void act(() => search(tree).props.onChangeText('zzzz'))
@@ -144,6 +153,15 @@ describe('PreferencePickerSheet', () => {
     void act(() => { tree = create(withFocusProvenance(<PreferencePickerSheet {...props} />)) })
     expect(tree.root.findAll((node: any) => typeof node.type === 'string' && node.props.accessibilityRole === 'radio').length).toBeGreaterThan(0)
     expect(tree.root.findAll((node: any) => node.props.testID === 'option-card')).toHaveLength(0)
+  })
+
+  it('finds a time zone with the flag off by a name typed with accents', () => {
+    const props = { ...baseProps(), activePicker: 'timeZone' as const, timeZone: null }
+    let tree: any
+    void act(() => { tree = create(withFocusProvenance(<PreferencePickerSheet {...props} />)) })
+    const search = tree.root.find((node: any) => typeof node.type === 'string' && node.props.accessibilityLabel === props.timeZoneSearchLabel && typeof node.props.onChangeText === 'function')
+    void act(() => search.props.onChangeText('Brávo'))
+    expect(tree.root.findAll((node: any) => typeof node.type === 'string' && node.props.accessibilityRole === 'radio').map((radio: any) => radio.props.accessibilityLabel)).toEqual(['Bravo/Keep'])
   })
 
   it('checks the current clock and commits one selection', () => {

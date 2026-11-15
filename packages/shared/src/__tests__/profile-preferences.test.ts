@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { createMockProfile } from './factories'
 import ptBR from '../i18n/pt-BR.json'
 import en from '../i18n/en.json'
-import { buildGuidedTimeZoneOptions, buildProfilePickerLabels, deriveProfileAstraFeatures, deriveProfilePreferenceValues, TIME_ZONE_PAGE_SIZE } from '../utils/profile-preferences'
+import { buildGuidedTimeZoneOptions, buildProfilePickerLabels, deriveProfileAstraFeatures, deriveProfilePreferenceValues, filterTimeZones, TIME_ZONE_PAGE_SIZE } from '../utils/profile-preferences'
 
 const translateWeekday = (key: 'dates.daysValue.monday' | 'dates.daysValue.sunday') =>
   ptBR.dates.daysValue[key.endsWith('monday') ? 'monday' : 'sunday']
@@ -87,6 +87,18 @@ it('builds the inline picker labels from the active locale', () => {
   expect(labels.timeZoneShowMoreLabel).toBe('translated:profile.timezonePicker.showMore')
 })
 
+describe('filterTimeZones', () => {
+  const zones = ['America/Sao_Paulo', 'America/Bogota', 'Europe/London']
+
+  it('keeps every time zone with no words, and matches the folded words of the person', () => {
+    expect(filterTimeZones(zones, '  ')).toEqual(zones)
+    expect(filterTimeZones(zones, 'São Paulo')).toEqual(['America/Sao_Paulo'])
+    expect(filterTimeZones(zones, 'BOGOTÁ')).toEqual(['America/Bogota'])
+    expect(filterTimeZones(zones, 'europe/lon')).toEqual(['Europe/London'])
+    expect(filterTimeZones(zones, 'zzz')).toEqual([])
+  })
+})
+
 describe('buildGuidedTimeZoneOptions', () => {
   const zones = ['America/Sao_Paulo', 'America/New_York', 'Europe/Lisbon', 'Europe/London', 'UTC', ...Array.from({ length: 30 }, (_, index) => `Asia/City_${index}`)]
   const base = { zones, selected: 'America/Sao_Paulo', deviceTimeZone: 'Europe/Lisbon', query: '', visibleCount: TIME_ZONE_PAGE_SIZE }
@@ -105,6 +117,17 @@ describe('buildGuidedTimeZoneOptions', () => {
   it('finds a time zone by the words of the person, in any case and with a space for the underscore', () => {
     expect(buildGuidedTimeZoneOptions({ ...base, query: ' LONDON ' })).toMatchObject({ searched: true, visible: ['Europe/London'], hasMore: false })
     expect(buildGuidedTimeZoneOptions({ ...base, query: 'new york' }).visible).toEqual(['America/New_York'])
+  })
+
+  it.each(['São Paulo', 'são paulo', 'SÃO PAULO', 'Sao Paulo'])('finds a time zone by a name typed with or without its accents: %s', (query) => {
+    expect(buildGuidedTimeZoneOptions({ ...base, query }).visible).toEqual(['America/Sao_Paulo'])
+  })
+
+  it('finds Bogotá, Belém, Cuiabá and Maceió in the full list', () => {
+    const everyZone = ['America/Bogota', 'America/Belem', 'America/Cuiaba', 'America/Maceio', 'America/Sao_Paulo']
+    for (const [query, zone] of [['Bogotá', 'America/Bogota'], ['Belém', 'America/Belem'], ['Cuiabá', 'America/Cuiaba'], ['Maceió', 'America/Maceio']]) {
+      expect(buildGuidedTimeZoneOptions({ ...base, zones: everyZone, query }).visible).toEqual([zone])
+    }
   })
 
   it('states a search with no match, and pages a search with many matches', () => {

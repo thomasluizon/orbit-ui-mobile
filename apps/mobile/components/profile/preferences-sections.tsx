@@ -5,6 +5,7 @@ import { useMemo, useRef, useState, type Ref } from 'react'
 import { StyleSheet, View, Text } from 'react-native'
 import {
   buildGuidedTimeZoneOptions,
+  filterTimeZones,
   getClientTimeZone,
   getTimezoneList,
   buildPreferencePickerModel,
@@ -103,12 +104,7 @@ function TimeZoneOptions({
 }: Readonly<TimeZoneOptionsProps>) {
   const [query, setQuery] = useState('')
   const [visibleCount, setVisibleCount] = useState(TIME_ZONE_PAGE_SIZE)
-  const filtered = useMemo(() => {
-    const normalized = query.trim().toLocaleLowerCase()
-    return normalized
-      ? TIME_ZONE_OPTIONS.filter((option) => option.toLocaleLowerCase().includes(normalized))
-      : TIME_ZONE_OPTIONS
-  }, [query])
+  const filtered = useMemo(() => filterTimeZones(TIME_ZONE_OPTIONS, query), [query])
   const ordered = selected && filtered.includes(selected)
     ? [selected, ...filtered.filter((option) => option !== selected)]
     : filtered

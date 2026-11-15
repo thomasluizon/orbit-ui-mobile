@@ -1,6 +1,6 @@
 import { pressRadioKey } from '@/__tests__/support/radio-key'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, within } from '@testing-library/react'
 import type { PreferencePicker } from '@/app/(app)/preferences/_components/preference-picker-sheet'
 
 vi.mock('next-intl', () => ({
@@ -121,6 +121,16 @@ describe('PreferencePickerSheet', () => {
       expect(props.onClose).toHaveBeenCalledOnce()
     })
 
+    it.each([['São Paulo', 'America/Sao_Paulo'], ['Bogotá', 'America/Bogota']])('finds %s through the search with its accents', (query, zone) => {
+      const props = open()
+      fireEvent.change(search(), { target: { value: query } })
+      expect(screen.queryByText('No timezones found')).not.toBeInTheDocument()
+      const matches = screen.getByRole('group', { name: 'Search timezones' })
+      expect([...matches.querySelectorAll('[data-option-card]')].map((card) => card.textContent)).toEqual([zone])
+      fireEvent.click(within(matches).getByRole('button', { name: zone }))
+      expect(props.onTimeZoneChange).toHaveBeenCalledExactlyOnceWith(zone)
+    })
+
     it('states a search with no match and pages a search with many matches', () => {
       open()
       fireEvent.change(search(), { target: { value: 'zzzz' } })
@@ -139,6 +149,12 @@ describe('PreferencePickerSheet', () => {
     expect(screen.getByRole('textbox', { name: 'Search timezones' })).toBeInTheDocument()
     expect(screen.getAllByRole('radio').length).toBeGreaterThan(0)
     expect(document.querySelector('[data-option-card]')).toBeNull()
+  })
+
+  it('finds a time zone with the flag off by a name typed with accents and spaces', () => {
+    render(<PreferencePickerSheet {...baseProps()} activePicker="timeZone" timeZone={null} />)
+    fireEvent.change(screen.getByRole('textbox', { name: 'Search timezones' }), { target: { value: 'São Paulo' } })
+    expect(screen.getAllByRole('radio').map((radio) => radio.textContent)).toEqual(['America/Sao_Paulo'])
   })
 
   it('shows the selected clock and commits one choice', () => {
