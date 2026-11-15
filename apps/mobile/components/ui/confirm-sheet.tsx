@@ -1,7 +1,8 @@
 import type { ReactNode } from 'react'
 import type { SheetProps } from '@orbit/shared/contracts/overlay'
-import { StyleSheet, Text, type View } from 'react-native'
+import { StyleSheet, Text, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
+import { OptionCard } from '@/components/ui/option-card'
 import { PillButton } from '@/components/ui/pill-button'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { useCallback, useEffect, useRef, useState } from 'react'
@@ -21,6 +22,10 @@ interface ConfirmSheetProps {
   /** Marks the confirm action as the destructive one. */
   destructive?: boolean
   inlineActions?: boolean
+  /** Asks the title as one question: the two answers are quick options in the body, and the children are the free path. */
+  quickOptions?: boolean
+  /** The action of the free path under the quick options. It confirms with the choices the children hold. */
+  freePathLabel?: string
   /** Starts the action on press while the controlled sheet closes. */
   confirmImmediately?: boolean
   loading?: boolean
@@ -45,6 +50,8 @@ export function ConfirmSheet({
   cancelLabel,
   minimumActionHeight,
   destructive = false,
+  quickOptions = false,
+  freePathLabel,
   confirmImmediately = false,
   loading = false,
   onCloseComplete,
@@ -136,18 +143,56 @@ export function ConfirmSheet({
         setLifecycle((current) => ({ ...current, mounted: false }))
         onCancel()
       }}
-      actions={
+      actions={quickOptions ? undefined : (
         <>
           {cancelButton}{confirmButton}
         </>
-      }
+      )}
     >
-      {message ? <Text style={[styles.message, { color: tokens.fg2 }]}>{message}</Text> : null}
-      {children}
+      {quickOptions ? (
+        <QuestionBody title={title} message={message} messageColor={tokens.fg2} confirmLabel={confirmLabel} cancelLabel={cancelLabel ?? t('common.notNow')} freePathLabel={freePathLabel} answersDisabled={actionsDisabled} confirmDisabled={actionsDisabled || confirmDisabled} onConfirm={confirm} onCancel={cancel}>{children}</QuestionBody>
+      ) : (
+        <>
+          {message ? <Text style={[styles.message, { color: tokens.fg2 }]}>{message}</Text> : null}
+          {children}
+        </>
+      )}
     </Sheet>
+  )
+}
+
+interface QuestionBodyProps {
+  title: string
+  message: string
+  messageColor: string
+  confirmLabel: string
+  cancelLabel: string
+  freePathLabel?: string
+  answersDisabled: boolean
+  confirmDisabled: boolean
+  onConfirm: () => void
+  onCancel: () => void
+  children?: ReactNode
+}
+
+/** The body of a question: the supporting line, the two answers as quick options, then the free path with its own action. */
+function QuestionBody({ title, message, messageColor, confirmLabel, cancelLabel, freePathLabel, answersDisabled, confirmDisabled, onConfirm, onCancel, children }: Readonly<QuestionBodyProps>) {
+  return (
+    <View style={styles.question}>
+      {message ? <Text style={[styles.message, { color: messageColor }]}>{message}</Text> : null}
+      <View role="group" accessibilityLabel={title} testID="question-options" style={styles.options}>
+        <OptionCard label={confirmLabel} disabled={confirmDisabled} onSelect={onConfirm} />
+        <OptionCard label={cancelLabel} disabled={answersDisabled} onSelect={onCancel} />
+      </View>
+      {children}
+      {freePathLabel ? <View style={styles.freePathAction}><PillButton variant="secondary" size="sm" disabled={confirmDisabled} onClick={onConfirm}>{freePathLabel}</PillButton></View> : null}
+    </View>
   )
 }
 
 const styles = StyleSheet.create({
   message: { fontFamily: 'Geist_400Regular', fontSize: 16, lineHeight: 24.8 },
+  question: { gap: 24 },
+  freePathAction: { alignItems: 'flex-end' },
+  options: { width: '100%', flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', rowGap: 12 },
 })

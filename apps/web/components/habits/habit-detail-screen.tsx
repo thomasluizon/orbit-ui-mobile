@@ -43,7 +43,6 @@ import {
   getHabitDetailChildCompletionReason,
   getHabitDetailChildUnavailableReasonKey,
   getHabitLogDateDecision,
-  getHabitLogDateConfirmationKeys,
   getTodayBoundary,
   needsHabitDetailListFallback,
   hasAuthoritativeHabitRelationshipState,
@@ -61,6 +60,7 @@ import { ShellHeader } from '@/components/shell/shell-header'
 import { AppBar } from '@/components/ui/app-bar'
 import { Badge } from '@/components/ui/badge'
 import { ConfirmSheet } from '@/components/ui/confirm-sheet'
+import { ChecklistCompletePrompt, LogDatePrompt } from '@/components/habits/habit-detail-prompts'
 import { DayCell } from '@/components/dates/day-cell'
 import { DayColumnContent } from '@/components/dates/day-column-content'
 import { DayStrip } from '@/components/dates/day-strip'
@@ -681,8 +681,8 @@ function HabitDetailContent({ habitId, date, fromToday = false, parentId, profil
       <ListRow placement="column" icon={<Trash2 size={24} />} title={t('habits.detail.delete')} danger chevron={false} onClick={() => setConfirm('delete')} />
       <EditHabitModal open={editOpen} onOpenChange={setEditOpen} habit={habit} relationshipFieldsLoaded={relationshipControlsAvailable} lockedGeneral={inheritedGeneralLock(habit)} onSaved={async () => { await detailQuery.refetch() }} />
       <CreateHabitModal open={createOpen} onOpenChange={setCreateOpen} initialDate={dateStr} parentHabit={habit} />
-      <ConfirmSheet open={confirm === 'log'} title={t('habits.checklistCompleteTitle')} message={t('habits.checklistCompleteMessage', { name: habit.title })} confirmLabel={t('habits.checklistCompleteConfirm')} onCancel={() => setConfirm(null)} onConfirm={() => { void confirmLog() }} />
-      <ConfirmSheet open={pendingDateLog !== null} title={t('habits.detail.logDateConfirmTitle')} message={t(getHabitLogDateConfirmationKeys(pendingDateLog?.intent, pendingDateLog?.permanent).message, { name: pendingDateLog?.name ?? habit.title, date: formatLocaleDate(parseAPIDate(pendingDateLog?.date ?? dateStr), language, { dateStyle: 'long' }) })} confirmLabel={t(getHabitLogDateConfirmationKeys(pendingDateLog?.intent, pendingDateLog?.permanent).action)} onCancel={() => setPendingDateLog(null)} onConfirm={() => {
+      <ChecklistCompletePrompt open={confirm === 'log'} name={habit.title} onCancel={() => setConfirm(null)} onConfirm={() => { void confirmLog() }} />
+      <LogDatePrompt pending={pendingDateLog} fallbackName={habit.title} fallbackDate={dateStr} language={language} onCancel={() => setPendingDateLog(null)} onConfirm={() => {
         const pending = pendingDateLog
         setPendingDateLog(null)
         if (pending?.date === dateStr) void writeLog(pending.habitId, pending.intent, true)

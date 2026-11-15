@@ -3,6 +3,7 @@
 import type { ReactNode } from 'react'
 import type { SheetProps } from '@orbit/shared/contracts/overlay'
 import { useTranslations } from 'next-intl'
+import { OptionCard } from '@/components/ui/option-card'
 import { PillButton } from '@/components/ui/pill-button'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { useIsDesktop } from '@/hooks/use-is-desktop'
@@ -21,6 +22,10 @@ interface ConfirmSheetProps {
   /** Marks the confirm action as the destructive one. */
   destructive?: boolean
   inlineActions?: boolean
+  /** Asks the title as one question: the two answers are quick options in the body, and the children are the free path. */
+  quickOptions?: boolean
+  /** The action of the free path under the quick options. It confirms with the choices the children hold. */
+  freePathLabel?: string
   /** Starts the action on press while the controlled sheet closes. */
   confirmImmediately?: boolean
   loading?: boolean
@@ -45,6 +50,8 @@ export function ConfirmSheet({
   minimumActionHeight,
   destructive = false,
   inlineActions = false,
+  quickOptions = false,
+  freePathLabel,
   confirmImmediately = false,
   loading = false,
   onCloseComplete,
@@ -132,14 +139,48 @@ export function ConfirmSheet({
         setLifecycle((current) => ({ ...current, mounted: false }))
         onCancel()
       }}
-      actions={
+      actions={quickOptions ? undefined : (
         <>
           {cancelButton}{confirmButton}
         </>
-      }
+      )}
     >
-      {message ? <p className="break-words text-sm text-[var(--fg-2)]">{message}</p> : null}
-      {children}
+      {quickOptions ? (
+        <QuestionBody title={title} message={message} confirmLabel={confirmLabel} cancelLabel={cancelLabel ?? t('common.notNow')} freePathLabel={freePathLabel} answersDisabled={actionsDisabled} confirmDisabled={actionsDisabled || confirmDisabled} onConfirm={confirm} onCancel={cancel}>{children}</QuestionBody>
+      ) : (
+        <>
+          {message ? <p className="break-words text-sm text-[var(--fg-2)]">{message}</p> : null}
+          {children}
+        </>
+      )}
     </Sheet>
+  )
+}
+
+interface QuestionBodyProps {
+  title: string
+  message: string
+  confirmLabel: string
+  cancelLabel: string
+  freePathLabel?: string
+  answersDisabled: boolean
+  confirmDisabled: boolean
+  onConfirm: () => void
+  onCancel: () => void
+  children?: ReactNode
+}
+
+/** The body of a question: the supporting line, the two answers as quick options, then the free path with its own action. */
+function QuestionBody({ title, message, confirmLabel, cancelLabel, freePathLabel, answersDisabled, confirmDisabled, onConfirm, onCancel, children }: Readonly<QuestionBodyProps>) {
+  return (
+    <div className="flex flex-col gap-6">
+      {message ? <p className="break-words text-sm text-[var(--fg-2)]">{message}</p> : null}
+      <div role="group" aria-label={title} data-option-group="" className="grid w-full grid-cols-2 gap-3">
+        <OptionCard label={confirmLabel} disabled={confirmDisabled} onSelect={onConfirm} />
+        <OptionCard label={cancelLabel} disabled={answersDisabled} onSelect={onCancel} />
+      </div>
+      {children}
+      {freePathLabel ? <div className="flex justify-end"><PillButton variant="secondary" size="sm" disabled={confirmDisabled} onClick={onConfirm}>{freePathLabel}</PillButton></div> : null}
+    </div>
   )
 }

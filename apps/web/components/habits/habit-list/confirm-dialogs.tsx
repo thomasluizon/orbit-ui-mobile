@@ -6,6 +6,7 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { PersonalText } from '@/components/ui/personal-text'
 import { ConfirmSheet } from '@/components/ui/confirm-sheet'
 import { plural } from '@/lib/plural'
+import { useFlag } from '@/hooks/use-flag'
 
 interface HabitListConfirmDialogsProps {
   t: (key: string, params?: Record<string, string | number | Date>) => string
@@ -25,6 +26,17 @@ interface HabitListConfirmDialogsProps {
   onCancelParent: () => void
 }
 
+/** The words of the parent prompt. With the guided flows on, the title is the question and the two answers are quick options. */
+function parentPromptCopy(t: HabitListConfirmDialogsProps['t'], prompt: ParentPromptChain | null, question: boolean) {
+  const skip = prompt?.mode === 'skip'
+  const severalAncestors = prompt !== null && prompt.ancestors.length > 1
+  const ask = t(skip ? 'habits.autoSkipParentMessage' : 'habits.autoLogParentMessage', { name: prompt?.habit.title ?? '' })
+  const answer = t(skip ? 'habits.autoSkipParentConfirm' : 'habits.autoLogParentConfirm')
+  const applyChanges = t('chat.pendingOp.action.applyChanges')
+  if (question) return { question, severalAncestors, title: ask, message: '', confirmLabel: answer, freePathLabel: severalAncestors ? applyChanges : undefined }
+  return { question, severalAncestors, title: t(skip ? 'habits.autoSkipParentTitle' : 'habits.autoLogParentTitle'), message: severalAncestors ? '' : ask, confirmLabel: severalAncestors ? applyChanges : answer, freePathLabel: undefined }
+}
+
 function ParentPromptConfirmation({ t, parentPrompt, onSelectParentAncestor, onConfirmParent, onCancelParent }: Readonly<Pick<HabitListConfirmDialogsProps, 't' | 'parentPrompt' | 'onSelectParentAncestor' | 'onConfirmParent' | 'onCancelParent'>>) {
   const [parentSheet, setParentSheet] = useState({ prompt: parentPrompt, closed: false })
   if (parentSheet.prompt?.habit.id !== parentPrompt?.habit.id && (!parentSheet.prompt || parentSheet.closed)) {
@@ -33,20 +45,23 @@ function ParentPromptConfirmation({ t, parentPrompt, onSelectParentAncestor, onC
   const sheetPrompt = parentSheet.prompt?.habit.id === parentPrompt?.habit.id ? parentPrompt : parentSheet.prompt
   const open = parentPrompt !== null && parentSheet.prompt?.habit.id === parentPrompt.habit.id
   const closed = () => setParentSheet((current) => ({ ...current, closed: true }))
+  const copy = parentPromptCopy(t, sheetPrompt, useFlag('orbit_guided_flows'))
   return (
     <ConfirmSheet
       key={sheetPrompt?.habit.id ?? 'parent-prompt'}
       open={open}
-      title={t(sheetPrompt?.mode === 'skip' ? 'habits.autoSkipParentTitle' : 'habits.autoLogParentTitle')}
-      message={sheetPrompt && sheetPrompt.ancestors.length > 1 ? '' : t(sheetPrompt?.mode === 'skip' ? 'habits.autoSkipParentMessage' : 'habits.autoLogParentMessage', { name: sheetPrompt?.habit.title ?? '' })}
-      confirmLabel={t(sheetPrompt && sheetPrompt.ancestors.length > 1 ? 'chat.pendingOp.action.applyChanges' : sheetPrompt?.mode === 'skip' ? 'habits.autoSkipParentConfirm' : 'habits.autoLogParentConfirm')}
+      quickOptions={copy.question}
+      freePathLabel={copy.freePathLabel}
+      title={copy.title}
+      message={copy.message}
+      confirmLabel={copy.confirmLabel}
       confirmDisabled={sheetPrompt?.selectedCount === 0}
       cancelLabel={t('common.notNow')}
       onCancel={() => { closed(); onCancelParent() }}
       onCloseComplete={closed}
       onConfirm={() => { closed(); onConfirmParent() }}
     >
-      {sheetPrompt && sheetPrompt.ancestors.length > 1 ? (
+      {sheetPrompt && copy.severalAncestors ? (
         <div className="flex flex-col gap-2">
           {sheetPrompt.ancestors.map(({ habit, mode }, index) => (
             <div key={habit.id} className="flex min-w-0 items-start gap-2">
@@ -80,10 +95,12 @@ export function HabitListConfirmDialogs({
   onSelectParentAncestor,
   onCancelParent,
 }: Readonly<HabitListConfirmDialogsProps>) {
+  const guided = useFlag('orbit_guided_flows')
   return (
     <>
       <ConfirmSheet
         open={duplicateHabitName !== null}
+        quickOptions={guided}
         title={t('habits.duplicateConfirmTitle')}
         message={t('habits.duplicateConfirmMessage', { name: duplicateHabitName ?? '' })}
         confirmLabel={t('habits.duplicateConfirm')}
