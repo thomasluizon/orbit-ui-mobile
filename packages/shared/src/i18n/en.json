@@ -707,6 +707,9 @@
       "emptyBody": "No habit with that name, that description or that tag.",
       "create": "Create habit",
       "count": "{count, plural, one {# habit} other {# habits}}",
+      "line": {
+        "count": "{count, plural, one {I found # habit.} other {I found # habits.}}"
+      },
       "open": "Open {name}",
       "next": "Next",
       "previous": "Previous",

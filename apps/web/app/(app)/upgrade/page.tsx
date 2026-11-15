@@ -86,9 +86,9 @@ function settledStatus<Status>(state: SubscriptionScreenState, status: Status | 
   return state === 'loading' || state === 'load-failed' ? null : status
 }
 
-/** The plan question is the `h1` of the guided pitch, so the header title is a label there. */
-function headerTitleRole(guided: boolean, contentCap: 'pitch' | undefined): 'heading' | 'label' {
-  return guided && contentCap === 'pitch' ? 'label' : 'heading'
+/** The plan question is the `h1` of the guided pitch, so the header title is plain text there. */
+function headerTitleIsHeading(guided: boolean, contentCap: 'pitch' | undefined): boolean {
+  return !guided || contentCap !== 'pitch'
 }
 
 function upgradeContentCap(state: SubscriptionScreenState, content: SubscriptionScreenContent, hasLapsedNotice: boolean) {
@@ -305,7 +305,7 @@ export default function UpgradePage() {
         onBack={() => goBackOrFallback(fallbackRoute)}
         title={titleKey ? t(titleKey) : ''}
         titleTranslate={titleKey === 'upgrade.pitchTitle' ? 'no' : undefined}
-        titleRole={headerTitleRole(guided, contentCap)}
+        titleHeading={headerTitleIsHeading(guided, contentCap)}
       />
       <div data-upgrade-screen="" className="orbit-content-frame flex flex-1 flex-col justify-center pt-4" data-content-cap={contentCap} data-state={screenState} aria-busy={screenState === 'loading'}>
         {screenState === 'offline' && model.content === 'pitch' && !guided ? <ErrorState message={t('upgrade.billing.offline')} /> : null}

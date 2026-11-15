@@ -119,9 +119,9 @@ function settledStatus(state: SubscriptionScreenState, status: SubscriptionStatu
   return state === 'loading' || state === 'load-failed' ? null : status
 }
 
-/** The plan question is the header of the guided pitch, so the screen title is a label there. */
-function headerTitleRole(guided: boolean, contentCap: 560 | 620): 'heading' | 'label' {
-  return guided && contentCap === 620 ? 'label' : 'heading'
+/** The plan question is the header of the guided pitch, so the screen title is plain text there. */
+function headerTitleIsHeading(guided: boolean, contentCap: 560 | 620): boolean {
+  return !guided || contentCap !== 620
 }
 
 function upgradeContentCap(state: SubscriptionScreenState, content: SubscriptionScreenContent, hasLapsedNotice: boolean): 560 | 620 {
@@ -375,7 +375,7 @@ export default function UpgradeScreen() {
       <PageHeader
         onBack={() => goBackOrFallback(fallbackRoute)}
         title={titleKey ? t(titleKey) : ''}
-        titleRole={headerTitleRole(guided, contentCap)}
+        titleHeading={headerTitleIsHeading(guided, contentCap)}
         backLabel={backLabel}
       />
 

@@ -707,6 +707,9 @@
       "emptyBody": "Nenhum hábito com esse nome, essa descrição ou essa tag.",
       "create": "Criar hábito",
       "count": "{count, plural, =0 {# hábitos} one {# hábito} other {# hábitos}}",
+      "line": {
+        "count": "{count, plural, =0 {Achei # hábitos.} one {Achei # hábito.} other {Achei # hábitos.}}"
+      },
       "open": "Abrir {name}",
       "next": "Próxima",
       "previous": "Anterior",

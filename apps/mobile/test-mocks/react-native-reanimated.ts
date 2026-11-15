@@ -177,6 +177,11 @@ export function createAnimatedComponent<Component>(component: Component): Compon
   return component
 }
 
+/** The real wrapper skips the entrance of the children it mounts with and their exit when it unmounts. The double keeps the flags readable on a host. */
+export function LayoutAnimationConfig({ children, skipEntering, skipExiting }: Readonly<{ children?: React.ReactNode; skipEntering?: boolean; skipExiting?: boolean }>) {
+  return React.createElement('LayoutAnimationConfig', { skipEntering, skipExiting }, children)
+}
+
 /** Providers renders <ReducedMotionConfig> to pin motion for capture builds. */
 export function ReducedMotionConfig(_props: { mode: string }) {
   return null

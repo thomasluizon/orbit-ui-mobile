@@ -58,7 +58,7 @@ export function NotificationInbox() {
           else if (id === 'clear') setConfirmOpen(true)
         }} />
       <ShellContent style={{ flex: 1, maxWidth: undefined }}><ScrollView testID="notification-scroller" style={styles.scroller} contentContainerStyle={{ flexGrow: 1, paddingBottom: clearance }}>
-        <NotificationList items={inbox.visibleNotifications} isLoading={inbox.isLoading} isError={inbox.isError}
+        <NotificationList items={inbox.visibleNotifications} scope={inbox.notifications.map((item) => item.id).join(' ')} isLoading={inbox.isLoading} isError={inbox.isError}
           onRetry={() => void inbox.refetch()} onDelete={requestDeleteNotification}
           onOpen={(item) => { setSelected(item); setDetailOpen(true) }} />
       </ScrollView></ShellContent>
