@@ -1,9 +1,10 @@
 'use client'
 
-import { SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
+import { SPACING, TOUCH_TARGET_MIN, motionDurations, motionEasings, motionLayerTiming } from '@orbit/shared/theme'
 
 
-import { useEffect, useId, useRef, useEffectEvent, type ReactNode } from 'react'
+import { useEffect, useId, useRef, useState, useEffectEvent, type ReactNode } from 'react'
+import { motion } from 'motion/react'
 import { X } from '@/components/ui/icons'
 import { useLocale, useTranslations } from 'next-intl'
 import type { Recap } from '@orbit/shared/types/gamification'
@@ -12,6 +13,8 @@ import { useWrappedStory, type WrappedSlide as WrappedSlideModel } from '@/hooks
 import { useShareCard } from '@/hooks/use-share-card'
 import { useReferralInvitation } from '@/hooks/use-referral-invitation'
 import { useProfile } from '@/hooks/use-profile'
+import { useFlag } from '@/hooks/use-flag'
+import { useViewportMatch } from '@/hooks/use-viewport-match'
 import { Pager } from '@/components/ui/pager'
 import { PillButton } from '@/components/ui/pill-button'
 import { useUIStore } from '@/stores/ui-store'
@@ -48,6 +51,8 @@ export function WrappedPlayer({
   const { profile } = useProfile()
   const current = slides[index]
   const canTapToPage = current?.id !== 'consistency' || period !== 'week' || !!profile
+  const guided = useFlag('orbit_guided_flows')
+  const [direction, setDirection] = useState<PageDirection | null>(null)
   const closeRef = useRef<HTMLButtonElement>(null)
   const overlayId = useId()
   const registerOpenOverlay = useUIStore((state) => state.registerOpenOverlay)
@@ -64,6 +69,7 @@ export function WrappedPlayer({
 
   function page(direction: PageDirection) {
     resetFeedback()
+    setDirection(direction)
     if (direction === 'forward') next()
     else prev()
   }
@@ -96,6 +102,17 @@ export function WrappedPlayer({
       url: recap.shareDeepLink,
     })
   }
+
+  const slide = (
+    <WrappedSlide
+      slide={current}
+      recap={recap}
+      period={period}
+      captureRef={captureRef}
+      shareError={hasError}
+      savedFileName={savedFileName}
+    />
+  )
 
   const shareActions = (
     <ShareActions
@@ -134,15 +151,8 @@ export function WrappedPlayer({
           </button>
         </div>
 
-        <div key={current.id} data-testid="wrapped-page-scroll" style={{ minHeight: TOUCH_TARGET_MIN }} className="relative flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain">
-          <WrappedSlide
-            slide={current}
-            recap={recap}
-            period={period}
-            captureRef={captureRef}
-            shareError={hasError}
-            savedFileName={savedFileName}
-          />
+        <div key={current.id} data-testid="wrapped-page-scroll" style={{ minHeight: TOUCH_TARGET_MIN }} className={`relative flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain${guided ? ' overflow-x-hidden' : ''}`}>
+          {guided ? <SlideTravel direction={direction}>{slide}</SlideTravel> : slide}
           {!isLast && canTapToPage && <TapZones isFirst={isFirst} onPage={page} />}
         </div>
         <div className="shrink-0 bg-[var(--bg)]">
@@ -161,6 +171,26 @@ export function WrappedPlayer({
         </div>
       </div>
     </div>
+  )
+}
+
+/** A slide change shifts the new slide 12 px in the page direction and fades it in. The first slide and reduced motion are still. */
+function SlideTravel({ direction, children }: Readonly<{ direction: PageDirection | null; children: ReactNode }>) {
+  const reducedMotion = useViewportMatch('(prefers-reduced-motion: reduce)')
+  const still = reducedMotion || direction === null
+  const duration = still ? motionDurations.instant : motionDurations.route
+  const shift = direction === 'back' ? -motionLayerTiming.routeShift : motionLayerTiming.routeShift
+  return (
+    <motion.div
+      data-testid="wrapped-slide-travel"
+      data-slide-duration={duration}
+      initial={still ? false : { x: shift, opacity: 0 }}
+      animate={{ x: 0, opacity: 1 }}
+      transition={{ duration: duration / 1000, ease: [...motionEasings.enter] as [number, number, number, number] }}
+      className="flex flex-1 flex-col"
+    >
+      {children}
+    </motion.div>
   )
 }
 

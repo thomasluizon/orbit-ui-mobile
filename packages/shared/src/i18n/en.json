@@ -385,7 +385,6 @@
     "subtitle": "Your habit copilot"
   },
   "reviewMoment": {
-    "eyebrow": "A word from Orbit",
     "streakTitle": "{count, plural, one {# day straight} other {# days straight}}",
     "levelTitle": "Level {level}",
     "streakBody": "{count, plural, one {You showed up # day in a row. That's real momentum. Mind rating Orbit on Google Play? It helps more people find their orbit.} other {You showed up # days in a row. That's real momentum. Mind rating Orbit on Google Play? It helps more people find their orbit.}}",
@@ -2983,6 +2982,7 @@
       "year": "Close the year."
     },
     "periodGroup": "Period",
+    "periodQuestion": "Which period do you want to see?",
     "start": "Start",
     "close": "Close Wrapped",
     "next": "Continue",

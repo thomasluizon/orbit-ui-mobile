@@ -9,6 +9,7 @@ import {
 } from '@orbit/shared/utils'
 import { AppBar } from '@/components/ui/app-bar'
 import { useBackLabel } from '@/hooks/use-back-label'
+import { useFlag } from '@/hooks/use-flag'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 import { useWrapped } from '@/hooks/use-wrapped'
 import { WrappedCover } from './_components/wrapped-cover'
@@ -38,11 +39,19 @@ function WrappedPageRoute() {
   return <WrappedPageContent key={routeKey} initialSelection={initialSelection} />
 }
 
+function resolveCoverState({ isLoading, isError, isEmpty, hasRecap }: Readonly<{ isLoading: boolean; isError: boolean; isEmpty: boolean; hasRecap: boolean }>) {
+  if (isLoading) return 'loading'
+  if (isError) return 'failed'
+  if (isEmpty) return 'empty'
+  return hasRecap ? 'ready' : 'loading'
+}
+
 function WrappedPageContent({ initialSelection }: Readonly<{
   initialSelection: WrappedRouteSelection
 }>) {
   const goBackOrFallback = useGoBackOrFallback()
   const backLabel = useBackLabel('/profile')
+  const guided = useFlag('orbit_guided_flows')
   const [selection, setSelection] = useState(initialSelection)
   const { period, closedMonth } = selection
   const [isPlaying, setIsPlaying] = useState(false)
@@ -71,21 +80,13 @@ function WrappedPageContent({ initialSelection }: Readonly<{
     }
   }
 
-  const coverState = isLoading || isRetrying
-    ? 'loading'
-    : isError
-      ? 'failed'
-      : isEmpty
-        ? 'empty'
-        : recap
-          ? 'ready'
-          : 'loading'
+  const coverState = resolveCoverState({ isLoading: isLoading || isRetrying, isError, isEmpty, hasRecap: Boolean(recap) })
   const playerOpen = isPlaying && recap && !isEmpty
 
   return (
-    <main className="mx-auto flex min-h-dvh w-full max-w-[900px] flex-col pt-[var(--safe-top)] pb-[var(--safe-bottom)] pl-[var(--safe-left)] pr-[var(--safe-right)]">
+    <main className={`mx-auto flex w-full max-w-[900px] flex-col pt-[var(--safe-top)] pb-[var(--safe-bottom)] pl-[var(--safe-left)] pr-[var(--safe-right)] ${guided ? 'h-dvh' : 'min-h-dvh'}`}>
       {!playerOpen ? <UpdateAvailableBanner /> : null}
-      <div className="flex flex-1 flex-col">
+      <div className={guided ? 'flex min-h-0 flex-1 flex-col' : 'flex flex-1 flex-col'}>
         {!playerOpen ? (
           <AppBar
             title=""

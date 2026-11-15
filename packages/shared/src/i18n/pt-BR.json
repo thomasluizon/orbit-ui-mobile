@@ -385,7 +385,6 @@
     "subtitle": "Seu copiloto de hábitos"
   },
   "reviewMoment": {
-    "eyebrow": "Um recado do Orbit",
     "streakTitle": "{count, plural, =0 {# dias seguidos} one {# dia seguido} other {# dias seguidos}}",
     "levelTitle": "Nível {level}",
     "streakBody": "{count, plural, =0 {Você marcou presença # dias seguidos. Isso é ritmo de verdade. Que tal avaliar o Orbit no Google Play? Ajuda mais pessoas a encontrarem sua órbita.} one {Você marcou presença # dia seguido. Isso é ritmo de verdade. Que tal avaliar o Orbit no Google Play? Ajuda mais pessoas a encontrarem sua órbita.} other {Você marcou presença # dias seguidos. Isso é ritmo de verdade. Que tal avaliar o Orbit no Google Play? Ajuda mais pessoas a encontrarem sua órbita.}}",
@@ -2983,6 +2982,7 @@
       "year": "Feche o ano."
     },
     "periodGroup": "Período",
+    "periodQuestion": "Qual período você quer ver?",
     "start": "Começar",
     "close": "Fechar Wrapped",
     "next": "Continuar",

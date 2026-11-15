@@ -1705,6 +1705,7 @@
       "sourceFile": "apps/web/app/(app)/wrapped/page.tsx",
       "href": "/wrapped",
       "ownedFiles": [
+        "apps/web/app/(app)/wrapped/_components/guided-wrapped-cover.tsx",
         "apps/web/app/(app)/wrapped/_components/wrapped-cover.tsx",
         "apps/web/app/(app)/wrapped/_components/wrapped-player.tsx",
         "apps/web/app/(app)/wrapped/_components/wrapped-slide.tsx",
@@ -1723,6 +1724,7 @@
       "sourceFile": "apps/web/app/(app)/wrapped/page.tsx",
       "href": "/wrapped",
       "ownedFiles": [
+        "apps/web/app/(app)/wrapped/_components/guided-wrapped-cover.tsx",
         "apps/web/app/(app)/wrapped/_components/wrapped-cover.tsx",
         "apps/web/app/(app)/wrapped/_components/wrapped-player.tsx",
         "apps/web/app/(app)/wrapped/_components/wrapped-slide.tsx",
@@ -1741,6 +1743,7 @@
       "sourceFile": "apps/web/app/(app)/wrapped/page.tsx",
       "href": "/wrapped",
       "ownedFiles": [
+        "apps/web/app/(app)/wrapped/_components/guided-wrapped-cover.tsx",
         "apps/web/app/(app)/wrapped/_components/wrapped-cover.tsx",
         "apps/web/app/(app)/wrapped/_components/wrapped-player.tsx",
         "apps/web/app/(app)/wrapped/_components/wrapped-slide.tsx",
@@ -1759,6 +1762,7 @@
       "sourceFile": "apps/web/app/(app)/wrapped/page.tsx",
       "href": "/wrapped",
       "ownedFiles": [
+        "apps/web/app/(app)/wrapped/_components/guided-wrapped-cover.tsx",
         "apps/web/app/(app)/wrapped/_components/wrapped-cover.tsx",
         "apps/web/app/(app)/wrapped/_components/wrapped-player.tsx",
         "apps/web/app/(app)/wrapped/_components/wrapped-slide.tsx",
@@ -8631,6 +8635,58 @@
       "locale": "pt-BR"
     },
     {
+      "surfaceId": "overlay-milestone-share-milestone-share-dialog",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/milestone-share/milestone-share-dialog.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/milestone-share/milestone-share-dialog.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-milestone-share-milestone-share-dialog",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/milestone-share/milestone-share-dialog.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/milestone-share/milestone-share-dialog.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-milestone-share-milestone-share-dialog",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/milestone-share/milestone-share-dialog.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/milestone-share/milestone-share-dialog.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-milestone-share-milestone-share-dialog",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/milestone-share/milestone-share-dialog.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/milestone-share/milestone-share-dialog.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
       "surfaceId": "overlay-milestone-share-milestone-share-prompt",
       "platform": "web",
       "kind": "overlay",
@@ -12480,6 +12536,7 @@
         "apps/mobile/app/wrapped-styles.ts",
         "apps/mobile/app/wrapped.tsx",
         "apps/mobile/components/ui/columns.tsx",
+        "apps/mobile/components/wrapped/guided-wrapped-cover.tsx",
         "apps/mobile/components/wrapped/wrapped-cover.tsx",
         "apps/mobile/components/wrapped/wrapped-player.tsx",
         "apps/mobile/components/wrapped/wrapped-slide.tsx"
@@ -12498,6 +12555,7 @@
         "apps/mobile/app/wrapped-styles.ts",
         "apps/mobile/app/wrapped.tsx",
         "apps/mobile/components/ui/columns.tsx",
+        "apps/mobile/components/wrapped/guided-wrapped-cover.tsx",
         "apps/mobile/components/wrapped/wrapped-cover.tsx",
         "apps/mobile/components/wrapped/wrapped-player.tsx",
         "apps/mobile/components/wrapped/wrapped-slide.tsx"
@@ -12516,6 +12574,7 @@
         "apps/mobile/app/wrapped-styles.ts",
         "apps/mobile/app/wrapped.tsx",
         "apps/mobile/components/ui/columns.tsx",
+        "apps/mobile/components/wrapped/guided-wrapped-cover.tsx",
         "apps/mobile/components/wrapped/wrapped-cover.tsx",
         "apps/mobile/components/wrapped/wrapped-player.tsx",
         "apps/mobile/components/wrapped/wrapped-slide.tsx"
@@ -12534,6 +12593,7 @@
         "apps/mobile/app/wrapped-styles.ts",
         "apps/mobile/app/wrapped.tsx",
         "apps/mobile/components/ui/columns.tsx",
+        "apps/mobile/components/wrapped/guided-wrapped-cover.tsx",
         "apps/mobile/components/wrapped/wrapped-cover.tsx",
         "apps/mobile/components/wrapped/wrapped-player.tsx",
         "apps/mobile/components/wrapped/wrapped-slide.tsx"
@@ -18421,6 +18481,58 @@
       "href": null,
       "ownedFiles": [
         "apps/mobile/components/marketing-consent/marketing-consent-prompt.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-overlay-milestone-share-milestone-share-dialog",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/milestone-share/milestone-share-dialog.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/milestone-share/milestone-share-dialog.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-overlay-milestone-share-milestone-share-dialog",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/milestone-share/milestone-share-dialog.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/milestone-share/milestone-share-dialog.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-overlay-milestone-share-milestone-share-dialog",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/milestone-share/milestone-share-dialog.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/milestone-share/milestone-share-dialog.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-overlay-milestone-share-milestone-share-dialog",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/milestone-share/milestone-share-dialog.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/milestone-share/milestone-share-dialog.tsx"
       ],
       "state": "default",
       "theme": "dark",
@@ -18433,7 +18545,6 @@
       "sourceFile": "apps/mobile/components/milestone-share/milestone-share-prompt.tsx",
       "href": null,
       "ownedFiles": [
-        "apps/mobile/components/milestone-share/milestone-share-card.tsx",
         "apps/mobile/components/milestone-share/milestone-share-prompt.tsx"
       ],
       "state": "default",
@@ -18447,7 +18558,6 @@
       "sourceFile": "apps/mobile/components/milestone-share/milestone-share-prompt.tsx",
       "href": null,
       "ownedFiles": [
-        "apps/mobile/components/milestone-share/milestone-share-card.tsx",
         "apps/mobile/components/milestone-share/milestone-share-prompt.tsx"
       ],
       "state": "default",
@@ -18461,7 +18571,6 @@
       "sourceFile": "apps/mobile/components/milestone-share/milestone-share-prompt.tsx",
       "href": null,
       "ownedFiles": [
-        "apps/mobile/components/milestone-share/milestone-share-card.tsx",
         "apps/mobile/components/milestone-share/milestone-share-prompt.tsx"
       ],
       "state": "default",
@@ -18475,7 +18584,6 @@
       "sourceFile": "apps/mobile/components/milestone-share/milestone-share-prompt.tsx",
       "href": null,
       "ownedFiles": [
-        "apps/mobile/components/milestone-share/milestone-share-card.tsx",
         "apps/mobile/components/milestone-share/milestone-share-prompt.tsx"
       ],
       "state": "default",

@@ -18,10 +18,12 @@ import { APP_LINK_ORIGIN } from '@/lib/app-link-origin'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { useUIStore } from '@/stores/ui-store'
 import { useEngagementPromptStore } from '@/stores/referral-prompt-store'
+import { useFlag } from '@/hooks/use-flag'
 import {
   MilestoneShareCard,
   type MilestoneShareVariant,
 } from '@/components/milestone-share/milestone-share-card'
+import { MilestoneShareDialog } from '@/components/milestone-share/milestone-share-dialog'
 
 
 function resolveVariant(
@@ -42,9 +44,13 @@ function resolveVariant(
   }
 }
 
-/** Curated milestone share nudge: shows a branded card once no celebration is in flight and the shared re-prompt guard allows it, then hands off to the native share sheet. */
+/**
+ * Curated milestone share nudge: shows a branded card once no celebration is in flight and the shared re-prompt guard allows it, then hands off to the native share sheet.
+ * Under `orbit_guided_flows` it is a centred dialog. That dialog leaves the screen while a celebration shows and returns after it, so a view holds one live Orbit.
+ */
 export function MilestoneSharePrompt({ suppressed }: Readonly<{ suppressed: boolean }>) {
   const { t } = useTranslation()
+  const guided = useFlag('orbit_guided_flows')
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(
     () => createTokensV2(currentScheme, currentTheme),
@@ -126,51 +132,58 @@ export function MilestoneSharePrompt({ suppressed }: Readonly<{ suppressed: bool
   const referralUrl = buildReferralUrl(cachedReferral?.code, APP_LINK_ORIGIN)
 
   function dismiss() {
-    closeSheet()
+    closeSheet(() => setShown(null))
   }
 
+  if (shown === null) return null
+
+  const card = <MilestoneShareCard ref={shareRef} variant={shown} referralUrl={referralUrl} />
+  const actions = (
+    <>
+      {hasError ? (
+        <Text
+          accessibilityRole="alert"
+          style={[styles.errorText, { width: '100%' }]}
+        >
+          {t('milestoneShare.shareError')}
+        </Text>
+      ) : null}
+      <ActionRow>
+        <PromptQuietAction
+          accessibleName={t('milestoneShare.later')}
+          onClick={dismiss}
+        >
+          {t('milestoneShare.later')}
+        </PromptQuietAction>
+        <PillButton size="sm" loading={isSharing} disabled={isSharing} onClick={() =>
+            void share({
+              shareTitle: t('milestoneShare.shareTitle'),
+              shareText: t('milestoneShare.shareText'),
+              url: referralUrl,
+            })
+          }>{t('milestoneShare.share')}</PillButton>
+      </ActionRow>
+    </>
+  )
+
+  if (guided) return celebrationInFlight ? null : <MilestoneShareDialog card={card} actions={actions} onDismiss={dismiss} />
+
   return (
-    shown !== null ? (<Sheet
+    <Sheet
       ref={sheetRef}
       open
       onClose={() => setShown(null)}
       title={t('milestoneShare.title')}
-      actions={(
-        <>
-          {hasError ? (
-            <Text
-              accessibilityRole="alert"
-              style={[styles.errorText, { width: '100%' }]}
-            >
-              {t('milestoneShare.shareError')}
-            </Text>
-          ) : null}
-          <ActionRow>
-            <PromptQuietAction
-              accessibleName={t('milestoneShare.later')}
-              onClick={dismiss}
-            >
-              {t('milestoneShare.later')}
-            </PromptQuietAction>
-            <PillButton size="sm" loading={isSharing} disabled={isSharing} onClick={() =>
-                void share({
-                  shareTitle: t('milestoneShare.shareTitle'),
-                  shareText: t('milestoneShare.shareText'),
-                  url: referralUrl,
-                })
-              }>{t('milestoneShare.share')}</PillButton>
-          </ActionRow>
-        </>
-      )}
+      actions={actions}
     >
       <View style={styles.content}>
           <View style={styles.cardWrap}>
-            <MilestoneShareCard ref={shareRef} variant={shown} referralUrl={referralUrl} />
+            {card}
           </View>
 
           <Text style={styles.body}>{t('milestoneShare.body')}</Text>
       </View>
-    </Sheet>) : null
+    </Sheet>
   )
 }
 
