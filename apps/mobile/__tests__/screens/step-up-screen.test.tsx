@@ -1,6 +1,7 @@
 import React from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
+  takeGuidedFlowCompleted,
   STEP_UP_ATTEMPT_WINDOW_MS,
   STEP_UP_CHALLENGE_DURATION_MS,
   type StepUpTimingRecord,
@@ -778,6 +779,7 @@ describe('mobile step up screen', () => {
     )
     expect(mocks.clearTiming).toHaveBeenCalledWith('keys', 'user-1')
     expect(mocks.markVerified).toHaveBeenCalledWith('keys')
+    expect(takeGuidedFlowCompleted('api_key_create'), 'a verified code is not reported as a flow the person left').toBe(true)
     expect(mocks.router.replace).toHaveBeenCalledWith('/profile/ai')
   })
 })

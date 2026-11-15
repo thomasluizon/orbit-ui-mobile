@@ -80,11 +80,11 @@ export interface GuidedEditDetails<ReadError> {
 /**
  * What the guided edit summary shows for the stored details of the habit. The detail read fills the whole form,
  * so the summary waits for it. A habit created offline has no stored details yet: its list record is the whole
- * record, and a failed read does not block it.
+ * record, so neither a paused read nor a failed read blocks it.
  */
 export function resolveGuidedEditDetails<ReadError>(read: EditDetailsRead<ReadError>): GuidedEditDetails<ReadError> {
-  if (!read.guided || read.habitId === null) return { loading: false, summaryError: null, toastError: read.error, blocked: false }
-  const failed = !read.hasDetail && read.error !== null && !read.habitId.startsWith('offline-habit-')
+  if (!read.guided || read.habitId === null || read.habitId.startsWith('offline-habit-')) return { loading: false, summaryError: null, toastError: read.error, blocked: false }
+  const failed = !read.hasDetail && read.error !== null
   const loading = read.pending || (failed && read.fetching)
   const summaryError = failed && !read.fetching ? read.error : null
   const blocked = loading || summaryError !== null

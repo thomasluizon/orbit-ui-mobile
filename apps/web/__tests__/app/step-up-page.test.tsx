@@ -1,6 +1,7 @@
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi, afterEach } from 'vitest'
 import {
+  takeGuidedFlowCompleted,
   STEP_UP_ATTEMPT_WINDOW_MS,
   STEP_UP_CHALLENGE_DURATION_MS,
   type StepUpTimingRecord,
@@ -596,6 +597,7 @@ describe('web step up screen', () => {
     ))
     expect(mocks.clearTiming).toHaveBeenCalledWith('keys', 'account-a')
     expect(mocks.markVerified).toHaveBeenCalledWith('keys')
+    expect(takeGuidedFlowCompleted('api_key_create'), 'a verified code is not reported as a flow the person left').toBe(true)
     expect(mocks.replace).toHaveBeenCalledWith('/profile/ai')
   })
 })

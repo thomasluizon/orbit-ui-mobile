@@ -9,12 +9,14 @@ import {
   DELETE_ACCOUNT_FLOW_STEP_COUNT,
   getStepUpCooldownSeconds,
   getStepUpFlowProgress,
+  markStepUpFlowContinued,
   getStepUpLockSeconds,
   getStepUpPhaseFromTiming,
   getStepUpStorageKey,
   normalizeStepUpCode,
   parseStepUpTimingRecord,
 } from '../utils/step-up'
+import { resetGuidedFlowCompleted, takeGuidedFlowCompleted } from '../utils/guided-flow-events'
 
 describe('getStepUpFlowProgress', () => {
   it('places the code of an account deletion as the last question of the delete flow', () => {
@@ -24,6 +26,13 @@ describe('getStepUpFlowProgress', () => {
 
   it('counts the code of an API key as its own one-step progress', () => {
     expect(getStepUpFlowProgress('keys')).toEqual({ flow: 'api_key_create', position: 1, total: 1 })
+  })
+
+  it('marks the flow that asked for a verified code as continued, so its code question is not reported as left', () => {
+    resetGuidedFlowCompleted('api_key_create')
+    markStepUpFlowContinued('keys')
+    expect(takeGuidedFlowCompleted('api_key_create')).toBe(true)
+    expect(takeGuidedFlowCompleted('api_key_create')).toBe(false)
   })
 })
 

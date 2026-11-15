@@ -14,6 +14,7 @@ import {
   getStepUpLockSeconds,
   getStepUpPhaseFromTiming,
   isStepUpOperation,
+  markStepUpFlowContinued,
   type StepUpOperation,
   type StepUpPhase,
   type StepUpTimingRecord,
@@ -208,6 +209,7 @@ function StepUpScreenContent() {
         await clearStepUpTiming(operation, accountId)
         if (!isCurrentRequest(generation, initiatingAccountId)) return
         markStepUpVerified(operation)
+        markStepUpFlowContinued(operation)
         router.replace(returnDestination)
         return
       }

@@ -63,6 +63,7 @@ describe('resolveGuidedEditDetails', () => {
 
   it('never blocks a habit created offline, whose list record is the whole record', () => {
     expect(resolveGuidedEditDetails({ ...read, habitId: 'offline-habit-7', error: failure })).toEqual({ loading: false, summaryError: null, toastError: failure, blocked: false })
+    expect(resolveGuidedEditDetails({ ...read, habitId: 'offline-habit-7', pending: true })).toEqual({ loading: false, summaryError: null, toastError: null, blocked: false })
   })
 
   it('leaves the full form and a closed edit as they are', () => {
