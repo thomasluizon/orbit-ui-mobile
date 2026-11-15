@@ -10,7 +10,7 @@ Paths below are relative to each platform's `components/` directory unless state
 
 | Surface | Web owner | Android owner | Retained content |
 |---|---|---|---|
-| Empty Orbit thread | `chat/chat-empty-state.tsx` | `chat/chat-empty-state.tsx` | Orbit mascot, title, one ghost browse action and disclosure |
+| Empty Orbit thread | `chat/chat-empty-state.tsx` | `chat/chat-empty-state.tsx` | Orbit mascot, title, one ghost browse action and disclosure; the group sits within 1 px of the centre of the thread area at 320, 360, 384 and 412 (`chat-empty-centre-geometry.test.tsx` on Android) |
 | Empty calendar import and review | `calendar-sync/calendar-import-content.tsx` | `calendar-sync/calendar-import-content.tsx` | Orbit mark, mode-specific title and back action |
 | Empty goal list | `app/(app)/progress/_components/progress-content.tsx` | `progress/progress-content.tsx` | Orbit mark, title and create action |
 | Empty progress window | `app/(app)/progress/_components/progress-window.tsx`; with `orbit_guided_flows` on, `guided-progress-overview.tsx` | `progress/progress-window.tsx`; with the flag on, `progress/guided-progress-overview.tsx` | Orbit mark, title and habit entry; with the flag on, the root Orbit at 96 says the empty line above the same habit entry |
