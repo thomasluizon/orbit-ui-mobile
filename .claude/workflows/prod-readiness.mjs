@@ -391,11 +391,14 @@ for (const target of verdicts) {
   }
 }
 for (const target of verifyOverflow) recordUnjudged(target, `beyond the adversarial-verify cap of ${VERIFY_CAP}`)
-const opsFindings = [...survivorsByLayer.ops, ...opsRaw.filter((f) => !isSerious(f))]
+// A skeptic's adjustedSeverity rewrites f.severity, so the findings that skip Verify are the ones the queue never took.
+const queued = new Set(verifyQueue.map(({ f }) => f))
+const unqueued = (raw) => raw.filter((f) => !queued.has(f))
+const opsFindings = [...survivorsByLayer.ops, ...unqueued(opsRaw)]
   .sort((a, b) => rank(a.severity) - rank(b.severity))
-const a11yFindings = [...survivorsByLayer.a11y, ...a11yRaw.filter((f) => !isSerious(f))]
+const a11yFindings = [...survivorsByLayer.a11y, ...unqueued(a11yRaw)]
   .sort((a, b) => rank(a.severity) - rank(b.severity))
-const hygieneFindings = [...survivorsByLayer.hygiene, ...hygieneRaw.filter((f) => !isSerious(f) && !ordersDelete(f))]
+const hygieneFindings = [...survivorsByLayer.hygiene, ...unqueued(hygieneRaw)]
   .sort((a, b) => rank(a.severity) - rank(b.severity))
 
 return {

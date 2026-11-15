@@ -901,22 +901,23 @@ let findings = dedupeFresh([...measuredFindings, ...attachPerformanceMetrics(fir
 
 async function verifySerious(candidates, phaseName) {
   const serious = candidates.filter(isSerious).sort((a, b) => rank(a.severity) - rank(b.severity))
+  // A skeptic's adjustedSeverity rewrites f.severity, so the pass-through is split off before any skeptic runs.
+  const passthrough = candidates.filter((f) => !isSerious(f))
   const now = serious.slice(0, VERIFY_CAP)
   const capped = serious.slice(VERIFY_CAP)
-  const verdicts = (
-    await parallel(
-      now.map((f, i) => () =>
-        agent(skepticPrompt(kind, f), { label: `verify:${(f.location || String(i)).slice(0, 40)}`, phase: phaseName, model: 'haiku', agentType: 'audit-readonly', schema: VERDICT_SCHEMA }).then((v) => ({ f, v }))
-      )
+  const verdicts = await parallel(
+    now.map((f, i) => () =>
+      agent(skepticPrompt(kind, f), { label: `verify:${(f.location || String(i)).slice(0, 40)}`, phase: phaseName, model: 'haiku', agentType: 'audit-readonly', schema: VERDICT_SCHEMA })
     )
-  ).filter(Boolean)
+  )
   const survivors = []
-  for (const { f, v } of verdicts) {
-    if (v && v.refuted) continue
-    if (v && v.adjustedSeverity) f.severity = v.adjustedSeverity
+  // parallel resolves a skeptic that throws to null, so it keeps the finding the same as a skeptic that returned no verdict.
+  now.forEach((f, index) => {
+    const v = verdicts[index]
+    if (v?.refuted) return
+    if (v?.adjustedSeverity) f.severity = v.adjustedSeverity
     survivors.push(f)
-  }
-  const passthrough = candidates.filter((f) => !isSerious(f))
+  })
   return { kept: [...survivors, ...passthrough], capped }
 }
 
