@@ -8,6 +8,7 @@ import { enableTestFlags } from '@orbit/shared/test-support/flag-state'
 import { buildWrappedSlides } from '@orbit/shared/utils'
 import { testI18n } from '@/__tests__/support/i18n'
 import { renderedText } from '@/__tests__/support/react-test-renderer'
+import { measureSafeArea, type GeometryHost, type GeometryTree } from '@/__tests__/support/safe-area-geometry'
 import { WrappedPlayer } from '@/components/wrapped/wrapped-player'
 import { createTokensV2 } from '@/lib/theme'
 import { __setWindowDimensions } from '@/test-mocks/react-native'
@@ -182,6 +183,34 @@ describe('the guided Wrapped player on Android', () => {
     await press(control(root, catalog.shareCard.download))
     expect(mocks.download).toHaveBeenCalledTimes(1)
   })
+
+  it.each([320, 360, 384, 412].flatMap((width) => LOCALES.map(({ locale, catalog }) => ({ width, locale, catalog }))))(
+    'keeps every part of every guided slide inside the slide column, with Orbit and the preview of the share slide in it, at $width px in $locale', async ({ width, locale, catalog }) => {
+      enableTestFlags('orbit_guided_flows')
+      mocks.reducedMotion = true
+      reanimatedTestState.reducedMotion = true
+      __setWindowDimensions({ width, height: 800, scale: 1, fontScale: 1 })
+      const root = await renderPlayer(locale)
+
+      for (const kind of SLIDE_KINDS) {
+        let part = 0
+        const boxes = measureSafeArea((root as GeometryTree).toJSON(), (host) => {
+          const props = host.props as GeometryHost['props'] & { nativeID?: string; 'data-orbit-face'?: string }
+          if (props.testID === 'wrapped-page-scroll') return 'column'
+          if (props.testID === 'orbit-mascot' && props['data-orbit-face'] === 'rig') return 'orbit'
+          if (props.testID === 'wrapped-figure') return `figure-${part++}`
+          return props.nativeID?.startsWith('wrapped-motion-part-') ? `part-${part++}` : undefined
+        }, { width, height: 800 })
+        const column = boxes.get('column')!
+        const outside = [...boxes].filter(([key, box]) => key !== 'column' && (box.left < column.left - 0.5 || box.left + box.width > column.left + column.width + 0.5))
+        expect(outside, `${kind}: ${JSON.stringify(outside)}`).toEqual([])
+        expect([...boxes.keys()].filter((key) => key !== 'column').length, kind).toBeGreaterThan(0)
+        if (kind === 'share') {
+          expect(boxes.has('orbit')).toBe(true)
+          expect([...boxes.keys()].some((key) => key.startsWith('figure-'))).toBe(true)
+        } else await press(control(root, catalog.wrapped.next))
+      }
+    })
 
   it('renders the current player with the flag off: no slide travel and no Orbit in Feliz on the last slide', async () => {
     const root = await renderPlayer()

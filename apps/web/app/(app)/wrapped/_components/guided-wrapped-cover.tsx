@@ -37,6 +37,17 @@ function usePeriodFade(period: RecapSharePeriod, reducedMotion: boolean) {
   return groupRef
 }
 
+/**
+ * The text of the status region of the cover. It names the load, and the empty line after a pause. The failed line is an alert of its own,
+ * and a ready cover announces nothing, so a line the cover no longer shows is never announced again.
+ */
+function useCoverAnnouncement(state: WrappedCoverProps['state'], line: string | null) {
+  const t = useTranslations()
+  const emptyLine = useFlowAnnouncement(state === 'empty' ? line : null, 'cover')
+  if (state === 'loading') return t('wrapped.loading')
+  return state === 'empty' ? emptyLine : ''
+}
+
 /** Compact: pinned under the scroller and spanning the column. Wide: 24 under the block, hugging its label, at most 360 wide. */
 function StartAction({ wide, loading, onStart }: Readonly<{ wide: boolean; loading: boolean; onStart: () => void }>) {
   const t = useTranslations()
@@ -60,7 +71,7 @@ export function GuidedWrappedCover({ period, onSelectPeriod, state, onStart, onR
   const { mascotRef, lookAt, lookTowards, lookAway } = useOrbitLook()
   const groupRef = usePeriodFade(period, reducedMotion)
   const line = state === 'empty' || state === 'failed' ? t(COVER_LINE_KEYS[state]) : null
-  const announcement = useFlowAnnouncement(line, 'cover')
+  const announcement = useCoverAnnouncement(state, line)
   const start = state === 'ready' || state === 'loading'
     ? <StartAction wide={wide} loading={state === 'loading'} onStart={onStart} />
     : null
@@ -68,12 +79,12 @@ export function GuidedWrappedCover({ period, onSelectPeriod, state, onStart, onR
   return (
     <div data-state={state} data-wrapped-cover="guided" className="flex min-h-0 flex-1 flex-col">
       <div className="flex min-h-0 flex-1 flex-col items-center overflow-y-auto px-4">
-        <div className={wide ? 'grid w-full max-w-[592px] flex-1 grid-rows-[1fr_auto_1fr] justify-items-center' : 'contents'}>
+        <div className={wide ? 'grid w-full max-w-[592px] flex-1 grid-rows-[1fr_auto_1fr] justify-items-center py-4' : 'contents'}>
           <div
             data-wrapped-cover-block=""
             onFocusCapture={(event) => lookTowards(event.target)}
             onBlurCapture={lookAway}
-            className={`flex w-full max-w-[592px] flex-col items-center gap-6 py-4 text-center ${wide ? 'row-start-2' : 'my-auto'}`}
+            className={`flex w-full max-w-[592px] flex-col items-center gap-6 text-center ${wide ? 'row-start-2' : 'my-auto py-4'}`}
           >
             <span ref={mascotRef} aria-hidden="true"><OrbitMascot size={wide ? 128 : 96} state="parado" lookAt={lookAt} turnKey={period} /></span>
             <div ref={groupRef} data-period-fade={reducedMotion ? motionDurations.instant : motionDurations.micro} className="flex flex-col items-center gap-3">
@@ -95,7 +106,7 @@ export function GuidedWrappedCover({ period, onSelectPeriod, state, onStart, onR
           {wide ? start : null}
         </div>
       </div>
-      <span role="status" aria-live="polite" className="sr-only">{state === 'loading' ? t('wrapped.loading') : announcement}</span>
+      <span role="status" aria-live="polite" className="sr-only">{announcement}</span>
       {wide ? null : start}
     </div>
   )

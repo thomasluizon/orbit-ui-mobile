@@ -82,20 +82,32 @@ afterEach(async () => {
 })
 
 describe('the guided Wrapped screen on Android', () => {
-  it.each(WIDTHS)('centres the cover block between the app bar and the start action at %i px', async (width) => {
-    enableTestFlags('orbit_guided_flows')
-    await mount(width)
+  const COVER_READS = {
+    ready: { recap: createMockRecap(), slides: [{ id: 'intro' }], isEmpty: false, isLoading: false, isError: false },
+    loading: { recap: null, slides: [], isEmpty: false, isLoading: true, isError: false },
+    empty: { recap: createMockRecap(), slides: [], isEmpty: true, isLoading: false, isError: false },
+    failed: { recap: null, slides: [], isEmpty: false, isLoading: false, isError: true },
+  } satisfies Record<string, WrappedRead>
 
-    const boxes = measureSafeArea(tree.toJSON(), (host) => host.props.testID, { width, height: HEIGHT })
-    const cover = boxes.get('wrapped-cover-ready')!
-    const block = boxes.get('wrapped-cover-block')!
-    const primary = boxes.get('wrapped-cover-primary')!
-    const free = { top: cover.top, bottom: primary.top }
-    expect(free.bottom - free.top).toBeGreaterThan(block.bottom - block.top)
-    expect(Math.abs((block.top + block.bottom) / 2 - (free.top + free.bottom) / 2)).toBeLessThanOrEqual(1)
-    expect(Math.abs(block.left + block.width / 2 - width / 2)).toBeLessThanOrEqual(1)
-    expect(primary.bottom).toBeLessThanOrEqual(HEIGHT - 24)
-  })
+  it.each((['ready', 'loading', 'empty', 'failed'] as const).flatMap((state) => WIDTHS.map((width) => ({ state, width }))))(
+    'centres the $state cover block in the free area above the start action at $width px', async ({ state, width }) => {
+      enableTestFlags('orbit_guided_flows')
+      mocks.wrapped = COVER_READS[state]
+      await mount(width)
+
+      const boxes = measureSafeArea(tree.toJSON(), (host) => host.props.testID, { width, height: HEIGHT })
+      expect(boxes.has(`wrapped-cover-${state}`)).toBe(true)
+      const free = boxes.get('wrapped-cover-scroll')!
+      const block = boxes.get('wrapped-cover-block')!
+      const primary = boxes.get('wrapped-cover-primary')
+      expect(free.bottom - free.top).toBeGreaterThan(block.bottom - block.top)
+      expect(Math.abs((block.top + block.bottom) / 2 - (free.top + free.bottom) / 2)).toBeLessThanOrEqual(1)
+      expect(Math.abs(block.left + block.width / 2 - width / 2)).toBeLessThanOrEqual(1)
+      if (state === 'ready' || state === 'loading') {
+        expect(primary!.top).toBeGreaterThanOrEqual(free.bottom)
+        expect(primary!.bottom).toBeLessThanOrEqual(HEIGHT - 24)
+      } else expect(primary).toBeUndefined()
+    })
 
   it.each(WIDTHS)('spans the pinned start action across the column at %i px', async (width) => {
     enableTestFlags('orbit_guided_flows')

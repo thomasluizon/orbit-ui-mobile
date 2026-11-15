@@ -42,6 +42,7 @@ const COVER_STATES = [
   { state: 'ready', recap: createMockRecap(), isEmpty: false, isLoading: false, isError: false },
   { state: 'empty', recap: null, isEmpty: true, isLoading: false, isError: false },
   { state: 'failed', recap: null, isEmpty: false, isLoading: false, isError: true },
+  { state: 'loading', recap: null, isEmpty: false, isLoading: true, isError: false },
 ] as const
 const COVER_CASES = COVER_STATES.flatMap((cover) => LOCALES.flatMap((locale) => WIDTHS.map((width) => ({ ...cover, ...locale, width }))))
 const DIALOG_CASES = LOCALES.flatMap((locale) => WIDTHS.map((width) => ({ ...locale, width })))
@@ -87,7 +88,7 @@ describe('the guided Wrapped cover, the share sheet and the milestone dialog in 
     return page
   }
 
-  it.each(COVER_CASES)('centres the $state cover block in the free area, with one line labels and 48 px targets, at $width px in $locale', async ({ width, locale, messages, state, ...cover }) => {
+  it.each(COVER_CASES)('centres the $state cover block in the free area, with one line labels, an Orbit line within two lines and 48 px targets, at $width px in $locale', async ({ width, locale, messages, state, ...cover }) => {
     wrapped.current = cover
     const view = render(<NextIntlClientProvider locale={locale} messages={messages}><WrappedPage /></NextIntlClientProvider>)
     await act(async () => {})
@@ -100,8 +101,16 @@ describe('the guided Wrapped cover, the share sheet and the milestone dialog in 
           range.selectNodeContents(element)
           return new Set([...range.getClientRects()].map((rect) => Math.round(rect.top))).size
         }
+        /** The press target: the box plus the hit area that a small pill draws past its edges with `::after`. */
+        const target = (element: Element | null | undefined) => {
+          if (!element) return null
+          const after = getComputedStyle(element, '::after')
+          const reach = after.content === 'none' ? 0 : Math.max(0, -parseFloat(after.top)) + Math.max(0, -parseFloat(after.bottom))
+          return element.getBoundingClientRect().height + (Number.isNaN(reach) ? 0 : reach)
+        }
         const cover = document.querySelector('[data-wrapped-cover="guided"]')!
         const scroller = cover.firstElementChild!
+        const orbitLine = document.querySelector('[data-wrapped-orbit-line]')
         const block = document.querySelector('[data-wrapped-cover-block]')!.getBoundingClientRect()
         const primaryBox = document.querySelector('[data-wrapped-cover-primary]')
         const primary = primaryBox?.getBoundingClientRect()
@@ -119,6 +128,9 @@ describe('the guided Wrapped cover, the share sheet and the milestone dialog in 
           questionLines: lines(document.querySelector('h2')!),
           titleLines: lines(document.querySelector('h1')!),
           orbit: document.querySelector('[data-wrapped-cover-block] [data-asset="orbit-mascot"]')?.getAttribute('data-orbit-state'),
+          orbitLineLines: orbitLine ? lines(orbitLine) : null,
+          startTarget: target(primaryBox?.querySelector('button')),
+          retryTarget: target(document.querySelector('[data-wrapped-cover-block] button:not([data-option-card])')),
         }
       })
       expect(geometry.scrolls, JSON.stringify(geometry)).toBe(false)
@@ -130,8 +142,16 @@ describe('the guided Wrapped cover, the share sheet and the milestone dialog in 
       expect(geometry.questionLines).toBeLessThanOrEqual(2)
       expect(geometry.titleLines).toBeLessThanOrEqual(2)
       expect(geometry.orbit).toBe('parado')
-      if (state === 'ready') expect(Math.abs(geometry.start! - geometry.primaryColumn!), JSON.stringify(geometry)).toBeLessThanOrEqual(1)
-      else expect(geometry.start).toBeNull()
+      if (state === 'ready' || state === 'loading') {
+        expect(Math.abs(geometry.start! - geometry.primaryColumn!), JSON.stringify(geometry)).toBeLessThanOrEqual(1)
+        expect(geometry.startTarget, JSON.stringify(geometry)).toBeGreaterThanOrEqual(48)
+      } else expect(geometry.start).toBeNull()
+      if (state === 'empty' || state === 'failed') {
+        expect(geometry.orbitLineLines, JSON.stringify(geometry)).toBeGreaterThanOrEqual(1)
+        expect(geometry.orbitLineLines, JSON.stringify(geometry)).toBeLessThanOrEqual(2)
+      } else expect(geometry.orbitLineLines).toBeNull()
+      if (state === 'failed') expect(geometry.retryTarget, JSON.stringify(geometry)).toBeGreaterThanOrEqual(48)
+      else expect(geometry.retryTarget).toBeNull()
     } finally { await page.close(); view.unmount() }
   })
 
@@ -147,9 +167,11 @@ describe('the guided Wrapped cover, the share sheet and the milestone dialog in 
           const rect = document.querySelector(selector)!.getBoundingClientRect()
           return { top: rect.top, bottom: rect.bottom, left: rect.left, right: rect.right, width: rect.width }
         }
+        /** The visible content of the block: from its first child to its last, so padding on the block cannot hide a wider gap. */
+        const children = [...document.querySelector('[data-wrapped-cover-block]')!.children].map((child) => child.getBoundingClientRect())
         return {
           scroller: box('[data-wrapped-cover="guided"] > div'),
-          block: box('[data-wrapped-cover-block]'),
+          block: { ...box('[data-wrapped-cover-block]'), top: Math.min(...children.map((child) => child.top)), bottom: Math.max(...children.map((child) => child.bottom)) },
           start: box('[data-wrapped-cover-primary] button'),
           orbit: document.querySelector('[data-wrapped-cover-block] [data-asset="orbit-mascot"]')?.getBoundingClientRect().width,
         }

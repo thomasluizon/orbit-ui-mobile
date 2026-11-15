@@ -8,6 +8,7 @@ import { NextIntlClientProvider } from 'next-intl'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { createMockProfile, createMockRecap, createMockRetrospectiveMetrics } from '@orbit/shared/__tests__/factories'
+import { enableTestFlags, resetTestFlags } from '@orbit/shared/test-support/flag-state'
 import { buildWrappedSlides } from '@orbit/shared/utils'
 import type { Recap } from '@orbit/shared/types/gamification'
 import en from '@orbit/shared/i18n/en.json'
@@ -100,7 +101,7 @@ describe('WrappedPage player reload banner geometry in Chromium', () => {
 
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
 
-  afterEach(() => { vi.useRealTimers() })
+  afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); resetTestFlags() })
 
   beforeEach(() => {
     expect(browser.contexts(), 'previous geometry case released its contexts').toHaveLength(0)
@@ -252,6 +253,63 @@ describe('WrappedPage player reload banner geometry in Chromium', () => {
       if (index < wrapped.slides.length - 1) fireEvent.click(getByTestId('wrapped-next-zone'))
     }
   })
+
+  it.each([320, 360, 384, 412].flatMap((width) => (['en', 'pt-BR'] as const).map((locale) => ({ width, locale }))))(
+    'keeps every guided slide inside the column with no clipped text, and the share slide Orbit and preview in view, at $width px in $locale', async ({ width, locale }) => {
+      enableTestFlags('orbit_guided_flows')
+      vi.stubGlobal('matchMedia', (query: string) => ({ matches: query.includes('prefers-reduced-motion'), media: query, addEventListener: vi.fn(), removeEventListener: vi.fn() }))
+      const height = 740
+      const { page, signal } = await createPage({ viewport: { width, height }, reducedMotion: 'reduce' })
+      const messages = locale === 'en' ? en : pt
+      const { container, getByTestId } = render(<NextIntlClientProvider locale={locale} messages={messages}><WrappedPage /></NextIntlClientProvider>)
+      fireEvent.click(screen.getByRole('button', { name: messages.wrapped.start }))
+      await act(async () => {})
+      await page.setContent(`<style>${stylesheet}</style>`)
+      await loadAppFonts(page)
+
+      for (const [index, slide] of (wrapped.slides as { id: string }[]).entries()) {
+        signal.throwIfAborted()
+        expect(container.querySelector('[data-testid="wrapped-slide-travel"]'), `slide ${slide.id} is guided`).not.toBeNull()
+        const measured = await page.evaluate((markup) => {
+          document.body.innerHTML = markup
+          const scroller = document.querySelector('[data-testid="wrapped-page-scroll"]')!
+          const column = scroller.getBoundingClientRect()
+          const outside = (rect: DOMRect) => rect.width > 0 && (rect.left < column.left - 0.5 || rect.right > column.right + 0.5)
+          const parts = [...scroller.querySelectorAll('[data-testid="wrapped-motion-part"]')]
+          const clippedParts = parts.filter((part) => outside(part.getBoundingClientRect())).map((part) => part.textContent.slice(0, 40))
+          const clippedText = parts.flatMap((part) => {
+            const walker = document.createTreeWalker(part, NodeFilter.SHOW_TEXT)
+            const found: string[] = []
+            for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+              if (!node.textContent?.trim() || node.parentElement?.closest('[data-wrapped-figure="primary"]')) continue
+              const range = document.createRange()
+              range.selectNodeContents(node)
+              if ([...range.getClientRects()].some(outside)) found.push(node.textContent.trim().slice(0, 40))
+            }
+            return found
+          })
+          scroller.scrollTop = scroller.scrollHeight
+          const view = scroller.getBoundingClientRect()
+          const inView = (selector: string) => {
+            const element = scroller.querySelector(selector)
+            if (!element) return null
+            const rect = element.getBoundingClientRect()
+            return rect.left >= view.left - 0.5 && rect.right <= view.right + 0.5 && rect.bottom <= view.bottom + 0.5
+          }
+          return { clippedParts, clippedText, pageWidth: document.documentElement.scrollWidth, orbit: inView('[data-asset="orbit-mascot"]'), preview: inView('[data-wrapped-figure="primary"]') }
+        }, container.innerHTML)
+        signal.throwIfAborted()
+        const evidence = `slide ${slide.id}: ${JSON.stringify(measured)}`
+        expect(measured.clippedParts, evidence).toEqual([])
+        expect(measured.clippedText, evidence).toEqual([])
+        expect(measured.pageWidth, evidence).toBeLessThanOrEqual(width)
+        if (slide.id === 'share') {
+          expect(measured.orbit, evidence).toBe(true)
+          expect(measured.preview, evidence).toBe(true)
+        }
+        if (index < wrapped.slides.length - 1) fireEvent.click(getByTestId('wrapped-next-zone'))
+      }
+    })
 
   it.each([
     { width: 412, height: 915, top: 24, bottom: 34, left: 0, right: 0 },

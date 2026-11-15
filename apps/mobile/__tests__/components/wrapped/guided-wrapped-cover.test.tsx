@@ -105,6 +105,23 @@ describe('the guided Wrapped cover on Android', () => {
     expect(pressables(root).some((node) => nameOf(node) === ptBR.wrapped.start)).toBe(false)
   })
 
+  it.each(['failed', 'empty'] as const)('announces nothing stale once the cover loads after the %s state', async (from) => {
+    enableTestFlags('orbit_guided_flows')
+    vi.useFakeTimers()
+    try {
+      const { props } = await renderCover('en', { state: from })
+      const status = () => hosts(tree!).find((node) => node.props.accessibilityLiveRegion === 'polite')!.props.children as string
+      const show = (state: CoverProps['state']) => renderer.act(() => { tree!.update(<WrappedCover {...props} state={state} />) })
+      await renderer.act(() => { vi.advanceTimersByTime(1000) })
+      expect(status()).toBe(from === 'empty' ? en.wrapped.orbitLine.empty : '')
+      await show('loading')
+      expect(status()).toBe(en.wrapped.loading)
+      await show('ready')
+      await renderer.act(() => { vi.advanceTimersByTime(1000) })
+      expect(status()).toBe('')
+    } finally { vi.useRealTimers() }
+  })
+
   it('shows the current skeleton rows and keeps the start label on a waiting action while the recap loads, and announces the load', async () => {
     enableTestFlags('orbit_guided_flows')
     const { root } = await renderCover('pt-BR', { state: 'loading' })

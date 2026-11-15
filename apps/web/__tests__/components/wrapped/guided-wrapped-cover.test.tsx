@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { NextIntlClientProvider } from 'next-intl'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
@@ -79,6 +79,23 @@ describe('the guided Wrapped cover on web', () => {
     fireEvent.click(screen.getByRole('button', { name: ptBR.wrapped.retry }))
     expect(handlers.onRetry).toHaveBeenCalledTimes(1)
     expect(screen.queryByRole('button', { name: ptBR.wrapped.start })).not.toBeInTheDocument()
+  })
+
+  it.each(['failed', 'empty'] as const)('announces nothing stale once the cover loads after the %s state', (from) => {
+    enableTestFlags('orbit_guided_flows')
+    vi.useFakeTimers()
+    try {
+      const cover = (state: CoverState) => <NextIntlClientProvider locale="en" messages={en}><WrappedCover period="week" state={state} onSelectPeriod={vi.fn()} onStart={vi.fn()} onRetry={vi.fn()} /></NextIntlClientProvider>
+      const view = render(cover(from))
+      act(() => { vi.advanceTimersByTime(1000) })
+      expect(screen.getByRole('status')).toHaveTextContent(from === 'empty' ? en.wrapped.orbitLine.empty : '')
+      expect(screen.getByRole('status')).not.toHaveTextContent(en.wrapped.error)
+      view.rerender(cover('loading'))
+      expect(screen.getByRole('status')).toHaveTextContent(en.wrapped.loading)
+      view.rerender(cover('ready'))
+      act(() => { vi.advanceTimersByTime(1000) })
+      expect(screen.getByRole('status')).toBeEmptyDOMElement()
+    } finally { vi.useRealTimers() }
   })
 
   it('shows the current skeleton rows and keeps the start label on a waiting action while the recap loads, and announces the load', () => {
