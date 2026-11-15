@@ -31,6 +31,7 @@ import {
   type StyleProp,
   type ViewStyle,
 } from 'react-native'
+import { usePrefersReducedMotion } from '@/lib/motion'
 interface KeyboardAwareViewProps {
   children: ReactNode
   style?: StyleProp<ViewStyle>
@@ -40,6 +41,7 @@ interface KeyboardAwareViewProps {
 }
 
 interface KeyboardAwareScrollViewProps extends ComponentProps<typeof ScrollView> {
+  ref?: Ref<ScrollView>
   children: ReactNode
   containerStyle?: StyleProp<ViewStyle>
   keyboardVerticalOffset?: number
@@ -101,9 +103,20 @@ interface KeyboardAwareContextValue {
   clearInput: (input: KeyboardAwareInputTarget) => void
   keyboardSpace: number
   recordScroll: (offset: number) => void
+  /** This scroller and every scroller around it reserve no reveal margin until the returned release runs. */
+  yieldRevealMargin: () => () => void
+  /** The same for the scrollers around this one only, or null when none encloses it. */
+  yieldEnclosingRevealMargin: (() => () => void) | null
 }
 
 const KeyboardAwareContext = createContext<KeyboardAwareContextValue | null>(null)
+
+/** How far below its measured position the enclosing surface draws its content, or null while unknown. */
+type KeyboardAwareScreenShift = () => number | null
+const KeyboardAwareScreenShiftContext = createContext<KeyboardAwareScreenShift | null>(null)
+export const KeyboardAwareScreenShiftProvider = KeyboardAwareScreenShiftContext.Provider
+
+const REVEAL_MARGIN = 24
 
 function resolveKeyboardBehavior(
   behavior?: KeyboardAvoidingViewProps['behavior'],
@@ -118,6 +131,7 @@ function scrollFocusedInputIntoView(
   keyboardFrame: KeyboardAwareKeyboardFrame | null,
   currentScrollY: number,
   additionalOffset: number,
+  animated: boolean,
 ) {
   if (!scrollable || !input || !keyboardFrame) {
     return
@@ -149,12 +163,12 @@ function scrollFocusedInputIntoView(
     const nextScrollY = Math.max(0, currentScrollY + delta)
 
     if (typeof scrollable.scrollToOffset === 'function') {
-      scrollable.scrollToOffset({ offset: nextScrollY, animated: true })
+      scrollable.scrollToOffset({ offset: nextScrollY, animated })
       return
     }
 
     if (typeof scrollable.scrollTo === 'function') {
-      scrollable.scrollTo({ y: nextScrollY, animated: true })
+      scrollable.scrollTo({ y: nextScrollY, animated })
       return
     }
 
@@ -191,6 +205,14 @@ function useKeyboardAwareContextValue(
   const keyboardFrameRef = useRef<KeyboardAwareKeyboardFrame | null>(null)
   const scrollOffsetYRef = useRef(0)
   const [keyboardSpace, setKeyboardSpace] = useState(0)
+  const screenShift = useContext(KeyboardAwareScreenShiftContext)
+  const yieldEnclosingRevealMargin = useContext(KeyboardAwareContext)?.yieldRevealMargin ?? null
+  const marginYieldsRef = useRef(0)
+  const prefersReducedMotion = usePrefersReducedMotion()
+  const prefersReducedMotionRef = useRef(prefersReducedMotion)
+  useEffect(() => {
+    prefersReducedMotionRef.current = prefersReducedMotion
+  }, [prefersReducedMotion])
 
   const refresh = useCallback(() => {
     const scrollable = scrollableRef.current
@@ -200,20 +222,21 @@ function useKeyboardAwareContextValue(
     viewport.measureInWindow?.((_x, y, _width, viewportHeight) => {
       const visibleBottom = Math.min(
         y + viewportHeight,
-        frame.top - keyboardVerticalOffset,
+        frame.top - (screenShift?.() ?? 0) - keyboardVerticalOffset,
       )
-      setKeyboardSpace(Math.max(0, y + viewportHeight - visibleBottom) + 24)
+      const revealSpace = marginYieldsRef.current > 0 ? 0 : REVEAL_MARGIN
+      setKeyboardSpace(Math.max(0, y + viewportHeight - visibleBottom) + revealSpace)
       scrollFocusedInputIntoView(
         scrollable,
         focusedInputRef.current,
         { top: visibleBottom, visibleTop: y },
         scrollOffsetYRef.current,
-        24,
+        REVEAL_MARGIN,
+        !prefersReducedMotionRef.current,
       )
     })
-  }, [keyboardVerticalOffset, scrollableRef])
-  const revealInput = useCallback((input: KeyboardAwareInputTarget) => {
-    focusedInputRef.current = input
+  }, [keyboardVerticalOffset, screenShift, scrollableRef])
+  const refreshNextFrame = useCallback(() => {
     if (!keyboardFrameRef.current) return
     if (focusFrameRef.current !== null) cancelAnimationFrame(focusFrameRef.current)
     focusFrameRef.current = requestAnimationFrame(() => {
@@ -221,9 +244,23 @@ function useKeyboardAwareContextValue(
       refresh()
     })
   }, [refresh])
+  const revealInput = useCallback((input: KeyboardAwareInputTarget) => {
+    focusedInputRef.current = input
+    refreshNextFrame()
+  }, [refreshNextFrame])
   const clearInput = useCallback((input: KeyboardAwareInputTarget) => {
     if (focusedInputRef.current === input) focusedInputRef.current = null
   }, [])
+  const yieldRevealMargin = useCallback(() => {
+    marginYieldsRef.current += 1
+    const releaseEnclosing = yieldEnclosingRevealMargin?.()
+    refreshNextFrame()
+    return () => {
+      marginYieldsRef.current -= 1
+      releaseEnclosing?.()
+      refreshNextFrame()
+    }
+  }, [yieldEnclosingRevealMargin, refreshNextFrame])
   const recordScroll = useCallback((offset: number) => {
     scrollOffsetYRef.current = offset
   }, [])
@@ -237,8 +274,8 @@ function useKeyboardAwareContextValue(
   useKeyboardFrameListener(keyboardFrameRef, refresh, setKeyboardSpace)
 
   return useMemo(
-    () => ({ revealInput, clearInput, handleScroll, recordScroll, refresh, keyboardSpace }),
-    [revealInput, clearInput, handleScroll, recordScroll, refresh, keyboardSpace],
+    () => ({ revealInput, clearInput, handleScroll, recordScroll, refresh, keyboardSpace, yieldRevealMargin, yieldEnclosingRevealMargin }),
+    [revealInput, clearInput, handleScroll, recordScroll, refresh, keyboardSpace, yieldRevealMargin, yieldEnclosingRevealMargin],
   )
 }
 
@@ -257,7 +294,7 @@ function useKeyboardFrameListener(
         refresh()
       })
     }
-    const update = (event: KeyboardEvent) => {
+    const show = (event: KeyboardEvent) => {
       keyboardFrameRef.current = { top: event.endCoordinates.screenY }
       scheduleRefresh()
     }
@@ -267,18 +304,22 @@ function useKeyboardFrameListener(
       keyboardFrameRef.current = null
       setKeyboardSpace(0)
     }
+    // WHY: iOS posts the frame change that ends a hide after the will-hide notification, so only a shown keyboard may record a frame. https://developer.apple.com/documentation/uikit/uiresponder/keyboarddidchangeframenotification
+    const changeFrame = (event: KeyboardEvent) => {
+      if (keyboardFrameRef.current) show(event)
+    }
     const metrics = Keyboard.metrics()
     if (metrics) {
       keyboardFrameRef.current = { top: metrics.screenY }
       scheduleRefresh()
     }
     const showSubscription = Keyboard.addListener(
-      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow', update,
+      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow', show,
     )
     const hideSubscription = Keyboard.addListener(
       Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide', hide,
     )
-    const frameSubscription = Keyboard.addListener('keyboardDidChangeFrame', update)
+    const frameSubscription = Keyboard.addListener('keyboardDidChangeFrame', changeFrame)
     return () => {
       if (frame !== null) cancelAnimationFrame(frame)
       showSubscription.remove()
@@ -341,6 +382,7 @@ export function KeyboardAwareView({
 
 export function KeyboardAwareScrollView({
   children,
+  ref,
   containerStyle,
   keyboardVerticalOffset = 0,
   behavior,
@@ -354,6 +396,14 @@ export function KeyboardAwareScrollView({
     scrollRef,
     keyboardVerticalOffset,
   )
+  const assignRef = useCallback((node: ScrollView | null) => {
+    scrollRef.current = node
+    if (typeof ref === 'function') {
+      ref(node)
+    } else if (ref) {
+      ref.current = node
+    }
+  }, [ref])
   const handleScroll = useCallback(
     (event: NativeSyntheticEvent<NativeScrollEvent>) => {
       keyboardAwareContext.handleScroll(event)
@@ -365,7 +415,7 @@ export function KeyboardAwareScrollView({
   const scrollContent = (
     <ScrollView
       {...props}
-      ref={scrollRef}
+      ref={assignRef}
       keyboardShouldPersistTaps={keyboardShouldPersistTaps}
       contentInsetAdjustmentBehavior={contentInsetAdjustmentBehavior}
       onScroll={handleScroll}
