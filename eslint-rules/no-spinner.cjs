@@ -145,14 +145,16 @@ function endsRotationKeyframes(turn) {
 }
 
 /**
- * A numeric full turn: `360` or `-360` as the first argument of a timing call, as the value of a rotation key, as the
- * end of an `interpolate` output range, or as the last keyframe of a rotation key.
+ * A numeric full turn: `360` or `-360` as the first argument of a timing call, as the value of a rotation key, as a
+ * factor of a product such as `${turn.value * 360}deg`, as the end of an `interpolate` output range, or as the last
+ * keyframe of a rotation key.
  */
 function isNumericFullTurn(node) {
   const turn = node.parent?.type === 'UnaryExpression' && node.parent.operator === '-' ? node.parent : node
   const parent = turn.parent
   if (!parent) return false
   if (parent.type === 'ArrayExpression') return endsInterpolatedOutput(turn) || endsRotationKeyframes(turn)
+  if (parent.type === 'BinaryExpression' && parent.operator === '*') return true
   if (parent.type === 'CallExpression' && parent.arguments[0] === turn && parent.callee.type === 'Identifier') return TIMING_CALLS.has(parent.callee.name)
   if (parent.type !== 'Property' || parent.value !== turn) return false
   const key = parent.key.type === 'Identifier' ? parent.key.name : parent.key.value
