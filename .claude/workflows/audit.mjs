@@ -904,27 +904,30 @@ async function verifySerious(candidates, phaseName) {
   // A skeptic's adjustedSeverity rewrites f.severity, so the pass-through is split off before any skeptic runs.
   const passthrough = candidates.filter((f) => !isSerious(f))
   const now = serious.slice(0, VERIFY_CAP)
-  const capped = serious.slice(VERIFY_CAP)
   const verdicts = await parallel(
     now.map((f, i) => () =>
       agent(skepticPrompt(kind, f), { label: `verify:${(f.location || String(i)).slice(0, 40)}`, phase: phaseName, model: 'haiku', agentType: 'audit-readonly', schema: VERDICT_SCHEMA })
     )
   )
+  // A finding that no skeptic judged is never returned as verified: it goes to the Deferred ledger with the reason.
+  const defer = (f, deferReason) => ({ title: f.title, location: f.location, severity: f.severity, deferReason })
+  const deferred = serious.slice(VERIFY_CAP).map((f) => defer(f, 'exceeded the adversarial-verify cap — shipped unchallenged, re-verify before acting'))
   const survivors = []
-  // parallel resolves a skeptic that throws to null, so it keeps the finding the same as a skeptic that returned no verdict.
   now.forEach((f, index) => {
+    // parallel resolves a skeptic that throws to null, the same as a skeptic that returned no verdict.
     const v = verdicts[index]
-    if (v?.refuted) return
-    if (v?.adjustedSeverity) f.severity = v.adjustedSeverity
-    survivors.push(f)
+    if (!v) deferred.push(defer(f, 'the skeptic died or failed — unchallenged, re-verify before acting'))
+    else if (!v.refuted) {
+      if (v.adjustedSeverity) f.severity = v.adjustedSeverity
+      survivors.push(f)
+    }
   })
-  return { kept: [...survivors, ...passthrough], capped }
+  return { kept: [...survivors, ...passthrough], deferred }
 }
 
 phase('Verify')
-let { kept, capped } = await verifySerious(findings, 'Verify')
-const deferred = capped.map((f) => ({ title: f.title, location: f.location, severity: f.severity, deferReason: 'exceeded the adversarial-verify cap — shipped unchallenged, re-verify before acting' }))
-log(`verified: ${kept.length} kept · ${capped.length} deferred (cap)`)
+let { kept, deferred } = await verifySerious(findings, 'Verify')
+log(`verified: ${kept.length} kept · ${deferred.length} deferred (cap or no verdict)`)
 
 phase('Complete')
 let round = 0
@@ -968,9 +971,9 @@ while (dry < maxDry && round < HARD_ROUNDS) {
     continue
   }
   dry = 0
-  const { kept: freshKept, capped: freshCapped } = await verifySerious(fresh, 'Complete')
+  const { kept: freshKept, deferred: freshDeferred } = await verifySerious(fresh, 'Complete')
   kept = kept.concat(freshKept)
-  freshCapped.forEach((f) => deferred.push({ title: f.title, location: f.location, severity: f.severity, deferReason: 'exceeded the adversarial-verify cap — shipped unchallenged, re-verify before acting' }))
+  deferred.push(...freshDeferred)
   log(`round ${round}: +${fresh.length} fresh (${freshKept.length} kept)`)
 }
 

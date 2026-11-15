@@ -247,10 +247,23 @@ export const cases = async () => {
     auditVerifySource.includes("async function verifySerious") && auditLowered.kept.length === 2 &&
       auditLoweredHigh.length === 1 && auditLoweredHigh[0].severity === "Medium",
     JSON.stringify(auditLowered.kept))
+  const auditRefuted = await runAuditVerify([auditHigh(), auditLow], () => ({ refuted: true, note: "a guard upstream scopes the query" }))
+  T(`${NAME}: an audit finding that its skeptic refutes is dropped, and the pass-through finding is kept`,
+    auditRefuted.kept.length === 1 && auditRefuted.kept[0].title === "Loose log line" && auditRefuted.deferred?.length === 0,
+    JSON.stringify([auditRefuted.kept, auditRefuted.deferred]))
+  const auditFlood = Array.from({ length: 61 }, (_, index) => ({ severity: "High", title: `Unscoped query ${index}`, location: `orbit-api src/Query.cs:${index + 1}` }))
+  const auditOverflow = await runAuditVerify(auditFlood, () => ({ refuted: false, note: "real" }))
+  const auditCapDeferred = auditOverflow.deferred?.filter((item) => /adversarial-verify cap/.test(item.deferReason)) ?? []
+  T(`${NAME}: an audit finding beyond the cap of 60 goes to deferred with the cap reason and never into kept`,
+    auditOverflow.kept.length === 60 && auditOverflow.deferred?.length === 1 && auditCapDeferred.length === 1 &&
+      !auditOverflow.kept.some((finding) => finding.title === auditCapDeferred[0].title),
+    JSON.stringify([auditOverflow.kept.length, auditOverflow.deferred]))
   for (const [label, skeptic] of [["returns no verdict", () => null], ["throws", () => { throw new Error("verify failed") }]]) {
     const unjudgedAudit = await runAuditVerify([auditHigh()], skeptic)
-    T(`${NAME}: an audit finding whose skeptic ${label} is kept, never dropped`,
-      unjudgedAudit.kept.length === 1 && unjudgedAudit.kept[0].title === "Unscoped query", JSON.stringify(unjudgedAudit.kept))
+    T(`${NAME}: an audit finding whose skeptic ${label} goes to deferred with a re-verify reason, never into kept as verified`,
+      unjudgedAudit.kept.length === 0 && unjudgedAudit.deferred?.length === 1 && unjudgedAudit.deferred[0].title === "Unscoped query" &&
+        /skeptic died or failed/.test(unjudgedAudit.deferred[0].deferReason) && /re-verify before acting/.test(unjudgedAudit.deferred[0].deferReason),
+      JSON.stringify([unjudgedAudit.kept, unjudgedAudit.deferred]))
   }
   const verifyPhaseDetail = /title: 'Verify', detail: '([^']*)'/.exec(readFileSync(new URL("../../.claude/workflows/prod-readiness.mjs", import.meta.url), "utf8"))?.[1] ?? ""
   T(`${NAME}: the Verify phase detail names the hygiene findings and the cap`, /hygiene/.test(verifyPhaseDetail) && /60/.test(verifyPhaseDetail), verifyPhaseDetail)
