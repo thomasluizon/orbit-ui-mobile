@@ -37,7 +37,7 @@ export const statusQuery = (numbers) => `query RunStatus($owner: String!, $name:
       baseRef { name target { __typename oid } }
       statusCheckRollup { contexts(first: 100) { pageInfo { hasNextPage } nodes {
         __typename
-        ... on CheckRun { name status conclusion startedAt checkSuite { app { databaseId } } }
+        ... on CheckRun { databaseId name status conclusion startedAt checkSuite { app { databaseId } } }
         ... on StatusContext { context state createdAt }
       } } }
       reviews(last: 100, author: "pullfrog[bot]") { pageInfo { hasPreviousPage } nodes {
