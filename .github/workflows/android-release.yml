@@ -290,7 +290,9 @@ jobs:
       - name: Validate Expo dependency compatibility
         if: ${{ inputs.validate_expo_dependencies }}
         working-directory: apps/mobile
-        run: npx expo install --check
+        # EXPO_OFFLINE makes the check read the installed expo/bundledNativeModules.json, not the Expo API,
+        # so a new Expo patch release cannot fail a release of an unchanged lockfile.
+        run: EXPO_OFFLINE=1 npx expo install --check
 
       - name: Set Expo app version
         working-directory: apps/mobile
