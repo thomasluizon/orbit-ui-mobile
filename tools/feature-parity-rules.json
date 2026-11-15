@@ -297,6 +297,12 @@
       ],
       "reason": "The retained behavior has this source-backed label or entry in the redesign."
     },
+    "mobile:control:common.syncOrphanedDetail": {
+      "targets": [
+        "mobile:display:common.syncOrphanedDetail"
+      ],
+      "reason": "The same sentence follows the recovery message of the create surface, which now sits outside the form action owner."
+    },
     "mobile:control:common.top": {
       "targets": [
         "mobile:control:common.backToTop"
@@ -3932,6 +3938,12 @@
         "web:route:/profile"
       ],
       "reason": "Perfil owns the former Explore entries; each action is audited independently."
+    },
+    "web:route:/profile/astra": {
+      "targets": [
+        "web:route:/profile/ai"
+      ],
+      "reason": "The AI settings page moved to /profile/ai (#2121). The old slug redirects there."
     },
     "web:route:/streak": {
       "targets": [
