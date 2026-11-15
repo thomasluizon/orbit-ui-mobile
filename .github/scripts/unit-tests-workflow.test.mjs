@@ -214,11 +214,19 @@ test("required checks report on every pull request through job conditions, never
   assert.equal(workflow.jobs.lint.if, "github.event_name == 'pull_request' && needs.plan.outputs.lint == 'true'")
   assert.equal(workflow.jobs["tool-hook-tests"].if, "${{ !cancelled() }}")
   for (const step of unitSteps) assert.doesNotMatch(String(step.if ?? ""), /outputs\.(web|type-check|lint)\b|base_ref/, `${step.name ?? step.uses}: Unit Tests and its scan never follow a path scope`)
+  // Each limit above 15 minutes is 1.5 times the measured worst run that its workflow comment names.
+  const measuredAboveFifteen = {
+    "unit-tests": [16, "Unit Tests holds the tests and the scan: 619 s at worst on main, times 1.5"],
+    "layout-shards": [23, "Layout shard 4 took up to 912 s, times 1.5"],
+  }
   for (const [id, job] of Object.entries(workflow.jobs)) {
-    if (id === "unit-tests") continue
+    if (id in measuredAboveFifteen) {
+      const [limit, source] = measuredAboveFifteen[id]
+      assert.equal(job["timeout-minutes"], limit, source)
+      continue
+    }
     assert.ok(Number.isInteger(job["timeout-minutes"]) && job["timeout-minutes"] <= 15, `${id} needs a job time limit near its measured time`)
   }
-  assert.equal(workflow.jobs["unit-tests"]["timeout-minutes"], 16, "Unit Tests holds the tests and the scan: 619 s at worst on main, times 1.5")
 })
 
 test("every pull request distributes Chromium without increasing browser concurrency on a runner", () => {

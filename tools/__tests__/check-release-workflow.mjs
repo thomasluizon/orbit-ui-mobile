@@ -348,26 +348,44 @@ function checkSourceIdentity() {
   git("update-ref", "refs/remotes/origin/main", advanced)
   const output = stage("release-source/output", "")
   const resolve = () => spawnSync(BASH, ["-c", stepScript("Resolve source")], { cwd: directory, encoding: "utf8",
-    env: { ...environment, SOURCE_SHA: planned, SOURCE_BRANCH: "main", GITHUB_OUTPUT: output } })
+    env: { ...environment, SOURCE_SHA: planned, GITHUB_OUTPUT: output } })
   const wrongCheckout = resolve()
   T("source rejects the advanced branch checkout", wrongCheckout.status === 1 && wrongCheckout.stdout.includes("Checkout does not match"), wrongCheckout.stderr)
   git("checkout", "-q", "--detach", planned)
   const pinned = resolve()
-  T("source accepts the planned ancestor after the branch advances", pinned.status === 0 && readFileSync(output, "utf8").includes(`sha=${planned}`), pinned.stderr)
+  T("source accepts the checkout of the selected SHA", pinned.status === 0 && readFileSync(output, "utf8").includes(`sha=${planned}`), pinned.stderr)
+  const onBranch = (sha) => spawnSync(BASH, ["-c", stepScript("Require the selected SHA on the source branch")], { cwd: directory, encoding: "utf8",
+    env: { ...environment, SOURCE_SHA: sha, SOURCE_BRANCH: "main" } })
+  const ancestor = onBranch(planned)
+  T("selection accepts the planned ancestor after the branch advances", ancestor.status === 0, ancestor.stdout + ancestor.stderr)
   git("update-ref", "refs/remotes/origin/main", planned)
-  git("checkout", "-q", "--detach", advanced)
-  const outside = spawnSync(BASH, ["-c", stepScript("Resolve source")], { cwd: directory, encoding: "utf8",
-    env: { ...environment, SOURCE_SHA: advanced, SOURCE_BRANCH: "main", GITHUB_OUTPUT: output } })
-  T("source rejects a commit outside the selected branch", outside.status === 1 && outside.stdout.includes("not reachable"), outside.stderr)
+  const outside = onBranch(advanced)
+  T("selection rejects a commit outside the selected branch", outside.status === 1 && outside.stdout.includes("not reachable"), outside.stderr)
 }
 
 function checkPinnedRelease() {
   const parsed = load(workflow)
   const checkout = parsed.jobs.build.steps.find((step) => step.uses?.startsWith("actions/checkout@"))
-  T("build checks out the selected SHA with complete branch history", parsed.jobs.build.needs === "select" &&
-    parsed.jobs.select.outputs.sha === "${{ steps.selection.outputs.sha }}" && checkout.with.ref === "${{ needs.select.outputs.sha }}" && checkout.with["fetch-depth"] === 0)
-  const resolve = stepScript("Resolve source")
-  T("source resolution verifies checkout identity and branch ancestry", resolve.includes('"$sha" != "$SOURCE_SHA"') && resolve.includes('git merge-base --is-ancestor "$SOURCE_SHA" "refs/remotes/origin/$SOURCE_BRANCH"'))
+  T("build checks out the selected SHA", parsed.jobs.build.needs === "select" &&
+    parsed.jobs.select.outputs.sha === "${{ steps.selection.outputs.sha }}" && checkout.with.ref === "${{ needs.select.outputs.sha }}")
+  T("source resolution verifies checkout identity", stepScript("Resolve source").includes('"$sha" != "$SOURCE_SHA"'))
+  // The ancestry refusal must run before every job that builds, admits or publishes, so it lives in select, which they all need.
+  const ancestry = 'git merge-base --is-ancestor "$SOURCE_SHA" "refs/remotes/origin/$SOURCE_BRANCH"'
+  const selectSteps = parsed.jobs.select.steps
+  const selectCheckout = selectSteps.findIndex((step) => step.uses?.startsWith("actions/checkout@"))
+  const refusal = selectSteps.findIndex((step) => step.run?.includes(ancestry))
+  T("select refuses a SHA off the source branch after a full-history checkout", selectCheckout >= 0 && refusal > selectCheckout &&
+    selectSteps[selectCheckout].with?.["fetch-depth"] === 0 && selectSteps[refusal].env?.SOURCE_SHA === "${{ steps.selection.outputs.sha }}" &&
+    selectSteps[refusal].env?.SOURCE_BRANCH === "${{ inputs.branch }}")
+  const ownersOfAncestry = Object.entries(parsed.jobs).filter(([, job]) => (job.steps ?? []).some((step) => step.run?.includes(ancestry))).map(([id]) => id)
+  T("only select owns the branch ancestry refusal", JSON.stringify(ownersOfAncestry) === JSON.stringify(["select"]), ownersOfAncestry.join(", "))
+  const needsOf = (job) => [job.needs ?? []].flat()
+  const dependsOnSelect = (id, seen = new Set()) => id === "select" ||
+    (!seen.has(id) && (seen.add(id), needsOf(parsed.jobs[id]).some((need) => dependsOnSelect(need, seen))))
+  const publishers = Object.keys(parsed.jobs).filter((id) => id !== "select")
+  T("every job that builds, admits or publishes waits for the selection", publishers.length > 0 && publishers.every((id) => dependsOnSelect(id)),
+    publishers.filter((id) => !dependsOnSelect(id)).join(", "))
+  T("the desktop shell publish waits for the selection directly", needsOf(parsed.jobs["desktop-release"]).includes("select"))
   const admission = parsed.jobs.admission.steps.find((step) => step.name === "Require healthy staging commit")
   T("production admits staging before deploying", !!admission && parsed.jobs.production.needs.includes("admission") &&
     !parsed.jobs.production.steps.some((step) => step.name === "Require healthy staging commit"))
