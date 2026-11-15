@@ -112,7 +112,9 @@ macOS in the separate `installed-signed` job. That job takes the `desktop-stagin
 `deployment: false`, and the Windows job takes no environment. GitHub passes no secrets to a workflow that
 a fork triggers, so a fork pull request runs the Windows job only. The VM jobs run no producer
 regression. `Tool and Hook Tests` runs every producer test file (`test-acceptance*.ts`,
-`test-child-limit.ts`) on `ubuntu-latest`, where the cases gated on `process.platform` skip.
+`test-child-limit.ts`) on `ubuntu-latest`, where the cases gated on `process.platform` skip, and fails when
+a file that imports `node:test` is not started there. `test-acceptance-support.ts` holds no test case: it
+gives `test-acceptance.ts` and `test-acceptance-keys.ts` one inspection context on the real runner source.
 `desktop-acceptance-producers.yml` runs each file with such a gate on `windows-latest` and
 `macos-latest`, beside the VM jobs. It also starts when a pull request changes only a producer test or a
 fixture, which the VM jobs skip. `node tools/test-tools.mjs --only desktop-acceptance` fails when a
