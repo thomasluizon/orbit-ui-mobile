@@ -7,6 +7,7 @@ import { ResultDialog } from '@/components/ui/result-dialog'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 import { FLOW_LOCALES, FLOW_WIDTHS, compileAppStylesheet, stubViewportMedia } from '@/__tests__/support/flow-layout'
 import { resolveWebThemeVariables } from '@/lib/theme-dom'
+import { loadAppFonts } from '@/__tests__/support/app-fonts'
 
 const HEIGHT = 780
 type Translate = (key: string, values?: Record<string, string>) => string
@@ -41,13 +42,24 @@ describe('result dialog centring in Chromium', () => {
     try {
       const theme = Object.entries(resolveWebThemeVariables('orange', 'dark')).map(([key, value]) => `${key}:${value}`).join(';')
       await page.setContent(`<!DOCTYPE html><html class="dark" style="${theme}"><style>${stylesheet}</style><body>${document.body.innerHTML}</body></html>`)
+      await loadAppFonts(page)
       const geometry = await page.evaluate(() => {
         const panel = document.querySelector('[role="dialog"]')!.getBoundingClientRect()
-        const actions = [...document.querySelectorAll('[role="dialog"] button')].filter((button) => button.textContent.trim()).map((button) => {
-          const range = document.createRange()
-          range.selectNodeContents(button)
-          return { label: button.textContent.trim(), lines: new Set([...range.getClientRects()].map((rect) => Math.round(rect.top / 4))).size }
-        })
+        /** Only text boxes count, and a box starts a new line only when its top is more than half a line under the last one. */
+        const lineCount = (element: Element) => {
+          const tops: number[] = []
+          const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT)
+          for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+            if (!node.textContent?.trim()) continue
+            const range = document.createRange()
+            range.selectNodeContents(node)
+            for (const rect of range.getClientRects()) if (rect.width > 0) tops.push(rect.top)
+          }
+          tops.sort((first, second) => first - second)
+          return tops.filter((top, index) => index === 0 || top - tops[index - 1]! > 8).length
+        }
+        const actions = [...document.querySelectorAll('[role="dialog"] button')].filter((button) => button.textContent.trim())
+          .map((button) => ({ label: button.textContent.trim(), lines: lineCount(button) }))
         return { top: panel.top, bottom: panel.bottom, left: panel.left, right: panel.right, actions, state: document.querySelector('[data-result-dialog]')?.getAttribute('data-orbit-state'), viewport: { width: window.innerWidth, height: window.innerHeight } }
       })
       expect(Math.abs((geometry.top + geometry.bottom) / 2 - geometry.viewport.height / 2), JSON.stringify(geometry)).toBeLessThanOrEqual(1)

@@ -47,17 +47,19 @@ export async function measureFlowMarkup(browser: Browser, stylesheet: string, wi
     await page.setContent(`<!DOCTYPE html><html class="dark" style="${theme}"><style>${stylesheet}</style><body style="margin:0"><div class="flex h-dvh flex-col">${markup}</div></body></html>`)
     await loadAppFonts(page)
     return await page.evaluate(() => {
+      /** Only text boxes count, and a box starts a new line only when its top is more than half a line under the last one, so boxes on one line never read as two. */
       const lineCount = (element: Element | null) => {
         if (!element) return 0
-        const tops = new Set<number>()
+        const tops: number[] = []
         const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT)
         for (let node = walker.nextNode(); node; node = walker.nextNode()) {
           if (!node.textContent?.trim()) continue
           const range = document.createRange()
           range.selectNodeContents(node)
-          for (const rect of range.getClientRects()) tops.add(Math.round(rect.top / 4))
+          for (const rect of range.getClientRects()) if (rect.width > 0) tops.push(rect.top)
         }
-        return tops.size
+        tops.sort((first, second) => first - second)
+        return tops.filter((top, index) => index === 0 || top - tops[index - 1]! > 8).length
       }
       const bounds = (element: Element | null) => {
         if (!element) return null
