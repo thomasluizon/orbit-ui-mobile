@@ -40,8 +40,8 @@ vi.mock('@/hooks/use-profile', () => ({
 
 vi.mock('@/components/ui/app-bar', () => ({ AppBar: () => null }))
 vi.mock('@/components/ui/sheet', () => ({
-  Sheet: ({ open, title, titleTranslate, children }: { open: boolean; title: string; titleTranslate?: 'no'; children: React.ReactNode }) =>
-    open ? <section role="dialog" aria-label={title} translate={titleTranslate}>{children}</section> : null,
+  Sheet: ({ open, title, children }: { open: boolean; title: string; children: React.ReactNode }) =>
+    open ? <section role="dialog" aria-label={title}>{children}</section> : null,
 }))
 
 describe('AboutPage', () => {
@@ -90,7 +90,7 @@ describe('AboutPage', () => {
     ])
 
     fireEvent.click(destinations.getByRole('button', { name: 'Guia do Orbit' }))
-    expect(screen.getByRole('dialog', { name: ptBR.onboarding.featureGuide.question })).toHaveAttribute('translate', 'no')
+    expect(screen.getByRole('dialog', { name: ptBR.onboarding.featureGuide.question })).not.toHaveAttribute('translate')
     expect(screen.queryByRole('dialog', { name: 'Guia do Orbit' })).not.toBeInTheDocument()
     expect(destinations.getByText('Guia do Orbit')).toHaveAttribute('translate', 'no')
 
