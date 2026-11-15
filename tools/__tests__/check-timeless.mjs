@@ -1,5 +1,5 @@
 import { spawnSync } from "node:child_process"
-import { cpSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs"
+import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 
@@ -181,26 +181,30 @@ export const cases = () => {
   T("a directory entry for machine-path is refused", run(scoped, ["--all"]).status === 2)
   rmSync(scoped, { recursive: true, force: true })
 
-  const pull = fixture("pull-request-unused", "design/canvas/kept.md", `Ask ${owner}.\n`)
+  const canvasEntries = ["owner-name", "dated-anecdote"].map((rule) => ({ path: "design/canvas/", rule, match: null, scope: "directory", reason: "granted export" }))
+  const unusedDate = "unused allowlist: design/canvas/ dated-anecdote null"
+  const canvasFixture = (label) => {
+    const root = fixture(label, "design/canvas/kept.md", `Ask ${owner}.\n`)
+    writeFileSync(join(root, "design/canvas/only.md"), `On ${date}, the export ran.\n`)
+    writeFileSync(join(root, "tools", "timeless-allowlist.json"), JSON.stringify(canvasEntries))
+    git(root, "add", "design/canvas/only.md", "tools/timeless-allowlist.json")
+    git(root, "commit", "-qm", "allow")
+    return { root, base: git(root, "rev-parse", "HEAD").stdout.trim() }
+  }
+  const { root: pull, base: pullBase } = canvasFixture("pull-request-unused")
   const pullAllowlist = (entries) => {
     writeFileSync(join(pull, "tools", "timeless-allowlist.json"), JSON.stringify(entries))
     git(pull, "add", "tools/timeless-allowlist.json")
   }
-  const canvasEntries = ["owner-name", "dated-anecdote"].map((rule) => ({ path: "design/canvas/", rule, match: null, scope: "directory", reason: "granted export" }))
-  writeFileSync(join(pull, "design/canvas/only.md"), `On ${date}, the export ran.\n`)
-  git(pull, "add", "design/canvas/only.md")
-  pullAllowlist(canvasEntries)
-  git(pull, "commit", "-qm", "allow")
-  const pullBase = git(pull, "rev-parse", "HEAD").stdout.trim()
   T("both directory entries are used before the deletion", run(pull, ["--all"]).status === 0)
   git(pull, "rm", "-q", "design/canvas/only.md")
   const stagedDeletion = run(pull, ["--staged"])
   T("deleting the only file an allowlist entry covers fails staged",
-    stagedDeletion.status === 1 && stagedDeletion.stderr.includes("unused allowlist: design/canvas/ dated-anecdote null"))
+    stagedDeletion.status === 1 && stagedDeletion.stderr.includes(unusedDate))
   git(pull, "commit", "-qm", "delete")
   const baseDeletion = run(pull, ["--base", pullBase])
   T("deleting the only file an allowlist entry covers fails base",
-    baseDeletion.status === 1 && baseDeletion.stderr.includes("unused allowlist: design/canvas/ dated-anecdote null"))
+    baseDeletion.status === 1 && baseDeletion.stderr.includes(unusedDate))
   T("an unchanged file in the scope still counts as use in base", !baseDeletion.stderr.includes("owner-name"))
   writeFileSync(join(pull, "other.md"), "clean\n")
   git(pull, "add", "other.md")
@@ -212,8 +216,30 @@ export const cases = () => {
   const entryBase = git(pull, "rev-parse", "HEAD").stdout.trim()
   pullAllowlist([...canvasEntries.slice(0, 1), { path: "notes.md", rule: "dated-anecdote", match: date, reason: "unused" }])
   git(pull, "commit", "-qm", "add entry")
-  T("a pull request that adds an unused entry fails base", run(pull, ["--base", entryBase]).status === 1)
+  const addedEntry = run(pull, ["--base", entryBase])
+  T("a pull request that adds an unused entry fails base",
+    addedEntry.status === 1 && addedEntry.stderr.includes(`unused allowlist: notes.md dated-anecdote ${date}`))
   rmSync(pull, { recursive: true, force: true })
+
+  const { root: moved, base: movedBase } = canvasFixture("pull-request-move")
+  mkdirSync(join(moved, "docs"))
+  git(moved, "mv", "design/canvas/only.md", "docs/only.md")
+  git(moved, "commit", "-qm", "move")
+  const baseMove = run(moved, ["--base", movedBase])
+  T("moving the only covered file out of the scope fails base on the unused entry and the moved finding",
+    baseMove.status === 1 && baseMove.stderr.includes(unusedDate) && baseMove.stderr.includes("docs/only.md:1: dated-anecdote"))
+  rmSync(moved, { recursive: true, force: true })
+
+  const { root: narrowed, base: narrowedBase } = canvasFixture("pull-request-checker")
+  const narrowedChecker = join(narrowed, "tools", "check-timeless.mjs")
+  const fullChecker = readFileSync(narrowedChecker, "utf8")
+  const withoutDateRule = fullChecker.replace('["dated-anecdote", date], ', "")
+  T("the fixture removes the date rule from its checker copy", withoutDateRule !== fullChecker)
+  writeFileSync(narrowedChecker, withoutDateRule)
+  git(narrowed, "commit", "-qam", "narrow")
+  const baseNarrow = run(narrowed, ["--base", narrowedBase])
+  T("a checker change that leaves an entry unused fails base", baseNarrow.status === 1 && baseNarrow.stderr.includes(unusedDate))
+  rmSync(narrowed, { recursive: true, force: true })
   writeFileSync(join(safe, "tools", "timeless-allowlist.json"), JSON.stringify([{ path: "sample.js", rule: "owner-name", match: owner, reason: "unused" }]))
   T("an unused allowlist entry fails", run(safe, ["--all"]).status === 1)
   const scratch = join(tmpdir(), "timeless-scratchpad.txt")

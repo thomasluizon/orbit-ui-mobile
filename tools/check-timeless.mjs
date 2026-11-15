@@ -8,6 +8,7 @@ import { fileURLToPath } from "node:url"
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..")
 const SELF = fileURLToPath(import.meta.url)
 const ALLOWLIST = "tools/timeless-allowlist.json"
+const CHECKER = "tools/check-timeless.mjs"
 const USAGE = "usage: check-timeless.mjs --all | --base <ref> | --staged | --hook"
 const machine = new RegExp([
   "/" + "Users/", "[A-Za-z]:\\\\+Users", "/private/" + "tmp", "/private/" + "var", "/var/" + "folders",
@@ -286,10 +287,10 @@ function report(results, allowed, checked, usage = results) {
   return failures.length ? 1 : 0
 }
 
-/** A change that deletes or edits a covered file can leave an entry unused, so recheck only the entries whose scope the change touches. */
+/** A change to a covered file, the allowlist or the checker can leave an entry unused: recheck the entries whose scope it touches, or every entry. */
 function changedEntryUsage(allowed, touched, tracked, read) {
-  const checked = [...allowed.keys()].filter((index) =>
-    touched.includes(ALLOWLIST) || touched.some((path) => covers(allowed[index], path)))
+  const everyEntry = touched.some((path) => path === ALLOWLIST || path === CHECKER)
+  const checked = [...allowed.keys()].filter((index) => everyEntry || touched.some((path) => covers(allowed[index], path)))
   if (!checked.length) return { checked, usage: [] }
   const usage = tracked().filter((path) => checked.some((index) => covers(allowed[index], path)))
     .flatMap((path) => findings(path, read(path)))
@@ -314,7 +315,7 @@ function hook() {
   while (!existsSync(directory) && dirname(directory) !== directory) directory = dirname(directory)
   const rootResult = spawnSync("git", ["-C", directory, "rev-parse", "--show-toplevel"], { encoding: "utf8" })
   if (rootResult.status !== 0) return 0
-  const root = rootResult.stdout.trim(), checker = join(root, "tools", "check-timeless.mjs")
+  const root = rootResult.stdout.trim(), checker = join(root, CHECKER)
   if (!existsSync(checker)) return 0
   if (checker !== SELF) {
     const result = spawnSync(process.execPath, [checker, "--hook"], { input: JSON.stringify(payload), encoding: "utf8" })
