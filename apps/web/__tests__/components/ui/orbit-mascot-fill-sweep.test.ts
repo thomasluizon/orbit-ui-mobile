@@ -7,7 +7,7 @@ import { describe, expect, it } from 'vitest'
 const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../../../../..')
 const SOURCE_ROOTS = ['apps/web/app', 'apps/web/components', 'apps/web/lib', 'apps/mobile/app', 'apps/mobile/components']
 const PILL_EXPORTS = new Set(['Button', 'PillButton', 'ThemedButton', 'PillLink'])
-const MASCOT_EXPORTS = new Set(['OrbitMascot', 'OrbitMascotIcon'])
+const MASCOT_EXPORTS = new Set(['OrbitMascot', 'OrbitMascotIcon', 'OrbitMascotDrawing'])
 const PRIMARY_FILL = /bg-\[var\(--primary\)\]|(?:^|\s)bg-primary(?:\s|$)/
 const PRIMARY_STYLE_VALUE = /var\(--primary\)|\b(?:tokens|colors)\.primary\b/
 
@@ -87,7 +87,7 @@ function paintsPrimary(node: ts.JsxElement | ts.JsxSelfClosingElement, syntax: t
 function findMascotOnFill(path: string, contents: string): string[] {
   const syntax = ts.createSourceFile(path, contents, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX)
   const pills = importedNames(syntax, /(?:^|\/)pill-button$/, PILL_EXPORTS)
-  const mascots = importedNames(syntax, /(?:^|\/)orbit-mascot$/, MASCOT_EXPORTS)
+  const mascots = importedNames(syntax, /(?:^|\/)orbit-mascot(?:-drawing)?$/, MASCOT_EXPORTS)
   if (mascots.size === 0) return []
   const findings: string[] = []
   walk(syntax, (node) => {
@@ -114,6 +114,14 @@ describe('Orbit on a filled surface', () => {
       'export const f = <PillButton variant="primary">Save</PillButton>',
     ].join('\n')
     expect(findMascotOnFill('fixture.tsx', fixture)).toEqual(['fixture.tsx:3', 'fixture.tsx:4', 'fixture.tsx:5', 'fixture.tsx:6'])
+  })
+
+  it('reports the hook-free drawing on a primary fill as it reports the live mascot', () => {
+    const fixture = [
+      "import { OrbitMascotDrawing } from '@/components/ui/orbit-mascot-drawing'",
+      'export const a = <button className="bg-[var(--primary)]"><OrbitMascotDrawing size={48} clipId="planet" /></button>',
+    ].join('\n')
+    expect(findMascotOnFill('fixture.tsx', fixture)).toEqual(['fixture.tsx:2'])
   })
 
   it('keeps every mascot in both apps off a filled pill and off a primary fill, so the moon never meets its own colour', () => {
