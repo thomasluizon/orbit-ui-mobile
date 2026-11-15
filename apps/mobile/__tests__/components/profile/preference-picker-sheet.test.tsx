@@ -7,8 +7,10 @@ import { createTokensV2 } from '@/lib/theme'
 import { __resetTestHostConfig } from '../../../test-mocks/react-native'
 import { focusHost, withFocusProvenance } from '../../support/focus-provenance'
 
+const device = vi.hoisted((): { timeZone: string | null } => ({ timeZone: 'Alpha/One' }))
 vi.mock('@orbit/shared/utils', async (importOriginal) => ({
   ...await importOriginal<typeof import('@orbit/shared/utils')>(),
+  getClientTimeZone: () => device.timeZone,
   getTimezoneList: () => [
     'Alpha/One',
     'Bravo/Keep',
@@ -88,8 +90,54 @@ describe('PreferencePickerSheet', () => {
     expect(props.onHidden).toHaveBeenCalledOnce()
   })
 
-  it('keeps the time zone search and its list with the flag on', () => {
-    flag.guided = true
+  describe('the time zone question with the flag on', () => {
+    const hosts = (tree: any, predicate: (node: any) => boolean) => tree.root.findAll((node: any) => typeof node.type === 'string' && predicate(node))
+    const cards = (tree: any) => hosts(tree, (node) => node.props.testID === 'option-card')
+    const names = (tree: any) => cards(tree).map((card: any) => card.props.accessibilityLabel)
+    const search = (tree: any) => hosts(tree, (node) => node.props.accessibilityLabel === 'Search timezones' && typeof node.props.onChangeText === 'function')[0]
+    function open() {
+      flag.guided = true
+      device.timeZone = 'Charlie/Three'
+      const props = { ...baseProps(), activePicker: 'timeZone' as const }
+      let tree: any
+      void act(() => { tree = create(withFocusProvenance(<PreferencePickerSheet {...props} />)) })
+      return { props, tree }
+    }
+
+    it('shows the stored time zone and the time zone of the device as the quick options, with no radio list', () => {
+      const { tree } = open()
+      expect(hosts(tree, (node) => node.props.accessibilityRole === 'radio')).toHaveLength(0)
+      expect(names(tree)).toEqual(['America/Sao_Paulo', 'Charlie/Three'])
+      expect(cards(tree).map((card: any) => card.props.accessibilityState.selected)).toEqual([true, false])
+      expect(hosts(tree, (node) => node.props.accessibilityLabel === 'Show more timezones')).toHaveLength(0)
+    })
+
+    it('answers with one press on a quick option and closes the sheet', () => {
+      const { props, tree } = open()
+      void act(() => cards(tree)[1].props.onPress())
+      expect(props.onTimeZoneChange).toHaveBeenCalledExactlyOnceWith('Charlie/Three')
+      expect(props.onHidden).toHaveBeenCalledOnce()
+    })
+
+    it('finds any other time zone through the search, which is the free path', () => {
+      const { props, tree } = open()
+      void act(() => search(tree).props.onChangeText('keep'))
+      expect(names(tree)).toEqual(['America/Sao_Paulo', 'Charlie/Three', 'Bravo/Keep', 'Delta/Keep'])
+      void act(() => cards(tree)[3].props.onPress())
+      expect(props.onTimeZoneChange).toHaveBeenCalledExactlyOnceWith('Delta/Keep')
+      expect(props.onHidden).toHaveBeenCalledOnce()
+    })
+
+    it('states a search with no match, with the quick options still in reach', () => {
+      const { tree } = open()
+      void act(() => search(tree).props.onChangeText('zzzz'))
+      expect(hosts(tree, (node) => node.props.accessibilityLiveRegion === 'polite' && node.props.children === 'No timezones found')).toHaveLength(1)
+      expect(cards(tree)).toHaveLength(2)
+      expect(hosts(tree, (node) => node.props.accessibilityLabel === 'Show more timezones')).toHaveLength(0)
+    })
+  })
+
+  it('keeps the current time zone list with the flag off: the search field and the radio rows', () => {
     const props = { ...baseProps(), activePicker: 'timeZone' as const }
     let tree: any
     void act(() => { tree = create(withFocusProvenance(<PreferencePickerSheet {...props} />)) })

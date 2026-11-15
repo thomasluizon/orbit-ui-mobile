@@ -86,3 +86,41 @@ export function buildProfilePickerLabels(translate: (key: string) => string): Pr
     timeZoneShowMoreLabel: translate('profile.timezonePicker.showMore'),
   }
 }
+
+/** The time zone matches one page shows. More matches stay behind the show-more action. */
+export const TIME_ZONE_PAGE_SIZE = 20
+
+export interface GuidedTimeZoneInput {
+  zones: readonly string[]
+  /** The time zone the account holds. */
+  selected: string | null | undefined
+  /** The time zone of the device, when the device reports one. */
+  deviceTimeZone: string | null
+  /** The words the person typed in the search. */
+  query: string
+  visibleCount: number
+}
+
+export interface GuidedTimeZoneOptions {
+  /** The quick options: the stored time zone, then the time zone of the device. */
+  quick: string[]
+  /** True once the person typed a search. Matches show only then. */
+  searched: boolean
+  /** The matches of the search on this page. */
+  visible: string[]
+  hasMore: boolean
+}
+
+/**
+ * The time zone question in the guided pattern: the stored time zone and the time zone of the device are the
+ * quick options, and every other time zone stays behind the search. A space in the search matches the
+ * underscore of a time zone name, so "sao paulo" finds `America/Sao_Paulo`.
+ */
+export function buildGuidedTimeZoneOptions(input: GuidedTimeZoneInput): GuidedTimeZoneOptions {
+  const device = input.deviceTimeZone && input.zones.includes(input.deviceTimeZone) ? input.deviceTimeZone : null
+  const quick = [...new Set([input.selected, device].filter((zone): zone is string => Boolean(zone)))]
+  const term = input.query.trim().toLocaleLowerCase().replaceAll(/\s+/g, '_')
+  const matches = term ? input.zones.filter((zone) => zone.toLocaleLowerCase().includes(term)) : []
+  return { quick, searched: term.length > 0, visible: matches.slice(0, input.visibleCount), hasMore: matches.length > input.visibleCount }
+}
+

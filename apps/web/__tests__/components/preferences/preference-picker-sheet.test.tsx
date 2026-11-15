@@ -9,6 +9,8 @@ vi.mock('next-intl', () => ({
 
 const flag = vi.hoisted(() => ({ guided: false }))
 vi.mock('@/hooks/use-flag', () => ({ useFlag: () => flag.guided }))
+const device = vi.hoisted(() => ({ timeZone: 'America/Sao_Paulo' as string | null }))
+vi.mock('@orbit/shared/utils', async (importOriginal) => ({ ...await importOriginal<typeof import('@orbit/shared/utils')>(), getClientTimeZone: () => device.timeZone }))
 
 vi.mock('dompurify', () => ({
   default: { sanitize: (html: string) => html },
@@ -76,11 +78,66 @@ describe('PreferencePickerSheet', () => {
     expect(props.onClose).toHaveBeenCalledOnce()
   })
 
-  it('keeps the time zone search and its list with the flag on', () => {
-    flag.guided = true
+  describe('the time zone question with the flag on', () => {
+    const cards = () => [...document.querySelectorAll<HTMLButtonElement>('[data-option-card]')]
+    const search = () => screen.getByRole('searchbox', { name: 'Search timezones' })
+    function open() {
+      flag.guided = true
+      device.timeZone = 'Europe/Lisbon'
+      const props = { ...baseProps(), activePicker: 'timeZone' as const }
+      render(<PreferencePickerSheet {...props} />)
+      return props
+    }
+
+    it('shows the stored time zone and the time zone of the device as the quick options, with no radio list, no raw field and no inline style', () => {
+      open()
+      expect(screen.queryByRole('radio')).not.toBeInTheDocument()
+      expect(cards().map((card) => card.textContent)).toEqual(['America/Sao_Paulo', 'Europe/Lisbon'])
+      expect(cards().map((card) => card.hasAttribute('data-selected'))).toEqual([true, false])
+      expect(cards().every((card) => card.parentElement?.hasAttribute('data-option-wide'))).toBe(true)
+      const dialog = screen.getByRole('dialog')
+      expect(dialog.querySelector('input.form-input')).toBeNull()
+      expect(dialog.querySelector('[data-time-zone-question] [style*="border-radius"]')).toBeNull()
+      expect(screen.queryByRole('button', { name: 'Show more timezones' })).not.toBeInTheDocument()
+    })
+
+    it('answers with one press on a quick option and closes the sheet, and an arrow key only moves the focus', () => {
+      const props = open()
+      fireEvent.keyDown(screen.getByRole('button', { name: 'America/Sao_Paulo' }), { key: 'ArrowDown' })
+      expect(screen.getByRole('button', { name: 'Europe/Lisbon' })).toHaveFocus()
+      expect(props.onTimeZoneChange).not.toHaveBeenCalled()
+      fireEvent.click(screen.getByRole('button', { name: 'Europe/Lisbon' }))
+      expect(props.onTimeZoneChange).toHaveBeenCalledExactlyOnceWith('Europe/Lisbon')
+      expect(props.onClose).toHaveBeenCalledOnce()
+    })
+
+    it('finds any other time zone through the search, which is the free path', () => {
+      const props = open()
+      fireEvent.change(search(), { target: { value: 'london' } })
+      expect(screen.getByRole('group', { name: 'Search timezones' }).querySelectorAll('[data-option-card]')).toHaveLength(1)
+      fireEvent.click(screen.getByRole('button', { name: 'Europe/London' }))
+      expect(props.onTimeZoneChange).toHaveBeenCalledExactlyOnceWith('Europe/London')
+      expect(props.onClose).toHaveBeenCalledOnce()
+    })
+
+    it('states a search with no match and pages a search with many matches', () => {
+      open()
+      fireEvent.change(search(), { target: { value: 'zzzz' } })
+      expect(screen.getByText('No timezones found')).toHaveAttribute('role', 'status')
+      expect(cards()).toHaveLength(2)
+      fireEvent.change(search(), { target: { value: 'america' } })
+      expect(screen.queryByText('No timezones found')).not.toBeInTheDocument()
+      expect(cards()).toHaveLength(2 + 20)
+      fireEvent.click(screen.getByRole('button', { name: 'Show more timezones' }))
+      expect(cards()).toHaveLength(2 + 40)
+    })
+  })
+
+  it('keeps the current time zone list with the flag off: the search field and the radio rows', () => {
     render(<PreferencePickerSheet {...baseProps()} activePicker="timeZone" />)
     expect(screen.getByRole('textbox', { name: 'Search timezones' })).toBeInTheDocument()
     expect(screen.getAllByRole('radio').length).toBeGreaterThan(0)
+    expect(document.querySelector('[data-option-card]')).toBeNull()
   })
 
   it('shows the selected clock and commits one choice', () => {

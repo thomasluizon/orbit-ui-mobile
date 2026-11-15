@@ -5,19 +5,19 @@ import { ChevronDown } from '@/components/ui/icons'
 import { IconButton } from '@/components/ui/icon-button'
 
 import { useMemo, useRef, useState } from 'react'
-import { buildPreferencePickerModel, getTimezoneList, type PreferencePicker } from '@orbit/shared/utils'
+import { buildGuidedTimeZoneOptions, buildPreferencePickerModel, getClientTimeZone, getTimezoneList, TIME_ZONE_PAGE_SIZE, type PreferencePicker } from '@orbit/shared/utils'
 import type { SupportedLocale } from '@orbit/shared/types/profile'
 
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { RadioRow } from '@/components/ui/select-check'
 import { RadioGroup } from '@/components/ui/radio-group'
+import { Input } from '@/components/ui/input'
 import { OptionCard } from '@/components/ui/option-card'
 import { useFlag } from '@/hooks/use-flag'
 
 export type { PreferencePicker }
 
 const TIME_ZONE_OPTIONS = getTimezoneList()
-const TIME_ZONE_PAGE_SIZE = 20
 
 /** Arrow keys move the draft and only an activation commits it, so navigating never writes a preference per keypress. */
 function PickerOptions<Value extends string | number>({
@@ -80,13 +80,7 @@ function TimeZoneOptions({
   noResultsLabel,
   showMoreLabel,
   onCommit,
-}: Readonly<{
-  selected?: string | null
-  searchLabel: string
-  noResultsLabel: string
-  showMoreLabel: string
-  onCommit: (timeZone: string) => void
-}>) {
+}: Readonly<TimeZoneOptionsProps>) {
   const [query, setQuery] = useState('')
   const [visibleCount, setVisibleCount] = useState(TIME_ZONE_PAGE_SIZE)
   const filtered = useMemo(() => {
@@ -133,6 +127,37 @@ function TimeZoneOptions({
   )
 }
 
+interface TimeZoneOptionsProps {
+  selected?: string | null
+  searchLabel: string
+  noResultsLabel: string
+  showMoreLabel: string
+  onCommit: (timeZone: string) => void
+}
+
+/**
+ * With `orbit_guided_flows` on, the time zone question follows the pattern of the short pickers: the stored time zone and the
+ * time zone of the device are the quick options, and the search is the free path to every other time zone. A press answers and closes the sheet.
+ */
+function GuidedTimeZoneOptions({ selected, searchLabel, noResultsLabel, showMoreLabel, onCommit }: Readonly<TimeZoneOptionsProps>) {
+  const [query, setQuery] = useState('')
+  const [visibleCount, setVisibleCount] = useState(TIME_ZONE_PAGE_SIZE)
+  const [deviceTimeZone] = useState(getClientTimeZone)
+  const { quick, searched, visible, hasMore } = buildGuidedTimeZoneOptions({ zones: TIME_ZONE_OPTIONS, selected, deviceTimeZone, query, visibleCount })
+  const option = (zone: string) => <OptionCard key={zone} wide label={zone} selected={zone === selected} onSelect={() => onCommit(zone)} />
+  return (
+    <div data-time-zone-question="" className="flex flex-col gap-3">
+      <div role="group" aria-label={selected ?? searchLabel} data-option-group="" className="grid grid-cols-2 gap-3">{quick.map(option)}</div>
+      <Input kind="search" label={searchLabel} name="timeZoneSearch" autoComplete="off" value={query} onChange={(value) => { setQuery(value); setVisibleCount(TIME_ZONE_PAGE_SIZE) }} />
+      {searched && visible.length === 0 ? <p role="status" className="text-center text-sm text-[var(--fg-3)]">{noResultsLabel}</p> : null}
+      {visible.length > 0 ? <div role="group" aria-label={searchLabel} data-option-group="" className="grid grid-cols-2 gap-3">{visible.map(option)}</div> : null}
+      {hasMore ? <div className="flex justify-center">
+        <IconButton label={showMoreLabel} onClick={() => setVisibleCount((count) => count + TIME_ZONE_PAGE_SIZE)}><ChevronDown size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton>
+      </div> : null}
+    </div>
+  )
+}
+
 interface PreferencePickerSheetProps {
   activePicker: PreferencePicker | null
   mounted: boolean
@@ -165,7 +190,8 @@ function PickerContent({
   if (props.activePicker === null) return null
   const model = buildPreferencePickerModel({ ...props, activePicker: props.activePicker, ready: props.mounted })
   if (model.kind === 'timeZone') {
-    return <TimeZoneOptions
+    const TimeZones = guided ? GuidedTimeZoneOptions : TimeZoneOptions
+    return <TimeZones
       selected={model.selected}
       searchLabel={props.timeZoneSearchLabel}
       noResultsLabel={props.timeZoneNoResultsLabel}

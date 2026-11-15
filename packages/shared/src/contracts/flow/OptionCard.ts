@@ -5,6 +5,8 @@ export interface OptionCardProps {
   disabled?: boolean
   /** Text beside a disabled option that says why. A disabled option without a reason is not allowed. */
   disabledReason?: string
+  /** Takes the whole row of the option grid: an answer that is one long token, such as a time zone name. */
+  wide?: boolean
   /** Answers and, on a single-choice step, advances in one press. */
   onSelect: () => void
   /** Reports pointer or keyboard focus on the option, so Orbit can look at it. */
