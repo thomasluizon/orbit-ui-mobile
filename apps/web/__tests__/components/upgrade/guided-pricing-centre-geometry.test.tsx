@@ -100,6 +100,7 @@ describe('the plan question and the trial expired dialog in Chromium', () => {
           questionLines: lines(block.querySelector('h1')!),
           cards: cards.map((card) => ({ ...box(card), clipped: card.scrollWidth > card.clientWidth, nameLines: lines(card.querySelector('span > span')!) })),
           primary: { ...target(primary), lines: lines(primary) },
+          footer: box(document.querySelector('[data-flow-footer]')!),
           stayFree: { ...target(stayFree), lines: lines(stayFree) },
         }
       })
@@ -118,6 +119,7 @@ describe('the plan question and the trial expired dialog in Chromium', () => {
       }
       expect(geometry.primary.lines, evidence).toBe(1)
       expect(geometry.primary.height, evidence).toBeGreaterThanOrEqual(MIN_TARGET)
+      expect(Math.abs((geometry.primary.right - geometry.primary.left) - (geometry.footer.right - geometry.footer.left)), evidence).toBeLessThanOrEqual(1)
       expect(geometry.stayFree.lines, evidence).toBe(1)
       expect(geometry.stayFree.height, evidence).toBeGreaterThanOrEqual(MIN_TARGET)
     } finally { await page.close(); view.unmount(); vi.unstubAllGlobals() }
