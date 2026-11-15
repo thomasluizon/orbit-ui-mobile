@@ -9,7 +9,7 @@ import { resolveMotionPreset, type MotionScenario } from '@orbit/shared/theme'
 import { formatLoginCountdown } from '@orbit/shared/utils'
 import { LoginContent } from '@/components/auth/login-content'
 import { KeyboardAwareSheetScrollView } from '@/components/ui/keyboard-aware-scroll-view'
-import { measureSafeArea, type GeometryHost } from '@/__tests__/support/safe-area-geometry'
+import { committedHost, measureSafeArea, type GeometryHost } from '@/__tests__/support/safe-area-geometry'
 import { __emitKeyboardEvent, __resetTestHostConfig, __setMeasureInWindowImpl, __setScrollToImpl, __setWindowDimensions } from '../../test-mocks/react-native'
 
 const { act, create } = require('react-test-renderer')
@@ -17,22 +17,19 @@ const { act, create } = require('react-test-renderer')
 const SE = { width: 375, height: 667, scale: 2, top: 20, bottom: 0, keyboardTop: 432 }
 const IPHONE_17 = { width: 402, height: 874, scale: 3, top: 62, bottom: 34, keyboardTop: 572 }
 const device = { ...SE }
-const FLEXIBLE_CHALLENGE_HEIGHT = 65
+/** The check is the real widget: `challenge` is the Cloudflare checkbox the bridge page posts as `interactive`, and `none` is a passed check. */
 type CheckState = 'none' | 'challenge'
-const CHECK_HEIGHTS: Record<CheckState, number> = { none: 0, challenge: FLEXIBLE_CHALLENGE_HEIGHT }
+const BRIDGE_STATES: Record<CheckState, string> = { none: 'solved', challenge: 'interactive' }
 
-const mocks = vi.hoisted((): { flow: Record<string, unknown>; check: 'none' | 'challenge'; insets: { top: number; bottom: number } } =>
-  ({ flow: {}, check: 'challenge', insets: { top: 0, bottom: 0 } }))
+const mocks = vi.hoisted((): { flow: Record<string, unknown>; insets: { top: number; bottom: number } } =>
+  ({ flow: {}, insets: { top: 0, bottom: 0 } }))
 vi.mock('react-i18next', async (importActual) => ({
   ...(await importActual<typeof import('react-i18next')>()),
   useTranslation: () => ({ t: (key: string) => key, i18n: { language: 'en' } }),
 }))
 vi.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ ...mocks.insets, left: 0, right: 0 }) }))
 vi.mock('@/app/use-login-flow', () => ({ useLoginFlow: () => mocks.flow }))
-vi.mock('@/components/auth/turnstile-widget', () => ({
-  TurnstileWidget: () => React.createElement(View, { testID: 'check', style: mocks.check === 'none'
-    ? { position: 'absolute', left: 0, right: 0, height: 0 } : { height: CHECK_HEIGHTS[mocks.check] } }),
-}))
+vi.mock('react-native-webview', () => ({ WebView: (props: Record<string, unknown>) => React.createElement('WebView', props) }))
 vi.mock('@/lib/use-app-theme', () => ({ useAppTheme: () => ({ currentScheme: 'purple', currentTheme: 'light' }) }))
 vi.mock('@/lib/motion', () => ({ usePrefersReducedMotion: () => true, toAnimatedEasing: (value: unknown) => value, useResolvedMotionPreset: (scenario: MotionScenario) => resolveMotionPreset(scenario, true) }))
 
@@ -50,6 +47,7 @@ function lastLineText() {
 function keyOf(type: unknown, props: Record<string, unknown>, children?: unknown): string | undefined {
   if (type === 'ScrollView') return (props.testID as string | undefined) ?? 'login-scroll'
   if (type === 'Text' && [children].flat(Infinity).join('') === lastLineText()) return 'last-line'
+  if (Array.isArray(children) && children.some((child: GeometryHost | string) => typeof child !== 'string' && child.props.testID === 'turnstile-challenge')) return 'check'
   return props.testID as string | undefined
 }
 
@@ -106,23 +104,24 @@ function screen() {
   </View>
 }
 
-function render(step: 'email' | 'code', check: CheckState) {
-  mocks.check = check
+async function render(step: 'email' | 'code', check: CheckState) {
   mocks.flow = { ...createLoginScreenFixture(step, 'pt-BR'), turnstileSiteKey: 'site-key', turnstileResetKey: 0, onTurnstileToken: vi.fn(),
     setEmail: vi.fn(), sendCode: vi.fn(), verifyCode: vi.fn(), resendCode: vi.fn(), backToEmail: vi.fn(), onCodeChange: vi.fn() }
-  act(() => { geometry.tree = create(screen()) })
+  await act(async () => { geometry.tree = create(screen()); await Promise.resolve() })
   const tree = geometry.tree!
   __setScrollToImpl(({ y = 0 }) => {
     geometry.scrollY = Math.min(y, maxLoginScroll(tree))
     ;(loginScroll(tree).props.onScroll as (event: object) => void)({ nativeEvent: { contentOffset: { y: geometry.scrollY } } })
   })
   settle(tree)
+  setCheck(tree, check)
   return tree
 }
 
+/** Posts a state from the bridge page, as the human check does. */
 function setCheck(tree: Tree, check: CheckState) {
-  mocks.check = check
-  act(() => tree.update(screen()))
+  const bridge = hosts(tree, (node) => node.type === 'WebView')[0]!
+  act(() => (bridge.props.onMessage as (event: object) => void)({ nativeEvent: { data: JSON.stringify({ state: BRIDGE_STATES[check] }) } }))
   settle(tree)
 }
 
@@ -172,8 +171,8 @@ describe('mobile sign-in on iPhone inside the flow viewport', () => {
     vi.unstubAllGlobals()
   })
 
-  function directTop(check: CheckState) {
-    const tree = render('email', check)
+  async function directTop(check: CheckState) {
+    const tree = await render('email', check)
     const top = screenBox('login-column').top
     act(() => tree.unmount())
     geometry.tree = null
@@ -181,17 +180,17 @@ describe('mobile sign-in on iPhone inside the flow viewport', () => {
     return top
   }
 
-  it('rests the column where a direct launch puts it after the keyboard of the previous screen closes', () => {
-    const expected = directTop('challenge')
+  it('rests the column where a direct launch puts it after the keyboard of the previous screen closes', async () => {
+    const expected = await directTop('challenge')
     __emitKeyboardEvent('keyboardWillShow', { endCoordinates: { screenY: device.keyboardTop } })
-    const tree = render('email', 'challenge')
+    const tree = await render('email', 'challenge')
     closeKeyboard(tree)
     expect(screenBox('login-column').top).toBe(expected)
   })
 
-  it('rests the column where a direct launch puts it after the person passes the check with the keyboard open', () => {
-    const expected = directTop('none')
-    const tree = render('email', 'challenge')
+  it('rests the column where a direct launch puts it after the person passes the check with the keyboard open', async () => {
+    const expected = await directTop('none')
+    const tree = await render('email', 'challenge')
     act(() => (textInput(tree, 0).props.onFocus as (event: object) => void)({ nativeEvent: {} }))
     openKeyboard(tree)
     setCheck(tree, 'none')
@@ -200,8 +199,8 @@ describe('mobile sign-in on iPhone inside the flow viewport', () => {
     expect(screenBox('login-column').top).toBe(expected)
   })
 
-  it('ends the last line of the code step above the keyboard while the check shows, with no strip between the scroller and the keyboard', () => {
-    const tree = render('code', 'challenge')
+  it('ends the last line of the code step above the keyboard while the check shows, with no strip between the scroller and the keyboard', async () => {
+    const tree = await render('code', 'challenge')
     act(() => (textInput(tree, 0).props.onFocus as (event: object) => void)({ nativeEvent: {} }))
     openKeyboard(tree)
     const scroller = screenBox('login-scroll')
@@ -219,9 +218,9 @@ describe('mobile sign-in on iPhone inside the flow viewport', () => {
     expect(source).toContain('style={StyleSheet.compose(style, {paddingBottom: bottomHeight})}')
   })
 
-  it.each(['none', 'challenge'] as const)('centres the column in the safe area of an iPhone with a home indicator (check: %s)', (check) => {
+  it.each(['none', 'challenge'] as const)('centres the column in the safe area of an iPhone with a home indicator (check: %s)', async (check) => {
     useDevice(IPHONE_17)
-    render('email', check)
+    await render('email', check)
     const column = screenBox('login-column')
     const topGap = column.top - IPHONE_17.top
     const bottomGap = IPHONE_17.height - IPHONE_17.bottom - column.bottom
@@ -231,7 +230,8 @@ describe('mobile sign-in on iPhone inside the flow viewport', () => {
 
 function measureFromLayout(callback: (x: number, y: number, width: number, height: number) => void, props: Record<string, unknown>, name: string) {
   if (!geometry.tree) return callback(0, 0, 0, 0)
-  const key = keyOf(name, props)
+  const host = committedHost(geometry.tree.toJSON(), name, props)
+  const key = keyOf(name, props) ?? (host && keyOf(host.type, host.props, host.children))
   if (!key || !layout().has(key)) return callback(0, 0, 0, 0)
   const box = screenBox(key)
   callback(box.left, box.top, box.width, box.bottom - box.top)

@@ -31,6 +31,8 @@ vi.mock('motion/react', async () => {
 
 // WHY: Cloudflare sizes the flexible widget at 65px height https://developers.cloudflare.com/turnstile/get-started/client-side-rendering/widget-configurations/
 const FLEXIBLE_CHALLENGE_HEIGHT = 65
+/** The drawn space above the Orbit mark and below the last line of the compact panel (`Orbit Entrar.dc.html`, compact `padding:16px`). */
+const DRAWN_SPACE = 16
 type CheckState = 'none' | 'loading' | 'challenge'
 interface TurnstileOptions { callback: (token: string) => void; 'before-interactive-callback': () => void }
 const smallScreens = [{ width: 320, height: 640 }, { width: 375, height: 667 }].flatMap(screen =>
@@ -104,7 +106,7 @@ describe('Login provider geometry in Chromium', () => {
     } finally { await page.close() }
   })
 
-  it.each(smallScreens)('centres the $step content at $width x $height with the check $check, above the bottom edge, and rests both providers at one height', async ({ width, height, step, check }) => {
+  it.each(smallScreens)('centres the $step content at $width x $height with the check $check, keeps the drawn space, and rests both providers at one height', async ({ width, height, step, check }) => {
     vi.stubEnv('NEXT_PUBLIC_APPLE_CLIENT_ID', 'test-client')
     const markup = await renderSignIn(step, check)
     const page = await browser.newPage({ viewport: { width, height } })
@@ -120,13 +122,15 @@ describe('Login provider geometry in Chromium', () => {
           pageHeight: document.documentElement.scrollHeight, check: document.querySelector('[role="status"]:not(.sr-only)')?.textContent ?? '',
           providerHeights: providers.map(button => button.getBoundingClientRect().height) }
       })
+      const overflow = geometry.pageHeight - height
       const topGap = geometry.contentTop
-      const bottomGap = height - geometry.contentBottom
+      const bottomGap = geometry.pageHeight - geometry.contentBottom
       expect(geometry.check, 'the loading sentence shows only in the loading state').toBe(check === 'loading' ? ptBR.auth.turnstileLoading : '')
-      expect(topGap, JSON.stringify(geometry)).toBeGreaterThanOrEqual(0)
-      expect(bottomGap, JSON.stringify(geometry)).toBeGreaterThanOrEqual(0)
-      expect(Math.abs(topGap - bottomGap) / 2, JSON.stringify(geometry)).toBeLessThanOrEqual(0.5)
-      expect(geometry.pageHeight, 'the content fits, so the page does not scroll').toBe(height)
+      expect(topGap, `the drawn space stays above the Orbit mark: ${JSON.stringify(geometry)}`).toBeGreaterThanOrEqual(DRAWN_SPACE - 0.5)
+      expect(bottomGap, `the drawn space stays below the last line at the end of the scroll: ${JSON.stringify(geometry)}`).toBeGreaterThanOrEqual(DRAWN_SPACE - 0.5)
+      if (width >= 375) expect(overflow, 'the content fits, so the page does not scroll').toBe(0)
+      else expect(overflow, 'only the drawn space can need a scroll').toBeLessThanOrEqual(2 * DRAWN_SPACE)
+      if (overflow === 0) expect(Math.abs(topGap - bottomGap) / 2, JSON.stringify(geometry)).toBeLessThanOrEqual(0.5)
       if (step === 'email') expect(geometry.providerHeights).toEqual([SIGN_IN_BUTTON_HEIGHT, SIGN_IN_BUTTON_HEIGHT])
     } finally { await page.close() }
   })

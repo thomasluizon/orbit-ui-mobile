@@ -108,3 +108,16 @@ export function measureSafeArea(host: GeometryHost, select: (host: GeometryHost)
     config.free()
   }
 }
+
+/** The test host mock measures a host with the props of its last render, and the committed tree keeps the same style object, so the style finds the host that `measureInWindow` asks for. */
+export function committedHost(root: GeometryHost | string, name: string, props: Readonly<Record<string, unknown>>): GeometryHost | undefined {
+  if (typeof root === 'string') return undefined
+  const committedStyle: unknown = root.props.style
+  const sameStyle = props.style !== undefined && committedStyle === props.style
+  if (root.type === name && root.props.testID === props.testID && (sameStyle || (props.style === undefined && props.testID !== undefined))) return root
+  for (const child of root.children ?? []) {
+    const found = committedHost(child, name, props)
+    if (found) return found
+  }
+  return undefined
+}

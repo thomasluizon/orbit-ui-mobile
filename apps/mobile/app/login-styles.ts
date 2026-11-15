@@ -8,9 +8,9 @@ export function createLoginStyles(tokens: AppTokensV2) {
     container: { flex: 1 },
     scrollContent: { flexGrow: 1, alignItems: 'center', justifyContent: 'center' },
     scrollWide: { justifyContent: 'center', padding: SPACING.s32 },
-    /** The centre of the scroll content gives the column its top and bottom space, so a short screen takes that space before it scrolls. */
-    formColumn: { width: '100%', paddingHorizontal: SPACING.s16, gap: 32 },
-    panel: { width: 420, padding: SPACING.s32, backgroundColor: tokens.bgCard, borderRadius: radius.xl,
+    formColumn: { width: '100%', paddingVertical: SPACING.s16, paddingHorizontal: SPACING.s16, gap: 32 },
+    /** Yoga reads a vertical or horizontal padding before the padding of all edges, so the panel names both to replace the column's. */
+    panel: { width: 420, paddingVertical: SPACING.s32, paddingHorizontal: SPACING.s32, backgroundColor: tokens.bgCard, borderRadius: radius.xl,
       borderWidth: 1, borderColor: tokens.hairlineGhost },
     step: { gap: 24 },
     titleBlock: { gap: 8 },
