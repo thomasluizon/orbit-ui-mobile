@@ -15,10 +15,15 @@ const kindByActionKey = {
 const combinedActionKey = 'applyAccountChanges'
 // Producer: AgentArgumentPreview.Build gives the rows of a write without a stored record the empty GUID as their record id.
 export const recordId = (id) => typeof id === 'string' && !/^[0-]+$/u.test(id) ? id : null
-// Producer: PendingOperationChangePreviewer.AnnotateOfferField marks each field that the model listed in suggested_fields
-// `suggested`: configuration that the request did not name and that the person approves or removes in the same preview
-// (ProactiveProposal.Instruction). A suggestion is no change of the request; the change list keeps it apart.
-const isSuggested = (field) => field.provenance === 'suggested'
+// Producer: AnnotateOfferField marks a field that the model listed in suggested_fields `suggested` with a `removal`: an
+// offer that the person approves or removes in the same preview. PreviewAsync also marks the default date of a create
+// `suggested`, with no removal. The client shows a field as an offer only with a removal (suggestedFieldRemovals of
+// pending-operation-card-view.ts), and so does the change list. An offer is no change that the request names.
+const isOffer = (field) => field.provenance === 'suggested' && field.removal != null
+// Producer: AnnotateOfferField marks a field that the model did not write `stored`. An update shows it only when the
+// server derives a change from the written fields: AddChanges diffs the whole record, so a repeat reminder offer also
+// changes reminder_enabled. A derived field is no change that the request names.
+const isDerived = (field) => field.provenance === 'stored'
 
 // A preview without items lists its fields flat; the cards group them by record, and so does this.
 function previewItems(operation) {
@@ -50,19 +55,20 @@ function changedFields(fields, kind) {
 }
 
 // Producer: CreationFields gives a `sub_habits` row the child drafts as its proposedValue, each with its own children,
-// and AddChildOfferFields gives a suggestion of a child draft the row path `sub_habits/<n>/<field>`. The records that the
-// suggested drafts of an item add: each draft that names no stored habit, counted once under its outermost suggested row.
-const draftCount = (drafts) => Array.isArray(drafts)
-  ? drafts.reduce((count, draft) => count + (recordId(draft?.habit_id) ? 0 : 1) + draftCount(draft?.sub_habits), 0) : 0
-function suggestedRecords(suggestions) {
-  const rows = suggestions.filter((field) => /(?:^|\/)sub_habits$/u.test(field.field))
-  return rows.filter((row) => !rows.some((outer) => row.field.startsWith(`${outer.field}/`)))
-    .reduce((count, row) => count + draftCount(row.proposedValue), 0)
+// and AddChildOfferFields gives an offer of a child draft the row path `sub_habits/<n>/<field>`. The records that the
+// offered drafts of an item add: the title of each draft that names no stored habit, taken once under its outermost
+// offered row. Habit.Create saves the title trimmed.
+const draftTitles = (drafts) => Array.isArray(drafts) ? drafts.flatMap((draft) => [
+  ...recordId(draft?.habit_id) ? [] : [String(draft?.title ?? '').trim()], ...draftTitles(draft?.sub_habits)]) : []
+function offeredDrafts(offers) {
+  const rows = offers.filter((field) => /(?:^|\/)sub_habits$/u.test(field.field))
+  return rows.filter((row) => !rows.some((outer) => row.field.startsWith(`${outer.field}/`))).flatMap((row) => draftTitles(row.proposedValue))
 }
 
 // The change list of the held previews: one entry for each record a preview changes, with the kind of the change, the
-// record, the fields that the request changes, the fields that the preview suggests and the records that the suggested
-// drafts add. A row of a create preview that only names a habit the create reuses is no change.
+// record, the fields that the request changes, the fields that the preview offers, the fields that the server derives,
+// and the titles of the records that the offered drafts add. A row of a create preview that only names a habit the
+// create reuses is no change.
 export function changeList(pendingOperations) {
   const changes = []
   const unclassified = []
@@ -71,10 +77,10 @@ export function changeList(pendingOperations) {
       const kind = itemKind(item, operation.actionKey)
       if (!kind) { unclassified.push(operation.actionKey ?? 'a preview without an action key'); continue }
       if (kind === 'create' && item.fields.some(marksExistingHabit)) continue
-      const suggestions = item.fields.filter(isSuggested)
+      const offers = item.fields.filter(isOffer)
       changes.push({ kind, target: recordId(item.entityId), preview: operation.id,
-        fields: changedFields(item.fields.filter((field) => !isSuggested(field)), kind),
-        suggested: changedFields(suggestions, kind), suggestedRecords: suggestedRecords(suggestions) })
+        fields: changedFields(item.fields.filter((field) => !isOffer(field) && !isDerived(field)), kind),
+        offered: changedFields(offers, kind), derived: changedFields(item.fields.filter(isDerived), kind), drafts: offeredDrafts(offers) })
     }
   }
   return { changes, unclassified: [...new Set(unclassified)] }

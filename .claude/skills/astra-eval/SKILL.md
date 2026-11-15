@@ -22,9 +22,9 @@ The core set is `evals/astra/core/situations.yaml`: 21 situations, each in 3 fro
 pt-BR. Each case sends `POST /api/chat/stream` as a shipped client does (the shared context builder with a
 `conversationId`, the shared history builder, card answers through `blockAnswer`). The grader reads the outcome: the
 change list of the held previews (kind, target records, changed fields), the questions that came before the preview,
-and the saved state after approval. A field that the preview marks `suggested` is an offer, not a requested change:
-the change list keeps it apart, and the person approves it as shown. It grades no tool name. `llm-rubric` grades only
-the text of a read answer.
+and the saved state after approval. An offer (`suggested` with a removal) and a derived field (`stored`) are not
+requested changes: the change list keeps them apart, and the person approves the preview as shown. It grades no tool
+name. `llm-rubric` grades only the text of a read answer.
 
 The gate is two runs from `evals/astra`, then one merge:
 

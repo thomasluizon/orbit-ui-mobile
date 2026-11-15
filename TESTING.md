@@ -461,15 +461,16 @@ The outcome grader (`core/outcome.mjs`) reads no tool name:
 
 - It turns the held previews into a change list (`core/change-list.mjs`): the kind of each change, its
   record and its changed fields. It compares that list with the expected list of the situation. A field
-  that the preview marks `suggested` is an offer of the assistant, not a requested change, so the list
-  keeps it apart. A field that the request did not name and that the preview does not mark `suggested`
-  fails the case.
+  that the preview marks `suggested` with a removal is an offer of the assistant, and a field marked
+  `stored` is a change that the server derives. The list keeps both apart from the requested changes. A
+  field that the request did not name and that is neither an offer nor derived fails the case.
 - It counts the questions that came before the preview, against the minimum and the maximum of the case.
 - When the preview matches, the eval approves it as the client does and reads the saved state back
   from `eval/snapshot`. It reads each field that the request names: the title, the due date and the
   frequency from the snapshot row, and the due time of a created record from `GET habits/{id}`.
-  The person approves the suggestions as shown: a suggested field holds the saved value, and each
-  record that a suggested sub-habit draft adds is new. A preview that does not match is never approved.
+  The person approves the preview as shown: an updated record holds each value that its rows show, and
+  each offered sub-habit draft is saved as one new record with its title. A preview that does not match
+  is never approved.
 - A read request fails when its reply holds a preview, or a choice, question or list card. Only a card
   is a question, as for a write request.
 - `llm-rubric` grades only the text of a read answer.
