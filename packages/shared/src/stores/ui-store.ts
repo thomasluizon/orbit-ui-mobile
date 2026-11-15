@@ -161,6 +161,11 @@ export interface UIStoreState {
   searchQuery: string;
   setSearchQuery: (query: string) => void;
 
+  /** A bulk action of the selection tray. While it runs, the rows change with no motion of their own, and the list plays one settle for each generation. */
+  bulkMotionGeneration: number;
+  bulkMotionActive: boolean;
+  beginBulkMotion: () => void;
+  endBulkMotion: () => void;
 }
 
 export function hasOpenPromptBlockingOverlay(state: UIStoreState): boolean {
@@ -461,5 +466,9 @@ export function createUIStoreState(
     searchQuery: "",
     setSearchQuery: (query) => set({ searchQuery: query }),
 
+    bulkMotionGeneration: 0,
+    bulkMotionActive: false,
+    beginBulkMotion: () => set((state) => ({ bulkMotionGeneration: state.bulkMotionGeneration + 1, bulkMotionActive: true })),
+    endBulkMotion: () => set({ bulkMotionActive: false }),
   };
 }

@@ -1,7 +1,7 @@
 import { KeyboardAwareFlatList,KeyboardAwareScrollHost } from '@/components/ui/keyboard-aware-scroll-view'
 import { HabitListMotionRow } from '@/components/motion/habit-list-row'
 import { ContentFade } from '@/components/motion/content-fade'
-import { ListScope } from '@/components/motion/list-scope'
+import { BulkMotionScope } from '@/components/habit-list/bulk-motion-scope'
 import { TodayLaunchContent } from '@/components/today/today-launch-content'
 import { SPACING } from '@orbit/shared/theme'
 import { forwardRef,useCallback,useLayoutEffect,useMemo,useRef,type ReactElement,type RefObject } from 'react'
@@ -220,11 +220,11 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
     const { renderCurrentViewEmptyState } = state.rendering
     const { isDraggingList, handleDragEnd } = state.drag
     const commonOverlays = <HabitListOverlays state={state} />
-    if (drill.currentParentId) return <ListScope scope={scope}>{renderHabitDrillState({ ...state, commonOverlays })}</ListScope>
-    if (view === 'all') return <ListScope scope={scope}>{renderHabitAllState({ ...state, commonOverlays })}</ListScope>
+    if (drill.currentParentId) return <BulkMotionScope scope={scope}>{renderHabitDrillState({ ...state, commonOverlays })}</BulkMotionScope>
+    if (view === 'all') return <BulkMotionScope scope={scope}>{renderHabitAllState({ ...state, commonOverlays })}</BulkMotionScope>
     const status = getHabitListStatus(state)
     return (
-      <ListScope scope={scope}>
+      <BulkMotionScope scope={scope}>
         <ContentFade key="habits" fill><KeyboardAwareScrollHost scrollRef={scrollContainerRef} contentContainerStyle={[styles.listContent, bulkBarStyle]}>{keyboard => <DraggableFlatList
           {...keyboard}
           {...cellMotion}
@@ -252,7 +252,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
           windowSize={11}
         />}</KeyboardAwareScrollHost></ContentFade>
         {commonOverlays}
-      </ListScope>
+      </BulkMotionScope>
     )
   },
 )

@@ -1,7 +1,7 @@
 'use client'
 
 import { createContext, useContext, useEffect, useMemo, useRef, useState, type Ref, type ReactNode, type CSSProperties } from 'react'
-import { AnimatePresence, motion, PresenceContext, usePresence } from 'motion/react'
+import { animate, AnimatePresence, motion, PresenceContext, usePresence } from 'motion/react'
 import { motionEasings, motionSprings, resolveMotionPreset } from '@orbit/shared/theme'
 import { useViewportMatch } from '@/hooks/use-viewport-match'
 
@@ -16,17 +16,46 @@ export const reorderTransition = {
   easing: `cubic-bezier(${motionEasings.enter.join(',')})`,
 } as const
 
-const ListScopeContext = createContext<{ scope: string; committedScope: { current: string } }>({ scope: '', committedScope: { current: '' } })
+const ListScopeContext = createContext<{ scope: string; committedScope: { current: string }; bulk: boolean }>({ scope: '', committedScope: { current: '' }, bulk: false })
 
-export function ListScope({ scope, children }: Readonly<{ scope: string; children: ReactNode }>) {
+/** `bulk` is true while a bulk action changes the rows: a row then changes with no motion of its own, and `ListBulkSettle` plays the one motion of the group. */
+export function ListScope({ scope, bulk = false, children }: Readonly<{ scope: string; bulk?: boolean; children: ReactNode }>) {
   const committedScope = useRef(scope)
   useEffect(() => { committedScope.current = scope }, [scope])
-  const value = useMemo(() => ({ scope, committedScope }), [scope])
+  const value = useMemo(() => ({ scope, committedScope, bulk }), [scope, bulk])
   return <ListScopeContext.Provider value={value}>{children}</ListScopeContext.Provider>
 }
 
 export function useListScope(): string {
   return useContext(ListScopeContext).scope
+}
+
+export function useListBulk(): boolean {
+  return useContext(ListScopeContext).bulk
+}
+
+/** The one motion of a bulk action: the group settles from the `list-enter` scale once for each new generation. Reduced motion keeps the group still. */
+export function ListBulkSettle({ generation, children }: Readonly<{ generation: number; children: ReactNode }>) {
+  const reduced = useViewportMatch('(prefers-reduced-motion: reduce)')
+  const groupRef = useRef<HTMLDivElement>(null)
+  const settledGeneration = useRef(generation)
+  useEffect(() => {
+    const group = groupRef.current
+    if (generation === settledGeneration.current || !group) return
+    settledGeneration.current = generation
+    const settle = resolveMotionPreset('list-enter', reduced)
+    if (settle.scaleFrom === 1) return
+    const run = animate(settle.scaleFrom, 1, {
+      duration: settle.enterDuration / 1000, ease: settle.enterEasing,
+      onUpdate: (scale) => { group.style.transform = `scale(${scale})` },
+      onComplete: () => group.style.removeProperty('transform'),
+    })
+    return () => {
+      run.stop()
+      group.style.removeProperty('transform')
+    }
+  }, [generation, reduced])
+  return <div ref={groupRef} data-list-bulk-settle={generation} className="min-w-0">{children}</div>
 }
 
 function useExitDeadline(duration: number) {
@@ -54,14 +83,14 @@ export function ListMotionItem({ children, className, style, ref, positionMotion
   layoutMotion?: boolean
 }>) {
   const reduced = useViewportMatch('(prefers-reduced-motion: reduce)')
-  const enter = resolveMotionPreset('list-enter', reduced)
-  const exit = resolveMotionPreset('list-exit', reduced)
-  const present = useExitDeadline(exit.exitDuration)
   const scopeContext = useContext(ListScopeContext)
+  const enter = resolveMotionPreset('list-enter', reduced)
+  const exit = scopeContext.bulk ? { ...resolveMotionPreset('list-exit', reduced), exitDuration: 0, shift: 0 } : resolveMotionPreset('list-exit', reduced)
+  const present = useExitDeadline(exit.exitDuration)
   const presence = useContext(PresenceContext)
   const [mountedByScopeChange] = useState(() => scopeContext.committedScope.current !== scopeContext.scope)
   const Item = (as === 'li' ? motion.li : motion.div) as typeof motion.div
-  return <PresenceContext.Provider value={null}><Item ref={ref} layout={reduced || !positionMotion || !layoutMotion ? false : 'position'}
+  return <PresenceContext.Provider value={null}><Item ref={ref} layout={reduced || scopeContext.bulk || !positionMotion || !layoutMotion ? false : 'position'}
     data-list-motion="" className={className} style={style} inert={!present} aria-hidden={!present || undefined}
     initial={presence?.initial === false || mountedByScopeChange ? false : reduced || !positionMotion ? { opacity: 0 } : { opacity: 0, y: enter.shift }}
     animate={present ? reduced || !positionMotion ? { opacity: 1 } : { opacity: 1, y: 0 } : { opacity: 0, ...(reduced || !positionMotion ? {} : { y: exit.shift }), transition: { duration: exit.exitDuration / 1000, ease: exit.exitEasing } }}

@@ -12,6 +12,7 @@ import { useAppToast } from '@/hooks/use-app-toast'
 import { reportsAccountChanged } from '@/app/actions/action-result'
 import { useAccountScopedState } from '@/hooks/use-session-reset'
 import { getAccountGeneration } from '@/lib/session-epoch'
+import { useUIStore } from '@/stores/ui-store'
 
 interface BulkActionOutcome {
   results: readonly BulkResultItem[]
@@ -81,6 +82,7 @@ export function useBulkActions({
   async function executeDelete(ids: string[]) {
     if (ids.length === 0) return
     const accountGeneration = getAccountGeneration()
+    useUIStore.getState().beginBulkMotion()
     try {
       const result = await bulkDelete.mutateAsync(ids)
       if (getAccountGeneration() !== accountGeneration) return
@@ -91,6 +93,7 @@ export function useBulkActions({
       if (getAccountGeneration() !== accountGeneration) return
       if (!reportAccountSwitch(error)) throw error
     } finally {
+      useUIStore.getState().endBulkMotion()
       setShowBulkDeleteConfirm(false)
     }
   }
@@ -100,6 +103,7 @@ export function useBulkActions({
     if (ids.length === 0) return
     const date = selectedDateStr
     const accountGeneration = getAccountGeneration()
+    useUIStore.getState().beginBulkMotion()
     try {
       const items = ids.map((habitId) => ({ habitId, date }))
       const result = await (mode === 'log' ? bulkLog : bulkSkip).mutateAsync(
@@ -114,6 +118,8 @@ export function useBulkActions({
     } catch (error) {
       if (getAccountGeneration() !== accountGeneration) return
       if (!reportAccountSwitch(error)) throw error
+    } finally {
+      useUIStore.getState().endBulkMotion()
     }
   }
 
@@ -124,8 +130,13 @@ export function useBulkActions({
     confirmBulkDelete: () => executeDelete(Array.from(selectedHabitIds)),
     confirmBulkLog: () => executeCompletion(Array.from(selectedHabitIds), 'log'),
     confirmBulkSkip: () => executeCompletion(skippableHabitIds, 'skip'),
-    confirmBulkMove: (habitIds: string[], parentId: string | null) => executeBulkMoveParent(habitIds, parentId, {
-      mutate: bulkMove.mutateAsync, getAccountGeneration, onSuccess, onPartialFailure,
-    }),
+    confirmBulkMove: async (habitIds: string[], parentId: string | null) => {
+      useUIStore.getState().beginBulkMotion()
+      try {
+        return await executeBulkMoveParent(habitIds, parentId, { mutate: bulkMove.mutateAsync, getAccountGeneration, onSuccess, onPartialFailure })
+      } finally {
+        useUIStore.getState().endBulkMotion()
+      }
+    },
   }
 }

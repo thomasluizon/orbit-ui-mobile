@@ -82,4 +82,15 @@ describe('ui store toggles and setters', () => {
 
     expect(store.getState().allDoneCelebration).toBe(false)
   })
+
+  it('starts a new bulk motion generation for each bulk action and ends it without a new one', () => {
+    const store = createStoreHarness()
+    expect(store.getState()).toMatchObject({ bulkMotionGeneration: 0, bulkMotionActive: false })
+    store.getState().beginBulkMotion()
+    expect(store.getState()).toMatchObject({ bulkMotionGeneration: 1, bulkMotionActive: true })
+    store.getState().endBulkMotion()
+    expect(store.getState()).toMatchObject({ bulkMotionGeneration: 1, bulkMotionActive: false })
+    store.getState().beginBulkMotion()
+    expect(store.getState().bulkMotionGeneration).toBe(2)
+  })
 })

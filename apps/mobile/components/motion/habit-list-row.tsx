@@ -1,7 +1,8 @@
-import { useEffect, useLayoutEffect, useRef, type ReactNode } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import Animated, { cancelAnimation, Easing, useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated'
 import { motionSprings, resolveMotionPreset } from '@orbit/shared/theme'
 import { usePrefersReducedMotion } from '@/lib/motion'
+import { useListBulk } from '@/components/motion/list-scope'
 
 export function HabitListMotionRow({ id, phase, offset, itemIds, measure, children, positionMotion = true }: Readonly<{
   id: string
@@ -13,6 +14,13 @@ export function HabitListMotionRow({ id, phase, offset, itemIds, measure, childr
   positionMotion?: boolean
 }>) {
   const reduced = usePrefersReducedMotion()
+  const bulk = useListBulk()
+  const [seenPhase, setSeenPhase] = useState(phase)
+  const [exitAtOnce, setExitAtOnce] = useState(false)
+  if (phase !== seenPhase) {
+    setSeenPhase(phase)
+    setExitAtOnce(phase === 'exit' && bulk)
+  }
   const opacity = useSharedValue(1)
   const translation = useSharedValue(0)
   const previousPosition = useRef({ offset, itemIds })
@@ -21,15 +29,21 @@ export function HabitListMotionRow({ id, phase, offset, itemIds, measure, childr
   useLayoutEffect(() => {
     const previous = previousPosition.current
     previousPosition.current = { offset, itemIds }
-    if (reduced || !positionMotion) { translation.value = 0; return }
+    if (reduced || bulk || !positionMotion) { translation.value = 0; return }
     const sameOrder = previous.itemIds.length === itemIds.length &&
       previous.itemIds.every((itemId, index) => itemId === itemIds[index])
     if (!sameOrder && previous.offset !== null && offset !== null && previous.offset !== offset) {
       translation.value += previous.offset - offset
       translation.value = withSpring(0, { ...motionSprings.soft, overshootClamping: true })
     }
-  }, [itemIds, offset, positionMotion, reduced, translation])
+  }, [bulk, itemIds, offset, positionMotion, reduced, translation])
   useEffect(() => {
+    if (exitAtOnce) {
+      /** A row a bulk action removes leaves at once: the group plays the one motion. */
+      opacity.value = 0
+      translation.value = 0
+      return
+    }
     if (phase === 'enter') {
       opacity.value = 0
       translation.value = reduced || !positionMotion ? 0 : enter.shift
@@ -45,7 +59,7 @@ export function HabitListMotionRow({ id, phase, offset, itemIds, measure, childr
         { duration: exit.exitDuration, easing: Easing.bezier(...exit.exitEasing) })
     }
     return () => { cancelAnimation(opacity); cancelAnimation(translation) }
-  }, [enter.enterDuration, enter.enterEasing, enter.shift, exit.exitDuration, exit.exitEasing, exit.shift, opacity, phase, positionMotion, reduced, translation])
+  }, [enter.enterDuration, enter.enterEasing, enter.shift, exit.exitDuration, exit.exitEasing, exit.shift, exitAtOnce, opacity, phase, positionMotion, reduced, translation])
   const style = useAnimatedStyle(() => ({ opacity: opacity.value,
     transform: reduced || !positionMotion ? [] : [{ translateY: translation.value }] }))
   return <Animated.View testID={`habit-motion-${id}`} data-phase={phase}

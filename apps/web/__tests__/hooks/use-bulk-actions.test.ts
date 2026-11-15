@@ -8,6 +8,7 @@ import { useBulkActions } from '@/hooks/use-bulk-actions'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import type { HabitListHandle } from '@/components/habits/habit-list'
 import { holdAccount, recoverSameAccount, replaceAccountWith } from '@/__tests__/support/account-change'
+import { useUIStore } from '@/stores/ui-store'
 
 const bulkDelete = { mutateAsync: vi.fn() }
 const bulkLog = { mutateAsync: vi.fn() }
@@ -625,5 +626,27 @@ describe('bulk move selection settlement', () => {
     await expect(result.current.confirmBulkMove(['a'], null)).rejects.toThrow('network')
     expect(onSuccess).not.toHaveBeenCalled()
     expect(onPartialFailure).not.toHaveBeenCalled()
+  })
+})
+
+describe('useBulkActions motion of the group', () => {
+  it.each(['log', 'skip', 'delete', 'move'] as const)('marks one bulk motion while the %s request runs and ends it after', async (action) => {
+    useUIStore.setState({ bulkMotionGeneration: 0, bulkMotionActive: false })
+    const seen: boolean[] = []
+    const capture = () => { seen.push(useUIStore.getState().bulkMotionActive); return Promise.resolve(bulkSuccess(['a', 'b'])) }
+    bulkLog.mutateAsync.mockImplementation(capture)
+    bulkSkip.mutateAsync.mockImplementation(capture)
+    bulkDelete.mutateAsync.mockImplementation(capture)
+    bulkMove.mutateAsync.mockImplementation(capture)
+    const { result } = renderBulkActions(new Set(['a', 'b']))
+    await act(async () => {
+      if (action === 'log') await result.current.confirmBulkLog()
+      else if (action === 'skip') await result.current.confirmBulkSkip()
+      else if (action === 'delete') await result.current.confirmBulkDelete()
+      else await result.current.confirmBulkMove(['a', 'b'], null)
+    })
+    expect(seen.length).toBeGreaterThan(0)
+    expect(seen.every(Boolean)).toBe(true)
+    expect(useUIStore.getState()).toMatchObject({ bulkMotionGeneration: 1, bulkMotionActive: false })
   })
 })
