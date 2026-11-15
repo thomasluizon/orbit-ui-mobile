@@ -1,6 +1,7 @@
 'use client'
 
-import { getPendingAuthProvider, getAuthCallbackErrorKey } from '@orbit/shared/utils'
+import { getPendingAuthProvider, getAuthCallbackErrorKey, showsAuthCallbackLine } from '@orbit/shared/utils'
+import type { AuthCallbackState } from '@orbit/shared/utils/auth-callback-failure'
 
 import { useState } from 'react'
 import { LazyMotion, domMin } from 'motion/react'
@@ -19,7 +20,7 @@ import { LoginHeader, ReferralBanner, LoginStepStage, LoginValidationMessage } f
 
 export interface LoginCallback {
   provider?: 'apple' | 'google'
-  state: 'pending' | 'failed' | 'account'
+  state: AuthCallbackState
   onContinue: () => void
   loading?: boolean
 }
@@ -83,13 +84,13 @@ function LoginEmailStep({ flow, callback, callbackDismissed, onDismissCallback, 
   const { t } = flow
   const pendingProvider = getPendingAuthProvider(callback)
   const callbackErrorKey = getAuthCallbackErrorKey(callback?.provider)
-  const providerCallbackFailed = callback?.state === 'failed' && !callbackDismissed
+  const providerCallbackFailed = showsAuthCallbackLine(callback) && !callbackDismissed
   return <EmailStep email={flow.email} onEmailChange={(email) => { onDismissCallback(); flow.setEmail(email) }}
     isSubmitting={flow.isSubmitting} isGoogleLoading={flow.isGoogleLoading || pendingProvider === 'google'}
     isAppleLoading={flow.isAppleLoading || pendingProvider === 'apple'}
     errorKey={providerCallbackFailed ? callbackErrorKey : flow.errorKey}
     fieldError={flow.emailFieldError}
-    errorMessage={providerCallbackFailed ? callback.provider === 'apple' ? t('auth.errors.appleError') : t('auth.errors.googleError') : flow.errorMessage}
+    errorMessage={providerCallbackFailed ? t(callbackErrorKey) : flow.errorMessage}
     isOnline={flow.isOnline} t={t} emailFocusRequest={flow.emailFocusRequest}
     canSubmitTurnstile={canSubmitTurnstile} turnstileWidget={turnstileWidget}
     onSendCode={() => { onDismissCallback(); void flow.sendCode() }}

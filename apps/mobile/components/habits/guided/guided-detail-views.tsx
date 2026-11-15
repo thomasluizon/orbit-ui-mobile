@@ -15,7 +15,6 @@ import {
 } from '@orbit/shared/utils'
 import { hasHabitMonthDaySchedule, MAX_HABIT_DESCRIPTION_LENGTH, validateEndTime } from '@orbit/shared/validation'
 import type { HabitFormHelpers } from '@/hooks/use-habit-form'
-import { useAppToast } from '@/hooks/use-app-toast'
 import { useHasProAccess } from '@/hooks/use-profile'
 import { DateField } from '@/components/ui/date-field'
 import { X } from '@/components/ui/icons'
@@ -31,10 +30,10 @@ import { useGoalLinkStepView } from '../flow-steps/goal-link-step'
 import { useTagStepView } from '../flow-steps/tag-step'
 import { HabitMonthDaysField } from '../habit-form-fields/habit-month-days-field'
 import { HabitScheduleFields } from '../habit-form-fields/habit-schedule-fields'
-import { HabitReminderEditors } from '../habit-form-fields/habit-timing-field'
 import { HabitRepeatInterval, HabitScheduleCorrections } from '../habit-form-fields/habit-understanding'
 import { SlipAlertSection } from '../habit-form-fields/slip-alert-section'
 import type { GuidedFlow, GuidedHabitFields } from './guided-step-views'
+import { useReminderKindView } from './reminder-kind-step'
 
 interface DetailInput {
   flow: GuidedFlow
@@ -106,18 +105,6 @@ function useDurationView({ flow, formHelpers }: Readonly<DetailInput>): FlowStep
     options: <OptionCard label={t('habits.flow.duration.none')} selected={dueEndTime === ''} onSelect={() => { setEnd(''); flow.advance() }} />,
     free: <TimeField label={t('habits.form.dueEndTime')} value={toTime24(dueEndTime)} error={error ? t(error) : undefined} onChange={setEnd} onClear={() => setEnd('')} />,
     primary: { label: t('habits.flow.continue'), onPress: () => { if (!error) flow.advance() } },
-  }
-}
-
-function useReminderKindView({ flow, formHelpers, fields }: Readonly<DetailInput>): FlowStepView {
-  const { t } = useTranslation()
-  const tokens = useTokens()
-  const { showError } = useAppToast()
-  return {
-    question: t('habits.flow.reminderKind.question'),
-    line: null,
-    free: <HabitReminderEditors tokens={tokens} formHelpers={formHelpers} controller={flow.controller} reminderTimes={fields.reminderTimes} onReminderTimesChange={fields.onReminderTimesChange} showError={showError} />,
-    primary: useContinue(flow),
   }
 }
 

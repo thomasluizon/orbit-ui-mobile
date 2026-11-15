@@ -7,8 +7,13 @@ import {
   buildOnboardingScheduleFromPhrase,
   describeOnboardingCadence,
   describeOnboardingResult,
+  ONBOARDING_INTRO_POSES,
+  ONBOARDING_INTRO_SCREENS,
+  describeSavedOnboardingResult,
+  onboardingScheduleFromSaved,
   onboardingGuidedPosition,
-  onboardingModeDetailStep,
+  onboardingModeDetailSteps,
+  onboardingStepAfterAnswer,
   onboardingModeKey,
   onboardingNeedsCadence,
   type OnboardingSchedule,
@@ -28,11 +33,25 @@ describe('guided onboarding navigation', () => {
     expect(onboardingNeedsCadence(buildOnboardingScheduleFromPhrase('Caminhar 3 vezes por semana', 'pt-BR'), false)).toBe(false)
   })
 
-  it('follows each repeat mode with the step that holds its value', () => {
-    expect(onboardingModeDetailStep('fixed')).toBe('days')
-    expect(onboardingModeDetailStep('flexible')).toBe('quantity')
-    expect(onboardingModeDetailStep('interval')).toBe('interval')
-    expect(onboardingModeDetailStep('oneTime')).toBeNull()
+  it('follows each repeat mode with the steps that hold its values, the period before the count', () => {
+    expect(onboardingModeDetailSteps('fixed')).toEqual(['days'])
+    expect(onboardingModeDetailSteps('flexible')).toEqual(['unit', 'quantity'])
+    expect(onboardingModeDetailSteps('interval')).toEqual(['unit', 'interval'])
+    expect(onboardingModeDetailSteps('oneTime')).toEqual([])
+  })
+
+  it('walks the steps of a mode in order and then returns to the summary', () => {
+    expect(onboardingStepAfterAnswer('flexible', 'mode', true)).toBe('unit')
+    expect(onboardingStepAfterAnswer('flexible', 'unit', true)).toBe('quantity')
+    expect(onboardingStepAfterAnswer('flexible', 'quantity', true)).toBe('summary')
+    expect(onboardingStepAfterAnswer('interval', 'unit', true)).toBe('interval')
+    expect(onboardingStepAfterAnswer('fixed', 'mode', true)).toBe('days')
+    expect(onboardingStepAfterAnswer('oneTime', 'mode', true)).toBe('summary')
+  })
+
+  it('returns a step the summary opened by itself straight to the summary', () => {
+    expect(onboardingStepAfterAnswer('flexible', 'unit', false)).toBe('summary')
+    expect(onboardingStepAfterAnswer('interval', 'interval', false)).toBe('summary')
   })
 
   it('counts only the steps that remain for the draft', () => {
@@ -41,6 +60,8 @@ describe('guided onboarding navigation', () => {
     expect(onboardingGuidedPosition('remind', [])).toEqual({ position: 3, total: 3 })
     expect(onboardingGuidedPosition('days', ['mode', 'days'])).toEqual({ position: 3, total: 5 })
     expect(onboardingGuidedPosition('time', ['mode', 'days'])).toEqual({ position: 4, total: 5 })
+    expect(onboardingGuidedPosition('unit', ['mode', 'unit', 'quantity'])).toEqual({ position: 3, total: 6 })
+    expect(onboardingGuidedPosition('quantity', ['mode', 'unit', 'quantity'])).toEqual({ position: 4, total: 6 })
   })
 })
 
@@ -95,5 +116,39 @@ describe('the intro seen mark', () => {
     expect(draft.getState().introSeen).toBe(true)
     expect(migrateOnboardingDraft({ introSeen: true }).introSeen).toBe(true)
     expect(migrateOnboardingDraft({}).introSeen).toBe(false)
+  })
+})
+
+describe('the result sentence of the saved onboarding habit', () => {
+  it('reads the schedule of a saved habit of the account', () => {
+    expect(onboardingScheduleFromSaved({ frequencyUnit: 'Day', frequencyQuantity: 1, intervalWeeks: 2, days: ['Monday', 'Thursday'], isGeneral: false, isFlexible: false, dueTime: '18:30:00', dueDate: '2026-11-16' }))
+      .toEqual({ frequencyUnit: 'Day', frequencyQuantity: 1, intervalWeeks: 2, days: ['Monday', 'Thursday'], isGeneral: false, isFlexible: false, dueTime: '18:30:00' })
+  })
+
+  it('reads a habit that waits for the account, which holds only the fields the create request sent', () => {
+    expect(onboardingScheduleFromSaved({ isGeneral: true })).toEqual({ ...base, isGeneral: true })
+    expect(onboardingScheduleFromSaved({ frequencyUnit: 'Week', frequencyQuantity: 3, isFlexible: true })).toEqual({ ...base, frequencyUnit: 'Week', frequencyQuantity: 3, isGeneral: false, isFlexible: true })
+  })
+
+  it('starts on the due date of the record, and today when the record has none', () => {
+    const saved = { frequencyUnit: 'Day' as const, frequencyQuantity: 1, days: ['Monday'], dueTime: '18:30' }
+    expect(describeSavedOnboardingResult({ ...saved, dueDate: '2026-11-16' }, '2026-11-13')).toMatchObject({ start: '2026-11-16', sentence: { key: 'result.habit.repeatTimed' }, cadence: { key: 'onboarding.flow.when.cadence.fixed' } })
+    expect(describeSavedOnboardingResult(saved, '2026-11-13').start).toBe('2026-11-13')
+    expect(describeSavedOnboardingResult({ ...saved, dueDate: '' }, '2026-11-13').start).toBe('2026-11-13')
+  })
+
+  it('names a saved habit with no day as one with no date', () => {
+    expect(describeSavedOnboardingResult({ isGeneral: true }, '2026-11-13').sentence.key).toBe('result.task.undated')
+  })
+})
+
+describe('the Orbit pose of each intro screen', () => {
+  it('gives each screen its own pose from the shipped states', () => {
+    const shown = ONBOARDING_INTRO_SCREENS.map((screen) => {
+      const pose = ONBOARDING_INTRO_POSES[screen]
+      return pose.state === 'parado' && pose.look ? 'olhando' : pose.state
+    })
+    expect(shown).toEqual(['olhando', 'pensando', 'parado'])
+    expect(new Set(shown).size).toBe(ONBOARDING_INTRO_SCREENS.length)
   })
 })

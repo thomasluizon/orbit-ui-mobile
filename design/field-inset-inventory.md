@@ -96,8 +96,8 @@ Paths are repository-relative. Repeated rows are separate controls within one ow
 | `apps/mobile/components/habits/flow-steps/tag-step.tsx` | 72 | `Input` | standard | 16 |
 | `apps/mobile/components/habits/flow-steps/template-step.tsx` | 113 | `Input` | standard | 16 |
 | `apps/mobile/components/habits/goal-linking-field.tsx` | 52 | `BottomSheetAppTextInput` | standard | 16 |
-| `apps/mobile/components/habits/guided/guided-detail-views.tsx` | 107 | `TimeField` | time | 16 |
-| `apps/mobile/components/habits/guided/guided-detail-views.tsx` | 208 | `Input` | standard | 16 |
+| `apps/mobile/components/habits/guided/guided-detail-views.tsx` | 106 | `TimeField` | time | 16 |
+| `apps/mobile/components/habits/guided/guided-detail-views.tsx` | 195 | `Input` | standard | 16 |
 | `apps/mobile/components/habits/guided/guided-step-views.tsx` | 124 | `Input` | standard | 16 |
 | `apps/mobile/components/habits/guided/guided-step-views.tsx` | 142 | `TimeField` | time | 16 |
 | `apps/mobile/components/habits/guided/phrase-field.tsx` | 23 | `Input` | standard | 16 |
@@ -190,8 +190,8 @@ Paths are repository-relative. Repeated rows are separate controls within one ow
 | `apps/web/components/habits/flow-steps/tag-step.tsx` | 72 | `Input` | standard | 16 |
 | `apps/web/components/habits/flow-steps/template-step.tsx` | 96 | `Input` | standard | 16 |
 | `apps/web/components/habits/goal-linking-field.tsx` | 57 | `PickerList` | standard | 16 |
-| `apps/web/components/habits/guided/guided-detail-views.tsx` | 100 | `TimeField` | time | 16 |
-| `apps/web/components/habits/guided/guided-detail-views.tsx` | 199 | `Input` | standard | 16 |
+| `apps/web/components/habits/guided/guided-detail-views.tsx` | 99 | `TimeField` | time | 16 |
+| `apps/web/components/habits/guided/guided-detail-views.tsx` | 187 | `Input` | standard | 16 |
 | `apps/web/components/habits/guided/guided-step-views.tsx` | 115 | `Input` | standard | 16 |
 | `apps/web/components/habits/guided/guided-step-views.tsx` | 133 | `TimeField` | time | 16 |
 | `apps/web/components/habits/guided/phrase-field.tsx` | 25 | `Input` | standard | 16 |

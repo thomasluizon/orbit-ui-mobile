@@ -111,6 +111,8 @@ function StepUpScreenContent({
   const [code, setCode] = useAccountScopedState('')
   const [attemptsRemaining, setAttemptsRemaining] = useAccountScopedState<number | null>(null)
   const [fieldError, setFieldError] = useAccountScopedState<string | null>(null)
+  const [shortSubmits, setShortSubmits] = useAccountScopedState(0)
+  const guided = useFlag('orbit_guided_flows')
   const [requestError, setRequestError] = useAccountScopedState<string | null>(null)
   const [requesting, setRequesting] = useAccountScopedState(false)
   const [scheduledDeletionAt, setScheduledDeletionAt] = useAccountScopedState<string | null>(null)
@@ -186,7 +188,11 @@ function StepUpScreenContent({
   }
 
   async function handleConfirm() {
-    if (!operation || !record || code.length !== STEP_UP_CODE_LENGTH || checking || accountId === null) return
+    if (!operation || !record || checking || accountId === null) return
+    if (code.length !== STEP_UP_CODE_LENGTH) {
+      if (guided) refuseShortCode()
+      return
+    }
     const intendedAccountId = accountId
     const accountGeneration = getAccountGeneration()
 
@@ -268,8 +274,15 @@ function StepUpScreenContent({
     setNow(Date.now())
   }
 
+  /** With `orbit_guided_flows` on the confirm action stays enabled: a short code shows the hint beside the field and focuses the field. */
+  function refuseShortCode() {
+    setFieldError(translate('auth.errors.codeFormat'))
+    setShortSubmits((count) => count + 1)
+  }
+
   function handleCodeChange(value: string) {
     setCode(value)
+    setShortSubmits(0)
     setFieldError(null)
     setAttemptsRemaining(null)
     if (phase === 'wrong') setPhase('challenge')
@@ -316,6 +329,8 @@ function StepUpScreenContent({
       onConfirm={() => void handleConfirm()}
       onResend={() => void handleResend()}
       otpError={otpError}
+      codeFocusRequest={shortSubmits > 0 ? shortSubmits : undefined}
+      guided={guided}
       requestError={requestError}
       requesting={requesting}
     />
@@ -430,9 +445,13 @@ function StepUpExhausted({
 interface StepUpChallengeProps extends SharedStepUpViewProps {
   checking: boolean
   code: string
+  /** Set by a short submit. Absent, a field error takes the focus. */
+  codeFocusRequest: number | undefined
   cooldownSeconds: number
   email: string
   expired: boolean
+  /** The flag `orbit_guided_flows`: the title is the question the code field answers, and the confirm action stays enabled. */
+  guided: boolean
   onCancel: () => void
   onCodeChange: (value: string) => void
   onConfirm: () => void
@@ -443,18 +462,16 @@ interface StepUpChallengeProps extends SharedStepUpViewProps {
 }
 
 function StepUpChallenge(props: Readonly<StepUpChallengeProps>) {
-  const { checking, code, cooldownSeconds, email, expired, onCancel, onCodeChange, onConfirm, onResend, operationLabel, otpError, requestError, requesting, t } = props
-  /** With `orbit_guided_flows` on, the title is the question the code field answers. */
-  const questionTitle = useFlag('orbit_guided_flows')
+  const { checking, code, codeFocusRequest, cooldownSeconds, email, expired, guided, onCancel, onCodeChange, onConfirm, onResend, operationLabel, otpError, requestError, requesting, t } = props
   const action = expired ? (
     <PillButton loading={requesting} onClick={onResend}>{t('resend')}</PillButton>
   ) : (
-    <PillButton disabled={code.length !== STEP_UP_CODE_LENGTH} loading={checking} onClick={onConfirm}>{t('confirm')}</PillButton>
+    <PillButton disabled={!guided && code.length !== STEP_UP_CODE_LENGTH} loading={checking} onClick={onConfirm}>{t('confirm')}</PillButton>
   )
   return (
     <FlowShell nav={false} notice={<UpdateAvailableBanner inset={false} mascot={false} />} action={action}>
-      <StepUpHeader body={expired ? t('expiredBody') : t('body', { email })} operationLabel={operationLabel} t={t} title={expired ? t('expiredTitle') : questionTitle ? t('codeLabel') : t('title')} />
-      <OtpInput id="step-up-code" value={code} onChange={onCodeChange} error={otpError} hint={expired ? undefined : t('codeHint')} disabled={checking || expired} autoFocus={!expired} label={t('codeLabel')} />
+      <StepUpHeader body={expired ? t('expiredBody') : t('body', { email })} operationLabel={operationLabel} t={t} title={expired ? t('expiredTitle') : guided ? t('codeLabel') : t('title')} />
+      <OtpInput id="step-up-code" value={code} onChange={onCodeChange} error={otpError} focusRequest={codeFocusRequest} hint={expired ? undefined : t('codeHint')} disabled={checking || expired} autoFocus={!expired} label={t('codeLabel')} />
       {!expired ? <StepUpResend cooldownSeconds={cooldownSeconds} onResend={onResend} requesting={requesting} t={t} /> : null}
       {requestError ? <p role="alert" style={{ color: 'var(--status-bad-text)' }}>{requestError}</p> : null}
       <div className="flex flex-col items-start" style={{ gap: 8, paddingTop: SPACING.s8 }}>

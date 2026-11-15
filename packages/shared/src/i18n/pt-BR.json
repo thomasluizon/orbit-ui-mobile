@@ -486,6 +486,7 @@
     "genericError": "Ocorreu um erro. Tente de novo.",
     "orContinueWith": "ou",
     "openInOrbit": "Abrir no Orbit",
+    "continueInApp": "Continue no app do Orbit",
     "signInWithGoogle": "Continuar com o Google",
     "signInWithApple": "Continuar com a Apple",
     "googleError": "Não foi possível entrar com o Google. Tente de novo.",
@@ -611,8 +612,8 @@
       },
       "reminderKind": {
         "question": "Quando você quer um lembrete?",
-        "scheduled": "Em horários definidos",
-        "repeat": "Repetir a cada"
+        "scheduled": "Na hora certa",
+        "repeat": "Várias vezes"
       },
       "more": "Quer ajustar mais alguma coisa?",
       "progress": "Passo {position} de {total}",
@@ -631,6 +632,7 @@
         "endDate": "Tem data para acabar?",
         "parent": "Isso faz parte de outro item?",
         "parentRow": "Faz parte de",
+        "parentPicker": "Faz parte de qual item?",
         "none": "Sem data",
         "yes": "Sim",
         "no": "Não",
@@ -3394,6 +3396,9 @@
           },
           "skip": "Pular introdução"
         },
+        "what": {
+          "question": "Que hábito você quer criar?"
+        },
         "mode": {
           "fixed": "Dias certos",
           "flexible": "Quando der",
@@ -3420,6 +3425,7 @@
           "question": "É isso?",
           "what": "O que você vai fazer",
           "mode": "Como se repete",
+          "unit": "Em qual período",
           "days": "Em quais dias",
           "quantity": "Quantas vezes",
           "interval": "Com que frequência",

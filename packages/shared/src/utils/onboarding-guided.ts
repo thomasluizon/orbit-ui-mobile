@@ -1,3 +1,5 @@
+import type { OrbitLookTarget } from '../contracts/brand/OrbitMascot'
+import type { FrequencyUnit } from '../types/habit'
 import { describeHabitResult, type HabitResultSentence } from './habit-flow'
 import { getOnboardingScheduleMode, type OnboardingSchedule, type OnboardingScheduleMode } from './onboarding'
 
@@ -5,16 +7,35 @@ import { getOnboardingScheduleMode, type OnboardingSchedule, type OnboardingSche
 export const ONBOARDING_INTRO_SCREENS = ['talk', 'routine', 'restart'] as const
 export type OnboardingIntroScreen = (typeof ONBOARDING_INTRO_SCREENS)[number]
 
+export interface OnboardingIntroPose {
+  state: 'parado' | 'pensando'
+  /** Where Orbit looks on the screen. Parado with a look shows Olhando. */
+  look: OrbitLookTarget | null
+}
+
+/**
+ * One Orbit pose for each intro screen, from the shipped states only. Orbit looks down at the words of the person,
+ * then thinks the routine out, then stands calm: after a missed day Orbit is Parado.
+ */
+export const ONBOARDING_INTRO_POSES: Record<OnboardingIntroScreen, OnboardingIntroPose> = {
+  talk: { state: 'parado', look: { x: 0, y: 1 } },
+  routine: { state: 'pensando', look: null },
+  restart: { state: 'parado', look: null },
+}
+
 /** The question steps of the guided onboarding, after the intro. */
-export type OnboardingQuestionStep = 'what' | 'mode' | 'days' | 'quantity' | 'interval' | 'time' | 'summary' | 'remind'
+export type OnboardingQuestionStep = 'what' | 'mode' | 'unit' | 'days' | 'quantity' | 'interval' | 'time' | 'summary' | 'remind'
 
 export const ONBOARDING_MODE_OPTIONS: readonly OnboardingScheduleMode[] = ['fixed', 'flexible', 'interval', 'oneTime']
 
-const DETAIL_STEP_BY_MODE: Record<OnboardingScheduleMode, OnboardingQuestionStep | null> = {
-  fixed: 'days',
-  flexible: 'quantity',
-  interval: 'interval',
-  oneTime: null,
+/** The periods of a count or an interval, as the quick options of the period question. */
+export const ONBOARDING_UNIT_OPTIONS: readonly FrequencyUnit[] = ['Day', 'Week', 'Month', 'Year']
+
+const DETAIL_STEPS_BY_MODE: Record<OnboardingScheduleMode, readonly OnboardingQuestionStep[]> = {
+  fixed: ['days'],
+  flexible: ['unit', 'quantity'],
+  interval: ['unit', 'interval'],
+  oneTime: [],
 }
 
 /** Whether the read left the schedule open: no repeat, no day and no count. Only then the flow asks how it repeats. */
@@ -23,9 +44,19 @@ export function onboardingNeedsCadence(schedule: OnboardingSchedule, proposed: b
   return schedule.isGeneral && schedule.frequencyUnit === null && schedule.days.length === 0 && !schedule.isFlexible
 }
 
-/** The step that holds the value of a repeat mode. A one-time habit has none. */
-export function onboardingModeDetailStep(mode: OnboardingScheduleMode): OnboardingQuestionStep | null {
-  return DETAIL_STEP_BY_MODE[mode]
+/** The steps that hold the values of a repeat mode, in the order the flow asks them. A count or an interval asks its period first. A one-time habit has none. */
+export function onboardingModeDetailSteps(mode: OnboardingScheduleMode): readonly OnboardingQuestionStep[] {
+  return DETAIL_STEPS_BY_MODE[mode]
+}
+
+/**
+ * The step after an answer inside the repeat steps. While the flow walks the steps of a mode, it is the next
+ * step of that mode, then the summary. A step the summary opened by itself returns to the summary.
+ */
+export function onboardingStepAfterAnswer(mode: OnboardingScheduleMode, answered: OnboardingQuestionStep, walking: boolean): OnboardingQuestionStep {
+  if (!walking) return 'summary'
+  const steps = onboardingModeDetailSteps(mode)
+  return steps[steps.indexOf(answered) + 1] ?? 'summary'
 }
 
 /**
@@ -70,8 +101,7 @@ export interface OnboardingResultSentence {
 }
 
 /**
- * The result dialog sentence of the onboarding habit, from the schedule the create request saved.
- * The habit starts on the account day it was created. A weekday schedule takes the onboarding cadence,
+ * The result dialog sentence of a schedule that starts on `today`. A weekday schedule takes the onboarding cadence,
  * because the R07 cadence names only the unit and would call Monday and Thursday "every day".
  */
 export function describeOnboardingResult(schedule: OnboardingSchedule, today: string): OnboardingResultSentence {
@@ -85,6 +115,41 @@ export function describeOnboardingResult(schedule: OnboardingSchedule, today: st
     frequencyQuantity: schedule.frequencyQuantity,
   }, 'created')
   return { sentence, cadence: sentence.cadence ? describeOnboardingCadence(schedule, false) : null }
+}
+
+/** The fields of a saved habit that the result sentence reads: a habit of the account, or the habit that waits on this device before sign-in. */
+export interface OnboardingSavedHabit {
+  frequencyUnit?: FrequencyUnit | null
+  frequencyQuantity?: number | null
+  intervalWeeks?: number | null
+  days?: readonly string[] | null
+  isGeneral?: boolean | null
+  isFlexible?: boolean | null
+  dueTime?: string | null
+  dueDate?: string | null
+}
+
+/** The schedule of a saved habit. A field the record does not hold takes the value of a habit with no repeat, no day and no time. */
+export function onboardingScheduleFromSaved(saved: OnboardingSavedHabit): OnboardingSchedule {
+  return {
+    frequencyUnit: saved.frequencyUnit ?? null,
+    frequencyQuantity: saved.frequencyQuantity ?? null,
+    intervalWeeks: saved.intervalWeeks ?? 1,
+    days: [...(saved.days ?? [])],
+    isGeneral: saved.isGeneral ?? false,
+    isFlexible: saved.isFlexible ?? false,
+    dueTime: saved.dueTime ?? '',
+  }
+}
+
+/**
+ * The result dialog sentence of the onboarding habit, from the saved record and never from the draft.
+ * The start is the due date of the record. A record with no due date yet, such as the habit that waits for the account, starts today.
+ */
+export function describeSavedOnboardingResult(saved: OnboardingSavedHabit, today: string): OnboardingResultSentence & { schedule: OnboardingSchedule; start: string } {
+  const schedule = onboardingScheduleFromSaved(saved)
+  const start = saved.dueDate || today
+  return { ...describeOnboardingResult(schedule, start), schedule, start }
 }
 
 /** The summary value of the repeat mode. */

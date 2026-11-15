@@ -1,5 +1,6 @@
 import { extractBackendErrorCode } from './error-utils'
 import { isValidEmail } from './email'
+import type { AuthCallbackState } from './auth-callback-failure'
 
 export const VERIFICATION_CODE_LENGTH = 6
 
@@ -217,9 +218,14 @@ export function isVerificationCodeComplete(
   return digits.join('').length === codeLength
 }
 
-export function getPendingAuthProvider(callback: { state: 'pending' | 'failed' | 'account'; provider?: 'apple' | 'google' } | undefined): 'apple' | 'google' | null {
+export function getPendingAuthProvider(callback: { state: AuthCallbackState; provider?: 'apple' | 'google' } | undefined): 'apple' | 'google' | null {
   if (callback?.state !== 'pending') return null
   return callback.provider ?? 'google'
+}
+
+/** Whether the current sign-in surface shows the provider line of a callback: after a failure, and after a cancel. */
+export function showsAuthCallbackLine(callback: { state: AuthCallbackState } | undefined): boolean {
+  return callback?.state === 'failed' || callback?.state === 'cancelled'
 }
 
 export function getAuthCallbackErrorKey(provider: 'apple' | 'google' | undefined): string {

@@ -20,6 +20,7 @@ import {
   getOnboardingDisplayTotal,
   getHabitPhraseTitle,
   isOnboardingHabitDueToday,
+  onboardingScheduleFromSaved,
   ONBOARDING_DONE_STEP,
   ONBOARDING_PRO_STEP,
   getCurrentPlan,
@@ -226,7 +227,8 @@ export function OnboardingFlow({ finalStepOnly = false, onExit, guided = false }
   const [step, setStep] = useState(initialOnboardingStep(finalStepOnly, resolvingDeferredPush))
   const [sentence, setSentence] = useState('')
   const [emoji, setEmoji] = useState('')
-  const [schedule, setSchedule] = useState<OnboardingSchedule>(() => deferredHabit ? { frequencyUnit: deferredHabit.frequencyUnit ?? null, frequencyQuantity: deferredHabit.frequencyQuantity ?? null, intervalWeeks: 1, days: deferredHabit.days ?? [], isGeneral: deferredHabit.isGeneral ?? false, isFlexible: deferredHabit.isFlexible ?? false, dueTime: deferredHabit.dueTime ?? '' } : buildOnboardingScheduleFromPhrase('', locale))
+  const [emojiProposed, setEmojiProposed] = useState(false)
+  const [schedule, setSchedule] = useState<OnboardingSchedule>(() => deferredHabit ? onboardingScheduleFromSaved(deferredHabit) : buildOnboardingScheduleFromPhrase('', locale))
   const [proposed, setProposed] = useState(false)
   const [correcting, setCorrecting] = useState(false)
   const [createdId, setCreatedId] = useState<string | null>(resolvingDeferredPush ? 'deferred' : null)
@@ -266,6 +268,7 @@ export function OnboardingFlow({ finalStepOnly = false, onExit, guided = false }
     if (!phrase.trim() || suggestionPending) return
     const localSchedule = clampOnboardingRepeatWeeks(buildOnboardingScheduleFromPhrase(phrase, locale), isLive)
     setEmoji('')
+    setEmojiProposed(false)
     setSchedule(localSchedule)
     setProposed(false)
     setCorrecting(false)
@@ -281,6 +284,7 @@ export function OnboardingFlow({ finalStepOnly = false, onExit, guided = false }
       if (suggestionRevision.current !== revision) return
       const nextSchedule = clampOnboardingRepeatWeeks(buildOnboardingScheduleFromSuggestion(result), isLive)
       setEmoji(result.emoji ?? '')
+      setEmojiProposed(Boolean(result.emoji))
       setSchedule(nextSchedule)
       setProposed(true)
     } catch {
@@ -498,11 +502,11 @@ export function OnboardingFlow({ finalStepOnly = false, onExit, guided = false }
   const overlay = step >= ONBOARDING_DONE_STEP ? (
     <DoneShell modalId={modalId} loginHref={isLive ? undefined : getOnboardingLoginUrl(searchQuery, true)} onSelect={(id) => completeAndLeave(isLive ? DONE_TAB_ROUTES[id] : undefined)}><DoneContent step={step} proContent={<OnboardingProStep ref={proStepRef} onFinish={finishAndLeave} />} doneContent={<OnboardingComplete createdHabit={createdTitle} emoji={emoji || '◎'} remindersOff={remindersOff} skipped={skipped} signedOut={!isLive} continuesToPro={isLive && getCurrentPlan(profile) !== 'Pro'} dueToday={createdDueToday} general={createdGeneral} onFinish={() => completeAndLeave()} />} /></DoneShell>
   ) : (
-    <StepsPhase guided={guided} legacy={<FlowShell nav={false} mode="onboarding" header={<OnboardingHeader completionPending={completionPending} step={step} onBack={resolvingDeferredPush ? undefined : goBack} onSkip={createdId ? undefined : () => void skip()} />} action={<div className="contents" inert={completionPending || undefined}><DecisionAction {...decisionProps} /></div>} notice={<><UpdateAvailableBanner modalId={modalId} inset={false} />{createFailed ? <ErrorState message={t('createFailed')} /> : null}<AppToastHost placement="modal" modalId={modalId} /></>}><div className="contents" inert={completionPending || undefined}><OnboardingStepStage step={step}><DecisionContent {...decisionProps} /></OnboardingStepStage>{suggestion.verification}</div></FlowShell>} {...decisionProps} proposedEmoji={emoji} completionPending={completionPending} offline={!isOnline}
+    <StepsPhase guided={guided} legacy={<FlowShell nav={false} mode="onboarding" header={<OnboardingHeader completionPending={completionPending} step={step} onBack={resolvingDeferredPush ? undefined : goBack} onSkip={createdId ? undefined : () => void skip()} />} action={<div className="contents" inert={completionPending || undefined}><DecisionAction {...decisionProps} /></div>} notice={<><UpdateAvailableBanner modalId={modalId} inset={false} />{createFailed ? <ErrorState message={t('createFailed')} /> : null}<AppToastHost placement="modal" modalId={modalId} /></>}><div className="contents" inert={completionPending || undefined}><OnboardingStepStage step={step}><DecisionContent {...decisionProps} /></OnboardingStepStage>{suggestion.verification}</div></FlowShell>} {...decisionProps} habitEmoji={emoji} emojiProposed={emojiProposed} onEmoji={(value) => { setEmoji(value); setEmojiProposed(false) }} completionPending={completionPending} offline={!isOnline}
       notices={<><UpdateAvailableBanner modalId={modalId} inset={false} /><AppToastHost placement="modal" modalId={modalId} />{suggestion.verification}</>}
       resolvingDeferredPush={resolvingDeferredPush} habitCreated={createdId !== null} onStepBack={goBack} onLeave={() => void skip()} />
   )
-  const result = <GuidedResultSlot open={[guided, step === ONBOARDING_DONE_STEP, overlayOpen, Boolean(createdTitle), !skipped, !resultDismissed]} schedule={schedule} signedOut={!isLive} timeZone={profile?.timeZone}
+  const result = <GuidedResultSlot open={[guided, step === ONBOARDING_DONE_STEP, overlayOpen, Boolean(createdTitle), !skipped, !resultDismissed]} habitId={createdId} signedOut={!isLive} timeZone={profile?.timeZone}
     onPrimary={() => completeAndLeave(isLive ? '/' : undefined)} onClose={() => setResultDismissed(true)} />
   return <OrbitOverlayLayer active={overlayOpen}><Dialog.Root open={overlayOpen} modal disablePointerDismissal onOpenChange={(open) => { if (!open) closeOverlay() }}><Dialog.Portal><Dialog.Viewport className="z-modal fixed inset-0"><Dialog.Popup aria-labelledby="onboarding-title" className="fixed inset-0 overflow-hidden bg-[var(--bg)]">{overlay}{result}</Dialog.Popup></Dialog.Viewport></Dialog.Portal></Dialog.Root></OrbitOverlayLayer>
 }

@@ -8,6 +8,7 @@ import { ArrowLeft, X } from '@/components/ui/icons'
 import { OrbitMascot } from '@/components/ui/orbit-mascot'
 import { PagerSegments } from '@/components/ui/pager'
 import { PillButton } from '@/components/ui/pill-button'
+import { PrimaryActionSlot } from '@/components/ui/primary-action-slot'
 import { useFlowAnnouncement } from '@/hooks/use-flow-announcement'
 import { useGuidedFlowTracking } from '@/hooks/use-guided-flow-tracking'
 import { useOrbitLook } from '@/hooks/use-orbit-look'
@@ -33,12 +34,12 @@ function FlowHeader({ props }: Readonly<{ props: QuestionFlowProps }>) {
   )
 }
 
-function FlowPrimaryAction({ primary, wide }: Readonly<{ primary: NonNullable<QuestionFlowProps['primary']>; wide: boolean }>) {
+function FlowPrimaryAction({ primary }: Readonly<{ primary: NonNullable<QuestionFlowProps['primary']> }>) {
   return (
-    <div data-flow-primary="" className={wide ? 'flex w-full justify-center' : 'w-full'}>
-      <div className={wide ? 'w-full max-w-[360px]' : 'w-full'}>
+    <div data-flow-primary="" className="w-full">
+      <PrimaryActionSlot>
         <PillButton variant={primary.variant} loading={primary.loading} focusableWhenLoading hint={primary.hint} onClick={primary.onPress}>{primary.label}</PillButton>
-      </div>
+      </PrimaryActionSlot>
     </div>
   )
 }
@@ -84,7 +85,7 @@ function stepTravel(direction: 1 | -1, shift: number | undefined) {
 
 /** The one-question flow frame. It holds no habit-specific code: a second consumer mounts it with its own content. */
 export function QuestionFlow(props: Readonly<QuestionFlowProps>) {
-  const { flow, question, line, lineKey, stepKey, direction, orbitState = 'parado', showOrbit = true, statusText, options, children, primary, footer } = props
+  const { flow, question, line, lineKey, stepKey, direction, orbitState = 'parado', orbitLook = null, showOrbit = true, statusText, options, children, primary, footer } = props
   const wide = useViewportMatch('(min-width: 1024px)')
   const sm = useViewportMatch('(min-width: 640px)')
   const reducedMotion = useViewportMatch('(prefers-reduced-motion: reduce)')
@@ -96,7 +97,7 @@ export function QuestionFlow(props: Readonly<QuestionFlowProps>) {
   useGuidedFlowTracking(flow, stepKey, props.total)
 
   const hoveredOption = (target: EventTarget) => wide && hoverCapable && target instanceof HTMLElement ? target.closest('[data-option-card]') : null
-  const primaryAction = primary ? <FlowPrimaryAction primary={primary} wide={wide} /> : null
+  const primaryAction = primary ? <FlowPrimaryAction primary={primary} /> : null
   const visibleOrbitState = showOrbit ? orbitState : undefined
 
   return (
@@ -116,7 +117,7 @@ export function QuestionFlow(props: Readonly<QuestionFlowProps>) {
           onPointerLeave={lookAway}
           className="my-auto flex w-full max-w-[592px] flex-col items-center gap-6 py-4 text-center"
         >
-          {showOrbit ? <span ref={mascotRef} aria-hidden="true"><OrbitMascot size={wide ? 128 : 96} state={orbitState} lookAt={mascotLook(orbitState, lookAt)} turnKey={stepKey} /></span> : null}
+          {showOrbit ? <span ref={mascotRef} aria-hidden="true"><OrbitMascot size={wide ? 128 : 96} state={orbitState} lookAt={mascotLook(orbitState, lookAt ?? orbitLook)} turnKey={stepKey} /></span> : null}
           {line ? <FlowLine id={lineId} line={line} lineKey={lineKey} reducedMotion={reducedMotion} /> : null}
           <h1 ref={headingRef} tabIndex={-1} aria-describedby={line ? lineId : undefined} className="orbit-flow-question text-balance font-display text-[28px] leading-[1.18] text-[var(--fg-1)] lg:text-[34px] lg:leading-[1.15]">{question}</h1>
           {options ? <div role="group" aria-label={question} data-option-group="" className="grid w-full grid-cols-2 gap-3">{options}</div> : null}

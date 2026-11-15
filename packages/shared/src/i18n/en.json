@@ -486,6 +486,7 @@
     "genericError": "An error occurred. Please try again.",
     "orContinueWith": "or",
     "openInOrbit": "Open in Orbit",
+    "continueInApp": "Continue in the Orbit app",
     "signInWithGoogle": "Continue with Google",
     "signInWithApple": "Continue with Apple",
     "googleError": "Google sign-in failed. Please try again.",
@@ -631,6 +632,7 @@
         "endDate": "Does it have an end date?",
         "parent": "Is this part of another item?",
         "parentRow": "Part of",
+        "parentPicker": "Part of which item?",
         "none": "No end date",
         "yes": "Yes",
         "no": "No",
@@ -3394,6 +3396,9 @@
           },
           "skip": "Skip intro"
         },
+        "what": {
+          "question": "What do you want to keep doing?"
+        },
         "mode": {
           "fixed": "Set days",
           "flexible": "When I can",
@@ -3420,6 +3425,7 @@
           "question": "Is this right?",
           "what": "What you will do",
           "mode": "How it repeats",
+          "unit": "Which period",
           "days": "Which days",
           "quantity": "How many times",
           "interval": "How often",

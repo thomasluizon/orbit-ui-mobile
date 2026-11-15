@@ -34,7 +34,7 @@ function props(): GuidedOnboardingProps {
     proposed: false, correcting: false, atLimit: false, allowance: 5, createFailed: false, creating: false, suggestionPending: false, reminderDecision: 'idle',
     reminderState: 'ask', createdTitle: '', onAccount: noop, onSentence: noop, onContinueWhat: noop, onStarter: noop, onCorrect: noop, onToggleDay: noop, onTime: noop,
     onMode: noop, onFrequencyUnit: noop, onQuantity: noop, onIntervalWeeks: noop, onSave: noop, onAllow: noop, onContinueWithout: noop, onEditSchedule: noop,
-    proposedEmoji: '', completionPending: false, offline: false, notices: null, onBack: noop, onSkip: noop,
+    habitEmoji: '', emojiProposed: false, onEmoji: noop, completionPending: false, offline: false, notices: null, onBack: noop, onSkip: noop,
   }
 }
 

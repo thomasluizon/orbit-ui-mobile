@@ -298,6 +298,22 @@ describe('mobile step up screen', () => {
     expect(findButton(tree.root, 'stepUp.confirm').props.disabled).toBe(false)
   })
 
+  it('keeps confirm enabled with the flag on, and answers a short code with the hint beside the field and a focus request', async () => {
+    mocks.guided = true
+    const tree = await renderScreen()
+    const focusRequests = () => tree.root.findAll((node) => node.props.label === 'stepUp.codeLabel' && 'error' in node.props).map((node) => node.props.focusRequest)
+    expect(findButton(tree.root, 'stepUp.confirm').props.disabled).toBeFalsy()
+    await enterCode(tree, '12345')
+    expect(findButton(tree.root, 'stepUp.confirm').props.disabled).toBeFalsy()
+    await confirm(tree)
+    expect(findText(tree.root, 'auth.errors.codeFormat').length).toBeGreaterThan(0)
+    expect(focusRequests()).toContain(1)
+    await confirm(tree)
+    expect(focusRequests()).toContain(2)
+    await enterCode(tree)
+    expect(findText(tree.root, 'auth.errors.codeFormat')).toHaveLength(0)
+  })
+
   it('drops a typed code and disables confirm after the account changes', async () => {
     const tree = await renderScreen()
     await enterCode(tree)

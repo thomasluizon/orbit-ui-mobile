@@ -394,10 +394,44 @@ describe.each(['pt-BR', 'en'] as const)('the detail questions on Android in %s',
     tree.unmount()
   })
 
-  it('scenario 18: opens the reminder kinds with the permission notice and the repeat editor', async () => {
+  const optionCards = (tree: Tree) => tree.hosts().filter((node) => node.props.testID === 'option-card')
+  const hostsWithRole = (tree: Tree, role: string) => tree.hosts().filter((node) => node.props.accessibilityRole === role)
+
+  it('scenario 18: asks the reminder kind with one quick option for each kind and no switch, radio or second heading', async () => {
     const tree = await toSummary()
     await tap(tree, new RegExp(`^${flowCopy().summary.reminder},`))
     expect(heading(tree)).toBe(flowCopy().reminderKind.question)
+    expect(optionCards(tree).map((option) => option.props.accessibilityLabel)).toEqual([flowCopy().reminderKind.scheduled, flowCopy().reminderKind.repeat, flowCopy().reminder.no])
+    expect(optionCards(tree).map((option) => option.props.accessibilityState?.selected)).toEqual([false, false, true])
+    expect(hostsWithRole(tree, 'switch')).toHaveLength(0)
+    expect(hostsWithRole(tree, 'radio')).toHaveLength(0)
+    expect(hostsWithRole(tree, 'header')).toHaveLength(1)
+    await tap(tree, flowCopy().reminderKind.repeat)
+    expect(helpers().form.getValues('reminderEnabled')).toBe(true)
+    expect(helpers().form.getValues('repeatReminder')).toMatchObject({ intervalMinutes: 30 })
+    expect(hostsWithRole(tree, 'radio')).toHaveLength(0)
+    expect(hostsWithRole(tree, 'header')).toHaveLength(1)
+    tree.unmount()
+  })
+
+  it('scenario 18: turns the reminder off from the reminder kinds in one press and returns to the summary', async () => {
+    const tree = await toSummary()
+    await tap(tree, new RegExp(`^${flowCopy().summary.reminder},`))
+    await tap(tree, flowCopy().reminderKind.scheduled)
+    expect(helpers().form.getValues('reminderEnabled')).toBe(true)
+    await tap(tree, flowCopy().reminder.no)
+    expect(helpers().form.getValues('reminderEnabled')).toBe(false)
+    expect(heading(tree)).toBe(flowCopy().confirm.question)
+    tree.unmount()
+  })
+
+  it('scenario 18: offers an undated item the repeat only', async () => {
+    const tree = renderNavigation(<Harness mode="edit" subHabits={false} initial={{ title: 'Alongar', itemType: 'habit', isGeneral: true }} />)
+    await tap(tree, new RegExp(`^${flowCopy().summary.reminder},`))
+    expect(optionCards(tree).map((option) => option.props.accessibilityLabel)).toEqual([flowCopy().reminderKind.repeat, flowCopy().reminder.no])
+    await tap(tree, flowCopy().reminderKind.repeat)
+    expect(helpers().form.getValues()).toMatchObject({ reminderEnabled: true, repeatReminder: { intervalMinutes: 30 } })
+    expect(state.reminderTimes).toEqual([])
     tree.unmount()
   })
 
@@ -406,7 +440,7 @@ describe.each(['pt-BR', 'en'] as const)('the detail questions on Android in %s',
   async function toReminderKinds() {
     const tree = await toSummary()
     await tap(tree, new RegExp(`^${flowCopy().summary.reminder},`))
-    await tap(tree, formCopy().reminder)
+    await tap(tree, flowCopy().reminderKind.scheduled)
     return tree
   }
   async function tapText(tree: Tree, text: string) {
@@ -423,7 +457,7 @@ describe.each(['pt-BR', 'en'] as const)('the detail questions on Android in %s',
   it('scenario 18: turns the reminder on with the default times and shows the permission notice', async () => {
     const tree = await toReminderKinds()
     expect(helpers().form.getValues('reminderEnabled')).toBe(true)
-    expect(tree.hosts().find((node) => node.props.accessibilityRole === 'radio' && node.props.accessibilityLabel === formCopy().definedTimes)?.props.accessibilityState?.checked).toBe(true)
+    expect(optionCards(tree).find((option) => option.props.accessibilityLabel === flowCopy().reminderKind.scheduled)?.props.accessibilityState?.selected).toBe(true)
     expect(state.reminderTimes).toEqual([0, 15])
     expect(removeActions(tree)).toHaveLength(2)
     expect(tree.hosts().some((node) => node.props.accessibilityLabel === formCopy().reminderPermissionNeeded)).toBe(true)
@@ -455,7 +489,7 @@ describe.each(['pt-BR', 'en'] as const)('the detail questions on Android in %s',
 
   it('scenario 18: repeats every 30 minutes inside the active hours and drops the fixed times', async () => {
     const tree = await toReminderKinds()
-    await tap(tree, formCopy().repeatEvery)
+    await tap(tree, flowCopy().reminderKind.repeat)
     expect(helpers().form.getValues('repeatReminder')).toMatchObject({ intervalMinutes: 30 })
     expect(state.reminderTimes).toEqual([])
     await tap(tree, formCopy().repeatAllDay)

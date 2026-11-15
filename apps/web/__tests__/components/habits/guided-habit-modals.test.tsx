@@ -139,7 +139,7 @@ describe('the create surface behind orbit_guided_flows', () => {
     expect(state.completed).toHaveBeenCalledWith('habit_create', 5, false)
     const dialog = await screen.findByRole('dialog', { name: messages().result.title })
     expect(dialog).toHaveAccessibleDescription(messages().result.task.datedTimed.replace('{date}', expect.any(String) as unknown as string).split('{')[0]!.trim() ? expect.stringContaining('08:30') : '')
-    expect(screen.getByRole('button', { name: messages().result.seeCalendar })).toHaveFocus()
+    await waitFor(() => expect(screen.getByRole('button', { name: messages().result.seeCalendar })).toHaveFocus())
     expect(document.querySelector('[data-orbit-state="feliz"]')).not.toBeNull()
   })
 

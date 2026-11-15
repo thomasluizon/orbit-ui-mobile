@@ -24,6 +24,7 @@ const mocks = vi.hoisted(() => ({
   rawCallbackUrl: 'https://app.useorbit.org/auth-callback?code=old',
   continueAccount: null as null | (() => void),
   callbackState: 'pending',
+  callbackParams: { error: undefined as string | undefined },
 }))
 
 vi.mock('@/components/auth/login-content', () => ({
@@ -53,7 +54,7 @@ vi.mock('@/lib/google-auth-callback', () => ({
   AUTH_CALLBACK_URL: 'https://app.useorbit.org/auth-callback',
   completePendingGoogleAuthSession: (_attempt: string, complete: () => Promise<void>) => complete(),
   clearPendingGoogleAuthSession: vi.fn(() => Promise.resolve()),
-  extractGoogleAuthParams: () => ({}),
+  extractGoogleAuthParams: () => mocks.callbackParams,
   setPendingGoogleAuthCallbackUrl: vi.fn(() => Promise.resolve(false)),
   resolveGoogleAuthCallbackUrl: ({ sessionCallbackUrl }: { sessionCallbackUrl: string | null }) =>
     sessionCallbackUrl ?? mocks.rawCallbackUrl,
@@ -73,6 +74,7 @@ beforeEach(() => {
   vi.resetAllMocks()
   mocks.continueAccount = null
   mocks.callbackState = 'pending'
+  mocks.callbackParams = { error: undefined }
   mocks.completeGoogleAuthFromUrl.mockResolvedValue({ token: 'old-access', refreshToken: 'old-refresh',
     userId: 'old-user', name: 'Old', email: 'old@example.com' })
   mocks.getStoredReferralCode.mockResolvedValue(null)
@@ -298,4 +300,17 @@ it.each(['/', '/?source=login', '/login', '/auth-callback?code=old', '/(onboardi
   expect(mocks.replace).toHaveBeenCalledExactlyOnceWith(
     returnUrl === '/?source=login' ? '/(tabs)?source=login' : '/(tabs)',
   )
+})
+
+it.each(['access_denied', 'cancel', 'dismiss'])('shows a person who left the consent screen with %s as a cancel, not as a failure', async (error) => {
+  mocks.callbackParams = { error }
+  await mountCallback()
+  await vi.waitFor(() => expect(mocks.callbackState).toBe('cancelled'))
+  expect(mocks.login).not.toHaveBeenCalled()
+})
+
+it('shows a provider error that is not a cancel as a failure', async () => {
+  mocks.callbackParams = { error: 'server_error' }
+  await mountCallback()
+  await vi.waitFor(() => expect(mocks.callbackState).toBe('failed'))
 })

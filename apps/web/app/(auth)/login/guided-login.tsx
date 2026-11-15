@@ -4,9 +4,13 @@ import type { FlowStepView } from '@orbit/shared/contracts/flow'
 import { deriveLoginEmailErrors, formatLoginCountdown, getAuthCallbackErrorKey, getPendingAuthProvider } from '@orbit/shared/utils'
 import { useLayoutEffect, type ReactNode } from 'react'
 import { CapacityNotice } from '@/components/ui/capacity-notice'
+import { ErrorState } from '@/components/ui/error-state'
+import { IconButton } from '@/components/ui/icon-button'
+import { RefreshCw } from '@/components/ui/icons'
 import { Input } from '@/components/ui/input'
 import { OrbitMascot, useStateMascotSize } from '@/components/ui/orbit-mascot'
 import { PillButton } from '@/components/ui/pill-button'
+import { PrimaryActionSlot } from '@/components/ui/primary-action-slot'
 import { QuestionFlow } from '@/components/ui/question-flow'
 import { captureGuidedFlowCompleted } from '@/lib/posthog'
 import { LoginCodeField, LoginResend } from './code-step'
@@ -32,18 +36,13 @@ function refusalHint(flow: LoginFlow, canSubmitTurnstile: boolean) {
   return canSubmitTurnstile ? undefined : flow.t('auth.turnstileLabel')
 }
 
-function emailStep({ flow, callback, callbackDismissed, onDismissCallback, canSubmitTurnstile, turnstileWidget }: GuidedLoginProps): FlowStepView & { footer: ReactNode } {
+function emailStep({ flow, callback, onDismissCallback, canSubmitTurnstile, turnstileWidget }: GuidedLoginProps): FlowStepView & { footer: ReactNode } {
   const { t } = flow
   const pendingProvider = getPendingAuthProvider(callback)
-  const callbackFailed = callback?.state === 'failed' && !callbackDismissed
   const isGoogleLoading = flow.isGoogleLoading || pendingProvider === 'google'
   const isAppleLoading = flow.isAppleLoading || pendingProvider === 'apple'
   const isBusy = flow.isSubmitting || isGoogleLoading || isAppleLoading
-  const errors = deriveLoginEmailErrors({
-    isOnline: flow.isOnline, fieldError: flow.emailFieldError,
-    errorKey: callbackFailed ? getAuthCallbackErrorKey(callback.provider) : flow.errorKey,
-    errorMessage: callbackFailed ? t(getAuthCallbackErrorKey(callback.provider)) : flow.errorMessage,
-  })
+  const errors = deriveLoginEmailErrors({ isOnline: flow.isOnline, fieldError: flow.emailFieldError, errorKey: flow.errorKey, errorMessage: flow.errorMessage })
   const submit = () => {
     onDismissCallback()
     if (flow.email.trim()) void flow.sendCode()
@@ -126,10 +125,26 @@ export function useSignInCompletion(completed: boolean) {
   }, [completed])
 }
 
-/** Sign-in as a one-question flow: the email question with the two provider options, then the code question. Orbit is Parado and looks at the field in focus. */
-export function GuidedLogin(props: Readonly<GuidedLoginProps>) {
-  const { flow } = props
+/** A provider callback that failed: a full-surface state with Orbit in Parado, the message and the way back to the sign-in question. */
+function GuidedCallbackFailure({ flow, provider, onRetry }: Readonly<{ flow: LoginFlow; provider: LoginCallback['provider']; onRetry: () => void }>) {
   const { t } = flow
+  return (
+    <main data-callback-failure="" className="flex w-full flex-1 flex-col">
+      <ErrorState fullSurface message={t(getAuthCallbackErrorKey(provider))} action={
+        <IconButton label={t('common.retry')} onClick={onRetry}><RefreshCw size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton>
+      } />
+    </main>
+  )
+}
+
+/**
+ * Sign-in as a one-question flow: the email question with the two provider options, then the code question. Orbit is Parado and looks at the field in focus.
+ * A failed provider callback shows its own state first. A cancel shows the email question with no error, because the person only left the provider.
+ */
+export function GuidedLogin(props: Readonly<GuidedLoginProps>) {
+  const { flow, callback } = props
+  const { t } = flow
+  if (callback?.state === 'failed' && !props.callbackDismissed) return <GuidedCallbackFailure flow={flow} provider={callback.provider} onRetry={props.onDismissCallback} />
   const coding = flow.step === 'code'
   const view = coding ? codeStep(props) : emailStep(props)
   const position = coding ? 2 : 1
@@ -170,7 +185,7 @@ export function GuidedAccountBack({ t, loading, continueAccount, errorMessage }:
         <h1 className="orbit-flow-question text-balance font-display text-[28px] leading-[1.18] text-[var(--fg-1)] lg:text-[34px] lg:leading-[1.15]">{t('auth.accountBack.title')}</h1>
         <p role="status" className="text-base leading-6 text-[var(--fg-2)]">{t('auth.accountBack.body')}</p>
       </div>
-      <div className="w-full lg:max-w-[360px]"><PillButton onClick={continueAccount} loading={loading}>{t('auth.accountBack.action')}</PillButton></div>
+      <PrimaryActionSlot><PillButton onClick={continueAccount} loading={loading}>{t('auth.accountBack.action')}</PillButton></PrimaryActionSlot>
       {errorMessage ? <p role="alert" className="text-sm text-[var(--status-bad-text)]">{errorMessage}</p> : null}
     </main>
   )

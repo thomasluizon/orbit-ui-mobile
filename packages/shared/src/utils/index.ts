@@ -433,7 +433,14 @@ export {
   ONBOARDING_INTRO_SCREENS,
   ONBOARDING_MODE_OPTIONS,
   onboardingGuidedPosition,
-  onboardingModeDetailStep,
+  onboardingModeDetailSteps,
+  ONBOARDING_INTRO_POSES,
+  type OnboardingIntroPose,
+  onboardingScheduleFromSaved,
+  describeSavedOnboardingResult,
+  type OnboardingSavedHabit,
+  onboardingStepAfterAnswer,
+  ONBOARDING_UNIT_OPTIONS,
   onboardingModeKey,
   onboardingNeedsCadence,
   phraseLineKey,
@@ -885,7 +892,7 @@ export { TODAY_LAUNCH_SPAN_NAME, sampleTodayLaunch, startTodayLaunchTiming, isTo
 
 export { readHabitRecurrencePhrase, type HabitRecurrence, type HabitRecurrencePhrase } from './habit-recurrence-phrase'
 
-export { getPendingAuthProvider, getAuthCallbackErrorKey, deriveLoginEmailErrors } from './auth-login'
+export { getPendingAuthProvider, getAuthCallbackErrorKey, showsAuthCallbackLine, deriveLoginEmailErrors } from './auth-login'
 
 export { steadyColumnInset } from './steady-column'
 

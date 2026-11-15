@@ -26,7 +26,7 @@ function steps(copy: Copy): Record<string, Step> {
     type: { question: flow.type.question, line: flow.type.line },
     repeat: { question: flow.repeat.question, line: flow.repeat.line, options: [flow.repeat.everyN, flow.repeat.timesIn] },
     duration: { question: flow.duration.question, options: [flow.duration.none] },
-    'reminder kind': { question: flow.reminderKind.question },
+    'reminder kind': { question: flow.reminderKind.question, options: [flow.reminderKind.scheduled, flow.reminderKind.repeat, flow.reminder.no] },
     more: { question: flow.more },
     description: { question: flow.optional.description },
     checklist: { question: flow.optional.checklist, line: flow.checklist.line, options: [flow.optional.no, flow.checklist.useTemplate] },

@@ -199,6 +199,37 @@ describe('web step up screen', () => {
     expect(confirm).toBeEnabled()
   })
 
+  it('keeps confirm enabled with the flag on, and answers a short code with the hint beside the field and focus on the field', async () => {
+    mocks.guided = true
+    const input = await renderLiveScreen()
+    const confirm = within(screen.getByTestId('shell-action')).getByText('confirm').closest('button')!
+    expect(confirm).toBeEnabled()
+    fireEvent.change(input, { target: { value: '12345' } })
+    expect(confirm).toBeEnabled()
+    input.blur()
+    await act(async () => { fireEvent.click(confirm) })
+    const confirmRequests = () => mocks.serverAuthMutate.mock.calls.filter(([endpoint]) => endpoint === API.auth.confirmDeletion)
+    expect(confirmRequests()).toHaveLength(0)
+    expect(input).toHaveAccessibleDescription('auth.errors.codeFormat')
+    expect(input).toHaveAttribute('aria-invalid', 'true')
+    expect(input).toHaveFocus()
+    input.blur()
+    await act(async () => { fireEvent.click(confirm) })
+    expect(input).toHaveFocus()
+    fireEvent.change(input, { target: { value: '123456' } })
+    expect(input).not.toHaveAttribute('aria-invalid')
+    await act(async () => { fireEvent.click(confirm) })
+    expect(confirmRequests()).toEqual([[API.auth.confirmDeletion, { method: 'POST', body: JSON.stringify({ code: '123456' }) }, 'account-a']])
+  })
+
+  it.each([false, true])('holds one filled action on the code step, and the resend stays quiet (flag %s)', async (guided) => {
+    mocks.guided = guided
+    await renderLiveScreen(liveRecord(60_000))
+    const filled = [...document.querySelectorAll('button[data-variant="primary"]')].map((button) => button.textContent)
+    expect(filled).toHaveLength(1)
+    for (const button of screen.getAllByText('resend').map((label) => label.closest('button'))) expect(button).toHaveAttribute('data-variant', 'ghost')
+  })
+
   it('blocks editing and exposes the confirm loading state while checking', async () => {
     let resolveConfirmation: ((value: {
       message: string

@@ -391,8 +391,9 @@ With the flag `orbit_guided_flows` on, the create route, the create overlay and 
 |---|---|---|
 | State | `components/habits/guided/use-guided-habit-flow.ts`; shared `habit-flow.ts`, `habit-flow-navigation.ts`, `habit-flow-answers.ts`, `habit-flow-details.ts` | One view over `use-habit-form.ts`. The steps the phrase gave are skipped. A step the person answered stays in the progress. Edit opens on the summary and reads no phrase |
 | Phrase, when, time, reminder, type, summary | `components/habits/guided/guided-step-views.tsx` | The local read runs first. The free read runs once on leaving step 1, online and only for unread words. A past day typed in words is refused for a new task. The summary shows the title with the emoji well, the type, when, time, length when a time exists, and reminder |
-| Repeat, length, reminder kinds, the optional list and each optional question | `components/habits/guided/guided-detail-views.tsx` | Each question hosts the current field component unchanged: the schedule fields, corrections, month days and interval; the end time; `HabitReminderEditors`; description; checklist with templates; sub-items; avoid, then slip alert; tags; goals; end date; parent in edit |
-| Moved form owners | `habit-form-fields/habit-tags-field.tsx`, `end-date-editor.tsx`, `habit-avoidance-fields.tsx`, `HabitReminderEditors` in `habit-timing-field.tsx` | The current form and the guided flow render the same components |
+| Repeat, length, the optional list and each optional question | `components/habits/guided/guided-detail-views.tsx` | Each question hosts the current field component unchanged: the schedule fields, corrections, month days and interval; the end time; description; checklist with templates; sub-items; avoid, then slip alert; tags; goals; end date; parent in edit. The parent picker title is the question `habits.flow.optional.parentPicker` |
+| Reminder kinds | `components/habits/guided/reminder-kind-step.tsx` | One quick option for each kind: the reminders at set times, the repeat, and no reminder. The editor of the chosen kind is the free path, with the permission notice above it: `HabitFixedReminderEditors` or `RepeatReminderFields`. An undated item shows the repeat only. No switch and no radio group show |
+| Moved form owners | `habit-form-fields/habit-tags-field.tsx`, `end-date-editor.tsx`, `habit-avoidance-fields.tsx`, `HabitFixedReminderEditors` in `habit-timing-field.tsx`, `RepeatReminderFields` in `repeat-reminder-section.tsx` | The current form and the guided flow render the same components |
 | Result | `components/habits/guided/habit-result-dialog.tsx` | A create opens the dialog from the saved record. A queued Android create uses the optimistic record. An edit closes with `result.habit.updated`. A sub-item create closes as before, because its request returns no id |
 
 | Current field or action | Place in the guided flow |
@@ -404,7 +405,7 @@ With the flag `orbit_guided_flows` on, the create route, the create overlay and 
 | When, date phrase and calendar | Step 2, or the summary value. A habit's value opens the repeat question with its start date |
 | Schedule mode, quantity, unit, weekdays, count, month days, interval | The repeat question: the mode as two quick options, the rest as the free path |
 | Paid setup read | Not shown. The free read runs after step 1 |
-| Time, end time, reminder and every reminder kind | Step 3, step 4, the length value and the reminder value with `HabitReminderEditors` and its permission notice |
+| Time, end time, reminder and every reminder kind | Step 3, step 4, the length value, and the reminder value: the reminder kind question with its quick options, the editor of the chosen kind and the permission notice |
 | Checklist and templates, sub-items, avoid and slip alert, tags, goals, end date, parent | One optional question each. Avoid leads to the slip alert question. Parent shows in edit only |
 | Create actions, cancel, offline refusal | The summary primary keeps the label by type. Close replaces cancel. The web offline refusal shows on the summary |
 | Unsaved-change guard | The discard sheet, on close and on Escape |

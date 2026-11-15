@@ -74,6 +74,7 @@ describe('Portuguese ICU zero plurals', () => {
     ['habits.breakdown.createCount', 'nenhum hábito'],
     ['habits.breakdown.createdSuccess', 'nenhum hábito criado'],
     ['goals.detail.derivedStreak', 'O progresso da sequência é calculado automaticamente, então não pode ser editado aqui.'],
+    ['goals.detail.line.daysLeft', 'Pelas minhas contas, o prazo é hoje.'],
     ['wrapped.slides.streak.caption', 'Seu próximo registro começa uma nova sequência.'],
     ['progressScreen.streak.covered', 'Um congelamento cobriu date. Não resta nenhum.'],
     ['progressScreen.streak.automaticCovered', 'O Orbit cobriu date automaticamente com um congelamento. Não resta nenhum.'],
