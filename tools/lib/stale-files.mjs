@@ -144,23 +144,38 @@ const scratchpadLinks = (session) => {
 }
 
 /**
+ * This checkout and, for a linked worktree, its primary checkout. The run writes its record and its chain ledger in the
+ * checkout it runs in, and a session in a linked worktree lists and removes too.
+ */
+const runCheckoutsOf = (repoRoot) => {
+  const gitDirectory = gitDirectoryOf(repoRoot)
+  const commonMarker = join(gitDirectory, "commondir")
+  const primary = existsSync(commonMarker) ? dirname(resolve(gitDirectory, readFileSync(commonMarker, "utf8").trim())) : repoRoot
+  return [...new Set([resolve(repoRoot), resolve(primary)])]
+}
+
+/**
  * This session, the run session, a live session, the session each of them took over from, and a successor the run
  * nominated: each one still reads its scratchpad. The run record counts whatever session reads it, so a second session
- * in the checkout never removes the relay pair of the run.
+ * in the checkout or in a linked worktree never removes the relay pair of the run.
  */
 export const protectedSessionsOf = (sessionId, repoRoot = REPO_ROOT, liveSessionIds = []) => {
   const sessions = new Map([[sessionId, "this session"]])
   const add = (id, reason) => {
     if (typeof id === "string" && id !== "" && !sessions.has(id)) sessions.set(id, reason)
   }
-  const state = readRunState(repoRoot)
-  const runSession = typeof state?.sessionId === "string" && state.sessionId !== "" ? state.sessionId : null
-  const runName = runSession === sessionId ? "this session" : "the run session"
-  add(runSession, "the run session")
-  add(state?.relay?.from, `the predecessor of ${runName}`)
-  add(state?.relay?.successorSessionId, `the nominated successor of ${runName}`)
-  const heads = new Map([...liveSessionIds.map((id) => [id, `live session ${id.slice(0, 8)}`]), ...(runSession ? [[runSession, runName]] : []), [sessionId, "this session"]])
-  for (const chain of readSessionChain(repoRoot).chains) {
+  const checkouts = runCheckoutsOf(repoRoot)
+  const heads = new Map(liveSessionIds.map((id) => [id, `live session ${id.slice(0, 8)}`]))
+  for (const state of checkouts.map((checkout) => readRunState(checkout))) {
+    const runSession = typeof state?.sessionId === "string" && state.sessionId !== "" ? state.sessionId : null
+    const runName = runSession === sessionId ? "this session" : "the run session"
+    add(runSession, "the run session")
+    add(state?.relay?.from, `the predecessor of ${runName}`)
+    add(state?.relay?.successorSessionId, `the nominated successor of ${runName}`)
+    if (runSession) heads.set(runSession, runName)
+  }
+  heads.set(sessionId, "this session")
+  for (const chain of checkouts.flatMap((checkout) => readSessionChain(checkout).chains)) {
     for (const entry of chain.entries ?? []) {
       if (heads.has(entry.successorSessionId)) add(entry.sessionId, `the predecessor of ${heads.get(entry.successorSessionId)}`)
     }
@@ -184,10 +199,12 @@ const listWorktrees = (repositoryPath, probes) => {
 
 /** What every class reads once: the process table, the live sessions, the protected sessions and the worktrees. */
 const gatherEvidence = (context, probes) => {
-  const worktrees = Object.values(context.repositories).filter((path) => existsSync(path)).flatMap((path) => listWorktrees(path, probes) ?? [])
+  const listed = Object.values(context.repositories).filter((path) => existsSync(path)).map((path) => ({ path, worktrees: listWorktrees(path, probes) }))
+  const worktrees = listed.flatMap((repository) => repository.worktrees ?? [])
     .filter((worktree) => !worktree.missing).map((worktree) => ({ ...worktree, path: canonical(worktree.path) }))
   const liveSessions = probes.liveSessions(context.configDirectories)
   return { sessionRoot: context.sessionRoot ? canonical(context.sessionRoot) : null, carryRoot: canonical(context.carryRoot), worktrees,
+    unlistedRepositories: listed.filter((repository) => repository.worktrees === null).map((repository) => repository.path),
     protectedSessions: protectedSessionsOf(context.sessionId, context.repoRoot, liveSessions.map((live) => live.sessionId)), processes: probes.processes(), liveSessions }
 }
 
@@ -220,6 +237,8 @@ const nestedWorktreeHold = (worktree, probes) => {
 const holdOf = (path, evidence, probes) => {
   const link = evidence.links.find((entry) => within(entry.target, path))
   if (link) return `the scratchpad of session ${link.sessionId.slice(0, 8)} links into it`
+  // A worktree git could not list is invisible here, and it can be the tree of an open pull request.
+  if (evidence.unlistedRepositories.length > 0) return `the worktrees of ${evidence.unlistedRepositories.join(", ")} could not be listed`
   for (const worktree of evidence.worktrees.filter((candidate) => within(candidate.path, path))) {
     const hold = nestedWorktreeHold(worktree, probes)
     if (hold) return `worktree ${worktree.path} in it stays: ${hold}`

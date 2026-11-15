@@ -79,6 +79,22 @@ const sessionCases = () => {
     ["the run session", THIS, /^the run session$/], ["the run session's chain predecessor", CHAIN_PREDECESSOR, /predecessor of the run session/],
     ["the run session's relay predecessor", RUN_PREDECESSOR, /predecessor of the run session/], ["the run session's nominated successor", SUCCESSOR, /nominated successor of the run session/],
   ]) T(`stale-files: from another session, ${name} is kept`, reason.test(reasonOf(second, directory(session)) ?? ""), `reason: ${reasonOf(second, directory(session))}`)
+  // A session in a linked worktree lists too, and the run writes its record and its chain ledger in the primary checkout.
+  const linked = join(machine.base, "linked")
+  mkdirSync(join(machine.checkout, ".git", "worktrees", "linked"), { recursive: true })
+  mkdirSync(linked)
+  writeFileSync(join(linked, ".git"), `gitdir: ${join(machine.checkout, ".git", "worktrees", "linked")}\n`)
+  writeFileSync(join(machine.checkout, ".git", "worktrees", "linked", "commondir"), "../..\n")
+  const fromLinked = collectListing({ ...machine.context, sessionId: OTHER, repoRoot: linked }, { probes: quietProbes })
+  for (const [name, session, reason] of [
+    ["the run session", THIS, /^the run session$/], ["the run session's chain predecessor", CHAIN_PREDECESSOR, /predecessor of the run session/],
+    ["the run session's relay predecessor", RUN_PREDECESSOR, /predecessor of the run session/], ["the run session's nominated successor", SUCCESSOR, /nominated successor of the run session/],
+  ]) T(`stale-files: from a linked worktree, ${name} is kept`, reason.test(reasonOf(fromLinked, directory(session)) ?? ""), `reason: ${reasonOf(fromLinked, directory(session))}`)
+  // A repository whose worktrees git cannot list could hold the open pull request's tree in any session directory.
+  const unlisted = collectListing({ ...machine.context, repositories: { ui: machine.checkout } },
+    { probes: { ...quietProbes, git: (cwd, args) => (args[0] === "worktree" ? null : "") } })
+  T("stale-files: an unreadable worktree list keeps every session directory", stalePaths(unlisted, "session").length === 0
+    && /worktrees of .* could not be listed/.test(reasonOf(unlisted, directory(STALE)) ?? ""), JSON.stringify(unlisted.stale))
   const blind = collectListing(machine.context, { probes: { ...quietProbes, processes: () => null } })
   T("stale-files: an unreadable process table keeps every session directory", stalePaths(blind, "session").length === 0 && /process table could not be read/.test(reasonOf(blind, directory(STALE)) ?? ""), JSON.stringify(blind.stale))
   const rootless = collectListing({ ...machine.context, sessionRoot: null }, { probes: quietProbes })
