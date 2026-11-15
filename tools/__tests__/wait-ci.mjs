@@ -146,8 +146,8 @@ export const cases = async () => {
   T("wait-ci: absent required check waits for completion", requiredResult.status === 0 && JSON.parse(requiredResult.stdout).reason === "SETTLED", requiredResult.stderr)
 
   /**
-   * Pullfrog reviews on request, and the request waits for CI, so a plain waiter that also waited
-   * for the protected pullfrog-approval check would hold until its ceiling on every unreviewed head.
+   * Pullfrog reviews only on request, so a plain waiter that also waited for the protected
+   * pullfrog-approval check would hold until its ceiling on every head nobody asked to review.
    */
   const reviewProtection = { kind: "protection", stdout: JSON.stringify({ ...confirmed.protection, contexts: ["Lint", "pullfrog-approval"], checks: [...confirmed.protection.checks, { context: "pullfrog-approval", app_id: 1768019 }] }) }
   const beforeReview = fixture("before-review", [reviewProtection])
@@ -212,8 +212,9 @@ export const cases = async () => {
   T("wait-ci: settled result names failing checks", failingResult.status === 6 && JSON.parse(failingResult.stdout).pullRequests[0].failingChecks.includes("Lint"), failingResult.stderr)
 
   /**
-   * Shapes copied from the real check runs of ui#2419 head 25f27997b: a failed Unit Tests job skips
-   * the SonarCloud Analysis job, so the SonarCloud app never posts the required SonarCloud Code Analysis check.
+   * Shapes copied from the real check runs of ui#2419 head 25f27997b, before the scan moved into
+   * Unit Tests: a failed Unit Tests job skips the SonarCloud Analysis job, so the SonarCloud app never
+   * posts the required SonarCloud Code Analysis check.
    */
   const sonarProtection = { kind: "protection", stdout: JSON.stringify({ ...confirmed.protection,
     contexts: ["Unit Tests", "SonarCloud Code Analysis"],

@@ -10,7 +10,7 @@ path predicts it.
 | playbook | read it when |
 |---|---|
 | `debugging.md` | a bug, a triage, `/investigate`, a merge conflict |
-| `review-and-audit.md` | `/audit-*`, a Pullfrog review to act on, any fan-out assessment |
+| `review-and-audit.md` | `/audit-*`, a Pullfrog review to act on, before every push of a pull request head, any fan-out assessment |
 | `planning-and-artifacts.md` | `/ticket`, `/orchestrate`, ticket writing, ADRs |
 | `redesign-screen.md` | any of the thirteen redesign screens: the D76 loop and its ui-skills sweep |
 | `context-engineering.md` | authoring anything the agent reads: a rule, playbook, skill, agent, tool, ticket |

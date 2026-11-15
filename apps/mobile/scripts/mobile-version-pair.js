@@ -11,13 +11,19 @@ Set GITHUB_REPOSITORY (owner/name) and GH_TOKEN, as in GitHub Actions.
 
 Commands:
   check --platform <android|ios> --environment <staging|production> --app-version <x.y.z>
-        --sha <commit> [--platform-only-reason <text>]
+        --sha <commit> [--platform-only-reason <text>] [--stage <build|upload>] [--wait-minutes <n>]
       Refuse a version that puts the two platforms out of step. Exit 0 allows, 1 refuses.
       iOS takes the newest Android version. A platform-only release, and Android after an
       iOS-only release, must go above the newest version of the other platform.
       --sha is the commit the release builds. A version that a platform already carries
       takes only the commit of its newest record on that platform. The check refuses a
       version whose newest record names no commit.
+      An iOS version above both platforms waits for Android when an Android release of that
+      version runs on the same commit (an android-release.yml run that is not completed).
+      --stage build (the iOS build start) allows that wait. --stage upload (the default) reads
+      the records again every 30 seconds for up to --wait-minutes (default 0), then allows
+      only when Android recorded the version from the same commit. Without such a run, the
+      check refuses at once.
   plan --environment <staging|production>
       Print the newest version of each platform and the next shared version as JSON.
   record-ios --environment <staging|production> --app-version <x.y.z> --build-number <n>
@@ -31,6 +37,7 @@ ${PAIRING}
 --help, -h  print this usage and exit 0. In the place of a flag value, it is that value.
 exit codes: 0 success; 1 refused or read error; 2 invalid arguments`;
 
+const ANDROID_WORKFLOW = "android-release.yml";
 const VERSION_PATTERN = /^(\d+)\.(\d+)\.(\d+)$/;
 const COMMIT_PATTERN = /^[a-f0-9]{40}$/;
 const TASKS = { android: "android-release", ios: "ios-release" };
@@ -39,6 +46,12 @@ const ENVIRONMENTS = ["staging", "production"];
 const PLATFORMS = ["android", "ios"];
 const DEPLOYMENT_PAGE_SIZE = 100;
 const RECORD_ATTEMPTS = 3;
+const STAGES = ["build", "upload"];
+const WAIT_INTERVAL_MS = 30_000;
+const MAXIMUM_WAIT_MINUTES = 120;
+/** The run name of android-release.yml: `Android Release <app_version> (<versionCode>) to <track> on <ref>`. */
+const ANDROID_RUN_TITLE = /^Android Release (\d+\.\d+\.\d+) \(\d+\) to (internal|open|production) on /;
+const TRACK_ENVIRONMENTS = { internal: "staging", open: "production", production: "production" };
 
 function parseVersion(value) {
   const match = typeof value === "string" ? VERSION_PATTERN.exec(value) : null;
@@ -146,6 +159,43 @@ function refuse(message) {
   return { allowed: false, platformOnly: false, message };
 }
 
+/**
+ * True when iOS, with no platform-only reason, releases a version above the newest version of both platforms.
+ * Android may be releasing that version now, so the check waits for its record instead of refusing.
+ */
+function awaitsAndroid({ platform, appVersion, platformOnlyReason, platformRecords, siblingRecords }) {
+  if (platform !== "ios" || (typeof platformOnlyReason === "string" && platformOnlyReason.trim())) return false;
+  return [newestVersion(platformRecords), newestVersion(siblingRecords)]
+    .every((newest) => newest === null || compareVersions(appVersion, newest) > 0);
+}
+
+/** True when an android-release.yml run of `appVersion` for `environment` on commit `sha` is not completed. */
+function androidReleaseRunning(runs, { appVersion, environment, sha }) {
+  if (!Array.isArray(runs?.workflow_runs)) throw new Error("GitHub returned an unexpected workflow runs response");
+  return runs.workflow_runs.some((run) => {
+    const title = ANDROID_RUN_TITLE.exec(typeof run?.display_title === "string" ? run.display_title : "");
+    return title !== null && run.head_sha === sha && run.status !== "completed"
+      && title[1] === appVersion && TRACK_ENVIRONMENTS[title[2]] === environment;
+  });
+}
+
+/**
+ * Repeat `decide` every 30 seconds while it reports a pending Android upload, for up to `waitMinutes`.
+ * A pending decision at the end refuses.
+ */
+function waitForAndroid({ decide, waitMinutes, pause = pauseFor, now = Date.now }) {
+  const deadline = now() + waitMinutes * 60_000;
+  for (;;) {
+    const decision = decide();
+    if (!decision.pending) return decision;
+    if (now() >= deadline) {
+      return refuse(`${decision.message} The upload waited ${waitMinutes} minutes, so it stops without uploading.`);
+    }
+    console.log(decision.message);
+    pause(WAIT_INTERVAL_MS);
+  }
+}
+
 function readGitHub(path) {
   return JSON.parse(execFileSync("gh", ["api", path], { encoding: "utf8", timeout: 30_000, maxBuffer: 4 * 1024 * 1024 }));
 }
@@ -222,7 +272,7 @@ function pauseFor(milliseconds) {
 }
 
 const FLAGS = {
-  check: { required: ["platform", "environment", "app-version", "sha"], optional: ["platform-only-reason"] },
+  check: { required: ["platform", "environment", "app-version", "sha"], optional: ["platform-only-reason", "stage", "wait-minutes"] },
   plan: { required: ["environment"], optional: [] },
   "record-ios": {
     required: ["environment", "app-version", "build-number", "variant", "sha"],
@@ -254,6 +304,9 @@ function parseArguments(argv) {
   if (options["build-number"] !== undefined && !/^[1-9]\d{0,17}$/.test(options["build-number"])) return null;
   if (options["app-version"] !== undefined && !VERSION_PATTERN.test(options["app-version"])) return null;
   if (options.sha !== undefined && !COMMIT_PATTERN.test(options.sha)) return null;
+  if (options.stage !== undefined && !STAGES.includes(options.stage)) return null;
+  if (options["wait-minutes"] !== undefined
+    && (!/^\d{1,3}$/.test(options["wait-minutes"]) || Number(options["wait-minutes"]) > MAXIMUM_WAIT_MINUTES)) return null;
   return { command, options };
 }
 
@@ -267,17 +320,45 @@ function appendSummary(lines) {
   if (process.env.GITHUB_STEP_SUMMARY) fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, `${lines.join("\n")}\n`);
 }
 
-function runCheck(options) {
-  const repository = requireRepository();
+/**
+ * One check against the current records. An iOS version that Android is releasing on the same commit is pending.
+ * The records are read again after the run lookup, because the Android run can record and finish between the reads.
+ */
+function decideCheck(options, repository) {
   const siblingPlatform = options.platform === "android" ? "ios" : "android";
-  const decision = checkVersionPair({
+  const appVersion = options["app-version"];
+  const readInput = () => ({
     platform: options.platform,
-    appVersion: options["app-version"],
+    appVersion,
     sha: options.sha,
     platformOnlyReason: options["platform-only-reason"],
     platformRecords: readDeployments({ platform: options.platform, environment: options.environment, repository }),
     siblingRecords: readDeployments({ platform: siblingPlatform, environment: options.environment, repository }),
   });
+  const input = readInput();
+  const decision = checkVersionPair(input);
+  if (decision.allowed || !awaitsAndroid(input)) return decision;
+  const runs = readGitHub(`repos/${repository}/actions/workflows/${ANDROID_WORKFLOW}/runs?head_sha=${options.sha}&per_page=100`);
+  if (androidReleaseRunning(runs, { appVersion, environment: options.environment, sha: options.sha })) {
+    return { allowed: false, platformOnly: false, pending: true, message: `Android ${appVersion} runs on ${options.sha} and has not recorded its upload yet.` };
+  }
+  const recheck = checkVersionPair(readInput());
+  if (recheck.allowed) return recheck;
+  return refuse(`${recheck.message} No Android release of ${appVersion} runs on ${options.sha}: release Android first, or start iOS while it runs.`);
+}
+
+function runCheck(options) {
+  const repository = requireRepository();
+  const decide = () => decideCheck(options, repository);
+  let decision;
+  if (options.stage === "build") {
+    decision = decide();
+    if (decision.pending) {
+      decision = { allowed: true, platformOnly: false, message: `${decision.message} The upload step waits for that record.` };
+    }
+  } else {
+    decision = waitForAndroid({ decide, waitMinutes: Number(options["wait-minutes"] ?? "0") });
+  }
   appendSummary([
     "### Mobile version pair",
     "",
@@ -328,6 +409,9 @@ function main(argv) {
   }
 }
 
-module.exports = { bumpPatch, checkVersionPair, compareVersions, newestVersion, planVersions, recordIosDeployment };
+module.exports = {
+  androidReleaseRunning, awaitsAndroid, bumpPatch, checkVersionPair, compareVersions, newestVersion, planVersions,
+  recordIosDeployment, waitForAndroid,
+};
 
 if (require.main === module) process.exitCode = main(process.argv.slice(2));
