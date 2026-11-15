@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { AccessibilityInfo, Animated, Easing, findNodeHandle, Modal, Pressable, StyleSheet, Text, View } from 'react-native'
 import type { ResultDialogProps } from '@orbit/shared/contracts/flow'
 import { motionDurations, motionEasings, PADDING } from '@orbit/shared/theme'
@@ -29,6 +29,35 @@ function useHop(active: boolean) {
   return hop
 }
 
+interface ResultDialogFrameProps {
+  /** The accessible name of the panel, and its description when the panel states one sentence. */
+  label: string
+  hint?: string
+  testID?: string
+  /** A scrim press and Android back. */
+  onClose: () => void
+  children: ReactNode
+}
+
+/** The centred panel of the result dialog over the scrim, at every width. The result dialog and its read failure share it. */
+export function ResultDialogFrame({ label, hint, testID = 'result-dialog', onClose, children }: Readonly<ResultDialogFrameProps>) {
+  const { currentScheme, currentTheme } = useAppTheme()
+  const tokens = createTokensV2(currentScheme, currentTheme)
+  const reducedMotion = usePrefersReducedMotion()
+  return (
+    <Modal transparent visible animationType={reducedMotion ? 'none' : 'fade'} statusBarTranslucent onRequestClose={onClose}>
+      <OrbitOverlayLayer>
+        <View style={styles.centre} testID="result-dialog-centre">
+          <Pressable accessible={false} importantForAccessibility="no" style={[StyleSheet.absoluteFill, { backgroundColor: tokens.scrim }]} onPress={onClose} testID="result-dialog-scrim" />
+          <View testID={testID} accessibilityViewIsModal accessibilityLabel={label} accessibilityHint={hint} style={[styles.panel, { backgroundColor: tokens.bgElev }]}>
+            {children}
+          </View>
+        </View>
+      </OrbitOverlayLayer>
+    </Modal>
+  )
+}
+
 /** The result dialog: centred at every width, Orbit at 128, one sentence, a filled action and a ghost action. It asks nothing. */
 export function ResultDialog({ title, sentence, primaryLabel, onPrimary, secondaryLabel, onSecondary, onClose, orbitState = 'feliz' }: Readonly<ResultDialogProps>) {
   const { currentScheme, currentTheme } = useAppTheme()
@@ -43,30 +72,17 @@ export function ResultDialog({ title, sentence, primaryLabel, onPrimary, seconda
   }, [])
 
   return (
-    <Modal transparent visible animationType={reducedMotion ? 'none' : 'fade'} statusBarTranslucent onRequestClose={onClose}>
-      <OrbitOverlayLayer>
-        <View style={styles.centre} testID="result-dialog-centre">
-          <Pressable accessible={false} importantForAccessibility="no" style={[StyleSheet.absoluteFill, { backgroundColor: tokens.scrim }]} onPress={onClose} testID="result-dialog-scrim" />
-          <View
-            testID="result-dialog"
-            accessibilityViewIsModal
-            accessibilityLabel={title}
-            accessibilityHint={sentence}
-            style={[styles.panel, { backgroundColor: tokens.bgElev }]}
-          >
-            <Animated.View testID="result-dialog-orbit" importantForAccessibility="no-hide-descendants" accessibilityElementsHidden style={{ transform: [{ translateY: hop }] }}>
-              <OrbitMascot size={128} state={orbitState} />
-            </Animated.View>
-            <Text accessibilityRole="header" style={[styles.title, { color: tokens.fg1 }]}>{title}</Text>
-            <Text style={[styles.sentence, { color: tokens.fg2 }]}>{sentence}</Text>
-            <ActionRow align="center">
-              <View style={styles.fullWidth}><PillButton buttonRef={primaryRef} onClick={onPrimary}>{primaryLabel}</PillButton></View>
-              {secondaryLabel && onSecondary ? <PillButton variant="ghost" size="sm" onClick={onSecondary}>{secondaryLabel}</PillButton> : null}
-            </ActionRow>
-          </View>
-        </View>
-      </OrbitOverlayLayer>
-    </Modal>
+    <ResultDialogFrame label={title} hint={sentence} onClose={onClose}>
+      <Animated.View testID="result-dialog-orbit" importantForAccessibility="no-hide-descendants" accessibilityElementsHidden style={{ transform: [{ translateY: hop }] }}>
+        <OrbitMascot size={128} state={orbitState} />
+      </Animated.View>
+      <Text accessibilityRole="header" style={[styles.title, { color: tokens.fg1 }]}>{title}</Text>
+      <Text style={[styles.sentence, { color: tokens.fg2 }]}>{sentence}</Text>
+      <ActionRow align="center">
+        <View style={styles.fullWidth}><PillButton buttonRef={primaryRef} onClick={onPrimary}>{primaryLabel}</PillButton></View>
+        {secondaryLabel && onSecondary ? <PillButton variant="ghost" size="sm" onClick={onSecondary}>{secondaryLabel}</PillButton> : null}
+      </ActionRow>
+    </ResultDialogFrame>
   )
 }
 
