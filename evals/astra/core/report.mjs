@@ -207,7 +207,7 @@ export function writeReport(summary, directory) {
     'A must-pass case passes only when each of its 3 attempts passes. No rerun on the same build replaces a failed attempt or a grader limit.',
     'Incomplete is not a pass. A held preview proves a proposal; the saved state readback proves the write.',
     'Seconds are the time that the person waits for the turns of one attempt.',
-    'A turn that fails returns no trace, so its model calls are not counted and the cost of one model call reads a little high.',
+    'A turn that fails, and a card turn that returns no trace, add no counted model calls, so the cost of one model call reads a little high.',
   ].join('\n')
   writeFileSync(`${directory}/summary.json`, `${JSON.stringify(summary, null, 2)}\n`)
   writeFileSync(`${directory}/summary.md`, `${markdown}\n`)

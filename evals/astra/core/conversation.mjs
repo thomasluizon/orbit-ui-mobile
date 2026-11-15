@@ -1,16 +1,15 @@
 import { clientContextOf, openConversation, sendTurn } from './client-turn.mjs'
-import { answerQuestion, questionOf } from './answers.mjs'
+import { answerQuestion, questionCards, questionOf } from './answers.mjs'
 import { imageBytes } from './corpus.mjs'
 import { detailFields, gradePreview, savedRecords } from './outcome.mjs'
 import { approvePendingOperation, publicApi } from '../fixtures/api.mjs'
-import { shownCards } from '../same-title-card.mjs'
 import { visibleAnswer } from '../visible-answer.mjs'
 import { safeFailureMessage } from '../credentials.mjs'
 
-// Only a throttle, a spend ceiling or a list card turn without the eval trace is no evidence of the build: the case
-// stays incomplete and continues in a later window. Each other failure is the build under test failing the person: an
-// HTTP 5xx, a stream that stops or ends without a final event, a failed approval. It fails the attempt, so no later
-// window runs the case again.
+// Only a throttle, a spend ceiling or a card turn whose answer needs the eval trace and that returned none is no
+// evidence of the build: the case stays incomplete and continues in a later window. Each other failure is the build
+// under test failing the person: an HTTP 5xx, a stream that stops or ends without a final event, a failed approval. It
+// fails the attempt, so no later window runs the case again.
 const ceilingCodes = ['AI_DAILY_BUDGET_EXCEEDED', 'AI_PROVIDER_QUOTA_EXHAUSTED']
 const failure = (turn, step) => ({ unavailable: turn.status === 429 || ceilingCodes.includes(turn.code),
   error: `${step} failed${turn.status ? ` with HTTP ${turn.status}` : ''}${turn.code ? ` (${turn.code})` : ''}: ${turn.error}` })
@@ -81,7 +80,8 @@ export async function runCase(vars, { send = sendTurn, api = publicApi(vars.cred
     output.seconds = Number((waited / 1000).toFixed(1))
     if (turn.kind === 'failed') return { ...output, ...failure(turn, 'The chat turn') }
     output.turns++
-    output.modelCalls = output.modelCalls === null || turn.trace?.modelCalls == null ? null : output.modelCalls + turn.trace.modelCalls
+    const counted = output.modelCalls
+    output.modelCalls = counted === null || turn.trace?.modelCalls == null ? null : counted + turn.trace.modelCalls
     output.previews = turn.response.pendingOperations ?? []
     if (output.previews.length || expected.read) break
     const question = questionOf(turn, expected)
@@ -91,14 +91,16 @@ export async function runCase(vars, { send = sendTurn, api = publicApi(vars.cred
     if (output.turns < typed.length) { attempted = typedMessage(output.turns); continue }
     const answer = answerQuestion(turn, vars)
     if (!answer.pass) {
-      Object.assign(output, answer.unavailable ? { unavailable: true, error: answer.reason }
+      // The turn without the trace adds no counted model calls, as a failed turn adds none, so a later window that
+      // replaces this attempt keeps the cost of the run measured.
+      Object.assign(output, answer.unavailable ? { unavailable: true, error: answer.reason, modelCalls: counted }
         : { answerFailure: answer.reason, graderLimit: answer.graderLimit === true })
       break
     }
     attempted = { content: answer.message, ...(answer.blockAnswer ? { blockAnswer: answer.blockAnswer } : {}) }
   }
   output.composition = turn.response
-  output.asked = shownCards(output).length > 0
+  output.asked = questionCards(turn.response).length > 0
   output.trace = turn.trace ? { state: 'available', requestId: turn.trace.requestId, responseRequestId: turn.responseRequestId,
     calls: turn.trace.calls, timing: turn.trace.timing } : null
   try {

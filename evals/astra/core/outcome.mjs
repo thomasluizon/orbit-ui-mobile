@@ -96,7 +96,7 @@ function withinRange(count, range, fallback) {
 }
 
 // The outcome of the turns before any approval: the questions that came before the preview, and the change list of the
-// held previews against the expected list. A read turn holds no preview and asks nothing. A preview that the grader
+// held previews against the expected list. A read turn holds no preview and no card that asks the person. A preview that the grader
 // cannot classify, or whose saved state it cannot read back, is a limit of the grader and no verdict on the assistant.
 export function gradePreview(output, vars) {
   if (output.unavailable) return verdict(false, output.error ?? 'The chat turn gave no evidence.', { unavailable: true })
@@ -106,8 +106,8 @@ export function gradePreview(output, vars) {
   const previews = output.previews ?? []
   if (expected.read) {
     if (previews.length) return verdict(false, 'The read request held a preview of a change.')
-    return output.asked ? verdict(false, 'The read request ended in a question card.')
-      : verdict(true, 'The read turn held no preview and asked nothing.')
+    return output.asked ? verdict(false, 'The read request ended in a card that asks the person to act.')
+      : verdict(true, 'The read turn held no preview and no card.')
   }
   const { min = 0, max = 0 } = expected.questions ?? {}
   if (questions > max) return verdict(false, `The assistant asked ${questions} time(s) before a preview; the request allows ${max}.`)

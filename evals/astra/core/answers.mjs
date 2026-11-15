@@ -1,5 +1,5 @@
 import { tsImport } from 'tsx/esm/api'
-import { optionTargets, questionAnswer, sameTitleCard, selectionLists, shownCards } from '../same-title-card.mjs'
+import { optionTargets, questionAnswer, sameTitleCard, selectionLists } from '../same-title-card.mjs'
 
 const { formatBlockAnswer } = await tsImport('../../../packages/shared/src/chat/block-answer.ts', import.meta.url)
 
@@ -9,7 +9,11 @@ const pickedRecord = (pick, records) => typeof pick === 'string' ? records[pick]
 // AiBlockAnswerService.BuildPickListResponseAsync previews the bulk write of that action for the picked rows. So a
 // list card can hold changes of one kind only.
 const listCardKind = { create_habits: 'create', log_habits: 'log', skip_habits: 'skip' }
-const listCards = (response) => (response.parts ?? []).filter((part) => part?.type === 'block' && part.kind === 'pickList')
+const askingKinds = ['choice', 'question', 'pickList']
+
+// The cards of a reply that ask the person: a choice or question card, or a list card that asks the person to act on
+// its rows. Only such a card is a question; a question in text is not.
+export const questionCards = (response) => (response.parts ?? []).filter((part) => part?.type === 'block' && askingKinds.includes(part.kind))
 
 // A reply without a preview is a question only when it shows a choice or question card, or a list card whose action
 // can hold each change of the request. Producer: orbit-api ends a reply with a question only through a valid, accepted
@@ -18,14 +22,19 @@ const listCards = (response) => (response.parts ?? []).filter((part) => part?.ty
 // action and a text-only reply fail the case, whatever the text says, and the person does not answer them.
 export function questionOf(turn, expected) {
   const needed = [...new Set(expected.changes.map((change) => change.kind))]
-  const lists = listCards(turn.response)
-  const unfit = lists.find((part) => needed.some((kind) => kind !== listCardKind[part.block.action]))
+  const cards = questionCards(turn.response)
+  const unfit = cards.find((part) => part.kind === 'pickList' && needed.some((kind) => kind !== listCardKind[part.block.action]))
   if (unfit) {
     return { pass: false, reason: `The reply shows a list card that can only ${listCardKind[unfit.block.action]} habits; the request needs ${needed.join(' and ')}.` }
   }
-  return lists.length || shownCards({ composition: turn.response }).length ? { pass: true }
-    : { pass: false, reason: 'The reply holds no preview and no question card.' }
+  return cards.length ? { pass: true } : { pass: false, reason: 'The reply holds no preview and no question card.' }
 }
+
+// Producer: AiChoiceSelection.TargetsOf takes the target_ids that the ask declares for an option, and the option's own
+// id only when that id is a record id; a list row names its record only in its ask arguments. The eval trace keeps the
+// ask arguments, so a list card, and a card with an option that is not a record id, is answered only from the trace.
+const answeredFromTrace = (card) => card.kind === 'pickList'
+  || [...optionTargets(selectionLists(card), null).values()].some((targets) => !targets.length)
 
 // The card answer that selects one record: the one option of the card that stands for exactly that record.
 function pickOnCard(card, trace, recordId, locale) {
@@ -65,10 +74,8 @@ function rowRecords(card, trace) {
 }
 
 // The list answer that selects one record, as the shipped AnswerBlock sends it: the row that stands for that record.
-// Null when no row stands for it. A turn without a trace is a missing precondition of the run (the trace flag of the
-// eval account), not a limit of the grader; a trace whose ask call does not map each row is a limit of the grader.
+// Null when no row stands for it. A trace whose ask call does not map each row is a limit of the grader.
 function pickOnList(card, trace, recordId, locale) {
-  if (!trace) return { withoutTrace: true }
   const records = rowRecords(card, trace)
   if (!records) return { limit: true }
   const row = card.block.items.find((item) => records.get(item.id) === recordId)
@@ -82,21 +89,22 @@ export function answerQuestion(turn, vars) {
   const { answer, records } = vars.core
   const locale = vars.clientContext.locale
   if (!answer) return { pass: false, reason: 'The assistant asked, and the request needs no question.' }
-  const output = { composition: turn.response, trace: turn.trace }
-  if (answer.sameTitle) {
-    const card = sameTitleCard(output, { clientContext: vars.clientContext,
-      sameTitleBaseline: { children: records.children.map((id) => ({ id })) },
-      sameTitleSet: { answer: { ...answer.sameTitle, text: answer.text[locale] } } })
-    return card.pass ? card : { ...card, graderLimit: card.reason.startsWith('The grader cannot') }
-  }
-  const cards = [...shownCards(output), ...listCards(turn.response)]
+  const cards = questionCards(turn.response)
   if (cards.length > 1) return { pass: false, reason: 'The question turn shows more than one card.' }
   const [card] = cards
+  // A missing trace is a missing precondition of the run (the trace flag of the eval account), not a fault of the build
+  // and not a limit of the grader: the case gives no evidence and continues in a later window.
+  if (!turn.trace && answeredFromTrace(card)) {
+    return { pass: false, unavailable: true, reason: 'The card answer needs the eval trace of the turn, and the turn returned none.' }
+  }
+  if (answer.sameTitle) {
+    const sameTitle = sameTitleCard({ composition: turn.response, trace: turn.trace }, { clientContext: vars.clientContext,
+      sameTitleBaseline: { children: records.children.map((id) => ({ id })) },
+      sameTitleSet: { answer: { ...answer.sameTitle, text: answer.text[locale] } } })
+    return sameTitle.pass ? sameTitle : { ...sameTitle, graderLimit: sameTitle.reason.startsWith('The grader cannot') }
+  }
   const recordId = pickedRecord(answer.pick, records)
   const selection = card.kind === 'pickList' ? pickOnList(card, turn.trace, recordId, locale) : pickOnCard(card, turn.trace, recordId, locale)
-  if (selection?.withoutTrace) {
-    return { pass: false, unavailable: true, reason: 'The list card answer needs the eval trace of the turn, and the turn returned none.' }
-  }
   if (selection?.limit) {
     return { pass: false, graderLimit: true, reason: 'The grader cannot tell which record each row of the list card stands for.' }
   }

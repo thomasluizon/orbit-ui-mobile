@@ -448,9 +448,11 @@ Each case runs as a person with a shipped client (`core/client-turn.mjs`, `core/
   says, and so does a list card of another action. The person does not answer them. One question past
   the allowed count is recorded and not answered.
 - The person answers a card through `blockAnswer` when the card can hold the decision of the case, and
-  types the decision when no card can. The record of a list row comes from the `ask` arguments in the
-  eval trace, so the list card answer needs the `astra_eval_trace` flag: a list card turn without a trace
-  gives no evidence, and a trace whose `ask` call does not map each row to one record is a grader limit.
+  types the decision when no card can. The record of a list row, and of a card option that is not a
+  record id, comes only from the `ask` arguments in the eval trace. So the run stops before its first
+  turn when `/api/config` shows the `astra_eval_trace` flag off. A card turn without the trace that its
+  answer needs gives no evidence. A trace whose `ask` call does not map each row to one record is a
+  grader limit.
 - A later owner turn starts from the recorded messages that came before it. The class e turn
   `owner-water-typed-answer` runs live instead: the earlier owner messages go first, in one conversation,
   so the server holds the state that it held for the owner.
@@ -464,6 +466,8 @@ The outcome grader (`core/outcome.mjs`) reads no tool name:
   from `eval/snapshot`. It reads each field that the request names: the title, the due date and the
   frequency from the snapshot row, and the due time of a created record from `GET habits/{id}`.
   A preview that does not match is never approved.
+- A read request fails when its reply holds a preview, or a choice, question or list card. Only a card
+  is a question, as for a write request.
 - `llm-rubric` grades only the text of a read answer.
 
 Run the gate from `evals/astra`, after the environment and catalog steps of this section:
@@ -498,14 +502,14 @@ passes `--as-baseline` in place of `--baseline`. A merge without one of the two 
 The API returns no cost for one turn. Read the run's cost from the API's daily `AI cost` line for the
 eval purpose and pass it as `--run-cost-usd`; each case takes the share that its measured model calls
 hold (one `model_call` phase of the opt-in trace is one model call), with the calls of the attempts that
-a later window or a rerun replaced. Without it the gate stays incomplete. A turn that fails returns no
-trace, so its model calls are not counted and the cost of one model call reads a little high.
+a later window or a rerun replaced. Without it the gate stays incomplete. A turn that fails, and a card
+turn that returns no trace, add no counted model calls, so the cost of one model call reads a little high.
 
 No rerun on the same build replaces a failure. An attempt that fails, fails its case for that build:
 a wrong preview, a reply without a preview and without a question card, HTTP 5xx, a stream that ends
 without a final event, or a failed approval. Only HTTP 429, `AI_DAILY_BUDGET_EXCEEDED`,
-`AI_PROVIDER_QUOTA_EXHAUSTED`, a failed precondition and a list card turn without the eval trace are no
-evidence. Such an attempt leaves its case incomplete, and only such a case
+`AI_PROVIDER_QUOTA_EXHAUSTED`, a failed precondition and a card turn without the eval trace that its
+answer needs are no evidence. Such an attempt leaves its case incomplete, and only such a case
 may appear again in a later window. The merge refuses a second result for a case that passed, failed or
 holds a grader limit, a window of another API commit, and a case whose `k` differs from the corpus.
 

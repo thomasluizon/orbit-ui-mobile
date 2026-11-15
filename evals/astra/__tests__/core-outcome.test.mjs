@@ -1,9 +1,11 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { tsImport } from 'tsx/esm/api'
-import { coreCases } from '../core/corpus.mjs'
+import { coreCases, coreDescriptors } from '../core/corpus.mjs'
 import { runCase } from '../core/conversation.mjs'
 import { changeList } from '../core/change-list.mjs'
+import { mergeRuns } from '../core/merge.mjs'
 import { gradePreview, matchesField, outcome } from '../core/outcome.mjs'
+import { summarize } from '../core/report.mjs'
 import { publicApi } from '../fixtures/api.mjs'
 import { captures } from './fixtures/core-streams.mjs'
 import { recordedApi, recordedStream, requestVars } from './fixtures/core-replay.mjs'
@@ -55,6 +57,9 @@ async function scripted(replies, source = request, { api, now, traces = [], reco
   return { output, vars, sent, calls, verdict: outcome(output, { vars }) }
 }
 const textReply = (aiMessage, parts = []) => ({ ...finalOf('complete', 0), aiMessage, parts })
+const noTrace = 'The card answer needs the eval trace of the turn, and the turn returned none.'
+const choiceCard = (question, options) => ({ type: 'block', kind: 'choice', block: { blockId: '99999999-0000-4000-8000-000000000001',
+  question, options, multiSelect: false, allowFreeText: false, expiresAtUtc: '2026-11-14T00:00:00Z' } })
 
 describe('the client path', () => {
   it('sends each turn to the stream route with the form the shipped clients build', async () => {
@@ -236,10 +241,28 @@ describe('a reply without a preview', () => {
     it('gives no evidence when the turn returns no trace, and does not answer', async () => {
       const { sent, output, verdict } = await answered([])
       expect(sent).toHaveLength(1)
-      expect(output).toMatchObject({ unavailable: true,
-        error: 'The list card answer needs the eval trace of the turn, and the turn returned none.' })
+      expect(output).toMatchObject({ unavailable: true, error: noTrace })
       expect(output.graderLimit).toBeUndefined()
       expect(verdict).toMatchObject({ pass: false, metadata: { unavailable: true } })
+    })
+
+    // The measured run cost holds the spend of each window, so a later window that replaces the attempt keeps the model
+    // calls of its traced turns. The turn without a trace adds none, as a failed turn adds none.
+    it('keeps the cost measured when a later window replaces the attempt without a trace', async () => {
+      const { output, verdict } = await answered([])
+      expect(output.modelCalls).toBe(0)
+      const descriptor = coreDescriptors().find(({ id }) => id === logWalk.metadata.id)
+      const entry = (attempt, { pass, reason, metadata }) => ({ testCase: { metadata: descriptor, vars: {} }, success: pass,
+        response: { output: attempt }, gradingResult: { componentResults: [{ pass, reason, metadata, assertion: { metric: 'outcome' } }] } })
+      const passed = entry({ turns: 2, questionsBeforePreview: 1, previews: [{ id: 'preview', actionKey: 'logHabits', items: [] }],
+        modelCalls: 3, seconds: 2 }, { pass: true, reason: 'The saved state matches the approved changes.' })
+      const build = { run: 'must-pass', apiCommit: 'a'.repeat(40) }
+      const first = summarize([passed, passed, entry(output, verdict)], [descriptor], build)
+      const later = summarize([passed, passed, passed], [descriptor], build)
+      const merged = mergeRuns([first, later], { asBaseline: true, runCostUsd: 0.012, descriptors: [descriptor] })
+      expect(merged.cases[0]).toMatchObject({ passK: 'pass', modelCalls: [3, 3, 3], supersededModelCalls: [3, 3, 0] })
+      expect(merged.cost).toMatchObject({ modelCalls: 15, perModelCallUsd: 0.0008, status: 'pass' })
+      expect(merged.status).toBe('pass')
     })
 
     it.each([
@@ -288,6 +311,54 @@ describe('a reply without a preview', () => {
     expect(sent).toHaveLength(1)
     expect(output.questionsBeforePreview).toBe(0)
     expect(verdict).toMatchObject({ pass: false, reason: noCard })
+  })
+})
+
+// Producer: AiChoiceSelection.TargetsOf takes the target_ids that the ask declares for an option, and the option's own id
+// only when that id is a record id. The eval trace keeps the ask arguments, so a set option names its records there alone.
+describe('a same-title choice card with set options', () => {
+  const source = caseOf('owner-water-request-en-1')
+  const { children } = captures.complete
+  const options = [{ id: 'last-two', label: 'The last 2' }, { id: 'first-four', label: 'The first 4' }]
+  const card = choiceCard('Which 2 should I delete?', options)
+  const askTrace = { calls: [{ name: 'ask', resultStatus: 'Succeeded', arguments: { input: { form: 'choice', question: card.block.question,
+    options: [{ ...options[0], target_ids: children.slice(4) }, { ...options[1], target_ids: children.slice(0, 4) }] } } }] }
+  const asked = (traces) => scripted([textReply(null, [card]), finalOf('complete', 1)], source, { traces })
+
+  it('answers through blockAnswer with the set option of the decision that the trace names', async () => {
+    const { sent, verdict } = await asked([askTrace])
+    expect(sent[1]).toEqual({ content: 'The last 2', blockAnswer: { blockId: card.block.blockId, selectedIds: ['last-two'] } })
+    expect(verdict).toMatchObject({ pass: true })
+  })
+
+  it('gives no evidence when the turn returns no trace, and does not answer', async () => {
+    const { sent, output, verdict } = await asked([])
+    expect(sent).toHaveLength(1)
+    expect(output).toMatchObject({ unavailable: true, error: noTrace, modelCalls: 0 })
+    expect(output.answerFailure).toBeUndefined()
+    expect(verdict).toMatchObject({ pass: false, metadata: { unavailable: true } })
+  })
+})
+
+// The round 3 rule holds for a read request too: only a card is the question, and a list card asks the person to act.
+describe('a read request', () => {
+  const read = caseOf('read-today-en-1')
+  const text = { type: 'text', text: 'You have Water and Walk due today.' }
+  const listCard = { type: 'block', kind: 'pickList', block: { blockId: '99999999-0000-4000-8000-000000000002', title: 'Which did you finish?',
+    action: 'log_habits', items: [{ id: 'water', label: 'Water', detail: null }, { id: 'walk', label: 'Walk', detail: null }],
+    expiresAtUtc: '2026-11-14T00:00:00Z' } }
+
+  it.each([['a list card that asks the person to log', listCard],
+    ['a choice card', choiceCard('Did you finish one?', [{ id: 'yes', label: 'Yes' }, { id: 'no', label: 'No' }])]])('fails a reply that ends in %s', async (_name, card) => {
+    const { sent, output, verdict } = await scripted([textReply(text.text, [text, card])], read)
+    expect(sent).toHaveLength(1)
+    expect(output.asked).toBe(true)
+    expect(verdict).toMatchObject({ pass: false, reason: 'The read request ended in a card that asks the person to act.' })
+  })
+
+  it('passes a reply that holds no preview and no card, whatever its text asks', async () => {
+    const { verdict } = await scripted([textReply('You have Water and Walk due today. Want to log one?', [text])], read)
+    expect(verdict).toMatchObject({ pass: true, reason: 'The read turn held no preview and no card.' })
   })
 })
 

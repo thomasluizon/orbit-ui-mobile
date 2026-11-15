@@ -27,7 +27,7 @@ export function fixtureFetch(getState) {
   const undone = new Set()
   let retrospectiveCached = false
   return async (url, options) => {
-    const { habits, goals, tags, templates, requests, pro, exhausted, capacity, email, unmetered = true, uses24HourClock } = getState()
+    const { habits, goals, tags, templates, requests, pro, exhausted, capacity, email, unmetered = true, trace = true, uses24HourClock } = getState()
     if (new URL(url).pathname === '/health') {
       requests.push({ path: 'health', method: options.method })
       return Response.json({ status: 'Healthy', commit: apiCommit, checks: [] })
@@ -45,7 +45,7 @@ export function fixtureFetch(getState) {
     }
     if (path === 'config' && method === 'GET') return Response.json({
       limits: { MaxHabitDepth: '5', MaxTagsPerHabit: '5', MaxReferrals: '10', ReferralRewardDays: '10' },
-      features: { astra_eval_unmetered: { enabled: unmetered, planRequirement: null } },
+      features: { astra_eval_unmetered: { enabled: unmetered, planRequirement: null }, astra_eval_trace: { enabled: trace, planRequirement: null } },
       settings: { syncIntervalSeconds: 300, syncMaxBatchSize: 100 }, minVersion: '0.0.0',
     })
     if (path === 'profile' && method === 'GET') return Response.json({ email, hasProAccess: pro, hasGoogleConnection: false,

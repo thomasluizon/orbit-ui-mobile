@@ -104,3 +104,14 @@ export async function requireEvalAccess(credentialKey) {
     throw new Error(`Eval preflight failed: turn ${expected ? 'on' : 'off'} astra_eval_unmetered for ${credentialKey} through /flag on staging, then verify /api/config and retry. ${safeFailureMessage(error)}`)
   }
 }
+
+// Producer: orbit-api ProcessUserChatCommand.Handle returns the opt-in eval trace only when the account holds
+// astra_eval_trace (FeatureFlagKeys.AiEvalTrace), and GET api/config resolves the same flag (FeatureFlagService.Resolve).
+export async function requireEvalTrace(credentialKey) {
+  try {
+    const { payload } = await publicApi(credentialKey)('GET', 'config')
+    if (payload?.features?.astra_eval_trace?.enabled !== true) throw new Error('The eval trace flag is off.')
+  } catch (error) {
+    throw new Error(`Eval preflight failed: turn on astra_eval_trace for ${credentialKey} through /flag on staging, then verify /api/config and retry. ${safeFailureMessage(error)}`)
+  }
+}

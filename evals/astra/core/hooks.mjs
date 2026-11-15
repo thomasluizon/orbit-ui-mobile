@@ -4,7 +4,7 @@ import { tsImport } from 'tsx/esm/api'
 import { apiOrigin, healthyApi, readCredentials, refreshCredential, safeFailureMessage } from '../credentials.mjs'
 import { requireEvalOrigin, resetFixture } from '../fixtures/reset.mjs'
 import { fixtureHabitTitles } from '../fixtures/names.mjs'
-import { requireEvalAccess } from '../fixtures/api.mjs'
+import { requireEvalAccess, requireEvalTrace } from '../fixtures/api.mjs'
 import { apiCommit } from '../trace-policy.mjs'
 import { summarize, writeReport, writeResults } from './report.mjs'
 
@@ -34,10 +34,13 @@ export async function beforeAll({ suite }) {
     throw new Error(`Astra catalog ${apiCommit} differs from API ${health.commit}. Regenerate from a clean API checkout at that commit with node evals/astra/generate-catalog.mjs <api-checkout>.`)
   }
   readCredentials()
+  // Each card answer and each measured model call reads the eval trace, so an account without the trace flag stops the
+  // run here, before any chat turn spends.
   const unmetered = new Map()
   for (const key of new Set(suite.tests.map((test) => test.vars.credentialKey))) {
     await refreshCredential(key)
     unmetered.set(key, await requireEvalAccess(key))
+    await requireEvalTrace(key)
   }
   run = { name, directory: `reports/core-${name}`, descriptors, apiCommit: health.commit, unmetered, results: [] }
   persist(run.results)

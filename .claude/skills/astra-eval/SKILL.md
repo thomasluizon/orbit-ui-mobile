@@ -43,8 +43,8 @@ No rerun on the same build replaces a failure. A failed attempt fails its case f
 a second result for a case that passed or failed. A failure of the build is a failed attempt: a wrong preview, a reply
 without a preview and without a choice, question or fitting list card (a question in text is never a valid ask), HTTP
 5xx, a stream without a final event, a failed approval. Only a throttle, a spend ceiling stop, a failed precondition or
-a list card turn without the eval trace is no evidence; it leaves the case incomplete, and only such a case continues
-in a later window.
+a card turn without the eval trace that its answer needs is no evidence; it leaves the case incomplete, and only such
+a case continues in a later window. The model calls of that turn are not counted.
 
 A reply that the grader cannot read is a grader limit, not a behavior failure: the case has no verdict, and the merge
 refuses a later window of the same build for it. Each kind clears only through `--rerun` on a later API commit of the
@@ -86,7 +86,8 @@ day after it.
 
 Use the configured disposable eval accounts and their fixture reset executable. Never substitute a personal account.
 Enable the existing `astra_eval_trace` account flag through `/flag` only for disposable fixtures, record its previous
-state, and restore it after the run. The eval alone sends the opt-in header and a fresh request ID for each turn;
+state, and restore it after the run. The core set run reads `/api/config` before its first turn and stops when the flag
+is off. The eval alone sends the opt-in header and a fresh request ID for each turn;
 ordinary app requests stay default-off. Confirm the named environment and credentials are configured without
 displaying their values.
 

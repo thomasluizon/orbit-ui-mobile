@@ -285,7 +285,7 @@ describe('the report files', () => {
     expect(markdown).toContain('| Every must-pass case passes pass^k | 1/1 | 1/1 | pass |')
     expect(markdown).toContain('| Cost of one model call (USD) | 0.00075 | at or below 0.0009 (D147) | pass |')
     expect(markdown).toContain('Behavior failures:\noptional: The preview holds a change outside the request.')
-    expect(markdown).toContain('A turn that fails returns no trace, so its model calls are not counted and the cost of one model call reads a little high.')
+    expect(markdown).toContain('A turn that fails, and a card turn that returns no trace, add no counted model calls, so the cost of one model call reads a little high.')
     expect(markdown).not.toContain('Grader limits')
   })
 

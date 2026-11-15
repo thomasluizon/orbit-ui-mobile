@@ -17,7 +17,7 @@ afterEach(() => { vi.unstubAllEnvs(); vi.unstubAllGlobals(); for (const path of 
 
 // Runs the committed must-pass config through the real promptfoo CLI: the hooks, the stream driver, the outcome
 // grader and the report, with the recorded staging stream of one capture in place of the API.
-function runGate(capture, caseId = requestId, environment = {}) {
+function spawnGate(capture, caseId, environment) {
   offlineCredentials()
   const directory = mkdtempSync(resolve(tmpdir(), 'core-gate-'))
   scratch.push(directory)
@@ -26,13 +26,28 @@ function runGate(capture, caseId = requestId, environment = {}) {
     '--filter-metadata', `id=${caseId}`], { cwd: directory, encoding: 'utf8', timeout: 180000,
     env: { ...process.env, ...environment, CORE_TEST_CAPTURE: capture, ORBIT_EVAL_GRADER: `file://${root}/__tests__/fixtures/grader.mjs`,
       PROMPTFOO_CONFIG_DIR: resolve(directory, '.promptfoo'), PROMPTFOO_DISABLE_TELEMETRY: '1', PROMPTFOO_DISABLE_SHARING: '1' } })
-  const summaryPath = resolve(directory, 'reports/core-must-pass/summary.json')
   expect(run.error, run.stdout + run.stderr).toBeUndefined()
+  return { run, directory, summaryPath: resolve(directory, 'reports/core-must-pass/summary.json') }
+}
+
+function runGate(capture, caseId = requestId, environment = {}) {
+  const { run, directory, summaryPath } = spawnGate(capture, caseId, environment)
   expect(existsSync(summaryPath), run.stdout + run.stderr).toBe(true)
   return { run, directory, summary: JSON.parse(readFileSync(summaryPath, 'utf8')) }
 }
 
 describe('the must-pass run through the real promptfoo CLI', () => {
+  // Producer: orbit-api ProcessUserChatCommand.Handle returns the eval trace only when the account holds astra_eval_trace,
+  // and GET api/config resolves the same flag. Each card answer and each model call of the gate reads that trace.
+  it('stops before any chat turn when the eval account lacks the trace flag', () => {
+    const { run, summaryPath } = spawnGate('complete', requestId, { CORE_TEST_TRACE: 'off' })
+    const printed = run.stdout + run.stderr
+    expect(run.status, printed).not.toBe(0)
+    expect(printed).toContain('Eval preflight failed: turn on astra_eval_trace for ORBIT_EVAL_TOKEN through /flag on staging, then verify /api/config and retry.')
+    expect(printed).not.toContain('core-test: chat turn sent')
+    expect(existsSync(summaryPath)).toBe(false)
+  })
+
   it('passes pass^3 when each of the 3 attempts reaches the complete preview and its saved state', () => {
     const caseId = requestId
     const { run, directory, summary } = runGate('complete')
