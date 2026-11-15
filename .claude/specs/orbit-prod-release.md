@@ -80,7 +80,7 @@ A finding from an owner review or a rendered sweep that shows broken behaviour l
 
 The gates every later batch runs through. Re-read each ticket against the tree before you build it.
 
-No open ticket.
+- `#2137` Never let an unattended run stop on an approval prompt or wait without limit on a subagent (owner order, live harness defect: a background agent's `rm` on a variable path waited on a prompt for about 4 hours). Next: build it first, before any other launch: the PreToolUse refusal hook, the 30 minute stuck-subagent limit in the Stop hook and `relay-session.mjs`, tests for both.
 
 
 Worker hard ceiling: a long build or a part build passes `--hard-ceiling-minutes 150` to `tools/launch-worker.mjs`; the configured 45 minutes stops it mid-work. `tab-view-transition-chrome.spec.ts` timed out in CI twice: the root fix is `ui#2454` (`#2096`), in review. `android-release-certificate.test.ts:39` (`beforeAll`, 8 child JVMs) timed out once at 15 s; a second red gives that hook its own time limit. The CI step "Run median TBT and script budget gates" (job "Authed Today Lighthouse budget") hung until the 6 hour job limit on two pull requests: a third hang gives that step its own time limit.

@@ -4,13 +4,13 @@ Read `.claude/specs/orbit-prod-release.md` first: `## Standing rules`, `## The o
 
 Entry: `/auto-work` enters `/sleep`, adopts this relay (`adoptRelayRun`), keeps `autoWork: true`, then `/crank`, then `/orchestrate` over the admitted queue without replanning. Check that this prompt is the newest open relay (`gh pr list --repo thomasluizon/orbit-ui-mobile --state open --search "relay in:title"`), run `node tools/relay-checkout.mjs --check`, and read free disk on `/System/Volumes/Data` (floor 50 GiB; it was 64 GiB).
 
-Scratchpad: run `$HOME/.orbit-run-carry/carry-from-predecessor.sh <new full id> <predecessor full id> 0589c2a5-9987-419c-9a59-212b0a9d6846` as a background task with literal paths (the guard refuses `$HOME` in a redirect target; write no file there before it ends; the predecessor id is `relay.from`). Start a new `sleep-decisions.md` from D104 with the Write tool. Repoint `mirror.sh` and `intake-noboard.sh` (they hold the predecessor's first 8 characters) with `perl -pi` in `bash -c` (full id first), run `mirror.sh` with `bash`, then `durable-dedupe.sh` in the background. Loops go in `bash -c` (zsh). Print at most 40 lines per call.
+Scratchpad: run `$HOME/.orbit-run-carry/carry-from-predecessor.sh <new full id> <predecessor full id> 0589c2a5-9987-419c-9a59-212b0a9d6846` as a background task with literal paths (the guard refuses `$HOME` in a redirect target; write no file there before it ends; the predecessor id is `relay.from`). Start a new `sleep-decisions.md` from D104 with the Write tool. Repoint `mirror.sh` and `intake-noboard.sh` (they hold the predecessor's first 8 characters) with `perl -pi` in `bash -c` (full id first), run `mirror.sh` with `bash`, then `durable-dedupe.sh` in the background. Loops go in `bash -c`; print at most 40 lines.
 
 KEEP THE COORDINATOR LEAN: agent briefs forbid `rm` on variable paths and any command that may ask for approval; stop an agent silent past 60 minutes. every read, review, fix and diagnosis goes to a background subagent (final message at most 12 lines plus a result file). Read each diff before a push (gate files and `DESIGN.md` hunks first). A branch gets at most 2 worker launches, then an in-process agent (SendMessage resumes one with its context); a new part branch in its own worktree gets its own 2 (`git worktree add -b`, since `create-worktree.mjs` refuses a local base ahead of origin; then `npm ci` there). Before each push, one review agent reads the new commits and the same push fixes every confirmed finding; ask the last pass for concrete defects only. `scratchpad/chain-review.sh <key> <pr>` waits CI, requests the review and waits the verdict; copy every `PRRT_` id from `list-bot-threads.mjs --no-request --wait-seconds 0` output in the same run. After every `main` merge, merge `origin/main` into the relay checkout, and base-merge each open pull request before its review so it merges at `behind_by=0`. Never pipe a waiter through `tail` without echoing its exit code. Every turn ends with a registered wake source (`wait-ci`, `wait-release`, `launch-worker`); an agent is not one.
 
 ## Goal
 
-Finish the spec: an empty board except `#33` and the `#2074` measurement, verified releases, the assistant fixed as a class (`#2135` first), the owner's reports shipped (`#2131`, `#2132`), the mascot rebrand (`#2120` to `#2126`), every `#315` ticket closed, then `#315`. Re-derive with `gh issue list --repo thomasluizon/orbit-tickets --state open --limit 400`. Reconciliation: 18 open, 18 placed, 0 unplaced, 0 placed twice.
+Finish the spec: an empty board except `#33` and the `#2074` measurement, verified releases, the assistant fixed as a class (`#2135` first), the owner's reports shipped (`#2131`, `#2132`), the mascot rebrand (`#2120` to `#2126`), every `#315` ticket closed, then `#315`. Re-derive with `gh issue list --repo thomasluizon/orbit-tickets --state open --limit 400`. Reconciliation: 19 open, 19 placed, 0 unplaced, 0 placed twice.
 
 The owner is away and asked for no action that needs approval or a click, and no question. Reply in English. `#2074` is MAX priority; worker model rotation per the spec (on `usageLimitReached: true`, tell the owner at once).
 
@@ -36,6 +36,7 @@ The relay stops this session's chains, waiters and agents: restart `chain-review
 ## Then, in this order
 
 1. Answer any owner message first. Give each order a ticket or a rescope before the turn ends.
+   Then build `#2137` (owner order) before every other launch: no unattended run may stop on an approval prompt or wait on a stuck subagent.
 2. The `#2131` releases.
 3. `#2074`: `ui#2457` merged with P14; the ticket's work orders (landing PR, UI comment lint PR with the hook fixes); `tools/review-rounds.mjs` on or after 16 November 2026.
 4. Merge each approved pull request at once, then one web release (never with an API release).
@@ -53,7 +54,7 @@ Unattended: never ask the owner; decide with the best option and log it. Keep a 
 ## Previous prompt, disposition
 
 - Done: `ui#2460` (`#2136`), `ui#2455` (`#2133`) merged; web staging `e86ecdc5e` verified; intake clean; owner queue empty.
-- Changed: see In flight (new `ui#2463`, `api#1114`; `#2122` Parts 1 and 2 built; `#2121` sign-in part launched).
+- Changed: see In flight.
 - Carried: every merge and release; the `#2074` measurement and work orders; the `ui#2447` proof; the stack; `#1561`, `#1563`, `#315`, `#33`.
 
 Every identifier here came from a previous session; treat each as a lead to verify.
