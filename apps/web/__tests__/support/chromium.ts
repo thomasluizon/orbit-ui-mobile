@@ -123,9 +123,7 @@ export const PAGE_SETUP_TIMEOUT_MS = 10_000
 
 export async function setUpPage<Result>(page: Page, interactionTimeout: number, setup: () => Promise<Result>): Promise<Result> {
   page.setDefaultTimeout(PAGE_SETUP_TIMEOUT_MS)
-  const result = await setup()
-  page.setDefaultTimeout(interactionTimeout)
-  return result
+  try { return await setup() } finally { page.setDefaultTimeout(interactionTimeout) }
 }
 
 export async function closeChrome(browserLaunch: BrowserLaunch | undefined): Promise<void> {

@@ -29,4 +29,12 @@ describe('Chromium page setup limit', () => {
       await expect(page.locator('#absent').hover()).rejects.toThrow(`locator.hover: Timeout ${INTERACTION_TIMEOUT_MS}ms exceeded`)
     } finally { await page.close() }
   })
+
+  it('restores the interaction limit when the setup fails', async () => {
+    const page = await browser.newPage()
+    try {
+      await expect(setUpPage(page, 100, async () => { throw new Error('setup failed') })).rejects.toThrow('setup failed')
+      await expect(page.locator('#absent').hover()).rejects.toThrow('locator.hover: Timeout 100ms exceeded')
+    } finally { await page.close() }
+  })
 })
