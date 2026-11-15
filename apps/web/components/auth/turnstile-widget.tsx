@@ -5,6 +5,7 @@ import { RefreshCw } from '@/components/ui/icons'
 import { useEffect, useRef, useState, type Ref } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
 import { useCurrentTheme } from '@/stores/theme-store'
+import { SkeletonFace } from '@/components/ui/skeleton'
 
 type WidgetState = 'idle' | 'loading' | 'interactive' | 'solved' | 'failed' | 'expired'
 
@@ -32,6 +33,8 @@ const RETRIED_ERROR_FAMILIES = ['300', '600']
 // WHY: the first challenge of a fresh WebView fails once, so the widget waits this long, not the 8000 ms retry-interval default, before the next run https://developers.cloudflare.com/turnstile/get-started/client-side-rendering/widget-configurations/
 const RETRY_INTERVAL_MS = 2000
 const MAX_AUTOMATIC_RETRIES = 2
+// WHY: Cloudflare sizes the flexible widget at 100% width and 65px height, so the wait holds the same box https://developers.cloudflare.com/turnstile/get-started/client-side-rendering/widget-configurations/
+const FLEXIBLE_CHALLENGE_HEIGHT = 65
 
 function isRetriedFailure(code: string): boolean {
   return RETRIED_ERROR_CODES.has(code) || RETRIED_ERROR_FAMILIES.some((family) => code.startsWith(family))
@@ -213,13 +216,17 @@ export function TurnstileWidget({
   // WHY: Cloudflare documents no success state for interaction-only, so the form hides the passed widget itself https://developers.cloudflare.com/turnstile/get-started/client-side-rendering/widget-configurations/
   const challengeStyle = state === 'solved' ? { display: 'none' } : undefined
   if (quiet) return <div ref={containerRef} style={{ position, ...challengeStyle }} />
+  /** The wait takes the box of the check. A challenge on screen is its own box and shows its own progress. */
+  const waitBox = state === 'loading' && !challengeVisible
 
   return (
     <div ref={ref} className="flex flex-col items-center text-center text-sm text-[var(--fg-2)]" style={{ gap: 8, position }}>
       <div ref={containerRef} className="w-full" style={challengeStyle} />
-      <p role="status" className={state === 'loading' ? '' : 'sr-only'}>
-        {state === 'loading' ? t('auth.turnstileLoading') : ''}
-      </p>
+      <div data-turnstile-wait={waitBox ? '' : undefined} className={waitBox ? 'relative isolate grid w-full place-items-center overflow-hidden rounded-[var(--r-well)] px-4' : 'sr-only'}
+        style={waitBox ? { height: FLEXIBLE_CHALLENGE_HEIGHT } : undefined}>
+        {waitBox ? <SkeletonFace /> : null}
+        <p role="status">{state === 'loading' ? t('auth.turnstileLoading') : ''}</p>
+      </div>
       <p role="alert" className={`text-[var(--status-bad-text)] ${state === 'failed' || state === 'expired' ? '' : 'sr-only'}`}>
         {state === 'failed' || state === 'expired'
           ? t(state === 'failed' ? 'auth.turnstileFailed' : 'auth.turnstileExpired') : ''}

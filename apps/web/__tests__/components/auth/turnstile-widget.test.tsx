@@ -374,3 +374,31 @@ it('stops a waiting automatic run and gives two runs again when the form asks fo
   act(() => { callbacks['error-callback']('600010') })
   expect(onStateChange).toHaveBeenLastCalledWith('failed')
 })
+
+it('draws the wait as a skeleton in the box of the check, with its sentence kept, and never as text alone', async () => {
+  let resize = () => {}
+  vi.stubGlobal('ResizeObserver', class {
+    constructor(callback: () => void) { resize = callback }
+    observe() {}
+    disconnect() {}
+  })
+  const renderWidget = vi.fn((..._args: unknown[]) => 'waiting-widget')
+  ;(window as Window & { turnstile?: unknown }).turnstile = { render: renderWidget, reset: vi.fn(), remove: vi.fn() }
+  const { container } = render(<TurnstileWidget siteKey="site-key" resetKey={0} onToken={vi.fn()} />)
+  await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('auth.turnstileLoading'))
+  const wait = container.querySelector<HTMLElement>('[data-turnstile-wait]')!
+  expect(wait.style.height).toBe('65px')
+  expect(wait.querySelector('[data-slot="skeleton-face"] [data-variant="fill"]')).not.toBeNull()
+  expect(wait).toContainElement(screen.getByRole('status'))
+  expect(container.querySelector('.animate-spin')).toBeNull()
+
+  const challenge = renderWidget.mock.calls[0]![0] as HTMLElement
+  vi.spyOn(challenge, 'getBoundingClientRect').mockImplementation(() => ({ height: 65 }) as DOMRect)
+  act(() => resize())
+  expect(container.querySelector('[data-turnstile-wait]')).toBeNull()
+  expect(screen.getByRole('status')).toHaveTextContent('auth.turnstileLoading')
+
+  const callbacks = renderWidget.mock.calls[0]![1] as { callback: (token: string) => void }
+  act(() => callbacks.callback('fresh-token'))
+  expect(container.querySelector('[data-slot="skeleton-face"]')).toBeNull()
+})

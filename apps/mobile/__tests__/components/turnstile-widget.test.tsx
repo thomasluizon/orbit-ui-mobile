@@ -330,3 +330,29 @@ it('offers Retry when the bridge stops its own retries with failed, and Retry lo
   expect(renderer.root.findAllByType('Text').some((node: { props: { children: unknown } }) =>
     node.props.children === 'auth.turnstileLoading')).toBe(true)
 })
+
+it('draws the wait as a skeleton in the box of the check, with its sentence kept, and never as text alone', async () => {
+  let renderer!: ReturnType<typeof TestRenderer.create>
+  await TestRenderer.act(async () => {
+    renderer = TestRenderer.create(<TurnstileWidget siteKey="site-key" resetKey={0} onToken={vi.fn()} />)
+    await Promise.resolve()
+  })
+  onTestFinished(() => TestRenderer.act(() => renderer.unmount()))
+  const webView = renderer.root.findByType('WebView')
+  const send = (message: object) => TestRenderer.act(async () => {
+    webView.props.onMessage({ nativeEvent: { data: JSON.stringify(message) } })
+    await Promise.resolve()
+  })
+  const wait = renderer.root.findByProps({ testID: 'turnstile-wait' })
+  expect(StyleSheet.flatten(wait.props.style).height).toBe(65)
+  expect(wait.findAllByProps({ testID: 'skeleton-face' }).length).toBeGreaterThan(0)
+  expect(wait.findAllByType('Text').some((node: { props: { children: unknown } }) => node.props.children === 'auth.turnstileLoading')).toBe(true)
+  expect(renderer.root.findAllByType('ActivityIndicator')).toHaveLength(0)
+
+  await send({ state: 'interactive' })
+  expect(renderer.root.findAllByProps({ testID: 'turnstile-wait' })).toHaveLength(0)
+  expect(StyleSheet.flatten(renderer.root.findByProps({ testID: 'turnstile-challenge' }).props.style).height).toBe(65)
+
+  await send({ state: 'solved', token: 'fresh-token' })
+  expect(renderer.root.findAllByProps({ testID: 'skeleton-face' })).toHaveLength(0)
+})

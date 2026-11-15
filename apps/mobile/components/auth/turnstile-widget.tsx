@@ -1,10 +1,12 @@
 import { IconButton } from '@/components/ui/icon-button'
 import { RefreshCw } from '@/components/ui/icons'
+import { SkeletonFace } from '@/components/ui/skeleton'
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Text, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { WebView, type WebViewMessageEvent } from 'react-native-webview'
-import { createTokensV2 } from '@/lib/theme'
+import { SPACING } from '@orbit/shared/theme'
+import { createTokensV2, radius } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { APP_LINK_ORIGIN } from '@/lib/app-link-origin'
 import { shouldLoadTurnstileFrame, TURNSTILE_ORIGIN_ALLOWLIST } from '@/lib/turnstile-frames'
@@ -99,9 +101,13 @@ export function TurnstileWidget({
           onHttpError={() => { setState('failed'); onToken(null) }}
         />
       </View>
-      <View style={{ alignItems: 'center', gap: 8 }}>
-        <View accessibilityLiveRegion="polite" style={{ alignItems: 'center' }}>
-          {state === 'loading' && <Text style={{ color: tokens.fg2 }}>{t('auth.turnstileLoading')}</Text>}
+      <View style={{ alignSelf: 'stretch', alignItems: 'center', gap: 8 }}>
+        <View accessibilityLiveRegion="polite" style={{ alignSelf: 'stretch', alignItems: 'center' }}>
+          {state === 'loading' && <View testID="turnstile-wait" style={{ alignSelf: 'stretch', height: FLEXIBLE_CHALLENGE_HEIGHT, alignItems: 'center', justifyContent: 'center',
+            paddingHorizontal: SPACING.s16, borderRadius: radius.md, overflow: 'hidden' }}>
+            <SkeletonFace tokens={tokens} />
+            <Text style={{ color: tokens.fg2, textAlign: 'center' }}>{t('auth.turnstileLoading')}</Text>
+          </View>}
           {(state === 'failed' || state === 'expired') &&
             <Text style={{ color: tokens.statusBadText }} accessibilityRole="alert">
               {t(state === 'failed' ? 'auth.turnstileFailed' : 'auth.turnstileExpired')}
