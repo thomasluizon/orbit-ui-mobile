@@ -6,6 +6,7 @@ import { type AppTokensV2, easings } from '@/lib/theme'
 import { toAnimatedEasing, usePrefersReducedMotion } from '@/lib/motion'
 import { PillButton } from '@/components/ui/pill-button'
 import { OtpInput } from '@/components/ui/otp-input'
+import { KeyboardRevealGroup } from '@/components/ui/keyboard-reveal-group'
 import { CapacityNotice } from '@/components/ui/capacity-notice'
 import type { LoginStyles } from '@/app/login-styles'
 import { LoginHeader, LoginOfflineNotice, LoginSuccessMessage } from './login-sections'
@@ -68,22 +69,24 @@ export function CodeStep({ email, codeDigits, onCodeChange, isSubmitting, isRese
           onClick={onBackToEmail}>{t('auth.changeEmail')}</PillButton>
       </View>
     </View>
-    <Animated.View style={{ transform: [{ translateX: shake }] }}>
-      <OtpInput label={t('auth.verificationCode')} value={codeDigits.join('')} onChange={onCodeChange} onBlur={onCodeBlur} focusRequest={codeFocusRequest}
-        error={fieldError} hint={!fieldError && !locked ? t('auth.codeHint') : undefined}
-        disabled={isSubmitting || expired || waiting} />
-    </Animated.View>
-    {turnstileWidget}
-    {!isOnline && <LoginOfflineNotice t={t} styles={styles} tokens={tokens} />}
-    {!waiting && !expired && <PillButton onClick={onVerifyCode} disabled={isSubmitting || !isOnline || codeDigits.join('').length !== 6 || !canSubmitTurnstile}
-      loading={isSubmitting && !isResending}>{t('auth.verify')}</PillButton>}
-    {!waiting && <View style={styles.titleBlock}>
-      {canResend || expired ? <View style={styles.quietAction}>
-        <PillButton variant="ghost" size="sm" onClick={onResendCode} disabled={!isOnline || isSubmitting || !canSubmitTurnstile} loading={isResending}>{t('auth.resendCode')}</PillButton>
-      </View> : <Text style={styles.mono}>{t('auth.resendIn', { time: formatLoginCountdown(resendCountdown) })}</Text>}
-    </View>}
-    {locked && <View style={styles.titleBlock}>
-      <View accessibilityLiveRegion="polite"><CapacityNotice message={t('auth.errors.tooManyAttempts')} /></View>
-    </View>}
+    <KeyboardRevealGroup testID="login-field-action" style={styles.step}>
+      <Animated.View style={{ transform: [{ translateX: shake }] }}>
+        <OtpInput label={t('auth.verificationCode')} value={codeDigits.join('')} onChange={onCodeChange} onBlur={onCodeBlur} focusRequest={codeFocusRequest}
+          error={fieldError} hint={!fieldError && !locked ? t('auth.codeHint') : undefined}
+          disabled={isSubmitting || expired || waiting} />
+      </Animated.View>
+      {turnstileWidget}
+      {!isOnline && <LoginOfflineNotice t={t} styles={styles} tokens={tokens} />}
+      {!waiting && !expired && <PillButton onClick={onVerifyCode} disabled={isSubmitting || !isOnline || codeDigits.join('').length !== 6 || !canSubmitTurnstile}
+        loading={isSubmitting && !isResending}>{t('auth.verify')}</PillButton>}
+      {!waiting && <View style={styles.titleBlock}>
+        {canResend || expired ? <View style={styles.quietAction}>
+          <PillButton variant="ghost" size="sm" onClick={onResendCode} disabled={!isOnline || isSubmitting || !canSubmitTurnstile} loading={isResending}>{t('auth.resendCode')}</PillButton>
+        </View> : <Text style={styles.mono}>{t('auth.resendIn', { time: formatLoginCountdown(resendCountdown) })}</Text>}
+      </View>}
+      {locked && <View style={styles.titleBlock}>
+        <View accessibilityLiveRegion="polite"><CapacityNotice message={t('auth.errors.tooManyAttempts')} /></View>
+      </View>}
+    </KeyboardRevealGroup>
   </View>
 }

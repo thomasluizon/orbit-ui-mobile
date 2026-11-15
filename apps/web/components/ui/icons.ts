@@ -1,5 +1,4 @@
 export {
-  IconBrandAppleFilled as AppleMark,
   IconAlertTriangle as AlertTriangle,
   IconAdjustmentsHorizontal as AdjustmentsHorizontal,
   IconArchiveOff as ArchiveX,

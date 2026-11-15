@@ -7,12 +7,12 @@ import type { SheetProps } from '@orbit/shared/contracts/overlay'
 import { PADDING, SPACING, SHEET_BODY_INSETS, SHELL_CONTENT_MAX_WIDTH } from '@orbit/shared/theme'
 import { getPrefersReducedMotion, usePrefersReducedMotion } from '@/lib/motion'
 import { TrueSheet, type DidPresentEvent } from '@lodev09/react-native-true-sheet'
-import { AccessibilityInfo, Pressable as NativePressable, StyleSheet, Text, View, useWindowDimensions, type LayoutChangeEvent, type ScrollView, type NativeSyntheticEvent, type NativeScrollEvent } from 'react-native'
+import { AccessibilityInfo, Platform, Pressable as NativePressable, StyleSheet, Text, View, useWindowDimensions, type LayoutChangeEvent, type ScrollView, type NativeSyntheticEvent, type NativeScrollEvent } from 'react-native'
 import { useOverlayFocus } from './focus-provenance-view'
 import { useTranslation } from 'react-i18next'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { X } from '@/components/ui/icons'
-import { KeyboardAwareSheetScrollView } from '@/components/ui/keyboard-aware-scroll-view'
+import { KeyboardAwareScreenShiftProvider, KeyboardAwareSheetScrollView } from '@/components/ui/keyboard-aware-scroll-view'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { useUIStore } from '@/stores/ui-store'
@@ -213,6 +213,32 @@ export function Sheet({
   const reservedFooterHeight = footer ? footerHeight : 0
   const maxBodyHeight = Math.max(0, height * MAX_HEIGHT_RATIO - SCROLL_EDGE_PEEK - headerHeight - bottomInset)
   const maxScrollHeight = Math.max(0, maxBodyHeight - reservedFooterHeight)
+  const { recordPresentedTop, screenShift, virtualizedBodyRef } = useSheetScreenShift(bodyRef, headerHeight)
+  const body = virtualizedBody ? (
+    <View ref={virtualizedBodyRef} testID="sheet-virtualized-body" style={[bodyStyle, virtualizedBodyStyle(maxBodyHeight, Boolean(footer))]}>
+      {expandedTitle}
+      {children}
+      <View testID="sheet-footer-space" onLayout={handleFooterSpaceLayout} style={{ height: reservedFooterHeight }} />
+    </View>
+  ) : (
+    <>
+      <KeyboardAwareSheetScrollView
+        ref={bodyRef}
+        onScroll={handleBodyScroll}
+        testID="sheet-body-scroll"
+        style={{ maxHeight: maxScrollHeight }}
+        contentContainerStyle={[bodyStyle, boundedBody ? { maxHeight: maxScrollHeight } : null]}
+        // WHY: The native footer adds safe-area padding outside the measured child, so focus clearance reserves both heights. https://github.com/lodev09/react-native-true-sheet/blob/v4.0.1/src/TrueSheet.tsx#L706-L720
+        keyboardVerticalOffset={footer ? footerHeight + bottomInset : undefined}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        {expandedTitle}
+        {children}
+      </KeyboardAwareSheetScrollView>
+      <View testID="sheet-footer-space" onLayout={handleFooterSpaceLayout} style={{ height: reservedFooterHeight }} />
+    </>
+  )
 
   return (
     <TrueSheet
@@ -241,7 +267,10 @@ export function Sheet({
       insetAdjustment="automatic"
       onDismissAttempt={handleDismissAttempt}
       onDidDismiss={handleDidDismiss}
+      onPositionChange={recordPresentedTop}
+      onDetentChange={recordPresentedTop}
       onDidPresent={(event) => {
+        recordPresentedTop(event)
         onDidPresent?.(event)
         const target = initialFocus?.current
         if (!target) return
@@ -249,33 +278,27 @@ export function Sheet({
         AccessibilityInfo.sendAccessibilityEvent(target, 'focus')
       }}
     >
-      {virtualizedBody ? (
-        <View testID="sheet-virtualized-body" style={[bodyStyle, virtualizedBodyStyle(maxBodyHeight, Boolean(footer))]}>
-          {expandedTitle}
-          {children}
-          <View testID="sheet-footer-space" onLayout={handleFooterSpaceLayout} style={{ height: reservedFooterHeight }} />
-        </View>
-      ) : (
-        <>
-          <KeyboardAwareSheetScrollView
-            ref={bodyRef}
-            onScroll={handleBodyScroll}
-            testID="sheet-body-scroll"
-            style={{ maxHeight: maxScrollHeight }}
-            contentContainerStyle={[bodyStyle, boundedBody ? { maxHeight: maxScrollHeight } : null]}
-            // WHY: The native footer adds safe-area padding outside the measured child, so focus clearance reserves both heights. https://github.com/lodev09/react-native-true-sheet/blob/v4.0.1/src/TrueSheet.tsx#L706-L720
-            keyboardVerticalOffset={footer ? footerHeight + bottomInset : undefined}
-            keyboardShouldPersistTaps="handled"
-            showsVerticalScrollIndicator={false}
-          >
-            {expandedTitle}
-            {children}
-          </KeyboardAwareSheetScrollView>
-          <View testID="sheet-footer-space" onLayout={handleFooterSpaceLayout} style={{ height: reservedFooterHeight }} />
-        </>
-      )}
+      {Platform.OS === 'android' ? <KeyboardAwareScreenShiftProvider value={screenShift}>{body}</KeyboardAwareScreenShiftProvider> : body}
     </TrueSheet>
   )
+}
+
+/** The distance from where Fabric measures the sheet body to where Android draws it: the presented top plus the header, minus the measured body top. */
+// WHY: TrueSheet puts only the container size into the Fabric state, so a measured sheet field is off by the sheet's top on Android. https://github.com/lodev09/react-native-true-sheet/blob/v4.0.1/android/src/main/java/com/lodev09/truesheet/TrueSheetStateUpdater.kt#L23-L35
+function useSheetScreenShift(scrollBodyRef: RefObject<ScrollView | null>, headerHeight: number) {
+  const presentedTopRef = useRef<number | null>(null)
+  const virtualizedBodyRef = useRef<View>(null)
+  const recordPresentedTop = useCallback((event: { nativeEvent: { position: number } }) => {
+    presentedTopRef.current = event.nativeEvent.position
+  }, [])
+  const screenShift = useCallback(() => {
+    const presentedTop = presentedTopRef.current
+    const body = virtualizedBodyRef.current ?? scrollBodyRef.current?.getNativeScrollRef()
+    const measured = { shift: null as number | null }
+    if (presentedTop !== null) body?.measureInWindow((_x, bodyTop) => { measured.shift = presentedTop + headerHeight - bodyTop })
+    return measured.shift
+  }, [headerHeight, scrollBodyRef])
+  return { recordPresentedTop, screenShift, virtualizedBodyRef }
 }
 
 type Tokens = ReturnType<typeof createTokensV2>

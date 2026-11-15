@@ -7,7 +7,6 @@ export function createLoginStyles(tokens: AppTokensV2) {
     root: { flex: 1, backgroundColor: tokens.bg },
     container: { flex: 1 },
     scrollContent: { flexGrow: 1, alignItems: 'center', justifyContent: 'center' },
-    scrollKeyboardOpen: { justifyContent: 'flex-start' },
     scrollWide: { justifyContent: 'center', padding: SPACING.s32 },
     formColumn: { width: '100%', paddingTop: SPACING.s32, paddingHorizontal: SPACING.s16, paddingBottom: SPACING.s16, gap: 32 },
     formCompact: { paddingTop: SPACING.s16 },

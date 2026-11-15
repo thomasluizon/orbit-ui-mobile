@@ -3,12 +3,12 @@
 import { useComposedRefs } from '@radix-ui/react-compose-refs'
 
 import Link, { type LinkProps } from 'next/link'
-import { useContext, useId, type CSSProperties, type ComponentProps, type Ref } from 'react'
+import { useContext, useId, type CSSProperties, type ComponentProps, type ReactNode, type Ref } from 'react'
 import { actionClasses, actionStyle } from './pill-action-style'
 import { ActionRowContext } from './action-row'
 import type { ButtonProps } from '@orbit/shared/contracts/actions'
 import { Loader2 } from '@/components/ui/icons'
-import { GOOGLE_SIGN_IN_BUTTON, ICON_ACTION_START_HANG, BUTTON_SIZES, type ButtonSize, type ButtonVariant } from '@orbit/shared/theme'
+import { APPLE_SIGN_IN_TITLE_SIZE, ICON_ACTION_START_HANG, BUTTON_SIZES, SIGN_IN_BUTTON_HEIGHT, signInButtonSpec, type ButtonSize, type ButtonVariant, type SignInButtonSpec } from '@orbit/shared/theme'
 
 function buttonDescriptionIds(descriptionId: string | undefined, hintId: string, hint: string | undefined) {
   return [descriptionId, hint ? hintId : undefined].filter(Boolean).join(' ') || undefined
@@ -16,15 +16,50 @@ function buttonDescriptionIds(descriptionId: string | undefined, hintId: string,
 
 function buttonStyle(size: ButtonSize, withinRow: boolean, { minimumHeight, iconOnly, matchedWidth, leadingIcon, brand, variant, quiet, edge }: Readonly<Pick<ButtonProps, 'minimumHeight' | 'iconOnly' | 'matchedWidth' | 'leadingIcon' | 'brand' | 'variant' | 'edge'> & { quiet: boolean }>): CSSProperties {
   const sizeSpec = BUTTON_SIZES[size]
+  const signIn = signInButtonSpec(brand)
   return {
     ...actionStyle(size, iconOnly, matchedWidth, Boolean(leadingIcon), withinRow, minimumHeight),
-    ...(brand === 'google' ? { paddingInlineStart: GOOGLE_SIGN_IN_BUTTON.paddingX, paddingInlineEnd: GOOGLE_SIGN_IN_BUTTON.paddingX, gap: GOOGLE_SIGN_IN_BUTTON.gap } : undefined),
     height: minimumHeight === undefined ? sizeSpec.height : undefined,
     minHeight: minimumHeight,
     fontSize: minimumHeight === undefined ? sizeSpec.fontSize : `${sizeSpec.fontSize / 16}rem`,
     color: variant === 'ghost' && quiet ? 'var(--fg-2)' : undefined,
     marginInlineStart: iconOnly && edge === 'start' ? ICON_ACTION_START_HANG : undefined,
+    ...(signIn ? signInPillStyle(signIn, brand === 'apple' ? APPLE_SIGN_IN_TITLE_SIZE : sizeSpec.fontSize) : undefined),
+    ...(brand === 'apple' ? APPLE_SIGN_IN_COLOURS : undefined),
   }
+}
+
+/**
+ * A provider pill grows around a title that large text wraps: the title follows the root text size, and the
+ * pill keeps its resting capsule radius, so no corner cuts the title.
+ */
+function signInPillStyle({ paddingX, paddingY, gap }: SignInButtonSpec, titleSize: number): CSSProperties {
+  return {
+    height: undefined,
+    minHeight: SIGN_IN_BUTTON_HEIGHT,
+    borderRadius: SIGN_IN_BUTTON_HEIGHT / 2,
+    paddingBlock: paddingY,
+    paddingInlineStart: paddingX,
+    paddingInlineEnd: paddingX,
+    gap,
+    fontSize: `${titleSize / 16}rem`,
+    whiteSpace: 'normal',
+    textAlign: 'start',
+  }
+}
+
+/** The root theme variables carry Apple's black or white pair, so every browser and the server render draw it. */
+const APPLE_SIGN_IN_COLOURS: CSSProperties = {
+  backgroundColor: 'var(--apple-sign-in-fill)',
+  color: 'var(--apple-sign-in-ink)',
+  boxShadow: 'none',
+  outlineColor: 'currentColor',
+}
+
+/** A provider pill holds its mark in a slot of the resting content height at the top, so a wrapped title keeps the mark on its first line. */
+function ButtonLead({ signIn, children }: Readonly<{ signIn: SignInButtonSpec | null; children: ReactNode }>) {
+  if (!signIn) return children
+  return <span aria-hidden="true" style={{ display: 'inline-flex', flexShrink: 0, alignItems: 'center', alignSelf: 'flex-start', height: SIGN_IN_BUTTON_HEIGHT - signIn.paddingY * 2 }}>{children}</span>
 }
 
 function ButtonIcon({ size, loading, retainLeadingIcon, iconOnly, children, leadingIcon }: Readonly<Pick<ButtonProps, 'loading' | 'iconOnly' | 'children' | 'leadingIcon'> & { size: ButtonSize; retainLeadingIcon: boolean }>) {
@@ -108,7 +143,7 @@ export function Button({
       className={actionClasses(variant, size, 'button', loading, quiet, elevated, borderless)}
       style={persistentButtonStyle(buttonStyle(size, withinRow, { minimumHeight, iconOnly, matchedWidth, leadingIcon, brand, variant, quiet, edge }), retainLeadingIcon)}
     >
-      <ButtonIcon size={size} loading={loading} retainLeadingIcon={retainLeadingIcon} iconOnly={iconOnly} leadingIcon={leadingIcon}>{children}</ButtonIcon>
+      <ButtonLead signIn={signInButtonSpec(brand)}><ButtonIcon size={size} loading={loading} retainLeadingIcon={retainLeadingIcon} iconOnly={iconOnly} leadingIcon={leadingIcon}>{children}</ButtonIcon></ButtonLead>
       {iconOnly ? null : <span>{children}</span>}
       <PersistentLoadingIndicator visible={retainLeadingIcon && !iconOnly} loading={loading} size={size} />
     </button>{hint ? <span id={hintId} hidden>{hint}</span> : null}</>

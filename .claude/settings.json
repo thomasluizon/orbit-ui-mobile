@@ -93,6 +93,19 @@
     ]
   },
   "permissions": {
-    "additionalDirectories": ["../orbit-api", "../orbit-landing-page"]
+    "additionalDirectories": ["../orbit-api", "../orbit-landing-page"],
+    "deny": [
+      "Read(**/.env)",
+      "Read(**/.env.local)",
+      "Read(**/.env.*.local)",
+      "Read(**/google-services.json)",
+      "Read(**/play-service-account.json)",
+      "Read(**/*.jks)",
+      "Read(**/*.p8)",
+      "Read(**/*.p12)",
+      "Read(**/*.key)",
+      "Read(**/*.mobileprovision)",
+      "Read(**/.foglamp/scan.lock.json)"
+    ]
   }
 }
