@@ -1,7 +1,6 @@
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi, afterEach } from 'vitest'
 import {
-  takeGuidedFlowCompleted,
   STEP_UP_ATTEMPT_WINDOW_MS,
   STEP_UP_CHALLENGE_DURATION_MS,
   type StepUpTimingRecord,
@@ -15,6 +14,7 @@ afterEach(() => vi.useRealTimers())
 
 import { UnrecognizedActionError } from 'next/dist/client/components/unrecognized-action-error'
 import { setApiFetchTranslate } from '@/lib/api-fetch'
+import { captureGuidedFlowEvent } from '@/lib/posthog'
 import { useVersionGateStore } from '@/stores/version-gate-store'
 
 const mocks = vi.hoisted(() => ({
@@ -582,10 +582,12 @@ describe('web step up screen', () => {
     expect(mocks.replace).toHaveBeenCalledWith('/profile/account')
   })
 
-  it('confirms API key creation and returns to the creation handoff', async () => {
+  it('confirms API key creation in the guided frame and returns to the creation handoff, and never reports the verified code as a left flow', async () => {
+    mocks.guided = true
     mocks.operation = 'keys'
     mocks.readTiming.mockReturnValue({ operation: 'keys', sentAt: Date.now() })
-    render(<StepUpScreen serverAccountId={null} />)
+    const { unmount } = render(<StepUpScreen serverAccountId={null} />)
+    expect(document.querySelector('[data-guided-step-up] [data-question-flow]')).toHaveAttribute('data-step', 'code')
     await screen.findByLabelText('codeLabel')
     enterCode()
     clickConfirm()
@@ -597,7 +599,10 @@ describe('web step up screen', () => {
     ))
     expect(mocks.clearTiming).toHaveBeenCalledWith('keys', 'account-a')
     expect(mocks.markVerified).toHaveBeenCalledWith('keys')
-    expect(takeGuidedFlowCompleted('api_key_create'), 'a verified code is not reported as a flow the person left').toBe(true)
     expect(mocks.replace).toHaveBeenCalledWith('/profile/ai')
+    unmount()
+    const events = vi.mocked(captureGuidedFlowEvent).mock.calls.map(([event]) => event)
+    expect(events).toContainEqual({ name: 'guided_flow_step_viewed', properties: { flow: 'api_key_create', step: 'code', step_count: 1 } })
+    expect(events.filter((event) => event.name === 'guided_flow_abandoned')).toEqual([])
   })
 })
