@@ -13,9 +13,9 @@ next session whose entry point is `/sleep`. Nobody has to add anything before it
 is extra work for the NEXT session. You never do that work now.
 
 An owner `/handoff` runs `node tools/relay-session.mjs --owner-check` first, before it writes
-anything. The check refuses while another session runs unattended in this checkout, or holds an
-auto-work handoff that no successor adopted yet. If it refuses, write and push nothing, and give
-the owner its message, which names his next step.
+anything. The check refuses while another live session runs unattended in this checkout, or while
+another session holds an auto-work handoff that no successor adopted yet. If it refuses, write and
+push nothing, and give the owner its message, which names his next step.
 
 `--crank` or `/crank` includes `--sleep`. Read the current session's run state with
 `readRunState` from `tools/lib/run-state.mjs`: `crank: true` includes it automatically,
@@ -68,8 +68,11 @@ queue. The successor inherits the queue, and the owner answers it only through h
 
 An owner `/handoff` never runs `/questions --relay`. Only the owner's own `/questions` filters the
 queue: `/wrap-up` runs it before this skill, and a bare owner `/handoff` runs none. In both
-modes, the spec's `## Open questions` holds exactly the rows that
-`node tools/owner-questions.mjs --list` prints, each with who must answer and what it blocks.
+modes, every row that `node tools/owner-questions.mjs --list` prints goes in the spec's
+`## Open questions`, with who must answer and what it blocks. When this session owns no run, the
+list also holds the queue of a stopped run of another session. Remove a question from that section
+only when a filter or the owner settled it. Keep the owner-only steps and the settled decisions that
+the section also holds.
 
 Add this one timeless line to the spec: `The session chain ledger lives untracked at .git/orbit-session-chain.json.`
 Keep session ids, timestamps, terminal handles and timed decision logs in that ledger.

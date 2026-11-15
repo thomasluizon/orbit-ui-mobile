@@ -1,8 +1,7 @@
 import { mkdirSync, readFileSync, readdirSync, renameSync, rmSync, writeFileSync } from "node:fs"
 import { randomUUID } from "node:crypto"
-import { homedir } from "node:os"
 import { dirname, join } from "node:path"
-import { REPO_ROOT, gitDirectoryOf, isWakeSourceAlive, processStartIdentity } from "./run-state.mjs"
+import { REPO_ROOT, claudeConfigDirectory, gitDirectoryOf, isWakeSourceAlive, liveSessionProcess } from "./run-state.mjs"
 
 const TERMINAL_WORKFLOW_STATES = new Set(["completed", "failed", "killed"])
 const directoryOf = (repoRoot, sessionId) => join(gitDirectoryOf(repoRoot), "orbit-background-runs", encodeURIComponent(sessionId))
@@ -17,13 +16,9 @@ const readJson = (path) => {
 }
 
 const sessionOwner = (sessionId, claudeDirectory) => {
-  for (const name of entries(join(claudeDirectory, "sessions"))) {
-    const owner = readJson(join(claudeDirectory, "sessions", name))
-    if (owner?.sessionId !== sessionId || !Number.isInteger(owner.pid) || owner.pid <= 0) continue
-    const identity = processStartIdentity(owner.pid)
-    if (identity) return { pid: owner.pid, processStartIdentity: identity }
-  }
-  throw new Error("cannot identify the background run's owning session process")
+  const owner = liveSessionProcess(sessionId, claudeDirectory)
+  if (!owner) throw new Error("cannot identify the background run's owning session process")
+  return owner
 }
 
 const publish = (directory, record) => {
@@ -34,7 +29,7 @@ const publish = (directory, record) => {
 }
 
 /** Launch replies identify work; the owning Stop's complete live set also proves completion. */
-export const observeBackgroundRuns = (input, { repoRoot = REPO_ROOT, claudeDirectory = process.env.CLAUDE_CONFIG_DIR || join(homedir(), ".claude") } = {}) => {
+export const observeBackgroundRuns = (input, { repoRoot = REPO_ROOT, claudeDirectory = claudeConfigDirectory() } = {}) => {
   const sessionId = input.session_id
   const directory = directoryOf(repoRoot, sessionId)
   if (input.hook_event_name === "Stop" && Array.isArray(input.background_tasks)) {

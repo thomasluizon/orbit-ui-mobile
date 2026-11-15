@@ -228,7 +228,7 @@
     ".claude/skills/handoff/SKILL.md": {
       "model": null,
       "effort": "high",
-      "digest": "80d841c2869981eb",
+      "digest": "ea792ec13e9bc2d7",
       "calibratedAt": "2026-11-15",
       "verdict": "current: high effort; the skill decides which durable rules enter the spec and when handoff must end the session."
     },
@@ -291,7 +291,7 @@
     ".claude/skills/questions/SKILL.md": {
       "model": null,
       "effort": "high",
-      "digest": "fc4e0dd4b8f7454c",
+      "digest": "7ae607472ca7bd66",
       "calibratedAt": "2026-11-15",
       "verdict": "current: high effort, because the filter decides what NOT to ask, and a wrong call either wastes the owner's attention or ships a guess as a decision."
     },

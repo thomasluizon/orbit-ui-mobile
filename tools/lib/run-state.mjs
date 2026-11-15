@@ -3,6 +3,7 @@
 import { spawnSync } from "node:child_process"
 import { createHash, randomUUID } from "node:crypto"
 import { existsSync, linkSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs"
+import { homedir } from "node:os"
 import { join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 
@@ -306,6 +307,40 @@ export const readRunState = (repoRoot = REPO_ROOT) => {
     if (error.code === "ENOENT") return null
     throw new Error(`Cannot read run state ${path}: ${error.message}`, { cause: error })
   }
+}
+
+/** The config directory of this Claude account. Claude Code keeps one `{ pid, sessionId }` record per running session in its `sessions` directory. */
+export const claudeConfigDirectory = () => process.env.CLAUDE_CONFIG_DIR || join(homedir(), ".claude")
+
+/** The live process that runs `sessionId`, as `{ pid, processStartIdentity }`; null when no session record names a live process. */
+export const liveSessionProcess = (sessionId, claudeDirectory = claudeConfigDirectory()) => {
+  const directory = join(claudeDirectory, "sessions")
+  let names
+  try { names = readdirSync(directory).filter((name) => name.endsWith(".json")) }
+  catch (error) { if (error.code === "ENOENT") return null; throw error }
+  for (const name of names) {
+    let record
+    try { record = JSON.parse(readFileSync(join(directory, name), "utf8")) }
+    catch (error) { if (error.code === "ENOENT") continue; throw error }
+    if (record?.sessionId !== sessionId || !Number.isInteger(record.pid) || record.pid <= 0) continue
+    const identity = processStartIdentity(record.pid)
+    if (identity) return { pid: record.pid, processStartIdentity: identity }
+  }
+  return null
+}
+
+/**
+ * Why another session's run still holds this checkout's run state, as a clause that names the owner's next step;
+ * null when none does. A stopped run holds nothing. `sleep: true` is only a stored flag that no hook clears when
+ * its session dies, so an unattended run holds the checkout only while its session process is alive.
+ */
+export const foreignRunHold = (sessionId, state, claudeDirectory = claudeConfigDirectory()) => {
+  if (!state?.sessionId || state.sessionId === sessionId) return null
+  if (state.sleep === true && liveSessionProcess(state.sessionId, claudeDirectory)) return `session ${state.sessionId} runs unattended in this checkout; say stop in that session`
+  if (state.autoWork === true && state.ownerHandoff?.from === state.sessionId) {
+    return `session ${state.sessionId} handed off an auto-work run that no successor adopted yet; start that successor from the committed NEXT.md`
+  }
+  return null
 }
 
 /** Run ownership survives ordinary updates and later transfers, independently of reporting chains. */

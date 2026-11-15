@@ -1,6 +1,7 @@
+import { spawnSync } from "node:child_process"
 import { writeFileSync } from "node:fs"
-import { join } from "node:path"
-import { T, stageRepo } from "./_harness.mjs"
+import { dirname, join } from "node:path"
+import { T, stage, stageRepo } from "./_harness.mjs"
 import { ownerQuestionCandidates, questionFilterGaps, recordQuestionFilter } from "../lib/owner-questions.mjs"
 import { appendChainEntry, confirmChainSuccessor, sessionChainEntry } from "../lib/session-chain.mjs"
 import { readRunState, updateRunState, writeRunState } from "../lib/run-state.mjs"
@@ -16,6 +17,16 @@ export const stageQuestionChain = (label, relays, questionsOf) => {
     confirmChainSuccessor(`s${index}`, index === relays ? "current" : `s${index + 1}`, `term_${index + 1}`, 1, checkout)
   }
   return checkout
+}
+
+/** The pid of a process that already exited, so a session record that names it proves no live session. */
+export const exitedPid = () => spawnSync(process.execPath, ["-e", ""]).pid
+
+/** A Claude config directory whose `sessions/` holds one record `{ pid, sessionId }` per entry of `sessions`. */
+export const stageClaudeSessions = (label, sessions) => {
+  const directory = dirname(stage(`claude-${label}/sessions/.keep`, ""))
+  for (const [sessionId, pid] of Object.entries(sessions)) writeFileSync(join(directory, `${pid}.json`), JSON.stringify({ pid, sessionId }))
+  return dirname(directory)
 }
 
 const refusal = (action) => {
@@ -41,7 +52,10 @@ const answerableCases = () => {
   T("owner-questions: a question that enters the queue after the filter is a gap", questionFilterGaps("current", checkout).join() === `no disposition for: ${PRODUCT}`, questionFilterGaps("current", checkout).join())
   updateRunState((state) => ({ ...state, openOwnerQuestions: [ANSWERABLE[0]] }), checkout, { sessionId: "current" })
   T("owner-questions: a settled question back in the queue is a gap", /differs from the questions the filter queued/.test(questionFilterGaps("current", checkout).join()))
-  T("owner-questions: a session that does not own the run state records nothing", refusal(() => recordQuestionFilter("other", [], checkout)) === "no run state for this session")
+  const live = stageClaudeSessions("core-live", { current: process.pid })
+  const held = refusal(() => recordQuestionFilter("other", [], checkout, live))
+  T("owner-questions: a session records nothing into the run that another live session holds", held === "session current runs unattended in this checkout; say stop in that session, then run --record again" &&
+    ownerQuestionCandidates("other", checkout, live).length === 0, held)
 }
 
 const survivorCases = async () => {

@@ -8,7 +8,7 @@ import { ownerQuestionCandidates, questionFilterGaps, recordQuestionFilter } fro
 import { processStartIdentity, readRunState, readWakeSourceStates, registerWakeSource, updateRunState, writeRunState } from "../lib/run-state.mjs"
 import { readHandoffRequest, recordHandoffRequest } from "../lib/handoff-prompt.mjs"
 import { T, realOrchestratorConfig, stageRepo, stageWithConfig, toolPath } from "./_harness.mjs"
-import { ANSWERABLE, PRODUCT } from "./owner-questions-core.mjs"
+import { ANSWERABLE, PRODUCT, exitedPid, stageClaudeSessions } from "./owner-questions-core.mjs"
 import { checkRelayStop } from "../../.claude/hooks/_lib/rules-relay.mjs"
 
 const usage = JSON.parse(readFileSync(new URL("./fixtures/session-usage.json", import.meta.url), "utf8"))
@@ -275,12 +275,14 @@ const questionFilterCases = async () => {
 /** An owner handoff never runs /questions --relay, so its chain closure needs neither that pass nor, with no open chain, the run state. */
 const ownerHandoffCases = () => {
   let staged = 0
-  const ownerCheckout = (state) => {
+  /** The unattended session is live: its Claude session record names this live process. */
+  const liveClaude = stageClaudeSessions("relay-owner-live", { unattended: process.pid })
+  const ownerCheckout = (state, claudeDirectory = liveClaude) => {
     const installation = stageWithConfig(`relay-owner-${++staged}`, "relay-session.mjs", realOrchestratorConfig())
     mkdirSync(join(installation.base, ".git"), { recursive: true })
     if (state) writeRunState(state(installation.base), installation.base)
     recordHandoffRequest("owner", { command: "wrap-up", sleep: true, crank: false, origin: "owner" }, new Date().toISOString(), installation.base)
-    const invoke = (flag) => spawnSync(process.execPath, [installation.path, flag], { encoding: "utf8", env: { ...process.env, CLAUDE_CODE_SESSION_ID: "owner" } })
+    const invoke = (flag) => spawnSync(process.execPath, [installation.path, flag], { encoding: "utf8", env: { ...process.env, CLAUDE_CODE_SESSION_ID: "owner", CLAUDE_CONFIG_DIR: claudeDirectory } })
     return { checkout: installation.base, invoke }
   }
   /** A finished attended run of another session, complete enough that a chain entry could be built from it. */
@@ -297,7 +299,7 @@ const ownerHandoffCases = () => {
   try { recordQuestionFilter("owner", [], unowned.checkout) } catch (error) { relayPassRefusal = error.message }
   const unownedClosed = unowned.invoke("--close-chain")
   const untouched = readRunState(unowned.checkout)
-  T("relay-session: an owner handoff in a session that owns no run closes without the relay pass that would refuse it", relayPassRefusal === "no run state for this session" &&
+  T("relay-session: an owner handoff in a session that owns no run closes without the relay pass that would refuse it", /has no disposition/.test(relayPassRefusal) &&
     unownedClosed.status === 0 && unownedClosed.stderr === "" && untouched.sessionId === "finished" && untouched.questionFilter === undefined &&
     untouched.openOwnerQuestions.length === ANSWERABLE.length + 1, `${relayPassRefusal} ${unownedClosed.stderr}`)
 
@@ -325,13 +327,20 @@ const ownerHandoffCases = () => {
     writeRunState({ sessionId: "unattended", ...run }, repo.path)
     recordHandoffRequest("owner", { command: "wrap-up", sleep: true, crank: false, origin: "owner" }, new Date().toISOString(), repo.path)
     const before = snapshot(repo)
-    const checked = spawnSync(process.execPath, [join(repo.path, "tools", "relay-session.mjs"), "--owner-check"], { encoding: "utf8", env: { ...process.env, CLAUDE_CODE_SESSION_ID: "owner" } })
+    const checked = spawnSync(process.execPath, [join(repo.path, "tools", "relay-session.mjs"), "--owner-check"], { encoding: "utf8", env: { ...process.env, CLAUDE_CODE_SESSION_ID: "owner", CLAUDE_CONFIG_DIR: liveClaude } })
     T(`relay-session: --owner-check beside another session's ${label} names the owner's next step and writes or pushes nothing`, checked.status === 1 &&
       checked.stderr === `RELAY_FAILED: ${nextSteps[label]}\n` && snapshot(repo) === before, checked.stderr)
     const beside = ownerCheckout(() => ({ sessionId: "unattended", ...run }))
     const refused = beside.invoke("--close-chain")
     T(`relay-session: --close-chain beside another session's ${label} repeats that refusal and binds no carry for the owner`, refused.status === 1 &&
       refused.stderr === `RELAY_FAILED: ${nextSteps[label]}\n` && readRunState(beside.checkout).ownerHandoff?.from !== "owner", refused.stderr)
+  }
+  for (const [label, sessions] of [["has no session record", {}], ["has a session record of a process that exited", { unattended: exitedPid() }]]) {
+    const gone = ownerCheckout(() => ({ sessionId: "unattended", sleep: true }), stageClaudeSessions(`relay-owner-gone-${label.replace(/\W+/g, "-")}`, sessions))
+    const goneCheck = gone.invoke("--owner-check")
+    const goneClose = gone.invoke("--close-chain")
+    T(`relay-session: an unattended run of another session that ${label} never blocks an owner handoff`, goneCheck.status === 0 && goneClose.status === 0 &&
+      readRunState(gone.checkout).sessionId === "unattended", `${goneCheck.stderr} ${goneClose.stderr}`)
   }
   const adopted = { ownerHandoff: { from: "earlier", promptHash: "bound", successorSessionId: "stopped" } }
   for (const [label, record] of [["a stopped auto-work run", {}], ["an adopted, then stopped auto-work run", adopted]]) {
