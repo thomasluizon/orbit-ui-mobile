@@ -33,6 +33,7 @@
         "$TURBO_ROOT$/.github/workflows/contract-rebaseline.yml",
         "$TURBO_ROOT$/apps/{web,mobile}/**/*.{ts,tsx,js,jsx,css,xml,svg,kt}",
         "!$TURBO_ROOT$/apps/{web,mobile}/**/{node_modules,.next,.expo,coverage,dist,build,.gradle}/**",
+        "$TURBO_ROOT$/DESIGN.md",
         "$TURBO_ROOT$/design/brand/*.svg",
         "$TURBO_ROOT$/design/canvas/Orbit Busca.dc.html",
         "$TURBO_ROOT$/design/canvas/Orbit Wrapped.dc.html",
