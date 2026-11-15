@@ -1,6 +1,6 @@
 /auto-work
 
-Read `.claude/specs/orbit-prod-release.md` first, but only `## Standing rules`, the `## The order` bullets and `## Open questions`; search `## Current state` for a fact when you need it.
+Read `.claude/specs/orbit-prod-release.md` first: `## Standing rules`, `## The order` bullets and `## Open questions`; search `## Current state` for a fact.
 
 Entry: `/auto-work` enters `/sleep`, adopts this relay (`adoptRelayRun`), keeps `autoWork: true`, then `/crank`, then `/orchestrate` over the admitted queue without replanning. Check that this prompt is the newest open relay (`gh pr list --repo thomasluizon/orbit-ui-mobile --state open --search "relay in:title"`), run `node tools/relay-checkout.mjs --check`, and read free disk on `/System/Volumes/Data` (floor 50 GiB; it was 64 GiB).
 
@@ -23,7 +23,7 @@ UI `main` `471448e01`; API `main` `1d2a826b8`; landing `main` `7e6d150e0`. Owner
 | `#2131` production web | Run `43695336494` deploys `e86ecdc5e`. Verify with `wait-release --repo ui --run 43695336494 --sha e86ecdc5eb601875ddae9d123c5b045fec9281c2 --workflow-sha 471448e017a9ae605d3363a1bd77963789dbf621 --service-url https://app.useorbit.org`. Then landing staging and production at `7e6d150e0`, then Android Open and TestFlight from `main`. |
 | `ui#2448` (`#2132`) | Base-merged `696ecfefe`, chain running. Merge at approval. |
 | `ui#2450` (`#2120`) | Pushed `4639bd3e1` (CI fix, approved copy), chain running. Merge at approval, then base merges into `#2121` and `#2122`. |
-| `ui#2463` (`#2074`) | macOS bundle retry, chain running. Merge at approval. |
+| `ui#2463` (`#2074`) | macOS bundle retry at `f365ed33e`. CI red only on `installed (macos-latest, Developer ID)` (job 132748713116): "Timed out waiting for Astra dismissal; the page received 0 Escape keydowns". Second occurrence (it failed the same way on `ui#2448`, then passed on rerun): diagnose the root cause and fix it in `ui#2463`, no second rerun. Then chain; merge at approval. |
 | `api#1114` (`#2074`) | Timeless port. Review at `71aa73514`: no blocking issue, one structural suggestion thread `PRRT_kwDORKgXhc63n51F` (`tools/check-timeless.mjs:405`) keeps `pullfrog-approval` red. Read it; apply it in a commit when it is sound (review agent first), otherwise reply with the reason; resolve, then request a fresh review (`--re-review` if the head is unchanged). Merge at approval (tools only, no API release). |
 | `ui#2457` (`#2074`) | Round 8 fix agent: body rule 13 evidence for seven reads and the `mobile-build.yml:233` cache thread. Worktree `ticket-2074-round-time` holds 2 unpushed commits (`395021d59`); result `fix-2457-r8-result.md`, body `body-2457-r8.md`. Read, review, resolve `PRRT_kwDOR5Siws63nOTi`, push, chain. At approval: P14, merge. |
 | `ui#2459` (`#2135`) | The r7 false pass is fixed in `9b95eba34` (the grader reads the model's clear calls from the trace; core 200 and eval 2493 tests green; `corpusDigest` unchanged); worktree `ticket-2129-eval-gate` holds `ca5188207`, `91962f0f3`, `9b95eba34`, unpushed. Next: a narrow review of `9b95eba34`, resolve both threads with the replies in `fix-2459-r6-result.md`, merge `main`, push, chain. |
@@ -31,7 +31,7 @@ UI `main` `471448e01`; API `main` `1d2a826b8`; landing `main` `7e6d150e0`. Owner
 | `#2122` | Local branch has Parts 1 to 7; an agent adds reduced-motion tests (`build-2122-motion-result.md`). Then the order in the spec. |
 | `ui#2388` | This relay's docs branch. Never request a review for it. |
 
-The chains, waiters and agents above are this session's background tasks: the relay stops them. Restart `chain-review.sh` for each open pull request whose verdict is not in yet, and `wait-release` for any release still unverified. Uncommitted on purpose in the main checkout: `.claude/orchestrator.json` (worker tiers on `claude-fable-5-2`) and `tools/__tests__/launch-worker.mjs`. No stash, no detached work of this run.
+The relay stops this session's chains, waiters and agents: restart `chain-review.sh` for each open pull request without a verdict, and `wait-release` for an unverified release. Uncommitted on purpose: `.claude/orchestrator.json` (tiers on `claude-fable-5-2`) and `tools/__tests__/launch-worker.mjs`. No stash, no detached work.
 
 ## Then, in this order
 
@@ -53,7 +53,7 @@ Unattended: never ask the owner; decide with the best option and log it. Keep a 
 ## Previous prompt, disposition
 
 - Done: `ui#2460` (`#2136`) and `ui#2455` (`#2133`) merged and completed; web staging at `e86ecdc5e` verified; intake cycle (Sentry 4, all ticketed; mail and Play empty); owner question queue filtered to empty.
-- Changed: `ui#2450`, `ui#2448`, `ui#2459`, `ui#2457` gained rounds (see In flight); new `ui#2463`, `api#1114`; `#2122` Parts 1 and 2 built locally; `#2121` base-merged and its sign-in part launched.
+- Changed: see In flight (new `ui#2463`, `api#1114`; `#2122` Parts 1 and 2 built; `#2121` sign-in part launched).
 - Carried: every merge and release; the `#2074` measurement and work orders; the `ui#2447` proof; the stack; `#1561`, `#1563`, `#315`, `#33`.
 
 Every identifier here came from a previous session; treat each as a lead to verify.
