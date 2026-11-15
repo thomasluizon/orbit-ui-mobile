@@ -27,7 +27,6 @@ function storedChildEmojis(oldValue: string | null): readonly (string | null | u
 
 export function pendingOperationSubHabits(fields: readonly PendingOperationChange[]): readonly {
   title: string
-  /** The emoji of the existing habit a reused child names. A new draft child has no stored habit, so its stored values describe nothing. */
   storedEmoji?: string
   fields: PendingOperationChange[]
 }[] {

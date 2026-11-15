@@ -61,7 +61,6 @@ export default defineConfig({
         },
       },
     ],
-    /** CI runs workspace suites one at a time; local suites share the host. */
     maxWorkers: process.env.CI ? '100%' : '25%',
     testTimeout: 15000,
     hookTimeout: 15000,

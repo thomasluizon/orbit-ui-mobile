@@ -47,7 +47,6 @@ const SelectionFocusContext = createContext<SelectionFocusContextValue | null>(n
 export function SelectionFocusProvider({ children, onCommit, focusRequest, shouldFocus, ...props }: Readonly<
   Omit<ViewProps, 'accessibilityRole'> & {
     children: ReactNode
-    /** Runs when a row is explicitly pressed, never when native focus moves the selection. */
     onCommit?: () => void
     focusRequest?: number
     shouldFocus?: () => boolean
