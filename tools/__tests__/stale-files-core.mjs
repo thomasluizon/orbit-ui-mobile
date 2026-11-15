@@ -5,6 +5,7 @@ import {
   LISTING_MAX_AGE_MS, collectListing, describeBytes, listingIdOf, offerOf, refreshIsDue, removeListed, summarize, systemProbes,
 } from "../lib/stale-files.mjs"
 import { T, root } from "./_harness.mjs"
+import { claudeProcessFields, reusedPidRecord } from "./owner-questions-core.mjs"
 
 const THIS = "00000000-0000-4000-8000-000000000000"
 const CHAIN_PREDECESSOR = "11111111-0000-4000-8000-000000000001"
@@ -39,7 +40,9 @@ const stageMachine = (label) => {
 }
 
 const same = (name, got, want) => T(name, JSON.stringify(got) === JSON.stringify(want), `got ${JSON.stringify(got)}, want ${JSON.stringify(want)}`)
-const quietProbes = { ...systemProbes, processes: () => [], liveSessions: () => [], git: () => "", pullRequests: () => [], measure: () => 1024 }
+/** Live session records with no working directory. A listing session always runs, so it has one too. */
+const liveRecords = (...sessionIds) => () => sessionIds.map((sessionId) => ({ sessionId, cwd: null }))
+const quietProbes = { ...systemProbes, processes: () => [], liveSessions: liveRecords(THIS, OTHER), git: () => "", pullRequests: () => [], measure: () => 1024 }
 const reasonOf = (listing, path) => listing.kept.find((item) => item.path === path)?.reason
 const stalePaths = (listing, kind) => listing.stale.filter((item) => item.kind === kind).map((item) => item.path)
 
@@ -57,7 +60,7 @@ const sessionCases = () => {
     processes: () => [{ command: `node wait-file.mjs --file ${join(directory(LIVE_COMMAND), "scratchpad", "done.json")}`, directory: machine.checkout },
       { command: "node build.mjs", directory: join(directory(LIVE_DIRECTORY), "scratchpad") }, { command: "-/bin/zsh -l", directory: directory(STALE) },
       { command: "/bin/bash -c npm test", directory: directory(STALE) }],
-    liveSessions: () => [{ sessionId: LIVE_RECORD, cwd: machine.checkout }],
+    liveSessions: () => [{ sessionId: THIS, cwd: null }, { sessionId: LIVE_RECORD, cwd: machine.checkout }],
     git: (cwd, args) => (args[0] === "worktree" ? `worktree ${machine.checkout}\nHEAD 1\nbranch refs/heads/main\n\nworktree ${worktree}\nHEAD 2\nbranch refs/heads/scratch\n` : cwd === worktree ? " M unsaved.txt" : "") }
   const listing = collectListing({ ...machine.context, repositories: { ui: machine.checkout } }, { probes })
   same("stale-files: only the session directory that no session owns is stale", stalePaths(listing, "session"), [directory(STALE)])
@@ -112,7 +115,7 @@ const carryCases = () => {
   writeFileSync(join(machine.carryRoot, "carry-0a0a0a0a.log"), "carried\n")
   symlinkSync(join(machine.carryRoot, "durable-0b0b0b0b", "kept-build"), join(machine.sessionRoot, THIS, "scratchpad", "kept-build"), "dir")
   // A live session in another checkout still mirrors its scratchpad into its own durable copy, however old the copy's directory is.
-  const listing = collectListing(machine.context, { probes: { ...quietProbes, liveSessions: () => [{ sessionId: LIVE_CARRY, cwd: machine.base }] } })
+  const listing = collectListing(machine.context, { probes: { ...quietProbes, liveSessions: () => [{ sessionId: THIS, cwd: null }, { sessionId: LIVE_CARRY, cwd: machine.base }] } })
   const copy = (name) => join(machine.carryRoot, name)
   same("stale-files: only a durable copy older than the newest two is stale", stalePaths(listing, "carry"), [copy("durable-0a0a0a0a")])
   T("stale-files: the stale durable copy names its reason", /older than the newest two durable copies/.test(listing.stale.find((item) => item.kind === "carry")?.reason ?? ""), JSON.stringify(listing.stale))
@@ -121,6 +124,34 @@ const carryCases = () => {
   T("stale-files: a durable copy this scratchpad links into is kept", /scratchpad of session 00000000 links into it/.test(reasonOf(listing, copy("durable-0b0b0b0b")) ?? ""), `reason: ${reasonOf(listing, copy("durable-0b0b0b0b"))}`)
   T("stale-files: the durable copy of a live session is kept at any age", /durable copy of live session 0f0f0f0f/.test(reasonOf(listing, copy("durable-0f0f0f0f")) ?? ""), `reason: ${reasonOf(listing, copy("durable-0f0f0f0f"))}`)
   same("stale-files: other entries of the carry root are never items", [...listing.stale, ...listing.kept].filter((item) => item.kind === "carry").length, 6)
+}
+
+/** The real session record reader: the records Claude Code writes, judged as the run state judges them. */
+const recordCases = () => {
+  const machine = stageMachine("records")
+  const directory = (session) => join(machine.sessionRoot, session)
+  const own = claudeProcessFields(process.pid)
+  const listWith = (label, records) => {
+    const configDirectory = join(machine.base, `claude-${label}`)
+    mkdirSync(join(configDirectory, "sessions"), { recursive: true })
+    for (const [name, body] of Object.entries(records)) writeFileSync(join(configDirectory, "sessions", name), typeof body === "string" ? body : JSON.stringify(body))
+    return collectListing({ ...machine.context, configDirectories: [configDirectory] }, { probes: { ...quietProbes, liveSessions: systemProbes.liveSessions } })
+  }
+  const ownRecord = { ...own, pid: process.pid, sessionId: THIS }
+  const liveRecord = { ...own, pid: process.pid, sessionId: LIVE_RECORD }
+  const live = listWith("live", { "own.json": ownRecord, "live.json": liveRecord })
+  T("stale-files: a session record in this platform's Claude Code format keeps its session directory", /live session 44444444 uses it/.test(reasonOf(live, directory(LIVE_RECORD)) ?? ""), `reason: ${reasonOf(live, directory(LIVE_RECORD))}`)
+  T("stale-files: with every session record read, a directory no session owns is stale", stalePaths(live, "session").includes(directory(STALE)), JSON.stringify(live.stale))
+  const corrupt = listWith("corrupt", { "own.json": ownRecord, [`${process.ppid}.json`]: `{"pid": ${process.ppid}, "sessionId": "4444` })
+  T("stale-files: a session record that cannot be parsed keeps every session directory nothing else protects", stalePaths(corrupt, "session").length === 0
+    && /live sessions could not be read/.test(reasonOf(corrupt, directory(STALE)) ?? ""), `stale: ${JSON.stringify(corrupt.stale)}, reason: ${reasonOf(corrupt, directory(STALE))}`)
+  const unseen = listWith("unseen", { "live.json": liveRecord })
+  T("stale-files: a listing session with no live record of its own keeps every session directory nothing else protects", stalePaths(unseen, "session").length === 0
+    && /no live session record names this session 00000000/.test(reasonOf(unseen, directory(STALE)) ?? ""), `stale: ${JSON.stringify(unseen.stale)}, reason: ${reasonOf(unseen, directory(STALE))}`)
+  // Off macOS and Linux the record format is unconfirmed, so the reader proves a pid alone there.
+  if (!own.pidDomain) return
+  const reused = listWith("reused", { "own.json": ownRecord, "reused.json": { ...reusedPidRecord(process.pid), sessionId: LIVE_RECORD } })
+  T("stale-files: a crashed session whose pid a later process reuses keeps no directory", stalePaths(reused, "session").includes(directory(LIVE_RECORD)), `reason: ${reasonOf(reused, directory(LIVE_RECORD))}`)
 }
 
 const removalCases = () => {
@@ -180,6 +211,7 @@ const reportCases = () => {
 export const cases = () => {
   sessionCases()
   carryCases()
+  recordCases()
   removalCases()
   reportCases()
 }

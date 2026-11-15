@@ -343,45 +343,87 @@ const recordedStart = (procStart, domain) => {
   return /^\d+$/.test(procStart) ? Number(procStart) : null
 }
 
+/** The record files in `<claudeDirectory>/sessions`; none when that directory does not exist. Any other read error throws. */
+const sessionRecordPaths = (claudeDirectory) => {
+  const directory = join(claudeDirectory, "sessions")
+  try { return readdirSync(directory).filter((name) => name.endsWith(".json")).map((name) => join(directory, name)) }
+  catch (error) { if (error.code === "ENOENT") return []; throw error }
+}
+
+/** One session record; undefined when it was removed after the directory read. A record that is not JSON throws. */
+const readSessionRecord = (path) => {
+  try { return JSON.parse(readFileSync(path, "utf8")) }
+  catch (error) { if (error.code === "ENOENT") return undefined; throw error }
+}
+
 /**
- * The live process that runs `sessionId`, as `{ pid, processStartIdentity, cwd? }`; null when no record names one. A
- * crashed session leaves its record and a later process can reuse the pid, so `procStart` must be that process's start.
- * The writer omits `procStart` when it cannot read the start, so such a record proves its pid alone. A record from another
- * pid domain, or with a start this process cannot read, refuses with the reason: a guess frees a live run or holds a dead one.
+ * `{ live: { pid, processStartIdentity, cwd? } }` when the record's process runs, `{ unreadable: reason }` when this process
+ * cannot tell, null when it is gone. A later process can reuse a crashed session's pid, so `procStart` must be its start; a
+ * record without `procStart` proves its pid alone. Another pid domain or an unknown start format is unreadable: a guess
+ * frees a live run or holds a dead one.
+ */
+const judgeSessionRecord = (record, domain) => {
+  // A record without `pidDomain` belongs to this domain, as Claude Code itself reads it.
+  if (domain !== null && record.pidDomain !== undefined && record.pidDomain !== domain) {
+    return { unreadable: `names pid domain ${JSON.stringify(record.pidDomain)}, and this process runs in pid domain ${JSON.stringify(domain)}` }
+  }
+  const identity = processStartIdentity(record.pid)
+  if (!identity) return null
+  if (domain !== null && typeof record.procStart === "string") {
+    const start = recordedStart(record.procStart, domain)
+    if (start === null) {
+      const format = domain === "darwin" ? "LC_ALL=C TZ=UTC ps -o lstart= text" : "/proc/<pid>/stat start ticks"
+      return { unreadable: `carries procStart ${JSON.stringify(record.procStart)}, not the ${format} that Claude Code writes` }
+    }
+    if (identity.slice(identity.lastIndexOf(":") + 1) !== String(start)) return null
+  }
+  return { live: { pid: record.pid, processStartIdentity: identity, ...(typeof record.cwd === "string" ? { cwd: record.cwd } : {}) } }
+}
+
+const hasValidPid = (record) => Number.isInteger(record?.pid) && record.pid > 0
+const unreadableSession = (sessionId, path, reason) => `cannot tell whether session ${sessionId} is live: its record ${path} ${reason}`
+
+/**
+ * The live process that runs `sessionId`, as `{ pid, processStartIdentity, cwd? }`; null when no record names one. A record
+ * of that session that judgeSessionRecord cannot judge refuses with the reason, unless another record of it proves it live.
  */
 export const liveSessionProcess = (sessionId, claudeDirectory = claudeConfigDirectory()) => {
-  const directory = join(claudeDirectory, "sessions")
-  let names
-  try { names = readdirSync(directory).filter((name) => name.endsWith(".json")) }
-  catch (error) { if (error.code === "ENOENT") return null; throw error }
   const domain = ownPidDomain()
   let unreadable = null
-  for (const name of names) {
-    let record
-    try { record = JSON.parse(readFileSync(join(directory, name), "utf8")) }
-    catch (error) { if (error.code === "ENOENT") continue; throw error }
-    if (record?.sessionId !== sessionId || !Number.isInteger(record.pid) || record.pid <= 0) continue
-    const unread = (reason) => { unreadable ??= `cannot tell whether session ${sessionId} is live: its record ${join(directory, name)} ${reason}` }
-    // A record without `pidDomain` belongs to this domain, as Claude Code itself reads it.
-    if (domain !== null && record.pidDomain !== undefined && record.pidDomain !== domain) {
-      unread(`names pid domain ${JSON.stringify(record.pidDomain)}, and this process runs in pid domain ${JSON.stringify(domain)}`)
-      continue
-    }
-    const identity = processStartIdentity(record.pid)
-    if (!identity) continue
-    if (domain !== null && typeof record.procStart === "string") {
-      const start = recordedStart(record.procStart, domain)
-      if (start === null) {
-        const format = domain === "darwin" ? "LC_ALL=C TZ=UTC ps -o lstart= text" : "/proc/<pid>/stat start ticks"
-        unread(`carries procStart ${JSON.stringify(record.procStart)}, not the ${format} that Claude Code writes`)
-        continue
-      }
-      if (identity.slice(identity.lastIndexOf(":") + 1) !== String(start)) continue
-    }
-    return { pid: record.pid, processStartIdentity: identity, ...(typeof record.cwd === "string" ? { cwd: record.cwd } : {}) }
+  for (const path of sessionRecordPaths(claudeDirectory)) {
+    const record = readSessionRecord(path)
+    if (record?.sessionId !== sessionId || !hasValidPid(record)) continue
+    const verdict = judgeSessionRecord(record, domain)
+    if (verdict?.live) return verdict.live
+    if (verdict) unreadable ??= unreadableSession(sessionId, path, verdict.unreadable)
   }
   if (unreadable) throw new Error(unreadable)
   return null
+}
+
+/**
+ * Every session that a record names with a live process, as `{ sessionId, pid, processStartIdentity, cwd? }`, by the
+ * checks of liveSessionProcess. A record that names no session or no pid, or a session whose every record cannot be
+ * judged, throws: a caller that keeps the files of live sessions must never read "no live session" from a record it could not read.
+ */
+export const liveSessionProcesses = (claudeDirectory = claudeConfigDirectory()) => {
+  const domain = ownPidDomain()
+  const live = new Map()
+  const unreadable = new Map()
+  for (const path of sessionRecordPaths(claudeDirectory)) {
+    const record = readSessionRecord(path)
+    if (record === undefined) continue
+    if (typeof record?.sessionId !== "string" || record.sessionId === "" || !hasValidPid(record)) {
+      throw new Error(`cannot tell which session runs: the record ${path} names no sessionId or no pid`)
+    }
+    const verdict = judgeSessionRecord(record, domain)
+    if (verdict?.live) live.set(record.sessionId, { sessionId: record.sessionId, ...verdict.live })
+    else if (verdict && !unreadable.has(record.sessionId)) unreadable.set(record.sessionId, unreadableSession(record.sessionId, path, verdict.unreadable))
+  }
+  for (const [sessionId, reason] of unreadable) {
+    if (!live.has(sessionId)) throw new Error(reason)
+  }
+  return [...live.values()]
 }
 
 /** `session <id>`, plus the directory its Claude session works in when its record names one, so a refusal shows where to act. */

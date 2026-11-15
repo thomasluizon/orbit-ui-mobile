@@ -25,6 +25,8 @@ const USAGE = `usage: stale-files.mjs [--list] [--json] [--session <id>] [--sess
   An item stays when a live process or a live session uses it, when the scratchpad of a protected session
   links into it, when it holds a registered worktree that the worktree rules keep (an uncommitted change,
   an unpushed commit, an open pull request, work nobody merged), or when a check cannot read its evidence.
+  Live sessions come from the Claude session records; a record that cannot be judged, or no record of this
+  session, keeps every item that a live session could use.
 
   --list               (default) compute the listing, store it in the git directory, print each stale item
   --json               with --list: print the stored listing as JSON, with every kept item and its reason

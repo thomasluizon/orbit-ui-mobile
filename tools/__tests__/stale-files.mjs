@@ -94,6 +94,8 @@ const stageDirectories = (worktrees) => {
   mkdirSync(join(configDirectory, "sessions"), { recursive: true })
   // The record shape Claude Code writes for a session that runs; the pid is this live test process.
   writeFileSync(join(configDirectory, "sessions", `${process.pid}.json`), JSON.stringify({ pid: process.pid, sessionId: LIVE, cwd: worktrees["in-use"].path }))
+  // The session that lists runs too; without its own record the listing cannot see live sessions and keeps everything they could use.
+  writeFileSync(join(configDirectory, "sessions", "listing-session.json"), JSON.stringify({ pid: process.pid, sessionId: THIS, cwd: primary }))
 }
 
 export const cases = async () => {

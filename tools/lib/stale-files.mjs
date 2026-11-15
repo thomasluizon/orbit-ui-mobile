@@ -10,7 +10,7 @@ import { existsSync, lstatSync, readFileSync, readdirSync, readlinkSync, realpat
 import { homedir } from "node:os"
 import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "node:path"
 
-import { claudeConfigDirectory, gitDirectoryOf, processIsAlive, readRunState, REPO_ROOT } from "./run-state.mjs"
+import { claudeConfigDirectory, gitDirectoryOf, liveSessionProcesses, processIsAlive, readRunState, REPO_ROOT } from "./run-state.mjs"
 import { readSessionChain } from "./session-chain.mjs"
 
 /** The hook starts a new listing when the stored one is older than this. */
@@ -71,19 +71,12 @@ export const readProcesses = () => {
 const SHELLS = new Set(["sh", "bash", "zsh", "fish", "dash", "ksh", "csh", "tcsh", "pwsh", "nu"])
 const isShell = (command) => SHELLS.has(basename(command.split(" ")[0].replace(/^-/, "")))
 
-/** Claude Code keeps one `{ pid, sessionId, cwd }` record for each session that runs, in `<config>/sessions`. */
-export const readLiveSessions = (configDirectories) => configDirectories.flatMap((directory) => {
-  let names
-  try { names = readdirSync(join(directory, "sessions")).filter((name) => name.endsWith(".json")) } catch { return [] }
-  return names.flatMap((name) => {
-    try {
-      const record = JSON.parse(readFileSync(join(directory, "sessions", name), "utf8"))
-      return processIsAlive(record?.pid) && typeof record.sessionId === "string" ? [{ sessionId: record.sessionId, cwd: record.cwd ?? null }] : []
-    } catch {
-      return []
-    }
-  })
-})
+/**
+ * `{ sessionId, cwd }` for each session that runs, from the records Claude Code keeps in `<config>/sessions`, judged by the
+ * run state's own reader. A record it cannot judge throws.
+ */
+export const readLiveSessions = (configDirectories) => configDirectories.flatMap((directory) => liveSessionProcesses(directory)
+  .map((live) => ({ sessionId: live.sessionId, cwd: live.cwd ?? null })))
 
 export const claudeConfigDirectories = (environment = process.env) => [...new Set([
   claudeConfigDirectory(), join(homedir(), ".claude"), environment.ORBIT_WORKER_CLAUDE_CONFIG_DIR,
@@ -197,20 +190,35 @@ const listWorktrees = (repositoryPath, probes) => {
   })
 }
 
+/**
+ * The live sessions, and why they are unknown: a record that cannot be read, or no record of the listing session itself,
+ * which always runs. Unknown live sessions keep every item that a live session could use.
+ */
+const readLiveSessionEvidence = (context, probes) => {
+  let liveSessions
+  try { liveSessions = probes.liveSessions(context.configDirectories) }
+  catch (error) { return { liveSessions: [], liveSessionsUnknown: `the live sessions could not be read: ${error.message}` } }
+  const seen = liveSessions.some((live) => live.sessionId === context.sessionId)
+  return { liveSessions, liveSessionsUnknown: seen ? null
+    : `no live session record names this session ${context.sessionId.slice(0, 8)} in ${context.configDirectories.join(", ") || "any Claude config directory"}, so the live sessions are unknown` }
+}
+
 /** What every class reads once: the process table, the live sessions, the protected sessions and the worktrees. */
 const gatherEvidence = (context, probes) => {
   const listed = Object.values(context.repositories).filter((path) => existsSync(path)).map((path) => ({ path, worktrees: listWorktrees(path, probes) }))
   const worktrees = listed.flatMap((repository) => repository.worktrees ?? [])
     .filter((worktree) => !worktree.missing).map((worktree) => ({ ...worktree, path: canonical(worktree.path) }))
-  const liveSessions = probes.liveSessions(context.configDirectories)
+  const { liveSessions, liveSessionsUnknown } = readLiveSessionEvidence(context, probes)
   return { sessionRoot: context.sessionRoot ? canonical(context.sessionRoot) : null, carryRoot: canonical(context.carryRoot), worktrees,
     unlistedRepositories: listed.filter((repository) => repository.worktrees === null).map((repository) => repository.path),
-    protectedSessions: protectedSessionsOf(context.sessionId, context.repoRoot, liveSessions.map((live) => live.sessionId)), processes: probes.processes(), liveSessions }
+    protectedSessions: protectedSessionsOf(context.sessionId, context.repoRoot, liveSessions.map((live) => live.sessionId)), processes: probes.processes(),
+    liveSessions, liveSessionsUnknown }
 }
 
-/** Why a live process or session still uses `path`; null when none does. An unreadable process table counts as in use. */
+/** Why a live process or session still uses `path`; null when none does. An unreadable process table or unknown live sessions count as in use. */
 const useOf = (path, evidence, sessionId = null) => {
   if (evidence.processes === null) return "the process table could not be read"
+  if (evidence.liveSessionsUnknown) return evidence.liveSessionsUnknown
   const session = evidence.liveSessions.find((live) => live.sessionId === sessionId || (live.cwd && within(canonical(live.cwd), path)))
   if (session) return `live session ${session.sessionId.slice(0, 8)} uses it`
   if (evidence.processes.some((entry) => entry.directory !== null && !isShell(entry.command) && within(entry.directory, path))) return "a live process works in it"
