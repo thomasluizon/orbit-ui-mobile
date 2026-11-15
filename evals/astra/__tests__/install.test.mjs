@@ -42,7 +42,7 @@ it('the documented clean install loads the harness and runs promptfoo past befor
     expect(installCommands.length).toBeGreaterThan(0)
     for (const command of installCommands) run('npm', command.split(' ').slice(1), directory)
     const evaluation = join(directory, 'evals/astra')
-    const modules = ['', 'fixtures'].flatMap((folder) => readdirSync(join(evaluation, folder))
+    const modules = ['', 'fixtures', 'core'].flatMap((folder) => readdirSync(join(evaluation, folder))
       .filter((name) => name.endsWith('.mjs'))
       // Catalog generation requires the API repository; Vitest configuration belongs to the test runner.
       .filter((name) => !['generate-catalog.mjs', 'vitest.config.mjs'].includes(name))

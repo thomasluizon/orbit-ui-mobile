@@ -244,7 +244,9 @@ describe('corpus and execution constraints', () => {
     expect(steps.findIndex((step) => step.name?.startsWith('Persist rotated'))).toBeLessThan(steps.findIndex((step) => step.name?.startsWith('Remove local')))
     expect(steps.find((step) => step.name?.startsWith('Persist rotated')).if).toBe('always()')
     const upload = workflow.jobs.evaluate.steps.find((step) => step.uses?.startsWith('actions/upload-artifact@'))
-    expect(upload.with.path.trim().split('\n')).toEqual(['evals/astra/reports/summary.json', 'evals/astra/reports/summary.md'])
+    expect(upload.with.path.trim().split('\n')).toEqual(['', 'core-must-pass/', 'core-other/'].flatMap((run) =>
+      ['summary.json', 'summary.md'].map((file) => `evals/astra/reports/${run}${file}`)))
+    expect(workflow.on.workflow_dispatch.inputs.gate).toMatchObject({ required: true, default: 'corpus', options: ['corpus', 'must-pass', 'other'] })
   })
   it('contains every required category and unique case IDs', () => {
     const categories = new Set(scenarios.map((scenario) => scenario.metadata.category))

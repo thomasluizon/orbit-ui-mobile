@@ -3,8 +3,17 @@ name: Astra eval
 on:
   workflow_dispatch:
     inputs:
+      gate:
+        description: The launch corpus, or the must-pass or other run of the core set
+        required: true
+        default: corpus
+        type: choice
+        options:
+          - corpus
+          - must-pass
+          - other
       case_ids:
-        description: Comma-separated corpus case IDs for this daily window
+        description: Comma-separated case IDs of the chosen gate for this daily window
         required: true
         default: single-read-en,single-create-pt
         type: string
@@ -70,7 +79,9 @@ jobs:
           chmod 600 "$ORBIT_EVAL_CREDENTIALS_FILE"
           rm -f "$ORBIT_EVAL_CREDENTIALS_FILE.rotated" "$ORBIT_EVAL_CREDENTIALS_FILE.refresh-failed"
       - name: Evaluate selected cases with the configured attempts
-        run: npx promptfoo eval --filter-metadata "id=$ORBIT_EVAL_CASE_IDS"
+        env:
+          ORBIT_EVAL_CONFIG: ${{ inputs.gate == 'corpus' && 'promptfooconfig.yaml' || format('core/{0}.promptfooconfig.yaml', inputs.gate) }}
+        run: npx promptfoo eval --config "$ORBIT_EVAL_CONFIG" --filter-metadata "id=$ORBIT_EVAL_CASE_IDS"
       - name: Persist rotated credentials for the next window
         if: always()
         shell: bash
@@ -89,6 +100,10 @@ jobs:
           path: |
             evals/astra/reports/summary.json
             evals/astra/reports/summary.md
+            evals/astra/reports/core-must-pass/summary.json
+            evals/astra/reports/core-must-pass/summary.md
+            evals/astra/reports/core-other/summary.json
+            evals/astra/reports/core-other/summary.md
           if-no-files-found: warn
           retention-days: 7
       - name: Remove local eval state

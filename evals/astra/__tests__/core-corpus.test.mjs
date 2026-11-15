@@ -15,7 +15,10 @@ const readBack = (change) => ['delete', 'log', 'create'].includes(change.kind)
 it('holds 20 situations, each in 3 phrasings, each in English and pt-BR', () => {
   expect(situations).toHaveLength(20)
   expect(cases).toHaveLength(20 * PHRASINGS_PER_LOCALE * LOCALES.length)
-  expect(new Set(cases.map(({ metadata }) => metadata.id)).size).toBe(cases.length)
+  const ids = cases.map(({ metadata }) => metadata.id)
+  expect(new Set(ids).size).toBe(cases.length)
+  // promptfoo --filter-metadata matches a substring, so no case ID may be a part of another case ID.
+  expect(ids.filter((id) => ids.some((other) => other !== id && other.includes(id)))).toEqual([])
   for (const situation of situations) {
     expect(Object.keys(situation.phrasings).toSorted()).toEqual(LOCALES.toSorted())
     for (const locale of LOCALES) {

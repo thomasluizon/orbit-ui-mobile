@@ -158,6 +158,7 @@ These tests do not parse Turbo's report fields.
 | Harness hook parity | `.claude/hooks` | `node .claude/hooks/test-hooks.mjs` (no deps) | that the three session hooks (git-guardrails, forbid-ef-migration-raw-index, forbid-raw-linear-mutation) block and allow exactly as their `_lib` rules specify, and that no agent's frontmatter carries a fails-open `Bash(...)` specifier |
 | Harness tools execution | `tools/` | `node tools/test-tools.mjs` (run `npm ci` first) | that every script in `tools/` actually RUNS: the `CONVENTIONS.md` CLI contract (`--help` exits 0, invalid input refused before any work) plus each tool's real decision paths, orca stubbed and hermetic. Fails when a new tool arrives with no coverage |
 | Astra capability eval | `evals/astra` | `cd evals/astra && npx promptfoo eval` | on-demand requests to the real chat endpoint, with one attempt per case and request-bound tool evidence in a pass^k launch report |
+| Astra core set gate | `evals/astra/core` | `cd evals/astra && npx promptfoo eval --config core/must-pass.promptfooconfig.yaml` (then `core/other.promptfooconfig.yaml`, then `node core/merge.mjs`) | one live run for each assistant pull request: 120 cases on `POST /api/chat/stream` as a shipped client sends it, graded by the held previews and the saved state, with pass^3 on the must-pass cases |
 | Desktop configuration and native context | `apps/desktop` | `npm run test -w @orbit/desktop`, then `cargo test --locked` in `src-tauri` | Installed Tauri schema, generated context and native browser handoff policy; native bundles compile in `desktop-build.yml` on macOS and Windows, without launching the app |
 | Installed desktop VM acceptance | GitHub macOS and Windows VMs | `desktop-acceptance.yml` | Recorded release installer, Developer ID signed on macOS only for same-repository runs through `desktop-staging`, launched on Windows at Medium integrity, email BFF cookies, Hoje, Astra, native clean quit, signed updater acceptance and refusal, platform accessibility trees, palette traversal, the Windows caption (the `DESIGN.md` canvas colour on the native caption and the `DWMWA_USE_IMMERSIVE_DARK_MODE` flag for each page mode, with the `caption-*.png` captures uploaded as evidence), and the repeat reminder Done action through real WNS or APNs delivery, with the Windows Done click made through the shell's COM activator from a Medium client; no deployed Orbit services. See `tools/desktop-bench/README.md`. This job is a desktop acceptance exception to local unit-only verification. |
 | Astra harness unit and behavior | `evals/astra` | `npm test --prefix evals/astra` | Vitest drives the real promptfoo CLI with offline providers, intercepts HTTP without a server, and proves that deliberately wrong tool arguments fail |
@@ -269,8 +270,10 @@ at low effort.
 
 ### Live gate and spend rules
 
-The app-launch live gate runs once, with one attempt per case and a 2 USD spend ceiling for the run.
-Each failing case is rerun once; there is no
+Each pull request that changes the assistant gets one live run of the core set (`### Core set gate`), by
+manual dispatch, on a staging build of that branch, before merge. The launch corpus runs with one attempt
+per case. No rerun replaces a failure: after a fix, the failed cases run once more live on the new build,
+and a rerun on the same build never replaces a failed case. There is no
 other live run. A fix round never calls the provider: it replays recorded real provider
 responses offline at the model-service port, following the `orbit-api`
 `tests/Orbit.Application.Tests/Fixtures/` pattern, or uses a fake completion client.
@@ -423,6 +426,71 @@ Replacing the selected draft must preserve every sibling and its order. The asse
 tool evidence for the refine request. Each refine case records two messages at `k=1`, including
 setup, even with the main account's exemption. Harness tests exercise
 this flow offline; never treat their passing result as evidence from a live model run.
+
+### Core set gate
+
+The core set is the gate for a pull request that changes the assistant. `evals/astra/core/situations.yaml`
+holds 20 situations, each in 3 frozen phrasings, each in English and pt-BR (120 cases): every owner turn
+on record, one situation for each defect class, and the same-title family. A phrasing never changes; the
+`phrasingDigest` of each report names the phrasings it measured, and the merge refuses two digests.
+
+Each case runs as a person with a shipped client (`core/client-turn.mjs`, `core/conversation.mjs`):
+
+- The request is `POST /api/chat/stream` with an `Idempotency-Key`, built by the shared
+  `buildChatClientContext` (with a `conversationId`) and `buildRecentChatHistory`, and read through the
+  shared `sendChatStreamTurn` loop and stream parser.
+- When a turn ends without a preview, the person answers: through `blockAnswer` when the card can hold
+  the decision of the case, as typed text when no card can. One question past the allowed count is
+  recorded and not answered.
+- A later owner turn starts from the recorded messages that came before it.
+
+The outcome grader (`core/outcome.mjs`) reads no tool name:
+
+- It turns the held previews into a change list (`core/change-list.mjs`): the kind of each change, its
+  record and its changed fields. It compares that list with the expected list of the situation.
+- It counts the replies without a preview that came before the preview.
+- When the preview matches, the eval approves it as the client does and reads the saved state back
+  from `eval/snapshot`. A preview that does not match is never approved.
+- `llm-rubric` grades only the text of a read answer.
+
+Run the gate from `evals/astra`, after the environment and catalog steps of this section:
+
+```sh
+npx promptfoo eval --config core/must-pass.promptfooconfig.yaml
+npx promptfoo eval --config core/other.promptfooconfig.yaml
+node core/merge.mjs --run-cost-usd 0.31 reports/core-must-pass/summary.json reports/core-other/summary.json
+```
+
+The must-pass run repeats each of its 84 cases 3 times; a case passes only when all 3 attempts pass
+(pass^3, `core/corpus.mjs`). The other run holds 36 cases at one attempt. Each run writes
+`reports/core-<run>/summary.md`, `summary.json` and private `attempts/` evidence. Select cases for a daily
+window with `--filter-metadata 'id=<ids>'`; a situation ID selects its six cases. Preserve each window's
+directory before the next run overwrites it, and give every window summary to the merge.
+
+`core/merge.mjs` writes `reports/core/summary.md` and `summary.json`: k and pass^k for each case, pass^k
+for each family and locale, the questions before a preview against the allowed count, the measured model
+calls and the cost of each case, the number of UTC-day windows, and the gate verdict. The gate passes when:
+
+- every must-pass case passes;
+- the pass^k rate of the core set is at or above the rate of the `--baseline` summary (a run without
+  `--baseline` is the baseline);
+- the mean number of questions before a preview is at or below the allowed mean;
+- one model call costs at most 0.0009 USD, the D147 limit of the `orbit-api` `AiInputBudgetTests`.
+
+The API returns no cost for one turn. Read the run's cost from the API's daily `AI cost` line for the
+eval purpose and pass it as `--run-cost-usd`; each case takes the share that its measured model calls
+hold (one `model_call` phase of the opt-in trace is one model call). Without it the gate stays incomplete.
+
+No rerun replaces a failure. An attempt that fails, fails its case for that build. An attempt without
+evidence (a failed precondition, a stopped stream, HTTP 429 or 5xx, `AI_UNAVAILABLE`,
+`AI_DAILY_BUDGET_EXCEEDED`) leaves its case incomplete, and only an incomplete case may appear again in a
+later window. The merge refuses a second result for a case that passed or failed, a window of another API
+commit, and a case whose `k` differs from the corpus. After a fix, run the failed cases once more on the
+new build and report that run beside the first report.
+
+Offline checks (`npm test --prefix evals/astra -- __tests__/core-outcome.test.mjs __tests__/core-corpus.test.mjs
+__tests__/core-report.test.mjs __tests__/core-cli.test.mjs`) replay recorded staging streams of the
+owner's Water request through the real driver, grader and promptfoo CLI. They never prove live behavior.
 
 ### Proactive offer gate
 
@@ -788,11 +856,11 @@ execution, no retries and caching disabled. Keep each case's configured attempts
 Use the same configured accounts while their
 required plan access remains active; do not buy quota or add accounts.
 
-The hard API eval ceiling is per UTC day. The app-launch gate can use daily windows within
-that ceiling and its 2 USD run ceiling. When the ceiling stops a run, that UTC day's window
+The hard API eval ceiling is per UTC day. A gate run can use daily windows within
+that ceiling. When the ceiling stops a run, that UTC day's window
 ends; the gate continues in the next UTC day's window with only the cases that have no complete
 result yet. A later window never reruns a case that already has a complete result, except the
-single permitted rerun of a failing case.
+single permitted rerun of a failing case after a fix, on the new build.
 
 From `evals/astra`, select case IDs with the installed promptfoo metadata filter and preserve each
 sanitized window summary before another run overwrites it:
@@ -864,7 +932,8 @@ Configure `ORBIT_EVAL_BASE_URL`, `ORBIT_EVAL_GRADER`, and `ORBIT_EVAL_SECRETS_TO
 **astra-eval > Environment secrets**. The last key needs this repository's Environments write
 permission to update an environment secret; repository Actions secrets write permission alone
 is insufficient. `OPENAI_API_KEY` is only needed if explicitly selecting an OpenAI API grader.
-Dispatch **Actions > Astra eval > Run workflow** with a comma-separated `case_ids` set for the
+Dispatch **Actions > Astra eval > Run workflow** with the `gate` (`corpus` for the launch corpus,
+`must-pass` or `other` for a run of the core set) and a comma-separated `case_ids` set for the
 day's window. It creates a mode-600 temporary credentials file, persists only successful token
 rotations when no refresh failed, uploads sanitized summaries, then deletes local credentials and
 markers. Persistence still runs after unrelated eval failures. A failed or interrupted refresh or
