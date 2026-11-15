@@ -9,7 +9,8 @@ Wait, with a registered harness wake source, until no background workflow or sub
 session holds a turn end or a relay drain. A run stops holding when it finishes, or when it makes
 no transcript progress for 30 minutes. The progress of an agent, a workflow or a shell that a
 subagent launched counts as progress of that subagent. A run with no progress counts as stuck: the run state
-then records the worktree, branch and last commit of that agent in stuckBackgroundRuns.
+then records the worktree, branch and last commit of that agent in stuckBackgroundRuns, with the count of its
+uncommitted changes and of its commits that no upstream holds.
 Reads the session from CLAUDE_CODE_SESSION_ID, else from the run state. No stdin is read.
 --poll-seconds defaults to 15 and must be a positive finite number.
 Prints one JSON result with waiting, stuck, reason and waitedSeconds.

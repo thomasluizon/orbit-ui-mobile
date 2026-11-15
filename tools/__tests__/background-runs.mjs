@@ -125,6 +125,9 @@ const stuckCases = async () => {
   T("background-runs: the run state records the worktree, branch and last commit of the stuck agent, not of the coordinator", recorded().length === 1 && recorded()[0].id === "agent-task" &&
     recorded()[0].type === "subagent" && recorded()[0].sessionId === "coordinator" && recorded()[0].worktree === agentWorktree && recorded()[0].branch === "fix/agent-work" &&
     recorded()[0].lastCommit === agentHead && agentHead !== coordinatorHead && recorded()[0].lastProgressAt === at(20) && recorded()[0].stuckAt === at(50), JSON.stringify(recorded()))
+  // The branch of the agent has no upstream, and no remote holds its one commit: a lost worktree would lose that commit.
+  T("background-runs: the record says that the worktree holds no uncommitted change and one commit that no remote holds",
+    recorded()[0].uncommittedChanges === 0 && recorded()[0].unpushedCommits === 1 && recorded()[0].upstream === null && recorded()[0].workStateError === undefined, JSON.stringify(recorded()))
   T("background-runs: a later read returns the stuck record and writes it once", drain(55).stuck[0].lastCommit === agentHead && recorded().length === 1 && recorded()[0].stuckAt === at(50))
   T("background-runs: a stuck run stays on record until its owner ends it", readBackgroundRuns("coordinator", repoRoot).length === 1)
 
@@ -174,9 +177,15 @@ const stuckCases = async () => {
     drain(131)
     return drain(160).stuck[0]?.worktree
   }
+  writeFileSync(join(agentWorktree, "draft.txt"), "draft\n")
   T("background-runs: one late visit to another repository and one large last line do not change the worktree", worktreeOf(excursionLast) === agentWorktree)
+  T("background-runs: the record counts the uncommitted change in the worktree, read when the run became stuck", recorded()[0].uncommittedChanges === 1 && recorded()[0].unpushedCommits === 1, JSON.stringify(recorded()))
+  T("background-runs: a worktree that git cannot read records that it could not be read",
+    worktreeOf(`${JSON.stringify({ type: "user", cwd: scratchpad, message: { role: "user", content: "<value>" } })}\n`) === scratchpad && recorded()[0].uncommittedChanges === null &&
+    recorded()[0].unpushedCommits === null && recorded()[0].workStateError?.includes(`git could not read ${scratchpad}`), JSON.stringify(recorded()))
   T("background-runs: an agent that names no checkout worked in the directory of the session", worktreeOf(`${realTranscript.split("\n")[0]}\n`) === repoRoot && recorded()[0].branch === "main" && recorded()[0].lastCommit === coordinatorHead, JSON.stringify(recorded()))
-  T("background-runs: a transcript that names no directory records an unknown worktree", worktreeOf(`${JSON.stringify({ type: "assistant", agentId: "agent-task" })}\n`) === null && recorded()[0].branch === null && recorded()[0].lastCommit === null)
+  T("background-runs: a transcript that names no directory records an unknown worktree", worktreeOf(`${JSON.stringify({ type: "assistant", agentId: "agent-task" })}\n`) === null && recorded()[0].branch === null && recorded()[0].lastCommit === null &&
+    recorded()[0].uncommittedChanges === null && recorded()[0].workStateError === "no worktree is known", JSON.stringify(recorded()))
 
   // The successor inherits the entries of its predecessor as work to recover, so only this session's entries leave.
   const inherited = { id: "old-task", type: "subagent", sessionId: "predecessor", worktree: agentWorktree, branch: "fix/agent-work", lastCommit: agentHead, lastProgressAt: at(0), stuckAt: at(30) }

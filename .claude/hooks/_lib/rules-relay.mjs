@@ -17,7 +17,8 @@ export const relayDrainSources = (wakeSources, orphaned = [], backgroundRuns = [
 export const atQuietPoint = ({ hookEventName, stopHookActive, orphaned, wakeSources }) =>
   hookEventName === "Stop" && !stopHookActive && orphaned.length === 0 && wakeSources.length > 0
 
-const describeStuckRun = (run) => `${run.type} ${run.id} (worktree ${run.worktree ?? "unknown"}, branch ${run.branch ?? "unknown"}, last commit ${run.lastCommit ?? "unknown"})`
+const describeWorkState = (run) => run.workStateError ? `work state unread: ${run.workStateError}` : `uncommitted changes ${run.uncommittedChanges ?? "unknown"}, unpushed commits ${run.unpushedCommits ?? "unknown"}`
+const describeStuckRun = (run) => `${run.type} ${run.id} (worktree ${run.worktree ?? "unknown"}, branch ${run.branch ?? "unknown"}, last commit ${run.lastCommit ?? "unknown"}, ${describeWorkState(run)})`
 
 export const checkRelayStop = ({ enabled, softTokens, hardTokens, state, sessionId, measuredTokens, hookEventName = "Stop", wakeSources = [], orphaned = [], backgroundRuns = [], stuckRuns = [], now = Date.now(), stopHookActive = false }) => {
   if (!enabled || state?.sleep !== true || !sessionId || state.sessionId !== sessionId || measuredTokens < softTokens) return null

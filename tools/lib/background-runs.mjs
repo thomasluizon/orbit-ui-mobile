@@ -252,18 +252,38 @@ const workingDirectoryOf = (run) => {
   return named ?? transcripts.reverse().map(entryDirectory).find((directory) => directory !== null) ?? null
 }
 
-const gitValue = (worktree, args) => {
-  const result = spawnSync("git", ["-C", worktree, ...args], { encoding: "utf8", timeout: 3000, windowsHide: true })
-  return result.status === 0 && result.stdout.trim() ? result.stdout.trim() : null
+/** No optional lock: the read must not hold the index while the agent of that worktree runs git. */
+const git = (worktree, args) => spawnSync("git", ["-C", worktree, "--no-optional-locks", ...args], { encoding: "utf8", timeout: 3000, windowsHide: true })
+const gitFailure = (result) => result.error?.message ?? (result.stderr.trim().split("\n")[0] || `git exit ${result.status}`)
+
+/**
+ * What a lost worktree would lose: its uncommitted paths, and the commits that its upstream does not hold, or that no
+ * remote branch holds when it has no upstream. One `git status` also gives the branch and the last commit.
+ */
+const readWorkState = (worktree) => {
+  const unread = (reason) => ({ branch: null, lastCommit: null, upstream: null, uncommittedChanges: null, unpushedCommits: null, workStateError: reason })
+  if (!worktree) return unread("no worktree is known")
+  const status = git(worktree, ["status", "--porcelain=v2", "--branch"])
+  if (status.status !== 0) return unread(`git could not read ${worktree}: ${gitFailure(status)}`)
+  const lines = status.stdout.split("\n").filter(Boolean)
+  const header = Object.fromEntries(lines.filter((line) => line.startsWith("# branch.")).map((line) => [line.slice(2).split(" ")[0], line.slice(2).split(" ").slice(1).join(" ")]))
+  const lastCommit = /^[0-9a-f]+$/.test(header["branch.oid"] ?? "") ? header["branch.oid"] : null
+  const ahead = /^\+(\d+) -\d+$/.exec(header["branch.ab"] ?? "")
+  // An upstream that no longer resolves prints no `branch.ab` line, so the remote branches decide.
+  const unpushed = ahead || !lastCommit ? null : git(worktree, ["rev-list", "--count", "HEAD", "--not", "--remotes"])
+  if (unpushed && unpushed.status !== 0) return unread(`git could not read ${worktree}: ${gitFailure(unpushed)}`)
+  return {
+    branch: header["branch.head"] ?? null, lastCommit, upstream: header["branch.upstream"] ?? null,
+    uncommittedChanges: lines.filter((line) => !line.startsWith("#")).length,
+    unpushedCommits: ahead ? Number(ahead[1]) : unpushed ? Number(unpushed.stdout.trim()) : 0,
+  }
 }
 
-/** What the successor needs to recover a stuck run: where it worked, on which branch, and its last commit. */
+/** What the successor needs to recover a stuck run: where it worked, on which branch, its last commit, and the work that is only there. */
 const describeStuckRun = (run, lastProgress, now) => {
   const worktree = workingDirectoryOf(run)
   return {
-    id: run.id, type: run.type, sessionId: run.sessionId, worktree,
-    branch: worktree ? gitValue(worktree, ["rev-parse", "--abbrev-ref", "HEAD"]) : null,
-    lastCommit: worktree ? gitValue(worktree, ["rev-parse", "HEAD"]) : null,
+    id: run.id, type: run.type, sessionId: run.sessionId, worktree, ...readWorkState(worktree),
     lastProgressAt: new Date(lastProgress).toISOString(), stuckAt: new Date(now).toISOString(),
   }
 }

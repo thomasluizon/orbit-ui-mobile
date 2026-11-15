@@ -1800,6 +1800,8 @@ const releasedDrain = backgroundHook(heldStop)
 T("stuck limit: 30 minutes with no transcript progress completes the drain", releasedDrain.stdout.includes("drain is complete"), true)
 T("stuck limit: the drain message names the stuck subagent for the handoff", releasedDrain.stdout.includes(`subagent ${heldAgent}`) && releasedDrain.stdout.includes("stuckBackgroundRuns"), true)
 T("stuck limit: the drain message names the worktree and the branch of the agent", releasedDrain.stdout.includes(`worktree ${JSON.stringify(heldWorktree).slice(1, -1)}`) && releasedDrain.stdout.includes("branch fix/held-agent"), true)
+// The agent branch has no upstream, and no remote holds its one commit.
+T("stuck limit: the drain message says what the worktree holds that no remote holds", releasedDrain.stdout.includes("uncommitted changes 0, unpushed commits 1"), true)
 T("stuck limit: the run state records the worktree, branch and last commit of the stuck subagent, not of the coordinator",
   readRunState(wakeCheckout).stuckBackgroundRuns?.map((run) => [run.id, run.type, run.sessionId, run.worktree, run.branch, run.lastCommit, run.lastProgressAt]),
   [[heldAgent, "subagent", relayPayload.session_id, heldWorktree, "fix/held-agent", headOf(heldWorktree), silentSince]])
