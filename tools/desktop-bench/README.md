@@ -407,7 +407,7 @@ or a Command+K that the input method claimed (key code 229 or a composition) sti
 Astra and palette shortcut handlers act on the key name, and the runner never posts such a key again after
 the page recorded it. cmdk ignores a claimed Down, so only an unclaimed ArrowDown counts for a Down, and the
 runner posts a claimed Down again under the same bound.
-If the page records no keydown of the key within 5 seconds, the runner sends it again, with at most 6
+If the page records no keydown that counts within 5 seconds, the runner sends it again, with at most 6
 posts (30 seconds) per key. A key that never arrives fails with `OS key delivery failed`, before the
 runner checks the app. After a repost, a key from an earlier post can still arrive. The runner then
 assumes that every key of this run has the delay of the first post, and watches until the last post's

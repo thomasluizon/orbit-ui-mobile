@@ -122,7 +122,7 @@ export const keyReceiptWindow = 5000
 export const keyPosts = 6
 
 // A native key post can return without reaching WebKit, so only the page's keydown receipt proves delivery (#1560). A key
-// posts again only while the page has recorded no keydown of that key, and a key that never arrives fails as OS delivery,
+// posts again only while the page has recorded no matching keydown, and a key that never arrives fails as OS delivery,
 // apart from the app check that follows. After a repost, a key from an earlier post can still arrive late, so a second
 // keydown fails before a toggle key (Command+K) or a second Down can mislead the app check.
 export async function deliverKey({ name, post, events, matches, waitFor, now, record, log }) {
@@ -159,5 +159,4 @@ export async function deliverKey({ name, post, events, matches, waitFor, now, re
     throw new Error(`OS key delivery failed: the page received ${received} ${name} keydowns from ${attempts.length} post${attempts.length === 1 ? '' : 's'}; ` +
       'a key arrived after its window together with its repost')
   }
-  return receipts()[before]
 }

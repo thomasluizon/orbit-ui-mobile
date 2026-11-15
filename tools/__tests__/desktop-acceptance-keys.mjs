@@ -125,9 +125,8 @@ export async function keyDeliveryCases() {
     const logs = []
     const record = []
     let failure
-    let receipt
     try {
-      receipt = await deliverKey({ name: 'escape', waitFor: context.waitFor, now: () => clock, record, log: (line) => logs.push(line),
+      await deliverKey({ name: 'escape', waitFor: context.waitFor, now: () => clock, record, log: (line) => logs.push(line),
         events: () => page.filter((event) => event.at <= clock), matches: (event) => event.key === 'Escape',
         post: async () => {
           posts.push(clock)
@@ -141,8 +140,8 @@ export async function keyDeliveryCases() {
     const received = attempts.map((attempt) => attempt.received)
     if (name === 'first-post' || name === 'third-post') {
       const arrives = name === 'first-post' ? 1 : 3
-      T(`a key the page receives on post ${arrives} returns its receipt and records every earlier post with the other keys the page got (${name})`,
-        !failure && receipt?.key === 'Escape' && posts.length === arrives && record[0].key === 'escape' &&
+      T(`a key the page receives on post ${arrives} counts as received and records every earlier post with the other keys the page got (${name})`,
+        !failure && posts.length === arrives && record[0].key === 'escape' &&
           JSON.stringify(received) === JSON.stringify([...Array(arrives - 1).fill(false), true]) &&
           attempts.every((attempt, index) => attempt.reply.post === index + 1) &&
           attempts.slice(0, -1).every((attempt) => attempt.keys.length === 1 && attempt.keys[0].key === 'Process') &&
@@ -153,7 +152,7 @@ export async function keyDeliveryCases() {
     }
     if (name === 'claimed') {
       T('a key the input method claimed (keyCode 229) still counts as received, because the app acts on the key name, and is never posted again',
-        !failure && posts.length === 1 && receipt?.keyCode === 229 && JSON.stringify(received) === '[true]', failure?.message)
+        !failure && posts.length === 1 && JSON.stringify(received) === '[true]', failure?.message)
     }
     if (name === 'late-and-repost') {
       T('a key that arrives after its window together with its repost fails as OS delivery with both keydowns counted',
