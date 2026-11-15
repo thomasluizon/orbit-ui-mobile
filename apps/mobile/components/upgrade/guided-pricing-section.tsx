@@ -209,9 +209,9 @@ function PlanRefusal({ checkoutError, isOnline, t, tokens }: Readonly<Pick<Guide
 }
 
 /** The pinned footer of the compact shell. The host draws it under its scroller, so the scroller ends above it and it never covers a plan card. The refusal of the handoff sits above the action. */
-export function GuidedPlanFooter({ endInset = SPACING.s16, checkoutError, tokens, ...props }: Readonly<PlanPrimaryProps & { checkoutError: string; tokens: Tokens; endInset?: number }>) {
+export function GuidedPlanFooter({ checkoutError, tokens, ...props }: Readonly<PlanPrimaryProps & { checkoutError: string; tokens: Tokens }>) {
   return (
-    <View testID="upgrade-plan-footer" style={[localStyles.footer, { paddingBottom: endInset, backgroundColor: tokens.bg }]}>
+    <View testID="upgrade-plan-footer" style={[localStyles.footer, { backgroundColor: tokens.bg }]}>
       <PlanRefusal checkoutError={checkoutError} isOnline={props.isOnline} t={props.t} tokens={tokens} />
       <PlanPrimary {...props} />
     </View>
@@ -287,8 +287,8 @@ const localStyles = StyleSheet.create({
   disabled: { opacity: 0.5 },
   centred: { textAlign: 'center' },
   primary: { width: '100%' },
-  primaryWide: { width: '100%', maxWidth: 360 },
-  footer: { width: '100%', paddingTop: SPACING.s8 },
+  primaryWide: { width: '100%', maxWidth: 360, alignItems: 'center' },
+  footer: { width: '100%', paddingTop: SPACING.s8, paddingBottom: SPACING.s16 },
   announcement: { position: 'absolute', width: 1, height: 1, opacity: 0 },
   support: { width: '100%', gap: 32 },
   facts: { gap: 8 },
