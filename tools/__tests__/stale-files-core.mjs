@@ -17,6 +17,8 @@ const LINKED = "77777777-0000-4000-8000-000000000007"
 const CHAINED = "88888888-0000-4000-8000-000000000008"
 const HOLDS_WORK = "99999999-0000-4000-8000-000000000009"
 const STALE = "aaaaaaaa-0000-4000-8000-00000000000a"
+const OTHER = "cccccccc-0000-4000-8000-00000000000c"
+const LIVE_CARRY = "0f0f0f0f-0000-4000-8000-00000000000f"
 const SESSIONS = [THIS, CHAIN_PREDECESSOR, RUN_PREDECESSOR, SUCCESSOR, LIVE_RECORD, LIVE_DIRECTORY, LIVE_COMMAND, LINKED, CHAINED, HOLDS_WORK, STALE]
 
 /** One checkout with a run state and a chain ledger, one session root and one carry root, all under the suite root. */
@@ -69,6 +71,14 @@ const sessionCases = () => {
     ["a directory with an uncommitted worktree", HOLDS_WORK, /holds an uncommitted change/],
   ]) T(`stale-files: ${name} is kept`, reason.test(reasonOf(listing, directory(session)) ?? ""), `reason: ${reasonOf(listing, directory(session))}`)
   same("stale-files: a directory that is not a session id is never an item", [...listing.stale, ...listing.kept].some((item) => item.path.includes("tasks-not-a-session")), false)
+  // A second session in the same checkout lists and removes too: the run's own relay pair must stay for it as well.
+  const second = collectListing({ ...machine.context, sessionId: OTHER, repositories: { ui: machine.checkout } },
+    { probes: { ...probes, liveSessions: () => [{ sessionId: LIVE_RECORD, cwd: machine.checkout }, { sessionId: OTHER, cwd: machine.checkout }] } })
+  same("stale-files: another session's listing marks only the same session directory stale", stalePaths(second, "session"), [directory(STALE)])
+  for (const [name, session, reason] of [
+    ["the run session", THIS, /^the run session$/], ["the run session's chain predecessor", CHAIN_PREDECESSOR, /predecessor of the run session/],
+    ["the run session's relay predecessor", RUN_PREDECESSOR, /predecessor of the run session/], ["the run session's nominated successor", SUCCESSOR, /nominated successor of the run session/],
+  ]) T(`stale-files: from another session, ${name} is kept`, reason.test(reasonOf(second, directory(session)) ?? ""), `reason: ${reasonOf(second, directory(session))}`)
   const blind = collectListing(machine.context, { probes: { ...quietProbes, processes: () => null } })
   T("stale-files: an unreadable process table keeps every session directory", stalePaths(blind, "session").length === 0 && /process table could not be read/.test(reasonOf(blind, directory(STALE)) ?? ""), JSON.stringify(blind.stale))
   const rootless = collectListing({ ...machine.context, sessionRoot: null }, { probes: quietProbes })
@@ -77,7 +87,7 @@ const sessionCases = () => {
 
 const carryCases = () => {
   const machine = stageMachine("carry")
-  const copies = [["durable-0a0a0a0a", 50], ["durable-0b0b0b0b", 40], ["durable-22222222", 30], ["durable-0d0d0d0d", 20], ["durable-0e0e0e0e", 10]]
+  const copies = [["durable-0f0f0f0f", 60], ["durable-0a0a0a0a", 50], ["durable-0b0b0b0b", 40], ["durable-22222222", 30], ["durable-0d0d0d0d", 20], ["durable-0e0e0e0e", 10]]
   for (const [name, age] of copies) {
     mkdirSync(join(machine.carryRoot, name, "kept-build"), { recursive: true })
     utimesSync(join(machine.carryRoot, name), new Date(Date.now() - age * 3_600_000), new Date(Date.now() - age * 3_600_000))
@@ -85,14 +95,16 @@ const carryCases = () => {
   mkdirSync(join(machine.carryRoot, "scratchpad"))
   writeFileSync(join(machine.carryRoot, "carry-0a0a0a0a.log"), "carried\n")
   symlinkSync(join(machine.carryRoot, "durable-0b0b0b0b", "kept-build"), join(machine.sessionRoot, THIS, "scratchpad", "kept-build"), "dir")
-  const listing = collectListing(machine.context, { probes: quietProbes })
+  // A live session in another checkout still mirrors its scratchpad into its own durable copy, however old the copy's directory is.
+  const listing = collectListing(machine.context, { probes: { ...quietProbes, liveSessions: () => [{ sessionId: LIVE_CARRY, cwd: machine.base }] } })
   const copy = (name) => join(machine.carryRoot, name)
   same("stale-files: only a durable copy older than the newest two is stale", stalePaths(listing, "carry"), [copy("durable-0a0a0a0a")])
   T("stale-files: the stale durable copy names its reason", /older than the newest two durable copies/.test(listing.stale.find((item) => item.kind === "carry")?.reason ?? ""), JSON.stringify(listing.stale))
   for (const name of ["durable-0e0e0e0e", "durable-0d0d0d0d"]) T(`stale-files: ${name} is one of the newest two`, /newest two/.test(reasonOf(listing, copy(name)) ?? ""), `reason: ${reasonOf(listing, copy(name))}`)
   T("stale-files: the durable copy of the predecessor is kept at any age", /durable copy of the predecessor/.test(reasonOf(listing, copy("durable-22222222")) ?? ""), `reason: ${reasonOf(listing, copy("durable-22222222"))}`)
   T("stale-files: a durable copy this scratchpad links into is kept", /scratchpad of session 00000000 links into it/.test(reasonOf(listing, copy("durable-0b0b0b0b")) ?? ""), `reason: ${reasonOf(listing, copy("durable-0b0b0b0b"))}`)
-  same("stale-files: other entries of the carry root are never items", [...listing.stale, ...listing.kept].filter((item) => item.kind === "carry").length, 5)
+  T("stale-files: the durable copy of a live session is kept at any age", /durable copy of live session 0f0f0f0f/.test(reasonOf(listing, copy("durable-0f0f0f0f")) ?? ""), `reason: ${reasonOf(listing, copy("durable-0f0f0f0f"))}`)
+  same("stale-files: other entries of the carry root are never items", [...listing.stale, ...listing.kept].filter((item) => item.kind === "carry").length, 6)
 }
 
 const removalCases = () => {

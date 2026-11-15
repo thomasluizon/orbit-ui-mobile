@@ -13,15 +13,18 @@ const USAGE = `usage: stale-files.mjs [--list] [--json] [--session <id>] [--sess
 
   Lists the stale files of a long run with their size and the reason, and removes them on an explicit order.
 
-  session    a session directory under --session-root that is not this session, its predecessor,
-             or a session with a live process
-  carry      a durable-<id> copy under --carry-root that is older than the newest two
+  session    a session directory under --session-root that is not this session, the run session, a live
+             session, the predecessor of one of them, the nominated successor of the run, or a session
+             with a live process
+  carry      a durable-<id> copy under --carry-root that is older than the newest two and is not the
+             copy of a protected or live session
   worktree   a linked worktree of a repository in .claude/orchestrator.json whose pull request merged or
              closed, or whose branch a merged branch contains, with no uncommitted change and no unpushed
              commit. Its local branch always stays.
 
   An item stays when a live process or a live session uses it, when the scratchpad of a protected session
-  links into it, when it holds a worktree with an uncommitted change, or when a check cannot read its evidence.
+  links into it, when it holds a registered worktree that the worktree rules keep (an uncommitted change,
+  an unpushed commit, an open pull request, work nobody merged), or when a check cannot read its evidence.
 
   --list               (default) compute the listing, store it in the git directory, print each stale item
   --json               with --list: print the stored listing as JSON, with every kept item and its reason

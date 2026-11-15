@@ -143,17 +143,26 @@ const scratchpadLinks = (session) => {
   return names.flatMap((name) => linkHops(join(scratchpad, name)).map((target) => ({ sessionId: session.name, target })))
 }
 
-/** This session, the session it took over from, and a successor it nominated: each one still reads its scratchpad. */
-export const protectedSessionsOf = (sessionId, repoRoot = REPO_ROOT) => {
+/**
+ * This session, the run session, a live session, the session each of them took over from, and a successor the run
+ * nominated: each one still reads its scratchpad. The run record counts whatever session reads it, so a second session
+ * in the checkout never removes the relay pair of the run.
+ */
+export const protectedSessionsOf = (sessionId, repoRoot = REPO_ROOT, liveSessionIds = []) => {
   const sessions = new Map([[sessionId, "this session"]])
-  const state = readRunState(repoRoot)
-  if (state?.sessionId === sessionId) {
-    if (typeof state.relay?.from === "string") sessions.set(state.relay.from, "the predecessor of this session")
-    if (typeof state.relay?.successorSessionId === "string") sessions.set(state.relay.successorSessionId, "the nominated successor of this session")
+  const add = (id, reason) => {
+    if (typeof id === "string" && id !== "" && !sessions.has(id)) sessions.set(id, reason)
   }
+  const state = readRunState(repoRoot)
+  const runSession = typeof state?.sessionId === "string" && state.sessionId !== "" ? state.sessionId : null
+  const runName = runSession === sessionId ? "this session" : "the run session"
+  add(runSession, "the run session")
+  add(state?.relay?.from, `the predecessor of ${runName}`)
+  add(state?.relay?.successorSessionId, `the nominated successor of ${runName}`)
+  const heads = new Map([...liveSessionIds.map((id) => [id, `live session ${id.slice(0, 8)}`]), ...(runSession ? [[runSession, runName]] : []), [sessionId, "this session"]])
   for (const chain of readSessionChain(repoRoot).chains) {
     for (const entry of chain.entries ?? []) {
-      if (entry.successorSessionId === sessionId && !sessions.has(entry.sessionId)) sessions.set(entry.sessionId, "the predecessor of this session")
+      if (heads.has(entry.successorSessionId)) add(entry.sessionId, `the predecessor of ${heads.get(entry.successorSessionId)}`)
     }
   }
   return sessions
@@ -177,9 +186,9 @@ const listWorktrees = (repositoryPath, probes) => {
 const gatherEvidence = (context, probes) => {
   const worktrees = Object.values(context.repositories).filter((path) => existsSync(path)).flatMap((path) => listWorktrees(path, probes) ?? [])
     .filter((worktree) => !worktree.missing).map((worktree) => ({ ...worktree, path: canonical(worktree.path) }))
+  const liveSessions = probes.liveSessions(context.configDirectories)
   return { sessionRoot: context.sessionRoot ? canonical(context.sessionRoot) : null, carryRoot: canonical(context.carryRoot), worktrees,
-    protectedSessions: protectedSessionsOf(context.sessionId, context.repoRoot), processes: probes.processes(),
-    liveSessions: probes.liveSessions(context.configDirectories) }
+    protectedSessions: protectedSessionsOf(context.sessionId, context.repoRoot, liveSessions.map((live) => live.sessionId)), processes: probes.processes(), liveSessions }
 }
 
 /** Why a live process or session still uses `path`; null when none does. An unreadable process table counts as in use. */
@@ -192,12 +201,30 @@ const useOf = (path, evidence, sessionId = null) => {
   return null
 }
 
-/** Why a directory outside the worktree class must stay: the scratchpad of a session that stays links into it, or it holds unsaved work. */
+/**
+ * Why one registered worktree inside a session directory or a carry copy must stay; null when removing it loses nothing.
+ * The worktree class rules apply: a session leaves the tree of an open pull request or an unpushed commit in its scratchpad.
+ */
+const nestedWorktreeHold = (worktree, probes) => {
+  if (worktree.locked) return "it is locked"
+  if (probes.git(worktree.path, ["status", "--porcelain"]) !== "") return "it holds an uncommitted change"
+  if (worktree.branch !== null) {
+    const verdict = judgeBranch(worktree, probes)
+    return verdict.stale ? null : verdict.reason
+  }
+  // A detached HEAD has no branch that outlives the directory, so a commit that no remote has would be lost with it.
+  return probes.git(worktree.path, ["rev-list", "--count", "HEAD", "--not", "--remotes"]) === "0" ? null : "it holds a commit that no remote has"
+}
+
+/** Why a directory outside the worktree class must stay: the scratchpad of a session that stays links into it, or a worktree in it must stay. */
 const holdOf = (path, evidence, probes) => {
   const link = evidence.links.find((entry) => within(entry.target, path))
   if (link) return `the scratchpad of session ${link.sessionId.slice(0, 8)} links into it`
-  const dirty = evidence.worktrees.find((worktree) => within(worktree.path, path) && probes.git(worktree.path, ["status", "--porcelain"]) !== "")
-  return dirty ? `worktree ${dirty.path} in it holds an uncommitted change` : null
+  for (const worktree of evidence.worktrees.filter((candidate) => within(candidate.path, path))) {
+    const hold = nestedWorktreeHold(worktree, probes)
+    if (hold) return `worktree ${worktree.path} in it stays: ${hold}`
+  }
+  return null
 }
 
 /** Each session directory with the reason a session still owns it; null when no session does. */
@@ -222,9 +249,12 @@ const classifyCarryCopies = (evidence, probes) => {
     .sort((left, right) => right.entry.mtimeMs - left.entry.mtimeMs || right.name.localeCompare(left.name))
   const protectedPrefixes = new Map([...evidence.protectedSessions].map(([sessionId, reason]) => [sessionId.slice(0, 8), reason]))
   return copies.map((copy, position) => {
-    const owner = protectedPrefixes.get(DURABLE_COPY.exec(copy.name)[1])
+    const prefix = DURABLE_COPY.exec(copy.name)[1]
+    const owner = protectedPrefixes.get(prefix)
+    // A live session mirrors its scratchpad into its own copy; with three live sessions the third copy is not one of the newest two.
+    const live = evidence.liveSessions.find((session) => session.sessionId.startsWith(prefix))
     const keep = (position < 2 ? "one of the newest two durable copies" : null) ?? (owner ? `the durable copy of ${owner}` : null)
-      ?? useOf(copy.path, evidence) ?? holdOf(copy.path, evidence, probes)
+      ?? (live ? `the durable copy of live session ${prefix}` : null) ?? useOf(copy.path, evidence) ?? holdOf(copy.path, evidence, probes)
     return { kind: "carry", path: copy.path, stale: keep === null, reason: keep ?? "older than the newest two durable copies" }
   })
 }
