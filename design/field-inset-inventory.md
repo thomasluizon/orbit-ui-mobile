@@ -57,7 +57,7 @@ Paths are repository-relative. Repeated rows are separate controls within one ow
 | `apps/mobile/app/support.tsx` | 195 | `Input` | standard | 16 |
 | `apps/mobile/components/auth/code-step.tsx` | 62 | `OtpInput` | otp | centred |
 | `apps/mobile/components/auth/email-step.tsx` | 74 | `Input` | standard | 16 |
-| `apps/mobile/components/auth/guided-login.tsx` | 69 | `Input` | standard | 16 |
+| `apps/mobile/components/auth/guided-login.tsx` | 71 | `Input` | standard | 16 |
 | `apps/mobile/components/chat/answer-block.tsx` | 41 | `Input` | standard | 16 |
 | `apps/mobile/components/chat/breakdown-suggestion.tsx` | 33 | `TypedTextInput` | inline add | 12 |
 | `apps/mobile/components/chat/habit-suggestions-card.tsx` | 69 | `Input` | standard | 16 |
@@ -147,7 +147,7 @@ Paths are repository-relative. Repeated rows are separate controls within one ow
 | `apps/web/app/(app)/today-page-view.tsx` | 59 | `Input` | standard | 16 |
 | `apps/web/app/(auth)/login/code-step.tsx` | 47 | `OtpInput` | otp | centred |
 | `apps/web/app/(auth)/login/email-step.tsx` | 73 | `Input` | standard | 16 |
-| `apps/web/app/(auth)/login/guided-login.tsx` | 63 | `Input` | standard | 16 |
+| `apps/web/app/(auth)/login/guided-login.tsx` | 64 | `Input` | standard | 16 |
 | `apps/web/app/step-up/step-up-screen.tsx` | 457 | `OtpInput` | otp | centred |
 | `apps/web/components/calendar/calendar-day-events.tsx` | 48 | `Input` | standard | 16 |
 | `apps/web/components/calendar/calendar-entry-details.tsx` | 32 | `Input` | standard | 16 |
