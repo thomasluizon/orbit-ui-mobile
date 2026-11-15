@@ -34,6 +34,7 @@ import { IconButton } from '@/components/ui/icon-button'
 import { useShellScrollerRegistration } from './shell-scroller-context'
 import { useModalFocusTrap } from './use-modal-focus-trap'
 import { getShellHeading } from './shell-header'
+import { OrbitOverlayLayer } from '@/components/ui/orbit-overlay-layer'
 
 function getConversationFocusTarget(container: HTMLElement): HTMLElement {
   return container.querySelector<HTMLElement>('[data-composer-input]:not([disabled])')
@@ -500,7 +501,7 @@ function ShellWideBackground({
           <div data-shell-create-refusal="" aria-live="polite" aria-atomic="true" className="min-h-0 overflow-y-auto px-4">{sidebarRefusal}</div>
           </div>
           </ShellDestinationViewport>
-          {conversationOpen ? <ShellConversation conversationId={conversationId} label={props.conversationLabel} wide={wide}>{props.conversation}</ShellConversation> : null}
+          {conversationOpen ? <OrbitOverlayLayer><ShellConversation conversationId={conversationId} label={props.conversationLabel} wide={wide}>{props.conversation}</ShellConversation></OrbitOverlayLayer> : null}
         </div>
       </div>
     </div></ConversationComposerMotionProvider>
