@@ -2,7 +2,7 @@ import { spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, symlinkSync, writeFileSync }
   from 'node:fs'
 import { tmpdir } from 'node:os'
-import { dirname, posix, relative, resolve, sep } from 'node:path'
+import { dirname, isAbsolute, posix, relative, resolve, sep } from 'node:path'
 import ts from 'typescript'
 import { afterEach, describe, expect, it } from 'vitest'
 import { repositoryRoot as repository } from '../src/test-support/repository-root.ts'
@@ -45,7 +45,7 @@ const consumers = [
   { workspace: 'apps/web', name: '@orbit/web', inputs: [
     'tools/check-surface-scope.mjs', 'tools/arch-map.mjs', 'tools/lib/escape-regex.mjs', 'DESIGN.md', 'design/brand/png/orbit-platform-icon-512.png',
     'apps/mobile/components/ui/list-row.tsx', 'packages/shared/src/__tests__/contrast.ts', 'tsconfig.base.json',
-    'tsconfig.json',
+    'tsconfig.json', 'apps/mobile/tsconfig.json',
     ...desktopFilesTheWebTestsRead,
   ] },
   { workspace: 'eslint-rules', name: '@orbit/eslint-rules', inputs: [
@@ -212,25 +212,53 @@ const testOrSetupFile = /(?:^|\/)(?:__tests__|test-support|test-mocks|vitest)\/|
 const lintConfiguration = /(?:^|\/)eslint\.config\.[cm]?js$/
 const resolutionSuffixes = ['', '.ts', '.tsx', '.mts', '.cts', '.js', '.jsx', '.mjs', '.cjs', '.json', '/index.ts',
   '/index.tsx', '/index.js']
-const importSpecifier = /(?:\bfrom\s*|\bimport\s*\(\s*|\bimport\s+|\brequire\s*\(\s*|\bvi\.(?:mock|doMock|importActual)\s*\(\s*)(['"`])([^'"`$\n]+)\1/g
-const literalRun = /(?:(['"])[^'"\n]*\1\s*,\s*)*(['"])[^'"\n]*\2/g
-const literal = /(['"])([^'"\n]*)\1/g
+const pathModules = new Set(['node:path', 'path'])
+const urlModules = new Set(['node:url', 'url'])
+const moduleCalls = new Set(['require', 'vi.mock', 'vi.doMock', 'vi.importActual'])
 /**
- * An ESLint RuleTester `filename`, a config lookup and an `exemptFiles` rule option name a file only to match the
+ * An ESLint RuleTester `filename`, an `exemptFiles` rule option and a config lookup name a file only to match the
  * linted filename. ESLint lints the inline code and does not read that file.
  */
-const virtualFilename = /(?:\bfilename:\s*(?:fileURLToPath\(\s*new URL\(\s*)?|\bcalculateConfigForFile\(\s*|\bexemptFiles:\s*\[\s*)$/
+const virtualFilenameKeys = new Set(['filename', 'exemptFiles'])
+const virtualFilenameCalls = new Set(['calculateConfigForFile', 'eslint.calculateConfigForFile'])
+/**
+ * Tests that build paths at run time from a folder walk or a computed list. The guard cannot follow the walk, so
+ * each entry names the outside folders the test reads and the files it keeps there. Every kept file must be hashed.
+ * An entry replaces the folder the guard computed for that test, so keep it in step with the test.
+ */
+const folderWalks = {
+  'apps/web/__tests__/components/ui/list-row-icon-map.test.tsx': { folders: ['apps/mobile/app/', 'apps/mobile/components/'],
+    files: /\.tsx$/ },
+  // GENERATED_OUTPUTS lists the generator outputs, all in apps/mobile, and the literal check covers each one.
+  'apps/mobile/__tests__/scripts/widget-color-generator.test.ts': { folders: [], files: /$^/ },
+  'packages/shared/src/__tests__/authored-typography.test.ts': { folders: ['apps/mobile/', 'apps/web/'],
+    files: /\.(?:tsx?|jsx?|css|xml|svg)$/ },
+  'packages/shared/src/__tests__/backlog-port-source.test.ts': { folders: ['apps/mobile/', 'apps/web/'], files: /\.(?:css|tsx?)$/ },
+  'packages/shared/src/__tests__/hermes-intl-guard.test.ts': { folders: ['apps/mobile/'], files: /\.[jt]sx?$/ },
+  'packages/shared/src/__tests__/primitive-contracts.test.ts': { folders: ['apps/mobile/components/', 'apps/web/components/'],
+    files: /\.[jt]sx?$/ },
+  'packages/shared/src/__tests__/theme.test.ts': { folders: ['apps/mobile/', 'apps/web/'], files: /\.(?:css|tsx?)$/ },
+}
 
 let tracked
 /** The files turbo can hash: tracked, or untracked and not ignored. Generated and installed files are left out. */
 function hashableFiles() {
-  tracked ??= new Set(spawnSync('git', ['ls-files', '--cached', '--others', '--exclude-standard', '-z'],
-    { cwd: repository, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 }).stdout.split('\0').filter(Boolean))
+  if (!tracked) {
+    const result = spawnSync('git', ['ls-files', '--cached', '--others', '--exclude-standard', '-z'],
+      { cwd: repository, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 })
+    expect(result.status, `git ls-files failed: ${result.error ?? result.stderr}`).toBe(0)
+    tracked = new Set(result.stdout.split('\0').filter(Boolean))
+    expect(tracked.size, 'git ls-files listed no files').toBeGreaterThan(0)
+  }
   return tracked
 }
 
 function isFile(file) {
   return existsSync(file) && statSync(file).isFile()
+}
+
+function isDirectory(file) {
+  return existsSync(file) && statSync(file).isDirectory()
 }
 
 function repositoryPath(file) {
@@ -270,9 +298,13 @@ function nearestTsconfig(file) {
 
 let dryRun
 function repositoryDryRun() {
-  dryRun ??= JSON.parse(spawnSync(process.execPath, [turbo, 'run', 'test', '--dry=json'], { cwd: repository,
-    encoding: 'utf8', timeout: 30_000, maxBuffer: 64 * 1024 * 1024,
-    env: { PATH: process.env.PATH, SystemRoot: process.env.SystemRoot, TURBO_TELEMETRY_DISABLED: '1' } }).stdout)
+  if (!dryRun) {
+    const result = spawnSync(process.execPath, [turbo, 'run', 'test', '--dry=json'], { cwd: repository,
+      encoding: 'utf8', timeout: 30_000, maxBuffer: 64 * 1024 * 1024,
+      env: { PATH: process.env.PATH, SystemRoot: process.env.SystemRoot, TURBO_TELEMETRY_DISABLED: '1' } })
+    expect(result.status, `turbo run test --dry=json failed: ${result.error ?? result.stderr}`).toBe(0)
+    dryRun = JSON.parse(result.stdout)
+  }
   return dryRun
 }
 
@@ -283,11 +315,374 @@ function hashedFiles(taskId, tasks = repositoryDryRun().tasks, hashed = new Set(
   return hashed
 }
 
+function scriptKind(file) {
+  if (file.endsWith('.tsx')) return ts.ScriptKind.TSX
+  if (/\.[cm]?ts$/.test(file)) return ts.ScriptKind.TS
+  return file.endsWith('.jsx') ? ts.ScriptKind.JSX : ts.ScriptKind.JS
+}
+
+function directoryOf(prefix) {
+  if (!prefix) return undefined
+  return prefix.endsWith('/') ? prefix.slice(0, -1) || '/' : dirname(prefix)
+}
+
+const unknownValue = [{ prefix: '' }]
+const valueLimit = 200
+const iterationMethods = new Set(['map', 'flatMap', 'forEach', 'filter', 'some', 'every', 'find', 'findIndex'])
+const runCall = /(?:^|\.)(?:exec|execFile|spawn|fork)(?:Sync)?$/
+
+function unique(values) {
+  const found = new Map(values.map((value) => [JSON.stringify(value), value]))
+  return found.size > valueLimit ? unknownValue : [...found.values()]
+}
+
+function product(lists, combine) {
+  let combinations = [[]]
+  for (const list of lists) {
+    combinations = combinations.flatMap((parts) => list.map((value) => [...parts, value]))
+    if (combinations.length > valueLimit) return unknownValue
+  }
+  return unique(combinations.map(combine))
+}
+
+/** Joins text values. The result is `{ prefix }` from the first part that only the run knows. */
+function concatenate(parts) {
+  let text = ''
+  for (const part of parts) {
+    const known = part.url ?? part.path
+    if (known === undefined) {
+      const prefix = text + part.prefix
+      return prefix.includes('?') ? { path: prefix.slice(0, prefix.indexOf('?')) } : { prefix }
+    }
+    text += known
+  }
+  return { path: text }
+}
+
 /**
- * The files outside a workspace that its test runner reads: every relative import that leaves the workspace and
- * every path literal in a test or setup file that names a file outside it, the transitive relative imports of
- * each such module, each workspace package manifest whose `exports` a loaded module resolves, and the
- * `tsconfig.json` chain that Vite's native transform applies to each compiled file.
+ * Parses one module into its imports and the values of each path expression (a literal, a `node:path` or URL call,
+ * `process.cwd()`, or an argument of a call that runs or imports a file). An identifier takes the values of its const
+ * initializer, the literal table its loop, callback or `each` iterates, or the arguments at its function's call
+ * sites. A value is `{ path }` or `{ url }` when known before the run, and `{ prefix }` when the run supplies a part.
+ */
+function moduleFacts(file, workspaceRoot) {
+  const source = ts.createSourceFile(file, readFileSync(file, 'utf8'), ts.ScriptTarget.Latest, true, scriptKind(file))
+  const fileDirectory = dirname(file)
+  const pathFunctions = new Map()
+  const urlFunctions = new Set()
+  const repositoryRoots = new Set()
+  const imports = []
+  const expressions = []
+  const calls = []
+  const text = (node) => node.getText(source)
+  const bind = (from, local, imported) => {
+    if (pathModules.has(from)) pathFunctions.set(local, ['default', 'posix'].includes(imported) ? 'module' : imported)
+    if (urlModules.has(from) && imported === 'fileURLToPath') urlFunctions.add(local)
+    if (/repository-root(?:\.ts)?$/.test(from) && imported === 'repositoryRoot') repositoryRoots.add(local)
+  }
+  const requiredModule = (node) => node && ts.isCallExpression(node) && text(node.expression) === 'require' &&
+    node.arguments[0] && ts.isStringLiteralLike(node.arguments[0]) ? node.arguments[0].text : undefined
+  const virtual = (node) => {
+    for (let child = node, parent = node.parent; parent; child = parent, parent = parent.parent) {
+      if (ts.isPropertyAssignment(parent) && parent.initializer === child && virtualFilenameKeys.has(text(parent.name))) return true
+      if (ts.isCallExpression(parent) && parent.arguments.includes(child) && virtualFilenameCalls.has(text(parent.expression))) return true
+      if (ts.isStatement(parent)) return false
+    }
+    return false
+  }
+  const runs = (node) => {
+    for (let child = node, parent = node.parent; parent; child = parent, parent = parent.parent) {
+      if (ts.isCallExpression(parent) && parent.arguments.includes(child)) {
+        return parent.expression.kind === ts.SyntaxKind.ImportKeyword || runCall.test(text(parent.expression))
+      }
+      if (!ts.isArrayLiteralExpression(parent) && !ts.isTemplateSpan(parent) && !ts.isTemplateExpression(parent)) return false
+    }
+    return false
+  }
+  const collect = (node) => {
+    if (ts.isImportDeclaration(node) && ts.isStringLiteralLike(node.moduleSpecifier)) {
+      const from = node.moduleSpecifier.text
+      imports.push(from)
+      const clause = node.importClause
+      if (clause?.name) bind(from, clause.name.text, 'default')
+      const bindings = clause?.namedBindings
+      if (bindings && ts.isNamespaceImport(bindings)) bind(from, bindings.name.text, 'default')
+      if (bindings && ts.isNamedImports(bindings)) {
+        for (const element of bindings.elements) bind(from, element.name.text, (element.propertyName ?? element.name).text)
+      }
+      return
+    }
+    if (ts.isExportDeclaration(node) && node.moduleSpecifier && ts.isStringLiteralLike(node.moduleSpecifier)) {
+      imports.push(node.moduleSpecifier.text)
+      return
+    }
+    if (ts.isCallExpression(node)) {
+      calls.push(node)
+      if (node.arguments[0] && ts.isStringLiteralLike(node.arguments[0]) &&
+        (node.expression.kind === ts.SyntaxKind.ImportKeyword || moduleCalls.has(text(node.expression)))) {
+        imports.push(node.arguments[0].text)
+        for (const argument of node.arguments.slice(1)) collect(argument)
+        return
+      }
+      if (node.expression.kind === ts.SyntaxKind.ImportKeyword || runCall.test(text(node.expression))) {
+        for (const argument of node.arguments) {
+          const items = ts.isArrayLiteralExpression(argument) ? argument.elements : [argument]
+          for (const item of items) if (ts.isIdentifier(item)) expressions.push(item)
+        }
+      }
+    }
+    if (ts.isVariableDeclaration(node)) {
+      const from = requiredModule(node.initializer)
+      if (from && ts.isIdentifier(node.name)) bind(from, node.name.text, 'default')
+      if (from && ts.isObjectBindingPattern(node.name)) {
+        for (const element of node.name.elements) {
+          if (ts.isIdentifier(element.name)) bind(from, element.name.text, text(element.propertyName ?? element.name))
+        }
+      }
+    }
+    const pathLike = ts.isStringLiteralLike(node) || ts.isTemplateExpression(node) || ts.isCallExpression(node) ||
+      (ts.isNewExpression(node) && text(node.expression) === 'URL')
+    const propertyName = node.parent && (ts.isPropertyAssignment(node.parent) ||
+      ts.isPropertyAccessExpression(node.parent)) && node.parent.name === node
+    if (pathLike && !propertyName && !virtual(node)) expressions.push(node)
+    ts.forEachChild(node, collect)
+  }
+  collect(source)
+
+  const declares = (name, target) => {
+    if (ts.isIdentifier(name)) return name.text === target ? name.parent : undefined
+    for (const element of name.elements ?? []) {
+      const found = !ts.isOmittedExpression(element) && declares(element.name, target)
+      if (found) return found
+    }
+    return undefined
+  }
+  const declarationOf = (identifier) => {
+    for (let scope = identifier.parent; scope; scope = scope.parent) {
+      const declarations = []
+      if (ts.isFunctionLike(scope)) declarations.push(...scope.parameters.map((parameter) => parameter.name))
+      if ((ts.isForOfStatement(scope) || ts.isForStatement(scope) || ts.isForInStatement(scope)) &&
+        scope.initializer && ts.isVariableDeclarationList(scope.initializer)) {
+        declarations.push(...scope.initializer.declarations.map((declaration) => declaration.name))
+      }
+      for (const statement of scope.statements ?? []) {
+        if (ts.isVariableStatement(statement)) declarations.push(...statement.declarationList.declarations.map(({ name }) => name))
+        if ((ts.isFunctionDeclaration(statement) || ts.isClassDeclaration(statement)) && statement.name?.text === identifier.text) {
+          return statement
+        }
+        const clause = ts.isImportDeclaration(statement) ? statement.importClause : undefined
+        if (clause?.name?.text === identifier.text) return clause
+        const bindings = clause?.namedBindings
+        if (bindings && ts.isNamespaceImport(bindings) && bindings.name.text === identifier.text) return bindings
+        for (const element of bindings && ts.isNamedImports(bindings) ? bindings.elements : []) {
+          if (element.name.text === identifier.text) return element
+        }
+      }
+      for (const name of declarations) {
+        const found = declares(name, identifier.text)
+        if (found) return found
+      }
+    }
+    return undefined
+  }
+  const evaluating = new Set()
+  const guarded = (node, compute) => {
+    if (evaluating.has(node)) return unknownValue
+    evaluating.add(node)
+    try {
+      return compute()
+    } finally {
+      evaluating.delete(node)
+    }
+  }
+  const initializerOf = (node) => {
+    if (ts.isParenthesizedExpression(node) || ts.isAsExpression(node) || ts.isSatisfiesExpression(node)) {
+      return initializerOf(node.expression)
+    }
+    if (!ts.isIdentifier(node)) return node
+    const declaration = declarationOf(node)
+    return declaration && ts.isVariableDeclaration(declaration) && declaration.initializer &&
+      declaration.parent.flags & ts.NodeFlags.Const ? initializerOf(declaration.initializer) : declaration
+  }
+  /** The keys of a literal object, or of the JSON file that a default import names. */
+  const keysOf = (node) => {
+    const object = initializerOf(node)
+    if (object && ts.isObjectLiteralExpression(object)) {
+      return object.properties.flatMap((property) => ts.isPropertyAssignment(property) &&
+        (ts.isStringLiteralLike(property.name) || ts.isIdentifier(property.name)) ? [{ path: property.name.text }] : unknownValue)
+    }
+    const specifier = object && ts.isImportClause(object) ? object.parent.moduleSpecifier.text : undefined
+    if (!specifier?.startsWith('.') || !specifier.endsWith('.json')) return unknownValue
+    return Object.keys(JSON.parse(readFileSync(resolve(fileDirectory, specifier), 'utf8'))).map((key) => ({ path: key }))
+  }
+  const items = (node) => guarded(node, () => {
+    const collection = initializerOf(node)
+    if (collection && ts.isConditionalExpression(collection)) {
+      return unique([...items(collection.whenTrue), ...items(collection.whenFalse)])
+    }
+    if (collection && ts.isArrayLiteralExpression(collection)) {
+      return unique(collection.elements.flatMap((element) => {
+        if (ts.isSpreadElement(element)) return items(element.expression)
+        if (ts.isArrayLiteralExpression(element)) return element.elements[0] ? evaluate(element.elements[0]) : unknownValue
+        return evaluate(element)
+      }))
+    }
+    if (collection && ts.isCallExpression(collection) && ts.isPropertyAccessExpression(collection.expression)) {
+      const method = text(collection.expression)
+      if (['Object.keys', 'Object.entries'].includes(method) && collection.arguments[0]) {
+        return unique(keysOf(collection.arguments[0]))
+      }
+      if (['filter', 'slice', 'toSorted', 'sort'].includes(collection.expression.name.text)) return items(collection.expression.expression)
+    }
+    return unknownValue
+  })
+  /** The values of one property across the literal objects of a literal array. */
+  const propertyItems = (node, key) => guarded(node, () => {
+    const collection = initializerOf(node)
+    if (collection && ts.isConditionalExpression(collection)) {
+      return unique([...propertyItems(collection.whenTrue, key), ...propertyItems(collection.whenFalse, key)])
+    }
+    if (!collection || !ts.isArrayLiteralExpression(collection)) return unknownValue
+    return unique(collection.elements.flatMap((element) => {
+      const object = initializerOf(element)
+      const property = object && ts.isObjectLiteralExpression(object) &&
+        object.properties.find((candidate) => candidate.name?.getText(source) === key)
+      if (property && ts.isPropertyAssignment(property)) return evaluate(property.initializer)
+      if (property && ts.isShorthandPropertyAssignment(property)) return evaluate(property.name)
+      return unknownValue
+    }))
+  })
+  /** The collection that a callback parameter or a `for...of` declaration takes its items from. */
+  const collectionOf = (container) => {
+    if (ts.isVariableDeclaration(container)) {
+      return ts.isForOfStatement(container.parent.parent) ? container.parent.parent.expression : undefined
+    }
+    const owner = container.parent
+    const call = owner.parent
+    if (owner.parameters.indexOf(container) !== 0 || !ts.isCallExpression(call) || !call.arguments.includes(owner)) return undefined
+    const callee = call.expression
+    if (ts.isPropertyAccessExpression(callee) && iterationMethods.has(callee.name.text)) return callee.expression
+    if (ts.isCallExpression(callee) && /\.each$/.test(text(callee.expression))) return callee.arguments[0]
+    return undefined
+  }
+  const parameterValues = (parameter) => guarded(parameter, () => {
+    const owner = parameter.parent
+    const call = owner.parent
+    if (ts.isCallExpression(call) && call.arguments.includes(owner)) {
+      const collection = collectionOf(parameter)
+      return collection ? items(collection) : unknownValue
+    }
+    const index = owner.parameters.indexOf(parameter)
+    const name = ts.isFunctionDeclaration(owner) ? owner.name : ts.isVariableDeclaration(call) ? call.name : undefined
+    if (!name || !ts.isIdentifier(name)) return unknownValue
+    const sites = calls.filter((site) => ts.isIdentifier(site.expression) && site.expression.text === name.text)
+    if (!sites.length) return unknownValue
+    return unique(sites.flatMap((site) => site.arguments[index] ? evaluate(site.arguments[index]) : unknownValue))
+  })
+  const declarationValues = (declaration) => {
+    if (ts.isImportSpecifier(declaration) || ts.isImportClause(declaration)) {
+      return repositoryRoots.has(declaration.name.text) ? [{ path: repository }] : unknownValue
+    }
+    if (ts.isParameter(declaration)) return parameterValues(declaration)
+    if (ts.isBindingElement(declaration)) {
+      const pattern = declaration.parent
+      const container = pattern.parent
+      const collection = (ts.isParameter(container) || ts.isVariableDeclaration(container)) && collectionOf(container)
+      if (!collection) return unknownValue
+      if (ts.isObjectBindingPattern(pattern)) return propertyItems(collection, (declaration.propertyName ?? declaration.name).getText(source))
+      return pattern.elements.indexOf(declaration) === 0 ? items(collection) : unknownValue
+    }
+    if (!ts.isVariableDeclaration(declaration)) return unknownValue
+    if (ts.isForOfStatement(declaration.parent.parent)) return items(declaration.parent.parent.expression)
+    return declaration.initializer && declaration.parent.flags & ts.NodeFlags.Const ? evaluate(declaration.initializer) : unknownValue
+  }
+  const pathCallee = (callee) => {
+    if (ts.isIdentifier(callee)) {
+      if (urlFunctions.has(callee.text)) return 'fileURLToPath'
+      const name = pathFunctions.get(callee.text)
+      return ['resolve', 'join', 'dirname'].includes(name) ? name : undefined
+    }
+    if (!ts.isPropertyAccessExpression(callee)) return undefined
+    if (text(callee) === 'process.cwd') return 'cwd'
+    const owner = callee.expression
+    const module = (ts.isIdentifier(owner) && pathFunctions.get(owner.text) === 'module') ||
+      (ts.isPropertyAccessExpression(owner) && owner.name.text === 'posix' && ts.isIdentifier(owner.expression) &&
+        pathFunctions.get(owner.expression.text) === 'module')
+    return module && ['resolve', 'join', 'dirname'].includes(callee.name.text) ? callee.name.text : undefined
+  }
+  const combinePath = (callee, parts) => {
+    const unknown = parts.findIndex((part) => (part.url ?? part.path) === undefined)
+    const known = parts.slice(0, unknown === -1 ? parts.length : unknown).map((part) => part.url ?? part.path)
+    const base = callee === 'resolve' ? resolve(workspaceRoot, ...known) : known.length ? posix.join(...known) : ''
+    if (unknown === -1) return { path: base }
+    return { prefix: (base ? `${base.replace(/\/$/, '')}/` : '') + parts[unknown].prefix }
+  }
+  const evaluate = (node) => guarded(node, () => {
+    if (ts.isParenthesizedExpression(node) || ts.isAsExpression(node) || ts.isNonNullExpression(node) ||
+      ts.isSatisfiesExpression(node)) return evaluate(node.expression)
+    if (ts.isConditionalExpression(node)) return unique([...evaluate(node.whenTrue), ...evaluate(node.whenFalse)])
+    if (ts.isStringLiteralLike(node)) return [{ path: node.text }]
+    if (ts.isTemplateExpression(node)) {
+      const parts = [[{ path: node.head.text }], ...node.templateSpans.flatMap((span) =>
+        [evaluate(span.expression), [{ path: span.literal.text }]])]
+      return product(parts, concatenate)
+    }
+    if (ts.isBinaryExpression(node) && node.operatorToken.kind === ts.SyntaxKind.PlusToken) {
+      return product([evaluate(node.left), evaluate(node.right)], concatenate)
+    }
+    if (ts.isIdentifier(node)) {
+      if (node.text === '__dirname') return [{ path: fileDirectory }]
+      if (node.text === '__filename') return [{ path: file }]
+      const declaration = declarationOf(node)
+      return declaration ? declarationValues(declaration) : unknownValue
+    }
+    if (ts.isPropertyAccessExpression(node) && ts.isMetaProperty(node.expression)) {
+      if (node.name.text === 'dirname') return [{ path: fileDirectory }]
+      if (node.name.text === 'filename') return [{ path: file }]
+      if (node.name.text === 'url') return [{ url: file }]
+    }
+    if (ts.isNewExpression(node) && text(node.expression) === 'URL' && node.arguments?.length === 2) {
+      return product([evaluate(node.arguments[0]), evaluate(node.arguments[1])], ([target, base]) => {
+        if (base.url === undefined) return { prefix: '' }
+        const directory = base.url.endsWith('/') ? base.url : `${dirname(base.url)}/`
+        const known = target.url ?? target.path
+        if (known === undefined) return { prefix: directory + target.prefix }
+        return { url: resolve(directory, known) + (known.endsWith('/') ? '/' : '') }
+      })
+    }
+    if (!ts.isCallExpression(node)) return unknownValue
+    const callee = pathCallee(node.expression)
+    if (callee === 'cwd') return [{ path: workspaceRoot }]
+    if (!callee) return unknownValue
+    const values = node.arguments.map(evaluate)
+    if (callee === 'fileURLToPath') {
+      return (values[0] ?? unknownValue).map((value) => value.url !== undefined ? { path: value.url } : value)
+    }
+    if (callee === 'dirname') {
+      return (values[0] ?? unknownValue).map((value) => value.path !== undefined ? { path: dirname(value.path) } : { prefix: '' })
+    }
+    return product(values, (parts) => combinePath(callee, parts))
+  })
+  return {
+    imports,
+    paths: expressions.flatMap((node) => {
+      const line = source.getLineAndCharacterOfPosition(node.getStart(source)).line + 1
+      const run = ts.isIdentifier(node) || runs(node)
+      return evaluate(node).map((value) => ({ ...value, line, run }))
+    }),
+  }
+}
+
+/** The module specifiers of a workspace file that only its imports matter for: a scan, not a parse. */
+function importsOf(file) {
+  return ts.preProcessFile(readFileSync(file, 'utf8'), true, true).importedFiles.map(({ fileName }) => fileName)
+}
+
+/**
+ * The outside files a workspace's test runner reads, mapped to a reader: (a) the `tsconfig.json` chain of each
+ * compiled file, (b) each workspace manifest whose `exports` a loaded module resolves, (c) each import or path in a
+ * test or setup file that names an outside file, and the imports and paths of each outside module a test imports or
+ * runs. `runtimeFolders` holds each known outside folder under which a test or setup file completes a path at run time.
  */
 function outsideReads(workspace) {
   const workspaceRoot = resolve(repository, workspace)
@@ -295,17 +690,24 @@ function outsideReads(workspace) {
   const manifests = new Map(repositoryDryRun().tasks.map(({ package: name, directory }) =>
     [name, resolve(repository, directory, 'package.json')]))
   const reads = new Map()
+  const runtimeFolders = new Map()
   const loaded = []
   const read = (file, reader) => {
     if (!inside(file) && !reads.has(file) && hashableFiles().has(repositoryPath(file))) reads.set(file, reader)
   }
   const load = (file, reader) => {
-    if (inside(file) || reads.has(file)) return
+    if (inside(file) || loaded.includes(file) || !hashableFiles().has(repositoryPath(file))) return
     read(file, reader)
     loaded.push(file)
   }
-  const scanImports = (file, source) => {
-    for (const [, , specifier] of source.matchAll(importSpecifier)) {
+  const locate = (path, file, folder = false) => {
+    if (!path || path.includes('://') || (!folder && !/[./]/.test(path))) return []
+    if (isAbsolute(path)) return [path]
+    const bases = path.startsWith('.') ? [dirname(file), workspaceRoot] : [workspaceRoot, repository]
+    return bases.map((base) => resolve(base, path.split('?')[0]))
+  }
+  const followImports = (file, specifiers) => {
+    for (const specifier of specifiers) {
       if (specifier.startsWith('.')) {
         const target = resolveFile(dirname(file), specifier)
         if (target) load(target, repositoryPath(file))
@@ -315,38 +717,39 @@ function outsideReads(workspace) {
       if (name) read(manifests.get(name), repositoryPath(file))
     }
   }
+  const scan = (file, checksFolders) => {
+    const { imports, paths } = moduleFacts(file, workspaceRoot)
+    followImports(file, imports)
+    for (const { path, url, prefix, line, run } of paths) {
+      const reader = `${repositoryPath(file)}:${line}`
+      const known = url ?? path
+      if (known !== undefined) {
+        const target = locate(known, file).find(isFile)
+        if (target) (run && codeFile.test(target) ? load : read)(target, reader)
+        continue
+      }
+      const folder = checksFolders && locate(directoryOf(prefix), file, true).find(isDirectory)
+      const key = `${folder}\0${repositoryPath(file)}`
+      if (folder && !inside(folder) && !runtimeFolders.has(key)) runtimeFolders.set(key, [folder, reader])
+    }
+  }
   for (const file of codeFilesIn(workspaceRoot)) {
     const path = relative(workspaceRoot, file).split(sep).join('/')
     if (lintConfiguration.test(path)) continue
-    const source = readFileSync(file, 'utf8')
-    scanImports(file, source)
     // This file names its fixture files with repository paths, but it writes and reads them in temporary roots.
-    if (!testOrSetupFile.test(path) || file === import.meta.filename) continue
-    for (const { 0: run, index } of source.matchAll(literalRun)) {
-      if (virtualFilename.test(source.slice(Math.max(0, index - 60), index))) continue
-      const parts = [...run.matchAll(literal)].map(([, , text]) => text)
-      for (const candidate of new Set([...parts, parts.join('/')])) {
-        if (!/[./]/.test(candidate) || candidate.includes('://')) continue
-        const bases = candidate.startsWith('.') ? [dirname(file), workspaceRoot] : [workspaceRoot, repository]
-        const target = bases.map((base) => resolve(base, candidate.split('?')[0])).find(isFile)
-        if (target) read(target, repositoryPath(file))
-      }
-    }
+    if (testOrSetupFile.test(path) && file !== import.meta.filename) scan(file, true)
+    else followImports(file, importsOf(file))
   }
-  for (let index = 0; index < loaded.length; index++) {
-    const file = loaded[index]
-    const source = readFileSync(file, 'utf8')
-    scanImports(file, source)
-    for (const [, , text] of source.matchAll(literal)) {
-      const target = text.startsWith('.') && codeFile.test(text) ? resolveFile(dirname(file), text) : undefined
-      if (target) load(target, repositoryPath(file))
-    }
-  }
+  for (let index = 0; index < loaded.length; index++) scan(loaded[index], false)
   const compiled = [...codeFilesIn(workspaceRoot), ...loaded].filter((file) => compiledFile.test(file))
-  for (const configuration of new Set(compiled.map(nearestTsconfig).filter(Boolean))) {
-    for (const file of tsconfigChain(configuration)) read(file, `the tsconfig chain of ${repositoryPath(configuration)}`)
+  const configurations = new Map(compiled.toReversed().map((file) => [nearestTsconfig(file), file]))
+  configurations.delete(undefined)
+  for (const [configuration, user] of configurations) {
+    for (const file of tsconfigChain(configuration)) {
+      read(file, `the tsconfig chain of ${repositoryPath(configuration)}, which compiles ${repositoryPath(user)}`)
+    }
   }
-  return reads
+  return { reads, runtimeFolders }
 }
 
 describe('workspace test tasks hash every outside file their tests read', () => {
@@ -361,8 +764,22 @@ describe('workspace test tasks hash every outside file their tests read', () => 
   it.each(['apps/desktop', 'eslint-rules', 'apps/mobile', 'packages/shared', 'apps/web'])('%s', (directory) => {
     const { taskId } = testTasks().find((task) => task.directory === directory)
     const hashed = hashedFiles(taskId)
-    const unhashed = [...outsideReads(directory)].map(([file, reader]) => [repositoryPath(file), reader])
-      .filter(([path]) => !hashed.has(path)).map(([path, reader]) => `${path} (read by ${reader})`).sort()
-    expect(unhashed, `add a turbo.json input glob to ${taskId} for each file`).toEqual([])
-  }, 30_000)
+    const { reads, runtimeFolders } = outsideReads(directory)
+    const unhashed = [...reads].map(([file, reader]) => [repositoryPath(file), reader])
+      .filter(([path]) => !hashed.has(path)).map(([path, reader]) => `${path} (read by ${reader})`)
+    for (const [folder, reader] of runtimeFolders.values()) {
+      const prefix = folder === repository ? '' : `${repositoryPath(folder)}/`
+      const walk = folderWalks[reader.replace(/:\d+$/, '')] ?? { folders: [prefix], files: /(?:)/ }
+      const missing = [...hashableFiles()].filter((path) => walk.folders.some((root) => path.startsWith(root)) &&
+        walk.files.test(path) && !hashed.has(path))
+      if (missing.length) {
+        unhashed.push(`${prefix || './'} (${reader} builds a path under this folder at run time. Name the file in the ` +
+          `test, hash the folder, or add the walk to folderWalks: ${missing.length} files are not hashed, such as ${missing[0]})`)
+      }
+    }
+    const readers = new Set([...runtimeFolders.values()].map(([, reader]) => reader.replace(/:\d+$/, '')))
+    const stale = Object.keys(folderWalks).filter((reader) => reader.startsWith(`${directory}/`) && !readers.has(reader))
+    expect(stale, 'remove each folderWalks entry whose test no longer walks a folder outside its workspace').toEqual([])
+    expect(unhashed.sort(), `add a turbo.json input glob to ${taskId} for each file`).toEqual([])
+  }, 60_000)
 })

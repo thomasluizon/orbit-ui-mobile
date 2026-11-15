@@ -95,6 +95,7 @@
         "$TURBO_ROOT$/apps/desktop/**/*.{ts,tsx}",
         "$TURBO_ROOT$/apps/desktop/locales/*.json",
         "$TURBO_ROOT$/apps/desktop/src-tauri/src/*.js",
+        "$TURBO_ROOT$/apps/mobile/tsconfig.json",
         "!$TURBO_ROOT$/apps/{mobile,desktop}/**/{node_modules,.expo,coverage,dist,build}/**",
         "$TURBO_ROOT$/packages/shared/src/**"
       ]
