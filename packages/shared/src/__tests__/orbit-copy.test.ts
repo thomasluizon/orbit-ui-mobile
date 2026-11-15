@@ -96,7 +96,11 @@ describe('Orbit copy', () => {
 
   it('gives Orbit its article where a Portuguese sentence names it', () => {
     expect(ptBR.chat.placement.recommendation).toMatch(/^O Orbit /)
-    expect(ptBR.upgrade.convert.freeHeading).toMatch(/mensagens/)
+  })
+
+  it('names one unit in the free plan heading in both locales, in a word that stays whole at 2x text on a 320 phone', () => {
+    expect(en.upgrade.convert.freeHeading).toMatch(/\breplies\b/)
+    expect(ptBR.upgrade.convert.freeHeading).toMatch(/\brespostas\b/)
   })
 
   it('keeps Orbit masculine in Portuguese', () => {

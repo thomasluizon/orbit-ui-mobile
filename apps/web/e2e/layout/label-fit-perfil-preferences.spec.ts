@@ -23,7 +23,7 @@ for (const width of [320, 360, 384, 412]) {
         await setLayoutFixtureSession(context, [{ path: API.profile.get, body: profile }])
         await page.goto('/profile/preferences')
         const surface = page.getByTestId('profile-settings-group-preferences')
-        await expect(surface.locator('[data-slot="list-row-title"]')).toHaveCount(5)
+        await expect(surface.locator('[data-slot="list-row-title"]')).toHaveCount(6)
         await expect(surface.locator('[data-slot="list-row-value"]')).toHaveCount(4)
         for (const label of [
           words.profile.settingsRows.timezone, profile.timeZone!,
@@ -31,12 +31,13 @@ for (const width of [320, 360, 384, 412]) {
           words.settings.clock.title, words.settings.clock.hour24,
           words.profile.language.title,
           locale === 'pt-BR' ? words.profile.language.brazilianPortuguese : 'English',
-          words.settings.homeScreen.showGeneral,
+          words.settings.homeScreen.showGeneral, words.settings.orbitMotion.title,
         ]) await markRequiredLabels(surface.getByText(label, { exact: true }))
         await expect(surface.getByRole('switch', { name: words.settings.homeScreen.showGeneral, exact: true })).toBeVisible()
+        await expect(surface.getByRole('switch', { name: words.settings.orbitMotion.title, exact: true })).toBeVisible()
         await expectLabelsFit(page, surface.locator('.orbit-list-row-shell').filter({ hasNot: page.getByRole('switch') }))
-        const switchRow = surface.locator('.orbit-list-row-shell').filter({ has: page.getByRole('switch') })
-        const copy = await switchRow.locator('[data-slot="list-row-title"], [data-slot="list-row-description"]').evaluateAll((elements) => elements.map((element) => {
+        const switchRows = surface.locator('.orbit-list-row-shell').filter({ has: page.getByRole('switch') })
+        const copy = await switchRows.locator('[data-slot="list-row-title"], [data-slot="list-row-description"]').evaluateAll((elements) => elements.map((element) => {
           const range = document.createRange()
           range.selectNodeContents(element)
           const fragments = [...range.getClientRects()].filter((rect) => rect.width > 0)
@@ -44,11 +45,12 @@ for (const width of [320, 360, 384, 412]) {
           return { text: element.textContent, lines: new Set(fragments.map((rect) => Math.round(rect.top))).size,
             clipped: fragments.some((rect) => rect.left < bounds.left - 1 || rect.right > bounds.right + 1 || rect.top < bounds.top - 1 || rect.bottom > bounds.bottom + 1) }
         }))
-        expect(copy).toHaveLength(2)
+        expect(copy).toHaveLength(3)
         expect(copy[0]).toEqual({ text: words.settings.homeScreen.showGeneral, lines: 1, clipped: false })
         expect(copy[1]).toMatchObject({ text: words.settings.homeScreen.showGeneralDesc, clipped: false })
         expect(copy[1]!.lines).toBeGreaterThan(0)
         expect(copy[1]!.lines).toBeLessThanOrEqual(2)
+        expect(copy[2]).toEqual({ text: words.settings.orbitMotion.title, lines: 1, clipped: false })
         for (const row of await surface.locator('.orbit-list-row-body').all()) await expectInteractionFill(row)
       })
     })

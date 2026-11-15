@@ -230,6 +230,8 @@ async function inspectControlRings(target: Locator, focusedControl: boolean) {
       }
       return true
     }
+    /** A selected control keeps its selection ring directly inside its focus ring (DESIGN.md, Keyboard and focus), so that ring is a selection cue and not a second focus indicator. */
+    const selectedRingOwner = (element: Element) => element.matches(':is(.orbit-selection-ring[data-selected], .orbit-selection-ring[aria-checked="true"], .orbit-selection-ring[aria-pressed="true"], .orbit-selection-ring[aria-selected="true"], .chip-active)')
     return [control, ...control.querySelectorAll('*'), ...ancestors].flatMap((element) => {
       if (!visible(element)) return []
       return [null, '::before', '::after'].flatMap((pseudo) => {
@@ -242,7 +244,7 @@ async function inspectControlRings(target: Locator, focusedControl: boolean) {
         for (const shadow of style.boxShadow.split(/,(?![^()]*\))/)) {
           const color = shadow.match(/rgba?\([^)]*\)/)?.[0]
           const lengths = shadow.replace(/rgba?\([^)]*\)/g, '').match(/-?[\d.]+px/g)?.map(Number.parseFloat)
-          if (color && accent(color) && lengths && lengths.length >= 4 && lengths[2] === 0 && lengths[3] !== 0) rings.push(`${label}:shadow`)
+          if (color && accent(color) && lengths && lengths.length >= 4 && lengths[2] === 0 && lengths[3] !== 0) rings.push(`${label}:${focusedControl && !pseudo && selectedRingOwner(element) ? 'selection' : 'shadow'}`)
         }
         if (['Top', 'Right', 'Bottom', 'Left'].some((side) => Number.parseFloat(style.getPropertyValue(`border-${side.toLowerCase()}-width`)) > 0 && !['none', 'hidden'].includes(style.getPropertyValue(`border-${side.toLowerCase()}-style`)) && accent(style.getPropertyValue(`border-${side.toLowerCase()}-color`)))) rings.push(`${label}:border`)
         return rings
@@ -260,7 +262,8 @@ export async function inspectFocusedControlRings(page: Page) {
   const focused = page.locator(':focus')
   if (await focused.count() !== 1) return null
   const state = await focused.evaluate((element) => ({ focused: element.tagName.toLowerCase(), focusVisible: element.matches(':focus-visible') }))
-  return { ...state, indicators: await inspectControlRings(focused, true) }
+  const rings = await inspectControlRings(focused, true)
+  return { ...state, indicators: rings.filter((ring) => !ring.endsWith(':selection')) }
 }
 
 export async function expectOneControlRing(control: Locator, forcedColors: boolean): Promise<void> {
