@@ -113,10 +113,10 @@ describe.each(authLocales)('guided sign-in in %s', (locale) => {
     expect(screen.getByRole('button', { name: t('auth.verify') })).toHaveAccessibleDescription(t('auth.errors.offline'))
   })
 
-  it('keeps the email step and names the wait while the human check is not ready', () => {
+  it('keeps the email step and names the human check as the reason while it is not passed', () => {
     const { t, container, unmount } = show('email', locale, { overrides: { email: 'person@example.com', turnstileSiteKey: 'site-key', turnstileToken: null, turnstileResetKey: 0, onTurnstileToken: vi.fn() } })
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(t('auth.email'))
-    expect(screen.getByRole('button', { name: t('auth.sendCode') })).toHaveAccessibleDescription(t('auth.turnstileLoading'))
+    expect(screen.getByRole('button', { name: t('auth.sendCode') })).toHaveAccessibleDescription(t('auth.turnstileLabel'))
     expect(container.querySelector('form [data-turnstile]')).not.toBeNull()
     unmount()
     const code = show('code', locale, { overrides: { turnstileSiteKey: 'site-key', turnstileToken: null, turnstileResetKey: 0, onTurnstileToken: vi.fn() } })

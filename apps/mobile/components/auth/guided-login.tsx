@@ -33,10 +33,10 @@ interface GuidedLoginProps {
   styles: LoginStyles
 }
 
-/** The reason a press on the continue action does nothing. The offline notice and the wait of the human check show it. */
+/** The reason a press on the continue action does nothing, for assistive technology. The offline notice and the human check show their own state. */
 function refusalHint(flow: LoginFlow, canSubmitTurnstile: boolean) {
   if (!flow.isOnline) return flow.t('auth.errors.offline')
-  return canSubmitTurnstile ? undefined : flow.t('auth.turnstileLoading')
+  return canSubmitTurnstile ? undefined : flow.t('auth.turnstileLabel')
 }
 
 function emailStep({ flow, callback, callbackDismissed, onDismissCallback, canSubmitTurnstile, turnstileWidget, tokens, styles }: GuidedLoginProps): FlowStepView & { footer: ReactNode } {

@@ -127,11 +127,11 @@ describe.each(authLocales)('guided sign-in on Android in %s', (locale) => {
     expect(button(t('auth.verify'))!.props.accessibilityHint).toBe(t('auth.errors.offline'))
   })
 
-  it('keeps the step and names the wait while the human check is not ready, with the check in its place', () => {
+  it('keeps the step and names the human check as the reason while it is not passed, with the check in its place', () => {
     const turnstile = { turnstileSiteKey: 'site-key', turnstileToken: null, turnstileResetKey: 0, onTurnstileToken: vi.fn() }
     const t = show('email', locale, { overrides: turnstile })
     expect(heading().map(textOf)).toEqual([t('auth.email')])
-    expect(button(t('auth.sendCode'))!.props.accessibilityHint).toBe(t('auth.turnstileLoading'))
+    expect(button(t('auth.sendCode'))!.props.accessibilityHint).toBe(t('auth.turnstileLabel'))
     expect(tree!.root.findAll((node) => node.type === 'TurnstileWidget')).toHaveLength(1)
     close()
     show('code', locale, { overrides: turnstile })
