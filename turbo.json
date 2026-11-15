@@ -48,15 +48,18 @@
         "$TURBO_DEFAULT$",
         "$TURBO_ROOT$/.github/workflows/*.yml",
         "$TURBO_ROOT$/package-lock.json",
+        "$TURBO_ROOT$/tsconfig.base.json",
         "$TURBO_ROOT$/apps/mobile/lib/turnstile-frames.ts",
         "$TURBO_ROOT$/apps/web/components/auth/desktop-auth-bridge.tsx",
         "$TURBO_ROOT$/apps/web/lib/desktop-push.ts",
         "$TURBO_ROOT$/apps/web/lib/desktop-updates.ts",
         "$TURBO_ROOT$/apps/web/proxy.ts",
+        "$TURBO_ROOT$/apps/web/tsconfig.json",
         "$TURBO_ROOT$/apps/web/test-support/hermetic/mock-api/fixtures/chat-stream.ts",
         "$TURBO_ROOT$/apps/web/web-compatibility.json",
         "$TURBO_ROOT$/design/brand/orbit-mark-16.svg",
         "$TURBO_ROOT$/design/brand/orbit-mark-accent.svg",
+        "$TURBO_ROOT$/packages/shared/{package,tsconfig}.json",
         "$TURBO_ROOT$/packages/shared/src/**",
         "$TURBO_ROOT$/tools/desktop-bench/probe.js"
       ]
@@ -71,6 +74,7 @@
         "$TURBO_ROOT$/tsconfig.base.json",
         "$TURBO_ROOT$/DESIGN.md",
         "$TURBO_ROOT$/apps/web/test-support/hermetic/**",
+        "$TURBO_ROOT$/apps/web/tsconfig.json",
         "$TURBO_ROOT$/design/canvas/_ds/*/tokens/colors.css",
         "$TURBO_ROOT$/packages/shared/src/**",
         "$TURBO_ROOT$/tools/__tests__/android-deployment-fixture.json"
@@ -81,6 +85,7 @@
       "outputs": ["coverage/**"],
       "inputs": [
         "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/tsconfig.json",
         "$TURBO_ROOT$/tsconfig.base.json",
         "$TURBO_ROOT$/DESIGN.md",
         "$TURBO_ROOT$/design/brand/png/orbit-platform-icon-512.png",
@@ -100,6 +105,7 @@
       "inputs": [
         "$TURBO_DEFAULT$",
         "$TURBO_ROOT$/package-lock.json",
+        "$TURBO_ROOT$/tsconfig.json",
         "$TURBO_ROOT$/apps/{web,mobile}/{eslint.config.*,tsconfig.json,package.json}",
         "$TURBO_ROOT$/apps/{web,mobile}/{app,components,lib}/**/*.css",
         "$TURBO_ROOT$/packages/shared/src/theme/spacing.{json,css}",
