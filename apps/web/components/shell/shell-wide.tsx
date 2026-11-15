@@ -34,6 +34,7 @@ import { IconButton } from '@/components/ui/icon-button'
 import { useShellScrollerRegistration } from './shell-scroller-context'
 import { useModalFocusTrap } from './use-modal-focus-trap'
 import { getShellHeading } from './shell-header'
+import { OrbitNameText } from '@/components/ui/orbit-name-text'
 import { OrbitOverlayLayer } from '@/components/ui/orbit-overlay-layer'
 
 function getConversationFocusTarget(container: HTMLElement): HTMLElement {
@@ -139,7 +140,7 @@ function SidebarAstraRow({ row, open, conversationId, collapsed }: Readonly<{
           >
             <OrbitMascot size={20} />
             <span className={collapsed ? 'sr-only' : 'min-w-0 truncate'}>
-              {row.label.split(/(Orbit)/).map((part, index) => part === 'Orbit' ? <span key={index} translate="no">{part}</span> : part)}
+              <OrbitNameText text={row.label} />
             </span>
           </button>
 }

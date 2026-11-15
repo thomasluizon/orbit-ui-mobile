@@ -30,6 +30,7 @@ describe('FeatureGuideDrawer', () => {
       <FeatureGuideDrawer open={true} onOpenChange={vi.fn()} />,
     )
     expect(screen.getByRole('dialog', { name: 'onboarding.featureGuide.question' })).toBeInTheDocument()
+    expect(document.querySelector('.orbit-sheet-title')).not.toHaveAttribute('translate')
   })
 
   it('leaves the final guide group outer insets to its sheet', () => {
