@@ -37,7 +37,9 @@ for (const locale of ['en', 'pt-BR'] as const) {
         await expect(lockedCard).toContainText(words.progressScreen.window.lockedTitle)
         await expect(lockedCard.getByRole('link', { name: words.progressScreen.window.lockedAction })).toHaveAttribute('href', '/upgrade')
         await expect(section.getByRole('progressbar')).toHaveCount(0)
-        await page.waitForTimeout(8000)
+        // WHY: a failed query retries queryRetryDelay(0) = 1000 ms after its failure, so a retry of this pay gate arrives inside this window. https://github.com/thomasluizon/orbit-tickets/issues/2074
+        const retryWindowMs = Math.max(1, 3000 - (performance.now() - respondedAt))
+        await expect(page.waitForRequest(retrospectiveRoute, { timeout: retryWindowMs })).rejects.toThrow('Timeout')
         expect(requests).toBe(1)
       })
     }

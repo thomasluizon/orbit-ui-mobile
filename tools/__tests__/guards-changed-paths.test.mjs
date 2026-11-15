@@ -16,6 +16,7 @@ const cases = [
   ["copy", "Changed copy stays inside the register", "apps/web/app/page.tsx"],
   ["i18n-usage", "Changed translation usage resolves", "apps/mobile/app/page.tsx"],
   ["surface-manifest", "Changed surface inputs match the committed inventory", "design/canvas/screen.svg"],
+  ["dependency-audit", "Verify installed packages against locked archives", "apps/mobile/scripts/fix-hoisting.js"],
 ]
 
 function git(directory, ...arguments_) {
@@ -95,6 +96,7 @@ for (const [jobId, stepName, path, options] of [
   ["design-guard", "Ban raw --slate-*, transition-all, h-screen in app code", "apps/web/app/page.tsx",
     { content: "transition-all\n", ownedStatus: 1, marker: "DESIGN.md ban" }],
   ["design-guard", "Ban decorative gradients in app code", "tools/check-gradients.mjs", {}],
+  ["workflow-syntax", "Lint all workflows", ".github/actions/setup/action.yml", { stubs: "gh() { echo GATE_RAN; exit 0; }" }],
   ["expo-pin", "Dependencies resolve to the SDK 58 set", "apps/mobile/package.json",
     { stubs: "node() { :; }\nnpx() { echo \"EXPO_CHECK EXPO_OFFLINE=${EXPO_OFFLINE:-unset} $*\"; }",
       marker: "EXPO_CHECK EXPO_OFFLINE=1 expo install --check" }],
@@ -150,6 +152,82 @@ test("handoff-size: the step fails an oversized changed relay document and ignor
   }
 })
 
+function movedFileRepository(prefix, from, to) {
+  const directory = mkdtempSync(join(tmpdir(), prefix))
+  git(directory, "init", "-q")
+  git(directory, "config", "user.email", "test@example.invalid")
+  git(directory, "config", "user.name", "Test")
+  mkdirSync(dirname(join(directory, from)), { recursive: true })
+  writeFileSync(join(directory, from), "export const moved = 1\n")
+  git(directory, "add", from)
+  git(directory, "commit", "-qm", "base")
+  git(directory, "update-ref", "refs/remotes/origin/base", git(directory, "rev-parse", "HEAD"))
+  mkdirSync(dirname(join(directory, to)), { recursive: true })
+  git(directory, "mv", from, to)
+  git(directory, "commit", "-qm", "move")
+  return directory
+}
+
+test("every diff reader lists the old path of a moved file", () => {
+  const [from, to] = ["apps/web/lib/moved.ts", "tools/moved.ts"]
+  const guards = movedFileRepository("guards-moved-file-", from, to)
+  try {
+    const script = join(repositoryRoot, ".github/scripts/changed-paths.sh")
+    const resolved = spawnSync("bash", [script, "base", guards], { cwd: guards, encoding: "utf8" })
+    assert.equal(resolved.status, 0, resolved.stderr)
+    assert.deepEqual(readFileSync(join(guards, "changed-paths.txt"), "utf8").trim().split("\n").sort(), [from, to])
+    assert.deepEqual(readFileSync(join(guards, "changed-paths-present.nul"), "utf8").split("\0").filter(Boolean), [to],
+      "a tool that reads files receives only the path that exists")
+  } finally {
+    rmSync(guards, { recursive: true, force: true })
+  }
+  const plan = testWorkflow.jobs.plan.steps.find((step) => step.id === "plan")
+  const diff = plan.run.split("\n").find((line) => line.includes("git diff --name-only"))
+  assert.ok(diff, "Plan must read the changed paths of the merge commit")
+  const planned = movedFileRepository("plan-moved-file-", from, to)
+  try {
+    const read = spawnSync("bash", ["-e", "-c", diff], { cwd: planned, env: { ...process.env, EVENT_NAME: "pull_request", RUNNER_TEMP: planned }, encoding: "utf8" })
+    assert.equal(read.status, 0, read.stderr)
+    assert.deepEqual(readFileSync(join(planned, "changed-paths.txt"), "utf8").trim().split("\n").sort(), [from, to],
+      "a file that leaves apps/web still plans the web jobs")
+  } finally {
+    rmSync(planned, { recursive: true, force: true })
+  }
+  for (const path of [".github/workflows/test.yml", ".github/workflows/android-startup.yml"]) {
+    for (const line of readFileSync(join(repositoryRoot, path), "utf8").split("\n").filter((candidate) => candidate.includes("git diff --name-only"))) {
+      assert.match(line, /git diff --name-only --no-renames HEAD\^1 HEAD/, `${path}: ${line.trim()}`)
+    }
+  }
+})
+
+test("feature parity runs for every input of the check and skips an unrelated change", () => {
+  const step = workflow.jobs.guards.steps.find((candidate) => candidate.id === "feature-parity__1")
+  const directory = mkdtempSync(join(tmpdir(), "guards-feature-parity-"))
+  try {
+    const ran = (path) => {
+      writeFileSync(join(directory, "changed-paths.txt"), `${path}\n`)
+      const result = spawnSync("bash", ["-e", "-c", `node() { echo GATE_RAN; }\n${step.run}`], {
+        cwd: directory, env: { ...process.env, RUNNER_TEMP: directory, BASE_REF: "main" }, encoding: "utf8",
+      })
+      assert.equal(result.status, 0, result.stderr)
+      return result.stdout.includes("GATE_RAN")
+    }
+    for (const path of ["apps/web/app/page.tsx", "apps/mobile/app/index.tsx", "packages/shared/src/i18n/en.json",
+      "tools/check-feature-parity.mjs", "tools/feature-parity-rules.json", "DESIGN.md", ".claude/specs/orbit-prod-release.md"]) {
+      assert.equal(ran(path), true, `${path} is an input of the parity check`)
+    }
+    for (const path of ["docs/DESIGN.md", "tools/check-copy.mjs", ".claude/specs/other.md"]) {
+      assert.equal(ran(path), false, `${path} is not an input of the parity check`)
+    }
+  } finally {
+    rmSync(directory, { recursive: true, force: true })
+  }
+  const tool = readFileSync(join(repositoryRoot, "tools/check-feature-parity.mjs"), "utf8")
+  for (const input of ["tools/feature-parity-rules.json", "DESIGN.md", ".claude/specs/orbit-prod-release.md"]) {
+    assert.ok(tool.includes(`'${input}'`), `${input} must still be an input of the tool`)
+  }
+})
+
 test("each diff reader resolves paths before using them", () => {
   const readers = ["mobile-styles", "root-allowlist", "dashes", "mobile-fonts", "copy", "i18n-usage",
     "expo-pin", "surface-manifest", "gate-charter"]
@@ -164,29 +242,71 @@ test("each diff reader resolves paths before using them", () => {
   assert.doesNotMatch(readFileSync(join(repositoryRoot, ".github/workflows/guards.yml"), "utf8"), /git diff --name-only/)
 })
 
-test("Astra eval exports temporary paths before evaluation without job-level runner expressions", () => {
-  const astra = yaml.load(readFileSync(join(repositoryRoot, ".github/workflows/astra-eval.yml"), "utf8"))
-  assert.deepEqual(Object.keys(astra.on), ["workflow_dispatch"])
-  const job = astra.jobs.evaluate
-  assert.doesNotMatch(JSON.stringify(job.env), /runner\.temp/)
-  const setup = job.steps[0]
-  assert.equal(setup["working-directory"], "${{ runner.temp }}")
-  const directory = mkdtempSync(join(tmpdir(), "astra eval paths "))
-  try {
-    const environmentFile = join(directory, "environment")
-    const result = spawnSync("bash", ["-e", "-c", setup.run], {
-      cwd: directory,
-      env: { ...process.env, RUNNER_TEMP: directory, GITHUB_ENV: environmentFile },
-      encoding: "utf8",
-    })
-    assert.equal(result.status, 0, result.stderr)
-    assert.deepEqual(readFileSync(environmentFile, "utf8").trim().split("\n"), [
-      `ORBIT_EVAL_CREDENTIALS_FILE=${directory}/astra-credentials.json`,
-      `PROMPTFOO_CONFIG_DIR=${directory}/astra-promptfoo`,
-    ])
-  } finally {
-    rmSync(directory, { recursive: true, force: true })
+test("CodeQL reports both required names and analyzes a language only when its inputs change", () => {
+  const codeql = yaml.load(readFileSync(join(repositoryRoot, ".github/workflows/codeql.yml"), "utf8"))
+  assert.deepEqual(Object.keys(codeql.on), ["push", "pull_request"])
+  assert.deepEqual(codeql.concurrency, {
+    group: "codeql-${{ github.event.pull_request.number || github.sha }}",
+    "cancel-in-progress": "${{ github.event_name == 'pull_request' }}",
+  })
+  assert.equal(codeql.jobs.changes.if, "github.event_name == 'pull_request'")
+  for (const [output, jobId, name, limit] of [
+    ["javascript", "analyze-javascript-typescript", "Analyze (javascript-typescript)", 27],
+    ["actions", "analyze-actions", "Analyze (actions)", 5],
+  ]) {
+    const job = codeql.jobs[jobId]
+    assert.equal(job.name, name)
+    assert.equal(job.strategy, undefined, "a skipped matrix job reports its unexpanded name")
+    assert.equal(job.needs, "changes")
+    assert.equal(job.if, `\${{ !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.${output} == 'true') }}`)
+    assert.equal(job["timeout-minutes"], limit, `${name} keeps the limit that covers its slowest measured run on main`)
   }
+  const selection = codeql.jobs.changes.steps.find((step) => step.id === "languages")
+  const select = (change) => {
+    const directory = mkdtempSync(join(tmpdir(), "codeql-languages-"))
+    const repository = join(directory, "repository")
+    try {
+      mkdirSync(join(repository, "apps/web"), { recursive: true })
+      git(repository, "init", "-q")
+      git(repository, "config", "user.email", "test@example.invalid")
+      git(repository, "config", "user.name", "Test")
+      writeFileSync(join(repository, "README.md"), "base\n")
+      writeFileSync(join(repository, "apps/web/old.ts"), "export const old = 1\n")
+      git(repository, "add", ".")
+      git(repository, "commit", "-qm", "base")
+      change(repository)
+      git(repository, "add", "-A")
+      git(repository, "commit", "-qm", "change")
+      const output = join(directory, "output")
+      const result = spawnSync("bash", ["-e", "-c", selection.run], {
+        cwd: repository, env: { ...process.env, RUNNER_TEMP: directory, GITHUB_OUTPUT: output }, encoding: "utf8",
+      })
+      assert.equal(result.status, 0, result.stderr)
+      return Object.fromEntries(readFileSync(output, "utf8").trim().split("\n").map((line) => line.split("=")))
+    } finally {
+      rmSync(directory, { recursive: true, force: true })
+    }
+  }
+  const add = (...paths) => (repository) => {
+    for (const path of paths) {
+      mkdirSync(dirname(join(repository, path)), { recursive: true })
+      writeFileSync(join(repository, path), "changed\n")
+    }
+  }
+  const neither = { javascript: "false", actions: "false" }
+  const javascript = { javascript: "true", actions: "false" }
+  const both = { javascript: "true", actions: "true" }
+  assert.deepEqual(select(add("docs/plan.md", "design/canvas/screen.png", ".claude/specs/run.md")), neither)
+  assert.deepEqual(select(add("apps/web/app/page.tsx")), javascript)
+  assert.deepEqual(select(add("packages/shared/package.json")), javascript)
+  assert.deepEqual(select(add("apps/mobile/android/gradlew")), javascript, "the extractor reads extension-less files")
+  assert.deepEqual(select(add(".github/workflows/test.yml")), both)
+  assert.deepEqual(select(add(".github/actions/android-boot/action.yml")), both)
+  assert.deepEqual(select((repository) => rmSync(join(repository, "apps/web/old.ts"))), javascript, "a deleted source file closes its alerts")
+  assert.deepEqual(select((repository) => {
+    mkdirSync(join(repository, "docs"))
+    git(repository, "mv", "apps/web/old.ts", "docs/old.md")
+  }), javascript, "a rename out of a language still analyzes the old path")
 })
 
 test("Guards checks every workflow with a checksum-pinned actionlint and no baseline", () => {
@@ -221,7 +341,7 @@ test("script guards share one checkout and install, and run after another guard 
 
 test("calibration stays advisory and React Doctor retains its time limit", () => {
   assert.equal(guardGroups(workflow).calibration.steps.find((step) => step.name === "Report calibration drift")["continue-on-error"], true)
-  assert.equal(guardGroups(workflow)["react-doctor"].steps.find((step) => step.id === "react-doctor__1")["timeout-minutes"], 15)
+  assert.equal(guardGroups(workflow)["react-doctor"].steps.find((step) => step.id === "react-doctor__1")["timeout-minutes"], 6)
 })
 
 test("pull requests run each source check through one owner", () => {
@@ -232,7 +352,7 @@ test("pull requests run each source check through one owner", () => {
   }
   assert.ok(testWorkflow.jobs["tool-tests"].steps.some((step) => step.run?.startsWith("node tools/test-tools.mjs --shard ")))
   assert.ok(testWorkflow.jobs["web-tests"].steps.some((step) => step.name === "Run web shard with coverage"))
-  assert.ok(testWorkflow.jobs["workspace-tests"].steps.some((step) => step.run === 'npx turbo run test --filter="@orbit/${{ matrix.workspace }}" --concurrency=1 -- --coverage'))
+  assert.ok(testWorkflow.jobs["workspace-tests"].steps.some((step) => step.run === "npx turbo run test --filter=@orbit/desktop --filter=@orbit/shared --filter=@orbit/eslint-rules --concurrency=1 -- --coverage"))
   assert.equal(testWorkflow.jobs["unit-tests"].steps.some((step) => step.run?.includes("npx turbo run test")), false)
 })
 

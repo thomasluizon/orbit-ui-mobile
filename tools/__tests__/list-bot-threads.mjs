@@ -1,7 +1,10 @@
+import { spawn } from "node:child_process"
 import { existsSync, readFileSync, rmSync } from "node:fs"
+import { join } from "node:path"
 
 import { readObservedIdentifiers } from "../lib/identifier-ledger.mjs"
-import { processIsRunning, T, check, orcaEnv, realOrchestratorConfig, run, stage, stageRepo, stageWithConfig } from "./_harness.mjs"
+import { gitDirectoryOf } from "../lib/run-state.mjs"
+import { REPO_ROOT, processIsRunning, T, check, orcaEnv, realOrchestratorConfig, run, stage, stageRepo, stageWithConfig } from "./_harness.mjs"
 
 const TOOL = "list-bot-threads.mjs"
 const BOT = "pullfrog"
@@ -24,8 +27,8 @@ const OLD_HEAD = "b5cd7394a8a687126eaaec32c02978ad6575c01c"
 const BASE = "c5cd7394a8a687126eaaec32c02978ad6575c01d"
 const REPOINTED_HEAD = "4cc1f620dae30df23b09cdbfb7ceb69a45fe35cf"
 /** Keep the activity response shape for review freshness checks. */
-const activity = (after = HEAD, timestamp = "2026-08-04T22:01:00Z", activity_type = "push") => [{
-  activity_type, actor: { login: "<actor>" }, after, before: OLD_HEAD, id: 1,
+const activity = (after = HEAD, timestamp = "2026-08-04T22:01:00Z", activity_type = "push", before = OLD_HEAD) => [{
+  activity_type, actor: { login: "<actor>" }, after, before, id: 1,
   node_id: "<activity-id>", ref: "refs/heads/fix/example", timestamp,
 }]
 
@@ -58,17 +61,6 @@ const payload = ({ isDraft = false, reviews = [], comments = [], threads = [], c
     },
   })
 
-/** Copied from the real `gh api .../branches/main/protection/required_status_checks` response, cut to two checks. */
-const REQUIRED_CHECKS = JSON.stringify({
-  url: "https://api.github.com/repos/thomasluizon/orbit-ui-mobile/branches/main/protection/required_status_checks",
-  strict: false,
-  contexts: ["Unit Tests", "pullfrog-approval"],
-  contexts_url: "https://api.github.com/repos/thomasluizon/orbit-ui-mobile/branches/main/protection/required_status_checks/contexts",
-  checks: [{ context: "Unit Tests", app_id: 15368 }, { context: "pullfrog-approval", app_id: 1768019 }],
-})
-/** The real 404 body gh prints for a branch with no protection, with exit 1. */
-const UNPROTECTED = JSON.stringify({ message: "Branch not protected", documentation_url: "https://docs.github.com/rest/branches/branch-protection#get-status-checks-protection", status: "404" })
-const requiredStub = { match: "/protection/required_status_checks", stdout: REQUIRED_CHECKS }
 const ciCheck = (conclusion = "SUCCESS", status = "COMPLETED", name = "Unit Tests") => ({
   __typename: "CheckRun", name, status, conclusion, startedAt: "2026-08-04T22:05:00Z",
   completedAt: status === "COMPLETED" ? "2026-08-04T22:15:00Z" : null,
@@ -102,7 +94,7 @@ const parsed = (result) => {
 
 const readPr = (stdout, exit = 0, argv = [], activities) => run(TOOL, ["--pr", "https://github.com/thomasluizon/orbit-ui-mobile/pull/681", "--wait-seconds", "0", ...argv], { path: testedToolPath, env: ghPlan(stdout, exit, activities) })
 
-export const cases = () => {
+export const cases = async () => {
   check(TOOL, "refuses a missing pull request", ["--wait-seconds", "0"], { status: 2, stderr: /--pr must be a pull request number or full GitHub/ })
   check(TOOL, "refuses a non-numeric pull request number", ["--pr", "abc"], { status: 2, stderr: /--pr must be a pull request number or full GitHub/ })
   check(TOOL, "a bare pull request number requires an explicit repository", ["--pr", "681"], { status: 2, stderr: /bare pull request number requires --repo/ })
@@ -328,7 +320,6 @@ export const cases = () => {
     ...orcaEnv([
       { match: "auth token --user thomasluizon", stdout: "test-github-token" },
       { match: "/activity?", stdout: JSON.stringify(activity()) },
-      requiredStub,
       { match: "pr comment", stdout: REQUEST_URL },
       { match: "api graphql", stdout },
     ]),
@@ -343,7 +334,6 @@ export const cases = () => {
     ...orcaEnv([
       { match: "auth token --user thomasluizon", stdout: "test-github-token" },
       { match: "/activity?", stdout: JSON.stringify(activity()) },
-      requiredStub,
       { match: "pr comment", stdout: REQUEST_URL },
       { match: "api graphql", stdoutSequence: [
         payload({ reviews: [botReview("COMMENTED", "2026-08-12T20:10:00Z", HEAD, COMMENTED_BODY)], checks: [approvalCheck(), ciCheck()] }),
@@ -390,128 +380,111 @@ export const cases = () => {
   )
 
   /**
-   * The review request waits for the head's CI, because a review of a head that later fails CI is
-   * thrown away by the CI fix push. Each case records the request comment argv, so "no request" is
-   * an observed absence rather than an assumed one.
+   * The request goes out at the push and reads no check, so the review runs beside CI. Each case
+   * records the argv of the request comment and of any branch protection read, so "requested" and
+   * "read no protection" are observed rather than assumed.
    */
-  const requestArgvFile = (name) => {
-    const path = stage(`list-bot-threads/request-argv-${name}.json`, "")
+  const argvFile = (name) => {
+    const path = stage(`list-bot-threads/${name}.json`, "")
     rmSync(path)
     return path
   }
-  const requestRun = (name, graphql, { waitSeconds = "3", required = { stdout: REQUIRED_CHECKS } } = {}) => {
-    const argvFile = requestArgvFile(name)
-    const result = run(TOOL, ["--pr", "681", "--repo", "ui", "--wait-seconds", waitSeconds, "--poll-seconds", "1"], { path: testedToolPath, env: {
+  const requestEnv = (name, graphql, activities, comment = {}) => {
+    const requestArgv = argvFile(`request-argv-${name}`)
+    const protectionArgv = argvFile(`protection-argv-${name}`)
+    return { requestArgv, protectionArgv, env: {
       ...orcaEnv([
         { match: "auth token --user thomasluizon", stdout: "test-github-token" },
-        { match: "/activity?", stdout: JSON.stringify(activity()) },
-        { match: "/protection/required_status_checks", ...required },
-        { match: "pr comment", stdout: REQUEST_URL, argvFile },
+        { match: "/activity?", ...activities },
+        // Answers a branch protection read only to record it; no request case may make one.
+        { match: "/protection/", stdout: "{}", argvFile: protectionArgv },
+        { match: "pr comment", stdout: REQUEST_URL, argvFile: requestArgv, ...comment },
         { match: "api graphql", ...graphql },
       ]),
       CLAUDE_CODE_SESSION_ID: RUN_IDENTIFIER,
       CODEX_THREAD_ID: "",
-    } })
-    return { result, plan: parsed(result), requested: existsSync(argvFile) }
+    } }
+  }
+  /** The tool keeps each posted request in the git directory of the repository, so each case starts without one. */
+  const requestLedger = join(gitDirectoryOf(uiContext.path), "orbit-review-requests.json")
+  const requestRun = (name, graphql, { waitSeconds = "3", argv = [], activities = { stdout: JSON.stringify(activity()) }, keepLedger = false } = {}) => {
+    if (!keepLedger) rmSync(requestLedger, { force: true })
+    const { requestArgv, protectionArgv, env } = requestEnv(name, graphql, activities)
+    const result = run(TOOL, ["--pr", "681", "--repo", "ui", "--wait-seconds", waitSeconds, "--poll-seconds", "1", ...argv], { path: testedToolPath, env })
+    return {
+      result,
+      plan: parsed(result),
+      requestArgv: existsSync(requestArgv) ? JSON.parse(readFileSync(requestArgv, "utf8")) : null,
+      protectionRead: existsSync(protectionArgv),
+      requests: (result.stderr.match(/"event":"REVIEW_REQUESTED"/g) ?? []).length,
+    }
   }
   const sequence = (name, payloads) => ({ stdoutSequence: payloads, sequenceFile: stage(`list-bot-threads/${name}-sequence`, "0") })
+  const reviewLands = (checks) => payload({ checks: [...checks, approvalCheck("COMPLETED", "SUCCESS", "2026-08-05T10:01:00Z")], reviews: [botReview("APPROVED", "2026-08-05T10:00:00Z")] })
+  /** The request must follow the first read and come before the second, so it never waited on a later read. */
+  const requestedOnFirstRead = (entry) => {
+    const reads = [...entry.result.stderr.matchAll(/"event":"REVIEW_THREAD_PAGE_READ"/g)].map((match) => match.index)
+    const requestedAt = entry.result.stderr.indexOf('"event":"REVIEW_REQUESTED"')
+    return requestedAt > reads[0] && (reads.length === 1 || requestedAt < reads[1])
+  }
 
-  const failingHead = requestRun("failing", { stdout: payload({ checks: [ciCheck("FAILURE")] }) })
+  const greenHead = requestRun("green", sequence("green", [payload({ checks: [ciCheck()] }), reviewLands([ciCheck()])]))
   T(
-    `${TOOL}: a head whose CI failed gets no review request and reports CI_FAILING`,
-    failingHead.result.status === 1 && failingHead.plan?.verdict === "CI_FAILING" && failingHead.plan.reviewRequested === false && !failingHead.requested &&
-      failingHead.plan.ciGate?.failing.join() === "Unit Tests" && /NOT posted/.test(failingHead.plan.note ?? ""),
-    failingHead.result.stdout || failingHead.result.stderr,
-  )
-  const optionalFailing = requestRun("optional-failing", { stdout: payload({ checks: [ciCheck(), ciCheck("FAILURE", "COMPLETED", "Layout (1/4)")] }) })
-  T(
-    `${TOOL}: a failing check that branch protection does not require still blocks the request`,
-    optionalFailing.plan?.verdict === "CI_FAILING" && !optionalFailing.requested && optionalFailing.plan.ciGate?.failing.join() === "Layout (1/4)",
-    optionalFailing.result.stdout || optionalFailing.result.stderr,
-  )
-
-  const greenHead = requestRun("green", sequence("green", [
-    payload({ checks: [ciCheck()] }),
-    payload({ checks: [ciCheck(), approvalCheck("COMPLETED", "SUCCESS", "2026-08-05T10:01:00Z")], reviews: [botReview("APPROVED", "2026-08-05T10:00:00Z")] }),
-  ]))
-  T(
-    `${TOOL}: a head whose CI passed gets exactly one review request, then the review is read`,
-    greenHead.result.status === 0 && greenHead.plan?.verdict === "REVIEWED" && greenHead.requested && greenHead.plan.ciGate?.state === "PASSED" &&
-      (greenHead.result.stderr.match(/"event":"REVIEW_REQUESTED"/g) ?? []).length === 1,
+    `${TOOL}: a head with no review gets exactly one "@pullfrog review" request, then the review is read`,
+    greenHead.result.status === 0 && greenHead.plan?.verdict === "REVIEWED" && greenHead.requests === 1 &&
+      greenHead.requestArgv?.includes("@pullfrog review") && !("ciGate" in (greenHead.plan ?? {})),
     greenHead.result.stdout || greenHead.result.stderr,
   )
 
-  const pendingThenGreen = requestRun("pending-then-green", sequence("pending-then-green", [
-    payload({ checks: [ciCheck(null, "IN_PROGRESS")] }),
-    payload({ checks: [ciCheck()] }),
-    payload({ checks: [ciCheck(), approvalCheck("COMPLETED", "SUCCESS", "2026-08-05T10:01:00Z")], reviews: [botReview("APPROVED", "2026-08-05T10:00:00Z")] }),
-  ]), { waitSeconds: "6" })
-  const waitedAt = pendingThenGreen.result.stderr.indexOf('"event":"CI_WAITING"')
-  const requestedAt = pendingThenGreen.result.stderr.indexOf('"event":"REVIEW_REQUESTED"')
+  const runningHead = requestRun("running", sequence("running", [payload({ checks: [ciCheck(null, "IN_PROGRESS")] }), reviewLands([ciCheck(null, "IN_PROGRESS")])]))
   T(
-    `${TOOL}: a running head is requested only after its CI passes`,
-    pendingThenGreen.result.status === 0 && pendingThenGreen.plan?.verdict === "REVIEWED" && pendingThenGreen.requested && waitedAt !== -1 && requestedAt > waitedAt,
-    pendingThenGreen.result.stdout || pendingThenGreen.result.stderr,
+    `${TOOL}: a head whose CI still runs is requested on the first read, with no CI wait`,
+    runningHead.result.status === 0 && runningHead.plan?.verdict === "REVIEWED" && runningHead.requests === 1 && requestedOnFirstRead(runningHead) &&
+      !runningHead.result.stderr.includes("CI_WAITING"),
+    runningHead.result.stdout || runningHead.result.stderr,
   )
 
-  const stillRunning = requestRun("still-running", { stdout: payload({ checks: [ciCheck(null, "QUEUED")] }) }, { waitSeconds: "2" })
+  const justPushed = requestRun("just-pushed", sequence("just-pushed", [payload({ checks: [] }), reviewLands([])]))
   T(
-    `${TOOL}: CI still running at the end of the budget is CI_PENDING with no request`,
-    stillRunning.result.status === 1 && stillRunning.plan?.verdict === "CI_PENDING" && !stillRunning.requested && stillRunning.plan.ciGate?.pending.join() === "Unit Tests",
-    stillRunning.result.stdout || stillRunning.result.stderr,
+    `${TOOL}: a head with no check reported yet, right after its push, is requested on the first read`,
+    justPushed.result.status === 0 && justPushed.plan?.verdict === "REVIEWED" && justPushed.requests === 1 && requestedOnFirstRead(justPushed),
+    justPushed.result.stdout || justPushed.result.stderr,
   )
-  const unregistered = requestRun("unregistered", { stdout: payload({ checks: [ciCheck("SUCCESS", "COMPLETED", "PR Metadata")] }) }, { waitSeconds: "2" })
+
+  const failingHead = requestRun("failing", sequence("failing", [payload({ checks: [ciCheck("FAILURE")] }), reviewLands([ciCheck("FAILURE")])]))
   T(
-    `${TOOL}: a required check that is not registered yet holds the request`,
-    unregistered.plan?.verdict === "CI_PENDING" && !unregistered.requested && unregistered.plan.ciGate?.pending.join() === "Unit Tests",
-    unregistered.result.stdout || unregistered.result.stderr,
+    `${TOOL}: a head whose CI failed is requested too, because the request reads no check`,
+    failingHead.result.status === 0 && failingHead.plan?.verdict === "REVIEWED" && failingHead.requests === 1 && requestedOnFirstRead(failingHead),
+    failingHead.result.stdout || failingHead.result.stderr,
+  )
+
+  const unanswered = requestRun("unanswered", { stdout: payload({ checks: [ciCheck(null, "QUEUED")] }) }, { waitSeconds: "2" })
+  T(
+    `${TOOL}: a request with no review inside the budget is NO_REVIEW that says the request WAS posted`,
+    unanswered.result.status === 1 && unanswered.plan?.verdict === "NO_REVIEW" && unanswered.plan.reviewRequested === true && unanswered.requests === 1 &&
+      /WAS posted/.test(unanswered.plan.note ?? ""),
+    unanswered.result.stdout || unanswered.result.stderr,
   )
 
   const reviewedHead = requestRun("reviewed", { stdout: payload({ checks: [ciCheck(), approvalCheck()], reviews: [botReview()] }) })
   T(
     `${TOOL}: a head that already has its review gets no second request`,
-    reviewedHead.result.status === 0 && reviewedHead.plan?.verdict === "REVIEWED" && !reviewedHead.requested && reviewedHead.plan.ciGate === null,
+    reviewedHead.result.status === 0 && reviewedHead.plan?.verdict === "REVIEWED" && reviewedHead.requestArgv === null,
     reviewedHead.result.stdout || reviewedHead.result.stderr,
   )
   const fixPush = requestRun("fix-push", sequence("fix-push", [
     payload({ checks: [ciCheck(null, "IN_PROGRESS")], reviews: [botReview("APPROVED", "2026-08-04T21:00:00Z", OLD_HEAD)] }),
-    payload({ checks: [ciCheck()], reviews: [botReview("APPROVED", "2026-08-04T21:00:00Z", OLD_HEAD)] }),
     payload({ checks: [ciCheck(), approvalCheck("COMPLETED", "SUCCESS", "2026-08-05T10:01:00Z")], reviews: [botReview("APPROVED", "2026-08-04T21:00:00Z", OLD_HEAD), botReview("APPROVED", "2026-08-05T10:00:00Z")] }),
-  ]), { waitSeconds: "6" })
+  ]))
   T(
-    `${TOOL}: a CI fix push after a reviewed head is requested once, after its own CI passes`,
-    fixPush.result.status === 0 && fixPush.plan?.verdict === "REVIEWED" && fixPush.plan.reviewedCommit === HEAD && fixPush.requested &&
-      (fixPush.result.stderr.match(/"event":"REVIEW_REQUESTED"/g) ?? []).length === 1,
+    `${TOOL}: a fix push after a reviewed head is requested once at the push, for the new head`,
+    fixPush.result.status === 0 && fixPush.plan?.verdict === "REVIEWED" && fixPush.plan.reviewedCommit === HEAD && fixPush.requests === 1 && requestedOnFirstRead(fixPush),
     fixPush.result.stdout || fixPush.result.stderr,
-  )
-  const landedWhileWaiting = requestRun("landed-while-waiting", sequence("landed-while-waiting", [
-    payload({ checks: [ciCheck(null, "IN_PROGRESS")] }),
-    payload({ checks: [ciCheck(), approvalCheck("COMPLETED", "SUCCESS", "2026-08-05T10:01:00Z")], reviews: [botReview("APPROVED", "2026-08-05T10:00:00Z")] }),
-  ]), { waitSeconds: "4" })
-  T(
-    `${TOOL}: a review that lands during the CI wait is read and no request is posted`,
-    landedWhileWaiting.result.status === 0 && landedWhileWaiting.plan?.verdict === "REVIEWED" && !landedWhileWaiting.requested,
-    landedWhileWaiting.result.stdout || landedWhileWaiting.result.stderr,
-  )
-  const unprotected = requestRun("unprotected", sequence("unprotected", [
-    payload({ checks: [ciCheck("SUCCESS", "COMPLETED", "PR Metadata")] }),
-    payload({ checks: [ciCheck("SUCCESS", "COMPLETED", "PR Metadata")], reviews: [botReview("APPROVED", "2026-08-05T10:00:00Z")] }),
-  ]), { required: { stdout: UNPROTECTED, exit: 1 } })
-  T(
-    `${TOOL}: an unprotected base gates the request on its reported checks`,
-    unprotected.result.status === 0 && unprotected.plan?.verdict === "REVIEWED" && unprotected.requested,
-    unprotected.result.stdout || unprotected.result.stderr,
-  )
-  const protectionDown = requestRun("protection-down", { stdout: payload({ checks: [ciCheck()] }) }, { required: { stdout: "", stderr: "gh: Server Error (HTTP 502)", exit: 1 } })
-  T(
-    `${TOOL}: an unreadable branch protection answer is an environment error and posts nothing`,
-    protectionDown.result.status === 2 && /required status checks/.test(protectionDown.result.stderr) && !protectionDown.requested,
-    protectionDown.result.stderr || protectionDown.result.stdout,
   )
   const alreadyAsked = requestRun("already-asked", { stdout: payload({ checks: [ciCheck()], comments: [requestComment("2026-08-04T22:30:00Z")] }) }, { waitSeconds: "2" })
   T(
     `${TOOL}: a request already posted after the head's push is not posted twice`,
-    alreadyAsked.result.status === 1 && alreadyAsked.plan?.verdict === "NO_REVIEW" && !alreadyAsked.requested && alreadyAsked.plan.existingRequestUrl === REQUEST_URL &&
+    alreadyAsked.result.status === 1 && alreadyAsked.plan?.verdict === "NO_REVIEW" && alreadyAsked.requestArgv === null && alreadyAsked.plan.existingRequestUrl === REQUEST_URL &&
       /no second request/.test(alreadyAsked.plan.note ?? ""),
     alreadyAsked.result.stdout || alreadyAsked.result.stderr,
   )
@@ -522,7 +495,7 @@ export const cases = () => {
   ]))
   T(
     `${TOOL}: a request comment from a non-collaborator is no request, because Pullfrog ignores it, so the real one is posted`,
-    askedByStranger.result.status === 0 && askedByStranger.plan?.verdict === "REVIEWED" && askedByStranger.requested && askedByStranger.plan.existingRequestUrl === undefined,
+    askedByStranger.result.status === 0 && askedByStranger.plan?.verdict === "REVIEWED" && askedByStranger.requests === 1 && askedByStranger.plan.existingRequestUrl === undefined,
     askedByStranger.result.stdout || askedByStranger.result.stderr,
   )
   const askedForOldHead = requestRun("asked-for-old-head", sequence("asked-for-old-head", [
@@ -531,14 +504,205 @@ export const cases = () => {
   ]))
   T(
     `${TOOL}: a request posted before the head's push asks for the older head, so the new head is requested`,
-    askedForOldHead.result.status === 0 && askedForOldHead.plan?.verdict === "REVIEWED" && askedForOldHead.requested,
+    askedForOldHead.result.status === 0 && askedForOldHead.plan?.verdict === "REVIEWED" && askedForOldHead.requests === 1,
     askedForOldHead.result.stdout || askedForOldHead.result.stderr,
   )
-  const noRequest = requestRun("no-request-flag", { stdout: payload({ checks: [ciCheck("FAILURE")] }) }, { waitSeconds: "0" })
+  const zeroWait = requestRun("zero-wait", { stdout: payload({ checks: [ciCheck("FAILURE")] }) }, { waitSeconds: "0" })
   T(
-    `${TOOL}: a zero wait still never requests and never reads branch protection`,
-    noRequest.result.status === 1 && noRequest.plan?.verdict === "NO_REVIEW" && noRequest.plan.ciGate === null && !noRequest.requested,
-    noRequest.result.stdout || noRequest.result.stderr,
+    `${TOOL}: a zero wait never requests, because asking and waiting no time would manufacture an absence`,
+    zeroWait.result.status === 1 && zeroWait.plan?.verdict === "NO_REVIEW" && zeroWait.plan.reviewRequested === false && zeroWait.requestArgv === null,
+    zeroWait.result.stdout || zeroWait.result.stderr,
+  )
+  /** The request must follow the second read and come before the third, so the first read decided nothing. */
+  const requestedOnSecondRead = (entry) => {
+    const reads = [...entry.result.stderr.matchAll(/"event":"REVIEW_THREAD_PAGE_READ"/g)].map((match) => match.index)
+    const requestedAt = entry.result.stderr.indexOf('"event":"REVIEW_REQUESTED"')
+    return reads.length >= 2 && requestedAt > reads[1] && (reads.length === 2 || requestedAt < reads[2])
+  }
+  const oldHeadReview = botReview("CHANGES_REQUESTED", "2026-08-04T21:00:00Z", OLD_HEAD, "The old head has a finding.", "PRR_kwDOR5Siws8AAAABNo7Old")
+  const oldHeadActivity = JSON.stringify(activity(OLD_HEAD, "2026-08-04T20:00:00Z"))
+  const oldHeadRead = payload({ headRefOid: OLD_HEAD, checks: [ciCheck()], reviews: [oldHeadReview] })
+  const headLag = requestRun("head-lag", sequence("head-lag", [
+    oldHeadRead,
+    payload({ checks: [], reviews: [oldHeadReview] }),
+    payload({ checks: [approvalCheck("COMPLETED", "SUCCESS", "2026-08-05T10:01:00Z")], reviews: [oldHeadReview, botReview("APPROVED", "2026-08-05T10:00:00Z")] }),
+  ]), { argv: ["--head", HEAD], activities: sequence("head-lag-activity", [oldHeadActivity, JSON.stringify(activity())]) })
+  T(
+    `${TOOL}: --head reads again while GitHub still reports the reviewed previous head, then asks exactly once for the pushed head`,
+    headLag.result.status === 0 && headLag.plan?.verdict === "REVIEWED" && headLag.plan.reviewedCommit === HEAD && headLag.requests === 1 &&
+      requestedOnSecondRead(headLag) && /"event":"HEAD_WAITING"/.test(headLag.result.stderr),
+    headLag.result.stdout || headLag.result.stderr,
+  )
+  const headAbsent = requestRun("head-absent", { stdout: oldHeadRead }, { waitSeconds: "2", argv: ["--head", HEAD], activities: { stdout: oldHeadActivity } })
+  T(
+    `${TOOL}: --head exits 2 with both heads named and posts nothing when the pushed head never arrives inside the budget`,
+    headAbsent.result.status === 2 && headAbsent.plan === null && headAbsent.requestArgv === null &&
+      headAbsent.result.stderr.includes(`reports head ${OLD_HEAD}, not the expected ${HEAD}`),
+    headAbsent.result.stdout || headAbsent.result.stderr,
+  )
+  const headAbsentZeroWait = requestRun("head-absent-zero-wait", { stdout: oldHeadRead }, { waitSeconds: "0", argv: ["--head", HEAD], activities: { stdout: oldHeadActivity } })
+  T(
+    `${TOOL}: --head with a zero wait never reports the verdict of another head`,
+    headAbsentZeroWait.result.status === 2 && headAbsentZeroWait.plan === null && headAbsentZeroWait.requestArgv === null,
+    headAbsentZeroWait.result.stdout || headAbsentZeroWait.result.stderr,
+  )
+  check(TOOL, "refuses a --head that is not a full commit SHA", ["--pr", "681", "--repo", "ui", "--head", "0f4abca"], { status: 2, stderr: /--head must be a full 40-character commit SHA/ })
+
+  const lateActivity = (name) => sequence(name, [oldHeadActivity, JSON.stringify(activity())])
+  const askedBeforeActivity = requestRun("asked-before-activity", { stdout: payload({ checks: [ciCheck()], comments: [requestComment("2026-08-04T22:30:00Z")] }) },
+    { waitSeconds: "3", activities: lateActivity("asked-before-activity-list") })
+  T(
+    `${TOOL}: a request already posted for a head whose push the activity does not list yet is not posted twice`,
+    askedBeforeActivity.result.status === 1 && askedBeforeActivity.plan?.verdict === "NO_REVIEW" && askedBeforeActivity.requestArgv === null &&
+      askedBeforeActivity.plan.existingRequestUrl === REQUEST_URL,
+    askedBeforeActivity.result.stdout || askedBeforeActivity.result.stderr,
+  )
+  const pushListedLate = requestRun("push-listed-late", sequence("push-listed-late", [payload({ checks: [] }), payload({ checks: [] }), reviewLands([])]),
+    { activities: lateActivity("push-listed-late-list") })
+  T(
+    `${TOOL}: a head whose push the activity lists on the second read is requested once, on that read`,
+    pushListedLate.result.status === 0 && pushListedLate.plan?.verdict === "REVIEWED" && pushListedLate.requests === 1 && requestedOnSecondRead(pushListedLate),
+    pushListedLate.result.stdout || pushListedLate.result.stderr,
+  )
+  const pushNeverListed = requestRun("push-never-listed", { stdout: payload({ checks: [] }) }, { waitSeconds: "2", activities: { stdout: oldHeadActivity } })
+  T(
+    `${TOOL}: a head whose push the activity never lists gets no request, because no review of it can be proven current`,
+    pushNeverListed.result.status === 1 && pushNeverListed.plan?.verdict === "NO_REVIEW" && pushNeverListed.plan.reviewRequested === false &&
+      pushNeverListed.requestArgv === null && /no matching head activity/.test(pushNeverListed.plan.note ?? ""),
+    pushNeverListed.result.stdout || pushNeverListed.result.stderr,
+  )
+  const forkRequest = requestRun("fork-head", { stdout: payload({ checks: [], headRepositoryName: "fork/orbit-ui-mobile" }) }, { waitSeconds: "2" })
+  T(
+    `${TOOL}: a head from another repository gets no request, and the wait for its push does not start`,
+    forkRequest.result.status === 1 && forkRequest.plan?.verdict === "NO_REVIEW" && forkRequest.requestArgv === null &&
+      /different repository/.test(forkRequest.plan.note ?? "") && !/"event":"HEAD_WAITING"/.test(forkRequest.result.stderr),
+    forkRequest.result.stdout || forkRequest.result.stderr,
+  )
+
+  /**
+   * A push after the pushed head ends the wait. The verdict of the newer head is not the verdict that
+   * the caller asked for, so the exit code is the one that wait-ci.mjs gives a moved head.
+   */
+  const laterHeadActivity = JSON.stringify(activity(REPOINTED_HEAD, "2026-08-05T09:00:00Z"))
+  const laterHeadReviewed = payload({ headRefOid: REPOINTED_HEAD, checks: [approvalCheck("COMPLETED", "SUCCESS", "2026-08-05T10:01:00Z")], reviews: [botReview("APPROVED", "2026-08-05T10:00:00Z", REPOINTED_HEAD)] })
+  const headMoved = requestRun("head-moved", sequence("head-moved", [payload({ checks: [] }), laterHeadReviewed]),
+    { argv: ["--head", HEAD], activities: sequence("head-moved-activity", [JSON.stringify(activity()), laterHeadActivity]) })
+  T(
+    `${TOOL}: --head ends the wait with exit 4 and no verdict when a later push moves the head, even when the later head is approved`,
+    headMoved.result.status === 4 && headMoved.plan === null && headMoved.requests === 1 && /"event":"HEAD_MOVED"/.test(headMoved.result.stderr) &&
+      headMoved.result.stderr.includes(`moved from the expected ${HEAD} to ${REPOINTED_HEAD}`),
+    headMoved.result.stdout || headMoved.result.stderr,
+  )
+  const headMovedUnasked = requestRun("head-moved-unasked", sequence("head-moved-unasked", [payload({ checks: [] }), laterHeadReviewed]),
+    { waitSeconds: "6", argv: ["--head", HEAD], activities: sequence("head-moved-unasked-activity", [oldHeadActivity, laterHeadActivity]) })
+  T(
+    `${TOOL}: --head exits 4 and asks nothing when the head moves before the push of the expected head is listed`,
+    headMovedUnasked.result.status === 4 && headMovedUnasked.plan === null && headMovedUnasked.requestArgv === null,
+    headMovedUnasked.result.stdout || headMovedUnasked.result.stderr,
+  )
+  /**
+   * Two quick pushes can replace --head before any read shows it. The activity, newest entry first as
+   * GitHub lists it, then holds a push whose `before` is --head, and only that push proves the move.
+   */
+  const replacedActivity = JSON.stringify([...activity(REPOINTED_HEAD, "2026-08-05T09:00:00Z", "push", HEAD), ...activity()])
+  const laterHeadUnreviewed = payload({ headRefOid: REPOINTED_HEAD, checks: [] })
+  const headReplacedUnseen = requestRun("head-replaced-unseen", sequence("head-replaced-unseen", [oldHeadRead, laterHeadUnreviewed]),
+    { waitSeconds: "20", argv: ["--head", HEAD], activities: sequence("head-replaced-unseen-activity", [oldHeadActivity, replacedActivity]) })
+  T(
+    `${TOOL}: --head exits 4 at once when the activity lists a push that replaced it before any read showed it`,
+    headReplacedUnseen.result.status === 4 && headReplacedUnseen.plan === null && headReplacedUnseen.requestArgv === null &&
+      /"event":"HEAD_MOVED"/.test(headReplacedUnseen.result.stderr) &&
+      headReplacedUnseen.result.stderr.includes(`moved from the expected ${HEAD} to ${REPOINTED_HEAD}`),
+    headReplacedUnseen.result.stdout || headReplacedUnseen.result.stderr,
+  )
+  const pushedBackActivity = JSON.stringify([
+    ...activity(HEAD, "2026-08-05T09:30:00Z", "force_push", REPOINTED_HEAD),
+    ...activity(REPOINTED_HEAD, "2026-08-05T09:00:00Z", "push", HEAD),
+    ...activity(),
+  ])
+  const pushedBack = requestRun("head-pushed-back", sequence("head-pushed-back", [laterHeadUnreviewed, payload({ checks: [] }), reviewLands([])]),
+    { argv: ["--head", HEAD], activities: { stdout: pushedBackActivity } })
+  T(
+    `${TOOL}: --head keeps the wait when a later force push puts it back after the push that replaced it`,
+    pushedBack.result.status === 0 && pushedBack.plan?.verdict === "REVIEWED" && pushedBack.plan.reviewedCommit === HEAD && pushedBack.requests === 1,
+    pushedBack.result.stdout || pushedBack.result.stderr,
+  )
+  /**
+   * The pull request is the authority on its head. When it shows --head but the activity does not list
+   * the force push back yet, the newest listed move of --head still leaves it: read again, decide nothing.
+   */
+  const pushBackUnlisted = JSON.stringify([...activity(REPOINTED_HEAD, "2026-08-05T09:00:00Z", "push", HEAD), ...activity()])
+  const pushedBackLate = requestRun("head-pushed-back-late", sequence("head-pushed-back-late", [payload({ checks: [] }), payload({ checks: [] }), reviewLands([])]),
+    { argv: ["--head", HEAD], activities: sequence("head-pushed-back-late-activity", [pushBackUnlisted, pushedBackActivity]) })
+  T(
+    `${TOOL}: --head shown by the pull request is not moved by an activity that does not list the force push back yet`,
+    pushedBackLate.result.status === 0 && pushedBackLate.plan?.verdict === "REVIEWED" && pushedBackLate.plan.reviewedCommit === HEAD &&
+      pushedBackLate.requests === 1 && requestedOnSecondRead(pushedBackLate) && !/"event":"HEAD_MOVED"/.test(pushedBackLate.result.stderr),
+    pushedBackLate.result.stdout || pushedBackLate.result.stderr,
+  )
+  const pushBackNeverListed = requestRun("head-pushed-back-never-listed", { stdout: payload({ checks: [] }) },
+    { waitSeconds: "2", argv: ["--head", HEAD], activities: { stdout: pushBackUnlisted } })
+  T(
+    `${TOOL}: --head exits 2 and posts nothing when the activity never lists the force push back inside the budget`,
+    pushBackNeverListed.result.status === 2 && pushBackNeverListed.plan === null && pushBackNeverListed.requestArgv === null &&
+      pushBackNeverListed.result.stderr.includes(`the branch activity still lists the push that replaced it with ${REPOINTED_HEAD}`),
+    pushBackNeverListed.result.stdout || pushBackNeverListed.result.stderr,
+  )
+  const withoutHead = requestRun("head-moved-no-flag", sequence("head-moved-no-flag", [payload({ checks: [] }), laterHeadReviewed]),
+    { activities: sequence("head-moved-no-flag-activity", [JSON.stringify(activity()), laterHeadActivity]) })
+  T(
+    `${TOOL}: without --head the tool still reports the head that GitHub reports, with its commit named`,
+    withoutHead.result.status === 0 && withoutHead.plan?.verdict === "REVIEWED" && withoutHead.plan.reviewedCommit === REPOINTED_HEAD,
+    withoutHead.result.stdout || withoutHead.result.stderr,
+  )
+  const waitCiUsage = run("wait-ci.mjs", ["--help"]).stdout
+  const ownUsage = run(TOOL, ["--help"]).stdout
+  T(
+    `${TOOL}: the moved-head exit code is the one that wait-ci.mjs documents`,
+    /\b4 head moved/.test(waitCiUsage) && /\b4 the head moved/.test(ownUsage),
+    `${waitCiUsage}\n${ownUsage}`,
+  )
+
+  /**
+   * Two runs for one head at the same time both read before GitHub can show the request of the other
+   * run. The slow comment stub keeps the first post open while the second run decides.
+   */
+  const spawnTool = (argv, env) => new Promise((resolve) => {
+    const child = spawn(process.execPath, [testedToolPath, ...argv], { cwd: REPO_ROOT, env: { ...process.env, ...env } })
+    const output = { stdout: "", stderr: "" }
+    child.stdout.on("data", (chunk) => { output.stdout += chunk })
+    child.stderr.on("data", (chunk) => { output.stderr += chunk })
+    child.once("close", (status) => resolve({ status, ...output }))
+  })
+  const concurrentRun = async (name) => {
+    const { requestArgv, env } = requestEnv(name, { stdout: payload({ checks: [] }) }, { stdout: JSON.stringify(activity()) }, { delayMs: 1500 })
+    const result = await spawnTool(["--pr", "681", "--repo", "ui", "--wait-seconds", "8", "--poll-seconds", "1"], env)
+    return { result, plan: parsed(result), posted: existsSync(requestArgv) }
+  }
+  rmSync(requestLedger, { force: true })
+  const concurrentRuns = await Promise.all([concurrentRun("concurrent-first"), concurrentRun("concurrent-second")])
+  const posters = concurrentRuns.filter((entry) => entry.posted)
+  const followers = concurrentRuns.filter((entry) => !entry.posted)
+  T(
+    `${TOOL}: two runs for one head at the same time post exactly one request, and the other run names that request`,
+    posters.length === 1 && followers.length === 1 && concurrentRuns.every((entry) => entry.result.status === 1 && entry.plan?.verdict === "NO_REVIEW") &&
+      posters[0].plan.reviewRequested === true && followers[0].plan.reviewRequested === false &&
+      followers[0].plan.existingRequestUrl === REQUEST_URL && /no second request/.test(followers[0].plan.note ?? ""),
+    concurrentRuns.map((entry) => `posted=${entry.posted} exit=${entry.result.status} ${entry.result.stdout || entry.result.stderr}`).join("\n"),
+  )
+  const pushedAgain = requestRun("pushed-again", { stdout: payload({ checks: [] }) },
+    { waitSeconds: "2", keepLedger: true, activities: { stdout: JSON.stringify(activity(HEAD, "2026-08-04T23:00:00Z")) } })
+  T(
+    `${TOOL}: a later push of the same commit is a new request, because the recorded request belongs to the earlier push`,
+    pushedAgain.result.status === 1 && pushedAgain.plan?.reviewRequested === true && pushedAgain.requests === 1,
+    pushedAgain.result.stdout || pushedAgain.result.stderr,
+  )
+  const requestCases = [greenHead, runningHead, justPushed, failingHead, unanswered, reviewedHead, fixPush, alreadyAsked, askedByStranger, askedForOldHead, zeroWait,
+    headLag, headAbsent, headAbsentZeroWait, askedBeforeActivity, pushListedLate, pushNeverListed, forkRequest, headMoved, headMovedUnasked, withoutHead, pushedAgain]
+  T(
+    `${TOOL}: no request case reads branch protection`,
+    requestCases.every((entry) => !entry.protectionRead),
+    JSON.stringify(requestCases.map((entry) => entry.protectionRead)),
   )
 
   for (const incompleteState of ["PENDING", "DISMISSED"]) {
