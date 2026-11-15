@@ -45,10 +45,10 @@ passes `--as-baseline` in place of `--baseline`. These local runs are the only l
 No rerun on the same build replaces a failure. A failed attempt fails its case for that build, and the merge refuses
 a second result for a case that passed or failed. A failure of the build is a failed attempt: a wrong preview, a reply
 without a preview and without a choice, question or fitting list card (a question in text is never a valid ask), HTTP
-5xx, a stream without a final event, a failed approval. Only a throttle, a spend ceiling stop, a failed precondition, a
-card turn without the eval trace that its answer needs, or a preview turn without the trace that shows a `stored` field
-is no evidence; it leaves the case incomplete, and only such a case continues in a later window. The model calls of
-that turn are not counted.
+5xx, a stream without a final event, a failed approval. Only a throttle, a spend ceiling, a failed precondition, a
+failed rubric grader, a card turn without the trace that its answer needs, or a preview turn without the trace that
+shows a `stored` field is no evidence; it leaves the case incomplete, and only such a case continues in a later window.
+A turn that gives no evidence adds no counted model calls.
 
 A reply that the grader cannot read is a grader limit, not a behavior failure: the case has no verdict, and the merge
 refuses a later window of the same build for it. Each kind clears only through `--rerun` on a later API commit of the

@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { corpusDigest } from '../core/corpus.mjs'
 import { COST_PER_MODEL_CALL_LIMIT_USD, mergeRunFiles, mergeRuns } from '../core/merge.mjs'
-import { summarize, writeReport, writeResults } from '../core/report.mjs'
+import { noEvidenceKinds, summarize, writeReport, writeResults } from '../core/report.mjs'
 import { changeList } from '../core/change-list.mjs'
 
 const descriptor = (id, overrides = {}) => ({ id, situation: id, family: 'owner-turns', defectClass: 'b', locale: 'en',
@@ -303,6 +303,16 @@ describe('the report files', () => {
       + 'trace that its answer needs, or a preview turn without the trace that shows a `stored` field):\n'
       + 'required: The chat turn failed with HTTP 429 (AI_DAILY_BUDGET_EXCEEDED): budget')
     expect(markdown).not.toContain('Behavior failures')
+  })
+
+  // Producer: noEvidenceKinds, the one list behind the heading above. The skill and TESTING.md state the same kinds.
+  it('names every kind of attempt without evidence in the skill and in TESTING.md', () => {
+    for (const path of ['.claude/skills/astra-eval/SKILL.md', 'TESTING.md']) {
+      const text = readFileSync(new URL(`../../../${path}`, import.meta.url), 'utf8').replace(/\s+/gu, ' ')
+      const kinds = text.match(/Only ([^.]+?) (?:is|are) no evidence/u)?.[1]
+      expect(kinds, path).toBeDefined()
+      for (const kind of noEvidenceKinds) expect(kinds, `${path}: ${kind}`).toContain(kind)
+    }
   })
 
   it('names the fixed build and each rerun case in the report', () => {

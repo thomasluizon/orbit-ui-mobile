@@ -7,10 +7,11 @@ import { approvePendingOperation, publicApi } from '../fixtures/api.mjs'
 import { visibleAnswer } from '../visible-answer.mjs'
 import { safeFailureMessage } from '../credentials.mjs'
 
-// Only a throttle, a spend ceiling, or a card or preview turn whose grading needs the eval trace and that returned none
-// is no evidence of the build: the case stays incomplete and continues in a later window. Each other failure is the build
-// under test failing the person: an HTTP 5xx, a stream that stops or ends without a final event, a failed approval. It
-// fails the attempt, so no later window runs the case again.
+// In a conversation, only a throttle, a spend ceiling, or a card or preview turn whose grading needs the eval trace and
+// that returned none is no evidence of the build (`noEvidenceKinds` in core/report.mjs names every kind): the case stays
+// incomplete and continues in a later window. Each other failure is the build under test failing the person: an HTTP
+// 5xx, a stream that stops or ends without a final event, a failed approval. It fails the attempt, so no later window
+// runs the case again.
 const ceilingCodes = ['AI_DAILY_BUDGET_EXCEEDED', 'AI_PROVIDER_QUOTA_EXHAUSTED']
 const failure = (turn, step) => ({ unavailable: turn.status === 429 || ceilingCodes.includes(turn.code),
   error: `${step} failed${turn.status ? ` with HTTP ${turn.status}` : ''}${turn.code ? ` (${turn.code})` : ''}: ${turn.error}` })

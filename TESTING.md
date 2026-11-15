@@ -518,11 +518,13 @@ model calls, so the cost of one model call reads a little high.
 
 No rerun on the same build replaces a failure. An attempt that fails, fails its case for that build:
 a wrong preview, a reply without a preview and without a question card, HTTP 5xx, a stream that ends
-without a final event, or a failed approval. Only HTTP 429, `AI_DAILY_BUDGET_EXCEEDED`,
-`AI_PROVIDER_QUOTA_EXHAUSTED`, a failed precondition, a card turn without the eval trace that its
-answer needs and a preview turn without the trace that shows a `stored` field are no evidence. Such an attempt leaves its case incomplete, and only such a case
-may appear again in a later window. The merge refuses a second result for a case that passed, failed or
-holds a grader limit, a window of another API commit, and a case whose `k` differs from the corpus.
+without a final event, or a failed approval. Only a throttle (HTTP 429), a spend ceiling
+(`AI_DAILY_BUDGET_EXCEEDED` or `AI_PROVIDER_QUOTA_EXHAUSTED`), a failed precondition, a failed rubric
+grader, a card turn without the trace that its answer needs and a preview turn without the trace that
+shows a `stored` field are no evidence. Such an attempt leaves its case incomplete, and only such a
+case may appear again in a later window. The merge refuses a second result for a case that passed,
+failed or holds a grader limit, a window of another API commit, and a case whose `k` differs from the
+corpus.
 
 A reply that the grader cannot read is a grader limit. The case has no verdict, nothing is approved, and
 the report lists grader limits apart from behavior failures. The merge refuses a later window of the same

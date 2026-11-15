@@ -17,7 +17,7 @@ function writePrivateJson(path, value) {
 
 // The kinds of attempt that give no evidence of the build. Each `unavailable` verdict of the core set comes from one of
 // them, and the report heading of their reasons names each one.
-const noEvidenceKinds = ['a throttle', 'a spend ceiling', 'a failed precondition', 'a failed rubric grader',
+export const noEvidenceKinds = ['a throttle', 'a spend ceiling', 'a failed precondition', 'a failed rubric grader',
   'a card turn without the trace that its answer needs', 'a preview turn without the trace that shows a `stored` field']
 
 // One attempt of one case: its verdict, the questions that came before its preview, its measured model calls and the
