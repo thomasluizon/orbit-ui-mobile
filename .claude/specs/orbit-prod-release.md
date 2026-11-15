@@ -108,6 +108,7 @@ No open ticket.
 Includes the packaging milestone ("Packaging: caps, quotas and tiers") and the PostHog work.
 
 - `#2096` Audit app motion on web and mobile and file one ticket per area. Next: `ui#2442` and `ui#2454` (the tab transition root fix) are on production web. Three older stale route intents are a work order comment on the ticket. Close when both are in the next Android and iOS pair.
+- `#2140` Lay out borders in the mobile Yoga test helpers, so a geometry test sees the device size. Next: starts after the `#2131` pull request merges (same helper file); turn the border layout on for every caller and fix the three suites at their root.
 
 ### Batch 3: the landing page and the Play listing
 
