@@ -179,9 +179,12 @@ jobs:
       - name: Point the Windows App SDK download cache
         if: runner.os == 'Windows'
         run: echo "ORBIT_WINDOWS_DOWNLOAD_CACHE=$RUNNER_TEMP/windows-app-sdk-downloads" >> "$GITHUB_ENV"
+      # Restore only: Desktop Build is the only writer of these entries and of the Rust compile cache below. A release
+      # of an older commit saves other hashes in the same key family, and the cache sweep then keeps the release entry
+      # as the newest and deletes the one Desktop Build restores.
       - name: Cache Windows App SDK downloads
         if: runner.os == 'Windows'
-        uses: actions/cache@v6
+        uses: actions/cache/restore@v6
         with:
           path: ${{ env.ORBIT_WINDOWS_DOWNLOAD_CACHE }}
           key: ${{ runner.os }}-windows-app-sdk-${{ matrix.target }}-${{ hashFiles('apps/desktop/src-tauri/native/windows/downloads.json') }}
@@ -197,7 +200,7 @@ jobs:
         with:
           workspaces: apps/desktop/src-tauri -> target
           shared-key: desktop-${{ matrix.target }}
-          save-if: ${{ github.ref == 'refs/heads/main' }}
+          save-if: "false"
       # The two legs of one operating system run the same host tests, and PR Tests proves the types on this SHA.
       - name: Test the shell on the native leg of each operating system
         if: matrix.target == 'aarch64-apple-darwin' || matrix.target == 'x86_64-pc-windows-msvc'

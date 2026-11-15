@@ -117,22 +117,37 @@ test("macOS restores and saves no npm entry, and no workflow caches the Android 
   assert.match(install.run, /for attempt in 1 2 3; do/)
 })
 
-// gradle/actions at 8da46b539cd8fe6ab27ca75128919a18d757604c, setup-gradle/action.yml: cache-read-only defaults to
-// github.event.repository != null && github.ref_name != github.event.repository.default_branch.
-test("no setup-gradle step overrides the default that writes the Gradle caches from the default branch only", () => {
+// gradle/actions at 8da46b539cd8fe6ab27ca75128919a18d757604c: setup-gradle/action.yml defaults cache-read-only to
+// github.event.repository != null && github.ref_name != github.event.repository.default_branch, and
+// sources/src/configuration.ts isCacheReadOnly reads the input as a boolean. A read-only job restores and saves
+// nothing ("Cache is read-only: will not save state" in the post step). The extracted Gradle entries are keyed on their
+// content hash and shared by every job, so a second writer on main puts other hashes into the same key family, and the
+// cache sweep then keeps that writer's entries as the newest and deletes the ones Mobile Android Build restores.
+test("only Mobile Android Build writes the Gradle caches, so a release never writes a Gradle entry", () => {
   const steps = uses("gradle/actions/setup-gradle@")
   assert.equal(steps.length, 3)
-  for (const { step, where } of steps) {
+  const writers = []
+  for (const { step, where, file } of steps) {
     assert.equal(step.uses, "gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c", where)
-    for (const input of ["cache-read-only", "cache-write-only", "cache-disabled"]) assert.equal(step.with?.[input], undefined, `${where}: ${input}`)
+    for (const input of ["cache-write-only", "cache-disabled"]) assert.equal(step.with?.[input], undefined, `${where}: ${input}`)
+    const events = workflows.find((workflow) => workflow.file === file).on
+    const pullRequestOnly = events.every((event) => event === "pull_request")
+    if (step.with?.["cache-read-only"] !== true && !pullRequestOnly) writers.push(where)
   }
+  assert.deepEqual(writers, ["mobile-build.yml: build: Set up Gradle caching"])
+  const build = steps.find(({ file }) => file === "mobile-build.yml").step
+  assert.equal(build.with?.["cache-read-only"], undefined, "Mobile Android Build keeps the default: write on main, read elsewhere")
 })
 
-// Swatinem/rust-cache at d1527c8f67ef9af357290475d4af4b0fab8f12e0, action.yml: save-if decides whether the post step saves.
-test("every Rust compile cache saves on main only, and no setup-java step saves a cache", () => {
+// Swatinem/rust-cache at d1527c8f67ef9af357290475d4af4b0fab8f12e0: action.yml save-if decides whether the post step
+// saves, and src/save.ts saves only when the lowercased input is "true". Each target is one key family that Desktop Build
+// writes, so a release of an older commit or another environment would make the sweep delete the Desktop Build entry.
+test("only Desktop Build writes the Rust compile cache, and no setup-java step saves a cache", () => {
   const rust = uses("Swatinem/rust-cache@")
   assert.equal(rust.length, 4)
-  for (const { step, where } of rust) assert.equal(step.with["save-if"], "${{ github.ref == 'refs/heads/main' }}", where)
+  for (const { step, where, file } of rust) {
+    assert.equal(step.with["save-if"], file === "desktop-build.yml" ? "${{ github.ref == 'refs/heads/main' }}" : "false", where)
+  }
   for (const { step, where } of uses("actions/setup-java@")) assert.equal(step.with.cache, undefined, where)
 })
 

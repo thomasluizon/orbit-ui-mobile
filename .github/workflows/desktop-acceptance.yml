@@ -43,8 +43,9 @@ jobs:
         with:
           workspaces: apps/desktop/src-tauri -> target
           shared-key: desktop-x86_64-pc-windows-msvc
-          # Desktop Build saves this key on main; a pull request only reads it.
-          save-if: ${{ github.ref == 'refs/heads/main' }}
+          # Desktop Build is the only writer of this key family, also for a dispatch on main: an entry with another
+          # hash would become the newest of the family, and the cache sweep would delete the one Desktop Build restores.
+          save-if: "false"
       - name: Provide the NSIS bundler tools
         uses: ./.github/actions/desktop-nsis-tools
       - name: Build, install and exercise the isolated desktop app
@@ -96,7 +97,7 @@ jobs:
         with:
           workspaces: apps/desktop/src-tauri -> target
           shared-key: desktop-aarch64-apple-darwin
-          save-if: ${{ github.ref == 'refs/heads/main' }}
+          save-if: "false"
       - name: Build, sign, install and exercise the isolated desktop app
         env:
           ACCEPTANCE_OUTPUT: ${{ runner.temp }}/orbit-desktop-acceptance

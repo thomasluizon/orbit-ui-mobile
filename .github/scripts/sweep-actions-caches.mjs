@@ -22,6 +22,9 @@ const GIGABYTE = 1_000_000_000
 // WHY 9 GB: the repository limit is 10 GB (GET /repos/{owner}/{repo}/actions/cache/storage-limit returns
 // max_cache_size_gb 10). Each main push writes a 0.85 GB CodeQL overlay base database before the next sweep, and
 // the open pull requests hold under 0.15 GB, while the newest main entries measure 8.56 GB after the macOS npm and NDK trims.
+// The release jobs read the Gradle, Rust and Windows App SDK families and write none of them (cache-save-rules.test.mjs,
+// windows-download-workflow.test.ts); each Android Release writes a 0.12 GB ccache entry in its own family, inside the
+// 0.44 GB under the cap.
 export const CAP_BYTES = 9 * GIGABYTE
 
 // WHY 5 MB: every pass marker and unit result entry is under 0.3 MB and the NSIS tools entry is 1.9 MB, while
