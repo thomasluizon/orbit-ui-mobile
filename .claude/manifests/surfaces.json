@@ -132,7 +132,6 @@
         "apps/web/components/calendar/calendar-day-detail.tsx",
         "apps/web/components/calendar/calendar-load-error.tsx",
         "apps/web/components/calendar/calendar-range-view.tsx",
-        "apps/web/components/calendar/calendar-slide.tsx",
         "apps/web/components/calendar/calendar-stats.tsx",
         "apps/web/components/calendar/calendar-time-grid.tsx",
         "apps/web/components/calendar/calendar-week-view.tsx"
@@ -155,7 +154,6 @@
         "apps/web/components/calendar/calendar-day-detail.tsx",
         "apps/web/components/calendar/calendar-load-error.tsx",
         "apps/web/components/calendar/calendar-range-view.tsx",
-        "apps/web/components/calendar/calendar-slide.tsx",
         "apps/web/components/calendar/calendar-stats.tsx",
         "apps/web/components/calendar/calendar-time-grid.tsx",
         "apps/web/components/calendar/calendar-week-view.tsx"
@@ -178,7 +176,6 @@
         "apps/web/components/calendar/calendar-day-detail.tsx",
         "apps/web/components/calendar/calendar-load-error.tsx",
         "apps/web/components/calendar/calendar-range-view.tsx",
-        "apps/web/components/calendar/calendar-slide.tsx",
         "apps/web/components/calendar/calendar-stats.tsx",
         "apps/web/components/calendar/calendar-time-grid.tsx",
         "apps/web/components/calendar/calendar-week-view.tsx"
@@ -201,7 +198,6 @@
         "apps/web/components/calendar/calendar-day-detail.tsx",
         "apps/web/components/calendar/calendar-load-error.tsx",
         "apps/web/components/calendar/calendar-range-view.tsx",
-        "apps/web/components/calendar/calendar-slide.tsx",
         "apps/web/components/calendar/calendar-stats.tsx",
         "apps/web/components/calendar/calendar-time-grid.tsx",
         "apps/web/components/calendar/calendar-week-view.tsx"
@@ -224,7 +220,6 @@
         "apps/web/components/calendar/calendar-day-detail.tsx",
         "apps/web/components/calendar/calendar-load-error.tsx",
         "apps/web/components/calendar/calendar-range-view.tsx",
-        "apps/web/components/calendar/calendar-slide.tsx",
         "apps/web/components/calendar/calendar-stats.tsx",
         "apps/web/components/calendar/calendar-time-grid.tsx",
         "apps/web/components/calendar/calendar-week-view.tsx"
@@ -247,7 +242,6 @@
         "apps/web/components/calendar/calendar-day-detail.tsx",
         "apps/web/components/calendar/calendar-load-error.tsx",
         "apps/web/components/calendar/calendar-range-view.tsx",
-        "apps/web/components/calendar/calendar-slide.tsx",
         "apps/web/components/calendar/calendar-stats.tsx",
         "apps/web/components/calendar/calendar-time-grid.tsx",
         "apps/web/components/calendar/calendar-week-view.tsx"
@@ -270,7 +264,6 @@
         "apps/web/components/calendar/calendar-day-detail.tsx",
         "apps/web/components/calendar/calendar-load-error.tsx",
         "apps/web/components/calendar/calendar-range-view.tsx",
-        "apps/web/components/calendar/calendar-slide.tsx",
         "apps/web/components/calendar/calendar-stats.tsx",
         "apps/web/components/calendar/calendar-time-grid.tsx",
         "apps/web/components/calendar/calendar-week-view.tsx"
@@ -293,7 +286,6 @@
         "apps/web/components/calendar/calendar-day-detail.tsx",
         "apps/web/components/calendar/calendar-load-error.tsx",
         "apps/web/components/calendar/calendar-range-view.tsx",
-        "apps/web/components/calendar/calendar-slide.tsx",
         "apps/web/components/calendar/calendar-stats.tsx",
         "apps/web/components/calendar/calendar-time-grid.tsx",
         "apps/web/components/calendar/calendar-week-view.tsx"
@@ -7849,6 +7841,58 @@
       "href": null,
       "ownedFiles": [
         "apps/web/components/habits/habit-create-frame.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-habits-habit-detail-prompts",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/habit-detail-prompts.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/habits/habit-detail-prompts.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-habits-habit-detail-prompts",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/habit-detail-prompts.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/habits/habit-detail-prompts.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-habits-habit-detail-prompts",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/habit-detail-prompts.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/habits/habit-detail-prompts.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-habits-habit-detail-prompts",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/habit-detail-prompts.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/habits/habit-detail-prompts.tsx"
       ],
       "state": "default",
       "theme": "dark",
@@ -17753,6 +17797,58 @@
       "href": null,
       "ownedFiles": [
         "apps/mobile/components/habits/habit-create-frame.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-overlay-habits-habit-detail-prompts",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/habits/habit-detail-prompts.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/habits/habit-detail-prompts.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-overlay-habits-habit-detail-prompts",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/habits/habit-detail-prompts.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/habits/habit-detail-prompts.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-overlay-habits-habit-detail-prompts",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/habits/habit-detail-prompts.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/habits/habit-detail-prompts.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-overlay-habits-habit-detail-prompts",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/habits/habit-detail-prompts.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/habits/habit-detail-prompts.tsx"
       ],
       "state": "default",
       "theme": "dark",

@@ -44,7 +44,7 @@ it.each(cases)('keeps habit content clear at $width by $height', async ({ width,
   const onSelect = vi.fn()
   const { container } = render(<NextIntlClientProvider locale={locale} messages={messages}>
     <ShellWide items={[]} activeId="hoje" navLabel={messages.nav.mainNavigation}
-      astraRow={{ label: messages.nav.astra, onOpen: vi.fn() }}
+      astraRow={{ label: messages.shell.astraButton.open, onOpen: vi.fn() }}
       header={<h1>Habit</h1>}
       composer={<Composer state="idle" value="Draft" onChangeValue={vi.fn()} onSend={vi.fn()}
         words={messages.shell.composer} onOpenConversation={vi.fn()} conversationLabel={messages.todayAstra.openConversation}

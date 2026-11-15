@@ -41,7 +41,7 @@ describe('collapsed sidebar geometry in Chromium', () => {
     const props = {
       items: SHELL_DESTINATION_IDS.map(id => ({ id, href: '/', label: messages.nav[DESTINATION_ICONS[id].labelKey.split('.')[1] as keyof typeof messages.nav], icon: id })),
       activeId: 'hoje', navLabel: messages.nav.mainNavigation,
-      astraRow: { label: messages.nav.astra, onOpen: vi.fn() },
+      astraRow: { label: messages.shell.astraButton.open, onOpen: vi.fn() },
       conversation: <button type="button">Close conversation</button>, conversationLabel: messages.nav.astra,
     }
     const view = render(<NextIntlClientProvider locale={locale} messages={messages}><ShellWide {...props} /></NextIntlClientProvider>)
