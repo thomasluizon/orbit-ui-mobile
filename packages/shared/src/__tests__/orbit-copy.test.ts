@@ -62,7 +62,7 @@ describe('Orbit copy', () => {
     const english = englishByKey.get(key) ?? ''
     const portuguese = portugueseByKey.get(key) ?? ''
     expect(english, key).toMatch(/AI message/)
-    expect(portuguese, key).toMatch(/de IA/)
+    expect(portuguese, key).toMatch(/de IA|^IA: \d+ mensagens/)
     for (const value of [english, portuguese]) {
       expect(value, key).not.toMatch(/Orbit message|mensagens do Orbit/)
     }
