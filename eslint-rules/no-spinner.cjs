@@ -134,15 +134,25 @@ function endsInterpolatedOutput(turn) {
   return name === 'interpolate'
 }
 
+/** Whether `turn` ends a keyframe array on a rotation key, as `animate={{ rotate: [0, 360] }}` turns once per repeat. */
+function endsRotationKeyframes(turn) {
+  const frames = turn.parent
+  if (frames.elements.at(-1) !== turn) return false
+  const property = frames.parent
+  if (property?.type !== 'Property' || property.value !== frames) return false
+  const key = property.key.type === 'Identifier' ? property.key.name : property.key.value
+  return ROTATION_KEYS.has(key)
+}
+
 /**
- * A numeric full turn: `360` or `-360` as the first argument of a timing call, as the value of a rotation key, or as the
- * end of an `interpolate` output range.
+ * A numeric full turn: `360` or `-360` as the first argument of a timing call, as the value of a rotation key, as the
+ * end of an `interpolate` output range, or as the last keyframe of a rotation key.
  */
 function isNumericFullTurn(node) {
   const turn = node.parent?.type === 'UnaryExpression' && node.parent.operator === '-' ? node.parent : node
   const parent = turn.parent
   if (!parent) return false
-  if (parent.type === 'ArrayExpression') return endsInterpolatedOutput(turn)
+  if (parent.type === 'ArrayExpression') return endsInterpolatedOutput(turn) || endsRotationKeyframes(turn)
   if (parent.type === 'CallExpression' && parent.arguments[0] === turn && parent.callee.type === 'Identifier') return TIMING_CALLS.has(parent.callee.name)
   if (parent.type !== 'Property' || parent.value !== turn) return false
   const key = parent.key.type === 'Identifier' ? parent.key.name : parent.key.value
@@ -173,7 +183,7 @@ module.exports = {
       noSpinner:
         'A spinner is banned (DESIGN.md "Bans"). Content that loads shows a `Skeleton` shaped like its final layout; a control that waits keeps its label, is disabled and busy, and shows `SkeletonFace`.',
       visibleRefreshIndicator:
-        "A `RefreshControl`, or a list given `onRefresh` (which builds one), draws the native refresh wheel (DESIGN.md \"Bans\": no spinner). Keep the pull gesture in the hidden form (`refreshing={false}`, `colors={['transparent']}`, `progressBackgroundColor=\"transparent\"`, `tintColor=\"transparent\"`, a negative `progressViewOffset`) and show the list's skeleton rows while the request runs.",
+        "A `RefreshControl`, or a list given `onRefresh` (which builds one), draws the native refresh wheel (DESIGN.md \"Bans\": no spinner). Keep the pull gesture in the hidden form (`refreshing={false}`, `colors={['transparent']}`, `progressBackgroundColor=\"transparent\"`, `tintColor=\"transparent\"`, a negative `progressViewOffset`) and keep the loaded rows in place, reporting the wait as busy, while the request runs.",
     },
   },
   create(context) {
