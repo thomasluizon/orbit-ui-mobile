@@ -71,6 +71,10 @@
       {
         "name": "relay retry and auto compact fallback bounds",
         "source": ".claude/hooks/_lib/rules-relay.mjs context relay lifecycle"
+      },
+      {
+        "name": "stuck background run limit",
+        "source": "tools/lib/background-runs.mjs STUCK_RUN_MILLISECONDS, the 30 minutes that ticket #2137 sets"
       }
     ]
   },
@@ -82,7 +86,12 @@
   ".claude/hooks/require-wake-source.mjs": {
     "scope": "changed-files",
     "snapshot": "none",
-    "constants": "none"
+    "constants": [
+      {
+        "name": "stuck background run limit",
+        "source": "tools/lib/background-runs.mjs STUCK_RUN_MILLISECONDS, the 30 minutes that ticket #2137 sets"
+      }
+    ]
   },
   ".claude/hooks/surface-pending-lessons.mjs": {
     "scope": "changed-files",
