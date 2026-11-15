@@ -100,12 +100,18 @@ it.each(['connect', 'choosePages', 'reconnect'] as const)('opens the %s URL only
   expect(opened).toHaveBeenCalledExactlyOnceWith(createNotionAuthorization().authorizeUrl)
   sheetTestControls.defer(false)
 })
+it('names the Notion sheet with its question, never the bare product noun', async () => {
+  mount(); await openNotion()
+  expect(screen.getByRole('dialog', { name: en.profile.connections.notionQuestion })).toBeInTheDocument()
+  expect(screen.queryByRole('dialog', { name: en.profile.connections.notion })).not.toBeInTheDocument()
+  expect(screen.queryByText(en.profile.connections.notion, { selector: '[role="dialog"] h2' })).not.toBeInTheDocument()
+})
 it.each([
   ['the feature flag turns off', (): void => { mocks.enabled = false }, true],
   ['Pro access ends', (): void => undefined, false],
 ] as const)('closes the open Notion sheet through its exit when %s', async (_reason, change, pro) => {
   const { sheetTestControls } = await import('@/__tests__/support/sheet-double')
-  const notionSheet = () => screen.queryByText(en.profile.connections.notion, { selector: '[role="dialog"] h2' })
+  const notionSheet = () => screen.queryByText(en.profile.connections.notionQuestion, { selector: '[role="dialog"] h2' })
   const view = mount(); await openNotion()
   expect(notionSheet()).toBeInTheDocument()
   sheetTestControls.defer(true)
@@ -142,7 +148,7 @@ it('shows workspace, sync time and page picker, then confirms one disconnect', a
   expect(screen.getByRole('button', { name: en.profile.connections.disconnect })).toHaveAttribute('aria-busy', 'true')
   expect(screen.getByRole('button', { name: en.profile.connections.choosePages })).toBeDisabled()
   fireEvent.click(screen.getByRole('button', { name: 'close-overlay' }))
-  expect(screen.queryByRole('dialog', { name: 'Notion' })).not.toBeInTheDocument()
+  expect(screen.queryByRole('dialog', { name: en.profile.connections.notionQuestion })).not.toBeInTheDocument()
   fireEvent.click(screen.getByRole('button', { name: /Notion/ }))
   expect(screen.getByRole('button', { name: en.profile.connections.choosePages })).toBeDisabled()
   expect(screen.getByRole('button', { name: en.profile.connections.disconnect })).toBeDisabled()

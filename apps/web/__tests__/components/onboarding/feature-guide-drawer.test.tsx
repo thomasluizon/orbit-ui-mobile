@@ -25,11 +25,12 @@ describe('FeatureGuideDrawer', () => {
     expect(container.innerHTML).toBe('')
   })
 
-  it('renders the title when open', () => {
+  it('names the open sheet with its question, never the bare guide noun', () => {
     render(
       <FeatureGuideDrawer open={true} onOpenChange={vi.fn()} />,
     )
-    expect(screen.getByText('onboarding.featureGuide.title')).toBeInTheDocument()
+    expect(screen.getByRole('dialog', { name: 'onboarding.featureGuide.question' })).toBeInTheDocument()
+    expect(screen.queryByText('onboarding.featureGuide.title')).not.toBeInTheDocument()
   })
 
   it('leaves the final guide group outer insets to its sheet', () => {

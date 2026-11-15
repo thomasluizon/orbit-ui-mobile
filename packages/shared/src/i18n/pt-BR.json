@@ -2657,6 +2657,7 @@
       "title": "Conexões",
       "googleCalendar": "Google Agenda",
       "notion": "Notion",
+      "notionQuestion": "O que o Orbit lê no seu Notion?",
       "connected": "Conectado",
       "notConnected": "Não conectado",
       "renew": "Reconexão necessária",
@@ -3459,6 +3460,7 @@
     },
     "featureGuide": {
       "title": "Guia do Orbit",
+      "question": "O que o Orbit faz por você?",
       "habits": "Hábitos",
       "calendar": "Calendário",
       "astra": "Orbit",

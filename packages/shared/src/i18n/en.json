@@ -2657,6 +2657,7 @@
       "title": "Connections",
       "googleCalendar": "Google Calendar",
       "notion": "Notion",
+      "notionQuestion": "What does Orbit read in Notion?",
       "connected": "Connected",
       "notConnected": "Not connected",
       "renew": "Reconnect required",
@@ -3459,6 +3460,7 @@
     },
     "featureGuide": {
       "title": "Orbit guide",
+      "question": "What can Orbit do for you?",
       "habits": "Habits",
       "calendar": "Calendar",
       "astra": "Orbit",
