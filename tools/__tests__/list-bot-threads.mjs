@@ -269,6 +269,18 @@ export const cases = () => {
     superseded.status === 1 && parsed(superseded)?.verdict === "CHECK_FAILED" && parsed(superseded)?.reviewState === "COMMENTED" && parsed(superseded)?.reviewBody === "A later P1 finding." && parsed(superseded)?.checkConclusion === "FAILURE",
     superseded.stdout || superseded.stderr,
   )
+  /** GitHub lists the newer check run first, so on a same-second start only the higher check run id names the newer approval run. */
+  const sameSecondApproval = (order) => readPr(payload({
+    reviews: [botReview()],
+    checks: order([{ ...approvalCheck("COMPLETED", "SUCCESS"), databaseId: 132844178868 }, { ...approvalCheck("COMPLETED", "FAILURE"), databaseId: 132844171878 }]),
+  }))
+  const newerFirst = sameSecondApproval((checks) => checks)
+  const olderFirst = sameSecondApproval((checks) => [...checks].reverse())
+  T(
+    `${TOOL}: the higher check run id is the newer approval run when two runs start in the same second, in either list order`,
+    parsed(newerFirst)?.checkConclusion === "SUCCESS" && parsed(olderFirst)?.checkConclusion === "SUCCESS",
+    newerFirst.stdout || newerFirst.stderr,
+  )
   const contradiction = readPr(payload({}), 0, ["--re-review", "--no-request"])
   T(
     `${TOOL}: --re-review and --no-request contradict each other and are refused`,

@@ -5,7 +5,7 @@ import { graphqlBudgetDecision } from "./lib/github-rate-limit.mjs"
 import { currentRunIdentifier, recordObservedIdentifiers } from "./lib/identifier-ledger.mjs"
 import { runBounded } from "./lib/bounded-process.mjs"
 import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
-import { REVIEW_APP_ID, headActivityArgv, headActivityBoundary, requiredChecksFromResponse, reviewRequestGate, rollupFromGraphQlNodes } from "./lib/readiness-receipt.mjs"
+import { REVIEW_APP_ID, headActivityArgv, headActivityBoundary, newestChecks, requiredChecksFromResponse, reviewRequestGate, rollupFromGraphQlNodes } from "./lib/readiness-receipt.mjs"
 
 const BOT_LOGIN = "pullfrog"
 
@@ -324,10 +324,10 @@ const isProgressMarker = (payload, review) =>
 const latestReviewOf = (payload) => currentHeadReviews(payload).at(-1)
 const progressMarkersOf = (payload) => currentHeadReviews(payload).filter((review) => COMPLETED_REVIEW_STATES.has(review.state) && isProgressMarker(payload, review)).length
 
-const approvalCheckOf = (payload) => (payload.statusCheckRollup?.contexts?.nodes ?? [])
+// The shared newest-run rule: two approval runs that start in the same second resolve to the higher check run id.
+const approvalCheckOf = (payload) => [...newestChecks((payload.statusCheckRollup?.contexts?.nodes ?? [])
   .filter((check) => check?.__typename === "CheckRun" && check.name === "pullfrog-approval" && check.checkSuite?.app?.databaseId === REVIEW_APP_ID)
-  .sort((left, right) => Date.parse(left.startedAt ?? "") - Date.parse(right.startedAt ?? ""))
-  .at(-1) ?? null
+  .map((check) => ({ ...check, appId: REVIEW_APP_ID }))).values()][0] ?? null
 
 /**
  * A missing or unparseable submittedAt sorts BELOW every real timestamp, so a review whose age
