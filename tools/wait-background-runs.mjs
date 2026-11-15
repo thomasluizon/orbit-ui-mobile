@@ -7,8 +7,8 @@ const USAGE = `usage: wait-background-runs.mjs [--poll-seconds <n>]
 
 Wait, with a registered harness wake source, until no background workflow or subagent of this
 session holds a turn end or a relay drain. A run stops holding when it finishes, or when it makes
-no transcript progress for 30 minutes. The progress of an agent or a workflow that a subagent
-launched counts as progress of that subagent. A run with no progress counts as stuck: the run state
+no transcript progress for 30 minutes. The progress of an agent, a workflow or a shell that a
+subagent launched counts as progress of that subagent. A run with no progress counts as stuck: the run state
 then records the worktree, branch and last commit of that agent in stuckBackgroundRuns.
 Reads the session from CLAUDE_CODE_SESSION_ID, else from the run state. No stdin is read.
 --poll-seconds defaults to 15 and must be a positive finite number.

@@ -151,6 +151,18 @@ const stuckCases = async () => {
   writeFileSync(join(launchedWorkflow, "agent-step.jsonl"), `${JSON.stringify({ type: "assistant" })}\n`)
   touch(join(launchedWorkflow, "agent-step.jsonl"), 95)
   T("background-runs: the progress of a workflow that the agent launched holds the wait", drain(124).waiting.length === 1 && drain(125).stuck[0]?.lastProgressAt === at(95), JSON.stringify(drain(125)))
+  // A subagent command that runs past the subagent cap moves to the background, and the agent waits on it with no transcript write.
+  // The launch reply copies the shape of a real subagent transcript line. The output file of the shell shows its progress.
+  const shellOutput = join(dirname(repoRoot), "background-stuck-tasks", "shell-task.output")
+  mkdirSync(dirname(shellOutput), { recursive: true })
+  appendFileSync(transcript, `${JSON.stringify({ type: "user", message: { role: "user", content: [{ type: "tool_result", tool_use_id: "<value>",
+    content: `Command was moved to the background (ID: shell-task) after running for 180s. Output is being written to: ${shellOutput}. You will be notified when it completes.` }] },
+    toolUseResult: { stdout: "", stderr: "", interrupted: false, isImage: false, noOutputExpected: false, backgroundTaskId: "shell-task", timedOutAfterMs: 180_000, subagentCapApplied: true } })}\n`)
+  touch(transcript, 20)
+  writeFileSync(shellOutput, "PASS one\n")
+  touch(shellOutput, 130)
+  T("background-runs: the output of a shell that the agent waits on holds the wait, and the stuck record leaves", drain(159).waiting.length === 1 && recorded() === undefined, JSON.stringify(drain(159)))
+  T("background-runs: the limit counts from the last output of that shell", drain(160).stuck[0]?.lastProgressAt === at(130), JSON.stringify(drain(160)))
   T("background-runs: the stuck agent keeps its own worktree with a child and a workflow on record", recorded()[0].worktree === agentWorktree && recorded()[0].branch === "fix/agent-work")
 
   // The directory of the session is the answer only when the agent names no checkout.

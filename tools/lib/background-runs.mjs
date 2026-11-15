@@ -160,18 +160,32 @@ const descendantTranscripts = (run) => {
   return found
 }
 
-/** The transcript directories of the workflows that an agent launched: its transcript holds each launch reply as `toolUseResult`. */
-const launchedWorkflowTranscripts = (transcript) => entriesWith(transcriptLines(transcript), '"transcriptDir"')
-  .map((entry) => entry.toolUseResult?.transcriptDir).filter((directory) => typeof directory === "string" && directory).flatMap(filesBelow)
+/** The text of a launch reply names the output file of a background shell, the same as the Bash tool tells the agent. */
+const SHELL_OUTPUT = /Output is being written to: (\S+\.output)(?=\.?(?:\s|$))/g
+const textsOf = (content) => typeof content === "string" ? [content]
+  : Array.isArray(content) ? content.flatMap((block) => typeof block === "string" ? [block] : textsOf(block?.content ?? block?.text)) : []
 
 /**
- * The last progress of a subagent and of the work it waits on. A subagent that waits on an agent or a workflow of
- * its own writes nothing to its own transcript, so that work counts as its progress.
+ * The files that show the progress of the background work an agent launched: each file below the transcript directory of a
+ * workflow, and the output file of a shell. Its transcript holds each launch reply as `toolUseResult`.
+ */
+const launchedWorkFiles = (transcript) => {
+  const lines = transcriptLines(transcript)
+  const workflows = entriesWith(lines, '"transcriptDir"').map((entry) => entry.toolUseResult?.transcriptDir)
+    .filter((directory) => typeof directory === "string" && directory).flatMap(filesBelow)
+  const shells = entriesWith(lines, '"backgroundTaskId"').filter((entry) => typeof entry.toolUseResult?.backgroundTaskId === "string")
+    .flatMap((entry) => textsOf(entry.message?.content).flatMap((text) => [...text.matchAll(SHELL_OUTPUT)].map((match) => match[1])))
+  return [...workflows, ...shells]
+}
+
+/**
+ * The last progress of a subagent and of the work it waits on. A subagent that waits on an agent, a workflow or a
+ * shell of its own writes nothing to its own transcript, so that work counts as its progress.
  */
 const lastProgressWithDescendants = (run, own) => {
   if (run.type !== "subagent" || typeof run.transcript !== "string") return own
   const agents = descendantTranscripts(run)
-  return Math.max(own, ...changeTimes([...agents, ...[run.transcript, ...agents].flatMap(launchedWorkflowTranscripts)]))
+  return Math.max(own, ...changeTimes([...agents, ...[run.transcript, ...agents].flatMap(launchedWorkFiles)]))
 }
 
 /** The last progress of a stuck run, or null while the run still holds the wait. The descendants are read only for a silent run. */
