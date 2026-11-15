@@ -66,7 +66,7 @@ describe('upgrade utils', () => {
   it('keeps the D70 plan breakdown on the rendered upgrade screen in both locales', () => {
     expect(en.upgrade.convert).toMatchObject({
       promise: 'The plan changes what Orbit can do, never your habits and logs.',
-      freeHeading: '7x more replies.',
+      freeHeading: '7x more AI messages.',
       trialHeading: '250 a week.',
       freeAllowance: '5',
       proAllowance: '250',
@@ -75,7 +75,7 @@ describe('upgrade utils', () => {
     })
     expect(ptBR.upgrade.convert).toMatchObject({
       promise: 'O plano muda o que o Orbit pode fazer, nunca os seus hábitos e registros.',
-      freeHeading: '7x mais respostas.',
+      freeHeading: 'Cota de IA 7x maior.',
       trialHeading: '250 por semana.',
       freeAllowance: '5',
       proAllowance: '250',

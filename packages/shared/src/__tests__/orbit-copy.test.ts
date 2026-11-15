@@ -42,6 +42,7 @@ const ALLOWANCE_KEYS = [
   'chat.account.row.astraAllowance',
   'trial.expired.astraCeiling',
   'upgrade.outcomes.astra',
+  'upgrade.convert.freeHeading',
   'upgrade.billing.usage.title',
   'upgrade.billing.usage.nearLimit',
   'upgrade.billing.usage.nearLimitWeekly',
@@ -96,11 +97,6 @@ describe('Orbit copy', () => {
 
   it('gives Orbit its article where a Portuguese sentence names it', () => {
     expect(ptBR.chat.placement.recommendation).toMatch(/^O Orbit /)
-  })
-
-  it('names one unit in the free plan heading in both locales, in a word that stays whole at 2x text on a 320 phone', () => {
-    expect(en.upgrade.convert.freeHeading).toMatch(/\breplies\b/)
-    expect(ptBR.upgrade.convert.freeHeading).toMatch(/\brespostas\b/)
   })
 
   it('keeps Orbit masculine in Portuguese', () => {
