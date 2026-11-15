@@ -67,7 +67,9 @@ export function OnboardingProStep({ onFinish, ref }: Readonly<{ onFinish: (desti
     void finish().catch(() => {})
   })
 
-  const title = <h1 id="onboarding-title" ref={headingRef} tabIndex={-1} translate="no" className="text-[length:var(--fs-lg)] font-medium text-pretty">{t('upgrade.pitchTitle')}</h1>
+  const title = guided
+    ? <h1 id="onboarding-title" ref={headingRef} tabIndex={-1} className="orbit-flow-question text-balance text-center font-display text-[28px] leading-[1.18] text-[var(--fg-1)] lg:text-[34px] lg:leading-[1.15]">{t('upgrade.question')}</h1>
+    : <h1 id="onboarding-title" ref={headingRef} tabIndex={-1} translate="no" className="text-[length:var(--fs-lg)] font-medium text-pretty">{t('upgrade.pitchTitle')}</h1>
   const exitAction = <PillButton variant="ghost" loading={finishing} onClick={() => exit()}>{t('onboarding.flow.done.seeDay')}</PillButton>
   let content
   if (plan === 'loading' || plan === 'Pro' || plan === null) content = <PlanReadState guided={guided} failed={plan === null} title={title} exitAction={exitAction} onRetry={retry} t={t} />
@@ -77,7 +79,7 @@ export function OnboardingProStep({ onFinish, ref }: Readonly<{ onFinish: (desti
   return <div className="w-full py-8">{content}<p role="alert" className="text-sm text-[var(--fg-2)]">{finishFailed ? t('onboarding.flow.completionFailed') : ''}</p></div>
 }
 
-/** The plan read that loads or that failed. With the guided flows on, Orbit sits above it in place of the pitch heading and names the error. */
+/** The plan read that loads or that failed. With the guided flows on, Orbit sits above the plan question, which stays the heading of the step, and names the error. */
 function PlanReadState({ guided, failed, title, exitAction, onRetry, t }: Readonly<{
   guided: boolean
   failed: boolean
@@ -86,7 +88,7 @@ function PlanReadState({ guided, failed, title, exitAction, onRetry, t }: Readon
   onRetry: () => void
   t: ReturnType<typeof useTranslations>
 }>) {
-  const heading = guided ? <GuidedOrbit guided /> : title
+  const heading = guided ? <><GuidedOrbit guided />{title}</> : title
   if (!failed) return <section aria-busy aria-label={t('common.loading')} className="flex flex-col gap-6">{heading}<ProSkeleton />{exitAction}</section>
   const retry = <IconButton label={t('upgrade.billing.retry')} onClick={onRetry}><RefreshCw size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton>
   return <section className="flex flex-col gap-6">{heading}<ErrorState message={t(guided ? 'upgrade.orbitLine.billingError' : 'upgrade.billing.error')} action={retry} />{exitAction}</section>

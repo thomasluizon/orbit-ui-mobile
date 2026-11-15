@@ -116,7 +116,7 @@ export function OnboardingProStep({ onFinish, ref, frame = inlineFrame }: Readon
     t,
     tokens,
   }
-  const title = <Text nativeID="onboarding-title" accessibilityRole="header" style={{ fontFamily: 'Geist_500Medium', fontSize: 20, color: tokens.fg1 }}>{t('upgrade.pitchTitle')}</Text>
+  const title = <StepTitle guided={guided} color={tokens.fg1} t={t} />
   const exitAction = <PillButton variant="ghost" loading={finishing} onClick={() => exit()}>{t('onboarding.flow.done.seeDay')}</PillButton>
   let content
   if (plan === 'loading' || plan === 'Pro' || plan === null) content = <PlanReadState guided={guided} failed={plan === null} title={title} exitAction={exitAction} skeletonColor={tokens.bgWell} onRetry={retry} t={t} />
@@ -128,7 +128,13 @@ export function OnboardingProStep({ onFinish, ref, frame = inlineFrame }: Readon
   return frame(body, paywallFooter ? <GuidedPlanFooter {...pricing} tokens={tokens} /> : null)
 }
 
-/** The plan read that loads or that failed. With the guided flows on, Orbit sits above it in place of the pitch heading and names the error. */
+/** The heading of the step: the plan question with the guided flows on, and the current pitch title with them off. */
+function StepTitle({ guided, color, t }: Readonly<{ guided: boolean; color: string; t: (key: string) => string }>) {
+  if (guided) return <Text nativeID="onboarding-title" accessibilityRole="header" textBreakStrategy="balanced" style={[styles.question, { color }]}>{t('upgrade.question')}</Text>
+  return <Text nativeID="onboarding-title" accessibilityRole="header" style={{ fontFamily: 'Geist_500Medium', fontSize: 20, color }}>{t('upgrade.pitchTitle')}</Text>
+}
+
+/** The plan read that loads or that failed. With the guided flows on, Orbit sits above the plan question, which stays the heading of the step, and names the error. */
 function PlanReadState({ guided, failed, title, exitAction, skeletonColor, onRetry, t }: Readonly<{
   guided: boolean
   failed: boolean
@@ -138,7 +144,7 @@ function PlanReadState({ guided, failed, title, exitAction, skeletonColor, onRet
   onRetry: () => void
   t: (key: string) => string
 }>) {
-  const heading = guided ? <GuidedOrbit guided /> : title
+  const heading = guided ? <><GuidedOrbit guided />{title}</> : title
   if (!failed) return <View accessibilityState={{ busy: true }} accessibilityLabel={t('common.loading')} style={styles.stack}>{heading}<ProSkeleton color={skeletonColor} />{exitAction}</View>
   const retry = <IconButton label={t('upgrade.billing.retry')} onClick={onRetry}><RefreshCw size={20} strokeWidth={1.5} accessible={false} /></IconButton>
   return <View style={styles.stack}>{heading}<ErrorState message={t(guided ? 'upgrade.orbitLine.billingError' : 'upgrade.billing.error')} action={retry} />{exitAction}</View>
@@ -151,7 +157,13 @@ function GuidedOrbit({ guided }: Readonly<{ guided: boolean }>) {
   return <View testID="onboarding-orbit" importantForAccessibility="no-hide-descendants" accessibilityElementsHidden style={styles.orbit}><OrbitMascot size={mascotSize} state="parado" /></View>
 }
 
-const styles = StyleSheet.create({ root: { paddingVertical: SPACING.s32, width: '100%', gap: 16 }, stack: { gap: 24 }, pitch: { gap: 32 }, orbit: { alignSelf: 'center' } })
+const styles = StyleSheet.create({
+  root: { paddingVertical: SPACING.s32, width: '100%', gap: 16 },
+  stack: { gap: 24 },
+  pitch: { gap: 32 },
+  orbit: { alignSelf: 'center' },
+  question: { fontFamily: 'SpaceGrotesk_500Medium', fontSize: 28, lineHeight: 33, textAlign: 'center' },
+})
 
 function ProSkeleton({ color }: Readonly<{ color: string }>) {
   const block = { backgroundColor: color, borderRadius: radius.md }

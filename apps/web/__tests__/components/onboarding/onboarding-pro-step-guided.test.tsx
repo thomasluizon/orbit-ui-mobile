@@ -93,6 +93,9 @@ describe('the onboarding Pro step', () => {
     expect(state).toHaveAttribute('aria-busy', 'true')
     expect(state.querySelector('[data-onboarding-orbit] [data-orbit-face="rig"]')).toHaveAttribute('data-orbit-state', 'parado')
     expect(screen.queryByRole('heading', { name: 'Orbit Pro' })).toBeNull()
+    const question = screen.getByRole('heading', { level: 1, name: en.upgrade.question })
+    expect(question).toHaveAttribute('id', 'onboarding-title')
+    expect(question).toHaveFocus()
     expect(screen.getByRole('button', { name: en.onboarding.flow.done.seeDay })).toBeInTheDocument()
   })
 
@@ -103,6 +106,7 @@ describe('the onboarding Pro step', () => {
     expect(document.querySelector('[data-onboarding-orbit] [data-orbit-face="rig"]')).toHaveAttribute('data-orbit-state', 'parado')
     expect(screen.getByText(en.upgrade.orbitLine.billingError).closest('[role="alert"]')).not.toBeNull()
     expect(screen.queryByRole('heading', { name: 'Orbit Pro' })).toBeNull()
+    expect(screen.getByRole('heading', { level: 1, name: en.upgrade.question })).toHaveAttribute('id', 'onboarding-title')
     fireEvent.click(screen.getByRole('button', { name: en.upgrade.billing.retry }))
     expect(mocks.retry).toHaveBeenCalledTimes(1)
     expect(document.querySelector('[data-orbit-state="feliz"]')).toBeNull()
