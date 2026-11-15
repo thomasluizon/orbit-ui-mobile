@@ -1,5 +1,5 @@
 import React from 'react'
-import { View } from 'react-native'
+import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { enableTestFlags, resetTestFlags } from '@orbit/shared/test-support/flag-state'
 import type { SubscriptionStatus } from '@orbit/shared/types/profile'
@@ -204,6 +204,17 @@ describe('the plan question of the Android upgrade route', () => {
     const tree = renderNavigation(<UpgradeScreen />)
     expect(byTestId(tree, 'upgrade-plan-footer')).toBeUndefined()
     expect(scrollers(tree).some((scroller) => primaryIn(scroller, 'Subscribe Annual, recommended').length === 1)).toBe(true)
+    tree.unmount()
+  })
+
+  it('hugs the label of the primary in the wide shell, at most 360 wide', () => {
+    __setWindowDimensions({ width: 1024, height: 915, scale: 1, fontScale: 1 })
+    const tree = renderNavigation(<UpgradeScreen />)
+    const block = byTestId(tree, 'upgrade-block')!
+    const holder = block.findAll((node) => typeof node.type === 'string' && primaryIn(node, 'Subscribe Annual, recommended').length === 1 && node.props.style !== undefined)
+      .map((node) => StyleSheet.flatten(node.props.style as StyleProp<ViewStyle>))
+      .find((style) => style.maxWidth === 360)
+    expect(holder).toMatchObject({ maxWidth: 360, alignItems: 'center' })
     tree.unmount()
   })
 

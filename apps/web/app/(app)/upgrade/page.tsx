@@ -86,6 +86,11 @@ function settledStatus<Status>(state: SubscriptionScreenState, status: Status | 
   return state === 'loading' || state === 'load-failed' ? null : status
 }
 
+/** While a Stripe return settles, the guided primary keeps its label on the waiting face, so a person who just paid cannot start a second checkout. */
+function settlingCheckout<Interval>(guided: boolean, isSettling: boolean, checkoutLoading: Interval | null): Interval | 'yearly' | null {
+  return checkoutLoading ?? (guided && isSettling ? 'yearly' : null)
+}
+
 /** The plan question is the `h1` of the guided pitch, so the header title is plain text there. */
 function headerTitleIsHeading(guided: boolean, contentCap: 'pitch' | undefined): boolean {
   return !guided || contentCap !== 'pitch'
@@ -256,7 +261,7 @@ export default function UpgradePage() {
           isOnline={isOnline}
           dateHint={getProfileTrialEndHint(status, locale, t)}
           trialDaysLeft={trialDaysLeft}
-          checkoutLoading={checkoutLoading}
+          checkoutLoading={settlingCheckout(guided, isSettling, checkoutLoading)}
           checkoutError={checkoutError}
           discountedAmount={discountedAmount}
           onCheckout={(interval) => void handleCheckout(interval)}

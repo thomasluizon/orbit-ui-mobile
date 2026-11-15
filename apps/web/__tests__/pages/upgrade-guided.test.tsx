@@ -24,6 +24,7 @@ const mocks = vi.hoisted(() => ({
   checkoutLoading: null as 'monthly' | 'yearly' | null,
   checkoutError: '',
   purchaseConfirmed: false,
+  isSettling: false,
   statusError: false,
   refetchStatus: vi.fn(),
   toastOnSuccess: undefined as boolean | undefined,
@@ -69,7 +70,7 @@ vi.mock('@/hooks/use-stripe-checkout', () => ({
 vi.mock('@/hooks/use-stripe-checkout-return', () => ({
   useStripeCheckoutReturn: (options?: { toastOnSuccess?: boolean }) => {
     mocks.toastOnSuccess = options?.toastOnSuccess
-    return { hasReturnError: false, isSettling: false, purchaseConfirmed: mocks.purchaseConfirmed, retryReturn: vi.fn() }
+    return { hasReturnError: false, isSettling: mocks.isSettling, purchaseConfirmed: mocks.purchaseConfirmed, retryReturn: vi.fn() }
   },
 }))
 vi.mock('@/lib/actions/subscription', () => ({ openCustomerPortal: vi.fn() }))
@@ -102,7 +103,7 @@ beforeEach(() => {
   globalThis.sessionStorage.clear()
   Object.assign(mocks, {
     locale: 'en', search: '', status: freeStatus, timeZone: 'America/Sao_Paulo', plans, billing: null, plansLoading: false, plansError: false,
-    online: true, checkoutLoading: null, checkoutError: '', purchaseConfirmed: false, statusError: false, reducedMotion: false, wide: false,
+    online: true, checkoutLoading: null, checkoutError: '', purchaseConfirmed: false, isSettling: false, statusError: false, reducedMotion: false, wide: false,
   })
   enableTestFlags('orbit_guided_flows')
 })
@@ -318,6 +319,22 @@ describe('the result of a purchase', () => {
     render(<UpgradePage />)
     expect(screen.queryByRole('dialog')).toBeNull()
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Which plan?')
+  })
+
+  it('keeps the primary on its waiting face while a Stripe return settles, so no second checkout starts', () => {
+    mocks.isSettling = true
+    render(<UpgradePage />)
+    const primary = screen.getByRole('button', { name: 'Subscribe Annual, recommended' })
+    expect(primary).toHaveAttribute('aria-busy', 'true')
+    expect(primary).toHaveTextContent('Subscribe')
+    fireEvent.click(primary)
+    expect(mocks.checkout).not.toHaveBeenCalled()
+    expect(screen.queryByRole('dialog')).toBeNull()
+  })
+
+  it('spans the column with the pinned primary below md and hugs its label from md up', () => {
+    render(<UpgradePage />)
+    expect(document.querySelector('[data-flow-footer]')).toHaveClass('[&_button]:w-full', 'md:[&_button]:w-auto')
   })
 
   it('keeps the plan question and the error of a checkout that fails, with no dialog', () => {
