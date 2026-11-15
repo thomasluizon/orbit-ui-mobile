@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { apiKeyFormSchema, getApiKeyNameError, API_KEY_EXPIRY_DEFAULT, parseApiKeyExpiryUtc, validateApiKeyExpiry } from '../validation/api-key-form'
+import { apiKeyExpiryDay, apiKeyExpiryFirstDay, apiKeyExpiryFromDay, apiKeyFormSchema, getApiKeyNameError, API_KEY_EXPIRY_DEFAULT, parseApiKeyExpiryUtc, validateApiKeyExpiry } from '../validation/api-key-form'
 
 describe('getApiKeyNameError', () => {
   it.each(['', '   ', '\n\t'])('requires a name for %j', (name) => {
@@ -98,5 +98,33 @@ describe('apiKeyFormSchema', () => {
     expect(apiKeyFormSchema.safeParse({ name: 'Personal key', expiresAt: 'tomorrow' }).success).toBe(false)
     expect(apiKeyFormSchema.parse({ name: '  Personal key  ', expiresAt: '' })).toEqual({ name: 'Personal key', expiresAt: null })
     expect(apiKeyFormSchema.parse({ name: 'x'.repeat(50), expiresAt: '2099-12-31T23:59' })).toEqual({ name: 'x'.repeat(50), expiresAt: '2099-12-31T23:59:00.000Z' })
+  })
+})
+
+describe('the expiry day of the date picker', () => {
+  const now = Date.UTC(2026, 10, 15, 22, 30)
+
+  it('turns a picked day into the last second of that day in UTC, in the shape the API takes', () => {
+    expect(apiKeyExpiryFromDay('2099-12-31')).toBe('2099-12-31T23:59:59')
+    expect(validateApiKeyExpiry(apiKeyExpiryFromDay('2099-12-31'), now)).toEqual({ valid: true, expiresAtUtc: '2099-12-31T23:59:59.000Z' })
+    expect(apiKeyFormSchema.parse({ name: 'Script', expiresAt: apiKeyExpiryFromDay('2099-12-31') }).expiresAt).toBe('2099-12-31T23:59:59.000Z')
+  })
+
+  it('keeps no day as a key that never expires', () => {
+    expect(apiKeyExpiryFromDay('')).toBe(API_KEY_EXPIRY_DEFAULT)
+    expect(validateApiKeyExpiry(apiKeyExpiryFromDay(''), now)).toEqual({ valid: true, expiresAtUtc: null })
+  })
+
+  it('reads the day back from a draft, and reads no day from a draft the parser refuses', () => {
+    expect(apiKeyExpiryDay('2099-12-31T23:59:59')).toBe('2099-12-31')
+    expect(apiKeyExpiryDay(' 2099-12-31T10:00 ')).toBe('2099-12-31')
+    expect(apiKeyExpiryDay('')).toBe('')
+    expect(apiKeyExpiryDay('soon')).toBe('')
+  })
+
+  it('offers today in UTC as the first day, and that day is still a valid expiry', () => {
+    expect(apiKeyExpiryFirstDay(now)).toBe('2026-11-15')
+    expect(validateApiKeyExpiry(apiKeyExpiryFromDay(apiKeyExpiryFirstDay(now)), now).valid).toBe(true)
+    expect(apiKeyExpiryFirstDay(Date.UTC(2026, 10, 16, 0, 30))).toBe('2026-11-16')
   })
 })

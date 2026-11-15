@@ -37,6 +37,21 @@ export function validateApiKeyExpiry(value: string, now = Date.now()): ApiKeyExp
   return { valid: true, expiresAtUtc: parsed.toISOString() }
 }
 
+/** The day of an expiry draft, as `yyyy-MM-dd`, for the date picker. Empty for a key that never expires and for a draft the parser cannot read. */
+export function apiKeyExpiryDay(value: string): string {
+  return parseApiKeyExpiryUtc(value) ? value.trim().slice(0, 10) : ''
+}
+
+/** The expiry draft of a picked day: the last second of that day in UTC, in the form `validateApiKeyExpiry` reads. No day is a key that never expires. */
+export function apiKeyExpiryFromDay(day: string): string {
+  return day ? `${day}T23:59:59` : API_KEY_EXPIRY_DEFAULT
+}
+
+/** The first day a key can expire on: today in UTC, whose last second is still ahead. */
+export function apiKeyExpiryFirstDay(now = Date.now()): string {
+  return new Date(now).toISOString().slice(0, 10)
+}
+
 /**
  * Parses an API-key expiry entered as `YYYY-MM-DDTHH:MM[:SS]`, interpreted as
  * UTC. Returns the UTC instant, or null when the format or calendar fields are
