@@ -1,4 +1,6 @@
+import { useSyncExternalStore } from 'react'
 import { FAB_SIZE } from '@orbit/shared/theme'
+import { getOrbitPageTurns, subscribeOrbitLoop } from '@orbit/shared/utils'
 import { StyleSheet } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { MotionPressable } from '@/components/ui/motion-pressable'
@@ -9,9 +11,10 @@ export function useAstraButtonBlocked(enabled: boolean) {
   return useUIStore(state => enabled && (state.showCreateModal || state.isSelectMode || state.openOverlayIds.length > 0 || state.astraConversationOpen))
 }
 
-/** The conversation entry: the live Orbit at 48 with no background, in a 60 press target. */
+/** The conversation entry: the live Orbit at 48 with no background, in a 60 press target. Its ring turns once when the person changes the page. */
 export function AstraButton() {
   const { t } = useTranslation()
+  const pageTurns = useSyncExternalStore(subscribeOrbitLoop, getOrbitPageTurns, getOrbitPageTurns)
   const openConversation = useUIStore(state => state.setAstraConversationOpen)
   return <MotionPressable
     testID="astra-button"
@@ -20,7 +23,7 @@ export function AstraButton() {
     onPress={() => openConversation(true)}
     style={styles.target}
   >
-    <OrbitMascot size={48} lead />
+    <OrbitMascot size={48} lead turnKey={pageTurns} />
   </MotionPressable>
 }
 

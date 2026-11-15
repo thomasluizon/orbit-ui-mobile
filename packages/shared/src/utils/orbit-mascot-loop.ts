@@ -15,6 +15,7 @@ const liveClaims: LiveClaim[] = []
 let motionEnabled = true
 let overlayCount = 0
 let version = 0
+let pageTurns = 0
 
 function notify() {
   version += 1
@@ -69,4 +70,14 @@ export function mayOrbitRunLoop(claim: symbol): boolean {
   if (!motionEnabled) return false
   const top = liveClaims.filter((entry) => entry.layer === overlayCount)
   return (top.find((entry) => entry.lead) ?? top[0])?.claim === claim
+}
+
+/** The person changed a page: a day, a week or a month. The live Orbit of the view turns its ring once for each change. */
+export function turnOrbitPage(): void {
+  pageTurns += 1
+  notify()
+}
+
+export function getOrbitPageTurns(): number {
+  return pageTurns
 }

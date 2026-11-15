@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 // react-doctor-disable-next-line rn-prefer-reanimated -- Deliberate React Native Animated API; migrating to reanimated risks the pinned worklets 0.10.0 / reanimated 4.5.0 ABI (SDK 57) and would require rewriting the shared lib/motion.ts Animated helpers + cross-component Animated.Value props. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 import { Animated } from 'react-native'
+import { resolveCalendarSlide, turnOrbitPage } from '@orbit/shared/utils'
+import { useFlag } from '@/hooks/use-flag'
 import { useUIStore } from '@/stores/ui-store'
 import {
   createAnimatedTimingConfig,
@@ -14,7 +16,7 @@ interface TodayMotionInput {
 }
 
 /**
- * Owns the Today screen's transition motion: the date enter animation and the
+ * Owns the Today screen's transition motion: the date enter animation (with the guided flows on, the 12px slide and fade of the calendar, and one ring turn of Orbit) and the
  * bulk-action-bar enter/exit (including when the bar unmounts). A refetch or a
  * filter change never dims or moves the list.
  */
@@ -27,6 +29,7 @@ export function useTodayMotion({
 
   const dayOpacityAnim = useMemo(() => new Animated.Value(1), [])
   const dayTranslateAnim = useMemo(() => new Animated.Value(0), [])
+  const guided = useFlag('orbit_guided_flows')
   const [bulkBarAnim] = useState(() => new Animated.Value(isSelectMode ? 1 : 0))
   const previousFilterMotionKeyRef = useRef(filterMotionKey)
   const dayTransitionSequenceRef = useRef(0)
@@ -60,19 +63,21 @@ export function useTodayMotion({
     previousFilterMotionKeyRef.current = filterMotionKey
     const sequence = dayTransitionSequenceRef.current + 1
     dayTransitionSequenceRef.current = sequence
+    if (guided) turnOrbitPage()
+    const slide = guided ? resolveCalendarSlide(direction > 0 ? 'right' : 'left', 0, false) : null
     const timingConfig = {
-      duration: listMotion.enterDuration,
-      easing: toAnimatedEasing(listMotion.enterEasing),
+      duration: slide?.duration ?? listMotion.enterDuration,
+      easing: toAnimatedEasing(slide?.easing ?? listMotion.enterEasing),
       useNativeDriver: true,
     } as const
-    dayTranslateAnim.stopAnimation((liveTranslateY) => {
+    dayTranslateAnim.stopAnimation((liveTranslate) => {
       if (dayTransitionSequenceRef.current !== sequence) return
       dayOpacityAnim.stopAnimation((liveOpacity) => {
         if (dayTransitionSequenceRef.current !== sequence) return
-        const isInFlight = Math.abs(liveTranslateY) > 0.01 || liveOpacity < 0.999
+        const isInFlight = Math.abs(liveTranslate) > 0.01 || liveOpacity < 0.999
         if (!isInFlight) {
-          dayOpacityAnim.setValue(0.9)
-          dayTranslateAnim.setValue(direction * 8)
+          dayOpacityAnim.setValue(slide ? 0 : 0.9)
+          dayTranslateAnim.setValue(slide?.from ?? direction * 8)
         }
         Animated.parallel([
           Animated.timing(dayTranslateAnim, { ...timingConfig, toValue: 0 }),
@@ -82,6 +87,7 @@ export function useTodayMotion({
     })
   }, [
     filterMotionKey,
+    guided,
     dayOpacityAnim,
     dayTranslateAnim,
     listMotion.enterDuration,
@@ -143,9 +149,9 @@ export function useTodayMotion({
   const dayAnimatedStyle = useMemo(
     () => ({
       opacity: dayOpacityAnim,
-      transform: [{ translateY: dayTranslateAnim }],
+      transform: [guided ? { translateX: dayTranslateAnim } : { translateY: dayTranslateAnim }],
     }),
-    [dayOpacityAnim, dayTranslateAnim],
+    [dayOpacityAnim, dayTranslateAnim, guided],
   )
 
   const bulkBarAnimatedStyle = useMemo(
