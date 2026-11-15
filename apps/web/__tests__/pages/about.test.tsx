@@ -90,7 +90,8 @@ describe('AboutPage', () => {
     ])
 
     fireEvent.click(destinations.getByRole('button', { name: 'Guia do Orbit' }))
-    expect(screen.getByRole('dialog', { name: 'Guia do Orbit' })).toHaveAttribute('translate', 'no')
+    expect(screen.getByRole('dialog', { name: ptBR.onboarding.featureGuide.question })).toHaveAttribute('translate', 'no')
+    expect(screen.queryByRole('dialog', { name: 'Guia do Orbit' })).not.toBeInTheDocument()
     expect(destinations.getByText('Guia do Orbit')).toHaveAttribute('translate', 'no')
 
     fireEvent.click(destinations.getByRole('button', { name: 'Falar com o suporte' }))

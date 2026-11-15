@@ -60,7 +60,7 @@ export function NotionConnectionSheet({ callbackFailed, controller, onClose, onA
       : <PillButton disabled={disabled} loading={authorize.isPending || leaving} onClick={connect}>{t(`profile.connections.${actionKey}`)}</PillButton>}
   </>
   return <>
-    <Sheet ref={sheetRef} title={t('profile.connections.notionQuestion')} onClose={onClose} actions={actions}>
+    <Sheet ref={sheetRef} title={t('profile.connections.notionQuestion')} titleTranslate="no" onClose={onClose} actions={actions}>
       <div className="flex min-w-0 flex-col" style={{ gap: 16 }}>
         <NotionConnectionDetails controller={controller} reconnect={reconnect} hasConnection={hasConnection} />
         <p role="status" className="text-sm text-[var(--status-bad-text)]">{error ? t('profile.connections.error') : ''}</p>
