@@ -70,7 +70,7 @@ async function openSignIn(page: Page, locale: string) {
   await loadAppFonts(page)
 }
 
-for (const width of [320, 360, 412]) {
+for (const width of [320, 360, 384, 412]) {
   for (const [locale, messages] of [['en', en], ['pt-BR', ptBR]] as const) {
     test.describe(`${locale} sign-in provider actions at ${width}px`, () => {
       test.use({ viewport: { width, height: 915 } })
@@ -81,7 +81,8 @@ for (const width of [320, 360, 412]) {
         await expect(apple).toBeVisible()
 
         const [appleAtRest, googleAtRest] = [await readAction(apple), await readAction(google)]
-        expect(await page.evaluate(() => document.fonts.check('500 19px Geist')), 'the titles render in Geist').toBe(true)
+        // WHY: document.fonts.check returns true when no face in the set matches, so only a loaded Geist face proves the file loaded. https://drafts.csswg.org/css-font-loading/#font-face-set-check
+        expect(await page.evaluate(() => [...document.fonts].some((face) => face.family.replaceAll('"', '') === 'Geist' && face.status === 'loaded')), 'the Geist file loads').toBe(true)
         expect(appleAtRest.fontFamily, 'the titles render in Geist').toMatch(/^"?Geist"?,/)
         expect(appleAtRest.height, 'Apple pill rests at the small pill height').toBe(SMALL_PILL_VISIBLE_MIN)
         expect(googleAtRest.height, 'Google pill rests at the small pill height').toBe(SMALL_PILL_VISIBLE_MIN)

@@ -135,7 +135,7 @@ describe('Apple sign-in controls', () => {
     TestRenderer.act(() => tree.unmount())
   })
 
-  const largeTextCases = [320, 360, 412].flatMap((width) => ([['pt-BR', ptBR], ['en', en]] as const)
+  const largeTextCases = [320, 360, 384, 412].flatMap((width) => ([['pt-BR', ptBR], ['en', en]] as const)
     .flatMap(([locale, words]) => [1, 1.3, 2].map((fontScale) => ({ width, locale, words, fontScale }))))
   it.each(largeTextCases)('keeps the Android Apple and Google titles whole at $width dp in $locale at font scale $fontScale', ({ width, words, fontScale }) => {
     Platform.OS = 'android'
@@ -145,9 +145,12 @@ describe('Apple sign-in controls', () => {
     const tree = renderBesideGoogle({ disabled: false, onPress: vi.fn() }, words.auth.signInWithGoogle)
     const column = width - 2 * (width < 336 ? SPACING.s8 : SPACING.s16)
     const measured = measureProfileRow(tree.toJSON(), column, fontScale)
-    for (const label of [words.auth.signInWithGoogle, words.auth.signInWithApple]) {
+    for (const [label, markID] of [[words.auth.signInWithGoogle, 'google-mark'], [words.auth.signInWithApple, 'apple-sign-in-logo']] as const) {
       const pill = measured.controls.find((control) => control.labels.includes(label))!
       const title = measured.texts.find((text) => text.label === label)!
+      const mark = measured.boxes.find((box) => box.testID === markID)!
+      expect((mark.top + mark.bottom) / 2 - pill.top, `${label} mark stays on the first line`).toBeCloseTo(SMALL_PILL_VISIBLE_MIN / 2, 4)
+      if (fontScale === 2) expect(pill.height, `${label} pill grows around its large title`).toBeGreaterThan(SMALL_PILL_VISIBLE_MIN)
       expect(title.clipped, `${label} is not truncated`).toBe(false)
       expect(pill.inlineClearance, `${label} keeps its inline padding`).toBeGreaterThanOrEqual(GOOGLE_SIGN_IN_BUTTON.paddingX)
       expect(title.left).toBeGreaterThanOrEqual(pill.left)
