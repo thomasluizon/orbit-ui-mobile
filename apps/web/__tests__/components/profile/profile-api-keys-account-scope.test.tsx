@@ -47,6 +47,7 @@ vi.mock('@/hooks/use-api-key-management', () => ({
   }),
 }))
 
+vi.mock('@/hooks/use-flag', () => ({ useFlag: () => false }))
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: undefined }) }))
 vi.mock('@/components/shell/flow-shell', () => ({ FlowShell: ({ children, action }: { children: React.ReactNode; action?: React.ReactNode }) => <div>{children}{action}</div> }))
 

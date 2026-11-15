@@ -20,6 +20,7 @@ import {
 import { PROFILE_STEP_UP_DESTINATIONS } from '@orbit/shared/utils/profile-routes'
 import { getBackLabel } from '@orbit/shared/utils/back-label'
 import { useProfile } from '@/hooks/use-profile'
+import { useFlag } from '@/hooks/use-flag'
 import { useDateFormat } from '@/hooks/use-date-format'
 import { getHeldAccountId, useAuthStore, useHeldAccountId } from '@/stores/auth-store'
 import { useAccountScopedState } from '@/hooks/use-session-reset'
@@ -42,6 +43,7 @@ import { UpdateAvailableBanner } from '@/components/ui/update-available-banner'
 import { FlowShell } from '@/components/shell/flow-shell'
 import { OtpInput } from '@/components/ui/otp-input'
 import { PillButton } from '@/components/ui/pill-button'
+import { ResultDialog } from '@/components/ui/result-dialog'
 import { QuietLink } from '@/components/ui/quiet-link'
 import { CapacityNotice } from '@/components/ui/capacity-notice'
 
@@ -280,12 +282,15 @@ function StepUpScreenContent({
   const sharedView = { operationLabel, t }
   if (success) {
     return (
-      <StepUpSuccess
-        {...sharedView}
-        deletionDate={formattedDeletionDate}
-        showProNotice={Boolean(profile?.hasProAccess)}
-        onSignOut={() => void logout()}
-      />
+      <>
+        <StepUpSuccess
+          {...sharedView}
+          deletionDate={formattedDeletionDate}
+          showProNotice={Boolean(profile?.hasProAccess)}
+          onSignOut={() => void logout()}
+        />
+        <DeletionResult deletionDate={formattedDeletionDate} pro={Boolean(profile?.hasProAccess)} onSignOut={() => void logout()} />
+      </>
     )
   }
   if (exhausted) {
@@ -380,6 +385,24 @@ function StepUpSuccess({
   )
 }
 
+/** With `orbit_guided_flows` on, the delete flow closes with the result dialog: Orbit in Parado, the date the server set, and sign out. A dismissal leaves the success state underneath. */
+function DeletionResult({ deletionDate, pro, onSignOut }: Readonly<{ deletionDate: string; pro: boolean; onSignOut: () => void }>) {
+  const t = useTranslations()
+  const guided = useFlag('orbit_guided_flows')
+  const [dismissed, setDismissed] = useState(false)
+  if (!guided || dismissed) return null
+  return (
+    <ResultDialog
+      title={t('result.title')}
+      sentence={t(pro ? 'result.account.deletionScheduledPro' : 'result.account.deletionScheduled', { date: deletionDate })}
+      primaryLabel={t('stepUp.signOut')}
+      onPrimary={onSignOut}
+      onClose={() => setDismissed(true)}
+      orbitState="parado"
+    />
+  )
+}
+
 function StepUpExhausted({
   backLabel,
   lockSeconds,
@@ -421,6 +444,8 @@ interface StepUpChallengeProps extends SharedStepUpViewProps {
 
 function StepUpChallenge(props: Readonly<StepUpChallengeProps>) {
   const { checking, code, cooldownSeconds, email, expired, onCancel, onCodeChange, onConfirm, onResend, operationLabel, otpError, requestError, requesting, t } = props
+  /** With `orbit_guided_flows` on, the title is the question the code field answers. */
+  const liveTitle = useFlag('orbit_guided_flows') ? t('codeLabel') : t('title')
   const action = expired ? (
     <PillButton loading={requesting} onClick={onResend}>{t('resend')}</PillButton>
   ) : (
@@ -428,7 +453,7 @@ function StepUpChallenge(props: Readonly<StepUpChallengeProps>) {
   )
   return (
     <FlowShell nav={false} notice={<UpdateAvailableBanner inset={false} mascot={false} />} action={action}>
-      <StepUpHeader body={expired ? t('expiredBody') : t('body', { email })} operationLabel={operationLabel} t={t} title={expired ? t('expiredTitle') : t('title')} />
+      <StepUpHeader body={expired ? t('expiredBody') : t('body', { email })} operationLabel={operationLabel} t={t} title={expired ? t('expiredTitle') : liveTitle} />
       <OtpInput id="step-up-code" value={code} onChange={onCodeChange} error={otpError} hint={expired ? undefined : t('codeHint')} disabled={checking || expired} autoFocus={!expired} label={t('codeLabel')} />
       {!expired ? <StepUpResend cooldownSeconds={cooldownSeconds} onResend={onResend} requesting={requesting} t={t} /> : null}
       {requestError ? <p role="alert" style={{ color: 'var(--status-bad-text)' }}>{requestError}</p> : null}

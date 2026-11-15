@@ -33,6 +33,7 @@ vi.mock('@/components/ui/icon', () => ({ Icon: () => null }))
 vi.mock('expo-router', () => ({ useRouter: () => mocks, useLocalSearchParams: () => ({ operation: 'keys' }) }))
 vi.mock('@/lib/api-client', () => ({ apiClient: (...args: unknown[]) => mocks.apiClient(...args) }))
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: undefined }) }))
+vi.mock('@/hooks/use-flag', () => ({ useFlag: () => false }))
 vi.mock('@/hooks/use-logout', () => ({ useLogout: () => vi.fn() }))
 vi.mock('@/components/shell/flow-shell', () => ({ FlowShell: ({ children, action }: { children: React.ReactNode; action?: React.ReactNode }) => <>{children}{action}</> }))
 vi.mock('react-i18next', async (importOriginal) => ({

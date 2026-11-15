@@ -48,6 +48,7 @@ const mocks = vi.hoisted(() => ({
   sessionPhase: 'signed-in',
   userId: 'user-1',
   reducedMotion: false,
+  guided: false,
 }))
 
 vi.mock('@/lib/motion', async (importOriginal) => ({ ...(await importOriginal<typeof import('@/lib/motion')>()), usePrefersReducedMotion: () => mocks.reducedMotion }))
@@ -63,6 +64,7 @@ vi.mock('react-i18next', () => ({
   }),
 }))
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: mocks.profile }) }))
+vi.mock('@/hooks/use-flag', () => ({ useFlag: () => mocks.guided }))
 vi.mock('@/hooks/use-date-format', () => ({
   useDateFormat: () => ({ displayDate: (value: string) => `local:${value}` }),
 }))
@@ -205,6 +207,7 @@ describe('mobile step up screen', () => {
     mocks.sessionPhase = 'signed-in'
     mocks.userId = 'user-1'
     mocks.operation = 'delete'
+    mocks.guided = false
     mocks.profile.email = 'person@example.com'
     mocks.profile.hasProAccess = false
     mocks.profile.planExpiresAt = null
@@ -235,6 +238,55 @@ describe('mobile step up screen', () => {
       trees.splice(0).forEach((tree) => tree.unmount())
       await Promise.resolve()
     })
+  })
+
+  it('asks the code question as the title with the flag on, and keeps the current title with the flag off', async () => {
+    const headings = (tree: TestTree) => tree.root.findAll((node) => node.type === 'Text' && node.props.accessibilityRole === 'header').map((node) => flattenText(node.props.children))
+    mocks.guided = true
+    const guided = await renderScreen()
+    expect(headings(guided)).toEqual(['stepUp.codeLabel'])
+    expect(findInput(guided.root).props.accessibilityLabel).toBe('stepUp.codeLabel')
+    expect(guided.root.findAll((node) => node.props.accessibilityLabel === 'stepUp.cancel').length).toBeGreaterThan(0)
+    expect(guided.root.findAll((node) => node.props.testID === 'orbit-mascot')).toHaveLength(0)
+    mocks.guided = false
+    const current = await renderScreen()
+    expect(headings(current)).toEqual(['stepUp.title'])
+  })
+
+  it('holds no mascot on the exhausted step with the flag on', async () => {
+    mocks.guided = true
+    const tree = await renderScreen({ ...liveRecord(), exhaustedAt: Date.now() })
+    expect(findText(tree.root, 'stepUp.exhaustedTitle').length).toBeGreaterThan(0)
+    expect(tree.root.findAll((node) => node.props.testID === 'orbit-mascot')).toHaveLength(0)
+  })
+
+  it.each([false, true])('closes the delete flow with the result dialog: Orbit in Parado, the date the server set, and sign out (Pro %s)', async (pro) => {
+    mocks.guided = true
+    mocks.profile.hasProAccess = pro
+    const tree = await renderScreen()
+    await enterCode(tree)
+    await confirm(tree)
+    const dialog = tree.root.findAll((node) => node.props.testID === 'result-dialog' && typeof node.type === 'string')[0]!
+    expect(dialog.props.accessibilityLabel).toBe('result.title')
+    expect(dialog.props.accessibilityHint).toBe(`result.account.${pro ? 'deletionScheduledPro' : 'deletionScheduled'}:{"date":"local:2026-09-04T03:00:00Z"}`)
+    expect(dialog.findAll((node) => node.props.testID === 'orbit-mascot' && typeof node.type === 'string')[0]!.props['data-orbit-state' as never]).toBe('parado')
+    await TestRenderer.act(async () => { (findButton(dialog, 'stepUp.signOut').props.onPress as () => void)(); await Promise.resolve() })
+    expect(mocks.logout).toHaveBeenCalledOnce()
+
+    const modal = tree.root.findAll((node) => typeof node.props.onRequestClose === 'function')[0]!
+    await TestRenderer.act(async () => { (modal.props.onRequestClose as () => void)(); await Promise.resolve() })
+    expect(tree.root.findAll((node) => node.props.testID === 'result-dialog')).toHaveLength(0)
+    expect(findText(tree.root, 'stepUp.successTitle').length).toBeGreaterThan(0)
+    await TestRenderer.act(async () => { (findButton(tree.root, 'stepUp.signOut').props.onPress as () => void)(); await Promise.resolve() })
+    expect(mocks.logout).toHaveBeenCalledTimes(2)
+  })
+
+  it('opens no result dialog with the flag off', async () => {
+    const tree = await renderScreen()
+    await enterCode(tree)
+    await confirm(tree)
+    expect(findText(tree.root, 'stepUp.successTitle').length).toBeGreaterThan(0)
+    expect(tree.root.findAll((node) => node.props.testID === 'result-dialog')).toHaveLength(0)
   })
 
   it('enables confirm only when all six digits are present', async () => {

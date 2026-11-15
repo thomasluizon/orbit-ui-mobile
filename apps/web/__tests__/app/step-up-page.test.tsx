@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi, afterEach } from 'vitest'
 import {
   STEP_UP_ATTEMPT_WINDOW_MS,
@@ -36,6 +36,7 @@ const mocks = vi.hoisted(() => ({
   router: { replace: vi.fn() },
   serverAuthMutate: vi.fn(),
   heldAccountId: 'account-a',
+  guided: false,
 }))
 
 vi.mock('next/navigation', async (importOriginal) => ({
@@ -50,6 +51,7 @@ vi.mock('next-intl', () => ({
 }))
 
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: mocks.profile }) }))
+vi.mock('@/hooks/use-flag', () => ({ useFlag: () => mocks.guided }))
 vi.mock('@/hooks/use-date-format', () => ({
   useDateFormat: () => ({ displayDate: (value: string) => `local:${value}` }),
 }))
@@ -134,6 +136,7 @@ describe('web step up screen', () => {
     useVersionGateStore.setState(useVersionGateStore.getInitialState())
     setApiFetchTranslate((key) => key)
     mocks.operation = 'delete'
+    mocks.guided = false
     mocks.heldAccountId = 'account-a'
     mocks.router.replace = mocks.replace
     mocks.profile.email = 'person@example.com'
@@ -397,6 +400,57 @@ describe('web step up screen', () => {
     const action = screen.getByTestId('shell-action')
     expect(within(action).getByText('resend').closest('button')).toHaveAttribute('data-variant', 'primary')
     expect(screen.queryByText('confirm')).not.toBeInTheDocument()
+  })
+
+  it('asks the code question as the title with the flag on, and keeps the current title with the flag off', async () => {
+    mocks.guided = true
+    await renderLiveScreen()
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('codeLabel')
+    expect(screen.getByLabelText('codeLabel')).toHaveAttribute('name', 'verificationCode')
+    expect(screen.getByText('cancel')).toBeInTheDocument()
+    expect(document.querySelector('[data-orbit-state]')).toBeNull()
+    cleanup()
+    mocks.guided = false
+    await renderLiveScreen()
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('title')
+  })
+
+  it('holds no mascot on the exhausted step with the flag on', async () => {
+    mocks.guided = true
+    mocks.readTiming.mockReturnValue({ ...liveRecord(), exhaustedAt: Date.now() })
+    render(<StepUpScreen serverAccountId={null} />)
+    expect(await screen.findByText('exhaustedTitle')).toBeInTheDocument()
+    expect(document.querySelector('[data-orbit-state]')).toBeNull()
+  })
+
+  it.each([false, true])('closes the delete flow with the result dialog: Orbit in Parado, the date the server set, and sign out (Pro %s)', async (pro) => {
+    mocks.guided = true
+    mocks.profile.hasProAccess = pro
+    await renderLiveScreen()
+    enterCode()
+    clickConfirm()
+
+    const dialog = await screen.findByRole('dialog', { name: 'result.title' })
+    const sentence = `result.account.${pro ? 'deletionScheduledPro' : 'deletionScheduled'}:{"date":"local:2026-09-04T03:00:00Z"}`
+    expect(dialog).toHaveAccessibleDescription(sentence)
+    expect(dialog.querySelector('[data-result-dialog]')).toHaveAttribute('data-orbit-state', 'parado')
+    await waitFor(() => expect(within(dialog).getByRole('button', { name: 'stepUp.signOut' })).toHaveFocus())
+    fireEvent.click(within(dialog).getByRole('button', { name: 'stepUp.signOut' }))
+    expect(mocks.logout).toHaveBeenCalledOnce()
+
+    fireEvent.keyDown(document.activeElement ?? document.body, { key: 'Escape' })
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    expect(screen.getByText(/successTitle/)).toHaveTextContent('local:2026-09-04T03:00:00Z')
+    fireEvent.click(screen.getByText('signOut'))
+    expect(mocks.logout).toHaveBeenCalledTimes(2)
+  })
+
+  it('opens no result dialog with the flag off', async () => {
+    await renderLiveScreen()
+    enterCode()
+    clickConfirm()
+    expect(await screen.findByText(/successTitle/)).toBeInTheDocument()
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   })
 
   it('renders the endpoint date in the device format and signs out', async () => {

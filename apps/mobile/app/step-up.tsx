@@ -35,6 +35,7 @@ import {
 import { PROFILE_STEP_UP_DESTINATIONS } from '@orbit/shared/utils/profile-routes'
 import { getBackLabel } from '@orbit/shared/utils/back-label'
 import { useProfile } from '@/hooks/use-profile'
+import { useFlag } from '@/hooks/use-flag'
 import { useDateFormat } from '@/hooks/use-date-format'
 import { useLogout } from '@/hooks/use-logout'
 import { useAuthStore } from '@/stores/auth-store'
@@ -45,6 +46,7 @@ import { createTokensV2 } from '@/lib/theme'
 import { FlowShell } from '@/components/shell/flow-shell'
 import { OtpInput } from '@/components/ui/otp-input'
 import { PillButton } from '@/components/ui/pill-button'
+import { ResultDialog } from '@/components/ui/result-dialog'
 import { CapacityNotice } from '@/components/ui/capacity-notice'
 import { MotionPressable } from '@/components/ui/motion-pressable'
 
@@ -266,12 +268,15 @@ function StepUpScreenContent() {
   const sharedView = { operationLabel, t, tokens }
   if (success) {
     return (
-      <MobileStepUpSuccess
-        {...sharedView}
-        deletionDate={formattedDeletionDate}
-        onSignOut={() => void logout()}
-        showProNotice={Boolean(profile?.hasProAccess)}
-      />
+      <>
+        <MobileStepUpSuccess
+          {...sharedView}
+          deletionDate={formattedDeletionDate}
+          onSignOut={() => void logout()}
+          showProNotice={Boolean(profile?.hasProAccess)}
+        />
+        <DeletionResult deletionDate={formattedDeletionDate} pro={Boolean(profile?.hasProAccess)} onSignOut={() => void logout()} t={t} />
+      </>
     )
   }
   if (exhausted) {
@@ -367,6 +372,23 @@ function MobileStepUpSuccess({
   )
 }
 
+/** With `orbit_guided_flows` on, the delete flow closes with the result dialog: Orbit in Parado, the date the server set, and sign out. A dismissal leaves the success state underneath. */
+function DeletionResult({ deletionDate, pro, onSignOut, t }: Readonly<{ deletionDate: string; pro: boolean; onSignOut: () => void; t: TFunction }>) {
+  const guided = useFlag('orbit_guided_flows')
+  const [dismissed, setDismissed] = useState(false)
+  if (!guided || dismissed) return null
+  return (
+    <ResultDialog
+      title={t('result.title')}
+      sentence={t(pro ? 'result.account.deletionScheduledPro' : 'result.account.deletionScheduled', { date: deletionDate })}
+      primaryLabel={t('stepUp.signOut')}
+      onPrimary={onSignOut}
+      onClose={() => setDismissed(true)}
+      orbitState="parado"
+    />
+  )
+}
+
 function MobileStepUpExhausted({
   backLabel,
   lockSeconds,
@@ -407,6 +429,8 @@ interface MobileStepUpChallengeProps extends SharedMobileStepUpProps {
 
 function MobileStepUpChallenge(props: Readonly<MobileStepUpChallengeProps>) {
   const { checking, code, cooldownSeconds, email, expired, onCancel, onCodeChange, onConfirm, onResend, operationLabel, otpError, requestError, requesting, t, tokens } = props
+  /** With `orbit_guided_flows` on, the title is the question the code field answers. */
+  const liveTitle = useFlag('orbit_guided_flows') ? t('stepUp.codeLabel') : t('stepUp.title')
   const action = expired ? (
     <PillButton loading={requesting} onClick={onResend}>{t('stepUp.resend')}</PillButton>
   ) : (
@@ -415,7 +439,7 @@ function MobileStepUpChallenge(props: Readonly<MobileStepUpChallengeProps>) {
   return (
     <FlowShell nav={false} action={action}>
       <View style={styles.column}>
-        <MobileStepUpHeader body={expired ? t('stepUp.expiredBody') : t('stepUp.body', { email })} operationLabel={operationLabel} t={t} title={expired ? t('stepUp.expiredTitle') : t('stepUp.title')} tokens={tokens} />
+        <MobileStepUpHeader body={expired ? t('stepUp.expiredBody') : t('stepUp.body', { email })} operationLabel={operationLabel} t={t} title={expired ? t('stepUp.expiredTitle') : liveTitle} tokens={tokens} />
         <OtpInput value={code} onChange={onCodeChange} error={otpError} hint={expired ? undefined : t('stepUp.codeHint')} disabled={checking || expired} autoFocus={!expired} label={t('stepUp.codeLabel')} />
         {!expired ? <MobileStepUpResend cooldownSeconds={cooldownSeconds} onResend={onResend} requesting={requesting} t={t} tokens={tokens} /> : null}
         {requestError ? <Text accessibilityRole="alert" style={[styles.secondary, { color: tokens.statusBadText }]}>{requestError}</Text> : null}

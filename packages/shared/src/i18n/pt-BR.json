@@ -3189,7 +3189,9 @@
     "account": {
       "freshStart": "Tudo o que você acompanhava foi apagado. Sua conta, seu plano e suas preferências continuam.",
       "freshStartQueued": "Tudo o que você acompanhava será apagado quando a conexão voltar. Sua conta, seu plano e suas preferências continuam.",
-      "openToday": "Abrir o Hoje"
+      "openToday": "Abrir o Hoje",
+      "deletionScheduled": "Sua conta encerra em {date}. Se você entrar antes, ela volta com todos os dados.",
+      "deletionScheduledPro": "Sua conta Pro encerra em {date}. Se você entrar antes, ela volta com todos os dados."
     },
     "support": {
       "sent": "Sua mensagem chegou. A resposta vai para {email}."

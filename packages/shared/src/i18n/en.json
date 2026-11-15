@@ -3189,7 +3189,9 @@
     "account": {
       "freshStart": "Everything you tracked was deleted. Your account, plan and preferences stay.",
       "freshStartQueued": "Everything you tracked will be deleted when the connection returns. Your account, plan and preferences stay.",
-      "openToday": "Open Today"
+      "openToday": "Open Today",
+      "deletionScheduled": "Your account closes on {date}. If you sign in before then, it comes back whole.",
+      "deletionScheduledPro": "Your Pro account closes on {date}. If you sign in before then, it comes back whole."
     },
     "support": {
       "sent": "Your message arrived. The reply goes to {email}."
