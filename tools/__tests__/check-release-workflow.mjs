@@ -1,6 +1,6 @@
 import { load } from "js-yaml"
 import { execFileSync, spawnSync } from "node:child_process"
-import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs"
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 import { runBounded } from "../lib/bounded-process.mjs"
 import { BASH, T, root, stage, toolPath } from "./_harness.mjs"
@@ -332,8 +332,8 @@ async function checkRenderRetries() {
 }
 
 function checkSourceIdentity() {
-  const directory = join(root, "release-source")
-  mkdirSync(directory, { recursive: true })
+  // A fresh repository for each call: release-plan.mjs runs these cases a second time in the same fixture root.
+  const directory = mkdtempSync(join(root, "release-source-"))
   const environment = { ...process.env, GIT_AUTHOR_NAME: "Fixture", GIT_AUTHOR_EMAIL: "fixture@example.invalid",
     GIT_COMMITTER_NAME: "Fixture", GIT_COMMITTER_EMAIL: "fixture@example.invalid" }
   const git = (...args) => execFileSync("git", args, { cwd: directory, env: environment, encoding: "utf8" }).trim()
