@@ -20,7 +20,7 @@ UI `main` `471448e01`; API `main` `1d2a826b8`; landing `main` `7e6d150e0`. Owner
 
 | Item | Disposition |
 | --- | --- |
-| `#2131` production web | Run `43695336494` deploys `e86ecdc5e`. Verify with `wait-release --repo ui --run 43695336494 --sha e86ecdc5eb601875ddae9d123c5b045fec9281c2 --workflow-sha 471448e017a9ae605d3363a1bd77963789dbf621 --service-url https://app.useorbit.org`. Then landing staging and production at `7e6d150e0`, then Android Open and TestFlight from `main`. |
+| `#2131` releases | Production web serves `e86ecdc5e` (run `43695336494`, verified on `https://app.useorbit.org/api/health`). Next: landing staging and production at `7e6d150e0`, then Android Open and TestFlight from `main`, then the device proof. |
 | `ui#2448` (`#2132`) | Red at `696ecfefe` only on `installed (macos-latest, Developer ID)` ("Timed out waiting for palette surface"): same check as `ui#2463`. Then chain; merge at approval. |
 | `ui#2450` (`#2120`) | CI red at `4639bd3e1`: `label-fit-settings-row.spec.ts:99` pt-BR expired trial still wraps "250 mensagens de IA/semana" at the larger text size (the copy round measured 1x only; find copy that fits both sizes, approve it again); `Workspace unit (shared)` `chat-module-loading.test.ts` (idle budget, stream abort): check against `main` first. Fix agent, review, push, chain. Then base merges into `#2121` and `#2122`. |
 | `ui#2463` (`#2074`) | macOS bundle retry at `f365ed33e`. CI red only on `installed (macos-latest, Developer ID)`: "Timed out waiting for Astra dismissal; the page received 0 Escape keydowns". Third red of that check: root-cause it in `ui#2463`, no rerun. Then chain; merge at approval. |
