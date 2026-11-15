@@ -61,10 +61,10 @@ reads it. Only the owner's questions stay in the run state's `openOwnerQuestions
 every source and blocker. A step the spec lists as owner-only, never reminded, stays out of the
 queue. The successor inherits the queue, and the owner answers it only through his own `/questions`.
 
-An owner `/handoff` never runs `/questions --relay`. The owner filters the queue only through his
-own `/questions`, which `/wrap-up` runs before this skill. In both modes, the spec's
-`## Open questions` holds exactly the rows that `node tools/owner-questions.mjs --list` prints, each
-with who must answer and what it blocks.
+An owner `/handoff` never runs `/questions --relay`. Only the owner's own `/questions` filters the
+queue: `/wrap-up` runs it before this skill, and a bare owner `/handoff` runs none. In both
+modes, the spec's `## Open questions` holds exactly the rows that
+`node tools/owner-questions.mjs --list` prints, each with who must answer and what it blocks.
 
 Add this one timeless line to the spec: `The session chain ledger lives untracked at .git/orbit-session-chain.json.`
 Keep session ids, timestamps, terminal handles and timed decision logs in that ledger.
@@ -81,8 +81,10 @@ the auto compact point, the hook records the fallback and permits ordinary conti
 
 An owner-origin `/handoff` clears a pending drain through `record-handoff-request.mjs`.
 After an owner handoff has finished its committed and pushed outputs, run
-`node tools/relay-session.mjs --close-chain` before the final reply. This records the current
-session and closes the reporting chain. An automatic relay leaves it open.
+`node tools/relay-session.mjs --close-chain` before the final reply. When this session has an open
+reporting chain, the tool records the session and closes that chain; with no open chain it records
+nothing. It refuses while another session's unattended run owns the run state, because this
+handoff cannot carry that run: report the refusal to the owner. An automatic relay leaves the chain open.
 
 Two outputs, both committed files in this repo:
 

@@ -21,8 +21,9 @@ const USAGE = `usage: relay-session.mjs [--retry-wake | --close-chain | --close-
   Reads session identity from CLAUDE_CODE_SESSION_ID, context from its transcript,
   and model and permission mode from machine observations. Accepts no model claim.
   --retry-wake   background wake source until the failed relay's ten minute retry time
-  --close-chain prepare owner auto-work intake carry, then record and close any open chain;
-                an owner handoff needs no question filter, and no run state when no chain is open
+  --close-chain prepare owner auto-work intake carry, then record and close this session's open
+                chain. Needs no question filter, and no run state when no chain is open; refuses
+                while another session's unattended run owns the run state
   --close-terminal <payload> internal detached cleanup; base64 JSON with repoRoot,
     sessionId, successorSessionId, terminal and terminalHandle; rechecks the fence
   --help, -h    print usage and exit 0
@@ -299,9 +300,13 @@ const main = async () => {
   const state = readRunState()
   if (!sessionId) throw new Error("no matching CLAUDE_CODE_SESSION_ID")
   if (args[0] === "--close-chain") {
+    const owned = state?.sessionId === sessionId
+    if (!owned && (state?.sleep === true || state?.autoWork === true)) {
+      throw new Error(`run state belongs to the unattended run of session ${state.sessionId}; an owner handoff from another session cannot carry or close it`)
+    }
     prepareOwnerHandoffRun(sessionId)
     if (!openSessionChain(sessionId)) return
-    if (state?.sessionId !== sessionId) throw new Error("no matching CLAUDE_CODE_SESSION_ID")
+    if (!owned) throw new Error("no matching CLAUDE_CODE_SESSION_ID")
     if (readHandoffRequest(sessionId)?.origin !== "owner") throw new Error("chain closure requires an owner-origin handoff")
     appendChainEntry(await sessionChainEntry(state, state.transcriptPath ?? state.relay?.transcriptPath))
     await refreshChainMetrics(sessionId)
