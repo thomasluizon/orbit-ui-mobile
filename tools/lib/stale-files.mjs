@@ -34,31 +34,38 @@ const within = (path, container) => {
   return relation === "" || (relation !== ".." && !relation.startsWith(`..${sep}`) && !isAbsolute(relation))
 }
 
-/** The command line and the working directory of every process this user can read; null when the table is unreadable. */
+/** `{ command, directory }` for every process this user can read; null when the process table is unreadable. */
 export const readProcesses = () => {
   if (process.platform === "linux") {
-    const commands = []
-    const directories = []
-    for (const name of readdirSync("/proc").filter((entry) => /^\d+$/.test(entry))) {
+    return readdirSync("/proc").filter((entry) => /^\d+$/.test(entry)).flatMap((pid) => {
       try {
-        commands.push(readFileSync(`/proc/${name}/cmdline`, "utf8").replaceAll("\0", " "))
-        directories.push(readlinkSync(`/proc/${name}/cwd`))
+        return [{ command: readFileSync(`/proc/${pid}/cmdline`, "utf8").replaceAll("\0", " ").trim(), directory: readlinkSync(`/proc/${pid}/cwd`) }]
       } catch {
-        /* a process of another user, or one that exited during the read */
+        return [] // a process of another user, or one that exited during the read
       }
-    }
-    return { commands, directories }
+    })
   }
   const options = { encoding: "utf8", timeout: COMMAND_TIMEOUT_MS, maxBuffer: 64 * 1024 * 1024 }
   const table = spawnSync("ps", ["-axww", "-o", "pid=,command="], options)
   // `lsof -F pn` prints one `p<pid>` line, one `fcwd` line and one `n<path>` line for each process.
   const working = spawnSync("lsof", ["-a", "-d", "cwd", "-Fpn"], options)
   if (table.status !== 0 || working.status !== 0) return null
-  return {
-    commands: table.stdout.split("\n").filter(Boolean),
-    directories: working.stdout.split("\n").filter((line) => line.startsWith("n")).map((line) => line.slice(1)),
+  const directories = new Map()
+  let pid = null
+  for (const line of working.stdout.split("\n")) {
+    if (line.startsWith("p")) pid = line.slice(1)
+    else if (line.startsWith("n")) directories.set(pid, line.slice(1))
   }
+  return table.stdout.split("\n").map((line) => /^\s*(\d+)\s+(.*)$/.exec(line)).filter(Boolean)
+    .map(([, processId, command]) => ({ command, directory: directories.get(processId) ?? null }))
 }
+
+/**
+ * A shell only holds a directory open: Orca leaves a login shell in each worktree it made, for days. A command that the
+ * shell runs is its own process with the same directory, and that one counts.
+ */
+const SHELLS = new Set(["sh", "bash", "zsh", "fish", "dash", "ksh", "csh", "tcsh", "pwsh", "nu"])
+const isShell = (command) => SHELLS.has(basename(command.split(" ")[0].replace(/^-/, "")))
 
 /** Claude Code keeps one `{ pid, sessionId, cwd }` record for each session that runs, in `<config>/sessions`. */
 export const readLiveSessions = (configDirectories) => configDirectories.flatMap((directory) => {
@@ -176,8 +183,8 @@ const useOf = (path, evidence, sessionId = null) => {
   if (evidence.processes === null) return "the process table could not be read"
   const session = evidence.liveSessions.find((live) => live.sessionId === sessionId || (live.cwd && within(canonical(live.cwd), path)))
   if (session) return `live session ${session.sessionId.slice(0, 8)} uses it`
-  if (evidence.processes.directories.some((directory) => within(directory, path))) return "a live process works in it"
-  if (evidence.processes.commands.some((command) => command.includes(path) || (sessionId !== null && command.includes(sessionId)))) return "a live process names it"
+  if (evidence.processes.some((entry) => entry.directory !== null && !isShell(entry.command) && within(entry.directory, path))) return "a live process works in it"
+  if (evidence.processes.some((entry) => entry.command.includes(path) || (sessionId !== null && entry.command.includes(sessionId)))) return "a live process names it"
   return null
 }
 

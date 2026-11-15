@@ -37,7 +37,7 @@ const stageMachine = (label) => {
 }
 
 const same = (name, got, want) => T(name, JSON.stringify(got) === JSON.stringify(want), `got ${JSON.stringify(got)}, want ${JSON.stringify(want)}`)
-const quietProbes = { ...systemProbes, processes: () => ({ commands: [], directories: [] }), liveSessions: () => [], git: () => "", pullRequests: () => [], measure: () => 1024 }
+const quietProbes = { ...systemProbes, processes: () => [], liveSessions: () => [], git: () => "", pullRequests: () => [], measure: () => 1024 }
 const reasonOf = (listing, path) => listing.kept.find((item) => item.path === path)?.reason
 const stalePaths = (listing, kind) => listing.stale.filter((item) => item.kind === kind).map((item) => item.path)
 
@@ -51,7 +51,10 @@ const sessionCases = () => {
   const worktree = join(directory(HOLDS_WORK), "scratchpad", "scratch-worktree")
   mkdirSync(worktree)
   const probes = { ...quietProbes,
-    processes: () => ({ commands: [`node wait-file.mjs --file ${join(directory(LIVE_COMMAND), "scratchpad", "done.json")}`], directories: [join(directory(LIVE_DIRECTORY), "scratchpad")] }),
+    // The idle login shell in the stale directory is what Orca leaves in a worktree; it must not keep the directory.
+    processes: () => [{ command: `node wait-file.mjs --file ${join(directory(LIVE_COMMAND), "scratchpad", "done.json")}`, directory: machine.checkout },
+      { command: "node build.mjs", directory: join(directory(LIVE_DIRECTORY), "scratchpad") }, { command: "-/bin/zsh -l", directory: directory(STALE) },
+      { command: "/bin/bash -c npm test", directory: directory(STALE) }],
     liveSessions: () => [{ sessionId: LIVE_RECORD, cwd: machine.checkout }],
     git: (cwd, args) => (args[0] === "worktree" ? `worktree ${machine.checkout}\nHEAD 1\nbranch refs/heads/main\n\nworktree ${worktree}\nHEAD 2\nbranch refs/heads/scratch\n` : cwd === worktree ? " M unsaved.txt" : "") }
   const listing = collectListing({ ...machine.context, repositories: { ui: machine.checkout } }, { probes })
@@ -102,7 +105,7 @@ const removalCases = () => {
   const unowned = [LIVE_RECORD, LIVE_DIRECTORY, LIVE_COMMAND, LINKED, CHAINED, HOLDS_WORK, STALE]
   const stored = collectListing(machine.context, { probes: quietProbes })
   // After the listing: one listed item gains a live process, and one new item goes stale.
-  const laterProbes = { ...quietProbes, processes: () => ({ commands: [], directories: [directory(LIVE_COMMAND)] }) }
+  const laterProbes = { ...quietProbes, processes: () => [{ command: "node build.mjs", directory: directory(LIVE_COMMAND) }] }
   same("stale-files: the removal fixture lists every session directory that no session owns", stalePaths(stored, "session").sort(), unowned.map(directory).sort())
   const unlisted = join(machine.sessionRoot, "bbbbbbbb-0000-4000-8000-00000000000b")
   mkdirSync(unlisted)
