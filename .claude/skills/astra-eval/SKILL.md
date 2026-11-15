@@ -14,7 +14,7 @@ requests; it does not start a server or spend model credits.
 
 ## The gate for an assistant pull request: the core set
 
-Each pull request that changes the assistant gets one live run of the core set, by manual dispatch, on a staging
+Each pull request that changes the assistant gets one live run of the core set, from a local checkout, on a staging
 build of that branch, before merge. Do not add a schedule or an automatic trigger. Regenerate `catalog.yaml` from a
 clean API checkout at the evaluated commit first; the run refuses another commit.
 
@@ -40,8 +40,7 @@ The gate is two runs from `evals/astra`, then one merge:
 The gate passes when every must-pass case passes, the pass^k rate of the core set is at or above the baseline, no
 attempt asks more often than its case allows, and one model call costs at most the D147 limit. An attempt stops one
 question past the allowed count and keeps that count. The baseline is the merged report of `main` in which every case has a verdict; the baseline run of `main`
-passes `--as-baseline` in place of `--baseline`. The same runs are available through the `Astra eval` workflow's
-manual dispatch (`gate` input).
+passes `--as-baseline` in place of `--baseline`. These local runs are the only live runs of the gate.
 
 No rerun on the same build replaces a failure. A failed attempt fails its case for that build, and the merge refuses
 a second result for a case that passed or failed. A failure of the build is a failed attempt: a wrong preview, a reply
@@ -111,7 +110,8 @@ or outbound messages.
 
 ## The launch corpus
 
-`scenarios.yaml` and `composition-scenarios.yaml` are the full corpus (`npx promptfoo eval`, one attempt per case). It
+`scenarios.yaml` and `composition-scenarios.yaml` are the full corpus (`npx promptfoo eval`, one attempt per case). This
+local run is the only live run of the corpus. It
 grades request-bound tool evidence against `catalog.yaml` and stays until the old assistant path is deleted. Merge its
 window summaries in chronological order with `node merge-reports.mjs`; a continuation replaces only incomplete case
 entries. `--rerun` declares the single permitted rerun of a failed case after a fix; a rerun on the same build never

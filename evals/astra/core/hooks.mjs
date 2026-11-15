@@ -1,4 +1,3 @@
-import { appendFileSync } from 'node:fs'
 import { randomUUID } from 'node:crypto'
 import { tsImport } from 'tsx/esm/api'
 import { apiOrigin, healthyApi, readCredentials, refreshCredential, safeFailureMessage } from '../credentials.mjs'
@@ -84,6 +83,5 @@ export function afterEach({ result }) {
 export function afterAll({ results }) {
   const { summary, markdown } = persist(results)
   process.stdout.write(`${markdown}\n`)
-  if (process.env.GITHUB_STEP_SUMMARY) appendFileSync(process.env.GITHUB_STEP_SUMMARY, `${markdown}\n`)
   if (summary.status !== 'pass') process.exitCode = 1
 }

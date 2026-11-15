@@ -183,6 +183,15 @@ it('keeps the single rerun of the failed cases after a fix as a merged gate verd
   }
 })
 
+// The Astra eval Action is deleted: the live runs of the core set and of the launch corpus start only from a local checkout.
+it('runs the live gate only from a local checkout, in the skill and in TESTING.md', () => {
+  for (const path of ['.claude/skills/astra-eval/SKILL.md', 'TESTING.md']) {
+    const text = repository(path).replace(/\s+/gu, ' ')
+    expect(text, path).not.toMatch(/manual dispatch|Astra eval` workflow|The Action|Actions > Astra eval/u)
+    expect(text, path).toMatch(/only live run/u)
+  }
+})
+
 // A grader limit is final on its build. What the evidence keeps differs by kind: only a preview limit stores the held
 // previews for an offline regrade, and no kind clears without the rerun on a later API commit.
 it('states for each kind of grader limit what the evidence keeps and what clears it, in the skill and in TESTING.md', () => {

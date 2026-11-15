@@ -271,8 +271,8 @@ at low effort.
 
 ### Live gate and spend rules
 
-Each pull request that changes the assistant gets one live run of the core set (`### Core set gate`), by
-manual dispatch, on a staging build of that branch, before merge. The app-launch live gate runs the launch
+Each pull request that changes the assistant gets one live run of the core set (`### Core set gate`), from a
+local checkout, on a staging build of that branch, before merge. The app-launch live gate runs the launch
 corpus once, with one attempt per case and a 2 USD spend ceiling for that run; the ceiling returns to
 0.50 USD a day after it. After a fix, the failed cases and the cases with a grader limit run once more
 live on the fixed build. A rerun on the same build never replaces a failed case. There is no
@@ -347,6 +347,7 @@ imports every runtime harness module and executes the real promptfoo CLI with of
 through all hooks.
 The check requires npm registry access or a populated npm cache; it uses no Orbit or grader credentials.
 The live eval runs only on demand from a local checkout; no schedule, push or pull request starts it.
+This local run is the only live run.
 Runs record real message usage and incur endpoint and rubric-grader charges. The main account's
 flag exempts its per-account daily message, model-call and spend ceilings; the refusal accounts
 remain metered. All eval accounts remain subject to the shared eval ceiling.
@@ -1063,8 +1064,8 @@ its requested output file. Summaries update after each attempt too; a later fixt
 preserves completed attempts and leaves unrun cases incomplete. Starting a run clears the prior reports.
 Reasons can contain private answer details: keep this file local and
 do not upload it. Copy it into each private window directory before the next run replaces it.
-Each family and locale also receives a pass^k aggregate; any failing or incomplete case prevents its pass. The Action
-publishes these summaries and a job summary. It does not upload raw responses or a promptfoo
+Each family and locale also receives a pass^k aggregate; any failing or incomplete case prevents its pass. The run
+writes these summaries. It does not upload raw responses or a promptfoo
 database. Sharing and database writes are disabled in the configuration. For local runs, set
 `PROMPTFOO_DISABLE_TELEMETRY=1`, `PROMPTFOO_DISABLE_SHARING=1`, and point
 `PROMPTFOO_CONFIG_DIR` at a private temporary directory; delete it afterward. Do not enable

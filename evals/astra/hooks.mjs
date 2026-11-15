@@ -1,4 +1,4 @@
-import { appendFileSync, readFileSync } from 'node:fs'
+import { readFileSync } from 'node:fs'
 import { parse } from 'yaml'
 import { randomUUID } from 'node:crypto'
 import { tsImport } from 'tsx/esm/api'
@@ -163,6 +163,5 @@ export function afterEach({ result }) {
 export function afterAll({ results, suite }) {
   const { summary, markdown } = persistResults(results, suite.tests.map(describeCase))
   process.stdout.write(`${markdown}\n`)
-  if (process.env.GITHUB_STEP_SUMMARY) appendFileSync(process.env.GITHUB_STEP_SUMMARY, `${markdown}\n`)
   if (summary.status !== 'pass') process.exitCode = 1
 }
