@@ -429,6 +429,21 @@ function checkAppleClientId() {
   }
 }
 
+/** Runs the optional Android Expo check with a stub `npx`, so it proves the check reads the installed expo package, not the Expo API. */
+function checkExpoDependencyStep() {
+  const step = load(readFileSync(toolPath("../.github/workflows/android-release.yml"), "utf8")).jobs["release-android"].steps
+    .find((candidate) => candidate.name === "Validate Expo dependency compatibility")
+  T("android release keeps the Expo dependency check", typeof step?.run === "string")
+  if (typeof step?.run !== "string") return
+  T("the android Expo check runs in apps/mobile", step["working-directory"] === "apps/mobile")
+  const environment = { ...process.env }
+  delete environment.EXPO_OFFLINE
+  const stub = 'npx() { echo "EXPO_CHECK EXPO_OFFLINE=${EXPO_OFFLINE:-unset} $*"; }'
+  const result = spawnSync(BASH, ["-c", `${stub}\n${step.run}`], { encoding: "utf8", env: environment })
+  T("the android Expo check reads the installed bundled list (EXPO_OFFLINE=1)",
+    result.status === 0 && result.stdout.trim() === "EXPO_CHECK EXPO_OFFLINE=1 expo install --check", `${result.stdout}${result.stderr}`)
+}
+
 /** Lines of a workflow that install Playwright system packages through apt: `--with-deps` or `install-deps`. */
 function systemDependencyInstalls(file, text) {
   return text.split("\n").flatMap((line, index) => {
@@ -589,5 +604,6 @@ export async function cases() {
   checkPinnedRelease()
   checkSourceIdentity()
   checkAppleClientId()
+  checkExpoDependencyStep()
   checkMirrorIndependence()
 }
