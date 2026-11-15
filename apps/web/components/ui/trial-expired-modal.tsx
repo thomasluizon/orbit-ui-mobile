@@ -16,6 +16,8 @@ import { ActionRow } from '@/components/ui/action-row'
 import { SettingsGroup } from '@/components/ui/settings-group'
 import { ListRow } from '@/components/ui/list-row'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
+import { TrialExpiredDialog } from '@/components/ui/trial-expired-dialog'
+import { useFlag } from '@/hooks/use-flag'
 import { useUIStore } from '@/stores/ui-store'
 
 const STORAGE_KEY = TRIAL_EXPIRED_SEEN_KEY
@@ -29,6 +31,7 @@ const PAUSED_FEATURES = [
 
 export function TrialExpiredModal() {
   const t = useTranslations()
+  const guided = useFlag('orbit_guided_flows')
   const { sheetRef, closeSheet } = useSheetHost()
   const router = useRouter()
   const pathname = usePathname()
@@ -87,6 +90,25 @@ export function TrialExpiredModal() {
 
   if (!presented) return null
 
+  const seePlans = () =>
+    closeSheet(() => {
+      hide()
+      router.push(guided ? `/upgrade?from=${encodeURIComponent(pathname)}` : '/upgrade')
+    })
+
+  if (guided) {
+    return (
+      <TrialExpiredDialog
+        sheetRef={sheetRef}
+        pausedFeatures={PAUSED_FEATURES}
+        savingsPercent={plans?.savingsPercent}
+        onSeePlans={seePlans}
+        onContinueFree={() => closeSheet()}
+        onClose={hide}
+      />
+    )
+  }
+
   return (
     <Sheet
       ref={sheetRef}
@@ -101,12 +123,7 @@ export function TrialExpiredModal() {
           <PillButton
             size="sm"
             variant="primary"
-            onClick={() =>
-              closeSheet(() => {
-                hide()
-                router.push('/upgrade')
-              })
-            }
+            onClick={seePlans}
           >
             {t('trial.expired.subscribe')}
           </PillButton>

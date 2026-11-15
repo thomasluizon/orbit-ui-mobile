@@ -1,4 +1,5 @@
 import React from 'react'
+import { enableTestFlags } from '@orbit/shared/test-support/flag-state'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { AppState, StyleSheet, type AppStateStatus } from 'react-native'
 import { I18nextProvider } from 'react-i18next'
@@ -10,6 +11,7 @@ import { useAuthStore } from '@/stores/auth-store'
 import { createTokensV2, radius } from '@/lib/theme'
 import { SMALL_PILL_VISIBLE_MIN, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { pressableStyle } from '@/__tests__/support/press-feedback'
+import { reanimatedTestState } from '@/test-mocks/react-native-reanimated'
 
 vi.unmock('react-i18next')
 
@@ -390,6 +392,27 @@ describe('ExpiryWarning', () => {
     expect(mocks.clearSessionAndResetAuth).not.toHaveBeenCalled()
     expect(mocks.authState.isAuthenticated).toBe(false)
     expect(hostNodes(instance, 'View')).toHaveLength(0)
+  })
+
+  it.each([false, true])('keeps the message and its action, and shows Orbit in Parado only with the guided flows on (%s)', async (guided) => {
+    if (guided) enableTestFlags('orbit_guided_flows')
+    const instance = await renderExpiredWarning()
+    expect(renderedText(instance)).toContain(i18n.t('auth.sessionRefreshFailed'))
+    expect(action(instance, i18n.t('auth.refresh'))).toBeDefined()
+    const rigs = instance.root.findAll((node) => typeof node.type === 'string' && node.props['data-orbit-face'] === 'rig')
+    expect(rigs.map((node) => node.props['data-orbit-state'] as string)).toEqual(guided ? ['parado'] : [])
+  })
+
+  it.each([[false, 'running'], [true, 'still']] as const)('draws Orbit with reduced motion %s as %s, with the guided flows on', async (reducedMotion, loop) => {
+    enableTestFlags('orbit_guided_flows')
+    reanimatedTestState.reducedMotion = reducedMotion
+    try {
+      const instance = await renderExpiredWarning()
+      const rigs = instance.root.findAll((node) => typeof node.type === 'string' && node.props['data-orbit-face'] === 'rig')
+      expect(rigs.map((node) => node.props['data-orbit-loop'] as string)).toEqual([loop])
+    } finally {
+      reanimatedTestState.reducedMotion = false
+    }
   })
 
   it('keeps recovery available when a server failure is retryable', async () => {

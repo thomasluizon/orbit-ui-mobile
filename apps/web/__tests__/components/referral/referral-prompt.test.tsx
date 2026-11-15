@@ -1,4 +1,5 @@
 import en from '@orbit/shared/i18n/en.json'
+import { enableTestFlags } from '@orbit/shared/test-support/flag-state'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { referralCopyCases } from '@orbit/shared/__tests__/referral-copy-fixtures'
 import React from 'react'
@@ -181,6 +182,16 @@ describe('ReferralPrompt', () => {
     expect(screen.queryByTestId('sheet')).toBeNull()
     vi.useRealTimers()
     expect(await screen.findByTestId('referral-drawer')).toBeInTheDocument()
+  })
+
+  it('holds no Orbit line and no live mascot with the guided flows on', async () => {
+    enableTestFlags('orbit_guided_flows')
+    render(<ReferralPrompt />)
+    await arm('level-3')
+    await settle()
+    expect(screen.getByText('referral.prompt.cta')).toBeInTheDocument()
+    expect(document.querySelector('[data-orbit-face="rig"]')).toBeNull()
+    expect(document.querySelector('[data-upgrade-orbit-line], [data-testid$="orbit-line"]')).toBeNull()
   })
 
   it('dismisses without opening the drawer from "maybe later"', async () => {

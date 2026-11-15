@@ -20,6 +20,9 @@ import { SettingsGroup } from '@/components/ui/settings-group'
 import { ListRow } from '@/components/ui/list-row'
 import { Sheet } from '@/components/ui/sheet'
 import { useSheetPresence } from '@/components/ui/sheet-presence'
+import { TrialExpiredDialog } from '@/components/ui/trial-expired-dialog'
+import { useFlag } from '@/hooks/use-flag'
+import { useSubscriptionPlans } from '@/hooks/use-subscription-plans'
 
 const STORAGE_KEY = TRIAL_EXPIRED_SEEN_KEY
 
@@ -30,9 +33,16 @@ const PAUSED_FEATURES = [
   'trial.expired.proactiveAstra',
 ] as const
 
+/** The centred dialog of the guided flows. It reads the plans only while it shows, for its savings line. */
+function GuidedTrialExpired(actions: Readonly<{ onSeePlans: () => void; onContinueFree: () => void; onClose: () => void }>) {
+  const { plans } = useSubscriptionPlans({ handlesError: true })
+  return <TrialExpiredDialog {...actions} pausedFeatures={PAUSED_FEATURES} savingsPercent={plans?.savingsPercent} />
+}
+
 /** `suppressed` holds the notice back while the person is signed out, onboarding owns the screen or the pending Pro flag is not loaded; the notice stays mounted so a presented sheet closes through its dismissal. */
 export function TrialExpiredModal({ suppressed = false }: Readonly<{ suppressed?: boolean }>) {
   const { t } = useTranslation()
+  const guided = useFlag('orbit_guided_flows')
   const router = useRouter()
   const pathname = usePathname()
   const { currentScheme, currentTheme } = useAppTheme()
@@ -88,7 +98,8 @@ export function TrialExpiredModal({ suppressed = false }: Readonly<{ suppressed?
     !suppressed && pathname !== '/upgrade' && !currentNoticeState.dismissed && trialExpired &&
     !currentNoticeState.alreadySeen
   const reserved = openOverlayIds.includes(reservationId)
-  const { mounted, sheetKey, sheetRef, closeSheet } = useSheetPresence(isOpen && reserved)
+  const presented = isOpen && reserved
+  const { mounted, sheetKey, sheetRef, closeSheet } = useSheetPresence(presented && !guided)
   useEffect(() => {
     if (!isOpen) {
       if (reserved) unregisterOpenOverlay(reservationId)
@@ -108,6 +119,23 @@ export function TrialExpiredModal({ suppressed = false }: Readonly<{ suppressed?
     if (scopedKey !== null) void AsyncStorage.setItem(scopedKey, '1')
   }, [accountGeneration, accountId, scopedKey])
 
+  const seePlans = () => {
+    if (getAccountGeneration() !== accountGeneration) return
+    hide()
+    router.push(buildUpgradeHref(pathname || '/'))
+  }
+
+  if (guided) {
+    if (!presented) return null
+    return (
+      <GuidedTrialExpired
+        onSeePlans={seePlans}
+        onContinueFree={hide}
+        onClose={hide}
+      />
+    )
+  }
+
   if (!mounted) return null
 
   return (
@@ -124,13 +152,7 @@ export function TrialExpiredModal({ suppressed = false }: Readonly<{ suppressed?
           </PromptQuietAction>
           <PillButton
             size="sm"
-            onClick={() =>
-              closeSheet(() => {
-                if (getAccountGeneration() !== accountGeneration) return
-                hide()
-                router.push(buildUpgradeHref(pathname || '/'))
-              })
-            }
+            onClick={() => closeSheet(seePlans)}
           >
             {t('trial.expired.subscribe')}
           </PillButton>

@@ -5,9 +5,9 @@ import { RefreshCw } from '@/components/ui/icons'
 import { SPACING, SHELL_CONTENT_MAX_WIDTH } from '@orbit/shared/theme'
 import { useContentFrameStyle } from '@/hooks/use-content-frame-style'
 import { getProfileTrialEndHint } from '@orbit/shared/utils/profile-navigation'
-import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react'
+import { type ComponentProps, type ReactNode, useEffect, useMemo, useRef, useState } from 'react'
 import { AppState, Linking, Platform, ScrollView, StyleSheet, View } from 'react-native'
-import { useLocalSearchParams } from 'expo-router'
+import { useLocalSearchParams, useRouter } from 'expo-router'
 import Constants from 'expo-constants'
 import { showManageSubscriptionsIOS } from 'expo-iap'
 import { useTranslation } from 'react-i18next'
@@ -37,6 +37,7 @@ import { useShellScrollerClearance } from '@/components/shell/shell-scroller-cle
 import { useAppTheme } from '@/lib/use-app-theme'
 import { useOffline } from '@/hooks/use-offline'
 import { ErrorState } from '@/components/ui/error-state'
+import { OrbitMascot, useStateMascotSize } from '@/components/ui/orbit-mascot'
 import { Skeleton } from '@/components/ui/skeleton'
 
 import { useBackLabel } from '@/hooks/use-back-label'
@@ -45,10 +46,26 @@ import { getUpgradeFallbackRoute } from '@/lib/upgrade-route'
 import { PageHeader } from '@/components/ui/page-header'
 import { BillingDashboard } from '@/components/upgrade/billing-dashboard'
 import { PlayBillingDashboard } from '@/components/upgrade/play-billing-dashboard'
+import { GuidedPlanFooter, GuidedPricingSection, usePinnedPlanPrimary, type GuidedPricingSectionProps } from '@/components/upgrade/guided-pricing-section'
 import { PricingSection } from '@/components/upgrade/pricing-section'
+import { PurchaseResult } from '@/components/upgrade/purchase-result'
 import { SubscriptionNotice } from '@/components/upgrade/subscription-notice'
 import type { SubscriptionInterval, UpgradeTextFn } from '@/components/upgrade/types'
 import { useAppToast } from '@/hooks/use-app-toast'
+import { useFlag } from '@/hooks/use-flag'
+
+/** The billing read failed. With the guided flows on, Orbit names the state in the first person above the retry. */
+function UpgradeLoadFailed({ guided, onRetry, t }: Readonly<{ guided: boolean; onRetry: () => void; t: UpgradeTextFn }>) {
+  const mascotSize = useStateMascotSize()
+  const retry = <IconButton label={t('upgrade.billing.retry')} onClick={onRetry}><RefreshCw size={20} strokeWidth={1.5} accessible={false} /></IconButton>
+  if (!guided) return <View style={styles.padBlock}><ErrorState message={t('upgrade.billing.error')} action={retry} /></View>
+  return (
+    <View testID="upgrade-load-failed" style={[styles.padBlock, styles.centred]}>
+      <View importantForAccessibility="no-hide-descendants" accessibilityElementsHidden><OrbitMascot size={mascotSize} state="parado" /></View>
+      <ErrorState message={t('upgrade.orbitLine.billingError')} action={retry} />
+    </View>
+  )
+}
 
 function UpgradeContent({
   state,
@@ -56,8 +73,10 @@ function UpgradeContent({
   billingContent,
   pitchContent,
   onRetry,
+  guided,
   t,
 }: Readonly<{
+  guided: boolean
   state: SubscriptionScreenState
   content: SubscriptionScreenContent
   billingContent: ReactNode
@@ -75,19 +94,34 @@ function UpgradeContent({
       </View>
     )
   } else if (state === 'load-failed') {
-    body = <View style={styles.padBlock}><ErrorState message={t('upgrade.billing.error')} action={
-      <IconButton label={t('upgrade.billing.retry')} onClick={onRetry}><RefreshCw size={20} strokeWidth={1.5} accessible={false} /></IconButton>
-    } /></View>
+    body = <UpgradeLoadFailed guided={guided} onRetry={onRetry} t={t} />
   } else {
     body = content === 'pitch' ? pitchContent : billingContent
   }
 
   return (
     <>
-      {state === 'offline' && content === 'pitch' ? <View style={styles.padBlock}><ErrorState message={t('upgrade.billing.offline')} /></View> : null}
+      {state === 'offline' && content === 'pitch' && !guided ? <View style={styles.padBlock}><ErrorState message={t('upgrade.billing.offline')} /></View> : null}
       {body}
     </>
   )
+}
+
+/** The plan question with the guided flows on, and the current pitch with them off. Both start the same purchase. */
+function UpgradePitchSection({ guided, usage, primaryInFooter, monthlyDisplayPrice, yearlyDisplayPrice, inset, ...props }: ComponentProps<typeof PricingSection> & Pick<GuidedPricingSectionProps, 'usage' | 'primaryInFooter'> & { guided: boolean }) {
+  return guided
+    ? <GuidedPricingSection {...props} usage={usage} primaryInFooter={primaryInFooter} />
+    : <PricingSection {...props} inset={inset} monthlyDisplayPrice={monthlyDisplayPrice} yearlyDisplayPrice={yearlyDisplayPrice} />
+}
+
+/** The subscription read that the result of a purchase trusts: null while the screen loads or after it failed. */
+function settledStatus(state: SubscriptionScreenState, status: SubscriptionStatus | null): SubscriptionStatus | null {
+  return state === 'loading' || state === 'load-failed' ? null : status
+}
+
+/** The plan question is the header of the guided pitch, so the screen title is a label there. */
+function headerTitleRole(guided: boolean, contentCap: 560 | 620): 'heading' | 'label' {
+  return guided && contentCap === 620 ? 'label' : 'heading'
 }
 
 function upgradeContentCap(state: SubscriptionScreenState, content: SubscriptionScreenContent, hasLapsedNotice: boolean): 560 | 620 {
@@ -119,6 +153,10 @@ export default function UpgradeScreen() {
   )
   const { isOnline } = useOffline()
   const { showSuccess } = useAppToast()
+  const guided = useFlag('orbit_guided_flows')
+  const pinnedPrimary = usePinnedPlanPrimary()
+  const router = useRouter()
+  const [purchaseConfirmed, setPurchaseConfirmed] = useState(false)
   const locale = i18n.language
   const {
     status: subscriptionStatus,
@@ -127,7 +165,7 @@ export default function UpgradeScreen() {
     refetch: refetchStatus,
   } = useSubscriptionStatus()
 
-  const { profile: accountProfile } = useProfile({ enabled: subscriptionStatus?.aiMessagesPeriod === 'week' })
+  const { profile: accountProfile } = useProfile({ enabled: subscriptionStatus?.aiMessagesPeriod === 'week' || purchaseConfirmed })
   const status = useMemo(() => subscriptionStatus ? { ...subscriptionStatus, timeZone: accountProfile?.timeZone } : null, [subscriptionStatus, accountProfile?.timeZone])
   const trialDaysLeft = getTrialDaysLeft(status)
   const {
@@ -138,7 +176,7 @@ export default function UpgradeScreen() {
   } = useSubscriptionPlans()
   const playBilling = useStoreBilling({
     preferReferralOffer: !!plans?.couponPercentOff,
-    onPurchased: () => showSuccess(t('upgrade.purchaseSuccess')),
+    onPurchased: () => { if (guided) setPurchaseConfirmed(true); else showSuccess(t('upgrade.purchaseSuccess')) },
   })
   const provider = getSubscriptionBillingProvider(status)
   const isApple = Platform.OS === 'ios'
@@ -184,7 +222,9 @@ export default function UpgradeScreen() {
     portalState,
   })
   const { lapsedNoticeStatus, titleKey } = resolveUpgradeHeader(status, model, showPitch)
-  const contentFrameStyle = useContentFrameStyle(upgradeContentCap(model.state, model.content, Boolean(lapsedNoticeStatus)))
+  const contentCap = upgradeContentCap(model.state, model.content, Boolean(lapsedNoticeStatus))
+  const contentFrameStyle = useContentFrameStyle(contentCap)
+  const resultOrigin = getUpgradeFallbackRoute(from, '/(tabs)')
 
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (nextState) => {
@@ -282,33 +322,42 @@ export default function UpgradeScreen() {
     />
   )
 
+  const planPrimary = {
+    plans,
+    isLoadingPlans,
+    isPlansError,
+    isLoadingProducts: playBilling.isLoadingProducts,
+    isProductsError: playBilling.isProductsError,
+    isOnline,
+    monthlyOffer: playBilling.monthlyOffer,
+    yearlyOffer: playBilling.yearlyOffer,
+    selectedInterval,
+    checkoutLoading,
+    checkoutDisabled: !isOnline || playBilling.isProcessing || playBilling.isRestoring,
+    onCheckout: handleCheckout,
+    t,
+  }
+  const footerPrimary = guided && pinnedPrimary && !lapsedNoticeStatus && model.content === 'pitch' && model.state !== 'loading' && model.state !== 'load-failed'
+
   const pitchContent = lapsedNoticeStatus ? (
     <SubscriptionNotice status={lapsedNoticeStatus} locale={locale} onResubscribe={() => setShowPitch(true)} t={t} tokens={tokens} />
   ) : (
     <View style={{ gap: 24 }}>
-      <PricingSection
+      <UpgradePitchSection
+        {...planPrimary}
+        guided={guided}
+        primaryInFooter={footerPrimary}
+        usage={status}
         inset={false}
         focusOnMount={showPitch}
         profile={status}
-        plans={plans}
-        isLoadingPlans={isLoadingPlans}
-        isPlansError={isPlansError}
-        isLoadingProducts={playBilling.isLoadingProducts}
-        isProductsError={playBilling.isProductsError}
-        isOnline={isOnline}
         dateHint={getProfileTrialEndHint(status, locale, t)}
         trialDaysLeft={trialDaysLeft}
-        selectedInterval={selectedInterval}
         onSelectInterval={setSelectedInterval}
         onStayFree={() => goBackOrFallback(fallbackRoute)}
-        monthlyOffer={playBilling.monthlyOffer}
-        yearlyOffer={playBilling.yearlyOffer}
         monthlyDisplayPrice={playBilling.monthlyOffer?.displayPrice}
         yearlyDisplayPrice={playBilling.yearlyOffer?.displayPrice}
-        checkoutLoading={checkoutLoading}
         checkoutError={checkoutError}
-        checkoutDisabled={!isOnline || playBilling.isProcessing || playBilling.isRestoring}
-        onCheckout={handleCheckout}
         isRestoring={playBilling.isRestoring}
         onRestore={() => { if (isOnline) void playBilling.restorePurchases() }}
         onRetryPlans={() => { if (isOnline) { playBilling.retryProducts(); refetchPlans().catch(() => {}) } }}
@@ -326,6 +375,7 @@ export default function UpgradeScreen() {
       <PageHeader
         onBack={() => goBackOrFallback(fallbackRoute)}
         title={titleKey ? t(titleKey) : ''}
+        titleRole={headerTitleRole(guided, contentCap)}
         backLabel={backLabel}
       />
 
@@ -341,10 +391,25 @@ export default function UpgradeScreen() {
             billingContent={billingDashboard}
             pitchContent={pitchContent}
             onRetry={() => { void Promise.all([refetchStatus(), refetchBilling(), refetchPlans()]) }}
+            guided={guided}
             t={t}
           />
         </View>
       </ScrollView></ShellContent>
+      {footerPrimary ? <ShellContent><View style={contentFrameStyle}><GuidedPlanFooter {...planPrimary} checkoutError={checkoutError} tokens={tokens} /></View></ShellContent> : null}
+      <PurchaseResult
+        purchaseConfirmed={purchaseConfirmed}
+        status={settledStatus(model.state, status)}
+        billing={billing ?? null}
+        timeZone={accountProfile?.timeZone}
+        returnsToOrigin={resultOrigin !== '/(tabs)'}
+        onOpen={() => {
+          setPurchaseConfirmed(false)
+          if (resultOrigin === '/(tabs)') router.replace('/(tabs)')
+          else goBackOrFallback(resultOrigin)
+        }}
+        onClose={() => setPurchaseConfirmed(false)}
+      />
     </SafeAreaView>
   )
 }
@@ -363,4 +428,5 @@ const styles = StyleSheet.create({
     gap: 8,
     alignItems: 'stretch',
   },
+  centred: { alignItems: 'center' },
 })

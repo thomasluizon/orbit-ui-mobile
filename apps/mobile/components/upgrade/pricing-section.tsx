@@ -11,7 +11,7 @@ import { styles } from './styles'
 import type { SubscriptionInterval, Tokens, UpgradeTextFn } from './types'
 import { MotionPressable } from '@/components/ui/motion-pressable'
 
-function RestoreAction({ disabled, isRestoring, onRestore, t, tokens }: Readonly<{
+export function RestoreAction({ disabled, isRestoring, onRestore, t, tokens }: Readonly<{
   disabled: boolean
   isRestoring: boolean
   onRestore: () => void
@@ -37,7 +37,7 @@ function RestoreAction({ disabled, isRestoring, onRestore, t, tokens }: Readonly
   )
 }
 
-function StayFreeLink({ disabled, onStayFree, t, tokens }: Readonly<{
+export function StayFreeLink({ disabled, onStayFree, t, tokens }: Readonly<{
   disabled: boolean
   onStayFree: () => void
   t: UpgradeTextFn
@@ -55,6 +55,32 @@ function StayFreeLink({ disabled, onStayFree, t, tokens }: Readonly<{
         {t('upgrade.convert.stayFree')}
       </Text>
     </MotionPressable>
+  )
+}
+
+/** The notes of a purchase: cancel anytime, the renewal, the provider handoff, and the Apple terms links on iPhone and iPad. */
+export function PurchaseNotes({ t, tokens }: Readonly<{ t: UpgradeTextFn; tokens: Tokens }>) {
+  const router = useRouter()
+  return (
+    <View style={styles.reassuranceCopy}>
+      <Text style={[styles.reassurancePrimary, { color: tokens.fg2 }]}>
+        {t('upgrade.convert.cancelAnytime')}
+      </Text>
+      <Text style={[styles.renewalNote, { color: tokens.fg3 }]}>
+        {t(Platform.OS === 'ios' ? 'upgrade.appStore.autoRenewal' : 'upgrade.plans.renewalNote')}
+      </Text>
+      <Text style={[styles.handoffNote, { color: tokens.fg3 }]}>
+        {t(Platform.OS === 'ios' ? 'upgrade.appStore.paymentNote' : 'upgrade.convert.handOff')}
+      </Text>
+      {Platform.OS === 'ios' ? <View style={{ gap: 8 }}>
+        <Pressable accessibilityRole="link" onPress={() => router.push('/terms')}>
+          <Text style={[styles.restoreLink, { color: tokens.fg2 }]}>{t('terms.title')}</Text>
+        </Pressable>
+        <Pressable accessibilityRole="link" onPress={() => router.push('/privacy')}>
+          <Text style={[styles.restoreLink, { color: tokens.fg2 }]}>{t('privacy.title')}</Text>
+        </Pressable>
+      </View> : null}
+    </View>
   )
 }
 
@@ -116,7 +142,6 @@ export function PricingSection({
   t: UpgradeTextFn
   tokens: Tokens
 }>) {
-  const router = useRouter()
   return (
     <View style={styles.pricingSections}>
       <ProPitch dateHint={dateHint} inset={inset} profile={profile} trialDaysLeft={trialDaysLeft} t={t} focusOnMount={focusOnMount} tokens={tokens} />
@@ -155,25 +180,7 @@ export function PricingSection({
         </View>
 
         <View style={[styles.reassurance, !inset && { paddingHorizontal: SPACING.s0 }]}>
-          {plans || Platform.OS === 'ios' ? <View style={styles.reassuranceCopy}>
-              <Text style={[styles.reassurancePrimary, { color: tokens.fg2 }]}>
-                {t('upgrade.convert.cancelAnytime')}
-              </Text>
-              <Text style={[styles.renewalNote, { color: tokens.fg3 }]}>
-                {t(Platform.OS === 'ios' ? 'upgrade.appStore.autoRenewal' : 'upgrade.plans.renewalNote')}
-              </Text>
-              <Text style={[styles.handoffNote, { color: tokens.fg3 }]}>
-                {t(Platform.OS === 'ios' ? 'upgrade.appStore.paymentNote' : 'upgrade.convert.handOff')}
-              </Text>
-              {Platform.OS === 'ios' ? <View style={{ gap: 8 }}>
-                <Pressable accessibilityRole="link" onPress={() => router.push('/terms')}>
-                  <Text style={[styles.restoreLink, { color: tokens.fg2 }]}>{t('terms.title')}</Text>
-                </Pressable>
-                <Pressable accessibilityRole="link" onPress={() => router.push('/privacy')}>
-                  <Text style={[styles.restoreLink, { color: tokens.fg2 }]}>{t('privacy.title')}</Text>
-                </Pressable>
-              </View> : null}
-            </View> : null}
+          {plans || Platform.OS === 'ios' ? <PurchaseNotes t={t} tokens={tokens} /> : null}
             <StayFreeLink disabled={checkoutLoading !== null} onStayFree={onStayFree} t={t} tokens={tokens} />
           </View>
       </View>

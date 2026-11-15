@@ -262,8 +262,10 @@
       "route-profile-preferences"
     ],
     "Orbit Pro": [
+      "m-overlay-ui-trial-expired-dialog",
       "m-overlay-ui-trial-expired-modal",
       "m-route-upgrade",
+      "overlay-ui-trial-expired-dialog",
       "overlay-ui-trial-expired-modal",
       "route-upgrade"
     ],
