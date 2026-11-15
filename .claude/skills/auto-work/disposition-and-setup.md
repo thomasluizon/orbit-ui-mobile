@@ -86,8 +86,8 @@ In Play Console, the existing publishing service account needs Reply to reviews 
 Verify the manual workflow produces `orbit-play-reviews.json` and no credential artifact.
 No new secret is required. App Store review setup remains with `#1561` until the app exists:
 reuse `ORBIT_IOS_APP_STORE_ID`, `APP_STORE_CONNECT_API_KEY_ID`, `APP_STORE_CONNECT_API_ISSUER_ID`
-and `APP_STORE_CONNECT_API_PRIVATE_KEY` from `/ios-release`. The optional workflow job must
-produce `orbit-app-store-reviews.json` before claiming that source is connected.
+and `APP_STORE_CONNECT_API_PRIVATE_KEY` from `/ios-release`. The optional App Store steps of the
+review job must produce `orbit-app-store-reviews.json` before claiming that source is connected.
 
 Endpoint, scope and lifetime references: [Desktop OAuth](https://developers.google.com/identity/protocols/oauth2/native-app),
 [token expiry](https://developers.google.com/identity/protocols/oauth2#expiration),

@@ -3,7 +3,7 @@ import { mkdirSync, readFileSync, readdirSync, unlinkSync, writeFileSync } from 
 import path from 'node:path'
 import { URL, fileURLToPath, pathToFileURL } from 'node:url'
 import lighthouse from 'lighthouse'
-import { launch } from 'chrome-launcher'
+import { killAll, launch } from 'chrome-launcher'
 import { connect } from 'puppeteer-core'
 import warmHermeticAuth from './warm-hermetic-auth.cjs'
 
@@ -107,11 +107,17 @@ export async function runLighthouseGate() {
     process.removeListener('SIGINT', interrupted)
     process.removeListener('SIGTERM', interrupted)
     try { await browser?.disconnect() } finally {
-      try { await chrome?.kill() } finally { stopServer(server) }
+      try {
+        await chrome?.kill()
+        // WHY: chrome-launcher keeps a Chrome whose launch failed in its own registry, and that child holds Node open until the job limit. https://github.com/thomasluizon/orbit-tickets/issues/2074
+        killAll()
+      } finally { stopServer(server) }
     }
   }
 }
 
 if (import.meta.url === (process.argv[1] ? pathToFileURL(path.resolve(process.argv[1])).href : '')) {
-  runLighthouseGate().catch(error => { process.stderr.write(`Lighthouse budget failed: ${error.message}\n`); process.exitCode = 1 })
+  runLighthouseGate()
+    .catch(error => { process.stderr.write(`Lighthouse budget failed: ${error.message}\n`); process.exitCode = 1 })
+    .finally(() => process.exit())
 }

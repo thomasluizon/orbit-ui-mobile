@@ -879,9 +879,9 @@ if (process.argv[1]?.endsWith("worker-gate.cjs")) {
   )
   const effortOf = (args) => args?.[args.indexOf("--effort") + 1]
   T(
-    `${TOOL}: the default tier resolves claude-sonnet-5-5 at high effort`,
-    plan !== null && plan.engine === "claude" && plan.model === "claude-sonnet-5-5" && effortOf(plan.args) === "high" &&
-      plan.args.join(" ").includes("--effort high --model claude-sonnet-5-5"),
+    `${TOOL}: the default tier resolves its configured model at high effort`,
+    plan !== null && plan.engine === "claude" && plan.model === engine.models.default.model && effortOf(plan.args) === "high" &&
+      plan.args.join(" ").includes(`--effort high --model ${engine.models.default.model}`),
     JSON.stringify(plan?.args),
   )
   T(
@@ -889,8 +889,8 @@ if (process.argv[1]?.endsWith("worker-gate.cjs")) {
     plan !== null && plan.configDirectory === WORKER_CONFIG_DIRECTORY,
     JSON.stringify(plan?.configDirectory),
   )
-  /** Owner order on #2067: mechanical runs Sonnet 5.5, deep and max keep Opus 5.5, all at high effort. */
-  for (const [tier, model] of [["mechanical", "claude-sonnet-5-5"], ["deep", "claude-opus-5-5"], ["max", "claude-opus-5-5"]]) {
+  /** The owner sets the worker model per account allowance, so each tier resolves the model the configuration names, at high effort. */
+  for (const [tier, model] of ["mechanical", "deep", "max"].map((name) => [name, engine.models[name].model])) {
     const result = check(TOOL, `--dry-run resolves the ${tier} tier`, [...argv, "--tier", tier, "--dry-run"], { status: 0 }, options)
     const tierPlan = result.status === 0 ? JSON.parse(result.stdout) : null
     T(

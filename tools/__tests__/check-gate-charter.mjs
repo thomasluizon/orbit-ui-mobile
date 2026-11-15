@@ -129,22 +129,17 @@ export const cases = () => {
     )
   }
   const testJobs = yaml.load(readFileSync(join(REPO_ROOT, ".github/workflows/test.yml"), "utf8")).jobs
-  T("test.yml: SonarCloud Analysis consumes Unit Tests", testJobs.sonarcloud.needs === "unit-tests" &&
-    testJobs.sonarcloud.name === "SonarCloud Analysis")
-  const ancestors = new Set(["sonarcloud"])
-  for (const id of ancestors) {
-    const job = testJobs[id]
-    T(`test.yml: ${id} cannot be skipped by a branch condition`,
-      job !== undefined && (job.if === undefined || job.if === "${{ always() }}"),
-      `job condition: ${job?.if}`)
-    for (const step of job?.steps ?? []) {
-      T(`test.yml: ${id}/${step.name ?? step.uses ?? "run"} has no base_ref condition`,
-        !String(step.if ?? "").includes("base_ref"), `step condition: ${step.if}`)
-    }
-    for (const dependency of [job?.needs ?? []].flat()) ancestors.add(dependency)
+  const unitTests = testJobs["unit-tests"]
+  T("test.yml: Unit Tests ends with the SonarCloud scan", unitTests?.name === "Unit Tests" &&
+    unitTests.steps.at(-1)?.uses?.startsWith("SonarSource/sonarqube-scan-action@") && testJobs.sonarcloud === undefined)
+  T("test.yml: Unit Tests cannot be skipped by a branch or path condition", unitTests?.if === "${{ !cancelled() }}",
+    `job condition: ${unitTests?.if}`)
+  for (const step of unitTests?.steps ?? []) {
+    T(`test.yml: unit-tests/${step.name ?? step.uses ?? "run"} has no base_ref condition`,
+      !String(step.if ?? "").includes("base_ref"), `step condition: ${step.if}`)
   }
-  for (const id of ["build", "web-tests", "workspace-tests", "unit-tests"]) {
-    T(`test.yml: SonarCloud depends on ${id}`, ancestors.has(id))
+  for (const id of ["plan", "web-tests", "mobile-tests", "workspace-tests"]) {
+    T(`test.yml: the SonarCloud scan depends on ${id}`, unitTests?.needs?.includes(id))
   }
 
   const consolidated = structuredClone(currentGuards)
