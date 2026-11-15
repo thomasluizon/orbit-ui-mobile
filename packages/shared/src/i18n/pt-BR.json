@@ -611,8 +611,8 @@
       },
       "reminderKind": {
         "question": "Quando você quer um lembrete?",
-        "scheduled": "Em horários definidos",
-        "repeat": "Repetir a cada"
+        "scheduled": "Na hora certa",
+        "repeat": "Várias vezes"
       },
       "more": "Quer ajustar mais alguma coisa?",
       "progress": "Passo {position} de {total}",

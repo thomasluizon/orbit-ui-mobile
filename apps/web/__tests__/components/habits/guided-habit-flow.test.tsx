@@ -411,14 +411,41 @@ describe.each(['pt-BR', 'en'] as const)('the detail questions in %s', (locale) =
     expect(screen.getByText('parent-picker')).toBeInTheDocument()
   })
 
-  it('scenario 18: opens the reminder kinds from the reminder value with the permission notice and each editor', async () => {
+  it('scenario 18: asks the reminder kind with one quick option for each kind and no switch, radio or second heading', async () => {
     await toSummary()
     await press(new RegExp(`^${messages().summary.reminder}`))
     expect(heading()).toHaveTextContent(messages().reminderKind.question)
-    await act(async () => { fireEvent.click(screen.getByRole('switch', { name: locale === 'en' ? en.habits.form.reminder : ptBR.habits.form.reminder })) })
+    const options = within(screen.getByRole('group', { name: messages().reminderKind.question })).getAllByRole('button')
+    expect(options.map((option) => option.textContent)).toEqual([messages().reminderKind.scheduled, messages().reminderKind.repeat, messages().reminder.no])
+    expect(options.map((option) => option.getAttribute('aria-pressed'))).toEqual(['false', 'false', 'true'])
+    expect(screen.queryByRole('switch')).toBeNull()
+    expect(screen.queryByRole('radio')).toBeNull()
+    expect(screen.getAllByRole('heading')).toHaveLength(1)
+    await press(messages().reminderKind.repeat)
     expect(helpers().form.getValues('reminderEnabled')).toBe(true)
-    await act(async () => { fireEvent.click(screen.getByRole('radio', { name: new RegExp(locale === 'en' ? en.habits.form.repeatEvery : ptBR.habits.form.repeatEvery) })) })
     expect(helpers().form.getValues('repeatReminder')).toMatchObject({ intervalMinutes: 30 })
+    expect(screen.queryByRole('radio')).toBeNull()
+    expect(screen.getAllByRole('heading')).toHaveLength(1)
+  })
+
+  it('scenario 18: turns the reminder off from the reminder kinds in one press and returns to the summary', async () => {
+    await toSummary()
+    await press(new RegExp(`^${messages().summary.reminder}`))
+    await press(messages().reminderKind.scheduled)
+    expect(helpers().form.getValues('reminderEnabled')).toBe(true)
+    await press(messages().reminder.no)
+    expect(helpers().form.getValues('reminderEnabled')).toBe(false)
+    expect(heading()).toHaveTextContent(messages().confirm.question)
+  })
+
+  it('scenario 18: offers an undated item the repeat only', async () => {
+    render(<Harness mode="edit" subHabits={false} initial={{ title: 'Alongar', itemType: 'habit', isGeneral: true }} />)
+    await press(new RegExp(`^${messages().summary.reminder}`))
+    const options = within(screen.getByRole('group', { name: messages().reminderKind.question })).getAllByRole('button')
+    expect(options.map((option) => option.textContent)).toEqual([messages().reminderKind.repeat, messages().reminder.no])
+    await press(messages().reminderKind.repeat)
+    expect(helpers().form.getValues()).toMatchObject({ reminderEnabled: true, repeatReminder: { intervalMinutes: 30 } })
+    expect(state.reminderTimes).toEqual([])
   })
 
   const formCopy = () => (locale === 'en' ? en : ptBR).habits.form
@@ -426,7 +453,7 @@ describe.each(['pt-BR', 'en'] as const)('the detail questions in %s', (locale) =
   async function toReminderKinds() {
     await toSummary()
     await press(new RegExp(`^${messages().summary.reminder}`))
-    await act(async () => { fireEvent.click(screen.getByRole('switch', { name: formCopy().reminder })) })
+    await press(messages().reminderKind.scheduled)
   }
   async function setTime(label: string, value: string) {
     await act(async () => { fireEvent.change(screen.getByLabelText(label), { target: { value } }) })
@@ -435,7 +462,7 @@ describe.each(['pt-BR', 'en'] as const)('the detail questions in %s', (locale) =
   it('scenario 18: turns the reminder on with the default times and shows the permission notice with its way to the settings', async () => {
     await toReminderKinds()
     expect(helpers().form.getValues('reminderEnabled')).toBe(true)
-    expect(screen.getByRole('radio', { name: formCopy().definedTimes })).toHaveAttribute('aria-checked', 'true')
+    expect(screen.getByRole('button', { name: messages().reminderKind.scheduled })).toHaveAttribute('aria-pressed', 'true')
     expect(state.reminderTimes).toEqual([0, 15])
     expect(reminderChips()).toHaveLength(2)
     const notice = screen.getByRole('link', { name: formCopy().reminderPermissionNeeded })
@@ -468,7 +495,7 @@ describe.each(['pt-BR', 'en'] as const)('the detail questions in %s', (locale) =
 
   it('scenario 18: repeats every 30 minutes inside the active hours and drops the fixed times', async () => {
     await toReminderKinds()
-    await act(async () => { fireEvent.click(screen.getByRole('radio', { name: new RegExp(formCopy().repeatEvery) })) })
+    await press(messages().reminderKind.repeat)
     expect(helpers().form.getValues('repeatReminder')).toMatchObject({ intervalMinutes: 30 })
     expect(state.reminderTimes).toEqual([])
     expect(screen.getByRole('switch', { name: formCopy().repeatAllDay })).toBeChecked()
