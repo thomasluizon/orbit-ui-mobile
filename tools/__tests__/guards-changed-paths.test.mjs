@@ -97,6 +97,9 @@ for (const [jobId, stepName, path, options] of [
     { content: "transition-all\n", ownedStatus: 1, marker: "DESIGN.md ban" }],
   ["design-guard", "Ban decorative gradients in app code", "tools/check-gradients.mjs", {}],
   ["workflow-syntax", "Lint all workflows", ".github/actions/setup/action.yml", { stubs: "gh() { echo GATE_RAN; exit 0; }" }],
+  ["expo-pin", "Dependencies resolve to the SDK 58 set", "apps/mobile/package.json",
+    { stubs: "node() { :; }\nnpx() { echo \"EXPO_CHECK EXPO_OFFLINE=${EXPO_OFFLINE:-unset} $*\"; }",
+      marker: "EXPO_CHECK EXPO_OFFLINE=1 expo install --check" }],
 ]) {
   test(`${jobId}: ${stepName} resolves before consuming changed paths`, () => {
     for (const mode of ["missing", "unfetched", "owned", "unowned"]) {

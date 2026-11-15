@@ -270,7 +270,9 @@ before scripting anything on top of it.
      exits 1 with `Found outdated dependencies` when not; `npx expo install --fix` applies the
      aligned versions, and packages under `expo.install.exclude` in `apps/mobile/package.json`
      are skipped by both. The Expo SDK version itself is OUT of this sweep: an SDK major is
-     its own ticket (#715 is the precedent), and the `Expo SDK Pin` gate fails any drift.
+     its own ticket (#715 is the precedent). The `Expo SDK Pin` gate runs the check with
+     `EXPO_OFFLINE=1`, so it fails only drift from the installed `expo` package's bundled list;
+     this sweep runs it online and finds the newer patches that Expo publishes.
    - **Root `overrides` pins** (react, react-dom, and the security pins): bump the override and
      every dependent range together so the override never points below the installed version.
 3. `npm install`, then the full local proof: `npm run type-check && npm run lint && npm test
