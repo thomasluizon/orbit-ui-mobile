@@ -6,7 +6,6 @@ Cross-platform code consumed by both `apps/web` and `apps/mobile`. Types, utils,
 
 - **Pure TypeScript.** No React, no Next.js, no React Native imports. If you need a DOM API, this isn't the right place.
 - **Named exports only.**
-- **Root Code Standards (rules 1-10) apply** — `any` and narration comments are auto-blocked by hook + `local/no-comments` lint.
 - **All public surfaces typed.** This is the contract — narrow at the boundary, trust within.
 
 ## Layout
@@ -37,6 +36,9 @@ src/
   stores/                   - shared Zustand store SHAPES (consumer apps implement persistence)
   validation/               - Zod refinement schemas for forms (shared between web + mobile rhf consumers)
   chat/                     - shared chat constants (CHAT_VISUALIZER_BAR_OFFSETS, buildComposerChips)
+  contracts/                - typed props contracts for the paired web and mobile primitives (Button, Fab, ...)
+  hooks/                    - pure `*-core.ts` logic that the web and mobile hooks both call
+  test-support/             - fixtures and layout helpers that both apps' tests import
   __tests__/factories.ts    - test data factories used by both apps
 ```
 
@@ -98,7 +100,7 @@ export const habitKeys = {
 ## i18n parity
 
 - `en.json` and `pt-BR.json` MUST stay in sync. Every key in one MUST exist in the other.
-- The `i18n-syncer` subagent flags drift. CI also fails if keys are missing.
+- The `i18n key usage` CI job fails on a missing key.
 - Both apps consume the same JSON: web via next-intl, mobile via react-i18next.
 
 ## Theme
