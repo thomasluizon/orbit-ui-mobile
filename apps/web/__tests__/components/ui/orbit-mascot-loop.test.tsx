@@ -20,6 +20,11 @@ function loopOf(container: HTMLElement, index = 0) {
   return container.querySelectorAll('svg')[index]?.getAttribute('data-orbit-loop')
 }
 
+/** Each mascot's loop state, keyed by its face. */
+function loopsByState(container: HTMLElement) {
+  return Object.fromEntries([...container.querySelectorAll('svg[data-orbit-state]')].map((svg) => [svg.getAttribute('data-orbit-state'), svg.getAttribute('data-orbit-loop')]))
+}
+
 function moonOf(container: HTMLElement) {
   const moon = container.querySelector('[data-part="moon"]')
   return `${moon?.getAttribute('cx')},${moon?.getAttribute('cy')}`
@@ -134,6 +139,40 @@ describe('Orbit idle loop on web', () => {
     expect(loopOf(container, 1)).toBe('running')
     rerender(<><OrbitMascot size={96} /><OrbitOverlayLayer active={false}>{null}</OrbitOverlayLayer></>)
     expect(loopOf(container, 0)).toBe('running')
+  })
+
+  it('runs only the Orbit in the overlay opened last when two overlays sit side by side', () => {
+    const view = (second: boolean) => <>
+      <OrbitMascot size={96} />
+      <OrbitOverlayLayer><OrbitMascot size={48} state="feliz" /></OrbitOverlayLayer>
+      {second ? <OrbitOverlayLayer><OrbitMascot size={48} state="pensando" /></OrbitOverlayLayer> : null}
+    </>
+    const { container, rerender } = render(view(false))
+    expect(loopsByState(container)).toEqual({ parado: 'still', feliz: 'running' })
+    rerender(view(true))
+    expect(loopsByState(container)).toEqual({ parado: 'still', feliz: 'still', pensando: 'running' })
+    rerender(view(false))
+    expect(loopsByState(container)).toEqual({ parado: 'still', feliz: 'running' })
+  })
+
+  it('keeps the top overlay Orbit running when an overlay under it closes out of order', () => {
+    const view = (nested: boolean, sibling: boolean) => <>
+      <OrbitMascot size={96} />
+      <OrbitOverlayLayer>
+        <OrbitMascot size={48} state="feliz" />
+        {nested ? <OrbitOverlayLayer><OrbitMascot size={48} state="descansando" /></OrbitOverlayLayer> : null}
+      </OrbitOverlayLayer>
+      {sibling ? <OrbitOverlayLayer><OrbitMascot size={48} state="pensando" /></OrbitOverlayLayer> : null}
+    </>
+    const { container, rerender } = render(view(false, false))
+    rerender(view(true, false))
+    expect(loopsByState(container)).toEqual({ parado: 'still', feliz: 'still', descansando: 'running' })
+    rerender(view(true, true))
+    expect(loopsByState(container)).toEqual({ parado: 'still', feliz: 'still', descansando: 'still', pensando: 'running' })
+    rerender(view(false, true))
+    expect(loopsByState(container)).toEqual({ parado: 'still', feliz: 'still', pensando: 'running' })
+    rerender(view(false, false))
+    expect(loopsByState(container)).toEqual({ parado: 'still', feliz: 'running' })
   })
 
   it('runs one live Orbit per view and keeps a still Orbit inside a control', () => {

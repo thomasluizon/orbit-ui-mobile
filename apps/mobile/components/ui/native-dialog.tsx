@@ -8,7 +8,7 @@ import { createTokensV2 } from '@/lib/theme'
 import { useOverlayFocus } from './focus-provenance-view'
 import { useOverlayMotion } from '@/lib/overlay-motion'
 import { useNativeWindow } from './native-window-host'
-import { OrbitOverlayLayer, OrbitOverlayLayerPortal, useOrbitOverlayLayer } from './orbit-overlay-layer'
+import { OrbitOverlayLayer, OrbitOverlayLayerPortal, useOrbitOverlay } from './orbit-overlay-layer'
 
 interface NativeDialogProps {
   open: boolean
@@ -31,7 +31,7 @@ function WindowPortal({ title, children }: Readonly<Pick<NativeDialogProps, 'tit
   const motion = useOverlayMotion(open, 'dialog')
   useOverlayFocus(open)
   const { hostName, topDialogId, register } = useNativeWindow()
-  const orbitLayer = useOrbitOverlayLayer()
+  const orbitOverlay = useOrbitOverlay()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const overlayId = `dialog:${useId()}`
@@ -60,7 +60,7 @@ function WindowPortal({ title, children }: Readonly<Pick<NativeDialogProps, 'tit
       <AnimatedDialogContent forceMount ref={contentRef} style={[styles.content, { transform: motion.style.transform }]} accessibilityLabel={title} accessibilityViewIsModal
         onAccessibilityEscape={() => { if (topmost) close() }}>
         <Dialog.Title style={styles.hiddenTitle} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">{title}</Dialog.Title>
-        <OrbitOverlayLayerPortal layer={orbitLayer}><ShellSideInsetsContext.Provider value={false}>{children}</ShellSideInsetsContext.Provider></OrbitOverlayLayerPortal>
+        <OrbitOverlayLayerPortal overlay={orbitOverlay}><ShellSideInsetsContext.Provider value={false}>{children}</ShellSideInsetsContext.Provider></OrbitOverlayLayerPortal>
       </AnimatedDialogContent>
     </AnimatedDialogOverlay>
   </Dialog.Portal>

@@ -29,7 +29,7 @@ import Svg, { Circle, ClipPath, Defs, G, Path } from 'react-native-svg'
 import { createTokensV2, type AppTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { usePrefersReducedMotion } from '@/lib/motion'
-import { useOrbitOverlayLayer } from '@/components/ui/orbit-overlay-layer'
+import { useOrbitOverlay } from '@/components/ui/orbit-overlay-layer'
 import { useOrbitScreenFocused } from '@/components/ui/orbit-screen-focus'
 
 /** How often a mascot that may animate checks that it is still on screen. Being on screen only decides whether the
@@ -60,14 +60,14 @@ function useOnScreen(target: RefObject<WindowMeasurable | null>, active: boolean
 }
 
 /** The idle loop clock in milliseconds. It runs only while this mascot holds the one live slot, the
- *  person has not paused Orbit, no overlay covers its layer, the mascot is on screen, its screen is focused
+ *  person has not paused Orbit, it sits in the overlay opened last (or on the page), the mascot is on screen, its screen is focused
  *  and the app is in the foreground. A mascot off screen or on a screen that is not focused gives the live
  *  slot to the next Orbit in view. It never runs under reduced motion. The focus comes from `orbitScreenLayout`,
  *  which each navigator renders around its screens; outside a navigator, such as on the root error screen,
  *  the screen counts as focused. */
 function useOrbitLoopClock(wantsLoop: boolean, lead: boolean, target: RefObject<WindowMeasurable | null>) {
   const [claim] = useState(() => Symbol('orbit-mascot'))
-  const layer = useOrbitOverlayLayer()
+  const overlay = useOrbitOverlay()
   const reducedMotion = usePrefersReducedMotion()
   const screenFocused = useOrbitScreenFocused()
   const candidate = wantsLoop && !reducedMotion && screenFocused
@@ -77,7 +77,7 @@ function useOrbitLoopClock(wantsLoop: boolean, lead: boolean, target: RefObject<
   const elapsed = useRef(0)
   useSyncExternalStore(subscribeOrbitLoop, getOrbitLoopVersion, getOrbitLoopVersion)
 
-  useEffect(() => (candidate && onScreen ? claimOrbitLiveSlot(claim, layer, lead) : undefined), [candidate, onScreen, claim, layer, lead])
+  useEffect(() => (candidate && onScreen ? claimOrbitLiveSlot(claim, overlay, lead) : undefined), [candidate, onScreen, claim, overlay, lead])
 
   useEffect(() => {
     if (!candidate) return undefined

@@ -2,18 +2,26 @@
  *  and an open overlay pauses every Orbit under it. The store has no React in it: the apps read it through
  *  `useSyncExternalStore`. */
 
+/** The overlay that holds a mascot, or `null` for a mascot on the page. */
+export type OrbitOverlay = symbol | null
+
 interface LiveClaim {
   readonly claim: symbol
-  /** The number of overlays around the mascot: 0 on the page, 1 inside a sheet, 2 inside a sheet on a sheet. */
-  readonly layer: number
+  readonly overlay: OrbitOverlay
   /** The conversation entry leads its view whenever it is in view. */
   readonly lead: boolean
 }
 
+interface OpenOverlay {
+  readonly overlay: symbol
+}
+
 const listeners = new Set<() => void>()
 const liveClaims: LiveClaim[] = []
+/** Open overlays in the order they opened. The last one covers every Orbit outside it, whether it opened inside an
+ *  earlier overlay or beside it. */
+const openOverlays: OpenOverlay[] = []
 let motionEnabled = true
-let overlayCount = 0
 let version = 0
 
 function notify() {
@@ -45,22 +53,23 @@ export function isOrbitMotionEnabled(): boolean {
   return motionEnabled
 }
 
-/** An overlay that covers the view pauses the loop until the returned function runs. */
-export function pauseOrbitLoopForOverlay(): () => void {
-  overlayCount += 1
+/** An open overlay covers the view and pauses every Orbit outside it until the returned function runs. An overlay can
+ *  close in any order. */
+export function pauseOrbitLoopForOverlay(overlay: symbol): () => void {
+  const entry: OpenOverlay = { overlay }
+  openOverlays.push(entry)
   notify()
-  let released = false
   return () => {
-    if (released) return
-    released = true
-    overlayCount -= 1
+    const index = openOverlays.indexOf(entry)
+    if (index < 0) return
+    openOverlays.splice(index, 1)
     notify()
   }
 }
 
-/** A live mascot claims a slot while it is in view. On the top layer, the leading claim runs the loop, or else the first claim. */
-export function claimOrbitLiveSlot(claim: symbol, layer = 0, lead = false): () => void {
-  liveClaims.push({ claim, layer, lead })
+/** A live mascot claims a slot while it is in view. In the top overlay, the leading claim runs the loop, or else the first claim. */
+export function claimOrbitLiveSlot(claim: symbol, overlay: OrbitOverlay = null, lead = false): () => void {
+  liveClaims.push({ claim, overlay, lead })
   notify()
   return () => {
     const index = liveClaims.findIndex((entry) => entry.claim === claim)
@@ -69,9 +78,11 @@ export function claimOrbitLiveSlot(claim: symbol, layer = 0, lead = false): () =
   }
 }
 
-/** An Orbit runs when the person allows motion, no overlay covers its layer, and it holds the live claim of the top layer. */
+/** An Orbit runs when the person allows motion, it sits in the overlay that opened last (or on the page when no overlay
+ *  is open), and it holds the live claim there. */
 export function mayOrbitRunLoop(claim: symbol): boolean {
   if (!motionEnabled) return false
-  const top = liveClaims.filter((entry) => entry.layer === overlayCount)
-  return (top.find((entry) => entry.lead) ?? top[0])?.claim === claim
+  const top = openOverlays.at(-1)?.overlay ?? null
+  const live = liveClaims.filter((entry) => entry.overlay === top)
+  return (live.find((entry) => entry.lead) ?? live[0])?.claim === claim
 }

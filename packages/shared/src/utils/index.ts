@@ -875,3 +875,4 @@ export { AuthRefreshNetworkError, isNetworkUnavailableError } from './network-er
 export { buildBulkCompletionChunks, getBulkCompletionReplay, normalizeBulkCompletionInput, isBulkGatewayFailure } from './bulk-completion'
 export type { BulkCompletionInput, BulkRetryChunk } from './bulk-completion'
 export { subscribeOrbitLoop, getOrbitLoopVersion, setOrbitMotionEnabled, isOrbitMotionEnabled, pauseOrbitLoopForOverlay, claimOrbitLiveSlot, mayOrbitRunLoop } from './orbit-mascot-loop'
+export type { OrbitOverlay } from './orbit-mascot-loop'
