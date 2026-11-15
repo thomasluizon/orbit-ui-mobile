@@ -30,7 +30,6 @@ describe('FeatureGuideDrawer', () => {
       <FeatureGuideDrawer open={true} onOpenChange={vi.fn()} />,
     )
     expect(screen.getByRole('dialog', { name: 'onboarding.featureGuide.question' })).toBeInTheDocument()
-    expect(screen.queryByText('onboarding.featureGuide.title')).not.toBeInTheDocument()
   })
 
   it('leaves the final guide group outer insets to its sheet', () => {

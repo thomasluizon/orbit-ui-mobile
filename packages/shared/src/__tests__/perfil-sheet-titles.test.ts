@@ -14,8 +14,8 @@ describe.each(Object.keys(locales) as (keyof typeof locales)[])('the Perfil shee
     expect(titles[sheet], 'Orbit is never translated').toContain('Orbit')
   })
 
-  it('keeps the short labels for the rows that open the sheets', () => {
+  it('keeps the short label for the Notion row, and no bare noun title for the guide sheet', () => {
     expect(titles.notion).not.toBe(copy.profile.connections.notion)
-    expect(titles.guide).not.toBe(copy.onboarding.featureGuide.title)
+    expect(copy.onboarding.featureGuide).not.toHaveProperty('title')
   })
 })
