@@ -19,7 +19,7 @@ import { makeMonthlyChildDaySchedule } from '@orbit/shared/test-support/habit-de
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMockHabit, createMockHabitScheduleChild, createMockHabitScheduleItem } from '@orbit/shared/__tests__/factories'
 import { formatAPIDate, createApiClientError, normalizeHabitQueryData, buildHabitViewFilters } from '@orbit/shared/utils'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { QueryClient, QueryClientProvider, onlineManager } from '@tanstack/react-query'
 import { Toast } from '@/components/ui/app-toast'
 import { useAppToastStore } from '@/stores/app-toast-store'
 import { bulkLogResultSchema, bulkSkipResultSchema, habitScheduleItemSchema, skipHabitRequestSchema } from '@orbit/shared/types/habit'
@@ -827,6 +827,47 @@ describe('HabitList', () => {
     expect(moveHabitParentMutateAsync).not.toHaveBeenCalled()
     if (boundary !== 'unmount') TestRenderer.act(() => tree!.unmount())
     client.clear()
+  })
+
+  it.each([
+    ['offline, where the fetch pauses', false],
+    ['online, while a slow fetch runs', true],
+  ] as const)('keeps the loaded rows in place through a pull to refresh %s', async (_case, online) => {
+    skipFlow.active = true
+    const fixture = createMoveInventoryFixture(TODAY)
+    let release: () => void = () => {}
+    let held: Promise<void> | null = null
+    offlineMocks.apiClient.mockImplementation(async (url: string) => {
+      if (held) await held
+      return fixture.response(url)
+    })
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    let tree: ReturnType<typeof TestRenderer.create>
+    await TestRenderer.act(async () => { tree = createTestTree(<QueryClientProvider client={client}>
+      <HabitList filters={{ dateFrom: TODAY }} showCompleted onCreatePress={vi.fn()} />
+    </QueryClientProvider>); await Promise.resolve() })
+    const rowIds = () => tree!.root.findAllByType(HabitRow).filter(isInteractiveRow).map((row: { props: { habit: NormalizedHabit } }) => row.props.habit.id)
+    await vi.waitFor(() => expect(rowIds().length).toBeGreaterThan(0))
+    const loaded = rowIds()
+    const list = () => tree!.root.findAll((node: { props: { accessibilityLabel?: string; accessibilityState?: unknown } }) => node.props.accessibilityLabel === 'habits.sectionLabel' && node.props.accessibilityState !== undefined)[0]!
+    expect(list().props.accessibilityState).toEqual({ busy: false })
+    held = new Promise<void>((resolve) => { release = resolve })
+    try {
+      onlineManager.setOnline(online)
+      const refresh = (list().props.refreshControl as React.ReactElement<{ onRefresh: () => void }>).props.onRefresh
+      await TestRenderer.act(async () => { refresh(); await new Promise((resolve) => setTimeout(resolve, 450)) })
+      expect(rowIds()).toEqual(loaded)
+      expect(tree!.root.findAllByType(Skeleton)).toHaveLength(0)
+      expect(list().props.accessibilityState).toEqual({ busy: online })
+      await TestRenderer.act(async () => { release(); onlineManager.setOnline(true); await new Promise((resolve) => setTimeout(resolve, 0)) })
+      await vi.waitFor(() => expect(list().props.accessibilityState).toEqual({ busy: false }))
+      expect(rowIds()).toEqual(loaded)
+    } finally {
+      release()
+      onlineManager.setOnline(true)
+      TestRenderer.act(() => tree!.unmount())
+      client.clear()
+    }
   })
 
   it('keeps General sources captured across filters and recovers missing or stale inventory', async () => {

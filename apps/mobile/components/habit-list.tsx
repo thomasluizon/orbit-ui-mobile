@@ -4,11 +4,10 @@ import { ContentFade } from '@/components/motion/content-fade'
 import { ListScope } from '@/components/motion/list-scope'
 import { TodayLaunchContent } from '@/components/today/today-launch-content'
 import { SPACING } from '@orbit/shared/theme'
-import { forwardRef,useCallback,useEffect,useLayoutEffect,useMemo,useRef,useState,type ReactElement,type RefObject } from 'react'
+import { forwardRef,useCallback,useLayoutEffect,useMemo,useRef,type ReactElement,type RefObject } from 'react'
 import { View,Text,RefreshControl } from 'react-native'
 import DraggableFlatList,{ type RenderItemParams } from 'react-native-draggable-flatlist'
 import { canLogHabitOnDate,formatAPIDate,getAllDoneOnDate,type HabitResolution } from '@orbit/shared/utils'
-import { createUseDelayedLoading } from '@orbit/shared/hooks'
 import type { NormalizedHabit,HabitsFilter,BulkMoveHabitParentResult } from '@orbit/shared/types/habit'
 import { useUIStore } from '@/stores/ui-store'
 import { CreateHabitModal } from '@/components/habits/create-habit-modal'
@@ -407,26 +406,20 @@ function useHabitListEmptyRendering({ styles, t }: Pick<HabitListEmptyRenderingI
   return { listHeaderComponent, renderEmptyState, keyExtractor }
 }
 
-type HabitListRefreshInputs = Pick<ReturnType<typeof useHabitListQueries>, 'refetch'>
-
-/** The skeleton rows replace the kept rows only once a pull outlasts the shared skeleton delay (DESIGN.md States). */
-const useDelayedLoading = createUseDelayedLoading({ useState, useEffect })
+type HabitListRefreshInputs = Pick<ReturnType<typeof useHabitListQueries>, 'isFetching' | 'isLoading' | 'refetch'>
 
 /**
- * Pull to refresh keeps the native gesture, and the list's skeleton rows replace the native indicator (DESIGN.md Bans).
+ * Pull to refresh keeps the native gesture and draws no indicator (DESIGN.md Bans). The loaded rows stay in place while the
+ * fetch runs, and the list reports the wait as busy. A fetch that TanStack pauses offline is not fetching, so it is not busy.
  * Android's circle keeps a 4 dp shadow with a transparent fill, so it starts 192 dp above the list: it moves at most two
  * 64 dp targets (androidx swiperefreshlayout 1.1.0 `moveSpinner`, `ReactSwipeRefreshLayout.setProgressViewOffset`).
  */
-function useHabitListRefresh({ refetch }: HabitListRefreshInputs) {
-  const [refreshing, setRefreshing] = useState(false)
+function useHabitListRefresh({ isFetching, isLoading, refetch }: HabitListRefreshInputs) {
   const refreshControl = useMemo(
     () => (
       <RefreshControl
         refreshing={false}
-        onRefresh={() => {
-          setRefreshing(true)
-          void refetch().finally(() => setRefreshing(false))
-        }}
+        onRefresh={() => void refetch()}
         colors={['transparent']}
         progressBackgroundColor="transparent"
         tintColor="transparent"
@@ -435,7 +428,7 @@ function useHabitListRefresh({ refetch }: HabitListRefreshInputs) {
     ),
     [refetch],
   )
-  return { refreshControl, refreshing: useDelayedLoading(refreshing, 'pull'), pending: refreshing }
+  return { refreshControl, pending: isFetching && !isLoading }
 }
 
 type getHabitListCompletionInputs = { view: NonNullable<HabitListProps['view']> } & Pick<HabitListProps, 'filters' | 'onSeeUpcoming'> & Pick<ReturnType<typeof useHabitListAccount>, 'accountHabitCount' | 'selectedDateStr' | 'todayStr' | 'styles'> & Pick<ReturnType<typeof useHabitListQueries>, 'habitsById' | 'childrenByParent'> & Pick<ReturnType<typeof useHabitListEmptyRendering>, 'listHeaderComponent'>
@@ -588,7 +581,7 @@ function renderHabitDrillState(state: Readonly<HabitListScreenState & { commonOv
   const { drill, commonOverlays } = state
   const { startAddSubHabit } = state.subHabits
   const { listHeaderComponent } = state.empty
-  const { refreshControl, refreshing } = state.refresh
+  const { refreshControl, pending } = state.refresh
   const { renderHabitCard } = state.rows
   return ((
     <>
@@ -599,7 +592,7 @@ function renderHabitDrillState(state: Readonly<HabitListScreenState & { commonOv
         listHeaderComponent={listHeaderComponent}
         drillListRef={drillListRef}
         refreshControl={refreshControl}
-        refreshing={refreshing}
+        busy={pending}
         onListScroll={handleListScroll}
         onFocus={revealListFocus}
         onScrollBeginDrag={onScrollBeginDrag}
@@ -617,14 +610,14 @@ type HabitListStatus = 'loading' | 'error' | 'ready'
 
 function getHabitListStatus(state: Readonly<HabitListScreenState>): HabitListStatus {
   const { habitsQuery, isLoading, isError } = state.queries
-  if (isLoading || state.refresh.refreshing) return 'loading'
+  if (isLoading) return 'loading'
   if (isError && !habitsQuery.data) return 'error'
   return 'ready'
 }
 
 function renderHabitListStatusBody(state: Readonly<HabitListScreenState>, status: Exclude<HabitListStatus, 'ready'>) {
   const { t, styles } = state.account
-  if (status === 'loading') return <ContentFade key="loading">{state.queries.habitsQuery.showLoading || state.refresh.refreshing ? <View style={styles.skeletonContainer}>
+  if (status === 'loading') return <ContentFade key="loading">{state.queries.habitsQuery.showLoading ? <View style={styles.skeletonContainer}>
     {SKELETON_KEYS.map((key) => <Skeleton key={key} variant="habit-row" label={t('common.loading')} />)}
   </View> : null}</ContentFade>
   return <ContentFade key="load-error"><HabitListEmptyState

@@ -93,10 +93,12 @@ beforeEach(() => {
     appStateListeners.push(listener as (status: string) => void)
     return { remove: () => {} }
   })
-  vi.spyOn(AccessibilityInfo, 'addEventListener').mockImplementation((event, listener) => {
-    if (String(event) === 'reduceMotionChanged') reduceMotionListeners.add(listener as (enabled: boolean) => void)
-    return { remove: () => { reduceMotionListeners.delete(listener as (enabled: boolean) => void) } }
-  })
+  const listen = (event: string, listener: unknown) => {
+    const reduce = listener as (enabled: boolean) => void
+    if (event === 'reduceMotionChanged') reduceMotionListeners.add(reduce)
+    return { remove: () => { reduceMotionListeners.delete(reduce) } }
+  }
+  vi.spyOn(AccessibilityInfo, 'addEventListener').mockImplementation(listen as unknown as typeof AccessibilityInfo.addEventListener)
   probe = render(<ReducedMotionProbe />)
 })
 
