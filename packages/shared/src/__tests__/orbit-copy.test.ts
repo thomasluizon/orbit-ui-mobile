@@ -42,6 +42,7 @@ const ALLOWANCE_KEYS = [
   'chat.account.row.astraAllowance',
   'trial.expired.astraCeiling',
   'upgrade.outcomes.astra',
+  'upgrade.convert.freeHeading',
   'upgrade.billing.usage.title',
   'upgrade.billing.usage.nearLimit',
   'upgrade.billing.usage.nearLimitWeekly',
@@ -61,7 +62,7 @@ describe('Orbit copy', () => {
     const english = englishByKey.get(key) ?? ''
     const portuguese = portugueseByKey.get(key) ?? ''
     expect(english, key).toMatch(/AI message/)
-    expect(portuguese, key).toMatch(/de IA/)
+    expect(portuguese, key).toMatch(/de IA|^IA: \d+ mensagens/)
     for (const value of [english, portuguese]) {
       expect(value, key).not.toMatch(/Orbit message|mensagens do Orbit/)
     }
@@ -96,7 +97,6 @@ describe('Orbit copy', () => {
 
   it('gives Orbit its article where a Portuguese sentence names it', () => {
     expect(ptBR.chat.placement.recommendation).toMatch(/^O Orbit /)
-    expect(ptBR.upgrade.convert.freeHeading).toMatch(/mensagens/)
   })
 
   it('keeps Orbit masculine in Portuguese', () => {

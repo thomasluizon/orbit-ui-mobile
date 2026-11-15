@@ -1,5 +1,6 @@
 import { expect } from '@playwright/test'
 import { API } from '@orbit/shared/api'
+import { orbitMascotHeight } from '@orbit/shared/contracts/brand'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { makeHabitDetail, makeHabitScheduleItem } from '@orbit/shared/test-support/habit-detail-fixtures'
@@ -61,7 +62,7 @@ for (const [locale, words] of [['pt-BR', ptBR], ['en', en]] as const) {
           const headerBox = (await header.boundingBox())!
           expect(markBox.x - headerBox.x).toBe(16)
           expect(markBox.width).toBe(16)
-          expect(markBox.height).toBe(16)
+          expect(markBox.height).toBe(orbitMascotHeight(16))
           expect(Math.abs(markBox.y + markBox.height / 2 - closeBox.y - closeBox.height / 2)).toBeLessThanOrEqual(0.5)
           const feed = conversation.getByRole('feed', { name: words.chat.title, exact: true })
           if (scrolling) {

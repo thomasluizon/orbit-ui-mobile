@@ -117,7 +117,7 @@ for (const width of [320, 412, 600, 1280, 1352]) {
           await page.getByRole('link', { name: messages.profile.allowance.manageSubscription, exact: true }).click()
           await expect(page).toHaveURL(/\/upgrade\?from=%2Fprofile%2Fai$/)
           await expect(page.getByRole('heading', { level: 1, name: messages.upgrade.title, exact: true })).toBeVisible()
-          await page.getByRole('button', { name: messages.common.backToDestination.replace('{destination}', messages.profile.groups.astra), exact: true }).click()
+          await page.getByRole('button', { name: messages.common.backToOrbit, exact: true }).click()
           await expect(page).toHaveURL(/\/profile\/astra$/)
         })
       })

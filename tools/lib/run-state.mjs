@@ -2,7 +2,8 @@
 
 import { spawnSync } from "node:child_process"
 import { createHash, randomUUID } from "node:crypto"
-import { existsSync, linkSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs"
+import { existsSync, linkSync, mkdirSync, readFileSync, readdirSync, readlinkSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs"
+import { homedir } from "node:os"
 import { join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 
@@ -11,18 +12,26 @@ const GITDIR_LINE = /^gitdir:[ \t]*(.+?)[ \t]*$/m
 const LINUX_DEAD_PROCESS_STATES = new Set(["Z", "X", "x"])
 export const PENDING_WAKE_SOURCE_MAX_AGE_MS = 45_000
 const DARWIN_MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
-// BSD ps prints `Ss   Thu Sep 24 14:06:02 2026` for `stat=,lstart=` under LC_ALL=C and TZ=UTC0.
-const DARWIN_PS_LINE = /^(\S+)\s+[A-Z][a-z]{2} ([A-Z][a-z]{2}) +(\d{1,2}) (\d{2}):(\d{2}):(\d{2}) (\d{4})\s*$/
+// BSD ps prints `Ss   Thu Sep 24 14:06:02 2026` for `stat=,lstart=` under LC_ALL=C and TZ=UTC0, and pads a one-digit day: `Sat Nov  7`.
+const DARWIN_PS_LINE = /^(\S+)\s+(.+)$/
+const DARWIN_LSTART = /^[A-Z][a-z]{2} ([A-Z][a-z]{2}) +(\d{1,2}) (\d{2}):(\d{2}):(\d{2}) (\d{4})$/
+
+/** Seconds since the epoch of a BSD ps lstart printed in UTC under LC_ALL=C; null for any other text. */
+const darwinLstartSeconds = (lstart) => {
+  const match = DARWIN_LSTART.exec(lstart)
+  const month = match ? DARWIN_MONTHS.indexOf(match[1]) : -1
+  if (month < 0) return null
+  const [, , day, hours, minutes, seconds, year] = match
+  return Date.UTC(Number(year), month, Number(day), Number(hours), Number(minutes), Number(seconds)) / 1000
+}
 
 export const darwinProcessStart = (pid) => {
   const result = spawnSync("ps", ["-o", "stat=,lstart=", "-p", String(pid)], {
     encoding: "utf8", timeout: 3000, env: { ...process.env, LC_ALL: "C", TZ: "UTC0" },
   })
   const match = result.status === 0 ? DARWIN_PS_LINE.exec(result.stdout.trim()) : null
-  const month = match ? DARWIN_MONTHS.indexOf(match[2]) : -1
-  if (month < 0) return null
-  const [, state, , day, hours, minutes, seconds, year] = match
-  return { state, startSeconds: Date.UTC(Number(year), month, Number(day), Number(hours), Number(minutes), Number(seconds)) / 1000 }
+  const startSeconds = match ? darwinLstartSeconds(match[2]) : null
+  return startSeconds === null ? null : { state: match[1], startSeconds }
 }
 const MERGE_SHA = /^[0-9a-f]{7,40}$/
 
@@ -308,6 +317,126 @@ export const readRunState = (repoRoot = REPO_ROOT) => {
   }
 }
 
+/** The config directory of this Claude account. Claude Code keeps one `{ pid, sessionId }` record per running session in its `sessions` directory. */
+export const claudeConfigDirectory = () => process.env.CLAUDE_CONFIG_DIR || join(homedir(), ".claude")
+
+/**
+ * This process's pid domain, spelled as the Claude Code 2.1.325 session writer spells `pidDomain`: "darwin" on macOS,
+ * and `linux:<machine-id>:<link of /proc/self/ns/pid>` on Linux; null on a platform whose record format is unconfirmed.
+ */
+const ownPidDomain = () => {
+  if (process.platform === "darwin") return "darwin"
+  if (process.platform !== "linux") return null
+  const part = (read) => {
+    // Claude Code writes an empty part when it cannot read one, so an unreadable part compares equal as "".
+    try { return read() } catch { return "" }
+  }
+  return `linux:${part(() => readFileSync("/etc/machine-id", "utf8").trim())}:${part(() => readlinkSync("/proc/self/ns/pid"))}`
+}
+
+/**
+ * The start that `procStart` names in `domain`: seconds of the `LC_ALL=C TZ=UTC ps -o lstart=` text on macOS, field 22
+ * of /proc/<pid>/stat on Linux. Null when the text is not the format that Claude Code writes there.
+ */
+const recordedStart = (procStart, domain) => {
+  if (domain === "darwin") return darwinLstartSeconds(procStart)
+  return /^\d+$/.test(procStart) ? Number(procStart) : null
+}
+
+/**
+ * The live process that runs `sessionId`, as `{ pid, processStartIdentity, cwd? }`; null when no record names one. A
+ * crashed session leaves its record and a later process can reuse the pid, so `procStart` must be that process's start.
+ * The writer omits `procStart` when it cannot read the start, so such a record proves its pid alone. A record from another
+ * pid domain, or with a start this process cannot read, refuses with the reason: a guess frees a live run or holds a dead one.
+ */
+export const liveSessionProcess = (sessionId, claudeDirectory = claudeConfigDirectory()) => {
+  const directory = join(claudeDirectory, "sessions")
+  let names
+  try { names = readdirSync(directory).filter((name) => name.endsWith(".json")) }
+  catch (error) { if (error.code === "ENOENT") return null; throw error }
+  const domain = ownPidDomain()
+  let unreadable = null
+  for (const name of names) {
+    let record
+    try { record = JSON.parse(readFileSync(join(directory, name), "utf8")) }
+    catch (error) { if (error.code === "ENOENT") continue; throw error }
+    if (record?.sessionId !== sessionId || !Number.isInteger(record.pid) || record.pid <= 0) continue
+    const unread = (reason) => { unreadable ??= `cannot tell whether session ${sessionId} is live: its record ${join(directory, name)} ${reason}` }
+    // A record without `pidDomain` belongs to this domain, as Claude Code itself reads it.
+    if (domain !== null && record.pidDomain !== undefined && record.pidDomain !== domain) {
+      unread(`names pid domain ${JSON.stringify(record.pidDomain)}, and this process runs in pid domain ${JSON.stringify(domain)}`)
+      continue
+    }
+    const identity = processStartIdentity(record.pid)
+    if (!identity) continue
+    if (domain !== null && typeof record.procStart === "string") {
+      const start = recordedStart(record.procStart, domain)
+      if (start === null) {
+        const format = domain === "darwin" ? "LC_ALL=C TZ=UTC ps -o lstart= text" : "/proc/<pid>/stat start ticks"
+        unread(`carries procStart ${JSON.stringify(record.procStart)}, not the ${format} that Claude Code writes`)
+        continue
+      }
+      if (identity.slice(identity.lastIndexOf(":") + 1) !== String(start)) continue
+    }
+    return { pid: record.pid, processStartIdentity: identity, ...(typeof record.cwd === "string" ? { cwd: record.cwd } : {}) }
+  }
+  if (unreadable) throw new Error(unreadable)
+  return null
+}
+
+/** `session <id>`, plus the directory its Claude session works in when its record names one, so a refusal shows where to act. */
+export const describeSession = (sessionId, live) => live?.cwd ? `session ${sessionId} (Claude session in ${live.cwd})` : `session ${sessionId}`
+
+/**
+ * Why this session cannot tell whether `sessionId` is gone, as a clause that names the owner's next step; null when it can.
+ * The caller is itself a live Claude session, so a lookup that cannot find the caller's own record (another
+ * CLAUDE_CONFIG_DIR, or a changed `sessions` layout) cannot see live sessions, and a missing record then proves nothing.
+ */
+export const unseenSessions = (callerSessionId, sessionId, claudeDirectory = claudeConfigDirectory()) => liveSessionProcess(callerSessionId, claudeDirectory) ? null
+  : `cannot find this session's Claude session record in ${join(claudeDirectory, "sessions")}, so the liveness of session ${sessionId} is unknown; use a session on the Claude account of session ${sessionId}`
+
+/**
+ * Why another session's run still holds this checkout's run state, as a clause that names the owner's next step;
+ * null when none does. A stopped run holds nothing. `sleep: true` is only a stored flag that no hook clears when
+ * its session dies, so an unattended run holds the checkout while its session process is alive, while this session
+ * cannot see live sessions, or while a live relay nominee has not adopted it yet.
+ */
+export const foreignRunHold = (sessionId, state, claudeDirectory = claudeConfigDirectory()) => {
+  if (!state?.sessionId || state.sessionId === sessionId) return null
+  if (state.sleep === true) {
+    const owner = liveSessionProcess(state.sessionId, claudeDirectory)
+    if (owner) return `${describeSession(state.sessionId, owner)} runs unattended in this checkout; say stop in that session`
+    const unseen = unseenSessions(sessionId, state.sessionId, claudeDirectory)
+    if (unseen) return unseen
+    const nomineeId = state.relay?.pending === true ? state.relay.successorSessionId : null
+    const nominee = typeof nomineeId === "string" && nomineeId ? liveSessionProcess(nomineeId, claudeDirectory) : null
+    if (nominee) {
+      return `${describeSession(nomineeId, nominee)} is the relay successor of session ${state.sessionId} and has not adopted the run yet; wait for that relay to finish, or say stop in session ${nomineeId}`
+    }
+  }
+  if (state.autoWork === true && state.ownerHandoff?.from === state.sessionId) {
+    return `session ${state.sessionId} handed off an auto-work run that no successor adopted yet; start that successor from the committed NEXT.md`
+  }
+  return null
+}
+
+/**
+ * The owner questions that an unrelated session's first whole-record write would drop, with each row's sources;
+ * undefined when nothing is stranded. The queue carries only when the write sets no queue of its own, the previous
+ * run's session is gone and nothing holds that run, and the writing session finds its own Claude session record.
+ */
+const strandedOwnerQuestions = (previous, state) => {
+  if (!previous?.openOwnerQuestions?.length || state.openOwnerQuestions !== undefined) return undefined
+  try {
+    if (foreignRunHold(state.sessionId, previous) !== null || liveSessionProcess(previous.sessionId) || !liveSessionProcess(state.sessionId)) return undefined
+  } catch {
+    // The carry is optional, and the write it rides on is not: an unreadable session record skips only the carry.
+    return undefined
+  }
+  return previous.openOwnerQuestions.map((row) => typeof row === "string" ? { question: row, sources: [previous.sessionId] }
+    : row?.sources?.length ? row : { ...row, sources: [previous.sessionId] })
+}
+
 /** Run ownership survives ordinary updates and later transfers, independently of reporting chains. */
 export const supersededRunSession = (sessionId, state) => {
   if (!sessionId) return null
@@ -432,7 +561,10 @@ const publishRunState = (state, repoRoot) => {
   const inherited = preserveLedger
     ? Object.fromEntries(["autoWork", "intake"].filter((key) => previous[key] !== undefined).map((key) => [key, previous[key]]))
     : {}
-  writeAtomicFile(runStatePath(repoRoot), `${JSON.stringify({ ...inherited, ...state, ...(pullRequests ? { pullRequests } : {}), readinessLedger,
+  const unrelated = !preserveLedger && typeof state?.sessionId === "string" && state.sessionId !== "" && typeof previous?.sessionId === "string"
+  const stranded = unrelated ? strandedOwnerQuestions(previous, state) : undefined
+  writeAtomicFile(runStatePath(repoRoot), `${JSON.stringify({ ...inherited, ...state, ...(stranded ? { openOwnerQuestions: stranded } : {}),
+    ...(pullRequests ? { pullRequests } : {}), readinessLedger,
     ...(Object.keys(supersededSessions).length ? { supersededSessions } : {}) }, null, 2)}\n`)
 }
 

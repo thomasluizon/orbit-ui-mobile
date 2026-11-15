@@ -50,15 +50,28 @@ function rootStyle(mode: 'light' | 'dark'): string {
   return [`color-scheme:${mode}`, ...Object.entries(resolveWebThemeVariables('orange', mode)).map(([key, value]) => `${key}:${value}`)].join(';')
 }
 
-/** The painted layers under a 5 by 5 grid over the entry's 48 mascot, from the canvas up, without the entry itself. Runs in the page. */
-function layersUnderMascot(entry: Element): string[] {
-  const mascot = entry.querySelector('svg[data-asset="orbit-mascot"]')!.getBoundingClientRect()
+/** Every distinct stack of painted layers under a 5 by 5 grid over the entry's 48 mascot, from the canvas up and without the
+ *  entry itself, at each `step` px offset of the shell scroller. Runs in the page as one call, because one browser round trip
+ *  per offset spends the test timeout. The habit list does not virtualize and nothing paints from a scroll event, so the hit
+ *  test reads the new offset as soon as `scrollTop` changes. */
+function layersUnderMascotAtEveryOffset(entry: Element, step: number): string[] {
+  const scroller = document.querySelector<HTMLElement>('[data-shell-scroller]')!
+  const mascot = entry.querySelector('svg[data-asset="orbit-mascot"]')!
   const layers = (node: Element) => [null, '::before', '::after'].flatMap(pseudo => {
     const style = getComputedStyle(node, pseudo)
     return (pseudo && style.content === 'none') || style.opacity === '0' || style.visibility === 'hidden' ? [] : [style.backgroundColor]
   })
-  return Array.from({ length: 25 }, (_, index) => [mascot.left + 4 + (index % 5) * 10, mascot.top + 4 + Math.floor(index / 5) * 10]).map(([x, y]) =>
-    JSON.stringify(document.elementsFromPoint(x!, y!).filter(node => !entry.contains(node)).reverse().flatMap(layers).filter(color => !/^rgba\(.*, 0\)$/.test(color))))
+  const stacks = new Set<string>()
+  const end = scroller.scrollHeight - scroller.clientHeight
+  for (let offset = 0; offset <= end; offset += step) {
+    scroller.scrollTop = offset
+    const bounds = mascot.getBoundingClientRect()
+    for (let index = 0; index < 25; index += 1) {
+      const point = [bounds.left + 4 + (index % 5) * 10, bounds.top + 4 + Math.floor(index / 5) * 10] as const
+      stacks.add(JSON.stringify(document.elementsFromPoint(...point).filter(node => !entry.contains(node)).reverse().flatMap(layers).filter(color => !/^rgba\(.*, 0\)$/.test(color))))
+    }
+  }
+  return [...stacks]
 }
 
 it.each(['light', 'dark'] as const)('reads the conversation entry Orbit at 3:1 against every surface the real habit list scrolls behind it in %s', async mode => {
@@ -77,14 +90,7 @@ it.each(['light', 'dark'] as const)('reads the conversation entry Orbit at 3:1 a
       const mascot = element.querySelector('svg[data-asset="orbit-mascot"]')!
       return { body: getComputedStyle(mascot).color, moon: getComputedStyle(mascot.querySelector('[data-part="moon"]')!).fill }
     })
-    const scroller = page.locator('[data-shell-scroller]')
-    const end = await scroller.evaluate(element => element.scrollHeight - element.clientHeight)
-    const stacks = new Set<string>()
-    for (let offset = 0; offset <= end; offset += 17) {
-      await scroller.evaluate((element, top) => { element.scrollTop = top }, offset)
-      for (const stack of await button.evaluate(layersUnderMascot)) stacks.add(stack)
-    }
-    const surfaces = [...stacks].map(stack => JSON.parse(stack) as string[])
+    const surfaces = (await button.evaluate(layersUnderMascotAtEveryOffset, 17)).map(stack => JSON.parse(stack) as string[])
     expect(surfaces.length, 'the rows pass behind the entry').toBeGreaterThan(1)
     const below = surfaces.flatMap(layers => [['body', paint.body], ['moon', paint.moon]].flatMap(([part, color]) => {
       const ratio = contrastOnSurface(color!, layers)
