@@ -112,7 +112,7 @@ jobs:
         run: npm ci --prefer-offline --no-audit --fund=false
       - name: Install the compiler cache
         run: brew install ccache
-      # Keyed on the native inputs only: main saves one entry per input set, and a pull request only reads it.
+      # Keyed on the native inputs only: main saves one entry per input set plus a partial entry after a failed compile; a pull request only reads.
       - name: Restore compiler outputs
         id: compiler-cache
         uses: actions/cache/restore@v6
