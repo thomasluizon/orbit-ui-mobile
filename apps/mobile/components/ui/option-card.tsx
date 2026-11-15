@@ -6,7 +6,7 @@ import { useFlowLook } from '@/components/ui/flow-look'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
-/** A quick option. A press answers. Selection takes the `--primary` ring and focus takes the `--fg-1` ring. */
+/** A quick option. A press answers. Selection takes the `--primary` ring and focus takes the `--fg-1` ring. A wide option holds one line and ends a long label with an ellipsis; its accessible name keeps the full label. */
 export function OptionCard({ label, selected = false, disabled = false, disabledReason, wide = false, onSelect, onHighlight }: Readonly<OptionCardProps>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
@@ -28,7 +28,7 @@ export function OptionCard({ label, selected = false, disabled = false, disabled
         onBlur={() => { lookAway(); onHighlight?.(false) }}
         style={({ pressed }) => [styles.card, { backgroundColor: pressed ? tokens.bgHover : tokens.bgCard }, disabled ? styles.disabled : null]}
       >
-        <Text style={[styles.label, { color: tokens.fg1 }]} numberOfLines={2}>{label}</Text>
+        <Text style={[styles.label, { color: tokens.fg1 }]} numberOfLines={wide ? 1 : 2} ellipsizeMode="tail">{label}</Text>
       </MotionPressable>
       {disabled && disabledReason ? <Text style={[styles.reason, { color: tokens.fg3 }]}>{disabledReason}</Text> : null}
     </View>

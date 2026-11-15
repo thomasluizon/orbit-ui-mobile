@@ -31,6 +31,22 @@ describe('OptionCard selection on Android', () => {
     TestRenderer.act(() => tree!.unmount())
   })
 
+  it.each(['America/North_Dakota/New_Salem', 'America/Argentina/Rio_Gallegos'])('holds a wide option on one line with a tail ellipsis, and keeps the full name as its accessible name: %s', (zone) => {
+    let tree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<OptionCard wide label={zone} onSelect={vi.fn()} />) })
+    const text = tree!.root.findAll((node: { type: unknown; props: { children?: unknown } }) => node.type === 'Text' && node.props.children === zone)[0]!
+    expect(text.props).toMatchObject({ numberOfLines: 1, ellipsizeMode: 'tail' })
+    expect(tree!.root.findAll((node: { type: unknown; props: { testID?: string } }) => typeof node.type === 'string' && node.props.testID === 'option-card')[0]!.props.accessibilityLabel).toBe(zone)
+    TestRenderer.act(() => tree!.unmount())
+  })
+
+  it('lets a short option take a second line', () => {
+    let tree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<OptionCard label="Saúde" onSelect={vi.fn()} />) })
+    expect(tree!.root.findAll((node: { type: unknown; props: { children?: unknown } }) => node.type === 'Text' && node.props.children === 'Saúde')[0]!.props.numberOfLines).toBe(2)
+    TestRenderer.act(() => tree!.unmount())
+  })
+
   it('swaps the ring at once under reduced motion', () => {
     preference.reduced = true
     let tree: ReturnType<typeof TestRenderer.create>

@@ -16,7 +16,7 @@ function moveFocusBetweenOptions(event: React.KeyboardEvent<HTMLButtonElement>) 
   options[(current + step + options.length) % options.length]?.focus()
 }
 
-/** A quick option. A press answers. Selection takes the `--primary` ring and focus takes the `--fg-1` ring. */
+/** A quick option. A press answers. Selection takes the `--primary` ring and focus takes the `--fg-1` ring. A wide option holds one line and ends a long label with an ellipsis; its accessible name keeps the full label. */
 export function OptionCard({ label, selected = false, disabled = false, disabledReason, wide = false, onSelect, onHighlight }: Readonly<OptionCardProps>) {
   return (
     <div data-option-wide={wide || undefined} className={`flex min-w-0 flex-col gap-1${wide ? ' col-span-full' : ''}`}>
@@ -34,7 +34,7 @@ export function OptionCard({ label, selected = false, disabled = false, disabled
         onPointerLeave={(event) => { if (event.pointerType === 'mouse') onHighlight?.(false) }}
         className="orbit-option-card press-hit-layer"
       >
-        {label}
+        {wide ? <span className="min-w-0 truncate">{label}</span> : label}
       </button>
       {disabled && disabledReason ? <span className="text-center text-xs text-[var(--fg-3)]">{disabledReason}</span> : null}
     </div>
