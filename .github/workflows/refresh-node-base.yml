@@ -16,6 +16,7 @@ concurrency:
 jobs:
   refresh:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     env:
       SOURCE: docker.io/library/node
       DESTINATION: ghcr.io/thomasluizon/orbit-node-base

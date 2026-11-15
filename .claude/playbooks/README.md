@@ -21,7 +21,7 @@ which is strictly better than hoping an agent chooses to read them:
 | file | rules | auto-loads on |
 |---|---|---|
 | `../rules/visual-delivery.md` | 8 | `apps/web/**`, `apps/mobile/**`, `packages/shared/src/theme/**`. Surface inventory and the adversarial `completeness-critic` close gate; the owner inspects seeded surfaces once for the whole redesign during D90, per surface otherwise. |
-| `../rules/product-and-content.md` | 9 | the i18n JSON, `apps/web/app/globals.css`, the theme, the landing page |
+| `../rules/product-and-content.md` | 7 | the i18n JSON, `apps/web/app/globals.css`, the theme, the landing page |
 
 **Activity-scoped, here** - no path predicts "I am now reviewing" or "I am now debugging", so these
 are read on demand by the skill or agent that needs them:
@@ -29,7 +29,7 @@ are read on demand by the skill or agent that needs them:
 | file | rules | read it when |
 |---|---|---|
 | `debugging.md` | 8 | chasing a bug, triaging an issue, `/investigate`, or resolving a merge conflict |
-| `review-and-audit.md` | 13 | `/audit-*`, `/prod-readiness`, acting on a Pullfrog review, or any fan-out assessment |
+| `review-and-audit.md` | 14 | `/audit-*`, `/prod-readiness`, acting on a Pullfrog review, the local review before every push of a pull request head, or any fan-out assessment |
 | `planning-and-artifacts.md` | 11 | `/ticket`, `/orchestrate`, ticket writing, prototyping, ADRs, or deciding whether to hand off |
 | `redesign-screen.md` | - | building any of the thirteen redesign screens. The D76 eight-step loop, the step 6 ui-skills sweep with its fetch commands, and what the owner checks that no gate does. Cited from the always-loaded core, because the step this file exists to protect is the one an agent skips when it starts from the ticket alone |
 | `context-engineering.md` | 8 | authoring or editing anything the agent itself reads: a `CLAUDE.md`, a rule, a playbook, a skill, an agent, a tool interface, a ticket body. The 5-generation delta: constrain less, prompt the positive, design interfaces instead of writing examples, and prefer a runnable artifact over prose |
