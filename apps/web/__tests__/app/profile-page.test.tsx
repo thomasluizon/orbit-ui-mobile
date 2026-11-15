@@ -18,6 +18,7 @@ import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import en from '@orbit/shared/i18n/en.json'
 import { useUIStore } from '@/stores/ui-store'
 import { getMcpEndpointUrl } from '@orbit/shared/utils/advanced-settings'
+import { PROFILE_SUBMENUS } from '@orbit/shared/utils/profile-navigation'
 import { accountEventApiBase } from '@/lib/account-event-api-base'
 import { ProfileNavIcon } from '@/components/profile/profile-nav-icon'
 import { ChevronRight, Trash2 } from '@/components/ui/icons'
@@ -668,9 +669,10 @@ describe('ProfilePage', () => {
     ['notifications', ['profile.marketingEmails.question', 'profile.settingsRows.alertsOnThisDevice', 'profile.settingsRows.remindersNote']],
   ] as const)('opens %s from Perfil and keeps its settings in that screen alone', (destination, labels) => {
     const top = render(<ProfilePage />)
-    const entry = screen.getAllByRole('link').find((link) => link.getAttribute('href') === `/profile/${destination}`)!
+    const route = PROFILE_SUBMENUS.find((submenu) => submenu.id === destination)!.route
+    const entry = screen.getAllByRole('link').find((link) => link.getAttribute('href') === route)!
     fireEvent.click(entry)
-    expect(entry).toHaveAttribute('href', `/profile/${destination}`)
+    expect(entry).toHaveAttribute('href', route)
     top.unmount()
     const Destination = PROFILE_ROUTES[destination]
     const content = render(<Destination />)
