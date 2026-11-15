@@ -14,8 +14,8 @@ const COMMAND_MAX_BUFFER = 32 * 1024 * 1024
  * no fixed number hides a ticket.
  */
 const FIRST_FETCH_LIMIT = 100
-/** The Projects filter for each ticket state, so a read costs what the caller asked for. */
-const PROJECT_ITEMS_FILTER = { open: "is:issue is:open", closed: "is:issue is:closed", all: "is:issue" }
+/** Closed tickets are most of a long-lived project, so the shared project read holds open issues only. */
+const OPEN_ISSUE_ITEMS_FILTER = "is:issue is:open"
 const STATE_REASON_FILTER = 'if .stateReason == "" then .stateReason = null else . end'
 const LIST_STATE_REASON_FILTER = `map(${STATE_REASON_FILTER})`
 const ISSUE_PROJECT_ITEMS_QUERY = `query IssueProjectItems($o: String!, $r: String!, $n: Int!, $after: String) {
@@ -118,7 +118,7 @@ const issueDependenciesArgs = (number, repository, relation) => [
   "[.[].number]",
 ]
 
-const projectItemsArgs = (tickets, filter, limit) => [
+const openProjectItemsArgs = (tickets, limit) => [
   "project",
   "item-list",
   String(tickets.projectNumber),
@@ -127,7 +127,7 @@ const projectItemsArgs = (tickets, filter, limit) => [
   "--format",
   "json",
   "--query",
-  filter,
+  OPEN_ISSUE_ITEMS_FILTER,
   "--limit",
   String(limit),
 ]
@@ -172,12 +172,12 @@ const boardTicket = (node, tickets) => {
 
 /**
  * gh stops at --limit and reports the count of every matching item as totalCount. A short read is
- * repeated at that count, so the result holds every item the filter matches at any project size.
+ * repeated at that count, so the result holds every open issue at any project size.
  */
-const readEveryProjectItem = async (tickets, filter) => {
+const readEveryOpenProjectItem = async (tickets) => {
   let limit = FIRST_FETCH_LIMIT
   for (;;) {
-    const args = projectItemsArgs(tickets, filter, limit)
+    const args = openProjectItemsArgs(tickets, limit)
     const response = parseGhJson(`gh ${args.join(" ")}`, await runGh(args))
     if (!Array.isArray(response?.items)) throw new Error("gh project item-list returned no items array")
     if (!Number.isInteger(response.totalCount)) throw new Error("gh project item-list returned no totalCount integer")
@@ -191,11 +191,11 @@ const readEveryProjectItem = async (tickets, filter) => {
 
 const projectItemsByProject = new Map()
 
-const readProjectItems = async (tickets, filter) => {
-  const projectKey = JSON.stringify([tickets.projectOwner, tickets.projectNumber, filter])
+const readOpenProjectItems = async (tickets) => {
+  const projectKey = JSON.stringify([tickets.projectOwner, tickets.projectNumber])
   const cached = projectItemsByProject.get(projectKey)
   if (cached) return cached
-  const pending = readEveryProjectItem(tickets, filter)
+  const pending = readEveryOpenProjectItem(tickets)
   projectItemsByProject.set(projectKey, pending)
   try {
     return await pending
@@ -232,6 +232,13 @@ const readIssueProjectItems = async (number, tickets) => {
       status: node.fieldValueByName?.name,
     }))
 }
+
+/**
+ * Bulk reads share one snapshot of the open project items. A closed ticket reads its own item, so
+ * no read grows with the closed history of the project.
+ */
+const projectItemsFor = async (issue, tickets) =>
+  issue?.state === "CLOSED" ? readIssueProjectItems(positiveIssueNumber(issue.number), tickets) : readOpenProjectItems(tickets)
 
 const readIssueDependencies = async (number, tickets, relation) => {
   const args = issueDependenciesArgs(number, tickets.repository, relation)
@@ -343,10 +350,7 @@ export const readTicket = async (number, { withProjectItem = true } = {}) => {
   return normalizeTicket(issue, projectItems, tickets.repository)
 }
 
-/**
- * Bulk callers share one snapshot of the open project items while retaining the ordinary issue
- * response. Closed tickets are most of a long-lived project, so a closed ticket reads its own item.
- */
+/** Bulk callers share one snapshot of the open project items while retaining the ordinary issue response. */
 export const readTickets = async (numbers) => {
   if (!Array.isArray(numbers) || numbers.some((number) => !Number.isInteger(number) || number <= 0)) {
     throw new Error("readTickets requires an array of positive issue numbers")
@@ -356,10 +360,7 @@ export const readTickets = async (numbers) => {
   const normalized = []
   for (const number of numbers) {
     const issue = await readIssue(number, tickets)
-    const projectItems = issue.state === "OPEN"
-      ? await readProjectItems(tickets, PROJECT_ITEMS_FILTER.open)
-      : await readIssueProjectItems(number, tickets)
-    normalized.push(normalizeTicket(issue, projectItems, tickets.repository))
+    normalized.push(normalizeTicket(issue, await projectItemsFor(issue, tickets), tickets.repository))
   }
   return normalized
 }
@@ -825,11 +826,11 @@ export const listTickets = async ({ labels = [], state = "open", milestone = nul
     throw new Error("Ticket milestone must be null or a non-empty string")
   }
   const tickets = ticketConfiguration()
-  const [issues, projectItems] = await Promise.all([
-    readEveryIssue(tickets, { labels, state, milestone }),
-    readProjectItems(tickets, PROJECT_ITEMS_FILTER[state]),
-  ])
-  return issues.map((issue) => normalizeTicket(issue, projectItems, tickets.repository))
+  const normalized = []
+  for (const issue of await readEveryIssue(tickets, { labels, state, milestone })) {
+    normalized.push(normalizeTicket(issue, await projectItemsFor(issue, tickets), tickets.repository))
+  }
+  return normalized
 }
 
 export const assertRepositoryLabel = (ticket, repoKey) => {
