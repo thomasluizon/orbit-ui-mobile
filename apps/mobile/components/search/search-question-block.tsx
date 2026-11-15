@@ -10,26 +10,29 @@ import { useAppTheme } from '@/lib/use-app-theme'
 type MascotRef = RefObject<View | null>
 type LookAt = OrbitLookTarget | null
 
+/** The space between the field and the rows under it. It belongs to the pinned question, not to the visible block. */
+export const QUESTION_END_GAP = SPACING.s16
+
 /**
  * Orbit above the search question while no query exists. With a query the slot stays mounted and empty, so the field under it keeps its mount.
  * `offset` moves the block down into the centre of the free area.
  */
-export function SearchOrbit({ resting, offset, mascotRef, lookAt, onLayout }: Readonly<{ resting: boolean; offset: number; mascotRef: MascotRef; lookAt: LookAt; onLayout: (event: LayoutChangeEvent) => void }>) {
+export function SearchOrbit({ resting, offset, hidden, mascotRef, lookAt, onLayout }: Readonly<{ resting: boolean; offset: number; hidden: boolean; mascotRef: MascotRef; lookAt: LookAt; onLayout: (event: LayoutChangeEvent) => void }>) {
   const mascotSize = useStateMascotSize()
   return (
-    <View testID="search-orbit" ref={resting ? mascotRef : undefined} collapsable={false} importantForAccessibility="no-hide-descendants" accessibilityElementsHidden onLayout={onLayout} style={[resting ? styles.orbit : null, { marginTop: offset }]}>
+    <View testID="search-orbit" ref={resting ? mascotRef : undefined} collapsable={false} importantForAccessibility="no-hide-descendants" accessibilityElementsHidden onLayout={onLayout} style={[resting ? styles.orbit : null, { marginTop: offset }, hidden ? styles.hidden : null]}>
       {resting ? <OrbitMascot size={mascotSize} lookAt={lookAt} /> : null}
     </View>
   )
 }
 
-/** The search question with its field. The question is the heading of the screen and the label of the field. */
-export function SearchQuestion({ onLayout, children }: Readonly<{ onLayout: (event: LayoutChangeEvent) => void; children: ReactNode }>) {
+/** The search question with its field. The question is the heading of the screen and the label of the field. `hidden` holds it back until the block is placed. */
+export function SearchQuestion({ hidden, onLayout, children }: Readonly<{ hidden: boolean; onLayout: (event: LayoutChangeEvent) => void; children: ReactNode }>) {
   const { t } = useTranslation()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   return (
-    <View testID="search-question" onLayout={onLayout} style={[styles.question, { backgroundColor: tokens.bg }]}>
+    <View testID="search-question" onLayout={onLayout} style={[styles.question, { backgroundColor: tokens.bg }, hidden ? styles.hidden : null]}>
       <Text accessibilityRole="header" textBreakStrategy="balanced" style={[styles.heading, { color: tokens.fg1 }]}>{t('habits.search.question')}</Text>
       {children}
     </View>
@@ -50,7 +53,8 @@ export function SearchOrbitLine({ mascotRef, lookAt, children }: Readonly<{ masc
 
 const styles = StyleSheet.create({
   orbit: { alignItems: 'center', paddingBottom: SPACING.s24 },
-  question: { gap: 12, paddingBottom: SPACING.s16 },
+  question: { gap: 12, paddingBottom: QUESTION_END_GAP },
+  hidden: { opacity: 0 },
   heading: { fontFamily: 'SpaceGrotesk_500Medium', fontSize: 28, lineHeight: 33, textAlign: 'center' },
   line: { minHeight: 48, flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: SPACING.s4 },
   lineMascot: { width: 48, alignItems: 'center' },

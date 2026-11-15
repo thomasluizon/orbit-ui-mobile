@@ -266,6 +266,31 @@ describe('the Avisos inbox on the Orbit logic', () => {
     expect(screen.queryByRole('dialog')).toBeNull()
   })
 
+  it('brings a new notification with no entrance and keeps every mounted row, and a delete that commits keeps them too', async () => {
+    const { container } = mount()
+    const row = (title: string) => [...container.querySelectorAll<HTMLElement>('ul > [data-list-motion]')].find((item) => item.querySelector('[data-notification-title]')?.textContent === title)!
+    const firstBefore = row('First')
+    const thirdBefore = row('Third')
+    const fresh = createMockNotification({ id: 'new', title: 'New', isRead: false })
+    seed([fresh, ...three()])
+    await advance(0)
+    expect(rowNames()).toEqual(['New. unread', 'First. unread', 'Second. unread', 'Third. read'])
+    expect(row('First')).toBe(firstBefore)
+    expect(row('Third')).toBe(thirdBefore)
+    expect({ opacity: row('New').style.opacity, transform: row('New').style.transform }).toEqual({ opacity: firstBefore.style.opacity, transform: firstBefore.style.transform })
+    const newBefore = row('New')
+
+    serve([fresh, ...three().filter((item) => item.id !== 'second')])
+    fireEvent.click(screen.getByRole('button', { name: 'Delete: Second' }))
+    await advance(6000)
+    expect(actionMocks.deleteNotification).toHaveBeenCalledTimes(1)
+    await advance(0)
+    expect(rowNames()).toEqual(['New. unread', 'First. unread', 'Third. read'])
+    expect(row('First')).toBe(firstBefore)
+    expect(row('Third')).toBe(thirdBefore)
+    expect(row('New')).toBe(newBefore)
+  })
+
   it('keeps the short still exit under reduced motion: no travel, and the unread settle is off', async () => {
     view.reducedMotion = true
     const { container } = mount()

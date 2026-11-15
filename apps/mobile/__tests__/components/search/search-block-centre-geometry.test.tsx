@@ -1,5 +1,5 @@
 import React from 'react'
-import { StyleSheet, View } from 'react-native'
+import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native'
 import { act, create } from 'react-test-renderer'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
@@ -29,12 +29,23 @@ let tree: GeometryTree
 beforeEach(() => enableTestFlags('orbit_guided_flows'))
 afterEach(async () => { await act(() => tree.unmount()) })
 
-async function measure(width: number, height: number) {
+async function mount(width: number, height: number) {
   __setWindowDimensions({ width, height, scale: 1, fontScale: 1 })
   await act(() => { tree = create(<Shell412 safeAreaTop={false} notice={<></>} tabBar={<View testID="tab-bar" style={{ height: 80 }} />}>
     <SearchScreen />
   </Shell412>) as GeometryTree })
+}
+
+async function measure(width: number, height: number) {
+  await mount(width, height)
   return settle(width, height)
+}
+
+const hostOf = (id: string) => tree.root.findAll((node: { type: unknown; props: Record<string, unknown> }) => typeof node.type === 'string' && node.props.testID === id)[0]!
+
+async function type(text: string) {
+  const field = tree.root.findAll((node: { type: unknown; props: Record<string, unknown> }) => String(node.type) === 'TextInput')[0]!
+  await act(() => { (field.props.onChangeText as (value: string) => void)(text) })
 }
 
 function boxesOf(width: number, height: number) {
@@ -52,8 +63,7 @@ async function settle(width: number, height: number) {
   await act(() => {
     for (const id of ['search-scroller', 'search-orbit', 'search-question']) {
       const box = boxes.get(id)!
-      const host = tree.root.findAll((node: { type: unknown; props: Record<string, unknown> }) => typeof node.type === 'string' && node.props.testID === id)[0]!
-      ;(host.props.onLayout as (event: { nativeEvent: { layout: { x: number; y: number; width: number; height: number } } }) => void)({ nativeEvent: { layout: { x: box.left, y: box.top, width: box.width, height: box.bottom - box.top } } })
+      ;(hostOf(id).props.onLayout as (event: { nativeEvent: { layout: { x: number; y: number; width: number; height: number } } }) => void)({ nativeEvent: { layout: { x: box.left, y: box.top, width: box.width, height: box.bottom - box.top } } })
     }
   })
   return read(width, height)
@@ -63,9 +73,11 @@ function read(width: number, height: number) {
   const { boxes, hosts } = boxesOf(width, height)
   const padding = StyleSheet.flatten(hosts.get('search-scroller')!.props.contentContainerStyle)
   const viewport = boxes.get('search-scroller')!
+  const fieldGap = Number(StyleSheet.flatten(hosts.get('search-question')!.props.style as StyleProp<ViewStyle>).paddingBottom)
   return {
     free: { top: viewport.top + Number(padding.paddingTop), bottom: boxes.get('tab-bar')!.top - Number(padding.paddingBottom) },
-    block: { top: boxes.get('search-orbit')!.top, bottom: boxes.get('search-question')!.bottom },
+    /** The visible block: from the top of Orbit to the bottom of the field. The gap under the field belongs to the rows. */
+    block: { top: boxes.get('search-orbit')!.top, bottom: boxes.get('search-question')!.bottom - fieldGap },
     rows: boxes.get('search-rows')!,
     question: boxes.get('search-question')!,
     scrollerBottom: viewport.bottom,
@@ -88,6 +100,27 @@ describe('the Android search block before a query', () => {
     search.habits = 12
     const { free, block, rows } = await measure(width, 915)
     expect(rows.bottom).toBeGreaterThan(free.bottom)
+    expect(Math.abs((block.top + block.bottom) / 2 - (free.top + free.bottom) / 2)).toBeLessThanOrEqual(1)
+  })
+
+  it('hides the block until its heights are read, so it never shows at the top first', async () => {
+    search.habits = 0
+    await mount(412, 1600)
+    const opacity = (id: string) => StyleSheet.flatten(hostOf(id).props.style as StyleProp<ViewStyle>).opacity
+    expect(opacity('search-orbit')).toBe(0)
+    expect(opacity('search-question')).toBe(0)
+    await settle(412, 1600)
+    expect(opacity('search-orbit')).toBeUndefined()
+    expect(opacity('search-question')).toBeUndefined()
+  })
+
+  it.each([320, 412])('returns the block to the centre in the frame that clears a typed query at %i px wide, before any new layout is read', async (width) => {
+    search.habits = 0
+    await measure(width, 1600)
+    await type('walk')
+    await settle(width, 1600)
+    await type('')
+    const { free, block } = read(width, 1600)
     expect(Math.abs((block.top + block.bottom) / 2 - (free.top + free.bottom) / 2)).toBeLessThanOrEqual(1)
   })
 

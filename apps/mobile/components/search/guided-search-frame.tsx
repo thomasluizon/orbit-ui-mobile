@@ -11,7 +11,7 @@ import { PageHeader } from '@/components/ui/page-header'
 import { createTokensV2, radius } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { SearchList, hasSearchLine } from './search-list'
-import { SearchOrbit, SearchQuestion } from './search-question-block'
+import { QUESTION_END_GAP, SearchOrbit, SearchQuestion } from './search-question-block'
 import type { SearchScreenModel } from './use-search-screen'
 
 const KEYBOARD_LOOK = { x: 0, y: 1 } as const
@@ -28,16 +28,24 @@ function useKeyboardOpen() {
   return open
 }
 
-/** The heights that place the block, read from layout: the scroller, Orbit and the question with its field. */
+/**
+ * The heights that place the block, read from layout: the scroller, Orbit and the question with its field. The visible block runs from the top of
+ * Orbit to the bottom of the field, so the gap under the field is left out. The Orbit slot is empty while a query is typed, so its last drawn height
+ * is kept, and the block returns to the centre in the same frame when the query is cleared. Until every height is read, the centred block is hidden,
+ * so it never shows at the top first.
+ */
 function useBlockOffset(centred: boolean, endPadding: number) {
   const [heights, setHeights] = useState({ scroller: 0, orbit: 0, question: 0 })
   const read = (part: keyof typeof heights) => (event: LayoutChangeEvent) => {
     const { height } = event.nativeEvent.layout
+    if (part === 'orbit' && height === 0) return
     setHeights((current) => (current[part] === height ? current : { ...current, [part]: height }))
   }
   const free = heights.scroller - SPACING.s16 - endPadding
+  const placed = heights.scroller > 0 && heights.orbit > 0 && heights.question > 0
   return {
-    offset: centred ? Math.max(0, (free - heights.orbit - heights.question) / 2) : 0,
+    offset: centred ? Math.max(0, (free - heights.orbit - (heights.question - QUESTION_END_GAP)) / 2) : 0,
+    hidden: centred && !placed,
     onScrollerLayout: read('scroller'),
     onOrbitLayout: read('orbit'),
     onQuestionLayout: read('question'),
@@ -80,8 +88,8 @@ export function GuidedSearchFrame({ model }: Readonly<{ model: SearchScreenModel
     <PageHeader title={t('habits.search.title')} titleHeading={false} onBack={model.back} backLabel={t('common.back')} />
     <KeyboardAwareSheetScrollView testID="search-scroller" stickyHeaderIndices={PINNED_QUESTION} keyboardShouldPersistTaps="handled" onLayout={block.onScrollerLayout}
       contentContainerStyle={[styles.content, { paddingBottom: clearance + SPACING.s16 }]}>
-      <SearchOrbit resting={resting} offset={block.offset} mascotRef={mascotRef} lookAt={lookAt} onLayout={block.onOrbitLayout} />
-      <SearchQuestion onLayout={block.onQuestionLayout}>
+      <SearchOrbit resting={resting} offset={block.offset} hidden={block.hidden} mascotRef={mascotRef} lookAt={lookAt} onLayout={block.onOrbitLayout} />
+      <SearchQuestion hidden={block.hidden} onLayout={block.onQuestionLayout}>
         {commandPage !== null && <Text style={[styles.chip, { color: tokens.fg2, backgroundColor: tokens.bgWell, borderColor: tokens.hairline }]}>{t(commandPage === 'log' ? 'command.page.log' : 'command.page.skip')}</Text>}
         <View ref={fieldRef} collapsable={false} onFocus={onFieldFocus} onBlur={onFieldBlur}>
           <Input label={t('habits.search.question')} hideLabel placeholder={t('habits.moveParent.searchPlaceholder')} value={search.text} onChange={search.changeText} trailing={<Search size={20} color={tokens.fg3} />} />
