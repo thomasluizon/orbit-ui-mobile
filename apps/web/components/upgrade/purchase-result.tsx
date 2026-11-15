@@ -52,14 +52,15 @@ interface PurchaseResultProps {
 /**
  * The result of a confirmed purchase: what the person has now and until when. It opens only after the
  * subscription read reports Pro. Its one action returns the person to the place the `from` of the visit
- * names, or opens Hoje when it names none.
+ * names, or opens Hoje when it names none. The visit went through the Stripe checkout page, so that place
+ * replaces the finished upgrade entry and Back never returns to it.
  */
 export function PurchaseResult({ purchaseConfirmed, status, billing, ...dialog }: Readonly<PurchaseResultProps>) {
   const router = useRouter()
   const [dismissed, setDismissed] = useAccountScopedState(false)
   const result = purchaseConfirmed && !dismissed ? resolvePurchaseResult(status, billing) : null
   if (!result) return null
-  return <PurchaseResultDialog {...dialog} result={result} onOpen={(route) => { setDismissed(true); router.push(route) }} onClose={() => setDismissed(true)} />
+  return <PurchaseResultDialog {...dialog} result={result} onOpen={(route) => { setDismissed(true); router.replace(route) }} onClose={() => setDismissed(true)} />
 }
 
 function PurchaseResultDialog({ result, accountId, from, timeZone, knownOrigin, onOpen, onClose }: Readonly<Pick<PurchaseResultProps, 'accountId' | 'from' | 'timeZone' | 'knownOrigin'> & {

@@ -396,7 +396,7 @@ export default function UpgradeScreen() {
           />
         </View>
       </ScrollView></ShellContent>
-      {footerPrimary ? <ShellContent><View style={contentFrameStyle}><GuidedPlanFooter {...planPrimary} tokens={tokens} /></View></ShellContent> : null}
+      {footerPrimary ? <ShellContent><View style={contentFrameStyle}><GuidedPlanFooter {...planPrimary} checkoutError={checkoutError} tokens={tokens} /></View></ShellContent> : null}
       <PurchaseResult
         purchaseConfirmed={purchaseConfirmed}
         status={settledStatus(model.state, status)}

@@ -184,6 +184,20 @@ describe('the plan question of the Android upgrade route', () => {
     tree.unmount()
   })
 
+  it.each([[375, 'upgrade-plan-footer'], [1024, 'upgrade-block']] as const)('keeps the purchase error and the offline reason beside the primary action at %i wide', (width, owner) => {
+    __setWindowDimensions({ width, height: 667, scale: 2, fontScale: 1 })
+    mocks.playBilling.errorKey = 'upgrade.appStore.error.unavailable'
+    mocks.online = false
+    const tree = renderNavigation(<UpgradeScreen />)
+    const container = byTestId(tree, owner)!
+    expect(primaryIn(container, 'Subscribe Annual, recommended')).toHaveLength(1)
+    expect(renderedText(container)).toContain('App Store purchases are unavailable. Please try again.')
+    expect(holds(container, 'upgrade-offline-reason')).toBe(true)
+    expect(tree.hosts().filter((node) => node.props.testID === 'upgrade-offline-reason')).toHaveLength(1)
+    expect(tree.hosts().filter((node) => node.props.accessibilityRole === 'alert' && renderedText(node) !== '')).toHaveLength(1)
+    tree.unmount()
+  })
+
   it.each([[1024, false], [412, true]] as const)('keeps the primary action in the block at %i wide (guided flows off: %s), with no footer', (width, flagOff) => {
     if (flagOff) resetTestFlags()
     __setWindowDimensions({ width, height: 915, scale: 1, fontScale: 1 })
@@ -252,6 +266,13 @@ describe('the plan question of the Android upgrade route', () => {
     expect(renderedText(byTestId(lastDay, 'upgrade-support'))).toContain('Last day of the trial')
     lastDay.unmount()
     vi.useRealTimers()
+  })
+
+  it('keeps the weekly renewal line of a person on a weekly allowance under the block', () => {
+    mocks.status = { ...freeStatus, plan: 'pro', hasProAccess: true, isTrialActive: true, trialEndsAt: '2026-09-20T12:00:00Z', aiMessagesLimit: 250, aiMessagesPeriod: 'week', aiMessagesResetsAt: '2026-09-16T15:00:00Z' }
+    const tree = renderNavigation(<UpgradeScreen />)
+    expect(renderedText(byTestId(tree, 'upgrade-support'))).toContain('Resets Wednesday.')
+    tree.unmount()
   })
 
   it('names the loading state and shows a skeleton, with no plan to start', () => {

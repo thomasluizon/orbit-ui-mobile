@@ -198,10 +198,21 @@ export function usePinnedPlanPrimary(): boolean {
   return useWindowDimensions().width < WIDE_WIDTH
 }
 
-/** The pinned footer of the compact shell. The host draws it under its scroller, so the scroller ends above it and it never covers a plan card. */
-export function GuidedPlanFooter({ endInset = SPACING.s16, tokens, ...props }: Readonly<PlanPrimaryProps & { tokens: Tokens; endInset?: number }>) {
+/** The refusal of the handoff: the checkout error and the offline reason. They stay next to the primary action wherever it is drawn. */
+function PlanRefusal({ checkoutError, isOnline, t, tokens }: Readonly<Pick<GuidedPricingSectionProps, 'checkoutError' | 'isOnline' | 't' | 'tokens'>>) {
+  return (
+    <>
+      <Text accessibilityRole="alert" accessibilityLiveRegion="assertive" style={[styles.errorText, localStyles.centred, { color: tokens.fg2 }]}>{checkoutError}</Text>
+      {!isOnline ? <Text testID="upgrade-offline-reason" style={[styles.errorText, localStyles.centred, { color: tokens.fg2 }]}>{t('upgrade.billing.offline')}</Text> : null}
+    </>
+  )
+}
+
+/** The pinned footer of the compact shell. The host draws it under its scroller, so the scroller ends above it and it never covers a plan card. The refusal of the handoff sits above the action. */
+export function GuidedPlanFooter({ endInset = SPACING.s16, checkoutError, tokens, ...props }: Readonly<PlanPrimaryProps & { checkoutError: string; tokens: Tokens; endInset?: number }>) {
   return (
     <View testID="upgrade-plan-footer" style={[localStyles.footer, { paddingBottom: endInset, backgroundColor: tokens.bg }]}>
+      <PlanRefusal checkoutError={checkoutError} isOnline={props.isOnline} t={props.t} tokens={tokens} />
       <PlanPrimary {...props} />
     </View>
   )
@@ -251,9 +262,11 @@ export function GuidedPricingSection(props: Readonly<GuidedPricingSectionProps>)
           />
           <PlanOptions {...props} state={planState} disabled={checkoutPending} onLook={lookAtControl} onLookAway={lookAway} />
         </View>
-        <Text accessibilityRole="alert" accessibilityLiveRegion="assertive" style={[styles.errorText, localStyles.centred, { color: tokens.fg2 }]}>{checkoutError}</Text>
-        {primaryInFooter && !wide ? null : <View style={wide ? localStyles.primaryWide : localStyles.primary}><PlanPrimary {...props} /></View>}
-        {!isOnline ? <Text testID="upgrade-offline-reason" style={[styles.errorText, localStyles.centred, { color: tokens.fg2 }]}>{t('upgrade.billing.offline')}</Text> : null}
+        {primaryInFooter && !wide ? null : <>
+          <Text accessibilityRole="alert" accessibilityLiveRegion="assertive" style={[styles.errorText, localStyles.centred, { color: tokens.fg2 }]}>{checkoutError}</Text>
+          <View style={wide ? localStyles.primaryWide : localStyles.primary}><PlanPrimary {...props} /></View>
+          {!isOnline ? <Text testID="upgrade-offline-reason" style={[styles.errorText, localStyles.centred, { color: tokens.fg2 }]}>{t('upgrade.billing.offline')}</Text> : null}
+        </>}
         <StayFreeLink disabled={checkoutPending} onStayFree={onStayFree} t={t} tokens={tokens} />
         <Text accessibilityLiveRegion="polite" style={localStyles.announcement}>{announcement}</Text>
       </View>

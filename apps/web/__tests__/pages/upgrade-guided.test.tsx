@@ -9,7 +9,7 @@ import type { BillingDetails } from '@orbit/shared/types/subscription'
 const mocks = vi.hoisted(() => ({
   locale: 'en' as 'en' | 'pt-BR',
   search: '',
-  push: vi.fn(),
+  replace: vi.fn(),
   goBack: vi.fn(),
   checkout: vi.fn(),
   beforeRedirect: undefined as (() => Promise<void>) | undefined,
@@ -32,7 +32,7 @@ const mocks = vi.hoisted(() => ({
 }))
 
 vi.mock('next/navigation', () => ({
-  useRouter: () => ({ push: mocks.push, replace: vi.fn(), back: vi.fn() }),
+  useRouter: () => ({ push: vi.fn(), replace: mocks.replace, back: vi.fn() }),
   usePathname: () => '/upgrade',
   useSearchParams: () => new URLSearchParams(mocks.search),
 }))
@@ -227,6 +227,13 @@ describe('the plan question of the upgrade route', () => {
     vi.useRealTimers()
   })
 
+  it('keeps the weekly renewal line of a person on a weekly allowance under the block', () => {
+    mocks.status = { ...freeStatus, plan: 'pro', hasProAccess: true, isTrialActive: true, trialEndsAt: '2026-09-20T12:00:00Z', aiMessagesLimit: 250, aiMessagesPeriod: 'week', aiMessagesResetsAt: '2026-09-16T15:00:00Z' }
+    render(<UpgradePage />)
+    expect(document.querySelector('[data-upgrade-support]')).toHaveTextContent('Resets Wednesday.')
+    expect(block()).not.toHaveTextContent('Resets Wednesday.')
+  })
+
   it('names the loading state and shows a skeleton, with no plan to start', () => {
     mocks.plans = null
     mocks.plansLoading = true
@@ -316,9 +323,24 @@ describe('the result of a purchase', () => {
   it('keeps the plan question and the error of a checkout that fails, with no dialog', () => {
     mocks.checkoutError = 'The checkout did not start.'
     render(<UpgradePage />)
-    expect(within(block()).getByRole('alert')).toHaveTextContent('The checkout did not start.')
+    expect(screen.getByRole('alert')).toHaveTextContent('The checkout did not start.')
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Which plan?')
     expect(screen.queryByRole('dialog')).toBeNull()
+  })
+
+  it.each([
+    [false, '[data-flow-footer]'],
+    [true, '[data-upgrade-block]'],
+  ] as const)('keeps the checkout error and the offline reason beside the primary action (wide %s)', (wide, owner) => {
+    mocks.wide = wide
+    mocks.checkoutError = 'The checkout did not start.'
+    mocks.online = false
+    render(<UpgradePage />)
+    const container = document.querySelector<HTMLElement>(owner)!
+    expect(container).toContainElement(screen.getByRole('button', { name: /Subscribe/ }))
+    expect(within(container).getByRole('alert')).toHaveTextContent('The checkout did not start.')
+    expect(container.querySelector('[data-upgrade-offline-reason]')).toHaveTextContent(en.upgrade.billing.offline)
+    expect(screen.getAllByRole('alert')).toHaveLength(1)
   })
 
   it('opens no dialog when the read reports Pro and no purchase was confirmed', () => {
@@ -336,7 +358,7 @@ describe('the result of a purchase', () => {
     expect(mocks.toastOnSuccess).toBe(false)
     expect(document.querySelectorAll('[data-result-dialog] button')).toHaveLength(1)
     fireEvent.click(within(dialog).getByRole('button', { name: 'Open Today' }))
-    expect(mocks.push).toHaveBeenCalledWith('/')
+    expect(mocks.replace).toHaveBeenCalledWith('/')
   })
 
   it('states the end date for a subscription that does not renew, in pt-BR', () => {
@@ -353,7 +375,7 @@ describe('the result of a purchase', () => {
     mocks.purchaseConfirmed = true
     render(<UpgradePage />)
     fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Go back' }))
-    expect(mocks.push).toHaveBeenCalledWith('/profile/ai')
+    expect(mocks.replace).toHaveBeenCalledWith('/profile/ai')
   })
 
   it.each([
@@ -365,7 +387,7 @@ describe('the result of a purchase', () => {
     mocks.purchaseConfirmed = true
     render(<UpgradePage />)
     fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: label }))
-    expect(mocks.push).toHaveBeenCalledExactlyOnceWith(destination)
+    expect(mocks.replace).toHaveBeenCalledExactlyOnceWith(destination)
   })
 
   it('keeps the from of the visit across the Stripe redirect', async () => {
@@ -378,7 +400,7 @@ describe('the result of a purchase', () => {
     mocks.purchaseConfirmed = true
     render(<UpgradePage />)
     fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Go back' }))
-    expect(mocks.push).toHaveBeenCalledWith('/profile/ai')
+    expect(mocks.replace).toHaveBeenCalledWith('/profile/ai')
   })
 
   it('closes on dismissal and stays on the subscription route', () => {
@@ -386,7 +408,7 @@ describe('the result of a purchase', () => {
     mocks.purchaseConfirmed = true
     render(<UpgradePage />)
     fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' })
-    expect(mocks.push).not.toHaveBeenCalled()
+    expect(mocks.replace).not.toHaveBeenCalled()
   })
 })
 
