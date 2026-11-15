@@ -145,8 +145,8 @@
       "model": null,
       "effort": "low",
       "digest": "fb87f04b9dccf820",
-      "calibratedAt": "2026-11-13",
-      "verdict": "current: derives version and track from workflow runs, verifies the exact remote ref, and dispatches only after owner confirmation; its checks are procedural, so low effort remains right."
+      "calibratedAt": "2026-11-15",
+      "verdict": "current: takes the open and production version from mobile-version-pair.js plan, hands the same version to /ios-release, verifies the exact remote ref, and dispatches only after owner confirmation; its checks are procedural, so low effort remains right."
     },
     ".claude/skills/astra-eval/SKILL.md": {
       "model": null,
@@ -228,8 +228,8 @@
     ".claude/skills/handoff/SKILL.md": {
       "model": null,
       "effort": "high",
-      "digest": "18e31fc16d5480a0",
-      "calibratedAt": "2026-11-09",
+      "digest": "aa0be8ecb8401653",
+      "calibratedAt": "2026-11-15",
       "verdict": "current: high effort; the skill decides which durable rules enter the spec and when handoff must end the session."
     },
     ".claude/skills/investigate/SKILL.md": {
@@ -270,8 +270,8 @@
     ".claude/skills/orchestrate/SKILL.md": {
       "model": null,
       "effort": "high",
-      "digest": "ab325c6c9e1bd2df",
-      "calibratedAt": "2026-11-13",
+      "digest": "7c9818e0cac8fd0b",
+      "calibratedAt": "2026-11-15",
       "verdict": "current: high effort; the skill plans the queue, verifies each pull request disposition and merge commit, interprets gate results, and controls merge authority."
     },
     ".claude/skills/prod-readiness/SKILL.md": {
@@ -291,8 +291,8 @@
     ".claude/skills/questions/SKILL.md": {
       "model": null,
       "effort": "high",
-      "digest": "02c39d450f1a3180",
-      "calibratedAt": "2026-11-09",
+      "digest": "5693fd8497007a0f",
+      "calibratedAt": "2026-11-15",
       "verdict": "current: high effort, because the filter decides what NOT to ask, and a wrong call either wastes the owner's attention or ships a guess as a decision."
     },
     ".claude/skills/release/SKILL.md": {
@@ -312,8 +312,8 @@
     ".claude/skills/sleep/SKILL.md": {
       "model": null,
       "effort": null,
-      "digest": "abd9f72f466fe7d6",
-      "calibratedAt": "2026-11-13",
+      "digest": "af5ba3900e6fd6d5",
+      "calibratedAt": "2026-11-15",
       "verdict": "undeclared, inherits the session: it makes overnight queue decisions, including whether configured lanes are available."
     },
     ".claude/skills/ticket/SKILL.md": {

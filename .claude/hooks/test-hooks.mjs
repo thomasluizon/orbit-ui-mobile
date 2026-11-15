@@ -2291,6 +2291,17 @@ const crankSkill = readFileSync(join(repoRoot, ".claude", "skills", "crank", "SK
 T("standalone crank: no-run entry retains the canonical sleep lifecycle", /If enabling with no active[^.]+invoke `?\.claude\/skills\/sleep\/SKILL\.md`? first/s.test(crankSkill), true)
 const wrapUpSkill = readFileSync(join(repoRoot, ".claude", "skills", "wrap-up", "SKILL.md"), "utf8")
 T("wrap-up crank: instructions never enter sleep to establish a run", !/enter `\/sleep` through/.test(wrapUpSkill), true)
+const handoffSkill = readFileSync(join(repoRoot, ".claude", "skills", "handoff", "SKILL.md"), "utf8")
+const relayPassInvocations = handoffSkill.replace(/\s+/g, " ").split(/(?<=\.) /).filter((sentence) => sentence.includes("invoke `/questions --relay`"))
+T("handoff owner path: only a --relay handoff invokes the relay questions pass", relayPassInvocations.length > 0 && relayPassInvocations.every((sentence) => sentence.startsWith("With `--relay`,")), true)
+T("handoff owner path: an owner handoff never runs the relay questions pass", handoffSkill.replace(/\s+/g, " ").includes("An owner `/handoff` never runs `/questions --relay`."), true)
+const ownerCheckAt = handoffSkill.replace(/\s+/g, " ").indexOf("An owner `/handoff` runs `node tools/relay-session.mjs --owner-check` first, before it writes anything.")
+T("handoff owner path: the owner check runs before the handoff writes its outputs", ownerCheckAt >= 0 && ownerCheckAt < handoffSkill.replace(/\s+/g, " ").indexOf("Two outputs, both committed files in this repo"), true)
+const openQuestionsRule = handoffSkill.replace(/\s+/g, " ")
+T("handoff open questions: every listed row enters the spec, only a filter or the owner removes one, and the owner-only steps and settled decisions stay",
+  openQuestionsRule.includes("every row that `node tools/owner-questions.mjs --list` prints goes in the spec's `## Open questions`") &&
+  openQuestionsRule.includes("Remove a question from that section only when a filter or the owner settled it.") &&
+  openQuestionsRule.includes("Keep the owner-only steps and the settled decisions that the section also holds.") && !openQuestionsRule.includes("holds exactly the rows"), true)
 writeRunState(activeBeforeIntent, wakeCheckout)
 
 const handoffGitRepo = mkdtempSync(join(tmpdir(), "orbit-handoff-git-"))
