@@ -1,6 +1,6 @@
 import { chmodSync, mkdirSync, renameSync, writeFileSync } from 'node:fs'
 import { attemptEvidence } from '../evidence.mjs'
-import { changeList, recordId } from './change-list.mjs'
+import { changeList, clearedFields, recordId } from './change-list.mjs'
 import { corpusDigest } from './corpus.mjs'
 
 const evidencePath = (caseId, repeat) => `attempts/${encodeURIComponent(caseId)}-r${repeat}.json`
@@ -86,7 +86,7 @@ export function writeResults(results, directory) {
   const attempts = attemptsOf(results).map(({ entry, attempt }) => {
     const output = entry.response?.output ?? {}
     const evidence = attemptEvidence(entry, { ...attempt,
-      heldChanges: changeList(output.previews).changes.map(({ kind, fields }) => ({ kind, fields })),
+      heldChanges: changeList(output.previews, clearedFields(output.trace)).changes.map(({ kind, fields }) => ({ kind, fields })),
       heldPreviews: output.previews?.length ? heldPreviewsOf(output.previews, entry.testCase.vars) : null,
       resend: output.resend ?? null })
     writePrivateJson(`${directory}/${evidencePath(attempt.caseId, attempt.repeat)}`, evidence)

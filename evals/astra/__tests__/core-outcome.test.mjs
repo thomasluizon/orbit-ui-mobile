@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { tsImport } from 'tsx/esm/api'
 import { coreCases, coreDescriptors } from '../core/corpus.mjs'
 import { runCase } from '../core/conversation.mjs'
-import { changeList } from '../core/change-list.mjs'
+import { changeList, clearedFields } from '../core/change-list.mjs'
 import { mergeRuns } from '../core/merge.mjs'
 import { gradePreview, matchesField, outcome } from '../core/outcome.mjs'
 import { summarize } from '../core/report.mjs'
@@ -460,9 +460,9 @@ function offerRow(item, field, proposedValue, { oldValue = null, newValue = Stri
     provenance: 'suggested', removal: { offerKey: `preview:${entityId}:3F9A0C1B2D4E5F6A7B8C9D0E:${field}`, field, fields: [field] } }
 }
 // Producer: AddChanges (PendingOperationChangePreviewer.cs:897-945) gives an update one row for each field whose value the
-// update changes, with the domain value in the stored format, and AnnotateOfferField marks a row that the model did not
-// write `stored`.
-const derivedRow = (item, field, oldValue, newValue, valueType, proposedValue) => ({ entityId: item.entityId,
+// update changes, with the domain value in the stored format. AnnotateOfferField (:380-383) marks `stored` each row whose
+// field is no argument with a value: a change that the server derives, and a field that the model clears.
+const storedRow = (item, field, oldValue, newValue, valueType, proposedValue) => ({ entityId: item.entityId,
   entityName: item.entityName, field, oldValue, newValue, valueType, proposedValue, isEditable: true, provenance: 'stored' })
 const requestedRow = (row) => ({ ...row, provenance: 'requested', removal: undefined })
 const unannotatedRow = (row) => ({ ...row, provenance: undefined, removal: undefined })
@@ -530,7 +530,7 @@ describe('the change list comparison', () => {
 
   it('reads a create preview of the producer as one create with its fields', () => {
     expect(changeList([preview('Dentist')]).changes).toEqual([{ kind: 'create', target: null,
-      preview: preview().id, fields: { due_time: '15:50', frequency_unit: 'OneTime' }, offered: {}, derived: {}, drafts: [] }])
+      preview: preview().id, fields: { due_time: '15:50', frequency_unit: 'OneTime' }, offered: {}, derived: {}, undetermined: {}, drafts: [] }])
   })
 })
 
@@ -680,7 +680,7 @@ describe('the saved state of a created record', () => {
       expect(changeList([offeredCreate()]).changes).toEqual([{ kind: 'create', target: null, preview: preview().id,
         fields: { title: 'Read', frequency_unit: 'Week', frequency_quantity: '3' },
         offered: { sub_habits: 'Warm up, Stretch', 'sub_habits/0/sub_habits': 'Breathe', 'sub_habits/1/emoji': '🤸' }, derived: {},
-        drafts: ['Warm up', 'Breathe', 'Stretch'] }])
+        undetermined: {}, drafts: ['Warm up', 'Breathe', 'Stretch'] }])
     })
 
     it.each([
@@ -714,7 +714,17 @@ describe('an offer of the assistant in the preview', () => {
   const repeatValue = { interval_minutes: 120, active_start: '08:00', active_end: '22:00' }
   const repeatReminder = (item, mark = (row) => row) => [
     offerRow(item, 'repeat_reminder', repeatValue, { oldValue: 'null', newValue: JSON.stringify(repeatValue) }),
-    mark(derivedRow(item, 'reminder_enabled', 'false', 'true', 'boolean', true))]
+    mark(storedRow(item, 'reminder_enabled', 'false', 'true', 'boolean', true))]
+  // Producer: the eval trace keeps the raw arguments of each held write with the status PendingConfirmation
+  // (ProcessUserChatCommand.EvalTrace.cs:17-28, :87-91). The Water request holds delete_habits and bulk_update_habits,
+  // which AccountChangeSet joins into one preview. Strict tool arguments carry null for each field left unchanged.
+  const traceOf = (updates) => ({ requestId: '77777777-7777-4777-8777-777777777777', timing: null, modelCalls: null, calls: [
+    { id: 'call-delete', name: 'delete_habits', arguments: { filter: { habit_ids: captures.complete.children.slice(4) } },
+      resultStatus: 'PendingConfirmation', result: null },
+    { id: 'call-rename', name: 'bulk_update_habits', arguments: { filter: { habit_ids: captures.complete.children.slice(0, 4) },
+      updates: { title: 'Water - 1.18L', description: null, emoji: null, due_time: null, repeat_reminder: null, month_days: null,
+        clear_fields: null, suggested_fields: null, ...updates } }, resultStatus: 'PendingConfirmation', result: null }] })
+  const offeredReminder = traceOf({ repeat_reminder: repeatValue, suggested_fields: ['repeat_reminder'] })
 
   it('passes a rename that also offers an emoji, and approves the preview as shown', async () => {
     const { output, verdict, calls } = await scripted([finalOf('complete', 0), offeredTurn((item) => [emoji(item)])])
@@ -726,10 +736,31 @@ describe('an offer of the assistant in the preview', () => {
   })
 
   it('passes a rename that also offers a repeat reminder, with the reminder flag that the offer changes', async () => {
-    const { output, verdict } = await scripted([finalOf('complete', 0), offeredTurn((item) => repeatReminder(item))])
+    const { output, verdict } = await scripted([finalOf('complete', 0), offeredTurn((item) => repeatReminder(item))], request,
+      { traces: [null, offeredReminder] })
     expect(verdict).toMatchObject({ pass: true, reason: 'The saved state matches the approved changes.' })
-    expect(changeList(output.previews).changes.find((change) => change.target === captures.complete.children[0]))
+    expect(changeList(output.previews, clearedFields(output.trace)).changes.find((change) => change.target === captures.complete.children[0]))
       .toMatchObject({ fields: { title: 'Water - 1.18L' }, offered: { repeat_reminder: JSON.stringify(repeatValue) }, derived: { reminder_enabled: 'true' } })
+  })
+
+  it.each([
+    ['clears the frequency through clear_fields', { clear_fields: ['frequency_unit'] }, 'frequency_unit',
+      (item) => [storedRow(item, 'frequency_unit', 'Day', null, 'text', null), storedRow(item, 'frequency_quantity', '1', null, 'number', null)]],
+    ['clears the due time through clear_fields', { clear_fields: ['due_time'] }, 'due_time',
+      (item) => [storedRow(item, 'due_time', '08:00', null, 'time', null)]],
+    // The row shape of a month_days clear is the one of packages/shared month-days.test.ts.
+    ['clears the month days with an empty array', { month_days: [] }, 'month_days',
+      (item) => [storedRow(item, 'month_days', '5, 25', '(none)', 'text', [])]],
+  ])('fails a rename that also %s, which the preview marks stored, and approves nothing', async (_name, updates, field, rows) => {
+    const { verdict, calls } = await scripted([finalOf('complete', 0), offeredTurn(rows)], request, { traces: [null, traceOf(updates)] })
+    expect(verdict).toMatchObject({ pass: false, reason: `A update of the preview changes title, ${field} where the request changes title.` })
+    expect(calls).toEqual([])
+  })
+
+  it('gives no evidence when the preview shows a stored row and the turn returns no trace, and approves nothing', async () => {
+    const { verdict, calls } = await scripted([finalOf('complete', 0), offeredTurn((item) => repeatReminder(item))])
+    expect(verdict).toMatchObject({ pass: false, metadata: { unavailable: true } })
+    expect(calls).toEqual([])
   })
 
   it('fails a rename whose preview shows a reminder flag that the model wrote, and approves nothing', async () => {

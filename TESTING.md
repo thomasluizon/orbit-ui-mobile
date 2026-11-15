@@ -461,9 +461,11 @@ The outcome grader (`core/outcome.mjs`) reads no tool name:
 
 - It turns the held previews into a change list (`core/change-list.mjs`): the kind of each change, its
   record and its changed fields. It compares that list with the expected list of the situation. A field
-  that the preview marks `suggested` with a removal is an offer of the assistant, and a field marked
-  `stored` is a change that the server derives. The list keeps both apart from the requested changes. A
-  field that the request did not name and that is neither an offer nor derived fails the case.
+  that the preview marks `suggested` with a removal is an offer of the assistant. A field marked `stored`
+  is a change that the server derives, unless a held write in the eval trace clears it (`clear_fields`,
+  `clear_parent` or an empty array). The list keeps offers and derived changes apart from the requested
+  changes. A field that the request did not name and that is neither an offer nor derived fails the case.
+  A preview turn without the trace that shows a `stored` field gives no evidence.
 - It counts the questions that came before the preview, against the minimum and the maximum of the case.
 - When the preview matches, the eval approves it as the client does and reads the saved state back
   from `eval/snapshot`. It reads each field that the request names: the title, the due date and the
@@ -514,8 +516,8 @@ turn that returns no trace, add no counted model calls, so the cost of one model
 No rerun on the same build replaces a failure. An attempt that fails, fails its case for that build:
 a wrong preview, a reply without a preview and without a question card, HTTP 5xx, a stream that ends
 without a final event, or a failed approval. Only HTTP 429, `AI_DAILY_BUDGET_EXCEEDED`,
-`AI_PROVIDER_QUOTA_EXHAUSTED`, a failed precondition and a card turn without the eval trace that its
-answer needs are no evidence. Such an attempt leaves its case incomplete, and only such a case
+`AI_PROVIDER_QUOTA_EXHAUSTED`, a failed precondition, a card turn without the eval trace that its
+answer needs and a preview turn without the trace that shows a `stored` field are no evidence. Such an attempt leaves its case incomplete, and only such a case
 may appear again in a later window. The merge refuses a second result for a case that passed, failed or
 holds a grader limit, a window of another API commit, and a case whose `k` differs from the corpus.
 

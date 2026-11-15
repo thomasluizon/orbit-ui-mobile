@@ -1,4 +1,4 @@
-import { changeList } from './change-list.mjs'
+import { changeList, clearedFields } from './change-list.mjs'
 import { dateOffset } from '../fixtures/reset.mjs'
 
 const verdict = (pass, reason, metadata = {}) => ({ pass, score: pass ? 1 : 0, reason, metadata })
@@ -115,9 +115,14 @@ export function gradePreview(output, vars) {
   if (!previews.length) return verdict(false, `No preview came after ${questions} question(s).`)
   if (questions < min) return verdict(false, 'The assistant held a change without the question that the request needs.')
   if (!withinRange(previews.length, expected.previews, 1)) return verdict(false, `The request is held in ${previews.length} previews.`)
-  const { changes, unclassified } = changeList(previews)
+  const { changes, unclassified } = changeList(previews, clearedFields(output.trace))
   if (unclassified.length) {
     return verdict(false, `The grader cannot classify a held preview: ${unclassified.join(', ')}.`, { graderLimit: true })
+  }
+  // A missing trace is a missing precondition of the run, as for a card answer: the attempt gives no evidence.
+  if (changes.some((change) => Object.keys(change.undetermined).length)) {
+    return verdict(false, 'The preview shows a field that the model did not write, and the turn returned no eval trace '
+      + 'to tell a field that the model clears from one that the server derives.', { unavailable: true })
   }
   const comparison = compareChanges(expected.changes, changes, { records: vars.core.records, accountDate: vars.accountDate }, questions > 0)
   if (comparison.failure) return verdict(false, comparison.failure)

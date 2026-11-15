@@ -22,9 +22,10 @@ The core set is `evals/astra/core/situations.yaml`: 21 situations, each in 3 fro
 pt-BR. Each case sends `POST /api/chat/stream` as a shipped client does (the shared context builder with a
 `conversationId`, the shared history builder, card answers through `blockAnswer`). The grader reads the outcome: the
 change list of the held previews (kind, target records, changed fields), the questions that came before the preview,
-and the saved state after approval. An offer (`suggested` with a removal) and a derived field (`stored`) are not
-requested changes: the change list keeps them apart, and the person approves the preview as shown. It grades no tool
-name. `llm-rubric` grades only the text of a read answer.
+and the saved state after approval. An offer (`suggested` with a removal) and a field that the server derives are not
+requested changes: the change list keeps them apart, and the person approves the preview as shown. A `stored` field is
+derived unless a held write in the eval trace clears it (`clear_fields`, `clear_parent` or an empty array). It grades
+no tool name. `llm-rubric` grades only the text of a read answer.
 
 The gate is two runs from `evals/astra`, then one merge:
 
@@ -44,9 +45,10 @@ manual dispatch (`gate` input).
 No rerun on the same build replaces a failure. A failed attempt fails its case for that build, and the merge refuses
 a second result for a case that passed or failed. A failure of the build is a failed attempt: a wrong preview, a reply
 without a preview and without a choice, question or fitting list card (a question in text is never a valid ask), HTTP
-5xx, a stream without a final event, a failed approval. Only a throttle, a spend ceiling stop, a failed precondition or
-a card turn without the eval trace that its answer needs is no evidence; it leaves the case incomplete, and only such
-a case continues in a later window. The model calls of that turn are not counted.
+5xx, a stream without a final event, a failed approval. Only a throttle, a spend ceiling stop, a failed precondition, a
+card turn without the eval trace that its answer needs, or a preview turn without the trace that shows a `stored` field
+is no evidence; it leaves the case incomplete, and only such a case continues in a later window. The model calls of
+that turn are not counted.
 
 A reply that the grader cannot read is a grader limit, not a behavior failure: the case has no verdict, and the merge
 refuses a later window of the same build for it. Each kind clears only through `--rerun` on a later API commit of the
