@@ -1,5 +1,5 @@
 name: Prepare installed desktop acceptance
-description: Install dependencies and the native prerequisites; the producer tests run in Tool and Hook Tests
+description: Install dependencies and the native prerequisites; the producer tests run in Tool and Hook Tests and in Desktop Acceptance Producers
 runs:
   using: composite
   steps:

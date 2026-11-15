@@ -1,11 +1,12 @@
 import { spawnSync } from 'node:child_process'
 import { EventEmitter } from 'node:events'
-import { readFileSync } from 'node:fs'
+import { readdirSync, readFileSync } from 'node:fs'
 import { dirname, join, resolve, win32 } from 'node:path'
 import { createInterface } from 'node:readline'
 import { PassThrough } from 'node:stream'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { runInNewContext } from 'node:vm'
+import { load } from 'js-yaml'
 import { JSDOM } from 'jsdom'
 import { assertAccessibleTree, assertCookieEvidence, assertPaletteFocus } from '../desktop-bench/acceptance-contract.mjs'
 import { T, REPO_ROOT, check, configure, failureCount, root, stage } from './_harness.mjs'
@@ -949,12 +950,32 @@ export async function cases() {
   T('APNs values reach only the signed macOS job, and WNS values only the job that runs Windows',
     ['ORBIT_APPLE_TEAM_ID', 'ORBIT_APNS_KEY_ID', 'ORBIT_APNS_PRIVATE_KEY'].every((name) => signed.includes(`${name}: `) && !unsigned.includes(name)) &&
       ['ORBIT_DESKTOP_WNS_OBJECT_ID', 'ORBIT_WNS_TENANT_ID', 'ORBIT_WNS_CLIENT_ID', 'ORBIT_WNS_CLIENT_SECRET'].every((name) => unsigned.includes(`${name}: `) && !signed.includes(name)))
-  // The producer regressions run once, in this suite (Tool and Hook Tests), so neither VM job repeats them.
-  T('both jobs share the setup action, which leaves the producer regressions to this suite, and both read the Rust compile cache that only main saves',
+  // This suite runs every producer test file on Linux; desktop-acceptance-producers.yml runs the platform-gated ones natively, so neither VM job repeats them.
+  T('both jobs share the setup action, which runs no producer test, and both read the Rust compile cache that only main saves',
     !setup.includes('tools/desktop-bench/test-') &&
       [unsigned, signed].every((text) => text.includes('uses: ./.github/actions/desktop-acceptance-setup') &&
         text.includes('uses: Swatinem/rust-cache@') && text.includes("save-if: ${{ github.ref == 'refs/heads/main' }}")) &&
       workflow.includes("- '.github/actions/desktop-acceptance-setup/**'"))
+  const producerWorkflow = load(readFileSync(join(REPO_ROOT, '.github/workflows/desktop-acceptance-producers.yml'), 'utf8'))
+  const nativeProducers = producerWorkflow.jobs.native
+  const nativeRuns = nativeProducers.steps.map((step) => step.run ?? '').join('\n')
+  const runnerFor = { win32: 'windows-latest', darwin: 'macos-latest' }
+  const gatedProducers = readdirSync(join(REPO_ROOT, 'tools/desktop-bench')).filter((file) => /^test-.*\.ts$/.test(file)).sort()
+    .map((file) => ({ file, platforms: [...new Set([...readFileSync(join(REPO_ROOT, 'tools/desktop-bench', file), 'utf8')
+      .matchAll(/process\.platform\s*[!=]==\s*'(\w+)'/g)].map((match) => match[1]))] }))
+    .filter(({ platforms }) => platforms.length > 0)
+  const nativeFiles = [...nativeRuns.matchAll(/node --import tsx tools\/desktop-bench\/(test-[\w-]+\.ts)/g)].map((match) => match[1]).sort()
+  T('every producer test file with a platform gate runs on the runner of each platform it names, and no other file runs there',
+    gatedProducers.length > 0 && JSON.stringify(nativeFiles) === JSON.stringify(gatedProducers.map(({ file }) => file)) &&
+      gatedProducers.every(({ platforms }) => platforms.every((platform) => nativeProducers.strategy.matrix.runner.includes(runnerFor[platform]))) &&
+      nativeProducers['runs-on'] === '${{ matrix.runner }}' && nativeProducers.strategy['fail-fast'] === false && nativeProducers.defaults.run.shell === 'bash',
+    JSON.stringify({ gatedProducers, nativeFiles, runners: nativeProducers.strategy.matrix.runner }))
+  const producerPaths = producerWorkflow.on.pull_request.paths
+  T('the native producer job starts on a change to a producer test, a fixture, the harness or the release script, and the VM jobs skip a test-only change',
+    ['tools/desktop-bench/**', 'apps/desktop/**', 'package-lock.json', '.github/workflows/desktop-acceptance-producers.yml'].every((path) => producerPaths.includes(path)) &&
+      !producerPaths.some((path) => path.startsWith('!tools/desktop-bench/test-') || path.startsWith('!tools/desktop-bench/__fixtures__')) &&
+      workflow.includes("- '!tools/desktop-bench/test-*.ts'") && workflow.includes("- '!tools/desktop-bench/__fixtures__/**'"),
+    JSON.stringify(producerPaths))
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
