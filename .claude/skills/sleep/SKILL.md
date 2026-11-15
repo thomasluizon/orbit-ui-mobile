@@ -50,17 +50,21 @@ its repository-qualified `pullRequests` and append-only `readinessLedger`.
 
 `writeRunState` in `tools/lib/run-state.mjs` unions previous `pullRequests` and
 `readinessLedger` forward when session ids match or `relay.from` identifies the predecessor.
-An unrelated session starts with its own ledger.
+An unrelated session starts with its own ledger. Its first write also carries the
+`openOwnerQuestions` of the previous run when that run's session is no longer live and nothing
+else holds that run. The carry has two more conditions: the first write sets no
+`openOwnerQuestions` of its own, and this session finds its own Claude session record.
 
 Write the decision log to `sleep-decisions.md` in this session's scratchpad directory, the one named
 in your system prompt. Keep it outside every repository, so no gate and no commit ever sees it.
 Write its exact path to `decisionLogPath` once the file exists. Keep every
-unresolved owner question in `openOwnerQuestions`, including what it blocks. Make each of these
+unresolved owner question in `openOwnerQuestions` as a `{ question, blocks }` row. Make each of these
 partial changes through `updateRunState` in `tools/lib/run-state.mjs`, which reads and writes the
 record under one lock; `writeRunState` stays for the whole-record first write above.
 `updateRunState` refuses the change from a superseded session with
 `session is superseded; run state write refused`, so the read-back then shows the successor's record unchanged.
-A relay copies the log in full and retains those questions in the open chain.
+A relay copies the log in full. It filters those questions through `/questions --relay`, and the
+successor inherits only the rows that survive.
 
 Start it with the wake time, the head of `main`, and every open pull request with its state.
 That header is what tells you later what changed while he slept.
@@ -159,7 +163,8 @@ failures on 6; none is successful CI. Exit 3 is the ceiling; 1 or 2 is a read or
   and its absolute completion file in the handoff; the successor starts a new file waiter on that
   same file.
   A failed relay keeps this session responsible and uses `--retry-wake` for its ten minute
-  cooldown. Never invoke `/questions` or ask the owner during the relay.
+  cooldown. `/handoff --relay` filters the owner questions through `/questions --relay`; never ask
+  the owner during the relay.
 - When the owner says stop, clear `sleep` for this session and report. On queue exhaustion write
   `remaining: []` and retain the ledger. Finish only with READY receipts or recorded named blockers,
   following the canonical protocol; report blocked work as blocked. With `autoWork: true`,
