@@ -7,6 +7,7 @@ import { formatLoginCountdown, type LoginCodeFailure } from '@orbit/shared/utils
 import { OtpInput } from '@/components/ui/otp-input'
 import { PillButton } from '@/components/ui/pill-button'
 import { CapacityNotice } from '@/components/ui/capacity-notice'
+import { KeyboardRevealGroup } from '@/components/ui/keyboard-reveal-group'
 import { LoginHeader, LoginOfflineNotice } from './login-sections'
 
 interface CodeStepProps {
@@ -52,32 +53,34 @@ export function CodeStep({ email, codeDigits, isSubmitting, isResending, canRese
           <PillButton variant="ghost" size="sm" disabled={isSubmitting} onClick={onBackToEmail}>{t('auth.changeEmail')}</PillButton>
         </div>
       </div>
-      <form className="flex flex-col gap-6" onSubmit={(event) => { event.preventDefault(); onVerifyCode() }}>
-        <m.div animate={shake ? { x: [0, -4, 4, -4, 4, 0] } : { x: 0 }}
-          transition={{ duration: reduced ? 0 : 0.28, ease: motionEasings.standard }} data-mock={expired || undefined}>
-          <OtpInput label={t('auth.verificationCode')} value={codeDigits.join('')}
-            onChange={onCodeChange} onBlur={onCodeBlur} focusRequest={codeFocusRequest} error={fieldError}
-            hint={!fieldError && !locked ? t('auth.codeHint') : undefined}
-            disabled={isSubmitting || expired || waiting} />
-        </m.div>
-        {turnstileWidget}
-        {!isOnline && <LoginOfflineNotice t={t} />}
-        {!waiting && !expired && <PillButton disabled={isSubmitting || !isOnline || codeDigits.join('').length !== 6 || !canSubmitTurnstile}
-          loading={isSubmitting && !isResending}>{t('auth.verify')}</PillButton>}
-      </form>
-      {!waiting && <div className="flex flex-col items-start gap-2">
-        {canResend || expired
-          ?
-            <PillButton variant="ghost" size="sm" onClick={onResendCode} disabled={!isOnline || isSubmitting || !canSubmitTurnstile} loading={isResending}>
-              {t('auth.resendCode')}
-            </PillButton>
-          : <p className="font-mono text-xs tabular-nums text-[var(--fg-3)]">
-              {t('auth.resendIn', { time: formatLoginCountdown(resendCountdown) })}
-            </p>}
-      </div>}
-      {locked && <div className="flex flex-col gap-2">
-        <div role="status"><CapacityNotice message={t('auth.errors.tooManyAttempts')} /></div>
-      </div>}
+      <KeyboardRevealGroup testID="login-field-action" className="flex flex-col gap-6">
+        <form className="flex flex-col gap-6" onSubmit={(event) => { event.preventDefault(); onVerifyCode() }}>
+          <m.div animate={shake ? { x: [0, -4, 4, -4, 4, 0] } : { x: 0 }}
+            transition={{ duration: reduced ? 0 : 0.28, ease: motionEasings.standard }} data-mock={expired || undefined}>
+            <OtpInput label={t('auth.verificationCode')} value={codeDigits.join('')}
+              onChange={onCodeChange} onBlur={onCodeBlur} focusRequest={codeFocusRequest} error={fieldError}
+              hint={!fieldError && !locked ? t('auth.codeHint') : undefined}
+              disabled={isSubmitting || expired || waiting} />
+          </m.div>
+          {turnstileWidget}
+          {!isOnline && <LoginOfflineNotice t={t} />}
+          {!waiting && !expired && <PillButton disabled={isSubmitting || !isOnline || codeDigits.join('').length !== 6 || !canSubmitTurnstile}
+            loading={isSubmitting && !isResending}>{t('auth.verify')}</PillButton>}
+        </form>
+        {!waiting && <div className="flex flex-col items-start gap-2">
+          {canResend || expired
+            ?
+              <PillButton variant="ghost" size="sm" onClick={onResendCode} disabled={!isOnline || isSubmitting || !canSubmitTurnstile} loading={isResending}>
+                {t('auth.resendCode')}
+              </PillButton>
+            : <p className="font-mono text-xs tabular-nums text-[var(--fg-3)]">
+                {t('auth.resendIn', { time: formatLoginCountdown(resendCountdown) })}
+              </p>}
+        </div>}
+        {locked && <div className="flex flex-col gap-2">
+          <div role="status"><CapacityNotice message={t('auth.errors.tooManyAttempts')} /></div>
+        </div>}
+      </KeyboardRevealGroup>
     </div>
   )
 }
