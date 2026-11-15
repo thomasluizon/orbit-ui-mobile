@@ -121,7 +121,10 @@ describe('goal detail on the Orbit logic', () => {
     await renderDetail()
     const line = byProp(tree.root, 'testID', 'today-astra-slot')
     expect(line.props.accessibilityLabel).toBe(sentence)
-    expect(byProp(line, 'testID', 'orbit-mascot').props['data-orbit-face'], 'the line row draws the still small face').toBe('small')
+    const face = byProp(line, 'testID', 'orbit-mascot').props
+    expect(face.width, 'the line row draws Orbit still at 48').toBe(48)
+    expect(face['data-orbit-face']).toBe('rig')
+    expect(face['data-orbit-loop']).toBe('still')
   })
 
   it('states a passed deadline with its date', async () => {

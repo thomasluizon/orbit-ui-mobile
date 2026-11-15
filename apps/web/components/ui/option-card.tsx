@@ -32,7 +32,7 @@ export function OptionCard({ label, selected = false, disabled = false, disabled
         onBlur={() => onHighlight?.(false)}
         onPointerEnter={(event) => { if (event.pointerType === 'mouse') onHighlight?.(true) }}
         onPointerLeave={(event) => { if (event.pointerType === 'mouse') onHighlight?.(false) }}
-        className="orbit-option-card"
+        className="orbit-option-card press-hit-layer"
       >
         {label}
       </button>

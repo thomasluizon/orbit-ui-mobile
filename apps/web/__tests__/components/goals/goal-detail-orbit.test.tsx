@@ -94,7 +94,10 @@ describe('goal detail on the Orbit logic', () => {
     renderDetail({ locale })
     const line = screen.getByRole('button', { name: sentence })
     expect(line.closest('[data-goal-orbit-line]')).not.toBeNull()
-    expect(line.querySelector('[data-asset="orbit-mascot"]'), 'the line row draws the still small face').toHaveAttribute('data-orbit-face', 'small')
+    const face = line.querySelector('[data-asset="orbit-mascot"]')
+    expect(face, 'the line row draws Orbit still at 48').toHaveAttribute('width', '48')
+    expect(face).toHaveAttribute('data-orbit-face', 'rig')
+    expect(face).toHaveAttribute('data-orbit-loop', 'still')
   })
 
   it('states a passed deadline with its date and never counts the miss', () => {

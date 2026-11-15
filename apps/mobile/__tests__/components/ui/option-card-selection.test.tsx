@@ -1,8 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
-import { StyleSheet } from 'react-native'
+import { StyleSheet, type StyleProp, type ViewStyle } from 'react-native'
 import { motionPresets } from '@orbit/shared/theme'
 import { OptionCard } from '@/components/ui/option-card'
-import { PRESS_SCALE_TRANSITION } from '@/components/motion/press-scale'
 import { createTokensV2 } from '@/lib/theme'
 
 const preference = vi.hoisted(() => ({ reduced: false }))
@@ -13,20 +12,22 @@ const TestRenderer = require('react-test-renderer')
 
 const tokens = createTokensV2('orange', 'dark')
 
-function cardStyle(tree: ReturnType<typeof TestRenderer.create>) {
-  return StyleSheet.flatten(tree.root.findByProps({ testID: 'option-card' }).findAll((node: { type: unknown }) => typeof node.type === 'string')[0]!.props.style)
+function hostStyle(tree: ReturnType<typeof TestRenderer.create>, testID: string) {
+  return StyleSheet.flatten(tree.root.findAll((node: { type: unknown; props: { testID?: string } }) => typeof node.type === 'string' && node.props.testID === testID)[0]!.props.style)
 }
 
 describe('OptionCard selection on Android', () => {
-  it('draws the primary ring inside its fixed border when selected and settles it on the selection preset', () => {
+  it('draws the primary ring over the card face when selected, takes no border on the face and settles the ring on the selection preset', () => {
     preference.reduced = false
     const { enterDuration, exitDuration, enterEasing, exitEasing } = motionPresets.selection
     let tree: ReturnType<typeof TestRenderer.create>
     const render = (selected: boolean) => <OptionCard label="Saúde" selected={selected} onSelect={vi.fn()} />
     TestRenderer.act(() => { tree = TestRenderer.create(render(false)) })
-    expect(cardStyle(tree)).toMatchObject({ borderWidth: 2, borderColor: 'transparent', transition: `${PRESS_SCALE_TRANSITION}, border-color ${exitDuration}ms cubic-bezier(${exitEasing.join(',')})` })
+    const bordered = tree!.root.findAll((node: { type: unknown; props: { testID?: string; style?: StyleProp<ViewStyle> } }) => typeof node.type === 'string' && node.props.testID !== 'selection-ring' && (StyleSheet.flatten(node.props.style).borderWidth ?? 0) > 0)
+    expect(bordered).toHaveLength(0)
+    expect(hostStyle(tree, 'selection-ring')).toMatchObject({ position: 'absolute', borderColor: 'transparent', transition: `border-color ${exitDuration}ms cubic-bezier(${exitEasing.join(',')})` })
     TestRenderer.act(() => tree!.update(render(true)))
-    expect(cardStyle(tree)).toMatchObject({ borderWidth: 2, borderColor: tokens.primary, transition: `${PRESS_SCALE_TRANSITION}, border-color ${enterDuration}ms cubic-bezier(${enterEasing.join(',')})` })
+    expect(hostStyle(tree, 'selection-ring')).toMatchObject({ position: 'absolute', borderWidth: 2, borderColor: tokens.primary, transition: `border-color ${enterDuration}ms cubic-bezier(${enterEasing.join(',')})` })
     TestRenderer.act(() => tree!.unmount())
   })
 
@@ -34,7 +35,7 @@ describe('OptionCard selection on Android', () => {
     preference.reduced = true
     let tree: ReturnType<typeof TestRenderer.create>
     TestRenderer.act(() => { tree = TestRenderer.create(<OptionCard label="Saúde" selected onSelect={vi.fn()} />) })
-    expect(cardStyle(tree)).toMatchObject({ borderColor: tokens.primary, transition: 'none' })
+    expect(hostStyle(tree, 'selection-ring')).toMatchObject({ borderWidth: 2, borderColor: tokens.primary, transition: 'none' })
     TestRenderer.act(() => tree!.unmount())
     preference.reduced = false
   })

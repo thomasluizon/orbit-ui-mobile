@@ -58,7 +58,7 @@ describe.each(locales)('Perfil settings with orbit_guided_flows in $locale', ({ 
   it('draws a skeleton and no spinner while the push devices load', () => {
     mount(locale, messages, <PushDevicesRow count={undefined} max={undefined} currentDeviceRegistered={false} supported loading error={false} permission="default" status="not-registered" onToggle={vi.fn()} onRetry={vi.fn()} />)
     const skeleton = screen.getByRole('progressbar', { name: messages.profile.loading })
-    expect(skeleton).toHaveAttribute('data-variant', 'settings')
+    expect(skeleton.closest('[data-push-devices-skeleton]')).not.toBeNull()
     expect(document.querySelector(SPINNER_SELECTOR)).toBeNull()
     expect(screen.queryByText(messages.profile.loading)).toBeNull()
   })

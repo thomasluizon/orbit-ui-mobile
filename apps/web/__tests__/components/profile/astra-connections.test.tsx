@@ -185,7 +185,9 @@ it('draws a skeleton and no spinner while the Notion connection loads', () => {
     return <NotionConnectionSheet callbackFailed={false} controller={controller} onClose={vi.fn()} onAuthorize={vi.fn()} onOpenUrl={vi.fn()} />
   }
   render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><Harness /></QueryClientProvider>)
-  expect(screen.getByRole('progressbar', { name: en.common.loading })).toHaveAttribute('data-variant', 'settings')
+  const details = screen.getByRole('status', { name: en.common.loading })
+  expect(details).toHaveAttribute('aria-busy', 'true')
+  expect(details.querySelectorAll('.skeleton-pulse')).toHaveLength(2)
   expect(document.querySelector('.animate-spin')).toBeNull()
   expect(screen.queryByText(en.common.loading)).not.toBeInTheDocument()
 })

@@ -918,6 +918,8 @@ select[aria-hidden="true"] {
   line-height: 24px;
   text-align: center;
   outline: none;
+  /* The press hit layer draws the focus ring while a key holds the card, on the line of the inset focus ring. */
+  outline-offset: -2px;
   transition: background-color var(--dur-fast) var(--ease-standard), box-shadow var(--dur-fast) var(--ease-standard), transform var(--dur-press) var(--ease-out);
 }
 
@@ -934,8 +936,13 @@ select[aria-hidden="true"] {
 }
 
 @media (prefers-reduced-motion: no-preference) {
-  .orbit-option-card:active {
+  .orbit-option-card.press-hit-layer:active {
     transform: scale(0.96);
+  }
+
+  /* The unscaled hit layer draws the focus ring of a pressed card, so the scaled card draws none. */
+  .orbit-option-card.press-hit-layer:focus-visible:active {
+    box-shadow: none;
   }
 }
 
