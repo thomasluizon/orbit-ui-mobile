@@ -52,7 +52,7 @@ function emailStep({ flow, callback, onDismissCallback, canSubmitTurnstile, turn
     question: t('auth.email'),
     line: flow.fromOnboarding ? t('auth.line.plan', { count: flow.pendingHabitCount }) : null,
     options: (
-      <div data-login-providers="" className="col-span-2 flex flex-col gap-2 text-center">
+      <div data-login-providers="" className="col-span-2 mx-auto flex w-full flex-col gap-2 text-center lg:max-w-[360px]">
         <LoginProviderActions disabled={isBusy || !flow.isOnline} isGoogleLoading={isGoogleLoading} isAppleLoading={isAppleLoading} isOnline={flow.isOnline}
           error={errors.provider} onSignInWithGoogle={() => { onDismissCallback(); flow.signInWithGoogle() }}
           onSignInWithApple={() => { onDismissCallback(); flow.signInWithApple() }} t={t} />

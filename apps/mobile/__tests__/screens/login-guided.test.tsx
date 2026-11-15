@@ -1,5 +1,5 @@
 import React from 'react'
-import { Animated, Platform, View } from 'react-native'
+import { StyleSheet, Animated, Platform, View } from 'react-native'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { setI18n } from 'react-i18next'
 import { authLocales, authScreenStates, createLoginScreenFixture, type AuthScreenState } from '@orbit/shared/__tests__/auth-screen-fixtures'
@@ -94,6 +94,14 @@ describe.each(authLocales)('guided sign-in on Android in %s', (locale) => {
     press(t('auth.signInWithApple'))
     expect(handlers.signInWithGoogle).toHaveBeenCalledOnce()
     expect(handlers.signInWithApple).toHaveBeenCalledOnce()
+  })
+
+  it.each([{ width: 412, cap: undefined, margin: undefined }, { width: 1440, cap: 360, margin: 'auto' }])('keeps the provider options at most 360 wide in the centre from 1024, and as wide as the column below it ($width px)', ({ width, cap, margin }) => {
+    show('email', locale, { width })
+    const style = StyleSheet.flatten(byTestID('login-providers')[0]!.props.style as never) as { width?: string; maxWidth?: number; marginHorizontal?: string }
+    expect(style.width).toBe('100%')
+    expect(style.maxWidth).toBe(cap)
+    expect(style.marginHorizontal).toBe(margin)
   })
 
   it('keeps the continue action enabled: an empty submit asks for the hint and a typed address sends the code', () => {

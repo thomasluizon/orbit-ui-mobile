@@ -15,6 +15,7 @@ import { Input } from '@/components/ui/input'
 import { ListRow } from '@/components/ui/list-row'
 import { OptionCard } from '@/components/ui/option-card'
 import { PillButton } from '@/components/ui/pill-button'
+import { PrimaryActionSlot } from '@/components/ui/primary-action-slot'
 import { Proposed } from '@/components/ui/proposed'
 import { QuestionRow } from '@/components/ui/question-row'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -118,7 +119,7 @@ export function useWhenView({ flow, formHelpers }: Readonly<ViewInput>): FlowSte
     free: <>
       <Input label={t('habits.flow.when.freeLabel')} name="datePhrase" value={text} placeholder={t('habits.flow.when.freePlaceholder')} error={issue} onChange={(value) => { setText(value); setIssue(undefined) }} onSubmit={submitText} />
       <DateField label={t('habits.flow.when.calendar')} value={dueDate} minDate={flow.mode === 'create' ? flow.today : undefined} onChange={(date) => { if (date) flow.chooseDate(date) }} />
-      <PillButton variant="ghost" onClick={submitText}>{t('habits.flow.continue')}</PillButton>
+      <PrimaryActionSlot><PillButton variant="ghost" onClick={submitText}>{t('habits.flow.continue')}</PillButton></PrimaryActionSlot>
     </>,
   }
 }

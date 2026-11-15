@@ -1,7 +1,8 @@
 import type { FlowStepView } from '@orbit/shared/contracts/flow'
+import { WIDE_DESKTOP_BREAKPOINT } from '@orbit/shared/theme'
 import { deriveLoginEmailErrors, formatLoginCountdown, getAuthCallbackErrorKey, getPendingAuthProvider } from '@orbit/shared/utils'
 import { useLayoutEffect, useMemo, useState, type ReactNode } from 'react'
-import { Platform, StyleSheet, Text, View } from 'react-native'
+import { Platform, StyleSheet, Text, View, useWindowDimensions } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { createLoginStyles, type LoginStyles } from '@/app/login-styles'
 import { useLoginFlow } from '@/app/use-login-flow'
@@ -58,11 +59,11 @@ function emailStep({ flow, callback, onDismissCallback, canSubmitTurnstile, turn
     question: t('auth.email'),
     line: flow.fromOnboarding ? t('auth.line.plan', { count: flow.plannedHabitCount }) : null,
     options: (
-      <View testID="login-providers" style={local.providers}>
+      <ProviderOptions>
         <LoginProviderActions disabled={isBusy || !flow.isOnline} isGoogleLoading={isGoogleLoading} isAppleLoading={isAppleLoading} isOnline={flow.isOnline}
           error={errors.provider} onSignInWithGoogle={() => { onDismissCallback(); void flow.signInWithGoogle() }}
           onSignInWithApple={() => { onDismissCallback(); void flow.signInWithApple() }} styles={styles} t={t} />
-      </View>
+      </ProviderOptions>
     ),
     free: (
       <>
@@ -79,6 +80,12 @@ function emailStep({ flow, callback, onDismissCallback, canSubmitTurnstile, turn
     },
     footer: <LoginLegalConsent styles={styles} onOpenTerms={flow.openTerms} onOpenPrivacy={flow.openPrivacyPolicy} />,
   }
+}
+
+/** The two provider options. From 1024 they stay at most 360 wide in the centre and never span the content column. */
+function ProviderOptions({ children }: Readonly<{ children: ReactNode }>) {
+  const { width } = useWindowDimensions()
+  return <View testID="login-providers" style={[local.providers, width >= WIDE_DESKTOP_BREAKPOINT ? local.providersWide : null]}>{children}</View>
 }
 
 /** The Orbit line of the code step: where the code went, or the state that stops the code. */
@@ -227,6 +234,7 @@ function GuidedAccountBack({ t, styles, tokens, loading, continueAccount, errorM
 
 const local = StyleSheet.create({
   providers: { width: '100%', gap: 8 },
+  providersWide: { maxWidth: 360, marginHorizontal: 'auto' },
   codePath: { width: '100%', alignItems: 'center', gap: 12 },
   stretch: { alignSelf: 'stretch' },
   banner: { width: '100%', maxWidth: 592, alignSelf: 'center', paddingHorizontal: 16, paddingTop: 16 },

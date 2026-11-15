@@ -11,6 +11,7 @@ import { Input } from '@/components/ui/input'
 import { MotionPressable } from '@/components/ui/motion-pressable'
 import { OptionCard } from '@/components/ui/option-card'
 import { PillButton } from '@/components/ui/pill-button'
+import { PrimaryActionSlot } from '@/components/ui/primary-action-slot'
 import { InlineLoadError } from '@/components/ui/inline-load-error'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useChecklistTemplates, useCreateChecklistTemplate, useDeleteChecklistTemplate } from '@/hooks/use-checklist-templates'
@@ -68,7 +69,7 @@ export function useTemplateQuestionView({ showing, onLoad, onWrite }: Readonly<{
     deleteTemplate.mutate(id, { onError: () => setDeleteError(t('habits.form.deleteTemplateError')) })
   }
   const empty = !isLoading && !isError && templates.length === 0
-  let free = <PillButton variant="ghost" onClick={onWrite}>{t('habits.flow.templates.write')}</PillButton>
+  let free = <PrimaryActionSlot><PillButton variant="ghost" onClick={onWrite}>{t('habits.flow.templates.write')}</PillButton></PrimaryActionSlot>
   if (isLoading) free = <Skeleton variant="settings" rows={2} label={t('common.loading')} />
   else if (isError) free = <><InlineLoadError message={t('habits.flow.templates.loadError')} onRetry={() => void refetch()} />{free}</>
   else if (!empty) free = <View style={staticStyles.rows}>

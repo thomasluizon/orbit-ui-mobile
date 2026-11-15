@@ -19,6 +19,7 @@ import { Input } from '@/components/ui/input'
 import { ListRow } from '@/components/ui/list-row'
 import { OptionCard } from '@/components/ui/option-card'
 import { PillButton } from '@/components/ui/pill-button'
+import { PrimaryActionSlot } from '@/components/ui/primary-action-slot'
 import { useProfile } from '@/hooks/use-profile'
 import { useThemeTokens } from '@/hooks/use-theme-tokens'
 
@@ -137,7 +138,7 @@ export function useDeadlineView({ draft, advance, deadlineAnswered = false }: Go
       <Input label={t('habits.flow.when.freeLabel')} value={words} error={issue}
         onChange={(value) => { setIssue(undefined); setWords(value) }} onSubmit={submitWords} />
       <DateField label={t('habits.flow.when.calendar')} value={draft.deadline} minDate={today} onChange={(date) => { if (date) choose(date) }} />
-      <PillButton variant="ghost" onClick={submitWords}>{t('habits.flow.continue')}</PillButton>
+      <PrimaryActionSlot><PillButton variant="ghost" onClick={submitWords}>{t('habits.flow.continue')}</PillButton></PrimaryActionSlot>
     </>,
   }
 }
