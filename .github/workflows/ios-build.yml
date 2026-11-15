@@ -135,8 +135,9 @@ jobs:
         id: compile
         working-directory: apps/mobile
         env:
-          # The Android Hermes export proves the JavaScript bundle; react-native-xcode.sh, expo-updates and the
-          # Sentry wrapper each skip their bundle step on this variable.
+          # The Android Hermes export proves the JavaScript bundle. react-native-xcode.sh and expo-updates skip their
+          # bundle step on this variable; the Sentry wrapper never reads it, and with SENTRY_DISABLE_AUTO_UPLOAD it runs
+          # react-native-xcode.sh directly.
           SKIP_BUNDLING: '1'
         run: |
           set -euo pipefail
