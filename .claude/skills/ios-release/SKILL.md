@@ -7,8 +7,9 @@ description: Publish an Orbit iOS build to internal TestFlight through the manua
 
 ## One mobile version
 
-iOS ships at the same `app_version` as Android. Each store keeps its own build counter. The default
-path is `/android-release` first, then this skill at the version Android uploaded.
+iOS ships at the same `app_version` as Android, from the same commit. Each store keeps its own build counter.
+The default path is `/android-release` first, then this skill right after the Android dispatch, at the version
+and commit of that Android run. The iOS archive runs beside the Android build; Android still uploads first.
 
 The `variant` selects the GitHub environment, and each environment keeps its own records. Select the
 variant of the Android run's environment:
@@ -18,11 +19,16 @@ variant of the Android run's environment:
 | `open`, `production` | `production` | `production` |
 | `internal` | `staging` | `staging` |
 
-Use the newest Android version from
+Use the `app_version` of the Android run: the newest Android version from
 `node apps/mobile/scripts/mobile-version-pair.js plan --environment <the variant>` (set `GITHUB_REPOSITORY`
-and `GH_TOKEN`). The workflow runs `mobile-version-pair.js check` against that environment only. It refuses
-an iOS version that differs from the newest Android version there. It passes `--sha "$GITHUB_SHA"` and
-refuses a build of a commit other than the commit of the newest Android record at that version. A new build
+and `GH_TOKEN`) when Android already uploaded, or the version of the Android dispatch that is still running.
+The workflow runs `mobile-version-pair.js check` against that environment only, twice. Before the build,
+`--stage build` refuses an iOS version that differs from the newest Android version there, unless an
+`android-release.yml` run of that version for that environment is queued or running on the same commit.
+Before the TestFlight upload, `--stage upload --wait-minutes 45` reads the Android records every 30 seconds
+until Android records that version, and refuses when the Android run ends without a record or the wait ends.
+Both pass `--sha "$GITHUB_SHA"` and refuse a build of a commit other than the commit of the newest Android
+record at that version. A new build
 number at a version that iOS already carries must build that version's commit too. `gh workflow run --ref`
 builds the tip of the branch. So dispatch only while that tip is the commit of the Android run. If the
 branch moved, release Android at the new `nextVersion` from the new tip first. If the newest Android record
@@ -50,7 +56,8 @@ Production releases run from `main`.
 Before dispatch, resolve the requested ref to a commit equal to the Android run's commit, the app version from the rule above, an unused positive `build_number`,
 and `variant` (`staging` or `production`, from the table above). Read the latest build number from the matching app's
 App Store Connect TestFlight screen; do not infer it from Android's version code. Verify the
-`Mobile iOS Build` compile check for the commit. Ask for a missing release parameter only after
+`Mobile iOS Build` compile check for the commit when the commit changed a native input; that workflow runs
+only for native inputs. Ask for a missing release parameter only after
 checking the requested release context. Dispatch only when the user has authorized the upload.
 
 The GitHub environments `ios-staging` and `ios-production`, under Settings > Environments, need:

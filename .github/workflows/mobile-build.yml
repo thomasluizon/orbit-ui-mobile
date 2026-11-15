@@ -1,31 +1,87 @@
 name: Mobile Android Build
 
-# Compile the native module graph. android-startup.yml separately checks the
-# Hermes module inventory and cold starts an AAB-derived APK.
+# Compile the native module graph when a native input changes. android-startup.yml
+# separately exports the Hermes bundle, which proves the JavaScript on every mobile
+# change, and cold starts an AAB-derived APK.
 
 on:
   pull_request:
     branches: [main]
     paths:
-      - "apps/mobile/**"
-      - "packages/shared/**"
       - "package.json"
       - "package-lock.json"
+      - "apps/mobile/package.json"
+      - "apps/mobile/app.json"
+      - "apps/mobile/app.config.js"
+      - "apps/mobile/babel.config.js"
+      - "apps/mobile/metro.config.js"
+      - "apps/mobile/assets/**"
+      - "apps/mobile/locales/**"
+      - "apps/mobile/plugins/**"
+      - "apps/mobile/modules/**"
+      - "!apps/mobile/modules/**/*.md"
+      - "apps/mobile/scripts/android-release-apk.js"
+      - "apps/mobile/scripts/fix-hoisting.js"
+      - ".github/workflows/mobile-build.yml"
+  # A main run saves the Gradle, NDK and compiler caches and the pass marker that pull requests read.
+  push:
+    branches: [main]
+    paths:
+      - "package.json"
+      - "package-lock.json"
+      - "apps/mobile/package.json"
+      - "apps/mobile/app.json"
+      - "apps/mobile/app.config.js"
+      - "apps/mobile/babel.config.js"
+      - "apps/mobile/metro.config.js"
+      - "apps/mobile/assets/**"
+      - "apps/mobile/locales/**"
+      - "apps/mobile/plugins/**"
+      - "apps/mobile/modules/**"
+      - "!apps/mobile/modules/**/*.md"
+      - "apps/mobile/scripts/android-release-apk.js"
+      - "apps/mobile/scripts/fix-hoisting.js"
       - ".github/workflows/mobile-build.yml"
   workflow_dispatch:
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
   cancel-in-progress: true
 
 permissions:
   contents: read
 
 jobs:
+  plan:
+    name: Select the Android compile
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    outputs:
+      compile: ${{ github.event_name == 'workflow_dispatch' || steps.pass.outputs.cache-hit != 'true' }}
+      pass-key: ${{ steps.key.outputs.value }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      # The path filter matches the whole pull request diff, so every push of a native change starts this
+      # workflow. A pass recorded for the same native inputs skips the compile.
+      - name: Hash the native inputs
+        id: key
+        run: echo "value=android-compile-pass-v1-${{ hashFiles('package.json', 'package-lock.json', 'apps/mobile/package.json', 'apps/mobile/app.json', 'apps/mobile/app.config.js', 'apps/mobile/babel.config.js', 'apps/mobile/metro.config.js', 'apps/mobile/assets/**', 'apps/mobile/locales/**', 'apps/mobile/plugins/**', 'apps/mobile/modules/**', 'apps/mobile/scripts/android-release-apk.js', 'apps/mobile/scripts/fix-hoisting.js', '.github/workflows/mobile-build.yml') }}" >> "$GITHUB_OUTPUT"
+      - name: Look up a pass for these native inputs
+        id: pass
+        uses: actions/cache/restore@v6
+        with:
+          path: .ci-pass/android-compile
+          key: ${{ steps.key.outputs.value }}
+          lookup-only: true
+
   build:
     name: Android release build
+    needs: plan
+    if: needs.plan.outputs.compile == 'true'
     runs-on: ubuntu-24.04
-    timeout-minutes: 45
+    timeout-minutes: 30
 
     env:
       # app.config.js points `googleServicesFile` at ./google-services.json,
@@ -41,6 +97,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
 
       - uses: actions/setup-node@v7
         env:
@@ -55,10 +113,9 @@ jobs:
           distribution: temurin
           java-version: "17"
 
+      # The default writes the Gradle caches on main only, so a pull request reads the main entries.
       - name: Set up Gradle caching
         uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
-        with:
-          cache-read-only: false
 
       - name: Install dependencies
         run: npm ci --prefer-offline --no-audit --fund=false
@@ -78,8 +135,9 @@ jobs:
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "path=$ANDROID_HOME/ndk/$version" >> "$GITHUB_OUTPUT"
 
-      - name: Cache the Android NDK
-        uses: actions/cache@v6
+      - name: Restore the Android NDK
+        id: ndk-cache
+        uses: actions/cache/restore@v6
         with:
           path: ${{ steps.ndk.outputs.path }}
           key: ubuntu-24.04-x64-ndk-v1-${{ steps.ndk.outputs.version }}
@@ -118,9 +176,74 @@ jobs:
           fi
           echo "Verified Android NDK $NDK_VERSION before Gradle."
 
+      # A pull request never saves: the NDK entry is about 600 MB, and main keeps the one entry that every run reads.
+      - name: Save the Android NDK
+        if: github.ref == 'refs/heads/main' && steps.ndk-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: ${{ steps.ndk.outputs.path }}
+          key: ubuntu-24.04-x64-ndk-v1-${{ steps.ndk.outputs.version }}
+
+      # The Gradle build cache does not cover the CMake tasks of the native modules. CMake reads the compiler
+      # launcher from these variables, and the Android release uses the same compiler cache prefix.
+      - name: Set up ccache for the native C++ builds
+        shell: bash
+        run: |
+          set -euo pipefail
+          # A package mirror outage must not fail the compile, so the build runs without ccache.
+          if sudo apt-get update -qq && sudo apt-get install -y -qq ccache; then
+            ccache --set-config=max_size=2G
+            ccache --set-config=compiler_check=content
+            ccache --zero-stats
+            {
+              echo "CCACHE_AVAILABLE=true"
+              echo "CMAKE_C_COMPILER_LAUNCHER=ccache"
+              echo "CMAKE_CXX_COMPILER_LAUNCHER=ccache"
+            } >> "$GITHUB_ENV"
+          else
+            echo "::warning::ccache could not be installed, so the native C++ build runs without the compiler cache."
+          fi
+
+      # Keyed on the lockfile, which pins the native modules whose C and C++ sources this compile reads: main saves one
+      # entry per lockfile and a pull request only reads. The android-release.yml restore keys match this key by prefix.
+      - name: Restore the ccache directory
+        id: compiler-cache
+        if: env.CCACHE_AVAILABLE == 'true'
+        uses: actions/cache/restore@v6
+        with:
+          path: ~/.cache/ccache
+          key: ccache-android-release-${{ hashFiles('package-lock.json') }}-compile
+          restore-keys: |
+            ccache-android-release-${{ hashFiles('package-lock.json') }}-
+            ccache-android-release-
+
       # Runs the Expo prebuild and the Gradle release assemble across the whole
       # native module graph, which is where a broken native dependency or a
       # Gradle change actually surfaces. This compile checks the ARM slices;
       # release and startup proof AABs also compile x86_64 for native emulator execution.
       - name: Build the release APK
+        id: compile
         run: npm run android:apk -w @orbit/mobile
+
+      - name: Report compiler cache statistics
+        if: env.CCACHE_AVAILABLE == 'true'
+        run: ccache --show-stats
+
+      # A key is written once, so a passing main compile saves the lockfile key. A failed main compile saves a
+      # run-scoped partial entry instead: the restore step finds it by prefix, so the next attempt is not cold, and
+      # the lockfile key stays free for the passing compile. ccache checksums each entry.
+      - name: Save the ccache directory
+        if: ${{ always() && env.CCACHE_AVAILABLE == 'true' && steps.compile.outcome != 'skipped' && github.ref == 'refs/heads/main' && steps.compiler-cache.outputs.cache-hit != 'true' }}
+        uses: actions/cache/save@v6
+        with:
+          path: ~/.cache/ccache
+          key: ${{ steps.compile.outcome == 'success' && steps.compiler-cache.outputs.cache-primary-key || format('{0}-partial-{1}-{2}', steps.compiler-cache.outputs.cache-primary-key, github.run_id, github.run_attempt) }}
+
+      - name: Record the pass for these native inputs
+        run: mkdir -p .ci-pass && echo "$GITHUB_SHA" > .ci-pass/android-compile
+
+      - name: Save the pass marker
+        uses: actions/cache/save@v6
+        with:
+          path: .ci-pass/android-compile
+          key: ${{ needs.plan.outputs.pass-key }}

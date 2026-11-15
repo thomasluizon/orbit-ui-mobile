@@ -1,20 +1,27 @@
 name: Android Startup
 
+# The Hermes inventory proves the JavaScript bundle of every mobile or shared source change. The boot
+# proof runs only when its own harness changed: the Play release runs the same action before upload.
 on:
   pull_request:
     branches: [main]
     paths:
       - "apps/mobile/**"
-      - "packages/shared/**"
+      - "!apps/mobile/__tests__/**"
+      - "!apps/mobile/test-*"
+      - "!apps/mobile/test-*/**"
+      - "!apps/mobile/vitest.config.ts"
+      - "!apps/mobile/**/*.md"
+      - "packages/shared/src/**"
+      - "!packages/shared/src/__tests__/**"
+      - "!packages/shared/src/**/*.test.ts"
+      - "!packages/shared/src/**/*.md"
       - "package.json"
       - "package-lock.json"
       - "tools/check-android-bundle.mjs"
       - "tools/android-boot.mjs"
       - ".github/actions/android-boot/**"
       - ".github/workflows/android-startup.yml"
-      - ".github/workflows/android-release.yml"
-  push:
-    branches: ["chore/ticket-1997-proof-*"]
 
 permissions:
   contents: read
@@ -29,26 +36,40 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 2
     outputs:
-      boot: ${{ steps.paths.outputs.boot }}
+      boot: ${{ steps.paths.outputs.boot == 'true' && steps.pass.outputs.cache-hit != 'true' }}
+      pass-key: ${{ steps.key.outputs.value }}
     steps:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 2
+          persist-credentials: false
       - id: paths
         shell: bash
         run: |
           set -euo pipefail
-          paths=$(git diff --name-only HEAD^1 HEAD)
-          if grep -Eq '^\.github/actions/android-boot/|^\.github/workflows/android-(release|startup)\.yml$|^tools/(android-boot|check-android-bundle)\.mjs$' <<< "$paths"; then
+          paths=$(git diff --name-only --no-renames HEAD^1 HEAD)
+          if grep -Eq '^\.github/actions/android-boot/|^\.github/workflows/android-startup\.yml$|^tools/android-boot\.mjs$' <<< "$paths"; then
             echo 'boot=true' >> "$GITHUB_OUTPUT"
           else
             echo 'boot=false' >> "$GITHUB_OUTPUT"
           fi
+      # The diff above is the whole pull request, so a later push that keeps the boot harness skips a proven boot.
+      - name: Hash the boot harness
+        id: key
+        run: echo "value=android-boot-pass-v1-${{ hashFiles('.github/actions/android-boot/**', 'tools/android-boot.mjs', '.github/workflows/android-startup.yml') }}" >> "$GITHUB_OUTPUT"
+      - name: Look up a pass for this boot harness
+        id: pass
+        if: steps.paths.outputs.boot == 'true'
+        uses: actions/cache/restore@v6
+        with:
+          path: .ci-pass/android-boot
+          key: ${{ steps.key.outputs.value }}
+          lookup-only: true
 
   bundle:
     name: Android Hermes module inventory
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: 10
     env:
       EXPO_PUBLIC_API_BASE: https://api.useorbit.org
     steps:
@@ -90,9 +111,9 @@ jobs:
       contents: read
       actions: read
     needs: scope
-    if: ${{ github.event_name == 'push' || needs.scope.outputs.boot == 'true' }}
+    if: ${{ needs.scope.outputs.boot == 'true' }}
     runs-on: ubuntu-24.04
-    timeout-minutes: 90
+    timeout-minutes: 50
     env:
       CI: "1"
       EXPO_NO_TELEMETRY: "1"
@@ -147,3 +168,10 @@ jobs:
         with:
           aab: apps/mobile/android/app/build/outputs/bundle/release/app-release.aab
           package: org.useorbit.app
+      - name: Record the pass for this boot harness
+        run: mkdir -p .ci-pass && echo "$GITHUB_SHA" > .ci-pass/android-boot
+      - name: Save the pass marker
+        uses: actions/cache/save@v6
+        with:
+          path: .ci-pass/android-boot
+          key: ${{ needs.scope.outputs.pass-key }}
