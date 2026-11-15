@@ -61,8 +61,19 @@ function renderDetail({ locale = 'en', inline = true }: { locale?: 'en' | 'pt-BR
 }
 const resultDialog = () => document.querySelector('[data-result-dialog]')
 const shownOrbitStates = () => [...document.querySelectorAll('[data-orbit-state]')].map((node) => node.getAttribute('data-orbit-state'))
-async function nextFrames() {
-  await act(async () => { await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve(null)))) })
+/** Holds every animation frame until the test runs it, so the sweep start does not depend on the load of the host. */
+function holdFrames() {
+  const queued = new Map<number, FrameRequestCallback>()
+  let handle = 0
+  vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => { handle += 1; queued.set(handle, callback); return handle })
+  vi.stubGlobal('cancelAnimationFrame', (cancelled: number) => { queued.delete(cancelled) })
+  return async function runFrame() {
+    await act(async () => {
+      const due = [...queued.values()]
+      queued.clear()
+      due.forEach((callback) => callback(performance.now()))
+    })
+  }
 }
 
 describe('goal detail on the Orbit logic', () => {
@@ -179,13 +190,17 @@ describe('goal detail on the Orbit logic', () => {
     const value = within(sheet).getByRole('textbox', { name: en.goals.form.progressQuestion })
     expect(within(sheet).getByRole('textbox', { name: en.goals.form.progressNoteQuestion })).toBeInTheDocument()
     fireEvent.change(value, { target: { value: '6' } })
+    const runFrame = holdFrames()
     await act(async () => { fireEvent.click(within(sheet).getByRole('button', { name: en.common.save })) })
     await waitFor(() => expect(mocks.updateProgress).toHaveBeenCalled())
     const ring = await screen.findByRole('progressbar', { name: en.goals.progressPercentage.replace('{pct}', '50') })
     expect(ring).toHaveAttribute('aria-valuenow', '25')
     expect(ring.parentElement).toHaveAttribute('data-ring-sweep', 'sweeping')
-    await nextFrames()
+    await runFrame()
+    expect(ring, 'the sweep waits two frames').toHaveAttribute('aria-valuenow', '25')
+    await runFrame()
     expect(ring).toHaveAttribute('aria-valuenow', '50')
+    expect(ring.parentElement).toHaveAttribute('data-ring-sweep', 'rest')
     expect(resultDialog(), 'a progress update keeps its in-place feedback').toBeNull()
   })
 

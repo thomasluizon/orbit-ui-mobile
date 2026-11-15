@@ -90,6 +90,20 @@ async function changeEntry(label: string, value: string) {
   const input = tree.root.findAll((node) => node.props.accessibilityLabel === label && typeof node.props.onChangeText === 'function')[0]!
   await act(() => { call(input, 'onChangeText', value) })
 }
+/** Holds every animation frame until the test runs it, so the sweep start does not depend on the load of the host. The setup stubs the frames again before each test. */
+function holdFrames() {
+  const queued = new Map<number, (timestamp: number) => void>()
+  let handle = 0
+  vi.stubGlobal('requestAnimationFrame', (callback: (timestamp: number) => void) => { handle += 1; queued.set(handle, callback); return handle })
+  vi.stubGlobal('cancelAnimationFrame', (cancelled: number) => { queued.delete(cancelled) })
+  return async function runFrame() {
+    await act(() => {
+      const due = [...queued.values()]
+      queued.clear()
+      due.forEach((callback) => callback(performance.now()))
+    })
+  }
+}
 const detailRing = (): ReactTestInstance => byProp(tree.root, 'testID', 'goal-detail-ring')
 const ringValue = () => (byProp(detailRing(), 'accessibilityRole', 'progressbar').props.accessibilityValue as { now: number }).now
 
@@ -205,13 +219,17 @@ describe('goal detail on the Orbit logic', () => {
     await press(i18n.t('goals.updateProgress'))
     expect(tree.root.findAll((node) => node.props.accessibilityLabel === i18n.t('goals.form.progressNoteQuestion') && typeof node.props.onChangeText === 'function')).not.toHaveLength(0)
     await changeEntry(i18n.t('goals.form.progressQuestion'), '6')
+    const runFrame = holdFrames()
     await press(i18n.t('common.save'))
     await act(async () => { await Promise.resolve() })
     expect(mocks.updateProgress).toHaveBeenCalled()
     expect(ringValue()).toBe(25)
     expect(detailRing().props['data-ring-sweep']).toBe('sweeping')
-    await act(async () => { await new Promise((resolve) => setTimeout(resolve, 5)) })
+    await runFrame()
+    expect(ringValue(), 'the sweep waits two frames').toBe(25)
+    await runFrame()
     expect(ringValue()).toBe(50)
+    expect(detailRing().props['data-ring-sweep']).toBe('rest')
     expect(resultDialog(), 'a progress update keeps its in-place feedback').toBeUndefined()
   })
 
