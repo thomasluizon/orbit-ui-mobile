@@ -13,6 +13,7 @@ import {
   getStepUpLockSeconds,
   getStepUpPhaseFromTiming,
   isStepUpOperation,
+  type StepUpOperation,
   type StepUpPhase,
   type StepUpTimingRecord,
   getFriendlyErrorMessage,
@@ -46,6 +47,7 @@ import { PillButton } from '@/components/ui/pill-button'
 import { ResultDialog } from '@/components/ui/result-dialog'
 import { QuietLink } from '@/components/ui/quiet-link'
 import { CapacityNotice } from '@/components/ui/capacity-notice'
+import { GuidedStepUp, type GuidedStepUpState } from './guided-step-up'
 
 const subscribeClientReady = () => () => {}
 const getClientReady = () => true
@@ -292,49 +294,36 @@ function StepUpScreenContent({
 
   if (!clientReady || sessionInactive || !operation || (!record && !success)) return null
 
-  const sharedView = { operationLabel, t }
+  const surface = { operationLabel, t, guided, operation }
   if (success) {
     return (
       <>
-        <StepUpSuccess
-          {...sharedView}
-          deletionDate={formattedDeletionDate}
-          showProNotice={Boolean(profile?.hasProAccess)}
-          onSignOut={() => void logout()}
-        />
+        <StepUpSurface {...surface} state={{ kind: 'success', scheduledAt: scheduledDeletionAt, deletionDate: formattedDeletionDate, showProNotice: Boolean(profile?.hasProAccess), onSignOut: () => void logout() }} />
         <DeletionResult deletionDate={formattedDeletionDate} pro={Boolean(profile?.hasProAccess)} onSignOut={() => void logout()} />
       </>
     )
   }
   if (exhausted) {
-    return (
-      <StepUpExhausted
-        {...sharedView}
-        lockSeconds={lockSeconds}
-        backLabel={getBackLabel(returnDestination, translate)}
-        onBack={() => router.replace(returnDestination)}
-      />
-    )
+    return <StepUpSurface {...surface} state={{ kind: 'exhausted', lockSeconds, backLabel: getBackLabel(returnDestination, translate), onBack: () => router.replace(returnDestination) }} />
   }
   return (
-    <StepUpChallenge
-      {...sharedView}
-      checking={checking}
-      code={code}
-      cooldownSeconds={cooldownSeconds}
-      email={email}
-      expired={expired}
-      onCancel={() => router.replace(returnDestination)}
-      onCodeChange={handleCodeChange}
-      onConfirm={() => void handleConfirm()}
-      onResend={() => void handleResend()}
-      otpError={otpError}
-      codeFocusRequest={shortSubmits > 0 ? shortSubmits : undefined}
-      guided={guided}
-      requestError={requestError}
-      requesting={requesting}
-    />
+    <StepUpSurface {...surface} state={{
+      kind: 'challenge', checking, code, cooldownSeconds, email, expired, otpError, requestError, requesting,
+      codeFocusRequest: shortSubmits > 0 ? shortSubmits : undefined,
+      onCancel: () => router.replace(returnDestination),
+      onCodeChange: handleCodeChange,
+      onConfirm: () => void handleConfirm(),
+      onResend: () => void handleResend(),
+    }} />
   )
+}
+
+/** With `orbit_guided_flows` on, every state shows in the guided question layout. With it off, the current surface of each state shows. */
+function StepUpSurface({ guided, operation, state, ...sharedView }: Readonly<SharedStepUpViewProps & { guided: boolean; operation: StepUpOperation; state: GuidedStepUpState }>) {
+  if (guided) return <GuidedStepUp operation={operation} state={state} />
+  if (state.kind === 'success') return <StepUpSuccess {...sharedView} deletionDate={state.deletionDate} showProNotice={state.showProNotice} onSignOut={state.onSignOut} />
+  if (state.kind === 'exhausted') return <StepUpExhausted {...sharedView} lockSeconds={state.lockSeconds} backLabel={state.backLabel} onBack={state.onBack} />
+  return <StepUpChallenge {...sharedView} {...state} />
 }
 
 type StepUpTranslator = ReturnType<typeof useTranslations>
@@ -450,8 +439,6 @@ interface StepUpChallengeProps extends SharedStepUpViewProps {
   cooldownSeconds: number
   email: string
   expired: boolean
-  /** The flag `orbit_guided_flows`: the title is the question the code field answers, and the confirm action stays enabled. */
-  guided: boolean
   onCancel: () => void
   onCodeChange: (value: string) => void
   onConfirm: () => void
@@ -462,15 +449,15 @@ interface StepUpChallengeProps extends SharedStepUpViewProps {
 }
 
 function StepUpChallenge(props: Readonly<StepUpChallengeProps>) {
-  const { checking, code, codeFocusRequest, cooldownSeconds, email, expired, guided, onCancel, onCodeChange, onConfirm, onResend, operationLabel, otpError, requestError, requesting, t } = props
+  const { checking, code, codeFocusRequest, cooldownSeconds, email, expired, onCancel, onCodeChange, onConfirm, onResend, operationLabel, otpError, requestError, requesting, t } = props
   const action = expired ? (
     <PillButton loading={requesting} onClick={onResend}>{t('resend')}</PillButton>
   ) : (
-    <PillButton disabled={!guided && code.length !== STEP_UP_CODE_LENGTH} loading={checking} onClick={onConfirm}>{t('confirm')}</PillButton>
+    <PillButton disabled={code.length !== STEP_UP_CODE_LENGTH} loading={checking} onClick={onConfirm}>{t('confirm')}</PillButton>
   )
   return (
     <FlowShell nav={false} notice={<UpdateAvailableBanner inset={false} mascot={false} />} action={action}>
-      <StepUpHeader body={expired ? t('expiredBody') : t('body', { email })} operationLabel={operationLabel} t={t} title={expired ? t('expiredTitle') : guided ? t('codeLabel') : t('title')} />
+      <StepUpHeader body={expired ? t('expiredBody') : t('body', { email })} operationLabel={operationLabel} t={t} title={expired ? t('expiredTitle') : t('title')} />
       <OtpInput id="step-up-code" value={code} onChange={onCodeChange} error={otpError} focusRequest={codeFocusRequest} hint={expired ? undefined : t('codeHint')} disabled={checking || expired} autoFocus={!expired} label={t('codeLabel')} />
       {!expired ? <StepUpResend cooldownSeconds={cooldownSeconds} onResend={onResend} requesting={requesting} t={t} /> : null}
       {requestError ? <p role="alert" style={{ color: 'var(--status-bad-text)' }}>{requestError}</p> : null}

@@ -6,13 +6,26 @@ import {
   createStepUpTimingRecord,
   extractStepUpAttemptsRemaining,
   formatStepUpCountdown,
+  DELETE_ACCOUNT_FLOW_STEP_COUNT,
   getStepUpCooldownSeconds,
+  getStepUpFlowProgress,
   getStepUpLockSeconds,
   getStepUpPhaseFromTiming,
   getStepUpStorageKey,
   normalizeStepUpCode,
   parseStepUpTimingRecord,
 } from '../utils/step-up'
+
+describe('getStepUpFlowProgress', () => {
+  it('places the code of an account deletion as the last question of the delete flow', () => {
+    expect(DELETE_ACCOUNT_FLOW_STEP_COUNT).toBe(3)
+    expect(getStepUpFlowProgress('delete')).toEqual({ flow: 'delete_account', position: 3, total: 3 })
+  })
+
+  it('counts the code of an API key as its own one-step progress', () => {
+    expect(getStepUpFlowProgress('keys')).toEqual({ flow: 'api_key_create', position: 1, total: 1 })
+  })
+})
 
 describe('step-up core', () => {
   it('retains an active exhausted window across resends and resets attempt counts', () => {
