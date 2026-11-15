@@ -84,8 +84,7 @@ export interface OnboardingResultSentence {
 }
 
 /**
- * The result dialog sentence of the onboarding habit, from the schedule the create request saved.
- * The habit starts on the account day it was created. A weekday schedule takes the onboarding cadence,
+ * The result dialog sentence of a schedule that starts on `today`. A weekday schedule takes the onboarding cadence,
  * because the R07 cadence names only the unit and would call Monday and Thursday "every day".
  */
 export function describeOnboardingResult(schedule: OnboardingSchedule, today: string): OnboardingResultSentence {
@@ -99,6 +98,41 @@ export function describeOnboardingResult(schedule: OnboardingSchedule, today: st
     frequencyQuantity: schedule.frequencyQuantity,
   }, 'created')
   return { sentence, cadence: sentence.cadence ? describeOnboardingCadence(schedule, false) : null }
+}
+
+/** The fields of a saved habit that the result sentence reads: a habit of the account, or the habit that waits on this device before sign-in. */
+export interface OnboardingSavedHabit {
+  frequencyUnit?: FrequencyUnit | null
+  frequencyQuantity?: number | null
+  intervalWeeks?: number | null
+  days?: readonly string[] | null
+  isGeneral?: boolean | null
+  isFlexible?: boolean | null
+  dueTime?: string | null
+  dueDate?: string | null
+}
+
+/** The schedule of a saved habit. A field the record does not hold takes the value of a habit with no repeat, no day and no time. */
+export function onboardingScheduleFromSaved(saved: OnboardingSavedHabit): OnboardingSchedule {
+  return {
+    frequencyUnit: saved.frequencyUnit ?? null,
+    frequencyQuantity: saved.frequencyQuantity ?? null,
+    intervalWeeks: saved.intervalWeeks ?? 1,
+    days: [...(saved.days ?? [])],
+    isGeneral: saved.isGeneral ?? false,
+    isFlexible: saved.isFlexible ?? false,
+    dueTime: saved.dueTime ?? '',
+  }
+}
+
+/**
+ * The result dialog sentence of the onboarding habit, from the saved record and never from the draft.
+ * The start is the due date of the record. A record with no due date yet, such as the habit that waits for the account, starts today.
+ */
+export function describeSavedOnboardingResult(saved: OnboardingSavedHabit, today: string): OnboardingResultSentence & { schedule: OnboardingSchedule; start: string } {
+  const schedule = onboardingScheduleFromSaved(saved)
+  const start = saved.dueDate || today
+  return { ...describeOnboardingResult(schedule, start), schedule, start }
 }
 
 /** The summary value of the repeat mode. */

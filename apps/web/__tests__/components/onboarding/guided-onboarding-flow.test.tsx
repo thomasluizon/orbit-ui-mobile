@@ -11,6 +11,7 @@ const mocks = vi.hoisted(() => ({
   push: vi.fn(), completed: vi.fn(), event: vi.fn(), suggest: vi.fn(), subscribe: vi.fn(), requestPermission: vi.fn(),
   createHabit: vi.fn(), updateHabit: vi.fn(), recordCompletion: vi.fn(), finishOnboarding: vi.fn(), deferPush: vi.fn(),
   plan: 'Pro' as 'Pro' | 'Free', online: true, suggestionAvailable: false, flag: false,
+  saved: undefined as Record<string, unknown> | undefined,
 }))
 
 vi.mock('next/navigation', async (importOriginal) => ({ ...await importOriginal<typeof import('next/navigation')>(), useRouter: () => ({ push: mocks.push, replace: mocks.push }), useSearchParams: () => new URLSearchParams() }))
@@ -31,6 +32,7 @@ vi.mock('@/lib/actions/profile', () => ({ updateTimezone: vi.fn() }))
 vi.mock('@/lib/posthog', async (importOriginal) => ({ ...await importOriginal<typeof import('@/lib/posthog')>(), captureGuidedFlowCompleted: mocks.completed, captureGuidedFlowEvent: mocks.event }))
 vi.mock('@/components/onboarding/onboarding-pro-step', () => ({ OnboardingProStep: () => <p data-testid="pro-step">pro</p> }))
 vi.mock('@/hooks/use-flag', () => ({ useFlag: () => mocks.flag }))
+vi.mock('@/hooks/use-habit-queries', async (importOriginal) => ({ ...await importOriginal<typeof import('@/hooks/use-habit-queries')>(), useHabitDetail: (id: string | null) => ({ data: id ? mocks.saved : undefined }) }))
 vi.mock('@/components/onboarding/onboarding-actions-context', async (importOriginal) => ({
   ...await importOriginal<typeof import('@/components/onboarding/onboarding-actions-context')>(),
   useLiveOnboardingActions: () => actions(),
@@ -41,6 +43,9 @@ import { OnboardingFlow } from '@/components/onboarding/onboarding-flow'
 import { RetainedOnboardingOverlay } from '@/components/onboarding/retained-onboarding-overlay'
 import { motionPresets } from '@orbit/shared/theme'
 import { useOnboardingDraftStore } from '@/stores/onboarding-draft-store'
+
+/** The record the server saved. Its days, time and start differ from the typed phrase, so a sentence built from the draft fails. */
+const SAVED_HABIT = { id: 'habit-1', frequencyUnit: 'Day', frequencyQuantity: 1, intervalWeeks: 1, days: ['Monday', 'Thursday'], isGeneral: false, isFlexible: false, dueDate: '2026-11-16', dueTime: '18:30:00' }
 
 const locales = [{ locale: 'en', messages: en }, { locale: 'pt-BR', messages: ptBR }] as const
 type Messages = typeof en
@@ -104,7 +109,8 @@ beforeEach(() => {
   mocks.recordCompletion.mockResolvedValue(undefined)
   mocks.finishOnboarding.mockResolvedValue(undefined)
   mocks.subscribe.mockResolvedValue({ supported: true, status: 'registered' })
-  useOnboardingDraftStore.setState({ introSeen: false, onboardingLocallyDone: false })
+  mocks.saved = SAVED_HABIT
+  useOnboardingDraftStore.setState({ introSeen: false, onboardingLocallyDone: false, habits: [] })
   holdAccount('user-1')
   stubMedia(false)
 })
@@ -312,7 +318,7 @@ describe.each(locales)('guided onboarding in $locale', ({ locale, messages }) =>
     expect(mocks.updateHabit).toHaveBeenLastCalledWith('habit-1', expect.objectContaining({ reminderEnabled: true, reminderTimes: [15] }))
   })
 
-  it('closes with the result dialog built from the saved habit, then opens Today on a Pro plan', async () => {
+  it('closes with the result dialog built from the saved habit read back from the query cache, then opens Today on a Pro plan', async () => {
     useOnboardingDraftStore.setState({ introSeen: true })
     mount(locale, messages)
     await typePhrase(messages, locale === 'en' ? 'Walk every Monday at 18:00' : 'Caminhar toda segunda às 18:00')
@@ -320,13 +326,41 @@ describe.each(locales)('guided onboarding in $locale', ({ locale, messages }) =>
     await act(async () => { press(flow.remind.deny) })
     const dialog = await screen.findByRole('dialog', { name: messages.result.title })
     expect(dialog.querySelector('[data-orbit-state="feliz"]')).not.toBeNull()
-    expect(dialog).toHaveAccessibleDescription(expect.stringMatching(/6:00\sPM|18:00/))
-    expect(dialog).toHaveAccessibleDescription(expect.stringMatching(locale === 'en' ? /every Monday/ : /segunda/))
+    expect(dialog).toHaveAccessibleDescription(expect.stringMatching(/6:30\sPM|18:30/))
+    expect(dialog).toHaveAccessibleDescription(expect.stringMatching(locale === 'en' ? /Thursday/ : /quinta/))
+    expect(dialog).toHaveAccessibleDescription(expect.stringMatching(locale === 'en' ? /11\/16\/2026/ : /16\/11\/2026/))
+    expect(dialog).not.toHaveAccessibleDescription(expect.stringMatching(/6:00\sPM|18:00/))
     await waitFor(() => expect(screen.getByRole('button', { name: messages.result.seeToday })).toHaveFocus())
     expect(mocks.completed).toHaveBeenCalledWith('onboarding', 3, false)
     await act(async () => { press(messages.result.seeToday) })
     expect(mocks.finishOnboarding).toHaveBeenCalledOnce()
     expect(mocks.push).toHaveBeenCalledWith('/')
+  })
+
+  it('opens no result dialog until the saved habit is in the query cache', async () => {
+    mocks.saved = undefined
+    useOnboardingDraftStore.setState({ introSeen: true })
+    mount(locale, messages)
+    await typePhrase(messages, locale === 'en' ? 'Walk every Monday at 18:00' : 'Caminhar toda segunda às 18:00')
+    await act(async () => { press(flow.create) })
+    await act(async () => { press(flow.remind.deny) })
+    expect(document.querySelector('[data-result-dialog]')).toBeNull()
+  })
+
+  it('builds the sentence before sign-in from the habit that waits on this device, and offers sign-in', async () => {
+    mocks.createHabit.mockImplementation((input: Parameters<OnboardingActions['createHabit']>[0]) => {
+      const index = useOnboardingDraftStore.getState().bufferHabit({ ...input, dueTime: '07:15' })
+      return Promise.resolve({ id: String(index), title: input.title })
+    })
+    useOnboardingDraftStore.setState({ introSeen: true })
+    mount(locale, messages, { isLive: false })
+    await typePhrase(messages, locale === 'en' ? 'Walk every Monday at 18:00' : 'Caminhar toda segunda às 18:00')
+    await act(async () => { press(flow.create) })
+    await act(async () => { press(flow.remind.deny) })
+    const dialog = await screen.findByRole('dialog', { name: messages.result.title })
+    expect(dialog).toHaveAccessibleDescription(expect.stringMatching(/7:15\sAM|07:15/))
+    expect(dialog).toHaveAccessibleDescription(expect.stringMatching(locale === 'en' ? /Monday/ : /segunda/))
+    expect(screen.getByRole('button', { name: flow.done.signIn })).toBeInTheDocument()
   })
 
   it('follows the dialog with the Pro step on the free plan', async () => {

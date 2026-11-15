@@ -7,6 +7,8 @@ import {
   buildOnboardingScheduleFromPhrase,
   describeOnboardingCadence,
   describeOnboardingResult,
+  describeSavedOnboardingResult,
+  onboardingScheduleFromSaved,
   onboardingGuidedPosition,
   onboardingModeDetailSteps,
   onboardingStepAfterAnswer,
@@ -112,5 +114,28 @@ describe('the intro seen mark', () => {
     expect(draft.getState().introSeen).toBe(true)
     expect(migrateOnboardingDraft({ introSeen: true }).introSeen).toBe(true)
     expect(migrateOnboardingDraft({}).introSeen).toBe(false)
+  })
+})
+
+describe('the result sentence of the saved onboarding habit', () => {
+  it('reads the schedule of a saved habit of the account', () => {
+    expect(onboardingScheduleFromSaved({ frequencyUnit: 'Day', frequencyQuantity: 1, intervalWeeks: 2, days: ['Monday', 'Thursday'], isGeneral: false, isFlexible: false, dueTime: '18:30:00', dueDate: '2026-11-16' }))
+      .toEqual({ frequencyUnit: 'Day', frequencyQuantity: 1, intervalWeeks: 2, days: ['Monday', 'Thursday'], isGeneral: false, isFlexible: false, dueTime: '18:30:00' })
+  })
+
+  it('reads a habit that waits for the account, which holds only the fields the create request sent', () => {
+    expect(onboardingScheduleFromSaved({ isGeneral: true })).toEqual({ ...base, isGeneral: true })
+    expect(onboardingScheduleFromSaved({ frequencyUnit: 'Week', frequencyQuantity: 3, isFlexible: true })).toEqual({ ...base, frequencyUnit: 'Week', frequencyQuantity: 3, isGeneral: false, isFlexible: true })
+  })
+
+  it('starts on the due date of the record, and today when the record has none', () => {
+    const saved = { frequencyUnit: 'Day' as const, frequencyQuantity: 1, days: ['Monday'], dueTime: '18:30' }
+    expect(describeSavedOnboardingResult({ ...saved, dueDate: '2026-11-16' }, '2026-11-13')).toMatchObject({ start: '2026-11-16', sentence: { key: 'result.habit.repeatTimed' }, cadence: { key: 'onboarding.flow.when.cadence.fixed' } })
+    expect(describeSavedOnboardingResult(saved, '2026-11-13').start).toBe('2026-11-13')
+    expect(describeSavedOnboardingResult({ ...saved, dueDate: '' }, '2026-11-13').start).toBe('2026-11-13')
+  })
+
+  it('names a saved habit with no day as one with no date', () => {
+    expect(describeSavedOnboardingResult({ isGeneral: true }, '2026-11-13').sentence.key).toBe('result.task.undated')
   })
 })
