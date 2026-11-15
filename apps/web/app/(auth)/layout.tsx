@@ -36,10 +36,12 @@ export default function AuthLayout({ children }: Readonly<{ children: React.Reac
   if (!hydrated || showOnboarding) return null
   return <DesktopReleaseBoundary monitor signIn>
     <DesktopAuthBridge />
-    <AuthPageFrame>
-      <QueryClientProvider client={getQueryClient()}><GuidedSignInProvider>{children}</GuidedSignInProvider></QueryClientProvider>
-      <AppToastHost placement="page" />
-    </AuthPageFrame>
+    <QueryClientProvider client={getQueryClient()}><GuidedSignInProvider>
+      <AuthPageFrame>
+        {children}
+        <AppToastHost placement="page" />
+      </AuthPageFrame>
+    </GuidedSignInProvider></QueryClientProvider>
     <div className="fixed inset-x-0 top-[var(--safe-top)] pl-[var(--safe-left)] pr-[var(--safe-right)] z-sticky text-[var(--fg-1)]">
       <UpdateAvailableBanner />
     </div>

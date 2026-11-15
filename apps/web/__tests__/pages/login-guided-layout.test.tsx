@@ -25,7 +25,7 @@ function captureState(state: AuthScreenState, locale: 'en' | 'pt-BR', width: num
   mocks.flow = { ...createLoginScreenFixture(state, locale), t: createTranslator({ locale, messages: locale === 'en' ? en : ptBR }),
     setEmail: action, sendCode: action, refuseEmptyEmail: action, verifyCode: action, resendCode: action, backToEmail: action,
     signInWithGoogle: action, signInWithApple: action, onCodeChange: action, continueAccount: action }
-  const view = render(<AuthPageFrame><GuidedSignInContext value><LoginContent /></GuidedSignInContext></AuthPageFrame>)
+  const view = render(<GuidedSignInContext value><AuthPageFrame><LoginContent /></AuthPageFrame></GuidedSignInContext>)
   const markup = view.container.innerHTML
   view.unmount()
   return markup
@@ -43,7 +43,7 @@ describe('guided sign-in layout in Chromium', () => {
   it.each(cases)('centres the $state block and holds each label on one line at $width px in $locale', async ({ width, locale, state }) => {
     const account = state === 'account back'
     const markup = captureState(state, locale, width)
-      .replace('<main ', account ? '<main data-layout-free="" ' : '<main ')
+      .replace('data-auth-page-frame=""', account ? 'data-auth-page-frame="" data-layout-free=""' : 'data-auth-page-frame=""')
       .replace('data-account-back=""', 'data-account-back="" data-layout-block=""')
     const layout = await measureFlowMarkup(browser, stylesheet, width, markup)
     expect(centreOffset(layout), JSON.stringify(layout)).toBeLessThanOrEqual(1)

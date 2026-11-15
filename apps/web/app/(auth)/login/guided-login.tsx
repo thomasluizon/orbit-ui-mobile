@@ -155,7 +155,7 @@ export function GuidedAccountBack({ t, loading, continueAccount, errorMessage }:
 }>) {
   const size = useStateMascotSize()
   return (
-    <div data-account-back="" className="flex w-full max-w-[592px] flex-col items-center gap-6 px-4 py-4 text-center">
+    <main data-account-back="" className="flex w-full max-w-[592px] flex-col items-center gap-6 px-4 py-4 text-center">
       <OrbitMascot size={size} />
       <div className="flex flex-col gap-3">
         <h1 className="orbit-flow-question text-balance font-display text-[28px] leading-[1.18] text-[var(--fg-1)] lg:text-[34px] lg:leading-[1.15]">{t('auth.accountBack.title')}</h1>
@@ -163,6 +163,6 @@ export function GuidedAccountBack({ t, loading, continueAccount, errorMessage }:
       </div>
       <div className="w-full lg:max-w-[360px]"><PillButton onClick={continueAccount} loading={loading}>{t('auth.accountBack.action')}</PillButton></div>
       {errorMessage ? <p role="alert" className="text-sm text-[var(--status-bad-text)]">{errorMessage}</p> : null}
-    </div>
+    </main>
   )
 }

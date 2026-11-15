@@ -6,6 +6,7 @@ import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { motionDurations } from '@orbit/shared/theme'
 import { LoginContent, type LoginCallback } from '@/app/(auth)/login/login-content'
+import { AuthPageFrame } from '@/components/auth/auth-page-frame'
 import { GuidedSignInContext } from '@/components/auth/guided-sign-in'
 
 type Locale = typeof authLocales[number]
@@ -35,7 +36,7 @@ function setFixture(state: AuthScreenState, locale: Locale, overrides: Record<st
 
 function show(state: AuthScreenState, locale: Locale, options: { guided?: boolean; callback?: LoginCallback; overrides?: Record<string, unknown> } = {}) {
   const fixture = setFixture(state, locale, options.overrides)
-  const view = render(<GuidedSignInContext value={options.guided ?? true}><LoginContent callback={options.callback} /></GuidedSignInContext>)
+  const view = render(<GuidedSignInContext value={options.guided ?? true}><AuthPageFrame><LoginContent callback={options.callback} /></AuthPageFrame></GuidedSignInContext>)
   return { ...view, t: fixture.t }
 }
 
@@ -209,6 +210,15 @@ describe.each(authLocales)('guided sign-in in %s', (locale) => {
     const { t } = show('email', locale, { callback: { state: 'pending', provider: 'google', onContinue: vi.fn() } })
     expect(screen.getByRole('button', { name: t('auth.signInWithGoogle') })).toHaveAttribute('aria-busy', 'true')
     expect(screen.getByRole('textbox')).toBeDisabled()
+  })
+
+  it.each(authScreenStates)('holds one main landmark in %s on the guided surface and on the current surface', (state) => {
+    const guided = show(state, locale)
+    expect(guided.container.querySelectorAll('main')).toHaveLength(1)
+    guided.unmount()
+    const current = show(state, locale, { guided: false })
+    expect(current.container.querySelectorAll('main')).toHaveLength(1)
+    expect(current.container.querySelector('main')).toHaveAttribute('data-auth-page-frame')
   })
 
   it.each(authScreenStates)('keeps every control of the current surface in %s, with Orbit never resting and no old name', (state) => {
