@@ -50,6 +50,10 @@ function checkProdReadinessInventory() {
       [workflow, hygieneSection].every((source) => source.includes("tools/file-ledger.mjs --candidates")))
   T("prod-readiness: the skill names the five repositories", ["orbit-ui-mobile", "orbit-api", "orbit-landing-page", "thomas-brain", "brain vault"].every((name) => skill.includes(name)))
   T("prod-readiness: the Phase 2d section names the ledger tool and the ticket pipeline", hygieneSection.includes("tools/file-ledger.mjs") && hygieneSection.includes("_shared/audit-to-tickets.md"))
+  // Without --base, --render reads the merge base with origin/main, which a root with no origin/main lacks.
+  const renderCommands = [...hygieneSection.matchAll(/`node tools\/file-ledger\.mjs --render [^`]*`|`--render <ledger>[^`]*`/g)].map(([command]) => command)
+  T("prod-readiness: each --render command of the Phase 2d section names a --base commit", renderCommands.length > 0 &&
+    renderCommands.every((command) => command.includes("--base <commit>")), renderCommands.join("\n"))
   T("prod-readiness: the Phase 2d section forbids a committed ledger and a delete in the sweep", /Write a hygiene ledger to a repository/.test(skill) && /Delete or edit in the hygiene sweep/.test(skill))
   T("prod-readiness: numbered item references match the inventory", JSON.stringify(numberedReferences) === JSON.stringify(expectedReferences),
     `references=${JSON.stringify(numberedReferences)} inventory=${JSON.stringify(expectedReferences)}`)

@@ -1,8 +1,8 @@
 import { spawnSync } from "node:child_process"
 import { existsSync, mkdirSync, readFileSync, readdirSync, realpathSync, writeFileSync } from "node:fs"
-import { dirname, join } from "node:path"
+import { dirname, join, posix } from "node:path"
 
-import { REPO_ROOT, T, check, root, run, stage, toolPath } from "./_harness.mjs"
+import { FILE_LEDGER_FILES, REPO_ROOT, T, check, root, run, stage, toolPath } from "./_harness.mjs"
 
 const TOOL = "file-ledger.mjs"
 const FIXTURE_DATE = "2026-03-04"
@@ -163,8 +163,9 @@ const caseCrossRepository = () => {
 }
 
 const caseRelativePaths = () => {
-  // A copy of the tool in a small checkout one folder deeper, so its own root and the working directory differ.
-  const checkout = makeRepository("relative-tool/checkout", { [`tools/${TOOL}`]: readFileSync(toolPath(TOOL), "utf8") })
+  // A copy of the tool and every file it loads in a small checkout one folder deeper, so its own root and the working directory differ.
+  const copied = FILE_LEDGER_FILES.map((file) => posix.join("tools", file))
+  const checkout = makeRepository("relative-tool/checkout", Object.fromEntries(copied.map((path) => [path, readFileSync(join(REPO_ROOT, path), "utf8")])))
   const fromCheckout = (argv, cwd) => emitWith(argv, { cwd, path: join(checkout, "tools", TOOL) })
   const repository = makeRepository("relative-main", { "docs/shared.md": "shared text\n", "only-here.md": "here\n" })
   makeRepository("relative-sibling", { "notes.md": "read docs/shared.md here\n" })
@@ -180,7 +181,7 @@ const caseRelativePaths = () => {
 
   const defaultRoot = fromCheckout([], repository)
   const defaultPaths = defaultRoot.rows.map((row) => row.path).join()
-  T(`${TOOL}: without --repo the rows are the files of the checkout that holds the tool`, defaultRoot.status === 0 && defaultPaths === `tools/${TOOL}`, `exit ${defaultRoot.status}, rows ${defaultPaths}`)
+  T(`${TOOL}: without --repo the rows are the files of the checkout that holds the tool`, defaultRoot.status === 0 && defaultPaths === [...copied].sort().join(), `exit ${defaultRoot.status}, rows ${defaultPaths}`)
 }
 
 const caseDatesAndDeterminism = () => {
@@ -395,8 +396,11 @@ const makeCandidatesFixture = (label, rows, files = {}) => {
   return { repository, ledger: writeLedger(label, ordered) }
 }
 
-// A copy of the tool in its own checkout, so each candidates file lands under the suite root.
-const candidatesTool = () => stage(join("file-ledger", "candidates-checkout", "tools", TOOL), readFileSync(toolPath(TOOL), "utf8"))
+// A copy of the tool and every file it loads in its own checkout, so each candidates file lands under the suite root.
+const candidatesTool = () => {
+  for (const file of FILE_LEDGER_FILES) stage(join("file-ledger", "candidates-checkout", "tools", file), readFileSync(toolPath(file), "utf8"))
+  return join(root, "file-ledger", "candidates-checkout", "tools", TOOL)
+}
 
 const selectCandidates = ({ repository, ledger }) => {
   const result = run(TOOL, ["--candidates", ledger, "--repo", repository], { path: candidatesTool() })

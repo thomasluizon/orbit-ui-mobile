@@ -1,5 +1,5 @@
 {
-  "calibratedAt": "2026-11-14",
+  "calibratedAt": "2026-11-15",
   "classifier": {
     "model": "claude-sonnet-5-5",
     "promptDigest": "780092b4659dfd6e",
@@ -172,15 +172,15 @@
     ".claude/skills/audit-security/SKILL.md": {
       "model": null,
       "effort": null,
-      "digest": "cbc58459aaac8600",
-      "calibratedAt": "2026-11-13",
+      "digest": "61d1ef748bc410af",
+      "calibratedAt": "2026-11-15",
       "verdict": "undeclared, inherits the session: security findings need judgment because missed authorization gaps may be invisible in output."
     },
     ".claude/skills/audit-tests/SKILL.md": {
       "model": null,
       "effort": null,
-      "digest": "9dbd7a3ab2f38c26",
-      "calibratedAt": "2026-11-13",
+      "digest": "d9d6ac51e6c5646b",
+      "calibratedAt": "2026-11-15",
       "verdict": "undeclared, inherits the session: the test audit judges coverage and opens tickets."
     },
     ".claude/skills/auto-work/SKILL.md": {
@@ -207,8 +207,8 @@
     ".claude/skills/dev-server/SKILL.md": {
       "model": null,
       "effort": "low",
-      "digest": "d496840675bde95f",
-      "calibratedAt": "2026-11-09",
+      "digest": "2f6f47e0b5d26fec",
+      "calibratedAt": "2026-11-15",
       "verdict": "current: brings up Docker, the API and the web server in dependency order with readiness gates, which is mechanical, so low effort is right."
     },
     ".claude/skills/drift-review/SKILL.md": {
@@ -277,8 +277,8 @@
     ".claude/skills/prod-readiness/SKILL.md": {
       "model": null,
       "effort": null,
-      "digest": "b1dbcf729c5e866e",
-      "calibratedAt": "2026-11-14",
+      "digest": "c5a90eacd20663e4",
+      "calibratedAt": "2026-11-15",
       "verdict": "undeclared, inherits the session: it judges four child audits before producing a launch verdict."
     },
     ".claude/skills/progress/SKILL.md": {

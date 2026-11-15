@@ -371,41 +371,34 @@ const verdicts = (
 ).map((verdict, index) => verdict ?? { ...verifyTargets[index], v: null })
 
 const survivorsByLayer = { ops: [], a11y: [], hygiene: [] }
-for (const { f, v, layer } of verdicts) {
-  // A hygiene finding that no skeptic judged is not verified, so it is deferred, as a finding beyond the cap is.
-  if (!v && layer === 'hygiene') {
-    hygieneDeferred.push({ check: f.check, path: f.location || '', reason: 'the skeptic died or failed, so no skeptic judged it; run the sweep again on it' })
-    continue
-  }
-  // A skeptic that cannot open the file has judged nothing, so the finding is never dropped as refuted.
-  if (v && v.deferred && layer === 'hygiene') {
-    hygieneDeferred.push({ check: f.check, path: f.location || '', reason: `the skeptic could not open the cited file under ${f.root}: ${v.note}` })
-    continue
-  }
-  if (v && v.deferred) {
-    f.unverified = 'the skeptic could not open the cited file, so the finding is kept unchallenged; re-verify before acting'
-    survivorsByLayer[layer].push(f)
-    continue
-  }
-  if (v && v.refuted) continue
-  if (v && v.adjustedSeverity) f.severity = v.adjustedSeverity
-  if (!v) f.unverified = 'the skeptic died or failed — kept unchallenged (a dead verifier is not a clean pass); re-verify before acting'
-  survivorsByLayer[layer].push(f)
-}
-// A hygiene finding without a skeptic is not verified, so it is deferred. An ops or a11y gap stays visible with unverified.
-for (const { f, layer } of verifyOverflow) {
+// A finding that no skeptic judged (it died, threw, could not open the file or fell past the cap) is never verified and never
+// refuted: a hygiene finding goes to the deferred ledger, and an ops or a11y gap stays visible with unverified.
+const recordUnjudged = ({ f, layer }, reason) => {
   if (layer === 'hygiene') {
-    hygieneDeferred.push({ check: f.check, path: f.location || '', reason: `beyond the adversarial-verify cap of ${VERIFY_CAP}, so no skeptic judged it; run the sweep again on the remainder` })
-    continue
+    hygieneDeferred.push({ check: f.check, path: f.location || '', reason: `${reason}; run the sweep again on it` })
+    return
   }
-  f.unverified = `beyond the adversarial-verify cap of ${VERIFY_CAP}, so it is kept unchallenged; re-verify before acting`
+  f.unverified = `${reason}, so it is kept unchallenged; re-verify before acting`
   survivorsByLayer[layer].push(f)
 }
-const opsFindings = [...survivorsByLayer.ops, ...opsRaw.filter((f) => !isSerious(f))]
+for (const target of verdicts) {
+  const { f, v, layer } = target
+  if (!v) recordUnjudged(target, 'the skeptic died or failed')
+  else if (v.deferred) recordUnjudged(target, `the skeptic could not open the cited file${f.root ? ` under ${f.root}` : ''}: ${v.note}`)
+  else if (!v.refuted) {
+    if (v.adjustedSeverity) f.severity = v.adjustedSeverity
+    survivorsByLayer[layer].push(f)
+  }
+}
+for (const target of verifyOverflow) recordUnjudged(target, `beyond the adversarial-verify cap of ${VERIFY_CAP}`)
+// A skeptic's adjustedSeverity rewrites f.severity, so the findings that skip Verify are the ones the queue never took.
+const queued = new Set(verifyQueue.map(({ f }) => f))
+const unqueued = (raw) => raw.filter((f) => !queued.has(f))
+const opsFindings = [...survivorsByLayer.ops, ...unqueued(opsRaw)]
   .sort((a, b) => rank(a.severity) - rank(b.severity))
-const a11yFindings = [...survivorsByLayer.a11y, ...a11yRaw.filter((f) => !isSerious(f))]
+const a11yFindings = [...survivorsByLayer.a11y, ...unqueued(a11yRaw)]
   .sort((a, b) => rank(a.severity) - rank(b.severity))
-const hygieneFindings = [...survivorsByLayer.hygiene, ...hygieneRaw.filter((f) => !isSerious(f) && !ordersDelete(f))]
+const hygieneFindings = [...survivorsByLayer.hygiene, ...unqueued(hygieneRaw)]
   .sort((a, b) => rank(a.severity) - rank(b.severity))
 
 return {

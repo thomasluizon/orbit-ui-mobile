@@ -85,6 +85,7 @@ const CASE_MODULES = [
   ["check-push-target.mjs", "check-push-target"],
   ["check-root-allowlist.mjs", "check-root-allowlist"],
   ["file-ledger.mjs", "file-ledger"],
+  ["lib/doc-references.mjs", "doc-references"],
   ["check-sonar-paths.mjs", "check-sonar-paths"],
   ["check-workspace-overrides.mjs", "check-workspace-overrides"],
   ["materialize-cloud-result.mjs", "materialize-cloud-result"],

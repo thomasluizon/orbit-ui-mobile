@@ -5,7 +5,7 @@ import { fileURLToPath, pathToFileURL } from "node:url"
 import { runInNewContext } from "node:vm"
 
 import { AUTO_COMPACT_TOKENS } from "../lib/session-context.mjs"
-import { T, root, realOrchestratorConfig, run, stage, stageRepo, toolPath } from "./_harness.mjs"
+import { FILE_LEDGER_FILES, T, root, realOrchestratorConfig, run, stage, stageRepo, toolPath } from "./_harness.mjs"
 
 const NAME = "orchestrator-config.mjs"
 /** The shipped claude model for each worker tier, in escalation order. */
@@ -207,6 +207,64 @@ export const cases = async () => {
   T(`${NAME}: a Medium update hygiene finding needs no skeptic and is kept`,
     updateOnly.result.hygieneFindings.some((finding) => finding.location === "orbit-ui-mobile docs/a.md") && !updateOnly.labels.includes("verify:hygiene-outdated"),
     JSON.stringify(updateOnly.result.hygieneFindings))
+  const highUpdateFinding = { ...updateFinding, severity: "High" }
+  const lowered = await runReadiness({
+    hygiene: hygieneArgument,
+    verdict: { refuted: false, note: "real but over-rated", adjustedSeverity: "Medium" },
+    finderFindings: { "hygiene:ui": [highUpdateFinding] },
+  })
+  const loweredUpdate = lowered.result.hygieneFindings.filter((finding) => finding.location === highUpdateFinding.location)
+  T(`${NAME}: a finding whose skeptic lowers its severity comes back once, at the lowered severity`,
+    loweredUpdate.length === 1 && loweredUpdate[0].severity === "Medium" &&
+      lowered.result.opsFindings.length === 1 && lowered.result.opsFindings[0].severity === "Medium",
+    JSON.stringify([lowered.result.hygieneFindings, lowered.result.opsFindings]))
+
+  const auditSource = readFileSync(new URL("../../.claude/workflows/audit.mjs", import.meta.url), "utf8")
+  const auditSlice = (startMarker, endMarker) => {
+    const start = auditSource.indexOf(startMarker)
+    const end = auditSource.indexOf(endMarker, start)
+    return start >= 0 && end > start ? auditSource.slice(start, end) : ""
+  }
+  const auditVerifySource = [
+    auditSlice("const rank = (s) =>", "const keyOf"),
+    auditSlice("const isSerious =", "let performanceMeasurement"),
+    auditSlice("async function verifySerious", "phase('Verify')"),
+  ].join("\n")
+  const runAuditVerify = (candidates, skeptic) => runInNewContext(`${auditVerifySource}\nverifySerious(candidates, 'Verify')`, {
+    candidates,
+    kind: "security",
+    VERIFY_CAP: 60,
+    VERDICT_SCHEMA: {},
+    skepticPrompt: () => "refute this finding",
+    parallel: (calls) => Promise.all(calls.map((call) => Promise.resolve().then(call).catch(() => null))),
+    agent: async () => skeptic(),
+  })
+  const auditHigh = () => ({ severity: "High", title: "Unscoped query", location: "orbit-api src/Query.cs:10" })
+  const auditLow = { severity: "Low", title: "Loose log line", location: "orbit-api src/Log.cs:4" }
+  const auditLowered = await runAuditVerify([auditHigh(), auditLow], () => ({ refuted: false, note: "real but over-rated", adjustedSeverity: "Medium" }))
+  const auditLoweredHigh = auditLowered.kept.filter((finding) => finding.title === "Unscoped query")
+  T(`${NAME}: an audit finding whose skeptic lowers its severity is kept once, at the lowered severity`,
+    auditVerifySource.includes("async function verifySerious") && auditLowered.kept.length === 2 &&
+      auditLoweredHigh.length === 1 && auditLoweredHigh[0].severity === "Medium",
+    JSON.stringify(auditLowered.kept))
+  const auditRefuted = await runAuditVerify([auditHigh(), auditLow], () => ({ refuted: true, note: "a guard upstream scopes the query" }))
+  T(`${NAME}: an audit finding that its skeptic refutes is dropped, and the pass-through finding is kept`,
+    auditRefuted.kept.length === 1 && auditRefuted.kept[0].title === "Loose log line" && auditRefuted.deferred?.length === 0,
+    JSON.stringify([auditRefuted.kept, auditRefuted.deferred]))
+  const auditFlood = Array.from({ length: 61 }, (_, index) => ({ severity: "High", title: `Unscoped query ${index}`, location: `orbit-api src/Query.cs:${index + 1}` }))
+  const auditOverflow = await runAuditVerify(auditFlood, () => ({ refuted: false, note: "real" }))
+  const auditCapDeferred = auditOverflow.deferred?.filter((item) => /adversarial-verify cap/.test(item.deferReason)) ?? []
+  T(`${NAME}: an audit finding beyond the cap of 60 goes to deferred with the cap reason and never into kept`,
+    auditOverflow.kept.length === 60 && auditOverflow.deferred?.length === 1 && auditCapDeferred.length === 1 &&
+      !auditOverflow.kept.some((finding) => finding.title === auditCapDeferred[0].title),
+    JSON.stringify([auditOverflow.kept.length, auditOverflow.deferred]))
+  for (const [label, skeptic] of [["returns no verdict", () => null], ["throws", () => { throw new Error("verify failed") }]]) {
+    const unjudgedAudit = await runAuditVerify([auditHigh()], skeptic)
+    T(`${NAME}: an audit finding whose skeptic ${label} goes to deferred with a re-verify reason, never into kept as verified`,
+      unjudgedAudit.kept.length === 0 && unjudgedAudit.deferred?.length === 1 && unjudgedAudit.deferred[0].title === "Unscoped query" &&
+        /skeptic died or failed/.test(unjudgedAudit.deferred[0].deferReason) && /re-verify before acting/.test(unjudgedAudit.deferred[0].deferReason),
+      JSON.stringify([unjudgedAudit.kept, unjudgedAudit.deferred]))
+  }
   const verifyPhaseDetail = /title: 'Verify', detail: '([^']*)'/.exec(readFileSync(new URL("../../.claude/workflows/prod-readiness.mjs", import.meta.url), "utf8"))?.[1] ?? ""
   T(`${NAME}: the Verify phase detail names the hygiene findings and the cap`, /hygiene/.test(verifyPhaseDetail) && /60/.test(verifyPhaseDetail), verifyPhaseDetail)
   const absent = await runReadiness({})
@@ -291,8 +349,9 @@ export const cases = async () => {
   handoff.git(["commit", "-q", "-m", "ledger rows"])
   writeFileSync(join(handoff.path, "scratch.tmp"), "untracked\n")
   const emitted = run("file-ledger.mjs", ["--repo", handoff.path])
-  // A copy of the tool in a staged checkout, so the candidates file lands under the suite root.
-  const handoffTool = stage("hygiene-handoff/checkout/tools/file-ledger.mjs", readFileSync(toolPath("file-ledger.mjs"), "utf8"))
+  // A copy of the tool and every file it loads in a staged checkout, so the candidates file lands under the suite root.
+  for (const file of FILE_LEDGER_FILES) stage(join("hygiene-handoff", "checkout", "tools", file), readFileSync(toolPath(file), "utf8"))
+  const handoffTool = join(root, "hygiene-handoff", "checkout", "tools", "file-ledger.mjs")
   const selected = run("file-ledger.mjs", ["--candidates", stage("hygiene-handoff/ledger.jsonl", emitted.stdout), "--repo", handoff.path], { path: handoffTool })
   const entry = selected.status === 0 ? JSON.parse(selected.stdout) : { counts: {} }
   const handoffArgument = { repositories: { ui: entry } }
