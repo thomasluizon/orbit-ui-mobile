@@ -10,6 +10,7 @@ import { Check, RefreshCw } from '@/components/ui/icons'
 import { ThemedButton } from '@/components/ui/pill-button'
 import { createTokensV2 } from '@/lib/theme'
 import { controlStyle } from '@/__tests__/support/press-feedback'
+import { PressScale } from '@/components/motion/press-scale'
 
 const motion = vi.hoisted(() => ({ reduced: false, themeBroken: false }))
 vi.mock('@/lib/motion', async (original) => ({ ...await original<typeof import('@/lib/motion')>(), usePrefersReducedMotion: () => motion.reduced }))
@@ -54,7 +55,7 @@ describe('a control that waits for its own request on Android', () => {
     const onChange = vi.fn()
     const tree = render(<Checkbox checked onChange={onChange} label="Done" loading />)
     const control = tree.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityRole === 'checkbox')[0]!
-    expect(control.props).toMatchObject({ accessibilityLabel: 'Done', disabled: false, focusable: true, accessibilityState: { checked: true, disabled: false, busy: true } })
+    expect(control.props).toMatchObject({ accessibilityLabel: 'Done', disabled: false, focusable: true, accessibilityState: { checked: true, disabled: true, busy: true } })
     TestRenderer.act(() => { control.props.onPress() })
     expect(onChange).not.toHaveBeenCalled()
     const box = tree.root.findAll((node) => typeof node.type === 'string' && node.props['data-slot'] === 'checkbox-box')[0]!
@@ -72,7 +73,7 @@ describe('a control that waits for its own request on Android', () => {
     TestRenderer.act(() => { control().props.onPress() })
     expect(onChange).toHaveBeenCalledWith(true)
     TestRenderer.act(() => { (tree as unknown as { update(element: ReactElement): void }).update(<Checkbox checked onChange={onChange} label="Done" loading />) })
-    expect(control().props).toMatchObject({ disabled: false, focusable: true, accessibilityState: { disabled: false, busy: true } })
+    expect(control().props).toMatchObject({ disabled: false, focusable: true, accessibilityState: { disabled: true, busy: true } })
     TestRenderer.act(() => { (tree as unknown as { update(element: ReactElement): void }).update(<Checkbox checked onChange={onChange} label="Done" disabled loading />) })
     expect(control().props).toMatchObject({ disabled: true, focusable: false, accessibilityState: { disabled: true, busy: true } })
     tree.unmount()
@@ -86,7 +87,8 @@ describe('a control that waits for its own request on Android', () => {
   ])('keeps the %s check row label, its focus and the skeleton face on its control', (_placement, element) => {
     const tree = render(element)
     const control = tree.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityRole === 'checkbox')[0]!
-    expect(control.props).toMatchObject({ accessibilityLabel: 'Water', disabled: false, accessibilityState: { disabled: false, busy: true } })
+    expect(control.props).toMatchObject({ accessibilityLabel: 'Water', disabled: false, accessibilityState: { disabled: true, busy: true } })
+    expect(control.findAllByType(PressScale).map((scale) => scale.props.disabled)).not.toContain(false)
     expect(control.props.focusable).not.toBe(false)
     expect(control.props.onPress).toBeUndefined()
     expect(StyleSheet.flatten(typeof control.props.style === 'function' ? control.props.style({ pressed: false }) : control.props.style).opacity ?? 1).toBe(1)
@@ -102,7 +104,8 @@ describe('a control that waits for its own request on Android', () => {
     const tree = render(<CalendarSyncBoundary isConnected hasProAccess autoSyncState={undefined} onAutoSyncChange={vi.fn()} onSyncNow={onSyncNow} locale="en" t={((key: string) => key) as never} tokens={tokens} />)
     const control = () => tree.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityLabel === 'calendar.autoSync.syncNow')[0]!
     TestRenderer.act(() => { control().props.onPress() })
-    expect(control().props).toMatchObject({ disabled: false, accessibilityState: { disabled: false, busy: true } })
+    expect(control().props).toMatchObject({ disabled: false, accessibilityState: { disabled: true, busy: true } })
+    expect(control().findAllByType(PressScale).map((scale) => scale.props.disabled)).toEqual([true])
     expect(control().props.onPress).toBeUndefined()
     expectSkeletonFace(control())
     expect(control().findAllByType(RefreshCw)).toHaveLength(1)

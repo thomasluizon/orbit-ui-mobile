@@ -632,7 +632,7 @@ describe('subscription dashboards (mobile)', () => {
         && node.props.accessibilityRole === 'button'
         && (node.props.hitSlop as { top?: number } | undefined)?.top === 6,
     )[0]
-    expect(restoreButton?.props.accessibilityState).toEqual({ disabled: false, busy: true })
+    expect(restoreButton?.props.accessibilityState).toEqual({ disabled: true, busy: true })
 
     const offlinePlans = renderPricing({ plans, isOnline: false, isRestoring: false })
     expect(renderedText(offlinePlans)).toContain('upgrade.restorePurchase')
@@ -662,9 +662,9 @@ describe('subscription dashboards (mobile)', () => {
       expect(restore.props.accessibilityState).toMatchObject({ busy: isRestoring })
       for (const [onPress, disabled] of [[onRestore, restoreDisabled], [onStayFree, declineDisabled]] as const) {
         const action = onPress === onRestore ? restore : tree.root.findAll((node) => node.type === 'Pressable' && node.props.onPress === onPress)[0]!
-        expect(action.props.disabled).toBe(disabled)
-        expect(action.props.accessibilityState).toMatchObject({ disabled })
         const waiting = onPress === onRestore && isRestoring
+        expect(action.props.disabled).toBe(disabled)
+        expect(action.props.accessibilityState).toMatchObject({ disabled: disabled || waiting })
         for (const pressed of [false, true]) {
           expect(pressableStyle(action, pressed).opacity ?? 1).toBe(disabled && !waiting ? 0.4 : 1)
         }

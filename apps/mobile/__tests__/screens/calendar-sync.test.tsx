@@ -529,7 +529,7 @@ describe("CalendarSyncScreen", () => {
     const refresh = () => tree.root.find((node) => node.type === 'Pressable' && node.props.accessibilityLabel === 'calendar.autoSync.syncNow');
     await TestRenderer.act(async () => { (refresh().props.onPress as () => void)(); await Promise.resolve(); });
     expect(refresh().props.disabled).toBe(false);
-    expect(refresh().props.accessibilityState).toMatchObject({ disabled: false, busy: true });
+    expect(refresh().props.accessibilityState).toMatchObject({ disabled: true, busy: true });
     expect(refresh().props.onPress).toBeUndefined();
     expect(mocks.runSyncNowMutate).toHaveBeenCalledTimes(1);
     await TestRenderer.act(async () => { rejectSync(new ApiClientError(409, 'Concurrent update', { code: 'CONCURRENT_UPDATE_CONFLICT' })); await Promise.resolve(); });

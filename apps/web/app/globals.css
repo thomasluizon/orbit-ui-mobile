@@ -658,8 +658,8 @@ select[aria-hidden="true"] {
 @media (prefers-reduced-motion: no-preference) {
   .orbit-list-row-body:active:not(:disabled, [aria-disabled="true"]):not(:has(:is(button, a, [role="button"]):active)) > [data-slot="list-row-content"],
   .orbit-menu-item:active:not(:disabled) > .orbit-menu-content,
-  .orbit-press-content:active:not(:disabled, [data-disabled]) > :not([data-press-fill]),
-  .orbit-press-content:active:not(:disabled, [data-disabled]) > [data-press-fill] > *,
+  .orbit-press-content:active:not(:disabled, [data-disabled], [aria-disabled="true"]) > :not([data-press-fill]),
+  .orbit-press-content:active:not(:disabled, [data-disabled], [aria-disabled="true"]) > [data-press-fill] > *,
   .orbit-tab:active > [data-tab-indicator] > :not([data-selection-motion]),
   .orbit-tab:active > :not([data-tab-indicator]) {
     scale: 0.96;

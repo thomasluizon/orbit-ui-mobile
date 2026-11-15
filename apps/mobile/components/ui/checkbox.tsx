@@ -70,7 +70,7 @@ export function Checkbox({
       disabled={disabled}
       accessibilityRole="checkbox"
       accessibilityLabel={label}
-      accessibilityState={{ checked, disabled, busy: loading }}
+      accessibilityState={{ checked, disabled: Boolean(disabled || loading), busy: loading }}
       data-checked={checked ? '' : undefined}
       data-loading={loading ? '' : undefined}
       data-error={error ? '' : undefined}

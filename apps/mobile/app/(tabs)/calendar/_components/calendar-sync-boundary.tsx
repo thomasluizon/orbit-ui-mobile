@@ -25,10 +25,10 @@ interface CalendarSyncBoundaryProps {
   tokens: AppTokensV2
 }
 
-/** The sync action keeps keyboard focus while its own sync runs: it stays enabled, announces busy and ignores a press. */
+/** The sync action keeps keyboard focus while its own sync runs: it stays natively enabled, is disabled and busy to assistive technology, and ignores a press. */
 function SyncNowButton({ label, syncing, unavailable, onSync, tokens }: Readonly<{ label: string; syncing: boolean; unavailable: boolean; onSync: () => void; tokens: AppTokensV2 }>) {
   const disabled = unavailable && !syncing
-  return <MotionPressable focusInset accessibilityRole="button" accessibilityLabel={label} accessibilityState={{ disabled, busy: syncing }} disabled={disabled} onPress={syncing ? undefined : onSync} style={({ pressed }) => [styles.refresh, { backgroundColor: pressed ? tokens.bgHover : 'transparent', opacity: disabled ? 0.5 : 1 }]}>{syncing ? <SkeletonFace /> : null}<RefreshCw size={20} strokeWidth={1.5} color={tokens.fg2} accessible={false} /></MotionPressable>
+  return <MotionPressable focusInset accessibilityRole="button" accessibilityLabel={label} accessibilityState={{ disabled: disabled || syncing, busy: syncing }} disabled={disabled} onPress={syncing ? undefined : onSync} style={({ pressed }) => [styles.refresh, { backgroundColor: pressed ? tokens.bgHover : 'transparent', opacity: disabled ? 0.5 : 1 }]}>{syncing ? <SkeletonFace /> : null}<RefreshCw size={20} strokeWidth={1.5} color={tokens.fg2} accessible={false} /></MotionPressable>
 }
 
 export function CalendarSyncBoundary({ isConnected, hasProAccess, autoSyncState, onAutoSyncChange, onSyncNow, tokens, t, locale, timeZone, uses24HourClock }: Readonly<CalendarSyncBoundaryProps>) {

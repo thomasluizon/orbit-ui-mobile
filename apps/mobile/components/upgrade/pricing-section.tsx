@@ -23,7 +23,7 @@ function RestoreAction({ disabled, isRestoring, onRestore, t, tokens }: Readonly
       accessibilityRole="button"
       onPress={isRestoring ? undefined : onRestore}
       disabled={disabled && !isRestoring}
-      accessibilityState={{ disabled: disabled && !isRestoring, busy: isRestoring }}
+      accessibilityState={{ disabled: disabled || isRestoring, busy: isRestoring }}
       hitSlop={{ top: 6, bottom: 6 }}
       style={[
         styles.restoreAction,

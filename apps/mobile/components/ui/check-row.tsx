@@ -111,9 +111,9 @@ const styles = StyleSheet.create({
   calendarDayCircle: { width: 24, height: 24, borderRadius: radius.full, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
 })
 
-/** A waiting row keeps keyboard focus: it stays enabled, announces busy and ignores a press until its request settles. */
+/** A waiting row keeps keyboard focus: it stays natively enabled, is disabled and busy to assistive technology, and ignores a press until its request settles. */
 function waitingControlProps(disabled: boolean | undefined, loading: boolean | undefined, checked: boolean, activate: () => void) {
-  return { disabled, onPress: loading ? undefined : activate, accessibilityState: { checked, disabled, busy: loading } }
+  return { disabled, onPress: loading ? undefined : activate, accessibilityState: { checked, disabled: Boolean(disabled || loading), busy: loading } }
 }
 
 function ColumnCheckRow({ label, checked, onChange, description, error, value, disabled, loading, tokens }: Readonly<CheckRowProps & { tokens: ReturnType<typeof createTokensV2> }>) {
@@ -202,7 +202,7 @@ function PersonalControl({ tokens, fillStyle, containContent = false, children, 
   const [pressed, setPressed] = useState(false)
   return <NativePressable {...props} onFocus={() => setFocused(true)} onBlur={() => setFocused(false)} onHoverIn={() => setHovered(true)} onHoverOut={() => setHovered(false)} onPressIn={() => setPressed(true)} onPressOut={() => setPressed(false)}>
     {(state) => <>
-      <View pointerEvents="none" accessible={false} data-press-fill="" style={[fillStyle, { backgroundColor: !props.disabled && (state.pressed || pressed || focused || hovered) ? tokens.bgHover : 'transparent', outlineWidth: !props.disabled && focused ? 2 : 0, outlineOffset: -2, outlineStyle: 'solid', outlineColor: tokens.fg1 }]}>{containContent ? <PressScale pressed={state.pressed || pressed} disabled={Boolean(props.disabled)}>{typeof children === 'function' ? children(state) : children}</PressScale> : null}</View>
+      <View pointerEvents="none" accessible={false} data-press-fill="" style={[fillStyle, { backgroundColor: !props.disabled && (state.pressed || pressed || focused || hovered) ? tokens.bgHover : 'transparent', outlineWidth: !props.disabled && focused ? 2 : 0, outlineOffset: -2, outlineStyle: 'solid', outlineColor: tokens.fg1 }]}>{containContent ? <PressScale pressed={state.pressed || pressed} disabled={Boolean(props.disabled || props.accessibilityState?.disabled)}>{typeof children === 'function' ? children(state) : children}</PressScale> : null}</View>
       {containContent ? null : typeof children === 'function' ? children(state) : children}
     </>}
   </NativePressable>
