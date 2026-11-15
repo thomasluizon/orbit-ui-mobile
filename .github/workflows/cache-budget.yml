@@ -22,6 +22,8 @@ concurrency:
 jobs:
   sweep:
     name: Sweep the Actions cache
+    # A fork pull request gets a read-only token, so its deletes would fail; the hourly run sweeps its entries.
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     # The job is one sparse checkout and three list requests, then one delete request for each selected entry.
     timeout-minutes: 3

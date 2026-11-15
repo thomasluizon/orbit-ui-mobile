@@ -9,18 +9,20 @@ const usage = `usage: sweep-actions-caches.mjs --repository <owner/name> [--dry-
   Keeps the GitHub Actions cache of one repository under its budget. It deletes, in this order:
   1. every entry on the merge ref of a pull request that is not open,
   2. every CodeQL overlay base database that a newer one on the same ref replaces,
-  3. the least recently read large entries, until the total is at or under the cap.
-  A pass marker is never deleted. --dry-run prints the selection and deletes nothing.
+  3. over the cap, the least recently read large entries, pull request refs before older versions on main,
+     until the total is at or under the cap.
+  A pass marker and the newest entry of each key family on main are never deleted. --dry-run prints the
+  selection and deletes nothing.
   The gh CLI reads GH_TOKEN, which needs the actions: write and pull-requests: read permissions.
 
 exit codes: 0 swept, 1 a list or delete request failed, 2 invalid arguments`
 
 const GIGABYTE = 1_000_000_000
 
-// WHY 8.5 GB: the repository limit is 10 GB (GET /repos/{owner}/{repo}/actions/cache/storage-limit returns
-// max_cache_size_gb 10), and one main push writes up to 1.43 GB before the next sweep (three npm entries of
-// 0.47 GB each when the lockfile changes) or one 0.85 GB CodeQL overlay base database.
-export const CAP_BYTES = 8.5 * GIGABYTE
+// WHY 9 GB: the repository limit is 10 GB (GET /repos/{owner}/{repo}/actions/cache/storage-limit returns
+// max_cache_size_gb 10). Each main push writes a 0.85 GB CodeQL overlay base database before the next sweep, and
+// the open pull requests hold under 0.15 GB, while the newest main entries measure 8.56 GB after the macOS npm and NDK trims.
+export const CAP_BYTES = 9 * GIGABYTE
 
 // WHY 5 MB: every pass marker and unit result entry is under 0.3 MB and the NSIS tools entry is 1.9 MB, while
 // the smallest entry that counts for the budget is the 7.3 MB Gradle home entry.
@@ -32,7 +34,12 @@ const PASS_MARKER_KEY = /-pass-v\d+-/
 // the key is the restore prefix, then the commit SHA, the run id and the run attempt.
 const OVERLAY_BASE_KEY = /^(codeql-overlay-base-database-.+-)[0-9a-f]{40}-\d+-\d+$/
 
+// A key family is a key with its version parts (a hash, a dotted version, a run number) replaced, so a new
+// lockfile, toolchain or commit gives a new version of the same family.
+const VERSION_PART = /[0-9a-f]{8,}|\d+(?:\.\d+)+|(?<=-)\d+(?=-|$)/g
+
 const isPassMarker = (cache) => PASS_MARKER_KEY.test(cache.key)
+export const keyFamily = (key) => key.replace(VERSION_PART, '#')
 const totalBytes = (caches) => caches.reduce((sum, cache) => sum + cache.size_in_bytes, 0)
 
 function closedPullRequestEntries(caches, openPullRequests) {
@@ -54,9 +61,21 @@ function supersededOverlayBases(caches) {
   return overlayBases.filter((cache) => !newest.has(cache))
 }
 
+// The newest entry of each family on the default ref is the one main restores, so the sweep never deletes it.
+function newestOfEachDefaultFamily(caches, defaultRef) {
+  const newestByFamily = new Map()
+  for (const cache of caches.filter((entry) => entry.ref === defaultRef)) {
+    const family = keyFamily(cache.key)
+    const newest = newestByFamily.get(family)
+    if (!newest || Date.parse(cache.created_at) > Date.parse(newest.created_at)) newestByFamily.set(family, cache)
+  }
+  return new Set(newestByFamily.values())
+}
+
 function leastRecentlyReadOverCap(caches, defaultRef, capBytes) {
+  const protectedEntries = newestOfEachDefaultFamily(caches, defaultRef)
   const candidates = caches
-    .filter((cache) => cache.size_in_bytes >= LARGE_ENTRY_BYTES)
+    .filter((cache) => cache.size_in_bytes >= LARGE_ENTRY_BYTES && !protectedEntries.has(cache))
     .sort((left, right) =>
       Number(left.ref === defaultRef) - Number(right.ref === defaultRef) ||
       Date.parse(left.last_accessed_at) - Date.parse(right.last_accessed_at))
@@ -115,6 +134,7 @@ export function sweep({ gh, repository, dryRun, log = console.log }) {
   const before = totalBytes(caches)
   const after = before - totalBytes(selection.map(({ cache }) => cache))
   log(`${caches.length} entries, ${megabytes(before)} before; ${selection.length} selected, ${megabytes(after)} after; cap ${megabytes(CAP_BYTES)}`)
+  if (after > CAP_BYTES) log(`::warning::The newest main entries keep the total over the cap: trim a cache family or raise CAP_BYTES.`)
   if (failures.length) throw new Error(`${failures.length} delete requests failed:\n${failures.join('\n')}`)
 }
 

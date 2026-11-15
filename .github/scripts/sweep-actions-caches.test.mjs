@@ -5,7 +5,7 @@ import { dirname, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 import test from "node:test"
 import yaml from "js-yaml"
-import { CAP_BYTES, LARGE_ENTRY_BYTES, selectCachesToDelete, sweep } from "./sweep-actions-caches.mjs"
+import { CAP_BYTES, LARGE_ENTRY_BYTES, keyFamily, selectCachesToDelete, sweep } from "./sweep-actions-caches.mjs"
 
 const here = dirname(fileURLToPath(import.meta.url))
 const script = resolve(here, "sweep-actions-caches.mjs")
@@ -47,7 +47,9 @@ test("a pass marker is never deleted: not on a closed pull request ref, and not 
   const kept = [...caches, closedMarker].filter((cache) => !selection.some((entry) => entry.cache === cache))
   assert.ok(kept.includes(closedMarker))
   assert.equal(kept.filter(isMarker).length, 3)
-  assert.ok(kept.every((cache) => isMarker(cache) || cache.size_in_bytes < LARGE_ENTRY_BYTES), "a cap of zero removes every large entry and no small one")
+  const largeKept = kept.filter((cache) => !isMarker(cache) && cache.size_in_bytes >= LARGE_ENTRY_BYTES)
+  assert.ok(largeKept.every((cache) => cache.ref === defaultRef), "a cap of zero removes every large pull request entry")
+  assert.equal(new Set(largeKept.map((cache) => keyFamily(cache.key))).size, largeKept.length, "and keeps one main entry for each key family")
 })
 
 test("only the newest CodeQL overlay base database of each ref stays", () => {
@@ -59,30 +61,35 @@ test("only the newest CodeQL overlay base database of each ref stays", () => {
   assert.deepEqual(select({ capBytes: Infinity }), [], "one overlay base database is the newest and stays")
 })
 
-test("over the cap, the least recently read large entries go first, pull request refs before main, until the total fits", () => {
-  const selection = select()
-  assert.ok(total(caches) > CAP_BYTES)
+// An older version of a main family: the Linux npm entry of the lockfile before the current one.
+const currentNpm = caches.find((cache) => cache.key.startsWith("node-cache-Linux-x64-npm-"))
+const olderNpm = { ...currentNpm, id: currentNpm.id - 1, key: "node-cache-Linux-x64-npm-c91b799ca60001dc00c500d11b081f9c6150bd6b7f3451a3cb2b21e433f23754", created_at: "2026-11-14T04:34:00.000000Z", last_accessed_at: "2026-11-15T04:44:03.000000Z" }
+
+test("a key family drops its version parts, so a new lockfile, toolchain or commit is a new version of the same family", () => {
+  assert.equal(keyFamily(olderNpm.key), keyFamily(currentNpm.key))
+  assert.equal(keyFamily("v0-rust-desktop-x86_64-pc-windows-msvc-Windows_NT-x64-8bca1467-b3672f0d"), "v0-rust-desktop-x86_64-pc-windows-msvc-Windows_NT-x64-#-#")
+  assert.equal(keyFamily("ubuntu-24.04-x64-ndk-v1-27.1.12297006"), keyFamily("ubuntu-24.04-x64-ndk-v1-28.0.13004108"))
+  assert.notEqual(keyFamily("node-cache-macOS-arm64-npm-4b59a6714d0105240094823a4527cf02559cb624a9b91d251ff3e79b68135722"), keyFamily(currentNpm.key))
+  assert.notEqual(keyFamily("Windows-windows-app-sdk-aarch64-pc-windows-msvc-e37f2d79"), keyFamily("Windows-windows-app-sdk-x86_64-pc-windows-msvc-e37f2d79"))
+})
+
+test("over the cap, pull request entries go first, then older main versions, and the newest entry of each main family stays", () => {
+  const withOlder = [olderNpm, ...caches]
+  const selection = selectCachesToDelete({ caches: withOlder, openPullRequests: [2463], defaultRef })
+  assert.ok(total(withOlder) > CAP_BYTES)
   assert.deepEqual(new Set(selection.map((entry) => entry.reason)), new Set(["over the cap"]))
   const deleted = selection.map((entry) => entry.cache)
-  const firstMain = deleted.findIndex((cache) => cache.ref === defaultRef)
   const largeOnPullRequest = caches.filter((cache) => cache.ref === pullRequestRef && cache.size_in_bytes >= LARGE_ENTRY_BYTES)
-  assert.deepEqual(deleted.slice(0, firstMain).map((cache) => cache.key).sort(), largeOnPullRequest.map((cache) => cache.key).sort())
-  const mainDeleted = deleted.slice(firstMain)
-  assert.ok(mainDeleted.every((cache) => cache.ref === defaultRef))
-  assert.deepEqual(mainDeleted.map((cache) => cache.last_accessed_at), mainDeleted.map((cache) => cache.last_accessed_at).sort())
-  const largeMainByAge = caches
-    .filter((cache) => cache.ref === defaultRef && cache.size_in_bytes >= LARGE_ENTRY_BYTES && !isMarker(cache))
-    .sort((left, right) => left.last_accessed_at.localeCompare(right.last_accessed_at))
-  assert.deepEqual(mainDeleted.map((cache) => cache.key), largeMainByAge.slice(0, mainDeleted.length).map((cache) => cache.key))
-  assert.equal(mainDeleted[0].key, "Linux-turbo-build-e590374a82871f6628b5d0caf203785294541abc")
-  const after = total(caches) - total(deleted)
-  assert.ok(after <= CAP_BYTES, "the total fits after the sweep")
-  assert.ok(after + deleted.at(-1).size_in_bytes > CAP_BYTES, "the sweep stops at the first entry that makes the total fit")
-  assert.ok(deleted.every((cache) => cache.size_in_bytes >= LARGE_ENTRY_BYTES && !isMarker(cache)))
+  assert.deepEqual(deleted.slice(0, largeOnPullRequest.length).map((cache) => cache.key).sort(), largeOnPullRequest.map((cache) => cache.key).sort())
+  const pullRequestReads = deleted.slice(0, largeOnPullRequest.length).map((cache) => cache.last_accessed_at)
+  assert.deepEqual(pullRequestReads, [...pullRequestReads].sort(), "least recently read first")
+  assert.deepEqual(deleted.slice(largeOnPullRequest.length), [olderNpm], "then the older version on main, and no entry main restores")
+  assert.ok(total(withOlder) - total(deleted) > CAP_BYTES, "the newest main entries alone are over the cap in this recorded list")
+  assert.deepEqual(selectCachesToDelete({ caches: withOlder, openPullRequests: [2463], defaultRef, capBytes: total(withOlder) - 1 }).map((entry) => entry.cache.key), [largeOnPullRequest.sort((left, right) => left.last_accessed_at.localeCompare(right.last_accessed_at))[0].key], "the sweep stops at the first entry that makes the total fit")
 })
 
 test("the cap leaves headroom under the 10 GB repository limit", () => {
-  assert.equal(CAP_BYTES, 8_500_000_000)
+  assert.equal(CAP_BYTES, 9_000_000_000)
   assert.equal(LARGE_ENTRY_BYTES, 5_000_000)
 })
 
@@ -115,7 +122,8 @@ test("the sweep reads every page, then deletes each selected entry by the id tha
   const expected = selectCachesToDelete({ caches, openPullRequests: [2466, 2450], defaultRef })
   assert.equal(expected.filter((entry) => entry.reason === "closed pull request").length, 7)
   assert.deepEqual(calls.slice(3), expected.map((entry) => ["api", "--method", "DELETE", `repos/orbit/example/actions/caches/${entry.cache.id}`]))
-  assert.match(lines.at(-1), /^41 entries, 10777\.5 MB before; \d+ selected, \d+\.\d MB after; cap 8500\.0 MB$/)
+  assert.match(lines.at(-2), /^41 entries, 10777\.5 MB before; 7 selected, 9930\.5 MB after; cap 9000\.0 MB$/)
+  assert.match(lines.at(-1), /^::warning::The newest main entries keep the total over the cap/)
 })
 
 test("a dry run deletes nothing, and a failed delete fails the sweep after every delete ran", () => {
@@ -139,6 +147,7 @@ test("the Cache Budget workflow sweeps on a closed pull request, on a schedule a
   assert.ok(workflow.on.schedule.length === 1 && "workflow_dispatch" in workflow.on)
   assert.deepEqual(workflow.permissions, {})
   const job = workflow.jobs.sweep
+  assert.equal(job.if, "github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository", "a fork pull request has a read-only token, so its close never starts the sweep")
   assert.deepEqual(job.permissions, { actions: "write", contents: "read", "pull-requests": "read" })
   assert.deepEqual(workflow.concurrency, { group: "cache-budget", "cancel-in-progress": false })
   const checkout = job.steps.find((step) => step.uses?.startsWith("actions/checkout@"))
