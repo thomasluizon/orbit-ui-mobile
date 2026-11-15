@@ -144,7 +144,7 @@ describe('the plan question of the upgrade route', () => {
     const footer = document.querySelector<HTMLElement>('[data-flow-footer]')!
     expect(footer).toContainElement(primary)
     expect(block()).not.toContainElement(primary)
-    expect(footer).toHaveClass('sticky', 'bottom-0')
+    expect(footer).toHaveClass('sticky', 'bottom-[calc(var(--shell-scroller-end,0px)*-1)]')
     expect(footer.nextElementSibling).toBeNull()
     expect(screen.getByRole('list', { name: 'Included with Pro' }).compareDocumentPosition(footer) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     for (const card of block().querySelectorAll<HTMLElement>('[data-option-card]')) expect(card.style.scrollMarginBottom).toBe('calc(var(--touch-min) + var(--orbit-space-24))')
