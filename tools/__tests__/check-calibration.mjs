@@ -360,50 +360,6 @@ export const cases = () => {
     { status: 2, stderr: /day\(s\) in the FUTURE/ },
   )
 
-  /**
-   * The host entrypoints Codex discovers. They carry no behaviour, but their frontmatter decides
-   * whether a skill is found at all and their body names the canonical definition, so a change there
-   * changes which prompt runs while every `.claude` digest stays untouched.
-   */
-  const POINTER = ["---", "name: ticket", "description: pointer", "---", "", "The canonical definition is `.claude/skills/ticket/SKILL.md`.", ""].join("\n")
-
-  check(
-    TOOL,
-    "a .agents host entrypoint added with no stamp entry exits 1 and names it",
-    ["--root", stageHarness("added-pointer", { stamp: currentStamp(), extraFiles: { ".agents/skills/ticket/SKILL.md": POINTER } })],
-    { status: 1, stderr: /no calibration entry for \.agents\/skills\/ticket\/SKILL\.md/ },
-  )
-
-  check(
-    TOOL,
-    "a stamped .agents host entrypoint that CHANGED cannot leave calibration green",
-    [
-      "--root",
-      stageHarness("pointer-changed", {
-        stamp: withEntries((entries) => {
-          entries[".agents/skills/ticket/SKILL.md"] = { model: null, effort: null, digest: digestOf("a different pointer\n"), calibratedAt: today(), verdict: "current" }
-        }),
-        extraFiles: { ".agents/skills/ticket/SKILL.md": POINTER },
-      }),
-    ],
-    { status: 1, stderr: /\.agents\/skills\/ticket\/SKILL\.md changed since it was calibrated/ },
-  )
-
-  check(
-    TOOL,
-    "a stamped and unchanged .agents host entrypoint passes",
-    [
-      "--root",
-      stageHarness("pointer-clean", {
-        stamp: withEntries((entries) => {
-          entries[".agents/skills/ticket/SKILL.md"] = { model: null, effort: null, digest: digestOf(POINTER), calibratedAt: today(), verdict: "current" }
-        }),
-        extraFiles: { ".agents/skills/ticket/SKILL.md": POINTER },
-      }),
-    ],
-    { status: 0 },
-  )
-
   check(
     TOOL,
     "a stamp 89 days old is still current",

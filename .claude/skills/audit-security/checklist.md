@@ -33,22 +33,14 @@ Every finding cites a file:line and a **threat** (who reaches it, what they get)
   `userId` predicate.
 - [ ] **Mass-assignment**: update commands bind only allowed fields; a client can't set
   `UserId`, `IsPro`, role, or balance through an unscoped DTO bind.
-- [ ] **The Supabase layer is shut, and this is NOT repo-readable, so QUERY it.** Orbit's
-  Postgres IS Supabase and the web bundle ships a real publishable key, so PostgREST is a
-  second, code-invisible door onto the same rows. EF Core migrations create tables with RLS
-  **off** by default. A reader-only audit that skips this reports a naked database as clean.
-  Run all three, never infer:
-  1. `select c.relname, c.relrowsecurity, (select count(*) from pg_policy p where p.polrelid
-     = c.oid) from pg_class c join pg_namespace n on n.oid = c.relnamespace where n.nspname =
-     'public' and c.relkind = 'r'` (via the postgres MCP). Any table with
-     `relrowsecurity = false` is **Tier 1**.
-  2. `select grantee, table_schema, count(*) from information_schema.role_table_grants where
-     grantee in ('anon','authenticated') group by 1,2`. A `public`-schema grant to `anon` or
-     `authenticated` is **Tier 1** unless a policy set deliberately backs it.
-  3. Prove it from outside with the real publishable key:
-     `curl -s -o /dev/null -w '%{http_code}' "$SUPABASE_URL/rest/v1/Users?select=*" -H
-     "apikey: $ANON_KEY"`. Anything other than 401/403 on a user-owned table is **Tier 1**.
-  Verify RLS, `public` grants, the live probe, and the `public.rls_auto_enable` trigger on every run.
+- [ ] **The database is closed to the internet, and the live list is NOT repo-readable.** Orbit's
+  Postgres is a Render database (`render_postgres` in `orbit-api/infra/production.tf`) with an
+  operator IP allow-list. An empty list blocks every external connection, so it is the closed
+  state and never a finding. The tracked values (the `variables.tf` default and `example.tfvars`)
+  are `[]` placeholders by design, not the live list: never report them. The live list is in the
+  ignored `local.tfvars` and on the Render Postgres Networking screen. Only a `0.0.0.0/0` entry
+  in the live list is **Tier 1**. Without Render access, put the live setting in the Deferred
+  ledger as UNVERIFIED and never report it clean.
 
 ## B. Injection
 
@@ -70,8 +62,8 @@ Every finding cites a file:line and a **threat** (who reaches it, what they get)
   inline in `Program.cs`. (Test fixtures use low-entropy placeholders — see the GitGuardian
   note in project memory; real entropy in tests trips the scanner.)
 - [ ] **Client bundles carry only public keys** — `EXPO_PUBLIC_*` / `NEXT_PUBLIC_*` are
-  public by design; nothing secret rides them. The Supabase publishable key + URL are
-  intentionally public; the service-role key must never reach a client.
+  public by design; nothing secret rides them. A provider secret (Stripe secret, OpenAI key,
+  Firebase Admin credentials) must never reach a client.
 
 ## D. CORS, headers & transport
 
@@ -95,7 +87,7 @@ Every finding cites a file:line and a **threat** (who reaches it, what they get)
   limit throttles one IP; a bot pool walks around it. No bot gate on a public write form is
   **Tier 2**.
 - [ ] **Provider-side hard cost caps and spend alerts exist** for every paid API the server
-  calls (OpenAI, Resend, Stripe, FCM). An application rate limit bounds one caller; only the
+  calls (OpenAI, Stripe, FCM, AWS). An application rate limit bounds one caller; only the
   provider cap bounds the bill. Not repo-readable: verify in the provider console and put it
   in the Deferred ledger, never report it clean.
 
@@ -175,8 +167,9 @@ Every finding cites a file:line and a **threat** (who reaches it, what they get)
 > here is repo- or live-checkable; the policy's legal wording is not, and is not a finding.
 
 - [ ] **A privacy policy is reachable and linked** from the app and the landing page, and
-  the processors it names match the ones the code actually calls (Supabase/Render region,
-  Stripe, PostHog US Cloud, Sentry, Resend, Firebase, OpenAI). The AI flow is named in
+  the processors it names match the ones the code actually calls (Render region,
+  AWS, Stripe, PostHog US Cloud, Sentry, Firebase, OpenAI, Cloudflare Turnstile, Google and
+  Apple sign-in, APNs). The AI flow is named in
   plain terms — user text reaches OpenAI and the policy says so; state AI-disclosure laws
   make silence its own violation. A policy that contradicts the real processor list is
   **Tier 2**.
@@ -188,9 +181,9 @@ Every finding cites a file:line and a **threat** (who reaches it, what they get)
 - [ ] **No copyleft contamination in shipped dependencies**: a GPL/AGPL package under
   `apps/*` or a NuGet reference in a shipped project forces source disclosure. Cite the
   package and its license (**Tier 2**).
-- [ ] **Object storage is private and deletion is complete**: every Supabase storage
-  bucket (`SupabaseObjectStorageService.cs`) rejects anonymous reads — prove it from
-  outside with the publishable key, like the RLS probe, never by inference. A public
+- [ ] **Object storage is private and deletion is complete**: every S3 storage
+  bucket (`S3ObjectStorageService.cs`) rejects anonymous reads — prove it with an anonymous
+  request from outside, never by inference. A public
   bucket over user content is **Tier 1**. Account deletion removes the user's storage
   objects along with the rows; content the policy promises to delete but that survives in
   a bucket is **Tier 2**.

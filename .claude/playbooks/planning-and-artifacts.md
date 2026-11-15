@@ -9,7 +9,7 @@ They go stale within days and then get cited as authority.
 
 **The one exception:** a snippet that encodes a decision more precisely than prose can — a state machine, a reducer, a schema, a type shape. Inline it in the decision it belongs to, trimmed to the decision-rich part.
 
-This is a failure mode Orbit has already paid for: `CLAUDE.md` records that repo-local research dossiers were deleted because they "go stale silently and then get cited as authority." The same reasoning governs what `/create-prd` and `/create-stories` emit.
+This is a failure mode Orbit has already paid for: `CLAUDE.md` records that repo-local research dossiers were deleted because they "go stale silently and then get cited as authority." The same reasoning governs a PRD or a story list that an agent writes.
 
 ### 2. Size the artifact to the clarity of its inputs
 When discovery was crisp, **a 3-5 bullet brief *is* the deliverable.** Do not pad it into a long structured document to look thorough.

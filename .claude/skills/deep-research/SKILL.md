@@ -38,7 +38,7 @@ Don't research yet. First pin:
 
 Break the question into **non-overlapping slices**, each ownable by one subagent with zero overlap (two agents must never research the same thing). Slice by whichever fits:
 
-- **by option / vendor**, one agent per candidate (Supabase branch vs. project; Render vs. Fly vs. Railway).
+- **by option / vendor**, one agent per candidate (Render vs. Fly vs. Railway).
 - **by dimension**, cost & limits · DX & setup · security/compliance · ecosystem maturity.
 - **by modality**, official docs/pricing/changelogs · community & forums · head-to-head comparisons · the codebase (Explore).
 - **by sub-question**, the distinct questions hiding inside the ask.
@@ -108,8 +108,8 @@ Offer (don't do unsolicited):
 
 ## Orbit context (frame every subagent with the relevant slice of this)
 
-- **Dual repo, launched from `orbit-ui-mobile`** (reach `orbit-api` via absolute paths). `orbit-ui-mobile`: Turborepo, `apps/web` (Next.js), `apps/mobile` (Expo SDK 57, **Android only**), `packages/shared` (Zod types/i18n/endpoints). `orbit-api`: .NET, EF Core, Postgres, MediatR CQRS.
-- **Vendors in play** (so research is grounded, not abstract): Supabase (Postgres + Auth), Render (.NET API), Vercel (web), OpenAI (Astra/AI), Resend (email), Sentry + Discord (observability), Google Play Billing + Stripe (subscriptions).
+- **Dual repo, launched from `orbit-ui-mobile`** (reach `orbit-api` via absolute paths). `orbit-ui-mobile`: Turborepo, `apps/web` (Next.js), `apps/mobile` (Expo SDK 58: Android, iPhone and iPad), `packages/shared` (Zod types/i18n/endpoints). `orbit-api`: .NET, EF Core, Postgres, MediatR CQRS.
+- **Vendors in play** (so research is grounded, not abstract): Render (Postgres, the .NET API and the web service), AWS (SES email, S3 storage), Cloudflare (DNS, Turnstile), OpenAI (the assistant), Sentry and PostHog (observability and analytics), Google Play Billing and Stripe (subscriptions).
 - **Audience calibration:** solo developer, cost-sensitive, pre-full-prod-launch. Recommend at **solo-dev scale**, not enterprise, always price the option and prefer the cheapest path that isn't a footgun.
 - **Cross-cutting rules** the answer must respect when relevant: cross-platform parity (web ↔ mobile), backward-compat / deploy-order for shared contracts, and `DESIGN.md` for any UI/design question.
 - When the question touches Orbit's own code, an `Explore` agent reading the repos is part of the fan-out, not a substitute for the web research.
