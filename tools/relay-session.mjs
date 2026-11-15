@@ -25,9 +25,9 @@ const USAGE = `usage: relay-session.mjs [--retry-wake | --owner-check | --close-
                 unattended run or unadopted auto-work handoff owns this checkout's run state;
                 the refusal names the owner's next step. An unattended run counts only while
                 a Claude session record names its live process, or while a live relay nominee
-                has not adopted it yet. It also refuses when CLAUDE_CONFIG_DIR/sessions holds no
-                record of this session, because then it cannot see live sessions. Reads only;
-                writes nothing
+                has not adopted it yet. Beside another session's unattended run, it also refuses
+                when CLAUDE_CONFIG_DIR/sessions holds no record of this session, because then it
+                cannot see whether that run is live. Reads only; writes nothing
   --close-chain repeat that check, prepare owner auto-work intake carry, then record and close
                 this session's open chain. Needs no question filter, and no run state when no
                 chain is open

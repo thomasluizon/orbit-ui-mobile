@@ -37,8 +37,8 @@ const foreignRunCases = () => {
     cpSync(toolPath("owner-questions.mjs"), join(checkout, "tools", "owner-questions.mjs"))
     writeRunState(run, checkout)
     const claudeDirectory = stageClaudeSessions(`foreign-${label}`, { owner: process.pid, ...sessions })
-    const invoke = (flag, input) => spawnSync(process.execPath, [join(checkout, "tools", "owner-questions.mjs"), flag],
-      { encoding: "utf8", input, env: { ...process.env, CLAUDE_CODE_SESSION_ID: "owner", CLAUDE_CONFIG_DIR: claudeDirectory } })
+    const invoke = (flag, input, sessionId = "owner") => spawnSync(process.execPath, [join(checkout, "tools", "owner-questions.mjs"), flag],
+      { encoding: "utf8", input, env: { ...process.env, CLAUDE_CODE_SESSION_ID: sessionId, CLAUDE_CONFIG_DIR: claudeDirectory } })
     const listed = invoke("--list")
     return { checkout, claudeDirectory, invoke, listed, rows: listed.status === 0 ? JSON.parse(listed.stdout) : [] }
   }
@@ -66,11 +66,13 @@ const foreignRunCases = () => {
       () => "session attended (Claude session in /elsewhere/orbit-ui-mobile) is live in this checkout; run /questions in that session, or end it"],
   ]) {
     const { checkout, invoke, listed, rows } = ownerCli(label.replace(/\W+/g, "-"), { ...run, openOwnerQuestions: [queued] }, sessions)
-    const refused = invoke("--record", "[]")
+    // The holder's own list gives the real row id, so the owner sends a complete record that only the refusal stops.
+    const held = JSON.parse(invoke("--list", "", run.sessionId).stdout)
+    const refused = invoke("--record", JSON.stringify(held.map((row) => ({ id: row.id, disposition: "answered", record: "ticket #2101 comment" }))))
     const after = readRunState(checkout)
     T(`owner-questions: beside ${label}, --list leaves its queue to that session and names why`, listed.status === 0 && rows.length === 0 && listed.stderr === `${refusalOf()}\n`, listed.stderr)
     T(`owner-questions: beside ${label}, --record refuses and writes nothing`, refused.status === 1 && refused.stderr === `QUESTIONS_REFUSED: ${refusalOf()}\n` &&
-      after.questionFilter === undefined && after.openOwnerQuestions.length === 1, refused.stderr)
+      held.length === 1 && after.questionFilter === undefined && after.openOwnerQuestions.length === 1, `status ${refused.status} ${refused.stderr} queue ${JSON.stringify(after.openOwnerQuestions)}`)
   }
   const blind = ownerCli("no-own-record", { sessionId: "finished", sleep: false, openOwnerQuestions: [queued] }, { owner: undefined })
   const blindRecord = blind.invoke("--record", "[]")

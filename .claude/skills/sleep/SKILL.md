@@ -52,7 +52,8 @@ its repository-qualified `pullRequests` and append-only `readinessLedger`.
 `readinessLedger` forward when session ids match or `relay.from` identifies the predecessor.
 An unrelated session starts with its own ledger. Its first write also carries the
 `openOwnerQuestions` of the previous run when that run's session is no longer live and nothing
-else holds that run.
+else holds that run. The carry has two more conditions: the first write sets no
+`openOwnerQuestions` of its own, and this session finds its own Claude session record.
 
 Write the decision log to `sleep-decisions.md` in this session's scratchpad directory, the one named
 in your system prompt. Keep it outside every repository, so no gate and no commit ever sees it.

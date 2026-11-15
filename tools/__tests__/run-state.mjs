@@ -163,16 +163,16 @@ for (;;) {
 /** A new session's first whole-record write, run as a child so it reads the staged Claude session records. */
 const strandedQueueCases = () => {
   const queued = { question: "Is the yearly plan priced below ten monthly payments?", blocks: ["#2101"] }
-  const firstWrite = (label, previous, sessions) => {
+  const firstWrite = (label, previous, sessions, { written = { sessionId: "fresh", sleep: true }, damaged = false } = {}) => {
     const checkout = stageCheckout(`carry-${label}`)
     writeRunState(previous, checkout)
+    const claudeDirectory = stageClaudeSessions(`run-state-carry-${label}`, sessions)
+    if (damaged) writeFileSync(join(claudeDirectory, "sessions", "damaged.json"), `{"pid": ${process.pid}, "sessionId": "dam`)
     const moduleUrl = pathToFileURL(join(TOOLS_DIR, "lib", "run-state.mjs")).href
     const script = `import { readRunState, writeRunState } from ${JSON.stringify(moduleUrl)}
-writeRunState({ sessionId: "fresh", sleep: true }, ${JSON.stringify(checkout)})
+writeRunState(${JSON.stringify(written)}, ${JSON.stringify(checkout)})
 process.stdout.write(JSON.stringify(readRunState(${JSON.stringify(checkout)}).openOwnerQuestions ?? null))`
-    const child = spawnSync(process.execPath, ["--input-type=module", "-e", script], {
-      encoding: "utf8", env: { ...process.env, CLAUDE_CONFIG_DIR: stageClaudeSessions(`run-state-carry-${label}`, sessions) },
-    })
+    const child = spawnSync(process.execPath, ["--input-type=module", "-e", script], { encoding: "utf8", env: { ...process.env, CLAUDE_CONFIG_DIR: claudeDirectory } })
     return child.status === 0 ? JSON.parse(child.stdout) : child.stderr
   }
   const carried = firstWrite("gone", { sessionId: "finished", sleep: false, openOwnerQuestions: [queued, "Which plan ships first?"] }, { fresh: process.pid })
@@ -181,6 +181,13 @@ process.stdout.write(JSON.stringify(readRunState(${JSON.stringify(checkout)}).op
     carried[1].sources.join() === "finished", JSON.stringify(carried))
   const live = firstWrite("live", { sessionId: "attended", sleep: false, openOwnerQuestions: [queued] }, { fresh: process.pid, attended: process.pid })
   T(`${TOOL}: a new session's first write never takes the owner questions of a live session's run`, live === null, JSON.stringify(live))
+  const stranded = { sessionId: "finished", sleep: false, openOwnerQuestions: [queued] }
+  const unseen = firstWrite("unseen", stranded, { fresh: undefined })
+  T(`${TOOL}: a new session that cannot find its own Claude session record carries no owner questions`, unseen === null, JSON.stringify(unseen))
+  const own = firstWrite("own-queue", stranded, { fresh: process.pid }, { written: { sessionId: "fresh", sleep: true, openOwnerQuestions: [] } })
+  T(`${TOOL}: a first write that sets its own owner questions carries none`, Array.isArray(own) && own.length === 0, JSON.stringify(own))
+  const damaged = firstWrite("damaged", stranded, { fresh: process.pid }, { damaged: true })
+  T(`${TOOL}: a damaged Claude session record never stops a new session's first write, and the write carries nothing`, damaged === null, JSON.stringify(damaged))
 }
 
 export const cases = async () => {

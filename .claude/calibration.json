@@ -228,7 +228,7 @@
     ".claude/skills/handoff/SKILL.md": {
       "model": null,
       "effort": "high",
-      "digest": "253ef6e46c70c0df",
+      "digest": "aa0be8ecb8401653",
       "calibratedAt": "2026-11-15",
       "verdict": "current: high effort; the skill decides which durable rules enter the spec and when handoff must end the session."
     },
@@ -312,7 +312,7 @@
     ".claude/skills/sleep/SKILL.md": {
       "model": null,
       "effort": null,
-      "digest": "6fd613b7d7cab665",
+      "digest": "af5ba3900e6fd6d5",
       "calibratedAt": "2026-11-15",
       "verdict": "undeclared, inherits the session: it makes overnight queue decisions, including whether configured lanes are available."
     },

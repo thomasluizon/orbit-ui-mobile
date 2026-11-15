@@ -373,11 +373,17 @@ export const foreignRunHold = (sessionId, state, claudeDirectory = claudeConfigD
 
 /**
  * The owner questions that an unrelated session's first whole-record write would drop, with each row's sources;
- * undefined when nothing is stranded. Only a queue of a run whose session is gone, and that nothing holds, carries.
+ * undefined when nothing is stranded. The queue carries only when the write sets no queue of its own, the previous
+ * run's session is gone and nothing holds that run, and the writing session finds its own Claude session record.
  */
 const strandedOwnerQuestions = (previous, state) => {
   if (!previous?.openOwnerQuestions?.length || state.openOwnerQuestions !== undefined) return undefined
-  if (foreignRunHold(state.sessionId, previous) !== null || liveSessionProcess(previous.sessionId) || !liveSessionProcess(state.sessionId)) return undefined
+  try {
+    if (foreignRunHold(state.sessionId, previous) !== null || liveSessionProcess(previous.sessionId) || !liveSessionProcess(state.sessionId)) return undefined
+  } catch {
+    // The carry is optional, and the write it rides on is not: an unreadable session record skips only the carry.
+    return undefined
+  }
   return previous.openOwnerQuestions.map((row) => typeof row === "string" ? { question: row, sources: [previous.sessionId] }
     : row?.sources?.length ? row : { ...row, sources: [previous.sessionId] })
 }

@@ -15,9 +15,10 @@ is extra work for the NEXT session. You never do that work now.
 An owner `/handoff` runs `node tools/relay-session.mjs --owner-check` first, before it writes
 anything. The check refuses while another live session runs unattended in this checkout, while a
 live relay successor did not adopt the run yet, or while another session holds an auto-work handoff
-that no successor adopted yet. It also refuses when it cannot find this session's own Claude session
-record, because then it cannot see live sessions. If it refuses, write and push nothing, and give
-the owner its message, which names his next step.
+that no successor adopted yet. Beside another session's unattended run, it also refuses when it
+cannot find this session's own Claude session record, because then it cannot see whether that run is
+live. If it refuses, write and push nothing, and give the owner its message, which names his next
+step.
 
 `--crank` or `/crank` includes `--sleep`. Read the current session's run state with
 `readRunState` from `tools/lib/run-state.mjs`: `crank: true` includes it automatically,
