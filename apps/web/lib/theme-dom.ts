@@ -1,5 +1,5 @@
 import type { ThemeMode } from '@orbit/shared/types/profile'
-import { TOUCH_TARGET_MIN, MONTH_GRID_TARGET_MIN, SMALL_PILL_VISIBLE_MIN } from '@orbit/shared/theme'
+import { APPLE_SIGN_IN_BUTTON, TOUCH_TARGET_MIN, MONTH_GRID_TARGET_MIN, SMALL_PILL_VISIBLE_MIN } from '@orbit/shared/theme'
 import {
   motionDurations,
   motionEasings,
@@ -90,6 +90,8 @@ export function resolveWebThemeVariables(
     '--fg-on-overdue': status.fgOnOverdue,
     '--selection-bg': `rgba(${accent.primaryRgb},${selectionAlpha[theme]})`,
     '--scrim': neutral.scrim,
+    '--apple-sign-in-fill': APPLE_SIGN_IN_BUTTON.colors[theme].fill,
+    '--apple-sign-in-ink': APPLE_SIGN_IN_BUTTON.colors[theme].ink,
   }
 }
 

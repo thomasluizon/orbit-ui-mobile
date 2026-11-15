@@ -5,6 +5,7 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { DestinationShell } from '@/components/shell/destination-shell'
 import { ShellScrollerProvider } from '@/components/shell/shell-scroller-context'
 import { useHabitCreateNavigationGuard } from '@/hooks/use-habit-create-navigation-guard'
+import { getCurrentRouteTransitionIntent, resetRouteTransitionIntent } from '@/lib/motion/route-intent'
 import { useUIStore } from '@/stores/ui-store'
 
 const navigation = vi.hoisted(() => ({ pathname: '/', width: 600, push: vi.fn() }))
@@ -44,6 +45,7 @@ beforeEach(() => {
   navigation.width = 600
   useUIStore.setState({ astraConversationOpen: false })
   history.replaceState(null, '', '/')
+  resetRouteTransitionIntent()
 })
 afterEach(() => history.replaceState(null, '', '/'))
 
@@ -54,9 +56,10 @@ it.each([600, 1100, 1352])('renders routed links in the real shell at %ipx', asy
   const links = destinationLinks().getAllByRole('link')
   expect(links.map((link) => link.getAttribute('href'))).toEqual(destinations.map(({ href }) => href))
   expect(links.filter((link) => link.hasAttribute('aria-current'))).toEqual([links[1]])
-  if (width >= 1024) expect(screen.getByRole('button', { name: 'nav.astra' })).not.toHaveAttribute('href')
+  if (width >= 1024) expect(screen.getByRole('button', { name: 'shell.astraButton.open' })).not.toHaveAttribute('href')
   await userEvent.click(links[2]!)
-  expect(navigation.push).toHaveBeenCalledExactlyOnceWith('/progress', { transitionTypes: ['orbit-tab-forward'] })
+  expect(navigation.push).toHaveBeenCalledExactlyOnceWith('/progress')
+  expect(getCurrentRouteTransitionIntent()).toBe('tab')
 })
 
 it.each([1100, 1352])('holds destination changes until the draft guard approves at %ipx', async (width) => {

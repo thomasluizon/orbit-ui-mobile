@@ -31,7 +31,7 @@ describe('typed drill heading', () => {
       refreshCurrent: vi.fn(async () => {}), getDrillChildren: () => [],
     }
     let tree!: ReactTestRenderer
-    await act(() => { tree = create(<HabitDrill drill={drill} styles={createStyles(createTokensV2(undefined, 'light'))} t={(key) => key} listHeaderComponent={null} drillListRef={createRef<FlatList<NormalizedHabit>>()} refreshControl={<RefreshControl refreshing={false} />} onListScroll={vi.fn()} bulkBarStyle={{}} renderHabitCard={() => null} onAddSubHabit={vi.fn()} />) })
+    await act(() => { tree = create(<HabitDrill drill={drill} styles={createStyles(createTokensV2(undefined, 'light'))} t={(key) => key} listHeaderComponent={null} drillListRef={createRef<FlatList<NormalizedHabit>>()} refreshControl={<RefreshControl refreshing={false} colors={['transparent']} progressBackgroundColor="transparent" tintColor="transparent" progressViewOffset={-192} />} busy={false} onListScroll={vi.fn()} bulkBarStyle={{}} renderHabitCard={() => null} onAddSubHabit={vi.fn()} />) })
     await expectPersonalTextLayout(tree.root, name)
     await measureClampedPersonalText(tree.root, name)
     await act(() => pressTextControl(expandedTextControls(tree.root, `common.showFullText:${JSON.stringify({ name })}`, false)[0]!))
@@ -55,7 +55,7 @@ it.each(['scroll', 'header'] as const)('keeps drill %s scoped to the current par
   const renderDrill = (parentId: string) => <HabitDrill drill={{ ...drill, currentParentId: parentId }}
     styles={createStyles(createTokensV2(undefined, 'light'))} t={(key) => key}
     listHeaderComponent={null} drillListRef={createRef<FlatList<NormalizedHabit>>()}
-    refreshControl={<RefreshControl refreshing={false} />} onListScroll={vi.fn()} bulkBarStyle={{}}
+    refreshControl={<RefreshControl refreshing={false} colors={['transparent']} progressBackgroundColor="transparent" tintColor="transparent" progressViewOffset={-192} />} busy={false} onListScroll={vi.fn()} bulkBarStyle={{}}
     renderHabitCard={() => null} onAddSubHabit={vi.fn()} />
   let tree!: ReactTestRenderer
   await act(() => { tree = create(renderDrill('parent')) })
@@ -75,5 +75,31 @@ it.each(['scroll', 'header'] as const)('keeps drill %s scoped to the current par
     expect(StyleSheet.flatten(row.props.style)).toMatchObject({ flexDirection: 'row', gap: 12 })
     expect(row.findAll((node) => node.props.accessibilityRole === 'header').length).toBeGreaterThan(0)
   }
+  await act(() => tree.unmount())
+})
+
+it('keeps the drill rows in place and reports the wait as busy while a refresh fetch runs', async () => {
+  const parent = createMockHabit({ id: 'parent', title: 'General' })
+  const child = createMockHabit({ id: 'child', title: 'Stretch' })
+  const drill = {
+    drillStack: [parent.id], currentParentId: parent.id, currentParent: parent,
+    drillChildren: [child], settlementHabitsById: new Map(), settlementUpdatedAtById: new Map(), hasUnfilteredChildren: false, canRevealCompletedChildren: false, completedCount: 0,
+    drillLoading: false, drillError: '', drillInto: vi.fn(async () => {}), drillBack: vi.fn(), drillReset: vi.fn(),
+    refreshCurrent: vi.fn(async () => {}), getDrillChildren: () => [],
+  }
+  const renderDrill = (busy: boolean) => <HabitDrill drill={drill}
+    styles={createStyles(createTokensV2(undefined, 'light'))} t={(key) => key}
+    listHeaderComponent={null} drillListRef={createRef<FlatList<NormalizedHabit>>()}
+    refreshControl={<RefreshControl refreshing={false} colors={['transparent']} progressBackgroundColor="transparent" tintColor="transparent" progressViewOffset={-192} />} busy={busy}
+    onListScroll={vi.fn()} bulkBarStyle={{}} renderHabitCard={() => null} onAddSubHabit={vi.fn()} />
+  let tree!: ReactTestRenderer
+  await act(() => { tree = create(renderDrill(true)) })
+  const list = () => tree.root.findAll((node) => Array.isArray(node.props.data) && 'ListEmptyComponent' in node.props)[0]!
+  expect((list().props.data as NormalizedHabit[]).map((habit) => habit.id)).toEqual(['child'])
+  expect(list().props.accessibilityState).toEqual({ busy: true })
+  expect((list().props.refreshControl as React.ReactElement<{ refreshing: boolean }>).props.refreshing).toBe(false)
+  await act(() => tree.update(renderDrill(false)))
+  expect((list().props.data as NormalizedHabit[]).map((habit) => habit.id)).toEqual(['child'])
+  expect(list().props.accessibilityState).toEqual({ busy: false })
   await act(() => tree.unmount())
 })

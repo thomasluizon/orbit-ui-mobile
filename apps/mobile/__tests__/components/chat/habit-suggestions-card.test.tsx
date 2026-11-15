@@ -145,7 +145,13 @@ describe('habit suggestion actions on Android', () => {
     const message = makeHabitSuggestionMessage()
     message.parts = [{ type: 'block', kind: 'habitSuggestions', block: { language: 'en', drafts: [{ ...draft, existingHabitId: '33333333-3333-4333-8333-333333333333' }] } }]
     useChatStore.setState({ messages: [message] }); await mount()
-    expect(content()).toContain(isError ? en.chat.habitSuggestions.scheduleError : en.common.loading)
+    if (isError) expect(content()).toContain(en.chat.habitSuggestions.scheduleError)
+    else {
+      const skeleton = tree.root.findAll(node => typeof node.type === 'string' && node.props.testID === 'current-schedule-skeleton')
+      expect(skeleton).toHaveLength(1)
+      expect(skeleton[0]!.findAll(node => typeof node.type === 'string' && node.props.testID === 'skeleton-unit-fill')[0]!.props).toMatchObject({ accessibilityRole: 'progressbar', accessibilityLabel: en.common.loading, accessibilityState: { busy: true } })
+      expect(tree.root.findAll(node => String(node.type) === 'Text' && node.props.children === en.common.loading)).toHaveLength(0)
+    }
     expect(buttons('Edit')[0]?.props.accessibilityState).toMatchObject({ disabled: true })
     if (isError) { await press('Retry'); expect(mocks.refetch).toHaveBeenCalledOnce() }
   })

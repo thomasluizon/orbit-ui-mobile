@@ -231,10 +231,17 @@ describe('habit detail stat card (mobile)', () => {
       expect(card.props.accessibilityRole).toBe('progressbar')
       expect(card.props.accessibilityLabel).toBe(translate('common.loading'))
       expect(rowTexts(card)).toEqual([
-        [translate('habits.detail.currentStreak'), translate('common.loading')],
-        [translate('habits.detail.longestStreak'), translate('common.loading')],
-        [translate('habits.detail.monthlyRate'), translate('common.loading')],
+        [translate('habits.detail.currentStreak')],
+        [translate('habits.detail.longestStreak')],
+        [translate('habits.detail.monthlyRate')],
       ])
+      const skeletons = card.findAll((node) => typeof node.type === 'string' && node.props.testID === 'habit-detail-stat-skeleton')
+      expect(skeletons).toHaveLength(3)
+      for (const skeleton of skeletons) {
+        expect(StyleSheet.flatten(skeleton.props.style)).toMatchObject({ width: 48, height: 22 })
+        expect(skeleton.findAll((node) => typeof node.type === 'string' && node.props.testID === 'skeleton-unit-fill')).toHaveLength(1)
+      }
+      expect(card.findAll((node) => String(node.type) === 'Text' && node.props.children === translate('common.loading'))).toHaveLength(0)
       expect(cardLayout(fontScale)).toBeCloseTo(loadedHeight, 1)
       expect(StatTile).not.toHaveBeenCalled()
       TestRenderer.act(() => tree.unmount())

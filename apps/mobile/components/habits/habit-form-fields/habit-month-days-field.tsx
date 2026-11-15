@@ -44,12 +44,10 @@ export function HabitMonthDaysField({ visible, monthDays, anchorDay, quantity, d
               const day = row[index]
               if (day === undefined) return <View key={`empty-${index}`} style={styles.target} />
               const chosen = selected.includes(day)
-              return <Pressable key={day} focusInset selectionRingWidth={1.5} selectionRingColor={proposed ? tokens.fg3 : tokens.primary}
+              return <Pressable key={day} focusInset selectionRingWidth={1.5} selectionRingColor={proposed ? tokens.fg3 : tokens.primary} selectionRingRestColor={tokens.hairline}
                 accessibilityRole="button" accessibilityLabel={String(day)} accessibilityState={{ selected: chosen, ...(locked ? { disabled: true } : {}) }} disabled={locked}
                 style={({ pressed }) => [styles.target, {
                   backgroundColor: pressed && !locked ? tokens.bgHover : chosen && !proposed ? tokens.primaryDim : tokens.bgWell,
-                  borderColor: tokens.hairline,
-                  borderWidth: chosen ? 0 : 1,
                 }, locked ? styles.disabled : null]} onPress={() => onToggle(day)}>
                 <Text style={[styles.day, { color: chosen && !proposed ? tokens.fg1 : tokens.fg2 }]}>{day}</Text>
               </Pressable>

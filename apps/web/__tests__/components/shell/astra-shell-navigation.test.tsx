@@ -10,8 +10,9 @@ import { AstraConversation } from '@/components/chat/conversation'
 import { DestinationShell } from '@/components/shell/destination-shell'
 import { useUIStore } from '@/stores/ui-store'
 import { useShellStore } from '@/stores/shell-store'
+import { getCurrentRouteTransitionIntent, resetRouteTransitionIntent } from '@/lib/motion/route-intent'
 
-const navigation = vi.hoisted(() => ({ pathname: '/', push: vi.fn(), replace: vi.fn(), wide: true }))
+const navigation = vi.hoisted(() => ({ pathname: '/', push: vi.fn(), pushedIntents: [] as string[], replace: vi.fn(), wide: true }))
 vi.mock('next/navigation', () => ({
   usePathname: () => navigation.pathname,
   useParams: () => ({}),
@@ -27,7 +28,7 @@ vi.mock('next/link', () => ({ default: ({ href, onClick, onNavigate, children, .
   onNavigate?.({ preventDefault: () => { cancellation.prevented = true } })
   if (!cancellation.prevented) navigation.push(href)
 }}>{children}</a> }))
-vi.mock('next-intl', () => ({ useLocale: () => 'pt-BR', useTranslations: () => (key: string) => key === 'chat.insight.progressLink' ? 'Ver no Progresso' : key === 'nav.astra' ? 'Astra' : key }))
+vi.mock('next-intl', () => ({ useLocale: () => 'pt-BR', useTranslations: () => (key: string) => key === 'chat.insight.progressLink' ? 'Ver no Progresso' : key === 'nav.astra' ? 'Orbit' : key === 'shell.astraButton.open' ? 'Falar com o Orbit' : key }))
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: { name: 'Person', email: 'person@example.com' } }) }))
 vi.mock('@/hooks/use-notification-inbox', () => ({ useNotificationInbox: () => ({ visibleUnreadCount: 0 }) }))
 vi.mock('@/components/command/command-palette', () => ({
@@ -54,7 +55,7 @@ function buildChat(draft: string, suggestions: ReadonlyArray<{ id: string; label
 function App({ draft = '', chat, block }: Readonly<{ draft?: string; chat?: ChatController; block?: ReactNode }>) {
   const open = useUIStore((state) => state.astraConversationOpen)
   return <DestinationShell conversation={block ?? <AstraConversation chat={chat ?? buildChat(draft)} />} conversationOpen={open}
-    conversationLabel="Astra" onCreate={() => navigation.push('/habits/new')}>
+    conversationLabel="Orbit" onCreate={() => navigation.push('/habits/new')}>
     <h1>{navigation.pathname}</h1>
   </DestinationShell>
 }
@@ -62,10 +63,15 @@ function App({ draft = '', chat, block }: Readonly<{ draft?: string; chat?: Chat
 beforeEach(() => {
   navigation.pathname = '/'
   navigation.wide = true
-  navigation.push.mockReset().mockImplementation((pathname: string) => { navigation.pathname = pathname })
+  navigation.pushedIntents = []
+  navigation.push.mockReset().mockImplementation((pathname: string) => {
+    navigation.pushedIntents.push(getCurrentRouteTransitionIntent())
+    navigation.pathname = pathname
+  })
   navigation.replace.mockReset().mockImplementation((pathname: string) => { navigation.pathname = pathname })
   useUIStore.setState({ astraConversationOpen: false })
   useShellStore.setState({ paletteOpen: false })
+  resetRouteTransitionIntent()
   vi.stubGlobal('matchMedia', vi.fn((query: string) => ({
     matches: navigation.wide && /min-width/.test(query), media: query, addEventListener: vi.fn(), removeEventListener: vi.fn(),
   })))
@@ -74,7 +80,7 @@ afterEach(() => vi.unstubAllGlobals())
 
 it('keeps focus in each anchored attachment action and lets Escape close the menu before Astra', async () => {
   render(<App />)
-  const row = screen.getByRole('button', { name: 'Astra' })
+  const row = screen.getByRole('button', { name: 'Falar com o Orbit' })
   fireEvent.click(row)
   expect(screen.getByRole('textbox', { name: words.placeholder })).toHaveFocus()
   fireEvent.pointerDown(screen.getByRole('button', { name: words.actions }), { button: 0, ctrlKey: false })
@@ -90,13 +96,13 @@ it('keeps focus in each anchored attachment action and lets Escape close the men
   expect(useUIStore.getState().astraConversationOpen).toBe(true)
   expect(screen.getByRole('button', { name: words.actions })).toHaveFocus()
   fireEvent.keyDown(document.activeElement!, { key: 'Escape' })
-  expect(screen.queryByRole('dialog', { name: 'Astra' })).toBeNull()
+  expect(screen.queryByRole('dialog', { name: 'Orbit' })).toBeNull()
   expect(row).toHaveFocus()
 })
 
 it('redirects focus from an unrelated portal back to the conversation', () => {
   render(<App />)
-  fireEvent.click(screen.getByRole('button', { name: 'Astra' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Falar com o Orbit' }))
   const unrelated = document.createElement('button')
   unrelated.textContent = 'Unrelated portal'
   document.body.append(unrelated)
@@ -110,7 +116,7 @@ it('shows the conversation suggestions at full composer width with no collapse c
   const labels = ['Review routine', 'Plan routine']
   const chat = buildChat('', labels.map((label, index) => ({ id: `chip-${index}`, label, onSelect: vi.fn() })))
   render(<App chat={chat} />)
-  fireEvent.click(screen.getByRole('button', { name: 'Astra' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Falar com o Orbit' }))
   const strip = screen.getByRole('group', { name: words.suggestionsLabel })
   expect(within(strip).getAllByRole('button').map(button => button.textContent)).toEqual(labels)
   const row = strip.closest('[data-composer-suggestion-row]')!
@@ -122,7 +128,7 @@ it('shows the conversation suggestions at full composer width with no collapse c
 
 it.each([false, true])('hands attachment-menu focus back to the composer on Tab with shift=%s', async (shiftKey) => {
   render(<App draft="Keep this draft" />)
-  fireEvent.click(screen.getByRole('button', { name: 'Astra' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Falar com o Orbit' }))
   fireEvent.pointerDown(screen.getByRole('button', { name: words.actions }), { button: 0, ctrlKey: false })
   const menu = await screen.findByRole('menu', { name: words.actions })
   act(() => within(menu).getByRole('menuitem', { name: attachWords.image }).focus())
@@ -134,30 +140,30 @@ it.each([false, true])('hands attachment-menu focus back to the composer on Tab 
 })
 
 it.each([
-  ['notifications.bell', '/notifications', 'button'],
-  ['nav.createHabit', '/habits/new', 'button'], ['nav.today', '/', 'link'], ['nav.calendar', '/calendar', 'link'],
-  ['nav.progress', '/progress', 'link'], ['nav.profile', '/profile', 'link'],
-])('closes Astra before sidebar navigation through %s', (label, pathname, role) => {
+  ['notifications.bell', '/notifications', 'button', ['forward']],
+  ['nav.createHabit', '/habits/new', 'button', ['neutral']], ['nav.today', '/', 'link', []], ['nav.calendar', '/calendar', 'link', ['tab']],
+  ['nav.progress', '/progress', 'link', ['tab']], ['nav.profile', '/profile', 'link', ['tab']],
+])('closes Astra before sidebar navigation through %s', (label, pathname, role, pushedIntents) => {
   const view = render(<App />)
-  fireEvent.click(screen.getByRole('button', { name: 'Astra' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Falar com o Orbit' }))
   const control = screen.getByRole(role, { name: label })
   fireEvent.click(control)
   expect(useUIStore.getState().astraConversationOpen).toBe(false)
-  expect(screen.queryByRole('dialog', { name: 'Astra' })).toBeNull()
+  expect(screen.queryByRole('dialog', { name: 'Orbit' })).toBeNull()
   if (role === 'link') expect(control).toHaveAttribute('href', pathname)
   if (pathname === '/') expect(navigation.replace).toHaveBeenCalledWith(pathname)
-  if (pathname !== '/' && role === 'button') expect(navigation.push).toHaveBeenCalledWith(pathname)
-  if (pathname !== '/' && role === 'link') expect(navigation.push).toHaveBeenCalledWith(pathname, { transitionTypes: ['orbit-tab-forward'] })
+  if (pathname !== '/') expect(navigation.push).toHaveBeenCalledWith(pathname)
+  expect(navigation.pushedIntents).toEqual(pushedIntents)
   view.rerender(<App />)
   expect(screen.getByRole('heading', { name: pathname })).toBeVisible()
 })
 
 it('closes Astra before opening sidebar search', () => {
   render(<App />)
-  fireEvent.click(screen.getByRole('button', { name: 'Astra' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Falar com o Orbit' }))
   fireEvent.click(screen.getByRole('button', { name: /^nav.search/ }))
   expect(useUIStore.getState().astraConversationOpen).toBe(false)
-  expect(screen.queryByRole('dialog', { name: 'Astra' })).toBeNull()
+  expect(screen.queryByRole('dialog', { name: 'Orbit' })).toBeNull()
   expect(screen.getByRole('dialog', { name: 'Search palette' })).toBeVisible()
 })
 
@@ -171,7 +177,7 @@ it.each([false, true])('opens and closes Astra by keyboard on every destination 
     act(() => heading.focus())
     fireEvent.keyDown(heading, { key: 'g' })
     fireEvent.keyDown(heading, { key: 'a' })
-    const conversation = screen.getByRole('dialog', { name: 'Astra' })
+    const conversation = screen.getByRole('dialog', { name: 'Orbit' })
     expect(conversation).toHaveAttribute('data-shell-conversation', 'overlay')
     if (wide) expect(conversation).not.toHaveAttribute('aria-modal')
     else expect(conversation).toHaveAttribute('aria-modal', 'true')
@@ -184,7 +190,7 @@ it.each([false, true])('opens and closes Astra by keyboard on every destination 
     expect(conversation).toBeVisible()
     act(() => within(conversation).getByRole('button', { name: 'common.closeConversation' }).focus())
     fireEvent.keyDown(document.activeElement!, { key: 'Escape' })
-    expect(screen.queryByRole('dialog', { name: 'Astra' })).toBeNull()
+    expect(screen.queryByRole('dialog', { name: 'Orbit' })).toBeNull()
     expect(heading).toHaveFocus()
     expect(heading).toBeVisible()
     view.unmount()
@@ -199,7 +205,7 @@ it.each([false, true])('preserves composer error recovery when opened by the cho
   render(<App chat={chat} />)
   fireEvent.keyDown(document, { key: 'g' })
   fireEvent.keyDown(document, { key: 'a' })
-  const conversation = screen.getByRole('dialog', { name: 'Astra' })
+  const conversation = screen.getByRole('dialog', { name: 'Orbit' })
   expect(within(conversation).getByRole('alert')).toHaveTextContent('Message not sent')
   fireEvent.click(within(conversation).getByRole('button', { name: 'Try again' }))
   expect(retry).toHaveBeenCalledOnce()
@@ -213,14 +219,14 @@ it.each([false, true])('opens the conversation with disabled sending at the dail
   render(<App chat={chat} />)
   fireEvent.keyDown(document, { key: 'g' })
   fireEvent.keyDown(document, { key: 'a' })
-  const conversation = screen.getByRole('dialog', { name: 'Astra' })
+  const conversation = screen.getByRole('dialog', { name: 'Orbit' })
   expect(within(conversation).getByText('Daily allowance reached')).toBeVisible()
   expect(within(conversation).getByRole('textbox', { name: words.placeholder })).toBeDisabled()
   expect(within(conversation).queryByRole('button', { name: words.send })).not.toBeInTheDocument()
   expect(within(conversation).getByRole('button', { name: voiceWords.start })).toBeEnabled()
   expect(conversation).toContainElement(document.activeElement as HTMLElement)
   fireEvent.keyDown(document.activeElement!, { key: 'Escape' })
-  expect(screen.queryByRole('dialog', { name: 'Astra' })).toBeNull()
+  expect(screen.queryByRole('dialog', { name: 'Orbit' })).toBeNull()
 })
 
 it.each([
@@ -232,7 +238,7 @@ it.each([
   fireEvent.keyDown(document, { key: 'g' })
   fireEvent.keyDown(document, { key: 'a' })
   expect(useUIStore.getState().astraConversationOpen).toBe(false)
-  expect(screen.queryByRole('dialog', { name: 'Astra' })).toBeNull()
+  expect(screen.queryByRole('dialog', { name: 'Orbit' })).toBeNull()
   expect(navigation.push).not.toHaveBeenCalled()
 })
 
@@ -249,16 +255,16 @@ it.each([[false, '/'], [true, '/'], [false, '/progress'], [true, '/progress']] a
   const block = <PeriodInsightCard periodInsight={insight} />
   const view = render(<App block={block} />)
   act(() => useUIStore.getState().setAstraConversationOpen(true))
-  const conversation = screen.getByRole('dialog', { name: 'Astra' })
+  const conversation = screen.getByRole('dialog', { name: 'Orbit' })
   fireEvent.click(within(conversation).getByRole('button', { name: 'chat.habitList.more' }))
   expect(useUIStore.getState().astraConversationOpen).toBe(true)
   fireEvent.click(within(conversation).getByRole('button', { name: 'chat.readBlock.less' }))
   expect(useUIStore.getState().astraConversationOpen).toBe(true)
   expect(within(conversation).queryByRole('link', { name: 'Ver no Progresso' })).toBeNull()
   fireEvent.click(screen.getByRole('link', { name: 'nav.progress' }))
-  if (pathname !== '/progress') expect(navigation.push).toHaveBeenCalledWith('/progress', { transitionTypes: ['orbit-tab-forward'] })
+  if (pathname !== '/progress') expect(navigation.push).toHaveBeenCalledWith('/progress')
   view.rerender(<App block={block} />)
-  expect(screen.queryByRole('dialog', { name: 'Astra' })).toBeNull()
+  expect(screen.queryByRole('dialog', { name: 'Orbit' })).toBeNull()
   expect(useUIStore.getState().astraConversationOpen).toBe(false)
   expect(screen.getByRole('heading', { name: '/progress' })).toBeVisible()
   expect(document.querySelector('[data-shell-destination]')).not.toHaveAttribute('inert')
@@ -274,12 +280,12 @@ it('keeps Astra open when a shell destination link opens in another tab', () => 
 
 it('opens the account menu from Astra without navigating and returns focus on Escape', async () => {
   render(<App />)
-  fireEvent.click(screen.getByRole('button', { name: 'Astra' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Falar com o Orbit' }))
   const trigger = screen.getByRole('button', { name: 'Person, person@example.com' })
   await userEvent.click(trigger)
   const menu = await screen.findByRole('menu', { name: 'Person, person@example.com' })
   expect(useUIStore.getState().astraConversationOpen).toBe(false)
-  expect(screen.queryByRole('dialog', { name: 'Astra' })).toBeNull()
+  expect(screen.queryByRole('dialog', { name: 'Orbit' })).toBeNull()
   expect(navigation.push).not.toHaveBeenCalled()
   expect(within(menu).getByRole('menuitem', { name: 'profile.settingsRows.signOut' })).toBeVisible()
   fireEvent.keyDown(document, { key: 'Escape' })
@@ -287,16 +293,16 @@ it('opens the account menu from Astra without navigating and returns focus on Es
   expect(trigger).toHaveFocus()
 })
 
-it.each([false, true])('owns one named Astra row before the four destinations with collapsed=%s', (collapsed) => {
+it.each([false, true])('owns one conversation row labeled like the compact entry before the four destinations with collapsed=%s', (collapsed) => {
   useShellStore.setState({ sidebarCollapsed: collapsed })
   render(<App />)
   const sidebar = document.querySelector<HTMLElement>('[data-shell-sidebar]')!
   const navigation = within(sidebar).getByRole('navigation', { name: 'nav.mainNavigation' })
-  const rows = within(navigation).getAllByRole('button', { name: 'Astra' })
+  const rows = within(navigation).getAllByRole('button', { name: 'Falar com o Orbit' })
   expect(rows).toHaveLength(1)
-  expect(rows[0]).toHaveTextContent(/^Astra$/)
-  expect(rows[0]).toHaveAccessibleName('Astra')
-  expect(within(rows[0]!).getByText('Astra')).toHaveAttribute('translate', 'no')
+  expect(rows[0]).toHaveTextContent(/^Falar com o Orbit$/)
+  expect(rows[0]).toHaveAccessibleName('Falar com o Orbit')
+  expect([...rows[0]!.querySelectorAll('[translate]')].map(name => [name.getAttribute('translate'), name.textContent])).toEqual([['no', 'Orbit']])
   expect(rows[0]!.querySelector('svg')).toHaveAttribute('data-asset', 'orbit-mascot')
   expect(within(navigation).getAllByRole('link')).toHaveLength(4)
 })

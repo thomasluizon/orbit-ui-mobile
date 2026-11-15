@@ -566,10 +566,17 @@ describe('mobile step up screen', () => {
     expect(findText(tree.root, 'stepUp.exhaustedNotice').length).toBeGreaterThan(0)
     expect(queryButton(tree.root, 'stepUp.resend')).toBeUndefined()
     expect(mocks.apiClient).not.toHaveBeenCalled()
-    const destination = operation === 'keys' ? 'profile.groups.astra' : 'profile.submenus.account'
-    const back = findButton(tree.root, `common.backToDestination:${JSON.stringify({ destination })}`)
+    const back = findButton(tree.root, operation === 'keys' ? 'common.backToOrbit' : 'common.backToDestination:{"destination":"profile.submenus.account"}')
     await TestRenderer.act(() => { (back.props.onPress as () => void)() })
     expect(mocks.router.replace).toHaveBeenCalledWith(operation === 'keys' ? '/profile/ai' : '/profile/account')
+  })
+
+  it.each([
+    ['live', () => liveRecord()],
+    ['exhausted', () => ({ operation: 'delete' as const, sentAt: Date.now(), exhaustedAt: Date.now() - STEP_UP_ATTEMPT_WINDOW_MS + 10_000 })],
+  ] as const)('draws no Orbit in the %s step-up, because Orbit never sits inside a step-up', async (_state, record) => {
+    const tree = await renderScreen(record())
+    expect(tree.root.findAll((node) => node.props.testID === 'orbit-mascot')).toHaveLength(0)
   })
 
   it('shows the arrival cooldown with no resend control', async () => {

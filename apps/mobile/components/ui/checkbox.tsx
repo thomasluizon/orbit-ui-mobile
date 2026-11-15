@@ -65,12 +65,12 @@ export function Checkbox({
       onBlur={() => setFocused(false)}
       onPressIn={() => setPressed(true)}
       onPressOut={() => setPressed(false)}
-      focusable={!disabled && !loading}
-      onCheckedChange={(next) => onChange(next === true)}
-      disabled={disabled || loading}
+      focusable={!disabled}
+      onCheckedChange={(next) => { if (!loading) onChange(next === true) }}
+      disabled={disabled}
       accessibilityRole="checkbox"
       accessibilityLabel={label}
-      accessibilityState={{ checked, disabled: disabled || loading, busy: loading }}
+      accessibilityState={{ checked, disabled: Boolean(disabled || loading), busy: loading }}
       data-checked={checked ? '' : undefined}
       data-loading={loading ? '' : undefined}
       data-error={error ? '' : undefined}

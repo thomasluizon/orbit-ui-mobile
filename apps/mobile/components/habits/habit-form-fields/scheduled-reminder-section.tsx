@@ -18,15 +18,16 @@ import type { Time24 } from "@orbit/shared/contracts/forms";
 import { RadioGroup, RadioItem } from "@/components/ui/radio-group";
 import { type AppTokens, createSectionStyles } from "./styles";
 
-function ReminderWhenOption({ label, selected, onSelect, styles }: Readonly<{
+function ReminderWhenOption({ label, selected, onSelect, styles, tokens }: Readonly<{
   label: string;
+  tokens: AppTokens;
   selected: boolean;
   onSelect: () => void;
   styles: ReturnType<typeof createSectionStyles>;
 }>) {
   const { disabled, guard } = useHabitFormInteraction()
   return (
-    <RadioItem selected={selected} onSelect={guard(onSelect)} disabled={disabled}><Pressable disabled={disabled} focusInset selectionRingWidth={1}
+    <RadioItem selected={selected} onSelect={guard(onSelect)} disabled={disabled}><Pressable disabled={disabled} focusInset selectionRingWidth={1} selectionRingRestColor={tokens.hairline}
       style={({ pressed }) => [
         styles.whenButton,
         selected && styles.whenButtonActive,
@@ -145,8 +146,8 @@ export function ScheduledReminderSection({
           {!atLimit && (
             <View style={sectionStyles.formBody}>
               <Text style={{ color: tokens.fg2, fontSize: 14, fontFamily: 'Geist_500Medium' }}>{t('habits.form.scheduledReminder')}</Text><RadioGroup accessibilityLabel={t("habits.form.scheduledReminder")} style={sectionStyles.whenRow}>
-                {!hideDayBefore ? <ReminderWhenOption label={t("habits.form.scheduledReminderDayBefore")} selected={when === "day_before"} onSelect={() => setWhen("day_before")} styles={sectionStyles} /> : null}
-                <ReminderWhenOption label={t("habits.form.scheduledReminderSameDay")} selected={when === "same_day"} onSelect={() => setWhen("same_day")} styles={sectionStyles} />
+                {!hideDayBefore ? <ReminderWhenOption label={t("habits.form.scheduledReminderDayBefore")} selected={when === "day_before"} onSelect={() => setWhen("day_before")} styles={sectionStyles} tokens={tokens} /> : null}
+                <ReminderWhenOption label={t("habits.form.scheduledReminderSameDay")} selected={when === "same_day"} onSelect={() => setWhen("same_day")} styles={sectionStyles} tokens={tokens} />
               </RadioGroup>
 
               <View style={sectionStyles.timeRow}>

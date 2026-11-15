@@ -1,5 +1,5 @@
 import React from 'react'
-import { StyleSheet, View, type LayoutChangeEvent } from 'react-native'
+import { View, type LayoutChangeEvent } from 'react-native'
 import { act, create, type ReactTestInstance } from 'react-test-renderer'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ASTRA_BUTTON_GAP } from '@orbit/shared/utils'
@@ -9,7 +9,8 @@ import { useShellScrollerClearance } from '@/components/shell/shell-scroller-cle
 import { useUIStore } from '@/stores/ui-store'
 import { measureSafeArea, type GeometryTree } from '@/__tests__/support/safe-area-geometry'
 import { __setWindowDimensions } from '@/test-mocks/react-native'
-import { expectMotionPress } from '@/__tests__/support/press-feedback'
+import { controlStyle, expectMotionPress } from '@/__tests__/support/press-feedback'
+import { createTokensV2 } from '@/lib/theme'
 
 vi.mock('@/lib/use-app-theme', () => ({ useAppTheme: () => ({ currentScheme: 'orange', currentTheme: 'dark' }) }))
 vi.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ top: 24, bottom: 24, left: 0, right: 0 }) }))
@@ -156,7 +157,7 @@ it('is the live Orbit at 48 with no background, in a 60 press target', async () 
   await mountShell(412)
   const mascot = host('astra-button').findAll(node => node.props['data-orbit-face'] === 'rig')[0]!
   expect(mascot.props).toMatchObject({ width: 48, accessible: false })
-  const flattened = StyleSheet.flatten(host('astra-button').props.style) as Record<string, unknown>
+  const flattened = controlStyle(host('astra-button'))
   expect(flattened).toMatchObject({ width: 60, height: 60 })
   expect(flattened.backgroundColor).toBeUndefined()
   expect(flattened.boxShadow).toBeUndefined()
@@ -167,4 +168,21 @@ it('keeps the conversation entry still on press under reduced motion, with no pr
   await mountShell(412)
   expectMotionPress(host('astra-button'), true)
   expect(hosts('fab-press-fill')).toHaveLength(0)
+})
+
+it('paints the neutral hover fill of its round target on pointer hover and draws the focus ring on keyboard focus, as web does', async () => {
+  await mountShell(412)
+  const tokens = createTokensV2('orange', 'dark')
+  const style = () => controlStyle(host('astra-button'))
+  expect(style()).toMatchObject({ borderRadius: 30 })
+  expect(style().backgroundColor).toBeUndefined()
+  expect(style().outlineWidth).toBeUndefined()
+  await act(() => { (host('astra-button').props.onHoverIn as () => void)() })
+  expect(style().backgroundColor).toBe(tokens.bgHover)
+  await act(() => { (host('astra-button').props.onHoverOut as () => void)() })
+  expect(style().backgroundColor).toBeUndefined()
+  await act(() => { (host('astra-button').props.onFocus as (event: unknown) => void)({ target: 1, currentTarget: 1 }) })
+  expect(style()).toMatchObject({ outlineColor: tokens.primary, outlineOffset: 2, outlineStyle: 'solid', outlineWidth: 2 })
+  await act(() => { (host('astra-button').props.onBlur as (event: unknown) => void)({ target: 1, currentTarget: 1 }) })
+  expect(style().outlineWidth).toBeUndefined()
 })

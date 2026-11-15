@@ -33,7 +33,7 @@ Text remains for the primary consequence ending a form or confirmation, required
 
 `local/no-text-icon-action` permits only the exact drawn labels in their named owner components: sheet footer Cancel, sharing footer Share and web Download, notification detail Delete, Pager Back, and Wrapped Download and Share, including their existing translations. Refresh and other universal actions remain rejected within those owners. Create goal and Continue retain their contextual labels under the ordinary rule.
 
-Drawn references: [Orbit conversation](canvas/Orbit%20Astra%20Conversation.dc.html), [Habit create](canvas/Orbit%20Habit%20Create.dc.html), [Habit detail](canvas/Orbit%20Habit%20Detail.dc.html), [overlays](canvas/Orbit%20Sobreposicoes.dc.html), [Wrapped](canvas/Orbit%20Wrapped.dc.html), [sign-in](canvas/Orbit%20Entrar.dc.html) and the shared shape tokens. The universal icon-action order applies to their action controls while preserving the primary consequence and contextual text boundaries above.
+Drawn references: [Orbit conversation](canvas/Orbit%20Astra%20Conversation.dc.html), [create flow](canvas/Orbit%20Criar.dc.html), [Habit detail](canvas/Orbit%20Habit%20Detail.dc.html), [overlays](canvas/Orbit%20Sobreposicoes.dc.html), [Wrapped](canvas/Orbit%20Wrapped.dc.html), [sign-in](canvas/Orbit%20Entrar.dc.html) and the shared shape tokens. The universal icon-action order applies to their action controls while preserving the primary consequence and contextual text boundaries above.
 
 | Platform and source | Localized name expression | Treatment |
 |---|---|---|

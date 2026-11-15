@@ -1034,7 +1034,7 @@ await Promise.resolve()
     await TestRenderer.act(async () => { findSubmit(tree.root).props.onPress(); await Promise.resolve() })
     const geometry = measureSafeArea(tree.toJSON(), host => {
       if (host.props.testID === 'capacity-notice') return 'notice'
-      if (host.type === 'Pressable' && host.children?.some(child => typeof child !== 'string' && child.type === 'Text' && child.children?.includes('common.upgrade'))) return 'upgrade'
+      if (host.type === 'Pressable' && JSON.stringify(host.children ?? []).includes('"common.upgrade"')) return 'upgrade'
     })
     expect(geometry.get('upgrade')!.width).toBeGreaterThan(0)
     expect(geometry.get('upgrade')!.width).toBeLessThan(geometry.get('notice')!.width - 32)

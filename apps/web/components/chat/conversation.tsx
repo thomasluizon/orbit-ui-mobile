@@ -435,7 +435,7 @@ export function AstraConversation({ chat, notice }: Readonly<{ chat: ChatControl
         />
       )}
       </div>
-      <AnimatePresence initial={false}>{libraryOpen && PromptLibrary ? <PromptLibrary key="prompt-library" onBack={returnToConversation} onSelect={selectIdea} suggestions={composerProps.suggestions} hasProAccess={chat.hasProAccess} hasGoogleConnection={chat.hasGoogleConnection} disabledReason={disabledReason} /> : null}</AnimatePresence>
+      <AnimatePresence initial={false}>{libraryOpen && PromptLibrary ? <PromptLibrary key="prompt-library" onBack={returnToConversation} onSelect={selectIdea} suggestions={composerProps.suggestions} hasProAccess={chat.hasProAccess} hasGoogleConnection={chat.hasGoogleConnection} disabledReason={disabledReason} mascotState={conversationMascotState(chat)} /> : null}</AnimatePresence>
       {libraryOpen && !PromptLibrary && libraryLoadFailed ? <PromptLibraryLoadFailure onBack={returnToConversation} onRetry={() => setLibraryLoadAttempt(attempt => attempt + 1)} /> : null}
       <ConfirmSheet open={history.confirmationOpen} title={t('chat.conversation.deleteTitle')} message={t('chat.conversation.deleteBody')} confirmLabel={t('chat.conversation.delete')} destructive onCancel={history.cancelDelete} onConfirm={() => { void history.confirmDelete() }} />
     </div>

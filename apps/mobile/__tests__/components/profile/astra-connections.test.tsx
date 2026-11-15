@@ -20,7 +20,7 @@ vi.mock('expo-router', () => ({ useRouter: () => ({ push: mocks.push }), useLoca
 vi.mock('react-i18next', async (original) => ({ ...await original<typeof import('react-i18next')>(), useTranslation: () => ({ t: (key: string, values?: Record<string, string>) => {
   let value: unknown = en
   for (const segment of key.split('.')) value = (value as Record<string, unknown>)[segment]
-  return values ? String(value).replace('{time}', values.time ?? '') : String(value)
+  return String(value).replace(/\{(\w+)\}/g, (token, name: string) => values?.[name] ?? token)
 }, i18n: { language: 'en' } }) }))
 vi.mock('@/hooks/use-config', () => ({ useConfig: () => ({ config: { features: { notion_integration: { enabled: mocks.enabled } } } }) }))
 vi.mock('@/hooks/use-offline', () => ({ useOffline: () => ({ isOnline: mocks.online }) }))
@@ -59,6 +59,20 @@ it('uses the Pro lock without reading Notion for free accounts', () => {
   expect(mocks.push).toHaveBeenCalledWith(expect.objectContaining({ pathname: '/upgrade' }))
   expect(tree.root.findAllByType(NotionConnectionSheet)).toHaveLength(0)
   expect(mocks.api).not.toHaveBeenCalledWith(API.connections.notion, expect.anything(), expect.anything())
+})
+it('holds the Notion status and the sheet details with skeletons while the connection loads', async () => {
+  mocks.api.mockImplementation(() => new Promise(() => {}))
+  mount(); await settle()
+  expect(row('Notion').props.accessibilityLabel).toBe(en.profile.connections.loadingStatus.replace('{name}', 'Notion'))
+  const value = tree.root.findAll((node: { type: unknown; props: { testID?: string } }) => typeof node.type === 'string' && node.props.testID === 'notion-status-skeleton')
+  expect(value).toHaveLength(1)
+  expect(text()).not.toContain(en.common.loading)
+  TestRenderer.act(() => row('Notion').props.onClick()); await settle()
+  const details = tree.root.findAll((node: { type: unknown; props: { testID?: string } }) => typeof node.type === 'string' && node.props.testID === 'notion-details-skeleton')
+  expect(details).toHaveLength(1)
+  expect(details[0]!.props).toMatchObject({ accessible: true, accessibilityRole: 'progressbar', accessibilityLabel: en.common.loading, accessibilityState: { busy: true } })
+  expect(details[0]!.findAll((node: { type: unknown; props: { testID?: string } }) => typeof node.type === 'string' && node.props.testID === 'skeleton-unit-fill')).toHaveLength(2)
+  expect(text()).not.toContain(en.common.loading)
 })
 it('keeps Connect busy on its skeleton face while requesting authorization', async () => {
   mocks.api.mockImplementation((path: string) => path === API.connections.notionAuthorize ? new Promise(() => {}) : Promise.resolve(createNotionConnection()))

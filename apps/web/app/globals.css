@@ -44,7 +44,7 @@ select[aria-hidden="true"] {
   transition-timing-function: var(--motion-ease-exit);
 }
 
-:where(input, textarea, [contenteditable="true"]) {
+:where(input, textarea, [contenteditable="true"], [data-keyboard-reveal-group]) {
   scroll-margin-block: var(--orbit-space-24);
 }
 
@@ -658,8 +658,8 @@ select[aria-hidden="true"] {
 @media (prefers-reduced-motion: no-preference) {
   .orbit-list-row-body:active:not(:disabled, [aria-disabled="true"]):not(:has(:is(button, a, [role="button"]):active)) > [data-slot="list-row-content"],
   .orbit-menu-item:active:not(:disabled) > .orbit-menu-content,
-  .orbit-press-content:active:not(:disabled, [data-disabled]) > :not([data-press-fill]),
-  .orbit-press-content:active:not(:disabled, [data-disabled]) > [data-press-fill] > *,
+  .orbit-press-content:active:not(:disabled, [data-disabled], [aria-disabled="true"]) > :not([data-press-fill]),
+  .orbit-press-content:active:not(:disabled, [data-disabled], [aria-disabled="true"]) > [data-press-fill] > *,
   .orbit-tab:active > [data-tab-indicator] > :not([data-selection-motion]),
   .orbit-tab:active > :not([data-tab-indicator]) {
     scale: 0.96;
@@ -1058,7 +1058,8 @@ select[aria-hidden="true"] {
   }
 
   .press-hit-layer::before,
-  .chip::before {
+  .chip::before,
+  .icon-btn::before {
     content: '';
     position: absolute;
     inset: 0;
@@ -1067,9 +1068,34 @@ select[aria-hidden="true"] {
 
   @media (prefers-reduced-motion: no-preference) {
     .press-hit-layer:active::before,
-    .chip:active::before {
+    .chip:active::before,
+    .icon-btn:active::before {
       scale: calc(1 / 0.96);
     }
+  }
+}
+
+/* A focused press target keeps its focus ring whole while it is pressed: the ring moves to the hit layer, which the
+   press does not scale. Unlayered, so it outranks the focus utilities of each variant. */
+@media (prefers-reduced-motion: no-preference) {
+  :is(.press-hit-layer, .chip, .icon-btn):focus-visible:active {
+    outline-style: none;
+  }
+
+  :is(.press-hit-layer, .chip, .icon-btn):focus-visible:active::before {
+    outline: 2px solid;
+    outline-color: inherit;
+    outline-offset: inherit;
+  }
+
+  /* An action surface draws the focus ring of its row body, so that body's hit layer draws no second ring. */
+  .orbit-list-action-surface .orbit-list-row-body.press-hit-layer:focus-visible:active::before {
+    outline: none;
+  }
+
+  /* A habit check draws its focus ring on the inner check, so its hit layer draws no second ring. */
+  [data-habit-row-control="check"].press-hit-layer:focus-visible:active::before {
+    outline: none;
   }
 }
 
@@ -1428,6 +1454,10 @@ button {
 
 /* ═══════════════════════════════════════════════════════
    PRIMARY TAB SWITCH
+   Every view transition in the app starts from the orbit-tab-page
+   boundary, either a tab switch or the first mount of the shell
+   (React starts one when a transition commit inserts the boundary).
+   These rules match any active view transition for that reason.
    animateTabViewTransition drives both legs from the shared
    tab-switch preset. The shell chrome changes at once, and taps
    reach the live page while the legs run.
@@ -1452,26 +1482,26 @@ button {
   opacity: 0;
 }
 
-:root:active-view-transition-type(orbit-tab-forward, orbit-tab-back) [data-shell-fab-clip] {
+:root:active-view-transition [data-shell-fab-clip] {
   view-transition-name: orbit-shell-fab;
 }
 
-:root:active-view-transition-type(orbit-tab-forward, orbit-tab-back) [data-shell-scroll-to-top] {
+:root:active-view-transition [data-shell-scroll-to-top] {
   view-transition-name: orbit-shell-scroll-to-top;
 }
 
-:root:active-view-transition-type(orbit-tab-forward, orbit-tab-back)::view-transition {
+:root:active-view-transition::view-transition {
   pointer-events: none;
 }
 
-:root:active-view-transition-type(orbit-tab-forward, orbit-tab-back)::view-transition-old(root),
-:root:active-view-transition-type(orbit-tab-forward, orbit-tab-back)::view-transition-new(root),
-:root:active-view-transition-type(orbit-tab-forward, orbit-tab-back)::view-transition-group(orbit-shell-fab),
-:root:active-view-transition-type(orbit-tab-forward, orbit-tab-back)::view-transition-old(orbit-shell-fab),
-:root:active-view-transition-type(orbit-tab-forward, orbit-tab-back)::view-transition-new(orbit-shell-fab),
-:root:active-view-transition-type(orbit-tab-forward, orbit-tab-back)::view-transition-group(orbit-shell-scroll-to-top),
-:root:active-view-transition-type(orbit-tab-forward, orbit-tab-back)::view-transition-old(orbit-shell-scroll-to-top),
-:root:active-view-transition-type(orbit-tab-forward, orbit-tab-back)::view-transition-new(orbit-shell-scroll-to-top) {
+:root:active-view-transition::view-transition-old(root),
+:root:active-view-transition::view-transition-new(root),
+:root:active-view-transition::view-transition-group(orbit-shell-fab),
+:root:active-view-transition::view-transition-old(orbit-shell-fab),
+:root:active-view-transition::view-transition-new(orbit-shell-fab),
+:root:active-view-transition::view-transition-group(orbit-shell-scroll-to-top),
+:root:active-view-transition::view-transition-old(orbit-shell-scroll-to-top),
+:root:active-view-transition::view-transition-new(orbit-shell-scroll-to-top) {
   animation-duration: 0s;
 }
 
@@ -2513,10 +2543,6 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
   }
 }
 
-@keyframes search-dot { 50% { opacity: 0.35; } }
-.search-dot { animation: search-dot 1.1s var(--ease-standard) infinite; }
-@media (prefers-reduced-motion: reduce) { .search-dot { animation: none; } }
-
 .error-surface {
   display: flex;
   flex: 1;
@@ -2701,12 +2727,17 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
   transition-timing-function: var(--motion-ease-standard);
 }
 .orbit-selection-ring-thin { --selection-ring-width: 1.5px; }
-.orbit-selection-ring-hairline { --selection-ring-width: 1px; }
+/* The selection ring: an inset ring of the control's own width (2px unless the control sets one) that takes no layout.
+   While focus shows, the ring moves directly inside the 2px focus ring, so a focused option keeps its selected cue;
+   an unselected option shows focus alone. */
 :is(.orbit-selection-ring[data-selected], .orbit-selection-ring[aria-checked="true"], .orbit-selection-ring[aria-pressed="true"], .orbit-selection-ring[aria-selected="true"], .chip-active):not(:focus-visible):not(:has(:focus-visible)):not(:focus-visible *) {
   box-shadow: inset 0 0 0 var(--selection-ring-width, 2px) var(--selection-ring-color, var(--primary));
 }
 :is(.orbit-selection-ring, .chip-active):is(:focus-visible, :has(:focus-visible)) {
   box-shadow: none;
+}
+:is(.orbit-selection-ring[data-selected], .orbit-selection-ring[aria-checked="true"], .orbit-selection-ring[aria-pressed="true"], .orbit-selection-ring[aria-selected="true"], .chip-active):is(:focus-visible, :has(:focus-visible), :focus-visible *) {
+  box-shadow: inset 0 0 0 calc(2px + var(--selection-ring-width, 2px)) var(--selection-ring-color, var(--primary));
 }
 .chip-period.chip-active { --selection-ring-color: var(--primary); }
 .orbit-check-row-label::before,

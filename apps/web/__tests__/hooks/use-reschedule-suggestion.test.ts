@@ -1,6 +1,6 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { act, renderHook, waitFor } from '@testing-library/react'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { QueryClient, QueryClientProvider, onlineManager } from '@tanstack/react-query'
 import React from 'react'
 import { useRescheduleSuggestion } from '@/hooks/use-reschedule-suggestion'
 import { createMockRescheduleSuggestion } from '@orbit/shared/__tests__/factories'
@@ -24,6 +24,21 @@ function createWrapper() {
 describe('useRescheduleSuggestion', () => {
   beforeEach(() => {
     mockFetch.mockReset()
+  })
+
+  afterEach(() => {
+    onlineManager.setOnline(true)
+  })
+
+  it('reports a paused request, not a running one, while the device is offline', async () => {
+    onlineManager.setOnline(false)
+    const { result } = renderHook(
+      () => useRescheduleSuggestion({ habitId: 'habit-1', locale: 'en', enabled: true }),
+      { wrapper: createWrapper() },
+    )
+    await waitFor(() => expect(result.current.isPaused).toBe(true))
+    expect(result.current).toMatchObject({ isFetching: false, suggestion: null, error: null })
+    expect(mockFetch).not.toHaveBeenCalled()
   })
 
   it('fetches the suggestion when enabled', async () => {

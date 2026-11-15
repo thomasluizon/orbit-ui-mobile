@@ -55,6 +55,7 @@ export {
   hasAuthoritativeHabitRelationshipState,
   HABIT_DETAIL_FREQUENCY_UNITS,
   HABIT_DETAIL_WEEKDAYS,
+  STAT_VALUE_SIZER,
   mergeHabitDetailWithScopedHabit,
   parseHabitHistoryDate,
   removeHabitDetailChild,
@@ -886,6 +887,8 @@ export { readHabitRecurrencePhrase, type HabitRecurrence, type HabitRecurrencePh
 
 export { getPendingAuthProvider, getAuthCallbackErrorKey } from './auth-login'
 
+export { steadyColumnInset } from './steady-column'
+
 export { createAstraAllowanceTranslator, type AstraAllowance } from './astra-allowance'
 
 export { computeParentResolutionProgress, computeParentPromptChain, selectParentPromptAncestor, settleParentPromptChain } from './parent-prompt-chain'
@@ -895,7 +898,7 @@ export { SETTLE_DELAY_MS } from './engagement-prompt-timing'
 export { AuthRefreshNetworkError, isNetworkUnavailableError } from './network-error'
 export { buildBulkCompletionChunks, getBulkCompletionReplay, normalizeBulkCompletionInput, isBulkGatewayFailure } from './bulk-completion'
 export type { BulkCompletionInput, BulkRetryChunk } from './bulk-completion'
-export { subscribeOrbitLoop, getOrbitLoopVersion, setOrbitMotionEnabled, pauseOrbitLoopForOverlay, claimOrbitLiveSlot, mayOrbitRunLoop } from './orbit-mascot-loop'
+export { subscribeOrbitLoop, getOrbitLoopVersion, setOrbitMotionEnabled, isOrbitMotionEnabled, pauseOrbitLoopForOverlay, claimOrbitLiveSlot, mayOrbitRunLoop } from './orbit-mascot-loop'
 export {
   remainingHabitFlowSteps,
   readPhraseCoverage,

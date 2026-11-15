@@ -183,7 +183,7 @@ export function Sheet({ title, centred = false, titleMode = 'label', titleTransl
                 </div>
               </div>
             )}
-            <UpdateAvailableBanner modalId={modalId} />
+            <UpdateAvailableBanner modalId={modalId} mascot={false} />
             <div className="empty:hidden shrink-0 px-6 pb-4" data-sheet-notice="">
               <AppToastHost placement="modal" modalId={modalId} />
             </div>

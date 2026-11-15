@@ -41,6 +41,12 @@ export function resetRouteTransitionIntent() {
   emit()
 }
 
+export function resetRouteTransitionIntentIfCurrent(version: number) {
+  if (snapshot.version === version) {
+    resetRouteTransitionIntent()
+  }
+}
+
 function subscribe(listener: () => void) {
   listeners.add(listener)
   return () => listeners.delete(listener)

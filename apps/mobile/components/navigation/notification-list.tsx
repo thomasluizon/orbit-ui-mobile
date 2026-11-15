@@ -2,13 +2,14 @@ import { IconButton } from '@/components/ui/icon-button'
 import { RefreshCw } from '@/components/ui/icons'
 import { ShellCentredRegion } from '@/components/shell/shell-centred-region'
 import { useContentFrameStyle } from '@/hooks/use-content-frame-style'
-import { SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
+import { SPACING } from '@orbit/shared/theme'
 import { View, Text, StyleSheet } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import type { NotificationItem } from '@orbit/shared/types/notification'
-import { OrbitMascot } from '@/components/ui/orbit-mascot'
+import { OrbitMascot, useStateMascotSize } from '@/components/ui/orbit-mascot'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
+import { Skeleton } from '@/components/ui/skeleton'
 import { NotificationRow } from './notification-row'
 
 export function NotificationList({ items, isLoading, isError, onRetry, onOpen, onDelete }: Readonly<{
@@ -23,6 +24,7 @@ export function NotificationList({ items, isLoading, isError, onRetry, onOpen, o
   const { t } = useTranslation()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
+  const mascotSize = useStateMascotSize()
   return (
     <View accessibilityLabel={t('notifications.title')} accessibilityState={{ busy: isLoading }} style={[contentFrameStyle, styles.list]}>
       {items.length > 0 ? items.map((item) => <NotificationRow key={item.id} item={item} onOpen={onOpen} onDelete={onDelete} />)
@@ -30,9 +32,7 @@ export function NotificationList({ items, isLoading, isError, onRetry, onOpen, o
           <View key={index} accessible={false} style={styles.skeletonRow}>
             <View style={styles.dotColumn} />
             <View style={styles.skeletonContent}>
-              <View testID="notification-skeleton-line" style={[styles.skeletonTitle, { backgroundColor: tokens.bgElev }]} />
-              <View testID="notification-skeleton-line" style={[styles.skeletonBody, { backgroundColor: tokens.bgElev }]} />
-              <View testID="notification-skeleton-line" style={[styles.skeletonTarget, { backgroundColor: tokens.bgElev }]} />
+              {NOTIFICATION_SKELETON_LINES.map((line, index) => <View key={index} testID="notification-skeleton-line" style={line}><Skeleton variant="fill" grouped /></View>)}
             </View>
           </View>
         )) : (
@@ -41,7 +41,7 @@ export function NotificationList({ items, isLoading, isError, onRetry, onOpen, o
               <Text style={[styles.copy, { color: tokens.fg3 }]}>{t('notifications.loadError')}</Text>
               <IconButton label={t('common.retry')} onPress={onRetry}><RefreshCw size={20} strokeWidth={1.5} accessible={false} /></IconButton>
             </> : <>
-              <OrbitMascot size={96} />
+              <OrbitMascot size={mascotSize} />
               <Text style={[styles.copy, { color: tokens.fg3 }]}>{t('notifications.empty')}</Text>
             </>}
           </View></ShellCentredRegion>
@@ -55,10 +55,12 @@ const styles = StyleSheet.create({
   skeletonRow: { flexDirection: 'row', gap: 12, padding: SPACING.s16, borderRadius: 12 },
   dotColumn: { width: 8 },
   skeletonContent: { flex: 1, gap: 8 },
-  skeletonTitle: { width: '80%', height: 22, borderRadius: 999 },
-  skeletonBody: { width: '100%', height: 21, borderRadius: 999 },
-  skeletonTarget: { width: '32%', height: 16, borderRadius: 999 },
+  skeletonTitle: { width: '80%', height: 22 },
+  skeletonBody: { width: '100%', height: 21 },
+  skeletonTarget: { width: '32%', height: 16 },
   empty: { padding: SPACING.s32, gap: 16, borderRadius: 20, alignItems: 'center' },
   copy: { fontFamily: 'Geist_400Regular', fontSize: 14, textAlign: 'center' },
-  retry: { minHeight: TOUCH_TARGET_MIN, justifyContent: 'center', paddingHorizontal: SPACING.s16, borderRadius: 999, overflow: 'hidden' },
 })
+
+/** The title, body and target lines that a notification row draws. */
+const NOTIFICATION_SKELETON_LINES = [styles.skeletonTitle, styles.skeletonBody, styles.skeletonTarget]

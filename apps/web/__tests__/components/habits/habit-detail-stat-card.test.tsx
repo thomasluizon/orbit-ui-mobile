@@ -134,7 +134,9 @@ describe('habit detail stat card', () => {
     expect(card).toHaveAttribute('aria-busy', 'true')
     const rows = card.querySelectorAll('[data-habit-detail-stat-row]')
     expect(rows).toHaveLength(3)
-    for (const row of rows) expect(within(row.querySelector('[data-habit-detail-stat-value]') as HTMLElement).getByText(en.common.loading)).toBeInTheDocument()
+    expect(card).toHaveAttribute('aria-label', en.common.loading)
+    for (const row of rows) expect(row.querySelector('[data-habit-detail-stat-value] [data-habit-detail-stat-skeleton] .skeleton-pulse')).toHaveClass('bg-[var(--bg-well)]')
+    expect(within(card as HTMLElement).queryByText(en.common.loading)).not.toBeInTheDocument()
     expect(StatTile).not.toHaveBeenCalled()
     mocks.loading = false
     mocks.metrics = habitMetricsSchema.parse({ currentStreak: 2, longestStreak: 4, weeklyCompletionRate: 80, monthlyCompletionRate: 75, totalCompletions: 2, lastCompletedDate: null })
@@ -175,7 +177,7 @@ describe('habit detail stat card geometry', () => {
     const view = renderDetail()
     const page = await browser.newPage({ viewport: { width, height: 915 } })
     try {
-      const scaledStyles = fontScale === 2 ? '[data-habit-detail-stat-label] { font-size: 28px; line-height: 40px; } [data-habit-detail-stat-value] { font-size: 44px; line-height: 1.3; } [data-habit-detail-stat-value] > span { font-size: 28px; } [data-habit-detail-stat-label] + span { font-size: 44px; } [data-habit-detail-stat-label] + span > [aria-hidden] { font-size: 28px; }' : ''
+      const scaledStyles = fontScale === 2 ? '[data-habit-detail-stat-label] { font-size: 28px; line-height: 40px; } [data-habit-detail-stat-value] { font-size: 44px; line-height: 1.3; } [data-habit-detail-stat-value] > span { font-size: 28px; } [data-habit-detail-stat-label] + span { font-size: 44px; }' : ''
       const markup = view.container.querySelector('[data-habit-detail-content]')!.outerHTML
       await page.setContent(`<style>${stylesheet}${scaledStyles}</style>${markup}`)
       await page.evaluate(() => document.fonts.ready)

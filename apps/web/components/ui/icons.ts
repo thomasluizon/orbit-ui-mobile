@@ -1,5 +1,4 @@
 export {
-  IconBrandAppleFilled as AppleMark,
   IconAlertTriangle as AlertTriangle,
   IconAdjustmentsHorizontal as AdjustmentsHorizontal,
   IconArchiveOff as ArchiveX,
@@ -110,7 +109,6 @@ export {
   IconPlayerSkipForward as SkipForward,
   IconDeviceMobile as Smartphone,
   IconSnowflake as Snowflake,
-  IconSparkles as Sparkles,
   IconSquare as Square,
   IconSquareX as SquareX,
   IconStar as Star,

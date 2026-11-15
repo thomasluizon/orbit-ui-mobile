@@ -1,3 +1,4 @@
+import { controlStyle } from '@/__tests__/support/press-feedback'
 import React from 'react'
 import { Pressable, StyleSheet, Text, type StyleProp, type ViewStyle } from 'react-native'
 import { createTokensV2 } from '@/lib/theme'
@@ -35,8 +36,7 @@ afterEach(async () => { await act(() => { tree.update(<></>) }) })
 
 describe('description copy action', () => {
   function paint(pressed: boolean) {
-    const style = button().props.style as StyleProp<ViewStyle> | ((state: { pressed: boolean }) => StyleProp<ViewStyle>)
-    return StyleSheet.flatten(typeof style === 'function' ? style({ pressed }) : style)
+    return controlStyle(button(), pressed)
   }
 
   it('keeps the pressed well distinct from its opaque resting fill', async () => {

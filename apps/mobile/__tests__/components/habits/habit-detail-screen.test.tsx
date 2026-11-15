@@ -141,6 +141,7 @@ const mocks = vi.hoisted(() => ({
   suggestion: null as RescheduleSuggestion | null,
   rescheduleOptions: [] as { enabled: boolean }[],
   rescheduleError: null as Error | null,
+  reschedulePaused: false,
   rescheduleRefetch: vi.fn(),
   language: 'en',
   uses24HourClock: undefined as boolean | undefined,
@@ -356,7 +357,8 @@ vi.mock('@/hooks/use-profile', () => ({
 vi.mock('@/hooks/use-reschedule-suggestion', () => ({
   useRescheduleSuggestion: (options: { enabled: boolean }) => {
     mocks.rescheduleOptions.push(options)
-    return { suggestion: mocks.suggestion, error: mocks.rescheduleError, refetch: mocks.rescheduleRefetch }
+    const settled = mocks.suggestion !== null || mocks.rescheduleError !== null
+    return { suggestion: mocks.suggestion, error: mocks.rescheduleError, isFetching: !settled && !mocks.reschedulePaused, isPaused: !settled && mocks.reschedulePaused, refetch: mocks.rescheduleRefetch }
   },
 }))
 vi.mock('@/lib/theme', async (importOriginal) => {
@@ -369,7 +371,7 @@ vi.mock('@/lib/theme', async (importOriginal) => {
 vi.mock('@/lib/use-app-theme', () => ({
   useAppTheme: () => ({ currentScheme: 'purple', currentTheme: mocks.theme, surfaces: { screen: { backgroundColor: '#111111' } } }),
 }))
-vi.mock('@/components/ui/orbit-mascot', () => ({ OrbitMascot: ({ size, color }: { size: number; color?: string }) => React.createElement('OrbitMascot', { size, color }) }))
+vi.mock('@/components/ui/orbit-mascot', () => ({ OrbitMascot: ({ size, color, state }: { size: number; color?: string; state?: string }) => React.createElement('OrbitMascot', { size, color, state }) }))
 vi.mock('@/components/ui/confirm-sheet', () => ({
   ConfirmSheet: ({ open, title, message, confirmLabel, onConfirm, onCancel }: { open: boolean; title: string; message: string; confirmLabel: string; onConfirm: () => void; onCancel: () => void }) => open
     ? React.createElement('ConfirmSheet', { testID: `confirm-${title}`, title, message, confirmLabel, onConfirm, onCancel })
@@ -381,7 +383,7 @@ vi.mock('@/components/ui/error-state', () => ({
 vi.mock('@/components/ui/proposed', () => ({ Proposed: ({ children, label }: { children: React.ReactNode; label: string }) => React.createElement('Proposed', { label }, children) }))
 vi.mock('@/components/ui/skeleton', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/components/ui/skeleton')>()
-  return { Skeleton: (props: React.ComponentProps<typeof actual.Skeleton>) => mocks.realHistory ? <actual.Skeleton {...props} /> : React.createElement('Skeleton', { label: props.label }) }
+  return { Skeleton: (props: React.ComponentProps<typeof actual.Skeleton>) => mocks.realHistory ? <actual.Skeleton {...props} /> : React.createElement('Skeleton', { label: props.label, variant: props.variant }) }
 })
 vi.mock('@/components/ui/switch', async (importOriginal) => ({
   ...await importOriginal<typeof import('@/components/ui/switch')>(),
@@ -557,6 +559,7 @@ describe('HabitDetailScreen', () => {
     mocks.suggestion = null
     mocks.rescheduleOptions = []
     mocks.rescheduleError = null
+    mocks.reschedulePaused = false
     mocks.rescheduleRefetch.mockReset()
     mocks.language = 'en'
     mocks.uses24HourClock = undefined
@@ -938,11 +941,26 @@ describe('HabitDetailScreen', () => {
     expect(tree.root.findAllByProps({ testID: 'rescue-free-card' })).toHaveLength(0)
   })
 
+  it('rests Orbit with the offline reason, and never thinks, while the rescue request waits offline', () => {
+    openRescueGate()
+    mocks.reschedulePaused = true
+    let tree!: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" />) })
+    const status = tree.root.findAllByType('Proposed').find(isRescueProposal)!.findByProps({ accessibilityLiveRegion: 'polite' })
+    expect(status.findAll((node: TestNode) => typeof node.type === 'string' && node.props.testID === 'rescue-loading-skeleton')).toHaveLength(0)
+    expect(status.findAllByType('OrbitMascot').map((mascot: TestNode) => mascot.props.state)).toEqual(['descansando'])
+    expect(textsOf(status)).toContain('shell.composer.offline.reason')
+    TestRenderer.act(() => tree.unmount())
+  })
+
   it('shows a rescue only for an older overdue habit and handles request states', () => {
     openRescueGate()
     let tree!: ReturnType<typeof TestRenderer.create>
     TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" />) })
-    expect(textsOf(tree.root.findAllByType('Proposed').find(isRescueProposal)!.findByProps({ accessibilityLiveRegion: 'polite' }))).toContain('habits.detail.rescheduleLoading')
+    const wait = tree.root.findAllByType('Proposed').find(isRescueProposal)!.findByProps({ accessibilityLiveRegion: 'polite' }).findAll((node: TestNode) => typeof node.type === 'string' && node.props.testID === 'rescue-loading-skeleton')[0]!
+    expect(wait.findAllByType('OrbitMascot').map((mascot: TestNode) => [mascot.props.size, mascot.props.state])).toEqual([[48, 'pensando']])
+    expect(wait.findAllByType('Skeleton').map((block: TestNode) => [block.props.variant, block.props.label])).toEqual([['habit-row', 'habits.reschedule.loading'], ['habit-row', undefined]])
+    expect(textsOf(tree.root)).not.toContain('habits.detail.rescheduleLoading')
     expect(mocks.rescheduleOptions.some((options) => options.enabled)).toBe(true)
     expect(findPillButton(tree.root, 'habits.detail.rescheduleAccept')).toBeUndefined()
 
@@ -996,7 +1014,7 @@ describe('HabitDetailScreen', () => {
       mocks.rescheduleError = null
       TestRenderer.act(() => { tree.update(<HabitDetailScreen habitId="habit-1" />) })
     }
-    expect(textsOf(tree.root)).toContain('habits.detail.rescheduleLoading')
+    expect(tree.root.findAll((node: TestNode) => typeof node.type === 'string' && node.props.testID === 'rescue-loading-skeleton')).toHaveLength(1)
     const notNow = findPillButton(tree.root, 'habits.reschedule.dismiss')
     expect(notNow).toBeDefined()
     expect(notNow!.props.disabled).toBe(false)
@@ -1266,7 +1284,10 @@ describe('HabitDetailScreen', () => {
     expect(child().props.completionReadOnly).toBe(true)
     expect(child().props.completionReason).toBe('habits.detail.dayHabitsLoading')
     expect(child().props.completionStatusUnavailable).toBe(true)
-    expect(tree!.root.findAllByType('Text').some((node: { props: { children?: string } }) => node.props.children === 'habits.detail.dayHabitsLoading')).toBe(true)
+    expect(tree!.root.findAllByType('Text').some((node: { props: { children?: string } }) => node.props.children === 'habits.detail.dayHabitsLoading')).toBe(false)
+    const daySkeleton = tree!.root.findAll((node: { type: unknown; props: { testID?: string } }) => typeof node.type === 'string' && node.props.testID === 'day-habits-skeleton')
+    expect(daySkeleton).toHaveLength(1)
+    expect(daySkeleton[0]!.findAll((node: { type: unknown; props: { label?: string } }) => node.type === 'Skeleton').map((node: { props: { label?: string } }) => node.props.label)).toEqual(['habits.detail.dayHabitsLoading'])
     expect(tree!.root.findByProps({ testID: 'detail-children' }).props.accessibilityState).toEqual({ busy: true })
 
     mocks.scopedLoading = false

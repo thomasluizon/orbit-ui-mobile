@@ -192,6 +192,15 @@
       ],
       "reason": "The retained behavior has this source-backed label or entry in the redesign."
     },
+    "mobile:control:common.backToDestination": {
+      "targets": [
+        "mobile:content:common.backToDestination"
+      ],
+      "owners": [
+        "apps/mobile/app/step-up.tsx"
+      ],
+      "reason": "The exhausted step-up view retains its back-to-destination action: StepUpScreenContent passes getBackLabel from packages/shared/src/utils/back-label.ts as backLabel to MobileStepUpExhausted, which renders it on QuietAction; the helper still emits common.backToDestination for a named return route."
+    },
     "mobile:control:common.codePlaceholder": {
       "targets": [
         "mobile:control:stepUp.codeLabel"
@@ -1466,6 +1475,18 @@
       ],
       "reason": "The same label is supplied through the redesigned component or its word binding."
     },
+    "mobile:display:habits.detail.rescheduleError": {
+      "targets": [
+        "mobile:content:habits.detail.rescheduleError"
+      ],
+      "reason": "The rescue card still states the failure; it now renders on its own branch beside the wait skeleton, so the scanner reads it as content."
+    },
+    "mobile:display:habits.detail.rescheduleLoading": {
+      "targets": [
+        "mobile:content:habits.reschedule.loading"
+      ],
+      "reason": "The rescue card wait is now Orbit in Pensando over the reschedule sheet skeleton rows, named by the sheet wait label."
+    },
     "mobile:display:habits.form.dueTime": {
       "targets": [
         "mobile:control:habits.form.exactTime"
@@ -1513,18 +1534,6 @@
         "mobile:control:habits.form.scheduledReminderSameDay"
       ],
       "reason": "The same label is supplied through the redesigned component or its word binding."
-    },
-    "mobile:display:habits.form.subHabits": {
-      "targets": [
-        "mobile:display:habits.form.subHabitsQuestion"
-      ],
-      "reason": "The same input is asked as a question; its label moved to the question key and the control, value and validation are unchanged."
-    },
-    "mobile:display:habits.form.subTasks": {
-      "targets": [
-        "mobile:display:habits.form.subTasksQuestion"
-      ],
-      "reason": "The same input is asked as a question; its label moved to the question key and the control, value and validation are unchanged."
     },
     "mobile:display:habits.form.timesPerUnit": {
       "targets": [
@@ -2116,6 +2125,15 @@
         "web:control:progressScreen.goals.createAction"
       ],
       "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:common.backToDestination": {
+      "targets": [
+        "web:content:common.backToDestination"
+      ],
+      "owners": [
+        "apps/web/app/step-up/step-up-screen.tsx"
+      ],
+      "reason": "The exhausted step-up view retains its back-to-destination action: StepUpScreenContent passes getBackLabel from packages/shared/src/utils/back-label.ts as backLabel to StepUpExhausted, which renders it on QuietLink; the helper still emits common.backToDestination for a named return route."
     },
     "web:control:common.codePlaceholder": {
       "targets": [
@@ -3499,6 +3517,18 @@
       ],
       "reason": "The same label is supplied through the redesigned component or its word binding."
     },
+    "web:display:habits.detail.rescheduleError": {
+      "targets": [
+        "web:content:habits.detail.rescheduleError"
+      ],
+      "reason": "The rescue card still states the failure; it now renders on its own branch beside the wait skeleton, so the scanner reads it as content."
+    },
+    "web:display:habits.detail.rescheduleLoading": {
+      "targets": [
+        "web:content:habits.reschedule.loading"
+      ],
+      "reason": "The rescue card wait is now Orbit in Pensando over the reschedule sheet skeleton rows, named by the sheet wait label."
+    },
     "web:display:habits.form.dueTime": {
       "targets": [
         "web:control:habits.form.exactTime"
@@ -3546,18 +3576,6 @@
         "web:control:habits.form.scheduledReminderSameDay"
       ],
       "reason": "The same label is supplied through the redesigned component or its word binding."
-    },
-    "web:display:habits.form.subHabits": {
-      "targets": [
-        "web:display:habits.form.subHabitsQuestion"
-      ],
-      "reason": "The same input is asked as a question; its label moved to the question key and the control, value and validation are unchanged."
-    },
-    "web:display:habits.form.subTasks": {
-      "targets": [
-        "web:display:habits.form.subTasksQuestion"
-      ],
-      "reason": "The same input is asked as a question; its label moved to the question key and the control, value and validation are unchanged."
     },
     "web:display:habits.form.suggestTags": {
       "targets": [
@@ -3995,12 +4013,12 @@
     },
     "mobile:control:habits.form.acceptDate": {
       "citation": "DESIGN.md",
-      "rule": "Automatic date interpretation removes the separate Astra date pill, its cost line, the Proposed candidate and its acceptance control.",
+      "rule": "Automatic date interpretation removes the separate Orbit date pill, its cost line, the Proposed candidate and its acceptance control.",
       "reason": "#1714 replaces the explicit date request, cost and candidate controls with automatic interpretation, inline Astra attribution and an editable resolved picker date; offline and allowance recovery keep the manual picker."
     },
     "mobile:control:habits.form.askDate": {
       "citation": "DESIGN.md",
-      "rule": "Automatic date interpretation removes the separate Astra date pill, its cost line, the Proposed candidate and its acceptance control.",
+      "rule": "Automatic date interpretation removes the separate Orbit date pill, its cost line, the Proposed candidate and its acceptance control.",
       "reason": "#1714 replaces the explicit date request, cost and candidate controls with automatic interpretation, inline Astra attribution and an editable resolved picker date; offline and allowance recovery keep the manual picker."
     },
     "mobile:control:habits.form.title": {
@@ -4260,12 +4278,12 @@
     },
     "mobile:display:habits.form.askAstraCost": {
       "citation": "DESIGN.md",
-      "rule": "Automatic date interpretation removes the separate Astra date pill, its cost line, the Proposed candidate and its acceptance control.",
+      "rule": "Automatic date interpretation removes the separate Orbit date pill, its cost line, the Proposed candidate and its acceptance control.",
       "reason": "#1714 replaces the explicit date request, cost and candidate controls with automatic interpretation, inline Astra attribution and an editable resolved picker date; offline and allowance recovery keep the manual picker."
     },
     "mobile:display:habits.form.dateProposed": {
       "citation": "DESIGN.md",
-      "rule": "Automatic date interpretation removes the separate Astra date pill, its cost line, the Proposed candidate and its acceptance control.",
+      "rule": "Automatic date interpretation removes the separate Orbit date pill, its cost line, the Proposed candidate and its acceptance control.",
       "reason": "#1714 replaces the explicit date request, cost and candidate controls with automatic interpretation, inline Astra attribution and an editable resolved picker date; offline and allowance recovery keep the manual picker."
     },
     "mobile:display:retrospective.metrics.completionRate": {
@@ -4321,12 +4339,12 @@
     },
     "web:control:astraRail.maximize": {
       "citation": "DESIGN.md",
-      "rule": "**The narrow conversation beside a destination.** Astra replaces the content column on wide web.",
+      "rule": "**The narrow conversation beside a destination.** Orbit replaces the content column on wide web.",
       "reason": "The full conversation replaces the narrow panel and its size controls."
     },
     "web:control:astraRail.minimize": {
       "citation": "DESIGN.md",
-      "rule": "**The narrow conversation beside a destination.** Astra replaces the content column on wide web.",
+      "rule": "**The narrow conversation beside a destination.** Orbit replaces the content column on wide web.",
       "reason": "The full conversation replaces the narrow panel and its size controls."
     },
     "web:display:habits.bulkBar.skipEligible": {
@@ -4401,101 +4419,101 @@
     },
     "web:control:habits.form.acceptDate": {
       "citation": "DESIGN.md",
-      "rule": "Automatic date interpretation removes the separate Astra date pill, its cost line, the Proposed candidate and its acceptance control.",
+      "rule": "Automatic date interpretation removes the separate Orbit date pill, its cost line, the Proposed candidate and its acceptance control.",
       "reason": "#1714 replaces the explicit date request, cost and candidate controls with automatic interpretation, inline Astra attribution and an editable resolved picker date; offline and allowance recovery keep the manual picker."
     },
     "web:control:habits.form.askDate": {
       "citation": "DESIGN.md",
-      "rule": "Automatic date interpretation removes the separate Astra date pill, its cost line, the Proposed candidate and its acceptance control.",
+      "rule": "Automatic date interpretation removes the separate Orbit date pill, its cost line, the Proposed candidate and its acceptance control.",
       "reason": "#1714 replaces the explicit date request, cost and candidate controls with automatic interpretation, inline Astra attribution and an editable resolved picker date; offline and allowance recovery keep the manual picker."
     },
     "web:control:insights.empty": {
       "citation": "DESIGN.md",
-      "rule": "**One chart.** Neutral bars per day show completion in Progresso and Astra.",
+      "rule": "**One chart.** Neutral bars per day show completion in Progresso and the conversation.",
       "reason": "The chart gallery is replaced by the approved Progresso figures and one completion chart.",
       "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
     },
     "web:control:insights.sections.achievementsOf": {
       "citation": "DESIGN.md",
-      "rule": "**One chart.** Neutral bars per day show completion in Progresso and Astra.",
+      "rule": "**One chart.** Neutral bars per day show completion in Progresso and the conversation.",
       "reason": "The chart gallery is replaced by the approved Progresso figures and one completion chart.",
       "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
     },
     "web:control:insights.sections.achievementsTimelineDesc": {
       "citation": "DESIGN.md",
-      "rule": "**One chart.** Neutral bars per day show completion in Progresso and Astra.",
+      "rule": "**One chart.** Neutral bars per day show completion in Progresso and the conversation.",
       "reason": "The chart gallery is replaced by the approved Progresso figures and one completion chart.",
       "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
     },
     "web:control:insights.sections.averageCaption": {
       "citation": "DESIGN.md",
-      "rule": "**One chart.** Neutral bars per day show completion in Progresso and Astra.",
+      "rule": "**One chart.** Neutral bars per day show completion in Progresso and the conversation.",
       "reason": "The chart gallery is replaced by the approved Progresso figures and one completion chart.",
       "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
     },
     "web:control:insights.sections.completionTrendsDesc": {
       "citation": "DESIGN.md",
-      "rule": "**One chart.** Neutral bars per day show completion in Progresso and Astra.",
+      "rule": "**One chart.** Neutral bars per day show completion in Progresso and the conversation.",
       "reason": "The chart gallery is replaced by the approved Progresso figures and one completion chart.",
       "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
     },
     "web:control:insights.sections.goalProgressDesc": {
       "citation": "DESIGN.md",
-      "rule": "**One chart.** Neutral bars per day show completion in Progresso and Astra.",
+      "rule": "**One chart.** Neutral bars per day show completion in Progresso and the conversation.",
       "reason": "The chart gallery is replaced by the approved Progresso figures and one completion chart.",
       "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
     },
     "web:control:insights.sections.goalProgressEmpty": {
       "citation": "DESIGN.md",
-      "rule": "**One chart.** Neutral bars per day show completion in Progresso and Astra.",
+      "rule": "**One chart.** Neutral bars per day show completion in Progresso and the conversation.",
       "reason": "The chart gallery is replaced by the approved Progresso figures and one completion chart.",
       "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
     },
     "web:control:insights.sections.heatmapLess": {
       "citation": "DESIGN.md",
-      "rule": "**One chart.** Neutral bars per day show completion in Progresso and Astra.",
+      "rule": "**One chart.** Neutral bars per day show completion in Progresso and the conversation.",
       "reason": "The chart gallery is replaced by the approved Progresso figures and one completion chart.",
       "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
     },
     "web:control:insights.sections.heatmapMore": {
       "citation": "DESIGN.md",
-      "rule": "**One chart.** Neutral bars per day show completion in Progresso and Astra.",
+      "rule": "**One chart.** Neutral bars per day show completion in Progresso and the conversation.",
       "reason": "The chart gallery is replaced by the approved Progresso figures and one completion chart.",
       "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
     },
     "web:control:insights.sections.monthlyHeatmapDesc": {
       "citation": "DESIGN.md",
-      "rule": "**One chart.** Neutral bars per day show completion in Progresso and Astra.",
+      "rule": "**One chart.** Neutral bars per day show completion in Progresso and the conversation.",
       "reason": "The chart gallery is replaced by the approved Progresso figures and one completion chart.",
       "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
     },
     "web:control:insights.sections.multiHabitComparisonDesc": {
       "citation": "DESIGN.md",
-      "rule": "**One chart.** Neutral bars per day show completion in Progresso and Astra.",
+      "rule": "**One chart.** Neutral bars per day show completion in Progresso and the conversation.",
       "reason": "The chart gallery is replaced by the approved Progresso figures and one completion chart.",
       "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
     },
     "web:control:insights.sections.noGoals": {
       "citation": "DESIGN.md",
-      "rule": "**One chart.** Neutral bars per day show completion in Progresso and Astra.",
+      "rule": "**One chart.** Neutral bars per day show completion in Progresso and the conversation.",
       "reason": "The chart gallery is replaced by the approved Progresso figures and one completion chart.",
       "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
     },
     "web:control:insights.sections.selectGoal": {
       "citation": "DESIGN.md",
-      "rule": "**One chart.** Neutral bars per day show completion in Progresso and Astra.",
+      "rule": "**One chart.** Neutral bars per day show completion in Progresso and the conversation.",
       "reason": "The chart gallery is replaced by the approved Progresso figures and one completion chart.",
       "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
     },
     "web:control:insights.sections.streakHistoryDesc": {
       "citation": "DESIGN.md",
-      "rule": "**One chart.** Neutral bars per day show completion in Progresso and Astra.",
+      "rule": "**One chart.** Neutral bars per day show completion in Progresso and the conversation.",
       "reason": "The chart gallery is replaced by the approved Progresso figures and one completion chart.",
       "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
     },
     "web:control:insights.sections.xpOverTimeDesc": {
       "citation": "DESIGN.md",
-      "rule": "**One chart.** Neutral bars per day show completion in Progresso and Astra.",
+      "rule": "**One chart.** Neutral bars per day show completion in Progresso and the conversation.",
       "reason": "The chart gallery is replaced by the approved Progresso figures and one completion chart.",
       "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
     },
@@ -4758,12 +4776,12 @@
     },
     "web:display:habits.form.askAstraCost": {
       "citation": "DESIGN.md",
-      "rule": "Automatic date interpretation removes the separate Astra date pill, its cost line, the Proposed candidate and its acceptance control.",
+      "rule": "Automatic date interpretation removes the separate Orbit date pill, its cost line, the Proposed candidate and its acceptance control.",
       "reason": "#1714 replaces the explicit date request, cost and candidate controls with automatic interpretation, inline Astra attribution and an editable resolved picker date; offline and allowance recovery keep the manual picker."
     },
     "web:display:habits.form.dateProposed": {
       "citation": "DESIGN.md",
-      "rule": "Automatic date interpretation removes the separate Astra date pill, its cost line, the Proposed candidate and its acceptance control.",
+      "rule": "Automatic date interpretation removes the separate Orbit date pill, its cost line, the Proposed candidate and its acceptance control.",
       "reason": "#1714 replaces the explicit date request, cost and candidate controls with automatic interpretation, inline Astra attribution and an editable resolved picker date; offline and allowance recovery keep the manual picker."
     },
     "web:display:rail.progressLabel": {
@@ -4838,7 +4856,7 @@
     },
     "web:route:/insights": {
       "citation": "DESIGN.md",
-      "rule": "**One chart.** Neutral bars per day show completion in Progresso and Astra.",
+      "rule": "**One chart.** Neutral bars per day show completion in Progresso and the conversation.",
       "reason": "The chart gallery is replaced by the approved Progresso figures and one completion chart.",
       "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
     },
@@ -4855,72 +4873,72 @@
     },
     "web:control:chat.account.open": {
       "citation": "DESIGN.md",
-      "rule": "Astra read blocks omit manual refresh and footer links to shell destinations.",
+      "rule": "Orbit read blocks omit manual refresh and footer links to shell destinations.",
       "reason": "The read answer omits the redundant footer action under #1743; shell destinations and useful in-place actions remain available."
     },
     "web:control:chat.calendarCard.open": {
       "citation": "DESIGN.md",
-      "rule": "Astra read blocks omit manual refresh and footer links to shell destinations.",
+      "rule": "Orbit read blocks omit manual refresh and footer links to shell destinations.",
       "reason": "The read answer omits the redundant footer action under #1743; shell destinations and useful in-place actions remain available."
     },
     "web:control:chat.daySummary.open": {
       "citation": "DESIGN.md",
-      "rule": "Astra read blocks omit manual refresh and footer links to shell destinations.",
+      "rule": "Orbit read blocks omit manual refresh and footer links to shell destinations.",
       "reason": "The read answer omits the redundant footer action under #1743; shell destinations and useful in-place actions remain available."
     },
     "web:control:chat.goalList.progressLink": {
       "citation": "DESIGN.md",
-      "rule": "Astra read blocks omit manual refresh and footer links to shell destinations.",
+      "rule": "Orbit read blocks omit manual refresh and footer links to shell destinations.",
       "reason": "The read answer omits the redundant footer action under #1743; shell destinations and useful in-place actions remain available."
     },
     "web:control:chat.insight.progressLink": {
       "citation": "DESIGN.md",
-      "rule": "Astra read blocks omit manual refresh and footer links to shell destinations.",
+      "rule": "Orbit read blocks omit manual refresh and footer links to shell destinations.",
       "reason": "The read answer omits the redundant footer action under #1743; shell destinations and useful in-place actions remain available."
     },
     "web:control:chat.streakCard.open": {
       "citation": "DESIGN.md",
-      "rule": "Astra read blocks omit manual refresh and footer links to shell destinations.",
+      "rule": "Orbit read blocks omit manual refresh and footer links to shell destinations.",
       "reason": "The read answer omits the redundant footer action under #1743; shell destinations and useful in-place actions remain available."
     },
     "web:control:chat.ranking.refresh": {
       "citation": "DESIGN.md",
-      "rule": "Astra read blocks omit manual refresh and footer links to shell destinations.",
+      "rule": "Orbit read blocks omit manual refresh and footer links to shell destinations.",
       "reason": "The read answer omits the redundant footer action under #1743; shell destinations and useful in-place actions remain available."
     },
     "mobile:control:chat.account.open": {
       "citation": "DESIGN.md",
-      "rule": "Astra read blocks omit manual refresh and footer links to shell destinations.",
+      "rule": "Orbit read blocks omit manual refresh and footer links to shell destinations.",
       "reason": "The read answer omits the redundant footer action under #1743; shell destinations and useful in-place actions remain available."
     },
     "mobile:control:chat.calendarCard.open": {
       "citation": "DESIGN.md",
-      "rule": "Astra read blocks omit manual refresh and footer links to shell destinations.",
+      "rule": "Orbit read blocks omit manual refresh and footer links to shell destinations.",
       "reason": "The read answer omits the redundant footer action under #1743; shell destinations and useful in-place actions remain available."
     },
     "mobile:control:chat.daySummary.open": {
       "citation": "DESIGN.md",
-      "rule": "Astra read blocks omit manual refresh and footer links to shell destinations.",
+      "rule": "Orbit read blocks omit manual refresh and footer links to shell destinations.",
       "reason": "The read answer omits the redundant footer action under #1743; shell destinations and useful in-place actions remain available."
     },
     "mobile:control:chat.goalList.progressLink": {
       "citation": "DESIGN.md",
-      "rule": "Astra read blocks omit manual refresh and footer links to shell destinations.",
+      "rule": "Orbit read blocks omit manual refresh and footer links to shell destinations.",
       "reason": "The read answer omits the redundant footer action under #1743; shell destinations and useful in-place actions remain available."
     },
     "mobile:control:chat.insight.progressLink": {
       "citation": "DESIGN.md",
-      "rule": "Astra read blocks omit manual refresh and footer links to shell destinations.",
+      "rule": "Orbit read blocks omit manual refresh and footer links to shell destinations.",
       "reason": "The read answer omits the redundant footer action under #1743; shell destinations and useful in-place actions remain available."
     },
     "mobile:control:chat.streakCard.open": {
       "citation": "DESIGN.md",
-      "rule": "Astra read blocks omit manual refresh and footer links to shell destinations.",
+      "rule": "Orbit read blocks omit manual refresh and footer links to shell destinations.",
       "reason": "The read answer omits the redundant footer action under #1743; shell destinations and useful in-place actions remain available."
     },
     "mobile:control:chat.ranking.refresh": {
       "citation": "DESIGN.md",
-      "rule": "Astra read blocks omit manual refresh and footer links to shell destinations.",
+      "rule": "Orbit read blocks omit manual refresh and footer links to shell destinations.",
       "reason": "The read answer omits the redundant footer action under #1743; shell destinations and useful in-place actions remain available."
     },
     "web:control:chat.streakCard.current": {
@@ -4942,26 +4960,6 @@
       "citation": ".claude/specs/orbit-prod-release.md",
       "rule": "General items are undated one-time tasks under Task date choices; Habit frequency offers only Every and Times per, without the repeating General hint.",
       "reason": "The owner moved General to Task date choices and removed its repeating hint from Habit frequency: https://github.com/thomasluizon/orbit-tickets/issues/1922#issuecomment-6559404698"
-    },
-    "web:control:shell.astraButton.keyboardHint": {
-      "citation": ".claude/specs/orbit-prod-release.md",
-      "rule": "sits fixed directly above the create habit button, never dragged or moved",
-      "reason": "The owner replaced the draggable Astra button with a fixed stack above the create button and removed its move mode: \"i dont want it floating anymore\", \"just put it on top of the + icon to create habit\" (https://github.com/thomasluizon/orbit-tickets/issues/2077)."
-    },
-    "web:display:shell.astraButton.move": {
-      "citation": ".claude/specs/orbit-prod-release.md",
-      "rule": "sits fixed directly above the create habit button, never dragged or moved",
-      "reason": "The owner replaced the draggable Astra button with a fixed stack above the create button and removed its move mode: \"i dont want it floating anymore\", \"just put it on top of the + icon to create habit\" (https://github.com/thomasluizon/orbit-tickets/issues/2077)."
-    },
-    "mobile:control:shell.astraButton.hint": {
-      "citation": ".claude/specs/orbit-prod-release.md",
-      "rule": "sits fixed directly above the create habit button, never dragged or moved",
-      "reason": "The owner replaced the draggable Astra button with a fixed stack above the create button and removed its move mode: \"i dont want it floating anymore\", \"just put it on top of the + icon to create habit\" (https://github.com/thomasluizon/orbit-tickets/issues/2077)."
-    },
-    "mobile:display:shell.astraButton.move": {
-      "citation": ".claude/specs/orbit-prod-release.md",
-      "rule": "sits fixed directly above the create habit button, never dragged or moved",
-      "reason": "The owner replaced the draggable Astra button with a fixed stack above the create button and removed its move mode: \"i dont want it floating anymore\", \"just put it on top of the + icon to create habit\" (https://github.com/thomasluizon/orbit-tickets/issues/2077)."
     }
   },
   "tickets": {

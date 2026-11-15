@@ -246,8 +246,9 @@ describe('habit form press scale', () => {
   }, 60_000)
 
   /** The rules that scale the pressed control itself; a rule with a child combinator scales its content instead. */
+  /** The press scales of the control's own box. The hit layer's `::before` counter-scale keeps the target whole and is not one. */
   function pressScaleRules(control: Element) {
-    return rules.rulesFor(control).filter((rule) => rule.declarations.has('scale') && rule.state.includes(':active') && !rule.state.includes('>'))
+    return rules.rulesFor(control).filter((rule) => rule.declarations.has('scale') && rule.state.includes(':active') && !rule.state.includes('>') && !rule.state.includes('::'))
   }
 
   it.each(DISABLED_PRESS_CONTROLS)('scales %s on press only while enabled, as the mobile press scale does', (_, renderControls) => {
@@ -275,10 +276,13 @@ describe('habit form press scale', () => {
     for (const { state } of promotions) expect(title.matches(state.replace(/:hover|:active/, ''))).toBe(!disabled)
   })
 
+  /** The press hit layer's `::before` counter-scale keeps the target whole; it paints nothing, so it is not a hover or press paint. */
+  const isHitLayerCounterScale = (state: string) => /^:active::?before\b/.test(state)
+
   it.each([['enabled', false], ['disabled', true]] as const)('applies every hover and press rule of a radio row, its personal text and its reason disclosure only while the form fieldset is enabled: %s', (_, disabled) => {
     render(<InFieldset disabled={disabled}><FormRadioRows /></InFieldset>)
     const applies = [...document.querySelectorAll('fieldset *')].flatMap((element) => rules.rulesFor(element)
-      .filter(({ state }) => /:hover|:active/.test(state))
+      .filter(({ state }) => /:hover|:active/.test(state) && !isHitLayerCounterScale(state))
       .map(({ state }) => element.matches(`*${state.replace(/:hover|:active/g, '')}`)))
     expect(applies.length).toBeGreaterThan(0)
     expect(applies).toEqual(applies.map(() => !disabled))

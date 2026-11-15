@@ -17,6 +17,17 @@ const portugueseValues = flatten(ptBR as Messages)
 const englishByKey = new Map(englishValues)
 const portugueseByKey = new Map(portugueseValues)
 
+/** Every allowance string with a plural count, in both locales. */
+const PLURAL_ALLOWANCE_KEYS = [
+  'shell.composer.limit.reason',
+  'shell.composer.limit.reasonWeekly',
+  'habits.form.localReadLimit',
+  'habits.form.localReadLimitWeekly',
+  'upgrade.billing.plan.proBody',
+  'upgrade.billing.plan.proBodyWeekly',
+  'upgrade.billing.lapsed.lostMessages',
+]
+
 const ALLOWANCE_KEYS = [
   'shell.composer.limit.exhausted',
   'shell.composer.limit.exhaustedWeekly',
@@ -49,7 +60,7 @@ describe('Orbit copy', () => {
   it.each(ALLOWANCE_KEYS)('names the limit as AI messages in both locales: %s', (key) => {
     const english = englishByKey.get(key) ?? ''
     const portuguese = portugueseByKey.get(key) ?? ''
-    expect(english, key).toMatch(/AI message|AI limit/)
+    expect(english, key).toMatch(/AI message/)
     expect(portuguese, key).toMatch(/de IA/)
     for (const value of [english, portuguese]) {
       expect(value, key).not.toMatch(/Orbit message|mensagens do Orbit/)
@@ -60,7 +71,7 @@ describe('Orbit copy', () => {
     'never makes Orbit the subject of a failure in %s',
     (_locale, values) => {
       const failureSubject =
-        /Orbit (couldn't|could not|can't|cannot|is unavailable|não conseguiu|não consegue|está indisponível)/
+        /Orbit (couldn['’]t|could not|can['’]t|cannot|is unavailable|não conseguiu|não consegue|está indisponível)/i
       for (const [key, value] of values) expect(value, key).not.toMatch(failureSubject)
     },
   )
@@ -77,23 +88,34 @@ describe('Orbit copy', () => {
     expect(ptBR.shell.astraButton.open).toBe('Falar com o Orbit')
   })
 
+  it('names the proactive feature with one term in each locale, apart from the Avisos destination', () => {
+    expect(en.trial.expired.proactiveAstra).toBe(en.profile.proactiveAstra.title)
+    expect(ptBR.trial.expired.proactiveAstra).toBe(ptBR.profile.proactiveAstra.title)
+    expect(ptBR.profile.proactiveAstra.title).not.toContain(ptBR.notifications.title)
+  })
+
+  it('gives Orbit its article where a Portuguese sentence names it', () => {
+    expect(ptBR.chat.placement.recommendation).toMatch(/^O Orbit /)
+    expect(ptBR.upgrade.convert.freeHeading).toMatch(/mensagens/)
+  })
+
   it('keeps Orbit masculine in Portuguese', () => {
     for (const [key, value] of portugueseValues) {
-      expect(value, key).not.toMatch(/(?<![\p{L}])(?:a|à|da|pela|na) Orbit\b/u)
+      expect(value, key).not.toMatch(/(?<![\p{L}])(?:a|à|da|pela|na) Orbit\b/iu)
     }
   })
 
-  it('formats the plural allowance strings for one and for a larger count', async () => {
+  it.each(PLURAL_ALLOWANCE_KEYS)('formats the plural allowance string %s for one and for a larger count in both locales', async (key) => {
     const { IntlMessageFormat } = await import('intl-messageformat')
-    for (const key of ['shell.composer.limit.reason', 'habits.form.localReadLimit', 'upgrade.billing.plan.proBody']) {
-      const variable = key.startsWith('upgrade') ? 'limit' : 'allowance'
-      for (const [locale, byKey] of [['en', englishByKey], ['pt-BR', portugueseByKey]] as const) {
-        const message = byKey.get(key) ?? ''
-        for (const count of [1, 5]) {
-          const formatted = new IntlMessageFormat(message, locale).format({ [variable]: count }) as string
-          expect(formatted, `${locale} ${key} ${count}`).not.toContain('#')
-          expect(formatted.length).toBeGreaterThan(0)
-        }
+    const variable = key.startsWith('upgrade') ? 'limit' : 'allowance'
+    for (const [locale, byKey] of [['en', englishByKey], ['pt-BR', portugueseByKey]] as const) {
+      const message = byKey.get(key) ?? ''
+      expect(message, `${locale} ${key}`).toMatch(/, plural, /)
+      for (const count of [1, 5]) {
+        const formatted = new IntlMessageFormat(message, locale).format({ [variable]: count }) as string
+        expect(formatted, `${locale} ${key} ${count}`).toContain(String(count))
+        expect(formatted, `${locale} ${key} ${count}`).not.toMatch(/[#{}]/)
+        expect(formatted, `${locale} ${key} ${count}`).not.toMatch(count === 1 ? /\b1 (?:AI )?messages\b|\b1 mensagens\b/ : /\b5 (?:AI )?message\b|\b5 mensagem\b/)
       }
     }
   })

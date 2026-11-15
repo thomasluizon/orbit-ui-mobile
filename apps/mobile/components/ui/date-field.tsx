@@ -1,7 +1,6 @@
-import { PressScale, PressScalePressable } from '@/components/motion/press-scale'
 import { MotionPressable } from '@/components/ui/motion-pressable'
 import { PressFill } from '@/components/ui/press-fill'
-import { selectedBorderStyle } from '@/components/ui/selected-focus-indicator'
+import { SelectionRing } from '@/components/ui/inset-focus-pressable'
 import { SPACING, TOUCH_TARGET_MIN, MONTH_GRID_TARGET_MIN } from '@orbit/shared/theme'
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react'
 import {
@@ -9,7 +8,6 @@ import {
   useWindowDimensions,
   View,
   Text,
-  Pressable,
   StyleSheet,
 } from 'react-native'
 import {
@@ -29,6 +27,7 @@ import { useTranslation } from 'react-i18next'
 import { formatLocaleDate, splitMonthYear } from '@orbit/shared/utils'
 import { useProfile } from '@/hooks/use-profile'
 import { createTokensV2, radius } from '@/lib/theme'
+import { usePrefersReducedMotion } from '@/lib/motion'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { YearPicker } from '@/components/ui/year-picker'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
@@ -138,10 +137,12 @@ interface DatePickerDayProps {
 }
 
 function DatePickerDay({ day, isSelected, isToday, isCurrentMonth, locale, disabled, onSelectDay, tokens, styles }: Readonly<DatePickerDayProps>) {
+  const reducedMotion = usePrefersReducedMotion()
   return (
-    <PressScalePressable
-      layerStyle={styles.dayColumn}
+    <MotionPressable
+      focusInset
       style={({ pressed }) => [
+        styles.dayColumn,
         styles.dayTarget,
         pressed ? { backgroundColor: tokens.bgHover } : null,
       ]}
@@ -155,13 +156,8 @@ function DatePickerDay({ day, isSelected, isToday, isCurrentMonth, locale, disab
         year: 'numeric',
       })}
     >{({ pressed, focused }) =>
-      <View
-        style={[
-          styles.dayCell,
-          isSelected && styles.dayCellSelected,
-          selectedBorderStyle(isToday && !isSelected, focused, 1, tokens.primary),
-        ]}
-      >
+      <View style={[styles.dayCell, isSelected && styles.dayCellSelected]}>
+        {isToday && !isSelected ? <SelectionRing shape={styles.dayCell} width={1} color={tokens.primary} shown={!focused} reducedMotion={reducedMotion} /> : null}
         <Text
           style={[
             styles.dayText,
@@ -172,7 +168,7 @@ function DatePickerDay({ day, isSelected, isToday, isCurrentMonth, locale, disab
           {format(day, 'd')}
         </Text>
       </View>
-    }</PressScalePressable>
+    }</MotionPressable>
   )
 }
 
@@ -269,7 +265,6 @@ export function DateField({
     triggerRef.current.setNativeProps({ hasTVPreferredFocus: true })
     AccessibilityInfo.sendAccessibilityEvent(triggerRef.current, 'focus')
   }, [focusRequest])
-  const [triggerPressed, setTriggerPressed] = useState(false)
   const { t, i18n } = useTranslation()
   const { profile } = useProfile()
   const { currentScheme, currentTheme } = useAppTheme()
@@ -365,14 +360,15 @@ export function DateField({
 
   return (
     <>
-      <PressScale pressed={triggerPressed} disabled={disabled}><Pressable
+      <MotionPressable
         disabled={disabled}
         accessibilityState={{ disabled }}
         ref={triggerRef}
         style={styles.trigger}
+        focusInset
+        focusOffset={-2}
+        focusColor={tokens.primary}
         onPress={openPicker}
-        onPressIn={() => setTriggerPressed(true)}
-        onPressOut={() => setTriggerPressed(false)}
         accessibilityLabel={label ? `${label}, ${selectionLabel}` : selectionLabel}
         accessibilityRole="button"
       >{({ pressed }) => <>
@@ -387,7 +383,7 @@ export function DateField({
           {displayValue || placeholder || t('common.selectDate')}
         </Text>
         <Calendar size={20} strokeWidth={1.8} color={pressed ? tokens.fg2 : tokens.fg3} />
-      </>}</Pressable></PressScale>
+      </>}</MotionPressable>
 
       {isOpen ? (
         <Sheet ref={sheetRef} open title={t('common.selectDate')} onClose={hidePicker} minimumBodyWidth={7 * DAY_TARGET_SIZE} virtualizedBody={pickerMode === 'years'}>

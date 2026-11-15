@@ -363,8 +363,7 @@ describe('web step up screen', () => {
     expect(await screen.findByText('exhaustedNotice')).toBeInTheDocument()
     expect(screen.queryByText('resend')).not.toBeInTheDocument()
     expect(mocks.serverAuthMutate).not.toHaveBeenCalled()
-    const destination = operation === 'keys' ? 'profile.groups.astra' : 'profile.submenus.account'
-    fireEvent.click(screen.getByText(`common.backToDestination:${JSON.stringify({ destination })}`))
+    fireEvent.click(screen.getByText(operation === 'keys' ? 'common.backToOrbit' : 'common.backToDestination:{"destination":"profile.submenus.account"}'))
     expect(mocks.router.replace).toHaveBeenCalledWith(operation === 'keys' ? '/profile/ai' : '/profile/account')
   })
 
@@ -422,6 +421,13 @@ describe('web step up screen', () => {
     expect(await screen.findByText(/successPro/)).toHaveTextContent(
       'local:2026-09-04T03:00:00Z',
     )
+  })
+
+  it('shows a pending update in its notice with no Orbit, because Orbit never sits inside a step-up', async () => {
+    useVersionGateStore.getState().markUpgradeRequired('1.5.0')
+    await renderLiveScreen()
+    expect(screen.getByRole('status')).toHaveTextContent('forceUpdate.banner')
+    expect(document.querySelector('[data-asset="orbit-mascot"]')).toBeNull()
   })
 
   it('routes cancel to Profile', async () => {

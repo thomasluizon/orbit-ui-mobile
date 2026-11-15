@@ -93,6 +93,26 @@ export const cases = () => {
     { status: 0, stdout: /Gradient guard passed/ },
   )
 
+  for (const [label, css, expected] of [
+    ["a rotation keyframe", "@keyframes busy-ring {\n  to { transform: rotate(360deg); }\n}\n", /apps\/web\/app\/globals\.css:1: spinner keyframes "busy-ring"/],
+    ["a rotate property keyframe", "@keyframes wheel { from { rotate: 0deg; } to { rotate: 1turn; } }\n", /apps\/web\/app\/globals\.css:1: spinner keyframes "wheel"/],
+    ["a keyframe named spin", "@keyframes spin { 50% { opacity: 0.5; } }\n", /apps\/web\/app\/globals\.css:1: spinner keyframes "spin"/],
+    ["an animation that runs the spin keyframes", ".ring {\n  animation: spin 1s linear infinite;\n}\n", /apps\/web\/app\/globals\.css:2: spinner animation/],
+  ]) {
+    const repository = stageRepository(`spinner-${label.replaceAll(" ", "-")}`, { "apps/web/app/globals.css": css })
+    check("check-gradients.mjs", `rejects ${label}`, ["--root", repository], { status: 1, stderr: expected })
+  }
+
+  const loopsWithoutRotation = stageRepository("loops-without-rotation", {
+    "apps/web/app/globals.css": "@keyframes skeleton-pulse { 50% { opacity: 0.55; } }\n.skeleton-pulse { animation: skeleton-pulse 1.1s ease-in-out infinite; }\n@keyframes chevron-open { to { transform: rotate(180deg); } }\n.spinner-free { animation: chevron-open 0.2s; }\n",
+  })
+  check(
+    "check-gradients.mjs",
+    "accepts an opacity loop and a partial rotation",
+    ["--root", loopsWithoutRotation],
+    { status: 0, stdout: /Gradient guard passed/ },
+  )
+
   const timeGridFunctional = stageRepository("time-grid-functional", {
     "apps/web/components/calendar/calendar-time-grid.tsx":
       "export const pane = {\n  backgroundImage: 'linear-gradient(var(--bg-card), var(--bg-card))',\n}\nexport const lines =\n  'repeating-linear-gradient(to bottom, var(--hairline) 0, var(--hairline) 1px, transparent 1px, transparent ' +\n  '56px)'\n",

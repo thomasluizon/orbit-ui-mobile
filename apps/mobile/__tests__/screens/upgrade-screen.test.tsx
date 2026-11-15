@@ -303,6 +303,13 @@ function assertSubscriptionDates(text: string | null, locale: 'en' | 'pt-BR', st
 }
 
 
+/** The back label the upgrade screen shows for a source route; `destination` is null for an Orbit route, which has its own label. */
+function expectedBackLabel(messages: typeof en, source: string | null, from: string | undefined, destination: string | null): string {
+  if (source === 'profile' || (!source && !from)) return messages.common.backToProfile
+  if (source === 'index') return messages.common.backToToday
+  return destination === null ? messages.common.backToOrbit : messages.common.backToDestination.replace('{destination}', destination)
+}
+
 describe('UpgradeScreen', () => {
   afterEach(() => { Platform.OS = 'android' })
   it.each(['stripe', 'play', 'app_store'] as const)('keeps iOS %s management inside the App Store rules', async (billingProvider) => {
@@ -520,14 +527,14 @@ describe('UpgradeScreen', () => {
   describe.each([{ locale: 'en', messages: en }, { locale: 'pt-BR', messages: ptBR }])('back destination in $locale', ({ locale, messages }) => {
     it.each([
       { source: 'profile', from: undefined, destination: messages.nav.profile },
-      { source: 'profile/ai', from: '/profile/ai', destination: messages.profile.groups.astra },
+      { source: 'profile/ai', from: '/profile/ai', destination: null },
       { source: 'calendar', from: undefined, destination: messages.nav.calendar },
       { source: 'habits/new', from: undefined, destination: messages.habits.form.newHabit },
       { source: 'index', from: '/', destination: messages.nav.today },
       { source: 'calendar', from: '/profile/ai', destination: messages.nav.calendar },
-      { source: 'chat', from: undefined, destination: messages.chat.title },
+      { source: 'chat', from: undefined, destination: null },
       { source: null, from: undefined, destination: messages.nav.profile },
-      { source: null, from: '/profile/ai', destination: messages.profile.groups.astra },
+      { source: null, from: '/profile/ai', destination: null },
     ])('names and returns to $source with from=$from', async ({ source, from, destination }) => {
       mocks.realNavigation = true
       mocks.renderComposition = true
@@ -551,9 +558,7 @@ describe('UpgradeScreen', () => {
       mocks.navigationState = state
       mocks.router.canDismiss.mockReturnValue(Boolean(source))
       const tree = await renderScreen()
-      const label = source === 'profile' || (!source && !from)
-        ? messages.common.backToProfile
-        : source === 'index' ? messages.common.backToToday : messages.common.backToDestination.replace('{destination}', destination)
+      const label = expectedBackLabel(messages, source, from, destination)
       const back = tree.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityRole === 'button' && node.props.accessibilityLabel === label)[0]!
       expect(back, label).toBeDefined()
       await TestRenderer.act(() => { (back.props.onPress as () => void)() })

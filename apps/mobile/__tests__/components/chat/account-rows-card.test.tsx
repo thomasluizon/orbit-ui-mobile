@@ -1,3 +1,4 @@
+import { controlStyle } from '@/__tests__/support/press-feedback'
 import { createInstance } from 'i18next'
 import ICUCommonJs from 'i18next-icu/cjs'
 import en from '@orbit/shared/i18n/en.json'
@@ -104,7 +105,7 @@ describe('Astra account rows on mobile', () => {
     motionState.reduced = reducedMotion
     const tree = render(<AccountRowsCard accountRows={{ kind: 'referral', surfaceId: 'profile', rows: [], referralCode: 'ORBIT123' }} />)
     const host = () => tree.root.findAll((node: any) => typeof node.type === 'string' && node.props.accessibilityLabel === 'chat.account.copy')[0]
-    const paint = () => { const style = host().props.style; return StyleSheet.flatten(typeof style === 'function' ? style({ pressed: true }) : style) }
+    const paint = () => controlStyle(host(), true)
     TestRenderer.act(() => { host().props.onPressIn?.() })
     expect(paint()).toMatchObject({ transform: [{ scale: reducedMotion ? 1 : 0.96 }], transition: reducedMotion ? 'none' : 'transform 150ms cubic-bezier(0.16,1,0.3,1)' })
     TestRenderer.act(() => { host().props.onPressOut?.() })

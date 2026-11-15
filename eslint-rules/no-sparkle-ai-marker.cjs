@@ -25,6 +25,11 @@ module.exports = {
           }
         }
       },
+      ExportSpecifier(node) {
+        if ([node.local, node.exported].some((name) => SPARKLE_NAMES.has(name?.name ?? name?.value))) {
+          context.report({ node, messageId: 'noSparkle' })
+        }
+      },
       JSXOpeningElement(node) {
         const name = getElementName(node)
         if (name && SPARKLE_NAMES.has(name)) {

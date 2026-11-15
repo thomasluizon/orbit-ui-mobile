@@ -89,6 +89,7 @@ const mocks = vi.hoisted(() => ({
   suggestion: null as RescheduleSuggestion | null,
   rescheduleOptions: [] as { enabled: boolean }[],
   rescheduleError: null as Error | null,
+  reschedulePaused: false,
   rescheduleRefetch: vi.fn(),
   language: 'en',
   uses24HourClock: undefined as boolean | undefined,
@@ -199,14 +200,15 @@ vi.mock('@/hooks/use-profile', () => ({
 vi.mock('@/hooks/use-reschedule-suggestion', () => ({
   useRescheduleSuggestion: (options: { enabled: boolean }) => {
     mocks.rescheduleOptions.push(options)
-    return { suggestion: mocks.suggestion, error: mocks.rescheduleError, refetch: mocks.rescheduleRefetch }
+    const settled = mocks.suggestion !== null || mocks.rescheduleError !== null
+    return { suggestion: mocks.suggestion, error: mocks.rescheduleError, isFetching: !settled && !mocks.reschedulePaused, isPaused: !settled && mocks.reschedulePaused, refetch: mocks.rescheduleRefetch }
   },
 }))
 
 vi.mock('@/components/shell/flow-shell', () => ({
   FlowShell: ({ children, header }: { children: React.ReactNode; header?: React.ReactNode }) => <main>{header}{children}</main>,
 }))
-vi.mock('@/components/ui/orbit-mascot', () => ({ OrbitMascot: ({ size }: { size: number }) => <svg data-testid="orbit-mascot" data-size={size} aria-hidden="true" /> }))
+vi.mock('@/components/ui/orbit-mascot', () => ({ OrbitMascot: ({ size, state }: { size: number; state?: string }) => <svg data-testid="orbit-mascot" data-size={size} data-state={state} aria-hidden="true" /> }))
 vi.mock('@/components/ui/badge', () => ({ Badge: ({ children }: { children: React.ReactNode }) => <span data-testid="badge">{children}</span> }))
 vi.mock('@/components/ui/confirm-sheet', () => ({
   ConfirmSheet: ({ open, title, message, confirmLabel, onConfirm, onCancel }: { open: boolean; title: string; message: string; confirmLabel: string; onConfirm: () => void; onCancel: () => void }) => open
@@ -219,7 +221,7 @@ vi.mock('@/components/ui/error-state', () => ({
 vi.mock('@/components/ui/proposed', () => ({ Proposed: ({ children, label }: { children: React.ReactNode; label: string }) => <div role="group" aria-label={label}>{children}</div> }))
 vi.mock('@/components/ui/skeleton', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/components/ui/skeleton')>()
-  return { Skeleton: (props: React.ComponentProps<typeof actual.Skeleton>) => mocks.realHistory ? <actual.Skeleton {...props} /> : <div>{props.label}</div> }
+  return { Skeleton: (props: React.ComponentProps<typeof actual.Skeleton>) => mocks.realHistory ? <actual.Skeleton {...props} /> : <div data-variant={props.variant}>{props.label}</div> }
 })
 vi.mock('@/components/ui/switch', () => ({
   Switch: ({ checked, label, onChange }: { checked: boolean; label: string; onChange: (checked: boolean) => void }) => (
@@ -408,6 +410,7 @@ describe('HabitDetailScreen', () => {
     mocks.scopedCompleteDay = false
     mocks.rescheduleOptions = []
     mocks.rescheduleError = null
+    mocks.reschedulePaused = false
     mocks.rescheduleRefetch.mockReset()
     mocks.language = 'en'
     mocks.uses24HourClock = undefined
@@ -647,10 +650,24 @@ describe('HabitDetailScreen', () => {
     expect(screen.queryByText('habits.reschedule.freePrompt')).not.toBeInTheDocument()
   })
 
+  it('rests Orbit with the offline reason, and never thinks, while the rescue request waits offline', () => {
+    openRescueGate()
+    mocks.reschedulePaused = true
+    render(<HabitDetailScreen habitId="habit-1" />)
+    const status = within(screen.getByRole('group', { name: 'habits.form.proposedByAstra' })).getByRole('status')
+    expect(within(status).queryByTestId('rescue-loading-skeleton')).not.toBeInTheDocument()
+    expect(within(status).getAllByTestId('orbit-mascot').map((mascot) => mascot.getAttribute('data-state'))).toEqual(['descansando'])
+    expect(status).toHaveTextContent('shell.composer.offline.reason')
+  })
+
   it('shows a rescue only for an older overdue habit and handles request states', () => {
     openRescueGate()
     const view = render(<HabitDetailScreen habitId="habit-1" />)
-    expect(within(screen.getByRole('group', { name: 'habits.form.proposedByAstra' })).getByRole('status')).toHaveTextContent('habits.detail.rescheduleLoading')
+    const wait = within(within(screen.getByRole('group', { name: 'habits.form.proposedByAstra' })).getByRole('status')).getByTestId('rescue-loading-skeleton')
+    expect(within(wait).getByTestId('orbit-mascot')).toHaveAttribute('data-state', 'pensando')
+    expect(within(wait).getByTestId('orbit-mascot')).toHaveAttribute('data-size', '48')
+    expect(Array.from(wait.querySelectorAll('[data-variant]')).map((block) => [block.getAttribute('data-variant'), block.textContent])).toEqual([['habit-row', 'habits.reschedule.loading'], ['habit-row', '']])
+    expect(screen.queryByText('habits.detail.rescheduleLoading')).not.toBeInTheDocument()
     expect(mocks.rescheduleOptions.some((options) => options.enabled)).toBe(true)
     expect(screen.queryByRole('button', { name: 'habits.detail.rescheduleAccept' })).not.toBeInTheDocument()
 
@@ -703,7 +720,7 @@ describe('HabitDetailScreen', () => {
       mocks.rescheduleError = null
       view.rerender(<HabitDetailScreen habitId="habit-1" />)
     }
-    expect(screen.getByText('habits.detail.rescheduleLoading')).toBeVisible()
+    expect(screen.getByTestId('rescue-loading-skeleton')).toBeVisible()
     const notNow = screen.getByRole('button', { name: 'habits.reschedule.dismiss' })
     expect(notNow).toBeEnabled()
     notNow.focus()
@@ -970,7 +987,7 @@ describe('HabitDetailScreen', () => {
     expect(child).toBeDisabled()
     expect(child).toHaveAttribute('data-completion-reason', 'habits.detail.dayHabitsLoading')
     expect(child).toHaveAttribute('data-completion-status-unavailable', 'true')
-    expect(screen.getByText('habits.detail.dayHabitsLoading')).toBeVisible()
+    expect(screen.getByText('habits.detail.dayHabitsLoading').closest('[data-day-habits-skeleton]')).not.toBeNull()
     expect(screen.getByTestId('detail-children')).toHaveAttribute('aria-busy', 'true')
     expect(screen.getByRole('button', { name: 'open-child-1' })).toBeEnabled()
 

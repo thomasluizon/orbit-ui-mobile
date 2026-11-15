@@ -11,6 +11,7 @@ import { Sheet } from '@/components/ui/sheet'
 import { useSheetPresence } from '@/components/ui/sheet-presence'
 import { useUpdateSheetFooterReport, type ReportUpdateSheetFooter } from '@/hooks/use-update-sheet-footer-report'
 import { PillButton } from '@/components/ui/pill-button'
+import { OrbitMascot } from '@/components/ui/orbit-mascot'
 import {
   startAndroidUpdate,
   useAndroidFlexibleUpdate,
@@ -119,7 +120,7 @@ function OpenVersionUpdateSheet({
         <PillButton size="sm" onClick={() => closeSheet(onAction)}>{actionLabel}</PillButton>
       </ActionRow></View>
     }>
-      <Text style={styles.description}>{description}</Text>
+      <View style={styles.lead}><OrbitMascot size={48} /><Text style={[styles.description, styles.leadText]}>{description}</Text></View>
     </Sheet>
   )
 }
@@ -235,6 +236,15 @@ function createStyles(tokens: AppTokensV2) {
       fontSize: 16,
       lineHeight: 24.8,
       color: tokens.fg2,
+    },
+    lead: {
+      alignItems: 'center',
+      flexDirection: 'row',
+      gap: SPACING.s12,
+    },
+    leadText: {
+      flex: 1,
+      minWidth: 0,
     },
     buttons: {
       flexDirection: 'row',

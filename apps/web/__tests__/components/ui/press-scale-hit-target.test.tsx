@@ -13,6 +13,7 @@ import en from '@orbit/shared/i18n/en.json'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
 import { pickListBlockFixture } from '@orbit/shared/test-support/chat-fixtures'
 import { AnswerBlock } from '@/components/chat/answer-block'
+import { SelectAllToggle } from '@/components/calendar-sync/select-all-toggle'
 import { CalendarTimeGrid } from '@/components/calendar/calendar-time-grid'
 import { CommandRow } from '@/components/command/command-row'
 import { StreakBadge } from '@/components/gamification/streak-badge'
@@ -21,11 +22,16 @@ import { CheckCircle } from '@/components/habits/habit-row-check-circle'
 import { HabitRowTrailing } from '@/components/habits/habit-row-trailing'
 import { SelectionTray } from '@/components/habits/selection-tray'
 import { OnboardingCreateHabit } from '@/components/onboarding/onboarding-create-habit'
+import { AstraButton } from '@/components/shell/astra-button'
+import { AppBar } from '@/components/ui/app-bar'
 import { Chip } from '@/components/ui/chip'
 import { PillAnchor } from '@/components/ui/pill-anchor'
 import { PillButton } from '@/components/ui/pill-button'
 import { QuietLink } from '@/components/ui/quiet-link'
+import { RadioGroup } from '@/components/ui/radio-group'
+import { RadioRow } from '@/components/ui/select-check'
 import { PricingSection } from '@/components/upgrade/pricing-section'
+import { resolveWebThemeVariables } from '@/lib/theme-dom'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 
 vi.mock('next/navigation', async (importOriginal) => ({
@@ -74,7 +80,13 @@ const controls: [string, () => ReactElement, (page: Page) => Locator][] = [
     (page) => page.getByRole('link', { name: 'Open the billing portal in your browser', exact: true })],
   ['a resting chip', () => <Chip onClick={vi.fn()}>Morning routine</Chip>, (page) => page.getByRole('button', { name: 'Morning routine', exact: true })],
   ['a selected chip', () => <Chip active onClick={vi.fn()}>Morning routine</Chip>, (page) => page.getByRole('button', { name: 'Morning routine', exact: true })],
-  // WHY: these eight scale their whole 48px target. The scale removes 0.96px at each edge, which is under 1px, so a press at the exact edge keeps its click. Each case guards that band. https://github.com/thomasluizon/orbit-tickets/issues/2096
+  ['the conversation entry', () => <AstraButton />, (page) => page.getByRole('button', { name: en.shell.astraButton.open, exact: true })],
+  ['a personal radio row', () => <RadioGroup aria-label="Item"><RadioRow label="Read before bed" textMode="personal" onSelect={vi.fn()} /></RadioGroup>,
+    (page) => page.getByRole('radio', { name: 'Read before bed', exact: true })],
+  // WHY: these ten scale their whole 48px target. The scale removes 0.96px at each edge, which is under 1px, so a press at the exact edge keeps its click. Each case guards that band. https://github.com/thomasluizon/orbit-tickets/issues/2096
+  ['an icon button', () => <SelectAllToggle allSelected={false} onToggle={vi.fn()} selectAllLabel="Select all" deselectAllLabel="Deselect all" />,
+    (page) => page.getByRole('button', { name: 'Select all', exact: true })],
+  ['the app bar back', () => <AppBar title="Chat" onBack={vi.fn()} backLabel="Back" />, (page) => page.getByRole('button', { name: 'Back', exact: true })],
   ['the answer block habit check', () => <AnswerBlock definition={{ kind: 'pickList', block: pickListBlockFixture }} />,
     (page) => page.locator('[data-habit-row-control="check"]').first()],
   ['the habit row disclosure', () => <HabitRow habit={createMockHabit({ title: 'Read' })} structuralColumn hasChildren actions={{ onDetail: vi.fn(), onToggleExpand: vi.fn() }} />,
@@ -119,13 +131,61 @@ describe('press hit target in Chromium', () => {
       await page.mouse.down()
       await page.evaluate(() => new Promise<void>((settle) => requestAnimationFrame(() => requestAnimationFrame(() => settle()))))
       const pressed = await card.evaluate((element, point) => ({
-        scaled: [element, ...element.querySelectorAll('*')].some((node) => getComputedStyle(node).scale === '0.96'),
+        scaled: [element, ...element.querySelectorAll('*')].some((node) => {
+          const style = getComputedStyle(node)
+          return style.scale === '0.96' || style.transform === 'matrix(0.96, 0, 0, 0.96, 0, 0)'
+        }),
         underPointer: element.contains(document.elementFromPoint(point.x, point.y)),
       }), edge)
       await page.mouse.up()
       expect(pressed.scaled, 'the press scales the control').toBe(true)
       expect(pressed.underPointer, 'the press target stays under the pointer while the control is scaled').toBe(true)
       expect(await card.getAttribute('data-clicks'), 'the press keeps its click').toBe('1')
+    } finally { await page.close() }
+  })
+
+  it('keeps one focus ring on a habit check while a key presses it: the inner check draws it and the hit layer draws none', async () => {
+    const page = await browser.newPage({ viewport: { width: 412, height: 915 }, reducedMotion: 'no-preference' })
+    try {
+      const theme = Object.entries(resolveWebThemeVariables('orange', 'light')).map(([key, value]) => `${key}:${value}`).join(';')
+      await page.setContent(`<style>${stylesheet} :root{${theme}} body{padding:16px} *,*::before,*::after{transition:none !important}</style><main>${markupOf(<CheckCircle state="empty" onToggle={vi.fn()} disabled={false} ariaLabel="Log" />)}</main>`)
+      const check = page.getByRole('button', { name: 'Log', exact: true })
+      await page.keyboard.press('Tab')
+      expect(await check.evaluate((element) => element.matches(':focus-visible'))).toBe(true)
+      await page.keyboard.down('Space')
+      const rings = await check.evaluate((element) => ({
+        scale: getComputedStyle(element).scale,
+        control: getComputedStyle(element).outlineStyle,
+        hitLayer: getComputedStyle(element, '::before').outlineStyle,
+        check: getComputedStyle(element.querySelector('[data-habit-check]')!).outlineStyle,
+      }))
+      await page.keyboard.up('Space')
+      expect(rings, 'the inner check draws its ring in --fg-1, so the page carries the theme tokens').toEqual({ scale: '0.96', control: 'none', hitLayer: 'none', check: 'solid' })
+    } finally { await page.close() }
+  })
+
+  it.each([
+    ['a pill button', () => <PillButton size="md" onClick={vi.fn()}>Continue to checkout</PillButton>],
+    ['a selected chip', () => <Chip active onClick={vi.fn()}>Continue to checkout</Chip>],
+    ['an icon button', () => <SelectAllToggle allSelected={false} onToggle={vi.fn()} selectAllLabel="Continue to checkout" deselectAllLabel="Deselect all" />],
+  ] as const)('keeps the focus ring of %s whole on its unscaled hit layer while a key presses it', async (_name, control) => {
+    const page = await browser.newPage({ viewport: { width: 412, height: 915 }, reducedMotion: 'no-preference' })
+    try {
+      await page.setContent(`<style>${stylesheet} body{padding:16px} *,*::before,*::after{transition:none !important}</style><main>${markupOf(control())}</main>`)
+      const button = page.getByRole('button', { name: 'Continue to checkout', exact: true })
+      await page.keyboard.press('Tab')
+      expect(await button.evaluate((element) => element.matches(':focus-visible'))).toBe(true)
+      await page.keyboard.down('Space')
+      const pressed = await button.evaluate((element) => {
+        const own = getComputedStyle(element)
+        const layer = getComputedStyle(element, '::before')
+        return { scale: own.scale === 'none' ? new DOMMatrix(own.transform).a : Number(own.scale), outline: own.outlineStyle, ring: layer.outlineStyle, ringWidth: layer.outlineWidth, layerScale: Number(layer.scale) }
+      })
+      await page.keyboard.up('Space')
+      expect(pressed.scale, 'the key press scales the control').toBeCloseTo(0.96, 5)
+      expect(pressed.outline, 'the scaled control draws no ring of its own').toBe('none')
+      expect({ ring: pressed.ring, width: pressed.ringWidth }, 'the hit layer draws the focus ring').toEqual({ ring: 'solid', width: '2px' })
+      expect(pressed.scale * pressed.layerScale, 'the hit layer and its ring keep the whole box').toBeCloseTo(1, 5)
     } finally { await page.close() }
   })
 })

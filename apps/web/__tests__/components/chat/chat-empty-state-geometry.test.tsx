@@ -57,11 +57,12 @@ describe('Empty conversation geometry in Chromium', () => {
     const compiled = await postcss([tailwind()]).process(readFileSync(source, 'utf8'), { from: source })
     stylesheet = compiled.css
   })
-  afterEach(cleanup)
+  afterEach(() => { cleanup(); vi.unstubAllGlobals() })
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
 
   it.each(CASES)('keeps both ends reachable at $width by $height in $locale', async ({ width, height, panelWidth, locale }) => {
     const messages = locale === 'en' ? en : pt
+    vi.stubGlobal('matchMedia', (query: string) => ({ matches: width >= Number(query.match(/min-width: (\d+)px/)?.[1] ?? Infinity), addEventListener: vi.fn(), removeEventListener: vi.fn() }))
     const { container } = render(
       <NextIntlClientProvider locale={locale} messages={messages}>
         <div style={{ width: panelWidth, height }}><AstraConversation chat={emptyChat()} /></div>
@@ -103,7 +104,7 @@ describe('Empty conversation geometry in Chromium', () => {
       expect(geometry.paddingBottom).toBe(16)
       expect(geometry.scrollerBottom - geometry.disclaimerBottom).toBeGreaterThanOrEqual(15.5)
       expect(geometry.scrollerBottom).toBe(geometry.composerTop)
-      expect.soft(geometry.glyphSize).toBe(48)
+      expect.soft(geometry.glyphSize).toBe(width >= 1024 ? 128 : 96)
       expect.soft(geometry.actionGap).toBeCloseTo(24, 0)
       expect.soft(Math.abs(geometry.groupCentre - (geometry.scrollerTop + geometry.scrollerBottom) / 2)).toBeLessThanOrEqual(8)
       if (height === 915) {

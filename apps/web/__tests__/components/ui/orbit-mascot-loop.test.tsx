@@ -1,4 +1,6 @@
 import { act, render } from '@testing-library/react'
+import { ORBIT_MASCOT_VIEW_BOX, ORBIT_SMALL_FACES, orbitMascotFrame, orbitOutlineCutout } from '@orbit/shared/contracts/brand'
+import { mascotMotion } from '@orbit/shared/theme'
 import { setOrbitMotionEnabled } from '@orbit/shared/utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { OrbitMascot } from '@/components/ui/orbit-mascot'
@@ -21,6 +23,12 @@ function loopOf(container: HTMLElement, index = 0) {
 function moonOf(container: HTMLElement) {
   const moon = container.querySelector('[data-part="moon"]')
   return `${moon?.getAttribute('cx')},${moon?.getAttribute('cy')}`
+}
+
+/** The vertical scale of the eyes: 1 is open, and the blink closes them toward 0.1. */
+function eyeScaleOf(container: HTMLElement) {
+  const transform = container.querySelector('[data-part="eye"]')?.getAttribute('transform') ?? ''
+  return Number(/^matrix\(1 0 0 ([\d.]+) /.exec(transform)?.[1])
 }
 
 function setReducedMotion(reduce: boolean) {
@@ -50,10 +58,25 @@ describe('Orbit idle loop on web', () => {
     const { container } = render(<OrbitMascot size={96} />)
     expect(loopOf(container)).toBe('running')
     const rest = moonOf(container)
-    act(() => { vi.advanceTimersByTime(20) })
-    expect(moonOf(container)).toBe(rest)
-    act(() => { vi.advanceTimersByTime(400) })
-    expect(moonOf(container)).not.toBe(rest)
+    act(() => { vi.advanceTimersByTime(48) })
+    const drawn = moonOf(container)
+    expect(drawn).not.toBe(rest)
+    act(() => { vi.advanceTimersByTime(16) })
+    expect(moonOf(container)).toBe(drawn)
+    act(() => { vi.advanceTimersByTime(32) })
+    expect(moonOf(container)).not.toBe(drawn)
+  })
+
+  it.each([
+    ['Orbit em movimento turns off', () => setOrbitMotionEnabled(false)],
+    ['the mascot goes off screen', () => observers.at(-1)?.([{ isIntersecting: false }])],
+  ])('opens its eyes when %s in the middle of a blink', (_cause, pause) => {
+    const { container } = render(<OrbitMascot size={96} />)
+    for (let step = 0; step < 100 && eyeScaleOf(container) >= 0.5; step += 1) act(() => { vi.advanceTimersByTime(48) })
+    expect(eyeScaleOf(container)).toBeLessThan(0.5)
+    act(() => { pause() })
+    expect(loopOf(container)).toBe('still')
+    expect(eyeScaleOf(container)).toBe(1)
   })
 
   it('stays still and draws the rest frame under reduced motion', () => {
@@ -129,5 +152,19 @@ describe('Orbit idle loop on web', () => {
     const { unmount } = render(<OrbitMascot size={96} />)
     unmount()
     expect(cancel).toHaveBeenCalled()
+  })
+})
+
+describe('Orbit ring outline on web', () => {
+  it('cuts the outline out of the planet, so the surface behind shows through on any fill', () => {
+    const { container } = render(<div><OrbitMascot size={96} /><OrbitMascot size={16} /></div>)
+    const cutouts = [...container.querySelectorAll('[data-part="outline-cutout"]')]
+    expect(cutouts.map((path) => path.getAttribute('clip-rule'))).toEqual(['evenodd', 'evenodd'])
+    expect(cutouts[0]?.getAttribute('d')).toBe(orbitOutlineCutout(ORBIT_MASCOT_VIEW_BOX, orbitMascotFrame(0, mascotMotion).ringOutline))
+    expect(cutouts[1]?.getAttribute('d')).toBe(orbitOutlineCutout(ORBIT_SMALL_FACES[16].viewBox, ORBIT_SMALL_FACES[16].ringOutline))
+    const planets = [...container.querySelectorAll('[data-part="planet"]')]
+    expect(planets.map((group) => group.getAttribute('clip-path'))).toEqual(cutouts.map((path) => `url(#${path.parentElement?.id})`))
+    expect(container.innerHTML).not.toContain('orbit-surface')
+    expect([...container.querySelectorAll('[fill="var(--bg)"]')].every((node) => node.getAttribute('data-part') === 'eye')).toBe(true)
   })
 })

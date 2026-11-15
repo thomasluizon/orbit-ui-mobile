@@ -11,12 +11,20 @@ import { getFriendlyErrorMessage } from '@orbit/shared/utils'
 import { PillButton } from '@/components/ui/pill-button'
 import { PickerRow } from '@/components/ui/picker-row'
 import { Proposed } from '@/components/ui/proposed'
+import { Skeleton } from '@/components/ui/skeleton'
 
 interface TagSuggestionsProps {
   translateError: Parameters<typeof getFriendlyErrorMessage>[1]
   suggestions: ReturnType<typeof useTagSuggestions>
   atLimit: boolean
   disabled: boolean
+}
+
+/** An accepted suggestion waits on its request with a skeleton line in the status slot, named for a screen reader. */
+function TagStatus({ statusKey, accepting, styles }: Readonly<{ statusKey: string | null; accepting: boolean; styles: ReturnType<typeof createStyles> }>) {
+  const { t } = useTranslation()
+  if (statusKey && accepting) return <View testID="tag-status-skeleton" accessibilityLiveRegion="polite" style={styles.statusSkeleton}><Skeleton variant="fill" label={t(statusKey)} /></View>
+  return <Text accessibilityLiveRegion="polite" style={[styles.hint, !statusKey ? { position: 'absolute', width: 0, height: 0 } : null]}>{statusKey ? t(statusKey) : null}</Text>
 }
 
 export function TagSuggestions({ suggestions, atLimit, disabled, translateError }: Readonly<TagSuggestionsProps>) {
@@ -28,7 +36,7 @@ export function TagSuggestions({ suggestions, atLimit, disabled, translateError 
   const statusKey = tagSuggestionStatusKey(suggestions, atLimit, suggestions.needsTitle)
   return <View style={styles.container}>
     <View style={styles.action}><PillButton minimumHeight={48} borderless hint={suggestions.pending === 'suggest' ? t('habits.form.suggestingTags') : suggestions.needsTitle ? t('habits.form.titleRequired') : atLimit ? t('habits.form.tagLimit') : undefined} iconOnly label={t('habits.form.suggestTags')} variant="ghost" disabled={!suggestions.canSuggest} loading={suggestions.pending === 'suggest'} onClick={() => void suggestions.suggest()}><OrbitMascot size={20} /></PillButton></View>
-    <Text accessibilityLiveRegion="polite" style={[styles.hint, !statusKey ? { position: 'absolute', width: 0, height: 0 } : null]}>{statusKey ? t(statusKey) : null}</Text>
+    <TagStatus statusKey={statusKey} accepting={suggestions.pending === 'accept'} styles={styles} />
     {failure ? <Text accessibilityRole="alert" accessibilityLiveRegion="assertive" style={styles.error}>{getFriendlyErrorMessage(failure.cause, translateError, failure.operation === 'suggest' ? 'habits.form.suggestTagsError' : 'toast.errors.validation', failure.operation === 'suggest' ? 'generic' : 'tag')}</Text> : null}
     {suggestions.suggestions.length > 0 ? <Proposed proposed scope="field" label={t('habits.form.suggestedTagsLabel')}><View accessibilityState={{ busy: suggestions.pending === 'accept' }} style={styles.proposals}>
       {suggestions.suggestions.map((suggestion) => <PickerRow proposed key={suggestion.name} name={suggestion.name} selected={false} disabled={disabled || atLimit || pending} onToggle={() => void suggestions.acceptSuggestion(suggestion)} value="" valueHidden valueStyle={styles.hint} />)}
@@ -40,6 +48,7 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
   return StyleSheet.create({
     container: { gap: 16, paddingTop: SPACING.s16 }, action: { alignSelf: 'flex-start' }, proposals: { gap: 8, padding: SPACING.s8 },
     hint: { color: tokens.fg3, fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 21 },
+    statusSkeleton: { width: '33%', height: 21 },
     error: { color: tokens.statusBadText, fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 21 },
   })
 }

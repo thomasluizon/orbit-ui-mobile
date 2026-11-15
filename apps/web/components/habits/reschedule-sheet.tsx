@@ -32,7 +32,7 @@ interface RescheduleSheetProps {
 }
 
 /**
- * Astra-branded sheet that proposes an AI reschedule for an overdue habit. Pro users see the
+ * The Orbit sheet that proposes an AI reschedule for an overdue habit. Pro users see the
  * suggested schedule plus rationale and can accept it in one tap (applied through the existing
  * habit-update path); free users see an upgrade prompt. Mirrors apps/mobile reschedule-sheet.tsx.
  */
@@ -52,7 +52,7 @@ export function RescheduleSheet({ open, onOpenChange, habit }: Readonly<Reschedu
   const locale = profile?.language ?? uiLocale
   const isOverdue = habit?.isOverdue ?? false
 
-  const { suggestion, isLoading, error, refetch } = useRescheduleSuggestion({
+  const { suggestion, isLoading, isPaused, error, refetch } = useRescheduleSuggestion({
     habitId: habit?.id ?? '',
     locale,
     enabled: open && hasProAccess && isOverdue,
@@ -106,7 +106,7 @@ export function RescheduleSheet({ open, onOpenChange, habit }: Readonly<Reschedu
           <PillButton variant="ghost" size="sm" onClick={() => closeSheet()}>
             {t('habits.reschedule.dismiss')}
           </PillButton>
-          <PillButton leadingIcon={<OrbitMascot size={16} />} variant={filledVariant} size="sm" onClick={() => void refetch()}>
+          <PillButton variant={filledVariant} size="sm" onClick={() => void refetch()}>
             {t('habits.reschedule.suggestDate')}
           </PillButton>
         </>
@@ -155,6 +155,13 @@ export function RescheduleSheet({ open, onOpenChange, habit }: Readonly<Reschedu
         </div>
       )
     }
+    if (isPaused) {
+      return (
+        <p style={{ fontFamily: 'var(--font-sans)', fontSize: 14, lineHeight: 1.55, color: 'var(--fg-2)' }}>
+          {t('shell.composer.offline.reason')}
+        </p>
+      )
+    }
     if (error) {
       return (
         <p
@@ -193,7 +200,7 @@ export function RescheduleSheet({ open, onOpenChange, habit }: Readonly<Reschedu
     >
       <div className="flex flex-col pb-2" style={{ gap: 16 }}>
         <div className="flex items-center" style={{ gap: 8 }}>
-          <OrbitMascot size={48} state={hasProAccess && isLoading ? 'pensando' : 'parado'} />
+          <OrbitMascot size={48} state={rescheduleMascotState(hasProAccess, isPaused, isLoading)} />
           <span
             translate="no"
             style={{
@@ -210,4 +217,11 @@ export function RescheduleSheet({ open, onOpenChange, habit }: Readonly<Reschedu
       </div>
     </Sheet>) : null
   )
+}
+
+/** Orbit rests while the request waits offline, thinks while it runs, and stands still otherwise (DESIGN.md Orbit's states). */
+function rescheduleMascotState(hasProAccess: boolean, isPaused: boolean, isLoading: boolean): 'descansando' | 'pensando' | 'parado' {
+  if (!hasProAccess) return 'parado'
+  if (isPaused) return 'descansando'
+  return isLoading ? 'pensando' : 'parado'
 }

@@ -334,6 +334,27 @@ export const cases = async () => {
     "pwa-maskable-512x512.png is missing or differs from orbit-platform-icon-512.png",
   )
 
+  // web.dev/articles/maskable-icon: the safe zone is a centred circle with a radius of 40% of the
+  // icon width. Every pixel that is not the #09090B canvas is mark ink and must sit inside it.
+  const { data: maskablePixels, info: maskableInfo } = await sharp(join(outputRoot, "apps", "web", "public", "pwa-maskable-512x512.png"))
+    .ensureAlpha()
+    .raw()
+    .toBuffer({ resolveWithObject: true })
+  const maskableCentre = maskableInfo.width / 2
+  let inkOutsideSafeCircle = 0
+  for (let index = 0; index < maskablePixels.length; index += maskableInfo.channels) {
+    const pixel = index / maskableInfo.channels
+    const x = (pixel % maskableInfo.width) + 0.5
+    const y = Math.floor(pixel / maskableInfo.width) + 0.5
+    const canvas = Math.abs(maskablePixels[index] - 9) <= 2 && Math.abs(maskablePixels[index + 1] - 9) <= 2 && Math.abs(maskablePixels[index + 2] - 11) <= 2
+    if (!canvas && Math.hypot(x - maskableCentre, y - maskableCentre) > 0.4 * maskableInfo.width) inkOutsideSafeCircle += 1
+  }
+  T(
+    "generate-brand-assets.mjs: the maskable PWA icon keeps its mark inside the 40% radius safe circle",
+    inkOutsideSafeCircle === 0,
+    `${inkOutsideSafeCircle} mark pixels lie outside the maskable safe circle`,
+  )
+
   const icon = join(outputRoot, "apps", "mobile", "assets", "icon.png")
   const iconCorner = await pixelAt(icon, 0, 0)
   T(

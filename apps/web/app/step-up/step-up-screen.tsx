@@ -18,6 +18,7 @@ import {
   getFriendlyErrorMessage,
 } from '@orbit/shared/utils'
 import { PROFILE_STEP_UP_DESTINATIONS } from '@orbit/shared/utils/profile-routes'
+import { getBackLabel } from '@orbit/shared/utils/back-label'
 import { useProfile } from '@/hooks/use-profile'
 import { useDateFormat } from '@/hooks/use-date-format'
 import { getHeldAccountId, useAuthStore, useHeldAccountId } from '@/stores/auth-store'
@@ -292,11 +293,7 @@ function StepUpScreenContent({
       <StepUpExhausted
         {...sharedView}
         lockSeconds={lockSeconds}
-        backLabel={translate('common.backToDestination', {
-          destination: operation === 'keys'
-            ? translate('profile.groups.astra')
-            : translate('profile.submenus.account'),
-        })}
+        backLabel={getBackLabel(returnDestination, translate)}
         onBack={() => router.replace(returnDestination)}
       />
     )
@@ -371,7 +368,7 @@ function StepUpSuccess({
   showProNotice: boolean
 }>) {
   return (
-    <FlowShell nav={false} notice={<UpdateAvailableBanner inset={false} />} action={
+    <FlowShell nav={false} notice={<UpdateAvailableBanner inset={false} mascot={false} />} action={
       <PillButton onClick={onSignOut}>{t('signOut')}</PillButton>
     }>
       <StepUpHeader operationLabel={operationLabel} t={t} title={t('successTitle', { date: deletionDate })} />
@@ -391,7 +388,7 @@ function StepUpExhausted({
   t,
 }: Readonly<SharedStepUpViewProps & { backLabel: string; lockSeconds: number | null; onBack: () => void }>) {
   return (
-    <FlowShell nav={false} notice={<UpdateAvailableBanner inset={false} />}>
+    <FlowShell nav={false} notice={<UpdateAvailableBanner inset={false} mascot={false} />}>
       <StepUpHeader body={t('exhaustedBody')} operationLabel={operationLabel} t={t} title={t('exhaustedTitle')} />
       <div className="flex flex-col items-start" style={{ gap: 12 }}>
         <CapacityNotice message={t('exhaustedNotice')} />
@@ -430,7 +427,7 @@ function StepUpChallenge(props: Readonly<StepUpChallengeProps>) {
     <PillButton disabled={code.length !== STEP_UP_CODE_LENGTH} loading={checking} onClick={onConfirm}>{t('confirm')}</PillButton>
   )
   return (
-    <FlowShell nav={false} notice={<UpdateAvailableBanner inset={false} />} action={action}>
+    <FlowShell nav={false} notice={<UpdateAvailableBanner inset={false} mascot={false} />} action={action}>
       <StepUpHeader body={expired ? t('expiredBody') : t('body', { email })} operationLabel={operationLabel} t={t} title={expired ? t('expiredTitle') : t('title')} />
       <OtpInput id="step-up-code" value={code} onChange={onCodeChange} error={otpError} hint={expired ? undefined : t('codeHint')} disabled={checking || expired} autoFocus={!expired} label={t('codeLabel')} />
       {!expired ? <StepUpResend cooldownSeconds={cooldownSeconds} onResend={onResend} requesting={requesting} t={t} /> : null}

@@ -3,6 +3,7 @@
 import { useId } from 'react'
 import Link from 'next/link'
 import { OrbitMascot } from '@/components/ui/orbit-mascot'
+import { Skeleton } from '@/components/ui/skeleton'
 
 interface TodayAstraLineProps {
   text: string
@@ -21,15 +22,16 @@ export function TodayAstraLine({ text, destination, href, onPress, disabled = fa
   const destinationId = useId()
   const content = <>
     <span aria-hidden="true" className="relative flex w-[48px] shrink-0 items-center justify-center">
-      <OrbitMascot size={20} color="var(--fg-3)" />
+      <OrbitMascot size={48} still />
     </span>
     <span className="today-astra-sentence" aria-live={announce ? 'polite' : undefined}>
-      {loading ? <><span className="sr-only">{text}</span><span data-summary-skeleton aria-hidden="true" className="flex min-h-[2lh] flex-col justify-center gap-2"><span className="h-[14px] w-full rounded-[8px] bg-[var(--hairline-strong)]" /><span className="h-[14px] w-2/3 rounded-[8px] bg-[var(--hairline-strong)]" /></span></> : text}
+      {loading ? <><span className="sr-only">{text}</span><span data-summary-skeleton aria-hidden="true" className="flex min-h-[2lh] flex-col justify-center gap-2"><span className="block h-[14px] w-full"><Skeleton variant="fill" grouped /></span><span className="block h-[14px] w-2/3"><Skeleton variant="fill" grouped /></span></span></> : text}
     </span>
   </>
+  const waitingSurface = loading ? { background: 'transparent' } : undefined
   return <div className={gutter ? 'px-screen-gutter' : undefined} data-today-astra-slot aria-busy={busy}>
-    {href ? <Link className="today-astra-line" href={href} aria-describedby={destinationId}>{content}</Link>
-      : <button type="button" className="today-astra-line" aria-describedby={destinationId} disabled={disabled} onClick={onPress}>{content}</button>}
+    {href ? <Link className="today-astra-line" style={waitingSurface} href={href} aria-describedby={destinationId}>{content}</Link>
+      : <button type="button" className="today-astra-line" style={waitingSurface} aria-describedby={destinationId} disabled={disabled} onClick={onPress}>{content}</button>}
     <span id={destinationId} className="sr-only">{destination}</span>
   </div>
 }

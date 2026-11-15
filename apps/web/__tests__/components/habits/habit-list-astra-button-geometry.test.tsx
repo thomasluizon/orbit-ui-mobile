@@ -1,5 +1,7 @@
 import { afterAll, beforeAll, expect, it } from 'vitest'
 import { SPACING } from '@orbit/shared/theme'
+import { contrastOnSurface } from '@orbit/shared/__tests__/contrast'
+import { resolveWebThemeVariables } from '@/lib/theme-dom'
 import { measureShellScrollEnd } from '@/e2e/layout/shell-scroll-extent'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 import { buildHabitListScrollAssets } from '@/__tests__/support/habit-list-scroll-assets'
@@ -40,5 +42,54 @@ it.each([390, 840])('clears the stacked Astra button at the end of the real habi
       expect(await page.locator('[data-composer-root]').count()).toBe(0)
       expect(await page.locator('[data-shell-conversation]').count()).toBe(0)
     }
+  } finally { await page.close() }
+})
+
+/** The root style of a page in `mode`: the app reads its mode from the root `color-scheme`, then writes the matching tokens itself. */
+function rootStyle(mode: 'light' | 'dark'): string {
+  return [`color-scheme:${mode}`, ...Object.entries(resolveWebThemeVariables('orange', mode)).map(([key, value]) => `${key}:${value}`)].join(';')
+}
+
+/** The painted layers under a 5 by 5 grid over the entry's 48 mascot, from the canvas up, without the entry itself. Runs in the page. */
+function layersUnderMascot(entry: Element): string[] {
+  const mascot = entry.querySelector('svg[data-asset="orbit-mascot"]')!.getBoundingClientRect()
+  const layers = (node: Element) => [null, '::before', '::after'].flatMap(pseudo => {
+    const style = getComputedStyle(node, pseudo)
+    return (pseudo && style.content === 'none') || style.opacity === '0' || style.visibility === 'hidden' ? [] : [style.backgroundColor]
+  })
+  return Array.from({ length: 25 }, (_, index) => [mascot.left + 4 + (index % 5) * 10, mascot.top + 4 + Math.floor(index / 5) * 10]).map(([x, y]) =>
+    JSON.stringify(document.elementsFromPoint(x!, y!).filter(node => !entry.contains(node)).reverse().flatMap(layers).filter(color => !/^rgba\(.*, 0\)$/.test(color))))
+}
+
+it.each(['light', 'dark'] as const)('reads the conversation entry Orbit at 3:1 against every surface the real habit list scrolls behind it in %s', async mode => {
+  const page = await browser.newPage({ viewport: { width: 390, height: 915 }, reducedMotion: 'reduce' })
+  try {
+    const theme = rootStyle(mode)
+    await page.route('https://habit-list.test/', route => route.fulfill({ contentType: 'text/html',
+      body: `<!doctype html><html class="${mode}" style="${theme}"><style>${stylesheet}</style><div id="root" data-count="100" data-astra></div></html>` }))
+    await page.goto('https://habit-list.test/')
+    await page.addScriptTag({ content: script })
+    await page.waitForFunction(() => document.querySelectorAll('[data-testid="habit-row"]').length === 100)
+    const button = page.locator('[data-astra-button]')
+    await button.waitFor({ state: 'visible' })
+    expect(await page.evaluate(() => document.documentElement.classList.contains(document.documentElement.style.colorScheme))).toBe(true)
+    const paint = await button.evaluate(element => {
+      const mascot = element.querySelector('svg[data-asset="orbit-mascot"]')!
+      return { body: getComputedStyle(mascot).color, moon: getComputedStyle(mascot.querySelector('[data-part="moon"]')!).fill }
+    })
+    const scroller = page.locator('[data-shell-scroller]')
+    const end = await scroller.evaluate(element => element.scrollHeight - element.clientHeight)
+    const stacks = new Set<string>()
+    for (let offset = 0; offset <= end; offset += 17) {
+      await scroller.evaluate((element, top) => { element.scrollTop = top }, offset)
+      for (const stack of await button.evaluate(layersUnderMascot)) stacks.add(stack)
+    }
+    const surfaces = [...stacks].map(stack => JSON.parse(stack) as string[])
+    expect(surfaces.length, 'the rows pass behind the entry').toBeGreaterThan(1)
+    const below = surfaces.flatMap(layers => [['body', paint.body], ['moon', paint.moon]].flatMap(([part, color]) => {
+      const ratio = contrastOnSurface(color!, layers)
+      return ratio >= 3 ? [] : [`${part} ${color} on ${layers.join(' > ')}: ${ratio.toFixed(3)}`]
+    }))
+    expect(below).toEqual([])
   } finally { await page.close() }
 })

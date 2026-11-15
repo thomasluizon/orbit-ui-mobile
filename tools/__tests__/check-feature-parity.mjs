@@ -472,6 +472,32 @@ export const cases = () => {
       export function Controls({ words }) { return <Stripped aria-label={words.file} /> }
     `
     T(`${platform} a removed rest property cannot retain the mapped control`, compare(capability, scan(current, platform), mapping)[0].disposition === 'missing')
+    // A press wrapper that renders its props in another file, as MotionPressable does: the caller still owns the label it passes.
+    const controls = `apps/${platform}/controls.tsx`
+    const press = `apps/${platform}/press.tsx`
+    files[press] = `
+      function usePressElement({ unused, ...props }, ref) { return <button ref={ref} onClick={open} {...props} /> }
+      export const Press = forwardRef(function Press(props, ref) { return usePressElement(props, ref) })
+      export function Pill({ children, ...props }) { return <Press {...props}>{children}</Press> }
+    `
+    files[controls] = `import { Pill } from './press'
+      export function Controls({ words }) { return <Pill aria-label={words.file} /> }
+    `
+    current.paths.add(press)
+    const owned = { mappings: { [capability[0].id]: { ...mapping.mappings[capability[0].id], owners: [controls] } } }
+    const observed = scan(current, platform)
+    const consumers = observed.find((entry) => entry.id === `${platform}:content:habits.viewAll`)?.consumers ?? []
+    const wrapped = compare(capability, observed, owned)
+    T(`${platform} a label passed through nested press wrappers is consumed at its caller and at the wrapper's sink`, wrapped[0].disposition === 'retained' && wrapped[0].redesign.every((item) => item.file === controls) && [controls, press].every((file) => consumers.some((item) => item.file === file)), JSON.stringify(consumers))
+    files[controls] = `import { Pill } from './press'
+      export function Controls({ words }) { return <Pill unused={words.file} aria-label={words.image} /> }
+    `
+    T(`${platform} a caller prop that the wrapper never renders cannot qualify its caller`, compare(capability, scan(current, platform), owned)[0].disposition === 'missing')
+    files[controls] = `import { Pill } from './press'
+      export function Controls({ words }) { return <Pill onPress={open}>{words.file}</Pill> }
+    `
+    const child = compare(capability, scan(current, platform), owned)
+    T(`${platform} a child label passed through nested press wrappers is consumed at its caller`, child[0].disposition === 'retained' && child[0].redesign.some((item) => item.file === controls), JSON.stringify(child[0].redesign))
   }
 
   const rules = JSON.parse(readFileSync(join(REPO_ROOT, 'tools/feature-parity-rules.json'), 'utf8'))

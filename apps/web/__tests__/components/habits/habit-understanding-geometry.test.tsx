@@ -107,11 +107,13 @@ describe('habit understanding geometry', () => {
       await mount()
       expect(await action.getAttribute('aria-busy')).toBe('true')
       expect(await action.locator('svg').count()).toBe(1)
-      expect(await action.locator('[data-asset^="orbit-mascot"]').count()).toBe(0)
+      expect(await action.locator('[data-asset="orbit-mascot"]').count()).toBe(1)
+      expect(await action.locator('[data-slot="skeleton-face"]').count()).toBe(1)
       view.rerender(form(false))
       await mount()
       expect(await action.getAttribute('aria-busy')).toBeNull()
-      expect(await action.locator('[data-asset^="orbit-mascot"]').count()).toBe(1)
+      expect(await action.locator('[data-asset="orbit-mascot"]').count()).toBe(1)
+      expect(await action.locator('[data-slot="skeleton-face"]').count()).toBe(0)
     } finally { await page.close(); view.unmount() }
   })
 

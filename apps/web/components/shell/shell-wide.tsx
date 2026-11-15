@@ -34,6 +34,7 @@ import { IconButton } from '@/components/ui/icon-button'
 import { useShellScrollerRegistration } from './shell-scroller-context'
 import { useModalFocusTrap } from './use-modal-focus-trap'
 import { getShellHeading } from './shell-header'
+import { OrbitOverlayLayer } from '@/components/ui/orbit-overlay-layer'
 
 function getConversationFocusTarget(container: HTMLElement): HTMLElement {
   return container.querySelector<HTMLElement>('[data-composer-input]:not([disabled])')
@@ -92,8 +93,8 @@ function SidebarItem({
       href={item.href}
       data-habit-create-navigation={onSelect ? '' : undefined}
       className={[
-        'flex min-h-[var(--touch-min)] w-full items-center gap-3 overflow-hidden rounded-[12px] px-3 text-left text-[14px] font-medium',
-        'transition-[background-color,color,scale] duration-[var(--dur-hover-control),var(--dur-hover-control),var(--dur-press)] ease-[var(--ease-standard),var(--ease-standard),var(--ease-out)] active:scale-[0.96]',
+        'flex min-h-[var(--touch-min)] w-full items-center gap-3 rounded-[12px] px-3 text-left text-[14px] font-medium',
+        'press-hit-layer transition-[background-color,color,scale] duration-[var(--dur-hover-control),var(--dur-hover-control),var(--dur-press)] ease-[var(--ease-standard),var(--ease-standard),var(--ease-out)] motion-safe:active:scale-[0.96]',
         active
           ? 'text-[var(--primary-soft)] hover:text-[var(--primary-text)] active:text-[var(--primary-text)]'
           : 'text-[var(--fg-3)]',
@@ -127,8 +128,8 @@ function SidebarAstraRow({ row, open, conversationId, collapsed }: Readonly<{
             title={collapsed ? row.label : undefined}
             onClick={row.onOpen}
             className={[
-              'flex min-h-[var(--touch-min)] w-full items-center gap-3 overflow-hidden rounded-[12px] px-3 text-left text-[14px] font-medium',
-              'transition-[background-color,color,scale] duration-[var(--dur-hover-control),var(--dur-hover-control),var(--dur-press)] ease-[var(--ease-standard),var(--ease-standard),var(--ease-out)] active:scale-[0.96]',
+              'flex min-h-[var(--touch-min)] w-full items-center gap-3 rounded-[12px] px-3 text-left text-[14px] font-medium',
+              'press-hit-layer transition-[background-color,color,scale] duration-[var(--dur-hover-control),var(--dur-hover-control),var(--dur-press)] ease-[var(--ease-standard),var(--ease-standard),var(--ease-out)] motion-safe:active:scale-[0.96]',
               open
                 ? 'text-[var(--primary-soft)] hover:text-[var(--primary-text)] active:text-[var(--primary-text)]'
                 : 'text-[var(--fg-3)]',
@@ -136,8 +137,10 @@ function SidebarAstraRow({ row, open, conversationId, collapsed }: Readonly<{
               collapsed ? 'justify-center' : undefined,
             ].join(' ')}
           >
-            <OrbitMascot size={20} color={open ? 'var(--primary)' : 'var(--fg-3)'} />
-            <span translate="no" className={collapsed ? 'sr-only' : 'min-w-0 truncate'}>{row.label}</span>
+            <OrbitMascot size={20} />
+            <span className={collapsed ? 'sr-only' : 'min-w-0 truncate'}>
+              {row.label.split(/(Orbit)/).map((part, index) => part === 'Orbit' ? <span key={index} translate="no">{part}</span> : part)}
+            </span>
           </button>
 }
 
@@ -149,7 +152,7 @@ function SidebarSearch({ onPalette, paletteLabel, paletteHint, collapsed }: Read
             onClick={onPalette}
             aria-label={paletteLabel}
             title={collapsed ? paletteLabel : undefined}
-            className={`${FIELD_TRIGGER_PERIMETER} orbit-hover-text ${collapsed ? 'justify-center' : ''} flex min-h-[var(--touch-min)] items-center gap-3 rounded-[12px] bg-[var(--bg-field)] px-3 text-[14px] text-[var(--fg-3)] transition-[color,scale] duration-[var(--dur-hover-control),var(--dur-press)] ease-[var(--ease-standard),var(--ease-out)] hover:text-[var(--fg-1)] hover:[--fg-3:var(--fg-2)] active:text-[var(--fg-1)] active:[--fg-3:var(--fg-2)] motion-safe:active:scale-[0.96]`}
+            className={`press-hit-layer ${FIELD_TRIGGER_PERIMETER} orbit-hover-text ${collapsed ? 'justify-center' : ''} flex min-h-[var(--touch-min)] items-center gap-3 rounded-[12px] bg-[var(--bg-field)] px-3 text-[14px] text-[var(--fg-3)] transition-[color,scale] duration-[var(--dur-hover-control),var(--dur-press)] ease-[var(--ease-standard),var(--ease-out)] hover:text-[var(--fg-1)] hover:[--fg-3:var(--fg-2)] active:text-[var(--fg-1)] active:[--fg-3:var(--fg-2)] motion-safe:active:scale-[0.96]`}
           >
             <Search size={20} strokeWidth={1.5} aria-hidden="true" />
             <span className={collapsed ? 'sr-only' : 'min-w-0 flex-1 truncate text-left'}>{paletteLabel}</span>
@@ -498,7 +501,7 @@ function ShellWideBackground({
           <div data-shell-create-refusal="" aria-live="polite" aria-atomic="true" className="min-h-0 overflow-y-auto px-4">{sidebarRefusal}</div>
           </div>
           </ShellDestinationViewport>
-          {conversationOpen ? <ShellConversation conversationId={conversationId} label={props.conversationLabel} wide={wide}>{props.conversation}</ShellConversation> : null}
+          {conversationOpen ? <OrbitOverlayLayer><ShellConversation conversationId={conversationId} label={props.conversationLabel} wide={wide}>{props.conversation}</ShellConversation></OrbitOverlayLayer> : null}
         </div>
       </div>
     </div></ConversationComposerMotionProvider>

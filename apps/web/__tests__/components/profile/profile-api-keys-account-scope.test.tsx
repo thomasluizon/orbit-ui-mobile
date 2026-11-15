@@ -585,7 +585,11 @@ it('withholds key details while access is locked or the list is loading', () => 
   expect(screen.queryByText('External tool')).not.toBeInTheDocument()
   management.loading = true
   view.rerender(<QueryClientProvider client={queryClient}><ProfileApiKeys profile={proProfile()} unlocked /></QueryClientProvider>)
-  expect(screen.getByRole('progressbar', { name: en.common.loading })).toHaveAttribute('data-variant', 'settings')
+  const skeleton = screen.getByRole('progressbar', { name: en.common.loading })
+  expect(skeleton).toHaveAttribute('data-variant', 'settings')
+  expect(skeleton).toHaveAttribute('aria-busy', 'true')
+  expect(skeleton.querySelectorAll('[data-settings-skeleton-row]')).toHaveLength(2)
+  expect(screen.queryByText(en.common.loading)).toBeNull()
   expect(screen.queryByText('habits:read, goals:read')).not.toBeInTheDocument()
 })
 

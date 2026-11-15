@@ -30,9 +30,9 @@ const FIELD_TRIGGERS = [
 ] as const
 
 const SIDEBAR_ROWS = [
-  { name: 'destination link', find: () => screen.getByRole('link', { name: 'Hoje' }) },
-  { name: 'Astra row', find: () => screen.getByRole('button', { name: 'Astra' }) },
-  { name: 'account row', find: () => screen.getByRole('button', { name: 'Ada Lovelace, ada@example.com' }) },
+  { name: 'destination link', find: () => screen.getByRole('link', { name: 'Hoje' }), pressMedia: [MOTION_SAFE] },
+  { name: 'Astra row', find: () => screen.getByRole('button', { name: 'Astra' }), pressMedia: [MOTION_SAFE] },
+  { name: 'account row', find: () => screen.getByRole('button', { name: 'Ada Lovelace, ada@example.com' }), pressMedia: [MOTION_SAFE] },
 ] as const
 
 describe('field triggers and sidebar rows compiled from app/globals.css', () => {
@@ -116,14 +116,14 @@ describe('field triggers and sidebar rows compiled from app/globals.css', () => 
     expect(rules.declarationsIn(search).get('transition-property')).toBe('color,scale')
   })
 
-  it.each(SIDEBAR_ROWS)('eases the $name press scale on the press token instead of snapping on a transform transition', ({ find }) => {
+  it.each(SIDEBAR_ROWS)('eases the $name press scale on the press token instead of snapping on a transform transition', ({ find, pressMedia }) => {
     render(<Fixtures />)
     const row = find()
     const rest = rules.declarationsIn(row)
     expect(rest.get('transition-property')).toBe('background-color,color,scale')
     expect(rest.get('transition-duration')).toBe('var(--dur-hover-control),var(--dur-hover-control),var(--dur-press)')
     expect(rest.get('transition-timing-function')).toBe('var(--ease-standard),var(--ease-standard),var(--ease-out)')
-    expect(rules.declarationsIn(row, ':active').get('scale')).toBe('0.96')
+    expect(rules.declarationsIn(row, ':active', pressMedia).get('scale')).toBe('0.96')
     expectHoverAndPress(rules, row, 'var(--bg-hover)')
   })
 })

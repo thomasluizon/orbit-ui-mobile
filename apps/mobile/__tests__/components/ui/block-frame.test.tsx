@@ -232,7 +232,9 @@ describe('BlockFrame on mobile', () => {
     const tree = render(<BlockFrame {...frame({ state: 'loading', actions: <Text>Save</Text> })} />)
     const root = tree.root.findByProps({ testID: 'block-frame-loading' })
     expect(prop(root, 'accessibilityState')).toBeUndefined()
-    expect(tree.root.findByProps({ testID: 'block-frame-loading-skeleton' })).toBeDefined()
+    const skeleton = tree.root.findByProps({ testID: 'block-frame-loading-skeleton' })
+    expect(skeleton.findAll((node) => typeof node.type === 'string' && node.props.testID === 'skeleton-unit-fill').length).toBeGreaterThan(0)
+    expect(tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'skeleton-unit-fill')).toHaveLength(skeleton.findAll((node) => typeof node.type === 'string' && node.props.testID === 'skeleton-unit-fill').length + 1)
     expect(textValues(tree)).not.toContain('First row')
   })
 

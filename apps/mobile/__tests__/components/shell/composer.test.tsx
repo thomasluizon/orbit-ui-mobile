@@ -142,6 +142,7 @@ it.each([en, ptBR])('shows each suggestion action with only the decorative mark'
         typeof node.type === 'string' && node.props.testID === 'orbit-mascot')
       expect(marks).toHaveLength(1)
       expect(marks[0]!.props.accessible).toBe(false)
+      expect(marks[0]!.props.color).toBe(createTokensV2('purple', 'dark').fg1)
     }
     pressControl(controls[1])
     expect(chips[1]!.onSelect).toHaveBeenCalledOnce()
@@ -634,7 +635,8 @@ describe('Composer (mobile)', () => {
       const status = statusOf(recovery.toJSON() as Host)
       expect(status, 'the recovery pill sits in the composer status column').toBeDefined()
       const pillHost = (status!.children ?? []).find(isRecovery)!
-      expect(StyleSheet.flatten(pillHost.props.style as StyleProp<ViewStyle>).transform, 'the pill itself carries the press scale, so it scales about the pill centre').toEqual([{ scale: 1 }])
+      expect(StyleSheet.flatten(pillHost.props.style as StyleProp<ViewStyle>).transform, 'the pill target keeps its box, so its hit area and focus ring stay whole').toBeUndefined()
+      expect(StyleSheet.flatten((pillHost.children![0] as Host).props.style as StyleProp<ViewStyle>).transform, 'the pill face fills the target and carries the press scale, so it scales about the pill centre').toEqual([{ scale: 1 }])
       const measured = measureProfileRow({ type: 'View', props: {}, children: [status!] }, 360, 1)
       const pill = measured.controls.find((control) => control.accessibilityLabel === 'Recover')!
       expect(pill.width).toBeLessThan(360)
@@ -1076,6 +1078,7 @@ describe('Composer (mobile)', () => {
     const conversationLabel = 'open conversation sentinel'
     const tree = await renderComposer(props({ onOpenConversation, conversationLabel }))
     const control = byLabel(tree.root, conversationLabel)[0]
+    expect(control.findAll((node: { type: unknown; props: Record<string, unknown> }) => typeof node.type === 'string' && node.props.testID === 'orbit-mascot')[0]?.props.color).toBe(createTokensV2('purple', 'dark').fg1)
 
     TestRenderer.act(() => control.props.onPressIn())
     expect(timing).toHaveBeenLastCalledWith(

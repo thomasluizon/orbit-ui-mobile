@@ -1,3 +1,4 @@
+import { pressableStyle } from '@/__tests__/support/press-feedback'
 import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { RECAP_SHARE_PERIODS } from '@orbit/shared/utils'
@@ -135,8 +136,8 @@ describe('mobile WrappedCover', () => {
       expect(chips).toHaveLength(3)
       for (const [index, chip] of chips.entries()) {
         const selected = RECAP_SHARE_PERIODS[index] === period
-        const resolveStyle = chip.props.style as (state: { pressed: boolean }) => unknown
-        expect(StyleSheet.flatten(resolveStyle({ pressed: false }))).toMatchObject({
+        const resolveStyle = (state: { pressed: boolean }) => pressableStyle(chip, state.pressed)
+        expect(resolveStyle({ pressed: false })).toMatchObject({
           minHeight: 48,
           backgroundColor: selected ? palette.primaryDim : palette.bgWell,
         })
@@ -149,7 +150,7 @@ describe('mobile WrappedCover', () => {
           fontSize: typeRoles.secondary.size,
           color: selected ? palette.fg1 : palette.fg2,
         })
-        expect(StyleSheet.flatten(resolveStyle({ pressed: true }))).toMatchObject({
+        expect(resolveStyle({ pressed: true })).toMatchObject({
           backgroundColor: palette.bgHover,
         })
         TestRenderer.act(() => { (chip.props.onPress as () => void)() })

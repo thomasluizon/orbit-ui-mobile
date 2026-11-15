@@ -33,7 +33,6 @@ function SegmentOption<TValue extends string>({
   onLayout: (event: LayoutChangeEvent) => void
   tokens: ReturnType<typeof createTokensV2>
 }>) {
-  const [focused, setFocused] = useState(false)
   const disabled = controlDisabled || Boolean(option.disabled)
   const select = () => {
     if (!disabled && !selected) onChange(option.value)
@@ -44,10 +43,9 @@ function SegmentOption<TValue extends string>({
     selected,
   })
   return (
-    <Primitive.Item value={option.value} disabled={disabled} asChild><Pressable focusInset
+    <Primitive.Item value={option.value} disabled={disabled} asChild><Pressable focusInset selectionRingWidth={2}
       onLayout={onLayout}
-      onFocus={() => { setFocused(true); onFocus() }}
-      onBlur={() => setFocused(false)} focusable={focusable}
+      onFocus={onFocus} focusable={focusable}
       ref={elementRef}
       accessibilityRole="radio"
       accessibilityState={{ checked: selected, disabled }}
@@ -61,7 +59,6 @@ function SegmentOption<TValue extends string>({
         pressed ? { backgroundColor: tokens.bgHover } : null,
       ]}
     >
-      {selected && !focused ? <View pointerEvents="none" accessible={false} style={[styles.selectionRing, { borderColor: tokens.primary }]} /> : null}
       <Text numberOfLines={fontScale > 1.3 ? undefined : 1} style={[styles.label, { color: selected ? tokens.fg1 : tokens.fg2 }]}>
         {option.label}
       </Text>
@@ -171,7 +168,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.s8,
     paddingVertical: SPACING.s4,
   },
-  selectionRing: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, borderWidth: 2, borderRadius: 8 },
   label: {
     fontFamily: 'Geist_500Medium',
     fontSize: 14,

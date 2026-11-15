@@ -1,7 +1,7 @@
 import { useRef } from 'react'
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { subscribeKeyboardViewport, useKeyboardViewport } from '@/hooks/use-keyboard-viewport'
+import { isKeyboardViewportOpen, subscribeKeyboardViewport, useKeyboardViewport } from '@/hooks/use-keyboard-viewport'
 
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); vi.restoreAllMocks() })
 
@@ -15,24 +15,37 @@ function KeyboardForm() {
 }
 
 function createViewport() {
+  let width = 360
   let height = 740
   let offsetTop = 0
   let scale = 1
   vi.spyOn(document.documentElement, 'clientHeight', 'get').mockReturnValue(740)
   const element = document.createElement('div')
   Object.defineProperties(element, {
-    height: { get: () => height }, width: { value: 360 },
+    height: { get: () => height }, width: { get: () => width },
     offsetTop: { get: () => offsetTop }, offsetLeft: { value: 0 },
     pageTop: { value: 0 }, pageLeft: { value: 0 }, scale: { get: () => scale },
   })
   const viewport = element as unknown as VisualViewport
   vi.stubGlobal('visualViewport', viewport)
-  return { viewport, resize: (nextHeight: number, nextTop = 0, nextScale = 1) => {
-    scale = nextScale
-    height = nextHeight
-    offsetTop = nextTop
-    viewport.dispatchEvent(new Event('resize'))
-  } }
+  return {
+    viewport,
+    resize: (nextHeight: number, nextTop = 0, nextScale = 1) => {
+      scale = nextScale
+      height = nextHeight
+      offsetTop = nextTop
+      viewport.dispatchEvent(new Event('resize'))
+    },
+    rotate: (nextWidth: number, nextHeight: number) => {
+      width = nextWidth
+      height = nextHeight
+      viewport.dispatchEvent(new Event('resize'))
+    },
+  }
+}
+
+function layoutViewportHeight(height: number) {
+  vi.spyOn(document.documentElement, 'clientHeight', 'get').mockReturnValue(height)
 }
 
 describe('Keyboard viewport', () => {
@@ -83,7 +96,7 @@ describe('Keyboard viewport', () => {
     vi.spyOn(field, 'getBoundingClientRect').mockImplementation(() => new DOMRect(16, 580 - scroller.scrollTop, 328, fieldHeight))
     act(() => field.focus())
     expect(root.style.height).toBe('')
-    vi.spyOn(document.documentElement, 'clientHeight', 'get').mockReturnValue(420)
+    layoutViewportHeight(420)
     act(() => resize(420))
     expect(root.style.height).toBe('')
     expect(root.style.minHeight).toBe('')
@@ -106,6 +119,25 @@ describe('Keyboard viewport', () => {
     act(() => resize(210, 10, 2))
     expect(root.style.height).toBe('')
     expect(root.style.minHeight).toBe('')
+  })
+
+  it('sees a keyboard that shortens both viewports at the same width as open', () => {
+    const { viewport, resize } = createViewport()
+    expect(isKeyboardViewportOpen(viewport)).toBe(false)
+    layoutViewportHeight(420)
+    resize(420)
+    expect(isKeyboardViewportOpen(viewport)).toBe(true)
+  })
+
+  it('starts the full height again when a rotation or a window resize changes the width, and still sees a keyboard after it', () => {
+    const { viewport, resize, rotate } = createViewport()
+    expect(isKeyboardViewportOpen(viewport)).toBe(false)
+    layoutViewportHeight(360)
+    rotate(740, 360)
+    expect(isKeyboardViewportOpen(viewport)).toBe(false)
+    layoutViewportHeight(200)
+    resize(200)
+    expect(isKeyboardViewportOpen(viewport)).toBe(true)
   })
 
   it('keeps event subscriptions when another owner replaces onscroll', () => {

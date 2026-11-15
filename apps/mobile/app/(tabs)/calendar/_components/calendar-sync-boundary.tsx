@@ -25,6 +25,12 @@ interface CalendarSyncBoundaryProps {
   tokens: AppTokensV2
 }
 
+/** The sync action keeps keyboard focus while its own sync runs: it stays natively enabled, is disabled and busy to assistive technology, and ignores a press. */
+function SyncNowButton({ label, syncing, unavailable, onSync, tokens }: Readonly<{ label: string; syncing: boolean; unavailable: boolean; onSync: () => void; tokens: AppTokensV2 }>) {
+  const disabled = unavailable && !syncing
+  return <MotionPressable focusInset accessibilityRole="button" accessibilityLabel={label} accessibilityState={{ disabled: disabled || syncing, busy: syncing }} disabled={disabled} onPress={syncing ? undefined : onSync} style={({ pressed }) => [styles.refresh, { backgroundColor: pressed ? tokens.bgHover : 'transparent', opacity: disabled ? 0.5 : 1 }]}>{syncing ? <SkeletonFace /> : null}<RefreshCw size={20} strokeWidth={1.5} color={tokens.fg2} accessible={false} /></MotionPressable>
+}
+
 export function CalendarSyncBoundary({ isConnected, hasProAccess, autoSyncState, onAutoSyncChange, onSyncNow, tokens, t, locale, timeZone, uses24HourClock }: Readonly<CalendarSyncBoundaryProps>) {
   const { isOnline } = useOffline()
   const [pendingAction, setPendingAction] = useAccountScopedState<'toggle' | 'sync' | null>(null)
@@ -58,7 +64,7 @@ export function CalendarSyncBoundary({ isConnected, hasProAccess, autoSyncState,
         <Text style={[styles.label, { color: tokens.fg2 }]}>{t(isConnected ? 'calendar.dayDetail.googleConnected' : 'calendar.autoSync.reconnectTitle')}</Text>
         <Text accessibilityHint={t('calendar.dayDetail.lastSyncedLabel')} style={[styles.date, { color: tokens.fg2 }]}>{lastSynced ?? t('calendar.autoSync.lastSyncedNever')}</Text>
       </View>
-      {showControls ? <MotionPressable focusInset accessibilityRole="button" accessibilityLabel={t('calendar.autoSync.syncNow')} accessibilityState={{ disabled: syncUnavailable, busy: syncing }} disabled={syncUnavailable} onPress={() => void runAction('sync', onSyncNow)} style={({ pressed }) => [styles.refresh, { backgroundColor: pressed ? tokens.bgHover : 'transparent', opacity: syncUnavailable && !syncing ? 0.5 : 1 }]}>{syncing ? <SkeletonFace /> : null}<RefreshCw size={20} strokeWidth={1.5} color={tokens.fg2} accessible={false} /></MotionPressable> : null}
+      {showControls ? <SyncNowButton label={t('calendar.autoSync.syncNow')} syncing={syncing} unavailable={syncUnavailable} onSync={() => void runAction('sync', onSyncNow)} tokens={tokens} /> : null}
     </View>
     {showControls ? <ListRow placement="column" title={t('calendar.autoSync.automaticImport')} description={t('calendar.autoSync.automaticImportDescription')} disabled={syncUnavailable} toggle={{ checked: autoSyncState?.enabled ?? false, pending: pendingAction === 'toggle', onChange: (enabled) => void runAction('toggle', () => onAutoSyncChange(enabled)) }} /> : null}
     <Text accessibilityLiveRegion="polite" style={[styles.label, { color: tokens.fg2, display: gated || pendingAction === 'sync' ? undefined : 'none' }]}>{gated ? t('calendar.autoSync.proRequired') : pendingAction === 'sync' ? t('calendar.autoSync.syncing') : ''}</Text>

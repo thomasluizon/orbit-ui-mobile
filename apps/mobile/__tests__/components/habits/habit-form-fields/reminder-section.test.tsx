@@ -1,4 +1,4 @@
-import { expectPressFill } from '../../../support/press-feedback'
+import { controlStyle , expectPressFill } from '@/__tests__/support/press-feedback'
 import React from "react";
 import { RepeatReminderSection } from "@/components/habits/habit-form-fields/repeat-reminder-section";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -432,8 +432,7 @@ it('fills reminder removal, add, custom units, directions, and commit', () => {
   for (const label of ['habits.form.reminderCustomUnit', 'habits.form.reminderDirection']) {
     const control = () => tree.root.findAll((node) => typeof node.type === 'string' && node.props.role === 'combobox' && node.props.accessibilityLabel === label)[0]!
     const fill = () => StyleSheet.flatten(control().findAll((node) => node.type === 'View' && node.props.pointerEvents === 'none' && StyleSheet.flatten(node.props.style as StyleProp<ViewStyle>).backgroundColor === tokens.bgHoverOpaque)[0]!.props.style as StyleProp<ViewStyle>)
-    const style = control().props.style as (state: { pressed: boolean }) => ViewStyle[]
-    expect(StyleSheet.flatten(style({ pressed: true }))).toMatchObject({ backgroundColor: tokens.bgField, borderColor: tokens.borderControl, borderRadius: 12 })
+    expect(controlStyle(control() as never)).toMatchObject({ backgroundColor: tokens.bgField, borderColor: tokens.borderControl, borderRadius: 12 })
     expect(fill().opacity).toBe(0)
     TestRenderer.act(() => (control().props.onPressIn as () => void)())
     expect(fill().opacity).toBe(1)

@@ -438,7 +438,7 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
         </View>
       </View>
 
-      {libraryMounted ? <PromptLibrary visible={libraryOpen} onExitComplete={finishLibraryExit} onBack={returnToConversation} onSelect={selectIdea} suggestions={composerProps.suggestions} hasProAccess={chat.hasProAccess} hasGoogleConnection={chat.hasGoogleConnection} disabledReason={disabledReason} /> : null}
+      {libraryMounted ? <PromptLibrary visible={libraryOpen} onExitComplete={finishLibraryExit} onBack={returnToConversation} onSelect={selectIdea} suggestions={composerProps.suggestions} hasProAccess={chat.hasProAccess} hasGoogleConnection={chat.hasGoogleConnection} disabledReason={disabledReason} mascotState={conversationMascotState(chat)} /> : null}
 
       {selectedGoalId && (
         <GoalDetailDrawer

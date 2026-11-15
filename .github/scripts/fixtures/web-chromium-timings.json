@@ -18,7 +18,6 @@
     "__tests__/components/calendar/calendar-stats.test.tsx": 5957,
     "__tests__/components/calendar/calendar-week-agenda-geometry.test.tsx": 45492,
     "__tests__/components/calendar/calendar-week-shell-geometry.test.tsx": 42027,
-    "__tests__/components/chat/astra-glyph-geometry.test.tsx": 1078,
     "__tests__/components/chat/breakdown-parent-geometry.test.tsx": 9429,
     "__tests__/components/chat/chat-empty-state-geometry.test.tsx": 7285,
     "__tests__/components/chat/choice-block-geometry.test.tsx": 9189,

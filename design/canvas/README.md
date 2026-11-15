@@ -16,9 +16,9 @@ row layout while they refresh or log. The paired owners and verification live in
 
 ### Hoje stacked Orbit entry
 
-The owner's #2005 order replaces the Hoje composer with a neutral the conversation entry.
+The owner's #2005 order replaces the Hoje composer with a conversation entry.
 The owner's #2042 correction limits that button to the compact shell: Android at every width and
-web below 1024. Wide web shows no the conversation entry and keeps the sidebar Orbit row. The owner's
+web below 1024. Wide web shows no conversation entry and keeps the sidebar Orbit row. The owner's
 #2077 order replaces the drag clause of #2005 and #2042: "the floating astra button is still
 buggy. being totally honest, i dont want it floating anymore. fuck it just put it on top of the +
 icon to create habit, and we're good". The button is fixed in the create FAB's trailing column,
@@ -74,7 +74,7 @@ Under D42, the owner's order amends every small Orbit variant in the granted dra
 "i dont understand this mini astra logo that is not even centralized vertically, on the top left and on the prompt suggestions, change to the normal logo and centralize it".
 Every `OrbitMascot` uses the normal drawing at every size on web and Android. Its shared viewBox
 fits the drawn bounds, and the drawn centre aligns with its row, chip, button or header centre.
-Conversation headers, suggestion and follow-up chips, the Hoje stacked the conversation entry and Orbit lines,
+Conversation headers, suggestion and follow-up chips, the Hoje stacked conversation entry and Orbit lines,
 idea cards, proactive actions and form fill controls retain their existing size and colour tokens.
 The normal mark remains legible at 16px without a second drawing or local positioning offsets.
 This amendment supersedes any native 16px Orbit drawing in the export.
@@ -114,8 +114,8 @@ measured entry width plus 8px input padding, in both empty and populated fields.
 on that line, the text start is 12px from the pill edge.
 Live chip action text and Orbit attribution share one wrapping text flow beside the canonical
 mark, retaining the complete default action line and first-line alignment at enlarged text.
-The send progress slot stays reserved; its spinner runs only while sending.
-Pill actions retaining the small static face reserve a trailing status slot. A moving loader mounts only
+The send progress slot stays reserved; its skeleton face (`SkeletonFace`) shows only while sending.
+Pill actions retaining the small static face reserve a trailing status slot. The skeleton face mounts only
 while busy; an idle action carries no looping status animation, including while focused.
 Loading, offline, limit, proposal, validation and manual recovery states retain their guards.
 This amendment supersedes the glyph-removal inventory below only for invocation/entry controls;
@@ -145,7 +145,7 @@ This amendment does not make row previews interactive or add a Markdown renderer
 
 ### Full-editor parent relationship
 
-The edit state of `Orbit Habit Create.dc.html` adds Parent habit / Hábito principal beside tags
+The full editor adds Parent habit / Hábito principal beside tags
 and goals inside More details. Its existing ListRow opens the existing radio sheet with exact
 No parent (top level) / Sem hábito principal (nível raiz), current selection and full destination
 names. Choosing and closing retain a local relationship draft. Only the outer Save persists it;
@@ -219,7 +219,7 @@ does not fit on one line, the row uses the supporting footer. A row without sub-
 
 ### Focused read block amendment
 
-`Orbit Conversation` adds `periodTotal`, `periodComparison`, `history`, `read stale` and
+`Orbit Astra Conversation` adds `periodTotal`, `periodComparison`, `history`, `read stale` and
 `read partial` to its existing state controls at compact and wide widths in both locales.
 A total has one supplied figure, its unit and resolved dates. A comparison has both windows,
 their supplied values and absolute delta; a zero baseline has no relative percentage.
@@ -258,12 +258,12 @@ that disagrees with production is a trap rather than an authority.
 | #1619 history and recovery | Dated rows retain zero values, signed paging and exact-query refresh; stale and partial reads use one compact state | Snapshot display stays separate from current action eligibility. |
 | #1587 | Hoje rows carry actual visible depth with one 16px step per ancestor after the 8px root inset. Well, title and supporting metadata cascade together. Measured content width and scaled title space determine the narrow boundary, accounting for shell scrollbars and safe-area gutters. Boundary rows use the full-width supporting metadata footer with first-title-line controls, and the existing drill; drill resets local depth and detail children use depth 1 once | Expanded grandchildren must remain visibly subordinate to their parents without shrinking controls or flattening adjacent levels. |
 | #1588 | Hoje canonical rows restore stored plain text description previews below the title and before metadata, at Geist Sans 14/400 and line height 1.55 with a 4px stack gap. Normal text uses one naturally ellipsized line; above 130% text, up to two lines grow the row. Empty normalized text adds no line. Body feedback replaces the complete radius-20 row fill; sibling actions including selection paint independently and the check centres on the resulting normal row. The painted web row owns reversible 380ms background/outline hover feedback, with a strong hairline and immediate press/reduced-motion feedback | The explicitly requested preview restores stored content through the existing detail path without a new action or request. The active drawing amendment preserves 17/14 titles, the single depth inset and large-text supporting metadata. |
-| Orbit blocks in place | `Orbit Conversation` combines the day ring with up to 20 live habit rows and in-place logging; calendar EventRow actions open Calendários with one event selected for import review; streak keeps DayStrip and a read-only FreezeBank linking to Sequência; goals use ProgressBar, tracking badges and named derived sources; metrics keeps BarChart with at most three StatTile figures. The pt-BR stale line reads `A manhã mudou desde que o Orbit montou este bloco.` | Blocks reuse their app actions and live state. This supersedes the drawing's goal rings, metrics note excluding a chart, and masculine reference to Orbit in the stale line. |
-| #1471 | `Orbit Progresso` and `Orbit Conversation` use selectable full-height BarChart columns with no slider or horizontal scroll. Each target is its full column, at least the shared 48 touch floor in height, edge to edge with its neighbours. Today opens selected; only the selection uses `--fg-1`, others use `--fg-2`. A short weekday/date, percentage and done count follow the selection above the bars, clamped within the chart. Zero and unscheduled days draw a 4px stub; unscheduled days say so. First/last dates and the figure rows remain | Selecting a column ties the readout to its day. This control supersedes the detached slider and the drawing note excluding a chart from Orbit metrics. |
+| Orbit blocks in place | `Orbit Astra Conversation` combines the day ring with up to 20 live habit rows and in-place logging; calendar EventRow actions open Calendários with one event selected for import review; streak keeps DayStrip and a read-only FreezeBank linking to Sequência; goals use ProgressBar, tracking badges and named derived sources; metrics keeps BarChart with at most three StatTile figures. The pt-BR stale line reads `A manhã mudou desde que o Orbit montou este bloco.` | Blocks reuse their app actions and live state. This supersedes the drawing's goal rings, metrics note excluding a chart, and masculine reference to Orbit in the stale line. |
+| #1471 | `Orbit Progresso` and `Orbit Astra Conversation` use selectable full-height BarChart columns with no slider or horizontal scroll. Each target is its full column, at least the shared 48 touch floor in height, edge to edge with its neighbours. Today opens selected; only the selection uses `--fg-1`, others use `--fg-2`. A short weekday/date, percentage and done count follow the selection above the bars, clamped within the chart. Zero and unscheduled days draw a 4px stub; unscheduled days say so. First/last dates and the figure rows remain | Selecting a column ties the readout to its day. This control supersedes the detached slider and the drawing note excluding a chart from Orbit metrics. |
 | #1483 | Orbit choice blocks use one column of radio or checkbox options and explicit Send; labels up to 20 characters and descriptions up to 24 each fit one line at default text size. Above font scale 1.3 or web text zoom 130%, rows grow and text may wrap; never ellipsize at 200% text. Pick list habit names use the full available row width, at most two lines then an ellipsis with the complete accessible name and one-tap label expansion independent of its checkbox; detail fits one line at default text size. Review prepares the existing approval preview. | Selected labels use `--fg-1`, resting labels `--fg-2`; one status line follows the trailing action. Selections use `Intl.ListFormat`, and no answer action writes. Identical answer recovery stays available at the limit and refreshes server usage. |
 | #1479 | Orbit replies interleave text and block parts in server order, with at most one write preview per reply; unknown block kinds are skipped | Text streams before whole blocks arrive, keeping the first text position, the 16 gap, selectable prose and independent code-block copy controls. |
 | Orbit ideas library (#1611) | [Orbit Astra Ideas.md](Orbit%20Astra%20Ideas.md) specifies neutral radius-20 action cards with 16px record insets, inline intent icons and twelve translated prompt examples; live supplied-icon actions are unframed and hidden during search. Complete requests carry plain Orbit attribution; slots only prepare the composer. One column at phone and wide widths retains the AppBar, labelled search, one category strip, eight-idea pages and accessible category names | The bounded composition improves recognition while preserving all 36 prompts, callbacks, draft retention, Calendar Pro + Google gating, load recovery and focus navigation. |
-| Habit ranking block | `Orbit Conversation` uses one BlockFrame, resolved date lines, ListRow ranks and names, localized completion counts, Show more and Refresh. Paging appends server rows and keeps query identity; one inline status carries recovery | Reuses the existing frame, rows, formatting, actions and tokens without a chart, totals, introduction or repeated figures. |
+| Habit ranking block | `Orbit Astra Conversation` uses one BlockFrame, resolved date lines, ListRow ranks and names, localized completion counts, Show more and Refresh. Paging appends server rows and keeps query identity; one inline status carries recovery | Reuses the existing frame, rows, formatting, actions and tokens without a chart, totals, introduction or repeated figures. |
 | #1366 | Hoje date paging spans the content column: 48px arrow targets at its leading and trailing edges, day title and date centred between equal 12px gaps, in both compact and wide drawings | The placement uses the content-column centre and preserves the shell inset, full date labels and shared touch floor. |
 | #1335 | Sobre legal pages keep the short Privacidade/Privacy and Termos/Terms headers; prose titles select the privacy and terms row labels in sentence case | Each prose title names its own document. Web and Android use separate header and document titles matching the Sobre rows. |
 | Week time grid | Named timed blocks with status rings, per-day any-time chips and +N, natural short weekdays, one today date disc, one hour scroller and opening near now | The owner's report supersedes #1148 and adopts the Google Calendar week pattern. |
@@ -453,7 +453,7 @@ One amendment covers every active drawing. Each Astra glyph, each hollow Orbit m
 
 ## The create flow drawing
 
-`Orbit Criar.dc.html` is the granted drawing for the create flow on a phone. It replaces the superseded drawing in `superseded/`, and it takes that drawing's surface ids. It draws the one-question flow, the Orbit line, the quick options with one free path, the summary and the result dialog. Where it conflicts with a rule that protects people, `DESIGN.md` wins. Each row below is an amendment to the drawing.
+`Orbit Criar.dc.html` is the granted drawing for the create flow on a phone. It replaces the retired Habit Create drawing and takes that drawing's surface ids. It draws the one-question flow, the Orbit line, the quick options with one free path, the summary and the result dialog. Where it conflicts with a rule that protects people, `DESIGN.md` wins. Each row below is an amendment to the drawing.
 
 | The drawing draws | The rule that wins |
 |---|---|
@@ -588,7 +588,7 @@ rather than a product surface.
 4. The Agenda entry-details sheet, preserving full habit text, time and status on both platforms.
 5. The granted Calendário drawing at both widths, including shared navigation and the Agenda details disclosure.
 
-## small static face surface inventory
+## Small static face surface inventory
 
 Each row names the paired web and Android component unless a platform is explicit.
 The glyph primitives provide the asset; their consumers below own its placement.

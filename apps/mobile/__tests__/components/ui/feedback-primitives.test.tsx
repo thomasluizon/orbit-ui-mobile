@@ -7,6 +7,8 @@ import { ErrorState } from '@/components/ui/error-state'
 import { Skeleton } from '@/components/ui/skeleton'
 import { StatTile } from '@/components/ui/stat-tile'
 import { OrbitMascot } from '@/components/ui/orbit-mascot'
+import { createTokensV2 } from '@/lib/theme'
+import { __resetTestHostConfig, __setWindowDimensions } from '@/test-mocks/react-native'
 
 const TestRenderer = require('react-test-renderer')
 
@@ -144,5 +146,27 @@ describe('mobile feedback primitives', () => {
 
     expect(output).not.toContain('statusBad')
     expect(tree.root.findAll((node: any) => node.type === 'Pressable' && node.props.accessibilityRole === 'button')).toHaveLength(1)
+  })
+
+  it('draws no mascot in an inline error, and Orbit in Parado above a full-surface error at 96 and 128', () => {
+    expect(render(<ErrorState message="Try again." />).root.findAllByType(OrbitMascot)).toHaveLength(0)
+    for (const [width, size] of [[412, 96], [1024, 128]] as const) {
+      __setWindowDimensions({ width, height: 892, scale: 1, fontScale: 1 })
+      const tree = render(<ErrorState fullSurface message="Check the connection and try again." action={<Pressable accessibilityRole="button" accessibilityLabel="Retry" />} />)
+      const mascot = tree.root.findByType(OrbitMascot)
+      expect(mascot.props).toMatchObject({ size })
+      expect(mascot.props.state ?? 'parado').toBe('parado')
+      expect(textValues(tree)).toEqual(['Check the connection and try again.'])
+      expect(tree.root.findByProps({ testID: 'error-state-action' })).toBeTruthy()
+    }
+    __resetTestHostConfig()
+  })
+
+  it('rests Orbit at 48 beside the reason only where the AI is the missing part, with neutral tokens', () => {
+    expect(render(<CapacityNotice message="Ten habits per goal." />).root.findAllByType(OrbitMascot)).toHaveLength(0)
+    const tree = render(<CapacityNotice message="Five messages today." mascotState="descansando" />)
+    expect(tree.root.findByType(OrbitMascot).props).toMatchObject({ size: 48, state: 'descansando' })
+    expect(textValues(tree)).toEqual(['Five messages today.'])
+    expect(JSON.stringify(tree.toJSON())).not.toContain(createTokensV2('orange', 'dark').statusBad)
   })
 })

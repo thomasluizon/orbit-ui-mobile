@@ -45,12 +45,10 @@ export function CheckRow({
       focusOffset={-6}
       onPressIn={() => setPressed(true)}
       onPressOut={() => setPressed(false)}
-      onPress={() => onChange(!checked)}
-      disabled={disabled || loading}
+      {...waitingControlProps(disabled, loading, checked, () => onChange(!checked))}
       accessibilityRole="checkbox"
       accessibilityLabel={label}
       accessibilityHint={error ?? description}
-      accessibilityState={{ checked, disabled: disabled || loading, busy: loading }}
       data-checked={checked ? '' : undefined}
       data-loading={loading ? '' : undefined}
       data-error={error ? '' : undefined}
@@ -113,9 +111,14 @@ const styles = StyleSheet.create({
   calendarDayCircle: { width: 24, height: 24, borderRadius: radius.full, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
 })
 
+/** A waiting row keeps keyboard focus: it stays natively enabled, is disabled and busy to assistive technology, and ignores a press until its request settles. */
+function waitingControlProps(disabled: boolean | undefined, loading: boolean | undefined, checked: boolean, activate: () => void) {
+  return { disabled, onPress: loading ? undefined : activate, accessibilityState: { checked, disabled: Boolean(disabled || loading), busy: loading } }
+}
+
 function ColumnCheckRow({ label, checked, onChange, description, error, value, disabled, loading, tokens }: Readonly<CheckRowProps & { tokens: ReturnType<typeof createTokensV2> }>) {
   const { fontScale } = useWindowDimensions()
-  return <PersonalControl tokens={tokens} fillStyle={styles.columnFill} hitSlop={{ left: 16, right: 16 }} onPress={() => onChange(!checked)} disabled={disabled || loading} accessibilityRole="checkbox" accessibilityLabel={label} accessibilityHint={error ?? description} accessibilityState={{ checked, disabled: disabled || loading, busy: loading }} style={[styles.columnRow, { minHeight: error || description ? 68 : 52 }, disabled ? styles.disabled : null]}>
+  return <PersonalControl tokens={tokens} fillStyle={styles.columnFill} hitSlop={{ left: 16, right: 16 }} {...waitingControlProps(disabled, loading, checked, () => onChange(!checked))} accessibilityRole="checkbox" accessibilityLabel={label} accessibilityHint={error ?? description} style={[styles.columnRow, { minHeight: error || description ? 68 : 52 }, disabled ? styles.disabled : null]}>
     {({ pressed }) => <>
       <PressScale pressed={pressed} disabled={Boolean(disabled || loading)} style={[styles.copy, { minHeight: Math.max(28, 23.8 * fontScale), justifyContent: 'center' }]}>
         <Text style={[styles.columnLabel, { color: tokens.fg1 }]}>{label}</Text>
@@ -169,7 +172,7 @@ function PersonalCheckRowContent({ label, selection, checked, placement, variant
 function PersonalCheckRow({ leading, label, selection, placement, variant, onOpenLabel, labelExpanded, checked, onChange, description, error, value, disabled, loading, tokens }: Readonly<CheckRowProps & { tokens: ReturnType<typeof createTokensV2> }>) {
   const { fontScale } = useWindowDimensions()
   const calendarDay = variant === 'calendar-day'
-  const control = <PersonalControl data-slot={selection ? 'check-row-control' : undefined} tokens={tokens} fillStyle={getPersonalControlFill(calendarDay)} containContent hitSlop={calendarDay ? SPACING.s16 : undefined} focusable={!disabled && !loading} onPress={() => onChange(!checked)} disabled={disabled || loading} accessibilityRole="checkbox" accessibilityLabel={label} accessibilityHint={error ?? description} accessibilityState={{ checked, disabled: disabled || loading, busy: loading }} data-loading={loading ? '' : undefined} style={[styles.personalControl, calendarDay ? styles.calendarDayControl : null, selection ? { minHeight: 22.4 * fontScale + SPACING.s12 * 2 } : null, disabled ? styles.disabled : null]}>
+  const control = <PersonalControl data-slot={selection ? 'check-row-control' : undefined} tokens={tokens} fillStyle={getPersonalControlFill(calendarDay)} containContent hitSlop={calendarDay ? SPACING.s16 : undefined} focusable={!disabled} {...waitingControlProps(disabled, loading, checked, () => onChange(!checked))} accessibilityRole="checkbox" accessibilityLabel={label} accessibilityHint={error ?? description} data-loading={loading ? '' : undefined} style={[styles.personalControl, calendarDay ? styles.calendarDayControl : null, selection ? { minHeight: 22.4 * fontScale + SPACING.s12 * 2 } : null, disabled ? styles.disabled : null]}>
     {calendarDay ? <CalendarDayCircle checked={checked} loading={Boolean(loading)} color={tokens.fg1} /> : <Checkbox checked={checked} onChange={onChange} error={Boolean(error)} loading={loading} as="span" />}
   </PersonalControl>
   return (
@@ -199,7 +202,7 @@ function PersonalControl({ tokens, fillStyle, containContent = false, children, 
   const [pressed, setPressed] = useState(false)
   return <NativePressable {...props} onFocus={() => setFocused(true)} onBlur={() => setFocused(false)} onHoverIn={() => setHovered(true)} onHoverOut={() => setHovered(false)} onPressIn={() => setPressed(true)} onPressOut={() => setPressed(false)}>
     {(state) => <>
-      <View pointerEvents="none" accessible={false} data-press-fill="" style={[fillStyle, { backgroundColor: !props.disabled && (state.pressed || pressed || focused || hovered) ? tokens.bgHover : 'transparent', outlineWidth: !props.disabled && focused ? 2 : 0, outlineOffset: -2, outlineStyle: 'solid', outlineColor: tokens.fg1 }]}>{containContent ? <PressScale pressed={state.pressed || pressed} disabled={Boolean(props.disabled)}>{typeof children === 'function' ? children(state) : children}</PressScale> : null}</View>
+      <View pointerEvents="none" accessible={false} data-press-fill="" style={[fillStyle, { backgroundColor: !props.disabled && (state.pressed || pressed || focused || hovered) ? tokens.bgHover : 'transparent', outlineWidth: !props.disabled && focused ? 2 : 0, outlineOffset: -2, outlineStyle: 'solid', outlineColor: tokens.fg1 }]}>{containContent ? <PressScale pressed={state.pressed || pressed} disabled={Boolean(props.disabled || props.accessibilityState?.disabled)}>{typeof children === 'function' ? children(state) : children}</PressScale> : null}</View>
       {containContent ? null : typeof children === 'function' ? children(state) : children}
     </>}
   </NativePressable>

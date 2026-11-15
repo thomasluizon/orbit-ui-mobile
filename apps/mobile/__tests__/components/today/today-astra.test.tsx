@@ -45,7 +45,8 @@ vi.mock('@/hooks/use-proactive-item', () => ({
   } }),
 }))
 vi.mock('@/components/ui/orbit-mascot', () => ({ OrbitMascot: () => null }))
-vi.mock('@/lib/theme', () => ({
+vi.mock('@/lib/theme', async (importOriginal) => ({
+  ...await importOriginal<typeof import('@/lib/theme')>(),
   createTokensV2: () => ({
     bg: '#111111',
     bgHover: '#333333',

@@ -20,6 +20,12 @@ export const configure = ({ toolsDir, self }) => {
 /** The one path helper case modules use, so injection failure surfaces as a wrong path. */
 export const toolPath = (file) => join(TOOLS_DIR, file)
 
+/**
+ * The file ledger tool and every module it imports, as paths under tools/. A staged copy without an
+ * import fails with ERR_MODULE_NOT_FOUND, so a new import of the tool shows here as a red suite.
+ */
+export const FILE_LEDGER_FILES = ["file-ledger.mjs", "lib/doc-references.mjs"]
+
 /** Case keys naming a file that is not in tools/. A skip here would exit 0 on a typo. */
 export const orphanCaseKeys = (caseKeys, toolsDir) => caseKeys.filter((file) => !existsSync(join(toolsDir, file)))
 

@@ -32,6 +32,8 @@ type PromptLibraryProps = {
   hasProAccess: boolean
   hasGoogleConnection: boolean
   disabledReason?: string
+  /** Descansando while the AI is the missing part (offline or at a limit): Orbit rests beside the reason. */
+  mascotState?: 'parado' | 'descansando'
 }
 
 function CatalogGroup({ group, searching, disabled, onSelect }: Readonly<{ group: PromptIdeaGroup; searching: boolean; disabled: boolean; onSelect: PromptLibraryProps['onSelect'] }>) {
@@ -71,7 +73,7 @@ export function PromptLibrary(props: Readonly<PromptLibraryProps>) {
     <AppBar title={t('chat.templates.title')} titleVariant="screen" titleRef={headingRef} onBack={props.onBack} backLabel={t('chat.templates.back')} />
     <ShellContent style={{ flex: 1 }}>
     <KeyboardAwareScrollView avoidKeyboard={false} style={{ flexGrow: 0 }} containerStyle={{ flex: 0, flexShrink: 1 }} contentContainerStyle={styles.controls}>
-      {props.disabledReason ? <CapacityNotice message={props.disabledReason} /> : null}
+      {props.disabledReason ? <CapacityNotice message={props.disabledReason} mascotState={props.mascotState === 'descansando' ? 'descansando' : undefined} /> : null}
       <Input kind="search" autoComplete="off" hideLabel label={t('chat.templates.searchQuestion')} placeholder={t('chat.templates.search')} value={query} onChange={value => dispatch({ type: 'query', query: value })} />
       <ScrollView horizontal persistentScrollbar showsHorizontalScrollIndicator style={{ flexGrow: 0 }} testID="prompt-categories" contentContainerStyle={styles.categories} keyboardShouldPersistTaps="handled">
         {categories.map(item => <Chip key={item} active={item === activeCategory && !query.trim()} onPress={() => { dispatch({ type: 'category', category: item }) }}>{t(`chat.templates.categories.${item}`)}</Chip>)}

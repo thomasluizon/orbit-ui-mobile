@@ -7,6 +7,7 @@ import { IconButton } from '@/components/ui/icon-button'
 import { OrbitMascot } from '@/components/ui/orbit-mascot'
 
 import { SPACING } from '@orbit/shared/theme'
+import { Skeleton } from '@/components/ui/skeleton'
 
 
 import { ActionRow } from './action-row'
@@ -126,12 +127,12 @@ function LoadingBody({ rows, hasActions }: Readonly<{ rows: number; hasActions: 
       <div className="flex min-h-0 flex-1 flex-col gap-2" data-loading-skeleton="">
         {Array.from({ length: rows }, (_, index) => (
           <div className="flex min-h-[52px] items-center gap-3 p-3" key={index}>
-            <span className="h-4 flex-1 rounded-[8px] bg-[var(--bg-elev-2)]" />
-            <span className="size-5 rounded-[8px] bg-[var(--bg-elev-2)]" />
+            <span className="h-4 flex-1"><Skeleton variant="fill" grouped /></span>
+            <span className="size-5"><Skeleton variant="fill" grouped /></span>
           </div>
         ))}
       </div>
-      {hasActions ? <div className="h-[var(--touch-min)] rounded-[8px] bg-[var(--bg-elev-2)]" /> : null}
+      {hasActions ? <div className="h-[var(--touch-min)]"><Skeleton variant="fill" grouped /></div> : null}
     </>
   )
 }

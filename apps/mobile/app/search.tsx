@@ -59,7 +59,7 @@ export default function SearchScreen() {
   }
   return <View style={[styles.screen, { backgroundColor: tokens.bg }]}>
     <PageHeader title={t('habits.search.title')} onBack={back} backLabel={t('common.back')} />
-    <KeyboardAwareSheetScrollView style={{ flexGrow: 0 }} contentContainerStyle={[styles.field, styles.columnInset]}>
+    <KeyboardAwareSheetScrollView style={styles.fieldScroller} contentContainerStyle={[styles.field, styles.columnInset]}>
       {commandPage !== null && <Text style={[styles.chip, { color: tokens.fg2, backgroundColor: tokens.bgWell, borderColor: tokens.hairline }]}>{t(commandPage === 'log' ? 'command.page.log' : 'command.page.skip')}</Text>}
       <View style={styles.input}><Input label={t('habits.search.question')} hideLabel placeholder={t('habits.moveParent.searchPlaceholder')} value={search.text} onChange={search.changeText} trailing={<Search size={20} color={tokens.fg3} />} /></View>
     </KeyboardAwareSheetScrollView>
@@ -87,7 +87,7 @@ export default function SearchScreen() {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, alignSelf: 'center', width: '100%', maxWidth: SHELL_CONTENT_MAX_WIDTH }, columnInset: { alignSelf: 'center', width: '100%', maxWidth: 620, paddingHorizontal: SPACING.s16 }, field: { paddingVertical: SPACING.s16, gap: 8, flexDirection: 'row', alignItems: 'center' }, input: { flex: 1, minWidth: 0 },
+  screen: { flex: 1, alignSelf: 'center', width: '100%', maxWidth: SHELL_CONTENT_MAX_WIDTH }, fieldScroller: { flexGrow: 0, flexShrink: 0 }, columnInset: { alignSelf: 'center', width: '100%', maxWidth: 620, paddingHorizontal: SPACING.s16 }, field: { paddingVertical: SPACING.s16, gap: 8, flexDirection: 'row', alignItems: 'center' }, input: { flex: 1, minWidth: 0 },
   list: { paddingTop: SPACING.s16, gap: 8, minHeight: 400 }, count: { fontFamily: 'GeistMono_400Regular', fontSize: 12, padding: SPACING.s4 },
   heading: { fontFamily: 'GeistMono_400Regular', fontSize: 12, textTransform: 'uppercase', padding: SPACING.s12 },
   section: { gap: 8, paddingBottom: SPACING.s8 },

@@ -13,12 +13,17 @@ const mocks = vi.hoisted(() => ({ performQueuedApiMutation: vi.fn() }))
 
 vi.mock('@/lib/queued-api-mutation', () => ({ performQueuedApiMutation: mocks.performQueuedApiMutation }))
 
-function mount(profile: ReturnType<typeof createMockProfile>, patchProfile = vi.fn()) {
+function mount(profile: ReturnType<typeof createMockProfile>) {
   let current: ReturnType<typeof useMascotMotionSwitch> | undefined
+  const patchProfile = vi.fn()
   const queryClient = new QueryClient({ defaultOptions: { mutations: { retry: false }, queries: { retry: false } } })
   function Harness() {
-    current = useMascotMotionSwitch(profile, patchProfile)
-    useOrbitMotionSync(profile)
+    const [state, setState] = React.useState(profile)
+    current = useMascotMotionSwitch(state, (patch) => {
+      patchProfile(patch)
+      setState((previous) => ({ ...previous, ...patch }))
+    })
+    useOrbitMotionSync(state)
     return null
   }
   TestRenderer.act(() => {
@@ -50,11 +55,16 @@ describe('the Orbit em movimento switch on Android', () => {
     release()
   })
 
-  it('applies the change at once and queues one write', async () => {
+  it('applies the change at once, stops the loop and queues one write', async () => {
     mocks.performQueuedApiMutation.mockResolvedValue(undefined)
+    const claim = Symbol('claim')
+    const release = claimOrbitLiveSlot(claim)
     const harness = mount(createMockProfile({ mascotMotionEnabled: true }))
+    expect(mayOrbitRunLoop(claim)).toBe(true)
     TestRenderer.act(() => harness.control.toggle())
     expect(harness.patchProfile).toHaveBeenCalledWith({ mascotMotionEnabled: false })
+    expect(harness.control.enabled).toBe(false)
+    expect(mayOrbitRunLoop(claim)).toBe(false)
     await vi.waitFor(() => expect(mocks.performQueuedApiMutation).toHaveBeenCalledTimes(1))
     expect(mocks.performQueuedApiMutation).toHaveBeenCalledWith({
       type: 'setMascotMotion',
@@ -64,16 +74,23 @@ describe('the Orbit em movimento switch on Android', () => {
       payload: { enabled: false },
       dedupeKey: 'profile-mascot-motion',
     })
+    release()
   })
 
-  it('restores the previous value when the write fails', async () => {
+  it('restores the previous value and the loop when the write fails', async () => {
     let reject!: (error: Error) => void
     mocks.performQueuedApiMutation.mockReturnValue(new Promise((_resolve, fail) => { reject = fail }))
+    const claim = Symbol('claim')
+    const release = claimOrbitLiveSlot(claim)
     const harness = mount(createMockProfile({ mascotMotionEnabled: true }))
     TestRenderer.act(() => harness.control.toggle())
     expect(harness.patchProfile).toHaveBeenLastCalledWith({ mascotMotionEnabled: false })
-    await vi.waitFor(() => expect(harness.control.pending).toBe(true))
-    reject(new Error('offline'))
+    expect(mayOrbitRunLoop(claim)).toBe(false)
+    await vi.waitFor(() => expect(mocks.performQueuedApiMutation).toHaveBeenCalledTimes(1))
+    await TestRenderer.act(async () => { reject(new Error('offline')); await Promise.resolve() })
     await vi.waitFor(() => expect(harness.patchProfile).toHaveBeenLastCalledWith({ mascotMotionEnabled: true }))
+    expect(harness.control.enabled).toBe(true)
+    expect(mayOrbitRunLoop(claim)).toBe(true)
+    release()
   })
 })

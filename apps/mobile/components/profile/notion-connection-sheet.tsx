@@ -31,11 +31,19 @@ function NotionConnectionDetails({ controller, reconnect, hasConnection }: Reado
   const tokens = createTokensV2(currentScheme, currentTheme)
   const { connection } = controller
   const current = connection.data
-  return <>{connection.isLoading ? <Skeleton variant="settings" rows={1} label={t('common.loading')} /> : hasConnection ? <>
+  return <>{connection.isLoading ? <NotionDetailsSkeleton label={t('common.loading')} /> : hasConnection ? <>
           {current?.workspaceName ? <PersonalTextDetails textStyle={styles.workspace}>{current.workspaceName}</PersonalTextDetails> : null}
           {current?.lastPollAtUtc ? <Text style={[styles.body, { color: tokens.fg2 }]} >{t('profile.connections.lastSync', { time: new Intl.DateTimeFormat(i18n.language, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(current.lastPollAtUtc)) })}</Text> : <Text style={[styles.body, { color: tokens.fg2 }]} >{t('profile.connections.awaitingSync')}</Text>}
           {reconnect ? <Text style={[styles.body, { color: tokens.fg2 }]} >{t('profile.connections.renew')}</Text> : null}
         </> : <Text style={[styles.body, { color: tokens.fg2 }]} >{t('profile.connections.description')}</Text>}</>
+}
+
+/** Holds the place of the workspace name and the last sync line while the connection loads. */
+function NotionDetailsSkeleton({ label }: Readonly<{ label: string }>) {
+  return <View testID="notion-details-skeleton" accessible accessibilityRole="progressbar" accessibilityLabel={label} accessibilityState={{ busy: true }} style={styles.detailsSkeleton}>
+    <View style={styles.workspaceSkeleton}><Skeleton variant="fill" grouped /></View>
+    <View style={styles.syncSkeleton}><Skeleton variant="fill" grouped /></View>
+  </View>
 }
 
 export function NotionConnectionSheet({ callbackFailed, controller, onClose, onAuthorize, onOpenUrl }: Readonly<NotionConnectionSheetProps>) {
@@ -76,4 +84,5 @@ export function NotionConnectionSheet({ callbackFailed, controller, onClose, onA
 const styles = StyleSheet.create({
   body: { fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 20 },
   workspace: { fontFamily: 'Geist_400Regular', fontSize: 16, lineHeight: 24 },
+  detailsSkeleton: { gap: 16 }, workspaceSkeleton: { width: '50%', height: 24 }, syncSkeleton: { width: '66%', height: 20 },
 })

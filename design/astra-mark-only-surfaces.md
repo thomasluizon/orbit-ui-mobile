@@ -18,7 +18,7 @@ Suggestion chips, idea cards and proactive prose retain their request text witho
 brand name. Their accessible names contain the request once. These suggestions describe what a
 selection sends; they are distinct from the standalone form and object actions.
 
-Composer send shows one upward arrow, replaced by one spinner while sending. It has no Orbit mascot
+Composer send shows one upward arrow. While sending it keeps the arrow and draws no spinner. It has no Orbit mascot
 or visible text and keeps the localized Send name. Its 48px target shares one equal gap of the shared
 fill clearance (`INTERACTION_FILL_CLEARANCE`) with the other 48px trailing targets, including the
 text-action slot and the attach control. The composer drawing uses the matching
@@ -117,14 +117,14 @@ web and Android Open rollout.
 
 The copy authority for #1687 is the owner's instruction: "i asked you to top putting Consultar
 astra string everywhere / what you did: removed the astra word from the app, including on the
-sidebar / fix this". Navigation rows keep `Orbit` wherever sibling destinations show their names.
+sidebar / fix this". The sidebar conversation row keeps its full label `Talk to Orbit` / `Falar com o Orbit` beside the sibling destination names.
 Only actions drop appended branding. This corrects the #1668 inventory's inclusion of the sidebar
 among mark-only controls. It does not add an Orbit route or Android tab.
 
 | Entry | Web owner | Android owner | Visible name and behavior |
 |---|---|---|---|
-| Wide sidebar conversation row | `components/shell/shell-wide.tsx`, `components/shell/destination-shell.tsx` | No sidebar; composer owns the front door | `nav.astra` supplies `Orbit` beside the glyph, with sibling row treatment; opens the conversation layer |
-| Onboarding shell conversation row | `components/onboarding/onboarding-flow.tsx`, rendered by `components/shell/shell-wide.tsx` | No sidebar | Uses the same `nav.astra` row; selects the existing Orbit onboarding entry |
+| Wide sidebar conversation row | `components/shell/shell-wide.tsx`, `components/shell/destination-shell.tsx` | No sidebar; the compact conversation entry `components/shell/astra-button.tsx` carries the same accessible name | `shell.astraButton.open` supplies `Talk to Orbit` / `Falar com o Orbit` beside the small static face, the same name as the compact entry, with `translate="no"` on Orbit only and sibling row treatment; opens the conversation layer |
+| Onboarding shell conversation row | `components/onboarding/onboarding-flow.tsx`, rendered by `components/shell/shell-wide.tsx` | No sidebar | Uses the same `shell.astraButton.open` row; selects the existing Orbit onboarding entry |
 | Command palette | `components/shell/destination-shell.tsx`, `components/command/command-groups.tsx` | No command palette | No Orbit conversation entry exists; the supplied destinations are Hoje, Calendário, Progresso, Perfil, Todos and Geral |
 | Perfil settings navigation | `app/(app)/profile/_components/profile-settings-content.tsx` | `app/(tabs)/profile/_components/profile-settings-content.tsx` | `PROFILE_SUBMENUS` in `packages/shared/src/utils/profile-navigation.ts` supplies `profile.groups.astra`, already `Orbit` in both locales; opens `/profile/ai` settings with the `OrbitMascot` leading icon |
 | Habit-detail conversation entry | `components/shell/composer.tsx` | `components/shell/composer.tsx` | Retains the mark-only composer control and contextual accessible name; this input accessory has no sibling destination names |

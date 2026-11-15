@@ -5,8 +5,9 @@ import { RepeatReminderDetail } from './repeat-reminder-detail'
 import { IconButton } from '@/components/ui/icon-button'
 
 import { OrbitMascot } from '@/components/ui/orbit-mascot'
+import { CapacityNotice } from '@/components/ui/capacity-notice'
 
-import { computeHabitRowNextDueHint, getHabitTypeLabelKey, getHabitRowTypeLabelKey, splitDescriptionLinks } from '@orbit/shared/utils'
+import { computeHabitRowNextDueHint, getHabitTypeLabelKey, getHabitRowTypeLabelKey, splitDescriptionLinks, STAT_VALUE_SIZER } from '@orbit/shared/utils'
 
 import { DescriptionCopyButton } from './description-copy-button'
 
@@ -147,7 +148,8 @@ function LogDateError({ visible }: Readonly<{ visible: boolean }>) {
 function DayHabitsStatus({ reasonKey, onRetry }: Readonly<{ reasonKey: ReturnType<typeof getHabitDetailChildUnavailableReasonKey>; onRetry: () => void }>) {
   const t = useTranslations()
   if (reasonKey === 'calendar.dayCell.notScheduled') return null
-  return <div className="flex flex-wrap items-center gap-3 py-3"><p className="text-sm text-[var(--fg-2)]">{t(reasonKey)}</p>{reasonKey === 'habits.detail.dayHabitsLoadError' ? <IconButton label={t('habits.detail.retry')} onClick={onRetry}><RefreshCw size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton> : null}</div>
+  if (reasonKey === 'habits.detail.dayHabitsLoading') return <div data-day-habits-skeleton="" className="py-3"><span className="block h-5 w-1/2"><Skeleton variant="fill" label={t(reasonKey)} /></span></div>
+  return <div className="flex flex-wrap items-center gap-3 py-3"><p className="text-sm text-[var(--fg-2)]">{t(reasonKey)}</p><IconButton label={t('habits.detail.retry')} onClick={onRetry}><RefreshCw size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton></div>
 }
 
 function UnscheduledChildReason({ reason, notScheduledReason }: Readonly<{ reason?: string; notScheduledReason: string }>) {
@@ -325,16 +327,16 @@ function MetricsSection({ visible, loading, error, metrics, isBadHabit }: Readon
     { label: t('monthlyRate'), value: metrics ? `${Math.round(metrics.monthlyCompletionRate)}%` : '' },
   ]
   return (
-    <div data-habit-detail-stat-card="" role={loading ? 'status' : undefined} aria-busy={loading || undefined} className="rounded-[var(--r-card)] bg-[var(--bg-card)] p-6" style={{ boxShadow: 'inset 0 0 0 1px var(--hairline-ghost)' }}>
+    <div data-habit-detail-stat-card="" role={loading ? 'status' : undefined} aria-busy={loading || undefined} aria-label={loading ? common('loading') : undefined} className="rounded-[var(--r-card)] bg-[var(--bg-card)] p-6" style={{ boxShadow: 'inset 0 0 0 1px var(--hairline-ghost)' }}>
       {values.map((item) => (
         <div key={item.label} data-habit-detail-stat-row="" className="flex min-h-12 flex-wrap items-baseline gap-2 py-2">
           <span data-habit-detail-stat-label="" className="min-w-min flex-auto whitespace-normal text-sm leading-5 text-[var(--fg-2)]">{item.label}</span>
           <span className="ms-auto grid max-w-full shrink-0 text-end font-[family-name:var(--font-display)] text-[22px] font-semibold leading-[1.3] text-[var(--fg-1)] tabular-nums">
             <span className="col-start-1 row-start-1 inline-flex items-baseline justify-end">
               <span aria-hidden="true" className="invisible w-0">0</span>
-              <span data-habit-detail-stat-value="">{loading ? <span className="text-sm leading-[1.3]">{common('loading')}</span> : item.value}</span>
+              <span data-habit-detail-stat-value="">{loading ? <span data-habit-detail-stat-skeleton="" className="block h-[22px] w-12 self-center"><Skeleton variant="fill" grouped /></span> : item.value}</span>
             </span>
-            <span aria-hidden="true" className="invisible col-start-1 row-start-1 text-sm leading-[1.3]">{common('loading')}</span>
+            <span aria-hidden="true" data-habit-detail-stat-sizer="" className="invisible col-start-1 row-start-1">{STAT_VALUE_SIZER}</span>
           </span>
         </div>
       ))}
@@ -415,9 +417,7 @@ function RescheduleBlock({ habit, rescue: { query, open }, hasProAccess, locale,
   return (
     <Proposed proposed scope="block" label={t('habits.form.proposedByAstra')}>
       <div ref={cardRef} className={rescueCardClass}>
-        <div role="status" className="flex flex-col gap-3">{suggestion ? renderRescueProposalValues(suggestion, buildRescheduleProposalLabels(suggestion, { locale, today, translate: t, formatTime: displayTime }), t('habits.detail.rescheduleFinePrint')) : <>
-          <p className="text-sm text-[var(--fg-3)]">{query.error ? t('habits.detail.rescheduleError') : t('habits.detail.rescheduleLoading')}</p>
-        </>}</div>
+        <div role="status" className="flex flex-col gap-3">{suggestion ? renderRescueProposalValues(suggestion, buildRescheduleProposalLabels(suggestion, { locale, today, translate: t, formatTime: displayTime }), t('habits.detail.rescheduleFinePrint')) : <RescueWait query={query} />}</div>
         <div className="flex flex-wrap gap-2"><ActionRow>
           {notNow}
           {suggestion ? <PillButton variant={actionVariant} size="sm" loading={updateHabit.isPending} onClick={() => void accept(suggestion)}>{t('habits.detail.rescheduleAccept')}</PillButton> : query.error ? <PillButton leadingIcon={<OrbitMascot size={16} />} variant="ghost" size="sm" onClick={() => void query.refetch()}>{t('habits.reschedule.suggestDate')}</PillButton> : null}
@@ -425,6 +425,18 @@ function RescheduleBlock({ habit, rescue: { query, open }, hasProAccess, locale,
       </div>
     </Proposed>
   )
+}
+
+/** The rescue before its proposal: the failure line, Orbit resting while the request waits offline, or Orbit thinking while it runs. */
+function RescueWait({ query }: Readonly<{ query: Pick<ReturnType<typeof useRescheduleSuggestion>, 'error' | 'isPaused' | 'isFetching'> }>) {
+  const t = useTranslations()
+  if (query.error) return <p className="text-sm text-[var(--fg-3)]">{t('habits.detail.rescheduleError')}</p>
+  if (query.isPaused) return <CapacityNotice message={t('shell.composer.offline.reason')} mascotState="descansando" />
+  if (!query.isFetching) return null
+  return <div data-testid="rescue-loading-skeleton" className="flex flex-col gap-3">
+    <span className="flex self-start"><OrbitMascot size={48} state="pensando" /></span>
+    <div className="flex flex-col gap-2"><Skeleton variant="habit-row" label={t('habits.reschedule.loading')} /><Skeleton variant="habit-row" grouped /></div>
+  </div>
 }
 
 function HabitDetailNavigation({ parentId, onBack, titleIsHeading = false }: Readonly<{ parentId?: string | null; onBack: () => void; titleIsHeading?: boolean }>) {
@@ -467,7 +479,7 @@ function HabitDetailProfile({ habitId, date, fromToday = false, parentId }: Read
       else router.push(date ? `/?date=${date}` : '/')
     }} />}>
       {isError
-        ? <ErrorState message={t('common.error')} action={<IconButton label={t('habits.detail.retry')} onClick={() => void refetch()}><RefreshCw size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton>} />
+        ? <ErrorState fullSurface message={t('common.error')} action={<IconButton label={t('habits.detail.retry')} onClick={() => void refetch()}><RefreshCw size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton>} />
         : <div role="status" aria-busy="true" aria-label={t('profile.loading')} className="flex flex-col gap-4">
             <Skeleton variant="habit-row" grouped />
             <Skeleton variant="stat-tile" grouped />
@@ -632,7 +644,7 @@ function HabitDetailContent({ habitId, date, fromToday = false, parentId, profil
   }
 
   if (detailQuery.isLoading) return <HabitDetailFrame header={<HabitDetailNavigation parentId={parentId} titleIsHeading onBack={goBack} />}><div className="flex flex-col gap-4"><Skeleton variant="habit-row" label={t('habits.detail.loading')} /><Skeleton variant="stat-tile" label={t('habits.detail.loading')} /><HistoryLoading /></div></HabitDetailFrame>
-  if (detailQuery.isError || !habit) return <HabitDetailFrame header={<HabitDetailNavigation parentId={parentId} titleIsHeading onBack={goBack} />}><ErrorState message={t('habits.detail.loadError')} action={<IconButton label={t('habits.detail.retry')} onClick={retryFailedQueries}><RefreshCw size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton>} /></HabitDetailFrame>
+  if (detailQuery.isError || !habit) return <HabitDetailFrame header={<HabitDetailNavigation parentId={parentId} titleIsHeading onBack={goBack} />}><ErrorState fullSurface message={t('habits.detail.loadError')} action={<IconButton label={t('habits.detail.retry')} onClick={retryFailedQueries}><RefreshCw size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton>} /></HabitDetailFrame>
 
   const children = (detailQuery.data as HabitDetail).children.map((sourceChild) => {
     const child = normalizeDrillDetailChild(sourceChild, habit.id, dateStr)

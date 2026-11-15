@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import { spawnSync } from "node:child_process"
-import { mkdirSync, mkdtempSync, readFileSync, readdirSync, renameSync, rmSync, writeFileSync } from "node:fs"
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, renameSync, rmSync, writeFileSync } from "node:fs"
 import { dirname, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 import test from "node:test"
@@ -29,6 +29,8 @@ test("configured Chromium shards leave room for measured durations, growth and c
   })
   assert.equal(overBudgetFiles.length, 0, overBudgetFiles.join("\n"))
   const webRoot = join(root, "apps/web")
+  const absentFiles = Object.keys(durationMsByFile).filter((file) => !existsSync(join(webRoot, file)))
+  assert.deepEqual(absentFiles, [], "every measured file must name a test that exists")
   const files = Object.keys(durationMsByFile).map((name) => ({ moduleId: join(webRoot, name) }))
   const selected = []
   for (const index of indexes) {

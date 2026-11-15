@@ -1,11 +1,12 @@
 import { IconButton } from '@/components/ui/icon-button'
 import { RefreshCw } from '@/components/ui/icons'
 import { OrbitMascot, useStateMascotSize } from '@/components/ui/orbit-mascot'
-import { SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
+import { orbitMascotHeight } from '@orbit/shared/contracts/brand'
+import { SPACING, TOUCH_TARGET_MIN, WIDE_DESKTOP_BREAKPOINT } from '@orbit/shared/theme'
 
 import { ActionRow } from '@/components/ui/action-row'
 import { type ReactNode } from 'react'
-import { Pressable, StyleSheet, Text, View } from 'react-native'
+import { Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { PillButton } from '@/components/ui/pill-button'
 import { createTokensV2 } from '@/lib/theme'
@@ -25,6 +26,11 @@ interface HabitListEmptyStateProps {
   variant?: 'primary' | 'secondary'
 }
 
+/** The filled action of a pair: primary in the compact shell, secondary at the wide breakpoint, as the Hoje drawing draws it. */
+function filledVariantFor(width: number): 'primary' | 'secondary' {
+  return width >= WIDE_DESKTOP_BREAKPOINT ? 'secondary' : 'primary'
+}
+
 export function HabitListEmptyState({
   title,
   description,
@@ -38,6 +44,7 @@ export function HabitListEmptyState({
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const mascotSize = useStateMascotSize()
+  const { width } = useWindowDimensions()
   const isAstraPrompt = variant === 'primary'
   const hasDistinctDescription = Boolean(description) && description !== title
   const showAstraAction =
@@ -61,8 +68,7 @@ export function HabitListEmptyState({
         ) : null}
         {showAstraAction && askAstraLabel ? (
           <PillButton
-
-            leadingIcon={<OrbitMascot size={16} />}
+            variant={filledVariantFor(width)}
             onClick={onAskAstra}
 
           >
@@ -153,7 +159,7 @@ const styles = StyleSheet.create({
   },
   allDoneMark: {
     width: 96,
-    height: 69,
+    height: orbitMascotHeight(96),
     alignItems: 'center',
     justifyContent: 'center',
   },

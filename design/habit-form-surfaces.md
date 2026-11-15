@@ -156,7 +156,7 @@ accessible without adding a caption beside the title.
 Paired behavior tests cover offline date assistance with allowance available or exhausted,
 reconnection without changing the draft, local date editing without a paid request, the
 fifth-tag boundary and recovery after deselection, and proposed versus ordinary emoji
-attribution. The title-row well, borderless Orbit fill and pending spinner keep their
+attribution. The title-row well, borderless Orbit fill and pending skeleton face (`SkeletonFace`) keep their
 existing geometry and behavior coverage.
 
 ## Verification boundary

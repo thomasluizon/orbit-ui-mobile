@@ -920,7 +920,7 @@ describe('ProgressContent', () => {
     Object.assign(mocks.gamification.profile, { currentStreak: 0, longestStreak: 0, totalXp: 0 })
     const { container } = render(<QueryClientProvider client={queryClient}><GoalsPage /></QueryClientProvider>)
     expect(screen.getByText('progressScreen.goals.empty')).toBeInTheDocument()
-    expect(container.querySelectorAll('[data-mark="orbit"]')).toHaveLength(1)
+    expect(container.querySelectorAll('[data-empty-state] [data-asset="orbit-mascot"]')).toHaveLength(1)
     const action = screen.getByRole('button', { name: 'progressScreen.goals.createAction' })
     expect(action).toHaveAttribute('data-variant', 'primary')
     expect(action).toHaveTextContent('progressScreen.goals.createAction')

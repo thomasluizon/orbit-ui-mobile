@@ -87,7 +87,7 @@ const selectionGroups: SelectionGroup[] = [
   { name: 'emoji grid', markup: emojiGridMarkup, unselected: 'button[aria-selected="false"]', selected: 'button[aria-selected="true"]' },
 ]
 
-describe('selection yields to keyboard focus', () => {
+describe('a selected control keeps its selection ring under keyboard focus', () => {
   let launch: BrowserLaunch | undefined
   let browser: Browser
   let stylesheet: string
@@ -201,9 +201,10 @@ describe('selection yields to keyboard focus', () => {
           expect(foreground).not.toBe(primary)
           if (member === selected) expect((await readRingPaint(page.locator(selectionRingOwner ?? selected).first())).outer, 'the selected member rests on its accent selection ring').toBe(primary)
           await focusByKeyboard(page, control)
-          expect((await inspectFocusedControlRings(page))?.indicators, 'the focused member must draw exactly one focus indicator').toHaveLength(1)
+          expect((await inspectFocusedControlRings(page))?.indicators.filter((indicator) => indicator.endsWith(':outline')), 'the focused member must draw exactly one focus indicator').toHaveLength(1)
           const outlines = await readFocusOutlines(control)
           expect(outlines, `${member} must focus with one inset --fg-1 ring`).toEqual([{ color: foreground, width: '2px', offset: '-2px' }])
+          if (member === selected) expect(await readRingPaint(page.locator(selectionRingOwner ?? selected).first()), 'the focused selected member keeps its selection ring directly inside the focus ring').toMatchObject({ outer: foreground, inner: primary })
           ringColors.push(outlines[0]?.color)
         } finally { await page.close() }
       }
@@ -266,8 +267,8 @@ describe('selection yields to keyboard focus', () => {
     it.each(['Standard', 'Streak'] as const)(`goal type switch keeps one indicator, ${theme}, selected %s`, async (goalType) => {
       await verifyRenderedChoices(<GoalTypeSelector goalType={goalType} onTypeChange={vi.fn()} />, '[role="radio"]', theme)
     })
-    it(`a selected inner DateField circle yields to its focused button, ${theme}`, async () => {
-      const { container } = render(<button type="button"><span className="orbit-selection-ring orbit-selection-ring-hairline" data-selected>Today</span></button>)
+    it(`the DateField today circle yields to its focused button, ${theme}`, async () => {
+      const { container } = render(<button type="button" className="group"><span className="[box-shadow:inset_0_0_0_1px_var(--primary)] group-focus-visible:[box-shadow:none]">Today</span></button>)
       const page = await browser.newPage()
       try {
         await page.setContent(`<style>${stylesheet}:root { ${Object.entries(resolveWebThemeVariables('orange', theme)).map(([key, value]) => `${key}:${value};`).join('')} }</style>${container.innerHTML}`)
@@ -301,7 +302,7 @@ describe('selection yields to keyboard focus', () => {
             await page.keyboard.press('Tab')
             if (surface === 'segment') await control.focus()
             expect(await control.evaluate((button) => button.matches(':focus-visible'))).toBe(true)
-            expect(await inspectControlAccentRings(control)).toHaveLength(1)
+            expect(await inspectControlAccentRings(control), 'focus adds its ring; a selected control keeps its selection ring').toHaveLength(selected ? 2 : 1)
           } finally { cleanup(); await page.close() }
         })
       }
@@ -326,7 +327,7 @@ describe('selection yields to keyboard focus', () => {
           if (await control.evaluate((element) => element === document.activeElement)) break
         }
         expect(await control.evaluate((element) => element.matches(':focus-visible'))).toBe(true)
-        expect(await inspectControlAccentRings(control)).toHaveLength(1)
+        expect(await inspectControlAccentRings(control), 'focus adds its ring; a selected control keeps its selection ring').toHaveLength(1 + Number(selected))
         await page.keyboard.press('Tab')
         expect(await inspectControlAccentRings(control)).toHaveLength(selected ? 1 : 0)
       }

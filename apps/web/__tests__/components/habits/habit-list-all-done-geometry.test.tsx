@@ -7,6 +7,7 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import en from '@orbit/shared/i18n/en.json'
 import pt from '@orbit/shared/i18n/pt-BR.json'
+import { ORBIT_MASCOT_BOX_HEIGHT, ORBIT_MASCOT_BOX_WIDTH } from '@orbit/shared/contracts/brand'
 import { HabitListAllDone } from '@/components/habits/habit-list/empty-state'
 import { loadAppFonts } from '@/__tests__/support/app-fonts'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
@@ -43,9 +44,6 @@ describe('Hoje completion text and action geometry', () => {
           const logo = document.querySelector<SVGSVGElement>('[data-asset="orbit-mascot"]')
           const mark = logo?.getBoundingClientRect()
           const carrier = document.querySelector('[data-testid="completed-day-mark"]')?.getBoundingClientRect()
-          const ink = [...(logo?.querySelectorAll('path') ?? [])].map(path => path.getBoundingClientRect())
-          const inkCentre = ink.length ? { x: (Math.min(...ink.map(rect => rect.left)) + Math.max(...ink.map(rect => rect.right))) / 2,
-            y: (Math.min(...ink.map(rect => rect.top)) + Math.max(...ink.map(rect => rect.bottom))) / 2 } : undefined
           const text = [title!, hint!, document.querySelector('button')!].map(element => {
             const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT)
             const rects: DOMRect[] = []
@@ -57,9 +55,9 @@ describe('Hoje completion text and action geometry', () => {
             return { lines: new Set(rects.map(rect => rect.top)).size,
               left: Math.min(...rects.map(rect => rect.left)), right: Math.max(...rects.map(rect => rect.right)) }
           })
-          return { inkCentre, markCentreY: mark && mark.top + mark.height / 2, paths: [...(logo?.querySelectorAll('path') ?? [])].map(path => path.getAttribute('d')),
-            circles: document.querySelectorAll('circle').length,
-            markGap: mark && title!.getBoundingClientRect().top - mark.bottom,
+          return { markCentreY: mark && mark.top + mark.height / 2, carrierCentreY: carrier && carrier.top + carrier.height / 2, mascotState: logo?.getAttribute('data-orbit-state'),
+            circlesOutsideMascot: [...document.querySelectorAll('circle')].filter(circle => !circle.closest('[data-asset="orbit-mascot"]')).length,
+            markGap: carrier && title!.getBoundingClientRect().top - carrier.bottom,
             textGap: hint!.getBoundingClientRect().top - title!.getBoundingClientRect().bottom,
             actionGap: action.top - hint!.getBoundingClientRect().bottom,
             finish: { left: finish.left, right: finish.right, centre: finish.left + finish.width / 2 },
@@ -68,12 +66,15 @@ describe('Hoje completion text and action geometry', () => {
             actionCentre: action.left + action.width / 2, text,
             animations: document.getAnimations().length }
         })
-        expect(geometry.circles).toBe(0)
+        expect(geometry.mascotState).toBe('feliz')
+        expect(geometry.circlesOutsideMascot).toBe(0)
         expect(geometry.markGap).toBe(24)
-        expect(geometry.mark).toMatchObject({ width: 48, height: 48 })
-        expect(geometry.carrier).toMatchObject({ width: 48, height: 48 })
-        expect(geometry.inkCentre!.x).toBeCloseTo(geometry.mark!.centre, 2)
-        expect(geometry.inkCentre!.y).toBeCloseTo(geometry.markCentreY!, 2)
+        expect(geometry.mark!.width).toBe(96)
+        expect(geometry.mark!.height).toBeCloseTo((96 * ORBIT_MASCOT_BOX_HEIGHT) / ORBIT_MASCOT_BOX_WIDTH, 1)
+        expect(geometry.carrier!.width).toBe(96)
+        expect(geometry.carrier!.height).toBeCloseTo(geometry.mark!.height, 2)
+        expect(geometry.mark!.centre).toBeCloseTo(geometry.carrier!.centre, 2)
+        expect(geometry.markCentreY!).toBeCloseTo(geometry.carrierCentreY!, 2)
         expect(geometry.mark!.centre).toBeCloseTo(geometry.finish.centre, 0)
         expect(geometry.carrier!.centre).toBeCloseTo(geometry.finish.centre, 0)
         expect(geometry.actionCentre).toBeCloseTo(geometry.finish.centre, 0)

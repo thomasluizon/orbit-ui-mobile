@@ -38,5 +38,5 @@ export function NotionCallbackContent() {
     }
     void complete()
   }, [code, state, error, router])
-  return <Skeleton variant="settings" rows={4} label={t('common.loading')} />
+  return <Skeleton variant="settings" rows={2} label={t('common.loading')} />
 }

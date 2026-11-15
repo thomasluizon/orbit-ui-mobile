@@ -765,7 +765,8 @@ describe('CalendarDayDetail (mobile)', () => {
       value: '08:00',
     })
     const pendingControl = nodes(tree, 'Pressable').find((node) => node.props.accessibilityRole === 'checkbox')!
-    expect(pendingControl.props).toMatchObject({ disabled: true, accessibilityState: { checked: true, busy: true } })
+    expect(pendingControl.props).toMatchObject({ disabled: false, accessibilityState: { checked: true, busy: true } })
+    expect(pendingControl.props.onPress).toBeUndefined()
     expect(pendingControl.findAll((node) => node.type === 'Path')).toHaveLength(2)
     TestRenderer.act(() => {
       ;(row?.props.onChange as (checked: boolean) => void)(false)

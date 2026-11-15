@@ -1,10 +1,12 @@
-import { AppleMark } from '@/components/ui/icons'
+import { SIGN_IN_BUTTON_HEIGHT } from '@orbit/shared/theme'
+import { AppleSignInLogo } from '@/components/auth/apple-sign-in-logo'
 import { GoogleMark } from '@/components/auth/google-mark'
 import Link from 'next/link'
 import type { ReactNode } from 'react'
 import type { useTranslations } from 'next-intl'
 import { Input } from '@/components/ui/input'
 import { PillButton } from '@/components/ui/pill-button'
+import { KeyboardRevealGroup } from '@/components/ui/keyboard-reveal-group'
 import { LoginOfflineNotice } from './login-sections'
 
 interface EmailStepProps {
@@ -35,7 +37,7 @@ export function EmailStep({ email, emailFocusRequest, onEmailChange, isSubmittin
   const sendError = isOnline && errorMessage && !fieldError && !googleError ? errorMessage : null
   return (
     <div data-testid="login-email-step-stack" className="flex flex-col gap-6">
-      <form noValidate className="flex flex-col gap-6" onSubmit={(event) => { event.preventDefault(); onSendCode() }}>
+      <KeyboardRevealGroup testID="login-field-action"><form noValidate className="flex flex-col gap-6" onSubmit={(event) => { event.preventDefault(); onSendCode() }}>
         <Input label={t('auth.email')} value={email} onChange={onEmailChange} kind="email" name="email" focusRequest={emailFocusRequest}
           autoComplete="email" placeholder={t('auth.emailPlaceholder')}
           disabled={isBusy} error={fieldError ?? undefined} />
@@ -47,7 +49,7 @@ export function EmailStep({ email, emailFocusRequest, onEmailChange, isSubmittin
             {sendCodeLabel ?? t('auth.sendCode')}
           </PillButton>
         </div>
-      </form>
+      </form></KeyboardRevealGroup>
       <div aria-hidden className="flex items-center gap-3">
         <span className="h-px flex-1 bg-[var(--hairline)]" />
         <span className="font-mono text-xs text-[var(--fg-3)]">{t('auth.orContinueWith')}</span>
@@ -61,8 +63,8 @@ export function EmailStep({ email, emailFocusRequest, onEmailChange, isSubmittin
         </div>
         {process.env.NEXT_PUBLIC_APPLE_CLIENT_ID ? <div className="flex flex-col">
           {/* eslint-disable-next-line local/max-button-words -- Apple's approved sign-in wording labels the browser action. */}
-          <PillButton variant="ghost" leadingIcon={<AppleMark size={20} aria-hidden />} disabled={isBusy || !isOnline}
-            onClick={onSignInWithApple}>{t('auth.signInWithApple')}</PillButton>
+          <PillButton brand="apple" variant="ghost" leadingIcon={<AppleSignInLogo height={SIGN_IN_BUTTON_HEIGHT} />} disabled={isBusy || !isOnline}
+            loading={isAppleLoading} onClick={onSignInWithApple}>{t('auth.signInWithApple')}</PillButton>
         </div> : null}
         {!isOnline && <p className="text-sm text-[var(--fg-3)]">{t('auth.googleOffline')}</p>}
         {googleError && <p role="alert" className="text-sm text-[var(--status-bad-text)]">{googleError}</p>}

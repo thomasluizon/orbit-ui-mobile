@@ -115,6 +115,7 @@
     "backToToday": "Voltar para Hoje",
     "backToParentHabit": "Voltar para o hábito principal",
     "backToHabit": "Voltar para o hábito",
+    "backToOrbit": "Voltar para o Orbit",
     "backToDestination": "Voltar para {destination}",
     "closeConversation": "Fechar conversa",
     "appName": "Orbit",
@@ -1197,7 +1198,6 @@
       "slipAlert": "Avisar deslize",
       "slipAlertDescription": "Um aviso quando você começar a ter deslizes neste hábito.",
       "rescheduleAccept": "Usar plano",
-      "rescheduleLoading": "Buscando um plano realista...",
       "rescheduleError": "Não consegui sugerir um plano.",
       "updateError": "Não foi possível salvar esta alteração. Tente novamente.",
       "logError": "Não foi possível atualizar este registro. Tente novamente.",
@@ -1477,7 +1477,7 @@
         "new_parent": "Novo hábito principal"
       },
       "recommended": "Recomendado",
-      "recommendation": "Orbit sugere: {placement}.",
+      "recommendation": "O Orbit sugere: {placement}.",
       "checklistNote": "Este item segue as configurações do hábito principal. As configurações do rascunho ficam guardadas se você escolher de novo uma opção de hábito."
     },
     "operationUpdated": "Veja o resultado atualizado acima.",
@@ -2661,7 +2661,8 @@
       "error": "A conexão não funcionou. Tente de novo.",
       "offline": "Você está sem conexão. Conecte-se à internet para gerenciar o Notion.",
       "lastSync": "Última sincronização: {time}",
-      "awaitingSync": "Aguardando a primeira sincronização."
+      "awaitingSync": "Aguardando a primeira sincronização.",
+      "loadingStatus": "{name}, carregando..."
     },
     "submenus": {
       "accountLabel": "{name}, {email}, conta",
@@ -3142,7 +3143,7 @@
       "astraCeiling": "250 mensagens de IA por semana",
       "calendarSync": "Sincronização do calendário",
       "retrospective": "Retrospectiva periódica",
-      "proactiveAstra": "Avisos do Orbit",
+      "proactiveAstra": "Notificações do Orbit",
       "savings": "Anual: {percent}% a menos",
       "subscribe": "Ver planos",
       "continueFree": "Continuar grátis"
@@ -3687,8 +3688,8 @@
         "aiMessages": "Hoje",
         "aiMessagesWeekly": "Nesta semana",
         "aiMessagesOf": "{used} de {limit}",
-        "nearLimit": "Você está perto do limite de IA de hoje",
-        "nearLimitWeekly": "Você está perto do limite semanal de IA"
+        "nearLimit": "Você está perto do limite de mensagens de IA de hoje",
+        "nearLimitWeekly": "Você está perto do limite semanal de mensagens de IA"
       },
       "invoices": {
         "title": "Histórico de faturas",

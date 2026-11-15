@@ -1,3 +1,4 @@
+import { controlStyle } from '@/__tests__/support/press-feedback'
 import { referralCopyCases } from '@orbit/shared/__tests__/referral-copy-fixtures'
 import React from 'react'
 import { Platform, StyleSheet } from 'react-native'
@@ -117,7 +118,7 @@ describe('ReferralDrawer (mobile)', () => {
     motionState.reduced = reducedMotion
     const tree = renderDrawer()
     const host = () => slot(tree, 'SheetBody').findAll((node: any) => typeof node.type === 'string' && node.props.accessibilityLabel === 'referral.drawer.copyLink')[0]
-    const paint = (pressed: boolean) => { const style = host().props.style; return StyleSheet.flatten(typeof style === 'function' ? style({ pressed }) : style) }
+    const paint = (pressed: boolean) => controlStyle(host() as never, pressed)
     expect(paint(false)).toMatchObject({ transform: [{ scale: 1 }], transition: reducedMotion ? 'none' : 'transform 150ms cubic-bezier(0.16,1,0.3,1)' })
     TestRenderer.act(() => { host().props.onPressIn?.() })
     expect(paint(true)).toMatchObject({ backgroundColor: createTokensV2('purple', 'dark').bgHover, transform: [{ scale: reducedMotion ? 1 : 0.96 }], transition: reducedMotion ? 'none' : 'transform 150ms cubic-bezier(0.16,1,0.3,1)' })

@@ -5,6 +5,7 @@ import Yoga, { type Node as YogaNode } from 'yoga-layout'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { formatLocaleTime } from '@orbit/shared/utils'
 import { INTERACTION_FILL_CLEARANCE, SPACING, TOUCH_TARGET_MIN, motionPresets } from '@orbit/shared/theme'
+import { pressableStyle } from '@/__tests__/support/press-feedback'
 import {
   __resetTestHostConfig,
   __setScrollToImpl,
@@ -418,7 +419,7 @@ await Promise.resolve()
     })
     for (const label of ['Start: common.selectTime', 'common.clear']) {
       const button = tree.root.findAllByType(Pressable).find((node: any) => node.props.accessibilityLabel === label)
-      const paint = (pressed: boolean) => StyleSheet.flatten(button.props.style({ pressed }))
+      const paint = (pressed: boolean) => pressableStyle(button, pressed)
       expect(paint(false).backgroundColor).toBeUndefined()
       expect(paint(true)).toMatchObject({ backgroundColor: tokens.bgHover, width: TOUCH_TARGET_MIN, height: TOUCH_TARGET_MIN, borderRadius: TOUCH_TARGET_MIN / 2, overflow: 'hidden' })
     }

@@ -8,6 +8,7 @@ import { useShellStore } from '@/stores/shell-store'
 import { useModalFocusTrap } from '@/components/shell/use-modal-focus-trap'
 import { UpdateAvailableBanner } from '@/components/ui/update-available-banner'
 import { AppToastHost } from '@/components/ui/app-toast-host'
+import { OrbitOverlayLayer } from '@/components/ui/orbit-overlay-layer'
 import { CommandMenu } from './command-menu'
 import { CommandPalettePortalContext, type CommandPaletteProps } from './command-palette'
 
@@ -31,7 +32,7 @@ export function CommandPaletteDialog({ navItems, onCreateHabit, modalId, panelRe
   if (!mounted) return null
 
   const overlay = paletteOpen ? (
-    <div
+    <OrbitOverlayLayer><div
       ref={registerPortal}
       className="z-modal fixed inset-0 flex items-start justify-center pl-[max(var(--orbit-space-16),var(--safe-left))] pr-[max(var(--orbit-space-16),var(--safe-right))] pt-[max(var(--orbit-space-16),var(--safe-top))] sm:pt-[max(var(--orbit-space-96),var(--safe-top))]"
     >
@@ -59,7 +60,7 @@ export function CommandPaletteDialog({ navItems, onCreateHabit, modalId, panelRe
           <AppToastHost placement="modal" modalId={modalId} />
         </div>
       </div>
-    </div>
+    </div></OrbitOverlayLayer>
   ) : null
 
   // react-doctor-disable-next-line no-unguarded-browser-global-in-render-or-hook-init -- reached only after the useIsClient mounted gate returns null on the server; https://github.com/thomasluizon/orbit-ui-mobile/issues/243

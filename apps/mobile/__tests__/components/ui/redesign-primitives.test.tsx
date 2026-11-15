@@ -7,8 +7,10 @@ import { Columns } from '@/components/ui/columns'
 import { Fab } from '@/components/ui/fab'
 import { Icon } from '@/components/ui/icon'
 import { Lockup } from '@/components/ui/lockup'
+import { LOCKUP_MARK_PATHS } from '@orbit/shared/contracts/brand'
 import { ProgressRing } from '@/components/ui/progress-ring'
 import { createTokensV2 } from '@/lib/theme'
+import { controlStyle } from '@/__tests__/support/press-feedback'
 
 const tokens = createTokensV2('purple', 'dark')
 const motionState = vi.hoisted(() => ({ reduced: false }))
@@ -169,7 +171,7 @@ describe('redesign primitives on mobile', () => {
       const tree = render(element)
       const host = () => tree.root.findAll(node => node.type === 'Pressable' && node.props.testID === 'fab').at(-1)!
       void act(() => { prop<() => void>(host(), 'onPressIn')() })
-      const style = flattenStyle(prop<unknown>(host(), 'style'))
+      const style = controlStyle(host())
       return { tree, style }
     }
 
@@ -196,7 +198,8 @@ describe('redesign primitives on mobile', () => {
     expect(mascot.props).toMatchObject({ width: size, height: size * 0.75, accessible: false, color: tokens.fg1, 'data-orbit-face': 'small', 'data-orbit-loop': 'still' })
     const paths = byType(tree.root, 'Path')
     expect(paths.filter(path => prop(path, 'fill') === tokens.primary)).toHaveLength(1)
-    expect(paths.filter(path => prop(path, 'fill') === tokens.bg).length).toBeGreaterThanOrEqual(3)
+    expect(paths.filter(path => prop(path, 'fill') === tokens.bg)).toHaveLength(2)
+    expect(byType(tree.root, 'G').filter(group => prop(group, 'clipRule') === 'evenodd')).toHaveLength(1)
   })
 
   it.each([48, 96, 128] as const)('draws the live rig at %ipx in the 7 by 5 box', (size) => {
@@ -237,5 +240,12 @@ describe('redesign primitives on mobile', () => {
     expect(prop(lockup, 'viewBox')).toBe('-0.000400046 0.000000000 89.395902732 17.742772815')
     expect(byType(tree.root, 'Path')).toHaveLength(5)
     expect(byType(tree.root, 'Text')).toHaveLength(0)
+  })
+
+  it('paints the lockup moon with the accent and the rest of the mark with the foreground', () => {
+    const tree = render(<Lockup />)
+    const accent = byType(tree.root, 'Path').filter(path => prop(path, 'fill') === tokens.primary)
+    expect(accent.map(path => prop(path, 'd'))).toEqual([LOCKUP_MARK_PATHS.find(path => path.part === 'moon')?.d])
+    expect(prop(tree.root.findByProps({ testID: 'orbit-lockup' }), 'color')).toBe(tokens.fg1)
   })
 })

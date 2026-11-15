@@ -292,8 +292,19 @@ describe('mobile search', () => {
     await mount()
     if (query) await TestRenderer.act(() => { (input().props.onChangeText as (value: string) => void)(query) })
     await TestRenderer.act(() => { vi.advanceTimersByTime(301) })
-    expect(tree.root.findAll((node) => node.type === Skeleton)).toHaveLength(skeleton ? 3 : 0)
-    expect(text().includes('Searching')).toBe(!skeleton)
+    expect(tree.root.findAll((node) => node.type === Skeleton && node.props.grouped !== true)).toHaveLength(skeleton ? 3 : 0)
+    const waiting = tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'search-skeleton')
+    expect(waiting).toHaveLength(skeleton ? 0 : 1)
+    expect(text()).not.toContain('Searching')
+    if (skeleton) return
+    expect(waiting[0]!.props).toMatchObject({ accessible: true, accessibilityRole: 'progressbar', accessibilityLabel: 'Searching', accessibilityState: { busy: true }, accessibilityLiveRegion: 'polite' })
+    const rows = waiting[0]!.findAll((node) => typeof node.type === 'string' && node.props.testID === 'search-skeleton-row')
+    expect(rows).toHaveLength(3)
+    for (const row of rows) {
+      expect(StyleSheet.flatten(row.props.style)).toMatchObject({ minHeight: 48, padding: 12, gap: 12, flexDirection: 'row', alignItems: 'center', borderWidth: 1 })
+      expect(row.findAll((node) => node.type === Skeleton && node.props.grouped === true)).toHaveLength(3)
+    }
+    expect(tree.root.findAll((node) => String(node.type) === 'ActivityIndicator')).toHaveLength(0)
   })
 
   it('shows the initial for a habit without an emoji', async () => {
@@ -355,6 +366,14 @@ describe('mobile search', () => {
     expect(mocks.query).toHaveBeenCalledWith({ search: 'walk', page: 1, pageSize: 20 })
   })
 
+  it('keeps the whole field when the keyboard shortens the page, because its scroller never shrinks', async () => {
+    mocks.query.mockReturnValue(result([createMockHabit({ title: 'Walk' })]))
+    await mount()
+    const fieldScroller = tree.root.findAll((node) => String(node.type) === 'ScrollView'
+      && node.findAll((child) => String(child.type) === 'TextInput').length > 0)[0]!
+    expect(StyleSheet.flatten(fieldScroller.props.style)).toMatchObject({ flexGrow: 0, flexShrink: 0 })
+  })
+
   it('exposes no static selection or keyboard hints on the phone', async () => {
     mocks.query.mockReturnValue(result([createMockHabit({ title: 'Walk' })]))
     await mount()
@@ -391,9 +410,10 @@ describe('mobile search', () => {
   it('delays searching feedback while preserving editable input', async () => {
     mocks.query.mockReturnValue(result([], true))
     await mount()
-    expect(text()).not.toContain('Searching')
+    const waiting = () => tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'search-skeleton')
+    expect(waiting()).toHaveLength(0)
     await type('walk')
-    expect(text()).toContain('Searching')
+    expect(waiting()[0]!.props.accessibilityLabel).toBe('Searching')
     expect(input().props.value).toBe('walk')
     expect(input().props.editable).toBe(true)
     expect(text()).not.toContain('Nothing by that name.')
