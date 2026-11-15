@@ -7,7 +7,7 @@ import { PassThrough } from 'node:stream'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { runInNewContext } from 'node:vm'
 import { JSDOM } from 'jsdom'
-import { assertAccessibleTree, assertCookieEvidence, assertPaletteFocus } from '../desktop-bench/acceptance-contract.mjs'
+import { assertAccessibleTree, assertCookieEvidence, assertPaletteFocus, deliverKey, keyPosts, keyReceiptWindow, usableKey } from '../desktop-bench/acceptance-contract.mjs'
 import { T, REPO_ROOT, check, configure, failureCount, root, stage } from './_harness.mjs'
 import { networkCases } from './desktop-acceptance-network.mjs'
 import { pushPhaseCases } from './desktop-acceptance-push.mjs'
@@ -182,20 +182,22 @@ async function installedLaunchCases() {
     send(command) { commands.push(command); if (command === 'reload') events.push({ kind: 'hoje', nativeVersion: '1.0.0' }) },
     stop() {},
   }
+  const written = []
   const context = {
-    join, directory: '/fixture', windows: true, process: { platform: 'win32', arch: 'x64', stdout: { write() {} } },
+    join, directory: '/fixture', windows: true, process: { platform: 'win32', arch: 'x64', stdout: { write(line) { written.push(line) } } }, cpus: () => [{}, {}, {}],
     mkdir: async () => {}, existsSync: () => false, assertFree: async () => {}, startRecording: async () => Object.assign(() => {}, { startedAt: Date.now() }),
     buildInstaller: async (_repository, _output, signing) => { builtWith.push(signing); return {} }, hermeticServices: async () => {}, nativeTool: async () => () => {},
     updateServer: async () => ({ route() {}, mode() {}, cookieEvidence() {} }),
     isolateOrigins: async () => ({ restore() {} }), lookup: async () => [{ address: '127.0.0.1' }],
-    startProxy: async () => proxy, install: async () => '/fixture/Orbit.app/Contents/MacOS/orbit-desktop', dirname, execute: async () => '',
+    startProxy: async () => proxy, install: async () => '/fixture/Orbit.app/Contents/MacOS/orbit-desktop', dirname,
+    execute: async (command, argumentsList) => command === 'sysctl' && argumentsList.join(' ') === '-n hw.ncpu' ? '5\n' : '',
     keepInstalledLaunchCopy: async (application, directories) => {
       launchCopies.push({ application, directories, launches: launches.length })
       return { identifier: 'org.useorbit.desktop.staging', removed: [], best: application }
     },
     installedLaunch: (_executable, _output, name) => { launches.push(settings.expectAuthenticated === true); return { name } },
     waitFor: async (read, label) => { const result = read(); if (!result) throw new Error(`Timed out waiting for ${label}`); return result },
-    inspectSurfaces: async () => {}, inspectCaption: async (_proxy, _native, handle) => { captions.push(handle.name) }, quit: async () => {}, recordKeys: (native) => native,
+    inspectSurfaces: async () => {}, inspectCaption: async (_proxy, _native, handle) => { captions.push(handle.name) }, quit: async () => {},
     pushPhase: async (options) => { pushCalls.push({ options, checks: options.report.launchChecks.map((checkpoint) => checkpoint.event) }) },
     readFile: async () => 'signature verification failed', record: async (_path, report) => { recorded = report }, rm: async () => {}, stopAll: async () => {},
   }
@@ -205,6 +207,7 @@ async function installedLaunchCases() {
   T('a Windows run builds unsigned, tells the push phase so and reports why',
     builtWith[0] === null && pushCalls[0].options.signed === false && recorded.signing.unsigned === 'Windows packages with --no-sign')
   T('a Windows run checks the caption once, on the first signed-in launch', JSON.stringify(captions) === '["installed"]', JSON.stringify(captions))
+  T('a Windows run names its vCPU count in report.json and the job log', recorded.runner.cpus === 3 && written.includes('Runner vCPUs: 3\n'), JSON.stringify(written))
   const signing = { certificate: 'fixture-certificate', password: 'fixture-password', profile: 'fixture-profile', identity: 'Developer ID Application: Fixture (TEAM)' }
   Object.assign(context, { windows: false, unsignedReason: 'fixture unsigned reason', startHttpsListener: async () => {} })
   await context.acceptance({ repository: '/fixture', output: '/output', credentials, signing })
@@ -213,6 +216,7 @@ async function installedLaunchCases() {
       JSON.stringify(recorded.signing) === JSON.stringify({ identity: signing.identity, entitlements: 'Entitlements.staging.plist' }))
   await context.acceptance({ repository: '/fixture', output: '/output', credentials })
   T('an unsigned macOS run reports the missing signing material as its reason', builtWith[2] === null && recorded.signing.unsigned === 'fixture unsigned reason')
+  T('a macOS run reads its vCPU count from sysctl hw.ncpu into report.json and the job log', recorded.runner.cpus === 5 && written.includes('Runner vCPUs: 5\n'), JSON.stringify(written))
   T('a macOS run keeps its native title bar out of the caption check', captions.length === 1, JSON.stringify(captions))
   T('each macOS run leaves only the installed app in LaunchServices before its first launch, and a Windows run never asks',
     launchCopies.map((call) => call.launches).join(',') === '3,6' && launchCopies.every((call) => call.application === '/fixture/Orbit.app' &&
@@ -447,7 +451,7 @@ int main(int argc, const char *argv[]) {
         raiseWorks = [scenario isEqual:@"raised"];
         NSMutableArray *replies = [NSMutableArray array];
         NSMutableArray *errors = [NSMutableArray array];
-        for (NSString *operation in @[@"palette", @"down", @"down", @"home", @"escape", @"quit"]) {
+        for (NSString *operation in @[@"palette", @"down", @"down", @"escape"]) {
             command = operation;
             @try { [replies addObject:key(1, operation)]; } @catch (NSException *exception) { [errors addObject:exception.reason]; }
         }
@@ -470,19 +474,19 @@ int main(int argc, const char *argv[]) {
   // The session routing behind the HID event tap lost whole keys on hosted runners while the shell held keyboard focus (#1560),
   // so every key phase enters the installed process's own event stream and none passes through that routing.
   T('macOS keyboard producer posts both key phases into the installed process, never at the HID event tap, while it has keyboard focus',
-    events.length === 12 && events.every((event) => event.targeted === 1 && event.tap === undefined && event.focused === 1), JSON.stringify(events))
-  T('macOS keyboard producer sets Command only for shortcuts and clears inherited modifiers on both key phases', events.length === 12 && events.every((event) =>
-    event.metaKey === ['palette', 'quit'].includes(event.command) && !event.shiftKey && !event.ctrlKey && !event.altKey), JSON.stringify(events))
+    events.length === 8 && events.every((event) => event.targeted === 1 && event.tap === undefined && event.focused === 1), JSON.stringify(events))
+  T('macOS keyboard producer sets Command only for the palette shortcut and clears inherited modifiers on both key phases', events.length === 8 && events.every((event) =>
+    event.metaKey === (event.command === 'palette') && !event.shiftKey && !event.ctrlKey && !event.altKey), JSON.stringify(events))
   T('macOS keyboard producer names the process delivery path and the focused process in every reply without raising a focused process',
-    focusedRun.raised.length === 0 && focusedRun.errors.length === 0 && focusedRun.replies.length === 6 && focusedRun.replies.every((reply) =>
+    focusedRun.raised.length === 0 && focusedRun.errors.length === 0 && focusedRun.replies.length === 4 && focusedRun.replies.every((reply) =>
       reply.delivery === 'process-event' && reply.activation === 'focused' && reply.focusedProcess === 1), JSON.stringify(focusedRun))
   const raisedRun = run('raised')
   T('macOS keyboard producer raises an unfocused installed process once, then posts into that process',
-    raisedRun.raised.join(',') === '1' && raisedRun.events.length === 12 && raisedRun.events.every((event) => event.targeted === 1 && event.focused === 1) &&
+    raisedRun.raised.join(',') === '1' && raisedRun.events.length === 8 && raisedRun.events.every((event) => event.targeted === 1 && event.focused === 1) &&
       raisedRun.replies[0].activation === 'raised' && raisedRun.replies.slice(1).every((reply) => reply.activation === 'focused'), JSON.stringify(raisedRun))
   const refusedRun = run('refused')
   T('macOS keyboard producer posts no key while another process keeps keyboard focus and names that process',
-    refusedRun.events.length === 0 && refusedRun.replies.length === 0 && refusedRun.errors.length === 6 &&
+    refusedRun.events.length === 0 && refusedRun.replies.length === 0 && refusedRun.errors.length === 4 &&
       refusedRun.errors[0] === 'Process 1 did not receive keyboard focus for palette; process 2 has it', JSON.stringify(refusedRun))
   return events
 }
@@ -490,6 +494,7 @@ int main(int argc, const char *argv[]) {
 async function paletteTimingCases(dom, readState, reports) {
   const source = readFileSync(join(REPO_ROOT, 'tools/desktop-bench/acceptance-runner.mjs'), 'utf8')
   const traversal = source.slice(source.indexOf('  const focus = []'), source.indexOf('\n  report.paletteFocus = focus') + '\n  report.paletteFocus = focus'.length)
+  const pressKey = source.slice(source.indexOf('function pressKey('), source.indexOf('async function dismissAstra'))
   const input = dom.window.document.querySelector('[cmdk-input]')
   const { flushSync } = await import('react-dom')
   const key = (name) => flushSync(() => input.dispatchEvent(new dom.window.KeyboardEvent('keydown', { key: name, bubbles: true })))
@@ -499,7 +504,7 @@ async function paletteTimingCases(dom, readState, reports) {
     const events = [{ kind: 'focus', ...readState() }]
     const report = {}
     const captures = []
-    const context = { previous: readState(), handle: { child: { pid: 321 } }, report,
+    const context = { previous: readState(), handle: { child: { pid: 321 } }, report, Date, deliverKey, usableKey, process: { stdout: { write() {} } },
       proxy: {
         events: () => [...events, ...reports.slice(start)],
         send: () => { if (timing === 'after-input') events.push({ kind: 'focus', ...readState() }) },
@@ -510,7 +515,7 @@ async function paletteTimingCases(dom, readState, reports) {
       assertPaletteFocus: (previous, current) => T(`runner ${timing} validates each real cmdk destination in order`,
         current.selected === previous.selected + 1 && current.inputFocused),
     }
-    runInNewContext(`globalThis.traverse = async () => {${traversal}\n}`, context)
+    runInNewContext(`${pressKey}\nglobalThis.traverse = async () => {${traversal}\n}`, context)
     let failure
     try { await context.traverse() } catch (error) { failure = error }
     T(`runner retains focus delivered ${timing} without consuming a stale event or skipping either result`,
@@ -524,6 +529,7 @@ async function paletteTimingCases(dom, readState, reports) {
 async function paletteDeliveryCases(dom, readState, reports) {
   const runner = readFileSync(join(REPO_ROOT, 'tools/desktop-bench/acceptance-runner.mjs'), 'utf8')
   const traversal = runner.slice(runner.indexOf('  const focus = []'), runner.indexOf('\n  report.paletteFocus = focus') + '\n  report.paletteFocus = focus'.length)
+  const pressKey = runner.slice(runner.indexOf('function pressKey('), runner.indexOf('async function dismissAstra'))
   const host = readFileSync(join(REPO_ROOT, 'tools/desktop-bench/host.mjs'), 'utf8')
   const waitForSource = host.slice(host.indexOf('export async function waitFor'), host.indexOf('export async function waitForHttp')).replace('export ', '')
   const input = dom.window.document.querySelector('[cmdk-input]')
@@ -548,7 +554,7 @@ async function paletteDeliveryCases(dom, readState, reports) {
     const report = {}
     let pendingFocus = null
     let clock = 0
-    const context = { previous: readState(), handle: { child: { pid: 321 } }, report, Date: { now: () => clock },
+    const context = { previous: readState(), handle: { child: { pid: 321 } }, report, Date: { now: () => clock }, deliverKey, usableKey, process: { stdout: { write() {} } },
       // The real proxy forwards every probe report in arrival order; the probe answers focus-N only at that exact index.
       proxy: {
         events: () => {
@@ -569,34 +575,80 @@ async function paletteDeliveryCases(dom, readState, reports) {
         if (current.selected !== previous.selected + 1) throw new Error(`Palette result order: expected ${previous.selected + 1}, received ${current.selected}`)
       },
     }
-    runInNewContext(`${waitForSource}\nglobalThis.traverse = async () => {${traversal}\n}`, context)
+    runInNewContext(`${waitForSource}\n${pressKey}\nglobalThis.traverse = async () => {${traversal}\n}`, context)
     let failure
     try { await context.traverse() } catch (error) { failure = error }
     const order = report.paletteFocus?.map((event) => event.selected).join(',')
+    const undelivered = report.keyDelivery?.flatMap((entry, step) => entry.attempts.filter((attempt) => !attempt.delivered).map((attempt) => ({ step: step + 1, ...attempt }))) ?? []
     if (name === 'first-press-lost' || name === 'second-press-lost') {
       T(`palette traversal posts a Down again only after the page received no Down (${name}) and still requires each result in order`,
         !failure && order === '1,2' && captures.join(',') === 'palette-result-1,palette-result-2' && posts.length === 3 &&
-          report.paletteUndelivered?.length === 1 && report.paletteUndelivered[0].step === scenario.lost[0], failure?.message ?? JSON.stringify({ order, posts, report }))
+          undelivered.length === 1 && undelivered[0].step === scenario.lost[0] && report.keyDelivery.length === 2, failure?.message ?? JSON.stringify({ order, posts, report }))
     }
     if (name === 'never-delivered') {
-      T('palette traversal stops after a bounded number of undelivered Down posts and names the missing receipt',
-        /no usable native Down/.test(failure?.message) && posts.length === 3 && report.paletteUndelivered?.length === 3, failure?.message)
+      T('palette traversal stops after a bounded number of undelivered Down posts and names OS delivery as the cause',
+        /^OS key delivery failed: the page received no usable down keydown after 6 posts/.test(failure?.message) && posts.length === keyPosts &&
+          undelivered.length === keyPosts && clock >= keyPosts * keyReceiptWindow, failure?.message)
     }
     if (name === 'received-without-selection') {
       T('a Down the page received but cmdk did not apply is never posted again and fails the focus check',
         failure?.message === 'Timed out waiting for palette result focus' && posts.length === 1, failure?.message)
     }
     if (scenario.claimed) {
-      const claimed = report.paletteUndelivered?.flatMap((entry) => entry.keys) ?? []
+      const claimed = undelivered.flatMap((entry) => entry.keys)
       T(`a Down the input method claimed (${name}) counts as undelivered and ends in the bounded failure, not the focus timeout`,
-        /no usable native Down/.test(failure?.message) && /keyCode 229 or composing/.test(failure?.message) && posts.length === 3 &&
-          report.paletteUndelivered?.length === 3 && claimed.length === 3 &&
+        /^OS key delivery failed/.test(failure?.message) && /keyCode 229 or composing/.test(failure?.message) && posts.length === keyPosts &&
+          undelivered.length === keyPosts && claimed.length === keyPosts &&
           claimed.every((key) => key.key === 'ArrowDown' && scenario.claimed(key) && key.targetInput && key.before.selected === 0),
         failure?.message ?? JSON.stringify({ posts, report }))
     }
     if (name === 'late-duplicate') {
       T('a step that receives two Downs fails explicitly instead of skipping a result',
         /received 2 native Down keys/.test(failure?.message) && posts.length === 1, failure?.message)
+    }
+  }
+}
+
+// A fake page counter drives the shared helper directly: the page receives the key on the post that the scenario names, or never.
+async function keyDeliveryCases() {
+  const waitForSource = readFileSync(join(REPO_ROOT, 'tools/desktop-bench/host.mjs'), 'utf8')
+  const waitForBody = waitForSource.slice(waitForSource.indexOf('export async function waitFor'), waitForSource.indexOf('export async function waitForHttp')).replace('export ', '')
+  for (const [name, arrives] of [['first-post', 1], ['third-post', 3], ['never', null], ['claimed', null]]) {
+    let clock = 0
+    const context = { Date: { now: () => clock }, delay: async (milliseconds) => { clock += milliseconds } }
+    runInNewContext(`${waitForBody}\nglobalThis.waitFor = waitFor`, context)
+    const receipts = [{ kind: 'astra-key', key: 'Escape', keyCode: 27 }]
+    const posts = []
+    const logs = []
+    const record = []
+    let failure
+    let attempts
+    try {
+      attempts = await deliverKey({ name: 'escape', waitFor: context.waitFor, now: () => clock, record, log: (line) => logs.push(line), receipts: () => receipts,
+        post: async () => {
+          posts.push(clock)
+          if (posts.length === keyPosts + 1) throw new Error('posted past the bound')
+          if (name === 'claimed') receipts.push({ kind: 'astra-key', key: 'Escape', keyCode: 229 })
+          if (posts.length === arrives) receipts.push({ kind: 'astra-key', key: 'Escape', keyCode: 27 })
+          return { sent: 'escape', post: posts.length }
+        } })
+    } catch (error) { failure = error }
+    if (arrives) {
+      T(`a key the page receives on post ${arrives} returns after that post and records every earlier post as undelivered (${name})`,
+        !failure && posts.length === arrives && attempts === record[0].attempts && record[0].key === 'escape' &&
+          JSON.stringify(attempts.map((attempt) => attempt.delivered)) === JSON.stringify([...Array(arrives - 1).fill(false), true]) &&
+          attempts.every((attempt, index) => attempt.reply.post === index + 1) &&
+          posts.every((at, index) => at === index * keyReceiptWindow) && logs.length === arrives &&
+          logs.at(-1) === `Key escape: post ${arrives} of ${keyPosts} reached the page` &&
+          logs.slice(0, -1).every((line, index) => line === `Key escape: post ${index + 1} of ${keyPosts} had no usable keydown receipt in 5 s`),
+        failure?.message ?? JSON.stringify({ posts, attempts, logs }))
+    } else {
+      T(`a key the page never receives fails as OS key delivery after ${keyPosts} posts within ${keyPosts * keyReceiptWindow / 1000} s (${name})`,
+        failure?.message === `OS key delivery failed: the page received no usable escape keydown after ${keyPosts} posts 5 s apart; ` +
+          'each key was missing or claimed by the input method (keyCode 229 or composing)' &&
+          posts.length === keyPosts && clock === keyPosts * keyReceiptWindow && record[0].attempts.length === keyPosts &&
+          record[0].attempts.every((attempt) => !attempt.delivered && attempt.keys.length === (name === 'claimed' ? 1 : 0)),
+        failure?.message ?? JSON.stringify({ posts, record }))
     }
   }
 }
@@ -807,6 +859,7 @@ export async function cases() {
   await compactHojeProbeCases()
   await appearanceProbeCases()
   await controlledPaletteCases()
+  await keyDeliveryCases()
   nativePaletteFocusCases()
   const native = { denied: false, error: null, nodes: [
     { id: '0', role: 'Document', name: '', interactive: false, focused: false, selected: false },

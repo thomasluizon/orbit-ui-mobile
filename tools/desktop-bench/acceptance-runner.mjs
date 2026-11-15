@@ -1,4 +1,5 @@
 import { createRequire } from 'node:module'
+import { cpus } from 'node:os'
 import { existsSync } from 'node:fs'
 import { appendFile, cp, mkdir, readFile, writeFile, rm } from 'node:fs/promises'
 import { basename, dirname, join } from 'node:path'
@@ -9,7 +10,7 @@ import { readFixtures } from './build.mjs'
 import { startProxy } from './server.mjs'
 import { assertFree, delay, execute, start, stop, stopAll, waitFor, waitForHttp } from './host.mjs'
 import { activateUnelevated, apsdReceipt, buildInstaller, capturePushDiagnostics, desktopOrigin, install, isolateOrigins, keepInstalledLaunchCopy, launchContext, launchUnelevated, startHttpsListener, startPushServices, startRecording } from './acceptance-platform.mjs'
-import { NativeTreePendingError, assertAccessibleTree, assertCookieEvidence, assertPaletteFocus, corruptSignature } from './acceptance-contract.mjs'
+import { NativeTreePendingError, assertAccessibleTree, assertCookieEvidence, assertPaletteFocus, corruptSignature, deliverKey, usableKey } from './acceptance-contract.mjs'
 import { exercisePush, pushSender, signedApsEnvironment, unsignedReason } from './acceptance-push.mjs'
 
 const require = createRequire(import.meta.url)
@@ -150,23 +151,32 @@ async function inspectSurfaces(proxy, native, handle, output, report) {
   } else await dismissAstra(proxy, native, handle, output, report)
   if (astraTree.denied) proxy.send('palette')
   else {
-    await native(handle.child.pid, 'palette')
+    // The probe records palette keys from the Astra close on, so the Command+K that opens the palette has a receipt too.
+    const modifier = process.platform === 'win32' ? 'ctrlKey' : 'metaKey'
+    await pressKey(proxy, native, handle, report, 'palette', (event) => event.kind === 'palette-key' && event.key.toLowerCase() === 'k' && event[modifier])
     proxy.send('palette-ready')
   }
   const previous = await waitFor(() => proxy.read('palette'), 'palette surface')
   const tree = await dump('palette')
   if (tree.denied) { report.paletteFocus = { skipped: tree.error }; return }
   await traversePalette(proxy, native, handle, dump, previous, report)
-  await native(handle.child.pid, 'escape')
+  await pressKey(proxy, native, handle, report, 'escape', (event) => event.kind === 'palette-key' && event.key === 'Escape')
+}
+
+// Every native key waits for its page keydown receipt, so report.json keyDelivery keeps each post with its native reply,
+// and the job log prints one line per post.
+function pressKey(proxy, native, handle, report, command, receipt) {
+  return deliverKey({ name: command, post: () => native(handle.child.pid, command), receipts: () => proxy.events().filter(receipt),
+    waitFor, now: () => Date.now(), record: report.keyDelivery ??= [], log: (line) => process.stdout.write(`${line}\n`) })
 }
 
 async function dismissAstra(proxy, native, handle, output, report) {
-  await native(handle.child.pid, 'escape')
+  await pressKey(proxy, native, handle, report, 'escape', (event) => event.kind === 'astra-key' && event.key === 'Escape')
   proxy.send('astra-closed')
   try {
     await waitFor(() => proxy.read('astra-closed'), 'Astra dismissal')
   } catch (error) {
-    // The page probe records every keydown while Astra is open, so a timeout tells a lost key from an unhandled one.
+    // The Escape reached the page, so a timeout is the app's; the page's Astra keydowns show what it received.
     report.astraKeys = proxy.events().filter((event) => event.kind === 'astra-key')
     let tree
     try { tree = await native(handle.child.pid, 'dump') } catch (dumpError) { tree = { denied: false, error: dumpError.message, nodes: [] } }
@@ -178,27 +188,12 @@ async function dismissAstra(proxy, native, handle, output, report) {
 
 async function traversePalette(proxy, native, handle, dump, previous, report) {
   const focus = []
-  // A native Down can return without reaching WebKit, so only the probe's keydown receipt proves delivery (#1560).
-  // The probe POSTs each receipt from its keydown capture listener, so 5 s bounds one loopback request; three posts add at most 15 s of receipt waiting.
-  const paletteKeyWindow = 5000
-  const paletteKeyPosts = 3
-  const keys = () => proxy.events().filter((event) => event.kind === 'palette-key')
-  // WebKit gives a Down that the macOS input method claimed keyCode 229, and cmdk ignores a composing or 229 keydown.
-  const downKeys = () => keys().filter((event) => event.key === 'ArrowDown' && event.keyCode !== 229 && !event.composing).length
-  report.paletteUndelivered = []
+  const downKey = (event) => event.kind === 'palette-key' && event.key === 'ArrowDown'
+  const downKeys = () => proxy.events().filter((event) => downKey(event) && usableKey(event)).length
   for (let index = 0; index < 2; index++) {
     const before = proxy.events().filter((event) => event.kind === 'focus').length
     const received = downKeys()
-    for (let post = 1; downKeys() === received; post++) {
-      if (post > paletteKeyPosts) {
-        throw new Error(`Palette received no usable native Down for step ${index + 1} after ${paletteKeyPosts} posts: each Down was missing or claimed by the input method (keyCode 229 or composing)`)
-      }
-      const keysBefore = keys().length
-      await native(handle.child.pid, 'down')
-      const deadline = Date.now() + paletteKeyWindow
-      await waitFor(() => downKeys() > received || Date.now() >= deadline, 'native Down receipt')
-      if (downKeys() === received) report.paletteUndelivered.push({ step: index + 1, post, keys: keys().slice(keysBefore) })
-    }
+    await pressKey(proxy, native, handle, report, 'down', downKey)
     proxy.send(`focus-${previous.selected + 1}`)
     const current = await waitFor(() => {
       if (downKeys() > received + 1) throw new Error(`Palette step ${index + 1} received ${downKeys() - received} native Down keys`)
@@ -374,19 +369,6 @@ async function pushPhase({ proxy, native, updates, handle, executable, output, r
   if (cleanup.length) throw new Error(`Push acceptance cleanup failed: ${cleanup.join('; ')}`)
 }
 
-// Each native key reply names its delivery path, so report.json shows how every key reached the shell.
-const keyCommands = new Set(['escape', 'palette', 'down', 'home', 'quit'])
-function recordKeys(native, report) {
-  return async (pid, command, ...rest) => {
-    const reply = await native(pid, command, ...rest)
-    if (keyCommands.has(command)) {
-      report.keyDelivery ??= []
-      report.keyDelivery.push({ command, ...reply })
-    }
-    return reply
-  }
-}
-
 function menuCommands(items, enabled = true) {
   return items.flatMap((item) => item.children.length
     ? menuCommands(item.children, enabled && item.enabled)
@@ -408,13 +390,16 @@ export async function acceptance({ repository, output, credentials = {}, signing
     const proxyPort = windows ? 443 : 3443
     for (const port of [proxyPort, 5099, 3401]) await assertFree(port)
     if (!windows) await startHttpsListener()
+    // The runner class decides how often a native key is lost (#2074), so every run names its vCPU count.
+    report.runner = { cpus: windows ? cpus().length : Number((await execute('sysctl', ['-n', 'hw.ncpu'])).trim()) }
+    process.stdout.write(`Runner vCPUs: ${report.runner.cpus}\n`)
     finishRecording = await startRecording(output)
     const checkpoint = (event) => report.launchChecks.push({ event, recordingSeconds: (Date.now() - finishRecording.startedAt) / 1000 })
     process.stdout.write('Building release-shaped installer and hermetic web application\n')
     const shell = await buildInstaller(repository, output, signing)
     builtWeb = true
     await hermeticServices(repository, output)
-    const native = recordKeys(await nativeTool(output), report)
+    const native = await nativeTool(output)
     const updates = await updateServer(repository, output, shell, report)
     isolation = await isolateOrigins(output)
     proxy = await startProxy({ probePath: join(directory, 'acceptance-probe.js'), port: proxyPort, upstreamPort: 3401, tls: isolation, route: updates.route, acceptance: true })

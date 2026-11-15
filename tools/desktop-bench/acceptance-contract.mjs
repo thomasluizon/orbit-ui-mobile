@@ -110,3 +110,33 @@ export function assertExpiredDone({ logs, habitId, visible, signIn }) {
   if (!signInPaths.includes(signIn?.route)) throw new Error(`An expired-session Done must open the sign-in page, not ${signIn?.route}`)
   return { logs: 0, windowVisible: true, route: signIn.route }
 }
+
+// WebKit gives a key that the macOS input method claimed keyCode 229, and the page ignores a composing or 229 keydown (#1560).
+export const usableKey = (event) => event.keyCode !== 229 && !event.composing
+
+// The probe POSTs each receipt from its keydown capture listener, so 5 s bounds one loopback request (#2369).
+export const keyReceiptWindow = 5000
+// On a 5 vCPU macOS runner one Down step lost 3 posts in a row (run 43456283933), so each key gets twice that: 30 s at most.
+export const keyPosts = 6
+
+// A native key post can return without reaching WebKit, so only the page's keydown receipt proves delivery (#1560). Each key
+// posts again only after a window with no usable receipt, and a key that never arrives fails as OS delivery, apart from the
+// app check that follows a delivered key.
+export async function deliverKey({ name, post, receipts, waitFor, now, record, log }) {
+  const usable = () => receipts().filter(usableKey).length
+  const before = usable()
+  const attempts = []
+  record.push({ key: name, attempts })
+  for (let attempt = 1; attempt <= keyPosts; attempt++) {
+    const seen = receipts().length
+    const reply = await post()
+    const deadline = now() + keyReceiptWindow
+    await waitFor(() => usable() > before || now() >= deadline, `${name} keydown receipt`)
+    const delivered = usable() > before
+    attempts.push(delivered ? { post: attempt, delivered, reply } : { post: attempt, delivered, reply, keys: receipts().slice(seen) })
+    log(`Key ${name}: post ${attempt} of ${keyPosts} ${delivered ? 'reached the page' : `had no usable keydown receipt in ${keyReceiptWindow / 1000} s`}`)
+    if (delivered) return attempts
+  }
+  throw new Error(`OS key delivery failed: the page received no usable ${name} keydown after ${keyPosts} posts ` +
+    `${keyReceiptWindow / 1000} s apart; each key was missing or claimed by the input method (keyCode 229 or composing)`)
+}

@@ -304,7 +304,7 @@ static void raiseProcess(pid_t processId) {
 }
 
 static NSDictionary *key(pid_t processId, NSString *name) {
-    NSDictionary *codes = @{@"down": @125, @"home": @115, @"escape": @53, @"quit": @12, @"palette": @40};
+    NSDictionary *codes = @{@"down": @125, @"escape": @53, @"palette": @40};
     NSNumber *code = codes[name];
     if (!code) @throw [NSException exceptionWithName:@"Input" reason:@"Unknown keyboard operation" userInfo:nil];
     NSString *activation = @"focused";
@@ -325,7 +325,7 @@ static NSDictionary *key(pid_t processId, NSString *name) {
     // caret (#1560), so the key enters the shell's own event stream (CGEvent.h CGEventPostToPid).
     for (NSNumber *pressed in @[@YES, @NO]) {
         CGEventRef event = CGEventCreateKeyboardEvent(NULL, code.unsignedShortValue, pressed.boolValue);
-        CGEventSetFlags(event, ([name isEqual:@"quit"] || [name isEqual:@"palette"]) ? kCGEventFlagMaskCommand : 0);
+        CGEventSetFlags(event, [name isEqual:@"palette"] ? kCGEventFlagMaskCommand : 0);
         CGEventPostToPid(processId, event);
         CFRelease(event);
     }

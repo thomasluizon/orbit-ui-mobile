@@ -391,12 +391,19 @@ Platform readers dump the real AX or UI Automation tree and require web content,
 controls, semantic roles and nonempty names. Palette arrows must retain DOM input focus and expose the
 next selected result in both the DOM and platform tree. Platform focus may be on the input or its
 selected active descendant inside the controlled listbox, matched by captured automation identifiers.
-The page records each keydown the palette receives. A native Down counts as sent only when the page
-records an ArrowDown that the input method did not claim. WebKit marks a claimed key with key code 229
-or a composition, and cmdk ignores it. If the page records no usable ArrowDown within 5 seconds, the
-runner sends the Down again, with at most 3 posts per step. The report keeps each undelivered Down and
-the keys the page recorded for it in `paletteUndelivered`. A step that records two usable ArrowDown keys
-fails. A received Down that does not move the selection still fails the focus check.
+Every native key (the Astra Escape, the Command+K or Ctrl+K that opens the palette, each palette Down
+and the Escape that closes the palette) goes through one helper, `deliverKey` in `acceptance-contract.mjs`.
+A key counts as sent only when the page records a keydown for it that the input method did not claim.
+WebKit marks a claimed key with key code 229 or a composition, and the page ignores it. The page records
+keydowns in `astra-key` events while Astra is open, and in `palette-key` events from the Astra close on.
+If the page records no usable keydown within 5 seconds, the runner sends the key again, with at most 6
+posts (30 seconds) per key. A key that never arrives fails with `OS key delivery failed`, before the
+runner checks the app, so a run report tells a lost OS event from an app defect. `report.json`
+`keyDelivery` keeps every post of every key with its native reply, and the keys the page recorded for an
+undelivered post. The job log prints one `Key <name>: post N of 6` line per post. A palette step that records two usable
+ArrowDown keys fails. A received Down that does not move the selection still fails the focus check.
+Each run also logs `Runner vCPUs: N` (`sysctl -n hw.ncpu` on macOS) and keeps it in `report.json`
+`runner.cpus`, because native keys are lost more often on the 5 vCPU macOS runner class.
 
 On macOS, the AX helper posts every key into the event stream of the installed process with
 `CGEventPostToPid`, and the key window of the shell receives it as a typed key. A key posted at the HID
@@ -405,10 +412,9 @@ lost whole keys while the shell was the focused application with a key window an
 The helper first reads the focused application from the system-wide AX element. If the installed process
 is not focused, the helper requests activation and sets `AXFrontmost`, because macOS 14 lets the system
 refuse an activation request. If another process keeps keyboard focus, the helper posts no key and names
-that process. `report.json` `keyDelivery` keeps each key reply with its delivery path, its activation and
-the focused process. While Astra is open, the page records each keydown in `astra-key` events. If Astra
-does not close after the native Escape, the runner keeps those events in `report.json` `astraKeys` and
-the AX tree in `trees/astra-after-escape.json`. The error states how many Escape keydowns the page received.
+that process. Each native reply names its delivery path, its activation and the focused process. If Astra does not close after the page received the native Escape, the runner keeps
+the `astra-key` events in `report.json` `astraKeys` and the AX tree in `trees/astra-after-escape.json`.
+The error states how many Escape keydowns the page received.
 An exact macOS access denial is recorded as
 a skip, with Windows still required. These are structural checks; a person's spoken screen reader
 pass remains separate. Reports, native trees, capture and diagnostic logs upload even on failure.

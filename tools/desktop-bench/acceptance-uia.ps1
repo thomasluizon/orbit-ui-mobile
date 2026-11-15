@@ -1,6 +1,6 @@
 param(
   [Parameter(Mandatory = $true)][int]$TargetProcessId,
-  [Parameter(Mandatory = $true)][ValidateSet('dump', 'down', 'home', 'escape', 'palette', 'menu', 'quit', 'caption', 'windows', 'close', 'notification', 'process', 'activation')][string]$Command,
+  [Parameter(Mandatory = $true)][ValidateSet('dump', 'down', 'escape', 'palette', 'menu', 'quit', 'caption', 'windows', 'close', 'notification', 'process', 'activation')][string]$Command,
   [uint32]$MenuCommandId,
   [string]$Title,
   [string]$Label,
@@ -429,7 +429,7 @@ if ($Command -eq 'caption') {
 if ($Command -ne 'dump') {
   if (-not [OrbitForeground]::SetForegroundWindow($window.Current.NativeWindowHandle)) { throw 'Cannot foreground installed app' }
   Start-Sleep -Milliseconds 250
-  $keys = @{ down = '{DOWN}'; home = '{HOME}'; escape = '{ESC}'; palette = '^k' }
+  $keys = @{ down = '{DOWN}'; escape = '{ESC}'; palette = '^k' }
   [System.Windows.Forms.SendKeys]::SendWait($keys[$Command])
   @{ sent = $Command } | ConvertTo-Json
   exit 0
