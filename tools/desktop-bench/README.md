@@ -400,10 +400,11 @@ selected active descendant inside the controlled listbox, matched by captured au
 Every native key (the Astra Escape, the Command+K or Ctrl+K that opens the palette, each palette Down
 and the Escape that closes the palette) goes through one helper, `deliverKey` in `acceptance-contract.mjs`.
 A key counts as sent when the page records a keydown with its name. The page records keydowns in
-`astra-key` events while Astra is open, and in `palette-key` events from the Astra close on. A key that
-the input method claimed (key code 229 or a composition) still counts, because the Astra and palette
-shortcut handlers act on the key name, and the runner never posts a key again after the page recorded
-it. cmdk ignores a claimed Down, so a claimed Down fails as an input method claim before the focus check.
+`astra-key` events while Astra is open, and in `palette-key` events from the Astra close on. An Escape
+or a Command+K that the input method claimed (key code 229 or a composition) still counts, because the
+Astra and palette shortcut handlers act on the key name, and the runner never posts such a key again after
+the page recorded it. cmdk ignores a claimed Down, so only an unclaimed ArrowDown counts for a Down, and the
+runner posts a claimed Down again under the same bound.
 If the page records no keydown of the key within 5 seconds, the runner sends it again, with at most 6
 posts (30 seconds) per key. A key that never arrives fails with `OS key delivery failed`, before the
 runner checks the app. After a repost, a key from an earlier post can still arrive. The runner then

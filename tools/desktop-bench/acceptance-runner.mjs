@@ -190,9 +190,8 @@ async function traversePalette(proxy, native, handle, dump, previous, report) {
   const focus = []
   for (let index = 0; index < 2; index++) {
     const before = proxy.events().filter((event) => event.kind === 'focus').length
-    const receipt = await pressKey(proxy, native, handle, report, 'down', 'palette-key', (event) => event.key === 'ArrowDown')
-    // cmdk ignores a claimed Down, so the selection cannot move; that is the input method's failure, not the palette's.
-    if (claimedKey(receipt)) throw new Error(`OS input method claimed the native Down for palette step ${index + 1} (keyCode 229 or composing), and cmdk ignores a claimed key`)
+    // cmdk ignores a claimed Down (keyCode 229 or composing), so only an unclaimed Down counts as received and a claimed one posts again.
+    await pressKey(proxy, native, handle, report, 'down', 'palette-key', (event) => event.key === 'ArrowDown' && !claimedKey(event))
     proxy.send(`focus-${previous.selected + 1}`)
     const current = await waitFor(() => proxy.events().filter((event) => event.kind === 'focus')[before], 'palette result focus')
     const selectedTree = await dump(`palette-result-${index + 1}`)
