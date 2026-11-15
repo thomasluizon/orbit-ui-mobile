@@ -9,7 +9,7 @@ import { GuidedSignInContext } from '@/components/auth/guided-sign-in'
 const mocks = vi.hoisted(() => ({ online: true, push: vi.fn() }))
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: mocks.push, replace: mocks.push }), useSearchParams: () => new URLSearchParams() }))
 vi.mock('@/hooks/use-offline', () => ({ useOffline: () => ({ isOnline: mocks.online }) }))
-vi.mock('@/lib/posthog', () => ({ captureGuidedFlowEvent: vi.fn() }))
+vi.mock('@/lib/posthog', () => ({ captureGuidedFlowEvent: vi.fn(), captureGuidedFlowCompleted: vi.fn() }))
 
 const copy = ptBR.auth
 const requests = vi.fn()

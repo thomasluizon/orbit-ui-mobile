@@ -13,7 +13,7 @@ import { __setWindowDimensions } from '@/test-mocks/react-native'
 
 const { act, create } = require('react-test-renderer')
 type Locale = typeof authLocales[number]
-const mocks = vi.hoisted((): { flow: Record<string, unknown>; language: string; reduced: boolean; captureGuidedFlowEvent: ReturnType<typeof vi.fn> } => ({ flow: {}, language: 'en', reduced: false, captureGuidedFlowEvent: vi.fn() }))
+const mocks = vi.hoisted((): { flow: Record<string, unknown>; language: string; reduced: boolean; captureGuidedFlowEvent: ReturnType<typeof vi.fn>; captureGuidedFlowCompleted: ReturnType<typeof vi.fn> } => ({ flow: {}, language: 'en', reduced: false, captureGuidedFlowEvent: vi.fn(), captureGuidedFlowCompleted: vi.fn() }))
 vi.mock('@/app/use-login-flow', () => ({ useLoginFlow: () => mocks.flow }))
 vi.mock('@/components/auth/turnstile-widget', () => ({ TurnstileWidget: () => React.createElement('TurnstileWidget') }))
 vi.mock('@/lib/use-app-theme', () => ({ useAppTheme: () => ({ currentScheme: 'orange', currentTheme: 'dark' }) }))
@@ -21,7 +21,7 @@ vi.mock('react-i18next', async (importOriginal) => ({
   ...(await importOriginal<typeof import('react-i18next')>()),
   useTranslation: () => ({ t: testI18n.getFixedT(mocks.language), i18n: { language: mocks.language } }),
 }))
-vi.mock('@/lib/posthog', async (importOriginal) => ({ ...await importOriginal<typeof import('@/lib/posthog')>(), captureGuidedFlowEvent: mocks.captureGuidedFlowEvent }))
+vi.mock('@/lib/posthog', async (importOriginal) => ({ ...await importOriginal<typeof import('@/lib/posthog')>(), captureGuidedFlowEvent: mocks.captureGuidedFlowEvent, captureGuidedFlowCompleted: mocks.captureGuidedFlowCompleted }))
 vi.mock('@/lib/motion', async (importOriginal) => ({ ...await importOriginal<typeof import('@/lib/motion')>(), usePrefersReducedMotion: () => mocks.reduced }))
 
 interface Node {
@@ -283,6 +283,21 @@ describe('guided sign-in motion, events and flag on Android', () => {
     show('code', 'en')
     expect(mocks.captureGuidedFlowEvent).toHaveBeenCalledWith({ name: 'guided_flow_step_viewed', properties: { flow: 'sign_in', step: 'code', step_count: 2 } })
     expect(JSON.stringify(mocks.captureGuidedFlowEvent.mock.calls)).not.toContain('person@example.com')
+  })
+
+  it('reports the run as completed when the account came back, and never on a step or with the flag off', () => {
+    mocks.captureGuidedFlowCompleted.mockClear()
+    show('email', 'en')
+    close()
+    show('code wrong', 'en')
+    close()
+    expect(mocks.captureGuidedFlowCompleted).not.toHaveBeenCalled()
+    show('account back', 'en')
+    expect(mocks.captureGuidedFlowCompleted).toHaveBeenCalledExactlyOnceWith('sign_in', 2, false)
+    close()
+    mocks.captureGuidedFlowCompleted.mockClear()
+    show('account back', 'en', { guided: false })
+    expect(mocks.captureGuidedFlowCompleted).not.toHaveBeenCalled()
   })
 
   it('renders the current surface with the flag off', () => {

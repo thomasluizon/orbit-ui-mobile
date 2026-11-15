@@ -1,6 +1,6 @@
 import type { FlowStepView } from '@orbit/shared/contracts/flow'
 import { deriveLoginEmailErrors, formatLoginCountdown, getAuthCallbackErrorKey, getPendingAuthProvider } from '@orbit/shared/utils'
-import { useMemo, useState, type ReactNode } from 'react'
+import { useLayoutEffect, useMemo, useState, type ReactNode } from 'react'
 import { Platform, StyleSheet, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { createLoginStyles, type LoginStyles } from '@/app/login-styles'
@@ -11,7 +11,9 @@ import { Input } from '@/components/ui/input'
 import { OrbitMascot, useStateMascotSize } from '@/components/ui/orbit-mascot'
 import { PillButton } from '@/components/ui/pill-button'
 import { QuestionFlow } from '@/components/ui/question-flow'
+import { captureGuidedFlowCompleted } from '@/lib/posthog'
 import { createTokensV2, type AppTokensV2 } from '@/lib/theme'
+import { useAuthStore } from '@/stores/auth-store'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { LoginCodeField, LoginResend, useBackToEmail } from './code-step'
 import { LoginLegalConsent, LoginProviderActions } from './email-step'
@@ -158,6 +160,14 @@ function GuidedLogin(props: Readonly<GuidedLoginProps>) {
   )
 }
 
+/** Reports the run as completed once the code or the provider verified the person. */
+function useSignInCompletion(completed: boolean) {
+  useLayoutEffect(() => {
+    // WHY: a layout effect runs before the passive cleanup of the QuestionFlow that unmounts, so its tracker reads a completed run, not an abandoned one. https://react.dev/reference/react/useLayoutEffect
+    if (completed) captureGuidedFlowCompleted('sign_in', 2, false)
+  }, [completed])
+}
+
 /** The guided sign-in surface: the account that came back, or the two questions. */
 export function GuidedLoginContent({ callback }: Readonly<{ callback?: LoginCallback }>) {
   const { currentScheme, currentTheme } = useAppTheme()
@@ -166,6 +176,8 @@ export function GuidedLoginContent({ callback }: Readonly<{ callback?: LoginCall
   const flow = useLoginFlow(Boolean(callback))
   const [callbackDismissed, setCallbackDismissed] = useState(false)
   const callbackAccount = callback?.state === 'account'
+  const signedIn = useAuthStore((state) => state.isAuthenticated)
+  useSignInCompletion(Boolean(flow.accountBack) || callbackAccount || signedIn)
   if (flow.accountBack || callbackAccount) {
     return <GuidedAccountBack t={flow.t} styles={styles} tokens={tokens} loading={flow.isSubmitting || callback?.loading}
       continueAccount={() => { if (callbackAccount) callback.onContinue(); else void flow.continueAccount() }} errorMessage={flow.errorMessage} />

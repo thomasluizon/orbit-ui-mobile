@@ -8,11 +8,12 @@ import { AuthPagePanel } from '@/components/auth/auth-page-panel'
 import { useGuidedSignIn } from '@/components/auth/guided-sign-in'
 import { useSteadyColumn } from '@/components/auth/use-steady-column'
 import { Lockup } from '@/components/ui/lockup'
+import { useAuthStore } from '@/stores/auth-store'
 import { PillButton } from '@/components/ui/pill-button'
 import { TurnstileWidget } from '@/components/auth/turnstile-widget'
 import { EmailStep } from './email-step'
 import { CodeStep } from './code-step'
-import { GuidedAccountBack, GuidedLogin } from './guided-login'
+import { GuidedAccountBack, GuidedLogin, useSignInCompletion } from './guided-login'
 import { useLoginFlow } from './use-login-flow'
 import { LoginHeader, ReferralBanner, LoginStepStage, LoginValidationMessage } from './login-sections'
 
@@ -34,6 +35,8 @@ export function LoginContent({ callback }: Readonly<{ callback?: LoginCallback }
     else void flow.continueAccount()
   }
   const account = Boolean(flow.accountBack) || callback?.state === 'account'
+  const signedIn = useAuthStore((state) => state.isAuthenticated)
+  useSignInCompletion(guided && (account || signedIn))
   const canSubmitTurnstile = !flow.turnstileSiteKey || Boolean(flow.turnstileToken)
   const turnstileWidget = flow.turnstileSiteKey && flow.isOnline
     ? <TurnstileWidget ref={blockRef} key={flow.turnstileResetKey} siteKey={flow.turnstileSiteKey} resetKey={flow.turnstileResetKey}

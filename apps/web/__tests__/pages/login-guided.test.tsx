@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 import { fireEvent, render, screen, within } from '@testing-library/react'
 import { createTranslator } from 'next-intl'
 import { authLocales, authScreenStates, createLoginScreenFixture, type AuthScreenState } from '@orbit/shared/__tests__/auth-screen-fixtures'
@@ -8,13 +8,14 @@ import { motionDurations } from '@orbit/shared/theme'
 import { LoginContent, type LoginCallback } from '@/app/(auth)/login/login-content'
 import { AuthPageFrame } from '@/components/auth/auth-page-frame'
 import { GuidedSignInContext } from '@/components/auth/guided-sign-in'
+import { useAuthStore } from '@/stores/auth-store'
 
 type Locale = typeof authLocales[number]
-const mocks = vi.hoisted(() => ({ flow: {} as Record<string, unknown>, captureGuidedFlowEvent: vi.fn(), reduced: false }))
+const mocks = vi.hoisted(() => ({ flow: {} as Record<string, unknown>, captureGuidedFlowEvent: vi.fn(), captureGuidedFlowCompleted: vi.fn(), reduced: false }))
 vi.mock('motion/react', async (importOriginal) => ({ ...await importOriginal<typeof import('motion/react')>(), useReducedMotion: () => mocks.reduced }))
 vi.mock('@/app/(auth)/login/use-login-flow', () => ({ useLoginFlow: () => mocks.flow }))
 vi.mock('@/components/auth/turnstile-widget', () => ({ TurnstileWidget: () => <div data-turnstile="" /> }))
-vi.mock('@/lib/posthog', () => ({ captureGuidedFlowEvent: mocks.captureGuidedFlowEvent }))
+vi.mock('@/lib/posthog', () => ({ captureGuidedFlowEvent: mocks.captureGuidedFlowEvent, captureGuidedFlowCompleted: mocks.captureGuidedFlowCompleted }))
 
 const handlers = {
   setEmail: vi.fn(), sendCode: vi.fn(), refuseEmptyEmail: vi.fn(), verifyCode: vi.fn(), resendCode: vi.fn(), backToEmail: vi.fn(),
@@ -264,6 +265,26 @@ describe('guided sign-in motion and flag', () => {
     show('code', 'en')
     expect(mocks.captureGuidedFlowEvent).toHaveBeenCalledWith({ name: 'guided_flow_step_viewed', properties: { flow: 'sign_in', step: 'code', step_count: 2 } })
     expect(JSON.stringify(mocks.captureGuidedFlowEvent.mock.calls)).not.toContain('person@example.com')
+  })
+
+  it('reports the run as completed when the account came back or the session exists, and never on a step', () => {
+    mocks.captureGuidedFlowCompleted.mockClear()
+    const email = show('email', 'en')
+    const code = show('code wrong', 'en')
+    expect(mocks.captureGuidedFlowCompleted).not.toHaveBeenCalled()
+    email.unmount()
+    code.unmount()
+    const account = show('account back', 'en')
+    expect(mocks.captureGuidedFlowCompleted).toHaveBeenCalledExactlyOnceWith('sign_in', 2, false)
+    account.unmount()
+    mocks.captureGuidedFlowCompleted.mockClear()
+    useAuthStore.setState({ isAuthenticated: true })
+    onTestFinished(() => useAuthStore.setState({ isAuthenticated: false }))
+    show('code', 'en')
+    expect(mocks.captureGuidedFlowCompleted).toHaveBeenCalledExactlyOnceWith('sign_in', 2, false)
+    mocks.captureGuidedFlowCompleted.mockClear()
+    show('account back', 'en', { guided: false })
+    expect(mocks.captureGuidedFlowCompleted).not.toHaveBeenCalled()
   })
 
   it('renders the current surface with the flag off', () => {

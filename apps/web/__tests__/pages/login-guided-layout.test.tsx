@@ -12,7 +12,7 @@ import { FLOW_LOCALES, FLOW_WIDTHS, centreOffset, compileAppStylesheet, measureF
 
 const mocks = vi.hoisted(() => ({ flow: {} as Record<string, unknown> }))
 vi.mock('@/app/(auth)/login/use-login-flow', () => ({ useLoginFlow: () => mocks.flow }))
-vi.mock('@/lib/posthog', () => ({ captureGuidedFlowEvent: vi.fn() }))
+vi.mock('@/lib/posthog', () => ({ captureGuidedFlowEvent: vi.fn(), captureGuidedFlowCompleted: vi.fn() }))
 
 const STATES = ['email', 'from onboarding', 'offline', 'code', 'code wrong', 'code expired', 'locked out', 'resend ready', 'account back'] as const satisfies readonly AuthScreenState[]
 const cases = FLOW_WIDTHS.flatMap((width) => FLOW_LOCALES.flatMap((locale) => STATES.map((state) => ({ width, locale, state }))))

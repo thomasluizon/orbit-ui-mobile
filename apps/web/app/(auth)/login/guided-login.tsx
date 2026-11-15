@@ -2,12 +2,13 @@
 
 import type { FlowStepView } from '@orbit/shared/contracts/flow'
 import { deriveLoginEmailErrors, formatLoginCountdown, getAuthCallbackErrorKey, getPendingAuthProvider } from '@orbit/shared/utils'
-import type { ReactNode } from 'react'
+import { useLayoutEffect, type ReactNode } from 'react'
 import { CapacityNotice } from '@/components/ui/capacity-notice'
 import { Input } from '@/components/ui/input'
 import { OrbitMascot, useStateMascotSize } from '@/components/ui/orbit-mascot'
 import { PillButton } from '@/components/ui/pill-button'
 import { QuestionFlow } from '@/components/ui/question-flow'
+import { captureGuidedFlowCompleted } from '@/lib/posthog'
 import { LoginCodeField, LoginResend } from './code-step'
 import { LoginLegalConsent, LoginProviderActions } from './email-step'
 import type { LoginCallback } from './login-content'
@@ -115,6 +116,14 @@ function codeStep({ flow, canSubmitTurnstile, turnstileWidget }: GuidedLoginProp
     },
     footer: null,
   }
+}
+
+/** Reports the run as completed once the code or the provider verified the person. */
+export function useSignInCompletion(completed: boolean) {
+  useLayoutEffect(() => {
+    // WHY: a layout effect runs before the passive cleanup of the QuestionFlow that unmounts, so its tracker reads a completed run, not an abandoned one. https://react.dev/reference/react/useLayoutEffect
+    if (completed) captureGuidedFlowCompleted('sign_in', 2, false)
+  }, [completed])
 }
 
 /** Sign-in as a one-question flow: the email question with the two provider options, then the code question. Orbit is Parado and looks at the field in focus. */
