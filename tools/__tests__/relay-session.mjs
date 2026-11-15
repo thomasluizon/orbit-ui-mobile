@@ -333,11 +333,14 @@ const ownerHandoffCases = () => {
     T(`relay-session: --close-chain beside another session's ${label} repeats that refusal and binds no carry for the owner`, refused.status === 1 &&
       refused.stderr === `RELAY_FAILED: ${nextSteps[label]}\n` && readRunState(beside.checkout).ownerHandoff?.from !== "owner", refused.stderr)
   }
-  const stopped = ownerCheckout(() => ({ sessionId: "stopped", sleep: false, autoWork: true }))
-  const stoppedCheck = stopped.invoke("--owner-check")
-  const stoppedClose = stopped.invoke("--close-chain")
-  T("relay-session: a stopped auto-work run of another session never blocks an owner handoff", stoppedCheck.status === 0 && stoppedClose.status === 0 &&
-    readRunState(stopped.checkout).ownerHandoff === undefined, `${stoppedCheck.stderr} ${stoppedClose.stderr}`)
+  const adopted = { ownerHandoff: { from: "earlier", promptHash: "bound", successorSessionId: "stopped" } }
+  for (const [label, record] of [["a stopped auto-work run", {}], ["an adopted, then stopped auto-work run", adopted]]) {
+    const stopped = ownerCheckout(() => ({ sessionId: "stopped", sleep: false, autoWork: true, ...record }))
+    const stoppedCheck = stopped.invoke("--owner-check")
+    const stoppedClose = stopped.invoke("--close-chain")
+    T(`relay-session: ${label} of another session never blocks an owner handoff`, stoppedCheck.status === 0 && stoppedClose.status === 0 &&
+      JSON.stringify(readRunState(stopped.checkout).ownerHandoff) === JSON.stringify(record.ownerHandoff), `${stoppedCheck.stderr} ${stoppedClose.stderr}`)
+  }
 
   const foreignChain = ownerCheckout(finishedRun)
   appendChainEntry({ sessionId: "earlier" }, foreignChain.checkout)

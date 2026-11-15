@@ -13,8 +13,9 @@ next session whose entry point is `/sleep`. Nobody has to add anything before it
 is extra work for the NEXT session. You never do that work now.
 
 An owner `/handoff` runs `node tools/relay-session.mjs --owner-check` first, before it writes
-anything. It refuses while another session's unattended run owns this checkout's run state. Then
-write and push nothing, and give the owner its message, which names his next step.
+anything. The check refuses while another session runs unattended in this checkout, or holds an
+auto-work handoff that no successor adopted yet. If it refuses, write and push nothing, and give
+the owner its message, which names his next step.
 
 `--crank` or `/crank` includes `--sleep`. Read the current session's run state with
 `readRunState` from `tools/lib/run-state.mjs`: `crank: true` includes it automatically,
