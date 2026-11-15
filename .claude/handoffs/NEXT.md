@@ -23,11 +23,11 @@ UI `main` `1823697fe`; API `main` `1d2a826b8` (live in production and staging); 
 | `ui#2457` (`#2074` UI) | Pushed `6d95f4ac7`; thread resolved; chain running (rerun `chain-review.sh ui 2457` if its waiter died). At approval: P14, merge; then the `wait-ci` follow-up on `#2074`. |
 | `landing#135` (`#2074` landing) | Pushed `fd007023b`; chain running. At approval: protection P1 to P7 (required: `Build`, `PR Text`, `GitGuardian Security Checks`, `pullfrog-approval`), merge, P8; mark the brain D150 rows. |
 | `ui#2447` (`#2131`) | Pushed `6e2d89793` (CI fix); chain running. At approval: merge, web release, Android Open then TestFlight at the same version, device proof (Android first, then VoiceOver on an SE-size iPhone). |
-| `ui#2444` (`#2119`) | Pushed `857ccdbaf`; chain running. At approval: merge, retarget `ui#2450` to `main`. |
+| `ui#2444` (`#2119`) | MERGED `8c2801331`; `ui#2450` retargeted to `main`. Close `#2119` if the merge did not. |
 | `ui#2455` (`#2133`) | Pushed `a9690372c`; chain running. Merge at approval. |
 | `ui#2459` (`#2135`) | Worker (second and last launch) fixing review round 1, worktree `ticket-2129-eval-gate`, order `order-2135-r1.md`; outcome unknown: read its commits first. Then one narrow review of the new commits, push, chain, merge, then the live baseline of `main` (cost estimate first). |
 | `ui#2458` (`#2132` chore) | Remote `9721fdf74`; local adds the base merge, `956790cef` (hermetic Expo check) and `4757e51ee` (calibration renewal; 7 skills are stale on `main` too, a report-only Guards step): rerun `node tools/test-tools.mjs` alone, read `review-ui-2458.md`, push with `body-ui-2458.md`, chain, merge; then base-merge `ui#2448` and request its review. |
-| `ui#2450` (`#2120`) | Local `f06fc4630`; full Chromium 7853 passed, 0 failed; mobile 14814 passed. After `ui#2444` merges: base-merge, whole-diff review (read the `DESIGN.md` hunk), push, chain. |
+| `ui#2450` (`#2120`) | Local `f06fc4630`; full Chromium 7853 passed, 0 failed; mobile 14814 passed. Base-merge `main` (ui#2444 merged), whole-diff review (read the `DESIGN.md` hunk), push, chain. |
 | `#2127` | Open; capture 4 of 5 (comment on the ticket). No old-path fix round. |
 | `#2122` Parts 5 to 7 | Part 5 needs critic pass 2, the web footer sweep and copy approval for `upgrade.orbitLine.billingError`; then merge parts into `feature/ticket-2122-destinations`. |
 | `ui#2388` | This relay's docs branch. Never request a review for it. |
