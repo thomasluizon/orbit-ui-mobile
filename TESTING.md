@@ -462,9 +462,9 @@ The outcome grader (`core/outcome.mjs`) reads no tool name:
 - It turns the held previews into a change list (`core/change-list.mjs`): the kind of each change, its
   record and its changed fields. It compares that list with the expected list of the situation. A field
   that the preview marks `suggested` with a removal is an offer of the assistant. A field marked `stored`
-  is a change that the server derives, unless a held write in the eval trace clears it (`clear_fields`,
-  `clear_parent`, an empty array, or a null edit in the `edits_json` of a held revision). The list keeps
-  offers and derived changes apart from the requested changes. A field that the request did not name and
+  is a change that the server derives, unless a held write in the eval trace names it: a clear
+  (`clear_fields`, `clear_parent` or an empty array), or any edit in the `edits_json` of a held revision.
+  The list keeps offers and derived changes apart from the requested changes. A field that the request did not name and
   that is neither an offer nor derived fails the case.
   A preview turn without the trace that shows a `stored` field gives no evidence.
 - It counts the questions that came before the preview, against the minimum and the maximum of the case.
@@ -511,8 +511,9 @@ passes `--as-baseline` in place of `--baseline`. A merge without one of the two 
 The API returns no cost for one turn. Read the run's cost from the API's daily `AI cost` line for the
 eval purpose and pass it as `--run-cost-usd`; each case takes the share that its measured model calls
 hold (one `model_call` phase of the opt-in trace is one model call), with the calls of the attempts that
-a later window or a rerun replaced. Without it the gate stays incomplete. A turn that fails, and a card
-turn that returns no trace, add no counted model calls, so the cost of one model call reads a little high.
+a later window or a rerun replaced. Without it the gate stays incomplete. A turn that fails, a card turn
+that returns no trace, and a preview turn without the trace that shows a `stored` field add no counted
+model calls, so the cost of one model call reads a little high.
 
 No rerun on the same build replaces a failure. An attempt that fails, fails its case for that build:
 a wrong preview, a reply without a preview and without a question card, HTTP 5xx, a stream that ends
@@ -529,8 +530,8 @@ pull request; until then the gate of that build stays incomplete. Extend the gra
 
 - A preview limit (`The grader cannot classify a held preview`): the private evidence of the attempt
   (`attempts/<case>-r<n>.json`, `heldPreviews`) keeps its held previews, with each record id replaced by
-  the name that the case gives the record, and the fields that the held writes clear (`cleared`). The
-  extended grader regrades them offline with `gradePreview({ questionsBeforePreview, previews, cleared })`;
+  the name that the case gives the record, and the fields that the held writes name (`written`). The
+  extended grader regrades them offline with `gradePreview({ questionsBeforePreview, previews, written })`;
   record that verdict on the work ticket, because the merge does not take it.
 - A readback limit (`The grader cannot read back a saved ...`): the preview matched and nothing was
   approved, so no saved state exists to regrade. Only the rerun measures it.

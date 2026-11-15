@@ -115,7 +115,7 @@ export function gradePreview(output, vars) {
   if (!previews.length) return verdict(false, `No preview came after ${questions} question(s).`)
   if (questions < min) return verdict(false, 'The assistant held a change without the question that the request needs.')
   if (!withinRange(previews.length, expected.previews, 1)) return verdict(false, `The request is held in ${previews.length} previews.`)
-  const { changes, unclassified } = changeList(previews, output.cleared ?? null)
+  const { changes, unclassified } = changeList(previews, output.written ?? null)
   if (unclassified.length) {
     return verdict(false, `The grader cannot classify a held preview: ${unclassified.join(', ')}.`, { graderLimit: true })
   }

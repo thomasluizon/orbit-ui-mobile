@@ -20,35 +20,37 @@ export const recordId = (id) => typeof id === 'string' && !/^[0-]+$/u.test(id) ?
 // `suggested`, with no removal. The client shows a field as an offer only with a removal (suggestedFieldRemovals of
 // pending-operation-card-view.ts), and so does the change list. An offer is no change that the request names.
 const isOffer = (field) => field.provenance === 'suggested' && field.removal != null
-// Producer: AnnotateOfferField (Offers.cs:380-383) marks `stored` each row whose field is no argument with a value. That
-// is a change that the server derives (AddChanges diffs the whole record, so a repeat reminder offer also changes
-// reminder_enabled), and also a field that the model clears. The row cannot tell them apart; the held write calls can.
-// A chat write clears a field only through clear_fields, clear_parent (IsExplicitlyCleared, Offers.cs:316-318) or an
-// empty array (HasValue, ProactiveProposal.cs:169-170); a null argument keeps the value (BulkUpdateHabitsTool.cs:16).
-// Returns the sorted names of the fields that the held writes clear, or null without the trace.
-export function clearedFields(trace) {
+// Producer: AnnotateOfferField (Offers.cs:380-383) marks `stored` each row whose field is not in the requested_fields of
+// the offer metadata, or, without that metadata, each row whose field is no argument with a value. The list is written
+// once, when the preview is first built (Offers.cs:179, :214-216). So a stored row is a change that the server derives
+// (AddChanges diffs the whole record, so a repeat reminder offer also changes reminder_enabled), a field that the model
+// clears, or a field that a later revision of the preview writes. The row cannot tell them apart; the held writes can.
+export function writtenFields(trace) {
   if (!Array.isArray(trace?.calls)) return null
-  const cleared = new Set()
+  const written = new Set()
+  // A write clears a field through clear_fields, clear_parent (IsExplicitlyCleared, Offers.cs:316-318) or an empty
+  // array (HasValue, ProactiveProposal.cs:169-170); a null argument keeps the value (BulkUpdateHabitsTool.cs:16).
   const visit = (value) => {
     if (Array.isArray(value)) { value.forEach(visit); return }
     if (!value || typeof value !== 'object') return
     for (const [key, child] of Object.entries(value)) {
-      if (key === 'clear_fields' && Array.isArray(child)) child.forEach((name) => cleared.add(name))
-      else if (key === 'clear_parent' && child === true) cleared.add('parent_habit_id')
-      else if (Array.isArray(child) && !child.length) cleared.add(key)
+      if (key === 'clear_fields' && Array.isArray(child)) child.forEach((name) => written.add(name))
+      else if (key === 'clear_parent' && child === true) written.add('parent_habit_id')
+      else if (Array.isArray(child) && !child.length) written.add(key)
       else if (key === 'edits_json' && typeof child === 'string') visitEdits(JSON.parse(child))
       visit(child)
     }
   }
   // A revision of a held preview (revise_pending_changes) gives its edits as the JSON text edits_json, which the server
-  // parses before it holds the revision (RevisePendingChangesTool.cs:75). A null edit clears the field there
-  // (ReviseClearField, PendingOperationRevisionService.cs:546-561).
+  // parses before it holds the revision (RevisePendingChangesTool.cs:75-81). Each edited field, a value or a null that
+  // clears it (ReviseClearField), is a model write that ApplyEdits never adds to requested_fields
+  // (PendingOperationRevisionService.cs:543-561), so the preview of the revision marks it stored.
   const visitEdits = (edits) => {
-    for (const [key, edit] of Object.entries(edits ?? {})) if (edit === null) cleared.add(key)
+    for (const key of Object.keys(edits ?? {})) written.add(key)
     visit(edits)
   }
   for (const call of trace.calls.filter((call) => call.resultStatus === 'PendingConfirmation')) visit(call.arguments)
-  return [...cleared].toSorted()
+  return [...written].toSorted()
 }
 
 // A preview without items lists its fields flat; the cards group them by record, and so does this.
@@ -93,9 +95,10 @@ function offeredDrafts(offers) {
 
 // The change list of the held previews: one entry for each record a preview changes, with the kind of the change, the
 // record, the fields that the model writes, the fields that the preview offers, the fields that the server derives, and
-// the titles of the records that the offered drafts add. Without the fields that the held writes clear (`cleared` null),
-// a stored row is undetermined. A row of a create preview that only names a habit the create reuses is no change.
-export function changeList(pendingOperations, cleared = null) {
+// the titles of the records that the offered drafts add. A stored row is written when the held writes name its field
+// (`written`, from writtenFields), and derived otherwise; without the trace (`written` null) it is undetermined. A row
+// of a create preview that only names a habit the create reuses is no change.
+export function changeList(pendingOperations, written = null) {
   const changes = []
   const unclassified = []
   for (const operation of pendingOperations ?? []) {
@@ -105,10 +108,10 @@ export function changeList(pendingOperations, cleared = null) {
       if (kind === 'create' && item.fields.some(marksExistingHabit)) continue
       const offers = item.fields.filter(isOffer)
       const stored = item.fields.filter((field) => field.provenance === 'stored')
-      const derived = cleared ? stored.filter((field) => !cleared.includes(field.field)) : []
-      const undetermined = cleared ? [] : stored
-      const written = item.fields.filter((field) => !isOffer(field) && !derived.includes(field) && !undetermined.includes(field))
-      changes.push({ kind, target: recordId(item.entityId), preview: operation.id, fields: changedFields(written, kind),
+      const derived = written ? stored.filter((field) => !written.includes(field.field)) : []
+      const undetermined = written ? [] : stored
+      const requested = item.fields.filter((field) => !isOffer(field) && !derived.includes(field) && !undetermined.includes(field))
+      changes.push({ kind, target: recordId(item.entityId), preview: operation.id, fields: changedFields(requested, kind),
         offered: changedFields(offers, kind), derived: changedFields(derived, kind), undetermined: changedFields(undetermined, kind),
         drafts: offeredDrafts(offers) })
     }

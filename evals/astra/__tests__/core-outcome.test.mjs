@@ -742,7 +742,7 @@ describe('an offer of the assistant in the preview', () => {
     const { output, verdict } = await scripted([finalOf('complete', 0), offeredTurn((item) => repeatReminder(item))], request,
       { traces: [null, offeredReminder] })
     expect(verdict).toMatchObject({ pass: true, reason: 'The saved state matches the approved changes.' })
-    expect(changeList(output.previews, output.cleared).changes.find((change) => change.target === captures.complete.children[0]))
+    expect(changeList(output.previews, output.written).changes.find((change) => change.target === captures.complete.children[0]))
       .toMatchObject({ fields: { title: 'Water - 1.18L' }, offered: { repeat_reminder: JSON.stringify(repeatValue) }, derived: { reminder_enabled: 'true' } })
   })
 
@@ -763,10 +763,38 @@ describe('an offer of the assistant in the preview', () => {
   // Producer: a revision of the held preview carries its edits as the JSON text edits_json (RevisePendingChangesTool.cs:38-39,
   // :75), and a null edit of a clearable field clears it (ReviseClearField, PendingOperationRevisionService.cs:546-561). The
   // trace keeps the revision with the status PendingConfirmation (ProcessUserChatCommand.Tools.cs:683-685, :735-755).
-  const revisionOf = (edits) => ({ id: 'call-revise', name: 'revise_pending_changes', arguments: {
-    pending_operation_id: '88888888-8888-4888-8888-888888888888', answer_question: false, remove_item_ids: null,
-    items: [{ item_id: captures.complete.children[0], edits_json: JSON.stringify(edits), remove_suggested_fields: null }] },
-  resultStatus: 'PendingConfirmation', result: null })
+  const revisionOf = (edits, ids = [captures.complete.children[0]]) => ({ id: 'call-revise', name: 'revise_pending_changes',
+    arguments: { pending_operation_id: '88888888-8888-4888-8888-888888888888', answer_question: false, remove_item_ids: null,
+      items: ids.map((id) => ({ item_id: id, edits_json: JSON.stringify(edits), remove_suggested_fields: null })) },
+    resultStatus: 'PendingConfirmation', result: null })
+
+  // Producer: the offer metadata keeps the requested_fields of the first preview (Offers.cs:179, :214-216), and ApplyEdits
+  // never adds an edited field to it (PendingOperationRevisionService.cs:543-548), so a field that a revision sets is
+  // `stored` in the preview of the revision.
+  it('fails a rename with an offer whose revision in the same turn also sets the due time, which the preview marks stored, and approves nothing',
+    async () => {
+      const trace = structuredClone(offeredReminder)
+      trace.calls.push(revisionOf({ due_time: '09:00' }))
+      const rows = (item) => [...repeatReminder(item), storedRow(item, 'due_time', null, '09:00', 'time', '09:00')]
+      const { verdict, calls } = await scripted([finalOf('complete', 0), offeredTurn(rows)], request, { traces: [null, trace] })
+      expect(verdict).toMatchObject({ pass: false, reason: 'A update of the preview changes title, due_time where the request changes title.' })
+      expect(calls).toEqual([])
+    })
+
+  it('passes a rename whose requested title the model sets only through a revision in the same turn, which the preview marks stored',
+    async () => {
+      const response = structuredClone(finalOf('complete', 1))
+      const [held] = response.pendingOperations
+      for (const field of [...held.items.flatMap((item) => item.fields), ...held.changes]) {
+        if (field.field === 'title') field.provenance = 'stored'
+      }
+      const trace = traceOf({ title: null })
+      trace.calls.push(revisionOf({ title: 'Water - 1.18L' }, captures.complete.children.slice(0, 4)))
+      const { output, verdict } = await scripted([finalOf('complete', 0), response], request, { traces: [null, trace] })
+      expect(verdict).toMatchObject({ pass: true, reason: 'The saved state matches the approved changes.' })
+      expect(changeList(output.previews, output.written).changes.find((change) => change.target === captures.complete.children[0]))
+        .toMatchObject({ kind: 'update', fields: { title: expect.any(String) }, derived: {} })
+    })
 
   it.each([
     ['the due time with a null edit', { due_time: null }, 'due_time', (item) => [storedRow(item, 'due_time', '08:00', null, 'time', null)]],
@@ -806,7 +834,7 @@ describe('an offer of the assistant in the preview', () => {
   })
 
   // The evidence of an attempt keeps the held previews so that an extended grader regrades them offline with gradePreview
-  // (astra-eval SKILL.md). The evidence keeps no tool arguments of the trace for that, so it keeps the cleared fields.
+  // (astra-eval SKILL.md). The evidence keeps no tool arguments of the trace for that, so it keeps the fields that the held writes name.
   it.each([
     ['the reminder flag that an offer derives', offeredReminder, (item) => repeatReminder(item),
       { pass: true, reason: 'The held previews hold exactly the requested changes.' }],
@@ -819,7 +847,7 @@ describe('an offer of the assistant in the preview', () => {
       writeResults([{ testCase: { metadata: request.metadata, vars }, success: verdict.pass, response: { output },
         gradingResult: { componentResults: [verdict] } }], target)
       const { questionsBeforePreview, heldPreviews } = JSON.parse(readFileSync(join(target, `attempts/${request.metadata.id}-r1.json`), 'utf8'))
-      expect(gradePreview({ questionsBeforePreview, previews: heldPreviews.previews, cleared: heldPreviews.cleared },
+      expect(gradePreview({ questionsBeforePreview, previews: heldPreviews.previews, written: heldPreviews.written },
         { ...vars, accountDate: heldPreviews.accountDate, core: { ...vars.core, records: heldPreviews.records } })).toMatchObject(expected)
     } finally {
       rmSync(target, { recursive: true, force: true })

@@ -2,7 +2,7 @@ import { clientContextOf, openConversation, sendTurn } from './client-turn.mjs'
 import { answerQuestion, questionCards, questionOf } from './answers.mjs'
 import { imageBytes } from './corpus.mjs'
 import { detailFields, gradePreview, savedRecords } from './outcome.mjs'
-import { clearedFields } from './change-list.mjs'
+import { writtenFields } from './change-list.mjs'
 import { approvePendingOperation, publicApi } from '../fixtures/api.mjs'
 import { visibleAnswer } from '../visible-answer.mjs'
 import { safeFailureMessage } from '../credentials.mjs'
@@ -105,9 +105,9 @@ export async function runCase(vars, { send = sendTurn, api = publicApi(vars.cred
   output.asked = questionCards(turn.response).length > 0
   output.trace = turn.trace ? { state: 'available', requestId: turn.trace.requestId, responseRequestId: turn.responseRequestId,
     calls: turn.trace.calls, timing: turn.trace.timing } : null
-  // The fields that the held writes of the preview turn clear: the change list needs them to tell a field that the model
-  // clears from one that the server derives, and the evidence keeps them for an offline regrade without the trace.
-  output.cleared = clearedFields(turn.trace)
+  // The fields that the held writes of the preview turn name: the change list needs them to tell a field that the model
+  // writes from one that the server derives, and the evidence keeps them for an offline regrade without the trace.
+  output.written = writtenFields(turn.trace)
   try {
     output.answer = visibleAnswer(turn.response, vars.clientContext, vars.accountDate, vars.accountTimeZone)
   } catch (error) {
