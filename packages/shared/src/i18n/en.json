@@ -2990,6 +2990,9 @@
     "progressLabel": "Slide {current} of {total}",
     "loading": "Preparing your Wrapped…",
     "empty": "Nothing logged in this period. Pick another period to see a recap.",
+    "orbitLine": {
+      "empty": "I found no logs in this period."
+    },
     "error": "Couldn't load your Wrapped. Please try again.",
     "retry": "Try again",
     "periods": {

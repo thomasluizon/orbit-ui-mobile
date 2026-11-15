@@ -41,7 +41,9 @@ describe('the guided Wrapped cover on web', () => {
     expect(container.querySelectorAll('svg[data-asset="orbit-mascot"]')).toHaveLength(1)
     expect(mascot(container)).toHaveAttribute('data-orbit-state', 'parado')
     expect(mascot(container)).toHaveAttribute('width', '96')
-    expect(screen.getByRole('heading', { level: 1, name: copy.coverTitles.week })).toHaveAccessibleDescription(copy.coverSubtitle)
+    expect(screen.getByRole('heading', { level: 1, name: copy.coverTitles.week })).not.toHaveAttribute('aria-describedby')
+    expect(container.querySelector('[data-wrapped-orbit-line]')).toBeNull()
+    expect(screen.queryByText(copy.coverSubtitle)).not.toBeInTheDocument()
     expect(screen.getByRole('heading', { level: 2, name: copy.periodQuestion })).toBeInTheDocument()
 
     const options = within(screen.getByRole('group', { name: copy.periodQuestion })).getAllByRole('button')
@@ -60,7 +62,8 @@ describe('the guided Wrapped cover on web', () => {
     const { container } = renderCover(locale, 'empty')
     const copy = locale.messages.wrapped
 
-    expect(container.querySelector('[data-wrapped-orbit-line]')).toHaveTextContent(copy.empty)
+    expect(container.querySelector('[data-wrapped-orbit-line]')).toHaveTextContent(copy.orbitLine.empty)
+    expect(screen.getByRole('heading', { level: 1 })).toHaveAccessibleDescription(copy.orbitLine.empty)
     expect(mascot(container)).toHaveAttribute('data-orbit-state', 'parado')
     expect(container.querySelector('[data-orbit-state="feliz"]')).toBeNull()
     expect(screen.queryByRole('button', { name: copy.start })).not.toBeInTheDocument()
@@ -78,25 +81,42 @@ describe('the guided Wrapped cover on web', () => {
     expect(screen.queryByRole('button', { name: ptBR.wrapped.start })).not.toBeInTheDocument()
   })
 
-  it('keeps the start label on a waiting action while the recap loads, and announces the load', () => {
+  it('shows the current skeleton rows and keeps the start label on a waiting action while the recap loads, and announces the load', () => {
     enableTestFlags('orbit_guided_flows')
-    const { handlers } = renderCover(LOCALES[0], 'loading')
+    const { container, handlers } = renderCover(LOCALES[0], 'loading')
 
     const start = screen.getByRole('button', { name: ptBR.wrapped.start })
     expect(start).toHaveAttribute('aria-busy', 'true')
     fireEvent.click(start)
     expect(handlers.onStart).not.toHaveBeenCalled()
     expect(screen.getByRole('status')).toHaveTextContent(ptBR.wrapped.loading)
-    expect(screen.queryByRole('progressbar')).not.toBeInTheDocument()
+    const skeleton = screen.getByRole('progressbar', { name: ptBR.wrapped.loading })
+    expect(skeleton).toHaveAttribute('data-variant', 'settings')
+    expect(container.querySelector('[data-wrapped-cover-block]')).toContainElement(skeleton)
+    expect(container.querySelector('[data-wrapped-orbit-line]')).toBeNull()
   })
 
-  it('draws Orbit at 128 and puts the start action inside the block at 1024 and above', () => {
+  it('pins the start action under the scroller and spans it across the column below 1024', () => {
+    enableTestFlags('orbit_guided_flows')
+    const { container } = renderCover(LOCALES[0])
+
+    const primary = container.querySelector('[data-wrapped-cover-primary]')!
+    expect(primary.parentElement).toBe(container.querySelector('[data-wrapped-cover="guided"]'))
+    expect(primary).toHaveClass('[&_button]:w-full')
+  })
+
+  it('draws Orbit at 128 and hangs the start action 24 under the block, hugging its label, at 1024 and above', () => {
     enableTestFlags('orbit_guided_flows')
     stubMedia((query) => query.includes('min-width: 1024px'))
     const { container } = renderCover(LOCALES[0])
 
     expect(mascot(container)).toHaveAttribute('width', '128')
-    expect(container.querySelector('[data-wrapped-cover-block] [data-wrapped-cover-primary]')).not.toBeNull()
+    const block = container.querySelector('[data-wrapped-cover-block]')!
+    const primary = container.querySelector('[data-wrapped-cover-primary]')!
+    expect(block).not.toContainElement(primary as HTMLElement)
+    expect(primary.previousElementSibling).toBe(block)
+    expect(primary).toHaveClass('pt-6', 'max-w-[360px]', 'justify-center')
+    expect(primary).not.toHaveClass('[&_button]:w-full')
   })
 
   it.each([

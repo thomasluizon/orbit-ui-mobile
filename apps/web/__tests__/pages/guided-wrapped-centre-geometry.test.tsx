@@ -103,9 +103,13 @@ describe('the guided Wrapped cover, the share sheet and the milestone dialog in 
         const cover = document.querySelector('[data-wrapped-cover="guided"]')!
         const scroller = cover.firstElementChild!
         const block = document.querySelector('[data-wrapped-cover-block]')!.getBoundingClientRect()
-        const primary = document.querySelector('[data-wrapped-cover-primary]')?.getBoundingClientRect()
+        const primaryBox = document.querySelector('[data-wrapped-cover-primary]')
+        const primary = primaryBox?.getBoundingClientRect()
+        const primaryStyle = primaryBox ? getComputedStyle(primaryBox) : null
         const options = [...document.querySelectorAll('[data-option-card]')]
         return {
+          start: primaryBox?.querySelector('button')?.getBoundingClientRect().width ?? null,
+          primaryColumn: primary && primaryStyle ? primary.width - Number.parseFloat(primaryStyle.paddingLeft) - Number.parseFloat(primaryStyle.paddingRight) : null,
           free: { top: cover.getBoundingClientRect().top, bottom: primary?.top ?? cover.getBoundingClientRect().bottom },
           block: { top: block.top, bottom: block.bottom, left: block.left, right: block.right },
           scrolls: scroller.scrollHeight > scroller.clientHeight,
@@ -126,7 +130,37 @@ describe('the guided Wrapped cover, the share sheet and the milestone dialog in 
       expect(geometry.questionLines).toBeLessThanOrEqual(2)
       expect(geometry.titleLines).toBeLessThanOrEqual(2)
       expect(geometry.orbit).toBe('parado')
+      if (state === 'ready') expect(Math.abs(geometry.start! - geometry.primaryColumn!), JSON.stringify(geometry)).toBeLessThanOrEqual(1)
+      else expect(geometry.start).toBeNull()
     } finally { await page.close(); view.unmount() }
+  })
+
+  it.each(LOCALES)('centres the cover block in the column at 1280 px and hangs the start action 24 under it, hugging its label, in $locale', async ({ locale, messages }) => {
+    vi.stubGlobal('matchMedia', (query: string) => ({ matches: query.includes('min-width: 1024px'), media: query, addEventListener: vi.fn(), removeEventListener: vi.fn() }))
+    wrapped.current = COVER_STATES[0]
+    const view = render(<NextIntlClientProvider locale={locale} messages={messages}><WrappedPage /></NextIntlClientProvider>)
+    await act(async () => {})
+    const page = await openPage(1280, view.container.innerHTML)
+    try {
+      const geometry = await page.evaluate(() => {
+        const box = (selector: string) => {
+          const rect = document.querySelector(selector)!.getBoundingClientRect()
+          return { top: rect.top, bottom: rect.bottom, left: rect.left, right: rect.right, width: rect.width }
+        }
+        return {
+          scroller: box('[data-wrapped-cover="guided"] > div'),
+          block: box('[data-wrapped-cover-block]'),
+          start: box('[data-wrapped-cover-primary] button'),
+          orbit: document.querySelector('[data-wrapped-cover-block] [data-asset="orbit-mascot"]')?.getBoundingClientRect().width,
+        }
+      })
+      const { scroller, block, start } = geometry
+      expect(Math.abs((block.top + block.bottom) / 2 - (scroller.top + scroller.bottom) / 2), JSON.stringify(geometry)).toBeLessThanOrEqual(1)
+      expect(Math.abs(start.top - block.bottom - 24), JSON.stringify(geometry)).toBeLessThanOrEqual(1)
+      expect(start.width).toBeLessThan(360)
+      expect(Math.abs((start.left + start.right) / 2 - (block.left + block.right) / 2)).toBeLessThanOrEqual(1)
+      expect(geometry.orbit).toBe(128)
+    } finally { await page.close(); view.unmount(); vi.unstubAllGlobals() }
   })
 
   it.each(DIALOG_CASES)('keeps the share question within two lines as the sheet heading and each of the three periods on one line with a 48 px target at $width px in $locale', async ({ width, locale, messages }) => {

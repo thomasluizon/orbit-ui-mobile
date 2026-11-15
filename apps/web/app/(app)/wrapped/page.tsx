@@ -95,13 +95,15 @@ function WrappedPageContent({ initialSelection }: Readonly<{
             onBack={() => goBackOrFallback('/profile')}
           />
         ) : null}
-        <WrappedCover
-          period={period}
-          onSelectPeriod={selectPeriod}
-          state={coverState}
-          onStart={startPlayer}
-          onRetry={() => void retryCover()}
-        />
+        {playerOpen ? null : (
+          <WrappedCover
+            period={period}
+            onSelectPeriod={selectPeriod}
+            state={coverState}
+            onStart={startPlayer}
+            onRetry={() => void retryCover()}
+          />
+        )}
       </div>
 
       {playerOpen && (

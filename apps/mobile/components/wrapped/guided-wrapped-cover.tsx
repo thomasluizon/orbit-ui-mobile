@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Animated, Easing, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native'
+import { Animated, Easing, ScrollView, StyleSheet, Text, View, useWindowDimensions, type LayoutChangeEvent } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useTranslation } from 'react-i18next'
 import { SPACING, motionDurations, motionEasings } from '@orbit/shared/theme'
@@ -11,6 +11,7 @@ import { RefreshCw } from '@/components/ui/icons'
 import { OptionCard } from '@/components/ui/option-card'
 import { OrbitMascot } from '@/components/ui/orbit-mascot'
 import { Button } from '@/components/ui/pill-button'
+import { Skeleton } from '@/components/ui/skeleton'
 import { useFlowAnnouncement } from '@/hooks/use-flow-announcement'
 import { usePrefersReducedMotion } from '@/lib/motion'
 import { styles as wrappedStyles } from '@/app/wrapped-styles'
@@ -18,10 +19,9 @@ import type { WrappedCoverProps } from './wrapped-cover'
 
 const WIDE_WIDTH = 1024
 
+/** The Orbit line names the empty and the failed states. A ready or loading cover has no job for it, so the block closes up. */
 const COVER_LINE_KEYS = {
-  ready: 'wrapped.coverSubtitle',
-  loading: 'wrapped.coverSubtitle',
-  empty: 'wrapped.empty',
+  empty: 'wrapped.orbitLine.empty',
   failed: 'wrapped.error',
 } as const
 
@@ -41,7 +41,24 @@ function usePeriodFade(period: RecapSharePeriod, reducedMotion: boolean) {
   return opacity
 }
 
-/** The Wrapped cover under `orbit_guided_flows`: Orbit, the title of the period, the Orbit line and the period question in one centred block. */
+/** Compact: pinned under the scroller and spanning the column. Wide: out of the flow of the lower space, hugging its label, at most 360 wide. */
+function StartAction({ wide, loading, onStart, onMeasure }: Readonly<{ wide: boolean; loading: boolean; onStart: () => void; onMeasure: (height: number) => void }>) {
+  const { t } = useTranslation()
+  const button = <Button loading={loading} focusableWhenLoading onClick={onStart}>{t('wrapped.start')}</Button>
+  if (!wide) return <View testID="wrapped-cover-primary" style={styles.primaryCompact}>{button}</View>
+  return (
+    <View testID="wrapped-cover-primary" onLayout={(event: LayoutChangeEvent) => onMeasure(event.nativeEvent.layout.height)} style={styles.primaryWide}>
+      <View style={styles.primaryWideCap}>{button}</View>
+    </View>
+  )
+}
+
+/**
+ * The Wrapped cover under `orbit_guided_flows`: Orbit, the title of the period, the Orbit line and the period question in one centred block.
+ * Compact, the start action is pinned under the scroller and spans the column. Wide, two equal spaces hold the block in the centre of the
+ * column, and the start action hangs 24 under the block, hugging its label. The action sits out of the flow of the lower space, so the two
+ * spaces stay equal; both are never shorter than the action, so it stays in the scroll range.
+ */
 export function GuidedWrappedCover({ tokens, period, onSelectPeriod, state, onStart, onRetry }: Readonly<WrappedCoverProps>) {
   const { t } = useTranslation()
   const { width } = useWindowDimensions()
@@ -52,29 +69,30 @@ export function GuidedWrappedCover({ tokens, period, onSelectPeriod, state, onSt
   const { lookAt, mascotRef, lookAtControl, lookAway } = useFlowLookState()
   const lookControls = useMemo(() => ({ lookAtControl, lookAway }), [lookAtControl, lookAway])
   const opacity = usePeriodFade(period, reducedMotion)
-  const line = t(COVER_LINE_KEYS[state])
+  const [startHeight, setStartHeight] = useState(0)
+  const line = state === 'empty' || state === 'failed' ? t(COVER_LINE_KEYS[state]) : null
   const announcement = useFlowAnnouncement(line, 'cover')
   const question = t('wrapped.periodQuestion')
-  const start = state === 'ready' || state === 'loading' ? (
-    <View testID="wrapped-cover-primary" style={wide ? styles.primaryWide : styles.primaryCompact}>
-      <Button loading={state === 'loading'} focusableWhenLoading onClick={onStart}>{t('wrapped.start')}</Button>
-    </View>
-  ) : null
+  const start = state === 'ready' || state === 'loading'
+    ? <StartAction wide={wide} loading={state === 'loading'} onStart={onStart} onMeasure={setStartHeight} />
+    : null
+  const wideSpace = [styles.wideSpace, { minHeight: start ? startHeight : 0 }]
 
   return (
     <FlowLookProvider look={lookControls}>
       <View testID={`wrapped-cover-${state}`} style={[styles.root, { paddingBottom: clearance > 0 ? clearance : insets.bottom }]}>
         <ScrollView testID="wrapped-cover-scroll" style={styles.scroller} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+          {wide ? <View style={wideSpace} /> : null}
           <View testID="wrapped-cover-block" style={styles.block}>
             <View ref={mascotRef} collapsable={false} importantForAccessibility="no-hide-descendants" accessibilityElementsHidden>
               <OrbitMascot size={wide ? 128 : 96} state="parado" lookAt={lookAt} turnKey={period} />
             </View>
             <Animated.View testID="wrapped-cover-period-group" style={[styles.group, { opacity }]}>
               <Text style={[wrappedStyles.coverEyebrow, { color: tokens.fg3 }]}>{t('wrapped.title')}</Text>
-              <Text accessibilityRole="header" accessibilityHint={line} textBreakStrategy="balanced" style={[styles.title, wide ? styles.titleWide : null, { color: tokens.fg1 }]}>
+              <Text accessibilityRole="header" accessibilityHint={line ?? undefined} textBreakStrategy="balanced" style={[styles.title, wide ? styles.titleWide : null, { color: tokens.fg1 }]}>
                 {t(`wrapped.coverTitles.${period}`)}
               </Text>
-              <Text testID="wrapped-orbit-line" accessibilityRole={state === 'failed' ? 'alert' : undefined} style={[styles.line, { color: tokens.fg2 }]}>{line}</Text>
+              {line ? <Text testID="wrapped-orbit-line" accessibilityRole={state === 'failed' ? 'alert' : undefined} style={[styles.line, { color: tokens.fg2 }]}>{line}</Text> : null}
               {state === 'failed' ? <IconButton label={t('wrapped.retry')} onClick={onRetry}><RefreshCw size={20} strokeWidth={1.5} accessible={false} /></IconButton> : null}
             </Animated.View>
             <View style={styles.questionGroup}>
@@ -85,8 +103,9 @@ export function GuidedWrappedCover({ tokens, period, onSelectPeriod, state, onSt
                 ))}
               </View>
             </View>
-            {wide ? start : null}
+            {state === 'loading' ? <View style={styles.skeleton}><Skeleton variant="settings" rows={3} label={t('wrapped.loading')} /></View> : null}
           </View>
+          {wide ? <View style={wideSpace}>{start}</View> : null}
         </ScrollView>
         <Text accessibilityLiveRegion="polite" style={styles.status}>{state === 'loading' ? t('wrapped.loading') : announcement}</Text>
         {wide ? null : start}
@@ -109,5 +128,8 @@ const styles = StyleSheet.create({
   options: { width: '100%', flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', rowGap: SPACING.s12 },
   status: { position: 'absolute', width: 1, height: 1, opacity: 0 },
   primaryCompact: { paddingHorizontal: SPACING.s16, paddingBottom: SPACING.s16, paddingTop: SPACING.s8 },
-  primaryWide: { width: '100%', maxWidth: 360 },
+  primaryWide: { position: 'absolute', top: 0, left: 0, right: 0, alignItems: 'center', paddingTop: SPACING.s24 },
+  primaryWideCap: { maxWidth: 360 },
+  wideSpace: { flexGrow: 1, flexBasis: 0, width: '100%' },
+  skeleton: { width: '100%' },
 })

@@ -1,4 +1,5 @@
 import React from 'react'
+import { StyleSheet, type StyleProp, type ViewStyle } from 'react-native'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ReactTestInstance, ReactTestRenderer } from 'react-test-renderer'
 import en from '@orbit/shared/i18n/en.json'
@@ -65,7 +66,9 @@ describe('the guided Wrapped cover on Android', () => {
     expect(mascots(root)).toHaveLength(1)
     expect(mascots(root)[0]!.props).toMatchObject({ 'data-orbit-state': 'parado', width: 96 })
     const title = hosts(root).find((node) => node.props.accessibilityRole === 'header' && renderedText(node.props.children) === copy.coverTitles.week)
-    expect(title?.props.accessibilityHint).toBe(copy.coverSubtitle)
+    expect(title?.props.accessibilityHint).toBeUndefined()
+    expect(byTestId(root, 'wrapped-orbit-line')).toHaveLength(0)
+    expect(texts(root)).not.toContain(copy.coverSubtitle)
     expect(hosts(root).some((node) => node.props.accessibilityRole === 'header' && renderedText(node.props.children) === copy.periodQuestion)).toBe(true)
     expect(hosts(root).find((node) => node.props.role === 'group')?.props.accessibilityLabel).toBe(copy.periodQuestion)
 
@@ -84,7 +87,7 @@ describe('the guided Wrapped cover on Android', () => {
     enableTestFlags('orbit_guided_flows')
     const { root } = await renderCover(locale, { state: 'empty' })
 
-    expect(renderedText(byTestId(root, 'wrapped-orbit-line')[0]!.props.children)).toBe(copy.empty)
+    expect(renderedText(byTestId(root, 'wrapped-orbit-line')[0]!.props.children)).toBe(copy.orbitLine.empty)
     expect(mascots(root)[0]!.props['data-orbit-state']).toBe('parado')
     expect(pressables(root).map(nameOf)).toEqual(RECAP_SHARE_PERIODS.map((period) => copy.periods[period]))
   })
@@ -102,24 +105,29 @@ describe('the guided Wrapped cover on Android', () => {
     expect(pressables(root).some((node) => nameOf(node) === ptBR.wrapped.start)).toBe(false)
   })
 
-  it('keeps the start label on a waiting action while the recap loads, and announces the load', async () => {
+  it('shows the current skeleton rows and keeps the start label on a waiting action while the recap loads, and announces the load', async () => {
     enableTestFlags('orbit_guided_flows')
     const { root } = await renderCover('pt-BR', { state: 'loading' })
 
-    const start = hosts(root).find((node) => (node.props.accessibilityState as { busy?: boolean } | undefined)?.busy === true)!
-    expect(nameOf(start)).toBe(ptBR.wrapped.start)
+    const start = hosts(root).find((node) => nameOf(node) === ptBR.wrapped.start && (node.props.accessibilityState as { busy?: boolean } | undefined)?.busy === true)!
     expect(start.props.onPress).toBeUndefined()
+    const block = byTestId(root, 'wrapped-cover-block')[0]!
+    expect(block.findAll((node) => typeof node.type === 'string' && node.props.accessibilityRole === 'progressbar' && node.props.accessibilityLabel === ptBR.wrapped.loading)).toHaveLength(1)
+    expect(byTestId(root, 'wrapped-orbit-line')).toHaveLength(0)
     expect(hosts(root).find((node) => node.props.accessibilityLiveRegion === 'polite')?.props.children).toBe(ptBR.wrapped.loading)
   })
 
-  it('draws Orbit at 128 and puts the start action inside the block at 1024 and above', async () => {
+  it('draws Orbit at 128 and hangs the start action 24 under the block, hugging its label, at 1024 and above', async () => {
     enableTestFlags('orbit_guided_flows')
     __setWindowDimensions({ width: 1280, height: 800, scale: 1, fontScale: 1 })
     const { root } = await renderCover('pt-BR')
 
     expect(mascots(root)[0]!.props.width).toBe(128)
     const block = byTestId(root, 'wrapped-cover-block')[0]!
-    expect(block.findAll((node) => node.props.testID === 'wrapped-cover-primary').length).toBeGreaterThan(0)
+    expect(block.findAll((node) => node.props.testID === 'wrapped-cover-primary')).toHaveLength(0)
+    const primary = byTestId(root, 'wrapped-cover-primary')[0]!
+    expect(StyleSheet.flatten(primary.props.style as StyleProp<ViewStyle>)).toMatchObject({ alignItems: 'center', paddingTop: 24 })
+    expect(primary.findAll((node) => typeof node.type === 'string' && StyleSheet.flatten(node.props.style as StyleProp<ViewStyle>).maxWidth === 360)).toHaveLength(1)
   })
 
   it.each([

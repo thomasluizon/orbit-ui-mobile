@@ -23,6 +23,7 @@ function applyFlexStyle(node: YogaNode, style: ViewStyle) {
   if (style.flex !== undefined) node.setFlex(style.flex)
   if (style.flexGrow !== undefined) node.setFlexGrow(style.flexGrow)
   if (style.flexShrink !== undefined) node.setFlexShrink(style.flexShrink)
+  if (typeof style.flexBasis === 'number') node.setFlexBasis(style.flexBasis)
   if (style.flexDirection === 'row') node.setFlexDirection(Yoga.FLEX_DIRECTION_ROW)
   if (style.flexWrap === 'wrap') node.setFlexWrap(Yoga.WRAP_WRAP)
   if (style.alignItems === 'center') node.setAlignItems(Yoga.ALIGN_CENTER)

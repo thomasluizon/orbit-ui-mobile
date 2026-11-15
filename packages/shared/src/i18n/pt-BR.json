@@ -2990,6 +2990,9 @@
     "progressLabel": "Slide {current} de {total}",
     "loading": "Preparando seu Wrapped…",
     "empty": "Nada registrado nesse período. Escolha outro período para ver um fechamento.",
+    "orbitLine": {
+      "empty": "Não achei nenhum registro nesse período."
+    },
     "error": "Não foi possível carregar seu Wrapped. Tente novamente.",
     "retry": "Tentar novamente",
     "periods": {

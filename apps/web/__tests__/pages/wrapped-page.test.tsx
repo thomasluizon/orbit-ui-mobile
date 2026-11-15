@@ -146,14 +146,23 @@ describe('WrappedPage', () => {
     expect(screen.getByTestId('player')).toBeInTheDocument()
   })
 
-  it('changing the period stops playback and switches the fetched period', async () => {
-    render(<WrappedPage />)
+  it('unmounts the cover while the player plays, and a period change after playback stops it and switches the fetched period', async () => {
+    const view = render(<WrappedPage />)
     await act(async () => {})
     fireEvent.click(screen.getByRole('button', { name: 'start' }))
     await act(async () => {})
     expect(screen.getByTestId('player')).toBeInTheDocument()
+    expect(screen.queryByTestId('period')).not.toBeInTheDocument()
+
+    const ready = mocks.wrapped
+    mocks.wrapped = { recap: null, slides: [], isEmpty: false, isLoading: true, isError: false }
+    view.rerender(<WrappedPage />)
     fireEvent.click(screen.getByRole('button', { name: 'month' }))
     expect(screen.getByTestId('period')).toHaveTextContent('month')
+    expect(mocks.useWrapped).toHaveBeenLastCalledWith('month', { active: false, closedMonth: undefined })
+
+    mocks.wrapped = ready
+    view.rerender(<WrappedPage />)
     expect(screen.queryByTestId('player')).not.toBeInTheDocument()
   })
 

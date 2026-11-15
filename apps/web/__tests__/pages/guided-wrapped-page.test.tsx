@@ -1,6 +1,6 @@
 import React from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { NextIntlClientProvider } from 'next-intl'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { createMockRecap } from '@orbit/shared/__tests__/factories'
@@ -22,7 +22,7 @@ vi.mock('@/hooks/use-wrapped', () => ({
   },
 }))
 vi.mock('@/app/(app)/wrapped/_components/wrapped-player', () => ({
-  WrappedPlayer: () => <div role="dialog" aria-label="Wrapped" data-testid="player" />,
+  WrappedPlayer: () => <div role="dialog" aria-label="Wrapped" data-testid="player"><svg data-asset="orbit-mascot" data-orbit-loop="running" /></div>,
 }))
 
 import WrappedPage from '@/app/(app)/wrapped/page'
@@ -75,6 +75,17 @@ describe('the guided Wrapped route on web', () => {
     expect(mocks.useWrapped).toHaveBeenLastCalledWith('year', { active: false, closedMonth: undefined })
     fireEvent.click(screen.getByRole('button', { name: ptBR.wrapped.start }))
     expect(screen.getByTestId('player')).toBeInTheDocument()
+  })
+
+  it('unmounts the cover while the player plays, so the view holds one live Orbit', () => {
+    enableTestFlags('orbit_guided_flows')
+    const { container } = renderPage()
+
+    expect(container.querySelectorAll('svg[data-asset="orbit-mascot"][data-orbit-loop="running"]')).toHaveLength(1)
+    fireEvent.click(screen.getByRole('button', { name: ptBR.wrapped.start }))
+    expect(container.querySelector('[data-wrapped-cover]')).toBeNull()
+    expect(container.querySelectorAll('svg[data-asset="orbit-mascot"][data-orbit-loop="running"]')).toHaveLength(1)
+    expect(within(screen.getByTestId('player')).getByText((_, element) => element?.getAttribute('data-asset') === 'orbit-mascot')).toBeInTheDocument()
   })
 
   it('keeps the current page frame with the flag off', () => {

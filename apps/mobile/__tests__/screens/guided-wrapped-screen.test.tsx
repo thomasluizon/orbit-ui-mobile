@@ -97,6 +97,32 @@ describe('the guided Wrapped screen on Android', () => {
     expect(primary.bottom).toBeLessThanOrEqual(HEIGHT - 24)
   })
 
+  it.each(WIDTHS)('spans the pinned start action across the column at %i px', async (width) => {
+    enableTestFlags('orbit_guided_flows')
+    await mount(width)
+
+    const boxes = measureSafeArea(tree.toJSON(), (host) => host.props.testID === 'button-primary-sm' ? 'start' : host.props.testID, { width, height: HEIGHT })
+    const primary = boxes.get('wrapped-cover-primary')!
+    const start = boxes.get('start')!
+    expect(start.left - primary.left).toBe(16)
+    expect(primary.left + primary.width - (start.left + start.width)).toBe(16)
+  })
+
+  it.each(['ready', 'loading'] as const)('centres the %s cover block in the column at 1280 px and hangs the start action 24 under it, hugging its label', async (state) => {
+    enableTestFlags('orbit_guided_flows')
+    if (state === 'loading') mocks.wrapped = { recap: null, slides: [], isEmpty: false, isLoading: true, isError: false }
+    await mount(1280)
+
+    const boxes = measureSafeArea(tree.toJSON(), (host) => host.props.testID === 'button-primary-sm' ? 'start' : host.props.testID, { width: 1280, height: HEIGHT })
+    const scroll = boxes.get('wrapped-cover-scroll')!
+    const block = boxes.get('wrapped-cover-block')!
+    const start = boxes.get('start')!
+    expect(Math.abs((block.top + block.bottom) / 2 - (scroll.top + scroll.bottom) / 2)).toBeLessThanOrEqual(1)
+    expect(start.top - block.bottom).toBe(24)
+    expect(start.width).toBeLessThan(360)
+    expect(Math.abs(start.left + start.width / 2 - (block.left + block.width / 2))).toBeLessThanOrEqual(1)
+  })
+
   it.each(WIDTHS)('gives each period option, the start action and the retry action a target of at least 48 at %i px', async (width) => {
     enableTestFlags('orbit_guided_flows')
     await mount(width)

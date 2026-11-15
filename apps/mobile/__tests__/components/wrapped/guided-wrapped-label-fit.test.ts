@@ -57,7 +57,7 @@ describe('the guided Wrapped and share labels on Android', () => {
       expect(textWidth(copy.periods[period], FONTS.option), copy.periods[period]).toBeLessThanOrEqual(optionWidth(column))
     }
     expect(lineCount(copy.periodQuestion, column, FONTS.question), copy.periodQuestion).toBeLessThanOrEqual(2)
-    for (const line of [copy.coverSubtitle, copy.empty, copy.error]) {
+    for (const line of [copy.orbitLine.empty, copy.error]) {
       expect(lineCount(line, Math.min(LINE_MAX, column), FONTS.line), line).toBeLessThanOrEqual(2)
     }
   })
