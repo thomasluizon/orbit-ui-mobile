@@ -17,8 +17,12 @@ const SPINNER_NAMES = new Set([
 const SPIN_CLASS_RE = /(?:^|[\s:])animate-(?:spin(?![\w-])|\[spin)/
 /** An inline CSS animation that runs a keyframe named `spin`, such as `spin 1s linear infinite`. */
 const SPIN_ANIMATION_RE = /(?:^|[\s,])spin\s+\d*\.?\d+m?s\b/
-/** A full turn, the rotation a busy wheel repeats. */
-const FULL_TURN_RE = /^-?(?:360deg|1turn)$/
+/** A full turn, the rotation a busy wheel repeats, in each unit a rotation takes: degrees, gradians, turns, or radians (2π). */
+const FULL_TURN_RE = /^-?(?:360deg|400grad|1turn|6\.28\d*rad)$/
+/** The radian unit after an angle, as `rad` in `${angle}rad` or `rad)` in `rotate(${angle}rad)`. A ring length never carries it. */
+const RADIAN_UNIT_RE = /^rad\b/
+/** The operators that keep an angle a whole number of turns plus an offset, as `${turn.value * 2 * Math.PI + offset}rad`. */
+const ANGLE_OPERATORS = new Set(['*', '%', '+', '-'])
 /** A rotation key whose numeric value counts in degrees. */
 const ROTATION_KEYS = new Set(['rotate', 'rotateZ', 'rotation', 'toValue'])
 const TIMING_CALLS = new Set(['withTiming', 'withSpring'])
@@ -69,7 +73,7 @@ function passesAttribute(sourceCode, opening, name) {
 function staticValue(node) {
   if (!node) return undefined
   if (node.type === 'Literal') return node.value
-  if (node.type === 'JSXExpressionContainer') return staticValue(node.expression)
+  if (node.type === 'JSXExpressionContainer' || node.type === 'TSAsExpression' || node.type === 'TSSatisfiesExpression') return staticValue(node.expression)
   if (node.type === 'UnaryExpression' && node.operator === '-' && node.argument.type === 'Literal' && typeof node.argument.value === 'number') return -node.argument.value
   if (node.type === 'ArrayExpression') {
     const values = node.elements.map(staticValue)
@@ -123,15 +127,18 @@ function rendersRing(node) {
   }
 }
 
+function isInterpolateCall(call) {
+  if (call?.type !== 'CallExpression') return false
+  const callee = call.callee
+  const name = callee.type === 'MemberExpression' && !callee.computed ? callee.property.name : callee.name
+  return name === 'interpolate'
+}
+
 /** Whether `turn` ends the output range of an `interpolate(value, input, output)` call, as Reanimated maps progress to degrees. */
 function endsInterpolatedOutput(turn) {
   const range = turn.parent
   if (range.type !== 'ArrayExpression' || range.elements.at(-1) !== turn) return false
-  const call = range.parent
-  if (call?.type !== 'CallExpression' || call.arguments[2] !== range) return false
-  const callee = call.callee
-  const name = callee.type === 'MemberExpression' && !callee.computed ? callee.property.name : callee.name
-  return name === 'interpolate'
+  return isInterpolateCall(range.parent) && range.parent.arguments[2] === range
 }
 
 /** Whether `turn` ends a keyframe array on a rotation key, as `animate={{ rotate: [0, 360] }}` turns once per repeat. */
@@ -167,6 +174,69 @@ function isInfinity(node) {
     && node.property.type === 'Identifier' && node.property.name === 'POSITIVE_INFINITY'
 }
 
+function isMathPi(node) {
+  return node.type === 'MemberExpression' && !node.computed && node.object.type === 'Identifier' && node.object.name === 'Math'
+    && node.property.type === 'Identifier' && node.property.name === 'PI'
+}
+
+function isTwo(node) {
+  const value = staticValue(node)
+  return typeof value === 'number' && Math.abs(value) === 2
+}
+
+/** The factors of a `*` product, so `turn.value * 2 * Math.PI` gives `turn.value`, `2` and `Math.PI`. */
+function factorsOf(node) {
+  return node.type === 'BinaryExpression' && node.operator === '*' ? [...factorsOf(node.left), ...factorsOf(node.right)] : [node]
+}
+
+/** Whether a product holds `2 * Math.PI`, one turn in radians, as `turn.value * 2 * Math.PI` does while `turn` runs to 1. */
+function spansRadianTurn(factors) {
+  return factors.some(isMathPi) && factors.some(isTwo)
+}
+
+/**
+ * Whether an angle written in radians turns all the way through arithmetic alone: `turn.value * 2 * Math.PI`, the same
+ * plus an offset, or `interpolate(turn.value, [0, 1], [0, 2 * Math.PI])`. A call such as `Math.sin` ends the angle, so a
+ * sway that only uses the turn as a phase is not a full turn.
+ */
+function holdsRadianTurn(angle) {
+  switch (angle?.type) {
+    case 'BinaryExpression':
+      if (angle.operator === '*') return spansRadianTurn(factorsOf(angle))
+      return ANGLE_OPERATORS.has(angle.operator) && (holdsRadianTurn(angle.left) || holdsRadianTurn(angle.right))
+    case 'UnaryExpression':
+      return angle.operator === '-' && holdsRadianTurn(angle.argument)
+    case 'TSAsExpression':
+      return holdsRadianTurn(angle.expression)
+    case 'CallExpression':
+      return isInterpolateCall(angle) && angle.arguments[2]?.type === 'ArrayExpression' && holdsRadianTurn(angle.arguments[2].elements.at(-1))
+    default:
+      return false
+  }
+}
+
+/** The angle that a radian unit follows: the expression before `rad` in a template literal, or the left side of `angle + 'rad'`. */
+function angleBeforeRadianUnit(unit, text) {
+  if (!RADIAN_UNIT_RE.test(text ?? '')) return undefined
+  const holder = unit.parent
+  if (holder.type === 'TemplateLiteral') return holder.expressions[holder.quasis.indexOf(unit) - 1]
+  return holder.type === 'BinaryExpression' && holder.operator === '+' && holder.right === unit ? holder.left : undefined
+}
+
+/** A value read as it is, such as `rotation.value`, with no arithmetic or call around it. */
+function isPlainValue(node) {
+  return node?.type === 'Identifier' || node?.type === 'MemberExpression'
+}
+
+/** Whether a timing call animates to a constant `2 * Math.PI`, as `withTiming(2 * Math.PI)` turns a radian angle once. */
+function animatesToRadianTurn(call) {
+  if (call.callee.type !== 'Identifier' || !TIMING_CALLS.has(call.callee.name)) return false
+  const target = call.arguments[0]?.type === 'UnaryExpression' && call.arguments[0].operator === '-' ? call.arguments[0].argument : call.arguments[0]
+  if (target?.type !== 'BinaryExpression' || target.operator !== '*') return false
+  const factors = factorsOf(target)
+  return factors.length === 2 && spansRadianTurn(factors)
+}
+
 function isLoopCall(node) {
   const callee = node.callee
   if (callee.type === 'Identifier') return callee.name === 'withRepeat'
@@ -191,10 +261,16 @@ module.exports = {
   create(context) {
     const loopCalls = []
     let drawsFullTurn = false
+    // `withRepeat(withTiming(2 * Math.PI), -1)` with `${rotation.value}rad` is a wheel; the same timing call feeding `Math.sin` is a sway.
+    let turnsToRadianTurn = false
+    let writesPlainRadians = false
     const reportString = (node, value) => {
       if (typeof value !== 'string') return
       if (SPIN_CLASS_RE.test(value) || SPIN_ANIMATION_RE.test(value)) context.report({ node, messageId: 'noSpinner' })
       if (FULL_TURN_RE.test(value.trim())) drawsFullTurn = true
+      const angle = angleBeforeRadianUnit(node, value)
+      if (isPlainValue(angle)) writesPlainRadians = true
+      else if (holdsRadianTurn(angle)) drawsFullTurn = true
     }
     return {
       ExportSpecifier(node) {
@@ -203,6 +279,8 @@ module.exports = {
       Property(node) {
         const key = node.key.type === 'Identifier' ? node.key.name : node.key.value
         if (key === 'repeat' && isInfinity(node.value)) loopCalls.push(node)
+        // A Reanimated 4 or web CSS animation repeats its keyframes forever with `animationIterationCount: 'infinite'`.
+        if (key === 'animationIterationCount' && (staticValue(node.value) === 'infinite' || isInfinity(node.value))) loopCalls.push(node)
       },
       ImportDeclaration(node) {
         for (const specifier of node.specifiers) {
@@ -223,6 +301,7 @@ module.exports = {
       },
       CallExpression(node) {
         if (isLoopCall(node)) loopCalls.push(node)
+        if (animatesToRadianTurn(node)) turnsToRadianTurn = true
       },
       Literal(node) {
         reportString(node, node.value)
@@ -232,7 +311,7 @@ module.exports = {
         reportString(node, node.value.cooked)
       },
       'Program:exit'() {
-        if (!drawsFullTurn) return
+        if (!drawsFullTurn && !(turnsToRadianTurn && writesPlainRadians)) return
         for (const node of loopCalls) context.report({ node, messageId: 'noSpinner' })
       },
     }

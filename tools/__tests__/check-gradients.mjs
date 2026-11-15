@@ -96,6 +96,8 @@ export const cases = () => {
   for (const [label, css, expected] of [
     ["a rotation keyframe", "@keyframes busy-ring {\n  to { transform: rotate(360deg); }\n}\n", /apps\/web\/app\/globals\.css:1: spinner keyframes "busy-ring"/],
     ["a rotate property keyframe", "@keyframes wheel { from { rotate: 0deg; } to { rotate: 1turn; } }\n", /apps\/web\/app\/globals\.css:1: spinner keyframes "wheel"/],
+    ["a gradian rotation keyframe", "@keyframes wheel { to { transform: rotate(400grad); } }\n", /apps\/web\/app\/globals\.css:1: spinner keyframes "wheel"/],
+    ["a radian rotate property keyframe", "@keyframes wheel { to { rotate: 6.2832rad; } }\n", /apps\/web\/app\/globals\.css:1: spinner keyframes "wheel"/],
     ["a keyframe named spin", "@keyframes spin { 50% { opacity: 0.5; } }\n", /apps\/web\/app\/globals\.css:1: spinner keyframes "spin"/],
     ["an animation that runs the spin keyframes", ".ring {\n  animation: spin 1s linear infinite;\n}\n", /apps\/web\/app\/globals\.css:2: spinner animation/],
   ]) {
