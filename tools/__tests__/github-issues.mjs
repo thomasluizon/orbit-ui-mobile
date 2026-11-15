@@ -309,20 +309,100 @@ export const cases = async () => {
     const labels = await githubIssues.listLabels()
     T(`${TOOL}: listLabels returns only the names from the recorded label shape`, labels.join(",") === "repo:ui,Improvement", JSON.stringify(labels))
 
+    const everyStateArguments = stage("github-issues/every-state-project-fetch-arguments", "[]")
     applyEnvironment(
       orcaEnv([
         {
-          match: "issue list --repo thomasluizon/orbit-tickets --state all --limit 1000 --json number,url,title,body,state,stateReason,labels,blockedBy,blocking --label repo:ui --label harness --milestone Harness Context and Calibration",
+          match: "issue list --repo thomasluizon/orbit-tickets --state all --limit 100 --json number,url,title,body,state,stateReason,labels,blockedBy,blocking --label repo:ui --label harness --milestone Harness Context and Calibration",
           stdout: JSON.stringify([issue()]),
         },
-        { match: "project item-list 2 --owner thomasluizon", stdout: populatedProjectItems },
+        { match: "project item-list 2 --owner thomasluizon", stdout: populatedProjectItems, argvFile: everyStateArguments },
       ]),
     )
     const listed = await githubIssues.listTickets({ labels: ["repo:ui", "harness"], state: "all", milestone: "Harness Context and Calibration" })
     T(`${TOOL}: listTickets normalizes each issue and preserves the mapped identifier`, listed.length === 1 && listed[0].identifier === "ORB-215", JSON.stringify(listed))
     T(
+      `${TOOL}: listTickets for every state asks the project for every issue`,
+      JSON.parse(readFileSync(everyStateArguments, "utf8")).join(" ").endsWith("--format json --query is:issue --limit 100"),
+      readFileSync(everyStateArguments, "utf8"),
+    )
+    T(
       `${TOOL}: listTickets refuses an empty milestone before invoking GitHub`,
       /must be null or a non-empty string/.test(await messageOf(() => githubIssues.listTickets({ milestone: "" })) ?? ""),
+    )
+
+    /** The first fetch stops at its limit of 100 items, and the open ticket is item 101. */
+    const itemsBeforeTheTicket = Array.from({ length: 100 }, (_, index) => ({
+      ...projectItem,
+      content: { ...projectItem.content, number: 3000 + index },
+      id: `PVTI_before_${index}`,
+    }))
+    const firstFetch = JSON.stringify({ items: itemsBeforeTheTicket, totalCount: 101 })
+    const firstFetchArguments = stage("github-issues/first-project-fetch-arguments", "[]")
+    applyEnvironment(
+      orcaEnv([
+        { match: "issue list --repo thomasluizon/orbit-tickets --state open", stdout: JSON.stringify([issue()]) },
+        { match: "project item-list 2 --owner thomasluizon --format json --query is:issue is:open --limit 101", stdout: JSON.stringify({ items: [...itemsBeforeTheTicket, projectItem], totalCount: 101 }) },
+        { match: "project item-list 2 --owner thomasluizon", stdout: firstFetch, argvFile: firstFetchArguments },
+      ]),
+    )
+    const [afterFirstFetch] = await (await freshGithubIssues()).listTickets({ state: "open" })
+    T(
+      `${TOOL}: listTickets finds an open ticket that sits after the first project fetch`,
+      afterFirstFetch.projectItemId === "PVTI_harness_item" && afterFirstFetch.status === "In Review",
+      JSON.stringify(afterFirstFetch),
+    )
+    T(
+      `${TOOL}: listTickets asks the project for open issues only`,
+      JSON.parse(readFileSync(firstFetchArguments, "utf8")).join(" ").endsWith("--format json --query is:issue is:open --limit 100"),
+      readFileSync(firstFetchArguments, "utf8"),
+    )
+
+    applyEnvironment(
+      orcaEnv([
+        { match: "issue list --repo thomasluizon/orbit-tickets --state open", stdout: JSON.stringify([issue()]) },
+        { match: "project item-list 2 --owner thomasluizon", stdout: JSON.stringify({ items: [projectItem], totalCount: 5 }) },
+      ]),
+    )
+    T(
+      `${TOOL}: listTickets refuses a project read that holds fewer items than its own totalCount`,
+      (await messageOf(async () => (await freshGithubIssues()).listTickets({ state: "open" }))) === "gh project item-list returned 1 of 5 items under --limit 100",
+    )
+
+    /** The first issue fetch returns its limit of 100 issues, so the list is not proven complete. */
+    const issuesBeforeTheTicket = Array.from({ length: 100 }, (_, index) => issue({ body: "", labels: [], number: 3000 + index, title: "Earlier ticket" }))
+    applyEnvironment(
+      orcaEnv([
+        { match: "issue list --repo thomasluizon/orbit-tickets --state open --limit 200", stdout: JSON.stringify([...issuesBeforeTheTicket, issue()]) },
+        { match: "issue list --repo thomasluizon/orbit-tickets --state open", stdout: JSON.stringify(issuesBeforeTheTicket) },
+        { match: "project item-list 2 --owner thomasluizon", stdout: populatedProjectItems },
+      ]),
+    )
+    const afterFullIssueFetch = await (await freshGithubIssues()).listTickets({ state: "open" })
+    T(
+      `${TOOL}: listTickets reads again when the issue fetch returns its limit`,
+      afterFullIssueFetch.length === 101 && afterFullIssueFetch.at(-1).number === 221 && afterFullIssueFetch.at(-1).projectItemId === "PVTI_harness_item",
+      `${afterFullIssueFetch.length} tickets, last #${afterFullIssueFetch.at(-1)?.number}`,
+    )
+
+    /** Closed tickets stay out of the shared open snapshot, so a closed ticket reads its own item. */
+    const closedTicketBoardRead = stage("github-issues/closed-ticket-board-read", "must remain")
+    applyEnvironment(
+      orcaEnv([
+        ...githubIssueReadPlan(issue({ state: "CLOSED", stateReason: "COMPLETED" })),
+        {
+          match: "api graphql -F o=thomasluizon -F r=orbit-tickets -F n=221",
+          stdout: issueProjectItems([{ ...issueProjectItem, fieldValueByName: { name: "Done" } }]),
+          ticketEnvelope: "issueProjectItems",
+        },
+        { match: "project item-list 2 --owner thomasluizon", stdout: JSON.stringify({ items: [], totalCount: 0 }), removePath: closedTicketBoardRead },
+      ]),
+    )
+    const [closedTicket] = await (await freshGithubIssues()).readTickets([221])
+    T(
+      `${TOOL}: a closed ticket in a bulk read takes its Status from its own project item`,
+      closedTicket.status === "Done" && closedTicket.projectItemId === "PVTI_harness_item" && existsSync(closedTicketBoardRead),
+      JSON.stringify(closedTicket),
     )
 
     const statusMarker = stage("github-issues/status-write", "must be removed")
