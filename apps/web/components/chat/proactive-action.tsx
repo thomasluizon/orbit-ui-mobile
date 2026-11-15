@@ -18,13 +18,12 @@ export function ProactiveAction({ item, acted, isOnline, onSend }: Readonly<{
 }>) {
   const t = useTranslations()
   const reasonId = useId()
-  const { reason, allowance, act, aiMessagesPeriod } = useProactiveAction(item, acted, isOnline, onSend)
+  const { reason, waiting, allowance, act, aiMessagesPeriod } = useProactiveAction(item, acted, isOnline, onSend)
   const allowanceText = createAstraAllowanceTranslator(t, { aiMessagesPeriod }, useLocale())
   const label = item.actionLabel || t(proactiveActionLabelKey(item.trigger))
-  const waiting = reason === 'common.loading'
-  const explanation = reason && !waiting ? allowanceText(reason, { allowance }) : undefined
+  const explanation = reason ? allowanceText(reason, { allowance }) : undefined
   return <div className="flex flex-col items-start py-[8px]" style={{ gap: 8 }}>
-    <button type="button" aria-label={label} disabled={reason !== null} aria-busy={waiting || undefined} aria-describedby={explanation ? reasonId : undefined} onClick={act} className={`orbit-hover-text relative isolate flex min-h-12 max-w-full flex-col items-start gap-2 rounded-[12px] ${waiting ? 'bg-transparent' : 'bg-[var(--bg-well)] disabled:opacity-50'} px-4 py-3 text-start text-sm text-[var(--fg-2)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--fg-1)] transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)]`}>{waiting ? <SkeletonFace /> : null}<span>{label}</span><span className="flex items-center gap-2" translate="no"><OrbitMascot size={16} /></span></button>
+    <button type="button" aria-label={label} disabled={reason !== null || waiting} aria-busy={waiting || undefined} aria-describedby={explanation ? reasonId : undefined} onClick={act} className={`orbit-hover-text relative isolate flex min-h-12 max-w-full flex-col items-start gap-2 rounded-[12px] ${waiting ? 'bg-transparent' : 'bg-[var(--bg-well)] disabled:opacity-50'} px-4 py-3 text-start text-sm text-[var(--fg-2)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--fg-1)] transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)]`}>{waiting ? <SkeletonFace /> : null}<span>{label}</span><span className="flex items-center gap-2" translate="no"><OrbitMascot size={16} /></span></button>
     <p id={reasonId} role="status" className="empty:absolute text-sm text-[var(--fg-2)]">{explanation}</p>
   </div>
 }

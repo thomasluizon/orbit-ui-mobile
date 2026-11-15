@@ -6,14 +6,14 @@ import { NotionCallbackContent } from '@/app/(auth)/auth-callback/notion/notion-
 import { MoveParentOverlay } from '@/components/habits/habit-list/move-parent-overlay'
 import { ProactiveAction } from '@/components/chat/proactive-action'
 
-const mocks = vi.hoisted(() => ({ reason: 'common.loading', act: vi.fn() }))
+const mocks = vi.hoisted(() => ({ reason: null as string | null, waiting: true, act: vi.fn() }))
 vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key, useLocale: () => 'en' }))
 vi.mock('next/navigation', () => ({ useRouter: () => ({ replace: vi.fn() }), useSearchParams: () => new URLSearchParams('code=c&state=s') }))
 vi.mock('@/lib/actions/profile', () => ({ completeNotion: () => new Promise(() => {}) }))
 vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))
-vi.mock('@/hooks/use-proactive-action', () => ({ useProactiveAction: () => ({ reason: mocks.reason, allowance: 10, act: mocks.act, aiMessagesPeriod: 'day' }) }))
+vi.mock('@/hooks/use-proactive-action', () => ({ useProactiveAction: () => ({ reason: mocks.reason, waiting: mocks.waiting, allowance: 10, act: mocks.act, aiMessagesPeriod: 'day' }) }))
 
-afterEach(() => { mocks.reason = 'common.loading'; mocks.act.mockClear() })
+afterEach(() => { mocks.reason = null; mocks.waiting = true; mocks.act.mockClear() })
 
 function expectNoLoadingText(container: HTMLElement, text: string) {
   expect(screen.queryByText(text)).toBeNull()
@@ -61,6 +61,7 @@ describe('a wait shows a skeleton shaped like its final layout, never Loading te
 
   it('dims an unavailable proactive action and explains it without a skeleton face', () => {
     mocks.reason = 'shell.composer.offline.reason'
+    mocks.waiting = false
     render(<ProactiveAction item={createMockProactiveItem()} acted={false} isOnline={false} onSend={vi.fn()} />)
     const action = screen.getByRole('button')
     expect(action).not.toHaveAttribute('aria-busy')

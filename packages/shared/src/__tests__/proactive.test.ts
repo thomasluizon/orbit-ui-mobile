@@ -60,15 +60,14 @@ describe('proactive action', () => {
     expect(proactiveActionLabelKey(trigger)).toBe(key)
   })
 
-  const available = { ended: false, online: true, atLimit: false, busy: false, failed: false, ready: true }
+  const available = { ended: false, online: true, atLimit: false, busy: false, failed: false }
 
   it.each([
-    [{ ended: true, online: false, atLimit: true, busy: true, failed: true, ready: false }, 'proactive.ended'],
-    [{ online: false, atLimit: true, busy: true, failed: true, ready: false }, 'shell.composer.offline.reason'],
-    [{ atLimit: true, busy: true, failed: true, ready: false }, 'shell.composer.limit.reason'],
-    [{ busy: true, failed: true, ready: false }, 'shell.composer.busy.reason'],
-    [{ failed: true, ready: false }, 'chat.sendError'],
-    [{ ready: false }, 'common.loading'],
+    [{ ended: true, online: false, atLimit: true, busy: true, failed: true }, 'proactive.ended'],
+    [{ online: false, atLimit: true, busy: true, failed: true }, 'shell.composer.offline.reason'],
+    [{ atLimit: true, busy: true, failed: true }, 'shell.composer.limit.reason'],
+    [{ busy: true, failed: true }, 'shell.composer.busy.reason'],
+    [{ failed: true }, 'chat.sendError'],
     [{}, null],
   ])('explains the first blocking condition for %j', (state, reason) => {
     expect(getProactiveActionReason({ ...available, ...state })).toBe(reason)

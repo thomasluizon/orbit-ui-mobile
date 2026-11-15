@@ -21,7 +21,7 @@ import { resolveWebThemeVariables } from '@/lib/theme-dom'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 import { createMockProactiveItem } from '@orbit/shared/__tests__/factories'
 
-vi.mock('@/hooks/use-proactive-action', () => ({ useProactiveAction: () => ({ reason: null, allowance: 5, act: vi.fn() }) }))
+vi.mock('@/hooks/use-proactive-action', () => ({ useProactiveAction: () => ({ reason: null, waiting: false, allowance: 5, act: vi.fn() }) }))
 
 let browser: Browser
 let browserLaunch: BrowserLaunch | undefined

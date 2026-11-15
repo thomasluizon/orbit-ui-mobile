@@ -7,13 +7,13 @@ import NotionCallbackScreen from '@/app/auth-callback/notion'
 import { ProactiveAction } from '@/components/chat/proactive-action'
 import { createTokensV2 } from '@/lib/theme'
 
-const mocks = vi.hoisted(() => ({ reason: 'common.loading', act: vi.fn() }))
+const mocks = vi.hoisted(() => ({ reason: null as string | null, waiting: true, act: vi.fn() }))
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key, i18n: { language: 'en' } }) }))
 vi.mock('expo-router', () => ({ useRouter: () => ({ replace: vi.fn() }), useLocalSearchParams: () => ({ code: 'c', state: 's' }) }))
 vi.mock('@tanstack/react-query', async (original) => ({ ...await original<typeof import('@tanstack/react-query')>(), useQueryClient: () => ({ invalidateQueries: vi.fn() }) }))
 vi.mock('@/lib/api-client', () => ({ apiClient: () => new Promise(() => {}) }))
 vi.mock('@/lib/use-app-theme', () => ({ useAppTheme: () => ({ currentScheme: 'purple', currentTheme: 'dark' }) }))
-vi.mock('@/hooks/use-proactive-action', () => ({ useProactiveAction: () => ({ reason: mocks.reason, allowance: 10, act: mocks.act, aiMessagesPeriod: 'day' }) }))
+vi.mock('@/hooks/use-proactive-action', () => ({ useProactiveAction: () => ({ reason: mocks.reason, waiting: mocks.waiting, allowance: 10, act: mocks.act, aiMessagesPeriod: 'day' }) }))
 
 const TestRenderer = require('react-test-renderer')
 const tokens = createTokensV2('purple', 'dark')
@@ -22,7 +22,7 @@ type Node = { type: unknown; props: Record<string, any>; findAll(predicate: (nod
 
 let tree: { root: Node; unmount(): void } | undefined
 
-afterEach(() => { TestRenderer.act(() => tree?.unmount()); tree = undefined; mocks.reason = 'common.loading'; mocks.act.mockClear() })
+afterEach(() => { TestRenderer.act(() => tree?.unmount()); tree = undefined; mocks.reason = null; mocks.waiting = true; mocks.act.mockClear() })
 
 function render(element: ReactElement) {
   TestRenderer.act(() => { tree = TestRenderer.create(element) })
@@ -76,6 +76,7 @@ describe('a wait shows a skeleton shaped like its final layout on Android, never
 
   it('dims an unavailable proactive action and explains it without a skeleton face', () => {
     mocks.reason = 'shell.composer.offline.reason'
+    mocks.waiting = false
     const root = render(<ProactiveAction item={createMockProactiveItem()} acted={false} isOnline={false} onSend={vi.fn()} />)
     const action = root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityRole === 'button')[0]!
     expect(action.props.accessibilityState).toEqual({ disabled: true, busy: false })
