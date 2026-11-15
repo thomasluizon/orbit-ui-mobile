@@ -1668,7 +1668,8 @@ T("stuck limit: the launch record names the subagent transcript", heldRecord.tra
 T("stuck limit: a live subagent below the limit holds the drain", backgroundHook(heldStop).stdout, "")
 const unwatchedDrain = wakeStop(heldStop)
 T("stuck limit: a drain that waits on a subagent with no waiter refuses the turn end", { status: unwatchedDrain.status, names: unwatchedDrain.stderr.includes("node tools/wait-background-runs.mjs") && unwatchedDrain.stderr.includes(`subagent ${heldAgent}`) }, { status: 2, names: true })
-const silentTime = new Date(Date.now() - 31 * 60_000)
+// A whole second: Node 22 utimes cuts the fraction to microseconds after a float multiply, so a millisecond time can read back 1 ms early.
+const silentTime = new Date(Math.floor((Date.now() - 31 * 60_000) / 1000) * 1000)
 const silentSince = silentTime.toISOString()
 writeFileSync(heldRecordPath, JSON.stringify({ ...heldRecord, observedAt: new Date(silentTime.getTime() - 60_000).toISOString() }))
 T("stuck limit: a subagent with no transcript on disk holds the drain at any age", backgroundHook(heldStop).stdout, "")
