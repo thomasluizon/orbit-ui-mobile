@@ -85,6 +85,8 @@ const quickOptions = StyleSheet.create({ grid: { flexDirection: 'row', flexWrap:
 interface TimeZoneOptionsProps {
   tokens: Tokens
   selected?: string | null
+  /** The question of the sheet: the accessible name of the quick options in guided mode. */
+  questionLabel: string
   searchLabel: string
   noResultsLabel: string
   showMoreLabel: string
@@ -149,7 +151,7 @@ function TimeZoneOptions({
  * With `orbit_guided_flows` on, the time zone question follows the pattern of the short pickers: the stored time zone and the
  * time zone of the device are the quick options, and the search is the free path to every other time zone. A press answers and closes the sheet.
  */
-function GuidedTimeZoneOptions({ tokens, selected, searchLabel, noResultsLabel, showMoreLabel, onCommit }: Readonly<TimeZoneOptionsProps>) {
+function GuidedTimeZoneOptions({ tokens, selected, questionLabel, searchLabel, noResultsLabel, showMoreLabel, onCommit }: Readonly<TimeZoneOptionsProps>) {
   const [query, setQuery] = useState('')
   const [visibleCount, setVisibleCount] = useState(TIME_ZONE_PAGE_SIZE)
   const [deviceTimeZone] = useState(getClientTimeZone)
@@ -157,7 +159,7 @@ function GuidedTimeZoneOptions({ tokens, selected, searchLabel, noResultsLabel, 
   const option = (zone: string) => <OptionCard key={zone} wide label={zone} selected={zone === selected} onSelect={() => onCommit(zone)} />
   return (
     <View testID="time-zone-question" style={guidedTimeZone.column}>
-      <View accessibilityLabel={selected ?? searchLabel} style={guidedTimeZone.options}>{quick.map(option)}</View>
+      <View testID="time-zone-quick-options" accessibilityLabel={questionLabel} style={guidedTimeZone.options}>{quick.map(option)}</View>
       <Input kind="search" label={searchLabel} autoComplete="off" value={query} onChange={(value) => { setQuery(value); setVisibleCount(TIME_ZONE_PAGE_SIZE) }} />
       {searched && visible.length === 0 ? <Text accessibilityLiveRegion="polite" style={[guidedTimeZone.miss, { color: tokens.fg3 }]}>{noResultsLabel}</Text> : null}
       {visible.length > 0 ? <View accessibilityLabel={searchLabel} style={guidedTimeZone.options}>{visible.map(option)}</View> : null}
@@ -209,6 +211,7 @@ function PickerContent({ props, commitSelection }: Readonly<{
     const TimeZones = guided ? GuidedTimeZoneOptions : TimeZoneOptions
     return <TimeZones
       tokens={props.tokens}
+      questionLabel={props.pickerTitles.timeZone}
       selected={model.selected}
       searchLabel={props.timeZoneSearchLabel}
       noResultsLabel={props.timeZoneNoResultsLabel}

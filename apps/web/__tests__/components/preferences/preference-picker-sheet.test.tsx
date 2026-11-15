@@ -93,6 +93,7 @@ describe('PreferencePickerSheet', () => {
       open()
       expect(screen.queryByRole('radio')).not.toBeInTheDocument()
       expect(cards().map((card) => card.textContent)).toEqual(['America/Sao_Paulo', 'Europe/Lisbon'])
+      expect(screen.getByRole('group', { name: pickerTitles.timeZone }).querySelectorAll('[data-option-card]')).toHaveLength(2)
       expect(cards().map((card) => card.hasAttribute('data-selected'))).toEqual([true, false])
       expect(cards().every((card) => card.parentElement?.hasAttribute('data-option-wide'))).toBe(true)
       const dialog = screen.getByRole('dialog')

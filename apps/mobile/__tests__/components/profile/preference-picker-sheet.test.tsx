@@ -109,6 +109,7 @@ describe('PreferencePickerSheet', () => {
       expect(hosts(tree, (node) => node.props.accessibilityRole === 'radio')).toHaveLength(0)
       expect(names(tree)).toEqual(['America/Sao_Paulo', 'Charlie/Three'])
       expect(cards(tree).map((card: any) => card.props.accessibilityState.selected)).toEqual([true, false])
+      expect(hosts(tree, (node) => node.props.testID === 'time-zone-quick-options')[0].props.accessibilityLabel).toBe(pickerTitles.timeZone)
       expect(hosts(tree, (node) => node.props.accessibilityLabel === 'Show more timezones')).toHaveLength(0)
     })
 

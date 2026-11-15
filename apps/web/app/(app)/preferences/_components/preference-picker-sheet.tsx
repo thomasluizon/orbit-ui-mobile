@@ -129,6 +129,8 @@ function TimeZoneOptions({
 
 interface TimeZoneOptionsProps {
   selected?: string | null
+  /** The question of the sheet: the accessible name of the quick options in guided mode. */
+  questionLabel: string
   searchLabel: string
   noResultsLabel: string
   showMoreLabel: string
@@ -139,7 +141,7 @@ interface TimeZoneOptionsProps {
  * With `orbit_guided_flows` on, the time zone question follows the pattern of the short pickers: the stored time zone and the
  * time zone of the device are the quick options, and the search is the free path to every other time zone. A press answers and closes the sheet.
  */
-function GuidedTimeZoneOptions({ selected, searchLabel, noResultsLabel, showMoreLabel, onCommit }: Readonly<TimeZoneOptionsProps>) {
+function GuidedTimeZoneOptions({ selected, questionLabel, searchLabel, noResultsLabel, showMoreLabel, onCommit }: Readonly<TimeZoneOptionsProps>) {
   const [query, setQuery] = useState('')
   const [visibleCount, setVisibleCount] = useState(TIME_ZONE_PAGE_SIZE)
   const [deviceTimeZone] = useState(getClientTimeZone)
@@ -147,7 +149,7 @@ function GuidedTimeZoneOptions({ selected, searchLabel, noResultsLabel, showMore
   const option = (zone: string) => <OptionCard key={zone} wide label={zone} selected={zone === selected} onSelect={() => onCommit(zone)} />
   return (
     <div data-time-zone-question="" className="flex flex-col gap-3">
-      <div role="group" aria-label={selected ?? searchLabel} data-option-group="" className="grid grid-cols-2 gap-3">{quick.map(option)}</div>
+      <div role="group" aria-label={questionLabel} data-option-group="" className="grid grid-cols-2 gap-3">{quick.map(option)}</div>
       <Input kind="search" label={searchLabel} name="timeZoneSearch" autoComplete="off" value={query} onChange={(value) => { setQuery(value); setVisibleCount(TIME_ZONE_PAGE_SIZE) }} />
       {searched && visible.length === 0 ? <p role="status" className="text-center text-sm text-[var(--fg-3)]">{noResultsLabel}</p> : null}
       {visible.length > 0 ? <div role="group" aria-label={searchLabel} data-option-group="" className="grid grid-cols-2 gap-3">{visible.map(option)}</div> : null}
@@ -193,6 +195,7 @@ function PickerContent({
     const TimeZones = guided ? GuidedTimeZoneOptions : TimeZoneOptions
     return <TimeZones
       selected={model.selected}
+      questionLabel={props.pickerTitles.timeZone}
       searchLabel={props.timeZoneSearchLabel}
       noResultsLabel={props.timeZoneNoResultsLabel}
       showMoreLabel={props.timeZoneShowMoreLabel}
