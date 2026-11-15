@@ -18,11 +18,11 @@ const STATES = ['email', 'from onboarding', 'offline', 'code', 'code wrong', 'co
 const cases = FLOW_WIDTHS.flatMap((width) => FLOW_LOCALES.flatMap((locale) => STATES.map((state) => ({ width, locale, state }))))
 
 /** The markup of one sign-in state inside the frame of the sign-in routes, rendered still. */
-function captureState(state: AuthScreenState, locale: 'en' | 'pt-BR', width: number): string {
+function captureState(state: AuthScreenState, locale: 'en' | 'pt-BR', width: number, overrides: Record<string, unknown> = {}): string {
   stubViewportMedia(width)
   vi.stubEnv('NEXT_PUBLIC_APPLE_CLIENT_ID', 'org.useorbit.web')
   const action = vi.fn()
-  mocks.flow = { ...createLoginScreenFixture(state, locale), t: createTranslator({ locale, messages: locale === 'en' ? en : ptBR }),
+  mocks.flow = { ...createLoginScreenFixture(state, locale), ...overrides, t: createTranslator({ locale, messages: locale === 'en' ? en : ptBR }),
     setEmail: action, sendCode: action, refuseEmptyEmail: action, verifyCode: action, resendCode: action, backToEmail: action,
     signInWithGoogle: action, signInWithApple: action, onCodeChange: action, continueAccount: action }
   const view = render(<GuidedSignInContext value><AuthPageFrame><LoginContent /></AuthPageFrame></GuidedSignInContext>)
@@ -52,5 +52,12 @@ describe('guided sign-in layout in Chromium', () => {
     expect(layout.orbitLineLines, 'Orbit line').toBeLessThanOrEqual(2)
     expect(layout.labels.length > 0).toBe(state !== 'locked out')
     for (const label of layout.labels) expect(label.lines, label.label).toBe(1)
+    expect(layout.overflowX, 'horizontal overflow').toBe(false)
+  }, 60_000)
+
+  it.each(FLOW_WIDTHS.flatMap((width) => FLOW_LOCALES.map((locale) => ({ width, locale }))))('wraps a long address in the Orbit line of the code step inside the column at $width px in $locale', async ({ width, locale }) => {
+    const markup = captureState('code', locale, width, { email: 'maria.fernanda.albuquerque.santos@contabilidade-exemplo.com.br' })
+    const layout = await measureFlowMarkup(browser, stylesheet, width, markup)
+    expect(layout.overflowX, JSON.stringify(layout)).toBe(false)
   }, 60_000)
 })

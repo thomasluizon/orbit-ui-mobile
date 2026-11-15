@@ -68,12 +68,12 @@ function FlowLine({ id, line, lineKey, reducedMotion }: Readonly<{ id: string; l
   const [shown, setShown] = useState({ lineKey, fade: false })
   if (shown.lineKey !== lineKey) setShown({ lineKey, fade: true })
   const fade = shown.lineKey !== lineKey || shown.fade
-  if (lineKey === undefined) return <p id={id} className="text-base leading-6 text-[var(--fg-2)]">{line}</p>
+  if (lineKey === undefined) return <p id={id} className="wrap-anywhere text-base leading-6 text-[var(--fg-2)]">{line}</p>
   return (
     <motion.p key={lineKey} id={id} data-line-key={lineKey} data-line-duration={reducedMotion ? motionDurations.instant : motionDurations.micro}
       initial={fade && !reducedMotion ? { opacity: 0 } : false} animate={{ opacity: 1 }}
       transition={{ duration: reducedMotion ? 0 : motionDurations.micro / 1000, ease: [...motionEasings.standard] as [number, number, number, number] }}
-      className="text-base leading-6 text-[var(--fg-2)]">{line}</motion.p>
+      className="wrap-anywhere text-base leading-6 text-[var(--fg-2)]">{line}</motion.p>
   )
 }
 

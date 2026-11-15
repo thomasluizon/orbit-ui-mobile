@@ -20,6 +20,8 @@ export interface FlowLayout {
   orbitLineLines: number
   /** Each button that shows words, with the lines its words take. */
   labels: { label: string; lines: number }[]
+  /** True when content is wider than the scroll area of the flow, so a word runs past the edge. */
+  overflowX: boolean
 }
 
 /** The app stylesheet, compiled once for a suite. */
@@ -76,6 +78,7 @@ export async function measureFlowMarkup(browser: Browser, stylesheet: string, wi
         orbitLineLines: lineCount(describedBy ? document.getElementById(describedBy) : null),
         labels: [...document.querySelectorAll('button')].filter((button) => button.textContent.trim())
           .map((button) => ({ label: button.textContent.trim(), lines: lineCount(button) })),
+        overflowX: [...document.querySelectorAll('[data-question-flow] main')].some((area) => area.scrollWidth > area.clientWidth),
       }
     })
   } finally { await page.close() }
