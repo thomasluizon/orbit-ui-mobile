@@ -571,7 +571,7 @@
       "reminder": {
         "question": "Want a reminder at {time}?",
         "line": "I can tell you at that time.",
-        "yes": "Yes, remind me",
+        "yes": "Yes, please",
         "no": "Not now"
       },
       "confirm": {
@@ -630,7 +630,7 @@
         "goals": "Does this help a goal?",
         "endDate": "Does it have an end date?",
         "parent": "Is this part of another item?",
-        "none": "Nothing for now",
+        "none": "No end date",
         "yes": "Yes",
         "no": "No",
         "removeEndDate": "Remove the end date"
@@ -646,7 +646,7 @@
       },
       "checklist": {
         "line": "The steps become a list you check off as you go.",
-        "useTemplate": "Use a template",
+        "useTemplate": "Use template",
         "noWithItems": "Clear the list to go on with no steps."
       },
       "templates": {
@@ -3901,11 +3901,11 @@
       "deadline": {
         "line": "With a deadline I work out how much to do each day.",
         "none": "No deadline",
-        "monthEnd": "End of the month",
-        "yearEnd": "End of the year"
+        "monthEnd": "This month",
+        "yearEnd": "This year"
       },
       "habits": {
-        "question": "Which habits count toward this goal?"
+        "question": "Which habits count here?"
       },
       "summary": {
         "what": "Your goal",

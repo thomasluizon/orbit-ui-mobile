@@ -571,7 +571,7 @@
       "reminder": {
         "question": "Quer que eu te lembre às {time}?",
         "line": "Eu posso avisar na hora.",
-        "yes": "Sim, me lembre",
+        "yes": "Quero",
         "no": "Agora não"
       },
       "confirm": {
@@ -630,7 +630,7 @@
         "goals": "Isso ajuda em alguma meta?",
         "endDate": "Tem data para acabar?",
         "parent": "Isso faz parte de outro item?",
-        "none": "Nada por enquanto",
+        "none": "Sem data",
         "yes": "Sim",
         "no": "Não",
         "removeEndDate": "Tirar a data final"
@@ -646,7 +646,7 @@
       },
       "checklist": {
         "line": "Os passos viram uma lista que você marca enquanto faz.",
-        "useTemplate": "Usar um modelo",
+        "useTemplate": "Usar modelo",
         "noWithItems": "Limpe a lista para seguir sem passos."
       },
       "templates": {
@@ -2880,7 +2880,7 @@
       "warningPro": "Sua conta será desativada agora e apagada de vez em até 30 dias a partir de hoje. Entre de novo antes disso para cancelar.",
       "warningDetail": "Todos os seus dados serão apagados de vez: hábitos, histórico de conclusão, conversas com a IA e configurações. Vamos enviar um código de confirmação para o seu e-mail.",
       "sendCode": "Enviar código",
-      "sendQuestion": "Podemos mandar o código para o seu e-mail?",
+      "sendQuestion": "Mandamos o código por e-mail?",
       "sendLine": "O código chega em {email}.",
       "errorGeneric": "Algo deu errado. Tente de novo.",
       "offlineDescription": "Conecte-se à internet para desativar sua conta."
@@ -3905,7 +3905,7 @@
         "yearEnd": "Fim do ano"
       },
       "habits": {
-        "question": "Quais hábitos contam para essa meta?"
+        "question": "Que hábitos contam aqui?"
       },
       "summary": {
         "what": "Sua meta",

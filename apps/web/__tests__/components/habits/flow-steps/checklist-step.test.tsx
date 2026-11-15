@@ -132,7 +132,7 @@ describe('the template question inside the checklist step', () => {
   it('lists the saved templates with their item count and loads one back into the checklist question', async () => {
     state.templates = [template('t1', 'Treino', 'Alongar', 'Correr'), template('t2', 'Manhã', 'Beber água')]
     render(<Harness />)
-    await press('Usar um modelo')
+    await press('Usar modelo')
     expect(heading()).toHaveTextContent('Qual modelo você quer usar?')
     expect(heading()).toHaveAccessibleDescription('Um modelo é uma lista de passos que você guardou para usar de novo.')
     await press('Treino, 2 itens')
@@ -143,7 +143,7 @@ describe('the template question inside the checklist step', () => {
   it('goes back to the checklist question with no change', async () => {
     state.templates = [template('t1', 'Treino', 'Alongar')]
     render(<Harness initial={items('Separar a roupa')} />)
-    await press('Usar um modelo')
+    await press('Usar modelo')
     await press('Voltar')
     expect(heading()).toHaveTextContent('Tem passos dentro disso?')
     expect(state.items).toEqual(items('Separar a roupa'))
@@ -151,7 +151,7 @@ describe('the template question inside the checklist step', () => {
 
   it('says there is no template and offers the item editor', async () => {
     render(<Harness />)
-    await press('Usar um modelo')
+    await press('Usar modelo')
     expect(heading()).toHaveAccessibleDescription('Você ainda não guardou nenhum modelo. Escreva os passos e eu guardo para a próxima.')
     expect(screen.queryByRole('group', { name: 'Qual modelo você quer usar?' })).not.toBeInTheDocument()
     await press('Escrever passos')
@@ -161,7 +161,7 @@ describe('the template question inside the checklist step', () => {
   it('says the templates did not load, offers a retry and keeps the item editor, never the line of no template', async () => {
     state.templatesError = true
     render(<Harness />)
-    await press('Usar um modelo')
+    await press('Usar modelo')
     expect(heading()).toHaveAccessibleDescription('Um modelo é uma lista de passos que você guardou para usar de novo.')
     expect(screen.getByText('Não foi possível carregar seus modelos. Tente de novo.')).toBeInTheDocument()
     await press(ptBR.common.retry)
@@ -173,14 +173,14 @@ describe('the template question inside the checklist step', () => {
   it('shows a skeleton while the templates load', async () => {
     state.loading = true
     render(<Harness />)
-    await press('Usar um modelo')
+    await press('Usar modelo')
     expect(screen.getByRole('progressbar', { name: copy('pt-BR')('common.loading') })).toBeInTheDocument()
   })
 
   it('deletes a template and shows its error text when the delete fails', async () => {
     state.templates = [template('t1', 'Treino', 'Alongar')]
     render(<Harness />)
-    await press('Usar um modelo')
+    await press('Usar modelo')
     await press('Apagar: Treino')
     expect(state.remove).toHaveBeenCalledWith('t1', expect.anything())
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
@@ -191,7 +191,7 @@ describe('the template question inside the checklist step', () => {
   it('keeps every template reachable when there are more than four', async () => {
     state.templates = ['A', 'B', 'C', 'D', 'E'].map((name, index) => template(`t${index}`, name, 'Passo'))
     render(<Harness />)
-    await press('Usar um modelo')
+    await press('Usar modelo')
     expect(within(screen.getByRole('group', { name: 'Qual modelo você quer usar?' })).getAllByRole('button')).toHaveLength(4)
     await press('E, 1 item')
     expect(state.items).toEqual(items('Passo'))
@@ -258,12 +258,12 @@ describe('motion of the questions inside the step', () => {
   it('slides the template question in, and shows it at once under reduced motion', async () => {
     state.templates = [template('t1', 'Treino', 'Alongar')]
     const { container, unmount } = render(<Harness />)
-    await press('Usar um modelo')
+    await press('Usar modelo')
     expect(container.querySelector<HTMLElement>('[data-question-flow] [role="presentation"]')!.style.transform).not.toBe('')
     unmount()
     stubMedia(true)
     const reduced = render(<Harness />)
-    await press('Usar um modelo')
+    await press('Usar modelo')
     const block = reduced.container.querySelector<HTMLElement>('[data-question-flow] [role="presentation"]')!
     expect(block.style.transform === '' || block.style.transform === 'none').toBe(true)
   })
@@ -291,7 +291,7 @@ describe('motion of the questions inside the step', () => {
       stubMedia(reduced)
       state.templates = [template('t1', 'Treino', 'Alongar'), template('t2', 'Manhã', 'Beber água')]
       const view = render(<Harness />)
-      await press('Usar um modelo')
+      await press('Usar modelo')
       vi.useFakeTimers()
       state.templates = [template('t2', 'Manhã', 'Beber água')]
       view.rerender(<Harness />)
