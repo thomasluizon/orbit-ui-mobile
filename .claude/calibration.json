@@ -109,8 +109,8 @@
     ".claude/agents/design-reviewer.md": {
       "model": "sonnet",
       "effort": "medium",
-      "digest": "2b73e6340b195063",
-      "calibratedAt": "2026-11-09",
+      "digest": "36f90d089cf47a09",
+      "calibratedAt": "2026-11-15",
       "verdict": "current: judges a diff against DESIGN.md with the spec in front of it, so sonnet at medium effort is right; the rules are written down, which is what keeps it off high."
     },
     ".claude/agents/design-specialist.md": {
