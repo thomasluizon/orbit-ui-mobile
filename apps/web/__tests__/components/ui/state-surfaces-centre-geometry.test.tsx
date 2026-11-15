@@ -8,6 +8,7 @@ import postcss from 'postcss'
 import tailwind from '@tailwindcss/postcss'
 import ptBr from '@orbit/shared/i18n/pt-BR.json'
 import { EmptyState } from '@/components/ui/empty-state'
+import { ErrorState } from '@/components/ui/error-state'
 import { FailureScreen } from '@/components/ui/failure-screen'
 import NotFound from '@/app/not-found'
 import { ChatEmptyState } from '@/components/chat/chat-empty-state'
@@ -39,6 +40,7 @@ function InShell({ children }: Readonly<{ children: ReactElement }>) {
 
 const surfaces: { name: string; block: string; element: () => ReactElement }[] = [
   { name: 'empty', block: '[data-empty-state]', element: () => <InShell><ShellCentredRegion><EmptyState title={ptBr.goals.empty} action={<PillButton>{ptBr.goals.create}</PillButton>} /></ShellCentredRegion></InShell> },
+  { name: 'full-surface error', block: '[data-error-state]', element: () => <InShell><ErrorState fullSurface message={ptBr.progressScreen.error} action={<PillButton variant="ghost">{ptBr.progressScreen.retry}</PillButton>} /></InShell> },
   { name: 'error', block: '.error-surface', element: () => <InShell><FailureScreen error={new Error('boom')} retry={vi.fn()} /></InShell> },
   { name: 'failure', block: '.error-surface', element: () => <main className="flex min-h-dvh flex-col pt-[var(--safe-top)] pb-[var(--safe-bottom)] pl-[var(--safe-left)] pr-[var(--safe-right)]"><FailureScreen error={new Error('boom')} retry={vi.fn()} /></main> },
   { name: 'offline', block: '[data-empty-state]', element: () => <InShell><ChatEmptyState mascotState="descansando" browseAction={<PillButton variant="ghost">{ptBr.common.create}</PillButton>} /></InShell> },

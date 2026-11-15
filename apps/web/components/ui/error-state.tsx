@@ -2,14 +2,16 @@
 
 import type { ErrorStateProps } from '@orbit/shared/contracts/feedback'
 import { OrbitMascot, useStateMascotSize } from '@/components/ui/orbit-mascot'
+import { ShellCentredRegion } from '@/components/shell/shell-centred-region'
 
 function FullSurfaceMascot() {
   return <OrbitMascot size={useStateMascotSize()} />
 }
 
-/** A data-surface failure stated in the caller's words, with one optional text action. A full-surface error carries Orbit in Parado. */
+/** A data-surface failure stated in the caller's words, with one optional text action. A full-surface error carries Orbit in Parado
+ *  and centres its block in the free area of the shell, as every state surface does. */
 export function ErrorState({ message, action, fullSurface = false }: Readonly<ErrorStateProps>) {
-  return (
+  const surface = (
     <div
       className="flex flex-col items-center gap-4 px-6 py-12 text-center"
       role="alert"
@@ -27,4 +29,5 @@ export function ErrorState({ message, action, fullSurface = false }: Readonly<Er
       {action ? <div data-error-state-action>{action}</div> : null}
     </div>
   )
+  return fullSurface ? <ShellCentredRegion>{surface}</ShellCentredRegion> : surface
 }

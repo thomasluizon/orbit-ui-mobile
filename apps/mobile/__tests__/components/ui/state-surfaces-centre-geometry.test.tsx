@@ -12,6 +12,7 @@ import { useShellScrollerClearance } from '@/components/shell/shell-scroller-cle
 import { ThrottleScreen } from '@/components/throttle-screen'
 import { AppErrorScreen } from '@/components/ui/app-error-boundary'
 import { EmptyState } from '@/components/ui/empty-state'
+import { ErrorState } from '@/components/ui/error-state'
 import { OverlayHost } from '@/components/ui/overlay-host'
 import { PillButton } from '@/components/ui/pill-button'
 import { createTokensV2 } from '@/lib/theme'
@@ -51,6 +52,7 @@ const surfaces: { name: string; free: Free; element: () => ReactElement }[] = [
   { name: 'empty', free: 'destination', element: () => inShell(<DestinationScroller><ShellCentredRegion><EmptyState title="Nenhuma meta ainda" action={<PillButton>Criar meta</PillButton>} /></ShellCentredRegion></DestinationScroller>) },
   { name: 'error', free: 'safe-area', element: () => <AppErrorScreen error={new Error('boom')} retry={noop} standalone /> },
   { name: 'failure', free: 'safe-area', element: () => <AppErrorScreen error={{ status: 500, data: { requestId: 'req-42' } }} retry={noop} standalone /> },
+  { name: 'full-surface error', free: 'destination', element: () => inShell(<DestinationScroller><ErrorState fullSurface message="Não foi possível carregar o progresso." action={<PillButton variant="ghost">Tentar de novo</PillButton>} /></DestinationScroller>) },
   { name: 'offline', free: 'shell', element: () => inShell(<ChatEmptyState styles={chatStyles} mascotState="descansando" browseAction={<PillButton variant="ghost">Ver ideias</PillButton>} />) },
   { name: 'throttle', free: 'safe-area', element: () => { useThrottleStore.getState().show(429, { retryAfterUtc: new Date(Date.now() + 60_000).toISOString() }); return <OverlayHost><ThrottleScreen /></OverlayHost> } },
 ]
@@ -60,8 +62,8 @@ function blockParts(root: GeometryHost): GeometryHost[] {
   const hosts: GeometryHost[] = []
   const walk = (host: GeometryHost) => { hosts.push(host); for (const child of host.children ?? []) if (typeof child !== 'string') walk(child) }
   walk(root)
-  const empty = hosts.find(host => host.props.testID === 'empty-state')
-  if (empty) return [empty]
+  const owner = hosts.find(host => host.props.testID === 'empty-state' || host.props.testID === 'error-state')
+  if (owner) return [owner]
   const surface = hosts.find(host => host.type === 'ScrollView' && (host.children ?? []).some(child => typeof child !== 'string' && child.props.testID === 'orbit-mascot'))!
   return (surface.children ?? []).filter((child): child is GeometryHost => typeof child !== 'string')
 }
