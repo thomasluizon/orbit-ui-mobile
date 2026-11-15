@@ -149,8 +149,8 @@ const commands = {
   boardState: ["api", "graphql", "-F", `o=${repositoryOwner}`, "-F", `r=${repositoryName}`, "-f", `query=${boardStateQuery}`],
   restIssue: ["api", `repos/${config.repository}/issues/${sampleNumber}`, "--jq", restIssueFilter],
   issueDependencyNumbers: ["api", "--paginate", `repos/${config.repository}/issues/${dependencySampleNumber}/dependencies/blocked_by?per_page=100`, "--jq", "[.[].number]"],
-  issueList: ["issue", "list", "--repo", config.repository, "--state", "all", "--limit", "1000", "--json", issueFields, "--jq", `map(${stateReasonFilter})`],
-  projectItemList: ["project", "item-list", String(config.projectNumber), "--owner", config.projectOwner, "--format", "json", "--limit", "1000"],
+  issueList: ["issue", "list", "--repo", config.repository, "--state", "open", "--limit", "100", "--json", `${issueFields},milestone`, "--jq", `map(${stateReasonFilter})`],
+  projectItemList: ["project", "item-list", String(config.projectNumber), "--owner", config.projectOwner, "--format", "json", "--query", "is:issue is:open", "--limit", "100"],
   labelList: ["label", "list", "--repo", config.repository, "--limit", "1000", "--json", "name"],
 }
 
@@ -216,6 +216,13 @@ const record = (name, command) => {
       throw new Error("boardState recorded no open ticket on the configured project with a blocker, so its paths would be missing rather than proven")
     }
   }
+  if (name === "projectItemList" && (!Number.isInteger(value?.totalCount) ||
+      !value.items?.some((item) => typeof item?.id === "string" && Number.isInteger(item?.content?.number)))) {
+    throw new Error("projectItemList recorded no totalCount with a populated open item, so the paths the adapter reads would be missing rather than proven")
+  }
+  if (name === "issueList" && (!Array.isArray(value) || !value.some((issue) => typeof issue?.milestone?.title === "string"))) {
+    throw new Error("issueList recorded no open issue in a milestone, so the milestone paths the adapter filters on would be missing rather than proven")
+  }
   if (name === "issueDependencyNumbers" && (!Array.isArray(value) || value.length === 0 || value.some((number) => !Number.isInteger(number)))) {
     throw new Error(`issueDependencyNumbers recorded no populated dependency array on issue ${dependencySampleNumber}`)
   }
@@ -252,7 +259,9 @@ try {
   const recorded = {}
   for (const [name, command] of Object.entries(commands)) {
     const fresh = record(name, command)
-    recorded[name] = { ...fresh, paths: unionPaths(priorCommands[name]?.paths, fresh.paths) }
+    /** A path observed under another command is no evidence for this one, so a changed command starts over. */
+    const sameCommand = JSON.stringify(priorCommands[name]?.command) === JSON.stringify(fresh.command)
+    recorded[name] = { ...fresh, paths: unionPaths(sameCommand ? priorCommands[name].paths : undefined, fresh.paths) }
   }
   const manifest = {
     schemaVersion: 1,
