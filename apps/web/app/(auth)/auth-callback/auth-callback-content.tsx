@@ -18,6 +18,7 @@ import { useGuidedSignIn } from '@/components/auth/guided-sign-in'
 import { Lockup } from '@/components/ui/lockup'
 import { OrbitMascot, useStateMascotSize } from '@/components/ui/orbit-mascot'
 import { PillLink } from '@/components/ui/pill-button'
+import { PrimaryActionSlot } from '@/components/ui/primary-action-slot'
 import { getGoogleAuthAppIntent, resolveAuthCallbackParams } from '@/lib/google-auth-app-intent'
 import type { LoginResponse } from '@orbit/shared/types/auth'
 
@@ -34,7 +35,7 @@ function AppHandoff({ href }: Readonly<{ href: string }>) {
     <main data-app-handoff="" className="flex w-full max-w-[592px] flex-col items-center gap-6 px-4 py-4 text-center">
       <OrbitMascot size={size} />
       <h1 className="orbit-flow-question text-balance font-display text-[28px] leading-[1.18] text-[var(--fg-1)] lg:text-[34px] lg:leading-[1.15]">{t('auth.continueInApp')}</h1>
-      <div className="w-full lg:max-w-[360px]"><PillLink href={href}>{t('auth.openInOrbit')}</PillLink></div>
+      <PrimaryActionSlot><PillLink href={href}>{t('auth.openInOrbit')}</PillLink></PrimaryActionSlot>
     </main>
   )
 }

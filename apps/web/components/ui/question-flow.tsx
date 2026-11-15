@@ -8,6 +8,7 @@ import { ArrowLeft, X } from '@/components/ui/icons'
 import { OrbitMascot } from '@/components/ui/orbit-mascot'
 import { PagerSegments } from '@/components/ui/pager'
 import { PillButton } from '@/components/ui/pill-button'
+import { PrimaryActionSlot } from '@/components/ui/primary-action-slot'
 import { useFlowAnnouncement } from '@/hooks/use-flow-announcement'
 import { useGuidedFlowTracking } from '@/hooks/use-guided-flow-tracking'
 import { useOrbitLook } from '@/hooks/use-orbit-look'
@@ -33,12 +34,12 @@ function FlowHeader({ props }: Readonly<{ props: QuestionFlowProps }>) {
   )
 }
 
-function FlowPrimaryAction({ primary, wide }: Readonly<{ primary: NonNullable<QuestionFlowProps['primary']>; wide: boolean }>) {
+function FlowPrimaryAction({ primary }: Readonly<{ primary: NonNullable<QuestionFlowProps['primary']> }>) {
   return (
-    <div data-flow-primary="" className={wide ? 'flex w-full justify-center' : 'w-full'}>
-      <div className={wide ? 'w-full max-w-[360px]' : 'w-full'}>
+    <div data-flow-primary="" className="w-full">
+      <PrimaryActionSlot>
         <PillButton variant={primary.variant} loading={primary.loading} focusableWhenLoading hint={primary.hint} onClick={primary.onPress}>{primary.label}</PillButton>
-      </div>
+      </PrimaryActionSlot>
     </div>
   )
 }
@@ -96,7 +97,7 @@ export function QuestionFlow(props: Readonly<QuestionFlowProps>) {
   useGuidedFlowTracking(flow, stepKey, props.total)
 
   const hoveredOption = (target: EventTarget) => wide && hoverCapable && target instanceof HTMLElement ? target.closest('[data-option-card]') : null
-  const primaryAction = primary ? <FlowPrimaryAction primary={primary} wide={wide} /> : null
+  const primaryAction = primary ? <FlowPrimaryAction primary={primary} /> : null
   const visibleOrbitState = showOrbit ? orbitState : undefined
 
   return (

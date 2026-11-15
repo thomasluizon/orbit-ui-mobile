@@ -236,5 +236,5 @@ const local = StyleSheet.create({
   title: { fontFamily: 'SpaceGrotesk_500Medium', fontSize: 28, lineHeight: 33, textAlign: 'center' },
   titleWide: { fontSize: 34, lineHeight: 39 },
   body: { fontFamily: 'Geist_400Regular', fontSize: 16, lineHeight: 24, textAlign: 'center' },
-  actionWide: { width: '100%', maxWidth: 360 },
+  actionWide: { maxWidth: 360 },
 })

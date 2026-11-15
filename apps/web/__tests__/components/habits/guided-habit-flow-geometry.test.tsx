@@ -57,7 +57,12 @@ describe('the guided habit flow block in Chromium', () => {
         const block = document.querySelector('[data-question-flow] main > div')!.getBoundingClientRect()
         const primary = document.querySelector('[data-flow-primary] button')!.getBoundingClientRect()
         const options = document.querySelector('[data-question-flow] [data-option-group]')!.getBoundingClientRect()
-        return { header: { bottom: header.bottom }, main: { top: main.top, bottom: main.bottom, left: main.left, right: main.right }, block: { top: block.top, bottom: block.bottom, left: block.left, right: block.right }, options: { bottom: options.bottom }, primary: { top: primary.top, width: primary.width } }
+        const button = document.querySelector<HTMLElement>('[data-flow-primary] button')!
+        const label = document.createRange()
+        label.selectNodeContents(button)
+        const buttonStyle = getComputedStyle(button)
+        const hugWidth = label.getBoundingClientRect().width + Number.parseFloat(buttonStyle.paddingLeft) + Number.parseFloat(buttonStyle.paddingRight)
+        return { header: { bottom: header.bottom }, main: { top: main.top, bottom: main.bottom, left: main.left, right: main.right }, block: { top: block.top, bottom: block.bottom, left: block.left, right: block.right }, options: { bottom: options.bottom }, primary: { top: primary.top, left: primary.left, right: primary.right, width: primary.width, hugWidth } }
       })
     } finally { await page.close(); view.unmount(); vi.unstubAllGlobals() }
   }
@@ -78,6 +83,13 @@ describe('the guided habit flow block in Chromium', () => {
     expect(Math.abs((geometry.block.top + geometry.block.bottom) / 2 - (geometry.main.top + geometry.main.bottom) / 2)).toBeLessThanOrEqual(1)
     expect(geometry.block.right - geometry.block.left).toBeLessThanOrEqual(592)
     expect(geometry.primary.width).toBeLessThanOrEqual(360)
+    expect(Math.abs(geometry.primary.width - geometry.primary.hugWidth), `the wide primary action hugs its label: ${JSON.stringify(geometry.primary)}`).toBeLessThanOrEqual(1)
+    expect(Math.abs((geometry.primary.left + geometry.primary.right) / 2 - columnCentre), `the wide primary action sits in the centre under the block: ${JSON.stringify(geometry.primary)}`).toBeLessThanOrEqual(1)
     expect(Math.round(geometry.primary.top - geometry.options.bottom)).toBe(24)
+  })
+
+  it.each([320, 412])('keeps the primary action full width in the compact shell at %i px', async (width) => {
+    const geometry = await measure(width, ptBR)
+    expect(Math.round(geometry.primary.width)).toBe(width - 32)
   })
 })

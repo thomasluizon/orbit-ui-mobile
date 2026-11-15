@@ -163,5 +163,5 @@ const styles = StyleSheet.create({
   freePath: { width: '100%', gap: 12 },
   status: { position: 'absolute', width: 1, height: 1, opacity: 0 },
   primaryCompact: { paddingHorizontal: 16, paddingBottom: 16, paddingTop: 8 },
-  primaryWide: { width: '100%', maxWidth: 360, paddingTop: 0 },
+  primaryWide: { maxWidth: 360 },
 })

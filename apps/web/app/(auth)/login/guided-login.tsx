@@ -10,6 +10,7 @@ import { RefreshCw } from '@/components/ui/icons'
 import { Input } from '@/components/ui/input'
 import { OrbitMascot, useStateMascotSize } from '@/components/ui/orbit-mascot'
 import { PillButton } from '@/components/ui/pill-button'
+import { PrimaryActionSlot } from '@/components/ui/primary-action-slot'
 import { QuestionFlow } from '@/components/ui/question-flow'
 import { captureGuidedFlowCompleted } from '@/lib/posthog'
 import { LoginCodeField, LoginResend } from './code-step'
@@ -180,7 +181,7 @@ export function GuidedAccountBack({ t, loading, continueAccount, errorMessage }:
         <h1 className="orbit-flow-question text-balance font-display text-[28px] leading-[1.18] text-[var(--fg-1)] lg:text-[34px] lg:leading-[1.15]">{t('auth.accountBack.title')}</h1>
         <p role="status" className="text-base leading-6 text-[var(--fg-2)]">{t('auth.accountBack.body')}</p>
       </div>
-      <div className="w-full lg:max-w-[360px]"><PillButton onClick={continueAccount} loading={loading}>{t('auth.accountBack.action')}</PillButton></div>
+      <PrimaryActionSlot><PillButton onClick={continueAccount} loading={loading}>{t('auth.accountBack.action')}</PillButton></PrimaryActionSlot>
       {errorMessage ? <p role="alert" className="text-sm text-[var(--status-bad-text)]">{errorMessage}</p> : null}
     </main>
   )
