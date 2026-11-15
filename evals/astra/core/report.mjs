@@ -1,7 +1,7 @@
 import { chmodSync, mkdirSync, renameSync, writeFileSync } from 'node:fs'
 import { attemptEvidence } from '../evidence.mjs'
 import { changeList } from './change-list.mjs'
-import { phrasingDigest } from './corpus.mjs'
+import { corpusDigest } from './corpus.mjs'
 
 const evidencePath = (caseId, repeat) => `attempts/${encodeURIComponent(caseId)}-r${repeat}.json`
 const mean = (values) => values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : null
@@ -15,18 +15,21 @@ function writePrivateJson(path, value) {
   renameSync(next, path)
 }
 
-// One attempt of one case: its verdict, the questions that came before its preview, and its measured model calls.
-// An attempt that gave no evidence (a failed precondition, a stopped stream, a spend ceiling) is neither a pass nor a fail.
+// One attempt of one case: its verdict, the questions that came before its preview, its measured model calls and the
+// seconds that the person waited. Two kinds of attempt are neither a pass nor a fail: an attempt that gave no evidence
+// (a failed precondition, a throttle, a spend ceiling, a failed rubric grader) and an attempt that the grader could not read.
 function attemptOf(entry, repeat) {
   const output = entry.response?.output ?? {}
   const assertions = entry.gradingResult?.componentResults ?? []
   const unavailable = output.unavailable === true || assertions.some(withoutEvidence)
-  return { caseId: entry.testCase.metadata.id, repeat, pass: entry.success === true && !unavailable,
-    ...(unavailable ? { unavailable: true } : {}),
+  const graderLimit = !unavailable && output.graderLimit === true
+  return { caseId: entry.testCase.metadata.id, repeat, pass: entry.success === true && !unavailable && !graderLimit,
+    ...(unavailable ? { unavailable: true } : {}), ...(graderLimit ? { graderLimit: true } : {}),
     reason: output.error ?? entry.error ?? assertions.find((assertion) => assertion.pass !== true)?.reason ?? null,
     turns: output.turns ?? 0,
     questionsBeforePreview: output.previews?.length ? output.questionsBeforePreview : null,
     modelCalls: output.turns ? output.modelCalls ?? null : 0,
+    seconds: output.turns ? output.seconds ?? null : null,
     assertions: assertions.map((assertion, index) => ({
       metric: assertion.assertion?.metric ?? entry.testCase.assert?.[index]?.metric ?? null,
       pass: assertion.pass === true, reason: assertion.reason ?? null })) }
@@ -57,18 +60,24 @@ export function writeResults(results, directory) {
   writePrivateJson(`${directory}/results.json`, attempts)
 }
 
-// pass^k of one case: fail when an attempt failed, pass when all k attempts passed, incomplete otherwise.
+// pass^k of one case: fail when an attempt failed, pass when all k attempts passed, incomplete otherwise. The reasons
+// of a behavior failure, of a grader limit and of an attempt without evidence stay apart.
 export function caseOf(descriptor, attempts) {
-  const failed = attempts.some((attempt) => !attempt.pass && !attempt.unavailable)
+  const withoutVerdict = (attempt) => attempt.unavailable === true || attempt.graderLimit === true
+  const failed = (attempt) => !attempt.pass && !withoutVerdict(attempt)
   const complete = attempts.length === descriptor.k && attempts.every((attempt) => attempt.pass)
+  const reasonsOf = (selected) => [...new Set(attempts.filter(selected).map((attempt) => attempt.reason).filter(Boolean))]
   const { id, situation, family, defectClass, locale, mustPass, k, maxQuestions } = descriptor
   return { id, situation, family, defectClass, locale, mustPass, k, attempts: attempts.length,
     passed: attempts.filter((attempt) => attempt.pass).length,
     unavailable: attempts.filter((attempt) => attempt.unavailable).length,
-    passK: failed ? 'fail' : complete ? 'pass' : 'incomplete', maxQuestions,
+    graderLimits: attempts.filter((attempt) => attempt.graderLimit).length,
+    passK: attempts.some(failed) ? 'fail' : complete ? 'pass' : 'incomplete', maxQuestions,
     questionsBeforePreview: attempts.map((attempt) => attempt.questionsBeforePreview),
     modelCalls: attempts.map((attempt) => attempt.modelCalls),
-    reasons: [...new Set(attempts.filter((attempt) => !attempt.pass).map((attempt) => attempt.reason).filter(Boolean))] }
+    seconds: attempts.map((attempt) => attempt.seconds),
+    reasons: reasonsOf(failed), graderLimitReasons: reasonsOf((attempt) => attempt.graderLimit === true),
+    unavailableReasons: reasonsOf((attempt) => attempt.unavailable === true) }
 }
 
 const statusOf = (cases) => cases.some((entry) => entry.passK === 'fail') ? 'fail'
@@ -102,7 +111,7 @@ export function summarize(results, descriptors, { run, apiCommit }) {
   const attempts = attemptsOf(results).map(({ attempt }) => attempt)
   const cases = descriptors.map((descriptor) => caseOf(descriptor, attempts.filter((attempt) => attempt.caseId === descriptor.id)))
   const unexpected = attempts.some((attempt) => !descriptors.some((descriptor) => descriptor.id === attempt.caseId))
-  return { gate: 'core', run, apiCommit, phrasingDigest, utcDay: new Date().toISOString().slice(0, 10),
+  return { gate: 'core', run, apiCommit, corpusDigest, utcDay: new Date().toISOString().slice(0, 10),
     status: unexpected && statusOf(cases) === 'pass' ? 'incomplete' : statusOf(cases), cases, groups: groupsOf(cases), totals: totalsOf(cases) }
 }
 
@@ -119,32 +128,50 @@ function criteriaRows(criteria) {
     `| Cost of one model call (USD) | ${cell(cost.perModelCallUsd)} | at or below ${cost.limitUsd} (D147) | ${cost.status} |`]
 }
 
+function caseRow(entry) {
+  const evidence = entry.passK === 'fail' ? Array.from({ length: entry.attempts }, (_, index) =>
+    `[r${index + 1}](${evidencePath(entry.id, index + 1)})`).join(', ') : ''
+  return `| ${entry.id} | ${entry.family} | ${entry.defectClass} | ${entry.locale} | ${entry.mustPass ? 'yes' : 'no'} | ${entry.k} | ${entry.passed}/${entry.attempts} | ${entry.passK}${entry.rerun ? ' (rerun)' : ''} | ${listed(entry.questionsBeforePreview)} | ${entry.maxQuestions} | ${listed(entry.modelCalls)} | ${listed(entry.seconds)} | ${cell(entry.costUsd)} | ${evidence} |`
+}
+
+// The reasons of one kind, under their own heading, so a reader never takes a grader limit for a behavior failure.
+function reasonLines(title, cases, field) {
+  const lines = cases.flatMap((entry) => entry[field].map((reason) => `${entry.id}: ${reason.replace(/[\r\n|]/gu, ' ')}`))
+  return lines.length ? ['', title, ...lines] : []
+}
+
+function rerunLine(summary) {
+  if (!summary.rerunApiCommit) return []
+  const count = summary.cases.filter((entry) => entry.rerun).length
+  return [`Rerun of the failed cases after a fix, API commit: ${summary.rerunApiCommit} (${count} ${count === 1 ? 'case' : 'cases'}; each other case was measured on the first build)`]
+}
+
 export function writeReport(summary, directory) {
   mkdirSync(directory, { recursive: true })
   const markdown = [
     `Orbit AI core gate, ${summary.run} run: ${summary.status}`,
     `API commit: ${summary.apiCommit}`,
-    `Phrasing digest: ${summary.phrasingDigest}`,
+    ...rerunLine(summary),
+    `Corpus digest: ${summary.corpusDigest}`,
     ...(summary.utcDayWindows ? [`UTC-day windows: ${summary.utcDayWindows}`] : [`UTC day: ${summary.utcDay}`]),
-    ...(summary.cost ? [`Measured run cost (USD): ${cell(summary.cost.runUsd)}`, `Model calls: ${cell(summary.totals.modelCalls)}`] : []),
+    ...(summary.cost ? [`Measured run cost (USD): ${cell(summary.cost.runUsd)}`, `Model calls: ${cell(summary.cost.modelCalls)}`] : []),
     ...criteriaRows(summary.criteria),
     '',
-    '| Case | Family | Class | Locale | Must-pass | k | Attempts passed | pass^k | Questions before preview | Allowed | Model calls | Cost (USD) | Attempts |',
-    '|---|---|---|---|---|---|---|---|---|---|---|---|---|',
-    ...summary.cases.map((entry) => {
-      const evidence = entry.passK === 'fail' ? Array.from({ length: entry.attempts }, (_, index) =>
-        `[r${index + 1}](${evidencePath(entry.id, index + 1)})`).join(', ') : ''
-      return `| ${entry.id} | ${entry.family} | ${entry.defectClass} | ${entry.locale} | ${entry.mustPass ? 'yes' : 'no'} | ${entry.k} | ${entry.passed}/${entry.attempts} | ${entry.passK} | ${listed(entry.questionsBeforePreview)} | ${entry.maxQuestions} | ${listed(entry.modelCalls)} | ${cell(entry.costUsd)} | ${evidence} |`
-    }),
+    '| Case | Family | Class | Locale | Must-pass | k | Attempts passed | pass^k | Questions before preview | Allowed | Model calls | Seconds | Cost (USD) | Attempts |',
+    '|---|---|---|---|---|---|---|---|---|---|---|---|---|---|',
+    ...summary.cases.map(caseRow),
     '',
     '| Family | Locale | Cases passing pass^k | pass^k rate | pass^k |',
     '|---|---|---|---|---|',
     ...summary.groups.map((entry) => `| ${entry.family} | ${entry.locale} | ${entry.passed}/${entry.cases} | ${entry.passRate} | ${entry.passK} |`),
+    ...reasonLines('Behavior failures:', summary.cases, 'reasons'),
+    ...reasonLines('Grader limits (the grader could not read the reply; no verdict on the assistant):', summary.cases, 'graderLimitReasons'),
+    ...reasonLines('No evidence (a throttle, a spend ceiling, a failed precondition or a failed rubric grader):', summary.cases, 'unavailableReasons'),
     '',
-    ...summary.cases.flatMap((entry) => entry.reasons.map((reason) => `${entry.id}: ${reason.replace(/[\r\n|]/gu, ' ')}`)),
-    '',
-    'A must-pass case passes only when each of its 3 attempts passes. No rerun replaces a failed attempt.',
+    'A must-pass case passes only when each of its 3 attempts passes. No rerun on the same build replaces a failed attempt.',
     'Incomplete is not a pass. A held preview proves a proposal; the saved state readback proves the write.',
+    'Seconds are the time that the person waits for the turns of one attempt.',
+    'A turn that fails returns no trace, so its model calls are not counted and the cost of one model call reads a little high.',
   ].join('\n')
   writeFileSync(`${directory}/summary.json`, `${JSON.stringify(summary, null, 2)}\n`)
   writeFileSync(`${directory}/summary.md`, `${markdown}\n`)

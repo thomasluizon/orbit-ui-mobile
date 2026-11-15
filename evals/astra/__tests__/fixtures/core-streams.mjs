@@ -1,9 +1,9 @@
-// Real staging streams of POST /api/chat/stream on orbit-api 1cf355934 (the #2129 capture runs 2 and 4): the owner
-// request to delete two of the Water - 710ml habits and rename the other four, then the card answer "5º de 6" and "6º de 6".
-// Each event is the recorded event; a final response lacks only its tool results (operations) and its correlation id.
-// children are the six ids in list order; savedTitles are the children read back after the approval.
-// complete: one question card, then one applyAccountChanges preview with 2 deletes and 4 renames.
-// half: one question card, then one deleteHabits preview with 2 deletes; the denied rename is not in the preview.
+// Real staging streams of POST /api/chat/stream for the owner request to delete two of the Water - 710ml habits and
+// rename the other four. Each event is the recorded event; a final response lacks only its tool results (operations)
+// and its correlation id. children are the six ids in list order; savedTitles are the children read after approval.
+// complete (#2129 run 2): one question card, the answer "5º de 6" and "6º de 6", then 2 deletes and 4 renames.
+// half (#2129 run 4): the same question and answer, then a preview of the 2 deletes without the denied rename.
+// run5 (#2127 run 5): no question and no preview; the one reply is a list card with the action log_habits.
 export const captures = {
   "complete": {
     "children": [
@@ -593,6 +593,108 @@ export const captures = {
       "Water - 710ml",
       "Water - 710ml",
       "Water - 710ml"
+    ]
+  },
+  "run5": {
+    "children": [
+      "cd42bfc0-f5f1-4031-9a28-425b7c0fe9e1",
+      "dac9e382-b455-45cf-a2ac-5b2701d8062c",
+      "da615ff2-3e78-490a-946a-0c87e154ef89",
+      "24de4ead-9e0e-454c-b3f9-8055d9ff8e37",
+      "01237772-7e6d-4805-853a-0318611e882a",
+      "7cb6cd8b-972d-4928-8d00-16c0ff7e07d4"
+    ],
+    "turns": [
+      [
+        {
+          "type": "started",
+          "turnId": "3a4bf7a7-ebb6-453f-a95c-e2fb79848030",
+          "state": "running",
+          "replayed": false
+        },
+        {
+          "type": "round",
+          "iteration": 1
+        },
+        {
+          "type": "step",
+          "domain": "habits",
+          "access": "read"
+        },
+        {
+          "type": "round",
+          "iteration": 2
+        },
+        {
+          "type": "final",
+          "response": {
+            "aiMessage": null,
+            "actions": [],
+            "pendingOperations": [],
+            "policyDenials": [],
+            "relatedSurfaces": null,
+            "habitList": null,
+            "goalList": null,
+            "metricsCard": null,
+            "periodInsight": null,
+            "daySummary": null,
+            "streak": null,
+            "calendar": null,
+            "recordLists": null,
+            "accountRows": null,
+            "followUps": null,
+            "parts": [
+              {
+                "type": "block",
+                "kind": "pickList",
+                "block": {
+                  "blockId": "ccbfa659-dd2f-46fd-9e59-52ec10c8ef11",
+                  "title": "Escolha dois para excluir e quais quatro renomear",
+                  "items": [
+                    {
+                      "id": "del1",
+                      "label": "Excluir uma",
+                      "detail": "Water - 710ml (1 de 6)"
+                    },
+                    {
+                      "id": "del2",
+                      "label": "Excluir uma",
+                      "detail": "Water - 710ml (2 de 6)"
+                    },
+                    {
+                      "id": "del3",
+                      "label": "Excluir uma",
+                      "detail": "Water - 710ml (3 de 6)"
+                    },
+                    {
+                      "id": "del4",
+                      "label": "Excluir uma",
+                      "detail": "Water - 710ml (4 de 6)"
+                    },
+                    {
+                      "id": "del5",
+                      "label": "Excluir uma",
+                      "detail": "Water - 710ml (5 de 6)"
+                    },
+                    {
+                      "id": "del6",
+                      "label": "Excluir uma",
+                      "detail": "Water - 710ml (6 de 6)"
+                    }
+                  ],
+                  "action": "log_habits",
+                  "expiresAtUtc": "2026-11-16T00:34:10.232547Z"
+                }
+              }
+            ],
+            "messageAllowanceConsumed": true,
+            "conversationId": "8375928a-4915-435a-a1e9-df2077719a0f",
+            "operations": []
+          },
+          "turnId": "3a4bf7a7-ebb6-453f-a95c-e2fb79848030",
+          "state": "completed"
+        }
+      ]
     ]
   }
 }

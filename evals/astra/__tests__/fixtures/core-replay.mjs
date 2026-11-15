@@ -12,20 +12,23 @@ function recordedAccount(name) {
 }
 
 // Replays the recorded stream of each turn as the API sends it: one `data:` line for each event, in chunks that cut
-// through an event, and the request id echoed on the response.
-export function recordedStream(name, requests = []) {
+// through an event, and the request id echoed on the response (orbit-api RequestCorrelationMiddleware). `source` is a
+// capture name, or the recorded turns to replay in order.
+export function recordedStream(source, requests = [], { responseRequestId } = {}) {
+  const turns = typeof source === 'string' ? captures[source].turns : source
   let turn = 0
   return async (url, options) => {
     const request = new Request(url, options)
     requests.push({ url: String(url), headers: Object.fromEntries(request.headers), form: await request.formData() })
-    const text = captures[name].turns[turn++].map((event) => `data: ${JSON.stringify(event)}\n\n`).join('')
+    const text = turns[turn++].map((event) => `data: ${JSON.stringify(event)}\n\n`).join('')
     const bytes = new TextEncoder().encode(text)
     const cut = Math.floor(bytes.length / 2)
     return new Response(new ReadableStream({ start(controller) {
       controller.enqueue(bytes.slice(0, cut))
       controller.enqueue(bytes.slice(cut))
       controller.close()
-    } }), { status: 200, headers: { 'content-type': 'text/event-stream', 'x-orbit-request-id': request.headers.get('x-orbit-request-id') } })
+    } }), { status: 200, headers: { 'content-type': 'text/event-stream',
+      'x-orbit-request-id': responseRequestId ?? request.headers.get('x-orbit-request-id') } })
   }
 }
 

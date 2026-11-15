@@ -5,6 +5,28 @@ const { formatBlockAnswer } = await tsImport('../../../packages/shared/src/chat/
 
 const pickedRecord = (pick, records) => typeof pick === 'string' ? records[pick] : records[pick.of][pick.position]
 
+// Producer: the shared pickListBlockSchema gives a list card one of three actions, and orbit-api
+// AiBlockAnswerService.BuildPickListResponseAsync previews the bulk write of that action for the picked rows. So a
+// list card can hold changes of one kind only.
+const listCardKind = { create_habits: 'create', log_habits: 'log', skip_habits: 'skip' }
+const textOf = (response) => [response.aiMessage, ...(response.parts ?? []).filter((part) => part?.type === 'text').map((part) => part.text)]
+  .filter(Boolean).join(' ')
+
+// What a reply without a preview is, for a request that changes the account. It is a question when it shows a choice or
+// question card, a list card whose action can hold each change of the request, or a text that asks. A list card of
+// another action cannot hold the request, and a reply that asks nothing leaves the person without a preview; both fail
+// the case, and the person does not answer them.
+export function questionOf(turn, expected) {
+  const needed = [...new Set(expected.changes.map((change) => change.kind))]
+  const lists = (turn.response.parts ?? []).filter((part) => part?.type === 'block' && part.kind === 'pickList')
+  const unfit = lists.find((part) => needed.some((kind) => kind !== listCardKind[part.block.action]))
+  if (unfit) {
+    return { pass: false, reason: `The reply shows a list card that can only ${listCardKind[unfit.block.action]} habits; the request needs ${needed.join(' and ')}.` }
+  }
+  const asks = lists.length || shownCards({ composition: turn.response }).length || /[?？]/u.test(textOf(turn.response))
+  return asks ? { pass: true } : { pass: false, reason: 'The reply holds no preview, no question card and no question.' }
+}
+
 // The card answer that selects one record: the one option of the card that stands for exactly that record.
 function pickOnCard(card, trace, recordId, locale) {
   const lists = selectionLists(card)
@@ -17,9 +39,10 @@ function pickOnCard(card, trace, recordId, locale) {
     blockAnswer: { blockId: card.block.blockId, selectedIds: [option.id] } }
 }
 
-// What the person does when a turn ends without a preview: answer the card through blockAnswer when the card can hold
-// the decision of the case, and type the decision when no card can. A same-title card that cannot hold the decision
-// fails the case, because the person cannot answer it.
+// What the person does when the assistant asks: answer the choice or question card through blockAnswer when the card
+// can hold the decision of the case, and type the decision when no such card can. The eval does not read which record
+// a row of a list card stands for, so the person types the decision there too. A same-title card that cannot hold the
+// decision fails the case, because the person cannot answer it.
 export function answerQuestion(turn, vars) {
   const { answer, records } = vars.core
   const locale = vars.clientContext.locale

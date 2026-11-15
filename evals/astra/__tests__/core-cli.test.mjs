@@ -4,18 +4,18 @@ import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { fileURLToPath } from 'node:url'
 import { resolve } from 'node:path'
-import { MUST_PASS_ATTEMPTS, phrasingDigest } from '../core/corpus.mjs'
+import { MUST_PASS_ATTEMPTS, corpusDigest } from '../core/corpus.mjs'
 import { offlineCredentials } from './fixtures/credentials.mjs'
 
 const root = fileURLToPath(new URL('..', import.meta.url))
 const cli = resolve(root, 'node_modules/promptfoo/dist/src/entrypoint.js')
-const caseId = 'owner-water-request-pt-BR-1'
+const requestId = 'owner-water-request-pt-BR-1'
 const scratch = []
 afterEach(() => { vi.unstubAllEnvs(); vi.unstubAllGlobals(); for (const path of scratch.splice(0)) rmSync(path, { recursive: true, force: true }) })
 
 // Runs the committed must-pass config through the real promptfoo CLI: the hooks, the stream driver, the outcome
 // grader and the report, with the recorded staging stream of one capture in place of the API.
-function runGate(capture) {
+function runGate(capture, caseId = requestId) {
   offlineCredentials()
   const directory = mkdtempSync(resolve(tmpdir(), 'core-gate-'))
   scratch.push(directory)
@@ -32,9 +32,10 @@ function runGate(capture) {
 
 describe('the must-pass run through the real promptfoo CLI', () => {
   it('passes pass^3 when each of the 3 attempts reaches the complete preview and its saved state', () => {
+    const caseId = requestId
     const { run, directory, summary } = runGate('complete')
     expect(run.status, run.stdout + run.stderr).toBe(0)
-    expect(summary).toMatchObject({ gate: 'core', run: 'must-pass', status: 'pass', phrasingDigest })
+    expect(summary).toMatchObject({ gate: 'core', run: 'must-pass', status: 'pass', corpusDigest })
     expect(summary.cases).toHaveLength(1)
     expect(summary.cases[0]).toMatchObject({ id: caseId, family: 'owner-turns', locale: 'pt-BR', mustPass: true, k: MUST_PASS_ATTEMPTS,
       attempts: 3, passed: 3, passK: 'pass', maxQuestions: 1, questionsBeforePreview: [1, 1, 1], reasons: [] })
@@ -50,5 +51,15 @@ describe('the must-pass run through the real promptfoo CLI', () => {
     expect(summary.status).toBe('fail')
     expect(summary.cases[0]).toMatchObject({ attempts: 3, passed: 0, passK: 'fail', questionsBeforePreview: [1, 1, 1],
       reasons: ['The preview does not update exactly the records of the request. The request needs delete and update; the preview holds delete 2.'] })
+  })
+
+  it('fails pass^3 for the run-5 situation when the attempts get the recorded run-5 list card', () => {
+    const { run, summary } = runGate('run5', 'owner-water-run-5-pt-BR-1')
+    expect(run.status, run.stdout + run.stderr).not.toBe(0)
+    expect(summary.status).toBe('fail')
+    expect(summary.cases).toHaveLength(1)
+    expect(summary.cases[0]).toMatchObject({ id: 'owner-water-run-5-pt-BR-1', family: 'owner-turns', mustPass: true, attempts: 3, passed: 0,
+      passK: 'fail', graderLimits: 0, questionsBeforePreview: [null, null, null],
+      reasons: ['The reply shows a list card that can only log habits; the request needs delete and update.'] })
   })
 })

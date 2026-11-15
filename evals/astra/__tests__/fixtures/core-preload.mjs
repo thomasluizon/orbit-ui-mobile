@@ -1,9 +1,12 @@
-import './auth-preload.mjs'
 import { captures } from './core-streams.mjs'
+import { fixtureFetch } from './public-api.mjs'
 
-// The offline API of the core set CLI test: the fixture API of auth-preload.mjs, the recorded staging stream of the
-// capture that CORE_TEST_CAPTURE names, and an approval that saves what the held preview shows.
-const fixtureApi = globalThis.fetch
+// The offline API of the core set CLI test: the fixture API of an eval account whose profile uses the 12-hour clock,
+// the recorded staging stream of the capture that CORE_TEST_CAPTURE names, and an approval that saves what the held
+// preview shows.
+const account = { habits: [], goals: [], tags: [], templates: [], requests: [], pro: true, exhausted: false, capacity: 100,
+  email: 'thomaslrgregorio+orbit-eval-pro@gmail.com', uses24HourClock: false }
+const fixtureApi = fixtureFetch(() => account)
 const capture = captures[process.env.CORE_TEST_CAPTURE]
 const headers = { Authorization: 'Bearer pro-access', 'api-version': '2.0' }
 const fixture = (method, path, body) => fixtureApi(`https://offline.invalid/api/${path}`, { method, headers, ...(body ? { body: JSON.stringify(body) } : {}) })
@@ -15,9 +18,12 @@ async function recordedEvents(turn) {
   return capture.children.reduce((text, id, index) => text.replaceAll(id, children[index]), JSON.stringify(capture.turns[turn]))
 }
 
+// The chat context holds the clock setting of the profile, as the clients send it; pt-BR alone gives the 24-hour clock.
 async function stream(options) {
   const request = new Request('https://offline.invalid/', options)
-  const turn = (await request.formData()).has('blockAnswer') ? 1 : 0
+  const form = await request.formData()
+  if (JSON.parse(form.get('clientContext')).timeFormat !== '12h') throw new Error('Expected the clock setting of the account profile.')
+  const turn = form.has('blockAnswer') ? 1 : 0
   const text = JSON.parse(await recordedEvents(turn)).map((event) => `data: ${JSON.stringify(event)}\n\n`).join('')
   return new Response(text, { status: 200, headers: { 'content-type': 'text/event-stream' } })
 }

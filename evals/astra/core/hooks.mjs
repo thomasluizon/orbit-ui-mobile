@@ -61,7 +61,8 @@ export async function beforeEach({ test }) {
     vars.accountDate = new Date().toISOString().slice(0, 10)
     await resetFixture(test, vars.accountDate, run.unmetered.get(vars.credentialKey) === true)
     vars.fixtureHabitTitles = fixtureHabitTitles(test.metadata.fixture, test.metadata.locale)
-    vars.clientContext = buildChatClientContext({ platform: test.metadata.platform, locale: test.metadata.locale })
+    vars.clientContext = buildChatClientContext({ platform: test.metadata.platform, locale: test.metadata.locale,
+      uses24HourClock: vars.uses24HourClock })
     vars.evalRequestId = randomUUID()
     vars.core.baseline = vars.fixtureEvidence.habits
     vars.core.records = fixtureRecords(vars, readCredentials()[vars.credentialKey])

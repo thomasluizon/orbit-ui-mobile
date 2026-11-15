@@ -216,6 +216,8 @@ export async function resetFixture(test, today = new Date().toISOString().slice(
   }
   if (!isBehindState(test.vars)) await api('PUT', 'profile/timezone', { timeZone: 'UTC' })
   test.vars.accountTimeZone = isBehindState(test.vars) ? profile.timeZone : 'UTC'
+  // The clients send the clock setting of the profile in the chat context (useChatRequestPayload).
+  test.vars.uses24HourClock = profile.uses24HourClock
   await api('PUT', 'profile/language', { language: test.metadata.locale ?? 'en' })
   if (fixture === 'budget-exhausted') {
     await exhaustAllowance(api, profile, test.metadata.locale)

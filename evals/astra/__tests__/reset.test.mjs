@@ -71,6 +71,17 @@ it('resets behind fixtures on the profile calendar day without replacing the ori
   expect(requests.some(({ path }) => path === 'profile/timezone')).toBe(false)
 })
 
+it.each([true, false])('gives the clock setting %s of the account profile to the case', async (uses24HourClock) => {
+  const test = scenario('pro')
+  const source = globalThis.fetch
+  vi.stubGlobal('fetch', async (url, options) => {
+    const response = await source(url, options)
+    return new URL(url).pathname === '/api/profile' ? Response.json({ ...await response.json(), uses24HourClock }) : response
+  })
+  await resetFixture(test)
+  expect(test.vars.uses24HourClock).toBe(uses24HourClock)
+})
+
 it.each(['en', 'pt-BR'])('GW resets the behind %s fixture during the former timezone gap without chat', async (locale) => {
   vi.setSystemTime(new Date('2031-06-10T10:30:00Z'))
   const test = structuredClone(corpus.find((entry) => entry.metadata.id === `offers-goal-behind-${locale}`))

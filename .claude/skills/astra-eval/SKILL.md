@@ -18,7 +18,7 @@ Each pull request that changes the assistant gets one live run of the core set, 
 build of that branch, before merge. Do not add a schedule or an automatic trigger. Regenerate `catalog.yaml` from a
 clean API checkout at the evaluated commit first; the run refuses another commit.
 
-The core set is `evals/astra/core/situations.yaml`: 20 situations, each in 3 frozen phrasings, each in English and
+The core set is `evals/astra/core/situations.yaml`: 21 situations, each in 3 frozen phrasings, each in English and
 pt-BR. Each case sends `POST /api/chat/stream` as a shipped client does (the shared context builder with a
 `conversationId`, the shared history builder, card answers through `blockAnswer`). The grader reads the outcome: the
 change list of the held previews (kind, target records, changed fields), the questions that came before the preview,
@@ -29,18 +29,25 @@ The gate is two runs from `evals/astra`, then one merge:
 - `npx promptfoo eval --config core/must-pass.promptfooconfig.yaml` runs the must-pass cases at k=3. A case passes
   only when all 3 attempts pass (pass^3).
 - `npx promptfoo eval --config core/other.promptfooconfig.yaml` runs the other cases at k=1.
-- `node core/merge.mjs --run-cost-usd <measured cost> [--baseline <baseline summary.json>] <run summaries>` writes
+- `node core/merge.mjs --run-cost-usd <measured cost> --baseline <baseline summary.json> <run summaries>` writes
   `reports/core/summary.md`: k and pass^k for each case, pass^k for each family and locale, the questions before a
-  preview, the measured model calls and the cost of each case, and the gate verdict.
+  preview, the measured model calls, the seconds and the cost of each case, and the gate verdict.
 
 The gate passes when every must-pass case passes, the pass^k rate of the core set is at or above the baseline, the
 mean number of questions before a preview is at or below the allowed mean, and one model call costs at most the D147
-limit. The same runs are available through the `Astra eval` workflow's manual dispatch (`gate` input).
+limit. The baseline is the merged report of `main` in which every case has a verdict; the baseline run of `main`
+passes `--as-baseline` in place of `--baseline`. The same runs are available through the `Astra eval` workflow's
+manual dispatch (`gate` input).
 
-No rerun replaces a failure. A failed attempt fails its case for that build, and the merge refuses a second result
-for a case that passed or failed. An attempt without evidence (a failed precondition, a stopped stream, a ceiling
-stop) leaves its case incomplete; only an incomplete case continues in a later window. After a fix, the failed cases
-run once more live on the new build, and that run is reported beside the first report, never merged into it.
+No rerun on the same build replaces a failure. A failed attempt fails its case for that build, and the merge refuses
+a second result for a case that passed or failed. A failure of the build is a failed attempt: a wrong preview, a reply
+that is no preview and no question, HTTP 5xx, a stream without a final event, a failed approval. Only a throttle, a
+spend ceiling stop or a failed precondition is no evidence; it leaves the case incomplete, and only an incomplete
+case continues in a later window. A reply that the grader cannot read is a grader limit, not a behavior failure: the
+case stays incomplete until the grader is extended.
+
+After a fix, the failed cases run once more live on the fixed build. This is the single permitted rerun. Give its
+summaries to the merge with `--rerun`: the rerun takes the place of the failure, and the report names both builds.
 
 A fix round never calls the provider: replay recorded real provider responses offline at the model-service port,
 following the `orbit-api` `tests/Orbit.Application.Tests/Fixtures/` pattern, or use a fake completion client.
@@ -60,7 +67,9 @@ environment, reset a counter, raise a ceiling or rotate accounts to finish.
 
 Write the cost estimate on the owning ticket before any paid-key run (cases x attempts x calls x price, from the
 newest measured figures). Record the actual cost there afterward: read it from the API's daily `AI cost` line for the
-eval purpose and pass it to the merge as `--run-cost-usd`.
+eval purpose and pass it to the merge as `--run-cost-usd`. A core set run stays under the daily ceiling in each
+window. The launch corpus gate runs once, with a 2 USD spend ceiling for that run; the ceiling returns to 0.50 USD a
+day after it.
 
 Use the configured disposable eval accounts and their fixture reset executable. Never substitute a personal account.
 Enable the existing `astra_eval_trace` account flag through `/flag` only for disposable fixtures, record its previous
@@ -115,8 +124,8 @@ case.
 ## Add a case
 
 A core set situation states the outcome: the expected change list, the allowed questions, and the answer the person
-gives. Add a situation with its 3 phrasings in both locales; never edit a committed phrasing, because the phrasing
-digest ties each report to the phrasings it measured. pt-BR phrasings read as a Brazilian wrote them.
+gives. Add a situation with its 3 phrasings in both locales; never edit a committed situation, because the corpus
+digest ties each report to the cases it measured. pt-BR phrasings read as a Brazilian wrote them.
 
 A launch corpus case keeps exact ID and enum assertions, tolerant text matching, and unordered compound tool
 requirements. Bulk cases require one bulk call and forbid single-item calls. Grade only the final rendered answer

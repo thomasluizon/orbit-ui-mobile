@@ -20,6 +20,27 @@ export function matchesField(expected, value, accountDate) {
   throw new Error('Unknown field expectation in the core set.')
 }
 
+// How a saved record names each field of a preview. Producer: orbit-api ExportedHabit, the habit row of eval/snapshot,
+// holds the title, the next due date and the frequency. Only the habit detail (GET habits/{id}, the shared
+// habitDetailSchema) holds the due time, so the readback reads it for a created record alone.
+const savedField = {
+  title: (habit) => habit.title,
+  due_date: (habit) => habit.dueDate,
+  due_time: (habit) => habit.dueTime,
+  frequency_unit: (habit) => habit.frequencyUnit,
+  frequency_quantity: (habit) => habit.frequencyQuantity == null ? null : String(habit.frequencyQuantity),
+}
+export const detailFields = ['due_time']
+
+// The change whose saved state the readback cannot read: a kind that leaves no mark in the snapshot, a field that no
+// saved record names, or a field of an existing record that only the habit detail holds.
+function unreadable({ kind, fields = {} }) {
+  if (kind === 'delete' || kind === 'log') return null
+  if (kind !== 'create' && kind !== 'update') return kind
+  const field = Object.keys(fields).find((name) => !savedField[name] || (kind === 'update' && detailFields.includes(name)))
+  return field ? `${kind} of ${field}` : null
+}
+
 // The records an expected change names. A count over a set leaves the choice of members open until the person answers
 // a question; `whenAnswered` then gives the positions that the answer decides.
 function expectedTargets(targets, records, answered) {
@@ -75,7 +96,8 @@ function withinRange(count, range, fallback) {
 }
 
 // The outcome of the turns before any approval: the questions that came before the preview, and the change list of the
-// held previews against the expected list. A read turn holds no preview and asks nothing.
+// held previews against the expected list. A read turn holds no preview and asks nothing. A preview that the grader
+// cannot classify, or whose saved state it cannot read back, is a limit of the grader and no verdict on the assistant.
 export function gradePreview(output, vars) {
   if (output.unavailable) return verdict(false, output.error ?? 'The chat turn gave no evidence.', { unavailable: true })
   if (output.error) return verdict(false, output.error)
@@ -98,44 +120,65 @@ export function gradePreview(output, vars) {
     return verdict(false, `The grader cannot classify a held preview: ${unclassified.join(', ')}.`, { graderLimit: true })
   }
   const comparison = compareChanges(expected.changes, changes, { records: vars.core.records, accountDate: vars.accountDate }, questions > 0)
-  return comparison.failure ? verdict(false, comparison.failure)
+  if (comparison.failure) return verdict(false, comparison.failure)
+  const unread = expected.changes.map(unreadable).find(Boolean)
+  return unread ? verdict(false, `The grader cannot read back a saved ${unread}.`, { graderLimit: true })
     : verdict(true, 'The held previews hold exactly the requested changes.', { matched: comparison.matched })
 }
 
-// What the readback compares of each stored habit: its identity, its title and whether it is logged on the account date.
+// What the readback compares of each stored habit: its identity, its title, its frequency and whether it is logged on
+// the account date. The next due date moves when a habit is logged, so it is read only where a change names it.
 export const savedRecords = (habits, accountDate) => habits.map((habit) => ({ id: habit.id, title: habit.title,
+  frequency_unit: savedField.frequency_unit(habit) ?? null, frequency_quantity: savedField.frequency_quantity(habit),
   logged: habit.logs.some((log) => log.date === accountDate && log.value > 0) })).toSorted((left, right) => left.id.localeCompare(right.id))
 
-// The saved state after approval, read back from the account: each deleted record is gone, each updated title and each
-// log is saved, each created record exists once, and every other record is as it was.
+// The first field that the request names and the saved record holds with another value.
+function savedFailure(expected, habit, accountDate) {
+  const wrong = Object.keys(expected.fields ?? {}).find((field) => !matchesField(expected.fields[field], savedField[field](habit), accountDate))
+  return wrong ? `gives ${wrong} the value ${JSON.stringify(savedField[wrong](habit) ?? null)}` : null
+}
+
+// Each expected create is saved as one new record that holds each field the request names, and no other record is new.
+function gradeCreated(creates, created, accountDate) {
+  const unmatched = [...created]
+  for (const expected of creates) {
+    const index = unmatched.findIndex((habit) => !savedFailure(expected, habit, accountDate))
+    if (index < 0 && unmatched.length) return verdict(false, `A saved create ${savedFailure(expected, unmatched[0], accountDate)}.`)
+    if (index < 0) return verdict(false, 'The created records differ from the approved changes.')
+    unmatched.splice(index, 1)
+  }
+  return unmatched.length ? verdict(false, 'The created records differ from the approved changes.')
+    : verdict(true, 'The saved state matches the approved changes.')
+}
+
+// The saved state after approval, read back from the account: each deleted record is gone, each log is saved, each
+// updated and each created record holds each field the request names, and every other record is as it was.
 function gradeSavedState(readback, matched, vars) {
   if (!readback) return verdict(false, 'The approved preview has no saved state readback.')
   if (readback.error) return verdict(false, readback.error, readback.unavailable ? { unavailable: true } : {})
-  const before = savedRecords(readback.baseline, vars.accountDate)
-  if (JSON.stringify(savedRecords(readback.held, vars.accountDate)) !== JSON.stringify(before)) {
+  const date = vars.accountDate
+  const before = savedRecords(readback.baseline, date)
+  if (JSON.stringify(savedRecords(readback.held, date)) !== JSON.stringify(before)) {
     return verdict(false, 'The held preview changed the account before its approval.')
   }
+  const differ = verdict(false, 'The saved records differ from the approved changes.')
+  const changes = matched.flatMap(({ expected, held }) => held.map((change) => ({ expected, target: change.target })))
   const wanted = new Map(before.map((habit) => [habit.id, { ...habit }]))
-  const creates = []
-  for (const { expected, held } of matched) {
-    for (const change of held) {
-      if (expected.kind === 'create') creates.push(expected)
-      else if (expected.kind === 'delete') wanted.delete(change.target)
-      else if (expected.kind === 'log') wanted.get(change.target).logged = true
-      else if (expected.kind === 'update' && typeof expected.fields?.title === 'string') wanted.get(change.target).title = expected.fields.title
-      else return verdict(false, `The grader cannot read back a saved ${expected.kind}.`, { graderLimit: true })
-    }
+  for (const { expected, target } of changes) {
+    if (expected.kind === 'delete') wanted.delete(target)
+    if (expected.kind === 'log') wanted.get(target).logged = true
   }
-  const after = savedRecords(readback.after, vars.accountDate)
-  const created = after.filter((habit) => !before.some((stored) => stored.id === habit.id))
-  const kept = after.filter((habit) => before.some((stored) => stored.id === habit.id))
-  if (kept.length !== wanted.size || kept.some((habit) => JSON.stringify(habit) !== JSON.stringify(wanted.get(habit.id)))) {
-    return verdict(false, 'The saved records differ from the approved changes.')
+  const kept = readback.after.filter((habit) => before.some((stored) => stored.id === habit.id))
+  if (kept.length !== wanted.size) return differ
+  for (const { expected, target } of changes.filter(({ expected }) => expected.kind === 'update')) {
+    const habit = kept.find((saved) => saved.id === target)
+    const wrong = habit ? savedFailure(expected, habit, date) : null
+    if (wrong) return verdict(false, `A saved update ${wrong}.`)
+    for (const field of Object.keys(expected.fields).filter((name) => habit && name in wanted.get(target))) wanted.get(target)[field] = savedField[field](habit)
   }
-  const titled = creates.every((expected) => !expected.fields?.title
-    || created.some((habit) => matchesField(expected.fields.title, habit.title, vars.accountDate)))
-  return created.length === creates.length && titled ? verdict(true, 'The saved state matches the approved changes.')
-    : verdict(false, 'The created records differ from the approved changes.')
+  if (savedRecords(kept, date).some((habit) => JSON.stringify(habit) !== JSON.stringify(wanted.get(habit.id)))) return differ
+  return gradeCreated(changes.filter(({ expected }) => expected.kind === 'create').map(({ expected }) => expected),
+    readback.after.filter((habit) => !kept.includes(habit)), date)
 }
 
 // A turn sent again with its turn key is the same turn: the server replays it and holds no second preview.

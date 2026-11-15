@@ -1,22 +1,37 @@
-import { readFileSync } from 'node:fs'
 import { clientContextOf, openConversation, sendTurn } from './client-turn.mjs'
-import { answerQuestion } from './answers.mjs'
-import { gradePreview, savedRecords } from './outcome.mjs'
+import { answerQuestion, questionOf } from './answers.mjs'
+import { imageBytes } from './corpus.mjs'
+import { detailFields, gradePreview, savedRecords } from './outcome.mjs'
 import { approvePendingOperation, publicApi } from '../fixtures/api.mjs'
 import { shownCards } from '../same-title-card.mjs'
 import { visibleAnswer } from '../visible-answer.mjs'
 import { safeFailureMessage } from '../credentials.mjs'
 
-// A turn without an answer from the assistant is no evidence of its behavior: the stream failed, the service was
-// throttled or down, or a spend ceiling stopped the call. The case stays incomplete and continues in a later window.
-const serviceCodes = ['AI_UNAVAILABLE', 'AI_DAILY_BUDGET_EXCEEDED', 'AI_PROVIDER_QUOTA_EXHAUSTED']
-const noEvidence = ({ status, code }) => status === null || status === 429 || status >= 500 || serviceCodes.includes(code)
-const failure = (turn, step) => ({ unavailable: noEvidence(turn),
+// Only a throttle or a spend ceiling is no evidence of the build: the case stays incomplete and continues in a later
+// window. Each other failure is the build under test failing the person: an HTTP 5xx, a stream that stops or ends
+// without a final event, a failed approval. It fails the attempt, so no later window runs the case again.
+const ceilingCodes = ['AI_DAILY_BUDGET_EXCEEDED', 'AI_PROVIDER_QUOTA_EXHAUSTED']
+const failure = (turn, step) => ({ unavailable: turn.status === 429 || ceilingCodes.includes(turn.code),
   error: `${step} failed${turn.status ? ` with HTTP ${turn.status}` : ''}${turn.code ? ` (${turn.code})` : ''}: ${turn.error}` })
-
-const readImage = (name) => ({ name, type: 'image/png', bytes: readFileSync(new URL(`./fixtures/${name}`, import.meta.url)) })
+const requestFailure = (error, step) => ({ unavailable: error?.status === 429, error: `${step} failed: ${safeFailureMessage(error)}` })
 
 const readHabits = async (api) => (await api('GET', 'eval/snapshot')).payload.habits
+
+// The saved rows of the account after the approval. The snapshot row of a habit holds no due time, so a record that the
+// approval created is read with its habit detail when the request names a field that only the detail holds.
+async function readSaved(api, { expected, baseline }) {
+  const habits = await readHabits(api)
+  const named = expected.changes.filter((change) => change.kind === 'create').flatMap((change) => Object.keys(change.fields ?? {}))
+  if (!named.some((field) => detailFields.includes(field))) return habits
+  const saved = []
+  for (const habit of habits) {
+    if (baseline.some((stored) => stored.id === habit.id)) { saved.push(habit); continue }
+    const { payload: detail } = await api('GET', `habits/${habit.id}`)
+    if (detail?.id !== habit.id) throw new Error('The habit detail readback names another record.')
+    saved.push({ ...detail, ...habit })
+  }
+  return saved
+}
 
 // Approves each held preview as the client does, then reads the saved state back. Nothing is approved when the held
 // preview already changed the account.
@@ -25,9 +40,9 @@ async function approveAndReadBack(previews, conversation, vars, api) {
     const held = await readHabits(api)
     const unchanged = JSON.stringify(savedRecords(held, vars.accountDate)) === JSON.stringify(savedRecords(vars.core.baseline, vars.accountDate))
     if (unchanged) for (const preview of previews) await approvePendingOperation(api, preview.id, clientContextOf(conversation))
-    return { baseline: vars.core.baseline, held, after: unchanged ? await readHabits(api) : held }
+    return { baseline: vars.core.baseline, held, after: unchanged ? await readSaved(api, vars.core) : held }
   } catch (error) {
-    return { unavailable: true, error: `Approval or the saved state readback failed: ${safeFailureMessage(error)}` }
+    return requestFailure(error, 'Approval or the saved state readback')
   }
 }
 
@@ -38,43 +53,58 @@ async function sendTurnAgain(turn, api) {
     const { payload } = await api('GET', 'eval/pending-operations')
     return { replayed: again.replayed, previewIds: again.previewIds, pendingCount: payload?.pendingCount ?? null }
   } catch (error) {
-    return { unavailable: true, error: `The pending preview count readback failed: ${safeFailureMessage(error)}` }
+    return requestFailure(error, 'The pending preview count readback')
   }
 }
 
-// Runs one case as a person with a shipped client: sends the phrasing, answers each question the case allows, and stops
-// at the first preview. One question past the allowed count is recorded and not answered. A write case whose preview
-// holds the expected changes is approved and read back.
-export async function runCase(vars, { send = sendTurn, api = publicApi(vars.credentialKey) } = {}) {
-  const { expected, prefix, image, resend } = vars.core
+// Runs one case as a person with a shipped client. The person sends the earlier owner messages of a live situation and
+// then the phrasing, one message after each question, in one conversation; answers each further question the case
+// allows; and stops at the first preview. A reply that is no question, and one question past the allowed count, are
+// recorded and not answered. A write case whose preview holds the expected changes is approved and read back.
+export async function runCase(vars, { send = sendTurn, api = publicApi(vars.credentialKey), now = () => performance.now() } = {}) {
+  const { expected, prefix, lead, image, resend } = vars.core
   const conversation = openConversation({ platform: vars.clientContext.platform, locale: vars.clientContext.locale,
-    credentialKey: vars.credentialKey, timeZone: vars.accountTimeZone, messages: prefix })
-  const output = { turns: 0, questionsBeforePreview: 0, previews: [], modelCalls: 0 }
+    credentialKey: vars.credentialKey, timeZone: vars.accountTimeZone, uses24HourClock: vars.uses24HourClock, messages: prefix })
+  const output = { turns: 0, questionsBeforePreview: 0, previews: [], modelCalls: 0, seconds: 0 }
   const maxQuestions = expected.questions?.max ?? 0
-  let attempted = { content: vars.input, ...(image ? { image: readImage(image) } : {}) }
+  const typed = [...lead, vars.input]
+  const typedMessage = (index) => ({ content: typed[index],
+    ...(image && index === typed.length - 1 ? { image: { name: image, type: 'image/png', bytes: imageBytes(image) } } : {}) })
+  let attempted = typedMessage(0)
+  let waited = 0
   let turn
   for (;;) {
+    const sent = now()
     turn = await send(conversation, attempted, output.turns === 0 ? vars.evalRequestId : undefined)
+    waited += now() - sent
+    output.seconds = Number((waited / 1000).toFixed(1))
     if (turn.kind === 'failed') return { ...output, ...failure(turn, 'The chat turn') }
     output.turns++
     output.modelCalls = output.modelCalls === null || turn.trace?.modelCalls == null ? null : output.modelCalls + turn.trace.modelCalls
     output.previews = turn.response.pendingOperations ?? []
     if (output.previews.length || expected.read) break
+    const question = questionOf(turn, expected)
+    if (!question.pass) { output.answerFailure = question.reason; break }
     output.questionsBeforePreview++
     if (output.questionsBeforePreview > maxQuestions) break
+    if (output.turns < typed.length) { attempted = typedMessage(output.turns); continue }
     const answer = answerQuestion(turn, vars)
     if (!answer.pass) { Object.assign(output, { answerFailure: answer.reason, graderLimit: answer.graderLimit === true }); break }
     attempted = { content: answer.message, ...(answer.blockAnswer ? { blockAnswer: answer.blockAnswer } : {}) }
   }
   output.composition = turn.response
   output.asked = shownCards(output).length > 0
-  output.trace = turn.trace ? { state: 'available', requestId: turn.requestId, responseRequestId: turn.requestId, calls: turn.trace.calls } : null
+  output.trace = turn.trace ? { state: 'available', requestId: turn.trace.requestId, responseRequestId: turn.responseRequestId,
+    calls: turn.trace.calls, timing: turn.trace.timing } : null
   try {
     output.answer = visibleAnswer(turn.response, vars.clientContext, vars.accountDate, vars.accountTimeZone)
   } catch (error) {
     return { ...output, answer: null, error: `The answer cannot be drawn (${error.blockKind ?? 'composition'}): ${error.message}` }
   }
-  if (expected.read || !gradePreview(output, vars).pass) return output
+  if (expected.read) return output
+  const preview = gradePreview(output, vars)
+  if (preview.metadata.graderLimit) output.graderLimit = true
+  if (!preview.pass) return output
   if (resend) output.resend = await sendTurnAgain(turn, api)
   output.readback = await approveAndReadBack(output.previews, conversation, vars, api)
   return output

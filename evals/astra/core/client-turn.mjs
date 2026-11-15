@@ -11,19 +11,24 @@ const { API } = await shared('api/endpoints.ts')
 const { CLIENT_TIME_ZONE_HEADER } = await shared('utils/client-context.ts')
 const { CHAT_STREAM_IDLE_TIMEOUT_MS } = await shared('chat/stream-constants.ts')
 
-// The state a shipped client keeps for one conversation: its message list and the conversation id it sends on each turn.
-// `messages` may start with a recorded exchange; a restored conversation holds its earlier turns the same way.
-export function openConversation({ platform = 'web', locale = 'en', credentialKey, timeZone = 'UTC', messages = [] }) {
-  return { platform, locale, credentialKey, timeZone, conversationId: randomUUID(),
+// The state a shipped client keeps for one conversation: its message list, the conversation id it sends on each turn
+// and the clock setting of the account profile. `messages` may start with a recorded exchange; a restored conversation
+// holds its earlier turns the same way.
+export function openConversation({ platform = 'web', locale = 'en', credentialKey, timeZone = 'UTC', uses24HourClock, messages = [] }) {
+  return { platform, locale, credentialKey, timeZone, uses24HourClock, conversationId: randomUUID(),
     messages: messages.map(({ role, content }) => ({ id: randomUUID(), role: role === 'assistant' ? 'ai' : 'user', content })) }
 }
 
+// The context that useChatRequestPayload of apps/web and apps/mobile builds. The eval types each message in the chat and
+// dismisses no offer, so it sends what the apps send then: no entry point intent, no follow-up origin, no earlier
+// starting step, no selected offer and no dismissed offer key.
 export const clientContextOf = (conversation) => buildChatClientContext({
-  platform: conversation.platform, locale: conversation.locale, conversationId: conversation.conversationId, dismissedOfferKeys: [],
+  platform: conversation.platform, locale: conversation.locale, uses24HourClock: conversation.uses24HourClock,
+  conversationId: conversation.conversationId, dismissedOfferKeys: [],
 })
 
-// useChatRequestPayload.buildChatFormData of apps/web and apps/mobile, field for field. A typed message is already the
-// last stored message when the form is built; a card answer is stored only after the server accepts it.
+// useChatRequestPayload.buildChatFormData of apps/web and apps/mobile. A typed message is already the last stored
+// message when the form is built; a card answer is stored only after the server accepts it.
 function buildChatForm(conversation, attempted) {
   const form = new FormData()
   form.append('message', attempted.content)
@@ -65,7 +70,9 @@ function readTrace(frames, requestId) {
   timing: trace.timing ?? null, modelCalls: phases ? phases.filter((phase) => phase?.name === 'model_call').length : null }
 }
 
-function openStream(conversation, requestId, frames) {
+// Producer: orbit-api RequestCorrelationMiddleware answers each request with its request id in X-Orbit-Request-Id.
+function openStream(conversation, requestId, exchange) {
+  const { frames } = exchange
   return async (turn) => {
     const token = process.env[conversation.credentialKey]
     if (!token) throw new Error('The chat turn requires a refreshed credential.')
@@ -74,10 +81,12 @@ function openStream(conversation, requestId, frames) {
     const armIdleTimer = () => { clearTimeout(idleTimer); idleTimer = setTimeout(() => controller.abort(), CHAT_STREAM_IDLE_TIMEOUT_MS) }
     armIdleTimer()
     frames.length = 0
+    exchange.responseRequestId = null
     const response = await fetch(`${apiOrigin()}${API.chat.stream}`, { method: 'POST', body: turn.payload, signal: controller.signal,
       redirect: 'error',
       headers: { Authorization: `Bearer ${token}`, 'Idempotency-Key': turn.key, 'api-version': '2.0',
         [CLIENT_TIME_ZONE_HEADER]: conversation.timeZone, 'X-Orbit-Eval-Trace': '1', 'X-Orbit-Request-Id': requestId } })
+    exchange.responseRequestId = response.headers.get('x-orbit-request-id')
     if (!response.ok) {
       clearTimeout(idleTimer)
       const body = await response.json().catch(() => null)
@@ -90,10 +99,10 @@ function openStream(conversation, requestId, frames) {
 
 // The shared turn loop of the clients: one resend of the same turn key on an incomplete stream or a 5xx, the shared
 // stream parser, and the failure the client would show.
-async function transmit(conversation, turn, requestId, frames, steps = []) {
+async function transmit(conversation, turn, requestId, exchange, steps = []) {
   let outcome
   try {
-    outcome = await sendChatStreamTurn({ turn, isCancelled: () => false, open: openStream(conversation, requestId, frames),
+    outcome = await sendChatStreamTurn({ turn, isCancelled: () => false, open: openStream(conversation, requestId, exchange),
       callbacks: { onDelta: () => {}, onReset: () => {}, onStep: (step) => steps.push(step) } })
   } catch (error) {
     return { kind: 'failed', status: null, code: null, error: `Chat stream request failed: ${safeFailureMessage(error)}` }
@@ -109,28 +118,29 @@ async function transmit(conversation, turn, requestId, frames, steps = []) {
 // Producer: orbit-api ChatTurnStream answers a turn key it already holds with `replayed: true` on the started event and
 // the stored final event; ChatTurnIdentity leaves the request id out of the turn's identity.
 async function sendAgain(conversation, turn) {
-  const frames = []
-  const outcome = await transmit(conversation, turn, randomUUID(), frames)
+  const exchange = { frames: [], responseRequestId: null }
+  const outcome = await transmit(conversation, turn, randomUUID(), exchange)
   if (outcome.kind === 'failed') return outcome
-  return { kind: 'final', replayed: streamEvents(frames).find((event) => event?.type === 'started')?.replayed === true,
+  return { kind: 'final', replayed: streamEvents(exchange.frames).find((event) => event?.type === 'started')?.replayed === true,
     previewIds: (outcome.response.pendingOperations ?? []).map((preview) => preview.id) }
 }
 
 // One turn on the path a shipped client uses: POST /api/chat/stream with the form the clients build, through the
 // shared turn loop, and the shared final-message builder for the message the client stores. Returns the final response
-// with a `sendAgain` that repeats the turn under its turn key, or the failure.
+// with the request id that the response carries and a `sendAgain` that repeats the turn under its turn key, or the failure.
 export async function sendTurn(conversation, attempted, requestId = randomUUID()) {
   const typed = !attempted.blockAnswer
   if (typed) conversation.messages.push({ id: randomUUID(), role: 'user', content: attempted.content })
   const turn = { key: randomUUID(), payload: buildChatForm(conversation, attempted) }
-  const frames = []
+  const exchange = { frames: [], responseRequestId: null }
   const steps = []
-  const outcome = await transmit(conversation, turn, requestId, frames, steps)
+  const outcome = await transmit(conversation, turn, requestId, exchange, steps)
   if (outcome.kind === 'failed') return outcome
   if (!typed) conversation.messages.push({ id: randomUUID(), role: 'user', content: attempted.content, answerToBlockId: attempted.blockAnswer.blockId })
   const response = outcome.response
   conversation.messages.push({ id: randomUUID(), role: 'ai', timestamp: new Date(), ...buildChatFinalMessageFields(response, steps) })
   // settleComposerResponse: the client takes the conversation id from each response that carries one.
   if (response.conversationId) conversation.conversationId = response.conversationId
-  return { kind: 'final', response, requestId, trace: readTrace(frames, requestId), sendAgain: () => sendAgain(conversation, turn) }
+  return { kind: 'final', response, requestId, responseRequestId: exchange.responseRequestId,
+    trace: readTrace(exchange.frames, requestId), sendAgain: () => sendAgain(conversation, turn) }
 }

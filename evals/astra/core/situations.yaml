@@ -1,6 +1,6 @@
-# The core set of the Orbit AI eval gate: 20 situations, each in 3 frozen phrasings, each in English and pt-BR (120 cases).
-# A phrasing never changes after the owner reads it: a changed phrasing changes `phrasingDigest`, and two reports with
-# different digests cannot be merged or compared. Add a situation; do not edit a phrasing.
+# The core set of the Orbit AI eval gate: 21 situations, each in 3 frozen phrasings, each in English and pt-BR (126 cases).
+# A case never changes after the owner reads it: a changed phrasing, expected outcome, answer or image changes
+# `corpusDigest`, and two reports with different digests cannot be merged or compared. Add a situation; do not edit one.
 #
 # family        owner-turns (every real owner turn on record), defect-classes (one situation for each class of the
 #               defect table), same-title (the same-titled sub-habit family).
@@ -8,8 +8,11 @@
 # mustPass      true runs at k=3 and passes only when all 3 attempts pass. false runs at k=1.
 # fixture       a fixture of fixtures/reset.mjs. The records a case can name: pro, composition: water, walk.
 #               same-title-children: parent, children (in list order), walk. duplicate-titles: first, second.
-# prefix        recorded messages the client already holds when the person sends the phrasing.
-# expected      the outcome. questions: how many replies without a preview may come before the preview.
+# prefix        recorded messages the client already holds when the person sends the phrasing. With `live: true` the
+#               person's messages of them are sent first, in the conversation of the case, and the assistant gives its
+#               own replies; the phrasing is sent when no preview came before it.
+# expected      the outcome. questions: how many questions may come before the preview. A question is a choice or
+#               question card, a list card whose action can hold the request, or a text that asks.
 #               changes: the normalized change list of the held previews (kind, target records, changed fields).
 #               previews: how many previews hold the request (default 1). read: the rubric for the text of a read answer.
 # answer        what the person decides when the assistant asks. A card takes the answer through blockAnswer; `text` is
@@ -48,12 +51,12 @@ situations:
     mustPass: true
     fixture: same-title-children
     platform: web
-    expected:
+    expected: &twoOfSixAfterOneQuestion
       questions: { max: 1 }
-      changes:
+      changes: &twoOfSix
         - { kind: delete, targets: { of: children, count: 2, whenAnswered: [4, 5] } }
         - { kind: update, targets: { of: children, count: 4, whenAnswered: [0, 1, 2, 3] }, fields: { title: 'Water - 1.18L' } }
-    answer:
+    answer: &lastTwoFirstFourAnswer
       sameTitle: { deleted: [4, 5], renamed: [0, 1, 2, 3] }
       text: { en: 'Delete the last 2 and rename the first 4', pt-BR: 'Exclui os 2 últimos e renomeia os 4 primeiros' }
     phrasings:
@@ -65,6 +68,27 @@ situations:
         - 'i have 7 habits called Water - 710ml delete two of them, and change the other 4 to Water - 1.18L'
         - 'I have a bunch of repeated Water - 710ml habits. Delete two and rename the other four to Water - 1.18L'
         - 'Out of my Water - 710ml habits, remove 2 and rename the remaining 4 to Water - 1.18L'
+
+  # The same owner message on staging, 15 November 2026 (the #2127 capture, run 5): the reply held no question and no
+  # preview, only a list card that logs habits, which cannot hold a delete or a rename. The request ends in a preview,
+  # after one question at most. This situation sends it as the mobile client.
+  - id: owner-water-run-5
+    family: owner-turns
+    defectClass: c
+    mustPass: true
+    fixture: same-title-children
+    platform: mobile
+    expected: *twoOfSixAfterOneQuestion
+    answer: *lastTwoFirstFourAnswer
+    phrasings:
+      pt-BR:
+        - 'eu tenho 7 habitos chamados Water - 710ml deleta dois desses, e os outros 4 coloca Water - 1.18L'
+        - 'tem 7 habitos Water - 710ml aqui, apaga dois e os outros 4 troca pra Water - 1.18L'
+        - 'to com 7 Water - 710ml na lista, tira dois e bota Water - 1.18L nos outros 4'
+      en:
+        - 'i have 7 habits called Water - 710ml delete two of them, and change the other 4 to Water - 1.18L'
+        - 'there are 7 Water - 710ml habits here, delete two and switch the other 4 to Water - 1.18L'
+        - "i've got 7 Water - 710ml in my list, drop two and make the other 4 Water - 1.18L"
 
   - id: owner-water-choice
     family: owner-turns
@@ -81,14 +105,18 @@ situations:
       pt-BR: ['4 primeiros', 'os 4 primeiros', 'mantém os quatro primeiros']
       en: ['first 4', 'the first 4', 'keep the first four']
 
+  # Class e is context that the server holds for one conversation. This turn runs live: the owner's request and
+  # "4 primeiros" are sent first, in one conversation, and the phrasing is sent when the assistant asks a second time.
   - id: owner-water-typed-answer
     family: owner-turns
     defectClass: e
     mustPass: true
     fixture: same-title-children
     platform: web
-    prefix: { exchange: water, messages: 4 }
-    expected: *lastTwoFirstFour
+    prefix: { exchange: water, messages: 4, live: true }
+    expected:
+      questions: { max: 2 }
+      changes: *twoOfSix
     phrasings:
       pt-BR:
         - 'ja respondi isos, eu falei pra manter os 4 primeiros, isso significa q é pra excluir os 2 ultimos'
@@ -301,7 +329,7 @@ situations:
         - { kind: update, targets: { of: children }, fields: { title: 'Water - 1.18L' } }
     phrasings:
       en: ['Rename all the Water - 710ml habits to Water - 1.18L', 'change every Water - 710ml to Water - 1.18L', 'All my Water - 710ml habits should be called Water - 1.18L']
-      pt-BR: ['Renomeia todos os Water - 710ml pra Water - 1.18L', 'muda todo Water - 710ml pra Water - 1.18L', 'Todos os meus hábitos Water - 710ml devem se chamar Water - 1.18L']
+      pt-BR: ['Renomeia todos os Water - 710ml pra Water - 1.18L', 'muda todo Water - 710ml pra Water - 1.18L', 'quero que todos os meus Water - 710ml se chamem Water - 1.18L']
 
   - id: same-title-parent-match
     family: same-title
@@ -309,14 +337,8 @@ situations:
     mustPass: false
     fixture: same-title-children
     platform: web
-    expected:
-      questions: { max: 1 }
-      changes:
-        - { kind: delete, targets: { of: children, count: 2, whenAnswered: [4, 5] } }
-        - { kind: update, targets: { of: children, count: 4, whenAnswered: [0, 1, 2, 3] }, fields: { title: 'Water - 1.18L' } }
-    answer:
-      sameTitle: { deleted: [4, 5], renamed: [0, 1, 2, 3] }
-      text: { en: 'Delete the last 2 and rename the first 4', pt-BR: 'Exclui os 2 últimos e renomeia os 4 primeiros' }
+    expected: *twoOfSixAfterOneQuestion
+    answer: *lastTwoFirstFourAnswer
     phrasings:
       en: ['I have 7 habits called Water, delete two of them and rename the other 4 to Water - 1.18L', 'of my 7 Water habits, remove 2 and rename the other 4 to Water - 1.18L', 'Water shows up 7 times: delete two, and the other four become Water - 1.18L']
       pt-BR: ['Tenho 7 hábitos chamados Water, apaga dois e renomeia os outros 4 pra Water - 1.18L', 'dos meus 7 hábitos Water, exclui 2 e renomeia os outros 4 pra Water - 1.18L', 'Water aparece 7 vezes: apaga dois, e os outros quatro viram Water - 1.18L']
@@ -347,7 +369,7 @@ situations:
       text: { en: 'The third one in the list', pt-BR: 'O terceiro da lista' }
     phrasings:
       en: ['Change the title of the Water - 710ml habit to Water - 1.18L', 'rename my Water - 710ml habit to Water - 1.18L', 'The Water - 710ml habit should be called Water - 1.18L']
-      pt-BR: ['Muda o título do hábito Water - 710ml pra Water - 1.18L', 'renomeia meu hábito Water - 710ml pra Water - 1.18L', 'O hábito Water - 710ml deve se chamar Water - 1.18L']
+      pt-BR: ['Muda o título do hábito Water - 710ml pra Water - 1.18L', 'renomeia meu hábito Water - 710ml pra Water - 1.18L', 'troca o nome do Water - 710ml pra Water - 1.18L']
 
   - id: same-title-delete-all
     family: same-title
