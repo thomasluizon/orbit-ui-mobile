@@ -23,7 +23,7 @@ platform uses artwork that Apple permits there:
 
 | Platform | Button | Apple artwork |
 | --- | --- | --- |
-| iOS | `ASAuthorizationAppleIDButton` through `expo-apple-authentication`, 44 pt, corner radius 22 | The system control draws its own logo and localized title |
+| iOS | `ASAuthorizationAppleIDButton` through `expo-apple-authentication`, 44 pt, corner radius 22; dims to 0.4 while busy or disabled and shows no spinner, because the system control cannot draw one | The system control draws its own logo and localized title |
 | Android | `PillButton brand="apple"`, 44 pt, title 19 | `apps/mobile/assets/auth/apple-sign-in-logo-on-*.png`, from `https://appleid.cdn-apple.com/appleid/button/logo` (size 44, no border, scales 1 to 4) |
 | Web | `PillButton brand="apple"`, 44 px, title 19 | The left-aligned medium logo file from Apple Design Resources (`Logo-Sign-in-with-Apple`), in `apps/web/components/auth/apple-sign-in-logo.tsx` |
 
@@ -35,7 +35,7 @@ and the trailing edge. The Android and web pills use 8% on both inline edges, so
 stay centred, as on the Google pill. The guidelines permit the larger leading inset: "you can adjust
 the space between the logo and the button's leading edge." `APPLE_SIGN_IN_BUTTON` in
 `packages/shared/src/theme/button.ts` holds the proportion, the inset and the two colour pairs. The
-busy state replaces the logo with the spinner, as it does for Google.
+busy state of the Android and web pills replaces the logo with the spinner, as it does for Google.
 
 The web uses the Design Resources file. Section 2A of the Developer Artwork License Agreement for
 Sign in with Apple (the agreement that Apple's `Logo-Sign-in-with-Apple.dmg` shows when you open it)
