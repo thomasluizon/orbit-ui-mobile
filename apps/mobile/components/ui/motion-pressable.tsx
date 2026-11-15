@@ -23,7 +23,7 @@ const TARGET_KEYS: ReadonlySet<string> = new Set([
 const CORNER_KEY = /^border.*(?:Radius|Curve)$/
 
 /** Splits a control's style: the target keeps its box, its corners and its focus outline; the face takes the paint and lays out the content. */
-export function splitPressStyle(style: StyleProp<ViewStyle>): Readonly<{ target: ViewStyle; face: ViewStyle }> {
+function splitPressStyle(style: StyleProp<ViewStyle>): Readonly<{ target: ViewStyle; face: ViewStyle }> {
   const target: Record<string, unknown> = {}
   const face: Record<string, unknown> = {}
   for (const [key, value] of Object.entries({ ...StyleSheet.flatten(style) })) {
@@ -36,7 +36,7 @@ export function splitPressStyle(style: StyleProp<ViewStyle>): Readonly<{ target:
   return { target, face }
 }
 
-export interface MotionPressableProps extends Omit<PressableProps, 'children' | 'style'> {
+interface MotionPressableProps extends Omit<PressableProps, 'children' | 'style'> {
   children?: ReactNode | ((state: MotionPressState) => ReactNode)
   style?: StyleProp<ViewStyle> | ((state: MotionPressState) => StyleProp<ViewStyle>)
   /** Keeps the press scale at rest, as for a busy pill (the `static` prop of `DESIGN.md` Press feedback). */

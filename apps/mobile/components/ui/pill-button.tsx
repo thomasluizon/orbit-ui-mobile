@@ -39,6 +39,64 @@ function waitingFaceStyle(variant: ButtonVariant, ghostBorderWidth: number): Vie
   return { backgroundColor: 'transparent', borderWidth: variant === 'ghost' ? ghostBorderWidth : 0, borderColor: 'transparent' }
 }
 
+interface VariantFaceInput {
+  readonly variant: ButtonVariant
+  readonly tokens: AppTokensV2
+  readonly pressed: boolean
+  readonly hovered: boolean
+  readonly elevated: boolean
+  readonly quiet: boolean
+  readonly ghostBorderWidth: number
+}
+
+/** The variant fill of a pill at rest or pressed. A ghost also fills while the pointer is on it. */
+function variantFaceStyle({ variant, tokens, pressed, hovered, elevated, quiet, ghostBorderWidth }: VariantFaceInput): ViewStyle {
+  switch (variant) {
+    case 'secondary':
+      return { backgroundColor: pressed ? mixHex(tokens.fg1, tokens.bg, 0.1) : tokens.fg1 }
+    case 'ghost':
+      return { backgroundColor: pressed || hovered ? ghostActiveFill(tokens, elevated, quiet) : ghostRestFill(tokens, elevated), borderWidth: ghostBorderWidth, borderColor: tokens.hairlineStrong }
+    case 'destructive':
+      return { backgroundColor: pressed ? mixHex(tokens.statusBad, tokens.fg1, 0.15) : tokens.statusBad }
+    case 'caution':
+      return { backgroundColor: pressed ? mixHex(tokens.statusOverdue, '#000000', 0.15) : tokens.statusOverdue }
+    default:
+      return { backgroundColor: pressed ? tokens.primaryPressed : tokens.primary }
+  }
+}
+
+function ghostRestFill(tokens: AppTokensV2, elevated: boolean): string {
+  return elevated ? tokens.bgElev : 'transparent'
+}
+
+function ghostActiveFill(tokens: AppTokensV2, elevated: boolean, quiet: boolean): string {
+  if (elevated) return tokens.bgElevHover
+  return quiet ? tokens.bgHoverOpaque : tokens.bgHover
+}
+
+interface PillBoxInput {
+  readonly sizeSpec: (typeof BUTTON_SIZES)[keyof typeof BUTTON_SIZES]
+  readonly iconOnly: boolean | undefined
+  readonly minimumHeight: number | undefined
+  readonly edge: 'start' | undefined
+  readonly matchedWidth: boolean
+  readonly hasLeadingIcon: boolean
+}
+
+/** The box of a pill: a square for an icon-only action, else the size row's height, padding and gap. */
+function pillBoxStyle({ sizeSpec, iconOnly, minimumHeight, edge, matchedWidth, hasLeadingIcon }: PillBoxInput): ViewStyle {
+  if (iconOnly) return iconOnlyStyle(Math.max(minimumHeight ?? sizeSpec.height, SMALL_PILL_VISIBLE_MIN), edge)
+  return {
+    height: minimumHeight === undefined ? Math.max(sizeSpec.height, SMALL_PILL_VISIBLE_MIN) : undefined,
+    minHeight: Math.max(minimumHeight ?? 0, SMALL_PILL_VISIBLE_MIN),
+    width: matchedWidth ? MATCHED_PILL_WIDTH : undefined,
+    paddingVertical: SPACING.s4,
+    paddingHorizontal: sizeSpec.paddingX,
+    paddingStart: hasLeadingIcon ? sizeSpec.paddingX - 2 : sizeSpec.paddingX,
+    gap: sizeSpec.gap,
+  }
+}
+
 function buttonFocusStyle(variant: ButtonVariant, outlineColor: string): ViewStyle {
   return {
     outlineWidth: 2,
@@ -100,35 +158,7 @@ export function ThemedButton({
   const textColor = loading ? waitingTextColor(tokens, variant, quiet) : buttonTextColors(tokens, quiet)[variant]
   const leadingGlyph = buttonLeadingGlyph(leadingIcon, textColor)
 
-  const ghostPressedFill = elevated ? tokens.bgElevHover : quiet ? tokens.bgHoverOpaque : tokens.bgHover
-  const ghostFill = elevated ? tokens.bgElev : 'transparent'
   const ghostBorderWidth = borderless ? 0 : 1.5
-  const variantStyle = (pressed: boolean): ViewStyle => {
-    if (variant === 'secondary') {
-      return { backgroundColor: pressed ? mixHex(tokens.fg1, tokens.bg, 0.1) : tokens.fg1 }
-    }
-    if (variant === 'ghost') {
-      const active = pressed || (hovered && !disabled && !loading)
-      return {
-        backgroundColor: active ? ghostPressedFill : ghostFill,
-        borderWidth: ghostBorderWidth,
-        borderColor: tokens.hairlineStrong,
-      }
-    }
-    if (variant === 'destructive') {
-      return {
-        backgroundColor: pressed ? mixHex(tokens.statusBad, tokens.fg1, 0.15) : tokens.statusBad,
-      }
-    }
-    if (variant === 'caution') {
-      return {
-        backgroundColor: pressed ? mixHex(tokens.statusOverdue, '#000000', 0.15) : tokens.statusOverdue,
-      }
-    }
-    return {
-      backgroundColor: pressed ? tokens.primaryPressed : tokens.primary,
-    }
-  }
 
   return (
     <ThemedMotionPressable
@@ -151,11 +181,9 @@ export function ThemedButton({
       style={({ pressed }) => [
         styles.base,
         retainLeadingIcon ? { maxWidth: '100%' } : null,
-        iconOnly
-          ? iconOnlyStyle(Math.max(minimumHeight ?? sizeSpec.height, SMALL_PILL_VISIBLE_MIN), edge)
-          : { height: minimumHeight === undefined ? Math.max(sizeSpec.height, SMALL_PILL_VISIBLE_MIN) : undefined, minHeight: Math.max(minimumHeight ?? 0, SMALL_PILL_VISIBLE_MIN), width: matchedWidth ? MATCHED_PILL_WIDTH : undefined, paddingVertical: SPACING.s4, paddingHorizontal: sizeSpec.paddingX, paddingStart: leadingIcon ? sizeSpec.paddingX - 2 : sizeSpec.paddingX, gap: sizeSpec.gap },
+        pillBoxStyle({ sizeSpec, iconOnly, minimumHeight, edge, matchedWidth, hasLeadingIcon: Boolean(leadingIcon) }),
         brand === 'google' ? { paddingHorizontal: GOOGLE_SIGN_IN_BUTTON.paddingX, paddingStart: GOOGLE_SIGN_IN_BUTTON.paddingX, gap: GOOGLE_SIGN_IN_BUTTON.gap } : null,
-        loading ? waitingFaceStyle(variant, ghostBorderWidth) : variantStyle(pressed && !disabled),
+        loading ? waitingFaceStyle(variant, ghostBorderWidth) : variantFaceStyle({ variant, tokens, pressed: pressed && !disabled, hovered: hovered && !disabled, elevated, quiet, ghostBorderWidth }),
         focused ? buttonFocusStyle(variant, tokens.fg1) : null,
         disabled && !loading ? styles.disabled : null,
       ]}
