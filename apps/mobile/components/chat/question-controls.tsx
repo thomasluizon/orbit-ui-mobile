@@ -8,7 +8,7 @@ import { RadioRow } from '@/components/ui/select-check'
 import { InsetFocusPressable } from '@/components/ui/inset-focus-pressable'
 import { CheckRow } from '@/components/ui/check-row'
 import { Input } from '@/components/ui/input'
-import { OptionCard } from '@/components/ui/option-card'
+import { OptionCard, optionGridStyle } from '@/components/ui/option-card'
 import { useFlag } from '@/hooks/use-flag'
 import { Slider } from '@/components/ui/slider'
 import { createTokensV2 } from '@/lib/theme'
@@ -52,7 +52,7 @@ export function QuestionControls(props: QuestionControlProps) {
   </View>
   const choices = question.type === 'yesNo' ? [true, false].map(boolean => ({ id: String(boolean), label: boolean ? words.yes : words.no, recommended: false })) : question.options
   if (quickOptions && usesQuickOptions(question)) return <View style={{ minWidth: 0, gap: 16 }}>
-    <View role="group" accessibilityLabel={question.prompt} accessibilityHint={words.required} style={styles.quickOptions}>
+    <View role="group" accessibilityLabel={question.prompt} accessibilityHint={words.required} style={optionGridStyle}>
       {choices.map(option => {
         const selected = question.type === 'yesNo' ? answer?.boolean === (option.id === 'true') : answer?.selectedIds?.includes(option.id) === true
         const press = () => question.type === 'yesNo' ? controller.setAnswer(question, { boolean: option.id === 'true' }) : controller.select(question, option.id)
@@ -75,7 +75,6 @@ export function QuestionControls(props: QuestionControlProps) {
 }
 
 const styles = StyleSheet.create({
-  quickOptions: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', rowGap: 12 },
   scaleOption: { minWidth: TOUCH_TARGET_MIN, minHeight: TOUCH_TARGET_MIN, padding: INTERACTION_FILL_CLEARANCE / 2, borderRadius: 12 },
   scaleFill: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 8, borderRadius: 12, overflow: 'hidden' },
 })

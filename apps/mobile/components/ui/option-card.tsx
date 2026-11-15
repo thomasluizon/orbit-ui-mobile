@@ -35,6 +35,9 @@ export function OptionCard({ label, selected = false, disabled = false, disabled
   )
 }
 
+/** The two-column grid that holds the quick options of one question. */
+export const optionGridStyle = StyleSheet.create({ grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', rowGap: 12 } }).grid
+
 const styles = StyleSheet.create({
   wrapper: { width: '48%', gap: 4, minWidth: 0 },
   card: { minHeight: 72, alignItems: 'center', justifyContent: 'center', borderRadius: 20, borderWidth: 2, overflow: 'hidden', paddingHorizontal: 16, paddingVertical: 12 },

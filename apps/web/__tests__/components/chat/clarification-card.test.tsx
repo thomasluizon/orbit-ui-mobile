@@ -33,6 +33,7 @@ vi.mock('@/hooks/use-resolve-clarification', () => ({
 import { ClarificationCard } from '@/components/chat/clarification-card'
 import { makeHeldHabitMessage } from '@orbit/shared/test-support/chat-fixtures'
 import type { ClarificationRequest } from '@orbit/shared/types/chat'
+import { enableTestFlags } from '@orbit/shared/test-support/flag-state'
 
 function createWrapper() {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
@@ -52,6 +53,31 @@ const baseClarification: ClarificationRequest = {
     { label: 'habits.clarification.quickAction.oneTime', value: '{"frequency_unit":null}', description: null },
   ],
 }
+
+describe('ClarificationCard quick options', () => {
+  beforeEach(() => {
+    mutateAsync.mockReset()
+    isPendingRef.current = false
+  })
+
+  it('answers with OptionCard quick options in one group and sends the value the button sends', async () => {
+    enableTestFlags('orbit_guided_flows')
+    mutateAsync.mockResolvedValueOnce({ ok: true, data: { operation: { status: 'Succeeded' } } })
+    render(<ClarificationCard clarificationRequest={baseClarification} />, { wrapper: createWrapper() })
+    const options = [...document.querySelectorAll<HTMLButtonElement>('[data-option-group] [data-option-card]')]
+    expect(options.map((option) => option.textContent)).toEqual(baseClarification.quickActions.map((action) => action.label))
+    fireEvent.click(options[1]!)
+    await waitFor(() => expect(mutateAsync).toHaveBeenCalledWith({ operationId: baseClarification.operationId, value: baseClarification.quickActions[1]!.value }))
+  })
+
+  it('keeps the button row for more than four answers and with the flag off', () => {
+    enableTestFlags('orbit_guided_flows')
+    const five = { ...baseClarification, quickActions: [...baseClarification.quickActions, { label: 'habits.clarification.quickAction.daily', value: 'extra', description: null }] }
+    const view = render(<ClarificationCard clarificationRequest={five} />, { wrapper: createWrapper() })
+    expect(document.querySelector('[data-option-card]')).toBeNull()
+    view.unmount()
+  })
+})
 
 describe('ClarificationCard', () => {
   beforeEach(() => {

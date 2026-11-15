@@ -8,6 +8,7 @@ import { IconButton } from '@/components/ui/icon-button'
 import { ArrowUp, Check, Lock } from '@/components/ui/icons'
 import { blockDesktopWebReload } from '@/lib/web-reload-state'
 import { QuestionControls } from './question-controls'
+import { QuestionInViewNav, useQuestionInView } from './question-in-view'
 
 export function QuestionBlock(props: QuestionBlockProps) {
   const t = useTranslations()
@@ -16,6 +17,8 @@ export function QuestionBlock(props: QuestionBlockProps) {
   const [controller] = useState(() => new QuestionBlockController())
   const state = useSyncExternalStore(controller.subscribe, controller.getSnapshot, controller.getSnapshot)
   const root = useRef<HTMLDivElement>(null)
+  const questions = props.block.questions
+  const inView = useQuestionInView(questions, state)
   const words: QuestionWords = { yes: t('common.yes'), no: t('common.no'), answered: options => t('chat.choice.answered', { options }),
     closed: t('chat.choice.closed'), alreadyAnswered: t('chat.choice.alreadyAnswered'), invalid: t('chat.choice.invalid'), error: t('chat.choice.error'),
     offline: t('chat.choice.offline'), limit: props.interaction?.limitReason ?? t('chat.choice.limit', { allowance: props.interaction?.allowance ?? 0 }), acting: t('chat.choice.acting') }
@@ -41,7 +44,9 @@ export function QuestionBlock(props: QuestionBlockProps) {
           {props.block.progress ? <p>{t('chat.choice.position', { position: props.block.progress.current, total: props.block.progress.total })}</p> : null}
           <p>{t('chat.question.progress', { answered: view.completed, total: props.block.questions.length })}</p>
         </div>
-        {props.block.questions.map((question, index) => {
+        {inView.enabled ? <QuestionInViewNav index={inView.index} total={questions.length} onMove={inView.move} /> : null}
+        {inView.shown.map((question) => {
+          const index = questions.indexOf(question)
           const invalid = state.invalidIds.includes(question.id)
           const hintId = `${props.block.blockId}-${question.id}-hint`
           return <fieldset key={question.id} data-question-invalid={invalid} aria-invalid={invalid} aria-describedby={invalid ? hintId : undefined} aria-label={question.prompt}

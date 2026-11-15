@@ -4,7 +4,7 @@ import { AccessibilityInfo, findNodeHandle, Text, View } from 'react-native'
 import { MotionPressable } from '@/components/ui/motion-pressable'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
-import { AnswerBlockController, getAnswerBlockView, type AnswerBlockProps, type AnswerBlockView, type AnswerBlockState } from '@orbit/shared/chat'
+import { AnswerBlockController, answerUsesQuickOptions, getAnswerBlockView, type AnswerBlockProps, type AnswerBlockView, type AnswerBlockState } from '@orbit/shared/chat'
 import { BlockFrame } from '@/components/ui/block-frame'
 import { RadioGroup } from '@/components/ui/radio-group'
 import { RadioRow } from '@/components/ui/select-check'
@@ -14,6 +14,8 @@ import { HabitBlockRow } from './habit-block-row'
 import { IconButton } from '@/components/ui/icon-button'
 import { Proposed } from '@/components/ui/proposed'
 import { Input } from '@/components/ui/input'
+import { OptionCard, optionGridStyle } from '@/components/ui/option-card'
+import { useFlag } from '@/hooks/use-flag'
 import { Check, Lock, ArrowUp } from '@/components/ui/icons'
 
 type AnswerContentProps = Readonly<{
@@ -35,9 +37,18 @@ function AnswerOptions({ view, controller }: Pick<AnswerContentProps, 'view' | '
       </Proposed>)
 }
 
+/** Two to four plain options answer with quick options: a press selects one answer, or toggles one of several. */
+function AnswerQuickOptions({ view, controller }: Pick<AnswerContentProps, 'view' | 'controller'>) {
+  return <View role="group" accessibilityLabel={view.title} style={optionGridStyle}>
+    {view.options.map(option => <OptionCard key={option.id} label={option.label} selected={option.selected} disabled={view.disabled}
+      onSelect={() => view.single ? controller.select(option.id) : controller.check(option.id, !option.selected)} />)}
+  </View>
+}
+
 function AnswerBody({ view, state, controller, submit }: AnswerContentProps) {
+  const quickOptions = useFlag('orbit_guided_flows') && answerUsesQuickOptions(view)
   return <View style={{ minWidth: 0, gap: 16 }}>
-    {view.single ? <RadioGroup accessibilityLabel={view.title}><AnswerOptions view={view} controller={controller} /></RadioGroup> : <View role="group" accessibilityLabel={view.title}><AnswerOptions view={view} controller={controller} /></View>}
+    {quickOptions ? <AnswerQuickOptions view={view} controller={controller} /> : view.single ? <RadioGroup accessibilityLabel={view.title}><AnswerOptions view={view} controller={controller} /></RadioGroup> : <View role="group" accessibilityLabel={view.title}><AnswerOptions view={view} controller={controller} /></View>}
     {view.freeTextLabel ? <Input label={view.freeTextLabel} value={state.freeText} onChange={controller.setFreeText} maxLength={500} disabled={view.disabled} onSubmit={() => void submit()} /> : null}
   </View>
 }

@@ -8,6 +8,9 @@ import { useResolveClarification } from '@/hooks/use-resolve-clarification'
 import { BlockFrame } from '@/components/ui/block-frame'
 import { ActionRow } from '@/components/ui/action-row'
 import { Button } from '@/components/ui/pill-button'
+import { OptionCard, optionGridStyle } from '@/components/ui/option-card'
+import { useFlag } from '@/hooks/use-flag'
+import { QUICK_OPTION_LIMIT } from '@orbit/shared/chat'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { PendingOperationCard } from './pending-operation-card'
@@ -42,14 +45,21 @@ export function ClarificationCard({ clarificationRequest, entityName, pendingOpe
       setErrorKey(errorKeyForStatus(errorStatus(error)))
     }
   }
+  const quickActions = clarificationRequest.quickActions
+  const quickOptions = useFlag('orbit_guided_flows') && quickActions.length >= 2 && quickActions.length <= QUICK_OPTION_LIMIT
   if (pendingOperation && onPendingOperationConfirmExecute && onPendingOperationPrepareStepUp && onPendingOperationVerifyStepUp) return (
     <PendingOperationCard pendingOperation={pendingOperation} savedState={savedState} onStateChange={(patch) => onStateChange?.(pendingOperation.id, patch)} focusTitleOnMount onRevise={onPendingOperationRevise} onRefresh={onPendingOperationRefresh} onConfirmExecute={onPendingOperationConfirmExecute} onPrepareStepUp={onPendingOperationPrepareStepUp} onVerifyStepUp={onPendingOperationVerifyStepUp} onOpenTarget={onActionChipClick} />
   )
   return (
     <BlockFrame state={resolve.isPending ? 'acting' : 'resting'} title={t(clarificationRequest.question, { defaultValue: clarificationRequest.question })} items={[]} actions={(
-      <View style={{ alignItems: 'flex-start', gap: 12 }}>
-        {resolvedLabel ? <Text accessibilityLiveRegion="polite" style={{ color: tokens.fg2 }}>{t('habits.clarification.successCreated', { name: entityName ?? resolvedLabel })}</Text> : (
-          <ActionRow>{clarificationRequest.quickActions.map((action) => {
+      <View style={{ alignItems: quickOptions ? 'stretch' : 'flex-start', alignSelf: quickOptions ? 'stretch' : 'auto', gap: 12 }}>
+        {resolvedLabel ? <Text accessibilityLiveRegion="polite" style={{ color: tokens.fg2 }}>{t('habits.clarification.successCreated', { name: entityName ?? resolvedLabel })}</Text> : quickOptions ? (
+          <View role="group" accessibilityLabel={t(clarificationRequest.question, { defaultValue: clarificationRequest.question })} style={optionGridStyle}>{quickActions.map((action) => {
+            const label = t(action.label, { defaultValue: action.label })
+            return <OptionCard key={action.value} label={label} disabled={resolve.isPending} onSelect={() => void choose(label, action.value)} />
+          })}</View>
+        ) : (
+          <ActionRow>{quickActions.map((action) => {
             const label = t(action.label, { defaultValue: action.label })
             return <Button key={action.value} variant="ghost" size="sm" disabled={resolve.isPending} onClick={() => void choose(label, action.value)}>{label}</Button>
           })}</ActionRow>

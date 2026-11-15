@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState, useSyncExternalStore } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
-import { AnswerBlockController, getAnswerBlockView, type AnswerBlockProps, type AnswerBlockView, type AnswerBlockState } from '@orbit/shared/chat'
+import { AnswerBlockController, answerUsesQuickOptions, getAnswerBlockView, type AnswerBlockProps, type AnswerBlockView, type AnswerBlockState } from '@orbit/shared/chat'
 import { BlockFrame } from '@/components/ui/block-frame'
 import { RadioGroup } from '@/components/ui/radio-group'
 import { RadioRow } from '@/components/ui/select-check'
@@ -12,6 +12,8 @@ import { HabitBlockRow } from './habit-block-row'
 import { IconButton } from '@/components/ui/icon-button'
 import { Proposed } from '@/components/ui/proposed'
 import { Input } from '@/components/ui/input'
+import { OptionCard } from '@/components/ui/option-card'
+import { useFlag } from '@/hooks/use-flag'
 import { Check, Lock, ArrowUp } from '@/components/ui/icons'
 import { blockDesktopWebReload } from '@/lib/web-reload-state'
 
@@ -34,9 +36,18 @@ function AnswerOptions({ view, controller }: Pick<AnswerContentProps, 'view' | '
       </Proposed>)
 }
 
+/** Two to four plain options answer with quick options: a press selects one answer, or toggles one of several. */
+function AnswerQuickOptions({ view, controller }: Pick<AnswerContentProps, 'view' | 'controller'>) {
+  return <div role="group" aria-label={view.title} data-option-group="" className="grid min-w-0 grid-cols-2 gap-3">
+    {view.options.map(option => <OptionCard key={option.id} label={option.label} selected={option.selected} disabled={view.disabled}
+      onSelect={() => view.single ? controller.select(option.id) : controller.check(option.id, !option.selected)} />)}
+  </div>
+}
+
 function AnswerBody({ view, state, controller, submit }: AnswerContentProps) {
+  const quickOptions = useFlag('orbit_guided_flows') && answerUsesQuickOptions(view)
   return <div className="flex min-w-0 flex-col gap-4">
-    {view.single ? <RadioGroup aria-label={view.title} onKeyDown={event => {
+    {quickOptions ? <AnswerQuickOptions view={view} controller={controller} /> : view.single ? <RadioGroup aria-label={view.title} onKeyDown={event => {
       if (event.key === 'Enter' && state.selectedIds.length) { event.preventDefault(); void submit() }
     }}><AnswerOptions view={view} controller={controller} /></RadioGroup> : <div role="group" aria-label={view.title}><AnswerOptions view={view} controller={controller} /></div>}
     {view.freeTextLabel ? <Input label={view.freeTextLabel} value={state.freeText} onChange={controller.setFreeText} maxLength={500} disabled={view.disabled} onSubmit={() => void submit()} /> : null}

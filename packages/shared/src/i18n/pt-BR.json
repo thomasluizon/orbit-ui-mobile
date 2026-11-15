@@ -1554,6 +1554,8 @@
     },
     "question": {
       "progress": "{total, plural, =0 {{answered} de # perguntas respondidas} one {{answered} de # pergunta respondida} other {{answered} de # perguntas respondidas}}",
+      "next": "Próxima pergunta",
+      "previous": "Pergunta anterior",
       "required": "Responda a esta pergunta."
     },
     "choice": {

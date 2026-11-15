@@ -3,6 +3,7 @@ import {
   type AnswerBlockProps,
 } from './block-answer'
 import type { BlockAnswer } from '../types/chat'
+import { QUICK_OPTION_LIMIT } from './question-block-core'
 
 type AnswerTranslationKey = 'answered' | 'closed' | 'alreadyAnswered' | 'invalid' | 'error' |
   'acting' | 'reviewing' | 'offline' | 'limit' | 'position' | 'proposed' | 'freeText' | 'submit' | 'review'
@@ -136,3 +137,8 @@ export function getAnswerBlockView(props: AnswerBlockProps, state: AnswerBlockSt
   }
 }
 
+
+/** A choice or a pick list with 2 to 4 options and no detail line on any option answers with quick options. A longer list, or an option with a detail, keeps the list presentation. */
+export function answerUsesQuickOptions(view: Pick<AnswerBlockView, 'options'>): boolean {
+  return view.options.length >= 2 && view.options.length <= QUICK_OPTION_LIMIT && view.options.every((option) => !option.description)
+}

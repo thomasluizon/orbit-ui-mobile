@@ -2,6 +2,7 @@ import { describe, expect, it, vi, beforeEach } from 'vitest'
 import type { ClarificationRequest } from '@orbit/shared/types'
 
 import { ClarificationCard } from '@/components/chat/clarification-card'
+import { enableTestFlags } from '@orbit/shared/test-support/flag-state'
 import { makeHeldHabitMessage } from '@orbit/shared/test-support/chat-fixtures'
 import { AccessibilityInfo } from 'react-native'
 import { renderedText } from '../../support/react-test-renderer'
@@ -120,6 +121,37 @@ const baseClarification: ClarificationRequest = {
     { label: 'habits.clarification.quickAction.oneTime', value: '{"frequency_unit":null}', description: null },
   ],
 }
+
+describe('ClarificationCard quick options (mobile)', () => {
+  beforeEach(() => {
+    mutateAsync.mockReset()
+    isPendingRef.current = false
+  })
+
+  it('answers with OptionCard quick options and sends the value the button sends', async () => {
+    enableTestFlags('orbit_guided_flows')
+    mutateAsync.mockResolvedValueOnce({ operation: { status: 'Succeeded' } })
+    let tree!: TestInstance
+    await TestRenderer.act(() => {
+      tree = TestRenderer.create(<ClarificationCard clarificationRequest={baseClarification} />)
+    })
+    const cards = tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'option-card')
+    expect(cards.map((card) => card.props.accessibilityLabel)).toEqual(baseClarification.quickActions.map((action) => action.label))
+    await TestRenderer.act(async () => { await cards[1]!.props.onPress!() })
+    expect(mutateAsync).toHaveBeenCalledWith({ operationId: baseClarification.operationId, value: baseClarification.quickActions[1]!.value })
+  })
+
+  it('keeps the button row for more than four answers', async () => {
+    enableTestFlags('orbit_guided_flows')
+    const five = { ...baseClarification, quickActions: [...baseClarification.quickActions, { label: 'habits.clarification.quickAction.daily', value: 'extra', description: null }] }
+    let tree!: TestInstance
+    await TestRenderer.act(() => {
+      tree = TestRenderer.create(<ClarificationCard clarificationRequest={five} />)
+    })
+    expect(tree.root.findAll((node) => node.props.testID === 'option-card')).toHaveLength(0)
+    expect(findPressables(tree.root)).toHaveLength(5)
+  })
+})
 
 describe('ClarificationCard (mobile)', () => {
   beforeEach(() => {

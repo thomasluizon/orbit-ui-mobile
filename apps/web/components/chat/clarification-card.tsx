@@ -10,6 +10,9 @@ import { safeT } from '@/lib/i18n'
 import { BlockFrame } from '@/components/ui/block-frame'
 import { ActionRow } from '@/components/ui/action-row'
 import { Button } from '@/components/ui/pill-button'
+import { OptionCard } from '@/components/ui/option-card'
+import { useFlag } from '@/hooks/use-flag'
+import { QUICK_OPTION_LIMIT } from '@orbit/shared/chat'
 import { PendingOperationCard } from './pending-operation-card'
 
 type ClarificationCardProps = Readonly<{ clarificationRequest: ClarificationRequest; entityName?: string | null; pendingOperation?: PendingAgentOperation; savedState?: PendingOperationMessageState; onPreview?: (operation: PendingAgentOperation) => void; onStateChange?: (operationId: string, patch: PendingOperationMessageState) => void } & Pick<MessageBubbleProps,
@@ -39,13 +42,18 @@ export function ClarificationCard({ clarificationRequest, entityName, pendingOpe
     }
   }
   const showPreview = pendingOperation && onPendingOperationConfirmExecute && onPendingOperationPrepareStepUp && onPendingOperationVerifyStepUp
+  const quickActions = clarificationRequest.quickActions
+  const quickOptions = useFlag('orbit_guided_flows') && quickActions.length >= 2 && quickActions.length <= QUICK_OPTION_LIMIT
   return (
     <>
     <span role="status" aria-live="polite" className="sr-only">{showPreview ? t('chat.operation.pendingTitle') : ''}</span>
     {showPreview ? <PendingOperationCard pendingOperation={pendingOperation} savedState={savedState} onStateChange={(patch) => onStateChange?.(pendingOperation.id, patch)} focusTitleOnMount onRevise={onPendingOperationRevise} onRefresh={onPendingOperationRefresh} onConfirmExecute={onPendingOperationConfirmExecute} onPrepareStepUp={onPendingOperationPrepareStepUp} onVerifyStepUp={onPendingOperationVerifyStepUp} onOpenTarget={onActionChipClick} /> : <BlockFrame state={resolve.isPending ? 'acting' : 'resting'} title={safeT(t, clarificationRequest.question)} items={[]} actions={(
-      <div className="flex flex-col items-start gap-3">
+      <div className={quickOptions ? 'flex w-full flex-col items-stretch gap-3' : 'flex flex-col items-start gap-3'}>
         {resolvedLabel ? <p role="status" className="text-sm text-[var(--fg-2)]">{t('habits.clarification.successCreated', { name: entityName ?? resolvedLabel })}</p> : (
-          <ActionRow>{clarificationRequest.quickActions.map((action) => {
+          quickOptions ? <div role="group" aria-label={safeT(t, clarificationRequest.question)} data-option-group="" className="grid w-full min-w-0 grid-cols-2 gap-3">{quickActions.map((action) => {
+            const label = safeT(t, action.label)
+            return <OptionCard key={action.value} label={label} disabled={resolve.isPending} onSelect={() => void choose(label, action.value)} />
+          })}</div> : <ActionRow>{quickActions.map((action) => {
             const label = safeT(t, action.label)
             return <Button key={action.value} variant="ghost" size="sm" disabled={resolve.isPending} onClick={() => void choose(label, action.value)}>{label}</Button>
           })}</ActionRow>
