@@ -22,10 +22,26 @@ export const stageQuestionChain = (label, relays, questionsOf) => {
 /** The pid of a process that already exited, so a session record that names it proves no live session. */
 export const exitedPid = () => spawnSync(process.execPath, ["-e", ""]).pid
 
-/** A Claude config directory whose `sessions/` holds one record `{ pid, sessionId }` per entry of `sessions`. */
+/** The start time that Claude Code writes as `procStart`: BSD `ps` lstart in UTC. Null off macOS or for a pid that exited. */
+const darwinProcStart = (pid) => {
+  if (process.platform !== "darwin") return null
+  const listed = spawnSync("ps", ["-o", "lstart=", "-p", String(pid)], { encoding: "utf8", env: { ...process.env, LC_ALL: "C", TZ: "UTC0" } })
+  return listed.status === 0 && listed.stdout.trim() ? listed.stdout.trim() : null
+}
+
+/**
+ * A Claude config directory whose `sessions/` holds one record per entry of `sessions`: a pid, or the record fields.
+ * On macOS a record also carries `pidDomain` and `procStart` as Claude Code writes them, unless the entry sets its own.
+ * An undefined entry writes no record.
+ */
 export const stageClaudeSessions = (label, sessions) => {
   const directory = dirname(stage(`claude-${label}/sessions/.keep`, ""))
-  for (const [sessionId, pid] of Object.entries(sessions)) writeFileSync(join(directory, `${pid}.json`), JSON.stringify({ pid, sessionId }))
+  for (const [sessionId, entry] of Object.entries(sessions)) {
+    if (entry === undefined) continue
+    const fields = typeof entry === "number" ? { pid: entry } : entry
+    const procStart = darwinProcStart(fields.pid)
+    writeFileSync(join(directory, `${sessionId}.json`), JSON.stringify({ ...(procStart ? { pidDomain: "darwin", procStart } : {}), ...fields, sessionId }))
+  }
   return dirname(directory)
 }
 
@@ -52,9 +68,9 @@ const answerableCases = () => {
   T("owner-questions: a question that enters the queue after the filter is a gap", questionFilterGaps("current", checkout).join() === `no disposition for: ${PRODUCT}`, questionFilterGaps("current", checkout).join())
   updateRunState((state) => ({ ...state, openOwnerQuestions: [ANSWERABLE[0]] }), checkout, { sessionId: "current" })
   T("owner-questions: a settled question back in the queue is a gap", /differs from the questions the filter queued/.test(questionFilterGaps("current", checkout).join()))
-  const live = stageClaudeSessions("core-live", { current: process.pid })
+  const live = stageClaudeSessions("core-live", { current: process.pid, other: process.pid })
   const held = refusal(() => recordQuestionFilter("other", [], checkout, live))
-  T("owner-questions: a session records nothing into the run that another live session holds", held === "session current runs unattended in this checkout; say stop in that session, then run --record again" &&
+  T("owner-questions: a session records nothing into the run that another live session holds", held === "session current runs unattended in this checkout; say stop in that session, then run /questions again" &&
     ownerQuestionCandidates("other", checkout, live).length === 0, held)
 }
 

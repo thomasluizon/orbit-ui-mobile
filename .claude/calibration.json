@@ -228,7 +228,7 @@
     ".claude/skills/handoff/SKILL.md": {
       "model": null,
       "effort": "high",
-      "digest": "ea792ec13e9bc2d7",
+      "digest": "253ef6e46c70c0df",
       "calibratedAt": "2026-11-15",
       "verdict": "current: high effort; the skill decides which durable rules enter the spec and when handoff must end the session."
     },
@@ -291,7 +291,7 @@
     ".claude/skills/questions/SKILL.md": {
       "model": null,
       "effort": "high",
-      "digest": "7ae607472ca7bd66",
+      "digest": "5693fd8497007a0f",
       "calibratedAt": "2026-11-15",
       "verdict": "current: high effort, because the filter decides what NOT to ask, and a wrong call either wastes the owner's attention or ships a guess as a decision."
     },
@@ -312,7 +312,7 @@
     ".claude/skills/sleep/SKILL.md": {
       "model": null,
       "effort": null,
-      "digest": "45f1198d68c1d179",
+      "digest": "6fd613b7d7cab665",
       "calibratedAt": "2026-11-15",
       "verdict": "undeclared, inherits the session: it makes overnight queue decisions, including whether configured lanes are available."
     },

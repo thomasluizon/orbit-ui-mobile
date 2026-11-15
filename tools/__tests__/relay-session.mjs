@@ -276,7 +276,7 @@ const questionFilterCases = async () => {
 const ownerHandoffCases = () => {
   let staged = 0
   /** The unattended session is live: its Claude session record names this live process. */
-  const liveClaude = stageClaudeSessions("relay-owner-live", { unattended: process.pid })
+  const liveClaude = stageClaudeSessions("relay-owner-live", { owner: process.pid, unattended: process.pid })
   const ownerCheckout = (state, claudeDirectory = liveClaude) => {
     const installation = stageWithConfig(`relay-owner-${++staged}`, "relay-session.mjs", realOrchestratorConfig())
     mkdirSync(join(installation.base, ".git"), { recursive: true })
@@ -296,7 +296,7 @@ const ownerHandoffCases = () => {
 
   const unowned = ownerCheckout(finishedRun)
   let relayPassRefusal = null
-  try { recordQuestionFilter("owner", [], unowned.checkout) } catch (error) { relayPassRefusal = error.message }
+  try { recordQuestionFilter("owner", [], unowned.checkout, liveClaude) } catch (error) { relayPassRefusal = error.message }
   const unownedClosed = unowned.invoke("--close-chain")
   const untouched = readRunState(unowned.checkout)
   T("relay-session: an owner handoff in a session that owns no run closes without the relay pass that would refuse it", /has no disposition/.test(relayPassRefusal) &&
@@ -335,13 +335,26 @@ const ownerHandoffCases = () => {
     T(`relay-session: --close-chain beside another session's ${label} repeats that refusal and binds no carry for the owner`, refused.status === 1 &&
       refused.stderr === `RELAY_FAILED: ${nextSteps[label]}\n` && readRunState(beside.checkout).ownerHandoff?.from !== "owner", refused.stderr)
   }
-  for (const [label, sessions] of [["has no session record", {}], ["has a session record of a process that exited", { unattended: exitedPid() }]]) {
-    const gone = ownerCheckout(() => ({ sessionId: "unattended", sleep: true }), stageClaudeSessions(`relay-owner-gone-${label.replace(/\W+/g, "-")}`, sessions))
+  const reusedPid = { pid: process.pid, pidDomain: "darwin", procStart: "Thu Jan  1 00:00:00 2026" }
+  for (const [label, sessions] of [["has no session record", {}], ["has a session record of a process that exited", { unattended: exitedPid() }],
+    ["has a session record whose pid a later process reuses", { unattended: reusedPid }]]) {
+    const gone = ownerCheckout(() => ({ sessionId: "unattended", sleep: true }), stageClaudeSessions(`relay-owner-gone-${label.replace(/\W+/g, "-")}`, { owner: process.pid, ...sessions }))
     const goneCheck = gone.invoke("--owner-check")
     const goneClose = gone.invoke("--close-chain")
     T(`relay-session: an unattended run of another session that ${label} never blocks an owner handoff`, goneCheck.status === 0 && goneClose.status === 0 &&
       readRunState(gone.checkout).sessionId === "unattended", `${goneCheck.stderr} ${goneClose.stderr}`)
   }
+  const blindClaude = stageClaudeSessions("relay-owner-blind", {})
+  const blind = ownerCheckout(() => ({ sessionId: "unattended", sleep: true }), blindClaude)
+  const blindCheck = blind.invoke("--owner-check")
+  const unseen = `cannot find this session's Claude session record in ${join(blindClaude, "sessions")}, so the liveness of session unattended is unknown; use a session on the Claude account of session unattended, then run this handoff again`
+  T("relay-session: --owner-check that cannot find this session's own Claude session record keeps the unattended run's hold and names why", blindCheck.status === 1 &&
+    blindCheck.stderr === `RELAY_FAILED: ${unseen}\n`, blindCheck.stderr)
+  const relaying = ownerCheckout(() => ({ sessionId: "unattended", sleep: true, relay: { pending: true, successorSessionId: "nominee", successorTerminal: "term_nominee" } }),
+    stageClaudeSessions("relay-owner-nominee", { owner: process.pid, unattended: exitedPid(), nominee: process.pid }))
+  const relayingCheck = relaying.invoke("--owner-check")
+  T("relay-session: a pending relay whose predecessor died holds the run while its nominee is live", relayingCheck.status === 1 &&
+    relayingCheck.stderr === "RELAY_FAILED: session nominee is the relay successor of session unattended and has not adopted the run yet; wait for that relay to finish, or say stop in session nominee, then run this handoff again\n", relayingCheck.stderr)
   const adopted = { ownerHandoff: { from: "earlier", promptHash: "bound", successorSessionId: "stopped" } }
   for (const [label, record] of [["a stopped auto-work run", {}], ["an adopted, then stopped auto-work run", adopted]]) {
     const stopped = ownerCheckout(() => ({ sessionId: "stopped", sleep: false, autoWork: true, ...record }))

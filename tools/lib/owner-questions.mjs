@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto"
 import { openSessionChain } from "./session-chain.mjs"
-import { REPO_ROOT, claudeConfigDirectory, foreignRunHold, readRunState, updateRunState } from "./run-state.mjs"
+import { REPO_ROOT, claudeConfigDirectory, describeSession, foreignRunHold, liveSessionProcess, readRunState, unseenSessions, updateRunState } from "./run-state.mjs"
 
 /** `queued` is the only disposition that keeps a question for the owner's own /questions. */
 const QUESTION_DISPOSITIONS = ["answered", "decided", "owner-step", "duplicate", "queued"]
@@ -25,18 +25,27 @@ const questionRow = (row, holderSessionId) => {
 }
 
 /**
- * The run state whose queue this session filters, as a list of zero or one: its own, or a run that no other
- * session still holds, such as a stopped run, so an owner session that owns no run still lists and settles that queue.
+ * Why this session must leave the run state's queue alone, as a sentence that names the owner's next step; null when
+ * that queue is this session's to filter: its own run, or a run whose session is no longer live and that nothing holds.
+ * Any live session keeps its own queue, attended or not, so an owner session never rewrites it under that session.
  */
-const filteredRuns = (sessionId, state, claudeDirectory) => state?.sessionId && !foreignRunHold(sessionId, state, claudeDirectory) ? [state] : []
+export const foreignQueueRefusal = (sessionId, state, claudeDirectory = claudeConfigDirectory()) => {
+  if (!state?.sessionId || state.sessionId === sessionId) return null
+  const hold = foreignRunHold(sessionId, state, claudeDirectory)
+  if (hold) return `${hold}, then run /questions again`
+  const owner = liveSessionProcess(state.sessionId, claudeDirectory)
+  if (owner) return `${describeSession(state.sessionId, owner)} is live in this checkout; run /questions in that session, or end it`
+  const unseen = unseenSessions(sessionId, state.sessionId, claudeDirectory)
+  return unseen && `${unseen}, then run /questions again`
+}
 
 /**
- * One row per distinct question that still needs a disposition. A recorded filter settled every
- * question older than its own survivors, so the list starts at the newest record: this session's
+ * One row per distinct question in `state` and the open chain that still needs a disposition. A recorded filter
+ * settled every question older than its own survivors, so the list starts at the newest record: this session's
  * own filter, which leaves only the run state, or else the newest chain entry that has one.
  */
-export const ownerQuestionCandidates = (sessionId, repoRoot = REPO_ROOT, claudeDirectory = claudeConfigDirectory()) => {
-  const runs = filteredRuns(sessionId, readRunState(repoRoot), claudeDirectory)
+const candidatesIn = (sessionId, state, repoRoot, claudeDirectory) => {
+  const runs = state?.sessionId && !foreignQueueRefusal(sessionId, state, claudeDirectory) ? [state] : []
   const predecessors = openSessionChain(sessionId, repoRoot)?.entries.filter((entry) => entry.sessionId !== sessionId) ?? []
   const settled = predecessors.findLastIndex((entry) => entry.questionFilter)
   const holders = runs[0]?.questionFilter?.sessionId === sessionId ? runs : [...predecessors.slice(Math.max(settled, 0)), ...runs]
@@ -49,6 +58,10 @@ export const ownerQuestionCandidates = (sessionId, repoRoot = REPO_ROOT, claudeD
   }
   return [...candidates.values()]
 }
+
+/** The candidates of the current run state; see `candidatesIn`. */
+export const ownerQuestionCandidates = (sessionId, repoRoot = REPO_ROOT, claudeDirectory = claudeConfigDirectory()) =>
+  candidatesIn(sessionId, readRunState(repoRoot), repoRoot, claudeDirectory)
 
 const isTextList = (value) => Array.isArray(value) && value.every((item) => typeof item === "string" && item.trim())
 
@@ -80,19 +93,21 @@ const survivingRows = (candidates, dispositions) => dispositions.filter((row) =>
 /**
  * Writes the filter and the surviving queue in one update, so the queue never holds a question the filter took out.
  * A later pass in the same session keeps the earlier settled rows it does not name, because its candidates no longer hold them.
- * The run keeps its own session id; a run that another session still holds refuses the write.
+ * The run keeps its own session id. The candidates are read under the run state lock, so a queue that changed after
+ * `--list` refuses the record instead of losing a question, and a run that another session keeps refuses the write.
  */
 export const recordQuestionFilter = (sessionId, dispositions, repoRoot = REPO_ROOT, claudeDirectory = claudeConfigDirectory()) => {
-  const candidates = ownerQuestionCandidates(sessionId, repoRoot, claudeDirectory)
-  const failures = dispositionFailures(candidates, dispositions)
-  if (failures.length) throw new Error(failures.join("; "))
-  const openOwnerQuestions = survivingRows(candidates, dispositions)
-  const recorded = dispositions.map(({ id, disposition, record, of }) =>
-    ({ id, question: candidates.find((candidate) => candidate.id === id).question, disposition, ...(record ? { record } : {}), ...(of ? { of } : {}) }))
+  let openOwnerQuestions
   updateRunState((state) => {
     if (!state?.sessionId) throw new Error("no run state for this session")
-    const hold = foreignRunHold(sessionId, state, claudeDirectory)
-    if (hold) throw new Error(`${hold}, then run --record again`)
+    const refusal = foreignQueueRefusal(sessionId, state, claudeDirectory)
+    if (refusal) throw new Error(refusal)
+    const candidates = candidatesIn(sessionId, state, repoRoot, claudeDirectory)
+    const failures = dispositionFailures(candidates, dispositions)
+    if (failures.length) throw new Error(failures.join("; "))
+    openOwnerQuestions = survivingRows(candidates, dispositions)
+    const recorded = dispositions.map(({ id, disposition, record, of }) =>
+      ({ id, question: candidates.find((candidate) => candidate.id === id).question, disposition, ...(record ? { record } : {}), ...(of ? { of } : {}) }))
     const earlier = state.questionFilter?.sessionId === sessionId ? state.questionFilter.dispositions : []
     const kept = earlier.filter((row) => row.disposition !== "queued" && !recorded.some((named) => named.id === row.id))
     return { ...state, openOwnerQuestions, questionFilter: { sessionId, recordedAt: new Date().toISOString(), dispositions: [...kept, ...recorded] } }

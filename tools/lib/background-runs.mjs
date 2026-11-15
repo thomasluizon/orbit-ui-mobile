@@ -18,7 +18,7 @@ const readJson = (path) => {
 const sessionOwner = (sessionId, claudeDirectory) => {
   const owner = liveSessionProcess(sessionId, claudeDirectory)
   if (!owner) throw new Error("cannot identify the background run's owning session process")
-  return owner
+  return { pid: owner.pid, processStartIdentity: owner.processStartIdentity }
 }
 
 const publish = (directory, record) => {

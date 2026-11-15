@@ -1,11 +1,12 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
-import { spawn } from "node:child_process"
+import { spawn, spawnSync } from "node:child_process"
 import { join } from "node:path"
 import { pathToFileURL } from "node:url"
 import { setTimeout as wait } from "node:timers/promises"
 import { Worker } from "node:worker_threads"
 
 import { T, TOOLS_DIR, root } from "./_harness.mjs"
+import { stageClaudeSessions } from "./owner-questions-core.mjs"
 
 const { clearWakeSource, readRunState, readWakeSources, readWorkerLaunches, registerWakeSource, reserveWorkerLaunch, runStatePath, updateRunState, wakeSourceDirectory, workerLaunchDirectory, writeRunState } = await import("../lib/run-state.mjs")
 
@@ -159,7 +160,31 @@ for (;;) {
   return outcomes
 }
 
+/** A new session's first whole-record write, run as a child so it reads the staged Claude session records. */
+const strandedQueueCases = () => {
+  const queued = { question: "Is the yearly plan priced below ten monthly payments?", blocks: ["#2101"] }
+  const firstWrite = (label, previous, sessions) => {
+    const checkout = stageCheckout(`carry-${label}`)
+    writeRunState(previous, checkout)
+    const moduleUrl = pathToFileURL(join(TOOLS_DIR, "lib", "run-state.mjs")).href
+    const script = `import { readRunState, writeRunState } from ${JSON.stringify(moduleUrl)}
+writeRunState({ sessionId: "fresh", sleep: true }, ${JSON.stringify(checkout)})
+process.stdout.write(JSON.stringify(readRunState(${JSON.stringify(checkout)}).openOwnerQuestions ?? null))`
+    const child = spawnSync(process.execPath, ["--input-type=module", "-e", script], {
+      encoding: "utf8", env: { ...process.env, CLAUDE_CONFIG_DIR: stageClaudeSessions(`run-state-carry-${label}`, sessions) },
+    })
+    return child.status === 0 ? JSON.parse(child.stdout) : child.stderr
+  }
+  const carried = firstWrite("gone", { sessionId: "finished", sleep: false, openOwnerQuestions: [queued, "Which plan ships first?"] }, { fresh: process.pid })
+  T(`${TOOL}: a new session's first write carries the owner questions of a run whose session is gone`, Array.isArray(carried) && carried.length === 2 &&
+    carried[0].sources.join() === "finished" && carried[0].blocks.join() === "#2101" && carried[1].question === "Which plan ships first?" &&
+    carried[1].sources.join() === "finished", JSON.stringify(carried))
+  const live = firstWrite("live", { sessionId: "attended", sleep: false, openOwnerQuestions: [queued] }, { fresh: process.pid, attended: process.pid })
+  T(`${TOOL}: a new session's first write never takes the owner questions of a live session's run`, live === null, JSON.stringify(live))
+}
+
 export const cases = async () => {
+  strandedQueueCases()
   const raced = await raceDisableAgainstWakeSaves()
   const lost = raced.filter((outcome) => !outcome.kept)
   T(`${TOOL}: every race trial saved wake marks before the disable`, raced.every((outcome) => outcome.exercised),

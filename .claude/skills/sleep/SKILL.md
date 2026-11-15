@@ -50,7 +50,9 @@ its repository-qualified `pullRequests` and append-only `readinessLedger`.
 
 `writeRunState` in `tools/lib/run-state.mjs` unions previous `pullRequests` and
 `readinessLedger` forward when session ids match or `relay.from` identifies the predecessor.
-An unrelated session starts with its own ledger.
+An unrelated session starts with its own ledger. Its first write also carries the
+`openOwnerQuestions` of the previous run when that run's session is no longer live and nothing
+else holds that run.
 
 Write the decision log to `sleep-decisions.md` in this session's scratchpad directory, the one named
 in your system prompt. Keep it outside every repository, so no gate and no commit ever sees it.

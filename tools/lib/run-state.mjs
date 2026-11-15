@@ -312,7 +312,11 @@ export const readRunState = (repoRoot = REPO_ROOT) => {
 /** The config directory of this Claude account. Claude Code keeps one `{ pid, sessionId }` record per running session in its `sessions` directory. */
 export const claudeConfigDirectory = () => process.env.CLAUDE_CONFIG_DIR || join(homedir(), ".claude")
 
-/** The live process that runs `sessionId`, as `{ pid, processStartIdentity }`; null when no session record names a live process. */
+/**
+ * The live process that runs `sessionId`, as `{ pid, processStartIdentity, cwd? }`; null when no session record names a
+ * live process. A crash leaves its record behind, and a later process can reuse that pid, so a record that carries the
+ * macOS start time (`procStart`, BSD ps lstart in UTC) counts only when that time is the process's own start.
+ */
 export const liveSessionProcess = (sessionId, claudeDirectory = claudeConfigDirectory()) => {
   const directory = join(claudeDirectory, "sessions")
   let names
@@ -324,23 +328,58 @@ export const liveSessionProcess = (sessionId, claudeDirectory = claudeConfigDire
     catch (error) { if (error.code === "ENOENT") continue; throw error }
     if (record?.sessionId !== sessionId || !Number.isInteger(record.pid) || record.pid <= 0) continue
     const identity = processStartIdentity(record.pid)
-    if (identity) return { pid: record.pid, processStartIdentity: identity }
+    if (!identity) continue
+    if (record.pidDomain === "darwin" && typeof record.procStart === "string" && identity !== `darwin:${Date.parse(`${record.procStart} UTC`) / 1000}`) continue
+    return { pid: record.pid, processStartIdentity: identity, ...(typeof record.cwd === "string" ? { cwd: record.cwd } : {}) }
+  }
+  return null
+}
+
+/** `session <id>`, plus the directory its Claude session works in when its record names one, so a refusal shows where to act. */
+export const describeSession = (sessionId, live) => live?.cwd ? `session ${sessionId} (Claude session in ${live.cwd})` : `session ${sessionId}`
+
+/**
+ * Why this session cannot tell whether `sessionId` is gone, as a clause that names the owner's next step; null when it can.
+ * The caller is itself a live Claude session, so a lookup that cannot find the caller's own record (another
+ * CLAUDE_CONFIG_DIR, or a changed `sessions` layout) cannot see live sessions, and a missing record then proves nothing.
+ */
+export const unseenSessions = (callerSessionId, sessionId, claudeDirectory = claudeConfigDirectory()) => liveSessionProcess(callerSessionId, claudeDirectory) ? null
+  : `cannot find this session's Claude session record in ${join(claudeDirectory, "sessions")}, so the liveness of session ${sessionId} is unknown; use a session on the Claude account of session ${sessionId}`
+
+/**
+ * Why another session's run still holds this checkout's run state, as a clause that names the owner's next step;
+ * null when none does. A stopped run holds nothing. `sleep: true` is only a stored flag that no hook clears when
+ * its session dies, so an unattended run holds the checkout while its session process is alive, while this session
+ * cannot see live sessions, or while a live relay nominee has not adopted it yet.
+ */
+export const foreignRunHold = (sessionId, state, claudeDirectory = claudeConfigDirectory()) => {
+  if (!state?.sessionId || state.sessionId === sessionId) return null
+  if (state.sleep === true) {
+    const owner = liveSessionProcess(state.sessionId, claudeDirectory)
+    if (owner) return `${describeSession(state.sessionId, owner)} runs unattended in this checkout; say stop in that session`
+    const unseen = unseenSessions(sessionId, state.sessionId, claudeDirectory)
+    if (unseen) return unseen
+    const nomineeId = state.relay?.pending === true ? state.relay.successorSessionId : null
+    const nominee = typeof nomineeId === "string" && nomineeId ? liveSessionProcess(nomineeId, claudeDirectory) : null
+    if (nominee) {
+      return `${describeSession(nomineeId, nominee)} is the relay successor of session ${state.sessionId} and has not adopted the run yet; wait for that relay to finish, or say stop in session ${nomineeId}`
+    }
+  }
+  if (state.autoWork === true && state.ownerHandoff?.from === state.sessionId) {
+    return `session ${state.sessionId} handed off an auto-work run that no successor adopted yet; start that successor from the committed NEXT.md`
   }
   return null
 }
 
 /**
- * Why another session's run still holds this checkout's run state, as a clause that names the owner's next step;
- * null when none does. A stopped run holds nothing. `sleep: true` is only a stored flag that no hook clears when
- * its session dies, so an unattended run holds the checkout only while its session process is alive.
+ * The owner questions that an unrelated session's first whole-record write would drop, with each row's sources;
+ * undefined when nothing is stranded. Only a queue of a run whose session is gone, and that nothing holds, carries.
  */
-export const foreignRunHold = (sessionId, state, claudeDirectory = claudeConfigDirectory()) => {
-  if (!state?.sessionId || state.sessionId === sessionId) return null
-  if (state.sleep === true && liveSessionProcess(state.sessionId, claudeDirectory)) return `session ${state.sessionId} runs unattended in this checkout; say stop in that session`
-  if (state.autoWork === true && state.ownerHandoff?.from === state.sessionId) {
-    return `session ${state.sessionId} handed off an auto-work run that no successor adopted yet; start that successor from the committed NEXT.md`
-  }
-  return null
+const strandedOwnerQuestions = (previous, state) => {
+  if (!previous?.openOwnerQuestions?.length || state.openOwnerQuestions !== undefined) return undefined
+  if (foreignRunHold(state.sessionId, previous) !== null || liveSessionProcess(previous.sessionId) || !liveSessionProcess(state.sessionId)) return undefined
+  return previous.openOwnerQuestions.map((row) => typeof row === "string" ? { question: row, sources: [previous.sessionId] }
+    : row?.sources?.length ? row : { ...row, sources: [previous.sessionId] })
 }
 
 /** Run ownership survives ordinary updates and later transfers, independently of reporting chains. */
@@ -467,7 +506,10 @@ const publishRunState = (state, repoRoot) => {
   const inherited = preserveLedger
     ? Object.fromEntries(["autoWork", "intake"].filter((key) => previous[key] !== undefined).map((key) => [key, previous[key]]))
     : {}
-  writeAtomicFile(runStatePath(repoRoot), `${JSON.stringify({ ...inherited, ...state, ...(pullRequests ? { pullRequests } : {}), readinessLedger,
+  const unrelated = !preserveLedger && typeof state?.sessionId === "string" && state.sessionId !== "" && typeof previous?.sessionId === "string"
+  const stranded = unrelated ? strandedOwnerQuestions(previous, state) : undefined
+  writeAtomicFile(runStatePath(repoRoot), `${JSON.stringify({ ...inherited, ...state, ...(stranded ? { openOwnerQuestions: stranded } : {}),
+    ...(pullRequests ? { pullRequests } : {}), readinessLedger,
     ...(Object.keys(supersededSessions).length ? { supersededSessions } : {}) }, null, 2)}\n`)
 }
 

@@ -36,15 +36,17 @@ const foreignRunCases = () => {
     cpSync(toolPath("lib"), join(checkout, "tools", "lib"), { recursive: true })
     cpSync(toolPath("owner-questions.mjs"), join(checkout, "tools", "owner-questions.mjs"))
     writeRunState(run, checkout)
-    const claudeDirectory = stageClaudeSessions(`foreign-${label}`, sessions)
+    const claudeDirectory = stageClaudeSessions(`foreign-${label}`, { owner: process.pid, ...sessions })
     const invoke = (flag, input) => spawnSync(process.execPath, [join(checkout, "tools", "owner-questions.mjs"), flag],
       { encoding: "utf8", input, env: { ...process.env, CLAUDE_CODE_SESSION_ID: "owner", CLAUDE_CONFIG_DIR: claudeDirectory } })
     const listed = invoke("--list")
-    return { checkout, invoke, listed, rows: listed.status === 0 ? JSON.parse(listed.stdout) : [] }
+    return { checkout, claudeDirectory, invoke, listed, rows: listed.status === 0 ? JSON.parse(listed.stdout) : [] }
   }
+  const reusedPid = { pid: process.pid, pidDomain: "darwin", procStart: "Thu Jan  1 00:00:00 2026" }
   for (const [label, run, sessions] of [
     ["a stopped run of another session", { sessionId: "finished", sleep: false, openOwnerQuestions: [queued] }, {}],
     ["an unattended run of another session whose process is gone", { sessionId: "finished", sleep: true, openOwnerQuestions: [queued] }, { finished: exitedPid() }],
+    ["an unattended run of another session whose pid a later process reuses", { sessionId: "finished", sleep: true, openOwnerQuestions: [queued] }, { finished: reusedPid }],
   ]) {
     const { checkout, invoke, listed, rows } = ownerCli(label.replace(/\W+/g, "-"), run, sessions)
     T(`owner-questions: --list in a session that owns no run prints the queue of ${label}`, rows.length === 1 && rows[0].question === PRODUCT &&
@@ -56,10 +58,23 @@ const foreignRunCases = () => {
     const relisted = invoke("--list")
     T(`owner-questions: after that filter, --list prints the queue of ${label} once`, relisted.status === 0 && JSON.parse(relisted.stdout).map((row) => row.question).join("|") === PRODUCT, relisted.stdout)
   }
-  const { checkout, invoke, listed, rows } = ownerCli("live-unattended", { sessionId: "unattended", sleep: true, openOwnerQuestions: [queued] }, { unattended: process.pid })
-  const refused = invoke("--record", "[]")
-  T("owner-questions: beside a live unattended run of another session, --list leaves its queue to that session", listed.status === 0 && rows.length === 0, listed.stderr)
-  T("owner-questions: beside a live unattended run of another session, --record refuses and writes nothing", refused.status === 1 &&
-    refused.stderr === "QUESTIONS_REFUSED: session unattended runs unattended in this checkout; say stop in that session, then run --record again\n" &&
-    readRunState(checkout).questionFilter === undefined, refused.stderr)
+  const unseen = (claudeDirectory, sessionId) => `cannot find this session's Claude session record in ${join(claudeDirectory, "sessions")}, so the liveness of session ${sessionId} is unknown; use a session on the Claude account of session ${sessionId}, then run /questions again`
+  for (const [label, run, sessions, refusalOf] of [
+    ["a live unattended run of another session", { sessionId: "unattended", sleep: true }, { unattended: process.pid },
+      () => "session unattended runs unattended in this checkout; say stop in that session, then run /questions again"],
+    ["a live attended run of another session", { sessionId: "attended", sleep: false }, { attended: { pid: process.pid, cwd: "/elsewhere/orbit-ui-mobile" } },
+      () => "session attended (Claude session in /elsewhere/orbit-ui-mobile) is live in this checkout; run /questions in that session, or end it"],
+  ]) {
+    const { checkout, invoke, listed, rows } = ownerCli(label.replace(/\W+/g, "-"), { ...run, openOwnerQuestions: [queued] }, sessions)
+    const refused = invoke("--record", "[]")
+    const after = readRunState(checkout)
+    T(`owner-questions: beside ${label}, --list leaves its queue to that session and names why`, listed.status === 0 && rows.length === 0 && listed.stderr === `${refusalOf()}\n`, listed.stderr)
+    T(`owner-questions: beside ${label}, --record refuses and writes nothing`, refused.status === 1 && refused.stderr === `QUESTIONS_REFUSED: ${refusalOf()}\n` &&
+      after.questionFilter === undefined && after.openOwnerQuestions.length === 1, refused.stderr)
+  }
+  const blind = ownerCli("no-own-record", { sessionId: "finished", sleep: false, openOwnerQuestions: [queued] }, { owner: undefined })
+  const blindRecord = blind.invoke("--record", "[]")
+  T("owner-questions: a session that cannot find its own Claude session record leaves a foreign queue alone and names why", blind.listed.status === 0 && blind.rows.length === 0 &&
+    blind.listed.stderr === `${unseen(blind.claudeDirectory, "finished")}\n` && blindRecord.status === 1 && blindRecord.stderr === `QUESTIONS_REFUSED: ${unseen(blind.claudeDirectory, "finished")}\n` &&
+    readRunState(blind.checkout).questionFilter === undefined, `${blind.listed.stderr} ${blindRecord.stderr}`)
 }
