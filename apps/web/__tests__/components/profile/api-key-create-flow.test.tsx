@@ -20,11 +20,11 @@ function stubMedia(reducedMotion: boolean) {
   vi.stubGlobal('matchMedia', (query: string) => ({ matches: reducedMotion && query.includes('prefers-reduced-motion'), media: query, addEventListener: () => {}, removeEventListener: () => {} }))
 }
 
-function Harness({ scoped = false, draft = '', onCreate, onClose }: Readonly<{ scoped?: boolean; draft?: string; onCreate: (...args: unknown[]) => Promise<ApiKeyCreateResponse | null>; onClose: () => void }>) {
+function Harness({ scoped = false, draft = '', timeZone = 'America/Sao_Paulo', onCreate, onClose }: Readonly<{ scoped?: boolean; draft?: string; timeZone?: string; onCreate: (...args: unknown[]) => Promise<ApiKeyCreateResponse | null>; onClose: () => void }>) {
   const [readOnly, setReadOnly] = useState(false)
   const [expiresAt, setExpiresAt] = useState(draft)
   const [created, setCreated] = useState<ApiKeyCreateResponse | null>(null)
-  return <ApiKeyCreateFlow scoped={scoped} busy={false} error={null} isReadOnly={readOnly} onReadOnlyChange={setReadOnly} expiresAt={expiresAt} onExpiryChange={setExpiresAt}
+  return <ApiKeyCreateFlow scoped={scoped} busy={false} error={null} isReadOnly={readOnly} onReadOnlyChange={setReadOnly} expiresAt={expiresAt} timeZone={timeZone} onExpiryChange={setExpiresAt}
     createdKey={created} onCreate={onCreate} onCreateGrantRequired={vi.fn()} onCreated={setCreated} onClose={onClose} />
 }
 
@@ -33,7 +33,7 @@ function mount(locale: string, messages: typeof en, props: Parameters<typeof Har
 }
 
 beforeEach(() => stubMedia(false))
-afterEach(() => vi.unstubAllGlobals())
+afterEach(() => { vi.unstubAllGlobals(); vi.useRealTimers() })
 
 describe.each([{ locale: 'en', messages: en }, { locale: 'pt-BR', messages: ptBR }] as const)('API key creation flow in $locale', ({ locale, messages }) => {
   describe.each([false, true])('reduced motion %s', (reducedMotion) => {
@@ -72,9 +72,11 @@ describe.each([{ locale: 'en', messages: en }, { locale: 'pt-BR', messages: ptBR
     })
   })
 
-  it('asks what a scoped key can reach before the expiry, and creates it with a date', async () => {
+  it('asks what a scoped key can reach before the expiry, and creates it to the end of the day picked in the account zone', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(Date.UTC(2026, 10, 15, 23, 0))
     const onCreate = vi.fn((..._args: unknown[]) => Promise.resolve(createdKey))
-    mount(locale, messages, { scoped: true, onCreate, onClose: vi.fn() })
+    mount(locale, messages, { scoped: true, timeZone: 'Asia/Tokyo', onCreate, onClose: vi.fn() })
     fireEvent.change(screen.getByRole('textbox', { name: messages.orbitMcp.keyName }), { target: { value: 'Script' } })
     fireEvent.click(screen.getByRole('button', { name: messages.common.continue }))
     fireEvent.click(screen.getByRole('button', { name: messages.orbitMcp.permReadWrite }))
@@ -82,11 +84,12 @@ describe.each([{ locale: 'en', messages: en }, { locale: 'pt-BR', messages: ptBR
     fireEvent.change(screen.getByRole('textbox', { name: messages.profile.apiKeys.scopeLabel }), { target: { value: 'habits:read' } })
     fireEvent.click(screen.getByRole('button', { name: messages.common.continue }))
     const picker = screen.getByLabelText(messages.orbitMcp.expiresAtLabel)
-    expect(picker).toHaveAttribute('min', new Date().toISOString().slice(0, 10))
-    fireEvent.change(picker, { target: { value: '2099-12-31' } })
+    expect(picker).toHaveAttribute('min', '2026-11-16')
+    fireEvent.change(picker, { target: { value: '2026-11-20' } })
+    expect(picker).toHaveValue('2026-11-20')
     expect(screen.getByRole('button', { name: messages.common.never })).toHaveAttribute('aria-pressed', 'false')
     await act(async () => { fireEvent.click(screen.getByRole('button', { name: messages.profile.apiKeys.scopeAction })) })
-    expect(onCreate).toHaveBeenCalledWith({ name: 'Script', scopes: ['habits:read'], expiresAtUtc: '2099-12-31T23:59:59.000Z' }, expect.any(Function))
+    expect(onCreate).toHaveBeenCalledWith({ name: 'Script', scopes: ['habits:read'], expiresAtUtc: '2026-11-20T14:59:59.000Z' }, expect.any(Function))
   })
 
   it('refuses a kept expiry draft that is in the past, with the reason under the date', async () => {

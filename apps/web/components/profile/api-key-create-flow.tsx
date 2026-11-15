@@ -25,6 +25,8 @@ export interface ApiKeyCreateFlowProps {
   isReadOnly: boolean
   onReadOnlyChange: (readOnly: boolean) => void
   expiresAt: string
+  /** The account zone the expiry day is picked in; the device zone when the account has none. */
+  timeZone?: string | null
   onExpiryChange: (value: string) => void
   createdKey: ApiKeyCreateResponse | null
   onCreate: (request: ApiKeyCreateRequest, onCreateGrantRequired: () => Promise<void>) => Promise<ApiKeyCreateResponse | null>
@@ -184,7 +186,7 @@ function StepField({ flow, props, onContinue }: Readonly<{ flow: FlowState; prop
   const expiryError = flow.expiryFocus > 0 && !validateApiKeyExpiry(props.expiresAt).valid
   return (
     <>
-      <DateField label={t('orbitMcp.expiresAtLabel')} value={apiKeyExpiryDay(props.expiresAt)} minDate={apiKeyExpiryFirstDay()} focusRequest={flow.expiryFocus} disabled={props.busy} onChange={(day) => props.onExpiryChange(apiKeyExpiryFromDay(day))} />
+      <DateField label={t('orbitMcp.expiresAtLabel')} value={apiKeyExpiryDay(props.expiresAt, props.timeZone)} minDate={apiKeyExpiryFirstDay(props.timeZone)} focusRequest={flow.expiryFocus} disabled={props.busy} onChange={(day) => props.onExpiryChange(apiKeyExpiryFromDay(day, props.timeZone))} />
       {expiryError ? <p role="alert" className="text-center text-sm text-[var(--status-bad-text)]">{t('orbitMcp.invalidExpiry')}</p> : null}
       {props.error ? <p role="alert" className="text-center text-sm text-[var(--status-bad-text)]">{props.error}</p> : null}
     </>

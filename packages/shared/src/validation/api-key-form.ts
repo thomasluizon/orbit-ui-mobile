@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { utf16Length } from './utf16-length'
 import { MAX_API_KEY_NAME_LENGTH } from './constants'
+import { getAccountDay, millisecondsUntilNextDay } from '../utils/dates'
 
 const apiKeyNameSchema = z.string().trim().check(utf16Length('min', 1, 'orbitMcp.keyNameRequired')).check(utf16Length('max', MAX_API_KEY_NAME_LENGTH, 'orbitMcp.keyNameMaxLength'))
 
@@ -37,19 +38,33 @@ export function validateApiKeyExpiry(value: string, now = Date.now()): ApiKeyExp
   return { valid: true, expiresAtUtc: parsed.toISOString() }
 }
 
-/** The day of an expiry draft, as `yyyy-MM-dd`, for the date picker. Empty for a key that never expires and for a draft the parser cannot read. */
-export function apiKeyExpiryDay(value: string): string {
-  return parseApiKeyExpiryUtc(value) ? value.trim().slice(0, 10) : ''
+const TWELVE_HOURS = 12 * 60 * 60 * 1000
+
+/** The zone a picked expiry day belongs to: the account zone, then the device zone. */
+function expiryZone(timeZone: string | null | undefined): string | undefined {
+  return timeZone || undefined
 }
 
-/** The expiry draft of a picked day: the last second of that day in UTC, in the form `validateApiKeyExpiry` reads. No day is a key that never expires. */
-export function apiKeyExpiryFromDay(day: string): string {
-  return day ? `${day}T23:59:59` : API_KEY_EXPIRY_DEFAULT
+/** The day of an expiry draft in the account zone, as `yyyy-MM-dd`, for the date picker. Empty for a key that never expires and for a draft the parser cannot read. */
+export function apiKeyExpiryDay(value: string, timeZone?: string | null): string {
+  const expiry = parseApiKeyExpiryUtc(value)
+  return expiry ? getAccountDay(expiry, expiryZone(timeZone)) : ''
 }
 
-/** The first day a key can expire on: today in UTC, whose last second is still ahead. */
-export function apiKeyExpiryFirstDay(now = Date.now()): string {
-  return new Date(now).toISOString().slice(0, 10)
+/** The expiry draft of a day picked in the account zone: the last second of that day there, as UTC in the form `validateApiKeyExpiry` reads. No day is a key that never expires. */
+export function apiKeyExpiryFromDay(day: string, timeZone?: string | null): string {
+  if (!day) return API_KEY_EXPIRY_DEFAULT
+  const zone = expiryZone(timeZone)
+  const [year, month, date] = day.split('-').map(Number)
+  const noon = Date.UTC(year, month - 1, date, 12)
+  const inside = getAccountDay(new Date(noon), zone) > day ? noon - TWELVE_HOURS : noon
+  const lastSecond = inside + millisecondsUntilNextDay(new Date(inside), zone) - 1000
+  return new Date(lastSecond).toISOString().slice(0, 19)
+}
+
+/** The first day a key can expire on: today in the account zone, whose last second is still ahead. */
+export function apiKeyExpiryFirstDay(timeZone?: string | null, now = Date.now()): string {
+  return getAccountDay(new Date(now), expiryZone(timeZone))
 }
 
 /**

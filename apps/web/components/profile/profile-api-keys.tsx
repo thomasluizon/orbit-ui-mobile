@@ -475,6 +475,7 @@ export function ProfileApiKeys({ profile, unlocked, guided = false }: Readonly<P
           isReadOnly={isReadOnly}
           onReadOnlyChange={setIsReadOnly}
           expiresAt={expiresAt}
+          timeZone={profile?.timeZone}
           onExpiryChange={setExpiresAt}
           createdKey={createdKey}
           onCreate={(request, onCreateGrantRequired) => createKey({ ...request, isReadOnly }, onCreateGrantRequired)}
