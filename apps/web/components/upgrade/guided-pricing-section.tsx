@@ -131,7 +131,7 @@ function PlanOptions({ plans, isLoading, isError, isOnline, selected, disabled, 
   if (!plans) return null
   const { annualTier, monthlyTier } = buildPlanTiers(plans, discountedAmount, t)
   return (
-    <div role="group" aria-label={t('upgrade.question')} data-option-group="" data-plan-options="loaded" className="grid w-full grid-cols-1 gap-3 sm:grid-cols-2">
+    <div role="group" aria-label={t('upgrade.question')} data-option-group="" data-plan-options="loaded" className="grid w-full grid-cols-1 items-start gap-3 sm:grid-cols-2">
       {[annualTier, monthlyTier].map((tier) => (
         <PlanOption
           key={tier.interval}

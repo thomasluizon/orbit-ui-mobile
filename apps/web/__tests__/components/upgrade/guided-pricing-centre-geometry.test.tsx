@@ -155,6 +155,47 @@ describe('the plan question and the trial expired dialog in Chromium', () => {
     } finally { await page.close(); view.unmount(); vi.unstubAllGlobals() }
   })
 
+  /**
+   * `design/canvas/Orbit Pro.dc.html` stacks the tiers at 412 (line 79) and puts them side by side, each hugging its content, in the wide frame (lines 169 and 171),
+   * with the interval control capped at 320 (line 156). `DESIGN.md` maps that boundary to the `sm` boundary of the upgrade screen, 640 on both platforms.
+   * The pinned action spans the column below the mobile breakpoint, 768, and hugs its label from it (`DESIGN.md`, Buttons, width).
+   */
+  it.each([[412, false, true], [639, false, true], [640, true, true], [767, true, true], [768, true, false], [1023, true, false]] as const)(
+    'lays out the plan cards, the interval control and the pinned action at %i px (side by side: %s, spanning action: %s)', async (width, sideBySide, spans) => {
+      stubViewport(width)
+      const view = render(<NextIntlClientProvider locale="en" messages={en}><PlanQuestion /></NextIntlClientProvider>)
+      await screen.findByRole('heading', { level: 1 })
+      const page = await openPage(width)
+      try {
+        const geometry = await page.evaluate(() => {
+          const box = (element: Element) => { const rect = element.getBoundingClientRect(); return { left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom, width: rect.width, height: rect.height } }
+          const [yearly, monthly] = [...document.querySelectorAll('[data-upgrade-block] [data-option-card]')].map(box)
+          const interval = document.querySelector('[data-upgrade-block] [data-segmented-control]')
+          const footer = document.querySelector('[data-flow-footer]')!
+          return { yearly, monthly, block: box(document.querySelector('[data-upgrade-block]')!), interval: interval ? box(interval) : null, footer: box(footer), primary: box(footer.querySelector('button')!) }
+        })
+        const evidence = JSON.stringify(geometry)
+        const { yearly, monthly, block, interval, footer, primary } = geometry
+        if (sideBySide) {
+          expect(Math.abs(monthly!.top - yearly!.top), evidence).toBeLessThanOrEqual(1)
+          expect(monthly!.left, evidence).toBeGreaterThan(yearly!.right)
+          expect(Math.abs(monthly!.width - yearly!.width), evidence).toBeLessThanOrEqual(1)
+          expect(monthly!.height, evidence).toBeLessThan(yearly!.height)
+          expect(interval!.width, evidence).toBeLessThanOrEqual(320)
+        } else {
+          expect(monthly!.top, evidence).toBeGreaterThanOrEqual(yearly!.bottom)
+          expect(Math.abs(yearly!.width - block.width), evidence).toBeLessThanOrEqual(1)
+          expect(Math.abs(interval!.width - block.width), evidence).toBeLessThanOrEqual(1)
+        }
+        if (spans) expect(Math.abs(primary.width - footer.width), evidence).toBeLessThanOrEqual(1)
+        else {
+          expect(primary.width, evidence).toBeLessThan(footer.width)
+          expect(primary.width, evidence).toBeLessThanOrEqual(360)
+          expect(Math.abs((primary.left + primary.right) / 2 - (footer.left + footer.right) / 2), evidence).toBeLessThanOrEqual(1)
+        }
+      } finally { await page.close(); view.unmount(); vi.unstubAllGlobals() }
+    })
+
   it.each(cases)('centres the trial expired dialog on both axes and fits each action on one line at $width px in $locale', async ({ width, locale }) => {
     stubViewport(width)
     const view = render(<NextIntlClientProvider locale={locale} messages={locale === 'en' ? en : ptBR}>

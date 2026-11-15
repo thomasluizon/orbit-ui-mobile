@@ -441,7 +441,7 @@ describe('PlanSelection (mobile)', () => {
     const tree = renderSelection(interval, { plans: null, isLoading: true })
     const measurement = tree.root.findByProps({ testID: `upgrade-measurement-${interval}` })
     TestRenderer.act(() => measurement.props.onLayout({ nativeEvent: { layout: { x: 0, y: 0, width: 380, height: 317 } } }))
-    expect(tree.root.findByProps({ testID: `upgrade-reservation-${interval}` }).props.style.minHeight).toBe(317)
+    expect(StyleSheet.flatten(tree.root.findByProps({ testID: `upgrade-reservation-${interval}` }).props.style).minHeight).toBe(317)
     expect(measurement.props.importantForAccessibility).toBe('no-hide-descendants')
     expect(measurement.props.pointerEvents).toBe('none')
     expect(tree.root.findAllByType('Pressable').filter(isVisible)).toHaveLength(2)

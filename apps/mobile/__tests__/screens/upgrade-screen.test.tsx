@@ -379,12 +379,22 @@ describe('UpgradeScreen', () => {
         function markCards(element: typeof host) {
           const declared = element.props.style
           const style = StyleSheet.flatten(typeof declared === 'function' ? declared({ pressed: false }) : declared ?? {})
-          if (style.borderRadius === 20 || (style.gap === 16 && style.paddingVertical === 16) || style.gap === 24) element.props.testID = `content-card-${count++}`
+          const tier = String(element.props.testID).startsWith('upgrade-tier-')
+          if (!tier && (style.borderRadius === 20 || (style.gap === 16 && style.paddingVertical === 16) || style.gap === 24)) element.props.testID = `content-card-${count++}`
           for (const child of element.children ?? []) if (typeof child !== 'string') markCards(child)
         }
         markCards(host)
-        const cards = measureProfileRow(host, width, 1).boxes.filter((box) => box.testID.startsWith('content-card-'))
+        const { boxes } = measureProfileRow(host, width, 1)
+        const cards = boxes.filter((box) => box.testID.startsWith('content-card-'))
         expect(cards.length).toBeGreaterThan(0)
+        const tiers = boxes.filter((box) => box.testID.startsWith('upgrade-tier-'))
+        if (plan === 'free') {
+          expect(tiers).toHaveLength(2)
+          if (width >= 640) {
+            expect(tiers[1]!.top).toBe(tiers[0]!.top)
+            expect(tiers[1]!.left).toBeGreaterThan(tiers[0]!.left + tiers[0]!.width)
+          } else expect(tiers[1]!.top).toBeGreaterThan(tiers[0]!.top)
+        }
         const cap = plan === 'free' ? 620 : 560
         for (const card of [cards[0]!, cards.at(-1)!]) {
           // WHY: #1570 centres each retained subscription cap in its shell. https://github.com/thomasluizon/orbit-tickets/issues/1570

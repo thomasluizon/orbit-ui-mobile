@@ -78,6 +78,20 @@ export const styles = StyleSheet.create({
   planChoices: {
     gap: 12,
   },
+  planChoicesRow: {
+    flexDirection: 'row',
+  },
+  planChoicesHug: {
+    alignItems: 'flex-start',
+  },
+  planChoiceColumn: {
+    flex: 1,
+    minWidth: 0,
+  },
+  intervalCapped: {
+    width: '100%',
+    maxWidth: 320,
+  },
   convertHeader: {
     gap: 8,
     paddingHorizontal: SPACING.s16,

@@ -7,7 +7,7 @@ import type { SubscriptionPlans } from '@orbit/shared/types/subscription'
 import { measureSafeArea, type GeometryHost, type GeometryTree } from '@/__tests__/support/safe-area-geometry'
 import { testI18n } from '@/__tests__/support/i18n'
 import { TrialExpiredDialog } from '@/components/ui/trial-expired-dialog'
-import { GuidedPricingSection } from '@/components/upgrade/guided-pricing-section'
+import { GuidedPlanFooter, GuidedPricingSection } from '@/components/upgrade/guided-pricing-section'
 import { PurchaseResult } from '@/components/upgrade/purchase-result'
 import type { UpgradeTextFn } from '@/components/upgrade/types'
 import { createTokensV2 } from '@/lib/theme'
@@ -73,6 +73,77 @@ function centreX(box: { left: number; width: number }) {
 function centreY(box: { top: number; bottom: number }) {
   return (box.top + box.bottom) / 2
 }
+
+function planSection(t: UpgradeTextFn) {
+  return (
+    <GuidedPricingSection
+      profile={{ isTrialActive: false, aiMessagesPeriod: 'day' }} usage={{ aiMessagesUsed: 3, aiMessagesLimit: 5 }} plans={plans}
+      isLoadingPlans={false} isPlansError={false} isOnline trialDaysLeft={null} selectedInterval="yearly" onSelectInterval={vi.fn()}
+      onStayFree={vi.fn()} monthlyOffer={{ displayPrice: 'R$ 19,90', isReferral: false } as never} yearlyOffer={{ displayPrice: 'R$ 118,80', isReferral: true } as never}
+      checkoutLoading={null} checkoutError="" checkoutDisabled={false} onCheckout={vi.fn()} isRestoring={false} onRestore={vi.fn()} onRetryPlans={vi.fn()}
+      primaryInFooter t={t} tokens={tokens}
+    />
+  )
+}
+
+/**
+ * `design/canvas/Orbit Pro.dc.html` stacks the tiers at 412 (line 79) and puts them side by side, each hugging its content, in the wide frame (lines 169 and 171),
+ * with the interval control capped at 320 (line 156). `DESIGN.md` maps that boundary to the `sm` boundary of the upgrade screen, 640 on both platforms.
+ * The pinned action spans the column below the mobile breakpoint, 768, and hugs its label from it (`DESIGN.md`, Buttons, width).
+ */
+describe('the plan cards, the interval control and the pinned action of the compact shell from 412 to 1023 px', () => {
+  async function mountSection(width: number) {
+    mocks.language = 'en'
+    await mount(width, <View testID="free-area" style={{ flex: 1, paddingHorizontal: FRAME_PADDING }}>{planSection(testI18n.getFixedT('en'))}</View>)
+    return measureSafeArea(tree!.toJSON(), (host) => host.props.testID, { width, height: HEIGHT })
+  }
+
+  it.each([412, 639])('stacks the plan cards and spans the interval control at %i px', async (width) => {
+    const boxes = await mountSection(width)
+    const block = boxes.get('upgrade-block')!
+    const yearly = boxes.get('upgrade-plan-option-yearly')!
+    const monthly = boxes.get('upgrade-plan-option-monthly')!
+    expect(monthly.top).toBeGreaterThanOrEqual(yearly.bottom)
+    expect(yearly.width).toBe(block.width)
+    expect(boxes.get('upgrade-interval')!.width).toBe(block.width)
+  })
+
+  it.each([640, 700, 768, 1023])('puts the plan cards side by side at %i px, each hugging its content, and caps the interval control at 320', async (width) => {
+    const boxes = await mountSection(width)
+    const block = boxes.get('upgrade-block')!
+    const yearly = boxes.get('upgrade-plan-option-yearly')!
+    const monthly = boxes.get('upgrade-plan-option-monthly')!
+    const interval = boxes.get('upgrade-interval')!
+    expect(Math.abs(monthly.top - yearly.top)).toBeLessThanOrEqual(1)
+    expect(yearly.left).toBeGreaterThanOrEqual(block.left)
+    expect(monthly.left).toBeGreaterThan(yearly.left + yearly.width)
+    expect(monthly.left + monthly.width).toBeLessThanOrEqual(block.left + block.width)
+    expect(Math.abs(monthly.width - yearly.width)).toBeLessThanOrEqual(1)
+    expect(monthly.bottom - monthly.top).toBeLessThan(yearly.bottom - yearly.top)
+    expect(interval.width).toBe(320)
+    expect(Math.abs(centreX(interval) - centreX(block))).toBeLessThanOrEqual(1)
+  })
+
+  it.each([[412, true], [767, true], [768, false], [1023, false]] as const)('spans the pinned action across its footer at %i px: %s', async (width, spans) => {
+    mocks.language = 'en'
+    const t = testI18n.getFixedT('en') as UpgradeTextFn
+    await mount(width, (
+      <View testID="free-area" style={{ flex: 1, justifyContent: 'flex-end' }}>
+        <GuidedPlanFooter plans={plans} isLoadingPlans={false} isPlansError={false} isOnline monthlyOffer={null} yearlyOffer={null} selectedInterval="yearly"
+          checkoutLoading={null} checkoutDisabled={false} onCheckout={vi.fn()} checkoutError="" t={t} tokens={tokens} />
+      </View>
+    ))
+    const boxes = measureSafeArea(tree!.toJSON(), (host) => (String(host.props.testID).startsWith('button-') ? 'primary' : host.props.testID), { width, height: HEIGHT })
+    const footer = boxes.get('upgrade-plan-footer')!
+    const primary = boxes.get('primary')!
+    if (spans) expect(primary.width).toBe(footer.width)
+    else {
+      expect(primary.width).toBeLessThan(footer.width)
+      expect(primary.width).toBeLessThanOrEqual(360)
+      expect(Math.abs(centreX(primary) - centreX(footer))).toBeLessThanOrEqual(1)
+    }
+  })
+})
 
 describe.each(WIDTHS)('the plan question and the dialogs of the upgrade route at %i px', (width) => {
   describe.each(LOCALES)('in %s', (language) => {

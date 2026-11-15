@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { AccessibilityInfo, Platform, StyleSheet, Text, View, useWindowDimensions } from 'react-native'
-import { SPACING } from '@orbit/shared/theme'
+import { RESPONSIVE_TYPE_BREAKPOINT, SPACING } from '@orbit/shared/theme'
 import type { SubscriptionPlans } from '@orbit/shared/types/subscription'
 import { resolveUpgradeOrbitLine, type AstraAllowance } from '@orbit/shared/utils'
 import { Badge } from '@/components/ui/badge'
@@ -23,6 +23,13 @@ import { styles } from './styles'
 import type { SubscriptionInterval, Tokens, UpgradeTextFn } from './types'
 
 const WIDE_WIDTH = 1024
+/**
+ * The boundary between the compact and the wide presentation of `design/canvas/Orbit Pro.dc.html`, which `DESIGN.md` maps to the `sm`
+ * boundary of the upgrade screen on both platforms. From it the plan cards sit side by side and hug their content, and the interval control is capped at 320.
+ */
+const TWO_PLAN_COLUMNS_WIDTH = RESPONSIVE_TYPE_BREAKPOINT
+/** The mobile breakpoint. Below it the pinned action spans the column (a form submit), from it the action hugs its label (`DESIGN.md`, Buttons, width). */
+const PINNED_ACTION_HUG_WIDTH = 768
 
 export interface GuidedPricingSectionProps {
   /** The id of the question, for a host that names its region by it. */
@@ -72,10 +79,12 @@ function resolvePlanState({ plans, isLoadingPlans, isPlansError, isLoadingProduc
 }
 
 /** A plan card as an option of the question. A press selects it. The primary action starts the handoff. */
-function PlanOption({ tier, recommended, selected, disabled, onSelect, onLook, onLookAway, t, tokens }: Readonly<{
+function PlanOption({ tier, recommended, selected, column, disabled, onSelect, onLook, onLookAway, t, tokens }: Readonly<{
   tier: Tier
   recommended: boolean
   selected: boolean
+  /** True where the two cards sit side by side: each card takes half the row. */
+  column: boolean
   disabled: boolean
   onSelect: () => void
   onLook: (control: React.RefObject<View | null>) => void
@@ -96,7 +105,7 @@ function PlanOption({ tier, recommended, selected, disabled, onSelect, onLook, o
       onPress={onSelect}
       onFocus={() => onLook(control)}
       onBlur={onLookAway}
-      style={({ pressed }) => [localStyles.option, { backgroundColor: pressed ? tokens.bgHover : selected ? tokens.primaryDim : tokens.bgCard }, disabled ? localStyles.disabled : null]}
+      style={({ pressed }) => [localStyles.option, column ? localStyles.optionColumn : null, { backgroundColor: pressed ? tokens.bgHover : selected ? tokens.primaryDim : tokens.bgCard }, disabled ? localStyles.disabled : null]}
     >
       <View style={styles.tierHeader}>
         <Text style={[styles.tierName, { color: tokens.fg1 }]}>{tier.name}</Text>
@@ -120,11 +129,12 @@ function PlanOptions({ state, disabled, onLook, onLookAway, ...props }: Readonly
   onLookAway: () => void
 }>) {
   const { plans, isProductsError = false, monthlyOffer, yearlyOffer, selectedInterval, onSelectInterval, onRetryPlans, t, tokens } = props
+  const twoColumns = useWindowDimensions().width >= TWO_PLAN_COLUMNS_WIDTH
   if (state === 'loading') {
     return (
-      <View testID="upgrade-plan-options-loading" style={localStyles.options}>
+      <View testID="upgrade-plan-options-loading" style={[localStyles.options, twoColumns ? localStyles.optionsRow : null]}>
         {(['yearly', 'monthly'] as const).map((interval) => (
-          <View key={interval} style={[localStyles.option, { backgroundColor: tokens.bgCard }]}><Skeleton variant="settings" label={t('upgrade.plans.loading')} /></View>
+          <View key={interval} style={[localStyles.option, twoColumns ? localStyles.optionColumn : null, { backgroundColor: tokens.bgCard }]}><Skeleton variant="settings" label={t('upgrade.plans.loading')} /></View>
         ))}
       </View>
     )
@@ -140,9 +150,9 @@ function PlanOptions({ state, disabled, onLook, onLookAway, ...props }: Readonly
     monthlyPrice: monthlyOffer?.displayPrice, yearlyPrice: yearlyOffer?.displayPrice, isApple: Platform.OS === 'ios',
   }, t)
   return (
-    <View accessibilityLabel={t('upgrade.question')} testID="upgrade-plan-options" style={localStyles.options}>
+    <View accessibilityLabel={t('upgrade.question')} testID="upgrade-plan-options" style={[localStyles.options, twoColumns ? [localStyles.optionsRow, localStyles.optionsHug] : null]}>
       {[annualTier, monthlyTier].map((tier) => (
-        <PlanOption key={tier.interval} tier={tier} recommended={tier.interval === 'yearly'} selected={tier.interval === selectedInterval}
+        <PlanOption key={tier.interval} tier={tier} recommended={tier.interval === 'yearly'} selected={tier.interval === selectedInterval} column={twoColumns}
           disabled={disabled} onSelect={() => onSelectInterval(tier.interval)} onLook={onLook} onLookAway={onLookAway} t={t} tokens={tokens} />
       ))}
     </View>
@@ -210,8 +220,9 @@ function PlanRefusal({ checkoutError, isOnline, t, tokens }: Readonly<Pick<Guide
 
 /** The pinned footer of the compact shell. The host draws it under its scroller, so the scroller ends above it and it never covers a plan card. The refusal of the handoff sits above the action. */
 export function GuidedPlanFooter({ checkoutError, tokens, ...props }: Readonly<PlanPrimaryProps & { checkoutError: string; tokens: Tokens }>) {
+  const hug = useWindowDimensions().width >= PINNED_ACTION_HUG_WIDTH
   return (
-    <View testID="upgrade-plan-footer" style={[localStyles.footer, { backgroundColor: tokens.bg }]}>
+    <View testID="upgrade-plan-footer" style={[localStyles.footer, hug ? localStyles.footerHug : null, { backgroundColor: tokens.bg }]}>
       <PlanRefusal checkoutError={checkoutError} isOnline={props.isOnline} t={props.t} tokens={tokens} />
       <PlanPrimary {...props} />
     </View>
@@ -249,7 +260,7 @@ export function GuidedPricingSection(props: Readonly<GuidedPricingSectionProps>)
         <Text nativeID={headingId} ref={headingRef} accessibilityRole="header" accessibilityHint={line ?? undefined} textBreakStrategy="balanced"
           style={[localStyles.question, wide ? localStyles.questionWide : null, { color: tokens.fg1 }]}>{t('upgrade.question')}</Text>
         <View style={localStyles.choice}>
-          <SegmentedControl
+          <View testID="upgrade-interval" style={width >= TWO_PLAN_COLUMNS_WIDTH ? localStyles.intervalCapped : null}><SegmentedControl
             label={t('upgrade.plans.intervalLabel')}
             options={[
               { value: 'monthly', label: t('upgrade.plans.interval.monthly') },
@@ -259,7 +270,7 @@ export function GuidedPricingSection(props: Readonly<GuidedPricingSectionProps>)
             onChange={selectInterval}
             disabled={checkoutPending}
             fullWidth
-          />
+          /></View>
           <PlanOptions {...props} state={planState} disabled={checkoutPending} onLook={lookAtControl} onLookAway={lookAway} />
         </View>
         {primaryInFooter && !wide ? null : <>
@@ -283,12 +294,17 @@ const localStyles = StyleSheet.create({
   questionWide: { fontSize: 34, lineHeight: 39 },
   choice: { width: '100%', gap: 12 },
   options: { width: '100%', gap: 12 },
+  optionsRow: { flexDirection: 'row' },
+  optionsHug: { alignItems: 'flex-start' },
+  optionColumn: { flex: 1, minWidth: 0 },
+  intervalCapped: { width: '100%', maxWidth: 320, alignSelf: 'center' },
   option: { minHeight: 72, borderRadius: 20, borderWidth: 2, borderColor: 'transparent', overflow: 'hidden', gap: 8, padding: 16 },
   disabled: { opacity: 0.5 },
   centred: { textAlign: 'center' },
   primary: { width: '100%' },
   primaryWide: { width: '100%', maxWidth: 360, alignItems: 'center' },
   footer: { width: '100%', paddingTop: SPACING.s8, paddingBottom: SPACING.s16 },
+  footerHug: { alignItems: 'center' },
   announcement: { position: 'absolute', width: 1, height: 1, opacity: 0 },
   support: { width: '100%', gap: 32 },
   facts: { gap: 8 },
