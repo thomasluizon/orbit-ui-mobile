@@ -192,6 +192,15 @@
       ],
       "reason": "The retained behavior has this source-backed label or entry in the redesign."
     },
+    "mobile:control:common.backToDestination": {
+      "targets": [
+        "mobile:content:common.backToDestination"
+      ],
+      "owners": [
+        "apps/mobile/app/step-up.tsx"
+      ],
+      "reason": "The exhausted step-up view retains its back-to-destination action: StepUpScreenContent passes getBackLabel from packages/shared/src/utils/back-label.ts as backLabel to MobileStepUpExhausted, which renders it on QuietAction; the helper still emits common.backToDestination for a named return route."
+    },
     "mobile:control:common.codePlaceholder": {
       "targets": [
         "mobile:control:stepUp.codeLabel"
@@ -2116,6 +2125,15 @@
         "web:control:progressScreen.goals.createAction"
       ],
       "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:common.backToDestination": {
+      "targets": [
+        "web:content:common.backToDestination"
+      ],
+      "owners": [
+        "apps/web/app/step-up/step-up-screen.tsx"
+      ],
+      "reason": "The exhausted step-up view retains its back-to-destination action: StepUpScreenContent passes getBackLabel from packages/shared/src/utils/back-label.ts as backLabel to StepUpExhausted, which renders it on QuietLink; the helper still emits common.backToDestination for a named return route."
     },
     "web:control:common.codePlaceholder": {
       "targets": [
