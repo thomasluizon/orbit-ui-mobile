@@ -387,7 +387,7 @@ export async function acceptance({ repository, output, credentials = {}, signing
     for (const port of [proxyPort, 5099, 3401]) await assertFree(port)
     if (!windows) await startHttpsListener()
     // The runner class decides how often a native key is lost (#2074), so every run names its vCPU count.
-    report.runner = { cpus: windows ? cpus().length : Number((await execute('sysctl', ['-n', 'hw.ncpu'])).trim()) }
+    report.runner = { cpus: cpus().length }
     process.stdout.write(`Runner vCPUs: ${report.runner.cpus}\n`)
     finishRecording = await startRecording(output)
     const checkpoint = (event) => report.launchChecks.push({ event, recordingSeconds: (Date.now() - finishRecording.startedAt) / 1000 })

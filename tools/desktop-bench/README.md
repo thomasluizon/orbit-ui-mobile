@@ -414,8 +414,8 @@ tells a lost or doubled OS event from an app defect. `report.json` `keyDelivery`
 every key with its native reply and, for a post with no receipt, every event of that probe kind that the
 page recorded after the post. The job log prints one `Key <name>: post N of 6` line per post.
 A received Down that does not move the selection still fails the focus check.
-Each run also logs `Runner vCPUs: N` (`sysctl -n hw.ncpu` on macOS) and keeps it in `report.json`
-`runner.cpus`, because native keys are lost more often on the 5 vCPU macOS runner class.
+Each run also logs `Runner vCPUs: N` (the length of Node's `os.cpus()`, one entry for each logical core) and keeps
+it in `report.json` `runner.cpus`, because native keys are lost more often on the 5 vCPU macOS runner class.
 
 On macOS, the AX helper posts every key into the event stream of the installed process with
 `CGEventPostToPid`, and the key window of the shell receives it as a typed key. A key posted at the HID

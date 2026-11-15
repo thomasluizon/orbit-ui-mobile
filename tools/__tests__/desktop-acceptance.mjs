@@ -191,7 +191,7 @@ async function installedLaunchCases() {
     updateServer: async () => ({ route() {}, mode() {}, cookieEvidence() {} }),
     isolateOrigins: async () => ({ restore() {} }), lookup: async () => [{ address: '127.0.0.1' }],
     startProxy: async () => proxy, install: async () => '/fixture/Orbit.app/Contents/MacOS/orbit-desktop', dirname,
-    execute: async (command, argumentsList) => command === 'sysctl' && argumentsList.join(' ') === '-n hw.ncpu' ? '5\n' : '',
+    execute: async () => '',
     keepInstalledLaunchCopy: async (application, directories) => {
       launchCopies.push({ application, directories, launches: launches.length })
       return { identifier: 'org.useorbit.desktop.staging', removed: [], best: application }
@@ -210,14 +210,14 @@ async function installedLaunchCases() {
   T('a Windows run checks the caption once, on the first signed-in launch', JSON.stringify(captions) === '["installed"]', JSON.stringify(captions))
   T('a Windows run names its vCPU count in report.json and the job log', recorded.runner.cpus === 3 && written.includes('Runner vCPUs: 3\n'), JSON.stringify(written))
   const signing = { certificate: 'fixture-certificate', password: 'fixture-password', profile: 'fixture-profile', identity: 'Developer ID Application: Fixture (TEAM)' }
-  Object.assign(context, { windows: false, unsignedReason: 'fixture unsigned reason', startHttpsListener: async () => {} })
+  Object.assign(context, { windows: false, unsignedReason: 'fixture unsigned reason', startHttpsListener: async () => {}, cpus: () => [{}, {}, {}, {}, {}] })
   await context.acceptance({ repository: '/fixture', output: '/output', credentials, signing })
   T('a signed macOS run passes the material to the build, tells the push phase and reports only the public identity',
     builtWith[1] === signing && pushCalls[1].options.signed === true &&
       JSON.stringify(recorded.signing) === JSON.stringify({ identity: signing.identity, entitlements: 'Entitlements.staging.plist' }))
   await context.acceptance({ repository: '/fixture', output: '/output', credentials })
   T('an unsigned macOS run reports the missing signing material as its reason', builtWith[2] === null && recorded.signing.unsigned === 'fixture unsigned reason')
-  T('a macOS run reads its vCPU count from sysctl hw.ncpu into report.json and the job log', recorded.runner.cpus === 5 && written.includes('Runner vCPUs: 5\n'), JSON.stringify(written))
+  T('a macOS run reads its vCPU count from os.cpus() into report.json and the job log', recorded.runner.cpus === 5 && written.includes('Runner vCPUs: 5\n'), JSON.stringify(written))
   T('a macOS run keeps its native title bar out of the caption check', captions.length === 1, JSON.stringify(captions))
   T('each macOS run leaves only the installed app in LaunchServices before its first launch, and a Windows run never asks',
     launchCopies.map((call) => call.launches).join(',') === '3,6' && launchCopies.every((call) => call.application === '/fixture/Orbit.app' &&
