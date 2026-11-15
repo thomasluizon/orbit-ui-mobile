@@ -4,6 +4,7 @@
 // the `removalRule` values it names, because the analyzer behind them is not a stable interface.
 // ./README.md lists the checks, their source, and the ones that no command shape can predict.
 
+import { homedir } from "node:os"
 import { posix } from "node:path"
 
 import { commandWords, inspectCommands } from "./command-expander.mjs"
@@ -296,11 +297,10 @@ export const isUnattendedRun = ({ env = {}, state = null, sessionId = "" } = {})
  * @param options `{ cwd, home, workingDirectories, rules, windows }`; `rules` defaults to every removal rule
  * @returns `{ block, message, rule }` when Claude Code would hold the command for an approval, else null
  */
-export function checkApprovalPrompt(command, { cwd = "", home = "", workingDirectories = [], rules = REMOVAL_RULES, windows = process.platform === "win32" } = {}) {
+export function checkApprovalPrompt(command, { cwd = "", home = homedir(), workingDirectories = [], rules = REMOVAL_RULES, windows = process.platform === "win32" } = {}) {
   if (typeof command !== "string" || !/rm/i.test(command)) return null
   const directory = canonical(cwd || "/")
-  const context = { command, directory, windows: windows || /^[A-Za-z]:[\\/]/.test(cwd), home: canonical(home || "/nonexistent-home"),
-    workingDirectories: [directory, ...workingDirectories.map(canonical)] }
+  const context = { command, directory, windows: windows || /^[A-Za-z]:[\\/]/.test(cwd), home: canonical(home), workingDirectories: [directory, ...workingDirectories.map(canonical)] }
   const { found, removals } = inspectRemovals(command, context, rules)
   const whole = removals === 0 ? [] : rules.flatMap((rule) => {
     const refusal = rule.judgeCommand?.(context)
@@ -315,7 +315,7 @@ export function checkApprovalPrompt(command, { cwd = "", home = "", workingDirec
       `Refused in an unattended run: Claude Code holds this ${refusal.program} for an approval, and no person is present to give it.\n` +
       `  ${refusal.segment.slice(0, 240)}\n\n` +
       `Reason: ${refusal.why}.\n` +
-      `Claude Code check: dangerous removal (${refusal.covers}). No permission rule and no permission mode allows it without a person.\n\n` +
+      `Claude Code check: dangerous removal (${refusal.covers}). No permission rule allows it without a person.\n\n` +
       `${refusal.rewrite}\n` +
       "Then run the command again. Do not put the removal in a script file to pass this check.\n",
   }

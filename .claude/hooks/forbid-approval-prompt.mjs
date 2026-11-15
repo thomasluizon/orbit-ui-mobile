@@ -1,6 +1,5 @@
 #!/usr/bin/env node
 
-import { homedir } from "node:os"
 import { dirname, join } from "node:path"
 import { fileURLToPath } from "node:url"
 
@@ -21,11 +20,7 @@ try {
   // Claude Code raises the removal check for its Bash tool only, and the rewrite it asks for is Bash syntax.
   if (input?.tool_name !== "Bash") process.exit(0)
   if (!isUnattendedRun({ env: process.env, state: runState(), sessionId: input?.session_id ?? "" })) process.exit(0)
-  const verdict = checkApprovalPrompt(input?.tool_input?.command, {
-    cwd: input?.cwd ?? "",
-    home: homedir(),
-    workingDirectories: declaredRepoRoots(repoRoot),
-  })
+  const verdict = checkApprovalPrompt(input?.tool_input?.command, { cwd: input?.cwd ?? "", workingDirectories: declaredRepoRoots(repoRoot) })
   if (verdict?.block) {
     process.stderr.write(verdict.message)
     process.exit(2)
