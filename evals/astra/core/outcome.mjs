@@ -121,8 +121,8 @@ export function gradePreview(output, vars) {
   }
   // A missing trace is a missing precondition of the run, as for a card answer: the attempt gives no evidence.
   if (changes.some((change) => Object.keys(change.undetermined).length)) {
-    return verdict(false, 'The preview shows a field that the model did not write, and the turn returned no eval trace '
-      + 'to tell a field that the model clears from one that the server derives.', { unavailable: true })
+    return verdict(false, 'The preview shows a `stored` field, and the turn returned no eval trace to tell a field that a '
+      + 'held write sets or clears from one that the server derives.', { unavailable: true })
   }
   const comparison = compareChanges(expected.changes, changes, { records: vars.core.records, accountDate: vars.accountDate }, questions > 0)
   if (comparison.failure) return verdict(false, comparison.failure)

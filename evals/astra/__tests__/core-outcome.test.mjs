@@ -455,7 +455,7 @@ const retarget = (item, id) => { item.entityId = id; item.itemId = `${item.itemI
 // Producer: orbit-api 1d2a826b8. The core context sends a conversationId, so offers are on (ProactiveProposal.cs:16-20).
 // AnnotateOfferField (PendingOperationChangePreviewer.Offers.cs:376-383) marks a field that the model listed in
 // suggested_fields `suggested`, editable and removable under its offer key (ProactiveProposal.Key, :229-233). It marks a
-// field that the model wrote without listing it `requested`, and each other field `stored`. AddChildOfferFields
+// field in the requested_fields of the first preview `requested`, and each other field `stored`. AddChildOfferFields
 // (:400-414) gives an offer of a child draft the row path `sub_habits/<n>/<field>`. ResolveValueType gives an emoji the
 // value type `emoji`.
 function offerRow(item, field, proposedValue, { oldValue = null, newValue = String(proposedValue), valueType = 'text', entityId = item.entityId } = {}) {
@@ -464,7 +464,8 @@ function offerRow(item, field, proposedValue, { oldValue = null, newValue = Stri
 }
 // Producer: AddChanges (PendingOperationChangePreviewer.cs:897-945) gives an update one row for each field whose value the
 // update changes, with the domain value in the stored format. AnnotateOfferField (:380-383) marks `stored` each row whose
-// field is no argument with a value: a change that the server derives, and a field that the model clears.
+// field is not in requested_fields: a change that the server derives, a field that the model clears, and a field that a
+// later revision of the preview sets or clears.
 const storedRow = (item, field, oldValue, newValue, valueType, proposedValue) => ({ entityId: item.entityId,
   entityName: item.entityName, field, oldValue, newValue, valueType, proposedValue, isEditable: true, provenance: 'stored' })
 const requestedRow = (row) => ({ ...row, provenance: 'requested', removal: undefined })

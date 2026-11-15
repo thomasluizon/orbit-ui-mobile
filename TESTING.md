@@ -464,9 +464,9 @@ The outcome grader (`core/outcome.mjs`) reads no tool name:
   that the preview marks `suggested` with a removal is an offer of the assistant. A field marked `stored`
   is a change that the server derives, unless a held write in the eval trace names it: a clear
   (`clear_fields`, `clear_parent` or an empty array), or any edit in the `edits_json` of a held revision.
-  The list keeps offers and derived changes apart from the requested changes. A field that the request did not name and
-  that is neither an offer nor derived fails the case.
-  A preview turn without the trace that shows a `stored` field gives no evidence.
+  The list keeps offers and derived changes apart from the requested changes. A field that the request
+  did not name and that is neither an offer nor derived fails the case. A preview turn without the trace
+  that shows a `stored` field gives no evidence.
 - It counts the questions that came before the preview, against the minimum and the maximum of the case.
 - When the preview matches, the eval approves it as the client does and reads the saved state back
   from `eval/snapshot`. It reads each field that the request names: the title, the due date and the
