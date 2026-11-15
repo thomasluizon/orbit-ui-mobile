@@ -5,12 +5,14 @@ import { getPendingAuthProvider, getAuthCallbackErrorKey } from '@orbit/shared/u
 import { useState } from 'react'
 import { LazyMotion, domMin } from 'motion/react'
 import { AuthPagePanel } from '@/components/auth/auth-page-panel'
+import { useGuidedSignIn } from '@/components/auth/guided-sign-in'
 import { useSteadyColumn } from '@/components/auth/use-steady-column'
 import { Lockup } from '@/components/ui/lockup'
 import { PillButton } from '@/components/ui/pill-button'
 import { TurnstileWidget } from '@/components/auth/turnstile-widget'
 import { EmailStep } from './email-step'
 import { CodeStep } from './code-step'
+import { GuidedAccountBack, GuidedLogin } from './guided-login'
 import { useLoginFlow } from './use-login-flow'
 import { LoginHeader, ReferralBanner, LoginStepStage, LoginValidationMessage } from './login-sections'
 
@@ -22,6 +24,7 @@ export interface LoginCallback {
 }
 
 export function LoginContent({ callback }: Readonly<{ callback?: LoginCallback }>) {
+  const guided = useGuidedSignIn()
   const flow = useLoginFlow(Boolean(callback))
   const { t } = flow
   const [callbackDismissed, setCallbackDismissed] = useState(false)
@@ -36,6 +39,15 @@ export function LoginContent({ callback }: Readonly<{ callback?: LoginCallback }
     ? <TurnstileWidget ref={blockRef} key={flow.turnstileResetKey} siteKey={flow.turnstileSiteKey} resetKey={flow.turnstileResetKey}
       onToken={flow.onTurnstileToken} />
     : null
+  if (guided) return (
+    <LazyMotion features={domMin}>
+      <p role="status" aria-live="polite" aria-atomic="true" className="sr-only">{flow.successMessage}</p>
+      {account
+        ? <GuidedAccountBack t={t} loading={flow.isSubmitting || callback?.loading} continueAccount={continueAccount} errorMessage={flow.errorMessage} />
+        : <GuidedLogin flow={flow} callback={callback} callbackDismissed={callbackDismissed} onDismissCallback={() => setCallbackDismissed(true)}
+          canSubmitTurnstile={canSubmitTurnstile} turnstileWidget={turnstileWidget} />}
+    </LazyMotion>
+  )
   return (
     <LazyMotion features={domMin}>
     <AuthPagePanel ref={columnRef}>

@@ -232,6 +232,7 @@ vi.mock('@/components/navigation/destination-tab-bar', () => ({
   DestinationTabBar: () => null,
 }))
 vi.mock('@/components/global-overlays', () => ({ OverlayLayer: 'OverlayLayer' }))
+vi.mock('@/hooks/use-flag', () => ({ useFlag: () => false }))
 vi.mock('@/components/offline-notice', () => ({ useOfflineNoticeContent: () => null }))
 vi.mock('@/components/gamification/celebration-panel', () => ({
   CelebrationPanel: () => null,

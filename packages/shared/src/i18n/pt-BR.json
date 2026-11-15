@@ -525,6 +525,12 @@
       "habits": "{count, plural, =0 {# hábitos esperando neste aparelho.} one {# hábito esperando neste aparelho.} other {# hábitos esperando neste aparelho.}}",
       "continue": "Continuar e salvar"
     },
+    "line": {
+      "plan": "{count, plural, =0 {Eu guardo o seu plano neste aparelho até você entrar.} one {Eu guardo o seu plano com # hábito neste aparelho até você entrar.} other {Eu guardo o seu plano com # hábitos neste aparelho até você entrar.}}",
+      "codeSent": "Mandei um código de 6 dígitos para {email}.",
+      "codeExpired": "Esse código passou dos 5 minutos, então me peça outro.",
+      "codeLocked": "Este e-mail fica bloqueado por mais {time}."
+    },
     "accountBack": {
       "title": "A sua conta está de volta",
       "body": "O pedido para apagar a conta foi cancelado quando você entrou.",

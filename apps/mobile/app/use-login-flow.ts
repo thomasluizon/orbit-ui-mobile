@@ -278,6 +278,12 @@ export function useLoginFlow(isAuthCallback = false) {
     router.replace(returnUrl)
   }
 
+  /** The guided continue action stays enabled, so an empty submit shows the hint beside the field and focuses it. */
+  function refuseEmptyEmail() {
+    setErrorKey('auth.errors.invalidEmail')
+    setEmailFocusRequest((request) => request + 1)
+  }
+
   function reportValidationFailure(error: unknown): boolean {
     if (!extractBackendFieldErrors(error)) return false
     setErrorKey(null)
@@ -487,5 +493,5 @@ export function useLoginFlow(isAuthCallback = false) {
     canSubmitEmail: Boolean(email.trim()) && !isSubmitting && !isGoogleLoading && !isAppleLoading && isOnline && (!turnstileSiteKey || Boolean(turnstileToken)),
     canSubmitCode: entry.codeDigits.join('').length === 6 && !isSubmitting && isOnline && (!turnstileSiteKey || Boolean(turnstileToken)),
     turnstileSiteKey, turnstileToken, turnstileResetKey, onTurnstileToken: handleTurnstileToken,
-    sendCode, verifyCode, resendCode, backToEmail, signInWithGoogle, signInWithApple, continueAccount, openPrivacyPolicy, openTerms }
+    sendCode, refuseEmptyEmail, verifyCode, resendCode, backToEmail, signInWithGoogle, signInWithApple, continueAccount, openPrivacyPolicy, openTerms }
 }

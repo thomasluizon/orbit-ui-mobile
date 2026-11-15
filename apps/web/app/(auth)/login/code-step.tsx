@@ -34,15 +34,36 @@ interface CodeStepProps {
   t: ReturnType<typeof useTranslations>
 }
 
+/** The code field. A rejected code shakes it over the shared slow duration, and reduced motion keeps it still. */
+export function LoginCodeField({ label, value, error, hint, disabled, expired, focusRequest, onChange, onBlur }: Readonly<{
+  label: string; value: string; error: string | undefined; hint: string | undefined; disabled: boolean; expired: boolean
+  focusRequest: number | undefined; onChange: (value: string) => void; onBlur: (() => void) | undefined
+}>) {
+  const reduced = useReducedMotion()
+  const shake = Boolean(error) && !reduced
+  return (
+    <m.div animate={shake ? { x: [0, -4, 4, -4, 4, 0] } : { x: 0 }} data-code-shake={shake ? '' : undefined}
+      transition={{ duration: reduced ? 0 : motionDurations.slow / 1000, ease: motionEasings.standard }} data-mock={expired || undefined}>
+      <OtpInput label={label} value={value} onChange={onChange} onBlur={onBlur} focusRequest={focusRequest} error={error} hint={hint} disabled={disabled} />
+    </m.div>
+  )
+}
+
+/** The resend control: a countdown while the window is closed, then one quiet action. */
+export function LoginResend({ ready, countdown, disabled, loading, onResend, t }: Readonly<{
+  ready: boolean; countdown: number; disabled: boolean; loading: boolean; onResend: () => void; t: ReturnType<typeof useTranslations>
+}>) {
+  if (!ready) return <p className="font-mono text-xs tabular-nums text-[var(--fg-3)]">{t('auth.resendIn', { time: formatLoginCountdown(countdown) })}</p>
+  return <PillButton variant="ghost" size="sm" onClick={onResend} disabled={disabled} loading={loading}>{t('auth.resendCode')}</PillButton>
+}
+
 export function CodeStep({ email, codeDigits, isSubmitting, isResending, canResend, resendCountdown, lockCountdown,
   codeFailure, fieldError: backendFieldError, onCodeBlur, codeFocusRequest, errorSignal, successMessage, isOnline, onVerifyCode, onCodeChange, onBackToEmail,
   onResendCode, canSubmitTurnstile, turnstileWidget, t }: Readonly<CodeStepProps>) {
-  const reduced = useReducedMotion()
   const locked = codeFailure === 'locked'
   const waiting = locked && lockCountdown > 0
   const expired = codeFailure === 'expired'
   const fieldError = isOnline && !locked ? backendFieldError ?? errorSignal ?? undefined : undefined
-  const shake = Boolean(fieldError) && !reduced
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-2">
@@ -55,27 +76,17 @@ export function CodeStep({ email, codeDigits, isSubmitting, isResending, canRese
       </div>
       <KeyboardRevealGroup testID="login-field-action" className="flex flex-col gap-6">
         <form className="flex flex-col gap-6" onSubmit={(event) => { event.preventDefault(); onVerifyCode() }}>
-          <m.div animate={shake ? { x: [0, -4, 4, -4, 4, 0] } : { x: 0 }}
-            transition={{ duration: reduced ? 0 : motionDurations.slow / 1000, ease: motionEasings.standard }} data-mock={expired || undefined}>
-            <OtpInput label={t('auth.verificationCode')} value={codeDigits.join('')}
-              onChange={onCodeChange} onBlur={onCodeBlur} focusRequest={codeFocusRequest} error={fieldError}
-              hint={!fieldError && !locked ? t('auth.codeHint') : undefined}
-              disabled={isSubmitting || expired || waiting} />
-          </m.div>
+          <LoginCodeField label={t('auth.verificationCode')} value={codeDigits.join('')} onChange={onCodeChange} onBlur={onCodeBlur}
+            focusRequest={codeFocusRequest} error={fieldError} hint={!fieldError && !locked ? t('auth.codeHint') : undefined}
+            disabled={isSubmitting || expired || waiting} expired={expired} />
           {turnstileWidget}
           {!isOnline && <LoginOfflineNotice t={t} />}
           {!waiting && !expired && <PillButton disabled={isSubmitting || !isOnline || codeDigits.join('').length !== 6 || !canSubmitTurnstile}
             loading={isSubmitting && !isResending}>{t('auth.verify')}</PillButton>}
         </form>
         {!waiting && <div className="flex flex-col items-start gap-2">
-          {canResend || expired
-            ?
-              <PillButton variant="ghost" size="sm" onClick={onResendCode} disabled={!isOnline || isSubmitting || !canSubmitTurnstile} loading={isResending}>
-                {t('auth.resendCode')}
-              </PillButton>
-            : <p className="font-mono text-xs tabular-nums text-[var(--fg-3)]">
-                {t('auth.resendIn', { time: formatLoginCountdown(resendCountdown) })}
-              </p>}
+          <LoginResend ready={canResend || expired} countdown={resendCountdown} disabled={!isOnline || isSubmitting || !canSubmitTurnstile}
+            loading={isResending} onResend={onResendCode} t={t} />
         </div>}
         {locked && <div className="flex flex-col gap-2">
           <div role="status"><CapacityNotice message={t('auth.errors.tooManyAttempts')} /></div>

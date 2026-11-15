@@ -29,7 +29,9 @@ function FlowHeader({ props }: Readonly<{ props: QuestionFlowProps }>) {
         {onBack ? <PillButton variant="ghost" iconOnly label={backLabel} minimumHeight={48} onClick={onBack}><ArrowLeft color={tokens.fg1} size={24} /></PillButton> : null}
       </View>
       <View style={styles.progress}><PagerSegments count={total} index={position - 1} label={progressLabel} /></View>
-      <PillButton variant="ghost" iconOnly label={closeLabel} minimumHeight={48} onClick={onClose}><X color={tokens.fg1} size={24} /></PillButton>
+      <View style={styles.slot}>
+        {onClose && closeLabel ? <PillButton variant="ghost" iconOnly label={closeLabel} minimumHeight={48} onClick={onClose}><X color={tokens.fg1} size={24} /></PillButton> : null}
+      </View>
     </View>
   )
 }

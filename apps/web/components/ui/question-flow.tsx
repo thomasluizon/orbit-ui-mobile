@@ -26,7 +26,9 @@ function FlowHeader({ props }: Readonly<{ props: QuestionFlowProps }>) {
         {onBack ? <HeaderButton label={backLabel} onPress={onBack}><ArrowLeft aria-hidden="true" size={24} /></HeaderButton> : null}
       </span>
       <div className="min-w-0 flex-1"><PagerSegments count={total} index={position - 1} label={progressLabel} /></div>
-      <HeaderButton label={closeLabel} onPress={onClose}><X aria-hidden="true" size={24} /></HeaderButton>
+      <span className="flex size-12 shrink-0 items-center justify-center">
+        {onClose && closeLabel ? <HeaderButton label={closeLabel} onPress={onClose}><X aria-hidden="true" size={24} /></HeaderButton> : null}
+      </span>
     </header>
   )
 }

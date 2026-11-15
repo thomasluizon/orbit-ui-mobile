@@ -16,6 +16,8 @@ import { LoginHeader, ReferralBanner, LoginStepStage, LoginValidationMessage } f
 import { EmailStep } from './email-step'
 import { CodeStep } from './code-step'
 import { SteadyColumn, steadyLength } from './steady-column'
+import { GuidedLoginContent } from './guided-login'
+import { useGuidedSignIn } from './guided-sign-in'
 
 export interface LoginCallback {
   provider?: 'apple' | 'google'
@@ -24,7 +26,12 @@ export interface LoginCallback {
   loading?: boolean
 }
 
+/** With `orbit_guided_flows` on, sign-in is the one-question flow. With it off, the current surface shows. */
 export function LoginContent({ callback }: Readonly<{ callback?: LoginCallback }>) {
+  return useGuidedSignIn() ? <GuidedLoginContent callback={callback} /> : <CurrentLoginContent callback={callback} />
+}
+
+function CurrentLoginContent({ callback }: Readonly<{ callback?: LoginCallback }>) {
   const insets = useSafeAreaInsets()
   const { width, scale } = useWindowDimensions()
   const wide = width >= 768

@@ -525,6 +525,12 @@
       "habits": "{count, plural, one {# habit waiting on this device.} other {# habits waiting on this device.}}",
       "continue": "Continue and save"
     },
+    "line": {
+      "plan": "{count, plural, =0 {I am keeping your plan on this device until you sign in.} one {I am keeping your plan with # habit on this device until you sign in.} other {I am keeping your plan with # habits on this device until you sign in.}}",
+      "codeSent": "I sent a 6-digit code to {email}.",
+      "codeExpired": "That code is past its 5 minutes, so ask me for another.",
+      "codeLocked": "This email stays locked for {time} more."
+    },
     "accountBack": {
       "title": "Your account is back",
       "body": "The deletion request was cancelled when you signed in.",

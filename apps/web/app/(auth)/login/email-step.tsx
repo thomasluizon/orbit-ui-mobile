@@ -7,6 +7,7 @@ import type { useTranslations } from 'next-intl'
 import { Input } from '@/components/ui/input'
 import { PillButton } from '@/components/ui/pill-button'
 import { KeyboardRevealGroup } from '@/components/ui/keyboard-reveal-group'
+import { deriveLoginEmailErrors } from '@orbit/shared/utils'
 import { LoginOfflineNotice } from './login-sections'
 
 interface EmailStepProps {
@@ -29,12 +30,43 @@ interface EmailStepProps {
   sendCodeLabel?: string
 }
 
+/** The two provider ways in, with the offline reason and the provider failure under them. */
+export function LoginProviderActions({ disabled, isGoogleLoading, isAppleLoading, isOnline, error, onSignInWithGoogle, onSignInWithApple, t }: Readonly<{
+  disabled: boolean; isGoogleLoading: boolean; isAppleLoading: boolean; isOnline: boolean; error: string | null
+  onSignInWithGoogle: () => void; onSignInWithApple: (() => void) | undefined; t: ReturnType<typeof useTranslations>
+}>) {
+  return <>
+    <div className="flex flex-col">
+      {/* eslint-disable-next-line local/max-button-words -- Google's approved sign-in wording is required. */}
+      <PillButton brand="google" leadingIcon={<GoogleMark />} variant="ghost" disabled={disabled}
+        loading={isGoogleLoading} onClick={onSignInWithGoogle}>{t('auth.signInWithGoogle')}</PillButton>
+    </div>
+    {process.env.NEXT_PUBLIC_APPLE_CLIENT_ID ? <div className="flex flex-col">
+      {/* eslint-disable-next-line local/max-button-words -- Apple's approved sign-in wording labels the browser action. */}
+      <PillButton brand="apple" variant="ghost" leadingIcon={<AppleSignInLogo height={SIGN_IN_BUTTON_HEIGHT} />} disabled={disabled}
+        loading={isAppleLoading} onClick={onSignInWithApple}>{t('auth.signInWithApple')}</PillButton>
+    </div> : null}
+    {!isOnline && <p className="text-sm text-[var(--fg-3)]">{t('auth.googleOffline')}</p>}
+    {error && <p role="alert" className="text-sm text-[var(--status-bad-text)]">{error}</p>}
+  </>
+}
+
+/** The legal consent line: the one place a person agrees to anything. */
+export function LoginLegalConsent({ t }: Readonly<{ t: ReturnType<typeof useTranslations> }>) {
+  return (
+    <p className="text-xs leading-[2] text-[var(--fg-3)]">
+      {t.rich('auth.legalConsent', {
+        terms: (chunks) => <Link href="/about" className="whitespace-nowrap text-[var(--fg-2)] underline hover:text-[var(--fg-1)]">{chunks}</Link>,
+        privacy: (chunks) => <Link href="/about" className="whitespace-nowrap text-[var(--fg-2)] underline hover:text-[var(--fg-1)]">{chunks}</Link>,
+      })}
+    </p>
+  )
+}
+
 export function EmailStep({ email, emailFocusRequest, onEmailChange, isSubmitting, isGoogleLoading, isAppleLoading = false, isOnline,
   canSubmitTurnstile, turnstileWidget, errorKey, errorMessage, fieldError: backendFieldError, onSendCode, onSignInWithGoogle, onSignInWithApple, t, sendCodeLabel }: Readonly<EmailStepProps>) {
   const isBusy = isSubmitting || isGoogleLoading || isAppleLoading
-  const fieldError = isOnline && backendFieldError ? backendFieldError : isOnline && errorKey === 'auth.errors.invalidEmail' ? errorMessage : null
-  const googleError = isOnline && (errorKey === 'auth.errors.googleError' || errorKey === 'auth.errors.appleError') ? errorMessage : null
-  const sendError = isOnline && errorMessage && !fieldError && !googleError ? errorMessage : null
+  const { field: fieldError, provider: googleError, send: sendError } = deriveLoginEmailErrors({ isOnline, fieldError: backendFieldError, errorKey, errorMessage })
   return (
     <div data-testid="login-email-step-stack" className="flex flex-col gap-6">
       <KeyboardRevealGroup testID="login-field-action"><form noValidate className="flex flex-col gap-6" onSubmit={(event) => { event.preventDefault(); onSendCode() }}>
@@ -56,25 +88,10 @@ export function EmailStep({ email, emailFocusRequest, onEmailChange, isSubmittin
         <span className="h-px flex-1 bg-[var(--hairline)]" />
       </div>
       <div className="flex flex-col gap-2">
-        <div className="flex flex-col">
-          {/* eslint-disable-next-line local/max-button-words -- Google's approved sign-in wording is required. */}
-          <PillButton brand="google" leadingIcon={<GoogleMark />} variant="ghost" disabled={isBusy || !isOnline}
-            loading={isGoogleLoading} onClick={onSignInWithGoogle}>{t('auth.signInWithGoogle')}</PillButton>
-        </div>
-        {process.env.NEXT_PUBLIC_APPLE_CLIENT_ID ? <div className="flex flex-col">
-          {/* eslint-disable-next-line local/max-button-words -- Apple's approved sign-in wording labels the browser action. */}
-          <PillButton brand="apple" variant="ghost" leadingIcon={<AppleSignInLogo height={SIGN_IN_BUTTON_HEIGHT} />} disabled={isBusy || !isOnline}
-            loading={isAppleLoading} onClick={onSignInWithApple}>{t('auth.signInWithApple')}</PillButton>
-        </div> : null}
-        {!isOnline && <p className="text-sm text-[var(--fg-3)]">{t('auth.googleOffline')}</p>}
-        {googleError && <p role="alert" className="text-sm text-[var(--status-bad-text)]">{googleError}</p>}
+        <LoginProviderActions disabled={isBusy || !isOnline} isGoogleLoading={isGoogleLoading} isAppleLoading={isAppleLoading} isOnline={isOnline}
+          error={googleError} onSignInWithGoogle={onSignInWithGoogle} onSignInWithApple={onSignInWithApple} t={t} />
       </div>
-      <p className="text-xs leading-[2] text-[var(--fg-3)]">
-        {t.rich('auth.legalConsent', {
-          terms: (chunks) => <Link href="/about" className="whitespace-nowrap text-[var(--fg-2)] underline hover:text-[var(--fg-1)]">{chunks}</Link>,
-          privacy: (chunks) => <Link href="/about" className="whitespace-nowrap text-[var(--fg-2)] underline hover:text-[var(--fg-1)]">{chunks}</Link>,
-        })}
-      </p>
+      <LoginLegalConsent t={t} />
     </div>
   )
 }

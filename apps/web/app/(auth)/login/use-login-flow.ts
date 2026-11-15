@@ -211,6 +211,12 @@ export function useLoginFlow(isAuthCallback = false) {
     } finally { busy.current = false; setIsSubmitting(false) }
   }
 
+  /** The guided continue action stays enabled, so an empty submit shows the hint beside the field and focuses it. */
+  function refuseEmptyEmail() {
+    setErrorKey('auth.errors.invalidEmail')
+    setEmailFocusRequest((request) => request + 1)
+  }
+
   function reportValidationFailure(error: unknown): boolean {
     if (!extractBackendFieldErrors(error)) return false
     setErrorKey(null)
@@ -408,5 +414,5 @@ export function useLoginFlow(isAuthCallback = false) {
     errorMessage: errorKey ? t(errorKey) : null, successMessage, referralCode, fromOnboarding,
     turnstileSiteKey, turnstileToken, turnstileResetKey, onTurnstileToken: handleTurnstileToken,
     pendingHabitCount, isOnline, authStepMotion, ...entry, onCodeChange, codeFailure, lockCountdown, accountBack,
-    sendCode, verifyCode, resendCode, backToEmail, signInWithGoogle, signInWithApple, continueAccount }
+    sendCode, refuseEmptyEmail, verifyCode, resendCode, backToEmail, signInWithGoogle, signInWithApple, continueAccount }
 }

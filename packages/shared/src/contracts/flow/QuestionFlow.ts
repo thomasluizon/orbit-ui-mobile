@@ -17,10 +17,12 @@ export interface QuestionFlowProps {
   /** The accessible name of the progress, for example `Passo 2 de 3`. */
   progressLabel: string
   backLabel: string
-  closeLabel: string
+  /** Absent with `onClose` on a flow that has no surface to close to, such as sign-in. */
+  closeLabel?: string
   /** Absent on the first step. The 48 slot stays. */
   onBack?: (() => void) | undefined
-  onClose: () => void
+  /** Absent on a flow that is the whole surface, such as sign-in. The 48 slot stays. */
+  onClose?: (() => void) | undefined
   /** 1 forward, -1 back. */
   direction: 1 | -1
   orbitState?: 'parado' | 'pensando' | 'feliz' | 'descansando'

@@ -2,12 +2,15 @@
 
 import { useEffect, useState } from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
+import { QueryClientProvider } from '@tanstack/react-query'
+import { getQueryClient } from '@/lib/query-client'
 import { useAuthStore } from '@/stores/auth-store'
 import { useOnboardingDraftHydrated, useOnboardingDraftStore } from '@/stores/onboarding-draft-store'
 import { UpdateAvailableBanner } from '@/components/ui/update-available-banner'
 import { AppToastHost } from '@/components/ui/app-toast-host'
 import { AuthPageFrame } from '@/components/auth/auth-page-frame'
 import { DesktopAuthBridge } from '@/components/auth/desktop-auth-bridge'
+import { GuidedSignInProvider } from '@/components/auth/guided-sign-in'
 import { DesktopReleaseBoundary } from '@/components/desktop-release-boundary'
 
 export default function AuthLayout({ children }: Readonly<{ children: React.ReactNode }>) {
@@ -34,7 +37,7 @@ export default function AuthLayout({ children }: Readonly<{ children: React.Reac
   return <DesktopReleaseBoundary monitor signIn>
     <DesktopAuthBridge />
     <AuthPageFrame>
-      {children}
+      <QueryClientProvider client={getQueryClient()}><GuidedSignInProvider>{children}</GuidedSignInProvider></QueryClientProvider>
       <AppToastHost placement="page" />
     </AuthPageFrame>
     <div className="fixed inset-x-0 top-[var(--safe-top)] pl-[var(--safe-left)] pr-[var(--safe-right)] z-sticky text-[var(--fg-1)]">

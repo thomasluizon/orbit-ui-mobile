@@ -225,3 +225,13 @@ export function getPendingAuthProvider(callback: { state: 'pending' | 'failed' |
 export function getAuthCallbackErrorKey(provider: 'apple' | 'google' | undefined): string {
   return provider === 'apple' ? 'auth.errors.appleError' : 'auth.errors.googleError'
 }
+
+/** Where each failure of the email step shows: beside the field, under the provider actions, or beside the continue action. Offline shows none, because the offline notice names the state. */
+export function deriveLoginEmailErrors({ isOnline, fieldError, errorKey, errorMessage }: {
+  isOnline: boolean; fieldError: string | undefined; errorKey: string | null; errorMessage: string | null
+}): { field: string | null; provider: string | null; send: string | null } {
+  if (!isOnline) return { field: null, provider: null, send: null }
+  const field = fieldError || (errorKey === 'auth.errors.invalidEmail' ? errorMessage : null)
+  const provider = errorKey === 'auth.errors.googleError' || errorKey === 'auth.errors.appleError' ? errorMessage : null
+  return { field, provider, send: errorMessage && !field && !provider ? errorMessage : null }
+}
