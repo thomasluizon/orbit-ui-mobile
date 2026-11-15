@@ -164,7 +164,7 @@ describe('Profile API key row geometry', () => {
   it.each(['en', 'pt-BR'].flatMap((locale) => [412, 1352].flatMap((width) => [true, false].map((consent) => ({ locale, width, consent })))))('aligns answered email consent $consent with the device switch in $locale at $width px', async ({ locale, width, consent }) => {
     settings.locale = locale as 'en' | 'pt-BR'
     settings.consent = consent
-    const { container } = render(<div style={{ padding: 16 }}><ProfileNotificationsContent /></div>)
+    const { container } = render(<QueryClientProvider client={new QueryClient()}><div style={{ padding: 16 }}><ProfileNotificationsContent /></div></QueryClientProvider>)
     const page = await browser.newPage({ viewport: { width, height: 915 } })
     try {
       await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
