@@ -118,7 +118,7 @@ export function QuestionFlow(props: Readonly<QuestionFlowProps>) {
   const shownLook = orbitState === 'parado' ? lookAt ?? (keyboardOpen ? KEYBOARD_LOOK : null) : null
   const primaryAction = primary ? (
     <View style={wide ? styles.primaryWide : styles.primaryCompact}>
-      <PillButton variant={primary.variant} loading={primary.loading} focusableWhenLoading hint={primary.hint} onClick={primary.onPress}>{primary.label}</PillButton>
+      <PillButton variant={primary.variant} loading={primary.loading} disabled={primary.disabled} focusableWhenLoading hint={primary.hint} onClick={primary.onPress}>{primary.label}</PillButton>
     </View>
   ) : null
 

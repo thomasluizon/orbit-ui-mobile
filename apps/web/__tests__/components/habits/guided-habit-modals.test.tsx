@@ -11,6 +11,7 @@ const state = vi.hoisted(() => ({
   locale: 'pt-BR' as 'en' | 'pt-BR', flag: true, online: true, clock24: true,
   create: vi.fn(), update: vi.fn(), saved: null as Record<string, unknown> | null, detail: null as Record<string, unknown> | null,
   completed: vi.fn(), push: vi.fn(),
+  detailPending: false, detailFetching: false, detailError: null as Error | null, refetchDetail: vi.fn(),
 }))
 
 function lookup(messages: Record<string, unknown>, key: string): string {
@@ -36,7 +37,7 @@ vi.mock('@/hooks/use-create-sub-habit', () => ({ useCreateSubHabit: () => ({ mut
 vi.mock('@/hooks/use-update-habit', () => ({ useUpdateHabit: () => ({ mutateAsync: state.update, isPending: false }) }))
 vi.mock('@/hooks/use-habit-queries', async (importOriginal) => ({
   ...await importOriginal<typeof import('@/hooks/use-habit-queries')>(),
-  useHabitDetail: () => ({ data: state.detail, isPending: false, error: null, refetch: vi.fn().mockResolvedValue(undefined) }),
+  useHabitDetail: () => ({ data: state.detail ?? undefined, isPending: state.detailPending, isFetching: state.detailFetching, error: state.detailError, refetch: state.refetchDetail }),
 }))
 vi.mock('@/hooks/use-habits', async (importOriginal) => ({
   ...await importOriginal<typeof import('@/hooks/use-habits')>(),
@@ -95,6 +96,10 @@ beforeEach(() => {
   state.completed.mockReset()
   state.saved = { id: 'habit-9', title: 'Ligar para o João', isGeneral: false, dueDate: '2026-11-14', dueTime: '08:30', frequencyUnit: null, frequencyQuantity: null, isFlexible: false }
   state.detail = null
+  state.detailPending = false
+  state.detailFetching = false
+  state.detailError = null
+  state.refetchDetail.mockReset().mockResolvedValue(undefined)
   vi.useFakeTimers({ now: new Date('2026-11-13T12:00:00Z'), toFake: ['Date'] })
   vi.stubGlobal('matchMedia', (query: string) => ({ matches: false, media: query, addEventListener: () => {}, removeEventListener: () => {} }))
 })
@@ -211,5 +216,60 @@ describe('the edit surface behind orbit_guided_flows', () => {
     expect(data).toMatchObject({ title: 'Correr', frequencyUnit: 'Day', frequencyQuantity: 1, dueTime: '20:00' })
     expect(state.completed).toHaveBeenCalledWith('habit_edit', 1, false)
     expect(await screen.findByRole('dialog', { name: ptBR.result.title })).toHaveAccessibleDescription(ptBR.result.habit.updated)
+  })
+
+  const summary = () => screen.getByRole('group', { name: ptBR.habits.flow.confirm.question })
+  const save = () => screen.getByRole('button', { name: ptBR.common.save })
+
+  it('shows a skeleton for each summary row while the stored details load, with no spinner and with the save off', async () => {
+    state.detailPending = true
+    state.detailFetching = true
+    mountEdit()
+    await waitFor(() => expect(heading()).toHaveTextContent(ptBR.habits.flow.confirm.question))
+    const skeleton = summary().querySelector('[data-summary-skeleton]')
+    expect(skeleton).toHaveAttribute('aria-busy', 'true')
+    expect(skeleton).toHaveAccessibleName(ptBR.common.loading)
+    expect(skeleton!.querySelectorAll('[data-variant="fill"]').length).toBeGreaterThan(1)
+    expect(screen.queryByRole('button', { name: /^Hora/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: ptBR.habits.flow.more })).not.toBeInTheDocument()
+    expect(document.querySelector('.animate-spin')).toBeNull()
+    expect(save()).toBeDisabled()
+    expect(save()).not.toHaveAttribute('aria-busy')
+    await act(async () => { save().click() })
+    expect(state.update).not.toHaveBeenCalled()
+  })
+
+  it('states a failed detail read on the summary with a retry, keeps the save off and sends nothing', async () => {
+    state.detailError = new Error('offline')
+    mountEdit()
+    await waitFor(() => expect(heading()).toHaveTextContent(ptBR.habits.flow.confirm.question))
+    expect(summary().querySelector('[data-summary-skeleton]')).toBeNull()
+    expect(screen.getByRole('alert')).not.toBeEmptyDOMElement()
+    expect(screen.queryByRole('button', { name: /^Hora/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: ptBR.habits.flow.more })).not.toBeInTheDocument()
+    expect(save()).toBeDisabled()
+    await act(async () => { save().click() })
+    expect(state.update).not.toHaveBeenCalled()
+    await press(ptBR.common.retry)
+    expect(state.refetchDetail).toHaveBeenCalledTimes(1)
+  })
+
+  it('shows the skeleton again while the retry of a failed detail read runs', async () => {
+    state.detailError = new Error('offline')
+    state.detailFetching = true
+    mountEdit()
+    await waitFor(() => expect(heading()).toHaveTextContent(ptBR.habits.flow.confirm.question))
+    expect(summary().querySelector('[data-summary-skeleton]')).not.toBeNull()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(save()).toBeDisabled()
+  })
+
+  it('shows the stored values and an enabled save once the details load', async () => {
+    state.detail = { ...storedHabit, parentId: null, children: [], endDate: null }
+    mountEdit()
+    await waitFor(() => expect(heading()).toHaveTextContent(ptBR.habits.flow.confirm.question))
+    expect(summary().querySelector('[data-summary-skeleton]')).toBeNull()
+    expect(screen.getByRole('button', { name: /^Hora/ })).toHaveTextContent('07:00')
+    expect(save()).toBeEnabled()
   })
 })

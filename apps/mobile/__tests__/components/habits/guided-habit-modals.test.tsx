@@ -10,6 +10,7 @@ import { press, renderNavigation } from '../ui/navigation-render'
 
 const state = vi.hoisted(() => ({
   flag: true, create: vi.fn(), update: vi.fn(), saved: null as Record<string, unknown> | null, completed: vi.fn(), push: vi.fn(),
+  detailPending: false, detailFetching: false, detailError: null as Error | null, refetchDetail: vi.fn(),
 }))
 
 vi.mock('react-i18next', () => ({
@@ -29,7 +30,7 @@ vi.mock('@/hooks/use-create-sub-habit', () => ({ useCreateSubHabit: () => ({ mut
 vi.mock('@/hooks/use-update-habit', () => ({ useUpdateHabit: () => ({ mutateAsync: state.update, isPending: false }) }))
 vi.mock('@/hooks/use-habit-queries', async (importOriginal) => ({
   ...await importOriginal<typeof import('@/hooks/use-habit-queries')>(),
-  useHabitDetail: (id: string | null) => ({ data: id ? state.saved : undefined, isPending: false, error: null, refetch: vi.fn().mockResolvedValue({ isSuccess: false }) }),
+  useHabitDetail: (id: string | null) => ({ data: id ? state.saved ?? undefined : undefined, isPending: state.detailPending, isFetching: state.detailFetching, error: state.detailError, refetch: state.refetchDetail }),
 }))
 vi.mock('@/hooks/use-habit-suggestion', () => ({ useHabitSuggestion: () => ({ mutateAsync: vi.fn(), isPending: false }) }))
 vi.mock('@/hooks/use-habit-phrase-read', () => ({ useHabitPhraseRead: () => ({ mutateAsync: vi.fn().mockResolvedValue(null), isPending: false }) }))
@@ -86,6 +87,10 @@ beforeEach(async () => {
   state.update.mockReset().mockResolvedValue({})
   state.completed.mockReset()
   state.saved = null
+  state.detailPending = false
+  state.detailFetching = false
+  state.detailError = null
+  state.refetchDetail.mockReset().mockResolvedValue({ isSuccess: false })
   vi.useFakeTimers({ now: new Date('2026-11-13T12:00:00Z'), toFake: ['Date'] })
 })
 afterEach(() => { vi.useRealTimers() })
@@ -150,6 +155,67 @@ describe('the Android edit surface behind orbit_guided_flows', () => {
     expect((state.update.mock.calls[0]![0] as { data: Record<string, unknown> }).data).toMatchObject({ title: 'Correr', frequencyUnit: 'Day', frequencyQuantity: 1, dueTime: '20:00' })
     expect(state.completed).toHaveBeenCalledWith('habit_edit', 1, false)
     expect(tree.hosts().some((node) => node.props.children === ptBR.result.habit.updated)).toBe(true)
+    tree.unmount()
+  })
+
+  const summarySkeleton = (tree: Tree) => tree.hosts().find((node) => node.props.testID === 'summary-skeleton')
+  const saveAction = (tree: Tree) => tree.hosts().find((node) => node.props.testID === 'button-primary-sm' && node.props.accessibilityState !== undefined)
+  const alerts = (tree: Tree) => tree.hosts().filter((node) => node.props.accessibilityRole === 'alert')
+
+  it('shows a skeleton for each summary row while the stored details load, with no spinner and with the save off', async () => {
+    state.detailPending = true
+    state.detailFetching = true
+    const tree = mountEdit()
+    await settle()
+    expect(heading(tree)).toBe(ptBR.habits.flow.confirm.question)
+    const skeleton = summarySkeleton(tree)
+    expect(skeleton?.props.accessibilityState).toMatchObject({ busy: true })
+    expect(skeleton?.props.accessibilityLabel).toBe(ptBR.common.loading)
+    expect(tree.hosts().filter((node) => node.props.testID === 'skeleton-unit-fill').length).toBeGreaterThan(1)
+    expect(control(tree, /^Hora,/)).toBeUndefined()
+    expect(control(tree, ptBR.habits.flow.more)).toBeUndefined()
+    expect(tree.hosts().some((node) => node.type === 'ActivityIndicator')).toBe(false)
+    expect(saveAction(tree)?.props.accessibilityState).toMatchObject({ disabled: true, busy: false })
+    await act(async () => { saveAction(tree)?.props.onPress?.(); await Promise.resolve() })
+    expect(state.update).not.toHaveBeenCalled()
+    tree.unmount()
+  })
+
+  it('states a failed detail read on the summary with a retry, keeps the save off and sends nothing', async () => {
+    state.detailError = new Error('offline')
+    const tree = mountEdit()
+    await settle()
+    expect(heading(tree)).toBe(ptBR.habits.flow.confirm.question)
+    expect(summarySkeleton(tree)).toBeUndefined()
+    expect(alerts(tree)).toHaveLength(1)
+    expect(control(tree, /^Hora,/)).toBeUndefined()
+    expect(control(tree, ptBR.habits.flow.more)).toBeUndefined()
+    expect(saveAction(tree)?.props.accessibilityState).toMatchObject({ disabled: true })
+    await act(async () => { saveAction(tree)?.props.onPress?.(); await Promise.resolve() })
+    expect(state.update).not.toHaveBeenCalled()
+    await tap(tree, ptBR.common.retry)
+    expect(state.refetchDetail).toHaveBeenCalledTimes(1)
+    tree.unmount()
+  })
+
+  it('shows the skeleton again while the retry of a failed detail read runs', async () => {
+    state.detailError = new Error('offline')
+    state.detailFetching = true
+    const tree = mountEdit()
+    await settle()
+    expect(summarySkeleton(tree)).toBeDefined()
+    expect(alerts(tree)).toHaveLength(0)
+    expect(saveAction(tree)?.props.accessibilityState).toMatchObject({ disabled: true })
+    tree.unmount()
+  })
+
+  it('shows the stored values and an enabled save once the details load', async () => {
+    state.saved = { ...storedHabit, parentId: null, children: [], endDate: null }
+    const tree = mountEdit()
+    await settle()
+    expect(summarySkeleton(tree)).toBeUndefined()
+    expect(control(tree, /^Hora,/)).toBeDefined()
+    expect(saveAction(tree)?.props.accessibilityState).toMatchObject({ disabled: false })
     tree.unmount()
   })
 })

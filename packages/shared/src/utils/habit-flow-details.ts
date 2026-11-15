@@ -1,5 +1,6 @@
 import { formatConjunctionList } from './conjunction-list'
 import { parseDatePhrase, type DatePhraseContext } from './date-phrase-parser'
+import { getFriendlyErrorMessage } from './error-utils'
 import { readTypedHabitPhrase, type HabitPhraseRead } from './habit-phrase-parser'
 import type { SupportedLocale } from '../types/profile'
 import type { HabitFlowDetailStep, HabitFlowOptionalId } from './habit-flow-navigation'
@@ -52,6 +53,47 @@ export function habitFlowSelectionAnswer<Item extends { id: string }>(
     return item ? [nameOf(item)] : []
   })
   return habitFlowNamesAnswer(names, locale)
+}
+
+export interface EditDetailsRead<ReadError> {
+  /** The flag `orbit_guided_flows`. The full form keeps its own late-read behaviour. */
+  guided: boolean
+  /** The habit the edit holds, or null while the edit is closed. */
+  habitId: string | null
+  hasDetail: boolean
+  pending: boolean
+  fetching: boolean
+  error: ReadError | null
+}
+
+export interface GuidedEditDetails<ReadError> {
+  /** The first read, or the retry of a failed one, runs. The summary shows a skeleton for each row. */
+  loading: boolean
+  /** The read failed. The summary states it with a retry. */
+  summaryError: ReadError | null
+  /** The error the toast states: one the summary does not state itself. */
+  toastError: ReadError | null
+  /** The summary holds no stored value yet, so the save stays off. */
+  blocked: boolean
+}
+
+/**
+ * What the guided edit summary shows for the stored details of the habit. The detail read fills the whole form,
+ * so the summary waits for it. A habit created offline has no stored details yet: its list record is the whole
+ * record, and a failed read does not block it.
+ */
+export function resolveGuidedEditDetails<ReadError>(read: EditDetailsRead<ReadError>): GuidedEditDetails<ReadError> {
+  if (!read.guided || read.habitId === null) return { loading: false, summaryError: null, toastError: read.error, blocked: false }
+  const failed = !read.hasDetail && read.error !== null && !read.habitId.startsWith('offline-habit-')
+  const loading = read.pending || (failed && read.fetching)
+  const summaryError = failed && !read.fetching ? read.error : null
+  const blocked = loading || summaryError !== null
+  return { loading, summaryError, toastError: blocked ? null : read.error, blocked }
+}
+
+/** The failed detail read as the guided summary states it: the message and the retry. Null with no failed read. */
+export function describeEditDetailsError(error: unknown, translate: Parameters<typeof getFriendlyErrorMessage>[1], onRetry: () => void): { message: string; onRetry: () => void } | null {
+  return error ? { message: getFriendlyErrorMessage(error, translate, 'errors.fetchHabits', 'habit'), onRetry } : null
 }
 
 /** The step that a summary value opens. A habit's Quando opens its repeat; a task opens the date question. */

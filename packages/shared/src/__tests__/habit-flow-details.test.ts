@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { guardHabitReadPatch, habitFlowFieldStep, habitFlowNamesAnswer, habitFlowOptionalQuestions, habitFlowSelectionAnswer, readHabitWhenWords, summaryValueStep } from '../utils/habit-flow-details'
+import { guardHabitReadPatch, habitFlowFieldStep, habitFlowNamesAnswer, habitFlowOptionalQuestions, habitFlowSelectionAnswer, readHabitWhenWords, resolveGuidedEditDetails, summaryValueStep } from '../utils/habit-flow-details'
 
 const base = { mode: 'create' as const, isGeneral: false, canSplit: true, hasParent: false, canEnd: true }
 const context = { referenceDate: '2026-11-13', locale: 'pt-BR', timeZone: 'UTC', language: 'pt-BR' as const, allowPast: false }
@@ -37,6 +37,37 @@ describe('the answers of the optional list', () => {
   it('leaves out a sub-item row the person left empty', () => {
     expect(habitFlowNamesAnswer(['Alongar', '  ', 'Beber água'], 'pt-BR')).toBe('Alongar e Beber água')
     expect(habitFlowNamesAnswer(['', ' '], 'pt-BR')).toBeUndefined()
+  })
+})
+
+describe('resolveGuidedEditDetails', () => {
+  const read = { guided: true, habitId: 'habit-1', hasDetail: false, pending: false, fetching: false, error: null as Error | null }
+  const failure = new Error('offline')
+
+  it('waits with the save off while the first read runs', () => {
+    expect(resolveGuidedEditDetails({ ...read, pending: true, fetching: true })).toEqual({ loading: true, summaryError: null, toastError: null, blocked: true })
+  })
+
+  it('states a failed read on the summary, not in a toast, and keeps the save off', () => {
+    expect(resolveGuidedEditDetails({ ...read, error: failure })).toEqual({ loading: false, summaryError: failure, toastError: null, blocked: true })
+  })
+
+  it('waits again while the retry of a failed read runs', () => {
+    expect(resolveGuidedEditDetails({ ...read, error: failure, fetching: true })).toEqual({ loading: true, summaryError: null, toastError: null, blocked: true })
+  })
+
+  it('is ready once the details load, and leaves a later refetch error to the toast', () => {
+    expect(resolveGuidedEditDetails({ ...read, hasDetail: true })).toEqual({ loading: false, summaryError: null, toastError: null, blocked: false })
+    expect(resolveGuidedEditDetails({ ...read, hasDetail: true, error: failure })).toEqual({ loading: false, summaryError: null, toastError: failure, blocked: false })
+  })
+
+  it('never blocks a habit created offline, whose list record is the whole record', () => {
+    expect(resolveGuidedEditDetails({ ...read, habitId: 'offline-habit-7', error: failure })).toEqual({ loading: false, summaryError: null, toastError: failure, blocked: false })
+  })
+
+  it('leaves the full form and a closed edit as they are', () => {
+    expect(resolveGuidedEditDetails({ ...read, guided: false, pending: true, error: failure })).toEqual({ loading: false, summaryError: null, toastError: failure, blocked: false })
+    expect(resolveGuidedEditDetails({ ...read, habitId: null, pending: true })).toEqual({ loading: false, summaryError: null, toastError: null, blocked: false })
   })
 })
 
