@@ -1,8 +1,15 @@
-const DIRECTIVE =
-  /^(@ts-|ts-|prettier-ignore|@jsx|c8\s|v8\s|istanbul\s|@vite|@vitest|@license|@preserve|@__PURE__|#__PURE__)/
-const ESLINT_BLOCK_DIRECTIVE = /^(eslint(?:-env|-enable|-disable(?:(?:-next)?-line)?)?|exported|globals?)(?:\s|$)/
-const ESLINT_LINE_DIRECTIVE = /^eslint-disable-(?:next-)?line(?:\s|$)/
-const WEBPACK_MAGIC_COMMENT = /^webpack[A-Z]\w*\s*:/
+const LINE_BREAK = /\r\n|[\r\n\u2028\u2029]/
+const TAG_DIRECTIVE = /^(?:@license|@preserve|(?:istanbul|[cv]8)\s+ignore\s+(?:start|stop)(?=\W|$))/
+const VITEST_ENVIRONMENT = /@vitest-environment(?:\s+[\w-]+\b|-options\s+.)/
+const COVERAGE_HINT = /^(?:istanbul|[cv]8)\s+ignore\s+(?:if|else|next|file)(?=\W|$)/
+const TYPESCRIPT_LINE_SUPPRESSION = /^\/\/\/?\s*@(?:ts-expect-error|ts-ignore)/
+const TYPESCRIPT_BLOCK_SUPPRESSION = /^(?:\/|\*)*\s*@(?:ts-expect-error|ts-ignore)/
+const TYPESCRIPT_LINE_PRAGMA =
+  /^\/\/\/?\s*@(?:ts-check|ts-nocheck)(?:[^\S\r\n]|:|$)|^\/\/\/\s*<(?:reference|amd-dependency|amd-module)\s.*?\/>/i
+const TYPESCRIPT_BLOCK_PRAGMA = /^@(?:jsx|jsxfrag|jsximportsource|jsxruntime)(?:\s|$)/i
+const LINE_DIRECTIVE = /^(?:eslint-disable(?:-next)?-line(?:\s|$)|prettier-ignore$|webpack[A-Z][A-Za-z]+:|[@#]__PURE__)/
+const BLOCK_DIRECTIVE =
+  /^(?:(?:eslint(?:-enable|-disable(?:(?:-next)?-line)?)?|globals?|exported)(?:\s|$)|prettier-ignore$|webpack[A-Z][A-Za-z]+:|[@#]__PURE__|@vite-ignore$)/
 const URL_RE = /https?:\/\//
 const TYPE_ANNOTATION = /@(?:type|typedef|satisfies|template|import)(?![\w-])|@(?:param|returns)\s*\{/
 const JAVASCRIPT_FILE = /\.[cm]?jsx?$/
@@ -163,6 +170,25 @@ function createExportCheck(sourceCode) {
   }
 }
 
+function isTypeScriptSuppression(comment) {
+  if (comment.type === 'Line') return TYPESCRIPT_LINE_SUPPRESSION.test(`//${comment.value}`)
+  const lastLine = `/*${comment.value}*/`.split(LINE_BREAK).at(-1).trimStart()
+  return TYPESCRIPT_BLOCK_SUPPRESSION.test(lastLine)
+}
+
+function isDirective(comment, isDocComment) {
+  if (comment.type === 'Shebang') return true
+  const opening = (isDocComment ? comment.value.slice(1) : comment.value).trim()
+  const firstText = comment.type === 'Block' ? comment.value.replace(/^[ \t]*\*+/gm, '').trim() : opening
+  if (TAG_DIRECTIVE.test(firstText) || COVERAGE_HINT.test(opening)) return true
+  if (VITEST_ENVIRONMENT.test(comment.value) || isTypeScriptSuppression(comment)) return true
+  if (comment.type === 'Line') {
+    return LINE_DIRECTIVE.test(opening) || TYPESCRIPT_LINE_PRAGMA.test(`//${comment.value}`)
+  }
+  if (TYPESCRIPT_BLOCK_PRAGMA.test(firstText)) return true
+  return !isDocComment && BLOCK_DIRECTIVE.test(opening)
+}
+
 module.exports = {
   meta: {
     type: 'suggestion',
@@ -184,14 +210,9 @@ module.exports = {
 
     function isAllowed(comment) {
       if (URL_RE.test(comment.value)) return true
-      const isBlock = comment.type === 'Block'
-      const isDocComment = isBlock && comment.value.startsWith('*')
-      const raw = comment.value.trim()
-      const value = (isBlock ? comment.value.replace(/^[ \t]*\*+/gm, '') : comment.value).trim()
-      if (comment.type === 'Line' && value.startsWith('/')) return true
-      if (DIRECTIVE.test(value)) return true
-      if (comment.type === 'Line') return ESLINT_LINE_DIRECTIVE.test(raw)
-      if (!isDocComment) return ESLINT_BLOCK_DIRECTIVE.test(raw) || WEBPACK_MAGIC_COMMENT.test(raw)
+      const isDocComment = comment.type === 'Block' && comment.value.startsWith('*')
+      if (isDirective(comment, isDocComment)) return true
+      if (!isDocComment) return false
       if (JAVASCRIPT_FILE.test(filename) && TYPE_ANNOTATION.test(comment.value)) return true
       return isOnExportedSymbol(comment)
     }
