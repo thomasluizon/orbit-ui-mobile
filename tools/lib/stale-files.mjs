@@ -22,6 +22,8 @@ const MEASURE_TIMEOUT_MS = 120_000
 const SESSION_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 const DURABLE_COPY = /^durable-([0-9a-f]{8})/
 const LINK_HOP_LIMIT = 40
+/** Each container branch costs one GitHub read, and the hourly GitHub budget is shared by every tool. */
+const CONTAINER_BRANCH_LIMIT = 10
 
 export const staleFilesStorePath = (repoRoot = REPO_ROOT) => join(gitDirectoryOf(repoRoot), "orbit-stale-files.json")
 export const defaultCarryRoot = () => join(homedir(), ".orbit-run-carry")
@@ -241,7 +243,7 @@ const mergedContainerOf = (worktree, tip, probes) => {
   const base = symbolic ?? "origin/main"
   if (isAncestor(worktree, tip, base, probes)) return `its branch is contained in ${base}`
   const containers = (probes.git(worktree.path, ["for-each-ref", "--contains", tip, "--format=%(refname:short)", "refs/heads"]) ?? "")
-    .split("\n").filter((branch) => branch && branch !== worktree.branch)
+    .split("\n").filter((branch) => branch && branch !== worktree.branch).slice(0, CONTAINER_BRANCH_LIMIT)
   for (const branch of containers) {
     const merged = (probes.pullRequests(worktree.path, branch) ?? []).find((pullRequest) => pullRequest.state === "MERGED"
       && hasPullRequestHead(worktree, pullRequest, probes) && isAncestor(worktree, tip, pullRequest.headRefOid, probes))
