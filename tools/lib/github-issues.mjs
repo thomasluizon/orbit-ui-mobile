@@ -7,8 +7,17 @@ import { escapeRegex } from "./escape-regex.mjs"
 import { readOrchestratorConfig } from "./orchestrator-config.mjs"
 
 const ISSUE_FIELDS = "number,url,title,body,state,stateReason,labels,blockedBy,blocking"
+/** The list read carries the milestone, so a milestone scope is matched here and not by gh search. */
+const LIST_ISSUE_FIELDS = `${ISSUE_FIELDS},milestone`
 const COMMAND_TIMEOUT_MS = 30000
 const COMMAND_MAX_BUFFER = 32 * 1024 * 1024
+/**
+ * The first guess for a gh list read, never a ceiling. A list that holds more is read again, so
+ * no fixed number hides a ticket.
+ */
+const FIRST_FETCH_LIMIT = 100
+/** Closed tickets are most of a long-lived project, so the shared project read holds open issues only. */
+const OPEN_ISSUE_ITEMS_FILTER = "is:issue is:open"
 const STATE_REASON_FILTER = 'if .stateReason == "" then .stateReason = null else . end'
 const LIST_STATE_REASON_FILTER = `map(${STATE_REASON_FILTER})`
 const ISSUE_PROJECT_ITEMS_QUERY = `query IssueProjectItems($o: String!, $r: String!, $n: Int!, $after: String) {
@@ -111,7 +120,7 @@ const issueDependenciesArgs = (number, repository, relation) => [
   "[.[].number]",
 ]
 
-const projectItemsArgs = (tickets) => [
+const openProjectItemsArgs = (tickets, limit) => [
   "project",
   "item-list",
   String(tickets.projectNumber),
@@ -119,8 +128,10 @@ const projectItemsArgs = (tickets) => [
   tickets.projectOwner,
   "--format",
   "json",
+  "--query",
+  OPEN_ISSUE_ITEMS_FILTER,
   "--limit",
-  "1000",
+  String(limit),
 ]
 
 const repositoryParts = (repository) => {
@@ -161,18 +172,32 @@ const boardTicket = (node, tickets) => {
   return onBoard ? { number, updatedAt: node.updatedAt, openBlockers: blockers.filter((blocker) => blocker.state === "OPEN").map((blocker) => blocker.number) } : null
 }
 
+/**
+ * gh stops at --limit and reports the count of every matching item as totalCount. A short read is
+ * repeated at that count, so the result holds every open issue at any project size.
+ */
+const readEveryOpenProjectItem = async (tickets) => {
+  let limit = FIRST_FETCH_LIMIT
+  for (;;) {
+    const args = openProjectItemsArgs(tickets, limit)
+    const response = parseGhJson(`gh ${args.join(" ")}`, await runGh(args))
+    if (!Array.isArray(response?.items)) throw new Error("gh project item-list returned no items array")
+    if (!Number.isInteger(response.totalCount)) throw new Error("gh project item-list returned no totalCount integer")
+    if (response.items.length >= response.totalCount) return response.items
+    if (response.totalCount <= limit) {
+      throw new Error(`gh project item-list returned ${response.items.length} of ${response.totalCount} items under --limit ${limit}`)
+    }
+    limit = response.totalCount
+  }
+}
+
 const projectItemsByProject = new Map()
 
-const readProjectItems = async (tickets) => {
+const readOpenProjectItems = async (tickets) => {
   const projectKey = JSON.stringify([tickets.projectOwner, tickets.projectNumber])
   const cached = projectItemsByProject.get(projectKey)
   if (cached) return cached
-  const args = projectItemsArgs(tickets)
-  const pending = (async () => {
-    const response = parseGhJson(`gh ${args.join(" ")}`, await runGh(args))
-    if (!Array.isArray(response?.items)) throw new Error("gh project item-list returned no items array")
-    return response.items
-  })()
+  const pending = readEveryOpenProjectItem(tickets)
   projectItemsByProject.set(projectKey, pending)
   try {
     return await pending
@@ -209,6 +234,13 @@ const readIssueProjectItems = async (number, tickets) => {
       status: node.fieldValueByName?.name,
     }))
 }
+
+/**
+ * Bulk reads share one snapshot of the open project items. A closed ticket reads its own item, so
+ * no read grows with the closed history of the project.
+ */
+const projectItemsFor = async (issue, tickets) =>
+  issue?.state === "CLOSED" ? readIssueProjectItems(positiveIssueNumber(issue.number), tickets) : readOpenProjectItems(tickets)
 
 const readIssueDependencies = async (number, tickets, relation) => {
   const args = issueDependenciesArgs(number, tickets.repository, relation)
@@ -320,17 +352,17 @@ export const readTicket = async (number, { withProjectItem = true } = {}) => {
   return normalizeTicket(issue, projectItems, tickets.repository)
 }
 
-/** Bulk callers share one complete board snapshot while retaining the ordinary issue response. */
+/** Bulk callers share one snapshot of the open project items while retaining the ordinary issue response. */
 export const readTickets = async (numbers) => {
   if (!Array.isArray(numbers) || numbers.some((number) => !Number.isInteger(number) || number <= 0)) {
     throw new Error("readTickets requires an array of positive issue numbers")
   }
   if (numbers.length === 0) return []
   const tickets = ticketConfiguration()
-  const projectItems = await readProjectItems(tickets)
   const normalized = []
   for (const number of numbers) {
-    normalized.push(normalizeTicket(await readIssue(number, tickets), projectItems, tickets.repository))
+    const issue = await readIssue(number, tickets)
+    normalized.push(normalizeTicket(issue, await projectItemsFor(issue, tickets), tickets.repository))
   }
   return normalized
 }
@@ -771,23 +803,37 @@ export const listBoardState = async () => {
   }
 }
 
-export const listTickets = async ({ labels = [], state = "open", milestone = null } = {}) => {
-  if (!Array.isArray(labels) || labels.some((label) => typeof label !== "string" || label.trim().length === 0)) {
-    throw new Error("Ticket labels must be an array of non-empty strings")
+/**
+ * gh answers --label and --milestone through GitHub search, which stops at 1000 issues without an
+ * error. This read passes neither, so gh pages repository.issues to the end. gh issue list reports
+ * no total, so a read that returns its --limit is repeated at twice the limit until it returns less.
+ */
+const readEveryOpenIssue = async (tickets) => {
+  for (let limit = FIRST_FETCH_LIMIT; ; limit *= 2) {
+    const args = ["issue", "list", "--repo", tickets.repository, "--state", "open", "--limit", String(limit), "--json", LIST_ISSUE_FIELDS, "--jq", LIST_STATE_REASON_FILTER]
+    const issues = parseGhJson(`gh ${args.join(" ")}`, await runGh(args))
+    if (!Array.isArray(issues)) throw new Error("gh issue list returned no issue array")
+    if (issues.length < limit) return issues
   }
-  if (!new Set(["open", "closed", "all"]).has(state)) throw new Error(`Ticket state must be open, closed, or all, got ${JSON.stringify(state)}`)
+}
+
+const inMilestone = (issue, milestone) => {
+  if (issue?.milestone !== null && typeof issue?.milestone?.title !== "string") {
+    throw new Error(`gh issue list carried no milestone for #${issue?.number}`)
+  }
+  return issue.milestone?.title === milestone
+}
+
+/** Every open ticket, or the open tickets in one milestone, matched by its exact title. */
+export const listOpenTickets = async ({ milestone = null } = {}) => {
   if (milestone !== null && (typeof milestone !== "string" || milestone.trim().length === 0)) {
     throw new Error("Ticket milestone must be null or a non-empty string")
   }
   const tickets = ticketConfiguration()
-  const args = ["issue", "list", "--repo", tickets.repository, "--state", state, "--limit", "1000", "--json", ISSUE_FIELDS]
-  for (const label of labels) args.push("--label", label)
-  if (milestone !== null) args.push("--milestone", milestone)
-  args.push("--jq", LIST_STATE_REASON_FILTER)
-  const [issueOutput, projectItems] = await Promise.all([runGh(args), readProjectItems(tickets)])
-  const issues = parseGhJson(`gh ${args.join(" ")}`, issueOutput)
-  if (!Array.isArray(issues)) throw new Error("gh issue list returned no issue array")
-  return issues.map((issue) => normalizeTicket(issue, projectItems, tickets.repository))
+  const [issues, projectItems] = await Promise.all([readEveryOpenIssue(tickets), readOpenProjectItems(tickets)])
+  return issues
+    .filter((issue) => milestone === null || inMilestone(issue, milestone))
+    .map((issue) => normalizeTicket(issue, projectItems, tickets.repository))
 }
 
 export const assertRepositoryLabel = (ticket, repoKey) => {
