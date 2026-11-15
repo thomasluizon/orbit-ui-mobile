@@ -172,8 +172,7 @@ function signInPillStyle({ paddingX, paddingY, gap }: SignInButtonSpec): ViewSty
 }
 
 /** A provider pill holds its mark in a slot of the resting content height at the top, so a wrapped title keeps the mark on its first line. */
-function ButtonLead({ signIn, children }: Readonly<{ signIn: SignInButtonSpec | null; children: React.ReactNode }>) {
-  if (!signIn || !children) return children
+function ButtonLead({ signIn, children }: Readonly<{ signIn: SignInButtonSpec; children: React.ReactNode }>) {
   return <View style={{ height: SIGN_IN_BUTTON_HEIGHT - signIn.paddingY * 2, alignSelf: 'flex-start', justifyContent: 'center' }}>{children}</View>
 }
 
@@ -193,10 +192,11 @@ function ButtonContents({ loading, retainLeadingIcon, iconOnly, leadingGlyph, ch
   const { fontScale } = useWindowDimensions()
   const iconColor = isValidElement<{ color?: string }>(children) ? children.props.color : undefined
   const wrapping = labelWrapping(signIn, retainLeadingIcon, fontScale)
+  const lead = loading && !retainLeadingIcon ? (
+    <ActivityIndicator size="small" color={textColor} />
+  ) : iconOnly ? buttonLeadingGlyph(children, iconColor ?? textColor) : leadingGlyph
   return <>
-      <ButtonLead signIn={signIn}>{loading && !retainLeadingIcon ? (
-        <ActivityIndicator size="small" color={textColor} />
-      ) : iconOnly ? buttonLeadingGlyph(children, iconColor ?? textColor) : leadingGlyph}</ButtonLead>
+      {signIn && lead ? <ButtonLead signIn={signIn}>{lead}</ButtonLead> : lead}
       {iconOnly ? null : (
         <Text
           numberOfLines={wrapping.numberOfLines}
