@@ -424,6 +424,13 @@ describe('web step up screen', () => {
     )
   })
 
+  it('shows a pending update in its notice with no Orbit, because Orbit never sits inside a step-up', async () => {
+    useVersionGateStore.getState().markUpgradeRequired('1.5.0')
+    await renderLiveScreen()
+    expect(screen.getByRole('status')).toHaveTextContent('forceUpdate.banner')
+    expect(document.querySelector('[data-asset="orbit-mascot"]')).toBeNull()
+  })
+
   it('routes cancel to Profile', async () => {
     await renderLiveScreen()
     fireEvent.click(screen.getByText('cancel'))

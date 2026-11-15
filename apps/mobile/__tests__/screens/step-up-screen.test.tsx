@@ -572,6 +572,14 @@ describe('mobile step up screen', () => {
     expect(mocks.router.replace).toHaveBeenCalledWith(operation === 'keys' ? '/profile/astra' : '/profile/account')
   })
 
+  it.each([
+    ['live', () => liveRecord()],
+    ['exhausted', () => ({ operation: 'delete' as const, sentAt: Date.now(), exhaustedAt: Date.now() - STEP_UP_ATTEMPT_WINDOW_MS + 10_000 })],
+  ] as const)('draws no Orbit in the %s step-up, because Orbit never sits inside a step-up', async (_state, record) => {
+    const tree = await renderScreen(record())
+    expect(tree.root.findAll((node) => node.props.testID === 'orbit-mascot')).toHaveLength(0)
+  })
+
   it('shows the arrival cooldown with no resend control', async () => {
     const tree = await renderScreen()
     expect(findText(tree.root, 'stepUp.cooldown').length).toBeGreaterThan(0)
