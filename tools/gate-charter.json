@@ -44,6 +44,16 @@
     "snapshot": "none",
     "constants": "none"
   },
+  ".claude/hooks/offer-stale-cleanup.mjs": {
+    "scope": "changed-files",
+    "snapshot": "none",
+    "constants": [
+      {
+        "name": "listing age and listing time ceiling",
+        "source": "tools/lib/stale-files.mjs LISTING_MAX_AGE_MS and LISTING_CEILING_MS"
+      }
+    ]
+  },
   ".claude/hooks/orchestrator-guardrails.mjs": {
     "scope": "changed-files",
     "snapshot": "none",

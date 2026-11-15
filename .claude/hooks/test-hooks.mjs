@@ -966,7 +966,7 @@ for (const hook of ["git-guardrails", "orchestrator-guardrails", "forbid-invente
   T(`adapter ${hook}: malformed stdin blocks`, result.status, 2)
   T(`adapter ${hook}: failure identifies the hook`, result.stderr.includes(hook), true)
 }
-for (const hook of ["surface-pending-lessons", "record-handoff-request", "relay-at-threshold"]) {
+for (const hook of ["surface-pending-lessons", "record-handoff-request", "relay-at-threshold", "offer-stale-cleanup"]) {
   T(`reminder ${hook}: malformed stdin allows`, runHookResult(`${hook}.mjs`, "not json").status, 0)
 }
 const bash = (command, cwd = root) => ({ tool_name: "Bash", tool_input: { command }, cwd })
@@ -2421,6 +2421,57 @@ const emptyResult = secondOpinionReply("")
 T("second-opinion: an empty response degrades", [emptyResult.status, emptyResult.reason], ["UNAVAILABLE", "empty response from claude"])
 const noFindingResult = secondOpinionReply(placeholderVerdict, "success", " ")
 T("second-opinion: no dossier degrades", [noFindingResult.status, noFindingResult.reason], ["UNAVAILABLE", "no finding text on stdin"])
+
+// ---------------------------------------------------------------------------
+// Stale files offer (UserPromptSubmit), in the isolated checkout so no test reads or writes this machine's listing
+// ---------------------------------------------------------------------------
+console.log("\n# offer-stale-cleanup (stale files offer on every prompt)")
+const { LISTING_MAX_AGE_MS, listingIdOf, staleFilesStorePath } = await import("../../tools/lib/stale-files.mjs")
+const STALE_OFFER_HOOK = "offer-stale-cleanup.mjs"
+cpSync(join(hooksDir, STALE_OFFER_HOOK), join(wakeHooks, STALE_OFFER_HOOK))
+const staleListingArguments = join(root, "stale-listing-arguments.json")
+// The real tool reads the whole machine. This stand-in only records how the hook starts a listing.
+writeFileSync(join(wakeCheckout, "tools", "stale-files.mjs"), `import { writeFileSync } from "node:fs"\nwriteFileSync(${JSON.stringify(staleListingArguments)}, JSON.stringify(process.argv.slice(2)))\n`)
+const staleSessionRoot = join(root, "stale-offer-sessions")
+const staleSessionDirectory = join(staleSessionRoot, "0f0f0f0f-0000-4000-8000-00000000000f")
+mkdirSync(staleSessionDirectory, { recursive: true })
+const offerPrompt = { session_id: "stale-offer-session", hook_event_name: "UserPromptSubmit", prompt: "Continue.", cwd: wakeCheckout, scratchpad_dir: join(staleSessionRoot, "stale-offer-session", "scratchpad") }
+const runOfferHook = (payload = offerPrompt, env = {}) => spawnSync(process.execPath, [join(wakeHooks, STALE_OFFER_HOOK)], { input: JSON.stringify(payload), encoding: "utf8", env: { ...process.env, ORBIT_LAUNCH_WORKER: "", ...env } })
+const offerOutput = (result) => (result.stdout === "" ? null : JSON.parse(result.stdout).hookSpecificOutput)
+const startedListing = async (attempts = 100) => {
+  for (let attempt = 0; attempt < attempts && !existsSync(staleListingArguments); attempt += 1) await new Promise((resolve) => setTimeout(resolve, 50))
+  const started = existsSync(staleListingArguments) ? JSON.parse(readFileSync(staleListingArguments, "utf8")) : null
+  rmSync(staleListingArguments, { force: true })
+  rmSync(join(wakeCheckout, ".git", "orbit-stale-files-refresh.json"), { force: true })
+  return started
+}
+const storeStaleListing = (stale, generatedAt = new Date().toISOString()) => writeFileSync(staleFilesStorePath(wakeCheckout),
+  JSON.stringify({ version: 1, generatedAt, listingId: listingIdOf(stale), context: { sessionId: "stale-offer-session", sessionRoot: staleSessionRoot }, stale, kept: [] }))
+const staleItem = { kind: "session", path: staleSessionDirectory, bytes: 3 * 1024 ** 3, reason: "not this session, its predecessor, or a session with a live process" }
+
+const firstPrompt = runOfferHook()
+T("stale offer: a prompt with no stored listing adds nothing", [firstPrompt.status, firstPrompt.stdout], [0, ""])
+T("stale offer: a prompt with no stored listing starts one detached listing for this session", await startedListing(), ["--list", "--session", "stale-offer-session", "--session-root", staleSessionRoot])
+storeStaleListing([staleItem])
+const offered = runOfferHook()
+const offerContext = offerOutput(offered)?.additionalContext ?? ""
+T("stale offer: a prompt with a stale item exits 0 and adds context to the prompt", [offered.status, offerOutput(offered)?.hookEventName], [0, "UserPromptSubmit"])
+T("stale offer: the context is one line with the item count, the total size and the removal command", {
+  oneLine: !offerContext.includes("\n"), count: offerContext.includes("1 item, 3.0 GB (1 session directory)"), owner: /Offer this cleanup to the owner in one line/.test(offerContext),
+  consent: /only after the owner says yes/.test(offerContext), command: offerContext.includes(`node tools/stale-files.mjs --delete --listing ${listingIdOf([staleItem])}`),
+}, { oneLine: true, count: true, owner: true, consent: true, command: true })
+T("stale offer: the offer appears again on the next prompt", runOfferHook().stdout, offered.stdout)
+T("stale offer: a recent listing starts no second listing", await startedListing(20), null)
+T("stale offer: a launched worker has no owner, so it gets no offer", runOfferHook(offerPrompt, { ORBIT_LAUNCH_WORKER: "1" }).stdout, "")
+T("stale offer: a subagent gets no offer", runOfferHook({ ...offerPrompt, agent_id: "agent-1" }).stdout, "")
+storeStaleListing([staleItem], new Date(Date.now() - LISTING_MAX_AGE_MS - 1000).toISOString())
+T("stale offer: an old listing still gives the offer", offerOutput(runOfferHook())?.additionalContext, offerContext)
+T("stale offer: an old listing starts a new listing", await startedListing(), ["--list", "--session", "stale-offer-session", "--session-root", staleSessionRoot])
+storeStaleListing([])
+T("stale offer: a listing with no stale item adds nothing", [runOfferHook().status, runOfferHook().stdout], [0, ""])
+storeStaleListing([{ ...staleItem, path: join(staleSessionRoot, "removed-by-hand") }])
+T("stale offer: an item that no longer exists is not offered", runOfferHook().stdout, "")
+rmSync(staleFilesStorePath(wakeCheckout), { force: true })
 
 console.log(`\n${fails === 0 ? "ORBIT HOOKS OK" : `ORBIT HOOKS FAILED (${fails})`}`)
 process.exit(fails === 0 ? 0 : 1)

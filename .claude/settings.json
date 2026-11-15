@@ -61,6 +61,11 @@
         "hooks": [
           { "type": "command", "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/record-handoff-request.mjs\"" }
         ]
+      },
+      {
+        "hooks": [
+          { "type": "command", "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/offer-stale-cleanup.mjs\"", "timeout": 5 }
+        ]
       }
     ],
     "Stop": [
