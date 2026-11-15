@@ -4,7 +4,7 @@ import { useState, type ReactNode } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
 import type { FlowStepView } from '@orbit/shared/contracts/flow'
 import { backendFormFieldFocusRequest, resolveBackendFormFieldMessage } from '@orbit/shared/hooks'
-import { buildHabitUnderstandingSentence, formatLocaleDate, phraseLineKey, summaryValueStep, toTime24, HABIT_TIME_OPTIONS, type HabitFormCommonProps } from '@orbit/shared/utils'
+import { buildHabitUnderstandingSentence, formatLocaleDate, phraseLineKey, summaryValueStep, toTime24, HABIT_TIME_OPTIONS, type HabitFlowAnswerFields, type HabitFormCommonProps } from '@orbit/shared/utils'
 import { MAX_HABIT_TITLE_LENGTH } from '@orbit/shared/validation'
 import type { HabitFormHelpers } from '@/hooks/use-habit-form'
 import type { TagSelectionState } from '@/hooks/use-tag-selection'
@@ -25,7 +25,7 @@ import type { useGuidedHabitFlow } from './use-guided-habit-flow'
 export type GuidedFlow = ReturnType<typeof useGuidedHabitFlow>
 
 /** The inputs of every detail question: the same props the full form takes, so both views share one form state. */
-export type GuidedHabitFields = Omit<HabitFormCommonProps<HabitFormHelpers, TagSelectionState, ReactNode>, 'formHelpers'>
+export type GuidedHabitFields = Omit<HabitFormCommonProps<HabitFormHelpers, TagSelectionState, ReactNode>, 'formHelpers'> & HabitFlowAnswerFields
 
 export interface GuidedHabitCompletion {
   stepCount: number

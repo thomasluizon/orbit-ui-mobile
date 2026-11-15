@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { guardHabitReadPatch, habitFlowFieldStep, habitFlowOptionalQuestions, readHabitWhenWords, summaryValueStep } from '../utils/habit-flow-details'
+import { guardHabitReadPatch, habitFlowFieldStep, habitFlowNamesAnswer, habitFlowOptionalQuestions, habitFlowSelectionAnswer, readHabitWhenWords, summaryValueStep } from '../utils/habit-flow-details'
 
 const base = { mode: 'create' as const, isGeneral: false, canSplit: true, hasParent: false, canEnd: true }
 const context = { referenceDate: '2026-11-13', locale: 'pt-BR', timeZone: 'UTC', language: 'pt-BR' as const, allowPast: false }
@@ -16,6 +16,27 @@ describe('habitFlowOptionalQuestions', () => {
   it('adds the parent row in edit only', () => {
     expect(habitFlowOptionalQuestions({ ...base, mode: 'edit', canSplit: false, hasParent: true })).toContain('parent')
     expect(habitFlowOptionalQuestions({ ...base, hasParent: true })).not.toContain('parent')
+  })
+})
+
+describe('the answers of the optional list', () => {
+  const tags = [{ id: 'tag-1', name: 'Saúde' }, { id: 'tag-2', name: 'Casa' }, { id: 'tag-3', name: 'Trabalho' }]
+
+  it('names the selected items in the order the person selected them, in the language of the person', () => {
+    expect(habitFlowSelectionAnswer(['tag-2', 'tag-1'], tags, (tag) => tag.name, 'pt-BR')).toBe('Casa e Saúde')
+    expect(habitFlowSelectionAnswer(['tag-1', 'tag-2', 'tag-3'], tags, (tag) => tag.name, 'en')).toBe('Saúde, Casa, and Trabalho')
+  })
+
+  it('shows no answer with no selection, and leaves out an id the list does not hold', () => {
+    expect(habitFlowSelectionAnswer([], tags, (tag) => tag.name, 'en')).toBeUndefined()
+    expect(habitFlowSelectionAnswer(['tag-9'], tags, (tag) => tag.name, 'en')).toBeUndefined()
+    expect(habitFlowSelectionAnswer(['tag-1'], undefined, (tag: { id: string; name: string }) => tag.name, 'en')).toBeUndefined()
+    expect(habitFlowSelectionAnswer(['tag-9', 'tag-3'], tags, (tag) => tag.name, 'en')).toBe('Trabalho')
+  })
+
+  it('leaves out a sub-item row the person left empty', () => {
+    expect(habitFlowNamesAnswer(['Alongar', '  ', 'Beber água'], 'pt-BR')).toBe('Alongar e Beber água')
+    expect(habitFlowNamesAnswer(['', ' '], 'pt-BR')).toBeUndefined()
   })
 })
 

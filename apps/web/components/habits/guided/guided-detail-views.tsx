@@ -7,7 +7,9 @@ import { backendFormFieldFocusRequest } from '@orbit/shared/hooks'
 import {
   buildHabitUnderstandingLabels,
   formatLocaleDate,
+  habitFlowNamesAnswer,
   habitFlowOptionalQuestions,
+  habitFlowSelectionAnswer,
   isHabitDailySchedule,
   parseAPIDate,
   toTime24,
@@ -17,6 +19,8 @@ import {
 import { hasHabitMonthDaySchedule, MAX_HABIT_DESCRIPTION_LENGTH, validateEndTime } from '@orbit/shared/validation'
 import type { HabitFormHelpers } from '@/hooks/use-habit-form'
 import { useHasProAccess } from '@/hooks/use-profile'
+import { useTags } from '@/hooks/use-tags'
+import { useLinkableGoals } from '@/components/habits/goal-linking-field'
 import { DateField } from '@/components/ui/date-field'
 import { X } from '@/components/ui/icons'
 import { Input } from '@/components/ui/input'
@@ -105,14 +109,18 @@ function useOptionalValues({ formHelpers, fields }: Readonly<Omit<DetailInput, '
   const t = useTranslations()
   const locale = useLocale()
   const { form } = formHelpers
+  const { tags } = useTags()
+  const goals = useLinkableGoals().data
   const count = (value: number) => (value > 0 ? String(value) : undefined)
   const endDate = form.watch('endDate') ?? ''
   return {
     description: form.watch('description') || undefined,
     checklist: count((form.watch('checklistItems') ?? []).length),
+    subHabits: habitFlowNamesAnswer(fields.subHabitTitles ?? [], locale),
     avoid: form.watch('isBadHabit') ? t('habits.flow.optional.yes') : t('habits.flow.optional.no'),
-    tags: count(fields.tags.selectedTagIds.length),
-    goals: count(fields.selectedGoalIds.length),
+    parent: fields.parentValue,
+    tags: habitFlowSelectionAnswer(fields.tags.selectedTagIds, tags, (tag) => tag.name, locale),
+    goals: habitFlowSelectionAnswer(fields.selectedGoalIds, goals, (goal) => goal.title, locale),
     endDate: endDate ? formatLocaleDate(endDate, locale) : undefined,
   }
 }

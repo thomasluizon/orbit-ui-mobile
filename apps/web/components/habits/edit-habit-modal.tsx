@@ -533,7 +533,7 @@ function EditHabitDraft({
         <GuidedHabitFlow
           mode="edit"
           formHelpers={formHelpers}
-          fields={fieldProps}
+          fields={{ ...fieldProps, parentValue: parent.value }}
           lockedGeneral={parent.lockedGeneral}
           fromConversation={Boolean(initialSuggestion)}
           pending={saving}

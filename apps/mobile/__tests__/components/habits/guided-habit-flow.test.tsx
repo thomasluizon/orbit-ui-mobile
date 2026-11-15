@@ -54,17 +54,20 @@ const submit = vi.fn()
 const close = vi.fn()
 const helpers = () => state.helpers!
 
-interface HarnessProps { mode?: 'create' | 'edit'; saveError?: string | null; lockedGeneral?: boolean | null; initial?: Record<string, unknown>; parentField?: ReactNode; subHabits?: boolean }
+interface HarnessProps {
+  mode?: 'create' | 'edit'; saveError?: string | null; lockedGeneral?: boolean | null; initial?: Record<string, unknown>; parentField?: ReactNode; subHabits?: boolean
+  goalIds?: string[]; subHabitTitles?: string[]; parentValue?: string
+}
 
-function Harness({ mode = 'create', saveError = null, lockedGeneral = null, initial = {}, parentField, subHabits = true }: Readonly<HarnessProps>) {
+function Harness({ mode = 'create', saveError = null, lockedGeneral = null, initial = {}, parentField, subHabits = true, goalIds = [], subHabitTitles, parentValue }: Readonly<HarnessProps>) {
   const formHelpers = useHabitForm({ initialData: { dueDate: '', ...initial } })
   const tags = useTagSelection()
   const [reminderTimes, setReminderTimes] = useState([0, 15])
   state.helpers = formHelpers
   state.reminderTimes = reminderTimes
   const fields: GuidedHabitFields = {
-    tags, selectedGoalIds: [], atGoalLimit: false, onToggleGoal: state.goalToggle, reminderTimes, onReminderTimesChange: setReminderTimes, onUpgrade: vi.fn(),
-    parentField, children: subHabits ? () => <Text>sub-habit-editor</Text> : undefined,
+    tags, selectedGoalIds: goalIds, atGoalLimit: false, onToggleGoal: state.goalToggle, reminderTimes, onReminderTimesChange: setReminderTimes, onUpgrade: vi.fn(),
+    parentField, children: subHabits ? () => <Text>sub-habit-editor</Text> : undefined, subHabitTitles, parentValue,
   }
   return (
     <GuidedHabitFlow mode={mode} formHelpers={formHelpers} fields={fields} lockedGeneral={lockedGeneral} fromConversation={false} pending={false}
@@ -391,6 +394,36 @@ describe.each(['pt-BR', 'en'] as const)('the detail questions on Android in %s',
     await tap(tree, flowCopy().more)
     await tap(tree, new RegExp(`^${flowCopy().optional.parent.replace('?', '\\?')}`))
     expect(hasText(tree, 'parent-picker')).toBe(true)
+    tree.unmount()
+  })
+
+  const optionalRowName = (tree: Tree, id: 'tags' | 'goals' | 'subHabits' | 'parent') =>
+    control(tree, new RegExp(`^${flowCopy().optional[id].replace('?', '\\?')}`))?.props.accessibilityLabel
+
+  it('scenario 17: answers the tag, goal and sub-item rows with the names the person chose, never a count', async () => {
+    const tree = renderNavigation(<Harness goalIds={['goal-1']} subHabitTitles={['Alongar', '  ', 'Beber água']} />)
+    await phrase(tree, locale === 'en' ? 'run every day at 7' : 'correr todo dia às 7')
+    await tap(tree, flowCopy().reminder.no)
+    await openOptional(tree, 'tags')
+    await tap(tree, 'Saúde')
+    await primary(tree)
+    expect(optionalRowName(tree, 'tags')).toBe(`${flowCopy().optional.tags} Saúde`)
+    expect(optionalRowName(tree, 'goals')).toBe(`${flowCopy().optional.goals} Correr 5 km`)
+    expect(optionalRowName(tree, 'subHabits')).toBe(`${flowCopy().optional.subHabits} ${locale === 'en' ? 'Alongar and Beber água' : 'Alongar e Beber água'}`)
+    tree.unmount()
+  })
+
+  it('scenario 17: leaves the tag, goal and sub-item rows with no answer when the person chose none', async () => {
+    const tree = await toSummary()
+    await tap(tree, flowCopy().more)
+    for (const id of ['tags', 'goals', 'subHabits'] as const) expect(optionalRowName(tree, id)).toBe(flowCopy().optional[id])
+    tree.unmount()
+  })
+
+  it('scenario 17: answers the parent row with the parent the edit holds', async () => {
+    const tree = renderNavigation(<Harness mode="edit" parentField={<Text>parent-picker</Text>} parentValue="Rotina da manhã" subHabits={false} initial={{ title: 'Correr', itemType: 'habit', frequencyUnit: 'Day', frequencyQuantity: 1, dueDate: '2026-11-13' }} />)
+    await tap(tree, flowCopy().more)
+    expect(optionalRowName(tree, 'parent')).toBe(`${flowCopy().optional.parent} Rotina da manhã`)
     tree.unmount()
   })
 

@@ -581,7 +581,7 @@ function EditHabitDraft({
         {saved || !habit ? null : (
           <FlowScreen label={t(formHelpers.isOneTime ? 'habits.editTask' : 'habits.editHabit')} onDismiss={requestDismiss}>
             <HabitFormInteractionProvider disabled={saving}>
-              <GuidedHabitFlow mode="edit" formHelpers={formHelpers} fields={fieldProps} lockedGeneral={parent.lockedGeneral} fromConversation={Boolean(initialSuggestion)}
+              <GuidedHabitFlow mode="edit" formHelpers={formHelpers} fields={{ ...fieldProps, parentValue: parent.value }} lockedGeneral={parent.lockedGeneral} fromConversation={Boolean(initialSuggestion)}
                 pending={saving} detailsLoading={detailFieldsPending} saveError={saveError} createLabel={t('common.save')}
                 onSubmit={(completion) => void handleSubmit(completion)} onClose={requestDismiss} />
             </HabitFormInteractionProvider>
