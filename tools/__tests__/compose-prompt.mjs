@@ -370,6 +370,7 @@ export const cases = () => {
   const approvalPointer = /Run no command that Claude Code holds for an approval:\s+`\.claude\/hooks\/forbid-approval-prompt\.mjs` refuses each one/
   for (const [mode, order, expected] of [["local", prompt, true], ["explicit main", mainPrompt, true], ["Cloud", cloudPrompt, false]]) {
     T(`${TOOL}: the ${mode} order ${expected ? "forbids" : "omits"} commands that ask for an approval`, approvalPointer.test(order) === expected, order)
+    T(`${TOOL}: the ${mode} order ${expected ? "forbids" : "omits"} a tool that waits for a person`, /Call no tool that waits for a person to answer, such as `AskUserQuestion`/.test(order) === expected, order)
   }
   T(`${TOOL}: the approval hook that the brief names exists`, existsSync(join(REPO_ROOT, ".claude", "hooks", "forbid-approval-prompt.mjs")))
   // A repository whose checkout holds no approval hook gets a brief that says so, and a pointer to a file that exists.

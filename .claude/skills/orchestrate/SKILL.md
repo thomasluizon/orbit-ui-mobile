@@ -377,7 +377,7 @@ surfaced as a failed verdict at 03:00 and the ticket was simply lost.
 
 | Mode | Behaviour |
 |---|---|
-| `--sleep` | ask once here, then work the whole queue without stopping again |
+| `--sleep` | ask once here in plain reply text, then work the whole queue without stopping again |
 | no `--sleep` | ask once here, **and** still stop after every pull request exactly as today |
 
 Read every admitted ticket, its comments, and the deferrals from step 1, and collect:
@@ -402,9 +402,12 @@ Read every admitted ticket, its comments, and the deferrals from step 1, and col
 
 Anything a COMMENT raises belongs here too: split this, do it differently, this is already done.
 
-Ask all of them in ONE `AskUserQuestion` batch, or one message if there are more than four. **If an
-answer removes a ticket, remove it from the queue before the run starts** rather than spawning a
-worker that will fail.
+Ask all of them in ONE `AskUserQuestion` batch, or one message if there are more than four. Under
+`--sleep`, `.claude/hooks/forbid-approval-prompt.mjs` refuses `AskUserQuestion`, because the run
+record already holds `sleep: true`. Add each question to `openOwnerQuestions` as a `{ question, blocks }`
+row through `updateRunState`, ask them in one plain reply message, and start the tickets that no
+question blocks. **If an answer removes a ticket, remove it from the queue before the run starts**
+rather than spawning a worker that will fail.
 
 ### The conversation-first exception: some tickets need a talk, not a batch
 
@@ -1508,6 +1511,7 @@ Live background Workflow runs and background subagents also hold the relay drain
 No drain waits on one without a limit. While one holds the drain, start `node tools/wait-background-runs.mjs` as a background task; the Stop hook refuses the turn end until that waiter lives. A run with no transcript progress for 30 minutes counts as stuck: the Stop hook and `relay-session.mjs` stop the wait on it, and `stuckBackgroundRuns` in the run state gives the successor the worktree, branch and last commit of that agent. A subagent that waits on an agent, a workflow or a shell of its own is not stuck while that work makes progress. An entry leaves the run state when its run makes progress again or ends. Name each stuck run in the handoff.
 
 **Every agent brief in an unattended run forbids commands that ask for an approval.** This applies to a worker order, a subagent prompt and a workflow agent prompt. Point the brief at `.claude/hooks/forbid-approval-prompt.mjs`, which owns the list and gives the rewrite; do not copy the list into the brief. `compose-prompt.mjs` writes that pointer into each local worker order.
+The same hook refuses `AskUserQuestion` and each other tool in `PERSON_PROMPT_TOOLS` for the coordinator, every subagent and every worker of an unattended run, because such a tool waits for a person with no limit. Decide with the best option and log the decision. For a real owner question, add a `{ question, blocks }` row to `openOwnerQuestions` through `updateRunState` and ask it in plain reply text, which never blocks.
 The hook loads in a session whose project checkout holds it, so a subagent and a workflow agent of this session load it in every worktree. A worker in a repository without the hook does not load it: for that order, `compose-prompt.mjs` says so and names the hook of this repository by its absolute path. Never point a brief at a hook path that the checkout of its agent does not hold.
 
 When no drain source remains, invoke `/handoff --relay --sleep`, then `node tools/relay-session.mjs`.

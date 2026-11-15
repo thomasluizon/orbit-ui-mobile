@@ -19,7 +19,7 @@ import { newestCommittedPrompt, promptsForCommit, specsForCommit } from "./_lib/
 import { adoptOwnerHandoffRun, parseHandoffRequest, prepareOwnerHandoffRun, readHandoffRequest, recordHandoffRequest, validateHandoffPrompt } from "../../tools/lib/handoff-prompt.mjs"
 import { checkDependencyCommand, checkDependencyFileWrite } from "./_lib/rules-dependencies.mjs"
 import { checkWorkerBrowser } from "./_lib/rules-worker.mjs"
-import { REMOVAL_CHECK_TOOLS, REMOVAL_RULES, checkApprovalPrompt, isUnattendedRun } from "./_lib/rules-approval.mjs"
+import { PERSON_PROMPT_TOOLS, REMOVAL_CHECK_TOOLS, REMOVAL_RULES, checkApprovalPrompt, checkPersonPrompt, isUnattendedRun } from "./_lib/rules-approval.mjs"
 import { additionalWorkingDirectories } from "./_lib/working-directories.mjs"
 import { declaredRepoRoots } from "./_lib/repo-roots.mjs"
 import { operationInProgress } from "../../tools/lib/relay-checkout.mjs"
@@ -538,6 +538,8 @@ T("approval scope: a launched worker", isUnattendedRun({ env: { ORBIT_LAUNCH_WOR
 T("approval scope: an attended run", isUnattendedRun({ state: { sleep: false, sessionId: "coordinator" }, sessionId: "coordinator" }), false)
 T("approval scope: another session beside an unattended run", isUnattendedRun({ state: sleepingRun, sessionId: "owner" }), false)
 T("approval scope: no run record", isUnattendedRun({ env: {}, state: null, sessionId: "owner" }), false)
+for (const tool of PERSON_PROMPT_TOOLS) T(`person prompt: ${tool} waits for a person and is refused`, checkPersonPrompt(tool)?.rule ?? null, "person-prompt")
+for (const tool of ["Bash", "Monitor", "Agent", "Read", undefined]) T(`person prompt: ${tool} is not a question to a person`, checkPersonPrompt(tool), null)
 
 console.log("\n# forbid-node-modules-write (_lib/rules-dependencies.mjs)")
 // the package was extracted, npm install left them alone, and four contradictory citations of
@@ -1452,7 +1454,7 @@ T("adapter approval: a Monitor command that removes a variable path -> 2", refus
 T("adapter approval: the Monitor refusal gives the guarded rewrite", refusedMonitor.stderr.includes('"${OUT:?}/${d:?}"'), true)
 T("adapter approval: a Monitor command with a guarded removal -> 0", approvalHook({ ...monitorRemoval, tool_input: { ...monitorRemoval.tool_input, command: 'until test -f "$OUT/done"; do sleep 5; done; rm -rf "${OUT:?}/${d:?}"' } }).status, 0)
 T("adapter approval: a Monitor that opens a WebSocket has no command -> 0", approvalHook({ ...heldRemoval("Monitor"), tool_input: { ws: { url: "wss://events.example.com/stream" }, description: "Events", timeout_ms: 300000 } }).status, 0)
-T("adapter approval: the hook is wired to each tool that runs the removal check", settings.hooks.PreToolUse.filter((entry) => entry.hooks.some((hook) => hook.command.includes(APPROVAL_HOOK))).flatMap((entry) => entry.matcher.split("|")).sort(), ["Bash", "Monitor"])
+T("adapter approval: the hook is wired to each tool that runs the removal check, and to no other shell", settings.hooks.PreToolUse.filter((entry) => entry.hooks.some((hook) => hook.command.includes(APPROVAL_HOOK))).flatMap((entry) => entry.matcher.split("|")).filter((tool) => !PERSON_PROMPT_TOOLS.includes(tool)).sort(), ["Bash", "Monitor"])
 // The guard broken: with Monitor removed from the tool list the same command passes, as it did before the list held it.
 const approvalRulesPath = join(wakeHooks, "_lib", "rules-approval.mjs")
 const approvalRulesSource = readFileSync(approvalRulesPath, "utf8")
@@ -1462,6 +1464,32 @@ writeFileSync(approvalRulesPath, approvalRulesSource.replace(removalToolsLine, '
 T("adapter approval: with Monitor removed from the tool list the Monitor command passes -> 0", approvalHook(monitorRemoval).status, 0)
 writeFileSync(approvalRulesPath, approvalRulesSource)
 T("adapter approval: with the tool list restored the Monitor command is refused again -> 2", approvalHook(monitorRemoval).status, 2)
+// AskUserQuestion waits for a person with no limit. The payload copies the PreToolUse input of Claude Code 2.1.325
+// (session_id, transcript_path, cwd, hook_event_name, tool_name, tool_input, tool_use_id) and the tool input of a real transcript.
+const ownerQuestion = (sessionId = "approval-coordinator") => ({
+  session_id: sessionId, transcript_path: join(root, `${sessionId}.jsonl`), cwd: wakeCheckout, permission_mode: "bypassPermissions", hook_event_name: "PreToolUse", tool_name: "AskUserQuestion",
+  tool_input: { questions: [{ question: "Which branch takes the fix?", header: "Branch", multiSelect: false, options: [{ label: "main", description: "The default branch" }, { label: "redesign/main", description: "The redesign branch" }] }] },
+  tool_use_id: "toolu_question",
+})
+const refusedQuestion = approvalHook(ownerQuestion())
+T("adapter person prompt: AskUserQuestion in an unattended run -> 2", refusedQuestion.status, 2)
+T("adapter person prompt: the refusal tells the agent to decide and log it, or to queue the owner question and ask it in reply text",
+  ["no person is present", "best option", "decision log", "openOwnerQuestions", "{ question, blocks }", "updateRunState", "plain reply text"].every((text) => refusedQuestion.stderr.includes(text)), true)
+T("adapter person prompt: a subagent of the unattended run -> 2", approvalHook({ ...ownerQuestion(), agent_id: "fix-agent", agent_type: "general-purpose" }).status, 2)
+T("adapter person prompt: another session beside the unattended run -> 0", approvalHook(ownerQuestion("owner-session")).status, 0)
+writeRunState({ sessionId: "approval-coordinator", sleep: false, remaining: [] }, wakeCheckout)
+T("adapter person prompt: an attended run -> 0", approvalHook(ownerQuestion()).status, 0)
+T("adapter person prompt: a launched worker in an attended run -> 2", approvalHook(ownerQuestion(), { ORBIT_LAUNCH_WORKER: "1" }).status, 2)
+writeRunState({ sessionId: "approval-coordinator", sleep: true, remaining: [] }, wakeCheckout)
+T("adapter person prompt: the hook is wired to each tool that waits for a person", settings.hooks.PreToolUse.filter((entry) => entry.hooks.some((hook) => hook.command.includes(APPROVAL_HOOK)))
+  .flatMap((entry) => entry.matcher.split("|")).filter((tool) => !["Bash", "Monitor"].includes(tool)).sort(), ["AskUserQuestion", "OfferChromeSetup", "PublishPlugin", "SendToProject", "ShowOnboardingRolePicker"])
+// The guard broken: with AskUserQuestion removed from the tool list the question passes, as it did before the list held it.
+const personToolsLine = 'export const PERSON_PROMPT_TOOLS = ["AskUserQuestion", "OfferChromeSetup", "PublishPlugin", "SendToProject", "ShowOnboardingRolePicker"]'
+T("adapter person prompt: the broken guard targets the production tool list", approvalRulesSource.includes(personToolsLine), true)
+writeFileSync(approvalRulesPath, approvalRulesSource.replace(personToolsLine, 'export const PERSON_PROMPT_TOOLS = ["OfferChromeSetup", "PublishPlugin", "SendToProject", "ShowOnboardingRolePicker"]'))
+T("adapter person prompt: with AskUserQuestion removed from the tool list the question passes -> 0", approvalHook(ownerQuestion()).status, 0)
+writeFileSync(approvalRulesPath, approvalRulesSource)
+T("adapter person prompt: with the tool list restored the question is refused again -> 2", approvalHook(ownerQuestion()).status, 2)
 // Claude Code adds `permissions.additionalDirectories` of each settings scope to the working directories of the session.
 const approvalAccount = join(root, "approval-account")
 const addedDirectories = { user: join(root, "added-by-user", "notes"), project: join(root, "added-by-project", "site"), local: join(root, "added-by-local", "vault") }
@@ -1495,6 +1523,7 @@ T("adapter approval: removal of the checkout itself -> 2", approvalHook({ ...hel
 T("adapter approval: another session beside the unattended run -> 0", approvalHook(heldRemoval("Bash", "owner-session")).status, 0)
 writeFileSync(runStatePath(wakeCheckout), "not json")
 T("adapter approval: an unreadable run record fails closed -> 2", approvalHook(heldRemoval()).status, 2)
+T("adapter person prompt: an unreadable run record fails closed -> 2", approvalHook(ownerQuestion()).status, 2)
 T("adapter approval: an unreadable run record still allows a safe command -> 0", approvalHook({ ...heldRemoval(), tool_input: { command: "npm test" } }).status, 0)
 rmSync(runStatePath(wakeCheckout))
 const relayDecisionLog = join(wakeCheckout, ".git", "relay-decisions.md")

@@ -1,8 +1,7 @@
-// Refuses, in an unattended run, each shell command that Claude Code holds for an approval in every
-// permission mode: no person answers there, so the prompt stops the run. The only such check with a
-// command shape is the dangerous removal check on `rm` and `rmdir`, which Claude Code runs for the
-// Bash tool and the Monitor tool. Each rule refuses a superset of the `removalRule` values it names,
-// because the analyzer behind them is not a stable interface.
+// Refuses, in an unattended run, each call that waits for a person: a tool such as `AskUserQuestion`, and a
+// shell command that Claude Code holds for an approval in every permission mode. The only such hold with a
+// command shape is the dangerous removal check on `rm` and `rmdir` of the Bash and Monitor tools. Each rule
+// refuses a superset of the `removalRule` values it names: the analyzer behind them is not a stable interface.
 // ./README.md lists the checks, their source, and the ones that no command shape can predict.
 
 import { homedir } from "node:os"
@@ -13,6 +12,12 @@ import { stripHeredocBodies } from "./rules-git.mjs"
 
 /** The tools whose permission check runs the Claude Code removal check. Each one takes the shell command as `tool_input.command`. */
 export const REMOVAL_CHECK_TOOLS = ["Bash", "Monitor"]
+
+/**
+ * The tools that wait for the answer of a person with no limit: Claude Code 2.1.325 marks each one with
+ * `requiresUserInteraction() { return true }`. `.claude/settings.json` registers the hook on each name.
+ */
+export const PERSON_PROMPT_TOOLS = ["AskUserQuestion", "OfferChromeSetup", "PublishPlugin", "SendToProject", "ShowOnboardingRolePicker"]
 
 /** The launcher exports this into every worker it starts (tools/launch-worker.mjs). A worker is headless. */
 const LAUNCHER_MARKER = "ORBIT_LAUNCH_WORKER"
@@ -307,6 +312,25 @@ export const isUnattendedRun = ({ env = {}, state = null, sessionId = "" } = {})
   Boolean(env[LAUNCHER_MARKER]) ||
   // A record from an earlier run must not bind another session; checkSleepStop (rules-sleep.mjs) applies the same rule.
   (state?.sleep === true && (typeof state.sessionId !== "string" || state.sessionId === "" || sessionId === "" || state.sessionId === sessionId))
+
+/**
+ * @param toolName the `tool_name` of a PreToolUse payload
+ * @returns `{ block, message, rule }` when the tool waits for a person to answer, else null
+ */
+export function checkPersonPrompt(toolName) {
+  if (!PERSON_PROMPT_TOOLS.includes(toolName)) return null
+  return {
+    block: true,
+    rule: "person-prompt",
+    message:
+      `Refused in an unattended run: ${toolName} waits for a person to answer, and no person is present. The run would stop until one answers.\n\n` +
+      "Decide yourself. Take the best option, not the easiest one, and write the decision and its reason to the decision log " +
+      "(`decisionLogPath` in the run state; a launched worker writes it to the assumptions section that its order names).\n" +
+      "Only for a real owner question, which no tool, file or account can answer: add a `{ question, blocks }` row to " +
+      "`openOwnerQuestions` through `updateRunState` in tools/lib/run-state.mjs, then ask it in plain reply text. " +
+      "Plain reply text never blocks the run. Then continue with the work that the question does not block.\n",
+  }
+}
 
 /**
  * @param command the shell command about to run, from a tool in `REMOVAL_CHECK_TOOLS`

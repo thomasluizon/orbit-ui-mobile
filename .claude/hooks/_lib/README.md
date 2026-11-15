@@ -8,7 +8,8 @@ payload, call a `_lib` rule, `exit 2` + stderr on a block. Wired in
 Every `PreToolUse` guard is registered on **PowerShell** and `Bash` so either
 shell receives the same checks. `forbid-approval-prompt` is the one exception:
 it mirrors a check that Claude Code runs for the Bash tool and the Monitor tool,
-so it is registered on `Bash` and `Monitor`.
+so it is registered on `Bash` and `Monitor`. It is also registered on each tool
+in `PERSON_PROMPT_TOOLS`, which waits for the answer of a person.
 
 Deterministic checks live in ESLint, Roslyn, and `guards.yml`.
 Session hooks block commands or edits before they happen.
@@ -20,7 +21,7 @@ Session hooks block commands or edits before they happen.
 | `rules-lessons.mjs` | count unreviewed lesson headings before `## Graduated` | surface-pending-lessons (SessionStart) |
 | `rules-source.mjs` | idempotent raw index SQL in EF migrations | forbid-ef-migration-raw-index (PostToolUse Edit/Write) |
 | `rules-dependencies.mjs` | nothing writes inside `node_modules`, for any caller | forbid-node-modules-write (PreToolUse Write/Edit/MultiEdit, Bash, PowerShell) |
-| `rules-approval.mjs` | an unattended run refuses each shell command that Claude Code holds for an approval | forbid-approval-prompt (PreToolUse Bash, Monitor) |
+| `rules-approval.mjs` | an unattended run refuses each shell command that Claude Code holds for an approval, and each tool that waits for the answer of a person | forbid-approval-prompt (PreToolUse Bash, Monitor, and each tool in `PERSON_PROMPT_TOOLS`) |
 | `working-directories.mjs` | the directories that the settings files add to the working directories of a session | forbid-approval-prompt |
 | `repo-roots.mjs` | which repository owns a path, and the linked worktree that resolves to its main checkout | orchestrator-guardrails, forbid-worker-browser, forbid-invented-identifier |
 | `rules-handoff.mjs` | a committed or stopping `NEXT.md` matches the handoff mode the owner asked for | require-handoff-prompt (PreToolUse Bash, PowerShell; Stop) |
@@ -71,10 +72,25 @@ directory. A relative entry resolves from the project directory. A hook cannot r
 a directory from `--add-dir` or `/add-dir` that no settings file holds, the `--settings` argument,
 and a managed policy that is not a file. The stuck limit covers a prompt from one of those.
 
-The hook is active for a launched worker (`ORBIT_LAUNCH_WORKER`) and for the session that owns a
-`sleep: true` run record, with its subagents. An attended session receives no refusal. It loads
+## What waits for the answer of a person
+
+A tool that asks a person stops the run until the person answers, with no limit. Claude Code 2.1.325
+marks five tools with `requiresUserInteraction() { return true }`: `AskUserQuestion`,
+`OfferChromeSetup`, `PublishPlugin`, `SendToProject` and `ShowOnboardingRolePicker`.
+`PERSON_PROMPT_TOOLS` holds the five names, and `.claude/settings.json` registers the hook on each.
+In an unattended run, `checkPersonPrompt` refuses each one by its name. Its message tells the agent
+to decide with the best option and to write the decision to the decision log. For a real owner
+question, the agent adds a `{ question, blocks }` row to `openOwnerQuestions` through
+`updateRunState` and asks the question in plain reply text, which never blocks the run.
+A launched worker records the decision in the assumptions section of its order.
+
+## When the refusals apply
+
+Both refusals are active for a launched worker (`ORBIT_LAUNCH_WORKER`) and for the session that owns a
+`sleep: true` run record, with its subagents. An attended session receives no refusal. The hook loads
 only in a session whose project checkout holds it, so a worker in a repository without the hook
-receives no refusal: `tools/compose-prompt.mjs` writes that fact into the order of such a worker.
+receives no refusal: `tools/compose-prompt.mjs` writes that fact into the order of such a worker,
+and tells every local worker to call no tool that waits for a person.
 
 `node .claude/hooks/test-hooks.mjs` proves it with `_lib` unit checks, real hook
 files run against stdin payloads, bidirectional wiring checks, and required

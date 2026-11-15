@@ -206,6 +206,8 @@ run \`patch-package\` or an equivalent, and never stage or commit a path under \
 the lockfile. Do not run \`npm install\` or change the lockfile unless the ticket says to.
 
 ${cloud ? "" : `**No person answers a prompt.** ${approvalInstruction}
+Call no tool that waits for a person to answer, such as \`AskUserQuestion\`: take the best option and record it in
+${assumptionDestination}.
 
 `}**Stage only named paths.** Never run \`git add -A\`, \`git add --all\`, \`git add -u\`, \`git add
 --update\`, a dot path, a wildcard, or a non-literal magic pathspec. Inspect \`git status --short\`,

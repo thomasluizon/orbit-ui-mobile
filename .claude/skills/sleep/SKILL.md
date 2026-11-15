@@ -58,7 +58,9 @@ else holds that run. The carry has two more conditions: the first write sets no
 Write the decision log to `sleep-decisions.md` in this session's scratchpad directory, the one named
 in your system prompt. Keep it outside every repository, so no gate and no commit ever sees it.
 Write its exact path to `decisionLogPath` once the file exists. Keep every
-unresolved owner question in `openOwnerQuestions` as a `{ question, blocks }` row. Make each of these
+unresolved owner question in `openOwnerQuestions` as a `{ question, blocks }` row, and ask it in plain
+reply text: while `sleep: true`, `.claude/hooks/forbid-approval-prompt.mjs` refuses `AskUserQuestion`,
+because that tool waits for an answer with no limit. Make each of these
 partial changes through `updateRunState` in `tools/lib/run-state.mjs`, which reads and writes the
 record under one lock; `writeRunState` stays for the whole-record first write above.
 `updateRunState` refuses the change from a superseded session with

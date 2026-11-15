@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url"
 import { readRunState } from "../../tools/lib/run-state.mjs"
 import { readStdinJson } from "./_lib/io.mjs"
 import { declaredRepoRoots } from "./_lib/repo-roots.mjs"
-import { REMOVAL_CHECK_TOOLS, checkApprovalPrompt, isUnattendedRun } from "./_lib/rules-approval.mjs"
+import { PERSON_PROMPT_TOOLS, REMOVAL_CHECK_TOOLS, checkApprovalPrompt, checkPersonPrompt, isUnattendedRun } from "./_lib/rules-approval.mjs"
 import { additionalWorkingDirectories } from "./_lib/working-directories.mjs"
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), "..", "..")
@@ -18,10 +18,12 @@ const runState = () => {
 
 try {
   const input = readStdinJson()
-  if (!REMOVAL_CHECK_TOOLS.includes(input?.tool_name)) process.exit(0)
+  const toolName = input?.tool_name
+  if (!REMOVAL_CHECK_TOOLS.includes(toolName) && !PERSON_PROMPT_TOOLS.includes(toolName)) process.exit(0)
   if (!isUnattendedRun({ env: process.env, state: runState(), sessionId: input?.session_id ?? "" })) process.exit(0)
-  const workingDirectories = [...declaredRepoRoots(repoRoot), ...additionalWorkingDirectories(repoRoot)]
-  const verdict = checkApprovalPrompt(input?.tool_input?.command, { cwd: input?.cwd ?? "", workingDirectories })
+  const verdict = PERSON_PROMPT_TOOLS.includes(toolName) ? checkPersonPrompt(toolName) : checkApprovalPrompt(input?.tool_input?.command, {
+    cwd: input?.cwd ?? "", workingDirectories: [...declaredRepoRoots(repoRoot), ...additionalWorkingDirectories(repoRoot)],
+  })
   if (verdict?.block) {
     process.stderr.write(verdict.message)
     process.exit(2)
