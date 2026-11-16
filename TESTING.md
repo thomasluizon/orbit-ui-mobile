@@ -435,7 +435,9 @@ The core set is the gate for a pull request that changes the assistant. `evals/a
 holds 21 situations, each in 3 frozen phrasings, each in English and pt-BR (126 cases): every owner turn
 on record, one situation for each defect class, and the same-title family. A case never changes. The
 `corpusDigest` of each report names the cases it measured: each phrasing, each recorded message, each
-expected outcome, each answer and the image. The merge refuses two digests.
+expected outcome, each answer and the image. The merge refuses two digests. The core set does not load
+when a situation expects a change whose saved state the readback cannot read (`core/corpus.mjs`), so no
+live turn spends on it.
 
 Each case runs as a person with a shipped client (`core/client-turn.mjs`, `core/conversation.mjs`):
 
@@ -538,8 +540,6 @@ pull request; until then the gate of that build stays incomplete. Extend the gra
   the name that the case gives the record, and the fields that the held writes name (`written`). The
   extended grader regrades them offline with `gradePreview({ questionsBeforePreview, previews, written })`;
   record that verdict on the work ticket, because the merge does not take it.
-- A readback limit (`The grader cannot read back a saved ...`): the preview matched and nothing was
-  approved, so no saved state exists to regrade. Only the rerun measures it.
 - A card limit (a same-title or list card that the grader cannot answer): the attempt ended at the card,
   before any preview, so the evidence keeps no preview. Only the rerun measures it.
 

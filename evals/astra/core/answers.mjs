@@ -84,11 +84,11 @@ function pickOnList(card, trace, recordId, locale) {
 
 // What the person does when the assistant asks with a card (questionOf): answer it through blockAnswer when the card
 // can hold the decision of the case, and type the decision when it cannot. A same-title card that cannot hold the decision fails
-// the case, because the person cannot answer it.
+// the case, because the person cannot answer it. runCase answers only a question past the typed messages that the case
+// allows, and each situation that allows one holds the answer of the person (core-corpus.test.mjs).
 export function answerQuestion(turn, vars) {
   const { answer, records } = vars.core
   const locale = vars.clientContext.locale
-  if (!answer) return { pass: false, reason: 'The assistant asked, and the request needs no question.' }
   const cards = questionCards(turn.response)
   if (cards.length > 1) return { pass: false, reason: 'The question turn shows more than one card.' }
   const [card] = cards

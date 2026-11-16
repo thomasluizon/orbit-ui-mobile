@@ -33,8 +33,9 @@ const savedField = {
 export const detailFields = ['due_time']
 
 // The change whose saved state the readback cannot read: a kind that leaves no mark in the snapshot, a field that no
-// saved record names, or a field of an existing record that only the habit detail holds.
-function unreadable({ kind, fields = {} }) {
+// saved record names, or a field of an existing record that only the habit detail holds. The core set refuses such an
+// expected change when it loads (core/corpus.mjs), so the grader never meets one.
+export function unreadable({ kind, fields = {} }) {
   if (kind === 'delete' || kind === 'log') return null
   if (kind !== 'create' && kind !== 'update') return kind
   const field = Object.keys(fields).find((name) => !savedField[name] || (kind === 'update' && detailFields.includes(name)))
@@ -97,7 +98,7 @@ function withinRange(count, range, fallback) {
 
 // The outcome of the turns before any approval: the questions that came before the preview, and the change list of the
 // held previews against the expected list. A read turn holds no preview and no card that asks the person. A preview that the grader
-// cannot classify, or whose saved state it cannot read back, is a limit of the grader and no verdict on the assistant.
+// cannot classify is a limit of the grader and no verdict on the assistant.
 export function gradePreview(output, vars) {
   if (output.unavailable) return verdict(false, output.error ?? 'The chat turn gave no evidence.', { unavailable: true })
   if (output.error) return verdict(false, output.error)
@@ -125,9 +126,7 @@ export function gradePreview(output, vars) {
       + 'held write sets or clears from one that the server derives.', { unavailable: true })
   }
   const comparison = compareChanges(expected.changes, changes, { records: vars.core.records, accountDate: vars.accountDate }, questions > 0)
-  if (comparison.failure) return verdict(false, comparison.failure)
-  const unread = expected.changes.map(unreadable).find(Boolean)
-  return unread ? verdict(false, `The grader cannot read back a saved ${unread}.`, { graderLimit: true })
+  return comparison.failure ? verdict(false, comparison.failure)
     : verdict(true, 'The held previews hold exactly the requested changes.', { matched: comparison.matched })
 }
 

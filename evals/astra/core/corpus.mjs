@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { parse } from 'yaml'
+import { unreadable } from './outcome.mjs'
 
 export const LOCALES = ['en', 'pt-BR']
 export const PHRASINGS_PER_LOCALE = 3
@@ -35,9 +36,14 @@ function earlier(situation, locale) {
     : { prefix: recorded, lead: [] }
 }
 
-// One promptfoo test for each situation, locale and phrasing. An attempt gets its own copy of the expected outcome.
-export function coreCases() {
-  return situations.flatMap((situation) => LOCALES.flatMap((locale) => situation.phrasings[locale].map((input, index) => ({
+// One promptfoo test for each situation, locale and phrasing. An attempt gets its own copy of the expected outcome. A
+// situation that expects a change whose saved state the grader cannot read back is refused here, before any turn spends.
+export function coreCases(from = situations) {
+  for (const { id, expected } of from) {
+    const unread = (expected.changes ?? []).map(unreadable).find(Boolean)
+    if (unread) throw new Error(`Situation ${id} expects a ${unread}, and the grader cannot read back its saved state.`)
+  }
+  return from.flatMap((situation) => LOCALES.flatMap((locale) => situation.phrasings[locale].map((input, index) => ({
     description: `${situation.id}, ${locale}, phrasing ${index + 1}`,
     metadata: { id: `${situation.id}-${locale}-${index + 1}`, situation: situation.id, family: situation.family,
       defectClass: situation.defectClass, locale, platform: situation.platform, fixture: situation.fixture,

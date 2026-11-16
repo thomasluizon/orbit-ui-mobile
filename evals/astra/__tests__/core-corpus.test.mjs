@@ -8,12 +8,6 @@ const cases = coreCases()
 const configuration = (name) => parse(readFileSync(new URL(`../core/${name}.promptfooconfig.yaml`, import.meta.url), 'utf8'))
 const fixtureRecords = { pro: ['water', 'walk'], composition: ['water', 'walk'], 'duplicate-titles': ['first', 'second'],
   'same-title-children': ['parent', 'children', 'walk'] }
-// The kinds and fields that the saved state readback reads (core/outcome.mjs savedField): a create is read with its
-// habit detail, an update from the snapshot row.
-const snapshotFields = ['title', 'due_date', 'frequency_unit', 'frequency_quantity']
-const readBack = (change) => ['delete', 'log'].includes(change.kind)
-  || (change.kind === 'create' && Object.keys(change.fields).every((field) => [...snapshotFields, 'due_time'].includes(field)))
-  || (change.kind === 'update' && Object.keys(change.fields).every((field) => snapshotFields.includes(field)))
 const ownerRequest = 'eu tenho 7 habitos chamados Water - 710ml deleta dois desses, e os outros 4 coloca Water - 1.18L'
 const repository = (path) => readFileSync(new URL(`../../../${path}`, import.meta.url), 'utf8')
 
@@ -118,7 +112,6 @@ it.each(situations)('declares a gradable outcome for $id', (situation) => {
   }
   expect(expected.changes.length).toBeGreaterThan(0)
   for (const change of expected.changes) {
-    expect(readBack(change), `${change.kind} has a saved state readback`).toBe(true)
     const { targets } = change
     expect(change.kind === 'create').toBe(targets === undefined)
     for (const name of targets ? [targets.record, ...(targets.records ?? []), targets.of].filter(Boolean) : []) expect(names).toContain(name)
@@ -128,6 +121,21 @@ it.each(situations)('declares a gradable outcome for $id', (situation) => {
   const asks = (expected.questions?.max ?? 0) > typedFirst
   expect(Boolean(answer)).toBe(asks)
   if (answer) for (const locale of LOCALES) expect(answer.text[locale].length).toBeGreaterThan(0)
+})
+
+// The saved state readback reads a delete and a log, a create of the fields that the snapshot row or the habit detail
+// holds, and an update of the fields that the snapshot row holds (core/outcome.mjs savedField). The core set loads only
+// when each expected change is one of these, so no live turn spends on a case that the grader cannot read back.
+it.each([
+  ['an update of a field that only the habit detail holds', { kind: 'update', targets: { record: 'walk' }, fields: { due_time: { time: '10:00' } } }, 'update of due_time'],
+  ['a create of a field that no saved record names', { kind: 'create', fields: { title: 'Read', emoji: 'book' } }, 'create of emoji'],
+  ['a kind that leaves no mark in the snapshot', { kind: 'skip', targets: { record: 'walk' } }, 'skip'],
+])('refuses to load a situation that expects %s', (_name, change, unread) => {
+  const situation = structuredClone(situations.find(({ id }) => id === 'owner-water-request'))
+  situation.expected.changes.push(change)
+  expect(() => coreCases([situation])).toThrow(`Situation owner-water-request expects a ${unread}, and the grader cannot read back its saved state.`)
+  situation.expected.changes.pop()
+  expect(coreCases([situation])).toHaveLength(PHRASINGS_PER_LOCALE * LOCALES.length)
 })
 
 it('grades with a model only the text of a read answer', () => {
@@ -193,11 +201,13 @@ it('runs the live gate only from a local checkout, in the skill and in TESTING.m
 })
 
 // A grader limit is final on its build. What the evidence keeps differs by kind: only a preview limit stores the held
-// previews for an offline regrade, and no kind clears without the rerun on a later API commit.
+// previews for an offline regrade, and no kind clears without the rerun on a later API commit. The core set refuses a
+// change that the grader cannot read back when it loads, so no readback limit exists.
 it('states for each kind of grader limit what the evidence keeps and what clears it, in the skill and in TESTING.md', () => {
   for (const path of ['.claude/skills/astra-eval/SKILL.md', 'TESTING.md']) {
     const text = repository(path).replace(/\s+/gu, ' ')
-    for (const kind of ['A preview limit', 'A readback limit', 'A card limit']) expect(text, `${path}: ${kind}`).toContain(kind)
+    for (const kind of ['A preview limit', 'A card limit']) expect(text, `${path}: ${kind}`).toContain(kind)
+    expect(text, path).not.toMatch(/readback limit|cannot read back a saved/u)
     expect(text, path).toContain('Each kind clears only through `--rerun` on a later API commit of the pull request')
     expect(text, path).not.toMatch(/extend the grader and regrade them offline/u)
   }

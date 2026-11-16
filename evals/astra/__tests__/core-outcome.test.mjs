@@ -524,15 +524,6 @@ describe('the change list comparison', () => {
     expect(verdict.reason).toBe('The grader cannot classify a held preview: moveHabit.')
   })
 
-  it('names a change whose saved state the grader cannot read back, before any approval', () => {
-    const verdict = graded((held, vars) => {
-      vars.core.expected.changes[1].fields = { due_time: { time: '10:00' } }
-      for (const item of held.items.slice(2)) Object.assign(item.fields[0], { field: 'due_time', oldValue: null, newValue: '10:00' })
-    })
-    expect(verdict).toMatchObject({ pass: false, metadata: { graderLimit: true },
-      reason: 'The grader cannot read back a saved update of due_time.' })
-  })
-
   it('marks the attempt of a preview that the grader cannot classify, and approves nothing', async () => {
     const unread = structuredClone(finalOf('complete', 1))
     unread.pendingOperations[0].actionKey = 'moveHabit'

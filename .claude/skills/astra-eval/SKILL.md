@@ -26,7 +26,8 @@ and the saved state after approval. An offer (`suggested` with a removal) and a 
 requested changes: the change list keeps them apart, and the person approves the preview as shown. A `stored` field is
 derived unless a held write in the eval trace names it: a clear (`clear_fields`, `clear_parent` or an empty array), or
 any edit in the `edits_json` of a held revision. It grades no tool name. `llm-rubric` grades only the text of a read
-answer.
+answer. The core set does not load when a situation expects a change whose saved state the readback cannot read
+(`core/corpus.mjs`), so no live turn spends on it.
 
 The gate is two runs from `evals/astra`, then one merge:
 
@@ -58,8 +59,6 @@ pull request; until then the gate of that build stays incomplete. Extend the gra
   as `heldPreviews`, with the fields that the held writes name (`written`), so the extended grader regrades them
   offline with `gradePreview({ questionsBeforePreview, previews, written })`. Record that verdict on the work ticket;
   the merge does not take it.
-- A readback limit (`The grader cannot read back a saved ...`): the preview matched and nothing was approved, so no
-  saved state exists to regrade. Only the rerun measures it.
 - A card limit (a same-title or list card that the grader cannot answer): the attempt ended at the card, before any
   preview, so the evidence keeps no preview. Only the rerun measures it.
 
