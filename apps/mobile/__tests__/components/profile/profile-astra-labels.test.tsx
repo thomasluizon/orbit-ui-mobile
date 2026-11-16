@@ -124,6 +124,8 @@ it.each(cases)('fits Android Astra labels in $locale at $width px, Pro $hasProAc
     layout.calculateLayout(width - 32, 'auto', Yoga.DIRECTION_LTR)
     const panel = tree.root.findByProps({ testID: 'astra-allowance-panel' })
     expect.soft(StyleSheet.flatten(panel.props.style).padding).toBe(16)
+    expect.soft(StyleSheet.flatten(panel.props.style).borderWidth, 'a border takes layout space and moves the copy off the 16 dp record inset').toBeUndefined()
+    expect.soft(StyleSheet.flatten(panel.props.style)).toMatchObject({ outlineWidth: 1, outlineOffset: -1, outlineStyle: 'solid' })
     const group = tree.root.find((node: { type: unknown; props: { style?: ViewStyle } }) => node.type === 'View' && node.props.style?.gap === 24)
     expect(group).toBeDefined()
     const labels = ['profile.allowance.title', 'profile.proactiveAstra.title', 'profile.aiSummary.title', 'profile.connections.googleCalendar', 'profile.connections.notion'].map((key) => i18n.t(key))

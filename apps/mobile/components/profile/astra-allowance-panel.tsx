@@ -39,7 +39,7 @@ export function AstraAllowancePanel({
       testID="astra-allowance-panel"
       style={[
         styles.panel,
-        { backgroundColor: tokens.bgCard, borderColor: tokens.hairline },
+        { backgroundColor: tokens.bgCard, outlineColor: tokens.hairline },
       ]}
     >
       <View style={styles.header}>
@@ -94,7 +94,9 @@ const styles = StyleSheet.create({
     gap: 12,
     padding: PADDING.recordInset,
     borderRadius: radius.xl,
-    borderWidth: 1,
+    outlineWidth: 1,
+    outlineOffset: -1,
+    outlineStyle: 'solid',
   },
   header: {
     minWidth: 0,

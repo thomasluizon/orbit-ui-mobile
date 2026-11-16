@@ -79,7 +79,7 @@ function StatTileSkeleton({ tokens, opacity }: Readonly<{ tokens: AppTokensV2; o
       testID="skeleton-stat-tile-shape"
       accessibilityElementsHidden
       importantForAccessibility="no-hide-descendants"
-      style={[styles.statTile, { backgroundColor: tokens.bgCard, borderColor: tokens.hairline }]}
+      style={[styles.statTile, { backgroundColor: tokens.bgCard, outlineColor: tokens.hairline }]}
     >
       <View style={styles.statValue}>
         <Text style={styles.statValueLine}>0</Text>
@@ -221,7 +221,9 @@ const styles = StyleSheet.create({
   settingsValue: { width: 48, height: 16 },
   statTile: {
     borderRadius: radius.xl,
-    borderWidth: 1,
+    outlineWidth: 1,
+    outlineOffset: -1,
+    outlineStyle: 'solid',
     padding: SPACING.s16,
     gap: 8,
     alignItems: 'flex-start',
