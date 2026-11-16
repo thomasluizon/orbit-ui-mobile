@@ -21,7 +21,7 @@ UI `main` `c95546c4c`; API `main` `38513551a`; landing `main` `7e6d150e0`. Merge
 | Item | Disposition |
 | --- | --- |
 | Web release | FIRST: `/release` production web from `main` `c95546c4c` or later (carries `#2120` and `#2131`), never with an API release; then `/android-release` Open plus `/ios-release` TestFlight at one version; device proof for `#2131`. |
-| ui#2469 (`#2074` order 4) | Pushed `55d3183b9`, review requested. Restart its waiter; merge at approval; then delete the four orphaned npm and NDK cache entries once. |
+| ui#2469 (`#2074` order 4) | Pushed `55d3183b9`: Pullfrog thread `PRRT_kwDOR5Siws63xY-u` (`release.yml:509`, the staging smoke job copies the npm restore inline for a reason that does not hold there) and "Layout shard 6" red a second time on this branch: read its log before calling it the flake; worker fix round, push, merge; then delete the four orphaned npm and NDK cache entries once. |
 | ui#2467 + landing#136 (`#2074` orders 5, 6) | Local `8b0bcd82c` / `da446c7`; `review-2467-136-r7.md` DEFECTS 1, text only. Fix the bullet in `body-2467-r4.md`, merge `main` into ui, resolve wUvy / wU1o, bodies `body-2467-r4.md`, `body-136-r4.md`, push both, merge. |
 | ui#2464 (`#2137`, `#2139`) | Worker on order `order-2464-r9.md` (review r8 DEFECTS 3); report `fix-2464-r9-result.md`, outcome unknown. Read diff, review, resolve FYx/FYz/FY5/FY9, body `body-2464-r7.md`, push, merge; post `comment-2139.md`, close `#2139`. |
 | ui#2465 (`#2138`) | Worker on order `order-2465-r9.md` (review r8 DEFECTS 1); report `fix-2465-r9-result.md`, outcome unknown. Read diff, resolve the round 4 threads, body `body-2465-r6.md`, push, merge. |
