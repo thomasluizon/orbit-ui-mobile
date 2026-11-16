@@ -1,0 +1,29 @@
+description: Orbit AI core gate, must-pass run
+prompts:
+  - '{{input}}'
+providers:
+  - id: file://provider.mjs
+    label: orbit-chat-stream
+defaultTest:
+  options:
+    provider: '{{env.ORBIT_EVAL_GRADER}}'
+  assert:
+    - type: javascript
+      value: file://outcome.mjs:outcome
+      metric: outcome
+tests: file://tests.mjs:mustPass
+evaluateOptions:
+  repeat: 3
+  maxConcurrency: 1
+  cache: false
+commandLineOptions:
+  cache: false
+  write: false
+  share: false
+  table: false
+sharing: false
+extensions:
+  - file://hooks.mjs:beforeAll
+  - file://hooks.mjs:beforeEach
+  - file://hooks.mjs:afterEach
+  - file://hooks.mjs:afterAll

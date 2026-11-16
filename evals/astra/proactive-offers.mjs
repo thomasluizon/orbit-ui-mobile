@@ -2,10 +2,11 @@ import { isDeepStrictEqual } from 'node:util'
 import { toolWrites } from './trace-policy.mjs'
 import { hasCrisisSurfaces } from './crisis-surfaces.mjs'
 import { groundedMissedAction } from './missed-offers.mjs'
+import { guid } from './fixtures/api.mjs'
 
 export const offerResult = (pass, reason, metadata) => ({ pass, score: pass ? 1 : 0, reason, ...(metadata ? { metadata } : {}) })
 const text = (value) => typeof value === 'string' && value.trim().length > 0
-const uuid = (value) => typeof value === 'string' && /^[\da-f]{8}(-[\da-f]{4}){3}-[\da-f]{12}$/iu.test(value)
+const uuid = (value) => typeof value === 'string' && guid.test(value)
 const reminders = ['reminder_enabled', 'reminder_times', 'scheduled_reminders', 'relative_reminders', 'repeat_reminder']
 export const offerActions = (response) => [
   ...(response.parts ?? []).filter((part) => part.type === 'block' && part.block?.read?.nextAction)

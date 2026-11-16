@@ -1,26 +1,13 @@
-import { chmodSync, mkdirSync, renameSync, writeFileSync } from 'node:fs'
+import { mkdirSync, writeFileSync } from 'node:fs'
 import { summarizeLatency } from './latency.mjs'
-import { attemptEvidence } from './evidence.mjs'
+import { attemptEvidence, evidencePath, openPrivateEvidence, unavailableAssertion, writePrivateJson } from './evidence.mjs'
 import { groundingEvidence } from './grading-input.mjs'
 import { ATTEMPTS_PER_CASE } from './attempts.mjs'
 
-const unavailableAssertion = (assertion) => assertion.metadata?.unavailable === true || assertion.metadata?.graderError === true
-
 const providerUnavailable = (entry) => entry.response?.output?.unavailable === true
 
-const evidencePath = (caseId, repeat) => `attempts/${encodeURIComponent(caseId)}-r${repeat}.json`
-
-function writePrivateJson(path, value) {
-  const next = `${path}.next`
-  writeFileSync(next, `${JSON.stringify(value, null, 2)}\n`, { mode: 0o600 })
-  chmodSync(next, 0o600)
-  renameSync(next, path)
-}
-
 export function writeResults(results, directory = 'reports') {
-  mkdirSync(`${directory}/attempts`, { recursive: true, mode: 0o700 })
-  chmodSync(directory, 0o700)
-  chmodSync(`${directory}/attempts`, 0o700)
+  openPrivateEvidence(directory)
   const repeats = new Map()
   const attempts = results.map((entry) => {
     const caseId = entry.testCase.metadata.id

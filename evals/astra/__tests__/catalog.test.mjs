@@ -6,6 +6,7 @@ import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { parse } from 'yaml'
 import { beforeAll } from '../hooks.mjs'
+import { beforeAll as beforeCoreRun } from '../core/hooks.mjs'
 import { structural } from '../assertions.mjs'
 import parseResponse from '../response.mjs'
 import { offlineCredentials } from './fixtures/credentials.mjs'
@@ -140,6 +141,21 @@ it.each([['different commit', 'a'.repeat(40)], ['missing commit', null], ['match
       expect(failure.message).toContain(`API ${servedCommit}`)
       expect(failure.message).toContain('node evals/astra/generate-catalog.mjs')
     }
+    expect(request.mock.calls.map(([url]) => new URL(url).pathname)).toEqual(['/health'])
+  },
+)
+
+// The core set refuses a catalog of another commit through the same requireCatalogCommit (trace-policy.mjs), with the
+// same message, before it writes any report.
+it.each([['different commit', 'a'.repeat(40)], ['missing commit', null]])(
+  'checks the catalog before the first core set case: %s', async (_, servedCommit) => {
+    offlineCredentials()
+    const request = vi.fn(async () => Response.json({ status: 'Healthy', commit: servedCommit, checks: [] }))
+    vi.stubGlobal('fetch', request)
+    const failure = await beforeCoreRun({ suite: { tests: [] } }).catch((error) => error)
+    expect(failure).toBeInstanceOf(Error)
+    expect(failure.message).toBe(`Astra catalog ${apiCommit} differs from API ${servedCommit}. Regenerate from a clean API `
+      + 'checkout at that commit with node evals/astra/generate-catalog.mjs <api-checkout>.')
     expect(request.mock.calls.map(([url]) => new URL(url).pathname)).toEqual(['/health'])
   },
 )
