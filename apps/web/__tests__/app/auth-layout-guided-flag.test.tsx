@@ -19,7 +19,7 @@ beforeEach(async () => {
   await useOnboardingDraftStore.persist.rehydrate()
 })
 
-it.each([[true, 'on', 'DIV'], [false, 'off', 'MAIN']] as const)('gives the sign-in routes the orbit_guided_flows read %s, and the frame holds the main landmark only for the current surface', async (guided, value, frame) => {
+it.each([[true, 'on', 'MAIN'], [false, 'off', 'MAIN']] as const)('gives the sign-in routes the orbit_guided_flows read %s, and the frame holds the main landmark for the current surface', async (guided, value, frame) => {
   flag.guided = guided
   const { container } = render(<AuthLayout><Probe /></AuthLayout>)
   await act(async () => {})

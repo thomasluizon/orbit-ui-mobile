@@ -54,8 +54,8 @@ describe('the guided habit flow block in Chromium', () => {
       await page.setContent(`<!DOCTYPE html><html class="dark" style="${theme}"><style>${stylesheet}</style><body style="margin:0">${view.container.innerHTML}</body></html>`)
       return await page.evaluate(() => {
         const header = document.querySelector('[data-question-flow] header')!.getBoundingClientRect()
-        const main = document.querySelector('[data-question-flow] main')!.getBoundingClientRect()
-        const block = document.querySelector('[data-question-flow] main > div')!.getBoundingClientRect()
+        const main = document.querySelector('[data-question-flow] [data-flow-scroll]')!.getBoundingClientRect()
+        const block = document.querySelector('[data-question-flow] [data-flow-scroll] > div')!.getBoundingClientRect()
         const primary = document.querySelector('[data-flow-primary] button')!.getBoundingClientRect()
         const options = document.querySelector('[data-question-flow] [data-option-group]')!.getBoundingClientRect()
         const button = document.querySelector<HTMLElement>('[data-flow-primary] button')!

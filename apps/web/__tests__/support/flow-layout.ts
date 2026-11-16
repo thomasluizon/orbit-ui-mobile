@@ -71,13 +71,13 @@ export async function measureFlowMarkup(browser: Browser, stylesheet: string, wi
       const question = document.querySelector('h1')
       const describedBy = question?.getAttribute('aria-describedby')
       return {
-        free: bounds(document.querySelector('[data-layout-free]') ?? flow?.querySelector('main') ?? null),
-        block: bounds(document.querySelector('[data-layout-block]') ?? flow?.querySelector('main > [role="presentation"]') ?? null),
+        free: bounds(document.querySelector('[data-layout-free]') ?? flow?.querySelector('[data-flow-scroll]') ?? null),
+        block: bounds(document.querySelector('[data-layout-block]') ?? flow?.querySelector('[data-flow-scroll] > [role="presentation"]') ?? null),
         questionLines: lineCount(question),
         orbitLineLines: lineCount(describedBy ? document.getElementById(describedBy) : null),
         labels: [...document.querySelectorAll('button')].filter((button) => button.textContent.trim())
           .map((button) => ({ label: button.textContent.trim(), lines: lineCount(button) })),
-        overflowX: [...document.querySelectorAll('[data-question-flow] main')].some((area) => area.scrollWidth > area.clientWidth),
+        overflowX: [...document.querySelectorAll('[data-question-flow] [data-flow-scroll]')].some((area) => area.scrollWidth > area.clientWidth),
       }
     })
   } finally { await page.close() }
@@ -109,7 +109,7 @@ export async function measureFlowActions(browser: Browser, stylesheet: string, w
     await page.setContent(`<!DOCTYPE html><html class="dark" style="${theme}"><style>${stylesheet}</style><body style="margin:0"><div class="flex h-dvh flex-col">${markup}</div></body></html>`)
     await loadAppFonts(page)
     return await page.evaluate(() => {
-      const column = document.querySelector('[data-question-flow] main > [role="presentation"]')!.getBoundingClientRect()
+      const column = document.querySelector('[data-question-flow] [data-flow-scroll] > [role="presentation"]')!.getBoundingClientRect()
       const columnCentre = (column.left + column.right) / 2
       return [...document.querySelectorAll<HTMLElement>('[data-question-flow] button[data-variant]')].filter((button) => button.textContent.trim()).map((button) => {
         const rect = button.getBoundingClientRect()

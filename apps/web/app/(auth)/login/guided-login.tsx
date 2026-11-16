@@ -126,11 +126,11 @@ export function useSignInCompletion(completed: boolean) {
 function GuidedCallbackFailure({ flow, provider, onRetry }: Readonly<{ flow: LoginFlow; provider: LoginCallback['provider']; onRetry: () => void }>) {
   const { t } = flow
   return (
-    <main data-callback-failure="" className="flex w-full flex-1 flex-col">
+    <div data-callback-failure="" className="flex w-full flex-1 flex-col">
       <ErrorState fullSurface message={t(getAuthCallbackErrorKey(provider))} action={
         <IconButton label={t('common.retry')} onClick={onRetry}><RefreshCw size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton>
       } />
-    </main>
+    </div>
   )
 }
 
@@ -176,7 +176,7 @@ export function GuidedAccountBack({ t, loading, continueAccount, errorMessage }:
 }>) {
   const size = useStateMascotSize()
   return (
-    <main data-account-back="" className="flex w-full max-w-[592px] flex-col items-center gap-6 px-4 py-4 text-center">
+    <div data-account-back="" className="flex w-full max-w-[592px] flex-col items-center gap-6 px-4 py-4 text-center">
       <OrbitMascot size={size} />
       <div className="flex flex-col gap-3">
         <h1 className="orbit-flow-question text-balance font-display text-[28px] leading-[1.18] text-[var(--fg-1)] lg:text-[34px] lg:leading-[1.15]">{t('auth.accountBack.title')}</h1>
@@ -184,6 +184,6 @@ export function GuidedAccountBack({ t, loading, continueAccount, errorMessage }:
       </div>
       <PrimaryActionSlot><PillButton onClick={continueAccount} loading={loading}>{t('auth.accountBack.action')}</PillButton></PrimaryActionSlot>
       {errorMessage ? <p role="alert" className="text-sm text-[var(--status-bad-text)]">{errorMessage}</p> : null}
-    </main>
+    </div>
   )
 }

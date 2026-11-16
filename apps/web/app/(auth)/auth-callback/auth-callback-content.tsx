@@ -31,11 +31,11 @@ function AppHandoff({ href }: Readonly<{ href: string }>) {
     <div><PillLink href={href}>{t('auth.openInOrbit')}</PillLink></div>
   </div>
   return (
-    <main data-app-handoff="" className="flex w-full max-w-[592px] flex-col items-center gap-6 px-4 py-4 text-center">
+    <div data-app-handoff="" className="flex w-full max-w-[592px] flex-col items-center gap-6 px-4 py-4 text-center">
       <OrbitMascot size={size} />
       <h1 className="orbit-flow-question text-balance font-display text-[28px] leading-[1.18] text-[var(--fg-1)] lg:text-[34px] lg:leading-[1.15]">{t('auth.continueInApp')}</h1>
       <PrimaryActionSlot><PillLink href={href}>{t('auth.openInOrbit')}</PillLink></PrimaryActionSlot>
-    </main>
+    </div>
   )
 }
 

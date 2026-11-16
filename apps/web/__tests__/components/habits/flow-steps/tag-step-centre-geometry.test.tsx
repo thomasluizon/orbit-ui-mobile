@@ -36,8 +36,8 @@ describe('tag step block centring in Chromium', () => {
       const theme = Object.entries(resolveWebThemeVariables('orange', 'dark')).map(([key, value]) => `${key}:${value}`).join(';')
       await page.setContent(`<!DOCTYPE html><html class="dark" style="${theme}"><style>${stylesheet}</style><body><div class="flex h-dvh flex-col">${view.container.innerHTML}</div></body></html>`)
       const geometry = await page.evaluate(() => {
-        const free = document.querySelector('[data-question-flow] main')!.getBoundingClientRect()
-        const block = document.querySelector('[data-question-flow] main > [role="presentation"]')!.getBoundingClientRect()
+        const free = document.querySelector('[data-question-flow] [data-flow-scroll]')!.getBoundingClientRect()
+        const block = document.querySelector('[data-question-flow] [data-flow-scroll] > [role="presentation"]')!.getBoundingClientRect()
         return { free: { top: free.top, bottom: free.bottom }, block: { top: block.top, bottom: block.bottom } }
       })
       expect(geometry.free.bottom - geometry.free.top, JSON.stringify(geometry)).toBeGreaterThan(geometry.block.bottom - geometry.block.top)

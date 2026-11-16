@@ -91,6 +91,13 @@ async function phrase(text: string) {
   await press(messages().continue)
 }
 
+const DAILY_AT_SEVEN = { read: true, emoji: null, frequencyUnit: 'Day', frequencyQuantity: 1, days: [], isFlexible: false, flexibleTarget: null, dueTime: '07:00', subHabits: [], checklistItems: [] }
+function deferredRead() {
+  let arrive!: (response: typeof DAILY_AT_SEVEN | null) => void
+  state.read.mockReturnValueOnce(new Promise((resolve) => { arrive = resolve }))
+  return { arrive: (response: typeof DAILY_AT_SEVEN | null) => arrive(response) }
+}
+
 beforeEach(() => {
   state.read.mockReset().mockResolvedValue(null)
   state.online = true
@@ -241,6 +248,44 @@ describe.each([
     expect(state.read).toHaveBeenCalledTimes(2)
   })
 
+  it('scenario 14: holds the phrase step while the free read runs, so a second press never passes the read', async () => {
+    const read = deferredRead()
+    render(<Harness />)
+    await phrase(locale === 'en' ? 'water the plants' : 'regar as plantas')
+    await press(messages().continue)
+    expect(state.read).toHaveBeenCalledTimes(1)
+    expect(heading()).toHaveTextContent(messages().what.question)
+    expect(screen.getByRole('button', { name: messages().continue })).toHaveAttribute('aria-busy', 'true')
+    await act(async () => { read.arrive(DAILY_AT_SEVEN) })
+    expect(heading().textContent).toContain(messages().reminder.question.split('{')[0]!.trim())
+    expect(helpers().form.getValues()).toMatchObject({ itemType: 'habit', frequencyUnit: 'Day', dueTime: '07:00' })
+  })
+
+  it('scenario 14: drops a read that arrives after the person changed the phrase', async () => {
+    const read = deferredRead()
+    render(<Harness />)
+    await phrase(locale === 'en' ? 'water the plants' : 'regar as plantas')
+    await type(messages().what.label, locale === 'en' ? 'call John' : 'ligar para o João')
+    await act(async () => { read.arrive(DAILY_AT_SEVEN) })
+    expect(heading()).toHaveTextContent(messages().what.question)
+    expect(helpers().form.getValues('itemType')).not.toBe('habit')
+    expect(helpers().form.getValues('frequencyUnit') ?? null).toBeNull()
+    expect(helpers().form.getValues('dueTime') ?? '').toBe('')
+  })
+
+  it('scenario 14: drops a read that arrives after the flow left the phrase step', async () => {
+    const read = deferredRead()
+    render(<Harness />)
+    await phrase(locale === 'en' ? 'water the plants' : 'regar as plantas')
+    await act(async () => { helpers().reportBackendErrors({ status: 400, data: { errors: { Description: ['Too long'] } } }) })
+    const leftTo = heading().textContent
+    expect(leftTo).not.toBe(messages().what.question)
+    await act(async () => { read.arrive(DAILY_AT_SEVEN) })
+    expect(heading().textContent).toBe(leftTo)
+    expect(helpers().form.getValues('itemType')).not.toBe('habit')
+    expect(helpers().form.getValues('dueTime') ?? '').toBe('')
+  })
+
   it('scenario 14: skips the steps the free read answered, marks them proposed, and keeps a deliberate task on a later read', async () => {
     state.read.mockResolvedValue({ read: true, emoji: '🪴', frequencyUnit: 'Day', frequencyQuantity: 1, days: [], isFlexible: false, flexibleTarget: null, dueTime: '07:00', subHabits: [], checklistItems: [] })
     render(<Harness />)
@@ -331,6 +376,14 @@ describe.each([
     await phrase(locale === 'en' ? 'call John' : 'ligar para o João')
     expect(heading()).toHaveFocus()
     expect(heading()).toHaveAccessibleDescription(messages().when.line)
+  })
+
+  it('moves focus to the question again on a return to the first step', async () => {
+    render(<Harness />)
+    await phrase(locale === 'en' ? 'call John' : 'ligar para o João')
+    await press(messages().back)
+    expect(heading()).toHaveTextContent(messages().what.question)
+    expect(heading()).toHaveFocus()
   })
 })
 
@@ -684,6 +737,7 @@ describe('the guided edit flow', () => {
     await press(/Hora/)
     await press('20:00')
     expect(heading()).toHaveTextContent(ptBR.habits.flow.confirm.question)
+    expect(heading()).toHaveFocus()
     expect(helpers().form.getValues()).toMatchObject({ title: 'Correr', frequencyUnit: 'Day', dueDate: '2026-11-13', dueTime: '20:00' })
   })
 

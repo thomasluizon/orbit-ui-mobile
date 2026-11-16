@@ -78,8 +78,8 @@ describe('checklist and goal steps centring in Chromium', () => {
       const theme = Object.entries(resolveWebThemeVariables('orange', 'dark')).map(([key, value]) => `${key}:${value}`).join(';')
       await page.setContent(`<!DOCTYPE html><html class="dark" style="${theme}"><style>${stylesheet}</style><body style="margin:0">${view.container.innerHTML}</body></html>`)
       const geometry = await page.evaluate(() => {
-        const free = document.querySelector('[data-question-flow] main')!.getBoundingClientRect()
-        const block = document.querySelector('[data-question-flow] main > [role="presentation"]')!.getBoundingClientRect()
+        const free = document.querySelector('[data-question-flow] [data-flow-scroll]')!.getBoundingClientRect()
+        const block = document.querySelector('[data-question-flow] [data-flow-scroll] > [role="presentation"]')!.getBoundingClientRect()
         const question = document.querySelector('[data-question-flow] h1')!
         const lineHeight = Number.parseFloat(getComputedStyle(question).lineHeight)
         return { free: { top: free.top, bottom: free.bottom }, block: { top: block.top, bottom: block.bottom }, questionLines: Math.round(question.getBoundingClientRect().height / lineHeight) }

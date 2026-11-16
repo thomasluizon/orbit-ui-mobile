@@ -62,8 +62,8 @@ async function measure(page: Page) {
       return tops.size
     }
     const flow = document.querySelector('[data-question-flow]')!
-    const main = flow.querySelector('main')!.getBoundingClientRect()
-    const block = flow.querySelector('main > div')!.getBoundingClientRect()
+    const main = flow.querySelector('[data-flow-scroll]')!.getBoundingClientRect()
+    const block = flow.querySelector('[data-flow-scroll] > div')!.getBoundingClientRect()
     const sentence = flow.querySelector<HTMLElement>('[data-intro-sentence]')
     return {
       title: lineCount(flow.querySelector('h1')!),

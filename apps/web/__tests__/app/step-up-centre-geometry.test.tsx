@@ -58,7 +58,7 @@ describe('the guided step-up layout in Chromium', () => {
       await page.setContent(`<!DOCTYPE html><html class="dark"><style>${stylesheet}</style><body style="margin:0"><div class="flex h-dvh flex-col">${markup(1440, locale, challenge)}</div></body></html>`)
       const geometry = await page.evaluate(() => {
         const action = document.querySelector('[data-flow-primary] button')!.getBoundingClientRect()
-        const column = document.querySelector('[data-question-flow] main')!.getBoundingClientRect()
+        const column = document.querySelector('[data-question-flow] [data-flow-scroll]')!.getBoundingClientRect()
         return { width: action.width, centre: (action.left + action.right) / 2, columnCentre: (column.left + column.right) / 2 }
       })
       expect(geometry.width, JSON.stringify(geometry)).toBeLessThanOrEqual(360)

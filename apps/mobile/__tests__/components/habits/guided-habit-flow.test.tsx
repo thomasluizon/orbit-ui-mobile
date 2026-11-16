@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from 'react'
-import { StyleSheet, Text } from 'react-native'
+import * as ReactNative from 'react-native'
+import { AccessibilityInfo, StyleSheet, Text } from 'react-native'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act } from 'react-test-renderer'
 import en from '@orbit/shared/i18n/en.json'
@@ -112,6 +113,13 @@ async function primary(tree: Tree) {
 async function phrase(tree: Tree, text: string) {
   await type(tree, flowCopy().what.label, text)
   await primary(tree)
+}
+
+const DAILY_AT_SEVEN = { read: true, emoji: null, frequencyUnit: 'Day', frequencyQuantity: 1, days: [], isFlexible: false, flexibleTarget: null, dueTime: '07:00', subHabits: [], checklistItems: [] }
+function deferredRead() {
+  let arrive!: (response: typeof DAILY_AT_SEVEN | null) => void
+  state.read.mockReturnValueOnce(new Promise((resolve) => { arrive = resolve }))
+  return { arrive: (response: typeof DAILY_AT_SEVEN | null) => arrive(response) }
 }
 
 beforeEach(() => {
@@ -248,6 +256,64 @@ describe.each([
     await phrase(tree, locale === 'en' ? 'water the big plants' : 'regar as plantas grandes')
     expect(heading(tree)).toBe(flowCopy().when.question)
     expect(state.read).toHaveBeenCalledTimes(2)
+    tree.unmount()
+  })
+
+  it('moves accessibility focus to the question on each step change, a return to the first step included', async () => {
+    const findNode = vi.spyOn(ReactNative, 'findNodeHandle').mockReturnValue(42)
+    const focus = vi.spyOn(AccessibilityInfo, 'setAccessibilityFocus').mockImplementation(() => {})
+    const tree = renderNavigation(<Harness />)
+    expect(focus).not.toHaveBeenCalled()
+    await phrase(tree, locale === 'en' ? 'call John' : 'ligar para o João')
+    expect(heading(tree)).toBe(flowCopy().when.question)
+    expect(focus).toHaveBeenCalledTimes(1)
+    await tap(tree, flowCopy().back)
+    expect(heading(tree)).toBe(flowCopy().what.question)
+    expect(focus).toHaveBeenCalledTimes(2)
+    tree.unmount()
+    findNode.mockRestore()
+    focus.mockRestore()
+  })
+
+  it('scenario 14: holds the phrase step while the free read runs, so a second press never passes the read', async () => {
+    const read = deferredRead()
+    const tree = renderNavigation(<Harness />)
+    await phrase(tree, locale === 'en' ? 'water the plants' : 'regar as plantas')
+    const waiting = tree.hosts().find((node) => node.props.testID === 'button-primary-sm')!
+    await act(async () => { press(waiting); await Promise.resolve(); await Promise.resolve() })
+    expect(state.read).toHaveBeenCalledTimes(1)
+    expect(heading(tree)).toBe(flowCopy().what.question)
+    expect(tree.hosts().some((node) => (node.props.accessibilityState as { busy?: boolean } | undefined)?.busy === true)).toBe(true)
+    await act(async () => { read.arrive(DAILY_AT_SEVEN); await Promise.resolve(); await Promise.resolve() })
+    expect(heading(tree)).toContain(flowCopy().reminder.question.split('{')[0]!.trim())
+    expect(helpers().form.getValues()).toMatchObject({ itemType: 'habit', frequencyUnit: 'Day', dueTime: '07:00' })
+    tree.unmount()
+  })
+
+  it('scenario 14: drops a read that arrives after the person changed the phrase', async () => {
+    const read = deferredRead()
+    const tree = renderNavigation(<Harness />)
+    await phrase(tree, locale === 'en' ? 'water the plants' : 'regar as plantas')
+    await type(tree, flowCopy().what.label, locale === 'en' ? 'call John' : 'ligar para o João')
+    await act(async () => { read.arrive(DAILY_AT_SEVEN); await Promise.resolve(); await Promise.resolve() })
+    expect(heading(tree)).toBe(flowCopy().what.question)
+    expect(helpers().form.getValues('itemType')).not.toBe('habit')
+    expect(helpers().form.getValues('frequencyUnit') ?? null).toBeNull()
+    expect(helpers().form.getValues('dueTime') ?? '').toBe('')
+    tree.unmount()
+  })
+
+  it('scenario 14: drops a read that arrives after the flow left the phrase step', async () => {
+    const read = deferredRead()
+    const tree = renderNavigation(<Harness />)
+    await phrase(tree, locale === 'en' ? 'water the plants' : 'regar as plantas')
+    await act(async () => { helpers().reportBackendErrors({ status: 400, data: { errors: { Description: ['Too long'] } } }); await Promise.resolve() })
+    const leftTo = heading(tree)
+    expect(leftTo).not.toBe(flowCopy().what.question)
+    await act(async () => { read.arrive(DAILY_AT_SEVEN); await Promise.resolve(); await Promise.resolve() })
+    expect(heading(tree)).toBe(leftTo)
+    expect(helpers().form.getValues('itemType')).not.toBe('habit')
+    expect(helpers().form.getValues('dueTime') ?? '').toBe('')
     tree.unmount()
   })
 

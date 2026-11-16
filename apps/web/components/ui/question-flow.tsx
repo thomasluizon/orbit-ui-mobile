@@ -1,8 +1,9 @@
 'use client'
 
-import { useEffect, useId, useRef, useState } from 'react'
+import { useCallback, useEffect, useId, useRef, useState } from 'react'
 import { motion } from 'motion/react'
 import type { QuestionFlowProps } from '@orbit/shared/contracts/flow'
+import { createUseStepChange } from '@orbit/shared/hooks/step-change-core'
 import { motionDurations, motionEasings } from '@orbit/shared/theme'
 import { ArrowLeft, X } from '@/components/ui/icons'
 import { OrbitMascot } from '@/components/ui/orbit-mascot'
@@ -15,6 +16,8 @@ import { useOrbitLook } from '@/hooks/use-orbit-look'
 import { useViewportMatch } from '@/hooks/use-viewport-match'
 
 const WIDE_SHIFT = 12
+const useStepChange = createUseStepChange({ useEffect, useRef })
+
 function HeaderButton({ label, onPress, children }: Readonly<{ label: string; onPress: () => void; children: React.ReactNode }>) {
   return <PillButton variant="ghost" iconOnly label={label} minimumHeight={48} onClick={onPress}>{children}</PillButton>
 }
@@ -46,12 +49,11 @@ function FlowPrimaryAction({ primary }: Readonly<{ primary: NonNullable<Question
 
 function useQuestionFocus(stepKey: string, onStepChange: () => void) {
   const headingRef = useRef<HTMLHeadingElement>(null)
-  const firstStep = useRef(stepKey)
-  useEffect(() => {
-    if (firstStep.current === stepKey) return
+  const focusQuestion = useCallback(() => {
     headingRef.current?.focus({ preventScroll: true })
     onStepChange()
-  }, [stepKey, onStepChange])
+  }, [onStepChange])
+  useStepChange(stepKey, focusQuestion)
   return headingRef
 }
 
@@ -81,7 +83,7 @@ function stepTravel(direction: 1 | -1, shift: number | undefined) {
   return { x: direction * shift, opacity: 0 }
 }
 
-/** The one-question flow frame. It holds no habit-specific code: a second consumer mounts it with its own content. */
+/** The one-question flow frame. It holds no habit-specific code: a second consumer mounts it with its own content. Its host owns the landmark: the shell or the sign-in frame holds `main`, and `FlowScreen` holds the region or the dialog. */
 export function QuestionFlow(props: Readonly<QuestionFlowProps>) {
   const { flow, question, line, lineKey, stepKey, direction, orbitState = 'parado', showOrbit = true, statusText, options, children, primary, footer } = props
   const wide = useViewportMatch('(min-width: 1024px)')
@@ -101,7 +103,7 @@ export function QuestionFlow(props: Readonly<QuestionFlowProps>) {
   return (
     <div data-question-flow="" data-step={stepKey} data-orbit-state={visibleOrbitState} className="flex min-h-0 flex-1 flex-col">
       <FlowHeader props={props} />
-      <main className="flex min-h-0 flex-1 flex-col items-center overflow-y-auto px-4">
+      <div data-flow-scroll="" className="flex min-h-0 flex-1 flex-col items-center overflow-y-auto px-4">
         <motion.div
           key={stepKey}
           role="presentation"
@@ -123,7 +125,7 @@ export function QuestionFlow(props: Readonly<QuestionFlowProps>) {
           {wide ? primaryAction : null}
           {footer}
         </motion.div>
-      </main>
+      </div>
       <span role="status" aria-live="polite" className="sr-only">{announcement || statusText}</span>
       {wide || !primaryAction ? null : <div className="mx-auto w-full max-w-[592px] px-4 pb-4 pt-2">{primaryAction}</div>}
     </div>

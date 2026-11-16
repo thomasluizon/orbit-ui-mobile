@@ -35,7 +35,7 @@ describe('the guided sign-in providers in Chromium', () => {
       await page.setContent(`<!DOCTYPE html><html class="dark"><style>${stylesheet}</style><body style="margin:0"><div class="flex h-dvh flex-col">${container.innerHTML}</div></body></html>`)
       await loadAppFonts(page)
       const geometry = await page.evaluate(() => {
-        const column = document.querySelector('[data-question-flow] main > [role="presentation"]')!.getBoundingClientRect()
+        const column = document.querySelector('[data-question-flow] [data-flow-scroll] > [role="presentation"]')!.getBoundingClientRect()
         const box = (button: Element) => { const rect = button.getBoundingClientRect(); return { width: rect.width, height: rect.height, centre: (rect.left + rect.right) / 2 } }
         return {
           columnCentre: (column.left + column.right) / 2,
