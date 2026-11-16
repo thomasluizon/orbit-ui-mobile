@@ -347,6 +347,11 @@ jobs:
         # 6 minutes is below the job limit of 10, so a stalled scan fails under its own step name.
         timeout-minutes: 6
         name: "React Doctor: Fail on new React issues in changed files"
+        # npm ci installs React Doctor and its dependencies at the versions and checksums of .github/react-doctor/
+        # package-lock.json, outside the workspace tree, so a new upstream publish cannot change or fail the scan, and
+        # no other job installs it.
         run: |
-          npx -y react-doctor@0.7.6 . --blocking error --scope changed --base origin/${{ github.base_ref }} --no-dead-code --no-supply-chain --no-score --yes
+          set -euo pipefail
+          npm ci --prefix .github/react-doctor --ignore-scripts --no-audit --no-fund
+          .github/react-doctor/node_modules/.bin/react-doctor . --blocking error --scope changed --base origin/${{ github.base_ref }} --no-dead-code --no-supply-chain --no-score --yes
         if: ${{ !cancelled() && (github.event_name == 'pull_request') }}

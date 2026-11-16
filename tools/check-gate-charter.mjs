@@ -287,10 +287,16 @@ function isPrerequisiteRun(script) {
   return /^npm\s+ci(?:\s+[^\r\n]+)?$/u.test(script.trim())
 }
 
+// The React Doctor step installs its own locked tree, then scans the files that the pull request changed.
+const REACT_DOCTOR_RUN = `set -euo pipefail
+npm ci --prefix .github/react-doctor --ignore-scripts --no-audit --no-fund
+.github/react-doctor/node_modules/.bin/react-doctor . --blocking error --scope changed --base origin/\${{ github.base_ref }} --no-dead-code --no-supply-chain --no-score --yes`
+
 function blockingRunUsesChangedFiles(script) {
+  // commandOffsets finds only node and npx commands, and the scan runs the installed binary.
+  if (script.trim() === REACT_DOCTOR_RUN) return true
   const commands = commandOffsets(script)
   if (commands.length === 0) return isPrerequisiteRun(script)
-  if (script.trim() === "npx -y react-doctor@0.7.6 . --blocking error --scope changed --base origin/${{ github.base_ref }} --no-dead-code --no-supply-chain --no-score --yes") return true
   const variables = derivedVariables(script)
   return commands.every((command) =>
     /tools\/check-dashes\.mjs\s+--text\b/.test(command.line) ||

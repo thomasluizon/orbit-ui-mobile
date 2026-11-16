@@ -327,7 +327,20 @@ test("script guards share one checkout and install, and run after another guard 
   assert.deepEqual(Object.keys(workflow.jobs), ["guards"])
   const steps = workflow.jobs.guards.steps
   assert.equal(steps.filter((step) => step.uses?.startsWith("actions/checkout@")).length, 1)
-  assert.equal(steps.filter((step) => /^npm ci\b/.test(step.run ?? "")).length, 1)
+  // One step installs the workspace tree. The React Doctor step installs only its own lockfile, outside that tree.
+  const installs = steps.flatMap((step) => (step.run ?? "").split("\n").filter((line) => /^\s*npm ci\b/.test(line))
+    .map((line) => [step.id ?? step.name, line.trim()]))
+  assert.deepEqual(installs, [
+    ["Install dependencies", "npm ci --no-audit"],
+    ["react-doctor__1", "npm ci --prefix .github/react-doctor --ignore-scripts --no-audit --no-fund"],
+  ])
+  const reactDoctor = steps.find((step) => step.id === "react-doctor__1")
+  assert.match(reactDoctor.run, /^\.github\/react-doctor\/node_modules\/\.bin\/react-doctor \. /m, "React Doctor runs the binary of its locked tree")
+  const reactDoctorLock = JSON.parse(readFileSync(join(repositoryRoot, ".github/react-doctor/package-lock.json"), "utf8"))
+  const reactDoctorManifest = JSON.parse(readFileSync(join(repositoryRoot, ".github/react-doctor/package.json"), "utf8"))
+  assert.match(reactDoctorManifest.devDependencies["react-doctor"], /^\d+\.\d+\.\d+$/, "the manifest pins one exact React Doctor version")
+  assert.deepEqual(reactDoctorLock.packages[""].devDependencies, reactDoctorManifest.devDependencies, "npm ci needs the manifest and the lockfile to agree")
+  assert.equal(reactDoctorLock.packages["node_modules/react-doctor"].version, reactDoctorManifest.devDependencies["react-doctor"])
   for (const step of steps.filter((candidate) => candidate.id?.includes("__"))) {
     assert.ok(step.name, `${step.id} must name the guard`)
     assert.match(step.if, /!cancelled\(\)/, `${step.id} must run after a previous failure`)

@@ -62,14 +62,17 @@ jobs:
           path: ~/.npm/_cacache
           key: ${{ runner.os }}-turbo-cli-${{ steps.turbo.outputs.version }}
 
+      # npm ci installs Turbo at the entries of the root lockfile, so the plan reads the same Turbo as the test jobs, with
+      # no resolve and without the workspace tree. The restored npm cache holds the archives.
       - name: Hash the test tasks and read the changed paths
         id: plan
         env:
           EVENT_NAME: ${{ github.event_name }}
-          TURBO_VERSION: ${{ steps.turbo.outputs.version }}
         run: |
           set -euo pipefail
-          npx --yes "turbo@$TURBO_VERSION" run test --dry=json > "$RUNNER_TEMP/turbo-test.json"
+          node .github/scripts/write-locked-package.mjs turbo "$RUNNER_TEMP/turbo"
+          npm ci --prefix "$RUNNER_TEMP/turbo" --ignore-scripts --no-audit --no-fund --prefer-offline
+          "$RUNNER_TEMP/turbo/node_modules/.bin/turbo" run test --dry=json > "$RUNNER_TEMP/turbo-test.json"
           if [ "$EVENT_NAME" = pull_request ]; then git diff --name-only --no-renames HEAD^1 HEAD > "$RUNNER_TEMP/changed-paths.txt"; fi
           node .github/scripts/plan-test-jobs.mjs --event "$EVENT_NAME" --turbo-dry "$RUNNER_TEMP/turbo-test.json" \
             --workflow .github/workflows/test.yml --changed-files "$RUNNER_TEMP/changed-paths.txt" | tee -a "$GITHUB_OUTPUT"
@@ -269,7 +272,7 @@ jobs:
           fi
 
       - name: Test CI workflow behavior
-        run: node --test .github/scripts/check-web-test-budget.test.mjs tools/__tests__/guards-changed-paths.test.mjs tools/__tests__/ci-minutes.test.mjs tools/__tests__/npm-cache-workflows.test.mjs .github/scripts/check-pr-metadata.test.mjs .github/scripts/desktop-build-workflow.test.mjs .github/scripts/unit-tests-workflow.test.mjs .github/scripts/release-admission.test.mjs .github/scripts/check-critical-production-cves.test.mjs .github/scripts/plan-test-jobs.test.mjs .github/scripts/record-web-shard-timings.test.mjs .github/scripts/sweep-actions-caches.test.mjs .github/scripts/cache-save-rules.test.mjs .github/scripts/android-boot-action.test.mjs
+        run: node --test .github/scripts/check-web-test-budget.test.mjs tools/__tests__/guards-changed-paths.test.mjs tools/__tests__/ci-minutes.test.mjs tools/__tests__/npm-cache-workflows.test.mjs .github/scripts/check-pr-metadata.test.mjs .github/scripts/desktop-build-workflow.test.mjs .github/scripts/unit-tests-workflow.test.mjs .github/scripts/release-admission.test.mjs .github/scripts/check-critical-production-cves.test.mjs .github/scripts/plan-test-jobs.test.mjs .github/scripts/record-web-shard-timings.test.mjs .github/scripts/sweep-actions-caches.test.mjs .github/scripts/cache-save-rules.test.mjs .github/scripts/android-boot-action.test.mjs .github/scripts/write-locked-package.test.mjs
 
       # This step owns the full-tree graphic floor assertion outside cached unit shards.
       # Other findings stay advisory; graphic floor findings and scanner errors fail.
