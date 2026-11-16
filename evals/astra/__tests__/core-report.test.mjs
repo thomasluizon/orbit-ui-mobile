@@ -17,6 +17,7 @@ const fixedBuild = 'b'.repeat(40)
 const classify = 'The grader cannot classify a held preview: moveHabit.'
 const scratch = []
 afterEach(() => { for (const path of scratch.splice(0)) rmSync(path, { recursive: true, force: true }) })
+const directory = () => { const path = mkdtempSync(join(tmpdir(), 'core-report-')); scratch.push(path); return path }
 
 // One promptfoo result of the core provider: a graded attempt, an attempt that the grader could not read, or an attempt
 // without evidence.
@@ -391,9 +392,72 @@ describe('a case without a verdict on an earlier build', () => {
   })
 })
 
-describe('the report files', () => {
-  const directory = () => { const path = mkdtempSync(join(tmpdir(), 'core-report-')); scratch.push(path); return path }
+// The operator declares each window of a later build with `--rerun`, at any position on the command line. Without that
+// declaration the first summary would name the first build, and a later build given first would change the verdicts
+// with no refusal. Each line below gets the correct verdict or a refusal that names `--rerun`.
+describe('the declaration of a later build on the command line', () => {
+  const mustPass = coreDescriptors().find((entry) => entry.mustPass)
+  const other = coreDescriptors().find((entry) => !entry.mustPass)
+  const refusal = (input) => `Input ${input} measured another API commit; give each window of a later build to the merge with --rerun.`
+  const files = (...windows) => {
+    const target = directory()
+    return windows.map((summary, index) => {
+      const path = join(target, `window-${index}.json`)
+      writeFileSync(path, JSON.stringify(summary))
+      return path
+    })
+  }
+  const mustPassOn = (apiCommit, last) => run([...attempts(mustPass, 2), result(mustPass, last)], [mustPass], 'must-pass', apiCommit)
+  const otherOn = (apiCommit, options) => run([result(other, options)], [other], 'other', apiCommit)
+  // The result of one command line: the refusal, or the builds and the verdict of each of the two measured cases.
+  const outcome = (argumentsList) => {
+    try {
+      const summary = mergeRunFiles([...argumentsList, '--as-baseline'])
+      return { status: summary.status, firstBuild: summary.apiCommit, laterBuilds: summary.laterApiCommits ?? [],
+        cases: [mustPass, other].map(({ id }) => summary.cases.find((entry) => entry.id === id))
+          .map(({ passK, apiCommit, rerun = false }) => ({ passK, apiCommit, rerun })) }
+    } catch (error) { return error.message }
+  }
 
+  // First build: the spend ceiling stops the must-pass case without evidence. Later build: the case fails.
+  describe('a must-pass case with its first verdict, a fail, on the later build', () => {
+    const windows = () => files(mustPassOn(fixedBuild, { pass: false }), mustPassOn(meta.apiCommit, { unavailable: true }), otherOn(meta.apiCommit))
+    const firstVerdict = { status: 'fail', firstBuild: meta.apiCommit, laterBuilds: [fixedBuild],
+      cases: [{ passK: 'fail', apiCommit: fixedBuild, rerun: false }, { passK: 'pass', apiCommit: meta.apiCommit, rerun: false }] }
+
+    it('keeps the fail when the later build stands first or last with --rerun', () => {
+      const [later, firstMustPass, firstOther] = windows()
+      expect(outcome(['--rerun', later, firstMustPass, firstOther])).toEqual(firstVerdict)
+      expect(outcome([firstMustPass, firstOther, '--rerun', later])).toEqual(firstVerdict)
+    })
+
+    it('refuses the same summaries without --rerun, and never reports the case as incomplete', () => {
+      const [later, firstMustPass, firstOther] = windows()
+      expect(outcome([later, firstMustPass, firstOther])).toBe(refusal(2))
+      expect(outcome([firstMustPass, firstOther, later])).toBe(refusal(3))
+    })
+  })
+
+  // First build: both cases pass. A later build fails both. A case that passed keeps its build, so no line merges.
+  describe('a later build that fails the cases which passed on the first build', () => {
+    const windows = () => files(mustPassOn(fixedBuild, { pass: false }), otherOn(fixedBuild, { pass: false }), mustPassOn(meta.apiCommit), otherOn(meta.apiCommit))
+    const passedEarlier = `Case ${mustPass.id} passed on an earlier build; a later build measures only a case without a pass.`
+
+    it('refuses the later build when it stands first or last with --rerun', () => {
+      const [laterMustPass, laterOther, firstMustPass, firstOther] = windows()
+      expect(outcome(['--rerun', laterMustPass, '--rerun', laterOther, firstMustPass, firstOther])).toBe(passedEarlier)
+      expect(outcome([firstMustPass, firstOther, '--rerun', laterMustPass, '--rerun', laterOther])).toBe(passedEarlier)
+    })
+
+    it('refuses the same summaries without --rerun, and never reports the failed cases as passed', () => {
+      const [laterMustPass, laterOther, firstMustPass, firstOther] = windows()
+      expect(outcome([laterMustPass, laterOther, firstMustPass, firstOther])).toBe(refusal(3))
+      expect(outcome([firstMustPass, firstOther, laterMustPass, laterOther])).toBe(refusal(3))
+    })
+  })
+})
+
+describe('the report files', () => {
   it('writes the summary with k, pass^k, the questions, the model calls, the seconds and the cost of each case', () => {
     const target = directory()
     const summary = mergeRuns([run(attempts(required, 3, { questions: 1 }), [required]),

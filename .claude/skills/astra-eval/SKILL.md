@@ -64,7 +64,8 @@ pull request; until then the gate of that build stays incomplete. Extend the gra
 
 After a fix, the failed cases and the cases with a grader limit run once more live on the fixed build. This is the
 single permitted rerun: a case has one. Give its summaries to the merge with `--rerun`: the rerun takes the place of
-the first result, and the report names each build and marks the case `rerun on <commit>`.
+the first result, and the report names each build and marks the case `rerun on <commit>`. `--rerun` declares which
+windows belong to a later build, so the merge refuses a later build given first without the flag.
 
 Staging can serve another API commit before each case has a verdict: after a fix, or after a release of another
 commit. A case without a verdict (no window held it, or its attempts gave no evidence) then runs on the new build, in

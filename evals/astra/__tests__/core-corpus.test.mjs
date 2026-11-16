@@ -187,6 +187,7 @@ it('keeps the 2 USD ceiling of the launch gate run in the skill and in TESTING.m
 it('keeps the single rerun of the failed cases after a fix as a merged gate verdict, in the skill and in TESTING.md', () => {
   for (const path of ['.claude/skills/astra-eval/SKILL.md', 'TESTING.md']) {
     expect(repository(path), path).toMatch(/--rerun/u)
+    expect(repository(path).replace(/\s+/gu, ' '), path).toContain('`--rerun` declares which windows belong to a later build')
     expect(repository(path), path).not.toMatch(/beside the first report/u)
   }
 })

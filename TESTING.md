@@ -553,6 +553,8 @@ node core/merge.mjs --run-cost-usd <measured cost of all builds> --baseline <bas
 ```
 
 The rerun takes the place of the first result. A case has one rerun: the merge refuses a second one.
+`--rerun` declares which windows belong to a later build, so the merge refuses a later build given
+first without the flag.
 
 Staging can serve another API commit before each case has a verdict: after a fix, or after a release
 of another commit. An ordinary window on the new commit is refused, because the ordinary windows measure
