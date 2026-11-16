@@ -93,7 +93,7 @@ export function usePhraseView({ flow, formHelpers }: Readonly<ViewInput>): FlowS
     free: <PhraseField label={t('habits.flow.what.label')} value={title} placeholder={t('habits.flow.what.placeholder')} maxLength={MAX_HABIT_TITLE_LENGTH} hint={hint ?? serverError}
       marks={flow.mode === 'create' ? flow.localRead.consumed : []} marksLabel={t('habits.form.understood')}
       focusRequest={focusRequest || backendFormFieldFocusRequest('title', formHelpers.backendFocusField, formHelpers.backendFocusRequest)}
-      onChange={(value) => { setHint(undefined); flow.changeTitle(value) }} />,
+      onChange={(value) => { setHint(undefined); flow.changeTitle(value) }} onSubmit={submit} />,
     primary: { label: t('habits.flow.continue'), onPress: submit },
   }
 }

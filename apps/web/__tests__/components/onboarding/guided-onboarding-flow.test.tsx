@@ -176,6 +176,18 @@ describe.each(locales)('guided onboarding in $locale', ({ locale, messages }) =>
     expect(screen.getByRole('group', { name: guided.summary.question })).toHaveTextContent(/6:00\sPM|18:00/)
   })
 
+  it('answers the phrase question with Enter, as the continue action does', async () => {
+    useOnboardingDraftStore.setState({ introSeen: true })
+    mount(locale, messages)
+    const field = () => screen.getByLabelText(guided.what.question, { selector: 'textarea' })
+    await act(async () => { fireEvent.keyDown(field(), { key: 'Enter' }) })
+    expect(heading()).toBe(guided.what.question)
+    expect(screen.getByText(flow.what.continueReason)).toBeInTheDocument()
+    fireEvent.change(field(), { target: { value: locale === 'en' ? 'Meditate' : 'Meditar' } })
+    await act(async () => { fireEvent.keyDown(field(), { key: 'Enter' }) })
+    expect(heading()).toBe(flow.when.scheduleMode)
+  })
+
   it('asks how it repeats when the phrase has no schedule, then the days, then the summary', async () => {
     useOnboardingDraftStore.setState({ introSeen: true })
     mount(locale, messages)

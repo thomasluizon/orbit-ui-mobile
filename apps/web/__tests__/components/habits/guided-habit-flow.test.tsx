@@ -295,6 +295,18 @@ describe.each([
     expect(heading()).toHaveTextContent(messages().time.question)
   })
 
+  it('answers the phrase step with Enter, as the primary action does, and leaves Shift+Enter to the field', async () => {
+    render(<Harness />)
+    const field = () => screen.getByLabelText(messages().what.label)
+    await act(async () => { fireEvent.keyDown(field(), { key: 'Enter' }) })
+    expect(screen.getByText(messages().what.hint)).toBeInTheDocument()
+    await type(messages().what.label, locale === 'en' ? 'Read' : 'Ler')
+    await act(async () => { fireEvent.keyDown(field(), { key: 'Enter', shiftKey: true }) })
+    expect(heading()).toHaveTextContent(messages().what.question)
+    await act(async () => { fireEvent.keyDown(field(), { key: 'Enter' }) })
+    expect(heading()).not.toHaveTextContent(messages().what.question)
+  })
+
   it('shows the hint and focuses the phrase field on an empty submit', async () => {
     render(<Harness />)
     await press(messages().continue)

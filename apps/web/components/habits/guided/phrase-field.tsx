@@ -17,12 +17,14 @@ interface PhraseFieldProps {
   marksLabel: string
   focusRequest?: number
   onChange: (value: string) => void
+  /** Enter answers the step, as the primary action does. Shift+Enter keeps the browser default. */
+  onSubmit: () => void
 }
 
 /** The free path of the first step of a guided create flow: the person's own words, read live on the device. Onboarding and the habit create flow both render it. */
-export function PhraseField({ label, value, placeholder, maxLength, hint, marks, marksLabel, focusRequest, onChange }: Readonly<PhraseFieldProps>) {
+export function PhraseField({ label, value, placeholder, maxLength, hint, marks, marksLabel, focusRequest, onChange, onSubmit }: Readonly<PhraseFieldProps>) {
   return (
     <Input autoFocus hideLabel multiline rows={3} name="title" maxLength={maxLength} label={label} value={value} placeholder={placeholder}
-      error={hint} marks={marks} marksLabel={marksLabel} focusRequest={focusRequest} onChange={onChange} />
+      error={hint} marks={marks} marksLabel={marksLabel} focusRequest={focusRequest} onChange={onChange} onSubmit={onSubmit} />
   )
 }

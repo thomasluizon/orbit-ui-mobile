@@ -155,7 +155,7 @@ function usePhraseView(props: GuidedOnboardingProps, cadenceOfPhrase: string | n
     )),
     free: <PhraseField label={t('onboarding.flow.guided.what.question')} value={props.sentence} placeholder={t('onboarding.flow.what.placeholder')} maxLength={100} hint={hint}
       marks={props.marks} marksLabel={t('onboarding.flow.what.marksLabel')} focusRequest={focusRequest}
-      onChange={(value) => { setHint(undefined); props.onSentence(value) }} />,
+      onChange={(value) => { setHint(undefined); props.onSentence(value) }} onSubmit={() => { if (!props.suggestionPending) submit() }} />,
     primary: { label: t('onboarding.flow.continue'), onPress: submit, loading: props.suggestionPending },
     footer: props.isLive ? null : <>
       {/* eslint-disable-next-line local/max-button-words -- The granted onboarding drawing uses this account action label. */}
