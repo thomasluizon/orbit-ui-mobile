@@ -12,7 +12,8 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), "../..")
 const load = (path) => yaml.load(readFileSync(join(root, path), "utf8"))
 const workflows = readdirSync(join(root, ".github/workflows"))
   .filter((file) => /\.ya?ml$/.test(file))
-  .map((file) => ({ file, on: Object.keys(load(`.github/workflows/${file}`).on), jobs: load(`.github/workflows/${file}`).jobs }))
+  .map((file) => ({ file, document: load(`.github/workflows/${file}`) }))
+  .map(({ file, document }) => ({ file, on: Object.keys(document.on), env: document.env ?? {}, jobs: document.jobs }))
 const actions = readdirSync(join(root, ".github/actions"))
   .map((directory) => ({ file: `${directory}/action.yml`, steps: load(`.github/actions/${directory}/action.yml`).runs.steps }))
 const everyStep = [
@@ -113,6 +114,7 @@ test("every job that installs from the lockfile restores the npm cache first, an
   assert.match(restore.with.key, NPM_KEY)
   assert.equal(restore.with.path, "${{ steps.directory.outputs.path }}")
   assert.equal(action.find((step) => step.id === "directory").run, 'echo "path=$(npm config get cache)" >> "$GITHUB_OUTPUT"')
+  assert.equal(load(".github/actions/restore-npm-cache/action.yml").outputs.path.value, "${{ steps.directory.outputs.path }}")
   // The four release jobs restore inline and never save, so each keeps the prefix fallback.
   for (const { step, where } of inlineNpmRestores()) {
     assert.equal(step.with["restore-keys"].trim(), "npm-${{ runner.os }}-${{ runner.arch }}-", where)
@@ -140,21 +142,22 @@ const NPM_SAVERS = {
   "desktop-build.yml: build": ["runner.os == 'Windows' && github.ref == 'refs/heads/main'", "${{ !(runner.os == 'Windows' && github.ref == 'refs/heads/main') }}"],
 }
 
-// The restore is a step of the local action, so no path of the calling job equals its path. A save step of a job that
-// restores the npm cache is an npm save when its key or its path has the text npm, or reads an output of the restore
-// step or of a step that reads the npm cache directory.
+// In a job that restores the npm cache, a save step is an npm save unless each of its paths is outside the npm cache
+// directory (mayHoldTheSameFiles below). A save whose key or path has the text npm, or reads an output of the restore
+// step or of a step that reads the npm cache directory, is an npm save in each case.
 const NPM_PRIMARY_KEY = "${{ steps.npm-cache.outputs.cache-primary-key }}"
 function namesTheNpmCache(save, steps) {
   const text = `${save.with?.key ?? ""}\n${save.with?.path ?? ""}`
   const ids = steps.filter((step) => isNpmRestore(step) || step.run?.includes("npm config get cache")).map((step) => step.id).filter(Boolean)
   return /npm/i.test(text) || ids.some((id) => text.includes(`steps.${id}.outputs.`))
 }
-function npmSavesOf(workflowList) {
-  const stepLists = [...workflowList.flatMap(({ file, jobs }) => Object.entries(jobs).map(([job, { steps = [] }]) => ({ file, job, steps }))),
-    ...actions.map(({ file, steps }) => ({ file, job: "action", steps }))]
-  return stepLists.filter(({ steps }) => steps.some(isNpmRestore)).flatMap(({ file, job, steps }) =>
-    steps.filter((step) => /^actions\/cache(\/save)?@/.test(step.uses ?? "") && namesTheNpmCache(step, steps))
-      .map((step) => ({ file, job, step, steps, where: `${file}: ${job}: ${step.name ?? step.uses}` })))
+function npmSavesOf(workflowList, actionList = actions) {
+  return stepListsOf(workflowList, actionList).flatMap((list) => {
+    const restores = list.steps.filter(isNpmCacheRestore)
+    if (restores.length === 0) return []
+    return list.steps.filter((step) => savesACache(step) && (namesTheNpmCache(step, list.steps) || restores.some((restore) => mayHoldTheSameFiles(step, restore, list))))
+      .map((step) => ({ file: list.file, job: list.job, step, steps: list.own, where: `${list.file}: ${list.job}: ${step.name ?? step.uses}` }))
+  })
 }
 const npmSaveJobs = (workflowList) => npmSavesOf(workflowList).map(({ file, job }) => `${file}: ${job}`).sort()
 
@@ -192,6 +195,9 @@ for (const [name, moreSteps] of [
   ["the outputs of a restore step with another id", [{ id: "packages", uses: "./.github/actions/restore-npm-cache" },
     saveNpm({ path: "${{ steps.packages.outputs.path }}", key: "${{ steps.packages.outputs.cache-primary-key }}" })]],
   ["a combined cache step", [{ name: "Cache npm", uses: "actions/cache@v6", with: { path: "~/.npm", key: "packages-${{ github.sha }}" } }]],
+  ["a directory from an env value that no workflow sets", [saveNpm({ path: "${{ env.PACKAGES }}", key: "packages-${{ github.sha }}" })]],
+  ["a glob in the home directory", [saveNpm({ path: "~/.n*", key: "packages-${{ github.sha }}" })]],
+  ["the Windows default directory", [saveNpm({ path: "${{ env.LOCALAPPDATA }}/packages", key: "packages-${{ github.sha }}" })]],
 ]) {
   test(`a job that restores the npm cache by prefix and saves it with ${name} is found as an npm saver`, () => {
     assert.deepEqual(npmSaveJobs(withMoreSteps("test.yml", "type-check", moreSteps)), [...Object.keys(NPM_SAVERS), "test.yml: type-check"].sort())
@@ -431,30 +437,106 @@ const BOUNDED_PREFIX_SAVERS = {
   "test.yml: type-check: Restore turbo": "the step that deletes results older than 30 days",
 }
 
-// actions/cache at 55cc8345863c7cc4c66a329aec7e433d2d1c52a9 (v6), src/utils/actionUtils.ts getInputAsArray: the path
-// input holds one path on each line, and a line that starts with "!" excludes a path. A save stores the restored files
-// when one of its paths is a restored path, its parent or its child, whatever key the save names.
-const cachePaths = (step) => String(step.with?.path ?? "").split("\n").map((line) => line.trim().replace(/^\.\//, "").replace(/\/+$/, ""))
-  .filter((line) => line !== "" && !line.startsWith("!"))
-const holdsPath = (outer, inner) => inner === outer || inner.startsWith(`${outer}/`)
-const savesTheRestoredFiles = (save, restore) => cachePaths(save).some((saved) =>
-  cachePaths(restore).some((restored) => holdsPath(saved, restored) || holdsPath(restored, saved)))
+// actions/cache at 55cc8345863c7cc4c66a329aec7e433d2d1c52a9 (v6). src/utils/actionUtils.ts getInputAsArray: the path
+// input holds one path on each line, and a line that starts with "!" excludes a path. dist/save-only/index.js
+// resolvePaths and Pattern.fixupPattern: each line is a glob pattern with the characters "*", "?" and "[" (nobrace is
+// set, so "{" is plain text), a first segment "~" is the home directory, each other relative line starts at the
+// workspace, a ".." segment fails the step, and each match is stored relative to GITHUB_WORKSPACE. The action does not
+// expand "$NAME"; the guard reads "$GITHUB_WORKSPACE/" as the workspace, which is the safe side.
+const WORKSPACE = "<workspace>"
+const NPM_DIRECTORY = "<npm cache>"
+const READS_THE_NPM_DIRECTORY = 'echo "path=$(npm config get cache)" >> "$GITHUB_OUTPUT"'
+const GLOB = /[*?[]/
+
+// The path output of a step is the npm cache directory only when each step with that id reads it or is the local action.
+function isTheNpmDirectory(expression, steps) {
+  const id = expression.match(/^steps\.([\w-]+)\.outputs\.path$/)?.[1]
+  const owners = steps.filter((step) => id !== undefined && step.id === id)
+  return owners.length > 0 && owners.every((step) => step.run === READS_THE_NPM_DIRECTORY || step.uses === "./.github/actions/restore-npm-cache")
+}
+
+// One path as a root and its segments, or null when the guard cannot name the directory: an absolute path, a Windows
+// path, a ".." segment, or a variable or an expression after the first segment.
+function placeOf(line, steps) {
+  const expression = line.match(/^\$\{\{\s*(.+?)\s*\}\}(?=\/|$)/)
+  const first = expression ? expression[0] : line.split("/")[0]
+  const rest = line.slice(first.length).split("/").filter(Boolean)
+  let root = WORKSPACE
+  if (expression) root = expression[1] === "github.workspace" ? WORKSPACE : isTheNpmDirectory(expression[1], steps) ? NPM_DIRECTORY : `\${{ ${expression[1]} }}`
+  else if (first === "~") root = "~"
+  else if (first !== "." && first !== "$GITHUB_WORKSPACE") rest.unshift(first)
+  if (line.startsWith("/") || /[\\:]/.test(line) || rest.some((segment) => segment === ".." || segment.includes("$"))) return null
+  // The macOS and Windows runners do not tell "A" from "a" in a file name.
+  return { root, text: [root, ...rest.map((segment) => segment.toLowerCase())].join("/") }
+}
+
+// A workflow or job env value is the value of the expression when no step can change it.
+function cachePlaces(step, { steps, env }) {
+  const path = String(step.with?.path ?? "").replace(/\$\{\{\s*env\.(\w+)\s*\}\}/g, (expression, name) =>
+    typeof env[name] === "string" && step.env?.[name] === undefined && !steps.some((other) => other.run?.includes(`${name}=`)) ? env[name] : expression)
+  return path.split("\n").map((line) => line.trim()).filter((line) => line !== "" && !line.startsWith("!")).map((line) => placeOf(line, steps))
+}
+
+// Pairs of directories where neither holds a file of the other on a GitHub-hosted runner. The workspace is in the
+// work directory of the runner, and RUNNER_TEMP is "D:\a\_temp" (docs.github.com, Variables reference). The npm cache
+// directory is ~/.npm, or %LOCALAPPDATA%\npm-cache on Windows (npm 11, @npmcli/config lib/definitions/definitions.js),
+// and the Windows image sets it to C:\npm\cache (actions/runner-images at 1b60920cc98c97c717d4790ffdfcb5350e21b5ad,
+// images/windows/scripts/build/Install-NodeJS.ps1). The main guard test pins the two env values and the npm setting.
+const SEPARATE_PLACES = [
+  [WORKSPACE, "~/.cache"],
+  [NPM_DIRECTORY, WORKSPACE],
+  [NPM_DIRECTORY, "~/.cache"],
+  [NPM_DIRECTORY, "${{ runner.temp }}"],
+  [NPM_DIRECTORY, "${{ env.ORBIT_NSIS_TOOLS }}"],
+  [NPM_DIRECTORY, "${{ env.ORBIT_WINDOWS_DOWNLOAD_CACHE }}"],
+]
+
+// outer holds inner when it is the same path or a parent, or a glob whose text before its first glob character starts inner.
+const holdsPath = (outer, inner) => inner === outer || inner.startsWith(`${outer}/`) || (GLOB.test(outer) && inner.startsWith(outer.split(GLOB)[0]))
+const isInside = (path, place) => `${path.split(GLOB)[0]}${GLOB.test(path) ? "" : "/"}`.startsWith(`${place}/`)
+// Two paths are apart only with a proof: one root and paths that do not hold each other, or a pair of separate places.
+function areApart(one, other) {
+  if (one === null || other === null || holdsPath(one.text, other.text) || holdsPath(other.text, one.text)) return false
+  return one.root === other.root || SEPARATE_PLACES.some(([first, second]) =>
+    (isInside(one.text, first) && isInside(other.text, second)) || (isInside(one.text, second) && isInside(other.text, first)))
+}
+const mayHoldTheSameFiles = (save, restore, list) => cachePlaces(save, list).some((saved) =>
+  cachePlaces(restore, list).some((restored) => !areApart(saved, restored)))
 const savesUnderTheRestoredKey = (save, restore) => restore.id !== undefined &&
   String(save.with?.key ?? "").includes(`steps.${restore.id}.outputs.cache-primary-key`)
 
-function prefixSaversOf(workflowList) {
-  const prefixSavers = []
-  for (const { file, jobs } of workflowList) {
-    for (const [job, { steps = [] }] of Object.entries(jobs)) {
-      for (const restore of steps) {
-        if (!/^actions\/cache(\/restore)?@/.test(restore.uses ?? "") || !String(restore.with?.["restore-keys"] ?? "").trim()) continue
-        const saved = restore.uses.startsWith("actions/cache@") || steps.some((save) => save !== restore &&
-          /^actions\/cache(\/save)?@/.test(save.uses ?? "") && (savesTheRestoredFiles(save, restore) || savesUnderTheRestoredKey(save, restore)))
-        if (saved) prefixSavers.push(`${file}: ${job}: ${restore.name ?? restore.uses}`)
-      }
-    }
-  }
-  return prefixSavers.sort()
+// GitHub reads an action name without regard to case.
+const savesACache = (step) => /^actions\/cache(\/save)?@/i.test(step.uses ?? "")
+const restoresByPrefix = (step) => /^actions\/cache(\/restore)?@/i.test(step.uses ?? "") && String(step.with?.["restore-keys"] ?? "").trim() !== ""
+const isNpmCacheRestore = (step) => /^actions\/cache\/restore@/i.test(step.uses ?? "") && NPM_KEY.test(step.with?.key ?? "")
+
+// The steps of a local action run in the job that calls it, so each call is followed by the steps of its action.
+function withActionSteps(steps, actionSteps, callers = []) {
+  return steps.flatMap((step) => {
+    if (!step.uses?.startsWith("./")) return [step]
+    const action = step.uses.replace(/\/+$/, "")
+    assert.ok(actionSteps[action] !== undefined && !callers.includes(action), `${step.uses}: the guard must read the steps of each local action`)
+    return [step, ...withActionSteps(actionSteps[action], actionSteps, [...callers, action])]
+  })
+}
+// Each job with the steps of its local actions, and each local action as a list of its own.
+function stepListsOf(workflowList, actionList) {
+  const actionSteps = Object.fromEntries(actionList.map(({ file, steps }) => [`./.github/actions/${dirname(file)}`, steps]))
+  return [
+    ...workflowList.flatMap(({ file, env, jobs }) => Object.entries(jobs).map(([job, { steps = [], env: jobEnv }]) =>
+      ({ file, job, own: steps, steps: withActionSteps(steps, actionSteps), env: { ...env, ...jobEnv } }))),
+    ...actionList.map(({ file, steps }) => ({ file, job: "action", own: steps, steps: withActionSteps(steps, actionSteps), env: {} })),
+  ]
+}
+
+// The post step of a combined actions/cache step saves its own restore. Each other save step of the job counts unless
+// each of its paths is apart from each restored path. The npm test owns the saves of an npm restore.
+function prefixSaversOf(workflowList, actionList = actions) {
+  const prefixSavers = stepListsOf(workflowList, actionList).flatMap((list) => list.steps
+    .filter((restore) => restoresByPrefix(restore) && !isNpmCacheRestore(restore) && list.steps.some((save) => savesACache(save) &&
+      (save === restore || savesUnderTheRestoredKey(save, restore) || mayHoldTheSameFiles(save, restore, list))))
+    .map((restore) => `${list.file}: ${list.job}: ${restore.name ?? restore.uses}`))
+  return [...new Set(prefixSavers)].sort()
 }
 
 const LINT_KEY = "eslint-${{ github.sha }}"
@@ -470,6 +552,19 @@ for (const [name, moreSteps, restoreName = "Restore eslint"] of [
   ["a literal key and the parent directory of the path", [restoreLint({ with: { path: "tooling/cache/eslint", key: LINT_KEY, "restore-keys": "eslint-" } }), saveLint({ path: "tooling/cache" })]],
   ["the post step of a combined cache step", [restoreLint(), { name: "Cache eslint", uses: "actions/cache@v6", with: { path: ".eslintcache", key: LINT_KEY } }]],
   ["a restore step with no name", [restoreLint({ name: undefined }), saveLint()], "actions/cache/restore@v6"],
+  ["a literal key and the path after the workspace expression", [restoreLint(), saveLint({ path: "${{ github.workspace }}/.eslintcache" })]],
+  ["a literal key and the path after the workspace variable", [restoreLint(), saveLint({ path: "$GITHUB_WORKSPACE/.eslintcache" })]],
+  ["a literal key and a glob that matches the path", [restoreLint({ with: { path: "apps/web/.eslintcache", key: LINT_KEY, "restore-keys": "eslint-" } }), saveLint({ path: "apps/*/.eslintcache" })]],
+  ["a literal key and a glob at the start of the path", [restoreLint(), saveLint({ path: "[.]eslint?ache" })]],
+  ["a literal key and the whole workspace", [restoreLint(), saveLint({ path: "." })]],
+  ["a literal key and the path in other letter case", [restoreLint(), saveLint({ path: ".ESLintCache" })]],
+  ["a literal key and an action name in other letter case", [restoreLint(), { ...saveLint(), uses: "Actions/Cache/Save@v6" }]],
+  ["a literal key and a path from an env value that no workflow sets", [restoreLint(), saveLint({ path: "${{ env.LINT_CACHE }}" })]],
+  ["a literal key and a path from a step output", [restoreLint(), saveLint({ path: "${{ steps.lint.outputs.directory }}/cache" })]],
+  ["a literal key and a path with an expression after its first segment", [restoreLint(), saveLint({ path: "apps/${{ matrix.app }}/.eslintcache" })]],
+  ["a literal key and an absolute path", [restoreLint(), saveLint({ path: "/var/cache/eslint" })]],
+  ["a literal key and the home directory, which holds the workspace", [restoreLint(), saveLint({ path: "~" })]],
+  ["a literal key and a home path that is not in a separate place", [restoreLint(), saveLint({ path: "~/work" })]],
 ]) {
   test(`a new job step that saves a prefix restore under ${name} needs a rule that bounds the entry`, () => {
     const found = prefixSaversOf(withMoreSteps("test.yml", "type-check", moreSteps))
@@ -477,15 +572,57 @@ for (const [name, moreSteps, restoreName = "Restore eslint"] of [
   })
 }
 
-test("a prefix restore that no step saves, and a save after a restore of the exact key only, need no rule", () => {
+test("a prefix restore that no step saves, a save after a restore of the exact key only, and a save of a path that is apart need no rule", () => {
   const exactRestore = restoreLint({ with: { path: ".eslintcache", key: LINT_KEY } })
-  for (const moreSteps of [[restoreLint()], [exactRestore, saveLint()], [restoreLint(), saveLint({ path: ".eslintcache-next" })]]) {
+  for (const moreSteps of [[restoreLint()], [exactRestore, saveLint()], [restoreLint(), saveLint({ path: ".eslintcache-next" })],
+    [restoreLint(), saveLint({ path: "apps/*/.eslintcache" })], [restoreLint(), saveLint({ path: "~/.cache/eslint" })]]) {
     assert.deepEqual(prefixSaversOf(withMoreSteps("test.yml", "type-check", moreSteps)), prefixSaversOf(workflows))
   }
 })
 
+// A cache step of a local action runs in each job that calls the action.
+const NSIS_ACTION = "desktop-nsis-tools/action.yml"
+const withActionStep = (file, change) => actions.map((action) => action.file !== file ? action : { ...action, steps: action.steps.map(change) })
+
+test("a combined cache step of a local action that restores by prefix needs a rule in the action and in each job that calls it", () => {
+  const nsisTools = withActionStep(NSIS_ACTION, (step) => step.name !== "Cache the NSIS tools" ? step
+    : { ...step, with: { ...step.with, "restore-keys": "${{ runner.os }}-nsis-tools-\n" } })
+  const callers = everyStep.filter(({ step }) => step.uses === "./.github/actions/desktop-nsis-tools").map(({ file, job }) => `${file}: ${job}`)
+  assert.ok(callers.length >= 4)
+  assert.deepEqual(prefixSaversOf(workflows, nsisTools),
+    [...prefixSaversOf(workflows), ...[`${NSIS_ACTION}: action`, ...callers].map((where) => `${where}: Cache the NSIS tools`)].sort())
+})
+
+test("a prefix restore in a local action, with a save in the job that calls it or in a second local action, needs a rule", () => {
+  const restorePrettier = { file: "restore-prettier/action.yml", steps: [{ name: "Restore prettier", uses: "actions/cache/restore@v6",
+    with: { path: ".prettiercache", key: "prettier-${{ github.sha }}", "restore-keys": "prettier-\n" } }] }
+  const savePrettier = { name: "Save prettier", if: "github.event_name != 'pull_request'", uses: "actions/cache/save@v6", with: { path: ".prettiercache", key: "prettier-${{ github.sha }}" } }
+  const callRestore = { uses: "./.github/actions/restore-prettier" }
+  const expected = [...prefixSaversOf(workflows), "test.yml: type-check: Restore prettier"].sort()
+
+  assert.deepEqual(prefixSaversOf(withMoreSteps("test.yml", "type-check", [callRestore]), [...actions, restorePrettier]), prefixSaversOf(workflows))
+  assert.deepEqual(prefixSaversOf(withMoreSteps("test.yml", "type-check", [callRestore, savePrettier]), [...actions, restorePrettier]), expected)
+  const saveAction = { file: "save-prettier/action.yml", steps: [savePrettier] }
+  assert.deepEqual(prefixSaversOf(withMoreSteps("test.yml", "type-check", [callRestore, { uses: "./.github/actions/save-prettier/" }]), [...actions, restorePrettier, saveAction]), expected)
+  // An action that calls the restore action carries the restore into the job.
+  const setup = { file: "setup-prettier/action.yml", steps: [callRestore] }
+  assert.deepEqual(prefixSaversOf(withMoreSteps("test.yml", "type-check", [{ uses: "./.github/actions/setup-prettier" }, savePrettier]), [...actions, restorePrettier, setup]), expected)
+
+  assert.throws(() => prefixSaversOf(withMoreSteps("test.yml", "type-check", [callRestore, savePrettier])), /the guard must read the steps of each local action/)
+})
+
 test("every job that restores an entry by prefix and saves it has a rule that bounds the entry", () => {
   assert.deepEqual(prefixSaversOf(workflows), Object.keys(BOUNDED_PREFIX_SAVERS).sort())
+
+  // SEPARATE_PLACES holds these two directories by the name of their env value, and the npm cache directory by its default.
+  const runs = everyStep.map(({ step }) => step.run ?? "")
+  for (const [name, value] of [["ORBIT_NSIS_TOOLS", "$LOCALAPPDATA/tauri/NSIS"], ["ORBIT_WINDOWS_DOWNLOAD_CACHE", "$RUNNER_TEMP/windows-app-sdk-downloads"]]) {
+    const writes = runs.filter((run) => run.includes(`${name}=`))
+    assert.ok(writes.length > 0, name)
+    for (const run of writes) assert.equal(run, `echo "${name}=${value}" >> "$GITHUB_ENV"`, name)
+  }
+  assert.equal(existsSync(join(root, ".npmrc")), false, "a root .npmrc can move the npm cache directory")
+  for (const { step, where } of everyStep) assert.doesNotMatch(JSON.stringify(step), /npm_config_cache|npm config set cache/i, where)
 
   // Turbo keeps each result at .turbo/cache/<hash>.tar.zst with two JSON files and never removes one.
   const typeCheck = stepsOf("test.yml", "type-check")
