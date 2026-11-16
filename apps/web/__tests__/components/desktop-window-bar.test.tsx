@@ -143,20 +143,28 @@ it('drags on a single press and toggles maximize on a double press of the bar, n
   expect(invoke).not.toHaveBeenCalledWith('desktop_window', { action: 'drag' })
 })
 
-it('opens the window system menu on a right-click anywhere on the Windows bar, never the page menu', async () => {
+it('opens the window system menu on a right-click of the drag area or the Menu action, and nothing on a window action, never the page menu', async () => {
   markShell('windows')
   const { container } = renderBar()
   await screen.findByRole('button', { name: 'Maximize' })
   const dragArea = container.querySelector('[data-desktop-window-bar-content] > [role="presentation"]') as HTMLElement
-  for (const target of [dragArea, screen.getByRole('button', { name: 'Menu' }), screen.getByRole('button', { name: 'Close' })]) {
+  for (const target of [dragArea, screen.getByRole('button', { name: 'Menu' })]) {
     invoke.mockClear()
     expect(fireEvent.contextMenu(target)).toBe(false)
     expect(invoke).toHaveBeenCalledTimes(1)
     expect(invoke).toHaveBeenCalledWith('desktop_window', { action: 'system_menu' })
   }
+  for (const name of ['Minimize', 'Maximize', 'Close']) {
+    const action = screen.getByRole('button', { name })
+    for (const target of [action, action.querySelector('svg') as SVGElement]) {
+      invoke.mockClear()
+      expect(fireEvent.contextMenu(target)).toBe(false)
+      expect(invoke).not.toHaveBeenCalled()
+    }
+  }
 })
 
-it('opens the window system menu under the focused action for the context menu key or Shift+F10, and at the pointer after a press', async () => {
+it('opens the window system menu under the focused action, a window action too, for the context menu key or Shift+F10, and at the pointer after a press', async () => {
   markShell('windows')
   renderBar()
   await screen.findByRole('button', { name: 'Maximize' })
@@ -176,6 +184,14 @@ it('opens the window system menu under the focused action for the context menu k
   fireEvent.contextMenu(menu)
   expect(invoke).toHaveBeenCalledTimes(1)
   expect(invoke).toHaveBeenCalledWith('desktop_window', { action: 'system_menu' })
+  const close = screen.getByRole('button', { name: 'Close' })
+  close.getBoundingClientRect = () => ({ left: 752, top: 2, right: 796, bottom: 46, width: 44, height: 44, x: 752, y: 2, toJSON: () => ({}) })
+  close.focus()
+  invoke.mockClear()
+  fireEvent.keyDown(close, { key: 'ContextMenu' })
+  expect(fireEvent.contextMenu(close)).toBe(false)
+  expect(invoke).toHaveBeenCalledTimes(1)
+  expect(invoke).toHaveBeenCalledWith('desktop_window', { action: 'system_menu', anchor: { x: 752, y: 46 } })
 })
 
 it('keeps the page menu off the macOS bar, where the window has no system menu to open', async () => {
