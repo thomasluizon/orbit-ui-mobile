@@ -206,7 +206,7 @@ function ReferralDrawerContent({ onClose, sheetRef, closeSheet }: Readonly<Pick<
         {isLoading ? (
           <View>
             <SectionLabel>{t('referral.drawer.yourLink')}</SectionLabel>
-            <View testID="referral-skeleton" style={styles.content} accessibilityRole="progressbar" accessibilityLabel={t('common.loading')} accessibilityState={{ busy: true }}>
+            <View testID="referral-skeleton" style={styles.content} accessible accessibilityRole="progressbar" accessibilityLabel={t('common.loading')} accessibilityState={{ busy: true }}>
               <View style={styles.linkSkeleton}><Skeleton variant="fill" grouped /></View>
               <Skeleton variant="settings" rows={2} grouped />
             </View>

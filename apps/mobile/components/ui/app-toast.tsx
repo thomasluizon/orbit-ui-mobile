@@ -27,6 +27,7 @@ import { useAppTheme } from '@/lib/use-app-theme'
 import { useAppToastStore } from '@/stores/app-toast-store'
 import { useUIStore } from '@/stores/ui-store'
 import { resolveCenteredOverlayFrame } from './centered-overlay-frame'
+import { insetHairlineRing } from './inset-hairline-ring'
 
 function resolveActionColor(
   kind: ToastProps['kind'],
@@ -143,7 +144,7 @@ export function Toast(props: Readonly<ToastProps & { onDismiss?: () => void; per
       onPointerLeave={() => setHovered(false)}
       onFocus={() => setFocused(true)}
       onBlur={() => setFocused(false)}
-      style={[styles.toast, { backgroundColor: colors.background }]}
+      style={[styles.toast, { backgroundColor: colors.background, outlineColor: tokens.hairline }]}
       testID={`toast-${props.kind}`}
     >
       <ToastLeadingMark props={props} tokens={tokens} />
@@ -213,6 +214,7 @@ const styles = StyleSheet.create({
     rowGap: 0,
     borderRadius: radius.xl,
     padding: SPACING.s16,
+    ...insetHairlineRing,
     ...shadowsV2.shadow2,
   },
   workingMark: { flexDirection: 'row', gap: 4 },
