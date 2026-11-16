@@ -10,28 +10,36 @@ export const shellValue = (word) => String(word ?? "").replace(/^(["'])([\s\S]*)
 export const SUBSTITUTION = "__substitution__"
 
 const REDIRECT_OPERATOR = /<<<|<<-?|>>|>&|<&|>\||<>|[<>]/y
-const REDIRECT_TARGET = /[ \t]*(?:[^\s"'\\<>&|;]|\\.|"(?:\\.|[^"\\])*"|'[^']*')*/y
+const REDIRECT_TARGET = /[ \t]*(?:\$'(?:\\.|[^'\\])*'|[^\s"'\\<>&|;]|\\.|"(?:\\.|[^"\\])*"|'[^']*')*/y
+
+/** The quote that opens at `index` outside a quote: `'`, `"`, or the ANSI-C quote `$'`, in which a backslash escapes the next character. */
+const quoteOpenedAt = (source, index) => {
+  if (source[index] === "$" && source[index + 1] === "'") return "$'"
+  return source[index] === "'" || source[index] === '"' ? source[index] : ""
+}
 
 /**
  * The command without its redirects: each unquoted operator, the file descriptor or the `&` before it, and its target word.
- * The shell cuts a redirect from a word with or without a space. A here-string stays, because its word is text that its command reads.
+ * The shell cuts a redirect from a word with or without a space. A here-string stays as a word of its own, because its word is
+ * text that its command reads. With `keepHereStrings: false` it goes too, for a reader that wants the arguments only.
  */
-export function withoutRedirects(command) {
+export function withoutRedirects(command, { keepHereStrings = true } = {}) {
   let kept = ""
   let quote = ""
   for (let index = 0; index < command.length; index++) {
     const character = command[index]
     if (character === "\\" && quote !== "'") { kept += command.slice(index, index + 2); index++; continue }
     if (quote) {
-      if (character === quote) quote = ""
+      if (character === quote.at(-1)) quote = ""
       kept += character
       continue
     }
-    if (character === "'" || character === '"') { quote = character; kept += character; continue }
+    quote = quoteOpenedAt(command, index)
+    if (quote) { kept += quote; index += quote.length - 1; continue }
     REDIRECT_OPERATOR.lastIndex = index
     const operator = REDIRECT_OPERATOR.exec(command)?.[0]
     if (!operator) { kept += character; continue }
-    if (operator === "<<<") { kept += operator; index += operator.length - 1; continue }
+    if (operator === "<<<" && keepHereStrings) { kept += " <<< "; index += operator.length - 1; continue }
     REDIRECT_TARGET.lastIndex = index + operator.length
     kept = `${kept.replace(/(?:(?<!\S)\d+|&)$/, "")} `
     index = REDIRECT_TARGET.lastIndex + REDIRECT_TARGET.exec(command)[0].length - 1
@@ -44,13 +52,14 @@ function substitutionEnd(source, start, backtick) {
   let quote = ""
   for (let index = start; index < source.length; index++) {
     const character = source[index]
-    if (character === "\\") { index++; continue }
+    if (character === "\\" && (backtick || quote !== "'")) { index++; continue }
     if (backtick && character === "`") return index
     if (quote) {
-      if (character === quote) quote = ""
+      if (character === quote.at(-1)) quote = ""
       continue
     }
-    if (character === "'" || character === '"') { quote = character; continue }
+    quote = quoteOpenedAt(source, index)
+    if (quote) { index += quote.length - 1; continue }
     if (!backtick && character === "(") depth++
     if (!backtick && character === ")" && --depth === 0) return index
   }
@@ -88,7 +97,7 @@ function splitCommands(source) {
       continue
     }
     if (character === "\\" && quote !== "'") { current += source.slice(index, index + 2); index++; continue }
-    const substitution = quote !== "'" && (character === "`" || (character === "$" && source[index + 1] === "("))
+    const substitution = !quote.endsWith("'") && (character === "`" || (character === "$" && source[index + 1] === "("))
     if (substitution) {
       const start = index + (character === "`" ? 1 : 2)
       const end = substitutionEnd(source, start, character === "`")
@@ -99,11 +108,12 @@ function splitCommands(source) {
       continue
     }
     if (quote) {
-      if (character === quote) quote = ""
+      if (character === quote.at(-1)) quote = ""
       current += character
       continue
     }
-    if (character === "'" || character === '"') { quote = character; current += character; continue }
+    quote = quoteOpenedAt(source, index)
+    if (quote) { current += quote; index += quote.length - 1; continue }
     if (character === "(") {
       const end = substitutionEnd(source, index + 1, false)
       nested.push(source.slice(index + 1, end))

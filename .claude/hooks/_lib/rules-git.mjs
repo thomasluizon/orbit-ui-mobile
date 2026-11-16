@@ -32,7 +32,7 @@ function pushTargetDir(segment, cwd) {
   return directory
 }
 
-const heredoc = /^([^\n]*?)<<-?[ \t]*(['"]?)([A-Za-z_][A-Za-z0-9_]*)\2([^\n]*)\n([\s\S]*?)^\3[ \t]*$/gm
+const heredoc = /^([^\n]*?)(?<!<)<<(?!<)-?[ \t]*(['"]?)([A-Za-z_][A-Za-z0-9_]*)\2([^\n]*)\n([\s\S]*?)^\3[ \t]*$/gm
 
 /** An unquoted heredoc expands command substitutions before its consumer starts. */
 export function unquotedHeredocRunsCommand(command) {
@@ -64,8 +64,8 @@ const LONG_OPTIONS_WITH_ARGUMENT = new Set(["--rcfile", "--init-file", "--emulat
 /** Stands for the heredoc operator, so that the shell parser finds the commands that read the body. */
 const HEREDOC_OPERATOR = "__heredoc_operator__"
 
-/** The words of a simple command, without its redirects. */
-const argumentsOf = (command) => commandWords(withoutRedirects(command)).map(shellValue)
+/** The words of a simple command, without its redirects. A here-string is a redirect of standard input, so it is no argument. */
+const argumentsOf = (command) => commandWords(withoutRedirects(command, { keepHereStrings: false })).map(shellValue)
 
 const isShell = (word) => SHELLS.includes(word.split(/[\\/]/).pop())
 const holdsSubstitution = (words) => words.some((word) => word.includes(SUBSTITUTION))
@@ -107,14 +107,23 @@ function runsSubstitution(words) {
 }
 
 /**
+ * True when a command substitution is the command word: the shell runs the words of its output as a command.
+ * An assignment with a value can come first. `x=$(` is an assignment with no value before the substitution, so it is data.
+ */
+const substitutionIsCommandWord = (command) =>
+  (argumentsOf(command).find((word) => !/^[A-Za-z_]\w*=./.test(word)) ?? "").startsWith(SUBSTITUTION)
+
+/**
  * True when a shell runs the heredoc as a script. Redirects do not count.
  * - A reader of the body has a shell word, by name or by path, followed only by options and, after `-s`, positional arguments.
- * - A command that holds the body in a command substitution is a shell with a command string after `-c`, or `eval`.
+ * - A command that holds the body in a command substitution is a shell with a command string after `-c`, or `eval`, or has
+ *   the substitution as its command word.
  */
 function feedsShell(beforeOperator, restOfLine) {
   const { readers, holders } = commandsFedBy(`${beforeOperator} ${HEREDOC_OPERATOR} ${restOfLine}`, HEREDOC_OPERATOR)
   return readers.some((command) => hasWordThat(command, isShell, readsStandardInput)) ||
-    holders.some((command) => hasWordThat(command, isShell, runsSubstitution) || hasWordThat(command, (word) => word === "eval", holdsSubstitution))
+    holders.some((command) => substitutionIsCommandWord(command) || hasWordThat(command, isShell, runsSubstitution) ||
+      hasWordThat(command, (word) => word === "eval", holdsSubstitution))
 }
 
 /** Strip heredoc bodies so a message that NAMES a flag is not read as using it. A body that a shell reads stays; a file named `x.sh` is not a shell. */
@@ -166,7 +175,8 @@ export function checkGitCommand(command, { resolveHeadBranch, resolveRemoteUrl, 
     return directory
   })
 
-  const unquoteToken = (token) => token.replace(/\\(.)/g, "$1").replace(/["']/g, "")
+  /** The token as argv carries it: no escape and no quote, also not the `$` that opens an ANSI-C quote. */
+  const unquoteToken = (token) => token.replace(/\\(.)/g, "$1").replace(/\$?["']/g, "")
 
   /** A leading `NAME=value` is an environment assignment, not the command word. */
   const isEnvironmentAssignment = (token) => /^[A-Za-z_][A-Za-z0-9_]*=/.test(token)

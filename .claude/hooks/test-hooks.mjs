@@ -172,6 +172,30 @@ T("git: main2 before >&1 is another branch", checkGitCommand("git push origin ma
 T("git: a redirect to a file named main allows", checkGitCommand("git push origin feature/x > main"), null)
 T("git: a feature push with a redirect on the ref allows", checkGitCommand("git push -f origin feature/x&>/dev/null"), null)
 T("git: a here-string to a shell still blocks", blocks(checkGitCommand('bash <<< "git push origin main"')), true)
+// The shell reads a here-string with or without a space around its operator.
+T("git: a here-string with no space before its word still blocks", blocks(checkGitCommand('bash <<<"git push origin main"')), true)
+T("git: a here-string with no space on either side still blocks", blocks(checkGitCommand("bash<<<'git push origin main'")), true)
+// A here-string is no heredoc, so a later line that repeats its word ends nothing and the lines between are commands.
+T("git: a here-string word that a later line repeats opens no heredoc", blocks(checkGitCommand("cat <<<x\ngit push origin main\nx")), true)
+// In an ANSI-C quote a backslash escapes the next character, so `\'` does not end the quote, and a `>`, `;` or `$(` in it is text.
+for (const [name, command] of [
+  ["commit -n after $'it\\'s > x'", "git commit -m $'it\\'s > x' -n -m it\\'s"],
+  [`commit ${NV} after $'it\\'s > x'`, `git commit -m $'it\\'s > x' ${NV} -m it\\'s`],
+  ["push origin main after $'it\\'s > x'", "git push -o $'it\\'s > x' origin main -o it\\'s"],
+  ["push origin HEAD:main after $'it\\'s > x'", "git push -o $'it\\'s > x' origin HEAD:main -o it\\'s"],
+  ["commit -n after $'don\\'t; x'", "git commit -m $'don\\'t; x' -n"],
+  ["push origin main after $'don\\'t; x'", "git push -o $'don\\'t; x' origin main"],
+  ["commit -n after $'it\\'s $(x'", "git commit -m $'it\\'s $(x' -n"],
+]) T(`git: ${name} still blocks`, blocks(checkGitCommand(command)), true)
+T("git: an ANSI-C message that names -n after > allows", checkGitCommand("git commit -m $'it\\'s > -n'"), null)
+T("git: an ANSI-C message that names a push after ; allows", checkGitCommand("git commit -m $'don\\'t; git push origin main'"), null)
+T("git: a redirect to an ANSI-C target cuts the whole target", checkGitCommand("git push origin feature/x > $'it\\'s main'"), null)
+// The shell removes an ANSI-C quote from a word before git reads argv, as it removes each other quote.
+for (const command of ["$'git' push origin main", "git $'push' origin main", "git push origin $'main'", "bash -c $'git push origin main'"]) {
+  T(`git: ${command} still blocks`, blocks(checkGitCommand(command)), true)
+}
+// In a single quote a backslash is text, so the quote ends at the next `'` and the substitution holds the push.
+T("git: a single quote that ends in a backslash hides no command of its substitution", blocks(checkGitCommand("echo $(echo 'a\\' ; git push origin main)")), true)
 for (const tail of ["2>&1", "2>/dev/null", "> /dev/null", ">/dev/null", "&>/dev/null", "2>&1 | tail -3"]) {
   T(`git: push origin ${tail} while HEAD is on main blocks`, blocks(checkGitCommand(`git push origin ${tail}`, { resolveHeadBranch: () => "main", cwd: "." })), true)
 }
@@ -230,6 +254,15 @@ const HEREDOC_SHELL_LINES = [
   ["bash -c \"echo first $(cat <<'EOF'", ")\""],
   ["eval \"$(cat <<'EOF'", ")\""],
   ["eval `cat <<'EOF'", "`"],
+  // A here-string is one more redirect of standard input: bash gives the shell the last one, and zsh gives it each one.
+  "bash <<<\"\" <<'EOF'",
+  "bash <<<x <<'EOF'",
+  "bash <<< x <<'EOF'",
+  "bash <<'EOF' <<<x",
+  // A command substitution in the command word runs the words of its output as a command, also after an assignment.
+  ["$(cat <<'EOF'", ")"],
+  ["`cat <<'EOF'", "`"],
+  ["y=1 $(cat <<'EOF'", ")"],
 ]
 /** A row is the operator line, or the operator line and the text after the terminator. */
 const heredocCommand = (row, body) => {
@@ -258,6 +291,9 @@ const HEREDOC_DATA = [
   ["git commit -m \"$(cat <<'EOF'", ")\""],
   ["gh pr create --body \"$(cat <<'EOF'", ")\""],
   ["x=$(cat <<'EOF'", ")"],
+  ["x=\"$(cat <<'EOF'", ")\""],
+  ["y=1 x=$(cat <<'EOF'", ")"],
+  ["echo $(cat <<'EOF'", ")"],
   ["bash script.sh \"$(cat <<'EOF'", ")\""],
   // The shell expands `$(cat)` before it applies the heredoc, so the command string comes from the input of the caller, not from the body.
   "bash -c \"$(cat)\" <<'EOF'",
@@ -575,6 +611,8 @@ for (const [command, rule] of [
   ["bash <<'EOF'\nrm -rf \"$TMP\"\nEOF", "variable-path"],
   ...HEREDOC_SHELLS.map((shell) => [`${shell} <<'EOF'\nrm -rf "$TMP"\nEOF`, "variable-path"]),
   ...HEREDOC_SHELL_LINES.map((row) => [heredocCommand(row, 'rm -rf "$TMP"'), "variable-path"]),
+  // A here-string is no heredoc: the line after it is a command, also when a later line repeats its word.
+  ['cat <<<x\nrm -rf "$TMP"\nx', "variable-path"],
   ["rm -rf `pwd`/dist", "command-substitution"],
   ["docker exec box sh -c 'rm -rf /'", "critical-path"],
   ["rm -rf /", "critical-path"],
