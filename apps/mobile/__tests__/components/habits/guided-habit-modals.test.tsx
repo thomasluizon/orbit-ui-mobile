@@ -10,7 +10,7 @@ import { i18n } from '@/lib/i18n'
 import { press, renderNavigation } from '../ui/navigation-render'
 
 const state = vi.hoisted(() => ({
-  flag: true, create: vi.fn(), update: vi.fn(), saved: null as Record<string, unknown> | null, completed: vi.fn(), push: vi.fn(), phraseRead: vi.fn(),
+  flag: true, create: vi.fn(), update: vi.fn(), saved: null as Record<string, unknown> | null, completed: vi.fn(), push: vi.fn(), phraseRead: vi.fn(), subCreate: vi.fn(),
   detailPending: false, detailFetching: false, detailError: null as Error | null, refetchDetail: vi.fn(),
 }))
 
@@ -27,7 +27,7 @@ vi.mock('@/hooks/use-profile', () => ({
 }))
 vi.mock('@/hooks/use-app-toast', () => ({ useAppToast: () => ({ showError: vi.fn(), showSuccess: vi.fn(), showInfo: vi.fn() }) }))
 vi.mock('@/hooks/use-create-habit', () => ({ useCreateHabit: () => ({ mutateAsync: state.create, isPending: false }) }))
-vi.mock('@/hooks/use-create-sub-habit', () => ({ useCreateSubHabit: () => ({ mutateAsync: vi.fn(), isPending: false }) }))
+vi.mock('@/hooks/use-create-sub-habit', () => ({ useCreateSubHabit: () => ({ mutateAsync: state.subCreate, isPending: false }) }))
 vi.mock('@/hooks/use-update-habit', () => ({ useUpdateHabit: () => ({ mutateAsync: state.update, isPending: false }) }))
 vi.mock('@/hooks/use-habit-queries', async (importOriginal) => ({
   ...await importOriginal<typeof import('@/hooks/use-habit-queries')>(),
@@ -90,6 +90,7 @@ beforeEach(async () => {
   state.update.mockReset().mockResolvedValue({})
   state.completed.mockReset()
   state.phraseRead.mockReset().mockResolvedValue(null)
+  state.subCreate.mockReset().mockResolvedValue({ id: 'child-1' })
   state.saved = null
   state.detailPending = false
   state.detailFetching = false
@@ -324,6 +325,32 @@ describe('a guided create on Android from a phrase with a repeat', () => {
     expect(heading(tree)).toBe(ptBR.habits.flow.confirm.question)
     expect(control(tree, `${ptBR.habits.flow.summary.when}, todo dia`)).toBeDefined()
     expect(rowMarked(tree, new RegExp(`^${ptBR.habits.flow.summary.when}, `))).toBe(true)
+    tree.unmount()
+  })
+
+  it('keeps a child of a General parent undated when the free read proposes a repeat and a time, and marks only the emoji', async () => {
+    state.phraseRead.mockResolvedValue({ read: true, emoji: '🪴', frequencyUnit: 'Day', frequencyQuantity: 1, days: [], isFlexible: false, flexibleTarget: null, dueTime: '07:00', subHabits: [], checklistItems: [] })
+    const parent = createMockHabit({ id: 'parent-1', title: 'Casa', isGeneral: true, frequencyUnit: null, frequencyQuantity: null, dueTime: null })
+    const tree = renderNavigation(<QueryClientProvider client={new QueryClient()}><CreateHabitModal open onClose={vi.fn()} parentHabit={parent} /></QueryClientProvider>)
+    await settle()
+    await phrase(tree, 'regar as plantas')
+    await settle()
+    expect(state.phraseRead).toHaveBeenCalledTimes(1)
+    if (control(tree, ptBR.habits.flow.time.none)) await tap(tree, ptBR.habits.flow.time.none)
+    if (control(tree, ptBR.habits.flow.reminder.no)) await tap(tree, ptBR.habits.flow.reminder.no)
+    expect(heading(tree)).toBe(ptBR.habits.flow.confirm.question)
+    const rowTitles = [ptBR.habits.flow.summary.when, ptBR.habits.flow.summary.time]
+    const titlesIn = (nodes: ReactTestInstance[]) => nodes.map((node) => (node.props as { children?: unknown }).children).filter((text): text is string => typeof text === 'string' && rowTitles.includes(text))
+    expect(titlesIn(tree.hosts() as unknown as ReactTestInstance[])).toEqual(rowTitles)
+    const markedRows = tree.hosts().filter((node) => node.props.testID === 'proposed-row') as unknown as ReactTestInstance[]
+    expect(markedRows.flatMap((node) => titlesIn(node.findAll((child) => typeof child.type === 'string')))).toEqual([])
+    await primary(tree)
+    expect(state.subCreate).toHaveBeenCalledTimes(1)
+    const sent = (state.subCreate.mock.calls[0]![0] as { data: Record<string, unknown> }).data
+    expect(sent).toMatchObject({ title: 'regar as plantas', emoji: '🪴' })
+    expect(sent).not.toHaveProperty('frequencyUnit')
+    expect(sent).not.toHaveProperty('dueTime')
+    expect(sent).not.toHaveProperty('dueDate')
     tree.unmount()
   })
 

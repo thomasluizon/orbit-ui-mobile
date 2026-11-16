@@ -41,7 +41,9 @@ function mountFlow({ mode = 'create', lockedGeneral = null, online = true, value
   const applySchedule: GuidedHabitFlowOptions['applySchedule'] = (patch) => {
     const before = JSON.stringify(values)
     if (patch.mode !== 'oneTime') write({ frequencyUnit: patch.frequencyUnit ?? undefined, frequencyQuantity: patch.frequencyQuantity, isFlexible: patch.mode === 'flexible' })
-    if (patch.mode === 'recurring' && JSON.stringify(values.days ?? []) !== JSON.stringify(patch.days)) write({ days: patch.days })
+    const days = (values.days ?? []) as string[]
+    const sameDays = days.length === patch.days.length && patch.days.every((day) => days.includes(day))
+    if (patch.mode === 'recurring' && !sameDays) write({ days: patch.days })
     if (patch.dueTime) write({ dueTime: patch.dueTime })
     if (patch.emoji) write({ emoji: patch.emoji })
     return JSON.stringify(values) !== before
@@ -388,6 +390,18 @@ describe('the steps of the shared guided habit flow', () => {
     mounted.unmount()
   })
 
+  it('never marks the days the person typed as a proposal when the free read gives the same days in another order', async () => {
+    const readPhrase = vi.fn(async (): Promise<HabitPhraseReadResponse> => ({ ...NO_READ, read: true, frequencyUnit: 'Day', frequencyQuantity: 1, days: ['Thursday', 'Monday'], emoji: '🪴' }))
+    const mounted = mountFlow({ readPhrase })
+    run(() => mounted.flow.changeTitle('water the plants every monday and thursday'))
+    expect(mounted.values.days).toEqual(['Monday', 'Thursday'])
+    await act(async () => { await mounted.flow.leavePhrase() })
+    expect(readPhrase).toHaveBeenCalledOnce()
+    expect(mounted.values).toMatchObject({ frequencyUnit: 'Day', days: ['Monday', 'Thursday'], emoji: '🪴' })
+    expect(mounted.flow.proposals).toEqual({ schedule: false, time: false, emoji: true })
+    mounted.unmount()
+  })
+
   it('marks a repeat the person typed as a proposal when the free read replaces it', async () => {
     const readPhrase = vi.fn(async (): Promise<HabitPhraseReadResponse> => ({ ...NO_READ, read: true, frequencyUnit: 'Day', frequencyQuantity: 1, days: [], emoji: '🪴' }))
     const mounted = mountFlow({ readPhrase })
@@ -437,6 +451,18 @@ describe('the steps of the shared guided habit flow', () => {
     await leavePhraseWith(mounted, 'call John every day at 8am')
     expect(mounted.values).toMatchObject({ isGeneral: true, dueDate: '' })
     expect(mounted.flow.steps).toEqual(['what', 'summary'])
+    expect(mounted.flow.current.step).toBe('summary')
+    mounted.unmount()
+  })
+
+  it('keeps a child of a General parent undated when the free read proposes a repeat and a time, and marks only the emoji', async () => {
+    const readPhrase = vi.fn(async (): Promise<HabitPhraseReadResponse> => ({ ...NO_READ, read: true, frequencyUnit: 'Day', frequencyQuantity: 1, dueTime: '07:00', emoji: '🪴' }))
+    const mounted = mountFlow({ lockedGeneral: true, readPhrase })
+    await leavePhraseWith(mounted, 'water the plants')
+    expect(readPhrase).toHaveBeenCalledOnce()
+    expect(mounted.values).toMatchObject({ isGeneral: true, itemType: 'task', dueDate: '', dueTime: '', emoji: '🪴' })
+    expect(mounted.values.frequencyUnit ?? null).toBeNull()
+    expect(mounted.flow.proposals).toEqual({ schedule: false, time: false, emoji: true })
     expect(mounted.flow.current.step).toBe('summary')
     mounted.unmount()
   })

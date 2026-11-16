@@ -10,7 +10,7 @@ import { EditHabitModal } from '@/components/habits/edit-habit-modal'
 const state = vi.hoisted(() => ({
   locale: 'pt-BR' as 'en' | 'pt-BR', flag: true, online: true, clock24: true,
   create: vi.fn(), update: vi.fn(), saved: null as Record<string, unknown> | null, detail: null as Record<string, unknown> | null,
-  completed: vi.fn(), push: vi.fn(), phraseRead: vi.fn(),
+  completed: vi.fn(), push: vi.fn(), phraseRead: vi.fn(), subCreate: vi.fn(),
   detailPending: false, detailFetching: false, detailError: null as Error | null, refetchDetail: vi.fn(),
 }))
 
@@ -33,7 +33,7 @@ vi.mock('@/hooks/use-profile', () => ({
 }))
 vi.mock('@/hooks/use-app-toast', () => ({ useAppToast: () => ({ showError: vi.fn(), showSuccess: vi.fn(), showInfo: vi.fn() }) }))
 vi.mock('@/hooks/use-create-habit', () => ({ useCreateHabit: () => ({ mutateAsync: state.create, isPending: false }) }))
-vi.mock('@/hooks/use-create-sub-habit', () => ({ useCreateSubHabit: () => ({ mutateAsync: vi.fn(), isPending: false }) }))
+vi.mock('@/hooks/use-create-sub-habit', () => ({ useCreateSubHabit: () => ({ mutateAsync: state.subCreate, isPending: false }) }))
 vi.mock('@/hooks/use-update-habit', () => ({ useUpdateHabit: () => ({ mutateAsync: state.update, isPending: false }) }))
 vi.mock('@/hooks/use-habit-queries', async (importOriginal) => ({
   ...await importOriginal<typeof import('@/hooks/use-habit-queries')>(),
@@ -95,6 +95,7 @@ beforeEach(() => {
   state.update.mockReset().mockResolvedValue({})
   state.completed.mockReset()
   state.phraseRead.mockReset().mockResolvedValue(null)
+  state.subCreate.mockReset().mockResolvedValue({ id: 'child-1' })
   state.saved = { id: 'habit-9', title: 'Ligar para o João', isGeneral: false, dueDate: '2026-11-14', dueTime: '08:30', frequencyUnit: null, frequencyQuantity: null, isFlexible: false }
   state.detail = null
   state.detailPending = false
@@ -356,6 +357,28 @@ describe('the create surface behind orbit_guided_flows', () => {
     const scheduleRow = screen.getByRole('button', { name: new RegExp(`^${en.habits.flow.summary.when}`) })
     expect(scheduleRow).toHaveTextContent('every day')
     expect(scheduleRow.closest('[data-proposed]')).not.toBeNull()
+  })
+
+  it('keeps a child of a General parent undated when the free read proposes a repeat and a time, and marks only the emoji', async () => {
+    state.locale = 'en'
+    state.phraseRead.mockResolvedValue({ read: true, emoji: '🪴', frequencyUnit: 'Day', frequencyQuantity: 1, days: [], isFlexible: false, flexibleTarget: null, dueTime: '07:00', subHabits: [], checklistItems: [] })
+    const parent = createMockHabit({ id: 'parent-1', title: 'Home', isGeneral: true, frequencyUnit: null, frequencyQuantity: null, dueTime: null })
+    render(<QueryClientProvider client={new QueryClient()}><CreateHabitModal open onOpenChange={vi.fn()} parentHabit={parent} /></QueryClientProvider>)
+    await waitFor(() => expect(document.querySelector('[data-question-flow]')).not.toBeNull())
+    await phrase('water the plants')
+    expect(state.phraseRead).toHaveBeenCalledTimes(1)
+    if (screen.queryByRole('button', { name: en.habits.flow.time.none })) await press(en.habits.flow.time.none)
+    if (screen.queryByRole('button', { name: en.habits.flow.reminder.no })) await press(en.habits.flow.reminder.no)
+    expect(heading()).toHaveTextContent(en.habits.flow.confirm.question)
+    expect(screen.getByText(en.habits.flow.summary.when)).toBeInTheDocument()
+    expect([...document.querySelectorAll('[data-proposed]')].map((node) => node.textContent)).toEqual(['🪴'])
+    await press(en.common.create)
+    expect(state.subCreate).toHaveBeenCalledTimes(1)
+    const sent = (state.subCreate.mock.calls[0]![0] as { data: Record<string, unknown> }).data
+    expect(sent).toMatchObject({ title: 'water the plants', emoji: '🪴' })
+    expect(sent).not.toHaveProperty('frequencyUnit')
+    expect(sent).not.toHaveProperty('dueTime')
+    expect(sent).not.toHaveProperty('dueDate')
   })
 
   it('reads a repeat typed in the phrase after the person makes a task a habit on the type step', async () => {

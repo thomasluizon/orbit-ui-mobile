@@ -168,16 +168,18 @@ export function habitFlowFieldStep(field: string | null | undefined): HabitFlowS
 
 /**
  * The free read proposes; a deliberate choice of the person wins. A type the person set to task keeps
- * the task with no repeat, and a time the person answered keeps that time.
+ * the task with no repeat, and a time the person answered keeps that time. A child of a General parent
+ * stays undated, with no repeat and no time.
  */
-export function guardHabitReadPatch(patch: HabitFormSuggestionPatch, choices: { deliberateType: 'task' | 'habit' | null; timeAnswered: boolean }): HabitFormSuggestionPatch {
-  const keepsTask = choices.deliberateType === 'task'
+export function guardHabitReadPatch(patch: HabitFormSuggestionPatch, choices: { deliberateType: 'task' | 'habit' | null; timeAnswered: boolean; lockedGeneral: boolean | null }): HabitFormSuggestionPatch {
+  const lockedGeneral = choices.lockedGeneral === true
+  const keepsUndated = choices.deliberateType === 'task' || lockedGeneral
   return {
     ...patch,
-    mode: keepsTask ? 'oneTime' : patch.mode,
-    frequencyUnit: keepsTask ? null : patch.frequencyUnit,
-    frequencyQuantity: keepsTask ? null : patch.frequencyQuantity,
-    days: keepsTask ? [] : patch.days,
-    dueTime: choices.timeAnswered ? null : patch.dueTime,
+    mode: keepsUndated ? 'oneTime' : patch.mode,
+    frequencyUnit: keepsUndated ? null : patch.frequencyUnit,
+    frequencyQuantity: keepsUndated ? null : patch.frequencyQuantity,
+    days: keepsUndated ? [] : patch.days,
+    dueTime: choices.timeAnswered || lockedGeneral ? null : patch.dueTime,
   }
 }

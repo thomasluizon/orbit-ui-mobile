@@ -129,11 +129,17 @@ describe('guardHabitReadPatch', () => {
   const patch = { mode: 'recurring' as const, emoji: '💊', frequencyUnit: 'Day' as const, frequencyQuantity: 1, days: ['Monday'], dueTime: '08:00', subHabitTitles: [], checklistItems: [] }
 
   it('keeps every proposal when the person chose nothing yet', () => {
-    expect(guardHabitReadPatch(patch, { deliberateType: null, timeAnswered: false })).toEqual(patch)
+    expect(guardHabitReadPatch(patch, { deliberateType: null, timeAnswered: false, lockedGeneral: null })).toEqual(patch)
   })
 
   it('keeps a deliberate task with no repeat and a time the person answered', () => {
-    expect(guardHabitReadPatch(patch, { deliberateType: 'task', timeAnswered: true })).toEqual({
+    expect(guardHabitReadPatch(patch, { deliberateType: 'task', timeAnswered: true, lockedGeneral: null })).toEqual({
+      ...patch, mode: 'oneTime', frequencyUnit: null, frequencyQuantity: null, days: [], dueTime: null,
+    })
+  })
+
+  it('keeps a child of a General parent undated, with no repeat and no time, and keeps the emoji', () => {
+    expect(guardHabitReadPatch(patch, { deliberateType: null, timeAnswered: false, lockedGeneral: true })).toEqual({
       ...patch, mode: 'oneTime', frequencyUnit: null, frequencyQuantity: null, days: [], dueTime: null,
     })
   })

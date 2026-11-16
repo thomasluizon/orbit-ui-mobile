@@ -302,7 +302,7 @@ export function createUseGuidedHabitFlow({ useState, useEffect, useMemo, useCall
   }
 
   function usePhraseReads({ options, live, localRead, proposals, setProposals, advance, stepsAfter, startRepeat }: PhraseReadInput) {
-    const { form, helpers, mode, isOnline, locale, readPhrase, applySchedule, watched } = options
+    const { form, helpers, mode, lockedGeneral, isOnline, locale, readPhrase, applySchedule, watched } = options
     const [reading, setReading] = useState(false)
     const [usedAiRead, setUsedAiRead] = useState(false)
     const lastReadPhrase = useRef<string | null>(null)
@@ -312,7 +312,7 @@ export function createUseGuidedHabitFlow({ useState, useEffect, useMemo, useCall
 
     const applyFreeRead = useCallback((response: HabitPhraseReadResponse) => {
       const { answers, deliberateType } = live.current
-      const patch = guardHabitReadPatch(buildHabitFormPatchFromSuggestion(response), { deliberateType, timeAnswered: answers.time })
+      const patch = guardHabitReadPatch(buildHabitFormPatchFromSuggestion(response), { deliberateType, timeAnswered: answers.time, lockedGeneral })
       const scheduleBefore = readSchedule(form)
       const { dueTime: timeBefore, emoji: emojiBefore } = form.getValues()
       if (patch.mode !== 'oneTime' && deliberateType === null && form.getValues().itemType !== 'habit') helpers.chooseItemType('habit')
@@ -328,7 +328,7 @@ export function createUseGuidedHabitFlow({ useState, useEffect, useMemo, useCall
         emoji: gaveEmoji || (value.emoji && emojiAfter === emojiBefore),
       }))
       return gaveTime
-    }, [applySchedule, form, helpers, live, setProposals])
+    }, [applySchedule, form, helpers, live, lockedGeneral, setProposals])
 
     const leavePhrase = useCallback(async () => {
       if (leaving.current) return
