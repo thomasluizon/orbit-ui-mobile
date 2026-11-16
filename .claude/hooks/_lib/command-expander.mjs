@@ -334,6 +334,11 @@ export const SHELLS = [...new Set([...SCRIPT_SHELLS, "csh", "tcsh", "fish", "pws
 /** Programs that run the command that follows them. */
 const WRAPPERS = new Set(["sudo", "doas", "exec", "command", "builtin", "noglob", "env", "nice", "nohup", "time", "timeout", "stdbuf", "setsid", "ionice", "pkexec", "xargs"])
 /**
+ * The programs that run another program, or read an action that runs one, from their words: each wrapper, `find`, `git` and each shell.
+ * `xargs` adds words from standard input, which no rule reads, so the reader refuses an `xargs` that runs one of them.
+ */
+const runsProgram = (name) => WRAPPERS.has(name) || name === "find" || name === "git" || SHELLS.includes(name)
+/**
  * The wrappers that run their command as another user. `sudo` runs it in the directory that `-D` or the `runcwd` of its policy names,
  * `pkexec` runs it in the home directory of that user, and each one gives git the home and the config of that user. The reader refuses each one.
  */
@@ -400,6 +405,10 @@ const NAME = /^[A-Za-z_][A-Za-z0-9_]*$/
 const FIND_EXEC = /^-(?:exec|ok)$/
 /** The `find` actions that run their command in the directory of each found file. */
 const FIND_EXEC_IN_FOUND_DIRECTORY = /^-(?:execdir|okdir)$/
+/** Each `find` action that runs a program. */
+const FIND_RUNNER_ACTION = /^-(?:exec|execdir|ok|okdir)$/
+/** An unquoted first character that the shell keeps as the first character of each word that it makes: no option, glob, brace, `~` or `=` start. */
+const LITERAL_FIRST_CHARACTER = /^[A-Za-z0-9_./]/
 const PARAMETER = /[A-Za-z_][A-Za-z0-9_]*|[0-9@*#?!$-]/y
 /** `${NAME}` and the guard `${NAME:?message}`. Each other `${...}` form has an operator. */
 const BRACED_PARAMETER = /\{[A-Za-z_][A-Za-z0-9_]*(?::\?[^}$`"'\\\n]*)?\}/y
@@ -444,7 +453,7 @@ function readExpansion(reader, word, inDoubleQuote, depth) {
     if (source[reader.index + 2] === "(") notModelled("an arithmetic expansion `$((`")
     reader.index += 2
     const list = parseNested(reader, depth + 1)
-    word.parts.push({ type: "substitution", list })
+    word.parts.push({ type: "substitution", list, quoted: inDoubleQuote })
     word.nested.push(list)
     word.raw += SUBSTITUTION
     word.text += SUBSTITUTION
@@ -910,10 +919,9 @@ const holdsSubscriptCode = (word) => { const text = literalText(word); return te
 const refusedAssignment = (name) => REFUSED_ASSIGNMENT.test(name) && notModelled(`an assignment to \`${name}\`, which changes how the shell reads a command, where \`cd\` or \`~\` goes, or which repository, config file or program git uses`)
 
 /** A shell runs a script file that the hook does not read. It is in the grammar only when no script can come from a word or from standard input. */
-function checkShell(command, { args, wrappers }, place) {
+function checkShell(command, { args }, place) {
   const computed = command.words.find((word) => word.dynamic)
   if (computed) notModelled(`${computed.dynamic} in the words of a shell command`)
-  if (wrappers.includes("xargs")) notModelled("a shell command that gets its words from `xargs`")
   if (args.some((word) => /^-[A-Za-z]*c[A-Za-z]*$/.test(word.text))) notModelled("a shell `-c`, which runs its next word as a script")
   const texts = args.map((word) => word.text)
   if (readsStandardInput(texts)) notModelled("a shell that reads its script from standard input")
@@ -935,16 +943,25 @@ function checkCommand(command, place) {
   if (command.words.some(holdsSubscriptCode)) notModelled("text with a `[` and a `$(` or a backtick, which bash can run as a subscript")
   // The options and assignments of each wrapper, also when no command follows them, such as `env -S 'git push'`.
   for (const start of invocationStarts(command.words)) {
-    const { refused, assignments, wrappers } = readWrappers(command.words, start)
+    const { refused, assignments, wrappers, end } = readWrappers(command.words, start)
     const user = wrappers.find((wrapper) => USER_WRAPPERS.has(wrapper))
     if (user) notModelled(`the wrapper \`${user}\`, which runs its command as another user, in a directory, a home and a git config that the hook does not read`)
     if (refused) notModelled(`${refused}, which the allow list of the wrapper options does not name. A wrapper takes only the options of \`WRAPPER_OPTIONS\` in \`command-expander.mjs\``)
     for (const word of assignments) refusedAssignment(ASSIGNMENT_WORD.exec(word.text)[1])
+    // A wrapper word and the command word decide which program runs, so each one is literal, also when no command word follows.
+    const computed = command.words.slice(start, end + 1).find((word) => word.dynamic)
+    if (computed) notModelled(`${computed.dynamic} in a command word`)
+    if (wrappers.includes("xargs")) {
+      const runs = wrappers[wrappers.indexOf("xargs") + 1] ?? (end < command.words.length ? programName(command.words[end].text) : "")
+      if (!runs) notModelled("an `xargs` with no command word, which runs a program that the reader does not name. Give `xargs` a command word, such as `grep` or `rm`")
+      if (runsProgram(runs)) {
+        notModelled(`an \`xargs\` that runs \`${runs}\`, which can run a program or an action that the words from standard input name. ` +
+          "Give `xargs` a program that runs no other program, such as `grep` or `rm`, or write the loop in a `.mjs` file")
+      }
+    }
   }
   for (const invocation of invocationsOf(command.words)) {
-    const { program, args, before } = invocation
-    const computed = [...before, program].find((word) => word.dynamic)
-    if (computed) notModelled(`${computed.dynamic} in a command word`)
+    const { program, args } = invocation
     const name = programName(program.text)
     if (ZSH_COMMAND_WORDS.has(program.text)) notModelled(`the zsh command word \`${program.text}\`, which runs the words after it as a command`)
     if (CODE_BUILTINS.has(name)) notModelled(`the builtin \`${name}\`, which reads its words again as code, assigns a name, changes how the shell reads a command, or changes the flow or the directory`)
@@ -967,7 +984,6 @@ function checkCommand(command, place) {
         refusedAssignment(assigned ? assigned[1] : word.text)
       }
     }
-    if (name === "git" && invocation.wrappers.includes("xargs")) notModelled("a `git` command that gets its arguments from `xargs`")
     if (SHELLS.includes(name)) checkShell(command, invocation, place)
   }
   // A program such as `docker exec` or `ssh` can run a shell word and its `-c` script, so a `-c` after a shell word anywhere in the command is refused.
@@ -996,13 +1012,35 @@ export function readCommand(source, { home = process.env.HOME || homedir() } = {
   }
 }
 
-/** The checks that need the value of a variable: a `git` argument and the path of a `cd`. */
+/**
+ * True when the shell can make no word from `word` that is a `find` action that runs a program. A word with a value that the walk knows
+ * is read by its value. Otherwise each expansion must be quoted, so the shell does not split it, and either the first character is literal
+ * and is not `-`, or the word has no glob and no brace and holds a literal character that no such action holds.
+ */
+function cannotBeFindRunner(word) {
+  if (!word.variables && !word.tilde && !word.fixed) return true
+  if (!word.dynamic) return !FIND_RUNNER_ACTION.test(word.text)
+  if (word.parts.some((part) => (part.type === "variable" || part.type === "substitution") && !part.quoted)) return false
+  const [first] = word.parts
+  const literalStart = first?.type === "text" && first.text.length > 0 && first.text[0] !== "-" && (first.quoted || LITERAL_FIRST_CHARACTER.test(first.text))
+  if (literalStart) return true
+  const bare = word.parts.filter((part) => part.type === "text" && !part.quoted).map((part) => part.text).join("")
+  return !/[*?[]/.test(bare) && !BRACE_EXPANSION.test(bare) && word.parts.some((part) => part.type === "text" && /[^A-Za-z-]/.test(part.text))
+}
+
+/** The checks that need the value of a variable: a `git` argument, the path of a `cd`, and each word of `find`, which can be an action that runs a program. */
 function checkResolved({ words }) {
   for (const { program, args } of invocationsOf(words)) {
     const name = programName(program.text)
     const computed = args.find((word) => word.dynamic)
     if (name === "git" && computed) notModelled(`${computed.dynamic} in a \`git\` argument`)
     if (name === "cd" && computed) notModelled(`${computed.dynamic} in the path of a \`cd\``)
+    const hidden = name === "find" ? args.find((word) => !cannotBeFindRunner(word)) : null
+    if (hidden) {
+      notModelled(`${hidden.dynamic || `a variable with the value \`${hidden.text}\``} in the words of \`find\`, which can be an action that runs a program ` +
+        "(`-exec`, `-execdir`, `-ok`, `-okdir`). Write each action as a literal word, quote a pattern such as `-name '*.mjs'`, and give a path as a literal path, " +
+        "as a path with a literal character such as `\"$DIR/\"`, or as a lower case variable that the line sets to a literal value")
+    }
   }
 }
 
@@ -1212,6 +1250,7 @@ export const PLAIN_SUBSET_ADVICE =
   "the redirects `>` `>>` `<` `2>&1` to a literal path, a here document at the top level with a quoted delimiter (`<<'EOF'`), `VAR=value`, " +
   "`for NAME in WORDS; do ...; done` with literal words, `if ...; then ...; else ...; fi`, and `cd PATH` as a whole command at the top level. " +
   "A `$VAR`, a `${VAR:?}`, a glob or a `$(command)` is allowed in an argument, but not in a command word, in a shell command, or in a `git` argument or a `cd` path. " +
+  "In a `find` word, it is allowed only after a literal character that is not `-`, such as `\"$DIR/\"` or `-name \"*$ext\"`. `xargs` can run only a program that runs no other program, such as `grep` or `rm`. " +
   "The one exception: a `git` argument or a `cd` path can use a variable with a lower case name, such as `wt=/abs/path; git -C \"$wt\" status`, that the line sets to a literal value. " +
   "An upper case name such as `$WT` is never read there. Each command word must be a program or a builtin that the hook knows; " +
   "`read`, `chdir`, `pushd`, `popd`, `eval`, `source`, `print` and a shell other than a POSIX shell are refused. " +

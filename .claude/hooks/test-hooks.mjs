@@ -421,7 +421,7 @@ for (const [name, command] of [
   ["the shell keyword `while`", "cat run.sh | while read -r line; do bash; done"],
   ["the word `{`", "{ bash; } <<'EOF'\necho ok\nEOF"],
   ["a subshell", "(sh -s) <<'EOF'\necho ok\nEOF"],
-  ["a shell command that gets its words from `xargs`", "echo ok | xargs -I{} bash -c '{}'"],
+  ["an `xargs` that runs `bash`", "echo ok | xargs -I{} bash -c '{}'"],
   ["a shell `-c`", "bash -c"],
   ["the builtin `source`", "source /dev/stdin <<'EOF'\necho ok\nEOF"],
   ["a shell with a script under `/dev` or `/proc`", "bash /dev/stdin <<'EOF'\necho ok\nEOF"],
@@ -444,7 +444,7 @@ for (const [name, command] of [
   ["a glob in a `git` argument", "git add *.md"],
   ["a brace expansion in a `git` argument", "git push origin m{a,}in"],
   ["a command substitution in a `git` argument", "git push origin $(echo x)"],
-  ["a `git` command that gets its arguments from `xargs`", "echo main | xargs git push origin"],
+  ["an `xargs` that runs `git`", "echo main | xargs git push origin"],
   ["the operator `|&`", "make |& tail"],
   ["a quote with no end", "echo 'x"],
   ["a quote with no end", 'echo "x'],
@@ -721,11 +721,40 @@ for (const [name, command] of [
   ["`pkexec --keep-cwd`", "pkexec --keep-cwd git commit -m x"],
   ["`make -C`", "make -C /work/orbit-ui-mobile commit GIT='git commit -m x'"],
   ["`xargs` before `git`", "echo /work/orbit-ui-mobile | xargs -I{} git -C {} commit -m x"],
+  // A computed word of `find` can be `-execdir`, `-okdir`, `-exec` or `-ok`. The reader refuses each one that it cannot prove is no such action.
+  ["a variable that gives `find` the word `-execdir`", "x=-execdir; find /work/orbit-ui-mobile -maxdepth 1 -name apps $x git commit -m x \\;"],
+  ["a quoted variable that gives `find` the word `-execdir`", 'x=-execdir; find /work/orbit-ui-mobile -maxdepth 1 -name apps "$x" git commit -m x \\;'],
+  ["an exported upper case variable that gives `find` the word `-execdir`", 'export X=-execdir; find /work/orbit-ui-mobile -maxdepth 1 -name apps "$X" git commit -m x \\;'],
+  ["a variable that gives `find` the word `-okdir`", 'x=-okdir; find /work/orbit-ui-mobile -maxdepth 1 -name apps "$x" git commit -m x \\;'],
+  ["a variable that gives `find` the word `-exec`", 'x=-exec; find /work/orbit-ui-mobile -maxdepth 0 "$x" git commit -m x \\;'],
+  ["a brace expansion that gives `find` the word `-execdir`", "find /work/orbit-ui-mobile -maxdepth 1 -name apps -{print,execdir} git commit -m x \\;"],
+  ["a glob that can give `find` the word `-execdir`", "find /work/orbit-ui-mobile -maxdepth 1 -name apps -execdi? git commit -m x \\;"],
+  ["an unquoted variable after a literal prefix, which the shell splits", 'x="a -execdir"; find /work/orbit-ui-mobile -maxdepth 1 -name apps b$x git commit -m x \\;'],
+  ["a variable that gives `find` its path", 'find "$DIR" -maxdepth 1 -name apps -exec git commit -m x \\;'],
+  // `xargs` adds words from standard input, so the program that it runs must read no program or action from its words.
+  ["`xargs find`", "printf '%s\\n' -execdir git commit -m x ';' | xargs find /work/orbit-ui-mobile -maxdepth 1 -name apps"],
+  ["`xargs env`", "printf '%s\\n' git -C /work/orbit-ui-mobile commit -m x | xargs env"],
+  ["`xargs env --`", "printf '%s\\n' git commit -m x | xargs env --"],
+  ["`xargs nice`", "printf '%s\\n' git -C /work/orbit-ui-mobile commit -m x | xargs nice"],
+  ["`xargs time`", "printf '%s\\n' git commit -m x | xargs time"],
+  ["`xargs nohup`", "printf '%s\\n' git commit -m x | xargs nohup"],
+  ["`xargs nice` before a program", "printf '%s\\n' x | xargs nice ls; git commit -m x"],
+  ["`xargs` with no command word", "printf '%s\\n' x | xargs -n 1; git commit -m x"],
 ]) {
   T(`subset other directory: ${name} is refused by the git rule, the handoff gate and the approval rule`,
     [Boolean(checkGitCommand(command, fromBrain)?.notModelled), gitCommitChains(command, { cwd: "/work/brain" }).notModelled !== "", checkApprovalPrompt(command, { cwd: "/work/brain" })?.rule],
     [true, true, "not-modelled"])
 }
+// The controls: a computed word of `find` that cannot be an action, and an `xargs` whose program reads no program from its words, stay modelled.
+for (const command of ['find "$DST/apps" -maxdepth 1 -name "*.tmp"', 'wt=/work/x; find "$wt" -name "*.tmp"', "find apps/*/src -name x", 'x=-name; find . "$x" a',
+  'find . -name "*$ext"', 'find ~/x -name y', 'find . -name a"$x"', "printf '%s\\n' a b | xargs -n 1 echo", "printf '%s\\n' a | xargs -0 -r grep -l x"]) {
+  T(`subset other directory: the control ${JSON.stringify(command)} is modelled`, readCommand(command).notModelled, "")
+}
+T("subset other directory: the refusal of a computed `find` word names the actions and the rewrite", readCommand('find . "$X" git status \\;').notModelled,
+  "a variable in the words of `find`, which can be an action that runs a program (`-exec`, `-execdir`, `-ok`, `-okdir`). Write each action as a literal word, quote a pattern " +
+  "such as `-name '*.mjs'`, and give a path as a literal path, as a path with a literal character such as `\"$DIR/\"`, or as a lower case variable that the line sets to a literal value")
+T("subset other directory: the refusal of `xargs` names the program that it runs", readCommand("printf x | xargs env").notModelled,
+  "an `xargs` that runs `env`, which can run a program or an action that the words from standard input name. Give `xargs` a program that runs no other program, such as `grep` or `rm`, or write the loop in a `.mjs` file")
 T("subset other directory: the refusal of `find -execdir` names the construct and the rewrite", readCommand("find . -name apps -execdir git status \\;").notModelled,
   "`find -execdir` or `-okdir`, which runs its command in the directory of each found file, which the `cd` model cannot know. Use `-exec` with an absolute path")
 T("subset other directory: the refusal of `sudo` names the wrapper", readCommand("sudo git status").notModelled,
@@ -739,7 +768,7 @@ for (const wrapper of ["env A=1", "env --", "nice -n 5", "nohup", "time -p", "ti
     blocks(checkGitCommand(`cd /work/orbit-ui-mobile; ${wrapper} git push origin main${tail}`, fromBrain)),
     checkGitCommand(`cd /work/orbit-ui-mobile; ${wrapper} git push origin fix/x${tail}`, fromBrain),
     checkApprovalPrompt(`cd /work/checkouts/repo/x; ${wrapper} rm -rf ..${tail}`, { cwd: "/work/checkouts/repo", home: "/fixture-home", windows: false })?.rule,
-  ], [{ chains: [["/work/b"]], notModelled: "" }, true, null, "working-directory"])
+  ], [{ chains: [{ chain: ["/work/b"], subcommand: "commit" }], notModelled: "" }, true, null, "working-directory"])
 }
 // A program that runs code from a file or from its arguments, such as `npm`, gives no invocation that a rule reads, in any directory:
 // `./README.md` names that limit. The documented procedure `npm test --prefix evals/astra` stays modelled.
@@ -1121,7 +1150,9 @@ for (const [command, rule] of [
   ['rmdir "$DST"', "variable-path"],
   ['sudo rm -rf "$DST"', "variable-path"],
   ['xargs rm -rf "$DST"', "variable-path"],
-  ['find "$DST" -name "*.tmp" -exec rm -f "$DST/x" \\;', "variable-path"],
+  ['find /tmp/build -name "*.tmp" -exec rm -f "$DST/x" \\;', "variable-path"],
+  // A variable that gives `find` its path can be an action that runs a program, so the reader refuses it.
+  ['find "$DST" -name "*.tmp" -exec rm -f "$DST/x" \\;', "not-modelled"],
   [`bash -c 'rm -rf "$DST/"'`, "variable-path"],
   [`trap 'rm -rf "$TMP"' EXIT`, "variable-path"],
   ["bash <<'EOF'\nrm -rf \"$TMP\"\nEOF", "variable-path"],
@@ -2257,7 +2288,11 @@ T("handoff git: the top level follows the -C chain as git does", topLevelOf([ope
 // `find -execdir` runs git in the directory that holds each found file, here the protected checkout, which the `cd` model cannot know.
 // The git rule refuses it attended and in a worker run, and the approval rule refuses it in a worker run.
 for (const command of [`find ${protectedCheckout} -maxdepth 1 -name apps -execdir git push origin main \\;`, `find ${protectedCheckout} -maxdepth 1 -name apps -execdir git push --force origin HEAD:main \\;`,
-  `find ${protectedCheckout} -maxdepth 1 -name apps -okdir git push origin main \\;`]) {
+  `find ${protectedCheckout} -maxdepth 1 -name apps -okdir git push origin main \\;`,
+  // A variable gives `find` its `-execdir`, and `xargs` gives `find` or `env` the words of a push.
+  `x=-execdir; find ${protectedCheckout} -maxdepth 1 -name apps "$x" git push origin main \\;`,
+  `printf '%s\\n' -execdir git push origin main ';' | xargs find ${protectedCheckout} -maxdepth 1 -name apps`,
+  `printf '%s\\n' git -C ${protectedCheckout} push origin main | xargs env`]) {
   T(`adapter other directory: ${command} from a repository with no protection -> git 2, 2 and approval 2`,
     [fromOpenCheckout(command), fromOpenCheckout(command, { ORBIT_LAUNCH_WORKER: "1" }), runHook("forbid-approval-prompt.mjs", bash(command, openCheckout), { ORBIT_LAUNCH_WORKER: "1" })], [2, 2, 2])
 }
@@ -3500,8 +3535,9 @@ T("handoff commit: a sleep request accepts a complete prompt", handoffCommit("gi
 T("handoff commit: a commit that leaves NEXT.md alone passes", handoffCommit("git commit -m fix -- src/a.ts", { sleep: true }, null), null)
 T("handoff commit: a command that commits nothing passes", handoffCommit("git status --short", { sleep: true }, "anything"), null)
 T("handoff commit: a failing working copy blocks even when the staged prompt passes", blocks(checkHandoffCommit({ command: "git commit -m docs", cwd: "/repo", request: { sleep: true }, promptsForCommit: () => [goodSleepPrompt, attendedPrompt] })), true)
-T("handoff commit: -C names the directory the commit runs in", gitCommitChains("git -C /other/repo commit -m x", { cwd: "/repo" }), { chains: [["/repo", "/other/repo"]], notModelled: "" })
-const commitChains = (command, options) => gitCommitChains(command, { cwd: "/work/a", home: "/fixture-home", ...options }).chains
+T("handoff commit: -C names the directory the commit runs in", gitCommitChains("git -C /other/repo commit -m x", { cwd: "/repo" }),
+  { chains: [{ chain: ["/repo", "/other/repo"], subcommand: "commit" }], notModelled: "" })
+const commitChains = (command, options) => gitCommitChains(command, { cwd: "/work/a", home: "/fixture-home", ...options }).chains.map(({ chain }) => chain)
 for (const [name, command, want] of [
   ["a `cd` before the commit moves the directory", "cd /work/b; git commit -m x", [["/work/b"]]],
   ["a relative `cd` reads `..` by text", "cd ../b && git commit -m x", [["/work/b"]]],
@@ -3525,13 +3561,29 @@ for (const [name, command, want] of [
   ["`git pull` gives its chain", "git pull origin main", [["/work/a"]]],
   ["each recording subcommand of a line gives its own chain", "git -C /work/b merge --continue; git -C /work/c commit -m x", [["/work/a", "/work/b"], ["/work/a", "/work/c"]]],
   ["a git command that records nothing gives no chain", "git stash list; git status; git log --merges", []],
+  // `git stash` records the index in a stash commit, and an allowed `git merge --ff-only refs/stash` puts that commit on the branch.
+  ["`git stash` gives its chain", "git stash", [["/work/a"]]],
+  ["`git stash push` gives its chain", "cd /work/b; git stash push -m x", [["/work/b"]]],
+  ["`git stash save` gives its chain", "git -C /work/c stash save x", [["/work/a", "/work/c"]]],
+  ["`git stash create` gives its chain", "git stash create", [["/work/a"]]],
+  ["`git stash` with an option first gives its chain", "git stash -m x", [["/work/a"]]],
+  ["`git stash` with a pathspec gives its chain", "git stash -- .claude/handoffs", [["/work/a"]]],
+  ["a `git stash` form that records nothing gives no chain", "git stash list; git stash show; git stash pop; git stash apply; git stash drop; git stash clear; git stash branch b; git stash store x", []],
 ]) T(`handoff chain: ${name}`, commitChains(command), want)
+T("handoff chain: each chain keeps its subcommand", gitCommitChains("git pull; git -C /work/b merge x; git stash; git commit -m y", { cwd: "/work/a" }).chains,
+  [{ chain: ["/work/a"], subcommand: "pull" }, { chain: ["/work/a", "/work/b"], subcommand: "merge" }, { chain: ["/work/a"], subcommand: "stash" }, { chain: ["/work/a"], subcommand: "commit" }])
+// The checkout refresh merges `origin/main`. It runs only before `git commit`, never before the subcommand that the agent asked for.
+const refreshedChains = []
+T("handoff commit: each recording subcommand is judged, and only a commit refreshes the checkout", checkHandoffCommit({ command: "git pull; git -C /work/b merge x; git stash; git -C /work/c commit -m y",
+  cwd: "/work/a", request: { sleep: true }, promptsForCommit: () => [goodSleepPrompt], refreshCheckout: (chain) => refreshedChains.push(chain) }), null)
+T("handoff commit: the refresh reads only the commit chain", refreshedChains, [["/work/a", "/work/c"]])
 T("handoff chain: an unattended recording subcommand outside the subset names the construct", gitCommitChains('git -C "$WT" merge --continue', { cwd: "/work/a" }),
   { chains: [], notModelled: "a variable in a `git` argument" })
 T("handoff chain: an attended recording subcommand outside the subset is read from its text", gitCommitChains('git -C "$WT" rebase --continue', { cwd: "/work/a", unattended: false }),
-  { chains: [["/work/a", "$WT"]], notModelled: "" })
+  { chains: [{ chain: ["/work/a", "$WT"], subcommand: "rebase" }], notModelled: "" })
 T("handoff chain: an unattended commit outside the subset names the construct", gitCommitChains('git -C "$WT" commit -m x', { cwd: "/work/a" }), { chains: [], notModelled: "a variable in a `git` argument" })
-T("handoff chain: an attended commit outside the subset is read from its text", gitCommitChains('git -C "$WT" commit -m x', { cwd: "/work/a", unattended: false }), { chains: [["/work/a", "$WT"]], notModelled: "" })
+T("handoff chain: an attended commit outside the subset is read from its text", gitCommitChains('git -C "$WT" commit -m x', { cwd: "/work/a", unattended: false }),
+  { chains: [{ chain: ["/work/a", "$WT"], subcommand: "commit" }], notModelled: "" })
 T("handoff chain: text outside the subset that names no commit gives no chain", gitCommitChains('echo "$(cat <<\'EOF\'\nx\nEOF\n)"', { cwd: "/work/a" }), { chains: [], notModelled: "" })
 T("handoff commit: an unattended commit outside the subset is refused with the rewrite", checkHandoffCommit({ command: 'git -C "$WT" commit -m x', cwd: "/repo", request: { sleep: true },
   promptsForCommit: () => [goodSleepPrompt] })?.message.includes(PLAIN_SUBSET_ADVICE), true)
@@ -3773,6 +3825,12 @@ const handoffChainRows = [
   ["`git merge --continue` with a staged invalid NEXT.md is refused in a worker run", "git merge --continue", stagedChainRepository, { ORBIT_LAUNCH_WORKER: "1" }, { status: 2, refusal: handoffMismatch }],
   ["`git -C` to the staged checkout with `rebase --continue` is refused", `git -C ${stagedChainRepository} rebase --continue`, cleanChainRepository, {}, { status: 2, refusal: handoffMismatch }],
   ["control: `git merge --continue` in the clean checkout passes", "git merge --continue", cleanChainRepository, {}, { status: 0, refusal: "" }],
+  // `git stash` records the staged NEXT.md in a stash commit, so the gate judges it as a commit.
+  ["`git stash` with a staged invalid NEXT.md is refused", "git stash", stagedChainRepository, {}, { status: 2, refusal: handoffMismatch }],
+  ["`git stash` with a staged invalid NEXT.md is refused in a worker run", "git stash", stagedChainRepository, { ORBIT_LAUNCH_WORKER: "1" }, { status: 2, refusal: handoffMismatch }],
+  ["`git stash push` with a staged invalid NEXT.md is refused in a worker run", "git stash push -m x", stagedChainRepository, { ORBIT_LAUNCH_WORKER: "1" }, { status: 2, refusal: handoffMismatch }],
+  ["`git stash create` with a staged invalid NEXT.md is refused in a worker run", "git stash create", stagedChainRepository, { ORBIT_LAUNCH_WORKER: "1" }, { status: 2, refusal: handoffMismatch }],
+  ["control: `git stash list` with a staged invalid NEXT.md passes", "git stash list", stagedChainRepository, { ORBIT_LAUNCH_WORKER: "1" }, { status: 0, refusal: "" }],
   // `find -execdir` runs git in the directory of the found file, so a worker run refuses it as not modelled.
   ["an unattended `find -execdir` commit is refused with the rewrite", `find ${stagedChainRepository} -maxdepth 1 -name .claude -execdir git commit -m x \\;`, cleanChainRepository,
     { ORBIT_LAUNCH_WORKER: "1" }, { status: 2, refusal: "BLOCKED commit (the handoff gate cannot read it):" }],
@@ -3786,6 +3844,59 @@ T("handoff chain hook: an attended `find -execdir` commit is refused by the git 
 T("handoff chain hook: the unattended refusal names the plain subset rewrite",
   spawnSync(process.execPath, [handoffHook], { input: JSON.stringify({ hook_event_name: "PreToolUse", session_id: "s-handoff-none", cwd: cleanChainRepository, tool_input: { command: 'git -C "$WT" commit -m x' } }),
     encoding: "utf8", env: { ...process.env, ORBIT_LAUNCH_WORKER: "1" } }).stderr.includes(PLAIN_SUBSET_ADVICE), true)
+// The checkout refresh runs only before `git commit`. The fixture: branch `feature/x` with an unstaged spec edit, a branch `other`, and an
+// `origin/main` one commit ahead. Only the hook runs, never the command, so HEAD moves only when the hook itself merges.
+const refreshOrigin = join(chainHome, "refresh-origin.git")
+const refreshSeed = join(chainHome, "refresh-seed")
+const refreshCheckout = join(chainHome, "refresh")
+const inRefresh = (directory, ...args) => spawnSync("git", ["-C", directory, ...args], { encoding: "utf8" })
+const refreshSetup = [
+  () => spawnSync("git", ["init", "-q", "--bare", "-b", "main", refreshOrigin], { encoding: "utf8" }),
+  () => spawnSync("git", ["init", "-q", "-b", "main", refreshSeed], { encoding: "utf8" }),
+  () => inRefresh(refreshSeed, "config", "user.email", "hooks@test.invalid"),
+  () => inRefresh(refreshSeed, "config", "user.name", "hooks"),
+  () => { mkdirSync(join(refreshSeed, ".claude", "specs"), { recursive: true }); writeFileSync(join(refreshSeed, ".claude", "specs", "a.md"), "spec\n"); return inRefresh(refreshSeed, "add", ".") },
+  () => inRefresh(refreshSeed, "commit", "-qm", "base"),
+  () => inRefresh(refreshSeed, "remote", "add", "origin", refreshOrigin),
+  () => inRefresh(refreshSeed, "push", "-q", "origin", "main"),
+  () => spawnSync("git", ["clone", "-q", refreshOrigin, refreshCheckout], { encoding: "utf8" }),
+  () => inRefresh(refreshCheckout, "config", "user.email", "hooks@test.invalid"),
+  () => inRefresh(refreshCheckout, "config", "user.name", "hooks"),
+  () => inRefresh(refreshCheckout, "checkout", "-qb", "other"),
+  () => { writeFileSync(join(refreshCheckout, "other.txt"), "other\n"); return inRefresh(refreshCheckout, "add", "other.txt") },
+  () => inRefresh(refreshCheckout, "commit", "-qm", "other"),
+  () => inRefresh(refreshCheckout, "checkout", "-qb", "feature/x", "main"),
+  () => { writeFileSync(join(refreshSeed, "ahead.txt"), "ahead\n"); return inRefresh(refreshSeed, "add", "ahead.txt") },
+  () => inRefresh(refreshSeed, "commit", "-qm", "main ahead"),
+  () => inRefresh(refreshSeed, "push", "-q", "origin", "main"),
+  () => { writeFileSync(join(refreshCheckout, ".claude", "specs", "a.md"), "edited spec\n"); return inRefresh(refreshCheckout, "status", "--short") },
+]
+T("handoff refresh fixture: the relay checkout builds", refreshSetup.map((step) => step().status), refreshSetup.map(() => 0))
+const refreshHead = () => inRefresh(refreshCheckout, "rev-parse", "HEAD").stdout.trim()
+const refreshStart = { "feature/x": inRefresh(refreshCheckout, "rev-parse", "feature/x").stdout.trim(), main: inRefresh(refreshCheckout, "rev-parse", "main").stdout.trim() }
+/** Each row starts on `branch` at its first commit, behind `origin/main`, with the unstaged spec edit, so a merge by the hook moves HEAD in each row. */
+const refreshRun = (command, env = {}, branch = "feature/x") => {
+  const reset = [inRefresh(refreshCheckout, "checkout", "-qf", branch).status, inRefresh(refreshCheckout, "reset", "-q", "--hard", refreshStart[branch]).status]
+  writeFileSync(join(refreshCheckout, ".claude", "specs", "a.md"), "edited spec\n")
+  const before = refreshHead()
+  const { status, refusal } = chainHook(command, refreshCheckout, env)
+  return { reset, status, refusal, headUnchanged: refreshHead() === before }
+}
+for (const [name, command, env] of [
+  ["an attended `git pull`", "git pull", {}],
+  ["an attended `git pull --ff-only` of the branch", "git pull --ff-only origin feature/x", {}],
+  ["a worker `git merge` of a branch", "git merge --no-edit other", { ORBIT_LAUNCH_WORKER: "1" }],
+  ["an attended `git merge` of a branch", "git merge --no-edit other", {}],
+  ["an attended `git rebase`", "git rebase --onto other other~0 feature/x", {}],
+  ["a worker `git cherry-pick --continue` with no open operation", "git cherry-pick --continue", { ORBIT_LAUNCH_WORKER: "1" }],
+  ["a worker `git stash`", "git stash", { ORBIT_LAUNCH_WORKER: "1" }],
+]) T(`handoff refresh hook: ${name} with an unstaged spec edit passes and leaves HEAD unchanged`, refreshRun(command, env), { reset: [0, 0], status: 0, refusal: "", headUnchanged: true })
+T("handoff refresh hook: an attended `git pull` on `main` with a spec edit passes", refreshRun("git pull", {}, "main"), { reset: [0, 0], status: 0, refusal: "", headUnchanged: true })
+T("handoff refresh hook: a worker `git merge` on `main` with a spec edit passes", refreshRun("git merge --no-edit other", { ORBIT_LAUNCH_WORKER: "1" }, "main"),
+  { reset: [0, 0], status: 0, refusal: "", headUnchanged: true })
+// The control: a `git commit` with the spec edit refreshes the relay branch, so the hook merges `origin/main` before it.
+T("handoff refresh hook: the control `git commit` with an unstaged spec edit merges `origin/main` first", [refreshRun("git commit -m x"),
+  inRefresh(refreshCheckout, "merge-base", "--is-ancestor", "origin/main", "HEAD").status], [{ reset: [0, 0], status: 0, refusal: "", headUnchanged: false }, 0])
 rmSync(chainHome, { recursive: true, force: true })
 
 const timelessHook = join(hooksDir, "forbid-stale-text.mjs")

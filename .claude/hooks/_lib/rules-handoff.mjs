@@ -7,32 +7,36 @@ import { PLAIN_SUBSET_ADVICE } from "./command-expander.mjs"
 import { gitCommandParts, gitDirectoryChain, readGitCommands } from "./rules-git.mjs"
 
 /**
- * The git subcommands that can record the index in a commit: `commit`, and `merge`, `cherry-pick`, `revert`, `rebase`, `am` and `pull`,
- * which record it when they end a stopped operation with `--continue` or make a merge commit.
+ * The git subcommands that can record the index in a commit: `commit`; `merge`, `cherry-pick`, `revert`, `rebase`, `am` and `pull`,
+ * which record it when they end a stopped operation with `--continue` or make a merge commit; and `stash`, which records it in a stash
+ * commit that `git merge --ff-only refs/stash` can put on the branch.
  */
-const RECORDING_SUBCOMMANDS = ["commit", "merge", "cherry-pick", "revert", "rebase", "am", "pull"]
+const RECORDING_SUBCOMMANDS = ["commit", "merge", "cherry-pick", "revert", "rebase", "am", "pull", "stash"]
+/** The forms of `git stash` that record nothing. Each other form records the index: no word, an option, `push`, `save` and `create`. */
+const STASH_FORMS_THAT_RECORD_NOTHING = new Set(["list", "show", "drop", "pop", "apply", "clear", "branch", "store"])
+const recordsIndex = ({ subcommand, rest }) => RECORDING_SUBCOMMANDS.includes(subcommand) && !(subcommand === "stash" && STASH_FORMS_THAT_RECORD_NOTHING.has(rest[0]))
 
 /** The text of a git command in `RECORDING_SUBCOMMANDS` with its `-C` words. Only an attended session reads a command outside the subset with it. */
-const TEXT_GIT_RECORD = new RegExp(`\\bgit\\b((?:\\s+-C\\s+(?:"[^"]+"|'[^']+'|\\S+))*)[^;&|\\n]*?\\s(?:${RECORDING_SUBCOMMANDS.join("|")})(?![\\w-])`)
+const TEXT_GIT_RECORD = new RegExp(`\\bgit\\b((?:\\s+-C\\s+(?:"[^"]+"|'[^']+'|\\S+))*)[^;&|\\n]*?\\s(${RECORDING_SUBCOMMANDS.join("|")})(?![\\w-])`)
 
 /**
- * The directory chain of each git command in `RECORDING_SUBCOMMANDS` that `command` runs, read as the git rule reads it: the shell directory after the `cd` model,
- * then each `-C` word as the shell gives it to git. The readers give each chain to git as `git -C <dir> -C <w1> ...`, because git
- * applies each word with `chdir`, which follows a symlink before it reads `..`. Text that runs no such command gives no chain.
- * A command outside the subset whose text names one gives `notModelled` in an unattended run, and the chain of that text attended.
+ * Each git command that can record the index that `command` runs, as `{ chain, subcommand }`. The chain is read as the git rule reads it:
+ * the shell directory after the `cd` model, then each `-C` word as the shell gives it to git. The readers give each chain to git as
+ * `git -C <dir> -C <w1> ...`, because git applies each word with `chdir`, which follows a symlink before it reads `..`. Text that runs no
+ * such command gives no chain. A command outside the subset whose text names one gives `notModelled` in an unattended run, and the chain of that text attended.
  */
 export const gitCommitChains = (command, { cwd, home, unattended = true } = {}) => {
   const text = String(command ?? "")
   const { gitCommands, notModelled } = readGitCommands(text, { cwd, home })
   if (!notModelled) {
-    const chains = gitCommands.map(({ tokens, directory }) => ({ directory, ...gitCommandParts(tokens) }))
-      .filter(({ subcommand }) => RECORDING_SUBCOMMANDS.includes(subcommand)).map(({ globals, directory }) => gitDirectoryChain(globals, directory))
-    return { chains: [...new Map(chains.map((chain) => [JSON.stringify(chain), chain])).values()], notModelled: "" }
+    const chains = gitCommands.map(({ tokens, directory }) => ({ directory, ...gitCommandParts(tokens) })).filter(recordsIndex)
+      .map(({ globals, directory, subcommand }) => ({ chain: gitDirectoryChain(globals, directory), subcommand }))
+    return { chains: [...new Map(chains.map((item) => [JSON.stringify(item), item])).values()], notModelled: "" }
   }
   const match = TEXT_GIT_RECORD.exec(text)
   if (!match) return { chains: [], notModelled: "" }
   if (unattended) return { chains: [], notModelled }
-  return { chains: [[cwd, ...[...match[1].matchAll(/-C\s+(?:"([^"]+)"|'([^']+)'|(\S+))/g)].map((item) => item[1] ?? item[2] ?? item[3])]], notModelled: "" }
+  return { chains: [{ chain: [cwd, ...[...match[1].matchAll(/-C\s+(?:"([^"]+)"|'([^']+)'|(\S+))/g)].map((item) => item[1] ?? item[2] ?? item[3])], subcommand: match[2] }], notModelled: "" }
 }
 
 const notModelledRefusal = (command, notModelled) =>
@@ -51,13 +55,15 @@ const modeOf = (request, state) => {
 }
 
 /**
- * Every NEXT.md version each commit of the command could record must comply with the recorded request.
- * `promptsForCommit` returns those versions for a commit's directory chain, empty when NEXT.md is unchanged;
- * `specsForCommit` returns every version of a named spec the commit could record.
+ * Every NEXT.md version each recording git command of the command could record must comply with the recorded request.
+ * `promptsForCommit` returns those versions for a directory chain, empty when NEXT.md is unchanged;
+ * `specsForCommit` returns every version of a named spec the command could record. `refreshCheckout` runs only for the chain of a
+ * `git commit`: it merges `origin/main`, which must never come before a merge, a pull, a rebase or a stash that the agent asked for.
  */
 export const checkHandoffCommit = ({ command, cwd, home, unattended = true, request, state, promptsForCommit, specsForCommit, refreshCheckout }) => {
-  const { chains, notModelled } = gitCommitChains(command, { cwd, home, unattended })
+  const { chains: recorded, notModelled } = gitCommitChains(command, { cwd, home, unattended })
   if (notModelled) return { block: true, message: notModelledRefusal(String(command), notModelled) }
+  const chains = [...new Map(recorded.map(({ chain }) => [JSON.stringify(chain), chain])).values()]
   for (const chain of chains) {
     for (const text of promptsForCommit(chain)) {
       const missing = validateHandoffPrompt(text, { sleep: request ? request.sleep === true : undefined, crank: handoffCrank(request, state),
@@ -66,7 +72,7 @@ export const checkHandoffCommit = ({ command, cwd, home, unattended = true, requ
     }
   }
   try {
-    for (const chain of chains) refreshCheckout?.(chain)
+    for (const { chain } of recorded.filter(({ subcommand }) => subcommand === "commit")) refreshCheckout?.(chain)
   } catch (error) {
     return { block: true, message: `Handoff checkout refresh failed: ${error.message}\n` }
   }

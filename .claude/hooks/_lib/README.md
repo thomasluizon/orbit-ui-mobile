@@ -126,16 +126,26 @@ The reader is an allow list in each class:
 - `chdir`, `pushd` and `popd` are refused. `cd PATH` is the only builtin that changes the directory, and the walk follows it.
 - Each rule reads a program in the shell directory after the `cd` model. A program runs in the shell directory when it is a command
   word, a command after a wrapper of `WRAPPERS` that does not change the user, or a command after `find -exec` or `-ok`, up to its
-  `;` or `{} +`. The reader refuses each way of the subset to run a program in another directory:
+  `;` or `{} +`. The reader refuses these ways to run a program in another directory, or a program that no rule reads:
   - `find -execdir` and `-okdir` run the command in the directory that holds each found file. The refusal asks for `-exec`
     with an absolute path. A `{}` in a `git` argument after `find -exec` is refused too, because `find` replaces it with each
     found path.
+  - A computed word of `find` can be `-exec`, `-execdir`, `-ok` or `-okdir`, so the walk reads each word of `find` after it
+    replaces the variables that it knows. A word with a known value is refused when that value is such an action. A word with
+    an unknown value, a glob or a brace expansion passes only when the reader can prove that the shell makes no such action from
+    it: each expansion is quoted, and the first character is literal and is not `-`, or the word has no glob and no brace and
+    holds a literal character other than a letter and `-`. So `find "$DIR/" -name "*$ext"` and `find apps/*/src` pass, and
+    `x=-execdir; find P "$x" ...`, `find "$DIR"`, `find P -{print,execdir} ...` and `find P -execdi? ...` are refused.
+  - `xargs` adds words from standard input, which no rule reads. An `xargs` whose command is a wrapper, `find`, `git` or a
+    shell is refused, because that command can read a program or an action from those words. An `xargs` with no command
+    word is refused too. An `xargs` whose command runs no other program, such as `grep` or `rm`, is read.
   - `sudo`, `doas` and `pkexec` run the command as another user. `sudo` runs it in the directory that `-D` or the `runcwd`
     of its policy names, `pkexec` runs it in the home directory of that user unless `--keep-cwd`, and each one gives git the
     home and the config of that user. Each one is refused with each word.
   - `env -C` and `env --chdir` are options that `WRAPPER_OPTIONS` does not name, so they are refused. `xargs`, `nice`,
     `timeout`, `time`, `stdbuf`, `nohup`, `setsid`, `ionice`, `exec` and `command` have no option that changes the
-    directory, and they run the command in the shell directory.
+    directory, and they run the command in the shell directory. A wrapper word must be literal, also when no command word
+    follows the wrappers.
   - `make -C` is refused, because `make` is not on the allow list. `git -C` is read: the rule gives git each `-C` word.
   - A program on the allow list that runs code from its arguments or from a file, such as `npm --prefix`, `npm exec` or `node`,
     gives no command that a rule reads, in any directory. The limit below names it.
@@ -158,8 +168,9 @@ when the count and the hash are equal. The walk refuses a line with more than 64
 `||` and a branch of `if`, so a rule that follows a `cd` reads the later commands in each directory that is possible.
 
 A glob, a brace expansion, a substitution, a word that starts with `=`, and a variable whose value the walk does not know make
-a word dynamic. A dynamic word is not modelled in a command word (also after a wrapper such as `nice` or `env`), in a command
-that names a shell, and in a `git` argument or a `cd` path. Each other construct is not modelled, for example:
+a word dynamic. A dynamic word is not modelled in a command word or a wrapper word (also after a wrapper such as `nice` or
+`env`), in a command that names a shell, and in a `git` argument or a `cd` path. In a word of `find`, it is not modelled unless the
+reader proves that it is no action that runs a program (see above). Each other construct is not modelled, for example:
 
 - a byte outside printable ASCII outside a quote, such as a carriage return, a form feed or U+00A0
 - `{ ... }`, `( ... )`, `[[ ]]`, `(( ))`, `$(( ))`, `$[ ]`, `while`, `until`, `case`, `select`, `elif`, `!`, a function and a
@@ -191,11 +202,17 @@ The rule never resolves a `-C` path in Node: it gives git the directory after th
 `git -C <dir> -C <w1> ... -C <wn> remote get-url --push <remote>`, because git applies `-C` with `chdir`, which follows a
 symlink before it reads `..`. The shell `cd` reads `..` by text, so the `cd` model does the same.
 The handoff gate reads each git command that can record the index, `RECORDING_SUBCOMMANDS` of `rules-handoff.mjs` (`commit`,
-`merge`, `cherry-pick`, `revert`, `rebase`, `am` and `pull`), with the same reader, `readGitCommands`, and gives git the same
-chain: the directory after the `cd` model, then each `-C` word after a lower case variable and `~` are replaced. Text that runs
-no such command, such
-as an `echo` or a `gh` body, gives no chain. In an unattended run, the gate refuses a command outside the subset that names a
-`git commit`, with the same rewrite advice. In an attended session, the gate reads the chain of such a command from its text.
+`merge`, `cherry-pick`, `revert`, `rebase`, `am`, `pull` and `stash`), with the same reader, `readGitCommands`, and gives git the same
+chain: the directory after the `cd` model, then each `-C` word after a lower case variable and `~` are replaced. `git stash`
+records the index in a stash commit, and `git merge --ff-only refs/stash` can put that commit on the branch, so the gate judges
+each form of `stash` that records: no word, an option, `push`, `save` and `create`. `list`, `show`, `drop`, `pop`, `apply`,
+`clear`, `branch` and `store` record nothing. Text that runs no such command, such as an `echo` or a `gh` body, gives no chain.
+In an unattended run, the gate refuses a command outside the subset that names one of these subcommands, with the same rewrite
+advice. In an attended session, the gate reads the chain of such a command from its text.
+Each chain keeps its subcommand. When a handoff doc under `.claude/specs/` or `.claude/handoffs/` changed, the adapter
+`require-handoff-prompt.mjs` merges `origin/main` into the relay branch, but only before a `git commit`. It never runs before
+a merge, a pull, a rebase, a cherry-pick, a revert, an `am` or a stash, so the hook never moves HEAD before the command that
+the agent asked for, and a `git pull` on `main` passes.
 In a protected repository, the push rule allows only `git push origin <branch>`, `git push -u origin <branch>` and
 `git push origin HEAD:<branch>`, where `<branch>` is a plain branch name that is not `main` or `master`. Before the subcommand,
 git takes only `-C <path>` and options that change no config, no repository and no hook, so `-c`, `--config-env`,
