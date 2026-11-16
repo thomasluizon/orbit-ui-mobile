@@ -3,11 +3,13 @@ import {
   ORBIT_MASCOT_SMALL_SIZES,
   ORBIT_SMALL_FACES,
   ORBIT_SMALL_FACE_EYE_CENTRE_Y,
+  ORBIT_SMALL_FACE_MOON,
   orbitSmallFaceFrame,
 } from '../contracts/brand'
 import { mascotMotion } from '../theme/motion'
 
 const IDENTITY = 'matrix(1 0 0 1 0 0)'
+const MATRIX_ROUNDING = 0.0005
 
 function matrixOf(transform: string): number[] {
   return /^matrix\((.+)\)$/.exec(transform)![1]!.split(' ').map(Number)
@@ -18,10 +20,21 @@ function apply(transform: string, x: number, y: number): [number, number] {
   return [a * x + c * y + e, b * x + d * y + f]
 }
 
-function pathBounds(path: string) {
+function pathPoints(path: string): [number, number][] {
   const numbers = path.match(/-?[\d.]+/g)!.map(Number)
-  const ys = numbers.filter((_value, index) => index % 2 === 1)
-  return { top: Math.min(...ys), bottom: Math.max(...ys) }
+  return numbers.flatMap((value, index) => (index % 2 === 0 ? [[value, numbers[index + 1]!] as [number, number]] : []))
+}
+
+function pathBounds(path: string) {
+  const points = pathPoints(path)
+  const xs = points.map(([x]) => x)
+  const ys = points.map(([, y]) => y)
+  return { left: Math.min(...xs), right: Math.max(...xs), top: Math.min(...ys), bottom: Math.max(...ys) }
+}
+
+function drawnMoon(size: (typeof ORBIT_MASCOT_SMALL_SIZES)[number]) {
+  const bounds = pathBounds(ORBIT_SMALL_FACES[size].moon)
+  return { x: (bounds.left + bounds.right) / 2, y: (bounds.top + bounds.bottom) / 2, radius: (bounds.right - bounds.left) / 2 }
 }
 
 describe.each([...ORBIT_MASCOT_SMALL_SIZES])('the %i px small face read motion', (size) => {
@@ -50,6 +63,43 @@ describe.each([...ORBIT_MASCOT_SMALL_SIZES])('the %i px small face read motion',
     const farthest = Math.max(...steps.map((frame) => Math.hypot(...matrixOf(frame.moon).slice(4) as [number, number])))
     expect(farthest).toBeGreaterThan(size / 2)
     expect(farthest).toBeLessThan(size)
+  })
+
+  it('keeps the whole moon inside the drawing box and on the drawn ring at every frame', () => {
+    const moon = drawnMoon(size)
+    expect(ORBIT_SMALL_FACE_MOON[size]).toEqual(moon)
+    const [, , width = 0, height = 0] = ORBIT_SMALL_FACES[size].viewBox.split(' ').map(Number)
+    const ring = [...pathPoints(ORBIT_SMALL_FACES[size].ringBack), ...pathPoints(ORBIT_SMALL_FACES[size].ringFront)]
+    let left = width
+    let right = 0
+    for (let milliseconds = 0; milliseconds <= mascotMotion.tiltPeriod * 2; milliseconds += 3) {
+      const frame = frameAt(milliseconds)
+      const [x, y] = apply(frame.moon, moon.x, moon.y)
+      left = Math.min(left, x - moon.radius)
+      right = Math.max(right, x + moon.radius)
+      expect(x - moon.radius, `left edge at ${milliseconds} ms`).toBeGreaterThanOrEqual(-MATRIX_ROUNDING)
+      expect(x + moon.radius, `right edge at ${milliseconds} ms`).toBeLessThanOrEqual(width + MATRIX_ROUNDING)
+      expect(y - moon.radius, `top edge at ${milliseconds} ms`).toBeGreaterThanOrEqual(-MATRIX_ROUNDING)
+      expect(y + moon.radius, `bottom edge at ${milliseconds} ms`).toBeLessThanOrEqual(height + MATRIX_ROUNDING)
+      const nearest = Math.min(...ring.map((point) => Math.hypot(...apply(frame.ring, ...point).map((value, index) => value - [x, y][index]!) as [number, number])))
+      expect(nearest, `distance to the ring at ${milliseconds} ms`).toBeLessThanOrEqual(moon.radius)
+    }
+    expect(left).toBeLessThan(0.1)
+    expect(width - right).toBeLessThan(0.1)
+  })
+
+  it('keeps the whole tilted ring inside the drawing box at every frame', () => {
+    const [, , width = 0, height = 0] = ORBIT_SMALL_FACES[size].viewBox.split(' ').map(Number)
+    const face = ORBIT_SMALL_FACES[size]
+    const ring = [...pathPoints(face.ringBack), ...pathPoints(face.ringFront), ...pathPoints(face.ringOutline)]
+    const rounding = MATRIX_ROUNDING * (width + height + 1)
+    for (let milliseconds = 0; milliseconds <= mascotMotion.tiltPeriod; milliseconds += 10) {
+      const turned = ring.map((point) => apply(frameAt(milliseconds).ring, ...point))
+      expect(Math.min(...turned.map(([x]) => x)), `left edge at ${milliseconds} ms`).toBeGreaterThanOrEqual(-rounding)
+      expect(Math.max(...turned.map(([x]) => x)), `right edge at ${milliseconds} ms`).toBeLessThanOrEqual(width + rounding)
+      expect(Math.min(...turned.map(([, y]) => y)), `top edge at ${milliseconds} ms`).toBeGreaterThanOrEqual(-rounding)
+      expect(Math.max(...turned.map(([, y]) => y)), `bottom edge at ${milliseconds} ms`).toBeLessThanOrEqual(height + rounding)
+    }
   })
 
   it('tilts the ring at most 5 degrees about the planet centre, which stays put', () => {

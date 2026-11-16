@@ -12,6 +12,7 @@ export {
   ORBIT_SMALL_FACE_BOX_RATIO,
   ORBIT_SMALL_FACES,
   ORBIT_SMALL_FACE_EYE_CENTRE_Y,
+  ORBIT_SMALL_FACE_MOON,
   isOrbitMascotSmallSize,
   orbitBlinkMatrix,
   orbitMascotFrame,

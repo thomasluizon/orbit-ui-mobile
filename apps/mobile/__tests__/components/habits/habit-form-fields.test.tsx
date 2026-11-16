@@ -2418,11 +2418,16 @@ describe('native automatic date field', () => {
     const pending = status('habits.form.dateInterpreting')[0]!
     expect(pending.props.accessibilityState.busy).toBe(true)
     expect(pending.findByType(OrbitMascot).props).toMatchObject({ size: 16, color: createTokensV2('orange', formLocale.theme).fg3 })
+    const loopOf = (face: UnderstandingTestNode) => face.findAll((node: UnderstandingTestNode) => typeof node.type === 'string' && node.props.testID === 'orbit-mascot')[0]!.props['data-orbit-loop']
+    expect(loopOf(pending)).toBe('running')
     const control = tree.root.findAll((node: UnderstandingTestNode) => node.type === 'View' && node.props.testID === 'input-control' && node.findAll(child => child === pending).length > 0)[0]!
     expect(control.findAll((child: UnderstandingTestNode) => child === input())).toHaveLength(1)
     expect(StyleSheet.flatten(input().props.style).paddingRight).toBe(48)
     await TestRenderer.act(() => finish({ date: '2026-10-26', referenceDate: '2026-10-20' }))
     expect(status('habits.form.dateInterpreted')).toHaveLength(1)
+    const interpreted = status('habits.form.dateInterpreted')[0]!
+    expect(interpreted.props.accessibilityState.busy).toBe(false)
+    expect(loopOf(interpreted)).toBe('still')
     expect(picker().props.accessibilityLabel).toContain(formatLocaleDate('2026-10-26', locale))
     await TestRenderer.act(() => { expect(helpers.validateAll()).toBeNull() })
     const values = habitFormSchema.parse(helpers.form.getValues())

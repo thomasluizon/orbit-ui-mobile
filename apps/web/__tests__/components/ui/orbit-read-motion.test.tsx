@@ -37,7 +37,7 @@ function mountEmojiRead() {
 async function settled(change: () => void) {
   await act(async () => {
     change()
-    await new Promise((resolve) => { setTimeout(resolve, 0) })
+    await vi.advanceTimersByTimeAsync(0)
   })
 }
 
@@ -55,7 +55,7 @@ function faceOf(button: HTMLElement) {
 }
 
 beforeEach(() => {
-  vi.useFakeTimers({ toFake: ['requestAnimationFrame', 'cancelAnimationFrame', 'performance'] })
+  vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'requestAnimationFrame', 'cancelAnimationFrame', 'performance'] })
   setReducedMotion(false)
 })
 

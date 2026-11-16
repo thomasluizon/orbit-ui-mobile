@@ -229,6 +229,13 @@ export const ORBIT_SMALL_FACES = {
 /** The y of the eye centre of each small face: the middle of its pill eyes. */
 export const ORBIT_SMALL_FACE_EYE_CENTRE_Y = { 16: 4.5, 20: 6, 24: 7 } as const satisfies Record<OrbitMascotSmallSize, number>
 
+/** The centre and the radius of the drawn moon of each small face. */
+export const ORBIT_SMALL_FACE_MOON = {
+  16: { x: 2.234, y: 9.052, radius: 1.25 },
+  20: { x: 2.697, y: 11.366, radius: 1.5 },
+  24: { x: 3.159, y: 13.68, radius: 1.75 },
+} as const satisfies Record<OrbitMascotSmallSize, { readonly x: number; readonly y: number; readonly radius: number }>
+
 /** The timings of the small face read motion: the idle loop timings and the ring turn. */
 export interface OrbitSmallFaceTimings extends OrbitMascotTimings {
   readonly ringTurn: number
@@ -250,26 +257,63 @@ function matrix(a: number, b: number, c: number, d: number, e: number, f: number
   return `matrix(${[a, b, c, d, e, f].map((value) => Number(value.toFixed(3))).join(' ')})`
 }
 
+const smallFaceTurnShares = new Map<OrbitMascotSmallSize, number>()
+
+function smallFaceTurnShare(size: OrbitMascotSmallSize): number {
+  const known = smallFaceTurnShares.get(size)
+  if (known !== undefined) return known
+  const face = ORBIT_SMALL_FACES[size]
+  const width = size
+  const height = size * ORBIT_SMALL_FACE_BOX_RATIO
+  const numbers = `${face.ringBack} ${face.ringFront} ${face.ringOutline}`.match(/-?[\d.]+/g)!.map(Number)
+  const fits = (turn: number) => numbers.every((_value, index) => {
+    if (index % 2 === 1) return true
+    const x = numbers[index]! - width / 2
+    const y = numbers[index + 1]! - height / 2
+    const turnedX = width / 2 + x * Math.cos(turn) - y * Math.sin(turn)
+    const turnedY = height / 2 + x * Math.sin(turn) + y * Math.cos(turn)
+    return turnedX >= 0 && turnedX <= width && turnedY >= 0 && turnedY <= height
+  })
+  const fullTurn = toRadians(ORBIT_MASCOT_RING_TILT_RANGE_DEGREES)
+  let share = 1
+  while (share > 0 && !(fits(fullTurn * share) && fits(-fullTurn * share))) share -= 0.01
+  smallFaceTurnShares.set(size, share)
+  return share
+}
+
 /** The small face read motion `milliseconds` after the read starts. The live rig needs 40 px or more, so the 16 to
  *  24 px face moves its drawn paths instead: the moon orbits the ring once per ring turn and passes behind the planet,
- *  the ring tilts as it does in the idle loop, and the eyes blink at once and then at the blink interval. The planet
- *  does not move. Zero is the drawn face. */
+ *  the ring tilts as it does in the idle loop but never past the box, and the eyes blink at once and then at the blink interval. The planet
+ *  does not move. Zero is the drawn face.
+ *  The drawn ring reaches the edges of the box and the moon is wider than the ring, so at the two ends of the ring the
+ *  moon moves in toward the planet until its whole disc is inside the box. It stays on the ring band there. */
 export function orbitSmallFaceFrame(milliseconds: number, size: OrbitMascotSmallSize, timings: OrbitSmallFaceTimings): OrbitSmallFaceFrame {
-  const scale = size / 4 / ORBIT_MASCOT_PLANET_RADIUS
-  const centreX = size / 2
-  const centreY = size * ORBIT_SMALL_FACE_BOX_RATIO / 2
+  const width = size
+  const height = size * ORBIT_SMALL_FACE_BOX_RATIO
+  const centreX = width / 2
+  const centreY = height / 2
+  const drawn = ORBIT_SMALL_FACE_MOON[size]
   const restTilt = ringTiltAt(0, timings.tiltPeriod)
-  const tilt = ringTiltAt(milliseconds, timings.tiltPeriod)
+  const turn = (ringTiltAt(milliseconds, timings.tiltPeriod) - restTilt) * smallFaceTurnShare(size)
   const rest = moonAt(0, timings.ringTurn, restTilt)
-  const moon = moonAt(milliseconds, timings.ringTurn, tilt)
-  const turn = tilt - restTilt
+  const moon = moonAt(milliseconds, timings.ringTurn, restTilt + turn)
+  const scale = Math.hypot(drawn.x - centreX, drawn.y - centreY) / Math.hypot(rest.x, rest.y)
+  const orbitX = drawn.x - rest.x * scale
+  const orbitY = drawn.y - rest.y * scale
+  const offsetX = moon.x * scale
+  const offsetY = moon.y * scale
+  const inside = Math.min(
+    1,
+    offsetX < 0 ? (orbitX - drawn.radius) / -offsetX : (width - drawn.radius - orbitX) / (offsetX || 1),
+    offsetY < 0 ? (orbitY - drawn.radius) / -offsetY : (height - drawn.radius - orbitY) / (offsetY || 1),
+  )
   const cos = Math.cos(turn)
   const sin = Math.sin(turn)
   const blinkPhase = ((milliseconds + ORBIT_BLINK_CLOSE_PHASE * timings.blinkInterval) % timings.blinkInterval) / timings.blinkInterval
   const blink = blinkScaleAt(blinkPhase)
   return {
     ring: matrix(cos, sin, -sin, cos, centreX - centreX * cos + centreY * sin, centreY - centreX * sin - centreY * cos),
-    moon: matrix(1, 0, 0, 1, (moon.x - rest.x) * scale, (moon.y - rest.y) * scale),
+    moon: matrix(1, 0, 0, 1, orbitX + offsetX * inside - drawn.x, orbitY + offsetY * inside - drawn.y),
     moonFront: moon.depth >= 0,
     eyes: matrix(1, 0, 0, blink, 0, ORBIT_SMALL_FACE_EYE_CENTRE_Y[size] * (1 - blink)),
   }
