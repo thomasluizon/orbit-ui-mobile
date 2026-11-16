@@ -328,6 +328,8 @@ const deadlineCases = () => {
       } } })
     same("stale-files: a finished worktree whose check ends past the time limit stays with the reason", reasonOf(listing, finished), "the listing reached its time limit before this check")
     same("stale-files: the tree of a worktree past the time limit is never walked", walked.filter((path) => path === finished), [])
+    // A session directory holds the throwaway probe repositories of its scratchpad; only a finished worktree is walked.
+    same("stale-files: the tree of a session directory is never walked for repositories", walked, [])
   } finally {
     Date.now = realNow
   }

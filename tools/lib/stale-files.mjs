@@ -254,8 +254,8 @@ const nestedRepositoryHold = (directory, probes) => {
 
 /**
  * Why an item must stay for what lives under its path: the scratchpad of a session that stays links into it, or a
- * registered worktree or a repository in it must stay. A removal takes the whole tree, and `git worktree remove` takes
- * an ignored directory too, with every worktree and repository in it.
+ * registered worktree in it must stay. A removal takes the whole tree, and `git worktree remove` takes an ignored
+ * directory too, with every worktree in it.
  */
 const holdOf = (path, evidence, probes) => {
   const link = evidence.links.find((entry) => within(entry.target, path))
@@ -267,6 +267,16 @@ const holdOf = (path, evidence, probes) => {
     const hold = nestedWorktreeHold(worktree, probes)
     if (hold) return `worktree ${worktree.path} in it stays: ${hold}`
   }
+  return null
+}
+
+/**
+ * Why a finished worktree must stay for a repository in its tree that is no registered worktree; null when none must.
+ * `git worktree remove` takes an ignored directory, such as `node_modules/`, with every repository in it. A session
+ * directory or a carry copy is never walked: both hold the throwaway repositories of a scratchpad, with local commits
+ * and no remote, and this rule would keep almost every one of them forever.
+ */
+const repositoryHoldOf = (path, evidence, probes) => {
   const repositories = probes.repositories(path)
   if (repositories === null) return "the repositories in it could not be listed"
   const registered = new Set(evidence.worktrees.map((worktree) => worktree.path))
@@ -386,7 +396,8 @@ const classifyWorktrees = (evidence, probes, deadline) => evidence.worktrees
       ?? (Date.now() > deadline ? "the listing reached its time limit before this check" : null)
     const verdict = keep === null ? judgeBranch(worktree, probes) : { stale: false, reason: keep }
     // Only a finished worktree pays for the walk of its tree, and only inside the listing's time limit.
-    const hold = !verdict.stale ? null : Date.now() > deadline ? "the listing reached its time limit before this check" : holdOf(worktree.path, evidence, probes)
+    const hold = !verdict.stale ? null : Date.now() > deadline ? "the listing reached its time limit before this check"
+      : holdOf(worktree.path, evidence, probes) ?? repositoryHoldOf(worktree.path, evidence, probes)
     return { kind: "worktree", path: worktree.path, repository: worktree.repository, ...(hold ? { stale: false, reason: hold } : verdict) }
   })
 
