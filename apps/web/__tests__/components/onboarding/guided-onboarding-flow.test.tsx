@@ -120,7 +120,7 @@ describe.each(locales)('guided onboarding in $locale', ({ locale, messages }) =>
   const flow = messages.onboarding.flow
   const guided = flow.guided
 
-  it('explains Orbit on three intro screens before the first question, and reaches it in three taps', () => {
+  it('explains Orbit on three intro screens before the first question, reaches it in three taps, and offers the header skip there', async () => {
     mount(locale, messages)
     const intros = [guided.intro.talk, guided.intro.routine, guided.intro.restart]
     intros.forEach((intro, index) => {
@@ -135,6 +135,10 @@ describe.each(locales)('guided onboarding in $locale', ({ locale, messages }) =>
     })
     expect(heading()).toBe(guided.what.question)
     expect(useOnboardingDraftStore.getState().introSeen).toBe(true)
+    expect(screen.getAllByRole('button', { name: flow.skip }), 'the first question has one header skip').toHaveLength(1)
+    await act(async () => { press(flow.skip) })
+    expect(mocks.recordCompletion, 'the header skip leaves onboarding once').toHaveBeenCalledOnce()
+    expect(await screen.findByText(flow.done.skippedTitle)).toBeInTheDocument()
   })
 
   it.each([0, 1, 2])('skips the intro from screen %i straight to the first question, and never shows it again', (screenIndex) => {

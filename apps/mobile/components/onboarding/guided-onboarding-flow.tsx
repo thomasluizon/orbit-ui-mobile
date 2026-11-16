@@ -430,7 +430,7 @@ export function GuidedOnboardingFlow(props: Readonly<GuidedOnboardingProps>) {
   }
   const stepView = isIntro(view) ? introView(view, t, () => nextIntro(view), leaveIntro) : views[view]
   const back = backAction(backTarget(navigation, introRun), props.onBack, go)
-  /** An intro screen holds one skip, the quiet action that opens the first question, so the header shows no close there. */
+  /** The header close of a question screen. An intro screen shows none: its one skip opens the first question. */
   const close = props.onSkip ?? props.onContinueWithout
   const progress = isIntro(view) ? { position: ONBOARDING_INTRO_SCREENS.indexOf(view) + 1, total: ONBOARDING_INTRO_SCREENS.length } : onboardingGuidedPosition(view, cadencePath)
   const statusKey = runningStatusKey(props)
