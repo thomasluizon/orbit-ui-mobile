@@ -1,3 +1,5 @@
+const typescript = require('typescript')
+
 const LINE_BREAK = /\r\n|[\r\n\u2028\u2029]/
 const LEGAL_COMMENT = /@preserve|@copyright|@lic|@cc_on|^\**!/i
 const COVERAGE_RANGE = /(?:istanbul|[cv]8|node:coverage)\s+ignore\s+(?:start|stop)(?=\W|$)/
@@ -16,7 +18,6 @@ const LINE_DIRECTIVE = /^(?:eslint-disable(?:-next)?-line(?:\s|$)|prettier-ignor
 const BLOCK_DIRECTIVE =
   /^(?:(?:eslint(?:-enable|-disable(?:(?:-next)?-line)?)?|globals?|exported)(?:\s|$)|prettier-ignore$|webpack[A-Z][A-Za-z]+:|@vite-ignore$)/
 const URL_RE = /https?:\/\//
-const TYPE_ANNOTATION = /@(?:type|typedef|satisfies|template|import)(?![\w-])|@(?:param|returns)\s*\{/
 const JAVASCRIPT_FILE = /\.[cm]?jsx?$/
 
 const EXPORT_STATEMENTS = new Set([
@@ -175,6 +176,25 @@ function createExportCheck(sourceCode) {
   }
 }
 
+function taggedJsDocStarts(filename, text) {
+  const sourceFile = typescript.createSourceFile(
+    filename,
+    text,
+    typescript.ScriptTarget.Latest,
+    false,
+    typescript.ScriptKind.JS,
+  )
+  const starts = new Set()
+  const visit = (node) => {
+    for (const jsDoc of node.jsDoc ?? []) {
+      if (jsDoc.tags?.some((tag) => tag.tagName.text !== '')) starts.add(jsDoc.pos)
+    }
+    typescript.forEachChild(node, visit)
+  }
+  visit(sourceFile)
+  return starts
+}
+
 function isTypeScriptSuppression(comment) {
   if (comment.type === 'Line') return TYPESCRIPT_LINE_SUPPRESSION.test(`//${comment.value}`)
   const lastLine = `/*${comment.value}*/`.split(LINE_BREAK).at(-1).trimStart()
@@ -215,14 +235,35 @@ module.exports = {
     const sourceCode = context.sourceCode ?? context.getSourceCode()
     const filename = context.filename ?? context.getFilename()
     const isOnExportedSymbol = createExportCheck(sourceCode)
+    let jsDocTagStarts
+
+    function holdsJsDocTag(comment) {
+      if (!JAVASCRIPT_FILE.test(filename) || !comment.value.includes('@')) return false
+      jsDocTagStarts ??= taggedJsDocStarts(filename, sourceCode.text)
+      return jsDocTagStarts.has(comment.range[0])
+    }
+
+    function movesDocBlock(comment) {
+      if (!JAVASCRIPT_FILE.test(filename)) return false
+      const lineEnd = sourceCode.text.indexOf('\n', comment.range[1])
+      return sourceCode
+        .getAllComments()
+        .some(
+          (other) =>
+            other.range[0] >= comment.range[1] &&
+            (lineEnd === -1 || other.range[0] < lineEnd) &&
+            other.type === 'Block' &&
+            other.value.startsWith('*') &&
+            other.value.includes('@'),
+        )
+    }
 
     function isAllowed(comment) {
       if (URL_RE.test(comment.value)) return true
       const isDocComment = comment.type === 'Block' && comment.value.startsWith('*')
       if (isDirective(comment, isDocComment)) return true
       if (!isDocComment) return false
-      if (JAVASCRIPT_FILE.test(filename) && TYPE_ANNOTATION.test(comment.value)) return true
-      return isOnExportedSymbol(comment)
+      return holdsJsDocTag(comment) || isOnExportedSymbol(comment)
     }
 
     return {
@@ -233,6 +274,7 @@ module.exports = {
             loc: comment.loc,
             messageId: 'noComment',
             fix(fixer) {
+              if (movesDocBlock(comment)) return null
               const text = sourceCode.getText()
               let start = comment.range[0]
               let end = comment.range[1]

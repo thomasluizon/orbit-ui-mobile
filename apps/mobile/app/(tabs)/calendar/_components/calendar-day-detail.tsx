@@ -21,6 +21,7 @@ import { PillButton } from '@/components/ui/pill-button'
 import { CalendarDayEvents } from './calendar-day-events'
 import { ListRow } from '@/components/ui/list-row'
 import { Skeleton } from '@/components/ui/skeleton'
+import { insetHairlineRing } from '@/components/ui/inset-hairline-ring'
 import { StatusRing } from '@/components/ui/status-ring'
 import { createTokensV2, radius } from '@/lib/theme'
 
@@ -284,7 +285,7 @@ export function CalendarDayDetail({
 
 function createStyles(tokens: Tokens) {
   return StyleSheet.create({
-    container: { backgroundColor: tokens.bgCard, outlineWidth: 1, outlineOffset: -1, outlineStyle: 'solid', outlineColor: tokens.hairlineGhost, borderRadius: radius.xl, gap: 16, paddingHorizontal: PADDING.cardInset, paddingVertical: PADDING.cardInset },
+    container: { backgroundColor: tokens.bgCard, ...insetHairlineRing, outlineColor: tokens.hairlineGhost, borderRadius: radius.xl, gap: 16, paddingHorizontal: PADDING.cardInset, paddingVertical: PADDING.cardInset },
     copyBlock: { gap: 4 },
     rowList: { gap: 0 },
     habitDisclosure: { minHeight: 68, justifyContent: 'center', borderRadius: 12, overflow: 'hidden' },

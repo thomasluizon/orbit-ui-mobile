@@ -7,8 +7,9 @@ import { StyleSheet, Text, View } from 'react-native'
 import { Pressable, type PressableProps } from 'react-native-gesture-handler'
 import { PressScale } from '@/components/motion/press-scale'
 import { CheckCircle2, FastForward, ArrowsMove, Trash2, X } from '@/components/ui/icons'
-import { createTokensV2 } from '@/lib/theme'
+import { createTokensV2, radius } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
+import { insetHairlineRing } from '@/components/ui/inset-hairline-ring'
 
 interface SelectionTrayProps {
   count: number
@@ -120,15 +121,16 @@ export function SelectionTray({
 
   return (
     <ShellContent><View
+      testID="selection-tray-bar"
       style={[
         styles.bar,
         {
           backgroundColor: tokens.bgSheet,
-          borderColor: tokens.hairline,
+          outlineColor: tokens.hairline,
         },
       ]}
     >
-      <View style={styles.captionRow}>
+      <View testID="selection-tray-caption" style={styles.captionRow}>
         <Text style={[styles.countLine, { color: tokens.fg3 }]}>
           <Text
             style={[styles.countValue, { color: tokens.fg1 }]}
@@ -215,8 +217,8 @@ export function SelectionTray({
 
 const styles = StyleSheet.create({
   bar: {
-    borderRadius: 20,
-    borderWidth: 1,
+    borderRadius: radius.xl,
+    ...insetHairlineRing,
     paddingHorizontal: SPACING.s16,
     paddingVertical: SPACING.s12,
     gap: 8,

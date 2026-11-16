@@ -25,6 +25,7 @@ import { useUIStore } from '@/stores/ui-store'
 import { TrueSheet } from '@lodev09/react-native-true-sheet'
 import { __resetTestHostConfig, __setWindowDimensions } from '../../../test-mocks/react-native'
 import { controlStyle } from '@/__tests__/support/press-feedback'
+import { applyBorderWidths } from '@/__tests__/support/yoga-borders'
 
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 
@@ -77,7 +78,7 @@ function applyStyle(node: YogaNode, style: ViewStyle) {
   if (typeof style.padding === 'number') node.setPadding(Yoga.EDGE_ALL, style.padding)
   if (typeof style.paddingVertical === 'number') node.setPadding(Yoga.EDGE_VERTICAL, style.paddingVertical)
   if (typeof style.paddingHorizontal === 'number') node.setPadding(Yoga.EDGE_HORIZONTAL, style.paddingHorizontal)
-  if (typeof style.borderWidth === 'number') node.setBorder(Yoga.EDGE_ALL, style.borderWidth)
+  applyBorderWidths(node, style)
 }
 
 function buildLayout(host: Host, fontScale: number, labels: { node: YogaNode; intrinsic: number; host: Host }[], radios: YogaNode[], groups: { node: YogaNode; radios: YogaNode[] }[] = [], inRadio = false, config?: YogaConfig): YogaNode {

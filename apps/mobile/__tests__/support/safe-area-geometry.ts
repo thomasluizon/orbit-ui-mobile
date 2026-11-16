@@ -1,5 +1,6 @@
 import { StyleSheet, type TextStyle, type ViewStyle } from 'react-native'
 import Yoga, { type Node as YogaNode } from 'yoga-layout'
+import { applyBorderWidths } from '@/__tests__/support/yoga-borders'
 
 export interface GeometryHost {
   type: string
@@ -58,6 +59,7 @@ function applyStyle(node: YogaNode, style: ViewStyle) {
   for (const [property, edge] of [['padding', Yoga.EDGE_ALL], ['paddingHorizontal', Yoga.EDGE_HORIZONTAL], ['paddingVertical', Yoga.EDGE_VERTICAL], ['paddingTop', Yoga.EDGE_TOP], ['paddingBottom', Yoga.EDGE_BOTTOM], ['paddingLeft', Yoga.EDGE_LEFT], ['paddingRight', Yoga.EDGE_RIGHT]] as const) {
     if (typeof style[property] === 'number') node.setPadding(edge, style[property])
   }
+  applyBorderWidths(node, style)
 }
 
 function bounds(node: YogaNode) {
@@ -65,7 +67,7 @@ function bounds(node: YogaNode) {
   let left = 0
   let ancestor: YogaNode | null = node
   while (ancestor) { top += ancestor.getComputedTop(); left += ancestor.getComputedLeft(); ancestor = ancestor.getParent() }
-  return { left, width: node.getComputedWidth(), top, bottom: top + node.getComputedHeight(), contentTop: top + node.getComputedPadding(Yoga.EDGE_TOP) }
+  return { left, width: node.getComputedWidth(), top, bottom: top + node.getComputedHeight(), contentTop: top + node.getComputedBorder(Yoga.EDGE_TOP) + node.getComputedPadding(Yoga.EDGE_TOP) }
 }
 
 /** `pixelRatio` is the device pixels per point that Yoga snaps each edge to, as React Native does with the screen scale. */

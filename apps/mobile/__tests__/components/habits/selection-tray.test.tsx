@@ -3,6 +3,8 @@ import { StyleSheet, type StyleProp, type ViewStyle } from 'react-native'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { SelectionTray } from '@/components/habits/selection-tray'
 import { createTokensV2 } from '@/lib/theme'
+import { expectInsetHairlineRing } from '@/__tests__/support/inset-hairline-ring'
+import { measureProfileRow } from '@/__tests__/support/profile-row-geometry'
 import { IntlMessageFormat } from 'intl-messageformat'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
@@ -295,6 +297,17 @@ describe('SelectionTray', () => {
     expect(scale()).toBe(reducedMotion ? 1 : 0.96)
     await TestRenderer.act(() => { (control.props.onPressOut as () => void)() })
     expect(scale()).toBe(1)
+  })
+
+  it('draws the tray hairline inside its edge, so the caption starts at the web padding', async () => {
+    interactionState.mode = 'dark'
+    const { tree } = await renderBar()
+    const bar = tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'selection-tray-bar')[0]!
+    expectInsetHairlineRing(bar.props.style as StyleProp<ViewStyle>, createTokensV2('purple', 'dark').hairline)
+    const measured = measureProfileRow(tree.toJSON() as Parameters<typeof measureProfileRow>[0], 412, 1)
+    const box = (testID: string) => measured.boxes.find((candidate) => candidate.testID === testID)!
+    const frame = box('selection-tray-bar')
+    expect(box('selection-tray-caption'), 'the caption row sits at the 16 dp by 12 dp web padding').toMatchObject({ left: frame.left + 16, top: frame.top + 12, right: frame.right - 16 })
   })
 
   it('renders the tabular count beside the digit-free suffix', async () => {
