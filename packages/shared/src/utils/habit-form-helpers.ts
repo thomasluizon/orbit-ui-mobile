@@ -2,7 +2,7 @@ import type { HabitRecurrence } from './habit-recurrence-phrase'
 import { formatWeekdaySchedule } from './weekday-schedule'
 import { formatHabitMonthDaySchedule, toggleHabitMonthDay } from './month-days'
 import { MAX_HABIT_INTERVAL_WEEKS, type ChecklistItem, type FrequencyUnit, type HabitSetupSuggestion, type NormalizedHabit } from '../types/habit'
-import type { HabitPhraseRead, HabitPhraseToken } from './habit-phrase-parser'
+import { habitPhraseRepeats, type HabitPhraseRead, type HabitPhraseSpan, type HabitPhraseToken } from './habit-phrase-parser'
 import type { HabitFormData } from '../validation/habit-form'
 import {
   validateGoalSelection,
@@ -350,6 +350,8 @@ export interface HabitPhraseFormTarget {
 export interface HabitPhraseFormOwnership {
   cadence: boolean
   dueTime: boolean
+  /** The words of a date the guided flow read in the phrase and holds. The saved title drops them. */
+  date?: HabitPhraseSpan | null
 }
 
 export function releaseHabitPhraseOwnership(
@@ -464,7 +466,7 @@ export function createHabitFormController({
     releaseDueTime: (): void => releaseOwnership('dueTime'),
     reconcilePhraseOwnership: (read): void => {
       const ownership = target.getOwnership()
-      target.setOwnership({ cadence: ownership.cadence && read.cadence !== null, dueTime: ownership.dueTime && read.dueTime !== null })
+      target.setOwnership({ ...ownership, cadence: ownership.cadence && habitPhraseRepeats(read), dueTime: ownership.dueTime && read.dueTime !== null })
     },
     readPhrase: (enabled, read) => readOwnedHabitPhrase(enabled, read, lockedGeneral, target),
     setDueTime: (dueTime: string): void => {
@@ -609,12 +611,20 @@ export function applyHabitPhraseRead(
   } else if (ownership.dueTime) {
     target.setField('dueTime', '')
   }
-  if (read.cadence) target.setField('intervalWeeks', Math.min(MAX_HABIT_INTERVAL_WEEKS, read.intervalWeeks ?? 1))
-  if (!read.cadence) {
+  if (!habitPhraseRepeats(read)) {
     if (ownership.cadence) target.setOneTime()
     return nextOwnership
   }
   nextOwnership.cadence = true
+  if (read.cadence === null) {
+    target.setRecurring()
+    target.setField('intervalWeeks', 1)
+    target.setField('frequencyUnit', 'Week')
+    target.setField('frequencyQuantity', Math.min(MAX_HABIT_INTERVAL_WEEKS, read.intervalWeeks ?? 1))
+    target.setField('days', [])
+    return nextOwnership
+  }
+  target.setField('intervalWeeks', Math.min(MAX_HABIT_INTERVAL_WEEKS, read.intervalWeeks ?? 1))
   if (read.cadence === 'flexible') {
     target.setFlexible()
     target.setField('frequencyUnit', 'Week')

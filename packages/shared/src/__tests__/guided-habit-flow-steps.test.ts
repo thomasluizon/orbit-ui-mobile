@@ -600,6 +600,9 @@ describe('the steps of the shared guided habit flow', () => {
     ['a day', 'water the plants every monday', EVERY_DAY_READ, { itemType: 'habit', isFlexible: false, frequencyUnit: 'Day', days: ['Monday'], dueTime: '07:00', emoji: '🌿' }, { schedule: false, time: true, emoji: true }, 'water the plants'],
     ['an emoji', '💧 water the plants', EVERY_DAY_READ, { itemType: 'habit', frequencyUnit: 'Day', dueTime: '07:00', emoji: '' }, { schedule: true, time: true, emoji: false }, '💧 water the plants'],
     ['the type', 'water the plants every monday', ONE_TIME_READ, { itemType: 'habit', frequencyUnit: 'Day', days: ['Monday'], dueTime: '07:00', emoji: '🌿' }, { schedule: false, time: true, emoji: true }, 'water the plants'],
+    ['a date', 'call mom tomorrow', EVERY_DAY_READ, { itemType: 'task', dueDate: TOMORROW, frequencyUnit: null, days: [], dueTime: '07:00', emoji: '🌿' }, { schedule: false, time: true, emoji: true }, 'call mom'],
+    ['a bare interval', 'water the plants every 2 weeks', EVERY_DAY_READ, { itemType: 'habit', isFlexible: false, frequencyUnit: 'Week', frequencyQuantity: 2, days: [], dueTime: '07:00', emoji: '🌿' }, { schedule: false, time: true, emoji: true }, 'water the plants'],
+    ['no emoji when the phrase holds only a text sign', 'buy Coca-Cola® zero', EVERY_DAY_READ, { itemType: 'habit', frequencyUnit: 'Day', dueTime: '07:00', emoji: '🌿' }, { schedule: true, time: true, emoji: true }, 'buy Coca-Cola® zero'],
   ]
 
   it.each(TYPED_IN_THE_PHRASE)('keeps %s the person typed in the phrase when the free read of that phrase proposes another value, and fills only the rest', async (_field, typed, read, values, proposals, title) => {
@@ -611,6 +614,42 @@ describe('the steps of the shared guided habit flow', () => {
     expect(mounted.flow.proposals).toEqual(proposals)
     const ownership = mounted.ownership.mock.calls.at(-1)?.[0] ?? { cadence: false, dueTime: false }
     expect(getHabitPhraseTitle(mounted.values.title, 'en', ownership)).toBe(title)
+    mounted.unmount()
+  })
+
+  it('skips the date question for a date typed in the phrase with no free read, and gives the date back when the phrase loses it', async () => {
+    const mounted = mountFlow({ online: false, values: { dueDate: '2026-12-01' } })
+    run(() => mounted.flow.changeTitle('ligar para a mãe na próxima sexta'))
+    expect(mounted.values).toMatchObject({ itemType: 'task', dueDate: '2026-11-20', frequencyUnit: null })
+    expect(mounted.flow.steps).not.toContain('when')
+    run(() => mounted.flow.changeTitle('ligar para a mãe'))
+    expect(mounted.values.dueDate).toBe('2026-12-01')
+    expect(mounted.ownership).toHaveBeenLastCalledWith({ cadence: false, dueTime: false, date: null })
+    mounted.unmount()
+  })
+
+  it('keeps the date words in the title when the person sets the When on a step after a typed date', async () => {
+    const mounted = mountFlow({ online: false })
+    await leavePhraseWith(mounted, 'call mom tomorrow')
+    expect(mounted.values.dueDate).toBe(TOMORROW)
+    run(() => mounted.flow.open('when'))
+    run(() => mounted.flow.answerWhen('today'))
+    expect(mounted.values.dueDate).toBe(TODAY)
+    const ownership = mounted.ownership.mock.calls.at(-1)?.[0] ?? { cadence: false, dueTime: false }
+    expect(getHabitPhraseTitle(mounted.values.title, 'en', ownership)).toBe('call mom tomorrow')
+    mounted.unmount()
+  })
+
+  it('reads no date in a phrase whose words only look like one, and in the phrase of a deliberate habit', async () => {
+    const mounted = mountFlow({ online: false })
+    run(() => mounted.flow.changeTitle('beber 1/2 litro de água'))
+    run(() => mounted.flow.changeTitle('ter mais paciência'))
+    run(() => mounted.flow.changeTitle('read the 2nd book'))
+    expect(mounted.values.dueDate).toBe('')
+    expect(mounted.flow.steps).toContain('when')
+    mounted.chooseTypeOnTheTypeStep('habit')
+    run(() => mounted.flow.changeTitle('run tomorrow'))
+    expect(mounted.values).toMatchObject({ itemType: 'habit', dueDate: '' })
     mounted.unmount()
   })
 })

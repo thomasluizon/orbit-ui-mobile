@@ -978,6 +978,9 @@ describe('OnboardingFlow state model', () => {
     ['a repeat', 'Water the plants 3 times a week', { title: 'Water the plants', frequencyUnit: 'Week', frequencyQuantity: 3, isFlexible: true, dueTime: '07:00', emoji: '🌿' }],
     ['a day', 'Water the plants every monday', { title: 'Water the plants', frequencyUnit: 'Day', days: ['Monday'], dueTime: '07:00', emoji: '🌿' }],
     ['an emoji', '💧 Water the plants', { title: '💧 Water the plants', frequencyUnit: 'Day', dueTime: '07:00', emoji: null }],
+    ['a bare interval', 'Water the plants every 2 weeks', { title: 'Water the plants', frequencyUnit: 'Week', frequencyQuantity: 2, dueTime: '07:00', emoji: '🌿' }],
+    ['a day of the month', 'Pay the rent every 5th of the month', { title: 'Pay the rent', frequencyUnit: 'Month', frequencyQuantity: 1, dueTime: '07:00', emoji: '🌿' }],
+    ['no emoji when the sentence holds only a text sign', 'Buy Coca-Cola® zero', { title: 'Buy Coca-Cola® zero', frequencyUnit: 'Day', dueTime: '07:00', emoji: '🌿' }],
   ] as const)('keeps %s the person typed in the sentence when the Orbit suggestion proposes another value', async (_field, sentence, expected) => {
     mocks.suggest.mockResolvedValue({ emoji: '🌿', frequencyUnit: 'Day', frequencyQuantity: 1, days: [], isFlexible: false, flexibleTarget: null, dueTime: '07:00', subHabits: [], checklistItems: [] })
     mount(true)

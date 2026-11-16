@@ -299,6 +299,9 @@ describe('onboarding helpers', () => {
     ['a repeat', 'Water the plants 3 times a week', { frequencyUnit: 'Week', frequencyQuantity: 3, isFlexible: true, dueTime: '07:00' }, '🌿'],
     ['a day', 'Water the plants every monday', { frequencyUnit: 'Day', days: ['Monday'], isFlexible: false, dueTime: '07:00' }, '🌿'],
     ['an emoji', '💧 Water the plants', { frequencyUnit: 'Day', days: [], isFlexible: false, dueTime: '07:00' }, ''],
+    ['a bare interval', 'Water the plants every 2 weeks', { frequencyUnit: 'Week', frequencyQuantity: 2, days: [], isFlexible: false, dueTime: '07:00' }, '🌿'],
+    ['a day of the month', 'Pay the rent every 5th of the month', { frequencyUnit: 'Month', frequencyQuantity: 1, days: [], isFlexible: false, dueTime: '07:00' }, '🌿'],
+    ['no emoji when the sentence holds only a text sign', 'Buy Coca-Cola® zero', { frequencyUnit: 'Day', days: [], isFlexible: false, dueTime: '07:00' }, '🌿'],
   ] as const)('keeps %s the person typed in the sentence over the Orbit suggestion, which fills only the rest', (_field, sentence, schedule, emoji) => {
     const proposal = buildOnboardingProposal(everyDayAtSeven, sentence, 'en')
     expect(proposal).toMatchObject({ schedule: { ...schedule, isGeneral: false }, emoji })

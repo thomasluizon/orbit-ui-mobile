@@ -457,6 +457,12 @@ describe('a guided create on Android from a phrase with a repeat', () => {
       { when: 'todo dia', whenProposed: true, time: '07:00', timeProposed: true, sent: { title: '💧 regar as plantas', frequencyUnit: 'Day', frequencyQuantity: 1, dueTime: '07:00' }, absent: ['emoji'] }],
     ['the type', 'regar as plantas toda segunda', ONE_TIME_READ,
       { when: 'toda segunda', whenProposed: false, time: '07:00', timeProposed: true, sent: { title: 'regar as plantas', frequencyUnit: 'Day', days: ['Monday'], dueTime: '07:00', emoji: '🌿' }, absent: [] }],
+    ['a date', 'ligar para a mãe amanhã', EVERY_DAY_READ,
+      { when: '14/11/2026', whenProposed: false, time: '07:00', timeProposed: true, sent: { title: 'ligar para a mãe', dueDate: '2026-11-14', dueTime: '07:00', emoji: '🌿' }, absent: ['frequencyUnit', 'startDate'] }],
+    ['a bare interval', 'regar as plantas a cada 2 semanas', EVERY_DAY_READ,
+      { when: 'a cada 2 semanas', whenProposed: false, time: '07:00', timeProposed: true, sent: { title: 'regar as plantas', frequencyUnit: 'Week', frequencyQuantity: 2, dueTime: '07:00', emoji: '🌿' }, absent: ['days'] }],
+    ['no emoji when the phrase holds only a text sign', 'comprar Coca-Cola® zero', EVERY_DAY_READ,
+      { when: 'todo dia', whenProposed: true, time: '07:00', timeProposed: true, sent: { title: 'comprar Coca-Cola® zero', frequencyUnit: 'Day', frequencyQuantity: 1, dueTime: '07:00', emoji: '🌿' }, absent: ['days'] }],
   ]
 
   it.each(TYPED_IN_THE_PHRASE)('keeps %s the person typed in the phrase when the free read of that phrase proposes another value, and the summary and the title show what the save sends', async (_field, typed, read, after) => {

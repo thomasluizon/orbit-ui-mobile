@@ -1,5 +1,5 @@
 import { buildHabitUnderstandingSentence } from './habit-form-helpers'
-import type { HabitPhraseRead } from './habit-phrase-parser'
+import { habitPhraseRepeats, type HabitPhraseRead } from './habit-phrase-parser'
 
 /** The steps of the guided habit flow, in the order a person meets them. */
 export type HabitFlowStepId = 'what' | 'when' | 'time' | 'reminder' | 'summary'
@@ -51,7 +51,7 @@ export interface PhraseCoverage {
 /** What a local read of the phrase covers. The `consumed` ranges tell which words the device read. */
 export function readPhraseCoverage(read: HabitPhraseRead, hasPhraseDate: boolean): PhraseCoverage {
   return {
-    coversDateOrRepeat: hasPhraseDate || read.cadence !== null,
+    coversDateOrRepeat: hasPhraseDate || habitPhraseRepeats(read),
     coversTime: read.dueTime !== null,
   }
 }

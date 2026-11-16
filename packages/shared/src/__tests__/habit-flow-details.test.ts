@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { readHabitPhrase } from '../utils/habit-phrase-parser'
-import { describeEditDetailsError, guardHabitReadPatch, habitFlowFieldStep, habitFlowNamesAnswer, habitFlowOptionalQuestions, habitFlowSelectionAnswer, readHabitPhraseValues, readHabitWhenWords, resolveGuidedEditDetails, summaryValueStep } from '../utils/habit-flow-details'
+import { describeEditDetailsError, guardHabitReadPatch, habitFlowFieldStep, habitFlowNamesAnswer, habitFlowOptionalQuestions, habitFlowSelectionAnswer, readHabitPhraseDate, readHabitPhraseValues, readHabitWhenWords, resolveGuidedEditDetails, summaryValueStep } from '../utils/habit-flow-details'
 
 const base = { mode: 'create' as const, isGeneral: false, canSplit: true, hasParent: false, canEnd: true }
 const context = { referenceDate: '2026-11-13', locale: 'pt-BR', timeZone: 'UTC', language: 'pt-BR' as const, allowPast: false }
@@ -128,7 +128,7 @@ describe('habitFlowFieldStep', () => {
 
 describe('guardHabitReadPatch', () => {
   const patch = { mode: 'recurring' as const, emoji: '💊', frequencyUnit: 'Day' as const, frequencyQuantity: 1, days: ['Monday'], dueTime: '08:00', subHabitTitles: [], checklistItems: [] }
-  const nothingTyped = { repeat: false, time: false, emoji: false }
+  const nothingTyped = { repeat: false, date: false, time: false, emoji: false }
   const nothingSet = { deliberateType: null, whenSet: false, timeSet: false, emojiSet: false, typed: nothingTyped, undated: false }
   const noSchedule = { mode: 'oneTime', frequencyUnit: null, frequencyQuantity: null, days: [] }
 
@@ -143,6 +143,7 @@ describe('guardHabitReadPatch', () => {
     ['an emoji the person chose', { emojiSet: true }, { emoji: null }],
     ['an undated item, with no repeat and no time', { undated: true }, { ...noSchedule, dueTime: null }],
     ['a repeat or a day the person typed in the phrase', { typed: { ...nothingTyped, repeat: true } }, noSchedule],
+    ['a date the person typed in the phrase', { typed: { ...nothingTyped, date: true } }, noSchedule],
     ['a time the person typed in the phrase', { typed: { ...nothingTyped, time: true } }, { dueTime: null }],
     ['an emoji the person typed in the phrase', { typed: { ...nothingTyped, emoji: true } }, { emoji: null }],
   ])('drops only the proposals that %s holds', (_name, held, dropped) => {
@@ -151,10 +152,82 @@ describe('guardHabitReadPatch', () => {
 })
 
 describe('readHabitPhraseValues', () => {
+  const values = (phrase: string, locale: 'en' | 'pt-BR' = 'en') => readHabitPhraseValues(phrase, readHabitPhrase(phrase, locale))
+
   it('names the repeat, the time and the emoji that the person typed in the phrase', () => {
-    expect(readHabitPhraseValues('water the plants', readHabitPhrase('water the plants', 'en'))).toEqual({ repeat: false, time: false, emoji: false })
-    expect(readHabitPhraseValues('water the plants every monday at 9am', readHabitPhrase('water the plants every monday at 9am', 'en'))).toEqual({ repeat: true, time: true, emoji: false })
-    expect(readHabitPhraseValues('💧 regar as plantas 3 vezes por semana', readHabitPhrase('💧 regar as plantas 3 vezes por semana', 'pt-BR'))).toEqual({ repeat: true, time: false, emoji: true })
+    expect(values('water the plants')).toEqual({ repeat: false, date: false, time: false, emoji: false })
+    expect(values('water the plants every monday at 9am')).toEqual({ repeat: true, date: false, time: true, emoji: false })
+    expect(values('💧 regar as plantas 3 vezes por semana', 'pt-BR')).toEqual({ repeat: true, date: false, time: false, emoji: true })
+  })
+
+  it.each([
+    ['every 2 weeks', 'water the plants every 2 weeks', 'en'],
+    ['a cada 2 semanas', 'regar as plantas a cada 2 semanas', 'pt-BR'],
+    ['every other monday', 'run every other monday', 'en'],
+    ['todo dia 5 do mês', 'pagar o aluguel todo dia 5 do mês', 'pt-BR'],
+  ] as const)('counts %s as a repeat the person typed, by the one rule onboarding also reads', (_words, phrase, locale) => {
+    expect(values(phrase, locale).repeat).toBe(true)
+  })
+
+  it.each([
+    ['💧', true],
+    ['❤️', true],
+    ['🇧🇷', true],
+    ['👍🏽', true],
+    ['©️', true],
+    ['❤', false],
+    ['©', false],
+    ['®', false],
+    ['™', false],
+    ['‼', false],
+    ['Coca-Cola® zero', false],
+    ['10 km', false],
+  ])('reads %s as an emoji the person typed: %s', (phrase, emoji) => {
+    expect(values(phrase).emoji).toBe(emoji)
+  })
+
+  it('names a date the person typed in the phrase', () => {
+    const date = readHabitPhraseDate('call mom tomorrow', readHabitPhrase('call mom tomorrow', 'en'), { referenceDate: '2026-11-13', locale: 'en', timeZone: 'UTC' })
+    expect(readHabitPhraseValues('call mom tomorrow', readHabitPhrase('call mom tomorrow', 'en'), date).date).toBe(true)
+  })
+})
+
+describe('readHabitPhraseDate', () => {
+  const context = { referenceDate: '2026-11-13', locale: 'en', timeZone: 'UTC' }
+  const dateOf = (phrase: string, locale: 'en' | 'pt-BR' = 'en') => {
+    const found = readHabitPhraseDate(phrase, readHabitPhrase(phrase, locale), { ...context, locale })
+    return found ? { date: found.date, words: phrase.slice(found.span.start, found.span.end) } : null
+  }
+
+  it.each([
+    ['call mom tomorrow', 'en', '2026-11-14', 'tomorrow'],
+    ['ligar para a mãe amanhã', 'pt-BR', '2026-11-14', 'amanhã'],
+    ['ligar para a mãe depois de amanhã', 'pt-BR', '2026-11-15', 'depois de amanhã'],
+    ['call mom next monday', 'en', '2026-11-16', 'next monday'],
+    ['dentist on december 5', 'en', '2026-12-05', 'december 5'],
+    ['dentista dia 5', 'pt-BR', '2026-12-05', 'dia 5'],
+    ['pay the bill on the 20th', 'en', '2026-11-20', 'on the 20th'],
+    ['renew the passport 12/05/2027', 'pt-BR', '2027-05-12', '12/05/2027'],
+    ['call mom tomorrow at 9am', 'en', '2026-11-14', 'tomorrow'],
+  ] as const)('reads the date in %s', (phrase, locale, date, words) => {
+    expect(dateOf(phrase, locale)).toEqual({ date, words })
+  })
+
+  it.each([
+    ['a repeat, which holds the When', 'call mom every monday from tomorrow'],
+    ['a bare interval', 'water the plants every 2 weeks'],
+    ['a fraction', 'drink 1/2 liter'],
+    ['an ordinal', 'read the 2nd book'],
+    ['a short weekday name that is also a word', 'walk in the sun'],
+    ['a past day', 'pay the bill 2026-11-01'],
+    ['no date', 'water the plants'],
+  ])('reads no date in %s', (_case, phrase) => {
+    expect(dateOf(phrase)).toBeNull()
+  })
+
+  it('reads no date in the Portuguese words that are also short weekday names', () => {
+    expect(dateOf('ter mais paciência', 'pt-BR')).toBeNull()
+    expect(dateOf('educação sex', 'pt-BR')).toBeNull()
   })
 })
 

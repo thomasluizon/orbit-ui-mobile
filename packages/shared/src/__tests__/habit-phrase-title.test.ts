@@ -54,7 +54,7 @@ describe('getHabitPhraseTitle', () => {
     })).toBe('Read at 8am')
   })
 
-  it('keeps an interval after removing the only weekday from a phrase', () => {
+  it('reads a bare interval left after removing the only weekday as the repeat, and drops its words', () => {
     const setOneTime = vi.fn()
     const target = {
       setOneTime,
@@ -68,14 +68,16 @@ describe('getHabitPhraseTitle', () => {
     const finalPhrase = 'Run every 2 weeks'
     const ownership = applyHabitPhraseRead(true, readHabitPhrase(finalPhrase, 'en'), false, applied, target)
 
-    expect(setOneTime).toHaveBeenCalledOnce()
+    expect(setOneTime).not.toHaveBeenCalled()
+    expect(target.setField).toHaveBeenCalledWith('frequencyUnit', 'Week')
+    expect(target.setField).toHaveBeenCalledWith('frequencyQuantity', 2)
     expect(ownership.cadence).toBe(true)
-    expect(getHabitPhraseTitle(finalPhrase, 'en', ownership)).toBe(finalPhrase)
+    expect(getHabitPhraseTitle(finalPhrase, 'en', ownership)).toBe('Run')
   })
 
-  it('removes an applied time while keeping an unapplied interval', () => {
+  it('removes an applied time while keeping an interval the form did not apply', () => {
     expect(getHabitPhraseTitle('Run every 2 weeks at 8am', 'en', {
-      cadence: true,
+      cadence: false,
       dueTime: true,
     })).toBe('Run every 2 weeks')
   })

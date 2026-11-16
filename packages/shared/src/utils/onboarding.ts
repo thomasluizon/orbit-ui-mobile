@@ -139,10 +139,10 @@ export function isOnboardingHabitDueToday(schedule: OnboardingSchedule, today: D
 }
 
 /**
- * Reads a typed sentence into the schedule the when screen shows. A bare "every 2 weeks" becomes the
- * week unit with quantity 2, not `intervalWeeks`, because the interval stepper binds the quantity and
- * the API fires a weekly habit on every `frequencyQuantity`-th week. `intervalWeeks` stays 1 unless
- * the sentence also names weekdays, the one shape that shows and corrects it.
+ * Reads a typed sentence into the schedule the when screen shows. A bare "every 2 weeks" becomes the week unit with
+ * quantity 2, not `intervalWeeks`, because the interval stepper binds the quantity and the API fires a weekly habit on
+ * every `frequencyQuantity`-th week. `intervalWeeks` stays 1 unless the sentence also names weekdays, the one shape that
+ * shows and corrects it. A day of the month becomes the month unit: the when screen has no day of the month.
  */
 export function buildOnboardingScheduleFromPhrase(
   sentence: string,
@@ -165,6 +165,12 @@ export function buildOnboardingScheduleFromPhrase(
   if (read.intervalWeeks) {
     return {
       frequencyUnit: 'Week', frequencyQuantity: read.intervalWeeks, intervalWeeks: 1,
+      days: [], isGeneral: false, isFlexible: false, dueTime: read.dueTime ?? '',
+    }
+  }
+  if (read.cadence === 'monthly') {
+    return {
+      frequencyUnit: 'Month', frequencyQuantity: 1, intervalWeeks: 1,
       days: [], isGeneral: false, isFlexible: false, dueTime: read.dueTime ?? '',
     }
   }
@@ -191,7 +197,7 @@ export function buildOnboardingProposal(
   locale: SupportedLocale,
 ): OnboardingProposal {
   const typedSchedule = buildOnboardingScheduleFromPhrase(sentence, locale)
-  const typed = { ...readHabitPhraseValues(sentence, readHabitPhrase(sentence, locale)), repeat: !typedSchedule.isGeneral }
+  const typed = readHabitPhraseValues(sentence, readHabitPhrase(sentence, locale))
   const patch = guardHabitReadPatch(buildHabitFormPatchFromSuggestion(suggestion), {
     deliberateType: null, whenSet: false, timeSet: false, emojiSet: false, typed, undated: false,
   })

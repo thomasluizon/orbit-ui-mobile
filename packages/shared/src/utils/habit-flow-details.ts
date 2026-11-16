@@ -1,7 +1,7 @@
 import { formatConjunctionList } from './conjunction-list'
 import { parseDatePhrase, type DatePhraseContext } from './date-phrase-parser'
 import { getFriendlyErrorMessage } from './error-utils'
-import { readTypedHabitPhrase, type HabitPhraseRead } from './habit-phrase-parser'
+import { habitPhraseRepeats, readTypedHabitPhrase, type HabitPhraseRead, type HabitPhraseSpan } from './habit-phrase-parser'
 import type { SupportedLocale } from '../types/profile'
 import type { HabitFlowDetailStep, HabitFlowOptionalId } from './habit-flow-navigation'
 import type { HabitFlowStepId } from './habit-flow'
@@ -127,7 +127,7 @@ export interface HabitWhenWordsContext extends DatePhraseContext {
  */
 export function readHabitWhenWords(text: string, context: HabitWhenWordsContext): HabitWhenWords {
   const read = readTypedHabitPhrase(text, context.language, null, false)
-  if (read.cadence !== null) return { kind: 'repeat', read }
+  if (habitPhraseRepeats(read)) return { kind: 'repeat', read }
   const result = parseDatePhrase(text, context)
   if (result.status !== 'resolved') return { kind: 'unresolved' }
   if (!context.allowPast && result.date < context.referenceDate) return { kind: 'past' }
@@ -166,18 +166,60 @@ export function habitFlowFieldStep(field: string | null | undefined): HabitFlowS
   return FIELD_STEPS[field] ?? 'summary'
 }
 
-/** The values the person typed in the phrase: the repeat with its days and the time that the device read, and an emoji in the words. */
+/** The values the person typed in the phrase: the repeat with its days, the date and the time that the device read, and an emoji in the words. */
 export interface HabitPhraseValues {
   repeat: boolean
+  date: boolean
   time: boolean
   emoji: boolean
 }
 
-const PICTOGRAPH = /\p{Extended_Pictographic}/u
+const EMOJI_LOOK = /\p{Emoji_Presentation}|\p{Extended_Pictographic}\uFE0F/u
 
-/** What the person typed in the phrase, from the device read of that phrase. A free read of the same phrase never replaces it. */
-export function readHabitPhraseValues(phrase: string, read: Pick<HabitPhraseRead, 'cadence' | 'dueTime'>): HabitPhraseValues {
-  return { repeat: read.cadence !== null, time: read.dueTime !== null, emoji: PICTOGRAPH.test(phrase) }
+/**
+ * What the person typed in the phrase, from the device read of that phrase. A free read of the same phrase never replaces it.
+ * An emoji is a symbol with the emoji look: by default, or by the request U+FE0F. A text sign such as ©, ® or ™ is not one.
+ */
+export function readHabitPhraseValues(phrase: string, read: Pick<HabitPhraseRead, 'cadence' | 'intervalWeeks' | 'dueTime'>, date: HabitPhraseDate | null = null): HabitPhraseValues {
+  return { repeat: habitPhraseRepeats(read), date: date !== null, time: read.dueTime !== null, emoji: EMOJI_LOOK.test(phrase) }
+}
+
+/** A date the person typed in the phrase, and the words that say it. */
+export interface HabitPhraseDate {
+  date: string
+  span: HabitPhraseSpan
+}
+
+const DATE_WORDS_MAX = 5
+const WORD = /[^\s,;.!?()]+(?:[,.][^\s,;.!?()]+)*/gu
+const SHORT_WEEKDAYS_THAT_ARE_WORDS = new Set(['sun', 'mon', 'tue', 'tues', 'wed', 'thu', 'thur', 'thurs', 'fri', 'sat', 'dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sab', 'sáb'])
+const FRACTION_OR_ORDINAL = /^(?:\d{1,2}[/.-]\d{1,2}|the \d{1,2}(?:st|nd|rd|th)?)$/iu
+
+function isDateCandidate(text: string, words: readonly HabitPhraseSpan[]): boolean {
+  if (FRACTION_OR_ORDINAL.test(text.slice(words[0]!.start, words.at(-1)!.end))) return false
+  return words.every((word) => !SHORT_WEEKDAYS_THAT_ARE_WORDS.has(text.slice(word.start, word.end).toLowerCase()))
+}
+
+/**
+ * The date words in the phrase of a new item, by the date parser of the date question. A phrase with a repeat has no date, because the
+ * repeat holds the When. The run with the most words that names a day today or later wins, and the last one if two have as many words.
+ * A word the repeat or the time read already took is never part of a date. A short weekday name that is also a word ("ter", "sun"),
+ * a short numeric date that is also a fraction (1/2) and "the 2nd" never make a date; "on the 2nd" and a date with its year do.
+ */
+export function readHabitPhraseDate(phrase: string, read: Pick<HabitPhraseRead, 'cadence' | 'intervalWeeks' | 'consumed'>, context: DatePhraseContext): HabitPhraseDate | null {
+  if (habitPhraseRepeats(read)) return null
+  const unread = (word: HabitPhraseSpan) => read.consumed.every((token) => word.end <= token.start || word.start >= token.end)
+  const words = [...phrase.matchAll(WORD)].map((match) => ({ start: match.index, end: match.index + match[0].length }))
+  for (let length = Math.min(DATE_WORDS_MAX, words.length); length > 0; length -= 1) {
+    for (let first = words.length - length; first >= 0; first -= 1) {
+      const run = words.slice(first, first + length)
+      if (!run.every(unread) || !isDateCandidate(phrase, run)) continue
+      const span = { start: run[0]!.start, end: run.at(-1)!.end }
+      const result = parseDatePhrase(phrase.slice(span.start, span.end), context)
+      if (result.status === 'resolved' && result.date >= context.referenceDate) return { date: result.date, span }
+    }
+  }
+  return null
 }
 
 /** What the person gave, on a step or in the words of the phrase, and whether the item is undated. The free read of the phrase fills only the rest. */
@@ -202,7 +244,7 @@ export interface HabitReadHolds {
  * answer or a typed value. An undated item takes no repeat and no time, because the save sends neither.
  */
 export function guardHabitReadPatch(patch: HabitFormSuggestionPatch, holds: HabitReadHolds): HabitFormSuggestionPatch {
-  const givesWhen = holds.deliberateType === 'task' || holds.whenSet || holds.typed.repeat
+  const givesWhen = holds.deliberateType === 'task' || holds.whenSet || holds.typed.repeat || holds.typed.date
   const givesTime = holds.timeSet || holds.typed.time
   const givesEmoji = holds.emojiSet || holds.typed.emoji
   const keepsSchedule = givesWhen || holds.undated

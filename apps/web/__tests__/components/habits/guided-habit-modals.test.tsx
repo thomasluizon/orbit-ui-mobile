@@ -495,6 +495,12 @@ describe('the create surface behind orbit_guided_flows', () => {
       { when: 'every day', whenProposed: true, time: '07:00', timeProposed: true, sent: { title: '💧 water the plants', frequencyUnit: 'Day', frequencyQuantity: 1, dueTime: '07:00' }, absent: ['emoji'] }],
     ['the type', 'water the plants every monday', ONE_TIME_READ,
       { when: 'every Monday', whenProposed: false, time: '07:00', timeProposed: true, sent: { title: 'water the plants', frequencyUnit: 'Day', days: ['Monday'], dueTime: '07:00', emoji: '🌿' }, absent: [] }],
+    ['a date', 'call mom tomorrow', EVERY_DAY_READ,
+      { when: '11/14/2026', whenProposed: false, time: '07:00', timeProposed: true, sent: { title: 'call mom', dueDate: '2026-11-14', dueTime: '07:00', emoji: '🌿' }, absent: ['frequencyUnit', 'startDate'] }],
+    ['a bare interval', 'water the plants every 2 weeks', EVERY_DAY_READ,
+      { when: 'every # weeks', whenProposed: false, time: '07:00', timeProposed: true, sent: { title: 'water the plants', frequencyUnit: 'Week', frequencyQuantity: 2, dueTime: '07:00', emoji: '🌿' }, absent: ['days'] }],
+    ['no emoji when the phrase holds only a text sign', 'buy Coca-Cola® zero', EVERY_DAY_READ,
+      { when: 'every day', whenProposed: true, time: '07:00', timeProposed: true, sent: { title: 'buy Coca-Cola® zero', frequencyUnit: 'Day', frequencyQuantity: 1, dueTime: '07:00', emoji: '🌿' }, absent: ['days'] }],
   ]
 
   it.each(TYPED_IN_THE_PHRASE)('keeps %s the person typed in the phrase when the free read of that phrase proposes another value, and the summary and the title show what the save sends', async (_field, typed, read, after) => {
@@ -511,7 +517,7 @@ describe('the create surface behind orbit_guided_flows', () => {
     const timeRow = summaryRow(en.habits.flow.summary.time)
     expect({ when: whenRow.textContent, whenProposed: whenRow.closest('[data-proposed]') !== null, time: timeRow.textContent, timeProposed: timeRow.closest('[data-proposed]') !== null })
       .toMatchObject({ when: expect.stringContaining(after.when), whenProposed: after.whenProposed, time: expect.stringContaining(after.time), timeProposed: after.timeProposed })
-    await press(en.habits.createHabit)
+    await press(new RegExp(`^(${en.habits.createTask}|${en.habits.createHabit})$`))
     expect(state.create).toHaveBeenCalledTimes(1)
     const sent = state.create.mock.calls[0]![0] as Record<string, unknown>
     expect(sent).toMatchObject(after.sent)

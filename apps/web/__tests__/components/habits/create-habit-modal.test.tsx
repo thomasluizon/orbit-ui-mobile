@@ -881,7 +881,7 @@ describe('CreateHabitModal', () => {
     expect(mockBuildCreateHabitRequest.mock.calls[0]?.[0]).toMatchObject({ title: 'Alongar' })
   })
 
-  it('keeps an unapplied interval in a one-time habit title', async () => {
+  it('drops the words of a bare interval the phrase still repeats by, after the only weekday goes', async () => {
     const phrase = 'Run every 2 weeks'
     mockFormWatch.mockImplementation((field?: string) => field === 'title' ? phrase : undefined)
     mockFormGetValues.mockReturnValue({ title: phrase, frequencyUnit: null, frequencyQuantity: null, dueTime: '' })
@@ -898,12 +898,15 @@ describe('CreateHabitModal', () => {
       { cadence: false, dueTime: false }, target)
     const ownership = applyHabitPhraseRead(true, readHabitPhrase(phrase, 'en'), false, initial, target)
     act(() => mockHabitFormFieldsState.onPhraseOwnershipChange?.(ownership))
-    expect(setOneTime).toHaveBeenCalledOnce()
+    expect(setOneTime).not.toHaveBeenCalled()
+    expect(target.setField).toHaveBeenCalledWith('frequencyUnit', 'Week')
+    expect(target.setField).toHaveBeenCalledWith('frequencyQuantity', 2)
+    expect(ownership.cadence).toBe(true)
 
     fireEvent.click(screen.getByRole('button', { name: /habits.create(?:Habit|Task)/ }))
 
     await waitFor(() => expect(mockBuildCreateHabitRequest).toHaveBeenCalled())
-    expect(mockBuildCreateHabitRequest.mock.calls[0]?.[0]).toMatchObject({ title: phrase })
+    expect(mockBuildCreateHabitRequest.mock.calls[0]?.[0]).toMatchObject({ title: 'Run' })
   })
 
   it.each(['HABIT_LIMIT_REACHED', 'PAY_GATE'])('keeps the draft and submit enabled with an inline %s notice', async (errorCode) => {

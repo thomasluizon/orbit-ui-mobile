@@ -1,9 +1,11 @@
 import type { SupportedLocale } from '../types/profile'
-import { readHabitPhrase } from './habit-phrase-parser'
+import { habitPhraseRepeats, readHabitPhrase, type HabitPhraseSpan } from './habit-phrase-parser'
 
 export interface AppliedHabitPhraseFields {
   cadence: boolean
   dueTime: boolean
+  /** The words of a date that the item holds from the phrase. */
+  date?: HabitPhraseSpan | null
 }
 
 function trimTitleSeparators(title: string): string {
@@ -58,9 +60,10 @@ export function getHabitPhraseTitle(
   const read = readHabitPhrase(sentence, locale)
   const consumed = read.consumed.filter((token) => {
     if (!applied) return true
-    return token.kind === 'time' ? applied.dueTime : applied.cadence && read.cadence !== null
+    return token.kind === 'time' ? applied.dueTime : applied.cadence && habitPhraseRepeats(read)
   })
-  if (consumed.length === 0) return sentence.trim()
+  const date = applied?.date ?? null
+  if (consumed.length === 0 && date === null) return sentence.trim()
 
   const characters = sentence.split('')
   const removed = Array.from({ length: characters.length }, () => false)
@@ -68,11 +71,11 @@ export function getHabitPhraseTitle(
   for (const token of read.consumed) {
     if (!consumed.includes(token)) protectedCharacters.fill(true, token.start, token.end)
   }
-  for (const token of consumed) {
-    characters.fill(' ', token.start, token.end)
-    removed.fill(true, token.start, token.end)
+  for (const span of date ? [...consumed, date] : consumed) {
+    characters.fill(' ', span.start, span.end)
+    removed.fill(true, span.start, span.end)
   }
-  if (consumed.some((token) => token.kind !== 'time')) {
+  if (date !== null || consumed.some((token) => token.kind !== 'time')) {
     removeOrphanedGlue(sentence, locale, characters, removed, protectedCharacters)
   }
   const title = trimTitleSeparators(characters.join('').replaceAll(/\s+/gu, ' '))
