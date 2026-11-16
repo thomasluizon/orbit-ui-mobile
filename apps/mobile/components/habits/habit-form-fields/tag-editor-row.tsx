@@ -9,6 +9,7 @@ import { X } from "@/components/ui/icons";
 import { MAX_TAG_NAME_LENGTH } from "@orbit/shared/validation";
 import { BottomSheetAppTextInput } from "@/components/ui/bottom-sheet-app-text-input";
 import { SkeletonFace } from "@/components/ui/skeleton";
+import { waitingFaceStyle, waitingTextColor } from "@/components/ui/pill-button";
 import { type AppTokens, createStyles } from "./styles";
 
 interface TagEditorRowProps {
@@ -73,7 +74,7 @@ export function TagEditorRow({
       <Pressable
         style={({ pressed }) => [
           styles.tagFormSave,
-          pending && { backgroundColor: 'transparent' },
+          pending && waitingFaceStyle('primary', 0),
           formDisabled && !pending && { opacity: 0.45 },
           pressed && !pending && { backgroundColor: tokens.primaryPressed },
         ]}
@@ -85,7 +86,7 @@ export function TagEditorRow({
         onPress={commit}
       >
         {pending ? <SkeletonFace tokens={tokens} /> : null}
-        <Text style={[styles.tagFormSaveText, pending && { color: tokens.fg1 }]}>{actionLabel}</Text>
+        <Text style={[styles.tagFormSaveText, pending && { color: waitingTextColor(tokens, 'primary', false) }]}>{actionLabel}</Text>
       </Pressable>
       <Pressable
         style={({ pressed }) => [

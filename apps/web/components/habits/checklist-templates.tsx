@@ -21,6 +21,7 @@ import { DiscardChangesSheet } from '@/components/ui/discard-changes-sheet'
 import { useAccountScopedState } from '@/hooks/use-session-reset'
 import { useSubmitHold } from '@/hooks/use-submit-hold'
 import { SkeletonFace } from '@/components/ui/skeleton'
+import { waitingFaceClasses } from '@/components/ui/pill-action-style'
 
 interface ChecklistTemplatesProps {
   items: ChecklistItem[]
@@ -176,7 +177,7 @@ function TemplateSaveEditor({ name, waiting, onChange, onSave, onCancel }: Reado
       />
       <button
         type="button"
-        className={`habit-control-motion press-hit-layer shrink-0 rounded-full ${waiting ? 'relative isolate bg-transparent text-[var(--fg-1)]' : 'bg-[var(--primary)] text-[var(--fg-on-primary)] disabled:opacity-40 enabled:hover:bg-[var(--primary-hover)] enabled:active:bg-[var(--primary-pressed)] motion-safe:enabled:active:scale-[0.96]'}`}
+        className={`habit-control-motion press-hit-layer shrink-0 rounded-full ${waiting ? waitingFaceClasses : 'bg-[var(--primary)] text-[var(--fg-on-primary)] disabled:opacity-40 enabled:hover:bg-[var(--primary-hover)] enabled:active:bg-[var(--primary-pressed)] motion-safe:enabled:active:scale-[0.96]'}`}
         style={{
           padding: "var(--orbit-space-8) var(--orbit-space-12)",
           fontFamily: 'var(--font-sans)',

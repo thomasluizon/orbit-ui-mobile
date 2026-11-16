@@ -1,12 +1,14 @@
 import { radius, createTokensV2 } from '@/lib/theme'
 import React from 'react'
+import { StyleSheet, type StyleProp, type TextStyle } from 'react-native'
 import { describe, expect, it, vi } from 'vitest'
 import { TagEditorRow } from '@/components/habits/habit-form-fields/tag-editor-row'
 import { createStyles } from '@/components/habits/habit-form-fields/styles'
-import { expectPressFill } from '../../../support/press-feedback'
+import { controlStyle, expectPressFill } from '../../../support/press-feedback'
 
 const renderer = require('react-test-renderer') as typeof import('react-test-renderer')
 
+vi.mock('@/components/ui/pill-button', async (importOriginal) => ({ ...await importOriginal<object>(), waitingFaceStyle: () => ({ backgroundColor: '#123456' }), waitingTextColor: () => '#654321' }))
 vi.mock('@/components/ui/bottom-sheet-app-text-input', () => ({ BottomSheetAppTextInput: (props: Record<string, unknown>) => React.createElement('TextInput', props) }))
 
 describe('tag editor press fills', () => {
@@ -46,6 +48,17 @@ describe('tag editor press fills', () => {
     const input = tree.root.findAll((node) => node.props.accessibilityLabel === 'Tag')[0]!
     expect(input.props.editable).toBe(false)
     expect(onCommit).not.toHaveBeenCalled()
+    void renderer.act(() => tree.update(<></>))
+  })
+
+  it('takes its waiting face and label colour from the shared pill waiting face, so a change to that face reaches this action', () => {
+    const tokens = createTokensV2()
+    let tree!: import('react-test-renderer').ReactTestRenderer
+    void renderer.act(() => { tree = renderer.create(<TagEditorRow value="Health" inputAriaLabel="Tag" actionLabel="Add" cancelAriaLabel="Cancel" disabled={false} pending onChange={vi.fn()} onCommit={vi.fn()} onCancel={vi.fn()} styles={createStyles(tokens)} tokens={tokens} />) })
+    const action = tree.root.findAll((node) => String(node.type) === 'Pressable' && node.props.accessibilityLabel === 'Add')[0]!
+    expect(controlStyle(action as never).backgroundColor).toBe('#123456')
+    const label = action.findAll((node) => String(node.type) === 'Text' && node.props.children === 'Add')[0]!
+    expect(StyleSheet.flatten(label.props.style as StyleProp<TextStyle>).color).toBe('#654321')
     void renderer.act(() => tree.update(<></>))
   })
 })

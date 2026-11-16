@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { TagEditorRow } from '@/components/habits/habit-form-fields/tag-editor-row'
 
 vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
+vi.mock('@/components/ui/pill-action-style', async (importOriginal) => ({ ...await importOriginal<object>(), waitingFaceClasses: 'probe-waiting-face' }))
 
 function renderRow(pending: boolean, onCommit = vi.fn()) {
   render(<TagEditorRow value="Health" inputAriaLabel="Tag name" actionLabel="Add" cancelAriaLabel="Cancel" pending={pending} onChange={vi.fn()} onCommit={onCommit} onCancel={vi.fn()} />)
@@ -21,6 +22,10 @@ describe('tag editor action', () => {
     expect(onCommit).not.toHaveBeenCalled()
     expect(screen.getByRole('textbox', { name: 'Tag name' })).toBeDisabled()
     expect(screen.getByRole('button', { name: 'Cancel' })).toBeDisabled()
+  })
+
+  it('takes its waiting face from the shared pill waiting face, so a change to that face reaches this action', () => {
+    expect(renderRow(true).action).toHaveClass('probe-waiting-face')
   })
 
   it('rests without the waiting face when no request runs', () => {

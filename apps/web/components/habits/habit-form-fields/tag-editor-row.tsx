@@ -3,6 +3,7 @@ import { DiscardChangesSheet } from '@/components/ui/discard-changes-sheet'
 import { useEffect, useRef, useId } from 'react'
 import { X } from '@/components/ui/icons'
 import { SkeletonFace } from '@/components/ui/skeleton'
+import { waitingFaceClasses } from '@/components/ui/pill-action-style'
 import { MAX_TAG_NAME_LENGTH } from '@orbit/shared/validation'
 
 interface TagEditorRowProps {
@@ -64,7 +65,7 @@ export function TagEditorRow({
       />
       <button
         type="button"
-        className={`habit-control-motion press-hit-layer shrink-0 min-h-[var(--touch-min)] min-w-[var(--touch-min)] rounded-full ${pending ? 'relative isolate bg-transparent text-[var(--fg-1)]' : 'bg-[var(--primary)] text-[var(--fg-on-primary)] enabled:hover:bg-[var(--primary-hover)] enabled:active:bg-[var(--primary-pressed)] motion-safe:enabled:active:scale-[0.96] disabled:opacity-40'}`}
+        className={`habit-control-motion press-hit-layer shrink-0 min-h-[var(--touch-min)] min-w-[var(--touch-min)] rounded-full ${pending ? waitingFaceClasses : 'bg-[var(--primary)] text-[var(--fg-on-primary)] enabled:hover:bg-[var(--primary-hover)] enabled:active:bg-[var(--primary-pressed)] motion-safe:enabled:active:scale-[0.96] disabled:opacity-40'}`}
         style={{
           padding: "var(--orbit-space-8) var(--orbit-space-12)",
           fontFamily: 'var(--font-sans)',

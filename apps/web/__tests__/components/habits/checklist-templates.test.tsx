@@ -18,6 +18,8 @@ vi.mock('@/hooks/use-checklist-templates', () => ({
   useDeleteChecklistTemplate: () => ({ mutate: mockDelete }),
 }))
 
+vi.mock('@/components/ui/pill-action-style', async (importOriginal) => ({ ...await importOriginal<object>(), waitingFaceClasses: 'probe-waiting-face' }))
+
 vi.mock('@/hooks/use-app-toast', () => ({
   useAppToast: () => ({ showError: mockShowError, showSuccess: vi.fn(), showInfo: vi.fn() }),
 }))
@@ -131,6 +133,13 @@ describe('ChecklistTemplates', () => {
     fireEvent.click(save)
     fireEvent.keyDown(input, { key: 'Enter' })
     expect(mockCreate).toHaveBeenCalledOnce()
+  })
+
+  it('takes the Save waiting face from the shared pill waiting face, so a change to that face reaches this action', () => {
+    pendingCreate()
+    openSaveEditor('Morning')
+    fireEvent.click(screen.getByRole('button', { name: 'common.save' }))
+    expect(screen.getByRole('button', { name: 'common.save' })).toHaveClass('probe-waiting-face')
   })
 
   it('sends one request for two presses in the same event turn', () => {

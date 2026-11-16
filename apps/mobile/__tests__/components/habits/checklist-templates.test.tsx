@@ -30,6 +30,8 @@ vi.mock('@/hooks/use-checklist-templates', () => ({
   useDeleteChecklistTemplate: () => ({ mutate: mocks.remove }),
 }))
 
+vi.mock('@/components/ui/pill-button', async (importOriginal) => ({ ...await importOriginal<object>(), waitingFaceStyle: () => ({ backgroundColor: '#123456' }), waitingTextColor: () => '#654321' }))
+
 vi.mock('@/hooks/use-app-toast', () => ({
   useAppToast: () => ({ showError: mocks.showError }),
 }))
@@ -186,6 +188,15 @@ describe('ChecklistTemplates mobile', () => {
     TestRenderer.act(() => (input().props.onSubmitEditing as () => void)())
     expect(input().props.editable).toBe(false)
     expect(mocks.create).toHaveBeenCalledOnce()
+  })
+
+  it('takes the Save waiting face and label colour from the shared pill waiting face, so a change to that face reaches this action', () => {
+    pendingCreate()
+    const { save } = openSaveEditor('Morning')
+    pressSave(save())
+    expect(controlStyle(save() as never).backgroundColor).toBe('#123456')
+    const label = save().findAll((node) => node.type === 'Text' && node.props.children === 'common.save')[0]!
+    expect(StyleSheet.flatten(label.props.style as StyleProp<TextStyle>).color).toBe('#654321')
   })
 
   it('sends one request for two presses in the same event turn', () => {

@@ -30,6 +30,7 @@ import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { useDismissGuard } from '@/hooks/use-dismiss-guard'
 import { DiscardChangesSheet } from '@/components/ui/discard-changes-sheet'
 import { SkeletonFace } from '@/components/ui/skeleton'
+import { waitingFaceStyle, waitingTextColor } from '@/components/ui/pill-button'
 import { useSubmitHold } from '@/hooks/use-submit-hold'
 
 type AppTokens = ReturnType<typeof createTokensV2>
@@ -90,7 +91,7 @@ function TemplateSaveEditor({ name, waiting, onChange, onSave, onCancel, styles,
       <Pressable
         style={({ pressed }) => [
           styles.saveButton,
-          waiting && styles.saveButtonWaiting,
+          waiting && waitingFaceStyle('primary', 0),
           !name.trim() && !waiting && styles.saveButtonDisabled,
           pressed && !waiting ? { backgroundColor: tokens.primaryPressed } : null,
         ]}
@@ -101,7 +102,7 @@ function TemplateSaveEditor({ name, waiting, onChange, onSave, onCancel, styles,
         accessibilityState={{ disabled: disabled || !name.trim() || waiting, busy: waiting }}
       >
         {waiting ? <SkeletonFace tokens={tokens} /> : null}
-        <Text style={[styles.saveButtonText, waiting && { color: tokens.fg1 }]}>{t('common.save')}</Text>
+        <Text style={[styles.saveButtonText, waiting && { color: waitingTextColor(tokens, 'primary', false) }]}>{t('common.save')}</Text>
       </Pressable>
       <Pressable
         disabled={disabled || waiting}
@@ -294,9 +295,6 @@ function createStyles(tokens: AppTokens) {
     },
     saveButtonDisabled: {
       opacity: 0.4,
-    },
-    saveButtonWaiting: {
-      backgroundColor: 'transparent',
     },
     saveButtonText: {
       fontFamily: 'Geist_500Medium',
