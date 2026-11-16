@@ -405,8 +405,9 @@ describe('ProfilePage', () => {
         await page.locator('.orbit-list-row-shell').first().waitFor()
         await loadAppFonts(page)
         await page.evaluate((scale) => {
-          for (const element of document.querySelectorAll<HTMLElement>('.orbit-list-row-shell span')) {
-            if (element.children.length > 0 || !element.textContent) continue
+          const owners = Array.from(document.querySelectorAll<HTMLElement>('.orbit-list-row-shell span')).filter((element) => element.textContent && Array.from(element.children).every((child) => child.matches('span[translate="no"]')))
+          for (const element of owners) {
+            if (element.matches('span[translate="no"]') && owners.includes(element.parentElement as HTMLElement)) continue
             element.style.fontSize = `${parseFloat(getComputedStyle(element).fontSize) * scale}px`
           }
         }, textScale)
@@ -426,7 +427,7 @@ describe('ProfilePage', () => {
             height: row.getBoundingClientRect().height,
             textEdge: title.getBoundingClientRect().left,
             textWidth: range.getBoundingClientRect().width,
-            lines: range.getClientRects().length,
+            lines: new Set(Array.from(range.getClientRects()).map((rect) => Math.round(rect.top))).size,
             titleTop: title.getBoundingClientRect().top,
             iconCentre: iconBounds.top + iconBounds.height / 2,
             iconSlotCentre: iconSlot.top + iconSlot.height / 2,
