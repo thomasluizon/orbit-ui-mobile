@@ -1,7 +1,7 @@
 import { SPACING } from '@orbit/shared/theme'
 import { useCallback, useEffect, useMemo, useRef } from 'react'
 import { ScrollView, StyleSheet, Text } from 'react-native'
-import { PressScalePressable } from '@/components/motion/press-scale'
+import { MotionPressable } from '@/components/ui/motion-pressable'
 import { buildYearRange } from '@orbit/shared/utils'
 import { createTokensV2 } from '@/lib/theme'
 
@@ -64,21 +64,22 @@ export function YearPicker({
 
 function YearCell({ year, isSelected, onSelectYear, tokens }: Readonly<{ year: number; isSelected: boolean; onSelectYear: (year: number) => void; tokens: Tokens }>) {
   return (
-    <PressScalePressable
-      layerStyle={styles.yearColumn}
+    <MotionPressable
+      focusInset
       focusColor={isSelected ? tokens.fgOnPrimary : tokens.fg1}
       onPress={() => onSelectYear(year)}
       accessibilityRole="button"
       accessibilityState={{ selected: isSelected }}
       accessibilityLabel={String(year)}
       style={({ pressed }) => [
+        styles.yearColumn,
         styles.yearCell,
         { backgroundColor: isSelected ? (pressed ? tokens.primaryPressed : tokens.primary) : tokens.bgField },
         pressed && !isSelected ? { backgroundColor: tokens.bgHover } : null,
       ]}
     >
       <Text style={[styles.yearText, isSelected && styles.yearTextSelected, { color: isSelected ? tokens.fgOnPrimary : tokens.fg1 }]}>{year}</Text>
-    </PressScalePressable>
+    </MotionPressable>
   )
 }
 

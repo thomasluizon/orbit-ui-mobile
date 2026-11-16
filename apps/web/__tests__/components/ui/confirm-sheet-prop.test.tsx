@@ -21,6 +21,11 @@ describe('ConfirmSheet controlled close', () => {
     expect(cancel).toHaveStyle({ paddingInlineStart: `${BUTTON_SIZES.sm.paddingX}px`, paddingInlineEnd: `${BUTTON_SIZES.sm.paddingX}px`, height: '40px' })
     expect(screen.getByRole('button', { name: 'Delete habit' })).toHaveStyle({ height: '40px' })
   })
+  it('draws no Orbit inside a destructive confirmation', () => {
+    render(<ConfirmSheet open title="Delete habit" message="Permanent action" confirmLabel="Delete habit" onCancel={vi.fn()} onConfirm={vi.fn()} />)
+    expect(screen.getByTestId('sheet').querySelector('[data-asset="orbit-mascot"]')).toBeNull()
+  })
+
   it('finishes sheet dismissal before unmounting when open becomes false', () => {
     sheetTestControls.defer(true)
     const props = {

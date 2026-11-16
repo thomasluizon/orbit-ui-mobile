@@ -1,5 +1,6 @@
 import { AstraButton, useAstraButtonBlocked } from './astra-button'
 import { ConversationComposerMotionProvider } from './conversation-composer-motion'
+import { OrbitOverlayLayer } from '@/components/ui/orbit-overlay-layer'
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Keyboard, ScrollView, StyleSheet, View, useWindowDimensions, type HostInstance } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -339,7 +340,7 @@ export function Shell412(props: Readonly<Shell412Props & { safeAreaTop?: boolean
           testID="shell-conversation"
           style={[styles.conversation, { backgroundColor: tokens.bg, paddingTop: insets.top }]}
         >
-          {props.conversation}
+          <OrbitOverlayLayer>{props.conversation}</OrbitOverlayLayer>
         </View>
       ) : null}
     </View>

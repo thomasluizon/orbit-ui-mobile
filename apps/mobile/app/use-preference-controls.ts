@@ -6,6 +6,7 @@ import { API } from '@orbit/shared/api'
 import { calendarKeys, gamificationKeys, habitKeys } from '@orbit/shared/query'
 import { resolveSystemLocale } from '@orbit/shared/utils'
 import { useProfile } from '@/hooks/use-profile'
+import { useMascotMotionSwitch } from '@/hooks/use-mascot-motion'
 import { performQueuedApiMutation } from '@/lib/queued-api-mutation'
 import { useAppTheme } from '@/lib/use-app-theme'
 import type { PreferencePicker } from '@/components/profile/preferences-sections'
@@ -17,6 +18,7 @@ export function usePreferenceControls() {
   const { i18n } = useTranslation()
   const queryClient = useQueryClient()
   const { profile, patchProfile } = useProfile()
+  const mascotMotion = useMascotMotionSwitch(profile, patchProfile)
   const { currentTheme, currentScheme } = useAppTheme()
 
   const [activePicker, setActivePicker] = useState<PreferencePicker | null>(null)
@@ -163,5 +165,6 @@ export function usePreferenceControls() {
     timeZoneMutation,
     weekStartMutation,
     clockFormatMutation,
+    mascotMotion,
   }
 }

@@ -14,6 +14,7 @@ import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { __focusHost, __getFocusedNativeTag, __resetTestHostConfig, __setTouchMode, __setWindowDimensions } from '../../../test-mocks/react-native'
 import { BottomTabBar } from '@/components/navigation/bottom-tab-bar'
+import { PressScale } from '@/components/motion/press-scale'
 import { createTokensV2 } from '@/lib/theme'
 import { press, renderNavigation } from '../ui/navigation-render'
 
@@ -33,7 +34,8 @@ function getTabChildStyle(tab: { props: { children?: unknown }; parent?: { props
   if (!isValidElement<{ children?: ReactNode }>(content)) {
     throw new Error('Tab content does not return an element')
   }
-  const label = Children.toArray(content.props.children).find(
+  const children = Children.toArray(content.props.children).flatMap((node) => isValidElement<{ children?: ReactNode }>(node) && node.type === PressScale ? Children.toArray(node.props.children) : [node])
+  const label = children.find(
     (node): node is ReactElement<{ style?: unknown }> => isValidElement(node) && node.type === childType,
   )
   if (!label) throw new Error('Tab content does not include its label')

@@ -8,7 +8,7 @@ import { getProactiveActionReason } from '../utils/proactive'
 type ProactiveProfile = Pick<Profile, 'aiMessagesUsed' | 'aiMessagesLimit' | 'aiMessagesPeriod'>
 type ProactiveChat = Pick<ChatStoreState, 'isTyping' | 'streamingMessageId' | 'claimProactiveAction'>
 type ProactiveSend = { isOnline: boolean; atLimit: boolean; onSend: (prompt: string) => Promise<void> }
-export type ProactiveActionHook = (item: ProactiveItem, acted: boolean, isOnline: boolean, onSend: ProactiveSend['onSend']) => { reason: ReturnType<typeof getProactiveActionReason>; aiMessagesPeriod?: Profile['aiMessagesPeriod']; allowance: number; act: () => void }
+export type ProactiveActionHook = (item: ProactiveItem, acted: boolean, isOnline: boolean, onSend: ProactiveSend['onSend']) => { reason: ReturnType<typeof getProactiveActionReason>; waiting: boolean; aiMessagesPeriod?: Profile['aiMessagesPeriod']; allowance: number; act: () => void }
 export interface ProactiveStatusOptions {
   queryKey: ReturnType<typeof proactiveKeys.status>
   queryFn: (context: { signal: AbortSignal }) => Promise<ProactiveItemStatus>
@@ -77,10 +77,10 @@ export function createUseProactiveAction(adapters: ProactiveActionAdapters): Pro
       atLimit,
       busy: busy || action.isPending,
       failed: status.isError,
-      ready: status.data !== undefined,
     })
-    return { reason, aiMessagesPeriod: profile?.aiMessagesPeriod, allowance: profile?.aiMessagesLimit ?? 0, act: () => {
-      if (!reason) action.mutate()
+    const waiting = reason === null && status.data === undefined
+    return { reason, waiting, aiMessagesPeriod: profile?.aiMessagesPeriod, allowance: profile?.aiMessagesLimit ?? 0, act: () => {
+      if (!reason && !waiting) action.mutate()
     } }
   }
 }

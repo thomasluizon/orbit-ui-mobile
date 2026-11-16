@@ -7,7 +7,7 @@ import { useShellScrollerClearance } from '@/components/shell/shell-scroller-cle
 import { Chip } from '@/components/ui/chip'
 import { ErrorState } from '@/components/ui/error-state'
 import { Icon } from '@/components/ui/icon'
-import { OrbitMark } from '@/components/ui/orbit-mark'
+import { OrbitMascot } from '@/components/ui/orbit-mascot'
 import { Button } from '@/components/ui/pill-button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { styles, type Tokens } from '@/app/wrapped-styles'
@@ -40,7 +40,7 @@ export function WrappedCover({
       style={styles.coverScroller}
       testID={`wrapped-cover-${state}`}
     >
-      <OrbitMark size={96} />
+      <OrbitMascot size={96} />
 
       <View style={styles.coverHeader}>
         <Text style={[styles.coverEyebrow, { color: tokens.fg3 }]}>{t('wrapped.title')}</Text>

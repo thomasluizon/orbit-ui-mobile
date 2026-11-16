@@ -306,7 +306,7 @@ describe('UpgradePage across an account change', () => {
     expect(screen.getByText('auth.genericError')).toBeInTheDocument()
   })
 
-  it('stops the checkout spinner when another account replaces the tab mid request', async () => {
+  it('stops the checkout busy state when another account replaces the tab mid request', async () => {
     vi.mocked(globalThis.fetch).mockImplementationOnce(() => new Promise(() => {}))
     render(<UpgradePage />)
     fireEvent.click(screen.getByRole('button', { name: 'upgrade.billing.lapsed.action' }))

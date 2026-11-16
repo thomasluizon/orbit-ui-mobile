@@ -10,6 +10,7 @@ import type {
   SetWeekStartDayRequest,
   SetClockFormatRequest,
   SetThemePreferenceRequest,
+  SetMascotMotionRequest,
   UserDataExport,
 } from '@orbit/shared'
 import { notionAuthorizeRequestSchema, notionAuthorizationSchema, notionCallbackRequestSchema, type NotionAuthorizeRequest, type NotionCallbackRequest } from '@orbit/shared/types/notion-connection'
@@ -102,6 +103,16 @@ export async function updateThemePreference(
   intendedAccountId: string | null,
 ): Promise<ServerActionResult<void>> {
   return wrapServerAction(() => serverAuthMutate(API.profile.themePreference, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  }, intendedAccountId))
+}
+
+export async function updateMascotMotion(
+  data: SetMascotMotionRequest,
+  intendedAccountId: string | null,
+): Promise<ServerActionResult<void>> {
+  return wrapServerAction(() => serverAuthMutate(API.profile.mascotMotion, {
     method: 'PUT',
     body: JSON.stringify(data),
   }, intendedAccountId))

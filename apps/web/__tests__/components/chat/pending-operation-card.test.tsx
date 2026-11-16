@@ -184,7 +184,7 @@ describe('PendingOperationCard', () => {
     visibleLocale.actual = true
     renderRestored('partialLog')
     expect(document.querySelector('[data-status="done"]')).toBeNull()
-    expect(screen.getByText('Only 1 of 2 changes were saved. Ask Astra to try the rest.')).toBeInTheDocument()
+    expect(screen.getByText('Only 1 of 2 changes were saved. Ask Orbit to try the rest.')).toBeInTheDocument()
   })
 
   it('shows each failed row of a restored compact batch', () => {
@@ -204,10 +204,10 @@ describe('PendingOperationCard', () => {
     renderRestored(execution)
     expect(document.querySelector('[data-status="done"]')).toBeNull()
     expect(screen.queryByText(en.blockFrame.status.done)).not.toBeInTheDocument()
-    expect(screen.getByText('Only 2 of 3 changes were saved. Ask Astra to try the rest.')).toBeInTheDocument()
+    expect(screen.getByText('Only 2 of 3 changes were saved. Ask Orbit to try the rest.')).toBeInTheDocument()
   })
 
-  it.each([['en', 'Update 3 habits', 'Only 2 of 3 changes were saved. Ask Astra to try the rest.'], ['pt-BR', 'Alterar 3 hábitos', 'Só 2 de 3 alterações foram salvas. Peça à Astra para tentar as que faltam.']])('does not show a live partial bulk update as done in %s', async (locale, approve, notice) => {
+  it.each([['en', 'Update 3 habits', 'Only 2 of 3 changes were saved. Ask Orbit to try the rest.'], ['pt-BR', 'Alterar 3 hábitos', 'Só 2 de 3 alterações foram salvas. Peça ao Orbit para tentar as que faltam.']])('does not show a live partial bulk update as done in %s', async (locale, approve, notice) => {
     visibleLocale.actual = true
     visibleLocale.language = locale
     const messages = locale === 'en' ? en : ptBR

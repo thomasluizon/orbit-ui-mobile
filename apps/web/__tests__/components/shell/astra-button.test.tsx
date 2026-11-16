@@ -8,6 +8,7 @@ import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { AstraButton } from '@/components/shell/astra-button'
 import { ShellWide } from '@/components/shell/shell-wide'
 import { useUIStore } from '@/stores/ui-store'
+import { classNamesIn, compileClassRules, MOTION_SAFE } from '@/__tests__/support/compiled-class-rules'
 
 vi.mock('@/hooks/use-is-desktop', () => ({ useIsWideDesktop: () => false }))
 
@@ -33,7 +34,7 @@ it.each([en, ptBR])('opens Astra with its localized name and no move description
   expect(useUIStore.getState().astraConversationOpen).toBe(true)
 })
 
-it('opens Astra from the keyboard', async () => {
+it('opens the conversation from the keyboard', async () => {
   const user = userEvent.setup()
   mount()
   openButton().focus()
@@ -52,7 +53,7 @@ it('renders in the create button column, directly before the create button', () 
   expect(document.querySelectorAll('[data-astra-button]')).toHaveLength(1)
 })
 
-it('keeps the column when the create button is absent, so the Astra button takes its place', () => {
+it('keeps the column when the create button is absent, so the conversation entry takes its place', () => {
   mount({ fab: false })
   expect(document.querySelector('[data-shell-fab]')).toBeNull()
   expect(document.querySelector('[data-shell-fab-content] [data-astra-button]')).toBe(openButton())
@@ -103,4 +104,45 @@ it('holds the pending create button slot with a hidden spacer that takes no focu
   await user.tab()
   expect(document.activeElement).not.toBe(slot)
   expect(screen.getAllByRole('button').filter(button => slot.contains(button))).toEqual([])
+})
+
+it('is the live Orbit at 48 with no circle, fill or border, in a 60 press target', () => {
+  mount()
+  const button = openButton()
+  const mascot = button.querySelector('svg')!
+  expect(mascot).toHaveAttribute('data-orbit-face', 'rig')
+  expect(mascot).toHaveAttribute('width', '48')
+  expect(mascot).toHaveAttribute('aria-hidden', 'true')
+  expect(button).toHaveStyle({ width: '60px', height: '60px' })
+  expect(button).toHaveClass('bg-transparent', 'border-0', 'motion-safe:active:scale-[0.96]')
+  expect(button).not.toHaveAttribute('data-fab')
+  expect(button.querySelector('[data-press-fill]')).toBeNull()
+})
+
+it('scales the conversation entry to 0.96 on the press tokens only when motion is allowed', () => {
+  mount()
+  const button = openButton()
+  expect(button.className).toContain('transition-[background-color,scale]')
+  expect(button.className).toContain('[transition-duration:var(--dur-hover-control),var(--dur-press)]')
+  expect(button.className).toContain('[transition-timing-function:var(--ease-standard),var(--ease-out)]')
+  expect(button.className.split(' ').filter(name => name.includes('scale-[0.96]'))).toEqual(['motion-safe:active:scale-[0.96]'])
+})
+
+it('keeps its whole 60 press target while pressed: the unpainted hit layer takes the inverse press scale only when motion is allowed', async () => {
+  mount()
+  const button = openButton()
+  const rules = await compileClassRules(classNamesIn(document))
+  const layer = rules.rulesFor(button).filter(rule => /^::before(?:,|$)/.test(rule.state))
+  expect(layer.map(rule => [rule.declarations.get('position'), rule.declarations.get('inset'), rule.declarations.has('background-color')])).toEqual([['absolute', '0', false]])
+  const pressed = rules.rulesFor(button).filter(rule => /^:active::before(?:,|$)/.test(rule.state))
+  expect(pressed.map(rule => [rule.media, rule.declarations.get('scale')])).toEqual([[[MOTION_SAFE], 'calc(1 / 0.96)']])
+}, 60_000)
+
+it('paints the neutral hover fill of its round target on pointer hover only, with no resting background and no hover transform', () => {
+  mount()
+  const button = openButton()
+  const classes = button.className.split(' ')
+  expect(classes).toEqual(expect.arrayContaining(['rounded-full', 'bg-transparent', 'hover:bg-[var(--bg-hover)]']))
+  expect(classes.filter(name => name.startsWith('hover:'))).toEqual(['hover:bg-[var(--bg-hover)]'])
+  expect(classes.filter(name => name.startsWith('active:bg') || name.includes('press-fill'))).toEqual([])
 })

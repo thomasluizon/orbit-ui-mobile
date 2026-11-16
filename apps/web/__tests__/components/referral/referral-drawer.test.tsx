@@ -82,12 +82,14 @@ describe('ReferralDrawer', () => {
     expect(screen.getByText(text)).toBeInTheDocument()
   })
 
-  it('shows loading state', () => {
+  it('shows the loaded layout as a skeleton, never a spinner, while it loads', () => {
     mockIsLoading = true
     render(<ReferralDrawer open={true} onOpenChange={vi.fn()} />)
-    expect(
-      screen.getByRole('status', { name: 'common.loading' }),
-    ).toBeInTheDocument()
+    const loading = screen.getByRole('status', { name: 'common.loading' })
+    expect(loading).toHaveAttribute('aria-busy', 'true')
+    expect(loading.querySelectorAll('.skeleton-pulse').length).toBeGreaterThanOrEqual(3)
+    expect(loading.querySelectorAll('[data-settings-skeleton-row]')).toHaveLength(2)
+    expect(document.querySelector('.animate-spin, svg.animate-spin')).toBeNull()
     expect(document.body.textContent).not.toContain(mockReferralUrl)
   })
 

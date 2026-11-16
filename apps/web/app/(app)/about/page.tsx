@@ -14,7 +14,7 @@ import { ABOUT_DESTINATIONS } from '@orbit/shared/utils'
 import { FeatureGuideDrawer } from '@/components/onboarding/feature-guide-drawer'
 import { PageHeader } from '@/components/ui/page-header'
 import { ListRow } from '@/components/ui/list-row'
-import { OrbitMark } from '@/components/ui/orbit-mark'
+import { OrbitMascot } from '@/components/ui/orbit-mascot'
 import { RowList } from '@/components/ui/row-list'
 import { useBackLabel } from '@/hooks/use-back-label'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
@@ -84,7 +84,7 @@ export default function AboutPage() {
               data-testid="about-identity"
               style={{ gap: 12 }}
             >
-              <OrbitMark size={48} accent />
+              <OrbitMascot size={48} />
               <p
                 className="text-[28px] leading-[1.15] md:text-[34px] md:leading-[1.12]"
                 translate="no"

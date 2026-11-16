@@ -1,4 +1,5 @@
 import { SelectionIndicator, type SelectionBounds } from '@/components/ui/selection-indicator'
+import { PressScale } from '@/components/motion/press-scale'
 import { INTERACTION_FILL_CLEARANCE, SPACING, SHELL_CONTENT_MAX_WIDTH, TAB_BAR_MIN_HEIGHT } from '@orbit/shared/theme'
 import { TAB_BAR_LABEL_MAX_FONT_SCALE, type TabBarProps } from '@orbit/shared/contracts/navigation'
 import { useId, useState } from 'react'
@@ -39,8 +40,8 @@ export function BottomTabBar({ items, activeId, onSelect, label }: Readonly<TabB
             onBlur={() => { setFocusedId(null); setPreviewId(null) }}
             style={styles.tab}>
             {({ pressed }) => <>
-              {item.icon ? <View testID={`tab-indicator-${item.id}`} style={[styles.indicator, (pressed || hoveredId === item.id) && { backgroundColor: tokens.bgHover }]}>{item.icon({ active })}</View> : null}
-              <Text maxFontSizeMultiplier={TAB_BAR_LABEL_MAX_FONT_SCALE} style={[styles.label, { color: active ? tokens.primarySoft : tokens.fg3 }]}>{item.label}</Text>
+              {item.icon ? <View testID={`tab-indicator-${item.id}`} style={[styles.indicator, (pressed || hoveredId === item.id) && { backgroundColor: tokens.bgHover }]}><PressScale pressed={pressed} disabled={false}>{item.icon({ active })}</PressScale></View> : null}
+              <PressScale pressed={pressed} disabled={false} style={styles.labelLayer}><Text maxFontSizeMultiplier={TAB_BAR_LABEL_MAX_FONT_SCALE} style={[styles.label, { color: active ? tokens.primarySoft : tokens.fg3 }]}>{item.label}</Text></PressScale>
               {focusedId === item.id ? <View pointerEvents="none" accessible={false} importantForAccessibility="no-hide-descendants" style={[styles.focusIndicator, { outlineWidth: 2, outlineStyle: 'solid', outlineColor: tokens.primary, outlineOffset: -2 }]} /> : null}
             </>}
           </Pressable>
@@ -71,4 +72,5 @@ const styles = StyleSheet.create({
   viewerFrame: { alignItems: 'center', justifyContent: 'center', padding: SPACING.s16 },
   viewer: { alignItems: 'center', gap: SPACING.s12, padding: SPACING.s24, borderRadius: 20, borderWidth: 1, maxWidth: '100%' },
   label: { fontFamily: 'Geist_500Medium', fontSize: 12, lineHeight: 16, maxWidth: '100%', textAlign: 'center' },
+  labelLayer: { maxWidth: '100%' },
 })

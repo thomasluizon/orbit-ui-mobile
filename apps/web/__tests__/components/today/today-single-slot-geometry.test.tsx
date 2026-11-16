@@ -172,7 +172,7 @@ describe('Hoje stacked Astra button and contextual actions at each shell width',
           await page.evaluate(async () => { await document.fonts.ready })
           const geometry = await page.evaluate(() => {
             const visible = (element: Element) => element.getBoundingClientRect().width > 0 && element.getBoundingClientRect().height > 0
-            const glyphs = [...document.querySelectorAll('[data-asset^="astra-mark"]')].filter(visible)
+            const glyphs = [...document.querySelectorAll('[data-asset^="orbit-mascot"]')].filter(visible)
             const slots = [...document.querySelectorAll('[data-today-astra-slot]')].filter(visible)
             const line = document.querySelector('.today-astra-line')
             const sentence = line?.querySelector('.today-astra-sentence')
@@ -183,7 +183,7 @@ describe('Hoje stacked Astra button and contextual actions at each shell width',
               composerGlyphs: glyphs.filter(glyph => glyph.closest('[data-composer-root]')).length,
               entryGlyphs: glyphs.filter(glyph => glyph.closest('[data-open-conversation]')).length,
               sendGlyphs: glyphs.filter(glyph => glyph.closest('[data-composer-trailing-controls] > button')).length,
-              slotGlyphs: slots[0]?.querySelectorAll('[data-asset^="astra-mark"]').length ?? 0,
+              slotGlyphs: slots[0]?.querySelectorAll('[data-asset^="orbit-mascot"]').length ?? 0,
               lineHeight: line?.getBoundingClientRect().height ?? 0,
               proseHeight: sentence?.getBoundingClientRect().height ?? 0,
               proseLineHeight: sentence ? parseFloat(getComputedStyle(sentence).lineHeight) : 0,

@@ -17,11 +17,11 @@ Every visible ancestor adds one 16px leading step from the shared spacing scale 
 
 The list bounds inline depth using its measured content width, fixed leading slot, control targets, gaps and scaled title space. Reserve at least one child-title em (14 times text scale), with a 24px minimum. The web content measurement excludes shell scrollbars and safe-area gutters; Android uses the actual list layout. At 320 with 284px of row content, normal text shows depths 0, 1 and 2; 200% text stops at depth 1. A parent at the boundary opens the existing drill instead of exposing another inline level. Wider windows retain more visible levels within the existing data depth limit. Selection keeps the same boundary, while font or content-width changes recompute it without clearing collapse or selection. Type and supporting metadata span the remaining row width. No adjacent visible levels share an inset.
 
-Astra habit list rows with `isSkippedOnDate: true` show the existing `habits.statusDot.skip` label once in the existing metadata colour and use it as the accessible status name; their check keeps its empty presentation and existing behavior.
+Orbit habit list rows with `isSkippedOnDate: true` show the existing `habits.statusDot.skip` label once in the existing metadata colour and use it as the accessible status name; their check keeps its empty presentation and existing behavior.
 
 Both platforms retain row minimum heights, typography, emoji wells, disclosure, selection, completion, detail, overflow, drag and long-press behavior. Skipping advances the schedule and removes the row from that day; it does not add a skipped check state. Empty, loading and failed lists contain no row checks and keep their existing state surfaces. Their sheets, dialogs and menus retain their existing actions.
 
-`StatusRing` and `ProgressRing` remain circular outside the habit row. Calendar event and time-grid status glyphs, the habit detail header, goals, Progresso, Astra blocks and onboarding previews retain their separate components.
+`StatusRing` and `ProgressRing` remain circular outside the habit row. Calendar event and time-grid status glyphs, the habit detail header, goals, Progresso, Orbit blocks and onboarding previews retain their separate components.
 
 Web Vitest measures the production row with compiled CSS at 320, 412 and 1352, in both themes, at normal and 200% text. It measures the child card edge 16px inside its parent, equal trailing edges, uniform 8px inner padding, an 8px inter-card gap, and the visible check, inset outline token, zero layout borders, row fill, zero and partial parent progress and focus. The paired list suites cover Hoje, Todos, Geral, drill resets and selection with leaf and parent children. Android Vitest mounts the row across the same width, theme and text-scale axes and measures the card edge, reduced width, uniform inner padding and inter-card spacing through Yoga alongside the noninteractive absolute outline, zero body border width, accessible parent counts, state colours and focus. Habit detail composition tests measure its single 16px card inset and 8px inner padding and retain the group spacing and native fill coverage. The hermetic layout workflow measures production web child wells in both locales and themes at normal and 200% text. Device rendering and whole-screen visual inspection remain outside the component tests.
 
@@ -45,7 +45,7 @@ is independent. The glyph is 16px normally and 24px above 130% text, at stroke w
 metadata foreground. Empty checklists add no token, separator or gap. Checklist completion changes
 neither the habit's logged state nor its actions. The primary and selection naming paths reuse
 Checklist and the localized row-progress phrase once; visual metadata is hidden from accessibility. The same content reaches Hoje, Todos,
-Geral, search, inline children, drill lists and detail children. Astra habit cards retain their distinct
+Geral, search, inline children, drill lists and detail children. Orbit habit cards retain their distinct
 owners. Detail
 headers retain `Tarefa única` / `One-time task` or `Hábito` / `Habit` beneath their full-width
 rename heading, matching the full form choices. The row selector derives from the same schedule
@@ -81,7 +81,7 @@ share the paired `habit-row-content.tsx` owners. Root leaves, parents, child lea
 render stored plain text previews between title and metadata. Selection, done, overdue, bad,
 partial progress, unavailable and read-only rows retain that content and their independent actions.
 Empty, loading, error and capacity surfaces add no placeholder. Calendar events, detail headers,
-onboarding and Astra cards retain their separate owners.
+onboarding and Orbit cards retain their separate owners.
 
 `stripInlineMarkdown` supplies the inert preview without changing source text or adding a request.
 Normalized-empty content adds no element or gap. The role is Geist Sans 14/400, line height 1.55,

@@ -1897,6 +1897,7 @@ describe('offline mutations', () => {
     ['setTimeZone', API.profile.timezone, { timeZone: 'Pacific/Kiritimati' }, { timeZone: 'UTC' }, { timeZone: 'Pacific/Kiritimati' }],
     ['setAiSummary', API.profile.aiSummary, { enabled: true }, { aiSummaryEnabled: false }, { aiSummaryEnabled: true }],
     ['setProactiveAstra', API.profile.proactiveAstra, { enabled: true }, { proactiveAstraEnabled: false }, { proactiveAstraEnabled: true }],
+    ['setMascotMotion', API.profile.mascotMotion, { enabled: false }, { mascotMotionEnabled: true }, { mascotMotionEnabled: false }],
     ['setMarketingConsent', API.profile.marketingConsent, { enabled: true }, { marketingEmailConsent: false }, { marketingEmailConsent: true }],
   ] as const)('reconciles %s after a stale reconnect profile refetch', async (type, endpoint, payload, staleFields, expectedFields) => {
     let cachedProfile: Record<string, unknown> = { name: 'Existing name', ...expectedFields }
