@@ -40,18 +40,24 @@ function getTurnstile(): TurnstileApi | undefined {
   return (window as Window & { turnstile?: TurnstileApi }).turnstile
 }
 
-let turnstileLoad: Promise<TurnstileApi> | null = null
+let turnstileLoad: Readonly<{ promise: Promise<TurnstileApi>; script: HTMLScriptElement }> | null = null
+
+/** Removes the script of a load that failed or passed its deadline, so the next load adds a new script and sends a new request. */
+function forgetTurnstileLoad(script: HTMLScriptElement) {
+  script.remove()
+  if (turnstileLoad?.script === script) turnstileLoad = null
+}
 
 function loadTurnstile(): Promise<TurnstileApi> {
   const existing = getTurnstile()
   if (existing) return Promise.resolve(existing)
-  if (turnstileLoad) return turnstileLoad
+  if (turnstileLoad) return turnstileLoad.promise
 
-  turnstileLoad = new Promise<TurnstileApi>((resolve, reject) => {
-    const script = document.createElement('script')
-    script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit'
-    script.async = true
-    script.nonce = document.querySelector<HTMLScriptElement>('script[nonce]')?.nonce ?? ''
+  const script = document.createElement('script')
+  script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit'
+  script.async = true
+  script.nonce = document.querySelector<HTMLScriptElement>('script[nonce]')?.nonce ?? ''
+  const promise = new Promise<TurnstileApi>((resolve, reject) => {
     script.onload = () => {
       const api = getTurnstile()
       if (api) resolve(api)
@@ -60,11 +66,11 @@ function loadTurnstile(): Promise<TurnstileApi> {
     script.onerror = () => reject(new Error('Turnstile script failed to load'))
     document.head.appendChild(script)
   }).catch((error: unknown) => {
-    turnstileLoad = null
-    document.querySelector('script[src^="https://challenges.cloudflare.com/turnstile/v0/api.js"]')?.remove()
+    forgetTurnstileLoad(script)
     throw error
   })
-  return turnstileLoad
+  turnstileLoad = { promise, script }
+  return promise
 }
 
 function useChallengeVisibility() {
@@ -190,6 +196,7 @@ export function TurnstileWidget({
     loadDeadlineRef.current ??= Date.now() + TURNSTILE_LOAD_DEADLINE_MS
     const loadDeadline = window.setTimeout(() => {
       loadDeadlineRef.current = null
+      if (turnstileLoad) forgetTurnstileLoad(turnstileLoad.script)
       update('failed')
       active = false
     }, loadDeadlineRef.current - Date.now())

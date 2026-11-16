@@ -92,3 +92,24 @@ it('fails a script load that never ends at the shared load deadline, and a late 
   expect(onStateChange).toHaveBeenLastCalledWith('failed')
   expect(screen.getByRole('alert')).toHaveTextContent('auth.turnstileFailed')
 })
+
+it('sends a new script request on Retry after a script load that never ends, under a new load deadline', async () => {
+  vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] })
+  onTestFinished(() => { vi.useRealTimers() })
+  vi.resetModules()
+  const { TurnstileWidget: FreshWidget } = await import('@/components/auth/turnstile-widget')
+  await act(async () => { render(<FreshWidget siteKey="site-key" resetKey={0} onToken={vi.fn()} />) })
+  const stalled = document.querySelector<HTMLScriptElement>(SCRIPT)!
+  act(() => { vi.advanceTimersByTime(TURNSTILE_LOAD_DEADLINE_MS) })
+  expect(screen.getByRole('alert')).toHaveTextContent('auth.turnstileFailed')
+
+  fireEvent.click(screen.getByRole('button', { name: 'auth.turnstileRetry' }))
+  const requested = [...document.querySelectorAll<HTMLScriptElement>(SCRIPT)]
+  expect(requested, 'one script request runs after Retry').toHaveLength(1)
+  expect(requested[0], 'Retry sends a new request and does not wait on the stalled one').not.toBe(stalled)
+  act(() => { vi.advanceTimersByTime(TURNSTILE_LOAD_DEADLINE_MS - 1) })
+  expect(screen.getByRole('status')).toHaveTextContent('auth.turnstileLoading')
+  expect(screen.getByRole('alert')).toBeEmptyDOMElement()
+  act(() => { vi.advanceTimersByTime(1) })
+  expect(screen.getByRole('alert'), 'Retry starts a new load deadline').toHaveTextContent('auth.turnstileFailed')
+})
