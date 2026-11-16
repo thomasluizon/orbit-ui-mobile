@@ -31,7 +31,7 @@ import { useProfile } from '@/hooks/use-profile'
 import { ErrorState } from '@/components/ui/error-state'
 
 import { Skeleton } from '@/components/ui/skeleton'
-import { OrbitMark } from '@/components/ui/orbit-mark'
+import { OrbitMascot } from '@/components/ui/orbit-mascot'
 import { styles, type Tokens } from '@/app/wrapped-styles'
 
 const motionFinalStyle = { opacity: 1, transform: [{ translateY: 0 }] }
@@ -72,7 +72,7 @@ export function WrappedSlide({ slide, recap, period, tokens, shareRef, shareErro
     case 'intro':
       return (
         <View style={[styles.slide, styles.introSlide]} testID="wrapped-slide-intro">
-          <Animated.View nativeID="wrapped-motion-part-0" entering={enter(0, reducedMotion)} style={motionFinalStyle}><OrbitMark size={48} /></Animated.View>
+          <Animated.View nativeID="wrapped-motion-part-0" entering={enter(0, reducedMotion)} style={motionFinalStyle}><OrbitMascot size={48} /></Animated.View>
           <Animated.Text testID="wrapped-figure" nativeID="wrapped-motion-part-1" entering={enter(1, reducedMotion)} accessibilityRole="header" style={[styles.introTitle, width >= 1024 && styles.introTitleWide, motionFinalStyle, { color: tokens.fg1 }]}>
             {t(`wrapped.slides.intro.${period}`)}
           </Animated.Text>

@@ -22,7 +22,7 @@ const PRESS_SCALE_WRITE = /scale:[^,}\]]*\b0\.9[69]\b|orbitalMotion\.press\.scal
 
 /**
  * Every press control that the press gap list of thomasluizon/orbit-tickets#2096 names, on mobile. Each reaches the shared press transition
- * through `MotionPressable`, `PressScale`, `PressScalePressable` or the list row transition.
+ * through `MotionPressable`, `PressScale` or the list row transition.
  */
 const LISTED_PRESS_CONTROLS = [
   'components/ui/status-dot.tsx',

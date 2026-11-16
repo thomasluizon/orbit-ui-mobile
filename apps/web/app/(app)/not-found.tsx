@@ -9,7 +9,7 @@ export default function AppNotFound() {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated)
   const pathname = usePathname()
   if (!isAuthenticated && isPublicPath(pathname)) {
-    return <main className="min-h-dvh bg-[var(--bg)]"><NotFoundContent /></main>
+    return <main className="flex min-h-dvh flex-col bg-[var(--bg)]"><NotFoundContent /></main>
   }
   return <NotFoundContent inShell />
 }

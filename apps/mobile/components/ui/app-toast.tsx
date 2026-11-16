@@ -3,6 +3,7 @@ import { ActionRow } from './action-row'
 import { ErrorState } from './error-state'
 import { PillButton } from './pill-button'
 import { useResolvedMotionPreset } from '@/lib/motion'
+import { PressScale } from '@/components/motion/press-scale'
 import Reanimated, { Easing, Keyframe, ReduceMotion } from 'react-native-reanimated'
 import * as Primitive from '@rn-primitives/toast'
 import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from 'react'
@@ -264,11 +265,11 @@ function ToastAction({ props, actionClosing, tokens, actionColor, setFocused }: 
             style={[styles.action, resolveActionOutline(actionFocused, tokens.fg1)]}
             testID="toast-action"
           >
-            <Text style={[styles.actionText, {
+            <PressScale pressed={actionPressed} disabled={false}><Text style={[styles.actionText, {
               color: resolveActionColor(props.kind, actionPressed, actionColor, tokens),
             }]}>
               {props.actionLabel}
-            </Text>
+            </Text></PressScale>
           </Pressable></Primitive.Action>
 }
 

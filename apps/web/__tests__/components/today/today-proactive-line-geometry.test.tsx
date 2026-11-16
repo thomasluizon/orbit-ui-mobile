@@ -90,6 +90,7 @@ describe('Hoje proactive line perimeter', () => {
           blockStart: Number.parseFloat(style.paddingTop), blockEnd: Number.parseFloat(style.paddingBottom),
           height: bounds.height, sentenceHeight: sentence.getBoundingClientRect().height,
           lineHeight: Number.parseFloat(getComputedStyle(sentence).lineHeight),
+          mascot: element.querySelector('[data-asset="orbit-mascot"]')!.getBoundingClientRect().toJSON() as DOMRect, line: bounds.toJSON() as DOMRect,
         }
       })
       expect.soft(geometry.leftInset).toBeCloseTo(16, 1)
@@ -107,6 +108,9 @@ describe('Hoje proactive line perimeter', () => {
       expect(geometry.shadow).toBe('none')
       expect(geometry.height).toBeGreaterThanOrEqual(48)
       expect(geometry.sentenceHeight).toBeLessThanOrEqual(geometry.lineHeight * 2 + 1)
+      expect(geometry.mascot.width).toBe(48)
+      expect(geometry.mascot.left).toBeGreaterThanOrEqual(geometry.line.left)
+      expect(geometry.mascot.bottom).toBeLessThanOrEqual(geometry.line.bottom)
     } finally { unmount(); await page.close() }
   })
 })

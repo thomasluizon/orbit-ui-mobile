@@ -4,9 +4,10 @@ import { motion } from 'motion/react'
 import { ConversationChange } from '@/components/chat/conversation-motion'
 import { useConversationMotion } from '@/hooks/use-conversation-motion'
 import { IconButton } from '@/components/ui/icon-button'
-import { OrbitMark } from '@/components/ui/orbit-mark'
+import { OrbitMascot } from '@/components/ui/orbit-mascot'
 
 import { SPACING } from '@orbit/shared/theme'
+import { Skeleton } from '@/components/ui/skeleton'
 
 
 import { ActionRow } from './action-row'
@@ -126,12 +127,12 @@ function LoadingBody({ rows, hasActions }: Readonly<{ rows: number; hasActions: 
       <div className="flex min-h-0 flex-1 flex-col gap-2" data-loading-skeleton="">
         {Array.from({ length: rows }, (_, index) => (
           <div className="flex min-h-[52px] items-center gap-3 p-3" key={index}>
-            <span className="h-4 flex-1 rounded-[8px] bg-[var(--bg-elev-2)]" />
-            <span className="size-5 rounded-[8px] bg-[var(--bg-elev-2)]" />
+            <span className="h-4 flex-1"><Skeleton variant="fill" grouped /></span>
+            <span className="size-5"><Skeleton variant="fill" grouped /></span>
           </div>
         ))}
       </div>
-      {hasActions ? <div className="h-[var(--touch-min)] rounded-[8px] bg-[var(--bg-elev-2)]" /> : null}
+      {hasActions ? <div className="h-[var(--touch-min)]"><Skeleton variant="fill" grouped /></div> : null}
     </>
   )
 }
@@ -211,7 +212,7 @@ export function BlockFrame(props: Readonly<BlockFrameProps>) {
       }}
     >
       <header className={`flex shrink-0 gap-3 ${props.titleMode === 'typed' ? 'min-w-0 flex-col' : 'items-center'}`}>
-        <OrbitMark size={20} />
+        <OrbitMascot size={20} />
         <h3 ref={titleRef} tabIndex={props.focusTitleOnMount ? -1 : undefined} className={props.titleMode === 'typed' ? 'min-w-0 text-base font-medium' : props.wrapTitle ? 'min-w-0 flex-1 break-words text-base font-medium' : 'min-w-0 flex-1 truncate text-base font-medium'}>{props.titleContent ?? (props.titleMode === 'typed' ? <PersonalText onClampedChange={setClamped}>{props.title}</PersonalText> : props.title)}</h3>
         <div className="flex shrink-0 items-center justify-end gap-3">
           {props.count !== null && (props.count !== undefined || props.items.length > 0) ? (

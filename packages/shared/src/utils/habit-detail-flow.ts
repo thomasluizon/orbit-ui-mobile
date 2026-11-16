@@ -25,6 +25,8 @@ export const HABIT_DETAIL_FREQUENCY_UNITS = ['Day', 'Week', 'Month', 'Year'] as 
 const HISTORY_LOOKBACK_DAYS = 365
 /** A habit is slipping only while its 30-day completion rate is below this percentage. */
 export const HABIT_SLIPPING_RATE_LIMIT = 50
+/** The widest stat card value. Its hidden copy sizes the value slot, so the loading skeleton and the loaded value wrap the row the same way. */
+export const STAT_VALUE_SIZER = '100%'
 
 interface HabitScheduleSource {
   createdAtUtc: string

@@ -35,7 +35,7 @@ frame. `aligned` means the existing owner already centres its column. Each phone
 | Perfil | aligned | aligned | aligned | fixed | fixed | fixed | fixed | fixed | Shared content frame centres the capped settings column. |
 | Conta | aligned | aligned | aligned | fixed | fixed | fixed | fixed | fixed | ProfileSubscreen consumes the shared content frame. |
 | Preferências | aligned | aligned | aligned | fixed | fixed | fixed | fixed | fixed | ProfileSubscreen consumes the shared content frame. |
-| Astra settings | aligned | aligned | aligned | fixed | fixed | fixed | fixed | fixed | ProfileSubscreen consumes the shared content frame. |
+| Orbit settings | aligned | aligned | aligned | fixed | fixed | fixed | fixed | fixed | ProfileSubscreen consumes the shared content frame. |
 | Notificações settings | aligned | aligned | aligned | fixed | fixed | fixed | fixed | fixed | ProfileSubscreen consumes the shared content frame. |
 | Avisos | aligned | aligned | aligned | fixed | fixed | fixed | fixed | fixed | NotificationList consumes the shared content frame. |
 | Busca | aligned | aligned | fixed | fixed | fixed | fixed | fixed | fixed | Search column, input and results centre within the shell. |

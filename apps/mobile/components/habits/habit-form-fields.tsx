@@ -1,6 +1,6 @@
 import { useAstraAllowanceCopy } from '@/hooks/use-astra-allowance-copy'
 import { captureError } from '@/lib/sentry'
-import { AstraGlyph } from '@/components/ui/astra-glyph'
+import { OrbitMascot } from '@/components/ui/orbit-mascot'
 import { useHabitFormInteraction } from './habit-form-fields/habit-form-interaction'
 import { motionDurations, motionEasings, SPACING } from '@orbit/shared/theme'
 import { X } from '@/components/ui/icons'
@@ -113,7 +113,7 @@ function AstraFallback({
     <View style={{ gap: 12 }}>
       {atLimit ? <CapacityNotice message={limitMessage} /> : null}
       <View style={{ alignItems: 'flex-start', gap: 8 }}>
-        <PillButton minimumHeight={48} borderless iconOnly label={askLabel} variant="ghost" loading={isSuggesting} hint={isSuggesting ? readingLabel : undefined} disabled={disabled || atLimit} onClick={guard(onAsk)}><AstraGlyph size={20} /></PillButton>
+        <PillButton minimumHeight={48} borderless iconOnly label={askLabel} variant="ghost" loading={isSuggesting} hint={isSuggesting ? readingLabel : undefined} disabled={disabled || atLimit} onClick={guard(onAsk)}><OrbitMascot size={20} /></PillButton>
         {!atLimit ? <Text style={{ color: tokens.fg3, fontSize: 12 }}>{costLabel}</Text> : null}
       </View>
     </View>

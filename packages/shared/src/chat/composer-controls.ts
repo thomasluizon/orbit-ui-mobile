@@ -69,6 +69,11 @@ export function promptDisabledReason(state: {
   return state.isSending ? translate('shell.composer.busy.reason') : undefined
 }
 
+/** Orbit rests on the conversation while the AI is unavailable: offline, or at the message or daily limit. */
+export function conversationMascotState(state: { isOnline: boolean; dailyBudgetReached?: boolean; atMessageLimit: boolean }): 'parado' | 'descansando' {
+  return !state.isOnline || state.dailyBudgetReached === true || state.atMessageLimit ? 'descansando' : 'parado'
+}
+
 export function findPromptSlot(prompt: string): { start: number; end: number } | null {
   const slot = /\{[^{}]+\}/u.exec(prompt)
   return slot ? { start: slot.index, end: slot.index + slot[0].length } : null

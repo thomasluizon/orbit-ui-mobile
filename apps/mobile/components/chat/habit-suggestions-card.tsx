@@ -16,6 +16,7 @@ import { IconButton } from '@/components/ui/icon-button'
 import { PillButton } from '@/components/ui/pill-button'
 import { Input } from '@/components/ui/input'
 import { Proposed } from '@/components/ui/proposed'
+import { Skeleton } from '@/components/ui/skeleton'
 import { Plus, Pencil, AdjustmentsHorizontal, RefreshCw, ArrowUp } from '@/components/ui/icons'
 import { HabitBlockRow } from './habit-block-row'
 
@@ -32,7 +33,7 @@ function SuggestionRow({ draft, view, isOnline }: Readonly<{ draft: HabitSuggest
   const disabled = view.disabled || !view.available(draft.id)
   const error = view.state.errors[draft.id]
   const revision = view.state.revisions[draft.id] ?? 0
-  let currentSchedule = t('common.loading')
+  let currentSchedule: string | null = null
   if (current.data) currentSchedule = habitSuggestionSchedule(current.data, i18n.language, t, displayTime)
   else if (current.isError) currentSchedule = t('chat.habitSuggestions.scheduleError')
   const opacity = useMemo(() => new Animated.Value(1), [])
@@ -53,7 +54,7 @@ function SuggestionRow({ draft, view, isOnline }: Readonly<{ draft: HabitSuggest
     {draft.existingHabitId ? <View style={{ gap: 8 }}>
       <Text style={{ fontSize: 12, color: tokens.fg3 }}>{t('chat.habitSuggestions.existing')}</Text>
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
-        <View style={{ flex: 1, minWidth: 0 }}><Text style={{ fontSize: 12, color: tokens.fg2 }}>{t('chat.habitSuggestions.current')}</Text><Text style={{ fontSize: 12, color: tokens.fg3 }}>{currentSchedule}</Text></View>
+        <View style={{ flex: 1, minWidth: 0 }}><Text style={{ fontSize: 12, color: tokens.fg2 }}>{t('chat.habitSuggestions.current')}</Text>{currentSchedule === null ? <View testID="current-schedule-skeleton" style={{ width: '66%', height: 16 }}><Skeleton variant="fill" label={t('common.loading')} /></View> : <Text style={{ fontSize: 12, color: tokens.fg3 }}>{currentSchedule}</Text>}</View>
         <View style={{ flex: 1, minWidth: 0 }}><Text style={{ fontSize: 12, color: tokens.fg2 }}>{t('chat.habitSuggestions.proposed')}</Text><Text style={{ fontSize: 12, color: tokens.fg3 }}>{habitSuggestionSchedule(draft, i18n.language, t, displayTime)}</Text></View>
       </View>
       {current.isError ? <IconButton edge="start" label={t('common.retry')} disabled={!isOnline} onPress={() => void current.refetch()}><RefreshCw size={20} color={tokens.fg2} /></IconButton> : null}

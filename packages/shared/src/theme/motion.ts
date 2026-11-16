@@ -59,6 +59,15 @@ export const motionDurations = {
 
 export const skeletonPulseIterations = 4
 
+/** Orbit's timings, in milliseconds. The mascot reads its timing from here and nowhere else. */
+export const mascotMotion = {
+  blinkInterval: 4200,
+  moonPeriod: 5000,
+  tiltPeriod: 6000,
+  ringTurn: 900,
+  frameInterval: 33,
+} as const
+
 export const motionLayerTiming = {
   backdropEnterDelay: 0,
   panelEnterDelay: 0,

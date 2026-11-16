@@ -1,5 +1,8 @@
 import type { SwitchProps } from '@orbit/shared/contracts/forms'
 import { StyleSheet, View } from 'react-native'
+import Animated from 'react-native-reanimated'
+import { motionPresets } from '@orbit/shared/theme'
+import { toCssTransition, usePrefersReducedMotion } from '@/lib/motion'
 import { ListRow } from './list-row'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { createTokensV2 } from '@/lib/theme'
@@ -11,8 +14,10 @@ export function Switch({ label, checked, disabled = false, onChange }: Readonly<
 export function SwitchTrack({ checked, pending }: Readonly<{ checked: boolean; pending?: boolean }>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
+  const reducedMotion = usePrefersReducedMotion()
+  const { enterDuration, enterEasing } = motionPresets.selection
   return <View accessible={false} importantForAccessibility="no-hide-descendants" data-slot="switch-track" data-checked={checked ? '' : undefined} data-pending={pending ? '' : undefined} style={[styles.track, { backgroundColor: checked ? tokens.primary : tokens.trackEmpty }]}>
-    <View style={[styles.thumb, { backgroundColor: tokens.fgOnPrimary, transform: [{ translateX: checked ? 23 : 3 }] }]} />
+    <Animated.View data-slot="switch-thumb" style={[styles.thumb, { backgroundColor: tokens.fgOnPrimary, transform: [{ translateX: checked ? 23 : 3 }], transition: toCssTransition(['transform'], reducedMotion ? 0 : enterDuration, enterEasing) }]} />
   </View>
 }
 

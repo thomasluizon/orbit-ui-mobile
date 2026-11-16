@@ -2,12 +2,13 @@ import { IconButton } from '@/components/ui/icon-button'
 import { RefreshCw } from '@/components/ui/icons'
 import { SPACING } from '@orbit/shared/theme'
 import { useEffect, useImperativeHandle, useRef, useState, type Ref } from 'react'
-import { StyleSheet, Text, View } from 'react-native'
+import { StyleSheet, Text, View, type ViewStyle } from 'react-native'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { useTranslation } from 'react-i18next'
 import { buildAccountScopedStorageKey, getTrialDaysLeft, TRIAL_EXPIRED_SEEN_KEY } from '@orbit/shared/utils'
 import { ErrorState } from '@/components/ui/error-state'
 import { PillButton } from '@/components/ui/pill-button'
+import { Skeleton } from '@/components/ui/skeleton'
 import { PricingSection } from '@/components/upgrade/pricing-section'
 import { ProPitch } from '@/components/upgrade/pro-pitch'
 import type { SubscriptionInterval } from '@/components/upgrade/types'
@@ -79,7 +80,7 @@ export function OnboardingProStep({ onFinish, ref }: Readonly<{ onFinish: (desti
   const title = <Text nativeID="onboarding-title" accessibilityRole="header" style={{ fontFamily: 'Geist_500Medium', fontSize: 20, color: tokens.fg1 }}>{t('upgrade.pitchTitle')}</Text>
   const exitAction = <PillButton variant="ghost" loading={finishing} onClick={() => exit()}>{t('onboarding.flow.done.seeDay')}</PillButton>
   let content
-  if (plan === 'loading' || plan === 'Pro') content = <View accessibilityState={{ busy: true }} accessibilityLabel={t('common.loading')} style={styles.stack}>{title}<ProSkeleton color={tokens.bgWell} />{exitAction}</View>
+  if (plan === 'loading' || plan === 'Pro') content = <View accessibilityState={{ busy: true }} accessibilityLabel={t('common.loading')} style={styles.stack}>{title}<ProSkeleton />{exitAction}</View>
   else if (plan === null) content = <View style={styles.stack}>{title}<ErrorState message={t('upgrade.billing.error')} action={<IconButton label={t('upgrade.billing.retry')} onClick={retry}><RefreshCw size={20} strokeWidth={1.5} accessible={false} /></IconButton>} />{exitAction}</View>
   else if (plan === 'Trial') content = <View testID="onboarding-step-trial" style={styles.pitch}><ProPitch inset={false} focusOnMount headingId="onboarding-title" profile={profile ?? null} trialDaysLeft={getTrialDaysLeft(profile)} titleKey="onboarding.flow.trial.title" bodyKey="onboarding.flow.trial.body" dateHint={profile?.trialEndsAt ? t('upgrade.billing.plan.trialHint', { date: new Intl.DateTimeFormat(i18n.language, { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(profile.trialEndsAt)) }) : undefined} t={t} tokens={tokens} /><PillButton loading={finishing} onClick={() => exit()}>{t('onboarding.flow.done.seeDay')}</PillButton></View>
   else content = <View testID="onboarding-step-paywall" style={styles.stack}>{title}{!isOnline ? <ErrorState message={t('upgrade.billing.offline')} /> : null}<PricingSection inset={false} profile={null} plans={plans.plans} isLoadingPlans={plans.isLoading} isPlansError={plans.isError} isLoadingProducts={billing.isLoadingProducts} isProductsError={billing.isProductsError} isOnline={isOnline} trialDaysLeft={null} selectedInterval={selectedInterval} onSelectInterval={setSelectedInterval} monthlyOffer={billing.monthlyOffer} yearlyOffer={billing.yearlyOffer} checkoutLoading={checkoutLoading ?? (finishing ? 'yearly' : null)} checkoutError={billing.errorKey ? t(billing.errorKey) : ''} checkoutDisabled={!isOnline || billing.isRestoring} onCheckout={(interval) => { void checkout(interval) }} onStayFree={() => exit()} isRestoring={billing.isRestoring} onRestore={() => void billing.restorePurchases()} onRetryPlans={() => { if (isOnline) { billing.retryProducts(); void plans.refetch() } }} t={t} tokens={tokens} /></View>
@@ -88,11 +89,14 @@ export function OnboardingProStep({ onFinish, ref }: Readonly<{ onFinish: (desti
 
 const styles = StyleSheet.create({ root: { paddingVertical: SPACING.s32, width: '100%', gap: 16 }, stack: { gap: 24 }, pitch: { gap: 32 } })
 
-function ProSkeleton({ color }: Readonly<{ color: string }>) {
-  const block = { backgroundColor: color, borderRadius: radius.md }
-  return <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={{ gap: 32 }}>
-    <View style={{ gap: 12 }}><View style={[block, { height: 12, width: '33%' }]} /><View style={[block, { height: 64, width: '80%' }]} /><View style={[block, { height: 56 }]} /></View>
-    <View style={[block, { height: 136, borderRadius: radius.xl }]} />
-    <View style={{ gap: 12 }}>{[0, 1, 2].map((key) => <View key={key} style={[block, { height: 64 }]} />)}</View>
+function ProSkeleton() {
+  return <View testID="pro-skeleton" accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={{ gap: 32 }}>
+    <View style={{ gap: 12 }}>{[{ height: 12, width: '33%' as const }, { height: 64, width: '80%' as const }, { height: 56 }].map((size) => <ProSkeletonBlock key={size.height} style={size} />)}</View>
+    <ProSkeletonBlock style={{ height: 136, borderRadius: radius.xl, overflow: 'hidden' }} />
+    <View style={{ gap: 12 }}>{[0, 1, 2].map((key) => <ProSkeletonBlock key={key} style={{ height: 64 }} />)}</View>
   </View>
+}
+
+function ProSkeletonBlock({ style }: Readonly<{ style: ViewStyle }>) {
+  return <View style={style}><Skeleton variant="fill" grouped /></View>
 }

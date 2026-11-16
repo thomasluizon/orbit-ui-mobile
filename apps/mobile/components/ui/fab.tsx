@@ -1,16 +1,12 @@
 import type { FabProps } from '@orbit/shared/contracts/actions'
 import { FAB_SIZE } from '@orbit/shared/theme'
-import { StyleSheet, View, type PressableProps } from 'react-native'
+import { StyleSheet, type PressableProps } from 'react-native'
 import { useMemo } from 'react'
-import { createTokensV2, shadowsV2, type AppShadowV2 } from '@/lib/theme'
+import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { MotionPressable } from '@/components/ui/motion-pressable'
 
-function dropShadow({ shadowOffset, shadowRadius, shadowOpacity }: AppShadowV2) {
-  return `${shadowOffset.width}px ${shadowOffset.height}px ${shadowRadius}px rgba(0, 0, 0, ${shadowOpacity})`
-}
-
-export function Fab({ label, children, onClick, neutral = false, ...buttonProps }: Readonly<FabProps & Omit<PressableProps, 'children' | 'onPress' | 'style'> & { neutral?: boolean }>) {
+export function Fab({ label, children, onClick, ...buttonProps }: Readonly<FabProps & Omit<PressableProps, 'children' | 'onPress' | 'style'>>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(
     () => createTokensV2(currentScheme, currentTheme),
@@ -27,19 +23,12 @@ export function Fab({ label, children, onClick, neutral = false, ...buttonProps 
       style={({ pressed }) => [
         styles.button,
         {
-          backgroundColor: neutral ? tokens.bgElev : pressed ? tokens.primaryPressed : tokens.primary,
-          boxShadow: neutral
-            ? dropShadow(shadowsV2.shadow2)
-            : `0 0 0 6px ${tokens.bg}`,
+          backgroundColor: pressed ? tokens.primaryPressed : tokens.primary,
+          boxShadow: `0 0 0 6px ${tokens.bg}`,
         },
       ]}
     >
-      {({ pressed }) => (
-        <>
-          {neutral ? <View pointerEvents="none" testID="fab-press-fill" style={[styles.pressFill, { backgroundColor: pressed ? tokens.bgHoverOpaque : 'transparent', boxShadow: `inset 0 0 0 1px ${tokens.hairlineStrong}` }]} /> : null}
-          {children}
-        </>
-      )}
+      {children}
     </MotionPressable>
   )
 }
@@ -52,9 +41,5 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  pressFill: {
-    ...StyleSheet.absoluteFill,
-    borderRadius: 999,
   },
 })

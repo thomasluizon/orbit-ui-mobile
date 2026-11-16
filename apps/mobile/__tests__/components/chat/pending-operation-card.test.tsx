@@ -1,3 +1,4 @@
+import { controlStyle } from '@/__tests__/support/press-feedback'
 import { restoreConversationPage } from '@orbit/shared/chat/conversation-restore'
 import { COMPACT_FAILED_INDEXES, makeExecutedConversationPage, makeRevisedConversationPage, PROPOSED_HABIT_TITLE, REVISED_HABIT_ID, REVISED_HABIT_TITLE, storedOperationId, type StoredExecution } from '@orbit/shared/test-support/conversation-fixtures'
 import { makeOfferedPreview, makeOfferedTaskPreview, makeOfferedChildPreview } from '@orbit/shared/test-support/astra-offer-fixtures'
@@ -226,7 +227,7 @@ describe('PendingOperationCard (mobile)', () => {
     visibleLocale.actual = true
     const { tree } = renderRestored('partialLog')
     expect(Object.values(rowStatuses(tree))).not.toContain('done')
-    expect(renderedText(tree.toJSON())).toContain('Only 1 of 2 changes were saved. Ask Astra to try the rest.')
+    expect(renderedText(tree.toJSON())).toContain('Only 1 of 2 changes were saved. Ask Orbit to try the rest.')
     TestRenderer.act(() => tree.unmount())
   })
 
@@ -250,11 +251,11 @@ describe('PendingOperationCard (mobile)', () => {
     expect(Object.values(rowStatuses(tree))).not.toContain('done')
     const text = renderedText(tree.toJSON())
     expect(text).not.toContain(en.blockFrame.status.done)
-    expect(text).toContain('Only 2 of 3 changes were saved. Ask Astra to try the rest.')
+    expect(text).toContain('Only 2 of 3 changes were saved. Ask Orbit to try the rest.')
     TestRenderer.act(() => tree.unmount())
   })
 
-  it.each([['en', 'Update 3 habits', 'Only 2 of 3 changes were saved. Ask Astra to try the rest.'], ['pt-BR', 'Alterar 3 hábitos', 'Só 2 de 3 alterações foram salvas. Peça à Astra para tentar as que faltam.']])('does not show a live partial bulk update as done in %s', async (locale, approve, notice) => {
+  it.each([['en', 'Update 3 habits', 'Only 2 of 3 changes were saved. Ask Orbit to try the rest.'], ['pt-BR', 'Alterar 3 hábitos', 'Só 2 de 3 alterações foram salvas. Peça ao Orbit para tentar as que faltam.']])('does not show a live partial bulk update as done in %s', async (locale, approve, notice) => {
     visibleLocale.actual = true
     visibleLocale.language = locale
     const messages = locale === 'en' ? en : ptBR
@@ -1123,11 +1124,14 @@ describe('PendingOperationCard (mobile)', () => {
     const chip = (label: string) => tree.root.findAllByType(Pressable).find((node: ReactTestInstance) => node.props.accessibilityLabel === label)
     const fill = (label: string, pressed: boolean) => {
       TestRenderer.act(() => pressed ? chip(label).props.onPressIn() : chip(label).props.onPressOut())
-      return StyleSheet.flatten(chip(label).props.style)
+      return controlStyle(chip(label))
     }
+    const ring = (label: string) => StyleSheet.flatten(chip(label).findAll((node: ReactTestInstance) => typeof node.type === 'string' && node.props.testID === 'selection-ring')[0]!.props.style)
 
-    expect(fill('dates.daysLong.monday', false)).toMatchObject({ borderRadius: radius.full, overflow: 'hidden', borderColor: tokens.primary, backgroundColor: tokens.primaryDim })
-    expect(fill('dates.daysLong.tuesday', false)).toMatchObject({ borderRadius: radius.full, overflow: 'hidden', borderColor: tokens.hairline, backgroundColor: tokens.bgWell })
+    expect(fill('dates.daysLong.monday', false)).toMatchObject({ borderRadius: radius.full, overflow: 'hidden', backgroundColor: tokens.primaryDim })
+    expect(ring('dates.daysLong.monday')).toMatchObject({ borderColor: tokens.primary, borderWidth: 1.5 })
+    expect(fill('dates.daysLong.tuesday', false)).toMatchObject({ borderRadius: radius.full, overflow: 'hidden', backgroundColor: tokens.bgWell })
+    expect(ring('dates.daysLong.tuesday')).toMatchObject({ borderColor: tokens.hairline, borderWidth: 1 })
     expect(fill('dates.daysLong.monday', true).backgroundColor).toBe(tokens.bgHover)
     expect(fill('dates.daysLong.tuesday', true).backgroundColor).toBe(tokens.bgHover)
 

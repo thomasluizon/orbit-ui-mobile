@@ -21,6 +21,7 @@ let mockUpdateIsPending = false
 let mockReschedule: {
   suggestion: RescheduleSuggestion | null
   isLoading: boolean
+  isPaused: boolean
   error: Error | null
   refetch: () => void
 }
@@ -97,6 +98,7 @@ describe('RescheduleSheet (mobile)', () => {
       const action = tree.root.findAll(node => node.type === 'Pressable' && node.findAll(child => child.type === 'Text' && child.props.children === 'habits.reschedule.suggestDate').length > 0)[0]!
       expect(action.findAll(node => node.type === 'Text').map(node => node.props.children)).toEqual(['habits.reschedule.suggestDate'])
       expect(pressableStyle(action, false).width).toBeUndefined()
+      expect(action.findAll(node => typeof node.type === 'string' && node.props.testID === 'orbit-mascot')).toHaveLength(0)
     }
   })
   it.each(['free', 'error'] as const)('dismisses the %s footer without applying or navigating', (state) => {
@@ -114,7 +116,7 @@ describe('RescheduleSheet (mobile)', () => {
     mockProfile = { hasProAccess: true, language: 'en' }
     mockToday = '2026-08-17'
     mockUpdateIsPending = false
-    mockReschedule = { suggestion: null, isLoading: false, error: null, refetch: mockRefetch }
+    mockReschedule = { suggestion: null, isLoading: false, isPaused: false, error: null, refetch: mockRefetch }
     __setWindowDimensions({ width: 390, height: 892, scale: 1, fontScale: 1 })
   })
 
@@ -251,6 +253,16 @@ describe('RescheduleSheet (mobile)', () => {
     expect(mockRefetch).toHaveBeenCalled()
   })
 
+  it('rests Orbit with the offline reason while the suggestion request waits offline', () => {
+    mockReschedule.isPaused = true
+
+    const tree = render(<RescheduleSheet open onOpenChange={vi.fn()} habit={overdueHabit} />)
+
+    expect(tree.root.findAll((node) => node.type === 'Svg' && node.props.testID === 'orbit-mascot')[0]!.props['data-orbit-state']).toBe('descansando')
+    expect(hasText(tree.root, 'shell.composer.offline.reason')).toBe(true)
+    expect(tree.root.findAll((node) => node.type === 'View' && node.props.testID === 'skeleton-unit-habit-row')).toHaveLength(0)
+  })
+
   it('shows a schedule-card placeholder while the suggestion is loading', () => {
     mockReschedule.isLoading = true
 
@@ -261,6 +273,7 @@ describe('RescheduleSheet (mobile)', () => {
     expect(skeletons.length).toBeGreaterThanOrEqual(1)
     expect(tree.root.findAll((node) => node.type === 'View' && node.props.testID === 'skeleton-unit-habit-row')).toHaveLength(2)
     expect(tree.root.findAll((node) => node.type === 'View' && node.props.testID === 'skeleton-unit-habit-row' && node.props.accessibilityRole === 'progressbar')).toHaveLength(1)
+    expect(tree.root.findAll((node) => node.type === 'Svg' && node.props.testID === 'orbit-mascot')[0]!.props['data-orbit-state']).toBe('pensando')
     const actions = tree.root.findAll((node) => node.type === 'SheetActions')[0]!
     expect(actions.findAll((node) => node.type === 'Pressable' && typeof node.props.testID === 'string' && String(node.props.testID).startsWith('button-'))).toHaveLength(0)
   })
@@ -276,8 +289,10 @@ describe('RescheduleSheet (mobile)', () => {
     expect(hasText(tree.root, 'habits.form.proposedByAstra')).toBe(true)
     const date = tree.root.findAll((node) => node.type === 'Text' && node.props.testID === 'reschedule-proposed-schedule')[0]!
     expect(date.props.children).toEqual(['qui., 20 de ago.', ' · 07:30:00'])
-    expect(tree.root.findAll((node) => node.type === 'Svg' && node.props.testID === 'astra-mark')).toHaveLength(0)
-    const name = tree.root.findAll((node) => node.type === 'Text' && node.props.children === 'Astra')[0]!
+    const mascots = tree.root.findAll((node) => node.type === 'Svg' && node.props.testID === 'orbit-mascot')
+    expect(mascots).toHaveLength(1)
+    expect(mascots[0]!.props).toMatchObject({ width: 48, accessible: false, 'data-orbit-state': 'parado' })
+    const name = tree.root.findAll((node) => node.type === 'Text' && node.props.children === 'Orbit')[0]!
     expect(JSON.stringify(name.props.style)).not.toContain('uppercase')
   })
 

@@ -77,7 +77,7 @@ describe('headless Menu', () => {
     expect(action).toHaveAccessibleName(label)
     expect(action).not.toHaveAttribute('aria-label')
     expect(action.style.cssText).toBe(sibling.style.cssText)
-    expect(action.querySelector('[data-asset^="astra-mark"]')).not.toBeNull()
+    expect(action.querySelector('[data-asset^="orbit-mascot"]')).not.toBeNull()
     await userEvent.keyboard('{ArrowDown}')
     expect(action).toHaveFocus()
     await userEvent.keyboard(`{Home}${label[0]}`)

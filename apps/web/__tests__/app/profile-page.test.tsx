@@ -418,6 +418,8 @@ describe('ProfilePage', () => {
           const range = document.createRange()
           range.selectNodeContents(title)
           const icon = row.querySelector('svg')!
+          const iconBounds = icon.getBoundingClientRect()
+          const iconSlot = icon.closest('[data-slot="list-row-icon"]')!.getBoundingClientRect()
           return {
             label: title.textContent,
             height: row.getBoundingClientRect().height,
@@ -425,7 +427,9 @@ describe('ProfilePage', () => {
             textWidth: range.getBoundingClientRect().width,
             lines: range.getClientRects().length,
             titleTop: title.getBoundingClientRect().top,
-            iconTop: icon.getBoundingClientRect().top,
+            iconCentre: iconBounds.top + iconBounds.height / 2,
+            iconSlotCentre: iconSlot.top + iconSlot.height / 2,
+            squareIconTop: iconBounds.top + iconBounds.height / 2 - 12,
             titleOverflow: title.scrollWidth > title.clientWidth,
             ellipsis: getComputedStyle(title).textOverflow === 'ellipsis',
             right: title.getBoundingClientRect().right,
@@ -450,7 +454,8 @@ describe('ProfilePage', () => {
           expect(row.titleOverflow, row.label!).toBe(false)
           expect(row.ellipsis, row.label!).toBe(row.label === 'Marina')
           expect(row.right, row.label!).toBeLessThanOrEqual(width)
-          if (textScale === 2 && row.label !== 'Marina') expect(Math.abs(row.iconTop - row.titleTop), row.label!).toBeLessThanOrEqual(12)
+          expect(Math.abs(row.iconCentre - row.iconSlotCentre), row.label!).toBeLessThanOrEqual(0.5)
+          if (textScale === 2 && row.label !== 'Marina') expect(Math.abs(row.squareIconTop - row.titleTop), row.label!).toBeLessThanOrEqual(12)
         }
         if (textScale === 2 && locale === 'pt-BR') expect(rows.find(({ label }) => label === ptBR.profile.calendarSync.title)!.lines).toBeGreaterThan(1)
       } finally { await page.close() }
@@ -609,7 +614,7 @@ describe('ProfilePage', () => {
         expect(icons[0]!.getAttribute('width')).toBe('24')
         expect(icons[0]!.compareDocumentPosition(title) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
         if (index === 3) {
-          expect(icons[0]).toHaveAttribute('data-asset', 'astra-mark')
+          expect(icons[0]).toHaveAttribute('data-asset', 'orbit-mascot')
           expect(row.querySelector('a')).toHaveAttribute('href', '/profile/astra')
         }
         if (navigates) {
@@ -976,10 +981,10 @@ describe('ProfilePage', () => {
   })
 
   it.each([
-    ['pt-BR', false, 'Notificações da Astra', 'Resumo diário'],
-    ['pt-BR', true, 'Notificações da Astra', 'Resumo diário'],
-    ['en', false, 'Astra notifications', 'Daily recap'],
-    ['en', true, 'Astra notifications', 'Daily recap'],
+    ['pt-BR', false, 'Notificações do Orbit', 'Resumo diário'],
+    ['pt-BR', true, 'Notificações do Orbit', 'Resumo diário'],
+    ['en', false, 'Orbit notifications', 'Daily recap'],
+    ['en', true, 'Orbit notifications', 'Daily recap'],
   ] as const)('renders the %s Astra labels for Pro access %s', (locale, hasProAccess, proactive, summary) => {
     mockLocale.current = locale
     const messages = locale === 'pt-BR' ? ptBR : en

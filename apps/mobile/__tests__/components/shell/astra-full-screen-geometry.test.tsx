@@ -4,7 +4,7 @@ import { __setWindowDimensions } from '@/test-mocks/react-native'
 import en from '@orbit/shared/i18n/en.json'
 import React from 'react'
 import { View, AccessibilityInfo } from 'react-native'
-import { AstraGlyph } from '@/components/ui/astra-glyph'
+import { OrbitMascot } from '@/components/ui/orbit-mascot'
 import { afterEach, expect, it, vi } from 'vitest'
 import { Shell412 } from '@/components/shell/shell-412'
 import { ChatEmptyState } from '@/components/chat/chat-empty-state'
@@ -79,7 +79,7 @@ it.each([320, 412, 480, 840, 1100])('pins the full conversation over navigation 
     const thread = geometry.get('thread')!
     const disclosure = geometry.get('disclosure')!
     const groupTop = geometry.get('empty')!.contentTop
-    expect.soft(empty.findAll(node => node.type === AstraGlyph)[0]!.props.size).toBe(48)
+    expect.soft(empty.findAll(node => node.type === OrbitMascot)[0]!.props.size).toBe(width >= 1024 ? 128 : 96)
     expect.soft(disclosure.top - geometry.get('action')!.bottom).toBe(24)
     expect.soft(Math.abs((groupTop + disclosure.bottom) / 2 - (thread.top + thread.bottom) / 2)).toBeLessThanOrEqual(8)
   } finally { await renderer.act(() => tree.unmount()) }
