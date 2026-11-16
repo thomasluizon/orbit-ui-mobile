@@ -1,14 +1,17 @@
 import { execFile } from 'node:child_process'
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { mkdtempSync, readFileSync, rmSync, statSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
-import { WORKER_ACCOUNT, workerAccountEnvironment, workerAccounts } from '../../tools/lib/orchestrator-config.mjs'
+import { join, resolve } from 'node:path'
 
 export const GRADER_MODEL = 'claude-opus-5-5'
 export const GRADER_TIMEOUT_MILLISECONDS = 120000
+// The variable that names the worker account directory: workers.claude.configDirEnv of .claude/orchestrator.json, which
+// tools/launch-worker.mjs reads. claude-grader.test.mjs holds the two names equal.
+export const WORKER_CONFIG_VARIABLE = 'ORBIT_WORKER_CLAUDE_CONFIG_DIR'
 const schema = readFileSync(new URL('./grader-schema.json', import.meta.url), 'utf8')
-// The worker engine of the orchestrator: its command and the variable that names the worker account directory.
-const engine = JSON.parse(readFileSync(new URL('../../.claude/orchestrator.json', import.meta.url), 'utf8')).workers.claude
+// Each variable that the CLI selects ahead of the sign-in in its config directory (CLAUDE_ACCOUNT_OVERRIDE_KEYS of
+// tools/lib/orchestrator-config.mjs) starts with one of these names; claude-grader.test.mjs holds that true.
+const accountOverride = /^(?:ANTHROPIC_|CLAUDE_CODE_|CCR_|AWS_BEARER_TOKEN_BEDROCK$)/u
 
 // Print mode of the installed CLI, confirmed against a real call (claude-grader.test.mjs records its response): the grade
 // comes back as structured_output of one JSON result. The grader reads no tool, MCP server, CLAUDE.md, hook or session.
@@ -28,21 +31,20 @@ class GradeFailure extends Error {}
 
 // The child environment: the sign-in of the worker account directory is the only credential the CLI can select, and no
 // Orbit eval secret reaches it. Unset, or naming no directory, the grader fails closed and never spends the main account.
-function graderEnvironment() {
-  const environment = Object.fromEntries(Object.entries(process.env).filter(([key]) => !key.startsWith('ORBIT_EVAL_')))
-  let account
-  try {
-    [account] = workerAccounts('claude', engine, environment)
-  } catch {
-    throw new GradeFailure(`${engine.configDirEnv} names no existing directory`)
+export function graderEnvironment(environment = process.env) {
+  const directory = environment[WORKER_CONFIG_VARIABLE]?.trim()
+  if (!directory) throw new GradeFailure(`${WORKER_CONFIG_VARIABLE} is not set`)
+  const configDirectory = resolve(directory)
+  if (!statSync(configDirectory, { throwIfNoEntry: false })?.isDirectory()) {
+    throw new GradeFailure(`${WORKER_CONFIG_VARIABLE} names no existing directory`)
   }
-  if (account.name !== WORKER_ACCOUNT) throw new GradeFailure(`${engine.configDirEnv} is not set`)
-  return workerAccountEnvironment(environment, account)
+  const kept = Object.entries(environment).filter(([key]) => !key.startsWith('ORBIT_EVAL_') && !accountOverride.test(key))
+  return { ...Object.fromEntries(kept), CLAUDE_CONFIG_DIR: configDirectory }
 }
 
 function runCli(prompt, environment, directory, signal) {
   return new Promise((resolve, reject) => {
-    const child = execFile(engine.command, graderArguments, { cwd: directory, env: environment,
+    const child = execFile('claude', graderArguments, { cwd: directory, env: environment,
       timeout: GRADER_TIMEOUT_MILLISECONDS, maxBuffer: 1024 * 1024, signal }, (error, stdout) => {
       if (!error) return resolve(stdout)
       const detail = failedResult(parsed(stdout))

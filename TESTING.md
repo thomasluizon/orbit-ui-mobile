@@ -1024,7 +1024,9 @@ offline in fix rounds and never authorizes an additional live run.
 From `evals/astra`, set `ORBIT_EVAL_GRADER=file://claude-grader.mjs`. The provider runs the installed Claude Code CLI
 (`claude` on the runner's `PATH`) on the worker account: `ORBIT_WORKER_CLAUDE_CONFIG_DIR` must name the signed-in
 worker account directory, as `tools/launch-worker.mjs` reads it. The child gets `CLAUDE_CONFIG_DIR` set to that
-directory, and every inherited Claude credential override and every `ORBIT_EVAL_` variable removed. When the variable
+directory. Every `ANTHROPIC_`, `CLAUDE_CODE_`, `CCR_` and `ORBIT_EVAL_` variable and `AWS_BEARER_TOKEN_BEDROCK` are
+removed, so the sign-in of that directory is the only credential the CLI can select. The offline test holds this rule
+and the variable name equal to the worker launch, and the eval package does not import the harness. When the variable
 is unset or names no directory, the grader fails closed and never runs the CLI, so it never spends the main account.
 The grader spends no eval key and does not count against the 0.50 USD daily eval ceiling.
 The provider executes

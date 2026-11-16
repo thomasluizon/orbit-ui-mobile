@@ -7,7 +7,8 @@ import { fileURLToPath } from 'node:url'
 import { parse } from 'yaml'
 import { summarize, writeResults, writeReport } from '../report.mjs'
 import { beforeEach as prepareAttempt } from '../hooks.mjs'
-import { GRADER_MODEL, GRADER_TIMEOUT_MILLISECONDS } from '../claude-grader.mjs'
+import { GRADER_MODEL, GRADER_TIMEOUT_MILLISECONDS, WORKER_CONFIG_VARIABLE, graderEnvironment } from '../claude-grader.mjs'
+import { CLAUDE_ACCOUNT_OVERRIDE_KEYS } from '../../../tools/lib/orchestrator-config.mjs'
 import { offlineCredentials, refreshResponse } from './fixtures/credentials.mjs'
 import { chatResponse, turnTiming } from './fixtures/producer.mjs'
 import parseResponse from '../response.mjs'
@@ -109,6 +110,17 @@ it('loads through promptfoo, runs print mode on the worker account and returns t
   expect(call.apiKey).toBe(false)
   expect(call.leaked).toEqual([])
   expect(existsSync(call.cwd)).toBe(false)
+})
+
+// The eval package installs without the harness (install.test.mjs), so the grader names the worker account variable and
+// the credential overrides itself; these checks hold them equal to the worker launch.
+it('reads the worker account variable and removes every credential override that the worker launch removes', () => {
+  const orchestrator = JSON.parse(readFileSync(new URL('../../../.claude/orchestrator.json', import.meta.url), 'utf8'))
+  expect(WORKER_CONFIG_VARIABLE).toBe(orchestrator.workers.claude.configDirEnv)
+  const overrides = Object.fromEntries(CLAUDE_ACCOUNT_OVERRIDE_KEYS.map((key) => [key, 'PRIVATE_SENTINEL']))
+  const child = graderEnvironment({ ...overrides, PATH: '/bin', [WORKER_CONFIG_VARIABLE]: ` ${workerDirectory} `,
+    CLAUDE_CONFIG_DIR: join(directory, 'main-account'), ORBIT_EVAL_TOKEN: 'PRIVATE_SENTINEL' })
+  expect(child).toEqual({ PATH: '/bin', [WORKER_CONFIG_VARIABLE]: ` ${workerDirectory} `, CLAUDE_CONFIG_DIR: workerDirectory })
 })
 
 it.each(['pass', 'fail'])('the real llm-rubric consumes the provider grade: %s', async (mode) => {
