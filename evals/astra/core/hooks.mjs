@@ -4,7 +4,7 @@ import { apiOrigin, healthyApi, readCredentials, refreshCredential, safeFailureM
 import { requireEvalOrigin, resetFixture } from '../fixtures/reset.mjs'
 import { fixtureHabitTitles } from '../fixtures/names.mjs'
 import { requireEvalAccess, requireEvalTrace } from '../fixtures/api.mjs'
-import { apiCommit } from '../trace-policy.mjs'
+import { requireCatalogCommit } from '../trace-policy.mjs'
 import { summarize, writeReport, writeResults } from './report.mjs'
 
 const { buildChatClientContext } = await tsImport('../../../packages/shared/src/chat/client-context.ts', import.meta.url)
@@ -29,9 +29,7 @@ export async function beforeAll({ suite }) {
   apiOrigin()
   requireEvalOrigin()
   const health = await healthyApi({ fresh: true })
-  if (!/^[a-f0-9]{40}$/u.test(apiCommit) || apiCommit !== health.commit) {
-    throw new Error(`Astra catalog ${apiCommit} differs from API ${health.commit}. Regenerate from a clean API checkout at that commit with node evals/astra/generate-catalog.mjs <api-checkout>.`)
-  }
+  requireCatalogCommit(health.commit)
   readCredentials()
   // Each card answer and each measured model call reads the eval trace, so an account without the trace flag stops the
   // run here, before any chat turn spends.

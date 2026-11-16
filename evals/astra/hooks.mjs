@@ -13,6 +13,7 @@ import { prepareCorrection } from './setup.mjs'
 import { describeCase } from './latency.mjs'
 import { descriptors } from './merge-reports.mjs'
 import { summarize, writeReport, writeResults } from './report.mjs'
+import { requireCatalogCommit } from './trace-policy.mjs'
 
 const { buildChatClientContext } = await tsImport('../../packages/shared/src/chat/client-context.ts', import.meta.url)
 
@@ -42,15 +43,12 @@ export async function beforeAll({ suite }) {
   apiOrigin()
   requireEvalOrigin()
   if (process.env.ORBIT_EVAL_OVERDUE_DATE && !/^\d{4}-\d{2}-\d{2}$/.test(process.env.ORBIT_EVAL_OVERDUE_DATE)) throw new Error('ORBIT_EVAL_OVERDUE_DATE must be an ISO calendar date.')
-  const { apiCommit, offerTools, offerPostReadTools, offerHabitSetupTools } = parse(readFileSync(new URL('./catalog.yaml', import.meta.url), 'utf8'))
+  const { offerTools, offerPostReadTools, offerHabitSetupTools } = parse(readFileSync(new URL('./catalog.yaml', import.meta.url), 'utf8'))
   if (suite.tests.some((test) => test.metadata?.family?.startsWith('offers-'))
     && (!offerTools?.length || !offerPostReadTools?.length || !offerHabitSetupTools?.length)) {
     throw new Error('Regenerate the proactive tool catalogs from the evaluated API before running offer cases.')
   }
-  const health = await healthyApi({ fresh: true })
-  if (!/^[a-f0-9]{40}$/.test(apiCommit) || apiCommit !== health.commit) {
-    throw new Error(`Astra catalog ${apiCommit} differs from API ${health.commit}. Regenerate from a clean API checkout at that commit with node evals/astra/generate-catalog.mjs <api-checkout>.`)
-  }
+  requireCatalogCommit((await healthyApi({ fresh: true })).commit)
   readCredentials()
   await requireAccountPolicies(suite.tests)
   await warmUpAccounts(suite.tests)
