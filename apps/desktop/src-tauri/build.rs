@@ -18,16 +18,23 @@ fn main() {
         "windows" => build_windows(),
         _ => panic!("Desktop push requires macOS or Windows"),
     }
-    tauri_build::try_build(tauri_build::Attributes::new().app_manifest(
-        tauri_build::AppManifest::new().commands(&[
-            "commit_desktop_login",
-            "desktop_push",
-            "desktop_update",
-            "desktop_launch",
-            #[cfg(feature = "bench-loopback")]
-            "fit_bench_viewport",
-        ]),
-    ))
+    println!("cargo:rerun-if-changed=windows-app-manifest.xml");
+    tauri_build::try_build(
+        tauri_build::Attributes::new()
+            .app_manifest(tauri_build::AppManifest::new().commands(&[
+                "commit_desktop_login",
+                "desktop_push",
+                "desktop_update",
+                "desktop_launch",
+                "desktop_window",
+                #[cfg(feature = "bench-loopback")]
+                "fit_bench_viewport",
+            ]))
+            .windows_attributes(
+                tauri_build::WindowsAttributes::new()
+                    .app_manifest(include_str!("windows-app-manifest.xml")),
+            ),
+    )
     .expect("cannot build desktop context")
 }
 
@@ -60,6 +67,7 @@ fn build_windows() {
         .std("c++20")
         .file("native/windows/push.cpp")
         .file("native/windows/launch.cpp")
+        .file("native/windows/caption.cpp")
         .include(output.join("projection"))
         .include(output.join("sdk/include"))
         .flag("/EHsc")
@@ -67,7 +75,7 @@ fn build_windows() {
     println!("cargo:rustc-link-lib=windowsapp");
     println!("cargo:rustc-link-lib=ole32");
     println!("cargo:rustc-link-lib=advapi32");
-    for library in ["gdiplus", "shlwapi", "comctl32", "gdi32", "dwmapi"] {
+    for library in ["gdiplus", "shlwapi", "comctl32", "gdi32"] {
         println!("cargo:rustc-link-lib={library}");
     }
     println!(

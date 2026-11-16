@@ -110,6 +110,7 @@ export {
   IconDeviceMobile as Smartphone,
   IconSnowflake as Snowflake,
   IconSquare as Square,
+  IconSquares as Squares,
   IconSquareX as SquareX,
   IconStar as Star,
   IconSun as Sun,
