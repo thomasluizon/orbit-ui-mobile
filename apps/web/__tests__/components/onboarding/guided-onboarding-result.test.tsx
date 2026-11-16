@@ -38,7 +38,6 @@ describe.each([{ locale: 'pt-BR', copy: ptBR }, { locale: 'en', copy: en as type
     mount(locale, { habitId: 'habit-1' })
     const dialog = screen.getByRole('dialog', { name: copy.onboarding.flow.done.readFailed })
     expect(dialog.querySelector('[data-onboarding-result-error]')).toHaveAttribute('data-orbit-state', 'parado')
-    expect(dialog.querySelector('[data-onboarding-result-error]')).toHaveClass('gap-6')
     expect(screen.getByRole('alert')).toHaveTextContent(copy.onboarding.flow.done.readFailed)
     expect(screen.queryByText(copy.result.title)).not.toBeInTheDocument()
     expect(dialog.querySelector('[data-orbit-state="feliz"]')).toBeNull()

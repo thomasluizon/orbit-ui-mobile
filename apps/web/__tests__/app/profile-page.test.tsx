@@ -405,9 +405,10 @@ describe('ProfilePage', () => {
         await page.locator('.orbit-list-row-shell').first().waitFor()
         await loadAppFonts(page)
         await page.evaluate((scale) => {
-          const owners = Array.from(document.querySelectorAll<HTMLElement>('.orbit-list-row-shell span')).filter((element) => element.textContent && Array.from(element.children).every((child) => child.matches('span[translate="no"]')))
+          const mark = 'span[translate="no"]:not([data-slot])'
+          const owners = Array.from(document.querySelectorAll<HTMLElement>('.orbit-list-row-shell span')).filter((element) => element.textContent && Array.from(element.children).every((child) => child.matches(mark)))
           for (const element of owners) {
-            if (element.matches('span[translate="no"]') && owners.includes(element.parentElement as HTMLElement)) continue
+            if (element.matches(mark)) continue
             element.style.fontSize = `${parseFloat(getComputedStyle(element).fontSize) * scale}px`
           }
         }, textScale)
