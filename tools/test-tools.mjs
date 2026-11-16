@@ -397,10 +397,23 @@ T(
   strandedComments.length === 0,
   `a comment ends directly above a doc comment at: ${strandedComments.join(", ")}\n     Merge the two comments, or move the upper one to the declaration that it describes.`,
 )
-// An import names its source exactly: a named import, or a destructured dynamic import, of a literal path.
-const NAMED_IMPORT = /(?:import\s*\{([^}]*)\}\s*from|\{([^}]*)\}\s*=\s*await\s+import\()\s*["'`]([^"'`?]+)/g
+// An import that names its bindings: a named import of a literal path, or a destructured dynamic import of a literal or a computed path.
+// A literal path resolves from the importer. A computed path counts when it names `lib/<module>.mjs` (not `_lib/`).
+const NAMED_IMPORT = /(?:import\s*\{([^}]*)\}\s*from|\{([^}]*)\}\s*=\s*await\s+import\()\s*(?:["'`]([^"'`?$]+)["'`?]|[^;\n]*?(?<!\w)lib\/([A-Za-z0-9_-]+)\.mjs)/g
 // A namespace import, or a dynamic import kept whole, whose argument names `lib/<module>.mjs` (not `_lib/`).
 const WHOLE_IMPORT = /(?:import\s*\*\s*as\s+\w+\s+from\s*|(?<!\}\s*=\s*await\s+)import\()[^;\n]*?(?<!\w)lib\/([A-Za-z0-9_-]+)\.mjs/g
+/** Adds to `imported` each name that `source`, the text of the file at `path`, imports from a module in `exported`. */
+const creditImports = (source, path, exported, imported) => {
+  for (const match of source.matchAll(NAMED_IMPORT)) {
+    const names = imported.get(match[3] ? resolve(dirname(path), match[3]) : join(LIB_DIR, `${match[4]}.mjs`))
+    for (const part of names ? (match[1] ?? match[2]).split(",") : []) names.add(part.trim().split(/\s+as\s+|\s*:\s*/)[0])
+  }
+  // A namespace reads its names as members, so each export name that the importing file holds counts.
+  for (const match of source.matchAll(WHOLE_IMPORT)) {
+    const module = join(LIB_DIR, `${match[1]}.mjs`)
+    for (const name of exported.get(module) ?? []) if (new RegExp(`\\b${name}\\b`).test(source)) imported.get(module).add(name)
+  }
+}
 /** The names that each tools/lib module exports, and the names that another source file imports from it. */
 const libraryImports = async () => {
   const repositoryRoot = join(TOOLS_DIR, "..")
@@ -411,18 +424,28 @@ const libraryImports = async () => {
   if (naming.status !== 0) throw new Error(`git grep for tools/lib importers failed: ${naming.stderr.trim()}`)
   // A tools/lib module imports a sibling as `./<module>.mjs`, which the search does not name, so each module is read too.
   for (const path of new Set([...naming.stdout.split("\n").filter(Boolean).map((file) => join(repositoryRoot, file)), ...modules])) {
-    const source = readFileSync(path, "utf8")
-    for (const match of source.matchAll(NAMED_IMPORT)) {
-      const names = imported.get(resolve(dirname(path), match[3]))
-      for (const part of names ? (match[1] ?? match[2]).split(",") : []) names.add(part.trim().split(/\s+as\s+|\s*:\s*/)[0])
-    }
-    // A namespace reads its names as members, so each export name that the importing file holds counts.
-    for (const match of source.matchAll(WHOLE_IMPORT)) {
-      const module = join(LIB_DIR, `${match[1]}.mjs`)
-      for (const name of exported.get(module) ?? []) if (new RegExp(`\\b${name}\\b`).test(source)) imported.get(module).add(name)
-    }
+    creditImports(readFileSync(path, "utf8"), path, exported, imported)
   }
   return modules.flatMap((path) => exported.get(path).filter((name) => !imported.get(path).has(name)).map((name) => `${relative(TOOLS_DIR, path)} ${name}`))
+}
+// A destructured dynamic import credits only the names that it destructures, whether its path is literal, computed or a template.
+// The fixture module does not exist, so this text gives no credit to a real tools/lib module in the check above.
+const importFixtureModule = join(LIB_DIR, "import-fixture.mjs")
+const importFixtures = [
+  ["a computed path", 'const { fixtureAlpha, fixtureBeta } = await import(pathToFileURL(toolPath("lib/import-fixture.mjs")).href)'],
+  ["a literal path", 'const { fixtureAlpha, fixtureBeta } = await import("../lib/import-fixture.mjs")'],
+  ["a template path", "const { fixtureAlpha, fixtureBeta: beta } = await import(`${root}/tools/lib/import-fixture.mjs`)"],
+]
+for (const [shape, line] of importFixtures) {
+  const fixtureImported = new Map([[importFixtureModule, new Set()]])
+  const source = `${line}\n// fixtureGamma is named here, but not imported.\n`
+  creditImports(source, join(TOOLS_DIR, "__tests__", "importer.mjs"), new Map([[importFixtureModule, ["fixtureAlpha", "fixtureBeta", "fixtureGamma"]]]), fixtureImported)
+  const credited = [...fixtureImported.get(importFixtureModule)].sort()
+  T(
+    `a destructured dynamic import of ${shape} credits each name that it destructures, and no other name`,
+    credited.join(",") === "fixtureAlpha,fixtureBeta",
+    `credited ${JSON.stringify(credited)} to lib/import-fixture.mjs from: ${line}`,
+  )
 }
 const unimportedExports = await libraryImports()
 T(
