@@ -45,7 +45,7 @@ for (const width of [412, 1352]) {
         const selected = sheet.getByRole('button', { name: /^Ler/ })
         const blocked = sheet.getByRole('button', { name: /^Planejar/ })
         await expect(plain).toHaveAttribute('aria-pressed', 'true')
-        // WHY: the calendar list and the import action arrive after the event rows, and each changes the sheet height. The centred sheet then moves the rows under a pointer that stays still after the click. https://github.com/thomasluizon/orbit-tickets/issues/2074
+        // WHY: the calendar list and the import action can arrive after the event rows, and each changes the sheet height, which can move the rows under a pointer that stays still after the click. https://github.com/thomasluizon/orbit-tickets/issues/2074
         await expect(sheet.getByRole('checkbox', { name: 'Família', exact: true })).toBeVisible()
         await expect(sheet.locator('[data-slot="sheet-actions"]')).toBeVisible()
         await plain.click()

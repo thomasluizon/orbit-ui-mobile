@@ -239,7 +239,7 @@ for (const width of [412, 1352]) for (const locale of ['en', 'pt-BR'] as const) 
           return body.right - box.right
         })
         expect(Math.abs(inset - 20)).toBeLessThanOrEqual(0.5)
-        // WHY: the event rows and the import action can arrive after the calendar list, and each changes the sheet height. The centred sheet then moves the calendar row away from a pointer that stays still. https://github.com/thomasluizon/orbit-tickets/issues/2074
+        // WHY: the event rows and the import action can arrive after the calendar list, and each changes the sheet height, which can move the calendar row away from a pointer that stays still. https://github.com/thomasluizon/orbit-tickets/issues/2074
         await expect(sheet.locator('[data-slot="sheet-actions"]')).toBeVisible()
         await expectInteractionFill(checkbox)
         await expectInteractionFill(label)
