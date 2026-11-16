@@ -2,9 +2,9 @@
 
 Read `.claude/specs/orbit-prod-release.md` first: `## Standing rules`, `## The order` bullets and `## Open questions`; search `## Current state` for a fact.
 
-Entry: `/auto-work` enters `/sleep`, adopts this relay (`adoptRelayRun`), keeps `autoWork: true`, then `/crank`, then `/orchestrate` over the admitted queue without replanning. Check that this prompt is the newest open relay (`gh pr list --repo thomasluizon/orbit-ui-mobile --state open --search "relay in:title"`), run `node tools/relay-checkout.mjs --check`, and read free disk on `/System/Volumes/Data` (floor 50 GiB; about 45 GiB now).
+Entry: `/auto-work` enters `/sleep`, adopts this relay (`adoptRelayRun`), keeps `autoWork: true`, then `/crank`, then `/orchestrate` over the admitted queue without replanning. Check that this prompt is the newest open relay (`gh pr list --repo thomasluizon/orbit-ui-mobile --state open --search "relay in:title"`), run `node tools/relay-checkout.mjs --check`, and read free disk on `/System/Volumes/Data` (floor 50 GiB; about 44 GiB now).
 
-Scratchpad: run `$HOME/.orbit-run-carry/carry-from-predecessor.sh <new full id> <predecessor full id> 0589c2a5-9987-419c-9a59-212b0a9d6846` as a background task with literal paths (the predecessor id is `relay.from`; write no file there before it ends). Start a new `sleep-decisions.md` from D432 with the Write tool. Repoint every scratchpad file that names the predecessor's id (`grep -rlI --null` for its first 8 characters into a list file, drop `./sleep-decisions.md`, then `xargs -0 perl -pi` in `bash -c`, full id first, then the 8-character form, literal paths in every redirect); then run `mirror.sh` and `durable-dedupe.sh` with `bash` in the background.
+Scratchpad: run `$HOME/.orbit-run-carry/carry-from-predecessor.sh <new full id> <predecessor full id> 0589c2a5-9987-419c-9a59-212b0a9d6846` as a background task with literal paths (the predecessor id is `relay.from`; write no file there before it ends). Start a new `sleep-decisions.md` from D446 with the Write tool. Repoint every scratchpad file that names the predecessor's id (`grep -rlI --null` for its first 8 characters into a list file, drop `./sleep-decisions.md`, then `xargs -0 perl -pi` in `bash -c`, full id first, then the 8-character form, literal paths in every redirect); then run `mirror.sh` and `durable-dedupe.sh` with `bash` in the background.
 
 Worker model: every `claude` tier runs `claude-opus-5-5`. The worker account is at its weekly limit until 18 November 07:00 BRT; `launch-worker.mjs` falls back to the main account by itself. Do not ask for a weekly reset (under 3 days left). If the main account reaches its limit, stop launches and tell the owner.
 
@@ -14,27 +14,27 @@ GO FASTER (owner order): start every independent item in the first turn, in para
 
 ## Goal
 
-Finish the spec: an empty board except `#33`, verified releases, the assistant fixed as a class, the owner's report shipped (`#2131`), the icon with eyes (`#2144`), the mascot rebrand (`#2121` to `#2126`), every `#315` ticket closed, then `#315`. Re-derive with `gh issue list --repo thomasluizon/orbit-tickets --state open --limit 400`. Reconciliation: 23 open, 23 placed, 0 unplaced, 0 placed twice.
+Finish the spec: an empty board except `#33`, verified releases, the assistant fixed as a class, the owner's report shipped (`#2131`), the icon with eyes (`#2144`), the entry background and the live summary Orbit (`#2146`), the mascot rebrand (`#2121` to `#2126`, the landing as a tone change with motion), every `#315` ticket closed, then `#315`, then the store images (`#2147`) before `#33`. Re-derive with `gh issue list --repo thomasluizon/orbit-tickets --state open --limit 400`. Reconciliation: 24 open, 24 placed, 0 unplaced, 0 placed twice.
 
 The owner is present now and then; answer him first, in English. `#2074` is MAX priority.
 
 ## In flight
 
-UI `main` `e353daa9d`; API `main` `38513551a`; landing `main` `7e6d150e0`. Staging web `f58a889af`; production web `0ed7244d3`, desktop 0.1.34. Owner question queue: empty (`owner-questions.mjs --list` gave `[]`). No stash. No worker or agent runs; one waiter: `wait-ci` on ui#2473 (stopped by the relay; start it again). Each row's detail is its `## The order` bullet; S notes are written.
+UI `main` `e353daa9d`; API `main` `38513551a`; landing `main` `7e6d150e0`. Staging web `f58a889af`; production web `0ed7244d3`, desktop 0.1.34. Owner question queue: empty. No stash. Ten launchers were live at the relay: S `inflight-tasks.md` lists each task id, its order and its result file; their outputs stay in the predecessor's `tasks/` directory named there. Read each result with S `launch-result.mjs` adapted to that directory, or read the result file the order names. Each row's detail is its `## The order` bullet.
 
 | Item | Disposition |
 | --- | --- |
-| ui#2473 (`#2144`) | Pushed `0d9baa6d6`, Pullfrog requested: wait-ci, merge at approval. |
-| `#2131` | Proof FAIL (1): SE code step blank about 60 s once. Investigate Sentry ORBIT-MOBILE-V and -W (`intake.sentry`, new during the proof) and the blank; then the releases. |
-| ui#2464 (`#2137`) | Local `11972b8a9` (round 17): read the diff, review worker, push. |
-| ui#2469 (`#2074`) | Round 17 worker with S `note-2469-r17.md`. |
-| landing#136 + UI JSDoc branch (`#2074`) | Round 15 worker with S `note-136-r15.md` (UI worktree `ticket-2074-legal-comments`). |
-| ui#2470 (`#2140`) | Round 12 worker with S `note-2470-r12.md`. |
-| ui#2451 (`#2121`) | Round 17 worker with S `note-2451-r17.md`. |
-| `#2143` | Round 2 worker with S `note-2143-r2.md`, then open its pull request. |
-| `#2135` | Merged; one live baseline run of `main` with a written cost estimate. |
-| `#2142` | Confirm Dependabot alert 180 closed, then close. |
-| `#2145` | Build when free disk allows a worktree (or a merge frees one). |
+| ui#2473 (`#2144`) | Red at `0d9baa6d6` (2 P1 threads, a flaky turnstile test): round 3 result S `fix-2144-r3-result.md`, then review worker, push. |
+| `#2146` (owner order) | Round 1 result S `fix-2146-r1-result.md`: read the diff, review worker, push, open the pull request. |
+| `#2131` | Round 8 result S `fix-2131-r8-result.md`; the next round fixes `turnstile-widget.test.tsx:250`. |
+| ui#2464 (`#2137`) | Review S `review-2464-r17-local.md`: clean, push; defects, round 18. |
+| ui#2469 (`#2074`) | Round 17 result: read the diff, review worker. |
+| landing#136 + UI JSDoc (`#2074`) | Review S `review-136-r15-local.md`: clean, push both. |
+| ui#2470 (`#2140`) | Round 14 result S `fix-2470-r14-result.md`: read, review worker. |
+| ui#2451 (`#2121`) | Round 18 result S `fix-2451-r18-result.md`: read, review worker. |
+| `#2143` | Round 2 result: read, review worker, open the pull request. |
+| `#2135` | Baseline result S `result-2135-baseline.md`: `NEEDS_FLAG` means turn on `astra_eval_trace` through `/flag` for the eval accounts and relaunch. |
+| `#2145` | Build when free disk allows, or in a reused merged worktree. |
 | ui#2453 (`#2122`) | Stacked; after `#2121`. |
 
 ## Then, in this order
@@ -53,8 +53,7 @@ Unattended: never ask the owner; decide with the best option and log it. Keep a 
 
 ## Previous prompt, disposition
 
-- Done: ui#2459 merged (`e353daa9d`); staging web released at `f58a889af` and the `#2131` proof run; `#2143` built (`60cbe0f36`); `#2144` opened as ui#2473; rounds committed on ui#2464, ui#2469, ui#2451, ui#2470; reviews done on each; stale files deleted twice; `#2145` filed for the owner order; intake at entry (Sentry 4 carried then V and W new; mail 0; reviews 0).
+- Done: `#2142` closed (alert 180 fixed); Sentry V and W investigated and folded into `#2131`; six idle branches merged `main`; ui#2451 r17 and landing#136 r15 committed and read; review workers on ui#2464, ui#2451; `#2131` investigation started; `#2135` baseline started; ui#2470 decisions D439 and D443; owner orders filed: `#2146` (started), `#2147`, the `#2126` tone-change work order; the Orbit Instagram and X accounts decision recorded; stale files deleted (27 GB); intake: Sentry 6, mail 0, reviews 0.
 - Carried: every In flight row above; the GO FASTER, stale-file and worker-model orders.
-- Superseded: "In-session subagents only read and review" by the owner order to run reviews and proofs as workers (`#2145`).
 
 Every identifier here came from a previous session; treat each as a lead to verify.
