@@ -115,7 +115,7 @@ test('a short confirmation fits its content and keeps its actions above the safe
 test('a short widget sheet has one bottom inset below its last line', async ({ page }) => {
   await page.goto('/profile')
   await page.getByRole('button', { name: messages.profile.widgetTitle }).click()
-  const panel = page.getByRole('dialog', { name: messages.profile.widgetTitle })
+  const panel = page.getByRole('dialog', { name: messages.profile.widgetQuestion })
   await expect(panel).toBeVisible()
   await panel.evaluate(() => document.fonts.ready.then(() => undefined))
   const measured = await panel.evaluate((element) => {

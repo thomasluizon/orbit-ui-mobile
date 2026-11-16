@@ -2824,17 +2824,17 @@
     },
     "wrappedTitle": "Your Wrapped",
     "widgetTitle": "Android widget",
-    "widgetQuestion": "How do I add the Orbit widget?",
+    "widgetQuestion": "How does the Orbit widget work?",
     "calendarSync": {
       "title": "Calendar sync"
     },
     "aboutRow": "About Orbit",
     "widgetHow": {
-      "title": "How to Add",
+      "title": "How to add",
       "step1": "Long-press on an empty area of your home screen",
       "step2": "Tap \"Widgets\" and search for Orbit",
       "step3": "Drag the widget to your home screen and resize as needed",
-      "featuresTitle": "What It Shows",
+      "featuresTitle": "What it shows",
       "feature1": "Today's habits with completion status",
       "feature2": "Due times for scheduled habits",
       "feature3": "Checklist progress for habits with checklists",
