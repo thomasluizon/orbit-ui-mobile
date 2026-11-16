@@ -1,4 +1,5 @@
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using System.Text.Json;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
@@ -25,31 +26,11 @@ var registry = new AiToolRegistry(builder.Services.Where(service => service.Serv
         ? construction.GetService(type) : service.ImplementationFactory!(construction))!));
 
 // Capture each real request context before any provider, account or persistence call.
-AiToolRequest? captured = null;
-var intent = Boundary<IAiIntentService>.Create((method, arguments) =>
-{
-    if (method.Name != "SendWithToolsAsync") throw new InvalidOperationException(method.Name);
-    captured = (AiToolRequest)arguments![0]!;
-    return Task.FromResult(Result.Success(new AiResponse()));
-});
-var prompts = Boundary<ISystemPromptBuilder>.Create((method, _) => method.Name is "BuildStatic" or "BuildDynamic" or "BuildAccountContext" or "BuildTurnContext"
-    ? "" : throw new InvalidOperationException(method.Name));
-var catalog = Boundary<IAgentCatalogService>.Create((method, _) => method.Name is "BuildStaticSupplement" or "BuildDynamicSupplement" or "BuildClientHints"
-    ? "" : throw new InvalidOperationException(method.Name));
-var pending = Boundary<IPendingAgentOperationStore>.Create((method, _) => method.Name switch
-{
-    "GetAwaiting" => Array.Empty<PendingAgentOperationExecution>(),
-    "GetAwaitingAsync" => Task.FromResult<IReadOnlyList<PendingAgentOperationExecution>>([]),
-    "GetLastConversationPreviewsAsync" => Task.FromResult<IReadOnlyList<PendingAgentOperationPreview>>([]),
-    _ => throw new InvalidOperationException(method.Name),
-});
-var payGate = Boundary<IPayGateService>.Create((method, _) => method.Name == "TryConsumeAiMessage"
-    ? Task.FromResult(Result.Success()) : throw new InvalidOperationException(method.Name));
-var previewer = Boundary<IPendingOperationChangePreviewer>.Create((method, _) => throw new InvalidOperationException(method.Name));
-var execution = new ChatExecutionDependencies(null!, null!, payGate, null!, null!, null!, null!, null!,
-    null!, null!, null!, null!, null!, pending, previewer);
-var handler = new ProcessUserChatCommandHandler(null!, new(intent, registry, prompts, catalog), execution,
-    NullLogger<ProcessUserChatCommandHandler>.Instance, null!, null!);
+var intent = new CapturingIntentService();
+var execution = new ChatExecutionDependencies(null!, null!, new AiMessagePayGate(), null!, null!, null!, null!, null!,
+    null!, null!, null!, null!, null!, new EmptyPendingOperationStore(), new RefusedChangePreviewer());
+var handler = new ProcessUserChatCommandHandler(null!, new(intent, registry, new EmptySystemPrompt(), new EmptyAgentCatalog()),
+    execution, NullLogger<ProcessUserChatCommandHandler>.Instance, null!, null!);
 var handlerType = typeof(ProcessUserChatCommandHandler);
 var factsType = handlerType.Assembly.GetType("Orbit.Application.Chat.HabitTodaySnapshot", true)!;
 var facts = Activator.CreateInstance(factsType, new object?[] { new HashSet<Guid>(), new HashSet<Guid>(), new HashSet<Guid>(), null });
@@ -65,7 +46,7 @@ var context = CatalogConstructor.Create(contextType, new Dictionary<string, obje
     ["ActiveGoals"] = Array.Empty<Goal>(),
     ["UserTags"] = Array.Empty<Tag>(),
     ["ChecklistTemplateNames"] = Array.Empty<string>(),
-    ["EnabledFeatureFlags"] = new[] { FeatureFlagKeys.AstraBlockFirst },
+    ["EnabledFeatureFlags"] = new[] { FeatureFlagKeys.AiBlockFirst },
     ["UserToday"] = DateOnly.MinValue,
     ["TodayFacts"] = facts,
     ["ContextLoadMilliseconds"] = 0L });
@@ -86,15 +67,15 @@ File.WriteAllText(args[0], JsonSerializer.Serialize(new {
 
 async Task<object[]> ExportTools(bool supportsParts, bool afterAccountRead = false, HabitSetupDraft? draft = null, bool offers = false)
 {
-    captured = null;
+    intent.Captured = null;
     var state = Activator.CreateInstance(handlerType.GetNestedType("ChatTurnState", BindingFlags.NonPublic)!, nonPublic: true);
     var request = new ProcessUserChatCommand(Guid.Empty, "", ClientContext: new AgentClientContext(
         SupportsParts: supportsParts, PartKinds: supportsParts ? partKinds : null,
         SupportsPendingOperationChanges: offers, SupportsProactiveOffers: offers,
         ConversationId: offers ? Guid.Parse("11111111-1111-4111-8111-111111111111") : null));
     await (Task<Result<AiResponse>>)method.Invoke(handler, [request, context, null, new AiTurnTelemetry(), state, CancellationToken.None])!;
-    if (captured is null) throw new InvalidOperationException("The API did not build a tool request.");
-    var declarations = captured.ToolDeclarations;
+    if (intent.Captured is null) throw new InvalidOperationException("The API did not build a tool request.");
+    var declarations = intent.Captured.ToolDeclarations;
     if (afterAccountRead || draft is not null)
     {
         // Use ProcessUserChatCommand.Ask.cs:185-197's continuation declaration builder for both prerequisites.
@@ -139,16 +120,113 @@ async Task<object[]> ExportTools(bool supportsParts, bool afterAccountRead = fal
 
 static object? Property(object instance, string name) => instance.GetType().GetProperty(name)!.GetValue(instance);
 
-public class Boundary<T> : DispatchProxy where T : class
+// Each boundary implements its whole API interface, so a new interface member stops the build (CS0535) until this file
+// answers it or refuses it. A refused member throws its own name if the export path reaches it.
+static class Boundary
 {
-    public Func<MethodInfo, object?[]?, object?> InvokeBoundary = null!;
-    public static T Create(Func<MethodInfo, object?[]?, object?> callback)
+    public static InvalidOperationException Refused([CallerMemberName] string member = "") =>
+        new($"The catalog export refuses {member}; answer it in evals/astra/catalog-export.cs if the export path needs it.");
+}
+
+public sealed class CapturingIntentService : IAiIntentService
+{
+    public AiToolRequest? Captured { get; set; }
+    public Task<Result<AiResponse>> SendWithToolsAsync(AiToolRequest request, Func<AiStreamEvent, Task>? streamSink,
+        CancellationToken cancellationToken)
     {
-        var proxy = Create<T, Boundary<T>>();
-        ((Boundary<T>)(object)proxy).InvokeBoundary = callback;
-        return proxy;
+        Captured = request;
+        return Task.FromResult(Result.Success(new AiResponse()));
     }
-    protected override object? Invoke(MethodInfo? method, object?[]? arguments) => InvokeBoundary(method!, arguments);
+    public Task<Result<AiResponse>> ContinueWithToolResultsAsync(AiConversationContext conversationContext,
+        IReadOnlyList<AiToolCallResult> results, Func<AiStreamEvent, Task>? streamSink, CancellationToken cancellationToken) =>
+        throw Boundary.Refused();
+}
+
+public sealed class EmptySystemPrompt : ISystemPromptBuilder
+{
+    public string BuildStatic(PromptBuildRequest request) => "";
+    public string BuildDynamic(PromptBuildRequest request) => "";
+    public string BuildAccountContext(PromptBuildRequest request) => "";
+    public string BuildTurnContext(PromptBuildRequest request) => "";
+}
+
+public sealed class EmptyAgentCatalog : IAgentCatalogService
+{
+    public string BuildStaticSupplement() => "";
+    public string BuildDynamicSupplement(AgentContextSnapshot snapshot) => "";
+    public string BuildClientHints(AgentClientContext? client) => "";
+    public IReadOnlyList<AgentCapability> GetCapabilities() => throw Boundary.Refused();
+    public IReadOnlyList<AgentOperation> GetOperations() => throw Boundary.Refused();
+    public IReadOnlyList<AppSurface> GetSurfaces() => throw Boundary.Refused();
+    public IReadOnlyList<UserDataCatalogEntry> GetUserDataCatalog() => throw Boundary.Refused();
+    public AgentCapability? GetCapability(string capabilityId) => throw Boundary.Refused();
+    public AgentOperation? GetOperation(string operationId) => throw Boundary.Refused();
+    public AgentCapability? GetCapabilityByChatTool(string toolName) => throw Boundary.Refused();
+    public AgentCapability? GetCapabilityByMcpTool(string toolName) => throw Boundary.Refused();
+    public bool HasEquivalentControllerAction(string actionKey) => throw Boundary.Refused();
+}
+
+public sealed class EmptyPendingOperationStore : IPendingAgentOperationStore
+{
+    public Task<IReadOnlyList<PendingAgentOperationPreview>> GetLastConversationPreviewsAsync(Guid userId,
+        Guid conversationId, CancellationToken cancellationToken) => Task.FromResult<IReadOnlyList<PendingAgentOperationPreview>>([]);
+    public IReadOnlyList<PendingAgentOperationExecution> GetAwaiting(Guid userId) => [];
+    public Task<IReadOnlyList<PendingAgentOperationExecution>> GetAwaitingAsync(Guid userId,
+        CancellationToken cancellationToken) => Task.FromResult<IReadOnlyList<PendingAgentOperationExecution>>([]);
+    public Task<IReadOnlyList<Guid>> GetOpenIdsAsync(Guid userId, CancellationToken cancellationToken) =>
+        Task.FromResult<IReadOnlyList<Guid>>([]);
+    public PendingAgentOperation Create(Guid userId, AgentCapability capability, string operationId, string argumentsJson,
+        string summary, string operationFingerprint, AgentExecutionSurface surface, PendingOperationConversation? conversation) =>
+        throw Boundary.Refused();
+    public PendingAgentOperationConfirmation? Confirm(Guid userId, Guid pendingOperationId) => throw Boundary.Refused();
+    public PendingAgentOperationExecution? GetExecution(Guid userId, Guid pendingOperationId) => throw Boundary.Refused();
+    public bool IsAwaitingConfirmation(Guid userId, Guid pendingOperationId) => throw Boundary.Refused();
+    public IReadOnlyList<PendingHabitCreation> GetPendingHabitCreations(Guid userId) => throw Boundary.Refused();
+    public IReadOnlyList<Guid>? FindHabitCreationReplacement(Guid userId, string title, Guid? parentHabitId) =>
+        throw Boundary.Refused();
+    public bool Revise(Guid userId, Guid pendingOperationId, string expectedFingerprint, string argumentsJson,
+        string operationFingerprint, string previewFingerprint, PendingOperationChangePreview? revisedPreview) =>
+        throw Boundary.Refused();
+    public PendingAgentOperationRevision? GetRevision(Guid userId, Guid pendingOperationId) => throw Boundary.Refused();
+    public bool Restore(Guid userId, Guid pendingOperationId, string expectedFingerprint,
+        PendingAgentOperationRevision revision) => throw Boundary.Refused();
+    public bool Cancel(Guid userId, Guid pendingOperationId, string expectedFingerprint) => throw Boundary.Refused();
+    public bool Withdraw(Guid userId, Guid pendingOperationId, string expectedFingerprint,
+        IReadOnlyCollection<Guid>? releasedMemberIds) => throw Boundary.Refused();
+    public PendingAgentOperationExecution? GetConfirmedExecution(Guid userId, string capabilityId,
+        string operationFingerprint, string confirmationToken) => throw Boundary.Refused();
+    public bool TryConsumeFreshConfirmation(Guid userId, string capabilityId, string operationFingerprint,
+        string confirmationToken, bool requireStepUp) => throw Boundary.Refused();
+    public bool RecordExecution(Guid userId, Guid pendingOperationId, AgentOperationResult operation) =>
+        throw Boundary.Refused();
+}
+
+public sealed class AiMessagePayGate : IPayGateService
+{
+    public Task<Result> TryConsumeAiMessage(Guid userId, IUnitOfWork unitOfWork, CancellationToken ct) =>
+        Task.FromResult(Result.Success());
+    public Task<Result> CanCreateHabits(Guid userId, int count, CancellationToken ct) => throw Boundary.Refused();
+    public Task<Result> RefundAiMessage(Guid userId, DateOnly reservedDate, IUnitOfWork unitOfWork, CancellationToken ct) =>
+        throw Boundary.Refused();
+    public Task<Result> CanUseDailySummary(Guid userId, CancellationToken ct) => throw Boundary.Refused();
+    public Task<Result> CanUseSmartReschedule(Guid userId, CancellationToken ct) => throw Boundary.Refused();
+    public Task<Result> CanUseRetrospective(Guid userId, CancellationToken ct) => throw Boundary.Refused();
+    public Task<Result> CanAccessCalendar(Guid userId, CancellationToken ct) => throw Boundary.Refused();
+    public Task<Result> CanAccessNotion(Guid userId, CancellationToken ct) => throw Boundary.Refused();
+    public Task<Result> CanManageCalendar(Guid userId, CancellationToken ct) => throw Boundary.Refused();
+    public Task<int> GetAiMessageLimit(Guid userId, CancellationToken ct) => throw Boundary.Refused();
+    public Task<Result> CanCreateApiKeys(Guid userId, CancellationToken ct) => throw Boundary.Refused();
+    public Task<Result> CanReadApiKeys(Guid userId, CancellationToken ct) => throw Boundary.Refused();
+    public Task<Result> CanManageApiKeys(Guid userId, CancellationToken ct) => throw Boundary.Refused();
+    public Task<Result> CanManageAiSummary(Guid userId, CancellationToken ct) => throw Boundary.Refused();
+    public Task<Result> CanManageProactiveAi(Guid userId, CancellationToken ct) => throw Boundary.Refused();
+    public Task<Result> CanUseSlipAlerts(Guid userId, CancellationToken ct) => throw Boundary.Refused();
+}
+
+public sealed class RefusedChangePreviewer : IPendingOperationChangePreviewer
+{
+    public Task<Result<PendingOperationChangePreview?>> PreviewAsync(Guid userId, string operationId, JsonElement arguments,
+        CancellationToken cancellationToken, AgentClientContext? clientContext) => throw Boundary.Refused();
 }
 
 public sealed class ToolConstruction : IServiceProvider
