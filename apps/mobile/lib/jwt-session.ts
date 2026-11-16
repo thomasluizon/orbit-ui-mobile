@@ -7,6 +7,7 @@ export interface JwtSessionPayload {
   'http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier'?: string
 }
 
+// WHY: a JWT segment is unpadded base64url, and atob rejects its legal `-` and `_` characters: https://www.rfc-editor.org/rfc/rfc7515#section-2
 function decodeBase64Url(segment: string): string {
   const normalized = segment.replaceAll('-', '+').replaceAll('_', '/')
   const padded = normalized.padEnd(

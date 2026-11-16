@@ -9,6 +9,7 @@ import vector from '../__fixtures__/signer-vector.json'
 import published from '../__fixtures__/channel-staging.json'
 import { artifactName, targets } from '../scripts/release.ts'
 
+// WHY: publication runs several real Git and Node processes, so each case gets startup headroom on shared hosts: https://github.com/thomasluizon/orbit-tickets/issues/1964
 vi.setConfig({ testTimeout: 30_000 })
 
 const require = createRequire(import.meta.url)

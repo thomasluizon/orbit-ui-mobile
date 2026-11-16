@@ -321,6 +321,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
   },
 
+  // WHY: the cross-tab signal reports an account change at once, and the poll stays as the fallback for a browser or context that the signal does not reach: https://github.com/thomasluizon/orbit-tickets/issues/597
   startExpiryMonitor: () => {
     void get().checkSession()
     let remainingRecoveryChecks = SESSION_RECOVERY_CHECK_LIMIT

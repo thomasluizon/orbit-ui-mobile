@@ -11,6 +11,7 @@ const available = process.platform === 'win32' || spawnSync(shell, ['-NoProfile'
 const downloadTest = it.skipIf(!available)
 if (!available) process.stderr.write(`PowerShell download tests skipped: ${shell} is unavailable\n`)
 
+// WHY: one cold PowerShell start took up to 22.4 s on a slow Windows runner, so every case starts at once and 120 s is about five times that start: https://github.com/thomasluizon/orbit-ui-mobile/pull/2405
 const caseTimeoutMilliseconds = 120_000
 
 interface Scenario { mode: string; cached?: string; architecture?: string; artifact?: string; complete?: boolean; signature?: string; url?: string }

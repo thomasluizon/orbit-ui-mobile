@@ -8,6 +8,7 @@ import { channelAdvance, channelVersion, desktopLockClosure, planShellRelease, s
 import compatibility from '../../web/web-compatibility.json'
 import channel from '../__fixtures__/channel-staging.json'
 
+// WHY: Git-driven cases can exceed five seconds on Windows runners, so each case gets headroom for process startup: https://github.com/thomasluizon/orbit-tickets/issues/1818
 const gitTestTimeout = 30_000
 const directories: string[] = []
 const originalDirectory = process.cwd()

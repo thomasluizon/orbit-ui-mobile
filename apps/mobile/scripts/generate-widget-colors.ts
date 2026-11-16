@@ -148,6 +148,7 @@ export async function generateWidgetColors() {
   }
 }
 
+// WHY: tsx transforms this file to CommonJS, where esbuild refuses a top-level await, so the promise gets a catch that sets a nonzero exit code: https://github.com/evanw/esbuild/issues/253
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   generateWidgetColors().catch((error: unknown) => {
     process.exitCode = 1

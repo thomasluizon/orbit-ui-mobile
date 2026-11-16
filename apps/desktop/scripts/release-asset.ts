@@ -1,5 +1,6 @@
 import { setTimeout as defaultSleep } from 'node:timers/promises'
 
+// WHY: github.com/<repository>/releases/download answers 504 for hours in a GitHub outage, and the REST asset endpoint keeps serving the same bytes: https://github.com/thomasluizon/orbit-ui-mobile/pull/2391
 const apiRoot = 'https://api.github.com'
 const attempts = 4
 const requestTimeoutMilliseconds = 30_000
@@ -27,6 +28,7 @@ async function requestWithRetries(url: string, accept: string, sleep: Sleep): Pr
   for (let attempt = 1; attempt <= attempts; attempt++) {
     try {
       const response = await fetch(url, { headers, signal: AbortSignal.timeout(requestTimeoutMilliseconds) })
+      // WHY: a timeout or a dropped connection also cuts the body short, so the body read stays inside the retry: https://github.com/thomasluizon/orbit-ui-mobile/pull/2391
       if (!retryable(response.status)) return { status: response.status, ok: response.ok, body: Buffer.from(await response.arrayBuffer()) }
       failure = `status ${response.status}`
     } catch (error) {
