@@ -23,8 +23,8 @@ const FULL_TURN_RE = /^-?(?:360deg|400grad|1turn|6\.28\d*rad)$/
 const ROTATE_FULL_TURN_RE = /(?<![\w-])rotate[XYZ]?\(\s*-?(?:360deg|400grad|1turn|6\.28\d*rad)\s*\)/
 /** The radian unit after an angle, as `rad` in `${angle}rad` or `rad)` in `rotate(${angle}rad)`. A ring length never carries it. */
 const RADIAN_UNIT_RE = /^rad\b/
-/** The operators that keep an angle a whole number of turns plus an offset, as `${turn.value * 2 * Math.PI + offset}rad`. */
-const ANGLE_OPERATORS = new Set(['*', '%', '+', '-'])
+/** The operators that keep an angle a whole number of turns plus an offset, as `${turn.value * 2 * Math.PI + offset}rad`. A `*` product is read by its factors. */
+const ANGLE_OPERATORS = new Set(['%', '+', '-'])
 /** A rotation key whose numeric value counts in degrees. */
 const ROTATION_KEYS = new Set(['rotate', 'rotateZ', 'rotation', 'toValue'])
 const TIMING_CALLS = new Set(['withTiming', 'withSpring'])
@@ -342,7 +342,7 @@ module.exports = {
       },
       Literal(node) {
         reportString(node, node.value)
-        if (typeof node.value === 'number' && Math.abs(node.value) === 360 && isNumericFullTurn(node)) drawsFullTurn = true
+        if (node.value === 360 && isNumericFullTurn(node)) drawsFullTurn = true
       },
       TemplateElement(node) {
         reportString(node, node.value.cooked)
