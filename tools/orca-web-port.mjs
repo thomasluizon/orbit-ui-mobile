@@ -5,6 +5,8 @@ import { basename, dirname, join, resolve } from "node:path"
 import { createRequire } from "node:module"
 import { fileURLToPath } from "node:url"
 
+import { parseWorktreeList } from "./lib/git-worktrees.mjs"
+
 const DEFAULT_PORT = 3000
 /** The API base the web app falls back to when nothing sets API_BASE (apps/web/lib/server-fetch.ts). */
 const DEFAULT_API_BASE = "http://localhost:5000"
@@ -90,10 +92,7 @@ const readAssignedPort = (root) => {
 const linkedWorktrees = (root) => {
   const output = git(["worktree", "list", "--porcelain"], root)
   if (!output) fail("could not list linked worktrees", 3)
-  return output
-    .split(/\r?\n/)
-    .filter((line) => line.startsWith("worktree "))
-    .map((line) => resolve(line.slice("worktree ".length)))
+  return parseWorktreeList(output).map((worktree) => resolve(worktree.path))
 }
 
 const setup = (repository) => {
