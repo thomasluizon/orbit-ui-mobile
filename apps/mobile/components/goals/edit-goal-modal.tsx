@@ -9,6 +9,8 @@ import { PillButton } from '@/components/ui/pill-button'
 import { ActionRow } from '@/components/ui/action-row'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { useDismissGuard } from '@/hooks/use-dismiss-guard'
+import { useSubmitHold } from '@/hooks/use-submit-hold'
+import type { SubmitOutcome } from '@orbit/shared/hooks'
 import { useUpdateGoal } from '@/hooks/use-goals'
 import {
   getFriendlyErrorMessage,
@@ -74,7 +76,7 @@ export function EditGoalModal({ open, onClose, goal }: Readonly<EditGoalModalPro
   const targetRef = useRef<TextInput>(null)
   const unitRef = useRef<TextInput>(null)
 
-  const isSubmitting = updateGoal.isPending
+  const { waiting: isSubmitting, run: runSubmission, release: releaseSubmission } = useSubmitHold()
   const isDirty =
     description !== goal.title ||
     targetValue !== String(goal.targetValue) ||
@@ -122,7 +124,7 @@ export function EditGoalModal({ open, onClose, goal }: Readonly<EditGoalModalPro
     }
   }
 
-  const onSubmit = useCallback(async () => {
+  const submitSave = useCallback(async (startRequest: () => void): Promise<SubmitOutcome> => {
     setSubmitted(true)
     const errorKeys = getGoalDraftFieldErrorKeys(description, targetValue, unit)
     const firstError = getFirstGoalDraftFieldError(errorKeys)
@@ -130,12 +132,13 @@ export function EditGoalModal({ open, onClose, goal }: Readonly<EditGoalModalPro
     if (err) {
       showError(err)
       if (firstError) setFocusRequest({ field: firstError.field })
-      return
+      return 'stay'
     }
 
     const numVal = parseGoalTargetValue(targetValue)
-    if (numVal === null) return
+    if (numVal === null) return 'stay'
 
+    startRequest()
     try {
       const title = buildGoalTitle(description, targetValue, unit)
       const request: UpdateGoalRequest = {
@@ -146,14 +149,14 @@ export function EditGoalModal({ open, onClose, goal }: Readonly<EditGoalModalPro
       }
 
       await updateGoal.mutateAsync({ goalId: goal.id, data: request })
-      closeSheet(onClose)
+      const leave = () => { releaseSubmission(); onClose() }
+      closeSheet(leave, leave)
+      return 'leave'
     } catch (error: unknown) {
       const { field, handled } = backendErrors.reportBackendErrors(error)
       if (field) setFocusRequest({ field })
-      if (handled) return
-      showError(
-        getFriendlyErrorMessage(error, translate, 'goals.errors.update', 'goal'),
-      )
+      if (!handled) showError(getFriendlyErrorMessage(error, translate, 'goals.errors.update', 'goal'))
+      return 'stay'
     }
   }, [
     backendErrors,
@@ -162,12 +165,15 @@ export function EditGoalModal({ open, onClose, goal }: Readonly<EditGoalModalPro
     description,
     goal.id,
     onClose,
+    releaseSubmission,
     showError,
     targetValue,
     translate,
     unit,
     updateGoal,
   ])
+
+  const onSubmit = () => runSubmission(submitSave)
 
   const eyebrowUnitSuffix = goal.unit ? `  ·  ${goal.unit}` : ''
   const eyebrowLabel = isStreak

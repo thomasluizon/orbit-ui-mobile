@@ -197,7 +197,6 @@ describe('habit form focus treatments', () => {
         inputAriaLabel="Tag name"
         actionLabel="Save"
         cancelAriaLabel="Cancel"
-        disabled={false}
         onChange={vi.fn()}
         onCommit={vi.fn()}
         onCancel={vi.fn()}
