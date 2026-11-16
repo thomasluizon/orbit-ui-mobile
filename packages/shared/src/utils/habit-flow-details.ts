@@ -166,34 +166,53 @@ export function habitFlowFieldStep(field: string | null | undefined): HabitFlowS
   return FIELD_STEPS[field] ?? 'summary'
 }
 
-/** What the person set on a step, and whether the item is undated. The free read of the phrase fills only the rest. */
+/** The values the person typed in the phrase: the repeat with its days and the time that the device read, and an emoji in the words. */
+export interface HabitPhraseValues {
+  repeat: boolean
+  time: boolean
+  emoji: boolean
+}
+
+const PICTOGRAPH = /\p{Extended_Pictographic}/u
+
+/** What the person typed in the phrase, from the device read of that phrase. A free read of the same phrase never replaces it. */
+export function readHabitPhraseValues(phrase: string, read: Pick<HabitPhraseRead, 'cadence' | 'dueTime'>): HabitPhraseValues {
+  return { repeat: read.cadence !== null, time: read.dueTime !== null, emoji: PICTOGRAPH.test(phrase) }
+}
+
+/** What the person gave, on a step or in the words of the phrase, and whether the item is undated. The free read of the phrase fills only the rest. */
 export interface HabitReadHolds {
   /** The type the person chose on the type step. A task keeps no repeat. */
   deliberateType: 'task' | 'habit' | null
-  /** The person set the When: a quick option, the free words, the calendar or the repeat step. */
+  /** The person set the When on a step: a quick option, the free words, the calendar or the repeat step. */
   whenSet: boolean
-  /** The person set the time, or a duration that starts at that time. */
+  /** The person set the time on a step, or a duration that starts at that time. */
   timeSet: boolean
-  /** The person chose the emoji. */
+  /** The person chose the emoji on a step. */
   emojiSet: boolean
+  /** The values the person typed in the phrase that the free read reads. */
+  typed: HabitPhraseValues
   /** A General item, or a child of a General parent. It saves no date, no repeat and no time. */
   undated: boolean
 }
 
 /**
- * The free read proposes; a deliberate choice of the person wins. The patch keeps only the values the
- * person did not set on a step, so a later read never replaces an answer. An undated item takes no repeat
- * and no time, because the save sends neither.
+ * The one precedence rule of the free read: a value the person gave, on a step or in the words of the phrase,
+ * always wins. The patch keeps only the values with no source from the person, so a read never replaces an
+ * answer or a typed value. An undated item takes no repeat and no time, because the save sends neither.
  */
 export function guardHabitReadPatch(patch: HabitFormSuggestionPatch, holds: HabitReadHolds): HabitFormSuggestionPatch {
-  const keepsSchedule = holds.deliberateType === 'task' || holds.whenSet || holds.undated
+  const givesWhen = holds.deliberateType === 'task' || holds.whenSet || holds.typed.repeat
+  const givesTime = holds.timeSet || holds.typed.time
+  const givesEmoji = holds.emojiSet || holds.typed.emoji
+  const keepsSchedule = givesWhen || holds.undated
   return {
     ...patch,
     mode: keepsSchedule ? 'oneTime' : patch.mode,
     frequencyUnit: keepsSchedule ? null : patch.frequencyUnit,
     frequencyQuantity: keepsSchedule ? null : patch.frequencyQuantity,
     days: keepsSchedule ? [] : patch.days,
-    dueTime: holds.timeSet || holds.undated ? null : patch.dueTime,
-    emoji: holds.emojiSet ? null : patch.emoji,
+    dueTime: givesTime || holds.undated ? null : patch.dueTime,
+    emoji: givesEmoji ? null : patch.emoji,
   }
 }

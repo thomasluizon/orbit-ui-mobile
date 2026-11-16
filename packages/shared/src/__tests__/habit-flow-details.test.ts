@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { describeEditDetailsError, guardHabitReadPatch, habitFlowFieldStep, habitFlowNamesAnswer, habitFlowOptionalQuestions, habitFlowSelectionAnswer, readHabitWhenWords, resolveGuidedEditDetails, summaryValueStep } from '../utils/habit-flow-details'
+import { readHabitPhrase } from '../utils/habit-phrase-parser'
+import { describeEditDetailsError, guardHabitReadPatch, habitFlowFieldStep, habitFlowNamesAnswer, habitFlowOptionalQuestions, habitFlowSelectionAnswer, readHabitPhraseValues, readHabitWhenWords, resolveGuidedEditDetails, summaryValueStep } from '../utils/habit-flow-details'
 
 const base = { mode: 'create' as const, isGeneral: false, canSplit: true, hasParent: false, canEnd: true }
 const context = { referenceDate: '2026-11-13', locale: 'pt-BR', timeZone: 'UTC', language: 'pt-BR' as const, allowPast: false }
@@ -127,7 +128,8 @@ describe('habitFlowFieldStep', () => {
 
 describe('guardHabitReadPatch', () => {
   const patch = { mode: 'recurring' as const, emoji: '💊', frequencyUnit: 'Day' as const, frequencyQuantity: 1, days: ['Monday'], dueTime: '08:00', subHabitTitles: [], checklistItems: [] }
-  const nothingSet = { deliberateType: null, whenSet: false, timeSet: false, emojiSet: false, undated: false }
+  const nothingTyped = { repeat: false, time: false, emoji: false }
+  const nothingSet = { deliberateType: null, whenSet: false, timeSet: false, emojiSet: false, typed: nothingTyped, undated: false }
   const noSchedule = { mode: 'oneTime', frequencyUnit: null, frequencyQuantity: null, days: [] }
 
   it('keeps every proposal when the person set nothing yet', () => {
@@ -140,8 +142,19 @@ describe('guardHabitReadPatch', () => {
     ['a time the person set', { timeSet: true }, { dueTime: null }],
     ['an emoji the person chose', { emojiSet: true }, { emoji: null }],
     ['an undated item, with no repeat and no time', { undated: true }, { ...noSchedule, dueTime: null }],
+    ['a repeat or a day the person typed in the phrase', { typed: { ...nothingTyped, repeat: true } }, noSchedule],
+    ['a time the person typed in the phrase', { typed: { ...nothingTyped, time: true } }, { dueTime: null }],
+    ['an emoji the person typed in the phrase', { typed: { ...nothingTyped, emoji: true } }, { emoji: null }],
   ])('drops only the proposals that %s holds', (_name, held, dropped) => {
     expect(guardHabitReadPatch(patch, { ...nothingSet, ...held })).toEqual({ ...patch, ...dropped })
+  })
+})
+
+describe('readHabitPhraseValues', () => {
+  it('names the repeat, the time and the emoji that the person typed in the phrase', () => {
+    expect(readHabitPhraseValues('water the plants', readHabitPhrase('water the plants', 'en'))).toEqual({ repeat: false, time: false, emoji: false })
+    expect(readHabitPhraseValues('water the plants every monday at 9am', readHabitPhrase('water the plants every monday at 9am', 'en'))).toEqual({ repeat: true, time: true, emoji: false })
+    expect(readHabitPhraseValues('💧 regar as plantas 3 vezes por semana', readHabitPhrase('💧 regar as plantas 3 vezes por semana', 'pt-BR'))).toEqual({ repeat: true, time: false, emoji: true })
   })
 })
 

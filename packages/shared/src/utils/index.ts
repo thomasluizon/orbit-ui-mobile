@@ -405,7 +405,7 @@ export {
   getOnboardingDisplayTotal,
   buildOnboardingHabitInput,
   buildOnboardingScheduleFromPhrase,
-  buildOnboardingScheduleFromSuggestion,
+  buildOnboardingProposal,
   changeOnboardingScheduleMode,
   toggleOnboardingScheduleDay,
   getOnboardingCompleteCopy,
@@ -426,7 +426,7 @@ export {
   ONBOARDING_REMINDER_MINUTES,
   shouldRequestOnboardingSuggestion,
 } from './onboarding'
-export type { OnboardingCompleteCopy, OnboardingCompleteState, OnboardingRemindCopy, OnboardingRemindState, OnboardingSchedule, OnboardingScheduleMode } from './onboarding'
+export type { OnboardingCompleteCopy, OnboardingCompleteState, OnboardingProposal, OnboardingRemindCopy, OnboardingRemindState, OnboardingSchedule, OnboardingScheduleMode } from './onboarding'
 export {
   describeOnboardingCadence,
   describeOnboardingResult,

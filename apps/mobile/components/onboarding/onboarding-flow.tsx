@@ -9,7 +9,7 @@ import { API } from '@orbit/shared/api'
 import {
   buildOnboardingHabitInput,
   buildOnboardingScheduleFromPhrase,
-  buildOnboardingScheduleFromSuggestion,
+  buildOnboardingProposal,
   changeOnboardingScheduleMode,
   clampOnboardingRepeatWeeks,
   getClientTimeZone,
@@ -233,7 +233,8 @@ export function OnboardingFlow({ finalStepOnly = false, guided = false }: Readon
     try {
       const result = await suggestion.mutateAsync({ title: phrase, language: locale })
       if (suggestionRevision.current !== revision) return
-      setEmoji(result.emoji ?? ''); setEmojiProposed(Boolean(result.emoji)); setSchedule(clampOnboardingRepeatWeeks(buildOnboardingScheduleFromSuggestion(result), isLive)); setProposed(true)
+      const proposal = buildOnboardingProposal(result, phrase, locale)
+      setEmoji(proposal.emoji); setEmojiProposed(Boolean(proposal.emoji)); setSchedule(clampOnboardingRepeatWeeks(proposal.schedule, isLive)); setProposed(true)
     } catch {
       if (suggestionRevision.current !== revision) return
       setCorrecting(true)

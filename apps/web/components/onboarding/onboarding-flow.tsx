@@ -12,7 +12,7 @@ import type { FrequencyUnit } from '@orbit/shared/types/habit'
 import {
   buildOnboardingHabitInput,
   buildOnboardingScheduleFromPhrase,
-  buildOnboardingScheduleFromSuggestion,
+  buildOnboardingProposal,
   changeOnboardingScheduleMode,
   clampOnboardingRepeatWeeks,
   getClientTimeZone,
@@ -278,10 +278,10 @@ export function OnboardingFlow({ finalStepOnly = false, onExit, guided = false }
     try {
       const result = await suggestion.mutateAsync({ title: phrase, language: locale })
       if (suggestionRevision.current !== revision) return
-      const nextSchedule = clampOnboardingRepeatWeeks(buildOnboardingScheduleFromSuggestion(result), isLive)
-      setEmoji(result.emoji ?? '')
-      setEmojiProposed(Boolean(result.emoji))
-      setSchedule(nextSchedule)
+      const proposal = buildOnboardingProposal(result, phrase, locale)
+      setEmoji(proposal.emoji)
+      setEmojiProposed(Boolean(proposal.emoji))
+      setSchedule(clampOnboardingRepeatWeeks(proposal.schedule, isLive))
       setProposed(true)
     } catch {
       if (suggestionRevision.current !== revision) return

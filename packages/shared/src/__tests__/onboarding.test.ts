@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'vitest'
+import type { HabitSetupSuggestion } from '../types/habit'
 import type { OnboardingSchedule } from '../utils/onboarding'
 import {
   changeOnboardingScheduleMode,
   buildOnboardingHabitInput,
   buildOnboardingScheduleFromPhrase,
-  buildOnboardingScheduleFromSuggestion,
+  buildOnboardingProposal,
   canRepeatOnboardingScheduleWeeks,
   clampOnboardingRepeatWeeks,
   getOnboardingCompleteCopy,
@@ -238,8 +239,8 @@ describe('onboarding helpers', () => {
     expect(violations).toEqual([])
   })
 
-  it('gives a flexible Astra suggestion the period both screens show', () => {
-    const schedule = buildOnboardingScheduleFromSuggestion({
+  it('gives a flexible Orbit suggestion the period both screens show', () => {
+    const { schedule } = buildOnboardingProposal({
       emoji: '🚶',
       frequencyUnit: null,
       frequencyQuantity: null,
@@ -249,7 +250,7 @@ describe('onboarding helpers', () => {
       dueTime: null,
       subHabits: [],
       checklistItems: [],
-    })
+    }, 'Walk outside', 'en')
 
     expect(schedule).toMatchObject({ frequencyUnit: 'Week', frequencyQuantity: 3, isFlexible: true })
     expect(buildOnboardingHabitInput({
@@ -267,8 +268,8 @@ describe('onboarding helpers', () => {
     expect(getOnboardingReminderPreviewTime('')).toBeNull()
   })
 
-  it('uses an Astra suggestion as the schedule shown for confirmation', () => {
-    expect(buildOnboardingScheduleFromSuggestion({
+  it('uses an Orbit suggestion as the schedule shown for confirmation when the sentence gives no schedule', () => {
+    expect(buildOnboardingProposal({
       emoji: '🚶',
       frequencyUnit: 'Week',
       frequencyQuantity: 3,
@@ -278,15 +279,29 @@ describe('onboarding helpers', () => {
       dueTime: '18:00',
       subHabits: [],
       checklistItems: [],
-    })).toEqual({
-      frequencyUnit: 'Week',
-      frequencyQuantity: 3,
-      intervalWeeks: 1,
-      days: [],
-      isGeneral: false,
-      isFlexible: true,
-      dueTime: '18:00',
+    }, 'Walk outside', 'en')).toEqual({
+      schedule: {
+        frequencyUnit: 'Week',
+        frequencyQuantity: 3,
+        intervalWeeks: 1,
+        days: [],
+        isGeneral: false,
+        isFlexible: true,
+        dueTime: '18:00',
+      },
+      emoji: '🚶',
     })
+  })
+
+  const everyDayAtSeven: HabitSetupSuggestion = { emoji: '🌿', frequencyUnit: 'Day', frequencyQuantity: 1, days: [], isFlexible: false, flexibleTarget: null, dueTime: '07:00', subHabits: [], checklistItems: [] }
+  it.each([
+    ['a time', 'Water the plants at 9am', { frequencyUnit: 'Day', days: [], isFlexible: false, dueTime: '09:00' }, '🌿'],
+    ['a repeat', 'Water the plants 3 times a week', { frequencyUnit: 'Week', frequencyQuantity: 3, isFlexible: true, dueTime: '07:00' }, '🌿'],
+    ['a day', 'Water the plants every monday', { frequencyUnit: 'Day', days: ['Monday'], isFlexible: false, dueTime: '07:00' }, '🌿'],
+    ['an emoji', '💧 Water the plants', { frequencyUnit: 'Day', days: [], isFlexible: false, dueTime: '07:00' }, ''],
+  ] as const)('keeps %s the person typed in the sentence over the Orbit suggestion, which fills only the rest', (_field, sentence, schedule, emoji) => {
+    const proposal = buildOnboardingProposal(everyDayAtSeven, sentence, 'en')
+    expect(proposal).toMatchObject({ schedule: { ...schedule, isGeneral: false }, emoji })
   })
 })
 

@@ -314,21 +314,6 @@ describe('a guided create on Android from a phrase with a repeat', () => {
     tree.unmount()
   })
 
-  it('marks a repeat the person typed as a proposal when the free read replaces it', async () => {
-    state.phraseRead.mockResolvedValue({ read: true, frequencyUnit: 'Day', frequencyQuantity: 1, days: [], isFlexible: false, flexibleTarget: null, subHabits: [], checklistItems: [], emoji: '🪴', dueTime: null })
-    const tree = mountCreate()
-    await settle()
-    await phrase(tree, 'regar as plantas toda segunda')
-    await settle()
-    expect(state.phraseRead).toHaveBeenCalledTimes(1)
-    if (control(tree, ptBR.habits.flow.time.none)) await tap(tree, ptBR.habits.flow.time.none)
-    if (control(tree, ptBR.habits.flow.reminder.no)) await tap(tree, ptBR.habits.flow.reminder.no)
-    expect(heading(tree)).toBe(ptBR.habits.flow.confirm.question)
-    expect(control(tree, `${ptBR.habits.flow.summary.when}, todo dia`)).toBeDefined()
-    expect(rowMarked(tree, new RegExp(`^${ptBR.habits.flow.summary.when}, `))).toBe(true)
-    tree.unmount()
-  })
-
   it('keeps a child of a General parent undated when the free read proposes a repeat and a time, and marks only the emoji', async () => {
     state.phraseRead.mockResolvedValue({ read: true, emoji: '🪴', frequencyUnit: 'Day', frequencyQuantity: 1, days: [], isFlexible: false, flexibleTarget: null, dueTime: '07:00', subHabits: [], checklistItems: [] })
     const parent = createMockHabit({ id: 'parent-1', title: 'Casa', isGeneral: true, frequencyUnit: null, frequencyQuantity: null, dueTime: null })
@@ -455,6 +440,44 @@ describe('a guided create on Android from a phrase with a repeat', () => {
     expect(state.create).toHaveBeenCalledTimes(1)
     const sent = state.create.mock.calls[0]![0] as Record<string, unknown>
     expect(sent).toMatchObject({ title: 'regar as plantas do jardim', ...after.sent })
+    for (const field of after.absent) expect(sent).not.toHaveProperty(field)
+    tree.unmount()
+  })
+
+  const ONE_TIME_READ: HabitPhraseReadResponse = { ...MISSED_READ, read: true, emoji: '🌿', dueTime: '07:00' }
+  const EVERY_DAY_READ: HabitPhraseReadResponse = { ...ONE_TIME_READ, frequencyUnit: 'Day', frequencyQuantity: 1 }
+  const TYPED_IN_THE_PHRASE: [string, string, HabitPhraseReadResponse, SummaryAfter][] = [
+    ['a time', 'regar as plantas às 9h', EVERY_DAY_READ,
+      { when: 'todo dia', whenProposed: true, time: '09:00', timeProposed: false, sent: { title: 'regar as plantas', frequencyUnit: 'Day', frequencyQuantity: 1, dueTime: '09:00', emoji: '🌿' }, absent: ['days'] }],
+    ['a repeat', 'regar as plantas 3 vezes por semana', EVERY_DAY_READ,
+      { when: '3 vezes por semana, qualquer dia', whenProposed: false, time: '07:00', timeProposed: true, sent: { title: 'regar as plantas', isFlexible: true, frequencyUnit: 'Week', frequencyQuantity: 3, dueTime: '07:00', emoji: '🌿' }, absent: ['days'] }],
+    ['a day', 'regar as plantas toda segunda', EVERY_DAY_READ,
+      { when: 'toda segunda', whenProposed: false, time: '07:00', timeProposed: true, sent: { title: 'regar as plantas', frequencyUnit: 'Day', frequencyQuantity: 1, days: ['Monday'], dueTime: '07:00', emoji: '🌿' }, absent: [] }],
+    ['an emoji', '💧 regar as plantas', EVERY_DAY_READ,
+      { when: 'todo dia', whenProposed: true, time: '07:00', timeProposed: true, sent: { title: '💧 regar as plantas', frequencyUnit: 'Day', frequencyQuantity: 1, dueTime: '07:00' }, absent: ['emoji'] }],
+    ['the type', 'regar as plantas toda segunda', ONE_TIME_READ,
+      { when: 'toda segunda', whenProposed: false, time: '07:00', timeProposed: true, sent: { title: 'regar as plantas', frequencyUnit: 'Day', days: ['Monday'], dueTime: '07:00', emoji: '🌿' }, absent: [] }],
+  ]
+
+  it.each(TYPED_IN_THE_PHRASE)('keeps %s the person typed in the phrase when the free read of that phrase proposes another value, and the summary and the title show what the save sends', async (_field, typed, read, after) => {
+    state.create.mockResolvedValue({ id: 'habit-9' })
+    state.phraseRead.mockResolvedValue(read)
+    const tree = mountCreate()
+    await settle()
+    await phrase(tree, typed)
+    await settle()
+    expect(state.phraseRead).toHaveBeenCalledTimes(1)
+    if (control(tree, flow.time.none)) await tap(tree, flow.time.none)
+    if (control(tree, flow.reminder.no)) await tap(tree, flow.reminder.no)
+    expect(heading(tree)).toBe(flow.confirm.question)
+    const whenRow = new RegExp(`^${flow.summary.when}, `)
+    const timeRow = new RegExp(`^${flow.summary.time}, `)
+    expect({ when: control(tree, whenRow)!.props.accessibilityLabel, whenProposed: rowMarked(tree, whenRow), time: control(tree, timeRow)!.props.accessibilityLabel, timeProposed: rowMarked(tree, timeRow) })
+      .toEqual({ when: `${flow.summary.when}, ${after.when}`, whenProposed: after.whenProposed, time: `${flow.summary.time}, ${after.time}`, timeProposed: after.timeProposed })
+    await primary(tree)
+    expect(state.create).toHaveBeenCalledTimes(1)
+    const sent = state.create.mock.calls[0]![0] as Record<string, unknown>
+    expect(sent).toMatchObject(after.sent)
     for (const field of after.absent) expect(sent).not.toHaveProperty(field)
     tree.unmount()
   })

@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createUseGuidedHabitFlow, type GuidedHabitFlowForm, type GuidedHabitFlowHelpers, type GuidedHabitFlowOptions } from '../hooks/guided-habit-flow-core'
 import type { HabitPhraseReadResponse } from '../types/habit'
 import type { HabitPhraseFormOwnership } from '../utils/habit-form-helpers'
+import { getHabitPhraseTitle } from '../utils/habit-phrase-title'
 
 const useGuidedHabitFlow = createUseGuidedHabitFlow({ useState, useEffect, useMemo, useCallback, useRef })
 const TODAY = '2026-11-13'
@@ -403,18 +404,6 @@ describe('the steps of the shared guided habit flow', () => {
     mounted.unmount()
   })
 
-  it('marks a repeat the person typed as a proposal when the free read replaces it', async () => {
-    const readPhrase = vi.fn(async (): Promise<HabitPhraseReadResponse> => ({ ...NO_READ, read: true, frequencyUnit: 'Day', frequencyQuantity: 1, days: [], emoji: '🪴' }))
-    const mounted = mountFlow({ readPhrase })
-    run(() => mounted.flow.changeTitle('water the plants every monday'))
-    expect(mounted.values).toMatchObject({ itemType: 'habit', frequencyUnit: 'Day', days: ['Monday'] })
-    await act(async () => { await mounted.flow.leavePhrase() })
-    expect(readPhrase).toHaveBeenCalledOnce()
-    expect(mounted.values).toMatchObject({ itemType: 'habit', frequencyUnit: 'Day', days: [], emoji: '🪴' })
-    expect(mounted.flow.proposals).toEqual({ schedule: true, time: false, emoji: true })
-    mounted.unmount()
-  })
-
   it('keeps the marks of the values a second free read gives again with no change', async () => {
     const readPhrase = vi.fn(async (): Promise<HabitPhraseReadResponse> => ({ ...NO_READ, read: true, frequencyUnit: 'Day', frequencyQuantity: 1, dueTime: '07:00', emoji: '🪴' }))
     const mounted = mountFlow({ readPhrase })
@@ -599,6 +588,29 @@ describe('the steps of the shared guided habit flow', () => {
     expect(readPhrase).toHaveBeenCalledTimes(2)
     expect({ ...mounted.values, frequencyUnit: mounted.values.frequencyUnit ?? null, days: mounted.values.days ?? [] }).toMatchObject(held)
     expect(mounted.flow.proposals).toMatchObject(unmarked)
+    mounted.unmount()
+  })
+
+  const ONE_TIME_READ: HabitPhraseReadResponse = { ...NO_READ, read: true, dueTime: '07:00', emoji: '🌿' }
+  const EVERY_DAY_READ: HabitPhraseReadResponse = { ...ONE_TIME_READ, frequencyUnit: 'Day', frequencyQuantity: 1 }
+  type Typed = [string, string, HabitPhraseReadResponse, Partial<Values>, ReturnType<typeof mountFlow>['flow']['proposals'], string]
+  const TYPED_IN_THE_PHRASE: Typed[] = [
+    ['a time', 'water the plants at 9am', EVERY_DAY_READ, { itemType: 'habit', frequencyUnit: 'Day', days: [], dueTime: '09:00', emoji: '🌿' }, { schedule: true, time: false, emoji: true }, 'water the plants'],
+    ['a repeat', 'water the plants 3 times a week', EVERY_DAY_READ, { itemType: 'habit', isFlexible: true, frequencyUnit: 'Week', frequencyQuantity: 3, dueTime: '07:00', emoji: '🌿' }, { schedule: false, time: true, emoji: true }, 'water the plants'],
+    ['a day', 'water the plants every monday', EVERY_DAY_READ, { itemType: 'habit', isFlexible: false, frequencyUnit: 'Day', days: ['Monday'], dueTime: '07:00', emoji: '🌿' }, { schedule: false, time: true, emoji: true }, 'water the plants'],
+    ['an emoji', '💧 water the plants', EVERY_DAY_READ, { itemType: 'habit', frequencyUnit: 'Day', dueTime: '07:00', emoji: '' }, { schedule: true, time: true, emoji: false }, '💧 water the plants'],
+    ['the type', 'water the plants every monday', ONE_TIME_READ, { itemType: 'habit', frequencyUnit: 'Day', days: ['Monday'], dueTime: '07:00', emoji: '🌿' }, { schedule: false, time: true, emoji: true }, 'water the plants'],
+  ]
+
+  it.each(TYPED_IN_THE_PHRASE)('keeps %s the person typed in the phrase when the free read of that phrase proposes another value, and fills only the rest', async (_field, typed, read, values, proposals, title) => {
+    const readPhrase = vi.fn<GuidedHabitFlowOptions['readPhrase']>().mockResolvedValue(read)
+    const mounted = mountFlow({ readPhrase })
+    await leavePhraseWith(mounted, typed)
+    expect(readPhrase).toHaveBeenCalledOnce()
+    expect({ ...mounted.values, frequencyUnit: mounted.values.frequencyUnit ?? null, days: mounted.values.days ?? [] }).toMatchObject(values)
+    expect(mounted.flow.proposals).toEqual(proposals)
+    const ownership = mounted.ownership.mock.calls.at(-1)?.[0] ?? { cadence: false, dueTime: false }
+    expect(getHabitPhraseTitle(mounted.values.title, 'en', ownership)).toBe(title)
     mounted.unmount()
   })
 })

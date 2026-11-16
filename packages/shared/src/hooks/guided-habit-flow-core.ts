@@ -3,7 +3,7 @@ import type { HabitPhraseReadRequest, HabitPhraseReadResponse } from '../types/h
 import { getAccountDay } from '../utils/dates'
 import { phraseLeavesWordsUnread, readPhraseCoverage, remainingHabitFlowSteps, resetCoveredAnswers, type HabitFlowAnswers, type HabitFlowStepId } from '../utils/habit-flow'
 import { answerHabitReminder, answerHabitTime, answerHabitWhen, habitRepeatLacksStart, type HabitFlowFormPort, type HabitWhenChoice } from '../utils/habit-flow-answers'
-import { guardHabitReadPatch, habitFlowFieldStep, readHabitWhenWords } from '../utils/habit-flow-details'
+import { guardHabitReadPatch, habitFlowFieldStep, readHabitPhraseValues, readHabitWhenWords, type HabitPhraseValues } from '../utils/habit-flow-details'
 import {
   advanceHabitFlow,
   habitFlowPosition,
@@ -314,7 +314,7 @@ export function createUseGuidedHabitFlow({ useState, useEffect, useMemo, useCall
     const title = watched.title
     const hasDate = Boolean(watched.dueDate)
 
-    const applyFreeRead = useCallback((response: HabitPhraseReadResponse) => {
+    const applyFreeRead = useCallback((response: HabitPhraseReadResponse, typed: HabitPhraseValues) => {
       const { answers, deliberateType } = live.current
       const { dueTime: timeBefore, dueEndTime, emoji: emojiBefore, isGeneral } = form.getValues()
       const patch = guardHabitReadPatch(buildHabitFormPatchFromSuggestion(response), {
@@ -322,6 +322,7 @@ export function createUseGuidedHabitFlow({ useState, useEffect, useMemo, useCall
         whenSet: answers.when,
         timeSet: answers.time || Boolean(dueEndTime),
         emojiSet: emojiChosen.current,
+        typed,
         undated: lockedGeneral === true || isGeneral === true,
       })
       const scheduleBefore = readSchedule(form)
@@ -352,7 +353,7 @@ export function createUseGuidedHabitFlow({ useState, useEffect, useMemo, useCall
       leaving.current = false
       setReading(false)
       if (form.getValues().title.trim() !== phrase || live.current.step !== PHRASE_STEP) return
-      const aiGaveTime = response ? applyFreeRead(response) : false
+      const aiGaveTime = response ? applyFreeRead(response, readHabitPhraseValues(phrase, localRead)) : false
       startRepeat()
       advance(stepsAfter(live.current.answers, aiGaveTime || proposals.time))
     }, [advance, applyFreeRead, form, hasDate, isOnline, live, locale, localRead, mode, proposals.time, readPhrase, startRepeat, stepsAfter, title])

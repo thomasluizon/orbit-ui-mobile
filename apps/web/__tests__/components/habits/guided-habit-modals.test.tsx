@@ -345,21 +345,6 @@ describe('the create surface behind orbit_guided_flows', () => {
     expect(screen.getByRole('button', { name: new RegExp(`^${en.habits.flow.summary.time}`) }).closest('[data-proposed]') !== null).toBe(timeProposed)
   })
 
-  it('marks a repeat the person typed as a proposal when the free read replaces it', async () => {
-    state.locale = 'en'
-    state.phraseRead.mockResolvedValue({ read: true, frequencyUnit: 'Day', frequencyQuantity: 1, days: [], isFlexible: false, flexibleTarget: null, subHabits: [], checklistItems: [], emoji: '🪴', dueTime: null })
-    mountCreate()
-    await waitFor(() => expect(document.querySelector('[data-question-flow]')).not.toBeNull())
-    await phrase('water the plants every monday')
-    expect(state.phraseRead).toHaveBeenCalledTimes(1)
-    if (screen.queryByRole('button', { name: en.habits.flow.time.none })) await press(en.habits.flow.time.none)
-    if (screen.queryByRole('button', { name: en.habits.flow.reminder.no })) await press(en.habits.flow.reminder.no)
-    expect(heading()).toHaveTextContent(en.habits.flow.confirm.question)
-    const scheduleRow = screen.getByRole('button', { name: new RegExp(`^${en.habits.flow.summary.when}`) })
-    expect(scheduleRow).toHaveTextContent('every day')
-    expect(scheduleRow.closest('[data-proposed]')).not.toBeNull()
-  })
-
   it('keeps a child of a General parent undated when the free read proposes a repeat and a time, and marks only the emoji', async () => {
     state.locale = 'en'
     state.phraseRead.mockResolvedValue({ read: true, emoji: '🪴', frequencyUnit: 'Day', frequencyQuantity: 1, days: [], isFlexible: false, flexibleTarget: null, dueTime: '07:00', subHabits: [], checklistItems: [] })
@@ -494,6 +479,42 @@ describe('the create surface behind orbit_guided_flows', () => {
     expect(state.create).toHaveBeenCalledTimes(1)
     const sent = state.create.mock.calls[0]![0] as Record<string, unknown>
     expect(sent).toMatchObject({ title: 'water the plants in the garden', ...after.sent })
+    for (const field of after.absent) expect(sent).not.toHaveProperty(field)
+  })
+
+  const ONE_TIME_READ: HabitPhraseReadResponse = { ...MISSED_READ, read: true, emoji: '🌿', dueTime: '07:00' }
+  const EVERY_DAY_READ: HabitPhraseReadResponse = { ...ONE_TIME_READ, frequencyUnit: 'Day', frequencyQuantity: 1 }
+  const TYPED_IN_THE_PHRASE: [string, string, HabitPhraseReadResponse, SummaryAfter][] = [
+    ['a time', 'water the plants at 9am', EVERY_DAY_READ,
+      { when: 'every day', whenProposed: true, time: '09:00', timeProposed: false, sent: { title: 'water the plants', frequencyUnit: 'Day', frequencyQuantity: 1, dueTime: '09:00', emoji: '🌿' }, absent: ['days'] }],
+    ['a repeat', 'water the plants 3 times a week', EVERY_DAY_READ,
+      { when: 'times a week, any day', whenProposed: false, time: '07:00', timeProposed: true, sent: { title: 'water the plants', isFlexible: true, frequencyUnit: 'Week', frequencyQuantity: 3, dueTime: '07:00', emoji: '🌿' }, absent: ['days'] }],
+    ['a day', 'water the plants every monday', EVERY_DAY_READ,
+      { when: 'every Monday', whenProposed: false, time: '07:00', timeProposed: true, sent: { title: 'water the plants', frequencyUnit: 'Day', frequencyQuantity: 1, days: ['Monday'], dueTime: '07:00', emoji: '🌿' }, absent: [] }],
+    ['an emoji', '💧 water the plants', EVERY_DAY_READ,
+      { when: 'every day', whenProposed: true, time: '07:00', timeProposed: true, sent: { title: '💧 water the plants', frequencyUnit: 'Day', frequencyQuantity: 1, dueTime: '07:00' }, absent: ['emoji'] }],
+    ['the type', 'water the plants every monday', ONE_TIME_READ,
+      { when: 'every Monday', whenProposed: false, time: '07:00', timeProposed: true, sent: { title: 'water the plants', frequencyUnit: 'Day', days: ['Monday'], dueTime: '07:00', emoji: '🌿' }, absent: [] }],
+  ]
+
+  it.each(TYPED_IN_THE_PHRASE)('keeps %s the person typed in the phrase when the free read of that phrase proposes another value, and the summary and the title show what the save sends', async (_field, typed, read, after) => {
+    state.locale = 'en'
+    state.phraseRead.mockResolvedValue(read)
+    mountCreate()
+    await waitFor(() => expect(document.querySelector('[data-question-flow]')).not.toBeNull())
+    await phrase(typed)
+    expect(state.phraseRead).toHaveBeenCalledTimes(1)
+    if (screen.queryByRole('button', { name: en.habits.flow.time.none })) await press(en.habits.flow.time.none)
+    if (screen.queryByRole('button', { name: en.habits.flow.reminder.no })) await press(en.habits.flow.reminder.no)
+    expect(heading()).toHaveTextContent(en.habits.flow.confirm.question)
+    const whenRow = summaryRow(en.habits.flow.summary.when)
+    const timeRow = summaryRow(en.habits.flow.summary.time)
+    expect({ when: whenRow.textContent, whenProposed: whenRow.closest('[data-proposed]') !== null, time: timeRow.textContent, timeProposed: timeRow.closest('[data-proposed]') !== null })
+      .toMatchObject({ when: expect.stringContaining(after.when), whenProposed: after.whenProposed, time: expect.stringContaining(after.time), timeProposed: after.timeProposed })
+    await press(en.habits.createHabit)
+    expect(state.create).toHaveBeenCalledTimes(1)
+    const sent = state.create.mock.calls[0]![0] as Record<string, unknown>
+    expect(sent).toMatchObject(after.sent)
     for (const field of after.absent) expect(sent).not.toHaveProperty(field)
   })
 

@@ -634,6 +634,20 @@ describe('OnboardingFlow state model', () => {
   })
 
   it.each([
+    ['a time', 'Water the plants at 9am', { title: 'Water the plants', frequencyUnit: 'Day', dueTime: '09:00', emoji: '🌿' }],
+    ['a repeat', 'Water the plants 3 times a week', { title: 'Water the plants', frequencyUnit: 'Week', frequencyQuantity: 3, isFlexible: true, dueTime: '07:00', emoji: '🌿' }],
+    ['a day', 'Water the plants every monday', { title: 'Water the plants', frequencyUnit: 'Day', days: ['Monday'], dueTime: '07:00', emoji: '🌿' }],
+    ['an emoji', '💧 Water the plants', { title: '💧 Water the plants', frequencyUnit: 'Day', dueTime: '07:00', emoji: null }],
+  ] as const)('keeps %s the person typed in the sentence when the Orbit suggestion proposes another value', async (_field, sentence, expected) => {
+    mocks.suggest.mockResolvedValue({ emoji: '🌿', frequencyUnit: 'Day', frequencyQuantity: 1, days: [], isFlexible: false, flexibleTarget: null, dueTime: '07:00', subHabits: [], checklistItems: [] })
+    const tree = await mount(true)
+    await enterSentence(tree, sentence)
+    await click(tree, 'onboarding.flow.continue')
+    await click(tree, 'onboarding.flow.create')
+    expect(mocks.createHabit).toHaveBeenCalledWith(expect.objectContaining(expected))
+  })
+
+  it.each([
     ['general', 'Journal'],
     ['flexible', 'Walk 3 times a week at 18:00'],
   ])('sends explicit fixed mode when correcting a %s habit after Back', async (_mode, sentence) => {

@@ -3,6 +3,7 @@ import type { SupportedLocale } from '../types/profile'
 import type { Profile } from '../types/profile'
 import { getCurrentPlan } from './profile-selectors'
 import { formatAPIDateInTimeZone } from './dates'
+import { guardHabitReadPatch, readHabitPhraseValues } from './habit-flow-details'
 import { buildHabitFormPatchFromSuggestion } from './habit-form-helpers'
 import { readHabitPhrase } from './habit-phrase-parser'
 import { getHabitPhraseTitle } from './habit-phrase-title'
@@ -173,26 +174,37 @@ export function buildOnboardingScheduleFromPhrase(
   }
 }
 
+/** What the when screen shows after the free read of the sentence: the schedule and the emoji. */
+export interface OnboardingProposal {
+  schedule: OnboardingSchedule
+  emoji: string
+}
+
 /**
- * Reads an Astra proposal into the schedule the when screen shows. The suggestion is an LLM response,
- * so a flexible one may arrive with no period at all; both screens read a flexible period as the week,
- * and so does {@link changeOnboardingScheduleMode}, so this boundary settles it rather than sending a
- * flexible habit with no unit, which the API never makes due.
+ * Reads an Orbit proposal into the schedule and the emoji the when screen shows. A value the person typed in the
+ * sentence wins, by the rule of {@link guardHabitReadPatch}, so the proposal fills only the rest. A flexible LLM
+ * proposal with no period takes the week, as both screens show it, because the API never makes a habit with no unit due.
  */
-export function buildOnboardingScheduleFromSuggestion(
+export function buildOnboardingProposal(
   suggestion: HabitSetupSuggestion,
-): OnboardingSchedule {
-  const patch = buildHabitFormPatchFromSuggestion(suggestion)
+  sentence: string,
+  locale: SupportedLocale,
+): OnboardingProposal {
+  const typedSchedule = buildOnboardingScheduleFromPhrase(sentence, locale)
+  const typed = { ...readHabitPhraseValues(sentence, readHabitPhrase(sentence, locale)), repeat: !typedSchedule.isGeneral }
+  const patch = guardHabitReadPatch(buildHabitFormPatchFromSuggestion(suggestion), {
+    deliberateType: null, whenSet: false, timeSet: false, emojiSet: false, typed, undated: false,
+  })
   const isFlexible = patch.mode === 'flexible'
-  return {
+  const repeat = typed.repeat ? typedSchedule : {
     frequencyUnit: isFlexible ? patch.frequencyUnit ?? 'Week' : patch.frequencyUnit,
     frequencyQuantity: patch.frequencyQuantity,
     intervalWeeks: 1,
     days: patch.days,
     isGeneral: false,
     isFlexible,
-    dueTime: patch.dueTime ?? '',
   }
+  return { schedule: { ...repeat, dueTime: patch.dueTime ?? typedSchedule.dueTime }, emoji: patch.emoji ?? '' }
 }
 
 export function buildOnboardingHabitInput(input: {
