@@ -178,11 +178,10 @@ function TimedBlock({
           : isFuture
             ? "transparent"
             : tokens.bgWell,
-        borderWidth: 1,
-        borderColor: isFuture ? tokens.hairlineGhost : tokens.hairline,
       })}
     >
       {({ pressed }) => <>
+      <View testID="time-grid-event-ring" pointerEvents="none" style={[StyleSheet.absoluteFill, { borderRadius: 8, outlineWidth: 1, outlineOffset: -1, outlineStyle: 'solid', outlineColor: isFuture ? tokens.hairlineGhost : tokens.hairline }]} />
       <PersonalText numberOfLines={2} testID="time-grid-event-name" style={{ fontFamily: 'Geist_400Regular', fontSize: 12, lineHeight: 16.8, color: tokens.fg1 }}>{block.entry.title}</PersonalText>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, width: '100%' }}>
       <View importantForAccessibility="no-hide-descendants">
@@ -206,7 +205,7 @@ function AllDayChip({ label, accessibilityLabel, onPress, tokens, fontScale, mor
 }>) {
   return <InsetFocusPressable testID={more ? 'time-grid-all-day-more' : 'time-grid-all-day-event'} accessibilityRole="button" accessibilityLabel={accessibilityLabel} onPress={onPress}
     style={({ pressed }) => ({ minHeight: Math.max(48, 44.8 * fontScale), minWidth: 48, padding: SPACING.s0, borderRadius: 8, overflow: 'hidden', alignItems: 'center', justifyContent: 'center', backgroundColor: pressed ? tokens.bgHover : 'transparent' })}>
-    <View style={{ height: 28 * fontScale, width: '100%', paddingHorizontal: SPACING.s8, borderRadius: 8, backgroundColor: tokens.bgWell, borderWidth: 1, borderColor: tokens.hairline, justifyContent: 'center' }}>
+    <View style={{ height: 28 * fontScale, width: '100%', paddingHorizontal: SPACING.s8, borderRadius: 8, backgroundColor: tokens.bgWell, outlineWidth: 1, outlineOffset: -1, outlineStyle: 'solid', outlineColor: tokens.hairline, justifyContent: 'center' }}>
       <Text numberOfLines={1} ellipsizeMode="tail" style={{ fontFamily: 'Geist_400Regular', fontSize: 12, lineHeight: 16.8, color: tokens.fg2 }}>{label}</Text>
     </View>
   </InsetFocusPressable>;

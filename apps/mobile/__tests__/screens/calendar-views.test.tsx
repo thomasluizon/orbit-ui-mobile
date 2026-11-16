@@ -1754,6 +1754,12 @@ describe("CalendarScreen views (mobile)", () => {
     TestRenderer.act(() => { tree = TestRenderer.create(<CalendarScreen />); });
 
     expect(hostTexts(tree)).toContain('calendar.loadError');
+    const errorCards = tree.root.findAll((node) => node.type === 'View' && { ...StyleSheet.flatten<ViewStyle>(node.props.style) }.borderRadius === 18);
+    expect(errorCards).toHaveLength(1);
+    const errorCard = StyleSheet.flatten<ViewStyle>(errorCards[0]!.props.style);
+    expect(errorCard.borderWidth).toBeUndefined();
+    expect(errorCard).toMatchObject({ paddingVertical: 24, outlineWidth: 1, outlineOffset: -1, outlineStyle: 'solid' });
+    expect(errorCard.outlineColor).toBeDefined();
     const retry = tree.root.findAll(
       (node) => typeof node.type === 'string' && node.props.accessibilityRole === 'button' && node.props.accessibilityLabel === 'common.retry',
     );

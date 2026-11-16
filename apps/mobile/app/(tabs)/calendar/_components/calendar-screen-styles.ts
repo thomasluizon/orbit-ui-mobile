@@ -31,7 +31,9 @@ export function createStyles() {
       paddingVertical: SPACING.s24,
       paddingHorizontal: PADDING.screenGutter,
       borderRadius: 18,
-      borderWidth: 1,
+      outlineWidth: 1,
+      outlineOffset: -1,
+      outlineStyle: "solid",
     },
     errorText: {
       fontFamily: "Geist_400Regular",
