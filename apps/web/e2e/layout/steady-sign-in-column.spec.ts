@@ -6,7 +6,7 @@ import tailwind from '@tailwindcss/postcss'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { test } from './layout-test'
-import { bundleSteadySignInFixture } from './steady-sign-in-bundle'
+import { bundleSignInFixture } from './sign-in-fixture-bundle'
 
 type CheckState = 'none' | 'loading' | 'challenge'
 interface LayoutChallenge {
@@ -14,12 +14,8 @@ interface LayoutChallenge {
   options: { callback: (token: string) => void; 'before-interactive-callback': () => void; 'after-interactive-callback': () => void }
 }
 
+// WHY: Cloudflare sizes the flexible widget at 65px height, and the form keeps a slot of that height in every state https://developers.cloudflare.com/turnstile/get-started/client-side-rendering/widget-configurations/
 const CHALLENGE_HEIGHT = 65
-const CHECK_SPACE: Record<CheckState, (space: number) => boolean> = {
-  none: (space) => space === 0,
-  loading: (space) => space > 0,
-  challenge: (space) => space >= CHALLENGE_HEIGHT,
-}
 const FAKE_TURNSTILE = `
   window.turnstile = {
     render(container, options) {
@@ -42,8 +38,7 @@ test.use({ storageState: { cookies: [], origins: [] } })
 test.beforeAll(async () => {
   const source = resolve('app/globals.css')
   stylesheet = (await postcss([tailwind()]).process(readFileSync(source, 'utf8'), { from: source })).css
-  const bundle = await bundleSteadySignInFixture()
-  fixtureScript = bundle.outputFiles[0]!.text
+  fixtureScript = await bundleSignInFixture('e2e/layout/steady-sign-in-column-fixture.tsx', { steadyFlow: true })
 })
 
 async function showCheck(page: Page, check: CheckState, height: number) {
@@ -81,7 +76,7 @@ for (const viewport of [{ width: 375, height: 667 }, { width: 1440, height: 900 
     for (const step of ['email', 'code'] as const) {
       test.describe(`${locale} ${step} sign-in column at ${viewport.width} by ${viewport.height}`, () => {
         test.use({ viewport })
-        test('keeps the column centred while the check appears, changes state and leaves', async ({ page }) => {
+        test('keeps the column centred and in one place while the check appears, changes state and passes', async ({ page }) => {
           // WHY: a setContent page has an opaque origin, where document.cookie throws. https://html.spec.whatwg.org/multipage/dom.html#dom-document-cookie
           const fixtureUrl = 'http://orbit-layout.test/steady-sign-in-column-fixture'
           await page.route(fixtureUrl, route => route.fulfill({
@@ -94,21 +89,21 @@ for (const viewport of [{ width: 375, height: 667 }, { width: 1440, height: 900 
           await expect.poll(() => page.evaluate(() => 'layoutChallenge' in window)).toBe(true)
 
           await showCheck(page, 'none', 0)
-          await expect.poll(async () => CHECK_SPACE.none((await readSignIn(page)).checkSpace)).toBe(true)
+          await expect.poll(async () => (await readSignIn(page)).checkSpace, `${locale} ${step} passed check keeps its slot`).toBe(CHALLENGE_HEIGHT)
           await nextFrames(page)
           const resting = await readSignIn(page)
           expect(resting.gapAbove, `${locale} ${step} column starts inside the page`).toBeGreaterThanOrEqual(0)
-          expect(Math.abs(resting.gapAbove - resting.gapBelow), `${locale} ${step} column is centred without a check`).toBeLessThanOrEqual(1)
+          expect(Math.abs(resting.gapAbove - resting.gapBelow), `${locale} ${step} column is centred with a passed check`).toBeLessThanOrEqual(1)
 
           for (const [check, height] of [['loading', 0], ['challenge', CHALLENGE_HEIGHT], ['loading', 0], ['none', 0]] as const) {
             await showCheck(page, check, height)
             if (check === 'loading') await expect(page.getByText(messages.auth.turnstileLoading, { exact: true })).toBeVisible()
-            await expect.poll(async () => CHECK_SPACE[check]((await readSignIn(page)).checkSpace), `${locale} ${step} check takes the ${check} space`)
-              .toBe(true)
+            await expect.poll(async () => (await readSignIn(page)).checkSpace, `${locale} ${step} ${check} check keeps its slot`).toBe(CHALLENGE_HEIGHT)
             await nextFrames(page)
             const shown = await readSignIn(page)
             expect(shown.gapAbove, `${locale} ${step} column starts inside the page with the ${check} check`).toBeGreaterThanOrEqual(0)
             expect(Math.abs(shown.gapAbove - shown.gapBelow), `${locale} ${step} column is centred with the ${check} check`).toBeLessThanOrEqual(1)
+            expect(shown.gapAbove, `${locale} ${step} column does not move with the ${check} check`).toBeCloseTo(resting.gapAbove, 1)
           }
         })
       })

@@ -7,7 +7,7 @@ import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { APPLE_SIGN_IN_BUTTON, SMALL_PILL_VISIBLE_MIN } from '@orbit/shared/theme'
 import { test } from './layout-test'
-import { bundleSteadySignInFixture } from './steady-sign-in-bundle'
+import { bundleSignInFixture } from './sign-in-fixture-bundle'
 import { loadAppFonts } from '../../__tests__/support/app-fonts'
 
 const LAYOUT_UNIT = 1 / 64
@@ -18,8 +18,9 @@ test.use({ storageState: { cookies: [], origins: [] } })
 test.beforeAll(async () => {
   const source = resolve('app/globals.css')
   stylesheet = (await postcss([tailwind()]).process(readFileSync(source, 'utf8'), { from: source })).css
-  const bundle = await bundleSteadySignInFixture({ 'process.env.NEXT_PUBLIC_APPLE_CLIENT_ID': '"layout-apple-client"' })
-  fixtureScript = bundle.outputFiles[0]!.text
+  fixtureScript = await bundleSignInFixture('e2e/layout/steady-sign-in-column-fixture.tsx', {
+    steadyFlow: true, define: { 'process.env.NEXT_PUBLIC_APPLE_CLIENT_ID': '"layout-apple-client"' },
+  })
 })
 
 async function readAction(action: Locator) {
