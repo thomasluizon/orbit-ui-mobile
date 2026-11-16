@@ -342,10 +342,14 @@ describe('Sheet', () => {
           range.setStart(before, before.textContent!.length - 2)
           range.setEnd(before, before.textContent!.length - 1)
           const lastLetter = range.getBoundingClientRect()
+          range.selectNodeContents(name)
+          const nameBox = range.getBoundingClientRect()
           range.selectNodeContents(name.nextSibling!)
-          const nameBox = name.getBoundingClientRect()
-          return { spaceBefore: nameBox.left - lastLetter.right, gapAfter: range.getBoundingClientRect().left - nameBox.right }
+          const mark = range.getBoundingClientRect()
+          return { spaceBefore: nameBox.left - lastLetter.right, gapAfter: mark.left - nameBox.right, nameWidth: nameBox.width, sameLine: Math.abs(nameBox.top - lastLetter.top) <= 1 && Math.abs(mark.top - nameBox.top) <= 1 }
         })
+        expect(measured.nameWidth).toBeGreaterThan(0)
+        expect(measured.sameLine).toBe(true)
         expect(measured.spaceBefore).toBeGreaterThan(2)
         expect(Math.abs(measured.gapAfter)).toBeLessThanOrEqual(1)
       } finally { await page.close() }

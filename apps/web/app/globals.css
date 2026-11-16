@@ -553,6 +553,11 @@ select[aria-hidden="true"] {
   white-space: normal;
 }
 
+/* WHY: the title is a flex container, so a name span with a box of its own splits the title into three flex items and the space before the name collapses. */
+.orbit-sheet-title > [translate="no"] {
+  display: contents;
+}
+
 .orbit-sheet-title[data-title-mode="typed"] {
   overflow: visible;
   white-space: normal;
