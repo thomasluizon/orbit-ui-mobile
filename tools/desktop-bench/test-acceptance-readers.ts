@@ -672,13 +672,18 @@ test('Windows window bar reader reads the Tauri window and its menu while the po
 // A pointer that leaves the press point before the window is in its move loop loses that travel: installed runs moved the
 // window 160, 128 and 96 pixels for one 160 pixel pointer travel (#2132). So the drag holds the pointer still until
 // GetGUIThreadInfo reports that loop, and on a window whose caption starts the loop the window travels exactly as far as
-// the pointer.
-test('Windows window bar reader drags only once the window is in its move loop, so the window travels exactly as far as the pointer', { skip: process.platform !== 'win32' }, async () => {
+// the pointer. The runner fails a wait above its moveLoopLimit, so the wait that the reader measures on a caption where
+// Windows itself starts the loop must be within that limit, and the case prints it as the baseline of the measure.
+test('Windows window bar reader drags only once the window is in its move loop, so the window travels exactly as far as the pointer', { skip: process.platform !== 'win32' }, async (context) => {
+  const runner = readFileSync(new URL('./acceptance-runner.mjs', import.meta.url), 'utf8')
+  const limit = Number(/^const moveLoopLimit = (\d+)$/m.exec(runner)?.[1])
+  assert.ok(limit > 0, 'the runner states its move loop limit')
   await withFixtureWindow((stop) => `[OrbitPopupFixture]::RunCaptioned('${stop}')`, (processId, directory) => {
     const before = readBar(processId, 'read', directory)
     const { state, drag } = readBar(processId, 'drag', directory)
     assert.equal(drag?.distance, 160, JSON.stringify(drag))
-    assert.ok(drag.moveLoopWait >= 0 && drag.moveLoopWait < 5000, JSON.stringify(drag))
+    context.diagnostic(`move loop wait on a native caption: ${drag.moveLoopWait} ms, runner limit ${limit} ms`)
+    assert.ok(drag.moveLoopWait >= 0 && drag.moveLoopWait <= limit, JSON.stringify(drag))
     assert.deepEqual(state.rect.map((edge, index) => edge - before.state.rect[index]!), [160, 0, 160, 0], JSON.stringify({ before: before.state, state, drag }))
   })
 })

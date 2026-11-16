@@ -210,6 +210,14 @@ const barActions = ['menu', 'minimize', 'maximize', 'close']
 // lies wide, and the maximize square and the close cross take both directions.
 const glyphExtent = { menu: [0, 8], minimize: [8, 0], maximize: [8, 8], close: [8, 8] }
 
+// The longest time, in milliseconds, between the press on the bar and the window move loop. The bar is page content, so the
+// press crosses the page and the shell before the window follows the pointer, and pointer travel before the loop moves
+// nothing. Source: windowBar.actions.drag in the report.json of the desktop-installed-Windows-X64 artifact of eight Desktop
+// Acceptance runs, where the pointer left the press point in ten steps of 30 ms. The slowest run lost four steps (a 96 pixel
+// window travel for a 160 pixel pointer travel), so its loop started 120 to 150 ms after the press. The limit keeps about
+// seven times that for a loaded runner, and it fails a bar that stays still for more than one second under a moving pointer.
+const moveLoopLimit = 1000
+
 // An action area shows its glyph on the canvas, as the minimize and close areas do: most of its middle is canvas, and the
 // pixels that stand apart from the canvas have the extent of its icon. A blank area has no glyph, a window painted over the
 // area has little canvas, and a stray line has the wrong extent. The snap region over the maximize action blends 1/255 of
@@ -277,6 +285,10 @@ async function inspectWindowBar(proxy, native, handle, output, report) {
   const travelled = dragged.state.rect.map((edge, index) => edge - initial.state.rect[index])
   if (!(dragged.drag?.distance >= 100) || travelled.join() !== [dragged.drag.distance, 0, dragged.drag.distance, 0].join()) {
     throw new Error(`Dragging the window bar did not move the window with the pointer: ${JSON.stringify(actions.drag)}`)
+  }
+  // The reader waits up to 5000 ms for the move loop, so the exact travel alone passes a window that started late.
+  if (!(dragged.drag.moveLoopWait <= moveLoopLimit)) {
+    throw new Error(`The window started to follow the pointer ${dragged.drag.moveLoopWait} ms after the press on the window bar, above the limit of ${moveLoopLimit} ms: ${JSON.stringify(actions.drag)}`)
   }
   actions.systemMenu = await inspectSystemMenu(read, false)
   // A pointer on the maximize action lands on the native snap region (caption.cpp), not on the page button, so the reader

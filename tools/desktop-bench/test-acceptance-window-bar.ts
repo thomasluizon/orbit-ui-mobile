@@ -21,6 +21,7 @@ type Options = {
   dragDistance?: number
   dragOffset?: number[]
   pointerTravel?: number | null
+  moveLoopWait?: number | null
   locale?: 0 | 1
   buttons?: string[]
   doubleClickWorks?: boolean
@@ -92,7 +93,9 @@ function windowContext(options: Options = {}) {
       const offset = options.dragOffset ?? [options.dragDistance ?? 160, 0, options.dragDistance ?? 160, 0]
       state.rect = state.rect.map((edge, index) => edge + offset[index]!)
       // The reader reports the pointer travel after the move loop started, and how long the press waited for that loop.
-      if (options.pointerTravel !== null) drag = { distance: options.pointerTravel ?? 160, moveLoopWait: 40 }
+      if (options.pointerTravel !== null) {
+        drag = { distance: options.pointerTravel ?? 160, ...(options.moveLoopWait === null ? {} : { moveLoopWait: options.moveLoopWait ?? 40 }) }
+      }
     }
     if (action === 'doubleclick' && options.doubleClickWorks !== false) state.zoomed = !state.zoomed
     if (action === 'click' && options.snapRegionWorks !== false) state.zoomed = !state.zoomed
@@ -244,6 +247,20 @@ test('the window bar check fails when the window travels less or more than the p
   await assert.rejects(() => windowContext({ dragOffset: [160, 0, 176, 0] }).run({}), lost)
   await assert.rejects(() => windowContext({ pointerTravel: null }).run({}), lost)
   await assert.rejects(() => windowContext({ dragDistance: 40, pointerTravel: 40 }).run({}), lost)
+})
+
+// The window follows the pointer only once the move loop runs, so a late loop is a bar that stays still under a moving
+// pointer. The reader waits up to 5000 ms for the loop, and the runner fails a wait above its limit of 1000 ms.
+test('the window bar check fails when the window starts to follow the pointer later than the limit or the reader reports no wait, and passes at the limit', async () => {
+  const late = (wait: number) => new RegExp(`The window started to follow the pointer ${wait} ms after the press on the window bar, above the limit of 1000 ms`)
+  for (const moveLoopWait of [2000, 3000, 4999, 1001]) {
+    const recorded = {} as { windowBar?: { actions?: { drag?: { after: number[]; moveLoopWait: number } } } }
+    await assert.rejects(() => windowContext({ moveLoopWait }).run(recorded), late(moveLoopWait), String(moveLoopWait))
+    assert.deepEqual(recorded.windowBar?.actions?.drag?.after, [160, 0, 960, 600])
+    assert.equal(recorded.windowBar?.actions?.drag?.moveLoopWait, moveLoopWait)
+  }
+  await assert.rejects(() => windowContext({ moveLoopWait: null }).run({}), /The window started to follow the pointer undefined ms after the press/)
+  for (const moveLoopWait of [0, 150, 1000]) await windowContext({ moveLoopWait }).run({})
 })
 
 test('the window bar check fails when a right-click on the bar opens no window menu, the wrong command states, a menu away from the pointer or a menu that stays open', async () => {

@@ -264,7 +264,8 @@ public static class OrbitWindowBarReader {
     private const uint InMoveSize = 0x0002;
     // The longest wait for the move loop, in milliseconds. The drag request crosses the page and the shell first, and tao
     // answers its WM_NCLBUTTONDOWN with a posted WM_MOUSEMOVE (tao-0.37.2 src/platform_impl/windows/event_loop.rs) before
-    // DefWindowProc starts the loop. A longer wait means that the press started no drag.
+    // DefWindowProc starts the loop. A longer wait means that the press started no drag. The runner fails a shorter wait
+    // above its own limit (moveLoopLimit in acceptance-runner.mjs), so this bound only tells a late drag from no drag.
     private const int MoveLoopWait = 5000;
 
     private static bool InMoveLoop(IntPtr window) {
@@ -286,11 +287,14 @@ public static class OrbitWindowBarReader {
         Thread.Sleep(100);
         mouse_event(LeftDown, 0, 0, 0, UIntPtr.Zero);
         try {
+            // The wait is the time of the system clock, because the runner compares it with a limit in milliseconds and
+            // Thread.Sleep(20) lasts until the next timer tick, which is later than 20 ms.
+            int pressed = Environment.TickCount;
             int waited = 0;
             while (!InMoveLoop(window)) {
                 if (waited >= MoveLoopWait) throw new InvalidOperationException("A press on the window bar started no window move loop in " + MoveLoopWait + " ms");
                 Thread.Sleep(20);
-                waited += 20;
+                waited = Environment.TickCount - pressed;
             }
             for (int step = 1; step <= 10; step++) {
                 Thread.Sleep(30);
