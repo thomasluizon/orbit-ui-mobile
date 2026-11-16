@@ -337,6 +337,87 @@ test("the sweep keeps the newest main entry of every cache family that a release
   assert.deepEqual(releaseSaves.map((save) => keyPattern(keyOf(save))).sort(), RELEASE_FAMILY_KEYS.map((pattern) => pattern.source).sort())
 })
 
+// ccache at v4.9.1 (the Ubuntu 24.04 package), src/storage/local/LocalStorage.cpp, and at v4.14.2 (Homebrew),
+// src/ccache/storage/local/localstorage.cpp: a read sets the time of the object ("Update modification timestamp to save
+// file from LRU cleanup"), --evict-older-than removes each file whose time is not after now minus the age, and the
+// automatic cleanup starts only above max_size (2 GB in these jobs). So a save after a restore by prefix stores the
+// objects of the older inputs too, and the entry grows with each key change until the evict step removes them.
+const COMPILER_CACHE_STAMP = 'echo "COMPILER_CACHE_USED_SINCE=$(date +%s)" >> "$GITHUB_ENV"'
+const COMPILER_CACHE_EVICT = 'ccache --evict-older-than "$(($(date +%s) - COMPILER_CACHE_USED_SINCE))s"'
+const SAVES_A_PASSING_MAIN_COMPILE = "github.ref == 'refs/heads/main' && steps.compiler-cache.outputs.cache-hit != 'true'"
+const COMPILER_CACHE_SAVERS = {
+  "mobile-build.yml: build": ["compile", `\${{ env.CCACHE_AVAILABLE == 'true' && steps.compile.outcome == 'success' && ${SAVES_A_PASSING_MAIN_COMPILE} }}`],
+  "android-release.yml: release-android": ["Build signed AAB with Gradle", "env.CCACHE_AVAILABLE == 'true'"],
+  "ios-build.yml: compile": ["compile", `\${{ steps.compile.outcome == 'success' && ${SAVES_A_PASSING_MAIN_COMPILE} }}`],
+  "ios-release.yml: release": ["archive", `steps.archive.outcome == 'success' && ${SAVES_A_PASSING_MAIN_COMPILE}`],
+}
+const isCompilerCache = (step) => /ccache/i.test(step.with?.path ?? "")
+const stepsOf = (file, job) => workflows.find((workflow) => workflow.file === file).jobs[job].steps
+
+test("each compiler cache entry holds only the objects that its own compile used, so a key change does not grow it", () => {
+  const saves = [...uses("actions/cache/save@"), ...uses("actions/cache@")].filter(({ step }) => isCompilerCache(step))
+  assert.deepEqual(saves.map(({ file, job }) => `${file}: ${job}`).sort(), Object.keys(COMPILER_CACHE_SAVERS).sort())
+  for (const { step: save, where, file, job } of saves) {
+    const [compileStep, evictWhen] = COMPILER_CACHE_SAVERS[`${file}: ${job}`]
+    const steps = stepsOf(file, job)
+    const restore = steps.findIndex((step) => /^actions\/cache(\/restore)?@/.test(step.uses ?? "") && isCompilerCache(step))
+    assert.ok(steps[restore].with["restore-keys"].trim().length > 0, `${where}: the job restores an older entry by prefix`)
+    const stamp = steps.findIndex((step) => step.run === COMPILER_CACHE_STAMP)
+    const compile = steps.findIndex((step) => step.id === compileStep || step.name === compileStep)
+    const evicts = steps.filter((step) => step.run?.includes("--evict-older-than"))
+    assert.equal(evicts.length, 1, `${where}: one step removes the objects that the compile did not use`)
+    assert.equal(evicts[0].run, COMPILER_CACHE_EVICT, where)
+    assert.equal(evicts[0].if, evictWhen, `${where}: only a passing compile used every object it needs`)
+    assert.equal(steps[stamp]?.if, undefined, `${where}: the stamp step always runs`)
+    const evict = steps.indexOf(evicts[0])
+    assert.ok(restore < stamp && stamp < compile && compile < evict, `${where}: restore, then the stamp, then the compile, then the evict step`)
+    if (save.uses.startsWith("actions/cache/save@")) assert.ok(evict < steps.indexOf(save), `${where}: the evict step runs before the save`)
+  }
+})
+
+// A job that restores an entry by prefix and then saves it stores the older entry plus its own files under the new
+// key. Each such job needs a rule that removes the files it did not use, or the family grows with each key change.
+const BOUNDED_PREFIX_SAVERS = {
+  "mobile-build.yml: build: Restore the ccache directory": "the evict step",
+  "android-release.yml: release-android: Restore the ccache directory": "the evict step",
+  "ios-build.yml: compile: Restore compiler outputs": "the evict step",
+  "ios-release.yml: release: Restore compiler outputs": "the evict step",
+  // next/dist/compiled/webpack/bundle5.js sets the filesystem cache default maxAge to 1e3*60*60*24*60, and
+  // next/dist/build/webpack-config.js does not change it: webpack removes an item that no build read for 60 days.
+  "test.yml: build: Restore the Next compiler cache": "the webpack maxAge of 60 days",
+  "test.yml: type-check: Restore turbo": "the step that deletes results older than 30 days",
+}
+
+test("every job that restores an entry by prefix and saves it has a rule that bounds the entry", () => {
+  const prefixSavers = []
+  for (const { file, jobs } of workflows) {
+    for (const [job, { steps = [] }] of Object.entries(jobs)) {
+      for (const step of steps) {
+        if (!step.with?.["restore-keys"]?.trim()) continue
+        const savedLater = steps.some((candidate) => candidate.uses?.startsWith("actions/cache/save@") &&
+          candidate.with.key.includes(`steps.${step.id}.outputs.cache-primary-key`))
+        if (step.uses?.startsWith("actions/cache@") || (step.uses?.startsWith("actions/cache/restore@") && savedLater)) {
+          prefixSavers.push(`${file}: ${job}: ${step.name}`)
+        }
+      }
+    }
+  }
+  assert.deepEqual(prefixSavers.sort(), Object.keys(BOUNDED_PREFIX_SAVERS).sort())
+
+  // Turbo keeps each result at .turbo/cache/<hash>.tar.zst with two JSON files and never removes one.
+  const typeCheck = stepsOf("test.yml", "type-check")
+  const save = typeCheck.findIndex((step) => step.uses?.startsWith("actions/cache/save@") && step.with.path === ".turbo")
+  assert.equal(typeCheck[save - 1].run, "find .turbo/cache -type f -mtime +30 -delete")
+  assert.equal(typeCheck[save - 1].if, typeCheck[save].if)
+
+  // gradle/actions at 8da46b539cd8fe6ab27ca75128919a18d757604c, setup-gradle/action.yml: cache-cleanup defaults to
+  // on-success, which removes the unused files of the Gradle User Home before the save. Swatinem/rust-cache at
+  // d1527c8f67ef9af357290475d4af4b0fab8f12e0, src/save.ts: cleanTargetDir, cleanRegistry and cleanGit run before saveCache.
+  for (const { step, where } of uses("gradle/actions/setup-gradle@")) {
+    for (const input of ["cache-cleanup", "gradle-home-cache-cleanup"]) assert.equal(step.with?.[input], undefined, `${where}: ${input}`)
+  }
+})
+
 test("the cache tests run in the hook tests job, and the restore action exists for every caller", () => {
   const run = load(".github/workflows/test.yml").jobs["hook-tests"].steps.map((step) => step.run ?? "").join("\n")
   for (const file of ["cache-save-rules.test.mjs", "sweep-actions-caches.test.mjs", "android-boot-action.test.mjs"]) {

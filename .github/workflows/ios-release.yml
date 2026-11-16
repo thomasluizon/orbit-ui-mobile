@@ -115,6 +115,9 @@ jobs:
           key: macos-26-${{ runner.arch }}-xcode-26.6-ios-device-ccache-v1-${{ hashFiles('package-lock.json', 'apps/mobile/app.json', 'apps/mobile/app.config.js', 'apps/mobile/plugins/**', 'apps/mobile/modules/**') }}
           restore-keys: |
             macos-26-${{ runner.arch }}-xcode-26.6-ios-device-ccache-v1-
+      # The stamp follows the restore, so every restored object is older than it.
+      - name: Record the start of the compiler cache use
+        run: echo "COMPILER_CACHE_USED_SINCE=$(date +%s)" >> "$GITHUB_ENV"
       - name: Select analytics for the variant
         env:
           STAGING_POSTHOG_KEY: ${{ vars.STAGING_EXPO_PUBLIC_POSTHOG_KEY }}
@@ -173,6 +176,11 @@ jobs:
             DEVELOPMENT_TEAM="$ORBIT_APPLE_TEAM_ID" CODE_SIGN_STYLE=Manual \
             CODE_SIGN_IDENTITY='Apple Distribution' \
             archive
+      # ccache sets the time of each object that a compile reads or writes, and removes none under its size limit. The
+      # archive used every object it needs, so the saved entry holds only those and does not grow when the key changes.
+      - name: Keep only the objects that this archive used
+        if: steps.archive.outcome == 'success' && github.ref == 'refs/heads/main' && steps.compiler-cache.outputs.cache-hit != 'true'
+        run: ccache --evict-older-than "$(($(date +%s) - COMPILER_CACHE_USED_SINCE))s"
       - name: Save compiler outputs
         if: steps.archive.outcome == 'success' && github.ref == 'refs/heads/main' && steps.compiler-cache.outputs.cache-hit != 'true'
         uses: actions/cache/save@v6

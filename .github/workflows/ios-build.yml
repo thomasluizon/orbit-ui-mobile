@@ -124,6 +124,9 @@ jobs:
             macos-26-${{ runner.arch }}-xcode-26.6-ios-release-ccache-v2-
       - name: Reset compiler cache statistics
         run: ccache --zero-stats
+      # The stamp follows the restore, so every restored object is older than it.
+      - name: Record the start of the compiler cache use
+        run: echo "COMPILER_CACHE_USED_SINCE=$(date +%s)" >> "$GITHUB_ENV"
       - name: Test the compiled widget state and session adapter
         working-directory: apps/mobile
         run: npx vitest run __tests__/lib/ios-widget-native.test.ts
@@ -148,6 +151,12 @@ jobs:
             -configuration Release -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' \
             -derivedDataPath "$RUNNER_TEMP/orbit-ios-build" ARCHS=arm64 \
             CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO build
+      # ccache sets the time of each object that a compile reads or writes, and removes none under its size limit. A
+      # passing compile used every object it needs, so the saved entry holds only those and does not grow when the key
+      # changes. A failed compile did not reach every object, so its partial entry keeps the restored ones.
+      - name: Keep only the objects that this compile used
+        if: ${{ steps.compile.outcome == 'success' && github.ref == 'refs/heads/main' && steps.compiler-cache.outputs.cache-hit != 'true' }}
+        run: ccache --evict-older-than "$(($(date +%s) - COMPILER_CACHE_USED_SINCE))s"
       # A key is written once, so a passing main compile saves the input key. A failed or timed-out main compile saves
       # a run-scoped partial entry instead: the restore step finds it by prefix, so the next attempt is not cold, and
       # the input key stays free for the passing compile. ccache checksums each entry.

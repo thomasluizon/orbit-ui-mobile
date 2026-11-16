@@ -423,6 +423,10 @@ jobs:
             ccache-android-release-${{ hashFiles('package-lock.json') }}-
             ccache-android-release-
 
+      # The stamp follows the restore, so every restored object is older than it.
+      - name: Record the start of the compiler cache use
+        run: echo "COMPILER_CACHE_USED_SINCE=$(date +%s)" >> "$GITHUB_ENV"
+
       # CMake initializes CMAKE_<LANG>_COMPILER_LAUNCHER from the environment variable
       # of the same name, so routing the NDK compiles through ccache needs no change to
       # the generated CMake files of every native module. The setup step exports the
@@ -456,6 +460,13 @@ jobs:
             echo "ccache statistics for this build:"
             ccache --show-stats
           fi
+
+      # ccache sets the time of each object that a compile reads or writes, and removes none under its size limit. The
+      # cache step saves when the job passes, so the entry of each run holds only the objects of this build and does not
+      # grow from one release to the next.
+      - name: Keep only the objects that this build used
+        if: env.CCACHE_AVAILABLE == 'true'
+        run: ccache --evict-older-than "$(($(date +%s) - COMPILER_CACHE_USED_SINCE))s"
 
       - name: Verify AAB signing certificate matches the upload keystore
         working-directory: apps/mobile/android

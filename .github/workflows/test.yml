@@ -711,6 +711,11 @@ jobs:
 
       - run: npx turbo run type-check
 
+      # Each push to main adds the results of its changed workspaces to the restored ones, and Turbo removes none.
+      # A result that is still current after 30 days costs one more type check of its workspace.
+      - name: Remove the Turbo results that are older than 30 days
+        if: github.event_name != 'pull_request'
+        run: find .turbo/cache -type f -mtime +30 -delete
       - name: Save turbo
         if: github.event_name != 'pull_request'
         uses: actions/cache/save@v6
