@@ -827,7 +827,7 @@ describe('ProfilePage', () => {
   it('opens widget help inline', () => {
     render(<ProfilePage />)
     fireEvent.click(screen.getByRole('button', { name: /profile\.widgetTitle/i }))
-    expect(screen.getByRole('dialog', { name: 'profile.widgetTitle' })).toBeInTheDocument()
+    expect(screen.getByRole('dialog', { name: 'profile.widgetQuestion' })).toBeInTheDocument()
   })
 
   it('commits a week start choice from the inline picker', () => {
