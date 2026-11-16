@@ -14,7 +14,7 @@ GO FASTER (owner order): start every independent item in the first turn, in para
 
 ## Goal
 
-Finish the spec: an empty board except `#33`, verified releases, the assistant fixed as a class, the owner's report shipped (`#2131`), the icon with eyes (`#2144`), the entry background and the live summary Orbit (`#2146`), the mascot rebrand (`#2121` to `#2126`, the landing as a tone change with motion), every `#315` ticket closed, then `#315`, then the store images (`#2147`) before `#33`. Re-derive with `gh issue list --repo thomasluizon/orbit-tickets --state open --limit 400`. Reconciliation: 24 open, 24 placed, 0 unplaced, 0 placed twice.
+Finish the spec: an empty board except `#33`, verified releases, the assistant fixed as a class, the owner's report shipped (`#2131`), the icon with eyes (`#2144`), the entry background and the live summary Orbit (`#2146`), the mascot rebrand (`#2121` to `#2126`, the landing as a tone change with motion), every `#315` ticket closed, then `#315`, then the store images (`#2147`) before `#33`. Re-derive with `gh issue list --repo thomasluizon/orbit-tickets --state open --limit 400`. Reconciliation: 25 open, 25 placed, 0 unplaced, 0 placed twice.
 
 The owner is present now and then; answer him first, in English. `#2074` is MAX priority.
 
@@ -34,6 +34,7 @@ UI `main` `e353daa9d`; API `main` `38513551a`; landing `main` `7e6d150e0`. Stagi
 | ui#2451 (`#2121`) | Round 18 result S `fix-2451-r18-result.md`: read, review worker. |
 | `#2143` | Round 2 result: read, review worker, open the pull request. |
 | `#2135` | Baseline result S `result-2135-baseline.md`: `NEEDS_FLAG` means turn on `astra_eval_trace` through `/flag` for the eval accounts and relaunch. |
+| `#2148` (owner order) | New: build it (S `ticket-create-loading.md` is its body); reuse an idle merged worktree. |
 | `#2145` | Build when free disk allows, or in a reused merged worktree. |
 | ui#2453 (`#2122`) | Stacked; after `#2121`. |
 
