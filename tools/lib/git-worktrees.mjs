@@ -1,6 +1,7 @@
 /**
  * What a worktree removal can take: the registered worktrees, from the one reader of `git worktree list --porcelain`,
- * and every repository under a directory. `git worktree remove` deletes an ignored directory with all it holds.
+ * and every repository or worktree with a `.git` entry under a directory; a bare repository is not found.
+ * `git worktree remove` deletes an ignored directory with all it holds.
  */
 
 import { spawnSync } from "node:child_process"
@@ -25,7 +26,8 @@ export const parseWorktreeList = (porcelain) => porcelain.split(/\r?\n(?:\r?\n)+
 
 /**
  * The directory of each `.git` entry under `path`, the path itself included; null when the walk fails or runs out of time.
- * A symbolic link is never followed, as neither `rm` nor `git worktree remove` follows one.
+ * A bare repository has no `.git` entry, so it is not found. A symbolic link is never followed, as neither `rm` nor
+ * `git worktree remove` follows one.
  */
 export const findRepositories = (path) => {
   const result = spawnSync("find", [path, "-name", ".git", "-print0", "-prune"], { encoding: "utf8", timeout: WALK_TIMEOUT_MS, maxBuffer: 16 * 1024 * 1024 })
