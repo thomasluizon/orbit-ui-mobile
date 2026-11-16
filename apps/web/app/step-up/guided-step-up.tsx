@@ -119,7 +119,7 @@ export function GuidedStepUp({ operation, state }: Readonly<{ operation: StepUpO
   }, [closed, flow, total])
   return (
     <FlowShell mode="full">
-      <div data-guided-step-up="" className="flex h-full w-full flex-col pb-[env(safe-area-inset-bottom)] pt-[env(safe-area-inset-top)]">
+      <div data-guided-step-up="" className="flex h-full w-full flex-col pb-[var(--safe-bottom)] pt-[var(--safe-top)]">
         <UpdateAvailableBanner inset={false} mascot={false} />
         <QuestionFlow flow={flow} showOrbit={false} stepKey={view.step} position={position} total={total} direction={1}
           progressLabel={translate('habits.flow.progress', { position, total })} backLabel={view.back?.label ?? translate('common.back')} onBack={view.back?.onPress}

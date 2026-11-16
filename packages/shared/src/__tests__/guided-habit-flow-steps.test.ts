@@ -60,6 +60,8 @@ function mountFlow({ mode = 'create', lockedGeneral = null, online = true, value
   return {
     values, reminder, ownership, readPhrase,
     get flow() { return flow },
+    chooseTypeOnTheTypeStep: (itemType: 'task' | 'habit') => { void act(() => { flow.markTypeDeliberate(itemType); helpers.chooseItemType(itemType) }) },
+    clearTime: () => { void act(() => write({ dueTime: '' })) },
     refuseField: (field: 'title' | 'description') => { void act(() => { backend.request += 1; backend.field = field; render() }) },
     unmount: () => { void act(() => tree.unmount()) },
   }
@@ -234,6 +236,16 @@ describe('the steps of the shared guided habit flow', () => {
     mounted.unmount()
   })
 
+  it('never marks an empty time as a proposal, as when a change to a one-time task clears the time the free read proposed', async () => {
+    const readPhrase = vi.fn(async (): Promise<HabitPhraseReadResponse> => ({ ...NO_READ, read: true, frequencyUnit: 'Day', frequencyQuantity: 1, dueTime: '07:00' }))
+    const mounted = mountFlow({ readPhrase })
+    await leavePhraseWith(mounted, 'water the plants')
+    expect(mounted.flow.proposals).toMatchObject({ schedule: true, time: true })
+    mounted.clearTime()
+    expect(mounted.flow.proposals).toMatchObject({ schedule: true, time: false })
+    mounted.unmount()
+  })
+
   it('keeps the date question open for words it cannot read and for a day in the past', async () => {
     const mounted = mountFlow({ online: false })
     await leavePhraseWith(mounted, 'call John')
@@ -359,9 +371,45 @@ describe('the steps of the shared guided habit flow', () => {
     const mounted = mountFlow({ online: false })
     await leavePhraseWith(mounted, 'call John')
     run(() => mounted.flow.answerWhen('today'))
-    run(() => mounted.flow.markTypeDeliberate())
+    mounted.chooseTypeOnTheTypeStep('task')
     run(() => mounted.flow.changeTitle('call John every day'))
     expect(mounted.values.itemType).toBe('task')
+    mounted.unmount()
+  })
+
+  it('records the type the person chooses on the type step, not the type before it, so a repeat typed after a change to a habit is read', async () => {
+    const mounted = mountFlow({ online: false })
+    await leavePhraseWith(mounted, 'call John')
+    run(() => mounted.flow.answerWhen('today'))
+    expect(mounted.values).toMatchObject({ itemType: 'task', dueDate: TODAY })
+    mounted.chooseTypeOnTheTypeStep('habit')
+    run(() => mounted.flow.changeTitle('call John every monday'))
+    expect(mounted.values).toMatchObject({ itemType: 'habit', days: ['Monday'] })
+    mounted.unmount()
+  })
+
+  it('records a change from a habit to a task on the type step, so a repeat typed after it does not make the task a habit again', async () => {
+    const mounted = mountFlow({ online: false })
+    await leavePhraseWith(mounted, 'call John every day')
+    expect(mounted.values.itemType).toBe('habit')
+    mounted.chooseTypeOnTheTypeStep('task')
+    run(() => mounted.flow.changeTitle('call John every monday'))
+    expect(mounted.values.itemType).toBe('task')
+    expect(mounted.values.days ?? []).toEqual([])
+    mounted.unmount()
+  })
+
+  it('stops marking a repeat the free read proposed as a proposal when the person changes the type, and keeps the mark when the type stays', async () => {
+    const readPhrase = vi.fn(async (): Promise<HabitPhraseReadResponse> => ({ ...NO_READ, read: true, frequencyUnit: 'Day', frequencyQuantity: 1, dueTime: '07:00' }))
+    const mounted = mountFlow({ readPhrase })
+    await leavePhraseWith(mounted, 'water the plants')
+    expect(mounted.values.itemType).toBe('habit')
+    expect(mounted.flow.proposals).toMatchObject({ schedule: true, time: true })
+    mounted.chooseTypeOnTheTypeStep('habit')
+    expect(mounted.flow.proposals).toMatchObject({ schedule: true, time: true })
+    mounted.chooseTypeOnTheTypeStep('task')
+    expect(mounted.values.itemType).toBe('task')
+    expect(mounted.flow.proposals).toMatchObject({ schedule: false, time: true })
     mounted.unmount()
   })
 })

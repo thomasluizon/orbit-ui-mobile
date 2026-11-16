@@ -153,7 +153,7 @@ export function useTypeView({ flow, formHelpers, lockedGeneral }: Readonly<ViewI
   return {
     question: t('habits.flow.type.question'),
     line: t('habits.flow.type.line'),
-    free: <HabitTypeField formHelpers={formHelpers} lockedGeneral={lockedGeneral} onChange={() => { flow.markTypeDeliberate(); flow.advance() }} />,
+    free: <HabitTypeField formHelpers={formHelpers} lockedGeneral={lockedGeneral} onChange={(type) => { flow.markTypeDeliberate(type); flow.advance() }} />,
   }
 }
 

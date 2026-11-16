@@ -54,7 +54,7 @@ describe('shared guided habit flow', () => {
     await act(async () => { void mounted.flow.leavePhrase() })
     expect(read.readPhrase).toHaveBeenCalledTimes(1)
     expect(mounted.flow.reading).toBe(true)
-    void act(() => mounted.flow.markTypeDeliberate())
+    void act(() => mounted.flow.markTypeDeliberate('task'))
     await act(async () => { read.arrive(DAILY_AT_SEVEN) })
     expect(mounted.flow.reading).toBe(false)
     expect(mounted.values).toMatchObject({ itemType: 'task', frequencyUnit: undefined, dueTime: '07:00' })

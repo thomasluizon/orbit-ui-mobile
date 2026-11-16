@@ -101,7 +101,7 @@ export interface GuidedHabitFlowState {
   current: HabitFlowNavigation
   leavePhrase: () => Promise<void>
   localRead: HabitPhraseRead
-  markTypeDeliberate: () => void
+  markTypeDeliberate: (type: 'task' | 'habit') => void
   mode: 'create' | 'edit'
   offline: boolean
   open: (target: HabitFlowDetailStep | HabitFlowStepId) => void
@@ -413,7 +413,10 @@ export function createUseGuidedHabitFlow({ useState, useEffect, useMemo, useCall
       if (habitRepeatLacksStart(form.getValues())) form.setField('dueDate', today)
     }, [form, today])
     const { answerWhen, chooseDate, readWhenWords, answerTime, answerReminder } = useFlowAnswers({ options, controller, port, today, supportedLocale, answers, setAnswers, setProposals, advance, stepsAfter, startRepeat })
-    const markTypeDeliberate = useCallback(() => setDeliberateType(form.getValues().itemType ?? null), [form])
+    const markTypeDeliberate = useCallback((type: 'task' | 'habit') => {
+      if (form.getValues().itemType !== type) setProposals((value) => (value.schedule ? { ...value, schedule: false } : value))
+      setDeliberateType(type)
+    }, [form])
     const chooseEmoji = useCallback((emoji: string) => {
       controller.setEmoji(emoji)
       setProposals((value) => ({ ...value, emoji: false }))
@@ -422,10 +425,11 @@ export function createUseGuidedHabitFlow({ useState, useEffect, useMemo, useCall
     const { leavePhrase, suggestEmoji, reading, usedAiRead } = usePhraseReads({ options, live, localRead, proposals, setProposals, advance, stepsAfter, startRepeat })
     useFieldErrorSteps(helpers, open)
     const answeredController = useAnsweredScheduleController(controller, setProposals)
+    const shownProposals = useMemo(() => (proposals.time && !watched.dueTime ? { ...proposals, time: false } : proposals), [proposals, watched.dueTime])
 
     return {
       answers, answerReminder, chooseDate, chooseEmoji, changeTitle, controller: answeredController, markTypeDeliberate, readWhenWords, answerTime, answerWhen, advance, back, current, leavePhrase,
-      localRead, mode, offline: !isOnline, open, position, proposals, reading, replace, steps, suggestEmoji, today, usedAiRead,
+      localRead, mode, offline: !isOnline, open, position, proposals: shownProposals, reading, replace, steps, suggestEmoji, today, usedAiRead,
     }
   }
 }

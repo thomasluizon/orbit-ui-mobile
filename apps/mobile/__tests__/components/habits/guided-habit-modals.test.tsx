@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { act } from 'react-test-renderer'
+import { act, type ReactTestInstance } from 'react-test-renderer'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
@@ -54,6 +54,8 @@ type Tree = ReturnType<typeof renderNavigation>
 const control = (tree: Tree, name: string | RegExp) => tree.hosts().find((node) => (typeof name === 'string' ? node.props.accessibilityLabel === name : name.test(node.props.accessibilityLabel ?? '')) && typeof node.props.onPress === 'function')
 const heading = (tree: Tree) => tree.hosts().filter((node) => node.props.accessibilityRole === 'header').map((node) => (typeof node.props.children === 'string' ? node.props.children : ''))[0] ?? ''
 const hasTestId = (tree: Tree, testID: string) => tree.hosts().some((node) => node.props.testID === testID)
+const rowMarked = (tree: Tree, name: RegExp) => tree.hosts().some((node) => node.props.testID === 'proposed-row'
+  && (node as unknown as ReactTestInstance).findAll((child) => typeof child.type === 'string' && name.test((child.props as { accessibilityLabel?: string }).accessibilityLabel ?? '') && typeof child.props.onPress === 'function').length > 0)
 async function settle() { await act(async () => { await Promise.resolve(); await Promise.resolve() }) }
 async function tap(tree: Tree, name: string | RegExp) {
   const target = control(tree, name)
@@ -213,13 +215,57 @@ describe('a guided create on Android from a phrase with a repeat', () => {
     await phrase(tree, 'regar as plantas')
     await settle()
     await tap(tree, ptBR.habits.flow.reminder.no)
-    const marks = () => tree.hosts().filter((node) => node.props.testID === 'proposed-row-label').length
-    expect(marks()).toBe(2)
-    await tap(tree, new RegExp(`^${ptBR.habits.flow.summary.when}, `))
+    const whenRow = new RegExp(`^${ptBR.habits.flow.summary.when}, `)
+    const timeRow = new RegExp(`^${ptBR.habits.flow.summary.time}, 07:00$`)
+    expect(rowMarked(tree, whenRow)).toBe(true)
+    expect(rowMarked(tree, timeRow)).toBe(true)
+    await tap(tree, whenRow)
     await tap(tree, new RegExp(`^${ptBR.habits.flow.repeat.timesIn}`))
     await primary(tree)
-    expect(control(tree, new RegExp(`^${ptBR.habits.flow.summary.when}, `))).toBeDefined()
-    expect(marks()).toBe(1)
+    expect(control(tree, whenRow)).toBeDefined()
+    expect(rowMarked(tree, whenRow)).toBe(false)
+    expect(rowMarked(tree, timeRow)).toBe(true)
+    tree.unmount()
+  })
+
+  it('stops marking the repeat and the cleared time as proposals on the summary when the person makes the habit a one-time task', async () => {
+    state.phraseRead.mockResolvedValue({ read: true, emoji: null, frequencyUnit: 'Day', frequencyQuantity: 1, days: [], isFlexible: false, flexibleTarget: null, dueTime: '07:00', subHabits: [], checklistItems: [] })
+    const tree = mountCreate()
+    await settle()
+    await phrase(tree, 'regar as plantas')
+    await settle()
+    await tap(tree, ptBR.habits.flow.reminder.no)
+    const whenRow = new RegExp(`^${ptBR.habits.flow.summary.when}, `)
+    expect(rowMarked(tree, whenRow)).toBe(true)
+    expect(rowMarked(tree, new RegExp(`^${ptBR.habits.flow.summary.time}, 07:00$`))).toBe(true)
+    await tap(tree, new RegExp(`^${ptBR.habits.flow.summary.type}`))
+    await tap(tree, new RegExp(`^${ptBR.habits.form.typeTask}`))
+    expect(heading(tree)).toBe(ptBR.habits.flow.confirm.question)
+    expect(rowMarked(tree, whenRow)).toBe(false)
+    expect(control(tree, `${ptBR.habits.flow.summary.time}, ${ptBR.habits.flow.summary.noTime}`)).toBeDefined()
+    expect(rowMarked(tree, new RegExp(`^${ptBR.habits.flow.summary.time}, `))).toBe(false)
+    tree.unmount()
+  })
+
+  it('reads a repeat typed in the phrase after the person makes a task a habit on the type step', async () => {
+    state.create.mockResolvedValue({ id: 'habit-9' })
+    state.phraseRead.mockResolvedValue({ read: false, emoji: null, frequencyUnit: null, frequencyQuantity: null, days: [], isFlexible: false, flexibleTarget: null, dueTime: null, subHabits: [], checklistItems: [] })
+    const tree = mountCreate()
+    await settle()
+    await phrase(tree, 'ligar para o João')
+    await settle()
+    await tap(tree, ptBR.habits.flow.when.tomorrow)
+    await tap(tree, '08:00')
+    await tap(tree, ptBR.habits.flow.reminder.no)
+    await tap(tree, new RegExp(`^${ptBR.habits.flow.summary.type}`))
+    await tap(tree, new RegExp(`^${ptBR.habits.form.typeHabit}`))
+    await tap(tree, new RegExp(`^${ptBR.habits.flow.summary.title}`))
+    await phrase(tree, 'ligar para o João toda segunda')
+    await settle()
+    expect(heading(tree)).toBe(ptBR.habits.flow.confirm.question)
+    await primary(tree)
+    expect(state.create).toHaveBeenCalledTimes(1)
+    expect(state.create.mock.calls[0]![0]).toMatchObject({ title: 'ligar para o João', startDate: '2026-11-14', frequencyUnit: 'Day', days: ['Monday'], dueTime: '08:00' })
     tree.unmount()
   })
 

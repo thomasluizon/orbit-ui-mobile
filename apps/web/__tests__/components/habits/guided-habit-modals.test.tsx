@@ -265,6 +265,46 @@ describe('the create surface behind orbit_guided_flows', () => {
     expect(screen.getByRole('button', { name: new RegExp(`^${en.habits.flow.summary.time}`) }).closest('[data-proposed]')).not.toBeNull()
   })
 
+  it('stops marking the repeat and the cleared time as proposals on the summary when the person makes the habit a one-time task', async () => {
+    state.locale = 'en'
+    state.phraseRead.mockResolvedValue({ read: true, emoji: null, frequencyUnit: 'Day', frequencyQuantity: 1, days: [], isFlexible: false, flexibleTarget: null, dueTime: '07:00', subHabits: [], checklistItems: [] })
+    mountCreate()
+    await waitFor(() => expect(document.querySelector('[data-question-flow]')).not.toBeNull())
+    await phrase('water the plants')
+    await press(en.habits.flow.reminder.no)
+    const scheduleRow = () => screen.getByRole('button', { name: new RegExp(`^${en.habits.flow.summary.when}`) })
+    const timeRow = () => screen.getByRole('button', { name: new RegExp(`^${en.habits.flow.summary.time}`) })
+    expect(scheduleRow().closest('[data-proposed]')).not.toBeNull()
+    expect(timeRow()).toHaveTextContent('07:00')
+    expect(timeRow().closest('[data-proposed]')).not.toBeNull()
+    await press(new RegExp(`^${en.habits.flow.summary.type}`))
+    await act(async () => { fireEvent.click(screen.getByRole('radio', { name: new RegExp(`^${en.habits.form.typeTask}`) })) })
+    expect(heading()).toHaveTextContent(en.habits.flow.confirm.question)
+    expect(scheduleRow().closest('[data-proposed]')).toBeNull()
+    expect(timeRow()).toHaveTextContent(en.habits.flow.summary.noTime)
+    expect(timeRow().closest('[data-proposed]')).toBeNull()
+  })
+
+  it('reads a repeat typed in the phrase after the person makes a task a habit on the type step', async () => {
+    state.locale = 'en'
+    state.phraseRead.mockResolvedValue({ read: false, emoji: null, frequencyUnit: null, frequencyQuantity: null, days: [], isFlexible: false, flexibleTarget: null, dueTime: null, subHabits: [], checklistItems: [] })
+    mountCreate()
+    await waitFor(() => expect(document.querySelector('[data-question-flow]')).not.toBeNull())
+    await phrase('call John')
+    await press(en.habits.flow.when.tomorrow)
+    await press('08:00')
+    await press(en.habits.flow.reminder.no)
+    await press(new RegExp(`^${en.habits.flow.summary.type}`))
+    await act(async () => { fireEvent.click(screen.getByRole('radio', { name: new RegExp(`^${en.habits.form.typeHabit}`) })) })
+    await press(new RegExp(`^${en.habits.flow.summary.title}`))
+    await act(async () => { fireEvent.change(screen.getByLabelText(en.habits.flow.what.label), { target: { value: 'call John every monday' } }) })
+    await press(en.habits.flow.continue)
+    expect(heading()).toHaveTextContent(en.habits.flow.confirm.question)
+    await press(en.habits.createHabit)
+    expect(state.create).toHaveBeenCalledTimes(1)
+    expect(state.create.mock.calls[0]![0]).toMatchObject({ title: 'call John', startDate: '2026-11-14', frequencyUnit: 'Day', days: ['Monday'], dueTime: '08:00' })
+  })
+
   it('states a refused save on the summary and sends nothing, when an undated task becomes a habit with no start day', async () => {
     state.locale = 'en'
     mountCreate()

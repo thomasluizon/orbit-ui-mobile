@@ -55,7 +55,7 @@ function FlowScreenOverlay({ label, onDismiss, children }: Readonly<Omit<FlowScr
               initial={{ opacity: 0, x: timing.shift }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: timing.enterDuration / 1000, ease: [...timing.enterEasing] as [number, number, number, number] }}
-              className="flex min-h-0 flex-1 flex-col pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]"
+              className="flex min-h-0 flex-1 flex-col pt-[var(--safe-top)] pb-[var(--safe-bottom)]"
             >
               {children}
             </motion.div>
