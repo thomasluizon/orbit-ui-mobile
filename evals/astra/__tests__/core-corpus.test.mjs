@@ -184,16 +184,9 @@ it('keeps the 2 USD ceiling of the launch gate run in the skill and in TESTING.m
   for (const path of ['.claude/skills/astra-eval/SKILL.md', 'TESTING.md']) expect(repository(path), path).toMatch(/2 USD/u)
 })
 
-// The API commit of each window summary names its build, so the merge of the core set takes no flag for a later build.
-// `--rerun` stays an option of the launch corpus merge only.
-it('gives the windows of each build to the core set merge in build order, with no flag, in the skill and in TESTING.md', () => {
-  const sections = [['.claude/skills/astra-eval/SKILL.md', /\n## The gate for an assistant pull request: the core set\n(.+?)\n## /su],
-    ['TESTING.md', /\n### Core set gate\n(.+?)\n### /su]]
-  for (const [path, section] of sections) {
-    const text = repository(path).match(section)?.[1].replace(/\s+/gu, ' ')
-    expect(text, path).toContain('single permitted rerun')
-    expect(text, path).toContain('Give the windows of one build together, in the order of the builds.')
-    expect(text, path).not.toMatch(/--rerun/u)
+it('keeps the single rerun of the failed cases after a fix as a merged gate verdict, in the skill and in TESTING.md', () => {
+  for (const path of ['.claude/skills/astra-eval/SKILL.md', 'TESTING.md']) {
+    expect(repository(path), path).toMatch(/--rerun/u)
     expect(repository(path), path).not.toMatch(/beside the first report/u)
   }
 })
@@ -215,7 +208,7 @@ it('states for each kind of grader limit what the evidence keeps and what clears
     const text = repository(path).replace(/\s+/gu, ' ')
     for (const kind of ['A preview limit', 'A card limit']) expect(text, `${path}: ${kind}`).toContain(kind)
     expect(text, path).not.toMatch(/readback limit|cannot read back a saved/u)
-    expect(text, path).toContain('Each kind clears only through the rerun on a later API commit of the pull request')
+    expect(text, path).toContain('Each kind clears only through `--rerun` on a later API commit of the pull request')
     expect(text, path).not.toMatch(/extend the grader and regrade them offline/u)
   }
 })

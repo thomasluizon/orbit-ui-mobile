@@ -528,12 +528,12 @@ without a final event, or a failed approval. Only a throttle (HTTP 429), a spend
 grader, a card turn without the trace that its answer needs and a preview turn without the trace that
 shows a `stored` field are no evidence. Such an attempt leaves its case incomplete, and only such a
 case may appear again in a later window of the same build. The merge refuses a second result on one
-build for a case that passed, failed or holds a grader limit, and a case whose `k` differs from the
-corpus.
+build for a case that passed, failed or holds a grader limit, an ordinary window of another API commit,
+and a case whose `k` differs from the corpus.
 
 A reply that the grader cannot read is a grader limit. The case has no verdict, nothing is approved, and
 the report lists grader limits apart from behavior failures. The merge refuses a later window of the same
-build for the case, as for a verdict. Each kind clears only through the rerun on a later API commit of the
+build for the case, as for a verdict. Each kind clears only through `--rerun` on a later API commit of the
 pull request; until then the gate of that build stays incomplete. Extend the grader before that rerun.
 
 - A preview limit (`The grader cannot classify a held preview`): the private evidence of the attempt
@@ -544,22 +544,21 @@ pull request; until then the gate of that build stays incomplete. Extend the gra
 - A card limit (a same-title or list card that the grader cannot answer): the attempt ended at the card,
   before any preview, so the evidence keeps no preview. Only the rerun measures it.
 
-After a fix, run the failed cases and the cases with a grader limit once more on the fixed build. This
-is the single permitted rerun. Give those summaries to the merge after the summaries of the first build:
+After a fix, run the failed cases and the cases with a grader limit once more on the fixed build, and
+give those summaries to the merge with `--rerun`:
 
 ```sh
 node core/merge.mjs --run-cost-usd <measured cost of all builds> --baseline <baseline summary.json> \
-  <first-build summaries> <later-build must-pass summary> <later-build other summary>
+  <first-run summaries> --rerun <later-build must-pass summary> --rerun <later-build other summary>
 ```
 
-The merge reads the build of each window from the API commit in its summary. The first summary names the
-first build, and each summary of another commit belongs to a later build. No option names a later build.
 The rerun takes the place of the first result. A case has one rerun: the merge refuses a second one.
 
 Staging can serve another API commit before each case has a verdict: after a fix, or after a release
-of another commit. Run the cases without a verdict on the new build, and give those summaries to the
-merge after the summaries of the earlier builds. A case is without a verdict when no window held it, or
-when its attempts gave no evidence. These rules apply to each later build:
+of another commit. An ordinary window on the new commit is refused, because the ordinary windows measure
+the first build. Run the cases without a verdict on the new build, and give those summaries to the merge
+with `--rerun` also. A case is without a verdict when no window held it, or when its attempts gave no
+evidence. These rules apply to each later build:
 
 - A case without a verdict runs on the later build and uses no rerun. A pass or a fail there is its first
   verdict, so a failure there keeps the one rerun of the case for the next fixed build. A case that
@@ -570,9 +569,10 @@ when its attempts gave no evidence. These rules apply to each later build:
   come from one build, so the attempts of two builds never make one verdict.
 - A later build continues across UTC-day windows as the first build does.
 
-Give the windows of one build together, in the order of the builds. The merge refuses a return to an
-earlier build. The report names the API commit of each later build, with three counts: the reruns, the
-first verdicts, and the cases with no verdict and no rerun. Each count holds only the cases whose final entry comes from that build: a case that a later
+Give the `--rerun` windows of one build together, in the order of the builds. The merge refuses a
+`--rerun` window on the first build and a return to an earlier build. The report names the API commit of
+each later build, with three counts: the reruns, the first verdicts, and the cases with no verdict and
+no rerun. Each count holds only the cases whose final entry comes from that build: a case that a later
 build measures again counts only on the last build that measured it. The pass^k column of each case that a later build measured holds one of these marks:
 
 - `rerun on <commit>`: the case used its one rerun on that build. The mark stays with each result of the
