@@ -1,9 +1,9 @@
 import { spawnSync } from "node:child_process"
-import { chmodSync, mkdirSync, realpathSync, writeFileSync } from "node:fs"
+import { existsSync, mkdirSync, readFileSync, realpathSync, symlinkSync, writeFileSync } from "node:fs"
 import { dirname, join } from "node:path"
 
-import { T, same, stage, stageRepo } from "./_harness.mjs"
-import { commonGitDirectory, installWriteGuard, proofOrder, readOnlyPaths, recordedWrites, resultVerdict, reviewBrief, reviewOrder, snapshotWorktrees, writesBetween } from "../lib/review-run.mjs"
+import { REPO_ROOT, T, same, stage, stageRepo } from "./_harness.mjs"
+import { proofOrder, protectedDirectories, readOnlyPaths, resultVerdict, reviewBrief, reviewOrder, runDirectorySnapshot, runDirectoryWrites, SANDBOX_EXEC, sandboxedInvocation, writeSandboxAvailable, writeSandboxProfile } from "../lib/review-run.mjs"
 
 const UNIT = "lib/review-run.mjs"
 
@@ -53,81 +53,84 @@ const pathCases = () => {
   }
 }
 
-/** The hooks reach the worker through environment configuration, so these cases run git exactly as a worker's shell would. */
-const guardCases = () => {
-  const guarded = stageRepo("review-run-guarded")
-  const other = stageRepo("review-run-other")
-  const plainGit = gitWith({})
-  plainGit(guarded.path, ["worktree", "add", "-q", "--detach", join(dirname(guarded.path), "review-run-guarded-detached")])
-  const linked = join(dirname(guarded.path), "review-run-guarded-detached")
-  const otherHookRecord = join(dirname(other.path), "review-run-other-hook-ran")
-  const otherHooks = dirname(stage("review-run/other-hooks/.keep", ""))
-  writeFileSync(join(otherHooks, "pre-commit"), `#!/bin/sh\necho ran > '${otherHookRecord}'\n`)
-  chmodSync(join(otherHooks, "pre-commit"), 0o755)
-  plainGit(other.path, ["config", "core.hooksPath", otherHooks])
-
-  const guard = installWriteGuard([commonGitDirectory(guarded.path)], dirname(stage("review-run/guard/.keep", "")), { GIT_CONFIG_COUNT: "1", GIT_CONFIG_KEY_0: "safe.directory", GIT_CONFIG_VALUE_0: "*" })
-  T(`${UNIT}: the guard appends its two entries after configuration the caller already set`,
-    guard.environment.GIT_CONFIG_COUNT === "3" && guard.environment.GIT_CONFIG_KEY_1.startsWith("includeIf.") && guard.environment.GIT_CONFIG_KEY_0 === undefined,
-    JSON.stringify(guard.environment))
-  const git = gitWith({ GIT_CONFIG_KEY_0: "safe.directory", GIT_CONFIG_VALUE_0: "*", ...guard.environment })
-  const head = plainGit(guarded.path, ["rev-parse", "HEAD"]).stdout.trim()
-
-  const commit = git(guarded.path, ["commit", "-q", "--allow-empty", "-m", "a reviewer commit"])
-  const linkedCommit = git(linked, ["commit", "-q", "--allow-empty", "-m", "a reviewer commit in a linked worktree"])
-  const branch = git(guarded.path, ["branch", "reviewer-branch"])
-  const push = git(guarded.path, ["push", "-q", "origin", "HEAD:refs/heads/reviewer-push"])
-  const fetch = git(guarded.path, ["fetch", "-q", "origin"])
-  const otherCommit = git(other.path, ["commit", "-q", "--allow-empty", "-m", "a commit in an unprotected fixture"])
-  T(`${UNIT}: the guard refuses a commit, a linked-worktree commit, a branch and a push in the protected repository`,
-    commit.status !== 0 && linkedCommit.status !== 0 && branch.status !== 0 && push.status !== 0 &&
-      plainGit(guarded.path, ["rev-parse", "HEAD"]).stdout.trim() === head &&
-      plainGit(guarded.path, ["ls-remote", "origin", "refs/heads/reviewer-push"]).stdout.trim() === "",
-    JSON.stringify({ commit: commit.stderr, linkedCommit: linkedCommit.stderr, branch: branch.stderr, push: push.stderr }))
-  T(`${UNIT}: a fetch that only reads still succeeds in the protected repository`, fetch.status === 0, fetch.stderr)
-  T(`${UNIT}: an unprotected repository commits with its own hooks path`,
-    otherCommit.status === 0 && spawnSync("test", ["-f", otherHookRecord]).status === 0, otherCommit.stderr)
-
-  const writes = recordedWrites(guard.logFile)
-  const kinds = writes.map((write) => write.kind)
-  T(`${UNIT}: each refused write is recorded with its kind and directory`,
-    kinds.filter((kind) => kind === "ref-update").length >= 2 && kinds.includes("new-branch") && kinds.includes("push") &&
-      writes.some((write) => write.directory === realpathSync(linked)) && writes.every((write) => write.directory !== realpathSync(other.path)),
-    JSON.stringify(writes))
-  writeFileSync(guard.logFile, "not json\n")
-  same(`${UNIT}: an unreadable guard record is itself reported as a write`, recordedWrites(guard.logFile).map((write) => write.kind), ["unreadable-guard-record"])
-  same(`${UNIT}: a missing guard log reports no write`, recordedWrites(join(otherHooks, "absent.jsonl")), [])
+/** The profile closes the protected directories, opens the run directory inside them, then closes its git link again. */
+const profileCases = () => {
+  const profile = writeSandboxProfile({ protectedDirectories: ["/work/repos", "/work/repos/ui"], homeDirectory: "/home/a.b", runDirectory: "/work/repos/review" })
+  const lines = profile.split("\n")
+  const at = (text) => lines.findIndex((line) => line.includes(text))
+  T(`${UNIT}: the profile allows by default and denies each protected directory`,
+    lines[1] === "(allow default)" && at('(deny file-write* (subpath "/work/repos"))') > 1 && at('(deny file-write* (subpath "/work/repos/ui"))') > 1, profile)
+  T(`${UNIT}: the run directory opens after every protected directory, and its .git closes after that`,
+    at('(allow file-write* (subpath "/work/repos/review"))') > at('(deny file-write* (subpath "/work/repos/ui"))') &&
+      at('(deny file-write* (subpath "/work/repos/review/.git"))') > at('(allow file-write* (subpath "/work/repos/review"))'), profile)
+  T(`${UNIT}: the git directory rule is scoped to the home directory, with its dot escaped`, profile.includes('(regex #"^/home/a\\.b/(.*/)?[^/]*\\.git(/|$)")'), profile)
+  T(`${UNIT}: only the Vite and cache directories inside node_modules open again, after the protected directories`,
+    at('(allow file-write* (regex #"/node_modules/\\.(vite|vite-temp|cache)(/|$)"))') > at('(deny file-write* (subpath "/work/repos/ui"))'), profile)
+  T(`${UNIT}: the profile refuses each git network transport`, profile.includes('(deny process-exec (regex #"/git-remote-[^/]+$") (regex #"/ssh$"))'), profile)
+  for (const path of ['/work/a"b', "/work/a\\b", "/work/a\nb"]) {
+    let message = "accepted"
+    try { writeSandboxProfile({ protectedDirectories: [path], homeDirectory: "/home/a", runDirectory: "/work/run" }) } catch (error) { message = error.message }
+    T(`${UNIT}: the profile refuses the path ${JSON.stringify(path)}`, /cannot name a path with a quote, a backslash or a line break/.test(message), message)
+  }
+  const invocation = sandboxedInvocation(profile, "claude", ["-p", "order"])
+  same(`${UNIT}: the sandboxed invocation runs the worker under the profile`, [invocation.executable, ...invocation.args], [SANDBOX_EXEC, "-p", profile, "claude", "-p", "order"])
+  same(`${UNIT}: only macOS has the write sandbox`, [writeSandboxAvailable("linux"), writeSandboxAvailable("win32")], [false, false])
 }
 
-const snapshotCases = () => {
+/** The protected list holds the directory of each repository, each worktree and each extra root, once and by real path. */
+const protectedCases = () => {
+  const repository = stageRepo("review-run-protected")
+  const plainGit = gitWith({})
+  const linked = join(dirname(repository.path), "review-run-protected-linked")
+  const run = join(dirname(repository.path), "review-run-protected-run")
+  plainGit(repository.path, ["worktree", "add", "-q", "--detach", linked])
+  const runRepository = stageRepo("review-run-protected-other")
+  plainGit(runRepository.path, ["worktree", "add", "-q", "--detach", run])
+  const vault = dirname(stage("review-run/vault/note.md", "a note\n"))
+  const directories = protectedDirectories({ repositories: [repository.path, repository.path, join(vault, "absent")], runDirectory: run, extraRoots: [vault, join(vault, "absent-root")] })
+  same(`${UNIT}: the protected list holds each parent, repository, worktree and root once`, directories,
+    [...new Set([dirname(repository.path), repository.path, linked, runRepository.path, run, vault].map((path) => realpathSync(path)))].sort())
+}
+
+/** The run directory is the one worktree the worker may write, so its own status finds each write of the run. */
+const runDirectoryCases = () => {
   const repository = stageRepo("review-run-snapshot")
   const plainGit = gitWith({})
   writeFileSync(join(repository.path, "tracked.txt"), "first\n")
-  writeFileSync(join(repository.path, "dirty.txt"), "committed\n")
-  plainGit(repository.path, ["add", "--", "tracked.txt", "dirty.txt"])
-  plainGit(repository.path, ["commit", "-q", "-m", "tracked files"])
-  const held = join(dirname(repository.path), "review-run-snapshot-held")
-  const run = join(dirname(repository.path), "review-run-snapshot-run")
-  plainGit(repository.path, ["worktree", "add", "-q", "--detach", held])
-  plainGit(repository.path, ["worktree", "add", "-q", "--detach", run])
-  writeFileSync(join(repository.path, "dirty.txt"), "dirty before the run\n")
-  const runDirectory = realpathSync(run)
-  const isHeld = (path) => path === realpathSync(held)
-  const before = snapshotWorktrees([repository.path, repository.path], isHeld)
-  T(`${UNIT}: the snapshot holds each worktree once`, before.size === 3, JSON.stringify([...before.keys()]))
-  same(`${UNIT}: an unchanged tree finds no write`, writesBetween(before, snapshotWorktrees([repository.path], isHeld), runDirectory), [])
-
-  writeFileSync(join(repository.path, "untracked.txt"), "a build output\n")
-  writeFileSync(join(held, "tracked.txt"), "another worker's edit\n")
-  same(`${UNIT}: an untracked file and an edit in a held worktree are no write`, writesBetween(before, snapshotWorktrees([repository.path], isHeld), runDirectory), [])
-
-  writeFileSync(join(repository.path, "dirty.txt"), "changed again during the run\n")
+  plainGit(repository.path, ["add", "--", "tracked.txt"])
+  plainGit(repository.path, ["commit", "-q", "-m", "a tracked file"])
+  const run = realpathSync(repository.path)
+  const before = runDirectorySnapshot(run, true)
+  same(`${UNIT}: an unchanged run directory has no write`, runDirectoryWrites(before, runDirectorySnapshot(run, true), run), [])
+  writeFileSync(join(run, "untracked.txt"), "a build output\n")
+  same(`${UNIT}: an untracked file is no write`, runDirectoryWrites(before, runDirectorySnapshot(run, true), run), [])
   writeFileSync(join(run, "tracked.txt"), "a reviewer edit\n")
-  plainGit(run, ["commit", "-q", "--allow-empty", "-m", "a commit the hooks did not see"])
-  const writes = writesBetween(before, snapshotWorktrees([repository.path], isHeld), runDirectory)
-  same(`${UNIT}: a further edit of a dirty file, an edit and a commit in the run directory are writes`,
-    writes.map(({ kind, directory, detail }) => [kind, directory, kind === "commit" ? detail.startsWith("HEAD ") : detail]),
-    [["tracked-change", realpathSync(repository.path), "dirty.txt"], ["commit", runDirectory, true], ["tracked-change", runDirectory, "tracked.txt"]])
+  plainGit(run, ["commit", "-q", "--allow-empty", "-m", "a reviewer commit"])
+  same(`${UNIT}: a commit and a tracked edit in the run directory are writes`,
+    runDirectoryWrites(before, runDirectorySnapshot(run, true), run).map(({ kind, detail }) => [kind, kind === "commit" ? detail.startsWith("HEAD ") : detail]),
+    [["commit", true], ["tracked-change", "tracked.txt"]])
+  same(`${UNIT}: a status that git can no longer read is a write`,
+    runDirectoryWrites(before, { head: before.head, tracked: null }, run).map(({ kind }) => kind), ["tracked-change"])
+  same(`${UNIT}: a copy outside every repository has no snapshot and no write`, [runDirectorySnapshot(run, false), runDirectoryWrites(null, null, run)], [null, []])
+}
+
+/**
+ * A review worktree links node_modules from the primary checkout. The repository .gitignore must ignore
+ * that link, a file and not a directory, or git worktree remove refuses the worktree.
+ */
+const ignoredLinkCases = () => {
+  const repository = stageRepo("review-run-ignored-link")
+  const plainGit = gitWith({})
+  writeFileSync(join(repository.path, ".gitignore"), readFileSync(join(REPO_ROOT, ".gitignore"), "utf8"))
+  plainGit(repository.path, ["add", "--", ".gitignore"])
+  plainGit(repository.path, ["commit", "-q", "-m", "the repository ignore rules"])
+  const worktree = join(dirname(repository.path), "review-run-ignored-link-review")
+  plainGit(repository.path, ["worktree", "add", "-q", "--detach", worktree])
+  const installed = dirname(stage("review-run/installed/node_modules/package/index.js", "module.exports = 1\n"))
+  symlinkSync(dirname(installed), join(worktree, "node_modules"))
+  same(`${UNIT}: a node_modules link in a review worktree is ignored (finding 16)`, plainGit(worktree, ["status", "--porcelain", "--ignored=no"]).stdout, "")
+  const removed = plainGit(repository.path, ["worktree", "remove", worktree])
+  T(`${UNIT}: git worktree remove removes a review worktree that holds the link (finding 16)`, removed.status === 0 && !existsSync(worktree), removed.stderr)
 }
 
 /** Each verdict line an order promises, with its placeholder filled, is one the launcher publishes. */
@@ -155,6 +158,8 @@ export const cases = () => {
   orderCases()
   verdictCases()
   pathCases()
-  guardCases()
-  snapshotCases()
+  profileCases()
+  protectedCases()
+  runDirectoryCases()
+  ignoredLinkCases()
 }

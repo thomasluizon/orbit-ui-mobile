@@ -126,7 +126,7 @@ export function checkGitCommand(command, { resolveHeadBranch, resolveRemoteUrl, 
     const tokens = gitTokens(segment)
     for (let index = 0; index < tokens.length; index++) {
       const token = tokens[index]
-      if (token === "-C" || token === "-c" || token === "--git-dir" || token === "--work-tree") {
+      if (token === "-C" || token === "-c" || token === "--config-env" || token === "--git-dir" || token === "--work-tree") {
         index++
         continue
       }
@@ -137,6 +137,19 @@ export function checkGitCommand(command, { resolveHeadBranch, resolveRemoteUrl, 
   }
 
   const gitSubcommand = (segment) => gitCommandParts(segment).subcommand
+
+  /**
+   * Whether a git segment sets core.hooksPath. Git config keys ignore case, and the key also arrives
+   * through `--config-env` and through GIT_CONFIG_PARAMETERS or GIT_CONFIG_KEY_<n> in the environment.
+   */
+  const overridesHooksPath = (segment, globals) => {
+    const hooksPathSetting = (text) => /^core\.hookspath=/i.test(text ?? "")
+    const inArguments = globals.some((token, offset) =>
+      ((token === "-c" || token === "--config-env") && hooksPathSetting(globals[offset + 1])) ||
+      (token.startsWith("-c") && token !== "-c" && hooksPathSetting(token.slice(2))) ||
+      (token.startsWith("--config-env=") && hooksPathSetting(token.slice("--config-env=".length))))
+    return inArguments || /\bGIT_CONFIG_(?:PARAMETERS|KEY_\d+)=\S*core\.hookspath/i.test(segment)
+  }
 
   const pushesProtectedRef = (segment) => {
     const { subcommand, rest } = gitCommandParts(segment)
@@ -156,8 +169,7 @@ export function checkGitCommand(command, { resolveHeadBranch, resolveRemoteUrl, 
   // different segment.
   for (const { segment, directory } of segments) {
     const { subcommand, globals } = gitCommandParts(segment)
-    if (["commit", "push"].includes(subcommand) && globals.some((token, offset) =>
-      (token === "-c" && globals[offset + 1]?.startsWith("core.hooksPath=")) || token.startsWith("-ccore.hooksPath="))) {
+    if (["commit", "push"].includes(subcommand) && overridesHooksPath(segment, globals)) {
       return blocked(command, "Overriding core.hooksPath bypasses the repository hooks.")
     }
     if (gitSubcommand(segment) !== "push") continue

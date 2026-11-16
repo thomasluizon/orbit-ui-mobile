@@ -18,7 +18,7 @@ import { checkHandoffCommit, checkHandoffStop, gitCommitDirectory } from "./_lib
 import { newestCommittedPrompt, promptsForCommit, specsForCommit } from "./_lib/handoff-git.mjs"
 import { adoptOwnerHandoffRun, parseHandoffRequest, prepareOwnerHandoffRun, readHandoffRequest, recordHandoffRequest, validateHandoffPrompt } from "../../tools/lib/handoff-prompt.mjs"
 import { checkDependencyCommand, checkDependencyFileWrite } from "./_lib/rules-dependencies.mjs"
-import { checkWorkerBrowser } from "./_lib/rules-worker.mjs"
+import { checkReadOnlyRun, checkWorkerBrowser } from "./_lib/rules-worker.mjs"
 import { declaredRepoRoots } from "./_lib/repo-roots.mjs"
 import { operationInProgress } from "../../tools/lib/relay-checkout.mjs"
 import { readRunState, writeRunState } from "../../tools/lib/run-state.mjs"
@@ -363,19 +363,77 @@ for (const command of ["npm run dev", "next dev --port 3920", "pnpm dev", "expo 
 T("worker-browser: the refusal says who owes the visual check", worker("npm run dev")?.message.includes("owed by a HUMAN"), true)
 // A device proof worker (launch-worker.mjs --proof) drives a device, but never the owner's emulator,
 // and every other worker ban still holds for it.
-const proofWorker = (command) => checkWorkerBrowser(command, { env: { ORBIT_LAUNCH_WORKER: "1", ORBIT_DEVICE_PROOF: "1" }, cwd: repoRoot, repoRoots: [] })
-for (const command of ["adb shell input tap 1 1", "adb -s emulator-5594 shell input swipe 1 1 9 9 600", "emulator -avd orbit-proof-2145 -no-window", "node tools/android-emulator.mjs --avd orbit-proof-2145", "xcrun simctl boot 'iPhone 17'"]) {
+const PROOF_PIN = { ORBIT_LAUNCH_WORKER: "1", ORBIT_DEVICE_PROOF: "1", ANDROID_SERIAL: "emulator-5594", ORBIT_PROOF_EMULATOR_PORT: "5594" }
+const proofWorker = (command, env = PROOF_PIN) => checkWorkerBrowser(command, { env, cwd: repoRoot, repoRoots: [] })
+for (const command of ["adb shell input tap 1 1", "adb -s emulator-5594 shell input swipe 1 1 9 9 600", "adb devices", "emulator -avd orbit-proof-2145 -port 5594 -no-window", "node tools/android-emulator.mjs --avd orbit-proof-2145 --port 5594", "node tools/android-emulator.mjs --status --avd orbit-proof-2145", "ANDROID_SERIAL=emulator-5594 adb install app.apk", "xcrun simctl boot 'iPhone 17'"]) {
   T(`worker-browser: a device proof may run ${command}`, proofWorker(command), null)
 }
 for (const command of ["emulator -avd Orbit_Pixel_9_API_35", "emulator @Orbit_Pixel_9_API_35 -no-window", "node tools/android-emulator.mjs", "node tools/android-emulator.mjs --status && adb devices"]) {
   T(`worker-browser: a device proof may not reach the owner's emulator: ${command}`, /may not use the owner's emulator Orbit_Pixel_9_API_35/.test(proofWorker(command)?.message ?? ""), true)
 }
+// The launcher pins the proof's own serial; adb reaches any running emulator by serial, so each other one is refused.
+for (const command of [
+  "adb -s emulator-5554 shell pm clear org.useorbit.app",
+  "ANDROID_SERIAL=emulator-5554 adb shell input tap 1 1",
+  "adb -e install app.apk",
+  "adb -d shell input tap 1 1",
+  "adb -t 1 shell input tap 1 1",
+  "adb -H 127.0.0.1 -P 5038 devices",
+  "env ANDROID_SERIAL=emulator-5554 adb shell input tap 1 1",
+  "env -u ANDROID_SERIAL adb install app.apk",
+  "unset ANDROID_SERIAL; adb install app.apk",
+  "export ANDROID_SERIAL=emulator-5554",
+  "emulator -avd orbit-proof-2145 -no-window",
+  "emulator -avd orbit-proof-2145 -port 5554",
+  "node tools/android-emulator.mjs --avd orbit-proof-2145",
+  "node tools/android-emulator.mjs --avd orbit-proof-2145 --port 5554",
+]) {
+  T(`worker-browser: a device proof may not leave its pinned device: ${command}`, /pinned device emulator-5594/.test(proofWorker(command)?.message ?? ""), true)
+}
+T("worker-browser: a device proof without a pinned serial may not run adb", /pinned device/.test(proofWorker("adb devices", { ORBIT_LAUNCH_WORKER: "1", ORBIT_DEVICE_PROOF: "1" })?.message ?? ""), true)
 for (const command of ["npm run dev", "npx playwright test", "expo start"]) {
   T(`worker-browser: a device proof still may not run ${command}`, /A worker may not start/.test(proofWorker(command)?.message ?? ""), true)
 }
 T("worker-browser: a proof marker other than 1 grants nothing", blocks(checkWorkerBrowser("adb devices", { env: { ORBIT_LAUNCH_WORKER: "1", ORBIT_DEVICE_PROOF: "true" }, cwd: repoRoot, repoRoots: [] })), true)
 T("worker-browser: a typed proof marker grants nothing", blocks(worker("ORBIT_DEVICE_PROOF=1 adb devices")), true)
 T("worker-browser: a later chained dev server blocks", blocks(worker("npm test && npm run dev")), true)
+// A read-only review or proof reads GitHub and never writes it, and never reads a credential.
+const readOnlyWorker = (command) => checkReadOnlyRun(command, { env: { ORBIT_LAUNCH_WORKER: "1", ORBIT_READ_ONLY_RUN: "1" } })
+for (const command of [
+  "gh pr view 2476 --repo thomasluizon/orbit-ui-mobile --json body --jq .body",
+  "gh pr diff 2476",
+  "gh pr checks 2476",
+  "gh run view 42476551712 --log-failed",
+  "gh api \"repos/thomasluizon/orbit-ui-mobile/pulls/2476/comments?per_page=100\" --jq '.[]|.path'",
+  "gh api -X GET search/issues -f q=repo:thomasluizon/orbit-ui-mobile",
+  "gh api graphql -f query='query { viewer { login } }'",
+  "gh auth status",
+  "curl -s https://api.github.com/repos/thomasluizon/orbit-ui-mobile",
+  "git log --oneline -3",
+]) {
+  T(`read-only run: ${command} allows`, readOnlyWorker(command), null)
+}
+for (const command of [
+  "gh api -X POST repos/thomasluizon/orbit-ui-mobile/git/refs -f ref=refs/heads/evil -f sha=43867fb40cb8eb853f50491a14b2d5d39b2a75bf",
+  "gh api --method=PATCH repos/thomasluizon/orbit-ui-mobile/pulls/2476 -f body=x",
+  "gh api repos/thomasluizon/orbit-ui-mobile/issues/2476/comments -f body=x",
+  "gh api repos/thomasluizon/orbit-ui-mobile/issues/2476/comments --input body.json",
+  "gh api graphql -f query='mutation { resolveReviewThread(input: {threadId: \"x\"}) { clientMutationId } }'",
+  "gh pr comment 2476 --body x",
+  "gh pr review 2476 --approve",
+  "gh pr merge 2476 --squash",
+  "gh issue close 2145",
+  "gh auth token",
+  "gh auth git-credential get",
+  "security find-generic-password -s gh:github.com -w",
+  "git credential fill",
+  "curl -X POST -H 'Authorization: token x' https://api.github.com/repos/thomasluizon/orbit-ui-mobile/git/refs -d '{}'",
+  "npx gh pr comment 2476 --body x",
+]) {
+  T(`read-only run: ${command} blocks`, /A read-only run writes nothing to GitHub/.test(readOnlyWorker(command)?.message ?? ""), true)
+}
+T("read-only run: a ticket worker keeps its own GitHub writes", checkReadOnlyRun("gh pr comment 2476 --body x", { env: { ORBIT_LAUNCH_WORKER: "1" } }), null)
+T("read-only run: a typed marker grants nothing to refuse", checkReadOnlyRun("ORBIT_READ_ONLY_RUN=1 gh pr comment 2476 --body x", { env: {} }), null)
 // The same commands from a session that is NOT a worker are none of this gate's business.
 T("worker-browser: npm run dev outside a worker allows", checkWorkerBrowser("npm run dev", { env: {}, cwd: "", repoRoots: [] }), null)
 T("worker-browser: a cwd inside a linked worktree IS a worker", blocks(checkWorkerBrowser("npm run dev", { env: {}, cwd: linkedWorktree, repoRoots: [mainCheckout] })), true)
@@ -748,6 +806,21 @@ T(
 T("git wrapper regression: nested escaped backticks", blocks(checkGitCommand("echo `echo \\`git push origin main\\``")), true)
 for (const command of ["(git push origin main)", "$(git push origin main)", "echo `git push origin main`", "bash -c 'git push origin main'", "eval 'git push origin main'", "git commit -nam x", "git -c core.hooksPath=/dev/null commit", "git -c 'core.hooksPath=/dev/null' commit", "git -ccore.hooksPath=/dev/null push origin feature/x", "git -c core.hooksPath=/dev/null push origin feature/x", "git push --all origin", "git push --mirror origin", "git push --branches origin"]) {
   T(`git wrapper regression: ${command}`, blocks(checkGitCommand(command)), true)
+}
+// Git config keys ignore case, and the hooks path also arrives through --config-env and the environment.
+for (const command of [
+  "git -c core.hookspath=/nonexistent push -q origin HEAD:refs/heads/x",
+  "git -c CORE.HOOKSPATH=/dev/null commit -m x",
+  "HP=/nonexistent git --config-env=core.hooksPath=HP push -q origin HEAD:refs/heads/x",
+  "git --config-env core.hookspath=HP commit -m x",
+  "GIT_CONFIG_PARAMETERS=\"'core.hooksPath'='/nonexistent'\" git push -q origin HEAD:refs/heads/x",
+  "GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=core.hookspath GIT_CONFIG_VALUE_0=/dev/null git commit -m x",
+  "env GIT_CONFIG_PARAMETERS=\"'core.hookspath'='/x'\" git push origin feature/x",
+]) {
+  T(`git hooks path: ${command} blocks`, /Overriding core.hooksPath/.test(checkGitCommand(command)?.message ?? ""), true)
+}
+for (const command of ["git -c core.editor=true commit -m x", "git --config-env=user.name=NAME commit -m x", "GIT_CONFIG_PARAMETERS=\"'user.name'='x'\" git commit -m x", "git config core.hooksPath"]) {
+  T(`git hooks path: ${command} allows`, checkGitCommand(command), null)
 }
 for (const command of ["npx -y playwright test", "pnpm exec playwright test", "yarn exec playwright test", "npx vite --port 5173", "remix", "curl localhost:3000", "curl 127.0.0.1:3000", "curl '[::1]:3000'"]) {
   T(`worker wrapper regression: ${command}`, blocks(checkWorkerBrowser(command, { env: { ORBIT_LAUNCH_WORKER: "1" } })), true)

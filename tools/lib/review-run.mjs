@@ -1,14 +1,15 @@
 /**
- * The read-only worker mode of tools/launch-worker.mjs: a review or a device proof that writes nothing
- * tracked in any repository it can reach. Git hooks scoped to the protected repositories record and
- * refuse each ref update and push of the worker's own git processes, so each one is attributed to the
- * worker. A before and after snapshot of each worktree finds a changed tracked file, which no hook sees.
+ * The read-only mode of tools/launch-worker.mjs: a review or a device proof that writes nothing tracked
+ * in any repository it can reach. sandbox-exec applies a write profile to the whole worker process tree,
+ * which no environment variable, git option or file write can drop. The run directory is the one
+ * worktree the worker may write, so a before and after status of it finds a changed tracked file.
  */
 
 import { spawnSync } from "node:child_process"
 import { createHash } from "node:crypto"
-import { chmodSync, existsSync, mkdirSync, readFileSync, realpathSync, statSync, writeFileSync } from "node:fs"
-import { join, relative, resolve, isAbsolute } from "node:path"
+import { existsSync, readFileSync, realpathSync, statSync } from "node:fs"
+import { createServer } from "node:net"
+import { dirname, join, relative, resolve, isAbsolute } from "node:path"
 
 import { parseWorktreeList } from "./git-worktrees.mjs"
 import { researchPaths } from "./research-run.mjs"
@@ -23,7 +24,6 @@ export const resultVerdict = (text, mode) => {
   return (mode === "proof" ? PROOF_VERDICT_LINE : REVIEW_VERDICT_LINE).test(first) ? first : null
 }
 
-const ZERO_OBJECT = /^0+$/
 
 const git = (directory, args) => spawnSync("git", ["-C", directory, ...args], {
   encoding: "utf8",
@@ -59,83 +59,95 @@ export const readOnlyPaths = (orderArgument, outputArgument, directoryArgument, 
   return { orderFile, outputFile, runDirectory, gitWorktree: topLevel.status === 0 }
 }
 
-/** The real common git directory of the repository that holds `directory`, or null outside every repository. */
-export const commonGitDirectory = (directory) => {
-  if (!existsSync(directory)) return null
-  const result = git(directory, ["rev-parse", "--path-format=absolute", "--git-common-dir"])
-  if (result.status !== 0) return null
-  try { return realpathSync(result.stdout.trim()) } catch { return null }
+/** The macOS program that applies a sandbox profile to a process and to every process it starts. */
+export const SANDBOX_EXEC = "/usr/bin/sandbox-exec"
+
+/** Whether this machine can confine a read-only worker. Only macOS has sandbox-exec. */
+export const writeSandboxAvailable = (platform = process.platform) => platform === "darwin" && existsSync(SANDBOX_EXEC)
+
+const realPath = (path) => {
+  try { return realpathSync(path) } catch { return null }
 }
 
-const shellWord = (value) => `'${String(value).replaceAll("'", "'\\''")}'`
-
-const HOOK_SCRIPT = `const { appendFileSync, readFileSync } = require("node:fs")
-const [kind, log, ...args] = process.argv.slice(2)
-const input = readFileSync(0, "utf8")
-const record = (entry) => appendFileSync(log, JSON.stringify({ ...entry, directory: process.cwd() }) + "\\n")
-if (kind === "pre-push") {
-  record({ kind: "push", remote: args[0] ?? null, refs: input.split("\\n").filter(Boolean) })
-  process.exit(1)
+/** Each worktree path of the repository that holds `directory`, the primary checkout first. */
+const worktreesOf = (directory) => {
+  const listed = git(directory, ["worktree", "list", "--porcelain"])
+  if (listed.status !== 0) return []
+  return parseWorktreeList(listed.stdout).filter((worktree) => worktree.path && !worktree.prunable).map((worktree) => worktree.path)
 }
-// Git 2.55 calls this hook in a "preparing" state before "prepared"; older Git has only "prepared".
-if (!["preparing", "prepared"].includes(args[0])) process.exit(0)
-const updates = input.split("\\n").filter(Boolean).map((line) => line.split(" "))
-  .filter(([oldValue, newValue, ref]) => oldValue !== newValue && !ref.startsWith("refs/remotes/") &&
-    !(ref.startsWith("refs/tags/") && /^0+$/.test(oldValue)))
-if (updates.length === 0) process.exit(0)
-record({ kind: "ref-update", refs: updates.map(([oldValue, newValue, ref]) => ({ ref, oldValue, newValue })) })
-process.exit(1)
-`
 
 /**
- * Hooks that record and refuse writes in the protected repositories only, through the environment
- * configuration that every git process of the worker reads. Per repository, the bare `includeIf.gitdir`
- * pattern matches the primary checkout and the trailing slash matches each linked worktree. Other
- * repositories keep their own hooks. A fetch may update `refs/remotes/` and create a tag.
+ * The directories that the read-only worker may not write: the directory that holds each configured
+ * repository (so each sibling repository, such as the brain vault, is in it), each configured
+ * repository, each worktree of a configured repository or of the run directory's repository, and each
+ * extra root (the configured hygiene roots). Only existing directories, each one once, by real path.
  */
-export const installWriteGuard = (commonDirectories, guardDirectory, environment = process.env) => {
-  const hooksDirectory = join(guardDirectory, "hooks")
-  mkdirSync(hooksDirectory, { recursive: true })
-  const logFile = join(guardDirectory, "writes.jsonl")
-  writeFileSync(logFile, "")
-  const hookScript = join(guardDirectory, "record-write.cjs")
-  writeFileSync(hookScript, HOOK_SCRIPT)
-  for (const hook of ["reference-transaction", "pre-push"]) {
-    const path = join(hooksDirectory, hook)
-    writeFileSync(path, `#!/bin/sh\nexec ${shellWord(process.execPath)} ${shellWord(hookScript)} ${hook} ${shellWord(logFile)} "$@"\n`)
-    chmodSync(path, 0o755)
+export const protectedDirectories = ({ repositories, runDirectory = null, extraRoots = [] }) => {
+  const directories = new Set()
+  const add = (path) => {
+    const real = realPath(path)
+    if (real !== null) directories.add(real)
   }
-  const includedConfig = join(guardDirectory, "guard.gitconfig")
-  writeFileSync(includedConfig, `[core]\n\thooksPath = ${hooksDirectory.replaceAll("\\", "/")}\n`)
-  const existing = Number(environment.GIT_CONFIG_COUNT)
-  let index = Number.isInteger(existing) && existing > 0 ? existing : 0
-  const variables = {}
-  const condition = process.platform === "win32" ? "gitdir/i" : "gitdir"
-  for (const directory of new Set(commonDirectories)) {
-    const pattern = directory.replaceAll("\\", "/")
-    for (const suffix of ["", "/"]) {
-      variables[`GIT_CONFIG_KEY_${index}`] = `includeIf.${condition}:${pattern}${suffix}.path`
-      variables[`GIT_CONFIG_VALUE_${index}`] = includedConfig
-      index += 1
-    }
+  for (const repository of repositories) {
+    if (!existsSync(repository)) continue
+    add(dirname(realPath(repository) ?? repository))
+    add(repository)
+    for (const worktree of worktreesOf(repository)) add(worktree)
   }
-  return { logFile, environment: { ...variables, GIT_CONFIG_COUNT: String(index) } }
+  if (runDirectory !== null) for (const worktree of worktreesOf(runDirectory)) add(worktree)
+  for (const root of extraRoots) add(root)
+  return [...directories].sort()
 }
 
-/** Each write the guard recorded: a push, a new branch, or another ref update such as a commit. */
-export const recordedWrites = (logFile) => {
-  let text = ""
-  try { text = readFileSync(logFile, "utf8") } catch { return [] }
-  return text.split("\n").filter(Boolean).flatMap((line) => {
-    let entry
-    try { entry = JSON.parse(line) } catch { return [{ kind: "unreadable-guard-record", directory: null, detail: line }] }
-    if (entry.kind === "push") return [{ kind: "push", directory: entry.directory, detail: `${entry.remote ?? "unknown remote"}: ${entry.refs.join("; ")}` }]
-    return entry.refs.map(({ ref, oldValue, newValue }) => ({
-      kind: ref.startsWith("refs/heads/") && ZERO_OBJECT.test(oldValue) ? "new-branch" : "ref-update",
-      directory: entry.directory,
-      detail: `${ref} ${oldValue} -> ${newValue}`,
-    }))
-  })
+/** A path as a sandbox profile string. A quote, a backslash or a line break would end the string early. */
+const profileString = (path) => {
+  if (/["\\\r\n]/.test(path)) throw new Error(`the write sandbox cannot name a path with a quote, a backslash or a line break: ${JSON.stringify(path)}`)
+  return `"${path}"`
+}
+
+const profileRegexText = (path) => profileString(path).slice(1, -1).replace(/[.*+?^${}()|[\]]/g, "\\$&")
+
+/**
+ * The sandbox profile of a read-only run. A later rule wins over an earlier one, so the run directory
+ * and the test caches inside node_modules open inside a protected directory, and the run directory's
+ * `.git` link closes again after that. `homeDirectory` scopes the git-directory rule, so a test
+ * fixture under the temporary directory can still make a repository.
+ */
+export const writeSandboxProfile = ({ protectedDirectories: directories, homeDirectory, runDirectory }) => [
+  "(version 1)",
+  "(allow default)",
+  ...directories.map((directory) => `(deny file-write* (subpath ${profileString(directory)}))`),
+  // A review worktree links node_modules from a protected checkout. Vite and Vitest write their untracked
+  // bundled config and cache there, so a test run needs these directories and no package file.
+  `(allow file-write* (regex #"/node_modules/\\.(vite|vite-temp|cache)(/|$)"))`,
+  `(deny file-write* (regex #"^${profileRegexText(homeDirectory)}/(.*/)?[^/]*\\.git(/|$)"))`,
+  `(allow file-write* (subpath ${profileString(runDirectory)}))`,
+  `(deny file-write* (subpath ${profileString(join(runDirectory, ".git"))}))`,
+  // Git reaches a network remote only through these programs: the http, https, ftp, ext and fd helpers, and ssh.
+  // A local remote is a directory, which the rules above refuse when it is protected or a git directory under home.
+  `(deny process-exec (regex #"/git-remote-[^/]+$") (regex #"/ssh$"))`,
+  "",
+].join("\n")
+
+/** The sandbox-exec invocation that runs `executable` under `profile`. */
+export const sandboxedInvocation = (profile, executable, args) => ({ executable: SANDBOX_EXEC, args: ["-p", profile, executable, ...args] })
+
+const portFree = (port) => new Promise((settle) => {
+  const server = createServer()
+  server.once("error", () => settle(false))
+  server.listen(port, "127.0.0.1", () => server.close(() => settle(true)))
+})
+
+/**
+ * An even emulator console port from 5560 to 5680 whose adb port, the next one, is also free. The
+ * first three emulators of a machine take 5554 to 5559 on their own, so a pinned proof emulator never
+ * shares a serial with the owner's. Null when every port is taken.
+ */
+export const freeEmulatorPort = async () => {
+  for (let port = 5560; port <= 5680; port += 2) {
+    if (await portFree(port) && await portFree(port + 1)) return port
+  }
+  return null
 }
 
 const STATUS_ARGUMENTS = ["-c", "core.fsmonitor=false", "status", "--porcelain=v1", "-z", "--untracked-files=no", "--ignore-submodules=none"]
@@ -160,45 +172,27 @@ const trackedChanges = (worktree) => {
   return changes
 }
 
-/**
- * Each worktree of each repository: its HEAD and its changed tracked paths. `isOccupied(path)` marks a
- * worktree that another live launcher holds, whose own worker legitimately writes there.
- */
-export const snapshotWorktrees = (repositoryDirectories, isOccupied) => {
-  const snapshot = new Map()
-  for (const repository of repositoryDirectories) {
-    const listed = git(repository, ["worktree", "list", "--porcelain"])
-    if (listed.status !== 0) continue
-    for (const worktree of parseWorktreeList(listed.stdout)) {
-      if (!worktree.path || worktree.prunable) continue
-      let path
-      try { path = realpathSync(worktree.path) } catch { continue }
-      if (snapshot.has(path)) continue
-      const head = git(path, ["rev-parse", "HEAD"])
-      snapshot.set(path, { head: head.status === 0 ? head.stdout.trim() : null, tracked: trackedChanges(path), occupied: isOccupied(path) })
-    }
-  }
-  return snapshot
+/** The HEAD and the changed tracked paths of the run directory, or null for a copy outside every repository. */
+export const runDirectorySnapshot = (runDirectory, gitWorktree) => {
+  if (!gitWorktree) return null
+  const head = git(runDirectory, ["rev-parse", "HEAD"])
+  return { head: head.status === 0 ? head.stdout.trim() : null, tracked: trackedChanges(runDirectory) }
 }
 
 /**
- * The writes between two snapshots: a changed tracked path in a worktree that no other live launcher
- * holds, and a moved HEAD in the run directory. A worktree in only one snapshot was added or removed
- * by somebody else. The hooks already cover the worker's own git writes in every other worktree.
+ * The writes between two snapshots of the run directory: a moved HEAD, a changed tracked path, or a
+ * status that git can no longer read. The sandbox refuses every other write, and the launcher holds the
+ * run directory against a second launch, so each change here is the worker's own.
  */
-export const writesBetween = (before, after, runDirectory) => {
+export const runDirectoryWrites = (before, after, runDirectory) => {
+  if (before === null) return []
   const writes = []
-  for (const [path, earlier] of before) {
-    const later = after.get(path)
-    if (!later || earlier.occupied || later.occupied) continue
-    if (path === runDirectory && earlier.head !== later.head) {
-      writes.push({ kind: "commit", directory: path, detail: `HEAD ${earlier.head} -> ${later.head}` })
-    }
-    if (earlier.tracked === null || later.tracked === null) continue
-    const paths = [...new Set([...Object.keys(earlier.tracked), ...Object.keys(later.tracked)])]
-      .filter((file) => earlier.tracked[file] !== later.tracked[file]).sort()
-    if (paths.length > 0) writes.push({ kind: "tracked-change", directory: path, detail: paths.join(", ") })
-  }
+  if (before.head !== after.head) writes.push({ kind: "commit", directory: runDirectory, detail: `HEAD ${before.head} -> ${after.head}` })
+  if (before.tracked === null) return writes
+  if (after.tracked === null) return [...writes, { kind: "tracked-change", directory: runDirectory, detail: "git can no longer read the status of the run directory" }]
+  const paths = [...new Set([...Object.keys(before.tracked), ...Object.keys(after.tracked)])]
+    .filter((file) => before.tracked[file] !== after.tracked[file]).sort()
+  if (paths.length > 0) writes.push({ kind: "tracked-change", directory: runDirectory, detail: paths.join(", ") })
   return writes
 }
 
@@ -216,13 +210,16 @@ export const reviewBrief = (playbook) => {
 }
 
 const NO_WRITES = `**You write nothing tracked.** Never edit, create or delete a tracked file, and never commit, stash,
-reset, check out, switch, merge, rebase, create a branch or a tag, or push, in this directory or in
-any other worktree or repository. The launcher refuses each git write, records it and fails the whole
-run. It also fails the run on a changed tracked file in any worktree it can reach. Untracked output of
-a test or a build is allowed.
+reset, check out, switch, merge, rebase, fetch, create a branch or a tag, or push, in this directory or
+in any other worktree or repository. You run under a macOS write sandbox: a write to a configured
+repository, to one of its worktrees, to a git directory or to a git remote fails with "Operation not
+permitted". Your directory is the one worktree you can write, and the launcher fails the whole run when
+a tracked file in it changed. Untracked output of a test or a build is allowed. A test that makes its
+own fixture repository in the temporary directory still works.
 
-**No GitHub write.** Read GitHub with \`gh pr view\` and \`gh api\` GET requests only. Never post a
-comment, a review, a reaction, a label or a status, never resolve a thread, and never ask for a review.`
+**No GitHub write.** Read GitHub with \`gh pr view\`, \`gh pr diff\` and \`gh api\` GET requests only. Never post a
+comment, a review, a reaction, a label or a status, never resolve a thread, never ask for a review, and
+never read a credential. A hook refuses each of these commands.`
 
 const FINAL_MESSAGE = `**Your final message has at most 12 lines:** the verdict line, the result file path, and one line for
 each of the most severe findings. The orchestrator reads the result file, not your message.`
@@ -268,8 +265,11 @@ ${plan.trim()}
 
 **Devices.** Use only these: ${devices.join(", ")}. You may also create one throwaway Android virtual device
 from the installed arm64 play image, run it headless with no personal account, and delete it before
-you finish. Never boot or use \`Orbit_Pixel_9_API_35\`, the owner's emulator, and never sign in to a
-personal account. Read \`.claude/playbooks/operations.md\` \`## Android devices and Play\` before you use a device.
+you finish. Boot it on the port that the launcher pinned:
+\`node tools/android-emulator.mjs --avd <throwaway name> --port $ORBIT_PROOF_EMULATOR_PORT\`. Its serial is
+\`$ANDROID_SERIAL\`, which adb uses when a command names no device. Never pass another serial, never clear
+or change either variable, never boot or use \`Orbit_Pixel_9_API_35\`, the owner's emulator, and never
+sign in to a personal account. Read \`.claude/playbooks/operations.md\` \`## Android devices and Play\` before you use a device.
 
 ${NO_WRITES}
 A step that needs a changed tracked file, such as a version bump for a local build, runs in a copy

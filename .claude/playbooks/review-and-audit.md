@@ -93,13 +93,13 @@ The review runs on a read-only worker, never on an in-session subagent. A worker
 1. Make a detached worktree at the head: `git -C <repo> worktree add --detach <scratchpad>/review-<pr>-<short sha> <head>`.
 2. Compose the order: `node tools/compose-prompt.mjs --review --repo <key> --pr <n> --head <head> --out <scratchpad>/review-<pr>-order.md`. It embeds the brief below.
 3. Start the worker in the background: `node tools/launch-worker.mjs --review --order <order> --out <scratchpad>/review-<pr>-<short sha>.md --directory <worktree>`. It takes no admission and no branch launch slot.
-4. Read the result file when the launcher exits 0. Its first line is `VERDICT: CLEAN` or `VERDICT: DEFECTS (<n>)`. Exit 5 means the worker left a write: read `writes` in the launcher output, undo the write, and start the review again. Exit 1 means the run failed: read `logFile` and start it again.
+4. Read the result file when the launcher exits 0. Its first line is `VERDICT: CLEAN` or `VERDICT: DEFECTS (<n>)`. Exit 5 means the worker changed a tracked file or moved HEAD in its own detached worktree, the only worktree that its write sandbox lets it write: remove that worktree and do steps 1 to 4 again. Exit 1 means the run failed: read `logFile` and start it again. Exit 2 with "needs the macOS write sandbox" means this machine cannot run a read-only worker: stop and tell the owner.
 5. Fix every finding that the worker confirms. All the fixes go in the same push.
 6. Run the local checks that the change affects: lint, type check, and the focused tests of each changed workspace or tool. Each one must pass.
 7. After a fix round, do steps 1 to 4 again with `--since <reviewed head>` in step 2, at the new head. That worker reads only the new commits (`git diff <reviewed head>..<new head>`). Fix what it confirms, and run the affected checks again.
-8. Push. Then ask for the review as `orchestrate/SKILL.md` step 8 says. Remove each review worktree with `git -C <repo> worktree remove <worktree>`; it holds no work of its own.
+8. Push. Then ask for the review as `orchestrate/SKILL.md` step 8 says. Remove each review worktree with `git -C <repo> worktree remove <worktree>`; it holds no work of its own. The repository `.gitignore` ignores a `node_modules` link, so a worktree with linked dependencies is removed without `--force`.
 
-Commit or undo each tracked edit that you make in a configured repository before a review or proof worker ends. The launcher cannot tell an uncommitted edit of yours from one of the worker's, so it fails that run. Your own commits and pushes do not fail it, because the git hooks record only the worker's git processes.
+The launcher runs the worker under a macOS `sandbox-exec` write profile (`tools/lib/review-run.mjs`). The profile refuses each write to the directory that holds each configured repository, to each worktree, to each hygiene root and to each git directory under the home directory, and it refuses each git network transport. Your own edits, commits and pushes in other worktrees never fail the run. The worker still holds the owner's GitHub token, because the login keychain serves it and the worker's own Claude login together: a hook refuses each `gh` write and each credential read by command text, and a script that calls GitHub itself passes that hook.
 
 #### The review brief
 

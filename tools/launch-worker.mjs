@@ -2,18 +2,18 @@
 
 import { spawn, spawnSync } from "node:child_process"
 import { closeSync, existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, readdirSync, realpathSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs"
-import { tmpdir } from "node:os"
+import { homedir, tmpdir } from "node:os"
 import { delimiter, dirname, extname, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 
 import { assertOutsideRepository, researchEnvironment, researchInvocation, researchPaths, researchPrompt } from "./lib/research-run.mjs"
-import { commonGitDirectory, installWriteGuard, readOnlyPaths, recordedWrites, resultVerdict, snapshotWorktrees, writesBetween } from "./lib/review-run.mjs"
+import { freeEmulatorPort, protectedDirectories, readOnlyPaths, resultVerdict, runDirectorySnapshot, runDirectoryWrites, sandboxedInvocation, SANDBOX_EXEC, writeSandboxAvailable, writeSandboxProfile } from "./lib/review-run.mjs"
 import { githubEnvironment, redactSecrets } from "./lib/github-auth.mjs"
 import { ADMISSION_REFUSED_EXIT, checkAdmission, releaseAdmission } from "./lib/admission.mjs"
 import { resolveTicket } from "./lib/github-issues.mjs"
 import { logFinalResult, NO_STOP } from "./lib/claude-usage-limit.mjs"
 import { readOrchestratorConfig, resolveWorkerInvocation, workerAccountEnvironment, workerAccounts } from "./lib/orchestrator-config.mjs"
-import { clearWakeSource, clearWorkerLaunchReservation, recordReservedWorkerPid, registerWakeSource, reserveWorkerLaunch, readRunState, workerLaunchDirectory, worktreeHeldByOtherLauncher } from "./lib/run-state.mjs"
+import { clearWakeSource, clearWorkerLaunchReservation, recordReservedWorkerPid, registerWakeSource, reserveWorkerLaunch, readRunState, workerLaunchDirectory } from "./lib/run-state.mjs"
 
 const USAGE = `usage: launch-worker.mjs --issue <ORB-N|#N|N> --worktree <path> --prompt <file> [options]
 
@@ -28,19 +28,26 @@ const USAGE = `usage: launch-worker.mjs --issue <ORB-N|#N|N> --worktree <path> -
                      [--tier <t>] [--hard-ceiling-minutes <n>] [--measurement] [--dry-run]
   --review           a pre-push or fix-round review (tools/compose-prompt.mjs --review composes the order)
   --proof            a device proof (tools/compose-prompt.mjs --proof composes the order). The worker
-                     gets ORBIT_DEVICE_PROOF=1, which lets the worker hook allow adb and emulator
+                     gets ORBIT_DEVICE_PROOF=1, which lets the worker hook allow adb and emulator, and
+                     a free emulator port pair from 5560: ORBIT_PROOF_EMULATOR_PORT=<port> and
+                     ANDROID_SERIAL=emulator-<port>. The hook refuses each adb or emulator command
+                     that names another device or port
   --directory <path> the directory the worker runs in: the root of a detached worktree at the head, or
                      a copy outside every repository
                      A read-only run uses the full tool set of its tier on the worker account, takes no
                      ticket admission and no branch launch slot, claims a git run directory against a
                      second launch, registers a wake source and keeps both clocks and the CPU probe.
-                     Git hooks scoped to the configured repositories and the run directory's repository
-                     refuse and record each ref update and push of the worker's git processes. A
-                     before and after status of each of their worktrees finds a changed tracked file,
-                     except in a worktree that another live launcher holds. The worker writes its
-                     result to a file the launcher names; the launcher publishes it to --out only when
-                     the worker exits 0, no write was found, and the first line is the mode's verdict
-                     line (VERDICT: CLEAN or VERDICT: DEFECTS (<n>), PROOF: PASS or PROOF: FAIL (<n> defects))
+                     It runs only on macOS, under sandbox-exec. The write profile refuses each write
+                     to the directory that holds each configured repository, to each worktree of a
+                     configured repository or of the run directory's repository, to each hygiene root,
+                     to each git directory under the home directory and to the run directory's .git,
+                     and it refuses each git network transport (git-remote-* and ssh). Only the run
+                     directory and paths outside those stay writable. A before and after status of the
+                     run directory finds a commit or a changed tracked file there. The worker writes
+                     its result to a file the launcher names; the launcher publishes it to --out only
+                     when the worker exits 0, the run directory holds no write, and the first line is
+                     the mode's verdict line (VERDICT: CLEAN or VERDICT: DEFECTS (<n>), PROOF: PASS or
+                     PROOF: FAIL (<n> defects))
 
   --issue <reference> migrated ORB identifier or GitHub issue reference (required)
   --worktree <path>  the existing worktree the worker runs in (required)
@@ -77,8 +84,9 @@ Research prints research, outputFile, published, engine, model, account, pid, lo
 exitCode, outcome, authenticationFailed and resultError. It publishes only a non-empty final response from an engine that exits 0.
 A read-only run prints mode, outputFile, published, verdict, writes, runDirectory, engine, tier, model,
 account, configDirectory, pid, logFile, startedAt, endedAt, exitCode, outcome, usageLimitReached,
-authenticationFailed, resultError and attempts. writes lists each write found, with kind (push,
-new-branch, ref-update, commit or tracked-change), directory and detail.
+authenticationFailed, resultError and attempts. writes lists each write found in the run directory,
+with kind (commit or tracked-change), directory and detail. A read-only dry run also prints
+writeSandbox, the protected directories, and proofEmulatorPort.
 
 exit codes: 0 the worker exited on its own, 1 this launcher killed it or it never started,
             2 usage or config error, including a worker account directory that does not exist,
@@ -88,7 +96,8 @@ exit codes: 0 the worker exited on its own, 1 this launcher killed it or it neve
             130 stopped by SIGINT, 143 stopped by SIGTERM
 Research exits 0 only after publishing findings, 1 on engine, supervision or publication failure, or 130 or 143 when stopped.
 A read-only run exits 0 only after publishing its result, 5 when it found a write, 1 on any other
-engine, supervision or publication failure, 2 on a usage error or a held run directory, or 130 or 143 when stopped.`
+engine, supervision or publication failure, 2 on a usage error, a held run directory or a platform with
+no write sandbox, 3 when no emulator port is free for a proof, or 130 or 143 when stopped.`
 
 if (process.argv.includes("--help") || process.argv.includes("-h")) {
   console.log(USAGE)
@@ -186,6 +195,10 @@ try { launchRunState = readRunState() } catch (error) { fail(2, error.message) }
 if (config.relay.enabled && launchRunState?.relay?.pending === true) {
   console.log(JSON.stringify({ admitted: false, reason: "ADMISSION_REFUSED", refusalReason: "RELAY_DRAIN", error: "RELAY_DRAIN" }))
   process.exit(ADMISSION_REFUSED_EXIT)
+}
+
+if (readOnly && !writeSandboxAvailable()) {
+  fail(2, `--${mode} needs the macOS write sandbox (${SANDBOX_EXEC}), and ${process.platform} has none. A read-only worker never runs without it.`)
 }
 
 const researchStorage = research ? mkdtempSync(join(tmpdir(), "orbit-research-")) : null
@@ -347,13 +360,31 @@ mkdirSync(logDirectory, { recursive: true })
 const logFileFor = (account) => join(logDirectory, `${issue}-${process.pid}-${Date.now()}${account === null ? "" : `-${account.name}-account`}.log`)
 const logFile = logFileFor(primaryAccount)
 const reportFile = research ? join(researchStorage, "findings.txt") : null
+/**
+ * The write sandbox of a read-only run, and the throwaway emulator that a proof pins. The profile
+ * refuses writes to every configured repository, its siblings, its worktrees and the hygiene roots.
+ */
+let writeSandbox = null
+if (readOnly) {
+  const directories = protectedDirectories({
+    repositories: Object.values(config.repos ?? {}).filter((path) => typeof path === "string"),
+    runDirectory: readOnlyPlan.gitWorktree ? runDirectory : null,
+    extraRoots: Object.values(config.hygieneRoots ?? {}),
+  })
+  try {
+    writeSandbox = { protectedDirectories: directories, profile: writeSandboxProfile({ protectedDirectories: directories, homeDirectory: realpathSync(homedir()), runDirectory }) }
+  } catch (error) { fail(2, error.message) }
+}
+const proofEmulatorPort = mode === "proof" ? await freeEmulatorPort() : null
+if (mode === "proof" && proofEmulatorPort === null) fail(3, "no free emulator port pair from 5560 to 5681 for the proof's throwaway emulator")
+
 let researchArgs = null
 if (research) {
   try { researchArgs = [...scriptArgs, ...researchInvocation(engineName, invocation, reportFile)] } catch (error) { fail(2, error.message) }
 }
 
 if (dryRun) {
-  console.log(JSON.stringify({ issue: ticketWork ? issue : null, research, mode, outputFile: researchPlan?.outputFile ?? readOnlyPlan?.outputFile ?? null, engine: engineName, tier: invocation.tier, model: invocation.model, account: primaryAccount?.name ?? null, configDirectory: primaryAccount?.configDirectory ?? null, measurement, noProgressMinutes, hardCeilingMinutes, runDirectory, branch, promptFile, executable, args: researchArgs ?? workerArgs, logFile, dryRun: true }, null, 2))
+  console.log(JSON.stringify({ issue: ticketWork ? issue : null, research, mode, outputFile: researchPlan?.outputFile ?? readOnlyPlan?.outputFile ?? null, engine: engineName, tier: invocation.tier, model: invocation.model, account: primaryAccount?.name ?? null, configDirectory: primaryAccount?.configDirectory ?? null, measurement, noProgressMinutes, hardCeilingMinutes, runDirectory, branch, promptFile, executable, args: researchArgs ?? workerArgs, writeSandbox: writeSandbox?.protectedDirectories ?? null, proofEmulatorPort, logFile, dryRun: true }, null, 2))
   process.exit(0)
 }
 
@@ -454,22 +485,16 @@ process.on("exit", () => {
   if (!ticketWork) clearWakeSource(process.pid)
   if (readOnly && reservesWorktree) clearWorkerLaunchReservation(process.pid, runDirectory)
 })
-/** The configured repositories and the run directory's own repository: every repository the read-only worker can reach by name. */
-const protectedRepositories = readOnly
-  ? [...new Set([...Object.values(config.repos ?? {}), ...(readOnlyPlan.gitWorktree ? [runDirectory] : [])].filter((path) => typeof path === "string"))]
-  : []
-const guard = readOnly
-  ? installWriteGuard(protectedRepositories.map(commonGitDirectory).filter(Boolean), join(readOnlyStorage, "guard"))
-  : null
-const heldByOther = (path) => worktreeHeldByOtherLauncher(path, process.pid)
-const snapshotBefore = readOnly ? snapshotWorktrees(protectedRepositories, heldByOther) : null
+const snapshotBefore = readOnly ? runDirectorySnapshot(runDirectory, readOnlyPlan.gitWorktree) : null
 const gatePath = fileURLToPath(new URL("./lib/worker-gate.cjs", import.meta.url))
 const launchEnvironment = research ? githubAuth.environment : {
   ...githubAuth.environment,
   ORBIT_LAUNCH_WORKER: "1",
   ORCA_CLI_COMMAND: process.env.ORCA_BIN || "orca",
-  ...(guard?.environment ?? {}),
-  ...(mode === "proof" ? { ORBIT_DEVICE_PROOF: "1" } : {}),
+  // A read-only status never takes the index lock, which the sandbox refuses.
+  ...(readOnly ? { GIT_OPTIONAL_LOCKS: "0", ORBIT_READ_ONLY_RUN: "1" } : {}),
+  // adb sends each command without a device flag to ANDROID_SERIAL, the proof's own throwaway emulator.
+  ...(mode === "proof" ? { ORBIT_DEVICE_PROOF: "1", ANDROID_SERIAL: `emulator-${proofEmulatorPort}`, ORBIT_PROOF_EMULATOR_PORT: String(proofEmulatorPort) } : {}),
 }
 
 /** The worker spawns its own children (git, npm, subagents), and killing the parent alone leaves
@@ -692,7 +717,8 @@ const runAttempt = (account, attemptLogFile, attemptArgs) => new Promise((settle
     attemptChild.kill()
     fail(3, "could not publish the worker pid in the wake source")
   }
-  attemptChild.send({ executable, args: attemptArgs, directory: runDirectory, ...(research ? { input: researchPrompt(promptFile), reportDescriptor: reportFd === null ? null : 4 } : {}) })
+  const spawned = readOnly ? sandboxedInvocation(writeSandbox.profile, executable, attemptArgs) : { executable, args: attemptArgs }
+  attemptChild.send({ executable: spawned.executable, args: spawned.args, directory: runDirectory, ...(research ? { input: researchPrompt(promptFile), reportDescriptor: reportFd === null ? null : 4 } : {}) })
   const supervisor = superviseAttempt(attemptChild.pid, attemptLogFile)
   stopActiveAttempt = (message) => supervisor.kill("STOPPED", message)
   let settled = false
@@ -722,12 +748,12 @@ const runAttempt = (account, attemptLogFile, attemptArgs) => new Promise((settle
 })
 
 /**
- * Publishes a read-only result only when the worker exited 0, no write was found anywhere it could reach,
+ * Publishes a read-only result only when the worker exited 0, the run directory holds no write of it,
  * and the staged result opens with the mode's verdict line. A write fails the run with exit 5.
  */
 const finishReadOnly = (last) => {
   const { outcome, exitCode } = last
-  const writes = [...recordedWrites(guard.logFile), ...writesBetween(snapshotBefore, snapshotWorktrees(protectedRepositories, heldByOther), runDirectory)]
+  const writes = runDirectoryWrites(snapshotBefore, runDirectorySnapshot(runDirectory, readOnlyPlan.gitWorktree), runDirectory)
   for (const write of writes) console.error(`the ${mode} worker left a ${write.kind} in ${write.directory}: ${write.detail}`)
   let published = false
   let verdict = null

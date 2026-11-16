@@ -300,15 +300,6 @@ export const recordReservedWorkerPid = (launcherPid, workerPid, repoRoot = REPO_
   } catch { return false }
 }
 
-/** Whether a live launcher other than `ownLauncherPid`, or its worker, holds the worktree at `repoRoot`. */
-export const worktreeHeldByOtherLauncher = (repoRoot, ownLauncherPid) => {
-  let reservation
-  try { reservation = JSON.parse(readFileSync(occupiedWorktreePath(repoRoot), "utf8")) } catch { return false }
-  if (reservation?.launcherPid === ownLauncherPid) return false
-  return isWakeSourceAlive({ pid: reservation?.launcherPid, processStartIdentity: reservation?.launcherProcessStartIdentity }) ||
-    isWakeSourceAlive({ pid: reservation?.workerPid, processStartIdentity: reservation?.workerProcessStartIdentity })
-}
-
 export const clearWorkerLaunchReservation = (launcherPid, repoRoot = REPO_ROOT) => {
   const path = occupiedWorktreePath(repoRoot)
   try {

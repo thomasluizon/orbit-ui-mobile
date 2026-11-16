@@ -728,8 +728,10 @@ Every pre-push review, fix-round review and device proof runs on a read-only wor
 `compose-prompt.mjs --review` or `--proof` writes the order, and `launch-worker.mjs --review` or
 `--proof` runs it in a detached worktree at the head (`.claude/playbooks/review-and-audit.md` rule 14).
 It runs on the worker account, takes no admission and no branch launch slot, and its launcher is a
-wake source that holds no ticket slot. It publishes the result file only after a clean run, and it
-exits 5 when the worker left a commit, a branch, a push or a changed tracked file.
+wake source that holds no ticket slot. It runs only on macOS, under a `sandbox-exec` write profile
+that refuses each commit, branch, push and tracked write outside the run directory. It publishes the
+result file only after a clean run, and it exits 5 when the worker committed or changed a tracked
+file in its own run directory.
 
 For research without a ticket, use `launch-worker.mjs --research --order <file> --out <file>`.
 Both paths live in the session scratchpad outside every repository; the output must be a new file.

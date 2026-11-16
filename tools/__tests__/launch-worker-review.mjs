@@ -1,7 +1,8 @@
-import { existsSync, readFileSync, readdirSync, writeFileSync } from "node:fs"
+import { spawnSync } from "node:child_process"
+import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs"
 import { dirname, join } from "node:path"
 
-import { T, check, run, stage } from "./_harness.mjs"
+import { T, check, root, run, stage } from "./_harness.mjs"
 import { clearWorkerLaunchReservation, gitDirectoryOf, reserveWorkerLaunch } from "../lib/run-state.mjs"
 import { discardAttemptLogs, githubAuthEnv, launch, launchConfig, stubEngine } from "./launch-worker.mjs"
 import { limitResultLine } from "./claude-usage-limit.mjs"
@@ -19,8 +20,8 @@ ${body}
 
 let sequence = 0
 /** A fixture repository with one tracked file, a detached run worktree at its head, and an order and output outside both. */
-const reviewFixture = (label, body, overrides = {}) => {
-  const fixture = launch(`review-${label}`, launchConfig({ ...stubEngine(reviewStub(label, body)), ...overrides }))
+const reviewFixture = (label, body, overrides = {}, configuration = {}) => {
+  const fixture = launch(`review-${label}`, { ...launchConfig({ ...stubEngine(reviewStub(label, body)), ...overrides }), ...configuration })
   writeFileSync(join(fixture.worktree, "tracked.txt"), "committed\n")
   fixture.git(["add", "--", "tracked.txt"])
   fixture.git(["commit", "-q", "-m", "a tracked file"])
@@ -52,7 +53,7 @@ fs.writeFileSync("untracked-build-output.txt", "a test run leaves this\\n")
 const wakeDirectory = process.env.ORBIT_TEST_WAKE_DIRECTORY
 const wakes = fs.readdirSync(wakeDirectory).filter((name) => name.endsWith(".json")).map((name) => JSON.parse(fs.readFileSync(wakeDirectory + "/" + name, "utf8")))
 const verdict = process.env.ORBIT_TEST_VERDICT ?? (process.env.ORBIT_DEVICE_PROOF === "1" ? "PROOF: PASS" : "VERDICT: CLEAN")
-fs.writeFileSync(resultPath, verdict + "\\n" + JSON.stringify({ cwd: process.cwd(), proof: process.env.ORBIT_DEVICE_PROOF ?? null, marker: process.env.ORBIT_LAUNCH_WORKER ?? null, wakes }) + "\\n")
+fs.writeFileSync(resultPath, verdict + "\\n" + JSON.stringify({ cwd: process.cwd(), proof: process.env.ORBIT_DEVICE_PROOF ?? null, marker: process.env.ORBIT_LAUNCH_WORKER ?? null, readOnly: process.env.ORBIT_READ_ONLY_RUN ?? null, serial: process.env.ANDROID_SERIAL ?? null, port: process.env.ORBIT_PROOF_EMULATOR_PORT ?? null, wakes }) + "\\n")
 `)
   const env = { ...githubAuthEnv({ queuedRuns: launchConfig().caps.maxQueuedRuns + 1 }), ORBIT_TEST_WAKE_DIRECTORY: wakeDirectory(clean.base) }
   const refusedTicket = run(TOOL, ["--issue", "ORB-201", "--worktree", clean.worktree, "--prompt", clean.prompt], { path: clean.path, env })
@@ -64,7 +65,7 @@ fs.writeFileSync(resultPath, verdict + "\\n" + JSON.stringify({ cwd: process.cwd
     first.report?.published === true && first.report.verdict === "VERDICT: CLEAN" && first.published?.startsWith("VERDICT: CLEAN\n") && first.report.writes?.length === 0,
     JSON.stringify(first.report))
   T(`${TOOL}: the review worker runs in the run directory with the launcher marker and no device proof marker`,
-    observed?.cwd === clean.runDirectory && observed.marker === "1" && observed.proof === null, JSON.stringify(observed))
+    observed?.cwd === clean.runDirectory && observed.marker === "1" && observed.readOnly === "1" && observed.proof === null && observed.serial === null, JSON.stringify(observed))
   const wake = observed?.wakes?.find((source) => source.review === true)
   T(`${TOOL}: a review registers a review wake source with its worker pid`,
     wake?.what === "review" && wake.research === false && Number.isInteger(wake.workerPid) && wake.pending !== true, JSON.stringify(observed?.wakes))
@@ -82,6 +83,9 @@ fs.writeFileSync(resultPath, verdict + "\\n" + JSON.stringify({ cwd: process.cwd
     plan.mode === "review" && plan.issue === null && plan.runDirectory === clean.runDirectory && plan.outputFile?.endsWith(".md") &&
       plan.args?.at(-1).includes(clean.order) && plan.args.at(-1).includes("read-only review run") && plan.args.includes("--disallowed-tools"),
     planned.stdout)
+  T(`${TOOL}: the review dry run names the protected directories: the directory that holds the repositories and each worktree`,
+    plan.writeSandbox?.includes(dirname(clean.worktree)) && plan.writeSandbox.includes(clean.worktree) && plan.writeSandbox.includes(clean.runDirectory) && plan.proofEmulatorPort === null,
+    JSON.stringify(plan.writeSandbox))
 
   reserveWorkerLaunch({ launcherPid: process.pid, issue: "ORB-201", runDirectory: clean.runDirectory, repositoryKey: "ui", branch: "HEAD", headSha: null, tier: "default", timestamp: new Date().toISOString(), relaunchReason: null }, null, clean.runDirectory)
   try {
@@ -91,8 +95,12 @@ fs.writeFileSync(resultPath, verdict + "\\n" + JSON.stringify({ cwd: process.cwd
   }
 
   const proof = launchReview(clean, "a device proof publishes its result", { status: 0 }, { mode: "proof", env })
+  const proofEnvironment = JSON.parse(proof.published?.split("\n")[1] ?? "{}")
   T(`${TOOL}: a device proof carries the device proof marker and its own verdict line`,
-    proof.report?.mode === "proof" && proof.report.verdict === "PROOF: PASS" && JSON.parse(proof.published?.split("\n")[1] ?? "{}").proof === "1", JSON.stringify(proof.report))
+    proof.report?.mode === "proof" && proof.report.verdict === "PROOF: PASS" && proofEnvironment.proof === "1", JSON.stringify(proof.report))
+  const port = Number(proofEnvironment.port)
+  T(`${TOOL}: a device proof pins one even emulator port from 5560 and its serial (finding 15)`,
+    Number.isInteger(port) && port % 2 === 0 && port >= 5560 && port <= 5680 && proofEnvironment.serial === `emulator-${port}`, JSON.stringify(proofEnvironment))
   const misread = launchReview(clean, "a device proof that opens with a review verdict exits 1", { status: 1 }, { mode: "proof", env: { ...env, ORBIT_TEST_VERDICT: "VERDICT: CLEAN" } })
   T(`${TOOL}: a review verdict line does not publish a device proof`, misread.report?.published === false && misread.published === null, misread.result.stderr)
 }
@@ -112,30 +120,115 @@ const usageCases = () => {
   }
 }
 
-/** Each write a reviewer must never leave, made where the worker can reach it: the run directory or the primary checkout. */
-const writeCases = () => {
-  for (const [label, body, kind] of [
-    ["commit", "git(process.cwd(), 'commit', '-q', '--allow-empty', '-m', 'a reviewer commit')", "ref-update"],
-    ["primary-commit", "git(process.env.ORBIT_TEST_PRIMARY, 'commit', '-q', '--allow-empty', '-m', 'a commit in the primary checkout')", "ref-update"],
-    ["tracked-change", "fs.writeFileSync(process.env.ORBIT_TEST_PRIMARY + '/tracked.txt', 'edited by the reviewer\\n')", "tracked-change"],
-    ["new-branch", "git(process.cwd(), 'branch', 'reviewer-branch')", "new-branch"],
-    ["push", "git(process.cwd(), 'push', '-q', process.env.ORBIT_TEST_ORIGIN, 'HEAD:refs/heads/reviewer-push')", "push"],
-  ]) {
-    const fixture = reviewFixture(`write-${label}`, `${body}\nfs.writeFileSync(resultPath, "VERDICT: CLEAN\\n")\n`)
-    const head = fixture.git(["rev-parse", "HEAD"]).stdout.trim()
-    const runHead = fixture.git(["rev-parse", "HEAD"], fixture.runDirectory).stdout.trim()
-    const outcome = launchReview(fixture, `a review that leaves a ${label} fails with exit 5`, { status: 5, stderr: new RegExp(`left a ${kind} in`) },
-      { env: { ORBIT_TEST_PRIMARY: fixture.worktree, ORBIT_TEST_ORIGIN: fixture.origin } })
-    T(`${TOOL}: a ${label} is reported as a ${kind} and its result is not published`,
-      outcome.report?.published === false && outcome.published === null && outcome.report.writes?.some((write) => write.kind === kind) &&
-        outcome.report.outcome === "EXITED" && outcome.report.exitCode === 0,
-      JSON.stringify(outcome.report?.writes))
-    T(`${TOOL}: the guard kept the ${label} out of every ref`,
-      fixture.git(["rev-parse", "HEAD"]).stdout.trim() === head && fixture.git(["rev-parse", "HEAD"], fixture.runDirectory).stdout.trim() === runHead &&
-        fixture.git(["branch", "--list", "reviewer-branch"]).stdout.trim() === "" &&
-        fixture.git(["ls-remote", fixture.origin, "refs/heads/reviewer-push"]).stdout.trim() === "",
-      label)
+const plainGit = (directory, args) => spawnSync("git", ["-C", directory, "-c", "user.email=gate@orbit.test", "-c", "user.name=Orbit Gate", ...args], { encoding: "utf8" })
+
+/** A repository outside the configured ones, with one tracked file. */
+const looseRepository = (path) => {
+  mkdirSync(path, { recursive: true })
+  plainGit(path, ["init", "-q", "--initial-branch=main"])
+  writeFileSync(join(path, "note.md"), "committed\n")
+  plainGit(path, ["add", "--", "note.md"])
+  plainGit(path, ["commit", "-q", "-m", "a note"])
+  return path
+}
+
+/**
+ * Each write path of the round 1 review, made by the worker's own processes. The macOS write sandbox
+ * refuses all of them, so the run leaves nothing and publishes its result. Each assertion reads the
+ * ground truth (refs, remote refs, file content), never the launcher's own report.
+ */
+const sandboxCases = () => {
+  const fixture = reviewFixture("sandbox", `
+const run = (command) => spawnSync("sh", ["-c", command], { cwd: process.cwd(), env: process.env, encoding: "utf8" })
+for (const command of JSON.parse(process.env.ORBIT_TEST_ATTEMPTS)) run(command)
+fs.writeFileSync(resultPath, "VERDICT: CLEAN\\n")
+`, {}, { hygieneRoots: { workshop: join(root, "launch-worker-review-workshop"), vault: join(root, "launch-worker-review-vault", "brain") } })
+  writeFileSync(join(fixture.worktree, "second.txt"), "committed\n")
+  fixture.git(["add", "--", "second.txt"])
+  fixture.git(["commit", "-q", "-m", "a second tracked file"])
+  const other = join(dirname(fixture.worktree), "launch-worker-review-sandbox-other")
+  fixture.git(["worktree", "add", "-q", "-b", "other-branch", other])
+  const brain = looseRepository(join(root, "launch-worker-review-vault", "brain"))
+  mkdirSync(join(root, "launch-worker-review-workshop"), { recursive: true })
+  const home = join(root, "launch-worker-review-home")
+  const stray = looseRepository(join(home, "Developer", "stray"))
+  const scratch = join(root, "launch-worker-review-scratch")
+  mkdirSync(scratch, { recursive: true })
+  const head = fixture.git(["rev-parse", "HEAD"]).stdout.trim()
+  const snapshot = () => ({
+    primaryRefs: fixture.git(["for-each-ref", "--format=%(refname) %(objectname)"]).stdout,
+    originRefs: fixture.git(["ls-remote", fixture.origin]).stdout,
+    runHead: fixture.git(["rev-parse", "HEAD"], fixture.runDirectory).stdout.trim(),
+    otherHead: fixture.git(["rev-parse", "HEAD"], other).stdout.trim(),
+    otherTracked: readFileSync(join(other, "tracked.txt"), "utf8"),
+    otherFlags: fixture.git(["ls-files", "-v"], other).stdout,
+    brainHead: plainGit(brain, ["rev-parse", "HEAD"]).stdout.trim(),
+    brainNote: readFileSync(join(brain, "note.md"), "utf8"),
+    strayHead: plainGit(stray, ["rev-parse", "HEAD"]).stdout.trim(),
+  })
+  const before = snapshot()
+  const attempts = [
+    ["GIT_CONFIG_COUNT=0 then a push (finding 1)", `GIT_CONFIG_COUNT=0 git push -q "$ORIGIN" HEAD:refs/heads/evil-env`],
+    ["env -u GIT_CONFIG_COUNT then update-ref (finding 2)", `env -u GIT_CONFIG_COUNT git -C "$OTHER" update-ref refs/heads/evil-ref HEAD`],
+    ["a lower-case core.hookspath push (finding 3)", `git -c core.hookspath=/nonexistent push -q "$ORIGIN" HEAD:refs/heads/evil-lower`],
+    ["a --config-env hooks path push (finding 4)", `HP=/nonexistent git --config-env=core.hooksPath=HP push -q "$ORIGIN" HEAD:refs/heads/evil-configenv`],
+    ["a GIT_CONFIG_PARAMETERS hooks path push (finding 5)", `GIT_CONFIG_PARAMETERS="'core.hooksPath'='/nonexistent'" git push -q "$ORIGIN" HEAD:refs/heads/evil-params`],
+    ["a clone, a commit and a push from it (finding 6)", `git clone -q "$ORIGIN" "$SCRATCH/clone" && git -C "$SCRATCH/clone" -c user.email=a@b -c user.name=n commit -q --allow-empty -m w && git -C "$SCRATCH/clone" push -q origin HEAD:refs/heads/evil-clone`],
+    ["an edit and a commit in the brain vault (finding 7)", `echo changed > "$BRAIN/note.md"; git -C "$BRAIN" -c user.email=a@b -c user.name=n commit -qam w`],
+    ["a ref written as a file (finding 8)", `printf '%s\\n' "$HEAD_SHA" > "$PRIMARY/.git/refs/heads/evil-fs"`],
+    ["a tracked edit hidden by --skip-worktree (finding 9)", `git -C "$OTHER" update-index --skip-worktree tracked.txt; printf changed > "$OTHER/tracked.txt"`],
+    ["a plain tag (finding 10)", `git tag reviewer-tag`],
+    ["a moved remote-tracking ref (finding 11)", `git update-ref refs/remotes/origin/main HEAD~1`],
+    ["an edit and a commit in a worktree that another launcher holds (finding 13)", `printf 'reviewer write' > "$OTHER/second.txt"; git -C "$OTHER" -c core.hooksPath=/nonexistent -c user.email=a@b -c user.name=n commit -q --allow-empty -m reviewer`],
+    ["a commit in an unconfigured repository under the home directory (finding 7)", `git -C "$STRAY" -c user.email=a@b -c user.name=n commit -q --allow-empty -m w`],
+    ["a commit and a branch in the run directory", `git -c user.email=a@b -c user.name=n commit -q --allow-empty -m w; git branch reviewer-branch`],
+  ]
+  reserveWorkerLaunch({ launcherPid: process.pid, issue: "ORB-201", runDirectory: other, repositoryKey: "ui", branch: "other-branch", headSha: null, tier: "default", timestamp: new Date().toISOString(), relaunchReason: null }, null, other)
+  let outcome
+  try {
+    outcome = launchReview(fixture, "a review whose worker tries every write path of the round 1 review leaves none and publishes", { status: 0 }, {
+      env: {
+        HOME: home,
+        ORBIT_TEST_ATTEMPTS: JSON.stringify(attempts.map(([, command]) => command)),
+        ORIGIN: fixture.origin, OTHER: other, PRIMARY: fixture.worktree, BRAIN: brain, STRAY: stray, SCRATCH: scratch, HEAD_SHA: head,
+      },
+    })
+  } finally {
+    clearWorkerLaunchReservation(process.pid, other)
   }
+  const after = snapshot()
+  T(`${TOOL}: the sandboxed review found no write and published its result`, outcome.report?.writes?.length === 0 && outcome.published?.startsWith("VERDICT: CLEAN"), JSON.stringify(outcome.report?.writes))
+  for (const [field, label] of [
+    ["originRefs", "the remote holds no branch from a push, however the hooks were turned off (findings 1, 3, 4, 5, 6)"],
+    ["primaryRefs", "no local branch, tag, ref file or remote-tracking ref moved (findings 2, 8, 10, 11)"],
+    ["runHead", "the run directory HEAD did not move"],
+    ["otherHead", "the held worktree HEAD did not move (finding 13)"],
+    ["otherTracked", "the tracked file behind --skip-worktree is unchanged (finding 9)"],
+    ["otherFlags", "no skip-worktree or assume-unchanged flag was set (finding 9)"],
+    ["brainHead", "the brain vault HEAD did not move (finding 7)"],
+    ["brainNote", "the brain vault note is unchanged (finding 7)"],
+    ["strayHead", "an unconfigured repository under the home directory did not move (finding 7)"],
+  ]) {
+    T(`${TOOL}: sandbox: ${label}`, after[field] === before[field], `${before[field]}\n---\n${after[field]}`)
+  }
+  T(`${TOOL}: sandbox: the held worktree's second tracked file is unchanged (finding 13)`, readFileSync(join(other, "second.txt"), "utf8") === "committed\n", readFileSync(join(other, "second.txt"), "utf8"))
+}
+
+/** The run directory is the one worktree the worker may write, so a tracked edit there is a write of the run. */
+const runDirectoryWriteCase = () => {
+  const fixture = reviewFixture("write-tracked-change", "fs.writeFileSync('tracked.txt', 'edited by the reviewer\\n')\nfs.writeFileSync(resultPath, 'VERDICT: CLEAN\\n')\n")
+  const outcome = launchReview(fixture, "a review that edits a tracked file of its run directory fails with exit 5", { status: 5, stderr: /left a tracked-change in/ })
+  T(`${TOOL}: a tracked edit in the run directory is reported and its result is not published`,
+    outcome.report?.published === false && outcome.published === null &&
+      outcome.report.writes?.some((write) => write.kind === "tracked-change" && write.directory === fixture.runDirectory && write.detail === "tracked.txt"),
+    JSON.stringify(outcome.report?.writes))
+}
+
+/** The write sandbox is macOS sandbox-exec. Elsewhere the read-only mode refuses to start rather than run unguarded. */
+const unsandboxedCase = () => {
+  const fixture = reviewFixture("no-sandbox", "fs.writeFileSync(resultPath, 'VERDICT: CLEAN\\n')")
+  const outcome = launchReview(fixture, "a read-only launch without the macOS write sandbox is refused", { status: 2, stderr: /needs the macOS write sandbox/ })
+  T(`${TOOL}: a refused read-only launch publishes nothing`, outcome.published === null, outcome.result.stderr)
 }
 
 const publicationCases = () => {
@@ -176,7 +269,12 @@ fs.writeFileSync(resultPath, fs.existsSync(resultPath) ? "VERDICT: CLEAN\\nthe s
 
 export const cases = () => {
   usageCases()
+  if (process.platform !== "darwin") {
+    unsandboxedCase()
+    return
+  }
   cleanCases()
-  writeCases()
+  sandboxCases()
+  runDirectoryWriteCase()
   publicationCases()
 }

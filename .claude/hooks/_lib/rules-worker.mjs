@@ -12,6 +12,33 @@ const DEVICE_PROOF_MARKER = "ORBIT_DEVICE_PROOF"
 const DEVICE_DRIVERS = new Set(["adb", "emulator"])
 /** The owner's own emulator. A proof uses a named simulator or a throwaway AVD, never this one. */
 const OWNER_EMULATOR = "Orbit_Pixel_9_API_35"
+/** The launcher pins a proof's throwaway emulator: adb's default serial and the emulator console port. */
+const PINNED_SERIAL = "ANDROID_SERIAL"
+const PINNED_PORT = "ORBIT_PROOF_EMULATOR_PORT"
+/** adb flags that choose a device or a server other than the default serial. `-s` is judged on its value. */
+const ADB_DEVICE_FLAGS = new Set(["-e", "-d", "-t", "-H", "-P", "-L"])
+/** `launch-worker.mjs --review` and `--proof` add this. A typed assignment never sets it. */
+const READ_ONLY_MARKER = "ORBIT_READ_ONLY_RUN"
+/** The gh subcommands that only read GitHub. `gh api` is judged on its method and fields. */
+const GH_READS = new Map([
+  ["pr", new Set(["view", "diff", "checks", "list", "status"])],
+  ["issue", new Set(["view", "list", "status"])],
+  ["run", new Set(["view", "list", "watch", "download"])],
+  ["workflow", new Set(["view", "list"])],
+  ["release", new Set(["view", "list"])],
+  ["repo", new Set(["view"])],
+  ["label", new Set(["list"])],
+  ["cache", new Set(["list"])],
+  ["search", null],
+  ["status", null],
+  ["auth", new Set(["status"])],
+  ["help", null],
+  ["version", null],
+])
+/** gh api flags that take a value, so the value is never read as the endpoint. */
+const GH_API_VALUE_FLAGS = new Set(["-X", "--method", "-f", "-F", "--field", "--raw-field", "--input", "-H", "--header", "-q", "--jq", "-t", "--template", "--cache", "--hostname", "-p", "--preview"])
+const GH_API_BODY_FLAGS = new Set(["-f", "-F", "--field", "--raw-field", "--input"])
+const CURL_BODY_FLAGS = new Set(["-d", "--data", "--data-raw", "--data-binary", "--data-urlencode", "--json", "-F", "--form", "-T", "--upload-file"])
 
 /** Binaries whose arguments are PROSE. A commit message naming `npm run dev` is not a dev server. */
 const BROWSER_DRIVERS = new Set(["playwright", "maestro", "cypress", "puppeteer", "chromedriver", "geckodriver", "webdriver", "adb", "emulator"])
@@ -48,11 +75,27 @@ function tokensOf(segment) {
   return rest.trim().split(/\s+/).filter(Boolean)
 }
 
+/** Drops `env` with its flags and NAME=value operands, so `env A=1 adb devices` is judged as `adb devices`. */
+function withoutEnv(tokens) {
+  let index = 1
+  while (index < tokens.length) {
+    const token = tokens[index]
+    if (token === "-u" || token === "--unset") index += 2
+    else if (token.startsWith("-") || /^[A-Za-z_][A-Za-z0-9_]*=/.test(token)) index += 1
+    else break
+  }
+  return tokens.slice(index)
+}
+
 /** Strips package-runner prefixes so `npx playwright test` is judged as `playwright test`. */
 function withoutRunners(tokens) {
   let rest = tokens
   for (let guard = 0; guard < 4 && rest.length > 1; guard += 1) {
     const binary = normalize(rest[0])
+    if (binary === "env") {
+      rest = withoutEnv(rest)
+      continue
+    }
     if (RUNNER_PREFIXES.has(binary)) {
       rest = dropLeadingFlags(rest.slice(1))
       continue
@@ -74,6 +117,43 @@ function reachesOwnerEmulator(tokens) {
   return normalize(tokens[0]) === "node" && normalize(tokens[1]) === "android-emulator.mjs" && !tokens.some((token) => token === "--avd" || token.startsWith("--avd="))
 }
 
+const UNPINNED_ACTION = "an unpinned device"
+const unquote = (token) => String(token ?? "").replaceAll(/["']/g, "")
+
+/** The value of `flag` in `tokens`, as `flag value` or `flag=value`, or null. */
+function flagValue(tokens, flag) {
+  const index = tokens.indexOf(flag)
+  if (index !== -1) return unquote(tokens[index + 1])
+  const joined = tokens.find((token) => token.startsWith(`${flag}=`))
+  return joined === undefined ? null : unquote(joined.slice(flag.length + 1))
+}
+
+/**
+ * Whether a proof segment leaves the device that the launcher pinned: it clears or changes the pinned
+ * serial, names another serial or another adb server, or boots an emulator on another console port.
+ * adb reaches every running emulator by serial, so only the pinned serial keeps the owner's emulator safe.
+ */
+function leavesPinnedDevice(segment, tokens, pin) {
+  if (/\bunset\b[^\n]*\bANDROID_SERIAL\b/.test(segment) || /(?:^|\s)(?:-u|--unset)[\s=]*ANDROID_SERIAL\b/.test(segment)) return true
+  for (const match of segment.matchAll(/\bANDROID_SERIAL=(["']?)([^\s"']*)\1/g)) if (match[2] !== pin.serial) return true
+  const binary = normalize(tokens[0])
+  const bootTool = binary === "node" && normalize(tokens[1]) === "android-emulator.mjs"
+  if (binary !== "adb" && binary !== "emulator" && !bootTool) return false
+  if (!pin.serial || !pin.port) return true
+  if (binary === "adb") {
+    for (let index = 1; index < tokens.length && tokens[index].startsWith("-"); index += 1) {
+      const token = unquote(tokens[index])
+      if (token === "-s") {
+        if (unquote(tokens[index + 1]) !== pin.serial) return true
+        index += 1
+      } else if (ADB_DEVICE_FLAGS.has(token)) return true
+    }
+    return false
+  }
+  if (bootTool && tokens.includes("--status")) return false
+  return flagValue(tokens, binary === "emulator" ? "-port" : "--port") !== pin.port
+}
+
 /** What a segment starts, or null. Judged on the program and its arguments, never on stray text. */
 function forbiddenAction(segment, deviceProof) {
   const tokens = withoutRunners(tokensOf(segment))
@@ -82,6 +162,7 @@ function forbiddenAction(segment, deviceProof) {
   const args = tokens.slice(1).filter((token) => !token.startsWith("-")).map(normalize)
 
   if (deviceProof && reachesOwnerEmulator(tokens)) return OWNER_EMULATOR_ACTION
+  if (deviceProof && leavesPinnedDevice(segment, tokens, deviceProof)) return UNPINNED_ACTION
   if (deviceProof && DEVICE_DRIVERS.has(binary)) return null
   if (BROWSER_DRIVERS.has(binary)) return "a browser driver or an emulator"
   if (DEV_BINARIES.has(binary) && (args[0] === "dev" || (["vite", "remix"].includes(binary) && (!tokens[1] || tokens[1].startsWith("-"))))) return "a dev server"
@@ -212,7 +293,7 @@ export function checkWorkerBrowser(command, { env = {}, cwd = "", repoRoots = []
   if (typeof command !== "string") return null
   const isWorker = Boolean(env[LAUNCHER_MARKER]) || (cwd !== "" && insideLinkedWorktree(cwd, repoRoots))
   if (!isWorker) return null
-  const deviceProof = env[DEVICE_PROOF_MARKER] === "1"
+  const deviceProof = env[DEVICE_PROOF_MARKER] === "1" ? { serial: env[PINNED_SERIAL] ?? "", port: env[PINNED_PORT] ?? "" } : null
 
   for (const segment of stripHeredocBodies(command).split(SEGMENT_SPLIT)) {
     const action = inspectSegment(segment, cwd, 0, new Set(), deviceProof)
@@ -227,6 +308,16 @@ export function checkWorkerBrowser(command, { env = {}, cwd = "", repoRoots = []
           "to node tools/android-emulator.mjs, whose default AVD is the owner's.",
       }
     }
+    if (action === UNPINNED_ACTION) {
+      return {
+        block: true,
+        message:
+          `A device proof may use only its pinned device ${deviceProof.serial || "(the launcher pinned none)"}. Refused: ${segment.trim().slice(0, 160)}\n\n` +
+          `The launcher sets ${PINNED_SERIAL} and ${PINNED_PORT}. Boot the throwaway AVD with\n` +
+          `node tools/android-emulator.mjs --avd <throwaway name> --port $${PINNED_PORT}, run adb with no device flag\n` +
+          `or with -s $${PINNED_SERIAL}, and never clear or change either variable.`,
+      }
+    }
     return {
       block: true,
       message:
@@ -236,6 +327,70 @@ export function checkWorkerBrowser(command, { env = {}, cwd = "", repoRoots = []
         "per-screen human wait. See .claude/playbooks/redesign-screen.md. A fresh worktree cannot authenticate.\n" +
         "Run the full Vitest suites, including headless Chromium geometry tests. No Playwright,\n" +
         "no e2e/, no layout guard, no dev server, no emulator.",
+    }
+  }
+  return null
+}
+
+/** Whether a `gh api` call writes: a method other than GET, or a body field or input file without an explicit GET. */
+function ghApiWrites(segment, tokens) {
+  const rest = tokens.slice(2)
+  let method = null
+  let body = false
+  let endpoint = null
+  for (let index = 0; index < rest.length; index += 1) {
+    const token = unquote(rest[index])
+    if (token.startsWith("-X") && token.length > 2) method = token.slice(2)
+    else if (token.startsWith("--method=")) method = token.slice("--method=".length)
+    else if (token === "-X" || token === "--method") method = unquote(rest[index + 1])
+    if (GH_API_BODY_FLAGS.has(token) || [...GH_API_BODY_FLAGS].some((flag) => flag.startsWith("--") && token.startsWith(`${flag}=`))) body = true
+    if (GH_API_VALUE_FLAGS.has(token)) index += 1
+    else if (!token.startsWith("-") && endpoint === null) endpoint = token
+  }
+  if (method !== null) return method.toUpperCase() !== "GET"
+  if (!body) return false
+  // A GraphQL query is a POST with a body field; only a mutation writes.
+  return endpoint !== "graphql" || /\bmutation\b/i.test(segment)
+}
+
+/** Whether a segment writes to GitHub or reads a credential that could. Judged on the program and its arguments. */
+function githubWrite(segment) {
+  const tokens = withoutRunners(tokensOf(segment))
+  const binary = normalize(tokens[0])
+  const args = tokens.slice(1).filter((token) => !token.startsWith("-")).map(normalize)
+  if (binary === "gh") {
+    if (args[0] === "api") return ghApiWrites(segment, tokens)
+    if (tokens.length === 1 || tokens[1].startsWith("-")) return false
+    if (!GH_READS.has(args[0])) return true
+    const reads = GH_READS.get(args[0])
+    return reads !== null && !reads.has(args[1])
+  }
+  if (binary === "security") return args.some((arg) => /^(?:find-(?:generic|internet)-password|dump-keychain|export)$/.test(arg))
+  if (binary === "git") return args[0] === "credential" || args[0]?.startsWith("credential-")
+  if (["curl", "wget"].includes(binary) && /github(?:usercontent)?\.com/i.test(segment)) {
+    const method = flagValue(tokens, "-X") ?? flagValue(tokens, "--request") ?? flagValue(tokens, "--method") ?? tokens.find((token) => /^-X[A-Za-z]/.test(token))?.slice(2) ?? null
+    if (method !== null && method.toUpperCase() !== "GET") return true
+    return tokens.some((token) => CURL_BODY_FLAGS.has(unquote(token)) || unquote(token).startsWith("--post-") || unquote(token).startsWith("--data"))
+  }
+  return false
+}
+
+/**
+ * A read-only review or proof (launch-worker.mjs --review or --proof) reads GitHub and never writes it.
+ * This judges the command text only: a script that calls GitHub itself passes. The worker still holds
+ * the owner's token, because the login keychain serves it and the worker's own Claude login together.
+ * Returns `{ block, message }` for a GitHub write or a credential read in a read-only run, else null.
+ */
+export function checkReadOnlyRun(command, { env = {} } = {}) {
+  if (typeof command !== "string" || env[READ_ONLY_MARKER] !== "1") return null
+  for (const segment of stripHeredocBodies(command).split(SEGMENT_SPLIT)) {
+    if (!githubWrite(segment)) continue
+    return {
+      block: true,
+      message:
+        `A read-only run writes nothing to GitHub and reads no credential. Refused: ${segment.trim().slice(0, 160)}\n\n` +
+        "Read with gh pr view, gh pr diff, gh pr checks, gh run view and gh api GET requests. Put each\n" +
+        "action that needs a write in the result file; the orchestrator does it.",
     }
   }
   return null
