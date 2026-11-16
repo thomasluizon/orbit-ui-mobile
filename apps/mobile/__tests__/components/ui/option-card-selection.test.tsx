@@ -31,6 +31,21 @@ describe('OptionCard selection on Android', () => {
     TestRenderer.act(() => tree!.unmount())
   })
 
+  it('keeps the primary ring of a selected card under keyboard focus, directly inside the focus ring', () => {
+    preference.reduced = false
+    let tree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<OptionCard label="Saúde" selected onSelect={vi.fn()} />) })
+    const card = tree!.root.findAll((node: { type: unknown; props: { testID?: string } }) => typeof node.type !== 'string' && node.props.testID === 'option-card' && typeof (node.props as { onFocus?: unknown }).onFocus === 'function').at(-1)!
+    const target = {}
+    TestRenderer.act(() => { card.props.onFocus({ target, currentTarget: target }) })
+    expect(hostStyle(tree, 'option-card')).toMatchObject({ outlineWidth: 2, outlineOffset: -4, outlineStyle: 'solid', outlineColor: tokens.fg1 })
+    expect(hostStyle(tree, 'selection-ring')).toMatchObject({ top: 4, right: 4, bottom: 4, left: 4, borderWidth: 2, borderColor: tokens.primary })
+    TestRenderer.act(() => { card.props.onBlur({ target, currentTarget: target }) })
+    expect(hostStyle(tree, 'option-card').outlineWidth).toBeUndefined()
+    expect(hostStyle(tree, 'selection-ring')).toMatchObject({ top: 0, right: 0, bottom: 0, left: 0, borderWidth: 2, borderColor: tokens.primary })
+    TestRenderer.act(() => tree!.unmount())
+  })
+
   it.each(['America/North_Dakota/New_Salem', 'America/Argentina/Rio_Gallegos'])('holds a wide option on one line with a tail ellipsis, and keeps the full name as its accessible name: %s', (zone) => {
     let tree: ReturnType<typeof TestRenderer.create>
     TestRenderer.act(() => { tree = TestRenderer.create(<OptionCard wide label={zone} onSelect={vi.fn()} />) })
