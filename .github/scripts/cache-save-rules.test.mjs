@@ -22,6 +22,9 @@ const everyStep = [
   ...actions.flatMap(({ file, steps }) => steps.map((step) => ({ step, where: `${file}: ${step.name ?? step.uses ?? step.run}`, file, job: "action", pullRequest: true }))),
 ]
 const uses = (prefix) => everyStep.filter(({ step }) => step.uses?.startsWith(prefix))
+// The workflow list with more steps at the end of one job, for a test that adds a cache step to a real job.
+const withMoreSteps = (file, job, moreSteps) => workflows.map((workflow) => workflow.file !== file ? workflow
+  : { ...workflow, jobs: { ...workflow.jobs, [job]: { ...workflow.jobs[job], steps: [...workflow.jobs[job].steps, ...moreSteps] } } })
 
 const MAIN_ONLY = /github\.ref == 'refs\/heads\/main'|github\.event_name != 'pull_request'/
 
@@ -137,19 +140,38 @@ const NPM_SAVERS = {
   "desktop-build.yml: build": ["runner.os == 'Windows' && github.ref == 'refs/heads/main'", "${{ !(runner.os == 'Windows' && github.ref == 'refs/heads/main') }}"],
 }
 
+// The restore is a step of the local action, so no path of the calling job equals its path. A save step of a job that
+// restores the npm cache is an npm save when its key or its path has the text npm, or reads an output of the restore
+// step or of a step that reads the npm cache directory.
+const NPM_PRIMARY_KEY = "${{ steps.npm-cache.outputs.cache-primary-key }}"
+function namesTheNpmCache(save, steps) {
+  const text = `${save.with?.key ?? ""}\n${save.with?.path ?? ""}`
+  const ids = steps.filter((step) => isNpmRestore(step) || step.run?.includes("npm config get cache")).map((step) => step.id).filter(Boolean)
+  return /npm/i.test(text) || ids.some((id) => text.includes(`steps.${id}.outputs.`))
+}
+function npmSavesOf(workflowList) {
+  const stepLists = [...workflowList.flatMap(({ file, jobs }) => Object.entries(jobs).map(([job, { steps = [] }]) => ({ file, job, steps }))),
+    ...actions.map(({ file, steps }) => ({ file, job: "action", steps }))]
+  return stepLists.filter(({ steps }) => steps.some(isNpmRestore)).flatMap(({ file, job, steps }) =>
+    steps.filter((step) => /^actions\/cache(\/save)?@/.test(step.uses ?? "") && namesTheNpmCache(step, steps))
+      .map((step) => ({ file, job, step, steps, where: `${file}: ${job}: ${step.name ?? step.uses}` })))
+}
+const npmSaveJobs = (workflowList) => npmSavesOf(workflowList).map(({ file, job }) => `${file}: ${job}`).sort()
+
 test("each npm entry holds only the tarballs of its own lockfile, because a job that saves it restores no older entry", () => {
   const { inputs, runs } = load(".github/actions/restore-npm-cache/action.yml")
   assert.equal(inputs["restore-older-entry"].default, "true")
   assert.equal(runs.steps.find((step) => step.id === "restore").with["restore-keys"], RESTORE_OLDER_ENTRY)
 
-  const saves = uses("actions/cache/save@").filter(({ step }) => step.with.key === "${{ steps.npm-cache.outputs.cache-primary-key }}")
-  assert.deepEqual(saves.map(({ file, job }) => `${file}: ${job}`).sort(), Object.keys(NPM_SAVERS).sort())
-  for (const { step, where, file, job } of saves) {
+  const saves = npmSavesOf(workflows)
+  assert.deepEqual(npmSaveJobs(workflows), Object.keys(NPM_SAVERS).sort())
+  for (const { step, where, file, job, steps } of saves) {
     const [savesWhen, restoresOlderWhen] = NPM_SAVERS[`${file}: ${job}`]
+    assert.equal(step.uses, "actions/cache/save@v6", where)
+    assert.equal(step.with.key, NPM_PRIMARY_KEY, where)
     assert.equal(step.if, `${savesWhen} && steps.npm-cache.outputs.cache-hit != 'true'`, where)
     assert.match(savesWhen, MAIN_ONLY, where)
     assert.equal(step.with.path, "${{ steps.npm-cache.outputs.path }}", where)
-    const steps = workflows.find((workflow) => workflow.file === file).jobs[job].steps
     const restores = steps.filter(isNpmRestore)
     assert.deepEqual(restores.map((candidate) => candidate.id), ["npm-cache"], where)
     assert.equal(restores[0].with?.["restore-older-entry"], restoresOlderWhen, `${where}: the restore before a save must be exact`)
@@ -158,6 +180,27 @@ test("each npm entry holds only the tarballs of its own lockfile, because a job 
   for (const { step, where, file, job } of everyStep.filter(({ step }) => step.uses === "./.github/actions/restore-npm-cache")) {
     if (!(`${file}: ${job}` in NPM_SAVERS)) assert.equal(step.with?.["restore-older-entry"], undefined, `${where} never saves, so it keeps the prefix fallback`)
   }
+})
+
+// The Type Check job restores the npm cache by prefix through the local action and saves no npm entry.
+const saveNpm = (input) => ({ name: "Save npm", if: "github.event_name != 'pull_request'", uses: "actions/cache/save@v6", with: input })
+for (const [name, moreSteps] of [
+  ["a literal key and a literal path", [saveNpm({ path: "~/.npm", key: "npm-${{ github.sha }}" })]],
+  ["a literal path and a key with another name", [saveNpm({ path: "~/.npm", key: "packages-${{ github.sha }}" })]],
+  ["a directory that its own step reads", [{ id: "directory", run: 'echo "path=$(npm config get cache)" >> "$GITHUB_OUTPUT"' },
+    saveNpm({ path: "${{ steps.directory.outputs.path }}", key: "packages-${{ github.sha }}" })]],
+  ["the outputs of a restore step with another id", [{ id: "packages", uses: "./.github/actions/restore-npm-cache" },
+    saveNpm({ path: "${{ steps.packages.outputs.path }}", key: "${{ steps.packages.outputs.cache-primary-key }}" })]],
+  ["a combined cache step", [{ name: "Cache npm", uses: "actions/cache@v6", with: { path: "~/.npm", key: "packages-${{ github.sha }}" } }]],
+]) {
+  test(`a job that restores the npm cache by prefix and saves it with ${name} is found as an npm saver`, () => {
+    assert.deepEqual(npmSaveJobs(withMoreSteps("test.yml", "type-check", moreSteps)), [...Object.keys(NPM_SAVERS), "test.yml: type-check"].sort())
+  })
+}
+
+test("a save of another directory in a job that restores the npm cache is not an npm save", () => {
+  const moreSteps = [{ name: "Save eslint", uses: "actions/cache/save@v6", with: { path: ".eslintcache", key: "eslint-${{ github.sha }}" } }]
+  assert.deepEqual(npmSaveJobs(withMoreSteps("test.yml", "type-check", moreSteps)), Object.keys(NPM_SAVERS).sort())
 })
 
 // Measured: macOS npm ci took 53 to 59 s with no entry and 48 to 88 s after a 5 to 14 s restore of
@@ -414,8 +457,6 @@ function prefixSaversOf(workflowList) {
   return prefixSavers.sort()
 }
 
-const withMoreSteps = (file, job, moreSteps) => workflows.map((workflow) => workflow.file !== file ? workflow
-  : { ...workflow, jobs: { ...workflow.jobs, [job]: { ...workflow.jobs[job], steps: [...workflow.jobs[job].steps, ...moreSteps] } } })
 const LINT_KEY = "eslint-${{ github.sha }}"
 const restoreLint = (step = {}) => ({ name: "Restore eslint", uses: "actions/cache/restore@v6", with: { path: ".eslintcache", key: LINT_KEY, "restore-keys": "eslint-\n" }, ...step })
 const saveLint = (input = {}) => ({ name: "Save eslint", if: "github.event_name != 'pull_request'", uses: "actions/cache/save@v6", with: { path: ".eslintcache", key: LINT_KEY, ...input } })
