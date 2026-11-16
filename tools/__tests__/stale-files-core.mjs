@@ -430,9 +430,12 @@ const unreadableGitCases = () => {
   const answers = { worktree: () => records, "rev-list": () => "0", "rev-parse": (cwd, args) => (args[1] === "--show-toplevel" ? cwd : "2"), "symbolic-ref": () => "origin/main" }
   const kindOf = (args) => (args.includes("status") ? "status" : args[0])
   const merged = [{ number: 1, state: "MERGED", headRefOid: "2" }]
-  /** Every git read answers as a finished, pushed tree does, but the reads that `fails` names and the answers that `over` replaces. */
-  const listWith = ({ fails = () => false, pullRequests = merged, walked = [], over = {} } = {}) => collectListing({ ...machine.context, repositories: { ui: machine.checkout } },
-    { probes: { ...quietProbes, pullRequests: (path, branch) => (branch === "done" ? pullRequests : null), repositories: () => walked,
+  /**
+   * Every git read answers as a finished, pushed tree does, but the reads that `fails` names and the answers that `over` replaces.
+   * `containers` gives the pull requests of each other branch; the state of a branch that it does not name cannot be read.
+   */
+  const listWith = ({ fails = () => false, pullRequests = merged, containers = {}, walked = [], over = {} } = {}) => collectListing({ ...machine.context, repositories: { ui: machine.checkout } },
+    { probes: { ...quietProbes, pullRequests: (path, branch) => (branch === "done" ? pullRequests : containers[branch] ?? null), repositories: () => walked,
       git: (cwd, args) => (fails(kindOf(args), cwd) ? null : ({ ...answers, ...over }[kindOf(args)] ?? (() => ""))(cwd, args)) } })
   const staleSession = join(machine.sessionRoot, STALE)
   const readable = listWith({ walked: [repository] })
@@ -452,14 +455,24 @@ const unreadableGitCases = () => {
   // A branch with no pull request is finished only when a merged branch contains it, and each read of that proof can fail too.
   same("stale-files: with every git read answered, a branch with no pull request that the base branch contains is stale",
     listWith({ pullRequests: [] }).stale.find((item) => item.path === finished)?.reason, "its branch is contained in origin/main")
-  // `merge-base --is-ancestor` exits 1 for "no", which the probe gives as null too; `rev-list --count` prints the number of commits outside.
-  const outside = { "rev-list": () => "1", "merge-base": () => null }
+  // `rev-list --count` prints the number of commits outside the container.
+  const outside = { "rev-list": () => "1" }
   same("stale-files: a branch with no pull request that no merged branch contains is work nobody merged", reasonOf(listWith({ pullRequests: [], over: outside }), finished),
     "it holds work nobody merged: no pull request, and no merged branch contains its branch")
   same("stale-files: a branch with no pull request whose containment read fails stays with the unreadable reason, not as work nobody merged",
-    reasonOf(listWith({ pullRequests: [], fails: (failed) => ["rev-list", "merge-base"].includes(failed) }), finished), "git rev-list could not be read")
+    reasonOf(listWith({ pullRequests: [], fails: (failed) => failed === "rev-list" }), finished), "git rev-list could not be read")
   same("stale-files: a branch with no pull request whose git for-each-ref fails stays with the unreadable reason, not as work nobody merged",
     reasonOf(listWith({ pullRequests: [], over: outside, fails: (failed) => failed === "for-each-ref" }), finished), "git for-each-ref could not be read")
+  // A second branch that holds the tip is a container only when its merged pull request head holds the tip too.
+  const besideOther = { ...outside, "for-each-ref": () => "other" }
+  const otherMerged = { other: [{ number: 2, state: "MERGED", headRefOid: "9" }] }
+  same("stale-files: a branch with no pull request whose container branch has an unreadable pull request state stays with the unreadable reason, not as work nobody merged",
+    reasonOf(listWith({ pullRequests: [], over: besideOther }), finished), "the pull request state of other could not be read")
+  same("stale-files: a branch with no pull request whose container pull request head cannot be read stays with the unreadable reason, not as work nobody merged",
+    reasonOf(listWith({ pullRequests: [], containers: otherMerged, over: besideOther, fails: (failed) => ["cat-file", "fetch"].includes(failed) }), finished), "the head of pull request #2 could not be read")
+  same("stale-files: with the container pull request head read, a branch with no pull request that the head contains is stale",
+    listWith({ pullRequests: [], containers: otherMerged, over: { ...besideOther, "rev-list": (cwd, args) => (args.at(-1) === "9" ? "0" : "1") } }).stale.find((item) => item.path === finished)?.reason,
+    "its branch is contained in other, which pull request #2 merged")
   // The pull request head is the proof that GitHub holds the commits: a head that cannot be read is no proof of a lost commit.
   same("stale-files: a worktree whose pull request head cannot be read stays with the unreadable reason",
     reasonOf(listWith({ over: { "rev-list": () => "1" }, fails: (failed) => ["cat-file", "fetch"].includes(failed) }), finished), "the head of pull request #1 could not be read")
