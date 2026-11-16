@@ -797,7 +797,10 @@ describe("CalendarScreen views (mobile)", () => {
         const firstBodyTop = view === 'week' ? weekFrame!.top : firstBodyText.top;
         if (view === 'week') {
           const firstColumnTop = Math.min(...measured.controls.filter((control) => control.top >= bottom).map((control) => control.top));
-          expect.soft(firstColumnTop - weekFrame!.top, 'the day columns start inside the 1 dp frame hairline').toBe(1);
+          expect.soft(firstColumnTop - weekFrame!.top, 'the day columns start at the frame edge, as on web').toBe(0);
+          const frameStyle = StyleSheet.flatten<ViewStyle>(tree.root.findAll((node) => node.type === 'View' && node.props.testID === 'calendar-time-grid')[0]!.props.style);
+          expect.soft(frameStyle.borderWidth, 'the frame hairline takes no layout space').toBeUndefined();
+          expect.soft(frameStyle, 'the frame hairline is an inset ring').toMatchObject({ outlineWidth: 1, outlineOffset: -1, outlineStyle: 'solid' });
         }
         expect.soft(firstBodyTop - bottom, `${view} body clearance`).toBe(24);
         if (month) TestRenderer.act(() => month.update(<></>));

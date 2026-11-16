@@ -625,8 +625,10 @@ function createStyles(tokens: Tokens) {
       borderRadius: 12,
       overflow: "hidden",
       backgroundColor: tokens.bgCard,
-      borderWidth: 1,
-      borderColor: tokens.hairline,
+      outlineWidth: 1,
+      outlineOffset: -1,
+      outlineStyle: "solid",
+      outlineColor: tokens.hairline,
     },
     row: {
       flex: 1,
