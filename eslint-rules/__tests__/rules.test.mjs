@@ -726,6 +726,11 @@ ruleTester.run('no-spinner', rule('no-spinner'), {
     "<Animated.View style={{ animationName: { to: { transform: [{ rotate: '360deg' }] } }, animationDuration: '1s', animationIterationCount: [1, 2] }} />",
     "const pulse = withRepeat(withTiming(0.35), -1, true); const chevron = { transform: open ? 'rotate(0deg)' : 'rotate(-90deg)' }",
     "const pulse = withRepeat(withTiming(0.35), -1, true); const tint = { filter: 'hue-rotate(360deg)' }",
+    'const HALF_TURN = 180; turn.value = withRepeat(withTiming(1), -1); const style = { transform: [{ rotate: `${turn.value * HALF_TURN}deg` }] }',
+    'const FULL_TURN = 360; const wheel = withRepeat(withTiming(1), -1); const share = angle.value / FULL_TURN',
+    'turn.value = withRepeat(withTiming(1), -1); const angle = angle * 2; const style = { transform: [{ rotate: `${angle}rad` }] }',
+    'const settle = withSpring()',
+    'offset.value = withRepeat(withTiming(2 * Math.PI * radius), -1); const style = { transform: [{ rotate: `${rotation.value}rad` }] }',
   ],
   invalid: [
     { code: "import { ActivityIndicator, View } from 'react-native'", errors: [{ messageId: 'noSpinner' }] },
@@ -847,6 +852,11 @@ ruleTester.run('no-spinner', rule('no-spinner'), {
     { code: 'const listProps = { data: rows, onRefresh: refetch, refreshing: busy }; const list = <FlatList {...listProps} />', errors: [{ messageId: 'visibleRefreshIndicator' }] },
     { code: 'function Rows({ onRefresh }) { const base = { onRefresh }; const listProps = { ...base, data: rows }; return <Animated.FlatList {...listProps} /> }', errors: [{ messageId: 'visibleRefreshIndicator' }] },
     { code: '<ScrollView {...{ onRefresh: refetch, refreshing: busy }} />', errors: [{ messageId: 'visibleRefreshIndicator' }] },
+    { code: 'const FULL_TURN = 360; turn.value = withRepeat(withTiming(1), -1); const style = { transform: [{ rotate: `${turn.value * FULL_TURN}deg` }] }', errors: [{ messageId: 'noSpinner' }] },
+    { code: 'const REVERSE_TURN = -360; turn.value = withRepeat(withTiming(1), -1); const style = { transform: [{ rotate: `${turn.value * REVERSE_TURN}deg` }] }', errors: [{ messageId: 'noSpinner' }] },
+    { code: 'const first = 360; const second = first; const third = second; const fourth = third; rotation.value = withRepeat(withTiming(fourth), -1)', errors: [{ messageId: 'noSpinner' }] },
+    { code: 'const TAU = 2 * Math.PI; rotation.value = withRepeat(withTiming(TAU), -1); const style = { transform: [{ rotate: `${rotation.value}rad` }] }', errors: [{ messageId: 'noSpinner' }] },
+    { code: 'const TAU = 2 * Math.PI; turn.value = withRepeat(withTiming(1), -1); const style = { transform: [{ rotate: `${turn.value * TAU}rad` }] }', errors: [{ messageId: 'noSpinner' }] },
   ],
 })
 

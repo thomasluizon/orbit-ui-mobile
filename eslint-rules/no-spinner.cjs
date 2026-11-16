@@ -186,9 +186,14 @@ function isTwo(node) {
   return typeof value === 'number' && Math.abs(value) === 2
 }
 
-/** The factors of a `*` product, so `turn.value * 2 * Math.PI` gives `turn.value`, `2` and `Math.PI`. */
-function factorsOf(node) {
-  return node.type === 'BinaryExpression' && node.operator === '*' ? [...factorsOf(node.left), ...factorsOf(node.right)] : [node]
+/**
+ * The factors of a `*` product, so `turn.value * 2 * Math.PI` gives `turn.value`, `2` and `Math.PI`. A `const` name
+ * counts as what it holds, up to 4 names deep, so `turn.value * TAU` with `const TAU = 2 * Math.PI` gives the same.
+ */
+function factorsOf(sourceCode, node, depth = 0) {
+  const held = node.type === 'Identifier' && depth < 4 ? constInitializer(sourceCode, node, node.name) : undefined
+  if (held) return factorsOf(sourceCode, held, depth + 1)
+  return node.type === 'BinaryExpression' && node.operator === '*' ? [...factorsOf(sourceCode, node.left, depth), ...factorsOf(sourceCode, node.right, depth)] : [node]
 }
 
 /** Whether a product holds `2 * Math.PI`, one turn in radians, as `turn.value * 2 * Math.PI` does while `turn` runs to 1. */
@@ -226,7 +231,7 @@ function holdsRadianTurn(sourceCode, angle, depth = 0) {
   const holds = (part) => holdsRadianTurn(sourceCode, part, depth)
   switch (angle?.type) {
     case 'BinaryExpression':
-      if (angle.operator === '*') return spansRadianTurn(factorsOf(angle))
+      if (angle.operator === '*') return spansRadianTurn(factorsOf(sourceCode, angle))
       return ANGLE_OPERATORS.has(angle.operator) && (holds(angle.left) || holds(angle.right))
     case 'UnaryExpression':
       return angle.operator === '-' && holds(angle.argument)
@@ -255,12 +260,11 @@ function isPlainValue(node) {
   return node?.type === 'Identifier' || node?.type === 'MemberExpression'
 }
 
-/** Whether a timing call animates to a constant `2 * Math.PI`, as `withTiming(2 * Math.PI)` turns a radian angle once. */
-function animatesToRadianTurn(call) {
-  if (call.callee.type !== 'Identifier' || !TIMING_CALLS.has(call.callee.name)) return false
-  const target = call.arguments[0]?.type === 'UnaryExpression' && call.arguments[0].operator === '-' ? call.arguments[0].argument : call.arguments[0]
-  if (target?.type !== 'BinaryExpression' || target.operator !== '*') return false
-  const factors = factorsOf(target)
+/** Whether a timing call animates to a constant `2 * Math.PI`, as `withTiming(2 * Math.PI)` or `withTiming(TAU)` turns a radian angle once. */
+function animatesToRadianTurn(sourceCode, call) {
+  if (call.callee.type !== 'Identifier' || !TIMING_CALLS.has(call.callee.name) || !call.arguments[0]) return false
+  const target = call.arguments[0].type === 'UnaryExpression' && call.arguments[0].operator === '-' ? call.arguments[0].argument : call.arguments[0]
+  const factors = factorsOf(sourceCode, target)
   return factors.length === 2 && spansRadianTurn(factors)
 }
 
@@ -338,7 +342,11 @@ module.exports = {
       },
       CallExpression(node) {
         if (isLoopCall(node)) loopCalls.push(node)
-        if (animatesToRadianTurn(node)) turnsToRadianTurn = true
+        if (animatesToRadianTurn(context.sourceCode, node)) turnsToRadianTurn = true
+      },
+      // A `const` name that holds a full turn counts where it is read, as `turn.value * FULL_TURN` with `const FULL_TURN = 360`.
+      Identifier(node) {
+        if (isNumericFullTurn(node) && factorsOf(context.sourceCode, node).some((factor) => Math.abs(staticValue(factor)) === 360)) drawsFullTurn = true
       },
       Literal(node) {
         reportString(node, node.value)
