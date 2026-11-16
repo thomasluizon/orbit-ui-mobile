@@ -2245,6 +2245,7 @@
       "sourceFile": "apps/web/app/step-up/page.tsx",
       "href": "/step-up",
       "ownedFiles": [
+        "apps/web/app/step-up/guided-step-up.tsx",
         "apps/web/app/step-up/page.tsx",
         "apps/web/app/step-up/step-up-screen.tsx",
         "apps/web/components/ui/quiet-link.tsx"
@@ -2260,6 +2261,7 @@
       "sourceFile": "apps/web/app/step-up/page.tsx",
       "href": "/step-up",
       "ownedFiles": [
+        "apps/web/app/step-up/guided-step-up.tsx",
         "apps/web/app/step-up/page.tsx",
         "apps/web/app/step-up/step-up-screen.tsx",
         "apps/web/components/ui/quiet-link.tsx"
@@ -2275,6 +2277,7 @@
       "sourceFile": "apps/web/app/step-up/page.tsx",
       "href": "/step-up",
       "ownedFiles": [
+        "apps/web/app/step-up/guided-step-up.tsx",
         "apps/web/app/step-up/page.tsx",
         "apps/web/app/step-up/step-up-screen.tsx",
         "apps/web/components/ui/quiet-link.tsx"
@@ -2290,6 +2293,7 @@
       "sourceFile": "apps/web/app/step-up/page.tsx",
       "href": "/step-up",
       "ownedFiles": [
+        "apps/web/app/step-up/guided-step-up.tsx",
         "apps/web/app/step-up/page.tsx",
         "apps/web/app/step-up/step-up-screen.tsx",
         "apps/web/components/ui/quiet-link.tsx"
@@ -8975,6 +8979,58 @@
       "locale": "pt-BR"
     },
     {
+      "surfaceId": "overlay-profile-api-key-create-flow",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/profile/api-key-create-flow.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/profile/api-key-create-flow.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-profile-api-key-create-flow",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/profile/api-key-create-flow.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/profile/api-key-create-flow.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-profile-api-key-create-flow",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/profile/api-key-create-flow.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/profile/api-key-create-flow.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-profile-api-key-create-flow",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/profile/api-key-create-flow.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/profile/api-key-create-flow.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
       "surfaceId": "overlay-profile-notion-connection-sheet",
       "platform": "web",
       "kind": "overlay",
@@ -12129,7 +12185,8 @@
       "sourceFile": "apps/mobile/app/step-up.tsx",
       "href": "/step-up",
       "ownedFiles": [
-        "apps/mobile/app/step-up.tsx"
+        "apps/mobile/app/step-up.tsx",
+        "apps/mobile/components/auth/guided-step-up.tsx"
       ],
       "state": "default",
       "theme": "light",
@@ -12142,7 +12199,8 @@
       "sourceFile": "apps/mobile/app/step-up.tsx",
       "href": "/step-up",
       "ownedFiles": [
-        "apps/mobile/app/step-up.tsx"
+        "apps/mobile/app/step-up.tsx",
+        "apps/mobile/components/auth/guided-step-up.tsx"
       ],
       "state": "default",
       "theme": "light",
@@ -12155,7 +12213,8 @@
       "sourceFile": "apps/mobile/app/step-up.tsx",
       "href": "/step-up",
       "ownedFiles": [
-        "apps/mobile/app/step-up.tsx"
+        "apps/mobile/app/step-up.tsx",
+        "apps/mobile/components/auth/guided-step-up.tsx"
       ],
       "state": "default",
       "theme": "dark",
@@ -12168,7 +12227,8 @@
       "sourceFile": "apps/mobile/app/step-up.tsx",
       "href": "/step-up",
       "ownedFiles": [
-        "apps/mobile/app/step-up.tsx"
+        "apps/mobile/app/step-up.tsx",
+        "apps/mobile/components/auth/guided-step-up.tsx"
       ],
       "state": "default",
       "theme": "dark",
@@ -18949,6 +19009,58 @@
       "href": null,
       "ownedFiles": [
         "apps/mobile/components/profile/advanced-sections.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-overlay-profile-api-key-create-flow",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/profile/api-key-create-flow.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/profile/api-key-create-flow.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-overlay-profile-api-key-create-flow",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/profile/api-key-create-flow.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/profile/api-key-create-flow.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-overlay-profile-api-key-create-flow",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/profile/api-key-create-flow.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/profile/api-key-create-flow.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-overlay-profile-api-key-create-flow",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/profile/api-key-create-flow.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/profile/api-key-create-flow.tsx"
       ],
       "state": "default",
       "theme": "dark",
