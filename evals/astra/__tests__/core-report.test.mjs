@@ -174,6 +174,22 @@ describe('the gate report of the two runs', () => {
     expect(() => merged([{ ...window, cases: [{ ...window.cases[0], graderLimits: undefined }] }])).toThrow(/invalid attempt counts/u)
   })
 
+  // Producer: the runner records the commit of the API health check, held to 40 lowercase hexadecimal characters.
+  const withCommit = (window, apiCommit) => {
+    const { apiCommit: _recorded, ...rest } = window
+    return apiCommit === 'missing' ? rest : { ...rest, apiCommit }
+  }
+  const noCommit = (input) => `Input ${input} names no API commit of 40 lowercase hexadecimal characters.`
+  it.each([['missing', 'missing'], ['null', null], ['a number', 12345], ['a short commit', 'a'.repeat(7)]])('refuses an ordinary window whose API commit is %s', (_label, apiCommit) => {
+    const [mustPassWindow, otherWindow] = passing()
+    expect(() => merged([withCommit(mustPassWindow, apiCommit), withCommit(otherWindow, apiCommit)])).toThrow(noCommit(1))
+    expect(() => merged([mustPassWindow, withCommit(otherWindow, apiCommit)])).toThrow(noCommit(2))
+  })
+  it.each([['missing', 'missing'], ['null', null], ['a number', 12345], ['a short commit', 'b'.repeat(7)]])('refuses a --rerun window whose API commit is %s', (_label, apiCommit) => {
+    const failed = [requiredRun([...attempts(required, 2), result(required, { pass: false })]), otherRun([result(optional)])]
+    expect(() => merged(failed, { reruns: [withCommit(requiredRun(attempts(required, 3), fixedBuild), apiCommit)] })).toThrow(noCommit(3))
+  })
+
   it('reports a case that no window holds as incomplete', () => {
     expect(merged([requiredRun(attempts(required, 3))], { runCostUsd: 0.0045 })).toMatchObject({ status: 'incomplete',
       cases: [{ id: 'required', passK: 'pass' }, { id: 'optional', attempts: 0, passK: 'incomplete' }] })
@@ -293,7 +309,7 @@ describe('a case without a verdict on an earlier build', () => {
 
   it('refuses a window of the later build among the windows of the first build, and names --rerun', () => {
     expect(() => merged([...cutShort(), requiredOn(fixedBuild)]))
-      .toThrow('Input 3 measured another API commit (bbbbbbb) than input 1 (aaaaaaa); the summaries do not tell which build is later, so give each window of the later build to the merge with --rerun.')
+      .toThrow('Input 3 measured another API commit (bbbbbbb) than input 1 (aaaaaaa); the summaries do not tell which build is later, so give the windows in build order: the windows of the first build without --rerun, then the windows of each later build with --rerun, in the order of the builds.')
   })
 
   it('measures the case on the later build, beside the rerun of the failed case', () => {
@@ -394,12 +410,13 @@ describe('a case without a verdict on an earlier build', () => {
 
 // The operator declares each window of a later build with `--rerun`, at any position on the command line. Without that
 // declaration the first summary would name the first build, and a later build given first would change the verdicts
-// with no refusal. Each line below gets the correct verdict or a refusal that names `--rerun` and the API commit of
-// both inputs. The summaries hold no time finer than the UTC day, so the refusal does not guess which build is later.
+// with no refusal. Each line below gets the correct verdict or a refusal that names the API commit of both inputs and
+// the build order of the windows. The summaries hold no time finer than the UTC day, so the refusal does not guess
+// which build is later.
 describe('the declaration of a later build on the command line', () => {
   const mustPass = coreDescriptors().find((entry) => entry.mustPass)
   const other = coreDescriptors().find((entry) => !entry.mustPass)
-  const refusal = (input, apiCommit, firstApiCommit) => `Input ${input} measured another API commit (${apiCommit.slice(0, 7)}) than input 1 (${firstApiCommit.slice(0, 7)}); the summaries do not tell which build is later, so give each window of the later build to the merge with --rerun.`
+  const refusal = (input, apiCommit, firstApiCommit) => `Input ${input} measured another API commit (${apiCommit.slice(0, 7)}) than input 1 (${firstApiCommit.slice(0, 7)}); the summaries do not tell which build is later, so give the windows in build order: the windows of the first build without --rerun, then the windows of each later build with --rerun, in the order of the builds.`
   const files = (...windows) => {
     const target = directory()
     return windows.map((summary, index) => {
@@ -419,15 +436,17 @@ describe('the declaration of a later build on the command line', () => {
           .map(({ passK, apiCommit, rerun = false }) => ({ passK, apiCommit, rerun })) }
     } catch (error) { return error.message }
   }
-  // The operator follows the refusal: of the two API commits it names, the operator knows the later build, and puts
-  // `--rerun` before each window whose summary names that commit.
-  const followed = (argumentsList, laterApiCommit) => {
+  // The operator follows the refusal: the operator knows the order of the builds, so gives the windows of the first
+  // build without `--rerun`, then the windows of each later build with `--rerun`, in the order of the builds.
+  const followed = (argumentsList, builds) => {
     const refused = outcome(argumentsList)
-    const named = /^Input \d+ measured another API commit \(([0-9a-f]{7})\) than input 1 \(([0-9a-f]{7})\); .* --rerun\.$/u.exec(refused)
+    const named = /^Input \d+ measured another API commit \(([0-9a-f]{7})\) than input 1 \(([0-9a-f]{7})\); the summaries do not tell which build is later, so give the windows in build order: the windows of the first build without --rerun, then the windows of each later build with --rerun, in the order of the builds\.$/u.exec(refused)
     expect(named, refused).not.toBeNull()
-    expect(named.slice(1).sort()).toEqual([meta.apiCommit, fixedBuild].map((apiCommit) => apiCommit.slice(0, 7)).sort())
-    return outcome(argumentsList.flatMap((path) => JSON.parse(readFileSync(path, 'utf8')).apiCommit.startsWith(laterApiCommit.slice(0, 7)) ? ['--rerun', path] : [path]))
+    for (const apiCommit of named.slice(1)) expect(builds.map((build) => build.slice(0, 7))).toContain(apiCommit)
+    const ofBuild = (build) => argumentsList.filter((path) => JSON.parse(readFileSync(path, 'utf8')).apiCommit === build)
+    return outcome([...ofBuild(builds[0]), ...builds.slice(1).flatMap((build) => ofBuild(build).flatMap((path) => ['--rerun', path]))])
   }
+  const twoBuilds = [meta.apiCommit, fixedBuild]
 
   // First build: the spend ceiling stops the must-pass case without evidence. Later build: the case fails.
   describe('a must-pass case with its first verdict, a fail, on the later build', () => {
@@ -449,8 +468,8 @@ describe('the declaration of a later build on the command line', () => {
 
     it('keeps the fail when the operator follows the refusal and flags the windows of the later build it names', () => {
       const [later, firstMustPass, firstOther] = windows()
-      expect(followed([later, firstMustPass, firstOther], fixedBuild)).toEqual(firstVerdict)
-      expect(followed([firstMustPass, firstOther, later], fixedBuild)).toEqual(firstVerdict)
+      expect(followed([later, firstMustPass, firstOther], twoBuilds)).toEqual(firstVerdict)
+      expect(followed([firstMustPass, firstOther, later], twoBuilds)).toEqual(firstVerdict)
     })
   })
 
@@ -473,8 +492,22 @@ describe('the declaration of a later build on the command line', () => {
 
     it('refuses the later build when the operator follows the refusal and flags the windows of the later build it names', () => {
       const [laterMustPass, laterOther, firstMustPass, firstOther] = windows()
-      expect(followed([laterMustPass, laterOther, firstMustPass, firstOther], fixedBuild)).toBe(passedEarlier)
-      expect(followed([firstMustPass, firstOther, laterMustPass, laterOther], fixedBuild)).toBe(passedEarlier)
+      expect(followed([laterMustPass, laterOther, firstMustPass, firstOther], twoBuilds)).toBe(passedEarlier)
+      expect(followed([firstMustPass, firstOther, laterMustPass, laterOther], twoBuilds)).toBe(passedEarlier)
+    })
+  })
+
+  // Three builds A, B, C, in that order: the spend ceiling stops the must-pass case on A, the case passes on B, and
+  // fails on C. A case that passed keeps its build, so the later build C is refused.
+  describe('three builds given in the reverse order', () => {
+    const thirdBuild = 'c'.repeat(40)
+    const passedEarlier = `Case ${mustPass.id} passed on an earlier build; a later build measures only a case without a pass.`
+
+    it('refuses the third build when the operator follows the refusal and gives the builds in their order', () => {
+      const [onC, onB, onA, otherOnA] = files(mustPassOn(thirdBuild, { pass: false }), mustPassOn(fixedBuild),
+        mustPassOn(meta.apiCommit, { unavailable: true }), otherOn(meta.apiCommit))
+      expect(outcome([onC, onB, onA, otherOnA])).toBe(refusal(2, fixedBuild, thirdBuild))
+      expect(followed([onC, onB, onA, otherOnA], [meta.apiCommit, fixedBuild, thirdBuild])).toBe(passedEarlier)
     })
   })
 })
