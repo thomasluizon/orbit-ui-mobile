@@ -8,7 +8,7 @@ const TestRenderer: typeof import('react-test-renderer') = require('react-test-r
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 
 const mocks = vi.hoisted(() => ({ reduced: false }))
-const motion = vi.hoisted(() => ({ bezier: [] as unknown[], timings: [] as { toValue: unknown; config: unknown }[], values: [] as { value: unknown }[], updater: undefined as (() => unknown) | undefined }))
+const motion = vi.hoisted(() => ({ bezier: [] as unknown[], timings: [] as { toValue: unknown; config: unknown }[], values: [] as { value: unknown }[], updaters: [] as (() => unknown)[] }))
 vi.mock('@/lib/motion', () => ({
   toAnimatedEasing: () => undefined,
   usePrefersReducedMotion: () => mocks.reduced,
@@ -20,7 +20,7 @@ vi.mock('react-native-reanimated', async () => {
     ...base,
     Easing: { ...base.Easing, bezier: (...points: number[]) => { motion.bezier.push(points); return base.Easing.linear } },
     useSharedValue: (initial: unknown) => useState(() => { const shared = { value: initial }; motion.values.push(shared); return shared })[0],
-    useAnimatedStyle: (updater: () => unknown) => { motion.updater = updater; return useState(updater)[0] },
+    useAnimatedStyle: (updater: () => unknown) => { motion.updaters.push(updater); return useState(updater)[0] },
     withTiming: (toValue: unknown, config: unknown) => { motion.timings.push({ toValue, config }); return { pendingTimingTo: toValue } },
   }
 })
@@ -37,9 +37,13 @@ async function showStep(tree: ReturnType<typeof TestRenderer.create>, step: numb
   await TestRenderer.act(() => { tree.update(<OnboardingStepStage step={step}>body</OnboardingStepStage>) })
 }
 
-function styleWorkletAtProgress(progress: number) {
-  motion.values.at(-1)!.value = progress
-  return motion.updater!()
+function progressValue() {
+  return motion.values[0]!
+}
+
+function styleWorkletAtProgress(progress: number, worklet = motion.updaters.at(-1)!) {
+  progressValue().value = progress
+  return worklet()
 }
 
 function committedStyle(tree: ReturnType<typeof TestRenderer.create>) {
@@ -53,13 +57,13 @@ describe('OnboardingStepStage', () => {
     motion.bezier = []
     motion.timings = []
     motion.values = []
-    motion.updater = undefined
+    motion.updaters = []
   })
 
   it('leaves the step that opens the flow still', async () => {
     await renderStage(0)
     expect(motion.timings).toEqual([])
-    expect(motion.values.at(-1)!.value).toBe(1)
+    expect(progressValue().value).toBe(1)
   })
 
   it('enters a changed step with the base duration, the enter easing and a rise by the shared shift', async () => {
@@ -95,6 +99,13 @@ describe('OnboardingStepStage', () => {
     }
   })
 
+  it('draws the first frame of the new step risen by the shared shift with the worklet the UI thread holds from the previous render', async () => {
+    const tree = await renderStage(0)
+    const heldFromFirstStep = motion.updaters.at(-1)!
+    await showStep(tree, 1)
+    expect(styleWorkletAtProgress(0, heldFromFirstStep)).toEqual({ opacity: 0, transform: [{ translateY: motionLayerTiming.routeShift }] })
+  })
+
   it('commits the new step at full opacity and no shift on every render during the fade, so no React commit carries a copy the fade left at 0', async () => {
     expect(motionLayerTiming.routeShift).not.toBe(0)
     const tree = await renderStage(0)
@@ -108,7 +119,7 @@ describe('OnboardingStepStage', () => {
   it('shows the step at once when the motion preference changes during its fade', async () => {
     const tree = await renderStage(0)
     await showStep(tree, 1)
-    const fading = motion.values.at(-1)!
+    const fading = progressValue()
     expect(fading.value).toEqual({ pendingTimingTo: 1 })
     mocks.reduced = true
     await showStep(tree, 1)
@@ -120,6 +131,6 @@ describe('OnboardingStepStage', () => {
     const tree = await renderStage(0)
     await showStep(tree, 1)
     expect(motion.timings).toEqual([])
-    expect(motion.values.at(-1)!.value).toBe(1)
+    expect(progressValue().value).toBe(1)
   })
 })

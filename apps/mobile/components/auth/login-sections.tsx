@@ -41,20 +41,21 @@ export function LoginOfflineNotice({ t, styles, tokens }: Readonly<{ t: Translat
   </View>
 }
 
-/** WHY Reanimated: a native-driver Animated fade leaves its JS copy at 0, and on iOS Fabric a re-render plus a resize writes that 0 back to the layer after the fade (RCTViewComponentView.mm invalidateLayer), so the step stayed blank. Reanimated's commit hook puts the live value into every React commit. */
+/** WHY Reanimated: a native-driver Animated fade leaves its JS copy at 0, and on iOS Fabric a re-render plus a resize writes that 0 back to the layer after the fade (RCTViewComponentView.mm invalidateLayer), so the step stayed blank. Reanimated's commit hook puts the live value into every React commit. The signed shift is a shared value, not a closure value: Reanimated registers a render's style worklet in a passive effect (useAnimatedStyle.ts), so the UI thread runs the previous render's worklet for the first frames after the layout effect resets the progress. */
 export function LoginStepStage({ step, children }: Readonly<{ step: string; children: ReactNode }>) {
   const motionPreset = useResolvedMotionPreset('route-replace')
   const reduced = motionPreset.reducedMotionEnabled
   const previousStep = useRef(step)
   const progress = useSharedValue(1)
-  const shift = motionPreset.shift * (step === 'email' ? -1 : 1)
-  const style = useAnimatedStyle(() => ({ opacity: progress.value, transform: [{ translateX: (1 - progress.value) * shift }] }))
+  const shift = useSharedValue(0)
+  const style = useAnimatedStyle(() => ({ opacity: progress.value, transform: [{ translateX: (1 - progress.value) * shift.value }] }))
   useLayoutEffect(() => {
     if (previousStep.current === step || reduced) { progress.value = 1; previousStep.current = step; return }
     previousStep.current = step
+    shift.value = motionPreset.shift * (step === 'email' ? -1 : 1)
     progress.value = 0
     progress.value = withTiming(1, { duration: motionPreset.enterDuration, easing: Easing.bezier(...motionPreset.enterEasing) })
-  }, [progress, reduced, step, motionPreset.enterDuration, motionPreset.enterEasing])
+  }, [progress, shift, reduced, step, motionPreset.shift, motionPreset.enterDuration, motionPreset.enterEasing])
   return <Animated.View style={style}>{children}</Animated.View>
 }
 

@@ -7,7 +7,7 @@ const TestRenderer: typeof import('react-test-renderer') = require('react-test-r
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 
 const mocks = vi.hoisted(() => ({ reduced: false, enterDuration: 300, shift: 20, enterEasing: [0.1, 0.2, 0.3, 0.4] }))
-const motion = vi.hoisted(() => ({ bezier: [] as unknown[], timings: [] as { toValue: unknown; config: unknown }[], values: [] as { value: unknown }[], updater: undefined as (() => unknown) | undefined }))
+const motion = vi.hoisted(() => ({ bezier: [] as unknown[], timings: [] as { toValue: unknown; config: unknown }[], values: [] as { value: unknown }[], updaters: [] as (() => unknown)[] }))
 vi.mock('@/lib/motion', async () => {
   const shared = await import('@orbit/shared/theme')
   return {
@@ -23,7 +23,7 @@ vi.mock('react-native-reanimated', async () => {
     ...base,
     Easing: { ...base.Easing, bezier: (...points: number[]) => { motion.bezier.push(points); return base.Easing.linear } },
     useSharedValue: (initial: unknown) => useState(() => { const shared = { value: initial }; motion.values.push(shared); return shared })[0],
-    useAnimatedStyle: (updater: () => unknown) => { motion.updater = updater; return useState(updater)[0] },
+    useAnimatedStyle: (updater: () => unknown) => { motion.updaters.push(updater); return useState(updater)[0] },
     withTiming: (toValue: unknown, config: unknown) => { motion.timings.push({ toValue, config }); return { pendingTimingTo: toValue } },
   }
 })
@@ -38,9 +38,13 @@ async function showStep(tree: ReturnType<typeof TestRenderer.create>, step: stri
   await TestRenderer.act(() => { tree.update(<LoginStepStage step={step}>body</LoginStepStage>) })
 }
 
-function styleWorkletAtProgress(progress: number) {
-  motion.values.at(-1)!.value = progress
-  return motion.updater!()
+function progressValue() {
+  return motion.values[0]!
+}
+
+function styleWorkletAtProgress(progress: number, worklet = motion.updaters.at(-1)!) {
+  progressValue().value = progress
+  return worklet()
 }
 
 function committedStyle(tree: ReturnType<typeof TestRenderer.create>) {
@@ -54,7 +58,7 @@ describe('LoginStepStage motion', () => {
     motion.bezier = []
     motion.timings = []
     motion.values = []
-    motion.updater = undefined
+    motion.updaters = []
   })
 
   it('takes the duration and easing from the shared preset', async () => {
@@ -74,6 +78,16 @@ describe('LoginStepStage motion', () => {
     expect(styleWorkletAtProgress(0)).toEqual({ opacity: 0, transform: [{ translateX: -20 }] })
   })
 
+  it('draws the first frame of the new step from the right side with the worklet the UI thread holds from the previous render', async () => {
+    const tree = await renderStep('email')
+    const heldFromEmail = motion.updaters.at(-1)!
+    await showStep(tree, 'code')
+    expect(styleWorkletAtProgress(0, heldFromEmail)).toEqual({ opacity: 0, transform: [{ translateX: 20 }] })
+    const heldFromCode = motion.updaters.at(-1)!
+    await showStep(tree, 'email')
+    expect(styleWorkletAtProgress(0, heldFromCode)).toEqual({ opacity: 0, transform: [{ translateX: -20 }] })
+  })
+
   it('commits the new step at full opacity and no shift on every render during the fade, so no React commit carries a copy the fade left at 0', async () => {
     const tree = await renderStep('email')
     await showStep(tree, 'code')
@@ -86,7 +100,7 @@ describe('LoginStepStage motion', () => {
   it('shows the step at once when the motion preference changes during its fade', async () => {
     const tree = await renderStep('email')
     await showStep(tree, 'code')
-    const fading = motion.values.at(-1)!
+    const fading = progressValue()
     expect(fading.value).toEqual({ pendingTimingTo: 1 })
     mocks.reduced = true
     await showStep(tree, 'code')
@@ -98,6 +112,6 @@ describe('LoginStepStage motion', () => {
     const tree = await renderStep('email')
     await showStep(tree, 'code')
     expect(motion.timings).toEqual([])
-    expect(motion.values.at(-1)!.value).toBe(1)
+    expect(progressValue().value).toBe(1)
   })
 })
