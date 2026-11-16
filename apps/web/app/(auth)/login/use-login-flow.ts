@@ -24,7 +24,7 @@ export function useLoginFlow(isAuthCallback = false) {
   const searchParams = useSearchParams()
   const t = useTranslations()
   const locale = useLocale()
-  const { setAuth } = useAuthStore()
+  const { setAuth, isAuthenticated: signedIn } = useAuthStore()
   const { isOnline } = useOffline()
   const turnstileSiteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY
   const {
@@ -402,7 +402,7 @@ export function useLoginFlow(isAuthCallback = false) {
     setErrorKey(null)
   }
 
-  return { t, step, email, setEmail: changeEmail, emailFocusRequest, isSubmitting, isResending, isGoogleLoading, isAppleLoading, errorKey,
+  return { t, step, email, signedIn, setEmail: changeEmail, emailFocusRequest, isSubmitting, isResending, isGoogleLoading, isAppleLoading, errorKey,
     emailFieldError: getBackendFieldError(validationError, 'Email'),
     codeFieldError: getBackendFieldError(validationError, 'Code'),
     codeFocusRequest,

@@ -10,7 +10,7 @@ import { UpdateAvailableBanner } from '@/components/ui/update-available-banner'
 import { AppToastHost } from '@/components/ui/app-toast-host'
 import { AuthPageFrame } from '@/components/auth/auth-page-frame'
 import { DesktopAuthBridge } from '@/components/auth/desktop-auth-bridge'
-import { GuidedSignInProvider } from '@/components/auth/guided-sign-in'
+import { GuidedSignInProvider } from '@/components/auth/guided-sign-in-provider'
 import { DesktopReleaseBoundary } from '@/components/desktop-release-boundary'
 
 export default function AuthLayout({ children }: Readonly<{ children: React.ReactNode }>) {

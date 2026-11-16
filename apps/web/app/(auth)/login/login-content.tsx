@@ -8,7 +8,6 @@ import { LazyMotion, domMin } from 'motion/react'
 import { AuthPagePanel } from '@/components/auth/auth-page-panel'
 import { useGuidedSignIn } from '@/components/auth/guided-sign-in'
 import { Lockup } from '@/components/ui/lockup'
-import { useAuthStore } from '@/stores/auth-store'
 import { PillButton } from '@/components/ui/pill-button'
 import { TurnstileWidget } from '@/components/auth/turnstile-widget'
 import { EmailStep } from './email-step'
@@ -34,8 +33,7 @@ export function LoginContent({ callback }: Readonly<{ callback?: LoginCallback }
     else void flow.continueAccount()
   }
   const account = Boolean(flow.accountBack) || callback?.state === 'account'
-  const signedIn = useAuthStore((state) => state.isAuthenticated)
-  useSignInCompletion(guided && (account || signedIn))
+  useSignInCompletion(guided && (account || flow.signedIn))
   const canSubmitTurnstile = !flow.turnstileSiteKey || Boolean(flow.turnstileToken)
   const turnstileWidget = flow.turnstileSiteKey && flow.isOnline
     ? <TurnstileWidget key={flow.turnstileResetKey} siteKey={flow.turnstileSiteKey} resetKey={flow.turnstileResetKey} onToken={flow.onTurnstileToken} />

@@ -54,7 +54,6 @@ interface WebSheetProps extends SheetProps {
   virtualizedBody?: boolean
   initialFocus?: RefObject<HTMLElement | null>
   finalFocus?: Dialog.Popup.Props['finalFocus']
-  titleTranslate?: 'no'
   ref?: Ref<SheetHandle>
 }
 
@@ -214,7 +213,8 @@ function SheetTitleContent({ title, titleMode, accessibleTitle, expanded, onTogg
   onClampedChange: (clamped: boolean) => void
 }) {
   const t = useTranslations()
-  if (!title || titleMode !== 'typed') return <OrbitNameText text={title ?? accessibleTitle ?? t('common.appName')} />
+  if (!title) return <OrbitNameText text={accessibleTitle ?? t('common.appName')} />
+  if (titleMode !== 'typed') return <span data-slot="sheet-title-label"><OrbitNameText text={title} /></span>
   const text = <PersonalText className="orbit-sheet-typed-title" onClampedChange={onClampedChange}>{title}</PersonalText>
   return clamped ? <button type="button" className="orbit-sheet-title-content orbit-sheet-title-button" aria-expanded={expanded}
     aria-controls={fullTitleId} onClick={onToggle}>{text}</button>

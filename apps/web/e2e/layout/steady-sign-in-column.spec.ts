@@ -1,12 +1,12 @@
 import { expect, type Page } from '@playwright/test'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { build } from 'esbuild'
 import postcss from 'postcss'
 import tailwind from '@tailwindcss/postcss'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { test } from './layout-test'
+import { bundleSteadySignInFixture } from './steady-sign-in-bundle'
 
 type CheckState = 'none' | 'loading' | 'challenge'
 interface LayoutChallenge {
@@ -42,17 +42,7 @@ test.use({ storageState: { cookies: [], origins: [] } })
 test.beforeAll(async () => {
   const source = resolve('app/globals.css')
   stylesheet = (await postcss([tailwind()]).process(readFileSync(source, 'utf8'), { from: source })).css
-  const bundle = await build({
-    entryPoints: [resolve('e2e/layout/steady-sign-in-column-fixture.tsx')], bundle: true, write: false,
-    platform: 'browser', format: 'iife', jsx: 'automatic', tsconfig: resolve('tsconfig.json'),
-    define: { 'process.env': '{}', 'process.env.NODE_ENV': '"production"' },
-    plugins: [{
-      name: 'steady-sign-in-flow',
-      setup(fixtureBuild) {
-        fixtureBuild.onResolve({ filter: /^\.\/use-login-flow$/ }, () => ({ path: resolve('e2e/layout/steady-sign-in-flow.ts') }))
-      },
-    }],
-  })
+  const bundle = await bundleSteadySignInFixture()
   fixtureScript = bundle.outputFiles[0]!.text
 })
 

@@ -81,7 +81,7 @@ it.each(cases)('keeps Astra labels whole in $locale at $width px, Pro $hasProAcc
       const panelBox = panel.getBoundingClientRect()
       const settingsBox = settings.getBoundingClientRect()
       const labelMeasurements = labels.map((label) => {
-        const element = [...document.querySelectorAll<HTMLElement>('p, span')].find((candidate) => candidate.textContent === label && candidate.children.length === 0)!
+        const element = [...document.querySelectorAll<HTMLElement>('p, span')].find((candidate) => candidate.textContent === label && [...candidate.children].every((child) => child.textContent === 'Orbit' && child.getAttribute('translate') === 'no'))!
         const range = document.createRange()
         range.selectNodeContents(element)
         const box = element.getBoundingClientRect()

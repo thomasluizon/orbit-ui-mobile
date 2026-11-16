@@ -328,6 +328,28 @@ describe('Sheet', () => {
         expect(footerStyle).toEqual({ top: '16px', border: 0, shadow: 'none' })
       } finally { await page.close() }
     })
+
+    it('keeps the space before the name Orbit in a label title', async () => {
+      render(<Sheet open title="Como funciona o widget do Orbit?" />)
+      const dialog = screen.getByRole('dialog', { name: 'Como funciona o widget do Orbit?' })
+      const page = await browser.newPage()
+      try {
+        await page.setContent(`<style>${stylesheet}</style>${dialog.outerHTML}`)
+        const measured = await page.locator('.orbit-sheet-title').evaluate((heading) => {
+          const name = heading.querySelector('[translate="no"]')!
+          const before = name.previousSibling!
+          const range = document.createRange()
+          range.setStart(before, before.textContent!.length - 2)
+          range.setEnd(before, before.textContent!.length - 1)
+          const lastLetter = range.getBoundingClientRect()
+          range.selectNodeContents(name.nextSibling!)
+          const nameBox = name.getBoundingClientRect()
+          return { spaceBefore: nameBox.left - lastLetter.right, gapAfter: range.getBoundingClientRect().left - nameBox.right }
+        })
+        expect(measured.spaceBefore).toBeGreaterThan(2)
+        expect(Math.abs(measured.gapAfter)).toBeLessThanOrEqual(1)
+      } finally { await page.close() }
+    })
   })
 
   it('finishes its exit before reporting close', async () => {

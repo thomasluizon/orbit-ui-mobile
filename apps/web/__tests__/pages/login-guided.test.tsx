@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen, within } from '@testing-library/react'
 import { createTranslator } from 'next-intl'
 import { authLocales, authScreenStates, createLoginScreenFixture, type AuthScreenState } from '@orbit/shared/__tests__/auth-screen-fixtures'
@@ -8,7 +8,6 @@ import { motionDurations } from '@orbit/shared/theme'
 import { LoginContent, type LoginCallback } from '@/app/(auth)/login/login-content'
 import { AuthPageFrame } from '@/components/auth/auth-page-frame'
 import { GuidedSignInContext } from '@/components/auth/guided-sign-in'
-import { useAuthStore } from '@/stores/auth-store'
 
 type Locale = typeof authLocales[number]
 const mocks = vi.hoisted(() => ({ flow: {} as Record<string, unknown>, captureGuidedFlowEvent: vi.fn(), captureGuidedFlowCompleted: vi.fn(), reduced: false }))
@@ -299,9 +298,7 @@ describe('guided sign-in motion and flag', () => {
     expect(mocks.captureGuidedFlowCompleted).toHaveBeenCalledExactlyOnceWith('sign_in', 2, false)
     account.unmount()
     mocks.captureGuidedFlowCompleted.mockClear()
-    useAuthStore.setState({ isAuthenticated: true })
-    onTestFinished(() => useAuthStore.setState({ isAuthenticated: false }))
-    show('code', 'en')
+    show('code', 'en', { overrides: { signedIn: true } })
     expect(mocks.captureGuidedFlowCompleted).toHaveBeenCalledExactlyOnceWith('sign_in', 2, false)
     mocks.captureGuidedFlowCompleted.mockClear()
     show('account back', 'en', { guided: false })
