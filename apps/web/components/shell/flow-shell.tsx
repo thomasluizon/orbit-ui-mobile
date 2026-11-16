@@ -13,6 +13,7 @@ interface FlowShellProps {
   action?: ReactNode
   children: ReactNode
   header?: ReactNode
+  landmark?: false
   mode?: FlowShellMode
   notice?: ReactNode
 }
@@ -37,7 +38,7 @@ function flowModeName(mode: FlowShellMode): string {
   return 'card'
 }
 
-export function FlowShell({ action, children, header, mode = 'card', notice }: Readonly<FlowShellProps>) {
+export function FlowShell({ action, children, header, landmark, mode = 'card', notice }: Readonly<FlowShellProps>) {
   if (mode === 'full') return <FullFlowShell>{children}</FullFlowShell>
 
   const onboarding = mode === 'onboarding'
@@ -72,7 +73,7 @@ export function FlowShell({ action, children, header, mode = 'card', notice }: R
   const pinnedNotice = action || notice ? <>{notice}<AppToastHost /></> : undefined
   return (
     <>
-      <ShellWide nav={false} action={pinnedAction} header={shellHeader} notice={pinnedNotice}>
+      <ShellWide nav={false} landmark={landmark} action={pinnedAction} header={shellHeader} notice={pinnedNotice}>
         {content}
       </ShellWide>
       {pinnedNotice ? null : <AppToastHost placement="page" />}

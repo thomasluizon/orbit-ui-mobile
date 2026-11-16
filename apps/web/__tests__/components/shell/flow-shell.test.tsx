@@ -13,8 +13,8 @@ const mocks = vi.hoisted(() => ({ wide: false }))
 vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
 vi.mock('@/hooks/use-is-desktop', () => ({ useIsWideDesktop: () => mocks.wide }))
 vi.mock('@/components/shell/shell-wide', () => ({
-  ShellWide: ({ action, children, nav, notice }: { action?: ReactNode; children: ReactNode; nav: false; notice?: ReactNode }) => (
-    <div data-testid="wide-flow" data-nav={String(nav)}>{children}<div data-shell-notice="">{notice}</div>{action}</div>
+  ShellWide: ({ action, children, landmark, nav, notice }: { action?: ReactNode; children: ReactNode; landmark?: false; nav: false; notice?: ReactNode }) => (
+    <div data-testid="wide-flow" data-nav={String(nav)} data-landmark={String(landmark !== false)}>{children}<div data-shell-notice="">{notice}</div>{action}</div>
   ),
 }))
 
@@ -97,6 +97,14 @@ describe('FlowShell', () => {
 
     expect(screen.getByText('Conversation').closest('[data-shell="flow"]')).toHaveAttribute('data-flow-mode', 'full')
     expect(screen.queryByTestId('wide-flow')).not.toBeInTheDocument()
+  })
+
+  it('lets a host inside a modal dialog turn the main landmark of the wide shell off', () => {
+    const { rerender } = render(<FlowShell mode="onboarding"><h1>Onboarding</h1></FlowShell>)
+    expect(screen.getByTestId('wide-flow')).toHaveAttribute('data-landmark', 'true')
+
+    rerender(<FlowShell mode="onboarding" landmark={false}><h1>Onboarding</h1></FlowShell>)
+    expect(screen.getByTestId('wide-flow')).toHaveAttribute('data-landmark', 'false')
   })
 
   it('owns the one main landmark of the full flow, so a host that mounts a question flow in it needs none of its own', () => {
