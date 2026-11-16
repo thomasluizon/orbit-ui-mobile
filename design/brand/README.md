@@ -57,13 +57,10 @@ asset, not a CSS override.
 `node tools/generate-brand-assets.mjs --write` rebuilds these files together with every consumer
 asset. The 16px export is the small static face in one ink. The larger transparent marks draw the
 whole 7:5 rig box with the accent moon, centred in a square canvas. The platform icon is the
-filled planet with the ring and the moon and no eyes, at 70% of the canvas on the flat `#09090B`
-ground, with square corners for the platform mask. The Android adaptive layers use 58%, so the ring
-and the moon stay inside the 66 dp safe circle of the 108 dp layer.
-
-**The icon has no eyes.** The icon keeps the eyes only when each eye is at least 2px wide in the 48px
-render of its tightest layer. At the adaptive safe scale an eye is 1.70px, so the icon is the planet,
-the ring and the moon. The generator prints this measurement on every run.
+mascot at rest as `orbit-mascot.svg` draws it: the planet, the two eyes, the ring and the moon. It
+fills 70% of the canvas on the flat `#09090B` ground, with square corners for the platform mask. The
+Android adaptive layers use 58%, so the ring and the moon stay inside the 66 dp safe circle of the
+108 dp layer. An icon layer from 16 to 32px draws the small static face, with its eyes.
 
 **Ink on each ground.** The eyes and the ring outline take the canvas colour `#09090B` on every
 coloured raster, so they read inside the planet on a dark and on a light ground. The monochrome
@@ -75,7 +72,7 @@ adaptive layer and the notification icon are one white ink, with the eyes and th
 | `orbit-mark-accent-48.png` | 48px rig box, accent moon, transparent |
 | `orbit-mark-accent-128.png` | 128px rig box, accent moon, transparent |
 | `orbit-mark-accent-512.png` | 512px rig box, accent moon, transparent |
-| `orbit-platform-icon-512.png` | 512px square platform icon on `#09090B`, no eyes |
+| `orbit-platform-icon-512.png` | 512px square platform icon on `#09090B`, with the eyes |
 
 ## Manual upload exports, in `exports/`
 

@@ -53,7 +53,8 @@ const scriptDirectory = dirname(fileURLToPath(import.meta.url))
 const repositoryRoot = resolve(requestedRoot ?? join(scriptDirectory, ".."))
 const mascotPath = join(repositoryRoot, "design", "brand", "orbit-mascot.svg")
 // The small static face for 16, 20 and 24 px. Its two symbols are native pixel-grid drawings, and
-// its root draws the 24 size. A raster below 40px uses it, because the rig eye is below 2px there.
+// its root draws the 24 size. A raster below 40px uses it, because the scaled rig cannot hold its
+// shape there.
 const smallPath = join(repositoryRoot, "design", "brand", "orbit-mascot-small.svg")
 
 const CANVAS = "#09090B"
@@ -64,12 +65,9 @@ const BLACK = "#000000"
 // of the accent in the whole system.
 const ACCENT = "#C4530F"
 
-// The rig box is 420 by 300 units. Each eye is 22 units wide.
+// The rig box is 420 by 300 units.
 const RIG_BOX_WIDTH = 420
 const RIG_BOX_HEIGHT = 300
-const EYE_UNITS = 22
-// A live eye narrower than this on screen reads as a dot, so the live face never renders below it.
-const EYE_FLOOR_PIXELS = 2
 // Rasterise the rig at about 3x its box before the trim and the downscale, so a large asset never
 // upscales a 420 px render. The sharp density is dots per inch and 72 maps one unit to one pixel.
 const RENDER_DENSITY = 384
@@ -90,20 +88,22 @@ const generatedAssets = [
   { path: "design/brand/png/orbit-mark-accent-48.png", width: 48, height: 48, ink: FOREGROUND, face: "rig", accent: true, sourceCanvas: true },
   { path: "design/brand/png/orbit-mark-accent-128.png", width: 128, height: 128, ink: FOREGROUND, face: "rig", accent: true, sourceCanvas: true },
   { path: "design/brand/png/orbit-mark-accent-512.png", width: 512, height: 512, ink: FOREGROUND, face: "rig", accent: true, sourceCanvas: true },
-  { path: "design/brand/png/orbit-platform-icon-512.png", width: 512, height: 512, ink: FOREGROUND, background: CANVAS, scale: 0.7, face: "icon", accent: true },
+  { path: "design/brand/png/orbit-platform-icon-512.png", width: 512, height: 512, ink: FOREGROUND, background: CANVAS, scale: 0.7, face: "rig", accent: true },
   // Console upload exports keep the same platform icon composition. OAuth gets a 24-bit opaque
   // PNG; Play requires a 32-bit PNG, so its alpha channel stays present with every pixel opaque.
-  { path: "design/brand/exports/oauth-consent-logo-512.png", width: 512, height: 512, ink: FOREGROUND, background: CANVAS, scale: 0.7, face: "icon", accent: true, opaque: true },
-  { path: "design/brand/exports/play-icon-512.png", width: 512, height: 512, ink: FOREGROUND, background: CANVAS, scale: 0.7, face: "icon", accent: true },
+  { path: "design/brand/exports/oauth-consent-logo-512.png", width: 512, height: 512, ink: FOREGROUND, background: CANVAS, scale: 0.7, face: "rig", accent: true, opaque: true },
+  { path: "design/brand/exports/play-icon-512.png", width: 512, height: 512, ink: FOREGROUND, background: CANVAS, scale: 0.7, face: "rig", accent: true },
+  // The Tauri window and Linux icon, and the 512 artwork of icon.icns.
+  { path: "apps/desktop/src-tauri/icons/icon.png", width: 512, height: 512, ink: FOREGROUND, background: CANVAS, scale: 0.7, face: "rig", accent: true },
   { path: "apps/mobile/assets/adaptive-icon-background.png", width: 1024, height: 1024, background: CANVAS },
   // The adaptive layers keep the ring and the moon inside the 66 dp safe circle.
   // Eye ink of the foreground: CANVAS, the adaptive background layer and backgroundColor in apps/mobile/app.json.
-  { path: "apps/mobile/assets/adaptive-icon-foreground.png", width: 1024, height: 1024, ink: FOREGROUND, scale: "adaptive", face: "icon", accent: true },
+  { path: "apps/mobile/assets/adaptive-icon-foreground.png", width: 1024, height: 1024, ink: FOREGROUND, scale: "adaptive", face: "rig", accent: true },
   // The monochrome layer and the notification icon are one white ink. The eyes and the ring gap are
   // holes in that ink.
-  { path: "apps/mobile/assets/adaptive-icon-monochrome.png", width: 1024, height: 1024, ink: WHITE, scale: "adaptive", face: "icon", holes: true },
+  { path: "apps/mobile/assets/adaptive-icon-monochrome.png", width: 1024, height: 1024, ink: WHITE, scale: "adaptive", face: "rig", holes: true },
   { path: "apps/mobile/assets/favicon.png", width: 64, height: 64, ink: FOREGROUND, background: CANVAS, scale: 0.7, face: "rig", accent: true },
-  { path: "apps/mobile/assets/icon.png", width: 1024, height: 1024, ink: FOREGROUND, background: CANVAS, scale: 0.7, face: "icon", accent: true },
+  { path: "apps/mobile/assets/icon.png", width: 1024, height: 1024, ink: FOREGROUND, background: CANVAS, scale: 0.7, face: "rig", accent: true },
   // Eye ink: CANVAS. The planet is the dark-theme foreground, so this transparent logo reads on a dark
   // ground only, and no file in this repository draws it on any other ground; on that ground the eyes and
   // the ring outline take the canvas colour.
@@ -123,16 +123,16 @@ const generatedAssets = [
   // visible in both. Below 40px the face is the small static face.
   { path: "apps/web/public/favicon-16.png", width: 16, height: 16, ink: FOREGROUND, face: "small", smallSize: 16, disc: true },
   { path: "apps/web/public/favicon-32.png", width: 32, height: 32, ink: FOREGROUND, face: "small", smallSize: 24, accent: true, disc: true },
-  { path: "apps/web/app/apple-icon.png", width: 180, height: 180, ink: FOREGROUND, background: CANVAS, scale: 0.7, face: "icon", accent: true },
+  { path: "apps/web/app/apple-icon.png", width: 180, height: 180, ink: FOREGROUND, background: CANVAS, scale: 0.7, face: "rig", accent: true },
   // Eye ink: CANVAS, for the same reason as apps/mobile/assets/logo-no-bg.png: a dark-ground logo.
   { path: "apps/web/public/logo-no-bg.png", width: 96, height: 96, ink: FOREGROUND, scale: 0.8, face: "rig", accent: true },
   { path: "apps/web/public/og-image.png", width: 1200, height: 630, ink: FOREGROUND, background: CANVAS, scale: 0.36, face: "rig", accent: true },
-  { path: "apps/web/public/pwa-192x192.png", width: 192, height: 192, ink: FOREGROUND, background: CANVAS, scale: 0.7, face: "icon", accent: true },
-  { path: "apps/web/public/pwa-512x512.png", width: 512, height: 512, ink: FOREGROUND, background: CANVAS, scale: 0.7, face: "icon", accent: true },
+  { path: "apps/web/public/pwa-192x192.png", width: 192, height: 192, ink: FOREGROUND, background: CANVAS, scale: 0.7, face: "rig", accent: true },
+  { path: "apps/web/public/pwa-512x512.png", width: 512, height: 512, ink: FOREGROUND, background: CANVAS, scale: 0.7, face: "rig", accent: true },
   // apps/web/__tests__/manifest.test.ts requires this maskable copy to equal the canonical platform
   // icon byte for byte, so it takes the same entry and a regeneration cannot leave it behind.
   // It also keeps the ring and the moon inside the maskable safe circle; renderMarkLayer asserts it.
-  { path: "apps/web/public/pwa-maskable-512x512.png", width: 512, height: 512, ink: FOREGROUND, background: CANVAS, scale: 0.7, face: "icon", accent: true, maskable: true },
+  { path: "apps/web/public/pwa-maskable-512x512.png", width: 512, height: 512, ink: FOREGROUND, background: CANVAS, scale: 0.7, face: "rig", accent: true, maskable: true },
 ]
 
 function assertSource(source, name, required) {
@@ -152,7 +152,6 @@ function assertSource(source, name, required) {
 const MOON_FILL = "var(--primary, currentColor)"
 const RING_OUTLINE_FILL = "var(--orbit-surface, var(--bg, #09090B))"
 const EYE_FILL = "var(--bg, #09090B)"
-const EYE_PATH = /<path fill="var\(--bg, #09090B\)"[^>]*\/>\n?/g
 
 /** Resolve the four colour roles of the mascot. The moon expression holds `currentColor` as its own
  *  fallback, so it resolves first; the outline expression holds the eye expression, so it resolves
@@ -169,9 +168,6 @@ function bakeColours(source, { ink, groundInk, accent }) {
   return baked
 }
 
-/** The icon face: the same rig with no eyes, so the planet, the ring and the moon remain. */
-const withoutEyes = (source) => source.replace(EYE_PATH, "")
-
 const rasterise = (svg, density = RENDER_DENSITY) => sharp(Buffer.from(svg), { density })
 
 /** Ink width of the rig in units, measured from a trimmed render. */
@@ -183,9 +179,6 @@ async function measureInkUnits(source) {
     .toBuffer({ resolveWithObject: true })
   return (info.width * 72) / RENDER_DENSITY
 }
-
-/** The width in pixels of one eye when the rig ink is `inkPixels` wide. */
-const eyePixels = (inkPixels, inkUnits) => (EYE_UNITS * inkPixels) / inkUnits
 
 /** The maskable PWA icon keeps the circle that holds the mark (its ring ends, MARK_CIRCLE_UNITS across)
  *  inside the maskable safe circle, so a launcher mask never crops the ring or the moon. */
@@ -201,16 +194,8 @@ function assertMaskableSafeZone(asset, inkPixels, inkUnits) {
  *  the 66 dp safe circle, and the platform scale never exceeds it. */
 const adaptiveScale = (inkUnits) => (ADAPTIVE_SAFE_FRACTION * inkUnits) / MARK_CIRCLE_UNITS
 
-/** The measurement behind the app icon pick. RULING: the icon keeps the eyes only when each eye is at
- *  least 2px wide in the 48px render of the adaptive layer, the tightest of the icon layers. */
-function measureIconVariant(inkUnits) {
-  const scale = adaptiveScale(inkUnits)
-  const eyeAt48 = eyePixels(48 * scale, inkUnits)
-  return { scale, eyeAt48, hasEyes: eyeAt48 >= EYE_FLOOR_PIXELS }
-}
-
-function resolveScale(asset, iconVariant) {
-  if (asset.scale === "adaptive") return Math.floor(iconVariant.scale * 100) / 100
+function resolveScale(asset, inkUnits) {
+  if (asset.scale === "adaptive") return Math.floor(adaptiveScale(inkUnits) * 100) / 100
   return asset.scale
 }
 
@@ -291,7 +276,7 @@ function backgroundShapeSvg({ width, height, disc, tile }) {
 
 /** The mark layer of one asset: the PNG and where it sits on the canvas. */
 async function renderMarkLayer(context, asset) {
-  const { sources, inkUnits, iconVariant } = context
+  const { sources, inkUnits } = context
   if (asset.face === "small") {
     const { data, info } = await renderSmallFace(sources.small, asset)
     return {
@@ -304,20 +289,14 @@ async function renderMarkLayer(context, asset) {
     return renderRigBox(sources.rig, asset, asset.width)
   }
 
-  const showEyes = asset.face === "rig" || iconVariant.hasEyes
-  const rig = showEyes ? sources.rig : withoutEyes(sources.rig)
   const baked = asset.holes
-    ? bakeColours(rig, { ink: asset.ink, groundInk: BLACK, accent: null })
-    : bakeColours(rig, { ink: asset.ink, groundInk: CANVAS, accent: asset.accent ? ACCENT : null })
+    ? bakeColours(sources.rig, { ink: asset.ink, groundInk: BLACK, accent: null })
+    : bakeColours(sources.rig, { ink: asset.ink, groundInk: CANVAS, accent: asset.accent ? ACCENT : null })
   const markFrameWidth = asset.tile ? asset.width - 2 * asset.tile.margin : asset.width
-  const targetWidth = Math.round(markFrameWidth * resolveScale(asset, iconVariant))
+  const targetWidth = Math.round(markFrameWidth * resolveScale(asset, inkUnits))
   const rendered = await renderTrimmedRig(baked, targetWidth)
   const { data: png, info } = asset.holes ? await punchHoles(rendered.data) : rendered
   if (asset.maskable) assertMaskableSafeZone(asset, info.width, inkUnits)
-  const measured = eyePixels(info.width, inkUnits)
-  if (showEyes && measured < EYE_FLOOR_PIXELS) {
-    throw new Error(`${asset.path ?? `the ${asset.width}px layer`} draws an eye ${measured.toFixed(2)}px wide, under the ${EYE_FLOOR_PIXELS}px floor`)
-  }
   return {
     png,
     left: Math.floor((asset.width - info.width) / 2),
@@ -355,11 +334,10 @@ async function renderAsset(context, asset) {
 // The Windows icon keeps the platform icon artwork on an inset tile with a little rounding, as on the
 // Orca icon (tile 80.5% of the canvas, radius 22.4% of the tile). Windows draws these layers at 1:1,
 // so a small layer gets the smallest whole-pixel margin that leaves a transparent ring and a radius
-// near 21% of its tile. Below 40px a layer draws the small static face, because the live eye is under
-// 2px wide there.
+// near 21% of its tile. Below 40px a layer draws the small static face.
 const windowsIconLayer = (size, margin, radius, mark) =>
   ({ width: size, height: size, ink: FOREGROUND, tile: { margin, radius }, ...mark })
-const iconMark = { face: "icon", accent: true, scale: 0.7 }
+const iconMark = { face: "rig", accent: true, scale: 0.7 }
 const windowsIconLayers = [
   windowsIconLayer(16, 1, 3, { face: "small", smallSize: 16 }),
   windowsIconLayer(24, 1, 4, { face: "small", smallSize: 20, accent: true }),
@@ -403,6 +381,50 @@ if (faviconLayerAssets.some((asset) => !asset)) {
   throw new Error("favicon PNG assets must exist before the ICO layers are assembled")
 }
 
+// The macOS icon is the platform icon composition, full bleed, because macOS draws the file as it is.
+// The 16 and 32 pixel layers draw the small static face, as the favicon layers at 16 and 32 do.
+const macosIconLayer = (size, mark) => ({ width: size, height: size, ink: FOREGROUND, background: CANVAS, ...mark })
+const macosIconLayers = {
+  16: macosIconLayer(16, { face: "small", smallSize: 16 }),
+  32: macosIconLayer(32, { face: "small", smallSize: 24, accent: true }),
+  64: macosIconLayer(64, iconMark),
+  128: macosIconLayer(128, iconMark),
+  256: macosIconLayer(256, iconMark),
+  512: macosIconLayer(512, iconMark),
+  1024: macosIconLayer(1024, iconMark),
+}
+// Each ICNS element type with the pixel size it holds. Every element is a PNG, a form macOS reads for
+// all of these types; `iconutil -c iconset` extracts all ten images from the file this writes.
+const ICNS_TYPES = [
+  ["icp4", 16],
+  ["icp5", 32],
+  ["ic11", 32],
+  ["ic12", 64],
+  ["ic07", 128],
+  ["ic13", 256],
+  ["ic08", 256],
+  ["ic14", 512],
+  ["ic09", 512],
+  ["ic10", 1024],
+]
+
+/** The ICNS writer for icon.icns. The file header and each element header are a four-byte type and a
+ *  big-endian four-byte length that counts the header itself. */
+function pngLayersToIcns(pngBySize) {
+  const elements = ICNS_TYPES.map(([type, size]) => {
+    const png = pngBySize.get(size)
+    const header = Buffer.alloc(8)
+    header.write(type, 0, "latin1")
+    header.writeUInt32BE(png.length + 8, 4)
+    return Buffer.concat([header, png])
+  })
+  const body = Buffer.concat(elements)
+  const header = Buffer.alloc(8)
+  header.write("icns", 0, "latin1")
+  header.writeUInt32BE(body.length + 8, 4)
+  return Buffer.concat([header, body])
+}
+
 async function main() {
   const sources = {
     rig: await readFile(mascotPath, "utf8"),
@@ -411,14 +433,7 @@ async function main() {
   assertSource(sources.rig, "orbit-mascot.svg", [MOON_FILL, RING_OUTLINE_FILL, EYE_FILL])
   assertSource(sources.small, "orbit-mascot-small.svg", [MOON_FILL, 'id="small-16"', 'id="small-20"'])
 
-  const inkUnits = await measureInkUnits(sources.rig)
-  const iconVariant = measureIconVariant(inkUnits)
-  const context = { sources, inkUnits, iconVariant }
-  console.log(
-    `app icon: each eye is ${iconVariant.eyeAt48.toFixed(2)}px wide in the 48px render at the ` +
-      `${(iconVariant.scale * 100).toFixed(1)}% safe scale, the floor is ${EYE_FLOOR_PIXELS}px, ` +
-      `so the icon ${iconVariant.hasEyes ? "keeps the eyes" : "is the filled planet with ring and moon and no eyes"}`,
-  )
+  const context = { sources, inkUnits: await measureInkUnits(sources.rig) }
 
   const renderedAssets = new Map()
   for (const asset of generatedAssets) {
@@ -453,8 +468,14 @@ async function main() {
     ),
   )
 
+  const macosIconPngs = new Map()
+  for (const [size, asset] of Object.entries(macosIconLayers)) {
+    macosIconPngs.set(Number(size), await renderAsset(context, asset))
+  }
+  await writeFile(join(repositoryRoot, "apps", "desktop", "src-tauri", "icons", "icon.icns"), pngLayersToIcns(macosIconPngs))
+
   console.log(
-    `generated ${generatedAssets.length + 2} brand assets from design/brand/orbit-mascot.svg and orbit-mascot-small.svg`,
+    `generated ${generatedAssets.length + 3} brand assets from design/brand/orbit-mascot.svg and orbit-mascot-small.svg`,
   )
 }
 

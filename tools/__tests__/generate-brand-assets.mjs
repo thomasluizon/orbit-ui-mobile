@@ -13,6 +13,7 @@ const expectedAssets = [
   ["design/brand/png/orbit-platform-icon-512.png", 512, 512],
   ["design/brand/exports/oauth-consent-logo-512.png", 512, 512],
   ["design/brand/exports/play-icon-512.png", 512, 512],
+  ["apps/desktop/src-tauri/icons/icon.png", 512, 512],
   ["apps/mobile/assets/adaptive-icon-background.png", 1024, 1024],
   ["apps/mobile/assets/adaptive-icon-foreground.png", 1024, 1024],
   ["apps/mobile/assets/adaptive-icon-monochrome.png", 1024, 1024],
@@ -65,13 +66,78 @@ const readIcoLayers = (path) => {
 const isAccentPixel = (red, green, blue, alpha) =>
   alpha >= 128 && red > green * 2 && green > blue * 2
 
+/** The elements of an ICNS file: a four-byte type and a big-endian length that counts its header. */
+const readIcnsElements = (path) => {
+  if (!existsSync(path)) return { magic: "missing", length: 0, size: 0, elements: [] }
+  const icns = readFileSync(path)
+  const elements = []
+  for (let offset = 8; offset < icns.length; offset += icns.readUInt32BE(offset + 4)) {
+    elements.push({
+      type: icns.subarray(offset, offset + 4).toString("latin1"),
+      png: icns.subarray(offset + 8, offset + icns.readUInt32BE(offset + 4)),
+    })
+  }
+  return { magic: icns.subarray(0, 4).toString("latin1"), length: icns.readUInt32BE(4), size: icns.length, elements }
+}
+
+// The eyes in design/brand/orbit-mascot.svg are 22 by 56 pills at x -46..-24 and 24..46, y -58..-2.
+// The rig ink spans x -181.334 (the left ring end) to 181.752 (the right ring end) and y -100 to 100
+// (the planet), so an eye centre and the planet between the eyes sit at these fractions of the ink box.
+const RIG_INK = { left: -181.334, right: 181.752, top: -100, bottom: 100 }
+const rigPoint = (x, y) => ({
+  x: (x - RIG_INK.left) / (RIG_INK.right - RIG_INK.left),
+  y: (y - RIG_INK.top) / (RIG_INK.bottom - RIG_INK.top),
+})
+const RIG_FACE = { leftEye: rigPoint(-35, -30), rightEye: rigPoint(35, -30), between: rigPoint(0, -30) }
+// The small static face in design/brand/orbit-mascot-small.svg: the drawing size, and the pixel each
+// eye fills in its straight part (its path starts at `M<x> <y>`, and the eye is 2 wide). The pixel two
+// columns right of the left eye is planet ink between the eyes.
+const SMALL_FACES = {
+  16: { width: 16, height: 12, leftEye: [5, 4] },
+  20: { width: 20, height: 15, leftEye: [7, 6] },
+  24: { width: 24, height: 18, leftEye: [9, 6] },
+}
+
+const isMarkInk = (pixel) => pixel[3] >= 128 && Math.max(pixel[0], pixel[1], pixel[2]) >= 128
+const isPlanetInk = (pixel) => pixel[3] >= 128 && Math.min(pixel[0], pixel[1], pixel[2]) >= 200
+// An eye is the ground colour #09090B, or a hole in a one-ink layer.
+const isEye = (pixel) => pixel[3] < 128 || Math.max(pixel[0], pixel[1], pixel[2]) < 64
+
+/** The two eye pixels and the planet pixel between them in a raster that draws the mascot. A rig face
+ *  is found from its ink box; a small static face sits on its pixel grid, centred in the canvas. */
+const facePixels = async (input, smallSize) => {
+  if (typeof input === "string" && !existsSync(input)) return null
+  const { data, info } = await sharp(input).ensureAlpha().raw().toBuffer({ resolveWithObject: true })
+  const pixelAt = (x, y) => [...data.subarray((y * info.width + x) * 4, (y * info.width + x) * 4 + 4)]
+  if (smallSize) {
+    const face = SMALL_FACES[smallSize]
+    const left = Math.floor((info.width - face.width) / 2) + face.leftEye[0]
+    const top = Math.floor((info.height - face.height) / 2) + face.leftEye[1]
+    return { leftEye: pixelAt(left, top), rightEye: pixelAt(left + 4, top), between: pixelAt(left + 2, top) }
+  }
+  let [minX, minY, maxX, maxY] = [info.width, info.height, -1, -1]
+  for (let y = 0; y < info.height; y += 1) {
+    for (let x = 0; x < info.width; x += 1) {
+      if (!isMarkInk(pixelAt(x, y))) continue
+      minX = Math.min(minX, x)
+      maxX = Math.max(maxX, x)
+      minY = Math.min(minY, y)
+      maxY = Math.max(maxY, y)
+    }
+  }
+  if (maxX < 0) return null
+  const at = ({ x, y }) =>
+    pixelAt(Math.floor(minX + x * (maxX + 1 - minX)), Math.floor(minY + y * (maxY + 1 - minY)))
+  return { leftEye: at(RIG_FACE.leftEye), rightEye: at(RIG_FACE.rightEye), between: at(RIG_FACE.between) }
+}
+
 export const cases = async () => {
   const outputRoot = fixtureRoot("complete")
   check(
     "generate-brand-assets.mjs",
     "writes the complete derived asset inventory",
     ["--write", "--root", outputRoot],
-    { status: 0, stdout: /generated 26 brand assets/ },
+    { status: 0, stdout: /generated 28 brand assets/ },
   )
 
   for (const [relativePath, width, height] of expectedAssets) {
@@ -362,6 +428,63 @@ export const cases = async () => {
     iconCorner.join(",") === "9,9,11,255",
     `corner ${iconCorner.join(",")}`,
   )
+
+  // Every raster that draws the mascot carries both eyes: the planet ink between the eyes surrounds two
+  // pixels in the ground colour, or two holes in a one-ink layer. The small static face serves 16 to 24.
+  const mascotRasters = [
+    ...[
+      "design/brand/png/orbit-mark-accent-48.png",
+      "design/brand/png/orbit-mark-accent-128.png",
+      "design/brand/png/orbit-mark-accent-512.png",
+      "design/brand/png/orbit-platform-icon-512.png",
+      "design/brand/exports/oauth-consent-logo-512.png",
+      "design/brand/exports/play-icon-512.png",
+      "apps/desktop/src-tauri/icons/icon.png",
+      "apps/mobile/assets/adaptive-icon-foreground.png",
+      "apps/mobile/assets/adaptive-icon-monochrome.png",
+      "apps/mobile/assets/favicon.png",
+      "apps/mobile/assets/icon.png",
+      "apps/mobile/assets/logo-no-bg.png",
+      "apps/mobile/assets/notification-icon.png",
+      "apps/mobile/assets/splash-icon.png",
+      "apps/mobile/store/feature-graphic.png",
+      "apps/web/app/apple-icon.png",
+      "apps/web/public/logo-no-bg.png",
+      "apps/web/public/og-image.png",
+      "apps/web/public/pwa-192x192.png",
+      "apps/web/public/pwa-512x512.png",
+      "apps/web/public/pwa-maskable-512x512.png",
+    ].map((relativePath) => ({ label: relativePath, input: join(outputRoot, ...relativePath.split("/")) })),
+    { label: "design/brand/png/orbit-mark-native-16.png", input: join(outputRoot, "design", "brand", "png", "orbit-mark-native-16.png"), smallSize: 16 },
+    { label: "apps/web/public/favicon-16.png", input: join(outputRoot, "apps", "web", "public", "favicon-16.png"), smallSize: 16 },
+    { label: "apps/web/public/favicon-32.png", input: join(outputRoot, "apps", "web", "public", "favicon-32.png"), smallSize: 24 },
+    ...faviconLayers.map(({ size, png }) => ({ label: `favicon.ico ${size}px layer`, input: png, smallSize: { 16: 16, 32: 24 }[size] })),
+    ...windowsLayers.map(({ size, png }) => ({ label: `icon.ico ${size}px layer`, input: png, smallSize: { 16: 16, 24: 20, 32: 24 }[size] })),
+  ]
+
+  const icns = readIcnsElements(join(outputRoot, "apps", "desktop", "src-tauri", "icons", "icon.icns"))
+  const icnsSizes = await Promise.all(icns.elements.map(async ({ type, png }) => `${type}:${(await sharp(png).metadata()).width}`))
+  T(
+    "generate-brand-assets.mjs: macOS icon.icns carries one PNG element for each icon size",
+    icns.magic === "icns" &&
+      icns.length === icns.size &&
+      icns.elements.every(({ png }) => png.subarray(1, 4).toString() === "PNG") &&
+      icnsSizes.join(" ") === "icp4:16 icp5:32 ic11:32 ic12:64 ic07:128 ic13:256 ic08:256 ic14:512 ic09:512 ic10:1024",
+    `${icns.magic} ${icns.length}/${icns.size}: ${icnsSizes.join(" ")}`,
+  )
+  for (const [index, { type, png }] of icns.elements.entries()) {
+    const width = Number(icnsSizes[index].split(":")[1])
+    mascotRasters.push({ label: `icon.icns ${type} ${width}px element`, input: png, smallSize: { 16: 16, 32: 24 }[width] })
+  }
+
+  for (const { label, input, smallSize } of mascotRasters) {
+    const face = await facePixels(input, smallSize)
+    T(
+      `generate-brand-assets.mjs: ${label} draws the mascot with both eyes`,
+      face !== null && isEye(face.leftEye) && isEye(face.rightEye) && isPlanetInk(face.between),
+      `${label}: ${face ? `left eye ${face.leftEye}, right eye ${face.rightEye}, between ${face.between}` : "no mark ink or no file"}`,
+    )
+  }
 
   const missingSourceRoot = join(root, "brand-assets", "missing-source")
   mkdirSync(missingSourceRoot, { recursive: true })
