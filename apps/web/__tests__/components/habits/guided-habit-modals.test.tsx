@@ -324,6 +324,25 @@ describe('the create surface behind orbit_guided_flows', () => {
     },
   )
 
+  it.each([
+    ['an emoji', { emoji: '🪴', dueTime: null }, false],
+    ['a time', { emoji: null, dueTime: '07:00' }, true],
+  ] as const)('never marks a repeat the person typed as a proposal when the free read gives the same repeat and %s', async (_label, extra, timeProposed) => {
+    state.locale = 'en'
+    state.phraseRead.mockResolvedValue({ read: true, frequencyUnit: 'Day', frequencyQuantity: 1, days: ['Monday'], isFlexible: false, flexibleTarget: null, subHabits: [], checklistItems: [], ...extra })
+    mountCreate()
+    await waitFor(() => expect(document.querySelector('[data-question-flow]')).not.toBeNull())
+    await phrase('water the plants every monday')
+    expect(state.phraseRead).toHaveBeenCalledTimes(1)
+    if (screen.queryByRole('button', { name: en.habits.flow.time.none })) await press(en.habits.flow.time.none)
+    if (screen.queryByRole('button', { name: en.habits.flow.reminder.no })) await press(en.habits.flow.reminder.no)
+    expect(heading()).toHaveTextContent(en.habits.flow.confirm.question)
+    const scheduleRow = screen.getByRole('button', { name: new RegExp(`^${en.habits.flow.summary.when}`) })
+    expect(scheduleRow).toHaveTextContent('every Monday')
+    expect(scheduleRow.closest('[data-proposed]')).toBeNull()
+    expect(screen.getByRole('button', { name: new RegExp(`^${en.habits.flow.summary.time}`) }).closest('[data-proposed]') !== null).toBe(timeProposed)
+  })
+
   it('reads a repeat typed in the phrase after the person makes a task a habit on the type step', async () => {
     state.locale = 'en'
     state.phraseRead.mockResolvedValue({ read: false, emoji: null, frequencyUnit: null, frequencyQuantity: null, days: [], isFlexible: false, flexibleTarget: null, dueTime: null, subHabits: [], checklistItems: [] })

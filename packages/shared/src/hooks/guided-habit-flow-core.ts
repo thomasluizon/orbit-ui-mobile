@@ -34,6 +34,8 @@ const PHRASE_STEP: HabitFlowStepKey = 'what'
 type HabitFormInput = z.input<typeof habitFormSchema>
 type DeliberateType = 'task' | 'habit' | null
 type FlowTarget = HabitFlowDetailStep | HabitFlowStepId
+const SCHEDULE_FIELDS = ['itemType', 'frequencyUnit', 'frequencyQuantity', 'isFlexible', 'days', 'monthDays', 'intervalWeeks'] as const
+type ScheduleField = (typeof SCHEDULE_FIELDS)[number]
 
 export interface GuidedHabitFlowAdapters {
   useState: StateHook
@@ -45,7 +47,7 @@ export interface GuidedHabitFlowAdapters {
 
 /** The form writes and reads the flow needs. Each app builds it over its own form instance. */
 export interface GuidedHabitFlowForm {
-  getValues: () => Pick<HabitFormInput, 'title' | 'dueDate' | 'dueTime' | 'frequencyUnit' | 'isFlexible' | 'isGeneral' | 'itemType' | 'emoji'>
+  getValues: () => Pick<HabitFormInput, 'title' | 'dueDate' | 'dueTime' | 'isGeneral' | 'emoji' | ScheduleField>
   setField: (field: keyof HabitFormInput, value: unknown) => void
 }
 
@@ -151,6 +153,11 @@ interface FlowAnswerInput {
 
 function missedRead(): null {
   return null
+}
+
+function readSchedule(form: GuidedHabitFlowForm): string {
+  const values = form.getValues()
+  return JSON.stringify(SCHEDULE_FIELDS.map((field) => values[field] ?? null))
 }
 
 function clearTypedProposals(proposals: GuidedHabitProposals, read: HabitPhraseRead): GuidedHabitProposals {
@@ -303,16 +310,23 @@ export function createUseGuidedHabitFlow({ useState, useEffect, useMemo, useCall
     const title = watched.title
     const hasDate = Boolean(watched.dueDate)
 
-    const applyFreeRead = useCallback((response: HabitPhraseReadResponse) => {
+    const applyFreeRead = useCallback((response: HabitPhraseReadResponse, phraseGaveCadence: boolean) => {
       const { answers, deliberateType } = live.current
       const patch = guardHabitReadPatch(buildHabitFormPatchFromSuggestion(response), { deliberateType, timeAnswered: answers.time })
-      const hadEmoji = Boolean(form.getValues().emoji)
+      const scheduleBefore = readSchedule(form)
+      const { dueTime: timeBefore, emoji: emojiBefore } = form.getValues()
       if (patch.mode !== 'oneTime' && deliberateType === null && form.getValues().itemType !== 'habit') helpers.chooseItemType('habit')
-      const timeBefore = form.getValues().dueTime
-      const applied = applySchedule(patch)
-      const gaveTime = Boolean(patch.dueTime) && form.getValues().dueTime !== timeBefore
+      applySchedule(patch)
+      const { dueTime: timeAfter, emoji: emojiAfter } = form.getValues()
+      const gaveSchedule = patch.mode !== 'oneTime' && readSchedule(form) !== scheduleBefore
+      const gaveTime = Boolean(timeAfter) && timeAfter !== timeBefore
+      const gaveEmoji = Boolean(emojiAfter) && emojiAfter !== emojiBefore
       setUsedAiRead(true)
-      setProposals({ schedule: applied && patch.mode !== 'oneTime', time: gaveTime, emoji: !hadEmoji && Boolean(form.getValues().emoji) })
+      setProposals((value) => ({
+        schedule: !phraseGaveCadence && (gaveSchedule || value.schedule),
+        time: gaveTime || (value.time && timeAfter === timeBefore),
+        emoji: gaveEmoji || (value.emoji && emojiAfter === emojiBefore),
+      }))
       return gaveTime
     }, [applySchedule, form, helpers, live, setProposals])
 
@@ -328,7 +342,7 @@ export function createUseGuidedHabitFlow({ useState, useEffect, useMemo, useCall
       leaving.current = false
       setReading(false)
       if (form.getValues().title.trim() !== phrase || live.current.step !== PHRASE_STEP) return
-      const aiGaveTime = response ? applyFreeRead(response) : false
+      const aiGaveTime = response ? applyFreeRead(response, localRead.cadence !== null) : false
       startRepeat()
       advance(stepsAfter(live.current.answers, aiGaveTime || proposals.time))
     }, [advance, applyFreeRead, form, hasDate, isOnline, live, locale, localRead, mode, proposals.time, readPhrase, startRepeat, stepsAfter, title])

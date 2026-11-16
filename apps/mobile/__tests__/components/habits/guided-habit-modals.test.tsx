@@ -293,6 +293,25 @@ describe('a guided create on Android from a phrase with a repeat', () => {
     },
   )
 
+  it.each([
+    ['an emoji', { emoji: '🪴', dueTime: null }, false],
+    ['a time', { emoji: null, dueTime: '07:00' }, true],
+  ] as const)('never marks a repeat the person typed as a proposal when the free read gives the same repeat and %s', async (_label, extra, timeProposed) => {
+    state.phraseRead.mockResolvedValue({ read: true, frequencyUnit: 'Day', frequencyQuantity: 1, days: ['Monday'], isFlexible: false, flexibleTarget: null, subHabits: [], checklistItems: [], ...extra })
+    const tree = mountCreate()
+    await settle()
+    await phrase(tree, 'regar as plantas toda segunda')
+    await settle()
+    expect(state.phraseRead).toHaveBeenCalledTimes(1)
+    if (control(tree, ptBR.habits.flow.time.none)) await tap(tree, ptBR.habits.flow.time.none)
+    if (control(tree, ptBR.habits.flow.reminder.no)) await tap(tree, ptBR.habits.flow.reminder.no)
+    expect(heading(tree)).toBe(ptBR.habits.flow.confirm.question)
+    expect(control(tree, `${ptBR.habits.flow.summary.when}, toda segunda`)).toBeDefined()
+    expect(rowMarked(tree, new RegExp(`^${ptBR.habits.flow.summary.when}, `))).toBe(false)
+    expect(rowMarked(tree, new RegExp(`^${ptBR.habits.flow.summary.time}, `))).toBe(timeProposed)
+    tree.unmount()
+  })
+
   it('reads a repeat typed in the phrase after the person makes a task a habit on the type step', async () => {
     state.create.mockResolvedValue({ id: 'habit-9' })
     state.phraseRead.mockResolvedValue({ read: false, emoji: null, frequencyUnit: null, frequencyQuantity: null, days: [], isFlexible: false, flexibleTarget: null, dueTime: null, subHabits: [], checklistItems: [] })

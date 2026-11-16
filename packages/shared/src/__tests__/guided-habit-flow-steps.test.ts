@@ -39,10 +39,11 @@ function mountFlow({ mode = 'create', lockedGeneral = null, online = true, value
     setGeneral: () => write({ isGeneral: true, isFlexible: false, frequencyUnit: null, dueTime: '', dueDate: '' }),
   }
   const applySchedule: GuidedHabitFlowOptions['applySchedule'] = (patch) => {
+    const before = JSON.stringify(values)
     if (patch.mode !== 'oneTime') write({ frequencyUnit: patch.frequencyUnit ?? undefined, isFlexible: patch.mode === 'flexible' })
     if (patch.dueTime) write({ dueTime: patch.dueTime })
     if (patch.emoji) write({ emoji: patch.emoji })
-    return true
+    return JSON.stringify(values) !== before
   }
   let flow!: ReturnType<typeof useGuidedHabitFlow>
   function FlowProbe() {
@@ -373,6 +374,28 @@ describe('the steps of the shared guided habit flow', () => {
     run(() => mounted.flow.chooseEmoji('💧'))
     expect(mounted.values.emoji).toBe('💧')
     expect(mounted.flow.proposals.emoji).toBe(false)
+    mounted.unmount()
+  })
+
+  it('never marks a repeat the person typed as a proposal when the free read gives the same repeat and an emoji', async () => {
+    const readPhrase = vi.fn(async (): Promise<HabitPhraseReadResponse> => ({ ...NO_READ, read: true, frequencyUnit: 'Day', frequencyQuantity: 1, days: ['Monday'], emoji: '🪴' }))
+    const mounted = mountFlow({ readPhrase })
+    await leavePhraseWith(mounted, 'water the plants every monday')
+    expect(readPhrase).toHaveBeenCalledOnce()
+    expect(mounted.values).toMatchObject({ itemType: 'habit', frequencyUnit: 'Day', emoji: '🪴' })
+    expect(mounted.flow.proposals).toEqual({ schedule: false, time: false, emoji: true })
+    mounted.unmount()
+  })
+
+  it('keeps the marks of the values a second free read gives again with no change', async () => {
+    const readPhrase = vi.fn(async (): Promise<HabitPhraseReadResponse> => ({ ...NO_READ, read: true, frequencyUnit: 'Day', frequencyQuantity: 1, dueTime: '07:00', emoji: '🪴' }))
+    const mounted = mountFlow({ readPhrase })
+    await leavePhraseWith(mounted, 'water the plants')
+    expect(mounted.flow.proposals).toEqual({ schedule: true, time: true, emoji: true })
+    while (mounted.flow.current.step !== 'what') run(() => { expect(mounted.flow.back()).toBe(true) })
+    await leavePhraseWith(mounted, 'water my plants')
+    expect(readPhrase).toHaveBeenCalledTimes(2)
+    expect(mounted.flow.proposals).toEqual({ schedule: true, time: true, emoji: true })
     mounted.unmount()
   })
 
