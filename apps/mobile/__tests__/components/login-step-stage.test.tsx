@@ -7,7 +7,7 @@ const TestRenderer: typeof import('react-test-renderer') = require('react-test-r
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 
 const mocks = vi.hoisted(() => ({ reduced: false, enterDuration: 300, shift: 20, enterEasing: [0.1, 0.2, 0.3, 0.4] }))
-const motion = vi.hoisted(() => ({ bezier: [] as unknown[], timings: [] as { toValue: unknown; config: unknown }[], values: [] as { value: unknown }[] }))
+const motion = vi.hoisted(() => ({ bezier: [] as unknown[], timings: [] as { toValue: unknown; config: unknown }[], values: [] as { value: unknown }[], updater: undefined as (() => unknown) | undefined }))
 vi.mock('@/lib/motion', async () => {
   const shared = await import('@orbit/shared/theme')
   return {
@@ -23,7 +23,7 @@ vi.mock('react-native-reanimated', async () => {
     ...base,
     Easing: { ...base.Easing, bezier: (...points: number[]) => { motion.bezier.push(points); return base.Easing.linear } },
     useSharedValue: (initial: unknown) => useState(() => { const shared = { value: initial }; motion.values.push(shared); return shared })[0],
-    useAnimatedStyle: (updater: () => unknown) => useState(updater)[0],
+    useAnimatedStyle: (updater: () => unknown) => { motion.updater = updater; return useState(updater)[0] },
     withTiming: (toValue: unknown, config: unknown) => { motion.timings.push({ toValue, config }); return { pendingTimingTo: toValue } },
   }
 })
@@ -38,6 +38,11 @@ async function showStep(tree: ReturnType<typeof TestRenderer.create>, step: stri
   await TestRenderer.act(() => { tree.update(<LoginStepStage step={step}>body</LoginStepStage>) })
 }
 
+function styleWorkletAtProgress(progress: number) {
+  motion.values.at(-1)!.value = progress
+  return motion.updater!()
+}
+
 function committedStyle(tree: ReturnType<typeof TestRenderer.create>) {
   const stage = tree.root.findAll((node) => (node.type as unknown) === 'AnimatedView')[0]!
   return StyleSheet.flatten(stage.props.style) as { opacity?: unknown; transform?: { translateX?: unknown }[] }
@@ -49,13 +54,24 @@ describe('LoginStepStage motion', () => {
     motion.bezier = []
     motion.timings = []
     motion.values = []
+    motion.updater = undefined
   })
 
-  it('takes the duration, easing and shift from the shared preset', async () => {
+  it('takes the duration and easing from the shared preset', async () => {
     const tree = await renderStep('email')
     await showStep(tree, 'code')
     expect(motion.timings).toEqual([{ toValue: 1, config: expect.objectContaining({ duration: 300 }) }])
     expect(motion.bezier).toEqual([mocks.enterEasing])
+  })
+
+  it('slides the code step in from the right and the e-mail step in from the left by the preset shift, as on web', async () => {
+    const tree = await renderStep('email')
+    await showStep(tree, 'code')
+    expect(styleWorkletAtProgress(0)).toEqual({ opacity: 0, transform: [{ translateX: 20 }] })
+    expect(styleWorkletAtProgress(0.5)).toEqual({ opacity: 0.5, transform: [{ translateX: 10 }] })
+    expect(styleWorkletAtProgress(1)).toEqual({ opacity: 1, transform: [{ translateX: 0 }] })
+    await showStep(tree, 'email')
+    expect(styleWorkletAtProgress(0)).toEqual({ opacity: 0, transform: [{ translateX: -20 }] })
   })
 
   it('commits the new step at full opacity and no shift on every render during the fade, so no React commit carries a copy the fade left at 0', async () => {

@@ -8,7 +8,7 @@ const TestRenderer: typeof import('react-test-renderer') = require('react-test-r
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 
 const mocks = vi.hoisted(() => ({ reduced: false }))
-const motion = vi.hoisted(() => ({ bezier: [] as unknown[], timings: [] as { toValue: unknown; config: unknown }[], values: [] as { value: unknown }[] }))
+const motion = vi.hoisted(() => ({ bezier: [] as unknown[], timings: [] as { toValue: unknown; config: unknown }[], values: [] as { value: unknown }[], updater: undefined as (() => unknown) | undefined }))
 vi.mock('@/lib/motion', () => ({
   toAnimatedEasing: () => undefined,
   usePrefersReducedMotion: () => mocks.reduced,
@@ -20,7 +20,7 @@ vi.mock('react-native-reanimated', async () => {
     ...base,
     Easing: { ...base.Easing, bezier: (...points: number[]) => { motion.bezier.push(points); return base.Easing.linear } },
     useSharedValue: (initial: unknown) => useState(() => { const shared = { value: initial }; motion.values.push(shared); return shared })[0],
-    useAnimatedStyle: (updater: () => unknown) => useState(updater)[0],
+    useAnimatedStyle: (updater: () => unknown) => { motion.updater = updater; return useState(updater)[0] },
     withTiming: (toValue: unknown, config: unknown) => { motion.timings.push({ toValue, config }); return { pendingTimingTo: toValue } },
   }
 })
@@ -37,6 +37,11 @@ async function showStep(tree: ReturnType<typeof TestRenderer.create>, step: numb
   await TestRenderer.act(() => { tree.update(<OnboardingStepStage step={step}>body</OnboardingStepStage>) })
 }
 
+function styleWorkletAtProgress(progress: number) {
+  motion.values.at(-1)!.value = progress
+  return motion.updater!()
+}
+
 function committedStyle(tree: ReturnType<typeof TestRenderer.create>) {
   const stage = tree.root.findAll((node) => (node.type as unknown) === 'AnimatedView')[0]!
   return StyleSheet.flatten(stage.props.style) as { opacity?: unknown; transform?: { translateY?: unknown }[] }
@@ -48,6 +53,7 @@ describe('OnboardingStepStage', () => {
     motion.bezier = []
     motion.timings = []
     motion.values = []
+    motion.updater = undefined
   })
 
   it('leaves the step that opens the flow still', async () => {
@@ -56,28 +62,36 @@ describe('OnboardingStepStage', () => {
     expect(motion.values.at(-1)!.value).toBe(1)
   })
 
-  it('enters a changed step with the base duration and the enter easing', async () => {
+  it('enters a changed step with the base duration, the enter easing and a rise by the shared shift', async () => {
     const tree = await renderStage(0)
     await showStep(tree, 1)
     expect(motion.timings).toEqual([{ toValue: 1, config: expect.objectContaining({ duration: motionDurations.base }) }])
     expect(motion.bezier).toEqual([[...motionEasings.enter]])
+    expect(styleWorkletAtProgress(0)).toEqual({ opacity: 0, transform: [{ translateY: motionLayerTiming.routeShift }] })
+    expect(styleWorkletAtProgress(1)).toEqual({ opacity: 1, transform: [{ translateY: 0 }] })
   })
 
-  it('takes the duration and the curve from the shared tokens', async () => {
+  it('takes the shift, the duration and the curve from the shared tokens', async () => {
     const durations = motionDurations as unknown as Record<string, number>
     const easings = motionEasings as unknown as Record<string, readonly number[]>
+    const layerTiming = motionLayerTiming as unknown as Record<string, number>
     const originalBase = durations.base
     const originalEnter = easings.enter
+    const originalShift = layerTiming.routeShift
     durations.base = 333
     easings.enter = [0.1, 0.2, 0.3, 0.4]
+    layerTiming.routeShift = 37
     try {
       const tree = await renderStage(0)
       await showStep(tree, 1)
       expect(motion.timings).toEqual([{ toValue: 1, config: expect.objectContaining({ duration: 333 }) }])
       expect(motion.bezier).toEqual([[0.1, 0.2, 0.3, 0.4]])
+      expect(styleWorkletAtProgress(0)).toEqual({ opacity: 0, transform: [{ translateY: 37 }] })
+      expect(styleWorkletAtProgress(0.5)).toEqual({ opacity: 0.5, transform: [{ translateY: 18.5 }] })
     } finally {
       durations.base = originalBase!
       easings.enter = originalEnter!
+      layerTiming.routeShift = originalShift!
     }
   })
 
