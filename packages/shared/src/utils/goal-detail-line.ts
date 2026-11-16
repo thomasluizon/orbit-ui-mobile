@@ -29,3 +29,8 @@ export function getGoalDeadlineFact(
   if (days === 0) return { kind: 'dueToday' }
   return { kind: 'passed', date: goal.deadline.slice(0, 10) }
 }
+
+/** The title of the goal detail sheet. With the guided flows on, it names the goal in the person's words, so the bare route noun never stands alone as the title. */
+export function getGoalSheetTitle(goal: { title: string } | null, guided: boolean, routeName: string): string {
+  return guided && goal ? goal.title : routeName
+}

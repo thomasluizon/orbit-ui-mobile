@@ -130,7 +130,8 @@ vi.mock('@/components/ui/confirm-dialog', () => ({
       : null,
 }))
 
-vi.mock('@/hooks/use-flag', () => ({ useFlag: () => false }))
+const guidedFlag = vi.hoisted(() => ({ on: false }))
+vi.mock('@/hooks/use-flag', () => ({ useFlag: () => guidedFlag.on }))
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: createMockProfile({ timeZone: 'UTC' }) }) }))
 vi.mock('@/components/goals/edit-goal-modal', () => ({
   EditGoalModal: () => null,
@@ -242,6 +243,18 @@ describe('GoalDetailDrawer', () => {
     expect(text).toContain('goals.metrics.projectedCompletionJan 25, 2025')
     expect(text).toContain('goals.metrics.weeklyAdherence:{"percent":"75"}')
     TestRenderer.act(() => tree.unmount())
+  })
+
+  it('titles the goal sheet with the goal in the words of the person when the guided flows are on', () => {
+    guidedFlag.on = true
+    try {
+      let tree: any
+      TestRenderer.act(() => { tree = TestRenderer.create(<GoalDetailDrawer open={true} onClose={vi.fn()} goalId="1" />) })
+      expect(tree.root.findByType('Sheet').props.title).toBe('Read 12 books')
+      TestRenderer.act(() => tree.unmount())
+    } finally {
+      guidedFlag.on = false
+    }
   })
 
   it('keeps no-deadline and no-data forecasts explicit', () => {

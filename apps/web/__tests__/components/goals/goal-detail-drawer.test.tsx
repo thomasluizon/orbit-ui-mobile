@@ -490,6 +490,21 @@ describe('GoalDetailDrawer', () => {
     expect(headings[0]).toHaveTextContent('Read 12 books')
     expect(headings[0]).toHaveAttribute('tabindex', '-1')
   })
+  it('titles the goal sheet with the goal in the words of the person when the guided flows are on, and keeps the route name on the inline bar', () => {
+    guidedFlag.on = true
+    try {
+      const sheet = render(<GoalDetailDrawer open onOpenChange={vi.fn()} goalId="1" />)
+      expect(screen.getByRole('dialog', { name: 'Read 12 books' })).toBeInTheDocument()
+      expect(screen.queryByRole('dialog', { name: 'progressScreen.sections.goals' })).toBeNull()
+      sheet.unmount()
+      detailAvailable = false
+      render(<GoalDetailDrawer inline open onOpenChange={vi.fn()} goalId="missing" />)
+      expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('progressScreen.sections.goals')
+    } finally {
+      guidedFlag.on = false
+      detailAvailable = true
+    }
+  })
   it('keeps one fallback heading while an inline goal has no data', () => {
     detailAvailable = false
     const view = render(<GoalDetailDrawer inline open onOpenChange={vi.fn()} goalId="missing" />)
