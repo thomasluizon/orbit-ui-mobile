@@ -6,6 +6,7 @@ const shared = (path) => tsImport(`../../../packages/shared/src/${path}`, import
 const { buildChatClientContext } = await shared('chat/client-context.ts')
 const { buildRecentChatHistory } = await shared('utils/chat-history.ts')
 const { sendChatStreamTurn } = await shared('chat/send-stream-turn.ts')
+const { getChatTurnFailure } = await shared('chat/stream-turn.ts')
 const { buildChatFinalMessageFields } = await shared('chat/final-message.ts')
 const { API } = await shared('api/endpoints.ts')
 const { CLIENT_TIME_ZONE_HEADER } = await shared('utils/client-context.ts')
@@ -98,7 +99,7 @@ function openStream(conversation, requestId, exchange) {
 }
 
 // The shared turn loop of the clients: one resend of the same turn key on an incomplete stream or a 5xx, the shared
-// stream parser, and the failure the client would show.
+// stream parser, and the failure the client would show (getChatTurnFailure, as chat-stream-execution-core shows it).
 async function transmit(conversation, turn, requestId, exchange, steps = []) {
   let outcome
   try {
@@ -111,8 +112,7 @@ async function transmit(conversation, turn, requestId, exchange, steps = []) {
   if (outcome.kind === 'transportError') {
     return { kind: 'failed', status: null, code: null, error: `Chat stream request failed: ${safeFailureMessage(outcome.error)}` }
   }
-  return { kind: 'failed', status: outcome.status ?? null, code: outcome.code ?? null,
-    error: outcome.kind === 'incomplete' ? 'The chat stream ended without a final event.' : outcome.error }
+  return { kind: 'failed', ...getChatTurnFailure(outcome, 'The chat stream ended without a final event.') }
 }
 
 // Producer: orbit-api ChatTurnStream answers a turn key it already holds with `replayed: true` on the started event and

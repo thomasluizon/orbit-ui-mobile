@@ -420,6 +420,16 @@ describe('an attempt that the build under test failed', () => {
     expect(output).toMatchObject({ turns: 0, unavailable: false, error: 'The chat turn failed: The chat stream ended without a final event.' })
   })
 
+  // Producer: getChatTurnFailure of packages/shared, the failure that the shipped clients show for an error event.
+  it('reads an error event of the stream with the status and the code that the client shows', async () => {
+    const { vars } = offlineVars('complete', request)
+    const refusal = [{ type: 'error', status: 402, error: 'The daily AI budget is spent.', code: 'AI_DAILY_BUDGET_EXCEEDED' }]
+    vi.stubGlobal('fetch', recordedStream([refusal]))
+    const output = await runCase(vars, { api: async () => { throw new Error('No approval is expected.') } })
+    expect(output).toMatchObject({ turns: 0, unavailable: true,
+      error: 'The chat turn failed with HTTP 402 (AI_DAILY_BUDGET_EXCEEDED): The daily AI budget is spent.' })
+  })
+
   it.each([[500, false], [429, true]])('reads an approval that fails with HTTP %i as evidence or as no evidence', async (status, withoutEvidence) => {
     const api = (account) => {
       const stored = recordedApi('complete', account)
