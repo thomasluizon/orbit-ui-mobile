@@ -327,6 +327,8 @@ const STRUCTURE_WORDS = new Set(["if", "then", "elif", "else", "fi", "while", "u
 const KEYWORDS = new Set(["case", "esac", "function", "select", "coproc"])
 /** Each one reads a word again as code, or changes how the shell reads the next command. */
 const CODE_BUILTINS = new Set(["eval", "alias", "trap", "setopt", "unsetopt", "emulate", "shopt", "enable"])
+/** zsh runs the words after each one as a command, or reads it as a part of a compound command. bash reads the name of a program. */
+const ZSH_COMMAND_WORDS = new Set(["nocorrect", "repeat", "-", "always", "foreach"])
 const READ_PROGRAMS = new Set(["rm", "rmdir", "git", ...SHELLS, ...CODE_BUILTINS])
 const ASSIGNMENT_WORD = /^([A-Za-z_][A-Za-z0-9_]*)\+?=/
 const FIND_EXEC = /^-(?:exec|execdir|ok|okdir)$/
@@ -549,6 +551,7 @@ function finishCommand(command, scriptDepth) {
     const computed = [...before, program].find((word) => word.dynamic)
     if (computed) notModelled(`${computed.dynamic} in a command word`)
     const name = programName(program.text)
+    if (ZSH_COMMAND_WORDS.has(program.text)) notModelled(`the zsh command word \`${program.text}\`, which runs the words after it as a command`)
     if (CODE_BUILTINS.has(name)) notModelled(`the builtin \`${name}\`, which reads its words again as code or changes how the shell reads a command`)
     if ((name === "source" || name === "." || SHELLS.includes(name)) && args.some((word) => STANDARD_INPUT_FILE.test(word.text))) notModelled("a script from `/dev/stdin`")
     if (name !== "git") continue

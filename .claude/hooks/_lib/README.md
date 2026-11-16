@@ -104,13 +104,17 @@ The subset:
 - a shell with a literal `-c` script, and a shell with a here document of its own as its script: the reader reads the
   script with the same subset
 
-A variable, a glob, a brace expansion or a substitution makes a word dynamic: the reader does not know its value. A dynamic
-word is not modelled in a command word (also after a wrapper such as `sudo` or `env`), in an argument of `git`, and in a
-command that names a shell. Each other construct is not modelled, for example: `$((`, `(( ))`, `$[ ]`, `${ }` with an
-operator, an ANSI-C quote, a `$"..."` quote, a backtick, a line continuation, a here-string, a here document with a
-delimiter that is not quoted, a here document in a substitution, a process substitution, `case`, a function, `eval`,
-`alias`, `trap`, a word that starts with `=`, a shell that reads its script from standard input with no here document of
-its own, and a redirect to a path that is not literal.
+A variable, a glob, a brace expansion, a substitution or a word that starts with `=` makes a word dynamic: the reader does
+not know its value. A dynamic word is not modelled in a command word (also after a wrapper such as `sudo` or `env`), in an
+argument of `git`, and in a command that names a shell. Each other construct is not modelled, for example: `$((`, `(( ))`,
+`$[ ]`, `${ }` with an operator, an ANSI-C quote, a `$"..."` quote, a backtick, a line continuation, a here-string, a here
+document with a delimiter that is not quoted, a here document in a substitution, a process substitution, `case`, a
+function, `eval`, `alias`, `trap`, the zsh command words `nocorrect`, `repeat`, `-`, `always` and `foreach`, a shell that
+reads its script from standard input with no here document of its own, and a redirect to a path that is not literal.
+
+The reader models shell syntax, not what a program does with its arguments. A program outside the wrapper list that runs
+its arguments as a command, such as `watch` or `ssh`, an alias or a function of the user profile, and a script file that
+the agent runs by its path are not read.
 
 Widen the subset only with a construct that the reader models exactly, and add its rows to the `subset:` group of
 `test-hooks.mjs`. Do not add a second reading of a construct that the reader does not model.

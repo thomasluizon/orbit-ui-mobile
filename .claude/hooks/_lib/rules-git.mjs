@@ -132,6 +132,18 @@ const pushesProtectedRef = (rest) => rest.some((token) => {
   return /^(?:main|master)$/.test(destination.replace(/^refs\/heads\//, ""))
 })
 
+/** Options of `git push` that take the next word as their value, from the output of `git push -h`. */
+const PUSH_VALUE_OPTIONS = new Set(["-o", "--push-option", "--repo", "--receive-pack", "--exec", "--recurse-submodules"])
+/** The refs of a push: the words after the repository. The value of an option is no repository and no ref. */
+function pushRefs(rest) {
+  const positional = []
+  for (let index = 0; index < rest.length; index++) {
+    if (PUSH_VALUE_OPTIONS.has(rest[index])) index++
+    else if (!rest[index].startsWith("-")) positional.push(rest[index])
+  }
+  return positional.slice(1)
+}
+
 /** True for the long option, and for each short form that git reads as the option: git takes a prefix that names one option only. */
 const isLongOption = (token, option, shortest) => token.length >= shortest.length && option.startsWith(token.split("=")[0]) && token.startsWith(shortest)
 
@@ -196,7 +208,7 @@ function judgeGitCommands(command, gitCommands, { resolveHeadBranch, resolveRemo
     // A bare push (no explicit main/master ref) issued while HEAD is on the
     // protected branch still lands on main. Resolve HEAD via the injected resolver.
     if (typeof resolveHeadBranch !== "function") continue
-    if (rest.filter((token) => !token.startsWith("-")).length > 1) continue
+    if (pushRefs(rest).some((ref) => !/^\+?(?:HEAD|@)$/.test(ref))) continue
     let branch = null
     try {
       branch = resolveHeadBranch(targetDir)

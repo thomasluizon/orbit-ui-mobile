@@ -494,12 +494,29 @@ const REVIEW_GIT_REFUSED = [
   "env $(cat <<'EOF'\ngit push origin main\nEOF\n)", "x= $(cat <<'EOF'\ngit push origin main\nEOF\n)", "git push origin {fd}>/dev/null", "{git,push,origin,main}", "g=git; $g push origin main",
   "echo 'git push origin main' | bash", "echo 'git push origin main' | while true; do bash; done", "echo 'git push origin main' | { true; bash; }", "echo main | xargs git push origin", "echo 'git push origin main' | xargs -I{} bash -c '{}'", "sudo =git push origin main", "find . -maxdepth 0 -exec =git push origin main \\;",
   "bash /dev/stdin <<'EOF'\ngit push origin main\nEOF",
+  // zsh runs the words after each of these words as a command, and bash reads the name of a program.
+  "nocorrect git push origin main", "repeat 1 git push origin main", "- git push origin main", "time nocorrect git push origin main", "noglob nocorrect git commit -n -m x",
+  "{ true; } always { git push origin main; }",
 ]
 for (const command of REVIEW_GIT_REFUSED) T(`git review: ${JSON.stringify(command)} is refused`, blocks(checkGitCommand(command, headOnMain)), true)
+for (const [name, command] of [["nocorrect", "nocorrect ls"], ["repeat", "repeat 3 ls"], ["-", "- ls"], ["always", "{ ls; } always { ls; }"], ["foreach", "foreach f in a; ls; end"]]) {
+  T(`subset: ${command} holds the zsh command word ${name}`, readCommand(command).notModelled, `the zsh command word \`${name}\`, which runs the words after it as a command`)
+}
+T("subset: a zsh command word after the command word is a plain word", readCommand("echo nocorrect repeat - always foreach").notModelled, "")
+// A ref `HEAD` or `@` with no destination names the branch that HEAD is on, and the value of a push option is no repository and no ref.
+for (const command of ["git push origin HEAD", "git push -u origin HEAD", "git push origin @", "git push origin +HEAD", "git push -o ci.skip origin", "git push --push-option ci.skip origin", "git push --repo origin",
+  "git push --receive-pack git-receive-pack origin", "git push --recurse-submodules check origin"]) {
+  T(`git: ${command} while HEAD is on main blocks`, blocks(checkGitCommand(command, headOnMain)), true)
+  T(`git: ${command} while HEAD is on a feature branch allows`, checkGitCommand(command, { ...headOnMain, resolveHeadBranch: () => "feature/x" }), null)
+}
+for (const command of ["git push origin HEAD:feature/x", "git push origin feature/x", "git push -o ci.skip origin feature/x", "git push origin HEAD:refs/heads/feature/x"]) {
+  T(`git: ${command} while HEAD is on main allows`, checkGitCommand(command, headOnMain), null)
+}
 const REVIEW_APPROVAL_REFUSED = [
   "echo $((cat <<EOF\n'\nEOF\n) ); rm -rf \"$TMP\" # '", "bash <<<$'rm\\t-rf\\t\\x24TMP'", "(( x = 1 <<true ))\nrm -rf \"$TMP\"\ntrue",
   "bash -c \"cat <<X\n'\nX\nrm -rf \\\"\\$TMP\\\" # '\"", "eval \"cat <<X\n'\nX\nrm -rf \\\"\\$TMP\\\" # '\"", "bash <<'EOF'\ncat <<X\n'\nX\nrm -rf \"$TMP\" # '\nEOF",
   "echo 'rm -rf \"$TMP\"' | bash", "=rm -rf \"$TMP\"", "/bin/r? -rf \"$TMP\"", "r{m,} -rf \"$TMP\"",
+  'nocorrect rm -rf "$TMP"', 'repeat 1 rm -rf "$TMP"', '- rm -rf "$TMP"', '{ true; } always { rm -rf "$TMP"; }',
 ]
 // The approval rows run in the loop below the approval options.
 // A hygiene flag counts only as a flag of a git command in the parsed words: the same text in an argument of another program is data.
