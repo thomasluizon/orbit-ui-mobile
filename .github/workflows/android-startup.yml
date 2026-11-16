@@ -21,6 +21,7 @@ on:
       - "tools/check-android-bundle.mjs"
       - "tools/android-boot.mjs"
       - ".github/actions/android-boot/**"
+      - ".github/scripts/install-android-sdk-package.sh"
       - ".github/workflows/android-startup.yml"
 
 permissions:
@@ -48,7 +49,7 @@ jobs:
         run: |
           set -euo pipefail
           paths=$(git diff --name-only --no-renames HEAD^1 HEAD)
-          if grep -Eq '^\.github/actions/android-boot/|^\.github/workflows/android-startup\.yml$|^tools/android-boot\.mjs$' <<< "$paths"; then
+          if grep -Eq '^\.github/actions/android-boot/|^\.github/scripts/install-android-sdk-package\.sh$|^\.github/workflows/android-startup\.yml$|^tools/android-boot\.mjs$' <<< "$paths"; then
             echo 'boot=true' >> "$GITHUB_OUTPUT"
           else
             echo 'boot=false' >> "$GITHUB_OUTPUT"
@@ -56,7 +57,7 @@ jobs:
       # The diff above is the whole pull request, so a later push that keeps the boot harness skips a proven boot.
       - name: Hash the boot harness
         id: key
-        run: echo "value=android-boot-pass-v1-${{ hashFiles('.github/actions/android-boot/**', 'tools/android-boot.mjs', '.github/workflows/android-startup.yml') }}" >> "$GITHUB_OUTPUT"
+        run: echo "value=android-boot-pass-v1-${{ hashFiles('.github/actions/android-boot/**', '.github/scripts/install-android-sdk-package.sh', 'tools/android-boot.mjs', '.github/workflows/android-startup.yml') }}" >> "$GITHUB_OUTPUT"
       - name: Look up a pass for this boot harness
         id: pass
         if: steps.paths.outputs.boot == 'true'

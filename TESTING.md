@@ -82,12 +82,15 @@ shipping AAB. ARM translation cannot satisfy the React Native loader's direct AP
 unextracted ARM libraries, so the gate uses native x86_64 execution. The emulator runs only in
 GitHub Actions.
 
-The action installs the system image before the emulator runner starts. It runs the SDK manager
-up to four times, requires `system.img` and `package.xml` of the image after each attempt, and
-deletes the image directory and the two SDK manager download directories before the next attempt.
-One step names the API level, the target and the architecture for the install and for the runner.
-The image is a 1.74 GB download and has no cache entry. `.github/scripts/android-boot-action.test.mjs`
-runs the install step against a stand-in SDK manager.
+The action installs the system image before the emulator runner starts, through
+`.github/scripts/install-android-sdk-package.sh`. The `Mobile Android Build` NDK install uses the
+same script. It runs the SDK manager up to four times and requires the files that its caller names
+after each attempt: `system.img` and `package.xml` of the image, or the NDK revision line and the
+CMake toolchain file. It deletes the package directory and the two SDK manager download directories
+before the next attempt. One step names the API level, the target and the architecture for the
+install and for the runner. The image is a 1.74 GB download and has no cache entry.
+`.github/scripts/android-boot-action.test.mjs` and `.github/scripts/cache-save-rules.test.mjs` run
+the two install steps against a stand-in SDK manager.
 
 `tools/android-boot.mjs` clears storage, cold starts once and waits up to 90 seconds for the
 signed-out onboarding title or input label from either locale in a visible, enabled

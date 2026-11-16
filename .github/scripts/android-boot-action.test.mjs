@@ -23,10 +23,10 @@ test("the system image install runs before the emulator runner and names the pac
     assert.equal(install.env[variable], runner.with[input], `the install reads the same ${input}`)
   }
   // reactivecircus/android-emulator-runner at 1dcd0090116d15e7c562f8db72807de5e036a4ed, src/sdk-installer.ts line 78.
-  assert.ok(install.run.includes('package="system-images;android-${API_LEVEL};${TARGET};${ARCH}"'))
+  assert.equal(install.run.trim(), 'bash .github/scripts/install-android-sdk-package.sh "system-images;android-${API_LEVEL};${TARGET};${ARCH}" system.img package.xml')
   assert.equal(runner.uses, "reactivecircus/android-emulator-runner@1dcd0090116d15e7c562f8db72807de5e036a4ed")
   assert.equal(runner.with.channel, undefined, "the runner installs from its default channel 0, like the install step")
-  assert.ok(install.run.includes('"$sdkmanager" --install "$package" --channel=0'))
+  assert.ok(readFileSync(join(root, ".github/scripts/install-android-sdk-package.sh"), "utf8").includes('--install "$package" --channel=0'))
   assert.ok(steps.every((step) => !step.uses?.startsWith("actions/cache")), "the 1.74 GB image has no cache entry")
 })
 
@@ -34,14 +34,20 @@ function runInstall(sdkmanagerScript, { withoutSdkmanager = false } = {}) {
   const directory = mkdtempSync(join(tmpdir(), "android-boot-action-"))
   try {
     const sdk = join(directory, "sdk")
+    const bin = join(directory, "bin")
     mkdirSync(join(sdk, "cmdline-tools/latest/bin"), { recursive: true })
+    mkdirSync(bin)
     const sdkmanager = join(sdk, "cmdline-tools/latest/bin/sdkmanager")
     writeFileSync(sdkmanager, `#!/usr/bin/env bash\nset -euo pipefail\nimage="$ANDROID_HOME/system-images/android-35/google_apis/x86_64"\necho "$*" >> "$ANDROID_HOME/calls.txt"\nattempt=$(wc -l < "$ANDROID_HOME/calls.txt")\n${sdkmanagerScript}\n`)
     chmodSync(sdkmanager, 0o755)
     if (withoutSdkmanager) rmSync(sdkmanager)
-    const result = spawnSync("bash", ["-c", `sleep() { echo "$1" >> "$ANDROID_HOME/sleeps.txt"; }\n${install.run}`], {
+    // The step runs the shared script in its own shell, so a stand-in sleep on PATH records each wait.
+    writeFileSync(join(bin, "sleep"), '#!/usr/bin/env bash\necho "$1" >> "$ANDROID_HOME/sleeps.txt"\n')
+    chmodSync(join(bin, "sleep"), 0o755)
+    const result = spawnSync("bash", ["-c", install.run], {
+      cwd: root,
       encoding: "utf8",
-      env: { PATH: process.env.PATH, ANDROID_HOME: sdk, API_LEVEL: "35", TARGET: "google_apis", ARCH: "x86_64" },
+      env: { PATH: `${bin}:${process.env.PATH}`, ANDROID_HOME: sdk, API_LEVEL: "35", TARGET: "google_apis", ARCH: "x86_64" },
     })
     const read = (name) => (existsSync(join(sdk, name)) ? readFileSync(join(sdk, name), "utf8").trim().split("\n") : [])
     const imageDirectory = join(sdk, "system-images/android-35/google_apis/x86_64")
@@ -64,7 +70,7 @@ if [ "$attempt" -lt 3 ]; then
 fi
 ${installImage}`)
   assert.equal(result.status, 0, result.stderr)
-  assert.deepEqual(result.calls, Array(3).fill("--install system-images;android-35;google_apis;x86_64 --channel=0"))
+  assert.deepEqual(result.calls, Array(3).fill(`--sdk_root=${result.sdk} --install system-images;android-35;google_apis;x86_64 --channel=0`))
   assert.deepEqual(result.states, Array(3).fill("partial=no temp=no intermediates=no"), "each attempt starts without the partial download")
   assert.deepEqual(result.sleeps, ["5", "10"])
   assert.ok(result.installed)
@@ -78,7 +84,7 @@ test("an install that exits 0 without the image files counts as failed, and four
   assert.equal(result.calls.length, 4)
   assert.deepEqual(result.sleeps, ["5", "10", "15"])
   assert.deepEqual(result.states, Array(4).fill("partial=no temp=no intermediates=no"))
-  assert.match(result.stdout, /::error::The emulator system image system-images;android-35;google_apis;x86_64 did not install in 4 attempts\./)
+  assert.match(result.stdout, /::error::system-images;android-35;google_apis;x86_64 did not install in 4 attempts\./)
   assert.equal(result.installed, false, "the last partial image is deleted too")
 })
 

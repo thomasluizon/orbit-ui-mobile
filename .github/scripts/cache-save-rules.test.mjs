@@ -1,5 +1,7 @@
 import assert from "node:assert/strict"
-import { existsSync, readFileSync, readdirSync } from "node:fs"
+import { spawnSync } from "node:child_process"
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs"
+import { tmpdir } from "node:os"
 import { dirname, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 import test from "node:test"
@@ -140,8 +142,96 @@ test("macOS restores and saves no npm entry, and no workflow caches the Android 
   const ndkCaches = [...uses("actions/cache/restore@"), ...uses("actions/cache/save@"), ...uses("actions/cache@")]
     .filter(({ step }) => /ndk/i.test(`${step.with?.key ?? ""} ${step.with?.path ?? ""}`))
   assert.deepEqual(ndkCaches.map(({ where }) => where), [])
-  const install = load(".github/workflows/mobile-build.yml").jobs.build.steps.find((step) => step.name === "Install and verify the Android NDK")
-  assert.match(install.run, /for attempt in 1 2 3; do/)
+})
+
+const SDK_PACKAGE_SCRIPT = ".github/scripts/install-android-sdk-package.sh"
+
+test("every SDK manager install runs the shared retry script, and a change to it starts both Android jobs", () => {
+  const escaped = SDK_PACKAGE_SCRIPT.replaceAll(".", "\\.")
+  const installs = everyStep.filter(({ step }) => /sdkmanager|^ *bash \S*install-android-sdk-package/m.test(step.run ?? ""))
+  assert.deepEqual(installs.map(({ where }) => where), [
+    "mobile-build.yml: build: Install and verify the Android NDK",
+    "android-boot/action.yml: Install and verify the emulator system image",
+  ])
+  for (const { step, where } of installs) {
+    assert.match(step.run, new RegExp(`^ *bash ${escaped} "`, "m"), where)
+    assert.doesNotMatch(step.run, /sdkmanager/, `${where} calls the SDK manager only through the shared script`)
+  }
+  const build = load(".github/workflows/mobile-build.yml")
+  for (const event of ["pull_request", "push"]) assert.ok(build.on[event].paths.includes(SDK_PACKAGE_SCRIPT), `mobile-build.yml ${event}`)
+  assert.ok(build.jobs.plan.steps.find((step) => step.id === "key").run.includes(`'${SDK_PACKAGE_SCRIPT}'`), "the compile pass key")
+  const startup = load(".github/workflows/android-startup.yml")
+  assert.ok(startup.on.pull_request.paths.includes(SDK_PACKAGE_SCRIPT), "android-startup.yml pull_request")
+  const scope = startup.jobs.scope.steps
+  assert.ok(scope.find((step) => step.id === "paths").run.includes(`|^${escaped}$|`), "the boot scope")
+  assert.ok(scope.find((step) => step.id === "key").run.includes(`'${SDK_PACKAGE_SCRIPT}'`), "the boot pass key")
+})
+
+const NDK_VERSION = "27.1.12297006"
+const ndkInstall = load(".github/workflows/mobile-build.yml").jobs.build.steps.find((step) => step.name === "Install and verify the Android NDK")
+
+// Runs the NDK step of Mobile Android Build against a stand-in SDK manager. Each call records whether the
+// partial NDK, the partial unzip in .temp and the partial archive in .downloadIntermediates exist when it starts.
+function runNdkInstall(sdkmanagerScript) {
+  const directory = mkdtempSync(join(tmpdir(), "ndk-install-"))
+  try {
+    const sdk = join(directory, "sdk")
+    const bin = join(directory, "bin")
+    mkdirSync(join(sdk, "cmdline-tools/latest/bin"), { recursive: true })
+    mkdirSync(bin)
+    const executable = (path, body) => {
+      writeFileSync(path, `#!/usr/bin/env bash\nset -euo pipefail\n${body}\n`)
+      chmodSync(path, 0o755)
+    }
+    executable(join(sdk, "cmdline-tools/latest/bin/sdkmanager"), `ndk="$ANDROID_HOME/ndk/${NDK_VERSION}"
+echo "$*" >> "$ANDROID_HOME/calls.txt"
+attempt=$(($(wc -l < "$ANDROID_HOME/calls.txt")))
+echo "ndk=$([ -e "$ndk" ] && echo yes || echo no) temp=$([ -e "$ANDROID_HOME/.temp" ] && echo yes || echo no) intermediates=$([ -e "$ANDROID_HOME/.downloadIntermediates" ] && echo yes || echo no)" >> "$ANDROID_HOME/states.txt"
+${sdkmanagerScript}`)
+    executable(join(bin, "sleep"), 'echo "$1" >> "$ANDROID_HOME/sleeps.txt"')
+    const result = spawnSync("bash", ["-c", ndkInstall.run], {
+      cwd: root,
+      encoding: "utf8",
+      env: { PATH: `${bin}:${process.env.PATH}`, ANDROID_HOME: sdk, NDK_VERSION, NDK_PATH: join(sdk, "ndk", NDK_VERSION) },
+    })
+    const read = (name) => (existsSync(join(sdk, name)) ? readFileSync(join(sdk, name), "utf8").trim().split("\n") : [])
+    return { ...result, calls: read("calls.txt"), sleeps: read("sleeps.txt"), states: read("states.txt") }
+  } finally {
+    rmSync(directory, { recursive: true, force: true })
+  }
+}
+
+const leavePartialNdk = `mkdir -p "$ndk" "$ANDROID_HOME/.temp/PackageOperation01" "$ANDROID_HOME/.downloadIntermediates"
+touch "$ANDROID_HOME/.downloadIntermediates/android-ndk-r27b-linux.zip"
+echo "Pkg.Revision = ${NDK_VERSION}" > "$ndk/source.properties"`
+const installNdk = (revision) => `mkdir -p "$ndk/build/cmake" "$ndk/toolchains/llvm/prebuilt/linux-x86_64/bin"
+echo "Pkg.Revision = ${revision}" > "$ndk/source.properties"
+echo toolchain > "$ndk/build/cmake/android.toolchain.cmake"
+printf '#!/usr/bin/env bash\\necho "clang version 18.0.2"\\n' > "$ndk/toolchains/llvm/prebuilt/linux-x86_64/bin/clang"
+chmod +x "$ndk/toolchains/llvm/prebuilt/linux-x86_64/bin/clang"`
+
+test("a corrupt NDK download and an NDK install that exits 0 without its files both start a clean attempt", () => {
+  const result = runNdkInstall(`case "$attempt" in
+  1) ${leavePartialNdk}; echo "Warning: An error occurred while preparing SDK package NDK: not in GZIP format." >&2; exit 1 ;;
+  2) ${leavePartialNdk}; exit 0 ;;
+esac
+${installNdk(NDK_VERSION)}`)
+  assert.equal(result.status, 0, result.stdout + result.stderr)
+  assert.equal(result.calls.length, 3, "the install that exited 0 without the toolchain file did not end the retries")
+  assert.deepEqual(result.states, Array(3).fill("ndk=no temp=no intermediates=no"), "each attempt starts without the partial download")
+  assert.deepEqual(result.sleeps, ["5", "10"])
+  assert.match(result.stdout, new RegExp(`Installed and verified ndk;${NDK_VERSION} on attempt 3\\.`))
+  assert.match(result.stdout, new RegExp(`Verified Android NDK ${NDK_VERSION} before Gradle\\.`))
+})
+
+test("an NDK with another revision counts as failed, and four failed attempts stop the step before Gradle", () => {
+  const result = runNdkInstall(installNdk("27.0.11718014"))
+  assert.equal(result.status, 1)
+  assert.equal(result.calls.length, 4)
+  assert.deepEqual(result.states, Array(4).fill("ndk=no temp=no intermediates=no"))
+  assert.deepEqual(result.sleeps, ["5", "10", "15"])
+  assert.match(result.stdout, new RegExp(`::error::ndk;${NDK_VERSION} did not install in 4 attempts\\.`))
+  assert.doesNotMatch(result.stdout, /before Gradle\./)
 })
 
 // gradle/actions at 8da46b539cd8fe6ab27ca75128919a18d757604c: setup-gradle/action.yml defaults cache-read-only to
