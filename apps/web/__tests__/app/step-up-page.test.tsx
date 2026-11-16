@@ -98,16 +98,6 @@ vi.mock('@/lib/step-up-storage', () => ({
   readStepUpTiming: (operation: string, accountId: string | null) =>
     mocks.readTiming(operation, accountId),
 }))
-vi.mock('@/components/shell/flow-shell', () => ({
-  FlowShell: ({ children, action, notice }: Readonly<{ children: React.ReactNode; action?: React.ReactNode; notice?: React.ReactNode }>) => (
-    <main>
-      {notice}
-      <section>{children}</section>
-      <footer data-testid="shell-action">{action}</footer>
-    </main>
-  ),
-}))
-
 import { StepUpScreen } from '@/app/step-up/step-up-screen'
 
 function liveRecord(offset = 0) {
@@ -128,8 +118,12 @@ function enterCode(code = '123456') {
   fireEvent.change(screen.getByLabelText('codeLabel'), { target: { value: code } })
 }
 
+function shellAction() {
+  return document.querySelector<HTMLElement>('[data-flow-action]')!
+}
+
 function filledAction() {
-  return document.querySelector<HTMLButtonElement>('[data-flow-primary] button') ?? within(screen.getByTestId('shell-action')).getByRole('button')
+  return document.querySelector<HTMLButtonElement>('[data-flow-primary] button') ?? within(shellAction()).getByRole('button')
 }
 
 function clickConfirm() {
@@ -197,7 +191,7 @@ describe('web step up screen', () => {
 
   it('enables confirm only when all six digits are present', async () => {
     const input = await renderLiveScreen()
-    const confirm = within(screen.getByTestId('shell-action')).getByText('confirm').closest('button')
+    const confirm = within(shellAction()).getByText('confirm').closest('button')
 
     expect(confirm).toBeDisabled()
     fireEvent.change(input, { target: { value: '12345' } })
@@ -261,7 +255,7 @@ describe('web step up screen', () => {
       'account-a',
     ))
     await waitFor(() => expect(input).toBeDisabled())
-    expect(screen.getByTestId('shell-action').querySelector('button')).toHaveAttribute('aria-busy', 'true')
+    expect(shellAction().querySelector('button')).toHaveAttribute('aria-busy', 'true')
 
     resolveConfirmation?.({
       message: 'Account deactivated',
@@ -436,7 +430,7 @@ describe('web step up screen', () => {
   it('disables an expired code and uses the sole filled action for a new code', async () => {
     const input = await renderLiveScreen(liveRecord(STEP_UP_CHALLENGE_DURATION_MS))
     expect(input).toBeDisabled()
-    const action = screen.getByTestId('shell-action')
+    const action = shellAction()
     expect(within(action).getByText('resend').closest('button')).toHaveAttribute('data-variant', 'primary')
     expect(screen.queryByText('confirm')).not.toBeInTheDocument()
   })
@@ -470,6 +464,29 @@ describe('web step up screen', () => {
     expect(screen.getByText('neverShare')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'common.back' }))
     expect(mocks.router.replace).toHaveBeenCalledWith('/profile/account')
+  })
+
+  it.each([[true, '[data-guided-step-up] [data-question-flow]'], [false, '[data-shell="flow"]']] as const)('holds exactly one main landmark around the surface in every state of the real shell (flag %s)', async (guided, surface) => {
+    const expectOneMain = () => {
+      const landmarks = document.querySelectorAll('main')
+      expect(landmarks).toHaveLength(1)
+      expect(landmarks[0]).toContainElement(document.querySelector<HTMLElement>(surface))
+    }
+    mocks.guided = guided
+    await renderLiveScreen()
+    expectOneMain()
+    enterCode()
+    clickConfirm()
+    expect(await screen.findByText(/successTitle/)).toBeInTheDocument()
+    expectOneMain()
+    cleanup()
+    await renderLiveScreen(liveRecord(STEP_UP_CHALLENGE_DURATION_MS + 1000))
+    expectOneMain()
+    cleanup()
+    mocks.readTiming.mockReturnValue({ ...liveRecord(), exhaustedAt: Date.now() })
+    render(<StepUpScreen serverAccountId={null} />)
+    expect(await screen.findByText('exhaustedTitle')).toBeInTheDocument()
+    expectOneMain()
   })
 
   it('keeps the current layout with the flag off: the eyebrow, the title and the cancel link, with no flow frame', async () => {

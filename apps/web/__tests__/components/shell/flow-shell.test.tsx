@@ -92,20 +92,30 @@ describe('FlowShell', () => {
     expect(screen.getByRole('button', { name: 'Continue' }).closest('[data-flow-action]')).toHaveClass('md:[&_button]:w-auto')
   })
 
-  it('gives chat a full-width definite-height flow instead of the card', () => {
-    render(<FlowShell mode="full"><main>Conversation</main></FlowShell>)
+  it('gives a full-width definite-height flow instead of the card', () => {
+    render(<FlowShell mode="full"><section>Conversation</section></FlowShell>)
 
-    expect(screen.getByText('Conversation').parentElement).toHaveAttribute('data-flow-mode', 'full')
+    expect(screen.getByText('Conversation').closest('[data-shell="flow"]')).toHaveAttribute('data-flow-mode', 'full')
     expect(screen.queryByTestId('wide-flow')).not.toBeInTheDocument()
   })
 
-  it('keeps feedback reachable in the shell-free full flow', async () => {
-    const view = render(<FlowShell mode="full"><main>Conversation</main></FlowShell>)
+  it('owns the one main landmark of the full flow, so a host that mounts a question flow in it needs none of its own', () => {
+    render(<FlowShell mode="full"><section>Conversation</section></FlowShell>)
+
+    const landmarks = screen.queryAllByRole('main')
+    expect(landmarks).toHaveLength(1)
+    expect(landmarks[0]).toContainElement(screen.getByText('Conversation'))
+    expect(landmarks[0]?.parentElement).toHaveAttribute('data-flow-mode', 'full')
+  })
+
+  it('keeps feedback reachable in the shell-free full flow, outside the main landmark', async () => {
+    const view = render(<FlowShell mode="full"><section>Conversation</section></FlowShell>)
     act(() => { useAppToastStore.getState().showError('Connection failed') })
     await act(async () => { await vi.dynamicImportSettled() })
 
-    expect(view.container.querySelector('[data-flow-mode="full"] [data-toast-page-host] [data-kind="neutral"]'))
-      .toBeInTheDocument()
+    const toast = view.container.querySelector('[data-flow-mode="full"] [data-toast-page-host] [data-kind="neutral"]')
+    expect(toast).toBeInTheDocument()
+    expect(screen.getByRole('main')).not.toContainElement(toast as HTMLElement)
   })
 
   it('provides registration to the full flow without claiming scroll ownership', () => {
