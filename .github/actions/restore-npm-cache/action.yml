@@ -4,6 +4,9 @@ inputs:
   lockfile:
     description: Lockfile whose hash names the cache entry
     default: package-lock.json
+  restore-older-entry:
+    description: The string false restores only the entry of this lockfile, for a job that saves on a miss
+    default: 'true'
 outputs:
   cache-hit:
     description: The string true when the entry of this lockfile was restored
@@ -24,6 +27,8 @@ runs:
       shell: bash
       run: echo "path=$(npm config get cache)" >> "$GITHUB_OUTPUT"
     # A changed lockfile restores the newest main entry by prefix, and npm ci downloads only the difference.
+    # npm never removes a tarball from its cache, so a job that saves restores no older entry: its save then holds
+    # only the tarballs of this lockfile, and the entry size stays the same over lockfile changes.
     # macOS has no entry: there npm ci took 53 to 59 s without the cache and 48 to 88 s after a 5 to 14 s restore.
     - name: Restore the npm cache
       id: restore
@@ -35,5 +40,4 @@ runs:
       with:
         path: ${{ steps.directory.outputs.path }}
         key: npm-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles(inputs.lockfile) }}
-        restore-keys: |
-          npm-${{ runner.os }}-${{ runner.arch }}-
+        restore-keys: ${{ inputs.restore-older-entry == 'true' && format('npm-{0}-{1}-', runner.os, runner.arch) || '' }}

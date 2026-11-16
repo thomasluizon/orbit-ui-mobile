@@ -20,9 +20,9 @@ exit codes: 0 swept, 1 a list or delete request failed, 2 invalid arguments`
 const GIGABYTE = 1_000_000_000
 
 // WHY 9 GB: the repository limit is 10 GB (GET /repos/{owner}/{repo}/actions/cache/storage-limit returns
-// max_cache_size_gb 10). Each main push writes a 0.85 GB CodeQL overlay base database before the next sweep, and
-// the open pull requests hold under 0.15 GB, while the newest main entries measure 8.56 GB after the macOS npm and NDK trims.
-// The release jobs read the Gradle, Rust and Windows App SDK families and write none of them (cache-save-rules.test.mjs,
+// max_cache_size_gb 10). Each main push writes a 0.85 GB CodeQL overlay base database before the next sweep, the open
+// pull requests hold under 0.15 GB, and the newest main entries measure 8.56 GB. Those sizes stay fixed: the npm savers
+// restore no older entry, and the release jobs write no Gradle, Rust or Windows App SDK entry (cache-save-rules.test.mjs,
 // windows-download-workflow.test.ts). Each Android Release writes a 0.12 GB ccache entry in its own family, inside the
 // 0.44 GB under the cap; the iOS Release device ccache family (RELEASE_FAMILY_KEYS) has no saved entry to measure yet.
 export const CAP_BYTES = 9 * GIGABYTE

@@ -126,8 +126,11 @@ jobs:
           node-version: 22
           package-manager-cache: false
 
+      # A run that saves restores no older entry, so the entry holds only the tarballs of this lockfile.
       - id: npm-cache
         uses: ./.github/actions/restore-npm-cache
+        with:
+          restore-older-entry: ${{ github.event_name == 'pull_request' }}
 
       - run: npm ci --prefer-offline --no-audit --fund=false
 

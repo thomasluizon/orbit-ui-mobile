@@ -78,30 +78,56 @@ test("every job that installs from the lockfile restores the npm cache first, an
   const restore = action.find((step) => step.id === "restore")
   assert.equal(restore.uses, "actions/cache/restore@v6")
   assert.match(restore.with.key, NPM_KEY)
-  assert.equal(restore.with["restore-keys"].trim(), "npm-${{ runner.os }}-${{ runner.arch }}-")
   assert.equal(restore.with.path, "${{ steps.directory.outputs.path }}")
   assert.equal(action.find((step) => step.id === "directory").run, 'echo "path=$(npm config get cache)" >> "$GITHUB_OUTPUT"')
-  for (const { step, where } of uses("actions/cache/restore@v6").filter(({ step }) => NPM_KEY.test(step.with.key))) {
+  // The five release jobs restore inline and never save, so each keeps the prefix fallback.
+  for (const { step, where } of uses("actions/cache/restore@v6").filter(({ step, where }) => NPM_KEY.test(step.with.key) && !where.startsWith("restore-npm-cache/"))) {
     assert.equal(step.with["restore-keys"].trim(), "npm-${{ runner.os }}-${{ runner.arch }}-", where)
-    assert.equal(step.with.path, where.startsWith("restore-npm-cache/") ? "${{ steps.directory.outputs.path }}" : "${{ steps.npm-cache-directory.outputs.path }}", where)
+    assert.equal(step.with.path, "${{ steps.npm-cache-directory.outputs.path }}", where)
   }
 
-  const saves = uses("actions/cache/save@").filter(({ step }) => step.with.key === "${{ steps.npm-cache.outputs.cache-primary-key }}")
-  assert.deepEqual(saves.map(({ where }) => where).sort(), ["desktop-build.yml: build: Save the npm cache", "test.yml: build: Save the npm cache"])
-  for (const { step, where } of saves) {
-    assert.match(step.if, MAIN_ONLY, where)
-    assert.match(step.if, /steps\.npm-cache\.outputs\.cache-hit != 'true'/, where)
-    assert.equal(step.with.path, "${{ steps.npm-cache.outputs.path }}", where)
-  }
   // Linux entry: PR Tests runs its Build job on every push to main.
   const tests = workflows.find(({ file }) => file === "test.yml")
   assert.ok(tests.on.includes("push"))
   assert.equal(tests.jobs.build["runs-on"], "ubuntu-24.04")
-  // macOS and Windows entries: a lockfile change starts Desktop Build on main, and its matrix holds both families.
+  // Windows entry: a lockfile change starts Desktop Build on main, and its matrix holds the Windows targets.
   const desktop = load(".github/workflows/desktop-build.yml")
   assert.deepEqual(desktop.on.push.branches, ["main"])
   assert.ok(desktop.on.push.paths.includes("package-lock.json"))
-  assert.match(desktop.jobs.build["runs-on"], /macos-15.*windows-2025/)
+  assert.match(desktop.jobs.build["runs-on"], /windows-2025/)
+})
+
+// npm never removes a tarball from its cache by itself (https://docs.npmjs.com/cli/v11/commands/npm-cache). A job
+// that saves after a restore by prefix stores the previous entry plus the new tarballs under the new key, so the entry
+// grows with every lockfile change on main. actions/cache at 55cc8345863c7cc4c66a329aec7e433d2d1c52a9 (v6),
+// src/utils/actionUtils.ts getInputAsArray drops empty lines, so an empty restore-keys input restores the exact key or nothing.
+const RESTORE_OLDER_ENTRY = "${{ inputs.restore-older-entry == 'true' && format('npm-{0}-{1}-', runner.os, runner.arch) || '' }}"
+const NPM_SAVERS = {
+  "test.yml: build": ["github.event_name != 'pull_request'", "${{ github.event_name == 'pull_request' }}"],
+  "desktop-build.yml: build": ["runner.os == 'Windows' && github.ref == 'refs/heads/main'", "${{ !(runner.os == 'Windows' && github.ref == 'refs/heads/main') }}"],
+}
+
+test("each npm entry holds only the tarballs of its own lockfile, because a job that saves it restores no older entry", () => {
+  const { inputs, runs } = load(".github/actions/restore-npm-cache/action.yml")
+  assert.equal(inputs["restore-older-entry"].default, "true")
+  assert.equal(runs.steps.find((step) => step.id === "restore").with["restore-keys"], RESTORE_OLDER_ENTRY)
+
+  const saves = uses("actions/cache/save@").filter(({ step }) => step.with.key === "${{ steps.npm-cache.outputs.cache-primary-key }}")
+  assert.deepEqual(saves.map(({ file, job }) => `${file}: ${job}`).sort(), Object.keys(NPM_SAVERS).sort())
+  for (const { step, where, file, job } of saves) {
+    const [savesWhen, restoresOlderWhen] = NPM_SAVERS[`${file}: ${job}`]
+    assert.equal(step.if, `${savesWhen} && steps.npm-cache.outputs.cache-hit != 'true'`, where)
+    assert.match(savesWhen, MAIN_ONLY, where)
+    assert.equal(step.with.path, "${{ steps.npm-cache.outputs.path }}", where)
+    const steps = workflows.find((workflow) => workflow.file === file).jobs[job].steps
+    const restores = steps.filter(isNpmRestore)
+    assert.deepEqual(restores.map((candidate) => candidate.id), ["npm-cache"], where)
+    assert.equal(restores[0].with?.["restore-older-entry"], restoresOlderWhen, `${where}: the restore before a save must be exact`)
+    assert.ok(steps.indexOf(restores[0]) < steps.indexOf(step), where)
+  }
+  for (const { step, where, file, job } of everyStep.filter(({ step }) => step.uses === "./.github/actions/restore-npm-cache")) {
+    if (!(`${file}: ${job}` in NPM_SAVERS)) assert.equal(step.with?.["restore-older-entry"], undefined, `${where} never saves, so it keeps the prefix fallback`)
+  }
 })
 
 // Measured: macOS npm ci took 53 to 59 s with no entry and 48 to 88 s after a 5 to 14 s restore of
