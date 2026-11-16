@@ -84,7 +84,7 @@ export function WrappedPlayer({
   return (
     <GestureDetector gesture={swipeDown}>
       <View style={[styles.player, { backgroundColor: tokens.bg }]}><ShellContent style={{ flex: 1 }}>
-        <View testID="wrapped-header" style={[styles.headerRow, { paddingTop: Math.max(SPACING.s8, insets.top) }]}>
+        <View testID="wrapped-header" style={[styles.headerRow, { paddingTop: insets.top + SPACING.s8 }]}>
           <View style={styles.headerCopy}>
             <Text style={[styles.coverEyebrow, { color: tokens.fg3 }]}>{t(`wrapped.player.eyebrow.${period}`)}</Text>
             <Text style={[styles.headerWindow, { color: tokens.fg3 }]}>{windowLabel}</Text>

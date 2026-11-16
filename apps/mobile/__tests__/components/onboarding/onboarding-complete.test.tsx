@@ -1,9 +1,12 @@
 import React from 'react'
-import { Animated } from 'react-native'
+import { Animated, type StyleProp, type ViewStyle } from 'react-native'
 import { motionDurations, motionEasings } from '@orbit/shared/theme'
 import { beforeAll, describe, expect, it, vi } from 'vitest'
 import { i18n } from '@/lib/i18n'
 import { OnboardingComplete } from '@/components/onboarding/onboarding-complete'
+import { createTokensV2 } from '@/lib/theme'
+import { expectInsetHairlineRing } from '@/__tests__/support/inset-hairline-ring'
+import { measureProfileRow } from '@/__tests__/support/profile-row-geometry'
 
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 
@@ -164,6 +167,21 @@ describe('OnboardingComplete', () => {
     expect(hiddenEmoji).toHaveLength(1)
     expect(hiddenEmoji[0]!.findAll((node) => String(node.type) === 'Text' && node.props.children === 'Exercise')).toHaveLength(0)
     expect(tree.root.findAll((node) => String(node.type) === 'Text' && node.props.children === 'Exercise')).toHaveLength(1)
+  })
+
+  it('draws the created habit card hairline inside its edge, so the copy starts at the web inset', async () => {
+    let tree!: ReturnType<typeof TestRenderer.create>
+    await TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <OnboardingComplete createdHabit="Exercise" emoji="🏃" remindersOff={false} skipped={false} signedOut={false} dueToday general={false} onFinish={vi.fn()} />,
+      )
+    })
+    const card = tree.root.findAll((node) => String(node.type) === 'View' && node.props.testID === 'onboarding-created-habit')[0]!
+    expectInsetHairlineRing(card.props.style as StyleProp<ViewStyle>, createTokensV2('blue', 'light').hairlineGhost)
+    const measured = measureProfileRow((tree as unknown as { toJSON: () => Parameters<typeof measureProfileRow>[0] }).toJSON(), 412, 1)
+    const frame = measured.boxes.find((box) => box.testID === 'onboarding-created-habit')!
+    const title = measured.texts.find((text) => text.label === 'Exercise')!
+    expect(title.left, 'the title follows the 16 dp padding, the 44 dp emoji well and the 16 dp gap').toBe(frame.left + 16 + 44 + 16)
   })
 
   it('names the created habit without claiming a personalized theme', async () => {

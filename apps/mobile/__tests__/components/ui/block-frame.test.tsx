@@ -8,6 +8,9 @@ import { AccessibilityInfo, Pressable, StyleSheet, Text, type ViewStyle, type Te
 import { BlockFrame } from '@/components/ui/block-frame'
 import { PersonalTextDetails } from '@/components/ui/personal-text-details'
 import { Button } from '@/components/ui/pill-button'
+import { createTokensV2 } from '@/lib/theme'
+import { expectInsetHairlineRing } from '@/__tests__/support/inset-hairline-ring'
+import { applyBorderWidths } from '@/__tests__/support/yoga-borders'
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
@@ -81,7 +84,7 @@ function applyActionStyle(node: YogaNode, style: LayoutStyle) {
   node.setPadding(Yoga.EDGE_START, style.paddingStart as number | undefined)
   node.setMargin(Yoga.EDGE_ALL, style.margin as number | undefined)
   node.setMargin(Yoga.EDGE_VERTICAL, style.marginVertical as number | undefined)
-  node.setBorder(Yoga.EDGE_ALL, style.borderWidth)
+  applyBorderWidths(node, style)
   if (style.flexDirection === 'row') node.setFlexDirection(Yoga.FLEX_DIRECTION_ROW)
   if (style.flexWrap === 'wrap') node.setFlexWrap(Yoga.WRAP_WRAP)
   if (style.justifyContent === 'flex-end') node.setJustifyContent(Yoga.JUSTIFY_FLEX_END)
@@ -134,6 +137,9 @@ describe('BlockFrame on mobile', () => {
       const body = nodes.get('block-frame-body')!
       expect(absoluteTop(body) - absoluteTop(header) - header.getComputedHeight()).toBeCloseTo(12, 1)
       expect(root.getComputedPadding(Yoga.EDGE_LEFT)).toBe(16)
+      expect(absoluteLeft(header) - absoluteLeft(root), 'the header starts at the 16 dp inset of the web frame').toBe(16)
+      expect(absoluteTop(header) - absoluteTop(root)).toBe(16)
+      expectInsetHairlineRing(prop<ViewStyle>(tree.root.find(node => typeof node.type === 'string' && prop(node, 'testID') === 'block-frame-resting'), 'style'), createTokensV2('orange', 'dark').hairline)
       expect(nodes.get('block-frame-item-one-pending')!.getComputedPadding(Yoga.EDGE_LEFT)).toBe(12)
       const count = tree.root.find(node => node.type === 'Text' && prop(node, 'children') === 2)
       expect(StyleSheet.flatten(prop<TextStyle>(count, 'style')).fontFamily).toBe('Geist_400Regular')

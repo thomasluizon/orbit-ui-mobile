@@ -13,6 +13,7 @@ import { MarketingConsentSection } from '@/components/marketing-consent/marketin
 import { Switch } from '@/components/ui/switch'
 import { ListRow } from '@/components/ui/list-row'
 import { i18n } from '@/lib/i18n'
+import { applyBorderWidths } from '@/__tests__/support/yoga-borders'
 
 vi.unmock('react-i18next')
 const TestRenderer = require('react-test-renderer')
@@ -81,6 +82,7 @@ function applyStyle(node: YogaNode, style: ViewStyle) {
   if (style.alignItems === 'center') node.setAlignItems(Yoga.ALIGN_CENTER)
   if (typeof style.gap === 'number') node.setGap(Yoga.GUTTER_ALL, style.gap)
   if (typeof style.paddingHorizontal === 'number') node.setPadding(Yoga.EDGE_HORIZONTAL, style.paddingHorizontal)
+  applyBorderWidths(node, style)
   if (typeof style.paddingVertical === 'number') node.setPadding(Yoga.EDGE_VERTICAL, style.paddingVertical)
   if (typeof style.paddingEnd === 'number') node.setPadding(Yoga.EDGE_END, style.paddingEnd)
   if (typeof style.marginVertical === 'number') node.setMargin(Yoga.EDGE_VERTICAL, style.marginVertical)

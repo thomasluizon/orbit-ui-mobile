@@ -1,9 +1,10 @@
-import { RuleTester } from 'eslint'
+import { Linter, RuleTester } from 'eslint'
 import parser from '@typescript-eslint/parser'
 import { createRequire } from 'node:module'
-import { afterAll, describe, it } from 'vitest'
+import { afterAll, describe, expect, it } from 'vitest'
 
 const require = createRequire(import.meta.url)
+const compiler = require('typescript')
 RuleTester.describe = describe
 RuleTester.it = it
 RuleTester.afterAll = afterAll
@@ -80,6 +81,7 @@ const upstreamLinks = [
   '// WHY: https://example.com/doc\nconst limit = 1;\n',
 ].map(typescript)
 
+const javaScriptFiles = ['sample.js', 'sample.jsx', 'sample.mjs', 'sample.cjs']
 const typeAnnotations = [
   '/** @type {number} */\nlet count = 0;\n',
   '/** @typedef {{ limit: number }} Options */\n',
@@ -90,7 +92,67 @@ const typeAnnotations = [
   '/** @returns {number} */\nfunction count() {\n  return 1;\n}\n',
   'function load() {\n  /** @type {string[]} */\n  const names = [];\n  return names;\n}\n',
   'function load(value) {\n  return /** @type {string} */ (value);\n}\n',
-].flatMap((code) => ['sample.js', 'sample.jsx', 'sample.mjs', 'sample.cjs'].map((filename) => ({ code, filename })))
+  '/** @template T */\nclass Box {}\n',
+  '/** @import * as options from "./options" */\n',
+].flatMap((code) => javaScriptFiles.map((filename) => ({ code, filename })))
+
+const loadFunction = 'function load(name) {\n  return name;\n}\n'
+const jsdocTags = [
+  '@type {number}',
+  '@typedef {object} Options',
+  '@template {string} Key',
+  '@callback Loader',
+  '@property {number} limit',
+  '@prop {number} limit',
+  '@satisfies {Record<string, number>}',
+  '@enum {number}',
+  '@this {Window}',
+  '@arg {string} name',
+  '@argument {string} name',
+  '@return {number}',
+  '@yields {number}',
+  '@throws {TypeError}',
+  '@augments {Base}',
+  '@extends {Base}',
+  '@implements {Reader}',
+  '@param{string} name',
+  '@param name {string}',
+  '@param name The name.',
+  '@this string',
+  '@throws When the name is empty.',
+]
+const jsdocTagBlocks = [
+  ...jsdocTags.map((tag) => `/** ${tag} */\n${loadFunction}`),
+  `/**@type {number}*/\n${loadFunction}`,
+  `/** Loads it.\u200b@param {string} name */\n${loadFunction}`,
+  `/** Loads it.\u0085@param {string} name */\n${loadFunction}`,
+  `/**\u200b@param {string} name */\n${loadFunction}`,
+  `/**\n * Loads it.\n *\u0085@param {string} name\n */\n${loadFunction}`,
+  `/**\n\f*@param {string} name\n */\n${loadFunction}`,
+  `/**\n\v*@param {string} name\n */\n${loadFunction}`,
+  `/**\n * Loads it.\n *@param {string} name\n */\n${loadFunction}`,
+  `/** Loads it. @\\u0070aram {string} name */\n${loadFunction}`,
+  `/** Loads it. @\\u{70}aram {string} name */\n${loadFunction}`,
+  `/** @_x@param {string} name */\n${loadFunction}`,
+  `/** @$@param {string} name */\n${loadFunction}`,
+  `/** @@param {string} name */\n${loadFunction}`,
+  `/** @\u00e9@param {string} name */\n${loadFunction}`,
+  `/**\n * @@param {string} name\n */\n${loadFunction}`,
+  '/** @@type {string} */\nconst count = 1;\n',
+  `/**\n * @param\n * {string} name\n */\n${loadFunction}`,
+  `/**\n * @returns\n * {string}\n */\n${loadFunction}`,
+  "/** @enum string */\nconst Level = { Low: 'low' };\n",
+  "/**\n * @enum\n * {string}\n */\nconst Level = { Low: 'low' };\n",
+  '/** @extends Base<string> */\nclass Box extends Base {}\n',
+  '/** @implements Reader */\nclass Box {\n  read() {}\n}\n',
+  '/** @callback Noop */\nconst limit = 1;\n',
+  'class Box {\n  /** @readonly */\n  size = 0;\n}\n',
+  'class Box {\n  /** @private */\n  size = 0;\n}\n',
+  'function outer() {\n  /** @ a\n        *@param {string} name\n   */\n  function load(name) {\n    return name;\n  }\n  return load;\n}\n',
+  'class Box {\n  /** @ a\n        *@param {string} name\n   */\n  load(name) {\n    return name;\n  }\n}\n',
+  'function outer() {\n  /** @ a\n        *@type {string}\n   */\n  const count = 1;\n  return count;\n}\n',
+]
+const jsdocTagAnnotations = jsdocTagBlocks.flatMap((code) => javaScriptFiles.map((filename) => ({ code, filename })))
 
 const directives = [
   '/** @jsx h */\nconst limit = 1;\n',
@@ -328,6 +390,7 @@ tester.run('no-comments', require('../no-comments.cjs'), {
     ...exportedMembers,
     ...upstreamLinks,
     ...typeAnnotations,
+    ...jsdocTagAnnotations,
     ...directives,
     ...legalComments,
     ...jsxPragmas,
@@ -402,7 +465,54 @@ tester.run('no-comments', require('../no-comments.cjs'), {
     rejected(typescript('export const options = { /** Doc. */ };\n'), 'export const options = { };\n'),
     rejected(typescript('const limit = 1; /** Doc. */\n'), 'const limit = 1;\n'),
     rejected(typescript('/** @type {number} */\nlet count = 0;\n'), 'let count = 0;\n'),
-    rejected(module('/** @param name The name. */\nfunction load(name) {}\n'), 'function load(name) {}\n'),
+    rejected(typescript('/** @param name The name. */\nfunction load(name) {}\n'), 'function load(name) {}\n'),
+    ...javaScriptFiles.flatMap((filename) => [
+      rejected({ code: `/** Reads {@link load}. */\n${loadFunction}`, filename }, loadFunction),
+      rejected({ code: `/** Mails owner@example.org. */\n${loadFunction}`, filename }, loadFunction),
+      rejected({ code: `/** Costs 5 @ 2. */\n${loadFunction}`, filename }, loadFunction),
+      rejected({ code: `/** Sets name@param x. */\n${loadFunction}`, filename }, loadFunction),
+      rejected({ code: `/** @1@param {string} name */\n${loadFunction}`, filename }, loadFunction),
+      rejected({ code: `/** @*@param {string} name */\n${loadFunction}`, filename }, loadFunction),
+      rejected({ code: `/** Ends with @ */\n${loadFunction}`, filename }, loadFunction),
+      rejected(
+        { code: `const count = 1; /** @param {string} name */\n${loadFunction}`, filename },
+        `const count = 1;\n${loadFunction}`,
+      ),
+      rejected(
+        { code: `/** @typedef {string} Name */\n/** Loads it. */\n${loadFunction}`, filename },
+        `/** @typedef {string} Name */\n${loadFunction}`,
+      ),
+      rejected(
+        { code: `/* Note. */ /** @ a\n            *@param {string} name\n */\n${loadFunction}`, filename },
+        null,
+      ),
+      rejected(
+        {
+          code: 'function outer() {\n  /* \u00e9\ud83d\ude00 */ /** @ a\n               *@type {string}\n   */\n  const count = 1;\n  return count;\n}\n',
+          filename,
+        },
+        null,
+      ),
+      rejected(
+        { code: `/* Note. */ /** @see load\n            *@param {string} name\n */\n${loadFunction}`, filename },
+        null,
+      ),
+      rejected(
+        {
+          code: 'function outer() {\n  /* Note.\n   */ /** @ a\n          *@param {string} name\n   */\n  function load(name) {\n    return name;\n  }\n  return load;\n}\n',
+          filename,
+        },
+        null,
+      ),
+      rejected(
+        {
+          code: 'let first = 1, /* Note.\n */ /** @ a\n                *@type {string}\n */ second = 1;\nexport { first, second };\n',
+          filename,
+        },
+        null,
+      ),
+      rejected({ code: `/** @ a\n            *@param {string} name\n */\n${loadFunction}`, filename }, loadFunction),
+    ]),
     rejected(
       commonJs('/** Doc. */\nfunction load() {}\nmodule.exports = {};\n'),
       'function load() {}\nmodule.exports = {};\n',
@@ -422,4 +532,87 @@ tester.run('no-comments', require('../no-comments.cjs'), {
     rejected(typescript('/* Note. */\nexport const limit = 1;\n'), 'export const limit = 1;\n'),
     rejected(typescript('/*\n * Loads the menu.\n */\nfunction load() {}\n'), 'function load() {}\n'),
   ],
+})
+
+const blockFirstLines = ['@ a', '@', '@ {string}', '@1', 'Loads it.', '@param {string} name', '@@param', ' @ ']
+const blockPieces = [' ', '  ', '    ', '\t', '\n', '\n *', '\n * ', '*', '@', '@ ', 'a', '1', '{', 'param', '{string}', 'name', '.']
+const blockLaterTags = ['*@param {string} name', '*@type {string}', '* @returns {string}', '@param {string} name']
+const blockPlacements = [
+  { depth: 0, column: 0 },
+  { depth: 0, column: 3 },
+  { depth: 0, column: 8 },
+  { depth: 1, column: 2 },
+  { depth: 2, column: 4 },
+  { depth: 3, column: 13 },
+  { depth: 0, column: 2, member: true },
+  { depth: 1, column: 10, member: true },
+  { depth: 0, column: 0, prefix: (index) => `const count${index} = 1; ` },
+]
+
+function seededBlockBodies(count) {
+  let seed = 4242
+  const random = (limit) => (seed = (seed * 1103515245 + 12345) & 0x7fffffff) % limit
+  return Array.from({ length: count }, () => {
+    let body = `* ${blockFirstLines[random(blockFirstLines.length)]}`
+    for (let piece = random(4); piece > 0; piece--) body += blockPieces[random(blockPieces.length)]
+    if (random(4)) body += `\n${' '.repeat(random(15))}${blockLaterTags[random(blockLaterTags.length)]}`
+    return `${body}\n `
+  })
+}
+
+function placeBlocks(bodies, { depth, column, member = false, prefix = () => '' }) {
+  const lines = []
+  for (let level = 0; level < depth; level++) lines.push(`function outer${level}() {`)
+  if (member) lines.push('class Box {')
+  const indent = ' '.repeat(column)
+  const blockLines = new Map()
+  bodies.forEach((body, index) => {
+    blockLines.set(lines.length + 1, index)
+    lines.push(...`${indent}${prefix(index)}/*${body}*/`.split('\n'))
+    lines.push(`${indent}${member ? '' : 'function '}load${index}(name) {}`)
+  })
+  const closing = depth + (member ? 1 : 0)
+  return { code: `${[...lines, ...Array(closing).fill('}')].join('\n')}\n`, blockLines }
+}
+
+function declarationsReadingNamedTags(code) {
+  const sourceFile = compiler.createSourceFile('sample.js', code, compiler.ScriptTarget.Latest, true, compiler.ScriptKind.JS)
+  const reading = new Set()
+  const visit = (node) => {
+    const isLoad = compiler.isFunctionDeclaration(node) || compiler.isMethodDeclaration(node)
+    const name = isLoad ? node.name.text : ''
+    if (/^load\d+$/.test(name) && compiler.getJSDocTags(node).some((tag) => tag.tagName.text !== '')) {
+      reading.add(Number(name.slice(4)))
+    }
+    compiler.forEachChild(node, visit)
+  }
+  visit(sourceFile)
+  return reading
+}
+
+describe('a JSDoc block at its own column and nesting depth', () => {
+  const bodies = seededBlockBodies(400)
+  const linter = new Linter()
+  const config = [
+    {
+      files: ['**/*.js'],
+      languageOptions: { parser },
+      plugins: { local: { rules: { 'no-comments': require('../no-comments.cjs') } } },
+      rules: { 'local/no-comments': 'error' },
+    },
+  ]
+
+  for (const placement of blockPlacements) {
+    it(`keeps a block exactly when TypeScript reads a named tag on its declaration: ${JSON.stringify({ ...placement, prefix: Boolean(placement.prefix) })}`, () => {
+      const { code, blockLines } = placeBlocks(bodies, placement)
+      const messages = linter.verify(code, config, { filename: 'sample.js' })
+      expect(messages.filter((message) => message.ruleId !== 'local/no-comments')).toEqual([])
+      const deleted = new Set(messages.map((message) => blockLines.get(message.line)))
+      const reading = declarationsReadingNamedTags(code)
+      const disagreements = bodies.filter((_, index) => deleted.has(index) === reading.has(index))
+      expect(disagreements).toEqual([])
+      expect(deleted.size + reading.size).toBe(bodies.length)
+      if (!placement.prefix) expect(reading.size).toBeGreaterThan(0)
+    })
+  }
 })
