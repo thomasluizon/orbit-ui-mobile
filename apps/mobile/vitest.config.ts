@@ -4,7 +4,6 @@ import { transformWithOxc } from 'vite'
 import { draggableFlatListNativeAdapter } from './scripts/draggable-flatlist-resolver.js'
 
 const focusIndicatorTest = '__tests__/components/ui/selected-focus-indicator.test.tsx'
-/** Its setup starts eight JVMs at once, so it runs alone after the worker pool instead of beside it. */
 const signingCertificateTest = '__tests__/scripts/android-release-certificate.test.ts'
 
 export default defineConfig({
@@ -62,7 +61,6 @@ export default defineConfig({
         },
       },
     ],
-    /** CI runs workspace suites one at a time; local suites share the host. */
     maxWorkers: process.env.CI ? '100%' : '25%',
     testTimeout: 15000,
     hookTimeout: 15000,

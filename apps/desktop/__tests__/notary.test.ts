@@ -5,7 +5,6 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { afterEach, expect, it } from 'vitest'
-/** WHY: Apple's documented examples for Get Submission Status, Get Submission Log, the developer log and ErrorResponse. */
 import apple from '../__fixtures__/notary-api.json'
 import {
   macosTargets, notaryToken, readSubmissionId, submissionFile, submissionsEndpoint, waitForNotarization, type NotaryWait,

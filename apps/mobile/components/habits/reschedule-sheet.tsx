@@ -220,7 +220,6 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
   })
 }
 
-/** Orbit rests while the request waits offline, thinks while it runs, and stands still otherwise (DESIGN.md Orbit's states). */
 function rescheduleMascotState(hasProAccess: boolean, isPaused: boolean, isLoading: boolean): 'descansando' | 'pensando' | 'parado' {
   if (!hasProAccess) return 'parado'
   if (isPaused) return 'descansando'

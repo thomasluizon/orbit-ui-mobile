@@ -11,10 +11,6 @@ interface FakeWindowClient {
   postMessage: ReturnType<typeof vi.fn>
 }
 
-/**
- * A window whose app mounted the service worker bridge confirms a click on the reply port the worker
- * sends with it. A login page, or a page still loading, has no bridge and never confirms.
- */
 function createWindowClient({ confirmsClicks = true } = {}): FakeWindowClient {
   const client: FakeWindowClient = {
     focus: vi.fn(),
@@ -33,7 +29,6 @@ interface OpenWindows {
   uncontrolled?: FakeWindowClient[]
 }
 
-/** Evaluates the shipped `public/sw.js` against a fake worker global scope. */
 function loadServiceWorker(windows: FakeWindowClient[] | OpenWindows = []) {
   const { controlled, uncontrolled = [] } = Array.isArray(windows) ? { controlled: windows } : windows
   const source = readFileSync(resolve(__dirname, '../public/sw.js'), 'utf8')

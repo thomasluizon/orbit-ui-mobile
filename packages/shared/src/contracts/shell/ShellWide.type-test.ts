@@ -106,7 +106,6 @@ type FlowPlainVariant = Extract<ShellWideProps, { nav: false; conversation?: und
 type FlowConversationVariant = Extract<ShellWideProps, { nav: false; conversation: React.ReactNode }>
 
 type Destinations = ShellWideItem[]
-/** The smallest sidebar that is a state: destinations, a current one, and a landmark name. */
 type Sidebar = { items: Destinations; activeId: 'hoje'; navLabel: 'Navigation'; astraRow: { label: string; onOpen: () => void } }
 
 type WithCreate = Sidebar & { onCreate: () => void; createLabel: 'Novo habito' }

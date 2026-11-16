@@ -1,17 +1,7 @@
 const ACCOUNT_SIGNAL_CHANNEL = 'orbit-account-signal'
 
-/**
- * Tells the other tabs which account the shared auth cookie now holds, at the moment it
- * changes. The cookie belongs to every tab at once and a tab gets no event when another one
- * replaces it, so before this the only detection was the 60-second `checkSession` poll.
- */
 let accountChannel: BroadcastChannel | null = null
 
-/**
- * One channel for the life of the tab, opened on first use. Closing tears the port down
- * before the runtime has moved anything across it, so the post has to outlive the turn that
- * made it.
- */
 function openAccountChannel(): BroadcastChannel | null {
   if (accountChannel) return accountChannel
   if (typeof BroadcastChannel === 'undefined') return null
@@ -29,11 +19,6 @@ export interface AccountSignal {
   accountId: string | null
 }
 
-/**
- * Reads a signal out of an arbitrary message. Any other tab on this origin can post here, so an
- * unrecognised payload is dropped rather than read as a sign out, which would tear down a live
- * session on a stray message.
- */
 function readAccountSignal(payload: unknown): AccountSignal | null {
   if (typeof payload !== 'object' || payload === null) return null
   const { accountId } = payload as { accountId?: unknown }

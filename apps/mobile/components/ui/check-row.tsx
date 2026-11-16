@@ -111,7 +111,6 @@ const styles = StyleSheet.create({
   calendarDayCircle: { width: 24, height: 24, borderRadius: radius.full, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
 })
 
-/** A waiting row keeps keyboard focus: it stays natively enabled, is disabled and busy to assistive technology, and ignores a press until its request settles. */
 function waitingControlProps(disabled: boolean | undefined, loading: boolean | undefined, checked: boolean, activate: () => void) {
   return { disabled, onPress: loading ? undefined : activate, accessibilityState: { checked, disabled: Boolean(disabled || loading), busy: loading } }
 }

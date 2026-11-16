@@ -34,7 +34,6 @@ async function expectHeaderGap(grid: Locator) {
   expect(gap).toBeCloseTo(8, 1)
 }
 
-/** Reaches the day by a sequential keyboard step, so the browser marks it keyboard focused, and waits for that state. */
 async function keyboardFocusDay(page: Page, day: Locator) {
   await day.focus()
   await page.keyboard.press('Shift+Tab')
@@ -43,7 +42,6 @@ async function keyboardFocusDay(page: Page, day: Locator) {
   await expect.poll(() => day.evaluate((element) => element.matches(':focus-visible'))).toBe(true)
 }
 
-/** `DESIGN.md` DayCell: keyboard focus replaces the primary position treatment with one inset 2px `--fg-1` ring and a `--bg` band. */
 async function expectKeyboardDayRing(page: Page, day: Locator) {
   const [foreground, background] = [await readThemeColor(page, '--fg-1'), await readThemeColor(page, '--bg')]
   await expect.poll(() => day.locator('[data-day-position-ring]').evaluate((element) => {

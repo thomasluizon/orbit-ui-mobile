@@ -8,7 +8,7 @@ import { channelAdvance, channelVersion, desktopLockClosure, planShellRelease, s
 import compatibility from '../../web/web-compatibility.json'
 import channel from '../__fixtures__/channel-staging.json'
 
-/** WHY: Git-driven cases can exceed five seconds on Windows runners; allow headroom for process startup (#1818). */
+// WHY: Git-driven cases can exceed five seconds on Windows runners, so each case gets headroom for process startup: https://github.com/thomasluizon/orbit-tickets/issues/1818
 const gitTestTimeout = 30_000
 const directories: string[] = []
 const originalDirectory = process.cwd()
@@ -154,7 +154,6 @@ it('publishes changed shell sources and skips reserved versions after a failed p
   expect(planShellRelease('staging', source, '0.1.1', [], '1.0.0')).toBe('1.0.0')
 }, gitTestTimeout)
 
-/** A lockfile in npm's v3 shape: the desktop workspace installs the Tauri CLI, and the web installs node-forge. */
 const lockfile = (cli: string, platformCli: string, forge: string) => JSON.stringify({
   lockfileVersion: 3,
   packages: {

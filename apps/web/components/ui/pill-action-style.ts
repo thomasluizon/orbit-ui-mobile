@@ -27,7 +27,6 @@ const linkInteractionClasses: Record<ButtonVariant, string> = {
 
 const baseClasses = 'focus-visible:-outline-offset-2 orbit-pill-action press-hit-layer inline-flex cursor-pointer items-center justify-center whitespace-nowrap rounded-full border-0 font-medium disabled:cursor-not-allowed'
 
-/** A waiting action's face is the skeleton (`SkeletonFace`), so its label reads `--fg-1` on the skeleton tone in every variant. */
 const waitingFaceClasses = 'relative isolate bg-transparent text-[var(--fg-1)]'
 
 function faceClasses(variant: ButtonVariant, loading: boolean, elevated: boolean, borderless: boolean): string[] {

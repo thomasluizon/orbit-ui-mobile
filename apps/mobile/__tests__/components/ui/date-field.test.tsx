@@ -8,7 +8,6 @@ import { Calendar } from '@/components/ui/icons'
 import { createTokensV2, radius } from '@/lib/theme'
 import { controlStyle, expectPressPaint, pressFace } from '@/__tests__/support/press-feedback'
 
-/** The global setup stubs DateField away; this suite tests the real one. */
 vi.unmock('@/components/ui/date-field')
 
 vi.mock('@/hooks/use-profile', () => ({

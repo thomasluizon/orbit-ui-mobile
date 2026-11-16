@@ -43,11 +43,6 @@ function resourceStrings(relativePath: string) {
   return strings
 }
 
-/**
- * RemoteViews.findBestFitLayout keeps every key that fits and then takes the SMALLEST squared
- * distance, so a key on the breakpoint beats the key just above it. Transcribed from
- * android/widget/RemoteViews.java: fitsIn is `ceil(host) + 1 > key` and the comparison is strict.
- */
 type SizeDp = Readonly<{
   width: number
   height: number
@@ -81,7 +76,6 @@ function selectedSizeKey(keysDp: readonly NamedSizeDp[], hostDp: SizeDp) {
   ))
 }
 
-/** Scopes source assertions to one Kotlin block so another call site cannot satisfy them. */
 function kotlinBlockBody(source: string, start: number) {
   if (start < 0) throw new Error('Missing Kotlin block')
   const open = source.indexOf('{', start)
@@ -159,7 +153,6 @@ function widgetKotlinSources() {
     .map(name => ({ name, source: readFileSync(resolve(widgetSourceRoot, name), 'utf8') }))
 }
 
-/** Every `SharedPreferences.edit() ... apply()` chain in one Kotlin source, as raw text. */
 function preferenceWriteChains(source: string) {
   return [...source.matchAll(/\.edit\(\)[\s\S]*?\.(?:apply|commit)\(\)/g)].map(
     match => match[0],
@@ -407,12 +400,6 @@ describe('Android widget header', () => {
     )
   })
 
-  /**
-   * The drawing renders the day label in fg-3 and the subtitle in fg-4. fg-4 measures 2.83 dark
-   * and 3.48 light as 11sp text, both under the 4.5 floor, so the subtitle holds fg-3 and the
-   * drawn step survives as size and weight. Asserting BOTH halves keeps a later sweep from
-   * "restoring" the drawing into a contrast failure.
-   */
   it('steps the day label down to fg-3 and keeps the subtitle off the unreadable fg-4', () => {
     const views = layoutViews()
     const provider = readFileSync(resolve(widgetSourceRoot, 'OrbitWidgetProvider.kt'), 'utf8')
@@ -783,16 +770,6 @@ describe('Android widget header', () => {
     expect(worker).toContain('OrbitWidgetProvider.updateWidgetLayout(context, appWidgetManager, id)')
   })
 
-  /**
-   * The drawn signed-out card is one tap target with no control on it, because the widget cannot
-   * sign anyone in. Three paths could put the refresh back: the full render, the placeholder the
-   * token-null branch draws, and the refresh timeout worker.
-   */
-  /**
-   * updateAppWidget submits a complete representation and the host may inflate it rather than
-   * reapply it, so a fallback that only sets text would render a card with no empty view and no
-   * open-app action. Both full submissions install them from the same helper.
-   */
   it('gives every full render the empty view and the open-app targets', () => {
     const provider = readFileSync(resolve(widgetSourceRoot, 'OrbitWidgetProvider.kt'), 'utf8')
 
@@ -964,11 +941,6 @@ describe('Android widget header', () => {
     expectDeferredWidgetRender(service)
   })
 
-  /**
-   * The drawing's touch note: "Android's minimum is 48dp, not 44, so every tappable region here is
-   * 48 tall." The header around the refresh opens Orbit, so a short refresh does not merely miss the
-   * floor, it hands near-edge taps to a different action.
-   */
 
   it('scopes the payload cache to the session that produced it', () => {
     const service = readFileSync(resolve(widgetSourceRoot, 'OrbitWidgetService.kt'), 'utf8')
@@ -1032,12 +1004,6 @@ describe('Android widget header', () => {
     expect(service).toContain('if (mode == "dark") WidgetColorFallbacks.dark else WidgetColorFallbacks.light')
   })
 
-  /**
-   * The widget derives the account from the same JWT the app does, so the two must read the same
-   * claims in the same order. Let them drift and the widget names a different account than the app
-   * signed in, which either strands a valid cache or, in the other direction, reads one the account
-   * does not own. `auth-store.ts` is the producer here: it is what actually authenticates.
-   */
   it('reads the account claims the app reads, in the same order', () => {
     const jwtSession = readFileSync(resolve(process.cwd(), 'lib/jwt-session.ts'), 'utf8')
     const userIdBlock = jwtSession.slice(

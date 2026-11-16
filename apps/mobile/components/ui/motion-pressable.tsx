@@ -8,10 +8,8 @@ import { SelectionRing, focusRingInnerEdge } from './inset-focus-pressable'
 
 type MotionPressState = Readonly<{ pressed: boolean; focused: boolean }>
 
-/** The default focus ring: a 2px outline from 2 to 4 inside the target's edge. */
 const FOCUS_OFFSET = -4
 
-/** Style keys that place and size the press target. The target never scales, so its hit area and its focus ring stay whole. */
 const TARGET_KEYS: ReadonlySet<string> = new Set([
   'position', 'top', 'right', 'bottom', 'left', 'start', 'end', 'inset', 'insetBlock', 'insetBlockStart', 'insetBlockEnd', 'insetInline', 'insetInlineStart', 'insetInlineEnd', 'zIndex',
   'margin', 'marginTop', 'marginRight', 'marginBottom', 'marginLeft', 'marginStart', 'marginEnd', 'marginHorizontal', 'marginVertical',
@@ -22,7 +20,6 @@ const TARGET_KEYS: ReadonlySet<string> = new Set([
 
 const CORNER_KEY = /^border.*(?:Radius|Curve)$/
 
-/** Splits a control's style: the target keeps its box, its corners and its focus outline; the face takes the paint and lays out the content. */
 function splitPressStyle(style: StyleProp<ViewStyle>): Readonly<{ target: ViewStyle; face: ViewStyle }> {
   const target: Record<string, unknown> = {}
   const face: Record<string, unknown> = {}
@@ -39,23 +36,15 @@ function splitPressStyle(style: StyleProp<ViewStyle>): Readonly<{ target: ViewSt
 interface MotionPressableProps extends Omit<PressableProps, 'children' | 'style'> {
   children?: ReactNode | ((state: MotionPressState) => ReactNode)
   style?: StyleProp<ViewStyle> | ((state: MotionPressState) => StyleProp<ViewStyle>)
-  /** Keeps the press scale at rest, as for a busy pill (the `static` prop of `DESIGN.md` Press feedback). */
   static?: boolean
-  /** Draws the inset focus ring; a control that paints its own focus indicator leaves it off. */
   focusInset?: boolean
   focusOffset?: number
   focusColor?: ColorValue
-  /** Draws the selection ring of a selected or checked control at this width. */
   selectionRingWidth?: number
   selectionRingColor?: ColorValue
-  /** The ring colour at rest, such as a chip's hairline; transparent by default. */
   selectionRingRestColor?: ColorValue
 }
 
-/**
- * The one press rule of `DESIGN.md` Press feedback: the face (the paint and the content) scales to 0.96 on press, and the
- * target keeps its laid-out box, so the hit area, the focus ring and the hit slop stay whole. Reduced motion keeps the face at rest.
- */
 function useMotionPressableElement(
   { static: isStatic = false, focusInset = false, focusOffset = FOCUS_OFFSET, focusColor, selectionRingWidth, selectionRingColor, selectionRingRestColor,
     style, children, onPressIn, onPressOut, onFocus, onBlur, ...props }: Readonly<MotionPressableProps>,
@@ -100,6 +89,5 @@ export const ThemedMotionPressable = forwardRef<View, Readonly<MotionPressablePr
 })
 
 const styles = StyleSheet.create({
-  /** The face fills the target, so its paint covers the target's box at rest. */
   face: { flexGrow: 1, flexShrink: 1, alignSelf: 'stretch' },
 })

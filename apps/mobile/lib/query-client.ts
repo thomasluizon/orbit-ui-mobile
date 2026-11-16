@@ -6,10 +6,6 @@ import AsyncStorage from '@react-native-async-storage/async-storage'
 import { AppState, type AppStateStatus } from 'react-native'
 import NetInfo from '@react-native-community/netinfo'
 
-/**
- * Bridges AppState to TanStack Query focus so foreground refetching and
- * background interval pausing follow the native application lifecycle.
- */
 focusManager.setEventListener((handleFocus) => {
   const subscription = AppState.addEventListener('change', (status: AppStateStatus) => {
     handleFocus(status === 'active')
@@ -17,7 +13,6 @@ focusManager.setEventListener((handleFocus) => {
   return () => subscription.remove()
 })
 
-/** Bridges NetInfo to TanStack Query so reconnect behavior follows native connectivity. */
 onlineManager.setEventListener((setOnline) => {
   return NetInfo.addEventListener((state) => {
     setOnline(!!state.isConnected)

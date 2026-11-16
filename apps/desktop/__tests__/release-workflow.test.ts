@@ -9,7 +9,7 @@ import vector from '../__fixtures__/signer-vector.json'
 import published from '../__fixtures__/channel-staging.json'
 import { artifactName, targets } from '../scripts/release.ts'
 
-/** WHY: Publication runs several real Git and Node processes; allow startup headroom on shared hosts (#1964). */
+// WHY: publication runs several real Git and Node processes, so each case gets startup headroom on shared hosts: https://github.com/thomasluizon/orbit-tickets/issues/1964
 vi.setConfig({ testTimeout: 30_000 })
 
 const require = createRequire(import.meta.url)
@@ -23,7 +23,6 @@ interface Workflow {
 const workflow = load(readFileSync(new URL('../../../.github/workflows/desktop-release.yml', import.meta.url), 'utf8'))
 const publish = workflow.jobs.publish!.steps.find((step) => step.name === 'Publish versioned artifacts before advancing the channel')!.run!
 const directories: string[] = []
-/** WHY: The publisher runs on Ubuntu; these cases execute that workflow's Bash script. */
 const publicationTest = it.skipIf(process.platform === 'win32')
 afterEach(() => directories.splice(0).forEach((directory) => rmSync(directory, { recursive: true, force: true })))
 

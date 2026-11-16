@@ -15,9 +15,7 @@ import type { ProfileNavIconKey } from '@orbit/shared/utils/profile-navigation'
 
 interface ProfileNavIconProps {
   iconKey: ProfileNavIconKey
-  /** CSS color value used for stroke. Inherits from the parent when omitted. */
   color?: string
-  /** Pixel size. Defaults to the kit ListRow icon size, 24. */
   size?: number
 }
 

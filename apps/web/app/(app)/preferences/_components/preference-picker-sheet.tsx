@@ -17,7 +17,6 @@ export type { PreferencePicker }
 const TIME_ZONE_OPTIONS = getTimezoneList()
 const TIME_ZONE_PAGE_SIZE = 20
 
-/** Arrow keys move the draft and only an activation commits it, so navigating never writes a preference per keypress. */
 function PickerOptions<Value extends string | number>({
   label,
   options,
@@ -31,7 +30,6 @@ function PickerOptions<Value extends string | number>({
 }>) {
   const [draft, setDraft] = useState<Value | null>(null)
   const draftRef = useRef<Value | null>(null)
-  /** Null until focus moves, so a profile that resolves after the first render still checks its row. */
   const checked = draft ?? selected
   const selectDraft = (next: Value) => {
     draftRef.current = next

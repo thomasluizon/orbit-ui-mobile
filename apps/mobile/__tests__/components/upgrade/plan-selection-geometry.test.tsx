@@ -73,7 +73,6 @@ function build(element: HostJson, boxes: Map<HostJson, Node>): Node {
   applyStyle(node, style)
   if (element.type === 'Svg') { node.setWidth(element.props.width); node.setHeight(element.props.height) }
   if (element.type === 'Text') {
-    /** Native font shaping is approximated; Yoga still consumes the rendered layout styles. */
     const fontSize = style.fontSize ?? 14
     const lineHeight = style.lineHeight ?? fontSize * 1.4
     node.setMeasureFunc((width) => {

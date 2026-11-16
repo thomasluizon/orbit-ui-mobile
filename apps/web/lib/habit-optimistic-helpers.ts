@@ -1,10 +1,3 @@
-/**
- * Optimistic update helpers for habit list cache mutations.
- *
- * Extracted from use-habits.ts to reduce nesting depth and cognitive
- * complexity.
- */
-
 import type {
   HabitScheduleItem,
   ChecklistItem,
@@ -12,7 +5,6 @@ import type {
 
 export { optimisticPatchHabit } from '@orbit/shared/utils'
 
-/** Toggle isCompleted on a single habit item, resetting checklist if needed */
 function toggleHabitCompletion(item: HabitScheduleItem): HabitScheduleItem {
   const wasCompleted = item.isCompleted
   const updated = { ...item, isCompleted: !item.isCompleted }
@@ -22,7 +14,6 @@ function toggleHabitCompletion(item: HabitScheduleItem): HabitScheduleItem {
   return updated
 }
 
-/** Toggle isCompleted on a child within an item's children array */
 function toggleChildCompletion(
   item: HabitScheduleItem,
   habitId: string,

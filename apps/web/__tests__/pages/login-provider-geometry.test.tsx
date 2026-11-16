@@ -31,14 +31,12 @@ vi.mock('motion/react', async () => {
 
 // WHY: Cloudflare sizes the flexible widget at 65px height https://developers.cloudflare.com/turnstile/get-started/client-side-rendering/widget-configurations/
 const FLEXIBLE_CHALLENGE_HEIGHT = 65
-/** The drawn space above the Orbit mark and below the last line of the compact panel (`Orbit Entrar.dc.html`, compact `padding:16px`). */
 const DRAWN_SPACE = 16
 type CheckState = 'none' | 'loading' | 'challenge'
 interface TurnstileOptions { callback: (token: string) => void; 'before-interactive-callback': () => void }
 const smallScreens = [{ width: 320, height: 640 }, { width: 375, height: 667 }].flatMap(screen =>
   (['email', 'code'] as const).flatMap(step => (['none', 'loading', 'challenge'] as const).map(check => ({ ...screen, step, check }))))
 
-/** jsdom has no layout, so the stub draws the challenge that Cloudflare puts in the container and reports its size. */
 async function renderSignIn(step: 'email' | 'code', check: CheckState) {
   const observers = new Set<() => void>()
   vi.stubGlobal('ResizeObserver', class {
@@ -64,7 +62,6 @@ async function renderSignIn(step: 'email' | 'code', check: CheckState) {
   return view.container.innerHTML
 }
 
-/** Lays out the sign-in markup in Chromium: the content box of the panel, the page height and the provider heights. */
 async function readSignIn(chrome: { browser: Browser; stylesheet: string }, markup: string, viewport: { width: number; height: number }) {
   const page = await chrome.browser.newPage({ viewport })
   try {
@@ -79,7 +76,6 @@ async function readSignIn(chrome: { browser: Browser; stylesheet: string }, mark
         pageHeight: document.documentElement.scrollHeight, check: document.querySelector('[role="status"]:not(.sr-only)')?.textContent ?? '',
         providerHeights: providers.map(button => button.getBoundingClientRect().height) }
     })
-    /** The space above the Orbit mark with the scroll at the top, and below the last line with the scroll at the end. */
     return { ...geometry, overflow: geometry.pageHeight - viewport.height, topGap: geometry.contentTop, bottomGap: geometry.pageHeight - geometry.contentBottom }
   } finally { await page.close() }
 }

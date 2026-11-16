@@ -18,7 +18,6 @@ interface TagSuggestionsProps {
   disabled: boolean
 }
 
-/** An accepted suggestion waits on its request with a skeleton line in the status slot, named for a screen reader. */
 function TagStatus({ accepting, label }: Readonly<{ accepting: boolean; label: string }>) {
   return accepting ? <span data-tag-status-skeleton="" className="block h-5 w-1/3"><Skeleton variant="fill" label={label} /></span> : label
 }

@@ -24,7 +24,6 @@ interface HabitRowContentProps {
   expanded?: boolean
   largeText?: boolean
   metaColor: string
-  /** The tokens the inline strip draws, from `visibleHabitRowMetaTokens`. */
   visibleMetaParts: HabitRowMetaPart[]
   tokens: ReturnType<typeof createTokensV2>
   metaOnSupportingLine?: boolean

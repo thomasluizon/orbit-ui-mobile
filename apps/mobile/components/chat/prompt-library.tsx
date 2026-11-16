@@ -32,7 +32,6 @@ type PromptLibraryProps = {
   hasProAccess: boolean
   hasGoogleConnection: boolean
   disabledReason?: string
-  /** Descansando while the AI is the missing part (offline or at a limit): Orbit rests beside the reason. */
   mascotState?: 'parado' | 'descansando'
 }
 

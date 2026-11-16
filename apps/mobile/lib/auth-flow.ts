@@ -9,12 +9,6 @@ import { isSafeAuthReturnUrl } from '@orbit/shared/utils/login-attempt'
 const REFERRAL_CODE_KEY = 'referral_code'
 const AUTH_RETURN_URL_KEY = 'auth_return_url'
 let returnUrlMutationTail: Promise<void> = Promise.resolve()
-/**
- * One identifier owns a login attempt end to end: the return URL it stored, the pending Google
- * session it opened, and the state-bound OAuth callback it accepts. It is a UUID and not a
- * counter because the Google half of it outlives the process, and a counter restarts at the same
- * value the next process hands out.
- */
 let returnUrlAttempt = uuid.v4()
 
 function queueReturnUrlMutation<T>(mutation: () => Promise<T>): Promise<T> {

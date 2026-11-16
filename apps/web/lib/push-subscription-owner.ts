@@ -2,12 +2,6 @@ import * as Sentry from '@sentry/nextjs'
 import { unsubscribePushForCleanup } from '@/lib/actions/notifications'
 import { reportsAccountChanged } from '@/app/actions/action-result'
 
-/**
- * A browser holds one push subscription for the whole origin, whichever account turned it on, and the
- * API sends to it until that account unsubscribes it. This key names that account, so a later account on
- * the same browser neither reads the subscription as its own nor keeps receiving its pushes. The value is
- * read only alongside a live subscription, so one left after an unsubscribe changes nothing.
- */
 const PUSH_SUBSCRIPTION_OWNER_KEY = 'orbit_push_subscription_owner'
 
 /** Keeps ownership, API persistence and browser mutations together across tabs. */
