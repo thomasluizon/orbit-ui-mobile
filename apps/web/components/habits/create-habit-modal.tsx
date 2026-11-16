@@ -30,6 +30,7 @@ import { useCreateHabit } from '@/hooks/use-create-habit'
 import { useCreateSubHabit } from '@/hooks/use-create-sub-habit'
 import { useHabitSuggestion } from '@/hooks/use-habit-suggestion'
 import { useOffline } from '@/hooks/use-offline'
+import { useSubmitHold } from '@/hooks/use-submit-hold'
 import { useAccountGeneration, useResetOnAccountChange } from '@/hooks/use-session-reset'
 import { getAccountGeneration } from '@/lib/session-epoch'
 import {
@@ -61,7 +62,7 @@ import {
   MAX_GOALS_PER_HABIT,
   habitFormSchema,
 } from '@orbit/shared/validation'
-import { createSuggestionRequestCoordinator } from '@orbit/shared/hooks'
+import { createSuggestionRequestCoordinator, type SubmitOutcome } from '@orbit/shared/hooks'
 
 function CreateBoundaryNotice({ boundary, onUpgrade }: Readonly<{ boundary: 'habit' | 'pro' | null; onUpgrade: () => void }>) {
   const t = useTranslations()
@@ -205,10 +206,11 @@ export function CreateHabitModal({
   const router = useRouter()
   const pendingNavigation = useRef<(() => void) | null>(null)
   useEffect(() => { if (leaveAction) completeHabitCreateNavigation(leaveAction) }, [leaveAction])
+  const { waiting: submissionWaiting, run: runSubmission, release: releaseSubmission } = useSubmitHold()
   const finishClose = useCallback((action: () => void) => {
     if (presentation === 'screen') setLeaveAction(() => action)
-    else closeSheet(action)
-  }, [closeSheet, presentation])
+    else closeSheet(() => { releaseSubmission(); action() })
+  }, [closeSheet, presentation, releaseSubmission])
   const dismissGuard = useDismissGuard({
     isDirty,
     onDismiss: () => finishClose(pendingNavigation.current ?? (() => onOpenChange(false))),
@@ -341,14 +343,12 @@ export function CreateHabitModal({
     showError(getFriendlyErrorMessage(error, translate, createErrorKey, createErrorEntity))
   }, [formHelpers, showError, translate, createErrorKey, createErrorEntity])
 
-  const handleSubmit = useCallback(
-    async (e: React.SubmitEvent<HTMLFormElement>) => {
-      e.preventDefault()
-      e.stopPropagation()
+  const submitCreate = useCallback(
+    async (startRequest: () => void): Promise<SubmitOutcome> => {
       const submittingAccount = getAccountGeneration()
 
       const subHabitValues = subHabits.map((entry) => entry.value)
-      if (!await formHelpers.form.trigger(undefined, { shouldFocus: true })) return
+      if (!await formHelpers.form.trigger(undefined, { shouldFocus: true })) return 'stay'
       const error = formHelpers.validateAll({
         reminderTimes,
         selectedGoalIds,
@@ -358,12 +358,13 @@ export function CreateHabitModal({
 
       if (error) {
         reportHabitFormValidationError(error, formHelpers.form.getFieldState, showError)
-        return
+        return 'stay'
       }
-      if (!isOnline) return
+      if (!isOnline) return 'stay'
       const data = habitFormSchema.parse(formHelpers.form.getValues())
       if (data.reminderEnabled) requestReminderPermission()
 
+      startRequest()
       try {
         if (isSubHabitMode) {
           const subRequest = buildSubHabitRequest(data, reminderTimes, tags.selectedTagIds)
@@ -373,17 +374,24 @@ export function CreateHabitModal({
           const request = buildCreateHabitRequest({ ...data, title }, reminderTimes, tags.selectedTagIds, selectedGoalIds, subHabitValues)
           await createHabit.mutateAsync(request)
         }
-        if (getAccountGeneration() !== submittingAccount) return
+        if (getAccountGeneration() !== submittingAccount) return 'stay'
         finishClose(() => {
           if (getAccountGeneration() === submittingAccount) { onOpenChange(false); onCreated?.() }
         })
+        return 'leave'
       } catch (error: unknown) {
-        if (getAccountGeneration() !== submittingAccount) return
-        reportCreateFailure(error)
+        if (getAccountGeneration() === submittingAccount) reportCreateFailure(error)
+        return 'stay'
       }
     },
     [reportCreateFailure, requestReminderPermission, finishClose, createHabit, createSubHabit, formHelpers, isOnline, isSubHabitMode, locale, onCreated, onOpenChange, parentHabit, reminderTimes, selectedGoalIds, showError, subHabits, tags],
   )
+
+  const handleSubmit = (event: React.SubmitEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    event.stopPropagation()
+    void runSubmission(submitCreate)
+  }
 
   const handleSuggestEmoji = useCallback(async () => {
     const currentTitle = coalesceFormText(formHelpers.form.getValues('title'))
@@ -495,7 +503,7 @@ export function CreateHabitModal({
   )
 
 
-  const isPending = createHabit.isPending || createSubHabit.isPending
+  const isPending = submissionWaiting
 
   const updateSubHabitValue = useCallback((id: string, value: string) => {
     resolveSubHabitProposalRef.current()
@@ -543,7 +551,7 @@ export function CreateHabitModal({
         </>}
 
       >
-        <form id={formId} onSubmit={(event) => void handleSubmit(event)}>
+        <form id={formId} onSubmit={handleSubmit}>
           <HabitFormFields
               pendingChecklistItem={pendingChecklistItem}
               onPendingChecklistItemChange={setPendingChecklistItem}

@@ -171,7 +171,7 @@ describe('habit form identifiers across retained real owners', () => {
   it('disables the open timing sheet throughout an edit request', async () => {
     let finish!: () => void
     mocks.updateHabit.mockImplementationOnce(() => new Promise<void>((resolve) => { finish = resolve }))
-    const { parent, user, words } = await renderParent('edit')
+    const { parent, user, words, onOpenChange } = await renderParent('edit')
     const title = phrase(parent).title
     await user.click(within(parent).getByText(words.habits.form.timingAndReminder, { exact: true }))
     const timing = await screen.findByRole('dialog', { name: words.habits.form.timingAndReminder })
@@ -189,8 +189,9 @@ describe('habit form identifiers across retained real owners', () => {
     expect(allDay).toBeDisabled()
     expect(within(timing).getByRole('button', { name: words.common.done })).toBeEnabled()
     await act(async () => finish())
-    await waitFor(() => expect(reminder).toBeEnabled())
-    expect(allDay).toBeEnabled()
+    expect(reminder).toBeDisabled()
+    expect(allDay).toBeDisabled()
+    await waitFor(() => expect(onOpenChange).toHaveBeenCalledWith(false))
   })
 
   it.each([

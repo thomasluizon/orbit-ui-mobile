@@ -19,6 +19,9 @@ import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { useDismissGuard } from '@/hooks/use-dismiss-guard'
 import { DiscardChangesSheet } from '@/components/ui/discard-changes-sheet'
 import { useAccountScopedState } from '@/hooks/use-session-reset'
+import { useSubmitHold } from '@/hooks/use-submit-hold'
+import { SkeletonFace } from '@/components/ui/skeleton'
+import { waitingFaceClasses } from '@/components/ui/pill-action-style'
 
 interface ChecklistTemplatesProps {
   items: ChecklistItem[]
@@ -31,6 +34,7 @@ export function ChecklistTemplates({ items, onLoad }: Readonly<ChecklistTemplate
   const { data: templates = [] } = useChecklistTemplates()
   const createTemplate = useCreateChecklistTemplate()
   const deleteTemplate = useDeleteChecklistTemplate()
+  const saving = useSubmitHold()
   const [open, setOpen] = useAccountScopedState(false)
   const { sheetRef, closeSheet } = useSheetHost()
   const [clampedTemplates, setClampedTemplates] = useState<Record<string, boolean>>({})
@@ -40,29 +44,27 @@ export function ChecklistTemplates({ items, onLoad }: Readonly<ChecklistTemplate
   const finishClose = () => { setOpen(false); setShowSave(false); setTemplateName('') }
   const dismiss = useDismissGuard({ isDirty: showSave && templateName.length > 0, onDismiss: () => dismissActionRef.current() })
   const requestDismiss = (action = () => closeSheet(finishClose)) => {
-    if (createTemplate.isPending) return
+    if (saving.isRunning()) return
     dismissActionRef.current = action
     dismiss.requestDismiss()
   }
   const cancelEditor = () => requestDismiss(() => { setTemplateName(''); setShowSave(false) })
 
-  const handleSave = useCallback(() => {
+  const handleSave = () => {
     const name = templateName.trim()
-    if (!name || items.length === 0 || createTemplate.isPending) return
-
-    createTemplate.mutate(
-      { name, items: items.map((item) => item.text) },
-      {
-        onSuccess: () => {
-          setTemplateName('')
-          setShowSave(false)
-        },
-        onError: () => {
-          showError(t('habits.form.saveTemplateError'))
-        },
-      },
-    )
-  }, [createTemplate, items, setShowSave, setTemplateName, showError, t, templateName])
+    if (!name || items.length === 0) return
+    void saving.run(async (startRequest) => {
+      startRequest()
+      try {
+        await createTemplate.mutateAsync({ name, items: items.map((item) => item.text) })
+        setTemplateName('')
+        setShowSave(false)
+      } catch {
+        showError(t('habits.form.saveTemplateError'))
+      }
+      return 'stay'
+    })
+  }
 
   function handleLoad(id: string) {
     const template = templates.find((entry) => entry.id === id)
@@ -96,7 +98,7 @@ export function ChecklistTemplates({ items, onLoad }: Readonly<ChecklistTemplate
         />
       </div>
       {open ? (
-        <Sheet ref={sheetRef} open title={t('habits.form.templates')} onClose={!createTemplate.isPending && dismiss.canDismiss ? finishClose : undefined} onAttemptDismiss={() => requestDismiss()}>
+        <Sheet ref={sheetRef} open title={t('habits.form.templates')} onClose={!saving.waiting && dismiss.canDismiss ? finishClose : undefined} onAttemptDismiss={() => requestDismiss()}>
           <div className="flex flex-col" style={{ gap: 8 }}>
             {templates.length > 0 && items.length > 0 && !showSave ? (
               <ListRow
@@ -107,44 +109,7 @@ export function ChecklistTemplates({ items, onLoad }: Readonly<ChecklistTemplate
               />
             ) : null}
             {showSave ? (
-              <div className="flex items-center px-4 py-2" style={{ gap: 8 }}>
-          <input
-            value={templateName}
-            type="text"
-            placeholder={t('habits.form.templateNamePlaceholder')}
-            className="orbit-field-hover flex-1 min-w-0 bg-[var(--bg-field)] text-[var(--fg-1)] placeholder:text-[var(--fg-3)] rounded-[12px] py-2 px-3 text-[14px] border-0 shadow-[inset_0_0_0_1px_var(--border-control)] focus-visible:outline-none focus-visible:shadow-[inset_0_0_0_2px_var(--primary)]"
-            onChange={(e) => setTemplateName(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                e.preventDefault()
-                handleSave()
-              }
-            }}
-          />
-          <button
-            type="button"
-            className="habit-control-motion press-hit-layer shrink-0 rounded-full bg-[var(--primary)] text-[var(--fg-on-primary)] disabled:opacity-40 enabled:hover:bg-[var(--primary-hover)] enabled:active:bg-[var(--primary-pressed)] motion-safe:enabled:active:scale-[0.96]"
-            style={{
-              padding: "var(--orbit-space-8) var(--orbit-space-12)",
-              fontFamily: 'var(--font-sans)',
-              fontSize: 14,
-              fontWeight: 500,
-            }}
-            disabled={!templateName.trim() || createTemplate.isPending}
-            onClick={handleSave}
-            aria-label={t('common.save')}
-          >
-            {t('common.save')}
-          </button>
-          <button
-            type="button"
-            className="habit-control-motion press-hit-layer shrink-0 grid size-[var(--touch-min)] place-items-center rounded-full text-[var(--fg-3)] enabled:hover:bg-[var(--bg-hover)] enabled:hover:text-[var(--fg-1)] enabled:active:bg-[var(--bg-hover)] motion-safe:enabled:active:scale-[0.96]"
-            onClick={cancelEditor}
-            aria-label={t('common.close')}
-          >
-            <X size={16} strokeWidth={1.8} aria-hidden="true" />
-          </button>
-              </div>
+              <TemplateSaveEditor name={templateName} waiting={saving.waiting} onChange={setTemplateName} onSave={handleSave} onCancel={cancelEditor} />
             ) : null}
             {templates.map((template) => (
               <div key={template.id} className="orbit-list-action-surface flex min-w-0 flex-col gap-1 px-4 py-2">
@@ -180,6 +145,62 @@ function ChecklistTemplatesEmptyState({ canSave, onSave }: Readonly<{ canSave: b
       <p className="text-sm text-[var(--fg-3)]">{t('habits.form.noTemplatesDescription')}</p>
       <button type="button" className="chip mt-2" disabled={!canSave} onClick={onSave}>{t('habits.form.saveCurrentList')}</button>
       {!canSave ? <p className="text-xs text-[var(--fg-3)]">{t('habits.form.saveCurrentListDisabled')}</p> : null}
+    </div>
+  )
+}
+
+interface TemplateSaveEditorProps {
+  name: string
+  waiting: boolean
+  onChange: (name: string) => void
+  onSave: () => void
+  onCancel: () => void
+}
+
+function TemplateSaveEditor({ name, waiting, onChange, onSave, onCancel }: Readonly<TemplateSaveEditorProps>) {
+  const t = useTranslations()
+  return (
+    <div className="flex items-center px-4 py-2" style={{ gap: 8 }}>
+      <input
+        value={name}
+        disabled={waiting}
+        type="text"
+        placeholder={t('habits.form.templateNamePlaceholder')}
+        className="orbit-field-hover flex-1 min-w-0 bg-[var(--bg-field)] text-[var(--fg-1)] placeholder:text-[var(--fg-3)] rounded-[12px] py-2 px-3 text-[14px] border-0 shadow-[inset_0_0_0_1px_var(--border-control)] focus-visible:outline-none focus-visible:shadow-[inset_0_0_0_2px_var(--primary)]"
+        onChange={(e) => onChange(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault()
+            onSave()
+          }
+        }}
+      />
+      <button
+        type="button"
+        className={`habit-control-motion press-hit-layer shrink-0 rounded-full ${waiting ? waitingFaceClasses : 'bg-[var(--primary)] text-[var(--fg-on-primary)] disabled:opacity-40 enabled:hover:bg-[var(--primary-hover)] enabled:active:bg-[var(--primary-pressed)] motion-safe:enabled:active:scale-[0.96]'}`}
+        style={{
+          padding: "var(--orbit-space-8) var(--orbit-space-12)",
+          fontFamily: 'var(--font-sans)',
+          fontSize: 14,
+          fontWeight: 500,
+        }}
+        disabled={!name.trim() || waiting}
+        aria-busy={waiting || undefined}
+        onClick={onSave}
+        aria-label={t('common.save')}
+      >
+        {waiting ? <SkeletonFace /> : null}
+        {t('common.save')}
+      </button>
+      <button
+        type="button"
+        className="habit-control-motion press-hit-layer shrink-0 grid size-[var(--touch-min)] place-items-center rounded-full text-[var(--fg-3)] enabled:hover:bg-[var(--bg-hover)] enabled:hover:text-[var(--fg-1)] enabled:active:bg-[var(--bg-hover)] motion-safe:enabled:active:scale-[0.96]"
+        disabled={waiting}
+        onClick={onCancel}
+        aria-label={t('common.close')}
+      >
+        <X size={16} strokeWidth={1.8} aria-hidden="true" />
+      </button>
     </div>
   )
 }
