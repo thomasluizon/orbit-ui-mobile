@@ -91,4 +91,15 @@ describe('FreezeBank (mobile)', () => {
     const earning = renderBank(2)
     expect(earning.root.findAll((node) => node.props.accessibilityRole === 'progressbar')[0]?.props.accessibilityValue).toEqual({ min: 0, max: 7, now: 4 })
   })
+
+  it('draws the card hairline as an inset ring so the content keeps the 16 dp inset', () => {
+    const tree = renderBank(2)
+    const styleOf = (node: RenderedNode): ViewStyle => ({ ...StyleSheet.flatten<ViewStyle>(node.props.style as ViewStyle) })
+    const cards = (tree.root as unknown as RenderedNode).findAll((node) => node.type === 'View' && styleOf(node).borderRadius === 20 && styleOf(node).gap === 12)
+    expect(cards).toHaveLength(1)
+    const card = styleOf(cards[0]!)
+    expect(card.borderWidth).toBeUndefined()
+    expect(card).toMatchObject({ padding: 16, outlineWidth: 1, outlineOffset: -1, outlineStyle: 'solid' })
+    expect(card.outlineColor).toBeDefined()
+  })
 })

@@ -365,11 +365,26 @@ vi.mock("@/app/(tabs)/calendar/_components/calendar-day-detail", async (importOr
   }
 });
 
-type TestNode = { type: unknown; props: Record<string, any> };
+type TestNode = { type: unknown; props: Record<string, any>; findAll: (predicate: (node: TestNode) => boolean) => TestNode[] };
 type Tree = {
   root: { findAll: (predicate: (node: TestNode) => boolean) => TestNode[] };
   update: (element: React.ReactElement) => void;
 };
+
+type FrameBox = { left: number; top: number; right: number; bottom: number };
+
+function expectWeekFrameRing(tree: Tree, frameBox: FrameBox, ringBox: FrameBox | undefined) {
+  const frame = tree.root.findAll((node) => node.type === 'View' && node.props.testID === 'calendar-time-grid')[0] as TestNode & { children: (TestNode | string)[] };
+  const frameStyle = StyleSheet.flatten<ViewStyle>(frame.props.style);
+  expect.soft(frameStyle.borderWidth, 'the frame hairline takes no layout space').toBeUndefined();
+  expect.soft(frameStyle.outlineWidth, 'the frame does not draw the hairline beneath its flush filled children').toBeUndefined();
+  const lastChild = frame.children.at(-1);
+  const ring = typeof lastChild === 'string' ? undefined : lastChild?.findAll((node) => typeof node.type === 'string')[0];
+  expect.soft(ring?.props.testID, 'the frame hairline is the last child, so it paints above the head and gutter fills').toBe('calendar-time-grid-ring');
+  expect.soft(ring?.props.pointerEvents, 'the ring leaves scroll and taps to the grid').toBe('none');
+  expect.soft(StyleSheet.flatten<ViewStyle>(ring?.props.style), 'the frame hairline is an inset ring').toMatchObject({ position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, borderRadius: frameStyle.borderRadius, outlineWidth: 1, outlineOffset: -1, outlineStyle: 'solid' });
+  expect.soft(ringBox, 'the ring covers the frame edge to edge').toMatchObject({ left: frameBox.left, top: frameBox.top, right: frameBox.right, bottom: frameBox.bottom });
+}
 
 function makeEntry(overrides: Partial<CalendarDayEntry>): CalendarDayEntry {
   return {
@@ -793,9 +808,13 @@ describe("CalendarScreen views (mobile)", () => {
         if (switchTop === undefined) switchTop = top;
         expect.soft(top, view).toBe(switchTop);
         const firstBodyText = measured.texts.filter((text) => text.top >= bottom).sort((a, b) => a.top - b.top)[0]!;
-        const firstBodyTop = view === 'week'
-          ? Math.min(...measured.controls.filter((control) => control.top >= bottom).map((control) => control.top))
-          : firstBodyText.top;
+        const weekFrame = measured.boxes.find((box) => box.testID === 'calendar-time-grid');
+        const firstBodyTop = view === 'week' ? weekFrame!.top : firstBodyText.top;
+        if (view === 'week') {
+          const firstColumnTop = Math.min(...measured.controls.filter((control) => control.top >= bottom).map((control) => control.top));
+          expect.soft(firstColumnTop - weekFrame!.top, 'the day columns start at the frame edge, as on web').toBe(0);
+          expectWeekFrameRing(tree, weekFrame!, measured.boxes.find((box) => box.testID === 'calendar-time-grid-ring'));
+        }
         expect.soft(firstBodyTop - bottom, `${view} body clearance`).toBe(24);
         if (month) TestRenderer.act(() => month.update(<></>));
       }
@@ -1748,6 +1767,12 @@ describe("CalendarScreen views (mobile)", () => {
     TestRenderer.act(() => { tree = TestRenderer.create(<CalendarScreen />); });
 
     expect(hostTexts(tree)).toContain('calendar.loadError');
+    const errorCards = tree.root.findAll((node) => node.type === 'View' && { ...StyleSheet.flatten<ViewStyle>(node.props.style) }.borderRadius === 18);
+    expect(errorCards).toHaveLength(1);
+    const errorCard = StyleSheet.flatten<ViewStyle>(errorCards[0]!.props.style);
+    expect(errorCard.borderWidth).toBeUndefined();
+    expect(errorCard).toMatchObject({ paddingVertical: 24, outlineWidth: 1, outlineOffset: -1, outlineStyle: 'solid' });
+    expect(errorCard.outlineColor).toBeDefined();
     const retry = tree.root.findAll(
       (node) => typeof node.type === 'string' && node.props.accessibilityRole === 'button' && node.props.accessibilityLabel === 'common.retry',
     );
