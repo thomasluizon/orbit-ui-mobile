@@ -364,6 +364,25 @@ describe('a same-title choice card with set options', () => {
   })
 })
 
+// The card of the baseline grader-limit case owner-water-request-en-1 (staging API 38513551a): orbit-api CompleteRecordCard
+// completes the model's choice into one multipleChoice `records` question over the six children, with the model's prompt.
+describe('a same-title records card whose question names both actions', () => {
+  const source = caseOf('owner-water-request-en-1')
+  const { children } = captures.complete
+  const prompt = 'Six found, not seven. Which two to delete and which four to rename?'
+  const card = { type: 'block', kind: 'question', block: { blockId: '99999999-0000-4000-8000-000000000002',
+    expiresAtUtc: '2026-11-16T20:00:00Z', questions: [{ id: 'records', type: 'multipleChoice', prompt, allowFreeText: true,
+      options: children.map((id, index) => ({ id, label: `Water - 710ml (${index + 1} of 6)` })) }] } }
+
+  it('answers through blockAnswer with the two records to delete, and grades the preview that follows', async () => {
+    const { sent, output, verdict } = await scripted([textReply(null, [card]), finalOf('complete', 1)], source, { traces: [{ calls: [] }] })
+    expect(sent[1]).toEqual({ content: `${prompt}: Water - 710ml (5 of 6) and Water - 710ml (6 of 6)`,
+      blockAnswer: { blockId: card.block.blockId, selectedIds: [], answers: [{ questionId: 'records', selectedIds: children.slice(4) }] } })
+    expect(output.graderLimit).toBeUndefined()
+    expect(verdict).toMatchObject({ pass: true })
+  })
+})
+
 // The round 3 rule holds for a read request too: only a card is the question, and a list card asks the person to act.
 describe('a read request', () => {
   const read = caseOf('read-today-en-1')

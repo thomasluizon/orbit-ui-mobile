@@ -74,11 +74,26 @@ const statesCount = (text, count) => new RegExp(`(?<![\\w.])(?:${[count, ...coun
 const onlyOne = (deleted, renamed) => deleted === renamed ? null : deleted ? 'deleted' : 'renamed'
 const countHalf = (text, decision) => onlyOne(statesCount(text, decision.deleted.length), statesCount(text, decision.renamed.length))
 
-// The half of the decision a list question asks about: the action it names, else the count it states. Null when it names
-// neither, or when the two point at different halves.
+const firstAt = (text, patterns) => Math.min(...patterns.map((pattern) => text.search(pattern)).filter((index) => index >= 0))
+
+// The half of a list question that names both actions, as "Which two to delete and which four to rename?" does: one
+// selection answers one half, and the person selects the half that the question names first, else the one count it
+// states. Its size tells which half it is, so the halves must differ in size. Null when they do not.
+function bothActionsHalf(text, decision) {
+  if (decision.deleted.length === decision.renamed.length) return null
+  const byCount = countHalf(text, decision)
+  if (byCount) return byCount
+  return firstAt(text, [deletionWords]) < firstAt(text, [renameVerbs, listRenameWords]) ? 'deleted' : 'renamed'
+}
+
+// The half of the decision a list question asks about: the action it names, else the count it states. A question that
+// names both actions is read by bothActionsHalf. Null when it names neither, or when the two point at different halves.
 function askedHalf(prompt, decision) {
   const text = normalize(prompt)
-  const byAction = onlyOne(deletionWords.test(text), renameVerbs.test(text) || listRenameWords.test(text))
+  const deletion = deletionWords.test(text)
+  const rename = renameVerbs.test(text) || listRenameWords.test(text)
+  if (deletion && rename) return bothActionsHalf(text, decision)
+  const byAction = onlyOne(deletion, rename)
   const byCount = countHalf(text, decision)
   return byAction && byCount && byAction !== byCount ? null : byAction ?? byCount
 }

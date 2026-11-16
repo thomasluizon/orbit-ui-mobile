@@ -363,9 +363,70 @@ it.each([
   ['names no action and no count', 'Which ones do you mean?', 'en'],
   ['names no action and no count', 'Quais deles?', 'pt-BR'],
   ['names an action that its count contradicts', 'Which four should I delete?', 'en'],
-  ['asks about both halves, as the real run 3 card did', streams.run3.card.block.question, 'pt-BR'],
 ])('reports a grader limit, not a model fault, for a record card whose question %s', (_name, prompt, locale) => {
   expect(sameTitleCard(shown(questionCard(ids, prompt)), cardVars(ids, locale))).toEqual({ pass: false, score: 0,
+    reason: `The grader cannot tell which action the card question asks about (delete or rename): ${prompt}` })
+})
+
+// Producer: orbit-api ProcessUserChatCommand.SelectionCard.cs CompleteRecordCard (38513551a). Over four records it sends one
+// question block with no title and one `records` question, multipleChoice when the request names several members, with
+// the model's prompt, one option per record (its id the record id, its label "<title> (<n> of <count>)" or "(<n>º de
+// <count>)"), and the model's free-text setting.
+const completedRecordsCard = (prompt, locale) => ({ type: 'block', kind: 'question', block: {
+  blockId: '55555555-5555-4555-8555-555555555555', expiresAtUtc: '2026-11-16T20:00:00Z', questions: [{ id: 'records',
+    type: 'multipleChoice', prompt, allowFreeText: true, options: ids.map((id, index) => ({ id,
+      label: `Water - 710ml (${locale === 'en' ? `${index + 1} of 6` : `${index + 1}º de 6`})` })) }] } })
+// The model's own question form: one multipleChoice question whose options are the records.
+const modelRecordsCard = (prompt) => questionCard(ids, prompt)
+// A choice card whose set options hold either half, as its ask call declares.
+const setOptionsCard = (prompt) => ({ card: choiceCard([{ id: 'lastTwo', label: 'Last two' }, { id: 'firstFour', label: 'First four' },
+  { id: 'middleTwo', label: 'Middle two' }], prompt), trace: askTrace({ lastTwo: ids.slice(4), firstFour: ids.slice(0, 4), middleTwo: ids.slice(2, 4) }) })
+const deletedHalf = ids.slice(4)
+const renamedHalf = ids.slice(0, 4)
+
+// A question that names both actions asks for one selection, and the size of the selection tells its half, because the
+// decision deletes two and renames four. The person selects the half the question names first, or the one count it
+// states. The prompts of the completed records card are the real prompts of the five baseline grader-limit cases.
+it.each([
+  ['the completed records card', 'en', 'Six found, not seven. Which two to delete and which four to rename?', deletedHalf],
+  ['the completed records card', 'en', 'I found 6, not 7. Which 2 should I delete, leaving 4 to rename?', deletedHalf],
+  ['the completed records card', 'en', 'Which two entries should I delete, and which four should I rename?', deletedHalf],
+  ['the completed records card', 'pt-BR', 'Quais dois dos seis você quer apagar e quais quatro renomear para Water - 1.18L?', deletedHalf],
+  ['the completed records card', 'pt-BR', 'Quais dois hábitos “Water - 710ml” você quer apagar? Também diga quais quatro renomear para “Water - 1.18L”.', deletedHalf],
+  ['the completed records card', 'pt-BR', 'Quais dois dos seis você quer remover? Os outros quatro serão renomeados para Water - 1.18L.', deletedHalf],
+  ['the completed records card', 'en', 'Which four should I rename, and which two should I delete?', renamedHalf],
+  ['the completed records card', 'en', 'Which ones should I delete, and which four should I rename?', renamedHalf],
+  ['the model records card', 'pt-BR', streams.run3.card.block.question, deletedHalf],
+  ['the model records card', 'pt-BR', 'Quais dois excluo? Diga por ordem quais quatro renomeio.', deletedHalf],
+])('answers %s in %s whose question names both actions: %s', async (shape, locale, prompt, half) => {
+  const card = shape === 'the completed records card' ? completedRecordsCard(prompt, locale) : modelRecordsCard(prompt)
+  const answer = sameTitleCard(shown(card), cardVars(ids, locale))
+  expect(answer).toMatchObject({ pass: true, reason: 'The card can hold the whole decision.' })
+  expect(sentBy(answer)).toEqual(await clientAnswer(card, { [card.block.questions[0].id]: half }, locale))
+})
+
+it.each([
+  ['en', 'Which two should I delete and which four should I rename?', 'lastTwo'],
+  ['pt-BR', 'Quais quatro eu renomeio e quais dois eu apago?', 'firstFour'],
+])('answers the set options card in %s whose question names both actions with the option of the half it names first', async (locale, prompt, option) => {
+  const { card, trace } = setOptionsCard(prompt)
+  const answer = sameTitleCard(shown(card, trace), cardVars(ids, locale))
+  expect(answer).toMatchObject({ pass: true, reason: 'The card can hold the whole decision.' })
+  expect(sentBy(answer)).toEqual(await clientAnswer(card, [option], locale))
+})
+
+// Halves of one size give a selection that names neither half, so the grader never guesses one.
+it.each([
+  ['the completed records card', (prompt) => ({ card: completedRecordsCard(prompt, 'en'), trace: { calls: [] } })],
+  ['the model records card', (prompt) => ({ card: modelRecordsCard(prompt), trace: { calls: [] } })],
+  ['the set options card', (prompt) => { const { card } = setOptionsCard(prompt)
+    return { card, trace: askTrace({ lastTwo: ids.slice(3), firstFour: ids.slice(0, 3), middleTwo: ids.slice(2, 4) }) } }],
+])('reports a grader limit for %s whose question names both actions when the halves have one size', (_shape, cardOf) => {
+  const prompt = 'Which three should I delete and which three should I rename?'
+  const { card, trace } = cardOf(prompt)
+  const vars = cardVars(ids, 'en')
+  vars.sameTitleSet.answer = { ...vars.sameTitleSet.answer, deleted: [3, 4, 5], renamed: [0, 1, 2] }
+  expect(sameTitleCard(shown(card, trace), vars)).toEqual({ pass: false, score: 0,
     reason: `The grader cannot tell which action the card question asks about (delete or rename): ${prompt}` })
 })
 
