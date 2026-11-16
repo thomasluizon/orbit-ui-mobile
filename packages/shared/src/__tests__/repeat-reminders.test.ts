@@ -33,7 +33,7 @@ describe('repeat reminder contract and validation', () => {
   })
 })
 
-import { repeatReminderClock, repeatReminderInstant } from '../utils/repeat-reminders'
+import { repeatReminderClock, repeatReminderInstant, startRepeatReminder } from '../utils/repeat-reminders'
 import { createTimeDisplay } from '../utils/locale-format'
 import { normalizeHabitDetailForDrill } from '../utils/drill-navigation'
 it('keeps next time and cadence through detail normalization for roots and children', () => {
@@ -64,4 +64,11 @@ it.each([
   [pt, { takenAt: 'Feito às {time}', changeTakenAt: 'Alterar horário', doseDate: 'Data', doseTime: 'Horário', repeatRecoveryTitle: 'Não deu para registrar pelo lembrete', repeatRecoveryBody: 'Abra o hábito para registrar.', form: { repeatInvalid: 'Escolha um intervalo e dois horários diferentes, ou permita lembretes o dia todo.' } }],
 ])('uses the approved repeat copy in each locale', (locale, expected) => {
   expect(locale.habits).toMatchObject(expected)
+})
+
+it('starts a repeat reminder every 30 minutes from now, all day, and the form accepts it', () => {
+  const started = startRepeatReminder(new Date('2026-11-13T12:34:00.000Z'))
+  expect(started).toEqual({ intervalMinutes: 30, startAtUtc: '2026-11-13T12:34:00.000Z' })
+  expect(started).not.toHaveProperty('activeHoursStart')
+  expect(Date.parse(startRepeatReminder().startAtUtc!)).not.toBeNaN()
 })

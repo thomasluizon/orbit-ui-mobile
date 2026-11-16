@@ -14,6 +14,7 @@ import {
   onboardingStepAfterAnswer,
   onboardingModeKey,
   onboardingNeedsCadence,
+  phraseLineKey,
   type OnboardingSchedule,
 } from '../utils'
 
@@ -137,5 +138,17 @@ describe('the result sentence of the saved onboarding habit', () => {
 
   it('names a saved habit with no day as one with no date', () => {
     expect(describeSavedOnboardingResult({ isGeneral: true }, '2026-11-13').sentence.key).toBe('result.task.undated')
+  })
+})
+
+describe('the Orbit line of the first step', () => {
+  it('says what to write while the field is empty or holds spaces only', () => {
+    expect(phraseLineKey('', false)).toBe('habits.flow.what.lineEmpty')
+    expect(phraseLineKey('   ', true)).toBe('habits.flow.what.lineEmpty')
+  })
+
+  it('says what the device read once it read a part, and that the details are left when it read none', () => {
+    expect(phraseLineKey('walk every day', true)).toBe('habits.flow.what.lineUnderstood')
+    expect(phraseLineKey('walk', false)).toBe('habits.flow.what.lineTyped')
   })
 })

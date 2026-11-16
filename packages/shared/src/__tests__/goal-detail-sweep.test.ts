@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { getGoalDeadlineFact } from '../utils/goal-detail-line'
+import { getGoalDeadlineFact, getGoalSheetTitle } from '../utils/goal-detail-line'
 import { goalProgressSweepStart, parseGoalSeenProgress, recordGoalSeenProgress } from '../utils/goal-seen-progress'
 import { createUseRingSweep } from '../hooks/ring-sweep-core'
 import { createHookStateHarness } from '../test-support/hook-state'
@@ -80,5 +80,16 @@ describe('ring sweep', () => {
     const { render, frames } = setup(null)
     expect(render(40)).toBe(40)
     expect(frames).toHaveLength(0)
+  })
+})
+
+describe('goal sheet title', () => {
+  it('names the guided sheet with the goal in the words of the person, and shows no second title', () => {
+    expect(getGoalSheetTitle({ title: 'Run 5 km' }, true, 'Goals')).toEqual({ accessibleTitle: 'Run 5 km' })
+  })
+
+  it('shows the route name while no goal loaded, and with the guided flows off', () => {
+    expect(getGoalSheetTitle(null, true, 'Goals')).toEqual({ title: 'Goals' })
+    expect(getGoalSheetTitle({ title: 'Run 5 km' }, false, 'Goals')).toEqual({ title: 'Goals' })
   })
 })
