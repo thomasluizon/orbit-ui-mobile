@@ -26,7 +26,7 @@ UI `main` `ca538e933`; API `main` `38513551a`; landing `main` `20c1b0a90`. Owner
 
 | Item | Disposition |
 | --- | --- |
-| Flakes for `#2074` | `turbo-inputs.test.mjs` (main `b25ab685d`, green on rerun), `nested-control-fill.spec.ts:101` (ui#2479 shard 6, green on rerun), `calendar-header-controls-geometry.test.tsx` "retains the full today ring after selecting another day at 320" (ui#2473 chromium 9/16, rerun on run 43950026215). Fold each into the `#2074` round after r20. |
+| Flakes for `#2074` | `turbo-inputs.test.mjs` and `nested-control-fill.spec.ts:101` (green on rerun), `calendar-header-controls-geometry.test.tsx` 320 today ring (ui#2473 chromium 9/16, rerun 43950026215). Fold into `#2074` after r20. |
 | ui#2473 (`#2144`) | At `f3ddba9e2`: Pullfrog COMMENTED, no thread: the body stops at round 4. Add rounds 5 and 6 to the body (the `menus.rs` tray change, the eight tray rasters, the Win32 `SM_CXSMICON` and `tray-icon` behaviour; S `reply-2473-EFCH.md` and S `review-2473-r6-local.md` hold the evidence), read the web unit rerun, request Pullfrog, merge at the bar. |
 | ui#2478 (`#2135`) | Round 2 was refused by the relay drain and never ran: launch it (S `note-2478-r2.md`, Pullfrog P1 `PRRT_kwDOR5Siws64Hdlx`). Review worker, resolve with S `reply-2478-Hdlx.md`, push. |
 | `#2135` grader | Build runs on `fix/ticket-2135-claude-grader` (worktree `ticket-2122-part3`). Diff, review, pull request. |
@@ -34,10 +34,10 @@ UI `main` `ca538e933`; API `main` `38513551a`; landing `main` `20c1b0a90`. Owner
 | api#1116 (`#2150`) | Round 2 was refused by the relay drain and never ran: launch it first (S `note-1116-r2.md`). Review, push, Pullfrog, merge, then the API release with the manual steps (production webhook is broken until then). |
 | ui#2469 (`#2074`) | Round 20 was refused by the relay drain and never ran: launch it (S `note-2469-r20.md`). Review, push. |
 | ui#2464 (`#2137`) | Round 20 runs (S `note-2464-r20.md`). Review, push. |
-| ui#2451 (`#2121`) | Round 22 runs (S `note-2451-r22.md`). Review, push. |
+| ui#2451 (`#2121`) | Round 22 committed (`2cfecef3c` to `fc7c0f0a9`, two main merges). Diff, review, push with S `body-2451-r22.md`. |
 | ui#2475 (`#2149`) | Round 3 review runs (S `review-order-2475-r3.md`). Push if clean. |
 | ui#2476 (`#2145`) | Round 2 committed `3d0b39885` (a macOS write sandbox for read-only workers) on a merge of main. Read the diff, review worker, push with S `body-2476-r2.md`. |
-| `#2146` | Round 3 runs (S `note-2146-r3.md`). Review, push, open the pull request. |
+| `#2146` | Round 3 committed `1822e2e0d` on a main merge. Diff, review, push, open the pull request (S `body-2146-r3.md`). |
 | `#2143` | Round 4 committed `3b9fdecc5` on a merge of main. Read the diff, review worker, push, open the pull request with S `body-2143-r4.md`. |
 | Releases | After api#1116: API release; then web and one Android Open plus iOS TestFlight pair carrying `#2148` (`b25ab685d`), `#2131` (`ca538e933`) and `#2146`. |
 | ui#2453 (`#2122`) | Stacked; after `#2121`. |
