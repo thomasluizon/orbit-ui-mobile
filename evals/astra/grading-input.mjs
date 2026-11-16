@@ -1,4 +1,4 @@
-import { collectIdentities, identity, sanitizeEvidence } from './evidence.mjs'
+import { collectIdentities, identitiesInText, identity, sanitizeEvidence } from './evidence.mjs'
 import { suggestionAnswer } from './suggestions.mjs'
 import { normalizeField } from './trace-policy.mjs'
 import { redactCredentials } from './credentials.mjs'
@@ -13,7 +13,7 @@ function collectPrivate(value, withheld) {
   else if (value && typeof value === 'object') Object.values(value).forEach((child) => collectPrivate(child, withheld))
 }
 function publicFacts(value, withheld) {
-  if (typeof value === 'string') return value.replace(/\b(?:[0-9a-f]{32}|[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12})\b/gi, '[redacted]')
+  if (typeof value === 'string') return value.replace(identitiesInText, '[redacted]')
   if (Array.isArray(value)) return value.map((child) => publicFacts(child, withheld))
   if (!value || typeof value !== 'object') return value
   if (Object.keys(value).length && Object.keys(value).every((key) => identity.test(key))) {

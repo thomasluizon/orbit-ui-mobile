@@ -73,8 +73,8 @@ it('projects a failed write as the localized outcome both clients show', async (
   expect(output.answer).not.toContain('INVISIBLE_')
 })
 it.each([
-  ['en', 'Create habits', 'Change not made', "Astra couldn't make that change.", 'Not available', 'This account cannot do that'],
-  ['pt-BR', 'Criar hábitos', 'Alteração não realizada', 'A Astra não conseguiu fazer essa alteração.', 'Não disponível', 'Esta conta não pode fazer isso'],
+  ['en', 'Create habits', 'Change not made', "I couldn't make that change.", 'Not available', 'This account cannot do that'],
+  ['pt-BR', 'Criar hábitos', 'Alteração não realizada', 'Não consegui fazer essa alteração.', 'Não disponível', 'Esta conta não pode fazer isso'],
 ])('projects neutral replay and account denial copy as both clients show in %s', (locale, label, title, meta, accountTitle, accountMeta) => {
   const replay = { ...deniedBulkCreateReplyFixture, aiMessage: deniedBulkCreateReplyFixture.content }
   const context = { supportsParts: true, locale }

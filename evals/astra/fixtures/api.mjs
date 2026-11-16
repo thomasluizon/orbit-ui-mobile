@@ -3,7 +3,9 @@ import { apiOrigin, safeFailureMessage } from '../credentials.mjs'
 
 // The eval's one GUID rule. orbit-api constrains every route parameter to a GUID ({id:guid}), so a GUID segment is the
 // only identifier in a route, and the graders and the report evidence read record and request ids in the same dashed form.
-export const guid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu
+// `guidPattern` is the rule without its anchors, for a GUID inside a longer text.
+export const guidPattern = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'
+export const guid = new RegExp(`^${guidPattern}$`, 'iu')
 
 function isFixtureLog(method, path) {
   const [resource, id, action, ...remaining] = path.split('/')
@@ -23,9 +25,10 @@ function canRetryTransport(method, path) {
     || (resource === 'tags' && action === 'assign')
 }
 
-function fixtureFailure(method, path, cause) {
+// `status` is the HTTP status of a response that the API gave; a request without a response has none.
+function fixtureFailure(method, path, cause, status) {
   const route = path.split(/[?#]/u)[0].split('/').map((segment) => guid.test(segment) ? '{id}' : segment).join('/')
-  return new Error(`Fixture API ${method} ${route} failed: ${cause}.`)
+  return Object.assign(new Error(`Fixture API ${method} ${route} failed: ${cause}.`), status === undefined ? {} : { status })
 }
 
 export function publicApi(credentialKey) {
@@ -65,7 +68,7 @@ export function publicApi(credentialKey) {
       }
       let payload
       try { payload = text ? JSON.parse(text) : null } catch {
-        throw fixtureFailure(method, path, `non-JSON body (HTTP ${response.status})`)
+        throw fixtureFailure(method, path, `non-JSON body (HTTP ${response.status})`, response.status)
       }
       if (!response.ok && !acceptedStatuses.includes(response.status) && !accepted.includes(payload?.errorCode)) {
         const errorCode = typeof payload?.errorCode === 'string' && /^[A-Z][A-Z0-9_]{0,79}$/u.test(payload.errorCode)
@@ -73,7 +76,7 @@ export function publicApi(credentialKey) {
         // PendingOperationRevisionResult carries its snake_case reason, such as stale_preview, in error, with no errorCode.
         const reason = errorCode === 'none' && typeof payload?.error === 'string' && /^[a-z][a-z0-9_]{0,79}$/u.test(payload.error)
           ? `, error: ${payload.error}` : ''
-        throw fixtureFailure(method, path, `HTTP ${response.status} (errorCode: ${errorCode}${reason})`)
+        throw fixtureFailure(method, path, `HTTP ${response.status} (errorCode: ${errorCode}${reason})`, response.status)
       }
       return { status: response.status, payload }
     }
@@ -101,5 +104,16 @@ export async function requireEvalAccess(credentialKey) {
     return enabled
   } catch (error) {
     throw new Error(`Eval preflight failed: turn ${expected ? 'on' : 'off'} astra_eval_unmetered for ${credentialKey} through /flag on staging, then verify /api/config and retry. ${safeFailureMessage(error)}`)
+  }
+}
+
+// Producer: orbit-api ProcessUserChatCommand.Handle returns the opt-in eval trace only when the account holds
+// astra_eval_trace (FeatureFlagKeys.AiEvalTrace), and GET api/config resolves the same flag (FeatureFlagService.Resolve).
+export async function requireEvalTrace(credentialKey) {
+  try {
+    const { payload } = await publicApi(credentialKey)('GET', 'config')
+    if (payload?.features?.astra_eval_trace?.enabled !== true) throw new Error('The eval trace flag is off.')
+  } catch (error) {
+    throw new Error(`Eval preflight failed: turn on astra_eval_trace for ${credentialKey} through /flag on staging, then verify /api/config and retry. ${safeFailureMessage(error)}`)
   }
 }
