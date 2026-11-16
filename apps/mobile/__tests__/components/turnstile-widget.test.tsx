@@ -295,6 +295,36 @@ it('keeps a slot of the challenge height in the layout in every state, so the si
   expect(TURNSTILE_CHALLENGE_HEIGHT).toBe(65)
 })
 
+it('hides the clipped check from screen readers in every state but the challenge', async () => {
+  let renderer!: ReturnType<typeof TestRenderer.create>
+  await TestRenderer.act(async () => {
+    renderer = TestRenderer.create(<TurnstileWidget siteKey="site-key" resetKey={0} onToken={vi.fn()} />)
+    await Promise.resolve()
+  })
+  onTestFinished(() => TestRenderer.act(() => renderer.unmount()))
+  const read = () => {
+    const { importantForAccessibility, accessibilityElementsHidden } = renderer.root.findByProps({ testID: 'turnstile-challenge' }).props
+    return { importantForAccessibility, accessibilityElementsHidden }
+  }
+  const send = (state: string) => TestRenderer.act(async () => {
+    renderer.root.findByType('WebView').props.onMessage({ nativeEvent: { data: JSON.stringify({ state }) } })
+    await Promise.resolve()
+  })
+  const hidden = { importantForAccessibility: 'no-hide-descendants', accessibilityElementsHidden: true }
+
+  expect(read(), 'loading').toEqual(hidden)
+  await send('interactive')
+  expect(read(), 'interactive').toEqual({ importantForAccessibility: 'auto', accessibilityElementsHidden: false })
+  await send('loading')
+  expect(read(), 'loading after the tap').toEqual(hidden)
+  await send('solved')
+  expect(read(), 'solved').toEqual(hidden)
+  await send('expired')
+  expect(read(), 'expired').toEqual(hidden)
+  await send('failed')
+  expect(read(), 'failed').toEqual(hidden)
+})
+
 it('offers Retry when the bridge stops its own retries with failed, and Retry loads a fresh bridge', async () => {
   const onToken = vi.fn()
   let renderer!: ReturnType<typeof TestRenderer.create>

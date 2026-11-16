@@ -157,7 +157,17 @@ function useLoadFailureReport(resetKey: number, onFailure: ChallengeProps['onFai
   return { recordFailure, startReport }
 }
 
-function useTurnstileChallenge({ siteKey, resetKey, onToken, onStateChange, onFailure, theme, language }: ChallengeProps & Readonly<{ theme: 'light' | 'dark'; language: string }>) {
+function useChallengeDeadline({ running, resetKey, stage, onDeadline }: Readonly<{ running: boolean; resetKey: number; stage: number; onDeadline: () => void }>) {
+  const onDeadlineRef = useRef(onDeadline)
+  useEffect(() => { onDeadlineRef.current = onDeadline }, [onDeadline])
+  useEffect(() => {
+    if (!running) return
+    const deadline = window.setTimeout(() => onDeadlineRef.current(), TURNSTILE_LOAD_DEADLINE_MS)
+    return () => window.clearTimeout(deadline)
+  }, [running, resetKey, stage])
+}
+
+function useTurnstileChallenge({ siteKey, resetKey, onToken, onStateChange, onFailure, theme, language, hasLoadDeadline }: ChallengeProps & Readonly<{ theme: 'light' | 'dark'; language: string; hasLoadDeadline: boolean }>) {
   const { containerRef, challengeVisible } = useChallengeVisibility()
   const widgetIdRef = useRef<unknown>(null)
   const automaticRetriesRef = useRef(0)
@@ -165,6 +175,7 @@ function useTurnstileChallenge({ siteKey, resetKey, onToken, onStateChange, onFa
   const callbacksRef = useRef({ onToken, onStateChange })
   const handledResetKey = useRef(resetKey)
   const [state, setState] = useState<WidgetState>('idle')
+  const [stage, setStage] = useState(0)
   const { recordFailure, startReport } = useLoadFailureReport(resetKey, onFailure)
   const { loaded, loadAgain } = useTurnstileScript({
     onLoadState: (next) => {
@@ -187,6 +198,7 @@ function useTurnstileChallenge({ siteKey, resetKey, onToken, onStateChange, onFa
     function update(next: WidgetState, token: string | null = null) {
       if (!active) return
       window.clearTimeout(retryTimerRef.current)
+      if (next === 'loading') setStage((value) => value + 1)
       setState(next)
       callbacksRef.current.onStateChange?.(next)
       callbacksRef.current.onToken(token)
@@ -242,6 +254,16 @@ function useTurnstileChallenge({ siteKey, resetKey, onToken, onStateChange, onFa
     else loadAgain()
   }, [loadAgain])
 
+  useChallengeDeadline({
+    running: hasLoadDeadline && loaded !== null && state === 'loading', resetKey, stage,
+    onDeadline: () => {
+      recordFailure({ kind: 'deadline' })
+      setState('failed')
+      onStateChange?.('failed')
+      onToken(null)
+    },
+  })
+
   useEffect(() => {
     let active = true
     queueMicrotask(() => { if (active) setState('loading') })
@@ -277,19 +299,22 @@ export function TurnstileWidget({
   const appLocale = useLocale()
   const currentTheme = useCurrentTheme()
   const { containerRef, challengeVisible, state, retry } = useTurnstileChallenge({
-    siteKey, resetKey, onToken, onStateChange, onFailure, theme: theme ?? currentTheme,
+    siteKey, resetKey, onToken, onStateChange, onFailure, theme: theme ?? currentTheme, hasLoadDeadline: !quiet,
     // WHY: Cloudflare lists Orbit's pt-BR as pt-br https://developers.cloudflare.com/turnstile/reference/supported-languages/
     language: (language ?? appLocale).toLowerCase(),
   })
 
   // WHY: Cloudflare documents no success state for interaction-only, so the form hides the passed widget itself https://developers.cloudflare.com/turnstile/get-started/client-side-rendering/widget-configurations/
-  if (quiet) return <div ref={containerRef} style={{ position: challengeVisible ? undefined : 'absolute', display: state === 'solved' ? 'none' : undefined }} />
+  const passedStyle = { display: state === 'solved' ? 'none' : undefined }
+  if (quiet) return <div ref={containerRef} style={{ position: challengeVisible ? undefined : 'absolute', ...passedStyle }} />
 
   const stopped = state === 'failed' || state === 'expired'
+  const challengeHidden = state !== 'interactive'
   return (
     <div data-testid="turnstile-slot" className="flex flex-col justify-center text-sm text-[var(--fg-2)]" style={{ minHeight: TURNSTILE_CHALLENGE_HEIGHT }}>
-      <div data-testid="turnstile-challenge" style={{ height: state === 'interactive' ? TURNSTILE_CHALLENGE_HEIGHT : 0, overflowY: 'clip' }}>
-        <div ref={containerRef} className="w-full" />
+      <div data-testid="turnstile-challenge" inert={challengeHidden || undefined} aria-hidden={challengeHidden || undefined}
+        style={{ height: challengeHidden ? 0 : TURNSTILE_CHALLENGE_HEIGHT, overflowY: 'clip' }}>
+        <div ref={containerRef} className="w-full" style={passedStyle} />
       </div>
       <div className="flex items-center justify-center gap-2 text-center">
         <p role="status" className={state === 'loading' ? '' : 'sr-only'}>

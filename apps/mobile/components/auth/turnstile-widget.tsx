@@ -171,13 +171,14 @@ export function TurnstileWidget({
   const tokens = useMemo(() => createTokensV2(currentScheme, currentTheme), [currentScheme, currentTheme])
   const bridgeUrl = `${APP_LINK_ORIGIN}/turnstile-bridge?siteKey=${encodeURIComponent(siteKey)}&theme=${currentTheme}&language=${encodeURIComponent(i18n.language)}`
   const { state, attempt, onError, onHttpError, onMessage, retry } = useBridgeLoad(resetKey, urlHost(APP_LINK_ORIGIN), onToken)
-  const challengeHostHeight = state === 'interactive' ? TURNSTILE_CHALLENGE_HEIGHT : 0
+  const challengeHidden = state !== 'interactive'
   const stopped = state === 'failed' || state === 'expired'
 
   return (
     // WHY: the root is one native view in every state: when Fabric created it only at the pass, Android lost the moved check (Unable to find viewState). https://github.com/facebook/react-native/blob/v0.88.1/packages/react-native/ReactCommon/react/renderer/components/view/ViewShadowNode.cpp#L44-L52
     <View collapsable={false} style={{ alignSelf: 'stretch', minHeight: TURNSTILE_CHALLENGE_HEIGHT, justifyContent: 'center' }}>
-      <View testID="turnstile-challenge" style={{ alignSelf: 'stretch', height: challengeHostHeight, overflow: 'hidden' }}>
+      <View testID="turnstile-challenge" importantForAccessibility={challengeHidden ? 'no-hide-descendants' : 'auto'} accessibilityElementsHidden={challengeHidden}
+        style={{ alignSelf: 'stretch', height: challengeHidden ? 0 : TURNSTILE_CHALLENGE_HEIGHT, overflow: 'hidden' }}>
         {state === 'failed' ? null :
           <WebView
             key={`${resetKey}-${attempt}`}

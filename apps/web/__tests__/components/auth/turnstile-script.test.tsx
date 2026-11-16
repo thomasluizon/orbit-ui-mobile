@@ -67,8 +67,8 @@ it('loads the script again every 2 s after a load failure until the shared load 
   }
   await act(async () => { fireEvent.load(retryScript) })
   expect(renderWidget).toHaveBeenCalledOnce()
-  act(() => { vi.advanceTimersByTime(TURNSTILE_LOAD_DEADLINE_MS) })
-  expect(screen.getByRole('alert'), 'a loaded script ends the load deadline').toBeEmptyDOMElement()
+  act(() => { vi.advanceTimersByTime(TURNSTILE_LOAD_DEADLINE_MS - 1) })
+  expect(screen.getByRole('alert'), 'a loaded script ends the script load deadline, and the first run has its own 60 s').toBeEmptyDOMElement()
   const callbacks = renderWidget.mock.calls[0]![1] as { callback: (token: string) => void }
   act(() => callbacks.callback('reloaded-token'))
   expect(onToken).toHaveBeenLastCalledWith('reloaded-token')

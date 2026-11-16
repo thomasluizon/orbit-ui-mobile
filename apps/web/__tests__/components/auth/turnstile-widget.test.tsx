@@ -2,7 +2,7 @@ import { afterEach, expect, it, onTestFinished, vi } from 'vitest'
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { createRoot } from 'react-dom/client'
 import { captureMessage } from '@sentry/nextjs'
-import { TURNSTILE_CHALLENGE_HEIGHT } from '@orbit/shared/hooks/turnstile-token-core'
+import { TURNSTILE_CHALLENGE_HEIGHT, TURNSTILE_LOAD_DEADLINE_MS } from '@orbit/shared/hooks/turnstile-token-core'
 import { TurnstileWidget } from '@/components/auth/turnstile-widget'
 
 vi.mock('@sentry/nextjs', () => ({ captureMessage: vi.fn() }))
@@ -473,5 +473,148 @@ it('gives each failure to the caller in place of Sentry when the caller reports 
   act(() => { callbacks['error-callback']('600010') })
   act(() => { callbacks['error-callback']('600010') })
   expect(onFailure.mock.calls).toEqual([[{ kind: 'challenge', code: '600010' }], [{ kind: 'challenge', code: '600010' }]])
+  expect(captureMessage).not.toHaveBeenCalled()
+})
+
+it('keeps the clipped Cloudflare frame out of the tab order and the accessibility tree in every state but the challenge, and hides the passed frame', async () => {
+  const renderWidget = vi.fn((..._args: unknown[]) => 'inert-widget')
+  ;(window as Window & { turnstile?: unknown }).turnstile = { render: renderWidget, reset: vi.fn(), remove: vi.fn() }
+  render(<TurnstileWidget siteKey="site-key" resetKey={0} onToken={vi.fn()} />)
+  await waitFor(() => expect(renderWidget).toHaveBeenCalledOnce())
+  const container = renderWidget.mock.calls[0]![0] as HTMLElement
+  const callbacks = renderWidget.mock.calls[0]![1] as ChallengeCallbacks
+  const read = () => {
+    const frame = screen.getByTestId('turnstile-challenge')
+    return { inert: frame.hasAttribute('inert'), ariaHidden: frame.getAttribute('aria-hidden'), display: getComputedStyle(container).display }
+  }
+  const hidden = { inert: true, ariaHidden: 'true', display: 'block' }
+
+  expect(read(), 'loading').toEqual(hidden)
+  act(() => callbacks['before-interactive-callback']())
+  expect(read(), 'interactive').toEqual({ inert: false, ariaHidden: null, display: 'block' })
+  act(() => callbacks['after-interactive-callback']())
+  expect(read(), 'loading after the tap').toEqual(hidden)
+  act(() => callbacks.callback('fresh-token'))
+  expect(read(), 'solved').toEqual({ ...hidden, display: 'none' })
+  act(() => callbacks['expired-callback']())
+  expect(read(), 'expired').toEqual(hidden)
+  act(() => { callbacks['error-callback']('110200') })
+  expect(read(), 'failed').toEqual(hidden)
+})
+
+type ChallengeCallbacks = {
+  callback: (token: string) => void
+  'error-callback': (code: string) => boolean
+  'expired-callback': () => void
+  'before-interactive-callback': () => void
+  'after-interactive-callback': () => void
+}
+
+async function renderWithFakeClock(quietBridge = false) {
+  vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] })
+  onTestFinished(() => { vi.useRealTimers() })
+  vi.mocked(captureMessage).mockClear()
+  const renderWidget = vi.fn((..._args: unknown[]) => 'timed-widget')
+  const reset = vi.fn()
+  ;(window as Window & { turnstile?: unknown }).turnstile = { render: renderWidget, reset, remove: vi.fn() }
+  const onToken = vi.fn()
+  const onStateChange = vi.fn()
+  const onFailure = vi.fn()
+  render(quietBridge
+    ? <TurnstileWidget siteKey="site-key" resetKey={0} quiet onToken={onToken} onStateChange={onStateChange} onFailure={onFailure} />
+    : <TurnstileWidget siteKey="site-key" resetKey={0} onToken={onToken} onStateChange={onStateChange} />)
+  await act(async () => { await Promise.resolve() })
+  expect(renderWidget, 'the loaded script renders the challenge').toHaveBeenCalledOnce()
+  return { callbacks: renderWidget.mock.calls[0]![1] as ChallengeCallbacks, reset, onToken, onStateChange, onFailure }
+}
+
+function shownSentences() {
+  return { status: screen.getByRole('status').textContent, alert: screen.getByRole('alert').textContent }
+}
+
+function advance(milliseconds: number) {
+  act(() => { vi.advanceTimersByTime(milliseconds) })
+}
+
+const loadingSentence = { status: 'auth.turnstileLoading', alert: '' }
+const failedSentence = { status: '', alert: 'auth.turnstileFailed' }
+const deadlineEvent = () => ({ message: 'turnstile_load_failed', operation: 'turnstile_load', kind: 'deadline', host: window.location.host,
+  status_code: null, code: null, fingerprint: ['turnstile_load_failed', 'deadline', ''] })
+
+it('gives the check 60 s after the tap of the person, then shows the failure and Retry when Cloudflare gives no callback', async () => {
+  const { callbacks, onToken, onStateChange } = await renderWithFakeClock()
+  act(() => callbacks['before-interactive-callback']())
+  advance(3 * TURNSTILE_LOAD_DEADLINE_MS)
+  expect(shownSentences(), 'a challenge that waits for the person has no deadline').toEqual({ status: '', alert: '' })
+
+  act(() => callbacks['after-interactive-callback']())
+  advance(TURNSTILE_LOAD_DEADLINE_MS - 1)
+  expect(shownSentences()).toEqual(loadingSentence)
+  expect(screen.queryByRole('button', { name: 'auth.turnstileRetry' })).toBeNull()
+  advance(1)
+  expect(shownSentences()).toEqual(failedSentence)
+  expect(screen.getByRole('button', { name: 'auth.turnstileRetry' })).toBeInTheDocument()
+  expect(onStateChange).toHaveBeenLastCalledWith('failed')
+  expect(onToken).toHaveBeenLastCalledWith(null)
+  expect(reportedFailures()).toEqual([deadlineEvent()])
+  expect(JSON.stringify(vi.mocked(captureMessage).mock.calls)).not.toContain('site-key')
+})
+
+it('keeps a check that runs its challenge again: each automatic run starts the 60 s again, and a run that then gives no callback fails 60 s later', async () => {
+  const { callbacks, reset } = await renderWithFakeClock()
+  const firstRunMs = 38_000
+  advance(firstRunMs)
+  act(() => { expect(callbacks['error-callback']('300010')).toBe(true) })
+  advance(TURNSTILE_LOAD_DEADLINE_MS - firstRunMs)
+  expect(shownSentences(), 'at 60 s after the mount the second run still has time').toEqual(loadingSentence)
+  expect(reset, 'the second run started 2 s after the error').toHaveBeenCalledTimes(1)
+
+  advance(firstRunMs - 1)
+  expect(shownSentences(), 'the second run has 60 s from the error of the first run').toEqual(loadingSentence)
+  advance(1)
+  expect(shownSentences(), 'a second run that gives no callback for 60 s fails').toEqual(failedSentence)
+  expect(screen.getByRole('button', { name: 'auth.turnstileRetry' })).toBeInTheDocument()
+  expect(reportedFailures()).toMatchObject([{ kind: 'challenge', code: '300010' }, { kind: 'deadline', code: null }])
+})
+
+it('shows the failure 60 s after the script loaded when the first run gives no callback, and Retry starts a new 60 s', async () => {
+  const { reset, onStateChange } = await renderWithFakeClock()
+  advance(TURNSTILE_LOAD_DEADLINE_MS - 1)
+  expect(shownSentences()).toEqual(loadingSentence)
+  advance(1)
+  expect(shownSentences()).toEqual(failedSentence)
+  expect(reportedFailures()).toEqual([deadlineEvent()])
+
+  fireEvent.click(screen.getByRole('button', { name: 'auth.turnstileRetry' }))
+  expect(reset).toHaveBeenCalledWith('timed-widget')
+  expect(shownSentences()).toEqual(loadingSentence)
+  advance(TURNSTILE_LOAD_DEADLINE_MS - 1)
+  expect(shownSentences(), 'the run after Retry has the full deadline').toEqual(loadingSentence)
+  advance(1)
+  expect(shownSentences(), 'Retry starts a new deadline').toEqual(failedSentence)
+  expect(onStateChange).toHaveBeenLastCalledWith('failed')
+  expect(reportedFailures(), 'Retry starts a new load, so the deadline is one event again').toEqual([deadlineEvent(), deadlineEvent()])
+})
+
+it('ends the deadline when the check passes after the tap', async () => {
+  const { callbacks, onStateChange } = await renderWithFakeClock()
+  act(() => callbacks['before-interactive-callback']())
+  act(() => callbacks['after-interactive-callback']())
+  advance(TURNSTILE_LOAD_DEADLINE_MS - 1)
+  act(() => callbacks.callback('fresh-token'))
+  advance(3 * TURNSTILE_LOAD_DEADLINE_MS)
+  expect(shownSentences()).toEqual({ status: '', alert: '' })
+  expect(onStateChange).toHaveBeenLastCalledWith('solved')
+  expect(captureMessage).not.toHaveBeenCalled()
+})
+
+it('starts no deadline in the quiet widget, because the app and onboarding own that time', async () => {
+  const { callbacks, onStateChange, onFailure } = await renderWithFakeClock(true)
+  advance(3 * TURNSTILE_LOAD_DEADLINE_MS)
+  act(() => callbacks['before-interactive-callback']())
+  act(() => callbacks['after-interactive-callback']())
+  advance(3 * TURNSTILE_LOAD_DEADLINE_MS)
+  expect(onStateChange.mock.calls.map(([state]) => state)).toEqual(['interactive', 'loading'])
+  expect(onFailure).not.toHaveBeenCalled()
   expect(captureMessage).not.toHaveBeenCalled()
 })
