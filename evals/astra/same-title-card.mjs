@@ -33,14 +33,14 @@ function targetsOf(option, declared) {
 
 // One list per question: a choice block is one list; a question block has one list per question. Only a choice list has
 // options; a yesNo, scale or slider list (orbit-api AskTool accepts all three) keeps its type for the grader to read.
-function selectionLists(part) {
+export function selectionLists(part) {
   if (part.kind === 'choice') return [{ id: null, type: 'choice', prompt: part.block.question, many: part.block.multiSelect === true, options: part.block.options }]
   return part.block.questions.map((question) => ({ id: question.id, type: question.type, prompt: question.prompt,
     many: question.type === 'multipleChoice', options: choiceTypes.includes(question.type) ? question.options ?? [] : [] }))
 }
 
 // The records each option of the lists stands for, as the API resolves them.
-function optionTargets(lists, trace) {
+export function optionTargets(lists, trace) {
   const declared = declaredTargets(trace)
   return new Map(lists.flatMap((list) => list.options).map((option) => [option.id, targetsOf(option, declared)]))
 }
@@ -121,7 +121,7 @@ function readList(list, targets, decision) {
 
 // Producer: QuestionBlockController.submit labels each question "<prompt>: <labels>" with questionAnswerLabels (a yesNo
 // answer as the catalog's yes word), and BlockAnswerSubmission.send posts formatBlockAnswer of those labels as the message.
-function questionAnswer(card, readings, locale) {
+export function questionAnswer(card, readings, locale) {
   const answers = readings.map(({ list, chosen }) => chosen ? { questionId: list.id, selectedIds: chosen.map((option) => option.id) }
     : { questionId: list.id, boolean: true })
   const t = catalogTranslator(locale)

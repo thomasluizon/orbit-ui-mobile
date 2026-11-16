@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs'
 import { pathToFileURL } from 'node:url'
 import { parse } from 'yaml'
 import { apiOrigin, readCredentials, refreshCredential, safeFailureMessage, updateCredentials } from '../credentials.mjs'
-import { publicApi, requireEvalAccess } from './api.mjs'
+import { guid, publicApi, requireEvalAccess } from './api.mjs'
 import { fixtureNames, fixtureHabitTitles, habitlessFixtures, maliciousHabitTitle, sameTitleSet, startingChecklistItems } from './names.mjs'
 import { exhaustAllowance } from './allowance.mjs'
 import { seedRestart } from './restart.mjs'
@@ -58,7 +58,7 @@ async function remember(key, field, value) {
   await updateCredentials((credentials) => { credentials[key][field] = value })
 }
 function idFrom(payload) {
-  if (typeof payload?.id !== 'string' || !/^[\da-f]{8}(-[\da-f]{4}){3}-[\da-f]{12}$/i.test(payload.id)) {
+  if (typeof payload?.id !== 'string' || !guid.test(payload.id)) {
     throw new Error('Fixture creation did not return a UUID.')
   }
   return payload.id
@@ -214,8 +214,16 @@ export async function resetFixture(test, today = new Date().toISOString().slice(
   if (requireFreshFreeWindow && (profile.hasProAccess || profile.aiMessagesUsed !== 0)) {
     throw new Error('Fixture needs a fresh Free daily window with zero Astra messages used.')
   }
-  if (!isBehindState(test.vars)) await api('PUT', 'profile/timezone', { timeZone: 'UTC' })
+  // The clients send the clock setting of the profile in the chat context (useChatRequestPayload). Producer: orbit-api
+  // GetProfileQuery resolves a clock setting that the account does not store from its time zone, so the setting is read
+  // after the time zone write.
+  let zoned = profile
+  if (!isBehindState(test.vars)) {
+    await api('PUT', 'profile/timezone', { timeZone: 'UTC' })
+    zoned = (await api('GET', 'profile')).payload
+  }
   test.vars.accountTimeZone = isBehindState(test.vars) ? profile.timeZone : 'UTC'
+  test.vars.uses24HourClock = zoned.uses24HourClock
   await api('PUT', 'profile/language', { language: test.metadata.locale ?? 'en' })
   if (fixture === 'budget-exhausted') {
     await exhaustAllowance(api, profile, test.metadata.locale)

@@ -171,6 +171,7 @@ These tests do not parse Turbo's report fields.
 | Harness hook parity | `.claude/hooks` | `node .claude/hooks/test-hooks.mjs` (no deps) | that the three session hooks (git-guardrails, forbid-ef-migration-raw-index, forbid-raw-linear-mutation) block and allow exactly as their `_lib` rules specify, and that no agent's frontmatter carries a fails-open `Bash(...)` specifier |
 | Harness tools execution | `tools/` | `node tools/test-tools.mjs` (run `npm ci` first) | that every script in `tools/` actually RUNS: the `CONVENTIONS.md` CLI contract (`--help` exits 0, invalid input refused before any work) plus each tool's real decision paths, orca stubbed and hermetic. Fails when a new tool arrives with no coverage |
 | Astra capability eval | `evals/astra` | `cd evals/astra && npx promptfoo eval` | on-demand requests to the real chat endpoint, with one attempt per case and request-bound tool evidence in a pass^k launch report |
+| Astra core set gate | `evals/astra/core` | `cd evals/astra && npx promptfoo eval --config core/must-pass.promptfooconfig.yaml` (then `core/other.promptfooconfig.yaml`, then `node core/merge.mjs`) | one live run for each assistant pull request: 126 cases on `POST /api/chat/stream` as a shipped client sends it, graded by the held previews and the saved state, with pass^3 on the must-pass cases |
 | Desktop configuration and native context | `apps/desktop` | `npm run test -w @orbit/desktop`, then `cargo test --locked` in `src-tauri` | Installed Tauri schema, generated context and native browser handoff policy; native bundles compile in `desktop-build.yml` on macOS and Windows, without launching the app |
 | Installed desktop VM acceptance | GitHub macOS and Windows VMs | `desktop-acceptance.yml` | Recorded release installer, Developer ID signed on macOS, which runs only for same-repository runs through `desktop-staging` (a fork pull request runs Windows only), launched on Windows at Medium integrity, email BFF cookies, Hoje, Astra, native clean quit, signed updater acceptance and refusal, platform accessibility trees, palette traversal, the Windows window bar (no native caption, the `DESIGN.md` canvas colour, a visible glyph on every action of the Orbit bar and the WebView2 colour scheme for each page mode, the menu action opening the window menu as a popup, a drag that starts within 1000 ms of the press and moves the window exactly as far as the pointer, the window menu at the pointer on a right-click of the restored and of the maximized bar, maximize and restore through a pointer press on the snap region, and minimize through the bar actions, with the `window-*.png` captures uploaded as evidence), and the repeat reminder Done action through real WNS or APNs delivery, with the Windows Done click made through the shell's COM activator from a Medium client; no deployed Orbit services. See `tools/desktop-bench/README.md`. This job is a desktop acceptance exception to local unit-only verification. |
 | Native acceptance producer cases | GitHub Windows and macOS runners | `desktop-acceptance-producers.yml` | The producer test files that gate cases on `process.platform` (`test-acceptance.ts`, `test-acceptance-push.ts`, `test-acceptance-readers.ts`, `test-acceptance-launch.ts`), each on `windows-latest` and `macos-latest`: the PowerShell producers, the Windows window bar reader, the Medium-integrity launcher modes, the COM activator HRESULT, the Windows SDK IID check, and the real `clang`, `codesign` and `plutil` captures. `Tool and Hook Tests` runs the same files on Linux, where these cases skip. |
@@ -283,8 +284,12 @@ at low effort.
 
 ### Live gate and spend rules
 
-The app-launch live gate runs once, with one attempt per case and a 2 USD spend ceiling for the run.
-Each failing case is rerun once; there is no
+Each pull request that changes the assistant gets one live run of the core set (`### Core set gate`), from a
+local checkout, on a staging build of that branch, before merge. The app-launch live gate runs the launch
+corpus once, with one attempt per case and a 2 USD spend ceiling for that run; the ceiling returns to
+0.50 USD a day after it. After a fix, the failed cases and the cases with a grader limit run once more
+live on the fixed build. A rerun on the same build never replaces a failed case. When staging serves
+another API commit before the run ends, the cases without a verdict continue on that build. There is no
 other live run. A fix round never calls the provider: it replays recorded real provider
 responses offline at the model-service port, following the `orbit-api`
 `tests/Orbit.Application.Tests/Fixtures/` pattern, or uses a fake completion client.
@@ -356,6 +361,7 @@ imports every runtime harness module and executes the real promptfoo CLI with of
 through all hooks.
 The check requires npm registry access or a populated npm cache; it uses no Orbit or grader credentials.
 The live eval runs only on demand from a local checkout; no schedule, push or pull request starts it.
+This local run is the only live run.
 Runs record real message usage and incur endpoint and rubric-grader charges. The main account's
 flag exempts its per-account daily message, model-call and spend ceilings; the refusal accounts
 remain metered. All eval accounts remain subject to the shared eval ceiling.
@@ -436,6 +442,168 @@ Replacing the selected draft must preserve every sibling and its order. The asse
 tool evidence for the refine request. Each refine case records two messages at `k=1`, including
 setup, even with the main account's exemption. Harness tests exercise
 this flow offline; never treat their passing result as evidence from a live model run.
+
+### Core set gate
+
+The core set is the gate for a pull request that changes the assistant. `evals/astra/core/situations.yaml`
+holds 21 situations, each in 3 frozen phrasings, each in English and pt-BR (126 cases): every owner turn
+on record, one situation for each defect class, and the same-title family. A case never changes. The
+`corpusDigest` of each report names the cases it measured: each phrasing, each recorded message, each
+expected outcome, each answer and the image. The merge refuses two digests. The core set does not load
+when a situation expects a change whose saved state the readback cannot read (`core/corpus.mjs`), so no
+live turn spends on it.
+
+Each case runs as a person with a shipped client (`core/client-turn.mjs`, `core/conversation.mjs`):
+
+- The request is `POST /api/chat/stream` with an `Idempotency-Key`, built by the shared
+  `buildChatClientContext` (with a `conversationId` and the clock setting of the account profile) and
+  `buildRecentChatHistory`, and read through the shared `sendChatStreamTurn` loop and stream parser.
+- A reply without a preview is a question only when it shows a choice or question card, or a list card
+  whose action can hold the request. `orbit-api` ends a reply with a question only through a valid,
+  accepted `ask`, which is always one of these cards; a question in text comes from an invalid ask or
+  from the server fallback after the model did not ask. So a text-only reply fails the case, whatever it
+  says, and so does a list card of another action. The person does not answer them. One question past
+  the allowed count is recorded and not answered.
+- The person answers a card through `blockAnswer` when the card can hold the decision of the case, and
+  types the decision when no card can. The record of a list row, and of a card option that is not a
+  record id, comes only from the `ask` arguments in the eval trace. So the run stops before its first
+  turn when `/api/config` shows the `astra_eval_trace` flag off. A card turn without the trace that its
+  answer needs gives no evidence. A trace whose `ask` call does not map each row to one record is a
+  grader limit.
+- A later owner turn starts from the recorded messages that came before it. The class e turn
+  `owner-water-typed-answer` runs live instead: the earlier owner messages go first, in one conversation,
+  so the server holds the state that it held for the owner.
+
+The outcome grader (`core/outcome.mjs`) reads no tool name:
+
+- It turns the held previews into a change list (`core/change-list.mjs`): the kind of each change, its
+  record and its changed fields. It compares that list with the expected list of the situation. A field
+  that the preview marks `suggested` with a removal is an offer of the assistant. A field marked `stored`
+  is a change that the server derives, unless a held write in the eval trace names it: a clear
+  (`clear_fields`, `clear_parent` or an empty array), or any edit in the `edits_json` of a held revision.
+  The list keeps offers and derived changes apart from the requested changes. A field that the request
+  did not name and that is neither an offer nor derived fails the case. A preview turn without the trace
+  that shows a `stored` field gives no evidence.
+- It counts the questions that came before the preview, against the minimum and the maximum of the case.
+- When the preview matches, the eval approves it as the client does and reads the saved state back
+  from `eval/snapshot`. It reads each field that the request names: the title, the due date and the
+  frequency from the snapshot row, and the due time of a created record from `GET habits/{id}`.
+  The person approves the preview as shown: an updated record holds each value that its rows show, and
+  each offered sub-habit draft is saved as one new record with its title. A preview that does not match
+  is never approved.
+- A read request fails when its reply holds a preview, or a choice, question or list card. Only a card
+  is a question, as for a write request.
+- `llm-rubric` grades only the text of a read answer.
+
+Run the gate from `evals/astra`, after the environment and catalog steps of this section:
+
+```sh
+npx promptfoo eval --config core/must-pass.promptfooconfig.yaml
+npx promptfoo eval --config core/other.promptfooconfig.yaml
+node core/merge.mjs --run-cost-usd <measured cost> --baseline <baseline summary.json> \
+  reports/core-must-pass/summary.json reports/core-other/summary.json
+```
+
+The must-pass run repeats each of its 90 cases 3 times; a case passes only when all 3 attempts pass
+(pass^3, `core/corpus.mjs`). The other run holds 36 cases at one attempt. Each run writes
+`reports/core-<run>/summary.md`, `summary.json` and private `attempts/` evidence. Select cases for a daily
+window with `--filter-metadata 'id=<ids>'`; a situation ID selects its six cases. Preserve each window's
+directory before the next run overwrites it, and give every window summary to the merge. The merged report
+links each attempt of a failed case to the `attempts/` file of the window that measured it, relative to
+`reports/core`, so keep each window directory where the merge read it. The `sourceWindow` of each case, and
+each refusal that names an input (`Input N`), give the one-based position of its path among the window summary
+paths of the command line. Neither `--rerun` itself nor the `--baseline` report counts.
+
+`core/merge.mjs` writes `reports/core/summary.md` and `summary.json`: k and pass^k for each case, pass^k
+for each family and locale, the questions before a preview against the allowed count, the measured model
+calls, the seconds that the person waits and the cost of each case, the number of UTC-day windows, and the
+gate verdict. The gate passes when:
+
+- every must-pass case passes;
+- the pass^k rate of the core set is at or above the rate of the `--baseline` report;
+- no attempt asks more often than its case allows (an attempt stops one question past the allowed count, before
+  any preview, and keeps that count);
+- one model call costs at most 0.0009 USD, the D147 limit of the `orbit-api` `AiInputBudgetTests`.
+
+The baseline is the merged report of `main` in which every case has a verdict. The merge refuses a window
+summary, a report of another corpus and a report with an incomplete case. The baseline run of `main`
+passes `--as-baseline` in place of `--baseline`. A merge without one of the two is refused.
+
+The API returns no cost for one turn. Read the run's cost from the API's daily `AI cost` line for the
+eval purpose and pass it as `--run-cost-usd`; each case takes the share that its measured model calls
+hold (one `model_call` phase of the opt-in trace is one model call), with the calls of the attempts that
+a later window or a rerun replaced. Without it the gate stays incomplete. A turn that fails, a card turn
+that returns no trace, and a preview turn without the trace that shows a `stored` field add no counted
+model calls, so the cost of one model call reads a little high.
+
+No rerun on the same build replaces a failure. An attempt that fails, fails its case for that build:
+a wrong preview, a reply without a preview and without a question card, HTTP 5xx, a stream that ends
+without a final event, or a failed approval. Only a throttle (HTTP 429), a spend ceiling
+(`AI_DAILY_BUDGET_EXCEEDED` or `AI_PROVIDER_QUOTA_EXHAUSTED`), a failed precondition, a failed rubric
+grader, a card turn without the trace that its answer needs and a preview turn without the trace that
+shows a `stored` field are no evidence. Such an attempt leaves its case incomplete, and only such a
+case may appear again in a later window of the same build. The merge refuses a second result on one
+build for a case that passed, failed or holds a grader limit, an ordinary window of another API commit,
+and a case whose `k` differs from the corpus.
+
+A reply that the grader cannot read is a grader limit. The case has no verdict, nothing is approved, and
+the report lists grader limits apart from behavior failures. The merge refuses a later window of the same
+build for the case, as for a verdict. Each kind clears only through `--rerun` on a later API commit of the
+pull request; until then the gate of that build stays incomplete. Extend the grader before that rerun.
+
+- A preview limit (`The grader cannot classify a held preview`): the private evidence of the attempt
+  (`attempts/<case>-r<n>.json`, `heldPreviews`) keeps its held previews, with each record id replaced by
+  the name that the case gives the record, and the fields that the held writes name (`written`). The
+  extended grader regrades them offline with `gradePreview({ questionsBeforePreview, previews, written })`;
+  record that verdict on the work ticket, because the merge does not take it.
+- A card limit (a same-title or list card that the grader cannot answer): the attempt ended at the card,
+  before any preview, so the evidence keeps no preview. Only the rerun measures it.
+
+After a fix, run the failed cases and the cases with a grader limit once more on the fixed build, and
+give those summaries to the merge with `--rerun`:
+
+```sh
+node core/merge.mjs --run-cost-usd <measured cost of all builds> --baseline <baseline summary.json> \
+  <first-run summaries> --rerun <later-build must-pass summary> --rerun <later-build other summary>
+```
+
+The rerun takes the place of the first result. A case has one rerun: the merge refuses a second one.
+`--rerun` declares which windows belong to a later build, so the merge refuses a later build given
+first without the flag.
+
+Staging can serve another API commit before each case has a verdict: after a fix, or after a release
+of another commit. An ordinary window on the new commit is refused, because the ordinary windows measure
+the first build. Run the cases without a verdict on the new build, and give those summaries to the merge
+with `--rerun` also. A case is without a verdict when no window held it, or when its attempts gave no
+evidence. These rules apply to each later build:
+
+- A case without a verdict runs on the later build and uses no rerun. A pass or a fail there is its first
+  verdict, so a failure there keeps the one rerun of the case for the next fixed build. A case that
+  stays incomplete there (no evidence again, or a grader limit) has no verdict on that build.
+- A case that failed or holds a grader limit on an earlier build uses its one rerun.
+- A case that passed keeps its build. The merge refuses a later result for it.
+- The entry of the later build takes the place of the earlier entry, whole. The attempts of one case
+  come from one build, so the attempts of two builds never make one verdict.
+- A later build continues across UTC-day windows as the first build does.
+
+Give the `--rerun` windows of one build together, in the order of the builds. The merge refuses a
+`--rerun` window on the first build and a return to an earlier build. The report names the API commit of
+each later build, with three counts: the reruns, the first verdicts, and the cases with no verdict and
+no rerun. Each count holds only the cases whose final entry comes from that build: a case that a later
+build measures again counts only on the last build that measured it. The pass^k column of each case that a later build measured holds one of these marks:
+
+- `rerun on <commit>`: the case used its one rerun on that build. The mark stays with each result of the
+  rerun, `incomplete` included.
+- `first verdict on <commit>`: the case got a pass or a fail on that build, and used no rerun.
+- `no verdict on <commit>`: the case stays incomplete on that build, and used no rerun.
+
+The merged `summary.json` holds `laterApiCommits`, and each measured case holds the `apiCommit` of its
+build. Each other case keeps its verdict of the first build.
+
+Offline checks (`npm test --prefix evals/astra -- __tests__/core-outcome.test.mjs __tests__/core-corpus.test.mjs
+__tests__/core-report.test.mjs __tests__/core-cli.test.mjs`) replay recorded staging streams of the
+owner's Water request through the real driver, grader and promptfoo CLI. One stream is the recorded
+reply that held only a list card for a log; the grader must fail it. They never prove live behavior.
 
 ### Proactive offer gate
 
@@ -800,11 +968,11 @@ execution, no retries and caching disabled. Keep each case's configured attempts
 Use the same configured accounts while their
 required plan access remains active; do not buy quota or add accounts.
 
-The hard API eval ceiling is per UTC day. The app-launch gate can use daily windows within
-that ceiling and its 2 USD run ceiling. When the ceiling stops a run, that UTC day's window
+The hard API eval ceiling is per UTC day. A gate run can use daily windows within
+that ceiling; the app-launch gate also keeps its 2 USD run ceiling. When the ceiling stops a run, that UTC day's window
 ends; the gate continues in the next UTC day's window with only the cases that have no complete
 result yet. A later window never reruns a case that already has a complete result, except the
-single permitted rerun of a failing case.
+single permitted rerun of a failing case after a fix, on the new build.
 
 From `evals/astra`, select case IDs with the installed promptfoo metadata filter and preserve each
 sanitized window summary before another run overwrites it:
@@ -945,8 +1113,8 @@ its requested output file. Summaries update after each attempt too; a later fixt
 preserves completed attempts and leaves unrun cases incomplete. Starting a run clears the prior reports.
 Reasons can contain private answer details: keep this file local and
 do not upload it. Copy it into each private window directory before the next run replaces it.
-Each family and locale also receives a pass^k aggregate; any failing or incomplete case prevents its pass. The Action
-publishes these summaries and a job summary. It does not upload raw responses or a promptfoo
+Each family and locale also receives a pass^k aggregate; any failing or incomplete case prevents its pass. The run
+writes these summaries. It does not upload raw responses or a promptfoo
 database. Sharing and database writes are disabled in the configuration. For local runs, set
 `PROMPTFOO_DISABLE_TELEMETRY=1`, `PROMPTFOO_DISABLE_SHARING=1`, and point
 `PROMPTFOO_CONFIG_DIR` at a private temporary directory; delete it afterward. Do not enable
@@ -1206,8 +1374,8 @@ rendered consumers; this harness change does not unblock broad rollout by itself
 4. Run `npm test --prefix evals/astra`. Its Vitest tests execute the actual promptfoo CLI with
    local providers: a correct case passes all three trials, a deliberately wrong ID fails all
    three, missing evidence is incomplete, and the rubric grader rejects leaked trace content.
-   HTTP wiring tests replace fetch at the boundary; no server or live endpoint is started. A workflow test enforces manual-only
-   triggering. Live endpoint spot checks remain a separate, explicitly requested run.
+   HTTP wiring tests replace fetch at the boundary; no server or live endpoint is started. No workflow
+   starts the live eval. Live endpoint spot checks remain a separate, explicitly requested run.
 
 ### Interface evidence
 
