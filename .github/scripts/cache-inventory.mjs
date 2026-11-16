@@ -32,25 +32,39 @@ export function readTree(changes = {}) {
     const document = read(path)
     return { file: path.split("/").at(-1), document, on: eventsOf(document.on), jobs: document.jobs ?? {} }
   })
+  // A JavaScript or Docker action has no steps that the guard can read, and it gets the cache service token like any step.
   const actions = [...new Set([...ACTION_PATHS, ...added(/^\.github\/actions\//)])].map((path) => {
     const document = read(path)
+    assert.equal(document?.runs?.using, "composite", `${path}: the guard reads only composite local actions`)
     return { file: path.replace(".github/actions/", ""), document, steps: document.runs.steps ?? [] }
   })
   return { workflows, actions }
 }
 
-// GitHub reads an action name without regard to case. A local action or a Docker image has no remote name.
-export const actionName = (uses) => (uses === undefined || /^(\.\/|docker:\/\/)/.test(uses) ? undefined : uses.toLowerCase().split("@")[0])
+// GitHub reads an action name without regard to case. A local action has no remote name. A Docker image step is named
+// docker://<image> in lower case, without its tag or digest, so it needs a reviewed line in the remote inventory.
+export function actionName(uses) {
+  if (uses === undefined || uses.startsWith("./")) return undefined
+  const name = uses.toLowerCase()
+  return name.startsWith("docker://") ? name.replace(/@.*$/, "").replace(/:[^/]*$/, "") : name.split("@")[0]
+}
 export const savesACache = (step) => /^actions\/cache(\/save)?$/.test(actionName(step.uses) ?? "")
 export const restoresACache = (step) => /^actions\/cache(\/restore)?$/.test(actionName(step.uses) ?? "")
 
-// Sorted keys at every level and the action name in lower case, so two equal steps give the same JSON text.
+// Sorted keys at every level, and the action name and the input names in lower case, so two equal steps give the same
+// JSON text. The runner reads an input name without regard to case, so each rule reads the canonical step only.
 export function canonical(value) {
   if (Array.isArray(value)) return value.map(canonical)
   if (value === null || typeof value !== "object") return value
   return Object.fromEntries(Object.keys(value).sort().filter((key) => value[key] !== undefined).map((key) => [key, canonical(value[key])]))
 }
-const canonicalStep = (step) => canonical({ ...step, uses: step.uses?.toLowerCase() })
+export function canonicalStep(step) {
+  const names = Object.keys(step.with ?? {})
+  const lowerNames = names.map((name) => name.toLowerCase())
+  assert.equal(new Set(lowerNames).size, names.length, `${step.name ?? step.uses}: two inputs of one step differ only in case`)
+  const inputs = step.with === undefined || step.with === null ? step.with : Object.fromEntries(names.map((name, index) => [lowerNames[index], step.with[name]]))
+  return canonical({ ...step, uses: step.uses?.toLowerCase(), with: inputs })
+}
 
 // The steps of a local action run in the job that calls it, so each call is followed by the steps of its action. Each entry
 // holds the call steps that lead to it.
@@ -98,12 +112,12 @@ export function cacheSteps(tree, remoteInventory) {
   const caching = new Set(remoteInventory.filter(({ cache }) => cache === "cache step").map(({ action }) => action))
   return cacheStepLists(tree).flatMap((list) => list.entries
     .filter(({ step }) => savesACache(step) || caching.has(actionName(step.uses)))
-    .map((entry) => ({ ...entry, list })))
+    .map((entry) => ({ ...entry, index: list.entries.indexOf(entry), list })))
 }
 
 // Everything around a save that can change what its entry holds: the workflow events and env, the job condition, env,
 // matrix, runner and container, the inputs of each local action that the job enters, the env of each step, and the run
-// text of each step that writes GITHUB_ENV.
+// text of each step whose text names GITHUB_ENV. A script file that writes GITHUB_ENV is in stepsBeforeSave below.
 function contextOf(list, tree) {
   const directories = [...new Set(list.entries.flatMap(({ calls }) => calls).map(actionDirectory))]
   const inputsOf = (directory) => tree.actions.find(({ file }) => dirname(file) === directory).document.inputs ?? null
@@ -118,17 +132,33 @@ function contextOf(list, tree) {
   })
 }
 
+// A step that writes GITHUB_ENV, also through a script file, changes the env context of each later step, post steps
+// included. So when the cache step, a restore of its job, a call step that leads to one of them, or the inputs of an action
+// that the job enters read the env context, the line pins every step that runs before the save. An actions/cache/save step
+// saves in its main step; every other cache step saves in its post step, after the last step of the job.
+// GitHub reads a context name without regard to case.
+const READS_ENV = /\benv\s*[.[]/i
+function stepsBeforeSave(save, restores, tree) {
+  const directories = [...new Set([...save.calls, ...restores.flatMap(({ calls }) => calls)].map(actionDirectory))]
+  const read = [save.step, ...save.calls, ...restores.flatMap(({ step, calls }) => [step, ...calls])].map((step) => [step.with, step.if])
+  const inputs = directories.map((directory) => tree.actions.find(({ file }) => dirname(file) === directory).document.inputs)
+  if (!READS_ENV.test(JSON.stringify([read, inputs]))) return null
+  const before = actionName(save.step.uses) === "actions/cache/save" ? save.list.entries.slice(0, save.index) : save.list.entries.filter((_, index) => index !== save.index)
+  return before.map(({ where, step }) => ({ where, step: canonicalStep(step) }))
+}
+
 // The inventory line of a cache step. A line of an actions/cache step pins the whole step, the call steps that lead to it,
 // each cache restore of its job with its call steps, and the context of the job. A line of another remote cache step pins
-// the step and its call steps.
+// the step and its call steps. A line whose steps read the env context also pins the steps that run before the save.
 export function lineOf(save, rule, tree) {
   const line = { step: save.where, rule, cacheStep: canonicalStep(save.step), calls: save.calls.map(canonicalStep) }
-  if (!savesACache(save.step)) return line
+  if (!savesACache(save.step)) return { ...line, stepsBeforeSave: stepsBeforeSave(save, [], tree) }
+  const restores = save.list.entries.filter(({ step }) => restoresACache(step))
   return {
     ...line,
-    restores: save.list.entries.filter(({ step }) => restoresACache(step))
-      .map(({ where, step, calls }) => ({ where, step: canonicalStep(step), calls: calls.map(canonicalStep) })),
+    restores: restores.map(({ where, step, calls }) => ({ where, step: canonicalStep(step), calls: calls.map(canonicalStep) })),
     context: contextOf(save.list, tree),
+    stepsBeforeSave: stepsBeforeSave(save, restores, tree),
   }
 }
 
