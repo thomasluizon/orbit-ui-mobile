@@ -41,9 +41,12 @@ const USAGE = `usage: stale-files.mjs [--list] [--json] [--session <id>] [--sess
   --list               (default) compute the listing, store it in the git directory, print each stale item
   --json               with --list: print the stored listing as JSON, with every kept item and its reason
   --delete             compute the listing again and remove each stale item, the deepest first; never a kept
-                       item outside it, and never one that holds an item that could not be removed. It holds
-                       a lock in the common git directory while it runs; a second --delete meanwhile prints
-                       NOTHING REMOVED and exits 0
+                       item outside it, and never one that holds an item that could not be removed or stays.
+                       Just before each item it reads the live sessions, the processes, the run queue, the wake
+                       sources, the launch reservations and the scratchpad links again, and keeps an item that
+                       one of them now holds.
+                       It holds a lock in the common git directory while it runs; a second --delete meanwhile
+                       prints NOTHING REMOVED and exits 0
   --session <id>       this session; default: CLAUDE_CODE_SESSION_ID
   --session-root <p>   the directory that holds one directory for each session; default: the root that the
                        stored listing names. Without one, session directories are not checked, and every

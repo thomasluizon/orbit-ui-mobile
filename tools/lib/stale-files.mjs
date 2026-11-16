@@ -256,16 +256,23 @@ const readLiveSessionEvidence = (context, probes) => {
     : `no live session record names this session ${context.sessionId.slice(0, 8)} in ${context.configDirectories.join(", ") || "any Claude config directory"}, so the live sessions are unknown` }
 }
 
-/** What every class reads once: the process table, the live sessions, the protected sessions and the worktrees. */
+/**
+ * The evidence that can turn live at any moment: the process table, the live sessions, the protected sessions, the run
+ * queue and the wake sources. The listing reads it once, and the removal reads it again just before each item.
+ */
+const readLiveEvidence = (context, probes) => {
+  const { liveSessions, liveSessionsUnknown } = readLiveSessionEvidence(context, probes)
+  return { ...readRunEvidence(context.repoRoot), protectedSessions: protectedSessionsOf(context.sessionId, context.repoRoot, liveSessions.map((live) => live.sessionId)),
+    processes: probes.processes(), liveSessions, liveSessionsUnknown }
+}
+
+/** What every class reads once: the live evidence and the worktrees. */
 const gatherEvidence = (context, probes) => {
   const listed = Object.values(context.repositories).filter((path) => existsSync(path)).map((path) => ({ path, worktrees: listWorktrees(path, probes) }))
   const worktrees = listed.flatMap((repository) => repository.worktrees ?? [])
     .filter((worktree) => !worktree.missing).map((worktree) => ({ ...worktree, path: canonical(worktree.path) }))
-  const { liveSessions, liveSessionsUnknown } = readLiveSessionEvidence(context, probes)
-  return { ...readRunEvidence(context.repoRoot), sessionRoot: context.sessionRoot ? canonical(context.sessionRoot) : null, carryRoot: canonical(context.carryRoot), worktrees,
-    unlistedRepositories: listed.filter((repository) => repository.worktrees === null).map((repository) => repository.path),
-    protectedSessions: protectedSessionsOf(context.sessionId, context.repoRoot, liveSessions.map((live) => live.sessionId)), processes: probes.processes(),
-    liveSessions, liveSessionsUnknown }
+  return { ...readLiveEvidence(context, probes), sessionRoot: context.sessionRoot ? canonical(context.sessionRoot) : null, carryRoot: canonical(context.carryRoot), worktrees,
+    unlistedRepositories: listed.filter((repository) => repository.worktrees === null).map((repository) => repository.path) }
 }
 
 /** Why a live process or session still uses `path`; null when none does. An unreadable process table or unknown live sessions count as in use. */
@@ -279,6 +286,23 @@ const useOf = (path, evidence, sessionId = null) => {
   if (evidence.processes.some((entry) => entry.directory !== null && !isShell(entry.command) && within(entry.directory, path))) return "a live process works in it"
   if (evidence.processes.some((entry) => entry.command.includes(path) || (sessionId !== null && entry.command.includes(sessionId)))) return "a live process names it"
   return null
+}
+
+/**
+ * Why a session, a process, a wake source, the run queue or a worker launch holds `item` now; null when none does. The
+ * listing asks it, and the removal asks it again with new evidence just before it removes the item.
+ */
+const liveHoldOf = (item, evidence) => {
+  if (item.kind === "session") return evidence.protectedSessions.get(basename(item.path)) ?? useOf(item.path, evidence, basename(item.path))
+  if (item.kind === "carry") {
+    const prefix = DURABLE_COPY.exec(basename(item.path))[1]
+    const owner = [...evidence.protectedSessions].find(([sessionId]) => sessionId.slice(0, 8) === prefix)
+    // A live session mirrors its scratchpad into its own copy; with three live sessions the third copy is not one of the newest two.
+    const live = evidence.liveSessions.find((session) => session.sessionId.startsWith(prefix))
+    return (owner ? `the durable copy of ${owner[1]}` : null) ?? (live ? `the durable copy of live session ${prefix}` : null) ?? useOf(item.path, evidence)
+  }
+  const queued = queuedTicketOf(item, evidence.queued)
+  return (queued ? `ticket ${queued} of the run queue names it` : null) ?? launchReservationOf(item.path) ?? useOf(item.path, evidence)
 }
 
 /**
@@ -334,15 +358,20 @@ const nestedRepositoryHold = (directory, probes) => {
   return commitHoldOf(directory, ["--all", "--not", "--remotes"], "it holds a commit that no remote has", probes)
 }
 
+/** Why the scratchpad of a session that stays links into `path`, or why that cannot be told; null when none links into it. */
+const linkHoldOf = (path, evidence) => {
+  const link = evidence.links.find((entry) => within(entry.target, path))
+  return link ? `the scratchpad of session ${link.sessionId.slice(0, 8)} links into it` : evidence.linksUnread
+}
+
 /**
  * Why an item must stay for what lives under its path: the scratchpad of a session that stays links into it, or a
  * registered worktree in it must stay. A removal takes the whole tree, and `git worktree remove` takes an ignored
  * directory too, with every worktree in it.
  */
 const holdOf = (path, evidence, probes) => {
-  const link = evidence.links.find((entry) => within(entry.target, path))
-  if (link) return `the scratchpad of session ${link.sessionId.slice(0, 8)} links into it`
-  if (evidence.linksUnread) return evidence.linksUnread
+  const link = linkHoldOf(path, evidence)
+  if (link) return link
   // A worktree git could not list is invisible here, and it can be the tree of an open pull request.
   if (evidence.unlistedRepositories.length > 0) return `the worktrees of ${evidence.unlistedRepositories.join(", ")} could not be listed`
   for (const worktree of evidence.worktrees.filter((candidate) => candidate.path !== path && within(candidate.path, path))) {
@@ -375,7 +404,7 @@ const readSessions = (sessionRoot, evidence) => {
   try { names = readdirSync(sessionRoot).filter((name) => SESSION_ID.test(name)) } catch { return null }
   // A removal by another session or the system's /tmp clean can take an entry after the listing; any error but ENOENT throws.
   return names.map((name) => ({ name, path: join(sessionRoot, name) })).filter((session) => lstatSync(session.path, { throwIfNoEntry: false })?.isDirectory())
-    .map((session) => ({ ...session, owner: evidence.protectedSessions.get(session.name) ?? useOf(session.path, evidence, session.name) }))
+    .map((session) => ({ ...session, owner: liveHoldOf({ kind: "session", path: session.path }, evidence) }))
 }
 
 /**
@@ -401,6 +430,18 @@ const otherSessionHoldOf = (path, evidence) => {
   return session?.owner ? `it is in the directory of session ${session.name.slice(0, 8)}, which stays: ${session.owner}` : null
 }
 
+/**
+ * The sessions of the listing's root and of every other project root, and where the scratchpads of the sessions that stay
+ * link to: a session that stays still reads what its scratchpad links to, in an older session directory or in a carry copy.
+ */
+const readSessionLinks = (evidence) => {
+  const sessions = evidence.sessionRoot === null ? null : readSessions(evidence.sessionRoot, evidence)
+  const otherSessions = readOtherSessions(evidence)
+  const links = [...(sessions ?? []), ...(otherSessions ?? [])].filter((session) => session.owner !== null).map(scratchpadLinks)
+  return { sessions, otherSessions, links: links.filter((targets) => targets !== null).flat(),
+    linksUnread: sessions === null || otherSessions === null || links.includes(null) ? "the scratchpads of the sessions that stay could not be read, and one of them can link into it" : null }
+}
+
 const classifySessions = (sessions, evidence, probes) => sessions.map((session) => {
   const keep = session.owner ?? holdOf(session.path, evidence, probes)
   return { kind: "session", path: session.path, stale: keep === null, reason: keep ?? "not this session, its predecessor, or a session with a live process" }
@@ -413,14 +454,8 @@ const classifyCarryCopies = (evidence, probes) => {
   const copies = names.map((name) => ({ name, path: join(evidence.carryRoot, name), entry: lstatSync(join(evidence.carryRoot, name), { throwIfNoEntry: false }) }))
     .filter((copy) => copy.entry?.isDirectory())
     .sort((left, right) => right.entry.mtimeMs - left.entry.mtimeMs || right.name.localeCompare(left.name))
-  const protectedPrefixes = new Map([...evidence.protectedSessions].map(([sessionId, reason]) => [sessionId.slice(0, 8), reason]))
   return copies.map((copy, position) => {
-    const prefix = DURABLE_COPY.exec(copy.name)[1]
-    const owner = protectedPrefixes.get(prefix)
-    // A live session mirrors its scratchpad into its own copy; with three live sessions the third copy is not one of the newest two.
-    const live = evidence.liveSessions.find((session) => session.sessionId.startsWith(prefix))
-    const keep = (position < 2 ? "one of the newest two durable copies" : null) ?? (owner ? `the durable copy of ${owner}` : null)
-      ?? (live ? `the durable copy of live session ${prefix}` : null) ?? useOf(copy.path, evidence) ?? holdOf(copy.path, evidence, probes)
+    const keep = (position < 2 ? "one of the newest two durable copies" : null) ?? liveHoldOf({ kind: "carry", path: copy.path }, evidence) ?? holdOf(copy.path, evidence, probes)
     return { kind: "carry", path: copy.path, stale: keep === null, reason: keep ?? "older than the newest two durable copies" }
   })
 }
@@ -504,17 +539,16 @@ const classifyWorktrees = (evidence, probes, deadline) => evidence.worktrees
   // A worktree inside a session directory or a carry copy belongs to that item, not to this class.
   .filter((worktree) => !(evidence.sessionRoot && within(worktree.path, evidence.sessionRoot)) && !within(worktree.path, evidence.carryRoot))
   .map((worktree) => {
-    const queued = queuedTicketOf(worktree, evidence.queued)
     const keep = (worktree.branch === null ? "its HEAD is detached, so no branch proves its work merged" : null)
-      ?? (worktree.locked ? "it is locked" : null) ?? (queued ? `ticket ${queued} of the run queue names it` : null)
-      ?? launchReservationOf(worktree.path) ?? useOf(worktree.path, evidence) ?? otherSessionHoldOf(worktree.path, evidence)
+      ?? (worktree.locked ? "it is locked" : null) ?? liveHoldOf({ kind: "worktree", path: worktree.path, branch: worktree.branch }, evidence)
+      ?? otherSessionHoldOf(worktree.path, evidence)
       ?? changeOf(worktree.path, probes)
       ?? (Date.now() > deadline ? "the listing reached its time limit before this check" : null)
     const verdict = keep === null ? judgeBranch(worktree, probes, evidence.lastRelayAt) : { stale: false, reason: keep }
     // Only a finished worktree pays for the walk of its tree, and only inside the listing's time limit.
     const hold = !verdict.stale ? null : Date.now() > deadline ? "the listing reached its time limit before this check"
       : holdOf(worktree.path, evidence, probes) ?? repositoryHoldOf(worktree.path, evidence, probes)
-    return { kind: "worktree", path: worktree.path, repository: worktree.repository, ...(hold ? { stale: false, reason: hold } : verdict) }
+    return { kind: "worktree", path: worktree.path, repository: worktree.repository, branch: worktree.branch, ...(hold ? { stale: false, reason: hold } : verdict) }
   })
 
 /** A removal takes everything under its path, so an item stays while a kept item lives in it. */
@@ -534,18 +568,15 @@ const keepContainers = (items) => {
 export const collectListing = (context, { probes = systemProbes, knownSizes = new Map(), measure = true, now = Date.now() } = {}) => {
   const deadline = now + LISTING_CEILING_MS
   const gathered = gatherEvidence(context, probes)
-  const sessions = gathered.sessionRoot === null ? null : readSessions(gathered.sessionRoot, gathered)
-  const otherSessions = readOtherSessions(gathered)
-  // A session that stays still reads what its scratchpad links to, in an older session directory or in a carry copy, in any project root.
-  const links = [...(sessions ?? []), ...(otherSessions ?? [])].filter((session) => session.owner !== null).map(scratchpadLinks)
-  const evidence = { ...gathered, otherSessions, links: links.filter((targets) => targets !== null).flat(),
-    linksUnread: sessions === null || otherSessions === null || links.includes(null) ? "the scratchpads of the sessions that stay could not be read, and one of them can link into it" : null }
+  const { sessions, ...links } = readSessionLinks(gathered)
+  const evidence = { ...gathered, ...links }
   const items = keepContainers([...classifySessions(sessions ?? [], evidence, probes), ...classifyCarryCopies(evidence, probes), ...classifyWorktrees(evidence, probes, deadline)])
   const stale = items.filter((item) => item.stale).map(({ stale: _stale, ...item }) => ({ ...item,
     bytes: knownSizes.get(item.path) ?? (measure && Date.now() <= deadline ? probes.measure(item.path) : null) }))
   const kept = items.filter((item) => !item.stale).map(({ kind, path, reason }) => ({ kind, path, reason }))
-  return { version: 1, generatedAt: new Date(now).toISOString(),
-    context: { sessionId: context.sessionId, sessionRoot: evidence.sessionRoot, carryRoot: evidence.carryRoot }, stale, kept, unlistedRepositories: evidence.unlistedRepositories }
+  // The removal reads the live evidence again for this session, from these config directories and this checkout.
+  return { version: 1, generatedAt: new Date(now).toISOString(), context: { sessionId: context.sessionId, sessionRoot: evidence.sessionRoot, carryRoot: evidence.carryRoot,
+    configDirectories: context.configDirectories, repoRoot: context.repoRoot }, stale, kept, unlistedRepositories: evidence.unlistedRepositories }
 }
 
 export const readStoredListing = (repoRoot = REPO_ROOT) => {
@@ -668,19 +699,28 @@ const removeWorktree = (item, probes) => {
 
 /**
  * Removes the stale items of `listing`, made at the removal, and nothing else. Returns `{ removed, skipped, failed, freed }`:
- * `freed` is the change of free space on the volumes the removed items were on.
+ * `freed` is the change of free space on the volumes the removed items were on. A session can resume, a process can start,
+ * a scratchpad can link and a launch can claim a worktree after the listing, so the live evidence and the scratchpad links
+ * are read again just before each item, and an item that they hold stays. Evidence that cannot be read fails the item, which keeps it.
  */
 export const removeListed = (listing, repositories, { probes = systemProbes } = {}) => {
   const outcome = { removed: [], skipped: [], failed: [], freed: 0 }
   const volumes = new Map()
-  // The deepest item goes first: git then removes a worktree inside another one itself, and a failed one keeps its container.
+  // The deepest item goes first: git then removes a worktree inside another one itself, and a failed or kept one keeps its container.
   for (const item of [...listing.stale].sort((left, right) => right.path.length - left.path.length)) {
     const failedInside = outcome.failed.find((inner) => within(inner.path, item.path))
-    if (failedInside) {
-      outcome.skipped.push({ ...item, reason: `${failedInside.path} in it could not be removed` })
+    const keptInside = outcome.skipped.find((inner) => within(inner.path, item.path))
+    if (failedInside || keptInside) {
+      outcome.skipped.push({ ...item, reason: failedInside ? `${failedInside.path} in it could not be removed` : `${keptInside.path} in it stays` })
       continue
     }
     try {
+      const live = { ...readLiveEvidence(listing.context, probes), sessionRoot: listing.context.sessionRoot }
+      const hold = liveHoldOf(item, live) ?? linkHoldOf(item.path, { ...live, ...readSessionLinks(live) })
+      if (hold) {
+        outcome.skipped.push({ ...item, reason: `it is in use now: ${hold}` })
+        continue
+      }
       const parent = dirname(item.path)
       const device = statSync(parent).dev
       if (!volumes.has(device)) volumes.set(device, { path: parent, before: freeBytes(parent) })
