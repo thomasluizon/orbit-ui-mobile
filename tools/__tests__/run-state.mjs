@@ -8,7 +8,7 @@ import { Worker } from "node:worker_threads"
 import { T, TOOLS_DIR, root } from "./_harness.mjs"
 import { claudeProcessFields, exitedPid, reusedPidRecord, stageClaudeSessions } from "./owner-questions-core.mjs"
 
-const { clearWakeSource, liveSessionProcess, readRunState, readWakeSources, readWorkerLaunches, registerWakeSource, reserveWorkerLaunch, runStatePath, unseenSessions, updateRunState, wakeSourceDirectory, workerLaunchDirectory, writeRunState } = await import("../lib/run-state.mjs")
+const { clearWakeSource, liveSessionProcess, liveSessionProcesses, readRunState, readWakeSources, readWorkerLaunches, registerWakeSource, reserveWorkerLaunch, runStatePath, unseenSessions, updateRunState, wakeSourceDirectory, workerLaunchDirectory, writeRunState } = await import("../lib/run-state.mjs")
 
 const TOOL = "lib/run-state.mjs"
 
@@ -233,6 +233,25 @@ const sessionRecordCases = () => {
     JSON.stringify(foreignExited))
   const beside = lookup("stale-beside-live", {}, { "1.json": { pid: process.pid, ...foreign } })
   T(`${TOOL}: an unreadable record of a session never hides that session's live record`, beside.live?.pid === process.pid, JSON.stringify(beside))
+  // The enumerating reader judges each record as the lookup does, and refuses where the lookup would refuse.
+  const enumerate = (label, sessions, extraRecords = {}) => {
+    const claudeDirectory = stageClaudeSessions(`records-${label}`, sessions)
+    for (const [name, body] of Object.entries(extraRecords)) writeFileSync(join(claudeDirectory, "sessions", name), typeof body === "string" ? body : JSON.stringify(body))
+    try { return { live: liveSessionProcesses(claudeDirectory).map((session) => session.sessionId).sort() } }
+    catch (error) { return { refusal: error.message } }
+  }
+  const listed = enumerate("live", { alive: process.pid, reused: reusedPidRecord(process.pid), gone: exitedPid() })
+  T(`${TOOL}: the live sessions are the records whose own process runs, never a reused or an exited pid`, JSON.stringify(listed) === JSON.stringify({ live: ["alive"] }), JSON.stringify(listed))
+  const covered = enumerate("covered", { probe: process.pid }, { "1.json": { sessionId: "probe", pid: process.pid, ...foreign } })
+  T(`${TOOL}: the live sessions keep a session whose live record sits beside an unreadable one`, JSON.stringify(covered) === JSON.stringify({ live: ["probe"] }), JSON.stringify(covered))
+  const unjudged = enumerate("unjudged", { alive: process.pid }, { "foreign.json": { sessionId: "foreign", pid: process.pid, ...foreign } })
+  T(`${TOOL}: the live sessions refuse when a session has only a record from another pid domain`, unjudged.refusal?.startsWith("cannot tell whether session foreign is live: its record ") === true, JSON.stringify(unjudged))
+  const damaged = enumerate("damaged", { alive: process.pid }, { "damaged.json": `{"pid": ${process.pid}, "sessionId": "dam` })
+  T(`${TOOL}: the live sessions refuse a record that is not JSON`, typeof damaged.refusal === "string", JSON.stringify(damaged))
+  const shapeless = enumerate("shapeless", { alive: process.pid }, { "shapeless.json": { id: "renamed", pid: process.pid } })
+  T(`${TOOL}: the live sessions refuse a record that names no session id`, /names no sessionId or no pid/.test(shapeless.refusal ?? ""), JSON.stringify(shapeless))
+  const empty = enumerate("empty", {})
+  T(`${TOOL}: a sessions directory with no record has no live session`, JSON.stringify(empty) === JSON.stringify({ live: [] }), JSON.stringify(empty))
 }
 
 export const cases = async () => {

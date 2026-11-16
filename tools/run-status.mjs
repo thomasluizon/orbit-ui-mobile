@@ -12,6 +12,7 @@ import { graphqlBudgetDecision } from "./lib/github-rate-limit.mjs"
 import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
 import { currentBaseShaOf, newestChecks, readinessReport, PASSING_CONCLUSIONS } from "./lib/readiness-receipt.mjs"
 import { gitDirectoryOf, REPO_ROOT, readRunState, readWakeSourceStates, readWorkerLaunches, workerLaunchDirectory } from "./lib/run-state.mjs"
+import { parseWorktreeList } from "./lib/git-worktrees.mjs"
 
 const USAGE = `usage: run-status.mjs --session <id>
 
@@ -170,14 +171,8 @@ const readLaunchResults = (repoRoot) => {
 
 const readWorktrees = (repoRoot) => {
   const result = spawnSync(process.env.GIT_BIN || "git", ["-C", repoRoot, "worktree", "list", "--porcelain"], { encoding: "utf8", timeout: 1000 })
-  const worktrees = new Map()
-  if (result.status !== 0) return worktrees
-  let path = null
-  for (const line of result.stdout.split("\n")) {
-    if (line.startsWith("worktree ")) path = line.slice("worktree ".length)
-    if (path && line.startsWith("branch refs/heads/")) worktrees.set(line.slice("branch refs/heads/".length), path)
-  }
-  return worktrees
+  if (result.status !== 0) return new Map()
+  return new Map(parseWorktreeList(result.stdout).filter((worktree) => worktree.branch !== null).map((worktree) => [worktree.branch, worktree.path]))
 }
 
 const githubRead = async (args, auth, runner) => {
