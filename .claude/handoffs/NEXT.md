@@ -33,6 +33,7 @@ UI `main` `e353daa9d`; API `main` `38513551a`; landing `main` `7e6d150e0`. Stagi
 | ui#2470 (`#2140`) | Round 14 result S `fix-2470-r14-result.md`: read, review worker. |
 | ui#2451 (`#2121`) | Round 18 result S `fix-2451-r18-result.md`: read, review worker. |
 | `#2143` | Round 2 result: read, review worker, open the pull request. |
+| Founder accounts | When the owner says the new founder Gmail exists: in Chrome (account selector), change the e-mail of the founder Instagram and X accounts to it; the owner pastes each code. Orbit accounts stay on contact@useorbit.org. |
 | `#2135` | Baseline result S `result-2135-baseline.md`: `NEEDS_FLAG` means turn on `astra_eval_trace` through `/flag` for the eval accounts and relaunch. |
 | `#2145` | Build when free disk allows, or in a reused merged worktree. |
 | ui#2453 (`#2122`) | Stacked; after `#2121`. |
