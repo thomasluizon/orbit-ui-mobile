@@ -6,7 +6,7 @@ Entry: `/auto-work` enters `/sleep`, adopts this relay (`adoptRelayRun`), keeps 
 
 Scratchpad: run `$HOME/.orbit-run-carry/carry-from-predecessor.sh <new full id> <predecessor full id> 0589c2a5-9987-419c-9a59-212b0a9d6846` as a background task with literal paths (the predecessor id is `relay.from`; write no file there before it ends). Start a new `sleep-decisions.md` from D464 with the Write tool. Repoint every scratchpad file that names the predecessor's id (`grep -rlI --null` for its first 8 characters into a list file, drop `./sleep-decisions.md`, then `xargs -0 perl -pi` in `bash -c` that first changes directory into the new scratchpad, full id first, then the 8-character form, literal paths in every redirect); then run `mirror.sh` and `durable-dedupe.sh` with `bash` in the background.
 
-Usage order (owner, this week only): the main account (this session) stops ALL work when its weekly usage reaches 89%. Run S `usage-guard.mjs` at every wake and before every launch: it reads `~/.claude/usage-snapshot.json` (the status line writes it), exits 7 at 89% and expires at this week's reset (the guard holds the time). At exit 7: launch nothing, stop every worker, tell the owner. It read 85% at this relay.
+Usage order (owner, this week only): the main account (this session) stops ALL work when its weekly usage reaches 89%. Run S `usage-guard.mjs` at every wake and before every launch: it reads `~/.claude/usage-snapshot.json` (the status line writes it), exits 7 at 89% and expires at this week's reset (the guard holds the time). At exit 7: launch nothing, stop every worker, tell the owner. It read 86% at this relay.
 
 Worker model: every `claude` tier runs `claude-opus-5-5` on the worker account (contact@useorbit.org); every launch of this relay showed `account=worker`. A fall back to the main account means the limit came back: tell the owner. Pass a real ceiling: `--hard-ceiling-minutes` 75 to 120 for a build or fix round (S `launch-review-round.sh` reads `CEILING`), 240 for the `#2135` baseline; the 45 minute default stopped five workers.
 
@@ -22,21 +22,22 @@ The owner is present now and then; answer him first, in English. `#2074` is MAX 
 
 ## In flight
 
-UI `main` `8b81175e7`; API `main` `38513551a`; landing `main` `20c1b0a90`. Owner question queue: empty. No stash. S `inflight-tasks.md` lists each launcher task id of the predecessor and its order; outputs stay in the predecessor's `tasks/` directory (read with S `launch-result.mjs` adapted to that directory, or the result or review file the order names).
+UI `main` `8b81175e7`; API `main` `38513551a`; landing `main` `20c1b0a90`. Owner question queue: empty. No stash. No launcher is live at the relay. S `inflight-tasks.md` lists each launcher task id of the predecessor and its result; outputs stay in the predecessor's `tasks/` directory (read with S `launch-result.mjs` adapted to that directory, or the result or review file the order names).
 
 | Item | Disposition |
 | --- | --- |
-| ui#2475 (`#2149`) | Review worker on round 2 `be052e853` -> S `review-2475-r2-local.md`: clean, push and request; defects, round 3. |
-| ui#2476 (`#2145`) | Review worker on `43867fb40` -> S `review-2476-r1-local.md`. |
-| ui#2477 (`#2148`) | Review worker on `57ca0a38e` -> S `review-2477-r1-local.md`. |
-| ui#2469 (`#2074`) | Review worker on round 18 `189d445ed` -> S `review-2469-r18-local.md`; clean: body, resolve threads, push. |
-| ui#2464 (`#2137`) | Round 19 runs (S `note-2464-r19.md`); then review worker. |
-| ui#2473 (`#2144`) | Round 5 runs (S `note-2473-r5.md`, Pullfrog P1 `PRRT_kwDOR5Siws64EFCH`, reply S `reply-2473-EFCH.md`); then review worker, push. |
-| ui#2451 (`#2121`) | Round 21 runs (S `note-2451-r21.md`); then review worker. |
-| `#2131` | Round 11 runs (S `note-2131-r11.md`); then review worker, merge main, push, open the pull request from S `body-2131-r10.md` or r11. |
-| `#2146` | Round 2 continues (S `note-2146-r2b.md`); then read the diffs, review worker, push, open the pull request. |
-| `#2143` | Round 3 runs (S `note-2143-r3.md`); then review worker, push, open the pull request. |
-| `#2135` | Baseline runs (S `order-2135-baseline-r3.md`, 240 min); exporter fix runs (S `order-2135-exporter-r2.md`), then review worker and pull request. |
+| ui#2477 (`#2148`) | Review CLEAN, main merged, pushed `b4689580a`, Pullfrog requested; start `wait-ci.mjs --repo ui --pr 2477 --require-check pullfrog-approval`, merge at the bar. |
+| ui#2475 (`#2149`) | Review S `review-2475-r2-local.md`: DEFECTS (6), D1 the run's own pull requests count as pending. Round 3 fixes all six. |
+| ui#2476 (`#2145`) | Review S `review-2476-r1-local.md`: DEFECTS (17). Round 2 fixes them. |
+| ui#2469 (`#2074`) | Review S `review-2469-r18-local.md`: DEFECTS (2), the npx rule test gap and four draft lines. Round 19. |
+| ui#2464 (`#2137`) | Round 19 committed (directory runners and index-recording subcommands); read the diff, review worker. |
+| ui#2473 (`#2144`) | Round 5 committed (tray raster, Pullfrog P1 `PRRT_kwDOR5Siws64EFCH`, reply S `reply-2473-EFCH.md`); read the diff, review worker. |
+| ui#2451 (`#2121`) | Round 21 committed (one precedence rule for every field and source); read the diff, review worker. |
+| `#2131` | Round 11 committed (worklet direction in the same frame); read the diff, review worker, merge main, push, open the pull request (S `body-2131-r10.md`). |
+| `#2146` | Round 2 committed in two commits (`042bae955` and one more); read both diffs, review worker, push, open the pull request. |
+| `#2143` | Round 3 committed (liveness recheck at each removal); read the diff, review worker, push, open the pull request. |
+| ui#2478 (`#2135`) | Exporter fix open at `dd3959de2`; read the diff, review worker, Pullfrog. |
+| `#2135` baseline | Stopped by the coordinator to relay (it had 3 hours of ceiling left). Relaunch S `order-2135-baseline-r3.md` with 240 minutes: step 0 is done, keep the saved windows (S `b2135-r3/`, `eval-2135-baseline/`). The worktree `verify-2036-main` still holds the generated `evals/astra/catalog.yaml`; the worker restores it at the end. |
 | ui#2453 (`#2122`) | Stacked; after `#2121`. |
 
 ## Then, in this order
