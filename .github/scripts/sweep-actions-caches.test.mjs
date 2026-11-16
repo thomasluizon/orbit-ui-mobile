@@ -196,7 +196,10 @@ test("the Cache Budget workflow sweeps on a closed pull request, on a schedule a
   assert.ok(workflow.on.schedule.length === 1 && "workflow_dispatch" in workflow.on)
   assert.deepEqual(workflow.permissions, {})
   const job = workflow.jobs.sweep
-  assert.equal(job.if, "github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository", "a fork pull request has a read-only token, so its close never starts the sweep")
+  // https://docs.github.com/en/code-security/dependabot/troubleshooting-dependabot/troubleshooting-dependabot-on-github-actions:
+  // a pull_request run that Dependabot triggers is treated as a run from a fork and receives a read-only GITHUB_TOKEN.
+  assert.equal(job.if, "github.event_name != 'pull_request' || (github.event.pull_request.head.repo.full_name == github.repository && github.actor != 'dependabot[bot]')",
+    "a fork pull request and a close by Dependabot have a read-only token, so neither starts the sweep; the hourly run deletes their entries")
   assert.deepEqual(job.permissions, { actions: "write", contents: "read", "pull-requests": "read" })
   assert.deepEqual(workflow.concurrency, { group: "cache-budget", "cancel-in-progress": false })
   const checkout = job.steps.find((step) => step.uses?.startsWith("actions/checkout@"))
