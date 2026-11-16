@@ -451,7 +451,7 @@ describe('a case without a verdict on an earlier build', () => {
 describe('the declaration of a later build on the command line', () => {
   const mustPass = coreDescriptors().find((entry) => entry.mustPass)
   const other = coreDescriptors().find((entry) => !entry.mustPass)
-  const refusal = (input, apiCommit, firstApiCommit) => `Input ${input} measured another API commit (${apiCommit.slice(0, 7)}) than input 1 (${firstApiCommit.slice(0, 7)}); the summaries do not tell which build is later, so give the windows in build order: the windows of the first build without --rerun, then the windows of each later build with --rerun, in the order of the builds.`
+  const refusal = (input, apiCommit, firstApiCommit, firstInput = 1) => `Input ${input} measured another API commit (${apiCommit.slice(0, 7)}) than input ${firstInput} (${firstApiCommit.slice(0, 7)}); the summaries do not tell which build is later, so give the windows in build order: the windows of the first build without --rerun, then the windows of each later build with --rerun, in the order of the builds.`
   const files = (...windows) => {
     const target = directory()
     return windows.map((summary, index) => {
@@ -543,6 +543,46 @@ describe('the declaration of a later build on the command line', () => {
         mustPassOn(meta.apiCommit, { unavailable: true }), otherOn(meta.apiCommit))
       expect(outcome([onC, onB, onA, otherOnA])).toBe(refusal(2, fixedBuild, thirdBuild))
       expect(followed([onC, onB, onA, otherOnA], [meta.apiCommit, fixedBuild, thirdBuild])).toBe(passedEarlier)
+    })
+  })
+
+  // An input has one number: its one-based position among the summary paths on the command line, wherever `--rerun`
+  // stands and without `--rerun` itself, as `sourceWindow` in merge-reports.mjs. Each refusal and `sourceWindow` read it.
+  describe('the number of each input', () => {
+    const thirdBuild = 'c'.repeat(40)
+    const notSummary = (input) => `Input ${input} is not a core set run summary.`
+    const noCommit = (input) => `Input ${input} names no API commit of 40 lowercase hexadecimal characters.`
+    const sourceWindows = (argumentsList) => Object.fromEntries(mergeRunFiles([...argumentsList, '--as-baseline']).cases
+      .filter(({ id }) => id === mustPass.id || id === other.id).map(({ id, sourceWindow }) => [id, sourceWindow]))
+
+    it('names a bad --rerun input that stands before the ordinary windows by its own position', () => {
+      const [firstMustPass, firstOther] = files(mustPassOn(meta.apiCommit, { unavailable: true }), otherOn(meta.apiCommit))
+      const [notWindow, withoutCommit] = files([], { ...mustPassOn(fixedBuild), apiCommit: 'b'.repeat(7) })
+      expect(outcome(['--rerun', notWindow, firstMustPass, firstOther])).toBe(notSummary(1))
+      expect(outcome(['--rerun', withoutCommit, firstMustPass, firstOther])).toBe(noCommit(1))
+      expect(outcome(['--rerun', withoutCommit, firstMustPass, notWindow])).toBe(noCommit(1))
+    })
+
+    it('names a bad ordinary input that stands after a --rerun input by its own position', () => {
+      const [later, firstMustPass] = files(mustPassOn(fixedBuild), mustPassOn(meta.apiCommit, { unavailable: true }))
+      const [notWindow, withoutCommit, onThird] = files([], { ...otherOn(meta.apiCommit), apiCommit: null }, otherOn(thirdBuild))
+      expect(outcome(['--rerun', later, firstMustPass, notWindow])).toBe(notSummary(3))
+      expect(outcome(['--rerun', later, firstMustPass, withoutCommit])).toBe(noCommit(3))
+      expect(outcome(['--rerun', later, firstMustPass, onThird])).toBe(refusal(3, thirdBuild, meta.apiCommit, 2))
+    })
+
+    it('names a --rerun window that returns to an earlier build by its own position', () => {
+      const [onB, onC, onBAgain, onA] = files(mustPassOn(fixedBuild, { unavailable: true }), mustPassOn(thirdBuild, { unavailable: true }),
+        mustPassOn(fixedBuild, { unavailable: true }), mustPassOn(meta.apiCommit, { unavailable: true }))
+      expect(outcome(['--rerun', onB, '--rerun', onC, '--rerun', onBAgain, onA]))
+        .toBe('Input 3 returns to the API commit of an earlier build; give the windows of one build together, in the order of the builds.')
+    })
+
+    it('records in sourceWindow the position of the summary path that measured each case', () => {
+      const [later, firstMustPass, firstOther] = files(mustPassOn(fixedBuild), mustPassOn(meta.apiCommit, { unavailable: true }), otherOn(meta.apiCommit))
+      expect(sourceWindows(['--rerun', later, firstMustPass, firstOther])).toEqual({ [mustPass.id]: 1, [other.id]: 3 })
+      expect(sourceWindows([firstMustPass, '--rerun', later, firstOther])).toEqual({ [mustPass.id]: 2, [other.id]: 3 })
+      expect(sourceWindows([firstMustPass, firstOther, '--rerun', later])).toEqual({ [mustPass.id]: 3, [other.id]: 2 })
     })
   })
 })

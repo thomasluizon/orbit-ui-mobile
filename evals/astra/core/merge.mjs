@@ -34,13 +34,13 @@ const open = (entry) => !entry || (entry.passK === 'incomplete' && entry.graderL
 // case keeps the API commit and the evidence directory of the window that measured it. A window of another API commit
 // is refused: the windows of one call measure one build, and a summary holds no time finer than its UTC day, so the
 // refusal names both commits and leaves the operator to give the builds in their order.
-function casesOfBuild(windows, descriptors, firstInput) {
+function casesOfBuild(windows, descriptors) {
   const collected = new Map()
-  for (const [index, window] of windows.entries()) {
-    const input = firstInput + index
+  for (const window of windows) {
+    const input = window.inputPosition
     if (window.corpusDigest !== corpusDigest) throw new Error(`Input ${input} measured another corpus than this core set.`)
     if (window.apiCommit !== windows[0].apiCommit) {
-      throw new Error(`Input ${input} measured another API commit (${window.apiCommit.slice(0, 7)}) than input ${firstInput} (${windows[0].apiCommit.slice(0, 7)}); the summaries do not tell which build is later, so give the windows in build order: the windows of the first build without --rerun, then the windows of each later build with --rerun, in the order of the builds.`)
+      throw new Error(`Input ${input} measured another API commit (${window.apiCommit.slice(0, 7)}) than input ${windows[0].inputPosition} (${windows[0].apiCommit.slice(0, 7)}); the summaries do not tell which build is later, so give the windows in build order: the windows of the first build without --rerun, then the windows of each later build with --rerun, in the order of the builds.`)
     }
     for (const entry of window.cases) {
       const previous = collected.get(entry.id)
@@ -82,18 +82,16 @@ function onLaterBuild(id, entry, earlier) {
 // commit before each case has a verdict: after a fix, or after a release of another commit. Each later build then
 // measures only the cases without a pass: the single rerun of a failed case or of a grader limit, and the open cases.
 function joinRuns(windows, laterWindows, descriptors) {
-  const cases = casesOfBuild(windows, descriptors, 1)
+  const cases = casesOfBuild(windows, descriptors)
   const builds = [windows[0].apiCommit]
-  let firstInput = windows.length + 1
   for (const build of laterBuildsOf(laterWindows)) {
     const { apiCommit } = build[0]
     if (apiCommit === builds[0]) throw new Error('A rerun on the same build never replaces a failure; the rerun runs on the fixed build.')
     if (builds.includes(apiCommit)) {
-      throw new Error(`Input ${firstInput} returns to the API commit of an earlier build; give the windows of one build together, in the order of the builds.`)
+      throw new Error(`Input ${build[0].inputPosition} returns to the API commit of an earlier build; give the windows of one build together, in the order of the builds.`)
     }
     builds.push(apiCommit)
-    for (const [id, entry] of casesOfBuild(build, descriptors, firstInput)) cases.set(id, onLaterBuild(id, entry, cases.get(id)))
-    firstInput += build.length
+    for (const [id, entry] of casesOfBuild(build, descriptors)) cases.set(id, onLaterBuild(id, entry, cases.get(id)))
   }
   return { cases: descriptors.map((descriptor) => cases.get(descriptor.id) ?? caseOf(descriptor, [])), laterApiCommits: builds.slice(1) }
 }
@@ -145,8 +143,13 @@ const WINDOW_RUNS = ['must-pass', 'other']
 // A gate run names its baseline report, or is declared the baseline run of `main`: a run without either would pass
 // the rate criterion against nothing. `reruns` holds the windows of the later builds. A window names its
 // `evidenceDirectory` relative to the merged report, so that the report links the private evidence of each failed case
-// to the window that holds it.
-export function mergeRuns(windows, { baseline, asBaseline = false, reruns = [], runCostUsd, descriptors = coreDescriptors() } = {}) {
+// to the window that holds it. An input has one number, its `inputPosition`: its one-based position among the summary
+// paths of the command line, without `--rerun` itself and without the baseline. Each refusal and the `sourceWindow` of
+// each case read it. A window without that position takes its place in the arrays: the ordinary windows, then `reruns`.
+export function mergeRuns(ordinaryWindows, { baseline, asBaseline = false, reruns: rerunWindows = [], runCostUsd, descriptors = coreDescriptors() } = {}) {
+  const numbered = (list, offset) => list.map((window, index) => ({ ...window, inputPosition: window?.inputPosition ?? offset + index + 1 }))
+  const windows = numbered(ordinaryWindows, 0)
+  const reruns = numbered(rerunWindows, ordinaryWindows.length)
   if (!windows.length) throw new Error('Supply the run summaries of the core set.')
   if (asBaseline && baseline) throw new Error('A baseline run takes no --baseline.')
   if (!asBaseline && !baseline) throw new Error('Supply the baseline report with --baseline, or declare the baseline run of main with --as-baseline.')
@@ -154,10 +157,10 @@ export function mergeRuns(windows, { baseline, asBaseline = false, reruns = [], 
   // array, and the merged report (`run: 'merged'`) also has `gate` and `cases`. core/hooks.mjs names each window run.
   // The runner records the API commit of the health check only after requireCatalogCommit holds it to 40 lowercase
   // hexadecimal characters (core/hooks.mjs), and each build check compares these commits. A window without one would merge with no build or stop the merge with a TypeError.
-  for (const [index, window] of [...windows, ...reruns].entries()) {
-    if (window.gate !== 'core' || !WINDOW_RUNS.includes(window.run) || !Array.isArray(window.cases)) throw new Error(`Input ${index + 1} is not a core set run summary.`)
+  for (const window of [...windows, ...reruns].sort((first, second) => first.inputPosition - second.inputPosition)) {
+    if (window.gate !== 'core' || !WINDOW_RUNS.includes(window.run) || !Array.isArray(window.cases)) throw new Error(`Input ${window.inputPosition} is not a core set run summary.`)
     if (typeof window.apiCommit !== 'string' || !/^[0-9a-f]{40}$/u.test(window.apiCommit)) {
-      throw new Error(`Input ${index + 1} names no API commit of 40 lowercase hexadecimal characters.`)
+      throw new Error(`Input ${window.inputPosition} names no API commit of 40 lowercase hexadecimal characters.`)
     }
   }
   const baselineRate = baseline ? baselineRateOf(baseline, descriptors) : null
@@ -177,11 +180,14 @@ function readSummary(path, option) {
   try { return JSON.parse(readFileSync(path, 'utf8')) } catch { throw new Error(`Cannot read the summary at ${path}.`) }
 }
 
-// Each window keeps its `attempts/` evidence beside its summary file, wherever the reader keeps that window.
+// Each window keeps its `attempts/` evidence beside its summary file, wherever the reader keeps that window, and its
+// position among the summary paths of the command line.
 export function mergeRunFiles(argumentsList, reportDirectory = MERGED_REPORT_DIRECTORY) {
   const options = { reruns: [] }
   const windows = []
-  const readWindow = (path, option) => ({ ...readSummary(path, option), evidenceDirectory: relative(reportDirectory, dirname(path)) || '.' })
+  let inputPosition = 0
+  const readWindow = (path, option) => ({ ...readSummary(path, option), evidenceDirectory: relative(reportDirectory, dirname(path)) || '.',
+    inputPosition: ++inputPosition })
   for (let index = 0; index < argumentsList.length; index++) {
     const argument = argumentsList[index]
     if (argument === '--baseline') options.baseline = readSummary(argumentsList[++index], argument)

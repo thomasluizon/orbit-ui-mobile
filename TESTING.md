@@ -497,7 +497,9 @@ The must-pass run repeats each of its 90 cases 3 times; a case passes only when 
 window with `--filter-metadata 'id=<ids>'`; a situation ID selects its six cases. Preserve each window's
 directory before the next run overwrites it, and give every window summary to the merge. The merged report
 links each attempt of a failed case to the `attempts/` file of the window that measured it, relative to
-`reports/core`, so keep each window directory where the merge read it.
+`reports/core`, so keep each window directory where the merge read it. The `sourceWindow` of each case and
+each refusal of the merge name a window by the one-based position of its path among the window summary
+paths of the command line. Neither `--rerun` itself nor the `--baseline` report counts.
 
 `core/merge.mjs` writes `reports/core/summary.md` and `summary.json`: k and pass^k for each case, pass^k
 for each family and locale, the questions before a preview against the allowed count, the measured model
