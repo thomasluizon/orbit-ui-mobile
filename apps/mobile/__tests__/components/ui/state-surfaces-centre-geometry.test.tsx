@@ -39,13 +39,11 @@ afterEach(async () => {
 
 const noop = () => {}
 const chatStyles = createChatStyles(createTokensV2('orange', 'dark'))
-/** A destination's own scroller inside the shell, as Metas and Avisos draw it: it grows to the free area and keeps the shell clearance at its end. */
 function DestinationScroller({ children }: Readonly<{ children: ReactElement }>) {
   return <ScrollView testID="destination-scroller" contentContainerStyle={{ flexGrow: 1, paddingBottom: useShellScrollerClearance() }}>{children}</ScrollView>
 }
 const inShell = (children: ReactElement) => <Shell412 safeAreaTop={false} notice={<></>} tabBar={<View testID="tab-bar" style={{ height: 80 }} />}>{children}</Shell412>
 
-/** The free area runs from the top of the scroller that owns the block (a destination's scroller, or the shell's for a surface with its own) to the tab bar, or covers the safe area of a root surface. */
 type Free = 'destination' | 'shell' | 'safe-area'
 
 const surfaces: { name: string; free: Free; element: () => ReactElement }[] = [
@@ -57,7 +55,6 @@ const surfaces: { name: string; free: Free; element: () => ReactElement }[] = [
   { name: 'throttle', free: 'safe-area', element: () => { useThrottleStore.getState().show(429, { retryAfterUtc: new Date(Date.now() + 60_000).toISOString() }); return <OverlayHost><ThrottleScreen /></OverlayHost> } },
 ]
 
-/** Every part of a state block: the empty state, or each child of the error surface around the mascot. */
 function blockParts(root: GeometryHost): GeometryHost[] {
   const hosts: GeometryHost[] = []
   const walk = (host: GeometryHost) => { hosts.push(host); for (const child of host.children ?? []) if (typeof child !== 'string') walk(child) }
@@ -89,7 +86,6 @@ it.each(cases)('centres the $name block within 1px of its free area at $width px
   expect(Math.abs((block.top + block.bottom) / 2 - (area.top + area.bottom) / 2), JSON.stringify({ area, block })).toBeLessThanOrEqual(1)
 })
 
-/** Android has one not-found route, drawn as the web in-shell variant: the block starts 64 below the top, not centred. */
 it.each([320, 360, 384, 412])('keeps the not-found block on the drawn 64 start edge at %i px, as the in-shell web variant does', async (width) => {
   const { block } = await measureBlock(<NotFoundScreen />, width)
   expect(block.top).toBe(64)

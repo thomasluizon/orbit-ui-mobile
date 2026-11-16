@@ -35,7 +35,6 @@ afterEach(() => {
   vi.clearAllMocks()
 })
 
-/** Account A reaches level 5 and taps through the celebration, which records the acknowledgement. */
 function acknowledgeLevelFive(rendered: ReturnType<typeof renderHook<ReturnType<typeof useGamificationProfile>, void>>) {
   act(() => serveProfile(createMockGamificationProfile({ level: 5 })))
   rendered.rerender()

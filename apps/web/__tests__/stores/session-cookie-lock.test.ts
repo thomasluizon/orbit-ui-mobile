@@ -1,7 +1,6 @@
 import { afterEach, expect, it, vi } from 'vitest'
 import { installWebLocks } from '../helpers/web-locks'
 
-/** Both tab graphs and logout's lazy producer finish loading before the timed cookie operations. */
 const firstTab = await import('@/stores/auth-store')
 vi.resetModules()
 const secondTab = await import('@/app/(auth)/login/login-form-helpers')

@@ -48,11 +48,6 @@ export function useStripeCheckout(beforeRedirect?: () => Promise<void>) {
           )
         }
         const responseBody = (await response.json()) as { url: string }
-        /**
-         * The tab may hold another account by now. A checkout session belongs to the account that
-         * opened it, so following its url would bill the wrong person, and reporting its failure
-         * would alarm someone who never pressed the button.
-         */
         if (getAccountGeneration() !== checkoutAccount) return
         if (responseBody.url) {
           await beforeRedirect?.()

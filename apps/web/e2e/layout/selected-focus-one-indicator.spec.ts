@@ -11,7 +11,6 @@ import { completeInstallOnboarding } from './install-onboarding'
 import { LAYOUT_ORIGIN } from '../support/env'
 import { test } from './upgrade-fixtures'
 
-/** A focused selected control draws its focus ring and keeps its selection ring directly inside it. */
 const FOCUSED_SELECTED_RINGS = 2
 
 async function expectRings(control: Locator, count: number) {

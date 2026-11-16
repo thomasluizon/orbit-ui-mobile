@@ -43,7 +43,6 @@ export function summarizePendingOperationItem(
   const dateLabel = date && /^\d{4}-\d{2}-\d{2}$/.test(date) ? formatLocaleDate(parseAPIDate(date), locale, { dateStyle: 'medium' }) : null
   const time = value('due_time')
   const summary = [cadence.label, intervalLabel, dateLabel, time ? translate('chat.preview.atTime', { time: formatTime(time) }) : null, ...additionalChanges(fields, translate, formatTime, locale, cadence.complete, creating), creating ? createReminderSummary(fields, translate, formatTime) : null].filter(Boolean).join(' · ')
-  /** A habit create does not create the existing habit it reuses, so that habit's row names no action. */
   const namesAction = actionKey != null && PREVIEW_ACTION_KEYS.includes(actionKey) && (creating || !HABIT_CREATE_ACTION_KEYS.includes(actionKey))
   return summary || (namesAction ? translate(`chat.operation.source.${actionKey}`) : '')
 }
@@ -71,7 +70,6 @@ function summarizeHabitUpdate(
   return before === after || !before ? after : translate('chat.preview.beforeAfter', { before, after })
 }
 
-/** A null old unit is a one-time habit, so the before side keeps it; any other unread old value falls back to the new one. */
 function beforeChange(field: PendingOperationChange): PendingOperationChange {
   if (field.field === 'frequency_unit') return { ...field, newValue: field.oldValue, proposedValue: field.oldValue }
   return { ...field, newValue: field.oldValue ?? field.newValue, proposedValue: field.oldValue ?? field.proposedValue }
@@ -189,7 +187,6 @@ function weekdaySummary(field: PendingOperationChange, translate: PreviewTransla
   return PENDING_OPERATION_WEEKDAYS.filter((day) => Array.isArray(field.proposedValue) ? field.proposedValue.includes(day) : field.newValue?.split(',').some((name) => name.trim() === day)).map((day) => translate(`dates.daysShort.${day.toLowerCase()}`)).join(', ') || translate('chat.preview.summary.clearDays')
 }
 
-/** The API sends the full new list as `proposedValue`; an old value is list text, unreadable once it is windowed. */
 function readMonthDays(field: PendingOperationChange): number[] | null {
   if (Array.isArray(field.proposedValue)) return field.proposedValue.filter((day): day is number => typeof day === 'number' && isHabitMonthDay(day))
   if (typeof field.proposedValue !== 'string') return null
@@ -198,7 +195,6 @@ function readMonthDays(field: PendingOperationChange): number[] | null {
   return days.every(isHabitMonthDay) ? days : null
 }
 
-/** No chosen day repeats a monthly habit on its start date's day; any other cadence has no day of the month to state. */
 function monthDaySummary(field: PendingOperationChange, translate: PreviewTranslation, monthly: boolean): string[] {
   const days = readMonthDays(field)
   if (!days || (!days.length && !monthly)) return []

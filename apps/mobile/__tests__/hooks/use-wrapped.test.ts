@@ -16,7 +16,6 @@ const LEGACY_WRAPPED_KEY = 'orbit_wrapped_year_seen'
 const ACCOUNT_A_WRAPPED_KEY = buildAccountScopedStorageKey(LEGACY_WRAPPED_KEY, 'user-1')
 const ACCOUNT_B_WRAPPED_KEY = buildAccountScopedStorageKey(LEGACY_WRAPPED_KEY, 'user-2')
 
-/** Signs the device in, because the key the recap writes is named after the account. */
 function holdAccount(userId: string | null): void {
   useAuthStore.setState({
     isAuthenticated: userId !== null,
@@ -24,7 +23,6 @@ function holdAccount(userId: string | null): void {
   })
 }
 
-/** Answers a `multiGet` the way AsyncStorage does, one pair per requested key. */
 function storedFlags(stored: Record<string, string>) {
   return vi
     .spyOn(AsyncStorage, 'multiGet')

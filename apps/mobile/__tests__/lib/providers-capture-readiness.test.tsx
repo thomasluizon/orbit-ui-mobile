@@ -1,13 +1,6 @@
-/**
- * A capture re-run changes locale and theme through the deep link, and applying a locale is
- * asynchronous. These tests pin both readiness boundaries: initial boot must not expose the app
- * tree, while a later tuple must keep the Expo Router navigator mounted and only withdraw its
- * route probe until the new locale is ready. Unmounting the warm navigator makes Expo Router loop.
- */
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { View } from 'react-native'
 
-/** Read at module load by capture-mode, so it is set before the dynamic Providers import. */
 process.env.EXPO_PUBLIC_CAPTURE_MODE = 'true'
 
 const TestRenderer = require('react-test-renderer')
@@ -58,10 +51,6 @@ vi.mock('@expo-google-fonts/space-grotesk', () => ({
   SpaceGrotesk_600SemiBold: 'SpaceGrotesk_600SemiBold',
 }))
 
-/**
- * A real QueryClient, so the real QueryClientProvider behaves normally; only the persistence
- * helpers are stubbed, since they reach storage this test has no business touching.
- */
 vi.mock('@/lib/query-client', async () => {
   const { QueryClient } = await vi.importActual<typeof import('@tanstack/react-query')>('@tanstack/react-query')
   return {
@@ -120,7 +109,6 @@ function applyPendingLanguage() {
   for (const resolve of resolvers) resolve()
 }
 
-/** Settles the newest boot first, so an older one resolves LAST and tries to publish its tuple. */
 function applyPendingLanguageNewestFirst() {
   const resolvers = pendingLanguageChanges.slice().reverse()
   pendingLanguageChanges = []
@@ -161,7 +149,6 @@ describe('capture readiness gating', () => {
       await Promise.resolve()
     })
 
-    /** The first tuple is still applying, so nothing capturable is on screen yet; the native splash stays over a bare canvas. */
     expect(childRendered(tree)).toBe(false)
     expect(tree.root.findAll((node: any) => node.type === 'View' && node.props.testID === 'startup-canvas')).toHaveLength(1)
     expect(tree.root.findAll((node: any) => node.type === 'ActivityIndicator')).toHaveLength(0)
@@ -173,7 +160,6 @@ describe('capture readiness gating', () => {
     expect(changeLanguage).toHaveBeenCalledWith('en')
     expect(pendingSplashHides).toHaveLength(1)
 
-    /** A capture re-run swaps the tuple. changeLanguage stays pending, so this render must gate. */
     searchParameters = { captureLocale: 'pt-BR', captureTheme: 'dark' }
     await TestRenderer.act(async () => {
       tree.update(
@@ -213,7 +199,6 @@ describe('capture readiness gating', () => {
       await Promise.resolve()
     })
 
-    /** Swap the tuple before the first boot finishes, so two boots are in flight at once. */
     searchParameters = { captureLocale: 'pt-BR', captureTheme: 'light' }
     await TestRenderer.act(async () => {
       tree.update(
@@ -226,10 +211,6 @@ describe('capture readiness gating', () => {
 
     expect(changeLanguage).toHaveBeenCalledTimes(2)
 
-    /**
-     * The CURRENT tuple settles first and the abandoned one settles last. Without the guard, that
-     * late boot publishes 'en|dark' over 'pt-BR|light' and the tree never becomes ready again.
-     */
     const resolvers = applyPendingLanguageNewestFirst()
     expect(resolvers).toHaveLength(2)
     await TestRenderer.act(async () => {

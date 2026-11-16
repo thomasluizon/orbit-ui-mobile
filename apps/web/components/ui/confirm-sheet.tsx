@@ -18,17 +18,13 @@ interface ConfirmSheetProps {
   confirmLabel: string
   cancelLabel?: string
   minimumActionHeight?: number
-  /** Marks the confirm action as the destructive one. */
   destructive?: boolean
   inlineActions?: boolean
-  /** Starts the action on press while the controlled sheet closes. */
   confirmImmediately?: boolean
   loading?: boolean
   onCloseComplete?: () => void
   onCancelStart?: () => void
-  /** Runs after the sheet is gone when the person cancels. It has to hide the sheet. */
   onCancel: () => void
-  /** Confirms the action and hides the sheet, on press when confirmImmediately is set. */
   onConfirm: () => void
 }
 

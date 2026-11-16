@@ -46,14 +46,12 @@ function press(tree: TestTree, matches: (props: Record<string, unknown>) => bool
   TestRenderer.act(() => (nodes(tree, matches)[0]!.props.onPress as () => void)())
 }
 
-/** Opens a picker through its trigger, the first press target. */
 function openPicker(tree: TestTree) {
   TestRenderer.act(() => (tree.root.findAll((node) => node.type === 'Pressable')[0]!.props.onPress as () => void)())
 }
 
 const smileys = (props: Record<string, unknown>) => props.accessibilityRole === 'button' && props.accessibilityLabel === 'habits.form.emojiCategorySmileys'
 
-/** Each ringed control, rendered with its selection ring shown, and the ring width it has on the base branch. */
 const controls: readonly { name: string; width: number; render: () => ReactElement; open?: (tree: TestTree) => void; control: (props: Record<string, unknown>) => boolean }[] = [
   { name: 'non-period chip', width: 1, render: () => <Chip active>Chip</Chip>, control: selectedState },
   { name: 'period chip', width: 1.5, render: () => <Chip variant="period" active>Chip</Chip>, control: selectedState },

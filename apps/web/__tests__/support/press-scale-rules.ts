@@ -5,7 +5,6 @@ import tailwind from '@tailwindcss/postcss'
 
 export interface PressScaleRule { selectors: string[]; media: string[] }
 
-/** An unescaped `:active`: Tailwind escapes the colons inside a class name such as `active\:scale-[0.96]`. */
 const ACTIVE = /(?<!\\):active/g
 
 /** Every compiled rule that scales an element while something is pressed, with the media queries that gate it. */

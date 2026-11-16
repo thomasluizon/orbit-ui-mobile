@@ -684,12 +684,6 @@ export const chatResponseSchema = z.object({
 
 export type ChatResponse = z.infer<typeof chatResponseSchema>
 
-/**
- * One server-sent event on the chat stream, mirroring the backend's ChatStreamEvent record:
- * started/round keep the connection alive during tool work, delta/reset drive incremental
- * rendering, final carries the complete ChatResponse (always authoritative over streamed
- * text), and error carries an HTTP-equivalent status.
- */
 const chatTurnIdentity = {
   turnId: z.string().optional(),
   state: z.string().optional(),

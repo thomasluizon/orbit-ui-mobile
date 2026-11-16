@@ -49,7 +49,6 @@ function getTurnstile(): TurnstileApi | undefined {
 
 let turnstileLoad: Readonly<{ promise: Promise<TurnstileApi>; script: HTMLScriptElement }> | null = null
 
-/** Removes the script of a load that failed or passed its deadline, so the next load adds a new script and sends a new request. */
 function forgetTurnstileLoad(script: HTMLScriptElement) {
   script.remove()
   if (turnstileLoad?.script === script) turnstileLoad = null
@@ -95,11 +94,6 @@ function useChallengeVisibility() {
   return { containerRef, challengeVisible }
 }
 
-/**
- * Loads the Turnstile script under one load deadline, as `useBridgeLoad` loads the bridge on mobile. A failed load reports
- * `loading` through `onLoadState` and loads the script again after TURNSTILE_RETRY_INTERVAL_MS. The deadline drops a stalled
- * load and reports `failed`. `loadAgain` starts a new load under a new deadline.
- */
 function useTurnstileScript({ onLoadState }: Readonly<{ onLoadState: (state: 'loading' | 'failed') => void }>) {
   const [loaded, setLoaded] = useState<Readonly<{ turnstile: TurnstileApi }> | null>(null)
   const [load, setLoad] = useState(0)
@@ -143,11 +137,6 @@ function useTurnstileScript({ onLoadState }: Readonly<{ onLoadState: (state: 'lo
   return { loaded, loadAgain }
 }
 
-/**
- * Renders the challenge once the script loads and runs a failure that Cloudflare marks Retry: Yes again, at most MAX_AUTOMATIC_RETRIES times.
- * A reset key that changes after mount, or Retry, resets the rendered challenge, or loads the script again when no challenge exists.
- * The mount itself runs nothing again: the form mounts a new widget with a reset key above 0 for each new challenge, and the mount already loads the script.
- */
 function useTurnstileChallenge({ siteKey, resetKey, onToken, onStateChange, theme, language }: ChallengeProps & Readonly<{ theme: 'light' | 'dark'; language: string }>) {
   const { containerRef, challengeVisible } = useChallengeVisibility()
   const widgetIdRef = useRef<unknown>(null)
@@ -222,7 +211,6 @@ function useTurnstileChallenge({ siteKey, resetKey, onToken, onStateChange, them
     }
   }, [containerRef, loaded, siteKey, theme, language])
 
-  /** Resets the rendered challenge, or loads the script again when the load failed and no challenge exists. */
   const runAgain = useCallback(() => {
     window.clearTimeout(retryTimerRef.current)
     automaticRetriesRef.current = 0

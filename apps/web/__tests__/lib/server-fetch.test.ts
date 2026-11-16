@@ -16,16 +16,11 @@ vi.setSystemTime(PINNED_TEST_TIME)
 beforeEach(() => vi.setSystemTime(PINNED_TEST_TIME))
 afterEach(() => vi.useRealTimers())
 
-/** `vi.mock` runs before static imports, so these mocks must be hoisted too. */
 const { resolveServerSessionMock, mockFetch } = vi.hoisted(() => ({
   resolveServerSessionMock: vi.fn(),
   mockFetch: vi.fn(),
 }))
 
-/**
- * The real `getAccountIdFromToken` stays, because the account guard is what these tests judge and a
- * stubbed decoder would only prove the stub. Only the session resolution is replaced.
- */
 vi.mock('@/lib/auth-api', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/lib/auth-api')>()),
   resolveServerSession: resolveServerSessionMock,

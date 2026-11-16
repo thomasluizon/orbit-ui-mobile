@@ -102,7 +102,6 @@ describe('DateField', () => {
     expect(headers).toHaveLength(7)
   })
 
-  /** Month controls fill their columns around the unchanged 32px visible circle. */
   it('gives every day control a 44 by 44 target around its 32px circle', () => {
     render(<DateField value="2025-06-15" onChange={vi.fn()} />)
     fireEvent.click(screen.getByRole('button'))

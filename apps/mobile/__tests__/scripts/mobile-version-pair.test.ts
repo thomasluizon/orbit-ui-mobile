@@ -23,11 +23,9 @@ const pair = require('../../scripts/mobile-version-pair.js') as {
   waitForAndroid: (input: { decide: () => Record<string, unknown>; waitMinutes: number; pause: (milliseconds: number) => void; now: () => number }) => { allowed: boolean; message: string }
 }
 
-/** The commit of the produced record fixture, and another commit. */
 const sha = 'a'.repeat(40)
 const otherSha = 'b'.repeat(40)
 
-/** Runs the rule with one record at `platformNewest` and one at `siblingNewest`, unless the records are given. */
 const check = ({ platformNewest = '1.3.152', siblingNewest = '1.3.153', ...overrides }: Record<string, unknown> & { platformNewest?: string | null; siblingNewest?: string | null }) =>
   pair.checkVersionPair({
     platform: 'ios',
@@ -240,11 +238,6 @@ describe('iOS deployment record', () => {
   const recorded = { id: 41, payload: { app_version: '1.3.153', ios_build_number: '2', variant: 'production' } }
   const otherBuild = { id: 40, payload: { ...recorded.payload, ios_build_number: '1' } }
 
-  /**
-   * A GitHub double that keeps each created deployment, as the real list does.
-   * `failAt` fails a call before it takes effect. `loseResponseAt` applies the call, then fails it.
-   * Both hold positions in the order of all calls, from 0.
-   */
   function fakeGitHub(options: { existing?: unknown; created?: unknown; failAt?: number[]; loseResponseAt?: number[] } = {}) {
     const calls: { kind: 'read' | 'create' | 'status'; path: string; payload?: Record<string, unknown> }[] = []
     const pauses: number[] = []
@@ -336,7 +329,6 @@ describe('iOS deployment record', () => {
   })
 })
 
-/** A run of android-release.yml as the list workflow runs response returns it. */
 const androidRun = (title: string, overrides: Partial<StubRun> = {}): StubRun =>
   ({ display_title: title, head_sha: sha, status: 'in_progress', conclusion: null, ...overrides })
 
@@ -582,7 +574,6 @@ describe('release workflows', () => {
   const index = (steps: Step[], predicate: (step: Step) => boolean) => steps.findIndex(predicate)
   const ahead = '1.3.160'
 
-  /** Runs one workflow step in a directory that holds the script and a stub `gh`, with only the declared environment. */
   function runStep(step: Step, deployments: StubDeployments, values: Record<string, string>, runner: Record<string, string> = {}, runs: StubRun[] = []) {
     const directory = mkdtempSync(join(tmpdir(), 'orbit-release-step-'))
     try {
@@ -687,7 +678,6 @@ describe('release workflows', () => {
     expect(status).toMatchObject({ path: 'repos/owner/repository/deployments/77/statuses', payload: { state: 'success' } })
   })
 
-  /** Runs the Android guard. Every record names the commit `sha`; the run builds `commit`. */
   const runAndroidGuard = (options: { track: string; androidVersion: string; productionIos: string | null; stagingIos: string | null; platformOnlyReason?: string; commit?: string }) => {
     const step = android.jobs['release-android']!.steps.find((candidate) => candidate.name === 'Require one mobile version')!
     const iosRecords = (version: string | null) => (version ? [record(version, 'ios-release')] : [])

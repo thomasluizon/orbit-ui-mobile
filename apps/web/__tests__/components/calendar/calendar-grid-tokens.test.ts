@@ -6,7 +6,6 @@ import { CALENDAR_GRID_GAP_CONTENT_BREAKPOINT, CALENDAR_MONTH_GRID_GEOMETRY } fr
 
 const stylesheet = postcss.parse(readFileSync(resolve(process.cwd(), 'app/globals.css'), 'utf8'))
 
-/** Every grid card gap declaration with the at-rule that holds its rule, or null at the top level. */
 function gridGapDeclarations(): { atRule: string | null; gap: string }[] {
   const declarations: { atRule: string | null; gap: string }[] = []
   stylesheet.walkRules('.orbit-calendar-grid-card', (rule) => {

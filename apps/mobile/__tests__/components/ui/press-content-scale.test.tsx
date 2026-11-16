@@ -39,7 +39,6 @@ function host(tree: ReactTestRenderer, predicate: (props: Record<string, unknown
   return tree.root.findAll((node) => typeof node.type === 'string' && predicate(node.props))[0]!
 }
 
-/** The scales of every press layer inside the press target: the content moves, the target and its fill stay. */
 function contentScales(target: ReactTestInstance) {
   return target.findAll((node) => typeof node.type === 'string' && node.props['data-slot'] === 'press-scale')
     .map((node) => (StyleSheet.flatten(node.props.style as StyleProp<ViewStyle>).transform as { scale: number }[])[0]!.scale)

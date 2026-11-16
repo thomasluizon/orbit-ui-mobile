@@ -7,15 +7,8 @@ import {
 
 const ACCOUNT_SIGNAL_CHANNEL = 'orbit-account-signal'
 
-/**
- * A message that must arrive. Channel delivery runs on the event loop rather than on a timer, so a
- * fixed wait proves nothing under load. One channel delivers in order, so a test that waits for
- * this and then finds nothing before it has proof that the message under test was dropped on
- * purpose rather than merely late.
- */
 const SENTINEL_ACCOUNT = 'sentinel-account'
 
-/** Keep the second tab's channel open so posted messages can be delivered. */
 let otherTab: BroadcastChannel | null = null
 
 function getOtherTab(): BroadcastChannel {

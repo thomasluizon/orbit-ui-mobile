@@ -13,7 +13,6 @@ import { createTokensV2 } from '@/lib/theme'
 import { __resetTestHostConfig, __setMeasureInWindowImpl } from '@/test-mocks/react-native'
 import { getPrefersReducedMotion, usePrefersReducedMotion } from '@/lib/motion'
 
-/** The route focus a navigator gives each screen; `useIsFocused` reads it as the real hook reads its route. */
 const route = vi.hoisted(() => ({ Focus: require('react').createContext(true) as Context<boolean> }))
 vi.mock('expo-router', () => ({ useIsFocused: () => require('react').useContext(route.Focus) }))
 
@@ -35,19 +34,16 @@ const moonFill = createTokensV2('purple', 'dark').primary
 const appStateListeners: ((status: string) => void)[] = []
 const reduceMotionListeners = new Set<(enabled: boolean) => void>()
 
-/** Holds one reduced motion listener for the whole test, so a change reaches the shared preference even before a mascot mounts. */
 function ReducedMotionProbe() {
   usePrefersReducedMotion()
   return null
 }
 let probe: TestTree | undefined
 
-/** Changes the system reduced motion setting the way Android reports it: one `reduceMotionChanged` event. */
 function setReducedMotion(enabled: boolean) {
   TestRenderer.act(() => { for (const listener of [...reduceMotionListeners]) listener(enabled) })
 }
 
-/** The vertical scale of the eyes: 1 is open, and the blink closes them toward 0.1. */
 function eyeScaleOf(tree: TestTree) {
   const eye = tree.root.findAll((node) => typeof node.type === 'string' && typeof node.props.transform === 'string' && String(node.props.transform).startsWith('matrix('))[0]
   return Number(/^matrix\(1 0 0 ([\d.]+) /.exec(String(eye?.props.transform))?.[1])
@@ -55,7 +51,6 @@ function eyeScaleOf(tree: TestTree) {
 
 const mounted: TestTree[] = []
 
-/** Mounts a tree and remembers it, so a failed test cannot leave a live claim that steals the slot from the next test. */
 function render(element: ReactElement): TestTree {
   let tree: TestTree | undefined
   TestRenderer.act(() => { tree = TestRenderer.create(element) })
@@ -71,7 +66,6 @@ function loops(tree: TestTree) {
   return mascots(tree).map((node) => node.props['data-orbit-loop'])
 }
 
-/** Each mascot's loop state, keyed by its face. */
 function loopsByState(tree: TestTree) {
   return Object.fromEntries(mascots(tree).map((node) => [node.props['data-orbit-state'], node.props['data-orbit-loop']]))
 }

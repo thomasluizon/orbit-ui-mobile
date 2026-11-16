@@ -12,7 +12,6 @@ const action = './.github/actions/desktop-nsis-tools'
 const windowsBundling = /tauri\s+(build|bundle)|run\s+"?(build|bundle):[^\n]*@orbit\/desktop|desktop-bench\/(acceptance|run)\.mjs/
 
 function runsOnWindows(job: Job): boolean {
-  /** A matrix runner can be a fromJSON expression string; it runs on Windows when that expression names a Windows runner. */
   const matrixRunners = job.strategy?.matrix?.runner ?? []
   const runners = [job['runs-on'], ...(job.strategy?.matrix?.include?.map(entry => entry.runner) ?? []), ...(Array.isArray(matrixRunners) ? matrixRunners : [matrixRunners])]
   return runners.some(runner => runner?.toLowerCase().includes('windows'))

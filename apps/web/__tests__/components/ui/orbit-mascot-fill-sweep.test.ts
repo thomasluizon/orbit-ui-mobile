@@ -83,7 +83,6 @@ function paintsPrimary(node: ts.JsxElement | ts.JsxSelfClosingElement, syntax: t
   return primary
 }
 
-/** Each place where Orbit sits on a filled pill or on a `--primary` fill, as `path:line`. */
 function findMascotOnFill(path: string, contents: string): string[] {
   const syntax = ts.createSourceFile(path, contents, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX)
   const pills = importedNames(syntax, /(?:^|\/)pill-button$/, PILL_EXPORTS)

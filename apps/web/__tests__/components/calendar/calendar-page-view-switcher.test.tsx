@@ -1742,11 +1742,6 @@ describe('CalendarPage view switcher', () => {
       .toBe(initialMonth.getMonth())
   })
 
-  /**
-   * The day panel's entries re-derive from the month query, which the account replacement empties,
-   * so those are the next account's already. The open flag and the chosen day were copies, and a
-   * replacement left the next account looking at a sheet the previous one opened.
-   */
   describe('account replacement', () => {
     beforeEach(() => {
       vi.stubGlobal('fetch', vi.fn())

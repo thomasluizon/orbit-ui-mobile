@@ -82,7 +82,6 @@ function buildLayout(element: HostNode, nodes: Map<HostNode, YogaNode>): YogaNod
   const style = StyleSheet.flatten(resolvedStyle as never) as Record<string, unknown> | undefined
   if (style) applyStyle(node, style)
   if (element.type === 'Text') {
-    /** Fixed text measurements isolate horizontal insets from native font rendering. */
     node.setMeasureFunc(() => ({ width: 64, height: 20 }))
   } else {
     (element.children ?? []).filter((child): child is HostNode => typeof child !== 'string')
