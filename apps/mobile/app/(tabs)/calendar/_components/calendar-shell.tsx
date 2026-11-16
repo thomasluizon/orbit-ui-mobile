@@ -118,7 +118,7 @@ function createStyles(tokens: Tokens) {
     span: { flexShrink: 1, fontFamily: 'GeistMono_400Regular', fontSize: 14, lineHeight: 19.6, color: tokens.fg2, fontVariant: ['tabular-nums'] },
     year: { color: tokens.fg2 },
     label: { fontFamily: 'Geist_500Medium', fontSize: 16, color: tokens.fg1 },
-    selectedMonth: { borderWidth: 2, borderColor: tokens.fg1 },
+    selectedMonth: { outlineWidth: 2, outlineOffset: -2, outlineStyle: 'solid', outlineColor: tokens.fg1 },
     picker: { gap: 16, flexShrink: 1, minHeight: 0 },
     months: { flexDirection: 'row', flexWrap: 'wrap' },
     month: { minHeight: 48, padding: SPACING.s8, alignItems: 'center', justifyContent: 'center', borderRadius: 12, overflow: 'hidden', backgroundColor: tokens.bgField },

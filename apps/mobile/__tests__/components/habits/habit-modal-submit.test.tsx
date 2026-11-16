@@ -15,6 +15,7 @@ import type { ReactTestInstance, ReactTestRenderer } from 'react-test-renderer'
 import { createQueuedAck } from '@/lib/offline-mutations'
 import { advanceAccountGeneration } from '@/lib/session-epoch'
 import { __setFocusImpl } from '@/test-mocks/react-native'
+import { sheetTestControls } from '@/__tests__/support/sheet-double'
 import type { HabitSetupSuggestion } from '@orbit/shared/types/habit'
 
 const editorParentState = vi.hoisted(() => ({ detail: undefined as import('@orbit/shared/types/habit').HabitDetail | undefined, items: [] as import('@orbit/shared/types/habit').HabitScheduleItem[] }))
@@ -253,6 +254,64 @@ describe.each(['create', 'edit'] as const)('habit %s submit', (mode) => {
     expect(buttonState(submit).busy).toBe(false)
     expect(submit.findAll((node) => (node.type as unknown) === 'View' && node.props.testID === 'skeleton-face')).toHaveLength(0)
     expect(onClose).toHaveBeenCalled()
+  })
+
+  it('sends one request for two presses before the request starts', async () => {
+    mutation.mockResolvedValue(habit)
+    const { title, submit } = await renderSheet(mode)
+    await changeTitle(title, 'Walk every day')
+    await act(() => {
+      const press = submit.props.onPress as () => void
+      press()
+      press()
+      return Promise.resolve()
+    })
+    await settleMutation()
+    expect(mutation).toHaveBeenCalledTimes(1)
+  })
+
+  it('keeps the waiting face after success until the sheet has left, and sends nothing on a second press', async () => {
+    sheetTestControls.defer(true)
+    try {
+      let finish!: () => void
+      mutation.mockImplementation(() => new Promise((resolve) => { finish = () => resolve(habit) }))
+      const { title, submit, onClose } = await renderSheet(mode)
+      await changeTitle(title, 'Walk every day')
+      await pressSubmit(submit)
+      await settleMutation()
+      expect(buttonState(submit).busy).toBe(true)
+      await act(() => Promise.resolve(finish()))
+      await settleMutation()
+      expect(sheetTestControls.isDismissPending).toBe(true)
+      expect(buttonState(submit)).toMatchObject({ busy: true, disabled: true })
+      expect(submit.findAll((node) => (node.type as unknown) === 'View' && node.props.testID === 'skeleton-face')).toHaveLength(1)
+      await act(() => { (submit.props.onPress as (() => void) | undefined)?.(); return Promise.resolve() })
+      await settleMutation()
+      expect(mutation).toHaveBeenCalledTimes(1)
+      expect(onClose).not.toHaveBeenCalled()
+      await act(() => { sheetTestControls.completeDismissal(); return Promise.resolve() })
+      expect(onClose).toHaveBeenCalled()
+      expect(buttonState(submit).busy).toBe(false)
+    } finally {
+      sheetTestControls.defer(false)
+    }
+  })
+
+  it('closes after success when the native dismissal rejects', async () => {
+    sheetTestControls.defer(true)
+    try {
+      mutation.mockResolvedValue(habit)
+      const { title, submit, onClose } = await renderSheet(mode)
+      await changeTitle(title, 'Walk every day')
+      await pressSubmit(submit)
+      await settleMutation()
+      expect(sheetTestControls.isDismissPending).toBe(true)
+      await act(() => { sheetTestControls.rejectDismissal(); return Promise.resolve() })
+      expect(onClose).toHaveBeenCalled()
+      expect(buttonState(submit).busy).toBe(false)
+    } finally {
+      sheetTestControls.defer(false)
+    }
   })
 
   it('allows retry after the request fails', async () => {

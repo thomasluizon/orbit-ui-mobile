@@ -2,6 +2,8 @@ import { useDismissGuard } from '@/hooks/use-dismiss-guard'
 import { DiscardChangesSheet } from '@/components/ui/discard-changes-sheet'
 import { useEffect, useRef, useId } from 'react'
 import { X } from '@/components/ui/icons'
+import { SkeletonFace } from '@/components/ui/skeleton'
+import { waitingFaceClasses } from '@/components/ui/pill-action-style'
 import { MAX_TAG_NAME_LENGTH } from '@orbit/shared/validation'
 
 interface TagEditorRowProps {
@@ -13,7 +15,7 @@ interface TagEditorRowProps {
   inputAriaLabel: string
   actionLabel: string
   cancelAriaLabel: string
-  disabled: boolean
+  pending?: boolean
   onChange: (value: string) => void
   onCommit: () => void
   onCancel: () => void
@@ -28,13 +30,14 @@ export function TagEditorRow({
   inputAriaLabel,
   actionLabel,
   cancelAriaLabel,
-  disabled,
+  pending = false,
   onChange,
   onCommit,
   onCancel,
 }: Readonly<TagEditorRowProps>) {
   const dismiss = useDismissGuard({ isDirty: value !== initialValue, onDismiss: onCancel })
-  const requestCancel = () => { if (!disabled) dismiss.requestDismiss() }
+  const requestCancel = () => { if (!pending) dismiss.requestDismiss() }
+  const commit = () => { if (!pending) onCommit() }
   const inputRef = useRef<HTMLInputElement>(null)
   useEffect(() => { if (focusRequest) inputRef.current?.focus() }, [focusRequest])
   const errorId = useId()
@@ -50,35 +53,37 @@ export function TagEditorRow({
         aria-label={inputAriaLabel}
         placeholder={placeholder}
         maxLength={MAX_TAG_NAME_LENGTH}
-        disabled={disabled}
+        disabled={pending}
         className="orbit-field-hover flex-1 min-w-0 bg-[var(--bg-field)] text-[var(--fg-1)] placeholder:text-[var(--fg-3)] rounded-[12px] py-2 px-3 text-base sm:text-sm shadow-[inset_0_0_0_1px_var(--border-control)] border-0 focus-visible:outline-none focus-visible:shadow-[inset_0_0_0_2px_var(--primary)]"
         onChange={(e) => onChange(e.target.value)}
         onKeyDown={(e) => {
           if (e.key === 'Enter') {
             e.preventDefault()
-            onCommit()
+            commit()
           }
         }}
       />
       <button
         type="button"
-        className="habit-control-motion press-hit-layer shrink-0 min-h-[var(--touch-min)] min-w-[var(--touch-min)] rounded-full bg-[var(--primary)] text-[var(--fg-on-primary)] enabled:hover:bg-[var(--primary-hover)] enabled:active:bg-[var(--primary-pressed)] motion-safe:enabled:active:scale-[0.96] disabled:opacity-40"
+        className={`habit-control-motion press-hit-layer shrink-0 min-h-[var(--touch-min)] min-w-[var(--touch-min)] rounded-full ${pending ? waitingFaceClasses : 'bg-[var(--primary)] text-[var(--fg-on-primary)] enabled:hover:bg-[var(--primary-hover)] enabled:active:bg-[var(--primary-pressed)] motion-safe:enabled:active:scale-[0.96] disabled:opacity-40'}`}
         style={{
           padding: "var(--orbit-space-8) var(--orbit-space-12)",
           fontFamily: 'var(--font-sans)',
           fontSize: 14,
           fontWeight: 500,
         }}
-        disabled={disabled}
-        onClick={onCommit}
+        disabled={pending}
+        aria-busy={pending || undefined}
+        onClick={commit}
       >
+        {pending ? <SkeletonFace /> : null}
         {actionLabel}
       </button>
       <button
         type="button"
         aria-label={cancelAriaLabel}
         className="habit-control-motion press-hit-layer touch-target shrink-0 grid size-[var(--touch-min)] place-items-center rounded-full text-[var(--fg-3)] enabled:hover:bg-[var(--bg-hover)] enabled:active:bg-[var(--bg-hover)] enabled:hover:text-[var(--fg-1)] motion-safe:enabled:active:scale-[0.96]"
-        disabled={disabled}
+        disabled={pending}
         onClick={requestCancel}
       >
         <X size={16} strokeWidth={1.8} aria-hidden="true" />

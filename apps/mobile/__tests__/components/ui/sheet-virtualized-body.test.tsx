@@ -10,6 +10,7 @@ import { buildYearRange } from '@orbit/shared/utils'
 import { GoalLinkingField } from '@/components/habits/goal-linking-field'
 import { TagPickerField } from '@/components/habits/habit-form-fields/tag-picker-field'
 import { useUIStore } from '@/stores/ui-store'
+import { applyBorderWidths } from '@/__tests__/support/yoga-borders'
 
 vi.unmock('@/components/ui/sheet')
 
@@ -89,7 +90,7 @@ function applyLayoutStyle(node: YogaNode, style: LayoutStyle) {
   if (numeric(style.maxHeight) !== undefined) node.setMaxHeight(numeric(style.maxHeight))
   if (numeric(style.gap) !== undefined) node.setGap(Yoga.GUTTER_ALL, numeric(style.gap))
   if (numeric(style.rowGap) !== undefined) node.setGap(Yoga.GUTTER_ROW, numeric(style.rowGap))
-  if (numeric(style.borderWidth) !== undefined) node.setBorder(Yoga.EDGE_ALL, numeric(style.borderWidth))
+  applyBorderWidths(node, style)
   for (const [suffix, edge] of EDGES) {
     if (numeric(style[`padding${suffix}`]) !== undefined) node.setPadding(edge, numeric(style[`padding${suffix}`]))
     if (numeric(style[`margin${suffix}`]) !== undefined) node.setMargin(edge, numeric(style[`margin${suffix}`]))

@@ -6,6 +6,7 @@ import { Sheet } from '@/components/ui/sheet';
 import { Markdown } from "@/components/ui/markdown";
 import { createTokensV2 } from "@/lib/theme";
 import { useAppTheme } from "@/lib/use-app-theme";
+import { insetHairlineRing } from "@/components/ui/inset-hairline-ring";
 
 interface DescriptionViewerProps {
   open: boolean;
@@ -34,9 +35,10 @@ export function DescriptionViewer({
       <View>
         <DescriptionCopyButton key={description} description={description} />
         <View
+          testID="description-viewer-card"
           style={[
             styles.card,
-            { backgroundColor: tokens.bgCard, borderColor: tokens.hairline },
+            { backgroundColor: tokens.bgCard, outlineColor: tokens.hairline },
           ]}
         >
           <Markdown>{description}</Markdown>
@@ -50,7 +52,7 @@ const styles = StyleSheet.create({
   card: {
     minWidth: 0,
     borderRadius: 18,
-    borderWidth: 1,
+    ...insetHairlineRing,
       paddingVertical: SPACING.s16,
       paddingHorizontal: SPACING.s16,
   },

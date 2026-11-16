@@ -10,6 +10,7 @@ import { ListRow } from '@/components/ui/list-row'
 import { RowList } from '@/components/ui/row-list'
 import { i18n } from '@/lib/i18n'
 import { replayProfileTitleLayout } from '../../support/profile-row-geometry'
+import { applyBorderWidths } from '@/__tests__/support/yoga-borders'
 
 vi.unmock('react-i18next')
 const TestRenderer = require('react-test-renderer')
@@ -63,6 +64,7 @@ function applyStyle(node: YogaNode, style: ViewStyle) {
   if (typeof style.paddingHorizontal === 'number') node.setPadding(Yoga.EDGE_HORIZONTAL, style.paddingHorizontal)
   if (typeof style.paddingVertical === 'number') node.setPadding(Yoga.EDGE_VERTICAL, style.paddingVertical)
   if (typeof style.paddingTop === 'number') node.setPadding(Yoga.EDGE_TOP, style.paddingTop)
+  applyBorderWidths(node, style)
   if (typeof style.paddingEnd === 'number') node.setPadding(Yoga.EDGE_END, style.paddingEnd)
   if (typeof style.marginVertical === 'number') node.setMargin(Yoga.EDGE_VERTICAL, style.marginVertical)
   if (typeof style.marginHorizontal === 'number') node.setMargin(Yoga.EDGE_HORIZONTAL, style.marginHorizontal)
@@ -124,6 +126,8 @@ it.each(cases)('fits Android Astra labels in $locale at $width px, Pro $hasProAc
     layout.calculateLayout(width - 32, 'auto', Yoga.DIRECTION_LTR)
     const panel = tree.root.findByProps({ testID: 'astra-allowance-panel' })
     expect.soft(StyleSheet.flatten(panel.props.style).padding).toBe(16)
+    expect.soft(StyleSheet.flatten(panel.props.style).borderWidth, 'a border takes layout space and moves the copy off the 16 dp record inset').toBeUndefined()
+    expect.soft(StyleSheet.flatten(panel.props.style)).toMatchObject({ outlineWidth: 1, outlineOffset: -1, outlineStyle: 'solid' })
     const group = tree.root.find((node: { type: unknown; props: { style?: ViewStyle } }) => node.type === 'View' && node.props.style?.gap === 24)
     expect(group).toBeDefined()
     const labels = ['profile.allowance.title', 'profile.proactiveAstra.title', 'profile.aiSummary.title', 'profile.connections.googleCalendar', 'profile.connections.notion'].map((key) => i18n.t(key))
