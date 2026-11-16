@@ -22,6 +22,7 @@ import { RootStackScreens } from '@/components/navigation/root-stack-screens'
 import { statusBarStyleForTheme } from '@/lib/status-bar-style'
 import { useGamificationProfile } from '@/hooks/use-gamification'
 import { useHasProAccess, useProfile } from '@/hooks/use-profile'
+import { useOrbitMotionSync } from '@/hooks/use-mascot-motion'
 import { useTimezoneAutoSync } from '@/hooks/use-timezone-auto-sync'
 import { useHabitCountLoaded } from '@/hooks/use-habit-queries'
 import { createTokensV2 } from '@/lib/theme'
@@ -142,6 +143,7 @@ function RootLayoutNav() {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
   const captureReady = useCaptureReady()
   const { profile } = useProfile()
+  useOrbitMotionSync(profile)
   const today = useCurrentDate(profile?.timeZone)
   const hasProAccess = useHasProAccess()
   const { count: totalHabitCount, isLoaded: habitCountLoaded } = useHabitCountLoaded()

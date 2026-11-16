@@ -46,7 +46,7 @@ function conversation(locale: 'en' | 'pt-BR' = 'en') {
 
 it('contains a rejected import inside the library and keeps the thread, Back and close usable', async () => {
   conversation()
-  const thread = screen.getByRole('feed', { name: 'Astra' })
+  const thread = screen.getByRole('feed', { name: 'Orbit' })
   const composer = screen.getByRole('textbox', { name: 'Message' })
   const trigger = screen.getByRole('button', { name: 'Browse ideas' })
   fireEvent.click(trigger)
@@ -62,7 +62,7 @@ it('contains a rejected import inside the library and keeps the thread, Back and
   expect(composer).toHaveValue('My unfinished draft')
   fireEvent.click(within(library as HTMLElement).getByRole('button', { name: 'Back to conversation' }))
   await waitFor(() => expect(trigger).toHaveFocus())
-  expect(screen.getByRole('feed', { name: 'Astra' })).toBe(thread)
+  expect(screen.getByRole('feed', { name: 'Orbit' })).toBe(thread)
   expect(screen.getByRole('textbox', { name: 'Message' })).toBe(composer)
   expect(useUIStore.getState().astraConversationOpen).toBe(true)
   fireEvent.click(screen.getByRole('button', { name: 'Close conversation' }))
@@ -71,7 +71,7 @@ it('contains a rejected import inside the library and keeps the thread, Back and
 
 it('imports again after reconnecting and renders the library on the second open', async () => {
   conversation()
-  const thread = screen.getByRole('feed', { name: 'Astra' })
+  const thread = screen.getByRole('feed', { name: 'Orbit' })
   const trigger = screen.getByRole('button', { name: 'Browse ideas' })
   fireEvent.click(trigger)
   await waitFor(() => expect(importAttempt).toHaveBeenCalledOnce())
@@ -98,7 +98,7 @@ it('imports again after reconnecting and renders the library on the second open'
   expect(thread).toBeInTheDocument()
   fireEvent.click(screen.getByRole('button', { name: 'Back to conversation' }))
   await waitFor(() => expect(trigger).toHaveFocus())
-  expect(screen.getByRole('feed', { name: 'Astra' })).toBe(thread)
+  expect(screen.getByRole('feed', { name: 'Orbit' })).toBe(thread)
   expect(screen.getByRole('textbox', { name: 'Message' })).toHaveValue('My unfinished draft')
 })
 

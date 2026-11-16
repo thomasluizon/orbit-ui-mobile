@@ -134,6 +134,13 @@ test("configured Chromium shards split recorded time evenly and leave room for g
   assert.ok(Math.max(...loads) - Math.min(...loads) <= longestFile, "no shard may carry more than one file of extra recorded time")
 })
 
+test("every recorded web test duration names a test file that exists", () => {
+  const { durationMsByFile } = JSON.parse(readFileSync(join(root, "apps/web/vitest/shard-timings.json"), "utf8"))
+  const absentFiles = Object.entries(durationMsByFile).flatMap(([project, files]) =>
+    Object.keys(files).filter((file) => !existsSync(join(root, "apps/web", file))).map((file) => `${project}: ${file}`))
+  assert.deepEqual(absentFiles, [], "delete the recorded duration of a test file that was deleted or moved")
+})
+
 test("an unrecorded file counts as the project median and equal durations still spread by count", async () => {
   const webRoot = join(root, "apps/web")
   const files = Array.from({ length: 12 }, (_, index) => ({ moduleId: join(webRoot, `__tests__/new-${index}.test.tsx`), project: { name: "unrecorded" } }))

@@ -292,7 +292,7 @@ function ComposerConversationHarness({ conversationReady = true }: { conversatio
     items={[]}
     activeId="perfil"
     navLabel="Navigation"
-    composer={<Composer {...chat.composerProps} onOpenConversation={() => useUIStore.getState().setAstraConversationOpen(true)} conversationLabel="Open Astra" />}
+    composer={<Composer {...chat.composerProps} onOpenConversation={() => useUIStore.getState().setAstraConversationOpen(true)} conversationLabel="Talk to Orbit" />}
     conversation={conversationReady ? <AstraConversation chat={chat} /> : null}
     conversationOpen={open}
     conversationLabel="Astra"
@@ -997,7 +997,7 @@ describe('web useChatComposer streaming send', () => {
     expect(screen.queryByText('Start with water')).not.toBeInTheDocument()
     await act(async () => { stream.enqueue(finalFrame(makeChatResponse({ aiMessage: 'Start with water' }))); stream.close() })
     fireEvent.click(screen.getByRole('button', { name: 'common.closeConversation' }))
-    expect(screen.getByRole('button', { name: 'Open Astra' })).toHaveFocus()
+    expect(screen.getByRole('button', { name: 'Talk to Orbit' })).toHaveFocus()
     expect(screen.getAllByRole('textbox')).toHaveLength(1)
   })
 

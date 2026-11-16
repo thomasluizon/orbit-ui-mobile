@@ -61,7 +61,7 @@ describe('Progresso Metas empty state centring in Chromium', () => {
       const geometry = await page.evaluate(() => {
         const header = document.querySelector('[data-shell-header] [data-page-header]')!.getBoundingClientRect()
         const tabs = document.querySelector('[data-shell-tab-bar]')!.getBoundingClientRect()
-        const group = document.querySelector('[data-shell-scroller] [data-mark]')!.getBoundingClientRect()
+        const group = document.querySelector('[data-shell-scroller] [data-empty-state]')!.getBoundingClientRect()
         return { free: { top: header.bottom, bottom: tabs.top }, group: { top: group.top, bottom: group.bottom } }
       })
       const freeCentre = (geometry.free.top + geometry.free.bottom) / 2

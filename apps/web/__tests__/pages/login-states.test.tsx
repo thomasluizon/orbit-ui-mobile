@@ -197,7 +197,8 @@ function assertEmailState(state: Parameters<typeof setFixture>[0], fixture: Retu
         const mark = googleButton.querySelector('[data-asset="google-mark"]')
         if (fixture.isGoogleLoading) {
           expect(googleButton).toHaveAttribute('aria-busy', 'true')
-          expect(mark).not.toBeInTheDocument()
+          expect(mark).toBeInTheDocument()
+          expect(googleButton.querySelector('[data-slot="skeleton-face"] .skeleton-pulse')).toBeInTheDocument()
         } else {
           expect(mark).toBeInTheDocument()
           expect(mark).toHaveAttribute('aria-hidden', 'true')

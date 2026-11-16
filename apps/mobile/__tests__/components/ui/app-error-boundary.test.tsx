@@ -54,6 +54,14 @@ describe('AppErrorScreen', () => {
     expect(retry).toHaveBeenCalledOnce()
   })
 
+  it.each([[412, 96], [1024, 128]])('draws one decorative Orbit in the default state at %ipx', async (width, size) => {
+    __setWindowDimensions({ width, height: 900, scale: 1, fontScale: 1 })
+    await mount({ status: 500 })
+    const mascots = tree.root.findAllByType('Svg').filter((node) => (node.props as Record<string, unknown>).testID === 'orbit-mascot')
+    expect(mascots).toHaveLength(1)
+    expect(mascots[0]!.props).toMatchObject({ width: size, accessible: false, 'data-orbit-state': 'parado' })
+  })
+
   it.each([412, 1024])('renders the drawn failure title size at %ipx', async (width) => {
     __setWindowDimensions({ width, height: 900, scale: 1, fontScale: 1 })
     await mount({ status: 500 })

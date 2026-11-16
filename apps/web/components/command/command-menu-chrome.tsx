@@ -6,6 +6,7 @@ import { CommandGroup, CommandInput } from 'cmdk'
 import { ArrowLeft, Search } from '@/components/ui/icons'
 import { Button } from '@/components/ui/pill-button'
 import { Keycap } from '@/components/ui/keycap'
+import { Skeleton } from '@/components/ui/skeleton'
 
 export const GROUP_CLASS =
   'mb-1 [&_[cmdk-group-heading]]:px-3 [&_[cmdk-group-heading]]:pb-1 [&_[cmdk-group-heading]]:pt-2 [&_[cmdk-group-heading]]:text-[12px] [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-heading]]:tracking-[0.06em] [&_[cmdk-group-heading]]:text-[var(--fg-3)] [&_[cmdk-group-heading]]:font-mono'
@@ -18,11 +19,8 @@ export function CommandHabitSkeleton({ heading }: Readonly<{ heading: string }>)
       <div aria-hidden="true">
         {SKELETON_ROW_WIDTHS.map((width) => (
           <div key={width} className="flex min-h-[var(--touch-min)] items-center gap-3 px-3">
-            <span className="skeleton-pulse size-6 shrink-0 rounded-[8px] bg-[var(--bg-well)]" />
-            <span
-              className="skeleton-pulse h-4 rounded-[8px] bg-[var(--bg-well)]"
-              style={{ width }}
-            />
+            <span className="size-6 shrink-0"><Skeleton variant="fill" grouped /></span>
+            <span className="h-4" style={{ width }}><Skeleton variant="fill" grouped /></span>
           </div>
         ))}
       </div>

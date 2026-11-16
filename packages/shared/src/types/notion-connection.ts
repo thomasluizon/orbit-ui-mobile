@@ -26,9 +26,8 @@ export type NotionAuthorizeRequest = z.infer<typeof notionAuthorizeRequestSchema
 export const NOTION_CALLBACK_PATH = '/auth-callback/notion'
 export const NOTION_RETURN_PATH = '/profile/astra'
 
-export function notionConnectionLabel(connection: NotionConnection | undefined, isLoading = false):
-  'common.loading' | 'profile.connections.renew' | 'profile.connections.connected' | 'profile.connections.notConnected' {
-  if (isLoading) return 'common.loading'
+export function notionConnectionLabel(connection: NotionConnection | undefined):
+  'profile.connections.renew' | 'profile.connections.connected' | 'profile.connections.notConnected' {
   if (connection?.status === 'ReconnectRequired') return 'profile.connections.renew'
   return connection?.connected ? 'profile.connections.connected' : 'profile.connections.notConnected'
 }

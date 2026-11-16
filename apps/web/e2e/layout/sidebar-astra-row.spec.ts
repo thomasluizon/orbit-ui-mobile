@@ -8,19 +8,20 @@ import { getShellConversationEntry } from './shell-conversation-entry'
 
 for (const [locale, words] of [['pt-BR', ptBR], ['en', en]] as const) {
   for (const width of [1100, 1352, 1440]) {
-    test.describe(`sidebar Astra in ${locale} at ${width}`, () => {
+    test.describe(`sidebar conversation row in ${locale} at ${width}`, () => {
       test.use({ appLocale: locale, viewport: { width, height: 915 }, layoutProfile: { aiMessagesUsed: 0 } })
       test('shares destination geometry and opens, closes and navigates with focus', async ({ page }) => {
         await page.goto('/')
         const sidebar = page.locator('[data-shell-sidebar]')
         const row = getShellConversationEntry(page, width, words)
-        const label = row.getByText(words.nav.astra, { exact: true })
+        const label = row.getByText(words.shell.astraButton.open, { exact: true })
         const today = sidebar.getByRole('link', { name: words.nav.today, exact: true })
         const calendar = sidebar.getByRole('link', { name: words.nav.calendar, exact: true })
         await expect(row).toBeVisible()
-        await expect(sidebar.locator('nav > button').first()).toHaveAccessibleName(words.nav.astra)
+        await expect(sidebar.locator('nav > button').first()).toHaveAccessibleName(words.shell.astraButton.open)
         await expect(label).toBeVisible()
-        await expect(label).toHaveAttribute('translate', 'no')
+        await expect(label).not.toHaveAttribute('translate')
+        await expect(row.locator('[translate="no"]')).toHaveText('Orbit')
         await page.evaluate(() => document.fonts.ready)
         const astraBox = (await row.boundingBox())!
         const todayBox = (await today.boundingBox())!
@@ -29,8 +30,8 @@ for (const [locale, words] of [['pt-BR', ptBR], ['en', en]] as const) {
         expect(astraBox.height).toBeGreaterThanOrEqual(48)
         expect(astraBox.y + astraBox.height + 8).toBeCloseTo(todayBox.y, 1)
         await expect(row.locator('svg')).toHaveAttribute('width', '20')
-        await expect(row.locator('svg')).toHaveAttribute('height', '20')
-        await expect(row).toHaveText(words.nav.astra)
+        await expect(row.locator('svg')).toHaveAttribute('height', '15')
+        await expect(row).toHaveText(words.shell.astraButton.open)
         const labelBox = (await label.boundingBox())!
         expect(labelBox.width).toBeGreaterThan(1)
         expect(labelBox.height).toBeGreaterThan(1)
@@ -42,7 +43,7 @@ for (const [locale, words] of [['pt-BR', ptBR], ['en', en]] as const) {
           return { height: mark.height, left: mark.left, right: mark.right, rowLeft: row.left, rowRight: row.right,
             centerOffset: Math.abs(mark.top + mark.height / 2 - row.top - row.height / 2) }
         })
-        expect(markGeometry.height).toBe(20)
+        expect(markGeometry.height).toBe(15)
         expect(markGeometry.left).toBeGreaterThanOrEqual(markGeometry.rowLeft)
         expect(markGeometry.right).toBeLessThanOrEqual(markGeometry.rowRight)
         expect(markGeometry.centerOffset).toBeLessThanOrEqual(0.5)
@@ -60,7 +61,7 @@ for (const [locale, words] of [['pt-BR', ptBR], ['en', en]] as const) {
         await expect(conversation.locator('[data-composer-input]')).toBeFocused()
         await expect(row).toHaveAttribute('aria-expanded', 'true')
         await expect(today).toHaveAttribute('aria-current', 'page')
-        await expect(row.locator('svg')).toHaveAttribute('color', 'var(--primary)')
+        await expect(row.locator('svg')).toHaveAttribute('color', 'var(--fg-1)')
         await expect(today).toHaveCSS('color', neutral)
         await page.keyboard.press('Escape')
         await expect(conversation).toHaveCount(0)
@@ -69,9 +70,9 @@ for (const [locale, words] of [['pt-BR', ptBR], ['en', en]] as const) {
         const toggle = sidebar.locator('[data-shell-sidebar-toggle]')
         await toggle.click()
         await expect(sidebar).toHaveAttribute('data-collapsed', 'true')
-        await expect(row).toHaveAccessibleName(words.nav.astra)
-        await expect(row).toHaveAttribute('title', words.nav.astra)
-        await expect(label).toHaveText(words.nav.astra)
+        await expect(row).toHaveAccessibleName(words.shell.astraButton.open)
+        await expect(row).toHaveAttribute('title', words.shell.astraButton.open)
+        await expect(label).toHaveText(words.shell.astraButton.open)
         await expect(label).toHaveCSS('position', 'absolute')
         await expect(label).toHaveCSS('clip-path', 'inset(50%)')
         const hiddenLabelBox = (await label.boundingBox())!
@@ -93,7 +94,7 @@ for (const [locale, words] of [['pt-BR', ptBR], ['en', en]] as const) {
   for (const width of [840, 412]) {
     test.describe(`compact sidebar in ${locale} at ${width}`, () => {
       test.use({ appLocale: locale, viewport: { width, height: 915 } })
-      test('has no sidebar Astra row', async ({ page }) => {
+      test('has no sidebar conversation row', async ({ page }) => {
         await page.goto('/')
         await expect(page.locator('[data-shell-astra-row]')).toHaveCount(0)
       })

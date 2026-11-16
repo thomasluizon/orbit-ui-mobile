@@ -1,6 +1,5 @@
 import { useState, useMemo } from 'react'
 import { StyleSheet, Text, View } from 'react-native'
-import { MotionPressable as Pressable } from '@/components/ui/motion-pressable'
 import { ListRow } from '@/components/ui/list-row'
 import { SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import type { Goal, GoalMetrics } from '@orbit/shared/types/goal'
@@ -8,6 +7,7 @@ import { formatGoalHistoryDelta, formatGoalHistoryNumber } from '@orbit/shared/u
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { useTranslation } from 'react-i18next'
+import { MotionPressable } from '@/components/ui/motion-pressable'
 
 const HISTORY_PREVIEW_COUNT = 3
 
@@ -89,7 +89,7 @@ export function GoalProgressHistorySection({
         )
       })}
       {entries.length > HISTORY_PREVIEW_COUNT ? (
-        <Pressable
+        <MotionPressable
           onPress={() => setShowAllHistory((prev) => !prev)}
           style={({ pressed }) => [
             styles.toggleAll,
@@ -102,7 +102,7 @@ export function GoalProgressHistorySection({
           <Text style={styles.toggleAllText}>
             {showAllHistory ? showLessLabel : showAllLabel}
           </Text>
-        </Pressable>
+        </MotionPressable>
       ) : null}
     </View>
   )

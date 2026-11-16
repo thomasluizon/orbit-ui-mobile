@@ -1,3 +1,4 @@
+import { controlStyle } from '@/__tests__/support/press-feedback'
 import { act, create, type ReactTestRenderer } from 'react-test-renderer'
 import { measureClampedPersonalText, expectPersonalTextLayout, expandedTextControls, pressTextControl } from '@/__tests__/support/personal-text'
 import React from 'react'
@@ -118,7 +119,7 @@ describe('ChecklistTemplates mobile', () => {
     const fill = tree.root.findAll((node) => node.type === 'View' && node.props.testID === 'template-row-feedback')[0]!
     const deleteControl = tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityLabel === 'common.delete: Workout')[0]!
     expect(StyleSheet.flatten(fill.props.style as StyleProp<ViewStyle>).backgroundColor).toBe('transparent')
-    expect(StyleSheet.flatten(deleteControl.props.style as StyleProp<ViewStyle>).backgroundColor).toBe(createTokensV2('orange', 'light').bgHover)
+    expect(controlStyle(deleteControl as never).backgroundColor).toBe(createTokensV2('orange', 'light').bgHover)
     expect(mocks.remove).not.toHaveBeenCalled()
   })
 
@@ -135,7 +136,7 @@ describe('ChecklistTemplates mobile', () => {
     const { tree } = renderTemplates()
     press(listRow(tree, 'habits.form.useTemplate'))
     const saveCurrent = () => tree.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityRole === 'button' && node.findAll((child) => child.type === 'Text' && child.props.children === 'habits.form.saveCurrentList').length > 0)[0]!
-    const paint = () => StyleSheet.flatten(saveCurrent().props.style as StyleProp<ViewStyle>)
+    const paint = () => controlStyle(saveCurrent())
     expect(paint().backgroundColor).toBe(tokens.bgWell)
     TestRenderer.act(() => (saveCurrent().props.onPressIn as () => void)())
     expect(paint().backgroundColor).toBe(tokens.bgHover)

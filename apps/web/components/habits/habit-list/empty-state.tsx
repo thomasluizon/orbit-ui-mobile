@@ -2,20 +2,21 @@
 
 import { IconButton } from '@/components/ui/icon-button'
 import { RefreshCw } from '@/components/ui/icons'
-import { AstraGlyph } from '@/components/ui/astra-glyph'
+import { OrbitMascot, useStateMascotSize } from '@/components/ui/orbit-mascot'
+import { orbitMascotHeight } from '@orbit/shared/contracts/brand'
 
 import { SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 
 import { ActionRow } from '@/components/ui/action-row'
 
 import { PillButton } from '@/components/ui/pill-button'
-import { OrbitMark } from '@/components/ui/orbit-mark'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useTranslations } from 'next-intl'
 import { OfflineRefusal } from '@/components/ui/offline-refusal'
 import { HABIT_FREQUENCY_FILTER_OPTIONS } from '@orbit/shared/utils/habit-frequency-filter'
 import type { HabitFrequencyFilter } from '@orbit/shared/stores'
 import { useUIStore } from '@/stores/ui-store'
+import { useIsWideDesktop } from '@/hooks/use-is-desktop'
 
 const SECONDARY_ACTION_STYLE = {
   fontFamily: 'var(--font-sans)',
@@ -55,6 +56,8 @@ export function HabitListEmptyState({
   variant = 'primary',
 }: Readonly<HabitListEmptyStateProps>) {
   const t = useTranslations()
+  const mascotSize = useStateMascotSize()
+  const wide = useIsWideDesktop()
   const isAstraPrompt = variant === 'primary'
   const hasDistinctDescription =
     Boolean(description) && description !== title
@@ -66,7 +69,7 @@ export function HabitListEmptyState({
       className="flex flex-col items-center justify-center text-center"
       style={{ padding: "var(--orbit-space-64) var(--orbit-space-32)", gap: 16 }}
     >
-      <OrbitMark size={96} />
+      <OrbitMascot size={mascotSize} />
       <div
         style={{
           fontFamily: 'var(--font-sans)',
@@ -109,8 +112,7 @@ export function HabitListEmptyState({
           )}
           {showAstraAction && askAstraLabel && (
             <PillButton
-
-              leadingIcon={<AstraGlyph size={16} />}
+              variant={wide ? 'secondary' : 'primary'}
             onClick={onAskAstra}
 
             >
@@ -141,8 +143,8 @@ export function HabitListAllDone({ onSeeUpcoming }: Readonly<{ onSeeUpcoming?: (
   const t = useTranslations()
   return (
     <div data-testid="habit-list-all-done" className="flex min-w-0 flex-col items-center text-center" style={{ gap: 24, padding: 'var(--orbit-space-48) var(--orbit-space-24)' }}>
-      <div data-testid="completed-day-mark" className="relative flex shrink-0 items-center justify-center" style={{ width: 48, height: 48 }} aria-hidden="true">
-        <OrbitMark size={48} accent={false} />
+      <div data-testid="completed-day-mark" className="relative flex shrink-0 items-center justify-center" style={{ width: 96, height: orbitMascotHeight(96) }} aria-hidden="true">
+        <OrbitMascot size={96} state="feliz" />
       </div>
       <div className="flex min-w-0 flex-col items-center" style={{ gap: 8 }}>
         <p style={{ fontFamily: 'var(--font-display)', fontSize: 22, lineHeight: 1.2, fontWeight: 500, letterSpacing: '-0.02em', color: 'var(--fg-1)', textWrap: 'balance' }}>

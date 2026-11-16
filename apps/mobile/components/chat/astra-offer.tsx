@@ -3,7 +3,7 @@ import { StyleSheet, Text, View } from 'react-native'
 import type { AstraOfferProps } from '@orbit/shared/chat'
 import { useAstraOffer } from '@/hooks/use-astra-offer'
 import { useAstraAllowanceCopy } from '@/hooks/use-astra-allowance-copy'
-import { AstraGlyph } from '@/components/ui/astra-glyph'
+import { OrbitMascot } from '@/components/ui/orbit-mascot'
 import { PillButton } from '@/components/ui/pill-button'
 import { ReferralDrawer } from '@/components/referral/referral-drawer'
 import { IconButton } from '@/components/ui/icon-button'
@@ -23,7 +23,7 @@ function ActiveAstraOffer(props: Readonly<AstraOfferProps>) {
   if (!props.action) return null
   return <>{offer.visible ? <View testID="astra-offer" style={styles.slot}>
     <View style={styles.actions}>
-      <PillButton size="sm" variant="ghost" minimumHeight={SMALL_PILL_VISIBLE_MIN} retainLeadingIcon leadingIcon={props.action.kind === 'openSurface' ? undefined : <AstraGlyph size={16} />} loading={offer.pending} accessibleName={props.action.label} disabled={offer.disabled} onClick={() => void offer.act()}>{props.action.label}</PillButton>
+      <PillButton size="sm" variant="ghost" minimumHeight={SMALL_PILL_VISIBLE_MIN} retainLeadingIcon leadingIcon={props.action.kind === 'openSurface' ? undefined : <OrbitMascot size={16} />} loading={offer.pending} accessibleName={props.action.label} disabled={offer.disabled} onClick={() => void offer.act()}>{props.action.label}</PillButton>
       <IconButton label={t('chat.offers.dismiss')} disabled={offer.dismissDisabled} onClick={() => void offer.dismiss()}><X size={20} strokeWidth={1.5} accessible={false} /></IconButton>
     </View>
     <Text accessibilityLiveRegion="polite" style={{ color: tokens.fg2, fontSize: SECONDARY_TEXT_SIZE }}>{offer.failed ? t('chat.offers.failed') : offer.reason ? t(offer.reason) : ''}</Text>

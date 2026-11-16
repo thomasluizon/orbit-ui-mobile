@@ -5,7 +5,7 @@ import Constants from 'expo-constants'
 import { useTranslation } from 'react-i18next'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { PillButton } from '@/components/ui/pill-button'
-import { OrbitMark } from '@/components/ui/orbit-mark'
+import { OrbitMascot, useStateMascotSize } from '@/components/ui/orbit-mascot'
 import { errorSurfaceStyles as styles } from '@/components/ui/error-surface-styles'
 import { getAppVersion } from '@/lib/app-version'
 import { createTokensV2 } from '@/lib/theme'
@@ -18,6 +18,7 @@ export function UpgradeRequiredScreen() {
   const upgradeRequired = useVersionGateStore((s) => s.upgradeRequired)
   const minVersion = useVersionGateStore((s) => s.minVersion)
   const { currentScheme, currentTheme } = useAppTheme()
+  const mascotSize = useStateMascotSize()
   const [busy, setBusy] = useState(false)
   const [failed, setFailed] = useState(false)
   if (!upgradeRequired) return null
@@ -38,7 +39,7 @@ export function UpgradeRequiredScreen() {
     <NativeDialog open title={t('forceUpdate.title')} onOpenChange={() => {}}>
       <SafeAreaView style={{ flex: 1, backgroundColor: tokens.bg }}>
         <ScrollView contentContainerStyle={{ alignSelf: 'center', width: '100%', maxWidth: SHELL_CONTENT_MAX_WIDTH, flexGrow: 1, justifyContent: 'center', gap: 24, padding: SPACING.s32 }}>
-          <OrbitMark size={40} />
+          <OrbitMascot size={mascotSize} />
           <Text accessibilityRole="header" style={[styles.title, { color: tokens.fg1 }]}>{t('forceUpdate.title')}</Text>
           <Text style={[styles.body, { color: tokens.fg2 }]}>
             {currentVersion && minVersion ? t('forceUpdate.versions', { currentVersion, minVersion }) : t('forceUpdate.description')}

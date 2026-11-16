@@ -249,7 +249,7 @@ describe('Android interaction fill clearance', () => {
         expect(retry.height + 2 * retryHitSlop).toBe(48)
         const retryContents = parts.filter(part => part.ancestors.includes(retry.slot))
         expect(retryContents.filter(part => part.host.type === 'Text')).toHaveLength(0)
-        expect(retryContents.filter(part => part.host.props.testID === 'astra-mark')).toHaveLength(0)
+        expect(retryContents.filter(part => part.host.props.testID === 'orbit-mascot')).toHaveLength(0)
         expect(parts.some(part => part.host.props.accessibilityLabel === messages.shell.composer.send)).toBe(false)
         expect(paint.left).toBe(PADDING.screenGutter)
         expect(columnWidth - paint.right).toBe(PADDING.screenGutter)

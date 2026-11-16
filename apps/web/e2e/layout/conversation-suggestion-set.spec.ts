@@ -53,7 +53,7 @@ for (const width of [412, 1280]) {
           } else {
             await expect(empty.getByText(words.chat.empty.title, { exact: true })).toBeVisible()
             await expect(empty.getByRole('button')).toHaveText([words.chat.templates.browse])
-            await expect(empty.locator('[data-asset="astra-mark"]')).toBeVisible()
+            await expect(empty.locator('[data-asset="orbit-mascot"]')).toBeVisible()
             await expect(empty.getByText(words.aiDisclosure.notMedicalAdvice, { exact: true })).toBeVisible()
             await expect(strip).toHaveCount(1)
             await expect(strip.getByRole('button').first()).toBeVisible()
