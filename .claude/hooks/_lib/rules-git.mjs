@@ -1,4 +1,4 @@
-import { commandsFedBy, commandWords, expandCommands, inspectCommands, shellValue } from "./command-expander.mjs"
+import { commandsFedBy, commandWords, expandCommands, inspectCommands, shellValue, SUBSTITUTION, withoutRedirects } from "./command-expander.mjs"
 import { resolve } from "node:path"
 
 // Only these three repositories protect main; other repositories may allow direct pushes.
@@ -63,19 +63,16 @@ const LETTERS_WITH_ARGUMENT = new Set(["o", "O", "R", "T"])
 const LONG_OPTIONS_WITH_ARGUMENT = new Set(["--rcfile", "--init-file", "--emulate"])
 /** Stands for the heredoc operator, so that the shell parser finds the commands that read the body. */
 const HEREDOC_OPERATOR = "__heredoc_operator__"
-/** A redirect word: an operator with its target in the same word (`2>log`, `2>&1`, `&>log`), or an operator alone, whose target is the next word. */
-const REDIRECT = /^(?:\d*|&)(?:>>|>&|<&|>\||<>|[<>])(.*)$/
 
-/** The arguments of a simple command, without its redirects. */
-function argumentsOf(command) {
-  const words = commandWords(command)
-  const argumentWords = []
-  for (let index = 0; index < words.length; index++) {
-    const redirect = words[index].match(REDIRECT)
-    if (!redirect) argumentWords.push(shellValue(words[index]))
-    else if (redirect[1] === "") index++
-  }
-  return argumentWords
+/** The words of a simple command, without its redirects. */
+const argumentsOf = (command) => commandWords(withoutRedirects(command)).map(shellValue)
+
+const isShell = (word) => SHELLS.includes(word.split(/[\\/]/).pop())
+const holdsSubstitution = (words) => words.some((word) => word.includes(SUBSTITUTION))
+/** True for a command in which `accepts` holds for the words after a word that `isCommandWord` names. A wrapper such as `env` or `exec` can come first. */
+const hasWordThat = (command, isCommandWord, accepts) => {
+  const words = argumentsOf(command)
+  return words.some((word, index) => isCommandWord(word) && accepts(words.slice(index + 1)))
 }
 
 /**
@@ -101,14 +98,23 @@ function readsStandardInput(words) {
 }
 
 /**
- * True when a shell reads the heredoc as its script: the command that holds the operator, or a later command of its pipeline,
- * has a shell word, by name or by path, followed only by options and, after `-s`, positional arguments. Redirects do not count.
+ * True when the words after a shell word have `-c` and then a command substitution: the shell runs the text of the substitution.
+ * Each word after `-c` counts, also a positional argument, so the rules refuse more, never less.
+ */
+function runsSubstitution(words) {
+  const flag = words.findIndex((word) => /^-[A-Za-z]*c[A-Za-z]*$/.test(word))
+  return flag >= 0 && holdsSubstitution(words.slice(flag + 1))
+}
+
+/**
+ * True when a shell runs the heredoc as a script. Redirects do not count.
+ * - A reader of the body has a shell word, by name or by path, followed only by options and, after `-s`, positional arguments.
+ * - A command that holds the body in a command substitution is a shell with a command string after `-c`, or `eval`.
  */
 function feedsShell(beforeOperator, restOfLine) {
-  return commandsFedBy(`${beforeOperator} ${HEREDOC_OPERATOR} ${restOfLine}`, HEREDOC_OPERATOR).some((command) => {
-    const words = argumentsOf(command)
-    return words.some((word, index) => SHELLS.includes(word.split(/[\\/]/).pop()) && readsStandardInput(words.slice(index + 1)))
-  })
+  const { readers, holders } = commandsFedBy(`${beforeOperator} ${HEREDOC_OPERATOR} ${restOfLine}`, HEREDOC_OPERATOR)
+  return readers.some((command) => hasWordThat(command, isShell, readsStandardInput)) ||
+    holders.some((command) => hasWordThat(command, isShell, runsSubstitution) || hasWordThat(command, (word) => word === "eval", holdsSubstitution))
 }
 
 /** Strip heredoc bodies so a message that NAMES a flag is not read as using it. A body that a shell reads stays; a file named `x.sh` is not a shell. */
@@ -130,7 +136,7 @@ export function checkGitCommand(command, { resolveHeadBranch, resolveRemoteUrl, 
 
   // Match against the command only. The full string, heredoc bodies included,
   // is still what gets shown back in the block message.
-  const scannable = expandCommands(stripHeredocBodies(command)).join("\n")
+  const scannable = expandCommands(stripHeredocBodies(command)).map(withoutRedirects).join("\n")
 
   // Hygiene rules are universal: bypassing hooks or signing is wrong anywhere.
   const hygieneRules = [
@@ -167,9 +173,9 @@ export function checkGitCommand(command, { resolveHeadBranch, resolveRemoteUrl, 
 
   const isGitBinary = (token) => /(?:^|[\\/])git(?:\.exe)?$/i.test(token)
 
-  /** Everything after the git command word, normalized to what argv would carry. */
+  /** Everything after the git command word, normalized to what argv would carry: no redirect reaches argv. */
   const gitTokens = (segment) => {
-    const tokens = segment.split(/\s+/).map(unquoteToken).filter(Boolean)
+    const tokens = withoutRedirects(segment).split(/\s+/).map(unquoteToken).filter(Boolean)
     let index = 0
     while (index < tokens.length && isEnvironmentAssignment(tokens[index])) index++
     while (index < tokens.length && !isGitBinary(tokens[index])) index++

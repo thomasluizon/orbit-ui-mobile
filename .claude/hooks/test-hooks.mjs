@@ -156,6 +156,26 @@ T(`git: ${NV} blocks`, blocks(checkGitCommand("git commit -m x " + NV)), true)
 const brainRemote = () => "https://github.com/thomasluizon/brain.git"
 T("git: push to main in a non-Orbit repo allows", checkGitCommand("git push origin main", { resolveRemoteUrl: brainRemote, cwd: "." }), null)
 T("git: an unresolvable remote still blocks (fails safe)", blocks(checkGitCommand("git push origin main", { resolveRemoteUrl: () => "", cwd: "." })), true)
+// The shell cuts a redirect from a word before git reads argv, with or without a space, so a redirect hides no ref, subcommand or flag.
+for (const tail of ["main&>/dev/null", "main>/dev/null", "main 2>&1", "main>|log", "main>>log", "main<input", "main>&2", "main 2>/dev/null", "HEAD:main&>log", "+main>log"]) {
+  T(`git: push origin ${tail} still blocks`, blocks(checkGitCommand(`git push origin ${tail}`)), true)
+}
+T("git: a redirect on the push subcommand still blocks", blocks(checkGitCommand("git push>/dev/null origin main")), true)
+T("git: a redirect on --all still blocks", blocks(checkGitCommand("git push --all>/dev/null origin")), true)
+T("git: a redirect on the -n of a commit still blocks", blocks(checkGitCommand("git commit -n>/dev/null -m x")), true)
+T("git: &> on the -n of a commit still blocks", blocks(checkGitCommand("git commit -m x -an&>/dev/null")), true)
+// A quoted or escaped `>` is a character of the ref name, which git permits, so it cuts nothing.
+T("git: a quoted > in the source ref still blocks", blocks(checkGitCommand('git push origin "a>b:main"')), true)
+T("git: a quoted > in a branch name allows", checkGitCommand('git push origin "main>x"'), null)
+T("git: an escaped > in a branch name allows", checkGitCommand("git push origin main\\>x"), null)
+T("git: main2 before >&1 is another branch", checkGitCommand("git push origin main2>&1"), null)
+T("git: a redirect to a file named main allows", checkGitCommand("git push origin feature/x > main"), null)
+T("git: a feature push with a redirect on the ref allows", checkGitCommand("git push -f origin feature/x&>/dev/null"), null)
+T("git: a here-string to a shell still blocks", blocks(checkGitCommand('bash <<< "git push origin main"')), true)
+for (const tail of ["2>&1", "2>/dev/null", "> /dev/null", ">/dev/null", "&>/dev/null", "2>&1 | tail -3"]) {
+  T(`git: push origin ${tail} while HEAD is on main blocks`, blocks(checkGitCommand(`git push origin ${tail}`, { resolveHeadBranch: () => "main", cwd: "." })), true)
+}
+T("git: push origin feature/x 2>&1 while HEAD is on main allows", checkGitCommand("git push origin feature/x 2>&1", { resolveHeadBranch: () => "main", cwd: "." }), null)
 // A heredoc body is data: writing ABOUT a banned flag is not using it.
 T(`git: a heredoc message naming ${NV} allows`, checkGitCommand(`git commit -F - <<'EOF'\nfix: stop passing ${NV} in CI\nEOF`), null)
 T("git: a heredoc feeding a shell keeps its body in scope", blocks(checkGitCommand("bash <<'EOF'\ngit push origin main\nEOF")), true)
@@ -196,8 +216,28 @@ const HEREDOC_SHELL_LINES = [
   "cat <<'EOF' | tee copy.sh | bash",
   "cat <<'EOF' | (cd /tmp && bash)",
   "(bash -e) <<'EOF'",
+  "bash>/dev/null <<'EOF'",
+  "bash&>/dev/null <<'EOF'",
+  "cat <<'EOF' | bash>log",
+  "cat <<'EOF' |& bash",
+  "cat <<'EOF' |& tee copy.sh | bash",
+  // A command substitution gives the body to its command as text, and a command string or `eval` runs that text.
+  ["bash -c \"$(cat <<'EOF'", ")\""],
+  ["sh -c \"$(cat <<'EOF'", ")\""],
+  ["bash -euc \"$(cat <<'EOF'", ")\""],
+  ["/bin/bash -o pipefail -c \"$(cat <<'EOF'", ")\""],
+  ["bash -c -o pipefail \"$(cat <<'EOF'", ")\""],
+  ["bash -c \"echo first $(cat <<'EOF'", ")\""],
+  ["eval \"$(cat <<'EOF'", ")\""],
+  ["eval `cat <<'EOF'", "`"],
 ]
-for (const line of HEREDOC_SHELL_LINES) T(`git: the heredoc of ${line} keeps its body in scope`, blocks(checkGitCommand(`${line}\ngit push origin main\nEOF`)), true)
+/** A row is the operator line, or the operator line and the text after the terminator. */
+const heredocCommand = (row, body) => {
+  const [line, afterTerminator] = [row].flat()
+  return `${line}\n${body}\nEOF${afterTerminator ? `\n${afterTerminator}` : ""}`
+}
+const heredocName = (row) => [row].flat().join(" ... ")
+for (const row of HEREDOC_SHELL_LINES) T(`git: the heredoc of ${heredocName(row)} keeps its body in scope`, blocks(checkGitCommand(heredocCommand(row, "git push origin main"))), true)
 // A shell that runs a script file or a command string, a command after a separator, and a pipeline with no shell read the heredoc as data.
 const HEREDOC_DATA = [
   "bash script.sh <<'EOF'",
@@ -212,8 +252,18 @@ const HEREDOC_DATA = [
   "cat <<'EOF' | bash script.sh",
   "cat <<'EOF' && bash",
   "cat <<'EOF' > run.sh",
+  "cat <<'EOF' >bash",
+  "cat <<'EOF' |& grep push",
+  ["echo \"$(cat <<'EOF'", ")\""],
+  ["git commit -m \"$(cat <<'EOF'", ")\""],
+  ["gh pr create --body \"$(cat <<'EOF'", ")\""],
+  ["x=$(cat <<'EOF'", ")"],
+  ["bash script.sh \"$(cat <<'EOF'", ")\""],
+  // The shell expands `$(cat)` before it applies the heredoc, so the command string comes from the input of the caller, not from the body.
+  "bash -c \"$(cat)\" <<'EOF'",
+  "eval \"$(cat)\" <<'EOF'",
 ]
-for (const line of HEREDOC_DATA) T(`git: the heredoc of ${line} is data`, checkGitCommand(`${line}\ngit push origin main\nEOF`), null)
+for (const row of HEREDOC_DATA) T(`git: the heredoc of ${heredocName(row)} is data`, checkGitCommand(heredocCommand(row, "git push origin main")), null)
 // git worktree remove --force follows a Windows junction and deletes the target.
 T("git-worktree: --force blocks", blocks(checkGitWorktreeRemove("git worktree remove --force .claude/worktrees/x")), true)
 T("git-worktree: no force allows", checkGitWorktreeRemove("git worktree remove .claude/worktrees/x"), null)
@@ -524,7 +574,7 @@ for (const [command, rule] of [
   [`trap 'rm -rf "$TMP"' EXIT`, "variable-path"],
   ["bash <<'EOF'\nrm -rf \"$TMP\"\nEOF", "variable-path"],
   ...HEREDOC_SHELLS.map((shell) => [`${shell} <<'EOF'\nrm -rf "$TMP"\nEOF`, "variable-path"]),
-  ...HEREDOC_SHELL_LINES.map((line) => [`${line}\nrm -rf "$TMP"\nEOF`, "variable-path"]),
+  ...HEREDOC_SHELL_LINES.map((row) => [heredocCommand(row, 'rm -rf "$TMP"'), "variable-path"]),
   ["rm -rf `pwd`/dist", "command-substitution"],
   ["docker exec box sh -c 'rm -rf /'", "critical-path"],
   ["rm -rf /", "critical-path"],
@@ -572,7 +622,7 @@ for (const command of [
   "rm -rf dist # it's stale",
   "rm -rf dist # don't keep it\nnpm run build # it's fast",
   "bash -c 'rm -rf dist' # the alias function() is gone",
-  ...HEREDOC_DATA.map((line) => `${line}\nrm -rf "$TMP"\nEOF`),
+  ...HEREDOC_DATA.map((row) => heredocCommand(row, 'rm -rf "$TMP"')),
 ]) T(`approval: ${command} passes`, refusedBy(command), null)
 T("approval windows: the top level of a drive is critical", refusedBy("rm -rf C:/work", { ...approvalOptions, cwd: "C:\\work\\repo", windows: true }), "critical-path")
 T("approval windows: a deeper drive path passes", refusedBy("rm -rf C:/work/other/build", { ...approvalOptions, cwd: "C:\\work\\repo", windows: true }), null)
@@ -681,6 +731,7 @@ const isolatedDirectoryBodies = [
   (body) => `zsh -c '${body}'`,
   (body) => `${body} | cat`,
   (body) => `${body} & wait`,
+  (body) => `true |& ${body}`,
 ]
 for (const wrap of isolatedDirectoryBodies) {
   for (const [command, cwd, expected] of [

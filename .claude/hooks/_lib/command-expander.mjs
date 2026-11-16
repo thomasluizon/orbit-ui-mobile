@@ -6,6 +6,39 @@ export const commandWords = (source) =>
 
 export const shellValue = (word) => String(word ?? "").replace(/^(["'])([\s\S]*)\1$/, "$2").replace(/\\([\\"$`])/g, "$1")
 
+/** Stands for a command substitution in the command that holds it. */
+export const SUBSTITUTION = "__substitution__"
+
+const REDIRECT_OPERATOR = /<<<|<<-?|>>|>&|<&|>\||<>|[<>]/y
+const REDIRECT_TARGET = /[ \t]*(?:[^\s"'\\<>&|;]|\\.|"(?:\\.|[^"\\])*"|'[^']*')*/y
+
+/**
+ * The command without its redirects: each unquoted operator, the file descriptor or the `&` before it, and its target word.
+ * The shell cuts a redirect from a word with or without a space. A here-string stays, because its word is text that its command reads.
+ */
+export function withoutRedirects(command) {
+  let kept = ""
+  let quote = ""
+  for (let index = 0; index < command.length; index++) {
+    const character = command[index]
+    if (character === "\\" && quote !== "'") { kept += command.slice(index, index + 2); index++; continue }
+    if (quote) {
+      if (character === quote) quote = ""
+      kept += character
+      continue
+    }
+    if (character === "'" || character === '"') { quote = character; kept += character; continue }
+    REDIRECT_OPERATOR.lastIndex = index
+    const operator = REDIRECT_OPERATOR.exec(command)?.[0]
+    if (!operator) { kept += character; continue }
+    if (operator === "<<<") { kept += operator; index += operator.length - 1; continue }
+    REDIRECT_TARGET.lastIndex = index + operator.length
+    kept = `${kept.replace(/(?:(?<!\S)\d+|&)$/, "")} `
+    index = REDIRECT_TARGET.lastIndex + REDIRECT_TARGET.exec(command)[0].length - 1
+  }
+  return kept
+}
+
 function substitutionEnd(source, start, backtick) {
   let depth = 1
   let quote = ""
@@ -61,7 +94,7 @@ function splitCommands(source) {
       const end = substitutionEnd(source, start, character === "`")
       const body = source.slice(start, end)
       nested.push(character === "`" ? body.replace(/\\([\\$`])/g, "$1") : body)
-      current += " __substitution__ "
+      current += ` ${SUBSTITUTION} `
       index = end
       continue
     }
@@ -84,7 +117,7 @@ function splitCommands(source) {
       const isolated = !doubled && /[&|]/.test(character)
       segments.push({ command: current, nested, isolated: pipeline || isolated, pipesOut: character === "|" && !doubled })
       pipeline = character === "|" && !doubled
-      if (doubled) index++
+      if (doubled || (pipeline && source[index + 1] === "&")) index++
       current = ""
       nested = []
       continue
@@ -96,21 +129,26 @@ function splitCommands(source) {
 }
 
 /**
- * The simple commands that can read the input that `marker` stands for, such as a heredoc operator: the command that holds
- * `marker`, each later command of its pipeline, and the commands of a subshell among them.
+ * The simple commands that get the input that `marker` stands for, such as a heredoc operator.
+ * `readers` can read it as standard input: the command that holds `marker`, each later command of its pipeline, and the commands
+ * of a subshell among them. `holders` get it as text in their words: each command with a nested body that holds `marker`.
  */
 export function commandsFedBy(source, marker, depth = 0) {
   if (depth > 32) throw new Error("shell expansion nesting exceeds inspection limit")
   const { segments } = splitCommands(source)
   const start = segments.findIndex(({ command, nested }) => command.includes(marker) || nested.some((body) => body.includes(marker)))
-  if (start < 0) return []
+  if (start < 0) return { readers: [], holders: [] }
   let end = start
   while (segments[end].pipesOut && end + 1 < segments.length) end++
   const holder = segments[start]
-  const inner = holder.command.includes(marker) ? [] : commandsFedBy(holder.nested.find((body) => body.includes(marker)), marker, depth + 1)
-  const stages = segments.slice(holder.command.includes(marker) ? start : start + 1, end + 1)
-  return [...inner, ...stages.flatMap(({ command, nested }) =>
-    [command.replace(marker, " "), ...(command.includes("__subshell__") ? nested.flatMap((body) => expandCommands(body)) : [])])]
+  const direct = holder.command.includes(marker)
+  const inner = direct ? { readers: [], holders: [] } : commandsFedBy(holder.nested.find((body) => body.includes(marker)), marker, depth + 1)
+  const stages = segments.slice(direct ? start : start + 1, end + 1)
+  return {
+    readers: [...inner.readers, ...stages.flatMap(({ command, nested }) =>
+      [command.replace(marker, " "), ...(command.includes("__subshell__") ? nested.flatMap((body) => expandCommands(body)) : [])])],
+    holders: direct ? [] : [...inner.holders, holder.command],
+  }
 }
 
 function wrapperBody(segment) {
