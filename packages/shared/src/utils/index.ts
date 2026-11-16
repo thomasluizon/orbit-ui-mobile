@@ -910,6 +910,7 @@ export {
   resetCoveredAnswers,
   phraseLeavesWordsUnread,
   describeHabitResult,
+  formatHabitCadence,
   optimisticHabitResult,
   resolveResultDestination,
 } from './habit-flow'
@@ -919,6 +920,7 @@ export type {
   PhraseCoverage,
   RemainingHabitFlowStepsInput,
   HabitResultItem,
+  HabitResultCadence,
   HabitResultSentence,
   HabitResultSentenceKey,
 } from './habit-flow'

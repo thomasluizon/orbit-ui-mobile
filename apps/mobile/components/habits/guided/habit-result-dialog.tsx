@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next'
 import { useRouter } from 'expo-router'
-import { describeHabitResult, type HabitResultItem, formatLocaleDate, getAccountDay, resolveResultDestination } from '@orbit/shared/utils'
+import { describeHabitResult, formatHabitCadence, type HabitResultItem, formatLocaleDate, getAccountDay, resolveResultDestination } from '@orbit/shared/utils'
 import { ResultDialog } from '@/components/ui/result-dialog'
 import { useHabitDetail } from '@/hooks/use-habit-queries'
 import { useProfile } from '@/hooks/use-profile'
@@ -33,6 +33,10 @@ export function HabitResultDialog({ habitId, change, optimistic, onClose, onCrea
     dueTime: saved.dueTime,
     frequencyUnit: saved.frequencyUnit,
     frequencyQuantity: saved.frequencyQuantity,
+    isFlexible: saved.isFlexible,
+    days: saved.days,
+    monthDays: saved.monthDays,
+    intervalWeeks: saved.intervalWeeks,
   } : optimistic ?? null
   if (!item) return null
   const sentence = describeHabitResult(item, change)
@@ -41,7 +45,7 @@ export function HabitResultDialog({ habitId, change, optimistic, onClose, onCrea
     date,
     start: date,
     time: displayTime(item.dueTime),
-    cadence: sentence.cadence ? t(sentence.cadence.key, { count: sentence.cadence.count }) : '',
+    cadence: sentence.cadence ? formatHabitCadence(sentence.cadence, locale, (key, values) => t(key, values)) : '',
   })
   const destination = resolveResultDestination(item, getAccountDay(new Date(), profile?.timeZone))
   return (

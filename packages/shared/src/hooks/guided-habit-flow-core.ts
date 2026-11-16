@@ -153,6 +153,12 @@ function missedRead(): null {
   return null
 }
 
+function clearTypedProposals(proposals: GuidedHabitProposals, read: HabitPhraseRead): GuidedHabitProposals {
+  const time = proposals.time && read.dueTime === null
+  const schedule = proposals.schedule && read.cadence === null
+  return time === proposals.time && schedule === proposals.schedule ? proposals : { ...proposals, time, schedule }
+}
+
 /**
  * The state of the guided habit flow, shared by web and Android. It is a view over the form state the modal owns,
  * never a second form model: every answer writes the same fields the current form writes, so the request is the
@@ -374,6 +380,7 @@ export function createUseGuidedHabitFlow({ useState, useEffect, useMemo, useCall
       const read = readTypedHabitPhrase(value, supportedLocale, deliberateType, isGeneral)
       applyRead(read)
       setAnswers((current) => resetCoveredAnswers(current, readPhraseCoverage(read, false)))
+      setProposals((current) => clearTypedProposals(current, read))
     }, [applyRead, deliberateType, form, isGeneral, mode, supportedLocale])
 
     const steps = remainingHabitFlowSteps({

@@ -1,3 +1,4 @@
+import { buildHabitUnderstandingSentence } from './habit-form-helpers'
 import type { HabitPhraseRead } from './habit-phrase-parser'
 
 /** The steps of the guided habit flow, in the order a person meets them. */
@@ -81,6 +82,12 @@ export type HabitResultItem = {
   dueTime: string | null
   frequencyUnit: 'Day' | 'Week' | 'Month' | 'Year' | null
   frequencyQuantity: number | null
+  isFlexible?: boolean
+  /** The weekdays of a repeat on chosen days. */
+  days?: readonly string[] | null
+  /** The days of the month of a monthly repeat on chosen days. */
+  monthDays?: readonly number[] | null
+  intervalWeeks?: number | null
 }
 
 /** The facts a draft saves, for a create that a queue holds until the server record exists. */
@@ -91,6 +98,10 @@ export function optimisticHabitResult(values: {
   dueTime?: string | null | undefined
   frequencyUnit?: HabitResultItem['frequencyUnit'] | undefined
   frequencyQuantity?: number | null | undefined
+  isFlexible?: boolean | undefined
+  days?: readonly string[] | null | undefined
+  monthDays?: readonly number[] | null | undefined
+  intervalWeeks?: number | null | undefined
 }): HabitResultItem {
   return {
     itemType: values.itemType === 'habit' ? 'habit' : 'task',
@@ -99,6 +110,10 @@ export function optimisticHabitResult(values: {
     dueTime: values.dueTime || null,
     frequencyUnit: values.frequencyUnit ?? null,
     frequencyQuantity: values.frequencyQuantity ?? null,
+    isFlexible: values.isFlexible ?? false,
+    days: values.days ?? [],
+    monthDays: values.monthDays ?? [],
+    intervalWeeks: values.intervalWeeks ?? null,
   }
 }
 
@@ -114,9 +129,24 @@ export interface HabitResultSentence {
   key: HabitResultSentenceKey
   needsDate: boolean
   needsTime: boolean
-  /** The key and count of the cadence words of a habit, when the sentence names a cadence. */
-  cadence: { key: 'result.cadence.day' | 'result.cadence.week' | 'result.cadence.month' | 'result.cadence.year'; count: number } | null
+  /** The schedule of a habit, when the sentence names a cadence. `formatHabitCadence` gives its words. */
+  cadence: HabitResultCadence | null
 }
+
+/** The whole schedule of a habit: the unit and the count, and the chosen weekdays, month days or flexible count. */
+export interface HabitResultCadence {
+  key: 'result.cadence.day' | 'result.cadence.week' | 'result.cadence.month' | 'result.cadence.year'
+  unit: NonNullable<HabitResultItem['frequencyUnit']>
+  count: number
+  isFlexible: boolean
+  days: readonly string[]
+  monthDays: readonly number[]
+  intervalWeeks: number
+}
+
+type CadenceTranslator = (key: string, values?: Record<string, string | number>) => string
+
+const WEEKDAY_OPTIONS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map((value) => ({ value, label: value }))
 
 const CADENCE_KEYS = {
   Day: 'result.cadence.day',
@@ -135,7 +165,15 @@ export function describeHabitResult(item: HabitResultItem, change: 'created' | '
     return { key: 'result.habit.updated', needsDate: false, needsTime: false, cadence: null }
   }
   if (item.itemType === 'habit' && item.frequencyUnit) {
-    const cadence = { key: CADENCE_KEYS[item.frequencyUnit], count: item.frequencyQuantity ?? 1 }
+    const cadence: HabitResultCadence = {
+      key: CADENCE_KEYS[item.frequencyUnit],
+      unit: item.frequencyUnit,
+      count: item.frequencyQuantity ?? 1,
+      isFlexible: item.isFlexible ?? false,
+      days: item.days ?? [],
+      monthDays: item.monthDays ?? [],
+      intervalWeeks: item.intervalWeeks ?? 1,
+    }
     const timed = item.dueTime !== null
     return { key: timed ? 'result.habit.repeatTimed' : 'result.habit.repeat', needsDate: true, needsTime: timed, cadence }
   }
@@ -144,6 +182,21 @@ export function describeHabitResult(item: HabitResultItem, change: 'created' | '
   }
   const timed = item.dueTime !== null
   return { key: timed ? 'result.task.datedTimed' : 'result.task.dated', needsDate: true, needsTime: timed, cadence: null }
+}
+
+/**
+ * The words of a habit schedule, without the time, for the summary and the result sentence. The unit and the count
+ * alone call a repeat on Monday "every day", so a flexible count, chosen weekdays and chosen month days take the
+ * words of the phrase step.
+ */
+export function formatHabitCadence(cadence: HabitResultCadence, locale: string, translate: CadenceTranslator): string {
+  const { unit } = cadence
+  const chosen = cadence.isFlexible || cadence.days.length > 0 || (unit === 'Month' && cadence.monthDays.length > 0)
+  const words = chosen
+    ? buildHabitUnderstandingSentence([...cadence.days], WEEKDAY_OPTIONS, cadence.isFlexible, unit, cadence.count, '', locale, translate, cadence.intervalWeeks, cadence.monthDays)
+    : null
+  if (!words) return translate(cadence.key, { count: cadence.count })
+  return `${words.charAt(0).toLocaleLowerCase(locale)}${words.slice(1)}`
 }
 
 /** The filled action of the result dialog: Today when the item shows on today's list, else Calendar. */

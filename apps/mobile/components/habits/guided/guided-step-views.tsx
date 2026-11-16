@@ -3,7 +3,7 @@ import { StyleSheet, Text, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import type { FlowStepView } from '@orbit/shared/contracts/flow'
 import { backendFormFieldFocusRequest, resolveBackendFormFieldMessage } from '@orbit/shared/hooks'
-import { buildHabitUnderstandingSentence, formatLocaleDate, phraseLineKey, summaryValueStep, toTime24, HABIT_TIME_OPTIONS, type HabitFlowAnswerFields, type HabitFormCommonProps } from '@orbit/shared/utils'
+import { buildHabitUnderstandingSentence, describeHabitResult, formatHabitCadence, formatLocaleDate, optimisticHabitResult, phraseLineKey, summaryValueStep, toTime24, HABIT_TIME_OPTIONS, type HabitFlowAnswerFields, type HabitFormCommonProps } from '@orbit/shared/utils'
 import { MAX_HABIT_TITLE_LENGTH } from '@orbit/shared/validation'
 import type { HabitFormHelpers } from '@/hooks/use-habit-form'
 import type { TagSelectionState } from '@/hooks/use-tag-selection'
@@ -189,11 +189,11 @@ function useSummaryValues(formHelpers: HabitFormHelpers) {
   const dueTime = form.watch('dueTime') ?? ''
   const dueEndTime = form.watch('dueEndTime') ?? ''
   const dated = !formHelpers.isGeneral && dueDate !== ''
-  const unit = form.watch('frequencyUnit')
-  const quantity = form.watch('frequencyQuantity') ?? 1
-  const cadence = unit && form.watch('itemType') === 'habit'
-    ? (form.watch('isFlexible') ? t('habits.form.flexibleDescription', { n: quantity, unit }) : t(`result.cadence.${unit.toLowerCase()}`, { count: quantity }))
-    : null
+  const schedule = describeHabitResult(optimisticHabitResult({
+    itemType: form.watch('itemType'), frequencyUnit: form.watch('frequencyUnit'), frequencyQuantity: form.watch('frequencyQuantity'),
+    isFlexible: form.watch('isFlexible'), days: form.watch('days'), monthDays: form.watch('monthDays'), intervalWeeks: form.watch('intervalWeeks'),
+  }), 'created').cadence
+  const cadence = schedule ? formatHabitCadence(schedule, i18n.language, (key, values) => t(key, values)) : null
   return {
     type: form.watch('itemType') === 'task' ? t('habits.form.typeTask') : t('habits.form.typeHabit'),
     when: cadence ?? (dated ? formatLocaleDate(dueDate, i18n.language) : t('habits.flow.summary.noDate')),

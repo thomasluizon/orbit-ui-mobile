@@ -246,6 +246,44 @@ describe('the steps of the shared guided habit flow', () => {
     mounted.unmount()
   })
 
+  it('stops marking a time the free read proposed when the person types a time in the title on the summary, and keeps the repeat mark', async () => {
+    const readPhrase = vi.fn(async (): Promise<HabitPhraseReadResponse> => ({ ...NO_READ, read: true, frequencyUnit: 'Day', frequencyQuantity: 1, dueTime: '07:00' }))
+    const mounted = mountFlow({ readPhrase })
+    await leavePhraseWith(mounted, 'water the plants')
+    expect(mounted.flow.proposals).toMatchObject({ schedule: true, time: true })
+    run(() => mounted.flow.open('what'))
+    await leavePhraseWith(mounted, 'water the plants at 9am')
+    expect(readPhrase).toHaveBeenCalledTimes(1)
+    expect(mounted.values.dueTime).toBe('09:00')
+    expect(mounted.flow.proposals).toMatchObject({ schedule: true, time: false })
+    mounted.unmount()
+  })
+
+  it('stops marking a time and a repeat the free read proposed when the person types both in the title on the summary', async () => {
+    const readPhrase = vi.fn(async (): Promise<HabitPhraseReadResponse> => ({ ...NO_READ, read: true, frequencyUnit: 'Day', frequencyQuantity: 1, dueTime: '07:00' }))
+    const mounted = mountFlow({ readPhrase })
+    await leavePhraseWith(mounted, 'water the plants')
+    run(() => mounted.flow.open('what'))
+    await leavePhraseWith(mounted, 'water the plants every monday at 9am')
+    expect(readPhrase).toHaveBeenCalledTimes(1)
+    expect(mounted.values).toMatchObject({ frequencyUnit: 'Day', days: ['Monday'], dueTime: '09:00' })
+    expect(mounted.flow.proposals).toMatchObject({ schedule: false, time: false })
+    mounted.unmount()
+  })
+
+  it('never brings back the time mark for a time the person types after a change to a one-time task cleared the proposed time', async () => {
+    const readPhrase = vi.fn(async (): Promise<HabitPhraseReadResponse> => ({ ...NO_READ, read: true, frequencyUnit: 'Day', frequencyQuantity: 1, dueTime: '07:00' }))
+    const mounted = mountFlow({ readPhrase })
+    await leavePhraseWith(mounted, 'water the plants')
+    mounted.clearTime()
+    expect(mounted.flow.proposals.time).toBe(false)
+    run(() => mounted.flow.open('what'))
+    await leavePhraseWith(mounted, 'water the plants at 9am')
+    expect(mounted.values.dueTime).toBe('09:00')
+    expect(mounted.flow.proposals.time).toBe(false)
+    mounted.unmount()
+  })
+
   it('keeps the date question open for words it cannot read and for a day in the past', async () => {
     const mounted = mountFlow({ online: false })
     await leavePhraseWith(mounted, 'call John')

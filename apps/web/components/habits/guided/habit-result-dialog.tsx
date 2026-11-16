@@ -2,7 +2,7 @@
 
 import { useLocale, useTranslations } from 'next-intl'
 import { useRouter } from 'next/navigation'
-import { describeHabitResult, formatLocaleDate, getAccountDay, resolveResultDestination } from '@orbit/shared/utils'
+import { describeHabitResult, formatHabitCadence, formatLocaleDate, getAccountDay, resolveResultDestination } from '@orbit/shared/utils'
 import { ResultDialog } from '@/components/ui/result-dialog'
 import { useHabitDetail } from '@/hooks/use-habits'
 import { useProfile } from '@/hooks/use-profile'
@@ -34,6 +34,10 @@ export function HabitResultDialog({ habitId, change, onClose, onCreateAnother }:
     dueTime: saved.dueTime,
     frequencyUnit: saved.frequencyUnit,
     frequencyQuantity: saved.frequencyQuantity,
+    isFlexible: saved.isFlexible,
+    days: saved.days,
+    monthDays: saved.monthDays,
+    intervalWeeks: saved.intervalWeeks,
   }
   const sentence = describeHabitResult(item, change)
   const date = item.dueDate ? formatLocaleDate(item.dueDate, locale) : ''
@@ -41,7 +45,7 @@ export function HabitResultDialog({ habitId, change, onClose, onCreateAnother }:
     date,
     start: date,
     time: displayTime(item.dueTime),
-    cadence: sentence.cadence ? t(sentence.cadence.key, { count: sentence.cadence.count }) : '',
+    cadence: sentence.cadence ? formatHabitCadence(sentence.cadence, locale, (key, values) => t(key, values)) : '',
   })
   const destination = resolveResultDestination(item, getAccountDay(new Date(), profile?.timeZone))
   return (
