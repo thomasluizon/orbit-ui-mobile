@@ -191,7 +191,7 @@ describe('EditGoalModal', () => {
     expect(save).toBeDisabled()
     expect(save).toHaveTextContent('common.save')
     expect(save.querySelector('[data-slot="skeleton-face"]')).not.toBeNull()
-    fireEvent.submit(save.form!)
+    fireEvent.submit((save as HTMLButtonElement).form!)
     expect(mockMutateAsync).toHaveBeenCalledOnce()
     await act(async () => finish())
     await waitFor(() => expect(onOpenChange).toHaveBeenCalledWith(false))

@@ -224,7 +224,7 @@ describe('goal creation with habits', () => {
     expect(create).toBeDisabled()
     expect(create.querySelector('[data-slot="skeleton-face"]')).not.toBeNull()
     expect(screen.getByRole('button', { name: messages.common.cancel })).toBeDisabled()
-    fireEvent.submit(create.form!)
+    fireEvent.submit((create as HTMLButtonElement).form!)
     expect(mocks.create).toHaveBeenCalledOnce()
   })
 })
