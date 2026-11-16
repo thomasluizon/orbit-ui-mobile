@@ -38,7 +38,6 @@ function casesOfBuild(windows, descriptors, firstInput) {
   const collected = new Map()
   for (const [index, window] of windows.entries()) {
     const input = firstInput + index
-    if (window.gate !== 'core' || !Array.isArray(window.cases)) throw new Error(`Input ${input} is not a core set run summary.`)
     if (window.corpusDigest !== corpusDigest) throw new Error(`Input ${input} measured another corpus than this core set.`)
     if (window.apiCommit !== windows[0].apiCommit) {
       throw new Error(`Input ${input} measured another API commit (${window.apiCommit.slice(0, 7)}) than input ${firstInput} (${windows[0].apiCommit.slice(0, 7)}); the summaries do not tell which build is later, so give the windows in build order: the windows of the first build without --rerun, then the windows of each later build with --rerun, in the order of the builds.`)
@@ -149,9 +148,11 @@ export function mergeRuns(windows, { baseline, asBaseline = false, reruns = [], 
   if (!windows.length) throw new Error('Supply the run summaries of the core set.')
   if (asBaseline && baseline) throw new Error('A baseline run takes no --baseline.')
   if (!asBaseline && !baseline) throw new Error('Supply the baseline report with --baseline, or declare the baseline run of main with --as-baseline.')
+  // Each input is a run summary before its API commit is read: a window directory also holds `results.json`, an array.
   // The runner records the API commit of the health check only after requireCatalogCommit holds it to 40 lowercase
   // hexadecimal characters (core/hooks.mjs), and each build check compares these commits. A window without one would merge with no build or stop the merge with a TypeError.
   for (const [index, window] of [...windows, ...reruns].entries()) {
+    if (window.gate !== 'core' || !Array.isArray(window.cases)) throw new Error(`Input ${index + 1} is not a core set run summary.`)
     if (typeof window.apiCommit !== 'string' || !/^[0-9a-f]{40}$/u.test(window.apiCommit)) {
       throw new Error(`Input ${index + 1} names no API commit of 40 lowercase hexadecimal characters.`)
     }

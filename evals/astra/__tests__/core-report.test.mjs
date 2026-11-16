@@ -190,6 +190,23 @@ describe('the gate report of the two runs', () => {
     expect(() => merged(failed, { reruns: [withCommit(requiredRun(attempts(required, 3), fixedBuild), apiCommit)] })).toThrow(noCommit(3))
   })
 
+  // Producer: each window directory holds `results.json`, an array of attempts, beside its `summary.json`.
+  it('refuses the results.json of a window as an ordinary window and as a --rerun window, before it reads an API commit', () => {
+    const target = directory()
+    writeResults(attempts(required, 3), target)
+    const resultsPath = join(target, 'results.json')
+    const results = JSON.parse(readFileSync(resultsPath, 'utf8'))
+    expect(Array.isArray(results)).toBe(true)
+    const notSummary = (input) => `Input ${input} is not a core set run summary.`
+    const [mustPassWindow, otherWindow] = passing()
+    expect(() => merged([mustPassWindow, results])).toThrow(notSummary(2))
+    expect(() => merged([mustPassWindow, otherWindow], { reruns: [results] })).toThrow(notSummary(3))
+    const summaryPath = join(target, 'window.json')
+    writeFileSync(summaryPath, JSON.stringify(mustPassWindow))
+    expect(() => mergeRunFiles([summaryPath, resultsPath, '--as-baseline'])).toThrow(notSummary(2))
+    expect(() => mergeRunFiles([summaryPath, '--as-baseline', '--rerun', resultsPath])).toThrow(notSummary(2))
+  })
+
   it('reports a case that no window holds as incomplete', () => {
     expect(merged([requiredRun(attempts(required, 3))], { runCostUsd: 0.0045 })).toMatchObject({ status: 'incomplete',
       cases: [{ id: 'required', passK: 'pass' }, { id: 'optional', attempts: 0, passK: 'incomplete' }] })
