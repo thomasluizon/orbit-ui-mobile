@@ -380,6 +380,28 @@ it('shows the failure only at the shared load deadline and removes the WebView, 
   expect(bridges(renderer)).toHaveLength(0)
 })
 
+it('loads a fresh bridge under a new load deadline when the form asks for a new challenge after the load failed', async () => {
+  const onToken = vi.fn()
+  const renderer = await renderWithFakeClock(onToken)
+  const [stalled] = bridges(renderer)
+  TestRenderer.act(() => { vi.advanceTimersByTime(TURNSTILE_LOAD_DEADLINE_MS) })
+  expect(shownSentences(renderer)).toEqual(['auth.turnstileFailed'])
+  expect(bridges(renderer)).toHaveLength(0)
+
+  await TestRenderer.act(async () => {
+    renderer.update(<TurnstileWidget siteKey="site-key" resetKey={1} onToken={onToken} />)
+    await Promise.resolve()
+  })
+  const fresh = bridges(renderer)
+  expect(fresh, 'the new challenge loads one bridge').toHaveLength(1)
+  expect(fresh[0], 'the new challenge does not keep the stalled bridge').not.toBe(stalled)
+  expect(shownSentences(renderer)).toEqual(['auth.turnstileLoading'])
+  TestRenderer.act(() => { vi.advanceTimersByTime(TURNSTILE_LOAD_DEADLINE_MS - 1) })
+  expect(shownSentences(renderer)).toEqual(['auth.turnstileLoading'])
+  TestRenderer.act(() => { vi.advanceTimersByTime(1) })
+  expect(shownSentences(renderer), 'the new challenge starts a new load deadline').toEqual(['auth.turnstileFailed'])
+})
+
 it('keeps the one load deadline when a woken bridge posts only its own loading state, so the failure shows at 60 s', async () => {
   const onToken = vi.fn()
   const renderer = await renderWithFakeClock(onToken)
