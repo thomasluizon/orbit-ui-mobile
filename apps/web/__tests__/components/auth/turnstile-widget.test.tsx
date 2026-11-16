@@ -1,5 +1,6 @@
 import { afterEach, expect, it, onTestFinished, vi } from 'vitest'
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { createRoot } from 'react-dom/client'
 import { TurnstileWidget } from '@/components/auth/turnstile-widget'
 
 const appLocale = vi.hoisted(() => ({ value: 'en' }))
@@ -57,6 +58,28 @@ it('clears failed and expired tokens and offers retry', async () => {
 
   act(() => { callbacks['error-callback']('110200') })
   expect(screen.getByRole('alert')).toHaveTextContent('auth.turnstileFailed')
+})
+
+it('renders the challenge once when the form mounts the widget with a new reset key after the script loaded', async () => {
+  const actEnvironment = globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
+  const previousActEnvironment = actEnvironment.IS_REACT_ACT_ENVIRONMENT
+  actEnvironment.IS_REACT_ACT_ENVIRONMENT = false
+  const renderWidget = vi.fn((..._args: unknown[]) => `widget-${renderWidget.mock.calls.length}`)
+  const remove = vi.fn()
+  ;(window as Window & { turnstile?: unknown }).turnstile = { render: renderWidget, reset: vi.fn(), remove }
+  const host = document.body.appendChild(document.createElement('div'))
+  const root = createRoot(host)
+  onTestFinished(() => {
+    root.unmount()
+    host.remove()
+    actEnvironment.IS_REACT_ACT_ENVIRONMENT = previousActEnvironment
+  })
+
+  root.render(<TurnstileWidget key={1} siteKey="site-key" resetKey={1} onToken={vi.fn()} />)
+  await waitFor(() => expect(renderWidget).toHaveBeenCalled())
+  await new Promise((resolve) => setTimeout(resolve, 200))
+  expect(renderWidget, 'the mount renders one challenge').toHaveBeenCalledOnce()
+  expect(remove, 'the mount does not remove the challenge it rendered').not.toHaveBeenCalled()
 })
 
 it('keeps the active challenge when callbacks change and delivers to the latest callback', async () => {

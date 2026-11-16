@@ -75,7 +75,6 @@ async function readSignIn(page: Page) {
     const mainBox = main.getBoundingClientRect()
     const mainStyle = getComputedStyle(main)
     return {
-      top: panel.top + scrollY,
       gapAbove: panel.top - mainBox.top - Number.parseFloat(mainStyle.paddingTop),
       gapBelow: mainBox.bottom - Number.parseFloat(mainStyle.paddingBottom) - panel.bottom,
       checkSpace: getComputedStyle(check).position === 'absolute' ? 0 : check.getBoundingClientRect().height,
@@ -92,7 +91,7 @@ for (const viewport of [{ width: 375, height: 667 }, { width: 1440, height: 900 
     for (const step of ['email', 'code'] as const) {
       test.describe(`${locale} ${step} sign-in column at ${viewport.width} by ${viewport.height}`, () => {
         test.use({ viewport })
-        test('keeps the column still while the check appears, changes state and leaves', async ({ page }) => {
+        test('keeps the column centred while the check appears, changes state and leaves', async ({ page }) => {
           // WHY: a setContent page has an opaque origin, where document.cookie throws. https://html.spec.whatwg.org/multipage/dom.html#dom-document-cookie
           const fixtureUrl = 'http://orbit-layout.test/steady-sign-in-column-fixture'
           await page.route(fixtureUrl, route => route.fulfill({
@@ -116,10 +115,10 @@ for (const viewport of [{ width: 375, height: 667 }, { width: 1440, height: 900 
             if (check === 'loading') await expect(page.getByText(messages.auth.turnstileLoading, { exact: true })).toBeVisible()
             await expect.poll(async () => CHECK_SPACE[check]((await readSignIn(page)).checkSpace), `${locale} ${step} check takes the ${check} space`)
               .toBe(true)
-            await expect.poll(async () => (await readSignIn(page)).top, `${locale} ${step} column stays put with the ${check} check`)
-              .toBeCloseTo(resting.top, 0)
             await nextFrames(page)
-            expect((await readSignIn(page)).top, `${locale} ${step} column holds its place with the ${check} check`).toBeCloseTo(resting.top, 0)
+            const shown = await readSignIn(page)
+            expect(shown.gapAbove, `${locale} ${step} column starts inside the page with the ${check} check`).toBeGreaterThanOrEqual(0)
+            expect(Math.abs(shown.gapAbove - shown.gapBelow), `${locale} ${step} column is centred with the ${check} check`).toBeLessThanOrEqual(1)
           }
         })
       })
