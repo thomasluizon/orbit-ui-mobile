@@ -246,7 +246,8 @@ it('shows the loading sentence only while no challenge waits for the person', as
   const renderWidget = vi.fn((..._args: unknown[]) => 'interactive-widget')
   ;(window as Window & { turnstile?: unknown }).turnstile = { render: renderWidget, reset: vi.fn(), remove: vi.fn() }
   render(<TurnstileWidget siteKey="site-key" resetKey={0} onToken={vi.fn()} />)
-  await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('auth.turnstileLoading'))
+  await waitFor(() => expect(renderWidget).toHaveBeenCalledOnce())
+  expect(screen.getByRole('status')).toHaveTextContent('auth.turnstileLoading')
   const callbacks = renderWidget.mock.calls[0]![1] as {
     'before-interactive-callback': () => void
     'after-interactive-callback': () => void
