@@ -84,7 +84,7 @@ describe('HabitRow overflow menus', () => {
       'copy', 'checkbox', 'list-tree', 'trash',
     ])
     expect(items.filter((_, index) => index !== 3).every((item) => item.querySelector('[data-icon] svg[width="20"][stroke-width="2"]'))).toBe(true)
-    expect(items[3]!.querySelector('[data-asset^="astra-mark"]')).toHaveAttribute('aria-hidden', 'true')
+    expect(items[3]!.querySelector('[data-asset^="orbit-mascot"]')).toHaveAttribute('aria-hidden', 'true')
     expect(items[8]).toHaveAttribute('data-destructive', 'true')
   })
 
@@ -294,8 +294,10 @@ describe('HabitRow canonical content', () => {
     expect(disclosure).toHaveAttribute('data-habit-row-control', 'disclosure')
     expect(selection.previousElementSibling).toBeNull()
     expect(selection.nextElementSibling).toBe(disclosure)
-    expect(selection.querySelector('[data-slot="checkbox-box"] rect')).toHaveAttribute('fill', 'var(--status-done)')
-    expect(selection.querySelector('[style*="--primary"], [fill*="--primary"]')).toBeNull()
+    const checkbox = selection.querySelector('[data-slot="checkbox-box"]')
+    expect(checkbox).toHaveAttribute('data-filled', '')
+    expect(checkbox).toHaveClass('bg-[var(--status-done)]')
+    expect(selection.querySelector('[style*="--primary"], [fill*="--primary"], [class*="--primary"]')).toBeNull()
     fireEvent.click(disclosure)
     expect(onToggleExpand).toHaveBeenCalledOnce()
     expect(onToggleSelection).not.toHaveBeenCalled()

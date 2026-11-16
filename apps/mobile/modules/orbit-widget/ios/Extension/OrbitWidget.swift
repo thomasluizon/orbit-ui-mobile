@@ -71,10 +71,26 @@ struct OrbitWidgetView: View {
           Text(String(format: text("more"), locale: locale, payload.rows.count)).font(.body).foregroundStyle(color("textMuted"))
         }
       } else {
-        Text(text("loading")).font(.body).foregroundStyle(color("textMuted"))
+        loadingSkeleton
       }
       Spacer(minLength: 0)
     }
+  }
+
+  // The same skeleton rows as the Android widget: a status mark and a bar per row, in the well colour, named for VoiceOver.
+  private var loadingSkeleton: some View {
+    let widths: [CGFloat] = [150, 126, 102, 78, 54]
+    return VStack(alignment: .leading, spacing: 8) {
+      ForEach(0..<min(rowLimit, widths.count), id: \.self) { index in
+        HStack(spacing: 10) {
+          Circle().fill(color("surface")).frame(width: 20, height: 20)
+          RoundedRectangle(cornerRadius: 6).fill(color("surface")).frame(width: widths[index], height: 12)
+          Spacer(minLength: 0)
+        }
+      }
+    }
+    .accessibilityElement(children: .ignore)
+    .accessibilityLabel(text("loading"))
   }
 
   private var header: some View {

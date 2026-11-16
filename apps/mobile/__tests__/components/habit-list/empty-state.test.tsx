@@ -1,13 +1,13 @@
-import { ORBIT_MARK_PATHS } from '@orbit/shared/contracts/brand'
 import React from 'react'
 import { StyleSheet, type StyleProp, type TextStyle } from 'react-native'
 import { type GeometryHost } from '@/__tests__/support/safe-area-geometry'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
+import { orbitMascotHeight } from '@orbit/shared/contracts/brand'
 import { expectPressFill } from '@/__tests__/support/press-feedback'
 import { measureProfileRow } from '@/__tests__/support/profile-row-geometry'
-import { OrbitMark } from '@/components/ui/orbit-mark'
+import { OrbitMascot } from '@/components/ui/orbit-mascot'
 import { createTokensV2 } from '@/lib/theme'
 import {
   HabitListEmptyState,
@@ -71,13 +71,11 @@ describe('HabitListEmptyState', () => {
     const tree = render(<HabitListAllDone onSeeUpcoming={vi.fn()} />)
     const finish = tree.root.findAll(node => node.props.testID === 'habit-list-all-done')[0]!
     expect(StyleSheet.flatten(finish.props.style as StyleProp<TextStyle>).alignItems).toBe('center')
-    const mark = tree.root.findAllByType(OrbitMark)[0]
+    const mark = tree.root.findAllByType(OrbitMascot)[0]
     expect(mark).toBeDefined()
-    expect(tree.root.findAllByType('Path').map(path => path.props.d)).toEqual(ORBIT_MARK_PATHS.map(path => path.d))
-    expect(tree.root.findAllByType('Circle')).toHaveLength(0)
-    expect(mark!.props).toMatchObject({ size: 48, accent: false })
+    expect(mark!.props).toMatchObject({ size: 96, state: 'feliz' })
     const ring = tree.root.findAll(node => node.props.testID === 'completed-day-mark')[0]!
-    expect(StyleSheet.flatten(ring.props.style as StyleProp<TextStyle>)).toMatchObject({ width: 48, height: 48 })
+    expect(StyleSheet.flatten(ring.props.style as StyleProp<TextStyle>)).toMatchObject({ width: 96, height: orbitMascotHeight(96) })
     for (const words of [en, ptBR]) {
       const labels = [words.habits.allDoneToday, words.habits.allDoneHint, words.habits.seeUpcoming]
       translations.labels = {
@@ -89,7 +87,7 @@ describe('HabitListEmptyState', () => {
       const host = localized.toJSON() as GeometryHost
       const measured = measureProfileRow(host, Math.min(width - 32, 708), 1)
       const identity = measured.boxes.find(box => box.testID === 'completed-day-mark')!
-      expect(identity.width).toBe(48)
+      expect(identity.width).toBe(96)
       expect(identity.left + identity.width / 2).toBeCloseTo(Math.min(width - 32, 708) / 2)
       expect(measured.texts[0]!.top - identity.bottom).toBeCloseTo(24)
       for (const label of labels) {
@@ -123,7 +121,7 @@ describe('HabitListEmptyState', () => {
     expect(label.props.numberOfLines).toBeUndefined()
     expect(label.props.ellipsizeMode).toBeUndefined()
     expect(label.props.allowFontScaling).not.toBe(false)
-    expect.soft(tree.root.findAllByType(OrbitMark)[0]!.props.size).toBe(96)
+    expect.soft(tree.root.findAllByType(OrbitMascot)[0]!.props.size).toBe(96)
   })
 
   it('renders the title and a distinct description', () => {
@@ -159,6 +157,8 @@ describe('HabitListEmptyState', () => {
     expect(texts).toContain('Ask Astra')
     expect(pressableWithLabel(tree, 'Ask Astra')).toBeTruthy()
     expect(texts).toContain('Create habit')
+    expect(tree.root.findAll((node) => node.type === 'Pressable' && typeof node.props.testID === 'string').map((node) => node.props.testID)).toEqual(['button-ghost-sm', 'button-primary-sm'])
+    expect(pressableWithLabel(tree, 'Ask Astra')!.findAll((node) => typeof node.type === 'string' && node.props.testID === 'orbit-mascot')).toHaveLength(0)
   })
 
   it('renders the create pill without the Astra pill when no Astra handler is given', () => {

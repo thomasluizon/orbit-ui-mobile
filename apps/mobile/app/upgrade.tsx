@@ -75,7 +75,7 @@ function UpgradeContent({
       </View>
     )
   } else if (state === 'load-failed') {
-    body = <View style={styles.padBlock}><ErrorState message={t('upgrade.billing.error')} action={
+    body = <View style={styles.padBlock}><ErrorState fullSurface message={t('upgrade.billing.error')} action={
       <IconButton label={t('upgrade.billing.retry')} onClick={onRetry}><RefreshCw size={20} strokeWidth={1.5} accessible={false} /></IconButton>
     } /></View>
   } else {

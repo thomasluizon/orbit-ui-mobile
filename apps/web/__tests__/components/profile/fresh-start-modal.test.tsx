@@ -48,6 +48,7 @@ vi.mock('@/app/actions/profile', () => ({
   updateWeekStartDay: vi.fn(),
   updateClockFormat: vi.fn(),
   updateThemePreference: vi.fn(),
+  updateMascotMotion: vi.fn(),
   completeOnboarding: vi.fn(),
   exportUserData: vi.fn(),
   authorizeNotion: vi.fn(),
@@ -134,7 +135,7 @@ describe('FreshStartModal', () => {
     expect(onOpenChange).not.toHaveBeenCalled()
   })
 
-  it('clears the stale-build spinner without losing data when reload was already attempted', async () => {
+  it('clears the stale-build busy state without losing data when reload was already attempted', async () => {
     holdAccount('user-1')
     mockResetAccountQueries.mockClear()
     failureCopy.realAdapter = true

@@ -6,7 +6,6 @@ import postcss from 'postcss'
 import tailwind from '@tailwindcss/postcss'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { Input } from '@/components/ui/input'
-import { Loader2 } from '@/components/ui/icons'
 import { CheckCircle } from '@/components/habits/habit-row-check-circle'
 import { resolveWebThemeVariables } from '@/lib/theme-dom'
 import { expectOneFieldIndicator, inspectControlAccentRings, inspectFocusedControlRings as inspectFocusedRing, readFieldIndicators, readOutlineVisibility, readRingPaint, settleFocusAnimations } from '@/e2e/layout/focus-indicators'
@@ -107,20 +106,22 @@ describe('field indicator readers in Chromium', () => {
     }
   })
 
-  it('inspects the real Input and quiet heading while an unrelated loader keeps running', async () => {
+  it('inspects the real Input and quiet heading while an unrelated looping animation keeps running', async () => {
     const { container } = render(<>
       <h1 tabIndex={-1}>New habit</h1>
       <button type="button">Previous control</button>
       <Input label="Description" value="" onChange={() => {}} />
-      <Loader2 className="animate-spin orbit-essential-loading" aria-hidden="true" />
+      <span className="unrelated-loop" aria-hidden="true" />
     </>)
     const page = await browser.newPage()
     try {
       await page.setContent(`<style>${stylesheet}
         :root { ${Object.entries(resolveWebThemeVariables('orange', 'dark')).map(([property, value]) => `${property}: ${value};`).join(' ')} }
+        @keyframes unrelated-loop { 50% { opacity: 0.35; } }
+        .unrelated-loop { animation: unrelated-loop 1.1s var(--ease-standard) infinite; }
       </style>${container.innerHTML}`)
       await loadAppFonts(page)
-      const loader = page.locator('.orbit-essential-loading')
+      const loader = page.locator('.unrelated-loop')
       await page.evaluate(() => document.fonts.ready)
       expect(await loader.evaluate(element => element.getAnimations().map(animation => animation.effect!.getComputedTiming().endTime))).toEqual([Infinity])
       const field = page.getByRole('textbox', { name: 'Description', exact: true })

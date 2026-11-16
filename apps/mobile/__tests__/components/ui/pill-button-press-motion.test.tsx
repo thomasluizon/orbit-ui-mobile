@@ -5,6 +5,7 @@ import { IconButton } from '@/components/ui/icon-button'
 import { PillButton } from '@/components/ui/pill-button'
 import { Copy } from '@/components/ui/icons'
 import { createTokensV2 } from '@/lib/theme'
+import { controlStyle } from '@/__tests__/support/press-feedback'
 
 const motionOverride = vi.hoisted(() => ({ press: 173, enter: [0.11, 0.22, 0.33, 0.44] as const }))
 const motionState = vi.hoisted(() => ({ reduced: false }))
@@ -33,8 +34,7 @@ function host(): ReactTestInstance {
 }
 
 function paint(): ViewStyle {
-  const style = host().props.style as StyleProp<ViewStyle> | ((state: { pressed: boolean }) => StyleProp<ViewStyle>)
-  return StyleSheet.flatten(typeof style === 'function' ? style({ pressed: true }) : style)
+  return controlStyle(host(), true)
 }
 
 async function pressIn() {

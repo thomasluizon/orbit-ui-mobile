@@ -25,7 +25,7 @@ export function Root({ value, onChange, options, disabled, children }: Readonly<
 export function Trigger({ children, ref, ...props }: ComponentProps<typeof Primitive.Trigger>) {
   const resolveContainer = useContext(SelectContext)
   const composedRef = useComposedRefs(ref, resolveContainer)
-  return <Primitive.Trigger {...props} ref={composedRef} className={`${FIELD_TRIGGER_PERIMETER} flex w-full min-h-[54px] items-center justify-between gap-3 rounded-[12px] border-0 bg-[var(--bg-field)] py-3 pr-4 pl-4 text-left text-base text-[var(--fg-1)] transition-[scale] duration-[var(--dur-press)] ease-[var(--ease-out)] motion-safe:enabled:active:scale-[0.96] disabled:opacity-50`}>
+  return <Primitive.Trigger {...props} ref={composedRef} className={`press-hit-layer ${FIELD_TRIGGER_PERIMETER} flex w-full min-h-[54px] items-center justify-between gap-3 rounded-[12px] border-0 bg-[var(--bg-field)] py-3 pr-4 pl-4 text-left text-base text-[var(--fg-1)] transition-[scale] duration-[var(--dur-press)] ease-[var(--ease-out)] motion-safe:enabled:active:scale-[0.96] disabled:opacity-50`}>
     {children}<Primitive.Icon asChild><ChevronDown size={20} strokeWidth={1.8} className={`text-[var(--fg-3)] ${FIELD_TRIGGER_MUTED_CONTENT}`} aria-hidden="true" /></Primitive.Icon><FieldTriggerFill />
   </Primitive.Trigger>
 }
@@ -36,7 +36,7 @@ export function Portal({ children }: Readonly<{ children: ReactNode }>) {
 }
 
 export function Content({ children, ...props }: ComponentProps<typeof Primitive.Content>) {
-  return <Primitive.Content {...props} position="popper" onEscapeKeyDown={(event) => { event.stopPropagation(); props.onEscapeKeyDown?.(event) }} sideOffset={8} className="z-dropdown min-w-[var(--radix-select-trigger-width)] overflow-hidden rounded-[20px] bg-[var(--bg-sheet)] p-2 text-[var(--fg-1)] shadow-[var(--sh-2)]">
+  return <Primitive.Content {...props} position="popper" onEscapeKeyDown={(event) => { event.stopPropagation(); props.onEscapeKeyDown?.(event) }} sideOffset={8} className="orbit-select-panel z-dropdown min-w-[var(--radix-select-trigger-width)] overflow-hidden rounded-[20px] bg-[var(--bg-sheet)] p-2 text-[var(--fg-1)] shadow-[var(--sh-2)]">
     <Primitive.Viewport style={{ maxHeight: 'min(240px, var(--radix-select-content-available-height))' }}>{children}</Primitive.Viewport>
   </Primitive.Content>
 }
@@ -46,7 +46,7 @@ export function SelectCheck() {
 }
 
 export function Item({ value, label, disabled }: Readonly<SelectOption>) {
-  return <Primitive.Item value={value} textValue={label} disabled={disabled} className="flex min-h-12 cursor-pointer items-center justify-between gap-3 rounded-[12px] px-3 py-2 text-sm focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--fg-1)] data-[highlighted]:bg-[var(--bg-hover)] data-[disabled]:opacity-50">
+  return <Primitive.Item value={value} textValue={label} disabled={disabled} className="orbit-press-content flex min-h-12 cursor-pointer items-center justify-between gap-3 rounded-[12px] px-3 py-2 text-sm focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--fg-1)] data-[highlighted]:bg-[var(--bg-hover)] data-[disabled]:opacity-50">
     <Primitive.ItemText>{label}</Primitive.ItemText><SelectCheck />
   </Primitive.Item>
 }

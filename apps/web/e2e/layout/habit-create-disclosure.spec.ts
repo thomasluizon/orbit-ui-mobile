@@ -1,5 +1,6 @@
 import { expect, type Locator } from '@playwright/test'
 import { API } from '@orbit/shared/api'
+import { orbitMascotHeight } from '@orbit/shared/contracts/brand'
 import { dateInterpretationSchema } from '@orbit/shared/types/habit'
 import { formatLocaleDate } from '@orbit/shared/utils'
 import en from '@orbit/shared/i18n/en.json'
@@ -9,7 +10,7 @@ import { setLayoutFixtureSession } from './profile-session'
 import { LAYOUT_FIXED_TIME } from './clock.mjs'
 
 async function assertInlineGlyph(phrase: Locator, glyph: Locator, date: Locator) {
-  const mark = glyph.locator('[data-asset="astra-mark"]')
+  const mark = glyph.locator('[data-asset="orbit-mascot"]')
   await expect(mark).toHaveCount(1)
   await expect(mark).toHaveAttribute('color', 'var(--fg-3)')
   await expect(glyph).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)')
@@ -26,7 +27,7 @@ async function assertInlineGlyph(phrase: Locator, glyph: Locator, date: Locator)
   expect(glyphBounds.y).toBeGreaterThanOrEqual(fieldBounds.y)
   expect(glyphBounds.y + glyphBounds.height).toBeLessThanOrEqual(fieldBounds.y + fieldBounds.height)
   expect(glyphBounds.width).toBe(16)
-  expect(glyphBounds.height).toBe(16)
+  expect(glyphBounds.height).toBe(orbitMascotHeight(16))
   expect(dateBounds.y).toBeGreaterThanOrEqual(fieldBounds.y + fieldBounds.height)
   expect(dateBounds.width).toBeGreaterThanOrEqual(48)
   expect(dateBounds.height).toBeGreaterThanOrEqual(48)

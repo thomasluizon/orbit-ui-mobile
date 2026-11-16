@@ -24,14 +24,14 @@ function surfaceText(profile: ReturnType<typeof createMockProfile>, locale: stri
   return text
 }
 
-describe('weekly Astra allowance surfaces', () => {
+describe('weekly AI allowance surfaces', () => {
   it.each(['en', 'pt-BR'])('shows the count and server reset in %s', async (locale) => {
     await i18n.changeLanguage(locale)
     const profile = createMockProfile({ hasProAccess: true, aiMessagesUsed: 200, aiMessagesLimit: 250,
       aiMessagesPeriod: 'week', aiMessagesResetsAt: '2026-11-09T02:00:00Z', timeZone: 'America/Sao_Paulo' })
     const text = surfaceText(profile, locale)
     expect(text).toContain(locale === 'en' ? '200 of 250' : '200 de 250')
-    expect(text).toContain('"accessibilityLabel":"' + (locale === 'en' ? 'Astra allowance' : 'Cota da Astra') + '"')
+    expect(text).toContain('"accessibilityLabel":"' + (locale === 'en' ? 'AI allowance' : 'Cota de IA') + '"')
     expect(text.split(locale === 'en' ? 'Resets Sunday.' : 'Próxima renovação: domingo.')).toHaveLength(4)
     expect(text).toContain(locale === 'en' ? "This week's messages" : 'Mensagens da semana')
     expect(text).toContain(locale === 'en' ? 'messages/week' : 'por semana')

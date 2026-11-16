@@ -18,7 +18,7 @@ import { setLayoutProfileSession, setLayoutFixtureSession } from './profile-sess
 import { test } from './upgrade-fixtures'
 
 async function expectEmptyTitle(page: Page, surface: Page | Locator, title: string) {
-  const label = surface.locator('[data-mark] > p').filter({ hasText: title })
+  const label = surface.locator('[data-empty-state] > p').filter({ hasText: title })
   await expect(label).toHaveCount(1)
   await expect(label).toHaveText(title)
   await markRequiredLabels(label)

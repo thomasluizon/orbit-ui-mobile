@@ -25,7 +25,7 @@ sheet and the wide anchored panel. Existing short and typed headings, full-title
 checked items, disabled actions, actionable plan badges and destructive ordering remain available.
 The composer recording control remains a voice action.
 
-Astra actions show their localized label beside the decorative mark in both presentations,
+Orbit actions show their localized label beside the decorative mark in both presentations,
 using the same row width, minimum height and padding as sibling actions. The visible label
 supplies the accessible name and the headless typeahead value. The item's existing radius
 contains its press fill and defines its single keyboard focus indicator.

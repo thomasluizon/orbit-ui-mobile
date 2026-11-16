@@ -1,0 +1,456 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Criar com o Orbit, celular</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Space+Grotesk:wght@500;600&display=swap">
+<style>
+body{margin:0}
+@keyframes rise{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+@keyframes fade{from{opacity:0}to{opacity:1}}
+@keyframes blink{0%,92%,100%{transform:scaleY(1)}96%{transform:scaleY(0.1)}}
+.rise{animation:rise 280ms cubic-bezier(0.16,1,0.3,1) both}
+.fade{animation:fade 220ms cubic-bezier(0.2,0,0,1) both}
+.eye{transform-box:fill-box;transform-origin:center;animation:blink 4.2s infinite}
+.track{transition:transform 320ms cubic-bezier(0.2,0,0,1)}
+@media (prefers-reduced-motion: reduce){.rise,.fade,.eye{animation:none}.track{transition:none}}
+</style>
+</helmet>
+<div style="position: relative; width: 412px; height: 892px; box-sizing: border-box; overflow: hidden; background: #09090B; color: #F4F4F6; font-family: Geist, system-ui, sans-serif; display: flex; flex-direction: column; padding: 8px 0 24px 0; gap: 16px">
+  <div style="display: flex; align-items: center; justify-content: space-between; height: 56px; padding: 0 16px">
+    <div style="width: 48px; height: 48px">
+      <sc-if value="{{ showBack }}" hint-placeholder-val="{{ false }}">
+        <button class="fade" onClick="{{ back }}" aria-label="Voltar" style="width: 48px; height: 48px; border: 0; background: transparent; color: #F4F4F6; display: flex; align-items: center; justify-content: center; border-radius: 12px; cursor: pointer">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"></path></svg>
+        </button>
+      </sc-if>
+    </div>
+    <div aria-hidden="true" style="display: flex; align-items: center; gap: 8px">
+      <sc-for list="{{ dots }}" as="dot" hint-placeholder-count="3">
+        <span style="display: block; height: 8px; border-radius: 999px; transition: width 220ms cubic-bezier(0.2,0,0,1), background-color 220ms cubic-bezier(0.2,0,0,1); width: {{ dot.width }}; background: {{ dot.color }}"></span>
+      </sc-for>
+    </div>
+    <button aria-label="Fechar" style="width: 48px; height: 48px; border: 0; background: transparent; color: #F4F4F6; display: flex; align-items: center; justify-content: center; border-radius: 12px; cursor: pointer">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"></path></svg>
+    </button>
+  </div>
+
+  <div style="flex: 1; min-height: 0; display: flex; flex-direction: column; justify-content: center; gap: 24px">
+  <div style="display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 0 24px; text-align: center">
+    <svg width="96" height="68" viewBox="-210 -150 420 300" aria-hidden="true" style="flex-shrink: 0">
+      <defs><clipPath id="guide-planet"><circle cx="0" cy="0" r="100"></circle></clipPath></defs>
+      <path d="{{ ringBack }}" fill="#F4F4F6"></path>
+      <circle cx="{{ moonX }}" cy="{{ moonY }}" r="{{ moonR }}" fill="#C4530F" opacity="{{ moonBackOpacity }}"></circle>
+      <circle cx="0" cy="0" r="100" fill="#F4F4F6"></circle>
+      <g transform="{{ eyeShift }}">
+        <rect class="eye" x="-46" y="-58" width="22" height="56" rx="11" fill="#09090B"></rect>
+        <rect class="eye" x="24" y="-58" width="22" height="56" rx="11" fill="#09090B"></rect>
+      </g>
+      <g clip-path="url(#guide-planet)"><path d="{{ ringGap }}" fill="#09090B"></path></g>
+      <path d="{{ ringFront }}" fill="#F4F4F6"></path>
+      <circle cx="{{ moonX }}" cy="{{ moonY }}" r="{{ moonR }}" fill="#C4530F" opacity="{{ moonFrontOpacity }}"></circle>
+    </svg>
+    <p aria-live="polite" style="margin: 0; font-size: 16px; line-height: 1.4; color: #C9C9CC">{{ line }}</p>
+  </div>
+
+  <div style="overflow: hidden">
+    <div class="track" style="display: flex; align-items: flex-start; transform: translateX({{ trackX }})">
+      <sc-for list="{{ slides }}" as="slide" hint-placeholder-count="3">
+        <section aria-hidden="{{ slide.hidden }}" style="flex: 0 0 100%; min-width: 0; box-sizing: border-box; padding: 0 16px; display: flex; flex-direction: column; gap: 24px">
+          <h1 style="margin: 0; text-align: center; font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 34px; line-height: 1.15; letter-spacing: -0.02em">{{ slide.question }}</h1>
+
+          <sc-if value="{{ slide.isPhrase }}" hint-placeholder-val="{{ true }}">
+            <form onSubmit="{{ submitPhrase }}" style="display: flex; flex-direction: column; gap: 12px; margin: 0">
+              <input type="text" aria-label="O que você quer fazer?" autocomplete="off" value="{{ text }}" onChange="{{ onText }}" onFocus="{{ lookAtField }}" onBlur="{{ lookAway }}" placeholder="Tomar remédio todo dia às 8" style="height: 56px; box-sizing: border-box; border-radius: 16px; border: 1px solid #6E6E72; background: #171719; color: #F4F4F6; font-family: inherit; font-size: 17px; padding: 0 16px; outline-color: #F4F4F6">
+              <sc-for list="{{ examples }}" as="example" hint-placeholder-count="2">
+                <button type="button" onClick="{{ example.pick }}" onMouseEnter="{{ example.enter }}" onMouseLeave="{{ lookAway }}" style="min-height: 48px; text-align: center; border: 0; border-radius: 12px; background: #131315; color: #C9C9CC; font-family: inherit; font-size: 16px; padding: 12px 16px; cursor: pointer">{{ example.label }}</button>
+              </sc-for>
+            </form>
+          </sc-if>
+
+          <sc-if value="{{ slide.hasOptions }}" hint-placeholder-val="{{ false }}">
+            <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px">
+              <sc-for list="{{ slide.options }}" as="option" hint-placeholder-count="4">
+                <button onClick="{{ option.pick }}" onMouseEnter="{{ option.enter }}" onFocus="{{ option.enter }}" onMouseLeave="{{ lookAway }}" onBlur="{{ lookAway }}" aria-pressed="{{ option.selected }}" style="min-height: 72px; border-radius: 20px; color: #F4F4F6; font-family: inherit; font-size: 17px; font-weight: 500; cursor: pointer; transition: background-color 150ms cubic-bezier(0.2,0,0,1), border-color 150ms cubic-bezier(0.2,0,0,1); border: 1px solid {{ option.border }}; background: {{ option.fill }}">{{ option.label }}</button>
+              </sc-for>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{ slide.showCalendar }}" hint-placeholder-val="{{ false }}">
+            <div class="rise" style="display: flex; flex-direction: column; gap: 12px; background: #131315; border-radius: 20px; padding: 16px">
+              <p style="margin: 0; text-align: center; font-size: 16px; font-weight: 600">Novembro de 2026</p>
+              <div style="display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px">
+                <sc-for list="{{ weekdays }}" as="weekday" hint-placeholder-count="7">
+                  <span aria-hidden="true" style="text-align: center; font-size: 12px; color: #8F8F93; line-height: 24px">{{ weekday.label }}</span>
+                </sc-for>
+                <sc-for list="{{ days }}" as="day" hint-placeholder-count="30">
+                  <button onClick="{{ day.pick }}" disabled="{{ day.past }}" aria-label="{{ day.aria }}" style="height: 44px; border-radius: 12px; font-family: inherit; font-size: 16px; cursor: pointer; border: 1px solid {{ day.border }}; background: {{ day.fill }}; color: {{ day.color }}">{{ day.label }}</button>
+                </sc-for>
+              </div>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{ slide.isWhen }}" hint-placeholder-val="{{ false }}">
+            <form onSubmit="{{ submitWhenText }}" style="display: flex; gap: 12px; margin: 0">
+              <input type="text" aria-label="Outro dia ou outra repetição" autocomplete="off" value="{{ whenText }}" onChange="{{ onWhenText }}" onFocus="{{ lookAtField }}" onBlur="{{ lookAway }}" placeholder="Sexta, dia 20, toda segunda" style="flex: 1; min-width: 0; height: 56px; box-sizing: border-box; border-radius: 16px; border: 1px solid #6E6E72; background: #171719; color: #F4F4F6; font-family: inherit; font-size: 17px; padding: 0 16px; outline-color: #F4F4F6">
+              <button type="button" onClick="{{ toggleCalendar }}" aria-label="{{ calendarLabel }}" aria-pressed="{{ calendarOpen }}" style="width: 56px; height: 56px; flex-shrink: 0; border-radius: 16px; border: 1px solid #6E6E72; background: {{ calendarFill }}; color: #F4F4F6; display: flex; align-items: center; justify-content: center; cursor: pointer">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="5" width="16" height="16" rx="3"></rect><path d="M4 10h16M9 3v4M15 3v4"></path></svg>
+              </button>
+              <button type="submit" disabled="{{ whenTextEmpty }}" style="height: 56px; flex-shrink: 0; border-radius: 999px; border: 0; background: #F4F4F6; color: #09090B; font-family: inherit; font-size: 16px; font-weight: 600; padding: 0 20px; cursor: pointer; opacity: {{ whenTextOpacity }}">Usar</button>
+            </form>
+          </sc-if>
+
+          <sc-if value="{{ slide.isTime }}" hint-placeholder-val="{{ false }}">
+            <form onSubmit="{{ submitTimeText }}" style="display: flex; gap: 12px; margin: 0">
+              <input type="time" aria-label="Outra hora" value="{{ timeText }}" onChange="{{ onTimeText }}" onFocus="{{ lookAtField }}" onBlur="{{ lookAway }}" style="flex: 1; min-width: 0; height: 56px; box-sizing: border-box; border-radius: 16px; border: 1px solid #6E6E72; background: #171719; color: #F4F4F6; color-scheme: dark; font-family: inherit; font-size: 17px; padding: 0 16px; outline-color: #F4F4F6">
+              <button type="submit" disabled="{{ timeTextEmpty }}" style="height: 56px; flex-shrink: 0; border-radius: 999px; border: 0; background: #F4F4F6; color: #09090B; font-family: inherit; font-size: 16px; font-weight: 600; padding: 0 20px; cursor: pointer; opacity: {{ timeTextOpacity }}">Usar</button>
+            </form>
+          </sc-if>
+
+          <sc-if value="{{ slide.isConfirm }}" hint-placeholder-val="{{ false }}">
+            <div style="display: flex; flex-direction: column; align-items: center; gap: 16px; background: #131315; border-radius: 20px; padding: 24px 16px; text-align: center">
+              <p style="margin: 0; font-size: 22px; font-weight: 500; line-height: 1.2">{{ title }}</p>
+              <div style="display: flex; flex-wrap: wrap; justify-content: center; gap: 8px">
+                <sc-for list="{{ chips }}" as="chip" hint-placeholder-count="3">
+                  <button onClick="{{ chip.tap }}" aria-label="{{ chip.aria }}" style="min-height: 44px; border-radius: 999px; border: 1px solid #6E6E72; background: #1C1C1E; color: #F4F4F6; font-family: inherit; font-size: 16px; font-weight: 500; padding: 0 16px; cursor: pointer">{{ chip.label }}</button>
+                </sc-for>
+              </div>
+            </div>
+            <button style="min-height: 48px; display: flex; align-items: center; justify-content: center; gap: 8px; border: 0; background: transparent; color: #C9C9CC; font-family: inherit; font-size: 16px; padding: 0; cursor: pointer">
+              <span>Notas, checklist, tags e meta</span>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"></path></svg>
+            </button>
+          </sc-if>
+        </section>
+      </sc-for>
+    </div>
+  </div>
+  </div>
+
+  <div style="display: flex; gap: 12px; padding: 0 16px; min-height: 56px">
+    <sc-if value="{{ showPrimary }}" hint-placeholder-val="{{ true }}">
+      <button onClick="{{ primary }}" disabled="{{ primaryDisabled }}" style="height: 56px; flex: 1; border-radius: 999px; border: 0; background: #C4530F; color: #FFFFFF; font-family: inherit; font-size: 17px; font-weight: 600; cursor: pointer; transition: opacity 150ms cubic-bezier(0.2,0,0,1); opacity: {{ primaryOpacity }}">{{ primaryLabel }}</button>
+    </sc-if>
+  </div>
+
+  <sc-if value="{{ created }}" hint-placeholder-val="{{ false }}">
+    <div class="fade" style="position: absolute; inset: 0; background: rgba(0,0,0,0.64); display: flex; align-items: center; justify-content: center; padding: 24px">
+      <div class="rise" role="dialog" aria-modal="true" aria-labelledby="done-title" style="width: 100%; box-sizing: border-box; background: #1C1C1E; border-radius: 24px; padding: 32px 24px 24px 24px; display: flex; flex-direction: column; align-items: center; gap: 24px; text-align: center">
+        <svg width="140" height="100" viewBox="-210 -150 420 300" aria-hidden="true">
+          <defs><clipPath id="done-planet"><circle cx="0" cy="0" r="100"></circle></clipPath></defs>
+          <path d="{{ ringBack }}" fill="#F4F4F6"></path>
+          <circle cx="{{ moonX }}" cy="{{ moonY }}" r="{{ moonR }}" fill="#C4530F" opacity="{{ moonBackOpacity }}"></circle>
+          <circle cx="0" cy="0" r="100" fill="#F4F4F6"></circle>
+          <path d="M -58 -22 Q -36 -60 -14 -22" fill="none" stroke="#09090B" stroke-width="17" stroke-linecap="round"></path>
+          <path d="M 14 -22 Q 36 -60 58 -22" fill="none" stroke="#09090B" stroke-width="17" stroke-linecap="round"></path>
+          <g clip-path="url(#done-planet)"><path d="{{ ringGap }}" fill="#1C1C1E"></path></g>
+          <path d="{{ ringFront }}" fill="#F4F4F6"></path>
+          <circle cx="{{ moonX }}" cy="{{ moonY }}" r="{{ moonR }}" fill="#C4530F" opacity="{{ moonFrontOpacity }}"></circle>
+        </svg>
+        <div style="display: flex; flex-direction: column; gap: 8px">
+          <h2 id="done-title" style="margin: 0; font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 28px; line-height: 1.15; letter-spacing: -0.02em">Pronto!</h2>
+          <p style="margin: 0; font-size: 17px; line-height: 1.4; color: #C9C9CC">{{ doneText }}</p>
+        </div>
+        <div style="width: 100%; display: flex; flex-direction: column; gap: 12px">
+          <button onClick="{{ reset }}" style="height: 56px; border-radius: 999px; border: 0; background: #C4530F; color: #FFFFFF; font-family: inherit; font-size: 17px; font-weight: 600; cursor: pointer">{{ doneAction }}</button>
+          <button onClick="{{ reset }}" style="height: 56px; border-radius: 999px; border: 0; background: transparent; color: #F4F4F6; font-family: inherit; font-size: 17px; font-weight: 500; cursor: pointer">Criar outro</button>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":412,"height":892}}'>
+class Component extends DCLogic {
+  state = { text: '', when: null, whenText: '', calendarOpen: false, timeChoice: null, timeText: '', reminder: null, stepId: 'phrase', created: false };
+  clock = 0;
+  spinAt = -10;
+  lookTarget = null;
+  lookX = 0;
+  lookY = 0;
+
+  componentDidMount() {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const startedAt = performance.now();
+    let lastFrame = 0;
+    const frame = (now) => {
+      this.frameId = requestAnimationFrame(frame);
+      if (now - lastFrame < 33) return;
+      lastFrame = now;
+      this.clock = (now - startedAt) / 1000;
+      const target = this.lookTarget || { x: 0, y: 0 };
+      this.lookX += (target.x - this.lookX) * 0.22;
+      this.lookY += (target.y - this.lookY) * 0.22;
+      this.forceUpdate();
+    };
+    this.frameId = requestAnimationFrame(frame);
+  }
+
+  componentWillUnmount() {
+    cancelAnimationFrame(this.frameId);
+  }
+
+  read(text) {
+    let rest = ' ' + text + ' ';
+    let time = null;
+    const timeMatch = rest.match(/\s(?:às|as|a)\s+(\d{1,2})(?:[:h](\d{2}))?\s*(?:h|horas)?(?=\s)/i);
+    if (timeMatch && Number(timeMatch[1]) < 24) {
+      time = Number(timeMatch[1]) + ':' + (timeMatch[2] || '00');
+      rest = rest.replace(timeMatch[0], ' ');
+    }
+    let cadence = null;
+    const cadences = [
+      /\s(todo dia|todos os dias|diariamente)(?=\s)/i,
+      /\s(toda|todo)\s+(segunda|terça|quarta|quinta|sexta|sábado|domingo)(?=\s)/i,
+      /\s(\d)\s*(x|vezes)\s+por\s+semana(?=\s)/i,
+    ];
+    for (const pattern of cadences) {
+      const found = rest.match(pattern);
+      if (found) {
+        cadence = found[0].trim().toLowerCase().replace('todos os dias', 'todo dia').replace('diariamente', 'todo dia');
+        rest = rest.replace(found[0], ' ');
+        break;
+      }
+    }
+    let day = null;
+    if (!cadence) {
+      const dayMatch = rest.match(/\s(hoje|amanhã|na segunda|na terça|na quarta|na quinta|na sexta|no sábado|no domingo)(?=\s)/i);
+      if (dayMatch) {
+        day = dayMatch[1].toLowerCase();
+        rest = rest.replace(dayMatch[0], ' ');
+      }
+    }
+    return { title: rest.replace(/\s+/g, ' ').trim(), time, cadence, day };
+  }
+
+  resolve(state) {
+    const parsed = this.read(state.text);
+    const repeats = Boolean(state.when) && /^(todo|toda|todos|diariamente|\d\s*(x|vezes))/.test(state.when);
+    const cadence = parsed.cadence || (repeats ? state.when : null);
+    const day = parsed.day || (state.when && !repeats ? state.when : null);
+    const time = parsed.time || (state.timeChoice && state.timeChoice !== 'sem hora' ? state.timeChoice : null);
+    const steps = ['phrase'];
+    if (!parsed.cadence && !parsed.day) steps.push('when');
+    if (!parsed.time) steps.push('time');
+    if (time) steps.push('reminder');
+    steps.push('confirm');
+    return { parsed, cadence, day, time, steps, habit: Boolean(cadence) };
+  }
+
+  ring(from, to, tilt, opening, extra) {
+    const outer = [];
+    const inner = [];
+    const point = (a) => {
+      const x = 180 * Math.cos(a);
+      const y = 180 * opening * Math.sin(a);
+      return { x: x * Math.cos(tilt) - y * Math.sin(tilt), y: x * Math.sin(tilt) + y * Math.cos(tilt), depth: Math.sin(a) };
+    };
+    for (let i = 0; i <= 36; i++) {
+      const a = from + ((to - from) * i) / 36;
+      const p = point(a);
+      const q = point(a + 0.001);
+      const length = Math.hypot(q.x - p.x, q.y - p.y) || 1;
+      const nx = -(q.y - p.y) / length;
+      const ny = (q.x - p.x) / length;
+      const width = 24 * (0.6 + 0.4 * (p.depth + 1) / 2) + extra * 2;
+      outer.push((p.x + (nx * width) / 2).toFixed(1) + ' ' + (p.y + (ny * width) / 2).toFixed(1));
+      inner.push((p.x - (nx * width) / 2).toFixed(1) + ' ' + (p.y - (ny * width) / 2).toFixed(1));
+    }
+    return 'M' + outer.concat(inner.reverse()).join(' L') + ' Z';
+  }
+
+  move(change) {
+    const nextState = { ...this.state, ...change };
+    const { steps } = this.resolve(nextState);
+    const index = steps.indexOf(this.state.stepId);
+    this.spinAt = this.clock;
+    this.lookTarget = null;
+    this.setState({ ...change, stepId: steps[Math.min(index + 1, steps.length - 1)] });
+  }
+
+  jump(stepId) {
+    this.spinAt = this.clock;
+    this.setState({ stepId });
+  }
+
+  renderVals() {
+    const { text, when, whenText, calendarOpen, timeChoice, timeText, reminder, stepId, created } = this.state;
+    const { parsed, cadence, day, time, steps, habit } = this.resolve(this.state);
+    const index = Math.max(0, steps.indexOf(stepId));
+    const current = steps[index];
+    const hasText = parsed.title.length > 0;
+
+    const turn = Math.min(1, Math.max(0, (this.clock - this.spinAt) / 0.9));
+    const eased = turn < 0.5 ? 4 * turn * turn * turn : 1 - Math.pow(-2 * turn + 2, 3) / 2;
+    const tilt = ((-18 + 5 * Math.sin((this.clock / 6) * Math.PI * 2)) * Math.PI) / 180 + eased * Math.PI * 2;
+    const opening = 0.29 + 0.04 * Math.sin((this.clock / 4.3) * Math.PI * 2);
+    const moonAngle = 2.6 + (this.clock / 5) * Math.PI * 2;
+    const moonFlatX = 180 * Math.cos(moonAngle);
+    const moonFlatY = 180 * opening * Math.sin(moonAngle);
+    const moonDepth = Math.sin(moonAngle);
+
+    const look = (x, y) => () => { this.lookTarget = { x, y }; };
+    const option = (label, selected, pick, position) => ({
+      label,
+      selected,
+      pick,
+      enter: look(position % 2 === 0 ? -4 : 14, position < 2 ? 14 : 18),
+      border: selected ? '#F4F4F6' : 'transparent',
+      fill: selected ? '#262628' : '#131315',
+    });
+    const whenOptions = ['hoje', 'amanhã', 'todo dia', 'sem data'].map((value, position) =>
+      option(value.charAt(0).toUpperCase() + value.slice(1), when === value, () => this.move({ when: value, whenText: '', calendarOpen: false }), position));
+    const days = [];
+    for (let number = 1; number <= 30; number++) {
+      const value = 'dia ' + number + ' de novembro';
+      const past = number < 12;
+      const selected = when === value;
+      days.push({
+        label: String(number),
+        aria: number + ' de novembro' + (number === 12 ? ', hoje' : ''),
+        past,
+        pick: () => this.move({ when: number === 12 ? 'hoje' : value, whenText: '', calendarOpen: false }),
+        border: selected ? '#F4F4F6' : number === 12 ? '#6E6E72' : 'transparent',
+        fill: selected ? '#262628' : 'transparent',
+        color: past ? '#5D5D60' : '#F4F4F6',
+      });
+    }
+    const timeOptions = ['8:00', '14:00', '20:00', 'sem hora'].map((value, position) =>
+      option(value.charAt(0).toUpperCase() + value.slice(1), timeChoice === value, () => this.move({ timeChoice: value, timeText: '', reminder: null }), position));
+    const reminderOptions = [
+      option('Sim, me lembre', reminder === 'yes', () => this.move({ reminder: 'yes' }), 0),
+      option('Agora não', reminder === 'no', () => this.move({ reminder: 'no' }), 1),
+    ];
+    const slideFor = {
+      phrase: { question: 'O que você quer fazer?', isPhrase: true },
+      when: { question: 'Quando?', options: whenOptions },
+      time: { question: 'Tem hora certa?', options: timeOptions },
+      reminder: { question: 'Quer que eu te lembre às ' + (time || '') + '?', options: reminderOptions },
+      confirm: { question: 'É isso?', isConfirm: true },
+    };
+    const slides = steps.map((id, position) => {
+      const slide = slideFor[id];
+      return {
+        question: slide.question,
+        isPhrase: Boolean(slide.isPhrase),
+        isConfirm: Boolean(slide.isConfirm),
+        isWhen: id === 'when',
+        isTime: id === 'time',
+        showCalendar: id === 'when' && calendarOpen,
+        hasOptions: Boolean(slide.options) && !(id === 'when' && calendarOpen),
+        options: slide.options || [],
+        hidden: position !== index,
+      };
+    });
+
+    const edit = (id) => () => this.jump(steps.includes(id) ? id : 'phrase');
+    const chips = [
+      { label: habit ? 'Hábito' : 'Tarefa única', aria: 'Tipo. Toque para mudar.', tap: edit('when') },
+      { label: cadence || day || 'sem data', aria: 'Quando. Toque para mudar.', tap: edit('when') },
+      { label: time || 'sem hora', aria: 'Hora. Toque para mudar.', tap: edit('time') },
+    ];
+    if (time) chips.push({ label: reminder === 'yes' ? 'com lembrete' : 'sem lembrete', aria: 'Lembrete. Toque para mudar.', tap: edit('reminder') });
+
+    const understood = [cadence || day, time].filter(Boolean);
+    const lines = {
+      phrase: !hasText
+        ? 'Diga do seu jeito. Pode incluir o dia e a hora.'
+        : understood.length > 0 ? 'Entendi: ' + understood.join(', ') + '.' : 'Entendi. Só faltam os detalhes.',
+      when: 'Pode ser qualquer dia, ou uma repetição.',
+      time: 'Se tiver hora, eu aviso você.',
+      reminder: 'Eu posso avisar na hora.',
+      confirm: 'Confere comigo. Toque num item para mudar.',
+    };
+
+    const at = time ? ' às ' + time : '';
+    let doneText = 'A tarefa foi criada sem data. Ela fica em Geral.';
+    if (habit) doneText = 'O hábito começa hoje e se repete ' + cadence + at + '.';
+    else if (day && day !== 'sem data') doneText = 'A tarefa foi criada para ' + day.replace(/^(na|no) /, '').replace(/^dia /, 'o dia ') + at + '.';
+    const today = habit || day === 'hoje';
+
+    const fill = (value) => () => {
+      this.lookTarget = { x: 6, y: 14 };
+      this.setState({ text: value, when: null, whenText: '', calendarOpen: false, timeChoice: null, timeText: '', reminder: null });
+    };
+    const advance = () => { if (hasText) this.move({}); };
+    const typedWhen = whenText.trim().toLowerCase();
+    return {
+      text,
+      days,
+      weekdays: ['D', 'S', 'T', 'Q', 'Q', 'S', 'S'].map((label) => ({ label })),
+      whenText,
+      whenTextEmpty: typedWhen.length === 0,
+      whenTextOpacity: typedWhen.length === 0 ? 0.4 : 1,
+      onWhenText: (event) => this.setState({ whenText: event.target.value }),
+      submitWhenText: (event) => {
+        event.preventDefault();
+        if (typedWhen.length > 0) this.move({ when: typedWhen, calendarOpen: false });
+      },
+      calendarOpen,
+      calendarLabel: calendarOpen ? 'Fechar o calendário' : 'Escolher no calendário',
+      calendarFill: calendarOpen ? '#262628' : 'transparent',
+      toggleCalendar: () => this.setState({ calendarOpen: !calendarOpen }),
+      timeText,
+      timeTextEmpty: timeText.length === 0,
+      timeTextOpacity: timeText.length === 0 ? 0.4 : 1,
+      onTimeText: (event) => this.setState({ timeText: event.target.value }),
+      submitTimeText: (event) => {
+        event.preventDefault();
+        if (timeText.length > 0) this.move({ timeChoice: timeText.replace(/^0/, ''), reminder: null });
+      },
+      title: parsed.title,
+      line: lines[current],
+      slides,
+      chips,
+      created,
+      trackX: -index * 100 + '%',
+      dots: steps.map((id, position) => ({ width: position === index ? '24px' : '8px', color: position <= index ? '#F4F4F6' : '#5D5D60' })),
+      ringBack: this.ring(Math.PI, Math.PI * 2, tilt, opening, 0),
+      ringGap: this.ring(0, Math.PI, tilt, opening, 9),
+      ringFront: this.ring(0, Math.PI, tilt, opening, 0),
+      moonX: (moonFlatX * Math.cos(tilt) - moonFlatY * Math.sin(tilt)).toFixed(1),
+      moonY: (moonFlatX * Math.sin(tilt) + moonFlatY * Math.cos(tilt)).toFixed(1),
+      moonR: (17 * (0.82 + 0.18 * (moonDepth + 1) / 2)).toFixed(1),
+      moonBackOpacity: moonDepth >= 0 ? 0 : 1,
+      moonFrontOpacity: moonDepth >= 0 ? 1 : 0,
+      eyeShift: 'translate(' + this.lookX.toFixed(1) + ' ' + this.lookY.toFixed(1) + ')',
+      examples: [
+        { label: 'tomar remédio todo dia às 8', pick: fill('tomar remédio todo dia às 8'), enter: look(6, 16) },
+        { label: 'pagar o aluguel', pick: fill('pagar o aluguel'), enter: look(6, 18) },
+      ],
+      onText: (event) => {
+        this.lookTarget = { x: 6, y: 14 };
+        this.setState({ text: event.target.value, reminder: null });
+      },
+      lookAtField: look(6, 14),
+      lookAway: () => { this.lookTarget = null; },
+      submitPhrase: (event) => { event.preventDefault(); advance(); },
+      showBack: index > 0,
+      back: () => this.jump(steps[index - 1]),
+      showPrimary: current === 'phrase' || current === 'confirm',
+      primaryLabel: current === 'confirm' ? (habit ? 'Criar hábito' : 'Criar tarefa') : 'Continuar',
+      primaryDisabled: !hasText,
+      primaryOpacity: hasText ? 1 : 0.4,
+      primary: () => {
+        if (current === 'confirm') {
+          this.spinAt = this.clock;
+          this.setState({ created: true });
+        } else advance();
+      },
+      doneText,
+      doneAction: today ? 'Ver no Hoje' : 'Ver no Calendário',
+      reset: () => {
+        this.spinAt = this.clock;
+        this.setState({ text: '', when: null, whenText: '', calendarOpen: false, timeChoice: null, timeText: '', reminder: null, stepId: 'phrase', created: false });
+      },
+    };
+  }
+}
+</script>
+</body>
+</html>

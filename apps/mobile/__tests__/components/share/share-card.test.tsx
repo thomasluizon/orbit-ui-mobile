@@ -74,7 +74,7 @@ describe('ShareCard (mobile)', () => {
     const card = tree.root.findAll((node) => node.props?.testID === 'share-card')[0] as {
       props: { style: unknown }
     }
-    const marks = tree.root.findAll((node) => node.props?.testID === 'orbit-mark-accent')
+    const marks = tree.root.findAll((node) => node.props?.testID === 'orbit-mascot')
     expect(StyleSheet.flatten(card.props.style)).toMatchObject({ width: 360, height: 640 })
     expect(marks.length).toBeGreaterThan(0)
   })

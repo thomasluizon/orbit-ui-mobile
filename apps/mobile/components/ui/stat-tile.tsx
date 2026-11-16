@@ -2,6 +2,7 @@ import { PADDING, } from '@orbit/shared/theme'
 import type { StatTileProps } from '@orbit/shared/contracts/display'
 import { StyleSheet, Text, View } from 'react-native'
 import { createTokensV2 } from '@/lib/theme'
+import { Skeleton } from '@/components/ui/skeleton'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 function shownStatValue(props: StatTileProps): string | number {
@@ -43,7 +44,7 @@ export function StatTile(props: Readonly<StatTileProps>) {
     >
       {state === 'loading' ? (
         <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={styles.loadingValue}>
-          <Text style={[styles.value, { opacity: 0 }]}>0</Text><View style={[styles.valueSkeleton, { position: 'absolute', backgroundColor: tokens.bgElev2 }]} />
+          <Text style={[styles.value, { opacity: 0 }]}>0</Text><View style={[styles.valueSkeleton, { position: 'absolute' }]}><Skeleton variant="fill" grouped /></View>
         </View>
       ) : (
         <TileValue
@@ -55,7 +56,7 @@ export function StatTile(props: Readonly<StatTileProps>) {
       {state === 'loading' ? (
         <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={styles.loadingLabel}>
           <Text style={[styles.label, { opacity: 0 }]}>{label}</Text>
-          <View style={[styles.labelSkeleton, { backgroundColor: tokens.bgElev2 }]} />
+          <View style={styles.labelSkeleton}><Skeleton variant="fill" grouped /></View>
         </View>
       ) : <Text style={[styles.label, { color: isEmpty ? tokens.fg3 : tokens.fg2 }]}>{label}</Text>}
     </View>
@@ -94,10 +95,9 @@ const styles = StyleSheet.create({
   },
   loadingValue: { width: '100%', maxWidth: 64, justifyContent: 'center' },
   loadingLabel: { maxWidth: '100%' },
-  labelSkeleton: { position: 'absolute', width: '66%', height: '100%', borderRadius: 8 },
+  labelSkeleton: { position: 'absolute', width: '66%', height: '100%' },
   valueSkeleton: {
     width: '100%',
     height: 22,
-    borderRadius: 8,
   },
 })

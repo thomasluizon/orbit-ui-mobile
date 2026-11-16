@@ -436,7 +436,10 @@ it('withholds Android key details while locked or loading', () => {
   expect(keyText(tree)).not.toContain('External tool')
   mocks.loading = true
   TestRenderer.act(() => tree.update(<ProfileApiKeys profile={{ hasProAccess: true } as Profile} unlocked />))
-  expect(keyText(tree)).toContain('common.loading')
+  expect(keyText(tree)).not.toContain('common.loading')
+  const skeleton = tree.root.findAll((node: { type: unknown; props: { testID?: string } }) => typeof node.type === 'string' && node.props.testID === 'skeleton-unit-settings')
+  expect(skeleton).toHaveLength(1)
+  expect(skeleton[0]!.props).toMatchObject({ accessibilityRole: 'progressbar', accessibilityLabel: 'common.loading', accessibilityState: { busy: true } })
   expect(keyText(tree)).not.toContain('habits:read, goals:read')
   TestRenderer.act(() => tree.unmount())
 })

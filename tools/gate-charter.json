@@ -434,6 +434,11 @@
     "snapshot": "none",
     "constants": "none"
   },
+  "eslint-rules/no-spinner.cjs": {
+    "scope": "changed-files",
+    "snapshot": "none",
+    "constants": "none"
+  },
   "eslint-rules/no-text-icon-action.cjs": {
     "scope": "changed-files",
     "snapshot": "none",
