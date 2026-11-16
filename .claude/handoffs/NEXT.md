@@ -16,7 +16,7 @@ GO FASTER (owner order): start every independent item in the first turn, in para
 
 ## Goal
 
-Finish the spec: an empty board except `#33`, verified releases, the assistant fixed as a class, the owner's report shipped (`#2131`), the icon with eyes (`#2144`), the entry background and the live summary Orbit (`#2146`), the mascot rebrand (`#2121` to `#2126`, the landing as a tone change with motion), every `#315` ticket closed, then `#315`, then the store images (`#2147`) before `#33`.
+Finish the spec: an empty board except `#33`, verified releases, the assistant fixed as a class, the owner's report shipped (`#2131`), the icon with eyes (`#2144`), the entry background and the live summary Orbit (`#2146`), the mascot rebrand (`#2121` to `#2126`, the landing as a tone change with motion), every `#315` ticket closed, then `#315`, then the store images (`#2147`) before `#33`. Left: `gh issue list --repo thomasluizon/orbit-tickets --state open --limit 400`.
 
 The owner is present now and then; answer him first, in English. `#2074` is MAX priority.
 
@@ -57,6 +57,6 @@ Unattended: never ask the owner; decide with the best option and log it. Keep a 
 ## Previous prompt, disposition
 
 - Done: landing#136, ui#2474, ui#2470 merged (`#2140` closed); ui#2475 to ui#2478 opened; intake clean.
-- Carried: every In flight row above; the usage, GO FASTER, stale-file, `#2149` scope and worker-model orders.
+- Carried: the In flight rows and every order above.
 
 Treat every identifier here as a lead to verify.
