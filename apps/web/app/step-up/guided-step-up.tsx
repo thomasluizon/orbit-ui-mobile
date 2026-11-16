@@ -63,13 +63,13 @@ function GuidedStepUpResend({ cooldownSeconds, requesting, onResend, t }: Readon
 }
 
 /** The code question. The confirm action stays enabled, and an expired code asks for another through the same filled action. */
-function challengeView(state: GuidedStepUpChallengeState, t: Translate): GuidedStepUpView {
+function challengeView(state: GuidedStepUpChallengeState, t: Translate, backLabel: string): GuidedStepUpView {
   const { checking, expired, requesting } = state
   return {
     step: expired ? 'expired' : 'code',
     question: expired ? t('expiredTitle') : t('codeLabel'),
     line: expired ? t('expiredBody') : t('body', { email: state.email }),
-    back: checking ? undefined : { label: t('cancel'), onPress: state.onCancel },
+    back: checking ? undefined : { label: backLabel, onPress: state.onCancel },
     primary: expired ? { label: t('resend'), onPress: state.onResend, loading: requesting } : { label: t('confirm'), onPress: state.onConfirm, loading: checking },
     body: <>
       <OtpInput id="step-up-code" value={state.code} onChange={state.onCodeChange} error={state.otpError} focusRequest={state.codeFocusRequest} hint={expired ? undefined : t('codeHint')} disabled={checking || expired} autoFocus={!expired} label={t('codeLabel')} />
@@ -100,9 +100,9 @@ function successView(state: Extract<GuidedStepUpState, { kind: 'success' }>, t: 
   }
 }
 
-function describeView(state: GuidedStepUpState, t: Translate, displayDateNumeric: (value: string | null) => string): GuidedStepUpView {
+function describeView(state: GuidedStepUpState, t: Translate, backLabel: string, displayDateNumeric: (value: string | null) => string): GuidedStepUpView {
   if (state.kind === 'success') return successView(state, t, displayDateNumeric(state.scheduledAt))
-  return state.kind === 'exhausted' ? exhaustedView(state, t) : challengeView(state, t)
+  return state.kind === 'exhausted' ? exhaustedView(state, t) : challengeView(state, t, backLabel)
 }
 
 /**
@@ -113,7 +113,7 @@ export function GuidedStepUp({ operation, state }: Readonly<{ operation: StepUpO
   const t = useTranslations('stepUp')
   const translate = useTranslations()
   const { displayDateNumeric } = useDateFormat()
-  const view = describeView(state, t, displayDateNumeric)
+  const view = describeView(state, t, translate('common.back'), displayDateNumeric)
   const { flow, position, total } = getStepUpFlowProgress(operation)
   const closed = state.kind === 'success'
   useLayoutEffect(() => {

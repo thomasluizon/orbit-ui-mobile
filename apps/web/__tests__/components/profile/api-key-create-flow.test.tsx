@@ -120,7 +120,7 @@ describe.each([{ locale: 'en', messages: en }, { locale: 'pt-BR', messages: ptBR
     expect(screen.getByLabelText(messages.profile.apiKeys.expiryDayLabel)).toHaveValue('2020-01-01')
     await act(async () => { fireEvent.click(screen.getByRole('button', { name: messages.profile.apiKeys.scopeAction })) })
     expect(onCreate).not.toHaveBeenCalled()
-    expect(screen.getByRole('alert')).toHaveTextContent(messages.orbitMcp.invalidExpiry)
+    expect(screen.getByRole('alert')).toHaveTextContent(messages.profile.apiKeys.expiryDayPassed)
   })
 
   it('keeps every answer on the way back and asks before it drops a draft', () => {

@@ -313,7 +313,7 @@
           "stuckThisWeek": "What is getting stuck this week"
         },
         "profile": {
-          "changeTimezone": "Change my timezone",
+          "changeTimezone": "Change my time zone",
           "turnOffSummary": "Turn off the daily summary",
           "seePlan": "See my plan",
           "exportData": "Export my data"
@@ -2689,8 +2689,8 @@
     },
     "settingsRows": {
       "editName": "{name}: Edit name, {email}",
-      "timezone": "Timezone",
-      "timezoneValue": "Timezone {timeZone}",
+      "timezone": "Time zone",
+      "timezoneValue": "Time zone {timeZone}",
       "apiKeysMcp": "API keys and MCP",
       "wrapped": "Orbit Wrapped",
       "weekStart": "Week starts on",
@@ -2729,6 +2729,7 @@
       "setExpiry": "Set expiry?",
       "expiryQuestion": "Does it expire?",
       "expiryDayLabel": "Last day it works",
+      "expiryDayPassed": "That day has passed. Choose another.",
       "accessQuestion": "What can it do?",
       "scopeAction": "Create",
       "mcpTitle": "Connect over MCP",
@@ -2739,9 +2740,9 @@
       "revokeBody": "Whatever uses this key stops working right away. There is no way to restore the key."
     },
     "timezonePicker": {
-      "search": "Search timezones",
-      "noResults": "No timezones found",
-      "showMore": "Show more timezones",
+      "search": "Search time zones",
+      "noResults": "No time zones found",
+      "showMore": "Show more time zones",
       "question": "Which time zone are you in?"
     },
     "loading": "Loading profile",
@@ -2873,7 +2874,7 @@
       "deleteOnboarding": "Onboarding progress (will replay welcome flow)",
       "preserveAccount": "Your account (email and name)",
       "preserveSubscription": "Pro subscription status",
-      "preservePreferences": "Theme, language, and timezone",
+      "preservePreferences": "Theme, language, and time zone",
       "confirmInstruction": "Type ORBIT to confirm.",
       "confirmLabel": "Ready to start over?",
       "confirmPlaceholder": "ORBIT",
@@ -3057,7 +3058,7 @@
       "account": "Account information: name and email address (via email signup, Google OAuth, or Sign in with Apple)",
       "habits": "Habit data: habits you create, completion logs, schedules, tags, and goals",
       "chat": "AI chat messages: conversations with the Orbit AI assistant",
-      "preferences": "Preferences: language, timezone, color scheme, and notification settings",
+      "preferences": "Preferences: language, time zone, color scheme, and notification settings",
       "device": "Device data: a push notification token (to deliver reminders) and Android and iOS crash reports with device and OS details, a random installation ID, and an approximate city inferred from the request IP address. These reports do not include your name, email, or account details."
     },
     "howWeUse": {
@@ -3360,7 +3361,7 @@
         "continue": "Continue"
       },
       "done": {
-        "readFailed": "The habit was created, but I could not show its details. Try again.",
+        "readFailed": "I saved the habit, but I could not show its details. Try again.",
         "tellAstra": "Next time, tell Orbit what you want to do from Today.",
         "title": "Done. It is in your day.",
         "body": "When you do it, mark its ring on Today to log it.",
@@ -3461,7 +3462,7 @@
       "importNotNow": "Not now"
     },
     "featureGuide": {
-      "question": "What can Orbit do for you?",
+      "question": "What can you do in Orbit?",
       "habits": "Habits",
       "calendar": "Calendar",
       "astra": "Orbit",
@@ -3765,6 +3766,7 @@
   },
   "errors": {
     "fetchHabits": "Failed to load habits",
+    "fetchHabitDetails": "I could not load this habit. Try again.",
     "createHabit": "Failed to create habit",
     "updateHabit": "Failed to update habit",
     "logHabit": "Failed to log habit",
@@ -4322,7 +4324,7 @@
     "operationKeys": "API keys",
     "eyebrow": "Confirming: {operation}",
     "title": "Enter the code we sent",
-    "body": "We sent 6 digits to {email}. It confirms this one action.",
+    "body": "We sent a 6-digit code to {email}. It confirms only this action.",
     "codeLabel": "What code did you get?",
     "codeHint": "The code lasts 10 minutes.",
     "confirm": "Confirm",
@@ -4333,8 +4335,8 @@
     "attemptsOne": "You have 1 attempt remaining in the next 15 minutes.",
     "attemptsMany": "{count, plural, one {You have # attempt remaining in the next 15 minutes.} other {You have # attempts remaining in the next 15 minutes.}}",
     "expiredTitle": "This code expired",
-    "expiredBody": "It lasted 10 minutes. Ask for another to carry on.",
-    "exhaustedTitle": "The attempts ran out",
+    "expiredBody": "Each code lasts 10 minutes.",
+    "exhaustedTitle": "No attempts left",
     "exhaustedBody": "This code no longer works.",
     "exhaustedNotice": "After 3 attempts, verification for this email is locked for 15 minutes. A new code does not restore the attempts.",
     "lockCountdown": "Open again in {time}",

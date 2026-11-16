@@ -132,6 +132,7 @@ it('shows the workspace and last sync, then deletes only after confirmation', as
   })
   mount(); await openNotion()
   expect(text()).toContain('Shared tasks'); expect(text()).toContain('Last sync:')
+  expect(text(), 'the connected sheet answers its question too').toContain(en.profile.connections.description)
   expect(action(en.profile.connections.choosePages).props.disabled).toBe(false)
   TestRenderer.act(() => action(en.profile.connections.disconnect).props.onClick())
   const confirmation = tree.root.findByType(ConfirmSheet)

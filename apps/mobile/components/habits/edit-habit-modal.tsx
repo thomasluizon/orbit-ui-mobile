@@ -253,7 +253,7 @@ function EditHabitDraft({
         getFriendlyErrorMessage(
           detailToastError,
           translate,
-          'errors.fetchHabits',
+          'errors.fetchHabitDetails',
           'habit',
         ),
       )

@@ -135,6 +135,6 @@ describe.each([{ language: 'en', messages: en }, { language: 'pt-BR', messages: 
     expect(datePicker(tree).props.value).toBe('2020-01-01')
     await press(tree, messages.profile.apiKeys.scopeAction)
     expect(onCreate).not.toHaveBeenCalled()
-    expect(hosts(tree).filter((node) => node.props.accessibilityRole === 'alert').map(textOf)).toEqual([messages.orbitMcp.invalidExpiry])
+    expect(hosts(tree).filter((node) => node.props.accessibilityRole === 'alert').map(textOf)).toEqual([messages.profile.apiKeys.expiryDayPassed])
   })
 })

@@ -192,7 +192,7 @@ function StepField({ flow, props, onContinue }: Readonly<{ flow: FlowState; prop
   return (
     <>
       <DateField label={t('profile.apiKeys.expiryDayLabel')} value={apiKeyExpiryDay(props.expiresAt, props.timeZone)} minDate={apiKeyExpiryFirstDay(props.timeZone)} focusRequest={flow.expiryFocus} disabled={props.busy} onChange={(day) => props.onExpiryChange(apiKeyExpiryFromDay(day, props.timeZone))} />
-      {expiryError ? <p role="alert" className="text-center text-sm text-[var(--status-bad-text)]">{t('orbitMcp.invalidExpiry')}</p> : null}
+      {expiryError ? <p role="alert" className="text-center text-sm text-[var(--status-bad-text)]">{t('profile.apiKeys.expiryDayPassed')}</p> : null}
       {props.error ? <p role="alert" className="text-center text-sm text-[var(--status-bad-text)]">{props.error}</p> : null}
     </>
   )

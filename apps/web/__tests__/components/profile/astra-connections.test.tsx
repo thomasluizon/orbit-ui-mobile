@@ -138,6 +138,7 @@ it('shows workspace, sync time and page picker, then confirms one disconnect', a
   fireEvent.click(screen.getByRole('button', { name: 'Shared tasks' }))
   expect(screen.getByRole('button', { name: 'Shared tasks' })).toHaveAttribute('aria-expanded', 'true')
   expect(screen.getByText(/Last sync:/)).toBeInTheDocument()
+  expect(screen.getByText(en.profile.connections.description), 'the connected sheet answers its question too').toBeInTheDocument()
   expect(screen.getByRole('button', { name: en.profile.connections.choosePages })).toBeEnabled()
   fireEvent.click(screen.getByRole('button', { name: en.profile.connections.disconnect }))
   const confirmation = screen.getByRole('dialog', { name: en.profile.connections.disconnectTitle })

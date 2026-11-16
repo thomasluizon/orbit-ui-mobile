@@ -447,7 +447,7 @@ describe('web step up screen', () => {
     await renderLiveScreen()
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('codeLabel')
     expect(screen.getByLabelText('codeLabel')).toHaveAttribute('name', 'verificationCode')
-    expect(screen.getByRole('button', { name: 'cancel' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'common.back' })).toBeInTheDocument()
     expect(document.querySelector('[data-orbit-state]')).toBeNull()
     cleanup()
     mocks.guided = false
@@ -469,7 +469,7 @@ describe('web step up screen', () => {
     expect(progressName()).toBe('habits.flow.progress:{"position":3,"total":3}')
     expect(document.querySelector('[data-flow-primary] button')).toHaveTextContent('confirm')
     expect(screen.getByText('neverShare')).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'cancel' }))
+    fireEvent.click(screen.getByRole('button', { name: 'common.back' }))
     expect(mocks.router.replace).toHaveBeenCalledWith('/profile/account')
   })
 

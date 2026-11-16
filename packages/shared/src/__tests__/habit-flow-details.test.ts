@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { guardHabitReadPatch, habitFlowFieldStep, habitFlowNamesAnswer, habitFlowOptionalQuestions, habitFlowSelectionAnswer, readHabitWhenWords, resolveGuidedEditDetails, summaryValueStep } from '../utils/habit-flow-details'
+import { describeEditDetailsError, guardHabitReadPatch, habitFlowFieldStep, habitFlowNamesAnswer, habitFlowOptionalQuestions, habitFlowSelectionAnswer, readHabitWhenWords, resolveGuidedEditDetails, summaryValueStep } from '../utils/habit-flow-details'
 
 const base = { mode: 'create' as const, isGeneral: false, canSplit: true, hasParent: false, canEnd: true }
 const context = { referenceDate: '2026-11-13', locale: 'pt-BR', timeZone: 'UTC', language: 'pt-BR' as const, allowPast: false }
@@ -136,5 +136,14 @@ describe('guardHabitReadPatch', () => {
     expect(guardHabitReadPatch(patch, { deliberateType: 'task', timeAnswered: true })).toEqual({
       ...patch, mode: 'oneTime', frequencyUnit: null, frequencyQuantity: null, days: [], dueTime: null,
     })
+  })
+})
+
+describe('describeEditDetailsError', () => {
+  it('states a failed read of one habit with its own message, not the message of the habit list', () => {
+    const onRetry = () => {}
+    const described = describeEditDetailsError(new Error('boom'), (key) => key, onRetry)
+    expect(described).toEqual({ message: 'errors.fetchHabitDetails', onRetry })
+    expect(describeEditDetailsError(null, (key) => key, onRetry)).toBeNull()
   })
 })

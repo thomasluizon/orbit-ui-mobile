@@ -259,7 +259,7 @@ describe('mobile step up screen', () => {
     expect(findText(tree.root, 'stepUp.body:{"email":"person@example.com"}').length).toBeGreaterThan(0)
     expect(findText(tree.root, 'stepUp.neverShare').length).toBeGreaterThan(0)
     expect(hostsWithTestId(tree, 'shell-action')).toHaveLength(0)
-    await TestRenderer.act(async () => { (backArrow(tree, 'stepUp.cancel')!.props.onPress as () => void)(); await Promise.resolve() })
+    await TestRenderer.act(async () => { (backArrow(tree, 'common.back')!.props.onPress as () => void)(); await Promise.resolve() })
     expect(mocks.router.replace).toHaveBeenCalledWith('/profile/account')
   })
 
@@ -299,7 +299,7 @@ describe('mobile step up screen', () => {
     const guided = await renderScreen()
     expect(headings(guided)).toEqual(['stepUp.codeLabel'])
     expect(findInput(guided.root).props.accessibilityLabel).toBe('stepUp.codeLabel')
-    expect(guided.root.findAll((node) => node.props.accessibilityLabel === 'stepUp.cancel').length).toBeGreaterThan(0)
+    expect(guided.root.findAll((node) => node.props.accessibilityLabel === 'common.back').length).toBeGreaterThan(0)
     expect(guided.root.findAll((node) => node.props.testID === 'orbit-mascot')).toHaveLength(0)
     mocks.guided = false
     const current = await renderScreen()

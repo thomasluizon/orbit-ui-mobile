@@ -217,7 +217,7 @@ function EditHabitDraft({
   useEffect(() => {
     if (detailToastError) {
       showError(
-        getFriendlyErrorMessage(detailToastError, translate, 'errors.fetchHabits', 'habit'),
+        getFriendlyErrorMessage(detailToastError, translate, 'errors.fetchHabitDetails', 'habit'),
       )
     }
   }, [detailToastError, showError, translate])

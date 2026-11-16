@@ -67,7 +67,7 @@ function challengeView(state: GuidedStepUpChallengeState, t: TFunction, tokens: 
     step: expired ? 'expired' : 'code',
     question: expired ? t('stepUp.expiredTitle') : t('stepUp.codeLabel'),
     line: expired ? t('stepUp.expiredBody') : t('stepUp.body', { email: state.email }),
-    back: checking ? undefined : { label: t('stepUp.cancel'), onPress: state.onCancel },
+    back: checking ? undefined : { label: t('common.back'), onPress: state.onCancel },
     primary: expired ? { label: t('stepUp.resend'), onPress: state.onResend, loading: requesting } : { label: t('stepUp.confirm'), onPress: state.onConfirm, loading: checking },
     body: <>
       <View style={styles.stretch}><OtpInput value={state.code} onChange={state.onCodeChange} error={state.otpError} focusRequest={state.codeFocusRequest} hint={expired ? undefined : t('stepUp.codeHint')} disabled={checking || expired} autoFocus={!expired} label={t('stepUp.codeLabel')} /></View>

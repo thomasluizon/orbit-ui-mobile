@@ -30,6 +30,7 @@ function NotionConnectionDetails({ controller, reconnect, hasConnection }: Reado
   const current = connection.data
   return <>{connection.isLoading ? <NotionDetailsSkeleton label={t('common.loading')} /> : hasConnection ? <>
           {current?.workspaceName ? <PersonalTextDetails textStyle={{ fontSize: '1rem', lineHeight: 1.5 }}>{current.workspaceName}</PersonalTextDetails> : null}
+          <p className="text-sm text-[var(--fg-2)]" >{t('profile.connections.description')}</p>
           {current?.lastPollAtUtc ? <p className="text-sm text-[var(--fg-2)]" >{t('profile.connections.lastSync', { time: new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(current.lastPollAtUtc)) })}</p> : <p className="text-sm text-[var(--fg-2)]" >{t('profile.connections.awaitingSync')}</p>}
           {reconnect ? <p className="text-sm text-[var(--fg-2)]" >{t('profile.connections.renew')}</p> : null}
         </> : <p className="text-sm text-[var(--fg-2)]" >{t('profile.connections.description')}</p>}</>

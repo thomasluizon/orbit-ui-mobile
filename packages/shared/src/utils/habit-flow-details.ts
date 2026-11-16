@@ -99,7 +99,7 @@ export function resolveGuidedEditDetails<ReadError>(read: EditDetailsRead<ReadEr
 
 /** The failed detail read as the guided summary states it: the message and the retry. Null with no failed read. */
 export function describeEditDetailsError(error: unknown, translate: Parameters<typeof getFriendlyErrorMessage>[1], onRetry: () => void): { message: string; onRetry: () => void } | null {
-  return error ? { message: getFriendlyErrorMessage(error, translate, 'errors.fetchHabits', 'habit'), onRetry } : null
+  return error ? { message: getFriendlyErrorMessage(error, translate, 'errors.fetchHabitDetails', 'habit'), onRetry } : null
 }
 
 /** The step that a summary value opens. A habit's Quando opens its repeat; a task opens the date question. */

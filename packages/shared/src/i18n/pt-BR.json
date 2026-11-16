@@ -2729,6 +2729,7 @@
       "setExpiry": "Definir validade?",
       "expiryQuestion": "Ela expira?",
       "expiryDayLabel": "Último dia em que funciona",
+      "expiryDayPassed": "Esse dia já passou. Escolha outro.",
       "accessQuestion": "O que ela pode fazer?",
       "scopeAction": "Criar",
       "mcpTitle": "Conectar por MCP",
@@ -3360,7 +3361,7 @@
         "continue": "Continuar"
       },
       "done": {
-        "readFailed": "O hábito foi criado, mas não consegui mostrar os detalhes. Tente de novo.",
+        "readFailed": "Salvei o hábito, mas não consegui mostrar os detalhes. Tente de novo.",
         "tellAstra": "Da próxima vez, conte ao Orbit no Hoje o que você quer fazer.",
         "title": "Pronto. Ele já está no Hoje.",
         "body": "Quando fizer, marque o anel dele no Hoje para registrar.",
@@ -3461,7 +3462,7 @@
       "importNotNow": "Agora não"
     },
     "featureGuide": {
-      "question": "O que o Orbit faz por você?",
+      "question": "O que dá para fazer no Orbit?",
       "habits": "Hábitos",
       "calendar": "Calendário",
       "astra": "Orbit",
@@ -3765,6 +3766,7 @@
   },
   "errors": {
     "fetchHabits": "Não foi possível carregar os hábitos",
+    "fetchHabitDetails": "Não consegui carregar este hábito. Tente de novo.",
     "createHabit": "Não foi possível criar o hábito",
     "updateHabit": "Não foi possível atualizar o hábito",
     "logHabit": "Não foi possível registrar o hábito",
@@ -4333,13 +4335,13 @@
     "attemptsOne": "Você tem 1 tentativa restante nos próximos 15 minutos.",
     "attemptsMany": "{count, plural, =0 {Você tem # tentativas restantes nos próximos 15 minutos.} one {Você tem # tentativa restante nos próximos 15 minutos.} other {Você tem # tentativas restantes nos próximos 15 minutos.}}",
     "expiredTitle": "Este código expirou",
-    "expiredBody": "Ele valia por 10 minutos. Peça outro para continuar.",
+    "expiredBody": "Cada código vale por 10 minutos.",
     "exhaustedTitle": "As tentativas acabaram",
     "exhaustedBody": "Este código não vale mais.",
     "exhaustedNotice": "Depois de 3 tentativas, a verificação deste e-mail fica bloqueada por 15 minutos. Um novo código não devolve as tentativas.",
     "lockCountdown": "Liberado em {time}",
     "backToProfile": "Voltar para o Perfil",
-    "successTitle": "A conta encerra em {date}",
+    "successTitle": "A conta se encerra em {date}",
     "successBody": "Até lá, se você entrar de novo, o encerramento é cancelado e a conta volta com todos os dados.",
     "successPro": "Esta conta Pro será apagada em {date}.",
     "signOut": "Sair",
