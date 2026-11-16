@@ -129,6 +129,12 @@ childProcess.spawnSync = (command, args, options) => {
   const removesTarget = worktreeIndex !== -1
     && args[worktreeIndex + 1] === "remove"
     && normalize(args.at(-1)) === normalize(target)
+  // The tool's first git call in the target after the five checks. The config reader asks for the common directory of the staged tool earlier.
+  const afterChecks = args[0] === "-C" && normalize(args[1]) === normalize(target) && args.includes("--git-common-dir")
+  if (process.env.ORBIT_GIT_INTERLEAVE_MODE === "info-excluded-after-checks" && afterChecks) {
+    mkdirSync(target + "/drafts", { recursive: true })
+    writeFileSync(target + "/drafts/late.md", "written after the clean check\\n")
+  }
   if (!removesTarget) return originalSpawnSync(command, args, options)
 
   if (process.env.ORBIT_GIT_INTERLEAVE_MODE === "fail-after-deregister") {
@@ -140,6 +146,11 @@ childProcess.spawnSync = (command, args, options) => {
     return { ...result, status: 9, stderr: "simulated failure after Git deregistered the worktree\\n" }
   }
 
+  if (process.env.ORBIT_GIT_INTERLEAVE_MODE === "untracked-before-remove") writeFileSync(target + "/late-untracked.txt", "written after the clean check\\n")
+  if (process.env.ORBIT_GIT_INTERLEAVE_MODE === "excluded-before-remove") {
+    mkdirSync(target + "/notes", { recursive: true })
+    writeFileSync(target + "/notes/late.md", "written after the clean check\\n")
+  }
   const result = originalSpawnSync(command, args, options)
   if (result.status === 0 && process.env.ORBIT_GIT_INTERLEAVE_MODE === "recreate-after-success") {
     if (existsSync(target)) throw new Error("Git unexpectedly left the regular fixture path behind")
@@ -215,6 +226,23 @@ export const assertRepositoryLabel = (ticket, repoKey) => {
     T(`${TOOL}: real git fixture is available`, false, "could not create a linked Git worktree")
     return
   }
+
+  // A session in the worktree made a worktree of its own in an ignored directory, so `git status` of the outer tree shows nothing.
+  const nestedWorktree = stageTeardownWorktree("nested-worktree", { changed: true, fastForwardMerged: true })
+  const inner = join(nestedWorktree.child, "node_modules", "inner")
+  const innerAdded = spawnSync("git", ["-C", nestedWorktree.primary, "worktree", "add", "-q", "-b", "feature/inner", inner], { encoding: "utf8" })
+  if (innerAdded.status === 0) writeFileSync(join(inner, "unsaved.txt"), "uncommitted work of the inner worktree\n")
+  check(TOOL, "refuses a worktree that holds another registered worktree", ["--issue", "ORB-124"],
+    { status: 1, stderr: /UNMET no-nested-repository: .*node_modules\/inner/ }, { env: orcaEnv(teardownPlan(nestedWorktree)) })
+  T(`${TOOL}: the uncommitted file of the inner worktree survives`, innerAdded.status === 0 && existsSync(join(inner, "unsaved.txt")), innerAdded.stderr)
+  const nestedRepository = stageTeardownWorktree("nested-repository", { changed: true, fastForwardMerged: true })
+  const vendored = join(nestedRepository.child, "node_modules", "vendored")
+  mkdirSync(vendored, { recursive: true })
+  const initialized = spawnSync("git", ["-C", vendored, "init", "-q"], { encoding: "utf8" })
+  writeFileSync(join(vendored, "local.txt"), "only in this repository\n")
+  check(TOOL, "refuses a worktree that holds a repository of its own", ["--issue", "ORB-124"],
+    { status: 1, stderr: /UNMET no-nested-repository: .*node_modules\/vendored/ }, { env: orcaEnv(teardownPlan(nestedRepository)) })
+  T(`${TOOL}: the file of the inner repository survives`, initialized.status === 0 && existsSync(join(vendored, "local.txt")), initialized.stderr)
 
   const switched = stageTeardownWorktree("ticket-124-contract-switch", { changed: true, fastForwardMerged: true, contractSwitch: true })
   pointConfigAt(switched)
@@ -318,6 +346,56 @@ export const assertRepositoryLabel = (ticket, repoKey) => {
   const dirty = stageTeardownWorktree("dirty", { changed: true, fastForwardMerged: true, dirty: true })
   check(TOOL, "a dirty worktree is refused as work loss", ["--issue", "ORB-124"], { status: 1, stderr: /UNMET worktree-clean: uncommitted paths: (?:\?\? )?dirty\.txt/ }, { env: orcaEnv(teardownPlan(dirty)) })
   T(`${TOOL}: the dirty refusal leaves the tree in place`, existsSync(dirty.child), "the dirty fixture was removed")
+
+  // Global git config that hides every untracked file from `git status` and from the refusal of `git worktree remove`.
+  const hideUntracked = stage("teardown/hide-untracked.gitconfig", "[status]\n\tshowUntrackedFiles = no\n")
+  const hiddenDirty = stageTeardownWorktree("hidden-dirty", { changed: true, fastForwardMerged: true, dirty: true })
+  check(TOOL, "a dirty worktree is refused while status.showUntrackedFiles=no hides its untracked file", ["--issue", "ORB-124"],
+    { status: 1, stderr: /UNMET worktree-clean: uncommitted paths: \?\? dirty\.txt/ }, { env: { ...orcaEnv(teardownPlan(hiddenDirty)), GIT_CONFIG_GLOBAL: hideUntracked } })
+  T(`${TOOL}: the hidden untracked file survives the refusal`, existsSync(join(hiddenDirty.child, "dirty.txt")))
+  const lateUntracked = stageTeardownWorktree("late-untracked", { changed: true, fastForwardMerged: true })
+  check(TOOL, "git refuses the removal when an untracked file the config hides appears after the clean check", ["--issue", "ORB-124"],
+    { status: 3, stderr: /git worktree remove .* failed without deregistering it: .*untracked files/ },
+    { env: gitInterleaveEnv({ ...orcaEnv(teardownPlan(lateUntracked)), GIT_CONFIG_GLOBAL: hideUntracked }, "untracked-before-remove", lateUntracked.child) })
+  T(`${TOOL}: the untracked file written after the clean check survives`, existsSync(join(lateUntracked.child, "late-untracked.txt")))
+
+  // Neither `git status` nor git's own refusal sees an edit that an index flag hides, or a file that only `info/exclude` ignores.
+  const assumed = stageTeardownWorktree("assume-unchanged", { changed: true, fastForwardMerged: true })
+  const flagged = spawnSync("git", ["-C", assumed.child, "update-index", "--assume-unchanged", "captured.txt"], { encoding: "utf8" }).status === 0
+  writeFileSync(join(assumed.child, "captured.txt"), "edited, never committed\n")
+  T(`${TOOL}: the assume-unchanged fixture hides its edit from git status`, flagged && spawnSync("git", ["-C", assumed.child, "status", "--porcelain"], { encoding: "utf8" }).stdout === "")
+  check(TOOL, "a worktree whose edit an assume-unchanged flag hides is refused as work loss", ["--issue", "ORB-124"],
+    { status: 1, stderr: /UNMET worktree-clean: uncommitted paths: h captured\.txt$/m }, { env: orcaEnv(teardownPlan(assumed)) })
+  T(`${TOOL}: the edit that an assume-unchanged flag hides survives`, existsSync(join(assumed.child, "captured.txt"))
+    && readFileSync(join(assumed.child, "captured.txt"), "utf8") === "edited, never committed\n")
+  const personalIgnore = stage("teardown/personal.gitignore", "notes/\n")
+  const excludesConfig = stage("teardown/excludes-file.gitconfig", `[core]\n\texcludesFile = ${personalIgnore.replaceAll("\\", "/")}\n`)
+  const personal = stageTeardownWorktree("excludes-file", { changed: true, fastForwardMerged: true })
+  mkdirSync(join(personal.child, "notes"))
+  writeFileSync(join(personal.child, "notes", "plan.md"), "never added\n")
+  check(TOOL, "a worktree with a file that core.excludesFile ignores is refused as work loss", ["--issue", "ORB-124"],
+    { status: 1, stderr: /UNMET worktree-clean: uncommitted paths: \?\? notes\/plan\.md$/m }, { env: { ...orcaEnv(teardownPlan(personal)), GIT_CONFIG_GLOBAL: excludesConfig } })
+  const lateExcluded = stageTeardownWorktree("late-excludes-file", { changed: true, fastForwardMerged: true })
+  check(TOOL, "git refuses the removal when a file that core.excludesFile ignores appears after the clean check", ["--issue", "ORB-124"],
+    { status: 3, stderr: /git worktree remove .* failed without deregistering it: .*untracked files/ },
+    { env: gitInterleaveEnv({ ...orcaEnv(teardownPlan(lateExcluded)), GIT_CONFIG_GLOBAL: excludesConfig }, "excluded-before-remove", lateExcluded.child) })
+  T(`${TOOL}: the file that core.excludesFile ignores, written after the clean check, survives`, existsSync(join(lateExcluded.child, "notes", "late.md")))
+  const excluded = stageTeardownWorktree("info-exclude", { changed: true, fastForwardMerged: true })
+  writeFileSync(join(excluded.primary, ".git", "info", "exclude"), "drafts/\n")
+  mkdirSync(join(excluded.child, "drafts"))
+  writeFileSync(join(excluded.child, "drafts", "todo.md"), "never added\n")
+  check(TOOL, "a worktree with a file that only info/exclude ignores is refused as work loss", ["--issue", "ORB-124"],
+    { status: 1, stderr: /UNMET worktree-clean: uncommitted paths: \? drafts\/todo\.md$/m }, { env: orcaEnv(teardownPlan(excluded)) })
+  T(`${TOOL}: the files that a personal exclude source ignores survive`, existsSync(join(personal.child, "notes", "plan.md")) && existsSync(join(excluded.child, "drafts", "todo.md")))
+  // Git's own refusal honors `info/exclude`, so only the tool's check just before the removal can keep this file.
+  const lateInfoExcluded = stageTeardownWorktree("late-info-exclude", { changed: true, fastForwardMerged: true })
+  writeFileSync(join(lateInfoExcluded.primary, ".git", "info", "exclude"), "drafts/\n")
+  check(TOOL, "a file that only info/exclude ignores, written after the clean check, is refused as work loss", ["--issue", "ORB-124"],
+    { status: 1, stderr: /UNMET worktree-clean: uncommitted paths: \? drafts\/late\.md$/m },
+    { env: gitInterleaveEnv(orcaEnv(teardownPlan(lateInfoExcluded)), "info-excluded-after-checks", lateInfoExcluded.child) })
+  T(`${TOOL}: the file that only info/exclude ignores, written after the clean check, survives`, existsSync(join(lateInfoExcluded.child, "drafts", "late.md")))
+  T(`${TOOL}: the worktree with the late info/exclude file is still registered`,
+    spawnSync("git", ["-C", lateInfoExcluded.primary, "worktree", "list", "--porcelain"], { encoding: "utf8" }).stdout.includes("ticket-124-late-info-exclude"))
 
   const failedAfterDeregister = stageTeardownWorktree("failed-after-deregister", { changed: true, fastForwardMerged: true })
   const failedAfterDeregisterResult = check(

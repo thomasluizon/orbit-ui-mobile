@@ -239,7 +239,7 @@ const CLAUDE_ACCOUNT_OVERRIDE_KEYS = [
 ]
 
 /** The worker account's directory, and the main account: the orchestrator's default Claude config. */
-const WORKER_ACCOUNT = "worker"
+export const WORKER_ACCOUNT = "worker"
 const MAIN_ACCOUNT = "main"
 
 /**

@@ -170,6 +170,9 @@ const CASE_MODULES = [
   ["surface-manifest.mjs", "surface-manifest"],
   ["sync-issue-state.mjs", "sync-issue-state"],
   ["teardown-worktree.mjs", "teardown-worktree"],
+  ["lib/stale-files.mjs", "stale-files-core"],
+  ["lib/git-worktrees.mjs", "git-worktrees"],
+  ["stale-files.mjs", "stale-files"],
   ["update-ticket.mjs", "update-ticket"],
   ["verify-delivery.mjs", "verify-delivery"],
   ["test-tools.mjs", "test-tools"],
@@ -344,6 +347,7 @@ const INVALID_INPUT = {
   "sync-issue-state.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "submit-cloud-worker.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "teardown-worktree.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
+  "stale-files.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "update-ticket.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "verify-delivery.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
 }
