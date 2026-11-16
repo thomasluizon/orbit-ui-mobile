@@ -9,6 +9,7 @@ import { PointerType, State, type NativeGesture, type TapGesture } from 'react-n
 import { SingleGestureName } from '../../../test-mocks/react-native-gesture-handler'
 import { __resetTestHostConfig, __setScrollToImpl, __setWindowDimensions } from '../../../test-mocks/react-native'
 import { TimeField } from '@/components/ui/time-field'
+import { applyBorderWidths } from '@/__tests__/support/yoga-borders'
 
 vi.unmock('@/components/ui/sheet')
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: null }) }))
@@ -71,7 +72,7 @@ function applyStyle(node: YogaNode, value: unknown) {
     const padding = style[`padding${suffix}`]
     if (typeof padding === 'number') node.setPadding(edge, padding)
   }
-  if (typeof style.borderTopWidth === 'number') node.setBorder(Yoga.EDGE_TOP, style.borderTopWidth)
+  applyBorderWidths(node, style)
 }
 
 function layoutHost(host: Host, nodes: Map<Host, YogaNode>): YogaNode {

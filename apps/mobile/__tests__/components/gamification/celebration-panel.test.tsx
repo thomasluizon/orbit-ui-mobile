@@ -182,6 +182,9 @@ it.each(['daily-streak', 'streak'] as const)('retains the actual %s queue item a
     expect(StyleSheet.flatten(mark.parent!.props.style)).toMatchObject({ width: 48, height: 48, alignItems: 'center', justifyContent: 'center' })
     const panel = tree!.root.findByProps({ testID: kind === 'streak' ? 'celebration-panel' : 'daily-streak-moment' })
     expect(StyleSheet.flatten(panel.props.style)).toMatchObject({ gap: kind === 'streak' ? 16 : 12, padding: kind === 'streak' ? 24 : 16 })
+    expect(StyleSheet.flatten(panel.props.style).borderWidth).toBeUndefined()
+    expect(StyleSheet.flatten(panel.props.style)).toMatchObject({ outlineWidth: 1, outlineOffset: -1, outlineStyle: 'solid' })
+    expect(StyleSheet.flatten(panel.props.style).outlineColor).toBeDefined()
     const close = tree!.root.findAllByProps({ accessibilityLabel: 'celebration.close:{}' }).at(-1)!
     TestRenderer.act(() => close.props.onPress())
     expect(useUIStore.getState().activeCelebration?.id).toBe(id)

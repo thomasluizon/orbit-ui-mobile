@@ -9,6 +9,9 @@ import { useUIStore } from '@/stores/ui-store'
 import { createTokensV2 } from '@/lib/theme'
 import { contrastOnSurface, withAlpha } from '@orbit/shared/__tests__/contrast'
 import { pressableStyle } from '@/__tests__/support/press-feedback'
+import { applyBorderWidths } from '@/__tests__/support/yoga-borders'
+import { measureProfileRow } from '@/__tests__/support/profile-row-geometry'
+import { expectInsetHairlineRing } from '@/__tests__/support/inset-hairline-ring'
 
 const safeArea = vi.hoisted(() => ({ top: 0, bottom: 0, left: 0, right: 0 }))
 vi.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => safeArea }))
@@ -121,6 +124,23 @@ describe('mobile Toast', () => {
     TestRenderer.act(() => tree.unmount())
   })
 
+  it.each(variants.flatMap((props) => (['dark', 'light'] as const).map((mode) => ({ ...props, mode }))))('draws the inset hairline of a lifted surface around the $kind toast in $mode, so the copy starts at the 16 dp padding of its web twin', ({ mode, ...props }) => {
+    theme.mode = mode
+    const tree = render(<Toast {...props} />)
+    advance(0)
+    const surface = tree.root.findByProps({ testID: `toast-${props.kind}` })
+    expectInsetHairlineRing(surface.props.style, createTokensV2('purple', mode).hairline)
+    expect(StyleSheet.flatten(surface.props.style)).toMatchObject({ shadowOpacity: 0.28, shadowRadius: 16 })
+    const measured = measureProfileRow(tree.toJSON(), 360, 1)
+    const close = measured.controls.find((control) => control.accessibilityLabel === 'common.close')!
+    expect(close.right, 'the close control ends at the 16 dp padding').toBe(360 - 16)
+    if (props.kind === 'neutral') {
+      const copy = measured.texts.find((text) => text.label === 'Feedback')!
+      expect(copy.left, 'the copy starts at the 16 dp padding').toBe(16)
+    }
+    TestRenderer.act(() => tree.unmount())
+  })
+
   it.each(['dark', 'light'] as const)('keeps the lost action readable at rest and press in %s', (mode) => {
     theme.mode = mode
     const tree = render(
@@ -203,6 +223,7 @@ describe('mobile Toast', () => {
     content.setHeight(toastHeight)
     host.insertChild(content, 0)
     host.setPadding(Yoga.EDGE_ALL, hostStyle.padding)
+    applyBorderWidths(host, hostStyle)
     host.setPositionType(hostStyle.position === 'absolute' ? Yoga.POSITION_TYPE_ABSOLUTE : Yoga.POSITION_TYPE_RELATIVE)
     root.insertChild(host, 1)
     try {

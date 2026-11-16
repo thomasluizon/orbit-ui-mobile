@@ -69,6 +69,7 @@ type TestNode = {
   type: unknown;
   props: Record<string, any>;
   parent?: TestNode | null;
+  findAll: (predicate: (node: TestNode) => boolean) => TestNode[];
 };
 type Tree = {
   update: (element: React.ReactNode) => void;
@@ -227,7 +228,7 @@ describe("CalendarTimeGrid (mobile)", () => {
     expect(fillStyle().backgroundColor).toBe('transparent');
     TestRenderer.act(() => header.props.onFocus(focusEvent));
     expect(fillStyle().backgroundColor).toBe(palette.bgHover);
-    const ring = tree.root.findAll((node) => typeof node.type === 'string' && resolveStyle(node.props.style).outlineStyle === 'solid')[0]!;
+    const ring = header.findAll((node) => typeof node.type === 'string' && resolveStyle(node.props.style).outlineStyle === 'solid')[0]!;
     const outline = resolveStyle(ring.props.style);
     expect(-Number(outline.outlineOffset) - Number(outline.outlineWidth)).toBe(INTERACTION_FILL_CLEARANCE);
     TestRenderer.act(() => header.props.onPressIn());
@@ -271,7 +272,8 @@ describe("CalendarTimeGrid (mobile)", () => {
       const bounds = new Resvg(svg, { font: { fontFiles: [font], loadSystemFonts: false } }).getBBox()!;
       for (const block of hostsByTestID(tree, 'time-grid-event')) {
         const style: Record<string, unknown> = controlStyle(block);
-        expect(bounds.x + bounds.width).toBeLessThanOrEqual(Number(style.width) - 2 * Number(style.paddingHorizontal) - 2 * Number(style.borderWidth));
+        expect(style.borderWidth).toBeUndefined();
+        expect(bounds.x + bounds.width).toBeLessThanOrEqual(Number(style.width) - 2 * Number(style.paddingHorizontal));
       }
       const cellStyle = resolveStyle(hostsByTestID(tree, 'time-grid-all-day')[0]!.props.style);
       expect(bounds.x + bounds.width).toBeLessThanOrEqual(expectedWidth - 2 * Number(cellStyle.paddingHorizontal) - Number(cellStyle.borderLeftWidth) - 18);
@@ -397,6 +399,30 @@ describe("CalendarTimeGrid (mobile)", () => {
     expect(hostsByTestID(tree, "time-grid-all-day-event")).toHaveLength(1);
     expect(textValuesWithin(tree, "time-grid-all-day-event")).toContain("Read");
     expect(textValuesWithin(tree, "time-grid-any-time-label")).toContain("No set time");
+  });
+
+  it("draws the timed block and all-day chip hairline as an inset ring that takes no layout space", () => {
+    const past = column("2025-06-16");
+    const future = column("2025-06-18", true);
+    const entries = [makeEntry({ habitId: "timed", dueTime: "08:00" }), makeEntry({ habitId: "untimed", title: "Read", dueTime: null })];
+    const tree = renderGrid([past, future], new Map([[past.dateStr, entries], [future.dateStr, entries]]));
+    const ring = { outlineWidth: 1, outlineOffset: -1, outlineStyle: "solid" };
+
+    const blocks = hostsByTestID(tree, "time-grid-event");
+    expect(blocks).toHaveLength(2);
+    for (const block of blocks) expect(controlStyle(block as never).borderWidth).toBeUndefined();
+    const rings = hostsByTestID(tree, "time-grid-event-ring").map((host) => resolveStyle(host.props.style));
+    expect(rings).toHaveLength(2);
+    expect(rings[0]).toMatchObject({ ...ring, position: "absolute", top: 0, right: 0, bottom: 0, left: 0, borderRadius: 8, outlineColor: tokens.hairline });
+    expect(rings[1]).toMatchObject({ ...ring, outlineColor: tokens.hairlineGhost });
+
+    const chips = hostsByTestID(tree, "time-grid-all-day-event");
+    expect(chips).toHaveLength(2);
+    for (const chip of chips) {
+      const surface = resolveStyle(chip.findAll((node) => node.type === "View" && resolveStyle(node.props.style).backgroundColor === tokens.bgWell)[0]!.props.style);
+      expect(surface.borderWidth).toBeUndefined();
+      expect(surface).toMatchObject({ ...ring, outlineColor: tokens.hairline, paddingHorizontal: 8 });
+    }
   });
 
   it("keeps every concurrent timed-event lane at least 48px wide", () => {

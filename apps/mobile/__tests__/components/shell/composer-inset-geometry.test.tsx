@@ -13,6 +13,7 @@ import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { IntlMessageFormat } from 'intl-messageformat'
 import { measureProfileRow } from '@/__tests__/support/profile-row-geometry'
+import { applyBorderWidths } from '@/__tests__/support/yoga-borders'
 
 const translation = vi.hoisted((): { words: Record<string, string> } => ({ words: {} }))
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => translation.words[key] ?? key }) }))
@@ -48,7 +49,7 @@ function applyStyle(node: YogaNode, style: ViewStyle) {
   applyDimensions(node, style)
   applyAlignment(node, style)
   if (typeof style.gap === 'number') node.setGap(Yoga.GUTTER_ALL, style.gap)
-  if (typeof style.borderTopWidth === 'number') node.setBorder(Yoga.EDGE_TOP, style.borderTopWidth)
+  applyBorderWidths(node, style)
   if (style.flex !== undefined) node.setFlex(style.flex)
   if (style.flexGrow !== undefined) node.setFlexGrow(style.flexGrow)
   if (style.flexShrink !== undefined) node.setFlexShrink(style.flexShrink)
