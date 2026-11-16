@@ -23,7 +23,7 @@ import { createTokensV2, radius } from "@/lib/theme";
 import { X } from '@/components/ui/icons';
 import { PersonalText } from '@/components/ui/personal-text';
 import { StatusRing } from '@/components/ui/status-ring';
-import { insetHairlineRing } from '@/components/ui/inset-hairline-ring';
+import { InsetHairlineRingOverlay, insetHairlineRing } from '@/components/ui/inset-hairline-ring';
 import { useAccountScopedState } from '@/hooks/use-session-reset'
 import { CalendarEntryDetails } from './calendar-entry-details';
 
@@ -36,6 +36,7 @@ const BLOCK_MIN_WIDTH = 48;
 const BLOCK_HORIZONTAL_INSET = 4;
 const MIN_LANE_WIDTH = 96;
 const MIN_COLUMN_WIDTH = 192;
+const FRAME_RADIUS = 12;
 const HOURS = Array.from({ length: 24 }, (_, h) => h);
 
 export interface TimeGridColumn {
@@ -182,7 +183,7 @@ function TimedBlock({
       })}
     >
       {({ pressed }) => <>
-      <View testID="time-grid-event-ring" pointerEvents="none" style={[StyleSheet.absoluteFill, insetHairlineRing, { borderRadius: 8, outlineColor: isFuture ? tokens.hairlineGhost : tokens.hairline }]} />
+      <InsetHairlineRingOverlay testID="time-grid-event-ring" color={isFuture ? tokens.hairlineGhost : tokens.hairline} radius={8} />
       <PersonalText numberOfLines={2} testID="time-grid-event-name" style={{ fontFamily: 'Geist_400Regular', fontSize: 12, lineHeight: 16.8, color: tokens.fg1 }}>{block.entry.title}</PersonalText>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, width: '100%' }}>
       <View importantForAccessibility="no-hide-descendants">
@@ -597,7 +598,7 @@ export function CalendarTimeGrid({
             <Text style={styles.emptyText}>{t("calendar.timeGrid.empty")}</Text>
           </View>
         ) : null}
-        <View testID="calendar-time-grid-ring" pointerEvents="none" style={[StyleSheet.absoluteFill, styles.cardRing]} />
+        <InsetHairlineRingOverlay testID="calendar-time-grid-ring" color={tokens.hairline} radius={FRAME_RADIUS} />
       </View>
       {disclosure ? <CalendarEntryDetails entries={disclosure.entries} title={disclosure.title} displayTime={displayTime} onClose={() => setDisclosure(null)} /> : null}
     </View>
@@ -623,14 +624,9 @@ function createStyles(tokens: Tokens) {
     card: {
       flex: 1,
       minHeight: 0,
-      borderRadius: 12,
+      borderRadius: FRAME_RADIUS,
       overflow: "hidden",
       backgroundColor: tokens.bgCard,
-    },
-    cardRing: {
-      ...insetHairlineRing,
-      borderRadius: 12,
-      outlineColor: tokens.hairline,
     },
     row: {
       flex: 1,

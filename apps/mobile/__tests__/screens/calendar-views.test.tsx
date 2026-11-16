@@ -365,7 +365,7 @@ vi.mock("@/app/(tabs)/calendar/_components/calendar-day-detail", async (importOr
   }
 });
 
-type TestNode = { type: unknown; props: Record<string, any> };
+type TestNode = { type: unknown; props: Record<string, any>; findAll: (predicate: (node: TestNode) => boolean) => TestNode[] };
 type Tree = {
   root: { findAll: (predicate: (node: TestNode) => boolean) => TestNode[] };
   update: (element: React.ReactElement) => void;
@@ -379,7 +379,7 @@ function expectWeekFrameRing(tree: Tree, frameBox: FrameBox, ringBox: FrameBox |
   expect.soft(frameStyle.borderWidth, 'the frame hairline takes no layout space').toBeUndefined();
   expect.soft(frameStyle.outlineWidth, 'the frame does not draw the hairline beneath its flush filled children').toBeUndefined();
   const lastChild = frame.children.at(-1);
-  const ring = typeof lastChild === 'string' ? undefined : lastChild;
+  const ring = typeof lastChild === 'string' ? undefined : lastChild?.findAll((node) => typeof node.type === 'string')[0];
   expect.soft(ring?.props.testID, 'the frame hairline is the last child, so it paints above the head and gutter fills').toBe('calendar-time-grid-ring');
   expect.soft(ring?.props.pointerEvents, 'the ring leaves scroll and taps to the grid').toBe('none');
   expect.soft(StyleSheet.flatten<ViewStyle>(ring?.props.style), 'the frame hairline is an inset ring').toMatchObject({ position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, borderRadius: frameStyle.borderRadius, outlineWidth: 1, outlineOffset: -1, outlineStyle: 'solid' });
