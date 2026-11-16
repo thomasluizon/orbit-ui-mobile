@@ -49,7 +49,6 @@ import { TrialExpiredModal } from '@/components/ui/trial-expired-modal'
 import { useUIStore } from '@/stores/ui-store'
 import { holdAccount } from '@/__tests__/support/account-change'
 
-/** The notice is owed to one account, so the key it is written under names that account. */
 const SEEN_KEY = buildAccountScopedStorageKey('orbit_trial_expired_seen', 'user-1')
 
 describe('TrialExpiredModal', () => {

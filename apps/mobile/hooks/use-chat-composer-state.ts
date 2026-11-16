@@ -29,12 +29,6 @@ export type ChatComposerState = ComposerState<AttemptedSend, ReturnType<typeof u
 type ChatComposerSessionInputs = Pick<ChatComposerState, 'turnReconciliation' | 'blockSubmission' | 'activeStepsRef' | 'setActiveSteps' | 'setLastFailedSend' | 'setDailyBudgetDate' | 'setSendError'> & Pick<ReturnType<typeof useChatComposerAttachmentState>, 'setSelectedImage' | 'setImagePreview' | 'setSelectedTextFile' | 'imageSelectionVersionRef'>
 
 export function useChatComposerSession(turnReconciliation: ChatComposerSessionInputs['turnReconciliation'], blockSubmission: ChatComposerSessionInputs['blockSubmission'], activeStepsRef: ChatComposerSessionInputs['activeStepsRef'], setActiveSteps: ChatComposerSessionInputs['setActiveSteps'], setLastFailedSend: ChatComposerSessionInputs['setLastFailedSend'], setDailyBudgetDate: ChatComposerSessionInputs['setDailyBudgetDate'], setSendError: ChatComposerSessionInputs['setSendError'], setSelectedImage: ChatComposerSessionInputs['setSelectedImage'], setImagePreview: ChatComposerSessionInputs['setImagePreview'], setSelectedTextFile: ChatComposerSessionInputs['setSelectedTextFile'], imageSelectionVersionRef: ChatComposerSessionInputs['imageSelectionVersionRef']) {
-  /**
-     * The root layout keeps this hook mounted through an account change, so the previous account's
-     * attempted send would otherwise stay armed behind Retry and post its text and image under the
-     * next account's token. The store reset cannot reach React state, so it follows the session
-     * itself, and every field added here is covered by the same subscription.
-     */
   useResetOnAccountChange(() => {
     imageSelectionVersionRef.current += 1
     turnReconciliation.reset()

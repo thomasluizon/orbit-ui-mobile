@@ -10,13 +10,11 @@ import { HabitRow } from '@/components/habits/habit-row'
 
 const t = createTranslator({ locale: 'en', messages: en })
 
-/** The check state that `habit-list.tsx` derives for a row once the recent completion has settled. */
 function settledListState(habit: NormalizedHabit): HabitStatus {
   if (habit.isBadHabit) return 'bad'
   return isHabitDoneForRange(habit) ? 'done' : 'empty'
 }
 
-/** Builds the row as `habit-list.tsx` and `habit-detail-screen.tsx` do: the caller gives the check state and the next due token. */
 function renderCase({ habit, hasChildren, depth, selectedDate }: LoggedParentRowCase, state = settledListState(habit)) {
   const nextDue = computeHabitRowNextDueHint(habit, { selectedDate, today: LOGGED_PARENT_TODAY, hasChildren }, t as never, 'en')
   const { container } = render(<NextIntlClientProvider locale="en" messages={en} timeZone="UTC">

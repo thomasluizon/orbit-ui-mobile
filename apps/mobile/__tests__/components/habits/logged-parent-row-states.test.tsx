@@ -164,7 +164,6 @@ describe('logged parent row metadata fit', () => {
       const row = geometry.find((part) => part.host.props.testID === 'habit-row')!
       const tokens = geometry.filter((part) => part.host.props.testID === 'habit-row-meta-token')
       const label = i18n.t('habits.schedule.nextDueTomorrow')
-      /** A nested parent at 320 dp is already on the supporting line, which may hold only two tokens; the whole label then starts the next line. */
       const maximumLines = width === 320 && depth === 1 ? 2 : 1
       const lines = new Set(tokens.map((token) => Math.round(token.top))).size
       expect({

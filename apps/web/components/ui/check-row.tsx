@@ -138,12 +138,10 @@ function CalendarDayCircle({ checked, loading }: Readonly<{ checked: boolean; lo
   </span>
 }
 
-/** A waiting row keeps keyboard focus: it is `aria-disabled` and ignores activation until its request settles. */
 function waitingControlProps(disabled: boolean | undefined, loading: boolean | undefined, activate: () => void) {
   return { disabled, 'aria-disabled': loading && !disabled ? true : undefined, onClick: loading ? undefined : activate }
 }
 
-/** A waiting row keeps its full tone, because its control shows the skeleton; only a disabled row dims. */
 function dimWhenDisabled(loading: boolean | undefined): string {
   return loading ? '' : 'disabled:opacity-60'
 }

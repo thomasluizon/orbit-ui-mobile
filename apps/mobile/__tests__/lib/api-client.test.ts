@@ -437,12 +437,6 @@ describe('mobile apiClient', () => {
     )
   })
 
-  /**
-   * Whatever records WHOSE data it received cannot use the token the caller last read. The Android
-   * widget tags each cached payload with the account that produced it, and a payload the 401 path
-   * fetched under a different credential, then tagged with the caller's stale one, is one account's
-   * habits filed under another account's name.
-   */
   it('reports the refreshed token as the one that authorized the body', async () => {
     getTokenMock.mockResolvedValue('token-123')
     refreshSessionMock.mockResolvedValue({ status: 'refreshed', token: 'token-456' })

@@ -416,12 +416,6 @@ export function invalidateHabitMutationQueries(
 ): void {
   const invalidations: Promise<unknown>[] = [
     queryClient.invalidateQueries({ queryKey: habitKeys.calendarPrefix() }),
-    /**
-     * The mounted summary MUST refetch, so this cannot narrow to `refetchType: 'none'`. `useSummary`
-     * disables focus refetching and holds a 5 minute `staleTime`, so marking the query stale without
-     * refetching leaves the Today Astra card describing the pre-completion state until its next time
-     * bucket. Parity with `apps/web/hooks/use-habits.ts`.
-     */
     queryClient.invalidateQueries({ queryKey: habitKeys.summaryPrefix() }),
     queryClient.invalidateQueries({ queryKey: habitKeys.retrospectivePrefix() }),
     queryClient.invalidateQueries({ queryKey: gamificationKeys.recapPrefix() }),

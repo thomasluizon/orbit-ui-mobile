@@ -2134,7 +2134,6 @@ describe('mobile habit hooks', () => {
     expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: profileKeys.all })
   })
 
-  /** The server awards no XP for a bad habit, so the fixture must return zero. */
   it('does not celebrate a bad sub-habit completion, and the server sends it no XP', () => {
     seedHabitState([makeHabit({
       id: 'parent-1',
@@ -2188,7 +2187,6 @@ describe('mobile habit hooks', () => {
     expect(mocks.setStreakCelebration).not.toHaveBeenCalled()
   })
 
-  /** Rewards must update when a deep link leaves the habit absent from the list cache. */
   it('banks XP and refreshes achievements for a habit that is not in the list cache', () => {
     seedHabitState([makeHabit({ id: 'cached-habit' })])
     mocks.queryClient.setQueryData(profileKeys.detail(), { currentStreak: 1 })
@@ -2210,8 +2208,6 @@ describe('mobile habit hooks', () => {
 
     const gamification = mocks.queryClient.getQueryData(gamificationKeys.profile()) as { totalXp: number }
     expect(gamification.totalXp).toBe(125)
-    /** The celebration still needs a KNOWN good habit, because an unresolvable one could be a bad
-     * habit whose "streak" is abstinence. Reconciling is safe; celebrating on a guess is not. */
     expect(mocks.setStreakCelebration).not.toHaveBeenCalled()
   })
 

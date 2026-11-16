@@ -22,7 +22,6 @@ import {
 } from '../utils/onboarding'
 import { getHabitPhraseTitle } from '../utils/habit-phrase-title'
 
-/** Every rule a saved onboarding schedule owes the API, named so a failure reads as the transition. */
 function findScheduleViolations(
   label: string,
   schedule: OnboardingSchedule,

@@ -5,7 +5,6 @@ import { describe, expect, it } from 'vitest'
 const repositoryRoot = join(__dirname, '../../../..')
 const design = readFileSync(join(repositoryRoot, 'DESIGN.md'), 'utf8')
 
-/** Each row of the Primitives kit table with its web and Android owner cells. */
 function primitiveRows(): { name: string; web: string; mobile: string }[] {
   const section = design.slice(design.indexOf('## Primitives kit'), design.indexOf('\n## ', design.indexOf('## Primitives kit') + 1))
   return section.split('\n')
@@ -15,7 +14,6 @@ function primitiveRows(): { name: string; web: string; mobile: string }[] {
     .map((cells) => ({ name: cells[1]!, web: cells.at(-3)!, mobile: cells.at(-2)! }))
 }
 
-/** A cell that names a file is exactly one code span; prose such as "same" or a note names none. */
 function ownerPath(cell: string): string | null {
   return /^`([^`]+\.tsx)`$/.exec(cell)?.[1] ?? null
 }

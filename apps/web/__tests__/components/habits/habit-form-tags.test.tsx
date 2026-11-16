@@ -7,7 +7,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { HabitFormFields } from '@/components/habits/habit-form-fields'
 import { useTagSelection } from '@/hooks/use-tag-selection'
 
-/** An accepted suggestion waits with a skeleton line in the status slot, named for a screen reader, and no Loading text. */
 function expectAcceptSkeleton() {
   const status = screen.getByRole('status', { name: 'habits.form.suggestTags' })
   expect(within(status).getByRole('progressbar', { name: 'common.loading' })).toHaveAttribute('aria-busy', 'true')

@@ -36,11 +36,9 @@ const team = 'BD7JH468F7'
 const identifier = 'org.useorbit.desktop.staging'
 const target = 'aarch64-apple-darwin'
 const directories: string[] = []
-/** WHY: The macOS build steps run in Bash with POSIX tar; Windows hosts only run the Windows packaging step. */
 const shellTest = it.skipIf(process.platform === 'win32')
 afterEach(() => directories.splice(0).forEach(directory => rmSync(directory, { recursive: true, force: true })))
 
-/** WHY: macOS hosts read the fixtures with the real PlistBuddy; other hosts use a reader for the same XML plist shape. */
 const plistBuddy = `if (fs.existsSync('/usr/libexec/PlistBuddy')) {
   process.exit(require('node:child_process').spawnSync('/usr/libexec/PlistBuddy', args, { stdio: 'inherit' }).status ?? 1)
 }
@@ -87,7 +85,7 @@ if (args[0] === 'stapler' && args[1] === 'staple') {
 if (attempts <= Number(process.env.FAKE_NPM_FAILURES ?? 0)) { process.stderr.write(process.env.FAKE_NPM_ERROR + '\\n'); process.exit(1) }`,
   sleep: '',
 }
-/** The error the pinned Tauri CLI printed when hdiutil create was busy on a hosted macOS runner. */
+// WHY: the bundle retry matches this text, which the pinned Tauri CLI printed when hdiutil create was busy on a hosted macOS runner: https://github.com/create-dmg/create-dmg/issues/143
 const dmgBusy = 'failed to bundle project: error running bundle_dmg.sh: `failed to run /work/bundle/dmg/bundle_dmg.sh: hdiutil: create failed - Resource busy`'
 
 function fixture() {
@@ -118,7 +116,6 @@ const escapeXml = (text: string) => text.replaceAll('&', '&amp;').replaceAll('<'
 const xmlStrings = (values: Record<string, string>, indent: string, separator: string) => Object.entries(values)
   .map(([key, value]) => `${indent}<key>${escapeXml(key)}</key>${separator}${indent}<string>${escapeXml(value)}</string>`).join(separator)
 
-/** WHY: The shape of security cms -D output for the Orbit Developer ID profiles: tab-indented XML with dates, data and arrays. */
 const decodedProfile = (application: string) => `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -176,7 +173,6 @@ function run(name: string, directory: string, bin: string, log: string, env: Rec
   return { result, commands }
 }
 
-/** WHY: The shape of codesign -d --entitlements - --xml output: one line of XML on stdout. */
 const entitlements = (overrides: Record<string, string> = {}) => '<?xml version="1.0" encoding="UTF-8"?>'
   + '<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "https://www.apple.com/DTDs/PropertyList-1.0.dtd">'
   + `<plist version="1.0"><dict>${xmlStrings({

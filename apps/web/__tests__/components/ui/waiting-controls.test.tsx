@@ -37,7 +37,6 @@ function expectWaiting(control: HTMLElement, name: string, container: HTMLElemen
   expectNoSpinner(container)
 }
 
-/** A control that waits for its own request keeps keyboard focus, so it is `aria-disabled` and never natively disabled. */
 function expectFocusableWaiting(control: HTMLElement, name: string, container: HTMLElement) {
   expect(control).toHaveAccessibleName(name)
   expect(control).not.toBeDisabled()

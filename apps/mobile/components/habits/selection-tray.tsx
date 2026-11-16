@@ -33,7 +33,6 @@ interface SelectionTrayProps {
   completionReason?: string
 }
 
-/** A gesture-handler `Pressable` whose press scale eases through `PressScale`, so the tray controls keep the shared press transition. */
 function TrayPressable({ disabled = false, onPressIn, onPressOut, ...props }: Readonly<PressableProps>) {
   const [pressed, setPressed] = useState(false)
   return (

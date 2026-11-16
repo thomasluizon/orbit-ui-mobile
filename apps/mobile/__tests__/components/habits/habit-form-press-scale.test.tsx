@@ -17,7 +17,6 @@ function sourceFiles(directory: string): string[] {
   })
 }
 
-/** Every habit file that renders `MotionPressable`, which appends its own scale after the caller's style. */
 const MOTION_PRESSABLE_CALLERS = sourceFiles(HABITS)
   .filter((file) => readFileSync(file, 'utf8').includes("from '@/components/ui/motion-pressable'"))
   .map((file) => relative(HABITS, file))

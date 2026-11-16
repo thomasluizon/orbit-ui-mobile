@@ -13,7 +13,6 @@ import { pressableStyle } from '@/__tests__/support/press-feedback'
 import { measureProfileRow } from '@/__tests__/support/profile-row-geometry'
 
 const TestRenderer = require('react-test-renderer')
-/** Layout engines round positions to 1/64 of a pixel. */
 const LAYOUT_UNIT = 1 / 64
 const theme = vi.hoisted((): { mode: 'dark' | 'light' } => ({ mode: 'dark' }))
 const copy = vi.hoisted((): { words: Record<string, string> } => ({ words: {} }))
@@ -36,7 +35,6 @@ function renderBesideGoogle(props: { disabled: boolean; loading?: boolean; onPre
   return tree
 }
 
-/** The view that wraps Apple's iPhone control: the element VoiceOver reads and activates. */
 function iPhoneAccessibilityElement(tree: ReturnType<typeof TestRenderer.create>) {
   return tree.root.findAll((node: { type: unknown; props: { accessible?: boolean }; findAllByType: (type: string) => unknown[] }) =>
     node.type === View && node.props.accessible === true && node.findAllByType('NativeAppleButton').length === 1)[0]!
@@ -140,7 +138,6 @@ describe('Apple sign-in controls', () => {
     TestRenderer.act(() => tree.unmount())
   })
 
-  /** The opaque background of each Apple logo tile (`apple-sign-in-logo-on-white.png` for the dark theme, `-on-black` for the light). */
   const LOGO_TILE_BACKGROUND = { dark: '#FFFFFF', light: '#000000' } as const
 
   it.each([['dark', '#FFFFFF', '#000000'], ['light', '#000000', '#FFFFFF']] as const)('keeps Apple\'s face, logo and title on a busy Android action in the %s theme and dims it to the disabled opacity, as the iPhone control does', (mode, fill, ink) => {

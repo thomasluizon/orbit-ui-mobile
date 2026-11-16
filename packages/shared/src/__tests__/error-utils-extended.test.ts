@@ -217,17 +217,10 @@ describe('translateErrorKey (extended)', () => {
     expect(translateErrorKey(translate, '')).toBeNull()
   })
 })
-/** Model the API response with `error` and `errorCode` for coded failures. */
 function codedError(errorCode: string, error: string) {
   return createApiClientError(400, { error, errorCode }, 'Request failed')
 }
 
-/**
- * Builds the body `ValidationExceptionHandler` sends for a FluentValidation failure. It carries
- * no error code at all, so the English sentence is the only handle the client has. The messages
- * below are the real `WithMessage` text, or FluentValidation 12.1.1's English default for the
- * rule, read from the installed `FluentValidation.dll`.
- */
 function validationFailure(property: string, message: string) {
   return createApiClientError(
     400,
@@ -534,7 +527,6 @@ describe('getFriendlyErrorKey (extended coverage)', () => {
 })
 
 
-/** Error codes must select the form message even when the English sentence changes. */
 describe('getFriendlyErrorKey resolves a rewritten form error by its code', () => {
   it('resolves TITLE_REQUIRED to the habit key in a habit context', () => {
     const err = codedError('TITLE_REQUIRED', 'Give this a title.')

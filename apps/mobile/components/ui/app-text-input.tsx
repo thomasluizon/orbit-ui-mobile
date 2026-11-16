@@ -14,7 +14,6 @@ import { useAppTheme } from '@/lib/use-app-theme'
 type AppTokens = ReturnType<typeof createTokensV2>
 
 type AppTextInputProps = ComponentProps<typeof TextInput> & {
-  /** Validation message rendered as a sibling caption; also paints the status-bad ring. */
   error?: string
 }
 

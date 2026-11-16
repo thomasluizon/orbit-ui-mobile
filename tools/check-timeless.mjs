@@ -6,10 +6,8 @@ import { dirname, extname, join, relative, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..")
-const SELF = fileURLToPath(import.meta.url)
 const ALLOWLIST = "tools/timeless-allowlist.json"
 const CHECKER = "tools/check-timeless.mjs"
-/** Regular files and symlinks are scanned; a symlink reads as its link text and is never followed, and a gitlink has no text. */
 const SCANNED_MODES = new Set(["100644", "100755", "120000"])
 const USAGE = "usage: check-timeless.mjs --all | --base <ref> | --staged | --hook"
 const machine = new RegExp([
@@ -32,9 +30,8 @@ function git(args, options = {}) {
   return result.stdout
 }
 
-/** Reads every blob in one NUL-separated `git cat-file --batch -Z` call; a missing object reads as null. */
-function blobs(specs) {
-  const output = git(["cat-file", "--batch", "-Z"], { input: Buffer.from(specs.map((spec) => `${spec}\0`).join("")), encoding: "buffer", maxBuffer: 1024 * 1024 * 1024 })
+function blobs(specs, root = ROOT) {
+  const output = git(["cat-file", "--batch", "-Z"], { cwd: root, input: Buffer.from(specs.map((spec) => `${spec}\0`).join("")), encoding: "buffer", maxBuffer: 1024 * 1024 * 1024 })
   const contents = []
   let offset = 0
   for (const spec of specs) {
@@ -286,7 +283,6 @@ function report(results, allowed, checked, usage = results) {
   return failures.length ? 1 : 0
 }
 
-/** A change to a covered file can leave an entry unused: recheck the entries whose scope it touches. */
 function changedEntryUsage(allowed, touched, tracked, scan) {
   const checked = [...allowed.keys()].filter((index) => touched.some((path) => covers(allowed[index], path)))
   if (!checked.length) return { checked, usage: [] }
@@ -306,34 +302,24 @@ function hook() {
   }
   const input = fileInput(payload)
   if (!input) return 0
-  const absoluteTarget = resolve(process.cwd(), input.file_path)
+  const landed = payload.hook_event_name === "PostToolUse"
+  if (!landed && typeof input.content !== "string") return 0
+  const absoluteTarget = resolve(process.cwd(), input.file_path), exists = existsSync(absoluteTarget)
   let directory = dirname(absoluteTarget)
   while (!existsSync(directory) && dirname(directory) !== directory) directory = dirname(directory)
-  const rootResult = spawnSync("git", ["-C", directory, "rev-parse", "--show-toplevel"], { encoding: "utf8" })
+  const target = exists ? realpathSync.native(absoluteTarget) : resolve(realpathSync.native(directory), relative(directory, absoluteTarget))
+  const rootResult = spawnSync("git", ["-C", exists ? dirname(target) : realpathSync.native(directory), "rev-parse", "--show-toplevel"], { encoding: "utf8" })
   if (rootResult.status !== 0) return 0
-  const root = rootResult.stdout.trim(), checker = join(root, CHECKER)
-  if (!existsSync(checker)) return 0
-  if (checker !== SELF) {
-    const result = spawnSync(process.execPath, [checker, "--hook"], { input: JSON.stringify(payload), encoding: "utf8" })
-    if (result.stderr) process.stderr.write(result.stderr)
-    return result.status ?? 2
-  }
-  const canonicalTarget = existsSync(absoluteTarget) ? realpathSync(absoluteTarget)
-    : resolve(realpathSync(directory), relative(directory, absoluteTarget))
-  const path = relative(realpathSync(root), canonicalTarget).replaceAll("\\", "/")
-  const current = existsSync(absoluteTarget) ? readFileSync(absoluteTarget, "utf8") : ""
-  const pairs = (value) => {
-    if (!value || typeof value !== "object") return []
-    if (typeof value.old_string === "string" && typeof value.new_string === "string") return [value]
-    return Object.values(value).flatMap(pairs)
-  }
-  const isWrite = typeof input.content === "string"
-  const edits = isWrite ? [{ old_string: current, new_string: input.content }] : pairs(input)
-  const proposed = isWrite ? input.content
-    : edits.reduce((body, edit) => edit.replace_all ? body.split(String(edit.old_string ?? "")).join(String(edit.new_string ?? "")) : body.replace(String(edit.old_string ?? ""), () => String(edit.new_string ?? "")), current)
+  const root = realpathSync.native(rootResult.stdout.trim())
+  if (!existsSync(join(root, CHECKER))) return 0
+  const path = relative(root, target).replaceAll("\\", "/")
+  if (spawnSync("git", ["-C", root, "check-ignore", "-q", "--", path]).status === 0) return 0
+  const current = exists ? readFileSync(absoluteTarget, "utf8") : ""
+  const lineFeeds = (text) => text.replaceAll("\r\n", "\n")
+  const [before, after] = landed ? [lineFeeds(blobs([`HEAD:${path}`], root)[0] ?? ""), lineFeeds(current)] : [current, input.content]
   const allowlistPath = join(root, ALLOWLIST)
   const allowed = allowlist(existsSync(allowlistPath) ? readFileSync(allowlistPath, "utf8") : null)
-  return report(newFindings(path, current, proposed, root), allowed, []) ? 2 : 0
+  return report(newFindings(path, before, after, root), allowed, []) ? 2 : 0
 }
 
 try {
@@ -368,7 +354,6 @@ try {
       .filter((entry) => SCANNED_MODES.has(entry.slice(0, entry.indexOf(" ")))).map((entry) => entry.slice(entry.indexOf("\t") + 1))
     : git(["ls-files", "-z"]).split("\0").filter(Boolean)
   const allowed = allowlist(contents([ALLOWLIST])[0])
-  // A change to the allowlist or the checker can expose any finding or leave any entry unused: scan the whole state, as --all does.
   if (!changes || changes.some(({ path }) => path === ALLOWLIST || path === CHECKER)) process.exit(report(scan(tracked()), allowed, allowed.keys()))
   const results = []
   for (const { path, oldMode } of changes.filter(({ newMode }) => SCANNED_MODES.has(newMode))) {

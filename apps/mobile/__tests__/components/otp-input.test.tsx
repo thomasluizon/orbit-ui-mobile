@@ -10,7 +10,6 @@ import { __setWindowDimensions } from '../../test-mocks/react-native'
 const TestRenderer = require('react-test-renderer')
 const reactNativeRequire = createRequire(createRequire(import.meta.url).resolve('react-native/package.json'))
 const normalizeColor: (color: unknown) => number = reactNativeRequire('@react-native/normalize-colors')
-/** Android Fabric's unset colour (HostPlatformColor.h), which text attributes replace with black. */
 const ANDROID_UNDEFINED_COLOR = 0
 
 describe('mobile OtpInput', () => {

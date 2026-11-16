@@ -24,11 +24,6 @@ export function applyHabitLogSuccess(queryClient: QueryClient, response: LogHabi
         .flatMap(([, items]) => items ?? []),
       variables.habitId,
     )
-    /**
-     * The CELEBRATION still needs a known good habit, and deliberately so: a bad habit's
-     * "streak" is consecutive abstinence, the opposite semantics, and an unresolvable habit
-     * cannot be shown to be either. Celebrating on a guess is user-visible harm.
-     */
     const countsTowardStreak = loggedHabit !== null && !loggedHabit.isBadHabit
 
     showStreakMoment(
@@ -67,10 +62,6 @@ export function applyHabitLogSuccess(queryClient: QueryClient, response: LogHabi
       })
     }
 
-    /**
-     * Rewards the server already granted are reconciled from the RESPONSE, with no list-cache
-     * requirement. The habit kind cannot change the answer here, so it is not consulted.
-     */
     if (response.xpEarned || response.newAchievementIds?.length) {
       queryClient.setQueryData<GamificationProfile>(gamificationKeys.profile(), (old) => {
         if (!old) return old
@@ -145,7 +136,6 @@ export function rollbackOptimisticHabitLogsCache(queryClient: QueryClient, previ
   const queryKey = habitKeys.logs(habitId)
   const currentLogs = queryClient.getQueryData<HabitLog[]>(queryKey)
   const restoredLogs = rollbackOptimisticHabitLogs(currentLogs, previousLogs, date, optimisticHabitLogId(habitId, date))
-  /** The optimistic entry was the only data, so the screen goes back to loading and fetches the real logs. */
   if (restoredLogs === undefined && currentLogs !== undefined) void queryClient.resetQueries({ queryKey, exact: true })
   else queryClient.setQueryData<HabitLog[]>(queryKey, restoredLogs)
 }
