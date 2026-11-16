@@ -15,7 +15,7 @@ const TOOL = "launch-worker.mjs"
  * is swapped by default: the configured worker is `claude`, which is not installed in CI, and a
  * gate that needs a model CLI on PATH is not hermetic.
  */
-const launchConfig = ({ engine = {}, timeouts = {}, caps = {} } = {}) => {
+export const launchConfig = ({ engine = {}, timeouts = {}, caps = {} } = {}) => {
   const real = realOrchestratorConfig()
   return {
     ...real,
@@ -25,7 +25,7 @@ const launchConfig = ({ engine = {}, timeouts = {}, caps = {} } = {}) => {
   }
 }
 
-const stubEngine = (script) => ({
+export const stubEngine = (script) => ({
   engine: {
     args: [script],
     models: {
@@ -52,16 +52,16 @@ const stagedSiblings = (config) => {
   return siblingRepos
 }
 
-const launch = (label, config) => {
+export const launch = (label, config) => {
   const repo = stageRepo(`launch-worker-${label}`)
   if (!repo) return null
   repo.git(["remote", "set-url", "origin", `https://github.com/test-owner/${label}.git`])
   const configured = { ...config, repos: { ...config.repos, ...stagedSiblings(config), [config.cloud.repositoryKey]: repo.path } }
   const staged = stageWithConfig(`launch-worker-${label}`, TOOL, configured)
-  return { ...staged, worktree: repo.path, git: repo.git, prompt: stage(`launch-worker/${label}-prompt.md`, "the work order, verbatim\n") }
+  return { ...staged, worktree: repo.path, origin: repo.origin, git: repo.git, prompt: stage(`launch-worker/${label}-prompt.md`, "the work order, verbatim\n") }
 }
 
-const githubAuthEnv = ({ branchPulls = [], pulls = [], queuedRuns = 0, readError = false } = {}) => orcaEnv([
+export const githubAuthEnv = ({ branchPulls = [], pulls = [], queuedRuns = 0, readError = false } = {}) => orcaEnv([
   { match: "auth token --user test-owner", stdout: "test-github-token" },
   { match: "actions/runs?status=queued", stdout: JSON.stringify({ total_count: queuedRuns, workflow_runs: [] }), exit: readError ? 1 : 0, stderr: readError ? "GitHub unavailable" : "" },
   { match: "pulls?head=", stdout: JSON.stringify(branchPulls) },
@@ -210,7 +210,7 @@ const accountStub = (label, { workerOutput, mainOutput = "" }) => {
   return { script, runs }
 }
 
-const discardAttemptLogs = (stdout) => {
+export const discardAttemptLogs = (stdout) => {
   try {
     for (const attempt of JSON.parse(stdout).attempts ?? []) rmSync(attempt.logFile, { force: true })
   } catch { /* a launch that printed no result has no attempt logs to remove */ }

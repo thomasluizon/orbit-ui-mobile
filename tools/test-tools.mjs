@@ -102,6 +102,7 @@ const CASE_MODULES = [
   ["label-ticket.mjs", "label-ticket"],
   ["relate-ticket.mjs", "relate-ticket"],
   ["launch-worker.mjs", "launch-worker"],
+  ["launch-worker.mjs", "launch-worker-review"],
   ["wait-ci.mjs", "wait-ci"],
   ["submit-cloud-worker.mjs", "submit-cloud-worker"],
   ["wait-release.mjs", "wait-release"],
