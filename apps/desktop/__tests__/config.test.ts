@@ -176,7 +176,11 @@ it('keeps the native snap region, the page bar and the stylesheet on one geometr
   expect(read('../src-tauri/native/windows/caption.cpp')).toMatch(/CreateWindowExW\(WS_EX_LAYERED,[\s\S]*SetLayeredWindowAttributes\(caption\.overlay, 0, kRegionAlpha, LWA_ALPHA\)/)
   expect(read('../src-tauri/native/windows/caption.cpp')).toContain('static constexpr BYTE kRegionAlpha = 1;')
   expect(read('../../web/app/globals.css')).toContain(`--desktop-window-bar-height: ${height}px;`)
-  expect(page).toContain("runtime.invoke('desktop_window', { action })")
+  expect(page).toContain("runtime.invoke('desktop_window', anchor ? { action, anchor } : { action })")
+  expect(page).toContain('export type DesktopWindowAnchor = { x: number; y: number }')
+  const command = read('../src-tauri/src/window_bar.rs').split('#[cfg(test)]')[0]!
+  expect(command).toMatch(/#\[tauri::command\]\s*pub fn desktop_window\(\s*window: WebviewWindow,\s*action: Action,\s*drawn: Option<bool>,\s*anchor: Option<Anchor>,\s*\)/)
+  expect(command).toMatch(/#\[derive\([^)]*serde::Deserialize\)\]\s*pub struct Anchor \{\s*x: f64,\s*y: f64,\s*\}/)
   expect(read('../src-tauri/src/window_bar.rs')).toContain(`'${page.match(/DESKTOP_MAXIMIZE_HOVER_EVENT = '([^']+)'/)?.[1]}'`)
   expect(read('../src-tauri/build.rs')).toContain('.file("native/windows/caption.cpp")')
   expect(read('../src-tauri/native/windows/launch.cpp')).not.toMatch(/DWMWA_CAPTION_COLOR|dwmapi/)
