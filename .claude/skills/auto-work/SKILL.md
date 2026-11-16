@@ -1,6 +1,6 @@
 ---
 name: auto-work
-description: Keep the canonical unattended orchestrator working across an empty queue. Each cycle drives in-flight work, investigates Sentry, reads the Orbit mailbox and store reviews, and admits the board. Default pace; --crank explicitly enables crank and --disable restores normal sleep completion.
+description: Keep the canonical unattended orchestrator working across an empty queue. Each cycle drives in-flight work, investigates Sentry, reads the Orbit mailbox and store reviews, acts on every open pull request and security alert in the three code repositories, and admits the board. Default pace; --crank explicitly enables crank and --disable restores normal sleep completion.
 argument-hint: "[--crank] [--disable] [optional focus]"
 ---
 
@@ -50,7 +50,7 @@ for the successor.
    before continuing intake or queue work.
 2. Drive in-flight pull requests, reviews, releases and waiters through `/orchestrate`.
    Start each wake with `node tools/run-status.mjs --session <session id>` and act on its
-   observations, then follow its `INTAKE` action through steps 3 through 7. After an idle
+   observations, then follow its `INTAKE` action through steps 3 through 9. After an idle
    waiter wake with reason `SOURCE`, the `INTAKE` action covers only the steps for the sources
    in its `wakes` list. An active auto-work run receives `INTAKE` instead
    of `NO_ACTION`; a relay drain still takes precedence. Admission caps, hard stops, quality gates and merge rules remain owned by
@@ -123,7 +123,50 @@ for the successor.
    Apply the same disposition procedure and retain replies in the run log, acknowledging
    through `node tools/orbit-app-store-reviews.mjs --ack` with the same review receipt shape.
    Missing app credentials are a named external dependency, never an empty successful read.
-7. Read `node tools/plan-queue.mjs --board` and use `/orchestrate`'s `--auto` selection to admit
+7. List every open pull request with `node tools/auto-work-github.mjs --collect`. The tool reads
+   `orbit-ui-mobile`, `orbit-api` and `orbit-landing-page`, every author and every page, and
+   writes `intake.pullRequests` and `intake.alerts` (step 8) in one run, then reads them back. It
+   prints `pending`: each pull request with no mark, or whose head moved after its mark. A pull
+   request in `runOwned` is one this run opened; step 2 drives it, so skip it here. Exit 3 means
+   at least one read failed: the tool names it in `failures` and keeps that read's previous
+   items. Log each failure and retry next cycle. For each pending pull request, read its diff,
+   checks, review threads and base first. Then do one of these:
+   - **Merge** it at the standing merge bar of `.claude/skills/sleep/SKILL.md` section 7: green
+     checks, a fresh Pullfrog approval at the exact head (`/orchestrate` step 8), zero unresolved
+     threads, and up to date with its base. Bring a Dependabot branch up to date with the
+     `@dependabot rebase` comment, not a merge commit. Use only
+     `gh pr merge <n> --repo <owner/name> --squash --match-head-commit <sha>`. While its checks
+     or its review still run, register `node tools/wait-ci.mjs --repo <key> --pr <n>` through
+     `/orchestrate`'s wake protocol and leave it unmarked.
+   - **Fix** it when a check, a review finding or a conflict keeps it red. Write a ticket with
+     `.claude/skills/ticket/SKILL.md` through `node tools/create-ticket.mjs`, with the pull
+     request, the red check and its verified cause. Admit its worker through `/orchestrate`
+     in this cycle. The worker carries the same upgrade with the fix in its own pull request.
+   - **Close** it with a written reason on the pull request when a newer one supersedes it,
+     including a Dependabot pull request that the fix pull request replaces.
+   A Dependabot major upgrade gets the same root-cause review as any other change. Read the
+   changelog and the breaking changes before you merge it. Respect each pin that a repository
+   declares, such as the manual review of Stripe.net majors in `orbit-api`'s
+   `.github/dependabot.yml`. Record each result with
+   `node tools/auto-work-github.mjs --mark pullRequests` and the JSON receipt on stdin:
+   `{key, head, action: merged|fix|closed, ticket?, reason?}`. A fix needs its ticket, a close
+   needs its reason, and `head` must be the head you acted on. A new head makes the pull request
+   pending again.
+8. Read the `alerts` part of the same collection: every open code scanning (CodeQL and any other
+   tool), secret scanning and Dependabot alert of the three repositories, every page. The tool
+   never reads the value of a secret. For each pending alert, compare it with the open board.
+   An alert without a carrying ticket gets one through `.claude/skills/ticket/SKILL.md` and
+   `node tools/create-ticket.mjs`. The ticket holds the alert id, its rule, its `file:line` and
+   the verified cause. Fold it into an open ticket that already owns the affected area with
+   `tools/comment-ticket.mjs`. Admit its worker through `/orchestrate` in this cycle, so the
+   fix lands at the root cause. A leaked secret also needs rotation of the credential, which
+   is an owner action: put it to the owner through `/questions`. Record each alert with
+   `node tools/auto-work-github.mjs --mark alerts` and `{key, action: ticket, ticket, cause}`.
+   An alert closes only when its fix is on the default branch and the next scan shows it as
+   fixed. Never dismiss an alert to empty the list. Dismiss it only when the analysis proves a
+   false positive: write that analysis on its ticket first, then dismiss it with that reason
+   and record `{key, action: false-positive, ticket, reason}`.
+9. Read `node tools/plan-queue.mjs --board` and use `/orchestrate`'s `--auto` selection to admit
    every finishable open ticket in that order within the current run. Append newly admitted
    tickets to `remaining` through `updateRunState` and read back the queue; never enter a second
    orchestrator or replace admitted and in-flight work. Skip only a ticket
@@ -155,7 +198,15 @@ fifteen-minute interval, the waiter checks the sources itself, with no model cal
 - the mailbox, through `node tools/orbit-mail.mjs --unseen` (ids absent from completed and
   pending state);
 - the reviews, through the step 5 command `node tools/orbit-play-reviews.mjs --cycle` (pending
-  Play and App Store review ids).
+  Play and App Store review ids);
+- the open pull requests of the three code repositories, through the reads of
+  `tools/lib/auto-work-github.mjs`. One key is the pull request and its head, so a new pull
+  request or a new head is a new key. It skips the pull requests of this run;
+- the open code scanning, secret scanning and Dependabot alerts of the same repositories. One
+  key is the repository, the alert kind and the alert number.
+
+The pull request and alert keys from the last step 7 collection count as seen. A read that
+fails is a named failure; a source with no successful read keeps its seen keys.
 
 A key absent from `intake.wake.seen` is new. The waiter exits only for one of these causes:
 
@@ -170,10 +221,11 @@ It wakes the model once an hour after the last Sentry listing, and that wake run
 through the Sentry MCP.
 
 The waiter prints one JSON line. A `SOURCE` result has a `wakes` list, and each entry has a
-`source` (`board`, `mail`, `reviews` or `sentry`) and a `kind`:
+`source` (`board`, `mail`, `reviews`, `pullRequests`, `alerts` or `sentry`) and a `kind`:
 
 - `new` gives the new keys in `items`. Run the step for that source: `mail` runs step 4,
-  `reviews` classifies the pending reviews of steps 5 and 6, and `board` runs step 7. The
+  `reviews` classifies the pending reviews of steps 5 and 6, `pullRequests` runs step 7,
+  `alerts` runs step 8, and `board` runs step 9. Steps 7 and 8 share one collection. The
   waiter already ran the review cycle, so the pending reviews are in `intake.play.pending` and
   `intake.appStore.pending`; read them with `readRunState` and do not start another cycle.
 - `failure` gives the signature in `failure`. Log it once, then run the step for that source,

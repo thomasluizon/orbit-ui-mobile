@@ -22,8 +22,8 @@ name or git status. Read `CONVENTIONS.md` before adding one.
 
 Auto-work run controls: `node tools/auto-work-state.mjs --enable` or `--disable` preserves the
 sleep lifecycle and source cursors. `node tools/wait-auto-work.mjs` registers a relay waiter that
-checks the board, mailbox and review sources every fifteen minutes by default, with no classifier
-call. It exits only for a new item, a new source failure, the hourly Sentry MCP listing or a change
+checks the board, mailbox, review, open pull request and security alert sources every fifteen
+minutes by default, with no classifier call. It exits only for a new item, a new source failure, the hourly Sentry MCP listing or a change
 of the owning mode.
 
 | Intake tool | Purpose | Usage |
@@ -36,6 +36,8 @@ of the owning mode.
 | `lib/app-store-connect.mjs` | The one App Store Connect API transport for the reviews reader and `testflight-access.mjs`: a fresh bearer token per request, a 30-second limit, GET with pagination and JSON POST. A failure names the status and the first error's code and title, never the detail. A pagination link must keep the API host and the first path, so the token never goes to another host. | imported, not invoked |
 | `orbit-review-replies.mjs` | Prepares clear store replies, posts them through Actions with existing store credentials and imports matching confirmations; preserves changed reviews and existing owner replies. | `node tools/orbit-review-replies.mjs --prepare`, `--post --output <absolute file>` or `--import <absolute file>` |
 | `lib/auto-work-google.mjs` | Keychain credential transport, Google token exchange and Gmail reads, drafts and policy-guarded sending. | imported, not invoked |
+| `auto-work-github.mjs` | Lists every open pull request and every open code scanning, secret scanning and Dependabot alert of the ui, api and landing repositories, every author and every page, into `intake.pullRequests` and `intake.alerts`, and reads them back. A failed read keeps its previous items and is named. Records the merge, fix or close of a pull request at its head, and the carrying ticket and verified cause of an alert. Never reads a secret value. | `node tools/auto-work-github.mjs --collect` or `--mark <pullRequests\|alerts>` with JSON stdin |
+| `lib/auto-work-github.mjs` | The paginated pull request and alert reads through gh with the owner token, the run state marks and the waiter checks for both sources. | imported, not invoked |
 | `lib/auto-work-intake.mjs` | Durable pending items, source high-water marks and receipts requiring their carrying ticket and person reply before acknowledgement. | imported, not invoked |
 
 | Tool | What it does | Usage |
