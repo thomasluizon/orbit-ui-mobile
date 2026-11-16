@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
+import type { HabitPhraseReadResponse } from '@orbit/shared/types'
 import { CreateHabitModal } from '@/components/habits/create-habit-modal'
 import { EditHabitModal } from '@/components/habits/edit-habit-modal'
 import { i18n } from '@/lib/i18n'
@@ -385,6 +386,76 @@ describe('a guided create on Android from a phrase with a repeat', () => {
     expect(sent.days ?? []).toEqual([])
     expect(sent).not.toHaveProperty('dueTime')
     if (!('frequencyUnit' in expected)) expect(sent).not.toHaveProperty('frequencyUnit')
+    tree.unmount()
+  })
+
+  const MISSED_READ: HabitPhraseReadResponse = { read: false, emoji: null, frequencyUnit: null, frequencyQuantity: null, days: [], isFlexible: false, flexibleTarget: null, dueTime: null, subHabits: [], checklistItems: [] }
+  const DAILY_READ: HabitPhraseReadResponse = { ...MISSED_READ, read: true, emoji: '🪴', frequencyUnit: 'Day', frequencyQuantity: 1, dueTime: '07:00' }
+  const LATER_READ: HabitPhraseReadResponse = { ...MISSED_READ, read: true, emoji: '🌿', frequencyUnit: 'Week', frequencyQuantity: 1, days: ['Monday'], dueTime: '18:00' }
+  const flow = ptBR.habits.flow
+  const typeIn = async (tree: Tree, label: string, text: string) => {
+    const input = tree.hosts().find((node) => (node.props as { onChangeText?: unknown }).onChangeText && node.props.accessibilityLabel === label)!
+    await act(async () => { (input.props as unknown as { onChangeText: (value: string) => void }).onChangeText(text); await Promise.resolve() })
+  }
+  interface SummaryAfter { when: string; whenProposed: boolean; time: string; timeProposed: boolean; sent: Record<string, unknown>; absent: string[] }
+  const SET_ON_A_STEP: [string, HabitPhraseReadResponse, (tree: Tree) => Promise<void>, SummaryAfter][] = [
+    ['"No date" on the When step', MISSED_READ, async (tree) => { await tap(tree, flow.when.noDate) },
+      { when: flow.summary.noDate, whenProposed: false, time: flow.summary.noTime, timeProposed: false, sent: { isGeneral: true, emoji: '🌿' }, absent: ['dueTime', 'frequencyUnit', 'dueDate'] }],
+    ['"Tomorrow" on the When step', MISSED_READ, async (tree) => { await tap(tree, flow.when.tomorrow); await tap(tree, flow.time.none) },
+      { when: '14/11/2026', whenProposed: false, time: flow.summary.noTime, timeProposed: false, sent: { dueDate: '2026-11-14', emoji: '🌿' }, absent: ['dueTime', 'frequencyUnit'] }],
+    ['a repeat in the words of the When step', MISSED_READ, async (tree) => {
+      await typeIn(tree, flow.when.freeLabel, 'toda sexta')
+      const submit = tree.hosts().find((node) => node.props.accessibilityLabel === flow.when.freeLabel && typeof (node.props as { onSubmitEditing?: unknown }).onSubmitEditing === 'function')!
+      await act(async () => { (submit.props as unknown as { onSubmitEditing: () => void }).onSubmitEditing(); await Promise.resolve() })
+      await tap(tree, flow.time.none)
+    }, { when: 'toda sexta', whenProposed: false, time: flow.summary.noTime, timeProposed: false, sent: { frequencyUnit: 'Day', days: ['Friday'], emoji: '🌿' }, absent: ['dueTime'] }],
+    ['"Quando der" on the repeat step', DAILY_READ, async (tree) => {
+      await tap(tree, flow.reminder.no)
+      await tap(tree, new RegExp(`^${flow.summary.when}, `))
+      await tap(tree, new RegExp(`^${flow.repeat.timesIn}`))
+      await primary(tree)
+    }, { when: 'uma vez ao dia', whenProposed: false, time: '18:00', timeProposed: true, sent: { isFlexible: true, frequencyUnit: 'Day', dueTime: '18:00' }, absent: ['days'] }],
+    ['a time on the time step', DAILY_READ, async (tree) => {
+      await tap(tree, flow.reminder.no)
+      await tap(tree, new RegExp(`^${flow.summary.time}, `))
+      await tap(tree, '20:00')
+    }, { when: 'toda semana', whenProposed: true, time: '20:00', timeProposed: false, sent: { frequencyUnit: 'Week', dueTime: '20:00' }, absent: [] }],
+    ['an end time on the duration step', DAILY_READ, async (tree) => {
+      await tap(tree, flow.reminder.no)
+      await tap(tree, new RegExp(`^${flow.summary.duration}, `))
+      await typeIn(tree, ptBR.habits.form.dueEndTime, '08:30')
+      await primary(tree)
+    }, { when: 'toda semana', whenProposed: true, time: '07:00', timeProposed: true, sent: { frequencyUnit: 'Week', dueTime: '07:00', dueEndTime: '08:30' }, absent: [] }],
+    ['an emoji on the emoji step', DAILY_READ, async (tree) => {
+      await tap(tree, flow.reminder.no)
+      await tap(tree, ptBR.habits.form.emojiOpenPicker)
+      await tap(tree, `${ptBR.habits.form.emoji}: 💧`)
+    }, { when: 'toda semana', whenProposed: true, time: '18:00', timeProposed: true, sent: { frequencyUnit: 'Week', dueTime: '18:00', emoji: '💧' }, absent: [] }],
+  ]
+
+  it.each(SET_ON_A_STEP)('keeps %s when a later free read of a new phrase proposes other values, and the summary shows what the save sends', async (_step, firstRead, setOnStep, after) => {
+    state.create.mockResolvedValue({ id: 'habit-9' })
+    state.phraseRead.mockResolvedValueOnce(firstRead).mockResolvedValueOnce(LATER_READ)
+    const tree = mountCreate()
+    await settle()
+    await phrase(tree, 'regar as plantas')
+    await settle()
+    await setOnStep(tree)
+    expect(heading(tree)).toBe(flow.confirm.question)
+    await tap(tree, new RegExp(`^${flow.summary.title}`))
+    await phrase(tree, 'regar as plantas do jardim')
+    await settle()
+    expect(state.phraseRead).toHaveBeenCalledTimes(2)
+    expect(heading(tree)).toBe(flow.confirm.question)
+    const whenRow = new RegExp(`^${flow.summary.when}, `)
+    const timeRow = new RegExp(`^${flow.summary.time}, `)
+    expect({ when: control(tree, whenRow)!.props.accessibilityLabel, whenProposed: rowMarked(tree, whenRow), time: control(tree, timeRow)!.props.accessibilityLabel, timeProposed: rowMarked(tree, timeRow) })
+      .toEqual({ when: `${flow.summary.when}, ${after.when}`, whenProposed: after.whenProposed, time: `${flow.summary.time}, ${after.time}`, timeProposed: after.timeProposed })
+    await primary(tree)
+    expect(state.create).toHaveBeenCalledTimes(1)
+    const sent = state.create.mock.calls[0]![0] as Record<string, unknown>
+    expect(sent).toMatchObject({ title: 'regar as plantas do jardim', ...after.sent })
+    for (const field of after.absent) expect(sent).not.toHaveProperty(field)
     tree.unmount()
   })
 

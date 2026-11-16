@@ -166,20 +166,34 @@ export function habitFlowFieldStep(field: string | null | undefined): HabitFlowS
   return FIELD_STEPS[field] ?? 'summary'
 }
 
+/** What the person set on a step, and whether the item is undated. The free read of the phrase fills only the rest. */
+export interface HabitReadHolds {
+  /** The type the person chose on the type step. A task keeps no repeat. */
+  deliberateType: 'task' | 'habit' | null
+  /** The person set the When: a quick option, the free words, the calendar or the repeat step. */
+  whenSet: boolean
+  /** The person set the time, or a duration that starts at that time. */
+  timeSet: boolean
+  /** The person chose the emoji. */
+  emojiSet: boolean
+  /** A General item, or a child of a General parent. It saves no date, no repeat and no time. */
+  undated: boolean
+}
+
 /**
- * The free read proposes; a deliberate choice of the person wins. A type the person set to task keeps
- * the task with no repeat, a When the person answered keeps that day or that repeat, and a time the
- * person answered keeps that time. A child of a General parent stays undated, with no repeat and no time.
+ * The free read proposes; a deliberate choice of the person wins. The patch keeps only the values the
+ * person did not set on a step, so a later read never replaces an answer. An undated item takes no repeat
+ * and no time, because the save sends neither.
  */
-export function guardHabitReadPatch(patch: HabitFormSuggestionPatch, choices: { deliberateType: 'task' | 'habit' | null; timeAnswered: boolean; whenAnswered: boolean; lockedGeneral: boolean | null }): HabitFormSuggestionPatch {
-  const lockedGeneral = choices.lockedGeneral === true
-  const keepsSchedule = choices.deliberateType === 'task' || choices.whenAnswered || lockedGeneral
+export function guardHabitReadPatch(patch: HabitFormSuggestionPatch, holds: HabitReadHolds): HabitFormSuggestionPatch {
+  const keepsSchedule = holds.deliberateType === 'task' || holds.whenSet || holds.undated
   return {
     ...patch,
     mode: keepsSchedule ? 'oneTime' : patch.mode,
     frequencyUnit: keepsSchedule ? null : patch.frequencyUnit,
     frequencyQuantity: keepsSchedule ? null : patch.frequencyQuantity,
     days: keepsSchedule ? [] : patch.days,
-    dueTime: choices.timeAnswered || lockedGeneral ? null : patch.dueTime,
+    dueTime: holds.timeSet || holds.undated ? null : patch.dueTime,
+    emoji: holds.emojiSet ? null : patch.emoji,
   }
 }

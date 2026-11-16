@@ -5,9 +5,9 @@ import type { HabitPhraseRead } from './habit-phrase-parser'
 export type HabitFlowStepId = 'what' | 'when' | 'time' | 'reminder' | 'summary'
 
 export interface HabitFlowAnswers {
-  /** The person answered the "when" step, with a quick option, the free path or the calendar. */
+  /** The person answered the "when" step, with a quick option, the free path or the calendar, or set the repeat on the repeat step. */
   when: boolean
-  /** The person answered the "time" step, including "no set time". */
+  /** The person answered the "time" step, including "no set time", or typed the time in the words of the "when" step. */
   time: boolean
 }
 

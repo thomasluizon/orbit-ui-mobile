@@ -66,6 +66,7 @@ function mountFlow({ mode = 'create', lockedGeneral = null, online = true, value
     get flow() { return flow },
     chooseTypeOnTheTypeStep: (itemType: 'task' | 'habit') => { void act(() => { flow.markTypeDeliberate(itemType); helpers.chooseItemType(itemType) }) },
     clearTime: () => { void act(() => write({ dueTime: '' })) },
+    setDurationOnTheDurationStep: (dueEndTime: string) => { void act(() => write({ dueEndTime })) },
     refuseField: (field: 'title' | 'description') => { void act(() => { backend.request += 1; backend.field = field; render() }) },
     unmount: () => { void act(() => tree.unmount()) },
   }
@@ -567,6 +568,37 @@ describe('the steps of the shared guided habit flow', () => {
     mounted.chooseTypeOnTheTypeStep('task')
     expect(mounted.values.itemType).toBe('task')
     expect(mounted.flow.proposals).toMatchObject({ schedule: false, time: true })
+    mounted.unmount()
+  })
+
+  const FIRST_READ: HabitPhraseReadResponse = { ...NO_READ, read: true, frequencyUnit: 'Day', frequencyQuantity: 1, dueTime: '07:00', emoji: '🪴' }
+  const LATER_READ: HabitPhraseReadResponse = { ...NO_READ, read: true, frequencyUnit: 'Week', frequencyQuantity: 1, days: ['Monday'], dueTime: '18:00', emoji: '🌿' }
+  type Held = [string, (mounted: Mounted) => void, Partial<Values>, Partial<ReturnType<typeof mountFlow>['flow']['proposals']>]
+  const HELD_ON_A_STEP: Held[] = [
+    ['"Tomorrow" on the When step', (mounted) => { run(() => mounted.flow.open('when')); run(() => mounted.flow.answerWhen('tomorrow')) }, { itemType: 'task', dueDate: TOMORROW, frequencyUnit: null }, { schedule: false }],
+    ['"Every day" on the When step', (mounted) => { run(() => mounted.flow.open('when')); run(() => mounted.flow.answerWhen('everyDay')) }, { itemType: 'habit', frequencyUnit: 'Day', days: [] }, { schedule: false }],
+    ['"No date" on the When step', (mounted) => { run(() => mounted.flow.open('when')); run(() => mounted.flow.answerWhen('noDate')) }, { isGeneral: true, dueDate: '', dueTime: '', frequencyUnit: null }, { schedule: false, time: false }],
+    ['a day of the calendar on the When step', (mounted) => { run(() => mounted.flow.open('when')); run(() => mounted.flow.chooseDate('2026-12-01')) }, { itemType: 'task', dueDate: '2026-12-01', frequencyUnit: null }, { schedule: false }],
+    ['a day in the words of the When step', (mounted) => { run(() => mounted.flow.open('when')); run(() => { mounted.flow.readWhenWords('tomorrow') }) }, { itemType: 'task', dueDate: TOMORROW, frequencyUnit: null }, { schedule: false }],
+    ['a repeat and a time in the words of the When step', (mounted) => { run(() => mounted.flow.open('when')); run(() => { mounted.flow.readWhenWords('every friday at 9am') }) }, { itemType: 'habit', days: ['Friday'], dueTime: '09:00' }, { schedule: false, time: false }],
+    ['"When I can" on the repeat step', (mounted) => { run(() => mounted.flow.open('repeat')); run(() => mounted.flow.controller.setScheduleMode(true)) }, { itemType: 'habit', isFlexible: true, frequencyUnit: 'Day' }, { schedule: false }],
+    ['a repeat of every 2 weeks on the repeat step', (mounted) => { run(() => mounted.flow.open('repeat')); run(() => mounted.flow.controller.setSchedule('Week', 2, false)) }, { itemType: 'habit', frequencyUnit: 'Week', frequencyQuantity: 2 }, { schedule: false }],
+    ['a time on the time step', (mounted) => { run(() => mounted.flow.open('time')); run(() => mounted.flow.answerTime('20:00')) }, { dueTime: '20:00' }, { time: false }],
+    ['"No set time" on the time step', (mounted) => { run(() => mounted.flow.open('time')); run(() => mounted.flow.answerTime(null)) }, { dueTime: '' }, { time: false }],
+    ['an end time on the duration step', (mounted) => { run(() => mounted.flow.open('duration')); mounted.setDurationOnTheDurationStep('08:30') }, { dueTime: '07:00', dueEndTime: '08:30' }, {}],
+    ['an emoji on the emoji step', (mounted) => { run(() => mounted.flow.open('emoji')); run(() => mounted.flow.chooseEmoji('💧')) }, { emoji: '💧' }, { emoji: false }],
+  ]
+
+  it.each(HELD_ON_A_STEP)('keeps %s when a later free read of a new phrase proposes another value, with no proposal mark', async (_step, setOnStep, held, unmarked) => {
+    const readPhrase = vi.fn<GuidedHabitFlowOptions['readPhrase']>().mockResolvedValueOnce(FIRST_READ).mockResolvedValueOnce(LATER_READ)
+    const mounted = mountFlow({ readPhrase })
+    await leavePhraseWith(mounted, 'water the plants')
+    setOnStep(mounted)
+    run(() => mounted.flow.open('what'))
+    await leavePhraseWith(mounted, 'water the plants in the garden')
+    expect(readPhrase).toHaveBeenCalledTimes(2)
+    expect({ ...mounted.values, frequencyUnit: mounted.values.frequencyUnit ?? null, days: mounted.values.days ?? [] }).toMatchObject(held)
+    expect(mounted.flow.proposals).toMatchObject(unmarked)
     mounted.unmount()
   })
 })

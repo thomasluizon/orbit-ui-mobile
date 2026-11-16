@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
+import type { HabitPhraseReadResponse } from '@orbit/shared/types'
 import { CreateHabitModal } from '@/components/habits/create-habit-modal'
 import { EditHabitModal } from '@/components/habits/edit-habit-modal'
 
@@ -430,6 +431,70 @@ describe('the create surface behind orbit_guided_flows', () => {
     const sent = state.create.mock.calls[0]![0] as Record<string, unknown>
     expect(sent).toMatchObject({ title: 'call mom and ask about the trip', startDate: '2026-11-13', frequencyUnit: 'Day', frequencyQuantity: 1 })
     expect(sent.days ?? []).toEqual([])
+  })
+
+  const MISSED_READ: HabitPhraseReadResponse = { read: false, emoji: null, frequencyUnit: null, frequencyQuantity: null, days: [], isFlexible: false, flexibleTarget: null, dueTime: null, subHabits: [], checklistItems: [] }
+  const DAILY_READ: HabitPhraseReadResponse = { ...MISSED_READ, read: true, emoji: '🪴', frequencyUnit: 'Day', frequencyQuantity: 1, dueTime: '07:00' }
+  const LATER_READ: HabitPhraseReadResponse = { ...MISSED_READ, read: true, emoji: '🌿', frequencyUnit: 'Week', frequencyQuantity: 1, days: ['Monday'], dueTime: '18:00' }
+  const summaryRow = (label: string) => screen.getByRole('button', { name: new RegExp(`^${label}`) })
+  const toSummaryFromReminder = async () => { await press(en.habits.flow.reminder.no) }
+  interface SummaryAfter { when: string; whenProposed: boolean; time: string; timeProposed: boolean; sent: Record<string, unknown>; absent: string[] }
+  const SET_ON_A_STEP: [string, HabitPhraseReadResponse, () => Promise<void>, SummaryAfter][] = [
+    ['"No date" on the When step', MISSED_READ, async () => { await press(en.habits.flow.when.noDate) },
+      { when: en.habits.flow.summary.noDate, whenProposed: false, time: en.habits.flow.summary.noTime, timeProposed: false, sent: { isGeneral: true, emoji: '🌿' }, absent: ['dueTime', 'frequencyUnit', 'dueDate'] }],
+    ['"Tomorrow" on the When step', MISSED_READ, async () => { await press(en.habits.flow.when.tomorrow); await press(en.habits.flow.time.none) },
+      { when: '11/14/2026', whenProposed: false, time: en.habits.flow.summary.noTime, timeProposed: false, sent: { dueDate: '2026-11-14', emoji: '🌿' }, absent: ['dueTime', 'frequencyUnit'] }],
+    ['a repeat in the words of the When step', MISSED_READ, async () => {
+      await act(async () => { fireEvent.change(screen.getByLabelText(en.habits.flow.when.freeLabel), { target: { value: 'every friday' } }) })
+      await act(async () => { fireEvent.click(screen.getAllByRole('button', { name: en.habits.flow.continue }).at(-1)!) })
+      await press(en.habits.flow.time.none)
+    }, { when: 'every Friday', whenProposed: false, time: en.habits.flow.summary.noTime, timeProposed: false, sent: { frequencyUnit: 'Day', days: ['Friday'], emoji: '🌿' }, absent: ['dueTime'] }],
+    ['"When I can" on the repeat step', DAILY_READ, async () => {
+      await toSummaryFromReminder()
+      await press(new RegExp(`^${en.habits.flow.summary.when}`))
+      await press(en.habits.flow.repeat.timesIn)
+      await press(en.habits.flow.continue)
+    }, { when: 'once a day', whenProposed: false, time: '18:00', timeProposed: true, sent: { isFlexible: true, frequencyUnit: 'Day', dueTime: '18:00' }, absent: ['days'] }],
+    ['a time on the time step', DAILY_READ, async () => {
+      await toSummaryFromReminder()
+      await press(new RegExp(`^${en.habits.flow.summary.time}`))
+      await press('20:00')
+    }, { when: 'every week', whenProposed: true, time: '20:00', timeProposed: false, sent: { frequencyUnit: 'Week', dueTime: '20:00' }, absent: [] }],
+    ['an end time on the duration step', DAILY_READ, async () => {
+      await toSummaryFromReminder()
+      await press(new RegExp(`^${en.habits.flow.summary.duration}`))
+      await act(async () => { fireEvent.change(screen.getByLabelText(en.habits.form.dueEndTime), { target: { value: '08:30' } }) })
+      await press(en.habits.flow.continue)
+    }, { when: 'every week', whenProposed: true, time: '07:00', timeProposed: true, sent: { frequencyUnit: 'Week', dueTime: '07:00', dueEndTime: '08:30' }, absent: [] }],
+    ['the removal of the emoji', DAILY_READ, async () => {
+      await toSummaryFromReminder()
+      await press(en.habits.form.emojiOpenPicker)
+      await press(en.habits.form.emojiRemove)
+      await act(async () => { fireEvent.keyDown(document.activeElement ?? document.body, { key: 'Escape' }) })
+    }, { when: 'every week', whenProposed: true, time: '18:00', timeProposed: true, sent: { frequencyUnit: 'Week', dueTime: '18:00' }, absent: ['emoji'] }],
+  ]
+
+  it.each(SET_ON_A_STEP)('keeps %s when a later free read of a new phrase proposes other values, and the summary shows what the save sends', async (_step, firstRead, setOnStep, after) => {
+    state.locale = 'en'
+    state.phraseRead.mockResolvedValueOnce(firstRead).mockResolvedValueOnce(LATER_READ)
+    mountCreate()
+    await waitFor(() => expect(document.querySelector('[data-question-flow]')).not.toBeNull())
+    await phrase('water the plants')
+    await setOnStep()
+    expect(heading()).toHaveTextContent(en.habits.flow.confirm.question)
+    await press(new RegExp(`^${en.habits.flow.summary.title}`))
+    await phrase('water the plants in the garden')
+    expect(state.phraseRead).toHaveBeenCalledTimes(2)
+    expect(heading()).toHaveTextContent(en.habits.flow.confirm.question)
+    const whenRow = summaryRow(en.habits.flow.summary.when)
+    const timeRow = summaryRow(en.habits.flow.summary.time)
+    expect({ when: whenRow.textContent, whenProposed: whenRow.closest('[data-proposed]') !== null, time: timeRow.textContent, timeProposed: timeRow.closest('[data-proposed]') !== null })
+      .toMatchObject({ when: expect.stringContaining(after.when), whenProposed: after.whenProposed, time: expect.stringContaining(after.time), timeProposed: after.timeProposed })
+    await press(new RegExp(`^(${en.habits.createTask}|${en.habits.createHabit})$`))
+    expect(state.create).toHaveBeenCalledTimes(1)
+    const sent = state.create.mock.calls[0]![0] as Record<string, unknown>
+    expect(sent).toMatchObject({ title: 'water the plants in the garden', ...after.sent })
+    for (const field of after.absent) expect(sent).not.toHaveProperty(field)
   })
 
   it('reads a repeat typed in the phrase after the person makes a task a habit on the type step', async () => {

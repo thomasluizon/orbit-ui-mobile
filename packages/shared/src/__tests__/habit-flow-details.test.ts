@@ -127,27 +127,21 @@ describe('habitFlowFieldStep', () => {
 
 describe('guardHabitReadPatch', () => {
   const patch = { mode: 'recurring' as const, emoji: '💊', frequencyUnit: 'Day' as const, frequencyQuantity: 1, days: ['Monday'], dueTime: '08:00', subHabitTitles: [], checklistItems: [] }
+  const nothingSet = { deliberateType: null, whenSet: false, timeSet: false, emojiSet: false, undated: false }
+  const noSchedule = { mode: 'oneTime', frequencyUnit: null, frequencyQuantity: null, days: [] }
 
-  it('keeps every proposal when the person chose nothing yet', () => {
-    expect(guardHabitReadPatch(patch, { deliberateType: null, timeAnswered: false, whenAnswered: false, lockedGeneral: null })).toEqual(patch)
+  it('keeps every proposal when the person set nothing yet', () => {
+    expect(guardHabitReadPatch(patch, nothingSet)).toEqual(patch)
   })
 
-  it('keeps a deliberate task with no repeat and a time the person answered', () => {
-    expect(guardHabitReadPatch(patch, { deliberateType: 'task', timeAnswered: true, whenAnswered: false, lockedGeneral: null })).toEqual({
-      ...patch, mode: 'oneTime', frequencyUnit: null, frequencyQuantity: null, days: [], dueTime: null,
-    })
-  })
-
-  it('keeps a child of a General parent undated, with no repeat and no time, and keeps the emoji', () => {
-    expect(guardHabitReadPatch(patch, { deliberateType: null, timeAnswered: false, whenAnswered: false, lockedGeneral: true })).toEqual({
-      ...patch, mode: 'oneTime', frequencyUnit: null, frequencyQuantity: null, days: [], dueTime: null,
-    })
-  })
-
-  it('keeps a When the person answered with no repeat from the read, and still proposes the time and the emoji', () => {
-    expect(guardHabitReadPatch(patch, { deliberateType: null, timeAnswered: false, whenAnswered: true, lockedGeneral: null })).toEqual({
-      ...patch, mode: 'oneTime', frequencyUnit: null, frequencyQuantity: null, days: [],
-    })
+  it.each([
+    ['a deliberate task', { deliberateType: 'task' as const }, noSchedule],
+    ['a When the person set', { whenSet: true }, noSchedule],
+    ['a time the person set', { timeSet: true }, { dueTime: null }],
+    ['an emoji the person chose', { emojiSet: true }, { emoji: null }],
+    ['an undated item, with no repeat and no time', { undated: true }, { ...noSchedule, dueTime: null }],
+  ])('drops only the proposals that %s holds', (_name, held, dropped) => {
+    expect(guardHabitReadPatch(patch, { ...nothingSet, ...held })).toEqual({ ...patch, ...dropped })
   })
 })
 
