@@ -672,8 +672,7 @@
         "loadError": "Não foi possível carregar suas metas. Tente de novo."
       },
       "orbit": {
-        "offline": "Estou sem conexão, então leio aqui no aparelho e você segue do mesmo jeito.",
-        "fromConversation": "Isso veio da nossa conversa."
+        "offline": "Estou sem conexão, então leio aqui no aparelho e você segue do mesmo jeito."
       }
     },
     "nextReminder": "Próximo às {time}",
@@ -2824,6 +2823,7 @@
     },
     "wrappedTitle": "Seu Wrapped",
     "widgetTitle": "Widget do Android",
+    "widgetQuestion": "Como adiciono o widget do Orbit?",
     "calendarSync": {
       "title": "Sincronizar calendário"
     },

@@ -599,7 +599,7 @@ describe.each(['pt-BR', 'en'] as const)('the monthly repeat and the conversation
     const tree = renderNavigation(<GuidedFromConversation />)
     const question = tree.hosts().find((node) => node.props.accessibilityRole === 'header')
     expect(question?.props.children).toBe(flowCopy().confirm.question)
-    expect((question?.props as { accessibilityHint?: string } | undefined)?.accessibilityHint).toBe(flowCopy().orbit.fromConversation)
+    expect((question?.props as { accessibilityHint?: string } | undefined)?.accessibilityHint).toBe((i18n.language === 'en' ? en : ptBR).habits.form.fromConversation)
     tree.unmount()
   })
 })

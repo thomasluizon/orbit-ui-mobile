@@ -578,7 +578,7 @@ describe.each(['pt-BR', 'en'] as const)('the monthly repeat and the conversation
   it('scenario 10: opens a conversation draft on the summary with the notice', () => {
     render(<GuidedFromConversation />)
     expect(heading()).toHaveTextContent(messages().confirm.question)
-    expect(heading()).toHaveAccessibleDescription(messages().orbit.fromConversation)
+    expect(heading()).toHaveAccessibleDescription((locale === 'en' ? en : ptBR).habits.form.fromConversation)
   })
 })
 

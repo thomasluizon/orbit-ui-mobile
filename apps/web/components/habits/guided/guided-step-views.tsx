@@ -232,7 +232,7 @@ function SummaryRows({ flow, formHelpers, props }: Readonly<ViewInput & { props:
 
 export function useSummaryView({ flow, formHelpers, props }: Readonly<ViewInput & { props: GuidedHabitFlowProps }>): FlowStepView {
   const t = useTranslations()
-  const fromConversation = props.fromConversation ? t('habits.flow.orbit.fromConversation') : t('habits.flow.confirm.line')
+  const fromConversation = props.fromConversation ? t('habits.form.fromConversation') : t('habits.flow.confirm.line')
   const detailsReady = !props.detailsLoading && !props.detailsError
   const waiting = props.detailsLoading ? <SummarySkeleton /> : props.detailsError ? <InlineLoadError message={props.detailsError.message} onRetry={props.detailsError.onRetry} /> : null
   return {

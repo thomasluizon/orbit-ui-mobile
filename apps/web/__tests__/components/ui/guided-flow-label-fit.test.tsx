@@ -45,7 +45,7 @@ function steps(copy: Copy): Record<string, Step> {
     'goal habits': { question: goal.flow.habits.question },
     'what typed': { question: flow.what.question, line: flow.what.lineTyped },
     'what offline': { question: flow.what.question, line: flow.orbit.offline },
-    'from conversation': { question: flow.confirm.question, line: flow.orbit.fromConversation },
+    'from conversation': { question: flow.confirm.question, line: copy.habits.form.fromConversation },
     'tag has': { question: flow.optional.tags, line: flow.tags.lineHas.replace('{tag}', 'Saúde').replace('{items}', 'Beber água, Caminhar, Ler'), options: [flow.tags.none] },
     'tag empty': { question: flow.optional.tags, line: flow.tags.lineEmpty.replace('{tag}', 'Saúde'), options: [flow.tags.none] },
     'templates empty': { question: flow.templates.question, line: flow.templates.lineEmpty },

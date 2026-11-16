@@ -672,8 +672,7 @@
         "loadError": "Could not load your goals. Try again."
       },
       "orbit": {
-        "offline": "I am offline, so I read it on this device and you can go on the same way.",
-        "fromConversation": "This came from our conversation."
+        "offline": "I am offline, so I read it on this device and you can go on the same way."
       }
     },
     "nextReminder": "Next at {time}",
@@ -2824,6 +2823,7 @@
     },
     "wrappedTitle": "Your Wrapped",
     "widgetTitle": "Android widget",
+    "widgetQuestion": "How do I add the Orbit widget?",
     "calendarSync": {
       "title": "Calendar sync"
     },

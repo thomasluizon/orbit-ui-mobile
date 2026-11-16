@@ -228,6 +228,7 @@ describe('Sheet', () => {
 
   it('leaves the short widget sheet bottom inset to the primitive', () => {
     render(<WidgetInfoOverlay open onOpenChange={vi.fn()} t={(key) => key} />)
+    expect(screen.getByRole('dialog', { name: 'profile.widgetQuestion' })).toBeInTheDocument()
     const body = screen.getByRole('dialog').querySelector('[data-slot="sheet-body"]')!
     const caller = body.firstElementChild!
     expect(Number.parseFloat(getComputedStyle(caller).paddingBottom) || 0).toBe(0)

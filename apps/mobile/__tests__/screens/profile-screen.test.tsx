@@ -2236,7 +2236,7 @@ describe('ProfileScreen', () => {
         await Promise.resolve()
       })
       const [sheet] = tree.root.findAll((node: { type: unknown; props: { title?: string } }) =>
-        node.type === 'SheetStub' && node.props.title === 'profile.widgetIos.title')
+        node.type === 'SheetStub' && node.props.title === 'profile.widgetQuestion')
       expect(sheet).toBeDefined()
       const sheetText = nodeText(sheet)
       for (const step of ['step1', 'step2', 'step3']) {
@@ -2268,7 +2268,7 @@ describe('ProfileScreen', () => {
     })
     expect(mockRouterPush).not.toHaveBeenCalled()
     expect(tree.root.findAll((node: { type: unknown; props: { title?: string } }) =>
-      node.type === 'SheetStub' && node.props.title === 'profile.widgetTitle')).toHaveLength(1)
+      node.type === 'SheetStub' && node.props.title === 'profile.widgetQuestion')).toHaveLength(1)
     mockRouterPush.mockClear()
 
     await TestRenderer.act(async () => {
