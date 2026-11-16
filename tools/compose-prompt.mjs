@@ -1,13 +1,17 @@
 #!/usr/bin/env node
 
-import { writeFileSync } from "node:fs"
+import { mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs"
 import { isAbsolute, resolve } from "node:path"
 import { assertRepositoryLabel, readComments, readTicket, resolveTicket } from "./lib/github-issues.mjs"
 import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
 import { CLOUD_FINISHING_CONTRACT } from "./lib/cloud-worker.mjs"
 import { parityExemptTerms } from "./lib/parity-scope.mjs"
+import { proofOrder, reviewBrief, reviewOrder } from "./lib/review-run.mjs"
+import { repositorySlug } from "./lib/github-auth.mjs"
 
 const USAGE = `usage: compose-prompt.mjs --issue <ORB-N|#N|N> --repo <ui|api|landing> --out <absolute path>
+       compose-prompt.mjs --review --repo <key> --pr <n> --head <sha> [--since <sha>] [--base <ref>] --out <absolute path>
+       compose-prompt.mjs --proof --repo <key> --pr <n> --head <sha> --plan <file> --devices <names> --evidence <directory> --out <absolute path>
 
   --issue <reference> ticket whose body and comments to compose (required)
   --repo <key>      target repository key from .claude/orchestrator.json (required)
@@ -19,6 +23,23 @@ const USAGE = `usage: compose-prompt.mjs --issue <ORB-N|#N|N> --repo <ui|api|lan
   --review-batch    stop a local review fix after a tested commit
   --cloud          compose the container contract instead of local PR delivery
   --help, -h        print this usage and exit 0
+
+  Read-only orders for node tools/launch-worker.mjs --review or --proof. Neither reads the ticket.
+  --review          a pre-push review of pull request --pr at --head, or with --since a fix-round
+                    review of only the commits after the reviewed head. Embeds the review brief of
+                    .claude/playbooks/review-and-audit.md rule 14. The result opens with
+                    VERDICT: CLEAN or VERDICT: DEFECTS (<n>)
+  --proof           a device proof of pull request --pr at --head. The result opens with
+                    PROOF: PASS or PROOF: FAIL (<n> defects)
+  --pr <n>          the pull request number
+  --head <sha>      the commit under review or proof, 7 to 40 hex characters copied from git
+  --since <sha>     the head that the previous review read (--review only)
+  --plan <file>     the proof steps and the expected result of each, non-empty (--proof only)
+  --devices <names> the comma-separated simulators and AVDs the proof may use (--proof only)
+  --evidence <dir>  absolute directory outside every repository for screenshots and logs, created
+                    when absent and refused when it holds a file (--proof only)
+  Both orders forbid every tracked write, commit, branch, push and GitHub write, and end with a
+  final message of at most 12 lines.
 
 Prints the output path on stdout.
 exit codes: 0 prompt written, 2 usage or ticket read error`
@@ -47,7 +68,12 @@ const baseBranch = argOf("--base") ?? "main"
 const cloud = process.argv.includes("--cloud")
 const layoutGuard = process.argv.includes("--layout-guard")
 const reviewBatch = !cloud && process.argv.includes("--review-batch")
-if (!issue || !repoKey || !out || !isAbsolute(out)) fail(2, USAGE)
+const readOnlyModes = ["--review", "--proof"].filter((flag) => process.argv.includes(flag))
+if (readOnlyModes.length > 1 || (readOnlyModes.length === 1 && (cloud || layoutGuard || reviewBatch || issue !== null))) {
+  fail(2, `${USAGE}\n\n--review and --proof compose an order with no ticket: drop --issue, --cloud, --layout-guard and --review-batch`)
+}
+const readOnlyMode = readOnlyModes[0]?.slice(2) ?? null
+if ((readOnlyMode === null && !issue) || !repoKey || !out || !isAbsolute(out)) fail(2, USAGE)
 
 const config = readOrchestratorConfig()
 const repoPath = config.repos?.[repoKey]
@@ -57,10 +83,48 @@ if (layoutGuard && repoKey !== "ui") fail(2, "--layout-guard is available only f
 
 /** The prompt must not land inside a repository: a worker that finds its own work order in the
  * tree can commit it, and a reviewer would then read instructions written by the change. */
-for (const declared of Object.values(config.repos)) {
-  if (resolve(out).toLowerCase().startsWith(resolve(declared).toLowerCase())) {
-    fail(2, `--out ${out} is inside the ${declared} repository; write the prompt to the scratchpad instead`)
+const insideDeclaredRepository = (path, flag) => {
+  for (const declared of Object.values(config.repos)) {
+    if (resolve(path).toLowerCase().startsWith(resolve(declared).toLowerCase())) {
+      fail(2, `${flag} ${path} is inside the ${declared} repository; keep it in the scratchpad instead`)
+    }
   }
+}
+insideDeclaredRepository(out, "--out")
+
+const COMMIT = /^[0-9a-f]{7,40}$/
+const readOnlyOrder = () => {
+  const pullRequest = argOf("--pr")
+  const head = argOf("--head")
+  const since = argOf("--since")
+  if (!/^[1-9]\d*$/.test(pullRequest ?? "")) fail(2, `--${readOnlyMode} needs --pr <n>, a pull request number`)
+  if (!COMMIT.test(head ?? "")) fail(2, `--${readOnlyMode} needs --head <sha>, 7 to 40 lowercase hex characters copied from git`)
+  let slug
+  try { slug = repositorySlug(repoPath) } catch (error) { fail(2, `could not read the GitHub repository of ${repoPath}: ${error.message}`) }
+  if (readOnlyMode === "review") {
+    if (since !== null && !COMMIT.test(since)) fail(2, "--since needs the reviewed head, 7 to 40 lowercase hex characters copied from git")
+    let brief
+    try { brief = reviewBrief(readFileSync(new URL("../.claude/playbooks/review-and-audit.md", import.meta.url), "utf8")) } catch (error) { fail(2, `could not read the review brief: ${error.message}`) }
+    return reviewOrder({ brief, slug, pullRequest, head, since, baseBranch })
+  }
+  if (since !== null) fail(2, "--since belongs to --review")
+  const planArgument = argOf("--plan")
+  const devices = (argOf("--devices") ?? "").split(",").map((name) => name.trim()).filter(Boolean)
+  const evidenceArgument = argOf("--evidence")
+  let plan = ""
+  try { plan = readFileSync(resolve(planArgument ?? ""), "utf8") } catch { fail(2, "--proof needs --plan <file>, the proof steps") }
+  if (plan.trim() === "") fail(2, `--plan ${planArgument} is empty`)
+  if (devices.length === 0) fail(2, "--proof needs --devices <names>, the simulators and AVDs the proof may use")
+  if (!evidenceArgument || !isAbsolute(evidenceArgument)) fail(2, "--proof needs --evidence <directory>, an absolute path")
+  insideDeclaredRepository(evidenceArgument, "--evidence")
+  mkdirSync(evidenceArgument, { recursive: true })
+  if (!statSync(evidenceArgument).isDirectory() || readdirSync(evidenceArgument).length > 0) fail(2, `--evidence ${evidenceArgument} must be a new or empty directory`)
+  return proofOrder({ slug, pullRequest, head, plan, devices, evidenceDirectory: resolve(evidenceArgument) })
+}
+if (readOnlyMode !== null) {
+  writeFileSync(resolve(out), readOnlyOrder(), "utf8")
+  console.log(resolve(out))
+  process.exit(0)
 }
 
 let resolvedTicket

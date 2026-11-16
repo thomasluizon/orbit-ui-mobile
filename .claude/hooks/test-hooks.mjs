@@ -359,6 +359,20 @@ for (const command of ["npm run dev", "next dev --port 3920", "pnpm dev", "expo 
   T(`worker-browser: ${command} blocks`, blocks(worker(command)), true)
 }
 T("worker-browser: the refusal says who owes the visual check", worker("npm run dev")?.message.includes("owed by a HUMAN"), true)
+// A device proof worker (launch-worker.mjs --proof) drives a device, but never the owner's emulator,
+// and every other worker ban still holds for it.
+const proofWorker = (command) => checkWorkerBrowser(command, { env: { ORBIT_LAUNCH_WORKER: "1", ORBIT_DEVICE_PROOF: "1" }, cwd: repoRoot, repoRoots: [] })
+for (const command of ["adb shell input tap 1 1", "adb -s emulator-5594 shell input swipe 1 1 9 9 600", "emulator -avd orbit-proof-2145 -no-window", "node tools/android-emulator.mjs --avd orbit-proof-2145", "xcrun simctl boot 'iPhone 17'"]) {
+  T(`worker-browser: a device proof may run ${command}`, proofWorker(command), null)
+}
+for (const command of ["emulator -avd Orbit_Pixel_9_API_35", "emulator @Orbit_Pixel_9_API_35 -no-window", "node tools/android-emulator.mjs", "node tools/android-emulator.mjs --status && adb devices"]) {
+  T(`worker-browser: a device proof may not reach the owner's emulator: ${command}`, /may not use the owner's emulator Orbit_Pixel_9_API_35/.test(proofWorker(command)?.message ?? ""), true)
+}
+for (const command of ["npm run dev", "npx playwright test", "expo start"]) {
+  T(`worker-browser: a device proof still may not run ${command}`, /A worker may not start/.test(proofWorker(command)?.message ?? ""), true)
+}
+T("worker-browser: a proof marker other than 1 grants nothing", blocks(checkWorkerBrowser("adb devices", { env: { ORBIT_LAUNCH_WORKER: "1", ORBIT_DEVICE_PROOF: "true" }, cwd: repoRoot, repoRoots: [] })), true)
+T("worker-browser: a typed proof marker grants nothing", blocks(worker("ORBIT_DEVICE_PROOF=1 adb devices")), true)
 T("worker-browser: a later chained dev server blocks", blocks(worker("npm test && npm run dev")), true)
 // The same commands from a session that is NOT a worker are none of this gate's business.
 T("worker-browser: npm run dev outside a worker allows", checkWorkerBrowser("npm run dev", { env: {}, cwd: "", repoRoots: [] }), null)

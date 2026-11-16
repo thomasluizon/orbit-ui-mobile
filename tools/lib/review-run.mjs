@@ -201,3 +201,87 @@ export const writesBetween = (before, after, runDirectory) => {
   }
   return writes
 }
+
+const BRIEF_HEADING = "#### The review brief"
+
+/** The body of rule 14's review brief in `.claude/playbooks/review-and-audit.md`, the one place that defines it. */
+export const reviewBrief = (playbook) => {
+  const lines = playbook.split(/\r?\n/)
+  const start = lines.findIndex((line) => line.trimEnd() === BRIEF_HEADING)
+  if (start === -1) throw new Error(`the playbook has no "${BRIEF_HEADING}" section`)
+  const end = lines.findIndex((line, index) => index > start && /^#{2,4} /.test(line))
+  const body = lines.slice(start + 1, end === -1 ? lines.length : end).join("\n").trim()
+  if (body === "") throw new Error(`the "${BRIEF_HEADING}" section is empty`)
+  return body
+}
+
+const NO_WRITES = `**You write nothing tracked.** Never edit, create or delete a tracked file, and never commit, stash,
+reset, check out, switch, merge, rebase, create a branch or a tag, or push, in this directory or in
+any other worktree or repository. The launcher refuses each git write, records it and fails the whole
+run. It also fails the run on a changed tracked file in any worktree it can reach. Untracked output of
+a test or a build is allowed.
+
+**No GitHub write.** Read GitHub with \`gh pr view\` and \`gh api\` GET requests only. Never post a
+comment, a review, a reaction, a label or a status, never resolve a thread, and never ask for a review.`
+
+const FINAL_MESSAGE = `**Your final message has at most 12 lines:** the verdict line, the result file path, and one line for
+each of the most severe findings. The orchestrator reads the result file, not your message.`
+
+/** The order of a pre-push review, or with `since` of a fix-round review that reads only the newer commits. */
+export const reviewOrder = ({ brief, slug, pullRequest, head, since = null, baseBranch = "main" }) => {
+  const scope = since === null
+    ? `Read the whole diff against its merge base: \`git diff $(git merge-base origin/${baseBranch} ${head}) ${head}\`.`
+    : `This is a fix round. The previous review read \`${since}\`. Read only the new commits,
+\`git diff ${since}..${head}\`, and the code around each hunk.`
+  return `# Read-only review of ${slug} pull request #${pullRequest}
+
+${brief}
+
+---
+
+## Read-only review contract
+
+**What you review.** Pull request #${pullRequest} of \`${slug}\` at head \`${head}\`. ${scope} Your directory is a
+detached worktree at that head or a copy of it. Read by commit (\`git show ${head}:<path>\`), never by a
+checkout.
+
+${NO_WRITES}
+
+**Your result.** Write the complete report to the result file that the launch instruction names, and
+to no other file. Its first line is exactly \`VERDICT: CLEAN\` when you confirmed no finding and no
+body line is wrong. Otherwise it is \`VERDICT: DEFECTS (<n>)\`, where n counts the numbered findings
+and the wrong body lines. Then write the report that the brief describes: \`HEAD: <sha>\`,
+\`FILES READ: <n of m>\`, \`## Findings\`, \`## Body\` and \`## Not confirmed\`.
+
+${FINAL_MESSAGE}
+`
+}
+
+/** The order of a device proof: the coordinator's steps, the permitted devices and the evidence directory. */
+export const proofOrder = ({ slug, pullRequest, head, plan, devices, evidenceDirectory }) => `# Device proof of ${slug} pull request #${pullRequest}
+
+**What you prove.** Pull request #${pullRequest} of \`${slug}\` at head \`${head}\`. Your directory is a detached
+worktree at that head or a copy of it. Do each step below and compare what you observe with the
+expected result that the step names.
+
+${plan.trim()}
+
+**Devices.** Use only these: ${devices.join(", ")}. You may also create one throwaway Android virtual device
+from the installed arm64 play image, run it headless with no personal account, and delete it before
+you finish. Never boot or use \`Orbit_Pixel_9_API_35\`, the owner's emulator, and never sign in to a
+personal account. Read \`.claude/playbooks/operations.md\` \`## Android devices and Play\` before you use a device.
+
+${NO_WRITES}
+A step that needs a changed tracked file, such as a version bump for a local build, runs in a copy
+outside every repository (\`git archive ${head} | tar -x -C <new directory>\`), never in a worktree.
+
+**Evidence.** Save each screenshot, recording and log in \`${evidenceDirectory}\`, and name each file
+by its step.
+
+**Your result.** Write the complete report to the result file that the launch instruction names, and
+to no other file. Its first line is exactly \`PROOF: PASS\` when every step met its expected result.
+Otherwise it is \`PROOF: FAIL (<n> defects)\`, where n counts the steps that did not. Then write one
+section for each step: the device, the exact commands, the observed result and the evidence files.
+
+${FINAL_MESSAGE}
+`

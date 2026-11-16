@@ -86,13 +86,20 @@ Redact before you paste. Never include a token, key, cookie or credential, and r
 ## Before every push of a pull request head
 
 ### 14. Review the whole diff locally before every push
-Pullfrog reviews a head as soon as it is asked, with no CI wait, so each push costs one review round. This gate makes the first review of a head able to approve, and it keeps a head that fails CI from costing a review. Do these steps before you push a pull request head, and before you ask for the review of a head that a worker pushed. A worker does not run this gate, because it cannot start a review agent; the orchestrator runs it before it asks for the review of the worker's head. No hook and no receipt enforce this gate.
+Pullfrog reviews a head as soon as it is asked, with no CI wait, so each push costs one review round. This gate makes the first review of a head able to approve, and it keeps a head that fails CI from costing a review. Do these steps before you push a pull request head, and before you ask for the review of a head that a worker pushed. A ticket worker does not run this gate; the orchestrator runs it before it asks for the review of the worker's head. No hook and no receipt enforce this gate.
 
-1. Start one read-only review agent on Opus. Give it the brief below and the head SHA. It reads the whole diff of the pull request against its merge base.
-2. Fix every finding that the agent confirms. All the fixes go in the same push.
-3. Run the local checks that the change affects: lint, type check, and the focused tests of each changed workspace or tool. Each one must pass.
-4. After a fix round, start a second agent with the same brief. It reads only the new commits (`git diff <reviewed head>..<new head>`). Fix what it confirms, and run the affected checks again.
-5. Push. Then ask for the review as `orchestrate/SKILL.md` step 8 says.
+The review runs on a read-only worker, never on an in-session subagent. A worker runs on the worker account, so the main account stays free for the orchestrator. Its launcher is a wake source, and a relay can carry it.
+
+1. Make a detached worktree at the head: `git -C <repo> worktree add --detach <scratchpad>/review-<pr>-<short sha> <head>`.
+2. Compose the order: `node tools/compose-prompt.mjs --review --repo <key> --pr <n> --head <head> --out <scratchpad>/review-<pr>-order.md`. It embeds the brief below.
+3. Start the worker in the background: `node tools/launch-worker.mjs --review --order <order> --out <scratchpad>/review-<pr>-<short sha>.md --directory <worktree>`. It takes no admission and no branch launch slot.
+4. Read the result file when the launcher exits 0. Its first line is `VERDICT: CLEAN` or `VERDICT: DEFECTS (<n>)`. Exit 5 means the worker left a write: read `writes` in the launcher output, undo the write, and start the review again. Exit 1 means the run failed: read `logFile` and start it again.
+5. Fix every finding that the worker confirms. All the fixes go in the same push.
+6. Run the local checks that the change affects: lint, type check, and the focused tests of each changed workspace or tool. Each one must pass.
+7. After a fix round, do steps 1 to 4 again with `--since <reviewed head>` in step 2, at the new head. That worker reads only the new commits (`git diff <reviewed head>..<new head>`). Fix what it confirms, and run the affected checks again.
+8. Push. Then ask for the review as `orchestrate/SKILL.md` step 8 says. Remove each review worktree with `git -C <repo> worktree remove <worktree>`; it holds no work of its own.
+
+Commit or undo each tracked edit that you make in a configured repository before a review or proof worker ends. The launcher cannot tell an uncommitted edit of yours from one of the worker's, so it fails that run. Your own commits and pushes do not fail it, because the git hooks record only the worker's git processes.
 
 #### The review brief
 
@@ -100,7 +107,7 @@ You review ONE open pull request before its next push. Find everything that the 
 
 What to read:
 
-1. The whole diff of the pull request against its merge base (`git diff <base>...<head>` at the head SHA that your order names). When another agent edits the worktree at the same time, read with `git show <head>:<path>`. Read the hunks of every changed file and the code around each one. For a diff above 60 files, read the source and test files in full and scan the generated and data files; say which files you scanned.
+1. The whole diff of the pull request against its merge base (`git diff <base>...<head>` at the head SHA that your order names). A fix-round order narrows this to the new commits. When another agent edits the worktree at the same time, read with `git show <head>:<path>`. Read the hunks of every changed file and the code around each one. For a diff above 60 files, read the source and test files in full and scan the generated and data files; say which files you scanned.
 2. The pull request body (`gh pr view <n> --repo <slug> --json body --jq .body`). Every claim in it must be true at the head.
 3. The `CLAUDE.md` of the repository. For a UI diff, also `DESIGN.md` `## Bans` and `BRAND.md`.
 4. The earlier review threads (`gh api "repos/<slug>/pulls/<n>/comments?per_page=100" --jq '.[]|[.path,.line,(.body|.[0:160])]|@tsv'`). They show what this reviewer looks for. Do not report a finding that an earlier thread settled, unless the head breaks it again.
@@ -122,7 +129,7 @@ The lenses:
 
 What a finding is: something you confirmed in the code at the head, with `path:line`, the concrete failure (the inputs or state, then the wrong result), and the smallest correct fix. Rank each one BLOCKING (the reviewer will open a thread), LIKELY, or NIT. Skip a nit unless its fix is under one line. Do not pad: a finding you could not confirm goes under `## Not confirmed`, with what would confirm it. Zero findings is a valid result: say "NO FINDINGS" and name what you read.
 
-Your final message, at most 60 lines, with repository-relative paths only:
+Your report, with repository-relative paths only:
 
 - `HEAD: <sha you reviewed>`, `FILES READ: <n of m>`.
 - `## Findings`: one numbered item each, with the rank, `path:line`, the failure in one or two sentences, and the fix in one sentence.

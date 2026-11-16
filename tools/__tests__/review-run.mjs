@@ -3,7 +3,7 @@ import { chmodSync, mkdirSync, realpathSync, writeFileSync } from "node:fs"
 import { dirname, join } from "node:path"
 
 import { T, same, stage, stageRepo } from "./_harness.mjs"
-import { commonGitDirectory, installWriteGuard, readOnlyPaths, recordedWrites, resultVerdict, snapshotWorktrees, writesBetween } from "../lib/review-run.mjs"
+import { commonGitDirectory, installWriteGuard, proofOrder, readOnlyPaths, recordedWrites, resultVerdict, reviewBrief, reviewOrder, snapshotWorktrees, writesBetween } from "../lib/review-run.mjs"
 
 const UNIT = "lib/review-run.mjs"
 
@@ -130,7 +130,29 @@ const snapshotCases = () => {
     [["tracked-change", realpathSync(repository.path), "dirty.txt"], ["commit", runDirectory, true], ["tracked-change", runDirectory, "tracked.txt"]])
 }
 
+/** Each verdict line an order promises, with its placeholder filled, is one the launcher publishes. */
+const orderCases = () => {
+  const playbook = "## Rules\n\n#### The review brief\n\nRead the diff.\n\n- A lens.\n\n### 15. The next rule\nNot the brief.\n"
+  same(`${UNIT}: the brief ends at the next heading`, reviewBrief(playbook), "Read the diff.\n\n- A lens.")
+  for (const [label, text, pattern] of [
+    ["no brief heading", "## Rules\n", /has no "#### The review brief" section/],
+    ["an empty brief", "#### The review brief\n\n#### Next\n", /section is empty/],
+  ]) {
+    let message = "accepted"
+    try { reviewBrief(text) } catch (error) { message = error.message }
+    T(`${UNIT}: the brief reader refuses ${label}`, pattern.test(message), message)
+  }
+  const promised = (order) => [...order.matchAll(/`((?:VERDICT|PROOF): [^`]+)`/g)].map((match) => match[1].replace("<n>", "2"))
+  const review = reviewOrder({ brief: "Read the diff.", slug: "owner/name", pullRequest: "7", head: "abc1234" })
+  const proof = proofOrder({ slug: "owner/name", pullRequest: "7", head: "abc1234", plan: "1. Tap. Expected: it opens.\n", devices: ["iPhone 17"], evidenceDirectory: "/evidence" })
+  same(`${UNIT}: the review order promises exactly the review verdict lines`, promised(review).map((line) => resultVerdict(line, "review")), ["VERDICT: CLEAN", "VERDICT: DEFECTS (2)"])
+  same(`${UNIT}: the proof order promises exactly the proof verdict lines`, promised(proof).map((line) => resultVerdict(line, "proof")), ["PROOF: PASS", "PROOF: FAIL (2 defects)"])
+  const maximum = (order) => Number(/at most (\d+) lines/.exec(order)?.[1])
+  T(`${UNIT}: both orders cap the final message at 12 lines`, maximum(review) === 12 && maximum(proof) === 12, `${maximum(review)} ${maximum(proof)}`)
+}
+
 export const cases = () => {
+  orderCases()
   verdictCases()
   pathCases()
   guardCases()

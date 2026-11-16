@@ -7,6 +7,11 @@ import { insideLinkedWorktree } from "./repo-roots.mjs"
 
 /** The launcher exports this into every worker it starts (tools/launch-worker.mjs). */
 const LAUNCHER_MARKER = "ORBIT_LAUNCH_WORKER"
+/** `launch-worker.mjs --proof` adds this, so a device proof worker may drive a device. A typed assignment never sets it. */
+const DEVICE_PROOF_MARKER = "ORBIT_DEVICE_PROOF"
+const DEVICE_DRIVERS = new Set(["adb", "emulator"])
+/** The owner's own emulator. A proof uses a named simulator or a throwaway AVD, never this one. */
+const OWNER_EMULATOR = "Orbit_Pixel_9_API_35"
 
 /** Binaries whose arguments are PROSE. A commit message naming `npm run dev` is not a dev server. */
 const BROWSER_DRIVERS = new Set(["playwright", "maestro", "cypress", "puppeteer", "chromedriver", "geckodriver", "webdriver", "adb", "emulator"])
@@ -61,13 +66,23 @@ function withoutRunners(tokens) {
   return rest
 }
 
+const OWNER_EMULATOR_ACTION = "the owner's emulator"
+
+/** Whether a device proof segment reaches the owner's emulator: by name, or through the tool whose default AVD it is. */
+function reachesOwnerEmulator(tokens) {
+  if (tokens.some((token) => token.replaceAll(/["']/g, "").replace(/^@/, "").endsWith(OWNER_EMULATOR))) return true
+  return normalize(tokens[0]) === "node" && normalize(tokens[1]) === "android-emulator.mjs" && !tokens.some((token) => token === "--avd" || token.startsWith("--avd="))
+}
+
 /** What a segment starts, or null. Judged on the program and its arguments, never on stray text. */
-function forbiddenAction(segment) {
+function forbiddenAction(segment, deviceProof) {
   const tokens = withoutRunners(tokensOf(segment))
   if (tokens.length === 0) return null
   const binary = normalize(tokens[0])
   const args = tokens.slice(1).filter((token) => !token.startsWith("-")).map(normalize)
 
+  if (deviceProof && reachesOwnerEmulator(tokens)) return OWNER_EMULATOR_ACTION
+  if (deviceProof && DEVICE_DRIVERS.has(binary)) return null
   if (BROWSER_DRIVERS.has(binary)) return "a browser driver or an emulator"
   if (DEV_BINARIES.has(binary) && (args[0] === "dev" || (["vite", "remix"].includes(binary) && (!tokens[1] || tokens[1].startsWith("-"))))) return "a dev server"
   if (SCRIPT_RUNNERS.has(binary) && DEV_SCRIPTS.has(args[0] === "run" ? args[1] : args[0])) return "a dev server"
@@ -168,8 +183,8 @@ function scriptTargets(invocation, cwd) {
   return invocation.workspaces.map((workspace) => packages.find(({ manifest, path }) => manifest.name === workspace || path === workspace))
 }
 
-function inspectSegment(segment, cwd, depth, activeScripts) {
-  const directAction = forbiddenAction(segment)
+function inspectSegment(segment, cwd, depth, activeScripts, deviceProof) {
+  const directAction = forbiddenAction(segment, deviceProof)
   if (directAction) return directAction
   const invocation = scriptInvocation(withoutRunners(tokensOf(segment)))
   if (!invocation) return null
@@ -181,7 +196,7 @@ function inspectSegment(segment, cwd, depth, activeScripts) {
     if (typeof script !== "string" || depth >= SCRIPT_DEPTH_LIMIT || activeScripts.has(identity)) return "an unresolved package script"
     const nextActive = new Set(activeScripts).add(identity)
     for (const scriptSegment of stripHeredocBodies(script).split(SEGMENT_SPLIT)) {
-      const action = inspectSegment(scriptSegment, target.directory, depth + 1, nextActive)
+      const action = inspectSegment(scriptSegment, target.directory, depth + 1, nextActive, deviceProof)
       if (action) return action
     }
   }
@@ -197,10 +212,21 @@ export function checkWorkerBrowser(command, { env = {}, cwd = "", repoRoots = []
   if (typeof command !== "string") return null
   const isWorker = Boolean(env[LAUNCHER_MARKER]) || (cwd !== "" && insideLinkedWorktree(cwd, repoRoots))
   if (!isWorker) return null
+  const deviceProof = env[DEVICE_PROOF_MARKER] === "1"
 
   for (const segment of stripHeredocBodies(command).split(SEGMENT_SPLIT)) {
-    const action = inspectSegment(segment, cwd, 0, new Set())
+    const action = inspectSegment(segment, cwd, 0, new Set(), deviceProof)
     if (!action) continue
+    if (action === OWNER_EMULATOR_ACTION) {
+      return {
+        block: true,
+        message:
+          `A device proof may not use the owner's emulator ${OWNER_EMULATOR}. Refused: ${segment.trim().slice(0, 160)}\n\n` +
+          "Use the simulators that the order names, or create one throwaway AVD from the installed arm64 play image,\n" +
+          "run it headless with no personal account, and delete it when the proof ends. Pass --avd <throwaway name>\n" +
+          "to node tools/android-emulator.mjs, whose default AVD is the owner's.",
+      }
+    }
     return {
       block: true,
       message:
