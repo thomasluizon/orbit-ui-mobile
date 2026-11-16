@@ -110,3 +110,53 @@ export function assertExpiredDone({ logs, habitId, visible, signIn }) {
   if (!signInPaths.includes(signIn?.route)) throw new Error(`An expired-session Done must open the sign-in page, not ${signIn?.route}`)
   return { logs: 0, windowVisible: true, route: signIn.route }
 }
+
+// WebKit gives a key that the macOS input method claimed keyCode 229 or a composition (#1560). The Astra and palette shortcut
+// handlers act on the key name alone, so a claimed Escape or Command+K counts as received. cmdk ignores a claimed Down, so the
+// Down step counts only an unclaimed one, and a claimed Down posts again.
+export const claimedKey = (event) => event.keyCode === 229 || Boolean(event.composing)
+
+// The probe POSTs each receipt from its keydown capture listener, so 5 s bounds one loopback request (#2369).
+export const keyReceiptWindow = 5000
+// On a 5 vCPU macOS runner one Down step lost 3 posts in a row (run 43456283933), so each key gets twice that: 30 s at most.
+export const keyPosts = 6
+
+// A native key post can return without reaching WebKit, so only the page's keydown receipt proves delivery (#1560). A key
+// posts again only while the page has recorded no matching keydown, and a key that never arrives fails as OS delivery,
+// apart from the app check that follows. After a repost, a key from an earlier post can still arrive late, so a second
+// keydown fails before a toggle key (Command+K) or a second Down can mislead the app check.
+export async function deliverKey({ name, post, events, matches, waitFor, now, record, log }) {
+  const receipts = () => events().filter(matches)
+  const before = receipts().length
+  const attempts = []
+  const posted = []
+  record.push({ key: name, attempts })
+  for (let attempt = 1; attempt <= keyPosts && receipts().length === before; attempt++) {
+    const seen = events().length
+    const start = now()
+    const reply = await post()
+    posted.push({ start, end: now() })
+    const deadline = now() + keyReceiptWindow
+    await waitFor(() => receipts().length > before || now() >= deadline, `${name} keydown receipt`)
+    const received = receipts().length > before
+    attempts.push(received ? { post: attempt, received, reply } : { post: attempt, received, reply, keys: events().slice(seen) })
+    log(`Key ${name}: post ${attempt} of ${keyPosts}: ${received ? 'the page recorded the keydown in this window' : `no ${name} keydown in ${keyReceiptWindow / 1000} s`}`)
+  }
+  if (receipts().length === before) {
+    throw new Error(`OS key delivery failed: the page received no ${name} keydown after ${keyPosts} posts ${keyReceiptWindow / 1000} s apart; ` +
+      'report.json keyDelivery lists every other key the page recorded after each post')
+  }
+  if (attempts.length > 1) {
+    // The receipt may be the first post's key, delayed by up to (receipt time - first post start). With that same delay, the
+    // key of the last post, sent by its end, arrives by receipt time + (last post end - first post start); one more receipt
+    // window covers its loopback POST. Six posts of at most 7.5 s (5 s window plus a 2.5 s raise) make this guard at most
+    // 50 s, so one key takes at most about 100 s and five keys about 8.5 min, inside the 60 min job limit.
+    const until = now() + (posted.at(-1).end - posted[0].start) + keyReceiptWindow
+    await waitFor(() => receipts().length > before + 1 || now() >= until, `late ${name} keydown`)
+  }
+  const received = receipts().length - before
+  if (received > 1) {
+    throw new Error(`OS key delivery failed: the page received ${received} ${name} keydowns from ${attempts.length} post${attempts.length === 1 ? '' : 's'}; ` +
+      'a key arrived after its window together with its repost')
+  }
+}

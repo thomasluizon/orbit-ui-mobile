@@ -4,7 +4,7 @@ import { resolve } from 'node:path'
 import postcss from 'postcss'
 import tailwind from '@tailwindcss/postcss'
 import { afterAll, beforeAll, expect, it } from 'vitest'
-import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
+import { closeChrome, registerChromeLaunchHook, setUpPage, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 
 let browser: Browser
 let launch: BrowserLaunch | undefined
@@ -91,10 +91,11 @@ it.each([1, 1.1].flatMap((zoom) => (['no-preference', 'reduce'] as const).map((r
   'releases the bulk removal offset before the viewport grows, zoom=$zoom motion=$reducedMotion', async ({ zoom, reducedMotion }) => {
     const page = await browser.newPage({ viewport: { width: 412, height: 1100 }, reducedMotion })
     try {
-      page.setDefaultTimeout(3000)
-      await page.setContent(`<!doctype html><style>${stylesheet}</style><div id="root" data-count="30" data-remaining="0"></div>`)
-      await page.addScriptTag({ content: script })
-      await page.waitForFunction(() => document.querySelectorAll('[data-row]').length === 30)
+      await setUpPage(page, 3000, async () => {
+        await page.setContent(`<!doctype html><style>${stylesheet}</style><div id="root" data-count="30" data-remaining="0"></div>`)
+        await page.addScriptTag({ content: script })
+        await page.waitForFunction(() => document.querySelectorAll('[data-row]').length === 30)
+      })
       const scroller = page.locator('[data-shell-scroller]')
       await scroller.evaluate(async (element) => {
         element.scrollTop = 650
