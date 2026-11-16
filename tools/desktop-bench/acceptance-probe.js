@@ -44,6 +44,8 @@
     if (name === 'astra-close' || name === 'astra-closed') {
       await until(() => !document.querySelector('[data-shell-conversation]'), 'Astra dismissal')
       await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)))
+      // The runner posts the native Command+K once Astra is closed, so its receipt needs this listener before the palette opens.
+      document.addEventListener('keydown', recordPaletteKey, true)
       await report('astra-closed')
       return
     }
@@ -69,7 +71,6 @@
   }
   function recordPaletteKey(event) {
     const input = document.querySelector('[cmdk-input]')
-    if (!input) return
     // WebKit gives a key that the macOS input method claimed keyCode 229, so keyCode and composing make that case visible (#1560).
     void report('palette-key', { key: event.key, code: event.code, keyCode: event.keyCode, composing: event.isComposing, trusted: event.isTrusted,
       targetInput: event.target === input, documentFocused: document.hasFocus(), before: paletteState(),
