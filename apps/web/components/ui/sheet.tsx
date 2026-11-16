@@ -213,7 +213,7 @@ function SheetTitleContent({ title, titleMode, accessibleTitle, expanded, onTogg
   onClampedChange: (clamped: boolean) => void
 }) {
   const t = useTranslations()
-  if (!title || titleMode !== 'typed') return <OrbitNameText text={title ?? accessibleTitle ?? t('common.appName')} />
+  if (!title || titleMode !== 'typed') return <SheetLabelTitle text={title ?? accessibleTitle ?? t('common.appName')} />
   const text = <PersonalText className="orbit-sheet-typed-title" onClampedChange={onClampedChange}>{title}</PersonalText>
   return clamped ? <button type="button" className="orbit-sheet-title-content orbit-sheet-title-button" aria-expanded={expanded}
     aria-controls={fullTitleId} onClick={onToggle}>{text}</button>
@@ -309,6 +309,11 @@ function useSheetBodyFocusVisibility(virtualizedBody: boolean | undefined) {
     observer.observe(body)
     observer.observe(event.target)
   }
+}
+
+function SheetLabelTitle({ text }: Readonly<{ text: string }>) {
+  if (!text.includes('Orbit')) return text
+  return <span data-slot="sheet-title-label"><OrbitNameText text={text} /></span>
 }
 
 function SheetDescription({ text }: Readonly<{ text: string | undefined }>) {

@@ -354,6 +354,18 @@ describe('Sheet', () => {
         expect(Math.abs(measured.gapAfter)).toBeLessThanOrEqual(1)
       } finally { await page.close() }
     })
+
+    it.each(['Como funciona o widget do Orbit?', 'How does the Orbit widget work?', 'Orbit: o que muda?'])('names the dialog with the exact sentence when a mark follows the name Orbit: %s', async (title) => {
+      render(<Sheet open title={title} />)
+      const dialog = screen.getByRole('dialog', { name: title })
+      const page = await browser.newPage()
+      try {
+        await page.setContent(`<style>${stylesheet}</style>${dialog.outerHTML}`)
+        expect(await page.getByRole('dialog', { name: title, exact: true }).count()).toBe(1)
+        expect(await page.getByRole('heading', { name: title, exact: true }).count()).toBe(1)
+        expect(await page.locator('.orbit-sheet-title [translate="no"]').evaluate((name) => getComputedStyle(name).display)).toBe('inline')
+      } finally { await page.close() }
+    })
   })
 
   it('finishes its exit before reporting close', async () => {
