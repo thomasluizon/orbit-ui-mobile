@@ -368,7 +368,7 @@ function RescheduleBlock({ habit, rescue: { query, open }, hasPro, locale, today
         <View accessible accessibilityLiveRegion="polite" style={styles.rescueContent}>{suggestion ? renderRescueProposalValues(suggestion, buildRescheduleProposalLabels(suggestion, { locale, today, translate: t, formatTime: displayTime }), t('habits.detail.rescheduleFinePrint'), tokens) : <RescueWait query={query} tokens={tokens} />}</View>
         <View style={styles.rescueActions}><ActionRow>
           {notNow}
-          {suggestion ? <PillButton variant={actionVariant} size="sm" loading={updateHabit.isPending} onClick={() => void accept(suggestion)}>{t('habits.detail.rescheduleAccept')}</PillButton> : query.error ? <PillButton leadingIcon={<OrbitMascot size={16} />} variant="ghost" size="sm" onClick={() => void query.refetch()}>{t('habits.reschedule.suggestDate')}</PillButton> : null}
+          {suggestion ? <PillButton variant={actionVariant} size="sm" loading={updateHabit.isPending} onClick={() => void accept(suggestion)}>{t('habits.detail.rescheduleAccept')}</PillButton> : query.error ? <PillButton leadingIcon={<OrbitMascot size={16} reading={query.isFetching} />} loading={query.isFetching} loadingFace="icon" variant="ghost" size="sm" onClick={() => void query.refetch()}>{t('habits.reschedule.suggestDate')}</PillButton> : null}
         </ActionRow></View>
       </View>
     </Proposed>

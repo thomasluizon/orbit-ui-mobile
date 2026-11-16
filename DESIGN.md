@@ -1843,7 +1843,7 @@ and its size, is disabled and `aria-busy`, and its face takes the skeleton treat
 Standalone mark-only Orbit actions keep their busy announcement. A control whose small Orbit starts an Orbit
 read takes no skeleton face: while the read runs, the Orbit plays the small face read motion (Identity) and the
 control stays `aria-busy`. That covers the form fill actions for emoji and tags, the ask action of the form, the
-offer actions of the conversation that send a request, the proactive action and the date field face. In a guided flow, Orbit in Pensando is the running
+offer actions of the conversation that send a request, the proactive action, the date field face and the suggest date retry of the reschedule card. In a guided flow, Orbit in Pensando is the running
 feedback, and the primary action waits as above. Composer send retains its upward arrow while a reply runs; the pending reply owns running feedback and a separate Stop reply control remains reachable. An idle action carries no looping status animation, including
 while focused (#1607, #1668). Orbit's idle loop is not a status animation. It never runs inside an action, except the conversation entry and an Orbit line on its view. The small face read motion is the busy feedback of an Orbit read, not an idle loop.
 

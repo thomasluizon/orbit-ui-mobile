@@ -90,6 +90,7 @@ const mocks = vi.hoisted(() => ({
   rescheduleOptions: [] as { enabled: boolean }[],
   rescheduleError: null as Error | null,
   reschedulePaused: false,
+  rescheduleRefetching: false,
   rescheduleRefetch: vi.fn(),
   language: 'en',
   uses24HourClock: undefined as boolean | undefined,
@@ -201,14 +202,14 @@ vi.mock('@/hooks/use-reschedule-suggestion', () => ({
   useRescheduleSuggestion: (options: { enabled: boolean }) => {
     mocks.rescheduleOptions.push(options)
     const settled = mocks.suggestion !== null || mocks.rescheduleError !== null
-    return { suggestion: mocks.suggestion, error: mocks.rescheduleError, isFetching: !settled && !mocks.reschedulePaused, isPaused: !settled && mocks.reschedulePaused, refetch: mocks.rescheduleRefetch }
+    return { suggestion: mocks.suggestion, error: mocks.rescheduleError, isFetching: mocks.rescheduleRefetching || (!settled && !mocks.reschedulePaused), isPaused: !settled && mocks.reschedulePaused, refetch: mocks.rescheduleRefetch }
   },
 }))
 
 vi.mock('@/components/shell/flow-shell', () => ({
   FlowShell: ({ children, header }: { children: React.ReactNode; header?: React.ReactNode }) => <main>{header}{children}</main>,
 }))
-vi.mock('@/components/ui/orbit-mascot', () => ({ OrbitMascot: ({ size, state }: { size: number; state?: string }) => <svg data-testid="orbit-mascot" data-size={size} data-state={state} aria-hidden="true" /> }))
+vi.mock('@/components/ui/orbit-mascot', () => ({ OrbitMascot: ({ size, state, reading }: { size: number; state?: string; reading?: boolean }) => <svg data-testid="orbit-mascot" data-size={size} data-state={state} data-reading={reading || undefined} aria-hidden="true" /> }))
 vi.mock('@/components/ui/badge', () => ({ Badge: ({ children }: { children: React.ReactNode }) => <span data-testid="badge">{children}</span> }))
 vi.mock('@/components/ui/confirm-sheet', () => ({
   ConfirmSheet: ({ open, title, message, confirmLabel, onConfirm, onCancel }: { open: boolean; title: string; message: string; confirmLabel: string; onConfirm: () => void; onCancel: () => void }) => open
@@ -411,6 +412,7 @@ describe('HabitDetailScreen', () => {
     mocks.rescheduleOptions = []
     mocks.rescheduleError = null
     mocks.reschedulePaused = false
+    mocks.rescheduleRefetching = false
     mocks.rescheduleRefetch.mockReset()
     mocks.language = 'en'
     mocks.uses24HourClock = undefined
@@ -835,6 +837,26 @@ describe('HabitDetailScreen', () => {
     await act(async () => { rejectUpdate(new Error('Write failed')); await Promise.resolve() })
     expect(mocks.showError).not.toHaveBeenCalled()
     expect(screen.getByRole('group', { name: 'habits.form.proposedByAstra' })).toBeInTheDocument()
+  })
+
+  it('moves the Orbit of the suggest date button while a retry with a kept error runs, with no skeleton light', () => {
+    openRescueGate()
+    mocks.rescheduleError = createApiClientError(500, { error: 'Unavailable' }, 'Failed')
+    const view = render(<HabitDetailScreen habitId="habit-1" />)
+    const retry = () => screen.getByRole('button', { name: 'habits.reschedule.suggestDate' })
+    expect(within(retry()).getByTestId('orbit-mascot')).not.toHaveAttribute('data-reading')
+    expect(retry()).not.toHaveAttribute('aria-busy')
+    fireEvent.click(retry())
+    expect(mocks.rescheduleRefetch).toHaveBeenCalledOnce()
+    mocks.rescheduleRefetching = true
+    view.rerender(<HabitDetailScreen habitId="habit-1" />)
+    expect(retry()).toHaveAttribute('aria-busy', 'true')
+    expect(within(retry()).getByTestId('orbit-mascot')).toHaveAttribute('data-reading', 'true')
+    expect(retry().querySelector('[data-slot="skeleton-face"]')).toBeNull()
+    mocks.rescheduleRefetching = false
+    view.rerender(<HabitDetailScreen habitId="habit-1" />)
+    expect(retry()).not.toHaveAttribute('aria-busy')
+    expect(within(retry()).getByTestId('orbit-mascot')).not.toHaveAttribute('data-reading')
   })
 
   it('offers Pro and Not now on the free rescue card without asking Astra', () => {
