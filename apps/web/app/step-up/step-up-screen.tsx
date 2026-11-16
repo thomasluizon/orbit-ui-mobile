@@ -320,12 +320,16 @@ function StepUpScreenContent({
   )
 }
 
-/** With `orbit_guided_flows` on, every state shows in the guided question layout. With it off, the current surface of each state shows. */
-function StepUpSurface({ guided, operation, state, ...sharedView }: Readonly<SharedStepUpViewProps & { guided: boolean; operation: StepUpOperation; state: GuidedStepUpState }>) {
+/**
+ * With `orbit_guided_flows` on, every state shows in the guided question layout. With it off, the current surface of each state shows.
+ * It names the shared props, not a rest object, so `check-i18n-usage` traces `t` to its `stepUp` namespace.
+ */
+function StepUpSurface({ guided, operation, state, operationLabel, t }: Readonly<SharedStepUpViewProps & { guided: boolean; operation: StepUpOperation; state: GuidedStepUpState }>) {
   if (guided) return <GuidedStepUp operation={operation} state={state} />
+  const sharedView = { operationLabel, t }
   if (state.kind === 'success') return <StepUpSuccess {...sharedView} deletionDate={state.deletionDate} showProNotice={state.showProNotice} onSignOut={state.onSignOut} />
   if (state.kind === 'exhausted') return <StepUpExhausted {...sharedView} lockSeconds={state.lockSeconds} backLabel={state.backLabel} onBack={state.onBack} />
-  return <StepUpChallenge {...sharedView} {...state} />
+  return <StepUpChallenge {...state} operationLabel={operationLabel} t={t} />
 }
 
 type StepUpTranslator = ReturnType<typeof useTranslations>
@@ -400,7 +404,7 @@ function DeletionResult({ deletionDate, pro, onSignOut }: Readonly<{ deletionDat
   return (
     <ResultDialog
       title={t('result.title')}
-      sentence={t(pro ? 'result.account.deletionScheduledPro' : 'result.account.deletionScheduled', { date: deletionDate })}
+      sentence={pro ? t('result.account.deletionScheduledPro', { date: deletionDate }) : t('result.account.deletionScheduled', { date: deletionDate })}
       primaryLabel={t('stepUp.signOut')}
       onPrimary={onSignOut}
       onClose={() => setDismissed(true)}

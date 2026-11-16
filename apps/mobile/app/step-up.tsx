@@ -306,12 +306,16 @@ function StepUpScreenContent() {
   )
 }
 
-/** With `orbit_guided_flows` on, every state shows in the guided question layout. With it off, the current surface of each state shows. */
-function StepUpSurface({ guided, operation, state, ...sharedView }: Readonly<SharedMobileStepUpProps & { guided: boolean; operation: StepUpOperation; state: GuidedStepUpState }>) {
+/**
+ * With `orbit_guided_flows` on, every state shows in the guided question layout. With it off, the current surface of each state shows.
+ * It names the shared props, not a rest object, so `check-i18n-usage` traces `t` to its translator.
+ */
+function StepUpSurface({ guided, operation, state, operationLabel, t, tokens }: Readonly<SharedMobileStepUpProps & { guided: boolean; operation: StepUpOperation; state: GuidedStepUpState }>) {
   if (guided) return <GuidedStepUp operation={operation} state={state} />
+  const sharedView = { operationLabel, t, tokens }
   if (state.kind === 'success') return <MobileStepUpSuccess {...sharedView} deletionDate={state.deletionDate} showProNotice={state.showProNotice} onSignOut={state.onSignOut} />
   if (state.kind === 'exhausted') return <MobileStepUpExhausted {...sharedView} lockSeconds={state.lockSeconds} backLabel={state.backLabel} onBack={state.onBack} />
-  return <MobileStepUpChallenge {...sharedView} {...state} />
+  return <MobileStepUpChallenge {...state} operationLabel={operationLabel} t={t} tokens={tokens} />
 }
 
 type StepUpTokens = ReturnType<typeof createTokensV2>
@@ -386,7 +390,7 @@ function DeletionResult({ deletionDate, pro, onSignOut, t }: Readonly<{ deletion
   return (
     <ResultDialog
       title={t('result.title')}
-      sentence={t(pro ? 'result.account.deletionScheduledPro' : 'result.account.deletionScheduled', { date: deletionDate })}
+      sentence={pro ? t('result.account.deletionScheduledPro', { date: deletionDate }) : t('result.account.deletionScheduled', { date: deletionDate })}
       primaryLabel={t('stepUp.signOut')}
       onPrimary={onSignOut}
       onClose={() => setDismissed(true)}
