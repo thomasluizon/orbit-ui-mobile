@@ -18,6 +18,10 @@ export type CapacityNoticeTypeContract = [
   Assert<IsExactWidth<CapacityNoticeProps['action'], React.ReactElement | undefined>>,
   Assert<IsExact<{ message: 'Limit reached' }, CapacityNoticeProps>>,
   Assert<IsExact<{ message: 'Limit reached'; body: 'Try tomorrow'; action: typeof _action }, CapacityNoticeProps>>,
+  Assert<IsExactWidth<CapacityNoticeProps['mascotState'], 'descansando' | undefined>>,
+  Assert<IsExact<{ message: 'Limit reached'; mascotState: 'descansando' }, CapacityNoticeProps>>,
+  // @ts-expect-error a boundary never shows Orbit in any other state
+  Assert<IsExact<{ message: 'Limit reached'; mascotState: 'feliz' }, CapacityNoticeProps>>,
   // @ts-expect-error capacity message is required
   Assert<IsExact<{ body: 'Try tomorrow' }, CapacityNoticeProps>>,
   // @ts-expect-error boundaries have no variant

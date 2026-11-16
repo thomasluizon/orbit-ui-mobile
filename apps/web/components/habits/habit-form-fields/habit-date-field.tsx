@@ -14,7 +14,7 @@ import { RadioRow } from '@/components/ui/select-check'
 import { DateField } from '@/components/ui/date-field'
 import { Input } from '@/components/ui/input'
 import { CapacityNotice } from '@/components/ui/capacity-notice'
-import { AstraGlyph } from '@/components/ui/astra-glyph'
+import { OrbitMascot } from '@/components/ui/orbit-mascot'
 import { useLocale, useTranslations } from 'next-intl'
 
 function isDateCapacity(error: unknown): boolean {
@@ -89,7 +89,7 @@ export function HabitDateField({ formHelpers, onRecurrence, lockedGeneral, onCha
   const validationError = form.formState.errors.datePhrase?.message
   const error = issue || validationError
   return <section data-habit-date-field="" className="flex min-w-0 flex-col gap-4">
-    {!formHelpers.isGeneral ? <Input label={t('habits.form.datePhrase')} placeholder={t('habits.form.datePhrasePlaceholder')} trailing={snapshot.pending || snapshot.astra ? <span role="status" aria-label={t(snapshot.pending ? 'habits.form.dateInterpreting' : 'habits.form.dateInterpreted')}><AstraGlyph size={16} color="var(--fg-3)" /></span> : undefined} name="datePhrase" autoComplete="off" value={phrase} error={error ? t(error) : undefined} focusRequest={validationError && issue !== 'habits.form.recurrenceRequiresHabit' ? formHelpers.validationFocusRequest : undefined} onChange={(value) => editor.setPhrase(value)} /> : null}
+    {!formHelpers.isGeneral ? <Input label={t('habits.form.datePhrase')} placeholder={t('habits.form.datePhrasePlaceholder')} trailing={snapshot.pending || snapshot.astra ? <span role="status" aria-label={t(snapshot.pending ? 'habits.form.dateInterpreting' : 'habits.form.dateInterpreted')}><OrbitMascot size={16} color="var(--fg-3)" /></span> : undefined} name="datePhrase" autoComplete="off" value={phrase} error={error ? t(error) : undefined} focusRequest={validationError && issue !== 'habits.form.recurrenceRequiresHabit' ? formHelpers.validationFocusRequest : undefined} onChange={(value) => editor.setPhrase(value)} /> : null}
     <TaskDateChoices formHelpers={formHelpers} lockedGeneral={lockedGeneral} onChange={onChange} />
     {!formHelpers.isGeneral ? <div className="flex min-w-0 flex-col gap-2">
       {type === 'habit' ? <span className="form-label">{dateLabel}</span> : null}

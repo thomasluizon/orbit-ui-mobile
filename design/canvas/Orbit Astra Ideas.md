@@ -1,4 +1,4 @@
-# Astra Ideas composition
+# Orbit Ideas composition
 
 Active bounded amendment for #1611 and #1825. This drawing replaces the text-only Ideas amendment.
 DESIGN.md Information architecture and Bans retain precedence. The conversation drawing retains
@@ -59,8 +59,8 @@ normal ICU translation result. Localized braced slot words receive quiet neutral
 selection still receives the exact original translated prompt and its original slot offsets.
 Empty example content adds no line or gap.
 
-Complete prompts and the current live producer invoke Astra through their existing owners. Rows
-carry no repeated Astra glyph. Slots only prepare input. This composition changes no allowance, request,
+Complete prompts and the current live producer invoke Orbit through their existing owners. Rows
+carry no repeated small static face. Slots only prepare input. This composition changes no allowance, request,
 preview or confirmation policy.
 
 ## State compositions

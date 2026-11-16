@@ -16,6 +16,7 @@ import { API_KEY_EXPIRY_DEFAULT, apiKeyFormSchema, getApiKeyNameError, validateA
 import { API } from '@orbit/shared/api'
 import { getMcpEndpointUrl } from '@orbit/shared/utils/advanced-settings'
 import { McpCodeClient } from '@/components/profile/mcp-code-client'
+import { Skeleton } from '@/components/ui/skeleton'
 import { stepUpMessageResponseSchema } from '@orbit/shared/types/step-up'
 import { useDateFormat } from '@/hooks/use-date-format'
 import { useApiKeyManagement } from '@/app/advanced-api-keys'
@@ -87,7 +88,7 @@ function ApiKeyList({ apiKeys, isLoading, loadError, onRevoke, onRetry }: Readon
   const { t } = useTranslation()
   const tokens = useTokens()
   if (isLoading) {
-    return <Text accessibilityRole="progressbar" style={[styles.message, { color: tokens.fg3 }]}>{t('common.loading')}</Text>
+    return <Skeleton variant="settings" rows={2} label={t('common.loading')} />
   }
   if (loadError) {
     return <InlineLoadError message={t('orbitMcp.apiKeysError')} onRetry={onRetry} />

@@ -30,7 +30,9 @@ describe('IconButton', () => {
       renderer.act(() => tree.update(<IconButton label={label} onClick={onClick} loading><RefreshCw /></IconButton>))
       expect(button.props.accessibilityState).toMatchObject({ busy: true, disabled: true })
       expect(button.props.onPress).toBeUndefined()
-      expect(tree.root.findAllByType('ActivityIndicator')).toHaveLength(1)
+      expect(tree.root.findAllByType('ActivityIndicator')).toHaveLength(0)
+      expect(tree.root.findAllByType(RefreshCw)).toHaveLength(1)
+      expect(tree.root.findAll((node: any) => typeof node.type === 'string' && node.props.testID === 'skeleton-face')).toHaveLength(1)
     } finally {
       renderer.act(() => tree.unmount())
     }

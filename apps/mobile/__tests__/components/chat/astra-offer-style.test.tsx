@@ -1,3 +1,4 @@
+import { controlStyle } from '@/__tests__/support/press-feedback'
 import { SECONDARY_TEXT_SIZE } from '@orbit/shared/theme'
 import { afterEach, expect, it, vi } from 'vitest'
 import { StyleSheet, View, type ViewStyle, type TextStyle } from 'react-native'
@@ -38,7 +39,7 @@ it.each([320, 360, 384, 412].flatMap(width => (['en', 'pt-BR'] as const).flatMap
     expect(text.clipped).toBe(false)
     const control = tree.root.findAll(node => typeof node.type === 'string' && node.props.accessibilityLabel === label)[0]!
     await act(() => (control.props.onFocus as () => void)())
-    const style = StyleSheet.flatten((typeof control.props.style === 'function' ? control.props.style({ pressed: false }) : control.props.style) as ViewStyle)
+    const style = controlStyle(control) as ViewStyle
     expect(style.outlineWidth).toBe(2)
     expect(style.borderColor).toBe('transparent')
     const dismiss = tree.root.findAll(node => typeof node.type === 'string' && node.props.accessibilityLabel === i18n.t('chat.offers.dismiss'))

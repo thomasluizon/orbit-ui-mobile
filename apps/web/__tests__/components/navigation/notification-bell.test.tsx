@@ -323,7 +323,12 @@ describe('alerts', () => {
     state.isLoading = true
     const { container } = showInbox()
     expect(screen.getByRole('list')).toHaveAttribute('aria-busy', 'true')
-    expect(container.querySelectorAll('[data-skeleton-line]')).toHaveLength(15)
+    const lines = [...container.querySelectorAll('[data-skeleton-line]')]
+    expect(lines).toHaveLength(15)
+    for (const line of lines) {
+      expect(line.querySelector('[data-variant="fill"][aria-hidden="true"] > .skeleton-pulse')).toHaveClass('rounded-[var(--r-well)]', 'bg-[var(--bg-well)]')
+    }
+    expect(screen.getByRole('list').querySelector('.animate-pulse, .rounded-full, [class*="--bg-elev"]')).toBeNull()
     expect(screen.queryByText('Nothing to see here')).toBeNull()
   })
 

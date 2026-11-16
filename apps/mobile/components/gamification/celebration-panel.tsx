@@ -9,7 +9,7 @@ import { motionDurations, motionEasings, SPACING, TOUCH_TARGET_MIN } from '@orbi
 import { isStreakCelebrationMilestone, type CelebrationQueueItem } from '@orbit/shared/stores'
 import { X } from '@/components/ui/icons'
 import { Button } from '@/components/ui/pill-button'
-import { OrbitMark } from '@/components/ui/orbit-mark'
+import { OrbitMascot } from '@/components/ui/orbit-mascot'
 import { createTokensV2 } from '@/lib/theme'
 import { toAnimatedEasing, usePrefersReducedMotion } from '@/lib/motion'
 import { plural } from '@/lib/plural'
@@ -156,7 +156,7 @@ function CelebrationItem({ active, reduced, closeRef, complete, beforeDismiss, o
         opacity, transform: [{ translateY: y }] }]}>
       <Text testID={daily ? 'daily-streak-announcement' : 'celebration-announcement'} accessibilityLiveRegion="polite"
         style={styles.announcement}>{announcement}</Text>
-      <View style={styles.mark} importantForAccessibility="no-hide-descendants"><OrbitMark size={44} accent={false} /></View>
+      <View style={styles.mark} importantForAccessibility="no-hide-descendants"><OrbitMascot size={48} state="feliz" still /></View>
       <View style={[styles.copy, { minWidth: Math.min(width - 80, 112 * fontScale) }]} accessible accessibilityLabel={label}>
         {daily ? <DailyStreakMoment streak={active.payload.streak} entering={entering} /> : (
           <View importantForAccessibility="no-hide-descendants">
@@ -178,7 +178,7 @@ function CelebrationItem({ active, reduced, closeRef, complete, beforeDismiss, o
 const styles = StyleSheet.create({
   panel: { alignItems: 'center', borderRadius: 20, borderWidth: 1, flexDirection: 'row', flexWrap: 'wrap', gap: 16, padding: SPACING.s24 },
   daily: { gap: 12, padding: SPACING.s16 },
-  mark: { height: 44, width: 44, alignItems: 'center', justifyContent: 'center' },
+  mark: { height: 48, width: 48, alignItems: 'center', justifyContent: 'center' },
   copy: { flex: 1, minWidth: 0, gap: 4 },
   eyebrow: { fontFamily: 'GeistMono_500Medium', fontSize: 12, letterSpacing: 0.72, textTransform: 'uppercase' },
   line: { fontFamily: 'Geist_400Regular', fontSize: 17, lineHeight: 24.65 },

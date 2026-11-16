@@ -11,6 +11,7 @@ import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { createTokensV2, shadowsV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import Reanimated, { Easing, Keyframe, ReduceMotion } from 'react-native-reanimated'
+import { PressScale } from '@/components/motion/press-scale'
 import { useResolvedMotionPreset } from '@/lib/motion'
 import { useUIStore } from '@/stores/ui-store'
 
@@ -130,19 +131,21 @@ export function Item({ item, sheetPresentation, onActivate }: Readonly<{ item: M
           disabled ? styles.disabled : null,
         ]}
       >
-        {item.icon ? <Icon color={item.destructive ? tokens.statusBad : tokens.fg2} name={item.icon} size={20} strokeWidth={2} /> : null}
-        <Text
-          numberOfLines={fontScale > 1.3 ? undefined : 1}
-          style={[styles.label, { color: item.destructive ? tokens.statusBadText : tokens.fg1 }]}
-        >
-          {item.label}
-        </Text>
-        {item.checked ? <View style={{ height: 20 * fontScale, justifyContent: 'center' }}><Check size={20} color={tokens.fg1} strokeWidth={2} /></View> : null}
-        {item.badge ? (
-          <View style={[styles.badge, { backgroundColor: tokens.bgElev }]}>
-            <Text style={[styles.badgeText, { color: tokens.fg2 }]}>{item.badge}</Text>
-          </View>
-        ) : null}
+        {({ pressed }) => <PressScale pressed={pressed} disabled={disabled} style={[styles.itemContent, fontScale > 1.3 ? { alignItems: 'flex-start' } : null]}>
+          {item.icon ? <Icon color={item.destructive ? tokens.statusBad : tokens.fg2} name={item.icon} size={20} strokeWidth={2} /> : null}
+          <Text
+            numberOfLines={fontScale > 1.3 ? undefined : 1}
+            style={[styles.label, { color: item.destructive ? tokens.statusBadText : tokens.fg1 }]}
+          >
+            {item.label}
+          </Text>
+          {item.checked ? <View style={{ height: 20 * fontScale, justifyContent: 'center' }}><Check size={20} color={tokens.fg1} strokeWidth={2} /></View> : null}
+          {item.badge ? (
+            <View style={[styles.badge, { backgroundColor: tokens.bgElev }]}>
+              <Text style={[styles.badgeText, { color: tokens.fg2 }]}>{item.badge}</Text>
+            </View>
+          ) : null}
+        </PressScale>}
       </Pressable>
     )
 
@@ -176,6 +179,12 @@ const styles = StyleSheet.create({
   },
   sheetItem: {
     minHeight: 56,
+  },
+  itemContent: {
+    alignItems: 'center',
+    flex: 1,
+    flexDirection: 'row',
+    gap: 12,
   },
   label: {
     flex: 1,

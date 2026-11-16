@@ -4,7 +4,7 @@ import { useAstraAllowanceCopy } from '@/hooks/use-astra-allowance-copy'
 
 import * as Sentry from '@sentry/nextjs'
 
-import { AstraGlyph } from '@/components/ui/astra-glyph'
+import { OrbitMascot } from '@/components/ui/orbit-mascot'
 
 import { X } from '@/components/ui/icons'
 
@@ -102,7 +102,7 @@ function AstraFallback({
     <div className="flex flex-col" style={{ gap: 12 }}>
       {atLimit ? <CapacityNotice message={limitMessage} /> : null}
       <div className="flex flex-col items-start" style={{ gap: 8 }}>
-        <PillButton minimumHeight={48} borderless iconOnly label={askLabel} variant="ghost" loading={isSuggesting} hint={isSuggesting ? readingLabel : undefined} disabled={atLimit} onClick={onAsk}><AstraGlyph size={20} /></PillButton>
+        <PillButton minimumHeight={48} borderless iconOnly label={askLabel} variant="ghost" loading={isSuggesting} hint={isSuggesting ? readingLabel : undefined} disabled={atLimit} onClick={onAsk}><OrbitMascot size={20} /></PillButton>
         {!atLimit ? <p className="text-xs text-[var(--fg-3)]">{costLabel}</p> : null}
       </div>
     </div>

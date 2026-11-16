@@ -11,6 +11,7 @@ import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { ConfirmSheet } from '@/components/ui/confirm-sheet'
 import { PersonalTextDetails } from '@/components/ui/personal-text-details'
 import { PillButton } from '@/components/ui/pill-button'
+import { Skeleton } from '@/components/ui/skeleton'
 
 interface NotionConnectionSheetProps {
   callbackFailed: boolean
@@ -27,11 +28,19 @@ function NotionConnectionDetails({ controller, reconnect, hasConnection }: Reado
   const locale = useLocale()
   const { connection } = controller
   const current = connection.data
-  return <>{connection.isLoading ? <p className="text-sm text-[var(--fg-2)]" >{t('common.loading')}</p> : hasConnection ? <>
+  return <>{connection.isLoading ? <NotionDetailsSkeleton label={t('common.loading')} /> : hasConnection ? <>
           {current?.workspaceName ? <PersonalTextDetails textStyle={{ fontSize: '1rem', lineHeight: 1.5 }}>{current.workspaceName}</PersonalTextDetails> : null}
           {current?.lastPollAtUtc ? <p className="text-sm text-[var(--fg-2)]" >{t('profile.connections.lastSync', { time: new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(current.lastPollAtUtc)) })}</p> : <p className="text-sm text-[var(--fg-2)]" >{t('profile.connections.awaitingSync')}</p>}
           {reconnect ? <p className="text-sm text-[var(--fg-2)]" >{t('profile.connections.renew')}</p> : null}
         </> : <p className="text-sm text-[var(--fg-2)]" >{t('profile.connections.description')}</p>}</>
+}
+
+/** Holds the place of the workspace name and the last sync line while the connection loads. */
+function NotionDetailsSkeleton({ label }: Readonly<{ label: string }>) {
+  return <div role="status" aria-busy="true" aria-label={label} data-notion-details-skeleton="" className="flex flex-col" style={{ gap: 16 }}>
+    <span className="block h-6 w-1/2"><Skeleton variant="fill" grouped /></span>
+    <span className="block h-5 w-2/3"><Skeleton variant="fill" grouped /></span>
+  </div>
 }
 
 export function NotionConnectionSheet({ callbackFailed, controller, onClose, onAuthorize, onOpenUrl }: Readonly<NotionConnectionSheetProps>) {

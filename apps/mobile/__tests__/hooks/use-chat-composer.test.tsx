@@ -24,7 +24,7 @@ import { makeHabitDetail } from '@orbit/shared/test-support/habit-detail-fixture
 import { i18n } from '@/lib/i18n'
 import type { DocumentPickerAsset } from 'expo-document-picker'
 
-import { Linking,StyleSheet,type FlatList } from 'react-native'
+import { Linking,type FlatList } from 'react-native'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { CHAT_DRAFT_STORAGE_KEY } from '@orbit/shared/hooks'
 import { prepareChatRequest } from '@orbit/shared/stores'
@@ -38,6 +38,7 @@ import { useChatStore } from '@/stores/chat-store'
 import { useUIStore } from '@/stores/ui-store'
 import RootLayout from '@/app/_layout'
 import { AccessibilityInfo as TestAccessibilityInfo,__focusHost,__getFocusedNativeTag,__setFocusImpl,__setTouchMode,__resetTestHostConfig } from '../../test-mocks/react-native'
+import { pressableStyle } from '@/__tests__/support/press-feedback'
 
 const { Composer: ShellComposer } = await vi.importActual<typeof import('@/components/shell/composer')>('@/components/shell/composer')
 const { Shell412: ConversationShell } = await vi.importActual<typeof import('@/components/shell/shell-412')>('@/components/shell/shell-412')
@@ -169,6 +170,8 @@ vi.mock('react-native-svg', () => ({
   __esModule: true,
   default: () => null,
   Path: () => null,
+  ClipPath: () => null,
+  G: () => null,
   Defs: () => null,
   Stop: () => null,
   Rect: () => null,
@@ -451,7 +454,7 @@ function ComposerConversationHarness() {
   const open = useUIStore((state) => state.astraConversationOpen)
   return <ConversationShell
     tabBar={null}
-    composer={<ShellComposer {...chat.composerProps} onOpenConversation={() => useUIStore.getState().setAstraConversationOpen(true)} conversationLabel="Open Astra" />}
+    composer={<ShellComposer {...chat.composerProps} onOpenConversation={() => useUIStore.getState().setAstraConversationOpen(true)} conversationLabel="Talk to Orbit" />}
     conversation={<Conversation chat={chat} />}
     conversationOpen={open}
     conversationLabel="Astra"
@@ -1327,7 +1330,7 @@ describe('mobile useChatComposer', () => {
     expect(inputHosts(tree)[0].props.value).toBe('Keep my draft')
     const recovery = tree.root.findAll((node: { type: unknown; props: { accessibilityLabel?: string } }) => node.type === 'Pressable' && node.props.accessibilityLabel === 'common.openSettings')
     expect(recovery).toHaveLength(1)
-    expect(StyleSheet.flatten(recovery[0].props.style({ pressed: false })).minHeight).toBeGreaterThanOrEqual(48)
+    expect(pressableStyle(recovery[0], false).minHeight).toBeGreaterThanOrEqual(48)
     TestRenderer.act(() => recovery[0].props.onPress())
     expect(openSettings).toHaveBeenCalledOnce()
     await TestRenderer.act(async () => { tree.update(<ComposerConversationHarness />); await Promise.resolve() })

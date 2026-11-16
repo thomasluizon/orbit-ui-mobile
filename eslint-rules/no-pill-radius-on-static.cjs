@@ -19,7 +19,7 @@ const INTERACTIVE = new Set([
 ])
 const ROUND_BY_NATURE = new Set([
   'Avatar', 'AvatarImage', 'AvatarFallback', 'Dot', 'StatusDot', 'Ring', 'ProgressRing',
-  'Spinner', 'Skeleton', 'OrbitMark', 'AstraGlyph', 'AstraMark',
+  'Spinner', 'Skeleton', 'OrbitMascot',
 ])
 
 // Only a real activation handler or a link target proves a control. Every `onX` prop is too

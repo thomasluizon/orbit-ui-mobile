@@ -18,8 +18,8 @@ describe('motion pressable press timing', () => {
   it('takes the press duration from the press token and eases the scale on the enter curve, the mobile counterpart of --ease-out', async () => {
     let tree!: ReactTestRenderer
     await act(() => { tree = create(<MotionPressable onPress={vi.fn()} />) })
-    const host = tree.root.findAll((node) => typeof node.type === 'string')[0]!
-    expect(StyleSheet.flatten(host.props.style)).toMatchObject({
+    const face = tree.root.findAll((node) => typeof node.type === 'string' && node.props['data-slot'] === 'press-scale')[0]!
+    expect(StyleSheet.flatten(face.props.style)).toMatchObject({
       transition: 'transform 151ms cubic-bezier(0.11,0.22,0.33,0.44)',
     })
     await act(() => tree.update(<></>))

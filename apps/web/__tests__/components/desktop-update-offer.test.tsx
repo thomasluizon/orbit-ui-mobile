@@ -261,6 +261,7 @@ it('shows a failed download with an explicit retry and never installs the failed
   await click(en.versionUpdate.restartCta)
   expect(screen.getByRole('status')).toHaveTextContent(en.desktopUpdate.failed)
   expect(actions()).not.toContain('install')
+  expect(screen.getByRole('status').querySelector('[data-desktop-update] [data-asset="orbit-mascot"]')).toHaveAttribute('data-orbit-state', 'parado')
   await tick()
   expect(attempts).toBe(1)
   await click(en.common.retry)

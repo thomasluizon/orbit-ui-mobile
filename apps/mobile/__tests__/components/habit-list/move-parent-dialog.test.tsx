@@ -553,7 +553,14 @@ describe('editor parent picker boundaries', () => {
     const { tree, props } = renderDialog({ selectionOnly: true, inventoryState, onRetryInventory, options: [] })
     expect(findOptionRows(tree)).toEqual([])
     expect(sheetSlotButtons(tree.root, 'SheetActions')).toEqual([])
-    expect(flattenRenderedText(tree.toJSON())).toContain(inventoryState === 'loading' ? 'common.loading' : 'habits.loadError')
+    if (inventoryState === 'error') expect(flattenRenderedText(tree.toJSON())).toContain('habits.loadError')
+    else {
+      expect(flattenRenderedText(tree.toJSON())).not.toContain('common.loading')
+      const skeleton = tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'skeleton-unit-settings')
+      expect(skeleton).toHaveLength(1)
+      expect(skeleton[0]!.props).toMatchObject({ accessibilityRole: 'progressbar', accessibilityLabel: 'common.loading', accessibilityState: { busy: true } })
+      expect(tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'settings-skeleton-row')).toHaveLength(3)
+    }
     expect(props.onConfirm).not.toHaveBeenCalled()
   })
 })

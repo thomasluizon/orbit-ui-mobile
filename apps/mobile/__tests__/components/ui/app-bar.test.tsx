@@ -1,7 +1,7 @@
 import { createRef } from 'react'
 import { Pressable, Text } from 'react-native'
 import { describe, expect, it, vi } from 'vitest'
-import { AstraGlyph } from '@/components/ui/astra-glyph'
+import { OrbitMascot } from '@/components/ui/orbit-mascot'
 import { AppBar } from '@/components/ui/app-bar'
 import { press, renderNavigation } from './navigation-render'
 
@@ -32,7 +32,7 @@ describe('AppBar', () => {
     tree.unmount()
   })
   it('names a visual title when the caller does not use a heading', () => {
-    const tree = renderNavigation(<AppBar title="Astra" titleVisual={<AstraGlyph size={16} />} titleIsHeading={false} />)
+    const tree = renderNavigation(<AppBar title="Astra" titleVisual={<OrbitMascot size={16} />} titleIsHeading={false} />)
     const image = tree.hosts().find((node) => node.props.accessibilityRole === 'image')
     expect(image?.props.accessibilityLabel).toBe('Astra')
     expect(tree.hosts().filter((node) => node.props.accessibilityRole === 'header')).toHaveLength(0)
