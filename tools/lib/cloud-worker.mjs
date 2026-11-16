@@ -71,7 +71,12 @@ export const cloudOrder = (order, emptyRetryOf = null) => {
     : completed
 }
 
-const resolveOnPath = (command, options = {}) => {
+/**
+ * Resolve a bare command the way the platform's launcher does, so the result is a real file rather
+ * than a name Node will refuse. On win32 only PATHEXT candidates count: npm also drops an
+ * extensionless shell script next to the shim, and Windows cannot execute it.
+ */
+export const resolveOnPath = (command, options = {}) => {
   if (command.includes("/") || command.includes("\\")) {
     return existsSync(command) ? resolve(command) : null
   }
@@ -268,7 +273,7 @@ const writeJsonAtomic = (path, value) => {
   renameSync(temporary, path)
 }
 
-const gitRepositoryIdentity = (worktree) => {
+export const gitRepositoryIdentity = (worktree) => {
   const result = spawnSync("git", ["-C", worktree, "rev-parse", "--git-common-dir"], {
     encoding: "utf8",
     windowsHide: true,
@@ -284,7 +289,7 @@ const gitRepositoryIdentity = (worktree) => {
   }
 }
 
-const comparableGitIdentity = (identity) => process.platform === "win32" ? identity.toLowerCase() : identity
+export const comparableGitIdentity = (identity) => process.platform === "win32" ? identity.toLowerCase() : identity
 
 export const assertSameGitRepository = (worktree, configuredRepository, repositoryKey) => {
   const worktreeIdentity = gitRepositoryIdentity(worktree)
