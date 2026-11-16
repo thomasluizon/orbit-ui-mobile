@@ -1,7 +1,7 @@
 import { spawnSync } from "node:child_process"
 import { chmodSync, mkdirSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
-import { alertCheck, githubPageReader, listedWakeKeys, listOpenAlerts, listOpenPullRequests, markItem, pendingItems, pullRequestCheck, recordListing, runPullRequestKeys } from "../lib/auto-work-github.mjs"
+import { alertCheck, githubPageReader, listedWakeKeys, listOpenAlerts, listOpenPullRequests, markItem, pendingItems, pullRequestCheck, recordListing, runPullRequestKeys, unexpectedAuthor, unreportedPullRequests } from "../lib/auto-work-github.mjs"
 import { readRunState, writeRunState } from "../lib/run-state.mjs"
 import { T, root } from "./_harness.mjs"
 
@@ -9,11 +9,19 @@ const REPOSITORIES = [{ key: "ui", slug: "thomasluizon/orbit-ui-mobile" }, { key
   { key: "landing", slug: "thomasluizon/orbit-landing-page" }]
 const TICKET = "https://github.com/thomasluizon/orbit-tickets/issues/2149"
 
-/* Each item is a live projection of a real REST response; the bot pull request and the alerts are closed ones, read with their state filter removed. */
+/* Each item is a live projection of a real REST response; the pull requests and the alerts are closed ones, read with their state filter removed. */
 export const DEPENDABOT_PULL = { number: 1106, author: "dependabot[bot]", authorType: "Bot", head: "1eb7c13b62064064a60a3589eff1b1812f39190e", base: "main",
   draft: false, title: "Bump System.Formats.Cbor from 10.0.14 to 10.0.15", url: "https://github.com/thomasluizon/orbit-api/pull/1106" }
 const OWNER_PULL = { number: 2473, author: "thomasluizon", authorType: "User", head: "859e0638209bff39521cb381642f00d203f75116", base: "main", draft: false,
   title: "fix(brand): draw every app icon as the mascot with its eyes (#2144)", url: "https://github.com/thomasluizon/orbit-ui-mobile/pull/2473" }
+/** An owner pull request that no entry of the current run names, so an earlier run opened it. */
+const EARLIER_OWNER_PULL = { number: 1115, author: "thomasluizon", authorType: "User", head: "fcfcc2d215a0eca16b43935efd77635bec167183", base: "main", draft: false,
+  title: "test: run the cross-repository timeless hook test once and give each fixture value and helper one name", url: "https://github.com/thomasluizon/orbit-api/pull/1115" }
+const CONTRACT_PULL = { number: 2462, author: "orbit-contract-rebaseline[bot]", authorType: "Bot", head: "1fe4df96f28dedab74f55c6b285a7bc956116bfb", base: "main", draft: false,
+  title: "Update pinned API contract snapshot", url: "https://github.com/thomasluizon/orbit-ui-mobile/pull/2462" }
+/** A pull request from an account that no repository configures to open pull requests. */
+export const UNEXPECTED_PULL = { number: 20, author: "bellaFG", authorType: "User", head: "8edde4aebbb2f26a21a0c83b2b4d986e1e2757e2", base: "main", draft: false,
+  title: "fix: center orbital rings over hero title on mobile", url: "https://github.com/thomasluizon/orbit-landing-page/pull/20" }
 export const CODE_SCANNING_ALERT = { line: 84, message: "Cookie attribute 'Secure' is not set to true.\nCookie attribute 'Secure' is not set to true.", number: 28,
   path: "tests/Orbit.Infrastructure.Tests/Controllers/OAuthControllerTests.CookiePolicy.cs", rule: "cs/web/cookie-secure-not-set", severity: "medium", tool: "CodeQL",
   url: "https://github.com/thomasluizon/orbit-api/security/code-scanning/28" }
@@ -43,13 +51,19 @@ const fresh = (label, state = {}) => {
 const refusal = (change) => { try { change(); return "" } catch (error) { return error.message } }
 
 const listingCases = async () => {
-  const pulls = fakeReader({ "repos/thomasluizon/orbit-api/pulls": [DEPENDABOT_PULL], "repos/thomasluizon/orbit-ui-mobile/pulls": [OWNER_PULL] })
+  const pulls = fakeReader({ "repos/thomasluizon/orbit-api/pulls": [DEPENDABOT_PULL, EARLIER_OWNER_PULL], "repos/thomasluizon/orbit-ui-mobile/pulls": [OWNER_PULL, CONTRACT_PULL],
+    "repos/thomasluizon/orbit-landing-page/pulls": [UNEXPECTED_PULL] })
   const pullListing = await listOpenPullRequests({ repositories: REPOSITORIES, readPages: pulls.readPages })
   T("github: every repository is read for open pull requests of every author", JSON.stringify(pulls.calls.map((call) => call.path)) === JSON.stringify([
     "repos/thomasluizon/orbit-ui-mobile/pulls?state=open&per_page=100", "repos/thomasluizon/orbit-api/pulls?state=open&per_page=100",
     "repos/thomasluizon/orbit-landing-page/pulls?state=open&per_page=100"]) && !pulls.calls[0].path.includes("creator"), JSON.stringify(pulls.calls))
-  T("github: a pull request key is the repository key and number", JSON.stringify(pullListing.items.map((pull) => pull.key)) === JSON.stringify(["ui#2473", "api#1106"]) &&
-    pullListing.items[1].author === "dependabot[bot]" && pullListing.failures.length === 0, JSON.stringify(pullListing))
+  T("github: a pull request key is the repository key and number", JSON.stringify(pullListing.items.map((pull) => pull.key)) ===
+    JSON.stringify(["ui#2473", "ui#2462", "api#1106", "api#1115", "landing#20"]) && pullListing.items[2].author === "dependabot[bot]" && pullListing.failures.length === 0,
+  JSON.stringify(pullListing))
+  T("github: only an author outside the configured bots and the repository owner is unexpected", JSON.stringify(pullListing.items.map((pull) => [pull.key, pull.unexpectedAuthor])) ===
+    JSON.stringify([["ui#2473", false], ["ui#2462", false], ["api#1106", false], ["api#1115", false], ["landing#20", true]]), JSON.stringify(pullListing.items))
+  T("github: a bot configured in one repository is unexpected in another", !unexpectedAuthor(REPOSITORIES[0], CONTRACT_PULL.author) &&
+    unexpectedAuthor(REPOSITORIES[2], CONTRACT_PULL.author) && REPOSITORIES.every((repository) => !unexpectedAuthor(repository, "dependabot[bot]")))
 
   const alerts = fakeReader({ "repos/thomasluizon/orbit-api/code-scanning": [CODE_SCANNING_ALERT], "repos/thomasluizon/orbit-ui-mobile/dependabot": [DEPENDABOT_ALERT],
     "repos/thomasluizon/orbit-landing-page/secret-scanning": NOT_FOUND })
@@ -103,7 +117,19 @@ const stateCases = ({ pullListing, alertListing }) => {
   T("github: the listing persists in intake.pullRequests and reads back", JSON.stringify(readRunState(checkout).intake.pullRequests) === JSON.stringify(pulls) &&
     pulls.listedAt === "2026-11-16T12:00:00.000Z")
   T("github: a pull request the run opened is marked run owned and is not pending", pulls.open["ui#2473"].runOwned === true &&
-    JSON.stringify(pendingItems("pullRequests", pulls).map((pull) => pull.key)) === JSON.stringify(["api#1106"]))
+    !pendingItems("pullRequests", pulls).some((pull) => pull.key === "ui#2473"))
+  T("github: the configured bots and an owner pull request from an earlier run are pending", pulls.open["api#1115"].runOwned === false &&
+    JSON.stringify(pendingItems("pullRequests", pulls).map((pull) => pull.key)) === JSON.stringify(["ui#2462", "api#1106", "api#1115"]))
+  T("github: a pull request from an unexpected author is never pending and waits for its report",
+    JSON.stringify(unreportedPullRequests(pulls).map((pull) => pull.key)) === JSON.stringify(["landing#20"]))
+  T("github: a pull request from an unexpected author is never merged, fixed or closed", ["merged", "closed", "fix"].every((action) =>
+    refusal(() => markItem("pullRequests", { key: "landing#20", head: UNEXPECTED_PULL.head, action, ticket: TICKET, reason: "Superseded." }, checkout)) ===
+    "a pull request from an unexpected author is never merged, fixed or closed; report it to the owner"))
+  T("github: only a pull request from an unexpected author is reported", refusal(() => markItem("pullRequests", { key: "api#1106", head: DEPENDABOT_PULL.head,
+    action: "reported" }, checkout)) === "only a pull request from an unexpected author is reported")
+  const reported = markItem("pullRequests", { key: "landing#20", head: UNEXPECTED_PULL.head, action: "reported" }, checkout)
+  T("github: a reported pull request from an unexpected author is not reported again", unreportedPullRequests(reported).length === 0 &&
+    readRunState(checkout).intake.pullRequests.marks["landing#20"].action === "reported")
 
   T("github: a fix mark needs its carrying ticket", refusal(() => markItem("pullRequests", { key: "api#1106", head: DEPENDABOT_PULL.head, action: "fix" }, checkout)) ===
     "a fix needs its carrying ticket")
@@ -116,10 +142,12 @@ const stateCases = ({ pullListing, alertListing }) => {
     refusal(() => markItem("pullRequests", { key: "api#1106", head: DEPENDABOT_PULL.head, action: "dismissed" }, checkout)).startsWith("Unknown pullRequests action"))
   const marked = markItem("pullRequests", { key: "api#1106", head: DEPENDABOT_PULL.head, action: "fix", ticket: TICKET }, checkout)
   T("github: a fix mark at the current head persists and clears the pending item", readRunState(checkout).intake.pullRequests.marks["api#1106"].ticket === TICKET &&
-    pendingItems("pullRequests", marked).length === 0)
-  const moved = recordListing("pullRequests", { ...pullListing, items: pullListing.items.map((pull) => pull.key === "api#1106" ? { ...pull, head: "a".repeat(40) } : pull) }, checkout)
-  T("github: a new head on a marked pull request makes it pending again", JSON.stringify(pendingItems("pullRequests", moved).map((pull) => pull.key)) === JSON.stringify(["api#1106"]) &&
+    !pendingItems("pullRequests", marked).some((pull) => pull.key === "api#1106"))
+  const moved = recordListing("pullRequests", { ...pullListing, items: pullListing.items.map((pull) => ["api#1106", "landing#20"].includes(pull.key) ? { ...pull, head: "a".repeat(40) } : pull) }, checkout)
+  T("github: a new head on a marked pull request makes it pending again", pendingItems("pullRequests", moved).some((pull) => pull.key === "api#1106") &&
     moved.marks["api#1106"].head === DEPENDABOT_PULL.head)
+  T("github: a new head on a reported pull request from an unexpected author asks nothing again", unreportedPullRequests(moved).length === 0 &&
+    !pendingItems("pullRequests", moved).some((pull) => pull.key === "landing#20"))
   const failed = recordListing("pullRequests", { items: [], reads: pullListing.reads, failures: [{ read: "api pulls", message: NOT_FOUND }] }, checkout)
   T("github: a failed read keeps its previous items and marks and names the failure", failed.open["api#1106"] !== undefined && failed.marks["api#1106"] !== undefined &&
     failed.open["ui#2473"] === undefined && failed.failures[0].read === "api pulls", JSON.stringify(failed))
@@ -151,12 +179,13 @@ const stateCases = ({ pullListing, alertListing }) => {
 
 const checkCases = async ({ pullListing, alertListing }) => {
   const pulls = await pullRequestCheck({ list: async () => pullListing, ownedKeys: () => new Set(["ui#2473"]) })()
-  T("github: the pull request check keys each pull request the run did not open by its head", JSON.stringify(pulls) ===
-    JSON.stringify({ keys: [`api#1106 ${DEPENDABOT_PULL.head}`] }), JSON.stringify(pulls))
+  T("github: the pull request check keys each pull request the run did not open by its head, and an unexpected author once", JSON.stringify(pulls) ===
+    JSON.stringify({ keys: [`ui#2462 ${CONTRACT_PULL.head}`, `api#1106 ${DEPENDABOT_PULL.head}`, `api#1115 ${EARLIER_OWNER_PULL.head}`, "landing#20"] }), JSON.stringify(pulls))
   const listed = listedWakeKeys({ pullRequests: { open: { "ui#2473": { key: "ui#2473", head: OWNER_PULL.head, runOwned: true },
-    "api#1106": { key: "api#1106", head: DEPENDABOT_PULL.head, runOwned: false } } } })
-  T("github: the listed wake keys skip run owned pull requests and carry the head", JSON.stringify(listed) ===
-    JSON.stringify({ pullRequests: [`api#1106 ${DEPENDABOT_PULL.head}`] }), JSON.stringify(listed))
+    "api#1106": { key: "api#1106", head: DEPENDABOT_PULL.head, runOwned: false },
+    "landing#20": { key: "landing#20", head: UNEXPECTED_PULL.head, runOwned: false, unexpectedAuthor: true } } } })
+  T("github: the listed wake keys skip run owned pull requests and match the check keys", JSON.stringify(listed) ===
+    JSON.stringify({ pullRequests: [`api#1106 ${DEPENDABOT_PULL.head}`, "landing#20"] }), JSON.stringify(listed))
   const partial = await alertCheck({ list: async () => alertListing })()
   T("github: a partial alert read passes its keys and names the failure", partial.keys.length === 2 && partial.failure.includes(NOT_FOUND), JSON.stringify(partial))
   let message = ""

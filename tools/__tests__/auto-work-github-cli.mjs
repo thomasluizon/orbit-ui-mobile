@@ -3,7 +3,7 @@ import { chmodSync, readFileSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 import { readRunState, writeRunState } from "../lib/run-state.mjs"
 import { T, realOrchestratorConfig, run, stageWithConfig } from "./_harness.mjs"
-import { CODE_SCANNING_ALERT, DEPENDABOT_PULL, NOT_FOUND } from "./auto-work-github.mjs"
+import { CODE_SCANNING_ALERT, DEPENDABOT_PULL, NOT_FOUND, UNEXPECTED_PULL } from "./auto-work-github.mjs"
 
 /** The CLI against a gh stand-in whose answers are the live projections above. */
 export const cases = () => {
@@ -17,6 +17,7 @@ echo "$*" >> "${log}"
 case "$*" in
   "auth token --user thomasluizon") echo token-2149;;
   *"repos/thomasluizon/orbit-api/pulls?"*) printf '%s\\n' '${JSON.stringify(DEPENDABOT_PULL)}';;
+  *"repos/thomasluizon/orbit-landing-page/pulls?"*) printf '%s\\n' '${JSON.stringify(UNEXPECTED_PULL)}';;
   *"repos/thomasluizon/orbit-api/code-scanning/alerts?"*) printf '%s\\n' '${JSON.stringify(CODE_SCANNING_ALERT).replaceAll("'", "'\\''")}';;
   *"repos/thomasluizon/orbit-landing-page/secret-scanning/alerts?"*) echo '${NOT_FOUND}' >&2; exit 1;;
   "api --paginate "*) ;;
@@ -29,8 +30,9 @@ esac
   const collected = run("auto-work-github.mjs", ["--collect"], { path: installation.path, env })
   let result = {}
   try { result = JSON.parse(collected.stdout) } catch { /* the assertion below reports the raw output */ }
-  T("github cli: a collection with a failed read writes the rest and exits 3", collected.status === 3 && result.pullRequests?.open === 1 &&
-    result.pullRequests.pending[0]?.key === "api#1106" && result.alerts.pending[0]?.key === "api code-scanning 28" &&
+  T("github cli: a collection with a failed read writes the rest and exits 3", collected.status === 3 && result.pullRequests?.open === 2 &&
+    JSON.stringify(result.pullRequests.pending.map((pull) => pull.key)) === JSON.stringify(["api#1106"]) &&
+    JSON.stringify(result.pullRequests.unexpectedAuthor.map((pull) => pull.key)) === JSON.stringify(["landing#20"]) && result.alerts.pending[0]?.key === "api code-scanning 28" &&
     result.alerts.failures[0]?.read === "landing secret-scanning", `${collected.status} ${collected.stdout}${collected.stderr}`)
   const calls = readFileSync(log, "utf8").trim().split("\n")
   T("github cli: twelve paginated reads cover three repositories and four sources", calls.filter((line) => line.startsWith("api --paginate ")).length === 12, calls.join("\n"))
@@ -39,6 +41,13 @@ esac
     input: JSON.stringify({ key: "api#1106", head: DEPENDABOT_PULL.head, action: "closed", reason: "Superseded by api#1107." }) })
   T("github cli: a mark from stdin persists", marked.status === 0 && readRunState(installation.base).intake.pullRequests.marks["api#1106"].reason === "Superseded by api#1107.",
     `${marked.status} ${marked.stdout}${marked.stderr}`)
+  const unexpectedMerge = run("auto-work-github.mjs", ["--mark", "pullRequests"], { path: installation.path, env,
+    input: JSON.stringify({ key: "landing#20", head: UNEXPECTED_PULL.head, action: "merged" }) })
+  const unexpectedReport = run("auto-work-github.mjs", ["--mark", "pullRequests"], { path: installation.path, env,
+    input: JSON.stringify({ key: "landing#20", head: UNEXPECTED_PULL.head, action: "reported" }) })
+  T("github cli: a pull request from an unexpected author takes only the reported mark", unexpectedMerge.status === 1 &&
+    unexpectedMerge.stderr.includes("never merged, fixed or closed") && unexpectedReport.status === 0 &&
+    readRunState(installation.base).intake.pullRequests.marks["landing#20"].action === "reported", `${unexpectedMerge.stderr}${unexpectedReport.stderr}`)
   const refused = run("auto-work-github.mjs", ["--mark", "alerts"], { path: installation.path, env, input: JSON.stringify({ key: "api code-scanning 28", action: "ticket" }) })
   T("github cli: an incomplete alert mark exits 1 and names the requirement", refused.status === 1 && refused.stderr.includes("verified cause"), refused.stderr)
   const foreign = run("auto-work-github.mjs", ["--collect"], { path: installation.path, env: { ...env, CLAUDE_CODE_SESSION_ID: "foreign" } })

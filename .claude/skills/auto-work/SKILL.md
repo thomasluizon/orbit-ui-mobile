@@ -125,12 +125,25 @@ for the successor.
    Missing app credentials are a named external dependency, never an empty successful read.
 7. List every open pull request with `node tools/auto-work-github.mjs --collect`. The tool reads
    `orbit-ui-mobile`, `orbit-api` and `orbit-landing-page`, every author and every page, and
-   writes `intake.pullRequests` and `intake.alerts` (step 8) in one run, then reads them back. It
-   prints `pending`: each pull request with no mark, or whose head moved after its mark. A pull
-   request in `runOwned` is one this run opened; step 2 drives it, so skip it here. Exit 3 means
-   at least one read failed: the tool names it in `failures` and keeps that read's previous
-   items. Log each failure and retry next cycle. For each pending pull request, read its diff,
-   checks, review threads and base first. Then do one of these:
+   writes `intake.pullRequests` and `intake.alerts` (step 8) in one run, then reads them back.
+   The three repositories are private, so only the configured authors open pull requests: the
+   bots that `CONFIGURED_PULL_REQUEST_BOTS` in `tools/lib/auto-work-github.mjs` names for each
+   repository, and the repository owner account that the runs use. A new bot goes into that
+   list together with the configuration that lets it open pull requests. The tool prints
+   `pending`: each pull request from a configured author with no mark, or whose head moved after
+   its mark. This includes an owner pull request that an earlier run opened. A pull request in
+   `runOwned` is one this run opened; step 2 drives it, so skip it here. Exit 3 means at least
+   one read failed: the tool names it in `failures` and keeps that read's previous items. Log
+   each failure and retry next cycle.
+
+   A pull request in `unexpectedAuthor` comes from an author outside the configured list. Never
+   merge, fix or close it, and never give its branch to a worker. Put it to the owner through
+   `/questions` with its repository, number, author, title and link. Then record
+   `{key, head, action: reported}` with `node tools/auto-work-github.mjs --mark pullRequests`.
+   The tool refuses every other action for it, and a new head does not ask the owner again.
+
+   For each pending pull request, read its diff, checks, review threads and base first. Then do
+   one of these:
    - **Merge** it at the standing merge bar of `.claude/skills/sleep/SKILL.md` section 7: green
      checks, a fresh Pullfrog approval at the exact head (`/orchestrate` step 8), zero unresolved
      threads, and up to date with its base. Bring a Dependabot branch up to date with the
@@ -201,7 +214,8 @@ fifteen-minute interval, the waiter checks the sources itself, with no model cal
   Play and App Store review ids);
 - the open pull requests of the three code repositories, through the reads of
   `tools/lib/auto-work-github.mjs`. One key is the pull request and its head, so a new pull
-  request or a new head is a new key. It skips the pull requests of this run;
+  request or a new head is a new key. It skips the pull requests of this run. A pull request
+  from an unexpected author has a key without its head, so it wakes the model only once;
 - the open code scanning, secret scanning and Dependabot alerts of the same repositories. One
   key is the repository, the alert kind and the alert number.
 

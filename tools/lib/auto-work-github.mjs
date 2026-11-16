@@ -10,6 +10,19 @@ import { REPO_ROOT, updateRunState } from "./run-state.mjs"
 export const REPOSITORY_KEYS = ["ui", "api", "landing"]
 
 /*
+ * The REST logins of the bots each repository configures to open pull requests: Dependabot (dependabot.yml
+ * and the security updates setting) and the App of ui's contract-rebaseline.yml. Runs open as the owner.
+ */
+export const CONFIGURED_PULL_REQUEST_BOTS = {
+  ui: ["dependabot[bot]", "orbit-contract-rebaseline[bot]"],
+  api: ["dependabot[bot]"],
+  landing: ["dependabot[bot]"],
+}
+
+/** An author outside the configured bots and the repository owner is unexpected. */
+export const unexpectedAuthor = ({ key, slug }, author) => author !== slug.split("/")[0] && !(CONFIGURED_PULL_REQUEST_BOTS[key] ?? []).includes(author)
+
+/*
  * Each projection prints one JSON line per item across every page. The fields come from live reads;
  * the secret scanning fields come from GitHub's published REST description, because no repository
  * has had a secret scanning alert. The secret is never projected, and hide_secret omits it.
@@ -62,10 +75,11 @@ const settleReads = async (reads) => {
   return { items, failures, reads: reads.map((read) => read.read) }
 }
 
-export const listOpenPullRequests = ({ repositories, readPages }) => settleReads(repositories.map(({ key, slug }) => ({
-  read: `${key} pulls`,
-  list: async () => (await readPages(`repos/${slug}/pulls?state=open&per_page=100`, PULL_REQUEST_PROJECTION)).map((pull) => ({
-    key: `${key}#${pull.number}`, read: `${key} pulls`, repository: key, ...pull })),
+export const listOpenPullRequests = ({ repositories, readPages }) => settleReads(repositories.map((repository) => ({
+  read: `${repository.key} pulls`,
+  list: async () => (await readPages(`repos/${repository.slug}/pulls?state=open&per_page=100`, PULL_REQUEST_PROJECTION)).map((pull) => ({
+    key: `${repository.key}#${pull.number}`, read: `${repository.key} pulls`, repository: repository.key, ...pull,
+    unexpectedAuthor: unexpectedAuthor(repository, pull.author) })),
 })))
 
 export const listOpenAlerts = ({ repositories, readPages }) => settleReads(repositories.flatMap(({ key, slug }) => ALERT_READS.map((source) => ({
@@ -80,8 +94,11 @@ export const runPullRequestKeys = (state) => new Set([...(state?.pullRequests ??
   .filter((entry) => typeof entry?.repositoryKey === "string" && Number.isInteger(entry?.prNumber))
   .map((entry) => `${entry.repositoryKey}#${entry.prNumber}`))
 
-/** The waiter key of a pull request carries its head, so a new head is a new key. */
-export const pullRequestWakeKey = (pull) => `${pull.key} ${pull.head}`
+/**
+ * The waiter key of a pull request carries its head, so a new head is a new key. The owner hears
+ * about a pull request from an unexpected author once, so its key has no head.
+ */
+export const pullRequestWakeKey = (pull) => pull.unexpectedAuthor ? pull.key : `${pull.key} ${pull.head}`
 
 /** Turns a listing into waiter keys; it rejects only when no read succeeded. */
 const wakeKeys = (listing, keyOf) => {
@@ -133,12 +150,18 @@ export const recordListing = (source, listing, repoRoot = REPO_ROOT, listedAt = 
       ...(listing.failures.length ? { failures: listing.failures } : {}) }
   }, repoRoot)
 
-/** An open item needs the model when it has no mark or, for a pull request, when its head moved. */
+/**
+ * An open item needs the model when it has no mark or, for a pull request, when its head moved. A
+ * pull request from an unexpected author is never pending: the model only reports it.
+ */
 export const pendingItems = (source, contents) => Object.values(contents.open).filter((item) => {
-  if (item.runOwned) return false
+  if (item.runOwned || item.unexpectedAuthor) return false
   const mark = contents.marks[item.key]
   return !mark || (source === "pullRequests" && mark.head !== item.head)
 })
+
+/** The pull requests from an unexpected author that the owner did not hear about yet. */
+export const unreportedPullRequests = (contents) => Object.values(contents.open).filter((pull) => pull.unexpectedAuthor && !contents.marks[pull.key])
 
 const text = (value) => typeof value === "string" && value.trim().length > 0
 
@@ -147,6 +170,7 @@ const ACTIONS = {
     merged: { valid: () => true },
     fix: { valid: (receipt) => carryingTicket(receipt.ticket), requirement: "a fix needs its carrying ticket" },
     closed: { valid: (receipt) => text(receipt.reason), requirement: "a closed pull request needs the written reason" },
+    reported: { valid: () => true },
   },
   alerts: {
     ticket: { valid: (receipt) => carryingTicket(receipt.ticket) && text(receipt.cause), requirement: "an alert needs its carrying ticket and the verified cause" },
@@ -169,6 +193,10 @@ export const markItem = (source, receipt, repoRoot = REPO_ROOT) => writeSource(s
   if (!item) throw new Error(`No open ${source} item matches the receipt key`)
   if (!Object.hasOwn(actions, receipt.action)) throw new Error(`Unknown ${source} action; use ${Object.keys(actions).join(", ")}`)
   if (!actions[receipt.action].valid(receipt)) throw new Error(actions[receipt.action].requirement)
+  if (source === "pullRequests" && Boolean(item.unexpectedAuthor) !== (receipt.action === "reported")) {
+    throw new Error(item.unexpectedAuthor ? "a pull request from an unexpected author is never merged, fixed or closed; report it to the owner"
+      : "only a pull request from an unexpected author is reported")
+  }
   if (source === "pullRequests" && receipt.head !== item.head) throw new Error(`The receipt head is not the current head ${item.head}`)
   return { ...current, marks: { ...current.marks, [item.key]: { ...markOf(source, item, receipt), markedAt: new Date().toISOString() } } }
 }, repoRoot)

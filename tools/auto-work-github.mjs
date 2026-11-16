@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { autoWorkRepositories, githubPageReader, INTAKE_GITHUB_SOURCES, listOpenAlerts, listOpenPullRequests, markItem, pendingItems, recordListing } from "./lib/auto-work-github.mjs"
+import { autoWorkRepositories, githubPageReader, INTAKE_GITHUB_SOURCES, listOpenAlerts, listOpenPullRequests, markItem, pendingItems, recordListing, unreportedPullRequests } from "./lib/auto-work-github.mjs"
 import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
 
 const USAGE = `usage: auto-work-github.mjs <--collect | --mark <pullRequests|alerts>>
@@ -7,12 +7,16 @@ Lists every open pull request and every open alert (code scanning, secret scanni
 of the ui, api and landing repositories, every author and every page, for auto-work steps 7 and 8.
 --collect      writes intake.pullRequests and intake.alerts, reads them back and prints
                {pullRequests, alerts}, each with open, pending (items with no mark, or a pull
-               request whose head moved), runOwned for pull requests, and failures. A failed read
-               keeps its previous items and is named in failures; it is never an empty source.
+               request whose head moved) and failures. pullRequests adds runOwned and
+               unexpectedAuthor: the pull requests whose author is not a configured bot of its
+               repository or the repository owner, and that have no reported mark. They are never
+               pending. A failed read keeps its previous items and is named in failures; it is
+               never an empty source.
 --mark <source> stdin JSON receipt for one open item:
-               pullRequests {key, head, action: merged|fix|closed, ticket?, reason?}
+               pullRequests {key, head, action: merged|fix|closed|reported, ticket?, reason?}
                  fix needs ticket (an orbit-tickets issue URL); closed needs reason; head must be
-                 the current head.
+                 the current head. reported is the only action for an unexpected author, and
+                 only for one.
                alerts {key, action: ticket|false-positive, ticket, cause?, reason?}
                  ticket needs cause; false-positive needs reason, written on the ticket first.
 --help, -h     print usage
@@ -41,7 +45,7 @@ try {
     const written = recordListing(source, listing)
     const open = Object.values(written.open)
     return { open: open.length, pending: pendingItems(source, written),
-      ...(source === "pullRequests" ? { runOwned: open.filter((pull) => pull.runOwned).map((pull) => pull.key) } : {}),
+      ...(source === "pullRequests" ? { runOwned: open.filter((pull) => pull.runOwned).map((pull) => pull.key), unexpectedAuthor: unreportedPullRequests(written) } : {}),
       failures: listing.failures }
   }
   const result = { pullRequests: summary("pullRequests", pullListing), alerts: summary("alerts", alertListing) }

@@ -8,7 +8,7 @@ Register an idle wake source, then check the intake sources at the end of each i
 The board (open tickets on the project with their updatedAt and open blockers, read through
 tools/lib/github-issues.mjs with no model call), the mailbox (orbit-mail.mjs --unseen), the reviews
 (orbit-play-reviews.mjs --cycle), the open pull requests the run did not open (one key per pull
-request and head) and the open code scanning, secret scanning and Dependabot alerts of the ui, api
+request and head, and one key per pull request from an unexpected author) and the open code scanning, secret scanning and Dependabot alerts of the ui, api
 and landing repositories (tools/lib/auto-work-github.mjs) are checked; a key absent from
 intake.wake.seen is new.
 Exit only for a new item, a source failure with a new signature, the hourly Sentry MCP listing
