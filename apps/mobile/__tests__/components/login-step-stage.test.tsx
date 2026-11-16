@@ -11,8 +11,6 @@ const motion = vi.hoisted(() => ({ bezier: [] as unknown[], timings: [] as { toV
 vi.mock('@/lib/motion', async () => {
   const shared = await import('@orbit/shared/theme')
   return {
-    toAnimatedEasing: () => undefined,
-    usePrefersReducedMotion: () => mocks.reduced,
     useResolvedMotionPreset: () => ({ ...shared.resolveMotionPreset('route-replace', mocks.reduced), enterDuration: mocks.enterDuration, enterEasing: mocks.enterEasing, shift: mocks.shift }),
   }
 })

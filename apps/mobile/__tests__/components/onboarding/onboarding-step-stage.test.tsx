@@ -10,7 +10,6 @@ const TestRenderer: typeof import('react-test-renderer') = require('react-test-r
 const mocks = vi.hoisted(() => ({ reduced: false }))
 const motion = vi.hoisted(() => ({ bezier: [] as unknown[], timings: [] as { toValue: unknown; config: unknown }[], values: [] as { value: unknown }[], updaters: [] as (() => unknown)[] }))
 vi.mock('@/lib/motion', () => ({
-  toAnimatedEasing: () => undefined,
   usePrefersReducedMotion: () => mocks.reduced,
 }))
 vi.mock('react-native-reanimated', async () => {
