@@ -176,6 +176,102 @@ const directives = [
   '/* The type is wrong upstream.\n @ts-expect-error */\nconst limit: string = 1;\n',
 ].map(typescript)
 
+const legalComments = [
+  '/** Reads the @license text. */\nfunction load() {}\n',
+  '/**\n * Store 1.0\n * @license MIT\n */\nconst limit = 1;\n',
+  '// Store 1.0 @license MIT\nconst limit = 1;\n',
+  '/* Store 1.0 @preserve */\nconst limit = 1;\n',
+  '// Store 1.0 @preserve\nconst limit = 1;\n',
+  '/*! Store 1.0 */\nconst limit = 1;\n',
+  '//! Store 1.0\nconst limit = 1;\n',
+  '/* Store 1.0 @License */\nconst limit = 1;\n',
+  '/**! Store 1.0 */\nconst limit = 1;\n',
+  '/* Store 1.0 @copyright */\nconst limit = 1;\n',
+  '// Store 1.0 @lic\nconst limit = 1;\n',
+  '/* Store 1.0 @cc_on */\nconst limit = 1;\n',
+].map(typescript)
+
+const jsxPragmas = [
+  '// @jsx h\nconst limit = 1;\n',
+  '// @jsxFrag Fragment\nconst limit = 1;\n',
+  '// @jsxRuntime classic\nconst limit = 1;\n',
+  '// @jsxImportSource preact\nconst limit = 1;\n',
+  '//@jsxImportSource preact\nconst limit = 1;\n',
+  '// Renders with Preact. @jsxImportSource preact\nconst limit = 1;\n',
+  '/* Renders with Preact. @jsxImportSource preact */\nconst limit = 1;\n',
+  '/** Renders with Preact. @jsxImportSource preact */\nconst limit = 1;\n',
+  '/**\n * Renders with Preact.\n * @jsxImportSource preact\n */\nconst limit = 1;\n',
+  '/**\n * Classic.\n * @jsx h\n */\nconst limit = 1;\n',
+  '/** Classic. @jsxRuntime classic */\nconst limit = 1;\n',
+  '/** Classic. @jsxFrag Fragment */\nconst limit = 1;\n',
+  '/* @JSX h */\nconst limit = 1;\n',
+  '/* @jsx\nh */\nconst limit = 1;\n',
+  '// @jsx\u00a0h\nconst limit = 1;\n',
+  'const limit = 1;\n// @jsx h\nconst other = 2;\n',
+  'function load() {\n  /* @jsx h */\n  return 1;\n}\n',
+  '"use client";\n// Renders with Preact. @jsxImportSource preact\nconst limit = 1;\n',
+  '"use client";\n/** Renders the @jsxImportSource preact tree. */\nconst limit = 1;\n',
+  '// Renders the @jsxImportSource preact tree.\nconst limit = 1;\n',
+  '/* @jsxRuntime automatic */\n/* @JSXIMPORTSOURCE preact */\nconst limit = 1;\n',
+  'const limit = 1;\n/* @jsxRuntime automatic @jsxImportSource preact */\nconst other = 2;\n',
+  'const limit = 1;\n/**\n * Renders with Preact.\n * @jsxImportSource preact for this file\n */\nconst other = 2;\n',
+  '// The x@jsx h text.\nconst limit = 1;\n',
+  'const limit = 1;\n// Renders the @jsxImportSource preact tree.\nconst other = 2;\n',
+  'const limit = 1;\n/** Renders the @jsxImportSource preact tree. */\nconst other = 2;\n',
+  'import { load } from "./load";\n// Renders with Preact. @jsxImportSource preact\nload();\n',
+  'const limit = 1;\n// @jsx h is the factory.\nconst other = 2;\n',
+  'function load() {\n  /* @jsxRuntime automatic @jsxImportSource preact */\n  return 1;\n}\n',
+  'const limit = 1; /* @jsxRuntime automatic @jsxImportSource preact */\nconst other = 2;\n',
+  '// see a@jsxImportSource preact\nconst limit = 1;\n',
+  'function load() {\n  // @jsx\u3000h is the factory.\n  return 1;\n}\n',
+  '/* @jsxImportSource\u0085preact */\nconst limit = 1;\n',
+  'const limit = 1;\n/* @jsxImportSource\u0085preact */\nconst other = 2;\n',
+  'const limit = 1;\n/* @jsxOther x @jsx\u0085h */\nconst other = 2;\n',
+  'const limit = 1;\n/* @jsx\nh */\nconst other = 2;\n',
+  '// @JSX h\nconst limit = 1;\n',
+  '/* @jsx */\nconst limit = 1;\n',
+  '"use client";\n/* @JSX h */\nconst limit = 1;\n',
+  '// @jsxImportSource\u0085preact\nconst limit = 1;\n',
+  'function load() {\n  /* @jsxImportSource\u0085preact */\n  return 1;\n}\n',
+  'const limit = 1;\n/* @jsxOther x y @jsx\u0085h */\nconst other = 2;\n',
+  'const limit = 1;\n/* @jsxImportSource\npreact extra */\nconst other = 2;\n',
+].map(jsx)
+
+const pragmaSpaces = ['\t', '\v', '\f', '\u00a0', '\u1680', '\u2000', '\u2005', '\u200a', '\u202f', '\u205f', '\u3000', '\ufeff']
+const lineBreaks = ['\n', '\r\n', '\r', '\u2028', '\u2029']
+const afterStatement = (comment) => jsx(`const limit = 1;\n${comment}\nconst other = 2;\n`)
+
+const spacedPragmas = [
+  ['jsx', 'h'],
+  ['jsxFrag', 'Frag'],
+  ['jsxImportSource', 'preact'],
+  ['jsxRuntime', 'classic'],
+]
+  .flatMap(([name, value]) =>
+    pragmaSpaces.flatMap((space) => [`// @${name}${space}${value}`, `/* @${name}${space}${value} */`]),
+  )
+  .map(afterStatement)
+
+const metroBabelPragmas = [
+  ['jsx', 'h'],
+  ['jsxFrag', 'Frag'],
+]
+  .flatMap(([name, value]) => [
+    ...lineBreaks.flatMap((lineBreak) => [
+      `/* @${name}${lineBreak}${value} extra */`,
+      `/* *\t@${name}${lineBreak}${value} extra */`,
+      `/* Uses @${name}${lineBreak}${value} */`,
+      `/* Uses @${name}${lineBreak}${value} extra */`,
+    ]),
+    `/* see @${name}\n  ${value} below */`,
+  ])
+  .map(afterStatement)
+
+const pragmaFileTypes = [
+  typescript('const limit = 1;\n// Uses @jsx h for the tree.\nconst other = 2;\n'),
+  module('/** Renders the @jsxImportSource preact tree. */\nconst limit = 1;\n'),
+]
+
 const shebang = module('#!/usr/bin/env node\nconst limit = 1;\n')
 
 const ignoredByTool = [
@@ -194,7 +290,11 @@ const ignoredByTool = [
   ['// ts-check\nconst limit = 1;\n', 'const limit = 1;\n'],
   ['/** @ts-check */\nconst limit = 1;\n', 'const limit = 1;\n'],
   ['/**\n * @ts-ignore\n */\nconst limit = 1;\n', 'const limit = 1;\n'],
-  ['// @jsx h\nconst limit = 1;\n', 'const limit = 1;\n'],
+  ['// @jsxImportSource\nconst limit = 1;\n', 'const limit = 1;\n'],
+  ['/** Reads the @jsxh text. */\nconst limit = 1;\n', 'const limit = 1;\n'],
+  ['/*@jsx*/\nconst limit = 1;\n', 'const limit = 1;\n'],
+  ['// @jsx.h\nconst limit = 1;\n', 'const limit = 1;\n'],
+  ['// Sets the JSX factory to h.\nconst limit = 1;\n', 'const limit = 1;\n'],
   ['/// narration\nconst limit = 1;\n', 'const limit = 1;\n'],
   ['// prettier-ignore because the table aligns\nconst limit = 1;\n', 'const limit = 1;\n'],
   ['/** prettier-ignore */\nconst limit = 1;\n', 'const limit = 1;\n'],
@@ -210,8 +310,10 @@ const ignoredByTool = [
   ['/** global state for the menu. */\nconst menu = {};\n', 'const menu = {};\n'],
   ['/*\n * eslint-disable no-undef\n */\nload();\n', 'load();\n'],
   ['/* webpack bundles this file. */\nconst menu = {};\n', 'const menu = {};\n'],
-  ['/** Reads the @license text. */\nfunction load() {}\n', 'function load() {}\n'],
-  ['/**\n * Store 1.0\n * @license MIT\n */\nconst limit = 1;\n', 'const limit = 1;\n'],
+  ['/* ! Store 1.0 */\nconst limit = 1;\n', 'const limit = 1;\n'],
+  ['// ! Store 1.0\nconst limit = 1;\n', 'const limit = 1;\n'],
+  ['/** ! Store 1.0 */\nconst limit = 1;\n', 'const limit = 1;\n'],
+  ['const limit = 1;\n/* @jsxImportSource\u200bpreact */\nconst other = 2;\n', 'const limit = 1;\nconst other = 2;\n'],
   ['/**\n * The type is wrong upstream.\n * @ts-ignore\n */\nconst limit = 1;\n', 'const limit = 1;\n'],
   ['/** The type is wrong upstream. @ts-ignore */\nconst limit = 1;\n', 'const limit = 1;\n'],
   ['/** Runs with @vitest-environment. */\nconst limit = 1;\n', 'const limit = 1;\n'],
@@ -227,6 +329,11 @@ tester.run('no-comments', require('../no-comments.cjs'), {
     ...upstreamLinks,
     ...typeAnnotations,
     ...directives,
+    ...legalComments,
+    ...jsxPragmas,
+    ...spacedPragmas,
+    ...metroBabelPragmas,
+    ...pragmaFileTypes,
     shebang,
     jsx('export const Reader = () => <div>{/* https://example.com/reader */}</div>;\n'),
   ],
