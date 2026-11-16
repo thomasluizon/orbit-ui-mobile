@@ -12,12 +12,6 @@ import {
   SESSION_REFRESH_HEADER,
 } from '@/lib/session-refresh'
 
-/**
- * BFF: Catch-all proxy for API routes.
- * Forwards requests to the .NET backend with the auth token from cookie.
- * On 401, tries a single refresh-token rotation before failing.
- */
-
 const ALLOWED_PREFIXES = [
   'auth/',
   'profile/',

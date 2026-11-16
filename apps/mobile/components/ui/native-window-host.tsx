@@ -26,11 +26,6 @@ export function useNativeWindow() {
   return context
 }
 
-/**
- * iOS changes `visible` only after the previous transition reports `onShow` or `onDismiss`. UIKit drops a
- * dismissal inside the fade presentation, and `Modal` unmounts its host on a late `onDismiss`, which leaves an
- * empty presented controller that takes every touch. Android reports no `onDismiss` and follows the dialogs.
- */
 function useSettledModalVisibility(open: boolean) {
   const holdsTransitions = Platform.OS === 'ios'
   const [visible, setVisible] = useState(open)

@@ -62,5 +62,4 @@ const styles = StyleSheet.create({
   copy: { fontFamily: 'Geist_400Regular', fontSize: 14, textAlign: 'center' },
 })
 
-/** The title, body and target lines that a notification row draws. */
 const NOTIFICATION_SKELETON_LINES = [styles.skeletonTitle, styles.skeletonBody, styles.skeletonTarget]

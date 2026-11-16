@@ -2,11 +2,6 @@ import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
-/**
- * A sheet is content-height, so a body that stretches puts a two-line sheet at the full detent.
- * The guard resolves each `<Sheet>` body's style in the caller or a relatively imported styles
- * module. It stops at a style handed in through props, which the primitive's unit tests cover.
- */
 const MOBILE_ROOT = resolve(__dirname, '../../..')
 const SCANNED_DIRECTORIES = ['app', 'components']
 const STRETCH_PROPERTIES = /(?:^|[\s,{])(?:flex|flexGrow)\s*:|(?:^|[\s,{])(?:height|minHeight)\s*:\s*['"]\d+%/

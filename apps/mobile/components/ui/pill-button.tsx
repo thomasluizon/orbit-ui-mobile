@@ -30,20 +30,14 @@ function buttonTextColors(tokens: ReturnType<typeof createTokensV2>, quiet: bool
   }
 }
 
-/** A waiting action's face is the skeleton, so its label reads `fg1` on the skeleton tone; a quiet ghost keeps `fg2`. */
 function waitingTextColor(tokens: AppTokensV2, variant: ButtonVariant, quiet: boolean): string {
   return variant === 'ghost' && quiet ? tokens.fg2 : tokens.fg1
 }
 
-/**
- * A waiting pill takes the skeleton face. Apple's sign-in rules keep Apple's face, logo and title, so a waiting Apple pill
- * dims to the existing disabled opacity instead, as Apple's iPhone control does.
- */
 function waitsOnSkeletonFace(loading: boolean, apple: boolean): boolean {
   return loading && !apple
 }
 
-/** The waiting face clears the variant fill for the skeleton and keeps the ghost border width, so the size stays. */
 function waitingFaceStyle(variant: ButtonVariant, ghostBorderWidth: number): ViewStyle {
   return { backgroundColor: 'transparent', borderWidth: variant === 'ghost' ? ghostBorderWidth : 0, borderColor: 'transparent' }
 }
@@ -59,7 +53,6 @@ interface VariantFaceInput {
   readonly brandFill: string | undefined
 }
 
-/** The variant fill of a pill at rest or pressed. A ghost also fills while the pointer is on it. A provider pill keeps its brand fill. */
 function variantFaceStyle({ variant, tokens, pressed, hovered, elevated, quiet, ghostBorderWidth, brandFill }: VariantFaceInput): ViewStyle {
   if (brandFill) return { backgroundColor: brandFill }
   switch (variant) {
@@ -95,7 +88,6 @@ interface PillBoxInput {
   readonly signIn: boolean
 }
 
-/** The box of a pill: a square for an icon-only action, else the size row's height, padding and gap. */
 function pillBoxStyle({ sizeSpec, iconOnly, minimumHeight, edge, matchedWidth, hasLeadingIcon, signIn }: PillBoxInput): ViewStyle {
   if (iconOnly) return iconOnlyStyle(Math.max(minimumHeight ?? sizeSpec.height, SMALL_PILL_VISIBLE_MIN), edge)
   return {
@@ -119,7 +111,6 @@ function buttonFocusStyle(variant: ButtonVariant, outlineColor: string): ViewSty
   }
 }
 
-/** The ghost outline that React Native lays out inside the pill height. Apple's pill has none. */
 function ghostOutlineWidth(variant: ButtonVariant, brand: ButtonProps['brand'], borderless: boolean) {
   return variant === 'ghost' && brand !== 'apple' && !borderless ? 1.5 : 0
 }
@@ -224,23 +215,19 @@ function iconOnlyStyle(side: number, edge: 'start' | undefined): ViewStyle {
   return { height: side, width: side, paddingHorizontal: SPACING.s0, gap: 0, marginStart: edge === 'start' ? ICON_ACTION_START_HANG : undefined }
 }
 
-/** A provider pill grows around a title that large text wraps and keeps its resting capsule radius, so no corner cuts the title. */
 function signInPillStyle({ paddingX, paddingY, gap }: SignInButtonSpec): ViewStyle {
   return { minHeight: SIGN_IN_BUTTON_HEIGHT, borderRadius: SIGN_IN_BUTTON_HEIGHT / 2, paddingVertical: paddingY, paddingHorizontal: paddingX, paddingStart: paddingX, gap }
 }
 
-/** A provider pill holds its mark in a slot of the resting content height at the top, so a wrapped title keeps the mark on its first line. */
 function ButtonLead({ signIn, outlineWidth, children }: Readonly<{ signIn: SignInButtonSpec; outlineWidth: number; children: React.ReactNode }>) {
   return <View style={{ height: signInLeadHeight(signIn, outlineWidth), alignSelf: 'flex-start', justifyContent: 'center' }}>{children}</View>
 }
 
-/** A provider title wraps whenever it does not fit; another label with a retained icon wraps above font scale 1.3. */
 function labelWrapping(signIn: SignInButtonSpec | null, retainLeadingIcon: boolean, fontScale: number) {
   if (signIn) return { numberOfLines: undefined, shrink: styles.labelShrink }
   return { numberOfLines: retainLeadingIcon && fontScale > 1.3 ? undefined : 1, shrink: retainLeadingIcon ? styles.labelShrink : null }
 }
 
-/** The face, glyph and label. A waiting action keeps its glyph and label on the skeleton face. */
 function ButtonContents({ tokens, skeletonWaiting, retainLeadingIcon, iconOnly, leadingGlyph, children, textColor, signIn, outlineWidth, labelSize }: Readonly<Pick<ButtonProps, 'children' | 'iconOnly'> & {
   tokens: AppTokensV2; skeletonWaiting: boolean; retainLeadingIcon: boolean; leadingGlyph: React.ReactNode; textColor: string; signIn: SignInButtonSpec | null; outlineWidth: number; labelSize: number
 }>) {
@@ -289,7 +276,6 @@ const styles = StyleSheet.create({
 
 export { Button as PillButton }
 
-/** The pill paints its glyph in its label colour. Orbit owns its inks (the planet in the foreground, the moon in the accent), so the mascot keeps them on every variant, as on web. */
 function buttonLeadingGlyph(icon: React.ReactNode, color: string) {
   if (!isValidElement<{ color?: string }>(icon) || icon.type === OrbitMascot) return icon
   return cloneElement(icon, { color })

@@ -29,10 +29,6 @@ function buttonStyle(size: ButtonSize, withinRow: boolean, { minimumHeight, icon
   }
 }
 
-/**
- * A provider pill grows around a title that large text wraps: the title follows the root text size, and the
- * pill keeps its resting capsule radius, so no corner cuts the title.
- */
 function signInPillStyle({ paddingX, paddingY, gap }: SignInButtonSpec, titleSize: number): CSSProperties {
   return {
     height: undefined,
@@ -48,7 +44,6 @@ function signInPillStyle({ paddingX, paddingY, gap }: SignInButtonSpec, titleSiz
   }
 }
 
-/** The root theme variables carry Apple's black or white pair, so every browser and the server render draw it. */
 const APPLE_SIGN_IN_COLOURS: CSSProperties = {
   backgroundColor: 'var(--apple-sign-in-fill)',
   color: 'var(--apple-sign-in-ink)',
@@ -56,16 +51,11 @@ const APPLE_SIGN_IN_COLOURS: CSSProperties = {
   outlineColor: 'currentColor',
 }
 
-/**
- * A provider pill holds its mark in a slot of the resting content height at the top, so a wrapped title keeps the mark on its first line.
- * The web ghost outline is an inset shadow and the pill has no border, so no outline takes part of the height.
- */
 function ButtonLead({ signIn, children }: Readonly<{ signIn: SignInButtonSpec | null; children: ReactNode }>) {
   if (!signIn) return children
   return <span aria-hidden="true" style={{ display: 'inline-flex', flexShrink: 0, alignItems: 'center', alignSelf: 'flex-start', height: signInLeadHeight(signIn, 0) }}>{children}</span>
 }
 
-/** The face, glyph and label. A waiting action keeps its glyph and label on the skeleton face. */
 function ButtonContent({ skeletonWaiting, iconOnly, children, leadingIcon, signIn }: Readonly<Pick<ButtonProps, 'iconOnly' | 'children' | 'leadingIcon'> & { skeletonWaiting: boolean; signIn: SignInButtonSpec | null }>) {
   return <>
     {skeletonWaiting ? <SkeletonFace /> : null}
@@ -74,10 +64,6 @@ function ButtonContent({ skeletonWaiting, iconOnly, children, leadingIcon, signI
   </>
 }
 
-/**
- * A waiting pill takes the skeleton face. Apple's sign-in rules keep Apple's face, logo and title, so a waiting Apple pill
- * keeps the resting classes and dims through the existing disabled opacity instead, as Apple's iPhone control does.
- */
 function waitsOnSkeletonFace(loading: boolean, brand: ButtonProps['brand']): boolean {
   return loading && brand !== 'apple'
 }

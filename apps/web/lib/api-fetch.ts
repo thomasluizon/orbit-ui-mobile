@@ -18,10 +18,6 @@ import { getAccountEventOrigin } from './account-event-origin'
 import { isUpstreamStarting } from '@orbit/shared/query'
 import { wakeUpstream } from './wake-upstream'
 
-/**
- * Centralized API fetch with error categorization. Handles:.
- */
-
 type TranslateFn = (key: string) => string
 
 export interface ApiFetchBehavior {

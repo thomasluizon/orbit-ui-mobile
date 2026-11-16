@@ -60,7 +60,6 @@ interface EditHabitModalProps {
   habit: NormalizedHabit | null
   onSaved?: () => void | Promise<void>
   relationshipFieldsLoaded?: boolean
-  /** The habit's parent's `isGeneral`, when it has a parent, from the caller's loaded habit map. */
   parentIsGeneral?: boolean | null
 }
 

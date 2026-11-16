@@ -17,7 +17,6 @@ const { act, create } = require('react-test-renderer')
 const SE = { width: 375, height: 667, scale: 2, top: 20, bottom: 0, keyboardTop: 432 }
 const IPHONE_17 = { width: 402, height: 874, scale: 3, top: 62, bottom: 34, keyboardTop: 572 }
 const device = { ...SE }
-/** The check is the real widget: `challenge` is the Cloudflare checkbox the bridge page posts as `interactive`, and `none` is a passed check. */
 type CheckState = 'none' | 'challenge'
 const BRIDGE_STATES: Record<CheckState, string> = { none: 'solved', challenge: 'interactive' }
 
@@ -118,7 +117,6 @@ async function render(step: 'email' | 'code', check: CheckState) {
   return tree
 }
 
-/** Posts a state from the bridge page, as the human check does. */
 function setCheck(tree: Tree, check: CheckState) {
   const bridge = hosts(tree, (node) => node.type === 'WebView')[0]!
   act(() => (bridge.props.onMessage as (event: object) => void)({ nativeEvent: { data: JSON.stringify({ state: BRIDGE_STATES[check] }) } }))

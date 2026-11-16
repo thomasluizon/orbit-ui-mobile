@@ -10,7 +10,6 @@ type Tokens = ReturnType<typeof createTokensV2>;
 interface CalendarWeekViewProps {
   columns: readonly TimeGridColumn[];
   dayMap: Map<string, CalendarDayEntry[]>;
-  /** Direction of the last week-nav step, driving the grid's slide-in motion. */
   slideDirection: CalendarSlideDirection | null;
   isLoading?: boolean;
   onSelectDay: (dateStr: string) => void;

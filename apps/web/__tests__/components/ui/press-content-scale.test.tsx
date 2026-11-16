@@ -23,7 +23,6 @@ function media(rule: Rule): string[] {
   return conditions
 }
 
-/** Every rule that sets `property` for a selector that contains `fragment`, with its at-rule conditions. */
 function rulesSetting(property: string, fragment: string): { selectors: string[]; value: string; conditions: string[] }[] {
   const found: { selectors: string[]; value: string; conditions: string[] }[] = []
   stylesheet.walkRules((rule) => {

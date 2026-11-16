@@ -32,7 +32,6 @@ interface LoadedContentProps {
   onCopy: () => void
 }
 
-/** The loaded layout's shape while the referral loads: the link field, then the completed and pending rows. */
 function ReferralSkeleton({ label }: Readonly<{ label: string }>) {
   return (
     <div role="status" aria-label={label} aria-busy="true" data-slot="referral-skeleton" className="flex flex-col gap-4">

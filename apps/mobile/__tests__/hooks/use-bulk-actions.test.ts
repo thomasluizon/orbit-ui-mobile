@@ -274,11 +274,6 @@ describe('useBulkActions confirmBulkDelete', () => {
   })
 })
 
-/**
- * Ticket #42 is the product authority: a confirmation belongs to an
- * irreversible act only. Bulk log and bulk skip act at once, and only bulk
- * delete asks. These assertions state that requirement rather than inherit it.
- */
 describe('useBulkActions reversibility boundary', () => {
   beforeEach(() => {
     showToast.mockReset()

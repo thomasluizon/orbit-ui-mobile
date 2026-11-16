@@ -18,7 +18,6 @@ function measureChildHeight(node: TestInstance): number {
   return Math.max(points(style?.height), points(style?.minHeight), points(style?.lineHeight), childrenHeight)
 }
 
-/** A percentage size follows its parent, so only a point size adds height. */
 function points(value: unknown): number {
   return typeof value === 'number' ? value : 0
 }

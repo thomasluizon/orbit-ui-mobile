@@ -26,7 +26,6 @@ interface HabitListEmptyStateProps {
   variant?: 'primary' | 'secondary'
 }
 
-/** The filled action of a pair: primary in the compact shell, secondary at the wide breakpoint, as the Hoje drawing draws it. */
 function filledVariantFor(width: number): 'primary' | 'secondary' {
   return width >= WIDE_DESKTOP_BREAKPOINT ? 'secondary' : 'primary'
 }

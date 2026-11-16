@@ -26,7 +26,6 @@ vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/s
 
 import { TimeField } from '@/components/ui/time-field'
 
-/** The trigger is labelled by its current value, so open it by position. */
 function openPicker() {
   fireEvent.click(screen.getAllByRole('button')[0]!)
 }

@@ -14,7 +14,6 @@ const subHabitSchema = z.looseObject({
 
 const storedChildSchema = z.looseObject({ emoji: z.string().nullable().optional() })
 
-/** A create preview's `sub_habits.oldValue` is a JSON list of each proposed child's stored values, in the same order. */
 function storedChildEmojis(oldValue: string | null): readonly (string | null | undefined)[] {
   if (!oldValue) return []
   let stored: unknown
@@ -28,7 +27,6 @@ function storedChildEmojis(oldValue: string | null): readonly (string | null | u
 
 export function pendingOperationSubHabits(fields: readonly PendingOperationChange[]): readonly {
   title: string
-  /** The emoji of the existing habit a reused child names. A new draft child has no stored habit, so its stored values describe nothing. */
   storedEmoji?: string
   fields: PendingOperationChange[]
 }[] {

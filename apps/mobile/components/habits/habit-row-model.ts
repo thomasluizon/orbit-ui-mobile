@@ -17,7 +17,6 @@ export function resolveHabitRowDotState(
 
 interface BuildHabitRowMetaPartsParams {
   habit: NormalizedHabit
-  /** Whether the current view renders sub-habits under the row. */
   hasChildren: boolean
   childProgress?: { done: number; total: number }
   isOverdue: boolean

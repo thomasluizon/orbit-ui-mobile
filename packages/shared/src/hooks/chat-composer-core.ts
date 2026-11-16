@@ -21,13 +21,6 @@ import {
   type UpgradeEntitlementResolution,
 } from '../utils/upgrade'
 
-/**
- * Framework-agnostic chat-composer core shared by the web and mobile
- * `useChatComposer` hooks. Pure TypeScript: no React, no DOM, no I/O. Each app
- * injects its own state container and network closures; this module owns the
- * decisions both platforms must make identically.
- */
-
 const CHAT_HABIT_ACTION_TYPES: ReadonlySet<string> = new Set([
   'CreateHabit',
   'LogHabit',
@@ -71,11 +64,6 @@ export function sendInConversation(
   return send()
 }
 
-/**
- * Query-key families invalidated after any successful agent operation. Both
- * apps invalidate the same set; the hook maps each family to
- * `queryClient.invalidateQueries`.
- */
 const AGENT_INVALIDATION_KEY_FAMILIES: readonly (readonly unknown[])[] = [
   habitKeys.all,
   goalKeys.all,
