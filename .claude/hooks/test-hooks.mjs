@@ -852,6 +852,7 @@ for (const [command, rule] of [
   ["rm -rf ../*", "glob-target"],
   ["rmdir -p apps/web/*", "glob-target"],
   ["rm -rf \\\\", "windows-path"],
+  ['bash -c "IFS=: ; rm -rf dist"', "unreadable-script"],
   ['rm -rf build "unbalanced', "unreadable-script"],
   // A comment hides nothing from the rules: the removal before it is still read.
   ['rm -rf "$DST" # it\'s stale', "variable-path"],
@@ -890,7 +891,7 @@ for (const [command, rule] of [
   modelledRefusals += isModelled(command) ? 1 : 0
   T(`approval: ${command} is refused by ${expected}`, refusedBy(command), expected)
 }
-T("approval: the count of refused rows that the subset models, each refused by its removal rule", modelledRefusals, 55)
+T("approval: the count of refused rows that the subset models, each refused by its removal rule", modelledRefusals, 56)
 for (const command of REVIEW_APPROVAL_REFUSED) T(`approval review: ${JSON.stringify(command)} is refused`, refusedBy(command), "not-modelled")
 T("approval: the not-modelled refusal names the construct, the plain subset and the script file", ["a here-string", "plain subset", "literal path"].every((text) => (checkApprovalPrompt(`cat <<<'rm -rf "$TMP"'`, approvalOptions)?.message ?? "").includes(text)), true)
 let modelledPasses = 0

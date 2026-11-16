@@ -189,8 +189,8 @@ export const REMOVAL_RULES = [
   },
   {
     name: "unreadable-script",
-    judgeCommand: ({ command }) => INLINE_SCRIPT.test(command) && command.length > INLINE_SCRIPT_MAX_LENGTH
-      ? refuse("inline_shell_unchecked, eval_trap_string, unparsed_line", "the command runs a removal with an inline script that is too long for a check to read with certainty",
+    judgeCommand: ({ command }) => INLINE_SCRIPT.test(command) && (/\bIFS\b/.test(command) || command.length > INLINE_SCRIPT_MAX_LENGTH)
+      ? refuse("inline_shell_unchecked, eval_trap_string, unparsed_line", "the command runs a removal with an inline script that sets `IFS`, or that is too long for a check to read with certainty",
         "Run each removal as its own direct command, with a literal path.")
       : null,
   },
