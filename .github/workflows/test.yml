@@ -146,7 +146,7 @@ jobs:
         id: next-cache
         uses: actions/cache/restore@v6
         with:
-          path: apps/web/.next/cache
+          path: apps/web/.next/cache/webpack
           key: ${{ runner.os }}-next-hermetic-${{ hashFiles('package-lock.json') }}
           restore-keys: |
             ${{ runner.os }}-next-hermetic-
@@ -162,7 +162,7 @@ jobs:
         if: github.event_name != 'pull_request' && steps.next-cache.outputs.cache-hit != 'true'
         uses: actions/cache/save@v6
         with:
-          path: apps/web/.next/cache
+          path: apps/web/.next/cache/webpack
           key: ${{ steps.next-cache.outputs.cache-primary-key }}
 
       - name: Pack hermetic build
@@ -715,7 +715,7 @@ jobs:
       # A result that is still current after 30 days costs one more type check of its workspace.
       - name: Remove the Turbo results that are older than 30 days
         if: github.event_name != 'pull_request'
-        run: find .turbo/cache -type f -mtime +30 -delete
+        run: find .turbo -type f -mtime +30 -delete
       - name: Save turbo
         if: github.event_name != 'pull_request'
         uses: actions/cache/save@v6

@@ -23,7 +23,8 @@ export const readInventory = (path) => readFileSync(join(root, path), "utf8").sp
 // The workflow `on` key holds one event name, a list of names or a map of names.
 export const eventsOf = (on) => (typeof on === "string" ? [on] : Array.isArray(on) ? on : Object.keys(on ?? {}))
 
-// The workflows and the local actions, with the text of some files changed or added, for a test that breaks the guard.
+// The workflows, the local actions and the Turbo configuration, with the text of some files changed or added, for a test
+// that breaks the guard.
 export function readTree(changes = {}) {
   assert.equal(changes[MISSING_TEXT], undefined, changes[MISSING_TEXT])
   const read = (path) => yaml.load(changes[path] ?? readFileSync(join(root, path), "utf8"))
@@ -38,7 +39,8 @@ export function readTree(changes = {}) {
     assert.equal(document?.runs?.using, "composite", `${path}: the guard reads only composite local actions`)
     return { file: path.replace(".github/actions/", ""), document, steps: document.runs.steps ?? [] }
   })
-  return { workflows, actions }
+  const turbo = JSON.parse(changes["turbo.json"] ?? readFileSync(join(root, "turbo.json"), "utf8"))
+  return { workflows, actions, turbo }
 }
 
 // GitHub reads an action name without regard to case. A local action has no remote name. A Docker image step is named

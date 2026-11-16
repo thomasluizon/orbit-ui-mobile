@@ -308,13 +308,32 @@ test("the sweep keeps the newest main entry of every cache family that a release
 const COMPILER_CACHE_STAMP = 'echo "COMPILER_CACHE_USED_SINCE=$(date +%s)" >> "$GITHUB_ENV"'
 const COMPILER_CACHE_EVICT = 'ccache --evict-older-than "$(($(date +%s) - COMPILER_CACHE_USED_SINCE))s"'
 const SAVES_A_PASSING_MAIN_COMPILE = "github.ref == 'refs/heads/main' && steps.compiler-cache.outputs.cache-hit != 'true'"
+// Each saver with its reviewed path: the restore and the save name that exact text, and the evict step cleans that
+// directory. ccache at v4.9.1, src/Config.cpp, and at v4.14.2, src/ccache/config.cpp, Config::read: the directory is the
+// command line cache_dir, then CCACHE_DIR, then cache_dir of the system configuration, then ~/.ccache when it exists, then
+// $XDG_CACHE_HOME/ccache, then ~/.cache/ccache on Linux. So the job sets CCACHE_DIR to the reviewed value or, on Linux,
+// leaves it unset, and no step names another of those settings.
 const COMPILER_CACHE_SAVERS = {
-  "mobile-build.yml: build": ["compile", `\${{ env.CCACHE_AVAILABLE == 'true' && steps.compile.outcome == 'success' && ${SAVES_A_PASSING_MAIN_COMPILE} }}`],
-  "android-release.yml: release-android": ["Build signed AAB with Gradle", "env.CCACHE_AVAILABLE == 'true'"],
-  "ios-build.yml: compile": ["compile", `\${{ steps.compile.outcome == 'success' && ${SAVES_A_PASSING_MAIN_COMPILE} }}`],
-  "ios-release.yml: release": ["archive", `steps.archive.outcome == 'success' && ${SAVES_A_PASSING_MAIN_COMPILE}`],
+  "mobile-build.yml: build": {
+    compile: "compile", path: "~/.cache/ccache", ccacheDirectory: undefined,
+    evictWhen: `\${{ env.CCACHE_AVAILABLE == 'true' && steps.compile.outcome == 'success' && ${SAVES_A_PASSING_MAIN_COMPILE} }}`,
+  },
+  "android-release.yml: release-android": {
+    compile: "Build signed AAB with Gradle", path: "~/.cache/ccache", ccacheDirectory: undefined, evictWhen: "env.CCACHE_AVAILABLE == 'true'",
+  },
+  "ios-build.yml: compile": {
+    compile: "compile", path: "${{ env.CCACHE_DIR }}", ccacheDirectory: "${{ github.workspace }}/.cache/ios-ccache",
+    evictWhen: `\${{ steps.compile.outcome == 'success' && ${SAVES_A_PASSING_MAIN_COMPILE} }}`,
+  },
+  "ios-release.yml: release": {
+    compile: "archive", path: "${{ env.CCACHE_DIR }}", ccacheDirectory: "${{ github.workspace }}/.cache/ios-device-ccache",
+    evictWhen: `steps.archive.outcome == 'success' && ${SAVES_A_PASSING_MAIN_COMPILE}`,
+  },
 }
-const isCompilerCache = (step) => /ccache/i.test(step.with?.path ?? "")
+const COMPILER_CACHE_PATHS = new Set(Object.values(COMPILER_CACHE_SAVERS).map(({ path }) => path))
+const savesExactly = (path) => `the save writes exactly ${path}, the directory that the evict step cleans`
+// A name or a run text that can move the ccache directory, in any letter case.
+const MOVES_CCACHE_DIRECTORY = /cache_dir|xdg_cache_home|ccache_configpath|\.ccache\b/i
 
 // The stamp step and the evict step as a reviewer reads them. The name is free text; every other key is the reviewed form,
 // so a shell, a working directory, an env or a continue-on-error cannot stop the step or move it to another directory.
@@ -323,17 +342,32 @@ const reviewedStep = (step, form) => canonical({ name: step?.name, ...form })
 const assertNoRunDefaults = (workflow, job, where) =>
   assert.deepEqual([workflow.document.defaults, job.defaults], [undefined, undefined], `${where}: the job and its workflow set no run defaults`)
 
+// The ccache directory of the job is the reviewed one: the job env sets CCACHE_DIR to the reviewed value or leaves it
+// unset, and nothing else in the workflow or the job names a setting that moves the directory.
+function assertCompilerCacheDirectory(list, ccacheDirectory, where) {
+  const failure = `${where}: the compiler cache directory of the job is the reviewed one`
+  const { env: jobEnv = {} } = list.job
+  assert.equal(jobEnv.CCACHE_DIR, ccacheDirectory, failure)
+  const otherEnvNames = [...Object.keys(list.workflow.document.env ?? {}), ...Object.keys(jobEnv).filter((name) => name !== "CCACHE_DIR"),
+    ...list.entries.flatMap(({ step }) => Object.keys(step.env ?? {}))]
+  assert.deepEqual(otherEnvNames.filter((name) => MOVES_CCACHE_DIRECTORY.test(name)), [], failure)
+  assert.deepEqual(list.entries.filter(({ step }) => MOVES_CCACHE_DIRECTORY.test(step.run ?? "")).map((entry) => entry.where), [], failure)
+}
+
 function checkCompilerCaches(currentTree) {
-  const saves = currentTree.workflows.flatMap((workflow) => Object.entries(workflow.jobs).flatMap(([job, definition]) => (definition.steps ?? [])
-    .filter((step) => savesACache(step) && isCompilerCache(step))
-    .map((step) => ({ step, steps: definition.steps, workflow, definition, place: `${workflow.file}: ${job}`, where: `${workflow.file}: ${job}: ${step.name ?? step.uses}` }))))
-  assert.deepEqual(saves.map(({ place }) => place).sort(), Object.keys(COMPILER_CACHE_SAVERS).sort(), "the compiler cache savers")
-  for (const { step: save, steps, workflow, definition, place, where } of saves) {
-    const [compileStep, evictWhen] = COMPILER_CACHE_SAVERS[place]
-    assertNoRunDefaults(workflow, definition, where)
-    const restore = steps.findIndex((step) => restoresACache(step) && isCompilerCache(step))
+  const saves = cacheStepLists(currentTree).filter((list) => list.workflow).flatMap((list) => list.entries
+    .filter(({ step }) => savesACache(step) && COMPILER_CACHE_PATHS.has(step.with?.path))
+    .map(({ step, where }) => ({ step, list, where })))
+  assert.deepEqual(saves.map(({ list }) => list.place).sort(), Object.keys(COMPILER_CACHE_SAVERS).sort(), "the compiler cache savers")
+  for (const { step: save, list, where } of saves) {
+    const { compile: compileStep, evictWhen, path, ccacheDirectory } = COMPILER_CACHE_SAVERS[list.place]
+    const steps = list.entries.map((entry) => entry.step)
+    assertNoRunDefaults(list.workflow, list.job, where)
+    assertCompilerCacheDirectory(list, ccacheDirectory, where)
+    assert.equal(save.with.path, path, `${where}: ${savesExactly(path)}`)
+    const restore = steps.findIndex((step) => restoresACache(step) && step.with?.path === path)
+    assert.ok(restore >= 0, `${where}: a restore of the job restores exactly ${path}`)
     assert.ok(steps[restore].with["restore-keys"].trim().length > 0, `${where}: the job restores an older entry by prefix`)
-    assert.equal(save.with.path, steps[restore].with.path, `${where}: the save writes the directory that the job restored and the evict step cleaned`)
     const stamps = steps.filter((step) => step.run?.includes("COMPILER_CACHE_USED_SINCE="))
     assert.equal(stamps.length, 1, `${where}: one step records the start of the compiler cache use`)
     const stamp = steps.indexOf(stamps[0])
@@ -362,22 +396,35 @@ const assertNoInputs = (step, where, inputs) => {
   for (const input of inputs) assert.equal(step.with?.[input], undefined, `${where}: ${input}`)
 }
 
+// The exact path of each saver of a rule that a clean step or a tool bounds, by job. A rule compares the whole saved path
+// and the whole restored path with this text, so another spelling of the path is a change that a reviewer makes here.
+const PASS_MARKERS = {
+  "android-startup.yml: boot": { path: ".ci-pass/android-boot", key: "${{ needs.scope.outputs.pass-key }}" },
+  "ios-build.yml: record": { path: ".ci-pass/ios-compile", key: "${{ needs.plan.outputs.pass-key }}" },
+  "mobile-build.yml: build": { path: ".ci-pass/android-compile", key: "${{ needs.plan.outputs.pass-key }}" },
+}
+const WEBPACK_CACHE_SAVERS = { "test.yml: build": "apps/web/.next/cache/webpack" }
+const TURBO_CACHE_SAVERS = { "test.yml: type-check": ".turbo" }
+const turboDelete = (path) => `find ${path} -type f -mtime +30 -delete`
+
 // The rule of each inventory line: the actions that it covers, and the check that the cache step and its job follow it. A
 // new rule is a change to this file, so a reviewer reads its reason. The line pins the whole step and its job, so a rule
 // checks only why the entry stays bounded. Each check reads the canonical step and the canonical steps of its job.
 const RULES = {
-  // The key changes only with the inputs of the pass. The save writes one file under .ci-pass/, and the step before it
-  // writes only the commit SHA to that file. Each marker is under 300 bytes (229 and 232 bytes in
+  // The key changes only with the inputs of the pass. The save writes the one file that PASS_MARKERS names for its job,
+  // and the step before it writes only the commit SHA to that file. Each marker is under 300 bytes (229 and 232 bytes in
   // GET /repos/{owner}/{repo}/actions/caches), far under the 5 MB bound of LARGE_ENTRY_BYTES in sweep-actions-caches.mjs.
   // The sweep never deletes a pass marker, so a larger file under a pass key would stay.
   "pass marker": {
     actions: ["actions/cache/save"],
     check: ({ step, where, list, index }) => {
-      assert.match(step.with.key, /^\$\{\{ needs\.(plan|scope)\.outputs\.pass-key \}\}$/, where)
-      assert.match(step.with.path, /^\.ci-pass\/[\w-]+$/, `${where}: a pass marker is one file under .ci-pass/`)
+      assert.ok(Object.hasOwn(PASS_MARKERS, list.place), `${where}: PASS_MARKERS names the job`)
+      const { path, key } = PASS_MARKERS[list.place]
+      assert.equal(step.with.key, key, `${where}: the save writes the pass key of its workflow`)
+      assert.equal(step.with.path, path, `${where}: a pass marker is the one file ${path}`)
       assertNoRunDefaults(list.workflow, list.job, where)
       const before = list.entries[index - 1]?.step
-      assert.deepEqual(before, reviewedStep(before, { run: `mkdir -p .ci-pass && echo "$GITHUB_SHA" > ${step.with.path}` }),
+      assert.deepEqual(before, reviewedStep(before, { run: `mkdir -p .ci-pass && echo "$GITHUB_SHA" > ${path}` }),
         `${where}: the step before the save writes only the commit SHA to the marker`)
     },
   },
@@ -407,32 +454,57 @@ const RULES = {
       assert.equal(step.with.path, "${{ steps.npm-cache.outputs.path }}", `${where}: the npm save writes the npm cache directory`)
     },
   },
-  // checkCompilerCaches holds the stamp step, the evict step and the order of each compiler cache save.
+  // checkCompilerCaches holds the restore, the stamp step, the evict step and the order of each compiler cache save. The
+  // evict step cleans only the reviewed directory of its job, so the save writes exactly that path.
   "the evict step": {
     actions: ["actions/cache", "actions/cache/save"],
     check: ({ step, list, where }) => {
-      assert.ok(list.place in COMPILER_CACHE_SAVERS, `${where}: COMPILER_CACHE_SAVERS names the job`)
-      assert.ok(isCompilerCache(step), `${where}: the evict step bounds only the compiler cache save of its job`)
+      assert.ok(Object.hasOwn(COMPILER_CACHE_SAVERS, list.place), `${where}: COMPILER_CACHE_SAVERS names the job`)
+      const { path } = COMPILER_CACHE_SAVERS[list.place]
+      assert.equal(step.with?.path, path, `${where}: ${savesExactly(path)}`)
     },
   },
   // next/dist/compiled/webpack/bundle5.js sets the filesystem cache default maxAge to 1e3*60*60*24*60, and
-  // next/dist/build/webpack-config.js does not change it: webpack removes an item that no build read for 60 days.
+  // next/dist/build/webpack-config.js sets cacheDirectory to <distDir>/cache/webpack and does not change maxAge: webpack
+  // removes an item that no build read for 60 days. Nothing bounds the other directories under .next/cache, so the
+  // restore and the save name exactly the webpack directory.
   "the webpack maxAge of 60 days": {
     actions: ["actions/cache/save"],
-    check: ({ step, where }) => assert.equal(step.with.path, "apps/web/.next/cache", where),
+    check: ({ step, where, list }) => {
+      assert.ok(Object.hasOwn(WEBPACK_CACHE_SAVERS, list.place), `${where}: WEBPACK_CACHE_SAVERS names the job`)
+      const path = WEBPACK_CACHE_SAVERS[list.place]
+      assert.equal(step.with.path, path, `${where}: the save writes exactly ${path}, the directory that webpack cleans`)
+      const id = PRIMARY_KEY.exec(step.with.key)?.[1]
+      const restore = list.entries.map((entry) => entry.step).find((candidate) => restoresACache(candidate) && candidate.id === id)
+      assert.equal(restore?.with?.path, path, `${where}: the restore of the key restores exactly ${path}`)
+    },
   },
-  // Turbo keeps each result at .turbo/cache/<hash>.tar.zst with two JSON files and never removes one.
+  // Turbo keeps each result at <cacheDir>/<hash>.tar.zst with two JSON files and never removes one. The delete step cleans
+  // the whole saved directory, and Turbo writes inside it: turbo.json sets no cacheDir and the job sets no TURBO_CACHE_DIR
+  // and passes no --cache-dir, so the cache directory is the default .turbo/cache (node_modules/turbo/docs/reference/
+  // configuration.mdx "cacheDir" and "global", docs/reference/system-environment-variables.mdx "TURBO_CACHE_DIR").
   "the delete of Turbo results older than 30 days": {
     actions: ["actions/cache/save"],
-    check: ({ step, where, list }) => {
+    check: ({ step, where, list, tree: currentTree }) => {
+      assert.ok(Object.hasOwn(TURBO_CACHE_SAVERS, list.place), `${where}: TURBO_CACHE_SAVERS names the job`)
+      const path = TURBO_CACHE_SAVERS[list.place]
       const steps = list.entries.map((entry) => entry.step)
       const before = steps[steps.indexOf(step) - 1]
-      assert.equal(step.with.path, ".turbo", where)
+      assert.equal(step.with.path, path, `${where}: the save writes exactly ${path}, the directory that the delete step cleans`)
+      const id = PRIMARY_KEY.exec(step.with.key)?.[1]
+      const restore = steps.find((candidate) => restoresACache(candidate) && candidate.id === id)
+      assert.equal(restore?.with?.path, path, `${where}: the restore of the key restores exactly ${path}`)
       assertNoRunDefaults(list.workflow, list.job, where)
-      assert.equal(before?.run, "find .turbo/cache -type f -mtime +30 -delete", `${where}: the step before the save deletes the Turbo results older than 30 days`)
+      const remove = turboDelete(path)
+      assert.equal(before?.run, remove, `${where}: the step before the save deletes the Turbo results older than 30 days`)
       assert.equal(before.if, step.if, `${where}: the delete step runs on each run that saves`)
-      assert.deepEqual(before, canonical({ if: step.if, name: "Remove the Turbo results that are older than 30 days", run: "find .turbo/cache -type f -mtime +30 -delete" }),
+      assert.deepEqual(before, canonical({ if: step.if, name: "Remove the Turbo results that are older than 30 days", run: remove }),
         `${where}: the delete step differs from its reviewed form`)
+      assert.deepEqual([currentTree.turbo.cacheDir, currentTree.turbo.global?.cacheDir], [undefined, undefined], `${where}: turbo.json sets no cacheDir, so Turbo writes under ${path}`)
+      const envNames = [list.workflow.document.env, list.job.env, ...steps.map((candidate) => candidate.env)].flatMap((env) => Object.keys(env ?? {}))
+      assert.deepEqual(envNames.filter((name) => /turbo_cache_dir/i.test(name)), [], `${where}: the job sets no TURBO_CACHE_DIR, so Turbo writes under ${path}`)
+      assert.deepEqual(list.entries.filter((entry) => /turbo_cache_dir|--cache-dir/i.test(entry.step.run ?? "")).map((entry) => entry.where), [],
+        `${where}: no step of the job sets TURBO_CACHE_DIR or --cache-dir, so Turbo writes under ${path}`)
     },
   },
   // actions/setup-node at 949feb2413d6458794dcd2491c4babbbce0c15c1 (v7), src/cache-save.ts: the post step saves the
@@ -530,7 +602,7 @@ function cacheGuard(currentTree, inventory, rules = RULES, remoteInventory = REM
     assert.ok(Object.hasOwn(rules, line.rule), `${save.where}: the rule "${line.rule}" is not in RULES`)
     const { actions: covered, check } = rules[line.rule]
     assert.ok(covered.includes(actionName(save.step.uses)), `${save.where}: the rule "${line.rule}" does not cover ${actionName(save.step.uses)}`)
-    check(canonicalSave(save))
+    check({ ...canonicalSave(save), tree: currentTree })
   }
   checkCompilerCaches(currentTree)
   checkNpmSaves(currentTree, inventory)
@@ -571,7 +643,7 @@ const IOS_BUILD_EVICT = `      - name: Keep only the objects that this compile u
 `
 const TURBO_DELETE = `      - name: Remove the Turbo results that are older than 30 days
         if: github.event_name != 'pull_request'
-        run: find .turbo/cache -type f -mtime +30 -delete
+        run: find .turbo -type f -mtime +30 -delete
 `
 const restoreStep = (name, path, key, restoreKeys, id) => `      - name: ${name}
 ${id ? `        id: ${id}\n` : ""}        uses: actions/cache/restore@v6
@@ -628,6 +700,16 @@ const IOS_RELEASE_SAVE_PATH = "          path: ${{ env.CCACHE_DIR }}\n          
 const NPM_SAVE_PATH = "          path: ${{ steps.npm-cache.outputs.path }}\n"
 const DESKTOP_RUST_SAVE_IF = "          save-if: ${{ github.ref == 'refs/heads/main' }}\n"
 const GRADLE_READ_ONLY = "          cache-read-only: true\n"
+const IOS_CCACHE_PATH = "          path: ${{ env.CCACHE_DIR }}\n"
+const IOS_CCACHE_AND_DERIVED = "          path: |\n            ${{ env.CCACHE_DIR }}\n            ${{ runner.temp }}/orbit-ios-build\n"
+const MOBILE_CCACHE_PATH = "          path: ~/.cache/ccache\n"
+const MOBILE_CCACHE_AND_CXX = "          path: |\n            ~/.cache/ccache\n            apps/mobile/android/app/.cxx\n"
+const MOBILE_PASS_RECORD = "        run: mkdir -p .ci-pass && echo \"$GITHUB_SHA\" > .ci-pass/android-compile\n"
+const MOBILE_PASS_PATH = "        uses: actions/cache/save@v6\n        with:\n          path: .ci-pass/android-compile\n"
+const MOBILE_BUILD_GRADLE_OPTS = "      GRADLE_OPTS: -Dorg.gradle.caching=true\n"
+const TYPE_CHECK_IF = "    if: needs.plan.outputs.type-check == 'true'\n"
+const TURBO_JSON_HEAD = '{\n  "$schema": "https://turbo.build/schema.json",\n'
+const NEXT_CACHE_PATH = "          path: apps/web/.next/cache/webpack\n"
 // A new workflow whose plan job gives a pass key and whose export job saves a path under it.
 const webExport = (path, before) => ({
   ".github/workflows/web-export.yml": `name: Web export
@@ -772,30 +854,62 @@ const MUTATIONS = [
   ["EVs the ios-build evict step runs in a shell that ignores its script", changeText(".github/workflows/ios-build.yml",
     [IOS_BUILD_EVICT, `${IOS_BUILD_EVICT}        shell: true {0}\n`]), /ios-build\.yml: compile: Save compiler outputs: the evict step differs from its reviewed form/, WRITE],
   ["EVe the android-release evict step cleans another directory", changeText(".github/workflows/android-release.yml",
-    [ANDROID_RELEASE_EVICT, `${ANDROID_RELEASE_EVICT}        env:\n          CCACHE_DIR: /tmp/other-ccache\n`]), /the evict step differs from its reviewed form/, WRITE],
+    [ANDROID_RELEASE_EVICT, `${ANDROID_RELEASE_EVICT}        env:\n          CCACHE_DIR: /tmp/other-ccache\n`]),
+    /android-release\.yml: release-android: Restore the ccache directory: the compiler cache directory of the job is the reviewed one/, WRITE],
   ["STs the mobile-build stamp step runs in a shell that ignores its script", changeText(".github/workflows/mobile-build.yml",
     [MOBILE_BUILD_STAMP, `${MOBILE_BUILD_STAMP}        shell: true {0}\n`]), /mobile-build\.yml: build: Save the ccache directory: the stamp step differs from its reviewed form/, WRITE],
   ["ST2 a second ios-release stamp step just before the evict step", changeText(".github/workflows/ios-release.yml",
     [IOS_RELEASE_EVICT_NAME, `${STAMP_STEP.split("\n").slice(1).join("\n")}${IOS_RELEASE_EVICT_NAME}`]), /one step records the start of the compiler cache use/, WRITE],
   ["CP the ios-release save writes the parent of the restored directory", changeText(".github/workflows/ios-release.yml",
-    [IOS_RELEASE_SAVE_PATH, IOS_RELEASE_SAVE_PATH.replace("${{ env.CCACHE_DIR }}", "${{ env.CCACHE_DIR }}/..")]), /the save writes the directory that the job restored/, WRITE],
+    [IOS_RELEASE_SAVE_PATH, IOS_RELEASE_SAVE_PATH.replace("${{ env.CCACHE_DIR }}", "${{ env.CCACHE_DIR }}/..")]), /ios-release\.yml: release: Save compiler outputs: the save writes exactly \$\{\{ env\.CCACHE_DIR \}\}/, WRITE],
   ["CD the mobile-build job runs each run step in another directory", changeText(".github/workflows/mobile-build.yml",
     [MOBILE_BUILD_JOB, `${MOBILE_BUILD_JOB}    defaults:\n      run:\n        working-directory: apps/mobile\n`]), /mobile-build\.yml: build: Save the (ccache directory|pass marker): the job and its workflow set no run defaults/, WRITE],
   ["E1 a prefix restore and a save of the derived data in the ios-build compile job, whose line names the evict step", changeText(".github/workflows/ios-build.yml",
     [IOS_INSTALL, `${restoreStep("Restore the derived data", "~/Library/Developer/Xcode/DerivedData", "derived-data-${{ github.sha }}", "derived-data-", "derived-data")}${
       saveStep("Save the derived data", "~/Library/Developer/Xcode/DerivedData", "${{ steps.derived-data.outputs.cache-primary-key }}")}${IOS_INSTALL}`]),
-  /Save the derived data: the evict step bounds only the compiler cache save of its job/, withRule("ios-build.yml: compile: Save the derived data", "the evict step")],
+  /Save the derived data: the save writes exactly \$\{\{ env\.CCACHE_DIR \}\}/, withRule("ios-build.yml: compile: Save the derived data", "the evict step")],
   ["E2 a save of the web build output under a pass key, whose line names the pass marker rule", webExport("apps/web/.next", ""),
-    /Save the export: a pass marker is one file under \.ci-pass\//, withRule("web-export.yml: export: Save the export", "pass marker")],
-  ["E2b a copy of the web build output into a pass marker path, whose line names the pass marker rule",
-    webExport(".ci-pass/web-export", "      - run: mkdir -p .ci-pass && cp -r apps/web/.next .ci-pass/web-export\n"),
-    /Save the export: the step before the save writes only the commit SHA to the marker/, withRule("web-export.yml: export: Save the export", "pass marker")],
+    /Save the export: PASS_MARKERS names the job/, withRule("web-export.yml: export: Save the export", "pass marker")],
+  ["E2b the mobile-build pass marker step copies the build output into the marker path", changeText(".github/workflows/mobile-build.yml",
+    [MOBILE_PASS_RECORD, MOBILE_PASS_RECORD.replace('echo "$GITHUB_SHA" >', "cp -r apps/mobile/android/app/build")]),
+    /mobile-build\.yml: build: Save the pass marker: the step before the save writes only the commit SHA to the marker/, WRITE],
+  ["E2p the mobile-build pass marker saves the marker and the build output in one path list", changeText(".github/workflows/mobile-build.yml",
+    [MOBILE_PASS_PATH, MOBILE_PASS_PATH.replace("path: .ci-pass/android-compile\n", "path: |\n            .ci-pass/android-compile\n            apps/mobile/android/app/build\n")]),
+    /mobile-build\.yml: build: Save the pass marker: a pass marker is the one file \.ci-pass\/android-compile/, WRITE],
   ["NP the Build npm save writes another directory", changeText(".github/workflows/test.yml", [NPM_SAVE_PATH, "          path: ~/.npm\n"]),
     /Save the npm cache: the npm save writes the npm cache directory/, WRITE],
   ["RC the Desktop Build Rust step saves an extra directory", changeText(".github/workflows/desktop-build.yml",
     [DESKTOP_RUST_SAVE_IF, `${DESKTOP_RUST_SAVE_IF}          cache-directories: apps/desktop/node_modules\n`]), /Restore the Rust compile cache: cache-directories/, WRITE],
   ["GI the Android Release Gradle step caches the wrapper directory too", changeText(".github/workflows/android-release.yml",
     [GRADLE_READ_ONLY, `${GRADLE_READ_ONLY}          gradle-home-cache-includes: |\n            caches\n            wrapper\n`]), /gradle-home-cache-includes/, WRITE],
+  ["A1 the ios-build compile job restores and saves the ccache directory and the derived data of its compile in one path list",
+    changeText(".github/workflows/ios-build.yml", [IOS_CCACHE_PATH, IOS_CCACHE_AND_DERIVED], [IOS_CCACHE_PATH, IOS_CCACHE_AND_DERIVED]),
+    /ios-build\.yml: compile: Save compiler outputs: the save writes exactly \$\{\{ env\.CCACHE_DIR \}\}/, WRITE],
+  ["A1r the ios-build compile job restores the ccache directory and the derived data in one path list", changeText(".github/workflows/ios-build.yml",
+    [IOS_CCACHE_PATH, IOS_CCACHE_AND_DERIVED]), /ios-build\.yml: compile: Save compiler outputs: a restore of the job restores exactly \$\{\{ env\.CCACHE_DIR \}\}/, WRITE],
+  ["A2 the mobile-build job restores and saves the ccache directory and the CMake build directory in one path list",
+    changeText(".github/workflows/mobile-build.yml", [MOBILE_CCACHE_PATH, MOBILE_CCACHE_AND_CXX], [MOBILE_CCACHE_PATH, MOBILE_CCACHE_AND_CXX]),
+    /mobile-build\.yml: build: Save the ccache directory: the save writes exactly ~\/\.cache\/ccache/, WRITE],
+  ["EVj the mobile-build job env moves the ccache directory away from the saved path", changeText(".github/workflows/mobile-build.yml",
+    [MOBILE_BUILD_GRADLE_OPTS, `${MOBILE_BUILD_GRADLE_OPTS}      XDG_CACHE_HOME: /tmp/other-cache\n`]),
+    /mobile-build\.yml: build: Save the ccache directory: the compiler cache directory of the job is the reviewed one/, WRITE],
+  ["EVr a step of the android-release job creates the legacy ccache directory", changeText(".github/workflows/android-release.yml",
+    [ANDROID_RELEASE_EVICT, `      - run: mkdir -p ~/.ccache\n${ANDROID_RELEASE_EVICT}`]),
+    /android-release\.yml: release-android: Restore the ccache directory: the compiler cache directory of the job is the reviewed one/, WRITE],
+  ["B1 turbo.json moves the Turbo cache directory", changeText("turbo.json", [TURBO_JSON_HEAD, `${TURBO_JSON_HEAD}  "cacheDir": ".turbo/results",\n`]),
+    /Save turbo: turbo\.json sets no cacheDir/],
+  ["B2 the Type Check job env moves the Turbo cache directory", changeText(".github/workflows/test.yml",
+    [TYPE_CHECK_IF, `${TYPE_CHECK_IF}    env:\n      TURBO_CACHE_DIR: .turbo/results\n`]), /Save turbo: the job sets no TURBO_CACHE_DIR/, WRITE],
+  ["B3 the Type Check run passes another cache directory", changeText(".github/workflows/test.yml",
+    [TYPE_CHECK_RUN, "      - run: npx turbo run type-check --cache-dir=.turbo/results\n"]), /Save turbo: no step of the job sets TURBO_CACHE_DIR or --cache-dir/, WRITE],
+  ["T3 the Turbo delete step cleans only the cache directory under the saved path", changeText(".github/workflows/test.yml",
+    ["        run: find .turbo -type f -mtime +30 -delete\n", "        run: find .turbo/cache -type f -mtime +30 -delete\n"]),
+    /Save turbo: the step before the save deletes the Turbo results older than 30 days/, WRITE],
+  ["W1 the Build job restores and saves the whole Next cache directory", changeText(".github/workflows/test.yml",
+    [NEXT_CACHE_PATH, "          path: apps/web/.next/cache\n"], [NEXT_CACHE_PATH, "          path: apps/web/.next/cache\n"]),
+    /Save the Next compiler cache: the save writes exactly apps\/web\/\.next\/cache\/webpack/, WRITE],
+  ["W2 the Build job restores the whole Next cache directory", changeText(".github/workflows/test.yml", [NEXT_CACHE_PATH, "          path: apps/web/.next/cache\n"]),
+    /Save the Next compiler cache: the restore of the key restores exactly apps\/web\/\.next\/cache\/webpack/, WRITE],
 ]
 
 for (const [name, changes, reason, review] of MUTATIONS) {
