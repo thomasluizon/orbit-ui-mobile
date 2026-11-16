@@ -106,7 +106,7 @@ it('holds the pending create button slot with a hidden spacer that takes no focu
   expect(screen.getAllByRole('button').filter(button => slot.contains(button))).toEqual([])
 })
 
-it('is the live Orbit at 48 with no circle, fill or border, in a 60 press target', () => {
+it('is the live Orbit at 48 on a solid elevated circle with a control edge, the size of its 60 press target', () => {
   mount()
   const button = openButton()
   const mascot = button.querySelector('svg')!
@@ -114,7 +114,7 @@ it('is the live Orbit at 48 with no circle, fill or border, in a 60 press target
   expect(mascot).toHaveAttribute('width', '48')
   expect(mascot).toHaveAttribute('aria-hidden', 'true')
   expect(button).toHaveStyle({ width: '60px', height: '60px' })
-  expect(button).toHaveClass('bg-transparent', 'border-0', 'motion-safe:active:scale-[0.96]')
+  expect(button).toHaveClass('rounded-full', 'bg-[var(--bg-elev)]', 'border', 'border-solid', 'border-[var(--border-control)]', 'motion-safe:active:scale-[0.96]')
   expect(button).not.toHaveAttribute('data-fab')
   expect(button.querySelector('[data-press-fill]')).toBeNull()
 })
@@ -138,11 +138,11 @@ it('keeps its whole 60 press target while pressed: the unpainted hit layer takes
   expect(pressed.map(rule => [rule.media, rule.declarations.get('scale')])).toEqual([[[MOTION_SAFE], 'calc(1 / 0.96)']])
 }, 60_000)
 
-it('paints the neutral hover fill of its round target on pointer hover only, with no resting background and no hover transform', () => {
+it('paints the opaque elevated hover fill of its circle on pointer hover only, with no hover transform', () => {
   mount()
   const button = openButton()
   const classes = button.className.split(' ')
-  expect(classes).toEqual(expect.arrayContaining(['rounded-full', 'bg-transparent', 'hover:bg-[var(--bg-hover)]']))
-  expect(classes.filter(name => name.startsWith('hover:'))).toEqual(['hover:bg-[var(--bg-hover)]'])
+  expect(classes).toEqual(expect.arrayContaining(['rounded-full', 'bg-[var(--bg-elev)]', 'hover:bg-[var(--bg-elev-hover)]']))
+  expect(classes.filter(name => name.startsWith('hover:'))).toEqual(['hover:bg-[var(--bg-elev-hover)]'])
   expect(classes.filter(name => name.startsWith('active:bg') || name.includes('press-fill'))).toEqual([])
 })

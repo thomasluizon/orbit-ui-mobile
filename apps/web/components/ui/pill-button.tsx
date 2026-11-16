@@ -64,7 +64,8 @@ function ButtonContent({ skeletonWaiting, iconOnly, children, leadingIcon, signI
   </>
 }
 
-function waitsOnSkeletonFace(loading: boolean, brand: ButtonProps['brand']): boolean {
+function waitingFace(loading: boolean, brand: ButtonProps['brand'], loadingFace: ButtonProps['loadingFace']): boolean | 'icon' {
+  if (loading && loadingFace === 'icon') return 'icon'
   return loading && brand !== 'apple'
 }
 
@@ -88,6 +89,7 @@ export function Button({
   onMouseLeave,
   disabled = false,
   loading = false,
+  loadingFace,
   focusableWhenLoading = false,
   children,
   accessibleName,
@@ -112,7 +114,8 @@ export function Button({
   const hintId = useId()
   const descriptionIds = buttonDescriptionIds(descriptionId, hintId, hint)
   const size = withinRow ? 'sm' : requestedSize
-  const skeletonWaiting = waitsOnSkeletonFace(loading, brand)
+  const waiting = waitingFace(loading, brand, loadingFace)
+  const skeletonWaiting = waiting === true
 
   return (
     <><button
@@ -137,7 +140,7 @@ export function Button({
       data-size={size}
       data-loading={loading || undefined}
       data-borderless={borderless || undefined}
-      className={actionClasses(variant, size, 'button', skeletonWaiting, quiet, elevated, borderless)}
+      className={actionClasses(variant, size, 'button', waiting, quiet, elevated, borderless)}
       style={persistentButtonStyle(buttonStyle(size, withinRow, { minimumHeight, iconOnly, matchedWidth, leadingIcon, brand, variant, quiet, edge }), retainLeadingIcon)}
     >
       <ButtonContent skeletonWaiting={skeletonWaiting} iconOnly={iconOnly} leadingIcon={leadingIcon} signIn={signInButtonSpec(brand)}>{children}</ButtonContent>

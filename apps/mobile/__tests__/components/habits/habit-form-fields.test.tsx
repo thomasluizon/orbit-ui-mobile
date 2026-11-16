@@ -219,7 +219,7 @@ describe('HabitFormFields mobile', () => {
     }
   })
 
-  it('keeps the frequency fill action mounted with its glyph on the skeleton face during its request', async () => {
+  it('keeps the frequency fill action mounted with its Orbit reading and no skeleton face during its request', async () => {
     const helpers = createFormHelpers({ title: 'Build a stronger routine' })
     const form = (isSuggesting: boolean) => <HabitFormFields formHelpers={helpers} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} onUpgrade={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} onSuggestSetup={vi.fn(() => SETUP_PROPOSAL)} isSuggesting={isSuggesting} />
     let tree!: ReturnType<typeof TestRenderer.create>
@@ -229,10 +229,12 @@ describe('HabitFormFields mobile', () => {
     await TestRenderer.act(() => { tree.update(form(true)) })
     expect(action.props.accessibilityState.busy).toBe(true)
     expect(action.findAllByType(OrbitMascot)).toHaveLength(1)
-    expect(action.findAll((node: UnderstandingTestNode) => node.type === 'View' && node.props.testID === 'skeleton-face')).toHaveLength(1)
+    expect(action.findByType(OrbitMascot).props.reading).toBe(true)
+    expect(action.findAll((node: UnderstandingTestNode) => node.type === 'View' && node.props.testID === 'skeleton-face')).toHaveLength(0)
     expect(action.findAll((node: UnderstandingTestNode) => node.type === 'ActivityIndicator')).toHaveLength(0)
     await TestRenderer.act(() => { tree.update(form(false)) })
     expect(action.findAllByType(OrbitMascot)).toHaveLength(1)
+    expect(action.findByType(OrbitMascot).props.reading).toBe(false)
     expect(action.findAll((node: UnderstandingTestNode) => node.type === 'View' && node.props.testID === 'skeleton-face')).toHaveLength(0)
   })
 
@@ -367,7 +369,8 @@ describe('HabitFormFields mobile', () => {
     const busy = action('habits.form.suggestEmoji')
     expect(busy === button, 'pending keeps the native action mounted').toBe(true)
     expect(busy.findAllByType(OrbitMascot)).toHaveLength(1)
-    expect(busy.findAll((node: UnderstandingTestNode) => node.type === 'View' && node.props.testID === 'skeleton-face')).toHaveLength(1)
+    expect(busy.findByType(OrbitMascot).props.reading).toBe(true)
+    expect(busy.findAll((node: UnderstandingTestNode) => node.type === 'View' && node.props.testID === 'skeleton-face')).toHaveLength(0)
     expect(busy.findAll((node: UnderstandingTestNode) => node.type === 'ActivityIndicator')).toHaveLength(0)
     expect(busy.props.accessibilityState.busy).toBe(true)
     expect(busy.props.accessibilityState.disabled).toBe(false)
@@ -382,6 +385,7 @@ describe('HabitFormFields mobile', () => {
     expect(action('habits.form.suggestEmoji') === button, 'success keeps the native action mounted').toBe(true)
     expect(__getFocusedNativeTag()).toBe(moveFocus ? phrase.props.__nativeTag : button.props.__nativeTag)
     expect(button.findAllByType(OrbitMascot)).toHaveLength(1)
+    expect(button.findByType(OrbitMascot).props.reading).toBe(false)
     expect(button.findAll((node: UnderstandingTestNode) => node.type === 'View' && node.props.testID === 'skeleton-face')).toHaveLength(0)
     expect(tree.root.findAll((node: UnderstandingTestNode) => node.type === 'View' && node.props.testID === 'habit-emoji-well' && node.props['data-proposed'] === true)).toHaveLength(1)
     await TestRenderer.act(() => { tree.unmount() })
@@ -1335,7 +1339,8 @@ describe('habit tag suggestions', () => {
     await TestRenderer.act(() => button('habits.form.suggestTags').props.onPress())
     expect(button('habits.form.suggestTags').props.accessibilityState).toMatchObject({ disabled: true, busy: true })
     expect(button('habits.form.suggestTags').findAllByType(OrbitMascot)).toHaveLength(1)
-    expect(button('habits.form.suggestTags').findAll((node: UnderstandingTestNode) => node.type === 'View' && node.props.testID === 'skeleton-face')).toHaveLength(1)
+    expect(button('habits.form.suggestTags').findByType(OrbitMascot).props.reading).toBe(true)
+    expect(button('habits.form.suggestTags').findAll((node: UnderstandingTestNode) => node.type === 'View' && node.props.testID === 'skeleton-face')).toHaveLength(0)
     expect(button('habits.form.suggestTags').findAll((node: UnderstandingTestNode) => node.type === 'ActivityIndicator')).toHaveLength(0)
     expect(button('habits.form.suggestTags').props.accessibilityHint).toBe('habits.form.suggestingTags')
     expect(text('habits.form.suggestingTags')[0]!.props.accessibilityLiveRegion).toBe('polite')

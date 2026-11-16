@@ -121,9 +121,11 @@ export function orbitRingPath(from: number, to: number, tilt: number, opening: n
   return `M${outer.concat(inner.reverse()).join(' L')} Z`
 }
 
+const ORBIT_BLINK_CLOSE_PHASE = 0.92
+
 function blinkScaleAt(phase: number): number {
-  if (phase < 0.92) return 1
-  if (phase < 0.96) return 1 - (0.9 * (phase - 0.92)) / 0.04
+  if (phase < ORBIT_BLINK_CLOSE_PHASE) return 1
+  if (phase < 0.96) return 1 - (0.9 * (phase - ORBIT_BLINK_CLOSE_PHASE)) / 0.04
   return 0.1 + (0.9 * (phase - 0.96)) / 0.04
 }
 
@@ -133,26 +135,38 @@ export interface OrbitMascotTimings {
   readonly tiltPeriod: number
 }
 
-/** The frame at `milliseconds` of the idle loop. Zero is the rest frame every still face draws. */
-export function orbitMascotFrame(milliseconds: number, timings: OrbitMascotTimings): OrbitMascotFrame {
-  const tilt = toRadians(
+function ringTiltAt(milliseconds: number, tiltPeriod: number): number {
+  return toRadians(
     ORBIT_MASCOT_RING_REST_TILT_DEGREES
-      + ORBIT_MASCOT_RING_TILT_RANGE_DEGREES * Math.sin((milliseconds / timings.tiltPeriod) * Math.PI * 2),
+      + ORBIT_MASCOT_RING_TILT_RANGE_DEGREES * Math.sin((milliseconds / tiltPeriod) * Math.PI * 2),
   )
-  const moonAngle = ORBIT_MASCOT_MOON_REST_ANGLE + (milliseconds / timings.moonPeriod) * Math.PI * 2
+}
+
+function moonAt(milliseconds: number, moonPeriod: number, tilt: number): { x: number; y: number; depth: number } {
+  const moonAngle = ORBIT_MASCOT_MOON_REST_ANGLE + (milliseconds / moonPeriod) * Math.PI * 2
   const flatX = ORBIT_MASCOT_RING_RADIUS * Math.cos(moonAngle)
   const flatY = ORBIT_MASCOT_RING_RADIUS * ORBIT_MASCOT_RING_OPENING * Math.sin(moonAngle)
-  const depth = Math.sin(moonAngle)
+  return {
+    x: flatX * Math.cos(tilt) - flatY * Math.sin(tilt),
+    y: flatX * Math.sin(tilt) + flatY * Math.cos(tilt),
+    depth: Math.sin(moonAngle),
+  }
+}
+
+/** The frame at `milliseconds` of the idle loop. Zero is the rest frame every still face draws. */
+export function orbitMascotFrame(milliseconds: number, timings: OrbitMascotTimings): OrbitMascotFrame {
+  const tilt = ringTiltAt(milliseconds, timings.tiltPeriod)
+  const moon = moonAt(milliseconds, timings.moonPeriod, tilt)
   const blinkPhase = (milliseconds % timings.blinkInterval) / timings.blinkInterval
   return {
     ringBack: orbitRingPath(Math.PI, Math.PI * 2, tilt, ORBIT_MASCOT_RING_OPENING, 0),
     ringOutline: orbitRingPath(0, Math.PI, tilt, ORBIT_MASCOT_RING_OPENING, ORBIT_MASCOT_RING_OUTLINE_GROWTH),
     ringFront: orbitRingPath(0, Math.PI, tilt, ORBIT_MASCOT_RING_OPENING, 0),
     moon: {
-      x: Number((flatX * Math.cos(tilt) - flatY * Math.sin(tilt)).toFixed(1)),
-      y: Number((flatX * Math.sin(tilt) + flatY * Math.cos(tilt)).toFixed(1)),
-      radius: Number((ORBIT_MASCOT_MOON_RADIUS * (0.82 + (0.18 * (depth + 1)) / 2)).toFixed(1)),
-      front: depth >= 0,
+      x: Number(moon.x.toFixed(1)),
+      y: Number(moon.y.toFixed(1)),
+      radius: Number((ORBIT_MASCOT_MOON_RADIUS * (0.82 + (0.18 * (moon.depth + 1)) / 2)).toFixed(1)),
+      front: moon.depth >= 0,
     },
     blinkScale: blinkScaleAt(blinkPhase),
   }
@@ -211,3 +225,52 @@ export const ORBIT_SMALL_FACES = {
     moon: 'M4.909 13.68C4.909 14.647 4.126 15.43 3.159 15.43C2.193 15.43 1.409 14.647 1.409 13.68C1.409 12.714 2.193 11.93 3.159 11.93C4.126 11.93 4.909 12.714 4.909 13.68Z',
   },
 } as const satisfies Record<number, OrbitSmallFace>
+
+/** The y of the eye centre of each small face: the middle of its pill eyes. */
+export const ORBIT_SMALL_FACE_EYE_CENTRE_Y = { 16: 4.5, 20: 6, 24: 7 } as const satisfies Record<OrbitMascotSmallSize, number>
+
+/** The timings of the small face read motion: the idle loop timings and the ring turn. */
+export interface OrbitSmallFaceTimings extends OrbitMascotTimings {
+  readonly ringTurn: number
+}
+
+/** One moment of the small face read motion, as SVG matrices on the drawn paths of `ORBIT_SMALL_FACES`. */
+export interface OrbitSmallFaceFrame {
+  /** Turns the ring halves and the ring outline about the planet centre. */
+  readonly ring: string
+  /** Moves the moon along the ring from its drawn position. */
+  readonly moon: string
+  /** Below zero depth the moon passes behind the planet. */
+  readonly moonFront: boolean
+  /** Closes both eyes about their centre line. */
+  readonly eyes: string
+}
+
+function matrix(a: number, b: number, c: number, d: number, e: number, f: number): string {
+  return `matrix(${[a, b, c, d, e, f].map((value) => Number(value.toFixed(3))).join(' ')})`
+}
+
+/** The small face read motion `milliseconds` after the read starts. The live rig needs 40 px or more, so the 16 to
+ *  24 px face moves its drawn paths instead: the moon orbits the ring once per ring turn and passes behind the planet,
+ *  the ring tilts as it does in the idle loop, and the eyes blink at once and then at the blink interval. The planet
+ *  does not move. Zero is the drawn face. */
+export function orbitSmallFaceFrame(milliseconds: number, size: OrbitMascotSmallSize, timings: OrbitSmallFaceTimings): OrbitSmallFaceFrame {
+  const scale = size / 4 / ORBIT_MASCOT_PLANET_RADIUS
+  const centreX = size / 2
+  const centreY = size * ORBIT_SMALL_FACE_BOX_RATIO / 2
+  const restTilt = ringTiltAt(0, timings.tiltPeriod)
+  const tilt = ringTiltAt(milliseconds, timings.tiltPeriod)
+  const rest = moonAt(0, timings.ringTurn, restTilt)
+  const moon = moonAt(milliseconds, timings.ringTurn, tilt)
+  const turn = tilt - restTilt
+  const cos = Math.cos(turn)
+  const sin = Math.sin(turn)
+  const blinkPhase = ((milliseconds + ORBIT_BLINK_CLOSE_PHASE * timings.blinkInterval) % timings.blinkInterval) / timings.blinkInterval
+  const blink = blinkScaleAt(blinkPhase)
+  return {
+    ring: matrix(cos, sin, -sin, cos, centreX - centreX * cos + centreY * sin, centreY - centreX * sin - centreY * cos),
+    moon: matrix(1, 0, 0, 1, (moon.x - rest.x) * scale, (moon.y - rest.y) * scale),
+    moonFront: moon.depth >= 0,
+    eyes: matrix(1, 0, 0, blink, 0, ORBIT_SMALL_FACE_EYE_CENTRE_Y[size] * (1 - blink)),
+  }
+}

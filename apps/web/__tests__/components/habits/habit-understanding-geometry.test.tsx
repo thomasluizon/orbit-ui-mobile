@@ -108,7 +108,7 @@ describe('habit understanding geometry', () => {
       expect(await action.getAttribute('aria-busy')).toBe('true')
       expect(await action.locator('svg').count()).toBe(1)
       expect(await action.locator('[data-asset="orbit-mascot"]').count()).toBe(1)
-      expect(await action.locator('[data-slot="skeleton-face"]').count()).toBe(1)
+      expect(await action.locator('[data-slot="skeleton-face"]').count()).toBe(0)
       view.rerender(form(false))
       await mount()
       expect(await action.getAttribute('aria-busy')).toBeNull()

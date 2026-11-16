@@ -4,6 +4,7 @@ import {
   isOrbitMascotSmallSize,
   orbitMascotFrame,
   orbitMascotSizeFor,
+  orbitSmallFaceFrame,
   type OrbitMascotFrame,
   type OrbitMascotProps,
 } from '@orbit/shared/contracts/brand'
@@ -12,6 +13,7 @@ import {
   advanceOrbitLoopClock,
   claimOrbitLiveSlot,
   getOrbitLoopVersion,
+  isOrbitMotionEnabled,
   joinOrbitLoopClock,
   mayOrbitRunLoop,
   subscribeOrbitLoop,
@@ -70,6 +72,33 @@ function useOrbitLoopClock(wantsLoop: boolean, role: OrbitLiveRole, target: Reac
   return { clock: candidate ? clock : 0, running }
 }
 
+function useOrbitReadClock(reading: boolean) {
+  const reducedMotion = useViewportMatch('(prefers-reduced-motion: reduce)')
+  const motionEnabled = useSyncExternalStore(subscribeOrbitLoop, isOrbitMotionEnabled, isOrbitMotionEnabled)
+  const running = reading && !reducedMotion && motionEnabled
+  const [clock, setClock] = useState(0)
+  const [wasRunning, setWasRunning] = useState(running)
+  if (wasRunning !== running) {
+    setWasRunning(running)
+    setClock(0)
+  }
+
+  useEffect(() => {
+    if (!running) return undefined
+    let start: number | null = null
+    let frame = 0
+    const step = (now: number) => {
+      frame = requestAnimationFrame(step)
+      start ??= now
+      setClock(Math.floor((now - start) / mascotMotion.frameInterval) * mascotMotion.frameInterval)
+    }
+    frame = requestAnimationFrame(step)
+    return () => cancelAnimationFrame(frame)
+  }, [running])
+
+  return { clock: running ? clock : 0, running }
+}
+
 function liveRole(lead: boolean, withLead: boolean): OrbitLiveRole {
   return lead ? 'lead' : withLead ? 'withLead' : 'single'
 }
@@ -78,14 +107,16 @@ function pausedFrame(frame: OrbitMascotFrame, running: boolean): OrbitMascotFram
   return running ? frame : { ...frame, blinkScale: 1 }
 }
 
-export function OrbitMascot({ size, state = 'parado', still = false, color, lead = false, withLead = false }: Readonly<OrbitMascotProps>) {
+export function OrbitMascot({ size, state = 'parado', still = false, reading = false, color, lead = false, withLead = false }: Readonly<OrbitMascotProps>) {
   const clipId = `orbit-planet-${useId().replaceAll(':', '')}`
   const svgRef = useRef<SVGSVGElement | null>(null)
   const small = isOrbitMascotSmallSize(size)
   const { clock, running } = useOrbitLoopClock(!small && !still, liveRole(lead, withLead), svgRef)
   const frame = pausedFrame(orbitMascotFrame(clock, mascotMotion), running)
+  const read = useOrbitReadClock(small && reading)
+  const smallMotion = small && read.running ? orbitSmallFaceFrame(read.clock, size, mascotMotion) : undefined
 
-  return <OrbitMascotDrawing ref={svgRef} size={size} state={state} color={color} clipId={clipId} frame={frame} running={running} />
+  return <OrbitMascotDrawing ref={svgRef} size={size} state={state} color={color} clipId={clipId} frame={frame} smallMotion={smallMotion} running={running || read.running} />
 }
 
 /** The AI marker where a slot takes an icon component: the small static face at the tier of the slot. */

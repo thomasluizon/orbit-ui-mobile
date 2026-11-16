@@ -34,8 +34,8 @@ function waitingTextColor(tokens: AppTokensV2, variant: ButtonVariant, quiet: bo
   return variant === 'ghost' && quiet ? tokens.fg2 : tokens.fg1
 }
 
-function waitsOnSkeletonFace(loading: boolean, apple: boolean): boolean {
-  return loading && !apple
+function waitsOnSkeletonFace(loading: boolean, apple: boolean, loadingFace: ButtonProps['loadingFace']): boolean {
+  return loading && !apple && loadingFace !== 'icon'
 }
 
 function waitingFaceStyle(variant: ButtonVariant, ghostBorderWidth: number): ViewStyle {
@@ -140,6 +140,7 @@ export function ThemedButton({
   onHoverOut,
   disabled = false,
   loading = false,
+  loadingFace,
   focusableWhenLoading = false,
   children,
   accessibleName,
@@ -166,7 +167,8 @@ export function ThemedButton({
 
   const signIn = signInButtonSpec(brand)
   const appleColors = brand === 'apple' ? APPLE_SIGN_IN_BUTTON.colors[themeMode] : null
-  const skeletonWaiting = waitsOnSkeletonFace(loading, appleColors !== null)
+  const skeletonWaiting = waitsOnSkeletonFace(loading, appleColors !== null, loadingFace)
+  const iconBusy = loading && loadingFace === 'icon'
   const textColor = skeletonWaiting ? waitingTextColor(tokens, variant, quiet) : appleColors?.ink ?? buttonTextColors(tokens, quiet)[variant]
   const leadingGlyph = buttonLeadingGlyph(leadingIcon, textColor)
 
@@ -195,9 +197,9 @@ export function ThemedButton({
         retainLeadingIcon ? { maxWidth: '100%' } : null,
         pillBoxStyle({ sizeSpec, iconOnly, minimumHeight, edge, matchedWidth, hasLeadingIcon: Boolean(leadingIcon), signIn: signIn !== null }),
         signIn ? signInPillStyle(signIn) : null,
-        skeletonWaiting ? waitingFaceStyle(variant, outlineWidth) : variantFaceStyle({ variant, tokens, pressed: pressed && !disabled, hovered: hovered && !disabled, elevated, quiet, ghostBorderWidth: outlineWidth, brandFill: appleColors?.fill }),
+        skeletonWaiting ? waitingFaceStyle(variant, outlineWidth) : variantFaceStyle({ variant, tokens, pressed: pressed && !disabled && !iconBusy, hovered: hovered && !disabled && !iconBusy, elevated, quiet, ghostBorderWidth: outlineWidth, brandFill: appleColors?.fill }),
         focused ? buttonFocusStyle(variant, appleColors?.ink ?? tokens.fg1) : null,
-        nativelyDisabled && !skeletonWaiting ? styles.disabled : null,
+        nativelyDisabled && !skeletonWaiting && !iconBusy ? styles.disabled : null,
       ]}
     >
       <ButtonContents tokens={tokens} skeletonWaiting={skeletonWaiting} retainLeadingIcon={retainLeadingIcon} iconOnly={iconOnly} leadingGlyph={leadingGlyph} textColor={textColor}

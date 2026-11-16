@@ -13,6 +13,9 @@ export interface OrbitMascotProps {
   state?: 'parado' | 'pensando' | 'feliz' | 'descansando'
   /** Draws the rest frame and never runs the idle loop. An Orbit inside a button, a chip or a row control is still. */
   still?: boolean
+  /** The small face only: an Orbit read that this control started runs, so the face plays its read motion until the read
+   *  ends or fails. Reduced motion and `Orbit em movimento` off keep the face still. */
+  reading?: boolean
   /** The planet and the ring. Defaults to the foreground token. */
   color?: string
   /** The conversation entry: on a view that shows it, the entry and the Orbit lines of that view run the loop together, and every other Orbit in that view is still. */
