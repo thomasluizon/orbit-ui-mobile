@@ -409,7 +409,7 @@ const macosIconLayers = {
 }
 // Each ICNS element type with the pixel size it holds, in the form `iconutil -c icns` writes from an
 // .iconset: ic04 and ic05 hold the 16 and 32 px images as "ARGB", every larger type a PNG. macOS reads
-// a PNG in icp4 or icp5 as scrambled pixels.
+// a PNG in icp4 or icp5 as scrambled pixels. The ARGB elements add one trailing byte (pngToIcnsArgb).
 const ICNS_ARGB_TYPES = new Set(["ic04", "ic05"])
 const ICNS_TYPES = [
   ["ic04", 16],
@@ -448,7 +448,7 @@ function packIcnsChannel(channel) {
 }
 
 /** An ICNS "ARGB" image: the four bytes "ARGB", then the packed alpha, red, green and blue planes, with
- *  straight (not premultiplied) colour, as `iconutil` writes them. */
+ *  straight (not premultiplied) colour, as `iconutil` writes them, then one 0x00 byte. */
 async function pngToIcnsArgb(png) {
   const { data, info } = await sharp(png).ensureAlpha().raw().toBuffer({ resolveWithObject: true })
   const pixelCount = info.width * info.height
@@ -457,7 +457,9 @@ async function pngToIcnsArgb(png) {
     for (let pixel = 0; pixel < pixelCount; pixel += 1) plane[pixel] = data[pixel * 4 + channel]
     return packIcnsChannel(plane)
   })
-  return Buffer.concat([Buffer.from("ARGB", "latin1"), ...planes])
+  // WHY: Apple Silicon reads the last value of the blue plane as 0; one extra byte, which macOS ignores, keeps
+  // it (https://relikd.github.io/icns-analysis/, "Compressed ARGB data"). `iconutil -c icns` omits this byte.
+  return Buffer.concat([Buffer.from("ARGB", "latin1"), ...planes, Buffer.from([0x00])])
 }
 
 /** The ICNS writer for icon.icns. The file header and each element header are a four-byte type and a

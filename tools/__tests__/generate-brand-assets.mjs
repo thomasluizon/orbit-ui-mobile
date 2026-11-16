@@ -71,7 +71,9 @@ const ICNS_ARGB_SIZES = { ic04: 16, ic05: 32 }
 
 /** An ICNS "ARGB" image: the four bytes "ARGB", then the alpha, red, green and blue planes, each one
  *  packed. A control byte below 0x80 copies the next control + 1 bytes; a control byte from 0x80
- *  repeats the next byte control - 0x80 + 3 times. Returns the image as a PNG. */
+ *  repeats the next byte control - 0x80 + 3 times. Returns the image as a PNG, and the bytes after
+ *  the blue plane: the writer must end with exactly one 0x00 byte, because Apple Silicon reads the
+ *  last blue value as 0 when the blue plane is the last byte of the element. */
 const argbToPng = async (body, size) => {
   if (body.subarray(0, 4).toString("latin1") !== "ARGB") return null
   const pixels = Buffer.alloc(size * size * 4)
@@ -87,12 +89,16 @@ const argbToPng = async (body, size) => {
       }
     }
   }
-  if (position !== body.length) return null
-  return sharp(pixels, { raw: { width: size, height: size, channels: 4 } }).png().toBuffer()
+  if (position > body.length) return null
+  return {
+    png: await sharp(pixels, { raw: { width: size, height: size, channels: 4 } }).png().toBuffer(),
+    tail: body.subarray(position),
+  }
 }
 
 /** The elements of an ICNS file: a four-byte type and a big-endian length that counts its header.
- *  `format` is "PNG", "ARGB" or "other", and `png` holds the image as a PNG either way. */
+ *  `format` is "PNG", "ARGB" (planes and the one trailing 0x00 byte), "ARGB-tail-<hex>" (planes with
+ *  any other tail) or "other", and `png` holds the image as a PNG for each one but "other". */
 const readIcnsElements = async (path) => {
   if (!existsSync(path)) return { magic: "missing", length: 0, size: 0, elements: [] }
   const icns = readFileSync(path)
@@ -102,8 +108,9 @@ const readIcnsElements = async (path) => {
     const body = icns.subarray(offset + 8, offset + icns.readUInt32BE(offset + 4))
     const argbSize = ICNS_ARGB_SIZES[type]
     const argb = argbSize ? await argbToPng(body, argbSize) : null
-    const format = argb ? "ARGB" : body.subarray(1, 4).toString() === "PNG" ? "PNG" : "other"
-    elements.push({ type, format, png: argb ?? body })
+    const argbFormat = argb && (argb.tail.equals(Buffer.from([0x00])) ? "ARGB" : `ARGB-tail-${argb.tail.toString("hex") || "none"}`)
+    const format = argbFormat || (body.subarray(1, 4).toString() === "PNG" ? "PNG" : "other")
+    elements.push({ type, format, png: argb?.png ?? body })
   }
   return { magic: icns.subarray(0, 4).toString("latin1"), length: icns.readUInt32BE(4), size: icns.length, elements }
 }
@@ -526,14 +533,15 @@ export const cases = async () => {
   ]
 
   // `iconutil -c icns` writes the 16 and 32 px images as "ARGB" elements ic04 and ic05, and every
-  // larger image as a PNG element. macOS reads a PNG in icp4 or icp5 as scrambled pixels.
+  // larger image as a PNG element. macOS reads a PNG in icp4 or icp5 as scrambled pixels. Each ARGB
+  // element ends with one 0x00 byte after its blue plane, or Apple Silicon reads the last blue run as 0.
   const icns = await readIcnsElements(join(outputRoot, "apps", "desktop", "src-tauri", "icons", "icon.icns"))
   const icnsSizes = await Promise.all(
     icns.elements.map(async ({ type, format, png }) =>
       `${type}:${format}:${format === "other" ? 0 : (await sharp(png).metadata()).width}`),
   )
   T(
-    "generate-brand-assets.mjs: macOS icon.icns carries ARGB elements at 16 and 32 and a PNG element for each larger size",
+    "generate-brand-assets.mjs: macOS icon.icns carries ARGB elements with one trailing 0x00 byte at 16 and 32 and a PNG element for each larger size",
     icns.magic === "icns" &&
       icns.length === icns.size &&
       icnsSizes.join(" ") ===
