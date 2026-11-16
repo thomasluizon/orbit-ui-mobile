@@ -33,7 +33,7 @@ UI `main` `ca538e933`; API `main` `38513551a`; landing `main` `20c1b0a90`. Owner
 | `#2135` baseline | After 00:10 UTC: relaunch S `order-2135-baseline-r4.md` per S `result-2135-baseline.md` `## Next window` (240 min). |
 | api#1116 (`#2150`) | Round 2 was refused by the relay drain and never ran: launch it first (S `note-1116-r2.md`). Review, push, Pullfrog, merge, then the API release with the manual steps (production webhook is broken until then). |
 | ui#2469 (`#2074`) | Round 20 was refused by the relay drain and never ran: launch it (S `note-2469-r20.md`). Review, push. |
-| ui#2464 (`#2137`) | Round 20 runs (S `note-2464-r20.md`). Review, push. |
+| ui#2464 (`#2137`) | Round 20 committed `fef49f8ff` on a main merge. Diff, review, push. |
 | ui#2451 (`#2121`) | Round 22 committed (`2cfecef3c` to `fc7c0f0a9`, two main merges). Diff, review, push. |
 | ui#2475 (`#2149`) | Round 3 review: DEFECTS (5) (S `review-2475-r3-local.md`). Round 4 fixes all five. |
 | ui#2476 (`#2145`) | Round 2 committed `3d0b39885` (a macOS write sandbox for read-only workers) on a merge of main. Read the diff, review worker, push with S `body-2476-r2.md`. |
