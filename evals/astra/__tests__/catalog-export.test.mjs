@@ -6,18 +6,54 @@ import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { parse } from 'yaml'
 
-// The exporter must build and run against the real API, not a hand-written copy of its interfaces: API drift that breaks
-// the exporter or changes its output fails here. ORBIT_API_REPOSITORY names a local orbit-api repository to fetch the
-// catalog's commit from; the default is the public GitHub repository.
+const generator = fileURLToPath(new URL('../generate-catalog.mjs', import.meta.url))
+const { apiCommit } = parse(readFileSync(new URL('../catalog.yaml', import.meta.url), 'utf8'))
+// The offline check never reads an eval target, even when the caller's shell names one.
+const offlineEnvironment = { ...process.env }
+delete offlineEnvironment.ORBIT_EVAL_BASE_URL
+
+// The exporter must build and run against the real API, not a hand-written copy of its interfaces. This proves the
+// exporter, the generator, CHAT_BLOCK_KINDS and catalog.yaml against the commit that the catalog names. That commit
+// never moves, so orbit-api drift after it does not reach this test. ORBIT_API_REPOSITORY names a local orbit-api
+// repository to fetch the catalog's commit from; the default is the public GitHub repository.
 it('builds and runs the exporter against the API commit that the catalog names and reproduces the catalog', () => {
-  const { apiCommit } = parse(readFileSync(new URL('../catalog.yaml', import.meta.url), 'utf8'))
   const repository = process.env.ORBIT_API_REPOSITORY ? [process.env.ORBIT_API_REPOSITORY] : []
-  const run = spawnSync(process.execPath, [fileURLToPath(new URL('../generate-catalog.mjs', import.meta.url)), '--check',
-    ...repository], { encoding: 'utf8', timeout: 600000 })
+  const run = spawnSync(process.execPath, [generator, '--check', ...repository],
+    { encoding: 'utf8', env: offlineEnvironment, timeout: 600000 })
   expect(run.error).toBeUndefined()
   expect(run.status, `${run.stdout}\n${run.stderr}`).toBe(0)
   expect(run.stdout).toContain(`catalog.yaml matches the exporter output at API ${apiCommit}.`)
 }, 600000)
+
+// Producer: credentials.mjs waitForHealthyApi reads the eval target's /health body, as the live run does.
+function checkAgainstTarget(servedCommit) {
+  const health = JSON.stringify({ status: 'Healthy', commit: servedCommit, checks: [] })
+  const target = `data:text/javascript,globalThis.fetch = async (url) => { if (String(url) !== 'https://eval-target.invalid/health') throw new Error('unexpected ' + url); return Response.json(${encodeURIComponent(health)}) }`
+  // A missing repository stops the check at its fetch, so a target check that lets the build start fails this test fast.
+  const missingRepository = join(tmpdir(), 'astra-missing-api-repository')
+  return spawnSync(process.execPath, ['--import', target, generator, '--check', missingRepository], {
+    encoding: 'utf8', env: { ...offlineEnvironment, ORBIT_EVAL_BASE_URL: 'https://eval-target.invalid' }, timeout: 60000,
+  })
+}
+
+// Drift after the catalog's commit reaches the eval through the API that the eval target serves; the check refuses it
+// with the live run's own message before it builds anything.
+it('refuses an eval target that serves an API commit other than the one that the catalog names', () => {
+  const servedCommit = 'b'.repeat(40)
+  const run = checkAgainstTarget(servedCommit)
+  expect(run.status).toBe(1)
+  expect(run.stderr).toContain(`Astra catalog ${apiCommit} differs from API ${servedCommit}. Regenerate from a clean API `
+    + 'checkout at that commit with node evals/astra/generate-catalog.mjs <api-checkout>.')
+  expect(run.stderr).not.toContain('astra-missing-api-repository')
+}, 60000)
+
+it('goes on to the build at the catalog commit when the eval target serves that commit', () => {
+  const run = checkAgainstTarget(apiCommit)
+  expect(run.status).toBe(1)
+  expect(run.stdout).toBe(`The eval target serves API ${apiCommit}.\n`)
+  expect(run.stderr).not.toContain('differs from API')
+  expect(run.stderr).toContain('astra-missing-api-repository')
+}, 60000)
 
 it.each(['present_plan', 'producer_owned_plan'])('exports the unregistered producer plan %s and rejects other declarations', (planName) => {
   const exporter = readFileSync(new URL('../catalog-export.cs', import.meta.url), 'utf8')

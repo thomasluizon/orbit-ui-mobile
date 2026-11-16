@@ -5,6 +5,8 @@ import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { tsImport } from 'tsx/esm/api'
 import { parse, stringify } from 'yaml'
+import { healthyApi } from './credentials.mjs'
+import { requireCatalogCommit } from './trace-policy.mjs'
 
 const usage = 'Usage: node evals/astra/generate-catalog.mjs <api-checkout>, or --check [<api-repository>]'
 const catalogUrl = new URL('./catalog.yaml', import.meta.url)
@@ -50,12 +52,19 @@ async function exportCatalog(apiCheckout) {
   }
 }
 
-// Builds and runs the exporter against the API commit that catalog.yaml names, so API drift that breaks the exporter
-// or changes the catalog fails here and not at the start of a live run.
+// Builds and runs the exporter against the API commit that catalog.yaml names. This proves the exporter, this generator,
+// CHAT_BLOCK_KINDS and catalog.yaml against that commit. The commit never moves, so orbit-api drift after it reaches the
+// eval only through the API that the eval target serves. With ORBIT_EVAL_BASE_URL set, the check first refuses a target
+// that serves another commit, with the live run's own message; regenerating at the served commit then shows any
+// exporter drift as CS0535 or a named refusal.
 async function checkCatalog(repository) {
   const committed = readFileSync(catalogUrl, 'utf8')
   const { apiCommit } = parse(committed)
   if (!/^[0-9a-f]{40}$/.test(apiCommit ?? '')) throw new Error('catalog.yaml names no full API commit.')
+  if (process.env.ORBIT_EVAL_BASE_URL) {
+    requireCatalogCommit((await healthyApi({ fresh: true })).commit)
+    process.stdout.write(`The eval target serves API ${apiCommit}.\n`)
+  }
   const checkout = realpathSync(mkdtempSync(join(tmpdir(), 'astra-catalog-api-')))
   try {
     execFileSync('git', ['init', '--quiet', checkout])

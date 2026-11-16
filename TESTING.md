@@ -305,9 +305,14 @@ implements its whole interface, so a new interface member stops the build until 
 and a refused member that the export reaches fails with its own name.
 `node evals/astra/generate-catalog.mjs --check [<api-repository>]` fetches the commit that `catalog.yaml` names
 (from the public `orbit-api` repository by default), builds and runs the exporter against it, and fails when the
-exporter does not build or run, or when its output differs from `catalog.yaml`. The offline suite runs this check;
-set `ORBIT_API_REPOSITORY` to a local `orbit-api` repository to fetch the commit without the network. The exporter
-tests require the .NET SDK.
+exporter does not build or run, or when its output differs from `catalog.yaml`. So it proves this repository's
+exporter, generator, `CHAT_BLOCK_KINDS` and `catalog.yaml` against that commit. The commit does not move, so
+`orbit-api` drift after it reaches the eval only through the API that the eval target serves. With
+`ORBIT_EVAL_BASE_URL` set, the check first reads the target's `/health` and refuses a served commit other than
+`apiCommit`, with the message of the live run's own check. Regenerate at the served commit; exporter drift then
+stops the build with CS0535 or a refusal that names the member. The offline suite runs the check without
+`ORBIT_EVAL_BASE_URL`; set `ORBIT_API_REPOSITORY` to a local `orbit-api` repository to fetch the commit without the
+network. The exporter tests require the .NET SDK.
 Structural validation selects the schema matching the case's `clientContext.supportsParts` and removes
 only properties the API's trace sensitivity collector marks for omission, retaining all observable constraints.
 The live gate checks `/health` before its first case and before refreshing credentials. It refuses to
