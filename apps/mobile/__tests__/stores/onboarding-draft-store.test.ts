@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { useOnboardingDraftStore } from '@/stores/onboarding-draft-store'
+import { setAccountId } from '@/lib/account-scope'
 import { ONBOARDING_DRAFT_STORAGE_VERSION } from '@orbit/shared/stores'
 
 const asyncStorageState = vi.hoisted(() => ({
@@ -103,6 +104,19 @@ describe('onboarding draft store', () => {
       onboardingLocallyDone: true,
       _hasHydrated: true,
     })
+  })
+
+  it('drops the answers another account stored on this install and keeps the intro as seen', async () => {
+    asyncStorageState.data.set('orbit-onboarding-draft', JSON.stringify({
+      state: { accountKey: 'account-a', habits: [{ title: 'Stretch' }], firstLog: null, goal: null, weekStartDay: 1, onboardingLocallyDone: false, introSeen: true },
+      version: ONBOARDING_DRAFT_STORAGE_VERSION,
+    }))
+    setAccountId('account-b')
+
+    await useOnboardingDraftStore.persist.rehydrate()
+    setAccountId(null)
+
+    expect(useOnboardingDraftStore.getState()).toMatchObject({ accountKey: null, habits: [], weekStartDay: null, onboardingLocallyDone: true, introSeen: true })
   })
 
   it('discards a stale-version snapshot on rehydrate', async () => {

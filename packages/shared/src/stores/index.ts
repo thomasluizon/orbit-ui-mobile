@@ -41,6 +41,7 @@ export {
   buildApplyOnboardingPayload,
   createOnboardingDraftState,
   getPersistedOnboardingDraft,
+  mergeOnboardingDraft,
   migrateOnboardingDraft,
   type OnboardingDraftState,
   type OnboardingWeekStartDay,
