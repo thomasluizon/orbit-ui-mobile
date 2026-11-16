@@ -44,13 +44,13 @@
     "snapshot": "none",
     "constants": "none"
   },
-  ".claude/hooks/offer-stale-cleanup.mjs": {
+  ".claude/hooks/clean-stale-files.mjs": {
     "scope": "changed-files",
     "snapshot": "none",
     "constants": [
       {
-        "name": "listing age and listing time ceiling",
-        "source": "tools/lib/stale-files.mjs LISTING_MAX_AGE_MS and LISTING_CEILING_MS"
+        "name": "free disk floor, cleanup interval and listing time ceiling",
+        "source": "tools/lib/stale-files.mjs FREE_DISK_FLOOR_BYTES, CLEANUP_INTERVAL_MS and LISTING_CEILING_MS"
       }
     ]
   },

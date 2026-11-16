@@ -5,11 +5,12 @@ import { basename, dirname, join } from "node:path"
 import { fileURLToPath } from "node:url"
 
 import {
-  LISTING_MAX_AGE_MS, collectListing, describeBytes, listingIdOf, offerOf, refreshIsDue, removeListed, summarize, systemProbes,
+  CLEANUP_INTERVAL_MS, FREE_DISK_FLOOR_BYTES, cleanupDueReason, collectListing, describeBytes, removeListed, summarize, systemProbes,
 } from "../lib/stale-files.mjs"
 import * as staleFiles from "../lib/stale-files.mjs"
 import { T, root, same } from "./_harness.mjs"
 import { claudeProcessFields, reusedPidRecord } from "./owner-questions-core.mjs"
+import { processStartIdentity } from "../lib/run-state.mjs"
 
 const THIS = "00000000-0000-4000-8000-000000000000"
 const CHAIN_PREDECESSOR = "11111111-0000-4000-8000-000000000001"
@@ -548,23 +549,72 @@ const reportCases = () => {
   same("stale-files: bytes print in the largest unit", [describeBytes(0), describeBytes(1536), describeBytes(5 * 1024 ** 3)], ["0 B", "1.5 KB", "5.0 GB"])
   same("stale-files: the summary gives the count, the size and each class", summarize(stale), "2 items, 3.5 GB (1 session directory, 1 worktree)")
   same("stale-files: the summary counts an item with no size", summarize([{ ...stale[0], bytes: null }]), "1 item, 0 B and 1 not measured (1 session directory)")
-  same("stale-files: the listing id ignores item order and follows the item set", [listingIdOf(stale) === listingIdOf([...stale].reverse()), listingIdOf(stale) === listingIdOf(stale.slice(1))], [true, false])
-  const listing = { version: 1, generatedAt: new Date().toISOString(), listingId: listingIdOf(stale), context: { sessionRoot: machine.sessionRoot }, stale }
-  const offer = offerOf(listing, THIS)
-  T("stale-files: the offer gives the total size, the item count and the removal command in one line", /2 items, 3\.5 GB/.test(offer) && offer.includes(`node tools/stale-files.mjs --delete --listing ${listing.listingId}`) && /only after the owner says yes/.test(offer) && !offer.includes("\n"), offer)
-  same("stale-files: no stale item means no offer", offerOf({ ...listing, stale: [] }, THIS), null)
-  same("stale-files: no stored listing means no offer", offerOf(null, THIS), null)
-  same("stale-files: an item that no longer exists is not offered", offerOf({ ...listing, stale: [{ ...stale[0], path: join(machine.base, "gone") }] }, THIS), null)
-  same("stale-files: the directory of the session that reads the offer is never offered", offerOf({ ...listing, stale: [stale[0]] }, STALE), null)
+}
+
+/** The decision of the unattended cleanup: once for each relay adoption, and whenever free disk is under the floor. */
+const cleanupDueCases = () => {
   const now = Date.now()
-  same("stale-files: a new listing is due without a stored one", refreshIsDue(null, machine.checkout, now), true)
-  same("stale-files: a recent listing is not due again", refreshIsDue(listing, machine.checkout, now), false)
-  const old = { ...listing, generatedAt: new Date(now - LISTING_MAX_AGE_MS - 1).toISOString() }
-  same("stale-files: an old listing is due", refreshIsDue(old, machine.checkout, now), true)
-  writeFileSync(join(machine.checkout, ".git", "orbit-stale-files-refresh.json"), JSON.stringify({ pid: process.pid, startedAt: now }))
-  same("stale-files: a listing that still runs is not started twice", refreshIsDue(old, machine.checkout, now), false)
-  writeFileSync(join(machine.checkout, ".git", "orbit-stale-files-refresh.json"), JSON.stringify({ pid: process.pid, startedAt: 0 }))
-  same("stale-files: a listing marker past its ceiling does not block a new listing", refreshIsDue(old, machine.checkout, now), true)
+  const adopted = { sessionId: THIS, relay: { from: RUN_PREDECESSOR, pending: false } }
+  const plenty = FREE_DISK_FLOOR_BYTES * 2
+  const low = FREE_DISK_FLOOR_BYTES - 1
+  const due = (overrides) => cleanupDueReason({ sessionId: THIS, state: null, marker: null, freeDiskBytes: plenty, now, ...overrides })
+  same("stale-files: a relay adoption starts a cleanup", due({ state: adopted }), "relay adoption")
+  same("stale-files: a relay adoption starts no second cleanup for the same session", due({ state: adopted, marker: { pid: 0, startedAt: now, adoptedBy: THIS } }), null)
+  same("stale-files: the next adoption starts its own cleanup", due({ state: adopted, marker: { pid: 0, startedAt: now, adoptedBy: RUN_PREDECESSOR } }), "relay adoption")
+  same("stale-files: a run that another session adopted starts no cleanup here", due({ state: { ...adopted, sessionId: OTHER } }), null)
+  same("stale-files: a pending relay is no adoption", due({ state: { sessionId: THIS, relay: { pending: true, successorSessionId: SUCCESSOR } } }), null)
+  same("stale-files: free disk above the floor and no adoption start nothing", due({}), null)
+  T("stale-files: free disk under the floor starts a cleanup with no owner answer", /^free disk .* is under the floor of 50\.0 GB$/.test(due({ freeDiskBytes: low }) ?? ""), due({ freeDiskBytes: low }))
+  same("stale-files: low free disk starts no second cleanup inside the interval", due({ freeDiskBytes: low, marker: { pid: 0, startedAt: now - CLEANUP_INTERVAL_MS + 1000 } }), null)
+  T("stale-files: low free disk starts a cleanup again after the interval", due({ freeDiskBytes: low, marker: { pid: 0, startedAt: now - CLEANUP_INTERVAL_MS - 1 } }) !== null)
+  same("stale-files: a cleanup that still runs is never started twice", due({ state: adopted, freeDiskBytes: low, marker: { pid: process.pid, startedAt: now - CLEANUP_INTERVAL_MS - 1 } }), null)
+  same("stale-files: an unreadable free disk starts nothing by itself", due({ freeDiskBytes: null }), null)
+}
+
+/**
+ * A worktree that a queued or running launch names stays: a ticket of the run queue, a worker launch reservation, a live wake
+ * source. A branch with no pull request that was made after the run's last relay stays too; an older one goes.
+ */
+const launchCases = () => {
+  const machine = stageMachine("launches")
+  const relayAt = Date.parse("2026-11-16T14:05:00.000Z")
+  const WAKE = "9a9a9a9a-0000-4000-8000-00000000009a"
+  mkdirSync(join(machine.sessionRoot, WAKE, "scratchpad"), { recursive: true })
+  writeFileSync(join(machine.checkout, ".git", "orbit-orchestrate-run.json"), JSON.stringify({ sessionId: THIS, remaining: ["#4242", "ORB-77"],
+    relay: { from: RUN_PREDECESSOR, pending: true, successorSessionId: SUCCESSOR } }))
+  writeFileSync(join(machine.checkout, ".git", "orbit-session-chain.json"), JSON.stringify({ chains: [{ id: "chain", currentSessionId: THIS, entries: [
+    { sessionId: STALE, successorSessionId: CHAIN_PREDECESSOR, superseded: true, triggeredAt: new Date(relayAt - 3_600_000).toISOString() },
+    { sessionId: CHAIN_PREDECESSOR, successorSessionId: THIS, superseded: true, triggeredAt: new Date(relayAt).toISOString() }] }] }))
+  const tree = (name) => join(machine.base, name)
+  const branches = { "ticket-4242-queued": "fix/ticket-4242-queued", "orb-77-queued": "fix/orb-77-queued", "ticket-42420-not-queued": "fix/ticket-42420-not-queued",
+    reserved: "fix/reserved", released: "fix/released", "wake-log": "fix/wake-log", young: "fix/young", old: "fix/old", "no-reflog": "fix/no-reflog", merged: "fix/merged" }
+  for (const name of Object.keys(branches)) mkdirSync(tree(name), { recursive: true })
+  for (const [name, launcherPid] of [["reserved", process.pid], ["released", 0]]) {
+    mkdirSync(join(tree(name), ".git", "orbit-worker-launches"), { recursive: true })
+    writeFileSync(join(tree(name), ".git", "orbit-worker-launches", "occupied-worktree.json"), JSON.stringify({ launcherPid, workerPid: null, gateProtocol: 1 }))
+  }
+  mkdirSync(join(machine.checkout, ".git", "orbit-wake-sources"), { recursive: true })
+  const identity = processStartIdentity(process.pid)
+  writeFileSync(join(machine.checkout, ".git", "orbit-wake-sources", `${process.pid}.json`), JSON.stringify({ pid: process.pid, processStartIdentity: identity,
+    what: "file waiter", sessionId: WAKE, logFile: join(tree("wake-log"), "worker.log") }))
+  const records = [`worktree ${machine.checkout}\nHEAD 1\nbranch refs/heads/main\n`,
+    ...Object.entries(branches).map(([name, branch]) => `worktree ${tree(name)}\nHEAD 2\nbranch refs/heads/${branch}\n`)].join("\n")
+  const seconds = (time) => String(Math.floor(time / 1000))
+  const reflogs = { [tree("young")]: `${seconds(relayAt + 60_000)}\n${seconds(relayAt + 30_000)}`, [tree("old")]: `${seconds(relayAt - 1000)}\n${seconds(relayAt - 7_200_000)}`, [tree("no-reflog")]: "" }
+  const listing = collectListing({ ...machine.context, repositories: { ui: machine.checkout } }, { probes: { ...quietProbes, repositories: () => [],
+    pullRequests: (path, branch) => (branch === "fix/merged" ? [{ number: 9, state: "MERGED", headRefOid: "2" }] : []),
+    git: (cwd, args) => ({ worktree: () => records, "rev-list": () => "0", "rev-parse": () => "2", "symbolic-ref": () => "origin/main", "cat-file": () => "",
+      log: () => reflogs[cwd] ?? seconds(relayAt - 7_200_000) }[args[0]] ?? (() => ""))() } })
+  T("stale-files: the wake source fixture is a live wake source", identity !== null)
+  for (const [name, reason] of [["ticket-4242-queued", /^ticket #4242 of the run queue names it$/], ["orb-77-queued", /^ticket ORB-77 of the run queue names it$/],
+    ["reserved", new RegExp(`^a worker launch reserves it: process ${process.pid} runs$`)], ["wake-log", /^the wake source file waiter uses it$/],
+    ["young", /^its branch has no pull request and was made after the last relay at 2026-11-16T14:05:00\.000Z$/], ["no-reflog", /^the age of its branch could not be read/]]) {
+    T(`stale-files: the ${name} worktree is kept`, reason.test(reasonOf(listing, tree(name)) ?? ""), `reason: ${reasonOf(listing, tree(name))}`)
+  }
+  T("stale-files: a session directory that a live wake source names is kept", /^the wake source file waiter uses it$/.test(reasonOf(listing, join(machine.sessionRoot, WAKE)) ?? ""),
+    `reason: ${reasonOf(listing, join(machine.sessionRoot, WAKE))}`)
+  same("stale-files: a finished worktree that no launch names is stale: a released reservation, an old branch, a ticket the queue does not hold, a merged pull request",
+    stalePaths(listing, "worktree").sort(), ["ticket-42420-not-queued", "released", "old", "merged"].map(tree).sort())
 }
 
 export const cases = () => {
@@ -582,4 +632,6 @@ export const cases = () => {
   deadlineCases()
   exportCases()
   reportCases()
+  cleanupDueCases()
+  launchCases()
 }

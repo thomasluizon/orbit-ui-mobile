@@ -256,25 +256,22 @@ export const cases = async () => {
     const text = tool(["--list", "--session", THIS])
     T("stale-files: --list reuses the stored session root and prints each item, the total and the removal command", text.status === 0
       && text.stdout.includes(`STALE session ${session(STALE)} (`) && /TOTAL 10 items, .* \(3 session directories, 1 durable carry copy, 6 worktrees\)/.test(text.stdout)
-      && text.stdout.includes(`node tools/stale-files.mjs --delete --listing ${listing.listingId}`), text.stdout + text.stderr)
-    same("stale-files: the listing is stored in the git directory", JSON.parse(readFileSync(join(staged.base, ".git", "orbit-stale-files.json"), "utf8")).listingId, listing.listingId)
+      && text.stdout.includes("Remove them: node tools/stale-files.mjs --delete\n") && !/owner|--listing/.test(text.stdout), text.stdout + text.stderr)
+    same("stale-files: the listing is stored in the git directory", JSON.parse(readFileSync(join(staged.base, ".git", "orbit-stale-files.json"), "utf8")).stale.map((item) => item.path).sort(), expectedStale)
     same("stale-files: no session identity is a usage error", tool(["--list"]).status, 2)
-    same("stale-files: --delete without --listing is a usage error", tool(["--delete", "--session", THIS]).status, 2)
+    same("stale-files: a listing id is no longer an option of --delete", tool(["--delete", "--listing", "000000000000", "--session", THIS]).status, 2)
 
-    const wrong = tool(["--delete", "--listing", "000000000000", "--session", THIS])
-    T("stale-files: a listing id that is not the stored one is refused and removes nothing", wrong.status === 1 && /is not the stored listing/.test(wrong.stderr) && expectedStale.every((path) => existsSync(path)), wrong.stderr)
-
-    // After the owner saw the listing: one listed worktree gains an uncommitted file, and a new session directory goes stale.
+    // An unattended run gives no answer: one worktree of the listing gains an uncommitted file, and a new session directory goes stale.
     writeFileSync(join(worktrees.closed.path, "new-work.txt"), "written after the listing\n")
     mkdirSync(join(sessionRoot, LATER, "scratchpad"), { recursive: true })
-    const removed = tool(["--delete", "--listing", listing.listingId, "--session", THIS])
-    same("stale-files: --delete exits 0", removed.status, 0)
-    const gone = expectedStale.filter((path) => path !== worktrees.closed.path)
-    same("stale-files: --delete removes exactly the listed items that are still stale", gone.filter((path) => existsSync(path)), [])
+    const removed = tool(["--delete", "--session", THIS])
+    same("stale-files: --delete with no owner answer and no listing id exits 0", removed.status, 0)
+    const gone = [...expectedStale.filter((path) => path !== worktrees.closed.path), session(LATER)]
+    same("stale-files: --delete removes every stale item of each class that its own listing finds", gone.filter((path) => existsSync(path)), [])
     same("stale-files: --delete prints one line for each removed item", gone.filter((path) => !new RegExp(`^REMOVED \\w+ ${path} \\(`, "m").test(removed.stdout)), [])
-    T("stale-files: a listed worktree with a new uncommitted file is skipped and survives", removed.stdout.includes(`SKIPPED worktree ${worktrees.closed.path}: it holds an uncommitted change`) && existsSync(join(worktrees.closed.path, "new-work.txt")), removed.stdout)
-    T("stale-files: --delete prints what it freed", /^FREED 9 items, .* \(3 session directories, 1 durable carry copy, 5 worktrees\); free space changed by [+-]/m.test(removed.stdout), removed.stdout)
-    T("stale-files: a session directory that went stale after the listing survives", existsSync(session(LATER)))
+    T("stale-files: a worktree that gained an uncommitted file after the listing is kept by the removal's own listing and survives",
+      !removed.stdout.includes(worktrees.closed.path) && existsSync(join(worktrees.closed.path, "new-work.txt")), removed.stdout)
+    T("stale-files: --delete prints what it freed", /^FREED 10 items, .* \(4 session directories, 1 durable carry copy, 5 worktrees\); free space changed by [+-]/m.test(removed.stdout), removed.stdout)
     const keptPaths = [session(THIS), session(PREDECESSOR), session(LIVE), session(WORKED_IN), session(NESTED_OPEN), session(NESTED_UNPUSHED), session(NESTED_UNTRACKED), session(WORKER),
       session(NESTED_FLAGGED),
       copy("durable-0b0b0b0b"), copy("durable-0c0c0c0c"), ...["open", "unpushed", "dirty", "unmerged", "detached", "in-use", "unreadable", "locked", "nested-open", "nested-unpushed",
@@ -299,7 +296,8 @@ export const cases = async () => {
       && git(primary, ["rev-parse", "--verify", "--quiet", worktrees.merged.branch]).status === 0)
     T("stale-files: a worktree inside a removed session directory leaves the worktree list", !git(primary, ["worktree", "list", "--porcelain"]).stdout.includes(worktrees["nested-done"].path))
     same("stale-files: the store holds no stale item after the removal", JSON.parse(readFileSync(join(staged.base, ".git", "orbit-stale-files.json"), "utf8")).stale, [])
-    same("stale-files: the same order does not run twice", tool(["--delete", "--listing", listing.listingId, "--session", THIS]).status, 1)
+    const again = tool(["--delete", "--session", THIS])
+    T("stale-files: a second --delete finds nothing more to remove", again.status === 0 && /^FREED nothing;/m.test(again.stdout) && !/^REMOVED /m.test(again.stdout), again.stdout + again.stderr)
   } finally {
     worker.kill()
   }

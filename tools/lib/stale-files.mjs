@@ -1,24 +1,27 @@
 /**
  * Stale files of a long run: old session directories, old durable carry copies and finished worktrees.
- * The listing, its store in the checkout's git directory, the owner offer and the removal live here.
+ * The listing, its store in the checkout's git directory, the unattended cleanup start and the removal live here.
  * Every check fails closed: evidence that cannot be read keeps the item.
  */
 
 import { spawn, spawnSync } from "node:child_process"
-import { createHash, randomUUID } from "node:crypto"
+import { randomUUID } from "node:crypto"
 import { existsSync, lstatSync, readFileSync, readdirSync, readlinkSync, realpathSync, renameSync, rmSync, statfsSync, statSync, writeFileSync } from "node:fs"
 import { homedir } from "node:os"
 import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "node:path"
 
-import { claudeConfigDirectory, gitDirectoryOf, liveSessionProcesses, processIsAlive, readRunState, REPO_ROOT } from "./run-state.mjs"
+import { claudeConfigDirectory, gitDirectoryOf, liveSessionProcesses, processIsAlive, readRunState, readWakeSourceStates, REPO_ROOT, workerLaunchDirectory } from "./run-state.mjs"
 import { readSessionChain } from "./session-chain.mjs"
 import { CLEAN_STATUS_ARGUMENTS, HIDDEN_CHANGE_ARGUMENTS, WORKTREE_REMOVE_ARGUMENTS, findRepositories, hiddenChangesOf, parseWorktreeList } from "./git-worktrees.mjs"
 import { WORKER_ACCOUNT, workerAccounts } from "./orchestrator-config.mjs"
 
-/** The hook starts a new listing when the stored one is older than this. */
-export const LISTING_MAX_AGE_MS = 15 * 60_000
+/** A cleanup for low free disk starts again only after this time since the last start. */
+export const CLEANUP_INTERVAL_MS = 15 * 60_000
 /** One listing never runs longer than this; an item it did not reach has no size or stays kept. */
 const LISTING_CEILING_MS = 10 * 60_000
+/** The data volume of the Mac, and the free space under which an unattended run removes the stale items. */
+export const DATA_VOLUME = "/System/Volumes/Data"
+export const FREE_DISK_FLOOR_BYTES = 50 * 1024 ** 3
 const COMMAND_TIMEOUT_MS = 30_000
 const MEASURE_TIMEOUT_MS = 120_000
 /** A worktree with installed dependencies holds several hundred thousand files; a removal that stops halfway leaves a broken tree. */
@@ -29,7 +32,7 @@ const LINK_HOP_LIMIT = 40
 /** Each container branch costs one GitHub read, and the hourly GitHub budget is shared by every tool. */
 const CONTAINER_BRANCH_LIMIT = 10
 
-export const staleFilesStorePath = (repoRoot = REPO_ROOT) => join(gitDirectoryOf(repoRoot), "orbit-stale-files.json")
+const staleFilesStorePath = (repoRoot = REPO_ROOT) => join(gitDirectoryOf(repoRoot), "orbit-stale-files.json")
 export const defaultCarryRoot = () => join(homedir(), ".orbit-run-carry")
 
 const canonical = (path) => {
@@ -188,6 +191,46 @@ const protectedSessionsOf = (sessionId, repoRoot = REPO_ROOT, liveSessionIds = [
   return sessions
 }
 
+/**
+ * The run evidence of each run checkout: the tickets that the run queue still names, the wake sources that run, and the
+ * time of the last relay. A relay counts from its trigger, or from its end when no trigger was recorded.
+ */
+const readRunEvidence = (repoRoot = REPO_ROOT) => {
+  const checkouts = runCheckoutsOf(repoRoot)
+  const queued = checkouts.flatMap((checkout) => readRunState(checkout)?.remaining ?? []).filter((ticket) => typeof ticket === "string")
+  const wakeSources = checkouts.flatMap((checkout) => {
+    const states = readWakeSourceStates(checkout)
+    return [...states.live, ...states.orphaned]
+  })
+  const relayTimes = checkouts.flatMap((checkout) => readSessionChain(checkout).chains).flatMap((chain) => chain.entries ?? [])
+    .filter((entry) => entry.superseded).map((entry) => Date.parse(entry.triggeredAt ?? entry.endedAt)).filter(Number.isFinite)
+  return { queued, wakeSources, lastRelayAt: relayTimes.length === 0 ? null : Math.max(...relayTimes) }
+}
+
+/** The ticket of the run queue that a worktree's branch or directory name carries: `ticket-<n>` for `#<n>`, `orb-<n>` for `ORB-<n>`. */
+const queuedTicketOf = (worktree, queued) => queued.find((ticket) => {
+  const number = /^(#|ORB-)(\d+)$/i.exec(ticket.trim())
+  if (!number) return false
+  const name = new RegExp(`(^|[^0-9a-z])${number[1] === "#" ? "ticket" : "orb"}-${number[2]}($|[^0-9])`, "i")
+  return [worktree.branch ?? "", basename(worktree.path)].some((candidate) => name.test(candidate))
+})
+
+/** Why a worker launch reserves the worktree: `launch-worker.mjs` claims it in the worktree's own git directory until the launch ends. */
+const launchReservationOf = (worktreePath) => {
+  let reservation
+  try { reservation = JSON.parse(readFileSync(join(workerLaunchDirectory(worktreePath), "occupied-worktree.json"), "utf8")) }
+  catch (error) { return error.code === "ENOENT" || error.code === "ENOTDIR" ? null : "its worker launch reservation could not be read" }
+  const live = [reservation?.launcherPid, reservation?.workerPid].find((pid) => processIsAlive(pid))
+  return live === undefined ? null : `a worker launch reserves it: process ${live} runs`
+}
+
+/** Why a live wake source uses `path`: it names the session or a path in it. */
+const wakeSourceUseOf = (path, evidence, sessionId = null) => {
+  const source = evidence.wakeSources.find((candidate) => (sessionId !== null && candidate.sessionId === sessionId)
+    || Object.values(candidate).some((value) => typeof value === "string" && isAbsolute(value) && within(canonical(value), path)))
+  return source ? `the wake source ${source.what ?? source.kind ?? source.pid} uses it` : null
+}
+
 /** Linked worktrees of one repository, from `git worktree list --porcelain`; null when git cannot list them. */
 const listWorktrees = (repositoryPath, probes) => {
   const porcelain = probes.git(repositoryPath, ["worktree", "list", "--porcelain"])
@@ -215,7 +258,7 @@ const gatherEvidence = (context, probes) => {
   const worktrees = listed.flatMap((repository) => repository.worktrees ?? [])
     .filter((worktree) => !worktree.missing).map((worktree) => ({ ...worktree, path: canonical(worktree.path) }))
   const { liveSessions, liveSessionsUnknown } = readLiveSessionEvidence(context, probes)
-  return { sessionRoot: context.sessionRoot ? canonical(context.sessionRoot) : null, carryRoot: canonical(context.carryRoot), worktrees,
+  return { ...readRunEvidence(context.repoRoot), sessionRoot: context.sessionRoot ? canonical(context.sessionRoot) : null, carryRoot: canonical(context.carryRoot), worktrees,
     unlistedRepositories: listed.filter((repository) => repository.worktrees === null).map((repository) => repository.path),
     protectedSessions: protectedSessionsOf(context.sessionId, context.repoRoot, liveSessions.map((live) => live.sessionId)), processes: probes.processes(),
     liveSessions, liveSessionsUnknown }
@@ -225,6 +268,8 @@ const gatherEvidence = (context, probes) => {
 const useOf = (path, evidence, sessionId = null) => {
   if (evidence.processes === null) return "the process table could not be read"
   if (evidence.liveSessionsUnknown) return evidence.liveSessionsUnknown
+  const wakeSource = wakeSourceUseOf(path, evidence, sessionId)
+  if (wakeSource) return wakeSource
   const session = evidence.liveSessions.find((live) => live.sessionId === sessionId || (live.cwd && within(canonical(live.cwd), path)))
   if (session) return `live session ${session.sessionId.slice(0, 8)} uses it`
   if (evidence.processes.some((entry) => entry.directory !== null && !isShell(entry.command) && within(entry.directory, path))) return "a live process works in it"
@@ -260,12 +305,12 @@ const commitHoldOf = (path, revisions, lost, probes) => {
  * Why one registered worktree inside a session directory or a carry copy must stay; null when removing it loses nothing.
  * The worktree class rules apply: a session leaves the tree of an open pull request or an unpushed commit in its scratchpad.
  */
-const nestedWorktreeHold = (worktree, probes) => {
+const nestedWorktreeHold = (worktree, evidence, probes) => {
   if (worktree.locked) return "it is locked"
   const change = changeOf(worktree.path, probes)
   if (change) return change
   if (worktree.branch !== null) {
-    const verdict = judgeBranch(worktree, probes)
+    const verdict = judgeBranch(worktree, probes, evidence.lastRelayAt)
     return verdict.stale ? null : verdict.reason
   }
   // A detached HEAD has no branch that outlives the directory, so a commit that no remote has would be lost with it.
@@ -297,7 +342,7 @@ const holdOf = (path, evidence, probes) => {
   // A worktree git could not list is invisible here, and it can be the tree of an open pull request.
   if (evidence.unlistedRepositories.length > 0) return `the worktrees of ${evidence.unlistedRepositories.join(", ")} could not be listed`
   for (const worktree of evidence.worktrees.filter((candidate) => candidate.path !== path && within(candidate.path, path))) {
-    const hold = nestedWorktreeHold(worktree, probes)
+    const hold = nestedWorktreeHold(worktree, evidence, probes)
     if (hold) return `worktree ${worktree.path} in it stays: ${hold}`
   }
   return null
@@ -412,8 +457,21 @@ const mergedContainerOf = (worktree, tip, probes) => {
   return { unread: unread[0] ?? null }
 }
 
+/**
+ * Why a branch with no pull request stays for its age: a launch makes the branch from the base and its worker starts later,
+ * so a branch made after the run's last relay can still be the branch of a queued launch. The creation is the oldest entry
+ * of the branch's reflog; a reflog that cannot be read keeps it.
+ */
+const youngBranchHoldOf = (worktree, lastRelayAt, probes) => {
+  if (lastRelayAt === null) return null
+  const times = probes.git(worktree.path, ["log", "--walk-reflogs", "--format=%ct", `refs/heads/${worktree.branch}`, "--"])
+  const created = Number((times ?? "").split("\n").filter(Boolean).at(-1)) * 1000
+  if (!Number.isFinite(created) || created === 0) return "the age of its branch could not be read, and a branch with no pull request can be the branch of a queued launch"
+  return created >= lastRelayAt ? `its branch has no pull request and was made after the last relay at ${new Date(lastRelayAt).toISOString()}` : null
+}
+
 /** `{ stale, reason }` for one clean, idle worktree with a branch, from its pull requests and its commits. */
-const judgeBranch = (worktree, probes) => {
+const judgeBranch = (worktree, probes, lastRelayAt = null) => {
   const tip = probes.git(worktree.path, ["rev-parse", "HEAD"])
   if (tip === null) return { stale: false, reason: "git rev-parse could not be read" }
   const pullRequests = probes.pullRequests(worktree.path, worktree.branch)
@@ -422,8 +480,9 @@ const judgeBranch = (worktree, probes) => {
   if (open) return { stale: false, reason: `pull request #${open.number} is open` }
   if (pullRequests.length === 0) {
     const { container, unread } = mergedContainerOf(worktree, tip, probes)
-    return container ? { stale: true, reason: container }
-      : { stale: false, reason: unread ?? "it holds work nobody merged: no pull request, and no merged branch contains its branch" }
+    if (!container) return { stale: false, reason: unread ?? "it holds work nobody merged: no pull request, and no merged branch contains its branch" }
+    const young = youngBranchHoldOf(worktree, lastRelayAt, probes)
+    return young ? { stale: false, reason: young } : { stale: true, reason: container }
   }
   const readHeads = pullRequests.filter((pullRequest) => hasPullRequestHead(worktree, pullRequest, probes))
   const unreadHead = pullRequests.find((pullRequest) => !readHeads.includes(pullRequest))
@@ -439,11 +498,13 @@ const classifyWorktrees = (evidence, probes, deadline) => evidence.worktrees
   // A worktree inside a session directory or a carry copy belongs to that item, not to this class.
   .filter((worktree) => !(evidence.sessionRoot && within(worktree.path, evidence.sessionRoot)) && !within(worktree.path, evidence.carryRoot))
   .map((worktree) => {
+    const queued = queuedTicketOf(worktree, evidence.queued)
     const keep = (worktree.branch === null ? "its HEAD is detached, so no branch proves its work merged" : null)
-      ?? (worktree.locked ? "it is locked" : null) ?? useOf(worktree.path, evidence) ?? otherSessionHoldOf(worktree.path, evidence)
+      ?? (worktree.locked ? "it is locked" : null) ?? (queued ? `ticket ${queued} of the run queue names it` : null)
+      ?? launchReservationOf(worktree.path) ?? useOf(worktree.path, evidence) ?? otherSessionHoldOf(worktree.path, evidence)
       ?? changeOf(worktree.path, probes)
       ?? (Date.now() > deadline ? "the listing reached its time limit before this check" : null)
-    const verdict = keep === null ? judgeBranch(worktree, probes) : { stale: false, reason: keep }
+    const verdict = keep === null ? judgeBranch(worktree, probes, evidence.lastRelayAt) : { stale: false, reason: keep }
     // Only a finished worktree pays for the walk of its tree, and only inside the listing's time limit.
     const hold = !verdict.stale ? null : Date.now() > deadline ? "the listing reached its time limit before this check"
       : holdOf(worktree.path, evidence, probes) ?? repositoryHoldOf(worktree.path, evidence, probes)
@@ -458,9 +519,6 @@ const keepContainers = (items) => {
     return inner ? { ...item, stale: false, reason: `${KIND_NAMES[inner.kind][0]} ${inner.path} in it stays: ${inner.reason}` } : item
   })
 }
-
-/** A stable name for one exact set of stale items, so a removal acts only on the set the owner saw. */
-export const listingIdOf = (stale) => createHash("sha256").update(stale.map((item) => `${item.kind}\t${item.path}`).sort().join("\n")).digest("hex").slice(0, 12)
 
 /**
  * The complete listing for `context`: `{ sessionId, sessionRoot, carryRoot, repositories, configDirectories, repoRoot }`.
@@ -480,7 +538,7 @@ export const collectListing = (context, { probes = systemProbes, knownSizes = ne
   const stale = items.filter((item) => item.stale).map(({ stale: _stale, ...item }) => ({ ...item,
     bytes: knownSizes.get(item.path) ?? (measure && Date.now() <= deadline ? probes.measure(item.path) : null) }))
   const kept = items.filter((item) => !item.stale).map(({ kind, path, reason }) => ({ kind, path, reason }))
-  return { version: 1, generatedAt: new Date(now).toISOString(), listingId: listingIdOf(stale),
+  return { version: 1, generatedAt: new Date(now).toISOString(),
     context: { sessionId: context.sessionId, sessionRoot: evidence.sessionRoot, carryRoot: evidence.carryRoot }, stale, kept, unlistedRepositories: evidence.unlistedRepositories }
 }
 
@@ -500,25 +558,43 @@ export const writeStoredListing = (listing, repoRoot = REPO_ROOT) => {
   renameSync(unpublished, path)
 }
 
-const refreshMarkerPath = (repoRoot) => join(gitDirectoryOf(repoRoot), "orbit-stale-files-refresh.json")
+const cleanupMarkerPath = (repoRoot) => join(gitDirectoryOf(repoRoot), "orbit-stale-files-cleanup.json")
 
-/** Is a new listing due: the stored one is absent or old, and no listing that an earlier prompt started still runs? */
-export const refreshIsDue = (listing, repoRoot = REPO_ROOT, now = Date.now()) => {
-  if (listing && now - Date.parse(listing.generatedAt) < LISTING_MAX_AGE_MS) return false
-  try {
-    const marker = JSON.parse(readFileSync(refreshMarkerPath(repoRoot), "utf8"))
-    return !(processIsAlive(marker.pid) && now - marker.startedAt < 2 * LISTING_CEILING_MS)
-  } catch {
-    return true
-  }
+export const readCleanupMarker = (repoRoot = REPO_ROOT) => {
+  try { return JSON.parse(readFileSync(cleanupMarkerPath(repoRoot), "utf8")) } catch { return null }
 }
 
-/** Starts one detached listing and records its pid. The prompt never waits for it. */
-export const startRefresh = (sessionId, sessionRoot, repoRoot = REPO_ROOT, now = Date.now()) => {
-  const child = spawn(process.execPath, [join(repoRoot, "tools", "stale-files.mjs"), "--list", "--session", sessionId, ...(sessionRoot ? ["--session-root", sessionRoot] : [])],
+/** Free bytes on `path`'s volume for an unprivileged process. */
+export const freeBytes = (path) => {
+  const volume = statfsSync(path)
+  return Number(volume.bavail) * Number(volume.bsize)
+}
+
+/**
+ * Why an unattended cleanup is due now; null when it is not. `state` is the run record and `freeDiskBytes` the free space of
+ * the data volume (null when it cannot be read). A cleanup is due once for each relay adoption, and again whenever free disk
+ * is under the floor, at most once in each interval. A cleanup that still runs is never started twice.
+ */
+export const cleanupDueReason = ({ sessionId, state, marker, freeDiskBytes, now = Date.now() }) => {
+  if (marker && processIsAlive(marker.pid) && now - marker.startedAt < 2 * LISTING_CEILING_MS) return null
+  const adopted = state?.sessionId === sessionId && typeof state?.relay?.from === "string" && state.relay.from !== sessionId
+  if (adopted && marker?.adoptedBy !== sessionId) return "relay adoption"
+  const low = Number.isFinite(freeDiskBytes) && freeDiskBytes < FREE_DISK_FLOOR_BYTES
+  if (low && !(marker && now - marker.startedAt < CLEANUP_INTERVAL_MS)) return `free disk ${describeBytes(freeDiskBytes)} is under the floor of ${describeBytes(FREE_DISK_FLOOR_BYTES)}`
+  return null
+}
+
+/**
+ * Starts one detached removal of every stale item and records its pid. Nobody waits for it, and no owner answer gates it:
+ * the listing at the removal proves each item stale. The removal runs through Node's `rmSync` and `git worktree remove`.
+ */
+export const startCleanup = ({ sessionId, sessionRoot, reason, adoptedBy = null, repoRoot = REPO_ROOT, now = Date.now() }) => {
+  const child = spawn(process.execPath, [join(repoRoot, "tools", "stale-files.mjs"), "--delete", "--session", sessionId, ...(sessionRoot ? ["--session-root", sessionRoot] : [])],
     { cwd: repoRoot, detached: true, stdio: "ignore", windowsHide: true })
   child.unref()
-  writeFileSync(refreshMarkerPath(repoRoot), `${JSON.stringify({ pid: child.pid, startedAt: now })}\n`)
+  const previous = readCleanupMarker(repoRoot)
+  writeFileSync(cleanupMarkerPath(repoRoot), `${JSON.stringify({ pid: child.pid, startedAt: now, reason, adoptedBy: adoptedBy ?? previous?.adoptedBy ?? null })}\n`)
+  return child.pid
 }
 
 export const knownSizesOf = (listing) => new Map((listing?.stale ?? []).filter((item) => Number.isFinite(item.bytes)).map((item) => [item.path, item.bytes]))
@@ -544,21 +620,6 @@ export const summarize = (stale) => {
   const classes = Object.entries(KIND_NAMES).map(([kind, [one, many]]) => [stale.filter((item) => item.kind === kind).length, one, many])
     .filter(([count]) => count > 0).map(([count, one, many]) => `${count} ${count === 1 ? one : many}`)
   return `${stale.length} ${stale.length === 1 ? "item" : "items"}, ${size} (${classes.join(", ")})`
-}
-
-/** The context a prompt hook adds while stale items exist; null when the stored listing has none that still exist. */
-export const offerOf = (listing, sessionId) => {
-  const ownDirectory = listing?.context?.sessionRoot && sessionId ? join(listing.context.sessionRoot, sessionId) : null
-  const stale = (listing?.stale ?? []).filter((item) => item.path !== ownDirectory && existsSync(item.path))
-  if (stale.length === 0) return null
-  return `Stale files on this machine: ${summarize(stale)}. Offer this cleanup to the owner in one line that gives the total size and the item count. ` +
-    `Delete only after the owner says yes in a prompt: node tools/stale-files.mjs --delete --listing ${listing.listingId}. ` +
-    "The command node tools/stale-files.mjs --list shows each item and the reason it is stale."
-}
-
-const freeBytes = (path) => {
-  const volume = statfsSync(path)
-  return Number(volume.bavail) * Number(volume.bsize)
 }
 
 /** The nearest directory at or above `path` that still exists: the removal of a worktree takes the parent of a worktree inside it. */
