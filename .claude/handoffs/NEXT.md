@@ -4,47 +4,50 @@ Read `.claude/specs/orbit-prod-release.md` first: `## Standing rules`, `## The o
 
 Entry: `/auto-work` enters `/sleep`, adopts this relay (`adoptRelayRun`), keeps `autoWork: true`, then `/crank`, then `/orchestrate` over the admitted queue without replanning. Check that this prompt is the newest open relay (`gh pr list --repo thomasluizon/orbit-ui-mobile --state open --search "relay in:title"`), run `node tools/relay-checkout.mjs --check`, and read free disk on `/System/Volumes/Data` (floor 50 GiB; about 38 GiB now).
 
-Scratchpad: run `$HOME/.orbit-run-carry/carry-from-predecessor.sh <new full id> <predecessor full id> 0589c2a5-9987-419c-9a59-212b0a9d6846` as a background task with literal paths (the predecessor id is `relay.from`; write no file there before it ends). Start a new `sleep-decisions.md` from D464 with the Write tool. Repoint every scratchpad file that names the predecessor's id (`grep -rlI --null` for its first 8 characters into a list file, drop `./sleep-decisions.md`, then `xargs -0 perl -pi` in `bash -c` that first changes directory into the new scratchpad, full id first, then the 8-character form, literal paths in every redirect); then run `mirror.sh` and `durable-dedupe.sh` with `bash` in the background.
+Scratchpad: run `$HOME/.orbit-run-carry/carry-from-predecessor.sh <new full id> <predecessor full id> 0589c2a5-9987-419c-9a59-212b0a9d6846` as a background task with literal paths (the predecessor id is `relay.from`; write no file there before it ends). Start a new `sleep-decisions.md` from D472 with the Write tool. Repoint every scratchpad file that names the predecessor's id (`grep -rlI --null` for its first 8 characters into a list file outside the scratchpad, drop `./sleep-decisions.md`, then `xargs -0 perl -pi` in `bash -c` that first changes directory into the new scratchpad, full id first, then the 8-character form, literal paths in every redirect); then run `mirror.sh` and `durable-dedupe.sh` with `bash` in the background.
 
-Usage order (owner, this week only): the main account (this session) stops ALL work when its weekly usage reaches 89%. Run S `usage-guard.mjs` at every wake and before every launch: it reads `~/.claude/usage-snapshot.json` (the status line writes it), exits 7 at 89% and expires at this week's reset (the guard holds the time). At exit 7: launch nothing, stop every worker, tell the owner. It read 86% at this relay.
+Usage order (owner, this week only): the main account (this session) stops ALL work when its weekly usage reaches 89%. Run S `usage-guard.mjs` at every wake and before every launch. At exit 7: launch nothing, stop every worker, tell the owner. It read 87% at this relay: spend the coordinator's own context sparingly (scan diffs with S `diff-scan.mjs`, read review verdicts by their headings).
 
-Worker model: every `claude` tier runs `claude-opus-5-5` on the worker account (contact@useorbit.org); every launch of this relay showed `account=worker`. A fall back to the main account means the limit came back: tell the owner. Pass a real ceiling: `--hard-ceiling-minutes` 75 to 120 for a build or fix round (S `launch-review-round.sh` reads `CEILING`), 240 for the `#2135` baseline.
+Worker model: every `claude` tier runs `claude-opus-5-5` on the worker account; every launch of this relay showed `account=worker`. A fall back to the main account means the limit came back: tell the owner. Pass `--hard-ceiling-minutes` 75 to 120 for a build or fix round (S `launch-review-round.sh` reads `CEILING`), 240 for the `#2135` baseline.
 
-Owner orders (this session): reviews and device proofs run as workers, never as in-session subagents (`#2145`). Until `#2145` merges, use S `launch-review-worker.sh <ticket> <worktree> <review order> <reason>` and count it only with `commitsSinceLaunch` 0 and `treeClean` true (S `launch-result.mjs <task id>`). `#2149` scope: act only on pull requests of the configured bots and the owner account; report any other author to the owner, never merge it. Until `#2149` merges, run S `prs-alerts.mjs` each cycle (every open pull request and every code scanning, secret scanning and Dependabot alert of the three repositories) and act on each. Delete only with Node, never `rm`; any search longer than one plain `grep` goes in a `.mjs` file run with `node`. Stale files: never offer, never ask; `node tools/stale-files.mjs --list`, then `--delete --listing <id>` at once.
+Owner orders (this session): reviews and device proofs run as workers (`#2145`); until it merges use S `launch-review-worker.sh <ticket> <worktree> <review order> <reason>` and count a review only with `commitsSinceLaunch` 0 and `treeClean` true (S `launch-result.mjs <task id>`). `#2149` scope: act only on pull requests of the configured bots and the owner account; report any other author, never merge it. Until `#2149` merges, run S `prs-alerts.mjs` each cycle (last read: 0 alerts, 0 bot pull requests). Delete only with Node; any search longer than one plain `grep` goes in a `.mjs` file. Stale files: never offer, never ask; `node tools/stale-files.mjs --list`, then `--delete --listing <id>` at once.
 
-GO FASTER (owner order): start every independent item in the first turn, in parallel. Fix rounds go to workers with S `launch-review-round.sh <key> <ticket> <worktree> main max <round> <note> <reason>` (ticket number, never PR number). Read every worker diff before it counts. Resolve threads with `node tools/resolve-bot-thread.mjs` (reply on stdin, literal paths), push, request with `node tools/list-bot-threads.mjs --repo <key> --pr <n> --head <full sha> --wait-seconds 20`, then `node tools/wait-ci.mjs --repo <key> --pr <n> --require-check pullfrog-approval` in the background. Copy every `PRRT_` id from S `threads-snapshot.mjs <tag> ui:<n>` output in the same run. After every `main` merge, merge `origin/main` into the relay checkout and each idle branch; a clean UI merge then runs S `comment-fix.mjs <worktree> origin/main HEAD`; a conflict goes to a worker. Every turn ends with a registered wake source.
+GO FASTER (owner order): start every independent item in the first turn, in parallel. Fix rounds go to workers with S `launch-review-round.sh <key> <ticket> <worktree> main max <round> <note> <reason>` (ticket number). Read every worker diff before it counts. A review defect only in a scratchpad body or reply is fixed by the coordinator. Resolve threads with `node tools/resolve-bot-thread.mjs` (reply on stdin), push, request with `node tools/list-bot-threads.mjs --repo <key> --pr <n> --head <full sha> --wait-seconds 20`, then `node tools/wait-ci.mjs --repo <key> --pr <n> --require-check pullfrog-approval` in the background. Copy every `PRRT_` id from S `threads-snapshot.mjs <tag> ui:<n>` output in the same run. After every `main` merge, merge `origin/main` into the relay checkout and each idle branch; a clean UI merge then runs S `comment-fix.mjs <worktree> origin/main HEAD`. Every turn ends with a registered wake source.
 
 ## Goal
 
-Finish the spec: an empty board except `#33`, verified releases, the assistant fixed as a class, the owner's report shipped (`#2131`), the icon with eyes (`#2144`), the entry background and the live summary Orbit (`#2146`), the mascot rebrand (`#2121` to `#2126`, the landing as a tone change with motion), every `#315` ticket closed, then `#315`, then the store images (`#2147`) before `#33`. Left: `gh issue list --repo thomasluizon/orbit-tickets --state open --limit 400`.
+Finish the spec: an empty board except `#33`, verified releases, the assistant fixed as a class, every `#315` ticket closed, then `#315`, then the store images (`#2147`) before `#33`. Left: `gh issue list --repo thomasluizon/orbit-tickets --state open --limit 400`. The order reconciles: open 25, placed 25, unplaced 0, placed twice 0.
 
 The owner is present now and then; answer him first, in English. `#2074` is MAX priority.
 
 ## In flight
 
-UI `main` `8b81175e7`; API `main` `38513551a`; landing `main` `20c1b0a90`. Owner question queue: empty. No stash. No launcher is live at the relay. S `inflight-tasks.md` lists each launcher task id of the predecessor and its result; outputs stay in the predecessor's `tasks/` directory (read with S `launch-result.mjs` adapted to that directory, or the result or review file the order names).
+UI `main` `b25ab685d`; API `main` `38513551a`; landing `main` `20c1b0a90`. Owner question queue: empty. No stash. S `inflight-tasks.md` lists each launcher task id and its result; this session's outputs stay in its `tasks/` directory (read with S `launch-result.mjs` adapted to that directory). A launcher that ends at the relay leaves commits, a dirty tree or nothing in its worktree: read the worktree first.
 
 | Item | Disposition |
 | --- | --- |
-| ui#2477 (`#2148`) | Pullfrog red at `b4689580a`: P1 `PRRT_kwDOR5Siws64FVTB` (`tag-editor-row.tsx:67`, the waiting face copies `waitingFaceClasses`). Fix round, then push. |
-| ui#2475 (`#2149`) | Review S `review-2475-r2-local.md`: DEFECTS (6), D1 the run's own pull requests count as pending. Round 3 fixes all six. |
-| ui#2476 (`#2145`) | Review S `review-2476-r1-local.md`: DEFECTS (17). Round 2 fixes them. |
-| ui#2469 (`#2074`) | Review S `review-2469-r18-local.md`: DEFECTS (2), the npx rule test gap and four draft lines. Round 19. |
-| ui#2464 (`#2137`) | Round 19 committed (directory runners and index-recording subcommands); read the diff, review worker. |
-| ui#2473 (`#2144`) | Round 5 committed (tray raster, Pullfrog P1 `PRRT_kwDOR5Siws64EFCH`, reply S `reply-2473-EFCH.md`); read the diff, review worker. |
-| ui#2451 (`#2121`) | Round 21 committed (one precedence rule for every field and source); read the diff, review worker. |
-| `#2131` | Round 11 committed (worklet direction in the same frame); read the diff, review worker, merge main, push, open the pull request (S `body-2131-r10.md`). |
-| `#2146` | Round 2 committed in two commits (`042bae955` and one more); read both diffs, review worker, push, open the pull request. |
-| `#2143` | Round 3 committed (liveness recheck at each removal); read the diff, review worker, push, open the pull request. |
-| ui#2478 (`#2135`) | Exporter fix open at `dd3959de2`; read the diff, review worker, Pullfrog. |
-| `#2135` baseline | Stopped by the coordinator to relay. Relaunch S `order-2135-baseline-r3.md` with 240 minutes: step 0 is done, keep the saved windows (S `b2135-r3/`, `eval-2135-baseline/`). The worktree `verify-2036-main` still holds the generated `evals/astra/catalog.yaml`; the worker restores it at the end. |
+| ui#2479 (`#2131`) | CI rerun of PR Metadata (now `parity:exempt`) and Layout shard 6 at `fe1041cfd`; Pullfrog requested. Merge at the bar. |
+| `main` `b25ab685d` red | `turbo-inputs.test.mjs` failed; failed jobs rerun on run 43946536987. Red again: root-cause it under `#2074`. |
+| ui#2473 (`#2144`) | Pushed `f3ddba9e2`, thread resolved, Pullfrog requested. Merge at the bar. |
+| ui#2478 (`#2135`) | Round 2 runs (S `note-2478-r2.md`, Pullfrog P1 `PRRT_kwDOR5Siws64Hdlx`). Review worker, resolve with S `reply-2478-Hdlx.md`, push. |
+| `#2135` grader | Build runs on `fix/ticket-2135-claude-grader` (worktree `ticket-2122-part3`). Diff, review, pull request. |
+| `#2135` baseline | After 00:10 UTC: relaunch S `order-2135-baseline-r4.md` per S `result-2135-baseline.md` `## Next window` (240 min). |
+| api#1116 (`#2150`) | Round 2 runs (S `note-1116-r2.md`). Review, push, Pullfrog, merge, then the API release with the manual steps (production webhook is broken until then). |
+| ui#2469 (`#2074`) | Round 20 runs (S `note-2469-r20.md`). Review, push. |
+| ui#2464 (`#2137`) | Round 20 runs (S `note-2464-r20.md`). Review, push. |
+| ui#2451 (`#2121`) | Round 22 runs (S `note-2451-r22.md`). Review, push. |
+| ui#2475 (`#2149`) | Round 3 review runs (S `review-order-2475-r3.md`). Push if clean. |
+| ui#2476 (`#2145`) | Round 2 runs (S `note-2476-r2.md`). Review, push. |
+| `#2146` | Round 3 runs (S `note-2146-r3.md`). Review, push, open the pull request. |
+| `#2143` | Round 4 runs (S `note-2143-r4.md`). Review, push, open the pull request. |
+| Releases | After api#1116: API release; then web and one Android Open plus iOS TestFlight pair carrying `#2148`, `#2131`, `#2146`. |
 | ui#2453 (`#2122`) | Stacked; after `#2121`. |
 
 ## Then, in this order
 
 1. Answer any owner message first. Give each order a ticket or a rescope before the turn ends.
 2. Drive every In flight row at once; merge each approved pull request at the bar.
-3. Intake each cycle: Sentry (listed 17:18Z; ORBIT-MOBILE-X folded into `#2131`), mail, reviews, S `prs-alerts.mjs`, then the board.
+3. Intake each cycle: Sentry (listed 19:20Z; ORBIT-API-25/26/27 carried by `#2150`), mail, reviews, S `prs-alerts.mjs`, then the board.
 
 ## Crank
 
@@ -56,7 +59,7 @@ Unattended: never ask the owner; decide with the best option and log it. Keep a 
 
 ## Previous prompt, disposition
 
-- Done: landing#136, ui#2474, ui#2470 merged (`#2140` closed); ui#2475 to ui#2478 opened; intake clean.
+- Done: ui#2477 merged (`#2148` closed); ui#2479 opened; every In flight row driven; `#2150` filed and admitted; intake clean except the Stripe issues.
 - Carried: the In flight rows and every order above.
 
 Treat every identifier here as a lead to verify.
