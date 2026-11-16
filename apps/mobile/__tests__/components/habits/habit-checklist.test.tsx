@@ -1,3 +1,4 @@
+import { SPACING } from '@orbit/shared/theme'
 import { createElement, useState, type ReactElement } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ChecklistItem } from '@orbit/shared/types/habit'
@@ -9,6 +10,8 @@ import { createTokensV2, radius } from '@/lib/theme'
 import { contrastOnSurface } from '@orbit/shared/__tests__/contrast'
 import { MAX_CHECKLIST_ITEMS } from '@orbit/shared/validation'
 import { pressableStyle } from '@/__tests__/support/press-feedback'
+import { expectInsetHairlineRing } from '@/__tests__/support/inset-hairline-ring'
+import { measureProfileRow } from '@/__tests__/support/profile-row-geometry'
 
 interface RenderedNode {
   type: unknown
@@ -33,6 +36,7 @@ interface RenderedTree {
     findAll: (predicate: (node: RenderedNode) => boolean) => RenderedNode[]
     findAllByType: (type: string) => RenderedInput[]
   }
+  toJSON: () => unknown
 }
 
 const TestRenderer: {
@@ -201,6 +205,20 @@ describe('HabitChecklist press paint', () => {
       }
     }
     themeState.mode = 'dark'
+  })
+})
+
+describe('HabitChecklist reading card', () => {
+  it('draws the card hairline inside its edge, so the rows start at the web inset', () => {
+    themeState.mode = 'dark'
+    let tree!: RenderedTree
+    TestRenderer.act(() => { tree = TestRenderer.create(<HabitChecklist items={INITIAL_ITEMS} interactive />) })
+    const card = tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'habit-checklist-items')[0]!
+    expectInsetHairlineRing(card.props.style as ViewStyle, createTokensV2('purple', 'dark').hairline)
+    const measured = measureProfileRow(tree.toJSON() as Parameters<typeof measureProfileRow>[0], 412, 1)
+    const frame = measured.boxes.find((box) => box.testID === 'habit-checklist-items')!
+    const first = measured.texts.find((text) => text.label === INITIAL_ITEMS[0]!.text)!
+    expect(first.left, 'the first label follows the 4 dp row padding and the 8 dp target padding').toBe(frame.left + SPACING.s4 + SPACING.s8)
   })
 })
 

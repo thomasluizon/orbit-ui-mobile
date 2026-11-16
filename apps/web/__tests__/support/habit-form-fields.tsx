@@ -18,7 +18,7 @@ import { type TagSelectionState } from '@/hooks/use-tag-selection'
 
 const tagCollection = vi.hoisted(() => ({ tags: [] as HabitTag[] }))
 
-const tagMutations = vi.hoisted(() => ({ create: vi.fn(), suggest: vi.fn(), delete: vi.fn() }))
+const tagMutations = vi.hoisted(() => ({ create: vi.fn(), update: vi.fn(), suggest: vi.fn(), delete: vi.fn() }))
 
 const formLocale = vi.hoisted(() => ({ language: 'en', realReminders: false, realDates: false, realDateCopy: false, realController: false }))
 
@@ -122,7 +122,7 @@ vi.mock('@/hooks/use-tags', () => ({
   useSuggestTags: () => ({ isPending: false, mutateAsync: tagMutations.suggest }),
   useTags: () => ({ tags: tagCollection.tags }),
   useCreateTag: () => ({ isPending: false, mutateAsync: tagMutations.create }),
-  useUpdateTag: () => ({ isPending: false, mutateAsync: vi.fn() }),
+  useUpdateTag: () => ({ isPending: false, mutateAsync: tagMutations.update }),
   useDeleteTag: () => ({ isPending: false, mutateAsync: tagMutations.delete }),
 }))
 

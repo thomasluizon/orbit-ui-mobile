@@ -113,7 +113,7 @@ function WrappedPageContent({ initialSelection }: Readonly<{
           notice={(
             <>
               <UpdateAvailableBanner inset="inline" />
-              <div className="px-4 pt-3 empty:hidden"><AppToastHost /></div>
+              <div className="px-4 pt-2 empty:hidden"><AppToastHost /></div>
             </>
           )}
         />

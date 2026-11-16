@@ -32,6 +32,7 @@ import ProfilePreferencesRoute from '@/app/profile/preferences'
 import ProfileAstraRoute from '@/app/profile/astra'
 import ProfileNotificationsRoute from '@/app/profile/notifications'
 import { ProfileNotificationsContent } from '@/app/(tabs)/profile/_components/profile-notifications-content'
+import { applyBorderWidths } from '@/__tests__/support/yoga-borders'
 
 interface MockDeviceState {
   count: number | undefined
@@ -770,6 +771,7 @@ describe('ProfileScreen', () => {
         'flex-end': Yoga.ALIGN_FLEX_END, stretch: Yoga.ALIGN_STRETCH, baseline: Yoga.ALIGN_BASELINE,
       }[style.alignSelf])
       if (typeof style.paddingHorizontal === 'number') content.setPadding(Yoga.EDGE_HORIZONTAL, style.paddingHorizontal)
+      applyBorderWidths(content, style)
       firstRow.setHeight(48)
       column.insertChild(scroller, 0)
       scroller.insertChild(content, 0)
