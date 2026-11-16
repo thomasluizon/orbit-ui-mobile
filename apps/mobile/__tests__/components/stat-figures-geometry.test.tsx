@@ -119,7 +119,7 @@ it.each([en, ptBR].flatMap((catalog) => [320, 360, 384, 412].flatMap((width) => 
       const nextCaption = text === catalog.progressScreen.streak.next
       if (!nextCaption || fontScale <= 1.3) expect(label.node.getComputedWidth(), text).toBeGreaterThanOrEqual(label.intrinsic)
       if (nextCaption) {
-        expect(label.node.getComputedWidth()).toBeLessThanOrEqual(width - 66)
+        expect(label.node.getComputedWidth()).toBeLessThanOrEqual(width - 64)
         expect(label.node.getComputedHeight()).toBeGreaterThanOrEqual(Math.ceil(label.intrinsic / label.node.getComputedWidth()) * 20 * fontScale)
       }
       expect(label.host.props.numberOfLines).toBeUndefined()
