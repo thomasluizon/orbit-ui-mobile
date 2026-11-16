@@ -12,7 +12,7 @@ import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "nod
 
 import { claudeConfigDirectory, gitDirectoryOf, liveSessionProcesses, processIsAlive, readRunState, REPO_ROOT } from "./run-state.mjs"
 import { readSessionChain } from "./session-chain.mjs"
-import { CLEAN_STATUS_ARGUMENTS, WORKTREE_REMOVE_ARGUMENTS, findRepositories, parseWorktreeList } from "./git-worktrees.mjs"
+import { CLEAN_STATUS_ARGUMENTS, HIDDEN_CHANGE_ARGUMENTS, WORKTREE_REMOVE_ARGUMENTS, findRepositories, hiddenChangesOf, parseWorktreeList } from "./git-worktrees.mjs"
 import { WORKER_ACCOUNT, workerAccounts } from "./orchestrator-config.mjs"
 
 /** The hook starts a new listing when the stored one is older than this. */
@@ -233,12 +233,27 @@ const useOf = (path, evidence, sessionId = null) => {
 }
 
 /**
+ * Why the tree at `path` holds a change; null when it holds none. A change that `git status` shows, and a path whose change
+ * it cannot show: a tracked file with an index flag, or an untracked file that only a personal exclude source ignores.
+ */
+const changeOf = (path, probes) => {
+  if (probes.git(path, CLEAN_STATUS_ARGUMENTS) !== "") return "it holds an uncommitted change"
+  const listing = probes.git(path, HIDDEN_CHANGE_ARGUMENTS)
+  if (listing === null) return "git could not list its files"
+  const [hidden] = hiddenChangesOf(listing)
+  if (hidden === undefined) return null
+  return hidden.startsWith("? ") ? `it holds an untracked file that no .gitignore ignores: ${hidden.slice(2)}`
+    : `git status cannot show a change to ${hidden.slice(2)}, an assume-unchanged or skip-worktree file`
+}
+
+/**
  * Why one registered worktree inside a session directory or a carry copy must stay; null when removing it loses nothing.
  * The worktree class rules apply: a session leaves the tree of an open pull request or an unpushed commit in its scratchpad.
  */
 const nestedWorktreeHold = (worktree, probes) => {
   if (worktree.locked) return "it is locked"
-  if (probes.git(worktree.path, CLEAN_STATUS_ARGUMENTS) !== "") return "it holds an uncommitted change"
+  const change = changeOf(worktree.path, probes)
+  if (change) return change
   if (worktree.branch !== null) {
     const verdict = judgeBranch(worktree, probes)
     return verdict.stale ? null : verdict.reason
@@ -255,7 +270,8 @@ const nestedRepositoryHold = (directory, probes) => {
   // A broken `.git` makes git search upward, and then it reads the repository around this one.
   const top = probes.git(directory, ["rev-parse", "--show-toplevel"])
   if (top === null || canonical(top) !== canonical(directory)) return "git cannot read it"
-  if (probes.git(directory, CLEAN_STATUS_ARGUMENTS) !== "") return "it holds an uncommitted change"
+  const change = changeOf(directory, probes)
+  if (change) return change
   return probes.git(directory, ["rev-list", "--count", "--all", "--not", "--remotes"]) === "0" ? null : "it holds a commit that no remote has"
 }
 
@@ -399,7 +415,7 @@ const classifyWorktrees = (evidence, probes, deadline) => evidence.worktrees
   .map((worktree) => {
     const keep = (worktree.branch === null ? "its HEAD is detached, so no branch proves its work merged" : null)
       ?? (worktree.locked ? "it is locked" : null) ?? useOf(worktree.path, evidence) ?? otherSessionHoldOf(worktree.path, evidence)
-      ?? (probes.git(worktree.path, CLEAN_STATUS_ARGUMENTS) === "" ? null : "it holds an uncommitted change")
+      ?? changeOf(worktree.path, probes)
       ?? (Date.now() > deadline ? "the listing reached its time limit before this check" : null)
     const verdict = keep === null ? judgeBranch(worktree, probes) : { stale: false, reason: keep }
     // Only a finished worktree pays for the walk of its tree, and only inside the listing's time limit.
@@ -528,10 +544,14 @@ const removeDirectory = (item, root) => {
 }
 
 /**
- * Git refuses a tree with a tracked or untracked change, whatever `status.showUntrackedFiles` says, and a locked one.
- * An ignored file goes with the tree. The local branch stays.
+ * Git refuses a tree with a change that its `git status` shows, whatever `status.showUntrackedFiles` or `core.excludesFile`
+ * says, and a locked one. Its refusal cannot see a change that an index flag hides or a file that only `info/exclude`
+ * ignores, so the same check as the listing's runs first. A file that a `.gitignore` ignores goes with the tree. The local
+ * branch stays.
  */
 const removeWorktree = (item, probes) => {
+  const change = changeOf(item.path, probes)
+  if (change) throw new Error(`${item.path} was not removed: ${change}`)
   if (probes.git(item.repository, [...WORKTREE_REMOVE_ARGUMENTS, item.path], REMOVAL_TIMEOUT_MS) === null) throw new Error(`git worktree remove refused ${item.path}`)
 }
 

@@ -1,8 +1,8 @@
 import { spawnSync } from "node:child_process"
-import { mkdirSync, realpathSync, renameSync, symlinkSync, writeFileSync } from "node:fs"
+import { appendFileSync, mkdirSync, realpathSync, renameSync, symlinkSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 
-import { findRepositories, parseWorktreeList } from "../lib/git-worktrees.mjs"
+import { CLEAN_STATUS_ARGUMENTS, HIDDEN_CHANGE_ARGUMENTS, findRepositories, hiddenChangesOf, parseWorktreeList } from "../lib/git-worktrees.mjs"
 import { T, root, same } from "./_harness.mjs"
 
 /** A repository with one linked worktree of each kind that `git worktree list --porcelain` prints. */
@@ -34,8 +34,49 @@ const walkCases = () => {
   same("git-worktrees: a walk of a missing path is null, never an empty list", findRepositories(join(base, "missing")), null)
 }
 
+/**
+ * Each source that hides a change from `git status`: an index flag on a tracked file, `core.excludesFile`, its default
+ * `$XDG_CONFIG_HOME/git/ignore`, and `info/exclude`. Only a `.gitignore` of the tree may hide a path.
+ */
+const hiddenChangeCases = () => {
+  const base = join(root, "git-worktrees-hidden")
+  const repository = join(base, "repository")
+  mkdirSync(join(base, "xdg", "git"), { recursive: true })
+  mkdirSync(repository, { recursive: true })
+  writeFileSync(join(base, "personal.gitignore"), "personal/\n")
+  writeFileSync(join(base, "xdg", "git", "ignore"), "default/\n")
+  writeFileSync(join(base, "empty.gitconfig"), "")
+  writeFileSync(join(base, "personal.gitconfig"), `[core]\n\texcludesFile = ${join(base, "personal.gitignore")}\n`)
+  const git = (args, globalConfig = join(base, "empty.gitconfig")) => spawnSync("git", ["-C", repository, ...args],
+    { encoding: "utf8", env: { ...process.env, GIT_CONFIG_GLOBAL: globalConfig, XDG_CONFIG_HOME: join(base, "xdg") } })
+  for (const name of ["plain.txt", "assumed.txt", "skipped.txt"]) writeFileSync(join(repository, name), `${name}\n`)
+  writeFileSync(join(repository, ".gitignore"), "ignored/\n")
+  const staged = [["init", "-q", "--initial-branch=main"], ["add", "."], ["-c", "user.email=gate@orbit.test", "-c", "user.name=Orbit Gate", "commit", "-q", "-m", "base"],
+    ["update-index", "--assume-unchanged", "assumed.txt"], ["update-index", "--skip-worktree", "skipped.txt"]].every((args) => git(args).status === 0)
+  T("git-worktrees: the hidden change fixture stages", staged)
+  if (!staged) return
+  appendFileSync(join(repository, ".git", "info", "exclude"), "excluded/\n")
+  for (const directory of ["ignored", "personal", "default", "excluded"]) {
+    mkdirSync(join(repository, directory))
+    writeFileSync(join(repository, directory, "file.txt"), "never added\n")
+  }
+  for (const name of ["assumed.txt", "skipped.txt"]) appendFileSync(join(repository, name), "edited, never committed\n")
+  // Git reads the default only while `core.excludesFile` is not set, so each config hides one of the two files.
+  const status = ["status", "--porcelain", "--untracked-files=all"]
+  same("git-worktrees: without an override, core.excludesFile or its default hides a file, and no index flag or info/exclude change shows",
+    [git(status, join(base, "personal.gitconfig")).stdout, git(status).stdout], ["?? default/file.txt\n", "?? personal/file.txt\n"])
+  const both = "?? default/file.txt\n?? personal/file.txt\n"
+  same("git-worktrees: the clean check shows each file that core.excludesFile or its default ignores, and still no index flag or info/exclude change",
+    [git(CLEAN_STATUS_ARGUMENTS, join(base, "personal.gitconfig")).stdout, git(CLEAN_STATUS_ARGUMENTS).stdout], [both, both])
+  const listing = git(HIDDEN_CHANGE_ARGUMENTS, join(base, "personal.gitconfig"))
+  same("git-worktrees: the hidden change listing names each flagged file and each untracked file that no .gitignore ignores, and nothing else",
+    hiddenChangesOf(listing.stdout).sort(), ["? default/file.txt", "? excluded/file.txt", "? personal/file.txt", "S skipped.txt", "h assumed.txt"])
+  same("git-worktrees: a tree with no hidden change gives no line", hiddenChangesOf("H .gitignore\nH plain.txt\n"), [])
+}
+
 export const cases = () => {
   walkCases()
+  hiddenChangeCases()
   const staged = stageRepository()
   T("git-worktrees: the git fixture stages", staged !== null)
   if (staged === null) return

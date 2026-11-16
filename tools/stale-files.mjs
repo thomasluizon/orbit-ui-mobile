@@ -20,8 +20,9 @@ const USAGE = `usage: stale-files.mjs [--list] [--json] [--session <id>] [--sess
              copy of a protected or live session
   worktree   a linked worktree of a repository in .claude/orchestrator.json whose pull request merged or
              closed, or whose branch a merged branch contains, with no uncommitted change and no unpushed
-             commit. An untracked file counts as a change, whatever status.showUntrackedFiles says. Its local
-             branch always stays.
+             commit. An untracked file counts as a change, whatever status.showUntrackedFiles,
+             core.excludesFile or info/exclude says, and so does a tracked file that an assume-unchanged
+             or skip-worktree flag hides from git status. Its local branch always stays.
 
   An item stays when a live process or a live session uses it, when the scratchpad of a session that stays
   links into it from any project root beside --session-root, when it holds a registered worktree that the
@@ -29,10 +30,10 @@ const USAGE = `usage: stale-files.mjs [--list] [--json] [--session <id>] [--sess
   when it is a finished worktree that holds a repository with an uncommitted change or a commit that no
   remote has, when a kept item lives in it, when it is in the directory of a session that stays in another
   project root, or when a check cannot read its evidence. A repository in a session directory or a carry
-  copy goes with it. A removal takes the whole tree, ignored directories included. Live sessions come from
-  the Claude session records of this session's config directory, ~/.claude and the worker account directory
-  in the variable that workers.claude.configDirEnv names; a record that cannot be judged, or no record of
-  this session, keeps every item that a live session could use.
+  copy goes with it. A removal takes the whole tree, with each path that a .gitignore of the tree ignores.
+  Live sessions come from the Claude session records of this session's config directory, ~/.claude and the
+  worker account directory in the variable that workers.claude.configDirEnv names; a record that cannot be
+  judged, or no record of this session, keeps every item that a live session could use.
 
   --list               (default) compute the listing, store it in the git directory, print each stale item
   --json               with --list: print the stored listing as JSON, with every kept item and its reason

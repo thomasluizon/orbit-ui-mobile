@@ -1,8 +1,8 @@
 /**
  * What a worktree removal can take: the registered worktrees, from the one reader of `git worktree list --porcelain`,
  * and every repository or worktree with a `.git` entry under a directory; a bare repository is not found.
- * `git worktree remove` deletes an ignored directory with all it holds. Also the git arguments of a clean check and of
- * a removal that see every untracked file, whatever the git config says.
+ * `git worktree remove` deletes each path that a `.gitignore` ignores, with all it holds. Also the git arguments of a
+ * clean check and of a removal, and the listing of each change that `git status` cannot show.
  */
 
 import { spawnSync } from "node:child_process"
@@ -12,16 +12,35 @@ import { dirname } from "node:path"
 const WALK_TIMEOUT_MS = 120_000
 
 /**
- * `git status` arguments that list every change, whatever local, global or system config says: `status.showUntrackedFiles=no`
- * hides each untracked file, and `diff.ignoreSubmodules` or `submodule.<name>.ignore` hides a submodule change.
+ * `git status` arguments that turn off each setting that hides a change, whatever any config file says:
+ * `status.showUntrackedFiles=no`, `core.excludesFile` or its default `$XDG_CONFIG_HOME/git/ignore` (an empty value names
+ * no file and turns the default off), and `diff.ignoreSubmodules` or `submodule.<name>.ignore`. No setting turns off an
+ * index flag or `info/exclude`, so a clean check also reads `HIDDEN_CHANGE_ARGUMENTS`.
  */
-export const CLEAN_STATUS_ARGUMENTS = ["status", "--porcelain", "--untracked-files=all", "--ignore-submodules=none"]
+export const CLEAN_STATUS_ARGUMENTS = ["-c", "core.excludesFile=", "status", "--porcelain", "--untracked-files=all", "--ignore-submodules=none"]
 
 /**
- * `git worktree remove` refuses a changed tree through its own `git status`, which reads `status.showUntrackedFiles` too.
- * A `-c` setting reaches that child git and wins over every config file, so the refusal sees each untracked file.
+ * `git ls-files` arguments that tag each tracked path and list each untracked path that no `.gitignore` of the tree
+ * ignores. `--exclude-per-directory=.gitignore` without `--exclude-standard` reads no other exclude source: not
+ * `core.excludesFile`, not its default and not `info/exclude`.
  */
-export const WORKTREE_REMOVE_ARGUMENTS = ["-c", "status.showUntrackedFiles=all", "worktree", "remove"]
+export const HIDDEN_CHANGE_ARGUMENTS = ["ls-files", "-v", "--cached", "--others", "--exclude-per-directory=.gitignore"]
+
+/**
+ * The lines of a `HIDDEN_CHANGE_ARGUMENTS` listing whose change `git status` cannot show. With `-v`, git prints a
+ * lowercase tag for an assume-unchanged path, which `core.ignoreStat` sets on each file git checks out or adds, and `S`
+ * for a skip-worktree path; `git status` never compares either with the file. `?` is an untracked path that no
+ * `.gitignore` ignores.
+ */
+export const hiddenChangesOf = (listing) => listing.split("\n").filter((line) => /^(?:[a-z]|S|\?) /.test(line))
+
+/**
+ * `git worktree remove` refuses a changed tree through its own `git status`, which reads `status.showUntrackedFiles` and
+ * `core.excludesFile` too. A `-c` setting reaches that child git and wins over every config file, so the refusal sees each
+ * untracked file that a `.gitignore` or `info/exclude` does not ignore. The refusal never sees a change that an index flag
+ * hides or a file that only `info/exclude` ignores: no setting turns those off, so the caller checks them first.
+ */
+export const WORKTREE_REMOVE_ARGUMENTS = ["-c", "status.showUntrackedFiles=all", "-c", "core.excludesFile=", "worktree", "remove"]
 
 /**
  * `{ path, branch, locked, prunable }` for each record of `git worktree list --porcelain`, the primary checkout first.

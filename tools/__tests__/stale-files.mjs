@@ -1,5 +1,5 @@
 import { spawn, spawnSync } from "node:child_process"
-import { existsSync, mkdirSync, readFileSync, symlinkSync, utimesSync, writeFileSync } from "node:fs"
+import { appendFileSync, existsSync, mkdirSync, readFileSync, symlinkSync, utimesSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 
 import { T, orcaEnv, realOrchestratorConfig, root, run, same, stageWithConfig } from "./_harness.mjs"
@@ -17,6 +17,7 @@ const NESTED_DONE = "88888888-0000-4000-8000-000000000008"
 const PROBE_REPOSITORY = "99999999-0000-4000-8000-000000000009"
 const NESTED_UNTRACKED = "aaaaaaaa-0000-4000-8000-00000000000a"
 const WORKER = "bbbbbbbb-0000-4000-8000-00000000000b"
+const NESTED_FLAGGED = "cccccccc-0000-4000-8000-00000000000c"
 
 const base = join(root, "stale-cli")
 const home = join(base, "home")
@@ -28,13 +29,19 @@ const primary = join(base, "repository")
 const worktreeRoot = join(base, "worktrees")
 const outside = join(base, "outside")
 const git = (cwd, args) => spawnSync("git", ["-C", cwd, ...args], { encoding: "utf8" })
+/** Global git config of the tool's run: it hides every untracked file, and each file under `notes/`, from `git status`. */
+const hidingConfig = join(base, "hide-untracked.gitconfig")
+const personalIgnore = join(base, "personal.gitignore")
 
-/** A linked worktree on `branch` with one commit unless `commit` is false, pushed unless `push` is false. Returns its path and tip. */
-const stageWorktree = (name, { push = true, detach = false, commit = true, path = join(worktreeRoot, name) } = {}) => {
+/**
+ * A linked worktree on `branch` with one commit unless `commit` is false, pushed unless `push` is false. Returns its path and tip.
+ * `options` are git `-c` settings of the worktree's creation and commit.
+ */
+const stageWorktree = (name, { push = true, detach = false, commit = true, path = join(worktreeRoot, name), options = [] } = {}) => {
   const branch = `feature/${name}`
-  if (git(primary, detach ? ["worktree", "add", "-q", "--detach", path] : ["worktree", "add", "-q", "-b", branch, path]).status !== 0) return null
+  if (git(primary, [...options, ...(detach ? ["worktree", "add", "-q", "--detach", path] : ["worktree", "add", "-q", "-b", branch, path])]).status !== 0) return null
   if (commit) writeFileSync(join(path, `${name}.txt`), `${name}\n`)
-  if (commit && (git(path, ["add", `${name}.txt`]).status !== 0 || git(path, ["commit", "-q", "-m", name]).status !== 0)) return null
+  if (commit && (git(path, [...options, "add", `${name}.txt`]).status !== 0 || git(path, [...options, "commit", "-q", "-m", name]).status !== 0)) return null
   if (push && !detach && git(path, ["push", "-q", "-u", "origin", branch]).status !== 0) return null
   return { path, branch, tip: git(path, ["rev-parse", "HEAD"]).stdout.trim() }
 }
@@ -66,7 +73,11 @@ const stageRepository = () => {
   worktrees["nested-done"] = stageWorktree("nested-done", { detach: true, commit: false, path: nested(NESTED_DONE) })
   worktrees["nested-untracked"] = stageWorktree("nested-untracked", { detach: true, commit: false, path: nested(NESTED_UNTRACKED) })
   // A finished worktree can hold a second registered worktree in an ignored path, which `git worktree remove` takes with it.
-  for (const name of ["holds-dirty", "clean-outer", "holds-detached", "holds-repository", "holds-untracked-repository", "linked-build"]) worktrees[name] = stageWorktree(name)
+  for (const name of ["holds-dirty", "clean-outer", "holds-detached", "holds-repository", "holds-untracked-repository", "linked-build", "personal-ignore", "info-exclude",
+    "holds-flagged-repository"]) worktrees[name] = stageWorktree(name)
+  // `core.ignoreStat` makes git mark each file it writes assume-unchanged, so `git status` never compares it again.
+  worktrees["ignore-stat"] = stageWorktree("ignore-stat", { options: ["-c", "core.ignoreStat=true"] })
+  worktrees["nested-flagged"] = stageWorktree("nested-flagged", { detach: true, commit: false, path: nested(NESTED_FLAGGED) })
   const inner = (outer, name) => join(worktreeRoot, outer, ".claude", "worktrees", name)
   worktrees["nested-dirty"] = stageWorktree("nested-dirty", { path: inner("holds-dirty", "nested-dirty") })
   worktrees["nested-clean"] = stageWorktree("nested-clean", { path: inner("clean-outer", "nested-clean") })
@@ -84,6 +95,21 @@ const stageRepository = () => {
   // Untracked files only, which `status.showUntrackedFiles=no` hides: in a worktree inside a session directory, and in a
   // repository with no commit inside an ignored path of a finished worktree.
   writeFileSync(join(worktrees["nested-untracked"].path, "draft.txt"), "never added\n")
+  // Changes that `git status` cannot show: an edit to a tracked file with an index flag, a file that only the global
+  // `core.excludesFile` ignores, and a file that only the shared `info/exclude` ignores.
+  appendFileSync(join(worktrees["ignore-stat"].path, "ignore-stat.txt"), "edited, never committed\n")
+  if (git(worktrees["nested-flagged"].path, ["update-index", "--skip-worktree", ".gitignore"]).status !== 0) return null
+  appendFileSync(join(worktrees["nested-flagged"].path, ".gitignore"), "# edited, never committed\n")
+  writeFileSync(personalIgnore, "notes/\n")
+  mkdirSync(join(worktrees["personal-ignore"].path, "notes"))
+  writeFileSync(join(worktrees["personal-ignore"].path, "notes", "plan.md"), "never added\n")
+  appendFileSync(join(primary, ".git", "info", "exclude"), "drafts/\n")
+  mkdirSync(join(worktrees["info-exclude"].path, "drafts"))
+  writeFileSync(join(worktrees["info-exclude"].path, "drafts", "todo.md"), "never added\n")
+  // A clone in an ignored path: every commit of it is on its remote, and only an edit that an index flag hides is new.
+  const flaggedClone = join(worktrees["holds-flagged-repository"].path, "node_modules", "flagged")
+  if (git(primary, ["clone", "-q", "--branch", "main", join(base, "origin.git"), flaggedClone]).status !== 0 || git(flaggedClone, ["update-index", "--assume-unchanged", ".gitignore"]).status !== 0) return null
+  appendFileSync(join(flaggedClone, ".gitignore"), "# edited, never committed\n")
   const scratch = join(worktrees["holds-untracked-repository"].path, "node_modules", "scratch")
   mkdirSync(scratch, { recursive: true })
   if (git(scratch, ["init", "-q"]).status !== 0) return null
@@ -109,7 +135,8 @@ const pullRequestPlan = (worktrees) => {
     one("in-use", 17, "MERGED"), one("locked", 18, "MERGED"), one("nested-open", 19, "OPEN"),
     one("holds-dirty", 21, "MERGED"), one("clean-outer", 22, "MERGED"), one("nested-clean", 23, "MERGED"), one("holds-detached", 24, "MERGED"), one("holds-repository", 25, "MERGED"),
     one("holds-untracked-repository", 27, "MERGED"),
-    one("linked-build", 26, "MERGED"), reply("feature/whole", [{ headRefOid: worktrees.part.tip, number: 16, state: "MERGED" }]),
+    one("linked-build", 26, "MERGED"), one("ignore-stat", 28, "MERGED"), one("personal-ignore", 29, "MERGED"), one("holds-flagged-repository", 30, "MERGED"),
+    one("info-exclude", 31, "MERGED"), reply("feature/whole", [{ headRefOid: worktrees.part.tip, number: 16, state: "MERGED" }]),
     reply(worktrees.part.branch, []), reply(worktrees.unmerged.branch, []), reply(worktrees.contained.branch, [])]
 }
 
@@ -164,9 +191,7 @@ export const cases = async () => {
   const workerVariable = "ORBIT_STALE_GATE_WORKER_CONFIG_DIR"
   const staged = stageWithConfig("stale-cli", TOOL, { ...config, repos: { ui: primary },
     workers: { ...config.workers, claude: { ...config.workers.claude, configDirEnv: workerVariable } } })
-  // Global git config that hides every untracked file from `git status` and from the refusal of `git worktree remove`.
-  const hidingConfig = join(base, "hide-untracked.gitconfig")
-  writeFileSync(hidingConfig, "[status]\n\tshowUntrackedFiles = no\n")
+  writeFileSync(hidingConfig, `[status]\n\tshowUntrackedFiles = no\n[core]\n\texcludesFile = ${personalIgnore}\n`)
   mkdirSync(join(staged.base, ".git"))
   writeFileSync(join(staged.base, ".git", "orbit-orchestrate-run.json"), JSON.stringify({ sessionId: THIS, relay: { from: PREDECESSOR, pending: false } }))
   const env = { ...orcaEnv(pullRequestPlan(worktrees)), HOME: home, USERPROFILE: home, CLAUDE_CONFIG_DIR: configDirectory, CLAUDE_CODE_SESSION_ID: "",
@@ -176,6 +201,10 @@ export const cases = async () => {
   const copy = (name) => join(carryRoot, name)
   const worker = spawn(process.execPath, ["-e", "setInterval(() => {}, 1000)"], { cwd: session(WORKED_IN), stdio: "ignore" })
   try {
+    const flaggedClone = join(worktrees["holds-flagged-repository"].path, "node_modules", "flagged")
+    const hidden = [worktrees["ignore-stat"].path, worktrees["nested-flagged"].path, worktrees["personal-ignore"].path, worktrees["info-exclude"].path, flaggedClone]
+    same("stale-files: the run's git status hides each change of the hidden change fixture", hidden.map((path) => spawnSync("git", ["-C", path, "status", "--porcelain", "--untracked-files=all"],
+      { encoding: "utf8", env: { ...process.env, GIT_CONFIG_GLOBAL: hidingConfig } }).stdout), hidden.map(() => ""))
     const listed = tool(["--list", "--json", "--session", THIS, "--session-root", sessionRoot])
     same("stale-files: --list --json exits 0", listed.status, 0)
     const listing = listed.status === 0 ? JSON.parse(listed.stdout) : { stale: [], kept: [] }
@@ -214,6 +243,14 @@ export const cases = async () => {
       ["a finished worktree that holds a repository whose only change is a hidden untracked file", worktrees["holds-untracked-repository"].path,
         new RegExp(`^repository ${join(worktrees["holds-untracked-repository"].path, "node_modules", "scratch")} in it stays: it holds an uncommitted change$`)],
       ["the session of a live record in the worker account directory that the config names", session(WORKER), /^live session bbbbbbbb uses it$/],
+      ["a finished worktree whose edit an assume-unchanged flag from core.ignoreStat hides", worktrees["ignore-stat"].path,
+        /^git status cannot show a change to \.gitignore, an assume-unchanged or skip-worktree file$/],
+      ["a session directory that holds a worktree whose edit a skip-worktree flag hides", session(NESTED_FLAGGED),
+        new RegExp(`^worktree ${worktrees["nested-flagged"].path} in it stays: git status cannot show a change to \\.gitignore, an assume-unchanged or skip-worktree file$`)],
+      ["a finished worktree that holds a repository whose edit an assume-unchanged flag hides", worktrees["holds-flagged-repository"].path,
+        new RegExp(`^repository ${flaggedClone} in it stays: git status cannot show a change to \\.gitignore, an assume-unchanged or skip-worktree file$`)],
+      ["a finished worktree whose only change is a file that the global core.excludesFile ignores", worktrees["personal-ignore"].path, /^it holds an uncommitted change$/],
+      ["a finished worktree whose only change is a file that only info/exclude ignores", worktrees["info-exclude"].path, /^it holds an untracked file that no \.gitignore ignores: drafts\/todo\.md$/],
     ]) T(`stale-files: ${name} is kept`, reason.test(keptReason(path)), `reason: ${keptReason(path)}`)
 
     const text = tool(["--list", "--session", THIS])
@@ -239,13 +276,20 @@ export const cases = async () => {
     T("stale-files: --delete prints what it freed", /^FREED 9 items, .* \(3 session directories, 1 durable carry copy, 5 worktrees\); free space changed by [+-]/m.test(removed.stdout), removed.stdout)
     T("stale-files: a session directory that went stale after the listing survives", existsSync(session(LATER)))
     const keptPaths = [session(THIS), session(PREDECESSOR), session(LIVE), session(WORKED_IN), session(NESTED_OPEN), session(NESTED_UNPUSHED), session(NESTED_UNTRACKED), session(WORKER),
+      session(NESTED_FLAGGED),
       copy("durable-0b0b0b0b"), copy("durable-0c0c0c0c"), ...["open", "unpushed", "dirty", "unmerged", "detached", "in-use", "unreadable", "locked", "nested-open", "nested-unpushed",
-        "nested-untracked", "holds-dirty", "nested-dirty", "holds-detached", "detached-inner", "holds-repository", "holds-untracked-repository", "linked-build"].map((name) => worktrees[name].path)]
+        "nested-untracked", "holds-dirty", "nested-dirty", "holds-detached", "detached-inner", "holds-repository", "holds-untracked-repository", "linked-build", "ignore-stat",
+        "nested-flagged", "personal-ignore", "info-exclude", "holds-flagged-repository"].map((name) => worktrees[name].path)]
     same("stale-files: every protected item survives", keptPaths.filter((path) => !existsSync(path)), [])
     same("stale-files: a link inside a removed session directory keeps its target", readFileSync(join(outside, "sentinel.txt"), "utf8"), "must survive\n")
     same("stale-files: every untracked file that status.showUntrackedFiles=no hides survives --delete", [join(worktrees.dirty.path, "unsaved.txt"),
       join(worktrees.closed.path, "new-work.txt"), join(worktrees["nested-untracked"].path, "draft.txt"),
       join(worktrees["holds-untracked-repository"].path, "node_modules", "scratch", "draft.txt")].filter((path) => !existsSync(path)), [])
+    same("stale-files: every change that git status cannot show survives --delete", [[join(worktrees["ignore-stat"].path, "ignore-stat.txt"), "ignore-stat\nedited, never committed\n"],
+      [join(worktrees["nested-flagged"].path, ".gitignore"), "node_modules/\n.claude/worktrees/\nbuild/\n# edited, never committed\n"],
+      [join(flaggedClone, ".gitignore"), "node_modules/\n.claude/worktrees/\nbuild/\n# edited, never committed\n"],
+      [join(worktrees["personal-ignore"].path, "notes", "plan.md"), "never added\n"], [join(worktrees["info-exclude"].path, "drafts", "todo.md"), "never added\n"]]
+      .filter(([path, content]) => !existsSync(path) || readFileSync(path, "utf8") !== content).map(([path]) => path), [])
     T("stale-files: the uncommitted and untracked files of a worktree inside a finished worktree survive --delete",
       existsSync(join(worktrees["nested-dirty"].path, "nested-dirty.txt")) && existsSync(join(worktrees["nested-dirty"].path, "untracked.txt")))
     T("stale-files: the commit of a repository inside a finished worktree survives --delete", git(join(worktrees["holds-repository"].path, "node_modules", "vendored"), ["log", "--oneline"]).stdout.includes("local"))

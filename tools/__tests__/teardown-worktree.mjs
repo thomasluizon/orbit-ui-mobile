@@ -141,6 +141,10 @@ childProcess.spawnSync = (command, args, options) => {
   }
 
   if (process.env.ORBIT_GIT_INTERLEAVE_MODE === "untracked-before-remove") writeFileSync(target + "/late-untracked.txt", "written after the clean check\\n")
+  if (process.env.ORBIT_GIT_INTERLEAVE_MODE === "excluded-before-remove") {
+    mkdirSync(target + "/notes", { recursive: true })
+    writeFileSync(target + "/notes/late.md", "written after the clean check\\n")
+  }
   const result = originalSpawnSync(command, args, options)
   if (result.status === 0 && process.env.ORBIT_GIT_INTERLEAVE_MODE === "recreate-after-success") {
     if (existsSync(target)) throw new Error("Git unexpectedly left the regular fixture path behind")
@@ -348,6 +352,35 @@ export const assertRepositoryLabel = (ticket, repoKey) => {
     { status: 3, stderr: /git worktree remove .* failed without deregistering it: .*untracked files/ },
     { env: gitInterleaveEnv({ ...orcaEnv(teardownPlan(lateUntracked)), GIT_CONFIG_GLOBAL: hideUntracked }, "untracked-before-remove", lateUntracked.child) })
   T(`${TOOL}: the untracked file written after the clean check survives`, existsSync(join(lateUntracked.child, "late-untracked.txt")))
+
+  // Neither `git status` nor git's own refusal sees an edit that an index flag hides, or a file that only `info/exclude` ignores.
+  const assumed = stageTeardownWorktree("assume-unchanged", { changed: true, fastForwardMerged: true })
+  const flagged = spawnSync("git", ["-C", assumed.child, "update-index", "--assume-unchanged", "captured.txt"], { encoding: "utf8" }).status === 0
+  writeFileSync(join(assumed.child, "captured.txt"), "edited, never committed\n")
+  T(`${TOOL}: the assume-unchanged fixture hides its edit from git status`, flagged && spawnSync("git", ["-C", assumed.child, "status", "--porcelain"], { encoding: "utf8" }).stdout === "")
+  check(TOOL, "a worktree whose edit an assume-unchanged flag hides is refused as work loss", ["--issue", "ORB-124"],
+    { status: 1, stderr: /UNMET worktree-clean: uncommitted paths: h captured\.txt$/m }, { env: orcaEnv(teardownPlan(assumed)) })
+  T(`${TOOL}: the edit that an assume-unchanged flag hides survives`, existsSync(join(assumed.child, "captured.txt"))
+    && readFileSync(join(assumed.child, "captured.txt"), "utf8") === "edited, never committed\n")
+  const personalIgnore = stage("teardown/personal.gitignore", "notes/\n")
+  const excludesConfig = stage("teardown/excludes-file.gitconfig", `[core]\n\texcludesFile = ${personalIgnore.replaceAll("\\", "/")}\n`)
+  const personal = stageTeardownWorktree("excludes-file", { changed: true, fastForwardMerged: true })
+  mkdirSync(join(personal.child, "notes"))
+  writeFileSync(join(personal.child, "notes", "plan.md"), "never added\n")
+  check(TOOL, "a worktree with a file that core.excludesFile ignores is refused as work loss", ["--issue", "ORB-124"],
+    { status: 1, stderr: /UNMET worktree-clean: uncommitted paths: \?\? notes\/plan\.md$/m }, { env: { ...orcaEnv(teardownPlan(personal)), GIT_CONFIG_GLOBAL: excludesConfig } })
+  const lateExcluded = stageTeardownWorktree("late-excludes-file", { changed: true, fastForwardMerged: true })
+  check(TOOL, "git refuses the removal when a file that core.excludesFile ignores appears after the clean check", ["--issue", "ORB-124"],
+    { status: 3, stderr: /git worktree remove .* failed without deregistering it: .*untracked files/ },
+    { env: gitInterleaveEnv({ ...orcaEnv(teardownPlan(lateExcluded)), GIT_CONFIG_GLOBAL: excludesConfig }, "excluded-before-remove", lateExcluded.child) })
+  T(`${TOOL}: the file that core.excludesFile ignores, written after the clean check, survives`, existsSync(join(lateExcluded.child, "notes", "late.md")))
+  const excluded = stageTeardownWorktree("info-exclude", { changed: true, fastForwardMerged: true })
+  writeFileSync(join(excluded.primary, ".git", "info", "exclude"), "drafts/\n")
+  mkdirSync(join(excluded.child, "drafts"))
+  writeFileSync(join(excluded.child, "drafts", "todo.md"), "never added\n")
+  check(TOOL, "a worktree with a file that only info/exclude ignores is refused as work loss", ["--issue", "ORB-124"],
+    { status: 1, stderr: /UNMET worktree-clean: uncommitted paths: \? drafts\/todo\.md$/m }, { env: orcaEnv(teardownPlan(excluded)) })
+  T(`${TOOL}: the files that a personal exclude source ignores survive`, existsSync(join(personal.child, "notes", "plan.md")) && existsSync(join(excluded.child, "drafts", "todo.md")))
 
   const failedAfterDeregister = stageTeardownWorktree("failed-after-deregister", { changed: true, fastForwardMerged: true })
   const failedAfterDeregisterResult = check(

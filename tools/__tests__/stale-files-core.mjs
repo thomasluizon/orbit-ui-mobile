@@ -1,5 +1,5 @@
 import { spawnSync } from "node:child_process"
-import fs, { chmodSync, existsSync, mkdirSync, readFileSync, realpathSync, rmSync, symlinkSync, utimesSync, writeFileSync } from "node:fs"
+import fs, { appendFileSync, chmodSync, existsSync, mkdirSync, readFileSync, realpathSync, rmSync, symlinkSync, utimesSync, writeFileSync } from "node:fs"
 import { syncBuiltinESMExports } from "node:module"
 import { dirname, join } from "node:path"
 import { fileURLToPath } from "node:url"
@@ -306,28 +306,82 @@ const nestedRemovalCases = () => {
   same("stale-files: the worktree around a refused inner worktree is skipped with the reason", outcome.skipped.map((item) => `${item.path}: ${item.reason}`), [`${outer}: ${inner} in it could not be removed`])
 }
 
-/**
- * A file can appear in a listed worktree after the listing, and `git worktree remove` refuses it through its own
- * `git status`, which reads `status.showUntrackedFiles` too. With that setting at `no` in the repository's config, the
- * removal must still see the untracked file and keep it.
- */
-const hiddenUntrackedRemovalCases = () => {
-  const machine = stageMachine("hidden-untracked-removal")
+/** A repository with one commit of `tracked.txt` and a finished worktree of it; `configure` runs before the worktree is made. */
+const stageFinishedWorktree = (label, configure = []) => {
+  const machine = stageMachine(label)
   const repository = join(machine.base, "repository")
   const finished = join(machine.base, "finished")
   mkdirSync(repository)
+  writeFileSync(join(repository, "tracked.txt"), "committed\n")
   const git = (args) => spawnSync("git", ["-C", repository, ...args], { encoding: "utf8" })
-  const staged = [["init", "-q", "--initial-branch=main"], ["-c", "user.email=gate@orbit.test", "-c", "user.name=Orbit Gate", "commit", "-q", "--allow-empty", "-m", "base"],
-    ["worktree", "add", "-q", "-b", "feature/finished", finished], ["config", "status.showUntrackedFiles", "no"]].every((args) => git(args).status === 0)
-  T("stale-files: the hidden untracked file fixture stages", staged)
-  if (!staged) return
-  writeFileSync(join(finished, "draft.txt"), "written after the listing\n")
-  same("stale-files: the fixture's git status hides the untracked file", git(["-C", finished, "status", "--porcelain"]).stdout, "")
+  const staged = [["init", "-q", "--initial-branch=main"], ["add", "tracked.txt"], ["-c", "user.email=gate@orbit.test", "-c", "user.name=Orbit Gate", "commit", "-q", "-m", "base"],
+    ...configure, ["worktree", "add", "-q", "-b", "feature/finished", finished]].every((args) => git(args).status === 0)
+  T(`stale-files: the ${label} fixture stages`, staged)
   const listing = { ...collectListing(machine.context, { probes: quietProbes }), stale: [{ kind: "worktree", path: finished, repository, reason: "pull request #1 merged" }] }
-  const outcome = removeListed(listing, listing, {}, { probes: systemProbes })
-  same("stale-files: git refuses the removal of a worktree whose untracked file the config hides", outcome.failed.map((item) => item.path), [finished])
-  T("stale-files: the hidden untracked file survives the removal", existsSync(join(finished, "draft.txt")))
-  T("stale-files: the worktree whose removal git refused stays registered", git(["worktree", "list", "--porcelain"]).stdout.includes(finished))
+  return staged ? { machine, repository, finished, git, listing } : null
+}
+
+/**
+ * A file can appear in a listed worktree after the check that runs just before the removal, and `git worktree remove`
+ * refuses it through its own `git status`, which reads `status.showUntrackedFiles` and `core.excludesFile` too. With
+ * either setting in the repository's config, git's refusal must still see the file and keep it.
+ */
+const hiddenUntrackedRemovalCases = () => {
+  const personalIgnore = join(root, "stale-core", "personal.gitignore")
+  mkdirSync(dirname(personalIgnore), { recursive: true })
+  writeFileSync(personalIgnore, "notes/\n")
+  for (const [setting, value, file] of [["status.showUntrackedFiles", "no", "draft.txt"], ["core.excludesFile", personalIgnore, join("notes", "plan.md")]]) {
+    const fixture = stageFinishedWorktree(`late-file-${setting}`, [["config", setting, value]])
+    if (fixture === null) continue
+    const late = join(fixture.finished, file)
+    // The file appears after every check of the tool, just before git's own refusal runs.
+    const probes = { ...systemProbes, git: (cwd, args, timeoutMs) => {
+      if (args.includes("remove")) {
+        mkdirSync(dirname(late), { recursive: true })
+        writeFileSync(late, "written after the check\n")
+      }
+      return systemProbes.git(cwd, args, timeoutMs)
+    } }
+    const outcome = removeListed(fixture.listing, fixture.listing, {}, { probes })
+    same(`stale-files: the fixture's git status hides the file that ${setting} hides`, fixture.git(["-C", fixture.finished, "status", "--porcelain"]).stdout, "")
+    same(`stale-files: git refuses the removal of a worktree whose late untracked file ${setting} hides`, outcome.failed.map((item) => item.path), [fixture.finished])
+    T(`stale-files: the late untracked file that ${setting} hides survives the removal`, existsSync(late))
+    T(`stale-files: the worktree whose removal git refused stays registered (${setting})`, fixture.git(["worktree", "list", "--porcelain"]).stdout.includes(fixture.finished))
+  }
+}
+
+/**
+ * `git status` and git's own refusal never compare a tracked file that is assume-unchanged (which `core.ignoreStat`
+ * sets at checkout) or skip-worktree, and they never show a file that only `info/exclude` ignores. The removal must
+ * keep each such change, even when the listing it gets calls the worktree stale.
+ */
+const hiddenChangeRemovalCases = () => {
+  for (const [label, configure, prepare] of [
+    ["core.ignoreStat", [["config", "core.ignoreStat", "true"]], () => true],
+    ["assume-unchanged", [], (fixture) => fixture.git(["-C", fixture.finished, "update-index", "--assume-unchanged", "tracked.txt"]).status === 0],
+    ["skip-worktree", [], (fixture) => fixture.git(["-C", fixture.finished, "update-index", "--skip-worktree", "tracked.txt"]).status === 0],
+  ]) {
+    const fixture = stageFinishedWorktree(`hidden-edit-${label}`, configure)
+    if (fixture === null) continue
+    T(`stale-files: the ${label} flag stages`, prepare(fixture))
+    appendFileSync(join(fixture.finished, "tracked.txt"), "edited, never committed\n")
+    same(`stale-files: the fixture's git status hides the edit under ${label}`, fixture.git(["-C", fixture.finished, "status", "--porcelain"]).stdout, "")
+    const outcome = removeListed(fixture.listing, fixture.listing, {}, { probes: systemProbes })
+    same(`stale-files: the removal refuses a worktree whose edit ${label} hides`, outcome.failed.map((item) => `${item.path}: ${item.reason}`),
+      [`${fixture.finished}: ${fixture.finished} was not removed: git status cannot show a change to tracked.txt, an assume-unchanged or skip-worktree file`])
+    same(`stale-files: the edit that ${label} hides survives the removal`, existsSync(fixture.finished) ? readFileSync(join(fixture.finished, "tracked.txt"), "utf8") : null,
+      "committed\nedited, never committed\n")
+  }
+  const excluded = stageFinishedWorktree("hidden-info-exclude")
+  if (excluded === null) return
+  appendFileSync(join(excluded.repository, ".git", "info", "exclude"), "drafts/\n")
+  mkdirSync(join(excluded.finished, "drafts"))
+  writeFileSync(join(excluded.finished, "drafts", "todo.md"), "never added\n")
+  same("stale-files: the fixture's git status hides the file that only info/exclude ignores", excluded.git(["-C", excluded.finished, "status", "--porcelain", "--untracked-files=all"]).stdout, "")
+  const outcome = removeListed(excluded.listing, excluded.listing, {}, { probes: systemProbes })
+  same("stale-files: the removal refuses a worktree with a file that only info/exclude ignores", outcome.failed.map((item) => item.reason),
+    [`${excluded.finished} was not removed: it holds an untracked file that no .gitignore ignores: drafts/todo.md`])
+  T("stale-files: the file that only info/exclude ignores survives the removal", existsSync(join(excluded.finished, "drafts", "todo.md")))
 }
 
 /** The walk of a finished worktree's tree runs only inside the listing's time limit; past it, the worktree stays. */
@@ -404,6 +458,7 @@ export const cases = () => {
   removalCases()
   nestedRemovalCases()
   hiddenUntrackedRemovalCases()
+  hiddenChangeRemovalCases()
   deadlineCases()
   exportCases()
   reportCases()
