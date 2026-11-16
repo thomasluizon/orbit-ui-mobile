@@ -22,6 +22,8 @@ import { PillButton } from '@/components/ui/pill-button'
 import { ActionRow } from '@/components/ui/action-row'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { useDismissGuard } from '@/hooks/use-dismiss-guard'
+import { useSubmitHold } from '@/hooks/use-submit-hold'
+import type { SubmitOutcome } from '@orbit/shared/hooks'
 import { useHabitForm } from '@/hooks/use-habit-form'
 import { useHabitSuggestion } from '@/hooks/use-habit-suggestion'
 import { useTagSelection } from '@/hooks/use-tag-selection'
@@ -117,10 +119,9 @@ function EditHabitDraft({
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const updateHabit = useUpdateHabit()
-  const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
   const [uncertain, setUncertain] = useState(false)
-  const submittingRef = useRef(false)
+  const { waiting: saving, isRunning: isSubmitting, run: runSubmission, release: releaseSubmission } = useSubmitHold()
   const mountedRef = useRef(true)
   useLayoutEffect(() => {
     mountedRef.current = true
@@ -385,49 +386,51 @@ function EditHabitDraft({
     return { parentId: readback.data.parentId }
   }
 
-  async function handleSubmit() {
-    if (!habit || submittingRef.current) return
-    submittingRef.current = true
+  async function submitSave(startRequest: () => void): Promise<SubmitOutcome> {
+    if (!habit) return 'stay'
     const generation = getAccountGeneration()
     const isCurrent = () => mountedRef.current && getAccountGeneration() === generation
+    flushBufferedInputsRef.current()
+    const verified = await verifyUncertainSave(isCurrent)
+    if (!verified) return 'stay'
+    const request = await prepareSave(verified.parentId)
+    if (!request || !isCurrent()) return 'stay'
+    submittedDraftRevisionRef.current += 1
+    suggestionRevision.advance()
+    startRequest()
+    setSaveError(null)
     try {
-      flushBufferedInputsRef.current()
-      const verified = await verifyUncertainSave(isCurrent)
-      if (!verified) return
-      const request = await prepareSave(verified.parentId)
-      if (!request || !isCurrent()) return
-      submittedDraftRevisionRef.current += 1
-      suggestionRevision.advance()
-      setSaving(true)
-      setSaveError(null)
-      try {
-        const outcome = await updateHabit.mutateAsync({ habitId: habit.id, data: request })
-        if (!isCurrent()) return
-        setUncertain(false)
-        if (isQueuedResult(outcome)) {
-          showInfo(t('habits.form.waitingToSync'))
-          closeSheet(onClose)
-          return
-        }
-        closeSheet(onClose)
-        await onSaved?.()
-      } catch (error: unknown) {
-        if (!isCurrent()) return
-        if (formHelpers.reportBackendErrors(error)) return
-        const status = extractBackendStatus(error)
-        const unknownOutcome = status === undefined || status >= 500 || status === 408
-        setUncertain((previous) => previous || unknownOutcome)
-        setSaveError(unknownOutcome ? t('habits.form.saveUncertain') : getFriendlyErrorMessage(error, translate, 'errors.updateHabit', 'habit'))
-        if (unknownOutcome) await refetchDetail()
+      const outcome = await updateHabit.mutateAsync({ habitId: habit.id, data: request })
+      if (!isCurrent()) return 'stay'
+      setUncertain(false)
+      const leave = () => { releaseSubmission(); onClose() }
+      if (isQueuedResult(outcome)) {
+        showInfo(t('habits.form.waitingToSync'))
+        closeSheet(leave, leave)
+        return 'leave'
       }
-    } finally {
-      submittingRef.current = false
-      if (isCurrent()) setSaving(false)
+      closeSheet(leave, leave)
+      await onSaved?.()
+      return 'leave'
+    } catch (error: unknown) {
+      if (!isCurrent()) return 'stay'
+      if (formHelpers.reportBackendErrors(error)) return 'stay'
+      const status = extractBackendStatus(error)
+      const unknownOutcome = status === undefined || status >= 500 || status === 408
+      setUncertain((previous) => previous || unknownOutcome)
+      setSaveError(unknownOutcome ? t('habits.form.saveUncertain') : getFriendlyErrorMessage(error, translate, 'errors.updateHabit', 'habit'))
+      if (unknownOutcome) await refetchDetail()
+      return 'stay'
     }
   }
 
+  function handleSubmit() {
+    if (!habit) return
+    void runSubmission(submitSave)
+  }
+
   const handleSuggestEmoji = useCallback(async () => {
-    if (submittingRef.current) return null
+    if (isSubmitting()) return null
     flushBufferedInputsRef.current()
     const currentTitle = coalesceFormText(formHelpers.form.getValues('title'))
     const title = currentTitle.trim()
@@ -462,10 +465,10 @@ function EditHabitDraft({
       suggestionRequests.finish()
       setIsEmojiSuggesting(false)
     }
-  }, [allowanceText, formHelpers, i18n.language, sessionHabitId, showError, showInfo, showSuccess, suggestion, suggestionRequests, suggestionRevision, t])
+  }, [isSubmitting, allowanceText, formHelpers, i18n.language, sessionHabitId, showError, showInfo, showSuccess, suggestion, suggestionRequests, suggestionRevision, t])
 
   const handleSuggest = useCallback(async () => {
-    if (submittingRef.current) return null
+    if (isSubmitting()) return null
     flushBufferedInputsRef.current()
     const currentTitle = coalesceFormText(formHelpers.form.getValues('title'))
     const title = currentTitle.trim()
@@ -518,7 +521,7 @@ function EditHabitDraft({
     } finally {
       suggestionRequests.finish()
     }
-  }, [allowanceText, formHelpers, i18n.language, sessionHabitId, showError, showInfo, showSuccess, suggestion, suggestionRequests, suggestionRevision, t])
+  }, [isSubmitting, allowanceText, formHelpers, i18n.language, sessionHabitId, showError, showInfo, showSuccess, suggestion, suggestionRequests, suggestionRevision, t])
 
   const visibleFailure = visibleEmojiFailure(emojiFailure, sessionHabitId, watchedTitle)
 
@@ -528,7 +531,7 @@ function EditHabitDraft({
         ref={sheetRef}
         open
         onClose={!saving && dismissGuard.canDismiss ? onClose : undefined}
-        onAttemptDismiss={() => { if (!submittingRef.current) dismissGuard.requestDismiss() }}
+        onAttemptDismiss={() => { if (!isSubmitting()) dismissGuard.requestDismiss() }}
         title={t(formHelpers.isOneTime ? 'habits.editTask' : 'habits.editHabit')}
         actions={(
           <ActionRow>
@@ -537,7 +540,7 @@ function EditHabitDraft({
               size="sm"
               disabled={detailFieldsPending || saving}
               loading={saving}
-              onClick={() => void handleSubmit()}
+              onClick={handleSubmit}
             >
               {t('common.save')}
             </PillButton>
@@ -573,7 +576,7 @@ function EditHabitDraft({
               emojiSuggestionError={visibleFailure?.atLimit ? undefined : visibleFailure?.message}
               emojiSuggestionLimitReached={visibleFailure?.atLimit}
               isSuggesting={suggestion.isPending}
-              parentField={<EditorParentField parent={{ ...parent, select: (id) => { if (!submittingRef.current) parent.select(id) } }} disabled={saving || detailFieldsPending} onRetryDetail={() => void refetchDetail()} />}
+              parentField={<EditorParentField parent={{ ...parent, select: (id) => { if (!isSubmitting()) parent.select(id) } }} disabled={saving || detailFieldsPending} onRetryDetail={() => void refetchDetail()} />}
               defaultExpanded={true}
               lockedGeneral={parent.lockedGeneral}
               onUpgrade={navigateToUpgrade}

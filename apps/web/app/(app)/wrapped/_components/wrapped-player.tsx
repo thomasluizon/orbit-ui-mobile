@@ -146,7 +146,7 @@ export function WrappedPlayer({
           {!isLast && canTapToPage && <TapZones isFirst={isFirst} onPage={page} />}
         </div>
         <div className="shrink-0 bg-[var(--bg)]">
-          {notice !== undefined ? <div data-shell-notice="">{notice}</div> : null}
+          {notice !== undefined ? <div data-shell-notice="" className="has-[>:not(:empty)]:pb-2">{notice}</div> : null}
           <PlayerPager
             count={slides.length}
             index={index}
@@ -234,7 +234,8 @@ interface PlayerPagerProps {
 
 function PlayerPager(props: Readonly<PlayerPagerProps>) {
   return (
-    <div data-testid="wrapped-pager" className="py-2 [@media(max-height:400px)]:py-1" style={{ paddingInline: SPACING.s16 }}>
+    // WHY: web only, the player notice sits in flow above the pager (mobile overlays its toast), so the notice stack owns the space between them; https://github.com/thomasluizon/orbit-tickets/issues/2140.
+    <div data-testid="wrapped-pager" className="py-4 [@media(max-height:400px)]:py-3 [[data-shell-notice]:has(>:not(:empty))+&]:pt-0" style={{ paddingInline: SPACING.s16 }}>
       {props.isLast ? (
         <Pager
           count={props.count}

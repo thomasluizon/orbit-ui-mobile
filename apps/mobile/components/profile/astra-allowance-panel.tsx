@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next'
 import type { Profile } from '@orbit/shared/types/profile'
 import { PillButton } from '@/components/ui/pill-button'
 import { ProgressBar } from '@/components/ui/progress-bar'
+import { insetHairlineRing } from '@/components/ui/inset-hairline-ring'
 import { createTokensV2, radius } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
@@ -39,7 +40,7 @@ export function AstraAllowancePanel({
       testID="astra-allowance-panel"
       style={[
         styles.panel,
-        { backgroundColor: tokens.bgCard, borderColor: tokens.hairline },
+        { backgroundColor: tokens.bgCard, outlineColor: tokens.hairline },
       ]}
     >
       <View style={styles.header}>
@@ -94,7 +95,7 @@ const styles = StyleSheet.create({
     gap: 12,
     padding: PADDING.recordInset,
     borderRadius: radius.xl,
-    borderWidth: 1,
+    ...insetHairlineRing,
   },
   header: {
     minWidth: 0,

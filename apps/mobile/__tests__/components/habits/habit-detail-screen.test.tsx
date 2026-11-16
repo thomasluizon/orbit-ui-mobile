@@ -38,6 +38,7 @@ import { useChatStore } from '@/stores/chat-store'
 import { useUIStore } from '@/stores/ui-store'
 
 import { createTokensV2 } from '@/lib/theme'
+import { expectInsetHairlineRing } from '@/__tests__/support/inset-hairline-ring'
 import { measureInteractionFills } from '@/__tests__/support/interaction-fill-geometry'
 import { measureStartEdgeIconAction } from '@/__tests__/support/start-edge-icon-action'
 import { contrastOnSurface } from '@orbit/shared/__tests__/contrast'
@@ -2464,6 +2465,19 @@ describe('HabitDetailScreen', () => {
     TestRenderer.act(() => { pressPillButton(card, 'habits.reschedule.dismiss') })
     expect(tree.root.findAllByProps({ testID: 'rescue-free-card' })).toHaveLength(0)
     expect(textsOf(tree.root)).toContain('habits.detail.slippingLine:9:0:50')
+  })
+
+  it('draws the free rescue card hairline inside its edge, so the copy starts at the web inset', () => {
+    openRescueGate()
+    mocks.hasProAccess = false
+    let tree!: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" />) })
+    const card = tree.root.find((node: TestNode) => typeof node.type === 'string' && node.props.testID === 'rescue-free-card')
+    expectInsetHairlineRing(card.props.style, createTokensV2('purple', mocks.theme as 'dark' | 'light').hairlineGhost)
+    const measured = measureProfileRow(tree.toJSON(), 412, 1)
+    const frame = measured.boxes.find((box) => box.testID === 'rescue-free-card')!
+    const prompt = measured.texts.find((text) => text.label === 'habits.reschedule.freePrompt')!
+    expect(prompt.left, 'the prompt starts at the 24 dp padding of the web card').toBe(frame.left + 24)
   })
 
   it('keeps delete confirmation open and reports a delete failure', async () => {

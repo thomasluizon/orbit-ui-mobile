@@ -92,8 +92,9 @@ import { useProfile } from '@/hooks/use-profile'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { useRescheduleSuggestion } from '@/hooks/use-reschedule-suggestion'
 import { useTimeFormat } from '@/hooks/use-time-format'
-import { createTokensV2, responsiveTypeStyle } from '@/lib/theme'
+import { createTokensV2, radius, responsiveTypeStyle } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
+import { insetHairlineRing } from '@/components/ui/inset-hairline-ring'
 import { useCurrentDate } from '@/app/(tabs)/use-today-date'
 
 type ConfirmAction = 'delete' | 'log' | 'delete-child' | null
@@ -338,7 +339,7 @@ function RescheduleBlock({ habit, rescue: { query, open }, hasPro, locale, today
     returnFocus()
   }
   const actionVariant = scheduleEditing ? 'ghost' : 'primary'
-  const card = [styles.rescueCard, { backgroundColor: tokens.bgCard, borderColor: tokens.hairlineGhost }]
+  const card = [styles.rescueCard, { backgroundColor: tokens.bgCard, outlineColor: tokens.hairlineGhost }]
   const notNow = <PillButton variant="ghost" size="sm" disabled={updateHabit.isPending} onClick={close}>{t('habits.reschedule.dismiss')}</PillButton>
   if (!hasPro) {
     return (
@@ -693,7 +694,7 @@ const styles = StyleSheet.create({
   tags: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   tag: { minWidth: 0, maxWidth: '100%', borderWidth: 1, borderRadius: 8 },
   tagText: { fontFamily: 'GeistMono_500Medium', fontSize: 12, letterSpacing: 0.7 },
-  rescueCard: { gap: 12, padding: SPACING.s24, borderRadius: 20, borderWidth: 1 },
+  rescueCard: { gap: 12, padding: SPACING.s24, borderRadius: radius.xl, ...insetHairlineRing },
   rescueContent: { gap: 12 },
   rescueWait: { gap: 12 },
   rescueWaitMascot: { alignSelf: 'flex-start' },

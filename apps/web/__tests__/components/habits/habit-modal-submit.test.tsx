@@ -13,6 +13,7 @@ import { act, fireEvent, render, screen, waitFor, within } from '@testing-librar
 import userEvent from '@testing-library/user-event'
 import type { HabitSetupSuggestion } from '@orbit/shared/types/habit'
 import { createApiClientError } from '@orbit/shared/utils/error-utils'
+import { sheetTestControls } from '@/__tests__/support/sheet-double'
 
 const editorParentState = vi.hoisted(() => ({ detail: undefined as import('@orbit/shared/types/habit').HabitDetail | undefined, items: [] as import('@orbit/shared/types/habit').HabitScheduleItem[] }))
 beforeEach(() => { editorParentState.detail = undefined; editorParentState.items = [] })
@@ -281,6 +282,44 @@ describe.each(['create', 'edit'] as const)('habit %s submit', (mode) => {
     expect(submit).not.toHaveAttribute('aria-busy')
     expect(submit.querySelector('[data-slot="skeleton-face"]')).toBeNull()
     expect(onClose).toHaveBeenCalledWith(false)
+  })
+
+  it('sends one request for two presses before the request starts', async () => {
+    mutation.mockResolvedValue(habit)
+    const { title, submit } = await renderSheet(mode)
+    await act(async () => fireEvent.change(title, { target: { value: 'Walk every day' } }))
+    await act(async () => {
+      fireEvent.click(submit)
+      fireEvent.click(submit)
+    })
+    await waitFor(() => expect(mutation).toHaveBeenCalled())
+    expect(mutation).toHaveBeenCalledTimes(1)
+  })
+
+  it('keeps the waiting face after success until the sheet has left, and sends nothing on a second press', async () => {
+    sheetTestControls.defer(true)
+    try {
+      let finish!: () => void
+      mutation.mockImplementation(() => new Promise((resolve) => { finish = () => resolve(habit) }))
+      const { title, submit, onClose } = await renderSheet(mode)
+      await act(async () => fireEvent.change(title, { target: { value: 'Walk every day' } }))
+      await act(async () => fireEvent.click(submit))
+      await waitFor(() => expect(submit).toHaveAttribute('aria-busy', 'true'))
+      await act(async () => finish())
+      await waitFor(() => expect(sheetTestControls.isDismissPending).toBe(true))
+      expect(submit).toHaveAttribute('aria-busy', 'true')
+      expect(submit).toBeDisabled()
+      expect(submit.querySelector('[data-slot="skeleton-face"]')).not.toBeNull()
+      await act(async () => fireEvent.click(submit))
+      await act(async () => fireEvent.submit(title.closest('form')!))
+      expect(mutation).toHaveBeenCalledTimes(1)
+      expect(onClose).not.toHaveBeenCalled()
+      await act(async () => sheetTestControls.completeDismissal())
+      expect(onClose).toHaveBeenCalledWith(false)
+      expect(submit).not.toHaveAttribute('aria-busy')
+    } finally {
+      sheetTestControls.defer(false)
+    }
   })
 
   it('allows retry after the request fails', async () => {

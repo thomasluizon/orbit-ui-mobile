@@ -29,7 +29,6 @@ const TestRenderer = require('react-test-renderer') as {
 const mocks = vi.hoisted(() => ({
   create: vi.fn().mockResolvedValue({ id: 'created-goal' }),
   showError: vi.fn(),
-  pending: false,
   habitFormReady: Promise.resolve(),
   habits: { data: { habitsById: new Map<string, ReturnType<typeof createMockHabit>>() }, isLoading: false, isError: false, refetch: vi.fn() },
 }))
@@ -38,7 +37,7 @@ vi.mock('@/components/habits/create-habit-modal', async () => {
   await mocks.habitFormReady
   return { CreateHabitModal: (props: Record<string, unknown>) => React.createElement('CreateHabitModal', props) }
 })
-vi.mock('@/hooks/use-goals', () => ({ useCreateGoal: () => ({ mutateAsync: mocks.create, isPending: mocks.pending }) }))
+vi.mock('@/hooks/use-goals', () => ({ useCreateGoal: () => ({ mutateAsync: mocks.create }) }))
 vi.mock('@/hooks/use-habit-queries', () => ({ useHabits: () => mocks.habits }))
 vi.mock('@/hooks/use-app-toast', () => ({ useAppToast: () => ({ showError: mocks.showError }) }))
 vi.mock('@/lib/use-app-theme', () => ({ useAppTheme: () => ({ currentScheme: 'orange', currentTheme: 'dark' }) }))
@@ -53,7 +52,6 @@ beforeEach(() => {
   mocks.habits.isLoading = false
   mocks.habits.isError = false
   mocks.habits.refetch.mockClear()
-  mocks.pending = false
   sheetTestControls.defer(false)
 })
 
@@ -305,10 +303,22 @@ describe('goal creation with habits', () => {
     expect(enabled.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityLabel === 'Habit 20')[0]!.props.disabled).toBe(false)
   })
 
-  it('retains both action labels while a save is pending', async () => {
-    mocks.pending = true
-    const tree = await mount()
+  it('retains both action labels and waits from the request until the sheet leaves', async () => {
+    let finish!: (created: { id: string }) => void
+    mocks.create.mockImplementation(() => new Promise((resolve) => { finish = resolve }))
+    const onClose = vi.fn()
+    const tree = await mount(onClose)
+    await fillGoal(tree)
+    sheetTestControls.defer(true)
+    await TestRenderer.act(async () => { void button(tree, 'goals.create').props.onClick(); await Promise.resolve() })
     expect(button(tree, 'goals.create').props).toMatchObject({ disabled: true, loading: true, children: 'goals.create' })
     expect(button(tree, 'common.cancel').props.disabled).toBe(true)
+    await TestRenderer.act(async () => { void button(tree, 'goals.create').props.onClick(); await Promise.resolve() })
+    expect(mocks.create).toHaveBeenCalledOnce()
+    await TestRenderer.act(async () => { finish({ id: 'created-goal' }); await new Promise((resolve) => setTimeout(resolve, 0)) })
+    expect(sheetTestControls.isDismissPending).toBe(true)
+    expect(button(tree, 'goals.create').props.loading).toBe(true)
+    await TestRenderer.act(() => { sheetTestControls.completeDismissal(); return Promise.resolve() })
+    expect(onClose).toHaveBeenCalledOnce()
   })
 })

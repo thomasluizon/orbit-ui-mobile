@@ -16,6 +16,7 @@ import { INTERACTION_FILL_CLEARANCE, TOUCH_TARGET_MIN } from '@orbit/shared/them
 import { BarChart } from '@/components/ui/bar-chart'
 import { createTokensV2 } from '@/lib/theme'
 import { __focusHost, __getFocusedNativeTag, __setTouchMode } from '../../../test-mocks/react-native'
+import { applyBorderWidths } from '@/__tests__/support/yoga-borders'
 
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 
@@ -116,7 +117,7 @@ function feedbackBounds(target: ReactTestInstance, feedback: ReactTestInstance) 
   child.setWidth(style.width)
   child.setPosition(Yoga.EDGE_TOP, style.top)
   child.setHeight(style.height)
-  child.setBorder(Yoga.EDGE_ALL, style.borderWidth ?? 0)
+  applyBorderWidths(child, style)
   parent.insertChild(child, 0)
   try {
     parent.calculateLayout(bounds.width, bounds.height, Yoga.DIRECTION_LTR)

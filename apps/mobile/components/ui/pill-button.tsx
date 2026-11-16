@@ -30,7 +30,7 @@ function buttonTextColors(tokens: ReturnType<typeof createTokensV2>, quiet: bool
   }
 }
 
-function waitingTextColor(tokens: AppTokensV2, variant: ButtonVariant, quiet: boolean): string {
+export function waitingTextColor(tokens: AppTokensV2, variant: ButtonVariant, quiet: boolean): string {
   return variant === 'ghost' && quiet ? tokens.fg2 : tokens.fg1
 }
 
@@ -38,7 +38,7 @@ function waitsOnSkeletonFace(loading: boolean, apple: boolean, loadingFace: Butt
   return loading && !apple && loadingFace !== 'icon'
 }
 
-function waitingFaceStyle(variant: ButtonVariant, ghostBorderWidth: number): ViewStyle {
+export function waitingFaceStyle(variant: ButtonVariant, ghostBorderWidth: number): ViewStyle {
   return { backgroundColor: 'transparent', borderWidth: variant === 'ghost' ? ghostBorderWidth : 0, borderColor: 'transparent' }
 }
 

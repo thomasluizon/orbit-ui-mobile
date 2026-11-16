@@ -84,8 +84,76 @@ describe('habit tag suggestions', () => {
     tagCollection.tags = []
     tagMutations.suggest.mockReset()
     tagMutations.create.mockReset()
+    tagMutations.update.mockReset()
     tagMutations.delete.mockReset()
     formLocale.language = 'en'
+  })
+
+  function deferred() {
+    let settle!: { resolve: (value?: unknown) => void; reject: (failure: Error) => void }
+    const promise = new Promise((resolve, reject) => { settle = { resolve, reject } })
+    return { promise, settle: () => settle }
+  }
+
+  function expectWaiting(action: HTMLElement, label: string) {
+    expect(action).toHaveAttribute('aria-busy', 'true')
+    expect(action).toBeDisabled()
+    expect(action).toHaveTextContent(label)
+    expect(action.querySelector('[data-slot="skeleton-face"] .skeleton-pulse')).not.toBeNull()
+  }
+
+  it('holds the tag Add action from the press: one request for two presses, the waiting face, and the editor leaves on success', async () => {
+    const request = deferred()
+    tagMutations.create.mockReturnValue(request.promise)
+    renderTagForm('Read')
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.newTag' }))
+    fireEvent.change(screen.getByRole('textbox', { name: 'habits.form.tagName' }), { target: { value: 'Health' } })
+    const add = screen.getByRole('button', { name: 'common.add' })
+    act(() => {
+      fireEvent.click(add)
+      fireEvent.click(add)
+    })
+    expect(tagMutations.create).toHaveBeenCalledOnce()
+    expectWaiting(screen.getByRole('button', { name: 'common.add' }), 'common.add')
+    await act(async () => { request.settle().resolve({ id: 'tag-created' }) })
+    expect(screen.queryByRole('textbox', { name: 'habits.form.tagName' })).toBeNull()
+    expect(screen.getByLabelText('Selected tags')).toHaveTextContent('tag-created')
+  })
+
+  it('ends the tag Add waiting face when the request fails, and the next press sends again', async () => {
+    const request = deferred()
+    tagMutations.create.mockReturnValue(request.promise)
+    renderTagForm('Read')
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.newTag' }))
+    fireEvent.change(screen.getByRole('textbox', { name: 'habits.form.tagName' }), { target: { value: 'Health' } })
+    fireEvent.click(screen.getByRole('button', { name: 'common.add' }))
+    expectWaiting(screen.getByRole('button', { name: 'common.add' }), 'common.add')
+    await act(async () => { request.settle().reject(new Error('offline')) })
+    const add = screen.getByRole('button', { name: 'common.add' })
+    expect(add).not.toHaveAttribute('aria-busy')
+    expect(add).toBeEnabled()
+    tagMutations.create.mockResolvedValue({ id: 'tag-created' })
+    await act(async () => { fireEvent.click(add) })
+    expect(tagMutations.create).toHaveBeenCalledTimes(2)
+  })
+
+  it('holds the tag Save action from the press: one request for two presses, and the waiting face ends on failure', async () => {
+    tagCollection.tags = [{ id: 'existing', name: 'Health', color: '#7c3aed' }]
+    const request = deferred()
+    tagMutations.update.mockReturnValue(request.promise)
+    renderTagForm('Read')
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.editTag: Health' }))
+    fireEvent.change(screen.getByRole('textbox', { name: 'habits.form.tagName' }), { target: { value: 'Fitness' } })
+    const save = screen.getByRole('button', { name: 'common.save' })
+    act(() => {
+      fireEvent.click(save)
+      fireEvent.click(save)
+    })
+    expect(tagMutations.update).toHaveBeenCalledOnce()
+    expectWaiting(screen.getByRole('button', { name: 'common.save' }), 'common.save')
+    await act(async () => { request.settle().reject(new Error('offline')) })
+    expect(screen.getByRole('button', { name: 'common.save' })).not.toHaveAttribute('aria-busy')
+    expect(screen.getByRole('button', { name: 'common.save' })).toBeEnabled()
   })
 
   it.each([409, 500])('handles rejected tag deletion status %i and restores the selection', async (status) => {
