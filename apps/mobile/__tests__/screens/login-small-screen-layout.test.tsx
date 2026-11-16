@@ -31,7 +31,7 @@ vi.mock('react-i18next', async (importOriginal) => {
   const actual = await importOriginal<typeof import('react-i18next')>()
   return {
     useTranslation: () => ({ t: mocks.words, i18n: { language: 'pt-BR' } }),
-    Trans: (props: Parameters<typeof actual.Trans>[0]) => actual.Trans({ ...props, i18n: testI18n, t: testI18n.getFixedT('pt-BR') }),
+    Trans: (props: Parameters<typeof actual.Trans>[0]) => actual.Trans({ ...props, i18n: testI18n, tOptions: { ...props.tOptions, lng: 'pt-BR' } }),
   }
 })
 vi.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ ...mocks.insets, left: 0, right: 0 }) }))
