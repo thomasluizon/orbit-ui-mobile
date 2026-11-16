@@ -262,9 +262,12 @@ test('the window bar check fails when the window starts to follow the pointer la
   }
   // The reader writes an int, so a missing key, null, a string, a boolean, an array, a fraction or a negative wait is no
   // measure of the drag start. The JavaScript <= operator reads null, '', false and [] as 0, true as 1 and '500' as 500.
+  // The run names the raw value, so '' and [] stay visible, and it never calls a value that is not a measure late.
   for (const moveLoopWait of [undefined, null, '', '500', 'abc', true, false, [], -5, -1, 1.5]) {
-    const shown = String(moveLoopWait).replace(/[.]/g, '\\.')
-    await assert.rejects(() => windowContext({ moveLoopWait }).run({}), new RegExp(`The window started to follow the pointer ${shown} ms after the press on the window bar, above the limit of 1000 ms`), JSON.stringify(moveLoopWait) ?? 'undefined')
+    const raw = JSON.stringify(moveLoopWait) ?? 'missing'
+    const shown = raw.replace(/[.[\]]/g, '\\$&')
+    await assert.rejects(() => windowContext({ moveLoopWait }).run({}),
+      new RegExp(`^Error: The reader reported no drag start wait in whole milliseconds from 0 up \\(moveLoopWait ${shown}\\): \\{`), raw)
   }
   for (const moveLoopWait of [0, 150, 1000]) await windowContext({ moveLoopWait }).run({})
 })

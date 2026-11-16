@@ -287,9 +287,13 @@ async function inspectWindowBar(proxy, native, handle, output, report) {
     throw new Error(`Dragging the window bar did not move the window with the pointer: ${JSON.stringify(actions.drag)}`)
   }
   // The reader waits up to 5000 ms for the move loop, so the exact travel alone passes a window that started late. The
-  // reader writes the wait as an int; <= alone reads null, '', false and [] as 0, so any other value is no measure.
+  // reader writes the wait as an int; <= alone reads null, '', false and [] as 0, so a value that is not a whole number
+  // from 0 up is no measure.
   const wait = dragged.drag.moveLoopWait
-  if (!Number.isInteger(wait) || wait < 0 || wait > moveLoopLimit) {
+  if (!Number.isInteger(wait) || wait < 0) {
+    throw new Error(`The reader reported no drag start wait in whole milliseconds from 0 up (moveLoopWait ${JSON.stringify(wait) ?? 'missing'}): ${JSON.stringify(actions.drag)}`)
+  }
+  if (wait > moveLoopLimit) {
     throw new Error(`The window started to follow the pointer ${wait} ms after the press on the window bar, above the limit of ${moveLoopLimit} ms: ${JSON.stringify(actions.drag)}`)
   }
   actions.systemMenu = await inspectSystemMenu(read, false)

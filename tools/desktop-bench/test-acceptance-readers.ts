@@ -669,6 +669,17 @@ test('Windows window bar reader reads the Tauri window and its menu while the po
   })
 })
 
+// The reader writes the wait as an int. The JavaScript <= operator reads null, '', false and [] as 0, true as 1 and '500' as
+// 500, so the wait must be a whole number from 0 up before the limit means anything.
+const isMoveLoopWaitWithin = (wait: unknown, limit: number) => typeof wait === 'number' && Number.isInteger(wait) && wait >= 0 && wait <= limit
+
+test('the move loop wait check accepts a whole number of milliseconds from 0 to the limit and nothing else', () => {
+  for (const wait of [0, 150, 1000]) assert.equal(isMoveLoopWaitWithin(wait, 1000), true, JSON.stringify(wait))
+  for (const wait of [undefined, null, '', '500', 'abc', true, false, [], -5, -1, 1.5, 1001]) {
+    assert.equal(isMoveLoopWaitWithin(wait, 1000), false, JSON.stringify(wait) ?? 'missing')
+  }
+})
+
 // A pointer that leaves the press point before the window is in its move loop loses that travel: installed runs moved the
 // window 160, 128 and 96 pixels for one 160 pixel pointer travel (#2132). So the drag holds the pointer still until
 // GetGUIThreadInfo reports that loop, and on a window whose caption starts the loop the window travels exactly as far as
@@ -683,7 +694,7 @@ test('Windows window bar reader drags only once the window is in its move loop, 
     const { state, drag } = readBar(processId, 'drag', directory)
     assert.equal(drag?.distance, 160, JSON.stringify(drag))
     context.diagnostic(`move loop wait on a native caption: ${drag.moveLoopWait} ms, runner limit ${limit} ms`)
-    assert.ok(drag.moveLoopWait >= 0 && drag.moveLoopWait <= limit, JSON.stringify(drag))
+    assert.ok(isMoveLoopWaitWithin(drag.moveLoopWait, limit), JSON.stringify(drag))
     assert.deepEqual(state.rect.map((edge, index) => edge - before.state.rect[index]!), [160, 0, 160, 0], JSON.stringify({ before: before.state, state, drag }))
   })
 })
