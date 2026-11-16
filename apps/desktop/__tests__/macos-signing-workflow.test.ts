@@ -85,7 +85,7 @@ if (args[0] === 'stapler' && args[1] === 'staple') {
 if (attempts <= Number(process.env.FAKE_NPM_FAILURES ?? 0)) { process.stderr.write(process.env.FAKE_NPM_ERROR + '\\n'); process.exit(1) }`,
   sleep: '',
 }
-/** The error the pinned Tauri CLI printed when hdiutil create was busy on a hosted macOS runner. */
+// WHY: the bundle retry matches this text, which the pinned Tauri CLI printed when hdiutil create was busy on a hosted macOS runner: https://github.com/create-dmg/create-dmg/issues/143
 const dmgBusy = 'failed to bundle project: error running bundle_dmg.sh: `failed to run /work/bundle/dmg/bundle_dmg.sh: hdiutil: create failed - Resource busy`'
 
 function fixture() {
