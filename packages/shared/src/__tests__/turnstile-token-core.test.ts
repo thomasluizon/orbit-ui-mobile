@@ -1,6 +1,7 @@
-import { expect, it } from 'vitest'
+import { expect, it, onTestFinished, vi } from 'vitest'
 import {
   clearTurnstileToken,
+  createTurnstileLoadFailureReporter,
   createTurnstileTokenState,
   receiveTurnstileToken,
   takeTurnstileToken,
@@ -61,4 +62,47 @@ it('rejects callbacks from a replaced widget without consuming its successor tok
   expect(current.onToken('fresh-token')).toBe(true)
   expect(current.takeToken()).toEqual({ turnstileToken: 'fresh-token' })
   expect(current.onToken('replayed-token')).toBe(false)
+})
+
+it('sends one event for each different failure of one load, with the kind, the status or code, the host and the time since the load started', () => {
+  vi.useFakeTimers({ toFake: ['Date'] })
+  onTestFinished(() => { vi.useRealTimers() })
+  const capture = vi.fn()
+  const report = createTurnstileLoadFailureReporter(capture)
+  vi.advanceTimersByTime(1500)
+  report({ kind: 'http', host: 'app.useorbit.org', statusCode: 503, description: 'Service Unavailable' })
+  vi.advanceTimersByTime(2000)
+  report({ kind: 'http', host: 'app.useorbit.org', statusCode: 503, description: 'Service Unavailable' })
+  report({ kind: 'http', host: 'app.useorbit.org', statusCode: 429 })
+  vi.advanceTimersByTime(34_500)
+  report({ kind: 'challenge', host: 'challenges.cloudflare.com', code: '300030' })
+  report({ kind: 'challenge', host: 'challenges.cloudflare.com', code: '300030' })
+  report({ kind: 'script_deadline', host: 'challenges.cloudflare.com' })
+  report({ kind: 'run_deadline', host: 'challenges.cloudflare.com' })
+  report({ kind: 'bridge_deadline', host: 'app.useorbit.org' })
+  report({ kind: 'bridge_deadline', host: 'app-staging.useorbit.org' })
+
+  expect(capture.mock.calls).toEqual([
+    ['turnstile_load_failed', { level: 'warning', tags: { operation: 'turnstile_load', kind: 'http', host: 'app.useorbit.org', status_code: 503, code: null },
+      extra: { description: 'Service Unavailable', elapsed_ms: 1500 }, fingerprint: ['turnstile_load_failed', 'http', '503'] }],
+    ['turnstile_load_failed', { level: 'warning', tags: { operation: 'turnstile_load', kind: 'http', host: 'app.useorbit.org', status_code: 429, code: null },
+      extra: { description: null, elapsed_ms: 3500 }, fingerprint: ['turnstile_load_failed', 'http', '429'] }],
+    ['turnstile_load_failed', { level: 'warning', tags: { operation: 'turnstile_load', kind: 'challenge', host: 'challenges.cloudflare.com', status_code: null, code: '300030' },
+      extra: { description: null, elapsed_ms: 38_000 }, fingerprint: ['turnstile_load_failed', 'challenge', '300030'] }],
+    ['turnstile_load_failed', { level: 'warning', tags: { operation: 'turnstile_load', kind: 'script_deadline', host: 'challenges.cloudflare.com', status_code: null, code: null },
+      extra: { description: null, elapsed_ms: 38_000 }, fingerprint: ['turnstile_load_failed', 'script_deadline', ''] }],
+    ['turnstile_load_failed', { level: 'warning', tags: { operation: 'turnstile_load', kind: 'run_deadline', host: 'challenges.cloudflare.com', status_code: null, code: null },
+      extra: { description: null, elapsed_ms: 38_000 }, fingerprint: ['turnstile_load_failed', 'run_deadline', ''] }],
+    ['turnstile_load_failed', { level: 'warning', tags: { operation: 'turnstile_load', kind: 'bridge_deadline', host: 'app.useorbit.org', status_code: null, code: null },
+      extra: { description: null, elapsed_ms: 38_000 }, fingerprint: ['turnstile_load_failed', 'bridge_deadline', ''] }],
+    ['turnstile_load_failed', { level: 'warning', tags: { operation: 'turnstile_load', kind: 'bridge_deadline', host: 'app-staging.useorbit.org', status_code: null, code: null },
+      extra: { description: null, elapsed_ms: 38_000 }, fingerprint: ['turnstile_load_failed', 'bridge_deadline', ''] }],
+  ])
+})
+
+it('reports a failure again in the next load', () => {
+  const capture = vi.fn()
+  createTurnstileLoadFailureReporter(capture)({ kind: 'script', host: 'challenges.cloudflare.com' })
+  createTurnstileLoadFailureReporter(capture)({ kind: 'script', host: 'challenges.cloudflare.com' })
+  expect(capture).toHaveBeenCalledTimes(2)
 })

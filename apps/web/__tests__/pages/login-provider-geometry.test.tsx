@@ -32,8 +32,8 @@ vi.mock('motion/react', async () => {
 // WHY: Cloudflare sizes the flexible widget at 65px height https://developers.cloudflare.com/turnstile/get-started/client-side-rendering/widget-configurations/
 const FLEXIBLE_CHALLENGE_HEIGHT = 65
 const DRAWN_SPACE = 16
-type CheckState = 'none' | 'loading' | 'challenge'
-interface TurnstileOptions { callback: (token: string) => void; 'before-interactive-callback': () => void }
+type CheckState = 'none' | 'loading' | 'challenge' | 'expired' | 'failed'
+interface TurnstileOptions { callback: (token: string) => void; 'before-interactive-callback': () => void; 'expired-callback': () => void; 'error-callback': (code: string) => boolean }
 const smallScreens = [{ width: 320, height: 640 }, { width: 375, height: 667 }].flatMap(screen =>
   (['email', 'code'] as const).flatMap(step => (['none', 'loading', 'challenge'] as const).map(check => ({ ...screen, step, check }))))
 
@@ -54,6 +54,9 @@ async function renderSignIn(step: 'email' | 'code', check: CheckState) {
   await waitFor(() => expect(renderWidget).toHaveBeenCalledOnce())
   const [challenge, options] = renderWidget.mock.calls[0]!
   if (check === 'none') act(() => options.callback('token'))
+  if (check === 'expired') act(() => options['expired-callback']())
+  // WHY: Cloudflare marks 110200 as a failure with no retry, so the widget shows the failure at once https://developers.cloudflare.com/turnstile/troubleshooting/client-side-errors/error-codes/
+  if (check === 'failed') act(() => { options['error-callback']('110200') })
   if (check === 'challenge') {
     challenge.innerHTML = `<div style="height:${FLEXIBLE_CHALLENGE_HEIGHT}px"></div>`
     vi.spyOn(challenge, 'getBoundingClientRect').mockReturnValue({ height: FLEXIBLE_CHALLENGE_HEIGHT } as DOMRect)
@@ -133,6 +136,22 @@ describe('Login provider geometry in Chromium', () => {
     else expect(overflow, 'only the drawn space can need a scroll').toBeLessThanOrEqual(2 * DRAWN_SPACE)
     if (overflow === 0) expect(Math.abs(topGap - bottomGap) / 2, JSON.stringify(geometry)).toBeLessThanOrEqual(0.5)
     if (step === 'email') expect(geometry.providerHeights).toEqual([SIGN_IN_BUTTON_HEIGHT, SIGN_IN_BUTTON_HEIGHT])
+  })
+
+  const steadyScreens = [{ width: 320, height: 640 }, { width: 375, height: 667 }, { width: 1280, height: 915 }]
+    .flatMap(screen => (['email', 'code'] as const).map(step => ({ ...screen, step })))
+  it.each(steadyScreens)('keeps the $step content at one place and one height in every state of the check at $width x $height', async ({ width, height, step }) => {
+    vi.stubEnv('NEXT_PUBLIC_APPLE_CLIENT_ID', 'test-client')
+    const seen: { check: CheckState; contentTop: number; contentBottom: number }[] = []
+    for (const check of ['loading', 'challenge', 'none', 'expired', 'failed'] as const) {
+      const { contentTop, contentBottom } = await readSignIn({ browser, stylesheet }, await renderSignIn(step, check), { width, height })
+      seen.push({ check, contentTop, contentBottom })
+      cleanup()
+    }
+    for (const { check, contentTop, contentBottom } of seen) {
+      expect({ contentTop, contentBottom }, `${check}: the content moved or changed its height: ${JSON.stringify(seen)}`)
+        .toEqual({ contentTop: seen[0]!.contentTop, contentBottom: seen[0]!.contentBottom })
+    }
   })
 
   it.each(['email', 'code'] as const)('keeps the drawn space above the Orbit mark and below the last line of the %s step when the content cannot fit', async (step) => {
