@@ -4,6 +4,7 @@ import { PillButton } from '@/components/ui/pill-button'
 import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native'
 import Yoga from 'yoga-layout'
 import { pressableStyle } from '@/__tests__/support/press-feedback'
+import { applyBorderWidths } from '@/__tests__/support/yoga-borders'
 
 vi.mock('@/lib/use-app-theme', () => ({
   useAppTheme: () => ({ currentScheme: 'purple', currentTheme: 'dark' }),
@@ -55,6 +56,7 @@ describe('ActionRow', () => {
     parent.setAlignItems(style.alignItems === 'center' ? Yoga.ALIGN_CENTER : Yoga.ALIGN_FLEX_START)
     parent.setGap(Yoga.GUTTER_ALL, style.gap)
     parent.setPadding(Yoga.EDGE_VERTICAL, style.paddingVertical ?? 0)
+    applyBorderWidths(parent, style)
     const buttons = tree.root.findAllByType('Pressable')
     const boxes = buttons.map((button: { props: { style: (state: { pressed: boolean }) => StyleProp<ViewStyle> } }, index: number) => {
       const geometry = pressableStyle(button, false)

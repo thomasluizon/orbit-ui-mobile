@@ -22,6 +22,8 @@ import {
 import { SubHabitEditor, type SubHabitEntry } from './create-habit-modal/sub-habit-editor'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { useOverlayBack } from '@/hooks/use-overlay-back'
+import { useSubmitHold } from '@/hooks/use-submit-hold'
+import type { SubmitOutcome } from '@orbit/shared/hooks'
 import { useDismissGuard } from '@/hooks/use-dismiss-guard'
 import { useHabitCreateNavigationGuard } from '@/hooks/use-habit-create-navigation-guard'
 import { useHabitForm } from '@/hooks/use-habit-form'
@@ -246,10 +248,16 @@ export function CreateHabitModal({
   const [leaveAction, setLeaveAction] = useState<(() => void) | null>(null)
   const pendingNavigation = useRef<(() => void) | null>(null)
   useEffect(() => { leaveAction?.() }, [leaveAction])
-  const finishClose = useCallback((action: () => void) => {
-    if (presentation === 'screen') setLeaveAction(() => action)
-    else closeSheet(action)
-  }, [closeSheet, presentation])
+  const { waiting: submissionWaiting, run: runSubmission, release: releaseSubmission } = useSubmitHold()
+  const finishClose = useCallback((action: () => void, automatic = false) => {
+    if (presentation === 'screen') {
+      setLeaveAction(() => action)
+      return
+    }
+    const leave = () => { releaseSubmission(); action() }
+    if (automatic) closeSheet(leave, leave)
+    else closeSheet(leave)
+  }, [closeSheet, presentation, releaseSubmission])
   const dismissGuard = useDismissGuard({
     isDirty,
     onDismiss: () => finishClose(pendingNavigation.current ?? onClose),
@@ -413,11 +421,11 @@ export function CreateHabitModal({
     )
   }, [formHelpers, isSubHabitMode, showError, translate])
 
-  const handleSubmit = useCallback(async () => {
+  const submitCreate = useCallback(async (startRequest: () => void): Promise<SubmitOutcome> => {
     flushBufferedInputsRef.current()
 
     const subHabitValues = subHabits.map((entry) => entry.value)
-    if (!await formHelpers.form.trigger(undefined, { shouldFocus: true })) return
+    if (!await formHelpers.form.trigger(undefined, { shouldFocus: true })) return 'stay'
 
     const error = formHelpers.validateAll({
       reminderTimes,
@@ -427,10 +435,11 @@ export function CreateHabitModal({
     })
     if (error) {
       reportHabitFormValidationError(error, formHelpers.form.getFieldState, showError)
-      return
+      return 'stay'
     }
     const data = habitFormSchema.parse(formHelpers.form.getValues())
 
+    startRequest()
     try {
       if (isSubHabitMode) {
         const subRequest = buildSubHabitRequest(
@@ -453,9 +462,11 @@ export function CreateHabitModal({
         )
         await createHabit.mutateAsync(request)
       }
-      finishClose(() => { onClose(); onCreated?.() })
+      finishClose(() => { onClose(); onCreated?.() }, true)
+      return 'leave'
     } catch (error: unknown) {
       reportCreateFailure(error)
+      return 'stay'
     }
   }, [
     formHelpers,
@@ -585,7 +596,7 @@ export function CreateHabitModal({
   }, [allowanceText, formHelpers, i18n.language, replaceSubHabits, showError, showInfo, showSuccess, suggestion, suggestionRequests, suggestionRevision, suggestionSessionId, t])
 
 
-  const isPending = createHabit.isPending || createSubHabit.isPending
+  const isPending = submissionWaiting
 
   const updateSubHabitValue = useCallback((id: string, value: string) => {
     resolveSubHabitProposalRef.current()
@@ -627,7 +638,7 @@ export function CreateHabitModal({
           </View>
           <HabitCreateActions task={formHelpers.form.watch('itemType') === 'task'} presentation={presentation} pending={isPending}
             empty={watchedTitle.trim().length === 0} subHabit={isSubHabitMode}
-            onCancel={dismissGuard.requestDismiss} onSubmit={() => void handleSubmit()} />
+            onCancel={dismissGuard.requestDismiss} onSubmit={() => void runSubmission(submitCreate)} />
         </>}
 
       >

@@ -11,6 +11,8 @@ import { ActionRow } from '@/components/ui/action-row'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { useDismissGuard } from '@/hooks/use-dismiss-guard'
 import { useUpdateGoal } from '@/hooks/use-goals'
+import { useSubmitHold } from '@/hooks/use-submit-hold'
+import type { SubmitOutcome } from '@orbit/shared/hooks'
 import {
   getFriendlyErrorMessage,
   translateErrorKey,
@@ -74,7 +76,7 @@ export function EditGoalModal({
   const targetRef = useRef<HTMLInputElement>(null)
   const unitRef = useRef<HTMLInputElement>(null)
 
-  const isSubmitting = updateGoal.isPending
+  const { waiting: isSubmitting, run: runSubmission, release: releaseSubmission } = useSubmitHold()
   const isDirty =
     description !== goal.title ||
     targetValue !== String(goal.targetValue) ||
@@ -125,9 +127,8 @@ export function EditGoalModal({
     }
   }
 
-  const onSubmit = useCallback(
-    async (e: React.SubmitEvent<HTMLFormElement>) => {
-      e.preventDefault()
+  const submitSave = useCallback(
+    async (startRequest: () => void): Promise<SubmitOutcome> => {
       setSubmitted(true)
 
       const errorKeys = getGoalDraftFieldErrorKeys(description, targetValue, unit)
@@ -136,12 +137,13 @@ export function EditGoalModal({
       if (err) {
         showError(err)
         if (firstError) setFocusRequest({ field: firstError.field })
-        return
+        return 'stay'
       }
 
       const parsedTargetValue = parseGoalTargetValue(targetValue)
-      if (parsedTargetValue === null) return
+      if (parsedTargetValue === null) return 'stay'
 
+      startRequest()
       try {
         const title = buildGoalTitle(description, targetValue, unit)
         const request: UpdateGoalRequest = {
@@ -152,16 +154,22 @@ export function EditGoalModal({
         }
 
         await updateGoal.mutateAsync({ goalId: goal.id, data: request })
-        closeSheet(() => onOpenChange(false))
+        closeSheet(() => { releaseSubmission(); onOpenChange(false) })
+        return 'leave'
       } catch (error: unknown) {
         const { field, handled } = backendErrors.reportBackendErrors(error)
         if (field) setFocusRequest({ field })
-        if (handled) return
-        showError(getFriendlyErrorMessage(error, translate, 'goals.errors.update', 'goal'))
+        if (!handled) showError(getFriendlyErrorMessage(error, translate, 'goals.errors.update', 'goal'))
+        return 'stay'
       }
     },
-    [backendErrors, closeSheet, deadline, description, goal.id, onOpenChange, showError, targetValue, translate, unit, updateGoal],
+    [backendErrors, closeSheet, deadline, description, goal.id, onOpenChange, releaseSubmission, showError, targetValue, translate, unit, updateGoal],
   )
+
+  const onSubmit = (event: React.SubmitEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    void runSubmission(submitSave)
+  }
 
   const unitSuffix = goal.unit ? `  ·  ${goal.unit}` : ''
 
@@ -182,7 +190,7 @@ export function EditGoalModal({
           </ActionRow>
         )}
       >
-        <form id={formId} onSubmit={(e) => void onSubmit(e)} noValidate>
+        <form id={formId} onSubmit={onSubmit} noValidate>
           <div className="t-eyebrow" style={{ padding: "var(--orbit-space-12) var(--orbit-space-0)" }}>
             {isStreak
               ? t('goals.form.typeStreak')

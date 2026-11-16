@@ -27,7 +27,7 @@ const linkInteractionClasses: Record<ButtonVariant, string> = {
 
 const baseClasses = 'focus-visible:-outline-offset-2 orbit-pill-action press-hit-layer inline-flex cursor-pointer items-center justify-center whitespace-nowrap rounded-full border-0 font-medium disabled:cursor-not-allowed'
 
-const waitingFaceClasses = 'relative isolate bg-transparent text-[var(--fg-1)]'
+export const waitingFaceClasses = 'relative isolate bg-transparent text-[var(--fg-1)]'
 
 function faceClasses(variant: ButtonVariant, loading: boolean, elevated: boolean, borderless: boolean): string[] {
   if (loading) return [waitingFaceClasses]

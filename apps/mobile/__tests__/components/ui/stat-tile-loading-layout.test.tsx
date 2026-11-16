@@ -7,6 +7,7 @@ import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { StatTile } from '@/components/ui/stat-tile'
 import { Skeleton } from '@/components/ui/skeleton'
 import { __setWindowDimensions } from '@/test-mocks/react-native'
+import { applyBorderWidths } from '@/__tests__/support/yoga-borders'
 
 const TestRenderer = require('react-test-renderer')
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
@@ -27,7 +28,7 @@ function applyLayoutStyle(node: YogaNode, style: LayoutStyle) {
   node.setGap(Yoga.GUTTER_ALL, numericDimension(style.gap))
   node.setPadding(Yoga.EDGE_ALL, numericDimension(style.padding))
   node.setPadding(Yoga.EDGE_HORIZONTAL, numericDimension(style.paddingHorizontal))
-  node.setBorder(Yoga.EDGE_ALL, style.borderWidth)
+  applyBorderWidths(node, style)
   if (style.flexDirection === 'row') node.setFlexDirection(Yoga.FLEX_DIRECTION_ROW)
   if (style.alignItems === 'flex-start') node.setAlignItems(Yoga.ALIGN_FLEX_START)
   if (style.alignItems === 'center') node.setAlignItems(Yoga.ALIGN_CENTER)
@@ -72,10 +73,11 @@ describe('StatTile loading layout (mobile)', () => {
           const value = tile.getChild(0)
           const label = tile.getChild(1)
           const contentStart = tile.getComputedPadding(Yoga.EDGE_LEFT) + tile.getComputedBorder(Yoga.EDGE_LEFT)
+          expect(contentStart, 'the hairline takes no layout space, so the copy keeps the 16 dp record inset').toBe(16)
           expect(value.getComputedLeft()).toBeCloseTo(contentStart, 1)
           expect(label.getComputedLeft()).toBeCloseTo(contentStart, 1)
           expect(label.getComputedTop() - value.getComputedTop() - value.getComputedHeight()).toBeCloseTo(8, 1)
-          expect(tile.getComputedHeight()).toBeCloseTo(34 + (22 * 1.4 + 20) * fontScale + 8, 1)
+          expect(tile.getComputedHeight()).toBeCloseTo(32 + (22 * 1.4 + 20) * fontScale + 8, 1)
           heights.push(tile.getComputedHeight())
         }
         expect(heights).toEqual(Array(4).fill(heights[0]))
@@ -112,13 +114,14 @@ describe('StatTile loading layout (mobile)', () => {
           const value = tile.getChild(0)
           const placeholder = value.getChild(1)
           const contentLeft = tile.getComputedPadding(Yoga.EDGE_LEFT) + tile.getComputedBorder(Yoga.EDGE_LEFT)
+          expect(contentLeft, 'the hairline takes no layout space, so the copy keeps the 16 dp record inset').toBe(16)
           const contentRight = tile.getComputedWidth() - tile.getComputedPadding(Yoga.EDGE_RIGHT) - tile.getComputedBorder(Yoga.EDGE_RIGHT)
           const placeholderLeft = value.getComputedLeft() + placeholder.getComputedLeft()
           expect(placeholderLeft).toBeGreaterThanOrEqual(contentLeft - 0.5)
           expect(placeholderLeft + placeholder.getComputedWidth()).toBeLessThanOrEqual(contentRight + 0.5)
           expect(placeholder.getComputedWidth()).toBeGreaterThan(0)
           expect(placeholder.getComputedWidth()).toBeLessThanOrEqual(64)
-          expect(tile.getComputedHeight()).toBeCloseTo(34 + (22 * 1.4 + 20) * fontScale + 8, 1)
+          expect(tile.getComputedHeight()).toBeCloseTo(32 + (22 * 1.4 + 20) * fontScale + 8, 1)
           expect(value.getComputedLeft()).toBeCloseTo(contentLeft, 1)
           expect(tile.getChild(1).getComputedLeft()).toBeCloseTo(contentLeft, 1)
           expect(tile.getChild(1).getComputedTop() - value.getComputedTop() - value.getComputedHeight()).toBeCloseTo(8, 0)

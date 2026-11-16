@@ -2,6 +2,7 @@ import { PADDING, } from '@orbit/shared/theme'
 import type { StatTileProps } from '@orbit/shared/contracts/display'
 import { StyleSheet, Text, View } from 'react-native'
 import { createTokensV2 } from '@/lib/theme'
+import { insetHairlineRing } from '@/components/ui/inset-hairline-ring'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useAppTheme } from '@/lib/use-app-theme'
 
@@ -37,7 +38,7 @@ export function StatTile(props: Readonly<StatTileProps>) {
 
   return (
     <View
-      style={[styles.tile, { backgroundColor: tokens.bgCard, borderColor: tokens.hairline }]}
+      style={[styles.tile, { backgroundColor: tokens.bgCard, outlineColor: tokens.hairline }]}
       testID={`stat-tile-${state}`}
       accessibilityRole={state === 'loading' ? 'progressbar' : undefined}
       accessibilityLabel={state === 'loading' ? props.loadingLabel : undefined}
@@ -70,7 +71,7 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     gap: 8,
     borderRadius: 20,
-    borderWidth: 1,
+    ...insetHairlineRing,
     padding: PADDING.recordInset,
   },
   value: {

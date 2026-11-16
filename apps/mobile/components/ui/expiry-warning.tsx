@@ -1,5 +1,6 @@
 import { useMemo, useState, useEffect, useCallback, useRef } from 'react'
 import { AppState, StyleSheet, Text, View } from 'react-native'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useTranslation } from 'react-i18next'
 import { SPACING, zLayers } from '@orbit/shared/theme'
 import { getSessionGeneration, refreshSession, useAuthStore } from '@/stores/auth-store'
@@ -7,6 +8,7 @@ import { useLogout } from '@/hooks/use-logout'
 import { createTokensV2, radius, shadowsV2, type AppTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { IconButton } from '@/components/ui/icon-button'
+import { insetHairlineRing } from '@/components/ui/inset-hairline-ring'
 import { RefreshCw } from '@/components/ui/icons'
 import { PillButton } from '@/components/ui/pill-button'
 
@@ -52,6 +54,7 @@ export function ExpiryWarning() {
     [currentScheme, currentTheme],
   )
   const styles = useMemo(() => createStyles(tokens), [tokens])
+  const insets = useSafeAreaInsets()
   const expiresAt = useAuthStore((s) => s.expiresAt)
   const handleLogout = useLogout()
   const [minutesLeft, setMinutesLeft] = useState<number | null>(null)
@@ -181,8 +184,15 @@ export function ExpiryWarning() {
       : t('auth.sessionExpired')
 
   return (
-    <View style={styles.wrapper} accessibilityRole="alert">
-      <View style={styles.banner}>
+    <View
+      style={[styles.wrapper, {
+        paddingTop: insets.top + SPACING.s4,
+        paddingLeft: Math.max(SPACING.s12, insets.left),
+        paddingRight: Math.max(SPACING.s12, insets.right),
+      }]}
+      accessibilityRole="alert"
+    >
+      <View testID="expiry-warning-banner" style={styles.banner}>
         <Text style={styles.text}>
           {isExpired || isTerminal ? (
             <Text style={styles.urgent}>{expiredMessage}</Text>
@@ -204,8 +214,6 @@ function createStyles(tokens: AppTokensV2) {
       left: 0,
       right: 0,
       zIndex: zLayers.toast,
-      paddingTop: SPACING.s48,
-      paddingHorizontal: SPACING.s8,
     },
     banner: {
       flexDirection: 'row',
@@ -213,8 +221,8 @@ function createStyles(tokens: AppTokensV2) {
       justifyContent: 'space-between',
       gap: 12,
       borderRadius: radius.xl,
-      borderWidth: 1,
-      borderColor: rgbaFromHex(tokens.statusOverdue, 0.28),
+      ...insetHairlineRing,
+      outlineColor: rgbaFromHex(tokens.statusOverdue, 0.28),
       backgroundColor: mixHexOver(tokens.bg, tokens.statusOverdue, 0.1),
       paddingHorizontal: SPACING.s12,
       paddingVertical: SPACING.s8,

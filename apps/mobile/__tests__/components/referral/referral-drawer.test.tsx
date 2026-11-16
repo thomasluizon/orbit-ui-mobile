@@ -211,7 +211,7 @@ describe('ReferralDrawer (mobile)', () => {
     const tree = renderDrawer()
     const loading = tree.root.findAll((node: { type: unknown; props: Record<string, unknown> }) => node.type === 'View' && node.props.testID === 'referral-skeleton')
     expect(loading).toHaveLength(1)
-    expect(loading[0]!.props).toMatchObject({ accessibilityRole: 'progressbar', accessibilityLabel: 'common.loading', accessibilityState: { busy: true } })
+    expect(loading[0]!.props).toMatchObject({ accessible: true, accessibilityRole: 'progressbar', accessibilityLabel: 'common.loading', accessibilityState: { busy: true } })
     expect(loading[0]!.findAll((node: { type: unknown; props: Record<string, unknown> }) => node.type === 'View' && node.props.testID === 'settings-skeleton-row')).toHaveLength(2)
     expect(loading[0]!.findAll((node: { type: unknown; props: Record<string, unknown> }) => node.type === 'View' && node.props.testID === 'skeleton-unit-fill')).toHaveLength(1)
     expect(tree.root.findAll((node: { type: unknown }) => node.type === 'ActivityIndicator')).toHaveLength(0)

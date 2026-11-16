@@ -15,6 +15,7 @@ import { TimeField } from '@/components/ui/time-field'
 import { PillButton } from '@/components/ui/pill-button'
 import { createTokensV2 } from '@/lib/theme'
 import { focusHost, withFocusProvenance } from '../../support/focus-provenance'
+import { applyBorderWidths } from '@/__tests__/support/yoga-borders'
 
 const TestRenderer = require('react-test-renderer')
 
@@ -114,7 +115,7 @@ function layoutNode(element: HostJson): YogaNode {
   if (typeof style.width === 'number') node.setWidth(style.width)
   if (typeof style.height === 'number') node.setHeight(style.height)
   if (typeof style.minHeight === 'number') node.setMinHeight(style.minHeight)
-  if (typeof style.borderWidth === 'number') node.setBorder(Yoga.EDGE_ALL, style.borderWidth)
+  applyBorderWidths(node, style)
   if (typeof style.paddingHorizontal === 'number') node.setPadding(Yoga.EDGE_HORIZONTAL, style.paddingHorizontal)
   if (typeof style.paddingRight === 'number') node.setPadding(Yoga.EDGE_RIGHT, style.paddingRight)
   hostChildren(element).forEach((child, index) => node.insertChild(layoutNode(child), index))
