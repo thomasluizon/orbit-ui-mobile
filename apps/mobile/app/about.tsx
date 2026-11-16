@@ -13,7 +13,7 @@ import { FeatureGuideDrawer } from '@/components/onboarding/feature-guide-drawer
 import { useShellPageEnd } from '@/components/shell/shell-scroller-clearance'
 import { PageHeader } from '@/components/ui/page-header'
 import { ListRow } from '@/components/ui/list-row'
-import { OrbitMark } from '@/components/ui/orbit-mark'
+import { OrbitMascot } from '@/components/ui/orbit-mascot'
 import { RowList } from '@/components/ui/row-list'
 import { useBackLabel } from '@/hooks/use-back-label'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
@@ -121,7 +121,7 @@ export default function AboutScreen() {
       >
         <View testID="about-content" style={[contentFrameStyle, styles.content]}>
           <View testID="about-identity" style={styles.identity}>
-            <OrbitMark size={48} accent />
+            <OrbitMascot size={48} />
             <Text accessibilityLanguage="en" style={[styles.appName, width >= 768 && styles.appNameWide, { color: tokens.fg1 }]}>
               {t('common.appName')}
             </Text>

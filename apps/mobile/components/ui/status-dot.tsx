@@ -1,9 +1,9 @@
 import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { View } from 'react-native'
-import { MotionPressable } from '@/components/ui/motion-pressable'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { resolveStatusDotFill } from '@/components/ui/status-dot-fill'
+import { MotionPressable } from '@/components/ui/motion-pressable'
 
 export type StatusDotState =
   | 'done'

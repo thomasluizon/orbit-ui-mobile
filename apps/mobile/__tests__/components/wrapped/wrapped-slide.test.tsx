@@ -11,7 +11,7 @@ import { buildWrappedSlides } from '@orbit/shared/utils'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { WrappedSlide } from '@/components/wrapped/wrapped-slide'
-import { OrbitMark } from '@/components/ui/orbit-mark'
+import { OrbitMascot } from '@/components/ui/orbit-mascot'
 import {
   reanimatedTestState,
   withDelayCalls,
@@ -221,7 +221,7 @@ describe('mobile WrappedSlide', () => {
     const intro = renderSlide(slides.find((slide) => slide.id === 'intro')!)
     const introParts = intro.root.findAll((node) => typeof node.type === 'string' && String(node.props.nativeID).startsWith('wrapped-motion-part-'))
     expect(introParts[0]?.props.nativeID).toBe('wrapped-motion-part-0')
-    expect((introParts[0]?.props.children as React.ReactElement).type).toBe(OrbitMark)
+    expect((introParts[0]?.props.children as React.ReactElement).type).toBe(OrbitMascot)
     expect(introParts[1]?.props.children).toBe('wrapped.slides.intro.week')
     expect(introParts[1]?.props.accessibilityRole).toBe('header')
     const weekday = renderSlide(slides.find((slide) => slide.id === 'consistency')!)

@@ -17,6 +17,7 @@ const h = vi.hoisted(() => ({
   reschedule: {
     suggestion: null as RescheduleSuggestion | null,
     isLoading: false,
+    isPaused: false,
     error: null as Error | null,
     refetch: vi.fn(),
   },
@@ -56,6 +57,7 @@ describe('RescheduleSheet', () => {
     if (state === 'error') {
       const action = screen.getByRole('button', { name: primary })
       expect(action).toHaveTextContent(primary)
+      expect(action.querySelector('[data-asset="orbit-mascot"]')).toBeNull()
     }
     expect(Array.from(actions.querySelectorAll('button')).map((button) => button.getAttribute('data-size'))).toEqual(['sm', 'sm'])
     expect(Array.from(actions.querySelectorAll('button')).map((button) => button.getAttribute('data-variant'))).toEqual(['ghost', 'primary'])
@@ -82,6 +84,7 @@ describe('RescheduleSheet', () => {
     h.today = '2026-08-17'
     h.reschedule.suggestion = null
     h.reschedule.isLoading = false
+    h.reschedule.isPaused = false
     h.reschedule.error = null
   })
 
@@ -149,6 +152,17 @@ describe('RescheduleSheet', () => {
     expect(screen.getAllByRole('progressbar')).toHaveLength(1)
     expect(screen.getByTestId('reschedule-loading-skeleton').querySelectorAll('[data-variant="habit-row"]')).toHaveLength(2)
     expect(screen.queryByRole('button', { name: 'habits.reschedule.accept' })).not.toBeInTheDocument()
+    expect(screen.getByTestId('sheet').querySelector('[data-asset="orbit-mascot"]')).toHaveAttribute('data-orbit-state', 'pensando')
+  })
+
+  it('rests Orbit with the offline reason while the suggestion request waits offline', () => {
+    h.reschedule.isPaused = true
+
+    render(<RescheduleSheet open onOpenChange={vi.fn()} habit={overdueHabit} />)
+
+    expect(screen.getByTestId('sheet').querySelector('[data-asset="orbit-mascot"]')).toHaveAttribute('data-orbit-state', 'descansando')
+    expect(screen.getByText('shell.composer.offline.reason')).toBeInTheDocument()
+    expect(screen.queryByTestId('reschedule-loading-skeleton')).not.toBeInTheDocument()
   })
 
   it('uses an accessible dialog title and the proposed Astra label', () => {
@@ -160,9 +174,13 @@ describe('RescheduleSheet', () => {
     expect(screen.getByRole('group', { name: 'habits.form.proposedByAstra' })).toBeInTheDocument()
     expect(screen.queryByText('habits.reschedule.proposedScheduleLabel')).not.toBeInTheDocument()
     expect(screen.getByTestId('reschedule-proposed-schedule')).toHaveTextContent(/^qui\., 20 de ago\. · 07:30:00$/)
-    expect(screen.getByText('Astra')).toHaveAttribute('translate', 'no')
-    expect(screen.getByText('Astra')).not.toHaveStyle({ textTransform: 'uppercase' })
-    expect(screen.getByTestId('sheet').querySelector('[data-asset="astra-mark"]')).not.toBeInTheDocument()
+    expect(screen.getByText('Orbit')).toHaveAttribute('translate', 'no')
+    expect(screen.getByText('Orbit')).not.toHaveStyle({ textTransform: 'uppercase' })
+    const mascots = screen.getByTestId('sheet').querySelectorAll('[data-asset="orbit-mascot"]')
+    expect(mascots).toHaveLength(1)
+    expect(mascots[0]).toHaveAttribute('data-orbit-state', 'parado')
+    expect(mascots[0]).toHaveAttribute('width', '48')
+    expect(mascots[0]).toHaveAttribute('aria-hidden', 'true')
   })
 
   it('adds the year to a proposed date outside the account year', () => {

@@ -97,7 +97,7 @@ export function TodayPageClient({
   })
   if (!profile) {
     return isError
-      ? <><h1 className="sr-only" tabIndex={-1}>{t('nav.today')}</h1><ErrorState message={t('common.error')} action={<IconButton label={t('common.retry')} onClick={() => void refetch()}><RefreshCw size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton>} /></>
+      ? <><h1 className="sr-only" tabIndex={-1}>{t('nav.today')}</h1><ErrorState fullSurface message={t('common.error')} action={<IconButton label={t('common.retry')} onClick={() => void refetch()}><RefreshCw size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton>} /></>
       : <div role="status" aria-busy="true" aria-label={t('profile.loading')} className="mx-auto flex w-full max-w-[740px] flex-col gap-6 p-4">
           <h1 className="sr-only" tabIndex={-1}>{t('nav.today')}</h1>
           <Skeleton variant="settings" grouped />

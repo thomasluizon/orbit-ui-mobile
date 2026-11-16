@@ -73,7 +73,6 @@ describe('shared proactive action hook', () => {
     { scenario: 'at limit', overrides: { profile: { aiMessagesUsed: 5, aiMessagesLimit: 5 } }, reason: 'shell.composer.limit.reason' },
     { scenario: 'mutation pending', overrides: { isPending: true }, reason: 'shell.composer.busy.reason' },
     { scenario: 'failed status', overrides: { status: { data: { id: item.id, status: 'active' }, isError: true } }, reason: 'chat.sendError' },
-    { scenario: 'not ready', overrides: { status: { data: undefined, isError: false } }, reason: 'common.loading' },
   ])('explains $scenario and refuses act', async ({ overrides, reason }) => {
     const context = setup(overrides)
     const action = context.render()
@@ -84,6 +83,22 @@ describe('shared proactive action hook', () => {
     expect(context.reportActed).not.toHaveBeenCalled()
     expect(context.send).not.toHaveBeenCalled()
     expect(context.getChat().messages[0]?.proactiveActed).toBe(false)
+  })
+
+  it('waits with no explanation while the status loads, and refuses act', async () => {
+    const context = setup({ status: { data: undefined, isError: false } })
+    const action = context.render()
+    expect(action).toMatchObject({ reason: null, waiting: true })
+    action.act()
+    await context.settle()
+    expect(context.requestStatus).not.toHaveBeenCalled()
+    expect(context.reportActed).not.toHaveBeenCalled()
+    expect(context.send).not.toHaveBeenCalled()
+  })
+
+  it('stops waiting when a blocking reason explains the action', () => {
+    const context = setup({ isOnline: false, status: { data: undefined, isError: false } })
+    expect(context.render()).toMatchObject({ reason: 'shell.composer.offline.reason', waiting: false })
   })
 
   it.each(['typing', 'streaming'] as const)('explains busy chat while %s and refuses act', async (busy) => {
@@ -103,7 +118,7 @@ describe('shared proactive action hook', () => {
     const context = setup()
     context.client.setQueryData(proactiveKeys.current(), item)
     const action = context.render()
-    expect(action).toMatchObject({ reason: null, allowance: 5 })
+    expect(action).toMatchObject({ reason: null, waiting: false, allowance: 5 })
     action.act()
     await context.settle()
     expect(context.requestStatus).toHaveBeenCalledExactlyOnceWith(item.id, expect.any(AbortSignal))

@@ -36,8 +36,8 @@
           "UIInterfaceOrientationLandscapeLeft",
           "UIInterfaceOrientationLandscapeRight"
         ],
-        "NSPhotoLibraryUsageDescription": "Allow Orbit to access your photos so you can attach images in Astra.",
-        "NSMicrophoneUsageDescription": "Allow Orbit to use your microphone so you can talk to Astra."
+        "NSPhotoLibraryUsageDescription": "Allow Orbit to access your photos so you can attach images to a conversation.",
+        "NSMicrophoneUsageDescription": "Allow Orbit to use your microphone so you can talk instead of typing."
       },
       "privacyManifests": {
         "NSPrivacyTracking": false,
@@ -172,14 +172,14 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "Allow Orbit to access your photos so you can attach images in Astra.",
+          "photosPermission": "Allow Orbit to access your photos so you can attach images to a conversation.",
           "cameraPermission": false
         }
       ],
       [
         "expo-audio",
         {
-          "microphonePermission": "Allow Orbit to use your microphone so you can talk to Astra.",
+          "microphonePermission": "Allow Orbit to use your microphone so you can talk instead of typing.",
           "enableBackgroundPlayback": false
         }
       ],

@@ -74,7 +74,7 @@ export function StatusDot({
       disabled={disabled}
       aria-disabled={disabled}
       aria-label={ariaLabel ?? state}
-      className={`group appearance-none border-0 bg-transparent rounded-full overflow-hidden enabled:hover:bg-[var(--bg-hover)] enabled:active:bg-[var(--bg-hover)] shrink-0 flex items-center justify-center transition-[background-color,scale] duration-[var(--status-dot-press-duration)] motion-safe:enabled:active:scale-[var(--status-dot-press-scale)] ${disabled ? 'cursor-default' : 'cursor-pointer'}`}
+      className={`group appearance-none border-0 bg-transparent rounded-full press-hit-layer enabled:hover:bg-[var(--bg-hover)] enabled:active:bg-[var(--bg-hover)] shrink-0 flex items-center justify-center transition-[background-color,scale] duration-[var(--status-dot-press-duration)] motion-safe:enabled:active:scale-[var(--status-dot-press-scale)] ${disabled ? 'cursor-default' : 'cursor-pointer'}`}
       style={{
         padding: hitPadding,
         transitionDuration: 'var(--dur-hover-control), var(--status-dot-press-duration)',

@@ -22,6 +22,7 @@ import type {
 import { mutationTypeSchema } from '@orbit/shared/types/sync'
 import {
   setAiSummaryRequestSchema,
+  setMascotMotionRequestSchema,
   setClockFormatRequestSchema,
   setLanguageRequestSchema,
   setMarketingEmailConsentRequestSchema,
@@ -663,7 +664,7 @@ const MUTATION_SCOPES = {
   deleteNotification: 'notifications', deleteAllNotifications: 'notifications',
   createApiKey: 'apiKeys', deleteApiKey: 'apiKeys', dismissCalendarPrompt: 'calendar',
   setName: 'profile', setLanguage: 'profile', setWeekStartDay: 'profile', setClockFormat: 'profile', setColorScheme: 'profile',
-  setThemePreference: 'profile', setTimeZone: 'profile', setAiSummary: 'profile',
+  setThemePreference: 'profile', setTimeZone: 'profile', setAiSummary: 'profile', setMascotMotion: 'profile',
   setProactiveAstra: 'profile', setMarketingConsent: 'profile', completeOnboarding: 'profile',
   dismissImportPrompt: 'profile', resetProfile: 'profile',
 } satisfies Record<MutationType, MutationScope>
@@ -861,6 +862,7 @@ function getSuccessfulProfilePatch(mutation: PersistedQueuedMutation): Partial<P
     case 'setThemePreference': return setThemePreferenceRequestSchema.parse(mutation.payload)
     case 'setTimeZone': return updateTimezoneRequestSchema.parse(mutation.payload)
     case 'setAiSummary': return { aiSummaryEnabled: setAiSummaryRequestSchema.parse(mutation.payload).enabled }
+    case 'setMascotMotion': return { mascotMotionEnabled: setMascotMotionRequestSchema.parse(mutation.payload).enabled }
     case 'setProactiveAstra': return { proactiveAstraEnabled: setProactiveAstraRequestSchema.parse(mutation.payload).enabled }
     case 'setMarketingConsent': return { marketingEmailConsent: setMarketingEmailConsentRequestSchema.parse(mutation.payload).enabled }
     default: return null

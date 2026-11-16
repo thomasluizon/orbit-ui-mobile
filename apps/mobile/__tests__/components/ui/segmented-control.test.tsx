@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { SegmentedControl } from '@/components/ui/segmented-control'
 import { press, renderNavigation } from './navigation-render'
 import { __resetTestHostConfig } from '../../../test-mocks/react-native'
+import { controlStyle } from '@/__tests__/support/press-feedback'
 const options = [{ value: 'all', label: 'All' }, { value: 'active', label: 'Active' }, { value: 'completed', label: 'Completed' }] as const
 
 function StatefulSegmentedControl({
@@ -82,11 +83,11 @@ it('fills an unselected segment without selecting it until activation', () => {
   const onChange = vi.fn()
   const tree = renderNavigation(<SegmentedControl options={options} value="all" onChange={onChange} label="Views" />)
   const host = () => tree.hosts().find((node) => node.props.testID === 'segment-active-unselected-enabled')!
-  const resting = StyleSheet.flatten(host().props.style as StyleProp<ViewStyle>)
+  const resting = controlStyle(host())
   void act(() => (host().props as { onPressIn: () => void }).onPressIn())
-  expect(StyleSheet.flatten(host().props.style as StyleProp<ViewStyle>)).toMatchObject({ backgroundColor: createTokensV2('purple', 'dark').bgHover, borderRadius: 8, overflow: 'hidden' })
+  expect(controlStyle(host() as never)).toMatchObject({ backgroundColor: createTokensV2('purple', 'dark').bgHover, borderRadius: 8, overflow: 'hidden' })
   expect(onChange).not.toHaveBeenCalled()
   void act(() => (host().props as { onPressOut: () => void }).onPressOut())
-  expect(StyleSheet.flatten(host().props.style as StyleProp<ViewStyle>)).toEqual(resting)
+  expect(controlStyle(host() as never)).toEqual(resting)
   tree.unmount()
 })

@@ -24,10 +24,10 @@ primary path. Bulk changes are where one instruction can replace repeated manual
 
 ## Positioning
 
-**Orbit is an AI that tracks habits, not a habit tracker with an AI.**
+**Orbit is an AI that tracks habits, not a habit tracker with an AI.** Orbit is one name: the app, the AI and the mascot.
 
 The AI is the product, not a feature hidden in a menu. A design that reads as a list app with a chat
-tab has failed this positioning. Astra must be part of how a person starts, understands, changes,
+tab has failed this positioning. The AI must be part of how a person starts, understands, changes,
 and acts on a routine, rather than an optional destination outside the main experience.
 
 ## Brand principles
@@ -38,10 +38,10 @@ and acts on a routine, rather than an optional destination outside the main expe
 2. **Design for restarting, not only for staying perfect.** A missed routine violates this principle
    when the screen turns it into punishment, a dead end, or more work instead of making the return
    path clear.
-3. **Put AI on the primary path.** A flow violates this principle when Astra can be removed without
+3. **Put AI on the primary path.** A flow violates this principle when the AI can be removed without
    changing how the person starts, understands, changes, or acts on a routine.
 4. **Let one instruction replace repeated work.** A flow violates this principle when a person must
-   repeat the same edit across habits even though Astra could complete the bulk change from one
+   repeat the same edit across habits even though Orbit could complete the bulk change from one
    request.
 
 ## Relationship to marketing

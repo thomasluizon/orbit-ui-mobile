@@ -8,7 +8,7 @@ import { resolve } from 'node:path'
 import { measureTextOverflow } from '../../../e2e/layout/text-overflow-geometry'
 import { measureOnboardingProStep } from '../../../e2e/layout/onboarding-pro-step-geometry'
 import { PillButton, PillLink } from '@/components/ui/pill-button'
-import { AstraGlyph } from '@/components/ui/astra-glyph'
+import { OrbitMascot } from '@/components/ui/orbit-mascot'
 import { settleFocusAnimations } from '../../../e2e/layout/focus-indicators'
 import { SelectAllToggle } from '@/components/calendar-sync/select-all-toggle'
 import { Copy } from '@/components/ui/icons'
@@ -49,28 +49,28 @@ describe('PillButton', () => {
 
     afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
 
-    it.each([412, 1280].flatMap((width) => [false, true].map((loading) => ({ width, loading }))))('keeps focused Astra action motion confined to its busy loader at $width px (loading: $loading)', async ({ width, loading }) => {
-      const { container } = render(<PillButton variant="ghost" retainLeadingIcon leadingIcon={<AstraGlyph size={16} />} loading={loading} focusableWhenLoading onClick={vi.fn()}>Ask Astra</PillButton>)
+    it.each([412, 1280].flatMap((width) => [false, true].map((loading) => ({ width, loading }))))('keeps focused Astra action motion confined to its finite skeleton face at $width px (loading: $loading)', async ({ width, loading }) => {
+      const { container } = render(<PillButton variant="ghost" retainLeadingIcon leadingIcon={<OrbitMascot size={16} />} loading={loading} focusableWhenLoading onClick={vi.fn()}>Ask Astra</PillButton>)
       const page = await browser.newPage({ viewport: { width, height: 915 } })
       try {
         await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
         const button = page.getByRole('button', { name: 'Ask Astra' })
         await button.focus()
-        const statusSlot = button.locator('span[aria-hidden="true"]')
-        expect(await statusSlot.evaluate((element) => {
-          const { width, height } = element.getBoundingClientRect()
-          return { width, height }
-        })).toEqual({ width: BUTTON_SIZES.sm.iconSize, height: BUTTON_SIZES.sm.iconSize })
-        expect(await statusSlot.locator('svg').count()).toBe(loading ? 1 : 0)
+        const face = button.locator('[data-slot="skeleton-face"]')
+        expect(await face.count()).toBe(loading ? 1 : 0)
+        expect(await button.locator('.animate-spin').count()).toBe(0)
         if (loading) {
-          expect(await statusSlot.locator('svg').getAttribute('class')).toContain('animate-spin')
-          expect(await statusSlot.locator('svg').getAttribute('class')).toContain('orbit-essential-loading')
-          expect(await statusSlot.evaluate((element) => element.getAnimations({ subtree: true }).some((animation) => animation.playState === 'running' && animation.effect?.getComputedTiming().endTime === Infinity))).toBe(true)
+          expect(await face.evaluate((element) => {
+            const box = element.getBoundingClientRect()
+            const host = element.parentElement!.getBoundingClientRect()
+            return [box.width, box.height].join('x') === [host.width, host.height].join('x')
+          })).toBe(true)
+          expect(await face.evaluate((element) => element.getAnimations({ subtree: true }).every((animation) => animation.effect?.getComputedTiming().endTime !== Infinity))).toBe(true)
         }
         await settleFocusAnimations(button, undefined, !loading)
         if (!loading) expect(await button.evaluate((element) => element.getAnimations({ subtree: true }).filter((animation) => animation.playState === 'running').length)).toBe(0)
         expect(await button.evaluate((element) => element.matches(':focus'))).toBe(true)
-        expect(await button.locator('[data-asset="astra-mark"]').count()).toBe(1)
+        expect(await button.locator('[data-asset="orbit-mascot"]').count()).toBe(1)
         expect(await button.getAttribute('aria-busy')).toBe(loading ? 'true' : null)
       } finally {
         await page.close()
@@ -135,13 +135,16 @@ describe('PillButton', () => {
           const style = getComputedStyle(button)
           return {
             width: bounds.width, height: bounds.height, fill: style.backgroundColor,
-            extensions: ['::before', '::after'].map((pseudo) => getComputedStyle(button, pseudo).content),
+            extensions: ['::before', '::after'].map((pseudo) => {
+              const layer = getComputedStyle(button, pseudo)
+              return { content: layer.content, inset: layer.inset, fill: layer.backgroundColor }
+            }),
           }
         })
         expect(geometry.width).toBe(48)
         expect(geometry.height).toBe(48)
         expect(geometry.fill).not.toBe('rgba(0, 0, 0, 0)')
-        expect(geometry.extensions).toEqual(['none', 'none'])
+        expect(geometry.extensions, 'the ::before is the unpainted hit layer over the box itself, so no pseudo-element grows the target').toEqual([{ content: '""', inset: '0px', fill: 'rgba(0, 0, 0, 0)' }, { content: 'none', inset: 'auto', fill: 'rgba(0, 0, 0, 0)' }])
       } finally {
         await page.close()
       }
@@ -214,11 +217,11 @@ describe('PillButton', () => {
 
     expect(screen.getByRole('link', { name: 'Primary' })).toHaveClass(
       'hover:bg-[var(--primary-hover)]',
-      'active:scale-[0.96]',
+      'motion-safe:active:scale-[0.96]',
     )
     expect(screen.getByRole('link', { name: 'Secondary' })).toHaveClass(
       'hover:bg-[color-mix(in_srgb,var(--fg-1)_90%,var(--bg))]',
-      'active:scale-[0.96]',
+      'motion-safe:active:scale-[0.96]',
       'active:bg-[color-mix(in_srgb,var(--fg-1)_90%,var(--bg))]',
     )
     expect(screen.getByRole('link', { name: 'Ghost' })).toHaveAttribute('href', '/ghost')
@@ -302,32 +305,22 @@ describe('PillButton', () => {
     expect(onClick).not.toHaveBeenCalled()
   })
 
-  it('keeps its loading spinner perceivable under reduced motion', () => {
+  it('shows the skeleton face, never a spinner, and keeps no looping loader under reduced motion', () => {
     render(<PillButton loading>Saving</PillButton>)
     const button = screen.getByRole('button', { name: 'Saving' })
-    expect(button.querySelector('svg')).toHaveClass('animate-spin')
-    expect(button.querySelector('svg')).toHaveClass('orbit-essential-loading')
+    expect(button.querySelector('[data-slot="skeleton-face"] .skeleton-pulse')).not.toBeNull()
+    expect(button.querySelector('svg, .animate-spin')).toBeNull()
 
     const css = postcss.parse(readFileSync(resolve(process.cwd(), 'app/globals.css'), 'utf8'))
-    const declarations: string[] = []
-    css.walkAtRules('media', (media) => {
-      if (media.params !== '(prefers-reduced-motion: reduce)') return
-      media.walkRules('.orbit-essential-loading', (rule) => {
-        rule.walkDecls((declaration) => {
-          declarations.push(`${declaration.prop}: ${declaration.value}${declaration.important ? ' !important' : ''}`)
-        })
-      })
-    })
-    expect(declarations).toEqual([
-      'animation-duration: 3s !important',
-      'animation-iteration-count: infinite !important',
-    ])
+    const loaders: string[] = []
+    css.walkRules((rule) => { if (rule.selector.includes('orbit-essential-loading')) loaders.push(rule.selector) })
+    expect(loaders).toEqual([])
   })
 
   it('transitions the scale property the press utility writes, apart from the hover colour', () => {
     render(<PillButton onClick={() => {}}>Continue</PillButton>)
     const button = screen.getByRole('button', { name: 'Continue' })
-    expect(button).toHaveClass('orbit-pill-action', 'enabled:active:scale-[0.96]')
+    expect(button).toHaveClass('orbit-pill-action', 'press-hit-layer', 'motion-safe:enabled:active:scale-[0.96]')
 
     const css = postcss.parse(readFileSync(resolve(process.cwd(), 'app/globals.css'), 'utf8'))
     const transitions: string[] = []
@@ -359,8 +352,8 @@ describe('PillButton', () => {
 
     expect(button).not.toHaveClass('disabled:opacity-40')
     expect(label).not.toHaveClass('opacity-60')
-    expect(contrastOnSurface(tokens['--fg-on-primary']!, [tokens['--primary']!])).toBeGreaterThanOrEqual(4.5)
-    expect(contrastOnSurface(tokens['--primary']!, [tokens['--bg']!])).toBeGreaterThanOrEqual(3)
+    expect(button).toHaveClass('text-[var(--fg-1)]')
+    expect(contrastOnSurface(tokens['--fg-1']!, [tokens['--bg']!, tokens['--bg-well']!])).toBeGreaterThanOrEqual(4.5)
     expect(button).toHaveAttribute('aria-busy', 'true')
     const css = postcss.parse(readFileSync(resolve(process.cwd(), 'app/globals.css'), 'utf8'))
     const focusOutlines: string[] = []

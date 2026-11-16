@@ -1,4 +1,4 @@
-import { expectPressFill, pressableStyle } from '../../../support/press-feedback'
+import { controlStyle, expectPressFill, pressableStyle } from '../../../support/press-feedback'
 import React from "react";
 import { StyleSheet, type TextStyle, type ViewStyle } from "react-native";
 import Yoga from "yoga-layout";
@@ -69,7 +69,7 @@ function press(node: TestNode) {
 /** The scale the rendered host shows at rest and while held: `MotionPressable` owns it, not the caller's style. */
 function renderedPressScale(tree: TestTree, label: string) {
   const host = () => tree.root.findAll((node) => typeof node.type === "string" && node.props.accessibilityRole === "button" && node.props.accessibilityLabel === label)[0]!;
-  const scale = () => (StyleSheet.flatten(host().props.style) as ViewStyle).transform;
+  const scale = () => (controlStyle(host()) as ViewStyle).transform;
   const rest = scale();
   TestRenderer.act(() => { (host().props.onPressIn as () => void)(); });
   const held = scale();

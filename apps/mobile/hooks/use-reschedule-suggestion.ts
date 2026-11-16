@@ -46,6 +46,9 @@ export function useRescheduleSuggestion({
   return {
     suggestion: query.data ?? null,
     isLoading: query.isLoading,
+    /** A request is running now. A request that waits for the network is paused, not fetching. */
+    isFetching: query.isFetching,
+    isPaused: query.isPaused,
     error: query.error,
     refetch: query.refetch,
   }

@@ -7,7 +7,6 @@ import { SPACING } from '@orbit/shared/theme'
 import { forwardRef,useCallback,useLayoutEffect,useMemo,useRef,type ReactElement,type RefObject } from 'react'
 import { View,Text,RefreshControl } from 'react-native'
 import DraggableFlatList,{ type RenderItemParams } from 'react-native-draggable-flatlist'
-import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { canLogHabitOnDate,formatAPIDate,getAllDoneOnDate,type HabitResolution } from '@orbit/shared/utils'
 import type { NormalizedHabit,HabitsFilter,BulkMoveHabitParentResult } from '@orbit/shared/types/habit'
 import { useUIStore } from '@/stores/ui-store'
@@ -233,7 +232,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
           onLayout={event => { keyboard.onLayout?.(event); measureList(event) }}
           onFocus={revealListFocus}
           data={status === 'ready' ? presentation.items : NO_ITEMS}
-          accessibilityState={{ busy: status === 'loading' }}
+          accessibilityState={{ busy: status === 'loading' || state.refresh.pending }}
           keyboardShouldPersistTaps={KEYBOARD_SHOULD_PERSIST_TAPS}
           renderItem={renderItem}
           keyExtractor={keyExtractor}
@@ -407,23 +406,29 @@ function useHabitListEmptyRendering({ styles, t }: Pick<HabitListEmptyRenderingI
   return { listHeaderComponent, renderEmptyState, keyExtractor }
 }
 
-type HabitListRefreshInputs = Pick<ReturnType<typeof useHabitListQueries>, 'isFetching' | 'isLoading' | 'refetch'> & Pick<ReturnType<typeof useHabitListAccount>, 'tokens'>
+type HabitListRefreshInputs = Pick<ReturnType<typeof useHabitListQueries>, 'isFetching' | 'isLoading' | 'refetch'>
 
-function useHabitListRefresh({ isFetching, isLoading, refetch }: Pick<HabitListRefreshInputs, 'isFetching' | 'isLoading' | 'refetch'>, { tokens }: Pick<HabitListRefreshInputs, 'tokens'>) {
-  const insets = useSafeAreaInsets()
+/**
+ * Pull to refresh keeps the native gesture and draws no indicator (DESIGN.md Bans). The loaded rows stay in place while the
+ * fetch runs, and the list reports the wait as busy. A fetch that TanStack pauses offline is not fetching, so it is not busy.
+ * Android's circle keeps a 4 dp shadow with a transparent fill, so it starts 192 dp above the list: it moves at most two
+ * 64 dp targets (androidx swiperefreshlayout 1.1.0 `moveSpinner`, `ReactSwipeRefreshLayout.setProgressViewOffset`).
+ */
+function useHabitListRefresh({ isFetching, isLoading, refetch }: HabitListRefreshInputs) {
   const refreshControl = useMemo(
     () => (
       <RefreshControl
-        refreshing={isFetching && !isLoading}
+        refreshing={false}
         onRefresh={() => void refetch()}
-        tintColor={tokens.primary}
-        progressViewOffset={insets.top}
+        colors={['transparent']}
+        progressBackgroundColor="transparent"
+        tintColor="transparent"
+        progressViewOffset={-192}
       />
     ),
-    // react-doctor-disable-next-line exhaustive-deps -- isFetching/isLoading/refetch are extracted habitsQuery members already listed; the analyzer wants the qualified paths but the aliases track them https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-    [tokens.primary, insets.top, isFetching, isLoading, refetch],
+    [refetch],
   )
-  return { refreshControl }
+  return { refreshControl, pending: isFetching && !isLoading }
 }
 
 type getHabitListCompletionInputs = { view: NonNullable<HabitListProps['view']> } & Pick<HabitListProps, 'filters' | 'onSeeUpcoming'> & Pick<ReturnType<typeof useHabitListAccount>, 'accountHabitCount' | 'selectedDateStr' | 'todayStr' | 'styles'> & Pick<ReturnType<typeof useHabitListQueries>, 'habitsById' | 'childrenByParent'> & Pick<ReturnType<typeof useHabitListEmptyRendering>, 'listHeaderComponent'>
@@ -481,7 +486,7 @@ function useHabitListModel(parameters: HabitListModelInputs) {
   const habitListMoveActions = useHabitListMoveActions(habitListMoveState, habitListQueries, parameters, habitMoveParentSelection, habitListAccount)
   const habitListSubHabitActions = useHabitListSubHabitActions(habitListCollapseState, habitListCollapse, habitListModalState)
   const habitListEmptyRendering = useHabitListEmptyRendering(habitListAccount, parameters)
-  const habitListRefresh = useHabitListRefresh(habitListQueries, habitListAccount)
+  const habitListRefresh = useHabitListRefresh(habitListQueries)
   const habitListCompletion = getHabitListCompletion(parameters, habitListAccount, habitListQueries, habitListEmptyRendering)
   const habitListRendering = createHabitListRendering({ ...parameters, ...habitListEmptyRendering, ...habitListAccount, ...habitListCompletion })
   const parentPromptQueue = useParentPromptQueue({ additionalHabitsById: habitListDrill.drill.settlementHabitsById, additionalHabitsUpdatedAtById: habitListDrill.drill.settlementUpdatedAtById, ...habitListAccount, ...habitListQueries, ...habitListVisibility, ...parameters, ...habitRecentCompletions })
@@ -576,7 +581,7 @@ function renderHabitDrillState(state: Readonly<HabitListScreenState & { commonOv
   const { drill, commonOverlays } = state
   const { startAddSubHabit } = state.subHabits
   const { listHeaderComponent } = state.empty
-  const { refreshControl } = state.refresh
+  const { refreshControl, pending } = state.refresh
   const { renderHabitCard } = state.rows
   return ((
     <>
@@ -587,6 +592,7 @@ function renderHabitDrillState(state: Readonly<HabitListScreenState & { commonOv
         listHeaderComponent={listHeaderComponent}
         drillListRef={drillListRef}
         refreshControl={refreshControl}
+        busy={pending}
         onListScroll={handleListScroll}
         onFocus={revealListFocus}
         onScrollBeginDrag={onScrollBeginDrag}
@@ -644,7 +650,7 @@ function renderHabitAllState(state: Readonly<HabitListScreenState & { commonOver
       testID="habit-list-all"
       onLayout={measureList}
       data={status === 'ready' ? presentation.items : NO_ITEMS}
-      accessibilityState={{ busy: status === 'loading' }}
+      accessibilityState={{ busy: status === 'loading' || state.refresh.pending }}
       keyExtractor={keyExtractor}
       renderItem={({ item, index }) => <HabitListMotionRow id={item.id} phase={presentation.rows[index]!.phase} offset={presentation.rows[index]!.offset} itemIds={presentation.itemIds} measure={presentation.measure}>
         {groupHeadings.has(item.id) ? <Text accessibilityRole="header" style={[styles.dateGroupHeading, index === 0 && { paddingTop: SPACING.s0 }]}>{groupHeadings.get(item.id)}</Text> : null}

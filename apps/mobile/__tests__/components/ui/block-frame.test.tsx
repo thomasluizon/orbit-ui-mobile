@@ -232,7 +232,9 @@ describe('BlockFrame on mobile', () => {
     const tree = render(<BlockFrame {...frame({ state: 'loading', actions: <Text>Save</Text> })} />)
     const root = tree.root.findByProps({ testID: 'block-frame-loading' })
     expect(prop(root, 'accessibilityState')).toBeUndefined()
-    expect(tree.root.findByProps({ testID: 'block-frame-loading-skeleton' })).toBeDefined()
+    const skeleton = tree.root.findByProps({ testID: 'block-frame-loading-skeleton' })
+    expect(skeleton.findAll((node) => typeof node.type === 'string' && node.props.testID === 'skeleton-unit-fill').length).toBeGreaterThan(0)
+    expect(tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'skeleton-unit-fill')).toHaveLength(skeleton.findAll((node) => typeof node.type === 'string' && node.props.testID === 'skeleton-unit-fill').length + 1)
     expect(textValues(tree)).not.toContain('First row')
   })
 
@@ -352,7 +354,7 @@ describe('BlockFrame on mobile', () => {
             { id: 'plain', label: 'Plain' },
             { id: 'suggested', label: 'Suggested', proposed: true },
           ],
-          proposedLabel: 'Proposed by Astra',
+          proposedLabel: 'Proposed by Orbit',
         })}
       />,
     )
@@ -360,7 +362,7 @@ describe('BlockFrame on mobile', () => {
       node.type === 'View' && prop(node, 'testID') === 'proposed-row')
     expect(wrappers).toHaveLength(1)
     expect(prop(wrappers[0]!, 'accessible')).toBe(false)
-    expect(prop(tree.root.findByProps({ testID: 'proposed-row-label' }), 'accessibilityLabel')).toBe('Proposed by Astra')
+    expect(prop(tree.root.findByProps({ testID: 'proposed-row-label' }), 'accessibilityLabel')).toBe('Proposed by Orbit')
   })
 
   it('keeps a proposed row control and edit action independently operable', () => {
@@ -379,7 +381,7 @@ describe('BlockFrame on mobile', () => {
               </Pressable>
             ),
           }],
-          proposedLabel: 'Proposed by Astra',
+          proposedLabel: 'Proposed by Orbit',
           onEditItem,
           editLabel: 'Edit item',
         })}

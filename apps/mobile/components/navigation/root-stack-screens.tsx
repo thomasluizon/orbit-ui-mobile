@@ -7,6 +7,7 @@ import { useGoogleErrorLogin } from '@/lib/google-auth-callback'
 import { useOnboardingDraftStore } from '@/stores/onboarding-draft-store'
 import { mobileMotion, usePrefersReducedMotion } from '@/lib/motion'
 import { captureBuildEnabled, shouldExposeOnboardingRoute } from '@/lib/capture-mode'
+import { orbitScreenLayout } from '@/components/navigation/orbit-screen-layout'
 
 const SLIDE_FROM_RIGHT_SCREENS = [
   'support',
@@ -24,6 +25,7 @@ export function RootStackScreens() {
 
   return (
     <Stack
+      screenLayout={orbitScreenLayout}
       screenOptions={{
         headerShown: false,
         // iOS asks the presented screen controller, which follows the system appearance without a style: https://github.com/software-mansion/react-native-screens/blob/4.30.1/ios/RNSScreen.mm

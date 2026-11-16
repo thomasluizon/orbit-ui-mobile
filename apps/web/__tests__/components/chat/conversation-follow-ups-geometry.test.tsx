@@ -9,6 +9,7 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import pt from '@orbit/shared/i18n/pt-BR.json'
 import { buildChatFinalMessageFields } from '@orbit/shared/chat'
+import { ORBIT_SMALL_FACE_BOX_RATIO } from '@orbit/shared/contracts/brand'
 import { chatResponseSchema } from '@orbit/shared/types/chat'
 import { AstraConversation } from '@/components/chat/conversation'
 import { loadAppFonts } from '@/__tests__/support/app-fonts'
@@ -60,13 +61,13 @@ describe('Follow-up conversation geometry in Chromium', () => {
       await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
       await loadAppFonts(page)
       const header = page.locator('header')
-      const mark = header.locator('[data-asset="astra-mark"]')
+      const mark = header.locator('[data-asset="orbit-mascot"]')
       await expect(mark.count()).resolves.toBe(1)
       const markBox = (await mark.boundingBox())!
       const closeBox = (await header.getByRole('button', { name: pt.common.closeConversation }).boundingBox())!
       const headerBox = (await header.boundingBox())!
       expect(markBox.width).toBe(16)
-      expect(markBox.height).toBe(16)
+      expect(markBox.height).toBe(16 * ORBIT_SMALL_FACE_BOX_RATIO)
       expect(markBox.x - headerBox.x).toBe(16)
       expect(headerBox.height).toBe(56)
       expect(Math.abs(markBox.y + markBox.height / 2 - closeBox.y - closeBox.height / 2)).toBeLessThanOrEqual(0.5)
@@ -83,7 +84,7 @@ describe('Follow-up conversation geometry in Chromium', () => {
     </NextIntlClientProvider>)
     const chips = screen.getByRole('group', { name: pt.chat.followUps.label })
     expect(chips.textContent).not.toContain(pt.nav.astra)
-    expect(chips.querySelectorAll('[data-asset="astra-mark"]')).toHaveLength(2)
+    expect(chips.querySelectorAll('[data-asset="orbit-mascot"]')).toHaveLength(2)
     const page = await browser.newPage({ viewport: { width, height: 915 } })
     try {
       await page.setContent(`<style>${stylesheet}</style><div class="dark">${container.innerHTML}</div>`)

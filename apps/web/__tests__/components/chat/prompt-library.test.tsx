@@ -130,6 +130,9 @@ it.each(['offline', 'atLimit'] as const)('disables every idea and shows the reas
   fireEvent.click(screen.getAllByRole('button', { name: 'Browse ideas' })[0]!)
   await waitFor(() => expect(screen.getByRole('heading', { name: 'Ideas' })).toHaveFocus())
   expect(within(document.querySelector<HTMLElement>('[data-prompt-library]')!).getByText(state === 'offline' ? en.shell.composer.offline.reason : createTranslator({ locale: 'en', messages: en })('shell.composer.limit.reason', { allowance: 5 }))).toBeInTheDocument()
+  const notice = document.querySelector('[data-prompt-library] [data-capacity-notice]')!
+  expect(notice.querySelector('[data-asset="orbit-mascot"]')).toHaveAttribute('data-orbit-state', 'descansando')
+  expect(notice.querySelector('[data-asset="orbit-mascot"]')).toHaveAttribute('width', '48')
   const row = screen.getByRole('button', { name: 'Plan my morning' })
   expect(row).toBeDisabled()
   fireEvent.click(row)

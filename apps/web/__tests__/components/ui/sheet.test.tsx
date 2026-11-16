@@ -185,7 +185,7 @@ describe('Sheet', () => {
       expect(items).toHaveLength(labels.length)
       for (const [index, label] of labels.entries()) expect(items[index]).toHaveAccessibleName(label)
       expect(items.map((item) => item.textContent)).toEqual(labels)
-      expect(items[3]!.querySelectorAll('[data-asset^="astra-mark"]')).toHaveLength(1)
+      expect(items[3]!.querySelectorAll('[data-asset^="orbit-mascot"]')).toHaveLength(1)
       for (const item of items) {
         expect(item).toBeEnabled()
         expect(item.closest('[data-slot="sheet-body"]')).not.toBeNull()

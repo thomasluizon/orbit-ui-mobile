@@ -2,39 +2,34 @@ import { IconButton } from '@/components/ui/icon-button'
 import { PersonalTextDetails } from '@/components/ui/personal-text-details'
 import { PersonalText } from '@/components/ui/personal-text'
 import { SPACING, hoverForeground, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
-import { useEffect, useMemo, useState } from 'react'
-import { Animated, StyleSheet, Text, View, Pressable } from 'react-native'
+import { useState } from 'react'
+import { StyleSheet, Text, View, Pressable } from 'react-native'
 import { Trans, useTranslation } from 'react-i18next'
 import { buildSearchHabitStatus, buildSearchMatchLines, formatAPIDate, habitInitial, nowDate, type SearchHabitStatus } from '@orbit/shared/utils'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import { ChevronRight, X, Plus } from '@/components/ui/icons'
 
 import { createTokensV2, radius } from '@/lib/theme'
-import { usePrefersReducedMotion } from '@/lib/motion'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { HabitCheck } from '@/components/habits/habit-check'
+import { Skeleton } from '@/components/ui/skeleton'
 
+const SEARCH_SKELETON_ROWS = ['first', 'second', 'third'] as const
+
+/** A search that waits holds the place of its results with skeleton rows shaped like `SearchResult`. */
 export function Searching() {
   const { t } = useTranslation()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
-  const reducedMotion = usePrefersReducedMotion()
-  const dots = useMemo(() => ['first', 'second', 'third'].map((id) => ({ id, opacity: new Animated.Value(1) })), [])
-  useEffect(() => {
-    if (reducedMotion) return
-    const animations = dots.map(({ opacity }, index) => Animated.sequence([
-      Animated.delay(index * 150),
-      Animated.loop(Animated.sequence([
-      Animated.timing(opacity, { toValue: 0.35, duration: 550, useNativeDriver: true }),
-      Animated.timing(opacity, { toValue: 1, duration: 550, useNativeDriver: true }),
-    ])),
-    ]))
-    animations.forEach((animation) => animation.start())
-    return () => animations.forEach((animation) => animation.stop())
-  }, [dots, reducedMotion])
-  return <View role="status" accessibilityRole="text" accessibilityLiveRegion="polite" style={styles.loading}>
-    <View importantForAccessibility="no-hide-descendants" style={styles.dots}>{dots.map(({ id, opacity }) => <Animated.View key={id} style={[styles.dot, { opacity, backgroundColor: tokens.fg3 }]} />)}</View>
-    <Text style={[styles.body, { color: tokens.fg3 }]}>{t('habits.search.searching')}</Text>
+  return <View testID="search-skeleton" accessible accessibilityRole="progressbar" accessibilityLabel={t('habits.search.searching')} accessibilityState={{ busy: true }} accessibilityLiveRegion="polite" style={styles.skeletonList}>
+    {SEARCH_SKELETON_ROWS.map((row) => <View key={row} testID="search-skeleton-row" style={[styles.row, { backgroundColor: tokens.bgCard, borderColor: tokens.hairlineGhost, borderWidth: 1 }]}>
+      <View style={styles.well}><Skeleton variant="fill" grouped /></View>
+      <View style={[styles.content, styles.skeletonCopy]}>
+        <View style={styles.skeletonTitle}><Skeleton variant="fill" grouped /></View>
+        <View style={styles.skeletonMeta}><Skeleton variant="fill" grouped /></View>
+      </View>
+      <View style={styles.chevronSlot} />
+    </View>)}
   </View>
 }
 
@@ -83,5 +78,5 @@ const styles = StyleSheet.create({
   status: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 }, statusLabel: { flexShrink: 0 },
   name: { fontFamily: 'Geist_400Regular', fontSize: 17 }, match: { fontFamily: 'GeistMono_400Regular', fontSize: 12 },
   body: { fontFamily: 'Geist_400Regular', fontSize: 14 }, empty: { alignItems: 'flex-start', padding: SPACING.s12, gap: 12 },
-  loading: { flexDirection: 'row', alignItems: 'center', padding: SPACING.s12, gap: 12 }, dots: { flexDirection: 'row', gap: 4 }, dot: { width: 4, height: 4, borderRadius: radius.full },
+  skeletonList: { gap: 8 }, skeletonCopy: { gap: 8 }, skeletonTitle: { width: '66%', height: 16 }, skeletonMeta: { width: '33%', height: 12 }, chevronSlot: { width: 20, height: 20 },
 })

@@ -4,6 +4,7 @@ import { captureBuildEnabled } from '@/lib/capture-mode'
 import { Tabs, usePathname } from 'expo-router'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { useTabSceneMotion } from '@/lib/tab-scene-motion'
+import { orbitScreenLayout } from '@/components/navigation/orbit-screen-layout'
 
 export default function TabLayout() {
   const { surfaces } = useAppTheme()
@@ -15,6 +16,7 @@ export default function TabLayout() {
   return (
     <Tabs
       backBehavior="history"
+      screenLayout={orbitScreenLayout}
       screenOptions={({ route }) => ({
         headerShown: false,
         ...(instant

@@ -111,9 +111,9 @@ export function useHabitListQueries({ filters, view }: Pick<HabitListQueriesInpu
   const topLevelHabits =
     habitsQuery.data?.topLevelHabits ?? EMPTY_NORMALIZED_HABITS
 
+  const isFetching = habitsQuery.isFetching
   const isLoading = habitsQuery.isLoading
   const isError = habitsQuery.isError
-  const isFetching = habitsQuery.isFetching
   const refetch = habitsQuery.refetch
   const getChildren = habitsQuery.getChildren
   const childrenByParent = useMemo(

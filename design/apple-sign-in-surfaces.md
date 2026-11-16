@@ -34,8 +34,11 @@ title-to-height proportion, and a margin of "at least 8% of the button's width" 
 and the trailing edge. The Android and web pills use 8% on both inline edges, so the logo and title
 stay centred, as on the Google pill. The guidelines permit the larger leading inset: "you can adjust
 the space between the logo and the button's leading edge." `APPLE_SIGN_IN_BUTTON` in
-`packages/shared/src/theme/button.ts` holds the proportion, the inset and the two colour pairs. The
-busy state of the Android and web pills replaces the logo with the spinner, as it does for Google.
+`packages/shared/src/theme/button.ts` holds the proportion, the inset and the two colour pairs. While
+busy, the Android and web pills keep Apple's colours, logo and title. They are disabled and busy, and
+they dim to the existing 0.4 disabled opacity, as the iOS control does. They show no skeleton face,
+because the Android logo tile is opaque and Apple's rules fix the button colours. The busy Google
+pill keeps its skeleton face.
 
 The web uses the Design Resources file. Section 2A of the Developer Artwork License Agreement for
 Sign in with Apple (the agreement that Apple's `Logo-Sign-in-with-Apple.dmg` shows when you open it)
