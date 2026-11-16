@@ -69,7 +69,7 @@ function titleClass(textMode: WebListRowProps['textMode'], wrapTitle: boolean | 
 function PlainRowText({ children, style, ...props }: Readonly<Omit<ComponentProps<'span'>, 'children'> & { children: string }>) {
   const textRef = useRef<HTMLSpanElement>(null)
   const lineHeight = useReadableLineHeight(textRef, children, style)
-  return <span {...props} data-row-multiline={typeof lineHeight === 'string' ? '' : undefined} ref={textRef} style={{ ...style, lineHeight }}><OrbitNameText text={children} /></span>
+  return <span {...props} data-row-multiline={typeof lineHeight === 'string' ? '' : undefined} ref={textRef} style={{ ...style, lineHeight }}>{props.translate === 'no' ? children : <OrbitNameText text={children} />}</span>
 }
 
 function RowText({ title, textMode, titleTranslate, wrapTitle, description, wrapValue, danger, trailing, value, readOnly, toggle, personalExpanded, personalTextInsetStart }: Readonly<Pick<WebListRowProps, 'title' | 'textMode' | 'titleTranslate' | 'wrapTitle' | 'description' | 'wrapValue' | 'danger' | 'trailing' | 'compact' | 'value' | 'readOnly' | 'toggle' | 'personalExpanded' | 'personalTextInsetStart'>>) {

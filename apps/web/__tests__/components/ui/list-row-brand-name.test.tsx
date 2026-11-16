@@ -22,6 +22,14 @@ describe.each([{ locale: 'en', messages: en }, { locale: 'pt-BR', messages: ptBR
     expect([...description.querySelectorAll('[translate="no"]')].map((node) => node.textContent)).toEqual(['Orbit'])
   })
 
+  it('keeps a whole product name title as one untranslated text with no inner mark', () => {
+    render(<ListRow textMode="label" compact titleTranslate="no" title={messages.upgrade.pitchTitle} onClick={vi.fn()} />)
+    const titleLine = document.querySelector('[data-slot="list-row-title"]')!
+    expect(titleLine).toHaveAttribute('translate', 'no')
+    expect(titleLine.children).toHaveLength(0)
+    expect(titleLine).toHaveTextContent(messages.upgrade.pitchTitle)
+  })
+
   it('leaves a title with no Orbit in it free to translate', () => {
     render(<ListRow textMode="label" compact title={messages.about.support} onClick={vi.fn()} />)
     expect(document.querySelector('[data-slot="list-row-title"]')).not.toHaveAttribute('translate')
