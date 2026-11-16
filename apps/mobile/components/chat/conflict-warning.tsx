@@ -4,7 +4,8 @@ import { View, Text, StyleSheet } from "react-native";
 import { AlertTriangle } from "@/components/ui/icons";
 import { useTranslation } from "react-i18next";
 import type { ConflictWarning as ConflictWarningType } from "@orbit/shared/types/chat";
-import { createTokensV2, tintFromPrimary } from '@/lib/theme';
+import { createTokensV2, radius, tintFromPrimary } from '@/lib/theme';
+import { insetHairlineRing } from '@/components/ui/inset-hairline-ring';
 import { useAppTheme } from "@/lib/use-app-theme";
 
 type AppTokens = ReturnType<typeof createTokensV2>
@@ -69,7 +70,7 @@ export function ConflictWarning({ warning }: Readonly<ConflictWarningProps>) {
         styles.container,
         {
           backgroundColor: sColors.bg,
-          borderColor: sColors.border,
+          outlineColor: sColors.border,
         },
       ]}
     >
@@ -106,8 +107,8 @@ export function ConflictWarning({ warning }: Readonly<ConflictWarningProps>) {
 
 const styles = StyleSheet.create({
   container: {
-    borderRadius: 16,
-    borderWidth: 1,
+    borderRadius: radius.lg,
+    ...insetHairlineRing,
     paddingHorizontal: SPACING.s16,
     paddingVertical: SPACING.s12,
     marginTop: SPACING.s8,

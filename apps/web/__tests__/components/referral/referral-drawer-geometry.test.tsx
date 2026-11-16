@@ -3,8 +3,8 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import postcss from 'postcss'
 import tailwind from '@tailwindcss/postcss'
-import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen } from '@testing-library/react'
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
+import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { ReferralDrawer } from '@/components/referral/referral-drawer'
 import { FeatureGuideDrawer } from '@/components/onboarding/feature-guide-drawer'
 import { loadAppFonts } from '@/__tests__/support/app-fonts'
@@ -12,12 +12,16 @@ import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch
 import { readControlHitArea } from '@/test-support/control-hit-area'
 
 vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
+const loadedReferral = {
+  stats: { successfulReferrals: 1, pendingReferrals: 2, maxReferrals: 5, rewardType: 'pro_days', proDaysPerReferral: 7, discountPercent: 20 },
+  referralUrl: 'https://useorbit.org/r/ORBIT1',
+  isLoading: false, isError: false, error: null,
+}
+const referralState = vi.hoisted(() => ({ loading: false }))
 vi.mock('@/hooks/use-referral', () => ({
-  useReferral: () => ({
-    stats: { successfulReferrals: 1, pendingReferrals: 2, maxReferrals: 5, rewardType: 'pro_days', proDaysPerReferral: 7, discountPercent: 20 },
-    referralUrl: 'https://useorbit.org/r/ORBIT1',
-    isLoading: false, isError: false, error: null,
-  }),
+  useReferral: () => referralState.loading
+    ? { stats: null, referralUrl: null, isLoading: true, isError: false, error: null }
+    : loadedReferral,
 }))
 
 const widths = [320, 412, 640, 1440]
@@ -32,6 +36,34 @@ describe('Referral drawer sheet insets in Chromium', () => {
     stylesheet = (await postcss([tailwind()]).process(readFileSync(source, 'utf8'), { from: source })).css
   })
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
+  afterEach(() => { referralState.loading = false })
+
+  async function measureLinkBlock(loading: boolean) {
+    referralState.loading = loading
+    render(<ReferralDrawer open onOpenChange={vi.fn()} />)
+    const dialog = screen.getByRole('dialog')
+    const page = await browser.newPage({ viewport: { width: 412, height: 915 } })
+    try {
+      await page.setContent(`<style>${stylesheet}</style>${dialog.outerHTML}`)
+      await page.locator('.orbit-sheet-panel').evaluate(settleAnimations)
+      return await page.evaluate((isLoading) => {
+        const block = isLoading
+          ? document.querySelector('[data-slot="referral-skeleton"]')!.firstElementChild!
+          : document.querySelector('[aria-label="referral.drawer.copyLink"]')!.parentElement!
+        return { height: block.getBoundingClientRect().height, radius: getComputedStyle(block).borderTopLeftRadius }
+      }, loading)
+    } finally {
+      await page.close()
+      cleanup()
+    }
+  }
+
+  it('holds the place of the loaded link well with a skeleton of the same height', async () => {
+    const loaded = await measureLinkBlock(false)
+    expect(loaded.height).toBe(56)
+    expect(loaded.radius, 'the link well has the 12 px field radius, as its mobile twin').toBe('12px')
+    expect((await measureLinkBlock(true)).height, 'the content does not move when the referral loads').toBe(loaded.height)
+  })
 
   it.each(widths)('aligns content and the pinned Share at %ipx, including copy failure', async (width) => {
     Object.defineProperty(navigator, 'share', { configurable: true, value: vi.fn() })

@@ -10,6 +10,8 @@ import { useAuthStore } from '@/stores/auth-store'
 import { createTokensV2, radius } from '@/lib/theme'
 import { SMALL_PILL_VISIBLE_MIN, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { pressableStyle } from '@/__tests__/support/press-feedback'
+import { expectInsetHairlineRing } from '@/__tests__/support/inset-hairline-ring'
+import { measureProfileRow } from '@/__tests__/support/profile-row-geometry'
 
 vi.unmock('react-i18next')
 
@@ -219,6 +221,17 @@ describe('ExpiryWarning', () => {
   it('uses the shared card radius for the notice', async () => {
     const instance = await renderExpiredWarning()
     expect(StyleSheet.flatten(hostNodes(instance, 'View')[1]!.props.style)).toMatchObject({ borderRadius: radius.xl })
+  })
+
+  it.each(['dark', 'light'] as const)('draws the notice hairline inside the edge, so the copy starts at the 12 by 8 padding of its web twin, in %s', async (mode) => {
+    mocks.theme.currentTheme = mode
+    const instance = await renderExpiredWarning()
+    const overdue = createTokensV2('orange', mode).statusOverdue
+    const [red, green, blue] = [1, 3, 5].map((start) => Number.parseInt(overdue.slice(start, start + 2), 16))
+    expectInsetHairlineRing(hostNodes(instance, 'View')[1]!.props.style as never, `rgba(${red}, ${green}, ${blue}, 0.28)`)
+    const measured = measureProfileRow((instance as TestInstance & { toJSON: () => never }).toJSON(), 412, 1)
+    const copy = measured.texts.find((text) => text.label === i18n.t('auth.sessionRefreshFailed'))!
+    expect(copy.left, 'the copy starts 12 dp inside the banner, which sits 8 dp inside the screen').toBe(8 + 12)
   })
 
   it.each(['dark', 'light'] as const)('uses token interaction fills in %s', async (mode) => {

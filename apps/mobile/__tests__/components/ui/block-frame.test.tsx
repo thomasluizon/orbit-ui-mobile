@@ -10,6 +10,7 @@ import { PersonalTextDetails } from '@/components/ui/personal-text-details'
 import { Button } from '@/components/ui/pill-button'
 import { createTokensV2 } from '@/lib/theme'
 import { expectInsetHairlineRing } from '@/__tests__/support/inset-hairline-ring'
+import { applyBorderWidths } from '@/__tests__/support/yoga-borders'
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
@@ -83,7 +84,7 @@ function applyActionStyle(node: YogaNode, style: LayoutStyle) {
   node.setPadding(Yoga.EDGE_START, style.paddingStart as number | undefined)
   node.setMargin(Yoga.EDGE_ALL, style.margin as number | undefined)
   node.setMargin(Yoga.EDGE_VERTICAL, style.marginVertical as number | undefined)
-  node.setBorder(Yoga.EDGE_ALL, style.borderWidth)
+  applyBorderWidths(node, style)
   if (style.flexDirection === 'row') node.setFlexDirection(Yoga.FLEX_DIRECTION_ROW)
   if (style.flexWrap === 'wrap') node.setFlexWrap(Yoga.WRAP_WRAP)
   if (style.justifyContent === 'flex-end') node.setJustifyContent(Yoga.JUSTIFY_FLEX_END)

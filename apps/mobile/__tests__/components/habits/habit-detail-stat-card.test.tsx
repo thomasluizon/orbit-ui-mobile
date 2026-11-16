@@ -11,6 +11,7 @@ import { HabitDetailScreen } from '@/components/habits/habit-detail-screen'
 import { ListRow } from '@/components/ui/list-row'
 import { StatTile } from '@/components/ui/stat-tile'
 import { __setWindowDimensions } from '@/test-mocks/react-native'
+import { applyBorderWidths } from '@/__tests__/support/yoga-borders'
 
 const TestRenderer = require('react-test-renderer')
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
@@ -124,7 +125,7 @@ function applyDimensions(node: YogaNode, style: LayoutStyle) {
   node.setGap(Yoga.GUTTER_ALL, typeof style.gap === 'number' ? style.gap : undefined)
   node.setPadding(Yoga.EDGE_ALL, style.padding as number | undefined)
   node.setPadding(Yoga.EDGE_VERTICAL, style.paddingVertical as number | undefined)
-  node.setBorder(Yoga.EDGE_ALL, style.borderWidth)
+  applyBorderWidths(node, style)
 }
 
 function applyFlex(node: YogaNode, style: LayoutStyle) {

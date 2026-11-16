@@ -10,6 +10,7 @@ import { CalendarStats } from '@/app/(tabs)/calendar/_components/calendar-stats'
 import { FreezeBank } from '@/components/ui/freeze-bank'
 import { StatTile } from '@/components/ui/stat-tile'
 import { __resetTestHostConfig, __setWindowDimensions } from '../../test-mocks/react-native'
+import { applyBorderWidths } from '@/__tests__/support/yoga-borders'
 
 const TestRenderer = require('react-test-renderer') as typeof import('react-test-renderer')
 interface Host {
@@ -52,7 +53,7 @@ function applyStyle(node: YogaNode, style: ViewStyle) {
   if (style.maxWidth === '100%') node.setMaxWidthPercent(100)
   if (typeof style.padding === 'number') node.setPadding(Yoga.EDGE_ALL, style.padding)
   if (typeof style.paddingHorizontal === 'number') node.setPadding(Yoga.EDGE_HORIZONTAL, style.paddingHorizontal)
-  if (typeof style.borderWidth === 'number') node.setBorder(Yoga.EDGE_ALL, style.borderWidth)
+  applyBorderWidths(node, style)
 }
 
 function buildLayout(host: Host, fontScale: number, labels: { node: YogaNode; intrinsic: number; host: Host }[], figures: { node: YogaNode; state: string }[], parentFigure = false, config?: ReturnType<typeof Yoga.Config.create>): YogaNode {

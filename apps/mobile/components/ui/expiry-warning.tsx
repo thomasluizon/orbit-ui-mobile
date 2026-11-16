@@ -7,6 +7,7 @@ import { useLogout } from '@/hooks/use-logout'
 import { createTokensV2, radius, shadowsV2, type AppTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { IconButton } from '@/components/ui/icon-button'
+import { insetHairlineRing } from '@/components/ui/inset-hairline-ring'
 import { RefreshCw } from '@/components/ui/icons'
 import { PillButton } from '@/components/ui/pill-button'
 
@@ -213,8 +214,8 @@ function createStyles(tokens: AppTokensV2) {
       justifyContent: 'space-between',
       gap: 12,
       borderRadius: radius.xl,
-      borderWidth: 1,
-      borderColor: rgbaFromHex(tokens.statusOverdue, 0.28),
+      ...insetHairlineRing,
+      outlineColor: rgbaFromHex(tokens.statusOverdue, 0.28),
       backgroundColor: mixHexOver(tokens.bg, tokens.statusOverdue, 0.1),
       paddingHorizontal: SPACING.s12,
       paddingVertical: SPACING.s8,

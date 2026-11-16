@@ -23,6 +23,7 @@ import Yoga, { type Node as YogaNode } from 'yoga-layout'
 import { expectMotionPress, expectPressPaint } from '@/__tests__/support/press-feedback'
 import { measureInteractionFills } from '@/__tests__/support/interaction-fill-geometry'
 import { measureProfileRow } from '@/__tests__/support/profile-row-geometry'
+import { applyBorderWidths } from '@/__tests__/support/yoga-borders'
 
 const authSession = vi.hoisted(() => ({ isAuthenticated: true, user: { userId: 'account-a' } }))
 const astraCopy = vi.hoisted(() => ({ name: 'nav.astra', request: 'habits.form.suggestDate' }))
@@ -533,7 +534,7 @@ function applyComposerLayoutStyle(node: YogaNode, style: Record<string, unknown>
   if (style.alignItems === 'flex-end') node.setAlignItems(Yoga.ALIGN_FLEX_END)
   if (style.justifyContent === 'flex-end') node.setJustifyContent(Yoga.JUSTIFY_FLEX_END)
   if (typeof style.gap === 'number') node.setGap(Yoga.GUTTER_ALL, style.gap)
-  if (typeof style.borderWidth === 'number') node.setBorder(Yoga.EDGE_ALL, style.borderWidth)
+  applyBorderWidths(node, style)
 }
 
 function applyComposerLayoutInsets(node: YogaNode, style: Record<string, unknown>) {

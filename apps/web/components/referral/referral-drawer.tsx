@@ -58,7 +58,7 @@ function LoadedContent({
     <div className="flex flex-col gap-4">
       <div>
         <SectionLabel>{t('referral.drawer.yourLink')}</SectionLabel>
-        <div className="flex items-center gap-2 rounded-xl bg-[var(--bg-field)] py-1 pl-4 pr-2 shadow-[inset_0_0_0_1px_var(--hairline)]">
+        <div className="flex items-center gap-2 rounded-md bg-[var(--bg-field)] py-1 pl-4 pr-2 shadow-[inset_0_0_0_1px_var(--hairline)]">
           <span className="min-w-0 flex-1 overflow-hidden text-ellipsis whitespace-nowrap font-mono text-base font-medium tabular-nums text-[var(--fg-1)]">
             {referralUrl}
           </span>

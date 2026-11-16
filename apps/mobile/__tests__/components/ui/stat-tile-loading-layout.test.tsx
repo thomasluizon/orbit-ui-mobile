@@ -7,6 +7,7 @@ import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { StatTile } from '@/components/ui/stat-tile'
 import { Skeleton } from '@/components/ui/skeleton'
 import { __setWindowDimensions } from '@/test-mocks/react-native'
+import { applyBorderWidths } from '@/__tests__/support/yoga-borders'
 
 const TestRenderer = require('react-test-renderer')
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
@@ -27,7 +28,7 @@ function applyLayoutStyle(node: YogaNode, style: LayoutStyle) {
   node.setGap(Yoga.GUTTER_ALL, numericDimension(style.gap))
   node.setPadding(Yoga.EDGE_ALL, numericDimension(style.padding))
   node.setPadding(Yoga.EDGE_HORIZONTAL, numericDimension(style.paddingHorizontal))
-  node.setBorder(Yoga.EDGE_ALL, style.borderWidth)
+  applyBorderWidths(node, style)
   if (style.flexDirection === 'row') node.setFlexDirection(Yoga.FLEX_DIRECTION_ROW)
   if (style.alignItems === 'flex-start') node.setAlignItems(Yoga.ALIGN_FLEX_START)
   if (style.alignItems === 'center') node.setAlignItems(Yoga.ALIGN_CENTER)
