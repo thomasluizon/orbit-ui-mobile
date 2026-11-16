@@ -1,23 +1,20 @@
-import { useLayoutEffect, useMemo, useRef, type ReactNode } from 'react'
-// react-doctor-disable-next-line rn-prefer-reanimated -- WHY: the login step stage animates with system Animated; the onboarding stage mirrors it until the pinned ABI changes. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-import { Animated } from 'react-native'
+import { useLayoutEffect, useRef, type ReactNode } from 'react'
+import Animated, { Easing, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated'
 import { motionDurations, motionEasings, motionLayerTiming } from '@orbit/shared/theme'
-import { toAnimatedEasing, usePrefersReducedMotion } from '@/lib/motion'
+import { usePrefersReducedMotion } from '@/lib/motion'
 
+/** Reanimated, not a native-driver Animated fade: see LoginStepStage in components/auth/login-sections.tsx. */
 export function OnboardingStepStage({ step, children }: Readonly<{ step: number; children: ReactNode }>) {
   const reduced = usePrefersReducedMotion()
   const previousStep = useRef(step)
-  const progress = useMemo(() => new Animated.Value(1), [])
+  const progress = useSharedValue(1)
+  const shift = motionLayerTiming.routeShift
+  const style = useAnimatedStyle(() => ({ opacity: progress.value, transform: [{ translateY: (1 - progress.value) * shift }] }))
   useLayoutEffect(() => {
-    if (previousStep.current === step || reduced) { progress.setValue(1); previousStep.current = step; return }
+    if (previousStep.current === step || reduced) { progress.value = 1; previousStep.current = step; return }
     previousStep.current = step
-    progress.setValue(0)
-    const animation = Animated.timing(progress, { toValue: 1, duration: motionDurations.base,
-      easing: toAnimatedEasing(motionEasings.enter), useNativeDriver: true })
-    animation.start()
-    return () => animation.stop()
+    progress.value = 0
+    progress.value = withTiming(1, { duration: motionDurations.base, easing: Easing.bezier(...motionEasings.enter) })
   }, [progress, reduced, step])
-  return <Animated.View style={{ opacity: progress, transform: [{ translateY: progress.interpolate({
-    inputRange: [0, 1], outputRange: [motionLayerTiming.routeShift, 0],
-  }) }] }}>{children}</Animated.View>
+  return <Animated.View style={style}>{children}</Animated.View>
 }
