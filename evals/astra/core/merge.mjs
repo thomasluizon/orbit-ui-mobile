@@ -38,7 +38,6 @@ function casesOfBuild(windows, descriptors, firstInput) {
     const input = firstInput + index
     if (window.gate !== 'core' || !Array.isArray(window.cases)) throw new Error(`Input ${input} is not a core set run summary.`)
     if (window.corpusDigest !== corpusDigest) throw new Error(`Input ${input} measured another corpus than this core set.`)
-    if (window.apiCommit !== windows[0].apiCommit) throw new Error(`Input ${input} measured another API commit; give each window of a later build to the merge with --rerun.`)
     for (const entry of window.cases) {
       const previous = collected.get(entry.id)
       if (previous?.passK === 'incomplete' && previous.graderLimits > 0) {
@@ -53,8 +52,9 @@ function casesOfBuild(windows, descriptors, firstInput) {
   return collected
 }
 
-// The `--rerun` windows, one group for each later build, in the order of the command line.
-function laterBuildsOf(windows) {
+// The windows of one gate run, one group for each build, in the order of the command line. The API commit of a window
+// is the one source of its build.
+function buildsOf(windows) {
   const builds = []
   for (const window of windows) {
     if (builds.at(-1)?.[0].apiCommit === window.apiCommit) builds.at(-1).push(window)
@@ -75,16 +75,16 @@ function onLaterBuild(id, entry, earlier) {
     ...(superseded.length ? { supersededModelCalls: superseded } : {}) }
 }
 
-// Joins the run summaries of one gate run. The first build holds the ordinary windows. Staging can serve another API
-// commit before each case has a verdict: after a fix, or after a release of another commit. Each later build then
-// measures only the cases without a pass: the single rerun of a failed case or of a grader limit, and the open cases.
-function joinRuns(windows, laterWindows, descriptors) {
-  const cases = casesOfBuild(windows, descriptors, 1)
-  const builds = [windows[0].apiCommit]
-  let firstInput = windows.length + 1
-  for (const build of laterBuildsOf(laterWindows)) {
+// Joins the run summaries of one gate run. The first build is the API commit of the first window. Staging can serve
+// another API commit before each case has a verdict: after a fix, or after a release of another commit. Each later build
+// then measures only the cases without a pass: the single rerun of a failed case or of a grader limit, and the open cases.
+function joinRuns(windows, descriptors) {
+  const [first, ...later] = buildsOf(windows)
+  const cases = casesOfBuild(first, descriptors, 1)
+  const builds = [first[0].apiCommit]
+  let firstInput = first.length + 1
+  for (const build of later) {
     const { apiCommit } = build[0]
-    if (apiCommit === builds[0]) throw new Error('A rerun on the same build never replaces a failure; the rerun runs on the fixed build.')
     if (builds.includes(apiCommit)) {
       throw new Error(`Input ${firstInput} returns to the API commit of an earlier build; give the windows of one build together, in the order of the builds.`)
     }
@@ -138,21 +138,21 @@ function criteriaOf(cases, totals, cost, baselineRate) {
 }
 
 // A gate run names its baseline report, or is declared the baseline run of `main`: a run without either would pass
-// the rate criterion against nothing. `reruns` holds the windows of the later builds. A window names its
-// `evidenceDirectory` relative to the merged report, so that the report links the private evidence of each failed case
-// to the window that holds it.
-export function mergeRuns(windows, { baseline, asBaseline = false, reruns = [], runCostUsd, descriptors = coreDescriptors() } = {}) {
+// the rate criterion against nothing. `windows` holds the windows of each build, in the order of the builds. A window
+// names its `evidenceDirectory` relative to the merged report, so that the report links the private evidence of each
+// failed case to the window that holds it.
+export function mergeRuns(windows, { baseline, asBaseline = false, runCostUsd, descriptors = coreDescriptors() } = {}) {
   if (!windows.length) throw new Error('Supply the run summaries of the core set.')
   if (asBaseline && baseline) throw new Error('A baseline run takes no --baseline.')
   if (!asBaseline && !baseline) throw new Error('Supply the baseline report with --baseline, or declare the baseline run of main with --as-baseline.')
   const baselineRate = baseline ? baselineRateOf(baseline, descriptors) : null
-  const joined = joinRuns(windows, reruns, descriptors)
+  const joined = joinRuns(windows, descriptors)
   const totals = totalsOf(joined.cases)
   const { cases, cost } = costOf(joined.cases, runCostUsd, totals.modelCalls)
   const criteria = criteriaOf(cases, totals, cost, baselineRate)
   return { gate: 'core', run: 'merged', apiCommit: windows[0].apiCommit,
     ...(joined.laterApiCommits.length ? { laterApiCommits: joined.laterApiCommits } : {}),
-    corpusDigest, utcDayWindows: new Set([...windows, ...reruns].map((window) => window.utcDay)).size,
+    corpusDigest, utcDayWindows: new Set(windows.map((window) => window.utcDay)).size,
     status: overall(Object.values(criteria).map(({ status }) => status === 'baseline' ? 'pass' : status)),
     criteria, cost, cases, groups: groupsOf(cases), totals }
 }
@@ -164,19 +164,17 @@ function readSummary(path, option) {
 
 // Each window keeps its `attempts/` evidence beside its summary file, wherever the reader keeps that window.
 export function mergeRunFiles(argumentsList, reportDirectory = MERGED_REPORT_DIRECTORY) {
-  const options = { reruns: [] }
+  const options = {}
   const windows = []
-  const readWindow = (path, option) => ({ ...readSummary(path, option), evidenceDirectory: relative(reportDirectory, dirname(path)) || '.' })
   for (let index = 0; index < argumentsList.length; index++) {
     const argument = argumentsList[index]
     if (argument === '--baseline') options.baseline = readSummary(argumentsList[++index], argument)
-    else if (argument === '--rerun') options.reruns.push(readWindow(argumentsList[++index], argument))
     else if (argument === '--as-baseline') options.asBaseline = true
     else if (argument === '--run-cost-usd') {
       options.runCostUsd = Number(argumentsList[++index])
       if (!Number.isFinite(options.runCostUsd) || options.runCostUsd < 0) throw new Error('Supply the measured run cost in USD after --run-cost-usd.')
     } else if (argument.startsWith('--')) throw new Error(`Unsupported option ${argument}.`)
-    else windows.push(readWindow(argument))
+    else windows.push({ ...readSummary(argument), evidenceDirectory: relative(reportDirectory, dirname(argument)) || '.' })
   }
   return mergeRuns(windows, options)
 }

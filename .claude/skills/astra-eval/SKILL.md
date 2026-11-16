@@ -52,7 +52,7 @@ shows a `stored` field is no evidence; it leaves the case incomplete, and only s
 A turn that gives no evidence adds no counted model calls.
 
 A reply that the grader cannot read is a grader limit, not a behavior failure: the case has no verdict, and the merge
-refuses a later window of the same build for it. Each kind clears only through `--rerun` on a later API commit of the
+refuses a later window of the same build for it. Each kind clears only through the rerun on a later API commit of the
 pull request; until then the gate of that build stays incomplete. Extend the grader before that rerun.
 
 - A preview limit (`The grader cannot classify a held preview`): `attempts/<case>-r<n>.json` keeps the held previews
@@ -63,15 +63,17 @@ pull request; until then the gate of that build stays incomplete. Extend the gra
   preview, so the evidence keeps no preview. Only the rerun measures it.
 
 After a fix, the failed cases and the cases with a grader limit run once more live on the fixed build. This is the
-single permitted rerun: a case has one. Give its summaries to the merge with `--rerun`: the rerun takes the place of
-the first result, and the report names each build and marks the case `rerun on <commit>`.
+single permitted rerun: a case has one. Give its summaries to the merge after the summaries of the first build. The
+merge reads the build of each window from the API commit in its summary, so no option names a later build. The rerun
+takes the place of the first result, and the report names each build and marks the case `rerun on <commit>`.
 
 Staging can serve another API commit before each case has a verdict: after a fix, or after a release of another
 commit. A case without a verdict (no window held it, or its attempts gave no evidence) then runs on the new build, in
-the same `--rerun` windows, and uses no rerun. A pass or a fail there is its first verdict (`first verdict on <commit>`
-in the report). A case that stays incomplete there has no verdict (`no verdict on <commit>`). The counts on the line of each
-later build hold only the cases whose final entry comes from that build. A case that passed keeps its build. The attempts of one case always come from one build. Give the `--rerun` windows of one build together, in
-build order.
+the windows of that build, and uses no rerun. A pass or a fail there is its first verdict (`first verdict on <commit>`
+in the report). A case that stays incomplete there has no verdict (`no verdict on <commit>`). The counts on the line of
+each later build hold only the cases whose final entry comes from that build. A case that passed keeps its build. The
+attempts of one case always come from one build. Give the windows of one build together, in the order of the builds.
+The first summary names the first build.
 
 A fix round never calls the provider: replay recorded real provider responses offline at the model-service port,
 following the `orbit-api` `tests/Orbit.Application.Tests/Fixtures/` pattern, or use a fake completion client.

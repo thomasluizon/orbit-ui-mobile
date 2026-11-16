@@ -162,10 +162,9 @@ describe('the gate report of the two runs', () => {
     expect(() => merged([first, requiredRun(attempts(required, 3))])).toThrow(`Case required already has the verdict ${verdict}; no rerun on the same build replaces it.`)
   })
 
-  it('rejects a window of another corpus, of another build, or with a wrong k', () => {
+  it('rejects a window of another corpus, or with a wrong k', () => {
     const window = requiredRun(attempts(required, 3))
     expect(() => merged([{ ...window, corpusDigest: 'other' }])).toThrow(/another corpus/u)
-    expect(() => merged([window, otherRun([result(optional)], fixedBuild)])).toThrow(/another API commit/u)
     expect(() => merged([{ ...window, cases: [{ ...window.cases[0], k: 1 }] }])).toThrow(/k policy/u)
     expect(() => merged([{ ...window, cases: [{ ...window.cases[0], attempts: 2, passed: 2 }] }])).toThrow(/claims a pass/u)
     expect(() => merged([{ ...window, cases: [{ ...window.cases[0], passed: 4 }] }])).toThrow(/invalid attempt counts/u)
@@ -226,10 +225,10 @@ describe('the baseline of the pass^k rate', () => {
 describe('the rerun of the failed cases after a fix', () => {
   const failedFirst = () => [run([...attempts(required, 2), result(required, { pass: false })], [required], 'must-pass'), run([result(optional)], [optional], 'other')]
   const fixed = (results = attempts(required, 3)) => run(results, [required], 'must-pass', fixedBuild)
-  const merged = (windows, reruns, options) => mergeRuns(windows, { descriptors, asBaseline: true, runCostUsd: 0.0105, reruns, ...options })
+  const merged = (windows) => mergeRuns(windows, { descriptors, asBaseline: true, runCostUsd: 0.0105 })
 
   it('takes the rerun of a failed case from the fixed build, and names both builds', () => {
-    const summary = merged(failedFirst(), [fixed()])
+    const summary = merged([...failedFirst(), fixed()])
     expect(summary).toMatchObject({ status: 'pass', apiCommit: meta.apiCommit, laterApiCommits: [fixedBuild], utcDayWindows: 1 })
     expect(summary.cases).toMatchObject([
       { id: 'required', passK: 'pass', rerun: true, apiCommit: fixedBuild, supersededModelCalls: [2, 2, 2] },
@@ -239,7 +238,7 @@ describe('the rerun of the failed cases after a fix', () => {
   })
 
   it('shares the measured cost over the model calls of both builds', () => {
-    const summary = merged(failedFirst(), [fixed()])
+    const summary = merged([...failedFirst(), fixed()])
     expect(summary.cost).toMatchObject({ runUsd: 0.0105, modelCalls: 14, perModelCallUsd: 0.00075, status: 'pass' })
     expect(summary.totals.modelCalls).toBe(14)
     expect(summary.cases.map(({ costUsd }) => costUsd)).toEqual([0.009, 0.0015])
@@ -248,27 +247,27 @@ describe('the rerun of the failed cases after a fix', () => {
   it('takes the rerun of a case with a grader limit from the fixed build', () => {
     const limited = [run([result(required), result(required, { graderLimit: true }), result(required)], [required], 'must-pass'),
       run([result(optional)], [optional], 'other')]
-    const summary = merged(limited, [fixed()])
+    const summary = merged([...limited, fixed()])
     expect(summary).toMatchObject({ status: 'pass', laterApiCommits: [fixedBuild] })
     expect(summary.cases[0]).toMatchObject({ id: 'required', passK: 'pass', rerun: true, graderLimits: 0, supersededModelCalls: [2, 2, 2] })
   })
 
   it('keeps the failure when the rerun fails again', () => {
-    const summary = merged(failedFirst(), [fixed([...attempts(required, 2), result(required, { pass: false })])])
+    const summary = merged([...failedFirst(), fixed([...attempts(required, 2), result(required, { pass: false })])])
     expect(summary).toMatchObject({ status: 'fail', cases: [{ id: 'required', passK: 'fail', rerun: true }, { id: 'optional' }] })
   })
 
   it('never lets a rerun on the same build replace a failure', () => {
-    expect(() => merged(failedFirst(), [run(attempts(required, 3), [required], 'must-pass')]))
-      .toThrow('A rerun on the same build never replaces a failure; the rerun runs on the fixed build.')
+    expect(() => merged([...failedFirst(), run(attempts(required, 3), [required], 'must-pass')]))
+      .toThrow('Case required already has the verdict fail; no rerun on the same build replaces it.')
   })
 
   it('refuses a later build for a case that passed, and a second result on the fixed build', () => {
-    expect(() => merged(failedFirst(), [run([result(optional)], [optional], 'other', fixedBuild)]))
+    expect(() => merged([...failedFirst(), run([result(optional)], [optional], 'other', fixedBuild)]))
       .toThrow('Case optional passed on an earlier build; a later build measures only a case without a pass.')
-    expect(() => merged(failedFirst(), [fixed([...attempts(required, 2), result(required, { pass: false })]), fixed()]))
+    expect(() => merged([...failedFirst(), fixed([...attempts(required, 2), result(required, { pass: false })]), fixed()]))
       .toThrow('Case required already has the verdict fail; no rerun on the same build replaces it.')
-    expect(() => merged(failedFirst(), [fixed(), run(attempts(required, 3), [required], 'must-pass', 'c'.repeat(40))]))
+    expect(() => merged([...failedFirst(), fixed(), run(attempts(required, 3), [required], 'must-pass', 'c'.repeat(40))]))
       .toThrow('Case required passed on an earlier build; a later build measures only a case without a pass.')
   })
 })
@@ -278,7 +277,7 @@ describe('a case without a verdict on an earlier build', () => {
   const stopped = (apiCommit) => run([...attempts(required, 2), result(required, { unavailable: true })], [required], 'must-pass', apiCommit)
   const requiredOn = (apiCommit, results = attempts(required, 3)) => run(results, [required], 'must-pass', apiCommit)
   const optionalOn = (apiCommit, options) => run([result(optional, options)], [optional], 'other', apiCommit)
-  const merged = (windows, reruns) => mergeRuns(windows, { descriptors, asBaseline: true, runCostUsd: 0.006, reruns })
+  const merged = (windows) => mergeRuns(windows, { descriptors, asBaseline: true, runCostUsd: 0.006 })
   const reported = (summary) => {
     const target = mkdtempSync(join(tmpdir(), 'core-report-'))
     scratch.push(target)
@@ -290,13 +289,21 @@ describe('a case without a verdict on an earlier build', () => {
   // serves the fix.
   const cutShort = () => [stopped(meta.apiCommit), optionalOn(meta.apiCommit, { pass: false })]
 
-  it('refuses a window of the later build among the windows of the first build, and names --rerun', () => {
-    expect(() => merged([...cutShort(), requiredOn(fixedBuild)]))
-      .toThrow('Input 3 measured another API commit; give each window of a later build to the merge with --rerun.')
+  // The API commit of a window is the one source of its build: the same window continues the first build while staging
+  // serves that commit, and gives the first verdict of a later build when staging serves the fix.
+  it('reads the build of each window from its API commit', () => {
+    const continued = merged([...cutShort(), requiredOn(meta.apiCommit)])
+    expect(continued.laterApiCommits).toBeUndefined()
+    expect(continued.cases[0]).toMatchObject({ id: 'required', passK: 'pass', apiCommit: meta.apiCommit, sourceWindow: 3, supersededModelCalls: [2, 2, 0] })
+    expect(continued.cases[0].rerun).toBeUndefined()
+    const later = merged([...cutShort(), requiredOn(fixedBuild)])
+    expect(later.laterApiCommits).toEqual([fixedBuild])
+    expect(later.cases[0]).toMatchObject({ id: 'required', passK: 'pass', apiCommit: fixedBuild, sourceWindow: 3, supersededModelCalls: [2, 2, 0] })
+    expect(later.cases[0].rerun).toBeUndefined()
   })
 
   it('measures the case on the later build, beside the rerun of the failed case', () => {
-    const summary = merged(cutShort(), [requiredOn(fixedBuild), optionalOn(fixedBuild)])
+    const summary = merged([...cutShort(), requiredOn(fixedBuild), optionalOn(fixedBuild)])
     expect(summary).toMatchObject({ status: 'pass', apiCommit: meta.apiCommit, laterApiCommits: [fixedBuild] })
     expect(summary.cases).toMatchObject([
       { id: 'required', passK: 'pass', attempts: 3, passed: 3, apiCommit: fixedBuild, supersededModelCalls: [2, 2, 0] },
@@ -306,7 +313,7 @@ describe('a case without a verdict on an earlier build', () => {
   })
 
   it('measures on the later build a case that no window of the first build ran', () => {
-    const summary = merged([optionalOn(meta.apiCommit)], [requiredOn(fixedBuild)])
+    const summary = merged([optionalOn(meta.apiCommit), requiredOn(fixedBuild)])
     expect(summary).toMatchObject({ status: 'pass', cases: [{ id: 'required', passK: 'pass', apiCommit: fixedBuild },
       { id: 'optional', passK: 'pass', apiCommit: meta.apiCommit }] })
     expect(summary.cases[0].rerun).toBeUndefined()
@@ -314,23 +321,23 @@ describe('a case without a verdict on an earlier build', () => {
   })
 
   it('never joins the attempts of two builds into one verdict', () => {
-    const summary = merged([stopped(meta.apiCommit), optionalOn(meta.apiCommit)], [stopped(fixedBuild)])
+    const summary = merged([stopped(meta.apiCommit), optionalOn(meta.apiCommit), stopped(fixedBuild)])
     expect(summary.status).toBe('incomplete')
     expect(summary.cases[0]).toMatchObject({ passK: 'incomplete', attempts: 3, passed: 2, apiCommit: fixedBuild, supersededModelCalls: [2, 2, 0] })
   })
 
   it('gives its one rerun to a case that fails on the build that first measured it', () => {
     const failedLater = requiredOn(fixedBuild, [...attempts(required, 2), result(required, { pass: false })])
-    const first = merged([stopped(meta.apiCommit), optionalOn(meta.apiCommit)], [failedLater])
+    const first = merged([stopped(meta.apiCommit), optionalOn(meta.apiCommit), failedLater])
     expect(first).toMatchObject({ status: 'fail', cases: [{ id: 'required', passK: 'fail', apiCommit: fixedBuild }, { id: 'optional' }] })
     expect(first.cases[0].rerun).toBeUndefined()
-    const summary = merged([stopped(meta.apiCommit), optionalOn(meta.apiCommit)], [failedLater, requiredOn(thirdBuild)])
+    const summary = merged([stopped(meta.apiCommit), optionalOn(meta.apiCommit), failedLater, requiredOn(thirdBuild)])
     expect(summary).toMatchObject({ status: 'pass', laterApiCommits: [fixedBuild, thirdBuild],
       cases: [{ id: 'required', passK: 'pass', rerun: true, apiCommit: thirdBuild, supersededModelCalls: [2, 2, 2, 2, 2, 0] }, { id: 'optional' }] })
   })
 
   it('continues on a third build a case that the second build left without a verdict, and a rerun that it left open', () => {
-    const summary = merged(cutShort(), [stopped(fixedBuild), optionalOn(fixedBuild, { unavailable: true }), requiredOn(thirdBuild), optionalOn(thirdBuild)])
+    const summary = merged([...cutShort(), stopped(fixedBuild), optionalOn(fixedBuild, { unavailable: true }), requiredOn(thirdBuild), optionalOn(thirdBuild)])
     expect(summary).toMatchObject({ status: 'pass', laterApiCommits: [fixedBuild, thirdBuild] })
     expect(summary.cases).toMatchObject([{ id: 'required', passK: 'pass', apiCommit: thirdBuild, supersededModelCalls: [2, 2, 0, 2, 2, 0] },
       { id: 'optional', passK: 'pass', rerun: true, apiCommit: thirdBuild, supersededModelCalls: [0, 2] }])
@@ -339,16 +346,18 @@ describe('a case without a verdict on an earlier build', () => {
 
   it('refuses a second rerun of a case, a case that passed on an earlier build, and a return to an earlier build', () => {
     const failed = [...attempts(required, 2), result(required, { pass: false })]
-    expect(() => merged([requiredOn(meta.apiCommit, failed), optionalOn(meta.apiCommit)], [requiredOn(fixedBuild, failed), requiredOn(thirdBuild)]))
+    expect(() => merged([requiredOn(meta.apiCommit, failed), optionalOn(meta.apiCommit), requiredOn(fixedBuild, failed), requiredOn(thirdBuild)]))
       .toThrow('Case required already had its rerun; a case has one rerun.')
-    expect(() => merged(cutShort(), [requiredOn(fixedBuild), requiredOn(thirdBuild)]))
+    expect(() => merged([...cutShort(), requiredOn(fixedBuild), requiredOn(thirdBuild)]))
       .toThrow('Case required passed on an earlier build; a later build measures only a case without a pass.')
-    expect(() => merged(cutShort(), [stopped(fixedBuild), optionalOn(thirdBuild), requiredOn(fixedBuild)]))
+    expect(() => merged([...cutShort(), stopped(fixedBuild), optionalOn(thirdBuild), requiredOn(fixedBuild)]))
       .toThrow('Input 5 returns to the API commit of an earlier build; give the windows of one build together, in the order of the builds.')
+    expect(() => merged([...cutShort(), stopped(fixedBuild), requiredOn(meta.apiCommit)]))
+      .toThrow('Input 4 returns to the API commit of an earlier build; give the windows of one build together, in the order of the builds.')
   })
 
   it('names each later build in the report, and marks each case that it measured', () => {
-    const markdown = reported(merged(cutShort(), [requiredOn(fixedBuild), optionalOn(fixedBuild)]))
+    const markdown = reported(merged([...cutShort(), requiredOn(fixedBuild), optionalOn(fixedBuild)]))
     expect(markdown).toContain(laterBuildLine('1 rerun', '1 first verdict', '0 cases'))
     expect(markdown).toContain('| required | owner-turns | b | en | yes | 3 | 3/3 | pass (first verdict on bbbbbbb) |')
     expect(markdown).toContain('| optional | same-title | b | pt-BR | no | 1 | 1/1 | pass (rerun on bbbbbbb) |')
@@ -357,7 +366,7 @@ describe('a case without a verdict on an earlier build', () => {
 
   it('marks a fail without a rerun as a first verdict, and a rerun without evidence as a rerun', () => {
     const failedLater = requiredOn(fixedBuild, [...attempts(required, 2), result(required, { pass: false })])
-    const markdown = reported(merged(cutShort(), [failedLater, optionalOn(fixedBuild, { unavailable: true })]))
+    const markdown = reported(merged([...cutShort(), failedLater, optionalOn(fixedBuild, { unavailable: true })]))
     expect(markdown).toContain(laterBuildLine('1 rerun', '1 first verdict', '0 cases'))
     expect(markdown).toContain('| required | owner-turns | b | en | yes | 3 | 2/3 | fail (first verdict on bbbbbbb) |')
     expect(markdown).toContain('| optional | same-title | b | pt-BR | no | 1 | 0/1 | incomplete (rerun on bbbbbbb) |')
@@ -369,7 +378,7 @@ describe('a case without a verdict on an earlier build', () => {
     ['gave no evidence', (apiCommit) => stopped(apiCommit)],
     ['holds a grader limit', (apiCommit) => requiredOn(apiCommit, [...attempts(required, 2), result(required, { graderLimit: true })])],
   ])('never reports a first verdict for a case that %s on the later build', (_, laterWindow) => {
-    const summary = merged([stopped(meta.apiCommit), optionalOn(meta.apiCommit)], [laterWindow(fixedBuild)])
+    const summary = merged([stopped(meta.apiCommit), optionalOn(meta.apiCommit), laterWindow(fixedBuild)])
     expect(summary.cases[0]).toMatchObject({ passK: 'incomplete', apiCommit: fixedBuild })
     expect(summary.cases[0].rerun).toBeUndefined()
     const markdown = reported(summary)
@@ -380,8 +389,8 @@ describe('a case without a verdict on an earlier build', () => {
 
   // Producer: the marks of a real merged report. The skill and TESTING.md name each mark as the report prints it.
   it('names each mark of a later build in the skill and in TESTING.md', () => {
-    const markdown = [merged(cutShort(), [requiredOn(fixedBuild), optionalOn(fixedBuild)]),
-      merged([stopped(meta.apiCommit), optionalOn(meta.apiCommit)], [stopped(fixedBuild)])].map(reported).join('\n')
+    const markdown = [merged([...cutShort(), requiredOn(fixedBuild), optionalOn(fixedBuild)]),
+      merged([stopped(meta.apiCommit), optionalOn(meta.apiCommit), stopped(fixedBuild)])].map(reported).join('\n')
     const marks = [...new Set([...markdown.matchAll(/\(([a-z ]+) on bbbbbbb\)/gu)].map(([, mark]) => mark))]
     expect(marks.sort()).toEqual(['first verdict', 'no verdict', 'rerun'])
     for (const path of ['.claude/skills/astra-eval/SKILL.md', 'TESTING.md']) {
@@ -437,7 +446,7 @@ describe('the report files', () => {
 
   it('names the fixed build and each rerun case in the report', () => {
     const first = [run([...attempts(required, 2), result(required, { pass: false })], [required]), run([result(optional)], [optional], 'other')]
-    const summary = mergeRuns(first, { descriptors, asBaseline: true, runCostUsd: 0.0105, reruns: [run(attempts(required, 3), [required], 'must-pass', fixedBuild)] })
+    const summary = mergeRuns([...first, run(attempts(required, 3), [required], 'must-pass', fixedBuild)], { descriptors, asBaseline: true, runCostUsd: 0.0105 })
     const markdown = writeReport(summary, directory())
     expect(markdown).toContain(`Later build, API commit: ${fixedBuild} (1 rerun of a failed case or of a grader limit; 0 first verdicts; 0 cases with no verdict and no rerun)`)
     expect(markdown).toContain('| required | owner-turns | b | en | yes | 3 | 3/3 | pass (rerun on bbbbbbb) |')
@@ -491,7 +500,7 @@ describe('the report files', () => {
     const others = windowAt('kept/core-other-day-1', [result(other, { pass: false })], other, 'other', meta.apiCommit)
     const rerun = windowAt('reports/core-must-pass', [result(mustPass), result(mustPass, { pass: false }), result(mustPass)], mustPass, 'must-pass', fixedBuild)
     const report = join(root, 'reports/core')
-    writeReport(mergeRunFiles([first, others, '--rerun', rerun, '--as-baseline'], report), report)
+    writeReport(mergeRunFiles([first, others, rerun, '--as-baseline'], report), report)
     const links = [...readFileSync(join(report, 'summary.md'), 'utf8').matchAll(/\]\(([^)]+)\)/gu)].map(([, link]) => link)
     expect(links.toSorted()).toEqual([`../../kept/core-other-day-1/attempts/${other.id}-r1.json`,
       ...[1, 2, 3].map((repeat) => `../core-must-pass/attempts/${mustPass.id}-r${repeat}.json`)].toSorted())
@@ -507,10 +516,10 @@ describe('the report files', () => {
     })
     expect(() => mergeRunFiles([...paths, '--run-cost-usd', 'much'])).toThrow(/measured run cost/u)
     expect(() => mergeRunFiles([...paths, '--replace'])).toThrow('Unsupported option --replace.')
-    expect(() => mergeRunFiles([...paths, '--rerun'])).toThrow('Supply a summary path after --rerun.')
+    expect(() => mergeRunFiles([...paths, '--rerun', paths[0]])).toThrow('Unsupported option --rerun.')
+    expect(() => mergeRunFiles([...paths, '--baseline'])).toThrow('Supply a summary path after --baseline.')
     expect(() => mergeRunFiles([join(target, 'missing.json'), '--as-baseline'])).toThrow(/Cannot read the summary/u)
     expect(() => mergeRunFiles(paths)).toThrow('Supply the baseline report with --baseline, or declare the baseline run of main with --as-baseline.')
-    expect(() => mergeRunFiles([...paths, '--as-baseline', '--rerun', paths[0]])).toThrow('Case required is not in the core set.')
     expect(() => mergeRunFiles([...paths, '--as-baseline'])).toThrow('Case required is not in the core set.')
   })
 })
