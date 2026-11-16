@@ -16,7 +16,7 @@ import { checkInventedIdentifier, extractNodeIds } from "./_lib/rules-identifier
 import { checkAdminMerge, checkBroadStaging, checkEngineInvocation } from "./_lib/rules-orchestrator.mjs"
 import { checkSleepStop } from "./_lib/rules-sleep.mjs"
 import { checkHandoffCommit, checkHandoffStop, gitCommitDirectory } from "./_lib/rules-handoff.mjs"
-import { newestCommittedPrompt, promptsForCommit, specsForCommit } from "./_lib/handoff-git.mjs"
+import { newestCommittedPrompt, promptsForCommit, specsForCommit, topLevelOf } from "./_lib/handoff-git.mjs"
 import { adoptOwnerHandoffRun, parseHandoffRequest, prepareOwnerHandoffRun, readHandoffRequest, recordHandoffRequest, validateHandoffPrompt } from "../../tools/lib/handoff-prompt.mjs"
 import { checkDependencyCommand, checkDependencyFileWrite } from "./_lib/rules-dependencies.mjs"
 import { checkWorkerBrowser } from "./_lib/rules-worker.mjs"
@@ -160,6 +160,8 @@ T(`git: ${NV} blocks`, blocks(checkGitCommand("git commit -m x " + NV)), true)
 // Branch protection is Orbit's, not universal: a session driven from this repo
 // routinely pushes sibling repos whose sanctioned workflow IS direct-to-main.
 const brainRemote = () => "https://github.com/thomasluizon/brain.git"
+// The rule gives a remote reader the chain of directories that git changes to. A fixture with no symlink reads it by text; the symlink rows use real git.
+const byTextDirectory = (fixture) => (chain, remote) => fixture(chain.reduce((directory, word) => resolve(directory, word)), remote)
 T("git: push to main in a non-Orbit repo allows", checkGitCommand("git push origin main", { resolveRemoteUrl: brainRemote, cwd: "." }), null)
 T("git: an unresolvable remote still blocks (fails safe)", blocks(checkGitCommand("git push origin main", { resolveRemoteUrl: () => "", cwd: "." })), true)
 // The shell cuts a redirect from a word before git reads argv, with or without a space, so a redirect hides no ref, subcommand or flag.
@@ -435,7 +437,7 @@ for (const [name, command] of [
   ["a glob in a command word", "/usr/bin/gi? status"],
   ["a glob in a command word", "/usr/bin/gi[t] status"],
   ["a variable in a command word", "$g status"],
-  ["a variable in a command word", 'sudo -u "$USER" ls'],
+  ["a variable in a command word", 'sudo "$USER" ls'],
   ["a command substitution in a command word", "$(which git) status"],
   ["a brace expansion in a command word", "{git,status}"],
   ["a variable in a `git` argument", 'git log "$BRANCH"'],
@@ -535,7 +537,7 @@ for (const command of ["git push origin HEAD:feature/x", "git push origin featur
   T(`git: ${command} allows in a protected repository`, checkGitCommand(command, inProtectedRepo), null)
 }
 // A `cd` that the shell can skip leaves the push in the directory before it, so the rule judges the push in each directory that is possible.
-const fromProtected = { cwd: "/work/ui", resolveRemoteUrl: (directory) => (directory.startsWith("/other") ? "git@github.com:o/sandbox.git" : "git@github.com:o/orbit-ui-mobile.git") }
+const fromProtected = { cwd: "/work/ui", resolveRemoteUrl: byTextDirectory((directory) => (directory.startsWith("/other") ? "git@github.com:o/sandbox.git" : "git@github.com:o/orbit-ui-mobile.git")) }
 for (const command of ["false && cd /other; git push origin main", "true || cd /other; git push origin main", "cd /other || git push origin main", "if false; then cd /other; fi; git push origin main",
   "for d in; do cd /other; done; git push origin main", "while false; do cd /other; done; git push origin main", "until true; do cd /other; done; git push origin main", "false &&\ncd /other\ngit push origin main",
   "if true; then cd /work/ui; else cd /other; fi; git push origin main", "bash -c 'false && cd /other; git push origin main'", "(false && cd /other; git push origin main)", "cd /other; cd /work/ui; git push origin main",
@@ -559,7 +561,7 @@ const REVIEW_GIT_ALLOWED = [`grep -rn "git commit ${NV}" .claude`, `echo 'git co
 for (const command of REVIEW_GIT_ALLOWED) T(`git review: ${JSON.stringify(command)} allows`, checkGitCommand(command), null)
 // Each command of the round 13 review. The review options: the session directory is a protected repository, `/work/brain` is not protected,
 // and each other directory has no remote, so the rule treats it as protected.
-const r13Remote = (directory, remote = "origin") => remote !== "origin" ? "" : directory.startsWith("/work/orbit-ui-mobile") ? "https://github.com/thomasluizon/orbit-ui-mobile.git" : directory.startsWith("/work/brain") ? "https://github.com/thomasluizon/brain.git" : ""
+const r13Remote = byTextDirectory((directory, remote = "origin") => remote !== "origin" ? "" : directory.startsWith("/work/orbit-ui-mobile") ? "https://github.com/thomasluizon/orbit-ui-mobile.git" : directory.startsWith("/work/brain") ? "https://github.com/thomasluizon/brain.git" : "")
 const r13Options = { cwd: "/work/orbit-ui-mobile", resolveRemoteUrl: r13Remote }
 const fromBrain = { ...r13Options, cwd: "/work/brain" }
 const REVIEW_R13_GIT_REFUSED = [
@@ -679,6 +681,23 @@ for (const command of ["git push https://github.com/thomasluizon/brain.git main"
 }
 T("git review r15: the refusal of a URL names the canonical forms", (checkGitCommand(REVIEW_R15_URLS[0], fromBrain)?.message ?? "").includes("`https://github.com/<owner>/<repo>` or `git@github.com:<owner>/<repo>`, each with an optional `.git`"), true)
 T("git review r15: a remote URL with a dot segment from the config makes the directory protected", blocks(checkGitCommand("git push origin main", { cwd: "/work/brain", resolveRemoteUrl: () => "https://github.com/thomasluizon/orbit-ui-mobile.git/." })), true)
+// The options of a wrapper are an allow list. Each option that the list does not name is not modelled, in each spelling: a short option in a
+// group or with its value in the same word, and each unique prefix of a GNU long option. Both rules refuse it in an unattended run.
+const WRAPPER_OPTIONS_REFUSED = ["env -P /tmp/x git status", "env -P/tmp/x git status", "env -vP /tmp/x git status", "env -P /tmp/x git push origin fix/a", "env --sp='rm -rf \"$TMP\"'",
+  "env --sp='git push origin main'", "env --split git status", "env --split-s=x git status", "env --ch=/work/orbit-ui-mobile git push origin main", "env --chd /work/x git status", "env --chdi=/work/x git status",
+  "env --ignore-env git push origin main", "env --ign git push origin main", "env --uns=HOME git push origin main", "env --u=HOME git push origin main", "exec -c git push origin main",
+  "exec -a x git status", "exec -l git status", "nice -5 git status", "nice --adjustment=5 git status", "timeout git status", "timeout --signal=KILL 5 git status", "timeout -v 5 git status", "time -v git status",
+  "stdbuf --output=L git status", "nohup -- git status", "noglob -x git status", "builtin -x echo", "setsid -w git status", "sudo -u root git status", "sudo -E git status", "doas -u root git status",
+  "command -p git status", "xargs -a list.txt git status", "ionice -p 1 git status", "nice -n", "runuser git -c 'rm -rf \"$TMP\"'", "runuser -u root git status"]
+for (const command of WRAPPER_OPTIONS_REFUSED) {
+  T(`subset: the wrapper option in ${JSON.stringify(command)} is refused by both rules`, [Boolean(checkGitCommand(command, fromBrain)?.notModelled), checkApprovalPrompt(command, { cwd: "/work/brain" })?.rule], [true, "not-modelled"])
+}
+// The controls: each option that the allow list names passes, with its value in the next word or in the same word.
+for (const command of ["env FOO=1 git status", "env -- FOO=1 git status", "nice git status", "nice -n 5 git status", "nice -n5 git status", "timeout 60 git fetch origin", "timeout -s KILL -k 5 60 npm test",
+  "timeout --preserve-status --foreground 5m npm test", "time -p npm test", "stdbuf -oL -e 0 tail -1 notes.md", "command -v git", "xargs -0 -r -n 1 -I{} echo {}", "ionice -c 3 nice -n 10 npm test",
+  "exec git status", "nohup npm test", "env FOO=1 nice -n 5 timeout 60 git status"]) {
+  T(`subset: the wrapper options in ${JSON.stringify(command)} are modelled`, readCommand(command).notModelled, "")
+}
 // Defect 2: `HOME`, each `XDG_*` name and each other name that gives the shell or git a directory or a config file is refused in each assignment form.
 const DIRECTORY_NAMES = ["HOME", "XDG_CONFIG_HOME", "XDG_DATA_HOME", "XDG_CACHE_HOME", "PWD", "OLDPWD", "USERPROFILE", "HOMEDRIVE", "HOMEPATH", "GIT_CONFIG_GLOBAL", "ZDOTDIR", "CDPATH"]
 for (const name of DIRECTORY_NAMES) {
@@ -1053,7 +1072,7 @@ for (const [command, rule] of [
   ['rm -rf "${TMP:-/tmp}/build"', "variable-path"],
   ['rm -rf "$DST" 2>/dev/null', "variable-path"],
   ['rmdir "$DST"', "variable-path"],
-  ['sudo -u root rm -rf "$DST"', "variable-path"],
+  ['sudo rm -rf "$DST"', "variable-path"],
   ['xargs rm -rf "$DST"', "variable-path"],
   ['find "$DST" -name "*.tmp" -exec rm -f "$DST/x" \\;', "variable-path"],
   [`bash -c 'rm -rf "$DST/"'`, "variable-path"],
@@ -1497,7 +1516,7 @@ for (const wrap of isolatedDirectoryBodies) {
     [`${wrap("touch package.json")}; cd ${installedPackage}`, root, false],
     [`${wrap(`cd ${installedPackage}`)}; touch package.json`, root, false],
   ]) T(`dependency scope: ${command}`, blocks(checkDependencyCommand(command, { cwd })), expected)
-  const resolveRemoteUrl = (directory) => directory === root ? "https://example.invalid/other.git" : "https://example.invalid/orbit-ui-mobile.git"
+  const resolveRemoteUrl = byTextDirectory((directory) => directory === root ? "https://example.invalid/other.git" : "https://example.invalid/orbit-ui-mobile.git")
   for (const [command, cwd, expected] of [
     [`${wrap(`cd ${root}`)}; git push origin main`, installedPackage, true],
     [`cd ${installedPackage}; ${wrap(`cd ${root}`)}; git push origin main`, root, true],
@@ -1511,7 +1530,7 @@ for (const wrap of isolatedDirectoryBodies) {
 T("subset: the isolated bodies that the subset models", isolatedDirectoryBodies.map((wrap) => isModelled(wrap("true"))), [true, false, false, false, false, false, true, false, false])
 T("dependency scope: eval changes the parent directory", blocks(dependencyCommand("eval 'cd node_modules/react-native'; touch package.json")), true)
 T("dependency scope: eval can leave the installed package", checkDependencyCommand(`eval 'cd ${root}'; touch package.json`, { cwd: installedPackage }), null)
-const scopeRemote = (directory) => directory === root ? "https://example.invalid/other.git" : "https://example.invalid/orbit-ui-mobile.git"
+const scopeRemote = byTextDirectory((directory) => directory === root ? "https://example.invalid/other.git" : "https://example.invalid/orbit-ui-mobile.git")
 T("git scope: eval changes the parent directory", blocks(checkGitCommand(`eval 'cd ${installedPackage}'; git push origin main`, { cwd: root, resolveRemoteUrl: scopeRemote })), true)
 T("git scope: eval is not modelled, also when it leaves a protected repository", checkGitCommand(`eval 'cd ${root}'; git push origin main`, { cwd: installedPackage, resolveRemoteUrl: scopeRemote })?.notModelled.includes("the builtin `eval`"), true)
 T("git scope: a plain cd can leave a protected repository", checkGitCommand(`cd ${root}; git push origin main`, { cwd: installedPackage, resolveRemoteUrl: scopeRemote }), null)
@@ -2165,6 +2184,28 @@ T("adapter git-guardrails: push feature -> 0", runHook("git-guardrails.mjs", bas
 T("adapter git-guardrails: a grep for the flag that skips the hooks -> 0", runHook("git-guardrails.mjs", bash(`grep -rn -- '${NV}' .claude/hooks`)), 0)
 T("adapter git-guardrails: a push to main in a here-string with a $\"...\" quote -> 2", runHook("git-guardrails.mjs", bash('bash <<<$"git push origin main"')), 2)
 T("adapter git-guardrails: worktree remove --force -> 2", runHook("git-guardrails.mjs", bash("git worktree remove --force .claude/worktrees/x")), 2)
+// git applies each `-C` word with `chdir`, which follows a symlink before it reads `..`. The fixture: a repository with no protection that
+// holds a symlink to a directory of a protected repository. The adapter reads the remote with real git, attended and in an unattended run.
+const symlinkFixture = join(root, "git-symlink")
+const protectedCheckout = join(symlinkFixture, "orbit-ui-mobile")
+const openCheckout = join(symlinkFixture, "brain")
+for (const [checkout, url] of [[protectedCheckout, "https://github.com/thomasluizon/orbit-ui-mobile.git"], [openCheckout, "https://github.com/thomasluizon/brain.git"]]) {
+  mkdirSync(join(checkout, "apps"), { recursive: true })
+  spawnSync("git", ["init", "-q", checkout])
+  spawnSync("git", ["-C", checkout, "remote", "add", "origin", url])
+}
+const linkToProtected = join(openCheckout, "link")
+symlinkSync(join(protectedCheckout, "apps"), linkToProtected, "junction")
+const fromOpenCheckout = (command, env) => runHook("git-guardrails.mjs", bash(command, openCheckout), env)
+for (const command of [`git -C ${linkToProtected}/.. push origin main`, "git -C link/.. push origin main", "git -C link/.. push origin HEAD:main", `cd ${linkToProtected}; git -C .. push origin main`,
+  "git -C link -C .. push origin main"]) {
+  T(`adapter git-guardrails symlink: ${command} from a repository with no protection -> 2, 2`, [fromOpenCheckout(command), fromOpenCheckout(command, { ORBIT_LAUNCH_WORKER: "1" })], [2, 2])
+}
+// The controls: the shell `cd` is logical, so `cd link/..` stays in the repository with no protection, and a push to its main passes.
+for (const command of [`cd ${linkToProtected}/..; git push origin main`, `git -C ${openCheckout} push origin main`, "git -C link/.. push origin fix/x"]) {
+  T(`adapter git-guardrails symlink: ${command} from a repository with no protection -> 0, 0`, [fromOpenCheckout(command), fromOpenCheckout(command, { ORBIT_LAUNCH_WORKER: "1" })], [0, 0])
+}
+T("handoff git: the top level follows the -C chain as git does", topLevelOf([openCheckout, "link/.."]), realpathSync(protectedCheckout))
 
 const ORCH = "orchestrator-guardrails.mjs"
 for (const [shape, command] of descriptorSuffixAllows) {
@@ -2370,6 +2411,13 @@ T("adapter approval: the refusal tells the agent how to rewrite the command", re
 const refusedUnmodelled = approvalHook({ ...heldRemoval(), tool_input: { command: 'bash <<<$"rm -rf \\"\\$TMP\\""' } })
 T("adapter approval: a removal in a construct that the reader does not model -> 2", refusedUnmodelled.status, 2)
 T("adapter approval: that refusal names the construct and asks for the plain subset", refusedUnmodelled.stderr.includes("a here-string") && refusedUnmodelled.stderr.includes("plain subset"), true)
+// The live held command of the order: a variable in a path and an escaped `$(` in a grep pattern, which Claude Code held for a person.
+// In an unattended run the hook refuses it first, and the refusal names the `.mjs` route for a search.
+const LIVE_HELD_COMMAND = String.raw`N=/tmp/scratchpad/rv-2464-r16; awk '/^const HEREDOC_DATA/{on=1;next} on&&/^\]/{exit} on' $N/head/.claude/hooks/test-hooks.mjs | grep -n "bash script.sh\"\|x=\\$(cat" | head; grep -n "^const HEREDOC_DATA" -A6 $N/head/.claude/hooks/test-hooks.mjs | head -8`
+const refusedLiveCommand = approvalHook({ ...heldRemoval(), tool_input: { command: LIVE_HELD_COMMAND } })
+T("adapter approval: the live held command of the order in an unattended run -> 2", refusedLiveCommand.status, 2)
+T("adapter approval: that refusal asks for a .mjs file that node runs", refusedLiveCommand.stderr.includes("node /abs/path.mjs"), true)
+T("approval: the live held command of the order is refused by both rules", [Boolean(checkGitCommand(LIVE_HELD_COMMAND, { cwd: "/work/x" })?.notModelled), checkApprovalPrompt(LIVE_HELD_COMMAND, { cwd: "/work/x" })?.rule], [true, "not-modelled"])
 // Claude Code runs its removal check for the Bash tool and the Monitor tool, and the guarded rewrite is Bash syntax.
 T("adapter approval: a PowerShell command is outside the removal check -> 0", approvalHook(heldRemoval("PowerShell")).status, 0)
 const monitorRemoval = { ...heldRemoval("Monitor"), tool_input: { command: 'sleep 5 && test -f "$OUT/done" && rm -rf "$OUT/$d"', description: "Wait for the build", timeout_ms: 300000 } }
@@ -3394,7 +3442,7 @@ T("handoff commit: a sleep request accepts a complete prompt", handoffCommit("gi
 T("handoff commit: a commit that leaves NEXT.md alone passes", handoffCommit("git commit -m fix -- src/a.ts", { sleep: true }, null), null)
 T("handoff commit: a command that commits nothing passes", handoffCommit("git status --short", { sleep: true }, "anything"), null)
 T("handoff commit: a failing working copy blocks even when the staged prompt passes", blocks(checkHandoffCommit({ command: "git commit -m docs", cwd: "/repo", request: { sleep: true }, promptsForCommit: () => [goodSleepPrompt, attendedPrompt] })), true)
-T("handoff commit: -C names the directory the commit runs in", gitCommitDirectory("git -C /other/repo commit -m x", "/repo"), "/other/repo")
+T("handoff commit: -C names the directory the commit runs in", gitCommitDirectory("git -C /other/repo commit -m x", "/repo"), ["/repo", "/other/repo"])
 
 T("handoff stop: a failing prompt committed after the request refuses the stop", blocks(checkHandoffStop({ request: { sleep: true, recordedAt: "2026-01-01T10:00:00Z" }, headPrompt: attendedPrompt, headPromptCommittedAt: "2026-01-01T10:05:00Z" })), true)
 T("handoff stop: a prompt committed before the request is not judged", checkHandoffStop({ request: { sleep: true, recordedAt: "2026-01-01T10:00:00Z" }, headPrompt: attendedPrompt, headPromptCommittedAt: "2026-01-01T09:00:00Z" }), null)
@@ -3402,7 +3450,7 @@ T("handoff stop: no recorded request allows the stop", checkHandoffStop({ reques
 
 const handoffSpecPath = ".claude/specs/orbit-prod-release.md"
 const specCommit = (versions, prompt = goodSleepPrompt) => checkHandoffCommit({ command: "git commit -m docs", cwd: "/repo", request: { sleep: true },
-  promptsForCommit: () => [prompt], specsForCommit: (directory, path) => (directory === "/repo" && path === handoffSpecPath ? versions : []) })
+  promptsForCommit: () => [prompt], specsForCommit: (chain, path) => (chain.join("|") === "/repo" && path === handoffSpecPath ? versions : []) })
 T("handoff size: a commit of a 41984 B spec is refused with its name and size", /`\.claude\/specs\/orbit-prod-release\.md` within 40960 B \(it is 41984 B\)/.test(specCommit(["x".repeat(41984)])?.message ?? ""), true)
 T("handoff size: a commit of a 40960 B spec passes", specCommit(["x".repeat(40960)]), null)
 T("handoff size: an oversized working copy blocks even when the staged spec fits", blocks(specCommit(["small", "x".repeat(40961)])), true)
@@ -3486,11 +3534,11 @@ inSpecRepo("config", "user.email", "hooks@test.invalid")
 inSpecRepo("config", "user.name", "hooks")
 mkdirSync(join(specGitRepo, ".claude", "specs"), { recursive: true })
 mkdirSync(join(specGitRepo, ".claude", "handoffs"), { recursive: true })
-T("handoff git: a spec in neither the index nor the tree has no version", specsForCommit(specGitRepo, handoffSpecPath), [])
+T("handoff git: a spec in neither the index nor the tree has no version", specsForCommit([specGitRepo], handoffSpecPath), [])
 writeFileSync(join(specGitRepo, handoffSpecPath), "staged\n")
 inSpecRepo("add", handoffSpecPath)
 writeFileSync(join(specGitRepo, handoffSpecPath), "working\n")
-T("handoff git: a staged spec and its working copy are both versions", specsForCommit(specGitRepo, handoffSpecPath), ["staged\n", "working\n"])
+T("handoff git: a staged spec and its working copy are both versions", specsForCommit([specGitRepo], handoffSpecPath), ["staged\n", "working\n"])
 writeFileSync(join(specGitRepo, ".claude", "handoffs", "NEXT.md"), goodSleepPrompt)
 inSpecRepo("add", ".claude")
 T("handoff fixture: the spec handoff commits", inSpecRepo("commit", "-q", "-m", "handoff").status, 0)
@@ -3546,9 +3594,9 @@ const handoffOrigin = join(root, "handoff-origin.git")
 T("handoff fixture: local origin initializes", inHandoffRepo("init", "--bare", handoffOrigin).status, 0)
 T("handoff fixture: local origin is configured", inHandoffRepo("remote", "add", "origin", handoffOrigin).status, 0)
 T("handoff fixture: main is published locally", inHandoffRepo("push", "origin", "HEAD:refs/heads/main").status, 0)
-T("handoff git: an unchanged NEXT.md yields no version to judge", promptsForCommit(handoffGitRepo), [])
+T("handoff git: an unchanged NEXT.md yields no version to judge", promptsForCommit([handoffGitRepo]), [])
 writeFileSync(handoffFile, "# NEXT\n")
-T("handoff git: an unstaged edit yields the working copy", promptsForCommit(handoffGitRepo), ["# NEXT\n"])
+T("handoff git: an unstaged edit yields the working copy", promptsForCommit([handoffGitRepo]), ["# NEXT\n"])
 const handoffHook = join(hooksDir, "require-handoff-prompt.mjs")
 const handoffHookRun = (command) => spawnSync(process.execPath, [handoffHook], { input: JSON.stringify({ hook_event_name: "PreToolUse", session_id: "s-handoff-none", cwd: handoffGitRepo, tool_input: { command } }), encoding: "utf8" }).status
 T("handoff hook: a directory pathspec commit of an invalid prompt is refused", handoffHookRun("git commit -m x -- .claude/handoffs"), 2)
@@ -3556,7 +3604,7 @@ T("handoff hook: the same commit from Bash and from Monitor is refused", bashAnd
 T("handoff hook: a glob pathspec commit of an invalid prompt is refused", handoffHookRun("git commit -m x -- '.claude/*'"), 2)
 inHandoffRepo("add", ".")
 writeFileSync(handoffFile, attendedPrompt)
-T("handoff git: a staged edit and a different working copy yield both versions", promptsForCommit(handoffGitRepo), ["# NEXT\n", attendedPrompt])
+T("handoff git: a staged edit and a different working copy yield both versions", promptsForCommit([handoffGitRepo]), ["# NEXT\n", attendedPrompt])
 T("handoff hook: an index-only commit of a staged invalid prompt is refused", handoffHookRun("git commit -m x"), 2)
 inHandoffRepo("add", ".")
 T("handoff hook: a commit that leaves a valid prompt passes", handoffHookRun("git commit -m x -- .claude/handoffs"), 0)

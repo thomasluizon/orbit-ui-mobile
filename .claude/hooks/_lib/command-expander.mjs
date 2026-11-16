@@ -332,9 +332,25 @@ const listedShells = () => {
 /** Each shell name that the reader knows: the POSIX shells, the other known shells, and each shell of `/etc/shells`. The reader refuses each shell that is not a POSIX shell. */
 export const SHELLS = [...new Set([...SCRIPT_SHELLS, "csh", "tcsh", "fish", "pwsh", "powershell", "nu", "elvish", "xonsh", "ion", "rc", "es", "scsh", "sash", "busybox", ...listedShells()])]
 /** Programs that run the command that follows them. */
-const WRAPPERS = new Set(["sudo", "doas", "exec", "command", "builtin", "noglob", "env", "nice", "nohup", "time", "timeout", "stdbuf", "setsid", "ionice", "pkexec", "runuser", "xargs"])
-/** The option letters of a wrapper that give it a shell, a script or another directory, or remove a name from the environment (`env -i`, `env -u NAME`, `env -`). */
-const WRAPPER_REFUSED_OPTIONS = { env: /^-[A-Za-z]*[SCiu]|^--(?:split-string|chdir|ignore-environment|unset)|^-$/, sudo: /^-[A-Za-z]*[siD]|^--(?:shell|login|chdir)/, doas: /^-[A-Za-z]*s/ }
+const WRAPPERS = new Set(["sudo", "doas", "exec", "command", "builtin", "noglob", "env", "nice", "nohup", "time", "timeout", "stdbuf", "setsid", "ionice", "pkexec", "xargs"])
+/**
+ * The allow list of the options of each wrapper, each with the number of words that it takes as its value. A short option with a
+ * value can also hold the value in its own word, such as `-n5` or `-oL`. A wrapper that is not named here takes no option. Each other
+ * word that starts with `-` before the command word is not modelled, so no spelling of an option that gives a wrapper a shell, a
+ * script, a program directory, another directory or another environment passes. `env` also takes `NAME=value` words.
+ */
+const WRAPPER_OPTIONS = {
+  env: { "--": 0 },
+  nice: { "-n": 1 },
+  timeout: { "-s": 1, "-k": 1, "--preserve-status": 0, "--foreground": 0 },
+  time: { "-p": 0 },
+  stdbuf: { "-i": 1, "-o": 1, "-e": 1 },
+  command: { "-v": 0, "-V": 0 },
+  ionice: { "-c": 1, "-n": 1 },
+  xargs: { "-0": 0, "-r": 0, "-t": 0, "-n": 1, "-L": 1, "-P": 1, "-I": 1, "-d": 1 },
+}
+/** The duration word that `timeout` takes after its options. */
+const TIMEOUT_DURATION = /^\d+(?:\.\d+)?[smhd]?$/
 /** The words that end a list of the grammar: `then`, `else` and `fi` of `if`, and `do` and `done` of `for`. */
 const TERMINATORS = new Set(["then", "else", "fi", "do", "done"])
 /** Reserved words of a compound command outside the grammar. */
@@ -358,8 +374,7 @@ const ALLOWED_PROGRAMS = ["git", "gh", "node", "npm", "npx", "pnpm", "yarn", "tu
   "shasum", "sha256sum", "md5", "md5sum", "base64", "xxd", "od", "hexdump", "strings", "iconv", "mktemp", "printenv", "uname", "whoami", "id", "hostname", "ps", "lsof",
   "curl", "which", "man", "sw_vers"]
 /** Each command word that the reader knows: the wrappers, the allowed builtins, the allowed programs and the POSIX shells. Each other command word is refused. */
-export const KNOWN_COMMAND_WORDS = [...new Set(["sudo", "doas", "exec", "command", "builtin", "noglob", "env", "nice", "nohup", "time", "timeout", "stdbuf", "setsid", "ionice", "pkexec",
-  "runuser", "xargs", ...ALLOWED_BUILTINS, ...ALLOWED_PROGRAMS, ...SCRIPT_SHELLS])]
+export const KNOWN_COMMAND_WORDS = [...new Set([...WRAPPERS, ...ALLOWED_BUILTINS, ...ALLOWED_PROGRAMS, ...SCRIPT_SHELLS])]
 /** zsh runs the words after each one as a command, or reads it as a part of a compound command. bash reads the name of a program. */
 const ZSH_COMMAND_WORDS = new Set(["nocorrect", "repeat", "-", "always", "foreach"])
 /** Builtins whose words are names or assignments. The reader allows only a name and `NAME=value` there, with no option. */
@@ -795,30 +810,50 @@ function parseIf(parser) {
   return { type: "if", test, then, otherwise }
 }
 
+/** The number of words that the option word `text` takes from the allow list `options`, with its value, or 0 when the list does not name it. */
+const optionWords = (options, text) => {
+  if (Object.hasOwn(options, text)) return 1 + options[text]
+  return /^-[A-Za-z0-9]./.test(text) && options[text.slice(0, 2)] === 1 ? 1 : 0
+}
+
+/**
+ * The wrappers from `start` of a word list, read with the allow list of the options of each wrapper. `end` is the index of the
+ * word after them. `refused` names the first word that the allow list does not name, or is "". `assignments` are the words of `env`.
+ */
+function readWrappers(words, start) {
+  const wrappers = []
+  const assignments = []
+  let index = start
+  while (index < words.length && WRAPPERS.has(programName(words[index].text))) {
+    const wrapper = programName(words[index].text)
+    wrappers.push(wrapper)
+    index++
+    while (index < words.length && words[index].text.startsWith("-")) {
+      const { text } = words[index]
+      const taken = optionWords(WRAPPER_OPTIONS[wrapper] ?? {}, text)
+      if (taken === 0 || index + taken > words.length) return { wrappers, assignments, end: index, refused: `the option \`${text}\` of \`${wrapper}\`` }
+      index += taken
+      if (text === "--") break
+    }
+    if (wrapper === "env") while (index < words.length && ASSIGNMENT_WORD.test(words[index].text)) assignments.push(words[index++])
+    if (wrapper === "timeout") {
+      if (!TIMEOUT_DURATION.test(words[index]?.text ?? "")) return { wrappers, assignments, end: index, refused: "a `timeout` with no literal duration" }
+      index++
+    }
+  }
+  return { wrappers, assignments, end: index, refused: "" }
+}
+
+/** The index of each word where a command can start: the first word, and the word after each `find -exec`. */
+const invocationStarts = (words) => [0, ...words.flatMap((word, index) => (FIND_EXEC.test(word.text) ? [index + 1] : []))]
+
 /** Each program that a word list runs: its command word after the wrappers, and the command after each `find -exec`. */
 export function invocationsOf(words) {
   const invocations = []
-  const isWrapper = (word) => WRAPPERS.has(programName(word.text))
-  const isRead = (word) => ["rm", "rmdir", "git", ...SHELLS, ...CODE_BUILTINS].includes(programName(word.text))
-  const collect = (start) => {
-    let index = start
-    const wrappers = []
-    while (index < words.length && isWrapper(words[index])) {
-      wrappers.push(programName(words[index].text))
-      index++
-      while (index < words.length && !isRead(words[index]) && !isWrapper(words[index])) {
-        const { text } = words[index]
-        if (text.startsWith("-")) {
-          const value = words[index + 1]
-          index += value !== undefined && !value.text.startsWith("-") && !value.text.includes("=") && !isRead(value) && !isWrapper(value) ? 2 : 1
-        } else if (ASSIGNMENT_WORD.test(text) || /^\d/.test(text)) index++
-        else break
-      }
-    }
-    if (index < words.length) invocations.push({ program: words[index], args: words.slice(index + 1), wrappers, before: words.slice(start, index) })
+  for (const start of invocationStarts(words)) {
+    const { wrappers, end } = readWrappers(words, start)
+    if (end < words.length) invocations.push({ program: words[end], args: words.slice(end + 1), wrappers, before: words.slice(start, end) })
   }
-  collect(0)
-  words.forEach((word, index) => { if (FIND_EXEC.test(word.text)) collect(index + 1) })
   return invocations
 }
 
@@ -881,14 +916,10 @@ function checkCommand(command, place) {
   }
   if (command.words.some(holdsSubscriptCode)) notModelled("text with a `[` and a `$(` or a backtick, which bash can run as a subscript")
   // The options and assignments of each wrapper, also when no command follows them, such as `env -S 'git push'`.
-  let wrapper = ""
-  for (const { text } of command.words) {
-    if (WRAPPERS.has(programName(text))) { wrapper = programName(text); continue }
-    if (!wrapper) continue
-    if (WRAPPER_REFUSED_OPTIONS[wrapper]?.test(text)) notModelled(`the option \`${text}\` of \`${wrapper}\`, which gives it a shell, a script or another directory, or removes a name from the environment`)
-    const assigned = ASSIGNMENT_WORD.exec(text)
-    if (assigned) refusedAssignment(assigned[1])
-    else if (!text.startsWith("-") && !/^\d/.test(text)) wrapper = ""
+  for (const start of invocationStarts(command.words)) {
+    const { refused, assignments } = readWrappers(command.words, start)
+    if (refused) notModelled(`${refused}, which the allow list of the wrapper options does not name. A wrapper takes only the options of \`WRAPPER_OPTIONS\` in \`command-expander.mjs\``)
+    for (const word of assignments) refusedAssignment(ASSIGNMENT_WORD.exec(word.text)[1])
   }
   for (const invocation of invocationsOf(command.words)) {
     const { program, args, before } = invocation
@@ -1160,4 +1191,5 @@ export const PLAIN_SUBSET_ADVICE =
   "The one exception: a `git` argument or a `cd` path can use a variable with a lower case name, such as `wt=/abs/path; git -C \"$wt\" status`, that the line sets to a literal value. " +
   "An upper case name such as `$WT` is never read there. Each command word must be a program or a builtin that the hook knows; " +
   "`read`, `chdir`, `pushd`, `popd`, `eval`, `source`, `print` and a shell other than a POSIX shell are refused. " +
-  "For more than that, write the commands to a script file and run the file by its literal path, such as `bash /abs/path.sh`."
+  "For a search, a filter or a text check, write it to a `.mjs` file and run it with `node /abs/path.mjs`. " +
+  "For other commands, write them to a script file and run the file by its literal path, such as `bash /abs/path.sh`."

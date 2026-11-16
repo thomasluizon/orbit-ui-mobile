@@ -86,7 +86,8 @@ that each one covers (the `covers` text of its refusal):
 `not-modelled` is the fail-safe rule. The reader is an allow list: `readCommand` in `command-expander.mjs` reads one small
 grammar, and names each other construct as not modelled. The approval rule and `checkGitCommand` in `rules-git.mjs` read only
 the parsed words of that grammar, through `walkCommands`, never the text of the command. The refusal names the construct, and
-it asks for the plain subset or for a script file that the agent runs by its literal path.
+it asks for the plain subset, for a `.mjs` file that `node` runs for a search or a filter, or for a script file that the agent
+runs by its literal path.
 
 The grammar:
 
@@ -115,6 +116,14 @@ The reader is an allow list in each class:
 - A name in `REFUSED_ASSIGNMENT` is refused in each way that the grammar can assign or export it: an assignment word, a
   `for` name, a `NAME=value` word of a wrapper such as `env`, and a word of a declaration builtin, with or without `=`.
   `env -i`, `env -u NAME`, `env --unset`, `env --ignore-environment` and `env -` remove a name, so they are refused too.
+- The options of a wrapper are read from `WRAPPER_OPTIONS`: `env` takes only `--` and `NAME=value` words, `nice` takes `-n N`,
+  `timeout` takes `-s SIG`, `-k DURATION`, `--preserve-status` and `--foreground` and then one duration word, `time` takes
+  `-p`, `stdbuf` takes `-i`, `-o` and `-e` with a value, `command` takes `-v` and `-V`, `ionice` takes `-c` and `-n` with
+  a value, and `xargs` takes `-0`, `-r`, `-t`, `-n`, `-L`, `-P`, `-I` and `-d`. A short option with a value can hold the
+  value in the same word, such as `-n5`. `exec`, `nohup`, `noglob`, `builtin`, `setsid`, `sudo`, `doas` and `pkexec` take
+  no option. Each other word that starts with `-` before the command word is refused, so `env -P`, `env -i`, `env -u`,
+  `exec -c`, `sudo -u` and each prefix of a GNU long option, such as `env --sp=` or `env --ign`, never pass. `runuser` reads
+  its first word as a user name, not as a command, so it is no wrapper and is refused.
 - `chdir`, `pushd` and `popd` are refused. `cd PATH` is the only builtin that changes the directory, and the walk follows it.
 - The POSIX shells (`bash`, `sh`, `zsh`, `dash`, `ksh` and others) are allowed only with a script file. Each other shell,
   from a list of known names and from `/etc/shells`, is refused with any word, for example `csh`, `tcsh`, `fish` and `pwsh`.
@@ -145,7 +154,7 @@ that names a shell, and in a `git` argument or a `cd` path. Each other construct
   backtick, a line continuation, a here-string, `<<-`, `&>>`, a redirect to a path that is not literal, and the zsh numeric
   glob `<N-M>` or `<->`, which bash reads as two redirects
 - `eval`, `source`, `.`, `let`, `alias`, `trap`, `setopt`, `set -o`, `printf -v`, `hash`, `sched`, `break`, `continue`,
-  `env -S`, `env -C`, `env -i`, `env -u`, `sudo -s`, and the zsh command words `nocorrect`, `repeat`, `-`, `always` and `foreach`
+  each wrapper option that `WRAPPER_OPTIONS` does not name, and the zsh command words `nocorrect`, `repeat`, `-`, `always` and `foreach`
 - a POSIX shell with `-c`, a shell that reads its script from standard input, from a pipe, from a here document or a `<` file
   of its own, or from a path under `/dev` or `/proc`, and a `-c` after a shell word anywhere in a command
 - an assignment to a name in `REFUSED_ASSIGNMENT`: the prompt names (`PS1` to `PS4`, `PROMPT`, `RPROMPT`, `SPROMPT`,
@@ -160,11 +169,15 @@ its arguments or from a file, such as `node -e`, `npm run`, `npx`, `awk` with `s
 alias or an extension, and `dotnet` or `cargo` with a project, is not read. An alias, a function or an option of the user
 profile, a config file that the agent writes (for example a git alias or `url.*.pushInsteadOf` in a git config file), and a
 script file that the agent runs by its path are not read. A `cd` that fails is read as a `cd` that succeeds, and a `CDPATH` in
-the environment is not read. A wrapper that changes the user, such as `sudo -u`, `doas -u`, `runuser` and `pkexec`, gives git
-the home and the config of that user, and the hook does not read them.
+the environment is not read. A wrapper that runs the command as another user, `sudo`, `doas` and `pkexec`, gives git the
+home and the config of that user, and the hook does not read them.
 
 `checkGitCommand` refuses a command outside the grammar in an unattended run, the same runs in which the approval rule applies.
 In an attended session it refuses such a command only when the text, with its quotes and backslashes removed, names `git`.
+The rule never resolves a `-C` path in Node: it gives git the directory after the `cd` model and each raw `-C` word, as
+`git -C <dir> -C <w1> ... -C <wn> remote get-url --push <remote>`, because git applies `-C` with `chdir`, which follows a
+symlink before it reads `..`. The shell `cd` reads `..` by text, so the `cd` model does the same. The handoff gate reads the
+top level of a `git -C` commit in the same way.
 In a protected repository, the push rule allows only `git push origin <branch>`, `git push -u origin <branch>` and
 `git push origin HEAD:<branch>`, where `<branch>` is a plain branch name that is not `main` or `master`. Before the subcommand,
 git takes only `-C <path>` and options that change no config, no repository and no hook, so `-c`, `--config-env`,

@@ -19,8 +19,9 @@ try {
   const command = input?.tool_input?.command
   if (typeof command !== "string") process.exit(0)
 
-  const resolveRemoteUrl = (dir, remote = "origin") =>
-    execFileSync("git", ["-C", dir, "remote", "get-url", "--push", remote], {
+  // git reads the chain of directories itself, so a symlink and `..` resolve as they do for the command.
+  const resolveRemoteUrl = (chain, remote = "origin") =>
+    execFileSync("git", [...chain.flatMap((directory) => ["-C", directory]), "remote", "get-url", "--push", remote], {
       encoding: "utf8",
       stdio: ["ignore", "pipe", "ignore"],
     }).trim()

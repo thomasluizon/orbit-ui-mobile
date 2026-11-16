@@ -32,23 +32,22 @@ const isCanonicalRemote = (remote) => {
 
 // Fails SAFE: when the target repo cannot be resolved, assume it is protected.
 // Wrongly blocking a push is recoverable; wrongly allowing one onto main is not.
-function targetsProtectedRepo(dir, resolveRemoteUrl) {
+function targetsProtectedRepo(chain, resolveRemoteUrl) {
   if (typeof resolveRemoteUrl !== "function") return true
   try {
-    const name = repoNameFrom(resolveRemoteUrl(dir))
+    const name = repoNameFrom(resolveRemoteUrl(chain))
     return name ? PROTECTED_REPOS.includes(name) : true
   } catch {
     return true
   }
 }
 
-// The push may target another repo: `git -C <dir> push`, or a `cd <dir> &&`
-// earlier in the same chain. Honor both before falling back to the session cwd.
-function pushTargetDir(globals, cwd) {
-  let directory = cwd
-  globals.forEach((token, index) => { if (token === "-C" && globals[index + 1] !== undefined) directory = resolve(directory, globals[index + 1]) })
-  return directory
-}
+/**
+ * The directories that git changes to before it reads the repository: the shell directory after the `cd` model, then each raw
+ * `-C` word in order. `resolveRemoteUrl` gives the whole chain to git as `git -C <dir> -C <w1> ... -C <wn>`. Node never resolves
+ * a `-C` word, because git applies each one with `chdir`, which follows a symlink before it reads `..`.
+ */
+const gitDirectoryChain = (globals, directory) => [directory, ...globals.flatMap((token, index) => (token === "-C" && globals[index + 1] !== undefined ? [globals[index + 1]] : []))]
 
 /** An unquoted heredoc expands command substitutions before its consumer starts. */
 export function unquotedHeredocRunsCommand(command) {
@@ -218,15 +217,15 @@ function isAllowedPush(rest) {
 }
 
 /** True when the push goes to a protected repository: the directory, or a remote, URL or path that names one. Fails safe. */
-function pushesToProtected(directory, rest, resolveRemoteUrl) {
-  if (targetsProtectedRepo(directory, resolveRemoteUrl)) return true
+function pushesToProtected(chain, rest, resolveRemoteUrl) {
+  if (targetsProtectedRepo(chain, resolveRemoteUrl)) return true
   return pushRepositories(rest).some((remote) => {
     if (remote === "origin") return false
     if (isRemoteLocation(remote)) {
       const name = repoNameFrom(remote)
       return name ? PROTECTED_REPOS.includes(name) : true
     }
-    return targetsProtectedRepo(directory, typeof resolveRemoteUrl === "function" ? (dir) => resolveRemoteUrl(dir, remote) : null)
+    return targetsProtectedRepo(chain, typeof resolveRemoteUrl === "function" ? (directories) => resolveRemoteUrl(directories, remote) : null)
   })
 }
 
@@ -285,7 +284,7 @@ function judgeGitCommands(command, gitCommands, { resolveRemoteUrl, unattended }
       `Before the subcommand, the hook allows only \`-C <path>\` and ${[...SAFE_GLOBAL_OPTIONS].map((option) => `\`${option}\``).join(", ")}.`)
   }
   for (const { subcommand, rest, globals, directory } of read) {
-    if (subcommand === null || !(unattended || targetsProtectedRepo(pushTargetDir(globals, directory), resolveRemoteUrl))) continue
+    if (subcommand === null || !(unattended || targetsProtectedRepo(gitDirectoryChain(globals, directory), resolveRemoteUrl))) continue
     if (!GIT_SUBCOMMANDS.includes(subcommand)) {
       return blocked(command, `The git subcommand \`${subcommand}\` is not one that the hook knows. An alias and a subcommand that can push or run a command are refused. ` +
         `The hook knows only: ${GIT_SUBCOMMANDS.join(" ")}. For another subcommand, write the command to a script file and run the file by its literal path, such as \`bash /abs/path.sh\`.`)
@@ -301,7 +300,7 @@ function judgeGitCommands(command, gitCommands, { resolveRemoteUrl, unattended }
   }
   // Everything below is branch protection, so it applies only to the repos that actually have it. Each push is judged on its own target.
   for (const { globals, rest, directory } of pushes) {
-    const target = pushTargetDir(globals, directory)
+    const target = gitDirectoryChain(globals, directory)
     // git and GitHub resolve a dot segment, an escape or a repeated `/` that a name reader can miss, so only the canonical forms are read.
     const unread = (unattended || targetsProtectedRepo(target, resolveRemoteUrl)) && pushRepositories(rest).find((remote) => isRemoteLocation(remote) && !isCanonicalRemote(remote))
     if (unread) {
@@ -341,6 +340,7 @@ export function checkGitCommand(command, { resolveRemoteUrl, cwd, home, unattend
     for (const { program, args } of invocationsOf(words)) {
       if (programName(program.text) === "git") gitCommands.push({ tokens: args.map((word) => word.text), directory })
     }
+    // The shell `cd` is logical: it reads `..` by text before it follows a symlink, as `resolve` does. git `-C` is not, so git reads those words.
     return words[0]?.text === "cd" && words[1] ? resolve(directory, words[1].text) : directory
   })
   if (unread) return refuseUnread(unread)

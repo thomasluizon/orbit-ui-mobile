@@ -5,7 +5,7 @@
 import { handoffDocsChanged, operationInProgress, syncRelayCheckout } from "../../tools/lib/relay-checkout.mjs"
 import { readHandoffRequest } from "../../tools/lib/handoff-prompt.mjs"
 import { REPO_ROOT, readRunState } from "../../tools/lib/run-state.mjs"
-import { newestCommittedPrompt, promptsForCommit, specsForCommit } from "./_lib/handoff-git.mjs"
+import { newestCommittedPrompt, promptsForCommit, specsForCommit, topLevelOf } from "./_lib/handoff-git.mjs"
 import { readStdinJson } from "./_lib/io.mjs"
 import { checkHandoffCommit, checkHandoffStop } from "./_lib/rules-handoff.mjs"
 
@@ -21,7 +21,10 @@ try {
   } else if (typeof input?.tool_input?.command === "string") {
     verdict = checkHandoffCommit({ command: input.tool_input.command, cwd: input?.cwd || process.cwd(), request, state, promptsForCommit, specsForCommit,
       // Mid-operation the refresh fails (merge, cherry-pick, a rebase's detached HEAD) or drops a revert's prepared message, and the staged docs came from that operation.
-      refreshCheckout: (directory) => { if (handoffDocsChanged(directory) && !operationInProgress(directory)) syncRelayCheckout(directory) },
+      refreshCheckout: (chain) => {
+        const directory = topLevelOf(chain)
+        if (handoffDocsChanged(directory) && !operationInProgress(directory)) syncRelayCheckout(directory)
+      },
     })
   }
   if (verdict?.block) {
