@@ -343,6 +343,21 @@ describe('the create surface behind orbit_guided_flows', () => {
     expect(screen.getByRole('button', { name: new RegExp(`^${en.habits.flow.summary.time}`) }).closest('[data-proposed]') !== null).toBe(timeProposed)
   })
 
+  it('marks a repeat the person typed as a proposal when the free read replaces it', async () => {
+    state.locale = 'en'
+    state.phraseRead.mockResolvedValue({ read: true, frequencyUnit: 'Day', frequencyQuantity: 1, days: [], isFlexible: false, flexibleTarget: null, subHabits: [], checklistItems: [], emoji: '🪴', dueTime: null })
+    mountCreate()
+    await waitFor(() => expect(document.querySelector('[data-question-flow]')).not.toBeNull())
+    await phrase('water the plants every monday')
+    expect(state.phraseRead).toHaveBeenCalledTimes(1)
+    if (screen.queryByRole('button', { name: en.habits.flow.time.none })) await press(en.habits.flow.time.none)
+    if (screen.queryByRole('button', { name: en.habits.flow.reminder.no })) await press(en.habits.flow.reminder.no)
+    expect(heading()).toHaveTextContent(en.habits.flow.confirm.question)
+    const scheduleRow = screen.getByRole('button', { name: new RegExp(`^${en.habits.flow.summary.when}`) })
+    expect(scheduleRow).toHaveTextContent('every day')
+    expect(scheduleRow.closest('[data-proposed]')).not.toBeNull()
+  })
+
   it('reads a repeat typed in the phrase after the person makes a task a habit on the type step', async () => {
     state.locale = 'en'
     state.phraseRead.mockResolvedValue({ read: false, emoji: null, frequencyUnit: null, frequencyQuantity: null, days: [], isFlexible: false, flexibleTarget: null, dueTime: null, subHabits: [], checklistItems: [] })

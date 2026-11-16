@@ -310,7 +310,7 @@ export function createUseGuidedHabitFlow({ useState, useEffect, useMemo, useCall
     const title = watched.title
     const hasDate = Boolean(watched.dueDate)
 
-    const applyFreeRead = useCallback((response: HabitPhraseReadResponse, phraseGaveCadence: boolean) => {
+    const applyFreeRead = useCallback((response: HabitPhraseReadResponse) => {
       const { answers, deliberateType } = live.current
       const patch = guardHabitReadPatch(buildHabitFormPatchFromSuggestion(response), { deliberateType, timeAnswered: answers.time })
       const scheduleBefore = readSchedule(form)
@@ -323,7 +323,7 @@ export function createUseGuidedHabitFlow({ useState, useEffect, useMemo, useCall
       const gaveEmoji = Boolean(emojiAfter) && emojiAfter !== emojiBefore
       setUsedAiRead(true)
       setProposals((value) => ({
-        schedule: !phraseGaveCadence && (gaveSchedule || value.schedule),
+        schedule: gaveSchedule || value.schedule,
         time: gaveTime || (value.time && timeAfter === timeBefore),
         emoji: gaveEmoji || (value.emoji && emojiAfter === emojiBefore),
       }))
@@ -342,7 +342,7 @@ export function createUseGuidedHabitFlow({ useState, useEffect, useMemo, useCall
       leaving.current = false
       setReading(false)
       if (form.getValues().title.trim() !== phrase || live.current.step !== PHRASE_STEP) return
-      const aiGaveTime = response ? applyFreeRead(response, localRead.cadence !== null) : false
+      const aiGaveTime = response ? applyFreeRead(response) : false
       startRepeat()
       advance(stepsAfter(live.current.answers, aiGaveTime || proposals.time))
     }, [advance, applyFreeRead, form, hasDate, isOnline, live, locale, localRead, mode, proposals.time, readPhrase, startRepeat, stepsAfter, title])

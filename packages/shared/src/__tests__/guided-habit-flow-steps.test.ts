@@ -40,7 +40,8 @@ function mountFlow({ mode = 'create', lockedGeneral = null, online = true, value
   }
   const applySchedule: GuidedHabitFlowOptions['applySchedule'] = (patch) => {
     const before = JSON.stringify(values)
-    if (patch.mode !== 'oneTime') write({ frequencyUnit: patch.frequencyUnit ?? undefined, isFlexible: patch.mode === 'flexible' })
+    if (patch.mode !== 'oneTime') write({ frequencyUnit: patch.frequencyUnit ?? undefined, frequencyQuantity: patch.frequencyQuantity, isFlexible: patch.mode === 'flexible' })
+    if (patch.mode === 'recurring' && JSON.stringify(values.days ?? []) !== JSON.stringify(patch.days)) write({ days: patch.days })
     if (patch.dueTime) write({ dueTime: patch.dueTime })
     if (patch.emoji) write({ emoji: patch.emoji })
     return JSON.stringify(values) !== before
@@ -384,6 +385,18 @@ describe('the steps of the shared guided habit flow', () => {
     expect(readPhrase).toHaveBeenCalledOnce()
     expect(mounted.values).toMatchObject({ itemType: 'habit', frequencyUnit: 'Day', emoji: '🪴' })
     expect(mounted.flow.proposals).toEqual({ schedule: false, time: false, emoji: true })
+    mounted.unmount()
+  })
+
+  it('marks a repeat the person typed as a proposal when the free read replaces it', async () => {
+    const readPhrase = vi.fn(async (): Promise<HabitPhraseReadResponse> => ({ ...NO_READ, read: true, frequencyUnit: 'Day', frequencyQuantity: 1, days: [], emoji: '🪴' }))
+    const mounted = mountFlow({ readPhrase })
+    run(() => mounted.flow.changeTitle('water the plants every monday'))
+    expect(mounted.values).toMatchObject({ itemType: 'habit', frequencyUnit: 'Day', days: ['Monday'] })
+    await act(async () => { await mounted.flow.leavePhrase() })
+    expect(readPhrase).toHaveBeenCalledOnce()
+    expect(mounted.values).toMatchObject({ itemType: 'habit', frequencyUnit: 'Day', days: [], emoji: '🪴' })
+    expect(mounted.flow.proposals).toEqual({ schedule: true, time: false, emoji: true })
     mounted.unmount()
   })
 
