@@ -21,7 +21,7 @@ type Options = {
   dragDistance?: number
   dragOffset?: number[]
   pointerTravel?: number | null
-  moveLoopWait?: number | null
+  moveLoopWait?: unknown
   locale?: 0 | 1
   buttons?: string[]
   doubleClickWorks?: boolean
@@ -93,8 +93,9 @@ function windowContext(options: Options = {}) {
       const offset = options.dragOffset ?? [options.dragDistance ?? 160, 0, options.dragDistance ?? 160, 0]
       state.rect = state.rect.map((edge, index) => edge + offset[index]!)
       // The reader reports the pointer travel after the move loop started, and how long the press waited for that loop.
+      // A raw moveLoopWait goes through JSON as the reader output does, so undefined removes the key.
       if (options.pointerTravel !== null) {
-        drag = { distance: options.pointerTravel ?? 160, ...(options.moveLoopWait === null ? {} : { moveLoopWait: options.moveLoopWait ?? 40 }) }
+        drag = JSON.parse(JSON.stringify({ distance: options.pointerTravel ?? 160, moveLoopWait: 'moveLoopWait' in options ? options.moveLoopWait : 40 }))
       }
     }
     if (action === 'doubleclick' && options.doubleClickWorks !== false) state.zoomed = !state.zoomed
@@ -251,7 +252,7 @@ test('the window bar check fails when the window travels less or more than the p
 
 // The window follows the pointer only once the move loop runs, so a late loop is a bar that stays still under a moving
 // pointer. The reader waits up to 5000 ms for the loop, and the runner fails a wait above its limit of 1000 ms.
-test('the window bar check fails when the window starts to follow the pointer later than the limit or the reader reports no wait, and passes at the limit', async () => {
+test('the window bar check fails when the window starts to follow the pointer later than the limit or the reader reports no whole number of milliseconds, and passes at the limit', async () => {
   const late = (wait: number) => new RegExp(`The window started to follow the pointer ${wait} ms after the press on the window bar, above the limit of 1000 ms`)
   for (const moveLoopWait of [2000, 3000, 4999, 1001]) {
     const recorded = {} as { windowBar?: { actions?: { drag?: { after: number[]; moveLoopWait: number } } } }
@@ -259,7 +260,12 @@ test('the window bar check fails when the window starts to follow the pointer la
     assert.deepEqual(recorded.windowBar?.actions?.drag?.after, [160, 0, 960, 600])
     assert.equal(recorded.windowBar?.actions?.drag?.moveLoopWait, moveLoopWait)
   }
-  await assert.rejects(() => windowContext({ moveLoopWait: null }).run({}), /The window started to follow the pointer undefined ms after the press/)
+  // The reader writes an int, so a missing key, null, a string, a boolean, an array, a fraction or a negative wait is no
+  // measure of the drag start. The JavaScript <= operator reads null, '', false and [] as 0, true as 1 and '500' as 500.
+  for (const moveLoopWait of [undefined, null, '', '500', 'abc', true, false, [], -5, -1, 1.5]) {
+    const shown = String(moveLoopWait).replace(/[.]/g, '\\.')
+    await assert.rejects(() => windowContext({ moveLoopWait }).run({}), new RegExp(`The window started to follow the pointer ${shown} ms after the press on the window bar, above the limit of 1000 ms`), JSON.stringify(moveLoopWait) ?? 'undefined')
+  }
   for (const moveLoopWait of [0, 150, 1000]) await windowContext({ moveLoopWait }).run({})
 })
 

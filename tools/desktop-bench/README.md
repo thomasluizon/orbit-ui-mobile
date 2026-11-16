@@ -184,8 +184,8 @@ content, so the page asks the shell for the drag, and tao `handle_os_dragging` p
 finds it. Thus the `drag` action holds the pointer on the press point until `GetGUIThreadInfo` reports
 `GUI_INMOVESIZE` for the window (5 seconds at most), then travels 160 pixels, and the runner requires
 the window to travel exactly that far with its size and its top edge unchanged. `report.json` keeps
-the wait as `windowBar.actions.drag.moveLoopWait`, and the runner fails a wait above 1000 ms
-(`moveLoopLimit`), because a late move loop is a bar that stays still under a moving pointer. A
+the wait as `windowBar.actions.drag.moveLoopWait`. The runner fails a wait above 1000 ms
+(`moveLoopLimit`) and a wait that is not a whole number of milliseconds from 0 up, because a late move loop is a bar that stays still under a moving pointer. A
 pointer that left the press point in steps of 30 ms moved the window 160, 128 or 96 pixels in
 recorded runs. The slowest run lost four steps, so its loop started 120 to 150 ms after the press,
 and the limit keeps about seven times that for a loaded runner. Next the `systemmenu` action
