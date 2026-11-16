@@ -18,6 +18,7 @@ import { createTokensV2, radius } from '@/lib/theme'
 import { BottomSheetAppTextInput } from '@/components/ui/bottom-sheet-app-text-input'
 import { ProgressBar } from '@/components/ui/progress-bar'
 import { useAppTheme } from '@/lib/use-app-theme'
+import { insetHairlineRing } from '@/components/ui/inset-hairline-ring'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
 import { PillButton } from '@/components/ui/pill-button'
@@ -373,7 +374,7 @@ export function HabitChecklist({
         </View>
       ) : (
         items.length > 0 && (
-          <View style={styles.itemsCard}>
+          <View testID="habit-checklist-items" style={styles.itemsCard}>
             {items.map((item, index) => (
               // react-doctor-disable-next-line no-array-index-as-key -- ChecklistItem is a value object with no stable id; the interactive list is toggle-only and never reorders, so the positional key is stable https://github.com/thomasluizon/orbit-ui-mobile/issues/243
               <InteractiveChecklistItem
@@ -471,8 +472,8 @@ function createStyles(tokens: AppTokens) {
   itemsCard: {
     borderRadius: 18,
     backgroundColor: tokens.bgCard,
-    borderWidth: 1,
-    borderColor: tokens.hairline,
+    ...insetHairlineRing,
+    outlineColor: tokens.hairline,
     overflow: 'hidden',
   },
   editableItem: {
