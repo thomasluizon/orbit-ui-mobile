@@ -37,7 +37,7 @@ UI `main` `8b81175e7`; API `main` `38513551a`; landing `main` `20c1b0a90`. Owner
 | `#2146` | Round 2 committed in two commits (`042bae955` and one more); read both diffs, review worker, push, open the pull request. |
 | `#2143` | Round 3 committed (liveness recheck at each removal); read the diff, review worker, push, open the pull request. |
 | ui#2478 (`#2135`) | Exporter fix open at `dd3959de2`; read the diff, review worker, Pullfrog. |
-| `#2135` baseline | Stopped by the coordinator to relay (it had 3 hours of ceiling left). Relaunch S `order-2135-baseline-r3.md` with 240 minutes: step 0 is done, keep the saved windows (S `b2135-r3/`, `eval-2135-baseline/`). The worktree `verify-2036-main` still holds the generated `evals/astra/catalog.yaml`; the worker restores it at the end. |
+| `#2135` baseline | Stopped by the coordinator to relay. Relaunch S `order-2135-baseline-r3.md` with 240 minutes: step 0 is done, keep the saved windows (S `b2135-r3/`, `eval-2135-baseline/`). The worktree `verify-2036-main` still holds the generated `evals/astra/catalog.yaml`; the worker restores it at the end. |
 | ui#2453 (`#2122`) | Stacked; after `#2121`. |
 
 ## Then, in this order
@@ -59,4 +59,4 @@ Unattended: never ask the owner; decide with the best option and log it. Keep a 
 - Done: landing#136, ui#2474, ui#2470 merged (`#2140` closed); ui#2475 to ui#2478 opened; intake clean.
 - Carried: every In flight row above; the usage, GO FASTER, stale-file, `#2149` scope and worker-model orders.
 
-Every identifier here came from a previous session; treat each as a lead to verify.
+Treat every identifier here as a lead to verify.
