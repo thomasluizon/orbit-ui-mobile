@@ -11,9 +11,7 @@ import { useTimeFormat } from '@/hooks/use-time-format'
 interface HabitResultDialogProps {
   habitId: string
   change: 'created' | 'updated'
-  /** Closes the dialog and the flow behind it. */
   onClose: () => void
-  /** Starts a new empty flow. Absent on an edit. */
   onCreateAnother?: () => void
 }
 

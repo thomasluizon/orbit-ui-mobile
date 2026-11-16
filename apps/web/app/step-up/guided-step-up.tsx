@@ -62,7 +62,6 @@ function GuidedStepUpResend({ cooldownSeconds, requesting, onResend, t }: Readon
   return <PillButton variant="ghost" size="sm" loading={requesting} onClick={onResend}>{t('resend')}</PillButton>
 }
 
-/** The code question. The confirm action stays enabled, and an expired code asks for another through the same filled action. */
 function challengeView(state: GuidedStepUpChallengeState, t: Translate, backLabel: string): GuidedStepUpView {
   const { checking, expired, requesting } = state
   return {
@@ -80,7 +79,6 @@ function challengeView(state: GuidedStepUpChallengeState, t: Translate, backLabe
   }
 }
 
-/** The attempts ran out: the limit in neutral tokens, the time the lock ends, and the way back on the back arrow. */
 function exhaustedView(state: Extract<GuidedStepUpState, { kind: 'exhausted' }>, t: Translate): GuidedStepUpView {
   return {
     step: 'exhausted', question: t('exhaustedTitle'), line: t('exhaustedBody'), back: { label: state.backLabel, onPress: state.onBack },
@@ -92,7 +90,6 @@ function exhaustedView(state: Extract<GuidedStepUpState, { kind: 'exhausted' }>,
   }
 }
 
-/** The account closes on the date the server set. The result dialog opens over this state, and a dismissal leaves it underneath. */
 function successView(state: Extract<GuidedStepUpState, { kind: 'success' }>, t: Translate, titleDate: string): GuidedStepUpView {
   return {
     step: 'done', question: t('successTitle', { date: titleDate }), line: t('successBody'), primary: { label: t('signOut'), onPress: state.onSignOut },

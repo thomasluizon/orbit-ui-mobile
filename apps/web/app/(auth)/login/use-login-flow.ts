@@ -211,7 +211,6 @@ export function useLoginFlow(isAuthCallback = false) {
     } finally { busy.current = false; setIsSubmitting(false) }
   }
 
-  /** The guided continue action stays enabled, so an empty submit shows the hint beside the field and focuses it. */
   function refuseEmptyEmail() {
     setErrorKey('auth.errors.invalidEmail')
     setEmailFocusRequest((request) => request + 1)

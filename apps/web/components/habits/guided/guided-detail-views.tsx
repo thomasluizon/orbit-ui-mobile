@@ -185,7 +185,6 @@ function useEndDateView({ flow, formHelpers }: Readonly<DetailInput>): FlowStepV
   }
 }
 
-/** The hosted questions: each one keeps the current component of its field, unchanged, inside its own step. */
 function useHostedViews({ flow, formHelpers, fields }: Readonly<DetailInput>): Partial<Record<HabitFlowStepKey, FlowStepView>> {
   const t = useTranslations()
   const { form } = formHelpers
@@ -200,7 +199,6 @@ function useHostedViews({ flow, formHelpers, fields }: Readonly<DetailInput>): P
   }
 }
 
-/** The checklist, tag and goal questions: each step owns its quick options, its free path and its continue. The host mounts them on every render. */
 function useRelationViews({ flow, formHelpers, fields }: Readonly<DetailInput>): Partial<Record<HabitFlowStepKey, FlowStepView>> {
   const { form } = formHelpers
   const title = form.watch('title')

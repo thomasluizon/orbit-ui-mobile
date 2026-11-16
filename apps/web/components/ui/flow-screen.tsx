@@ -9,14 +9,8 @@ import { useViewportMatch } from '@/hooks/use-viewport-match'
 import { useUIStore } from '@/stores/ui-store'
 
 interface FlowScreenProps {
-  /** The accessible name of the screen: the action the flow does, such as "Start over". */
   label: string
-  /** Escape. The flow decides what a dismissal does: a step back, the discard sheet, or a close. */
   onDismiss: () => void
-  /**
-   * `overlay` covers the view, keeps the background inert and opens with the `route-push` preset: a flow started from
-   * a row or an action. `route` fills a route that is already its own screen, so the shell and the sidebar stay.
-   */
   presentation?: 'overlay' | 'route'
   children: ReactNode
 }
@@ -27,7 +21,6 @@ export function FlowScreen({ presentation = 'overlay', ...props }: Readonly<Flow
   return <FlowScreenOverlay {...props} />
 }
 
-/** Escape asks to leave, as it does in the overlay. A sheet above the flow keeps its own Escape. */
 function FlowScreenRoute({ label, onDismiss, children }: Readonly<Omit<FlowScreenProps, 'presentation'>>) {
   const regionRef = useRef<HTMLDivElement>(null)
   useEffect(() => {

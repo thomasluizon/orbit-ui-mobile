@@ -49,7 +49,6 @@ export async function measureFlowMarkup(browser: Browser, stylesheet: string, wi
     await page.setContent(`<!DOCTYPE html><html class="dark" style="${theme}"><style>${stylesheet}</style><body style="margin:0"><div class="flex h-dvh flex-col">${markup}</div></body></html>`)
     await loadAppFonts(page)
     return await page.evaluate(() => {
-      /** Only text boxes count, and a box starts a new line only when its top is more than half a line under the last one, so boxes on one line never read as two. */
       const lineCount = (element: Element | null) => {
         if (!element) return 0
         const tops: number[] = []

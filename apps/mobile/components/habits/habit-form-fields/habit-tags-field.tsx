@@ -21,7 +21,6 @@ import { TagSuggestions } from './tag-suggestions'
 
 interface HabitTagsFieldProps {
   tags: TagSelectionState
-  /** The title and the description feed the tag suggestions. */
   title: string
   description: string
 }

@@ -4,7 +4,6 @@ import type { OptionCardProps } from '@orbit/shared/contracts/flow'
 
 const ARROW_KEYS = ['ArrowRight', 'ArrowLeft', 'ArrowDown', 'ArrowUp']
 
-/** Arrow keys move focus between the options of one question. They never select: only Enter, Space or a press does. */
 function moveFocusBetweenOptions(event: React.KeyboardEvent<HTMLButtonElement>) {
   if (!ARROW_KEYS.includes(event.key)) return
   const group = event.currentTarget.closest('[data-option-group]')

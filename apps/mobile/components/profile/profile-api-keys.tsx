@@ -44,7 +44,6 @@ import { getAccountGeneration } from '@/lib/session-epoch'
 interface ProfileApiKeysProps {
   profile: Profile | undefined
   unlocked: boolean
-  /** The flag `orbit_guided_flows`: key creation runs as a one-question flow that ends on the reveal step. */
   guided?: boolean
 }
 

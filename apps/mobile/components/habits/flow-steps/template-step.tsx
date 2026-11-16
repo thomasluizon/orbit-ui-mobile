@@ -20,7 +20,6 @@ import { useThemeTokens } from '@/hooks/use-theme-tokens'
 import { useListRowMotion } from './list-row-motion'
 import { useAccountScopedState } from '@/hooks/use-session-reset'
 
-/** The quick options show the first saved templates. Every template stays reachable in the list under them. */
 const QUICK_TEMPLATES = 4
 
 type Tokens = ReturnType<typeof useThemeTokens>

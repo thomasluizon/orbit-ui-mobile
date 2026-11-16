@@ -14,7 +14,6 @@ vi.mock('dompurify', () => ({ default: { sanitize: (html: string) => html } }))
 
 import { PreferencePickerSheet } from '@/app/(app)/preferences/_components/preference-picker-sheet'
 
-/** The longest names of the time zone list at 17px Geist: 248 to 288 wide, past the 240 of a card at 320. */
 const STORED = 'America/North_Dakota/New_Salem'
 const DEVICE = 'America/Argentina/Rio_Gallegos'
 const MATCHES = ['America/North_Dakota/Beulah', 'America/North_Dakota/Center', STORED]

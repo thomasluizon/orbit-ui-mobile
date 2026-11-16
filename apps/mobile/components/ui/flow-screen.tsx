@@ -8,14 +8,8 @@ import { usePrefersReducedMotion } from '@/lib/motion'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 interface FlowScreenProps {
-  /** The accessible name of the screen: the action the flow does, such as "Start over". */
   label: string
-  /** Android back. The flow decides what a dismissal does: a step back, the discard sheet, or a close. */
   onDismiss: () => void
-  /**
-   * `overlay` covers the view and fades in, instantly under reduced motion: a flow started from a row or an action.
-   * `route` fills a route that is already its own screen. The route owns Android back through its navigation guard.
-   */
   presentation?: 'overlay' | 'route'
   children: ReactNode
 }

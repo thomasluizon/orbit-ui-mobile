@@ -19,7 +19,6 @@ vi.mock('next/navigation', async (importOriginal) => ({ ...await importOriginal<
 const STATES = ['email', 'from onboarding', 'offline', 'code', 'code wrong', 'code expired', 'locked out', 'resend ready', 'account back'] as const satisfies readonly AuthScreenState[]
 const cases = FLOW_WIDTHS.flatMap((width) => FLOW_LOCALES.flatMap((locale) => STATES.map((state) => ({ width, locale, state }))))
 
-/** The markup of one sign-in state inside the frame of the sign-in routes, rendered still. */
 function captureState(state: AuthScreenState, locale: 'en' | 'pt-BR', width: number, overrides: Record<string, unknown> = {}, callback?: LoginCallback): string {
   stubViewportMedia(width)
   vi.stubEnv('NEXT_PUBLIC_APPLE_CLIENT_ID', 'org.useorbit.web')

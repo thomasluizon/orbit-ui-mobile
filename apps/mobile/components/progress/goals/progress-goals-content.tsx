@@ -25,7 +25,6 @@ import { ProgressSubscreen } from '../progress-subscreen'
 import { GoalsSection } from './goals-section'
 import { useGoalSeenProgress } from './use-goal-seen-progress'
 
-/** The empty goals list: Orbit at rest at the state size, the title and one action. */
 function GoalsEmptyState({ onCreate }: Readonly<{ onCreate: () => void }>) {
   const { t } = useTranslation()
   const { width } = useWindowDimensions()
@@ -36,7 +35,6 @@ function ProgressPageHeading({ focusRef, title }: Readonly<{ focusRef: RefObject
   return <Text ref={focusRef} testID="progress-screen-heading" accessible style={styles.screenReaderTitle}>{title}</Text>
 }
 
-/** Focus returns to the card the person opened or created, or to the page heading. */
 function useGoalFocusReturn(creating: boolean, createdGoalId: string | null, detailGoalId: string | null) {
   const openingGoalIdRef = useRef<string | null>(null)
   const goalCardRefs = useRef(new Map<string, View>())

@@ -16,7 +16,6 @@ type HabitCreateFrameProps = ComponentProps<typeof Sheet> & {
   presentation: 'sheet' | 'screen'
   fromConversation: boolean
   leaving: boolean
-  /** The one-question flow owns its header, its close and its primary action, so the frame adds none. */
   guided?: boolean
   leaveGuard?: ComponentType<{ leaving: boolean; requestLeave: () => void }>
 }

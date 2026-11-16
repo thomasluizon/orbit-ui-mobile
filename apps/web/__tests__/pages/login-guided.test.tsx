@@ -41,7 +41,6 @@ function show(state: AuthScreenState, locale: Locale, options: { guided?: boolea
   return { ...view, t: fixture.t }
 }
 
-/** The names of every button and link a person can use, so the two surfaces compare by what they offer. */
 function reachableControls(container: HTMLElement) {
   return [...container.querySelectorAll<HTMLElement>('button:not(:disabled), a')].map((control) => control.getAttribute('aria-label') ?? control.textContent).sort((first, second) => first.localeCompare(second))
 }

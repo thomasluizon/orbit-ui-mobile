@@ -10,7 +10,6 @@ import { useAppTheme } from '@/lib/use-app-theme'
 
 interface DeleteAccountFlowProps {
   step: 'warning' | 'send'
-  /** The general warning, the warning for the person's plan (with the App Store notice) and the detail. */
   warnings: [string, string, string]
   email: string | null
   offline: boolean

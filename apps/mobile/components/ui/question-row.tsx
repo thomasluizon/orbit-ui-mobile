@@ -5,9 +5,7 @@ import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 interface QuestionRowProps {
-  /** The question in the words of the person. It is the visible label and the accessible name. */
   question: string
-  /** The current answer. */
   value?: string
   onPress: () => void
 }

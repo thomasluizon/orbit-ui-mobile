@@ -11,7 +11,6 @@ import { loadAppFonts } from '@/__tests__/support/app-fonts'
 
 const HEIGHT = 780
 type Translate = (key: string, values?: Record<string, string>) => string
-/** One dialog of each kind: a create with two actions, a destructive result with one action, and the longest sentence. */
 const dialogs: Record<string, (t: Translate) => { sentence: string; primary: string; secondary?: string; orbitState: 'feliz' | 'parado' }> = {
   'created task': (t) => ({ sentence: t('result.task.datedTimed', { date: '14/11', time: '08:00' }), primary: t('result.seeToday'), secondary: t('result.createAnother'), orbitState: 'feliz' }),
   'sent support request': (t) => ({ sentence: t('result.support.sent', { email: 'ada@example.com' }), primary: t('profile.support.backToAbout'), orbitState: 'feliz' }),
@@ -45,7 +44,6 @@ describe('result dialog centring in Chromium', () => {
       await loadAppFonts(page)
       const geometry = await page.evaluate(() => {
         const panel = document.querySelector('[role="dialog"]')!.getBoundingClientRect()
-        /** Only text boxes count, and a box starts a new line only when its top is more than half a line under the last one. */
         const lineCount = (element: Element) => {
           const tops: number[] = []
           const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT)

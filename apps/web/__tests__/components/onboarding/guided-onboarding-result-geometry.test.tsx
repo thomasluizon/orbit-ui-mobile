@@ -24,7 +24,6 @@ describe('onboarding result read error geometry in Chromium', () => {
   afterEach(() => { cleanup(); vi.unstubAllGlobals() })
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
 
-  /** Mobile parity: the 24 gap of the panel plus the 48 top inset of the error state puts the message 72 under Orbit. */
   it.each(FLOW_LOCALES)('puts the read error message 72 under Orbit at 320 px in %s', async (locale) => {
     stubViewportMedia(WIDTH)
     const messages = locale === 'en' ? en : ptBR

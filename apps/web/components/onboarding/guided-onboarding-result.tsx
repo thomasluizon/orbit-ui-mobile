@@ -12,9 +12,7 @@ import { useTimeFormat } from '@/hooks/use-time-format'
 import { useOnboardingDraftStore } from '@/stores/onboarding-draft-store'
 
 interface GuidedOnboardingResultProps {
-  /** The id the create returned: a habit of the account, or the position of the habit that waits on this device before sign-in. */
   habitId: string | null
-  /** Before sign-in the filled action signs in, because the habit waits on this device for the account. */
   signedOut: boolean
   timeZone: string | null | undefined
   onPrimary: () => void
@@ -23,13 +21,11 @@ interface GuidedOnboardingResultProps {
 
 interface SavedOnboardingHabitRead {
   saved: OnboardingSavedHabit | undefined
-  /** The read ended with no habit: the request failed, or the store does not hold the habit that waits on this device. */
   failed: boolean
   retrying: boolean
   retry: () => void
 }
 
-/** The saved habit, read back: the query cache of the account, or the stored habit that waits for the account. Never the draft. */
 function useSavedOnboardingHabit(habitId: string | null, signedOut: boolean): SavedOnboardingHabitRead {
   const account = useHabitDetail(signedOut ? null : habitId)
   const waitingHabit = useOnboardingDraftStore((state) => (signedOut && habitId !== null ? state.habits[Number(habitId)] : undefined))
@@ -39,7 +35,6 @@ function useSavedOnboardingHabit(habitId: string | null, signedOut: boolean): Sa
   return { saved: account.data, failed: account.data === undefined && account.isError, retrying: account.isFetching, retry: () => { void account.refetch() } }
 }
 
-/** The read of the saved habit failed. The habit exists, so the dialog states that fact and offers the read again. Orbit is Parado after a miss, with no hop. */
 function OnboardingResultReadError({ retrying, onRetry, onClose }: Readonly<{ retrying: boolean; onRetry: () => void; onClose: () => void }>) {
   const t = useTranslations()
   const message = t('onboarding.flow.done.readFailed')

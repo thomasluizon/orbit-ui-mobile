@@ -11,11 +11,8 @@ import { useTimeFormat } from '@/hooks/use-time-format'
 import { useOnboardingDraftStore } from '@/stores/onboarding-draft-store'
 
 interface GuidedOnboardingResultProps {
-  /** The id the create returned: a habit of the account, or the position of the habit that waits on this device before sign-in. */
   habitId: string | null
-  /** The facts the create request sent. A create made offline is queued with a temporary id, so the optimistic record answers until the server record exists. */
   optimistic: OnboardingSavedHabit
-  /** Before sign-in the filled action signs in, because the habit waits on this device for the account. */
   signedOut: boolean
   timeZone: string | null | undefined
   onPrimary: () => void
@@ -24,13 +21,11 @@ interface GuidedOnboardingResultProps {
 
 interface SavedOnboardingHabitRead {
   saved: OnboardingSavedHabit | undefined
-  /** The read ended with no habit: the request failed, or the store does not hold the habit that waits on this device. */
   failed: boolean
   retrying: boolean
   retry: () => void
 }
 
-/** The saved habit, read back: the query cache of the account, the optimistic record of a queued create, or the stored habit that waits for the account. Never the draft. */
 function useSavedOnboardingHabit(habitId: string | null, signedOut: boolean, optimistic: OnboardingSavedHabit): SavedOnboardingHabitRead {
   const queued = habitId?.startsWith('offline-') ?? false
   const account = useHabitDetail(signedOut || queued ? null : habitId)
@@ -42,7 +37,6 @@ function useSavedOnboardingHabit(habitId: string | null, signedOut: boolean, opt
   return { saved: account.data, failed: account.data === undefined && account.isError, retrying: account.isFetching, retry: () => { void account.refetch() } }
 }
 
-/** The read of the saved habit failed. The habit exists, so the dialog states that fact and offers the read again. Orbit is Parado after a miss, with no hop. */
 function OnboardingResultReadError({ retrying, onRetry, onClose }: Readonly<{ retrying: boolean; onRetry: () => void; onClose: () => void }>) {
   const { t } = useTranslation()
   const message = t('onboarding.flow.done.readFailed')

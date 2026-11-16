@@ -37,7 +37,6 @@ interface GuidedLoginProps {
   styles: LoginStyles
 }
 
-/** The reason a press on the continue action does nothing, for assistive technology. The offline notice and the human check show their own state. */
 function refusalHint(flow: LoginFlow, canSubmitTurnstile: boolean) {
   if (!flow.isOnline) return flow.t('auth.errors.offline')
   return canSubmitTurnstile ? undefined : flow.t('auth.turnstileLabel')
@@ -82,13 +81,11 @@ function emailStep({ flow, callback, onDismissCallback, canSubmitTurnstile, turn
   }
 }
 
-/** The two provider options. From 1024 they stay at most 360 wide in the centre and never span the content column. */
 function ProviderOptions({ children }: Readonly<{ children: ReactNode }>) {
   const { width } = useWindowDimensions()
   return <View testID="login-providers" style={[local.providers, width >= WIDE_DESKTOP_BREAKPOINT ? local.providersWide : null]}>{children}</View>
 }
 
-/** The Orbit line of the code step: where the code went, or the state that stops the code. */
 function codeLine(flow: LoginFlow, waiting: boolean) {
   if (waiting) return flow.t('auth.line.codeLocked', { time: formatLoginCountdown(flow.lockCountdown) })
   if (flow.codeFailure === 'expired') return flow.t('auth.line.codeExpired')
@@ -131,7 +128,6 @@ function CodeBack({ onBackToEmail }: Readonly<{ onBackToEmail: () => void }>) {
   return null
 }
 
-/** A provider callback that failed: a full-surface state with Orbit in Parado, the message and the way back to the sign-in question. */
 function GuidedCallbackFailure({ flow, styles, tokens, provider, onRetry }: Readonly<{ flow: LoginFlow; styles: LoginStyles; tokens: AppTokensV2; provider: LoginCallback['provider']; onRetry: () => void }>) {
   const { t } = flow
   const insets = useSafeAreaInsets()
@@ -144,10 +140,6 @@ function GuidedCallbackFailure({ flow, styles, tokens, provider, onRetry }: Read
   )
 }
 
-/**
- * Sign-in as a one-question flow: the email question with the two provider options, then the code question. Orbit is Parado and looks at the field in focus.
- * A failed provider callback shows its own state first. A cancel shows the email question with no error, because the person only left the provider.
- */
 function GuidedLogin(props: Readonly<GuidedLoginProps>) {
   const { flow, styles, callback } = props
   const { t } = flow
@@ -182,7 +174,6 @@ function GuidedLogin(props: Readonly<GuidedLoginProps>) {
   )
 }
 
-/** Reports the run as completed once the code or the provider verified the person. */
 function useSignInCompletion(completed: boolean) {
   useLayoutEffect(() => {
     // WHY: a layout effect runs before the passive cleanup of the QuestionFlow that unmounts, so its tracker reads a completed run, not an abandoned one. https://react.dev/reference/react/useLayoutEffect
@@ -211,7 +202,6 @@ export function GuidedLoginContent({ callback }: Readonly<{ callback?: LoginCall
     canSubmitTurnstile={!flow.turnstileSiteKey || Boolean(flow.turnstileToken)} turnstileWidget={turnstileWidget} tokens={tokens} styles={styles} />
 }
 
-/** The account that came back: one centred block with Orbit in Parado and the one action into Hoje. */
 function GuidedAccountBack({ t, styles, tokens, loading, continueAccount, errorMessage }: Readonly<{
   t: LoginFlow['t']; styles: LoginStyles; tokens: AppTokensV2; loading: boolean | undefined; continueAccount: () => void; errorMessage: string | null
 }>) {

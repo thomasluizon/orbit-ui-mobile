@@ -59,12 +59,10 @@ function mascotLook<Look>(orbitState: QuestionFlowProps['orbitState'], lookAt: L
   return orbitState === 'parado' ? lookAt : null
 }
 
-/** A step change slides for the slow duration. Reduced motion keeps the still version. */
 function stepDuration(reducedMotion: boolean) {
   return reducedMotion ? 0 : motionDurations.slow
 }
 
-/** The Orbit line. A step remounts it, so only a new `lineKey` inside one step fades the new line in. */
 function FlowLine({ id, line, lineKey, reducedMotion }: Readonly<{ id: string; line: string; lineKey: string | undefined; reducedMotion: boolean }>) {
   const [shown, setShown] = useState({ lineKey, fade: false })
   if (shown.lineKey !== lineKey) setShown({ lineKey, fade: true })

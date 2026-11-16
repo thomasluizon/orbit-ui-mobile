@@ -51,7 +51,6 @@ interface TestTree { root: TestNode; unmount(): void }
 const TestRenderer: { create(element: React.ReactNode): TestTree; act(callback: () => void | Promise<void>): Promise<void> } = require('react-test-renderer')
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 
-/** The record the server saved. Its days, time and start differ from the typed phrase, so a sentence built from the draft fails. */
 const SAVED_HABIT = { id: 'habit-1', frequencyUnit: 'Day', frequencyQuantity: 1, intervalWeeks: 1, days: ['Monday', 'Thursday'], isGeneral: false, isFlexible: false, dueDate: '2026-11-16', dueTime: '18:30:00' }
 
 const trees: TestTree[] = []

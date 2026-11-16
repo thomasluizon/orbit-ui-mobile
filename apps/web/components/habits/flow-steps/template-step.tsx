@@ -17,7 +17,6 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { useChecklistTemplates, useCreateChecklistTemplate, useDeleteChecklistTemplate } from '@/hooks/use-checklist-templates'
 import { useAccountScopedState } from '@/hooks/use-session-reset'
 
-/** The quick options show the first saved templates. Every template stays reachable in the list under them. */
 const QUICK_TEMPLATES = 4
 
 function TemplateRow({ template, label, loadable, onLoad, onDelete }: Readonly<{

@@ -11,9 +11,7 @@ import type { TagStepActions } from '@/hooks/use-tag-step-actions'
 interface TagStepRowsProps {
   tags: TagSelectionState
   actions: TagStepActions
-  /** The search words. A row shows when its name holds them. */
   query: string
-  /** Every row shows while the person renames or deletes. Otherwise rows show only for a search. */
   managing: boolean
   onPressTag: (tagId: string) => void
 }

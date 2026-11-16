@@ -176,7 +176,6 @@ function GoogleAuthCallbackScreen() {
     finally { setLoading(false) }
   }
 
-  /** A person who left the consent screen of the provider did not fail: the sign-in question shows with no error. */
   const cancelled = state === 'failed' && candidateUrl !== null && isAuthCallbackCancel(extractGoogleAuthParams(candidateUrl).error)
   return <LoginContent callback={{ state: cancelled ? 'cancelled' : state, onContinue: () => void continueAccount(), loading }} />
 }

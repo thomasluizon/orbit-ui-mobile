@@ -18,7 +18,6 @@ interface GuidedGoalEditFlowProps {
   onClose: () => void
 }
 
-/** The edit draft as the steps read it. The type of a stored goal is shown, so the port has no way to change it. */
 function editPort(goal: GoalEditSource, draft: GoalEditDraft, update: (change: Partial<GoalEditDraft>) => void): GoalDraftPort {
   return {
     goalType: isStreakGoal(goal.type) ? 'Streak' : 'Standard', ...draft,

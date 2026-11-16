@@ -40,7 +40,6 @@ export function validateApiKeyExpiry(value: string, now = Date.now()): ApiKeyExp
 
 const TWELVE_HOURS = 12 * 60 * 60 * 1000
 
-/** The zone a picked expiry day belongs to: the account zone, then the device zone. */
 function expiryZone(timeZone: string | null | undefined): string | undefined {
   return timeZone || undefined
 }

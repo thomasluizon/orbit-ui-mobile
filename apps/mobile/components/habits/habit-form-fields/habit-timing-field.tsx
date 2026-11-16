@@ -81,7 +81,6 @@ export function HabitFixedReminderEditors({ formHelpers, reminderTimes, onRemind
   return <ReminderSection tokens={tokens} reminderEnabled={reminderEnabled} reminderTimes={reminderTimes} onReminderTimesChange={onReminderTimesChange} reminderLabel={(minutes) => formatHabitReminderLabel(minutes, t)} scheduledReminderCount={scheduledReminders.length} onValidationError={showError}>{clockReminders}</ReminderSection>
 }
 
-/** The reminder switch with its permission notice, the two reminder kinds and the editor of each kind. */
 function HabitReminderEditors({ formHelpers, controller, reminderTimes, onReminderTimesChange, showError, tokens }: Readonly<HabitReminderEditorsProps>) {
   const { profile } = useProfile()
   const { form, isGeneral } = formHelpers

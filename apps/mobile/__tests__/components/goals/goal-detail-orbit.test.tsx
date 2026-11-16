@@ -25,7 +25,6 @@ const ORBIT_STATES = ['parado', 'olhando', 'pensando', 'feliz', 'descansando']
 const listGoal = createMockGoal({ id: '1', title: 'Read 12 books', currentValue: 3, targetValue: 12, unit: 'books', progressPercentage: 25 })
 let detailGoal: GoalDetailWithMetrics['goal'] = { ...listGoal, progressHistory: [] }
 
-/** The local test renderer types expose `findAll` only, and props as unknown. */
 const byProp = (root: ReactTestInstance, name: string, value: unknown) => root.findAll((node) => node.props[name] === value)[0]!
 const allByProp = (root: ReactTestInstance, name: string, value: unknown) => root.findAll((node) => node.props[name] === value)
 const call = (node: ReactTestInstance, prop: string, ...values: unknown[]) => (node.props[prop] as (...args: unknown[]) => unknown)(...values)
@@ -90,7 +89,6 @@ async function changeEntry(label: string, value: string) {
   const input = tree.root.findAll((node) => node.props.accessibilityLabel === label && typeof node.props.onChangeText === 'function')[0]!
   await act(() => { call(input, 'onChangeText', value) })
 }
-/** Holds every animation frame until the test runs it, so the sweep start does not depend on the load of the host. The setup stubs the frames again before each test. */
 function holdFrames() {
   const queued = new Map<number, (timestamp: number) => void>()
   let handle = 0

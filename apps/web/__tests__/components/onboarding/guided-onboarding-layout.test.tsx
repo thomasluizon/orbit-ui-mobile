@@ -25,11 +25,9 @@ import { useOnboardingDraftStore } from '@/stores/onboarding-draft-store'
 
 const LOCALES = [{ locale: 'en', messages: en }, { locale: 'pt-BR', messages: ptBR }] as const
 const WIDTHS = [320, 360, 384, 412] as const
-/** The intro fits a short phone. The first question holds the starters, the phrase field and the account link, so it fits a tall phone only. */
 const HEIGHTS = [667, 844] as const
 const actions = { createHabit: vi.fn(), updateHabit: vi.fn(), createHabitsBulk: vi.fn(), logHabit: vi.fn(), createGoal: vi.fn(), setWeekStartDay: vi.fn(), deferPushRegistration: vi.fn(), recordCompletion: vi.fn(), finishOnboarding: vi.fn() } satisfies OnboardingActions
 
-/** Each screen of the intro and the first question, as markup, rendered still so the measure reads the resting layout. */
 function captureScreens(locale: string, messages: typeof en): string[] {
   vi.stubGlobal('matchMedia', (query: string) => ({ matches: query.includes('prefers-reduced-motion'), media: query, addEventListener: () => {}, removeEventListener: () => {}, addListener: () => {}, removeListener: () => {} }))
   useOnboardingDraftStore.setState({ introSeen: false })

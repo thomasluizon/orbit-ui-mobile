@@ -22,7 +22,6 @@ import { PrimaryActionSlot } from '@/components/ui/primary-action-slot'
 import { getGoogleAuthAppIntent, resolveAuthCallbackParams } from '@/lib/google-auth-app-intent'
 import type { LoginResponse } from '@orbit/shared/types/auth'
 
-/** The way into the Android app, for a callback the app owns. With `orbit_guided_flows` on it is a state surface: Orbit in Parado, the one line and the one action. */
 function AppHandoff({ href }: Readonly<{ href: string }>) {
   const t = useTranslations()
   const guided = useGuidedSignIn()

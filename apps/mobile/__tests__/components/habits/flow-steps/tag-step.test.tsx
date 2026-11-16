@@ -6,7 +6,6 @@ import { resolveMotionPreset } from '@orbit/shared/theme'
 import { createApiClientError } from '@orbit/shared/utils'
 import { buildTags, resetTagStepState, tagStepState, TagStepHarness } from './tag-step-harness'
 
-/** The host shape these tests read. The renderer types name only DOM element types, so the native host names need their own type. */
 interface Host {
   type: unknown
   props: {
@@ -60,7 +59,6 @@ function type(node: Host | undefined, value: string) {
   void renderer.act(() => { node!.props.onChangeText!(value) })
 }
 
-/** Types the search words and waits the one still frame the rows take before the words apply. */
 async function search(root: Root, value: string) {
   type(field(root, en.habits.form.searchTags), value)
   await renderer.act(async () => { await new Promise((resolve) => setTimeout(resolve, 20)) })

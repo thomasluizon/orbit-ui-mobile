@@ -21,7 +21,6 @@ import { useTagStepActions, type TagStepActions } from '@/hooks/use-tag-step-act
 import { useThemeTokens } from '@/hooks/use-theme-tokens'
 import { TagStepRows } from './tag-step-list'
 
-/** Three tags and `Sem tag` keep the step at four quick options, the 2 by 2 grid. More tags than this put every tag behind the search. */
 const QUICK_TAGS = 3
 
 export interface TagStepProps {
@@ -34,15 +33,12 @@ export interface TagStepProps {
   onContinue: () => void
 }
 
-/** The tags selected when the step opened lead, then the order the list has today. The order stays while the person presses. */
 function quickTags(available: readonly HabitTag[], leading: ReadonlySet<string>): HabitTag[] {
   return [...available.filter((tag) => leading.has(tag.id)), ...available.filter((tag) => !leading.has(tag.id))].slice(0, QUICK_TAGS)
 }
 
-/** The line reads the cache that holds every habit and never fetches it: with no cached list the intro line stays. */
 const CACHE_ONLY = { enabled: false }
 
-/** The Orbit line after a press: the tag's own items, read on the device from the cache that holds every habit. */
 function useTagLine(pressedTagId: string | null, available: readonly HabitTag[]): string {
   const { t, i18n } = useTranslation()
   const { data } = useHabits({}, CACHE_ONLY)
@@ -78,7 +74,6 @@ function TagStepFree({ tags, actions, onPressTag }: Readonly<{ tags: TagSelectio
   )
 }
 
-/** A typed tag name or a changed rename is a draft: leaving the step with one asks first, as the tag sheet does. */
 function useTagEditorGuard(tags: TagSelectionState, actions: TagStepActions) {
   const next = useRef<() => void>(() => {})
   const initialName = actions.availableTags.find((tag) => tag.id === tags.editingTagId)?.name ?? ''

@@ -30,11 +30,9 @@ function useHop(active: boolean) {
 }
 
 interface ResultDialogFrameProps {
-  /** The accessible name of the panel, and its description when the panel states one sentence. */
   label: string
   hint?: string
   testID?: string
-  /** A scrim press and Android back. */
   onClose: () => void
   children: ReactNode
 }

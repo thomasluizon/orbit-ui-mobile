@@ -21,7 +21,6 @@ import { useAccountScopedState } from '@/hooks/use-session-reset'
 interface EditNameSheetProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  /** The flag `orbit_guided_flows`: the sheet title is the question, and the field takes it as its name. */
   guided?: boolean
 }
 

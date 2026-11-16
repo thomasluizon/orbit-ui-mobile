@@ -12,7 +12,6 @@ vi.mock('@/lib/posthog', () => ({ captureGuidedFlowEvent: vi.fn() }))
 type Copy = typeof ptBR
 interface Step { question: string; line?: string; options?: string[] }
 
-/** Every question of the habit, goal and onboarding flows, with each Orbit line under Orbit and the quick options its `OptionCard` call sites show. */
 function steps(copy: Copy): Record<string, Step> {
   const flow = copy.habits.flow
   const goal = copy.goals

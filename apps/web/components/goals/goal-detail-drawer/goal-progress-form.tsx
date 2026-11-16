@@ -18,7 +18,6 @@ interface GoalProgressFormProps {
   goal: Goal
   refetchDetail: () => Promise<unknown>
   onClose: () => void
-  /** One question in the sheet: the question is the title and the label of the value, and the note is the second, optional question. */
   asQuestion?: boolean
 }
 

@@ -13,11 +13,9 @@ import { useViewportMatch } from '@/hooks/use-viewport-match'
 const HOP_HEIGHT = 12
 
 interface ResultDialogFrameProps {
-  /** The accessible name of the panel, and its description when the panel states one sentence. */
   label: string
   hint?: string
   initialFocus?: React.RefObject<HTMLElement | null>
-  /** Escape and a scrim press. */
   onClose: () => void
   children: React.ReactNode
 }

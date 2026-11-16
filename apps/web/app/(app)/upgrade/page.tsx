@@ -45,7 +45,6 @@ import { useHeldAccountId } from '@/stores/auth-store'
 
 const PORTAL_RETURN_KEY = 'orbit.subscription.portal-return'
 const AI_SETTINGS_ROUTE = '/profile/ai'
-/** The old slug of the AI settings page. Stored links still send it as `from`. */
 const LEGACY_AI_SETTINGS_ROUTE = '/profile/astra'
 
 function upgradeContentCap(state: SubscriptionScreenState, content: SubscriptionScreenContent, hasLapsedNotice: boolean) {

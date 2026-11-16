@@ -146,11 +146,8 @@ export function useDeadlineView({ draft, advance, deadlineAnswered = false }: Go
 
 interface GoalSummaryProps {
   draft: GoalDraftPort
-  /** Edit shows the type of the stored goal and no habits row. */
   mode: 'create' | 'edit'
-  /** The linked habits as the row shows them. Absent on edit. */
   habitsValue?: string
-  /** False when the goal starts from a habit: the row shows that habit and opens nothing. */
   habitsEditable?: boolean
   error?: string
   onOpen: (step: GoalFlowStep) => void

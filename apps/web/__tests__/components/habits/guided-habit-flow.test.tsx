@@ -601,7 +601,6 @@ function GuidedFromConversation() {
     fields={{ tags, selectedGoalIds: [], atGoalLimit: false, onToggleGoal: vi.fn(), reminderTimes: [], onReminderTimesChange: vi.fn() }} />
 }
 
-/** The values the form holds, as the submit handler receives them. */
 const savedValues = () => helpers().form.getValues() as Parameters<typeof buildCreateHabitRequest>[0]
 
 describe('the request body of the guided flow', () => {

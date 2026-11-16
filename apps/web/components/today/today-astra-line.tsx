@@ -14,7 +14,6 @@ interface TodayAstraLineProps {
   busy?: boolean
   announce?: boolean
   loading?: boolean
-  /** False inside a surface that already holds the screen gutter, such as the goal detail. Default true. */
   gutter?: boolean
 }
 

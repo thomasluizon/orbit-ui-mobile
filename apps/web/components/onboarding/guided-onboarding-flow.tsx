@@ -76,19 +76,14 @@ export interface GuidedOnboardingProps extends OnboardingDecisionProps {
 type FlowView = OnboardingIntroScreen | OnboardingQuestionStep
 type Translate = ReturnType<typeof useTranslations>
 
-/** An onboarding step adds one quiet control under the block, such as the skip of the intro. */
 type StepView = FlowStepView & Pick<QuestionFlowProps, 'footer'>
 
 interface Navigation {
   view: FlowView
   direction: 1 | -1
-  /** The steps the read left open, asked after the phrase. Back walks them, and progress counts them. */
   cadencePath: OnboardingQuestionStep[]
-  /** A step opened from the summary returns to it. */
   editing: boolean
-  /** True while the flow walks the steps of a repeat mode, after the mode answer. Each answer then opens the next step of the mode. */
   walking: boolean
-  /** The step a reminder state opens on the summary step, such as the time. */
   pendingEdit: OnboardingQuestionStep | null
 }
 
@@ -96,7 +91,6 @@ function isIntro(view: FlowView): view is OnboardingIntroScreen {
   return (ONBOARDING_INTRO_SCREENS as readonly string[]).includes(view)
 }
 
-/** The view a step change of the onboarding state opens. */
 function viewAfterStep(navigation: Navigation, previous: number, step: number, needsCadence: boolean): Navigation {
   const direction = step > previous ? 1 : -1
   if (step === ONBOARDING_WHAT_STEP) return { ...navigation, view: 'what', direction, editing: false, cadencePath: [] }
@@ -117,7 +111,6 @@ function useCadenceText(schedule: OnboardingSchedule) {
   }
 }
 
-/** The body sentence enters one shared stagger after the block. Reduced motion shows it at once. */
 function IntroSentence({ children }: Readonly<{ children: string }>) {
   const reducedMotion = useViewportMatch('(prefers-reduced-motion: reduce)')
   return (
@@ -197,7 +190,6 @@ function daysView(props: GuidedOnboardingProps, t: Translate, onDone: () => void
   }
 }
 
-/** The period of a count or an interval: one quick option for each period. A press answers and the flow moves on. */
 function unitView(props: GuidedOnboardingProps, t: Translate, onDone: () => void): StepView {
   const current = props.schedule.frequencyUnit ?? 'Week'
   return {
@@ -238,7 +230,6 @@ function useTimeView(props: GuidedOnboardingProps, onDone: () => void): StepView
   }
 }
 
-/** The value each summary row shows for its step. */
 function useSummaryValue(props: GuidedOnboardingProps, habitTitle: string, cadenceText: (timed: boolean) => string) {
   const t = useTranslations()
   const { displayTime } = useTimeFormat()
@@ -350,7 +341,6 @@ function backAction(target: FlowView | 'step' | null, onStepBack: (() => void) |
   return onStepBack
 }
 
-/** In a guided flow Orbit in Pensando is the running feedback: the read, the create, the reminder decision and the completion. */
 function runningStatusKey(props: GuidedOnboardingProps): string | null {
   if (props.suggestionPending) return 'habits.flow.what.reading'
   if (props.creating) return 'onboarding.flow.guided.creating'
@@ -364,7 +354,6 @@ export function GuidedOnboardingFlow(props: Readonly<GuidedOnboardingProps>) {
   const { navigation, introRun, go } = useGuidedNavigation(props)
   const { view, direction, cadencePath, editing } = navigation
   const toSummary = () => go('summary', 1, { editing: false, walking: false })
-  /** An answer inside the repeat steps opens the next step of the mode, or the summary. */
   const answered = (step: OnboardingQuestionStep) => {
     const next = onboardingStepAfterAnswer(getOnboardingScheduleMode(props.schedule), step, navigation.walking)
     if (next === 'summary') toSummary()
@@ -392,7 +381,6 @@ export function GuidedOnboardingFlow(props: Readonly<GuidedOnboardingProps>) {
     summary: useSummaryView(props, getHabitPhraseTitle(props.sentence, locale), cadenceText, (step) => go(step, 1, { editing: true, walking: false })),
     remind: useRemindView(props, (step) => { go(view, 1, { pendingEdit: step }); props.onEditSchedule() }),
   }
-  /** The intro is seen once the person completes it or skips it. A person who quits on a screen sees it again. */
   const leaveIntro = () => {
     useOnboardingDraftStore.getState().markIntroSeen()
     go('what', 1)
@@ -404,7 +392,6 @@ export function GuidedOnboardingFlow(props: Readonly<GuidedOnboardingProps>) {
   }
   const stepView = isIntro(view) ? introView(view, t, () => nextIntro(view), leaveIntro) : views[view]
   const back = backAction(backTarget(navigation, introRun), props.onBack, go)
-  /** The header close of a question screen. An intro screen shows none: its one skip opens the first question. */
   const close = props.onSkip ?? props.onContinueWithout
   const progress = isIntro(view) ? { position: ONBOARDING_INTRO_SCREENS.indexOf(view) + 1, total: ONBOARDING_INTRO_SCREENS.length } : onboardingGuidedPosition(view, cadencePath)
   const statusKey = runningStatusKey(props)

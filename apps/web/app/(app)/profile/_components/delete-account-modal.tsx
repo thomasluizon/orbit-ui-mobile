@@ -25,7 +25,6 @@ interface DeleteAccountModalProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   profile: Profile | undefined
-  /** The flag `orbit_guided_flows`: the one-question flow replaces the sheet. */
   guided?: boolean
 }
 

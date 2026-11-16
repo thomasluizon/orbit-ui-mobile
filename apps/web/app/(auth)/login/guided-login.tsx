@@ -30,7 +30,6 @@ interface GuidedLoginProps {
   turnstileWidget: ReactNode
 }
 
-/** The reason a press on the continue action does nothing, for assistive technology. The offline notice and the human check show their own state. */
 function refusalHint(flow: LoginFlow, canSubmitTurnstile: boolean) {
   if (!flow.isOnline) return flow.t('auth.errors.offline')
   return canSubmitTurnstile ? undefined : flow.t('auth.turnstileLabel')
@@ -76,7 +75,6 @@ function emailStep({ flow, callback, onDismissCallback, canSubmitTurnstile, turn
   }
 }
 
-/** The Orbit line of the code step: where the code went, or the state that stops the code. */
 function codeLine(flow: LoginFlow, waiting: boolean) {
   if (waiting) return flow.t('auth.line.codeLocked', { time: formatLoginCountdown(flow.lockCountdown) })
   if (flow.codeFailure === 'expired') return flow.t('auth.line.codeExpired')
@@ -125,7 +123,6 @@ export function useSignInCompletion(completed: boolean) {
   }, [completed])
 }
 
-/** A provider callback that failed: a full-surface state with Orbit in Parado, the message and the way back to the sign-in question. */
 function GuidedCallbackFailure({ flow, provider, onRetry }: Readonly<{ flow: LoginFlow; provider: LoginCallback['provider']; onRetry: () => void }>) {
   const { t } = flow
   return (

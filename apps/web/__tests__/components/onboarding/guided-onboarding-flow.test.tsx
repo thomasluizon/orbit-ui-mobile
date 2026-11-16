@@ -44,7 +44,6 @@ import { RetainedOnboardingOverlay } from '@/components/onboarding/retained-onbo
 import { motionPresets } from '@orbit/shared/theme'
 import { useOnboardingDraftStore } from '@/stores/onboarding-draft-store'
 
-/** The record the server saved. Its days, time and start differ from the typed phrase, so a sentence built from the draft fails. */
 const SAVED_HABIT = { id: 'habit-1', frequencyUnit: 'Day', frequencyQuantity: 1, intervalWeeks: 1, days: ['Monday', 'Thursday'], isGeneral: false, isFlexible: false, dueDate: '2026-11-16', dueTime: '18:30:00' }
 
 const locales = [{ locale: 'en', messages: en }, { locale: 'pt-BR', messages: ptBR }] as const

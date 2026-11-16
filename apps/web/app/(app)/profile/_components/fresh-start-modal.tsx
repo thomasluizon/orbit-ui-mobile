@@ -63,7 +63,6 @@ function FreshStartHero({ body }: Readonly<{ body: string }>) {
 interface FreshStartModalProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  /** The flag `orbit_guided_flows`: the one-question flow and its result dialog replace the sheet. */
   guided?: boolean
 }
 

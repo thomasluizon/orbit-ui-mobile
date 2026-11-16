@@ -11,7 +11,6 @@ import {
 } from '@orbit/shared/utils/goal-seen-progress'
 import { accountStorageKey } from '@/lib/account-storage-key'
 
-/** Storage the browser refuses (private mode, quota) reads as no last visit, so every ring draws at rest. */
 function readSeen(): GoalSeenProgress | null {
   try {
     return parseGoalSeenProgress(localStorage.getItem(accountStorageKey(GOAL_SEEN_PROGRESS_STORAGE_KEY)))
@@ -20,7 +19,6 @@ function readSeen(): GoalSeenProgress | null {
   }
 }
 
-/** A refused write only means the next visit draws every ring at rest. */
 function writeSeen(seen: GoalSeenProgress) {
   try {
     localStorage.setItem(accountStorageKey(GOAL_SEEN_PROGRESS_STORAGE_KEY), JSON.stringify(seen))

@@ -85,7 +85,6 @@ const control = (tree: Tree, name: string | RegExp) => tree.hosts().find((node) 
 const heading = (tree: Tree) => tree.hosts().filter((node) => node.props.accessibilityRole === 'header').map((node) => (typeof node.props.children === 'string' ? node.props.children : ''))[0] ?? ''
 const progress = (tree: Tree) => tree.hosts().find((node) => /^(Passo|Step) \d (de|of) \d$/.test(node.props.accessibilityLabel ?? ''))?.props.accessibilityLabel
 const hasText = (tree: Tree, text: string) => tree.hosts().some((node) => node.props.children === text)
-/** The words a pressable shows, read from its Text hosts. */
 function textIn(node: unknown): string {
   const hosts = (node as { findAll: (predicate: (child: { type: unknown }) => boolean) => { props: { children?: unknown } }[] }).findAll((child) => child.type === 'Text')
   return hosts.map((host) => host.props.children).filter((value): value is string => typeof value === 'string').join('')
@@ -611,7 +610,6 @@ function GuidedFromConversation() {
     fields={{ tags, selectedGoalIds: [], atGoalLimit: false, onToggleGoal: vi.fn(), reminderTimes: [], onReminderTimesChange: vi.fn(), onUpgrade: vi.fn() }} />
 }
 
-/** The values the form holds, as the submit handler receives them. */
 const savedValues = () => helpers().form.getValues() as Parameters<typeof buildCreateHabitRequest>[0]
 
 describe('the request body of the guided flow on Android', () => {

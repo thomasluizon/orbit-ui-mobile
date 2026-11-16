@@ -20,7 +20,6 @@ const states: Record<string, GuidedStepUpState> = {
   'expired code': { ...challenge, expired: true },
   'attempts ran out': { kind: 'exhausted', backLabel: 'Voltar', lockSeconds: 754, onBack: noop },
 }
-/** The closed state with the dates the screen shows: the numeric date in the title and the long date in the Pro note. */
 function closes(locale: string): GuidedStepUpState {
   return { kind: 'success', scheduledAt: '2026-09-24T03:00:00Z', deletionDate: createLocaleDateFormatters(locale).displayDate('2026-09-24T03:00:00Z'), showProNotice: true, onSignOut: noop }
 }

@@ -46,7 +46,6 @@ function useKeyboardOpen() {
   return open
 }
 
-/** The block is centred in the free space. While the keyboard is open it aligns under the header and scrolls. */
 function scrollContentStyle(keyboardOpen: boolean) {
   return keyboardOpen ? [styles.scrollContent, styles.underHeader] : styles.scrollContent
 }
@@ -83,7 +82,6 @@ function useQuestionFocus(stepKey: string, onStepChange: () => void) {
   return headingRef
 }
 
-/** The Orbit line. A step remounts it, so only a new `lineKey` inside one step fades the new line in, at once under reduced motion. */
 function FlowLine({ line, lineKey, color }: Readonly<{ line: string; lineKey: string | undefined; color: string }>) {
   const reducedMotion = usePrefersReducedMotion()
   const [opacity] = useState(() => new Animated.Value(1))

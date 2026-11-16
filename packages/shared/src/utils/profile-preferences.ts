@@ -111,7 +111,6 @@ export interface GuidedTimeZoneOptions {
   hasMore: boolean
 }
 
-/** Lower case with the accents removed, so a search matches a name with or without its accents. */
 function foldSearchText(text: string): string {
   return text.normalize('NFD').replaceAll(/\p{M}/gu, '').toLocaleLowerCase()
 }

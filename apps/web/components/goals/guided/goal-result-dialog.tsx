@@ -12,14 +12,11 @@ const SENTENCES = {
 } as const
 
 interface GoalResultDialogProps {
-  /** The saved title and deadline, the values the request carried. An empty deadline means none. */
   title: string
   deadline: string
   change: keyof typeof SENTENCES
-  /** True when the filled action opens the goal. False when it only returns to the caller, such as the habit flow. */
   opensGoal: boolean
   onPrimary: () => void
-  /** Starts a fresh flow. Absent on an edit. */
   onCreateAnother?: () => void
   onClose: () => void
 }

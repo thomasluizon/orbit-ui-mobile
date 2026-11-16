@@ -29,7 +29,6 @@ interface GoalHabitsStepInput {
   onContinue: () => void
 }
 
-/** The habits selected when the step opened lead, then the order of the list. The order stays while the person presses. */
 function quickHabits(items: NormalizedHabit[], leading: ReadonlySet<string>): NormalizedHabit[] {
   return [...items.filter((habit) => leading.has(habit.id)), ...items.filter((habit) => !leading.has(habit.id))].slice(0, QUICK_OPTIONS)
 }

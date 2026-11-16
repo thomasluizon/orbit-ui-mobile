@@ -265,7 +265,6 @@ function StepUpScreenContent() {
     setNow(Date.now())
   }
 
-  /** With `orbit_guided_flows` on the confirm action stays enabled: a short code shows the hint beside the field and focuses the field. */
   function refuseShortCode() {
     setFieldError(t('auth.errors.codeFormat'))
     setShortSubmits((count) => count + 1)
@@ -306,10 +305,6 @@ function StepUpScreenContent() {
   )
 }
 
-/**
- * With `orbit_guided_flows` on, every state shows in the guided question layout. With it off, the current surface of each state shows.
- * It names the shared props, not a rest object, so `check-i18n-usage` traces `t` to its translator.
- */
 function StepUpSurface({ guided, operation, state, operationLabel, t, tokens }: Readonly<SharedMobileStepUpProps & { guided: boolean; operation: StepUpOperation; state: GuidedStepUpState }>) {
   if (guided) return <GuidedStepUp operation={operation} state={state} />
   const sharedView = { operationLabel, t, tokens }
@@ -382,7 +377,6 @@ function MobileStepUpSuccess({
   )
 }
 
-/** With `orbit_guided_flows` on, the delete flow closes with the result dialog: Orbit in Parado, the date the server set, and sign out. A dismissal leaves the success state underneath. */
 function DeletionResult({ deletionDate, pro, onSignOut, t }: Readonly<{ deletionDate: string; pro: boolean; onSignOut: () => void; t: TFunction }>) {
   const guided = useFlag('orbit_guided_flows')
   const [dismissed, setDismissed] = useState(false)
@@ -425,7 +419,6 @@ function MobileStepUpExhausted({
 interface MobileStepUpChallengeProps extends SharedMobileStepUpProps {
   checking: boolean
   code: string
-  /** Set by a short submit. Absent, a field error takes the focus. */
   codeFocusRequest: number | undefined
   cooldownSeconds: number
   email: string

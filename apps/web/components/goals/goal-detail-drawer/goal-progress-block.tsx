@@ -38,7 +38,6 @@ interface GoalProgressBlockProps {
   onEditProgress: () => void
   onComplete: () => void
   refetchDetail: () => Promise<unknown>
-  /** One ring sweep after the progress sheet closes: the value before it opened, and a key that starts the sweep. */
   sweep?: { from: number; key: number } | null
 }
 

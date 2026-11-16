@@ -70,10 +70,6 @@ function useTokens() {
   return useMemo(() => createTokensV2(currentScheme, currentTheme), [currentScheme, currentTheme])
 }
 
-/**
- * What the device read in the phrase of a create, as the `{parts}` of the Orbit line, or null when it read nothing. An edit only renames, so it reads nothing.
- * The form shows the same sentence on a line of its own, so a few open with a capital; after the colon of the Orbit line it opens in lower case.
- */
 function usePhraseParts({ flow, formHelpers }: Readonly<ViewInput>): string | null {
   const { t, i18n } = useTranslation()
   const { form, daysList } = formHelpers
@@ -208,10 +204,8 @@ function useSummaryValues(formHelpers: HabitFormHelpers) {
   }
 }
 
-/** One placeholder for each row of the summary: the title, the type, when, the time, the reminder and the optional questions. */
 const SUMMARY_SKELETON_ROWS = ['title', 'type', 'when', 'time', 'reminder', 'more'] as const
 
-/** The summary of an edit whose stored values still load. The detail read fills the whole form, so every row waits in the shape of a row. */
 function SummarySkeleton() {
   const { t } = useTranslation()
   return (

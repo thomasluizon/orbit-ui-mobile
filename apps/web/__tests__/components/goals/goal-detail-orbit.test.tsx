@@ -61,7 +61,6 @@ function renderDetail({ locale = 'en', inline = true }: { locale?: 'en' | 'pt-BR
 }
 const resultDialog = () => document.querySelector('[data-result-dialog]')
 const shownOrbitStates = () => [...document.querySelectorAll('[data-orbit-state]')].map((node) => node.getAttribute('data-orbit-state'))
-/** Holds every animation frame until the test runs it, so the sweep start does not depend on the load of the host. */
 function holdFrames() {
   const queued = new Map<number, FrameRequestCallback>()
   let handle = 0

@@ -9,11 +9,8 @@ import { useTimeFormat } from '@/hooks/use-time-format'
 interface HabitResultDialogProps {
   habitId: string
   change: 'created' | 'updated'
-  /** Closes the dialog and the flow behind it. */
   onClose: () => void
-  /** The facts the draft saved. A create made offline is queued with a temporary id, so the optimistic record answers until the server record exists. */
   optimistic?: HabitResultItem
-  /** Starts a new empty flow. Absent on an edit. */
   onCreateAnother?: () => void
 }
 

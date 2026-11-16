@@ -15,11 +15,8 @@ export interface GoalStatusResult {
 }
 
 interface GoalStatusResultDialogProps {
-  /** Null draws nothing. */
   result: GoalStatusResult | null
-  /** Closes the dialog onto the goal detail. */
   onClose: () => void
-  /** Closes the dialog and the detail onto the goals list, after a delete. */
   onOpenList: () => void
 }
 

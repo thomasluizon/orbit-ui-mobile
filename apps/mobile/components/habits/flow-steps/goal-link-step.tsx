@@ -16,7 +16,6 @@ import { useThemeTokens } from '@/hooks/use-theme-tokens'
 
 const useGoalLinking = createUseGoalLinking(useAccountScopedState)
 
-/** Three goals and `Criar meta` keep the step at four quick options, the 2 by 2 grid. More goals than this put every goal behind the search. */
 const QUICK_GOALS = 3
 
 export interface GoalLinkStepProps {
@@ -32,7 +31,6 @@ export interface GoalLinkStepProps {
   onContinue: () => void
 }
 
-/** The goals selected when the step opened lead, then the list order. The order stays while the person presses. */
 function quickGoals(goals: Goal[], leading: ReadonlySet<string>): Goal[] {
   return [...goals.filter((goal) => leading.has(goal.id)), ...goals.filter((goal) => !leading.has(goal.id))].slice(0, QUICK_GOALS)
 }

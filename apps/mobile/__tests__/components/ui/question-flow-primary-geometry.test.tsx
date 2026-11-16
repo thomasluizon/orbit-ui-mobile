@@ -11,7 +11,6 @@ vi.mock('@/lib/use-app-theme', () => ({ useAppTheme: () => ({ currentScheme: 'or
 vi.mock('@/lib/posthog', () => ({ captureGuidedFlowEvent: vi.fn() }))
 
 const HEIGHT = 915
-/** The layout support measures every text as 100 wide, so a pill that hugs its label is 100 plus its two paddings. */
 const TEXT_WIDTH = 100
 let tree: GeometryTree | null = null
 afterEach(async () => { if (tree) await act(() => tree!.unmount()); tree = null })

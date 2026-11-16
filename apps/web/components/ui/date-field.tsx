@@ -32,7 +32,6 @@ interface DateFieldProps {
   focusRequest?: number
   appearance?: 'normal' | 'proposed'
   disabled?: boolean
-  /** The first day a person can pick, as `yyyy-MM-dd`. An earlier day is disabled. */
   minDate?: string
 }
 

@@ -128,7 +128,6 @@ function enterCode(code = '123456') {
   fireEvent.change(screen.getByLabelText('codeLabel'), { target: { value: code } })
 }
 
-/** The one filled action: the pinned primary of the guided question, or the shell action of the current surface. */
 function filledAction() {
   return document.querySelector<HTMLButtonElement>('[data-flow-primary] button') ?? within(screen.getByTestId('shell-action')).getByRole('button')
 }

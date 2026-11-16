@@ -100,10 +100,8 @@ export function useGuidedHabitFlow({ formHelpers, lockedGeneral, mode, onReminde
   const [answers, setAnswers] = useState<HabitFlowAnswers>({ when: false, time: false })
   const [usedAiRead, setUsedAiRead] = useState(false)
   const [proposals, setProposals] = useState<GuidedHabitProposals>(NO_PROPOSALS)
-  /** The type is a result. It stays open until the person sets it on the summary, so the phrase can make a habit. */
   const [deliberateType, setDeliberateType] = useState<'task' | 'habit' | null>(null)
   const phraseRead = useHabitPhraseRead()
-  /** The phrase the free reader last saw. One phrase starts at most one read. */
   const lastReadPhrase = useRef<string | null>(null)
   const controller = useFormController(formHelpers, { lockedGeneral, onReminderEnabledChange, onSlipAlertEnabledChange })
 
@@ -126,7 +124,6 @@ export function useGuidedHabitFlow({ formHelpers, lockedGeneral, mode, onReminde
   // eslint-disable-next-line react-hooks/exhaustive-deps -- the phrase that opens a create is read once, then every change reads through changeTitle; an edit keeps its stored values https://github.com/thomasluizon/orbit-ui-mobile/issues/243
   useEffect(() => { if (mode === 'create') applyRead(localRead) }, [])
 
-  /** The person types the phrase. A create reads it at once, on the device, and the answers it covers reset. An edit only renames. */
   const changeTitle = useCallback((value: string) => {
     form.setValue('title', value, { shouldDirty: true })
     if (mode === 'edit') return
@@ -144,7 +141,6 @@ export function useGuidedHabitFlow({ formHelpers, lockedGeneral, mode, onReminde
     undated: isGeneral,
     answers,
   })
-  /** The steps an answer leads to. The form writes land at once, so the list reads them before the next render. */
   const stepsAfter = useCallback((nextAnswers: HabitFlowAnswers, aiGaveTime = proposals.time) => {
     const values = form.getValues()
     return remainingHabitFlowSteps({
@@ -161,11 +157,6 @@ export function useGuidedHabitFlow({ formHelpers, lockedGeneral, mode, onReminde
   const position = habitFlowPosition(current, steps)
   const step = current.step
 
-  /**
-   * The answer has just written the form and the next render has not run yet, so `nextSteps` is the list the
-   * answer leads to. A step whose answer the flow holds is passed over: the flow never asks for a value it holds.
-   * A double press answers one step only: the second press carries a step that has moved on.
-   */
   const advance = useCallback((nextSteps: readonly HabitFlowStepKey[] = steps, nextAnswers: HabitFlowAnswers = answers) => setNavigation((value) => {
     const settled = settleHabitFlow(value, steps)
     if (settled.step !== step) return settled
@@ -180,7 +171,6 @@ export function useGuidedHabitFlow({ formHelpers, lockedGeneral, mode, onReminde
     return previous !== null
   }, [navigation, steps])
   const open = useCallback((target: HabitFlowDetailStep | HabitFlowStepId) => setNavigation((value) => openHabitFlowStep(value, target)), [])
-  /** A follow-up question takes the place of the one that led to it, so its answer returns to the same place. */
   const replace = useCallback((target: HabitFlowDetailStep) => setNavigation((value) => ({ ...value, step: target, direction: 1 })), [])
 
   const port = useMemo(() => ({
@@ -202,7 +192,6 @@ export function useGuidedHabitFlow({ formHelpers, lockedGeneral, mode, onReminde
     setProposals((value) => ({ ...value, schedule: false }))
     answerStep('when')
   }, [answerStep, port, today])
-  /** A date from the calendar or the free path makes a one-time task on that day. */
   const chooseDate = useCallback((date: string) => {
     port.chooseItemType('task')
     port.setOneTime()
@@ -212,7 +201,6 @@ export function useGuidedHabitFlow({ formHelpers, lockedGeneral, mode, onReminde
     setProposals((value) => ({ ...value, schedule: false }))
     answerStep('when')
   }, [answerStep, port])
-  /** The person's own words on the date question: a repeat, a day, a past day for a new task, or words the device cannot read. */
   const readWhenWords = useCallback((text: string): 'past' | 'unresolved' | null => {
     const words = readHabitWhenWords(text, { referenceDate: today, locale, timeZone: profile?.timeZone, language: supportedLocale, allowPast: mode === 'edit' })
     if (words.kind === 'date') { chooseDate(words.date); return null }
@@ -231,7 +219,6 @@ export function useGuidedHabitFlow({ formHelpers, lockedGeneral, mode, onReminde
     answerHabitReminder(port, remind)
     advance()
   }, [advance, port])
-  /** The person set the type on the summary. No later read changes it. */
   const markTypeDeliberate = useCallback(() => setDeliberateType(form.getValues('itemType') ?? null), [form])
 
   const applyFreeRead = useCallback((response: HabitSetupSuggestion) => {
@@ -246,7 +233,6 @@ export function useGuidedHabitFlow({ formHelpers, lockedGeneral, mode, onReminde
     return gaveTime
   }, [answers.time, deliberateType, form, formHelpers])
 
-  /** Leaving step 1 asks the free reader once, online, and only when the device left cadence, date or time words unread. */
   const leavePhrase = useCallback(async () => {
     const phrase = title.trim()
     let aiGaveTime = proposals.time
@@ -256,13 +242,11 @@ export function useGuidedHabitFlow({ formHelpers, lockedGeneral, mode, onReminde
         const response = await phraseRead.mutateAsync({ phrase, language: locale })
         if (response) aiGaveTime = applyFreeRead(response) || aiGaveTime
       } catch {
-        /** A miss, a cap, the kill switch and a provider failure all lead to the remaining questions with no error text. */
       }
     }
     advance(stepsAfter(answers, aiGaveTime))
   }, [advance, answers, applyFreeRead, dueDate, isOnline, locale, localRead, mode, phraseRead, proposals.time, stepsAfter, title])
 
-  /** The emoji suggestion uses the free read: it fills an empty emoji as a proposal and spends no message. */
   const suggestEmoji = useCallback(async () => {
     const phrase = title.trim()
     if (!phrase || !isOnline) return
@@ -271,7 +255,6 @@ export function useGuidedHabitFlow({ formHelpers, lockedGeneral, mode, onReminde
       const applied = applyHabitEmojiSuggestion(response?.emoji ?? null, form.getValues('emoji'), (emoji) => form.setValue('emoji', emoji, { shouldDirty: true }))
       if (applied) setProposals((value) => ({ ...value, emoji: true }))
     } catch {
-      /** A miss keeps the emoji the person has, with no error text. */
     }
   }, [form, isOnline, locale, phraseRead, title])
   const chooseEmoji = useCallback((emoji: string) => {
@@ -287,7 +270,6 @@ export function useGuidedHabitFlow({ formHelpers, lockedGeneral, mode, onReminde
   }
 }
 
-/** A server field error opens the step that owns the field, and the field there takes focus. */
 function useFieldErrorSteps(formHelpers: HabitFormHelpers, open: (step: HabitFlowDetailStep | HabitFlowStepId) => void) {
   const seen = useRef(formHelpers.backendFocusRequest)
   useEffect(() => {
