@@ -52,7 +52,7 @@ it('loads the script again every 2 s after a load failure until the shared load 
 
   fireEvent.click(screen.getByRole('button', { name: 'auth.turnstileRetry' }))
   scripts.push(await failScriptLoad())
-  expect(onStateChange, 'the retry of the person starts a new load deadline').toHaveBeenLastCalledWith('loading')
+  expect(onStateChange, 'Retry reports the loading state').toHaveBeenLastCalledWith('loading')
   expect(screen.queryByRole('button', { name: 'auth.turnstileRetry' })).toBeNull()
   act(() => { vi.advanceTimersByTime(TURNSTILE_RETRY_INTERVAL_MS) })
   const retryScript = document.querySelector<HTMLScriptElement>(SCRIPT)!

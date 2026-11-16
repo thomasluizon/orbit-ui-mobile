@@ -225,7 +225,6 @@ export function TurnstileWidget({
   }, [resetKey])
 
   function retry() {
-    loadDeadlineRef.current = null
     onToken(null)
     setState('loading')
     onStateChange?.('loading')
