@@ -1,5 +1,6 @@
 import { StyleSheet, type TextStyle, type ViewStyle } from 'react-native'
 import Yoga, { type Node as YogaNode } from 'yoga-layout'
+import { applyBorderWidths } from '@/__tests__/support/yoga-borders'
 
 export interface GeometryHost {
   type: string
@@ -40,16 +41,6 @@ function applyMargins(node: YogaNode, style: ViewStyle) {
   }
 }
 
-function applyBorders(node: YogaNode, style: ViewStyle) {
-  for (const [property, edge] of [
-    ['borderWidth', Yoga.EDGE_ALL], ['borderTopWidth', Yoga.EDGE_TOP], ['borderBottomWidth', Yoga.EDGE_BOTTOM],
-    ['borderLeftWidth', Yoga.EDGE_LEFT], ['borderRightWidth', Yoga.EDGE_RIGHT],
-    ['borderStartWidth', Yoga.EDGE_START], ['borderEndWidth', Yoga.EDGE_END],
-  ] as const) {
-    if (typeof style[property] === 'number') node.setBorder(edge, style[property])
-  }
-}
-
 function applyStyle(node: YogaNode, style: ViewStyle) {
   applyFlexStyle(node, style)
   if (typeof style.width === 'number' || style.width === '100%') node.setWidth(style.width)
@@ -68,7 +59,7 @@ function applyStyle(node: YogaNode, style: ViewStyle) {
   for (const [property, edge] of [['padding', Yoga.EDGE_ALL], ['paddingHorizontal', Yoga.EDGE_HORIZONTAL], ['paddingVertical', Yoga.EDGE_VERTICAL], ['paddingTop', Yoga.EDGE_TOP], ['paddingBottom', Yoga.EDGE_BOTTOM], ['paddingLeft', Yoga.EDGE_LEFT], ['paddingRight', Yoga.EDGE_RIGHT]] as const) {
     if (typeof style[property] === 'number') node.setPadding(edge, style[property])
   }
-  applyBorders(node, style)
+  applyBorderWidths(node, style)
 }
 
 function bounds(node: YogaNode) {

@@ -9,6 +9,7 @@ import { expectInsetHairlineRing } from '@/__tests__/support/inset-hairline-ring
 import { ReferralDrawer } from '@/components/referral/referral-drawer'
 import { __resetTestHostConfig, __setWindowDimensions } from '../../../test-mocks/react-native'
 import { renderedText } from '../../support/react-test-renderer'
+import { applyBorderWidths } from '@/__tests__/support/yoga-borders'
 
 vi.unmock('@/components/ui/sheet')
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }))
@@ -59,15 +60,14 @@ function applyEdges(node: YogaNode, style: Record<string, unknown>) {
   for (const [suffix, edge] of edges) {
     const padding = style[`padding${suffix}`]
     const margin = style[`margin${suffix}`]
-    const border = style[`border${suffix}Width`]
     if (typeof padding === 'number') node.setPadding(edge, padding)
     if (typeof margin === 'number') node.setMargin(edge, margin)
-    if (typeof border === 'number') node.setBorder(edge, border)
   }
 }
 
 function applyStyle(node: YogaNode, style: Record<string, unknown>) {
   applyEdges(node, style)
+  applyBorderWidths(node, style)
   if (style.flexDirection === 'row') node.setFlexDirection(Yoga.FLEX_DIRECTION_ROW)
   if (style.justifyContent === 'flex-end') node.setJustifyContent(Yoga.JUSTIFY_FLEX_END)
   if (style.alignItems === 'center') node.setAlignItems(Yoga.ALIGN_CENTER)

@@ -2,6 +2,7 @@ import { StyleSheet, type PressableProps, type TextStyle, type ViewStyle } from 
 import Yoga, { type Node as YogaNode } from 'yoga-layout'
 import { Resvg } from '@resvg/resvg-js'
 import { act, type ReactTestRenderer } from 'react-test-renderer'
+import { applyBorderWidths } from '@/__tests__/support/yoga-borders'
 
 interface HostRow {
   type: string
@@ -75,17 +76,6 @@ function applyAlignment(node: YogaNode, style: ViewStyle) {
   if (typeof style.gap === 'number') node.setGap(Yoga.GUTTER_ALL, style.gap)
 }
 
-function applyBorders(node: YogaNode, style: ViewStyle) {
-  for (const [property, edge] of [
-    ['borderWidth', Yoga.EDGE_ALL], ['borderTopWidth', Yoga.EDGE_TOP], ['borderBottomWidth', Yoga.EDGE_BOTTOM],
-    ['borderLeftWidth', Yoga.EDGE_LEFT], ['borderRightWidth', Yoga.EDGE_RIGHT],
-    ['borderStartWidth', Yoga.EDGE_START], ['borderEndWidth', Yoga.EDGE_END],
-  ] as const) {
-    const border = style[property]
-    if (typeof border === 'number') node.setBorder(edge, border)
-  }
-}
-
 function applyStyle(node: YogaNode, style: ViewStyle) {
   applyFlexStyle(node, style)
   if (style.position === 'absolute') node.setPositionType(Yoga.POSITION_TYPE_ABSOLUTE)
@@ -119,7 +109,7 @@ function applyStyle(node: YogaNode, style: ViewStyle) {
     const margin = style[property]
     if (typeof margin === 'number') node.setMargin(edge, margin)
   }
-  applyBorders(node, style)
+  applyBorderWidths(node, style)
 }
 
 function contentPaths(rows: HostRow[], path: number[]): number[][] {

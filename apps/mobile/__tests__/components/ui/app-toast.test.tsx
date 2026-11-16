@@ -9,6 +9,7 @@ import { useUIStore } from '@/stores/ui-store'
 import { createTokensV2 } from '@/lib/theme'
 import { contrastOnSurface, withAlpha } from '@orbit/shared/__tests__/contrast'
 import { pressableStyle } from '@/__tests__/support/press-feedback'
+import { applyBorderWidths } from '@/__tests__/support/yoga-borders'
 
 const safeArea = vi.hoisted(() => ({ top: 0, bottom: 0, left: 0, right: 0 }))
 vi.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => safeArea }))
@@ -203,6 +204,7 @@ describe('mobile Toast', () => {
     content.setHeight(toastHeight)
     host.insertChild(content, 0)
     host.setPadding(Yoga.EDGE_ALL, hostStyle.padding)
+    applyBorderWidths(host, hostStyle)
     host.setPositionType(hostStyle.position === 'absolute' ? Yoga.POSITION_TYPE_ABSOLUTE : Yoga.POSITION_TYPE_RELATIVE)
     root.insertChild(host, 1)
     try {

@@ -4,6 +4,7 @@ import Yoga, { type Node as YogaNode } from 'yoga-layout'
 import { createMockNotification } from '@orbit/shared/__tests__/factories'
 import { NotificationInbox } from '@/components/navigation/notification-inbox'
 import { __setWindowDimensions } from '../../../test-mocks/react-native'
+import { applyBorderWidths } from '@/__tests__/support/yoga-borders'
 
 const { act, create }: typeof import('react-test-renderer') = require('react-test-renderer')
 const inbox = vi.hoisted(() => ({ items: [] as import('@orbit/shared/types/notification').NotificationItem[], state: 'empty' }))
@@ -48,6 +49,7 @@ function layoutHost(host: Host, nodes: Map<Host, YogaNode>): YogaNode {
     ['paddingTop', Yoga.EDGE_TOP], ['paddingBottom', Yoga.EDGE_BOTTOM]] as const) {
     if (typeof style[key] === 'number') node.setPadding(edge, style[key])
   }
+  applyBorderWidths(node, style)
   ;(host.children ?? []).filter((child): child is Host => typeof child !== 'string')
     .forEach((child, index) => node.insertChild(layoutHost(child, nodes), index))
   return node

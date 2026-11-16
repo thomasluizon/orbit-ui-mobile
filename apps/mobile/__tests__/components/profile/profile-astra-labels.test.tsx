@@ -10,6 +10,7 @@ import { ListRow } from '@/components/ui/list-row'
 import { RowList } from '@/components/ui/row-list'
 import { i18n } from '@/lib/i18n'
 import { replayProfileTitleLayout } from '../../support/profile-row-geometry'
+import { applyBorderWidths } from '@/__tests__/support/yoga-borders'
 
 vi.unmock('react-i18next')
 const TestRenderer = require('react-test-renderer')
@@ -63,6 +64,7 @@ function applyStyle(node: YogaNode, style: ViewStyle) {
   if (typeof style.paddingHorizontal === 'number') node.setPadding(Yoga.EDGE_HORIZONTAL, style.paddingHorizontal)
   if (typeof style.paddingVertical === 'number') node.setPadding(Yoga.EDGE_VERTICAL, style.paddingVertical)
   if (typeof style.paddingTop === 'number') node.setPadding(Yoga.EDGE_TOP, style.paddingTop)
+  applyBorderWidths(node, style)
   if (typeof style.paddingEnd === 'number') node.setPadding(Yoga.EDGE_END, style.paddingEnd)
   if (typeof style.marginVertical === 'number') node.setMargin(Yoga.EDGE_VERTICAL, style.marginVertical)
   if (typeof style.marginHorizontal === 'number') node.setMargin(Yoga.EDGE_HORIZONTAL, style.marginHorizontal)
