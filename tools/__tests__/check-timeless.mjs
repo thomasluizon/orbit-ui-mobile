@@ -35,14 +35,14 @@ export const cases = () => {
   const owner = ["Tho", "mas"].join("")
   const path = ["/", "Users/alex/project"].join("")
   const windowsPath = ["C:", "\\", "Users", "\\", "alex"].join("")
-  const cases = [
+  const plantedFindings = [
     ["machine-path", "sample.md", `Use ${path}.\n`],
     ["machine-path-windows", "sample.md", `Use ${windowsPath}.\n`],
     ["owner-name", "sample.md", `Ask ${owner}.\n`],
     ["dated-anecdote", "sample.md", `On ${date}, the run failed.\n`],
     ["comment-length", "sample.js", Array.from({ length: 7 }, (_, index) => `// reason ${index}`).join("\n") + "\n"],
   ]
-  for (const [rule, name, planted] of cases) {
+  for (const [rule, name, planted] of plantedFindings) {
     const root = fixture(rule, name, "clean\n")
     const base = git(root, "rev-parse", "HEAD").stdout.trim()
     const file = join(root, name)
@@ -148,23 +148,23 @@ export const cases = () => {
   rmSync(carriageBlob, { recursive: true, force: true })
 
   const writeHook = (session, filePath, content) => run(session, ["--hook"], JSON.stringify({ tool_name: "Write", tool_input: { file_path: filePath, content } }))
-  const label = "a hook judges a file of another repository"
+  const otherLabel = "a hook judges a file of another repository"
   const sessionRoot = fixture("session-repository", "sample.md", "clean\n")
   const otherRoot = fixture("other-repository", "kept.md", `Ask ${owner}.\n`)
   writeFileSync(join(otherRoot, "tools", "check-timeless.mjs"), "process.exit(0)\n")
   writeFileSync(join(otherRoot, ".gitignore"), "local/\n")
   const otherKept = landedEdit(otherRoot, "kept.md", `Ask ${owner}.\nmore\n`, { session: sessionRoot })
-  T(`${label} against the HEAD blob of that repository`, otherKept.status === 0, otherKept.stderr)
+  T(`${otherLabel} against the HEAD blob of that repository`, otherKept.status === 0, otherKept.stderr)
   const otherPlanted = landedEdit(otherRoot, "sample.md", `Ask ${owner}.\n`, { session: sessionRoot })
-  T(`${label} itself, not through its checker`, rejects(otherPlanted, ownerFinding("sample.md")), otherPlanted.stderr)
+  T(`${otherLabel} itself, not through its checker`, rejects(otherPlanted, ownerFinding("sample.md")), otherPlanted.stderr)
   const otherWritten = writeHook(sessionRoot, join(otherRoot, "new.md"), `Ask ${owner}.\n`)
-  T(`${label} at a Write before it lands`, rejects(otherWritten, ownerFinding("new.md")), otherWritten.stderr)
+  T(`${otherLabel} at a Write before it lands`, rejects(otherWritten, ownerFinding("new.md")), otherWritten.stderr)
   mkdirSync(join(otherRoot, "local"))
   const otherIgnored = landedEdit(otherRoot, "local/notes.md", `Ask ${owner}.\n`, { session: sessionRoot })
-  T(`${label} with the ignored paths of that repository`, otherIgnored.status === 0, otherIgnored.stderr)
+  T(`${otherLabel} with the ignored paths of that repository`, otherIgnored.status === 0, otherIgnored.stderr)
   writeFileSync(join(otherRoot, "tools", "timeless-allowlist.json"), JSON.stringify([{ path: "sample.md", rule: "owner-name", match: owner, reason: "reviewed" }]))
   const otherAllowed = landedEdit(otherRoot, "sample.md", `Ask ${owner}.\n`, { session: sessionRoot })
-  T(`${label} with the allowlist of that repository`, otherAllowed.status === 0, otherAllowed.stderr)
+  T(`${otherLabel} with the allowlist of that repository`, otherAllowed.status === 0, otherAllowed.stderr)
   rmSync(sessionRoot, { recursive: true, force: true })
   rmSync(otherRoot, { recursive: true, force: true })
 
