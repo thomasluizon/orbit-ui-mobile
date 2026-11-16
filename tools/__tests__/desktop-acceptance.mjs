@@ -8,8 +8,9 @@ import { fileURLToPath, pathToFileURL } from 'node:url'
 import { runInNewContext } from 'node:vm'
 import { load } from 'js-yaml'
 import { JSDOM } from 'jsdom'
-import { assertAccessibleTree, assertCookieEvidence, assertPaletteFocus } from '../desktop-bench/acceptance-contract.mjs'
+import { assertAccessibleTree, assertCookieEvidence, assertPaletteFocus, claimedKey, deliverKey } from '../desktop-bench/acceptance-contract.mjs'
 import { T, REPO_ROOT, check, configure, failureCount, root, stage } from './_harness.mjs'
+import { keyDeliveryCases, paletteDeliveryCases } from './desktop-acceptance-keys.mjs'
 import { networkCases } from './desktop-acceptance-network.mjs'
 import { pushPhaseCases } from './desktop-acceptance-push.mjs'
 import { runChild } from '../desktop-bench/child-limit.mjs'
@@ -183,20 +184,22 @@ async function installedLaunchCases() {
     send(command) { commands.push(command); if (command === 'reload') events.push({ kind: 'hoje', nativeVersion: '1.0.0' }) },
     stop() {},
   }
+  const written = []
   const context = {
-    join, directory: '/fixture', windows: true, process: { platform: 'win32', arch: 'x64', stdout: { write() {} } },
+    join, directory: '/fixture', windows: true, process: { platform: 'win32', arch: 'x64', stdout: { write(line) { written.push(line) } } }, cpus: () => [{}, {}, {}],
     mkdir: async () => {}, existsSync: () => false, assertFree: async () => {}, startRecording: async () => Object.assign(() => {}, { startedAt: Date.now() }),
     buildInstaller: async (_repository, _output, signing) => { builtWith.push(signing); return {} }, hermeticServices: async () => {}, nativeTool: async () => () => {},
     updateServer: async () => ({ route() {}, mode() {}, cookieEvidence() {} }),
     isolateOrigins: async () => ({ restore() {} }), lookup: async () => [{ address: '127.0.0.1' }],
-    startProxy: async () => proxy, install: async () => '/fixture/Orbit.app/Contents/MacOS/orbit-desktop', dirname, execute: async () => '',
+    startProxy: async () => proxy, install: async () => '/fixture/Orbit.app/Contents/MacOS/orbit-desktop', dirname,
+    execute: async () => '',
     keepInstalledLaunchCopy: async (application, directories) => {
       launchCopies.push({ application, directories, launches: launches.length })
       return { identifier: 'org.useorbit.desktop.staging', removed: [], best: application }
     },
     installedLaunch: (_executable, _output, name) => { launches.push(settings.expectAuthenticated === true); return { name } },
     waitFor: async (read, label) => { const result = read(); if (!result) throw new Error(`Timed out waiting for ${label}`); return result },
-    inspectSurfaces: async () => {}, inspectCaption: async (_proxy, _native, handle) => { captions.push(handle.name) }, quit: async () => {}, recordKeys: (native) => native,
+    inspectSurfaces: async () => {}, inspectCaption: async (_proxy, _native, handle) => { captions.push(handle.name) }, quit: async () => {},
     pushPhase: async (options) => { pushCalls.push({ options, checks: options.report.launchChecks.map((checkpoint) => checkpoint.event) }) },
     readFile: async () => 'signature verification failed', record: async (_path, report) => { recorded = report }, rm: async () => {}, stopAll: async () => {},
   }
@@ -206,14 +209,16 @@ async function installedLaunchCases() {
   T('a Windows run builds unsigned, tells the push phase so and reports why',
     builtWith[0] === null && pushCalls[0].options.signed === false && recorded.signing.unsigned === 'Windows packages with --no-sign')
   T('a Windows run checks the caption once, on the first signed-in launch', JSON.stringify(captions) === '["installed"]', JSON.stringify(captions))
+  T('a Windows run names its vCPU count in report.json and the job log', recorded.runner.cpus === 3 && written.includes('Runner vCPUs: 3\n'), JSON.stringify(written))
   const signing = { certificate: 'fixture-certificate', password: 'fixture-password', profile: 'fixture-profile', identity: 'Developer ID Application: Fixture (TEAM)' }
-  Object.assign(context, { windows: false, unsignedReason: 'fixture unsigned reason', startHttpsListener: async () => {} })
+  Object.assign(context, { windows: false, unsignedReason: 'fixture unsigned reason', startHttpsListener: async () => {}, cpus: () => [{}, {}, {}, {}, {}] })
   await context.acceptance({ repository: '/fixture', output: '/output', credentials, signing })
   T('a signed macOS run passes the material to the build, tells the push phase and reports only the public identity',
     builtWith[1] === signing && pushCalls[1].options.signed === true &&
       JSON.stringify(recorded.signing) === JSON.stringify({ identity: signing.identity, entitlements: 'Entitlements.staging.plist' }))
   await context.acceptance({ repository: '/fixture', output: '/output', credentials })
   T('an unsigned macOS run reports the missing signing material as its reason', builtWith[2] === null && recorded.signing.unsigned === 'fixture unsigned reason')
+  T('a macOS run reads its vCPU count from os.cpus() into report.json and the job log', recorded.runner.cpus === 5 && written.includes('Runner vCPUs: 5\n'), JSON.stringify(written))
   T('a macOS run keeps its native title bar out of the caption check', captions.length === 1, JSON.stringify(captions))
   T('each macOS run leaves only the installed app in LaunchServices before its first launch, and a Windows run never asks',
     launchCopies.map((call) => call.launches).join(',') === '3,6' && launchCopies.every((call) => call.application === '/fixture/Orbit.app' &&
@@ -448,7 +453,7 @@ int main(int argc, const char *argv[]) {
         raiseWorks = [scenario isEqual:@"raised"];
         NSMutableArray *replies = [NSMutableArray array];
         NSMutableArray *errors = [NSMutableArray array];
-        for (NSString *operation in @[@"palette", @"down", @"down", @"home", @"escape", @"quit"]) {
+        for (NSString *operation in @[@"palette", @"down", @"down", @"escape"]) {
             command = operation;
             @try { [replies addObject:key(1, operation)]; } @catch (NSException *exception) { [errors addObject:exception.reason]; }
         }
@@ -471,19 +476,19 @@ int main(int argc, const char *argv[]) {
   // The session routing behind the HID event tap lost whole keys on hosted runners while the shell held keyboard focus (#1560),
   // so every key phase enters the installed process's own event stream and none passes through that routing.
   T('macOS keyboard producer posts both key phases into the installed process, never at the HID event tap, while it has keyboard focus',
-    events.length === 12 && events.every((event) => event.targeted === 1 && event.tap === undefined && event.focused === 1), JSON.stringify(events))
-  T('macOS keyboard producer sets Command only for shortcuts and clears inherited modifiers on both key phases', events.length === 12 && events.every((event) =>
-    event.metaKey === ['palette', 'quit'].includes(event.command) && !event.shiftKey && !event.ctrlKey && !event.altKey), JSON.stringify(events))
+    events.length === 8 && events.every((event) => event.targeted === 1 && event.tap === undefined && event.focused === 1), JSON.stringify(events))
+  T('macOS keyboard producer sets Command only for the palette shortcut and clears inherited modifiers on both key phases', events.length === 8 && events.every((event) =>
+    event.metaKey === (event.command === 'palette') && !event.shiftKey && !event.ctrlKey && !event.altKey), JSON.stringify(events))
   T('macOS keyboard producer names the process delivery path and the focused process in every reply without raising a focused process',
-    focusedRun.raised.length === 0 && focusedRun.errors.length === 0 && focusedRun.replies.length === 6 && focusedRun.replies.every((reply) =>
+    focusedRun.raised.length === 0 && focusedRun.errors.length === 0 && focusedRun.replies.length === 4 && focusedRun.replies.every((reply) =>
       reply.delivery === 'process-event' && reply.activation === 'focused' && reply.focusedProcess === 1), JSON.stringify(focusedRun))
   const raisedRun = run('raised')
   T('macOS keyboard producer raises an unfocused installed process once, then posts into that process',
-    raisedRun.raised.join(',') === '1' && raisedRun.events.length === 12 && raisedRun.events.every((event) => event.targeted === 1 && event.focused === 1) &&
+    raisedRun.raised.join(',') === '1' && raisedRun.events.length === 8 && raisedRun.events.every((event) => event.targeted === 1 && event.focused === 1) &&
       raisedRun.replies[0].activation === 'raised' && raisedRun.replies.slice(1).every((reply) => reply.activation === 'focused'), JSON.stringify(raisedRun))
   const refusedRun = run('refused')
   T('macOS keyboard producer posts no key while another process keeps keyboard focus and names that process',
-    refusedRun.events.length === 0 && refusedRun.replies.length === 0 && refusedRun.errors.length === 6 &&
+    refusedRun.events.length === 0 && refusedRun.replies.length === 0 && refusedRun.errors.length === 4 &&
       refusedRun.errors[0] === 'Process 1 did not receive keyboard focus for palette; process 2 has it', JSON.stringify(refusedRun))
   return events
 }
@@ -491,6 +496,7 @@ int main(int argc, const char *argv[]) {
 async function paletteTimingCases(dom, readState, reports) {
   const source = readFileSync(join(REPO_ROOT, 'tools/desktop-bench/acceptance-runner.mjs'), 'utf8')
   const traversal = source.slice(source.indexOf('  const focus = []'), source.indexOf('\n  report.paletteFocus = focus') + '\n  report.paletteFocus = focus'.length)
+  const pressKey = source.slice(source.indexOf('function pressKey('), source.indexOf('async function dismissAstra'))
   const input = dom.window.document.querySelector('[cmdk-input]')
   const { flushSync } = await import('react-dom')
   const key = (name) => flushSync(() => input.dispatchEvent(new dom.window.KeyboardEvent('keydown', { key: name, bubbles: true })))
@@ -500,7 +506,7 @@ async function paletteTimingCases(dom, readState, reports) {
     const events = [{ kind: 'focus', ...readState() }]
     const report = {}
     const captures = []
-    const context = { previous: readState(), handle: { child: { pid: 321 } }, report,
+    const context = { previous: readState(), handle: { child: { pid: 321 } }, report, Date, deliverKey, claimedKey, process: { stdout: { write() {} } },
       proxy: {
         events: () => [...events, ...reports.slice(start)],
         send: () => { if (timing === 'after-input') events.push({ kind: 'focus', ...readState() }) },
@@ -511,94 +517,12 @@ async function paletteTimingCases(dom, readState, reports) {
       assertPaletteFocus: (previous, current) => T(`runner ${timing} validates each real cmdk destination in order`,
         current.selected === previous.selected + 1 && current.inputFocused),
     }
-    runInNewContext(`globalThis.traverse = async () => {${traversal}\n}`, context)
+    runInNewContext(`${pressKey}\nglobalThis.traverse = async () => {${traversal}\n}`, context)
     let failure
     try { await context.traverse() } catch (error) { failure = error }
     T(`runner retains focus delivered ${timing} without consuming a stale event or skipping either result`,
       !failure && report.paletteFocus?.map((event) => event.selected).join(',') === '1,2' &&
       captures.join(',') === 'palette-result-1,palette-result-2', failure?.message)
-  }
-}
-
-// Replays the intermittent macOS failure: the native helper returns for a Down that the page never receives,
-// so the probe records no palette-key receipt and the selection never moves.
-async function paletteDeliveryCases(dom, readState, reports) {
-  const runner = readFileSync(join(REPO_ROOT, 'tools/desktop-bench/acceptance-runner.mjs'), 'utf8')
-  const traversal = runner.slice(runner.indexOf('  const focus = []'), runner.indexOf('\n  report.paletteFocus = focus') + '\n  report.paletteFocus = focus'.length)
-  const host = readFileSync(join(REPO_ROOT, 'tools/desktop-bench/host.mjs'), 'utf8')
-  const waitForSource = host.slice(host.indexOf('export async function waitFor'), host.indexOf('export async function waitForHttp')).replace('export ', '')
-  const input = dom.window.document.querySelector('[cmdk-input]')
-  const { flushSync } = await import('react-dom')
-  const press = (target, key, init = {}) => flushSync(() => target.dispatchEvent(new dom.window.KeyboardEvent('keydown', { key, code: key, bubbles: true, ...init })))
-  const scenarios = {
-    'first-press-lost': { lost: [1] },
-    'second-press-lost': { lost: [2] },
-    'never-delivered': { lost: [1, 2, 3, 4, 5, 6] },
-    'received-without-selection': { target: () => dom.window.document.body },
-    'late-duplicate': { duplicate: [1] },
-    // WebKit delivers a Down that the macOS input method claimed as ArrowDown with keyCode 229, and cmdk ignores it.
-    'claimed-by-input-method': { init: { keyCode: 229 }, claimed: (key) => key.keyCode === 229 },
-    'composing-in-input-method': { init: { isComposing: true }, claimed: (key) => key.composing === true },
-  }
-  for (const [name, scenario] of Object.entries(scenarios)) {
-    press(input, 'Home')
-    const start = reports.length
-    const focusEvents = []
-    const posts = []
-    const captures = []
-    const report = {}
-    let pendingFocus = null
-    let clock = 0
-    const context = { previous: readState(), handle: { child: { pid: 321 } }, report, Date: { now: () => clock },
-      // The real proxy forwards every probe report in arrival order; the probe answers focus-N only at that exact index.
-      proxy: {
-        events: () => {
-          if (pendingFocus !== null && readState().selected === pendingFocus) { focusEvents.push({ kind: 'focus', ...readState() }); pendingFocus = null }
-          return [...reports.slice(start), ...focusEvents]
-        },
-        send: (command) => { pendingFocus = Number(command.slice('focus-'.length)) },
-      },
-      native: async (pid, command) => {
-        posts.push(command)
-        if (command !== 'down' || scenario.lost?.includes(posts.length)) return
-        press(scenario.target?.() ?? input, 'ArrowDown', scenario.init)
-        if (scenario.duplicate?.includes(posts.length)) press(input, 'ArrowDown')
-      },
-      delay: async (milliseconds) => { clock += milliseconds; await new Promise((resolve) => setImmediate(resolve)) },
-      dump: async (surface) => { captures.push(surface) },
-      assertPaletteFocus: (previous, current) => {
-        if (current.selected !== previous.selected + 1) throw new Error(`Palette result order: expected ${previous.selected + 1}, received ${current.selected}`)
-      },
-    }
-    runInNewContext(`${waitForSource}\nglobalThis.traverse = async () => {${traversal}\n}`, context)
-    let failure
-    try { await context.traverse() } catch (error) { failure = error }
-    const order = report.paletteFocus?.map((event) => event.selected).join(',')
-    if (name === 'first-press-lost' || name === 'second-press-lost') {
-      T(`palette traversal posts a Down again only after the page received no Down (${name}) and still requires each result in order`,
-        !failure && order === '1,2' && captures.join(',') === 'palette-result-1,palette-result-2' && posts.length === 3 &&
-          report.paletteUndelivered?.length === 1 && report.paletteUndelivered[0].step === scenario.lost[0], failure?.message ?? JSON.stringify({ order, posts, report }))
-    }
-    if (name === 'never-delivered') {
-      T('palette traversal stops after a bounded number of undelivered Down posts and names the missing receipt',
-        /no usable native Down/.test(failure?.message) && posts.length === 3 && report.paletteUndelivered?.length === 3, failure?.message)
-    }
-    if (name === 'received-without-selection') {
-      T('a Down the page received but cmdk did not apply is never posted again and fails the focus check',
-        failure?.message === 'Timed out waiting for palette result focus' && posts.length === 1, failure?.message)
-    }
-    if (scenario.claimed) {
-      const claimed = report.paletteUndelivered?.flatMap((entry) => entry.keys) ?? []
-      T(`a Down the input method claimed (${name}) counts as undelivered and ends in the bounded failure, not the focus timeout`,
-        /no usable native Down/.test(failure?.message) && /keyCode 229 or composing/.test(failure?.message) && posts.length === 3 &&
-          report.paletteUndelivered?.length === 3 && claimed.length === 3 &&
-          claimed.every((key) => key.key === 'ArrowDown' && scenario.claimed(key) && key.targetInput && key.before.selected === 0),
-        failure?.message ?? JSON.stringify({ posts, report }))
-    }
-    if (name === 'late-duplicate') {
-      T('a step that receives two Downs fails explicitly instead of skipping a result',
-        /received 2 native Down keys/.test(failure?.message) && posts.length === 1, failure?.message)
-    }
   }
 }
 
@@ -808,6 +732,7 @@ export async function cases() {
   await compactHojeProbeCases()
   await appearanceProbeCases()
   await controlledPaletteCases()
+  await keyDeliveryCases()
   nativePaletteFocusCases()
   const native = { denied: false, error: null, nodes: [
     { id: '0', role: 'Document', name: '', interactive: false, focused: false, selected: false },
@@ -859,6 +784,8 @@ export async function cases() {
   T('reader acceptance regressions exercise the native notification readers and the Windows Done activator', readerFixture.status === 0, readerFixture.stderr || readerFixture.stdout)
   const launchFixture = spawnSync(process.execPath, ['--import', 'tsx', join(REPO_ROOT, 'tools/desktop-bench/test-acceptance-launch.ts')], { cwd: REPO_ROOT, encoding: 'utf8', timeout: 60000 })
   T('launch acceptance regressions exercise the Medium-integrity Windows launcher', launchFixture.status === 0, launchFixture.stderr || launchFixture.stdout)
+  const keysFixture = spawnSync(process.execPath, ['--import', 'tsx', join(REPO_ROOT, 'tools/desktop-bench/test-acceptance-keys.ts')], { cwd: REPO_ROOT, encoding: 'utf8', timeout: 60000 })
+  T('key acceptance regressions post each native key on the runner path until the page records it', keysFixture.status === 0, keysFixture.stderr || keysFixture.stdout)
   const childLimitFixture = spawnSync(process.execPath, ['--import', 'tsx', join(REPO_ROOT, 'tools/desktop-bench/test-child-limit.ts')], { cwd: REPO_ROOT, encoding: 'utf8', timeout: 60000 })
   T('child limit regressions let a harness child outlast the old 10 s limit and name the measured limit on a timeout', childLimitFixture.status === 0, childLimitFixture.stderr || childLimitFixture.stdout)
   if (process.platform === 'darwin') {
@@ -964,6 +891,12 @@ export async function cases() {
     .map((file) => ({ file, platforms: [...new Set([...readFileSync(join(REPO_ROOT, 'tools/desktop-bench', file), 'utf8')
       .matchAll(/process\.platform\s*[!=]==\s*'(\w+)'/g)].map((match) => match[1]))] }))
     .filter(({ platforms }) => platforms.length > 0)
+  // A case moved into a new producer test file still runs only when this suite starts that file.
+  const suite = readFileSync(fileURLToPath(import.meta.url), 'utf8')
+  const producerTests = readdirSync(join(REPO_ROOT, 'tools/desktop-bench')).filter((file) => /^test-.*\.ts$/.test(file) &&
+    readFileSync(join(REPO_ROOT, 'tools/desktop-bench', file), 'utf8').includes("from 'node:test'"))
+  T('Tool and Hook Tests starts every producer test file in tools/desktop-bench', producerTests.length > 0 &&
+    producerTests.every((file) => suite.includes(`join(REPO_ROOT, 'tools/desktop-bench/${file}')`)), JSON.stringify(producerTests))
   const nativeFiles = [...nativeRuns.matchAll(/node --import tsx tools\/desktop-bench\/(test-[\w-]+\.ts)/g)].map((match) => match[1]).sort()
   T('every producer test file with a platform gate runs on the runner of each platform it names, and no other file runs there',
     gatedProducers.length > 0 && JSON.stringify(nativeFiles) === JSON.stringify(gatedProducers.map(({ file }) => file)) &&
