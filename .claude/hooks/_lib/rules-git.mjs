@@ -179,7 +179,6 @@ export function checkGitCommand(command, { resolveHeadBranch, resolveRemoteUrl, 
 
   // Everything below is branch protection, so it applies only to the repos that
   // actually have it.
-
   /** The token as argv carries it: no escape and no quote, also not the `$` that opens an ANSI-C quote. */
   const unquoteToken = (token) => token.replace(/\\(.)/g, "$1").replace(/\$?["']/g, "")
 

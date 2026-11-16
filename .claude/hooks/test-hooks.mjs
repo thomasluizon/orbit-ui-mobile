@@ -323,6 +323,8 @@ const HEREDOC_DATA = [
   // A quoted `<<A` before the operator is text: the heredoc is the one that has a terminator line.
   "git commit -m 'x <<A' -F - <<'EOF'",
   "git commit -m \"it's <<A\" -F - <<'EOF'",
+  // A `<<` with no terminator line, such as a shift, opens no heredoc, and the reader goes on to the next operator.
+  "echo $((1<<x)); git commit -F - <<'EOF'",
   // The shell expands `$(cat)` before it applies the heredoc, so the command string comes from the input of the caller, not from the body.
   "bash -c \"$(cat)\" <<'EOF'",
   "eval \"$(cat)\" <<'EOF'",
