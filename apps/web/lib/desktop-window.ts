@@ -3,6 +3,8 @@ import { desktopRuntime } from '@/lib/desktop-runtime'
 
 export type DesktopWindowPlatform = 'windows' | 'macos'
 export type DesktopWindowAction = 'state' | 'drag' | 'minimize' | 'toggle_maximize' | 'close' | 'menu' | 'system_menu'
+/** CSS pixels from the top left of the page, where the shell opens a menu that the keyboard opened. */
+export type DesktopWindowAnchor = { x: number; y: number }
 
 /** The shell marks the root element with this attribute at document creation, and only a shell without a native title bar does. */
 const DESKTOP_WINDOW_BAR_ATTRIBUTE = 'data-desktop-window-bar'
@@ -29,10 +31,10 @@ export function desktopWindowPlatform(): DesktopWindowPlatform | null {
   return platform === 'windows' || platform === 'macos' ? platform : null
 }
 
-export async function invokeDesktopWindow(action: DesktopWindowAction): Promise<boolean> {
+export async function invokeDesktopWindow(action: DesktopWindowAction, anchor?: DesktopWindowAnchor): Promise<boolean> {
   const runtime = desktopRuntime()
   if (!runtime) return false
-  return (await runtime.invoke('desktop_window', { action })) === true
+  return (await runtime.invoke('desktop_window', anchor ? { action, anchor } : { action })) === true
 }
 
 let mountedBars = 0

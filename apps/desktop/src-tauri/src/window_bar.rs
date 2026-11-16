@@ -15,6 +15,13 @@ pub enum Action {
     Bar,
 }
 
+// CSS pixels from the top left of the page, where a menu that the keyboard opens shows.
+#[derive(Clone, Copy, Debug, PartialEq, serde::Deserialize)]
+pub struct Anchor {
+    x: f64,
+    y: f64,
+}
+
 // CSS pixels of the bar, matching apps/web/lib/desktop-window.ts: the menu action starts at the end inset, so its popup opens
 // at that inset under the bar.
 const BAR_HEIGHT: f64 = 48.0;
@@ -338,6 +345,7 @@ pub fn desktop_window(
     window: WebviewWindow,
     action: Action,
     drawn: Option<bool>,
+    anchor: Option<Anchor>,
 ) -> Result<bool, String> {
     let tauri::utils::config::WebviewUrl::External(origin) = &window.config().app.windows[0].url
     else {
@@ -351,7 +359,7 @@ pub fn desktop_window(
         let drawn = drawn.ok_or("The bar action requires drawn")?;
         report_bar(&window, drawn).map_err(|error| error.to_string())?;
     }
-    apply(&window, action).map_err(|error| error.to_string())
+    apply(&window, action, anchor).map_err(|error| error.to_string())
 }
 
 trait BarWindow {
@@ -362,7 +370,7 @@ trait BarWindow {
     fn start_dragging(&self) -> tauri::Result<()>;
     fn close(&self) -> tauri::Result<()>;
     fn popup_menu(&self) -> tauri::Result<()>;
-    fn system_menu(&self) -> tauri::Result<()>;
+    fn system_menu(&self, anchor: Option<Anchor>) -> tauri::Result<()>;
     fn set_decorations(&self, decorations: bool) -> tauri::Result<()>;
     fn set_shadow(&self, shadow: bool) -> tauri::Result<()>;
     fn set_title_bar_style(&self, style: tauri::utils::TitleBarStyle) -> tauri::Result<()>;
@@ -400,18 +408,25 @@ impl BarWindow for WebviewWindow {
         )
     }
     // A right-click on a native caption opens the window menu (Restore, Move, Size, Minimize, Maximize, Close) at the pointer.
-    // The bar is web content, so the page asks for that menu, and `native/windows/caption.cpp` opens it.
-    fn system_menu(&self) -> tauri::Result<()> {
+    // The bar is web content, so the page asks for that menu, and `native/windows/caption.cpp` opens it: at the pointer, or at
+    // the anchor of the focused action when the keyboard opens it.
+    fn system_menu(&self, anchor: Option<Anchor>) -> tauri::Result<()> {
         #[cfg(windows)]
         {
-            crate::launch::with_native(self, |pointer| {
-                if !unsafe { orbit_caption_system_menu(pointer) } {
+            let scale = self.scale_factor()?;
+            let position = anchor.map(|anchor| {
+                tauri::LogicalPosition::new(anchor.x, anchor.y).to_physical::<i32>(scale)
+            });
+            crate::launch::with_native(self, move |pointer| {
+                let (anchored, x, y) = position.map_or((false, 0, 0), |at| (true, at.x, at.y));
+                if !unsafe { orbit_caption_system_menu(pointer, anchored, x, y) } {
                     eprintln!("Cannot open the window system menu");
                 }
             })
         }
         #[cfg(not(windows))]
         {
+            let _ = anchor;
             Err(std::io::Error::other("Only the Windows shell has a window system menu").into())
         }
     }
@@ -426,14 +441,14 @@ impl BarWindow for WebviewWindow {
     }
 }
 
-fn apply(window: &impl BarWindow, action: Action) -> tauri::Result<bool> {
+fn apply(window: &impl BarWindow, action: Action, anchor: Option<Anchor>) -> tauri::Result<bool> {
     match action {
         Action::State | Action::Bar => {}
         Action::Drag => window.start_dragging()?,
         Action::Minimize => window.minimize()?,
         Action::Close => window.close()?,
         Action::Menu => window.popup_menu()?,
-        Action::SystemMenu => window.system_menu()?,
+        Action::SystemMenu => window.system_menu(anchor)?,
         Action::ToggleMaximize => {
             if window.is_maximized()? {
                 window.unmaximize()?
@@ -449,7 +464,12 @@ fn apply(window: &impl BarWindow, action: Action) -> tauri::Result<bool> {
 extern "C" {
     fn orbit_caption_install(window: *mut std::ffi::c_void, hover: extern "C" fn(bool)) -> bool;
     fn orbit_caption_set_active(window: *mut std::ffi::c_void, active: bool);
-    fn orbit_caption_system_menu(window: *mut std::ffi::c_void) -> bool;
+    fn orbit_caption_system_menu(
+        window: *mut std::ffi::c_void,
+        anchored: bool,
+        x: i32,
+        y: i32,
+    ) -> bool;
 }
 
 #[cfg(windows)]
@@ -628,8 +648,8 @@ mod tests {
         fn popup_menu(&self) -> tauri::Result<()> {
             self.record("popup_menu")
         }
-        fn system_menu(&self) -> tauri::Result<()> {
-            self.record("system_menu")
+        fn system_menu(&self, anchor: Option<Anchor>) -> tauri::Result<()> {
+            self.record(format!("system_menu({anchor:?})"))
         }
         fn set_decorations(&self, decorations: bool) -> tauri::Result<()> {
             self.record(format!("set_decorations({decorations})"))
@@ -654,15 +674,27 @@ mod tests {
             (Action::ToggleMaximize, true, Some("unmaximize"), false),
             (Action::Menu, false, Some("popup_menu"), false),
             (Action::Menu, true, Some("popup_menu"), true),
-            (Action::SystemMenu, false, Some("system_menu"), false),
-            (Action::SystemMenu, true, Some("system_menu"), true),
+            (Action::SystemMenu, false, Some("system_menu(None)"), false),
+            (Action::SystemMenu, true, Some("system_menu(None)"), true),
             (Action::Bar, false, None, false),
             (Action::Bar, true, None, true),
         ] {
             let window = Recorder::new(maximized);
-            assert_eq!(apply(&window, action).unwrap(), after);
+            assert_eq!(apply(&window, action, None).unwrap(), after);
             assert_eq!(window.calls.borrow().as_slice(), call.as_slice());
         }
+    }
+
+    #[test]
+    fn a_keyboard_system_menu_opens_at_the_anchor_the_page_sends() {
+        let anchor: Anchor = serde_json::from_str(r#"{"x":4,"y":48}"#).unwrap();
+        assert_eq!(anchor, Anchor { x: 4.0, y: 48.0 });
+        let window = Recorder::new(false);
+        assert!(!apply(&window, Action::SystemMenu, Some(anchor)).unwrap());
+        assert_eq!(
+            window.calls.borrow().as_slice(),
+            ["system_menu(Some(Anchor { x: 4.0, y: 48.0 }))"]
+        );
     }
 
     fn change(native: Option<bool>, snap_region: Option<bool>) -> FrameChange {

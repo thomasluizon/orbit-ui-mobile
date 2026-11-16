@@ -117,13 +117,14 @@ static void enable_command(HMENU menu, UINT command, bool enabled) {
     SetMenuItemInfoW(menu, command, FALSE, &item);
 }
 
-// The window menu that a right-click on a native caption opens. DefWindowProc sets the enabled states of that menu only for its
-// own caption, so this sets them from the window state as a captioned window shows them, then runs the chosen command.
-extern "C" bool orbit_caption_system_menu(void *parent) {
+// The window menu that a right-click on a native caption opens. DefWindowProc sets the enabled states and the default item of that
+// menu only for its own caption, so this sets them from the window state as a captioned window shows them, then runs the chosen
+// command. The menu opens at the pointer, or at the anchored client point (physical pixels) when the keyboard opens it.
+extern "C" bool orbit_caption_system_menu(void *parent, bool anchored, int x, int y) {
     auto window = static_cast<HWND>(parent);
     HMENU menu = GetSystemMenu(window, FALSE);
-    POINT pointer{};
-    if (!menu || !GetCursorPos(&pointer)) return false;
+    POINT point{x, y};
+    if (!menu || !(anchored ? ClientToScreen(window, &point) : GetCursorPos(&point))) return false;
     bool maximized = IsZoomed(window) != FALSE;
     enable_command(menu, SC_RESTORE, maximized);
     enable_command(menu, SC_MOVE, !maximized);
@@ -131,7 +132,8 @@ extern "C" bool orbit_caption_system_menu(void *parent) {
     enable_command(menu, SC_MINIMIZE, true);
     enable_command(menu, SC_MAXIMIZE, !maximized);
     enable_command(menu, SC_CLOSE, true);
-    auto command = static_cast<UINT>(TrackPopupMenu(menu, TPM_RETURNCMD | TPM_RIGHTBUTTON, pointer.x, pointer.y, 0, window, nullptr));
+    SetMenuDefaultItem(menu, maximized ? SC_RESTORE : SC_MAXIMIZE, FALSE);
+    auto command = static_cast<UINT>(TrackPopupMenu(menu, TPM_RETURNCMD | TPM_RIGHTBUTTON, point.x, point.y, 0, window, nullptr));
     if (command) PostMessageW(window, WM_SYSCOMMAND, command, 0);
     return true;
 }

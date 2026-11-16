@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useState, useSyncExternalStore, type MouseEvent } from 'react'
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type KeyboardEvent, type MouseEvent } from 'react'
 import { captureException } from '@sentry/nextjs'
 import { useTranslations } from 'next-intl'
 import { IconButton } from '@/components/ui/icon-button'
@@ -14,6 +14,7 @@ import {
   holdDesktopWindowBar,
   invokeDesktopWindow,
   type DesktopWindowAction,
+  type DesktopWindowAnchor,
   type DesktopWindowPlatform,
 } from '@/lib/desktop-window'
 
@@ -22,8 +23,8 @@ function serverPlatform() { return null }
 
 function useWindowCommands() {
   const [maximized, setMaximized] = useState(false)
-  const run = useCallback((action: DesktopWindowAction) => {
-    invokeDesktopWindow(action).then(setMaximized).catch(captureException)
+  const run = useCallback((action: DesktopWindowAction, anchor?: DesktopWindowAnchor) => {
+    invokeDesktopWindow(action, anchor).then(setMaximized).catch(captureException)
   }, [])
   useEffect(() => {
     run('state')
@@ -48,15 +49,23 @@ function WindowBar({ platform }: Readonly<{ platform: DesktopWindowPlatform }>) 
   const t = useTranslations('desktopWindow')
   const { maximized, run } = useWindowCommands()
   const maximizeHovered = useNativeMaximizeHover()
+  const keyboardMenu = useRef(false)
   useEffect(() => holdDesktopWindowBar(captureException), [])
   const onDragAreaMouseDown = (event: MouseEvent<HTMLDivElement>) => {
     if (event.button !== 0 || event.target !== event.currentTarget || event.detail > 2) return
     event.preventDefault()
     run(event.detail === 2 ? 'toggle_maximize' : 'drag')
   }
+  const onBarKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    keyboardMenu.current = event.key === 'ContextMenu' || (event.shiftKey && event.key === 'F10')
+  }
   const onBarContextMenu = (event: MouseEvent<HTMLDivElement>) => {
     event.preventDefault()
-    if (platform === 'windows') run('system_menu')
+    const fromKeyboard = keyboardMenu.current
+    keyboardMenu.current = false
+    if (platform !== 'windows') return
+    const focused = fromKeyboard ? (event.target as Element).getBoundingClientRect() : null
+    run('system_menu', focused ? { x: focused.left, y: focused.bottom } : undefined)
   }
   return (
     <div
@@ -65,6 +74,8 @@ function WindowBar({ platform }: Readonly<{ platform: DesktopWindowPlatform }>) 
       data-platform={platform}
       className="orbit-window-bar fixed inset-x-0 top-0 z-tooltip flex items-stretch bg-[var(--bg)] text-[var(--fg-1)]"
       style={{ height: DESKTOP_WINDOW_BAR_HEIGHT, paddingInlineStart: platform === 'macos' ? DESKTOP_WINDOW_TRAFFIC_LIGHT_INSET : DESKTOP_WINDOW_BAR_END_INSET, paddingInlineEnd: DESKTOP_WINDOW_BAR_END_INSET }}
+      onKeyDown={onBarKeyDown}
+      onPointerDown={() => { keyboardMenu.current = false }}
       onContextMenu={onBarContextMenu}
     >
       {platform === 'windows' && (

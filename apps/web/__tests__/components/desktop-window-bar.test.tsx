@@ -156,6 +156,28 @@ it('opens the window system menu on a right-click anywhere on the Windows bar, n
   }
 })
 
+it('opens the window system menu under the focused action for the context menu key or Shift+F10, and at the pointer after a press', async () => {
+  markShell('windows')
+  renderBar()
+  await screen.findByRole('button', { name: 'Maximize' })
+  const menu = screen.getByRole('button', { name: 'Menu' })
+  menu.getBoundingClientRect = () => ({ left: 4, top: 2, right: 48, bottom: 46, width: 44, height: 44, x: 4, y: 2, toJSON: () => ({}) })
+  menu.focus()
+  for (const key of [{ key: 'ContextMenu' }, { key: 'F10', shiftKey: true }]) {
+    invoke.mockClear()
+    fireEvent.keyDown(menu, key)
+    expect(fireEvent.contextMenu(menu)).toBe(false)
+    expect(invoke).toHaveBeenCalledTimes(1)
+    expect(invoke).toHaveBeenCalledWith('desktop_window', { action: 'system_menu', anchor: { x: 4, y: 46 } })
+  }
+  invoke.mockClear()
+  fireEvent.keyDown(menu, { key: 'ContextMenu' })
+  fireEvent.pointerDown(menu, { button: 2 })
+  fireEvent.contextMenu(menu)
+  expect(invoke).toHaveBeenCalledTimes(1)
+  expect(invoke).toHaveBeenCalledWith('desktop_window', { action: 'system_menu' })
+})
+
 it('keeps the page menu off the macOS bar, where the window has no system menu to open', async () => {
   markShell('macos')
   const { container } = renderBar()
