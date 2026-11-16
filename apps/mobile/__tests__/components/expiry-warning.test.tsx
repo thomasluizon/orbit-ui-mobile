@@ -59,6 +59,7 @@ const mocks = vi.hoisted(() => {
   }
   return {
     theme,
+    insets: { top: 0, right: 0, bottom: 0, left: 0 },
     authState,
     authListeners,
     currentRoute: null as string | null,
@@ -73,6 +74,7 @@ const mocks = vi.hoisted(() => {
 })
 
 vi.mock('@/lib/use-app-theme', () => ({ useAppTheme: () => mocks.theme }))
+vi.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => mocks.insets }))
 
 vi.mock('@/stores/auth-store', async () => {
   const { useSyncExternalStore } = await import('react')
@@ -163,6 +165,7 @@ beforeEach(async () => {
   vi.setSystemTime(new Date('2026-09-16T12:00:00Z'))
   mocks.currentRoute = null
   mocks.theme.currentTheme = 'dark'
+  mocks.insets = { top: 0, right: 0, bottom: 0, left: 0 }
   await i18n.changeLanguage('en')
   mocks.setAuthState({
     isAuthenticated: true,
@@ -232,6 +235,21 @@ describe('ExpiryWarning', () => {
     const measured = measureProfileRow((instance as TestInstance & { toJSON: () => never }).toJSON(), 412, 1)
     const copy = measured.texts.find((text) => text.label === i18n.t('auth.sessionRefreshFailed'))!
     expect(copy.left, 'the copy starts 12 dp inside the banner, which sits 12 dp inside the screen, as its web twin').toBe(12 + 12)
+  })
+
+  it.each([
+    ['a phone in portrait, under the status bar', 412, { top: 47, right: 0, bottom: 34, left: 0 }],
+    ['a phone in landscape, beside the notch', 932, { top: 0, right: 47, bottom: 21, left: 47 }],
+    ['a notch on one side only', 932, { top: 47, right: 0, bottom: 21, left: 44 }],
+    ['a side inset narrower than the 12 dp edge', 840, { top: 24, right: 8, bottom: 0, left: 8 }],
+  ] as const)('keeps the notice clear of the device insets as its web twin does, on %s', async (_device, width, insets) => {
+    mocks.insets = { ...insets }
+    const instance = await renderExpiredWarning()
+    const measured = measureProfileRow([(instance as TestInstance & { toJSON: () => never }).toJSON()] as never, width, 1)
+    const banner = measured.boxes.find((box) => box.testID === 'expiry-warning-banner')!
+    expect(banner.top, 'the web notice sits calc(var(--safe-top) + 0.25rem) from the top').toBe(insets.top + 4)
+    expect(banner.left, 'the web notice sits max(12px, var(--safe-left)) from the left').toBe(Math.max(12, insets.left))
+    expect(width - banner.right, 'the web notice sits max(12px, var(--safe-right)) from the right').toBe(Math.max(12, insets.right))
   })
 
   it.each(['dark', 'light'] as const)('uses token interaction fills in %s', async (mode) => {
