@@ -1,14 +1,22 @@
 import { afterEach, expect, it, onTestFinished, vi } from 'vitest'
-import { act, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { TURNSTILE_RETRY_INTERVAL_MS } from '@orbit/shared/hooks/turnstile-token-core'
 import { TurnstileBridge } from '@/app/turnstile-bridge/turnstile-bridge'
 import TurnstileBridgePage from '@/app/turnstile-bridge/page'
 
 vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key, useLocale: () => 'en' }))
 
+const SCRIPT = 'script[src^="https://challenges.cloudflare.com/turnstile/"]'
+
 afterEach(() => {
   delete (window as Window & { turnstile?: unknown }).turnstile
   delete window.ReactNativeWebView
+  document.querySelectorAll(SCRIPT).forEach((script) => script.remove())
 })
+
+function postedMessages(postMessage: ReturnType<typeof vi.fn>) {
+  return postMessage.mock.calls.map(([message]) => JSON.parse(message as string))
+}
 
 it('asks Cloudflare for the dark challenge when the dark app opens the bridge', async () => {
   const renderWidget = vi.fn((..._args: unknown[]) => 'widget-1')
@@ -47,7 +55,9 @@ it('draws only the Cloudflare challenge and leaves status and retry to the nativ
   expectNoStatusSurface()
   act(() => callbacks['expired-callback']())
   expectNoStatusSurface()
-  expect(postMessage.mock.calls.map(([message]) => JSON.parse(message as string))).toEqual([
+  expect(postedMessages(postMessage)).toEqual([
+    { stage: 'script_started' },
+    { stage: 'script_loaded' },
     { failure: { kind: 'challenge', code: '200100' } },
     { state: 'failed' },
     { token: null },
@@ -71,7 +81,9 @@ it('tells the native host the check is still loading while the widget runs a fai
   act(() => { callbacks['error-callback']('600010') })
   act(() => callbacks['before-interactive-callback']())
 
-  expect(postMessage.mock.calls.map(([message]) => JSON.parse(message as string))).toEqual([
+  expect(postedMessages(postMessage)).toEqual([
+    { stage: 'script_started' },
+    { stage: 'script_loaded' },
     { failure: { kind: 'challenge', code: '600010' } },
     { state: 'loading' },
     { token: null },
@@ -98,6 +110,31 @@ it('tells the native host the check failed when the challenge frame keeps failin
   }
 
   expect(reset).toHaveBeenCalledTimes(2)
-  expect(postMessage.mock.calls.map(([message]) => JSON.parse(message as string)).filter((message) => 'state' in message))
+  expect(postedMessages(postMessage).filter((message) => 'state' in message))
     .toEqual([{ state: 'loading' }, { state: 'loading' }, { state: 'failed' }])
+})
+
+it('tells the native host when the Cloudflare script load starts and when the script has loaded, so the host names its deadline as the web widget does', async () => {
+  vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] })
+  onTestFinished(() => { vi.useRealTimers() })
+  vi.resetModules()
+  const { TurnstileBridge: FreshBridge } = await import('@/app/turnstile-bridge/turnstile-bridge')
+  const postMessage = vi.fn()
+  window.ReactNativeWebView = { postMessage }
+  render(<FreshBridge siteKey="mobile-site-key" theme="dark" language="en" />)
+  expect(postedMessages(postMessage), 'the script request posts the first stage').toEqual([{ stage: 'script_started' }])
+
+  await act(async () => { fireEvent.error(document.querySelector(SCRIPT)!) })
+  act(() => { vi.advanceTimersByTime(TURNSTILE_RETRY_INTERVAL_MS) })
+  const renderWidget = vi.fn((..._args: unknown[]) => 'widget-1')
+  ;(window as Window & { turnstile?: unknown }).turnstile = { render: renderWidget, reset: vi.fn(), remove: vi.fn() }
+  await act(async () => { fireEvent.load(document.querySelector(SCRIPT)!) })
+  expect(renderWidget).toHaveBeenCalledOnce()
+  expect(postedMessages(postMessage), 'a script request again in the same load does not start a new stage').toEqual([
+    { stage: 'script_started' },
+    { failure: { kind: 'script' } },
+    { state: 'loading' },
+    { token: null },
+    { stage: 'script_loaded' },
+  ])
 })

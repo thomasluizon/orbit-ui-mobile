@@ -6,7 +6,7 @@ import { useTranslation } from 'react-i18next'
 import { addBreadcrumb, captureMessage } from '@sentry/react-native'
 import {
   createTurnstileLoadFailureReporter, TURNSTILE_CHALLENGE_HEIGHT, TURNSTILE_CHALLENGE_HOST, TURNSTILE_LOAD_DEADLINE_MS,
-  TURNSTILE_RETRY_INTERVAL_MS, type TurnstileLoadFailure,
+  TURNSTILE_RETRY_INTERVAL_MS, type TurnstileBridgeStage, type TurnstileLoadFailure,
 } from '@orbit/shared/hooks/turnstile-token-core'
 import { WebView, type WebViewMessageEvent } from 'react-native-webview'
 import type { WebViewErrorEvent, WebViewHttpErrorEvent } from 'react-native-webview/lib/WebViewTypes'
@@ -19,7 +19,11 @@ type WidgetState = 'idle' | 'loading' | 'interactive' | 'solved' | 'failed' | 'e
 
 // WHY: a sleeping Render web service answers its wake page with 503 https://render.com/docs/free
 const TEMPORARY_HTTP_STATUSES = new Set([429, 502, 503, 504])
-const BRIDGE_FAILURE_KINDS = ['script', 'script_deadline', 'challenge', 'run_deadline'] as const
+const BRIDGE_FAILURE_KINDS = ['script', 'script_deadline', 'challenge'] as const
+const STAGE_DEADLINES: Record<TurnstileBridgeStage, TurnstileLoadFailure> = {
+  script_started: { kind: 'script_deadline', host: TURNSTILE_CHALLENGE_HOST },
+  script_loaded: { kind: 'run_deadline', host: TURNSTILE_CHALLENGE_HOST },
+}
 const FAILURE_MESSAGES: Record<TurnstileLoadFailure['kind'], string> = {
   http: 'Human check bridge HTTP error',
   load: 'Human check bridge load error',
@@ -39,6 +43,11 @@ function readBridgeFailure(message: object): BridgeFailure | null {
   if (!known) return null
   // WHY: Cloudflare's client-side error codes are digits only, and nothing else of a bridge message may reach Sentry https://developers.cloudflare.com/turnstile/troubleshooting/client-side-errors/error-codes/
   return typeof code === 'string' && /^\d{1,12}$/.test(code) ? { kind: known, code } : { kind: known }
+}
+
+function readBridgeStage(message: object): TurnstileBridgeStage | null {
+  if (!('stage' in message)) return null
+  return Object.keys(STAGE_DEADLINES).find((stage): stage is TurnstileBridgeStage => stage === message.stage) ?? null
 }
 
 function useLoadFailureReport(resetKey: number) {
@@ -65,9 +74,11 @@ function useBridgeLoad(resetKey: number, bridgeHost: string, onToken: (token: st
   const onTokenRef = useRef(onToken)
   const reloadTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const loadDeadline = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+  const bridgeStage = useRef<TurnstileBridgeStage | null>(null)
   const { recordFailure, startReport } = useLoadFailureReport(resetKey)
 
   useEffect(() => { onTokenRef.current = onToken }, [onToken])
+  useEffect(() => { bridgeStage.current = null }, [resetKey, attempt])
 
   useEffect(() => {
     let active = true
@@ -79,7 +90,7 @@ function useBridgeLoad(resetKey: number, bridgeHost: string, onToken: (token: st
     loadDeadline.current = setTimeout(() => {
       loadDeadline.current = undefined
       clearTimeout(reloadTimer.current)
-      recordFailure({ kind: 'run_deadline', host: bridgeHost })
+      recordFailure(bridgeStage.current ? STAGE_DEADLINES[bridgeStage.current] : { kind: 'run_deadline', host: bridgeHost })
       onTokenRef.current(null)
       setState('failed')
     }, TURNSTILE_LOAD_DEADLINE_MS)
@@ -133,6 +144,11 @@ function useBridgeLoad(resetKey: number, bridgeHost: string, onToken: (token: st
     if (!message || typeof message !== 'object') return
     const failure = readBridgeFailure(message)
     if (failure) recordFailure({ ...failure, host: TURNSTILE_CHALLENGE_HOST })
+    const stage = readBridgeStage(message)
+    if (stage) {
+      bridgeStage.current = stage
+      if (loadDeadline.current !== undefined) setLoad((value) => value + 1)
+    }
     if ('token' in message && (typeof message.token === 'string' || message.token === null)) {
       onToken(message.token)
     }

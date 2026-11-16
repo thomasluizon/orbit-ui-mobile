@@ -2,6 +2,7 @@
 
 import { useCallback } from 'react'
 import { neutralColors } from '@orbit/shared/theme'
+import type { TurnstileBridgeStage } from '@orbit/shared/hooks/turnstile-token-core'
 import type { SupportedLocale } from '@orbit/shared/types'
 import { resolveWebThemeVariables } from '@/lib/theme-dom'
 import { TurnstileWidget } from '@/components/auth/turnstile-widget'
@@ -26,9 +27,13 @@ export function TurnstileBridge({ siteKey, theme = 'dark', language }: Readonly<
   const postFailure = useCallback((failure: Readonly<{ kind: string; code?: string }>) => {
     window.ReactNativeWebView?.postMessage(JSON.stringify({ failure }))
   }, [])
+  const postStage = useCallback((stage: TurnstileBridgeStage) => {
+    window.ReactNativeWebView?.postMessage(JSON.stringify({ stage }))
+  }, [])
 
   return <div style={{ ...resolveWebThemeVariables('orange', theme), height: '100dvh', overflow: 'hidden', display: 'flex',
     flexDirection: 'column', alignItems: 'stretch', backgroundColor: neutralColors[theme].bg, colorScheme: theme }}>
-    <TurnstileWidget siteKey={siteKey} theme={theme} language={language} resetKey={0} quiet onToken={postToken} onStateChange={postState} onFailure={postFailure} />
+    <TurnstileWidget siteKey={siteKey} theme={theme} language={language} resetKey={0} quiet onToken={postToken} onStateChange={postState} onFailure={postFailure}
+      onScriptStage={postStage} />
   </div>
 }

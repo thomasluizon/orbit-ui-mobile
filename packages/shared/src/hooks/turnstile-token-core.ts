@@ -8,6 +8,9 @@ export const TURNSTILE_LOAD_DEADLINE_MS = 60_000
 export const TURNSTILE_CHALLENGE_HEIGHT = 65
 export const TURNSTILE_CHALLENGE_HOST = 'challenges.cloudflare.com'
 
+/** The bridge page tells the app each stage of Cloudflare's script load, so the app names its own deadline as the web widget does. */
+export type TurnstileBridgeStage = 'script_started' | 'script_loaded'
+
 export interface TurnstileLoadFailure {
   /** `script_deadline`: Cloudflare's script did not load in the deadline. `run_deadline`: a run of the check gave no sign in the deadline. */
   kind: 'http' | 'load' | 'script' | 'script_deadline' | 'challenge' | 'run_deadline' | 'message'

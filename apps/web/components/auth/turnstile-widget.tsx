@@ -7,6 +7,7 @@ import { useLocale, useTranslations } from 'next-intl'
 import { captureMessage } from '@sentry/nextjs'
 import {
   createTurnstileLoadFailureReporter, TURNSTILE_CHALLENGE_HEIGHT, TURNSTILE_CHALLENGE_HOST, TURNSTILE_LOAD_DEADLINE_MS, TURNSTILE_RETRY_INTERVAL_MS,
+  type TurnstileBridgeStage,
 } from '@orbit/shared/hooks/turnstile-token-core'
 import { useCurrentTheme } from '@/stores/theme-store'
 
@@ -20,6 +21,7 @@ type ChallengeProps = Readonly<{
   onToken: (token: string | null) => void
   onStateChange?: (state: WidgetState) => void
   onFailure?: (failure: ChallengeFailure) => void
+  onScriptStage?: (stage: TurnstileBridgeStage) => void
 }>
 
 interface TurnstileApi {
@@ -100,14 +102,19 @@ function useChallengeVisibility() {
   return { containerRef, challengeVisible }
 }
 
-function useTurnstileScript({ onLoadState }: Readonly<{ onLoadState: (state: 'loading' | 'failed') => void }>) {
+function useTurnstileScript({ onLoadState, onScriptStage }: Readonly<{
+  onLoadState: (state: 'loading' | 'failed') => void
+  onScriptStage: ChallengeProps['onScriptStage']
+}>) {
   const [loaded, setLoaded] = useState<Readonly<{ turnstile: TurnstileApi }> | null>(null)
   const [load, setLoad] = useState(0)
   const onLoadStateRef = useRef(onLoadState)
+  const onScriptStageRef = useRef(onScriptStage)
 
   useEffect(() => {
     onLoadStateRef.current = onLoadState
-  }, [onLoadState])
+    onScriptStageRef.current = onScriptStage
+  }, [onLoadState, onScriptStage])
 
   useEffect(() => {
     let active = true
@@ -123,6 +130,7 @@ function useTurnstileScript({ onLoadState }: Readonly<{ onLoadState: (state: 'lo
       void loadTurnstile().then((turnstile) => {
         if (!active) return
         window.clearTimeout(deadline)
+        onScriptStageRef.current?.('script_loaded')
         setLoaded({ turnstile })
       }, () => {
         if (!active) return
@@ -131,6 +139,7 @@ function useTurnstileScript({ onLoadState }: Readonly<{ onLoadState: (state: 'lo
       })
     }
 
+    onScriptStageRef.current?.('script_started')
     request()
     return () => {
       active = false
@@ -167,7 +176,7 @@ function useChallengeDeadline({ running, resetKey, stage, onDeadline }: Readonly
   }, [running, resetKey, stage])
 }
 
-function useTurnstileChallenge({ siteKey, resetKey, onToken, onStateChange, onFailure, theme, language, hasLoadDeadline }: ChallengeProps & Readonly<{ theme: 'light' | 'dark'; language: string; hasLoadDeadline: boolean }>) {
+function useTurnstileChallenge({ siteKey, resetKey, onToken, onStateChange, onFailure, onScriptStage, theme, language, hasLoadDeadline }: ChallengeProps & Readonly<{ theme: 'light' | 'dark'; language: string; hasLoadDeadline: boolean }>) {
   const { containerRef, challengeVisible } = useChallengeVisibility()
   const widgetIdRef = useRef<unknown>(null)
   const automaticRetriesRef = useRef(0)
@@ -178,6 +187,7 @@ function useTurnstileChallenge({ siteKey, resetKey, onToken, onStateChange, onFa
   const [stage, setStage] = useState(0)
   const { recordFailure, startReport } = useLoadFailureReport(resetKey, onFailure)
   const { loaded, loadAgain } = useTurnstileScript({
+    onScriptStage,
     onLoadState: (next) => {
       recordFailure({ kind: next === 'failed' ? 'script_deadline' : 'script' })
       setState(next)
@@ -291,6 +301,7 @@ export function TurnstileWidget({
   onToken,
   onStateChange,
   onFailure,
+  onScriptStage,
   theme,
   language,
   quiet = false,
@@ -299,7 +310,7 @@ export function TurnstileWidget({
   const appLocale = useLocale()
   const currentTheme = useCurrentTheme()
   const { containerRef, challengeVisible, state, retry } = useTurnstileChallenge({
-    siteKey, resetKey, onToken, onStateChange, onFailure, theme: theme ?? currentTheme, hasLoadDeadline: !quiet,
+    siteKey, resetKey, onToken, onStateChange, onFailure, onScriptStage, theme: theme ?? currentTheme, hasLoadDeadline: !quiet,
     // WHY: Cloudflare lists Orbit's pt-BR as pt-br https://developers.cloudflare.com/turnstile/reference/supported-languages/
     language: (language ?? appLocale).toLowerCase(),
   })
