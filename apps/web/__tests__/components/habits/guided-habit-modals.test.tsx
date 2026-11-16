@@ -10,7 +10,7 @@ import { EditHabitModal } from '@/components/habits/edit-habit-modal'
 const state = vi.hoisted(() => ({
   locale: 'pt-BR' as 'en' | 'pt-BR', flag: true, online: true, clock24: true,
   create: vi.fn(), update: vi.fn(), saved: null as Record<string, unknown> | null, detail: null as Record<string, unknown> | null,
-  completed: vi.fn(), push: vi.fn(),
+  completed: vi.fn(), push: vi.fn(), phraseRead: vi.fn(),
   detailPending: false, detailFetching: false, detailError: null as Error | null, refetchDetail: vi.fn(),
 }))
 
@@ -44,7 +44,7 @@ vi.mock('@/hooks/use-habits', async (importOriginal) => ({
   useHabitDetail: () => ({ data: state.saved }),
 }))
 vi.mock('@/hooks/use-habit-suggestion', () => ({ useHabitSuggestion: () => ({ mutateAsync: vi.fn(), isPending: false }) }))
-vi.mock('@/hooks/use-habit-phrase-read', () => ({ useHabitPhraseRead: () => ({ mutateAsync: vi.fn().mockResolvedValue(null), isPending: false }) }))
+vi.mock('@/hooks/use-habit-phrase-read', () => ({ useHabitPhraseRead: () => ({ mutateAsync: state.phraseRead, isPending: false }) }))
 vi.mock('@/hooks/use-reminder-permission', () => ({ useReminderPermission: (_enabled: boolean, onToggle: () => void) => ({ toggleReminder: onToggle, showNotice: false, requestPermission: vi.fn() }) }))
 vi.mock('@/hooks/use-tags', () => ({
   useTags: () => ({ tags: [] }), useSuggestTags: () => ({ mutateAsync: vi.fn(), isPending: false }),
@@ -94,6 +94,7 @@ beforeEach(() => {
   state.create.mockReset().mockResolvedValue({ id: 'habit-9' })
   state.update.mockReset().mockResolvedValue({})
   state.completed.mockReset()
+  state.phraseRead.mockReset().mockResolvedValue(null)
   state.saved = { id: 'habit-9', title: 'Ligar para o João', isGeneral: false, dueDate: '2026-11-14', dueTime: '08:30', frequencyUnit: null, frequencyQuantity: null, isFlexible: false }
   state.detail = null
   state.detailPending = false
@@ -231,6 +232,21 @@ describe('the create surface behind orbit_guided_flows', () => {
     await press(en.habits.flow.reminder.no)
     await press(en.habits.createHabit)
     expect(state.create.mock.calls[0]![0]).toMatchObject({ title: 'call John', startDate: '2026-11-13', dueTime: '08:00', frequencyUnit: 'Day', frequencyQuantity: 1 })
+  })
+
+  it('stops marking the time as a proposal on the summary when the date words replace the time the free read proposed', async () => {
+    state.locale = 'en'
+    state.phraseRead.mockResolvedValue({ read: true, emoji: null, frequencyUnit: null, frequencyQuantity: null, days: [], isFlexible: false, flexibleTarget: null, dueTime: '07:00', subHabits: [], checklistItems: [] })
+    mountCreate()
+    await waitFor(() => expect(document.querySelector('[data-question-flow]')).not.toBeNull())
+    await phrase('water the plants')
+    expect(state.phraseRead).toHaveBeenCalledTimes(1)
+    await act(async () => { fireEvent.change(screen.getByLabelText(en.habits.flow.when.freeLabel), { target: { value: 'every day at 9am' } }) })
+    await press(en.habits.flow.continue)
+    await press(en.habits.flow.reminder.no)
+    const timeRow = screen.getByRole('button', { name: new RegExp(`^${en.habits.flow.summary.time}`) })
+    expect(timeRow).toHaveTextContent('09:00')
+    expect(timeRow.closest('[data-proposed]')).toBeNull()
   })
 
   it('states a refused save on the summary and sends nothing, when an undated task becomes a habit with no start day', async () => {

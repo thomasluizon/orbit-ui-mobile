@@ -196,6 +196,30 @@ describe('the steps of the shared guided habit flow', () => {
     mounted.unmount()
   })
 
+  it('takes the time of the date words over a time the free read proposed, and stops marking that time as a proposal', async () => {
+    const readPhrase = vi.fn(async (): Promise<HabitPhraseReadResponse> => ({ ...NO_READ, read: true, dueTime: '07:00' }))
+    const mounted = mountFlow({ readPhrase })
+    await leavePhraseWith(mounted, 'water the plants')
+    expect(mounted.flow.current.step).toBe('when')
+    expect(mounted.flow.proposals.time).toBe(true)
+    run(() => { mounted.flow.readWhenWords('every day at 9am') })
+    expect(mounted.values).toMatchObject({ itemType: 'habit', frequencyUnit: 'Day', dueTime: '09:00' })
+    expect(mounted.flow.proposals.time).toBe(false)
+    mounted.unmount()
+  })
+
+  it('keeps a time the free read proposed as a proposal when the date words carry no time, and stops marking the repeat as a proposal', async () => {
+    const readPhrase = vi.fn(async (): Promise<HabitPhraseReadResponse> => ({ ...NO_READ, read: true, frequencyUnit: 'Day', frequencyQuantity: 1, dueTime: '07:00' }))
+    const mounted = mountFlow({ readPhrase })
+    await leavePhraseWith(mounted, 'water the plants')
+    expect(mounted.flow.proposals).toMatchObject({ schedule: true, time: true })
+    run(() => mounted.flow.open('when'))
+    run(() => { mounted.flow.readWhenWords('every monday') })
+    expect(mounted.values).toMatchObject({ itemType: 'habit', days: ['Monday'], dueTime: '07:00' })
+    expect(mounted.flow.proposals).toMatchObject({ schedule: false, time: true })
+    mounted.unmount()
+  })
+
   it('keeps the date question open for words it cannot read and for a day in the past', async () => {
     const mounted = mountFlow({ online: false })
     await leavePhraseWith(mounted, 'call John')

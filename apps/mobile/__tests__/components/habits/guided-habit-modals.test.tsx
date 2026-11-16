@@ -9,7 +9,7 @@ import { i18n } from '@/lib/i18n'
 import { press, renderNavigation } from '../ui/navigation-render'
 
 const state = vi.hoisted(() => ({
-  flag: true, create: vi.fn(), update: vi.fn(), saved: null as Record<string, unknown> | null, completed: vi.fn(), push: vi.fn(),
+  flag: true, create: vi.fn(), update: vi.fn(), saved: null as Record<string, unknown> | null, completed: vi.fn(), push: vi.fn(), phraseRead: vi.fn(),
   detailPending: false, detailFetching: false, detailError: null as Error | null, refetchDetail: vi.fn(),
 }))
 
@@ -33,7 +33,7 @@ vi.mock('@/hooks/use-habit-queries', async (importOriginal) => ({
   useHabitDetail: (id: string | null) => ({ data: id ? state.saved ?? undefined : undefined, isPending: state.detailPending, isFetching: state.detailFetching, error: state.detailError, refetch: state.refetchDetail }),
 }))
 vi.mock('@/hooks/use-habit-suggestion', () => ({ useHabitSuggestion: () => ({ mutateAsync: vi.fn(), isPending: false }) }))
-vi.mock('@/hooks/use-habit-phrase-read', () => ({ useHabitPhraseRead: () => ({ mutateAsync: vi.fn().mockResolvedValue(null), isPending: false }) }))
+vi.mock('@/hooks/use-habit-phrase-read', () => ({ useHabitPhraseRead: () => ({ mutateAsync: state.phraseRead, isPending: false }) }))
 vi.mock('@/hooks/use-offline', () => ({ useOffline: () => ({ isOnline: true }) }))
 vi.mock('@/hooks/use-reminder-permission', () => ({ useReminderPermission: (_enabled: boolean, onToggle: () => void) => ({ toggleReminder: onToggle, showNotice: false, requestPermission: vi.fn() }) }))
 vi.mock('@/hooks/use-tags', () => ({
@@ -86,6 +86,7 @@ beforeEach(async () => {
   state.create.mockReset()
   state.update.mockReset().mockResolvedValue({})
   state.completed.mockReset()
+  state.phraseRead.mockReset().mockResolvedValue(null)
   state.saved = null
   state.detailPending = false
   state.detailFetching = false
@@ -202,6 +203,23 @@ describe('a guided create on Android from a phrase with a repeat', () => {
     await tap(tree, ptBR.habits.flow.reminder.no)
     await primary(tree)
     expect(sent()).toMatchObject({ title: 'ligar para o João', startDate: '2026-11-13', dueTime: '08:00', frequencyUnit: 'Day', frequencyQuantity: 1 })
+    tree.unmount()
+  })
+
+  it('stops marking the time as a proposal on the summary when the date words replace the time the free read proposed', async () => {
+    state.phraseRead.mockResolvedValue({ read: true, emoji: null, frequencyUnit: null, frequencyQuantity: null, days: [], isFlexible: false, flexibleTarget: null, dueTime: '07:00', subHabits: [], checklistItems: [] })
+    const tree = mountCreate()
+    await settle()
+    await phrase(tree, 'regar as plantas')
+    await settle()
+    expect(state.phraseRead).toHaveBeenCalledTimes(1)
+    const words = tree.hosts().find((node) => (node.props as { onChangeText?: unknown }).onChangeText && node.props.accessibilityLabel === ptBR.habits.flow.when.freeLabel)!
+    await act(async () => { (words.props as unknown as { onChangeText: (value: string) => void }).onChangeText('todo dia às 9'); await Promise.resolve() })
+    const submit = tree.hosts().find((node) => node.props.accessibilityLabel === ptBR.habits.flow.when.freeLabel && typeof (node.props as { onSubmitEditing?: unknown }).onSubmitEditing === 'function')!
+    await act(async () => { (submit.props as unknown as { onSubmitEditing: () => void }).onSubmitEditing(); await Promise.resolve() })
+    await tap(tree, ptBR.habits.flow.reminder.no)
+    expect(control(tree, `${ptBR.habits.flow.summary.time}, 09:00`)).toBeDefined()
+    expect(hasTestId(tree, 'proposed-row-label')).toBe(false)
     tree.unmount()
   })
 

@@ -247,6 +247,7 @@ export function createUseGuidedHabitFlow({ useState, useEffect, useMemo, useCall
       controller.readPhrase(true, { ...words.read, dueTime: null })
       if (words.read.dueTime) controller.setDueTime(words.read.dueTime)
       else port.setField('dueTime', phraseTime ?? '')
+      setProposals((value) => ({ ...value, schedule: false, time: words.read.dueTime ? false : value.time }))
       port.chooseItemType('habit')
       startRepeat()
       answerStep('when')
