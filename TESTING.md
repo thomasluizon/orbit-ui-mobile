@@ -850,7 +850,7 @@ checklists and logs. Attempt evidence retains sanitized proposed dates and both 
 |---|---|
 | `ORBIT_EVAL_BASE_URL` | `https://orbit-api-staging-uqu2.onrender.com` (staging) or `https://api.useorbit.org` (production); destructive fixture resets reject every other origin and every non-eval account |
 | `ORBIT_EVAL_CREDENTIALS_FILE` | Private JSON file containing account refresh tokens and the stable habit registry; owned by the runner user, regular file, mode 600 |
-| `ORBIT_EVAL_GRADER` | Set `file://codex-grader.mjs` for the installed, authenticated Codex CLI grader |
+| `ORBIT_EVAL_GRADER` | Set `file://claude-grader.mjs` for the installed Claude Code CLI grader on the worker account |
 | `OPENAI_API_KEY` | Grader credential when using an OpenAI provider; Astra uses the refreshed Orbit bearer token |
 | `ORBIT_EVAL_HABIT_ID` | Optional existing Water UUID to adopt on the Pro account; must agree with its private registry |
 | `ORBIT_EVAL_SECOND_HABIT_ID` | Optional existing Walk UUID to adopt on the Pro account; must agree with its private registry |
@@ -1019,25 +1019,25 @@ merging, and a case without complete evidence remains incomplete. A window pass 
 Keep one settled API/prompt/tool surface across the launch gate's windows. A changed surface is validated
 offline in fix rounds and never authorizes an additional live run.
 
-### Codex rubric grader
+### Claude rubric grader
 
-From `evals/astra`, set `ORBIT_EVAL_GRADER=file://codex-grader.mjs`. Install the Codex CLI on the
-runner and authenticate its existing account session through `codex login` before evaluation;
-the executable must be on the runner's normal `PATH`. The grader removes every `node_modules/.bin`
-entry, including normalized relative entries, before launching the CLI so npm and npx cannot select
-promptfoo's bundled copy. A missing or failing installed CLI fails the rubric closed.
-This provider needs no purchased OpenAI API key.
-The local command is ready to use with the coordinator's authenticated CLI. The provider executes
-`codex exec -m gpt-6.1-sol -s read-only --skip-git-repo-check --ephemeral --output-schema <schema file> -o <output file>`
-with the grading prompt on stdin in a private temporary directory. It removes Orbit eval environment
-variables from the child, validates `{ "pass": true, "score": 1, "reason": "<grading explanation>" }`
-against the checked-in schema constraints, and returns promptfoo's `{ output: "<JSON grade>" }`.
-A CLI failure, missing file, malformed grade or two-minute timeout returns a sanitized provider error;
-it never becomes a passing rubric. Temporary output is removed after every call. Promptfoo continues
-to pass only the final rendered answer projection to the rubric. A successful `finalAnswer` assertion
-from an authenticated run proves grader setup; the offline test uses a fake executable exclusively.
-The invocation follows the installed `codex exec --help` and
-[official Codex CLI reference](https://developers.openai.com/codex/cli/reference/).
+From `evals/astra`, set `ORBIT_EVAL_GRADER=file://claude-grader.mjs`. The provider runs the installed Claude Code CLI
+(`claude` on the runner's `PATH`) on the worker account: `ORBIT_WORKER_CLAUDE_CONFIG_DIR` must name the signed-in
+worker account directory, as `tools/launch-worker.mjs` reads it. The child gets `CLAUDE_CONFIG_DIR` set to that
+directory, and every inherited Claude credential override and every `ORBIT_EVAL_` variable removed. When the variable
+is unset or names no directory, the grader fails closed and never runs the CLI, so it never spends the main account.
+The grader spends no eval key and does not count against the 0.50 USD daily eval ceiling.
+The provider executes
+`claude -p --model claude-opus-5-5 --output-format json --json-schema <schema JSON> --tools "" --strict-mcp-config --safe-mode --no-session-persistence`
+with the grading prompt on stdin, in a private temporary directory that it removes after every call. It reads the
+grade from the `structured_output` of the one JSON result (`type: "result"`, `subtype: "success"`,
+`is_error: false`), validates `{ "pass": true, "score": 1, "reason": "<grading explanation>" }` against the
+checked-in schema constraints, and returns promptfoo's `{ output: "<JSON grade>" }`. Each call has a two-minute time
+limit. A missing CLI, a non-zero exit, an error result, a malformed grade, a timeout or a cancellation returns a
+sanitized provider error that names the failure; after one retry it stays a grader error, the attempt gives no
+evidence, and it never becomes a passing rubric. Promptfoo continues to pass only the final rendered answer projection
+to the rubric. The offline test drives a fake executable with responses recorded from one real call of the installed
+CLI (`__tests__/fixtures/claude-grader-result.json` and `claude-grader-error.json`).
 
 The budget case expects HTTP 403 with the verified `PAY_GATE` error code and grades only the
 natural-language `error` text. Other cases expect HTTP 200 and either final text or a valid typed block, preview or outcome.
