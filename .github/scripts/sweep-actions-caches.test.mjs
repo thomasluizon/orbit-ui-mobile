@@ -116,6 +116,27 @@ test("over the cap, a newest main entry that nobody read for 24 hours goes after
   assert.deepEqual(everything.filter((cache) => newestReadRecently.includes(cache)), [], "no newest main entry read within 24 hours is ever deleted")
 })
 
+test("over the cap, the newest main entry of a release family stays however long ago a release read it, and its older versions go", () => {
+  const now = Date.parse("2026-11-20T12:00:00Z")
+  const lockfileHash = "4b59a6714d0105240094823a4527cf02559cb624a9b91d251ff3e79b68135722"
+  const simulator = caches.find((cache) => cache.key.startsWith("macos-26-ARM64-xcode-26.6-ios-release-ccache-v2-"))
+  const entry = (id, key, createdAt, readAt) => ({ ...simulator, id, key, created_at: createdAt, last_accessed_at: readAt })
+  // iOS Release went 62.7 hours between two of its last 9 runs.
+  const iosDevice = entry(9001, `macos-26-ARM64-xcode-26.6-ios-device-ccache-v1-${simulator.key.slice(-64)}`, "2026-11-17T21:00:00.000000Z", new Date(now - 62.7 * 3_600_000).toISOString())
+  const androidRelease = entry(9002, `ccache-android-release-${lockfileHash}-43744653594`, "2026-11-13T10:00:00.000000Z", "2026-11-13T10:30:00.000000Z")
+  const olderAndroidRelease = entry(9003, `ccache-android-release-${lockfileHash}-43521100417`, "2026-11-10T10:00:00.000000Z", "2026-11-13T10:00:00.000000Z")
+  // A failed Mobile Android Build compile on main: the same key prefix, another family.
+  const partialCompile = entry(9004, `ccache-android-release-${lockfileHash}-compile-partial-43744653594-1`, "2026-11-13T09:00:00.000000Z", "2026-11-13T09:00:00.000000Z")
+  const readRecently = caches.map((cache) => ({ ...cache, last_accessed_at: "2026-11-20T11:00:00.000000Z" }))
+  const live = [...readRecently, iosDevice, androidRelease, olderAndroidRelease, partialCompile]
+  for (const capBytes of [CAP_BYTES, 0]) {
+    const deleted = selectCachesToDelete({ caches: live, openPullRequests: [2463], defaultRef, now, capBytes }).map((selected) => selected.cache)
+    assert.ok(!deleted.includes(iosDevice), `cap ${capBytes}: the iOS Release device ccache entry stays`)
+    assert.ok(!deleted.includes(androidRelease), `cap ${capBytes}: the newest Android Release ccache entry stays`)
+    assert.ok(deleted.includes(olderAndroidRelease) && deleted.includes(partialCompile), `cap ${capBytes}: an older release version and a Mobile Android Build entry nobody read for 24 hours go`)
+  }
+})
+
 test("the cap leaves headroom under the 10 GB repository limit", () => {
   assert.equal(CAP_BYTES, 9_000_000_000)
   assert.equal(LARGE_ENTRY_BYTES, 5_000_000)
@@ -151,7 +172,7 @@ test("the sweep reads every page, then deletes each selected entry by the id tha
   assert.equal(expected.filter((entry) => entry.reason === "closed pull request").length, 7)
   assert.deepEqual(calls.slice(3), expected.map((entry) => ["api", "--method", "DELETE", `repos/orbit/example/actions/caches/${entry.cache.id}`]))
   assert.match(lines.at(-2), /^41 entries, 10777\.5 MB before; 7 selected, 9930\.5 MB after; cap 9000\.0 MB$/)
-  assert.match(lines.at(-1), /^::warning::The main entries read within 24 hours keep the total over the cap/)
+  assert.match(lines.at(-1), /^::warning::The main entries read within 24 hours and the release families keep the total over the cap/)
 })
 
 test("a dry run deletes nothing, and a failed delete fails the sweep after every delete ran", () => {

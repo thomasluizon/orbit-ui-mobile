@@ -4,6 +4,7 @@ import { dirname, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 import test from "node:test"
 import yaml from "js-yaml"
+import { RELEASE_FAMILY_KEYS } from "./sweep-actions-caches.mjs"
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "../..")
 const load = (path) => yaml.load(readFileSync(join(root, path), "utf8"))
@@ -149,6 +150,39 @@ test("only Desktop Build writes the Rust compile cache, and no setup-java step s
     assert.equal(step.with["save-if"], file === "desktop-build.yml" ? "${{ github.ref == 'refs/heads/main' }}" : "false", where)
   }
   for (const { step, where } of uses("actions/setup-java@")) assert.equal(step.with.cache, undefined, where)
+})
+
+// How the sweep matches each expression of a release cache key. hashFiles gives a 64-digit hex SHA-256, as in the
+// npm-, windows-app-sdk- and ccache- keys of fixtures/actions-caches.json; run_id is a number; runner.arch is X86, X64,
+// ARM or ARM64 (https://docs.github.com/en/actions/reference/workflows-and-actions/contexts#runner-context), ARM64 in the
+// macos-26 keys of the same list.
+const KEY_EXPRESSIONS = [[/^hashFiles\(/, "[0-9a-f]{64}"], [/^github\.run_id$/, "\\d+"], [/^runner\.arch$/, "[A-Z0-9]+"]]
+const escapeLiteral = (text) => text.replace(/[.*+?^$()|[\]\\{}]/g, "\\$&")
+function keyPattern(template) {
+  const parts = template.split(/\$\{\{\s*(.+?)\s*\}\}/)
+  const source = parts.map((part, index) => {
+    if (index % 2 === 0) return escapeLiteral(part)
+    const match = KEY_EXPRESSIONS.find(([expression]) => expression.test(part))
+    assert.ok(match, `no sweep pattern for the key expression ${part}`)
+    return match[1]
+  })
+  return `^${source.join("")}$`
+}
+
+// A release is a dispatch with no bound on its gap, so the sweep keeps the newest main entry of each family that a
+// release saves whatever its last read. The local actions that a release calls save only the NSIS tools entry above.
+test("the sweep keeps the newest main entry of every cache family that a release saves, matched on the full key", () => {
+  const releaseSaves = everyStep.filter(({ file, step }) => /(^|-)release\.yml$/.test(file) && /^actions\/cache(\/save)?@/.test(step.uses ?? ""))
+  assert.deepEqual(releaseSaves.map(({ where }) => where).sort(), [
+    "android-release.yml: release-android: Restore the ccache directory",
+    "ios-release.yml: release: Save compiler outputs",
+  ])
+  const keyOf = ({ file, job, step }) => {
+    const primary = /^\$\{\{ steps\.([\w-]+)\.outputs\.cache-primary-key \}\}$/.exec(step.with.key)
+    if (!primary) return step.with.key
+    return load(`.github/workflows/${file}`).jobs[job].steps.find((candidate) => candidate.id === primary[1]).with.key
+  }
+  assert.deepEqual(releaseSaves.map((save) => keyPattern(keyOf(save))).sort(), RELEASE_FAMILY_KEYS.map((pattern) => pattern.source).sort())
 })
 
 test("the cache tests run in the hook tests job, and the restore action exists for every caller", () => {

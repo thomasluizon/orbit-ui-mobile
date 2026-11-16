@@ -11,8 +11,8 @@ const usage = `usage: sweep-actions-caches.mjs --repository <owner/name> [--dry-
   2. every CodeQL overlay base database that a newer one on the same ref replaces,
   3. over the cap, the least recently read large entries until the total is at or under the cap: pull request
      refs first, then older versions on main, then the newest main entry of a family nobody read for 24 hours.
-  A pass marker and a newest main entry read within 24 hours are never deleted. --dry-run prints the
-  selection and deletes nothing.
+  A pass marker, a newest main entry read within 24 hours and the newest main entry of a release family are
+  never deleted. --dry-run prints the selection and deletes nothing.
   The gh CLI reads GH_TOKEN, which needs the actions: write and pull-requests: read permissions.
 
 exit codes: 0 swept, 1 a list or delete request failed, 2 invalid arguments`
@@ -23,18 +23,28 @@ const GIGABYTE = 1_000_000_000
 // max_cache_size_gb 10). Each main push writes a 0.85 GB CodeQL overlay base database before the next sweep, and
 // the open pull requests hold under 0.15 GB, while the newest main entries measure 8.56 GB after the macOS npm and NDK trims.
 // The release jobs read the Gradle, Rust and Windows App SDK families and write none of them (cache-save-rules.test.mjs,
-// windows-download-workflow.test.ts); each Android Release writes a 0.12 GB ccache entry in its own family, inside the
-// 0.44 GB under the cap.
+// windows-download-workflow.test.ts). Each Android Release writes a 0.12 GB ccache entry in its own family, inside the
+// 0.44 GB under the cap; the iOS Release device ccache family (RELEASE_FAMILY_KEYS) has no saved entry to measure yet.
 export const CAP_BYTES = 9 * GIGABYTE
 
 // WHY 5 MB: every pass marker and unit result entry is under 0.3 MB and the NSIS tools entry is 1.9 MB, while
 // the smallest entry that counts for the budget is the 7.3 MB Gradle home entry.
 export const LARGE_ENTRY_BYTES = 5_000_000
 
-// WHY 24 hours: Desktop Build, the least frequent reader of a large main family, went at most 22.8 hours between
-// two of its last 60 runs (Mobile Android Build and Mobile iOS Build 6.4 hours), so a family nobody read for 24 hours
-// is one main stopped restoring. This tier acts only over the cap.
+// WHY 24 hours: Desktop Build, the least frequent reader of a large main family that a push or a pull request reads,
+// went at most 22.8 hours between two of its last 60 runs (Mobile Android Build and Mobile iOS Build 6.4 hours), so
+// such a family that nobody read for 24 hours is one main stopped restoring. This tier acts only over the cap.
 export const ORPHAN_AFTER_MS = 24 * 60 * 60 * 1000
+
+// WHY: a release writes these families and restores them at its next run, and a release is a dispatch with no bound
+// on its gap (iOS Release went 62.7 hours between two of its last 9 runs), so a read older than 24 hours does not show
+// that main stopped restoring one. The full key, not the restore prefix: the Mobile Android Build -compile and
+// -compile-partial- entries also start with ccache-android-release-, and a prefix would keep the newest partial entry
+// forever. cache-save-rules.test.mjs derives these patterns from the key of every release save step.
+export const RELEASE_FAMILY_KEYS = [
+  /^ccache-android-release-[0-9a-f]{64}-\d+$/,
+  /^macos-26-[A-Z0-9]+-xcode-26\.6-ios-device-ccache-v1-[0-9a-f]{64}$/,
+]
 
 const PULL_REQUEST_REF = /^refs\/pull\/(\d+)\/merge$/
 const PASS_MARKER_KEY = /-pass-v\d+-/
@@ -47,6 +57,7 @@ const OVERLAY_BASE_KEY = /^(codeql-overlay-base-database-.+-)[0-9a-f]{40}-\d+-\d
 const VERSION_PART = /[0-9a-f]{8,}|\d+(?:\.\d+)+|(?<=-)\d+(?=-|$)/g
 
 const isPassMarker = (cache) => PASS_MARKER_KEY.test(cache.key)
+const isReleaseFamily = (cache) => RELEASE_FAMILY_KEYS.some((pattern) => pattern.test(cache.key))
 export const keyFamily = (key) => key.replace(VERSION_PART, '#')
 const totalBytes = (caches) => caches.reduce((sum, cache) => sum + cache.size_in_bytes, 0)
 
@@ -82,7 +93,7 @@ function newestOfEachDefaultFamily(caches, defaultRef) {
 
 function leastRecentlyReadOverCap(caches, defaultRef, capBytes, now) {
   const newest = newestOfEachDefaultFamily(caches, defaultRef)
-  const inUse = (cache) => newest.has(cache) && now - Date.parse(cache.last_accessed_at) < ORPHAN_AFTER_MS
+  const inUse = (cache) => newest.has(cache) && (isReleaseFamily(cache) || now - Date.parse(cache.last_accessed_at) < ORPHAN_AFTER_MS)
   const tier = (cache) => (cache.ref !== defaultRef ? 0 : newest.has(cache) ? 2 : 1)
   const candidates = caches
     .filter((cache) => cache.size_in_bytes >= LARGE_ENTRY_BYTES && !inUse(cache))
@@ -143,7 +154,7 @@ export function sweep({ gh, repository, dryRun, now = Date.now(), log = console.
   const before = totalBytes(caches)
   const after = before - totalBytes(selection.map(({ cache }) => cache))
   log(`${caches.length} entries, ${megabytes(before)} before; ${selection.length} selected, ${megabytes(after)} after; cap ${megabytes(CAP_BYTES)}`)
-  if (after > CAP_BYTES) log(`::warning::The main entries read within 24 hours keep the total over the cap: trim a cache family or raise CAP_BYTES.`)
+  if (after > CAP_BYTES) log(`::warning::The main entries read within 24 hours and the release families keep the total over the cap: trim a cache family or raise CAP_BYTES.`)
   if (failures.length) throw new Error(`${failures.length} delete requests failed:\n${failures.join('\n')}`)
 }
 
