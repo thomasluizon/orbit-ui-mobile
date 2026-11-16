@@ -1,7 +1,7 @@
 import { spawnSync } from "node:child_process"
 import fs, { appendFileSync, chmodSync, existsSync, mkdirSync, readFileSync, realpathSync, rmSync, symlinkSync, utimesSync, writeFileSync } from "node:fs"
 import { syncBuiltinESMExports } from "node:module"
-import { dirname, join } from "node:path"
+import { basename, dirname, join } from "node:path"
 import { fileURLToPath } from "node:url"
 
 import {
@@ -416,6 +416,79 @@ const fsmonitorRemovalCases = () => {
   }
 }
 
+/**
+ * A git read that fails or runs out of time gives `null`. The item stays, and its reason names the read that failed:
+ * never a change, a commit or a removal that no evidence shows.
+ */
+const unreadableGitCases = () => {
+  const machine = stageMachine("unreadable-git")
+  const finished = join(machine.base, "finished")
+  const repository = join(finished, "node_modules", "vendored")
+  const detached = join(machine.sessionRoot, STALE, "scratchpad", "wt")
+  for (const path of [repository, detached]) mkdirSync(path, { recursive: true })
+  const records = `worktree ${machine.checkout}\nHEAD 1\nbranch refs/heads/main\n\nworktree ${finished}\nHEAD 2\nbranch refs/heads/done\n\nworktree ${detached}\nHEAD 3\ndetached\n`
+  const answers = { worktree: () => records, "rev-list": () => "0", "rev-parse": (cwd, args) => (args[1] === "--show-toplevel" ? cwd : "2"), "symbolic-ref": () => "origin/main" }
+  const kindOf = (args) => (args.includes("status") ? "status" : args[0])
+  const merged = [{ number: 1, state: "MERGED", headRefOid: "2" }]
+  /** Every git read answers as a finished, pushed tree does, but the reads that `fails` names and the answers that `over` replaces. */
+  const listWith = ({ fails = () => false, pullRequests = merged, walked = [], over = {} } = {}) => collectListing({ ...machine.context, repositories: { ui: machine.checkout } },
+    { probes: { ...quietProbes, pullRequests: (path, branch) => (branch === "done" ? pullRequests : null), repositories: () => walked,
+      git: (cwd, args) => (fails(kindOf(args), cwd) ? null : ({ ...answers, ...over }[kindOf(args)] ?? (() => ""))(cwd, args)) } })
+  const staleSession = join(machine.sessionRoot, STALE)
+  const readable = listWith({ walked: [repository] })
+  same("stale-files: with every git read answered, the finished worktree and the session directory around a detached one are stale",
+    readable.stale.filter((item) => [finished, staleSession].includes(item.path)).map((item) => `${item.path}: ${item.reason}`).sort(),
+    [`${finished}: pull request #1 merged`, `${staleSession}: not this session, its predecessor, or a session with a live process`].sort())
+  const unreadable = [["status", "git status could not be read"], ["rev-list", "git rev-list could not be read"]]
+  for (const [kind, reason] of [...unreadable, ["ls-files", "git could not list its files"], ["rev-parse", "git rev-parse could not be read"]]) {
+    same(`stale-files: a finished worktree whose git ${kind} fails stays with the unreadable reason`, reasonOf(listWith({ fails: (failed, cwd) => failed === kind && cwd === finished }), finished), reason)
+  }
+  for (const [kind, reason] of unreadable) {
+    same(`stale-files: a session directory around a detached worktree whose git ${kind} fails stays with the unreadable reason`,
+      reasonOf(listWith({ fails: (failed, cwd) => failed === kind && cwd === detached }), staleSession), `worktree ${detached} in it stays: ${reason}`)
+    same(`stale-files: a finished worktree around a repository whose git ${kind} fails stays with the unreadable reason`,
+      reasonOf(listWith({ fails: (failed, cwd) => failed === kind && cwd === repository, walked: [repository] }), finished), `repository ${repository} in it stays: ${reason}`)
+  }
+  // A branch with no pull request is finished only when a merged branch contains it, and each read of that proof can fail too.
+  same("stale-files: with every git read answered, a branch with no pull request that the base branch contains is stale",
+    listWith({ pullRequests: [] }).stale.find((item) => item.path === finished)?.reason, "its branch is contained in origin/main")
+  // `merge-base --is-ancestor` exits 1 for "no", which the probe gives as null too; `rev-list --count` prints the number of commits outside.
+  const outside = { "rev-list": () => "1", "merge-base": () => null }
+  same("stale-files: a branch with no pull request that no merged branch contains is work nobody merged", reasonOf(listWith({ pullRequests: [], over: outside }), finished),
+    "it holds work nobody merged: no pull request, and no merged branch contains its branch")
+  same("stale-files: a branch with no pull request whose containment read fails stays with the unreadable reason, not as work nobody merged",
+    reasonOf(listWith({ pullRequests: [], fails: (failed) => ["rev-list", "merge-base"].includes(failed) }), finished), "git rev-list could not be read")
+  same("stale-files: a branch with no pull request whose git for-each-ref fails stays with the unreadable reason, not as work nobody merged",
+    reasonOf(listWith({ pullRequests: [], over: outside, fails: (failed) => failed === "for-each-ref" }), finished), "git for-each-ref could not be read")
+  // The pull request head is the proof that GitHub holds the commits: a head that cannot be read is no proof of a lost commit.
+  same("stale-files: a worktree whose pull request head cannot be read stays with the unreadable reason",
+    reasonOf(listWith({ over: { "rev-list": () => "1" }, fails: (failed) => ["cat-file", "fetch"].includes(failed) }), finished), "the head of pull request #1 could not be read")
+  same("stale-files: a worktree with a commit outside its readable pull request head is an unpushed commit",
+    reasonOf(listWith({ over: { "rev-list": () => "1" } }), finished), "it holds a commit that no remote and no pull request has")
+
+  // At the removal: a failed read keeps the item, and the line that the owner reads names the read.
+  const stored = { ...readable, stale: readable.stale.filter((item) => item.path === finished) }
+  const removals = []
+  const refused = removeListed(stored, stored, {}, { probes: { ...quietProbes, git: (cwd, args) => {
+    if (args.includes("remove")) removals.push(args.at(-1))
+    return args.includes("status") ? null : ""
+  } } })
+  same("stale-files: the removal of a worktree whose git status fails reports the unreadable reason", refused.failed.map((item) => item.reason), [`${finished} was not removed: git status could not be read`])
+  const unlisted = listWith({ fails: (failed) => failed === "worktree" })
+  const skipped = removeListed(stored, unlisted, {}, { probes: { ...quietProbes, git: (cwd, args) => {
+    if (args.includes("remove")) removals.push(args.at(-1))
+    return ""
+  } } })
+  same("stale-files: a stored worktree of a repository whose worktree list fails at the removal is skipped with the unreadable reason",
+    skipped.skipped.map((item) => `${item.path}: ${item.reason}`), [`${finished}: the worktrees of ${machine.checkout} could not be listed`])
+  same("stale-files: git is never asked to remove a worktree whose evidence could not be read", removals, [])
+  // An item that the new listing does not hold, and that is still on disk, is never reported as gone.
+  const sessionItem = { kind: "session", path: join(machine.sessionRoot, STALE), bytes: 1, reason: "listed" }
+  const absent = removeListed({ ...stored, stale: [sessionItem, { ...sessionItem, path: join(machine.sessionRoot, OTHER) }] }, { ...readable, stale: [], kept: [] }, {}, { probes: quietProbes })
+  same("stale-files: a stored item that the listing at the removal does not hold is reported as gone only when it is gone", absent.skipped.map((item) => `${basename(item.path)}: ${item.reason}`).sort(),
+    [`${STALE}: the listing at the removal does not hold it`, `${OTHER}: it no longer exists`].sort())
+}
+
 /** The walk of a finished worktree's tree runs only inside the listing's time limit; past it, the worktree stays. */
 const deadlineCases = () => {
   const machine = stageMachine("deadline")
@@ -492,6 +565,7 @@ export const cases = () => {
   hiddenUntrackedRemovalCases()
   hiddenChangeRemovalCases()
   fsmonitorRemovalCases()
+  unreadableGitCases()
   deadlineCases()
   exportCases()
   reportCases()

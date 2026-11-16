@@ -235,15 +235,25 @@ const useOf = (path, evidence, sessionId = null) => {
 /**
  * Why the tree at `path` holds a change; null when it holds none. A change that `git status` shows, and a path whose change
  * it cannot show: a tracked file with an index flag, or an untracked file that only a personal exclude source ignores.
+ * A read that fails keeps the tree too, and its reason names the read, never a change that nobody saw.
  */
 const changeOf = (path, probes) => {
-  if (probes.git(path, CLEAN_STATUS_ARGUMENTS) !== "") return "it holds an uncommitted change"
+  const status = probes.git(path, CLEAN_STATUS_ARGUMENTS)
+  if (status === null) return "git status could not be read"
+  if (status !== "") return "it holds an uncommitted change"
   const listing = probes.git(path, HIDDEN_CHANGE_ARGUMENTS)
   if (listing === null) return "git could not list its files"
   const [hidden] = hiddenChangesOf(listing)
   if (hidden === undefined) return null
   return hidden.startsWith("? ") ? `it holds an untracked file that no .gitignore ignores: ${hidden.slice(2)}`
     : `git status cannot show a change to ${hidden.slice(2)}, an assume-unchanged or skip-worktree file`
+}
+
+/** Why the commits that `revisions` selects must stay; null when git counts none. A count that git cannot read is no proof of a commit. */
+const commitHoldOf = (path, revisions, lost, probes) => {
+  const count = probes.git(path, ["rev-list", "--count", ...revisions])
+  if (count === null) return "git rev-list could not be read"
+  return count === "0" ? null : lost
 }
 
 /**
@@ -259,7 +269,7 @@ const nestedWorktreeHold = (worktree, probes) => {
     return verdict.stale ? null : verdict.reason
   }
   // A detached HEAD has no branch that outlives the directory, so a commit that no remote has would be lost with it.
-  return probes.git(worktree.path, ["rev-list", "--count", "HEAD", "--not", "--remotes"]) === "0" ? null : "it holds a commit that no remote has"
+  return commitHoldOf(worktree.path, ["HEAD", "--not", "--remotes"], "it holds a commit that no remote has", probes)
 }
 
 /**
@@ -272,7 +282,7 @@ const nestedRepositoryHold = (directory, probes) => {
   if (top === null || canonical(top) !== canonical(directory)) return "git cannot read it"
   const change = changeOf(directory, probes)
   if (change) return change
-  return probes.git(directory, ["rev-list", "--count", "--all", "--not", "--remotes"]) === "0" ? null : "it holds a commit that no remote has"
+  return commitHoldOf(directory, ["--all", "--not", "--remotes"], "it holds a commit that no remote has", probes)
 }
 
 /**
@@ -366,8 +376,6 @@ const classifyCarryCopies = (evidence, probes) => {
   })
 }
 
-const isAncestor = (worktree, commit, container, probes) => probes.git(worktree.path, ["merge-base", "--is-ancestor", commit, container]) !== null
-
 /** A pull request head that GitHub holds; fetched when this clone never saw it. False when it stays unreadable. */
 const hasPullRequestHead = (worktree, pullRequest, probes) => {
   const present = () => probes.git(worktree.path, ["cat-file", "-e", `${pullRequest.headRefOid}^{commit}`]) !== null
@@ -376,35 +384,53 @@ const hasPullRequestHead = (worktree, pullRequest, probes) => {
   return present()
 }
 
-/** A branch with no pull request is finished only when a merged branch holds every commit of it. */
+/**
+ * A branch with no pull request is finished only when a merged branch holds every commit of it. `{ container }` names that
+ * branch. `{ unread }` names the first read that failed when none was found: a failed read is no proof of work nobody merged.
+ */
 const mergedContainerOf = (worktree, tip, probes) => {
-  const symbolic = probes.git(worktree.path, ["symbolic-ref", "--short", "refs/remotes/origin/HEAD"])
-  const base = symbolic ?? "origin/main"
-  if (isAncestor(worktree, tip, base, probes)) return `its branch is contained in ${base}`
-  const containers = (probes.git(worktree.path, ["for-each-ref", "--contains", tip, "--format=%(refname:short)", "refs/heads"]) ?? "")
-    .split("\n").filter((branch) => branch && branch !== worktree.branch).slice(0, CONTAINER_BRANCH_LIMIT)
-  for (const branch of containers) {
-    const merged = (probes.pullRequests(worktree.path, branch) ?? []).find((pullRequest) => pullRequest.state === "MERGED"
-      && hasPullRequestHead(worktree, pullRequest, probes) && isAncestor(worktree, tip, pullRequest.headRefOid, probes))
-    if (merged) return `its branch is contained in ${branch}, which pull request #${merged.number} merged`
+  const unread = []
+  const contains = (container) => {
+    const outside = probes.git(worktree.path, ["rev-list", "--count", tip, "--not", container])
+    if (outside === null) unread.push("git rev-list could not be read")
+    return outside === "0"
   }
-  return null
+  const base = probes.git(worktree.path, ["symbolic-ref", "--short", "refs/remotes/origin/HEAD"]) ?? "origin/main"
+  if (contains(base)) return { container: `its branch is contained in ${base}` }
+  const branches = probes.git(worktree.path, ["for-each-ref", "--contains", tip, "--format=%(refname:short)", "refs/heads"])
+  if (branches === null) unread.push("git for-each-ref could not be read")
+  for (const branch of (branches ?? "").split("\n").filter((name) => name && name !== worktree.branch).slice(0, CONTAINER_BRANCH_LIMIT)) {
+    const pullRequests = probes.pullRequests(worktree.path, branch)
+    if (pullRequests === null) unread.push(`the pull request state of ${branch} could not be read`)
+    const merged = (pullRequests ?? []).filter((pullRequest) => pullRequest.state === "MERGED").find((pullRequest) => {
+      if (hasPullRequestHead(worktree, pullRequest, probes)) return contains(pullRequest.headRefOid)
+      unread.push(`the head of pull request #${pullRequest.number} could not be read`)
+      return false
+    })
+    if (merged) return { container: `its branch is contained in ${branch}, which pull request #${merged.number} merged` }
+  }
+  return { unread: unread[0] ?? null }
 }
 
 /** `{ stale, reason }` for one clean, idle worktree with a branch, from its pull requests and its commits. */
 const judgeBranch = (worktree, probes) => {
   const tip = probes.git(worktree.path, ["rev-parse", "HEAD"])
+  if (tip === null) return { stale: false, reason: "git rev-parse could not be read" }
   const pullRequests = probes.pullRequests(worktree.path, worktree.branch)
-  if (tip === null || pullRequests === null) return { stale: false, reason: "its pull request state could not be read" }
+  if (pullRequests === null) return { stale: false, reason: "its pull request state could not be read" }
   const open = pullRequests.find((pullRequest) => pullRequest.state === "OPEN")
   if (open) return { stale: false, reason: `pull request #${open.number} is open` }
   if (pullRequests.length === 0) {
-    const container = mergedContainerOf(worktree, tip, probes)
-    return container ? { stale: true, reason: container } : { stale: false, reason: "it holds work nobody merged: no pull request, and no merged branch contains its branch" }
+    const { container, unread } = mergedContainerOf(worktree, tip, probes)
+    return container ? { stale: true, reason: container }
+      : { stale: false, reason: unread ?? "it holds work nobody merged: no pull request, and no merged branch contains its branch" }
   }
-  const heads = pullRequests.filter((pullRequest) => hasPullRequestHead(worktree, pullRequest, probes)).map((pullRequest) => pullRequest.headRefOid)
-  const unpushed = probes.git(worktree.path, ["rev-list", "--count", tip, "--not", ...heads, "--remotes"])
-  if (unpushed !== "0") return { stale: false, reason: "it holds a commit that no remote and no pull request has" }
+  const readHeads = pullRequests.filter((pullRequest) => hasPullRequestHead(worktree, pullRequest, probes))
+  const unreadHead = pullRequests.find((pullRequest) => !readHeads.includes(pullRequest))
+  // With a head that could not be read, a commit outside the other heads is no proof of a commit that nobody has.
+  const unpushed = commitHoldOf(worktree.path, [tip, "--not", ...readHeads.map((pullRequest) => pullRequest.headRefOid), "--remotes"],
+    unreadHead ? `the head of pull request #${unreadHead.number} could not be read` : "it holds a commit that no remote and no pull request has", probes)
+  if (unpushed) return { stale: false, reason: unpushed }
   const finished = pullRequests.find((pullRequest) => pullRequest.state === "MERGED") ?? pullRequests[0]
   return { stale: true, reason: `pull request #${finished.number} ${finished.state === "MERGED" ? "merged" : "closed"}` }
 }
@@ -439,6 +465,7 @@ export const listingIdOf = (stale) => createHash("sha256").update(stale.map((ite
 /**
  * The complete listing for `context`: `{ sessionId, sessionRoot, carryRoot, repositories, configDirectories, repoRoot }`.
  * `knownSizes` maps a path to the bytes an earlier listing measured, so each stale item is measured once.
+ * `unlistedRepositories` names each repository whose worktrees git could not list: its worktrees are no item of the listing.
  */
 export const collectListing = (context, { probes = systemProbes, knownSizes = new Map(), measure = true, now = Date.now() } = {}) => {
   const deadline = now + LISTING_CEILING_MS
@@ -454,7 +481,7 @@ export const collectListing = (context, { probes = systemProbes, knownSizes = ne
     bytes: knownSizes.get(item.path) ?? (measure && Date.now() <= deadline ? probes.measure(item.path) : null) }))
   const kept = items.filter((item) => !item.stale).map(({ kind, path, reason }) => ({ kind, path, reason }))
   return { version: 1, generatedAt: new Date(now).toISOString(), listingId: listingIdOf(stale),
-    context: { sessionId: context.sessionId, sessionRoot: evidence.sessionRoot, carryRoot: evidence.carryRoot }, stale, kept }
+    context: { sessionId: context.sessionId, sessionRoot: evidence.sessionRoot, carryRoot: evidence.carryRoot }, stale, kept, unlistedRepositories: evidence.unlistedRepositories }
 }
 
 export const readStoredListing = (repoRoot = REPO_ROOT) => {
@@ -556,6 +583,15 @@ const removeWorktree = (item, probes) => {
 }
 
 /**
+ * Why `fresh` holds no record of a stored item. Only a path that is gone "no longer exists": the worktrees of a repository
+ * that git could not list, and the items of a root that could not be read, are still on disk.
+ */
+const absenceOf = (item, fresh) => {
+  if (item.kind === "worktree" && fresh.unlistedRepositories.includes(item.repository)) return `the worktrees of ${item.repository} could not be listed`
+  return lstatSync(item.path, { throwIfNoEntry: false }) ? "the listing at the removal does not hold it" : "it no longer exists"
+}
+
+/**
  * Removes the items of `stored` that `fresh` still calls stale, and nothing else. Returns `{ removed, skipped, failed, freed }`:
  * `freed` is the change of free space on the volumes the removed items were on.
  */
@@ -568,7 +604,7 @@ export const removeListed = (stored, fresh, repositories, { probes = systemProbe
   for (const item of [...stored.stale].sort((left, right) => right.path.length - left.path.length)) {
     const key = `${item.kind}\t${item.path}`
     if (!stillStale.has(key)) {
-      outcome.skipped.push({ ...item, reason: keptNow.get(key) ?? "it no longer exists" })
+      outcome.skipped.push({ ...item, reason: keptNow.get(key) ?? absenceOf(item, fresh) })
       continue
     }
     const failedInside = outcome.failed.find((inner) => within(inner.path, item.path))
