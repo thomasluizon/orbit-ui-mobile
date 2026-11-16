@@ -4,8 +4,9 @@ import { StyleSheet, Text, View } from 'react-native'
 import QRCode from 'react-native-qrcode-svg'
 import { useTranslation } from 'react-i18next'
 import { achievementEmoji } from '@orbit/shared/utils'
-import { createTokensV2 } from '@/lib/theme'
+import { createTokensV2, radius } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
+import { InsetHairlineRingOverlay } from '@/components/ui/inset-hairline-ring'
 import { OrbitMascot } from '@/components/ui/orbit-mascot'
 
 export type MilestoneShareVariant =
@@ -33,7 +34,7 @@ export const MilestoneShareCard = forwardRef<View, MilestoneShareCardProps>(
 
     return (
       <View ref={ref} testID="milestone-share-card" style={styles.card}>
-        <View style={styles.band}>
+        <View testID="milestone-share-band" style={styles.band}>
           <View style={styles.brandRow}>
             <OrbitMascot size={24} />
             <Text style={styles.wordmark}>Orbit</Text>
@@ -68,7 +69,7 @@ export const MilestoneShareCard = forwardRef<View, MilestoneShareCardProps>(
         </View>
 
         {referralUrl ? (
-          <View style={styles.footer}>
+          <View testID="milestone-share-footer" style={styles.footer}>
             <View style={styles.qrTile}>
               <QRCode value={referralUrl} size={56} color="#020618" backgroundColor="#ffffff" />
             </View>
@@ -80,6 +81,7 @@ export const MilestoneShareCard = forwardRef<View, MilestoneShareCardProps>(
             </View>
           </View>
         ) : null}
+        <InsetHairlineRingOverlay testID="milestone-share-card-ring" color={tokens.hairline} radius={radius.xl} />
       </View>
     )
   },
@@ -89,11 +91,9 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
   return StyleSheet.create({
     card: {
       width: 360,
-      borderRadius: 20,
+      borderRadius: radius.xl,
       overflow: 'hidden',
       backgroundColor: tokens.bg,
-      borderWidth: 1,
-      borderColor: tokens.hairline,
     },
     band: {
       backgroundColor: tokens.bgCard,

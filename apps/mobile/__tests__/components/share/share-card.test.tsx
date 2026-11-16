@@ -1,4 +1,4 @@
-import { StyleSheet } from 'react-native'
+import { StyleSheet, type ViewStyle } from 'react-native'
 import { describe, expect, it, vi } from 'vitest'
 import { PADDING, SPACING } from '@orbit/shared/theme'
 import type { Recap } from '@orbit/shared/types/gamification'
@@ -7,6 +7,8 @@ import {
   createMockRetrospectiveMetrics,
 } from '@orbit/shared/__tests__/factories'
 import { ShareCard } from '@/components/share/share-card'
+import { createTokensV2 } from '@/lib/theme'
+import { measureProfileRow } from '@/__tests__/support/profile-row-geometry'
 
 const TestRenderer = require('react-test-renderer')
 
@@ -45,6 +47,23 @@ function render(props: { recap: Recap; variant?: 'progress' | 'wrapped' }) {
 }
 
 describe('ShareCard (mobile)', () => {
+  it.each([
+    { variant: 'wrapped' as const, inset: SPACING.s32 },
+    { variant: 'progress' as const, inset: PADDING.cardInset },
+  ])('draws the $variant card hairline inside its edge, so the copy starts at the web inset', ({ variant, inset }) => {
+    const tree = render({ recap: createMockRecap(), variant })
+    const card = tree.root.findAll((node) => typeof node.type === 'string' && node.props?.testID === 'share-card')[0] as { props: { style: unknown } }
+    const cardStyle = StyleSheet.flatten(card.props.style as ViewStyle)
+    expect(cardStyle.borderWidth, 'the card hairline takes no layout space').toBeUndefined()
+    expect(cardStyle).toMatchObject({ outlineWidth: 1, outlineOffset: -1, outlineStyle: 'solid', outlineColor: createTokensV2('purple', 'dark').hairline })
+
+    const measured = measureProfileRow(tree.toJSON() as Parameters<typeof measureProfileRow>[0], 360, 1)
+    const box = (testID: string) => measured.boxes.find((candidate) => candidate.testID === testID)!
+    const frame = box('share-card')
+    expect(box('share-card-figure'), 'the primary figure spans the card padding, as on web').toMatchObject({ left: inset, right: frame.right - inset })
+    expect(box('share-card-weekday'), 'the weekday line ends at the card padding, as on web').toMatchObject({ left: inset, right: frame.right - inset, bottom: frame.bottom - inset })
+  })
+
   it('reads the shared card inset for progress sharing', () => {
     const originalInset = PADDING.cardInset
     try {

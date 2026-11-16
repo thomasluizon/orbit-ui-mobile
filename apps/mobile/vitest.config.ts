@@ -109,7 +109,6 @@ export default defineConfig({
         'components/habits/habit-checklist.tsx',
         'components/habits/habit-form-fields/slip-alert-section.tsx',
         'components/habits/habit-form-fields/tag-editor-row.tsx',
-        'components/milestone-share/milestone-share-card.tsx',
         'components/navigation/bottom-tab-bar.tsx',
         'components/navigation/notification-detail-modal.tsx',
         'components/onboarding/feature-guide-drawer.tsx',

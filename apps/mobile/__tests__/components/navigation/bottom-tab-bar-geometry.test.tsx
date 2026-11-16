@@ -17,6 +17,7 @@ import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { BottomTabBar } from '@/components/navigation/bottom-tab-bar'
 import { __emitKeyboardEvent, __resetTestHostConfig, __setWindowDimensions } from '../../../test-mocks/react-native'
+import { applyBorderWidths } from '@/__tests__/support/yoga-borders'
 
 vi.mock('react-native-safe-area-context', async () => ({
   useSafeAreaInsets: () => ({ top: 24, right: 0, bottom: 24, left: 0 }),
@@ -64,7 +65,7 @@ function applyPadding(node: YogaNode, style: ViewStyle) {
   for (const [key, edge] of [['paddingVertical', Yoga.EDGE_VERTICAL], ['paddingHorizontal', Yoga.EDGE_HORIZONTAL], ['paddingTop', Yoga.EDGE_TOP], ['paddingBottom', Yoga.EDGE_BOTTOM], ['padding', Yoga.EDGE_ALL]] as const) {
     if (typeof style[key] === 'number') node.setPadding(edge, style[key])
   }
-  if (typeof style.borderTopWidth === 'number') node.setBorder(Yoga.EDGE_TOP, style.borderTopWidth)
+  applyBorderWidths(node, style)
 }
 
 function measureText(node: YogaNode, host: Host, style: TextStyle, fontScale: number) {

@@ -29,6 +29,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { useSheetPresence } from '@/components/ui/sheet-presence'
 import { createTokensV2, radius } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
+import { insetHairlineRing } from '@/components/ui/inset-hairline-ring'
 
 interface ReferralDrawerProps {
   open: boolean
@@ -203,9 +204,12 @@ function ReferralDrawerContent({ onClose, sheetRef, closeSheet }: Readonly<Pick<
     >
       <View style={styles.content}>
         {isLoading ? (
-          <View testID="referral-skeleton" style={styles.content} accessibilityRole="progressbar" accessibilityLabel={t('common.loading')} accessibilityState={{ busy: true }}>
-            <View style={styles.linkSkeleton}><Skeleton variant="fill" grouped /></View>
-            <Skeleton variant="settings" rows={2} grouped />
+          <View>
+            <SectionLabel>{t('referral.drawer.yourLink')}</SectionLabel>
+            <View testID="referral-skeleton" style={styles.content} accessible accessibilityRole="progressbar" accessibilityLabel={t('common.loading')} accessibilityState={{ busy: true }}>
+              <View style={styles.linkSkeleton}><Skeleton variant="fill" grouped /></View>
+              <Skeleton variant="settings" rows={2} grouped />
+            </View>
           </View>
         ) : null}
         {isError ? <ErrorState message={error.message} /> : null}
@@ -237,15 +241,15 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       gap: 16,
     },
     linkSkeleton: {
-      height: TOUCH_TARGET_MIN + SPACING.s8 + 2,
+      height: TOUCH_TARGET_MIN + SPACING.s8,
     },
     linkWell: {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 8,
-      borderRadius: 12,
-      borderWidth: 1,
-      borderColor: tokens.hairline,
+      borderRadius: radius.md,
+      ...insetHairlineRing,
+      outlineColor: tokens.hairline,
       backgroundColor: tokens.bgField,
       paddingLeft: SPACING.s16,
       paddingRight: SPACING.s8,
