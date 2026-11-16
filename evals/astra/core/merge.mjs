@@ -31,14 +31,18 @@ const open = (entry) => !entry || (entry.passK === 'incomplete' && entry.graderL
 // The cases of the windows of one build: the must-pass run and the other run, each continued across UTC-day windows.
 // A later window may hold a case again only while the case is open. No rerun on the same build replaces a passed or
 // failed case or a grader limit. A later window keeps the model calls of the window it replaces, for the cost. Each
-// case keeps the API commit and the evidence directory of the window that measured it.
+// case keeps the API commit and the evidence directory of the window that measured it. A window of another API commit
+// is refused: the windows of one call measure one build, and a summary holds no time finer than its UTC day, so the
+// refusal names both commits and leaves the operator to declare the later build.
 function casesOfBuild(windows, descriptors, firstInput) {
   const collected = new Map()
   for (const [index, window] of windows.entries()) {
     const input = firstInput + index
     if (window.gate !== 'core' || !Array.isArray(window.cases)) throw new Error(`Input ${input} is not a core set run summary.`)
     if (window.corpusDigest !== corpusDigest) throw new Error(`Input ${input} measured another corpus than this core set.`)
-    if (window.apiCommit !== windows[0].apiCommit) throw new Error(`Input ${input} measured another API commit; give each window of a later build to the merge with --rerun.`)
+    if (window.apiCommit !== windows[0].apiCommit) {
+      throw new Error(`Input ${input} measured another API commit (${window.apiCommit?.slice(0, 7)}) than input ${firstInput} (${windows[0].apiCommit?.slice(0, 7)}); the summaries do not tell which build is later, so give each window of the later build to the merge with --rerun.`)
+    }
     for (const entry of window.cases) {
       const previous = collected.get(entry.id)
       if (previous?.passK === 'incomplete' && previous.graderLimits > 0) {
