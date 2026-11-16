@@ -11,9 +11,12 @@ import { readStdinJson } from "./_lib/io.mjs"
 import { checkSleepStop } from "./_lib/rules-sleep.mjs"
 import { checkRelayStop } from "./_lib/rules-relay.mjs"
 
-/** The Stop payload names the live tasks with authority; the records add which of them count as stuck. */
-const waitingBackgroundRuns = (input, state) => {
-  if (state?.sleep !== true || state.sessionId !== input?.session_id) return []
+/**
+ * The Stop payload names the live tasks with authority; the records add which of them count as stuck. Only a relay
+ * drain reads the background runs (rules-sleep.mjs), so a turn end with no pending relay spends no read on them.
+ */
+const waitingBackgroundRuns = (input, state, relayEnabled) => {
+  if (!relayEnabled || state?.relay?.pending !== true || state.sleep !== true || state.sessionId !== input?.session_id) return []
   const drain = readDrainBlockers(input.session_id)
   if (!Array.isArray(input.background_tasks)) return drain.waiting
   const stuck = new Set(drain.stuck.map((run) => run.id))
@@ -49,7 +52,7 @@ try {
     relayEnabled: config.relay.enabled,
     wakeSources: wakeSourceStates.live,
     orphanedWakeSources: wakeSourceStates.orphaned,
-    backgroundRuns: waitingBackgroundRuns(input, state),
+    backgroundRuns: waitingBackgroundRuns(input, state, config.relay.enabled),
     sessionId: input?.session_id ?? "",
     stopHookActive: input?.stop_hook_active === true,
     isWakeSourceAlive,

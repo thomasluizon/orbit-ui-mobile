@@ -35,7 +35,8 @@ try {
         ? { ...current, relay: { ...current.relay, fallbackUntilCompacted: false, armed: false } } : undefined, undefined, caller) ?? readRunState()
     }
     const sources = readWakeSourceStates()
-    const drain = readDrainBlockers(input.session_id)
+    // Below the soft threshold the relay rule returns before it reads a drain, so no transcript or git read is spent on one.
+    const drain = measuredTokens >= config.relay.softTokens ? readDrainBlockers(input.session_id) : { waiting: [], stuck: [] }
     const verdict = checkRelayStop({ ...config.relay, state, sessionId: input.session_id, measuredTokens, hookEventName: input.hook_event_name,
       wakeSources: sources.live, orphaned: sources.orphaned, backgroundRuns: drain.waiting, stuckRuns: drain.stuck, stopHookActive: input.stop_hook_active === true })
     // A record that changed after the verdict skips the write and its message; the next hook decides again.

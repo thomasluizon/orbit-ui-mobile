@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { existsSync, readdirSync, readFileSync } from "node:fs"
-import { dirname, join } from "node:path"
+import { dirname, join, relative } from "node:path"
 import { performance } from "node:perf_hooks"
 import { fileURLToPath } from "node:url"
 
@@ -384,6 +384,17 @@ T(
   `every tools/lib/ module has a case module (${libraries.length} modules)`,
   uncoveredLibraries.length === 0,
   `no CASE_MODULES row for: ${uncoveredLibraries.map((file) => `lib/${file}`).join(", ")}\n     A library has no CLI, so a case module is the only coverage it can carry.`,
+)
+/** Each .mjs source below `directory`, without the fixture directories, whose files are test data. */
+const sourceFiles = (directory) => readdirSync(directory, { withFileTypes: true }).flatMap((entry) =>
+  entry.isDirectory() ? (/^(?:__)?fixtures(?:__)?$/.test(entry.name) ? [] : sourceFiles(join(directory, entry.name))) : entry.name.endsWith(".mjs") ? [join(directory, entry.name)] : [])
+// A doc comment describes the declaration directly below it, so a comment that ends directly above another comment describes nothing.
+const strandedComments = sourceFiles(TOOLS_DIR).flatMap((path) => readFileSync(path, "utf8").split("\n")
+  .flatMap((line, index, lines) => index > 0 && /^\s*\/\*\*/.test(line) && /\*\/\s*$/.test(lines[index - 1]) ? [`${relative(TOOLS_DIR, path)}:${index}`] : []))
+T(
+  "no comment in tools/ ends directly above a doc comment",
+  strandedComments.length === 0,
+  `a comment ends directly above a doc comment at: ${strandedComments.join(", ")}\n     Merge the two comments, or move the upper one to the declaration that it describes.`,
 )
 
 console.log("\n# universal contract (tools/CONVENTIONS.md)")

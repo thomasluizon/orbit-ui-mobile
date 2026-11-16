@@ -450,7 +450,6 @@ export const stageWithConfig = (label, tool, config) => {
   return { path: join(base, "tools", tool), base, configPath: join(base, ".claude", "orchestrator.json") }
 }
 
-/** A real git repository with a bare origin and one commit on main, under the fixture root. */
 /**
  * A subagent transcript in the shape that Claude Code 2.1.325 writes. The fixture holds lines of a real subagent
  * transcript with each value replaced and each path a token. The agent works in `worktree` through `cd` and absolute
@@ -462,6 +461,7 @@ export const subagentTranscript = ({ worktree, sessionDirectory, otherRepository
     .replace(/\{\{([A-Z_]+)\}\}/g, (_token, name) => JSON.stringify(tokens[name]).slice(1, -1))
 }
 
+/** A real git repository with a bare origin and one commit on main, under the fixture root. */
 export const stageRepo = (label) => {
   const path = join(root, "repos", label)
   const origin = join(root, "repos", `${label}.git`)

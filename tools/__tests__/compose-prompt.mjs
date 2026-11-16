@@ -531,8 +531,8 @@ export const cases = () => {
    * The regression this file exists to hold. Three documents claimed comments already reached the
    * worker while this tool read only the body, so /orchestrate step 2b's answers stopped at the
    * reviewer. A prompt that drops a comment is a prompt missing half its work order.
+   * The response arrives newest first with a minimized comment in the middle: neither order nor visibility is trusted.
    */
-  /** The response arrives newest first with a minimized comment in the middle: neither order nor visibility is trusted. */
   const withComments = join(root, "compose-prompt", "with-comments.md")
   check(
     TOOL,

@@ -1,15 +1,23 @@
 import { appendFileSync, existsSync, mkdirSync, readFileSync, utimesSync, writeFileSync } from "node:fs"
-import { spawn } from "node:child_process"
+import { spawn, spawnSync } from "node:child_process"
 import { dirname, join } from "node:path"
 import { STUCK_RUN_MILLISECONDS, observeBackgroundRuns, readBackgroundRuns, readDrainBlockers } from "../lib/background-runs.mjs"
 import { processStartIdentity, readRunState, updateRunState, writeRunState } from "../lib/run-state.mjs"
-import { T, stageRepo, subagentTranscript } from "./_harness.mjs"
+import { REPO_ROOT, T, stageRepo, subagentTranscript } from "./_harness.mjs"
 
 const fixture = (name) => JSON.parse(readFileSync(new URL(`./fixtures/${name}`, import.meta.url), "utf8"))
 const launches = fixture("claude-background-launches.json")
 const agentMeta = fixture("claude-agent-meta.json")
 
 export const cases = async () => {
+  // An export that no other file imports is surface that no caller holds to its contract.
+  const exported = Object.keys(await import("../lib/background-runs.mjs"))
+  const importers = spawnSync("git", ["-C", REPO_ROOT, "grep", "-l", "-F", "lib/background-runs.mjs"], { encoding: "utf8" }).stdout.split("\n").filter(Boolean)
+  const imported = new Set(importers.flatMap((path) => [...readFileSync(join(REPO_ROOT, path), "utf8").matchAll(/import\s*\{([^}]*)\}\s*from\s*"[^"]*lib\/background-runs\.mjs"/g)]
+    .flatMap((match) => match[1].split(",").map((name) => name.trim().split(/\s+as\s+/)[0]))))
+  const unimported = exported.filter((name) => !imported.has(name))
+  T("background-runs: another file imports each export of the module", importers.length > 0 && unimported.length === 0, `no importer for: ${unimported.join(", ")}`)
+
   const repoRoot = stageRepo("background-runs").path
   const claudeDirectory = join(repoRoot, ".git", "claude")
   mkdirSync(join(claudeDirectory, "sessions"), { recursive: true })

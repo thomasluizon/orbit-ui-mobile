@@ -162,6 +162,9 @@ T("git: a heredoc feeding a shell keeps its body in scope", blocks(checkGitComma
 // A file named for a shell is not a shell: the body is data that the command writes.
 T("git: a heredoc written to a .sh file is data", checkGitCommand("cat > push.sh <<'EOF'\ngit push origin main\nEOF"), null)
 T("git: a heredoc feeding a shell by path keeps its body in scope", blocks(checkGitCommand("/bin/bash <<'EOF'\ngit push origin main\nEOF")), true)
+// A shell reads the heredoc as its script whatever options sit between the shell word and the operator.
+const HEREDOC_SHELLS = ["bash -e", "bash -s", "sh -x", "/bin/bash -euo pipefail", "bash -o pipefail -e", "zsh +o nomatch", "ksh", "dash -e"]
+for (const shell of HEREDOC_SHELLS) T(`git: a heredoc feeding ${shell} keeps its body in scope`, blocks(checkGitCommand(`${shell} <<'EOF'\ngit push origin main\nEOF`)), true)
 // git worktree remove --force follows a Windows junction and deletes the target.
 T("git-worktree: --force blocks", blocks(checkGitWorktreeRemove("git worktree remove --force .claude/worktrees/x")), true)
 T("git-worktree: no force allows", checkGitWorktreeRemove("git worktree remove .claude/worktrees/x"), null)
@@ -471,6 +474,7 @@ for (const [command, rule] of [
   [`bash -c 'rm -rf "$DST/"'`, "variable-path"],
   [`trap 'rm -rf "$TMP"' EXIT`, "variable-path"],
   ["bash <<'EOF'\nrm -rf \"$TMP\"\nEOF", "variable-path"],
+  ...HEREDOC_SHELLS.map((shell) => [`${shell} <<'EOF'\nrm -rf "$TMP"\nEOF`, "variable-path"]),
   ["rm -rf `pwd`/dist", "command-substitution"],
   ["docker exec box sh -c 'rm -rf /'", "critical-path"],
   ["rm -rf /", "critical-path"],
@@ -512,6 +516,7 @@ for (const command of [
   'git commit -m "rm \\"$DST/\\" stops"',
   'grep -rn "rm -rf" tools',
   "cat > cleanup.sh <<'EOF'\nrm -rf \"$TMP\"\nEOF",
+  "git commit -F - <<'EOF'\nrm -rf \"$TMP\"\nEOF",
   "npm run build",
   // The shell does not read a comment, so an apostrophe or a script word there changes nothing.
   "rm -rf dist # it's stale",
@@ -1857,6 +1862,22 @@ T("stuck limit: with the limit removed the silent subagent holds the drain again
 T("stuck limit: with the limit removed the turn end waits again", wakeStop(heldStop).status, 2)
 writeFileSync(join(wakeCheckout, "tools", "lib", "background-runs.mjs"), stuckLimitSource)
 T("stuck limit: with the limit restored the drain completes again", backgroundHook(heldStop).stdout.includes("drain is complete"), true)
+// The relay rule reads no drain below the soft threshold and no Stop rule reads one without a pending relay, so the
+// hooks spend no transcript read and no git process on it there. A drain read records the silent subagent as stuck.
+const drainedState = readRunState(wakeCheckout)
+const heldToolCall = { ...heldStop, hook_event_name: "PostToolUse", tool_name: "Bash", tool_response: {} }
+softCall(relaySoft - 1)
+for (const [event, run] of [["a PostToolUse below the soft threshold", () => backgroundHook(heldToolCall)], ["a Stop below the soft threshold", () => backgroundHook(heldStop)], ["a turn end with no pending relay", () => wakeStop(heldStop)]]) {
+  writeRunState(relayState, wakeCheckout)
+  run()
+  T(`stuck limit: ${event} reads no drain`, readRunState(wakeCheckout).stuckBackgroundRuns, undefined)
+}
+writeRunState(relayState, wakeCheckout)
+softCall(relaySoft)
+backgroundHook(heldToolCall)
+T("stuck limit: a PostToolUse at the soft threshold reads the drain", readRunState(wakeCheckout).stuckBackgroundRuns?.map((run) => run.id), [heldAgent])
+writeFileSync(relayTranscript, hardRelayTranscript)
+writeRunState(drainedState, wakeCheckout)
 backgroundHook(relayPayload)
 const backgroundModulePath = join(wakeCheckout, "tools", "lib", "background-runs.mjs")
 const backgroundModuleSource = readFileSync(backgroundModulePath, "utf8")

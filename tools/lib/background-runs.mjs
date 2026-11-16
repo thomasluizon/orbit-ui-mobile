@@ -131,7 +131,7 @@ const entriesWith = (lines, marker) => lines.filter((line) => line.includes(mark
  * transcript on disk counts from that observation, so no run waits without a limit. Null only for a record with
  * neither: the next Stop gives such a record its observation time.
  */
-export const lastProgressOf = (run) => {
+const lastProgressOf = (run) => {
   const observed = Date.parse(run.observedAt)
   const times = [...changeTimes(transcriptFiles(run)), ...(Number.isFinite(observed) ? [observed] : [])]
   return times.length ? Math.max(...times) : null

@@ -52,10 +52,15 @@ export function unquotedHeredocRunsCommand(command) {
   return false
 }
 
+/** The shells that read standard input as a script. */
+export const SHELLS = ["bash", "sh", "zsh", "dash", "ksh", "mksh", "ash", "hush", "rbash"]
+/** A shell word, by name or by path, then its options (`-o` and `+o` take a name), directly before the heredoc operator. */
+const feedsShell = new RegExp(`(?:^|[\\s;&|(/])(?:${SHELLS.join("|")})(?:[ \\t]+(?:[-+][A-Za-z]*o[ \\t]+\\w+|[-+]\\S*))*[ \\t]+$`)
+
 /** Strip heredoc bodies so a message that NAMES a flag is not read as using it. A body that a shell reads stays; a file named `x.sh` is not a shell. */
 export function stripHeredocBodies(command) {
   return command.replace(heredoc, (match, beforeOperator, _quote, _tag, restOfLine) =>
-    /(?:^|[\s;&|(/])(?:ba|z)?sh[ \t]+$/.test(beforeOperator) ? match : `${beforeOperator}${restOfLine}`,
+    feedsShell.test(beforeOperator) ? match : `${beforeOperator}${restOfLine}`,
   )
 }
 

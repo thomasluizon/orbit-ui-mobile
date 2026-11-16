@@ -8,7 +8,7 @@ import { homedir } from "node:os"
 import { posix } from "node:path"
 
 import { commandWords, inspectCommands } from "./command-expander.mjs"
-import { stripHeredocBodies } from "./rules-git.mjs"
+import { SHELLS, stripHeredocBodies } from "./rules-git.mjs"
 
 /** The tools whose permission check runs the Claude Code removal check. Each one takes the shell command as `tool_input.command`. */
 export const REMOVAL_CHECK_TOOLS = ["Bash", "Monitor"]
@@ -25,7 +25,6 @@ const LAUNCHER_MARKER = "ORBIT_LAUNCH_WORKER"
 /** Words the shell reads before a command, and programs that run the command that follows them. */
 const CONTROL_WORDS = new Set(["do", "then", "else", "elif", "if", "while", "until", "!", "{", "coproc"])
 const WRAPPERS = new Set(["sudo", "doas", "exec", "command", "builtin", "noglob", "env", "nice", "nohup", "busybox", "time", "timeout", "stdbuf", "setsid", "ionice", "pkexec", "runuser", "xargs"])
-const SHELLS = new Set(["bash", "sh", "zsh", "dash", "ksh", "mksh", "ash", "hush", "rbash"])
 const ASSIGNMENT = /^[A-Za-z_][A-Za-z0-9_]*\+?=/
 const REDIRECT = /^[\d&]*[<>]/
 const BARE_REDIRECT = /^(?:\d+|&)?(?:>>?[|&]?|<<?<?|<>)$/
@@ -34,7 +33,7 @@ const EXPANSION = /^\$(?:\{([^}]*)\}|([A-Za-z_][A-Za-z0-9_]*|[0-9@*#?!$-]))/
 const GUARDED = /^(?:[A-Za-z_][A-Za-z0-9_]*|[0-9]+):\?/
 const SIMPLE_NAME = /^(?:[A-Za-z_][A-Za-z0-9_]*|[0-9]+)$/
 const BRACE_EXPANSION = /\{[^{}]*(?:,|\.\.)[^{}]*\}/
-const INLINE_SCRIPT = /(?:^|[\s;&|(])(?:(?:[^\s=]*\/)?(?:ba|z|da|k|mk|a|hu|rba)?sh\s+(?:\S+\s+)*?-[A-Za-z]*c|eval|trap)(?=\s)/
+const INLINE_SCRIPT = new RegExp(`(?:^|[\\s;&|(])(?:(?:[^\\s=]*\\/)?(?:${SHELLS.join("|")})\\s+(?:\\S+\\s+)*?-[A-Za-z]*c|eval|trap)(?=\\s)`)
 const UNREADABLE_SCRIPT = /\balias\b|\bIFS\b|\bfunction\b|\w\s*\(\s*\)|\$'/
 const INLINE_SCRIPT_MAX_LENGTH = 2000
 const MOUNTED_DRIVE = /^\/(?:system\/)?volumes(?:\/[^/]+){0,2}$|^\/mnt\/(?:[^/]+|[a-z]\/[^/]+)$|^\/(?:run\/)?media(?:\/[^/]+){0,3}$/i
@@ -125,7 +124,7 @@ function nestedScripts(words) {
   const scripts = []
   const values = words.map((word) => readWord(word).value)
   words.forEach((word, index) => {
-    if (index === 0 || !SHELLS.has(programName(word))) return
+    if (index === 0 || !SHELLS.includes(programName(word))) return
     const flag = words.findIndex((candidate, position) => position > index && /^-[A-Za-z]*c[A-Za-z]*$/.test(candidate))
     if (flag > 0 && values[flag + 1] !== undefined) scripts.push(values[flag + 1])
   })
