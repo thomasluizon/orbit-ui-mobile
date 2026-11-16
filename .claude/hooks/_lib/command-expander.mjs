@@ -323,6 +323,9 @@ const WRAPPERS = new Set(["sudo", "doas", "exec", "command", "builtin", "noglob"
 
 /** At the start of a command, each one comes before a command, or ends a compound command. The commands between them are the commands that the shell runs. */
 const STRUCTURE_WORDS = new Set(["if", "then", "elif", "else", "fi", "while", "until", "do", "done", "!", "{", "}"])
+/** The words that open and close a compound command whose commands the shell can skip. `for` opens one too, and it stays a command word. */
+const COMPOUND_OPENERS = new Set(["if", "while", "until"])
+const COMPOUND_CLOSERS = new Set(["fi", "done"])
 /** Compound commands that the reader does not model. `for NAME in WORDS` and `[[ ... ]]` read as plain commands: they run only the substitutions in their words. */
 const KEYWORDS = new Set(["case", "esac", "function", "select", "coproc"])
 /** Each one reads a word again as code, or changes how the shell reads the next command. */
@@ -576,12 +579,17 @@ function finishCommand(command, scriptDepth) {
 /**
  * The list at `reader.index`: pipelines of commands. A list in a substitution or in a subshell ends at its `)`.
  * Each command is `{ words, assignments, redirects, heredocs, scripts }`. A subshell is a command with no word, and its list is a script.
+ * Each pipeline carries `joiner`, the `&&` or `||` before it or "", and `conditional`, true inside `if`, `while`, `until` and `for`.
  */
 function readList(reader, depth, closes = false, scriptDepth = 0) {
   const { source } = reader
   const list = []
   const pending = []
   let pipeline = []
+  let joiner = ""
+  let compounds = 0
+  let inCompound = false
+  let afterCompound = false
   let command = { words: [], assignments: [], redirects: [], heredocs: [], scripts: [] }
   const finished = []
   const isEmpty = () => command.words.length === 0 && command.redirects.length === 0 && command.scripts.length === 0
@@ -589,10 +597,14 @@ function readList(reader, depth, closes = false, scriptDepth = 0) {
     if (!isEmpty()) { finished.push(command); pipeline.push(command) }
     command = { words: [], assignments: [], redirects: [], heredocs: [], scripts: [] }
   }
-  const endPipeline = (background = false) => {
+  const endPipeline = (background = false, next = "") => {
     endCommand()
-    if (pipeline.length > 0) list.push(Object.assign(pipeline, { background }))
+    if (pipeline.length > 0) list.push(Object.assign(pipeline, { background, joiner, conditional: inCompound }))
+    // A compound command that ends here can end with or without each command in it, so the pipeline after it starts a new chain.
+    joiner = afterCompound ? "" : next
     pipeline = []
+    inCompound = compounds > 0
+    afterCompound = false
   }
   const readBodies = () => {
     for (const { delimiter, command: owner } of pending.splice(0)) {
@@ -622,7 +634,8 @@ function readList(reader, depth, closes = false, scriptDepth = 0) {
     if (character === "\n") {
       reader.index++
       readBodies()
-      if (!isEmpty() || pipeline.length === 0) endPipeline()
+      // A line end after `|`, `&&` or `||` continues the pipeline or the chain.
+      if (!isEmpty()) endPipeline()
       continue
     }
     if (character === "#") {
@@ -637,9 +650,9 @@ function readList(reader, depth, closes = false, scriptDepth = 0) {
       endPipeline()
       continue
     }
-    if (character === "&" && next === "&") { reader.index += 2; endPipeline(); continue }
+    if (character === "&" && next === "&") { reader.index += 2; endPipeline(false, "&&"); continue }
     if (character === "&" && next !== ">") { reader.index++; endPipeline(true); continue }
-    if (character === "|" && next === "|") { reader.index += 2; endPipeline(); continue }
+    if (character === "|" && next === "|") { reader.index += 2; endPipeline(false, "||"); continue }
     if (character === "|") {
       if (next === "&") notModelled("the operator `|&`")
       reader.index++
@@ -663,8 +676,16 @@ function readList(reader, depth, closes = false, scriptDepth = 0) {
     const redirectFollows = /[<>]/.test(source[reader.index] ?? "") && source[reader.index - 1] !== undefined && !/\s/.test(source[reader.index - 1])
     if (redirectFollows && /^\{\w+\}$/.test(word.raw)) notModelled("a `{name}>` redirect")
     if (redirectFollows && /^\d+$/.test(word.raw)) continue
-    if (isEmpty() && STRUCTURE_WORDS.has(word.raw)) continue
+    if (isEmpty() && STRUCTURE_WORDS.has(word.raw)) {
+      inCompound ||= compounds > 0
+      if (COMPOUND_OPENERS.has(word.raw)) compounds++
+      if (COMPOUND_CLOSERS.has(word.raw)) { compounds = Math.max(0, compounds - 1); afterCompound = true }
+      inCompound ||= compounds > 0
+      continue
+    }
     if (isEmpty() && KEYWORDS.has(word.raw)) notModelled(`the shell keyword \`${word.raw}\``)
+    if (isEmpty() && word.raw === "for") compounds++
+    inCompound ||= compounds > 0
     command.words.push(word)
   }
   if (closes) notModelled("a `$(` with no `)`")
@@ -689,20 +710,38 @@ export function readCommand(source) {
   }
 }
 
+const distinctStates = (...groups) => [...new Map(groups.flat().map((state) => [JSON.stringify(state), state])).values()]
+
 /**
- * Calls `visit(command, state)` for each command of the list, in the order in which the shell runs them. `visit` returns the
- * state for the next command. A substitution, a script, a subshell, a background command and a command of a pipeline inherit the state and do not change it.
+ * Calls `visit(command, state)` for each command in the order in which the shell runs them, once for each state that is possible
+ * there. `visit` returns the next state. A substitution, a script, a subshell, a background command and a command of a pipeline
+ * inherit the state and do not change it. The shell can skip a command after `&&` or `||` and a command in a compound command,
+ * so the states before such a command stay possible after its chain.
  */
 export function walkCommands(list, state, visit) {
+  walkStates(list, [state], visit)
+}
+
+function walkStates(list, possible, visit) {
+  let states = possible
+  let beforeChain = states
+  // The states that are possible when the chain ends early: after its first pipeline, or before it when the shell can skip the chain.
+  let chainFloor = states
   for (const pipeline of list) {
+    if (pipeline.joiner === "") {
+      states = distinctStates(chainFloor, states)
+      beforeChain = states
+    } else if (pipeline.joiner === "||") states = distinctStates(beforeChain, states)
+    let updated = states
     for (const command of pipeline) {
-      for (const word of command.words) for (const nested of word.nested) walkCommands(nested, state, visit)
-      const updated = visit(command, state)
-      for (const script of command.scripts) walkCommands(script, state, visit)
-      if (pipeline.length === 1 && !pipeline.background && !command.subshell) state = updated
+      for (const word of command.words) for (const nested of word.nested) walkStates(nested, states, visit)
+      const visited = states.map((current) => visit(command, current))
+      for (const script of command.scripts) walkStates(script, states, visit)
+      if (pipeline.length === 1 && !pipeline.background && !command.subshell) updated = distinctStates(visited)
     }
+    states = updated
+    if (pipeline.joiner === "") chainFloor = pipeline.conditional ? beforeChain : states
   }
-  return state
 }
 
 /** What a refusal tells the agent to write in place of a command that is not modelled. */

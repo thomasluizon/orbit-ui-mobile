@@ -100,7 +100,9 @@ The subset:
 - `$NAME`, `${NAME}`, `${NAME:?message}` and `$(command)`, where the reader reads the command of the substitution with
   the same subset
 - `if`, `while`, `until` and `for NAME in WORDS` with `then`, `elif`, `else`, `do`, `done` and `fi`, a `!`, a `( ... )`
-  subshell and a `{ ...; }` group: the reader gives each command between these words to the rules
+  subshell and a `{ ...; }` group: the reader gives each command between these words to the rules. The shell can skip
+  a command after `&&` or `||` and a command in `if` or in a loop, so a rule that follows a `cd` reads the later commands
+  in each directory that is possible (`walkCommands`)
 - a shell with a literal `-c` script, and a shell with a here document of its own as its script: the reader reads the
   script with the same subset
 

@@ -512,6 +512,20 @@ for (const command of ["git push origin HEAD", "git push -u origin HEAD", "git p
 for (const command of ["git push origin HEAD:feature/x", "git push origin feature/x", "git push -o ci.skip origin feature/x", "git push origin HEAD:refs/heads/feature/x"]) {
   T(`git: ${command} while HEAD is on main allows`, checkGitCommand(command, headOnMain), null)
 }
+// A `cd` that the shell can skip leaves the push in the directory before it, so the rule judges the push in each directory that is possible.
+const fromProtected = { cwd: "/work/ui", resolveRemoteUrl: (directory) => (directory.startsWith("/other") ? "git@github.com:o/sandbox.git" : "git@github.com:o/orbit-ui-mobile.git") }
+for (const command of ["false && cd /other; git push origin main", "true || cd /other; git push origin main", "cd /other || git push origin main", "if false; then cd /other; fi; git push origin main",
+  "for d in; do cd /other; done; git push origin main", "while false; do cd /other; done; git push origin main", "until true; do cd /other; done; git push origin main", "false &&\ncd /other\ngit push origin main",
+  "if true; then cd /work/ui; else cd /other; fi; git push origin main", "bash -c 'false && cd /other; git push origin main'", "(false && cd /other; git push origin main)", "cd /other; cd /work/ui; git push origin main"]) {
+  T(`git: ${JSON.stringify(command)} from a protected repository blocks`, blocks(checkGitCommand(command, fromProtected)), true)
+}
+for (const command of ["cd /other && git push origin main", "cd /other; git push origin main", "cd /other && npm test && git push origin main", "{ cd /other; }; git push origin main", "cd /other\ngit push origin main",
+  "true && cd /other && git push origin main", "if true; then cd /other && git push origin main; fi", "git -C /other push origin main", "cd /other; if true; then git push origin main; fi"]) {
+  T(`git: ${JSON.stringify(command)} from a protected repository allows`, checkGitCommand(command, fromProtected), null)
+}
+const chainOf = (command) => readCommand(command).list.map(({ joiner, conditional }) => [joiner, conditional])
+T("subset: a pipeline carries the operator before it, and whether a compound command holds it", chainOf("a && b || c; if d; then e; fi; f &&\n\ng; for x in 1; do h; done; i"),
+  [["", false], ["&&", false], ["||", false], ["", true], ["", true], ["", false], ["&&", false], ["", true], ["", true], ["", false]])
 const REVIEW_APPROVAL_REFUSED = [
   "echo $((cat <<EOF\n'\nEOF\n) ); rm -rf \"$TMP\" # '", "bash <<<$'rm\\t-rf\\t\\x24TMP'", "(( x = 1 <<true ))\nrm -rf \"$TMP\"\ntrue",
   "bash -c \"cat <<X\n'\nX\nrm -rf \\\"\\$TMP\\\" # '\"", "eval \"cat <<X\n'\nX\nrm -rf \\\"\\$TMP\\\" # '\"", "bash <<'EOF'\ncat <<X\n'\nX\nrm -rf \"$TMP\" # '\nEOF",
