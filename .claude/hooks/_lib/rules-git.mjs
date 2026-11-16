@@ -43,11 +43,11 @@ function targetsProtectedRepo(chain, resolveRemoteUrl) {
 }
 
 /**
- * The directories that git changes to before it reads the repository: the shell directory after the `cd` model, then each raw
- * `-C` word in order. `resolveRemoteUrl` gives the whole chain to git as `git -C <dir> -C <w1> ... -C <wn>`. Node never resolves
+ * The directories that git changes to before it reads the repository: the shell directory after the `cd` model, then each `-C`
+ * word in order, as the shell gives it to git. `resolveRemoteUrl` gives the whole chain to git as `git -C <dir> -C <w1> ... -C <wn>`. Node never resolves
  * a `-C` word, because git applies each one with `chdir`, which follows a symlink before it reads `..`.
  */
-const gitDirectoryChain = (globals, directory) => [directory, ...globals.flatMap((token, index) => (token === "-C" && globals[index + 1] !== undefined ? [globals[index + 1]] : []))]
+export const gitDirectoryChain = (globals, directory) => [directory, ...globals.flatMap((token, index) => (token === "-C" && globals[index + 1] !== undefined ? [globals[index + 1]] : []))]
 
 /** An unquoted heredoc expands command substitutions before its consumer starts. */
 export function unquotedHeredocRunsCommand(command) {
@@ -171,7 +171,7 @@ const SAFE_GLOBAL_OPTIONS = new Set(["--no-pager", "-P", "-p", "--paginate", "--
   "--icase-pathspecs", "--no-replace-objects", "--version", "--help", "-h"])
 
 /** The subcommand of a git command, the options before it, and everything after it. `tokens` are the words after the git word, as argv carries them. */
-const gitCommandParts = (tokens) => {
+export const gitCommandParts = (tokens) => {
   for (let index = 0; index < tokens.length; index++) {
     const token = tokens[index]
     if (token === "-C") {
@@ -326,15 +326,12 @@ const notModelledRefusal = (command, notModelled) => ({
 })
 
 /**
- * The refusal for a command that holds a git command which the workflow forbids, or null. The rule reads only the parsed
- * words of the modelled subset (`readCommand`). In an unattended run it refuses each command outside the subset, because it
- * cannot prove what that command runs. In an attended session it refuses such a command only when its dequoted text names git.
+ * Each git command that `command` runs, as `{ tokens, directory }`: its words after the git word and the shell directory after the `cd` model.
+ * `notModelled` names the first construct outside the subset, or is "", and `gitCommands` is empty when it is not "".
  */
-export function checkGitCommand(command, { resolveRemoteUrl, cwd, home, unattended = true } = {}) {
-  if (typeof command !== "string") return null
+export function readGitCommands(command, { cwd, home } = {}) {
   const { list, notModelled } = readCommand(command, home ? { home } : undefined)
-  const refuseUnread = (construct) => (unattended || namesGit(command) ? notModelledRefusal(command, construct) : null)
-  if (notModelled) return refuseUnread(notModelled)
+  if (notModelled) return { gitCommands: [], notModelled }
   const gitCommands = []
   const unread = walkCommands(list, cwd || process.cwd(), ({ words }, directory) => {
     for (const { program, args } of invocationsOf(words)) {
@@ -343,7 +340,18 @@ export function checkGitCommand(command, { resolveRemoteUrl, cwd, home, unattend
     // The shell `cd` is logical: it reads `..` by text before it follows a symlink, as `resolve` does. git `-C` is not, so git reads those words.
     return words[0]?.text === "cd" && words[1] ? resolve(directory, words[1].text) : directory
   })
-  if (unread) return refuseUnread(unread)
+  return unread ? { gitCommands: [], notModelled: unread } : { gitCommands, notModelled: "" }
+}
+
+/**
+ * The refusal for a command that holds a git command which the workflow forbids, or null. The rule reads only the parsed
+ * words of the modelled subset (`readCommand`). In an unattended run it refuses each command outside the subset, because it
+ * cannot prove what that command runs. In an attended session it refuses such a command only when its dequoted text names git.
+ */
+export function checkGitCommand(command, { resolveRemoteUrl, cwd, home, unattended = true } = {}) {
+  if (typeof command !== "string") return null
+  const { gitCommands, notModelled } = readGitCommands(command, { cwd, home })
+  if (notModelled) return unattended || namesGit(command) ? notModelledRefusal(command, notModelled) : null
   return judgeGitCommands(command, gitCommands, { resolveRemoteUrl, unattended })
 }
 

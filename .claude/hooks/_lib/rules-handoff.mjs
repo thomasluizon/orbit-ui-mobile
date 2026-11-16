@@ -3,19 +3,36 @@
 // context relay request, so the model cannot talk its way past it.
 
 import { HANDOFF_PROMPT_PATH, handoffAutoWork, handoffCrank, validateHandoffPrompt } from "../../../tools/lib/handoff-prompt.mjs"
+import { PLAIN_SUBSET_ADVICE } from "./command-expander.mjs"
+import { gitCommandParts, gitDirectoryChain, readGitCommands } from "./rules-git.mjs"
 
-const GIT_COMMIT = /\bgit\b((?:\s+-C\s+(?:"[^"]+"|'[^']+'|\S+))*)[^;&|\n]*?\scommit\b/
+/** The text of a `git commit` with its `-C` words. Only an attended session reads a command outside the subset with it. */
+const TEXT_GIT_COMMIT = /\bgit\b((?:\s+-C\s+(?:"[^"]+"|'[^']+'|\S+))*)[^;&|\n]*?\scommit\b/
 
 /**
- * The directories that a `git commit` changes to, in order: the session directory, then each raw `-C` word. The readers give the
- * chain to git as `git -C <dir> -C <w1> ...`, because git applies each word with `chdir`, which follows a symlink before it reads `..`.
- * Null when the command commits nothing.
+ * The directory chain of each `git commit` that `command` runs, read as the git rule reads it: the shell directory after the `cd` model,
+ * then each `-C` word as the shell gives it to git. The readers give each chain to git as `git -C <dir> -C <w1> ...`, because git
+ * applies each word with `chdir`, which follows a symlink before it reads `..`. Text that runs no `git commit` gives no chain.
+ * A command outside the subset whose text names a `git commit` gives `notModelled` in an unattended run, and the chain of that text attended.
  */
-export const gitCommitDirectory = (command, cwd) => {
-  const match = GIT_COMMIT.exec(String(command ?? ""))
-  if (!match) return null
-  return [cwd, ...[...match[1].matchAll(/-C\s+(?:"([^"]+)"|'([^']+)'|(\S+))/g)].map((item) => item[1] ?? item[2] ?? item[3])]
+export const gitCommitChains = (command, { cwd, home, unattended = true } = {}) => {
+  const text = String(command ?? "")
+  const { gitCommands, notModelled } = readGitCommands(text, { cwd, home })
+  if (!notModelled) {
+    const chains = gitCommands.map(({ tokens, directory }) => ({ directory, ...gitCommandParts(tokens) }))
+      .filter(({ subcommand }) => subcommand === "commit").map(({ globals, directory }) => gitDirectoryChain(globals, directory))
+    return { chains: [...new Map(chains.map((chain) => [JSON.stringify(chain), chain])).values()], notModelled: "" }
+  }
+  const match = TEXT_GIT_COMMIT.exec(text)
+  if (!match) return { chains: [], notModelled: "" }
+  if (unattended) return { chains: [], notModelled }
+  return { chains: [[cwd, ...[...match[1].matchAll(/-C\s+(?:"([^"]+)"|'([^']+)'|(\S+))/g)].map((item) => item[1] ?? item[2] ?? item[3])]], notModelled: "" }
 }
+
+const notModelledRefusal = (command, notModelled) =>
+  `BLOCKED commit (the handoff gate cannot read it):\n  ${command.slice(0, 400)}\n\n` +
+  `The command holds ${notModelled}. In an unattended run the handoff gate reads a \`git commit\` only in the plain shell subset, ` +
+  `because it cannot prove which ${HANDOFF_PROMPT_PATH} another command records.\n${PLAIN_SUBSET_ADVICE}\n`
 
 const describe = (missing, mode) =>
   `BLOCKED: ${HANDOFF_PROMPT_PATH} does not match the ${mode} handoff the owner asked for.\n\n` +
@@ -28,20 +45,22 @@ const modeOf = (request, state) => {
 }
 
 /**
- * Every NEXT.md version a commit could record must comply with the recorded request.
- * `promptsForCommit` returns those versions for the commit's directory chain, empty when NEXT.md is unchanged;
+ * Every NEXT.md version each commit of the command could record must comply with the recorded request.
+ * `promptsForCommit` returns those versions for a commit's directory chain, empty when NEXT.md is unchanged;
  * `specsForCommit` returns every version of a named spec the commit could record.
  */
-export const checkHandoffCommit = ({ command, cwd, request, state, promptsForCommit, specsForCommit, refreshCheckout }) => {
-  const directory = gitCommitDirectory(command, cwd)
-  if (!directory) return null
-  for (const text of promptsForCommit(directory)) {
-    const missing = validateHandoffPrompt(text, { sleep: request ? request.sleep === true : undefined, crank: handoffCrank(request, state),
-      autoWork: handoffAutoWork(request, state), specVersions: specsForCommit && ((path) => specsForCommit(directory, path)) })
-    if (missing.length > 0) return { block: true, message: describe(missing, modeOf(request, state)) }
+export const checkHandoffCommit = ({ command, cwd, home, unattended = true, request, state, promptsForCommit, specsForCommit, refreshCheckout }) => {
+  const { chains, notModelled } = gitCommitChains(command, { cwd, home, unattended })
+  if (notModelled) return { block: true, message: notModelledRefusal(String(command), notModelled) }
+  for (const chain of chains) {
+    for (const text of promptsForCommit(chain)) {
+      const missing = validateHandoffPrompt(text, { sleep: request ? request.sleep === true : undefined, crank: handoffCrank(request, state),
+        autoWork: handoffAutoWork(request, state), specVersions: specsForCommit && ((path) => specsForCommit(chain, path)) })
+      if (missing.length > 0) return { block: true, message: describe(missing, modeOf(request, state)) }
+    }
   }
   try {
-    refreshCheckout?.(directory)
+    for (const chain of chains) refreshCheckout?.(chain)
   } catch (error) {
     return { block: true, message: `Handoff checkout refresh failed: ${error.message}\n` }
   }

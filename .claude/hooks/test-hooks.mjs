@@ -7,7 +7,7 @@ import { tmpdir } from "node:os"
 import { dirname, join, resolve } from "node:path"
 import { fileURLToPath, pathToFileURL } from "node:url"
 
-import { readCommand, walkCommands } from "./_lib/command-expander.mjs"
+import { PLAIN_SUBSET_ADVICE, readCommand, walkCommands } from "./_lib/command-expander.mjs"
 import { checkGitCommand, checkGitWorktreeRemove, GIT_SUBCOMMANDS } from "./_lib/rules-git.mjs"
 import { countUnreviewedPendingLessons, isDriftReviewOverdue } from "./_lib/rules-lessons.mjs"
 import { checkEfMigrationRawIndex } from "./_lib/rules-source.mjs"
@@ -15,7 +15,7 @@ import { checkTicketMutation } from "./_lib/rules-tickets.mjs"
 import { checkInventedIdentifier, extractNodeIds } from "./_lib/rules-identifier.mjs"
 import { checkAdminMerge, checkBroadStaging, checkEngineInvocation } from "./_lib/rules-orchestrator.mjs"
 import { checkSleepStop } from "./_lib/rules-sleep.mjs"
-import { checkHandoffCommit, checkHandoffStop, gitCommitDirectory } from "./_lib/rules-handoff.mjs"
+import { checkHandoffCommit, checkHandoffStop, gitCommitChains } from "./_lib/rules-handoff.mjs"
 import { newestCommittedPrompt, promptsForCommit, specsForCommit, topLevelOf } from "./_lib/handoff-git.mjs"
 import { adoptOwnerHandoffRun, parseHandoffRequest, prepareOwnerHandoffRun, readHandoffRequest, recordHandoffRequest, validateHandoffPrompt } from "../../tools/lib/handoff-prompt.mjs"
 import { checkDependencyCommand, checkDependencyFileWrite } from "./_lib/rules-dependencies.mjs"
@@ -1030,7 +1030,7 @@ T("worker-browser: an allowed mobile Vitest script passes", worker("npm test -w 
 T("worker-browser: curl to a public host allows while localhost blocks", worker("curl https://example.com") === null && blocks(worker("curl http://localhost:3000")), true)
 
 console.log("\n# forbid-approval-prompt (_lib/rules-approval.mjs)")
-const approvalOptions = { cwd: "/work/checkouts/repo", home: "/home/someone", workingDirectories: ["/work/checkouts/api"], windows: false }
+const approvalOptions = { cwd: "/work/checkouts/repo", home: "/fixture-home", workingDirectories: ["/work/checkouts/api"], windows: false }
 const refusedBy = (command, options = approvalOptions) => checkApprovalPrompt(command, options)?.rule ?? null
 const HELD_REMOVAL = 'rm "$DST/$d/node_modules"'
 T("approval: the held removal is refused", refusedBy(HELD_REMOVAL), "variable-path")
@@ -3442,7 +3442,31 @@ T("handoff commit: a sleep request accepts a complete prompt", handoffCommit("gi
 T("handoff commit: a commit that leaves NEXT.md alone passes", handoffCommit("git commit -m fix -- src/a.ts", { sleep: true }, null), null)
 T("handoff commit: a command that commits nothing passes", handoffCommit("git status --short", { sleep: true }, "anything"), null)
 T("handoff commit: a failing working copy blocks even when the staged prompt passes", blocks(checkHandoffCommit({ command: "git commit -m docs", cwd: "/repo", request: { sleep: true }, promptsForCommit: () => [goodSleepPrompt, attendedPrompt] })), true)
-T("handoff commit: -C names the directory the commit runs in", gitCommitDirectory("git -C /other/repo commit -m x", "/repo"), ["/repo", "/other/repo"])
+T("handoff commit: -C names the directory the commit runs in", gitCommitChains("git -C /other/repo commit -m x", { cwd: "/repo" }), { chains: [["/repo", "/other/repo"]], notModelled: "" })
+const commitChains = (command, options) => gitCommitChains(command, { cwd: "/work/a", home: "/fixture-home", ...options }).chains
+for (const [name, command, want] of [
+  ["a `cd` before the commit moves the directory", "cd /work/b; git commit -m x", [["/work/b"]]],
+  ["a relative `cd` reads `..` by text", "cd ../b && git commit -m x", [["/work/b"]]],
+  ["a `-C` variable that the line sets gives its value", 'wt=/work/b; git -C "$wt" commit -m x', [["/work/a", "/work/b"]]],
+  ["a `-C ~/...` word gives the home directory", "git -C ~/repo commit -m x", [["/work/a", "/fixture-home/repo"]]],
+  ["a relative `-C` word stays for git to read", "git -C l/.. commit -m x", [["/work/a", "l/.."]]],
+  ["an echo of a commit text gives no chain", 'echo "git -C /nowhere commit"', []],
+  ["a gh body that names a commit gives no chain", 'gh pr comment 1 -b "git -C /nowhere then commit"', []],
+  ["an echo with `..` gives no chain", 'echo "git -C .. push, then commit"', []],
+  ["a commit after a wrapper gives its chain", "env A=1 nice -n 5 git -C /work/c commit -m x", [["/work/a", "/work/c"]]],
+  ["each commit of a line gives its own chain", "cd /work/b; git commit -m x; cd /work/c; git commit -m y", [["/work/b"], ["/work/c"]]],
+  ["a commit that runs twice in one directory gives one chain", "git commit -m x || git commit -m y", [["/work/a"]]],
+  ["a git command that is not a commit gives no chain", "git -C /work/b status && git log --grep commit", []],
+]) T(`handoff chain: ${name}`, commitChains(command), want)
+T("handoff chain: an unattended commit outside the subset names the construct", gitCommitChains('git -C "$WT" commit -m x', { cwd: "/work/a" }), { chains: [], notModelled: "a variable in a `git` argument" })
+T("handoff chain: an attended commit outside the subset is read from its text", gitCommitChains('git -C "$WT" commit -m x', { cwd: "/work/a", unattended: false }), { chains: [["/work/a", "$WT"]], notModelled: "" })
+T("handoff chain: text outside the subset that names no commit gives no chain", gitCommitChains('echo "$(cat <<\'EOF\'\nx\nEOF\n)"', { cwd: "/work/a" }), { chains: [], notModelled: "" })
+T("handoff commit: an unattended commit outside the subset is refused with the rewrite", checkHandoffCommit({ command: 'git -C "$WT" commit -m x', cwd: "/repo", request: { sleep: true },
+  promptsForCommit: () => [goodSleepPrompt] })?.message.includes(PLAIN_SUBSET_ADVICE), true)
+const judgedChains = []
+T("handoff commit: each commit of the line is judged in its own directory", checkHandoffCommit({ command: "cd /work/b; git commit -m x; git -C /work/c commit -m y", cwd: "/work/a", request: { sleep: true },
+  promptsForCommit: (chain) => { judgedChains.push(chain); return [goodSleepPrompt] } }), null)
+T("handoff commit: the judged chains follow the `cd` model", judgedChains, [["/work/b"], ["/work/b", "/work/c"]])
 
 T("handoff stop: a failing prompt committed after the request refuses the stop", blocks(checkHandoffStop({ request: { sleep: true, recordedAt: "2026-01-01T10:00:00Z" }, headPrompt: attendedPrompt, headPromptCommittedAt: "2026-01-01T10:05:00Z" })), true)
 T("handoff stop: a prompt committed before the request is not judged", checkHandoffStop({ request: { sleep: true, recordedAt: "2026-01-01T10:00:00Z" }, headPrompt: attendedPrompt, headPromptCommittedAt: "2026-01-01T09:00:00Z" }), null)
@@ -3628,6 +3652,56 @@ T("handoff fixture: git show really fails for the missing blob", inHandoffRepo("
 const failedShowStop = spawnSync(process.execPath, [join(copiedHandoffHooks, "require-handoff-prompt.mjs")], { input: JSON.stringify({ hook_event_name: "Stop", session_id: "show-failure" }), encoding: "utf8" })
 T("handoff hook: failing git show with a live request blocks Stop", failedShowStop.status, 2)
 rmSync(handoffGitRepo, { recursive: true, force: true })
+
+// The handoff gate reads the directory of a commit as the shell and the git rule read it: the `cd` model, a variable, `~`, and no commit in quoted text.
+const chainHome = mkdtempSync(join(tmpdir(), "orbit-handoff-chain-"))
+const chainRepository = (name, stagedPrompt) => {
+  const repository = join(chainHome, name)
+  const inRepository = (...args) => spawnSync("git", ["-C", repository, ...args], { encoding: "utf8" }).status
+  mkdirSync(join(repository, ".claude", "handoffs"), { recursive: true })
+  writeFileSync(join(repository, ".claude", "handoffs", "NEXT.md"), attendedPrompt)
+  const steps = [inRepository("init", "-q", "-b", "main"), inRepository("config", "user.email", "hooks@test.invalid"), inRepository("config", "user.name", "hooks"),
+    inRepository("add", "."), inRepository("commit", "-q", "-m", "handoff")]
+  if (stagedPrompt !== undefined) {
+    writeFileSync(join(repository, ".claude", "handoffs", "NEXT.md"), stagedPrompt)
+    steps.push(inRepository("add", "."))
+  }
+  T(`handoff chain fixture: the ${name} repository builds`, steps, steps.map(() => 0))
+  return repository
+}
+const stagedChainRepository = chainRepository("staged", "# NEXT\n")
+const cleanChainRepository = chainRepository("clean")
+const plainChainDirectory = join(chainHome, "plain")
+mkdirSync(plainChainDirectory)
+T("handoff chain fixture: the staged repository stages an invalid NEXT.md", spawnSync("git", ["-C", stagedChainRepository, "diff", "--cached", "--name-only"], { encoding: "utf8" }).stdout.trim(), ".claude/handoffs/NEXT.md")
+const chainHook = (command, cwd, env = {}) => {
+  const result = spawnSync(process.execPath, [handoffHook], { input: JSON.stringify({ hook_event_name: "PreToolUse", session_id: "s-handoff-none", cwd, tool_input: { command } }),
+    encoding: "utf8", env: { ...process.env, ORBIT_LAUNCH_WORKER: "", HOME: chainHome, ...env } })
+  return { status: result.status, refusal: result.stderr.split("\n")[0] }
+}
+const handoffMismatch = "BLOCKED: .claude/handoffs/NEXT.md does not match the unrecorded handoff the owner asked for."
+const handoffChainRows = [
+  ["a `cd` to the checkout with a staged invalid NEXT.md is refused", `cd ${stagedChainRepository}; git commit -m x`, cleanChainRepository, {}, { status: 2, refusal: handoffMismatch }],
+  ["control: the same commit from the clean checkout passes", "git commit -m x", cleanChainRepository, {}, { status: 0, refusal: "" }],
+  ["control: the same commit in the staged checkout is refused", "git commit -m x", stagedChainRepository, {}, { status: 2, refusal: handoffMismatch }],
+  ["a `-C` variable that the line sets passes", `wt=${cleanChainRepository}; git -C "$wt" commit -m x --dry-run`, plainChainDirectory, {}, { status: 0, refusal: "" }],
+  ["a `-C` variable that names the staged checkout is refused", `wt=${stagedChainRepository}; git -C "$wt" commit -m x`, plainChainDirectory, {}, { status: 2, refusal: handoffMismatch }],
+  ["a `-C ~/...` path passes", "git -C ~/clean commit -m x --dry-run", plainChainDirectory, {}, { status: 0, refusal: "" }],
+  ["a `-C ~/...` path that names the staged checkout is refused", "git -C ~/staged commit -m x", plainChainDirectory, {}, { status: 2, refusal: handoffMismatch }],
+  ["an echo of a commit text passes", 'echo "git -C /nowhere commit"', plainChainDirectory, {}, { status: 0, refusal: "" }],
+  ["a gh body that names a commit passes", 'gh pr comment 1 -b "git -C /nowhere then commit"', plainChainDirectory, {}, { status: 0, refusal: "" }],
+  ["an echo with `..` outside a repository passes", 'echo "git -C .. push, then commit"', plainChainDirectory, {}, { status: 0, refusal: "" }],
+  ["an unattended commit outside the subset is refused with the rewrite", 'git -C "$WT" commit -m x', cleanChainRepository, { ORBIT_LAUNCH_WORKER: "1" },
+    { status: 2, refusal: "BLOCKED commit (the handoff gate cannot read it):" }],
+  ["an attended commit outside the subset is read from its text", "git commit -m \"$(cat <<'EOF'\nx\nEOF\n)\"", stagedChainRepository, {}, { status: 2, refusal: handoffMismatch }],
+  ["control: that attended commit in the clean checkout passes", "git commit -m \"$(cat <<'EOF'\nx\nEOF\n)\"", cleanChainRepository, {}, { status: 0, refusal: "" }],
+  ["an unattended text outside the subset that runs no commit passes", 'echo "$(cat <<\'EOF\'\nx\nEOF\n)"', plainChainDirectory, { ORBIT_LAUNCH_WORKER: "1" }, { status: 0, refusal: "" }],
+]
+for (const [name, command, cwd, env, want] of handoffChainRows) T(`handoff chain hook: ${name}`, chainHook(command, cwd, env), want)
+T("handoff chain hook: the unattended refusal names the plain subset rewrite",
+  spawnSync(process.execPath, [handoffHook], { input: JSON.stringify({ hook_event_name: "PreToolUse", session_id: "s-handoff-none", cwd: cleanChainRepository, tool_input: { command: 'git -C "$WT" commit -m x' } }),
+    encoding: "utf8", env: { ...process.env, ORBIT_LAUNCH_WORKER: "1" } }).stderr.includes(PLAIN_SUBSET_ADVICE), true)
+rmSync(chainHome, { recursive: true, force: true })
 
 const timelessHook = join(hooksDir, "forbid-stale-text.mjs")
 T("relative sibling roots resolve from the primary checkout", siblingRoots.includes(join(primaryCommonDirectory, "..", "..", "orbit-api")), true)

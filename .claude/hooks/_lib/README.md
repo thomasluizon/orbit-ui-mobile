@@ -176,8 +176,11 @@ home and the config of that user, and the hook does not read them.
 In an attended session it refuses such a command only when the text, with its quotes and backslashes removed, names `git`.
 The rule never resolves a `-C` path in Node: it gives git the directory after the `cd` model and each raw `-C` word, as
 `git -C <dir> -C <w1> ... -C <wn> remote get-url --push <remote>`, because git applies `-C` with `chdir`, which follows a
-symlink before it reads `..`. The shell `cd` reads `..` by text, so the `cd` model does the same. The handoff gate reads the
-top level of a `git -C` commit in the same way.
+symlink before it reads `..`. The shell `cd` reads `..` by text, so the `cd` model does the same.
+The handoff gate reads each `git commit` with the same reader, `readGitCommands`, and gives git the same chain: the directory
+after the `cd` model, then each `-C` word after a lower case variable and `~` are replaced. Text that runs no `git commit`, such
+as an `echo` or a `gh` body, gives no chain. In an unattended run, the gate refuses a command outside the subset that names a
+`git commit`, with the same rewrite advice. In an attended session, the gate reads the chain of such a command from its text.
 In a protected repository, the push rule allows only `git push origin <branch>`, `git push -u origin <branch>` and
 `git push origin HEAD:<branch>`, where `<branch>` is a plain branch name that is not `main` or `master`. Before the subcommand,
 git takes only `-C <path>` and options that change no config, no repository and no hook, so `-c`, `--config-env`,
