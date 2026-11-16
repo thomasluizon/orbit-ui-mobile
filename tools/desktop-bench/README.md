@@ -178,7 +178,21 @@ popup menu, reads it through `MN_GETHMENU`, presses Escape and waits until it cl
 lists that open popup as a top-level window of the process in front of the app window, so each
 window command of the reader takes the process's `Tauri Window`, never its first window. The runner
 requires the popup to equal the window menu (ids, labels, enabled and checked states), to open at the
-start of the menu action under the bar, and to close. Then it drags the empty bar, presses the maximize
+start of the menu action under the bar, and to close. Then it drags the empty bar. The bar is page
+content, so the page asks the shell for the drag, and tao `handle_os_dragging` posts
+`WM_NCLBUTTONDOWN` with `HTCAPTION`. The window follows the pointer only from where that move loop
+finds it. Thus the `drag` action holds the pointer on the press point until `GetGUIThreadInfo` reports
+`GUI_INMOVESIZE` for the window (5 seconds at most), then travels 160 pixels, and the runner requires
+the window to travel exactly that far with its size and its top edge unchanged. `report.json` keeps
+the wait as `windowBar.actions.drag.moveLoopWait`. A pointer that left the press point 30 ms after
+the press moved the window 160, 128 or 96 pixels in recorded runs. Next the `systemmenu` action
+right-clicks the same empty part of the bar (`mouse_event` right down and up), reads the open popup
+and closes it with Escape, once with the window restored and once maximized. The runner requires the
+six window commands (`SC_RESTORE`, `SC_MOVE`, `SC_SIZE`, `SC_MINIMIZE`, `SC_MAXIMIZE`, `SC_CLOSE`)
+with the enabled states of that window state, the popup within 8 pixels of the pointer, and the
+popup closed. `test-acceptance-readers.ts` runs the `drag` and `systemmenu` actions on a Windows
+runner against a restored window with a native caption, where Windows itself runs the move loop and
+shows the window menu. The runner presses the maximize
 action twice with the pointer (the `click` action: `SetCursorPos` and `mouse_event` at the middle of the
 action, where the snap region of `caption.cpp` takes the press) and requires the window to maximize and
 then to restore, double clicks the bar twice, and invokes minimize and restores the window. UI

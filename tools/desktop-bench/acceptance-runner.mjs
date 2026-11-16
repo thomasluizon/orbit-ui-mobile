@@ -271,12 +271,19 @@ async function inspectWindowBar(proxy, native, handle, output, report) {
   actions.buttons = initial.buttons
   await inspectMenuAction(proxy, read, actions)
   const dragged = await read('drag')
-  actions.drag = { before: initial.state.rect, after: dragged.state.rect }
-  if (dragged.state.rect[0] - initial.state.rect[0] < 100) throw new Error(`Dragging the window bar did not move the window: ${JSON.stringify(actions.drag)}`)
+  actions.drag = { before: initial.state.rect, after: dragged.state.rect, ...dragged.drag }
+  // The reader moves the pointer only once the window is in its move loop, so the window travels exactly as far as the
+  // pointer, with its size and its top edge unchanged.
+  const travelled = dragged.state.rect.map((edge, index) => edge - initial.state.rect[index])
+  if (!(dragged.drag?.distance >= 100) || travelled.join() !== [dragged.drag.distance, 0, dragged.drag.distance, 0].join()) {
+    throw new Error(`Dragging the window bar did not move the window with the pointer: ${JSON.stringify(actions.drag)}`)
+  }
+  actions.systemMenu = await inspectSystemMenu(read, false)
   // A pointer on the maximize action lands on the native snap region (caption.cpp), not on the page button, so the reader
   // presses it with the pointer. UI Automation Invoke would run the page button and never reach the snap region.
   await read('click')
   actions.maximize = (await settled('a pointer press on the maximize action maximizing the window, with the restore action', (bar) => bar.state.zoomed && hasActions(bar, 'restore'))).state
+  actions.systemMenuMaximized = await inspectSystemMenu(read, true)
   await read('click')
   actions.restore = (await settled('a pointer press on the restore action restoring the window, with the maximize action', (bar) => !bar.state.zoomed && hasActions(bar, 'maximize'))).state
   await read('doubleclick')
@@ -303,6 +310,28 @@ async function inspectMenuAction(proxy, read, actions) {
   if (Math.abs(popup.rect[0] - popup.anchor[0]) > 8 || Math.abs(popup.rect[1] - popup.anchor[1]) > 8) {
     throw new Error(`The native popup menu did not open under the menu action: ${JSON.stringify({ rect: popup.rect, anchor: popup.anchor })}`)
   }
+}
+
+// The commands of the window menu (WinUser.h SC_RESTORE, SC_MOVE, SC_SIZE, SC_MINIMIZE, SC_MAXIMIZE and SC_CLOSE), each
+// with the enabled state that the caption of a restored or a maximized window gives it.
+const systemCommands = { restore: 0xF120, move: 0xF010, size: 0xF000, minimize: 0xF020, maximize: 0xF030, close: 0xF060 }
+const systemCommandStates = (zoomed) => ({ restore: zoomed, move: !zoomed, size: !zoomed, minimize: true, maximize: !zoomed, close: true })
+
+// The reader right-clicks the empty bar as a person does; the shell then holds the window menu open at the pointer until Escape.
+async function inspectSystemMenu(read, zoomed) {
+  const { popup } = await read('systemmenu')
+  const window = zoomed ? 'maximized' : 'restored'
+  if (!popup.closed) throw new Error(`Escape did not close the window menu of the ${window} window: ${JSON.stringify(popup.rect)}`)
+  const expected = systemCommandStates(zoomed)
+  const found = Object.fromEntries(Object.entries(systemCommands).map(([name, id]) => [name, popup.items.find((item) => item.id === id)?.enabled]))
+  if (JSON.stringify(found) !== JSON.stringify(expected)) {
+    throw new Error(`A right-click on the bar of the ${window} window did not open the window menu with the command states of that window: ${JSON.stringify({ expected, found, items: popup.items })}`)
+  }
+  // TrackPopupMenu puts the top left corner of the menu at the pointer.
+  if (Math.abs(popup.rect[0] - popup.pointer[0]) > 8 || Math.abs(popup.rect[1] - popup.pointer[1]) > 8) {
+    throw new Error(`The window menu of the ${window} window did not open at the pointer: ${JSON.stringify({ rect: popup.rect, pointer: popup.pointer })}`)
+  }
+  return popup
 }
 
 async function installedLaunch(executable, output, name, report) {

@@ -42,6 +42,12 @@ public sealed class OrbitPopupMenu {
     public int[] anchor;
 }
 
+// One drag of the bar: the pointer travel in physical pixels after the move loop started, and how long the press waited for it.
+public sealed class OrbitWindowDrag {
+    public int distance;
+    public int moveLoopWait;
+}
+
 public sealed class OrbitWindowState {
     public int[] rect;
     public bool zoomed;
@@ -82,6 +88,18 @@ public static class OrbitWindowBarReader {
     private static extern int GetClassNameW(IntPtr window, System.Text.StringBuilder text, int capacity);
     [DllImport("user32.dll")] private static extern IntPtr SendMessageW(IntPtr window, uint message, IntPtr word, IntPtr parameter);
     [DllImport("user32.dll")] private static extern void keybd_event(byte key, byte scan, uint flags, UIntPtr extra);
+    [StructLayout(LayoutKind.Sequential)] private struct GuiThreadInfo {
+        public int Size;
+        public uint Flags;
+        public IntPtr Active;
+        public IntPtr Focus;
+        public IntPtr Capture;
+        public IntPtr MenuOwner;
+        public IntPtr MoveSize;
+        public IntPtr Caret;
+        public NativeRect CaretRect;
+    }
+    [DllImport("user32.dll", SetLastError = true)] private static extern bool GetGUIThreadInfo(uint thread, ref GuiThreadInfo info);
     private const int ExtendedFrameBounds = 9;
     private const int MenuObject = unchecked((int)0xFFFFFFFD);
     // CSS pixels of the bar, matching apps/web/lib/desktop-window.ts (apps/desktop/__tests__/config.test.ts checks them).
@@ -242,16 +260,63 @@ public static class OrbitWindowBarReader {
         return new NativePoint { X = frame.Left + (frame.Right - frame.Left) / 5, Y = frame.Top + bar / 2 };
     }
 
-    public static void Drag(IntPtr window, int distance) {
+    // GUITHREADINFO reports GUI_INMOVESIZE while "the thread's window is in move or size loop", and hwndMoveSize is that window.
+    private const uint InMoveSize = 0x0002;
+    // The longest wait for the move loop, in milliseconds. The drag request crosses the page and the shell first, and tao
+    // answers its WM_NCLBUTTONDOWN with a posted WM_MOUSEMOVE (tao-0.37.2 src/platform_impl/windows/event_loop.rs) before
+    // DefWindowProc starts the loop. A longer wait means that the press started no drag.
+    private const int MoveLoopWait = 5000;
+
+    private static bool InMoveLoop(IntPtr window) {
+        uint process;
+        var info = new GuiThreadInfo { Size = Marshal.SizeOf(typeof(GuiThreadInfo)) };
+        if (!GetGUIThreadInfo(GetWindowThreadProcessId(window, out process), ref info)) throw new Win32Exception(Marshal.GetLastWin32Error());
+        return (info.Flags & InMoveSize) != 0 && info.MoveSize == window;
+    }
+
+    // The bar is page content, so a press on it starts no move loop by itself: the page asks the shell for the drag, and tao
+    // handle_os_dragging (tao-0.37.2 src/platform_impl/windows/window.rs) posts WM_NCLBUTTONDOWN with HTCAPTION. The window
+    // follows the pointer only from where that loop finds it, so pointer travel before the loop moves nothing. Recorded runs
+    // of a pointer that left the press point after 30 ms moved the window 160, 128 and 96 pixels for the same 160 pixel
+    // travel. So the pointer stays on the press point until the window is in its move loop, and then every pixel of travel
+    // moves the window.
+    public static OrbitWindowDrag Drag(IntPtr window, int distance) {
         NativePoint point = BarPoint(window);
         SetCursorPos(point.X, point.Y);
         Thread.Sleep(100);
         mouse_event(LeftDown, 0, 0, 0, UIntPtr.Zero);
-        for (int step = 1; step <= 10; step++) {
-            Thread.Sleep(30);
-            SetCursorPos(point.X + distance * step / 10, point.Y);
+        try {
+            int waited = 0;
+            while (!InMoveLoop(window)) {
+                if (waited >= MoveLoopWait) throw new InvalidOperationException("A press on the window bar started no window move loop in " + MoveLoopWait + " ms");
+                Thread.Sleep(20);
+                waited += 20;
+            }
+            for (int step = 1; step <= 10; step++) {
+                Thread.Sleep(30);
+                SetCursorPos(point.X + distance * step / 10, point.Y);
+            }
+            // The pointer rests on the end point before the release, so the move loop reads that position first.
+            Thread.Sleep(100);
+            return new OrbitWindowDrag { distance = distance, moveLoopWait = waited };
+        } finally {
+            mouse_event(LeftUp, 0, 0, 0, UIntPtr.Zero);
         }
-        mouse_event(LeftUp, 0, 0, 0, UIntPtr.Zero);
+    }
+
+    private const uint RightDown = 0x0008;
+    private const uint RightUp = 0x0010;
+
+    // A right-click on the same empty part of the bar, as a person makes it. It returns the pointer position in physical
+    // pixels, where the shell opens the window menu.
+    public static int[] RightClick(IntPtr window) {
+        NativePoint point = BarPoint(window);
+        SetCursorPos(point.X, point.Y);
+        Thread.Sleep(100);
+        mouse_event(RightDown, 0, 0, 0, UIntPtr.Zero);
+        Thread.Sleep(60);
+        mouse_event(RightUp, 0, 0, 0, UIntPtr.Zero);
+        return new[] { point.X, point.Y };
     }
 
     // A pointer press in the middle of the maximize action: client right - end inset - 1.5 controls, half the bar down. There the

@@ -8,7 +8,7 @@ param(
   [switch]$OpenCenter,
   [string]$Executable,
   [string]$Capture,
-  [ValidateSet('read', 'invoke', 'click', 'drag', 'doubleclick', 'restore', 'popup')][string]$Action = 'read'
+  [ValidateSet('read', 'invoke', 'click', 'drag', 'doubleclick', 'restore', 'popup', 'systemmenu')][string]$Action = 'read'
 )
 $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName UIAutomationClient, UIAutomationTypes, WindowsBase, System.Windows.Forms
@@ -437,26 +437,39 @@ if ($Command -eq 'windowbar') {
     if (-not [OrbitForeground]::SetForegroundWindow($handle)) { throw 'Cannot foreground installed app' }
     Start-Sleep -Milliseconds 250
   }
-  # The probe pressed the menu action, so the shell shows its native menu as a popup. The reading keeps the popup and the
-  # window menu, closes the popup with Escape and waits until it is gone.
-  $popupReading = $null
-  if ($Action -eq 'popup') {
+  # The reading of the popup menu that the process shows: its rectangle and its items. Escape then closes the popup, and the
+  # reading waits until it is gone.
+  function Read-OpenPopup([string]$Source) {
     $popup = $null
     for ($attempt = 0; $attempt -lt 100 -and $null -eq $popup; $attempt++) {
       $popup = [OrbitWindowBarReader]::Popup($handle, $TargetProcessId)
       if ($null -eq $popup) { Start-Sleep -Milliseconds 100 }
     }
-    if ($null -eq $popup) { throw 'No native popup menu opened for the menu action' }
+    if ($null -eq $popup) { throw "No native popup menu opened for $Source" }
     if ($popup.menu -eq 0) { throw 'The open popup menu returned no menu handle to MN_GETHMENU' }
     $items = @([OrbitForeground]::ReadMenu([IntPtr]$popup.menu))
-    $windowMenu = @([OrbitForeground]::ReadMenu([OrbitForeground]::GetMenu($handle)))
     [OrbitWindowBarReader]::Dismiss()
     $open = $true
     for ($attempt = 0; $attempt -lt 50 -and $open; $attempt++) {
       Start-Sleep -Milliseconds 100
       $open = $null -ne [OrbitWindowBarReader]::Popup($handle, $TargetProcessId)
     }
-    $popupReading = @{ rect = $popup.rect; anchor = $popup.anchor; items = $items; windowMenu = $windowMenu; closed = -not $open }
+    return @{ rect = $popup.rect; anchor = $popup.anchor; items = $items; closed = -not $open }
+  }
+  # The probe pressed the menu action, so the shell shows its native menu as a popup. The reading keeps the popup and the
+  # window menu.
+  $popupReading = $null
+  if ($Action -eq 'popup') {
+    $windowMenu = @([OrbitForeground]::ReadMenu([OrbitForeground]::GetMenu($handle)))
+    $popupReading = Read-OpenPopup 'the menu action'
+    $popupReading.windowMenu = $windowMenu
+  }
+  # A right-click on the empty bar makes the shell open the window menu (Restore, Move, Size, Minimize, Maximize, Close) at
+  # the pointer, so the reading keeps the pointer position next to the popup.
+  if ($Action -eq 'systemmenu') {
+    $pointer = [OrbitWindowBarReader]::RightClick($handle)
+    $popupReading = Read-OpenPopup 'a right-click on the window bar'
+    $popupReading.pointer = $pointer
   }
   if ($Action -eq 'read') { [OrbitWindowBarReader]::Park($handle) }
   if ($Action -eq 'invoke') {
@@ -467,7 +480,8 @@ if ($Command -eq 'windowbar') {
     $button.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
   }
   if ($Action -eq 'click') { [OrbitWindowBarReader]::ClickMaximize($handle) }
-  if ($Action -eq 'drag') { [OrbitWindowBarReader]::Drag($handle, 160) }
+  $drag = $null
+  if ($Action -eq 'drag') { $drag = [OrbitWindowBarReader]::Drag($handle, 160) }
   if ($Action -eq 'doubleclick') { [OrbitWindowBarReader]::DoubleClick($handle) }
   if ($Action -eq 'restore') { [OrbitWindowBarReader]::Restore($handle) }
   Start-Sleep -Milliseconds 500
@@ -478,7 +492,7 @@ if ($Command -eq 'windowbar') {
   $state = [OrbitWindowBarReader]::State($handle)
   $reading = $null
   if (-not $state.iconic) { $reading = [OrbitWindowBarReader]::Read($handle, $Capture) }
-  @{ action = $Action; state = $state; buttons = $row; bar = $reading; popup = $popupReading } | ConvertTo-Json -Depth 20
+  @{ action = $Action; state = $state; buttons = $row; bar = $reading; popup = $popupReading; drag = $drag } | ConvertTo-Json -Depth 20
   exit 0
 }
 if ($Command -ne 'dump') {

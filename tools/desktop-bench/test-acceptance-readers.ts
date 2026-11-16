@@ -5,6 +5,7 @@ import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { spawn, spawnSync } from 'node:child_process'
 import { after, test } from 'node:test'
+import { runInNewContext } from 'node:vm'
 import { runChild } from './child-limit.mjs'
 
 // Native notification readers of the push acceptance (#1861): the macOS AX reader, the Windows UIA reader and the
@@ -527,7 +528,10 @@ public static class OrbitPopupFixture {
     [DllImport("user32.dll")] private static extern bool TranslateMessage(ref NativeMessage message);
     [DllImport("user32.dll")] private static extern IntPtr DispatchMessageW(ref NativeMessage message);
     [DllImport("user32.dll")] private static extern bool DestroyWindow(IntPtr window);
+    [DllImport("user32.dll")] private static extern bool SetCursorPos(int x, int y);
+    [DllImport("user32.dll")] private static extern void mouse_event(uint flags, uint x, uint y, uint data, UIntPtr extra);
     private const uint Popup = 0x10, Checked = 0x8, ReturnCommand = 0x100, PopupStyle = 0x80000000, Visible = 0x10000000, Topmost = 0x8;
+    private const uint OverlappedWindow = 0x00CF0000, LeftDown = 0x0002, LeftUp = 0x0004;
     // A field keeps the window procedure alive for as long as the window can call it.
     private static readonly WindowProcedure procedure = Procedure;
 
@@ -566,6 +570,12 @@ public static class OrbitPopupFixture {
         Console.Out.Flush();
         SetForegroundWindow(window);
         int command = TrackPopupMenu(popup, ReturnCommand, anchor.X, anchor.Y, 0, window, IntPtr.Zero);
+        Pump(stopFile);
+        DestroyWindow(window);
+        return command;
+    }
+
+    private static void Pump(string stopFile) {
         DateTime deadline = DateTime.UtcNow.AddSeconds(60);
         NativeMessage message;
         while (!File.Exists(stopFile) && DateTime.UtcNow < deadline) {
@@ -575,22 +585,40 @@ public static class OrbitPopupFixture {
             }
             Thread.Sleep(20);
         }
+    }
+
+    // A restored window of the same class with a native caption (WS_OVERLAPPEDWINDOW). The reader presses 24 pixels under
+    // the top of the frame, which is on that caption, so DefWindowProc runs the move loop of a caption press and shows the
+    // window menu of a caption right-click. The window answers messages until the stop file exists.
+    public static void RunCaptioned(string stopFile) {
+        var definition = new WindowClass { procedure = procedure, instance = GetModuleHandleW(null), className = "Tauri Window" };
+        if (RegisterClassW(ref definition) == 0) throw new InvalidOperationException("Cannot register the Tauri Window class");
+        IntPtr window = CreateWindowExW(Topmost, "Tauri Window", "Orbit caption fixture", OverlappedWindow | Visible, 100, 100, 600, 400,
+            IntPtr.Zero, IntPtr.Zero, definition.instance, IntPtr.Zero);
+        if (window == IntPtr.Zero) throw new InvalidOperationException("Cannot create the fixture window");
+        // The reader requires the window in the foreground before a pointer action. A pointer press on a window always
+        // gives it the foreground, whereas the foreground lock can refuse SetForegroundWindow after the pointer and key
+        // input of an earlier case. So the fixture presses the middle of its own client area.
+        var middle = new NativePoint { X = 300, Y = 180 };
+        if (!ClientToScreen(window, ref middle) || !SetCursorPos(middle.X, middle.Y)) throw new InvalidOperationException("Cannot press the fixture window");
+        mouse_event(LeftDown, 0, 0, 0, UIntPtr.Zero);
+        mouse_event(LeftUp, 0, 0, 0, UIntPtr.Zero);
+        Console.Out.WriteLine("ready");
+        Console.Out.Flush();
+        Pump(stopFile);
         DestroyWindow(window);
-        return command;
     }
 }
 `
 
-// The menu action holds the native menu open as a popup while the reader runs, and UI Automation lists that popup as a
-// top-level window of the same process in front of the app window (#2132). The reader must still read the app window, its
-// menu and the popup, close the popup with Escape and read the window state.
-test('Windows window bar reader reads the Tauri window and its menu while the popup menu of the same process is open', { skip: process.platform !== 'win32' }, async () => {
-  const directory = mkdtempSync(join(tmpdir(), 'orbit-window-popup-'))
-  const fixture = join(directory, 'popup-window.cs')
+// Runs a fixture window in its own PowerShell process, and gives the body that process and the path of its stop file.
+async function withFixtureWindow(call: (stop: string) => string, body: (processId: number, directory: string, stop: string) => void) {
+  const directory = mkdtempSync(join(tmpdir(), 'orbit-window-fixture-'))
+  const fixture = join(directory, 'fixture-window.cs')
   const stop = join(directory, 'stop')
   writeFileSync(fixture, popupWindowFixture)
   const shell = spawn('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command',
-    `$ErrorActionPreference = 'Stop'; Add-Type -TypeDefinition (Get-Content -LiteralPath '${fixture}' -Raw); [OrbitPopupFixture]::Run('${stop}')`],
+    `$ErrorActionPreference = 'Stop'; Add-Type -TypeDefinition (Get-Content -LiteralPath '${fixture}' -Raw); ${call(stop)}`],
   { stdio: ['ignore', 'pipe', 'pipe'] })
   let output = ''
   let errors = ''
@@ -598,17 +626,37 @@ test('Windows window bar reader reads the Tauri window and its menu while the po
   shell.stderr.setEncoding('utf8').on('data', (chunk: string) => { errors += chunk })
   try {
     await new Promise<void>((resolve, reject) => {
-      const timer = setTimeout(() => reject(new Error(`The popup fixture did not open: ${errors}`)), 60000)
+      const timer = setTimeout(() => reject(new Error(`The fixture window did not open: ${errors}`)), 60000)
       shell.stdout.on('data', () => { if (output.includes('ready')) { clearTimeout(timer); resolve() } })
-      shell.on('exit', (code) => { clearTimeout(timer); reject(new Error(`The popup fixture exited with ${code}: ${errors}`)) })
+      shell.on('exit', (code) => { clearTimeout(timer); reject(new Error(`The fixture window exited with ${code}: ${errors}`)) })
     })
-    const reader = spawnSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-File', uiaScript, '-TargetProcessId', String(shell.pid),
-      '-Command', 'windowbar', '-Action', 'popup', '-Capture', join(directory, 'popup.png')], { encoding: 'utf8', timeout: 60000 })
-    writeFileSync(stop, '')
-    assert.equal(reader.status, 0, reader.stderr)
-    type MenuItem = { id: number; text: string; enabled: boolean; checked: boolean; children: MenuItem[] }
-    const { state, popup } = JSON.parse(reader.stdout) as { state: { rect: number[] }
-      popup: { rect: number[]; anchor: number[]; items: MenuItem[]; windowMenu: MenuItem[]; closed: boolean } }
+    body(shell.pid!, directory, stop)
+  } finally {
+    shell.kill()
+    rmSync(directory, { recursive: true, force: true })
+  }
+}
+
+type MenuItem = { id: number; text: string; enabled: boolean; checked: boolean; children: MenuItem[] }
+type BarReading = { state: { rect: number[]; zoomed: boolean }; drag: { distance: number; moveLoopWait: number } | null
+  popup: { rect: number[]; anchor: number[]; pointer?: number[]; items: MenuItem[]; windowMenu?: MenuItem[]; closed: boolean } | null }
+
+// One windowbar command of the reader. The stop file ends the fixture before a failed reading fails the test.
+function readBar(processId: number, action: string, directory: string, stop?: string): BarReading {
+  const reader = spawnSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-File', uiaScript, '-TargetProcessId', String(processId),
+    '-Command', 'windowbar', '-Action', action, '-Capture', join(directory, `${action}.png`)], { encoding: 'utf8', timeout: 60000 })
+  if (stop) writeFileSync(stop, '')
+  assert.equal(reader.status, 0, reader.stderr)
+  return JSON.parse(reader.stdout) as BarReading
+}
+
+// The menu action holds the native menu open as a popup while the reader runs, and UI Automation lists that popup as a
+// top-level window of the same process in front of the app window (#2132). The reader must still read the app window, its
+// menu and the popup, close the popup with Escape and read the window state.
+test('Windows window bar reader reads the Tauri window and its menu while the popup menu of the same process is open', { skip: process.platform !== 'win32' }, async () => {
+  await withFixtureWindow((stop) => `[OrbitPopupFixture]::Run('${stop}')`, (processId, directory, stop) => {
+    const { state, popup } = readBar(processId, 'popup', directory, stop)
+    assert.ok(popup?.windowMenu)
     const outline = (items: MenuItem[]): unknown[] => items.map(({ text, enabled, checked, children }) => [text, enabled, checked, outline(children)])
     assert.deepEqual(outline(popup.items), [['File', true, false, [['Exit\tCtrl+Q', true, false, []]]],
       ['Help', true, false, [['Support', true, false, []], ['Launch at login', true, true, []]]]], JSON.stringify(popup))
@@ -618,8 +666,54 @@ test('Windows window bar reader reads the Tauri window and its menu while the po
     assert.ok(Math.abs(popup.rect[0]! - popup.anchor[0]!) <= 8 && Math.abs(popup.rect[1]! - popup.anchor[1]!) <= 8, JSON.stringify(popup))
     // The state is the fixture window's, which is wider than its popup menu.
     assert.ok(state.rect[2]! - state.rect[0]! > popup.rect[2]! - popup.rect[0]!, JSON.stringify({ state, popup }))
-  } finally {
-    shell.kill()
-    rmSync(directory, { recursive: true, force: true })
-  }
+  })
+})
+
+// A pointer that leaves the press point before the window is in its move loop loses that travel: installed runs moved the
+// window 160, 128 and 96 pixels for one 160 pixel pointer travel (#2132). So the drag holds the pointer still until
+// GetGUIThreadInfo reports that loop, and on a window whose caption starts the loop the window travels exactly as far as
+// the pointer.
+test('Windows window bar reader drags only once the window is in its move loop, so the window travels exactly as far as the pointer', { skip: process.platform !== 'win32' }, async () => {
+  await withFixtureWindow((stop) => `[OrbitPopupFixture]::RunCaptioned('${stop}')`, (processId, directory) => {
+    const before = readBar(processId, 'read', directory)
+    const { state, drag } = readBar(processId, 'drag', directory)
+    assert.equal(drag?.distance, 160, JSON.stringify(drag))
+    assert.ok(drag.moveLoopWait >= 0 && drag.moveLoopWait < 5000, JSON.stringify(drag))
+    assert.deepEqual(state.rect.map((edge, index) => edge - before.state.rect[index]!), [160, 0, 160, 0], JSON.stringify({ before: before.state, state, drag }))
+  })
+})
+
+// The runner's expected window menu, read from its source: the command ids and the enabled state of each one.
+function windowMenuContract() {
+  const runner = readFileSync(new URL('./acceptance-runner.mjs', import.meta.url), 'utf8')
+  const context = {} as { commands?: Record<string, number>; states?: (zoomed: boolean) => Record<string, boolean> }
+  runInNewContext(`${runner.slice(runner.indexOf('const systemCommands'), runner.indexOf('// The reader right-clicks'))}
+globalThis.commands = systemCommands; globalThis.states = systemCommandStates`, context)
+  return { commands: context.commands!, states: context.states! }
+}
+
+// The shell opens the window menu for a right-click on the Orbit bar, and the installed run requires the commands and states
+// that a native caption shows (#2132). Here Windows itself shows that menu for a right-click on the caption of a restored
+// window, so the reader's right-click, popup reading and Escape meet the real menu, and the runner's expected states of a
+// restored window meet the native ones. The press point of the reader is under the shorter caption of a maximized window,
+// so only the installed run reads the maximized state.
+test('Windows window bar reader right-clicks the bar and reads the native window menu at the pointer, with the command states the runner requires', { skip: process.platform !== 'win32' }, async () => {
+  await withFixtureWindow((stop) => `[OrbitPopupFixture]::RunCaptioned('${stop}')`, (processId, directory) => {
+    const { state, popup } = readBar(processId, 'systemmenu', directory)
+    assert.equal(state.zoomed, false)
+    assert.ok(popup?.pointer, JSON.stringify(popup))
+    const { commands, states } = windowMenuContract()
+    const found = Object.fromEntries(Object.entries(commands).map(([name, id]) => [name, popup.items.find((item) => item.id === id)?.enabled]))
+    assert.deepEqual(found, { ...states(false) }, JSON.stringify(popup.items))
+    assert.equal(popup.closed, true)
+    assert.ok(Math.abs(popup.rect[0]! - popup.pointer[0]!) <= 8 && Math.abs(popup.rect[1]! - popup.pointer[1]!) <= 8, JSON.stringify(popup))
+  })
+})
+
+// The contract itself holds on every host: six commands, and the states of a restored and of a maximized window.
+test('the window menu contract of the runner names the six window commands and their states in each window state', () => {
+  const { commands, states } = windowMenuContract()
+  assert.deepEqual({ ...commands }, { restore: 0xF120, move: 0xF010, size: 0xF000, minimize: 0xF020, maximize: 0xF030, close: 0xF060 })
+  assert.deepEqual({ ...states(false) }, { restore: false, move: true, size: true, minimize: true, maximize: true, close: true })
+  assert.deepEqual({ ...states(true) }, { restore: true, move: false, size: false, minimize: true, maximize: false, close: true })
 })
