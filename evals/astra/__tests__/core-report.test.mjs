@@ -207,6 +207,24 @@ describe('the gate report of the two runs', () => {
     expect(() => mergeRunFiles([summaryPath, '--as-baseline', '--rerun', resultsPath])).toThrow(notSummary(2))
   })
 
+  // Producer: the merged report (`run: 'merged'`) lives in `reports/core/` beside the window directories
+  // `reports/core-must-pass/` and `reports/core-other/`, so a glob over the summaries also gives it to the merge.
+  it('refuses a merged report as an ordinary window and as a --rerun window', () => {
+    const report = merged(passing(), { runCostUsd: 0.006 })
+    expect(report).toMatchObject({ gate: 'core', run: 'merged' })
+    expect(Array.isArray(report.cases)).toBe(true)
+    const notSummary = (input) => `Input ${input} is not a core set run summary.`
+    const [mustPassWindow, otherWindow] = passing()
+    expect(() => merged([mustPassWindow, report])).toThrow(notSummary(2))
+    expect(() => merged([mustPassWindow, otherWindow], { reruns: [report] })).toThrow(notSummary(3))
+    const target = directory()
+    const windowPath = join(target, 'window.json')
+    const reportPath = join(target, 'summary.json')
+    writeFileSync(windowPath, JSON.stringify(mustPassWindow))
+    writeFileSync(reportPath, JSON.stringify(report))
+    expect(() => mergeRunFiles([windowPath, reportPath, '--as-baseline'])).toThrow(notSummary(2))
+  })
+
   it('reports a case that no window holds as incomplete', () => {
     expect(merged([requiredRun(attempts(required, 3))], { runCostUsd: 0.0045 })).toMatchObject({ status: 'incomplete',
       cases: [{ id: 'required', passK: 'pass' }, { id: 'optional', attempts: 0, passK: 'incomplete' }] })

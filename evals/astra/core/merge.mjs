@@ -140,6 +140,8 @@ function criteriaOf(cases, totals, cost, baselineRate) {
   }
 }
 
+const WINDOW_RUNS = ['must-pass', 'other']
+
 // A gate run names its baseline report, or is declared the baseline run of `main`: a run without either would pass
 // the rate criterion against nothing. `reruns` holds the windows of the later builds. A window names its
 // `evidenceDirectory` relative to the merged report, so that the report links the private evidence of each failed case
@@ -148,11 +150,12 @@ export function mergeRuns(windows, { baseline, asBaseline = false, reruns = [], 
   if (!windows.length) throw new Error('Supply the run summaries of the core set.')
   if (asBaseline && baseline) throw new Error('A baseline run takes no --baseline.')
   if (!asBaseline && !baseline) throw new Error('Supply the baseline report with --baseline, or declare the baseline run of main with --as-baseline.')
-  // Each input is a run summary before its API commit is read: a window directory also holds `results.json`, an array.
+  // Each input is a window summary before its API commit is read: a window directory also holds `results.json`, an
+  // array, and the merged report (`run: 'merged'`) also has `gate` and `cases`. core/hooks.mjs names each window run.
   // The runner records the API commit of the health check only after requireCatalogCommit holds it to 40 lowercase
   // hexadecimal characters (core/hooks.mjs), and each build check compares these commits. A window without one would merge with no build or stop the merge with a TypeError.
   for (const [index, window] of [...windows, ...reruns].entries()) {
-    if (window.gate !== 'core' || !Array.isArray(window.cases)) throw new Error(`Input ${index + 1} is not a core set run summary.`)
+    if (window.gate !== 'core' || !WINDOW_RUNS.includes(window.run) || !Array.isArray(window.cases)) throw new Error(`Input ${index + 1} is not a core set run summary.`)
     if (typeof window.apiCommit !== 'string' || !/^[0-9a-f]{40}$/u.test(window.apiCommit)) {
       throw new Error(`Input ${index + 1} names no API commit of 40 lowercase hexadecimal characters.`)
     }
