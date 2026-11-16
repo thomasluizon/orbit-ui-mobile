@@ -22,7 +22,7 @@ import { useAccountId } from '@/lib/account-scope'
 /**
  * One-time-per-account post-login "Import from another app?" sheet. Gated on the
  * additive `hasSeenImportPrompt` profile flag and made collision-safe against the
- * calendar-import prompt. The CTA seeds the chat draft and routes to Astra; "Not now"
+ * calendar-import prompt. The CTA seeds the chat draft and opens the conversation with Orbit; "Not now"
  * marks the account as having seen the prompt.
  */
 export function AstraImportPrompt({ suppressed }: Readonly<{ suppressed: boolean }>) {
