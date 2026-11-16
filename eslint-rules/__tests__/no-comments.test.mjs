@@ -156,6 +156,8 @@ const directives = [
   '/** node:coverage ignore file */\nconst limit = 1;\n',
   '/* node:coverage ignore start */\nconst limit = 1;\n/* node:coverage ignore stop */\n',
   '// node:coverage ignore start\nconst limit = 1;\n// node:coverage ignore stop\n',
+  '/**\n * The fallback never runs in a test.\n * v8 ignore start\n */\nconst limit = 1;\n/* v8 ignore stop */\n',
+  '// The fallback never runs in a test. c8 ignore start\nconst limit = 1;\n// c8 ignore stop\n',
   '/**\n * The type is wrong upstream.\n * @ts-ignore */\nconst limit: string = 1;\n',
   '/* The type is wrong upstream.\n @ts-expect-error */\nconst limit: string = 1;\n',
 ].map(typescript)
@@ -198,6 +200,7 @@ const ignoredByTool = [
   ['/**\n * The type is wrong upstream.\n * @ts-ignore\n */\nconst limit = 1;\n', 'const limit = 1;\n'],
   ['/** The type is wrong upstream. @ts-ignore */\nconst limit = 1;\n', 'const limit = 1;\n'],
   ['/** Runs with @vitest-environment. */\nconst limit = 1;\n', 'const limit = 1;\n'],
+  ['/*\n * c8 ignore\n * start\n */\nconst limit = 1;\n', 'const limit = 1;\n'],
 ].map(([code, output]) => rejected(typescript(code), output))
 
 tester.run('no-comments', require('../no-comments.cjs'), {
