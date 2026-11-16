@@ -145,7 +145,8 @@ function useTurnstileScript(report: (state: 'loading' | 'failed') => void) {
 
 /**
  * Renders the challenge once the script loads and runs a failure that Cloudflare marks Retry: Yes again, at most MAX_AUTOMATIC_RETRIES times.
- * A new reset key or Retry resets the rendered challenge, or loads the script again when no challenge exists.
+ * A reset key that changes after mount, or Retry, resets the rendered challenge, or loads the script again when no challenge exists.
+ * The mount itself runs nothing again: the form mounts a new widget with a reset key above 0 for each new challenge, and the mount already loads the script.
  */
 function useTurnstileChallenge({ siteKey, resetKey, onToken, onStateChange, theme, language }: ChallengeProps & Readonly<{ theme: 'light' | 'dark'; language: string }>) {
   const { containerRef, challengeVisible } = useChallengeVisibility()
@@ -153,6 +154,7 @@ function useTurnstileChallenge({ siteKey, resetKey, onToken, onStateChange, them
   const automaticRetriesRef = useRef(0)
   const retryTimerRef = useRef<number | undefined>(undefined)
   const callbacksRef = useRef({ onToken, onStateChange })
+  const handledResetKey = useRef(resetKey)
   const [state, setState] = useState<WidgetState>('idle')
   const { loaded, loadAgain } = useTurnstileScript((next) => {
     setState(next)
@@ -230,7 +232,10 @@ function useTurnstileChallenge({ siteKey, resetKey, onToken, onStateChange, them
   useEffect(() => {
     let active = true
     queueMicrotask(() => { if (active) setState('loading') })
-    if (resetKey !== 0) runAgain()
+    if (resetKey !== handledResetKey.current) {
+      handledResetKey.current = resetKey
+      runAgain()
+    }
     return () => { active = false }
   }, [resetKey, runAgain])
 
