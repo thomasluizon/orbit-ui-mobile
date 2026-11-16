@@ -18,7 +18,7 @@ afterEach(() => {
   widget.props = null
 })
 
-it('posts widget state and tokens through the native bridge', () => {
+it('posts widget state, tokens, failures and script stages through the native bridge', () => {
   const postMessage = vi.fn()
   window.ReactNativeWebView = { postMessage }
   const { container } = render(<TurnstileBridge siteKey="mobile-site-key" theme="light" language="pt-BR" />)
@@ -33,13 +33,23 @@ it('posts widget state and tokens through the native bridge', () => {
 
   const onStateChange = widget.props?.onStateChange as (state: string) => void
   const onToken = widget.props?.onToken as (token: string | null) => void
+  const onFailure = widget.props?.onFailure as (failure: { kind: string; code?: string }) => void
+  const onScriptStage = widget.props?.onScriptStage as (stage: string) => void
   onStateChange('expired')
   onToken(null)
   onToken('new-token')
+  onFailure({ kind: 'challenge', code: '600010' })
+  onFailure({ kind: 'script' })
+  onScriptStage('script_started')
+  onScriptStage('script_loaded')
   expect(postMessage.mock.calls.map(([message]) => JSON.parse(message as string))).toEqual([
     { state: 'expired' },
     { token: null },
     { token: 'new-token' },
+    { failure: { kind: 'challenge', code: '600010' } },
+    { failure: { kind: 'script' } },
+    { stage: 'script_started' },
+    { stage: 'script_loaded' },
   ])
 })
 
