@@ -295,10 +295,6 @@ export function OnboardingFlow({ finalStepOnly = false }: Readonly<{ finalStepOn
   }
   function skip() { suggestion.cancel(); suggestionRevision.current += 1; setSuggestionPending(false); setSkipped(true); setCreatedTitle(''); setStep(ONBOARDING_DONE_STEP) }
 
-  /**
-   * The one exit for the done button, the done tab bar and the Android back gesture: the modal has to
-   * close first, because this flow is mounted globally and would otherwise cover the destination.
-   */
   async function finishAndLeave(destination = destinationAfterPro) {
     const accountId = getAccountId()
     const generation = getAccountGeneration()

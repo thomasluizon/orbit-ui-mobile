@@ -48,12 +48,6 @@ export type ChatComposerState = ComposerState<AttemptedSend, ReturnType<typeof u
 type ChatComposerSessionInputs = Pick<ChatComposerState, 'turnReconciliation' | 'blockSubmission' | 'activeStepsRef' | 'setActiveSteps' | 'setLastFailedSend' | 'setDailyBudgetDate' | 'setSendError'>
 
 export function useChatComposerSession(turnReconciliation: ChatComposerSessionInputs['turnReconciliation'], blockSubmission: ChatComposerSessionInputs['blockSubmission'], activeStepsRef: ChatComposerSessionInputs['activeStepsRef'], setActiveSteps: ChatComposerSessionInputs['setActiveSteps'], setLastFailedSend: ChatComposerSessionInputs['setLastFailedSend'], setDailyBudgetDate: ChatComposerSessionInputs['setDailyBudgetDate'], setSendError: ChatComposerSessionInputs['setSendError']) {
-  /**
-     * The app shell keeps this hook mounted through an account change, so the previous account's
-     * attempted send would otherwise stay armed behind Retry and post its text under the next
-     * account's cookie. The store reset cannot reach React state, so it follows the session
-     * itself.
-     */
   useResetOnAccountChange(() => {
     turnReconciliation.reset()
     blockSubmission.reset()

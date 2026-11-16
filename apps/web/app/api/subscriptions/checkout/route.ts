@@ -9,12 +9,6 @@ import { buildSessionRefreshHeaders } from '@/lib/session-refresh'
 
 const NO_STORE_CACHE_CONTROL = 'private, no-store, max-age=0'
 
-/**
- * BFF: POST /api/subscriptions/checkout Dedicated route that proxies checkout session
- * creation to the .NET backend. This takes precedence over the catch-all proxy because
- * Next.js resolves specific routes before [...path].
- */
-
 function buildHeaders(
   token: string,
   forwardedClientHeaders: Record<string, string>,

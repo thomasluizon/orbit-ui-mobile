@@ -23,7 +23,6 @@ function parse(file: string): ts.SourceFile {
   return ts.createSourceFile(file, readFileSync(file, 'utf8'), ts.ScriptTarget.Latest, true)
 }
 
-/** The repository source files that `file` imports at run time. A type-only import loads nothing. */
 function runtimeImports(file: string, options: ts.CompilerOptions): string[] {
   return parse(file).statements.flatMap((statement) => {
     if (ts.isImportDeclaration(statement) && !statement.importClause?.isTypeOnly) return [statement.moduleSpecifier]
@@ -37,7 +36,6 @@ function runtimeImports(file: string, options: ts.CompilerOptions): string[] {
   })
 }
 
-/** The repository modules that `entry` loads at run time, `entry` included. */
 function runtimeModules(entry: string, options: ts.CompilerOptions): string[] {
   const seen = new Set<string>()
   const queue = [entry]
@@ -58,8 +56,6 @@ function hasUseClientDirective(file: string): boolean {
   return false
 }
 
-/** The route renders its page with react-dom/server inside the server bundle. There, Next turns each export of a
- *  'use client' module into a client reference, and a call to one throws, so the desktop sign-in fails. */
 describe('desktop sign-in callback route', () => {
   it('loads no client module, so the server can render its completion page', () => {
     const modules = runtimeModules(ROUTE, webCompilerOptions()).map((file) => relative(webRoot, file))

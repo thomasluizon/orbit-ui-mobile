@@ -101,7 +101,6 @@ it('pins the exact tools and hashes the installed Tauri CLI bundler downloads', 
   expect(binary).toContain(`https://github.com/${utils.repository}/releases/download/${utils.tag}/${utils.asset}`)
   expect(binary).toContain(utils.sha1)
   expect(binary).toContain(nsisPins.executableSha1)
-  /** WHY: the NSIS archive constants compile only into the Windows bundler. */
   if (nativeBinary.includes('win32')) {
     expect(binary).toContain(`https://github.com/${archive.repository}/releases/download/${archive.tag}/${archive.asset}`)
     expect(binary).toContain(archive.sha1)

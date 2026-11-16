@@ -19,7 +19,6 @@ function openNotificationUrl(router: AppRouter, url: unknown) {
   router.push(destination.opensAstra ? '/?astra=proactive' : destination.url)
 }
 
-/** Reads the url `public/sw.js` opened a new window with, then drops it from the address bar. */
 function takeLaunchNotificationUrl(): string | null {
   const location = new URL(window.location.href)
   const url = location.searchParams.get(NOTIFICATION_URL_PARAM)

@@ -59,7 +59,6 @@ async function renderPalette() {
   return view
 }
 
-/** The palette is on its Log page, which is the state that arms Enter to write. */
 function openTheLogPage() {
   fireEvent.click(screen.getByText('command.logHabit'))
   expect(screen.getAllByText('command.hints.back')).toHaveLength(1)
@@ -88,7 +87,6 @@ afterEach(() => {
   vi.clearAllMocks()
 })
 
-/** An open palette must drop the previous account's selected command page. */
 it('drops the command page so the next account opens a habit instead of logging it', async () => {
   await renderPalette()
   openTheLogPage()

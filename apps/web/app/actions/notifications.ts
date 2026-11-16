@@ -6,12 +6,6 @@ import type { DesktopPushRegistration } from '@orbit/shared/types/push-subscript
 import { serverAuthMutate } from '@/lib/server-fetch'
 import { wrapServerAction, type ServerActionResult } from './action-result'
 
-/**
- * Every notification write carries the account the person was looking at when they acted, so the
- * server can refuse it once the shared cookie has moved on. The four of them run the same two
- * lines, so they share one, and the account argument cannot then be added to three of them and
- * forgotten on the fourth.
- */
 function writeNotificationsForAccount(
   path: string,
   method: 'PUT' | 'DELETE',

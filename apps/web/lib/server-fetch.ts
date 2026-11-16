@@ -28,11 +28,6 @@ function parseResponseBody<T>(text: string, schema: ZodType<T> | undefined, path
   return validateApiResponse(JSON.parse(text), schema, path)
 }
 
-/**
- * Refuses a request whose intent one account formed and another account's cookie carries.
- * The browser attaches the auth cookie when it sends, not when the person clicks, and every
- * tab shares that one cookie.
- */
 function assertIntendedAccountStillHolds(
   token: string,
   intendedAccountId: string | null,
@@ -61,12 +56,6 @@ async function assertUnresolvedAccountCookie(
   if (cookieToken) assertIntendedAccountStillHolds(cookieToken, intendedAccountId)
 }
 
-/**
- * A request method that changes server state, and therefore the set `serverAuthMutate` accepts.
- *
- * It is a type rather than a runtime check so a read cannot reach the mutating function at all:
- * the two entry points then describe what they do, instead of both describing what they might do.
- */
 type MutatingMethod = 'POST' | 'PUT' | 'PATCH' | 'DELETE'
 
 interface MutateInit extends Omit<RequestInit, 'method'> {
@@ -74,19 +63,8 @@ interface MutateInit extends Omit<RequestInit, 'method'> {
   method: MutatingMethod
 }
 
-/**
- * The init `serverAuthFetch` accepts: a read method, or none at all. `serverAuthFetch(path,
- * { method: 'DELETE' })` is a compile error under this type, and so are the casts and the
- * template literal a syntactic lint rule cannot see through.
- */
 type ReadInit = Omit<RequestInit, 'method'> & { method?: 'GET' | 'HEAD' }
 
-/**
- * Resolves the session, forwards it as Bearer to the .NET API, and throws a structured
- * ApiClientError on failure. When a Zod `schema` is supplied, the response body is validated
- * at the trust boundary and a typed ApiClientError (502) is thrown if it does not match the
- * contract.
- */
 async function fetchWithSession<T>(
   path: string,
   init: RequestInit,

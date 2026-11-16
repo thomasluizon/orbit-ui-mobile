@@ -92,7 +92,6 @@ function FocusEntryRows({
   )
 }
 
-/** No FocusProvenanceView, which is the tree a caller builds outside the root layout. */
 function UnprovenancedRows({ onChange }: Readonly<{ onChange: (value: string) => void }>) {
   const [value, setValue] = useState('first')
   const select = (nextValue: string) => {

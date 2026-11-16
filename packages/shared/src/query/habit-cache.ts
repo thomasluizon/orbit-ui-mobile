@@ -41,7 +41,6 @@ function retainedSkippedRows(queryClient: QueryClient, key: readonly unknown[]):
   return rows
 }
 
-/** A complete-day list shares its day's total with the ordinary list, so the count key omits `completeDay`. */
 function listTotalCountKey(filters: HabitListFilters) {
   const countFilters = { ...filters }
   delete countFilters.completeDay

@@ -38,7 +38,6 @@ function NotionConnectionDetails({ controller, reconnect, hasConnection }: Reado
         </> : <Text style={[styles.body, { color: tokens.fg2 }]} >{t('profile.connections.description')}</Text>}</>
 }
 
-/** Holds the place of the workspace name and the last sync line while the connection loads. */
 function NotionDetailsSkeleton({ label }: Readonly<{ label: string }>) {
   return <View testID="notion-details-skeleton" accessible accessibilityRole="progressbar" accessibilityLabel={label} accessibilityState={{ busy: true }} style={styles.detailsSkeleton}>
     <View style={styles.workspaceSkeleton}><Skeleton variant="fill" grouped /></View>

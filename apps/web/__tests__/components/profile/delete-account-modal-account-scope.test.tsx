@@ -37,11 +37,6 @@ async function sendTheCode() {
   mocks.push.mockClear()
 }
 
-/**
- * Spends the account's last attempt the way the step-up screen does, inside a live attempt window,
- * because an exhaustion older than that window is dropped on the next challenge and would let the
- * unscoped key pass.
- */
 function burnTheAttempts(): number {
   const exhaustedAt = Date.now()
   markStepUpExhausted(readStepUpTiming('delete', 'user-1')!, 'user-1', exhaustedAt)
@@ -65,7 +60,6 @@ afterEach(() => {
   vi.clearAllMocks()
 })
 
-/** A new account must not inherit another account's exhausted attempt window. */
 it('gives the next account a fresh challenge after the previous one burned its attempts', async () => {
   const { rerender } = render(
     <DeleteAccountModal open onOpenChange={vi.fn()} profile={profile} />,

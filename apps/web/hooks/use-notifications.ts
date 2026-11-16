@@ -47,21 +47,10 @@ interface NotificationWriteIntent {
   intendedAccountId: string | null
 }
 
-/**
- * Records who is acting, and when, at the moment the person clicks. The epoch guards what
- * comes BACK: a callback the previous session started writes nothing into the next one's
- * cache.
- */
 function captureNotificationWriteIntent(): NotificationWriteIntent {
   return { sessionEpoch: getSessionEpoch(), intendedAccountId: getHeldAccountId() }
 }
 
-/**
- * Cancels the list refetch for the session that owns the mutation. The await is the gap an account
- * replacement fits through, and this reports nothing about who owns the session once it closes:
- * every caller wraps the work that follows in runForNotificationSession, which re-reads the current
- * epoch immediately before each write, so a second check here would decide nothing.
- */
 async function cancelNotificationListForSession(
   queryClient: QueryClient,
   sessionEpoch: number,

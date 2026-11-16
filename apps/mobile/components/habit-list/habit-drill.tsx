@@ -37,7 +37,6 @@ interface HabitDrillProps {
   listHeaderComponent: ReactNode
   drillListRef: RefObject<FlatList<NormalizedHabit> | null>
   refreshControl: ReactElement<RefreshControlProps>
-  /** True while a refresh fetch runs: the loaded rows stay in place and the list reports the wait as busy. */
   busy: boolean
   onListScroll: (event: NativeSyntheticEvent<NativeScrollEvent>) => void
   onFocus?: (event: FocusEvent) => void

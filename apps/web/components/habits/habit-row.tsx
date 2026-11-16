@@ -43,32 +43,21 @@ export interface HabitRowActions {
   onReorder?: (direction: -1 | 1) => void
 }
 
-/** Canonical habit row. List grouping owns its surrounding panel. */
 interface HabitRowProps {
   habit: NormalizedHabit
-  /** Derived display state (computed by caller from instances/logs). */
   state?: HabitStatus
-  /** Metadata tokens the caller adds between the type and the checklist count: time or child progress, status, next due date, date status. */
   meta?: HabitRowMetaToken[]
-  /** Whether the status dot may be tapped to log for the selected date. When false and not done,
-   *  the dot renders disabled/read-only (mirrors the backend log rule). Defaults to true. */
   canLog?: boolean
-  /** Whether completion is blocked on the selected day. */
   completionReadOnly?: boolean
   completionReason?: string
   completionStatusUnavailable?: boolean
-  /** True when this row is rendered under a parent. Renders with smaller text. */
   child?: boolean
-  /** Visible depth relative to the current list context; each ancestor adds one spacing step. */
   depth?: HabitRowBase['depth']
   drillInsteadOfExpand?: boolean
   structuralColumn?: boolean
   selectMode?: boolean
   selected?: boolean
-  /** Parent expand/collapse. Caller is responsible for managing expanded state. */
   hasChildren?: boolean
-  /** Whether this habit truly has sub-habits (backend-computed, independent of the
-   *  current view's visibility filtering). Gates the "go to sub-habits" drill action. */
   hasSubHabits?: boolean
   expanded?: boolean
   childPanelId?: string
@@ -77,7 +66,6 @@ interface HabitRowProps {
   actions?: HabitRowActions
 }
 
-/** The overflow menu the row shows outside selection; the trailing group renders only then. */
 function buildMenuItems(
   t: ReturnType<typeof useTranslations>,
   actions: HabitRowActions,
@@ -99,7 +87,6 @@ function buildMenuItems(
   return items
 }
 
-/** Dispatches a `buildMenuItems` id to its row action; the two stay together so a new id cannot go unhandled. */
 function runMenuAction(actions: HabitRowActions, id: string): void {
   const handlers: Record<string, (() => void) | undefined> = {
     add: actions.onAddSubHabit,
@@ -115,7 +102,6 @@ function runMenuAction(actions: HabitRowActions, id: string): void {
   handlers[id]?.()
 }
 
-/** Pointer-inert through an inline style, because the supporting layout's `*:pointer-events-auto` outranks a class on its children. */
 function SelectionSpacer({ width }: Readonly<{ width: number }>) {
   if (width <= 0) return null
   return <span aria-hidden="true" data-habit-row-trailing-slot="" className="shrink-0" style={{ width, minHeight: TOUCH_TARGET_MIN, pointerEvents: 'none' }} />
@@ -336,9 +322,7 @@ function HabitRowPrimaryButton({ onClick, supportingMeta, largeText, isChild, ro
   largeText: boolean
   isChild: boolean
   rowPadding: CSSProperties
-  /** Every token, for the accessible name. */
   meta: HabitRowMetaToken[]
-  /** The tokens the supporting footer draws, from `visibleHabitRowMetaTokens`. */
   visibleMeta: HabitRowMetaToken[]
   onReorder?: (direction: -1 | 1) => void
   reorderInstructionsId?: string

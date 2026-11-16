@@ -103,15 +103,12 @@ interface KeyboardAwareContextValue {
   clearInput: (input: KeyboardAwareInputTarget) => void
   keyboardSpace: number
   recordScroll: (offset: number) => void
-  /** This scroller and every scroller around it reserve no reveal margin until the returned release runs. */
   yieldRevealMargin: () => () => void
-  /** The same for the scrollers around this one only, or null when none encloses it. */
   yieldEnclosingRevealMargin: (() => () => void) | null
 }
 
 const KeyboardAwareContext = createContext<KeyboardAwareContextValue | null>(null)
 
-/** How far below its measured position the enclosing surface draws its content, or null while unknown. */
 type KeyboardAwareScreenShift = () => number | null
 const KeyboardAwareScreenShiftContext = createContext<KeyboardAwareScreenShift | null>(null)
 export const KeyboardAwareScreenShiftProvider = KeyboardAwareScreenShiftContext.Provider

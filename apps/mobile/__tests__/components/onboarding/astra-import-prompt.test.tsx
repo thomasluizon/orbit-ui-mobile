@@ -170,7 +170,6 @@ describe('AstraImportPrompt gating', () => {
   })
 })
 
-/** Wait for TrueSheet dismissal before changing the state that unmounts it. */
 describe('AstraImportPrompt quiet dismissal', () => {
   beforeEach(() => {
     sheetTestControls.defer(true)

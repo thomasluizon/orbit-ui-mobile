@@ -87,7 +87,6 @@ const { present, dismiss, didDismiss } = vi.hoisted(() => {
       register(handler: (() => void) | undefined) {
         handlers.current = handler ?? null
       },
-      /** Stands in for the native dismissal completing. */
       complete() {
         handlers.current?.()
         dismissal.current?.()
@@ -628,11 +627,6 @@ describe('Sheet (mobile)', () => {
   })
 })
 
-/**
- * Keep a presented sheet mounted until native dismissal completes so
- * `onDidDismiss` fires. Sheet owns the close path: `onClose` or a scheduled
- * action runs after dismissal, and the host does not flip open state directly.
- */
 describe('Sheet close path (mobile)', () => {
   beforeEach(() => {
     present.mockReset()

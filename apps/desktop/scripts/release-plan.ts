@@ -5,7 +5,6 @@ import { fileURLToPath } from 'node:url'
 import { downloadReleaseAsset, findRelease, type Sleep } from './release-asset.ts'
 import { assertReleaseCandidate, assertSourceLineage, compareVersions, releaseSettings, repository, signedManifest, tagFor, versionFromTag } from './release.ts'
 
-/** The paths that change the shipped shell. The lockfile counts only through `desktopLockClosure`. */
 const shellPaths = ['apps/desktop', '.github/actions/desktop-nsis-tools', 'apps/web/web-compatibility.json', '.github/workflows/desktop-release.yml']
 
 interface LockEntry {
@@ -18,13 +17,11 @@ function git(...args: string[]): string {
   return execFileSync('git', args, { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 }).trim()
 }
 
-/** The package directory that encloses an installed path, or the root: `a/node_modules/b` -> `a`. */
 function enclosingPackage(path: string): string {
   const index = path.lastIndexOf('/node_modules/')
   return index >= 0 ? path.slice(0, index) : ''
 }
 
-/** npm's lookup: the nearest `node_modules/<name>` from the requiring package up to the root. */
 function resolveInstalled(packages: Record<string, LockEntry>, from: string, name: string): string | undefined {
   for (let base = from; ; base = enclosingPackage(base)) {
     const candidate = base ? `${base}/node_modules/${name}` : `node_modules/${name}`

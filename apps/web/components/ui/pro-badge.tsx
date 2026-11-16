@@ -6,14 +6,8 @@ import { useProfile } from '@/hooks/use-profile'
 
 interface ProBadgeProps {
   variant?: 'solid' | 'outline'
-  /**
-   * When true, the badge is always rendered regardless of the user's pro/trial status.
-   * Use this for UI labels that should always show the PRO badge (e.g. locked feature headers).
-   */
   alwaysVisible?: boolean
-  /** Additional classes applied to the outer badge element. */
   className?: string
-  /** Override the badge label. Defaults to the i18n trial/pro label. */
   label?: string
 }
 

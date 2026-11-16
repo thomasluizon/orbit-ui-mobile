@@ -17,7 +17,6 @@ const portugueseValues = flatten(ptBR as Messages)
 const englishByKey = new Map(englishValues)
 const portugueseByKey = new Map(portugueseValues)
 
-/** Every allowance string with a plural count, in both locales. */
 const PLURAL_ALLOWANCE_KEYS = [
   'shell.composer.limit.reason',
   'shell.composer.limit.reasonWeekly',

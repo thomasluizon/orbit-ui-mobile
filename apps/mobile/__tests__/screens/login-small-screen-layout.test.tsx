@@ -10,18 +10,14 @@ import { __resetTestHostConfig, __setMeasureInWindowImpl, __setWindowDimensions 
 
 const { act, create } = require('react-test-renderer')
 
-/** The bridge states that the human check posts to the app. `interactive` is the Cloudflare checkbox, 65 dp high in every proof dump. */
 type CheckState = 'loading' | 'interactive' | 'failed' | 'solved'
-/** The proof devices: an Android phone with a 24 dp status bar and a 24 dp gesture bar, the iPhone SE with a 20 pt status bar and a home button, and an iPad. */
 const SMALL_ANDROID = { name: '320 x 640 Android', width: 320, height: 640, top: 24, bottom: 24, keyboardTop: 0 }
 const SE_SIZE_ANDROID = { name: '375 x 667 Android', width: 375, height: 667, top: 24, bottom: 24, keyboardTop: 0 }
 const IPHONE_SE = { name: '375 x 667 iPhone SE', width: 375, height: 667, top: 20, bottom: 0, keyboardTop: 432 }
 const IPAD = { name: '820 x 1180 iPad', width: 820, height: 1180, top: 24, bottom: 20, keyboardTop: 0 }
 type Device = typeof IPHONE_SE
 const REVEAL_MARGIN = 24
-/** The drawn space above the Orbit mark and below the last line of the compact column (`Orbit Entrar.dc.html`, compact `padding:16px`). */
 const DRAWN_SPACE = SPACING.s16
-/** Layout engines round positions to 1/64 of a pixel. */
 const LAYOUT_UNIT = 1 / 64
 
 const mocks = vi.hoisted((): { flow: Record<string, unknown>; insets: { top: number; bottom: number }; words: (key: string, params?: Record<string, string | number>) => string } =>
@@ -39,7 +35,6 @@ vi.mock('@/app/use-login-flow', () => ({ useLoginFlow: () => mocks.flow }))
 vi.mock('react-native-webview', () => ({ WebView: (props: Record<string, unknown>) => React.createElement('WebView', props) }))
 vi.mock('@/lib/use-app-theme', () => ({ useAppTheme: () => ({ currentScheme: 'purple', currentTheme: 'dark' }) }))
 vi.mock('@/lib/motion', () => ({ usePrefersReducedMotion: () => true, toAnimatedEasing: (value: unknown) => value, useResolvedMotionPreset: (scenario: MotionScenario) => resolveMotionPreset(scenario, true) }))
-/** A scroll view: the viewport fills the space under the status bar, measures in the window and lays out its content, which grows past the viewport when it does not fit. */
 vi.mock('@/components/ui/keyboard-aware-scroll-view', async () => {
   const { View: HostView } = await import('react-native')
   const { useImperativeHandle, useRef } = await import('react')
@@ -67,7 +62,6 @@ function isCheckRoot(host: GeometryHost) {
   return (host.children ?? []).some((child) => typeof child !== 'string' && child.props.testID === 'turnstile-challenge')
 }
 
-/** React Native SVG sizes its view from the width and height props, and the layout reads only the style. The root of the human check gets the name `check`. */
 function forLayout(host: GeometryHost | string): GeometryHost | string {
   if (typeof host === 'string') return host
   const { width, height } = host.props as { width?: unknown; height?: unknown }
@@ -81,7 +75,6 @@ function layout(tree: Tree, device: Device) {
   return (testID: string) => measured.boxes.find((candidate) => candidate.testID === testID)
 }
 
-/** Replays the laid-out boxes to every `measureInWindow` call and every `onLayout` handler, as React Native does after each layout. */
 function replayMeasure(callback: (x: number, y: number, width: number, height: number) => void, props: Record<string, unknown>, name: string) {
   const host = rendered.tree ? committedHost(rendered.tree.toJSON(), name, props) : undefined
   const testID = host && (host.props.testID ?? (isCheckRoot(host) ? 'check' : undefined))
@@ -122,7 +115,6 @@ async function render(step: 'email' | 'code', device: Device) {
   return rendered.tree!
 }
 
-/** Posts a state from the bridge page, as the human check does. */
 function showCheck(tree: Tree, check: CheckState) {
   const bridge = tree.root.findAll((node) => node.type === 'WebView')[0]!
   act(() => (bridge.props.onMessage as (event: object) => void)({ nativeEvent: { data: JSON.stringify({ state: check }) } }))
@@ -130,7 +122,6 @@ function showCheck(tree: Tree, check: CheckState) {
   return placement(tree, rendered.device)
 }
 
-/** The boxes of the first and the last in-flow child of the column: the Orbit mark and the last line of the step. */
 function contentEdges(tree: Tree, box: (testID: string) => Box | undefined) {
   const column = tree.root.findAll((node) => node.type === 'View' && node.props.testID === 'login-column')[0]!
   const json = committedHost(tree.toJSON(), 'View', column.props)!
@@ -139,7 +130,6 @@ function contentEdges(tree: Tree, box: (testID: string) => Box | undefined) {
   return { first: box(layoutName(inFlow[0]!))!, last: box(layoutName(inFlow.at(-1)!))! }
 }
 
-/** Every host gets a name for the layout: its test ID, or its native tag. */
 function layoutName(host: GeometryHost) {
   return host.props.testID ?? `native-${(host.props as { __nativeTag: number }).__nativeTag}`
 }
@@ -157,7 +147,6 @@ function placement(tree: Tree, device: Device) {
   return {
     group: box('login-field-action')!, column, first, last, safeHeight, scrollOverflow,
     topGap: column.top - device.top, bottomGap: device.height - device.bottom - column.bottom,
-    /** The space above the Orbit mark with the scroll at the top, and below the last line with the scroll at the end. */
     markSpace: first.top - device.top, lastLineSpace: device.height - device.bottom - (last.bottom - scrollOverflow),
   }
 }

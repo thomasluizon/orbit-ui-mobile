@@ -10,7 +10,6 @@ import { APPLE_SIGN_IN_BUTTON, SMALL_PILL_VISIBLE_MIN } from '@orbit/shared/them
 import { test } from './layout-test'
 import { loadAppFonts } from '../../__tests__/support/app-fonts'
 
-/** Chromium lays out boxes in 1/64 px units. */
 const LAYOUT_UNIT = 1 / 64
 let stylesheet: string
 let fixtureScript: string
@@ -33,7 +32,6 @@ test.beforeAll(async () => {
   fixtureScript = bundle.outputFiles[0]!.text
 })
 
-/** The pill, its label and its mark, with the label's overflow past the pill edges or its own box. */
 async function readAction(action: Locator) {
   return action.evaluate((pill) => {
     const label = pill.querySelector(':scope > span:not([aria-hidden])')!
