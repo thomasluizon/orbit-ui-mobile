@@ -370,6 +370,25 @@ const windowsIconLayers = [
   windowsIconLayer(256, 24, 44, iconMark),
 ]
 
+// The Windows notification area draws the tray image at the small icon size, SM_CXSMICON, which scales
+// with the system DPI: 16px at 100%, 20 at 125%, 24 at 150%, 28 at 175%, 32 at 200%, 40 at 250% and
+// 48 at 300%. build_tray in menus.rs loads the largest of these images no larger than SM_CXSMICON, so
+// the tray only ever enlarges it. Each one is the small static face on the tile of the icon.ico layers:
+// the 16, 24 and 32 images are those layers, and the 40 and 48 images are the 20 and 24 images at 2x.
+const windowsIconLayerAt = (size) => windowsIconLayers.find(({ width }) => width === size)
+const windowsTrayLayers = [
+  windowsIconLayerAt(16),
+  windowsIconLayer(20, 1, 4, { face: "small", smallSize: 20, accent: true }),
+  windowsIconLayerAt(24),
+  windowsIconLayer(28, 2, 5, { face: "small", smallSize: 24, accent: true }),
+  windowsIconLayerAt(32),
+  windowsIconLayer(40, 2, 8, { face: "small", smallSize: 20, pixelRatio: 2, accent: true }),
+  windowsIconLayer(48, 2, 8, { face: "small", smallSize: 20, pixelRatio: 2, accent: true }),
+]
+generatedAssets.push(
+  ...windowsTrayLayers.map((layer) => ({ ...layer, path: `apps/desktop/src-tauri/icons/tray-windows-${layer.width}.png` })),
+)
+
 /** The one ICO writer, for favicon.ico and icon.ico. It stores every layer as an embedded PNG, the
  *  layout Tauri's own icon command writes and every browser Orbit supports reads. A BMP layer costs
  *  more bytes at 256 and needs an AND mask. The ICONDIR is 6 bytes, each ICONDIRENTRY 16 bytes, and

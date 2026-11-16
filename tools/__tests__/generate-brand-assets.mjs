@@ -15,6 +15,13 @@ const expectedAssets = [
   ["design/brand/exports/play-icon-512.png", 512, 512],
   ["apps/desktop/src-tauri/icons/icon.png", 512, 512],
   ["apps/desktop/src-tauri/icons/tray.png", 48, 36],
+  ["apps/desktop/src-tauri/icons/tray-windows-16.png", 16, 16],
+  ["apps/desktop/src-tauri/icons/tray-windows-20.png", 20, 20],
+  ["apps/desktop/src-tauri/icons/tray-windows-24.png", 24, 24],
+  ["apps/desktop/src-tauri/icons/tray-windows-28.png", 28, 28],
+  ["apps/desktop/src-tauri/icons/tray-windows-32.png", 32, 32],
+  ["apps/desktop/src-tauri/icons/tray-windows-40.png", 40, 40],
+  ["apps/desktop/src-tauri/icons/tray-windows-48.png", 48, 48],
   ["apps/mobile/assets/adaptive-icon-background.png", 1024, 1024],
   ["apps/mobile/assets/adaptive-icon-foreground.png", 1024, 1024],
   ["apps/mobile/assets/adaptive-icon-monochrome.png", 1024, 1024],
@@ -208,7 +215,7 @@ export const cases = async () => {
     "generate-brand-assets.mjs",
     "writes the complete derived asset inventory",
     ["--write", "--root", outputRoot],
-    { status: 0, stdout: /generated 29 brand assets/ },
+    { status: 0, stdout: /generated 36 brand assets/ },
   )
 
   for (const [relativePath, width, height] of expectedAssets) {
@@ -561,7 +568,9 @@ export const cases = async () => {
   const desktopRoot = ["apps", "desktop", "src-tauri"]
   const menusSource = readFileSync(join(REPO_ROOT, ...desktopRoot, "src", "menus.rs"), "utf8")
   const tauriConfig = JSON.parse(readFileSync(join(REPO_ROOT, ...desktopRoot, "tauri.conf.json"), "utf8"))
-  const trayImage = /include_image!\("([^"]+)"\)/.exec(menusSource)?.[1] ?? tauriConfig.bundle.icon.find((path) => path.endsWith(".png"))
+  const trayImage =
+    /#\[cfg\(target_os = "macos"\)\]\s*let icon = tauri::include_image!\("([^"]+)"\)/.exec(menusSource)?.[1] ??
+    tauriConfig.bundle.icon.find((path) => path.endsWith(".png"))
   const trayPath = join(outputRoot, ...desktopRoot, ...trayImage.split("/"))
   T(
     "generate-brand-assets.mjs: the generator writes the image the macOS tray loads",
@@ -576,6 +585,40 @@ export const cases = async () => {
       smallSize: trayImage === "icons/tray.png" ? 24 : undefined,
       pixelRatio,
     })
+  }
+
+  // The Windows notification area draws the tray image at SM_CXSMICON, the small icon size of the system
+  // DPI (NOTIFYICONDATAW: a larger icon is "scaled down when they are displayed in the System Tray").
+  // build_tray loads the image that windows_tray_image in menus.rs maps from the largest of
+  // WINDOWS_TRAY_SIZES no larger than SM_CXSMICON. With no such map, the tray takes
+  // default_window_icon(): the icon.ico layer at SM_CXICON (tauri 2.12.5 src/image/mod.rs
+  // default_window_icon_from_app_icon_resource), the smallest layer no smaller than it.
+  const windowsTraySizes = /WINDOWS_TRAY_SIZES: \[i32; \d+\] = \[([\d, ]+)\]/.exec(menusSource)?.[1].split(",").map(Number)
+  const windowsTrayImages = new Map(
+    [...menusSource.matchAll(/(\d+|_) => tauri::include_image!\("(icons\/tray-windows-[^"]+)"\)/g)].map(([, size, path]) => [size, path]),
+  )
+  // The small static face and pixel ratio of each Windows tray image, from windowsTrayLayers in the generator.
+  const WINDOWS_TRAY_FACES = { 16: [16, 1], 20: [20, 1], 24: [20, 1], 28: [24, 1], 32: [24, 1], 40: [20, 2], 48: [20, 2] }
+  // SM_CXSMICON and SM_CXICON at each display scale.
+  for (const [scale, smallIcon, largeIcon] of [["100%", 16, 32], ["125%", 20, 40], ["150%", 24, 48], ["175%", 28, 56], ["200%", 32, 64], ["250%", 40, 80], ["300%", 48, 96]]) {
+    if (windowsTraySizes) {
+      const size = windowsTraySizes.filter((candidate) => candidate <= smallIcon).at(-1) ?? windowsTraySizes[0]
+      const image = windowsTrayImages.get(String(size)) ?? windowsTrayImages.get("_")
+      const path = join(outputRoot, ...desktopRoot, ...image.split("/"))
+      const [faceSize, facePixelRatio] = WINDOWS_TRAY_FACES[size] ?? []
+      mascotRasters.push({
+        label: `Windows tray at ${scale}: ${image} drawn at ${smallIcon}px`,
+        input: existsSync(path) ? await sharp(path).resize({ width: smallIcon, height: smallIcon }).png().toBuffer() : path,
+        smallSize: smallIcon === size ? faceSize : undefined,
+        pixelRatio: facePixelRatio,
+      })
+    } else {
+      const layer = windowsLayers.find(({ size }) => size >= largeIcon) ?? windowsLayers.at(-1)
+      mascotRasters.push({
+        label: `Windows tray at ${scale}: icon.ico ${layer.size}px layer drawn at ${smallIcon}px`,
+        input: await sharp(layer.png).resize({ width: smallIcon, height: smallIcon }).png().toBuffer(),
+      })
+    }
   }
 
   for (const { label, input, smallSize, pixelRatio } of mascotRasters) {
