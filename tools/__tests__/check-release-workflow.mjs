@@ -606,9 +606,11 @@ function checkAndroidCompileCache() {
   T("each android compile restore key is a prefix of its key", restoreKeys.length > 0 && restoreKeys.every((prefix) => key.startsWith(prefix)),
     restoreKeys.join())
   const primaryKey = `steps.${restore.id}.outputs.cache-primary-key`
-  T("only main saves the android compile ccache, and only when its key missed", save.if ===
-    `\${{ always() && env.CCACHE_AVAILABLE == 'true' && steps.${compile.id}.outcome != 'skipped' && github.ref == 'refs/heads/main' && steps.${restore.id}.outputs.cache-hit != 'true' }}`,
-    save.if)
+  // The save runs only after the evict step passed, so the conditions of the save sit on the evict step.
+  const evict = steps.find((step) => step.id === "evict")
+  T("only main saves the android compile ccache, and only when its key missed", evict?.if ===
+    `\${{ always() && env.CCACHE_AVAILABLE == 'true' && steps.${compile.id}.outcome != 'skipped' && github.ref == 'refs/heads/main' && steps.${restore.id}.outputs.cache-hit != 'true' }}` &&
+    save.if === "${{ always() && steps.evict.outcome == 'success' }}", `${evict?.if} / ${save.if}`)
   T("a failed android compile saves a run-scoped partial entry", save.with.key ===
     `\${{ steps.${compile.id}.outcome == 'success' && ${primaryKey} || format('{0}-partial-{1}-{2}', ${primaryKey}, github.run_id, github.run_attempt) }}`,
     save.with.key)
