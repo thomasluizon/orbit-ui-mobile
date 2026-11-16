@@ -12,6 +12,7 @@ import type { ListRowProps } from '@orbit/shared/contracts/lists'
 import { ChevronDown, ChevronRight } from '@/components/ui/icons'
 import { SwitchTrack } from '@/components/ui/switch'
 import { Icon } from '@/components/ui/icon'
+import { OrbitNameText } from '@/components/ui/orbit-name-text'
 
 const ROW_TOGGLE_HEIGHT = 28
 const ROW_TEXT_LINE = '1.4875rem'
@@ -68,7 +69,7 @@ function titleClass(textMode: WebListRowProps['textMode'], wrapTitle: boolean | 
 function PlainRowText({ children, style, ...props }: Readonly<Omit<ComponentProps<'span'>, 'children'> & { children: string }>) {
   const textRef = useRef<HTMLSpanElement>(null)
   const lineHeight = useReadableLineHeight(textRef, children, style)
-  return <span {...props} data-row-multiline={typeof lineHeight === 'string' ? '' : undefined} ref={textRef} style={{ ...style, lineHeight }}>{children}</span>
+  return <span {...props} data-row-multiline={typeof lineHeight === 'string' ? '' : undefined} ref={textRef} style={{ ...style, lineHeight }}><OrbitNameText text={children} /></span>
 }
 
 function RowText({ title, textMode, titleTranslate, wrapTitle, description, wrapValue, danger, trailing, value, readOnly, toggle, personalExpanded, personalTextInsetStart }: Readonly<Pick<WebListRowProps, 'title' | 'textMode' | 'titleTranslate' | 'wrapTitle' | 'description' | 'wrapValue' | 'danger' | 'trailing' | 'compact' | 'value' | 'readOnly' | 'toggle' | 'personalExpanded' | 'personalTextInsetStart'>>) {
