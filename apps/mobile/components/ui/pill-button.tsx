@@ -11,7 +11,7 @@ import {
   useWindowDimensions,
 } from 'react-native'
 import type { ThemeMode } from '@orbit/shared/types/profile'
-import { SPACING, APPLE_SIGN_IN_BUTTON, APPLE_SIGN_IN_TITLE_SIZE, ICON_ACTION_START_HANG, BUTTON_SIZES, MATCHED_PILL_WIDTH, TOUCH_TARGET_MIN, SIGN_IN_BUTTON_HEIGHT, SMALL_PILL_VISIBLE_MIN, signInButtonSpec, type ButtonVariant, type SignInButtonSpec } from '@orbit/shared/theme'
+import { SPACING, APPLE_SIGN_IN_BUTTON, APPLE_SIGN_IN_TITLE_SIZE, ICON_ACTION_START_HANG, BUTTON_SIZES, MATCHED_PILL_WIDTH, TOUCH_TARGET_MIN, SIGN_IN_BUTTON_HEIGHT, SMALL_PILL_VISIBLE_MIN, signInButtonSpec, signInLeadHeight, type ButtonVariant, type SignInButtonSpec } from '@orbit/shared/theme'
 import { createTokensV2, mixHex, radius, type AppTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { ThemedMotionPressable } from './motion-pressable'
@@ -119,6 +119,11 @@ function buttonFocusStyle(variant: ButtonVariant, outlineColor: string): ViewSty
   }
 }
 
+/** The ghost outline that React Native lays out inside the pill height. Apple's pill has none. */
+function ghostOutlineWidth(variant: ButtonVariant, brand: ButtonProps['brand'], borderless: boolean) {
+  return variant === 'ghost' && brand !== 'apple' && !borderless ? 1.5 : 0
+}
+
 type NativeButtonProps = Readonly<ButtonProps & { retainLeadingIcon?: boolean } & Omit<PressableProps, 'children' | 'onFocus' | 'onBlur'> & { ref?: Ref<View>; buttonRef?: Ref<View>; accessibilityRole?: 'button' | 'link'; quiet?: boolean; borderless?: boolean; expanded?: boolean; onFocus?: () => void; onBlur?: () => void; onHoverIn?: () => void; onHoverOut?: () => void }>
 
 export function Button(props: NativeButtonProps) {
@@ -174,7 +179,7 @@ export function ThemedButton({
   const textColor = skeletonWaiting ? waitingTextColor(tokens, variant, quiet) : appleColors?.ink ?? buttonTextColors(tokens, quiet)[variant]
   const leadingGlyph = buttonLeadingGlyph(leadingIcon, textColor)
 
-  const ghostBorderWidth = borderless ? 0 : 1.5
+  const outlineWidth = ghostOutlineWidth(variant, brand, borderless)
 
   return (
     <ThemedMotionPressable
@@ -199,13 +204,13 @@ export function ThemedButton({
         retainLeadingIcon ? { maxWidth: '100%' } : null,
         pillBoxStyle({ sizeSpec, iconOnly, minimumHeight, edge, matchedWidth, hasLeadingIcon: Boolean(leadingIcon), signIn: signIn !== null }),
         signIn ? signInPillStyle(signIn) : null,
-        skeletonWaiting ? waitingFaceStyle(variant, ghostBorderWidth) : variantFaceStyle({ variant, tokens, pressed: pressed && !disabled, hovered: hovered && !disabled, elevated, quiet, ghostBorderWidth, brandFill: appleColors?.fill }),
+        skeletonWaiting ? waitingFaceStyle(variant, outlineWidth) : variantFaceStyle({ variant, tokens, pressed: pressed && !disabled, hovered: hovered && !disabled, elevated, quiet, ghostBorderWidth: outlineWidth, brandFill: appleColors?.fill }),
         focused ? buttonFocusStyle(variant, appleColors?.ink ?? tokens.fg1) : null,
         nativelyDisabled && !skeletonWaiting ? styles.disabled : null,
       ]}
     >
       <ButtonContents tokens={tokens} skeletonWaiting={skeletonWaiting} retainLeadingIcon={retainLeadingIcon} iconOnly={iconOnly} leadingGlyph={leadingGlyph} textColor={textColor}
-        signIn={signIn} labelSize={appleColors ? APPLE_SIGN_IN_TITLE_SIZE : sizeSpec.fontSize}>{children}</ButtonContents>
+        signIn={signIn} outlineWidth={outlineWidth} labelSize={appleColors ? APPLE_SIGN_IN_TITLE_SIZE : sizeSpec.fontSize}>{children}</ButtonContents>
     </ThemedMotionPressable>
   )
 }
@@ -225,8 +230,8 @@ function signInPillStyle({ paddingX, paddingY, gap }: SignInButtonSpec): ViewSty
 }
 
 /** A provider pill holds its mark in a slot of the resting content height at the top, so a wrapped title keeps the mark on its first line. */
-function ButtonLead({ signIn, children }: Readonly<{ signIn: SignInButtonSpec; children: React.ReactNode }>) {
-  return <View style={{ height: SIGN_IN_BUTTON_HEIGHT - signIn.paddingY * 2, alignSelf: 'flex-start', justifyContent: 'center' }}>{children}</View>
+function ButtonLead({ signIn, outlineWidth, children }: Readonly<{ signIn: SignInButtonSpec; outlineWidth: number; children: React.ReactNode }>) {
+  return <View style={{ height: signInLeadHeight(signIn, outlineWidth), alignSelf: 'flex-start', justifyContent: 'center' }}>{children}</View>
 }
 
 /** A provider title wraps whenever it does not fit; another label with a retained icon wraps above font scale 1.3. */
@@ -236,8 +241,8 @@ function labelWrapping(signIn: SignInButtonSpec | null, retainLeadingIcon: boole
 }
 
 /** The face, glyph and label. A waiting action keeps its glyph and label on the skeleton face. */
-function ButtonContents({ tokens, skeletonWaiting, retainLeadingIcon, iconOnly, leadingGlyph, children, textColor, signIn, labelSize }: Readonly<Pick<ButtonProps, 'children' | 'iconOnly'> & {
-  tokens: AppTokensV2; skeletonWaiting: boolean; retainLeadingIcon: boolean; leadingGlyph: React.ReactNode; textColor: string; signIn: SignInButtonSpec | null; labelSize: number
+function ButtonContents({ tokens, skeletonWaiting, retainLeadingIcon, iconOnly, leadingGlyph, children, textColor, signIn, outlineWidth, labelSize }: Readonly<Pick<ButtonProps, 'children' | 'iconOnly'> & {
+  tokens: AppTokensV2; skeletonWaiting: boolean; retainLeadingIcon: boolean; leadingGlyph: React.ReactNode; textColor: string; signIn: SignInButtonSpec | null; outlineWidth: number; labelSize: number
 }>) {
   const { fontScale } = useWindowDimensions()
   const iconColor = isValidElement<{ color?: string }>(children) ? children.props.color : undefined
@@ -245,7 +250,7 @@ function ButtonContents({ tokens, skeletonWaiting, retainLeadingIcon, iconOnly, 
   const lead = iconOnly ? buttonLeadingGlyph(children, iconColor ?? textColor) : leadingGlyph
   return <>
       {skeletonWaiting ? <SkeletonFace tokens={tokens} /> : null}
-      {signIn && lead ? <ButtonLead signIn={signIn}>{lead}</ButtonLead> : lead}
+      {signIn && lead ? <ButtonLead signIn={signIn} outlineWidth={outlineWidth}>{lead}</ButtonLead> : lead}
       {iconOnly ? null : (
         <Text
           numberOfLines={wrapping.numberOfLines}
