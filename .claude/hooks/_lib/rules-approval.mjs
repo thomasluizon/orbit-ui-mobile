@@ -7,7 +7,7 @@
 import { homedir } from "node:os"
 import { posix } from "node:path"
 
-import { invocationsOf, PLAIN_SUBSET_ADVICE, programName, readCommand, SHELLS, SUBSTITUTION, walkCommands } from "./command-expander.mjs"
+import { invocationsOf, PLAIN_SUBSET_ADVICE, programName, readCommand, SUBSTITUTION, walkCommands } from "./command-expander.mjs"
 
 /** The tools whose permission check runs the Claude Code removal check. Each one takes the shell command as `tool_input.command`. */
 export const REMOVAL_CHECK_TOOLS = ["Bash", "Monitor"]
@@ -25,8 +25,6 @@ const EXPANSION = /^\$(?:\{([^}]*)\}|([A-Za-z_][A-Za-z0-9_]*|[0-9@*#?!$-]))/
 const GUARDED = /^(?:[A-Za-z_][A-Za-z0-9_]*|[0-9]+):\?/
 const SIMPLE_NAME = /^(?:[A-Za-z_][A-Za-z0-9_]*|[0-9]+)$/
 const BRACE_EXPANSION = /\{[^{}]*(?:,|\.\.)[^{}]*\}/
-const INLINE_SCRIPT = new RegExp(`(?:^|[\\s;&|(])(?:[^\\s=]*\\/)?(?:${SHELLS.join("|")})\\s+(?:\\S+\\s+)*?-[A-Za-z]*c(?=\\s)`)
-const INLINE_SCRIPT_MAX_LENGTH = 2000
 const MOUNTED_DRIVE = /^\/(?:system\/)?volumes(?:\/[^/]+){0,2}$|^\/mnt\/(?:[^/]+|[a-z]\/[^/]+)$|^\/(?:run\/)?media(?:\/[^/]+){0,3}$/i
 const TRAILING_STARS = /(?:\/\*+)+\/*$/
 const ROOTED = /^(?:[\\/]|[A-Za-z]:[\\/])/
@@ -98,7 +96,7 @@ const LITERAL = "Write the literal path of the directory you mean."
 
 /**
  * The removal rules, in the order that gives the most useful rewrite. `judge` returns a refusal or null for one target,
- * `judgeCommand` for the whole command, and `judgeUnread` for a command that no other rule refuses. `covers` names the `removalRule` values of the Claude Code check that the
+ * and `judgeUnread` for a command outside the modelled subset, which no other rule can read. `covers` names the `removalRule` values of the Claude Code check that the
  * rule is a superset of.
  */
 export const REMOVAL_RULES = [
@@ -188,17 +186,10 @@ export const REMOVAL_RULES = [
       : null,
   },
   {
-    name: "unreadable-script",
-    judgeCommand: ({ command }) => INLINE_SCRIPT.test(command) && (/\bIFS\b/.test(command) || command.length > INLINE_SCRIPT_MAX_LENGTH)
-      ? refuse("inline_shell_unchecked, eval_trap_string, unparsed_line", "the command runs a removal with an inline script that sets `IFS`, or that is too long for a check to read with certainty",
-        "Run each removal as its own direct command, with a literal path.")
-      : null,
-  },
-  {
     // Fail safe: the rules above read only the parsed words of the modelled subset, so a command outside it has no reading.
     name: "not-modelled",
     judgeUnread: ({ notModelled }) => notModelled
-      ? refuse("inline_shell_unchecked, unparsed_line", `the command holds ${notModelled}, which is outside the plain shell subset that the hook reads exactly`, PLAIN_SUBSET_ADVICE)
+      ? refuse("inline_shell_unchecked, eval_trap_string, unparsed_line", `the command holds ${notModelled}, which is outside the plain shell subset that the hook reads exactly`, PLAIN_SUBSET_ADVICE)
       : null,
   },
 ]
@@ -224,22 +215,19 @@ function judgeInvocation(invocation, segment, placed, rules) {
   return null
 }
 
-/** The first refusal in the parsed `list`, with the count of removals it runs; a nested script is read in the directory that reaches it. */
+/** The first refusal in the parsed `list`, and the construct that the walk cannot read, or "". */
 function inspectRemovals(list, context, rules) {
   let found = null
-  let removals = 0
-  walkCommands(list, { directory: context.directory, moved: false }, ({ words }, state) => {
+  // The reader keeps a `cd` only as a whole command `cd PATH` at the top level, with a literal path or a variable that the line sets.
+  const unread = walkCommands(list, { directory: context.directory, moved: false }, ({ words }, state) => {
     for (const invocation of removalInvocations(words)) {
-      removals++
       found ??= judgeInvocation(invocation, words.map((word) => word.raw).join(" "), { ...context, ...state }, rules)
     }
-    const program = programName(words[0]?.text)
-    if (!["cd", "pushd", "popd"].includes(program)) return state
-    const destination = words[1]
-    const known = program === "cd" && destination !== undefined && !destination.dynamic
-    return { moved: true, directory: known ? canonical(ROOTED.test(destination.text) ? destination.text : `${state.directory}/${destination.text}`) : state.directory }
+    if (words[0]?.text !== "cd") return state
+    const destination = words[1].text
+    return { moved: true, directory: canonical(ROOTED.test(destination) ? destination : `${state.directory}/${destination}`) }
   })
-  return { found, removals }
+  return { found, unread }
 }
 
 /** The parsed commands as text, for a rule that reads the whole command: each assignment and each word as written, and no heredoc body. */
@@ -282,18 +270,15 @@ export function checkPersonPrompt(toolName) {
 export function checkApprovalPrompt(command, { cwd = "", home = homedir(), workingDirectories = [], rules = REMOVAL_RULES, windows = process.platform === "win32" } = {}) {
   if (typeof command !== "string") return null
   const directory = canonical(cwd || "/")
-  const { list, notModelled } = readCommand(command)
-  const context = { command: parsedText(list), notModelled, directory, windows: windows || /^[A-Za-z]:[\\/]/.test(cwd), home: canonical(home), workingDirectories: [directory, ...workingDirectories.map(canonical)] }
-  const { found, removals } = inspectRemovals(list, context, rules)
-  const whole = removals === 0 ? [] : rules.flatMap((rule) => {
-    const refusal = rule.judgeCommand?.(context)
-    return refusal ? [{ ...refusal, rule: rule.name, program: "rm", segment: command.trim() }] : []
-  })
-  const unread = rules.flatMap((rule) => {
+  const read = readCommand(command, { home })
+  const context = { command: parsedText(read.list), notModelled: read.notModelled, directory, windows: windows || /^[A-Za-z]:[\\/]/.test(cwd), home: canonical(home), workingDirectories: [directory, ...workingDirectories.map(canonical)] }
+  const { found, unread } = inspectRemovals(read.list, context, rules)
+  context.notModelled ||= unread
+  const unreadRefusal = rules.flatMap((rule) => {
     const judged = rule.judgeUnread?.(context)
     return judged ? [{ ...judged, rule: rule.name, segment: command.trim() }] : []
-  })
-  const refusal = unread[0] ?? found ?? whole[0]
+  })[0]
+  const refusal = unreadRefusal ?? found
   if (!refusal) return null
   const held = refusal.program
     ? `Refused in an unattended run: Claude Code holds this ${refusal.program} for an approval, and no person is present to give it.`

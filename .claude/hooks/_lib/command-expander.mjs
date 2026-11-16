@@ -1,3 +1,5 @@
+import { homedir } from "node:os"
+
 // Inspect executable shell bodies without executing any part of the supplied command.
 
 export const commandWords = (source) =>
@@ -312,28 +314,41 @@ export function expandCommands(source) {
 }
 
 // ---------------------------------------------------------------------------
-// The modelled subset. `readCommand` reads one shell subset exactly, the same way in bash and in zsh, and names each
-// other construct as not modelled. The git rule and the approval rule read only its parsed words. ./README.md lists the subset.
+// The modelled subset. `readCommand` reads one small grammar that bash and zsh read in one way, and names each other construct
+// as not modelled. The git rule and the approval rule read only its parsed words. ./README.md lists the grammar.
 // ---------------------------------------------------------------------------
 
 /** The shells that read standard input or a `-c` word as a script. */
 export const SHELLS = ["bash", "sh", "zsh", "dash", "ksh", "mksh", "ash", "hush", "rbash"]
 /** Programs that run the command that follows them. */
 const WRAPPERS = new Set(["sudo", "doas", "exec", "command", "builtin", "noglob", "env", "nice", "nohup", "busybox", "time", "timeout", "stdbuf", "setsid", "ionice", "pkexec", "runuser", "xargs"])
-
-/** At the start of a command, each one comes before a command, or ends a compound command. The commands between them are the commands that the shell runs. */
-const STRUCTURE_WORDS = new Set(["if", "then", "elif", "else", "fi", "while", "until", "do", "done", "!", "{", "}"])
-/** The words that open and close a compound command whose commands the shell can skip. `for` opens one too, and it stays a command word. */
-const COMPOUND_OPENERS = new Set(["if", "while", "until"])
-const COMPOUND_CLOSERS = new Set(["fi", "done"])
-/** Compound commands that the reader does not model. `for NAME in WORDS` and `[[ ... ]]` read as plain commands: they run only the substitutions in their words. */
-const KEYWORDS = new Set(["case", "esac", "function", "select", "coproc"])
-/** Each one reads a word again as code, or changes how the shell reads the next command. */
-const CODE_BUILTINS = new Set(["eval", "alias", "trap", "setopt", "unsetopt", "emulate", "shopt", "enable"])
+/** The option letters of a wrapper that give it a shell, a script or another directory. */
+const WRAPPER_REFUSED_OPTIONS = { env: /^-[A-Za-z]*[SC]|^--(?:split-string|chdir)/, sudo: /^-[A-Za-z]*[siD]|^--(?:shell|login|chdir)/, doas: /^-[A-Za-z]*s/ }
+/** The words that end a list of the grammar: `then`, `else` and `fi` of `if`, and `do` and `done` of `for`. */
+const TERMINATORS = new Set(["then", "else", "fi", "do", "done"])
+/** Reserved words of a compound command outside the grammar. */
+const REFUSED_KEYWORDS = new Set(["while", "until", "case", "esac", "select", "function", "coproc", "elif", "!", "in"])
+/** Unquoted words that bash or zsh read as a group, a condition or the end of one. */
+const REFUSED_WORDS = new Set(["{", "}", "[[", "]]"])
+/** Each one reads a word again as code, changes how the shell reads a command, or changes the flow or the directory in a way that the grammar does not model. */
+const CODE_BUILTINS = new Set(["eval", "source", ".", "alias", "unalias", "trap", "setopt", "unsetopt", "emulate", "shopt", "enable", "disable", "let", "sched", "zmodload",
+  "zpty", "autoload", "hash", "fc", "functions", "unfunction", "break", "continue", "pushd", "popd"])
 /** zsh runs the words after each one as a command, or reads it as a part of a compound command. bash reads the name of a program. */
 const ZSH_COMMAND_WORDS = new Set(["nocorrect", "repeat", "-", "always", "foreach"])
-const READ_PROGRAMS = new Set(["rm", "rmdir", "git", ...SHELLS, ...CODE_BUILTINS])
-const ASSIGNMENT_WORD = /^([A-Za-z_][A-Za-z0-9_]*)\+?=/
+/** Builtins whose words can be assignments, with a name that bash and zsh can read as a subscript. */
+const DECLARATION_BUILTINS = new Set(["export", "declare", "typeset", "local", "readonly", "integer", "float", "private"])
+/** Programs that cannot set a variable of the shell that runs them. After each other program, the reader forgets each variable value. */
+const PURE_PROGRAMS = new Set(["git", "gh", "node", "npm", "npx", "pnpm", "yarn", "echo", "printf", "cat", "head", "tail", "grep", "rg", "cut", "sed", "awk", "wc", "sort",
+  "uniq", "tr", "jq", "ls", "test", "[", "true", "false", ":", "pwd", "cd", "mkdir", "cp", "mv", "touch", "date", "basename", "dirname", "sleep", "rm", "rmdir", "find",
+  "diff", "cmp", "realpath", "readlink", "tee", "env"])
+/** Assignments that change how the shell reads or traces a command, where `cd` goes, or which repository git uses. */
+const REFUSED_ASSIGNMENT = /^(?:PS[1-4]|PROMPT[2-4]?|RPROMPT2?|RPS[12]|PROMPT_COMMAND|IFS|BASH_ENV|ENV|CDPATH|cdpath|SHELLOPTS|BASHOPTS|ZDOTDIR|GIT_\w*)$/
+/** zsh parameters with a lower case name that the shell sets or ties to another parameter. The reader tracks no value for them. */
+const SPECIAL_LOWER_CASE = new Set(["argv", "cdpath", "fpath", "path", "manpath", "mailpath", "module_path", "psvar", "watch", "fignore", "match", "mbegin", "mend", "reply",
+  "status", "pipestatus", "signals", "options", "commands", "functions", "aliases", "builtins", "parameters", "history", "historywords", "dirstack", "funcstack", "_"])
+const TRACKED_NAME = /^[a-z_][a-z0-9_]*$/
+const ASSIGNMENT_WORD = /^([A-Za-z_][A-Za-z0-9_]*)(\+?)=/
+const NAME = /^[A-Za-z_][A-Za-z0-9_]*$/
 const FIND_EXEC = /^-(?:exec|execdir|ok|okdir)$/
 const PARAMETER = /[A-Za-z_][A-Za-z0-9_]*|[0-9@*#?!$-]/y
 /** `${NAME}` and the guard `${NAME:?message}`. Each other `${...}` form has an operator. */
@@ -341,11 +356,15 @@ const BRACED_PARAMETER = /\{[A-Za-z_][A-Za-z0-9_]*(?::\?[^}$`"'\\\n]*)?\}/y
 const HEREDOC_DELIMITER = /[ \t]*(?:'([A-Za-z_][A-Za-z0-9_]*)'|"([A-Za-z_][A-Za-z0-9_]*)")/y
 const DUPLICATE_TARGET = /(?:\d+|-)(?=[\s;&|)]|$)/y
 const BRACE_EXPANSION = /\{[^{}]*(?:,|\.\.)[^{}]*\}/
-const WORD_END = /[\s;&|<>()]/
+const WORD_END = /[ \t\n;&|<>()]/
 /** After these, bash and zsh both read a `$` as the character. */
 const PLAIN_AFTER_DOLLAR = /[\s"|)/.,%\\>\];&}<]/
-const MAX_SCRIPT_DEPTH = 8
-const STANDARD_INPUT_FILE = /^\/dev\/(?:stdin|fd\/\d+)$|^\/proc\/[^/]+\/fd\//
+/** A variable value that bash and zsh both give unquoted as one word with no change: no split, no glob, no tilde. */
+const PLAIN_VALUE = /^[A-Za-z0-9_./:@%+,-]+$/
+const MAX_LENGTH = 100_000
+const MAX_DEPTH = 16
+const MAX_STATES = 64
+const MAX_VISITS = 20_000
 
 /** The program that a word names: its last path part, with no `.exe`, in lower case. */
 export const programName = (text) => String(text ?? "").split(/[\\/]/).pop().replace(/\.exe$/i, "").toLowerCase()
@@ -353,17 +372,31 @@ export const programName = (text) => String(text ?? "").split(/[\\/]/).pop().rep
 class NotModelled extends Error {}
 const notModelled = (construct) => { throw new NotModelled(construct) }
 
-/** One `$` expansion at `reader.index`, added to `word`. A variable and a substitution make the word dynamic: the reader does not know its value. */
+/** Only printable ASCII, a space, a tab and a line end are read outside a quote. Each other character can end a word in one shell and not in the other. */
+const requirePlain = (character) => {
+  if (character === "\t" || character === "\n" || (character >= " " && character <= "~")) return
+  notModelled(`the character U+${character.codePointAt(0).toString(16).toUpperCase().padStart(4, "0")} outside a quote: only printable ASCII, a space, a tab and a line end are read there`)
+}
+
+const addText = (word, text, quoted) => {
+  const last = word.parts.at(-1)
+  if (last?.type === "text" && last.quoted === quoted) last.text += text
+  else word.parts.push({ type: "text", text, quoted })
+}
+
+/** One `$` expansion at `reader.index`, added to `word`. A substitution makes the word dynamic. A variable makes it dynamic unless the walk knows its value. */
 function readExpansion(reader, word, inDoubleQuote, depth) {
   const { source } = reader
   const next = source[reader.index + 1] ?? ""
   if (next === "(") {
     if (source[reader.index + 2] === "(") notModelled("an arithmetic expansion `$((`")
     reader.index += 2
-    word.nested.push(readList(reader, depth + 1, true))
+    const list = parseNested(reader, depth + 1)
+    word.parts.push({ type: "substitution", list })
+    word.nested.push(list)
     word.raw += SUBSTITUTION
     word.text += SUBSTITUTION
-    word.dynamic ||= "a command substitution"
+    word.fixed ||= "a command substitution"
     return
   }
   if (next === "[") notModelled("an arithmetic expansion `$[`")
@@ -377,34 +410,48 @@ function readExpansion(reader, word, inDoubleQuote, depth) {
     if (next !== "" && !PLAIN_AFTER_DOLLAR.test(next) && !(inDoubleQuote && next === "'")) notModelled("a `$` before a character that zsh can read as an expansion flag")
     word.raw += "$"
     word.text += "$"
+    addText(word, "$", inDoubleQuote)
     reader.index++
     return
   }
   reader.index += 1 + parameter.length
   // bash reads `$$'x'` as the process id and a plain quote, and zsh reads `$` and an ANSI-C quote.
   if (parameter === "$" && !inDoubleQuote && /['"]/.test(source[reader.index] ?? "")) notModelled("a run of `$` before a quote")
-  word.raw += `$${parameter}`
-  word.text += `$${parameter}`
+  const braced = next === "{"
+  const name = braced ? parameter.slice(1, -1).split(":")[0] : parameter
+  // zsh reads `$name[1]` as a subscript and `$name:h` as a modifier, and bash reads the characters.
+  if (!braced && NAME.test(name) && /[[:]/.test(source[reader.index] ?? "")) notModelled("a `[` or a `:` directly after `$NAME`, which zsh reads as a subscript or a modifier")
+  const written = `$${parameter}`
+  word.parts.push({ type: "variable", name, quoted: inDoubleQuote, written })
+  if (!NAME.test(name)) word.fixed ||= "a variable"
+  word.variables = true
+  word.raw += written
+  word.text += written
   word.dynamic ||= "a variable"
 }
 
 /**
  * The word at `reader.index`: `source` as written, `raw` with `SUBSTITUTION` for each command substitution, `text` with no quote and
- * no escape, and `dynamic` naming why the shell computes the value ("" for a literal word). `nested` holds the list of each substitution.
+ * no escape, and `dynamic` naming why the shell computes the value ("" for a literal word). `fixed` names a reason that no variable
+ * value removes. `parts` holds the text runs and the expansions, and `nested` the list of each substitution.
  */
 function readWord(reader, depth) {
   const { source } = reader
-  const word = { raw: "", source: "", text: "", dynamic: "", nested: [], quoted: false }
+  const word = { raw: "", source: "", text: "", dynamic: "", fixed: "", parts: [], nested: [], quoted: false, variables: false, tilde: false }
   let bare = ""
   const start = reader.index
+  const quotedLineEnd = (text) => { if (text.includes("\n") && reader.pending.length > 0) notModelled("a quote that spans lines after a here document operator") }
   while (reader.index < source.length) {
     const character = source[reader.index]
     if (WORD_END.test(character)) break
     if (character === "'") {
       const end = source.indexOf("'", reader.index + 1)
       if (end < 0) notModelled("a quote with no end")
+      const text = source.slice(reader.index + 1, end)
+      quotedLineEnd(text)
       word.raw += source.slice(reader.index, end + 1)
-      word.text += source.slice(reader.index + 1, end)
+      word.text += text
+      addText(word, text, true)
       word.quoted = true
       reader.index = end + 1
     } else if (character === '"') {
@@ -420,22 +467,28 @@ function readWord(reader, depth) {
         if (inner === "\\") {
           const escaped = source[reader.index + 1] ?? ""
           if (escaped === "\n" || escaped === "") notModelled("a line continuation")
+          const text = /["\\$`]/.test(escaped) ? escaped : inner + escaped
           word.raw += inner + escaped
-          word.text += /["\\$`]/.test(escaped) ? escaped : inner + escaped
+          word.text += text
+          addText(word, text, true)
           reader.index += 2
           continue
         }
+        quotedLineEnd(inner)
         word.raw += inner
         word.text += inner
+        addText(word, inner, true)
         reader.index++
       }
       word.raw += '"'
       reader.index++
     } else if (character === "\\") {
       const escaped = source[reader.index + 1] ?? ""
-      if (escaped === "\n" || escaped === "\r" || escaped === "") notModelled("a line continuation")
+      if (escaped === "\n" || escaped === "") notModelled("a line continuation")
+      requirePlain(escaped)
       word.raw += character + escaped
       word.text += escaped
+      addText(word, escaped, true)
       word.quoted = true
       reader.index += 2
     } else if (character === "$") {
@@ -443,55 +496,280 @@ function readWord(reader, depth) {
     } else if (character === "`") {
       notModelled("a backtick substitution")
     } else {
+      requirePlain(character)
+      // A `~` that starts the word and ends it or comes before `/` is the home directory in both shells.
+      if (character === "~" && reader.index === start) {
+        if (WORD_END.test(source[reader.index + 1] ?? " ") || source[reader.index + 1] === "/") word.tilde = true
+        else word.fixed ||= "a `~NAME` expansion"
+      }
       word.raw += character
       word.text += character
       bare += character
+      if (word.tilde && reader.index === start) word.parts.push({ type: "tilde" })
+      else addText(word, character, false)
       reader.index++
     }
   }
   word.source = source.slice(start, reader.index)
   // zsh reads `=name` as the path of the program `name`, and bash reads the characters.
-  if (source[start] === "=" && bare.length > 1) word.dynamic ||= "a word that starts with `=`"
-  if (bare !== "[" && bare !== "[[" && /[*?[]/.test(bare)) word.dynamic ||= "a glob"
-  if (BRACE_EXPANSION.test(bare)) word.dynamic ||= "a brace expansion"
+  if (source[start] === "=" && bare.length > 1) word.fixed ||= "a word that starts with `=`"
+  if (bare !== "[" && bare !== "[[" && /[*?[]/.test(bare)) word.fixed ||= "a glob"
+  if (BRACE_EXPANSION.test(bare)) word.fixed ||= "a brace expansion"
+  // bash expands a `~` after `=` or `:` in a word that looks like an assignment, and zsh does not.
+  if (/[=:]~/.test(bare)) word.fixed ||= "a `~` after `=` or `:`"
+  if (word.tilde) word.dynamic ||= "a `~` expansion"
+  word.dynamic = word.fixed || word.dynamic
   return word
 }
 
-/** The redirect at `reader.index`. `fd` is the word directly before the operator when it is a file descriptor. */
-function readRedirect(reader, command, depth, pending) {
+/** The redirect at `reader.index`: a here document, a file, or a copy of a file descriptor. */
+function readRedirect(reader, depth) {
   const { source } = reader
   const operator = /^(?:&>>|&>|<<<|<<-|<<|>>|>&|<&|>\||<>|<\(|>\(|[<>])/.exec(source.slice(reader.index, reader.index + 3))[0]
   if (operator === "<<<") notModelled("a here-string (`<<<`)")
   if (operator === "<(" || operator === ">(") notModelled("a process substitution")
-  if (operator === ">|" || operator === "<>" || operator === "<<-") notModelled(`the redirect \`${operator}\``)
+  if (operator === ">|" || operator === "<>" || operator === "<<-" || operator === "&>>") notModelled(`the redirect \`${operator}\``)
   reader.index += operator.length
   if (operator === "<<") {
-    if (depth > 0) notModelled("a here document inside a substitution or a subshell")
+    if (depth > 0) notModelled("a here document inside a substitution")
     HEREDOC_DELIMITER.lastIndex = reader.index
     const delimiter = HEREDOC_DELIMITER.exec(source)
     if (!delimiter || !/[\s;&|<>]|^$/.test(source[reader.index + delimiter[0].length] ?? "")) notModelled("a here document with a delimiter that is not one quoted literal word, such as `<<'EOF'`")
     reader.index += delimiter[0].length
-    pending.push({ delimiter: delimiter[1] ?? delimiter[2], command })
-    return
+    const heredoc = { delimiter: delimiter[1] ?? delimiter[2], body: null }
+    reader.pending.push(heredoc)
+    return { type: "redirect", heredoc }
   }
   if (operator === ">&" || operator === "<&") {
     DUPLICATE_TARGET.lastIndex = reader.index
     const target = DUPLICATE_TARGET.exec(source)
     if (!target) notModelled(`the redirect \`${operator}\` to a target that is no file descriptor`)
     reader.index += target[0].length
-    return
+    return { type: "redirect" }
   }
   while (source[reader.index] === " " || source[reader.index] === "\t") reader.index++
   const target = readWord(reader, depth)
-  if (target.raw === "" || target.dynamic) notModelled(`the redirect \`${operator}\` to a target that is not a literal path`)
-  command.redirects.push({ operator, target: target.text })
+  if (target.raw === "" || target.dynamic || target.raw.startsWith("!")) notModelled(`the redirect \`${operator}\` to a target that is not a literal path`)
+  return { type: "redirect", file: { operator, target: target.text } }
+}
+
+/** The bodies of the here documents whose operators are on the line that just ended. */
+function readBodies(reader) {
+  const { source } = reader
+  for (const heredoc of reader.pending.splice(0)) {
+    const lines = []
+    for (;;) {
+      if (reader.index >= source.length) notModelled("a here document with no end marker line")
+      const lineEnd = source.indexOf("\n", reader.index)
+      const line = source.slice(reader.index, lineEnd < 0 ? source.length : lineEnd)
+      reader.index = lineEnd < 0 ? source.length : lineEnd + 1
+      if (line === heredoc.delimiter) break
+      if (line.trim() === heredoc.delimiter) notModelled("a here document with a line that looks like its end marker")
+      lines.push(line)
+    }
+    heredoc.body = lines.join("\n")
+  }
+}
+
+/** The next token: a word, a redirect, one of the operators `;` `&&` `||` `|` `)` and a line end, or the end of the input. */
+function nextToken(reader, depth) {
+  const { source } = reader
+  for (;;) {
+    const start = reader.index
+    if (start >= source.length) return { type: "end" }
+    const character = source[start]
+    const next = source[start + 1] ?? ""
+    if (character === " " || character === "\t") { reader.index++; continue }
+    if (character === "\n") {
+      reader.index++
+      if (reader.pending.length > 0 && depth > 0) notModelled("a line end inside a substitution after a here document operator")
+      readBodies(reader)
+      return { type: "operator", operator: "\n" }
+    }
+    if (character === "#") {
+      if (depth > 0) notModelled("a comment inside a substitution")
+      const lineEnd = source.indexOf("\n", start)
+      const comment = source.slice(start, lineEnd < 0 ? source.length : lineEnd)
+      for (const commentCharacter of comment) requirePlain(commentCharacter)
+      reader.index += comment.length
+      continue
+    }
+    if (character === ";") {
+      if (next === ";" || next === "&") notModelled("the operator `;;`")
+      reader.index++
+      return { type: "operator", operator: ";" }
+    }
+    if (character === "&" && next === "&") { reader.index += 2; return { type: "operator", operator: "&&" } }
+    if (character === "&" && next !== ">") notModelled("a background `&`")
+    if (character === "|" && next === "|") { reader.index += 2; return { type: "operator", operator: "||" } }
+    if (character === "|") {
+      if (next === "&") notModelled("the operator `|&`")
+      reader.index++
+      return { type: "operator", operator: "|" }
+    }
+    if (character === "(") notModelled("a subshell, a function, an array or an arithmetic command `(`")
+    if (character === ")") { reader.index++; return { type: "operator", operator: ")" } }
+    if (character === "<" || character === ">" || character === "&") return readRedirect(reader, depth)
+    requirePlain(character)
+    const word = readWord(reader, depth)
+    if (reader.index === start) notModelled("a character that the reader cannot read")
+    const redirectFollows = /[<>]/.test(source[reader.index] ?? "")
+    if (redirectFollows && /^\{\w+\}$/.test(word.raw)) notModelled("a `{name}>` redirect")
+    // A file descriptor directly before a redirect operator belongs to the redirect.
+    if (redirectFollows && /^\d+$/.test(word.raw)) return readRedirect(reader, depth)
+    return { type: "word", word }
+  }
+}
+
+/** A parser of one list: the top level, or the list of one substitution. */
+const parserOf = (reader, depth) => {
+  if (depth > MAX_DEPTH) notModelled("substitutions nested deeper than the hook reads")
+  const parser = { reader, depth, peeked: null }
+  parser.peek = () => (parser.peeked ??= nextToken(reader, depth))
+  parser.take = () => { const token = parser.peek(); parser.peeked = null; return token }
+  return parser
+}
+const isOperator = (token, ...operators) => token.type === "operator" && operators.includes(token.operator)
+const isWord = (token, ...raws) => token.type === "word" && raws.includes(token.word.raw)
+const describe = (token) => token.type === "word" ? `the word \`${token.word.raw}\` in this place` : token.type === "end" ? "an end of the command in this place" :
+  token.type === "redirect" ? "a redirect in this place" : `the operator \`${token.operator === "\n" ? "line end" : token.operator}\` in this place`
+
+/** The list of a substitution, after its `$(`, up to and with its `)`. */
+function parseNested(reader, depth) {
+  const parser = parserOf(reader, depth)
+  const list = parseSequence(parser, new Set(), { compound: false })
+  if (!isOperator(parser.take(), ")")) notModelled("a `$(` with no `)`")
+  return list
+}
+
+/** And-or lists, separated by `;` or a line end, up to a word of `ends`, a `)` or the end of the input. */
+function parseSequence(parser, ends, placement) {
+  const sequence = []
+  for (;;) {
+    let token = parser.peek()
+    while (isOperator(token, "\n")) { parser.take(); token = parser.peek() }
+    if (token.type === "end" || isOperator(token, ")") || (token.type === "word" && ends.has(token.word.raw))) return sequence
+    sequence.push(parseAndOr(parser, placement))
+    token = parser.peek()
+    if (isOperator(token, ";", "\n")) { parser.take(); continue }
+    if (token.type === "end" || isOperator(token, ")")) return sequence
+    notModelled(describe(token))
+  }
+}
+
+/** Pipelines and compound commands joined by `&&` and `||`. Each item carries `joiner`, the operator before it or "". */
+function parseAndOr(parser, placement) {
+  const andOr = [{ joiner: "", node: parseNode(parser, placement) }]
+  while (isOperator(parser.peek(), "&&", "||")) {
+    const joiner = parser.take().operator
+    while (isOperator(parser.peek(), "\n")) parser.take()
+    andOr.push({ joiner, node: parseNode(parser, placement) })
+  }
+  return andOr
+}
+
+function parseNode(parser, placement) {
+  const token = parser.peek()
+  if (isWord(token, "for", "if")) {
+    const node = token.word.raw === "for" ? parseFor(parser) : parseIf(parser)
+    const after = parser.peek()
+    if (after.type !== "end" && !isOperator(after, ";", "\n", "&&", "||", ")")) notModelled(`${describe(after)} after \`${token.word.raw === "for" ? "done" : "fi"}\``)
+    return node
+  }
+  const commands = [parseSimple(parser)]
+  while (isOperator(parser.peek(), "|")) {
+    parser.take()
+    while (isOperator(parser.peek(), "\n")) parser.take()
+    commands.push(parseSimple(parser))
+  }
+  const topLevel = !placement.compound && parser.depth === 0
+  commands.forEach((command, position) => checkCommand(command, { topLevel, position, length: commands.length }))
+  return { type: "pipeline", commands }
+}
+
+/** The assignment that a word makes, or null: `name`, `append`, the parts of its value, and `unknown` when no walk knows the value. */
+function assignmentOf(word) {
+  const match = ASSIGNMENT_WORD.exec(word.raw)
+  if (!match) return null
+  const [first, ...rest] = word.parts
+  const parts = [...(first.text.length > match[0].length ? [{ ...first, text: first.text.slice(match[0].length) }] : []), ...rest]
+  const leading = parts[0]?.type === "text" && !parts[0].quoted ? parts[0].text : ""
+  const tilde = leading === "~" || leading.startsWith("~/")
+  if (tilde) parts.splice(0, 1, { type: "tilde" }, ...(leading.length > 1 ? [{ type: "text", text: leading.slice(1), quoted: false }] : []))
+  const unknown = parts.some((part) => part.type === "substitution" || (part.type === "variable" && !NAME.test(part.name)) ||
+    (part.type === "text" && !part.quoted && part.text.includes("~"))) || leading.startsWith("=")
+  return { name: match[1], append: match[2] === "+", parts, unknown, word }
+}
+
+function parseSimple(parser) {
+  const command = { words: [], assignments: [], redirects: [], heredocs: [] }
+  for (;;) {
+    const token = parser.peek()
+    if (token.type === "redirect") {
+      parser.take()
+      if (token.heredoc) command.heredocs.push(token.heredoc)
+      if (token.file) command.redirects.push(token.file)
+      continue
+    }
+    if (token.type !== "word") break
+    const { word } = token
+    if (REFUSED_WORDS.has(word.raw)) notModelled(`the word \`${word.raw}\`, which bash or zsh reads as a group or a condition`)
+    if (command.words.length === 0) {
+      const assignment = assignmentOf(word)
+      if (assignment) { parser.take(); command.assignments.push(assignment); continue }
+      if (REFUSED_KEYWORDS.has(word.raw)) notModelled(`the shell keyword \`${word.raw}\``)
+      if (TERMINATORS.has(word.raw) || word.raw === "for" || word.raw === "if") notModelled(`the shell keyword \`${word.raw}\` in this place`)
+    }
+    parser.take()
+    command.words.push(word)
+  }
+  if (command.words.length + command.assignments.length + command.redirects.length + command.heredocs.length === 0) notModelled(`an empty command: ${describe(parser.peek())}`)
+  return command
+}
+
+const FOR_FORM = "a `for` loop that is not `for NAME in WORDS; do LIST; done` with literal words"
+function parseFor(parser) {
+  parser.take()
+  const name = parser.take()
+  if (name.type !== "word" || name.word.raw !== name.word.text || !NAME.test(name.word.text)) notModelled(FOR_FORM)
+  if (REFUSED_ASSIGNMENT.test(name.word.text)) notModelled(`an assignment to \`${name.word.text}\``)
+  if (!isWord(parser.take(), "in")) notModelled(FOR_FORM)
+  const values = []
+  while (parser.peek().type === "word") {
+    const { word } = parser.take()
+    if (word.dynamic || REFUSED_WORDS.has(word.raw) || TERMINATORS.has(word.raw) || REFUSED_KEYWORDS.has(word.raw) || word.raw === "for" || word.raw === "if") notModelled(FOR_FORM)
+    values.push(word.text)
+  }
+  if (values.length === 0 || !isOperator(parser.take(), ";", "\n")) notModelled(FOR_FORM)
+  while (isOperator(parser.peek(), "\n")) parser.take()
+  if (!isWord(parser.take(), "do")) notModelled(FOR_FORM)
+  const body = parseSequence(parser, new Set(["done"]), { compound: true })
+  if (body.length === 0 || !isWord(parser.take(), "done")) notModelled(FOR_FORM)
+  return { type: "for", name: name.word.text, values, body }
+}
+
+const IF_FORM = "an `if` that is not `if LIST; then LIST; [else LIST;] fi`"
+function parseIf(parser) {
+  parser.take()
+  const test = parseSequence(parser, new Set(["then"]), { compound: true })
+  if (test.length === 0 || !isWord(parser.take(), "then")) notModelled(IF_FORM)
+  const then = parseSequence(parser, new Set(["else", "fi"]), { compound: true })
+  if (then.length === 0) notModelled(IF_FORM)
+  let otherwise = null
+  if (isWord(parser.peek(), "else")) {
+    parser.take()
+    otherwise = parseSequence(parser, new Set(["fi"]), { compound: true })
+    if (otherwise.length === 0) notModelled(IF_FORM)
+  }
+  if (!isWord(parser.take(), "fi")) notModelled(IF_FORM)
+  return { type: "if", test, then, otherwise }
 }
 
 /** Each program that a word list runs: its command word after the wrappers, and the command after each `find -exec`. */
 export function invocationsOf(words) {
   const invocations = []
   const isWrapper = (word) => WRAPPERS.has(programName(word.text))
-  const isRead = (word) => READ_PROGRAMS.has(programName(word.text))
+  const isRead = (word) => ["rm", "rmdir", "git", ...SHELLS, ...CODE_BUILTINS].includes(programName(word.text))
   const collect = (start) => {
     let index = start
     const wrappers = []
@@ -516,7 +794,7 @@ export function invocationsOf(words) {
 
 /**
  * Option letters that take the next word in a shell of `SHELLS`: `o` (POSIX `sh`), `O` (bash), `R` (ksh) and `T` (mksh).
- * A letter that takes no word in the shell at hand keeps a body that is data, so the rules refuse more, never less.
+ * A letter that takes no word in the shell at hand makes the rules refuse more, never less.
  */
 const LETTERS_WITH_ARGUMENT = new Set(["o", "O", "R", "T"])
 /** Long options that take the next word: `--rcfile` and `--init-file` in bash, `--emulate` in zsh. */
@@ -543,211 +821,229 @@ export function readsStandardInput(words) {
   return true
 }
 
-const isShellWord = (word) => SHELLS.includes(programName(word.text))
+const literalText = (word) => word.parts.filter((part) => part.type === "text").map((part) => part.text).join("")
+/** bash evaluates a subscript of a name as arithmetic, and runs a `$(...)` in it, in `declare`, `read`, `printf -v`, `test -v` and an integer value. */
+const holdsSubscriptCode = (word) => { const text = literalText(word); return text.includes("[") && (text.includes("$(") || text.includes("`")) }
+const refusedAssignment = (name) => REFUSED_ASSIGNMENT.test(name) && notModelled(`an assignment to \`${name}\`, which changes how the shell reads a command, where \`cd\` goes, or which repository git uses`)
 
-/** Refuses each command whose words the rules cannot read exactly, and reads each script that a shell in the command runs. */
-function finishCommand(command, scriptDepth) {
-  const { words } = command
-  while (words.length > 0 && ASSIGNMENT_WORD.test(words[0].raw)) command.assignments.push(words.shift())
-  if (words.length === 0) return
-  for (const { program, args, wrappers, before } of invocationsOf(words)) {
+/** A shell runs a script file that the hook does not read. It is in the grammar only when no script can come from a word or from standard input. */
+function checkShell(command, { args, wrappers }, place) {
+  const computed = command.words.find((word) => word.dynamic)
+  if (computed) notModelled(`${computed.dynamic} in the words of a shell command`)
+  if (wrappers.includes("xargs")) notModelled("a shell command that gets its words from `xargs`")
+  if (args.some((word) => /^-[A-Za-z]*c[A-Za-z]*$/.test(word.text))) notModelled("a shell `-c`, which runs its next word as a script")
+  const texts = args.map((word) => word.text)
+  if (readsStandardInput(texts)) notModelled("a shell that reads its script from standard input")
+  if (texts.some((text) => text === "-" || text.split("/").some((part) => part === "dev" || part === "proc"))) notModelled("a shell with a script under `/dev` or `/proc`")
+  if (command.heredocs.length > 0 || command.redirects.some(({ operator }) => operator === "<")) notModelled("a shell with a here document or a `<` file of its own")
+  if (place.position > 0) notModelled("a shell that gets its standard input from a pipe")
+}
+
+/** Refuses each simple command whose words the rules cannot read exactly. Only a variable value can still make a word dynamic: the walk checks those. */
+function checkCommand(command, place) {
+  for (const assignment of command.assignments) {
+    refusedAssignment(assignment.name)
+    if (holdsSubscriptCode(assignment.word)) notModelled("text with a `[` and a `$(` or a backtick, which bash can run as a subscript")
+  }
+  if (command.words.length === 0) {
+    if (place.length > 1) notModelled("an assignment in a pipeline, which zsh keeps and bash does not")
+    return
+  }
+  if (command.words.some(holdsSubscriptCode)) notModelled("text with a `[` and a `$(` or a backtick, which bash can run as a subscript")
+  // The options and assignments of each wrapper, also when no command follows them, such as `env -S 'git push'`.
+  let wrapper = ""
+  for (const { text } of command.words) {
+    if (WRAPPERS.has(programName(text))) { wrapper = programName(text); continue }
+    if (!wrapper) continue
+    if (WRAPPER_REFUSED_OPTIONS[wrapper]?.test(text)) notModelled(`the option \`${text}\` of \`${wrapper}\`, which gives it a shell, a script or another directory`)
+    const assigned = ASSIGNMENT_WORD.exec(text)
+    if (assigned) refusedAssignment(assigned[1])
+    else if (!text.startsWith("-") && !/^\d/.test(text)) wrapper = ""
+  }
+  for (const invocation of invocationsOf(command.words)) {
+    const { program, args, before } = invocation
     const computed = [...before, program].find((word) => word.dynamic)
     if (computed) notModelled(`${computed.dynamic} in a command word`)
     const name = programName(program.text)
     if (ZSH_COMMAND_WORDS.has(program.text)) notModelled(`the zsh command word \`${program.text}\`, which runs the words after it as a command`)
-    if (CODE_BUILTINS.has(name)) notModelled(`the builtin \`${name}\`, which reads its words again as code or changes how the shell reads a command`)
-    if ((name === "source" || name === "." || SHELLS.includes(name)) && args.some((word) => STANDARD_INPUT_FILE.test(word.text))) notModelled("a script from `/dev/stdin`")
-    if (name !== "git") continue
-    const argument = args.find((word) => word.dynamic)
-    if (argument) notModelled(`${argument.dynamic} in a \`git\` argument`)
-    if (wrappers.includes("xargs")) notModelled("a `git` command that gets its arguments from `xargs`")
-  }
-  const shell = words.findIndex(isShellWord)
-  if (shell < 0) return
-  const computed = words.find((word) => word.dynamic)
-  if (computed) notModelled(`${computed.dynamic} in the words of a shell command`)
-  if (words.some((word) => programName(word.text) === "xargs")) notModelled("a shell command that gets its words from `xargs`")
-  const flag = words.findIndex((word, index) => index > shell && /^-[A-Za-z]*c[A-Za-z]*$/.test(word.text))
-  if (flag >= 0 && !words[flag + 1]) notModelled("a shell `-c` with no script word")
-  // With `-c` the script is the next word, and standard input is data. With no `-c` and no script file, the shell reads standard input as its script.
-  const readsInput = flag < 0 && readsStandardInput(words.slice(shell + 1).map((word) => word.text))
-  // A pipe, a loop or a group can give the shell its standard input, so only a here document or a `<` file of its own is a script that the reader knows.
-  if (readsInput && command.heredocs.length === 0 && !command.redirects.some(({ operator }) => operator === "<")) notModelled("a shell that reads its script from standard input, with no here document and no `<` file of its own")
-  for (const script of flag >= 0 ? [words[flag + 1].text] : readsInput ? command.heredocs : []) command.scripts.push(readScript(script, scriptDepth + 1))
-}
-
-/**
- * The list at `reader.index`: pipelines of commands. A list in a substitution or in a subshell ends at its `)`.
- * Each command is `{ words, assignments, redirects, heredocs, scripts }`. A subshell is a command with no word, and its list is a script.
- * Each pipeline carries `joiner`, the `&&` or `||` before it or "", and `conditional`, true inside `if`, `while`, `until` and `for`.
- */
-function readList(reader, depth, closes = false, scriptDepth = 0) {
-  const { source } = reader
-  const list = []
-  const pending = []
-  let pipeline = []
-  let joiner = ""
-  let compounds = 0
-  let inCompound = false
-  let afterCompound = false
-  let command = { words: [], assignments: [], redirects: [], heredocs: [], scripts: [] }
-  const finished = []
-  const isEmpty = () => command.words.length === 0 && command.redirects.length === 0 && command.scripts.length === 0
-  const endCommand = () => {
-    if (!isEmpty()) { finished.push(command); pipeline.push(command) }
-    command = { words: [], assignments: [], redirects: [], heredocs: [], scripts: [] }
-  }
-  const endPipeline = (background = false, next = "") => {
-    endCommand()
-    if (pipeline.length > 0) list.push(Object.assign(pipeline, { background, joiner, conditional: inCompound }))
-    // A compound command that ends here can end with or without each command in it, so the pipeline after it starts a new chain.
-    joiner = afterCompound ? "" : next
-    pipeline = []
-    inCompound = compounds > 0
-    afterCompound = false
-  }
-  const readBodies = () => {
-    for (const { delimiter, command: owner } of pending.splice(0)) {
-      const lines = []
-      for (;;) {
-        if (reader.index >= source.length) notModelled("a here document with no end marker line")
-        const lineEnd = source.indexOf("\n", reader.index)
-        const line = source.slice(reader.index, lineEnd < 0 ? source.length : lineEnd)
-        reader.index = lineEnd < 0 ? source.length : lineEnd + 1
-        if (line === delimiter) break
-        if (line.trim() === delimiter) notModelled("a here document with a line that looks like its end marker")
-        lines.push(line)
+    if (CODE_BUILTINS.has(name)) notModelled(`the builtin \`${name}\`, which reads its words again as code, or changes how the shell reads a command, or changes the flow or the directory`)
+    if (name === "cd") {
+      const whole = program === command.words[0] && command.words.length === 2 && command.assignments.length === 0 && place.topLevel && place.length === 1
+      if (!whole || args[0].text.startsWith("-") || args[0].fixed) notModelled("a `cd` that is not one whole simple command `cd PATH` at the top level of the line, with a literal path")
+    }
+    if (name === "set" && args.some((word) => !/^[-+][eux]+$/.test(word.text))) notModelled("`set` with a word other than the options -e, -u and -x")
+    if (name === "printf" && args.some((word) => /^-[A-Za-z]*v/.test(word.text))) notModelled("`printf -v`, which assigns to a name that bash can read as a subscript")
+    if (name === "print" && args.some((word) => /^-[A-Za-z]*[vP]/.test(word.text))) notModelled("`print -v` or `print -P`, which assigns to a name or expands a prompt")
+    if (DECLARATION_BUILTINS.has(name)) {
+      for (const word of args) {
+        const assigned = ASSIGNMENT_WORD.exec(word.text)
+        if (assigned) refusedAssignment(assigned[1])
+        if (/^[^=]*\[/.test(word.text)) notModelled(`a subscript in the words of \`${name}\``)
       }
-      owner.heredocs.push(lines.join("\n"))
     }
+    if (name === "git" && invocation.wrappers.includes("xargs")) notModelled("a `git` command that gets its arguments from `xargs`")
+    if (SHELLS.includes(name)) checkShell(command, invocation, place)
   }
-  const close = () => {
-    if (pending.length > 0) notModelled("a here document with no end marker line")
-    endPipeline()
-    for (const read of finished) finishCommand(read, scriptDepth)
-    return list
-  }
-  while (reader.index < source.length) {
-    const character = source[reader.index]
-    const next = source[reader.index + 1] ?? ""
-    if (character === " " || character === "\t") { reader.index++; continue }
-    if (character === "\n") {
-      reader.index++
-      readBodies()
-      // A line end after `|`, `&&` or `||` continues the pipeline or the chain.
-      if (!isEmpty()) endPipeline()
-      continue
-    }
-    if (character === "#") {
-      if (depth > 0) notModelled("a comment inside a substitution or a subshell")
-      const lineEnd = source.indexOf("\n", reader.index)
-      reader.index = lineEnd < 0 ? source.length : lineEnd
-      continue
-    }
-    if (character === ";") {
-      if (next === ";" || next === "&") notModelled("the operator `;;`")
-      reader.index++
-      endPipeline()
-      continue
-    }
-    if (character === "&" && next === "&") { reader.index += 2; endPipeline(false, "&&"); continue }
-    if (character === "&" && next !== ">") { reader.index++; endPipeline(true); continue }
-    if (character === "|" && next === "|") { reader.index += 2; endPipeline(false, "||"); continue }
-    if (character === "|") {
-      if (next === "&") notModelled("the operator `|&`")
-      reader.index++
-      endCommand()
-      continue
-    }
-    if (character === "(") {
-      if (!isEmpty() || next === "(") notModelled("a function, an array or an arithmetic command `(`")
-      reader.index++
-      command.scripts.push(readList(reader, depth + 1, true, scriptDepth))
-      command.subshell = true
-      continue
-    }
-    if (character === ")") {
-      if (!closes) notModelled("a `)` with no `$(`")
-      reader.index++
-      return close()
-    }
-    if (character === "<" || character === ">" || character === "&") { readRedirect(reader, command, depth, pending); continue }
-    const word = readWord(reader, depth)
-    const redirectFollows = /[<>]/.test(source[reader.index] ?? "") && source[reader.index - 1] !== undefined && !/\s/.test(source[reader.index - 1])
-    if (redirectFollows && /^\{\w+\}$/.test(word.raw)) notModelled("a `{name}>` redirect")
-    if (redirectFollows && /^\d+$/.test(word.raw)) continue
-    if (isEmpty() && STRUCTURE_WORDS.has(word.raw)) {
-      inCompound ||= compounds > 0
-      if (COMPOUND_OPENERS.has(word.raw)) compounds++
-      if (COMPOUND_CLOSERS.has(word.raw)) { compounds = Math.max(0, compounds - 1); afterCompound = true }
-      inCompound ||= compounds > 0
-      continue
-    }
-    if (isEmpty() && KEYWORDS.has(word.raw)) notModelled(`the shell keyword \`${word.raw}\``)
-    if (isEmpty() && word.raw === "for") compounds++
-    inCompound ||= compounds > 0
-    command.words.push(word)
-  }
-  if (closes) notModelled("a `$(` with no `)`")
-  return close()
-}
-
-function readScript(source, scriptDepth) {
-  if (scriptDepth > MAX_SCRIPT_DEPTH) notModelled("a script inside a script, deeper than the hook reads")
-  return readList({ source, index: 0 }, 0, false, scriptDepth)
+  // A program such as `docker exec` or `ssh` can run a shell word and its `-c` script, so a `-c` after a shell word anywhere in the command is refused.
+  const shellWord = command.words.findIndex((word) => SHELLS.includes(programName(word.text)))
+  if (shellWord >= 0 && command.words.slice(shellWord + 1).some((word) => /^-[A-Za-z]*c[A-Za-z]*$/.test(word.text))) notModelled("a shell `-c`, which runs its next word as a script")
 }
 
 /**
  * The command as the modelled subset reads it: `{ list, notModelled }`. `notModelled` names the first construct outside the
- * subset, or is "". A rule reads `list` only when `notModelled` is "".
+ * subset, or is "". A rule reads `list` only when `notModelled` is "", and only through `walkCommands`.
  */
-export function readCommand(source) {
+export function readCommand(source, { home = process.env.HOME || homedir() } = {}) {
   try {
-    return { list: readScript(source, 0), notModelled: "" }
+    if (source.length > MAX_LENGTH) notModelled("a command longer than the hook reads")
+    const reader = { source, index: 0, pending: [] }
+    const parser = parserOf(reader, 0)
+    const sequence = parseSequence(parser, new Set(), { compound: false })
+    if (isOperator(parser.peek(), ")")) notModelled("a `)` with no `$(`")
+    if (reader.pending.length > 0) notModelled("a here document with no end marker line")
+    const list = Object.assign(sequence, { home })
+    walk(list, null, () => null, checkResolved)
+    return { list, notModelled: "" }
   } catch (error) {
     if (!(error instanceof NotModelled)) throw error
-    return { list: [], notModelled: error.message }
+    return { list: Object.assign([], { home }), notModelled: error.message }
   }
 }
 
-const distinctStates = (...groups) => [...new Map(groups.flat().map((state) => [JSON.stringify(state), state])).values()]
+/** The checks that need the value of a variable: a `git` argument and the path of a `cd`. */
+function checkResolved({ words }) {
+  for (const { program, args } of invocationsOf(words)) {
+    const name = programName(program.text)
+    const computed = args.find((word) => word.dynamic)
+    if (name === "git" && computed) notModelled(`${computed.dynamic} in a \`git\` argument`)
+    if (name === "cd" && computed) notModelled(`${computed.dynamic} in the path of a \`cd\``)
+  }
+}
+
+/** The word with each variable that the walk knows replaced by its value. */
+function resolveWord(word, variables, home) {
+  if (!word.variables && !word.tilde) return word
+  if (word.fixed) return word
+  let text = ""
+  let dynamic = ""
+  for (const part of word.parts) {
+    if (part.type === "text") text += part.text
+    else if (part.type === "tilde") text += home
+    else if (!Object.hasOwn(variables, part.name)) { dynamic ||= "a variable"; text += part.written }
+    else {
+      const value = variables[part.name]
+      if (!part.quoted && !PLAIN_VALUE.test(value)) dynamic ||= "a variable whose value bash and zsh split or expand in different ways"
+      text += value
+    }
+  }
+  return { ...word, text, dynamic }
+}
+
+/** The value of an assignment, or null when the walk does not know it. */
+function assignedValue({ name, append, parts, unknown }, variables, home) {
+  if (unknown || (append && !Object.hasOwn(variables, name))) return null
+  let value = append ? variables[name] : ""
+  for (const part of parts) {
+    if (part.type === "text") value += part.text
+    else if (part.type === "tilde") value += home
+    else if (Object.hasOwn(variables, part.name)) value += variables[part.name]
+    else return null
+  }
+  return value
+}
+
+const withVariable = (variables, name, value) => {
+  const next = { ...variables }
+  delete next[name]
+  if (value !== null && TRACKED_NAME.test(name) && !SPECIAL_LOWER_CASE.has(name)) next[name] = value
+  return next
+}
+const isPure = (command) => command.words.length > 0 && invocationsOf(command.words).every(({ program }) => PURE_PROGRAMS.has(programName(program.text)))
+
+function distinct(...groups) {
+  const states = [...new Map(groups.flat().map((state) => [JSON.stringify(state), state])).values()]
+  if (states.length > MAX_STATES) notModelled("more possible states than the hook reads")
+  return states
+}
+
+function walk(list, state, visit, check = null) {
+  const context = { visit, check, home: list.home, visits: 0 }
+  walkSequence(list, [{ variables: {}, state }], context)
+}
+
+function walkSequence(sequence, states, context) {
+  for (const andOr of sequence) states = walkAndOr(andOr, states, context)
+  return states
+}
+
+/**
+ * The states of an and-or list. `succeeded` holds the states in which the last item that ran can have succeeded, and `failed` those in
+ * which it can have failed. An item that fails can fail before it changes anything, such as a `cd` to a missing directory, so its
+ * failed states also hold the states before it. An item after `&&` runs from `succeeded`, and an item after `||` from `failed`.
+ */
+function walkAndOr(andOr, states, context) {
+  let succeeded = walkNode(andOr[0].node, states, context)
+  // A list of one item is read as an item that succeeds: a `cd` that fails is a limit that ./README.md names.
+  if (andOr.length === 1) return succeeded
+  let failed = distinct(succeeded, states)
+  for (const { joiner, node } of andOr.slice(1)) {
+    const before = joiner === "&&" ? succeeded : failed
+    const after = walkNode(node, before, context)
+    if (joiner === "&&") { failed = distinct(failed, before, after); succeeded = after }
+    else { succeeded = distinct(succeeded, after); failed = distinct(before, after) }
+  }
+  return distinct(succeeded, failed)
+}
+
+function walkNode(node, states, context) {
+  if (node.type === "for") {
+    for (const value of node.values) {
+      const entered = distinct(states.map((current) => ({ ...current, variables: withVariable(current.variables, node.name, value) })))
+      states = walkSequence(node.body, entered, context)
+    }
+    return states
+  }
+  if (node.type === "if") {
+    const tested = walkSequence(node.test, states, context)
+    return distinct(walkSequence(node.then, tested, context), node.otherwise ? walkSequence(node.otherwise, tested, context) : tested)
+  }
+  if (node.commands.length === 1) return distinct(states.map((current) => walkSimple(node.commands[0], current, context)))
+  // A command of a longer pipeline changes no directory: the grammar refuses a `cd` and an assignment there. zsh runs the last one in the shell itself.
+  for (const command of node.commands) for (const current of states) walkSimple(command, current, context)
+  return node.commands.every(isPure) ? states : distinct(states.map((current) => ({ ...current, variables: {} })))
+}
+
+function walkSimple(command, current, context) {
+  if (++context.visits > MAX_VISITS) notModelled("more commands than the hook reads, after the loops are unrolled")
+  const { variables, state } = current
+  for (const word of [...command.assignments.map((assignment) => assignment.word), ...command.words]) for (const nested of word.nested) walkSequence(nested, [current], context)
+  const resolved = { words: command.words.map((word) => resolveWord(word, variables, context.home)), assignments: command.assignments.map((assignment) => assignment.word), redirects: command.redirects, heredocs: command.heredocs }
+  context.check?.(resolved)
+  const next = context.visit(resolved, state)
+  if (command.words.length > 0) return { variables: isPure(command) ? variables : {}, state: next }
+  return { variables: command.assignments.reduce((known, assignment) => withVariable(known, assignment.name, assignedValue(assignment, known, context.home)), variables), state: next }
+}
 
 /**
  * Calls `visit(command, state)` for each command in the order in which the shell runs them, once for each state that is possible
- * there. `visit` returns the next state. A substitution, a script, a subshell, a background command and a command of a pipeline
- * inherit the state and do not change it. The shell can skip a command after `&&` or `||` and a command in a compound command,
- * so the states before such a command stay possible after its chain.
+ * there, with each variable that the walk knows replaced by its value. `visit` returns the next state. A substitution and a command
+ * of a longer pipeline inherit the state and do not change it. The shell can skip a command after `&&` or `||` and a branch of `if`,
+ * so each state before such a command stays possible after it. Returns "" or the construct that is outside what the walk reads.
  */
 export function walkCommands(list, state, visit) {
-  walkStates(list, [state], visit)
-}
-
-function walkStates(list, possible, visit) {
-  let states = possible
-  let beforeChain = states
-  // The states that are possible when the chain ends early: after its first pipeline, or before it when the shell can skip the chain.
-  let chainFloor = states
-  for (const pipeline of list) {
-    if (pipeline.joiner === "") {
-      states = distinctStates(chainFloor, states)
-      beforeChain = states
-    } else if (pipeline.joiner === "||") states = distinctStates(beforeChain, states)
-    let updated = states
-    for (const command of pipeline) {
-      for (const word of command.words) for (const nested of word.nested) walkStates(nested, states, visit)
-      const visited = states.map((current) => visit(command, current))
-      for (const script of command.scripts) walkStates(script, states, visit)
-      if (pipeline.length === 1 && !pipeline.background && !command.subshell) updated = distinctStates(visited)
-    }
-    states = updated
-    if (pipeline.joiner === "") chainFloor = pipeline.conditional ? beforeChain : states
+  try {
+    walk(list, state, visit)
+    return ""
+  } catch (error) {
+    if (!(error instanceof NotModelled)) throw error
+    return error.message
   }
 }
 
 /** What a refusal tells the agent to write in place of a command that is not modelled. */
 export const PLAIN_SUBSET_ADVICE =
   "Rewrite the command in the plain subset that the hook reads: plain words, '...' and \"...\" quotes, the operators `;` `&&` `||` `|` and a line end, " +
-  "the redirects `>` `>>` `<` `2>&1` to a literal path, a here document at the top level with a quoted delimiter (`<<'EOF'`), and `VAR=value`. " +
-  "The hook also reads `if`, `while`, `until` and `for NAME in WORDS` with `then`, `do`, `done` and `fi`, a `( ... )` subshell, a `{ ...; }` group and a background `&`. " +
-  "A `$VAR`, a `${VAR:?}`, a glob or a `$(command)` is allowed in an argument and in the value of an assignment, but not in a command word, in a `git` argument or in a shell command. " +
+  "the redirects `>` `>>` `<` `2>&1` to a literal path, a here document at the top level with a quoted delimiter (`<<'EOF'`), `VAR=value`, " +
+  "`for NAME in WORDS; do ...; done` with literal words, `if ...; then ...; else ...; fi`, and `cd PATH` as a whole command at the top level. " +
+  "A `$VAR`, a `${VAR:?}`, a glob or a `$(command)` is allowed in an argument, but not in a command word, in a shell command, or in a `git` argument unless the line sets the variable to a literal value. " +
   "For more than that, write the commands to a script file and run the file by its literal path, such as `bash /abs/path.sh`."

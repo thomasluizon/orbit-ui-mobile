@@ -111,39 +111,6 @@ const blocked = (command, why) => ({
     `The user has prevented this. See the "Git workflow" section of CLAUDE.md.\n`,
 })
 
-/** The subcommand of a git command, the options before it, and everything after it. `tokens` are the words after the git word, as argv carries them. */
-const gitCommandParts = (tokens) => {
-  for (let index = 0; index < tokens.length; index++) {
-    const token = tokens[index]
-    if (token === "-C" || token === "-c" || token === "--git-dir" || token === "--work-tree") {
-      index++
-      continue
-    }
-    if (token.startsWith("-")) continue
-    return { subcommand: token, globals: tokens.slice(0, index), rest: tokens.slice(index + 1) }
-  }
-  return { subcommand: null, globals: tokens, rest: [] }
-}
-
-const pushesProtectedRef = (rest) => rest.some((token) => {
-  if (token.startsWith("-")) return false
-  const parts = token.replace(/^\+/, "").split(":")
-  const destination = parts.length > 1 ? parts[parts.length - 1] : parts[0]
-  return /^(?:main|master)$/.test(destination.replace(/^refs\/heads\//, ""))
-})
-
-/** Options of `git push` that take the next word as their value, from the output of `git push -h`. */
-const PUSH_VALUE_OPTIONS = new Set(["-o", "--push-option", "--repo", "--receive-pack", "--exec", "--recurse-submodules"])
-/** The refs of a push: the words after the repository. The value of an option is no repository and no ref. */
-function pushRefs(rest) {
-  const positional = []
-  for (let index = 0; index < rest.length; index++) {
-    if (PUSH_VALUE_OPTIONS.has(rest[index])) index++
-    else if (!rest[index].startsWith("-")) positional.push(rest[index])
-  }
-  return positional.slice(1)
-}
-
 /** True for the long option, and for each short form that git reads as the option: git takes a prefix that names one option only. */
 const isLongOption = (token, option, shortest) => token.length >= shortest.length && option.startsWith(token.split("=")[0]) && token.startsWith(shortest)
 
@@ -180,78 +147,128 @@ const HYGIENE_RULES = [
   },
 ]
 
+/** Options before the git subcommand that change no config, no repository and no hook. `-C <path>` is read as the directory. */
+const SAFE_GLOBAL_OPTIONS = new Set(["--no-pager", "-P", "-p", "--paginate", "--no-optional-locks", "--literal-pathspecs", "--glob-pathspecs", "--noglob-pathspecs",
+  "--icase-pathspecs", "--no-replace-objects", "--version", "--help", "-h"])
+
+/** The subcommand of a git command, the options before it, and everything after it. `tokens` are the words after the git word, as argv carries them. */
+const gitCommandParts = (tokens) => {
+  for (let index = 0; index < tokens.length; index++) {
+    const token = tokens[index]
+    if (token === "-C") {
+      index++
+      continue
+    }
+    if (token.startsWith("-")) {
+      if (!SAFE_GLOBAL_OPTIONS.has(token)) return { subcommand: null, globals: tokens.slice(0, index + 1), rest: [], refusedOption: token }
+      continue
+    }
+    return { subcommand: token, globals: tokens.slice(0, index), rest: tokens.slice(index + 1), refusedOption: "" }
+  }
+  return { subcommand: null, globals: tokens, rest: [], refusedOption: "" }
+}
+
+/** Options of `git push` that take the next word as their value, from the output of `git push -h`. */
+const PUSH_VALUE_OPTIONS = new Set(["-o", "--push-option", "--repo", "--receive-pack", "--exec", "--recurse-submodules"])
+/** The repository word of a push: its first word that is no option and no option value, or null. */
+function pushRepository(rest) {
+  for (let index = 0; index < rest.length; index++) {
+    if (PUSH_VALUE_OPTIONS.has(rest[index])) index++
+    else if (!rest[index].startsWith("-")) return rest[index]
+  }
+  return null
+}
+
+/** True for a URL or a path in place of a remote name. */
+const isRemoteLocation = (remote) => /[:/\\]/.test(remote) || remote.startsWith(".")
+
+/** A plain branch name that is not `main` or `master` in any spelling that git resolves to it, and not `HEAD`. */
+const isPlainBranch = (name) => /^[A-Za-z0-9][A-Za-z0-9._/-]*$/.test(name) && !/\.\.|\/\/|\/$|\.lock$|\.$/.test(name) && !/HEAD$/i.test(name) &&
+  !/^(?:refs\/)?(?:heads\/)?(?:main|master)$/i.test(name)
+
+/** The push forms that a protected repository allows: `git push [-u] origin <branch>` and `git push origin HEAD:<branch>`. */
+function isAllowedPush(rest) {
+  if (rest.length === 2 && rest[0] === "origin") return isPlainBranch(rest[1].startsWith("HEAD:") ? rest[1].slice(5) : rest[1])
+  return rest.length === 3 && rest[0] === "-u" && rest[1] === "origin" && isPlainBranch(rest[2])
+}
+
+/** True when the push goes to a protected repository: the directory, or a remote, URL or path that names one. Fails safe. */
+function pushesToProtected(directory, rest, resolveRemoteUrl) {
+  if (targetsProtectedRepo(directory, resolveRemoteUrl)) return true
+  const remote = pushRepository(rest)
+  if (remote === null || remote === "origin") return false
+  if (isRemoteLocation(remote)) {
+    const name = repoNameFrom(remote)
+    return name ? PROTECTED_REPOS.includes(name) : true
+  }
+  return targetsProtectedRepo(directory, typeof resolveRemoteUrl === "function" ? (dir) => resolveRemoteUrl(dir, remote) : null)
+}
+
+const PUSH_FORMS = "A protected repository allows only `git push origin <branch>`, `git push -u origin <branch>` and `git push origin HEAD:<branch>`, " +
+  "where <branch> is a plain branch name that is not main or master."
+
 /** The refusal for the git commands in `gitCommands`, each one `{ tokens, directory }`, or null. `command` is the text that the message shows. */
-function judgeGitCommands(command, gitCommands, { resolveHeadBranch, resolveRemoteUrl }) {
+function judgeGitCommands(command, gitCommands, { resolveRemoteUrl }) {
   // Each git command is judged on its own words, so no flag of one command counts for another. The full string,
   // heredoc bodies included, is still what gets shown back in the block message.
   const read = gitCommands.map(({ tokens, directory }) => ({ tokens, directory, ...gitCommandParts(tokens) }))
   const hit = HYGIENE_RULES.find((rule) => read.some((parts) => rule.test(parts)))
   if (hit) return blocked(command, hit.why)
-
-  // Everything below is branch protection, so it applies only to the repos that actually have it.
-  // Each push in a chained command is judged on its own target. An early push to
-  // an unprotected sibling repo must never vouch for a later push to a protected
-  // main, and a protected push must not be blamed for a `main` ref belonging to a
-  // different command.
-  for (const { subcommand, globals, rest, directory } of read) {
+  for (const { subcommand, globals } of read) {
     if (["commit", "push"].includes(subcommand) && globals.some((token) => HOOKS_PATH_CONFIG.test(token))) {
       return blocked(command, "Overriding core.hooksPath bypasses the repository hooks.")
     }
-    if (subcommand !== "push") continue
-    const targetDir = pushTargetDir(globals, directory)
-    if (!targetsProtectedRepo(targetDir, resolveRemoteUrl)) continue
-
-    if (pushesProtectedRef(rest) || rest.some((token) => ["--all", "--mirror", "--branches"].includes(token))) {
-      return blocked(command, "Direct or force push to main is forbidden (branch protection, squash-merge only). Open a PR.")
-    }
-
-    // A bare push (no explicit main/master ref) issued while HEAD is on the
-    // protected branch still lands on main. Resolve HEAD via the injected resolver.
-    if (typeof resolveHeadBranch !== "function") continue
-    if (pushRefs(rest).some((ref) => !/^\+?(?:HEAD|@)$/.test(ref))) continue
-    let branch = null
-    try {
-      branch = resolveHeadBranch(targetDir)
-    } catch {
-      branch = null
-    }
-    if (branch && /^(?:main|master)$/.test(branch)) {
-      return {
-        block: true,
-        message:
-          `BLOCKED git command (Orbit git workflow):\n  ${command}\n\n` +
-          `HEAD is on '${branch}'. Pushing from the protected branch is forbidden — switch to a feature branch and open a PR.\n`,
-      }
-    }
+  }
+  const refused = read.find(({ refusedOption }) => refusedOption)
+  if (refused) {
+    return blocked(command, `The git option \`${refused.refusedOption}\` before the subcommand can change the config, the repository or the hooks that git uses. ` +
+      `Before the subcommand, the hook allows only \`-C <path>\` and ${[...SAFE_GLOBAL_OPTIONS].map((option) => `\`${option}\``).join(", ")}.`)
+  }
+  const pushes = read.filter(({ subcommand }) => subcommand === "push")
+  if (pushes.length === 0) return null
+  // A config change earlier in the same line can point a remote, an alias or a push default at a protected repository after the hook reads it.
+  if (read.some(({ subcommand, rest }) => subcommand === "config" || (subcommand === "remote" && !["-v", "show", "get-url"].includes(rest[0] ?? "-v")))) {
+    return blocked(command, "A `git config` or `git remote` change in the same command as a push can send the push to a protected repository. Run them as two commands.")
+  }
+  // Everything below is branch protection, so it applies only to the repos that actually have it. Each push is judged on its own target.
+  for (const { globals, rest, directory } of pushes) {
+    if (!pushesToProtected(pushTargetDir(globals, directory), rest, resolveRemoteUrl)) continue
+    if (!isAllowedPush(rest)) return blocked(command, `This push form is refused in a protected repository (branch protection, squash-merge only). ${PUSH_FORMS} Open a PR.`)
   }
   return null
 }
 
+/** True when the dequoted text names git: an attended session refuses a command outside the subset only then. */
+const namesGit = (command) => /git/i.test(command.replace(/['"\\]/g, ""))
+
+const notModelledRefusal = (command, notModelled) => ({
+  block: true,
+  notModelled,
+  message:
+    `BLOCKED command (the Orbit hooks cannot read it):\n  ${command.slice(0, 400)}\n\n` +
+    `The command holds ${notModelled}. The git workflow hook reads one plain shell subset exactly, and it refuses each command outside it, ` +
+    `because it cannot prove that such a command runs no forbidden git command.\n${PLAIN_SUBSET_ADVICE}\n`,
+})
+
 /**
  * The refusal for a command that holds a git command which the workflow forbids, or null. The rule reads only the parsed
- * words of the modelled subset (`readCommand`). It refuses a command outside the subset, because it cannot prove what that command runs.
+ * words of the modelled subset (`readCommand`). In an unattended run it refuses each command outside the subset, because it
+ * cannot prove what that command runs. In an attended session it refuses such a command only when its dequoted text names git.
  */
-export function checkGitCommand(command, { resolveHeadBranch, resolveRemoteUrl, cwd } = {}) {
+export function checkGitCommand(command, { resolveRemoteUrl, cwd, home, unattended = true } = {}) {
   if (typeof command !== "string") return null
-  const { list, notModelled } = readCommand(command)
-  if (notModelled) {
-    return {
-      block: true,
-      notModelled,
-      message:
-        `BLOCKED command (the Orbit hooks cannot read it):\n  ${command.slice(0, 400)}\n\n` +
-        `The command holds ${notModelled}. The git workflow hook reads one plain shell subset exactly, and it refuses each command outside it, ` +
-        `because it cannot prove that such a command runs no forbidden git command.\n${PLAIN_SUBSET_ADVICE}\n`,
-    }
-  }
+  const { list, notModelled } = readCommand(command, home ? { home } : undefined)
+  const refuseUnread = (construct) => (unattended || namesGit(command) ? notModelledRefusal(command, construct) : null)
+  if (notModelled) return refuseUnread(notModelled)
   const gitCommands = []
-  walkCommands(list, cwd || process.cwd(), ({ words }, directory) => {
+  const unread = walkCommands(list, cwd || process.cwd(), ({ words }, directory) => {
     for (const { program, args } of invocationsOf(words)) {
       if (programName(program.text) === "git") gitCommands.push({ tokens: args.map((word) => word.text), directory })
     }
     return words[0]?.text === "cd" && words[1] ? resolve(directory, words[1].text) : directory
   })
-  return judgeGitCommands(command, gitCommands, { resolveHeadBranch, resolveRemoteUrl })
+  if (unread) return refuseUnread(unread)
+  return judgeGitCommands(command, gitCommands, { resolveRemoteUrl })
 }
 
 export function checkGitWorktreeRemove(command) {

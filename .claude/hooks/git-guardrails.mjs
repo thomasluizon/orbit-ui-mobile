@@ -4,28 +4,30 @@
 // D22). Exits 0 (allow) or 2 + stderr (block). Errors block the command and name this hook.
 
 import { execFileSync } from "node:child_process"
+import { readRunState } from "../../tools/lib/run-state.mjs"
 import { readStdinJson } from "./_lib/io.mjs"
+import { isUnattendedRun } from "./_lib/rules-approval.mjs"
 import { checkGitCommand, checkGitWorktreeRemove } from "./_lib/rules-git.mjs"
+
+/** An unreadable run record cannot prove that a person is present, so the stricter reading applies. */
+const runState = () => {
+  try { return readRunState() } catch { return { sleep: true } }
+}
 
 try {
   const input = readStdinJson()
   const command = input?.tool_input?.command
   if (typeof command !== "string") process.exit(0)
 
-  const resolveHeadBranch = (dir) =>
-    execFileSync("git", ["-C", dir, "rev-parse", "--abbrev-ref", "HEAD"], {
+  const resolveRemoteUrl = (dir, remote = "origin") =>
+    execFileSync("git", ["-C", dir, "remote", "get-url", "--push", remote], {
       encoding: "utf8",
       stdio: ["ignore", "pipe", "ignore"],
     }).trim()
 
-  const resolveRemoteUrl = (dir) =>
-    execFileSync("git", ["-C", dir, "remote", "get-url", "origin"], {
-      encoding: "utf8",
-      stdio: ["ignore", "pipe", "ignore"],
-    }).trim()
-
+  const unattended = isUnattendedRun({ env: process.env, state: runState(), sessionId: input?.session_id ?? "" })
   const verdict =
-    checkGitCommand(command, { resolveHeadBranch, resolveRemoteUrl, cwd: input?.cwd || process.cwd() }) ?? checkGitWorktreeRemove(command)
+    checkGitCommand(command, { resolveRemoteUrl, cwd: input?.cwd || process.cwd(), unattended }) ?? checkGitWorktreeRemove(command)
   if (verdict?.block) {
     process.stderr.write(verdict.message)
     process.exit(2)

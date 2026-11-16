@@ -67,7 +67,7 @@ changes; do not extend it from memory.
 | `isolatePeerMachines` | the SendMessage tool | none: not a shell command |
 | `connectorFileSend` | a connector tool | none: not a shell command |
 
-The 11 rules in `REMOVAL_RULES`, in source order, and the `removalRule` values
+The 10 rules in `REMOVAL_RULES`, in source order, and the `removalRule` values
 that each one covers (the `covers` text of its refusal):
 
 | rule | covers |
@@ -81,45 +81,63 @@ that each one covers (the `covers` text of its refusal):
 | `critical-path` | `root`, `home`, `tmp`, `other_critical_path` |
 | `working-directory` | `working_directory` |
 | `mounted-drive` | `mounted_drive_path` |
-| `unreadable-script` | `inline_shell_unchecked`, `eval_trap_string`, `unparsed_line` |
-| `not-modelled` | `inline_shell_unchecked`, `unparsed_line` |
+| `not-modelled` | `inline_shell_unchecked`, `eval_trap_string`, `unparsed_line` |
 
-`not-modelled` is the fail-safe rule. The reader is an allow list: `readCommand` in `command-expander.mjs` reads one shell
-subset exactly, the same way in bash and in zsh, and names each other construct as not modelled. The approval rule and
-`checkGitCommand` in `rules-git.mjs` read only the parsed words of that subset, never the text of the command. Each one
-refuses a command outside the subset. The refusal names the construct, and it asks for the plain subset or for a script
-file that the agent runs by its literal path.
+`not-modelled` is the fail-safe rule. The reader is an allow list: `readCommand` in `command-expander.mjs` reads one small
+grammar, and names each other construct as not modelled. The approval rule and `checkGitCommand` in `rules-git.mjs` read only
+the parsed words of that grammar, through `walkCommands`, never the text of the command. The refusal names the construct, and
+it asks for the plain subset or for a script file that the agent runs by its literal path.
 
-The subset:
+The grammar:
 
-- plain words, `'...'` quotes, `"..."` quotes and a backslash before one character
-- the operators `;`, `&&`, `||`, `|`, a background `&` and a line end, and a `#` comment at the top level
+- outside a quote, only printable ASCII, a space, a tab and a line end; a quote can hold any character
+- plain words, `'...'` quotes, `"..."` quotes and a backslash before one printable character
+- simple commands joined by `;`, `&&`, `||`, `|` and a line end, and a `#` comment at the top level
+- `for NAME in WORDS; do LIST; done`, where each word is literal, and `if LIST; then LIST; [else LIST;] fi`
 - the redirects `>`, `>>`, `<` and `&>` to a literal path, with or without a file descriptor, and `>&N`, such as `2>&1`
-- a here document at the top level with a quoted literal delimiter, such as `<<'EOF'`, and an exact end marker line
-- `VAR=value` before a command or alone
-- `$NAME`, `${NAME}`, `${NAME:?message}` and `$(command)`, where the reader reads the command of the substitution with
-  the same subset
-- `if`, `while`, `until` and `for NAME in WORDS` with `then`, `elif`, `else`, `do`, `done` and `fi`, a `!`, a `( ... )`
-  subshell and a `{ ...; }` group: the reader gives each command between these words to the rules. The shell can skip
-  a command after `&&` or `||` and a command in `if` or in a loop, so a rule that follows a `cd` reads the later commands
-  in each directory that is possible (`walkCommands`)
-- a shell with a literal `-c` script, and a shell with a here document of its own as its script: the reader reads the
-  script with the same subset
+- a here document outside a substitution, with a quoted literal delimiter, such as `<<'EOF'`, and an exact end marker line
+- `VAR=value` before a command or alone, but not in a pipeline
+- `$NAME`, `${NAME}`, `${NAME:?message}`, a leading `~` and `$(command)`, where the reader reads the command of the
+  substitution with the same grammar
+- `cd PATH` as one whole simple command at the top level of the line, not in `for`, `if`, a pipeline or a substitution
 
-A variable, a glob, a brace expansion, a substitution or a word that starts with `=` makes a word dynamic: the reader does
-not know its value. A dynamic word is not modelled in a command word (also after a wrapper such as `sudo` or `env`), in an
-argument of `git`, and in a command that names a shell. Each other construct is not modelled, for example: `$((`, `(( ))`,
-`$[ ]`, `${ }` with an operator, an ANSI-C quote, a `$"..."` quote, a backtick, a line continuation, a here-string, a here
-document with a delimiter that is not quoted, a here document in a substitution, a process substitution, `case`, a
-function, `eval`, `alias`, `trap`, the zsh command words `nocorrect`, `repeat`, `-`, `always` and `foreach`, a shell that
-reads its script from standard input with no here document of its own, and a redirect to a path that is not literal.
+The walk unrolls a `for` loop over its literal words. It knows the value of a variable that the line sets to a literal value,
+such as `d=/work/$w` in a loop over `w`, until a program outside a short list of programs that cannot set a variable runs. A
+`git` argument and the path of a `cd` can use such a variable. The shell can skip an item after `&&` or `||` and a branch of
+`if`, so a rule that follows a `cd` reads the later commands in each directory that is possible.
 
-The reader models shell syntax, not what a program does with its arguments. A program outside the wrapper list that runs
-its arguments as a command, such as `watch` or `ssh`, an alias or a function of the user profile, and a script file that
-the agent runs by its path are not read.
+A glob, a brace expansion, a substitution, a word that starts with `=`, and a variable whose value the walk does not know make
+a word dynamic. A dynamic word is not modelled in a command word (also after a wrapper such as `sudo` or `env`), in a command
+that names a shell, and in a `git` argument or a `cd` path. Each other construct is not modelled, for example:
 
-Widen the subset only with a construct that the reader models exactly, and add its rows to the `subset:` group of
-`test-hooks.mjs`. Do not add a second reading of a construct that the reader does not model.
+- a byte outside printable ASCII outside a quote, such as a carriage return, a form feed or U+00A0
+- `{ ... }`, `( ... )`, `[[ ]]`, `(( ))`, `$(( ))`, `$[ ]`, `while`, `until`, `case`, `select`, `elif`, `!`, a function and a
+  background `&`, and the zsh short forms of `if`, `for` and `while`
+- `${ }` with an operator, `$NAME[` and `$NAME:` (a zsh subscript and modifier), an ANSI-C quote, a `$"..."` quote, a
+  backtick, a line continuation, a here-string, `<<-`, `&>>`, and a redirect to a path that is not literal
+- `eval`, `source`, `.`, `let`, `alias`, `trap`, `setopt`, `set -o`, `printf -v`, `print -v`, `print -P`, `hash`, `sched`,
+  `break`, `continue`, `pushd`, `popd`, `env -S`, `env -C`, `sudo -s`, and the zsh command words `nocorrect`, `repeat`, `-`,
+  `always` and `foreach`
+- a shell with `-c`, a shell that reads its script from standard input, from a pipe, from a here document or a `<` file of its
+  own, or from a path under `/dev` or `/proc`, and a `-c` after a shell word anywhere in a command
+- an assignment to `PS1` to `PS4`, `PROMPT`, `RPROMPT`, `PROMPT_COMMAND`, `IFS`, `BASH_ENV`, `ENV`, `CDPATH`, `SHELLOPTS`,
+  `BASHOPTS`, `ZDOTDIR` or a `GIT_*` name, and text with a `[` and a `$(` or a backtick, which bash can run as a subscript
+
+The reader models shell syntax, not what a program does with its arguments. A program outside the wrapper list that runs its
+arguments or its input as a command, such as `watch`, `ssh`, `node` or `python`, an alias, a function or an option of the user
+profile, a config file that the agent writes, and a script file that the agent runs by its path are not read. A `cd` that fails
+is read as a `cd` that succeeds, and a `CDPATH` in the environment is not read.
+
+`checkGitCommand` refuses a command outside the grammar in an unattended run, the same runs in which the approval rule applies.
+In an attended session it refuses such a command only when the text, with its quotes and backslashes removed, names `git`.
+In a protected repository, the push rule allows only `git push origin <branch>`, `git push -u origin <branch>` and
+`git push origin HEAD:<branch>`, where `<branch>` is a plain branch name that is not `main` or `master`. Before the subcommand,
+git takes only `-C <path>` and options that change no config, no repository and no hook, so `-c`, `--config-env`,
+`--git-dir` and `--work-tree` are refused. A push in the same command as a `git config` or `git remote` change is refused, and a
+remote that is a URL or a path is judged by the repository name in it.
+
+Widen the grammar only with a construct that the reader models exactly in bash and in zsh, and add its rows to the `subset:`
+group of `test-hooks.mjs`. Do not add a second reading of a construct that the reader does not model.
 
 Each removal rule refuses a superset of the `removalRule` values it names, because the analyzer
 behind them is not a stable interface. Three values depend on the state of that analyzer and have no
