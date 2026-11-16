@@ -2,7 +2,7 @@ import { spawn, spawnSync } from "node:child_process"
 import { existsSync, mkdirSync, readFileSync, symlinkSync, utimesSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 
-import { T, orcaEnv, realOrchestratorConfig, root, run, stageWithConfig } from "./_harness.mjs"
+import { T, orcaEnv, realOrchestratorConfig, root, run, same, stageWithConfig } from "./_harness.mjs"
 
 const TOOL = "stale-files.mjs"
 const THIS = "00000000-0000-4000-8000-000000000000"
@@ -25,7 +25,6 @@ const primary = join(base, "repository")
 const worktreeRoot = join(base, "worktrees")
 const outside = join(base, "outside")
 const git = (cwd, args) => spawnSync("git", ["-C", cwd, ...args], { encoding: "utf8" })
-const same = (name, got, want) => T(name, JSON.stringify(got) === JSON.stringify(want), `got ${JSON.stringify(got)}, want ${JSON.stringify(want)}`)
 
 /** A linked worktree on `branch` with one commit unless `commit` is false, pushed unless `push` is false. Returns its path and tip. */
 const stageWorktree = (name, { push = true, detach = false, commit = true, path = join(worktreeRoot, name) } = {}) => {

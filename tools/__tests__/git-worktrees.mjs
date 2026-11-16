@@ -3,9 +3,7 @@ import { mkdirSync, realpathSync, renameSync, symlinkSync, writeFileSync } from 
 import { join } from "node:path"
 
 import { findRepositories, parseWorktreeList } from "../lib/git-worktrees.mjs"
-import { T, root } from "./_harness.mjs"
-
-const same = (name, got, want) => T(name, JSON.stringify(got) === JSON.stringify(want), `got ${JSON.stringify(got)}, want ${JSON.stringify(want)}`)
+import { T, root, same } from "./_harness.mjs"
 
 /** A repository with one linked worktree of each kind that `git worktree list --porcelain` prints. */
 const stageRepository = () => {

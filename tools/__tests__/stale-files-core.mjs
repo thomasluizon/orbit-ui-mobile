@@ -8,7 +8,7 @@ import {
   LISTING_MAX_AGE_MS, collectListing, describeBytes, listingIdOf, offerOf, refreshIsDue, removeListed, summarize, systemProbes,
 } from "../lib/stale-files.mjs"
 import * as staleFiles from "../lib/stale-files.mjs"
-import { T, root } from "./_harness.mjs"
+import { T, root, same } from "./_harness.mjs"
 import { claudeProcessFields, reusedPidRecord } from "./owner-questions-core.mjs"
 
 const THIS = "00000000-0000-4000-8000-000000000000"
@@ -44,7 +44,6 @@ const stageMachine = (label) => {
     context: { sessionId: THIS, sessionRoot, carryRoot, repositories: {}, configDirectories: [], repoRoot: checkout } }
 }
 
-const same = (name, got, want) => T(name, JSON.stringify(got) === JSON.stringify(want), `got ${JSON.stringify(got)}, want ${JSON.stringify(want)}`)
 /** Live session records with no working directory. A listing session always runs, so it has one too. */
 const liveRecords = (...sessionIds) => () => sessionIds.map((sessionId) => ({ sessionId, cwd: null }))
 const quietProbes = { ...systemProbes, processes: () => [], liveSessions: liveRecords(THIS, OTHER), git: () => "", pullRequests: () => [], measure: () => 1024 }
