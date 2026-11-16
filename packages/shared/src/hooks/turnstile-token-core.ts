@@ -1,3 +1,9 @@
+// WHY: the first challenge of a fresh WebView fails once, so the next run waits this long, not the 8000 ms retry-interval default https://developers.cloudflare.com/turnstile/get-started/client-side-rendering/widget-configurations/
+export const TURNSTILE_RETRY_INTERVAL_MS = 2000
+/** A load of the human check that fails or answers a temporary status loads again every retry interval, and the person sees the failure only when this much time passes without the check. */
+// WHY: a sleeping Render web service answers 503 with its own loading page while it wakes, and Render puts the wake at about one minute https://render.com/docs/free
+export const TURNSTILE_LOAD_DEADLINE_MS = 60_000
+
 export interface TurnstileTokenState {
   token: string | null
   resetKey: number
