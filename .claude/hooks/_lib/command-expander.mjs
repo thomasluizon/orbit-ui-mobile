@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs"
 import { homedir } from "node:os"
 
 // Inspect executable shell bodies without executing any part of the supplied command.
@@ -314,14 +315,24 @@ export function expandCommands(source) {
 }
 
 // ---------------------------------------------------------------------------
-// The modelled subset. `readCommand` reads one small grammar that bash and zsh read in one way, and names each other construct
-// as not modelled. The git rule and the approval rule read only its parsed words. ./README.md lists the grammar.
+// The modelled subset. `readCommand` reads one small grammar, with an allow list of command words, builtins and shells, and names
+// each other construct as not modelled. The git rule and the approval rule read only its parsed words. ./README.md lists the grammar.
 // ---------------------------------------------------------------------------
 
-/** The shells that read standard input or a `-c` word as a script. */
-export const SHELLS = ["bash", "sh", "zsh", "dash", "ksh", "mksh", "ash", "hush", "rbash"]
+/** The POSIX shells. The reader allows one only with a script file, and never with `-c` or a script from standard input. */
+const SCRIPT_SHELLS = ["bash", "sh", "zsh", "dash", "ksh", "ksh93", "mksh", "oksh", "loksh", "ash", "hush", "rbash", "yash", "posh"]
+/** The basenames of the shells that `/etc/shells` lists on this machine. A missing file adds none. */
+const listedShells = () => {
+  try {
+    return readFileSync("/etc/shells", "utf8").split("\n").map((line) => line.trim()).filter((line) => line.startsWith("/")).map((line) => line.split("/").pop())
+  } catch {
+    return []
+  }
+}
+/** Each shell name that the reader knows: the POSIX shells, the other known shells, and each shell of `/etc/shells`. The reader refuses each shell that is not a POSIX shell. */
+export const SHELLS = [...new Set([...SCRIPT_SHELLS, "csh", "tcsh", "fish", "pwsh", "powershell", "nu", "elvish", "xonsh", "ion", "rc", "es", "scsh", "sash", "busybox", ...listedShells()])]
 /** Programs that run the command that follows them. */
-const WRAPPERS = new Set(["sudo", "doas", "exec", "command", "builtin", "noglob", "env", "nice", "nohup", "busybox", "time", "timeout", "stdbuf", "setsid", "ionice", "pkexec", "runuser", "xargs"])
+const WRAPPERS = new Set(["sudo", "doas", "exec", "command", "builtin", "noglob", "env", "nice", "nohup", "time", "timeout", "stdbuf", "setsid", "ionice", "pkexec", "runuser", "xargs"])
 /** The option letters of a wrapper that give it a shell, a script or another directory. */
 const WRAPPER_REFUSED_OPTIONS = { env: /^-[A-Za-z]*[SC]|^--(?:split-string|chdir)/, sudo: /^-[A-Za-z]*[siD]|^--(?:shell|login|chdir)/, doas: /^-[A-Za-z]*s/ }
 /** The words that end a list of the grammar: `then`, `else` and `fi` of `if`, and `do` and `done` of `for`. */
@@ -332,17 +343,29 @@ const REFUSED_KEYWORDS = new Set(["while", "until", "case", "esac", "select", "f
 const REFUSED_WORDS = new Set(["{", "}", "[[", "]]"])
 /** Each one reads a word again as code, changes how the shell reads a command, or changes the flow or the directory in a way that the grammar does not model. */
 const CODE_BUILTINS = new Set(["eval", "source", ".", "alias", "unalias", "trap", "setopt", "unsetopt", "emulate", "shopt", "enable", "disable", "let", "sched", "zmodload",
-  "zpty", "autoload", "hash", "fc", "functions", "unfunction", "break", "continue", "pushd", "popd"])
+  "zpty", "autoload", "hash", "fc", "r", "functions", "unfunction", "break", "continue", "pushd", "popd", "chdir", "read", "getopts", "mapfile", "readarray", "zformat",
+  "zparseopts", "zstyle", "vared", "strftime", "zstat", "sysread", "getln", "print", "integer", "float", "private"])
+/**
+ * The builtins that the reader allows, each with its rule in `checkCommand`: `cd` is followed, `set` takes only -e, -u and -x, `printf` takes no -v,
+ * and `export`, `local`, `readonly`, `declare`, `typeset` and `unset` take only names and `NAME=value` words. No other builtin assigns a name.
+ */
+const ALLOWED_BUILTINS = ["cd", "echo", "printf", "test", "[", "true", "false", ":", "pwd", "export", "local", "readonly", "declare", "typeset", "unset", "set", "exit",
+  "type", "kill"]
+/** The programs that the reader allows as a command word. A program that runs code from its arguments or from a file, such as `node`, is a limit that ./README.md names. */
+const ALLOWED_PROGRAMS = ["git", "gh", "node", "npm", "npx", "pnpm", "yarn", "turbo", "tsc", "vitest", "eslint", "prettier", "dotnet", "cargo", "rustc", "cat", "head", "tail",
+  "grep", "egrep", "fgrep", "rg", "cut", "sed", "awk", "wc", "sort", "uniq", "tr", "jq", "ls", "mkdir", "cp", "mv", "touch", "ln", "chmod", "date", "basename", "dirname",
+  "sleep", "rm", "rmdir", "find", "diff", "cmp", "comm", "paste", "column", "fold", "nl", "rev", "seq", "expr", "realpath", "readlink", "tee", "stat", "file", "du", "df",
+  "shasum", "sha256sum", "md5", "md5sum", "base64", "xxd", "od", "hexdump", "strings", "iconv", "mktemp", "printenv", "uname", "whoami", "id", "hostname", "ps", "lsof",
+  "curl", "which", "man", "sw_vers"]
+/** Each command word that the reader knows: the wrappers, the allowed builtins, the allowed programs and the POSIX shells. Each other command word is refused. */
+export const KNOWN_COMMAND_WORDS = [...new Set(["sudo", "doas", "exec", "command", "builtin", "noglob", "env", "nice", "nohup", "time", "timeout", "stdbuf", "setsid", "ionice", "pkexec",
+  "runuser", "xargs", ...ALLOWED_BUILTINS, ...ALLOWED_PROGRAMS, ...SCRIPT_SHELLS])]
 /** zsh runs the words after each one as a command, or reads it as a part of a compound command. bash reads the name of a program. */
 const ZSH_COMMAND_WORDS = new Set(["nocorrect", "repeat", "-", "always", "foreach"])
-/** Builtins whose words can be assignments, with a name that bash and zsh can read as a subscript. */
-const DECLARATION_BUILTINS = new Set(["export", "declare", "typeset", "local", "readonly", "integer", "float", "private"])
-/** Programs that cannot set a variable of the shell that runs them. After each other program, the reader forgets each variable value. */
-const PURE_PROGRAMS = new Set(["git", "gh", "node", "npm", "npx", "pnpm", "yarn", "echo", "printf", "cat", "head", "tail", "grep", "rg", "cut", "sed", "awk", "wc", "sort",
-  "uniq", "tr", "jq", "ls", "test", "[", "true", "false", ":", "pwd", "cd", "mkdir", "cp", "mv", "touch", "date", "basename", "dirname", "sleep", "rm", "rmdir", "find",
-  "diff", "cmp", "realpath", "readlink", "tee", "env"])
+/** Builtins whose words are names or assignments. The reader allows only a name and `NAME=value` there, with no option. */
+const DECLARATION_BUILTINS = new Set(["export", "declare", "typeset", "local", "readonly", "unset"])
 /** Assignments that change how the shell reads or traces a command, where `cd` goes, or which repository git uses. */
-const REFUSED_ASSIGNMENT = /^(?:PS[1-4]|PROMPT[2-4]?|RPROMPT2?|RPS[12]|PROMPT_COMMAND|IFS|BASH_ENV|ENV|CDPATH|cdpath|SHELLOPTS|BASHOPTS|ZDOTDIR|GIT_\w*)$/
+const REFUSED_ASSIGNMENT = /^(?:PS[1-4]|PROMPT[2-4]?|RPROMPT2?|RPS[12]|SPROMPT|PROMPT_COMMAND|IFS|BASH_ENV|ENV|CDPATH|cdpath|SHELLOPTS|BASHOPTS|ZDOTDIR|PATH|path|FPATH|fpath|NULLCMD|READNULLCMD|EDITOR|VISUAL|PAGER|SSH_ASKPASS|LD_\w+|DYLD_\w+|GIT_\w*)$/
 /** zsh parameters with a lower case name that the shell sets or ties to another parameter. The reader tracks no value for them. */
 const SPECIAL_LOWER_CASE = new Set(["argv", "cdpath", "fpath", "path", "manpath", "mailpath", "module_path", "psvar", "watch", "fignore", "match", "mbegin", "mend", "reply",
   "status", "pipestatus", "signals", "options", "commands", "functions", "aliases", "builtins", "parameters", "history", "historywords", "dirstack", "funcstack", "_"])
@@ -356,6 +379,8 @@ const BRACED_PARAMETER = /\{[A-Za-z_][A-Za-z0-9_]*(?::\?[^}$`"'\\\n]*)?\}/y
 const HEREDOC_DELIMITER = /[ \t]*(?:'([A-Za-z_][A-Za-z0-9_]*)'|"([A-Za-z_][A-Za-z0-9_]*)")/y
 const DUPLICATE_TARGET = /(?:\d+|-)(?=[\s;&|)]|$)/y
 const BRACE_EXPANSION = /\{[^{}]*(?:,|\.\.)[^{}]*\}/
+/** zsh reads `<N-M>`, `<N->`, `<-M>` and `<->` in a word as a glob that matches a number. */
+const ZSH_NUMERIC_GLOB = /^<\d*-\d*>/
 const WORD_END = /[ \t\n;&|<>()]/
 /** After these, bash and zsh both read a `$` as the character. */
 const PLAIN_AFTER_DOLLAR = /[\s"|)/.,%\\>\];&}<]/
@@ -525,6 +550,7 @@ function readWord(reader, depth) {
 /** The redirect at `reader.index`: a here document, a file, or a copy of a file descriptor. */
 function readRedirect(reader, depth) {
   const { source } = reader
+  if (ZSH_NUMERIC_GLOB.test(source.slice(reader.index, reader.index + 64))) notModelled("a zsh numeric glob `<N-M>` or `<->`, which bash reads as two redirects")
   const operator = /^(?:&>>|&>|<<<|<<-|<<|>>|>&|<&|>\||<>|<\(|>\(|[<>])/.exec(source.slice(reader.index, reader.index + 3))[0]
   if (operator === "<<<") notModelled("a here-string (`<<<`)")
   if (operator === "<(" || operator === ">(") notModelled("a process substitution")
@@ -866,19 +892,20 @@ function checkCommand(command, place) {
     if (computed) notModelled(`${computed.dynamic} in a command word`)
     const name = programName(program.text)
     if (ZSH_COMMAND_WORDS.has(program.text)) notModelled(`the zsh command word \`${program.text}\`, which runs the words after it as a command`)
-    if (CODE_BUILTINS.has(name)) notModelled(`the builtin \`${name}\`, which reads its words again as code, or changes how the shell reads a command, or changes the flow or the directory`)
+    if (CODE_BUILTINS.has(name)) notModelled(`the builtin \`${name}\`, which reads its words again as code, assigns a name, changes how the shell reads a command, or changes the flow or the directory`)
+    if (SHELLS.includes(name) && !SCRIPT_SHELLS.includes(name)) notModelled(`the shell \`${name}\`, which is not a POSIX shell that the hook reads`)
+    if (!KNOWN_COMMAND_WORDS.includes(name)) notModelled(`the command word \`${name}\`, which is not a program or a builtin that the hook knows. The hook knows only: ${KNOWN_COMMAND_WORDS.join(" ")}`)
     if (name === "cd") {
       const whole = program === command.words[0] && command.words.length === 2 && command.assignments.length === 0 && place.topLevel && place.length === 1
       if (!whole || args[0].text.startsWith("-") || args[0].fixed) notModelled("a `cd` that is not one whole simple command `cd PATH` at the top level of the line, with a literal path")
     }
     if (name === "set" && args.some((word) => !/^[-+][eux]+$/.test(word.text))) notModelled("`set` with a word other than the options -e, -u and -x")
     if (name === "printf" && args.some((word) => /^-[A-Za-z]*v/.test(word.text))) notModelled("`printf -v`, which assigns to a name that bash can read as a subscript")
-    if (name === "print" && args.some((word) => /^-[A-Za-z]*[vP]/.test(word.text))) notModelled("`print -v` or `print -P`, which assigns to a name or expands a prompt")
     if (DECLARATION_BUILTINS.has(name)) {
       for (const word of args) {
         const assigned = ASSIGNMENT_WORD.exec(word.text)
-        if (assigned) refusedAssignment(assigned[1])
-        if (/^[^=]*\[/.test(word.text)) notModelled(`a subscript in the words of \`${name}\``)
+        if (!assigned && !NAME.test(word.text)) notModelled(`the word \`${word.text}\` of \`${name}\`, which takes only a name and \`NAME=value\`, with no option and no subscript`)
+        refusedAssignment(assigned ? assigned[1] : word.text)
       }
     }
     if (name === "git" && invocation.wrappers.includes("xargs")) notModelled("a `git` command that gets its arguments from `xargs`")
@@ -929,9 +956,9 @@ function resolveWord(word, variables, home) {
   for (const part of word.parts) {
     if (part.type === "text") text += part.text
     else if (part.type === "tilde") text += home
-    else if (!Object.hasOwn(variables, part.name)) { dynamic ||= "a variable"; text += part.written }
+    else if (valueOf(variables, part.name) === null) { dynamic ||= "a variable"; text += part.written }
     else {
-      const value = variables[part.name]
+      const value = valueOf(variables, part.name)
       if (!part.quoted && !PLAIN_VALUE.test(value)) dynamic ||= "a variable whose value bash and zsh split or expand in different ways"
       text += value
     }
@@ -941,34 +968,59 @@ function resolveWord(word, variables, home) {
 
 /** The value of an assignment, or null when the walk does not know it. */
 function assignedValue({ name, append, parts, unknown }, variables, home) {
-  if (unknown || (append && !Object.hasOwn(variables, name))) return null
-  let value = append ? variables[name] : ""
+  if (unknown || (append && valueOf(variables, name) === null)) return null
+  let value = append ? valueOf(variables, name) : ""
   for (const part of parts) {
     if (part.type === "text") value += part.text
     else if (part.type === "tilde") value += home
-    else if (Object.hasOwn(variables, part.name)) value += variables[part.name]
+    else if (valueOf(variables, part.name) !== null) value += valueOf(variables, part.name)
     else return null
   }
   return value
 }
 
-const withVariable = (variables, name, value) => {
-  const next = { ...variables }
-  delete next[name]
-  if (value !== null && TRACKED_NAME.test(name) && !SPECIAL_LOWER_CASE.has(name)) next[name] = value
-  return next
+/**
+ * The variable values that the walk knows, as a chain of changes that each state shares. A change adds one link, so an assignment costs
+ * no copy of the map. After about the square root of the map size in links, a link holds a full copy, so a lookup reads few links.
+ * `id` names one chain, so `distinct` compares two states with no walk of their maps.
+ */
+let chainCount = 0
+const NO_VARIABLES = { id: chainCount++, table: new Map(), parent: null, links: 0 }
+const valueOf = (variables, name) => {
+  for (let link = variables; link; link = link.parent) {
+    if (link.table) return link.table.get(name) ?? null
+    if (link.name === name) return link.value
+  }
+  return null
 }
-const isPure = (command) => command.words.length > 0 && invocationsOf(command.words).every(({ program }) => PURE_PROGRAMS.has(programName(program.text)))
+const withVariable = (variables, name, value) => {
+  const tracked = value !== null && TRACKED_NAME.test(name) && !SPECIAL_LOWER_CASE.has(name) ? value : null
+  if (tracked === null && valueOf(variables, name) === null) return variables
+  const link = { id: chainCount++, table: null, parent: variables, links: variables.links + 1, name, value: tracked }
+  let base = variables
+  while (!base.table) base = base.parent
+  if (link.links * link.links < base.table.size) return link
+  const changes = []
+  for (let cursor = link; cursor !== base; cursor = cursor.parent) changes.push(cursor)
+  const table = new Map(base.table)
+  for (const change of changes.reverse()) {
+    if (change.value === null) table.delete(change.name)
+    else table.set(change.name, change.value)
+  }
+  return { id: link.id, table, parent: null, links: 0 }
+}
+/** Only a declaration builtin of the allow list sets a variable of the shell. After one, the walk forgets each value. */
+const isPure = (command) => command.words.length > 0 && invocationsOf(command.words).every(({ program }) => !DECLARATION_BUILTINS.has(programName(program.text)))
 
 function distinct(...groups) {
-  const states = [...new Map(groups.flat().map((state) => [JSON.stringify(state), state])).values()]
+  const states = [...new Map(groups.flat().map((state) => [`${state.variables.id} ${JSON.stringify(state.state)}`, state])).values()]
   if (states.length > MAX_STATES) notModelled("more possible states than the hook reads")
   return states
 }
 
 function walk(list, state, visit, check = null) {
   const context = { visit, check, home: list.home, visits: 0 }
-  walkSequence(list, [{ variables: {}, state }], context)
+  walkSequence(list, [{ variables: NO_VARIABLES, state }], context)
 }
 
 function walkSequence(sequence, states, context) {
@@ -1010,7 +1062,7 @@ function walkNode(node, states, context) {
   if (node.commands.length === 1) return distinct(states.map((current) => walkSimple(node.commands[0], current, context)))
   // A command of a longer pipeline changes no directory: the grammar refuses a `cd` and an assignment there. zsh runs the last one in the shell itself.
   for (const command of node.commands) for (const current of states) walkSimple(command, current, context)
-  return node.commands.every(isPure) ? states : distinct(states.map((current) => ({ ...current, variables: {} })))
+  return node.commands.every(isPure) ? states : distinct(states.map((current) => ({ ...current, variables: NO_VARIABLES })))
 }
 
 function walkSimple(command, current, context) {
@@ -1020,7 +1072,7 @@ function walkSimple(command, current, context) {
   const resolved = { words: command.words.map((word) => resolveWord(word, variables, context.home)), assignments: command.assignments.map((assignment) => assignment.word), redirects: command.redirects, heredocs: command.heredocs }
   context.check?.(resolved)
   const next = context.visit(resolved, state)
-  if (command.words.length > 0) return { variables: isPure(command) ? variables : {}, state: next }
+  if (command.words.length > 0) return { variables: isPure(command) ? variables : NO_VARIABLES, state: next }
   return { variables: command.assignments.reduce((known, assignment) => withVariable(known, assignment.name, assignedValue(assignment, known, context.home)), variables), state: next }
 }
 
@@ -1045,5 +1097,8 @@ export const PLAIN_SUBSET_ADVICE =
   "Rewrite the command in the plain subset that the hook reads: plain words, '...' and \"...\" quotes, the operators `;` `&&` `||` `|` and a line end, " +
   "the redirects `>` `>>` `<` `2>&1` to a literal path, a here document at the top level with a quoted delimiter (`<<'EOF'`), `VAR=value`, " +
   "`for NAME in WORDS; do ...; done` with literal words, `if ...; then ...; else ...; fi`, and `cd PATH` as a whole command at the top level. " +
-  "A `$VAR`, a `${VAR:?}`, a glob or a `$(command)` is allowed in an argument, but not in a command word, in a shell command, or in a `git` argument unless the line sets the variable to a literal value. " +
+  "A `$VAR`, a `${VAR:?}`, a glob or a `$(command)` is allowed in an argument, but not in a command word, in a shell command, or in a `git` argument or a `cd` path. " +
+  "The one exception: a `git` argument or a `cd` path can use a variable with a lower case name, such as `wt=/abs/path; git -C \"$wt\" status`, that the line sets to a literal value. " +
+  "An upper case name such as `$WT` is never read there. Each command word must be a program or a builtin that the hook knows; " +
+  "`read`, `chdir`, `pushd`, `popd`, `eval`, `source`, `print` and a shell other than a POSIX shell are refused. " +
   "For more than that, write the commands to a script file and run the file by its literal path, such as `bash /abs/path.sh`."

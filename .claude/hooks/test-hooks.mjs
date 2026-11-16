@@ -360,9 +360,12 @@ T("subset: the heredoc shell rows that the subset models", [...HEREDOC_SHELLS.ma
 // A hygiene flag counts only as a word of a git command. The same text in an argument of another command is data.
 const NO_SIGN = "--no-gpg-" + "sign"
 for (const command of [`grep -rn -- '${NV}' .claude/hooks`, `rg -n -e '${NV}' .claude`, `echo 'Never use ${NV}.'`, `printf '%s\\n' 'Never use ${NV}.' >> notes.md`,
-  `gh pr comment 1 --body 'The hook refuses ${NV}.'`, `Select-String -Pattern '${NO_SIGN}' -Path .claude/hooks/*.mjs`, `grep -c -- '${NV}' $(git ls-files)`]) {
+  `gh pr comment 1 --body 'The hook refuses ${NV}.'`, `grep -c -- '${NV}' $(git ls-files)`]) {
   T(`git: ${command} allows`, checkGitCommand(command), null)
 }
+// A command word that the hook does not know, such as a PowerShell cmdlet, is refused in an unattended run, and passes in an attended session when it names no git.
+T("git: a PowerShell cmdlet that names a flag allows in an attended session", checkGitCommand(`Select-String -Pattern '${NO_SIGN}' -Path .claude/hooks/*.mjs`, { unattended: false }), null)
+T("git: a PowerShell cmdlet is an unknown command word in an unattended run", checkGitCommand(`Select-String -Pattern '${NO_SIGN}' -Path .claude/hooks/*.mjs`)?.notModelled?.startsWith("the command word `select-string`"), true)
 for (const command of [`git commit ${NV} -m x`, "git commit -n -m x", `git commit ${NO_SIGN} -m x`, "git -c commit.gpgsign=false commit -m x", `git push ${NV} origin feature/x`,
   `git commit --no-ver''ify -m x`, `sudo git commit -m x ${NV}`, `npm run lint && git commit -m x ${NV}`]) {
   T(`git: ${command} still blocks`, blocks(checkGitCommand(command)), true)
@@ -481,12 +484,13 @@ const wordTexts = (command) => {
   return visited
 }
 T("subset: a word is read with no quote and no escape, as argv carries it", wordTexts(`g''it p"us"h ori\\gin 'ma'in`), [["git", "push", "origin", "main"]])
-T("subset: a list divides at each operator, and a pipeline keeps its commands in order", wordTexts("a 1; b 2 && c | d\ne || f"), [["a", "1"], ["b", "2"], ["c"], ["d"], ["e"], ["f"]])
+T("subset: a list divides at each operator, and a pipeline keeps its commands in order", wordTexts("echo 1; ls 2 && cat | wc\ntrue || pwd"), [["echo", "1"], ["ls", "2"], ["cat"], ["wc"], ["true"], ["pwd"]])
 T("subset: a redirect, its file descriptor and its target are no words", wordTexts("git push origin main2>&1 >out.log 2>/dev/null"), [["git", "push", "origin", "main2"]])
 T("subset: an assignment before the command word is no word", [wordTexts("A=1 B='x y' git status"), readCommand("A=1 B='x y' git status").list[0][0].node.commands[0].assignments.map(({ name }) => name)], [[["git", "status"]], ["A", "B"]])
 T("subset: a heredoc body is no word, and the text after its end marker is read", wordTexts("cat > x.sh <<'EOF'\ngit push origin main\nEOF\necho ok"), [["cat"], ["echo", "ok"]])
-T("subset: a loop runs its body once for each literal word, and a condition gives each branch", wordTexts("for w in a b; do echo $w; done; if test -f a; then c; else d; fi"), [["echo", "a"], ["echo", "b"], ["test", "-f", "a"], ["c"], ["d"]])
-T("subset: a structure word is a plain word after the command word, and in a quote", wordTexts("echo done fi; 'if' x"), [["echo", "done", "fi"], ["if", "x"]])
+T("subset: a loop runs its body once for each literal word, and a condition gives each branch", wordTexts("for w in a b; do echo $w; done; if test -f a; then true; else false; fi"), [["echo", "a"], ["echo", "b"], ["test", "-f", "a"], ["true"], ["false"]])
+T("subset: a structure word is a plain word after the command word, and in a quote", wordTexts("echo done fi; echo 'if' fi"), [["echo", "done", "fi"], ["echo", "if", "fi"]])
+T("subset: a quoted structure word in the place of a command word is an unknown command word", readCommand("'if' x").notModelled.startsWith("the command word `if`"), true)
 T("subset: a variable that the line sets to a literal value is read as its value; another variable stays as written", wordTexts('d=/work/x; git -C "$d" status; echo "$HOME" $d'), [[], ["git", "-C", "/work/x", "status"], ["echo", "$HOME", "/work/x"]])
 T("subset: a shell with a script file is a plain command, and `-c` or a here document of its own is not modelled", [readCommand("bash scripts/run.sh").notModelled, readCommand("bash -c 'git status'").notModelled, readCommand("bash -e <<'EOF'\ngit status\nEOF").notModelled],
   ["", "a shell `-c`, which runs its next word as a script", "a shell that reads its script from standard input"])
@@ -599,7 +603,7 @@ for (const command of COORDINATOR_FORMS) T(`git coordinator form: ${JSON.stringi
 T("subset: a loop over literal words gives git the value of the variable that the loop sets", wordTexts(COORDINATOR_FORMS[6]).filter((words) => words[0] === "git"), [["git", "-C", "/work/worktrees/ticket-1", "status", "--short"], ["git", "-C", "/work/worktrees/ticket-2", "status", "--short"]])
 // The walk forgets a variable after a program that can set it, and a loop over words that are not literal is not modelled.
 for (const [name, command] of [
-  ["a variable in a `git` argument", 'd=/work/x; read -r d; git -C "$d" status'],
+  ["the builtin `read`", 'd=/work/x; read -r d; git -C "$d" status'],
   ["a variable in a `git` argument", 'git -C "$d" status'],
   ["a variable whose value bash and zsh split or expand in different ways", "d='/work/a b'; git -C $d status"],
   ["a `for` loop that is not", "for f in *.md; do git add \"$f\"; done"],
@@ -618,6 +622,46 @@ T("git: ten skippable relative cd commands are more states than the hook reads",
 T("git attended: a command outside the subset that names no git allows", checkGitCommand("while true; do sleep 5; done", { unattended: false }), null)
 T("git attended: a command outside the subset that names git blocks", blocks(checkGitCommand("{ git push origin main; }", { unattended: false })), true)
 T("git attended: a quote inside the word git still names git", blocks(checkGitCommand("{ g''it push origin main; }", { unattended: false })), true)
+
+// Each command of the round 14 review. The session directory is a protected repository, \`/work/brain\` is not protected, and the named remote \`ui\` has no URL, so the rule treats it as protected.
+const REVIEW_R14_GIT_REFUSED = [
+  // Defect 2: a builtin that assigns a name, and \`export\` or \`typeset\` of a refused name with no \`=\`.
+  "read GIT_CONFIG_COUNT GIT_CONFIG_KEY_0 GIT_CONFIG_VALUE_0 <<'EOF'\n1 alias.p push origin main\nEOF\nexport GIT_CONFIG_COUNT GIT_CONFIG_KEY_0 GIT_CONFIG_VALUE_0\ngit p",
+  "read PS4 <<'EOF'\n$(git push origin main)\nEOF\nset -x\ntrue", "read IFS <<'EOF'\n/\nEOF\nd=feature/main; git push origin $d", "export GIT_DIR", "typeset -x GIT_DIR", "getopts a GIT_DIR",
+  "mapfile -C 'git push origin main #' -c 1 x <<'EOF'\n1\nEOF", "readarray -C 'git push origin main #' -c 1 x <<'EOF'\n1\nEOF", "export IFS", "local PATH=/tmp/evil", "unset -f git",
+  // Defect 4: a git subcommand that pushes or runs a command, and an alias.
+  "git rebase --exec 'git push origin main' HEAD~1", "git rebase -x 'git push origin main' HEAD~1", "git rebase -ix 'git push origin main' HEAD~1", "git submodule foreach 'git push origin main'",
+  "git bisect run git push origin main", "git subtree push --prefix=apps origin main", "git send-pack git@github.com:thomasluizon/orbit-ui-mobile.git main", "git p",
+  "git fetch --upload-pack='git push origin main' origin", "git grep -O'git push origin main' x", "git difftool -x 'git push origin main'",
+  // Defect 5: a shell that is not a POSIX shell, by name or by path.
+  "tcsh -c 'git push origin main'", "csh -c 'git push origin main'", "fish -c 'git push origin main'", "/bin/tcsh -fc 'git push origin main'", "pwsh -Command 'git push origin main'",
+  // Defect 6: zsh reads \`<N-M>\` and \`<->\` as a glob that matches a number.
+  "git push origin HEAD:feature <0-9> HEAD:main", "git push origin feature <-> main", "git push origin feature 2<1-9>",
+  // A command word that the hook does not know.
+  "caffeinate -i git push origin main", "watch git push origin main", "ssh host git push origin main",
+]
+for (const command of REVIEW_R14_GIT_REFUSED) T(`git review r14: ${JSON.stringify(command)} is refused`, blocks(checkGitCommand(command, r13Options)), true)
+for (const command of [
+  // Defect 1: another spelling of the URL of a protected repository, and \`--repo\`.
+  "git push https://github.com/thomasluizon/ORBIT-UI-MOBILE.git main", "git push https://github.com/thomasluizon/Orbit-UI-Mobile main", "git push https://github.com/thomasluizon/orbit-ui-mobile.git/ main",
+  "git push https://github.com/thomasluizon/orbit-ui-mobile.GIT main", "git push https://github.com/thomasluizon/orbit%2Dui-mobile main", "git push --repo https://github.com/thomasluizon/orbit-ui-mobile.git",
+  "git push --repo=https://github.com/thomasluizon/orbit-ui-mobile.git", "git push --force --repo https://github.com/thomasluizon/orbit-ui-mobile.git", "git push --repo ui", "git push --repo=ui main", "git push ui main",
+  // Defect 2 and defect 3 from a repository with no protection.
+  "read GIT_DIR <<'EOF'\n/work/orbit-ui-mobile/.git\nEOF\nexport GIT_DIR\ngit push origin main", "zformat -f GIT_DIR /work/orbit-ui-mobile/.git; export GIT_DIR; git push origin main",
+  "declare -n r=GIT_DIR; r=/work/orbit-ui-mobile/.git; export GIT_DIR; git push origin main", "chdir /work/orbit-ui-mobile; git push origin main", "chdir /work/orbit-ui-mobile && git push origin main",
+  "builtin chdir /work/orbit-ui-mobile; git push origin main", "git send-pack git@github.com:thomasluizon/orbit-ui-mobile.git main", "git push --receive-pack='git push origin main' ../x main",
+]) {
+  T(`git review r14: ${JSON.stringify(command)} from a repository with no protection is refused`, blocks(checkGitCommand(command, fromBrain)), true)
+}
+T("git review r14: a URL with the name of a repository with no protection allows a push to its main", checkGitCommand("git push https://github.com/thomasluizon/Brain.git/ main", fromBrain), null)
+T("git review r14: an attended session in a repository with no protection allows a subcommand that the hook does not know", checkGitCommand("git bisect run npm test", { ...fromBrain, unattended: false }), null)
+T("git review r14: an attended session in a protected repository refuses a subcommand that the hook does not know", blocks(checkGitCommand("git subtree push --prefix=apps origin feature/x", { ...r13Options, unattended: false })), true)
+T("git review r14: the refusal of an unknown subcommand names the subcommands that the hook knows", (checkGitCommand("git p", r13Options)?.message ?? "").includes("The hook knows only: add apply"), true)
+T("git review r14: the refusal of an unknown command word names the command words that the hook knows", (checkGitCommand("caffeinate -i git status", r13Options)?.message ?? "").includes("The hook knows only: sudo"), true)
+// Defect 8: a \`git\` argument can use a variable with a lower case name that the line sets. An upper case name is refused, and the advice says so.
+T("git review r14: a lower case variable that the line sets passes in a git argument", checkGitCommand("wt=/work/orbit-ui-mobile; git -C \"$wt\" status --short", r13Options), null)
+T("git review r14: an upper case variable that the line sets is refused in a git argument", checkGitCommand("WT=/work/orbit-ui-mobile; git -C \"$WT\" status --short", r13Options)?.notModelled, "a variable in a \`git\` argument")
+T("git review r14: the advice names the lower case rule", (checkGitCommand("WT=/work/orbit-ui-mobile; git -C \"$WT\" status --short", r13Options)?.message ?? "").includes("An upper case name such as \`$WT\` is never read there"), true)
 T("git attended: the same command in an unattended run blocks", blocks(checkGitCommand("while true; do sleep 5; done")), true)
 T("git attended: a push to main in the subset blocks in an attended session", blocks(checkGitCommand("git push origin main", { unattended: false })), true)
 // git worktree remove --force follows a Windows junction and deletes the target.
@@ -1004,7 +1048,8 @@ for (const [command, rule] of [
   modelledRefusals += isModelled(command) ? 1 : 0
   T(`approval: ${command} is refused by ${expected}`, refusedBy(command), expected)
 }
-T("approval: the count of refused rows that the subset models, each refused by its removal rule", modelledRefusals, 27)
+// The two rows with a last line `EOF` are not modelled: `EOF` is a command word that the hook does not know.
+T("approval: the count of refused rows that the subset models, each refused by its removal rule", modelledRefusals, 25)
 for (const command of REVIEW_APPROVAL_REFUSED) T(`approval review: ${JSON.stringify(command)} is refused`, refusedBy(command), "not-modelled")
 // Each removal command of the round 13 review is refused.
 for (const command of ["if [[ 1 ]] rm -rf \"$TMP\"", "if { true } rm -rf \"$TMP\"", "{ cd /work/checkouts/repo/x/y/z/w; } | cat; rm -rf ../..", "{ cd /work/checkouts/repo/x/y/z/w; } & rm -rf ../..",
@@ -1016,6 +1061,20 @@ T("approval review r13: the plain removal in the review is refused by its rule",
 for (const command of ["git status", "for w in ticket-1 ticket-2; do d=/work/worktrees/$w; git -C \"$d\" status --short; done", "if git merge --no-edit origin/main; then echo merged; else git merge --abort; fi",
   "node .claude/hooks/test-hooks.mjs 2>&1 | tail -5", "echo \"head $(git rev-parse --short HEAD)\"", "node tools/test-tools.mjs > /tmp/tools.log 2>&1", "gh pr view 2464 --repo thomasluizon/orbit-ui-mobile --json body"]) {
   T(`approval coordinator form: ${JSON.stringify(command)} passes`, refusedBy(command), null)
+}
+for (const command of ["read d <<'EOF'\n/\nEOF\nrm -rf \"${d:?}\"", "chdir /; rm -rf Users", "tcsh -c 'rm -rf $TMP'", "csh -c 'rm -rf $TMP'", "caffeinate rm -rf /tmp/x", "rm -rf build <0-9>"]) {
+  T(`approval review r14: ${JSON.stringify(command)} is refused`, refusedBy(command), "not-modelled")
+}
+// Item 10 of the order: each command form of the coordinator passes the approval rule too.
+for (const command of COORDINATOR_FORMS) T(`approval coordinator form: ${JSON.stringify(command)} passes`, refusedBy(command), null)
+// Defect 7: the walk is linear in the number of assignments. A 100 KB chain of assignments ends in each real hook file within 1 s.
+const assignmentChain = (tail, value = "x") => { let chain = ""; for (let index = 0; chain.length < 100_000 - tail.length - 16; index++) chain += `a${index}=${value};`; return chain + tail }
+for (const [file, command, env, want] of [["git-guardrails.mjs", assignmentChain("git push origin main"), {}, 2], ["forbid-approval-prompt.mjs", assignmentChain('rm -rf "$TMP"'), { ORBIT_LAUNCH_WORKER: "1" }, 2],
+  ["git-guardrails.mjs", assignmentChain("git status"), {}, 0], ["forbid-approval-prompt.mjs", `x=/w;${assignmentChain("rm -rf build", "$x")}`, { ORBIT_LAUNCH_WORKER: "1" }, 0]]) {
+  const started = performance.now()
+  const result = spawnSync(process.execPath, [join(hooksDir, file)], { input: JSON.stringify({ tool_name: "Bash", tool_input: { command }, cwd: repoRoot, session_id: "" }), encoding: "utf8", env: { ...process.env, ORBIT_LAUNCH_WORKER: "", ...env }, timeout: 20000 })
+  const seconds = (performance.now() - started) / 1000
+  T(`subset: ${file} reads a chain of ${command.split(";").length - 1} assignments (${command.length} characters) that ends in ${JSON.stringify(command.slice(command.lastIndexOf(";") + 1))} -> ${want} within 1 s`, [result.status, seconds < 1], [want, true])
 }
 // Defect 1: a byte outside printable ASCII outside a quote ends in a refusal within 1 s. A child process runs the rules, so a loop fails this test and not the suite.
 const UNREAD_BYTES = { CR: "\r", "form feed": "\f", "vertical tab": "\v", "U+00A0": " ", "U+2028": " ", NUL: "\u0000" }

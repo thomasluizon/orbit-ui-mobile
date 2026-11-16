@@ -4,10 +4,15 @@ import { resolve } from "node:path"
 // Only these three repositories protect main; other repositories may allow direct pushes.
 const PROTECTED_REPOS = ["orbit-ui-mobile", "orbit-api", "orbit-landing-page"]
 
+/** A percent escape that does not decode leaves the text as it is: the name then matches no protected name, and the push form rule still applies to the directory. */
+const decoded = (text) => { try { return decodeURIComponent(text) } catch { return text } }
+
+/** The repository name of a remote URL or path as GitHub resolves it: with no case, and with no trailing `/` or `.git`. */
 function repoNameFrom(remoteUrl) {
   if (typeof remoteUrl !== "string") return null
-  const trimmed = remoteUrl.trim().replace(/\.git$/, "")
-  return trimmed ? (trimmed.split(/[/:]/).filter(Boolean).pop() ?? null) : null
+  let trimmed = decoded(remoteUrl.trim()).toLowerCase()
+  while (/(?:[/\\]|\.git)$/.test(trimmed)) trimmed = trimmed.replace(/(?:[/\\]+|\.git)$/, "")
+  return trimmed ? (trimmed.split(/[/:\\]/).filter(Boolean).pop() ?? null) : null
 }
 
 // Fails SAFE: when the target repo cannot be resolved, assume it is protected.
@@ -170,13 +175,18 @@ const gitCommandParts = (tokens) => {
 
 /** Options of `git push` that take the next word as their value, from the output of `git push -h`. */
 const PUSH_VALUE_OPTIONS = new Set(["-o", "--push-option", "--repo", "--receive-pack", "--exec", "--recurse-submodules"])
-/** The repository word of a push: its first word that is no option and no option value, or null. */
-function pushRepository(rest) {
+/** Each repository word of a push: its first word that is no option and no option value, and each value of `--repo`, which git reads as the same argument. */
+function pushRepositories(rest) {
+  const repositories = []
+  let positional = false
   for (let index = 0; index < rest.length; index++) {
-    if (PUSH_VALUE_OPTIONS.has(rest[index])) index++
-    else if (!rest[index].startsWith("-")) return rest[index]
+    const word = rest[index]
+    if (isLongOption(word, "--repo", "--rep") && word.includes("=")) repositories.push(word.slice(word.indexOf("=") + 1))
+    else if (isLongOption(word, "--repo", "--rep") && index + 1 < rest.length) repositories.push(rest[++index])
+    else if (PUSH_VALUE_OPTIONS.has(word)) index++
+    else if (!word.startsWith("-") && !positional) { positional = true; repositories.push(word) }
   }
-  return null
+  return repositories
 }
 
 /** True for a URL or a path in place of a remote name. */
@@ -195,20 +205,55 @@ function isAllowedPush(rest) {
 /** True when the push goes to a protected repository: the directory, or a remote, URL or path that names one. Fails safe. */
 function pushesToProtected(directory, rest, resolveRemoteUrl) {
   if (targetsProtectedRepo(directory, resolveRemoteUrl)) return true
-  const remote = pushRepository(rest)
-  if (remote === null || remote === "origin") return false
-  if (isRemoteLocation(remote)) {
-    const name = repoNameFrom(remote)
-    return name ? PROTECTED_REPOS.includes(name) : true
+  return pushRepositories(rest).some((remote) => {
+    if (remote === "origin") return false
+    if (isRemoteLocation(remote)) {
+      const name = repoNameFrom(remote)
+      return name ? PROTECTED_REPOS.includes(name) : true
+    }
+    return targetsProtectedRepo(directory, typeof resolveRemoteUrl === "function" ? (dir) => resolveRemoteUrl(dir, remote) : null)
+  })
+}
+
+/**
+ * The git subcommands that the rule knows. In an unattended run, and in a protected repository, each other subcommand is refused, so an
+ * alias, `subtree`, `send-pack`, `submodule`, `difftool`, `filter-branch` and each other subcommand that can push or run a command never runs.
+ */
+export const GIT_SUBCOMMANDS = ["add", "apply", "bisect", "blame", "branch", "cat-file", "check-attr", "check-ignore", "checkout", "cherry", "cherry-pick", "clean", "commit",
+  "config", "count-objects", "describe", "diff", "diff-files", "diff-index", "diff-tree", "fetch", "for-each-ref", "format-patch", "fsck", "grep", "hash-object", "log",
+  "ls-files", "ls-remote", "ls-tree", "merge", "merge-base", "mv", "name-rev", "pull", "push", "range-diff", "rebase", "reflog", "remote", "reset", "restore", "rev-list",
+  "rev-parse", "revert", "rm", "shortlog", "show", "show-branch", "show-ref", "stash", "status", "switch", "symbolic-ref", "tag", "var", "verify-commit", "verify-tag",
+  "version", "worktree"]
+
+/** True for a short option word that holds `letter` before a letter in `valueLetters`, which takes the rest of the word as its value. */
+const holdsShortOption = (word, letter, valueLetters) => {
+  if (!/^-[A-Za-z]/.test(word)) return false
+  for (const character of word.slice(1)) {
+    if (character === letter) return true
+    if (valueLetters.includes(character)) return false
   }
-  return targetsProtectedRepo(directory, typeof resolveRemoteUrl === "function" ? (dir) => resolveRemoteUrl(dir, remote) : null)
+  return false
+}
+
+/** The option of a known subcommand that runs a command, or "". Each one is named in the order of the subcommands. */
+function commandOption(subcommand, rest) {
+  const runs = {
+    rebase: (word) => isLongOption(word, "--exec", "--ex") || holdsShortOption(word, "x", "sXSC"),
+    bisect: (word, index) => index === 0 && word === "run",
+    fetch: (word) => isLongOption(word, "--upload-pack", "--upl"),
+    pull: (word) => isLongOption(word, "--upload-pack", "--upl"),
+    "ls-remote": (word) => isLongOption(word, "--upload-pack", "--u"),
+    push: (word) => isLongOption(word, "--receive-pack", "--rece") || isLongOption(word, "--exec", "--e"),
+    grep: (word) => isLongOption(word, "--open-files-in-pager", "--op") || holdsShortOption(word, "O", "efABCm"),
+  }[subcommand]
+  return (runs && rest.find((word, index) => runs(word, index))) ?? ""
 }
 
 const PUSH_FORMS = "A protected repository allows only `git push origin <branch>`, `git push -u origin <branch>` and `git push origin HEAD:<branch>`, " +
   "where <branch> is a plain branch name that is not main or master."
 
 /** The refusal for the git commands in `gitCommands`, each one `{ tokens, directory }`, or null. `command` is the text that the message shows. */
-function judgeGitCommands(command, gitCommands, { resolveRemoteUrl }) {
+function judgeGitCommands(command, gitCommands, { resolveRemoteUrl, unattended }) {
   // Each git command is judged on its own words, so no flag of one command counts for another. The full string,
   // heredoc bodies included, is still what gets shown back in the block message.
   const read = gitCommands.map(({ tokens, directory }) => ({ tokens, directory, ...gitCommandParts(tokens) }))
@@ -223,6 +268,15 @@ function judgeGitCommands(command, gitCommands, { resolveRemoteUrl }) {
   if (refused) {
     return blocked(command, `The git option \`${refused.refusedOption}\` before the subcommand can change the config, the repository or the hooks that git uses. ` +
       `Before the subcommand, the hook allows only \`-C <path>\` and ${[...SAFE_GLOBAL_OPTIONS].map((option) => `\`${option}\``).join(", ")}.`)
+  }
+  for (const { subcommand, rest, globals, directory } of read) {
+    if (subcommand === null || !(unattended || targetsProtectedRepo(pushTargetDir(globals, directory), resolveRemoteUrl))) continue
+    if (!GIT_SUBCOMMANDS.includes(subcommand)) {
+      return blocked(command, `The git subcommand \`${subcommand}\` is not one that the hook knows. An alias and a subcommand that can push or run a command are refused. ` +
+        `The hook knows only: ${GIT_SUBCOMMANDS.join(" ")}.`)
+    }
+    const option = commandOption(subcommand, rest)
+    if (option) return blocked(command, `The word \`${option}\` of \`git ${subcommand}\` runs a command that the hook does not read. Run that command as its own command.`)
   }
   const pushes = read.filter(({ subcommand }) => subcommand === "push")
   if (pushes.length === 0) return null
@@ -268,7 +322,7 @@ export function checkGitCommand(command, { resolveRemoteUrl, cwd, home, unattend
     return words[0]?.text === "cd" && words[1] ? resolve(directory, words[1].text) : directory
   })
   if (unread) return refuseUnread(unread)
-  return judgeGitCommands(command, gitCommands, { resolveRemoteUrl })
+  return judgeGitCommands(command, gitCommands, { resolveRemoteUrl, unattended })
 }
 
 export function checkGitWorktreeRemove(command) {
