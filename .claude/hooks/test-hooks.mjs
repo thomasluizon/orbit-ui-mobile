@@ -425,7 +425,9 @@ for (const [name, command] of [
   ["a process substitution", "diff <(sort a) <(sort b)"],
   ["a backtick substitution", "echo `date`"],
   ["a backtick substitution", 'echo "`date`"'],
-  ["a word that starts with `=`", "=git status"],
+  ["a word that starts with `=` in a command word", "=git status"],
+  ["a word that starts with `=` in a command word", "sudo =git status"],
+  ["a word that starts with `=` in a `git` argument", "git push origin =main"],
   ["a glob in a command word", "/usr/bin/gi? status"],
   ["a glob in a command word", "/usr/bin/gi[t] status"],
   ["a variable in a command word", "$g status"],
@@ -457,7 +459,7 @@ for (const command of ['grep -c "$pattern" notes.md', 'head -c "$count" notes.md
   "git log --oneline -5 main..HEAD", "git commit -m \"fix: a 'quoted' word; and more\"", "git show HEAD@{1} --stat", 'grep -E "^a$" notes.md', "echo a |\n  tail -1", "bash scripts/run.sh --flag value",
   "cat <<'A' <<\"B\"\nx\nA\ny\nB", "source .venv/bin/activate && python tool.py", "ROOT=$(pwd); ls", 'export OUT="$HOME/out"', "while IFS= read -r line; do echo \"$line\"; done < in.txt",
   "for f in a b; do echo \"$f\"; done", "if [ -f x ]; then echo yes; elif [[ -d x ]]; then echo dir; else echo no; fi", "{ echo x; echo y; } > out.log", "(cd apps && ls) | tail -1", "sleep 5 & wait",
-  'until test -f "$OUT/done"; do sleep 5; done', "! grep -q x notes.md", "bash < scripts/run.sh", "bash -c 'for f in a b; do echo $f; done'"]) {
+  'until test -f "$OUT/done"; do sleep 5; done', "! grep -q x notes.md", "echo ==== section ====; [ a = b ]", "bash < scripts/run.sh", "bash -c 'for f in a b; do echo $f; done'"]) {
   T(`subset: ${command} is modelled`, readCommand(command).notModelled, "")
 }
 const wordTexts = (command) => readCommand(command).list.map((pipeline) => pipeline.map(({ words }) => words.map((word) => word.text)))
@@ -490,7 +492,7 @@ const REVIEW_GIT_REFUSED = [
   // The limits that the round 12 body listed as allowed.
   "(cat <<'EOF'\ngit push origin main\nEOF\n) | bash", "{ cat <<'EOF'\ngit push origin main\nEOF\n} | bash", "echo \"$(cat <<'EOF'\ngit push origin main\nEOF\n)\" | bash", "cat <<'EOF' |\ngit push origin main\nEOF\nbash",
   "env $(cat <<'EOF'\ngit push origin main\nEOF\n)", "x= $(cat <<'EOF'\ngit push origin main\nEOF\n)", "git push origin {fd}>/dev/null", "{git,push,origin,main}", "g=git; $g push origin main",
-  "echo 'git push origin main' | bash", "echo 'git push origin main' | while true; do bash; done", "echo 'git push origin main' | { true; bash; }", "echo main | xargs git push origin", "echo 'git push origin main' | xargs -I{} bash -c '{}'",
+  "echo 'git push origin main' | bash", "echo 'git push origin main' | while true; do bash; done", "echo 'git push origin main' | { true; bash; }", "echo main | xargs git push origin", "echo 'git push origin main' | xargs -I{} bash -c '{}'", "sudo =git push origin main", "find . -maxdepth 0 -exec =git push origin main \\;",
   "bash /dev/stdin <<'EOF'\ngit push origin main\nEOF",
 ]
 for (const command of REVIEW_GIT_REFUSED) T(`git review: ${JSON.stringify(command)} is refused`, blocks(checkGitCommand(command, headOnMain)), true)

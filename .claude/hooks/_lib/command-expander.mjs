@@ -445,7 +445,8 @@ function readWord(reader, depth) {
     }
   }
   word.source = source.slice(start, reader.index)
-  if (source[start] === "=" && bare.length > 1) notModelled("a word that starts with `=`, which zsh reads as the path of a program")
+  // zsh reads `=name` as the path of the program `name`, and bash reads the characters.
+  if (source[start] === "=" && bare.length > 1) word.dynamic ||= "a word that starts with `=`"
   if (bare !== "[" && bare !== "[[" && /[*?[]/.test(bare)) word.dynamic ||= "a glob"
   if (BRACE_EXPANSION.test(bare)) word.dynamic ||= "a brace expansion"
   return word
@@ -538,7 +539,6 @@ export function readsStandardInput(words) {
 }
 
 const isShellWord = (word) => SHELLS.includes(programName(word.text))
-const isGitWord = (word) => programName(word.text) === "git"
 
 /** Refuses each command whose words the rules cannot read exactly, and reads each script that a shell in the command runs. */
 function finishCommand(command, scriptDepth) {

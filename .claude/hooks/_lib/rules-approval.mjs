@@ -21,8 +21,6 @@ export const PERSON_PROMPT_TOOLS = ["AskUserQuestion", "OfferChromeSetup", "Publ
 /** The launcher exports this into every worker it starts (tools/launch-worker.mjs). A worker is headless. */
 const LAUNCHER_MARKER = "ORBIT_LAUNCH_WORKER"
 
-const REDIRECT = /^[\d&]*[<>]/
-const BARE_REDIRECT = /^(?:\d+|&)?(?:>>?[|&]?|<<?<?|<>)$/
 const EXPANSION = /^\$(?:\{([^}]*)\}|([A-Za-z_][A-Za-z0-9_]*|[0-9@*#?!$-]))/
 const GUARDED = /^(?:[A-Za-z_][A-Za-z0-9_]*|[0-9]+):\?/
 const SIMPLE_NAME = /^(?:[A-Za-z_][A-Za-z0-9_]*|[0-9]+)$/
@@ -74,7 +72,7 @@ function readWord(raw) {
 const removalInvocations = (words) => invocationsOf(words).filter(({ program }) => removalProgram(program))
   .map(({ program, args }) => ({ program: removalProgram(program), args: args.map((word) => word.raw) }))
 
-/** The operands of one removal: flags, redirects and the `find -exec` terminator are not targets. */
+/** The operands of one removal: flags and the `find -exec` terminator are not targets. The parsed words hold no redirect. */
 function removalTargets({ args }) {
   const flags = []
   const targets = []
@@ -82,7 +80,6 @@ function removalTargets({ args }) {
   for (let index = 0; index < args.length; index++) {
     const word = args[index]
     if ([";", "\;", "+", "{}"].includes(word)) continue
-    if (REDIRECT.test(word)) { if (BARE_REDIRECT.test(word)) index++; continue }
     if (!operandsOnly && word === "--") { operandsOnly = true; continue }
     if (!operandsOnly && word.startsWith("-")) flags.push(word)
     else targets.push(readWord(word))
