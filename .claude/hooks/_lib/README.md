@@ -105,8 +105,8 @@ The grammar:
 
 The reader is an allow list in each class:
 
-- A command word must be in `KNOWN_COMMAND_WORDS`: the wrappers, the allowed builtins, the allowed programs and the POSIX
-  shells. Each other command word is refused. A path is judged by its last part, so `/usr/bin/git` is `git`, and
+- A command word must be in `KNOWN_COMMAND_WORDS`: the wrappers that do not change the user, the allowed builtins, the allowed
+  programs and the POSIX shells. Each other command word is refused. A path is judged by its last part, so `/usr/bin/git` is `git`, and
   `./run.sh` is refused. The refusal lists the known words.
 - The allowed builtins are `cd`, `echo`, `printf`, `test`, `[`, `true`, `false`, `:`, `pwd`, `export`, `local`, `readonly`,
   `declare`, `typeset`, `unset`, `set`, `exit`, `type` and `kill`. `cd` is followed. `set` takes only `-e`, `-u` and `-x`.
@@ -120,11 +120,25 @@ The reader is an allow list in each class:
   `timeout` takes `-s SIG`, `-k DURATION`, `--preserve-status` and `--foreground` and then one duration word, `time` takes
   `-p`, `stdbuf` takes `-i`, `-o` and `-e` with a value, `command` takes `-v` and `-V`, `ionice` takes `-c` and `-n` with
   a value, and `xargs` takes `-0`, `-r`, `-t`, `-n`, `-L`, `-P`, `-I` and `-d`. A short option with a value can hold the
-  value in the same word, such as `-n5`. `exec`, `nohup`, `noglob`, `builtin`, `setsid`, `sudo`, `doas` and `pkexec` take
-  no option. Each other word that starts with `-` before the command word is refused, so `env -P`, `env -i`, `env -u`,
+  value in the same word, such as `-n5`. `exec`, `nohup`, `noglob`, `builtin` and `setsid` take no option. Each other word that starts with `-` before the command word is refused, so `env -P`, `env -i`, `env -u`,
   `exec -c`, `sudo -u` and each prefix of a GNU long option, such as `env --sp=` or `env --ign`, never pass. `runuser` reads
   its first word as a user name, not as a command, so it is no wrapper and is refused.
 - `chdir`, `pushd` and `popd` are refused. `cd PATH` is the only builtin that changes the directory, and the walk follows it.
+- Each rule reads a program in the shell directory after the `cd` model. A program runs in the shell directory when it is a command
+  word, a command after a wrapper of `WRAPPERS` that does not change the user, or a command after `find -exec` or `-ok`, up to its
+  `;` or `{} +`. The reader refuses each way of the subset to run a program in another directory:
+  - `find -execdir` and `-okdir` run the command in the directory that holds each found file. The refusal asks for `-exec`
+    with an absolute path. A `{}` in a `git` argument after `find -exec` is refused too, because `find` replaces it with each
+    found path.
+  - `sudo`, `doas` and `pkexec` run the command as another user. `sudo` runs it in the directory that `-D` or the `runcwd`
+    of its policy names, `pkexec` runs it in the home directory of that user unless `--keep-cwd`, and each one gives git the
+    home and the config of that user. Each one is refused with each word.
+  - `env -C` and `env --chdir` are options that `WRAPPER_OPTIONS` does not name, so they are refused. `xargs`, `nice`,
+    `timeout`, `time`, `stdbuf`, `nohup`, `setsid`, `ionice`, `exec` and `command` have no option that changes the
+    directory, and they run the command in the shell directory.
+  - `make -C` is refused, because `make` is not on the allow list. `git -C` is read: the rule gives git each `-C` word.
+  - A program on the allow list that runs code from its arguments or from a file, such as `npm --prefix`, `npm exec` or `node`,
+    gives no command that a rule reads, in any directory. The limit below names it.
 - The POSIX shells (`bash`, `sh`, `zsh`, `dash`, `ksh` and others) are allowed only with a script file. Each other shell,
   from a list of known names and from `/etc/shells`, is refused with any word, for example `csh`, `tcsh`, `fish` and `pwsh`.
 - A `git` command in an unattended run, and in a protected repository in an attended session, must use a subcommand in
@@ -144,7 +158,7 @@ when the count and the hash are equal. The walk refuses a line with more than 64
 `||` and a branch of `if`, so a rule that follows a `cd` reads the later commands in each directory that is possible.
 
 A glob, a brace expansion, a substitution, a word that starts with `=`, and a variable whose value the walk does not know make
-a word dynamic. A dynamic word is not modelled in a command word (also after a wrapper such as `sudo` or `env`), in a command
+a word dynamic. A dynamic word is not modelled in a command word (also after a wrapper such as `nice` or `env`), in a command
 that names a shell, and in a `git` argument or a `cd` path. Each other construct is not modelled, for example:
 
 - a byte outside printable ASCII outside a quote, such as a carriage return, a form feed or U+00A0
@@ -169,16 +183,17 @@ its arguments or from a file, such as `node -e`, `npm run`, `npx`, `awk` with `s
 alias or an extension, and `dotnet` or `cargo` with a project, is not read. An alias, a function or an option of the user
 profile, a config file that the agent writes (for example a git alias or `url.*.pushInsteadOf` in a git config file), and a
 script file that the agent runs by its path are not read. A `cd` that fails is read as a `cd` that succeeds, and a `CDPATH` in
-the environment is not read. A wrapper that runs the command as another user, `sudo`, `doas` and `pkexec`, gives git the
-home and the config of that user, and the hook does not read them.
+the environment is not read.
 
 `checkGitCommand` refuses a command outside the grammar in an unattended run, the same runs in which the approval rule applies.
 In an attended session it refuses such a command only when the text, with its quotes and backslashes removed, names `git`.
 The rule never resolves a `-C` path in Node: it gives git the directory after the `cd` model and each raw `-C` word, as
 `git -C <dir> -C <w1> ... -C <wn> remote get-url --push <remote>`, because git applies `-C` with `chdir`, which follows a
 symlink before it reads `..`. The shell `cd` reads `..` by text, so the `cd` model does the same.
-The handoff gate reads each `git commit` with the same reader, `readGitCommands`, and gives git the same chain: the directory
-after the `cd` model, then each `-C` word after a lower case variable and `~` are replaced. Text that runs no `git commit`, such
+The handoff gate reads each git command that can record the index, `RECORDING_SUBCOMMANDS` of `rules-handoff.mjs` (`commit`,
+`merge`, `cherry-pick`, `revert`, `rebase`, `am` and `pull`), with the same reader, `readGitCommands`, and gives git the same
+chain: the directory after the `cd` model, then each `-C` word after a lower case variable and `~` are replaced. Text that runs
+no such command, such
 as an `echo` or a `gh` body, gives no chain. In an unattended run, the gate refuses a command outside the subset that names a
 `git commit`, with the same rewrite advice. In an attended session, the gate reads the chain of such a command from its text.
 In a protected repository, the push rule allows only `git push origin <branch>`, `git push -u origin <branch>` and

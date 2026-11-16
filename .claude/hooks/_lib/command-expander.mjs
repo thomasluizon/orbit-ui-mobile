@@ -334,6 +334,11 @@ export const SHELLS = [...new Set([...SCRIPT_SHELLS, "csh", "tcsh", "fish", "pws
 /** Programs that run the command that follows them. */
 const WRAPPERS = new Set(["sudo", "doas", "exec", "command", "builtin", "noglob", "env", "nice", "nohup", "time", "timeout", "stdbuf", "setsid", "ionice", "pkexec", "xargs"])
 /**
+ * The wrappers that run their command as another user. `sudo` runs it in the directory that `-D` or the `runcwd` of its policy names,
+ * `pkexec` runs it in the home directory of that user, and each one gives git the home and the config of that user. The reader refuses each one.
+ */
+const USER_WRAPPERS = new Set(["sudo", "doas", "pkexec"])
+/**
  * The allow list of the options of each wrapper, each with the number of words that it takes as its value. A short option with a
  * value can also hold the value in its own word, such as `-n5` or `-oL`. A wrapper that is not named here takes no option. Each other
  * word that starts with `-` before the command word is not modelled, so no spelling of an option that gives a wrapper a shell, a
@@ -373,8 +378,8 @@ const ALLOWED_PROGRAMS = ["git", "gh", "node", "npm", "npx", "pnpm", "yarn", "tu
   "sleep", "rm", "rmdir", "find", "diff", "cmp", "comm", "paste", "column", "fold", "nl", "rev", "seq", "expr", "realpath", "readlink", "tee", "stat", "file", "du", "df",
   "shasum", "sha256sum", "md5", "md5sum", "base64", "xxd", "od", "hexdump", "strings", "iconv", "mktemp", "printenv", "uname", "whoami", "id", "hostname", "ps", "lsof",
   "curl", "which", "man", "sw_vers"]
-/** Each command word that the reader knows: the wrappers, the allowed builtins, the allowed programs and the POSIX shells. Each other command word is refused. */
-export const KNOWN_COMMAND_WORDS = [...new Set([...WRAPPERS, ...ALLOWED_BUILTINS, ...ALLOWED_PROGRAMS, ...SCRIPT_SHELLS])]
+/** Each command word that the reader allows: the wrappers that do not change the user, the allowed builtins, the allowed programs and the POSIX shells. Each other command word is refused. */
+export const KNOWN_COMMAND_WORDS = [...new Set([...WRAPPERS, ...ALLOWED_BUILTINS, ...ALLOWED_PROGRAMS, ...SCRIPT_SHELLS])].filter((word) => !USER_WRAPPERS.has(word))
 /** zsh runs the words after each one as a command, or reads it as a part of a compound command. bash reads the name of a program. */
 const ZSH_COMMAND_WORDS = new Set(["nocorrect", "repeat", "-", "always", "foreach"])
 /** Builtins whose words are names or assignments. The reader allows only a name and `NAME=value` there, with no option. */
@@ -391,7 +396,10 @@ const SPECIAL_LOWER_CASE = new Set(["argv", "cdpath", "fpath", "path", "manpath"
 const TRACKED_NAME = /^[a-z_][a-z0-9_]*$/
 const ASSIGNMENT_WORD = /^([A-Za-z_][A-Za-z0-9_]*)(\+?)=/
 const NAME = /^[A-Za-z_][A-Za-z0-9_]*$/
-const FIND_EXEC = /^-(?:exec|execdir|ok|okdir)$/
+/** The `find` actions that run their command in the shell directory. */
+const FIND_EXEC = /^-(?:exec|ok)$/
+/** The `find` actions that run their command in the directory of each found file. */
+const FIND_EXEC_IN_FOUND_DIRECTORY = /^-(?:execdir|okdir)$/
 const PARAMETER = /[A-Za-z_][A-Za-z0-9_]*|[0-9@*#?!$-]/y
 /** `${NAME}` and the guard `${NAME:?message}`. Each other `${...}` form has an operator. */
 const BRACED_PARAMETER = /\{[A-Za-z_][A-Za-z0-9_]*(?::\?[^}$`"'\\\n]*)?\}/y
@@ -844,15 +852,25 @@ function readWrappers(words, start) {
   return { wrappers, assignments, end: index, refused: "" }
 }
 
-/** The index of each word where a command can start: the first word, and the word after each `find -exec`. */
+/** The index of each word where a command can start: the first word, and the word after each `find -exec` and `-ok`. */
 const invocationStarts = (words) => [0, ...words.flatMap((word, index) => (FIND_EXEC.test(word.text) ? [index + 1] : []))]
 
-/** Each program that a word list runs: its command word after the wrappers, and the command after each `find -exec`. */
+/** The index of the word that ends the command of a `find -exec` from `start`: a `;`, or a `+` directly after `{}`. With no end, the length. */
+const findCommandEnd = (words, start) => {
+  const end = words.findIndex((word, index) => index >= start && (word.text === ";" || (word.text === "+" && words[index - 1]?.text === "{}")))
+  return end < 0 ? words.length : end
+}
+
+/**
+ * Each program that a word list runs: its command word after the wrappers, and the command after each `find -exec` and `-ok`, up to its
+ * `;` or `{} +`. Each one runs in the shell directory. `fromFind` is true for a command after `find -exec` or `-ok`.
+ */
 export function invocationsOf(words) {
   const invocations = []
   for (const start of invocationStarts(words)) {
     const { wrappers, end } = readWrappers(words, start)
-    if (end < words.length) invocations.push({ program: words[end], args: words.slice(end + 1), wrappers, before: words.slice(start, end) })
+    const last = start > 0 ? findCommandEnd(words, end + 1) : words.length
+    if (end < words.length) invocations.push({ program: words[end], args: words.slice(end + 1, last), wrappers, before: words.slice(start, end), fromFind: start > 0 })
   }
   return invocations
 }
@@ -917,7 +935,9 @@ function checkCommand(command, place) {
   if (command.words.some(holdsSubscriptCode)) notModelled("text with a `[` and a `$(` or a backtick, which bash can run as a subscript")
   // The options and assignments of each wrapper, also when no command follows them, such as `env -S 'git push'`.
   for (const start of invocationStarts(command.words)) {
-    const { refused, assignments } = readWrappers(command.words, start)
+    const { refused, assignments, wrappers } = readWrappers(command.words, start)
+    const user = wrappers.find((wrapper) => USER_WRAPPERS.has(wrapper))
+    if (user) notModelled(`the wrapper \`${user}\`, which runs its command as another user, in a directory, a home and a git config that the hook does not read`)
     if (refused) notModelled(`${refused}, which the allow list of the wrapper options does not name. A wrapper takes only the options of \`WRAPPER_OPTIONS\` in \`command-expander.mjs\``)
     for (const word of assignments) refusedAssignment(ASSIGNMENT_WORD.exec(word.text)[1])
   }
@@ -930,6 +950,10 @@ function checkCommand(command, place) {
     if (CODE_BUILTINS.has(name)) notModelled(`the builtin \`${name}\`, which reads its words again as code, assigns a name, changes how the shell reads a command, or changes the flow or the directory`)
     if (SHELLS.includes(name) && !SCRIPT_SHELLS.includes(name)) notModelled(`the shell \`${name}\`, which is not a POSIX shell that the hook reads`)
     if (!KNOWN_COMMAND_WORDS.includes(name)) notModelled(`the command word \`${name}\`, which is not a program or a builtin that the hook knows. The hook knows only: ${KNOWN_COMMAND_WORDS.join(" ")}`)
+    if (name === "find" && args.some((word) => FIND_EXEC_IN_FOUND_DIRECTORY.test(word.text))) {
+      notModelled("`find -execdir` or `-okdir`, which runs its command in the directory of each found file, which the `cd` model cannot know. Use `-exec` with an absolute path")
+    }
+    if (name === "git" && invocation.fromFind && args.some((word) => word.text.includes("{}"))) notModelled("a `{}` in a `git` argument after `find -exec`, which `find` replaces with each path that it finds")
     if (name === "cd") {
       const whole = program === command.words[0] && command.words.length === 2 && command.assignments.length === 0 && place.topLevel && place.length === 1
       if (!whole || args[0].text.startsWith("-") || args[0].fixed) notModelled("a `cd` that is not one whole simple command `cd PATH` at the top level of the line, with a literal path")

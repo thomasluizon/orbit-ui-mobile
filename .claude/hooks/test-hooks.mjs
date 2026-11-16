@@ -432,12 +432,12 @@ for (const [name, command] of [
   ["a backtick substitution", "echo `date`"],
   ["a backtick substitution", 'echo "`date`"'],
   ["a word that starts with `=` in a command word", "=git status"],
-  ["a word that starts with `=` in a command word", "sudo =git status"],
+  ["a word that starts with `=` in a command word", "env =git status"],
   ["a word that starts with `=` in a `git` argument", "git push origin =main"],
   ["a glob in a command word", "/usr/bin/gi? status"],
   ["a glob in a command word", "/usr/bin/gi[t] status"],
   ["a variable in a command word", "$g status"],
-  ["a variable in a command word", 'sudo "$USER" ls'],
+  ["a variable in a command word", 'nice "$USER" ls'],
   ["a command substitution in a command word", "$(which git) status"],
   ["a brace expansion in a command word", "{git,status}"],
   ["a variable in a `git` argument", 'git log "$BRANCH"'],
@@ -659,7 +659,7 @@ T("git review r14: in an attended session, a URL with the name of a repository w
 T("git review r14: an attended session in a repository with no protection allows a subcommand that the hook does not know", checkGitCommand("git bisect run npm test", { ...fromBrain, unattended: false }), null)
 T("git review r14: an attended session in a protected repository refuses a subcommand that the hook does not know", blocks(checkGitCommand("git subtree push --prefix=apps origin feature/x", { ...r13Options, unattended: false })), true)
 T("git review r14: the refusal of an unknown subcommand names the subcommands that the hook knows", (checkGitCommand("git p", r13Options)?.message ?? "").includes("The hook knows only: add apply"), true)
-T("git review r14: the refusal of an unknown command word names the command words that the hook knows", (checkGitCommand("caffeinate -i git status", r13Options)?.message ?? "").includes("The hook knows only: sudo"), true)
+T("git review r14: the refusal of an unknown command word names the command words that the hook knows", (checkGitCommand("caffeinate -i git status", r13Options)?.message ?? "").includes("The hook knows only: exec command"), true)
 // Defect 8: a \`git\` argument can use a variable with a lower case name that the line sets. An upper case name is refused, and the advice says so.
 T("git review r14: a lower case variable that the line sets passes in a git argument", checkGitCommand("wt=/work/orbit-ui-mobile; git -C \"$wt\" status --short", r13Options), null)
 T("git review r14: an upper case variable that the line sets is refused in a git argument", checkGitCommand("WT=/work/orbit-ui-mobile; git -C \"$WT\" status --short", r13Options)?.notModelled, "a variable in a \`git\` argument")
@@ -698,6 +698,53 @@ for (const command of ["env FOO=1 git status", "env -- FOO=1 git status", "nice 
   "exec git status", "nohup npm test", "env FOO=1 nice -n 5 timeout 60 git status"]) {
   T(`subset: the wrapper options in ${JSON.stringify(command)} are modelled`, readCommand(command).notModelled, "")
 }
+// Each way that the subset can run a program in a directory other than the shell directory is refused by the git rule, the handoff gate
+// and the approval rule. `find -execdir` and `-okdir` run in the directory of each found file, `env -C` and `sudo -D` in the named directory,
+// `sudo` in the `runcwd` of its policy, `pkexec` in the home directory of the user, and `make -C` in the named directory.
+for (const [name, command] of [
+  ["`find -execdir`", "find /work/orbit-ui-mobile -maxdepth 1 -name apps -execdir git commit -m x \\;"],
+  ["`find -okdir`", "find /work/orbit-ui-mobile -maxdepth 1 -name apps -okdir git commit -m x \\;"],
+  ["`find -execdir` with `+`", "find /work/orbit-ui-mobile -maxdepth 1 -name apps -execdir git commit -m x {} +"],
+  ["`find -execdir` after a wrapper", "nice -n 5 find /work/orbit-ui-mobile -maxdepth 1 -name apps -execdir git commit -m x \\;"],
+  ["`find -execdir` after `xargs`", "echo /work/orbit-ui-mobile | xargs -I{} find {} -maxdepth 1 -name apps -execdir git commit -m x \\;"],
+  ["`find -execdir` in the command of `find -exec`", "find . -maxdepth 0 -exec find /work/orbit-ui-mobile -maxdepth 1 -name apps -execdir git commit -m x \\; \\;"],
+  ["`find -execdir` with a relative removal", "find /work/orbit-ui-mobile -maxdepth 1 -name apps -execdir rm -rf build \\; ; git commit -m x"],
+  ["a `{}` in a `git` argument after `find -exec`", "find /work/orbit-ui-mobile -maxdepth 0 -exec git -C {} commit -m x \\;"],
+  ["`env -C`", "env -C /work/orbit-ui-mobile git commit -m x"],
+  ["`env --chdir`", "env --chdir=/work/orbit-ui-mobile git commit -m x"],
+  ["`env --chdir` with its value in the next word", "env --chdir /work/orbit-ui-mobile git commit -m x"],
+  ["`sudo`", "sudo git commit -m x"],
+  ["`sudo -D`", "sudo -D /work/orbit-ui-mobile git commit -m x"],
+  ["`sudo --chdir`", "sudo --chdir=/work/orbit-ui-mobile git commit -m x"],
+  ["`doas`", "doas git commit -m x"],
+  ["`pkexec`", "pkexec git commit -m x"],
+  ["`pkexec --keep-cwd`", "pkexec --keep-cwd git commit -m x"],
+  ["`make -C`", "make -C /work/orbit-ui-mobile commit GIT='git commit -m x'"],
+  ["`xargs` before `git`", "echo /work/orbit-ui-mobile | xargs -I{} git -C {} commit -m x"],
+]) {
+  T(`subset other directory: ${name} is refused by the git rule, the handoff gate and the approval rule`,
+    [Boolean(checkGitCommand(command, fromBrain)?.notModelled), gitCommitChains(command, { cwd: "/work/brain" }).notModelled !== "", checkApprovalPrompt(command, { cwd: "/work/brain" })?.rule],
+    [true, true, "not-modelled"])
+}
+T("subset other directory: the refusal of `find -execdir` names the construct and the rewrite", readCommand("find . -name apps -execdir git status \\;").notModelled,
+  "`find -execdir` or `-okdir`, which runs its command in the directory of each found file, which the `cd` model cannot know. Use `-exec` with an absolute path")
+T("subset other directory: the refusal of `sudo` names the wrapper", readCommand("sudo git status").notModelled,
+  "the wrapper `sudo`, which runs its command as another user, in a directory, a home and a git config that the hook does not read")
+T("subset other directory: `sudo` is not in the list of the command words that the hook knows", (checkGitCommand("caffeinate git status", r13Options)?.message ?? "").includes(" sudo "), false)
+// The controls: each wrapper and `find -exec` and `-ok` run their command in the shell directory, so the `cd` model holds in each rule.
+for (const wrapper of ["env A=1", "env --", "nice -n 5", "nohup", "time -p", "timeout 60", "stdbuf -o L", "setsid", "ionice -c 3", "exec", "command", "find . -maxdepth 0 -exec", "find . -maxdepth 0 -ok"]) {
+  const tail = wrapper.startsWith("find") ? " \\;" : ""
+  T(`subset other directory: \`${wrapper}\` keeps the \`cd\` model in the handoff gate, the git rule and the approval rule`, [
+    gitCommitChains(`cd /work/b; ${wrapper} git commit -m x${tail}`, { cwd: "/work/brain" }),
+    blocks(checkGitCommand(`cd /work/orbit-ui-mobile; ${wrapper} git push origin main${tail}`, fromBrain)),
+    checkGitCommand(`cd /work/orbit-ui-mobile; ${wrapper} git push origin fix/x${tail}`, fromBrain),
+    checkApprovalPrompt(`cd /work/checkouts/repo/x; ${wrapper} rm -rf ..${tail}`, { cwd: "/work/checkouts/repo", home: "/fixture-home", windows: false })?.rule,
+  ], [{ chains: [["/work/b"]], notModelled: "" }, true, null, "working-directory"])
+}
+// A program that runs code from a file or from its arguments, such as `npm`, gives no invocation that a rule reads, in any directory:
+// `./README.md` names that limit. The documented procedure `npm test --prefix evals/astra` stays modelled.
+T("subset other directory: `npm --prefix` is modelled, and its only invocation is `npm`", [readCommand("npm test --prefix evals/astra").notModelled,
+  readCommand("npm test --prefix evals/astra").list[0][0].node.commands[0].words.map((word) => word.text)], ["", ["npm", "test", "--prefix", "evals/astra"]])
 // Defect 2: `HOME`, each `XDG_*` name and each other name that gives the shell or git a directory or a config file is refused in each assignment form.
 const DIRECTORY_NAMES = ["HOME", "XDG_CONFIG_HOME", "XDG_DATA_HOME", "XDG_CACHE_HOME", "PWD", "OLDPWD", "USERPROFILE", "HOMEDRIVE", "HOMEPATH", "GIT_CONFIG_GLOBAL", "ZDOTDIR", "CDPATH"]
 for (const name of DIRECTORY_NAMES) {
@@ -1153,7 +1200,8 @@ for (const [command, rule] of [
   T(`approval: ${command} is refused by ${expected}`, refusedBy(command), expected)
 }
 // The two rows with a last line `EOF` are not modelled: `EOF` is a command word that the hook does not know.
-T("approval: the count of refused rows that the subset models, each refused by its removal rule", modelledRefusals, 25)
+// `sudo` runs its command as another user, so the two `sudo` rows are not modelled.
+T("approval: the count of refused rows that the subset models, each refused by its removal rule", modelledRefusals, 23)
 for (const command of REVIEW_APPROVAL_REFUSED) T(`approval review: ${JSON.stringify(command)} is refused`, refusedBy(command), "not-modelled")
 // Each removal command of the round 13 review is refused.
 for (const command of ["if [[ 1 ]] rm -rf \"$TMP\"", "if { true } rm -rf \"$TMP\"", "{ cd /work/checkouts/repo/x/y/z/w; } | cat; rm -rf ../..", "{ cd /work/checkouts/repo/x/y/z/w; } & rm -rf ../..",
@@ -2206,6 +2254,16 @@ for (const command of [`cd ${linkToProtected}/..; git push origin main`, `git -C
   T(`adapter git-guardrails symlink: ${command} from a repository with no protection -> 0, 0`, [fromOpenCheckout(command), fromOpenCheckout(command, { ORBIT_LAUNCH_WORKER: "1" })], [0, 0])
 }
 T("handoff git: the top level follows the -C chain as git does", topLevelOf([openCheckout, "link/.."]), realpathSync(protectedCheckout))
+// `find -execdir` runs git in the directory that holds each found file, here the protected checkout, which the `cd` model cannot know.
+// The git rule refuses it attended and in a worker run, and the approval rule refuses it in a worker run.
+for (const command of [`find ${protectedCheckout} -maxdepth 1 -name apps -execdir git push origin main \\;`, `find ${protectedCheckout} -maxdepth 1 -name apps -execdir git push --force origin HEAD:main \\;`,
+  `find ${protectedCheckout} -maxdepth 1 -name apps -okdir git push origin main \\;`]) {
+  T(`adapter other directory: ${command} from a repository with no protection -> git 2, 2 and approval 2`,
+    [fromOpenCheckout(command), fromOpenCheckout(command, { ORBIT_LAUNCH_WORKER: "1" }), runHook("forbid-approval-prompt.mjs", bash(command, openCheckout), { ORBIT_LAUNCH_WORKER: "1" })], [2, 2, 2])
+}
+T(`adapter other directory: the control \`cd ${protectedCheckout}; git push origin main\` -> 2`, fromOpenCheckout(`cd ${protectedCheckout}; git push origin main`), 2)
+T("adapter other directory: the control `find -exec` push of a feature branch from the shell directory -> 0, 0",
+  [fromOpenCheckout(`find ${openCheckout} -maxdepth 0 -exec git push origin fix/x \\;`), fromOpenCheckout(`find ${openCheckout} -maxdepth 0 -exec git push origin fix/x \\;`, { ORBIT_LAUNCH_WORKER: "1" })], [0, 0])
 
 const ORCH = "orchestrator-guardrails.mjs"
 for (const [shape, command] of descriptorSuffixAllows) {
@@ -3457,7 +3515,21 @@ for (const [name, command, want] of [
   ["each commit of a line gives its own chain", "cd /work/b; git commit -m x; cd /work/c; git commit -m y", [["/work/b"], ["/work/c"]]],
   ["a commit that runs twice in one directory gives one chain", "git commit -m x || git commit -m y", [["/work/a"]]],
   ["a git command that is not a commit gives no chain", "git -C /work/b status && git log --grep commit", []],
+  // Each git subcommand that can record the index in a commit is judged as `git commit` is.
+  ["`git merge --continue` gives its chain", "git merge --continue", [["/work/a"]]],
+  ["`git merge` of a branch gives its chain", "git merge --no-edit origin/main", [["/work/a"]]],
+  ["`git cherry-pick --continue` gives its chain", "cd /work/b; git cherry-pick --continue", [["/work/b"]]],
+  ["`git revert --continue` gives its chain", "git -C /work/c revert --continue", [["/work/a", "/work/c"]]],
+  ["`git rebase --continue` gives its chain", 'wt=/work/b; git -C "$wt" rebase --continue', [["/work/a", "/work/b"]]],
+  ["`git am --continue` gives its chain", "git am --continue", [["/work/a"]]],
+  ["`git pull` gives its chain", "git pull origin main", [["/work/a"]]],
+  ["each recording subcommand of a line gives its own chain", "git -C /work/b merge --continue; git -C /work/c commit -m x", [["/work/a", "/work/b"], ["/work/a", "/work/c"]]],
+  ["a git command that records nothing gives no chain", "git stash list; git status; git log --merges", []],
 ]) T(`handoff chain: ${name}`, commitChains(command), want)
+T("handoff chain: an unattended recording subcommand outside the subset names the construct", gitCommitChains('git -C "$WT" merge --continue', { cwd: "/work/a" }),
+  { chains: [], notModelled: "a variable in a `git` argument" })
+T("handoff chain: an attended recording subcommand outside the subset is read from its text", gitCommitChains('git -C "$WT" rebase --continue', { cwd: "/work/a", unattended: false }),
+  { chains: [["/work/a", "$WT"]], notModelled: "" })
 T("handoff chain: an unattended commit outside the subset names the construct", gitCommitChains('git -C "$WT" commit -m x', { cwd: "/work/a" }), { chains: [], notModelled: "a variable in a `git` argument" })
 T("handoff chain: an attended commit outside the subset is read from its text", gitCommitChains('git -C "$WT" commit -m x', { cwd: "/work/a", unattended: false }), { chains: [["/work/a", "$WT"]], notModelled: "" })
 T("handoff chain: text outside the subset that names no commit gives no chain", gitCommitChains('echo "$(cat <<\'EOF\'\nx\nEOF\n)"', { cwd: "/work/a" }), { chains: [], notModelled: "" })
@@ -3696,8 +3768,21 @@ const handoffChainRows = [
   ["an attended commit outside the subset is read from its text", "git commit -m \"$(cat <<'EOF'\nx\nEOF\n)\"", stagedChainRepository, {}, { status: 2, refusal: handoffMismatch }],
   ["control: that attended commit in the clean checkout passes", "git commit -m \"$(cat <<'EOF'\nx\nEOF\n)\"", cleanChainRepository, {}, { status: 0, refusal: "" }],
   ["an unattended text outside the subset that runs no commit passes", 'echo "$(cat <<\'EOF\'\nx\nEOF\n)"', plainChainDirectory, { ORBIT_LAUNCH_WORKER: "1" }, { status: 0, refusal: "" }],
+  // `git merge --continue` and the other recording subcommands record the staged NEXT.md, so the gate judges them as a commit.
+  ["`git merge --continue` with a staged invalid NEXT.md is refused", "git merge --continue", stagedChainRepository, {}, { status: 2, refusal: handoffMismatch }],
+  ["`git merge --continue` with a staged invalid NEXT.md is refused in a worker run", "git merge --continue", stagedChainRepository, { ORBIT_LAUNCH_WORKER: "1" }, { status: 2, refusal: handoffMismatch }],
+  ["`git -C` to the staged checkout with `rebase --continue` is refused", `git -C ${stagedChainRepository} rebase --continue`, cleanChainRepository, {}, { status: 2, refusal: handoffMismatch }],
+  ["control: `git merge --continue` in the clean checkout passes", "git merge --continue", cleanChainRepository, {}, { status: 0, refusal: "" }],
+  // `find -execdir` runs git in the directory of the found file, so a worker run refuses it as not modelled.
+  ["an unattended `find -execdir` commit is refused with the rewrite", `find ${stagedChainRepository} -maxdepth 1 -name .claude -execdir git commit -m x \\;`, cleanChainRepository,
+    { ORBIT_LAUNCH_WORKER: "1" }, { status: 2, refusal: "BLOCKED commit (the handoff gate cannot read it):" }],
+  ["an unattended `{}` after `find -exec` in a commit is refused with the rewrite", `find ${stagedChainRepository} -maxdepth 0 -exec git -C {} commit -m x \\;`, cleanChainRepository,
+    { ORBIT_LAUNCH_WORKER: "1" }, { status: 2, refusal: "BLOCKED commit (the handoff gate cannot read it):" }],
 ]
 for (const [name, command, cwd, env, want] of handoffChainRows) T(`handoff chain hook: ${name}`, chainHook(command, cwd, env), want)
+// Attended, the handoff gate reads a command outside the subset from its text. The git rule in the same matcher refuses each such command that names git.
+T("handoff chain hook: an attended `find -execdir` commit is refused by the git rule in the same matcher",
+  runHook("git-guardrails.mjs", bash(`find ${stagedChainRepository} -maxdepth 1 -name .claude -execdir git commit -m x \\;`, cleanChainRepository)), 2)
 T("handoff chain hook: the unattended refusal names the plain subset rewrite",
   spawnSync(process.execPath, [handoffHook], { input: JSON.stringify({ hook_event_name: "PreToolUse", session_id: "s-handoff-none", cwd: cleanChainRepository, tool_input: { command: 'git -C "$WT" commit -m x' } }),
     encoding: "utf8", env: { ...process.env, ORBIT_LAUNCH_WORKER: "1" } }).stderr.includes(PLAIN_SUBSET_ADVICE), true)
