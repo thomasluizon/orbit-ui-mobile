@@ -1,7 +1,6 @@
 'use client'
 
 import {
-  ORBIT_MASCOT_MAX_FRAME_STEP_MS,
   isOrbitMascotSmallSize,
   orbitMascotFrame,
   orbitMascotSizeFor,
@@ -10,17 +9,20 @@ import {
 } from '@orbit/shared/contracts/brand'
 import { mascotMotion } from '@orbit/shared/theme'
 import {
+  advanceOrbitLoopClock,
   claimOrbitLiveSlot,
   getOrbitLoopVersion,
+  joinOrbitLoopClock,
   mayOrbitRunLoop,
   subscribeOrbitLoop,
+  type OrbitLiveRole,
 } from '@orbit/shared/utils'
 import { useEffect, useId, useRef, useState, useSyncExternalStore } from 'react'
 import { useViewportMatch } from '@/hooks/use-viewport-match'
 import { useOrbitOverlay } from '@/components/ui/orbit-overlay-layer'
 import { OrbitMascotDrawing } from '@/components/ui/orbit-mascot-drawing'
 
-function useOrbitLoopClock(wantsLoop: boolean, lead: boolean, target: React.RefObject<SVGSVGElement | null>) {
+function useOrbitLoopClock(wantsLoop: boolean, role: OrbitLiveRole, target: React.RefObject<SVGSVGElement | null>) {
   const [claim] = useState(() => Symbol('orbit-mascot'))
   const overlay = useOrbitOverlay()
   const reducedMotion = useViewportMatch('(prefers-reduced-motion: reduce)')
@@ -28,10 +30,9 @@ function useOrbitLoopClock(wantsLoop: boolean, lead: boolean, target: React.RefO
   const [onScreen, setOnScreen] = useState(true)
   const [foreground, setForeground] = useState(true)
   const [clock, setClock] = useState(0)
-  const elapsed = useRef(0)
   useSyncExternalStore(subscribeOrbitLoop, getOrbitLoopVersion, getOrbitLoopVersion)
 
-  useEffect(() => (candidate && onScreen ? claimOrbitLiveSlot(claim, overlay, lead) : undefined), [candidate, onScreen, claim, overlay, lead])
+  useEffect(() => (candidate && onScreen ? claimOrbitLiveSlot(claim, overlay, role) : undefined), [candidate, onScreen, claim, overlay, role])
 
   useEffect(() => {
     const element = target.current
@@ -53,33 +54,35 @@ function useOrbitLoopClock(wantsLoop: boolean, lead: boolean, target: React.RefO
 
   useEffect(() => {
     if (!running) return undefined
+    const leave = joinOrbitLoopClock()
     let frame = 0
-    let previous: number | null = null
-    let lastDraw = 0
     const step = (now: number) => {
       frame = requestAnimationFrame(step)
-      if (previous !== null) elapsed.current += Math.min(now - previous, ORBIT_MASCOT_MAX_FRAME_STEP_MS)
-      previous = now
-      if (now - lastDraw < mascotMotion.frameInterval) return
-      lastDraw = now
-      setClock(elapsed.current)
+      setClock(advanceOrbitLoopClock(now))
     }
     frame = requestAnimationFrame(step)
-    return () => cancelAnimationFrame(frame)
+    return () => {
+      cancelAnimationFrame(frame)
+      leave()
+    }
   }, [running])
 
   return { clock: candidate ? clock : 0, running }
+}
+
+function liveRole(lead: boolean, withLead: boolean): OrbitLiveRole {
+  return lead ? 'lead' : withLead ? 'withLead' : 'single'
 }
 
 function pausedFrame(frame: OrbitMascotFrame, running: boolean): OrbitMascotFrame {
   return running ? frame : { ...frame, blinkScale: 1 }
 }
 
-export function OrbitMascot({ size, state = 'parado', still = false, color, lead = false }: Readonly<OrbitMascotProps>) {
+export function OrbitMascot({ size, state = 'parado', still = false, color, lead = false, withLead = false }: Readonly<OrbitMascotProps>) {
   const clipId = `orbit-planet-${useId().replaceAll(':', '')}`
   const svgRef = useRef<SVGSVGElement | null>(null)
   const small = isOrbitMascotSmallSize(size)
-  const { clock, running } = useOrbitLoopClock(!small && !still, lead, svgRef)
+  const { clock, running } = useOrbitLoopClock(!small && !still, liveRole(lead, withLead), svgRef)
   const frame = pausedFrame(orbitMascotFrame(clock, mascotMotion), running)
 
   return <OrbitMascotDrawing ref={svgRef} size={size} state={state} color={color} clipId={clipId} frame={frame} running={running} />

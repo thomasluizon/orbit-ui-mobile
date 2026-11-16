@@ -1,14 +1,20 @@
-/** Who may run Orbit's idle loop. A view has at most one live Orbit, the person can switch the loop off,
- *  and an open overlay pauses every Orbit under it. The store has no React in it: the apps read it through
- *  `useSyncExternalStore`. */
+import { ORBIT_MASCOT_MAX_FRAME_STEP_MS } from '../contracts/brand/OrbitMascotGeometry'
+import { mascotMotion } from '../theme/motion'
+
+/** Who may run Orbit's idle loop, and the one clock every running Orbit reads. A view has one live Orbit, or the
+ *  conversation entry and the Orbit lines that run with it. The person can switch the loop off, and an open overlay
+ *  pauses every Orbit under it. The store has no React in it: the apps read it through `useSyncExternalStore`. */
 
 /** The overlay that holds a mascot, or `null` for a mascot on the page. */
 export type OrbitOverlay = symbol | null
 
+/** `lead` is the conversation entry. `withLead` is an Orbit line that runs together with the entry of its view. */
+export type OrbitLiveRole = 'lead' | 'withLead' | 'single'
+
 interface LiveClaim {
   readonly claim: symbol
   readonly overlay: OrbitOverlay
-  readonly lead: boolean
+  readonly role: OrbitLiveRole
 }
 
 interface OpenOverlay {
@@ -68,9 +74,10 @@ export function pauseOrbitLoopForOverlay(overlay: symbol, parent: OrbitOverlay =
   }
 }
 
-/** A live mascot claims a slot while it is in view. In the top overlay, the leading claim runs the loop, or else the first claim. */
-export function claimOrbitLiveSlot(claim: symbol, overlay: OrbitOverlay = null, lead = false): () => void {
-  liveClaims.push({ claim, overlay, lead })
+/** A live mascot claims a slot while it is in view. In the top overlay, the leading claim and every claim that runs
+ *  with it run the loop. With no leading claim there, only the first claim runs. */
+export function claimOrbitLiveSlot(claim: symbol, overlay: OrbitOverlay = null, role: OrbitLiveRole = 'single'): () => void {
+  liveClaims.push({ claim, overlay, role })
   notify()
   return () => {
     const index = liveClaims.findIndex((entry) => entry.claim === claim)
@@ -85,5 +92,35 @@ export function mayOrbitRunLoop(claim: symbol): boolean {
   if (!motionEnabled) return false
   const top = openOverlays.at(-1)?.overlay ?? null
   const live = liveClaims.filter((entry) => entry.overlay === top)
-  return (live.find((entry) => entry.lead) ?? live[0])?.claim === claim
+  if (!live.some((entry) => entry.role === 'lead')) return live[0]?.claim === claim
+  return live.some((entry) => entry.claim === claim && entry.role !== 'single')
+}
+
+let clockElapsed = 0
+let clockPrevious: number | null = null
+let clockRunners = 0
+
+/** A running Orbit joins the shared clock until the returned function runs. The clock counts only the time while at
+ *  least one Orbit runs, so a paused view resumes where it stopped. */
+export function joinOrbitLoopClock(): () => void {
+  clockRunners += 1
+  let joined = true
+  return () => {
+    if (!joined) return
+    joined = false
+    clockRunners -= 1
+    if (clockRunners === 0) clockPrevious = null
+  }
+}
+
+/** Advances the shared clock to a frame timestamp and returns the time to draw. Every running Orbit calls it from its
+ *  own animation frame. A timestamp that is not newer adds nothing, and one step adds at most
+ *  `ORBIT_MASCOT_MAX_FRAME_STEP_MS`. The time to draw sits on one grid of `mascotMotion.frameInterval`, so every
+ *  running Orbit draws the same pose and the loop draws at most 30 frames per second. */
+export function advanceOrbitLoopClock(now: number): number {
+  if (clockPrevious === null || now > clockPrevious) {
+    if (clockPrevious !== null) clockElapsed += Math.min(now - clockPrevious, ORBIT_MASCOT_MAX_FRAME_STEP_MS)
+    clockPrevious = now
+  }
+  return Math.round(clockElapsed / mascotMotion.frameInterval) * mascotMotion.frameInterval
 }

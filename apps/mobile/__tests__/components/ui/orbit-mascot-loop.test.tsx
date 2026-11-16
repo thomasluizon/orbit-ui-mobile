@@ -4,7 +4,10 @@ import { ORBIT_MASCOT_FACES, ORBIT_MASCOT_VIEW_BOX, ORBIT_SMALL_FACES, orbitMasc
 import { mascotMotion } from '@orbit/shared/theme'
 import { setOrbitMotionEnabled } from '@orbit/shared/utils'
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+import { AstraButton } from '@/components/shell/astra-button'
+import { TodayAstraLine } from '@/components/today/today-astra-line'
 import { OrbitMascot } from '@/components/ui/orbit-mascot'
+import { useUIStore } from '@/stores/ui-store'
 import { OrbitOverlayLayer } from '@/components/ui/orbit-overlay-layer'
 import { NativeDialog } from '@/components/ui/native-dialog'
 import { OverlayHost } from '@/components/ui/overlay-host'
@@ -402,6 +405,79 @@ describe('Orbit on-screen probe on Android', () => {
     expect(counter.measured).toBeLessThanOrEqual(5)
     expect(loops(tree)).toEqual(['running'])
     tree.unmount()
+  })
+})
+
+describe('Hoje Orbit line with the conversation entry on Android', () => {
+  function hoje(overlay = false) {
+    return <View>
+      <TodayAstraLine text="Two habits left today." destination="Opens the conversation" onPress={() => {}} />
+      <OrbitMascot size={96} state="feliz" />
+      <OrbitOverlayLayer active={overlay}>{overlay ? <OrbitMascot size={48} state="pensando" /> : null}</OrbitOverlayLayer>
+      <AstraButton />
+    </View>
+  }
+
+  function loopIn(tree: TestTree, testID: string) {
+    const holder = tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === testID)[0]
+    return holder?.findAll((node) => typeof node.type === 'string' && node.props.testID === 'orbit-mascot')[0]?.props['data-orbit-loop']
+  }
+
+  function pair(tree: TestTree) {
+    return [loopIn(tree, 'today-astra-slot'), loopIn(tree, 'astra-button')]
+  }
+
+  beforeEach(() => { useUIStore.setState(useUIStore.getInitialState()) })
+
+  it('runs the summary Orbit with the entry on one clock, and keeps every other Orbit of the view still', () => {
+    const tree = render(hoje())
+    expect([...pair(tree), loopsByState(tree).feliz]).toEqual(['running', 'running', 'still'])
+    advance(480)
+    const moons = tree.root.findAll((node) => typeof node.type === 'string' && node.props.fill === moonFill && node.props.cx !== undefined)
+      .map((moon) => `${String(moon.props.cx)},${String(moon.props.cy)}`)
+    expect(moons[0]).toBe(moons[2])
+    expect(moons[0]).not.toBe(moonOf(render(<OrbitMascot size={48} still />)))
+  })
+
+  it('keeps the summary Orbit and the entry still under reduced motion', () => {
+    const tree = render(hoje())
+    setReducedMotion(true)
+    advance(400)
+    expect(pair(tree)).toEqual(['still', 'still'])
+  })
+
+  it('stops the summary Orbit off screen while the entry keeps running, and draws the pose of the entry when it returns', () => {
+    let calls = 0
+    let summaryOnScreen = true
+    __setMeasureInWindowImpl((callback) => {
+      const summary = calls % 2 === 0
+      calls += 1
+      callback(0, summary && !summaryOnScreen ? 2000 : 100, 48, 34)
+    })
+    const tree = render(<View><TodayAstraLine text="Two habits left today." destination="Opens the conversation" onPress={() => {}} /><AstraButton /></View>)
+    advance(250)
+    expect(pair(tree)).toEqual(['running', 'running'])
+    summaryOnScreen = false
+    advance(250)
+    expect(pair(tree)).toEqual(['still', 'running'])
+    advance(500)
+    summaryOnScreen = true
+    advance(250)
+    expect(pair(tree)).toEqual(['running', 'running'])
+    advance(96)
+    const moons = tree.root.findAll((node) => typeof node.type === 'string' && node.props.fill === moonFill && node.props.cx !== undefined)
+      .map((moon) => `${String(moon.props.cx)},${String(moon.props.cy)}`)
+    expect(moons[0]).toBe(moons[1])
+  })
+
+  it('stops the summary Orbit and the entry behind an overlay and in the background', () => {
+    const tree = render(hoje())
+    TestRenderer.act(() => tree.update(hoje(true)))
+    expect([loopIn(tree, 'today-astra-slot'), loopsByState(tree).pensando]).toEqual(['still', 'running'])
+    TestRenderer.act(() => tree.update(hoje()))
+    expect(pair(tree)).toEqual(['running', 'running'])
+    TestRenderer.act(() => { for (const listener of appStateListeners) listener('background') })
+    expect(pair(tree)).toEqual(['still', 'still'])
   })
 })
 

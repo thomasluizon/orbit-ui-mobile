@@ -1,6 +1,5 @@
 import {
   ORBIT_MASCOT_FACES,
-  ORBIT_MASCOT_MAX_FRAME_STEP_MS,
   ORBIT_MASCOT_PLANET_RADIUS,
   ORBIT_MASCOT_VIEW_BOX,
   ORBIT_SMALL_FACES,
@@ -17,11 +16,14 @@ import {
 } from '@orbit/shared/contracts/brand'
 import { mascotMotion } from '@orbit/shared/theme'
 import {
+  advanceOrbitLoopClock,
   claimOrbitLiveSlot,
   getOrbitLoopVersion,
   isOrbitMotionEnabled,
+  joinOrbitLoopClock,
   mayOrbitRunLoop,
   subscribeOrbitLoop,
+  type OrbitLiveRole,
 } from '@orbit/shared/utils'
 import { useEffect, useId, useMemo, useRef, useState, useSyncExternalStore, type ReactNode, type RefObject } from 'react'
 import { AppState, useWindowDimensions } from 'react-native'
@@ -55,7 +57,7 @@ function useOnScreen(target: RefObject<WindowMeasurable | null>, active: boolean
   return onScreen
 }
 
-function useOrbitLoopClock(wantsLoop: boolean, lead: boolean, target: RefObject<WindowMeasurable | null>) {
+function useOrbitLoopClock(wantsLoop: boolean, role: OrbitLiveRole, target: RefObject<WindowMeasurable | null>) {
   const [claim] = useState(() => Symbol('orbit-mascot'))
   const overlay = useOrbitOverlay()
   const reducedMotion = usePrefersReducedMotion()
@@ -64,10 +66,9 @@ function useOrbitLoopClock(wantsLoop: boolean, lead: boolean, target: RefObject<
   const [foreground, setForeground] = useState(AppState.currentState === 'active')
   const onScreen = useOnScreen(target, candidate && foreground && isOrbitMotionEnabled())
   const [clock, setClock] = useState(0)
-  const elapsed = useRef(0)
   useSyncExternalStore(subscribeOrbitLoop, getOrbitLoopVersion, getOrbitLoopVersion)
 
-  useEffect(() => (candidate && onScreen ? claimOrbitLiveSlot(claim, overlay, lead) : undefined), [candidate, onScreen, claim, overlay, lead])
+  useEffect(() => (candidate && onScreen ? claimOrbitLiveSlot(claim, overlay, role) : undefined), [candidate, onScreen, claim, overlay, role])
 
   useEffect(() => {
     if (!candidate) return undefined
@@ -81,22 +82,24 @@ function useOrbitLoopClock(wantsLoop: boolean, lead: boolean, target: RefObject<
 
   useEffect(() => {
     if (!running) return undefined
+    const leave = joinOrbitLoopClock()
     let frame = 0
-    let previous: number | null = null
-    let lastDraw = 0
     const step = (now: number) => {
       frame = requestAnimationFrame(step)
-      if (previous !== null) elapsed.current += Math.min(now - previous, ORBIT_MASCOT_MAX_FRAME_STEP_MS)
-      previous = now
-      if (now - lastDraw < mascotMotion.frameInterval) return
-      lastDraw = now
-      setClock(elapsed.current)
+      setClock(advanceOrbitLoopClock(now))
     }
     frame = requestAnimationFrame(step)
-    return () => cancelAnimationFrame(frame)
+    return () => {
+      cancelAnimationFrame(frame)
+      leave()
+    }
   }, [running])
 
   return { clock: candidate ? clock : 0, running }
+}
+
+function liveRole(lead: boolean, withLead: boolean): OrbitLiveRole {
+  return lead ? 'lead' : withLead ? 'withLead' : 'single'
 }
 
 function pausedFrame(frame: OrbitMascotFrame, running: boolean): OrbitMascotFrame {
@@ -186,11 +189,11 @@ function ThemedOrbitMascot(props: Readonly<OrbitMascotProps>) {
   return <OrbitMascotDrawing {...props} tokens={tokens} />
 }
 
-function OrbitMascotDrawing({ size, state = 'parado', still = false, color, lead = false, tokens }: Readonly<OrbitMascotProps & { tokens: AppTokensV2 }>) {
+function OrbitMascotDrawing({ size, state = 'parado', still = false, color, lead = false, withLead = false, tokens }: Readonly<OrbitMascotProps & { tokens: AppTokensV2 }>) {
   const clipId = `orbit-planet-${useId().replaceAll(':', '')}`
   const svgRef = useRef<Svg | null>(null)
   const small = isOrbitMascotSmallSize(size)
-  const { clock, running } = useOrbitLoopClock(!small && !still, lead, svgRef)
+  const { clock, running } = useOrbitLoopClock(!small && !still, liveRole(lead, withLead), svgRef)
   const frame = pausedFrame(orbitMascotFrame(clock, mascotMotion), running)
   const palette = paletteFrom(tokens)
 

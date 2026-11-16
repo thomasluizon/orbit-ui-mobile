@@ -15,6 +15,8 @@ export interface OrbitMascotProps {
   still?: boolean
   /** The planet and the ring. Defaults to the foreground token. */
   color?: string
-  /** The conversation entry: on a view that shows it, it is the live Orbit, and every other Orbit in that view is still. */
+  /** The conversation entry: on a view that shows it, the entry and the Orbit lines of that view run the loop together, and every other Orbit in that view is still. */
   lead?: boolean
+  /** An Orbit line: on a view that shows the conversation entry, it runs the loop with the entry on one shared clock. Without the entry, it is one more candidate for the single live Orbit. */
+  withLead?: boolean
 }

@@ -3,8 +3,13 @@ import { ORBIT_MASCOT_VIEW_BOX, ORBIT_SMALL_FACES, orbitMascotFrame, orbitOutlin
 import { mascotMotion } from '@orbit/shared/theme'
 import { setOrbitMotionEnabled } from '@orbit/shared/utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { NextIntlClientProvider } from 'next-intl'
+import en from '@orbit/shared/i18n/en.json'
+import { AstraButton } from '@/components/shell/astra-button'
+import { TodayAstraLine } from '@/components/today/today-astra-line'
 import { OrbitMascot } from '@/components/ui/orbit-mascot'
 import { OrbitOverlayLayer } from '@/components/ui/orbit-overlay-layer'
+import { useUIStore } from '@/stores/ui-store'
 
 const observers: Array<(entries: Array<{ isIntersecting: boolean }>) => void> = []
 
@@ -32,6 +37,10 @@ function moonOf(container: HTMLElement) {
 function eyeScaleOf(container: HTMLElement) {
   const transform = container.querySelector('[data-part="eye"]')?.getAttribute('transform') ?? ''
   return Number(/^matrix\(1 0 0 ([\d.]+) /.exec(transform)?.[1])
+}
+
+function moonsOf(container: HTMLElement) {
+  return [...container.querySelectorAll('[data-part="moon"]')].map((moon) => `${moon.getAttribute('cx')},${moon.getAttribute('cy')}`)
 }
 
 function setReducedMotion(reduce: boolean) {
@@ -205,6 +214,66 @@ describe('Orbit idle loop on web', () => {
     const { unmount } = render(<OrbitMascot size={96} />)
     unmount()
     expect(cancel).toHaveBeenCalled()
+  })
+})
+
+describe('Hoje Orbit line with the conversation entry on web', () => {
+  function hoje(overlay = false) {
+    return <NextIntlClientProvider locale="en" messages={en}>
+      <TodayAstraLine text="Two habits left today." destination="Opens the conversation" onPress={() => {}} />
+      <OrbitMascot size={96} state="feliz" />
+      <OrbitOverlayLayer active={overlay}>{overlay ? <OrbitMascot size={48} state="pensando" /> : null}</OrbitOverlayLayer>
+      <AstraButton />
+    </NextIntlClientProvider>
+  }
+
+  function summaryLoop(container: HTMLElement) {
+    return container.querySelector('[data-today-astra-slot] svg')?.getAttribute('data-orbit-loop')
+  }
+
+  function entryLoop(container: HTMLElement) {
+    return container.querySelector('[data-astra-button] svg')?.getAttribute('data-orbit-loop')
+  }
+
+  beforeEach(() => { useUIStore.setState(useUIStore.getInitialState()) })
+
+  it('runs the summary Orbit with the entry on one clock, and keeps every other Orbit of the view still', () => {
+    const { container } = render(hoje())
+    expect([summaryLoop(container), entryLoop(container), loopsByState(container).feliz]).toEqual(['running', 'running', 'still'])
+    act(() => { vi.advanceTimersByTime(480) })
+    const [summaryMoon, , entryMoon] = moonsOf(container)
+    expect(summaryMoon).toBe(entryMoon)
+    expect(summaryMoon).not.toBe(moonsOf(render(<OrbitMascot size={48} still />).container)[0])
+  })
+
+  it('keeps the summary Orbit and the entry still under reduced motion', () => {
+    setReducedMotion(true)
+    const { container } = render(hoje())
+    act(() => { vi.advanceTimersByTime(400) })
+    expect([summaryLoop(container), entryLoop(container)]).toEqual(['still', 'still'])
+  })
+
+  it('stops the summary Orbit off screen while the entry keeps running, and draws the pose of the entry when it returns', () => {
+    const { container } = render(hoje())
+    act(() => { observers[0]?.([{ isIntersecting: false }]) })
+    expect([summaryLoop(container), entryLoop(container)]).toEqual(['still', 'running'])
+    act(() => { vi.advanceTimersByTime(480) })
+    act(() => { observers[0]?.([{ isIntersecting: true }]) })
+    expect([summaryLoop(container), entryLoop(container)]).toEqual(['running', 'running'])
+    act(() => { vi.advanceTimersByTime(96) })
+    const [summaryMoon, , entryMoon] = moonsOf(container)
+    expect(summaryMoon).toBe(entryMoon)
+  })
+
+  it('stops the summary Orbit and the entry behind an overlay and in a background tab', () => {
+    const { container, rerender } = render(hoje())
+    rerender(hoje(true))
+    expect([summaryLoop(container), loopsByState(container).pensando]).toEqual(['still', 'running'])
+    rerender(hoje())
+    expect([summaryLoop(container), entryLoop(container)]).toEqual(['running', 'running'])
+    vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('hidden')
+    act(() => { document.dispatchEvent(new Event('visibilitychange')) })
+    expect([summaryLoop(container), entryLoop(container)]).toEqual(['still', 'still'])
   })
 })
 
