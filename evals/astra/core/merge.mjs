@@ -144,8 +144,8 @@ const WINDOW_RUNS = ['must-pass', 'other']
 // the rate criterion against nothing. `reruns` holds the windows of the later builds. A window names its
 // `evidenceDirectory` relative to the merged report, so that the report links the private evidence of each failed case
 // to the window that holds it. An input has one number, its `inputPosition`: its one-based position among the summary
-// paths of the command line, without `--rerun` itself and without the baseline. Each refusal and the `sourceWindow` of
-// each case read it. A window without that position takes its place in the arrays: the ordinary windows, then `reruns`.
+// paths of the command line, without `--rerun` itself and without the baseline. Each `Input N` refusal and the `sourceWindow`
+// of each case read it. A window without that position takes its place in the arrays: the ordinary windows, then `reruns`.
 export function mergeRuns(ordinaryWindows, { baseline, asBaseline = false, reruns: rerunWindows = [], runCostUsd, descriptors = coreDescriptors() } = {}) {
   const numbered = (list, offset) => list.map((window, index) => ({ ...window, inputPosition: window?.inputPosition ?? offset + index + 1 }))
   const windows = numbered(ordinaryWindows, 0)

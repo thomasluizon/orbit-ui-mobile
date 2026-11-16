@@ -547,7 +547,7 @@ describe('the declaration of a later build on the command line', () => {
   })
 
   // An input has one number: its one-based position among the summary paths on the command line, wherever `--rerun`
-  // stands and without `--rerun` itself, as `sourceWindow` in merge-reports.mjs. Each refusal and `sourceWindow` read it.
+  // stands and without `--rerun` itself, as `sourceWindow` in merge-reports.mjs. Each `Input N` refusal and `sourceWindow` read it.
   describe('the number of each input', () => {
     const thirdBuild = 'c'.repeat(40)
     const notSummary = (input) => `Input ${input} is not a core set run summary.`
