@@ -54,13 +54,54 @@ export function unquotedHeredocRunsCommand(command) {
 
 /** The shells that read standard input as a script. */
 export const SHELLS = ["bash", "sh", "zsh", "dash", "ksh", "mksh", "ash", "hush", "rbash"]
-/** A shell word, by name or by path, then its options (`-o` and `+o` take a name), directly before the heredoc operator. */
-const feedsShell = new RegExp(`(?:^|[\\s;&|(/])(?:${SHELLS.join("|")})(?:[ \\t]+(?:[-+][A-Za-z]*o[ \\t]+\\w+|[-+]\\S*))*[ \\t]+$`)
+/**
+ * Option letters that take the next word in a shell of `SHELLS`: `o` (POSIX `sh`), `O` (bash), `R` (ksh) and `T` (mksh).
+ * A letter that takes no word in the shell at hand keeps a body that is data, so the rules refuse more, never less.
+ */
+const LETTERS_WITH_ARGUMENT = new Set(["o", "O", "R", "T"])
+/** Long options that take the next word: `--rcfile` and `--init-file` in bash, `--emulate` in zsh. */
+const LONG_OPTIONS_WITH_ARGUMENT = new Set(["--rcfile", "--init-file", "--emulate"])
+/** A shell word, by name or by path. */
+const shellWord = new RegExp(`(?:^|[\\s;&|(/])(?:${SHELLS.join("|")})(?=[ \\t]|$)`, "g")
+
+/**
+ * True when the words after a shell word leave it no script file, so it reads its script from standard input.
+ * Each option letter in `LETTERS_WITH_ARGUMENT` takes one word. After `-s`, each word that is not an option is a positional argument.
+ * A word with `;`, `&` or `|` gives false, because the heredoc belongs to a later command. A word with `<` or `>` also gives false:
+ * the scan does not read a redirect, so `bash -x 2>log <<'EOF'` stays data.
+ */
+function readsStandardInput(words) {
+  if (words.some((word) => /[;&|<>]/.test(word))) return false
+  let positionalArguments = false
+  for (let index = 0; index < words.length; index++) {
+    const word = words[index]
+    if (/^[-+]-?$/.test(word)) return positionalArguments || index === words.length - 1
+    if (/^[-+]-/.test(word)) {
+      if (LONG_OPTIONS_WITH_ARGUMENT.has(word)) index++
+      continue
+    }
+    if (!/^[-+]./.test(word)) return positionalArguments
+    for (const letter of word.slice(1)) {
+      if (letter === "s") positionalArguments = true
+      if (LETTERS_WITH_ARGUMENT.has(letter)) index++
+    }
+  }
+  return true
+}
+
+/** A shell word, then only its options and, after `-s`, its positional arguments, directly before the heredoc operator. */
+function feedsShell(beforeOperator) {
+  for (const match of beforeOperator.matchAll(shellWord)) {
+    const words = beforeOperator.slice(match.index + match[0].length).split(/[ \t]+/).filter(Boolean)
+    if (readsStandardInput(words)) return true
+  }
+  return false
+}
 
 /** Strip heredoc bodies so a message that NAMES a flag is not read as using it. A body that a shell reads stays; a file named `x.sh` is not a shell. */
 export function stripHeredocBodies(command) {
   return command.replace(heredoc, (match, beforeOperator, _quote, _tag, restOfLine) =>
-    feedsShell.test(beforeOperator) ? match : `${beforeOperator}${restOfLine}`,
+    feedsShell(beforeOperator) ? match : `${beforeOperator}${restOfLine}`,
   )
 }
 

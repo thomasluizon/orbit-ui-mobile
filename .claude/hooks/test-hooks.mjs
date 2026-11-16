@@ -163,8 +163,30 @@ T("git: a heredoc feeding a shell keeps its body in scope", blocks(checkGitComma
 T("git: a heredoc written to a .sh file is data", checkGitCommand("cat > push.sh <<'EOF'\ngit push origin main\nEOF"), null)
 T("git: a heredoc feeding a shell by path keeps its body in scope", blocks(checkGitCommand("/bin/bash <<'EOF'\ngit push origin main\nEOF")), true)
 // A shell reads the heredoc as its script whatever options sit between the shell word and the operator.
-const HEREDOC_SHELLS = ["bash -e", "bash -s", "sh -x", "/bin/bash -euo pipefail", "bash -o pipefail -e", "zsh +o nomatch", "ksh", "dash -e"]
+// An option can take the next word (`-o`, `-O`, `-R`, `-T`, `--rcfile`, `--emulate`), and after `-s` each other word is a positional argument.
+const HEREDOC_SHELLS = [
+  "bash -e",
+  "bash -s",
+  "sh -x",
+  "/bin/bash -euo pipefail",
+  "bash -o pipefail -e",
+  "zsh +o nomatch",
+  "ksh",
+  "dash -e",
+  "bash -O extglob",
+  "bash +O extglob",
+  "bash -oe pipefail",
+  "bash -s -- one two",
+  "bash -es one",
+  "bash --rcfile /dev/null",
+  "zsh --emulate sh",
+  "ksh -R xref",
+  "mksh -T tty",
+]
 for (const shell of HEREDOC_SHELLS) T(`git: a heredoc feeding ${shell} keeps its body in scope`, blocks(checkGitCommand(`${shell} <<'EOF'\ngit push origin main\nEOF`)), true)
+// A shell that runs a script file, or a command string, reads the heredoc as data, and so does a command after a separator.
+const HEREDOC_DATA = ["bash script.sh", "bash -O extglob script.sh", "bash --rcfile rc script.sh", "bash -- script.sh", "bash -c cat", "bash -s one; cat"]
+for (const shell of HEREDOC_DATA) T(`git: a heredoc feeding ${shell} is data`, checkGitCommand(`${shell} <<'EOF'\ngit push origin main\nEOF`), null)
 // git worktree remove --force follows a Windows junction and deletes the target.
 T("git-worktree: --force blocks", blocks(checkGitWorktreeRemove("git worktree remove --force .claude/worktrees/x")), true)
 T("git-worktree: no force allows", checkGitWorktreeRemove("git worktree remove .claude/worktrees/x"), null)
@@ -522,6 +544,7 @@ for (const command of [
   "rm -rf dist # it's stale",
   "rm -rf dist # don't keep it\nnpm run build # it's fast",
   "bash -c 'rm -rf dist' # the alias function() is gone",
+  ...HEREDOC_DATA.map((shell) => `${shell} <<'EOF'\nrm -rf "$TMP"\nEOF`),
 ]) T(`approval: ${command} passes`, refusedBy(command), null)
 T("approval windows: the top level of a drive is critical", refusedBy("rm -rf C:/work", { ...approvalOptions, cwd: "C:\\work\\repo", windows: true }), "critical-path")
 T("approval windows: a deeper drive path passes", refusedBy("rm -rf C:/work/other/build", { ...approvalOptions, cwd: "C:\\work\\repo", windows: true }), null)
