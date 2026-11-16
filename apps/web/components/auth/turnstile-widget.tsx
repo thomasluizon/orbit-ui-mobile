@@ -166,17 +166,17 @@ function useLoadFailureReport(resetKey: number, onFailure: ChallengeProps['onFai
   return { recordFailure, startReport }
 }
 
-function useChallengeDeadline({ running, resetKey, stage, onDeadline }: Readonly<{ running: boolean; resetKey: number; stage: number; onDeadline: () => void }>) {
+function useChallengeDeadline({ running, resetKey, runSigns, onDeadline }: Readonly<{ running: boolean; resetKey: number; runSigns: number; onDeadline: () => void }>) {
   const onDeadlineRef = useRef(onDeadline)
   useEffect(() => { onDeadlineRef.current = onDeadline }, [onDeadline])
   useEffect(() => {
     if (!running) return
     const deadline = window.setTimeout(() => onDeadlineRef.current(), TURNSTILE_LOAD_DEADLINE_MS)
     return () => window.clearTimeout(deadline)
-  }, [running, resetKey, stage])
+  }, [running, resetKey, runSigns])
 }
 
-function useTurnstileChallenge({ siteKey, resetKey, onToken, onStateChange, onFailure, onScriptStage, theme, language, hasLoadDeadline }: ChallengeProps & Readonly<{ theme: 'light' | 'dark'; language: string; hasLoadDeadline: boolean }>) {
+function useTurnstileChallenge({ siteKey, resetKey, onToken, onStateChange, onFailure, onScriptStage, theme, language, hasRunDeadline }: ChallengeProps & Readonly<{ theme: 'light' | 'dark'; language: string; hasRunDeadline: boolean }>) {
   const { containerRef, challengeVisible } = useChallengeVisibility()
   const widgetIdRef = useRef<unknown>(null)
   const automaticRetriesRef = useRef(0)
@@ -184,7 +184,7 @@ function useTurnstileChallenge({ siteKey, resetKey, onToken, onStateChange, onFa
   const callbacksRef = useRef({ onToken, onStateChange })
   const handledResetKey = useRef(resetKey)
   const [state, setState] = useState<WidgetState>('idle')
-  const [stage, setStage] = useState(0)
+  const [runSigns, setRunSigns] = useState(0)
   const { recordFailure, startReport } = useLoadFailureReport(resetKey, onFailure)
   const { loaded, loadAgain } = useTurnstileScript({
     onScriptStage,
@@ -208,7 +208,7 @@ function useTurnstileChallenge({ siteKey, resetKey, onToken, onStateChange, onFa
     function update(next: WidgetState, token: string | null = null) {
       if (!active) return
       window.clearTimeout(retryTimerRef.current)
-      if (next === 'loading') setStage((value) => value + 1)
+      if (next === 'loading') setRunSigns((value) => value + 1)
       setState(next)
       callbacksRef.current.onStateChange?.(next)
       callbacksRef.current.onToken(token)
@@ -265,7 +265,7 @@ function useTurnstileChallenge({ siteKey, resetKey, onToken, onStateChange, onFa
   }, [loadAgain])
 
   useChallengeDeadline({
-    running: hasLoadDeadline && loaded !== null && state === 'loading', resetKey, stage,
+    running: hasRunDeadline && loaded !== null && state === 'loading', resetKey, runSigns,
     onDeadline: () => {
       recordFailure({ kind: 'run_deadline' })
       setState('failed')
@@ -310,7 +310,7 @@ export function TurnstileWidget({
   const appLocale = useLocale()
   const currentTheme = useCurrentTheme()
   const { containerRef, challengeVisible, state, retry } = useTurnstileChallenge({
-    siteKey, resetKey, onToken, onStateChange, onFailure, onScriptStage, theme: theme ?? currentTheme, hasLoadDeadline: !quiet,
+    siteKey, resetKey, onToken, onStateChange, onFailure, onScriptStage, theme: theme ?? currentTheme, hasRunDeadline: !quiet,
     // WHY: Cloudflare lists Orbit's pt-BR as pt-br https://developers.cloudflare.com/turnstile/reference/supported-languages/
     language: (language ?? appLocale).toLowerCase(),
   })

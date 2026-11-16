@@ -12,8 +12,8 @@ export const TURNSTILE_CHALLENGE_HOST = 'challenges.cloudflare.com'
 export type TurnstileBridgeStage = 'script_started' | 'script_loaded'
 
 export interface TurnstileLoadFailure {
-  /** `script_deadline`: Cloudflare's script did not load in the deadline. `run_deadline`: a run of the check gave no sign in the deadline. */
-  kind: 'http' | 'load' | 'script' | 'script_deadline' | 'challenge' | 'run_deadline' | 'message'
+  /** `script_deadline`: Cloudflare's script did not load in the deadline. `run_deadline`: a run of the check gave no sign in the deadline. `bridge_deadline`: the app's bridge page posted no stage in the deadline. */
+  kind: 'http' | 'load' | 'script' | 'script_deadline' | 'challenge' | 'run_deadline' | 'bridge_deadline' | 'message'
   host: string
   statusCode?: number
   code?: string

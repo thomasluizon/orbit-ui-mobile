@@ -606,7 +606,7 @@ it('sends one Sentry event for each different load failure, with the kind, the s
     event('http', host, 503, null, 'Service Unavailable', 0),
     event('challenge', 'challenges.cloudflare.com', null, '300010', null, 36_000),
     event('challenge', 'challenges.cloudflare.com', null, null, null, 36_000),
-    event('run_deadline', host, null, null, null, 96_000),
+    event('bridge_deadline', host, null, null, null, 96_000),
   ])
   expect(JSON.stringify(vi.mocked(captureMessage).mock.calls)).not.toMatch(/site-key|siteKey|turnstile-bridge|secret-token|example\.org/)
 })
@@ -616,7 +616,7 @@ const deadlineEvent = (kind: string, eventHost: string, elapsed_ms: number) =>
     extra: { description: null, elapsed_ms }, fingerprint: ['turnstile_load_failed', kind, ''] }]
 
 it.each([
-  ['a bridge page that posts no stage (an earlier web release, or a page that never ran)', [], 'run_deadline', 'bridge'],
+  ['a bridge page that posts no stage (an earlier web release, or a page that never ran)', [], 'bridge_deadline', 'bridge'],
   ['a Cloudflare script that starts and never loads', ['script_started'], 'script_deadline', 'challenges.cloudflare.com'],
   ['a run that gives no sign after the script loads', ['script_started', 'script_loaded'], 'run_deadline', 'challenges.cloudflare.com'],
 ])('names the app deadline from the last bridge stage, as the web widget does, for %s', async (_case, stages, kind, eventHost) => {
@@ -669,7 +669,7 @@ it('forgets the stage of a bridge page when a new page loads, and never starts a
   TestRenderer.act(() => { vi.advanceTimersByTime(TURNSTILE_LOAD_DEADLINE_MS - TURNSTILE_RETRY_INTERVAL_MS) })
   expect(shownSentences(renderer)).toEqual(['auth.turnstileFailed'])
   expect(vi.mocked(captureMessage).mock.calls.at(-1), 'the stage of the earlier page does not name the deadline of a page that posts none')
-    .toEqual(deadlineEvent('run_deadline', bridgeHost, TURNSTILE_RETRY_INTERVAL_MS + 4 * TURNSTILE_LOAD_DEADLINE_MS))
+    .toEqual(deadlineEvent('bridge_deadline', bridgeHost, TURNSTILE_RETRY_INTERVAL_MS + 4 * TURNSTILE_LOAD_DEADLINE_MS))
 })
 
 it('reports a Cloudflare script that fails at once as one script event and one script deadline event with the Cloudflare host, and no app deadline', async () => {

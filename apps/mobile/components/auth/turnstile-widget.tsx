@@ -31,6 +31,7 @@ const FAILURE_MESSAGES: Record<TurnstileLoadFailure['kind'], string> = {
   script_deadline: 'Human check script load deadline',
   challenge: 'Human check challenge error',
   run_deadline: 'Human check run deadline',
+  bridge_deadline: 'Human check bridge page deadline',
   message: 'Human check bridge message error',
 }
 
@@ -90,7 +91,7 @@ function useBridgeLoad(resetKey: number, bridgeHost: string, onToken: (token: st
     loadDeadline.current = setTimeout(() => {
       loadDeadline.current = undefined
       clearTimeout(reloadTimer.current)
-      recordFailure(bridgeStage.current ? STAGE_DEADLINES[bridgeStage.current] : { kind: 'run_deadline', host: bridgeHost })
+      recordFailure(bridgeStage.current ? STAGE_DEADLINES[bridgeStage.current] : { kind: 'bridge_deadline', host: bridgeHost })
       onTokenRef.current(null)
       setState('failed')
     }, TURNSTILE_LOAD_DEADLINE_MS)

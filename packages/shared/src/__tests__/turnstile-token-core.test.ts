@@ -79,7 +79,8 @@ it('sends one event for each different failure of one load, with the kind, the s
   report({ kind: 'challenge', host: 'challenges.cloudflare.com', code: '300030' })
   report({ kind: 'script_deadline', host: 'challenges.cloudflare.com' })
   report({ kind: 'run_deadline', host: 'challenges.cloudflare.com' })
-  report({ kind: 'run_deadline', host: 'app.useorbit.org' })
+  report({ kind: 'bridge_deadline', host: 'app.useorbit.org' })
+  report({ kind: 'bridge_deadline', host: 'app-staging.useorbit.org' })
 
   expect(capture.mock.calls).toEqual([
     ['turnstile_load_failed', { level: 'warning', tags: { operation: 'turnstile_load', kind: 'http', host: 'app.useorbit.org', status_code: 503, code: null },
@@ -92,8 +93,10 @@ it('sends one event for each different failure of one load, with the kind, the s
       extra: { description: null, elapsed_ms: 38_000 }, fingerprint: ['turnstile_load_failed', 'script_deadline', ''] }],
     ['turnstile_load_failed', { level: 'warning', tags: { operation: 'turnstile_load', kind: 'run_deadline', host: 'challenges.cloudflare.com', status_code: null, code: null },
       extra: { description: null, elapsed_ms: 38_000 }, fingerprint: ['turnstile_load_failed', 'run_deadline', ''] }],
-    ['turnstile_load_failed', { level: 'warning', tags: { operation: 'turnstile_load', kind: 'run_deadline', host: 'app.useorbit.org', status_code: null, code: null },
-      extra: { description: null, elapsed_ms: 38_000 }, fingerprint: ['turnstile_load_failed', 'run_deadline', ''] }],
+    ['turnstile_load_failed', { level: 'warning', tags: { operation: 'turnstile_load', kind: 'bridge_deadline', host: 'app.useorbit.org', status_code: null, code: null },
+      extra: { description: null, elapsed_ms: 38_000 }, fingerprint: ['turnstile_load_failed', 'bridge_deadline', ''] }],
+    ['turnstile_load_failed', { level: 'warning', tags: { operation: 'turnstile_load', kind: 'bridge_deadline', host: 'app-staging.useorbit.org', status_code: null, code: null },
+      extra: { description: null, elapsed_ms: 38_000 }, fingerprint: ['turnstile_load_failed', 'bridge_deadline', ''] }],
   ])
 })
 
