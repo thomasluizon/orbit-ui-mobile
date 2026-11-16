@@ -1,11 +1,15 @@
 #!/usr/bin/env node
 import { readFileSync } from 'node:fs'
+import { dirname, relative } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { coreDescriptors, corpusDigest } from './corpus.mjs'
 import { callsOf, caseOf, groupsOf, totalsOf, writeReport } from './report.mjs'
 
 // D147 limit: the warm mean cost of one model call (orbit-api tests/Orbit.Infrastructure.Tests/AI/AiInputBudgetTests).
 export const COST_PER_MODEL_CALL_LIMIT_USD = 0.0009
+
+// The directory of the merged report of the command line.
+export const MERGED_REPORT_DIRECTORY = 'reports/core'
 
 const verdicts = ['pass', 'fail', 'incomplete']
 const overall = (statuses) => statuses.includes('fail') ? 'fail' : statuses.includes('incomplete') ? 'incomplete' : 'pass'
@@ -27,7 +31,7 @@ const takesRerun = (entry) => entry.passK === 'fail' || entry.graderLimits > 0
 // The cases of the windows of one build: the must-pass run and the other run, each continued across UTC-day windows.
 // A later window may hold a case again only while its earlier entry has no verdict and no grader limit. No rerun on the
 // same build replaces a passed or failed case or a grader limit. A later window keeps the model calls of the window it
-// replaces, for the cost.
+// replaces, for the cost. Each case keeps the evidence directory of the window that measured it.
 function casesOfBuild(windows, descriptors, { firstInput, anotherBuild }) {
   const collected = new Map()
   for (const [index, window] of windows.entries()) {
@@ -42,6 +46,7 @@ function casesOfBuild(windows, descriptors, { firstInput, anotherBuild }) {
       }
       if (previous && previous.passK !== 'incomplete') throw new Error(`Case ${entry.id} already has the verdict ${previous.passK}; no rerun on the same build replaces it.`)
       collected.set(entry.id, { ...windowCase(entry, descriptors.find(({ id }) => id === entry.id)), sourceWindow: input,
+        ...(window.evidenceDirectory ? { evidenceDirectory: window.evidenceDirectory } : {}),
         ...(previous ? { supersededModelCalls: callsOf(previous) } : {}) })
     }
   }
@@ -110,7 +115,8 @@ function criteriaOf(cases, totals, cost, baselineRate) {
 }
 
 // A gate run names its baseline report, or is declared the baseline run of `main`: a run without either would pass
-// the rate criterion against nothing.
+// the rate criterion against nothing. A window or a rerun names its `evidenceDirectory` relative to the merged report,
+// so that the report links the private evidence of each failed case to the window that holds it.
 export function mergeRuns(windows, { baseline, asBaseline = false, reruns = [], runCostUsd, descriptors = coreDescriptors() } = {}) {
   if (!windows.length) throw new Error('Supply the run summaries of the core set.')
   if (asBaseline && baseline) throw new Error('A baseline run takes no --baseline.')
@@ -131,19 +137,21 @@ function readSummary(path, option) {
   try { return JSON.parse(readFileSync(path, 'utf8')) } catch { throw new Error(`Cannot read the summary at ${path}.`) }
 }
 
-export function mergeRunFiles(argumentsList) {
+// Each window keeps its `attempts/` evidence beside its summary file, wherever the reader keeps that window.
+export function mergeRunFiles(argumentsList, reportDirectory = MERGED_REPORT_DIRECTORY) {
   const options = { reruns: [] }
   const windows = []
+  const readWindow = (path, option) => ({ ...readSummary(path, option), evidenceDirectory: relative(reportDirectory, dirname(path)) || '.' })
   for (let index = 0; index < argumentsList.length; index++) {
     const argument = argumentsList[index]
     if (argument === '--baseline') options.baseline = readSummary(argumentsList[++index], argument)
-    else if (argument === '--rerun') options.reruns.push(readSummary(argumentsList[++index], argument))
+    else if (argument === '--rerun') options.reruns.push(readWindow(argumentsList[++index], argument))
     else if (argument === '--as-baseline') options.asBaseline = true
     else if (argument === '--run-cost-usd') {
       options.runCostUsd = Number(argumentsList[++index])
       if (!Number.isFinite(options.runCostUsd) || options.runCostUsd < 0) throw new Error('Supply the measured run cost in USD after --run-cost-usd.')
     } else if (argument.startsWith('--')) throw new Error(`Unsupported option ${argument}.`)
-    else windows.push(readSummary(argument))
+    else windows.push(readWindow(argument))
   }
   return mergeRuns(windows, options)
 }
@@ -151,7 +159,7 @@ export function mergeRunFiles(argumentsList) {
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   try {
     const summary = mergeRunFiles(process.argv.slice(2))
-    process.stdout.write(`${writeReport(summary, 'reports/core')}\n`)
+    process.stdout.write(`${writeReport(summary, MERGED_REPORT_DIRECTORY)}\n`)
     process.exitCode = summary.status === 'pass' ? 0 : 1
   } catch (error) {
     process.stderr.write(`Cannot merge the core set runs: ${error.message}\n`)

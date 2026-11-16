@@ -103,9 +103,10 @@ configured-attempt outcome and distinguish failed behavior from incomplete evide
 skipped evidence cannot approve a gate. A held `PendingConfirmation` preview proves only a proposal; the saved state
 readback proves the write.
 
-Preserve each window's sanitized summaries and `attempts/` directory before another run overwrites them. Do not attach
-raw promptfoo databases, responses, or traces to a pull request. The summary contains only case identifiers and
-counts. Record behavior failures on the work ticket; this skill does not authorize behavior changes, ticket writes,
+Preserve each window's sanitized summaries and `attempts/` directory before another run overwrites them. The merged
+report links each attempt of a failed case to the `attempts/` file of its window, so keep each window directory where
+the merge read it. Do not attach raw promptfoo databases, responses, or traces to a pull request. The summary contains
+only case identifiers, counts and the paths of the private evidence. Record behavior failures on the work ticket; this skill does not authorize behavior changes, ticket writes,
 or outbound messages.
 
 ## The launch corpus

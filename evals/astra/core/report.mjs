@@ -74,8 +74,8 @@ function heldPreviewsOf(previews, written, vars) {
 }
 
 // Private evidence of each attempt for the triage of a failure: the sanitized tool calls and answer of the last turn,
-// the held change list, the held previews and the saved state verdict. The summary files hold case identifiers and
-// counts only.
+// the held change list, the held previews and the saved state verdict. The summary files hold case identifiers, counts
+// and the paths of this evidence only.
 export function writeResults(results, directory) {
   openPrivateEvidence(directory)
   const attempts = attemptsOf(results).map(({ entry, attempt }) => {
@@ -162,9 +162,12 @@ function criteriaRows(criteria) {
     `| Cost of one model call (USD) | ${cell(cost.perModelCallUsd)} | at or below ${cost.limitUsd} (D147) | ${cost.status} |`]
 }
 
+// The evidence of a failed case: the attempt files of the window that measured it. A window report lies beside its own
+// `attempts/`; a merged case names the directory of its window relative to the merged report.
 function caseRow(entry) {
+  const directory = entry.evidenceDirectory ? `${entry.evidenceDirectory}/` : ''
   const evidence = entry.passK === 'fail' ? Array.from({ length: entry.attempts }, (_, index) =>
-    `[r${index + 1}](${evidencePath(entry.id, index + 1)})`).join(', ') : ''
+    `[r${index + 1}](${directory}${evidencePath(entry.id, index + 1)})`).join(', ') : ''
   return `| ${entry.id} | ${entry.family} | ${entry.defectClass} | ${entry.locale} | ${entry.mustPass ? 'yes' : 'no'} | ${entry.k} | ${entry.passed}/${entry.attempts} | ${entry.passK}${entry.rerun ? ' (rerun)' : ''} | ${listed(entry.questionsBeforePreview)} | ${entry.maxQuestions} | ${listed(entry.modelCalls)} | ${listed(entry.seconds)} | ${cell(entry.costUsd)} | ${evidence} |`
 }
 

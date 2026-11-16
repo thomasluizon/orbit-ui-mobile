@@ -492,7 +492,9 @@ The must-pass run repeats each of its 90 cases 3 times; a case passes only when 
 (pass^3, `core/corpus.mjs`). The other run holds 36 cases at one attempt. Each run writes
 `reports/core-<run>/summary.md`, `summary.json` and private `attempts/` evidence. Select cases for a daily
 window with `--filter-metadata 'id=<ids>'`; a situation ID selects its six cases. Preserve each window's
-directory before the next run overwrites it, and give every window summary to the merge.
+directory before the next run overwrites it, and give every window summary to the merge. The merged report
+links each attempt of a failed case to the `attempts/` file of the window that measured it, relative to
+`reports/core`, so keep each window directory where the merge read it.
 
 `core/merge.mjs` writes `reports/core/summary.md` and `summary.json`: k and pass^k for each case, pass^k
 for each family and locale, the questions before a preview against the allowed count, the measured model

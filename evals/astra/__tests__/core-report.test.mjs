@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it } from 'vitest'
-import { mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { corpusDigest } from '../core/corpus.mjs'
+import { coreDescriptors, corpusDigest } from '../core/corpus.mjs'
 import { COST_PER_MODEL_CALL_LIMIT_USD, mergeRunFiles, mergeRuns } from '../core/merge.mjs'
 import { noEvidenceKinds, summarize, writeReport, writeResults } from '../core/report.mjs'
 import { changeList } from '../core/change-list.mjs'
@@ -277,8 +277,9 @@ describe('the report files', () => {
 
   it('writes the summary with k, pass^k, the questions, the model calls, the seconds and the cost of each case', () => {
     const target = directory()
-    const summary = mergeRuns([run(attempts(required, 3, { questions: 1 }), [required]), run([result(optional, { pass: false })], [optional], 'other')],
-      { descriptors, asBaseline: true, runCostUsd: 0.006 })
+    const summary = mergeRuns([run(attempts(required, 3, { questions: 1 }), [required]),
+      { ...run([result(optional, { pass: false })], [optional], 'other'), evidenceDirectory: '../core-other' }],
+    { descriptors, asBaseline: true, runCostUsd: 0.006 })
     const markdown = writeReport(summary, target)
     expect(JSON.parse(readFileSync(join(target, 'summary.json'), 'utf8'))).toEqual(summary)
     expect(readFileSync(join(target, 'summary.md'), 'utf8')).toBe(`${markdown}\n`)
@@ -286,7 +287,7 @@ describe('the report files', () => {
     expect(markdown).toContain(`Corpus digest: ${corpusDigest}`)
     expect(markdown).toContain('| pass^k rate of the core set | 0.5 | this run is the baseline | baseline |')
     expect(markdown).toContain('| required | owner-turns | b | en | yes | 3 | 3/3 | pass | 1, 1, 1 | 1 | 2, 2, 2 | 3.2, 3.2, 3.2 | 0.0045 |  |')
-    expect(markdown).toContain('| optional | same-title | b | pt-BR | no | 1 | 0/1 | fail | 0 | 0 | 2 | 3.2 | 0.0015 | [r1](attempts/optional-r1.json) |')
+    expect(markdown).toContain('| optional | same-title | b | pt-BR | no | 1 | 0/1 | fail | 0 | 0 | 2 | 3.2 | 0.0015 | [r1](../core-other/attempts/optional-r1.json) |')
     expect(markdown).toContain('| Every must-pass case passes pass^k | 1/1 | 1/1 | pass |')
     expect(markdown).toContain('| Cost of one model call (USD) | 0.00075 | at or below 0.0009 (D147) | pass |')
     expect(markdown).toContain('Behavior failures:\noptional: The preview holds a change outside the request.')
@@ -353,6 +354,28 @@ describe('the report files', () => {
       written: null })
     expect(changeList(heldPreviews.previews).changes.map(({ kind, target: record, fields }) => ({ kind, record, fields }))).toEqual([
       { kind: 'update', record: 'walk', fields: { title: 'Walk 2' } }, { kind: 'create', record: null, fields: { title: 'Read 2' } }])
+  })
+
+  // Producer: core/hooks.mjs writes each window and its attempts to reports/core-<run>; a reader keeps an earlier window
+  // in another directory before the next run overwrites it.
+  it('links each attempt of a failed case in the merged report to the window that measured it', () => {
+    const root = directory()
+    const mustPass = coreDescriptors().find((entry) => entry.mustPass)
+    const other = coreDescriptors().find((entry) => !entry.mustPass)
+    const windowAt = (path, results, target, name, apiCommit) => {
+      writeResults(results, join(root, path))
+      writeReport(summarize(results, [target], { run: name, apiCommit }), join(root, path))
+      return join(root, path, 'summary.json')
+    }
+    const first = windowAt('kept/core-must-pass-day-1', [...attempts(mustPass, 2), result(mustPass, { pass: false })], mustPass, 'must-pass', meta.apiCommit)
+    const others = windowAt('kept/core-other-day-1', [result(other, { pass: false })], other, 'other', meta.apiCommit)
+    const rerun = windowAt('reports/core-must-pass', [result(mustPass), result(mustPass, { pass: false }), result(mustPass)], mustPass, 'must-pass', fixedBuild)
+    const report = join(root, 'reports/core')
+    writeReport(mergeRunFiles([first, others, '--rerun', rerun, '--as-baseline'], report), report)
+    const links = [...readFileSync(join(report, 'summary.md'), 'utf8').matchAll(/\]\(([^)]+)\)/gu)].map(([, link]) => link)
+    expect(links.toSorted()).toEqual([`../../kept/core-other-day-1/attempts/${other.id}-r1.json`,
+      ...[1, 2, 3].map((repeat) => `../core-must-pass/attempts/${mustPass.id}-r${repeat}.json`)].toSorted())
+    for (const link of links) expect(existsSync(join(report, link)), link).toBe(true)
   })
 
   it('merges summary files from the command line arguments', () => {
