@@ -151,18 +151,24 @@ jobs:
             -configuration Release -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' \
             -derivedDataPath "$RUNNER_TEMP/orbit-ios-build" ARCHS=arm64 \
             CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO build
-      # ccache sets the time of each object that a compile reads or writes, and removes none under its size limit. A
-      # passing compile used every object it needs, so the saved entry holds only those and does not grow when the key
-      # changes. A failed compile did not reach every object, so its partial entry keeps the restored ones.
-      # The step names the saved directory, so it cleans what the save stores, and the save is the next step. It then
-      # removes each path that is not in the layout of ccache 4.9.1 and 4.14.2: the 16 object directories, their
-      # one-character subdirectories, the stats and CACHEDIR.TAG files, and the object files. So a log, a lock, a
-      # configuration file or a file that another step writes never reaches the entry.
-      - name: Keep only the objects that this compile used
-        if: ${{ steps.compile.outcome == 'success' && github.ref == 'refs/heads/main' && steps.compiler-cache.outputs.cache-hit != 'true' }}
+      # ccache sets the time of each object that a compile reads or writes, and removes none under its size limit.
+      # After a passing compile, the step removes each object that the compile did not use, so the entry does not grow
+      # when the key changes. After a failed compile, it removes no object, so the partial entry keeps the restored
+      # objects for the next attempt.
+      # The step names the saved directory, and the save is the next step. It removes each path that is not in the
+      # layout of ccache 4.9.1 and 4.14.2: the 16 object directories, their one-character subdirectories, the stats
+      # and CACHEDIR.TAG files, and the object files. The save runs only when this step passes, so no saved entry
+      # holds a log, a lock, a configuration file or a file that another step writes.
+      - name: Clean the ccache directory before its save
+        id: evict
+        if: ${{ always() && steps.compile.outcome != 'skipped' && github.ref == 'refs/heads/main' && steps.compiler-cache.outputs.cache-hit != 'true' }}
+        env:
+          COMPILE_OUTCOME: ${{ steps.compile.outcome }}
         run: |
           set -euo pipefail
-          ccache --dir ${{ env.CCACHE_DIR }} --evict-older-than "$(($(date +%s) - COMPILER_CACHE_USED_SINCE))s"
+          if [[ $COMPILE_OUTCOME == success ]]; then
+            ccache --dir ${{ env.CCACHE_DIR }} --evict-older-than "$(($(date +%s) - COMPILER_CACHE_USED_SINCE))s"
+          fi
           cd ${{ env.CCACHE_DIR }}
           directory='^[0-9a-f](/[0-9a-f]){0,3}$'
           file='^[0-9a-f]/(CACHEDIR\.TAG|stats|[0-9a-f]/stats|[0-9a-f](/[0-9a-f]){0,2}/([0-9a-v]{29,31}([MR]|[0-9]W)|[0-9a-f]{36,38}(_[0-9a-f]{2})?))$'
@@ -173,9 +179,10 @@ jobs:
           done
       # A key is written once, so a passing main compile saves the input key. A failed or timed-out main compile saves
       # a run-scoped partial entry instead: the restore step finds it by prefix, so the next attempt is not cold, and
-      # the input key stays free for the passing compile. ccache checksums each entry.
+      # the input key stays free for the passing compile. ccache checksums each entry. A failed, cancelled or skipped
+      # clean step skips the save.
       - name: Save compiler outputs
-        if: ${{ always() && steps.compile.outcome != 'skipped' && github.ref == 'refs/heads/main' && steps.compiler-cache.outputs.cache-hit != 'true' }}
+        if: ${{ always() && steps.evict.outcome == 'success' }}
         uses: actions/cache/save@v6
         with:
           path: ${{ env.CCACHE_DIR }}

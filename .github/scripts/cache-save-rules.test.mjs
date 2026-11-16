@@ -436,8 +436,11 @@ const CCACHE_DIRECTORY = "^[0-9a-f](/[0-9a-f]){0,3}$"
 // and a raw file ends in a digit and W (get_raw_file_path). In 4.14.2 the key is 40 base16 characters (util::format_base16),
 // and a raw file ends in _ and 2 base16 characters. ccache.conf, a log, a stats log and a file remote storage are outside.
 const CCACHE_FILE = "^[0-9a-f]/(CACHEDIR\\.TAG|stats|[0-9a-f]/stats|[0-9a-f](/[0-9a-f]){0,2}/([0-9a-v]{29,31}([MR]|[0-9]W)|[0-9a-f]{36,38}(_[0-9a-f]{2})?))$"
-const compilerCacheEvict = (path) => `set -euo pipefail
-ccache --dir ${path} --evict-older-than "$(($(date +%s) - COMPILER_CACHE_USED_SINCE))s"
+const CCACHE_EVICT = (path) => `ccache --dir ${path} --evict-older-than "$(($(date +%s) - COMPILER_CACHE_USED_SINCE))s"`
+// A job that saves a partial entry after a failed compile runs the step after every compile that ran. It evicts only after
+// a passing compile, so a partial entry keeps the restored objects, and it cleans the layout before every save.
+const compilerCacheEvict = (path, { partial = false } = {}) => `set -euo pipefail
+${partial ? `if [[ $COMPILE_OUTCOME == success ]]; then\n  ${CCACHE_EVICT(path)}\nfi` : CCACHE_EVICT(path)}
 cd ${path}
 directory='${CCACHE_DIRECTORY}'
 file='${CCACHE_FILE}'
@@ -448,6 +451,13 @@ find . -mindepth 1 -depth -print0 | while IFS= read -r -d '' entry; do
 done
 `
 const SAVES_A_PASSING_MAIN_COMPILE = "github.ref == 'refs/heads/main' && steps.compiler-cache.outputs.cache-hit != 'true'"
+// The evict step has this id, and each save names its outcome. A failed, cancelled or skipped evict step skips the save, so
+// no entry, under the primary key or a partial key, skips the clean.
+const EVICT_ID = "evict"
+const SAVES_AFTER_A_PASSING_EVICT = /^(\$\{\{ always\(\) && steps\.evict\.outcome == 'success' \}\}|steps\.evict\.outcome == 'success')$/
+const PRIMARY_OR_PARTIAL_KEY = "${{ steps.compile.outcome == 'success' && steps.compiler-cache.outputs.cache-primary-key || format('{0}-partial-{1}-{2}', steps.compiler-cache.outputs.cache-primary-key, github.run_id, github.run_attempt) }}"
+const PRIMARY_KEY_OUTPUT = "${{ steps.compiler-cache.outputs.cache-primary-key }}"
+const COMPILE_OUTCOME_ENV = { COMPILE_OUTCOME: "${{ steps.compile.outcome }}" }
 const LINUX_CCACHE_ENV = 'echo "CCACHE_AVAILABLE=true"\n    echo "CMAKE_C_COMPILER_LAUNCHER=ccache"\n    echo "CMAKE_CXX_COMPILER_LAUNCHER=ccache"'
 const NO_LINUX_CCACHE = 'echo "::warning::ccache could not be installed, so the native C++ build runs without the compiler cache."'
 const CCACHE_BINARY = `# React Native's compiler wrappers read CCACHE_BINARY from the process environment.
@@ -455,14 +465,15 @@ CCACHE_BINARY="$(command -v ccache)"
 export CCACHE_BINARY
 `
 // Each saver with its reviewed path, its reviewed env and its reviewed ccache steps. The restore and the save name that
-// exact path, the evict step is built from it, and the evict step is the step just before the save. So the save stores
-// only the ccache layout, whatever the earlier steps wrote. The env of the job and its workflow, and each step of the job
-// that names ccache in any letter case (other than its cache steps and its evict step), equal the reviewed form, as
-// canonical steps without the name. That compare pins the reviewed settings; it does not bound the entry.
+// exact path, the evict step is built from it, the evict step is the step just before the save, and the save runs only
+// when the evict step passed. So each saved entry holds only the ccache layout, whatever the earlier steps wrote. The env
+// of the job and its workflow, and each step of the job that names ccache in any letter case (other than its cache steps
+// and its evict step), equal the reviewed form, as canonical steps without the name. That compare pins the reviewed
+// settings; it does not bound the entry.
 const COMPILER_CACHE_SAVERS = {
   "mobile-build.yml: build": {
-    compile: "compile", path: "~/.cache/ccache",
-    evictWhen: `\${{ env.CCACHE_AVAILABLE == 'true' && steps.compile.outcome == 'success' && ${SAVES_A_PASSING_MAIN_COMPILE} }}`,
+    compile: "compile", path: "~/.cache/ccache", partial: true, key: PRIMARY_OR_PARTIAL_KEY,
+    evictWhen: `\${{ always() && env.CCACHE_AVAILABLE == 'true' && steps.compile.outcome != 'skipped' && ${SAVES_A_PASSING_MAIN_COMPILE} }}`,
     env: { EXPO_PUBLIC_CAPTURE_MODE: "true", EXPO_NO_TELEMETRY: "1", EXPO_NO_METRO_WORKSPACE_ROOT: "1", GRADLE_OPTS: "-Dorg.gradle.caching=true" },
     ccacheSteps: [
       {
@@ -485,7 +496,8 @@ fi
     ],
   },
   "android-release.yml: release-android": {
-    compile: "Build signed AAB with Gradle", path: "~/.cache/ccache", evictWhen: "env.CCACHE_AVAILABLE == 'true'",
+    compile: "Build signed AAB with Gradle", path: "~/.cache/ccache", key: PRIMARY_KEY_OUTPUT,
+    evictWhen: "env.CCACHE_AVAILABLE == 'true' && steps.compiler-cache.outputs.cache-hit != 'true'",
     env: {
       EAS_BUILD_PROFILE: "production",
       EXPO_PUBLIC_SENTRY_DSN: "${{ vars.EXPO_PUBLIC_SENTRY_DSN }}",
@@ -547,8 +559,8 @@ fi
     ],
   },
   "ios-build.yml: compile": {
-    compile: "compile", path: "${{ env.CCACHE_DIR }}",
-    evictWhen: `\${{ steps.compile.outcome == 'success' && ${SAVES_A_PASSING_MAIN_COMPILE} }}`,
+    compile: "compile", path: "${{ env.CCACHE_DIR }}", partial: true, key: PRIMARY_OR_PARTIAL_KEY,
+    evictWhen: `\${{ always() && steps.compile.outcome != 'skipped' && ${SAVES_A_PASSING_MAIN_COMPILE} }}`,
     env: {
       ORBIT_APP_VARIANT: "staging",
       EXPO_NO_TELEMETRY: "1",
@@ -591,7 +603,7 @@ fi
     ],
   },
   "ios-release.yml: release": {
-    compile: "archive", path: "${{ env.CCACHE_DIR }}",
+    compile: "archive", path: "${{ env.CCACHE_DIR }}", key: PRIMARY_KEY_OUTPUT,
     evictWhen: `steps.archive.outcome == 'success' && ${SAVES_A_PASSING_MAIN_COMPILE}`,
     env: {
       ORBIT_APP_VARIANT: "${{ inputs.variant }}",
@@ -666,7 +678,7 @@ function checkCompilerCaches(currentTree) {
   assert.deepEqual(saves.map(({ list }) => list.place).sort(), Object.keys(COMPILER_CACHE_SAVERS).sort(), "the compiler cache savers")
   for (const { step: save, list, where } of saves) {
     const saver = COMPILER_CACHE_SAVERS[list.place]
-    const { compile: compileStep, evictWhen, path } = saver
+    const { compile: compileStep, evictWhen, path, partial, key } = saver
     const steps = list.entries.map((entry) => entry.step)
     assertNoRunDefaults(list.workflow, list.job, where)
     assert.equal(save.with.path, path, `${where}: ${savesExactly(path)}`)
@@ -679,10 +691,11 @@ function checkCompilerCaches(currentTree) {
     const compile = steps.findIndex((step) => step.id === compileStep || step.name === compileStep)
     const evicts = steps.filter((step) => step.run?.includes("--evict-older-than"))
     assert.equal(evicts.length, 1, `${where}: one step removes the objects that the compile did not use`)
-    assert.equal(evicts[0].if, evictWhen, `${where}: only a passing compile used every object it needs`)
+    assert.equal(evicts[0].if, evictWhen, `${where}: the evict step runs on each run that can save`)
     assert.equal(stamps[0].if, undefined, `${where}: the stamp step always runs`)
     assert.deepEqual(canonicalStep(stamps[0]), reviewedStep(stamps[0], { run: COMPILER_CACHE_STAMP }), `${where}: the stamp step differs from its reviewed form`)
-    assert.deepEqual(canonicalStep(evicts[0]), reviewedStep(evicts[0], { if: evictWhen, run: compilerCacheEvict(path) }),
+    const evictForm = { id: EVICT_ID, if: evictWhen, ...(partial ? { env: COMPILE_OUTCOME_ENV } : {}), run: compilerCacheEvict(path, { partial }) }
+    assert.deepEqual(canonicalStep(evicts[0]), reviewedStep(evicts[0], evictForm),
       `${where}: the evict step differs from its reviewed form, which cleans exactly ${path}`)
     assertCompilerCacheSettings(list, saver, evicts[0], where)
     const evict = steps.indexOf(evicts[0])
@@ -690,6 +703,9 @@ function checkCompilerCaches(currentTree) {
     // A combined actions/cache step saves in its post step, after every later step of the job, so only a save step can follow the evict step.
     assert.equal(actionName(save.uses), "actions/cache/save", `${where}: the save is an actions/cache/save step`)
     assert.equal(steps.indexOf(save), evict + 1, `${where}: the evict step is the step just before the save, so no other step writes after it`)
+    // A status function such as always() runs the save after a failed step, so only the outcome of the evict step can stop it.
+    assert.match(save.if ?? "", SAVES_AFTER_A_PASSING_EVICT, `${where}: the save runs only after a passing evict step, so no entry skips the clean`)
+    assert.equal(save.with.key, key, `${where}: the save writes the reviewed key`)
   }
 }
 
@@ -943,19 +959,23 @@ const newAction = (directory, steps) => ({ [`.github/actions/${directory}/action
 const TYPE_CHECK_RUN = "      - run: npx turbo run type-check\n"
 const WORKSPACE_ENV = "      ARTIFACT_NAME: workspace-unit-coverage-attempt-${{ github.run_attempt }}\n"
 const WORKSPACE_RUN = "      - name: Run workspaces with coverage thresholds\n"
-const evictRun = (path) => `run: |\n${compilerCacheEvict(path).trimEnd().split("\n").map((line) => `          ${line}`).join("\n")}`
+const evictRun = (path, options) => `run: |\n${compilerCacheEvict(path, options).trimEnd().split("\n").map((line) => `          ${line}`).join("\n")}`
 const ANDROID_EVICT_RUN = evictRun("~/.cache/ccache")
 const STAMP_STEP = `      # The stamp follows the restore, so every restored object is older than it.
       - name: Record the start of the compiler cache use
         run: echo "COMPILER_CACHE_USED_SINCE=$(date +%s)" >> "$GITHUB_ENV"
 `
 const ANDROID_RELEASE_EVICT = `      - name: Keep only the objects that this build used
-        if: env.CCACHE_AVAILABLE == 'true'
+        id: evict
+        if: env.CCACHE_AVAILABLE == 'true' && steps.compiler-cache.outputs.cache-hit != 'true'
         ${ANDROID_EVICT_RUN}
 `
-const IOS_BUILD_EVICT = `      - name: Keep only the objects that this compile used
-        if: \${{ steps.compile.outcome == 'success' && github.ref == 'refs/heads/main' && steps.compiler-cache.outputs.cache-hit != 'true' }}
-        ${evictRun("${{ env.CCACHE_DIR }}")}
+const IOS_BUILD_EVICT = `      - name: Clean the ccache directory before its save
+        id: evict
+        if: \${{ always() && steps.compile.outcome != 'skipped' && github.ref == 'refs/heads/main' && steps.compiler-cache.outputs.cache-hit != 'true' }}
+        env:
+          COMPILE_OUTCOME: \${{ steps.compile.outcome }}
+        ${evictRun("${{ env.CCACHE_DIR }}", { partial: true })}
 `
 const TURBO_DELETE = `      - name: Remove the Turbo results that are older than 30 days
         if: github.event_name != 'pull_request'
@@ -1035,13 +1055,19 @@ const MOBILE_CCACHE_SAVE = "      - name: Save the ccache directory\n        if:
 const ANDROID_RELEASE_RESTORE = "        id: compiler-cache\n        if: env.CCACHE_AVAILABLE == 'true'\n        uses: actions/cache/restore@v6\n"
 const ANDROID_RELEASE_SAVE = `      # A rerun attempt has the same run id, so it finds its own key and saves nothing.
       - name: Save the ccache directory
-        if: env.CCACHE_AVAILABLE == 'true' && steps.compiler-cache.outputs.cache-hit != 'true'
+        if: steps.evict.outcome == 'success'
         uses: actions/cache/save@v6
         with:
           path: ~/.cache/ccache
           key: \${{ steps.compiler-cache.outputs.cache-primary-key }}
 `
 const KEEP_HISTORY = "      - run: bash .github/ci/keep-history.sh\n"
+const BUILD_SAVE_IF = "        if: ${{ always() && steps.evict.outcome == 'success' }}\n"
+const RELEASE_SAVE_IF = "        if: steps.evict.outcome == 'success'\n"
+const MOBILE_EVICT_IF = "        if: ${{ always() && env.CCACHE_AVAILABLE == 'true' && steps.compile.outcome != 'skipped' && github.ref == 'refs/heads/main' && steps.compiler-cache.outputs.cache-hit != 'true' }}\n"
+// The save of each job as round 17 had it: a failed, cancelled or skipped evict step did not stop it.
+const saveWithoutTheEvictOutcome = (path, name, before, after) => changeText(path, [`      - name: ${name}\n${before}`, `      - name: ${name}\n${after}`])
+const NO_SAVE_WITHOUT_A_PASSING_EVICT = (place) => new RegExp(`${place}: .*: the save runs only after a passing evict step`)
 // The android-release job saves through the post step of a combined cache step again, after every later step of the job.
 const ANDROID_RELEASE_COMBINED = changeText(".github/workflows/android-release.yml",
   [ANDROID_RELEASE_RESTORE, ANDROID_RELEASE_RESTORE.replace("actions/cache/restore@v6", "actions/cache@v6")], [ANDROID_RELEASE_SAVE, ""])
@@ -1080,10 +1106,10 @@ const MUTATIONS = [
   ["M3 the mobile-build stamp gets a condition", changeText(".github/workflows/mobile-build.yml", ["      - name: Record the start of the compiler cache use\n        run:",
     "      - name: Record the start of the compiler cache use\n        if: env.CCACHE_AVAILABLE == 'true'\n        run:"]), /the stamp step always runs/, WRITE],
   ["M4 the ios-release evict condition loses the archive outcome", changeText(".github/workflows/ios-release.yml",
-    ["      - name: Keep only the objects that this archive used\n        if: steps.archive.outcome == 'success' && ", "      - name: Keep only the objects that this archive used\n        if: always() && "]), /only a passing compile/, WRITE],
-  ["M5 the mobile-build evict step runs after a failed compile", changeText(".github/workflows/mobile-build.yml",
-    [`env.CCACHE_AVAILABLE == 'true' && steps.compile.outcome == 'success' && github.ref == 'refs/heads/main' && steps.compiler-cache.outputs.cache-hit != 'true' }}\n        ${ANDROID_EVICT_RUN}`,
-      `always() && env.CCACHE_AVAILABLE == 'true' && steps.compile.outcome != 'skipped' && github.ref == 'refs/heads/main' && steps.compiler-cache.outputs.cache-hit != 'true' }}\n        ${ANDROID_EVICT_RUN}`]), /only a passing compile/, WRITE],
+    ["      - name: Keep only the objects that this archive used\n        id: evict\n        if: steps.archive.outcome == 'success' && ",
+      "      - name: Keep only the objects that this archive used\n        id: evict\n        if: always() && "]), /the evict step runs on each run that can save/, WRITE],
+  ["M5 the mobile-build evict step evicts after a failed compile too, so the partial entry loses the restored objects", changeText(".github/workflows/mobile-build.yml",
+    [evictRun("~/.cache/ccache", { partial: true }), ANDROID_EVICT_RUN]), /mobile-build\.yml: build: Save the ccache directory: the evict step differs from its reviewed form/, WRITE],
   ["M6 the android-release evict step moved before the Gradle build", changeText(".github/workflows/android-release.yml", [ANDROID_RELEASE_EVICT, ""],
     ["      - name: Build signed AAB with Gradle\n", `${ANDROID_RELEASE_EVICT}      - name: Build signed AAB with Gradle\n`]), /restore, then the stamp, then the compile, then the evict step/, WRITE],
   ["M7 the Turbo delete step deleted", changeText(".github/workflows/test.yml", [TURBO_DELETE, ""]), /deletes the Turbo results older than 30 days/, WRITE],
@@ -1273,6 +1299,25 @@ const MUTATIONS = [
   ["C7c an android-release step between the evict step and the save runs a script that appends to a file in the saved directory",
     changeText(".github/workflows/android-release.yml", [ANDROID_RELEASE_SAVE, `${KEEP_HISTORY}${ANDROID_RELEASE_SAVE}`]),
     /android-release\.yml: release-android: Save the ccache directory: the evict step is the step just before the save/, WRITE],
+  ["S1 the mobile-build save runs after a failed evict step and saves the primary key after a passing compile", saveWithoutTheEvictOutcome(
+    ".github/workflows/mobile-build.yml", "Save the ccache directory", BUILD_SAVE_IF,
+    "        if: ${{ always() && env.CCACHE_AVAILABLE == 'true' && steps.compile.outcome != 'skipped' && github.ref == 'refs/heads/main' && steps.compiler-cache.outputs.cache-hit != 'true' }}\n"),
+  NO_SAVE_WITHOUT_A_PASSING_EVICT("mobile-build\\.yml: build"), WRITE],
+  ["S2 the ios-build save runs after a failed evict step and saves the primary key after a passing compile", saveWithoutTheEvictOutcome(
+    ".github/workflows/ios-build.yml", "Save compiler outputs", BUILD_SAVE_IF,
+    "        if: ${{ always() && steps.compile.outcome != 'skipped' && github.ref == 'refs/heads/main' && steps.compiler-cache.outputs.cache-hit != 'true' }}\n"),
+  NO_SAVE_WITHOUT_A_PASSING_EVICT("ios-build\\.yml: compile"), WRITE],
+  ["S3 the android-release save runs after a failed evict step", saveWithoutTheEvictOutcome(
+    ".github/workflows/android-release.yml", "Save the ccache directory", RELEASE_SAVE_IF,
+    "        if: ${{ always() && env.CCACHE_AVAILABLE == 'true' && steps.compiler-cache.outputs.cache-hit != 'true' }}\n"),
+  NO_SAVE_WITHOUT_A_PASSING_EVICT("android-release\\.yml: release-android"), WRITE],
+  ["S4 the ios-release save runs after a cancelled evict step", saveWithoutTheEvictOutcome(
+    ".github/workflows/ios-release.yml", "Save compiler outputs", RELEASE_SAVE_IF,
+    "        if: ${{ !failure() && steps.archive.outcome == 'success' && github.ref == 'refs/heads/main' && steps.compiler-cache.outputs.cache-hit != 'true' }}\n"),
+  NO_SAVE_WITHOUT_A_PASSING_EVICT("ios-release\\.yml: release"), WRITE],
+  ["S5 the mobile-build evict step runs only after a passing compile, so the partial entry skips the clean", changeText(".github/workflows/mobile-build.yml",
+    [MOBILE_EVICT_IF, "        if: ${{ env.CCACHE_AVAILABLE == 'true' && steps.compile.outcome == 'success' && github.ref == 'refs/heads/main' && steps.compiler-cache.outputs.cache-hit != 'true' }}\n"]),
+  /mobile-build\.yml: build: Save the ccache directory: the evict step runs on each run that can save/, WRITE],
   ["C8 the android-release job saves through the post step of a combined cache step, whose line names the evict step", ANDROID_RELEASE_COMBINED,
     /Restore the ccache directory: the rule "the evict step" does not cover actions\/cache$/m,
     withRule("android-release.yml: release-android: Restore the ccache directory", "the evict step")],
@@ -1316,8 +1361,10 @@ const walk = (root, prefix = "") => readdirSync(join(root, prefix), { withFileTy
 })
 
 // Runs the evict step of a job of the tree, in bash -e as the runner does, on a saved directory that holds the files and
-// two symbolic links. The ccache on the PATH removes nothing, so only the clean of the step acts. Returns what is left.
-function runEvictStep(currentTree, place, files) {
+// two symbolic links. COMPILE_OUTCOME is the value that the env of the step gives. The ccache on the PATH removes nothing
+// and records each call; with ccacheExit 1 it fails as a ccache error does. Returns the exit status, the ccache calls and
+// what is left.
+function runEvictStep(currentTree, place, files, { compileOutcome = "success", ccacheExit = 0 } = {}) {
   const { run } = cacheStepLists(currentTree).find((list) => list.place === place).entries
     .find(({ step }) => step.run?.includes("--evict-older-than")).step
   const directory = mkdtempSync(join(tmpdir(), "ccache-evict-"))
@@ -1333,15 +1380,21 @@ function runEvictStep(currentTree, place, files) {
     symlinkSync(join(saved, "0"), join(saved, "9/link"))
     symlinkSync(directory, join(saved, "link"))
     mkdirSync(bin)
-    writeFileSync(join(bin, "ccache"), "#!/usr/bin/env bash\nexit 0\n")
+    const calls = join(directory, "ccache-calls")
+    writeFileSync(join(bin, "ccache"), `#!/usr/bin/env bash\necho "$*" >> "${calls}"\nexit ${ccacheExit}\n`)
     chmodSync(join(bin, "ccache"), 0o755)
     const result = spawnSync("bash", ["-e", "-c", run.replaceAll("${{ env.CCACHE_DIR }}", saved)], {
       encoding: "utf8",
-      env: { PATH: `${bin}:${process.env.PATH}`, HOME: home, COMPILER_CACHE_USED_SINCE: "0" },
+      env: { PATH: `${bin}:${process.env.PATH}`, HOME: home, COMPILER_CACHE_USED_SINCE: "0", COMPILE_OUTCOME: compileOutcome },
     })
-    assert.equal(result.status, 0, result.stdout + result.stderr)
     const left = walk(saved)
-    return { files: left.filter((entry) => !entry.directory).map(({ path }) => path).sort(), directories: left.filter((entry) => entry.directory).map(({ path }) => path) }
+    return {
+      status: result.status,
+      output: result.stdout + result.stderr,
+      ccacheCalls: existsSync(calls) ? readFileSync(calls, "utf8").trim().split("\n") : [],
+      files: left.filter((entry) => !entry.directory).map(({ path }) => path).sort(),
+      directories: left.filter((entry) => entry.directory).map(({ path }) => path),
+    }
   } finally {
     rmSync(directory, { recursive: true, force: true })
   }
@@ -1350,6 +1403,8 @@ function runEvictStep(currentTree, place, files) {
 test(`the evict step of each compiler cache job keeps only the ccache layout of ${CCACHE_LAYOUT_SOURCE}`, () => {
   for (const place of Object.keys(COMPILER_CACHE_SAVERS)) {
     const left = runEvictStep(tree, place, [...CCACHE_LAYOUT_FILES, ...OUTSIDE_CCACHE_LAYOUT])
+    assert.equal(left.status, 0, left.output)
+    assert.equal(left.ccacheCalls.length, 1, `${place}: the step evicts the objects that a passing compile did not use`)
     assert.deepEqual(left.files, [...CCACHE_LAYOUT_FILES].sort(), `${place}: the files that the evict step keeps`)
     assert.deepEqual(left.directories.filter((path) => !new RegExp(CCACHE_DIRECTORY).test(path)), [], `${place}: the directories that the evict step keeps`)
   }
@@ -1373,9 +1428,38 @@ for (const [name, place, changes, written] of LAYOUT_CASES) {
   test(`the evict step bounds the entry on ${name}`, () => {
     const changed = readTree(changes)
     assert.doesNotThrow(() => cacheGuard(changed, WRITE(reviewedInventory(changed))))
-    assert.deepEqual(runEvictStep(changed, place, [...CCACHE_LAYOUT_FILES, ...written]).files, [...CCACHE_LAYOUT_FILES].sort())
+    const left = runEvictStep(changed, place, [...CCACHE_LAYOUT_FILES, ...written])
+    assert.equal(left.status, 0, left.output)
+    assert.deepEqual(left.files, [...CCACHE_LAYOUT_FILES].sort())
   })
 }
+
+// A failed main compile saves a partial entry in the jobs that name one. The evict step runs after the failed compile, so
+// the partial entry has the clean too. It does not evict, so the next attempt restores every object of the older entry.
+test("after a failed compile, the evict step keeps the restored objects and removes every path outside the ccache layout", () => {
+  const partial = Object.keys(COMPILER_CACHE_SAVERS).filter((place) => COMPILER_CACHE_SAVERS[place].partial)
+  assert.deepEqual(partial, ["mobile-build.yml: build", "ios-build.yml: compile"])
+  for (const place of partial) {
+    // A ccache that fails on each call shows that the step calls none.
+    const left = runEvictStep(tree, place, [...CCACHE_LAYOUT_FILES, ...OUTSIDE_CCACHE_LAYOUT], { compileOutcome: "failure", ccacheExit: 1 })
+    assert.equal(left.status, 0, `${place}: ${left.output}`)
+    assert.deepEqual(left.ccacheCalls, [], `${place}: the step evicts nothing after a failed compile`)
+    assert.deepEqual(left.files, [...CCACHE_LAYOUT_FILES].sort(), `${place}: the files of the partial entry`)
+  }
+})
+
+// A ccache error, a failed rm or an unset stamp stops the evict step, and the save of each job names the outcome of that
+// step. So the save does not store a directory that the step did not clean.
+test("a failing ccache stops the evict step of each job, and its save runs only after a passing evict step", () => {
+  for (const place of Object.keys(COMPILER_CACHE_SAVERS)) {
+    const left = runEvictStep(tree, place, [...CCACHE_LAYOUT_FILES, ...OUTSIDE_CCACHE_LAYOUT], { ccacheExit: 1 })
+    assert.notEqual(left.status, 0, `${place}: the step fails with its ccache`)
+    assert.ok(left.files.includes("0/ccache.log"), `${place}: the step stops before the clean`)
+    const save = cacheStepLists(tree).find((list) => list.place === place).entries
+      .find(({ step }) => savesACache(step) && step.with?.path === COMPILER_CACHE_SAVERS[place].path).step
+    assert.match(save.if, SAVES_AFTER_A_PASSING_EVICT, `${place}: the save does not run after the failed step`)
+  }
+})
 
 // The inventory of a tree after a review: one line for each cache step as the write command makes it, with the committed
 // rule, and a rule that the review adds for each new step.

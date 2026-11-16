@@ -178,11 +178,12 @@ jobs:
             archive
       # ccache sets the time of each object that a compile reads or writes, and removes none under its size limit. The
       # archive used every object it needs, so the saved entry holds only those and does not grow when the key changes.
-      # The step names the saved directory, so it cleans what the save stores, and the save is the next step. It then
-      # removes each path that is not in the layout of ccache 4.9.1 and 4.14.2: the 16 object directories, their
-      # one-character subdirectories, the stats and CACHEDIR.TAG files, and the object files. So a log, a lock, a
-      # configuration file or a file that another step writes never reaches the entry.
+      # The step names the saved directory, and the save is the next step. It removes each path that is not in the
+      # layout of ccache 4.9.1 and 4.14.2: the 16 object directories, their one-character subdirectories, the stats
+      # and CACHEDIR.TAG files, and the object files. The save runs only when this step passes, so no saved entry
+      # holds a log, a lock, a configuration file or a file that another step writes.
       - name: Keep only the objects that this archive used
+        id: evict
         if: steps.archive.outcome == 'success' && github.ref == 'refs/heads/main' && steps.compiler-cache.outputs.cache-hit != 'true'
         run: |
           set -euo pipefail
@@ -196,7 +197,7 @@ jobs:
             if [[ -L $entry || ! ( -d $entry || -f $entry ) || ! ${entry#./} =~ $layout ]]; then rm -rf "$entry"; fi
           done
       - name: Save compiler outputs
-        if: steps.archive.outcome == 'success' && github.ref == 'refs/heads/main' && steps.compiler-cache.outputs.cache-hit != 'true'
+        if: steps.evict.outcome == 'success'
         uses: actions/cache/save@v6
         with:
           path: ${{ env.CCACHE_DIR }}
