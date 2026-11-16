@@ -12,10 +12,10 @@ it.each(['desktop-build', 'desktop-release'])('%s restores verified downloads be
   const build = workflow(name).jobs.build!
   const steps = build.steps!
   const cache = steps.find(step => step.name === 'Cache Windows App SDK downloads')!
-  // Desktop Build is the only writer: a release entry of another hash would make the cache sweep delete the build entry.
   expect(cache.uses).toBe('actions/cache/restore@v6')
   const saves = steps.filter(step => step.uses === 'actions/cache/save@v6' && step.with?.path === cache.with?.path)
-  expect(saves).toHaveLength(name === 'desktop-build' ? 1 : 0)
+  expect(saves, 'Desktop Build is the only writer: a release entry of another hash makes the cache sweep delete the build entry')
+    .toHaveLength(name === 'desktop-build' ? 1 : 0)
   if (name === 'desktop-build') {
     expect(saves[0]!.if).toContain("github.ref == 'refs/heads/main'")
     expect(steps.indexOf(saves[0]!)).toBeGreaterThan(steps.findIndex(step => step.name === 'Package unsigned staging shell'))
