@@ -1,19 +1,11 @@
-import { chmodSync, mkdirSync, renameSync, writeFileSync } from 'node:fs'
-import { attemptEvidence } from '../evidence.mjs'
+import { mkdirSync, writeFileSync } from 'node:fs'
+import { attemptEvidence, evidencePath, openPrivateEvidence, unavailableAssertion, writePrivateJson } from '../evidence.mjs'
+import { guid } from '../fixtures/api.mjs'
 import { changeList, recordId } from './change-list.mjs'
 import { corpusDigest } from './corpus.mjs'
 
-const evidencePath = (caseId, repeat) => `attempts/${encodeURIComponent(caseId)}-r${repeat}.json`
 const mean = (values) => values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : null
 const rounded = (value, digits) => value === null ? null : Number(value.toFixed(digits))
-const withoutEvidence = (assertion) => assertion.metadata?.unavailable === true || assertion.metadata?.graderError === true
-
-function writePrivateJson(path, value) {
-  const next = `${path}.next`
-  writeFileSync(next, `${JSON.stringify(value, null, 2)}\n`, { mode: 0o600 })
-  chmodSync(next, 0o600)
-  renameSync(next, path)
-}
 
 // The kinds of attempt that give no evidence of the build. Each `unavailable` verdict of the core set comes from one of
 // them, and the report heading of their reasons names each one.
@@ -27,7 +19,7 @@ function attemptOf(entry, repeat) {
   const output = entry.response?.output ?? {}
   const questions = output.questionsBeforePreview
   const assertions = entry.gradingResult?.componentResults ?? []
-  const unavailable = output.unavailable === true || assertions.some(withoutEvidence)
+  const unavailable = output.unavailable === true || assertions.some(unavailableAssertion)
   const graderLimit = !unavailable && output.graderLimit === true
   return { caseId: entry.testCase.metadata.id, repeat, pass: entry.success === true && !unavailable && !graderLimit,
     ...(unavailable ? { unavailable: true } : {}), ...(graderLimit ? { graderLimit: true } : {}),
@@ -52,9 +44,8 @@ function attemptsOf(results) {
   })
 }
 
-const recordIdSource = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'
-const wholeRecordId = new RegExp(`^${recordIdSource}$`, 'iu')
-const recordIds = new RegExp(recordIdSource, 'giu')
+// The record ids inside a longer text: the eval's one GUID rule without its anchors.
+const recordIds = new RegExp(guid.source.slice(1, -1), 'giu')
 
 // The held previews of an attempt, kept so that an extended grader regrades the attempt offline with gradePreview, the
 // records of the case under the same names, and the fields that the held writes name (`written`, which gradePreview
@@ -74,7 +65,7 @@ function heldPreviewsOf(previews, written, vars) {
   }
   const named = (value) => {
     if (typeof value === 'string') {
-      return wholeRecordId.test(value) ? nameOf(value) : value.replace(recordIds, (id) => nameOf(id) ?? 'no-record')
+      return guid.test(value) ? nameOf(value) : value.replace(recordIds, (id) => nameOf(id) ?? 'no-record')
     }
     if (Array.isArray(value)) return value.map(named)
     return value && typeof value === 'object' ? Object.fromEntries(Object.entries(value).map(([key, child]) => [key, named(child)])) : value
@@ -86,9 +77,7 @@ function heldPreviewsOf(previews, written, vars) {
 // the held change list, the held previews and the saved state verdict. The summary files hold case identifiers and
 // counts only.
 export function writeResults(results, directory) {
-  mkdirSync(`${directory}/attempts`, { recursive: true, mode: 0o700 })
-  chmodSync(directory, 0o700)
-  chmodSync(`${directory}/attempts`, 0o700)
+  openPrivateEvidence(directory)
   const attempts = attemptsOf(results).map(({ entry, attempt }) => {
     const output = entry.response?.output ?? {}
     const evidence = attemptEvidence(entry, { ...attempt,

@@ -1,7 +1,29 @@
+import { chmodSync, mkdirSync, renameSync, writeFileSync } from 'node:fs'
 import { redactCredentials } from './credentials.mjs'
 import { guid } from './fixtures/api.mjs'
 import { tools, legacyTools, postReadTools, habitSetupTools, offerTools, offerPostReadTools, offerHabitSetupTools, normalizeField } from './trace-policy.mjs'
 import { schemaVariants } from './tool-schema.mjs'
+
+// The private evidence file of one attempt, relative to the directory of its run.
+export const evidencePath = (caseId, repeat) => `attempts/${encodeURIComponent(caseId)}-r${repeat}.json`
+
+// An assertion that gave no evidence of the build: its precondition or its grader was not available.
+export const unavailableAssertion = (assertion) => assertion.metadata?.unavailable === true || assertion.metadata?.graderError === true
+
+// The directory of a run and its `attempts/` directory, which only their owner opens.
+export function openPrivateEvidence(directory) {
+  mkdirSync(`${directory}/attempts`, { recursive: true, mode: 0o700 })
+  chmodSync(directory, 0o700)
+  chmodSync(`${directory}/attempts`, 0o700)
+}
+
+// Writes evidence that only its owner reads, in one rename, so a reader never sees a partial file.
+export function writePrivateJson(path, value) {
+  const next = `${path}.next`
+  writeFileSync(next, `${JSON.stringify(value, null, 2)}\n`, { mode: 0o600 })
+  chmodSync(next, 0o600)
+  renameSync(next, path)
+}
 
 function collectStrings(value, withheld) {
   if (typeof value === 'string' && value) withheld.add(value)
