@@ -56,7 +56,7 @@ describe('Apple sign-in controls', () => {
     const tree = renderBesideGoogle({ disabled: false, onPress })
     const googleStyle = pressableStyle(tree.root.findByType('Pressable'), false)
     expect(googleStyle).toMatchObject({ minHeight: SMALL_PILL_VISIBLE_MIN, borderRadius: SMALL_PILL_VISIBLE_MIN / 2 })
-    const googleHeight = measureProfileRow(tree.toJSON(), 343, 1, undefined, true).controls[0]!.height
+    const googleHeight = measureProfileRow(tree.toJSON(), 343, 1).controls[0]!.height
     const control = tree.root.findByType('NativeAppleButton')
     expect(control.props).toMatchObject({ buttonType: 1, buttonStyle, cornerRadius: googleStyle.borderRadius, style: { width: '100%', height: googleHeight } })
     expect(tree.root.findAll((node: { type: unknown; props: { children: unknown } }) => node.type === 'Text' && node.props.children === 'auth.signInWithApple')).toHaveLength(0)
@@ -127,7 +127,7 @@ describe('Apple sign-in controls', () => {
     expect(appleStyle).toMatchObject({ minHeight: googleStyle.minHeight, borderRadius: googleStyle.borderRadius, paddingVertical: 0, backgroundColor: fill })
     expect(appleStyle.borderWidth ?? 0).toBe(0)
     expect(googleStyle.borderWidth, 'the Google outline takes part of the pill height').toBeGreaterThan(0)
-    const [googlePill, applePill] = measureProfileRow(tree.toJSON(), 343, 1, undefined, true).controls
+    const [googlePill, applePill] = measureProfileRow(tree.toJSON(), 343, 1).controls
     expect({ google: googlePill!.height, apple: applePill!.height }, 'both actions resolve to one outer height, outline included').toEqual({ google: SIGN_IN_BUTTON_HEIGHT, apple: SIGN_IN_BUTTON_HEIGHT })
     const title = StyleSheet.flatten(tree.root.find((node: { type: unknown; props: { children: unknown } }) =>
       node.type === 'Text' && node.props.children === 'auth.signInWithApple').props.style)
@@ -166,7 +166,7 @@ describe('Apple sign-in controls', () => {
     copy.words = { 'auth.signInWithApple': words.auth.signInWithApple }
     const tree = renderBesideGoogle({ disabled: false, onPress: vi.fn() }, words.auth.signInWithGoogle)
     const column = width - 2 * (width < 336 ? SPACING.s8 : SPACING.s16)
-    const measured = measureProfileRow(tree.toJSON(), column, fontScale, undefined, true)
+    const measured = measureProfileRow(tree.toJSON(), column, fontScale)
     for (const [label, markID] of [[words.auth.signInWithGoogle, 'google-mark'], [words.auth.signInWithApple, 'apple-sign-in-logo']] as const) {
       const pill = measured.controls.find((control) => control.labels.includes(label))!
       const title = measured.texts.find((text) => text.label === label)!

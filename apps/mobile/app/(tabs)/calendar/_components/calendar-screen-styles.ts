@@ -1,5 +1,6 @@
 import { PADDING, SPACING } from '@orbit/shared/theme'
 import { StyleSheet } from "react-native"
+import { insetHairlineRing } from '@/components/ui/inset-hairline-ring'
 
 export function createStyles() {
   return StyleSheet.create({
@@ -31,7 +32,7 @@ export function createStyles() {
       paddingVertical: SPACING.s24,
       paddingHorizontal: PADDING.screenGutter,
       borderRadius: 18,
-      borderWidth: 1,
+      ...insetHairlineRing,
     },
     errorText: {
       fontFamily: "Geist_400Regular",

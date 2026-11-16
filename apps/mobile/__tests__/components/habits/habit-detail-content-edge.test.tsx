@@ -8,6 +8,7 @@ import { makeHabitDetail, makeHabitDetailScopedParent } from '@orbit/shared/test
 import { HabitDetailScreen } from '@/components/habits/habit-detail-screen'
 import { measureSafeArea, type GeometryTree } from '@/__tests__/support/safe-area-geometry'
 import { __setWindowDimensions } from '../../../test-mocks/react-native'
+import { applyBorderWidths } from '@/__tests__/support/yoga-borders'
 
 const state = vi.hoisted(() => ({ loading: false, profileLoading: false }))
 
@@ -59,6 +60,7 @@ function applyColumnStyle(node: YogaNode, style: ViewStyle) {
   if (typeof style.flex === 'number') node.setFlex(style.flex)
   if (typeof style.flexGrow === 'number') node.setFlexGrow(style.flexGrow)
   if (typeof style.paddingHorizontal === 'number') node.setPadding(Yoga.EDGE_HORIZONTAL, style.paddingHorizontal)
+  applyBorderWidths(node, style)
   if (style.alignSelf) node.setAlignSelf({
     auto: Yoga.ALIGN_AUTO, 'flex-start': Yoga.ALIGN_FLEX_START, center: Yoga.ALIGN_CENTER,
     'flex-end': Yoga.ALIGN_FLEX_END, stretch: Yoga.ALIGN_STRETCH, baseline: Yoga.ALIGN_BASELINE,

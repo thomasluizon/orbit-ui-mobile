@@ -11,6 +11,7 @@ import { ChevronRight, X, Plus } from '@/components/ui/icons'
 
 import { createTokensV2, radius } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
+import { insetHairlineRing } from '@/components/ui/inset-hairline-ring'
 import { HabitCheck } from '@/components/habits/habit-check'
 import { Skeleton } from '@/components/ui/skeleton'
 
@@ -22,7 +23,7 @@ export function Searching() {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   return <View testID="search-skeleton" accessible accessibilityRole="progressbar" accessibilityLabel={t('habits.search.searching')} accessibilityState={{ busy: true }} accessibilityLiveRegion="polite" style={styles.skeletonList}>
-    {SEARCH_SKELETON_ROWS.map((row) => <View key={row} testID="search-skeleton-row" style={[styles.row, { backgroundColor: tokens.bgCard, borderColor: tokens.hairlineGhost, borderWidth: 1 }]}>
+    {SEARCH_SKELETON_ROWS.map((row) => <View key={row} testID="search-skeleton-row" style={[styles.row, { backgroundColor: tokens.bgCard, outlineColor: tokens.hairlineGhost }]}>
       <View style={styles.well}><Skeleton variant="fill" grouped /></View>
       <View style={[styles.content, styles.skeletonCopy]}>
         <View style={styles.skeletonTitle}><Skeleton variant="fill" grouped /></View>
@@ -53,7 +54,7 @@ export function SearchResult({ habit, query, today = formatAPIDate(nowDate()), o
   const matches = buildSearchMatchLines(query, habit, t)
   const status = buildSearchHabitStatus(habit, t, i18n.language, today)
   const accessibleName = [actionLabel ?? t('habits.search.open', { name: habit.title }), ...(status ? [status.label] : []), ...matches.map((match) => match.text)].join(' ')
-  return <View style={{ flexDirection: 'row', minWidth: 0, alignItems: 'center' }}><Pressable role="button" accessibilityRole="button" disabled={disabled} accessibilityLabel={accessibleName} accessibilityState={{ disabled }} onPress={onOpen} onPressIn={() => setPressed(true)} onPressOut={() => setPressed(false)} style={({ pressed }) => [styles.row, { flex: 1, minWidth: 0 }, { backgroundColor: pressed ? tokens.bgHover : tokens.bgCard, borderColor: tokens.hairlineGhost, borderWidth: 1 }]}>
+  return <View style={{ flexDirection: 'row', minWidth: 0, alignItems: 'center' }}><Pressable role="button" accessibilityRole="button" disabled={disabled} accessibilityLabel={accessibleName} accessibilityState={{ disabled }} onPress={onOpen} onPressIn={() => setPressed(true)} onPressOut={() => setPressed(false)} testID="search-result-row" style={({ pressed }) => [styles.row, { flex: 1, minWidth: 0 }, { backgroundColor: pressed ? tokens.bgHover : tokens.bgCard, outlineColor: tokens.hairlineGhost }]}>
     <View importantForAccessibility="no-hide-descendants" style={[styles.well, { backgroundColor: tokens.bgWell }]}>{habit.emoji ? <Text style={styles.emoji}>{habit.emoji}</Text> : <Text style={[styles.initial, { color: tokens.fg2 }]}>{habitInitial(habit.title)}</Text>}</View>
     <View style={styles.content}><PersonalText onClampedChange={setClamped} style={[styles.name, { color: tokens.fg1, lineHeight: 23.8 }]}>{habit.title}</PersonalText>
       <SearchHabitStatusLine status={status} color={tokens.fg2} />
@@ -71,7 +72,7 @@ function SearchHabitStatusLine({ status, color }: Readonly<{ status: SearchHabit
 }
 
 const styles = StyleSheet.create({
-  row: { minHeight: TOUCH_TARGET_MIN, padding: SPACING.s12, gap: 12, borderRadius: radius.md, overflow: 'hidden', flexDirection: 'row', alignItems: 'center' },
+  row: { minHeight: TOUCH_TARGET_MIN, padding: SPACING.s12, gap: 12, borderRadius: radius.md, ...insetHairlineRing, overflow: 'hidden', flexDirection: 'row', alignItems: 'center' },
   well: { width: 40, height: 40, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
   emoji: { fontSize: 20 }, content: { flex: 1, minWidth: 0, gap: 0 },
   initial: { fontFamily: 'Geist_500Medium', fontSize: 16 },

@@ -82,7 +82,7 @@ function CalendarLoadError({ onRetry, tokens }: Readonly<{ onRetry: () => void; 
   const { t } = useTranslation()
   const styles = useMemo(() => createStyles(), [])
   return <View style={styles.errorWrap}>
-    <View style={[styles.errorCard, { backgroundColor: tokens.bgCard, borderColor: tokens.hairline }]}>
+    <View style={[styles.errorCard, { backgroundColor: tokens.bgCard, outlineColor: tokens.hairline }]}>
       <Text style={[styles.errorText, { color: tokens.fg2 }]}>{t('calendar.loadError')}</Text>
       <IconButton label={t('common.retry')} onClick={onRetry}><RefreshCw size={20} strokeWidth={1.5} accessible={false} /></IconButton>
     </View>

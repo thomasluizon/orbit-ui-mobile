@@ -7,6 +7,7 @@ import { Sheet } from '@/components/ui/sheet'
 import { TrueSheet } from '@lodev09/react-native-true-sheet'
 import { buildYearRange } from '@orbit/shared/utils'
 import { __resetTestHostConfig, __setWindowDimensions, __setScrollToImpl } from '../../../test-mocks/react-native'
+import { applyBorderWidths } from '@/__tests__/support/yoga-borders'
 
 vi.unmock('@/components/ui/date-field')
 vi.unmock('@/components/ui/sheet')
@@ -41,6 +42,7 @@ function applyBoxSize(node: YogaNode, style: ViewStyle) {
   if (typeof style.marginBottom === 'number') node.setMargin(Yoga.EDGE_BOTTOM, style.marginBottom)
   if (typeof style.minHeight === 'number') node.setMinHeight(style.minHeight)
   if (typeof style.padding === 'number') node.setPadding(Yoga.EDGE_ALL, style.padding)
+  applyBorderWidths(node, style)
   if (typeof style.height === 'number') node.setHeight(style.height)
 }
 

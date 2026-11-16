@@ -7,6 +7,7 @@ import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { PlanSelection } from '@/components/upgrade/plan-selection'
 import { createTokensV2 } from '@/lib/theme'
+import { applyBorderWidths } from '@/__tests__/support/yoga-borders'
 
 interface HostJson {
   type: string
@@ -61,7 +62,7 @@ function applyStyle(node: Node, style: ViewStyle) {
   if (style.alignItems === 'center') node.setAlignItems(Yoga.ALIGN_CENTER)
   if (style.alignItems === 'flex-start') node.setAlignItems(Yoga.ALIGN_FLEX_START)
   if (typeof style.gap === 'number') node.setGap(Yoga.GUTTER_ALL, style.gap)
-  if (style.borderWidth) node.setBorder(Yoga.EDGE_ALL, style.borderWidth)
+  applyBorderWidths(node, style)
   applyInsets(node, style)
 }
 

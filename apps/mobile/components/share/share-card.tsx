@@ -11,8 +11,9 @@ import {
   SHARE_CARD_HEIGHT,
   SHARE_CARD_WIDTH,
 } from '@orbit/shared/utils'
-import { createTokensV2 } from '@/lib/theme'
+import { createTokensV2, radius } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
+import { insetHairlineRing } from '@/components/ui/inset-hairline-ring'
 import { OrbitMascot } from '@/components/ui/orbit-mascot'
 
 interface ShareCardProps {
@@ -81,10 +82,10 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       gap: 24,
       overflow: 'hidden',
       padding: SPACING.s32,
-      borderRadius: 20,
+      borderRadius: radius.xl,
       backgroundColor: tokens.bgCard,
-      borderWidth: 1,
-      borderColor: tokens.hairline,
+      ...insetHairlineRing,
+      outlineColor: tokens.hairline,
     },
     progressCard: { width: '100%', maxWidth: SHARE_CARD_WIDTH, height: 'auto', minHeight: SHARE_CARD_HEIGHT, padding: PADDING.cardInset, backgroundColor: tokens.bg },
     brandRow: {
