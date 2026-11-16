@@ -48,6 +48,7 @@ it('draws only the Cloudflare challenge and leaves status and retry to the nativ
   act(() => callbacks['expired-callback']())
   expectNoStatusSurface()
   expect(postMessage.mock.calls.map(([message]) => JSON.parse(message as string))).toEqual([
+    { failure: { kind: 'challenge', code: '200100' } },
     { state: 'failed' },
     { token: null },
     { state: 'expired' },
@@ -71,6 +72,7 @@ it('tells the native host the check is still loading while the widget runs a fai
   act(() => callbacks['before-interactive-callback']())
 
   expect(postMessage.mock.calls.map(([message]) => JSON.parse(message as string))).toEqual([
+    { failure: { kind: 'challenge', code: '600010' } },
     { state: 'loading' },
     { token: null },
     { state: 'interactive' },

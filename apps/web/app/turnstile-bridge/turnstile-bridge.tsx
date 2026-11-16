@@ -23,9 +23,12 @@ export function TurnstileBridge({ siteKey, theme = 'dark', language }: Readonly<
   const postToken = useCallback((token: string | null) => {
     window.ReactNativeWebView?.postMessage(JSON.stringify({ token }))
   }, [])
+  const postFailure = useCallback((failure: Readonly<{ kind: string; code?: string }>) => {
+    window.ReactNativeWebView?.postMessage(JSON.stringify({ failure }))
+  }, [])
 
   return <div style={{ ...resolveWebThemeVariables('orange', theme), height: '100dvh', overflow: 'hidden', display: 'flex',
     flexDirection: 'column', alignItems: 'stretch', backgroundColor: neutralColors[theme].bg, colorScheme: theme }}>
-    <TurnstileWidget siteKey={siteKey} theme={theme} language={language} resetKey={0} quiet onToken={postToken} onStateChange={postState} />
+    <TurnstileWidget siteKey={siteKey} theme={theme} language={language} resetKey={0} quiet onToken={postToken} onStateChange={postState} onFailure={postFailure} />
   </div>
 }

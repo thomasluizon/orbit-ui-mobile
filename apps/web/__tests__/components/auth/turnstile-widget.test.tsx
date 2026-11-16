@@ -1,8 +1,11 @@
 import { afterEach, expect, it, onTestFinished, vi } from 'vitest'
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { createRoot } from 'react-dom/client'
+import { captureMessage } from '@sentry/nextjs'
+import { TURNSTILE_CHALLENGE_HEIGHT } from '@orbit/shared/hooks/turnstile-token-core'
 import { TurnstileWidget } from '@/components/auth/turnstile-widget'
 
+vi.mock('@sentry/nextjs', () => ({ captureMessage: vi.fn() }))
 const appLocale = vi.hoisted(() => ({ value: 'en' }))
 vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key, useLocale: () => appLocale.value }))
 
@@ -124,12 +127,12 @@ it('keeps onboarding verification managed and reports failure without extra copy
   expect(screen.queryByText('auth.turnstileFailed')).toBeNull()
 })
 
-it.each([false, true])('removes the invisible widget from the form gap flow, quiet %s', async (quiet) => {
+it('removes the invisible quiet widget from the form gap flow', async () => {
   const renderWidget = vi.fn((..._args: unknown[]) => 'layout-widget')
   ;(window as Window & { turnstile?: unknown }).turnstile = { render: renderWidget, reset: vi.fn(), remove: vi.fn() }
   const { container } = render(<form style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
     <input name="email" />
-    <TurnstileWidget siteKey="site-key" resetKey={0} quiet={quiet} onToken={vi.fn()} />
+    <TurnstileWidget siteKey="site-key" resetKey={0} quiet onToken={vi.fn()} />
     <button type="submit">Continue</button>
   </form>)
   await waitFor(() => expect(renderWidget).toHaveBeenCalledOnce())
@@ -137,6 +140,39 @@ it.each([false, true])('removes the invisible widget from the form gap flow, qui
   act(() => callbacks.callback('fresh-token'))
   const widget = container.querySelector('form')!.children[1]!
   expect(getComputedStyle(widget).position).toBe('absolute')
+})
+
+it('keeps a slot of the challenge height in the form in every state, and shows the challenge only while it waits for the person', async () => {
+  const renderWidget = vi.fn((..._args: unknown[]) => 'slot-widget')
+  ;(window as Window & { turnstile?: unknown }).turnstile = { render: renderWidget, reset: vi.fn(), remove: vi.fn() }
+  render(<TurnstileWidget siteKey="site-key" resetKey={0} onToken={vi.fn()} />)
+  const read = () => {
+    const slot = getComputedStyle(screen.getByTestId('turnstile-slot'))
+    return { minHeight: slot.minHeight, position: slot.position, challenge: getComputedStyle(screen.getByTestId('turnstile-challenge')).height }
+  }
+  const hidden = { minHeight: `${TURNSTILE_CHALLENGE_HEIGHT}px`, position: 'static', challenge: '0px' }
+  expect(read(), 'before the script loads').toEqual(hidden)
+  await waitFor(() => expect(renderWidget).toHaveBeenCalledOnce())
+  expect(screen.getByTestId('turnstile-challenge')).toContainElement(renderWidget.mock.calls[0]![0] as HTMLElement)
+  const callbacks = renderWidget.mock.calls[0]![1] as {
+    callback: (token: string) => void
+    'error-callback': (code: string) => boolean
+    'expired-callback': () => void
+    'before-interactive-callback': () => void
+    'after-interactive-callback': () => void
+  }
+  expect(read(), 'loading').toEqual(hidden)
+  act(() => callbacks['before-interactive-callback']())
+  expect(read(), 'interactive').toEqual({ ...hidden, challenge: `${TURNSTILE_CHALLENGE_HEIGHT}px` })
+  act(() => callbacks['after-interactive-callback']())
+  expect(read(), 'loading after the tap').toEqual(hidden)
+  act(() => callbacks.callback('fresh-token'))
+  expect(read(), 'solved').toEqual(hidden)
+  act(() => callbacks['expired-callback']())
+  expect(read(), 'expired').toEqual(hidden)
+  act(() => { callbacks['error-callback']('110200') })
+  expect(read(), 'failed').toEqual(hidden)
+  expect(TURNSTILE_CHALLENGE_HEIGHT).toBe(65)
 })
 
 it('restores visible challenge space and collapses it again', async () => {
@@ -189,10 +225,10 @@ it('keeps the explicit theme of the caller over the page theme', async () => {
   expect(renderWidget.mock.calls[0]![1]).toMatchObject({ theme: 'dark' })
 })
 
-it.each([false, true])('hides the challenge after it passes and shows it again when it needs a new pass, quiet %s', async (quiet) => {
+it('hides the quiet challenge after it passes and shows it again when it needs a new pass', async () => {
   const renderWidget = vi.fn((..._args: unknown[]) => 'success-widget')
   ;(window as Window & { turnstile?: unknown }).turnstile = { render: renderWidget, reset: vi.fn(), remove: vi.fn() }
-  render(<TurnstileWidget siteKey="site-key" resetKey={0} quiet={quiet} onToken={vi.fn()} />)
+  render(<TurnstileWidget siteKey="site-key" resetKey={0} quiet onToken={vi.fn()} />)
   await waitFor(() => expect(renderWidget).toHaveBeenCalledOnce())
   const challenge = renderWidget.mock.calls[0]![0] as HTMLElement
   const callbacks = renderWidget.mock.calls[0]![1] as {
@@ -396,4 +432,46 @@ it('stops a waiting automatic run and gives two runs again when the form asks fo
   }
   act(() => { callbacks['error-callback']('600010') })
   expect(onStateChange).toHaveBeenLastCalledWith('failed')
+})
+
+function reportedFailures() {
+  return vi.mocked(captureMessage).mock.calls.map(([message, context]) => {
+    const { tags, fingerprint } = context as { tags: Record<string, unknown>; fingerprint: string[] }
+    return { message, ...tags, fingerprint }
+  })
+}
+
+it('sends one Sentry event for each different challenge failure of a load on web sign-in, and again after Retry', async () => {
+  vi.mocked(captureMessage).mockClear()
+  const renderWidget = vi.fn((..._args: unknown[]) => 'reported-widget')
+  ;(window as Window & { turnstile?: unknown }).turnstile = { render: renderWidget, reset: vi.fn(), remove: vi.fn() }
+  render(<TurnstileWidget siteKey="site-key" resetKey={0} onToken={vi.fn()} />)
+  await waitFor(() => expect(renderWidget).toHaveBeenCalledOnce())
+  const callbacks = renderWidget.mock.calls[0]![1] as { 'error-callback': (code: string) => boolean }
+  const challenge = (code: string) => ({ message: 'turnstile_load_failed', operation: 'turnstile_load', kind: 'challenge', host: 'challenges.cloudflare.com',
+    status_code: null, code, fingerprint: ['turnstile_load_failed', 'challenge', code] })
+
+  act(() => { callbacks['error-callback']('600010') })
+  act(() => { callbacks['error-callback']('600010') })
+  act(() => { callbacks['error-callback']('110200') })
+  expect(reportedFailures()).toEqual([challenge('600010'), challenge('110200')])
+  expect(JSON.stringify(vi.mocked(captureMessage).mock.calls)).not.toContain('site-key')
+
+  fireEvent.click(screen.getByRole('button', { name: 'auth.turnstileRetry' }))
+  act(() => { callbacks['error-callback']('600010') })
+  expect(reportedFailures()).toEqual([challenge('600010'), challenge('110200'), challenge('600010')])
+})
+
+it('gives each failure to the caller in place of Sentry when the caller reports it, as the native bridge does', async () => {
+  vi.mocked(captureMessage).mockClear()
+  const renderWidget = vi.fn((..._args: unknown[]) => 'bridge-widget')
+  ;(window as Window & { turnstile?: unknown }).turnstile = { render: renderWidget, reset: vi.fn(), remove: vi.fn() }
+  const onFailure = vi.fn()
+  render(<TurnstileWidget siteKey="site-key" resetKey={0} quiet onToken={vi.fn()} onFailure={onFailure} />)
+  await waitFor(() => expect(renderWidget).toHaveBeenCalledOnce())
+  const callbacks = renderWidget.mock.calls[0]![1] as { 'error-callback': (code: string) => boolean }
+  act(() => { callbacks['error-callback']('600010') })
+  act(() => { callbacks['error-callback']('600010') })
+  expect(onFailure.mock.calls).toEqual([[{ kind: 'challenge', code: '600010' }], [{ kind: 'challenge', code: '600010' }]])
+  expect(captureMessage).not.toHaveBeenCalled()
 })

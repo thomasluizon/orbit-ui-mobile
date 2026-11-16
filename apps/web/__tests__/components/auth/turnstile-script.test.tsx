@@ -3,6 +3,8 @@ import { act, fireEvent, render, screen } from '@testing-library/react'
 import { TURNSTILE_LOAD_DEADLINE_MS, TURNSTILE_RETRY_INTERVAL_MS } from '@orbit/shared/hooks/turnstile-token-core'
 import { TurnstileWidget } from '@/components/auth/turnstile-widget'
 
+const sentry = vi.hoisted(() => ({ captureMessage: vi.fn() }))
+vi.mock('@sentry/nextjs', () => sentry)
 vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key, useLocale: () => 'en' }))
 
 afterEach(() => {
@@ -133,4 +135,27 @@ it('sends a new script request under a new load deadline when the form asks for 
   expect(screen.getByRole('alert')).toBeEmptyDOMElement()
   act(() => { vi.advanceTimersByTime(1) })
   expect(screen.getByRole('alert'), 'the new challenge starts a new load deadline').toHaveTextContent('auth.turnstileFailed')
+})
+
+it('sends one Sentry event for the script load failures of a load and one for the load deadline, with the kind and the host', async () => {
+  sentry.captureMessage.mockClear()
+  vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] })
+  onTestFinished(() => { vi.useRealTimers() })
+  vi.resetModules()
+  const { TurnstileWidget: FreshWidget } = await import('@/components/auth/turnstile-widget')
+  render(<FreshWidget siteKey="site-key" resetKey={0} onToken={vi.fn()} />)
+  await failScriptLoad()
+  for (let elapsed = TURNSTILE_RETRY_INTERVAL_MS; elapsed < TURNSTILE_LOAD_DEADLINE_MS; elapsed += TURNSTILE_RETRY_INTERVAL_MS) {
+    act(() => { vi.advanceTimersByTime(TURNSTILE_RETRY_INTERVAL_MS) })
+    await failScriptLoad()
+  }
+  act(() => { vi.advanceTimersByTime(TURNSTILE_RETRY_INTERVAL_MS) })
+  expect(screen.getByRole('alert')).toHaveTextContent('auth.turnstileFailed')
+
+  expect(sentry.captureMessage.mock.calls).toEqual([
+    ['turnstile_load_failed', { level: 'warning', tags: { operation: 'turnstile_load', kind: 'script', host: 'challenges.cloudflare.com', status_code: null, code: null },
+      extra: { description: null, elapsed_ms: 0 }, fingerprint: ['turnstile_load_failed', 'script', ''] }],
+    ['turnstile_load_failed', { level: 'warning', tags: { operation: 'turnstile_load', kind: 'deadline', host: window.location.host, status_code: null, code: null },
+      extra: { description: null, elapsed_ms: TURNSTILE_LOAD_DEADLINE_MS }, fingerprint: ['turnstile_load_failed', 'deadline', ''] }],
+  ])
 })

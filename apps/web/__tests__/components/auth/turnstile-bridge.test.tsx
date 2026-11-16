@@ -33,13 +33,18 @@ it('posts widget state and tokens through the native bridge', () => {
 
   const onStateChange = widget.props?.onStateChange as (state: string) => void
   const onToken = widget.props?.onToken as (token: string | null) => void
+  const onFailure = widget.props?.onFailure as (failure: { kind: string; code?: string }) => void
   onStateChange('expired')
   onToken(null)
   onToken('new-token')
+  onFailure({ kind: 'challenge', code: '600010' })
+  onFailure({ kind: 'script' })
   expect(postMessage.mock.calls.map(([message]) => JSON.parse(message as string))).toEqual([
     { state: 'expired' },
     { token: null },
     { token: 'new-token' },
+    { failure: { kind: 'challenge', code: '600010' } },
+    { failure: { kind: 'script' } },
   ])
 })
 
