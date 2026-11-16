@@ -28,18 +28,19 @@ export const assertOutsideRepository = (directory, label) => {
   if (probe.status !== 128) throw new Error(`could not check ${label} for a repository`)
 }
 
-export const researchPaths = (orderArgument, outputArgument) => {
-  if (!orderArgument || orderArgument.startsWith("--")) throw new Error("--order is required for research")
-  if (!outputArgument || outputArgument.startsWith("--")) throw new Error("--out is required for research")
+/** `mode` names the launcher mode in each error: research, review or proof. */
+export const researchPaths = (orderArgument, outputArgument, mode = "research") => {
+  if (!orderArgument || orderArgument.startsWith("--")) throw new Error(`--order is required for ${mode}`)
+  if (!outputArgument || outputArgument.startsWith("--")) throw new Error(`--out is required for ${mode}`)
   const orderFile = realpathSync(resolve(orderArgument))
-  if (!statSync(orderFile).isFile() || statSync(orderFile).size === 0) throw new Error("research order must be a non-empty file")
+  if (!statSync(orderFile).isFile() || statSync(orderFile).size === 0) throw new Error(`${mode} order must be a non-empty file`)
   assertOutsideRepository(dirname(orderFile), "order")
   const outputFile = resolve(outputArgument)
   const outputDirectory = realpathSync(dirname(outputFile))
   assertOutsideRepository(outputDirectory, "output")
   let outputExists = false
   try { lstatSync(outputFile); outputExists = true } catch (error) { if (error.code !== "ENOENT") throw error }
-  if (outputExists) throw new Error("research output must be a new file")
+  if (outputExists) throw new Error(`${mode} output must be a new file`)
   return { orderFile, outputFile: join(outputDirectory, basename(outputFile)) }
 }
 

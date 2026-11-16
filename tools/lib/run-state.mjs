@@ -191,7 +191,10 @@ export const acquireRelayLock = (repoRoot = REPO_ROOT, lockName = "orbit-relay-l
   occupied()
 }
 
-/** Each exact slot name can be claimed once, so no read-then-decide race can exceed the cap. */
+/**
+ * Each exact slot name can be claimed once, so no read-then-decide race can exceed the cap. A null
+ * cap claims the worktree only: a read-only review or proof holds no branch slot.
+ */
 export const reserveWorkerLaunch = (launch, cap, repoRoot = REPO_ROOT) => {
   const directory = workerLaunchDirectory(repoRoot)
   try {
@@ -263,6 +266,7 @@ export const reserveWorkerLaunch = (launch, cap, repoRoot = REPO_ROOT) => {
     }
     if (!claimed) return { allowed: false, occupiedLauncherPid: null, earlierLaunches: [], recorded: false }
   }
+  if (cap === null) return { allowed: true, earlierLaunches: [], recorded: false }
   const branchKey = createHash("sha256").update(`${launch.repositoryKey}\0${launch.branch}`).digest("hex")
   const slotPaths = Array.from({ length: cap }, (_, index) => join(directory, `${branchKey}-slot-${index + 1}.json`))
   for (let index = 0; index < slotPaths.length; index++) {
@@ -294,6 +298,15 @@ export const recordReservedWorkerPid = (launcherPid, workerPid, repoRoot = REPO_
     writeAtomicFile(path, `${JSON.stringify({ ...reservation, workerPid, workerProcessStartIdentity })}\n`)
     return true
   } catch { return false }
+}
+
+/** Whether a live launcher other than `ownLauncherPid`, or its worker, holds the worktree at `repoRoot`. */
+export const worktreeHeldByOtherLauncher = (repoRoot, ownLauncherPid) => {
+  let reservation
+  try { reservation = JSON.parse(readFileSync(occupiedWorktreePath(repoRoot), "utf8")) } catch { return false }
+  if (reservation?.launcherPid === ownLauncherPid) return false
+  return isWakeSourceAlive({ pid: reservation?.launcherPid, processStartIdentity: reservation?.launcherProcessStartIdentity }) ||
+    isWakeSourceAlive({ pid: reservation?.workerPid, processStartIdentity: reservation?.workerProcessStartIdentity })
 }
 
 export const clearWorkerLaunchReservation = (launcherPid, repoRoot = REPO_ROOT) => {

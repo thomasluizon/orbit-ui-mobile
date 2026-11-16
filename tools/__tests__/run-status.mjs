@@ -279,6 +279,13 @@ export const cases = async () => {
   registerWakeSource({ pid: process.pid, workerPid: process.pid, research: true, what: "research" }, repo.path)
   T("run-status: research wakes the session without occupying a ticket slot", (await snapshot({ config: atCap })).nextActions.some((entry) => entry.type === "SLOT_FREE"))
   clearWakeSource(process.pid, repo.path)
+  for (const what of ["review", "proof"]) {
+    registerWakeSource({ pid: process.pid, workerPid: process.pid, research: false, review: true, what }, repo.path)
+    const readOnly = await snapshot({ config: atCap })
+    T(`run-status: a ${what} worker wakes the session without occupying a ticket slot`,
+      readOnly.wakeSources.live.length === 1 && readOnly.nextActions.some((entry) => entry.type === "SLOT_FREE"), JSON.stringify(readOnly.nextActions))
+    clearWakeSource(process.pid, repo.path)
+  }
 
   const worker = stageRepo("run-status-transition-worker")
   const baseSha = worker.git(["rev-parse", "HEAD"]).stdout.trim()

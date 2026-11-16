@@ -7,12 +7,13 @@ import { delimiter, dirname, extname, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 
 import { assertOutsideRepository, researchEnvironment, researchInvocation, researchPaths, researchPrompt } from "./lib/research-run.mjs"
+import { commonGitDirectory, installWriteGuard, readOnlyPaths, recordedWrites, resultVerdict, snapshotWorktrees, writesBetween } from "./lib/review-run.mjs"
 import { githubEnvironment, redactSecrets } from "./lib/github-auth.mjs"
 import { ADMISSION_REFUSED_EXIT, checkAdmission, releaseAdmission } from "./lib/admission.mjs"
 import { resolveTicket } from "./lib/github-issues.mjs"
 import { logFinalResult, NO_STOP } from "./lib/claude-usage-limit.mjs"
 import { readOrchestratorConfig, resolveWorkerInvocation, workerAccountEnvironment, workerAccounts } from "./lib/orchestrator-config.mjs"
-import { clearWakeSource, clearWorkerLaunchReservation, recordReservedWorkerPid, registerWakeSource, reserveWorkerLaunch, readRunState, workerLaunchDirectory } from "./lib/run-state.mjs"
+import { clearWakeSource, clearWorkerLaunchReservation, recordReservedWorkerPid, registerWakeSource, reserveWorkerLaunch, readRunState, workerLaunchDirectory, worktreeHeldByOtherLauncher } from "./lib/run-state.mjs"
 
 const USAGE = `usage: launch-worker.mjs --issue <ORB-N|#N|N> --worktree <path> --prompt <file> [options]
 
@@ -22,6 +23,24 @@ const USAGE = `usage: launch-worker.mjs --issue <ORB-N|#N|N> --worktree <path> -
   --out <file>       new findings file in an existing scratchpad directory outside every repository
                      Engine output is published only on successful completion. Uses the same
                      session load and launch-spacing gate as ticket work
+
+  Read-only: launch-worker.mjs --review|--proof --order <file> --out <scratchpad file> --directory <path>
+                     [--tier <t>] [--hard-ceiling-minutes <n>] [--measurement] [--dry-run]
+  --review           a pre-push or fix-round review (tools/compose-prompt.mjs --review composes the order)
+  --proof            a device proof (tools/compose-prompt.mjs --proof composes the order). The worker
+                     gets ORBIT_DEVICE_PROOF=1, which lets the worker hook allow adb and emulator
+  --directory <path> the directory the worker runs in: the root of a detached worktree at the head, or
+                     a copy outside every repository
+                     A read-only run uses the full tool set of its tier on the worker account, takes no
+                     ticket admission and no branch launch slot, claims a git run directory against a
+                     second launch, registers a wake source and keeps both clocks and the CPU probe.
+                     Git hooks scoped to the configured repositories and the run directory's repository
+                     refuse and record each ref update and push of the worker's git processes. A
+                     before and after status of each of their worktrees finds a changed tracked file,
+                     except in a worktree that another live launcher holds. The worker writes its
+                     result to a file the launcher names; the launcher publishes it to --out only when
+                     the worker exits 0, no write was found, and the first line is the mode's verdict
+                     line (VERDICT: CLEAN or VERDICT: DEFECTS (<n>), PROOF: PASS or PROOF: FAIL (<n> defects))
 
   --issue <reference> migrated ORB identifier or GitHub issue reference (required)
   --worktree <path>  the existing worktree the worker runs in (required)
@@ -56,6 +75,10 @@ outcome is EXITED, KILLED_HARD_CEILING, KILLED_NO_PROGRESS, KILLED_LOG_RUNAWAY, 
 A SIGINT or SIGTERM to this launcher ends the worker process tree, then publishes the result with STOPPED.
 Research prints research, outputFile, published, engine, model, account, pid, logFile, startedAt, endedAt,
 exitCode, outcome, authenticationFailed and resultError. It publishes only a non-empty final response from an engine that exits 0.
+A read-only run prints mode, outputFile, published, verdict, writes, runDirectory, engine, tier, model,
+account, configDirectory, pid, logFile, startedAt, endedAt, exitCode, outcome, usageLimitReached,
+authenticationFailed, resultError and attempts. writes lists each write found, with kind (push,
+new-branch, ref-update, commit or tracked-change), directory and detail.
 
 exit codes: 0 the worker exited on its own, 1 this launcher killed it or it never started,
             2 usage or config error, including a worker account directory that does not exist,
@@ -63,7 +86,9 @@ exit codes: 0 the worker exited on its own, 1 this launcher killed it or it neve
             4 this launcher killed it but the tree holds commits it made, so the work may be salvageable,
             8 admission refused new ticket work before reservation,
             130 stopped by SIGINT, 143 stopped by SIGTERM
-Research exits 0 only after publishing findings, 1 on engine, supervision or publication failure, or 130 or 143 when stopped.`
+Research exits 0 only after publishing findings, 1 on engine, supervision or publication failure, or 130 or 143 when stopped.
+A read-only run exits 0 only after publishing its result, 5 when it found a write, 1 on any other
+engine, supervision or publication failure, 2 on a usage error or a held run directory, or 130 or 143 when stopped.`
 
 if (process.argv.includes("--help") || process.argv.includes("-h")) {
   console.log(USAGE)
@@ -81,8 +106,12 @@ const argOf = (flag) => {
 }
 
 const research = process.argv.includes("--research")
+const readOnlyMode = ["--review", "--proof"].filter((flag) => process.argv.includes(flag)).map((flag) => flag.slice(2))
+const readOnly = readOnlyMode.length > 0
+const mode = readOnlyMode[0] ?? null
 const orderArgument = argOf("--order")
 const outputArgument = argOf("--out")
+const directoryArgument = argOf("--directory")
 const issueArgument = argOf("--issue")
 const worktreeArg = argOf("--worktree")
 const promptArg = argOf("--prompt")
@@ -101,6 +130,8 @@ if (process.argv.includes("--relaunch-reason") && (typeof relaunchReasonArgument
 }
 
 let researchPlan = null
+let readOnlyPlan = null
+if (readOnlyMode.length > 1 || (research && readOnly)) fail(2, `${USAGE}\n\nchoose one of --research, --review and --proof`)
 if (research) {
   const allowed = new Set(["--research", "--order", "--out", "--dry-run"])
   for (let index = 2; index < process.argv.length; index++) {
@@ -109,8 +140,18 @@ if (research) {
     if (["--order", "--out"].includes(flag)) index++
   }
   try { researchPlan = researchPaths(orderArgument, outputArgument) } catch (error) { fail(2, error.message) }
+} else if (readOnly) {
+  const valueFlags = new Set(["--order", "--out", "--directory", "--tier", "--hard-ceiling-minutes"])
+  const switches = new Set([`--${mode}`, "--measurement", "--dry-run"])
+  for (let index = 2; index < process.argv.length; index++) {
+    const flag = process.argv[index]
+    if (valueFlags.has(flag)) index++
+    else if (!switches.has(flag)) fail(2, `unsupported --${mode} option: ${flag}`)
+  }
+  try { readOnlyPlan = readOnlyPaths(orderArgument, outputArgument, directoryArgument, mode) } catch (error) { fail(2, error.message) }
 } else {
-  if (orderArgument !== null || outputArgument !== null) fail(2, "--order and --out require --research")
+  if (orderArgument !== null || outputArgument !== null) fail(2, "--order and --out require --research, --review or --proof")
+  if (directoryArgument !== null) fail(2, "--directory requires --review or --proof")
   const valueFlags = new Set(["--issue", "--worktree", "--prompt", "--hard-ceiling-minutes", "--tier", "--relaunch-reason"])
   const switches = new Set(["--measurement", "--dry-run"])
   for (let index = 2; index < process.argv.length; index++) {
@@ -120,8 +161,10 @@ if (research) {
   }
 }
 
-let issue = research ? "research" : null
-if (!research) {
+/** Ticket work names its ticket; the other modes name themselves in logs and wake sources. */
+const ticketWork = !research && !readOnly
+let issue = research ? "research" : mode
+if (ticketWork) {
   try {
     const resolvedTicket = resolveTicket(issueArgument)
     issue = resolvedTicket.identifier ?? `#${resolvedTicket.number}`
@@ -129,8 +172,8 @@ if (!research) {
     fail(2, `${USAGE}\n\n--issue must be ORB-N, #N, or N: ${error.message}`)
   }
 }
-if (!research && (!worktreeArg || worktreeArg.startsWith("--"))) fail(2, `${USAGE}\n\n--worktree is required`)
-if (!research && (!promptArg || promptArg.startsWith("--"))) fail(2, `${USAGE}\n\n--prompt is required`)
+if (ticketWork && (!worktreeArg || worktreeArg.startsWith("--"))) fail(2, `${USAGE}\n\n--worktree is required`)
+if (ticketWork && (!promptArg || promptArg.startsWith("--"))) fail(2, `${USAGE}\n\n--prompt is required`)
 
 let config
 try {
@@ -146,14 +189,18 @@ if (config.relay.enabled && launchRunState?.relay?.pending === true) {
 }
 
 const researchStorage = research ? mkdtempSync(join(tmpdir(), "orbit-research-")) : null
-const runDirectory = research ? join(researchStorage, "workspace") : resolve(worktreeArg)
+const runDirectory = research ? join(researchStorage, "workspace") : readOnly ? readOnlyPlan.runDirectory : resolve(worktreeArg)
 if (research) {
   mkdirSync(runDirectory)
   process.on("exit", () => rmSync(researchStorage, { recursive: true, force: true }))
   try { assertOutsideRepository(runDirectory, "research directory") } catch (error) { fail(2, error.message) }
 }
+/** The worker writes its result here; only the finish step copies it to --out. */
+const readOnlyStorage = readOnly ? mkdtempSync(join(tmpdir(), `orbit-${mode}-`)) : null
+const stagedResult = readOnly ? join(readOnlyStorage, "result.md") : null
+if (readOnly) process.on("exit", () => rmSync(readOnlyStorage, { recursive: true, force: true }))
 if (!existsSync(runDirectory)) fail(2, `worktree not found: ${runDirectory}`)
-const promptFile = research ? researchPlan.orderFile : resolve(promptArg)
+const promptFile = research ? researchPlan.orderFile : readOnly ? readOnlyPlan.orderFile : resolve(promptArg)
 if (!existsSync(promptFile)) fail(2, `prompt file not found: ${promptFile}`)
 if (statSync(promptFile).size === 0) fail(2, `prompt file is empty: ${promptFile}`)
 
@@ -168,7 +215,7 @@ const gitIn = (args) => {
   return result.status === 0 ? result.stdout.trim() : ""
 }
 const branch = gitIn(["rev-parse", "--abbrev-ref", "HEAD"])
-if (!research && !branch) fail(2, `${runDirectory} is not a git worktree`)
+if (ticketWork && !branch) fail(2, `${runDirectory} is not a git worktree`)
 /** Where the worker starts from, so a kill can report what the run added rather than make the
  * orchestrator re-derive it from git on every exit. */
 const startHead = gitIn(["rev-parse", "HEAD"])
@@ -283,7 +330,9 @@ const headlessInvocation = () => {
 }
 
 const { executable, scriptArgs } = headlessInvocation()
-const workerArgs = research ? null : [...scriptArgs, ...invocation.args, workerPointer(runDirectory, branch)]
+const readOnlyPointer = () =>
+  `Read ${promptFile} and execute it in full. That file is your complete order for a read-only ${mode} run. You are in ${runDirectory}. Write your complete result to ${stagedResult}; its first line is the verdict line the order names. Write no tracked file, commit, branch or push in any repository. Do not summarise the file back to me, start the work now.`
+const workerArgs = research ? null : [...scriptArgs, ...invocation.args, readOnly ? readOnlyPointer() : workerPointer(runDirectory, branch)]
 /**
  * A claude worker starts on the first account. With a worker account configured, the one relaunch
  * after a usage limit runs on the main account, the orchestrator's default Claude config. In
@@ -304,7 +353,7 @@ if (research) {
 }
 
 if (dryRun) {
-  console.log(JSON.stringify({ issue: research ? null : issue, research, outputFile: researchPlan?.outputFile ?? null, engine: engineName, tier: invocation.tier, model: invocation.model, account: primaryAccount?.name ?? null, configDirectory: primaryAccount?.configDirectory ?? null, measurement, noProgressMinutes, hardCeilingMinutes, runDirectory, branch, promptFile, executable, args: researchArgs ?? workerArgs, logFile, dryRun: true }, null, 2))
+  console.log(JSON.stringify({ issue: ticketWork ? issue : null, research, mode, outputFile: researchPlan?.outputFile ?? readOnlyPlan?.outputFile ?? null, engine: engineName, tier: invocation.tier, model: invocation.model, account: primaryAccount?.name ?? null, configDirectory: primaryAccount?.configDirectory ?? null, measurement, noProgressMinutes, hardCeilingMinutes, runDirectory, branch, promptFile, executable, args: researchArgs ?? workerArgs, logFile, dryRun: true }, null, 2))
   process.exit(0)
 }
 
@@ -321,7 +370,14 @@ const gitRepositoryIdentity = (directory) => {
 let repositoryKey = null
 let githubAuth = { environment: researchEnvironment(), secrets: [] }
 let admission = { admitted: true, reservationId: null }
-if (!research) {
+if (readOnly) {
+  // A copy outside every repository has no remote to choose a GitHub owner from, so it keeps the caller's own gh sign-in.
+  githubAuth = { environment: process.env, secrets: [] }
+  if (readOnlyPlan.gitWorktree) {
+    try { githubAuth = await githubEnvironment(runDirectory) } catch (error) { fail(2, `could not resolve GitHub reads for ${runDirectory}: ${redactSecrets(error.message)}`) }
+  }
+}
+if (ticketWork) {
   const repositoryIdentity = gitRepositoryIdentity(runDirectory)
   if (!repositoryIdentity) fail(2, `could not resolve the Git repository identity for ${runDirectory}`)
   repositoryKey = Object.entries(config.repos ?? {}).find(([, repository]) =>
@@ -341,7 +397,7 @@ if (!research) {
     process.exit(ADMISSION_REFUSED_EXIT)
   }
 }
-process.on("exit", () => { if (!research) releaseAdmission(admission.reservationId) })
+process.on("exit", () => { if (ticketWork) releaseAdmission(admission.reservationId) })
 /** Set while an attempt runs. It stops that attempt's whole group and returns false when a clock already did. */
 let stopActiveAttempt = null
 let stopExitCode = null
@@ -351,7 +407,7 @@ for (const [signal, exitCode] of [["SIGINT", 130], ["SIGTERM", 143]]) {
       if (stopActiveAttempt(`${issue} received ${signal}; killing the worker process tree`)) stopExitCode ??= exitCode
       return
     }
-    if (!research) releaseAdmission(admission.reservationId)
+    if (ticketWork) releaseAdmission(admission.reservationId)
     process.exit(exitCode)
   })
 }
@@ -359,7 +415,9 @@ for (const [signal, exitCode] of [["SIGINT", 130], ["SIGTERM", 143]]) {
 const timestamp = new Date().toISOString()
 let launchSessionId
 try { launchSessionId = readRunState()?.sessionId ?? null } catch (error) { fail(2, error.message) }
-const reservation = research ? { allowed: true } : reserveWorkerLaunch({
+/** A read-only run claims a git run directory against a second launch, but holds no branch slot. */
+const reservesWorktree = ticketWork || (readOnly && readOnlyPlan.gitWorktree)
+const reservation = !reservesWorktree ? { allowed: true } : reserveWorkerLaunch({
   launcherPid: process.pid,
   sessionId: launchSessionId,
   issue,
@@ -370,7 +428,7 @@ const reservation = research ? { allowed: true } : reserveWorkerLaunch({
   tier: invocation.tier,
   timestamp,
   relaunchReason: relaunchReasonArgument,
-}, config.caps.workerLaunchesPerBranch, runDirectory)
+}, ticketWork ? config.caps.workerLaunchesPerBranch : null, runDirectory)
 if (!reservation.allowed) {
   if (reservation.occupiedWorkerPid) fail(2, `worktree ${runDirectory} already has a live worker pid ${reservation.occupiedWorkerPid}`)
   if (reservation.occupiedLauncherPid !== undefined) fail(2, `worktree ${runDirectory} already has a launcher pid ${reservation.occupiedLauncherPid ?? "unknown"}`)
@@ -386,17 +444,32 @@ const startedAt = new Date().toISOString()
  * a Stop in that launch window can observe the live launcher. The reader expires this pending form
  * after 45 seconds, while the process identity still proves that the launcher itself really began.
  */
-if (!registerWakeSource({ pid: process.pid, what: research ? "research" : `worker ${issue}`, research, workerPid: null, logFile, startedAt, pending: true, pendingAt: startedAt })) {
-  if (!research) clearWorkerLaunchReservation(process.pid, runDirectory)
+const wakeWhat = ticketWork ? `worker ${issue}` : issue
+if (!registerWakeSource({ pid: process.pid, what: wakeWhat, research, review: readOnly, workerPid: null, logFile, startedAt, pending: true, pendingAt: startedAt })) {
+  if (reservesWorktree) clearWorkerLaunchReservation(process.pid, runDirectory)
   fail(3, "could not register the pending launcher wake source")
 }
 const reportFd = research && engineName === "claude" ? openSync(reportFile, "wx") : null
-process.on("exit", () => { if (research) clearWakeSource(process.pid) })
+process.on("exit", () => {
+  if (!ticketWork) clearWakeSource(process.pid)
+  if (readOnly && reservesWorktree) clearWorkerLaunchReservation(process.pid, runDirectory)
+})
+/** The configured repositories and the run directory's own repository: every repository the read-only worker can reach by name. */
+const protectedRepositories = readOnly
+  ? [...new Set([...Object.values(config.repos ?? {}), ...(readOnlyPlan.gitWorktree ? [runDirectory] : [])].filter((path) => typeof path === "string"))]
+  : []
+const guard = readOnly
+  ? installWriteGuard(protectedRepositories.map(commonGitDirectory).filter(Boolean), join(readOnlyStorage, "guard"))
+  : null
+const heldByOther = (path) => worktreeHeldByOtherLauncher(path, process.pid)
+const snapshotBefore = readOnly ? snapshotWorktrees(protectedRepositories, heldByOther) : null
 const gatePath = fileURLToPath(new URL("./lib/worker-gate.cjs", import.meta.url))
 const launchEnvironment = research ? githubAuth.environment : {
   ...githubAuth.environment,
   ORBIT_LAUNCH_WORKER: "1",
   ORCA_CLI_COMMAND: process.env.ORCA_BIN || "orca",
+  ...(guard?.environment ?? {}),
+  ...(mode === "proof" ? { ORBIT_DEVICE_PROOF: "1" } : {}),
 }
 
 /** The worker spawns its own children (git, npm, subagents), and killing the parent alone leaves
@@ -611,11 +684,11 @@ const runAttempt = (account, attemptLogFile, attemptArgs) => new Promise((settle
     detached: process.platform !== "win32",
     env: workerAccountEnvironment(launchEnvironment, account),
   })
-  if (!attemptChild.pid || (!research && !recordReservedWorkerPid(process.pid, attemptChild.pid, runDirectory))) {
+  if (!attemptChild.pid || (reservesWorktree && !recordReservedWorkerPid(process.pid, attemptChild.pid, runDirectory))) {
     attemptChild.kill()
     fail(3, "could not publish the worker pid in the worktree reservation")
   }
-  if (!registerWakeSource({ pid: process.pid, what: research ? "research" : `worker ${issue}`, research, workerPid: attemptChild.pid, logFile: attemptLogFile, startedAt })) {
+  if (!registerWakeSource({ pid: process.pid, what: wakeWhat, research, review: readOnly, workerPid: attemptChild.pid, logFile: attemptLogFile, startedAt })) {
     attemptChild.kill()
     fail(3, "could not publish the worker pid in the wake source")
   }
@@ -648,13 +721,39 @@ const runAttempt = (account, attemptLogFile, attemptArgs) => new Promise((settle
   })
 })
 
+/**
+ * Publishes a read-only result only when the worker exited 0, no write was found anywhere it could reach,
+ * and the staged result opens with the mode's verdict line. A write fails the run with exit 5.
+ */
+const finishReadOnly = (last) => {
+  const { outcome, exitCode } = last
+  const writes = [...recordedWrites(guard.logFile), ...writesBetween(snapshotBefore, snapshotWorktrees(protectedRepositories, heldByOther), runDirectory)]
+  for (const write of writes) console.error(`the ${mode} worker left a ${write.kind} in ${write.directory}: ${write.detail}`)
+  let published = false
+  let verdict = null
+  if (outcome === "EXITED" && exitCode === 0 && writes.length === 0) {
+    try {
+      const text = readFileSync(stagedResult, "utf8")
+      verdict = resultVerdict(text, mode)
+      if (verdict === null) throw new Error(`the result does not open with the ${mode} verdict line: ${JSON.stringify(text.split(/\r?\n/, 1)[0])}`)
+      const checked = readOnlyPaths(promptFile, readOnlyPlan.outputFile, runDirectory, mode)
+      writeFileSync(checked.outputFile, text, { flag: "wx", mode: 0o600 })
+      published = true
+    } catch (error) { console.error(`could not publish the ${mode} result: ${error.message}`) }
+  }
+  console.log(JSON.stringify({ mode, outputFile: readOnlyPlan.outputFile, published, verdict, writes, runDirectory, engine: engineName, tier: invocation.tier, model: invocation.model, account: last.account, configDirectory: last.configDirectory, pid: last.pid, logFile: last.logFile, startedAt, endedAt: last.endedAt, exitCode, outcome, usageLimitReached: last.usageLimitReached, authenticationFailed: last.authenticationFailed, resultError: last.resultError, attempts }, null, 2))
+  if (outcome === "STOPPED") process.exit(stopExitCode)
+  process.exit(writes.length > 0 ? 5 : published ? 0 : 1)
+}
+
 const finish = (attempts) => {
   const last = attempts.at(-1)
   const { outcome, exitCode } = last
-  if (!research) releaseAdmission(admission.reservationId)
+  if (ticketWork) releaseAdmission(admission.reservationId)
   clearWakeSource(process.pid)
-  if (!research) clearWorkerLaunchReservation(process.pid, runDirectory)
+  if (reservesWorktree) clearWorkerLaunchReservation(process.pid, runDirectory)
   if (reportFd !== null) closeSync(reportFd)
+  if (readOnly) finishReadOnly(last)
   if (research) {
     let published = false
     if (outcome === "EXITED" && exitCode === 0) {
@@ -686,9 +785,11 @@ const finish = (attempts) => {
 }
 
 const attempts = [await runAttempt(primaryAccount, logFile, researchArgs ?? workerArgs)]
-// Ticket work only: research publishes one report file, and its order is rerun whole. A stopped launch never relaunches, because only an EXITED attempt reads a usage limit.
+// Research publishes one report file, and its order is rerun whole. A stopped launch never relaunches, because only an EXITED attempt reads a usage limit.
 if (!research && attempts[0].usageLimitReached && fallbackAccount !== null) {
   console.error(`${issue} stopped at the ${primaryAccount.name} account's usage limit; relaunching it once on the ${fallbackAccount.name} account`)
-  attempts.push(await runAttempt(fallbackAccount, logFileFor(fallbackAccount), [...scriptArgs, ...invocation.args, continuationPointer(runDirectory, branch)]))
+  // A read-only order starts again from its beginning, so a partial result of the first attempt cannot be published.
+  if (readOnly) rmSync(stagedResult, { force: true })
+  attempts.push(await runAttempt(fallbackAccount, logFileFor(fallbackAccount), [...scriptArgs, ...invocation.args, readOnly ? readOnlyPointer() : continuationPointer(runDirectory, branch)]))
 }
 finish(attempts)
