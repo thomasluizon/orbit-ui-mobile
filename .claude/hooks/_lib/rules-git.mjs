@@ -1,4 +1,4 @@
-import { commandWords, expandCommands, inspectCommands, shellValue } from "./command-expander.mjs"
+import { commandsFedBy, commandWords, expandCommands, inspectCommands, shellValue } from "./command-expander.mjs"
 import { resolve } from "node:path"
 
 // Only these three repositories protect main; other repositories may allow direct pushes.
@@ -61,17 +61,28 @@ export const SHELLS = ["bash", "sh", "zsh", "dash", "ksh", "mksh", "ash", "hush"
 const LETTERS_WITH_ARGUMENT = new Set(["o", "O", "R", "T"])
 /** Long options that take the next word: `--rcfile` and `--init-file` in bash, `--emulate` in zsh. */
 const LONG_OPTIONS_WITH_ARGUMENT = new Set(["--rcfile", "--init-file", "--emulate"])
-/** A shell word, by name or by path. */
-const shellWord = new RegExp(`(?:^|[\\s;&|(/])(?:${SHELLS.join("|")})(?=[ \\t]|$)`, "g")
+/** Stands for the heredoc operator, so that the shell parser finds the commands that read the body. */
+const HEREDOC_OPERATOR = "__heredoc_operator__"
+/** A redirect word: an operator with its target in the same word (`2>log`, `2>&1`, `&>log`), or an operator alone, whose target is the next word. */
+const REDIRECT = /^(?:\d*|&)(?:>>|>&|<&|>\||<>|[<>])(.*)$/
+
+/** The arguments of a simple command, without its redirects. */
+function argumentsOf(command) {
+  const words = commandWords(command)
+  const argumentWords = []
+  for (let index = 0; index < words.length; index++) {
+    const redirect = words[index].match(REDIRECT)
+    if (!redirect) argumentWords.push(shellValue(words[index]))
+    else if (redirect[1] === "") index++
+  }
+  return argumentWords
+}
 
 /**
  * True when the words after a shell word leave it no script file, so it reads its script from standard input.
  * Each option letter in `LETTERS_WITH_ARGUMENT` takes one word. After `-s`, each word that is not an option is a positional argument.
- * A word with `;`, `&` or `|` gives false, because the heredoc belongs to a later command. A word with `<` or `>` also gives false:
- * the scan does not read a redirect, so `bash -x 2>log <<'EOF'` stays data.
  */
 function readsStandardInput(words) {
-  if (words.some((word) => /[;&|<>]/.test(word))) return false
   let positionalArguments = false
   for (let index = 0; index < words.length; index++) {
     const word = words[index]
@@ -89,19 +100,21 @@ function readsStandardInput(words) {
   return true
 }
 
-/** A shell word, then only its options and, after `-s`, its positional arguments, directly before the heredoc operator. */
-function feedsShell(beforeOperator) {
-  for (const match of beforeOperator.matchAll(shellWord)) {
-    const words = beforeOperator.slice(match.index + match[0].length).split(/[ \t]+/).filter(Boolean)
-    if (readsStandardInput(words)) return true
-  }
-  return false
+/**
+ * True when a shell reads the heredoc as its script: the command that holds the operator, or a later command of its pipeline,
+ * has a shell word, by name or by path, followed only by options and, after `-s`, positional arguments. Redirects do not count.
+ */
+function feedsShell(beforeOperator, restOfLine) {
+  return commandsFedBy(`${beforeOperator} ${HEREDOC_OPERATOR} ${restOfLine}`, HEREDOC_OPERATOR).some((command) => {
+    const words = argumentsOf(command)
+    return words.some((word, index) => SHELLS.includes(word.split(/[\\/]/).pop()) && readsStandardInput(words.slice(index + 1)))
+  })
 }
 
 /** Strip heredoc bodies so a message that NAMES a flag is not read as using it. A body that a shell reads stays; a file named `x.sh` is not a shell. */
 export function stripHeredocBodies(command) {
   return command.replace(heredoc, (match, beforeOperator, _quote, _tag, restOfLine) =>
-    feedsShell(beforeOperator) ? match : `${beforeOperator}${restOfLine}`,
+    feedsShell(beforeOperator, restOfLine) ? match : `${beforeOperator}${restOfLine}`,
   )
 }
 

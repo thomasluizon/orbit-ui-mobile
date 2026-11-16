@@ -78,11 +78,11 @@ function splitCommands(source) {
       index = end
       continue
     }
-    const redirect = (character === "|" && current.endsWith(">")) || (character === "&" && /[<>]$/.test(current))
+    const redirect = (character === "|" && current.endsWith(">")) || (character === "&" && (/[<>]$/.test(current) || source[index + 1] === ">"))
     if (!redirect && /[&|;\n]/.test(character)) {
       const doubled = /[&|]/.test(character) && source[index + 1] === character
       const isolated = !doubled && /[&|]/.test(character)
-      segments.push({ command: current, nested, isolated: pipeline || isolated })
+      segments.push({ command: current, nested, isolated: pipeline || isolated, pipesOut: character === "|" && !doubled })
       pipeline = character === "|" && !doubled
       if (doubled) index++
       current = ""
@@ -91,8 +91,26 @@ function splitCommands(source) {
     }
     current += character
   }
-  segments.push({ command: current, nested, isolated: pipeline })
+  segments.push({ command: current, nested, isolated: pipeline, pipesOut: false })
   return { segments, unbalanced: quote !== "" }
+}
+
+/**
+ * The simple commands that can read the input that `marker` stands for, such as a heredoc operator: the command that holds
+ * `marker`, each later command of its pipeline, and the commands of a subshell among them.
+ */
+export function commandsFedBy(source, marker, depth = 0) {
+  if (depth > 32) throw new Error("shell expansion nesting exceeds inspection limit")
+  const { segments } = splitCommands(source)
+  const start = segments.findIndex(({ command, nested }) => command.includes(marker) || nested.some((body) => body.includes(marker)))
+  if (start < 0) return []
+  let end = start
+  while (segments[end].pipesOut && end + 1 < segments.length) end++
+  const holder = segments[start]
+  const inner = holder.command.includes(marker) ? [] : commandsFedBy(holder.nested.find((body) => body.includes(marker)), marker, depth + 1)
+  const stages = segments.slice(holder.command.includes(marker) ? start : start + 1, end + 1)
+  return [...inner, ...stages.flatMap(({ command, nested }) =>
+    [command.replace(marker, " "), ...(command.includes("__subshell__") ? nested.flatMap((body) => expandCommands(body)) : [])])]
 }
 
 function wrapperBody(segment) {

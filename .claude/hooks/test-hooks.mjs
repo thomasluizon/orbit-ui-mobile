@@ -184,9 +184,36 @@ const HEREDOC_SHELLS = [
   "mksh -T tty",
 ]
 for (const shell of HEREDOC_SHELLS) T(`git: a heredoc feeding ${shell} keeps its body in scope`, blocks(checkGitCommand(`${shell} <<'EOF'\ngit push origin main\nEOF`)), true)
-// A shell that runs a script file, or a command string, reads the heredoc as data, and so does a command after a separator.
-const HEREDOC_DATA = ["bash script.sh", "bash -O extglob script.sh", "bash --rcfile rc script.sh", "bash -- script.sh", "bash -c cat", "bash -s one; cat"]
-for (const shell of HEREDOC_DATA) T(`git: a heredoc feeding ${shell} is data`, checkGitCommand(`${shell} <<'EOF'\ngit push origin main\nEOF`), null)
+// A redirect in any order is not an argument, and a pipeline from the heredoc into a shell that reads standard input runs the body.
+const HEREDOC_SHELL_LINES = [
+  "bash -x 2>log <<'EOF'",
+  "bash <<'EOF' 2>log",
+  "bash 2> log <<'EOF'",
+  "bash &>log <<'EOF'",
+  "bash -s <<'EOF' one two",
+  "cat <<'EOF' | bash",
+  "cat <<'EOF' | sh -s -- a",
+  "cat <<'EOF' | tee copy.sh | bash",
+  "cat <<'EOF' | (cd /tmp && bash)",
+  "(bash -e) <<'EOF'",
+]
+for (const line of HEREDOC_SHELL_LINES) T(`git: the heredoc of ${line} keeps its body in scope`, blocks(checkGitCommand(`${line}\ngit push origin main\nEOF`)), true)
+// A shell that runs a script file or a command string, a command after a separator, and a pipeline with no shell read the heredoc as data.
+const HEREDOC_DATA = [
+  "bash script.sh <<'EOF'",
+  "bash -O extglob script.sh <<'EOF'",
+  "bash --rcfile rc script.sh <<'EOF'",
+  "bash -- script.sh <<'EOF'",
+  "bash -c cat <<'EOF'",
+  "bash -s one; cat <<'EOF'",
+  "bash <<'EOF' script.sh",
+  "cat > bash <<'EOF'",
+  "cat <<'EOF' | grep push",
+  "cat <<'EOF' | bash script.sh",
+  "cat <<'EOF' && bash",
+  "cat <<'EOF' > run.sh",
+]
+for (const line of HEREDOC_DATA) T(`git: the heredoc of ${line} is data`, checkGitCommand(`${line}\ngit push origin main\nEOF`), null)
 // git worktree remove --force follows a Windows junction and deletes the target.
 T("git-worktree: --force blocks", blocks(checkGitWorktreeRemove("git worktree remove --force .claude/worktrees/x")), true)
 T("git-worktree: no force allows", checkGitWorktreeRemove("git worktree remove .claude/worktrees/x"), null)
@@ -497,6 +524,7 @@ for (const [command, rule] of [
   [`trap 'rm -rf "$TMP"' EXIT`, "variable-path"],
   ["bash <<'EOF'\nrm -rf \"$TMP\"\nEOF", "variable-path"],
   ...HEREDOC_SHELLS.map((shell) => [`${shell} <<'EOF'\nrm -rf "$TMP"\nEOF`, "variable-path"]),
+  ...HEREDOC_SHELL_LINES.map((line) => [`${line}\nrm -rf "$TMP"\nEOF`, "variable-path"]),
   ["rm -rf `pwd`/dist", "command-substitution"],
   ["docker exec box sh -c 'rm -rf /'", "critical-path"],
   ["rm -rf /", "critical-path"],
@@ -544,7 +572,7 @@ for (const command of [
   "rm -rf dist # it's stale",
   "rm -rf dist # don't keep it\nnpm run build # it's fast",
   "bash -c 'rm -rf dist' # the alias function() is gone",
-  ...HEREDOC_DATA.map((shell) => `${shell} <<'EOF'\nrm -rf "$TMP"\nEOF`),
+  ...HEREDOC_DATA.map((line) => `${line}\nrm -rf "$TMP"\nEOF`),
 ]) T(`approval: ${command} passes`, refusedBy(command), null)
 T("approval windows: the top level of a drive is critical", refusedBy("rm -rf C:/work", { ...approvalOptions, cwd: "C:\\work\\repo", windows: true }), "critical-path")
 T("approval windows: a deeper drive path passes", refusedBy("rm -rf C:/work/other/build", { ...approvalOptions, cwd: "C:\\work\\repo", windows: true }), null)
