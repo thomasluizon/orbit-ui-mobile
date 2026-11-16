@@ -26,7 +26,7 @@ UI `main` `8b81175e7`; API `main` `38513551a`; landing `main` `20c1b0a90`. Owner
 
 | Item | Disposition |
 | --- | --- |
-| ui#2477 (`#2148`) | Review CLEAN, main merged, pushed `b4689580a`, Pullfrog requested; start `wait-ci.mjs --repo ui --pr 2477 --require-check pullfrog-approval`, merge at the bar. |
+| ui#2477 (`#2148`) | Pullfrog red at `b4689580a`: P1 `PRRT_kwDOR5Siws64FVTB` (`tag-editor-row.tsx:67`, the waiting face copies `waitingFaceClasses`). Fix round, then push. |
 | ui#2475 (`#2149`) | Review S `review-2475-r2-local.md`: DEFECTS (6), D1 the run's own pull requests count as pending. Round 3 fixes all six. |
 | ui#2476 (`#2145`) | Review S `review-2476-r1-local.md`: DEFECTS (17). Round 2 fixes them. |
 | ui#2469 (`#2074`) | Review S `review-2469-r18-local.md`: DEFECTS (2), the npx rule test gap and four draft lines. Round 19. |
