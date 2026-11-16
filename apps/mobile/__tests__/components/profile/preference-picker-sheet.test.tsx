@@ -6,6 +6,7 @@ import type { SheetHandle } from '@/components/ui/sheet'
 import { createTokensV2 } from '@/lib/theme'
 import { __resetTestHostConfig } from '../../../test-mocks/react-native'
 import { focusHost, withFocusProvenance } from '../../support/focus-provenance'
+import { motionPresets } from '@orbit/shared/theme'
 
 const device = vi.hoisted((): { timeZone: string | null } => ({ timeZone: 'Alpha/One' }))
 vi.mock('@orbit/shared/utils', async (importOriginal) => ({
@@ -20,6 +21,8 @@ vi.mock('@orbit/shared/utils', async (importOriginal) => ({
 }))
 const flag = vi.hoisted(() => ({ guided: false }))
 vi.mock('@/hooks/use-flag', () => ({ useFlag: () => flag.guided }))
+const motion = vi.hoisted(() => ({ reduced: true }))
+vi.mock('@/lib/motion', async (importOriginal) => ({ ...await importOriginal<typeof import('@/lib/motion')>(), usePrefersReducedMotion: () => motion.reduced }))
 vi.mock('@/components/marketing-consent/marketing-consent-section', () => ({
   MarketingConsentSection: () => null,
 }))
@@ -68,6 +71,35 @@ describe('PreferencePickerSheet', () => {
   beforeEach(() => {
     __resetTestHostConfig()
     flag.guided = false
+    motion.reduced = true
+  })
+
+  it.each([
+    ['clock', '12 hour', 'onClockFormatChange', false],
+    ['timeZone', 'Charlie/Three', 'onTimeZoneChange', 'Charlie/Three'],
+  ] as const)('marks the %s answer first and closes the sheet only after the selection settles', (picker, answer, handler, value) => {
+    vi.useFakeTimers()
+    try {
+      flag.guided = true
+      motion.reduced = false
+      device.timeZone = 'Charlie/Three'
+      const props = { ...baseProps(), activePicker: picker }
+      let tree: any
+      void act(() => { tree = create(withFocusProvenance(<PreferencePickerSheet {...props} />)) })
+      const card = () => tree.root.findAll((node: any) => typeof node.type === 'string' && node.props.testID === 'option-card' && node.props.accessibilityLabel === answer)[0]
+      void act(() => card().props.onPress())
+      expect(card().props.accessibilityState.selected).toBe(true)
+      expect(props[handler]).not.toHaveBeenCalled()
+      expect(props.onHidden).not.toHaveBeenCalled()
+      void act(() => { vi.advanceTimersByTime(motionPresets.selection.enterDuration - 1) })
+      expect(props.onHidden).not.toHaveBeenCalled()
+      void act(() => { vi.advanceTimersByTime(1) })
+      expect(props[handler]).toHaveBeenCalledExactlyOnceWith(value)
+      expect(props.onHidden).toHaveBeenCalledOnce()
+    } finally {
+      vi.useRealTimers()
+      device.timeZone = 'Alpha/One'
+    }
   })
 
   it.each([

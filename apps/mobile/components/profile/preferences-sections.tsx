@@ -1,7 +1,8 @@
 import { ChevronDown } from '@/components/ui/icons'
 
 import { IconButton } from '@/components/ui/icon-button'
-import { useMemo, useRef, useState, type Ref } from 'react'
+import { useEffect, useMemo, useRef, useState, type Ref } from 'react'
+import { motionPresets } from '@orbit/shared/theme'
 import { StyleSheet, View, Text } from 'react-native'
 import {
   buildGuidedTimeZoneOptions,
@@ -18,6 +19,7 @@ import { RadioGroup } from '@/components/ui/radio-group'
 import { Input } from '@/components/ui/input'
 import { OptionCard } from '@/components/ui/option-card'
 import { useFlag } from '@/hooks/use-flag'
+import { usePrefersReducedMotion } from '@/lib/motion'
 import { BottomSheetAppTextInput } from '@/components/ui/bottom-sheet-app-text-input'
 
 import { styles, type Tokens } from '@/app/preferences-styles'
@@ -65,17 +67,18 @@ function PickerOptions<Value extends string | number>({
   )
 }
 
-/** With `orbit_guided_flows` on, a short picker shows its answers as quick options: a press answers and closes the sheet. */
+/** With `orbit_guided_flows` on, a short picker shows its answers as quick options: a press marks the answer, then answers and closes the sheet. */
 function QuickOptions<Value extends string | number>({ label, options, selected, onCommit }: Readonly<{
   label: string
   options: readonly { value: Value; label: string }[]
   selected: Value | null
   onCommit: (value: Value) => void
 }>) {
+  const [answer, setAnswer] = useState<Value | null>(null)
   return (
     <View testID="preference-quick-options" accessibilityLabel={label} style={quickOptions.grid}>
       {options.map((option) => (
-        <OptionCard key={String(option.value)} label={option.label} selected={selected === option.value} onSelect={() => onCommit(option.value)} />
+        <OptionCard key={String(option.value)} label={option.label} selected={(answer ?? selected) === option.value} onSelect={() => { setAnswer(option.value); onCommit(option.value) }} />
       ))}
     </View>
   )
@@ -151,8 +154,9 @@ function GuidedTimeZoneOptions({ tokens, selected, questionLabel, searchLabel, n
   const [query, setQuery] = useState('')
   const [visibleCount, setVisibleCount] = useState(TIME_ZONE_PAGE_SIZE)
   const [deviceTimeZone] = useState(getClientTimeZone)
+  const [answer, setAnswer] = useState<string | null>(null)
   const { quick, searched, visible, hasMore } = buildGuidedTimeZoneOptions({ zones: TIME_ZONE_OPTIONS, selected, deviceTimeZone, query, visibleCount })
-  const option = (zone: string) => <OptionCard key={zone} wide label={zone} selected={zone === selected} onSelect={() => onCommit(zone)} />
+  const option = (zone: string) => <OptionCard key={zone} wide label={zone} selected={zone === (answer ?? selected)} onSelect={() => { setAnswer(zone); onCommit(zone) }} />
   return (
     <View testID="time-zone-question" style={guidedTimeZone.column}>
       <View testID="time-zone-quick-options" accessibilityLabel={questionLabel} style={guidedTimeZone.options}>{quick.map(option)}</View>
@@ -198,7 +202,7 @@ interface PreferencePickerSheetProps {
 
 function PickerContent({ props, commitSelection }: Readonly<{
   props: PreferencePickerSheetProps
-  commitSelection: (apply: () => void) => void
+  commitSelection: (apply: () => void, settle: boolean) => void
 }>) {
   const guided = useFlag('orbit_guided_flows')
   if (props.activePicker === null) return null
@@ -212,7 +216,7 @@ function PickerContent({ props, commitSelection }: Readonly<{
       searchLabel={props.timeZoneSearchLabel}
       noResultsLabel={props.timeZoneNoResultsLabel}
       showMoreLabel={props.timeZoneShowMoreLabel}
-      onCommit={(value) => commitSelection(() => model.onCommit(value))}
+      onCommit={(value) => commitSelection(() => model.onCommit(value), guided)}
     />
   }
   const Options = guided ? QuickOptions : PickerOptions
@@ -220,17 +224,26 @@ function PickerContent({ props, commitSelection }: Readonly<{
     label={model.label}
     options={model.options}
     selected={model.selected}
-    onCommit={(value) => commitSelection(() => model.onCommit(value))}
+    onCommit={(value) => commitSelection(() => model.onCommit(value), guided)}
   />
 }
 
 export function PreferencePickerSheet(props: Readonly<PreferencePickerSheetProps>) {
   const { activePicker, tokens, pickerTitles, pickerDescriptions, sheetRef,
     closePicker, onHidden } = props
-  const commitSelection = (apply: () => void) => closePicker(() => {
+  const reducedMotion = usePrefersReducedMotion()
+  const settleTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+  useEffect(() => () => clearTimeout(settleTimer.current), [])
+  const close = (apply: () => void) => closePicker(() => {
     onHidden()
     apply()
   })
+  /** A quick option closes the sheet after its selection settles (`motionPresets.selection`), and at once under reduced motion. */
+  const commitSelection = (apply: () => void, settle: boolean) => {
+    clearTimeout(settleTimer.current)
+    if (!settle || reducedMotion) close(apply)
+    else settleTimer.current = setTimeout(() => close(apply), motionPresets.selection.enterDuration)
+  }
   if (activePicker === null) return null
 
   return <Sheet ref={sheetRef} open onClose={onHidden} title={pickerTitles[activePicker]} key={activePicker}>

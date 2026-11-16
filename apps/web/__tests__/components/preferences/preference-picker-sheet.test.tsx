@@ -9,6 +9,8 @@ vi.mock('next-intl', () => ({
 
 const flag = vi.hoisted(() => ({ guided: false }))
 vi.mock('@/hooks/use-flag', () => ({ useFlag: () => flag.guided }))
+const motion = vi.hoisted(() => ({ reduced: true }))
+vi.mock('@/hooks/use-viewport-match', () => ({ useViewportMatch: (query: string) => query.includes('reduce') ? motion.reduced : false }))
 const device = vi.hoisted(() => ({ timeZone: 'America/Sao_Paulo' as string | null }))
 vi.mock('@orbit/shared/utils', async (importOriginal) => ({ ...await importOriginal<typeof import('@orbit/shared/utils')>(), getClientTimeZone: () => device.timeZone }))
 
@@ -17,6 +19,8 @@ vi.mock('dompurify', () => ({
 }))
 
 import { PreferencePickerSheet } from '@/app/(app)/preferences/_components/preference-picker-sheet'
+import { motionPresets } from '@orbit/shared/theme'
+import { act } from 'react'
 
 const pickerTitles: Record<PreferencePicker, string> = {
   language: 'Language',
@@ -55,6 +59,33 @@ describe('PreferencePickerSheet', () => {
   beforeEach(() => {
     document.body.innerHTML = ''
     flag.guided = false
+    motion.reduced = true
+  })
+
+  it.each([
+    ['clock', '12 hour', 'onClockFormatChange', false],
+    ['timeZone', 'Europe/Lisbon', 'onTimeZoneChange', 'Europe/Lisbon'],
+  ] as const)('marks the %s answer first and closes the sheet only after the selection settles', (picker, answer, handler, value) => {
+    vi.useFakeTimers()
+    try {
+      flag.guided = true
+      motion.reduced = false
+      device.timeZone = 'Europe/Lisbon'
+      const props = { ...baseProps(), activePicker: picker }
+      render(<PreferencePickerSheet {...props} />)
+      fireEvent.click(screen.getByRole('button', { name: answer }))
+      expect(screen.getByRole('button', { name: answer })).toHaveAttribute('data-selected')
+      expect(props[handler]).not.toHaveBeenCalled()
+      expect(props.onClose).not.toHaveBeenCalled()
+      act(() => { vi.advanceTimersByTime(motionPresets.selection.enterDuration - 1) })
+      expect(props.onClose).not.toHaveBeenCalled()
+      act(() => { vi.advanceTimersByTime(1) })
+      expect(props[handler]).toHaveBeenCalledExactlyOnceWith(value)
+      expect(props.onClose).toHaveBeenCalledOnce()
+    } finally {
+      vi.useRealTimers()
+      device.timeZone = 'America/Sao_Paulo'
+    }
   })
 
   it.each([
