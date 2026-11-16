@@ -893,8 +893,6 @@ export { readHabitRecurrencePhrase, type HabitRecurrence, type HabitRecurrencePh
 
 export { getPendingAuthProvider, getAuthCallbackErrorKey, showsAuthCallbackLine, deriveLoginEmailErrors } from './auth-login'
 
-export { steadyColumnInset } from './steady-column'
-
 export { createAstraAllowanceTranslator, type AstraAllowance } from './astra-allowance'
 
 export { computeParentResolutionProgress, computeParentPromptChain, selectParentPromptAncestor, settleParentPromptChain } from './parent-prompt-chain'

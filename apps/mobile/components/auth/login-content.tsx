@@ -2,8 +2,8 @@ import { ShellContent } from '@/components/shell/shell-content'
 import { getPendingAuthProvider, getAuthCallbackErrorKey, showsAuthCallbackLine } from '@orbit/shared/utils'
 import type { AuthCallbackState } from '@orbit/shared/utils/auth-callback-failure'
 import { SPACING } from '@orbit/shared/theme'
-import { useCallback, useLayoutEffect, useRef, useState } from 'react'
-import { Platform, Text, View, useWindowDimensions, type ScrollView } from 'react-native'
+import { useState } from 'react'
+import { Platform, Text, View, useWindowDimensions } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -16,7 +16,6 @@ import { useLoginFlow } from '@/app/use-login-flow'
 import { LoginHeader, ReferralBanner, LoginStepStage, LoginValidationMessage } from './login-sections'
 import { EmailStep } from './email-step'
 import { CodeStep } from './code-step'
-import { SteadyColumn, steadyLength } from './steady-column'
 import { GuidedLoginContent } from './guided-login'
 import { useGuidedSignIn } from './guided-sign-in'
 
@@ -34,7 +33,7 @@ export function LoginContent({ callback }: Readonly<{ callback?: LoginCallback }
 
 function CurrentLoginContent({ callback }: Readonly<{ callback?: LoginCallback }>) {
   const insets = useSafeAreaInsets()
-  const { width, scale } = useWindowDimensions()
+  const { width } = useWindowDimensions()
   const wide = width >= 768
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
@@ -42,12 +41,6 @@ function CurrentLoginContent({ callback }: Readonly<{ callback?: LoginCallback }
   const flow = useLoginFlow(Boolean(callback))
   const { t } = flow
   const [callbackDismissed, setCallbackDismissed] = useState(false)
-  const scrollRef = useRef<ScrollView>(null)
-  const [viewportHeight, setViewportHeight] = useState(0)
-  useLayoutEffect(() => {
-    scrollRef.current?.getNativeScrollRef()?.measureInWindow((_x, _y, _width, height) => setViewportHeight(height))
-  })
-  const check = useMeasuredCheck(flow, scale)
   function continueAccount() {
     if (callback?.state === 'account') callback.onContinue()
     else void flow.continueAccount()
@@ -60,15 +53,15 @@ function CurrentLoginContent({ callback }: Readonly<{ callback?: LoginCallback }
   const emailErrorMessage = googleFailed ? t(callbackErrorKey) : flow.errorMessage
   const sendCodeLabel = flow.fromOnboarding ? t('auth.onboarding.continue') : undefined
   const canSubmitTurnstile = !flow.turnstileSiteKey || Boolean(flow.turnstileToken)
-  const turnstileWidget = check.widget
-  const checkSpace = !account && check.height > 0 ? check.height + styles.step.gap : 0
+  const turnstileWidget = flow.turnstileSiteKey && flow.isOnline
+    ? <TurnstileWidget key={flow.turnstileResetKey} siteKey={flow.turnstileSiteKey} resetKey={flow.turnstileResetKey} onToken={flow.onTurnstileToken} />
+    : null
   const scrollPadding = wide ? styles.scrollWide.padding : 0
   return <View style={styles.root}>
-    <ShellContent style={{ flex: 1 }}><KeyboardAwareScrollView ref={scrollRef} containerStyle={[styles.container, { paddingTop: insets.top }]}
+    <ShellContent style={{ flex: 1 }}><KeyboardAwareScrollView containerStyle={[styles.container, { paddingTop: insets.top }]}
       contentContainerStyle={[styles.scrollContent, wide && styles.scrollWide, { paddingBottom: scrollPadding + insets.bottom }]} keyboardShouldPersistTaps="always"
-      showsVerticalScrollIndicator={false} onLayout={(event) => setViewportHeight(event.nativeEvent.layout.height)}>
-      <SteadyColumn viewportHeight={viewportHeight - 2 * scrollPadding - insets.bottom} blockSpace={checkSpace}
-        style={[styles.formColumn, !wide && styles.formCompact, width < 336 && { paddingHorizontal: SPACING.s8 }, wide && styles.panel]}>
+      showsVerticalScrollIndicator={false}>
+      <View testID="login-column" style={[styles.formColumn, width < 336 && { paddingHorizontal: SPACING.s8 }, wide && styles.panel]}>
         {Platform.OS !== 'ios' && flow.showReferralBanner && !account && <ReferralBanner t={t} styles={styles} />}
         <Lockup />
         {account ? <AccountBackState t={t} styles={styles} loading={flow.isSubmitting || callback?.loading}
@@ -97,19 +90,9 @@ function CurrentLoginContent({ callback }: Readonly<{ callback?: LoginCallback }
           </View>
         </LoginStepStage>}
         <LoginValidationMessage message={flow.validationGeneralError} isOnline={flow.isOnline} styles={styles} />
-      </SteadyColumn>
+      </View>
     </KeyboardAwareScrollView></ShellContent>
   </View>
-}
-
-function useMeasuredCheck(flow: ReturnType<typeof useLoginFlow>, pixelRatio: number) {
-  const [height, setHeight] = useState(0)
-  const reportSpace = useCallback((space: number) => setHeight((current) => steadyLength(current, space, pixelRatio)), [pixelRatio])
-  const widget = flow.turnstileSiteKey && flow.isOnline
-    ? <TurnstileWidget key={flow.turnstileResetKey} siteKey={flow.turnstileSiteKey} resetKey={flow.turnstileResetKey} onToken={flow.onTurnstileToken}
-      onSpaceChange={reportSpace} />
-    : null
-  return { widget, height: widget ? height : 0 }
 }
 
 function AccountBackState({ t, styles, loading, continueAccount, errorMessage }: Readonly<{
