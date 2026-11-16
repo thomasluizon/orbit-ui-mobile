@@ -98,7 +98,8 @@ The grammar:
 - a here document outside a substitution, with a quoted literal delimiter, such as `<<'EOF'`, and an exact end marker line
 - `VAR=value` before a command or alone, but not in a pipeline
 - `$NAME`, `${NAME}`, `${NAME:?message}`, a leading `~` and `$(command)`, where the reader reads the command of the
-  substitution with the same grammar
+  substitution with the same grammar. The reader reads `~` as the home directory of the hook, and the line cannot change it,
+  because `HOME` is in `REFUSED_ASSIGNMENT`
 - `cd PATH` as one whole simple command at the top level of the line, not in `for`, `if`, a pipeline or a substitution
 
 The reader is an allow list in each class:
@@ -113,19 +114,24 @@ The reader is an allow list in each class:
   `zformat`, `print -v` and `declare -n` are refused.
 - A name in `REFUSED_ASSIGNMENT` is refused in each way that the grammar can assign or export it: an assignment word, a
   `for` name, a `NAME=value` word of a wrapper such as `env`, and a word of a declaration builtin, with or without `=`.
+  `env -i`, `env -u NAME`, `env --unset`, `env --ignore-environment` and `env -` remove a name, so they are refused too.
 - `chdir`, `pushd` and `popd` are refused. `cd PATH` is the only builtin that changes the directory, and the walk follows it.
 - The POSIX shells (`bash`, `sh`, `zsh`, `dash`, `ksh` and others) are allowed only with a script file. Each other shell,
   from a list of known names and from `/etc/shells`, is refused with any word, for example `csh`, `tcsh`, `fish` and `pwsh`.
 - A `git` command in an unattended run, and in a protected repository in an attended session, must use a subcommand in
   `GIT_SUBCOMMANDS` of `rules-git.mjs`. An alias, `subtree`, `send-pack`, `submodule`, `difftool` and each other subcommand are
-  refused. `rebase -x` and `--exec`, `bisect run`, `fetch` and `pull` with `--upload-pack`, `push` with `--receive-pack` or
-  `--exec`, and `grep -O` run a command, so they are refused too.
+  refused, and the refusal names the script file route. `rebase -x` and `--exec`, `bisect run`, `fetch` and `pull` with
+  `--upload-pack`, `ls-remote --upload-pack`, `push` with `--receive-pack` or `--exec`, and `grep -O` run a command, so they
+  are refused too. The `git procedure:` rows of `test-hooks.mjs` read each git subcommand that a code span of a Markdown
+  file under `.claude/` or `tools/` names, and require it in `GIT_SUBCOMMANDS`.
 
 The walk unrolls a `for` loop over its literal words. It knows the value of a variable with a lower case name that the line
 sets to a literal value, such as `d=/work/$w` in a loop over `w`, until a declaration builtin runs. A `git` argument and the
 path of a `cd` can use such a variable. A variable with an upper case name, such as `$WT`, is never known, because the shell
 sets many upper case names itself (`PWD`, `OLDPWD`, `REPLY`, `RANDOM`, `SECONDS` and others). The walk keeps the values as a
-chain of changes, so its time grows about linearly with the number of assignments. The shell can skip an item after `&&` or
+chain of changes, so its time grows about linearly with the number of assignments. Two states whose maps hold the same
+entries are one state: each map keeps the count and an order-free hash of its entries, and the walk compares the entries only
+when the count and the hash are equal. The walk refuses a line with more than 64 states. The shell can skip an item after `&&` or
 `||` and a branch of `if`, so a rule that follows a `cd` reads the later commands in each directory that is possible.
 
 A glob, a brace expansion, a substitution, a word that starts with `=`, and a variable whose value the walk does not know make
@@ -139,12 +145,14 @@ that names a shell, and in a `git` argument or a `cd` path. Each other construct
   backtick, a line continuation, a here-string, `<<-`, `&>>`, a redirect to a path that is not literal, and the zsh numeric
   glob `<N-M>` or `<->`, which bash reads as two redirects
 - `eval`, `source`, `.`, `let`, `alias`, `trap`, `setopt`, `set -o`, `printf -v`, `hash`, `sched`, `break`, `continue`,
-  `env -S`, `env -C`, `sudo -s`, and the zsh command words `nocorrect`, `repeat`, `-`, `always` and `foreach`
+  `env -S`, `env -C`, `env -i`, `env -u`, `sudo -s`, and the zsh command words `nocorrect`, `repeat`, `-`, `always` and `foreach`
 - a POSIX shell with `-c`, a shell that reads its script from standard input, from a pipe, from a here document or a `<` file
   of its own, or from a path under `/dev` or `/proc`, and a `-c` after a shell word anywhere in a command
 - an assignment to a name in `REFUSED_ASSIGNMENT`: the prompt names (`PS1` to `PS4`, `PROMPT`, `RPROMPT`, `SPROMPT`,
   `PROMPT_COMMAND`), `IFS`, `BASH_ENV`, `ENV`, `CDPATH`, `SHELLOPTS`, `BASHOPTS`, `ZDOTDIR`, `PATH`, `path`, `FPATH`, `fpath`,
-  `NULLCMD`, `READNULLCMD`, `EDITOR`, `VISUAL`, `PAGER`, `SSH_ASKPASS`, an `LD_*` or `DYLD_*` name, and a `GIT_*` name
+  `NULLCMD`, `READNULLCMD`, `EDITOR`, `VISUAL`, `PAGER`, `SSH_ASKPASS`, an `LD_*` or `DYLD_*` name, a `GIT_*` name, and the
+  names that give the shell or git a directory or a config file: `HOME`, each `XDG_*` name, `PWD`, `OLDPWD`, `USERPROFILE`,
+  `HOMEDRIVE` and `HOMEPATH`
 - text with a `[` and a `$(` or a backtick, which bash can run as a subscript
 
 The reader models shell syntax, not what a program does with its arguments. A program on the allow list that runs code from
@@ -152,7 +160,8 @@ its arguments or from a file, such as `node -e`, `npm run`, `npx`, `awk` with `s
 alias or an extension, and `dotnet` or `cargo` with a project, is not read. An alias, a function or an option of the user
 profile, a config file that the agent writes (for example a git alias or `url.*.pushInsteadOf` in a git config file), and a
 script file that the agent runs by its path are not read. A `cd` that fails is read as a `cd` that succeeds, and a `CDPATH` in
-the environment is not read.
+the environment is not read. A wrapper that changes the user, such as `sudo -u`, `doas -u`, `runuser` and `pkexec`, gives git
+the home and the config of that user, and the hook does not read them.
 
 `checkGitCommand` refuses a command outside the grammar in an unattended run, the same runs in which the approval rule applies.
 In an attended session it refuses such a command only when the text, with its quotes and backslashes removed, names `git`.
@@ -161,8 +170,13 @@ In a protected repository, the push rule allows only `git push origin <branch>`,
 git takes only `-C <path>` and options that change no config, no repository and no hook, so `-c`, `--config-env`,
 `--git-dir` and `--work-tree` are refused. A push in the same command as a `git config` or `git remote` change is refused.
 The rule judges each repository word of a push: the first word that is no option, and each value of `--repo <x>` and
-`--repo=<x>`. A URL or a path is judged by its repository name as GitHub resolves it, with no case, with percent escapes
-decoded, and with each trailing `/` and `.git` removed. A named remote is judged by `git remote get-url --push <name>`.
+`--repo=<x>`. In an unattended run and in a protected repository, a URL or a path passes only when it is byte-equal to a
+canonical form, `https://github.com/<owner>/<repo>` or `git@github.com:<owner>/<repo>`, each with an optional `.git`, with no
+dot segment, no percent escape, no repeated or trailing `/`, and no query or fragment. The refusal names the canonical forms.
+In an attended session in a repository with no protection, a URL or a path is judged by its repository name: with no case,
+with each `.` and `..` segment, each repeated or trailing `/` and each trailing `.git` removed. A percent escape, a `?`, a
+`#` or a path that ends in no name makes the target protected. A named remote is judged by `git remote get-url --push <name>`,
+with the same name reader.
 
 Widen the grammar only with a construct that the reader models exactly in bash and in zsh, and add its rows to the `subset:`
 group of `test-hooks.mjs`. Do not add a second reading of a construct that the reader does not model.

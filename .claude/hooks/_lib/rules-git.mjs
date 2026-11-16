@@ -1,18 +1,33 @@
 import { commandsFedBy, commandWords, expandCommands, heredocsOf, invocationsOf, PLAIN_SUBSET_ADVICE, programName, readCommand, readsStandardInput, shellValue, SHELLS, SUBSTITUTION, walkCommands, withoutRedirects } from "./command-expander.mjs"
-import { resolve } from "node:path"
+import { posix, resolve } from "node:path"
 
 // Only these three repositories protect main; other repositories may allow direct pushes.
 const PROTECTED_REPOS = ["orbit-ui-mobile", "orbit-api", "orbit-landing-page"]
 
-/** A percent escape that does not decode leaves the text as it is: the name then matches no protected name, and the push form rule still applies to the directory. */
-const decoded = (text) => { try { return decodeURIComponent(text) } catch { return text } }
-
-/** The repository name of a remote URL or path as GitHub resolves it: with no case, and with no trailing `/` or `.git`. */
+/**
+ * The repository name of a remote URL or path, or null when the hook cannot name it with certainty. The name has no case, and the path
+ * loses each `.` and `..` segment, each repeated or trailing `/` and each trailing `.git`, as git and GitHub resolve them. A percent
+ * escape, a `?` or a `#` gives null, and so does a path that ends in no name. A caller reads null as a protected repository.
+ */
 function repoNameFrom(remoteUrl) {
   if (typeof remoteUrl !== "string") return null
-  let trimmed = decoded(remoteUrl.trim()).toLowerCase()
-  while (/(?:[/\\]|\.git)$/.test(trimmed)) trimmed = trimmed.replace(/(?:[/\\]+|\.git)$/, "")
-  return trimmed ? (trimmed.split(/[/:\\]/).filter(Boolean).pop() ?? null) : null
+  const text = remoteUrl.trim().toLowerCase().replaceAll("\\", "/")
+  if (text === "" || /[%?#]/.test(text)) return null
+  const url = /^[a-z][a-z0-9+.-]*:\/\/[^/]*(.*)$/.exec(text)
+  const scp = url ? null : /^[^/]*?:(.*)$/.exec(text)
+  let path = posix.normalize(`/${url ? url[1] : scp ? scp[1] : text}`)
+  while (/(?:\/|\.git)$/.test(path)) path = path.replace(/(?:\/+|\.git)$/, "")
+  const name = path.split("/").pop()
+  return name && name !== "." && name !== ".." ? name : null
+}
+
+/** The two forms of a URL that a push in an unattended run or in a protected repository can name. Each other URL or path is refused. */
+const CANONICAL_REMOTE_FORMS = "`https://github.com/<owner>/<repo>` or `git@github.com:<owner>/<repo>`, each with an optional `.git`"
+const CANONICAL_REMOTE = /^(?:https:\/\/github\.com\/|git@github\.com:)[A-Za-z0-9-]+\/([A-Za-z0-9_.-]+)$/
+/** True for a URL that is byte-equal to a canonical form: no dot segment, no percent escape, no repeated or trailing `/`, no query and no fragment. */
+const isCanonicalRemote = (remote) => {
+  const repository = CANONICAL_REMOTE.exec(remote)?.[1].replace(/\.git$/, "")
+  return Boolean(repository) && repository !== "." && repository !== ".."
 }
 
 // Fails SAFE: when the target repo cannot be resolved, assume it is protected.
@@ -223,7 +238,7 @@ export const GIT_SUBCOMMANDS = ["add", "apply", "bisect", "blame", "branch", "ca
   "config", "count-objects", "describe", "diff", "diff-files", "diff-index", "diff-tree", "fetch", "for-each-ref", "format-patch", "fsck", "grep", "hash-object", "log",
   "ls-files", "ls-remote", "ls-tree", "merge", "merge-base", "mv", "name-rev", "pull", "push", "range-diff", "rebase", "reflog", "remote", "reset", "restore", "rev-list",
   "rev-parse", "revert", "rm", "shortlog", "show", "show-branch", "show-ref", "stash", "status", "switch", "symbolic-ref", "tag", "var", "verify-commit", "verify-tag",
-  "version", "worktree"]
+  "version", "worktree", "merge-tree"]
 
 /** True for a short option word that holds `letter` before a letter in `valueLetters`, which takes the rest of the word as its value. */
 const holdsShortOption = (word, letter, valueLetters) => {
@@ -273,7 +288,7 @@ function judgeGitCommands(command, gitCommands, { resolveRemoteUrl, unattended }
     if (subcommand === null || !(unattended || targetsProtectedRepo(pushTargetDir(globals, directory), resolveRemoteUrl))) continue
     if (!GIT_SUBCOMMANDS.includes(subcommand)) {
       return blocked(command, `The git subcommand \`${subcommand}\` is not one that the hook knows. An alias and a subcommand that can push or run a command are refused. ` +
-        `The hook knows only: ${GIT_SUBCOMMANDS.join(" ")}.`)
+        `The hook knows only: ${GIT_SUBCOMMANDS.join(" ")}. For another subcommand, write the command to a script file and run the file by its literal path, such as \`bash /abs/path.sh\`.`)
     }
     const option = commandOption(subcommand, rest)
     if (option) return blocked(command, `The word \`${option}\` of \`git ${subcommand}\` runs a command that the hook does not read. Run that command as its own command.`)
@@ -286,7 +301,14 @@ function judgeGitCommands(command, gitCommands, { resolveRemoteUrl, unattended }
   }
   // Everything below is branch protection, so it applies only to the repos that actually have it. Each push is judged on its own target.
   for (const { globals, rest, directory } of pushes) {
-    if (!pushesToProtected(pushTargetDir(globals, directory), rest, resolveRemoteUrl)) continue
+    const target = pushTargetDir(globals, directory)
+    // git and GitHub resolve a dot segment, an escape or a repeated `/` that a name reader can miss, so only the canonical forms are read.
+    const unread = (unattended || targetsProtectedRepo(target, resolveRemoteUrl)) && pushRepositories(rest).find((remote) => isRemoteLocation(remote) && !isCanonicalRemote(remote))
+    if (unread) {
+      return blocked(command, `The push names the URL or path \`${unread}\`. In an unattended run and in a protected repository, a push names a remote by its name, or a URL in a canonical form: ` +
+        `${CANONICAL_REMOTE_FORMS}, with no dot segment, no percent escape, no repeated or trailing \`/\`, and no query or fragment.`)
+    }
+    if (!pushesToProtected(target, rest, resolveRemoteUrl)) continue
     if (!isAllowedPush(rest)) return blocked(command, `This push form is refused in a protected repository (branch protection, squash-merge only). ${PUSH_FORMS} Open a PR.`)
   }
   return null

@@ -8,7 +8,7 @@ import { dirname, join, resolve } from "node:path"
 import { fileURLToPath, pathToFileURL } from "node:url"
 
 import { readCommand, walkCommands } from "./_lib/command-expander.mjs"
-import { checkGitCommand, checkGitWorktreeRemove } from "./_lib/rules-git.mjs"
+import { checkGitCommand, checkGitWorktreeRemove, GIT_SUBCOMMANDS } from "./_lib/rules-git.mjs"
 import { countUnreviewedPendingLessons, isDriftReviewOverdue } from "./_lib/rules-lessons.mjs"
 import { checkEfMigrationRawIndex } from "./_lib/rules-source.mjs"
 import { checkTicketMutation } from "./_lib/rules-tickets.mjs"
@@ -653,7 +653,7 @@ for (const command of [
 ]) {
   T(`git review r14: ${JSON.stringify(command)} from a repository with no protection is refused`, blocks(checkGitCommand(command, fromBrain)), true)
 }
-T("git review r14: a URL with the name of a repository with no protection allows a push to its main", checkGitCommand("git push https://github.com/thomasluizon/Brain.git/ main", fromBrain), null)
+T("git review r14: in an attended session, a URL with the name of a repository with no protection allows a push to its main", checkGitCommand("git push https://github.com/thomasluizon/Brain.git/ main", { ...fromBrain, unattended: false }), null)
 T("git review r14: an attended session in a repository with no protection allows a subcommand that the hook does not know", checkGitCommand("git bisect run npm test", { ...fromBrain, unattended: false }), null)
 T("git review r14: an attended session in a protected repository refuses a subcommand that the hook does not know", blocks(checkGitCommand("git subtree push --prefix=apps origin feature/x", { ...r13Options, unattended: false })), true)
 T("git review r14: the refusal of an unknown subcommand names the subcommands that the hook knows", (checkGitCommand("git p", r13Options)?.message ?? "").includes("The hook knows only: add apply"), true)
@@ -662,6 +662,91 @@ T("git review r14: the refusal of an unknown command word names the command word
 T("git review r14: a lower case variable that the line sets passes in a git argument", checkGitCommand("wt=/work/orbit-ui-mobile; git -C \"$wt\" status --short", r13Options), null)
 T("git review r14: an upper case variable that the line sets is refused in a git argument", checkGitCommand("WT=/work/orbit-ui-mobile; git -C \"$WT\" status --short", r13Options)?.notModelled, "a variable in a \`git\` argument")
 T("git review r14: the advice names the lower case rule", (checkGitCommand("WT=/work/orbit-ui-mobile; git -C \"$WT\" status --short", r13Options)?.message ?? "").includes("An upper case name such as \`$WT\` is never read there"), true)
+
+// Each defect of the round 15 review. Defect 1: git and GitHub resolve a dot segment, a repeated `/`, an escape, a query and a path, so in an unattended run
+// a push names a URL only in a canonical form. In an attended session, the name reader removes each dot segment, and it treats a name that it cannot read as protected.
+const REVIEW_R15_URLS = ["git push https://github.com/thomasluizon/orbit-ui-mobile.git/. main", "git push https://github.com/thomasluizon/orbit-ui-mobile/x/.. main",
+  "git push --repo=https://github.com/thomasluizon/orbit-ui-mobile.git/./", "git push https://github.com/thomasluizon/orbit-ui-mobile/./ main"]
+for (const command of [...REVIEW_R15_URLS, "git push https://github.com//thomasluizon/brain.git main", "git push 'https://github.com/thomasluizon/brain.git?x=1' main",
+  "git push https://github.com/thomasluizon/brain.git#x main", "git push https://github.com/thomasluizon/br%61in main", "git push ../brain main", "git push ssh://git@github.com/thomasluizon/brain.git main",
+  "git push https://GitHub.com/thomasluizon/brain main", "git push https://github.com/thomasluizon/brain/ main", "git push https://github.com/thomasluizon/.git main"]) {
+  T(`git review r15: ${JSON.stringify(command)} from a repository with no protection is refused`, blocks(checkGitCommand(command, fromBrain)), true)
+}
+for (const command of REVIEW_R15_URLS) T(`git review r15: ${JSON.stringify(command)} from a repository with no protection is refused in an attended session`, blocks(checkGitCommand(command, { ...fromBrain, unattended: false })), true)
+for (const command of ["git push https://github.com/thomasluizon/brain.git main", "git push https://github.com/thomasluizon/brain main", "git push git@github.com:thomasluizon/brain.git main",
+  "git push git@github.com:thomasluizon/Brain main", "git push --repo=https://github.com/thomasluizon/brain.git"]) {
+  T(`git review r15: the canonical form ${JSON.stringify(command)} from a repository with no protection allows a push to its main`, checkGitCommand(command, fromBrain), null)
+}
+T("git review r15: the refusal of a URL names the canonical forms", (checkGitCommand(REVIEW_R15_URLS[0], fromBrain)?.message ?? "").includes("`https://github.com/<owner>/<repo>` or `git@github.com:<owner>/<repo>`, each with an optional `.git`"), true)
+T("git review r15: a remote URL with a dot segment from the config makes the directory protected", blocks(checkGitCommand("git push origin main", { cwd: "/work/brain", resolveRemoteUrl: () => "https://github.com/thomasluizon/orbit-ui-mobile.git/." })), true)
+// Defect 2: `HOME`, each `XDG_*` name and each other name that gives the shell or git a directory or a config file is refused in each assignment form.
+const DIRECTORY_NAMES = ["HOME", "XDG_CONFIG_HOME", "XDG_DATA_HOME", "XDG_CACHE_HOME", "PWD", "OLDPWD", "USERPROFILE", "HOMEDRIVE", "HOMEPATH", "GIT_CONFIG_GLOBAL", "ZDOTDIR", "CDPATH"]
+for (const name of DIRECTORY_NAMES) {
+  const forms = [`${name}=/x git status`, `${name}=/x; git status`, `env ${name}=/x git status`, `export ${name}=/x`, `declare ${name}=/x`, `typeset ${name}`, `unset ${name}`, `for ${name} in /x; do true; done`]
+  T(`subset: each assignment form of ${name} is refused`, forms.map((command) => readCommand(command).notModelled.startsWith(`an assignment to \`${name}\``)), forms.map(() => true))
+}
+for (const command of ["HOME=/x; cd ~/y; git push origin main", "HOME=/x git push origin main", "XDG_CONFIG_HOME=/x git push origin main", "env -i git push origin main", "env -u HOME git push origin main",
+  "env --unset=HOME git push origin main", "env - git push origin main", "env --ignore-environment git push origin main", "unset HOME; git push origin main"]) {
+  T(`git review r15: ${JSON.stringify(command)} from a repository with no protection is refused`, blocks(checkGitCommand(command, fromBrain)), true)
+  T(`git review r15: ${JSON.stringify(command)} from a repository with no protection is refused in an attended session`, blocks(checkGitCommand(command, { ...fromBrain, unattended: false })), true)
+}
+// Defect 3: two states whose variable maps hold the same entries are one state, so a loop with a branch that assigns stays within the state limit.
+const loopWords = Array.from({ length: 8 }, (_, index) => `w${index}`).join(" ")
+const REVIEW_R15_STATE_ROWS = [`for w in ${loopWords}; do if test -f /work/x/$w; then f=/work/x/$w; git add "$f"; fi; done`,
+  `for w in ${loopWords}; do d=/work/orbit-ui-mobile; git -C "$d" status && x=1; done`, `${Array.from({ length: 7 }, () => "if true; then x=/a; else x=/a; fi").join("; ")}; git -C "$x" status`]
+for (const command of REVIEW_R15_STATE_ROWS) {
+  T(`subset: ${JSON.stringify(command.slice(0, 90))} stays within the state limit`, checkGitCommand(command, r13Options), null)
+  T(`subset: ${JSON.stringify(command.slice(0, 90))} stays within the state limit in an attended session`, checkGitCommand(command, { ...r13Options, unattended: false }), null)
+}
+T("subset: two maps with other values stay two states", blocks(checkGitCommand("if test -f a; then d=/work/brain; else d=/work/orbit-ui-mobile; fi; git -C \"$d\" push origin main", r13Options)), true)
+T("subset: two maps with the same values in another order of assignment are one state", wordTexts("if test -f a; then x=/a; y=/b; else y=/b; x=/a; fi; git -C \"$x$y\" status").filter((words) => words[0] === "git"), [["git", "-C", "/a/b", "status"]])
+// Defect 4: each git command that a procedure under .claude/ or tools/ tells a session or a worker to run passes in both modes. The placeholders hold plain values.
+const PROCEDURE_GIT_FORMS = ["git fetch origin main", "git show HEAD:.claude/handoffs/NEXT.md", "git log --oneline", "git merge-tree --write-tree --name-only HEAD origin/main",
+  "git merge-tree --write-tree HEAD origin/main", "git show feature/x:README.md", "git diff main...feature/x", "git diff --name-only", "git worktree prune", "git diff abc1234..def5678", "git diff",
+  "git show", "git rev-parse --abbrev-ref HEAD", "git rev-parse --abbrev-ref --symbolic-full-name @{u}", "git fetch origin feature/x", "git rev-parse HEAD", "git rev-parse origin/feature/x", "git status",
+  "git log @{u}..", "git worktree list", "git stash list", "git status --ignored", "git commit -m handoff -- .claude/specs/x.md .claude/handoffs/NEXT.md", "git switch -c feature/orb-1-x",
+  "git switch -c feature/orb-2-y feature/orb-1-x", "git status --porcelain", "git rev-list --count main..HEAD", "git rev-list origin/feature/x..HEAD", "git -C /work/orbit-ui-mobile status --porcelain",
+  "git -C /work/orbit-ui-mobile rev-parse --abbrev-ref HEAD", "git -C /work/other switch main", "git -C /work/orbit-ui-mobile fetch origin main", "git -C /work/orbit-ui-mobile merge --ff-only origin/main",
+  "git -C /work/orbit-ui-mobile rev-list --count HEAD..origin/main", "git push -u origin feature/orb-1-x", "git worktree add /work/worktrees/sweep main", "git merge-base --is-ancestor abc1234 origin/main",
+  "git status --short", "git worktree remove /work/worktrees/ticket-1", "git worktree list --porcelain", "git ls-files", "git --literal-pathspecs add .claude/hooks/test-hooks.mjs",
+  "git commit -F - <<'EOF'\nfix: x\nEOF", "git push -u origin fix/ticket-2137-no-prompt"]
+for (const command of PROCEDURE_GIT_FORMS) {
+  T(`git procedure form: ${JSON.stringify(command)} allows in an unattended run`, checkGitCommand(command, r13Options), null)
+  T(`git procedure form: ${JSON.stringify(command)} allows in an attended session`, checkGitCommand(command, { ...r13Options, unattended: false }), null)
+}
+/** Each git subcommand that a code span or a fenced line of a Markdown file under .claude/ or tools/ names. Read from the files, so a new procedure joins the check. */
+const procedureSubcommands = () => {
+  const found = new Map()
+  const visit = (directory) => {
+    for (const name of readdirSync(directory)) {
+      if (name === "node_modules") continue
+      const path = join(directory, name)
+      if (statSync(path).isDirectory()) visit(path)
+      else if (name.endsWith(".md")) {
+        let fenced = false
+        for (const line of readFileSync(path, "utf8").split("\n")) {
+          if (/^\s*\`\`\`/.test(line)) { fenced = !fenced; continue }
+          for (const span of fenced ? [line] : [...line.matchAll(/\`([^\`]+)\`/g)].map((match) => match[1])) {
+            for (const piece of span.trim().split(/\s*(?:&&|\|\||;|\|)\s*/)) {
+              const words = piece.split(/\s+/)
+              if (words[0] !== "git") continue
+              let index = 1
+              while (words[index] === "-C" || words[index] === "-c" || words[index]?.startsWith("--")) index += words[index].startsWith("--") ? 1 : 2
+              if (/^[a-z][a-z-]*$/.test(words[index] ?? "")) found.set(words[index], path.slice(repoRoot.length + 1))
+            }
+          }
+        }
+      }
+    }
+  }
+  visit(join(repoRoot, ".claude"))
+  visit(join(repoRoot, "tools"))
+  return found
+}
+const namedSubcommands = procedureSubcommands()
+T("git procedure: the procedure files name git subcommands", namedSubcommands.size >= 10 && namedSubcommands.has("merge-tree"), true)
+T("git procedure: each git subcommand that a procedure file names is one that the hook knows", [...namedSubcommands].filter(([subcommand]) => !GIT_SUBCOMMANDS.includes(subcommand)).map(([subcommand, place]) => `${subcommand} (${place})`), [])
+T("git review r15: the refusal of an unknown subcommand names the script file route", (checkGitCommand("git p", r13Options)?.message ?? "").includes("run the file by its literal path, such as `bash /abs/path.sh`"), true)
 T("git attended: the same command in an unattended run blocks", blocks(checkGitCommand("while true; do sleep 5; done")), true)
 T("git attended: a push to main in the subset blocks in an attended session", blocks(checkGitCommand("git push origin main", { unattended: false })), true)
 // git worktree remove --force follows a Windows junction and deletes the target.
@@ -1067,6 +1152,14 @@ for (const command of ["read d <<'EOF'\n/\nEOF\nrm -rf \"${d:?}\"", "chdir /; rm
 }
 // Item 10 of the order: each command form of the coordinator passes the approval rule too.
 for (const command of COORDINATOR_FORMS) T(`approval coordinator form: ${JSON.stringify(command)} passes`, refusedBy(command), null)
+// Round 15 review: the state rows and the procedure forms pass the approval rule, and `HOME` is refused there too.
+for (const command of [...REVIEW_R15_STATE_ROWS, `for w in ${loopWords}; do if test -f /work/checkouts/repo/$w; then d=/work/checkouts/repo/$w; rm -rf /work/checkouts/repo/build; fi; done`, ...PROCEDURE_GIT_FORMS]) {
+  T(`approval review r15: ${JSON.stringify(command.slice(0, 90))} passes`, refusedBy(command), null)
+}
+// The form of the review is read within the state limit, and its removal is refused by its own rule: Claude Code reads `$d` in the raw text.
+T("approval review r15: the loop of the review is refused by the variable path rule, not as a command that the hook cannot read",
+  refusedBy(`for w in ${loopWords}; do if test -f /work/checkouts/repo/$w; then d=/work/checkouts/repo/$w; rm -rf "$d/build"; fi; done`), "variable-path")
+for (const command of ["HOME=/work/checkouts/repo; rm -rf ~/build", "env -u HOME rm -rf /work/checkouts/repo/build"]) T(`approval review r15: ${JSON.stringify(command)} is refused`, refusedBy(command), "not-modelled")
 // Defect 7: the walk is linear in the number of assignments. A 100 KB chain of assignments ends in each real hook file within 1 s.
 const assignmentChain = (tail, value = "x") => { let chain = ""; for (let index = 0; chain.length < 100_000 - tail.length - 16; index++) chain += `a${index}=${value};`; return chain + tail }
 for (const [file, command, env, want] of [["git-guardrails.mjs", assignmentChain("git push origin main"), {}, 2], ["forbid-approval-prompt.mjs", assignmentChain('rm -rf "$TMP"'), { ORBIT_LAUNCH_WORKER: "1" }, 2],

@@ -333,8 +333,8 @@ const listedShells = () => {
 export const SHELLS = [...new Set([...SCRIPT_SHELLS, "csh", "tcsh", "fish", "pwsh", "powershell", "nu", "elvish", "xonsh", "ion", "rc", "es", "scsh", "sash", "busybox", ...listedShells()])]
 /** Programs that run the command that follows them. */
 const WRAPPERS = new Set(["sudo", "doas", "exec", "command", "builtin", "noglob", "env", "nice", "nohup", "time", "timeout", "stdbuf", "setsid", "ionice", "pkexec", "runuser", "xargs"])
-/** The option letters of a wrapper that give it a shell, a script or another directory. */
-const WRAPPER_REFUSED_OPTIONS = { env: /^-[A-Za-z]*[SC]|^--(?:split-string|chdir)/, sudo: /^-[A-Za-z]*[siD]|^--(?:shell|login|chdir)/, doas: /^-[A-Za-z]*s/ }
+/** The option letters of a wrapper that give it a shell, a script or another directory, or remove a name from the environment (`env -i`, `env -u NAME`, `env -`). */
+const WRAPPER_REFUSED_OPTIONS = { env: /^-[A-Za-z]*[SCiu]|^--(?:split-string|chdir|ignore-environment|unset)|^-$/, sudo: /^-[A-Za-z]*[siD]|^--(?:shell|login|chdir)/, doas: /^-[A-Za-z]*s/ }
 /** The words that end a list of the grammar: `then`, `else` and `fi` of `if`, and `do` and `done` of `for`. */
 const TERMINATORS = new Set(["then", "else", "fi", "do", "done"])
 /** Reserved words of a compound command outside the grammar. */
@@ -364,8 +364,12 @@ export const KNOWN_COMMAND_WORDS = [...new Set(["sudo", "doas", "exec", "command
 const ZSH_COMMAND_WORDS = new Set(["nocorrect", "repeat", "-", "always", "foreach"])
 /** Builtins whose words are names or assignments. The reader allows only a name and `NAME=value` there, with no option. */
 const DECLARATION_BUILTINS = new Set(["export", "declare", "typeset", "local", "readonly", "unset"])
-/** Assignments that change how the shell reads or traces a command, where `cd` goes, or which repository git uses. */
-const REFUSED_ASSIGNMENT = /^(?:PS[1-4]|PROMPT[2-4]?|RPROMPT2?|RPS[12]|SPROMPT|PROMPT_COMMAND|IFS|BASH_ENV|ENV|CDPATH|cdpath|SHELLOPTS|BASHOPTS|ZDOTDIR|PATH|path|FPATH|fpath|NULLCMD|READNULLCMD|EDITOR|VISUAL|PAGER|SSH_ASKPASS|LD_\w+|DYLD_\w+|GIT_\w*)$/
+/**
+ * Assignments that change how the shell reads or traces a command, where `cd` or `~` goes, or which repository, config file or program git uses.
+ * `HOME` gives `~` and the global git config, each `XDG_*` name gives the git config, attributes and ignore files, `PWD` and `OLDPWD` give
+ * `~+`, `~-` and `cd -`, and `USERPROFILE`, `HOMEDRIVE` and `HOMEPATH` give the home of git on Windows.
+ */
+const REFUSED_ASSIGNMENT = /^(?:PS[1-4]|PROMPT[2-4]?|RPROMPT2?|RPS[12]|SPROMPT|PROMPT_COMMAND|IFS|BASH_ENV|ENV|CDPATH|cdpath|SHELLOPTS|BASHOPTS|ZDOTDIR|PATH|path|FPATH|fpath|NULLCMD|READNULLCMD|EDITOR|VISUAL|PAGER|SSH_ASKPASS|LD_\w+|DYLD_\w+|GIT_\w*|HOME|XDG_\w+|PWD|OLDPWD|USERPROFILE|HOMEDRIVE|HOMEPATH)$/
 /** zsh parameters with a lower case name that the shell sets or ties to another parameter. The reader tracks no value for them. */
 const SPECIAL_LOWER_CASE = new Set(["argv", "cdpath", "fpath", "path", "manpath", "mailpath", "module_path", "psvar", "watch", "fignore", "match", "mbegin", "mend", "reply",
   "status", "pipestatus", "signals", "options", "commands", "functions", "aliases", "builtins", "parameters", "history", "historywords", "dirstack", "funcstack", "_"])
@@ -850,7 +854,7 @@ export function readsStandardInput(words) {
 const literalText = (word) => word.parts.filter((part) => part.type === "text").map((part) => part.text).join("")
 /** bash evaluates a subscript of a name as arithmetic, and runs a `$(...)` in it, in `declare`, `read`, `printf -v`, `test -v` and an integer value. */
 const holdsSubscriptCode = (word) => { const text = literalText(word); return text.includes("[") && (text.includes("$(") || text.includes("`")) }
-const refusedAssignment = (name) => REFUSED_ASSIGNMENT.test(name) && notModelled(`an assignment to \`${name}\`, which changes how the shell reads a command, where \`cd\` goes, or which repository git uses`)
+const refusedAssignment = (name) => REFUSED_ASSIGNMENT.test(name) && notModelled(`an assignment to \`${name}\`, which changes how the shell reads a command, where \`cd\` or \`~\` goes, or which repository, config file or program git uses`)
 
 /** A shell runs a script file that the hook does not read. It is in the grammar only when no script can come from a word or from standard input. */
 function checkShell(command, { args, wrappers }, place) {
@@ -881,7 +885,7 @@ function checkCommand(command, place) {
   for (const { text } of command.words) {
     if (WRAPPERS.has(programName(text))) { wrapper = programName(text); continue }
     if (!wrapper) continue
-    if (WRAPPER_REFUSED_OPTIONS[wrapper]?.test(text)) notModelled(`the option \`${text}\` of \`${wrapper}\`, which gives it a shell, a script or another directory`)
+    if (WRAPPER_REFUSED_OPTIONS[wrapper]?.test(text)) notModelled(`the option \`${text}\` of \`${wrapper}\`, which gives it a shell, a script or another directory, or removes a name from the environment`)
     const assigned = ASSIGNMENT_WORD.exec(text)
     if (assigned) refusedAssignment(assigned[1])
     else if (!text.startsWith("-") && !/^\d/.test(text)) wrapper = ""
@@ -982,10 +986,17 @@ function assignedValue({ name, append, parts, unknown }, variables, home) {
 /**
  * The variable values that the walk knows, as a chain of changes that each state shares. A change adds one link, so an assignment costs
  * no copy of the map. After about the square root of the map size in links, a link holds a full copy, so a lookup reads few links.
- * `id` names one chain, so `distinct` compares two states with no walk of their maps.
+ * Each link also holds the count of its entries and a hash of its content, which does not depend on the order of the changes, so
+ * `distinct` compares two maps by their content and walks them only when the count and the hash are equal.
  */
-let chainCount = 0
-const NO_VARIABLES = { id: chainCount++, table: new Map(), parent: null, links: 0 }
+const NO_VARIABLES = { table: new Map(), parent: null, links: 0, size: 0, hash: 0 }
+/** FNV-1a of one entry. The hash of a map is the sum of the hashes of its entries, modulo 2^32. */
+const entryHash = (name, value) => {
+  let hash = 0x811c9dc5
+  const text = `${name}=${value}`
+  for (let index = 0; index < text.length; index++) hash = Math.imul(hash ^ text.charCodeAt(index), 0x01000193)
+  return hash >>> 0
+}
 const valueOf = (variables, name) => {
   for (let link = variables; link; link = link.parent) {
     if (link.table) return link.table.get(name) ?? null
@@ -995,8 +1006,11 @@ const valueOf = (variables, name) => {
 }
 const withVariable = (variables, name, value) => {
   const tracked = value !== null && TRACKED_NAME.test(name) && !SPECIAL_LOWER_CASE.has(name) ? value : null
-  if (tracked === null && valueOf(variables, name) === null) return variables
-  const link = { id: chainCount++, table: null, parent: variables, links: variables.links + 1, name, value: tracked }
+  const previous = valueOf(variables, name)
+  if (tracked === previous) return variables
+  const hash = (variables.hash - (previous === null ? 0 : entryHash(name, previous)) + (tracked === null ? 0 : entryHash(name, tracked))) >>> 0
+  const size = variables.size + (previous === null ? 1 : 0) - (tracked === null ? 1 : 0)
+  const link = { table: null, parent: variables, links: variables.links + 1, size, hash, name, value: tracked }
   let base = variables
   while (!base.table) base = base.parent
   if (link.links * link.links < base.table.size) return link
@@ -1007,13 +1021,58 @@ const withVariable = (variables, name, value) => {
     if (change.value === null) table.delete(change.name)
     else table.set(change.name, change.value)
   }
-  return { id: link.id, table, parent: null, links: 0 }
+  return { table, parent: null, links: 0, size, hash }
+}
+/** The links of a map from its newest change to its full copy, the copy included. */
+const linksOf = (variables) => {
+  const links = []
+  for (let link = variables; link; link = link.parent) links.push(link)
+  return links
+}
+/**
+ * True when two maps hold the same entries. Two maps that share a link differ only in the names that changed after it, so only those
+ * names are read. Two maps with no shared link are compared entry by entry.
+ */
+function sameVariables(first, second) {
+  if (first === second) return true
+  if (first.size !== second.size || first.hash !== second.hash) return false
+  const firstLinks = linksOf(first)
+  const shared = new Set(firstLinks)
+  const secondLinks = []
+  for (let link = second; link && !shared.has(link); link = link.parent) secondLinks.push(link)
+  const common = secondLinks.length > 0 ? secondLinks.at(-1).parent : second
+  if (common) {
+    const changed = [...firstLinks.slice(0, firstLinks.indexOf(common)), ...secondLinks].map((link) => link.name)
+    return changed.every((name) => valueOf(first, name) === valueOf(second, name))
+  }
+  const entries = (variables) => {
+    const links = linksOf(variables)
+    const table = new Map(links.at(-1).table)
+    for (const change of links.slice(0, -1).reverse()) {
+      if (change.value === null) table.delete(change.name)
+      else table.set(change.name, change.value)
+    }
+    return table
+  }
+  const firstEntries = entries(first)
+  const secondEntries = entries(second)
+  return firstEntries.size === secondEntries.size && [...firstEntries].every(([name, value]) => secondEntries.get(name) === value)
 }
 /** Only a declaration builtin of the allow list sets a variable of the shell. After one, the walk forgets each value. */
 const isPure = (command) => command.words.length > 0 && invocationsOf(command.words).every(({ program }) => !DECLARATION_BUILTINS.has(programName(program.text)))
 
+/** The states with no repeat: two states are one when their variable maps hold the same entries and their other state is equal. */
 function distinct(...groups) {
-  const states = [...new Map(groups.flat().map((state) => [`${state.variables.id} ${JSON.stringify(state.state)}`, state])).values()]
+  const buckets = new Map()
+  const states = []
+  for (const state of groups.flat()) {
+    const key = `${state.variables.size} ${state.variables.hash} ${JSON.stringify(state.state)}`
+    const bucket = buckets.get(key) ?? []
+    if (bucket.some((other) => sameVariables(other.variables, state.variables))) continue
+    bucket.push(state)
+    buckets.set(key, bucket)
+    states.push(state)
+  }
   if (states.length > MAX_STATES) notModelled("more possible states than the hook reads")
   return states
 }
