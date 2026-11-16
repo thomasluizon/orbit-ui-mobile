@@ -16,6 +16,7 @@ import { resolveInitialTheme, resolveWebThemeVariables } from '@/lib/theme-dom'
 import { buildThemeBootstrapScript } from '@/lib/theme-bootstrap'
 import { serverRenderFetch } from '@/lib/server-fetch'
 import { ThrottleScreen } from '@/components/ui/throttle-screen'
+import { DesktopWindowBar } from '@/components/desktop-window-bar'
 import { AUTH_COOKIE, REFRESH_COOKIE } from '@/lib/auth-api'
 import { PublicSessionBootstrap } from '@/lib/public-session-bootstrap'
 import { SessionCookieProvider } from '@/lib/session-cookie-provider'
@@ -138,6 +139,7 @@ export default async function RootLayout({
                 </KeyboardPlatformProvider>
               </SessionCookieProvider>
               <ThrottleScreen />
+              <DesktopWindowBar />
             </RouteContext>
           </NextIntlClientProvider>
         </PostHogProvider>
