@@ -19,6 +19,7 @@ import { nestedControlFill, useRowFeedback } from '@/hooks/use-row-feedback'
 import { useThemeTokens } from '@/hooks/use-theme-tokens'
 import { useListRowMotion } from './list-row-motion'
 import { useAccountScopedState } from '@/hooks/use-session-reset'
+import { useSubmitHold } from '@/hooks/use-submit-hold'
 
 const QUICK_TEMPLATES = 4
 
@@ -92,20 +93,25 @@ export function useSaveTemplateView({ items, onSaved }: Readonly<{ items: Checkl
   const { t } = useTranslation()
   const tokens = useThemeTokens()
   const createTemplate = useCreateChecklistTemplate()
+  const submission = useSubmitHold()
   const [name, setName] = useAccountScopedState('')
   const [hint, setHint] = useState<string | undefined>()
   const [focusRequest, setFocusRequest] = useState(0)
   const [saveError, setSaveError] = useState('')
-  const save = () => {
+  const save = () => void submission.run(async (startRequest) => {
     const trimmed = name.trim()
-    if (!trimmed) { setHint(t('habits.flow.templates.nameHint')); setFocusRequest((request) => request + 1); return }
-    if (createTemplate.isPending) return
+    if (!trimmed) { setHint(t('habits.flow.templates.nameHint')); setFocusRequest((request) => request + 1); return 'stay' }
     setSaveError('')
-    createTemplate.mutate({ name: trimmed, items: items.map((item) => item.text) }, {
-      onSuccess: () => { setName(''); onSaved() },
-      onError: () => setSaveError(t('habits.form.saveTemplateError')),
-    })
-  }
+    startRequest()
+    try {
+      await createTemplate.mutateAsync({ name: trimmed, items: items.map((item) => item.text) })
+      setName('')
+      onSaved()
+    } catch {
+      setSaveError(t('habits.form.saveTemplateError'))
+    }
+    return 'stay'
+  })
   return {
     question: t('habits.flow.templates.saveQuestion'),
     line: t('habits.flow.templates.saveLine'),
@@ -114,7 +120,7 @@ export function useSaveTemplateView({ items, onSaved }: Readonly<{ items: Checkl
         error={hint} focusRequest={focusRequest} onChange={(value) => { setHint(undefined); setName(value) }} onSubmit={save} />
       {saveError ? <Text accessibilityRole="alert" style={[staticStyles.error, { color: tokens.statusBadText }]}>{saveError}</Text> : null}
     </>,
-    primary: { label: t('common.save'), onPress: save, loading: createTemplate.isPending },
+    primary: { label: t('common.save'), onPress: save, loading: submission.waiting },
   }
 }
 

@@ -83,7 +83,7 @@ function ToastSurface({ props, dismiss, setHovered, setFocused }: Readonly<{
       aria-label={props.message}
       data-kind={props.kind}
       tabIndex={-1}
-      className={`flex w-full flex-wrap items-center gap-x-3 gap-y-0 rounded-[var(--r-card)] ${colors.background} p-4 text-[var(--fg-1)] shadow-[var(--sh-2)]`}
+      className={`flex w-full flex-wrap items-center gap-x-3 gap-y-0 rounded-[var(--r-card)] ${colors.background} p-4 text-[var(--fg-1)] shadow-[var(--sh-2),inset_0_0_0_1px_var(--hairline)]`}
       onPointerEnter={() => setHovered(true)}
       onPointerLeave={() => setHovered(false)}
       onFocusCapture={() => setFocused(true)}

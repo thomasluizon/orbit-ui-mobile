@@ -821,6 +821,38 @@ await Promise.resolve()
     expect(mockShowError).not.toHaveBeenCalled()
   })
 
+  it('keeps the create screen action waiting from the request start until the screen has left', async () => {
+    let releaseCreate!: (value: object) => void
+    mockCreateMutateAsync.mockImplementationOnce(() => new Promise((resolve) => { releaseCreate = resolve }))
+    const onClose = vi.fn()
+    const tree = renderModal(<CreateHabitModal open presentation="screen" onClose={onClose} />)
+    expect(findSubmit(tree.root).props.accessibilityState.busy).toBe(false)
+    await TestRenderer.act(async () => {
+      findSubmit(tree.root).props.onPress()
+      await Promise.resolve()
+    })
+    expect(findSubmit(tree.root).props.accessibilityState).toMatchObject({ busy: true, disabled: true })
+    expect(findSubmit(tree.root).findAll((node: any) => node.type === 'View' && node.props.testID === 'skeleton-face')).toHaveLength(1)
+    await TestRenderer.act(async () => { releaseCreate({}); await Promise.resolve() })
+    expect(onClose).toHaveBeenCalledOnce()
+    expect(findSubmit(tree.root).props.accessibilityState.busy).toBe(true)
+    await TestRenderer.act(async () => { findSubmit(tree.root).props.onPress?.(); await Promise.resolve() })
+    expect(mockCreateMutateAsync).toHaveBeenCalledOnce()
+    tree.unmount()
+  })
+
+  it('ends the create screen waiting state when the request fails', async () => {
+    mockCreateMutateAsync.mockRejectedValueOnce(new Error('offline'))
+    const tree = renderModal(<CreateHabitModal open presentation="screen" onClose={vi.fn()} />)
+    await TestRenderer.act(async () => {
+      findSubmit(tree.root).props.onPress()
+      await new Promise((resolve) => setTimeout(resolve, 0))
+    })
+    expect(mockShowError).toHaveBeenCalled()
+    expect(findSubmit(tree.root).props.accessibilityState).toMatchObject({ busy: false, disabled: false })
+    tree.unmount()
+  })
+
   it('releases the native screen removal guard before the successful create exits', async () => {
     let removalBlocked = true
     function LeaveGuard({ leaving }: Readonly<{ leaving: boolean; requestLeave: () => void }>) {

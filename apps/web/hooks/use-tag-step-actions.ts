@@ -9,6 +9,7 @@ import { useBackendFieldErrors } from '@/hooks/use-backend-field-errors'
 import { useAccountScopedState } from '@/hooks/use-session-reset'
 import { useCreateTag, useDeleteTag, useSuggestTags, useTags, useUpdateTag } from '@/hooks/use-tags'
 import { useTagSuggestions } from '@/hooks/use-tag-suggestions'
+import { useSubmitHold } from '@/hooks/use-submit-hold'
 import type { TagSelectionState } from '@/hooks/use-tag-selection'
 
 interface TagStepRequest {
@@ -26,7 +27,9 @@ export function useTagStepActions(tags: TagSelectionState, { title, description 
   const updateTag = useUpdateTag()
   const deleteTag = useDeleteTag()
   const suggestTags = useSuggestTags()
-  const pending = createTag.isPending || updateTag.isPending || deleteTag.isPending
+  const createHold = useSubmitHold()
+  const renameHold = useSubmitHold()
+  const pending = createHold.waiting || renameHold.waiting || createTag.isPending || updateTag.isPending || deleteTag.isPending
   const newTagErrors = useBackendFieldErrors({ name: tags.newTagName }, { name: 'Name' })
   const editTagErrors = useBackendFieldErrors({ name: tags.editTagName }, { name: 'Name' })
   const [newTagHint, setNewTagHint] = useAccountScopedState<string | undefined>(undefined)
@@ -47,22 +50,30 @@ export function useTagStepActions(tags: TagSelectionState, { title, description 
     tags.cancelEditTag()
   }
 
-  async function createNewTag() {
-    const validationError = validateTagForm(tags.newTagName, tags.newTagColor)
-    if (validationError) { setNewTagHint(translate(validationError)); return }
-    try {
-      await tags.createAndSelectTag(async (name, color) => (await createTag.mutateAsync({ name, color })).id)
-    } catch (error: unknown) {
-      if (!newTagErrors.reportBackendErrors(error).handled) setNewTagHint(getFriendlyErrorMessage(error, translate, 'toast.errors.validation', 'tag'))
-    }
+  function createNewTag() {
+    return createHold.run(async (startRequest) => {
+      const validationError = validateTagForm(tags.newTagName, tags.newTagColor)
+      if (validationError) { setNewTagHint(translate(validationError)); return 'stay' }
+      startRequest()
+      try {
+        await tags.createAndSelectTag(async (name, color) => (await createTag.mutateAsync({ name, color })).id)
+      } catch (error: unknown) {
+        if (!newTagErrors.reportBackendErrors(error).handled) setNewTagHint(getFriendlyErrorMessage(error, translate, 'toast.errors.validation', 'tag'))
+      }
+      return 'stay'
+    })
   }
 
-  async function saveEditedTag() {
-    try {
-      await tags.saveEditTag(async (id, name, color) => { await updateTag.mutateAsync({ tagId: id, name, color }) })
-    } catch (error: unknown) {
-      if (!editTagErrors.reportBackendErrors(error).handled) setEditTagHint(getFriendlyErrorMessage(error, translate, 'toast.errors.validation', 'tag'))
-    }
+  function saveEditedTag() {
+    return renameHold.run(async (startRequest) => {
+      startRequest()
+      try {
+        await tags.saveEditTag(async (id, name, color) => { await updateTag.mutateAsync({ tagId: id, name, color }) })
+      } catch (error: unknown) {
+        if (!editTagErrors.reportBackendErrors(error).handled) setEditTagHint(getFriendlyErrorMessage(error, translate, 'toast.errors.validation', 'tag'))
+      }
+      return 'stay'
+    })
   }
 
   async function deleteExistingTag(id: string) {
@@ -78,8 +89,8 @@ export function useTagStepActions(tags: TagSelectionState, { title, description 
   return {
     availableTags,
     pending,
-    creating: createTag.isPending,
-    renaming: updateTag.isPending,
+    creating: createHold.waiting,
+    renaming: renameHold.waiting,
     suggestions,
     newTagError: newTagErrors.fieldErrors.name ?? newTagHint,
     newTagFocusRequest: newTagErrors.focusRequest,

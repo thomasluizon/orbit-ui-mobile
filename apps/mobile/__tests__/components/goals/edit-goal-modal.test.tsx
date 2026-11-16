@@ -1,4 +1,5 @@
 import { createApiClientError } from '@orbit/shared/utils'
+import { sheetTestControls } from '@/__tests__/support/sheet-double'
 import React, { useImperativeHandle } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { contrastOnSurface } from '@orbit/shared/__tests__/contrast'
@@ -69,7 +70,7 @@ function renderModal(onClose = vi.fn()) {
   let tree: any
   TestRenderer.act(() => { tree = TestRenderer.create(<EditGoalModal open onClose={onClose} goal={goal} />) })
   const input = (label: string) => tree.root.findAll((node: any) => node.type === 'BottomSheetAppTextInput' && node.props.accessibilityLabel === label)[0]
-  const save = () => tree.root.findAll((node: any) => typeof node.props.onPress === 'function' && flattenText(node) === 'common.save')[0]
+  const save = () => tree.root.findAll((node: any) => node.type === 'Pressable' && node.props.accessibilityRole === 'button' && flattenText(node) === 'common.save')[0]
   return { tree, input, save }
 }
 
@@ -111,6 +112,39 @@ describe('EditGoalModal helpers', () => {
 
     expect(contrastOnSurface(removeIcon.props.color as string, [tokens.bgElev]))
       .toBeGreaterThanOrEqual(3)
+  })
+
+  it('shows the waiting Save from the request until the sheet leaves, and sends one request for a second press', async () => {
+    sheetTestControls.defer(true)
+    try {
+      let finish!: () => void
+      mocks.mutateAsync.mockImplementation(() => new Promise<void>((resolve) => { finish = resolve }))
+      const onClose = vi.fn()
+      const { tree, save } = renderModal(onClose)
+      await TestRenderer.act(async () => { save().props.onPress(); await Promise.resolve() })
+      expect(save().props.accessibilityState).toMatchObject({ busy: true, disabled: true })
+      expect(save().findAll((node: any) => node.type === 'View' && node.props.testID === 'skeleton-face')).toHaveLength(1)
+      await TestRenderer.act(async () => { save().props.onPress?.(); await Promise.resolve() })
+      expect(mocks.mutateAsync).toHaveBeenCalledOnce()
+      await TestRenderer.act(async () => { finish(); await new Promise((resolve) => setTimeout(resolve, 0)) })
+      expect(sheetTestControls.isDismissPending).toBe(true)
+      expect(save().props.accessibilityState.busy).toBe(true)
+      await TestRenderer.act(async () => { sheetTestControls.rejectDismissal(); await Promise.resolve() })
+      expect(onClose).toHaveBeenCalledOnce()
+      expect(save().props.accessibilityState.busy).toBe(false)
+      tree.unmount()
+    } finally {
+      sheetTestControls.defer(false)
+    }
+  })
+
+  it('ends the waiting Save when the request fails', async () => {
+    mocks.mutateAsync.mockRejectedValueOnce(new Error('offline'))
+    const { tree, save } = renderModal()
+    await TestRenderer.act(async () => { save().props.onPress(); await new Promise((resolve) => setTimeout(resolve, 0)) })
+    expect(mocks.showError).toHaveBeenCalled()
+    expect(save().props.accessibilityState).toMatchObject({ busy: false, disabled: false })
+    tree.unmount()
   })
 
   it('pins Cancel and Save in the sheet footer, never in the scrolling body', () => {

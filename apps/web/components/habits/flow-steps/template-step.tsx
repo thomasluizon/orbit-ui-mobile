@@ -16,6 +16,7 @@ import { InlineLoadError } from '@/components/ui/inline-load-error'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useChecklistTemplates, useCreateChecklistTemplate, useDeleteChecklistTemplate } from '@/hooks/use-checklist-templates'
 import { useAccountScopedState } from '@/hooks/use-session-reset'
+import { useSubmitHold } from '@/hooks/use-submit-hold'
 
 const QUICK_TEMPLATES = 4
 
@@ -75,20 +76,25 @@ export function useTemplateQuestionView({ onLoad, onWrite }: Readonly<{ onLoad: 
 export function useSaveTemplateView({ items, onSaved }: Readonly<{ items: ChecklistItem[]; onSaved: () => void }>): FlowStepView {
   const t = useTranslations()
   const createTemplate = useCreateChecklistTemplate()
+  const submission = useSubmitHold()
   const [name, setName] = useAccountScopedState('')
   const [hint, setHint] = useState<string | undefined>()
   const [focusRequest, setFocusRequest] = useState(0)
   const [saveError, setSaveError] = useState('')
-  const save = () => {
+  const save = () => void submission.run(async (startRequest) => {
     const trimmed = name.trim()
-    if (!trimmed) { setHint(t('habits.flow.templates.nameHint')); setFocusRequest((request) => request + 1); return }
-    if (createTemplate.isPending) return
+    if (!trimmed) { setHint(t('habits.flow.templates.nameHint')); setFocusRequest((request) => request + 1); return 'stay' }
     setSaveError('')
-    createTemplate.mutate({ name: trimmed, items: items.map((item) => item.text) }, {
-      onSuccess: () => { setName(''); onSaved() },
-      onError: () => setSaveError(t('habits.form.saveTemplateError')),
-    })
-  }
+    startRequest()
+    try {
+      await createTemplate.mutateAsync({ name: trimmed, items: items.map((item) => item.text) })
+      setName('')
+      onSaved()
+    } catch {
+      setSaveError(t('habits.form.saveTemplateError'))
+    }
+    return 'stay'
+  })
   return {
     question: t('habits.flow.templates.saveQuestion'),
     line: t('habits.flow.templates.saveLine'),
@@ -97,6 +103,6 @@ export function useSaveTemplateView({ items, onSaved }: Readonly<{ items: Checkl
         error={hint} focusRequest={focusRequest} onChange={(value) => { setHint(undefined); setName(value) }} onSubmit={save} />
       {saveError ? <p role="alert" className="text-sm text-[var(--status-bad-text)]">{saveError}</p> : null}
     </>,
-    primary: { label: t('common.save'), onPress: save, loading: createTemplate.isPending },
+    primary: { label: t('common.save'), onPress: save, loading: submission.waiting },
   }
 }

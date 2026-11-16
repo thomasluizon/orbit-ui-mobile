@@ -6,6 +6,7 @@ export { createUseConversationCrossfadeSnapshot, type ConversationCrossfadeSnaps
 export * from './checklist-item-keys-core'
 export * from './date-format-core'
 export * from './dismiss-guard-core'
+export * from './submit-hold-core'
 export * from './pending-operation-card-core'
 export * from './pending-operation-revision-core'
 export * from './shell-notice-slot-core'

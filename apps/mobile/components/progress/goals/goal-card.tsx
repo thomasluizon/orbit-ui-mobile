@@ -8,6 +8,7 @@ import { useRingSweep } from '@/components/goals/goal-detail-drawer/use-ring-swe
 import { PressScale } from '@/components/motion/press-scale'
 import { Badge } from '@/components/ui/badge'
 import { PersonalText } from '@/components/ui/personal-text'
+import { insetHairlineRing } from '@/components/ui/inset-hairline-ring'
 import { ProgressRing } from '@/components/ui/progress-ring'
 import { StatusRing } from '@/components/ui/status-ring'
 import { shadowsV2, type AppTokensV2 } from '@/lib/theme'
@@ -26,8 +27,8 @@ function GoalIndicator({ goal, sweepFrom, onSwept }: Readonly<{ goal: Goal; swee
 function goalCardSurfaceStyle(pressed: boolean, isDragging: boolean, tokens: AppTokensV2) {
   return [
     styles.goalCard,
-    { backgroundColor: pressed ? tokens.bgHover : tokens.bgCard, borderColor: tokens.hairlineGhost },
-    isDragging ? { ...shadowsV2.shadow2, borderColor: tokens.hairlineStrong, opacity: 0.5 } : null,
+    { backgroundColor: pressed ? tokens.bgHover : tokens.bgCard, outlineColor: tokens.hairlineGhost },
+    isDragging ? { ...shadowsV2.shadow2, outlineColor: tokens.hairlineStrong, opacity: 0.5 } : null,
   ]
 }
 
@@ -99,7 +100,7 @@ export function GoalCard({ goal, index, total, canReorder, isDragging, sweepFrom
 }
 
 const styles = StyleSheet.create({
-  goalCard: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: PADDING.recordInset, borderRadius: 20, overflow: 'hidden', borderWidth: 1 },
+  goalCard: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: PADDING.recordInset, borderRadius: 20, overflow: 'hidden', ...insetHairlineRing },
   goalCardLifted: { zIndex: 2 },
   goalTitle: { fontFamily: 'Geist_500Medium', fontSize: 17, lineHeight: 24 },
   goalMeta: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 },

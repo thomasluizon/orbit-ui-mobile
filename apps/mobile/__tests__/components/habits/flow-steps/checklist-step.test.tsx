@@ -30,7 +30,7 @@ vi.mock('@/lib/posthog', () => ({ captureGuidedFlowEvent: vi.fn() }))
 vi.mock('@/lib/motion', async (importOriginal) => ({ ...await importOriginal<typeof import('@/lib/motion')>(), usePrefersReducedMotion: () => state.reduced }))
 vi.mock('@/hooks/use-checklist-templates', () => ({
   useChecklistTemplates: () => ({ data: state.templates, isLoading: state.loading, isError: state.templatesError, refetch: state.refetchTemplates }),
-  useCreateChecklistTemplate: () => ({ mutate: state.create, isPending: false }),
+  useCreateChecklistTemplate: () => ({ mutateAsync: state.create, isPending: false }),
   useDeleteChecklistTemplate: () => ({ mutate: state.remove }),
 }))
 
@@ -278,9 +278,12 @@ describe('the save question inside the checklist step on Android', () => {
     expect(state.create).not.toHaveBeenCalled()
     expect(textOf(tree)).toContain('Escreva um nome para o modelo.')
     await typeInto(tree, 'Que nome vai ter esse modelo?', ' Treino ')
-    await tap(tree, 'Salvar')
-    expect(state.create).toHaveBeenCalledWith({ name: 'Treino', items: ['Alongar', 'Correr'] }, expect.anything())
-    await act(async () => { (state.create.mock.calls[0]![1] as { onSuccess: () => void }).onSuccess(); await Promise.resolve() })
+    let finish!: () => void
+    state.create.mockImplementation(() => new Promise<void>((resolve) => { finish = resolve }))
+    const save = control(tree, 'Salvar')
+    await act(async () => { press(save); press(save); await Promise.resolve() })
+    expect(state.create).toHaveBeenCalledExactlyOnceWith({ name: 'Treino', items: ['Alongar', 'Correr'] })
+    await act(async () => { finish(); await Promise.resolve() })
     expect(headings(tree)).toEqual(['Tem passos dentro disso?'])
     tree.unmount()
   })
@@ -289,8 +292,8 @@ describe('the save question inside the checklist step on Android', () => {
     const tree = renderNavigation(<Harness initial={items('Alongar')} />)
     await tap(tree, 'Salvar modelo')
     await typeInto(tree, 'Que nome vai ter esse modelo?', 'Treino')
+    state.create.mockRejectedValue(new Error('offline'))
     await tap(tree, 'Salvar')
-    await act(async () => { (state.create.mock.calls[0]![1] as { onError: () => void }).onError(); await Promise.resolve() })
     expect(tree.hosts().find((node) => node.props.accessibilityRole === 'alert')?.props.children).toBe('Não foi possível salvar o modelo. Tente de novo.')
     expect(headings(tree)).toEqual(['Que nome vai ter esse modelo?'])
     tree.unmount()

@@ -326,6 +326,22 @@ describe('the Which habits step on Android', () => {
 describe('the guided goal edit flow on Android', () => {
   const goal = { id: 'g1', title: 'Run 100km', targetValue: 100, unit: 'km', deadline: '2026-12-31', type: 'Standard' }
 
+  it('holds the save from the press: two presses in one turn send one request, and the save waits until it ends', async () => {
+    await i18n.changeLanguage('en')
+    let finish!: () => void
+    mocks.update.mockImplementation(() => new Promise<void>((resolve) => { finish = resolve }))
+    const tree = renderNavigation(<EditGoalModal open onClose={vi.fn()} goal={goal} />)
+    await tap(tree, /^By when/)
+    await tap(tree, 'No deadline')
+    const save = control(tree, 'Save')
+    await act(async () => { press(save); press(save); await Promise.resolve() })
+    expect(mocks.update).toHaveBeenCalledOnce()
+    expect(control(tree, 'Save').props.accessibilityState).toMatchObject({ busy: true })
+    await act(async () => { finish(); await Promise.resolve() })
+    expect(resultSentence(tree)).toBe('The goal "Run 100km" is saved with no deadline.')
+    tree.unmount()
+  })
+
   it('opens on the summary with the stored values and saves one change with the request of the current modal', async () => {
     vi.useFakeTimers({ toFake: ['Date'] })
     vi.setSystemTime(new Date('2026-11-13T12:00:00Z'))

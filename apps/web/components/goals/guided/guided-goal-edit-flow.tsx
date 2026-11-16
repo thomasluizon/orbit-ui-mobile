@@ -9,6 +9,7 @@ import { isStreakGoal } from '@orbit/shared/utils/goal-form'
 import { useBackendFieldErrors } from '@/hooks/use-backend-field-errors'
 import { useDismissGuard } from '@/hooks/use-dismiss-guard'
 import { useUpdateGoal } from '@/hooks/use-goals'
+import { useSubmitHold } from '@/hooks/use-submit-hold'
 import { captureGuidedFlowCompleted } from '@/lib/posthog'
 import { GoalSummary, useAmountView, useDeadlineView, useWhatView, type GoalDraftPort } from './goal-flow-steps'
 import { GoalResultDialog } from './goal-result-dialog'
@@ -34,6 +35,7 @@ function GoalEditRun({ goal, onClose, onSaved }: Readonly<GuidedGoalEditFlowProp
   const t = useTranslations()
   const translate = (key: string, values?: Record<string, string | number | Date>) => t(key, values)
   const updateGoal = useUpdateGoal()
+  const submission = useSubmitHold()
   const flow = useGuidedGoalFlow({ mode: 'edit', fromHabit: false })
   const [formError, setFormError] = useState('')
   const [draft, setDraft] = useState(() => createGoalEditDraft(goal))
@@ -41,19 +43,22 @@ function GoalEditRun({ goal, onClose, onSaved }: Readonly<GuidedGoalEditFlowProp
   const backendErrors = useBackendFieldErrors({ description: draft.description, targetValue: draft.targetValue, unit: draft.unit }, { description: 'Title', targetValue: 'TargetValue', unit: 'Unit' })
   const port = editPort(goal, draft, (change) => { hints.clear(); setDraft((current) => ({ ...current, ...change })) })
   const discard = useDismissGuard({ isDirty: isGoalEditDirty(draft, goal), onDismiss: onClose })
-  const save = async () => {
+  const save = () => submission.run(async (startRequest) => {
     const error = getGoalEditError(draft)
     const request = buildGoalUpdateRequest(draft)
-    if (error || !request) { if (error) { hints.show(error); flow.open(stepOfField(error.field)) } return }
+    if (error || !request) { if (error) { hints.show(error); flow.open(stepOfField(error.field)) } return 'stay' }
     setFormError('')
+    startRequest()
     try {
       await updateGoal.mutateAsync({ goalId: goal.id, data: request })
       captureGuidedFlowCompleted('goal_edit', flow.steps.length, false)
       onSaved({ goalId: goal.id, title: request.title, deadline: draft.deadline })
+      return 'leave'
     } catch (failure: unknown) {
       if (!backendErrors.reportBackendErrors(failure).handled) setFormError(getFriendlyErrorMessage(failure, translate, 'goals.errors.update', 'goal'))
+      return 'stay'
     }
-  }
+  })
   const context = { draft: port, hint: hints.hint, submit: hints.submit, advance: flow.advance, deadlineAnswered: true }
   const views: Partial<Record<GoalFlowStep, FlowStepView>> = {
     what: useWhatView(context),
@@ -64,9 +69,9 @@ function GoalEditRun({ goal, onClose, onSaved }: Readonly<GuidedGoalEditFlowProp
     question: t('habits.flow.confirm.question'),
     line: t('habits.flow.confirm.line'),
     free: <GoalSummary draft={port} mode="edit" error={formError || Object.values(backendErrors.fieldErrors)[0]} onOpen={flow.open} />,
-    primary: { label: t('common.save'), onPress: () => void save(), loading: updateGoal.isPending },
+    primary: { label: t('common.save'), onPress: () => void save(), loading: submission.waiting },
   }
-  const requestClose = () => { if (!updateGoal.isPending) discard.requestDismiss() }
+  const requestClose = () => { if (!submission.isRunning()) discard.requestDismiss() }
   return <GoalFlowFrame flowId="goal_edit" label={t('goals.detail.edit')} flow={flow} view={views[flow.current.step] ?? summary} requestClose={requestClose} discard={discard} />
 }
 

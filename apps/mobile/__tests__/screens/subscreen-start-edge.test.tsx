@@ -9,6 +9,7 @@ import AboutScreen from '@/app/about'
 import SupportScreen from '@/app/support'
 import UpgradeScreen from '@/app/upgrade'
 import { __resetTestHostConfig, __setWindowDimensions } from '@/test-mocks/react-native'
+import { applyBorderWidths } from '@/__tests__/support/yoga-borders'
 
 const mocks = vi.hoisted(() => ({
   status: null as ReturnType<typeof subscriptionStatusSchema.parse> | null,
@@ -66,6 +67,7 @@ function layout(width: number, styles: ViewStyle[]) {
     if (style.width === '100%') node.setWidthPercent(100)
     if (typeof style.maxWidth === 'number') node.setMaxWidth(style.maxWidth)
     if (typeof style.paddingHorizontal === 'number') node.setPadding(Yoga.EDGE_HORIZONTAL, style.paddingHorizontal)
+    applyBorderWidths(node, style)
     if (style.alignSelf) node.setAlignSelf({
       auto: Yoga.ALIGN_AUTO, 'flex-start': Yoga.ALIGN_FLEX_START, center: Yoga.ALIGN_CENTER,
       'flex-end': Yoga.ALIGN_FLEX_END, stretch: Yoga.ALIGN_STRETCH, baseline: Yoga.ALIGN_BASELINE,

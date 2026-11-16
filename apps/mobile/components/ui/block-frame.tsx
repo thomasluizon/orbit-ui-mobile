@@ -30,6 +30,7 @@ import { PersonalTextDetails } from '@/components/ui/personal-text-details'
 import { Proposed } from '@/components/ui/proposed'
 import { createTokensV2, type AppTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
+import { insetHairlineRing } from '@/components/ui/inset-hairline-ring'
 import { Skeleton } from '@/components/ui/skeleton'
 
 const actionHitPadding = (TOUCH_TARGET_MIN - SMALL_PILL_VISIBLE_MIN) / 2
@@ -275,7 +276,7 @@ export function BlockFrame(props: Readonly<BlockFrameProps>) {
     <Animated.View layout={layout}
       style={[
         styles.frame,
-        { backgroundColor: tokens.bgCard, borderColor: tokens.hairline },
+        { backgroundColor: tokens.bgCard, outlineColor: tokens.hairline },
       ]}
       accessibilityState={props.state === 'acting' ? { busy: true } : undefined}
       testID={`block-frame-${props.state}`}
@@ -321,7 +322,7 @@ const styles = StyleSheet.create({
     minHeight: 0,
     gap: 12,
     borderRadius: PROPOSED_RADIUS.block,
-    borderWidth: 1,
+    ...insetHairlineRing,
     padding: SPACING.s16,
   },
   header: { flexDirection: 'row', alignItems: 'center', gap: 12 },

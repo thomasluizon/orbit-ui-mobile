@@ -11,6 +11,7 @@ import { Minus, Plus } from '@/components/ui/icons'
 import { WeekdayPicker } from '@/components/ui/weekday-picker'
 import { Proposed } from '@/components/ui/proposed'
 import { createTokensV2, radius } from '@/lib/theme'
+import { insetHairlineRing } from '@/components/ui/inset-hairline-ring'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { HabitEmojiSelector } from './habit-emoji-selector'
 import { createStyles as createFormStyles } from './styles'
@@ -185,9 +186,7 @@ function createStyles(tokens: AppTokens, measuredLineHeight: number) {
       minWidth: 0,
       minHeight: singleLineHeight,
       borderRadius: radius.md,
-      outlineWidth: 1,
-      outlineOffset: -1,
-      outlineStyle: 'solid',
+      ...insetHairlineRing,
       outlineColor: tokens.borderControl,
       backgroundColor: tokens.bgField,
     },
@@ -214,10 +213,8 @@ function createStyles(tokens: AppTokens, measuredLineHeight: number) {
       gap: 16,
       padding: SPACING.s24,
       borderRadius: radius.xl,
-      outlineWidth: 1,
-      outlineOffset: -1,
+      ...insetHairlineRing,
       outlineColor: tokens.hairline,
-      outlineStyle: 'solid',
       backgroundColor: tokens.bgCard,
     },
     meta: { color: tokens.fg3, fontFamily: 'GeistMono_400Regular', fontSize: 12 },

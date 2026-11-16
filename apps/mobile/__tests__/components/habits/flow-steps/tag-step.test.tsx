@@ -89,6 +89,19 @@ describe.each(['en', 'pt-BR'] as const)('the tag step on Android in %s', (locale
     expect(selected(root)).toBe('created')
   })
 
+  it('holds the tag create from the press: two presses in one turn send one request, and the action waits until it ends', async () => {
+    let finish!: (tag: { id: string }) => void
+    tagStepState.create.mockImplementation(() => new Promise((resolve) => { finish = resolve }))
+    const root = mount(<TagStepHarness onContinue={vi.fn()} />)
+    type(field(root, text.habits.form.newTag), 'Saúde')
+    const add = pressable(root, text.common.add)!
+    await renderer.act(async () => { void add.props.onPress!(); void add.props.onPress!(); await Promise.resolve() })
+    expect(tagStepState.create).toHaveBeenCalledOnce()
+    expect(hosts(root).find((node) => node.props.accessibilityLabel === text.common.add && node.props.accessibilityState)?.props.accessibilityState).toMatchObject({ busy: true })
+    await renderer.act(async () => { finish({ id: 'created' }); await Promise.resolve() })
+    expect(selected(root)).toBe('created')
+  })
+
   it('asks before it leaves a typed tag name behind, and continues after a discard', async () => {
     const onContinue = vi.fn()
     const root = mount(<TagStepHarness onContinue={onContinue} />)

@@ -1,4 +1,5 @@
 import { measureClampedPersonalText } from '@/__tests__/support/personal-text'
+import { expectInsetHairlineRing } from '@/__tests__/support/inset-hairline-ring'
 import React from 'react'
 import { StyleSheet, type TextStyle, type PressableProps } from 'react-native'
 import Yoga, { type Node as YogaNode } from 'yoga-layout'
@@ -19,6 +20,7 @@ import { dismissTopOverlay } from '@/lib/overlay-stack'
 import { createTokensV2 } from '@/lib/theme'
 import { HabitCheck } from '@/components/habits/habit-check'
 import { i18n } from '@/lib/i18n'
+import { applyBorderWidths } from '@/__tests__/support/yoga-borders'
 
 vi.unmock('react-i18next')
 vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true)
@@ -135,7 +137,7 @@ function applyHorizontalStyle(node: YogaNode, style: Record<string, unknown>) {
   if (typeof style.minWidth === 'number') node.setMinWidth(style.minWidth)
   if (style.flexDirection === 'row') node.setFlexDirection(Yoga.FLEX_DIRECTION_ROW)
   if (style.alignItems === 'center') node.setAlignItems(Yoga.ALIGN_CENTER)
-  if (typeof style.borderWidth === 'number') node.setBorder(Yoga.EDGE_ALL, style.borderWidth)
+  applyBorderWidths(node, style)
   for (const [property, edge] of [['padding', Yoga.EDGE_ALL], ['paddingHorizontal', Yoga.EDGE_HORIZONTAL], ['paddingLeft', Yoga.EDGE_LEFT], ['paddingRight', Yoga.EDGE_RIGHT]] as const) {
     const padding = style[property]
     if (typeof padding === 'number') node.setPadding(edge, padding)
@@ -301,7 +303,8 @@ describe('mobile search', () => {
     const rows = waiting[0]!.findAll((node) => typeof node.type === 'string' && node.props.testID === 'search-skeleton-row')
     expect(rows).toHaveLength(3)
     for (const row of rows) {
-      expect(StyleSheet.flatten(row.props.style)).toMatchObject({ minHeight: 48, padding: 12, gap: 12, flexDirection: 'row', alignItems: 'center', borderWidth: 1 })
+      expect(StyleSheet.flatten(row.props.style)).toMatchObject({ minHeight: 48, padding: 12, gap: 12, flexDirection: 'row', alignItems: 'center' })
+      expectInsetHairlineRing(row.props.style as never, createTokensV2('orange', 'dark').hairlineGhost)
       expect(row.findAll((node) => node.type === Skeleton && node.props.grouped === true)).toHaveLength(3)
     }
     expect(tree.root.findAll((node) => String(node.type) === 'ActivityIndicator')).toHaveLength(0)

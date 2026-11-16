@@ -40,7 +40,7 @@ export function TagStepRows({ tags, actions, query, managing, onPressTag }: Read
                 focusRequest={actions.editTagFocusRequest}
                 initialValue={initialName}
                 value={tags.editTagName}
-                disabled={actions.renaming}
+                pending={actions.renaming}
                 inputAriaLabel={t('habits.form.tagName')}
                 cancelAriaLabel={t('common.cancel')}
                 actionLabel={t('common.save')}

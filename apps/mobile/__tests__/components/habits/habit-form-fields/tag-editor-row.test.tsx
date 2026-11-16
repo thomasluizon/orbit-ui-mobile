@@ -35,4 +35,21 @@ describe('tag editor press fills', () => {
     expect(caption?.props.accessibilityLiveRegion).toBeUndefined()
     void renderer.act(() => tree.update(<></>))
   })
+
+  it('keeps its label and shows the waiting face of the shared pill while the tag request runs, and sends nothing on a second press', () => {
+    const tokens = createTokensV2()
+    const onCommit = vi.fn()
+    let tree!: import('react-test-renderer').ReactTestRenderer
+    void renderer.act(() => { tree = renderer.create(<TagEditorRow value="Health" inputAriaLabel="Tag" actionLabel="Add" cancelAriaLabel="Cancel" pending onChange={vi.fn()} onCommit={onCommit} onCancel={vi.fn()} styles={createStyles(tokens)} tokens={tokens} />) })
+    const action = tree.root.findAll((node) => node.props.testID === 'button-primary-sm' && node.props.accessibilityState !== undefined)[0]!
+    expect(action.props.accessibilityState).toMatchObject({ busy: true, disabled: true })
+    expect(action.props.onPress).toBeUndefined()
+    expect(action.findAll((node) => String(node.type) === 'Text').some((node) => node.props.children === 'Add')).toBe(true)
+    expect(action.findAll((node) => String(node.type) === 'View' && node.props.testID === 'skeleton-face').length).toBeGreaterThan(0)
+    const input = tree.root.findAll((node) => node.props.accessibilityLabel === 'Tag')[0]!
+    expect(input.props.editable).toBe(false)
+    void renderer.act(() => { (input.props.onSubmitEditing as () => void)() })
+    expect(onCommit).not.toHaveBeenCalled()
+    void renderer.act(() => tree.update(<></>))
+  })
 })

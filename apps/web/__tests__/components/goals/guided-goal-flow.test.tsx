@@ -390,6 +390,20 @@ describe('the guided goal edit flow', () => {
     expect(onOpenChange).toHaveBeenCalledWith(false)
   })
 
+  it('holds the save from the press: two presses in one turn send one request, and the save waits until it ends', async () => {
+    let finish!: () => void
+    mocks.update.mockImplementation(() => new Promise<void>((resolve) => { finish = resolve }))
+    renderWith('en', <EditGoalModal open onOpenChange={vi.fn()} goal={goal} />)
+    await press(/^By when/)
+    await press('No deadline')
+    const save = screen.getByRole('button', { name: 'Save' })
+    await act(async () => { fireEvent.click(save); fireEvent.click(save) })
+    expect(mocks.update).toHaveBeenCalledOnce()
+    expect(save).toHaveAttribute('aria-busy', 'true')
+    await act(async () => { finish() })
+    expect(screen.getByText('The goal "Run 100km" is saved with no deadline.')).toBeInTheDocument()
+  })
+
   it('keeps an empty title in an edit and saves the title the current modal builds from the target and the unit', async () => {
     renderWith('en', <EditGoalModal open onOpenChange={vi.fn()} goal={goal} />)
     await press(/^Your goal/)

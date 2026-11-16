@@ -47,6 +47,7 @@ import { LevelSummary } from '@/components/gamification/level-summary'
 import { PillButton } from '@/components/ui/pill-button'
 import { ProBadge } from '@/components/ui/pro-badge'
 import { Skeleton } from '@/components/ui/skeleton'
+import { insetHairlineRing } from '@/components/ui/inset-hairline-ring'
 import { StatTile } from '@/components/ui/stat-tile'
 import { useGamificationProfile, useRepairStreak, useStreakFreeze } from '@/hooks/use-gamification'
 import { useProfile } from '@/hooks/use-profile'
@@ -111,7 +112,7 @@ function WindowFrame({ children, title, tokens, statusText = '' }: Readonly<{
 function LockedCard({ title, body, action, tokens }: Readonly<{ title: string; body: string; action: string; tokens: AppTokensV2 }>) {
   const router = useRouter()
   return (
-    <View testID="progress-locked-card" style={[styles.card, { backgroundColor: tokens.bgCard, borderColor: tokens.hairlineGhost }]}>
+    <View testID="progress-locked-card" style={[styles.card, { backgroundColor: tokens.bgCard, outlineColor: tokens.hairlineGhost }]}>
       <View style={styles.lockHeader}><Lock size={20} strokeWidth={2} color={tokens.fg2} /><ProBadge alwaysVisible /></View>
       <View style={styles.copy}><Text style={[styles.cardTitle, { color: tokens.fg1 }]}>{title}</Text><Text style={[styles.body, { color: tokens.fg3 }]}>{body}</Text></View>
       <View style={styles.actionStart}><PillButton variant="ghost" size="sm" onClick={() => router.push(buildUpgradeHref('/progress'))}>{action}</PillButton></View>
@@ -409,7 +410,7 @@ const styles = StyleSheet.create({
   frozenCopy: { flex: 1, fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 20 },
   copy: { gap: 4 }, body: { fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 20 },
   notice: { borderRadius: 12, fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 20, paddingHorizontal: SPACING.s16, paddingVertical: SPACING.s12 },
-  card: { borderRadius: 20, borderWidth: 1, gap: 12, padding: PADDING.recordInset }, cardTitle: { fontFamily: 'Geist_500Medium', fontSize: 16, lineHeight: 20 }, actionStart: { alignSelf: 'flex-start' }, lockHeader: { alignItems: 'center', flexDirection: 'row', gap: 12 },
+  card: { borderRadius: 20, ...insetHairlineRing, gap: 12, padding: PADDING.recordInset }, cardTitle: { fontFamily: 'Geist_500Medium', fontSize: 16, lineHeight: 20 }, actionStart: { alignSelf: 'flex-start' }, lockHeader: { alignItems: 'center', flexDirection: 'row', gap: 12 },
   gapWell: { borderRadius: 12, gap: 12, padding: PADDING.recordInset }, gapBody: { fontFamily: 'Geist_400Regular', fontSize: 16, lineHeight: 24 },
   topHabit: { minHeight: 68, paddingHorizontal: SPACING.s16, paddingVertical: SPACING.s16, borderRadius: 12, overflow: 'hidden', gap: 4, minWidth: 0 },
   topHabitLabelRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },

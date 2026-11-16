@@ -770,6 +770,35 @@ describe('CreateHabitModal', () => {
     vi.unstubAllGlobals()
   })
 
+  it('keeps the create screen action waiting from the request start until the screen has left', async () => {
+    let releaseCreate!: (value: object) => void
+    mockCreateMutateAsync.mockImplementationOnce(() => new Promise((resolve) => { releaseCreate = resolve }))
+    const close = vi.fn()
+    renderWithProviders(<CreateHabitModal open presentation="screen" onOpenChange={close} />)
+    const create = screen.getByRole('button', { name: /habits.create(?:Habit|Task)/ })
+    expect(create).not.toHaveAttribute('aria-busy')
+    fireEvent.click(create)
+    await waitFor(() => expect(create).toHaveAttribute('aria-busy', 'true'))
+    expect(create).toBeDisabled()
+    expect(create).toHaveTextContent(/habits.create(?:Habit|Task)/)
+    expect(create.querySelector('[data-slot="skeleton-face"]')).not.toBeNull()
+    await act(async () => { releaseCreate({}); await Promise.resolve() })
+    await waitFor(() => expect(close).toHaveBeenCalledWith(false))
+    expect(create).toHaveAttribute('aria-busy', 'true')
+    fireEvent.click(create)
+    expect(mockCreateMutateAsync).toHaveBeenCalledOnce()
+  })
+
+  it('ends the create screen waiting state when the request fails', async () => {
+    mockCreateMutateAsync.mockRejectedValueOnce(new Error('offline'))
+    renderWithProviders(<CreateHabitModal open presentation="screen" onOpenChange={vi.fn()} />)
+    const create = screen.getByRole('button', { name: /habits.create(?:Habit|Task)/ })
+    fireEvent.click(create)
+    await waitFor(() => expect(mockShowError).toHaveBeenCalled())
+    await waitFor(() => expect(create).not.toHaveAttribute('aria-busy'))
+    expect(create).toBeEnabled()
+  })
+
   it('shows create habit title', () => {
     renderWithProviders(
       <CreateHabitModal open={true} onOpenChange={vi.fn()} />,

@@ -2,6 +2,7 @@ import { StyleSheet, type PressableProps, type TextStyle, type ViewStyle } from 
 import Yoga, { type Node as YogaNode } from 'yoga-layout'
 import { Resvg } from '@resvg/resvg-js'
 import { act, type ReactTestRenderer } from 'react-test-renderer'
+import { applyBorderWidths } from '@/__tests__/support/yoga-borders'
 
 interface HostRow {
   type: string
@@ -108,6 +109,7 @@ function applyStyle(node: YogaNode, style: ViewStyle) {
     const margin = style[property]
     if (typeof margin === 'number') node.setMargin(edge, margin)
   }
+  applyBorderWidths(node, style)
 }
 
 function contentPaths(rows: HostRow[], path: number[]): number[][] {
@@ -132,8 +134,7 @@ function hitExtension({ hitSlop }: HostRow['props']) {
   return { hitWidth: (hitSlop.left ?? 0) + (hitSlop.right ?? 0), hitHeight: (hitSlop.top ?? 0) + (hitSlop.bottom ?? 0) }
 }
 
-/** `layOutBorders` gives each border its width inside the box, as React Native does. */
-export function measureProfileRow(host: HostRow, width: number, scale: number, scaledPixels = (size: number) => size * scale, layOutBorders = false) {
+export function measureProfileRow(host: HostRow, width: number, scale: number, scaledPixels = (size: number) => size * scale) {
   const config = Yoga.Config.create()
   config.setPointScaleFactor(0)
   const boxes: { node: YogaNode; testID: string }[] = []
@@ -149,7 +150,6 @@ export function measureProfileRow(host: HostRow, width: number, scale: number, s
     const style = { ...StyleSheet.flatten(typeof declared === 'function' ? declared({ pressed: false }) : declared ?? {}) } as TextStyle & ViewStyle
     if (style.opacity === 0) { node.setWidth(0); node.setHeight(0); return node }
     applyStyle(node, style)
-    if (layOutBorders && typeof style.borderWidth === 'number') node.setBorder(Yoga.EDGE_ALL, style.borderWidth)
     if (host.props.testID) boxes.push({ node, testID: host.props.testID })
     if (host.props['data-slot']) parts.push({ node, slot: host.props['data-slot'], style })
     if (host.type === 'Pressable') {

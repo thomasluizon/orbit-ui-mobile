@@ -3,6 +3,7 @@ import { validateGoalForm } from '../validation/goal-form'
 import { buildGoalTitle, getFirstGoalDraftFieldError, getGoalDraftFieldErrorKeys, hasGoalFollowUpAnswer, parseGoalTargetValue } from '../utils/goal-form'
 import { getFriendlyErrorMessage } from '../utils/error-utils'
 import type { StateHook, StateSetter } from './state-adapter'
+import type { SubmitHold, SubmitOutcome } from './submit-hold-core'
 
 export interface CreateGoalSheetProps {
   open: boolean
@@ -48,7 +49,8 @@ export interface GoalCreationAdapters<Input extends FocusTarget = FocusTarget> {
   useEffect: (effect: () => void, dependencies: readonly unknown[]) => void
   useDismissGuard: (options: { isDirty: boolean; onDismiss: () => void }) => GoalDismissGuard
   useState: StateHook
-  useCreateGoal: () => { isPending: boolean; mutateAsync: (request: CreateGoalRequest) => Promise<{ id: string }> }
+  useCreateGoal: () => { mutateAsync: (request: CreateGoalRequest) => Promise<{ id: string }> }
+  useSubmitHold: () => SubmitHold
   useBackendFieldErrors: (values: GoalFields, names: Record<GoalField, string>) => GoalBackendErrors
   getAccountGeneration: () => number
 }
@@ -115,7 +117,7 @@ export function buildGoalCreationRequest(draft: GoalDraft): CreateGoalRequest {
   }
 }
 
-export function createUseGoalCreation<Input extends FocusTarget>({ useState, useRef, useEffect, useDismissGuard, useCreateGoal, useBackendFieldErrors, getAccountGeneration }: GoalCreationAdapters<Input>) {
+export function createUseGoalCreation<Input extends FocusTarget>({ useState, useRef, useEffect, useDismissGuard, useCreateGoal, useSubmitHold, useBackendFieldErrors, getAccountGeneration }: GoalCreationAdapters<Input>) {
   return function useGoalCreation({ initialHabitIds = [], translate, showError, closeSheet, onClose, onCreated }: GoalCreationOptions): GoalCreationState<Input> {
     const [draft, setDraft] = useState(() => createGoalDraft(initialHabitIds))
     const [selectingHabits, setSelectingHabits] = useState(false)
@@ -153,38 +155,44 @@ export function createUseGoalCreation<Input extends FocusTarget>({ useState, use
         onClose()
       })
     }
-    const onSubmit = async () => {
+    const submission = useSubmitHold()
+    const submitGoal = async (startRequest: () => void): Promise<SubmitOutcome> => {
       setSubmitted(true)
       setShowFollowUps(true)
       setFormError('')
       if (error) {
         showError(translate(error.key))
         if (error.focusField) setFocusRequest({ field: error.focusField })
-        return
+        return 'stay'
       }
       const generation = getAccountGeneration()
+      startRequest()
       try {
         const created = await mutation.mutateAsync(buildGoalCreationRequest(draft))
-        if (getAccountGeneration() !== generation) return
+        if (getAccountGeneration() !== generation) return 'stay'
         closeSheet(() => {
+          submission.release()
           if (getAccountGeneration() !== generation) return
           onCreated?.(created.id, draft.habitIds)
           onClose()
           resetForm()
         }, true)
+        return 'leave'
       } catch (failure: unknown) {
-        if (getAccountGeneration() !== generation) return
+        if (getAccountGeneration() !== generation) return 'stay'
         const { field, handled } = backend.reportBackendErrors(failure)
         if (field) setFocusRequest({ field })
         if (!handled) setFormError(getFriendlyErrorMessage(failure, translate, 'goals.form.createError', 'goal'))
+        return 'stay'
       }
     }
+    const onSubmit = () => submission.run(submitGoal)
     const isDirty = isGoalDraftDirty(draft, initialHabitIds)
     const dismissGuard = useDismissGuard({ isDirty, onDismiss: dismiss })
     return {
       descriptionRef, targetRef, unitRef, dismissGuard,
       ...draft, selectingHabits, setSelectingHabits, focusRequest, fieldErrors, formError,
-      isSubmitting: mutation.isPending, isStreak: draft.goalType === 'Streak',
+      isSubmitting: submission.waiting, isStreak: draft.goalType === 'Streak',
       isDirty, showFollowUps, dismiss, onSubmit,
       setDescription: (description: string) => updateDraft({ description }),
       setTargetValue: (targetValue: string) => updateDraft({ targetValue }),

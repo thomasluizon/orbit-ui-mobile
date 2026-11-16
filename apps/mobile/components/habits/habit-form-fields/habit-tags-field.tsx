@@ -9,6 +9,7 @@ import { useAppToast } from '@/hooks/use-app-toast'
 import { useBackendFieldErrors } from '@/hooks/use-backend-field-errors'
 import { useCreateTag, useDeleteTag, useSuggestTags, useTags, useUpdateTag } from '@/hooks/use-tags'
 import { useTagSuggestions } from '@/hooks/use-tag-suggestions'
+import { useSubmitHold } from '@/hooks/use-submit-hold'
 import type { TagSelectionState } from '@/hooks/use-tag-selection'
 import { captureError } from '@/lib/sentry'
 import { createTokensV2 } from '@/lib/theme'
@@ -43,7 +44,8 @@ export function HabitTagsField({ tags, title, description }: Readonly<HabitTagsF
   const createTag = useCreateTag()
   const updateTag = useUpdateTag()
   const deleteTag = useDeleteTag()
-  const tagMutationPending = createTag.isPending || updateTag.isPending || deleteTag.isPending
+  const tagSubmission = useSubmitHold()
+  const tagMutationPending = tagSubmission.waiting || createTag.isPending || updateTag.isPending || deleteTag.isPending
   const suggestTags = useSuggestTags()
   const tagSuggestions = useTagSuggestions({
     availableTags,
@@ -60,18 +62,22 @@ export function HabitTagsField({ tags, title, description }: Readonly<HabitTagsF
     tags.cancelEditTag()
   }
 
-  async function createNewTag() {
+  function createNewTag() {
     if (isDisabled()) return
-    const validationError = validateTagForm(tags.newTagName, tags.newTagColor)
-    if (validationError) {
-      showError(translate(validationError))
-      return
-    }
-    try {
-      await tags.createAndSelectTag(async (name, color) => (await createTag.mutateAsync({ name, color })).id)
-    } catch (error: unknown) {
-      if (!newTagErrors.reportBackendErrors(error).handled) showError(getFriendlyErrorMessage(error, translate, 'toast.errors.validation', 'tag'))
-    }
+    return tagSubmission.run(async (startRequest) => {
+      const validationError = validateTagForm(tags.newTagName, tags.newTagColor)
+      if (validationError) {
+        showError(translate(validationError))
+        return 'stay'
+      }
+      startRequest()
+      try {
+        await tags.createAndSelectTag(async (name, color) => (await createTag.mutateAsync({ name, color })).id)
+      } catch (error: unknown) {
+        if (!newTagErrors.reportBackendErrors(error).handled) showError(getFriendlyErrorMessage(error, translate, 'toast.errors.validation', 'tag'))
+      }
+      return 'stay'
+    })
   }
 
   async function deleteExistingTag(id: string) {
@@ -83,19 +89,23 @@ export function HabitTagsField({ tags, title, description }: Readonly<HabitTagsF
     }
   }
 
-  async function saveEditedTag() {
+  function saveEditedTag() {
     if (isDisabled()) return
-    try {
-      await tags.saveEditTag(async (id, name, color) => { await updateTag.mutateAsync({ tagId: id, name, color }) })
-    } catch (error: unknown) {
-      if (!editTagErrors.reportBackendErrors(error).handled) showError(getFriendlyErrorMessage(error, translate, 'toast.errors.validation', 'tag'))
-    }
+    return tagSubmission.run(async (startRequest) => {
+      startRequest()
+      try {
+        await tags.saveEditTag(async (id, name, color) => { await updateTag.mutateAsync({ tagId: id, name, color }) })
+      } catch (error: unknown) {
+        if (!editTagErrors.reportBackendErrors(error).handled) showError(getFriendlyErrorMessage(error, translate, 'toast.errors.validation', 'tag'))
+      }
+      return 'stay'
+    })
   }
 
   const editor = tags.showNewTag
-    ? <TagEditorRow error={newTagErrors.fieldErrors.name} focusRequest={newTagErrors.focusRequest} value={tags.newTagName} placeholder={t('habits.form.tagName')} disabled={disabled || createTag.isPending} inputAriaLabel={t('habits.form.tagName')} cancelAriaLabel={t('common.cancel')} actionLabel={t('common.add')} onChange={guard(tags.setNewTagName)} onCommit={() => void createNewTag()} onCancel={discardTagEditor} styles={formStyles} tokens={tokens} />
+    ? <TagEditorRow error={newTagErrors.fieldErrors.name} focusRequest={newTagErrors.focusRequest} value={tags.newTagName} placeholder={t('habits.form.tagName')} disabled={disabled} pending={tagSubmission.waiting} inputAriaLabel={t('habits.form.tagName')} cancelAriaLabel={t('common.cancel')} actionLabel={t('common.add')} onChange={guard(tags.setNewTagName)} onCommit={() => void createNewTag()} onCancel={discardTagEditor} styles={formStyles} tokens={tokens} />
     : tags.editingTagId
-      ? <TagEditorRow error={editTagErrors.fieldErrors.name} focusRequest={editTagErrors.focusRequest} initialValue={initialTagName} value={tags.editTagName} disabled={disabled || updateTag.isPending} inputAriaLabel={t('habits.form.tagName')} cancelAriaLabel={t('common.cancel')} actionLabel={t('common.save')} onChange={guard(tags.setEditTagName)} onCommit={() => void saveEditedTag()} onCancel={discardTagEditor} styles={formStyles} tokens={tokens} />
+      ? <TagEditorRow error={editTagErrors.fieldErrors.name} focusRequest={editTagErrors.focusRequest} initialValue={initialTagName} value={tags.editTagName} disabled={disabled} pending={tagSubmission.waiting} inputAriaLabel={t('habits.form.tagName')} cancelAriaLabel={t('common.cancel')} actionLabel={t('common.save')} onChange={guard(tags.setEditTagName)} onCommit={() => void saveEditedTag()} onCancel={discardTagEditor} styles={formStyles} tokens={tokens} />
       : undefined
 
   return (

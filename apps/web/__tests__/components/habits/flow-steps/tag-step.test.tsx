@@ -40,6 +40,19 @@ describe.each(['en', 'pt-BR'] as const)('the tag step in %s', (locale) => {
     expect(selected()).toBe('created')
   })
 
+  it('holds the tag create from the press: two presses in one turn send one request, and the action waits until it ends', async () => {
+    let finish!: (tag: { id: string }) => void
+    tagStepState.create.mockImplementation(() => new Promise((resolve) => { finish = resolve }))
+    render(<TagStepHarness onContinue={vi.fn()} />)
+    fireEvent.change(screen.getByRole('textbox', { name: text.habits.form.newTag }), { target: { value: 'Saúde' } })
+    const add = screen.getByRole('button', { name: text.common.add })
+    await act(async () => { fireEvent.click(add); fireEvent.click(add) })
+    expect(tagStepState.create).toHaveBeenCalledOnce()
+    expect(add).toHaveAttribute('aria-busy', 'true')
+    await act(async () => { finish({ id: 'created' }) })
+    expect(selected()).toBe('created')
+  })
+
   it('asks before it leaves a typed tag name behind, and continues after a discard', async () => {
     const onContinue = vi.fn()
     render(<TagStepHarness onContinue={onContinue} />)

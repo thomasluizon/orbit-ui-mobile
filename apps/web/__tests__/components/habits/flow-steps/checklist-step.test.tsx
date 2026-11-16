@@ -29,7 +29,7 @@ vi.mock('next-intl', async (importOriginal) => {
 vi.mock('@/lib/posthog', () => ({ captureGuidedFlowEvent: vi.fn() }))
 vi.mock('@/hooks/use-checklist-templates', () => ({
   useChecklistTemplates: () => ({ data: state.templates, isLoading: state.loading, isError: state.templatesError, refetch: state.refetchTemplates }),
-  useCreateChecklistTemplate: () => ({ mutate: state.create, isPending: false }),
+  useCreateChecklistTemplate: () => ({ mutateAsync: state.create, isPending: false }),
   useDeleteChecklistTemplate: () => ({ mutate: state.remove }),
 }))
 
@@ -212,9 +212,12 @@ describe('the save question inside the checklist step', () => {
     expect(state.create).not.toHaveBeenCalled()
     expect(screen.getByText('Escreva um nome para o modelo.')).toBeInTheDocument()
     await act(async () => { fireEvent.change(screen.getByRole('textbox', { name: 'Que nome vai ter esse modelo?' }), { target: { value: ' Treino ' } }) })
-    await press('Salvar')
-    expect(state.create).toHaveBeenCalledWith({ name: 'Treino', items: ['Alongar', 'Correr'] }, expect.anything())
-    await act(async () => { state.create.mock.calls[0]![1].onSuccess() })
+    let finish!: () => void
+    state.create.mockImplementation(() => new Promise<void>((resolve) => { finish = resolve }))
+    const save = screen.getByRole('button', { name: 'Salvar' })
+    await act(async () => { fireEvent.click(save); fireEvent.click(save) })
+    expect(state.create).toHaveBeenCalledExactlyOnceWith({ name: 'Treino', items: ['Alongar', 'Correr'] })
+    await act(async () => { finish() })
     expect(heading()).toHaveTextContent('Tem passos dentro disso?')
   })
 
@@ -222,8 +225,8 @@ describe('the save question inside the checklist step', () => {
     render(<Harness initial={items('Alongar')} />)
     await press('Salvar modelo')
     await act(async () => { fireEvent.change(screen.getByRole('textbox', { name: 'Que nome vai ter esse modelo?' }), { target: { value: 'Treino' } }) })
+    state.create.mockRejectedValue(new Error('offline'))
     await press('Salvar')
-    await act(async () => { state.create.mock.calls[0]![1].onError() })
     expect(screen.getByRole('alert')).toHaveTextContent('Não foi possível salvar o modelo. Tente de novo.')
     expect(heading()).toHaveTextContent('Que nome vai ter esse modelo?')
   })
