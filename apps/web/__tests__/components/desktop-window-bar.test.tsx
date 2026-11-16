@@ -143,6 +143,29 @@ it('drags on a single press and toggles maximize on a double press of the bar, n
   expect(invoke).not.toHaveBeenCalledWith('desktop_window', { action: 'drag' })
 })
 
+it('opens the window system menu on a right-click anywhere on the Windows bar, never the page menu', async () => {
+  markShell('windows')
+  const { container } = renderBar()
+  await screen.findByRole('button', { name: 'Maximize' })
+  const dragArea = container.querySelector('[data-desktop-window-bar-content] > [role="presentation"]') as HTMLElement
+  for (const target of [dragArea, screen.getByRole('button', { name: 'Menu' }), screen.getByRole('button', { name: 'Close' })]) {
+    invoke.mockClear()
+    expect(fireEvent.contextMenu(target)).toBe(false)
+    expect(invoke).toHaveBeenCalledTimes(1)
+    expect(invoke).toHaveBeenCalledWith('desktop_window', { action: 'system_menu' })
+  }
+})
+
+it('keeps the page menu off the macOS bar, where the window has no system menu to open', async () => {
+  markShell('macos')
+  const { container } = renderBar()
+  await waitFor(() => expect(invoke).toHaveBeenCalledWith('desktop_window', { action: 'state' }))
+  invoke.mockClear()
+  const dragArea = container.querySelector('[data-desktop-window-bar-content] > [role="presentation"]') as HTMLElement
+  expect(fireEvent.contextMenu(dragArea)).toBe(false)
+  expect(invoke).not.toHaveBeenCalled()
+})
+
 it('shows the hover fill on the maximize action while the native snap region holds the pointer', async () => {
   markShell('windows')
   renderBar()

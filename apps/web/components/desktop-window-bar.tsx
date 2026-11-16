@@ -54,12 +54,18 @@ function WindowBar({ platform }: Readonly<{ platform: DesktopWindowPlatform }>) 
     event.preventDefault()
     run(event.detail === 2 ? 'toggle_maximize' : 'drag')
   }
+  const onBarContextMenu = (event: MouseEvent<HTMLDivElement>) => {
+    event.preventDefault()
+    if (platform === 'windows') run('system_menu')
+  }
   return (
     <div
+      role="presentation"
       data-desktop-window-bar-content=""
       data-platform={platform}
       className="orbit-window-bar fixed inset-x-0 top-0 z-tooltip flex items-stretch bg-[var(--bg)] text-[var(--fg-1)]"
       style={{ height: DESKTOP_WINDOW_BAR_HEIGHT, paddingInlineStart: platform === 'macos' ? DESKTOP_WINDOW_TRAFFIC_LIGHT_INSET : DESKTOP_WINDOW_BAR_END_INSET, paddingInlineEnd: DESKTOP_WINDOW_BAR_END_INSET }}
+      onContextMenu={onBarContextMenu}
     >
       {platform === 'windows' && (
         <div className="flex items-center">

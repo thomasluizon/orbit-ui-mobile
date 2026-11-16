@@ -11,6 +11,7 @@ pub enum Action {
     ToggleMaximize,
     Close,
     Menu,
+    SystemMenu,
     Bar,
 }
 
@@ -361,6 +362,7 @@ trait BarWindow {
     fn start_dragging(&self) -> tauri::Result<()>;
     fn close(&self) -> tauri::Result<()>;
     fn popup_menu(&self) -> tauri::Result<()>;
+    fn system_menu(&self) -> tauri::Result<()>;
     fn set_decorations(&self, decorations: bool) -> tauri::Result<()>;
     fn set_shadow(&self, shadow: bool) -> tauri::Result<()>;
     fn set_title_bar_style(&self, style: tauri::utils::TitleBarStyle) -> tauri::Result<()>;
@@ -397,6 +399,22 @@ impl BarWindow for WebviewWindow {
             tauri::LogicalPosition::new(BAR_END_INSET, BAR_HEIGHT),
         )
     }
+    // A right-click on a native caption opens the window menu (Restore, Move, Size, Minimize, Maximize, Close) at the pointer.
+    // The bar is web content, so the page asks for that menu, and `native/windows/caption.cpp` opens it.
+    fn system_menu(&self) -> tauri::Result<()> {
+        #[cfg(windows)]
+        {
+            crate::launch::with_native(self, |pointer| {
+                if !unsafe { orbit_caption_system_menu(pointer) } {
+                    eprintln!("Cannot open the window system menu");
+                }
+            })
+        }
+        #[cfg(not(windows))]
+        {
+            Err(std::io::Error::other("Only the Windows shell has a window system menu").into())
+        }
+    }
     fn set_decorations(&self, decorations: bool) -> tauri::Result<()> {
         WebviewWindow::set_decorations(self, decorations)
     }
@@ -415,6 +433,7 @@ fn apply(window: &impl BarWindow, action: Action) -> tauri::Result<bool> {
         Action::Minimize => window.minimize()?,
         Action::Close => window.close()?,
         Action::Menu => window.popup_menu()?,
+        Action::SystemMenu => window.system_menu()?,
         Action::ToggleMaximize => {
             if window.is_maximized()? {
                 window.unmaximize()?
@@ -430,6 +449,7 @@ fn apply(window: &impl BarWindow, action: Action) -> tauri::Result<bool> {
 extern "C" {
     fn orbit_caption_install(window: *mut std::ffi::c_void, hover: extern "C" fn(bool)) -> bool;
     fn orbit_caption_set_active(window: *mut std::ffi::c_void, active: bool);
+    fn orbit_caption_system_menu(window: *mut std::ffi::c_void) -> bool;
 }
 
 #[cfg(windows)]
@@ -557,6 +577,7 @@ mod tests {
             ("toggle_maximize", Action::ToggleMaximize),
             ("close", Action::Close),
             ("menu", Action::Menu),
+            ("system_menu", Action::SystemMenu),
             ("bar", Action::Bar),
         ] {
             let parsed: Action = serde_json::from_str(&format!("\"{name}\"")).unwrap();
@@ -607,6 +628,9 @@ mod tests {
         fn popup_menu(&self) -> tauri::Result<()> {
             self.record("popup_menu")
         }
+        fn system_menu(&self) -> tauri::Result<()> {
+            self.record("system_menu")
+        }
         fn set_decorations(&self, decorations: bool) -> tauri::Result<()> {
             self.record(format!("set_decorations({decorations})"))
         }
@@ -630,6 +654,8 @@ mod tests {
             (Action::ToggleMaximize, true, Some("unmaximize"), false),
             (Action::Menu, false, Some("popup_menu"), false),
             (Action::Menu, true, Some("popup_menu"), true),
+            (Action::SystemMenu, false, Some("system_menu"), false),
+            (Action::SystemMenu, true, Some("system_menu"), true),
             (Action::Bar, false, None, false),
             (Action::Bar, true, None, true),
         ] {

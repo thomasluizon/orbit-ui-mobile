@@ -108,3 +108,30 @@ extern "C" void orbit_caption_set_active(void *parent, bool active) {
     caption.pressed = false;
     caption.hovered = false;
 }
+
+static void enable_command(HMENU menu, UINT command, bool enabled) {
+    MENUITEMINFOW item{};
+    item.cbSize = sizeof(item);
+    item.fMask = MIIM_STATE;
+    item.fState = enabled ? MFS_ENABLED : MFS_DISABLED;
+    SetMenuItemInfoW(menu, command, FALSE, &item);
+}
+
+// The window menu that a right-click on a native caption opens. DefWindowProc sets the enabled states of that menu only for its
+// own caption, so this sets them from the window state as a captioned window shows them, then runs the chosen command.
+extern "C" bool orbit_caption_system_menu(void *parent) {
+    auto window = static_cast<HWND>(parent);
+    HMENU menu = GetSystemMenu(window, FALSE);
+    POINT pointer{};
+    if (!menu || !GetCursorPos(&pointer)) return false;
+    bool maximized = IsZoomed(window) != FALSE;
+    enable_command(menu, SC_RESTORE, maximized);
+    enable_command(menu, SC_MOVE, !maximized);
+    enable_command(menu, SC_SIZE, !maximized);
+    enable_command(menu, SC_MINIMIZE, true);
+    enable_command(menu, SC_MAXIMIZE, !maximized);
+    enable_command(menu, SC_CLOSE, true);
+    auto command = static_cast<UINT>(TrackPopupMenu(menu, TPM_RETURNCMD | TPM_RIGHTBUTTON, pointer.x, pointer.y, 0, window, nullptr));
+    if (command) PostMessageW(window, WM_SYSCOMMAND, command, 0);
+    return true;
+}

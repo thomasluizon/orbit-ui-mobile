@@ -2,7 +2,7 @@ import { BUTTON_SIZES, SMALL_PILL_VISIBLE_MIN } from '@orbit/shared/theme'
 import { desktopRuntime } from '@/lib/desktop-runtime'
 
 export type DesktopWindowPlatform = 'windows' | 'macos'
-export type DesktopWindowAction = 'state' | 'drag' | 'minimize' | 'toggle_maximize' | 'close' | 'menu'
+export type DesktopWindowAction = 'state' | 'drag' | 'minimize' | 'toggle_maximize' | 'close' | 'menu' | 'system_menu'
 
 /** The shell marks the root element with this attribute at document creation, and only a shell without a native title bar does. */
 const DESKTOP_WINDOW_BAR_ATTRIBUTE = 'data-desktop-window-bar'
