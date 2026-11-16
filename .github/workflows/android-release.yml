@@ -414,8 +414,9 @@ jobs:
       # stale entry should be missed rather than reused. run_id keeps each run's cache
       # unique to write, with restore-keys falling back to the newest compatible one.
       - name: Restore the ccache directory
+        id: compiler-cache
         if: env.CCACHE_AVAILABLE == 'true'
-        uses: actions/cache@v6
+        uses: actions/cache/restore@v6
         with:
           path: ~/.cache/ccache
           key: ccache-android-release-${{ hashFiles('package-lock.json') }}-${{ github.run_id }}
@@ -462,15 +463,33 @@ jobs:
           fi
 
       # ccache sets the time of each object that a compile reads or writes, and removes none under its size limit. The
-      # cache step saves when the job passes, so the entry of each run holds only the objects of this build and does not
-      # grow from one release to the next.
-      # The step names the saved directory, so it cleans what the save stores. It then removes each top-level entry other
-      # than the 16 object directories and ccache.conf, so a log, a lock or a temporary file never reaches the entry.
+      # save step after it runs when the build passes, so the entry of each run holds only the objects of this build and
+      # does not grow from one release to the next.
+      # The step names the saved directory, so it cleans what the save stores, and the save is the next step. It then
+      # removes each path that is not in the layout of ccache 4.9.1 and 4.14.2: the 16 object directories, their
+      # one-character subdirectories, the stats and CACHEDIR.TAG files, and the object files. So a log, a lock, a
+      # configuration file or a file that another step writes never reaches the entry.
       - name: Keep only the objects that this build used
         if: env.CCACHE_AVAILABLE == 'true'
         run: |
+          set -euo pipefail
           ccache --dir ~/.cache/ccache --evict-older-than "$(($(date +%s) - COMPILER_CACHE_USED_SINCE))s"
-          find ~/.cache/ccache -mindepth 1 -maxdepth 1 ! \( -type d -name '[0-9a-f]' \) ! \( -type f -name ccache.conf \) -exec rm -rf {} +
+          cd ~/.cache/ccache
+          directory='^[0-9a-f](/[0-9a-f]){0,3}$'
+          file='^[0-9a-f]/(CACHEDIR\.TAG|stats|[0-9a-f]/stats|[0-9a-f](/[0-9a-f]){0,2}/([0-9a-v]{29,31}([MR]|[0-9]W)|[0-9a-f]{36,38}(_[0-9a-f]{2})?))$'
+          find . -mindepth 1 -depth -print0 | while IFS= read -r -d '' entry; do
+            layout=$file
+            if [[ -d $entry ]]; then layout=$directory; fi
+            if [[ -L $entry || ! ( -d $entry || -f $entry ) || ! ${entry#./} =~ $layout ]]; then rm -rf "$entry"; fi
+          done
+
+      # A rerun attempt has the same run id, so it finds its own key and saves nothing.
+      - name: Save the ccache directory
+        if: env.CCACHE_AVAILABLE == 'true' && steps.compiler-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: ~/.cache/ccache
+          key: ${{ steps.compiler-cache.outputs.cache-primary-key }}
 
       - name: Verify AAB signing certificate matches the upload keystore
         working-directory: apps/mobile/android

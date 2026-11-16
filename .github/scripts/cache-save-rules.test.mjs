@@ -1,8 +1,8 @@
 import assert from "node:assert/strict"
 import { spawnSync } from "node:child_process"
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs"
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
-import { join } from "node:path"
+import { dirname, join } from "node:path"
 import test from "node:test"
 import { isDeepStrictEqual } from "node:util"
 import yaml from "js-yaml"
@@ -402,7 +402,7 @@ function keyPattern(template) {
 test("the sweep keeps the newest main entry of every cache family that a release saves, matched on the full key", () => {
   const releaseSaves = everyStep.filter(({ file, step }) => /(^|-)release\.yml$/.test(file) && savesACache(step))
   assert.deepEqual(releaseSaves.map(({ where }) => where).sort(), [
-    "android-release.yml: release-android: Restore the ccache directory",
+    "android-release.yml: release-android: Save the ccache directory",
     "ios-release.yml: release: Save compiler outputs",
   ])
   const keyOf = ({ file, job, step }) => {
@@ -422,10 +422,30 @@ const COMPILER_CACHE_STAMP = 'echo "COMPILER_CACHE_USED_SINCE=$(date +%s)" >> "$
 // The evict step names the saved path, so ccache cleans that directory whatever the configuration of the job says: ccache
 // at v4.9.1, src/core/mainoptions.cpp, process_main_options, sets CCACHE_DIR from --dir before it reads the configuration,
 // and CCACHE_DIR outranks the system configuration, ~/.ccache and XDG_CACHE_HOME (src/Config.cpp, Config::read).
-// --evict-older-than visits only the object subdirectories (do_clean_all), so the same step then removes each top-level
-// entry other than the 16 object directories and ccache.conf: a log, a lock or a temporary file never reaches the save.
-const compilerCacheEvict = (path) => `ccache --dir ${path} --evict-older-than "$(($(date +%s) - COMPILER_CACHE_USED_SINCE))s"
-find ${path} -mindepth 1 -maxdepth 1 ! \\( -type d -name '[0-9a-f]' \\) ! \\( -type f -name ccache.conf \\) -exec rm -rf {} +
+// --evict-older-than removes only old files inside the object directories, so the same step then removes each path that
+// is not in the ccache layout, at every depth. Any step of the job can write a file into the saved directory, so the bound
+// is the layout, not a list of writers.
+const CCACHE_LAYOUT_SOURCE = "src/storage/local/LocalStorage.cpp at v4.9.1 and src/ccache/storage/local/localstorage.cpp at v4.14.2"
+// The directories of the layout in CCACHE_LAYOUT_SOURCE (get_subdir, get_path_in_cache): level 1 is the 16 directories
+// [0-9a-f], level 2 is the 16 directories [0-9a-f] in each of them, and levels 3 and 4 add one [0-9a-f] directory each
+// when a level 2 directory holds too many files. The lock and tmp directories are outside the layout.
+const CCACHE_DIRECTORY = "^[0-9a-f](/[0-9a-f]){0,3}$"
+// The files of the layout: a stats file in each directory of level 1 and 2 (get_stats_file), CACHEDIR.TAG in each directory
+// of level 1 (create_cachedir_tag), and an object file in a directory of level 2, 3 or 4, named by the key less its first
+// 2, 3 or 4 characters. In 4.9.1 the key is 4 base16 and 29 base32hex characters (util::format_digest) and ends in M or R,
+// and a raw file ends in a digit and W (get_raw_file_path). In 4.14.2 the key is 40 base16 characters (util::format_base16),
+// and a raw file ends in _ and 2 base16 characters. ccache.conf, a log, a stats log and a file remote storage are outside.
+const CCACHE_FILE = "^[0-9a-f]/(CACHEDIR\\.TAG|stats|[0-9a-f]/stats|[0-9a-f](/[0-9a-f]){0,2}/([0-9a-v]{29,31}([MR]|[0-9]W)|[0-9a-f]{36,38}(_[0-9a-f]{2})?))$"
+const compilerCacheEvict = (path) => `set -euo pipefail
+ccache --dir ${path} --evict-older-than "$(($(date +%s) - COMPILER_CACHE_USED_SINCE))s"
+cd ${path}
+directory='${CCACHE_DIRECTORY}'
+file='${CCACHE_FILE}'
+find . -mindepth 1 -depth -print0 | while IFS= read -r -d '' entry; do
+  layout=$file
+  if [[ -d $entry ]]; then layout=$directory; fi
+  if [[ -L $entry || ! ( -d $entry || -f $entry ) || ! \${entry#./} =~ $layout ]]; then rm -rf "$entry"; fi
+done
 `
 const SAVES_A_PASSING_MAIN_COMPILE = "github.ref == 'refs/heads/main' && steps.compiler-cache.outputs.cache-hit != 'true'"
 const LINUX_CCACHE_ENV = 'echo "CCACHE_AVAILABLE=true"\n    echo "CMAKE_C_COMPILER_LAUNCHER=ccache"\n    echo "CMAKE_CXX_COMPILER_LAUNCHER=ccache"'
@@ -435,10 +455,10 @@ CCACHE_BINARY="$(command -v ccache)"
 export CCACHE_BINARY
 `
 // Each saver with its reviewed path, its reviewed env and its reviewed ccache steps. The restore and the save name that
-// exact path, and the evict step is built from it. The env of the job and its workflow, and each step of the job that
-// names ccache in any letter case (other than its cache steps and its evict step), equal the reviewed form, as canonical
-// steps without the name. So a CCACHE_ env name, a ccache configuration command or a ccache configuration file that the
-// reviewed form does not name fails, and nothing writes into the saved directory a file that the evict step keeps.
+// exact path, the evict step is built from it, and the evict step is the step just before the save. So the save stores
+// only the ccache layout, whatever the earlier steps wrote. The env of the job and its workflow, and each step of the job
+// that names ccache in any letter case (other than its cache steps and its evict step), equal the reviewed form, as
+// canonical steps without the name. That compare pins the reviewed settings; it does not bound the entry.
 const COMPILER_CACHE_SAVERS = {
   "mobile-build.yml: build": {
     compile: "compile", path: "~/.cache/ccache",
@@ -630,6 +650,7 @@ const assertNoRunDefaults = (workflow, job, where) =>
 
 // The ccache settings of the job are the reviewed ones: the workflow sets no env, the job env is the reviewed env, and each
 // step of the job that names ccache, other than its cache steps and its evict step, is a reviewed step in reviewed order.
+// This is a pin of the reviewed settings. A setting from a file or a script passes it, and the evict step bounds its output.
 function assertCompilerCacheSettings(list, { env, ccacheSteps }, evictStep, where) {
   assert.deepEqual({ workflow: list.workflow.document.env, job: list.job.env }, { workflow: undefined, job: env },
     `${where}: the env of the job and its workflow is the reviewed env`)
@@ -666,7 +687,9 @@ function checkCompilerCaches(currentTree) {
     assertCompilerCacheSettings(list, saver, evicts[0], where)
     const evict = steps.indexOf(evicts[0])
     assert.ok(restore < stamp && stamp < compile && compile < evict, `${where}: restore, then the stamp, then the compile, then the evict step`)
-    if (/^actions\/cache\/save@/i.test(save.uses)) assert.ok(evict < steps.indexOf(save), `${where}: the evict step runs before the save`)
+    // A combined actions/cache step saves in its post step, after every later step of the job, so only a save step can follow the evict step.
+    assert.equal(actionName(save.uses), "actions/cache/save", `${where}: the save is an actions/cache/save step`)
+    assert.equal(steps.indexOf(save), evict + 1, `${where}: the evict step is the step just before the save, so no other step writes after it`)
   }
 }
 
@@ -743,10 +766,11 @@ const RULES = {
       assert.equal(step.with.path, "${{ steps.npm-cache.outputs.path }}", `${where}: the npm save writes the npm cache directory`)
     },
   },
-  // checkCompilerCaches holds the restore, the stamp step, the evict step and the order of each compiler cache save. The
-  // evict step cleans only the reviewed directory of its job, so the save writes exactly that path.
+  // checkCompilerCaches holds the restore, the stamp step, the evict step and the order of each compiler cache save, with
+  // the evict step just before the save. The evict step cleans only the reviewed directory of its job, so the save writes
+  // exactly that path.
   "the evict step": {
-    actions: ["actions/cache", "actions/cache/save"],
+    actions: ["actions/cache/save"],
     check: ({ step, list, where }) => {
       assert.ok(Object.hasOwn(COMPILER_CACHE_SAVERS, list.place), `${where}: COMPILER_CACHE_SAVERS names the job`)
       const { path } = COMPILER_CACHE_SAVERS[list.place]
@@ -909,7 +933,8 @@ const changeText = (path, ...replacements) => {
   let text = readFileSync(join(root, path), "utf8")
   for (const [from, to] of replacements) {
     if (!text.includes(from)) return { [MISSING_TEXT]: `${path} no longer holds the text that the case replaces: ${from.trim().split("\n")[0]}` }
-    text = text.replace(from, to)
+    // A function keeps a $ pattern of the new text, such as the $' at the end of a quoted pattern, as text.
+    text = text.replace(from, () => to)
   }
   return { [path]: text }
 }
@@ -1006,6 +1031,20 @@ const PLAN_HASH_STEP = "      - name: Hash the test tasks and read the changed p
 const IOS_COMPILER_CHECK_ENV = "      CCACHE_COMPILERCHECK: content\n"
 const MOBILE_COMPILER_CHECK = "            ccache --set-config=compiler_check=content\n"
 const MOBILE_SHOW_STATS = "        run: ccache --show-stats\n"
+const MOBILE_CCACHE_SAVE = "      - name: Save the ccache directory\n        if: ${{ always()"
+const ANDROID_RELEASE_RESTORE = "        id: compiler-cache\n        if: env.CCACHE_AVAILABLE == 'true'\n        uses: actions/cache/restore@v6\n"
+const ANDROID_RELEASE_SAVE = `      # A rerun attempt has the same run id, so it finds its own key and saves nothing.
+      - name: Save the ccache directory
+        if: env.CCACHE_AVAILABLE == 'true' && steps.compiler-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: ~/.cache/ccache
+          key: \${{ steps.compiler-cache.outputs.cache-primary-key }}
+`
+const KEEP_HISTORY = "      - run: bash .github/ci/keep-history.sh\n"
+// The android-release job saves through the post step of a combined cache step again, after every later step of the job.
+const ANDROID_RELEASE_COMBINED = changeText(".github/workflows/android-release.yml",
+  [ANDROID_RELEASE_RESTORE, ANDROID_RELEASE_RESTORE.replace("actions/cache/restore@v6", "actions/cache@v6")], [ANDROID_RELEASE_SAVE, ""])
 // A new workflow whose plan job gives a pass key and whose export job saves a path under it.
 const webExport = (path, before) => ({
   ".github/workflows/web-export.yml": `name: Web export
@@ -1052,7 +1091,7 @@ const MUTATIONS = [
   ["M9 the Turbo delete step runs on pull requests too", changeText(".github/workflows/test.yml",
     [TURBO_DELETE, TURBO_DELETE.replace("        if: github.event_name != 'pull_request'\n", "")]), /the delete step runs on each run that saves/, WRITE],
   ["M10 the ios-build evict step after the save", changeText(".github/workflows/ios-build.yml", [IOS_BUILD_EVICT, ""],
-    ["      - name: Report compiler cache statistics\n", `${IOS_BUILD_EVICT}      - name: Report compiler cache statistics\n`]), /the evict step runs before the save/, WRITE],
+    ["      - name: Report compiler cache statistics\n", `${IOS_BUILD_EVICT}      - name: Report compiler cache statistics\n`]), /the evict step is the step just before the save/, WRITE],
   ["M11 a new prefix restore saved under its primary key", typeCheckAround(restoreStep("Restore eslint", ".eslintcache", ESLINT_KEY, "eslint-", "eslint-cache"),
     saveStep("Save eslint", ".eslintcache", "${{ steps.eslint-cache.outputs.cache-primary-key }}")), NO_LINE],
   ["M13 a new prefix restore saved under a literal key", typeCheckAround(restoreStep("Restore eslint", ".eslintcache", ESLINT_KEY, "eslint-"),
@@ -1151,7 +1190,7 @@ const MUTATIONS = [
     [IOS_BUILD_EVICT, `${IOS_BUILD_EVICT}        shell: true {0}\n`]), /ios-build\.yml: compile: Save compiler outputs: the evict step differs from its reviewed form/, WRITE],
   ["EVe the android-release evict step cleans another directory", changeText(".github/workflows/android-release.yml",
     [ANDROID_RELEASE_EVICT, `${ANDROID_RELEASE_EVICT}        env:\n          CCACHE_DIR: /tmp/other-ccache\n`]),
-    /android-release\.yml: release-android: Restore the ccache directory: the evict step differs from its reviewed form/, WRITE],
+    /android-release\.yml: release-android: Save the ccache directory: the evict step differs from its reviewed form/, WRITE],
   ["STs the mobile-build stamp step runs in a shell that ignores its script", changeText(".github/workflows/mobile-build.yml",
     [MOBILE_BUILD_STAMP, `${MOBILE_BUILD_STAMP}        shell: true {0}\n`]), /mobile-build\.yml: build: Save the ccache directory: the stamp step differs from its reviewed form/, WRITE],
   ["ST2 a second ios-release stamp step just before the evict step", changeText(".github/workflows/ios-release.yml",
@@ -1191,7 +1230,7 @@ const MUTATIONS = [
     /mobile-build\.yml: build: Save the ccache directory: the env of the job and its workflow is the reviewed env/, WRITE],
   ["EVr a step of the android-release job creates the legacy ccache directory", changeText(".github/workflows/android-release.yml",
     [ANDROID_RELEASE_EVICT, `      - run: mkdir -p ~/.ccache\n${ANDROID_RELEASE_EVICT}`]),
-    /android-release\.yml: release-android: Restore the ccache directory: each step that names ccache is a reviewed step/, WRITE],
+    /android-release\.yml: release-android: Save the ccache directory: each step that names ccache is a reviewed step/, WRITE],
   ["B1 turbo.json moves the Turbo cache directory", changeText("turbo.json", [TURBO_JSON_HEAD, `${TURBO_JSON_HEAD}  "cacheDir": ".turbo/results",\n`]),
     /Save turbo: turbo\.json sets no cacheDir/],
   ["B2 the Type Check job env moves the Turbo cache directory", changeText(".github/workflows/test.yml",
@@ -1228,6 +1267,15 @@ const MUTATIONS = [
     ".github/ccache.conf": "cache_dir = /mnt/ccache\n",
     ...changeText(".github/workflows/mobile-build.yml", [MOBILE_SHOW_STATS, `${MOBILE_SHOW_STATS}      - run: sudo cp .github/ccache.conf /etc/ccache.conf\n`]),
   }, /mobile-build\.yml: build: Save the ccache directory: each step that names ccache is a reviewed step/, WRITE],
+  ["C7b a mobile-build step between the evict step and the save runs a script that appends to a file in the saved directory",
+    changeText(".github/workflows/mobile-build.yml", [MOBILE_CCACHE_SAVE, `${KEEP_HISTORY}${MOBILE_CCACHE_SAVE}`]),
+    /mobile-build\.yml: build: Save the ccache directory: the evict step is the step just before the save/, WRITE],
+  ["C7c an android-release step between the evict step and the save runs a script that appends to a file in the saved directory",
+    changeText(".github/workflows/android-release.yml", [ANDROID_RELEASE_SAVE, `${KEEP_HISTORY}${ANDROID_RELEASE_SAVE}`]),
+    /android-release\.yml: release-android: Save the ccache directory: the evict step is the step just before the save/, WRITE],
+  ["C8 the android-release job saves through the post step of a combined cache step, whose line names the evict step", ANDROID_RELEASE_COMBINED,
+    /Restore the ccache directory: the rule "the evict step" does not cover actions\/cache$/m,
+    withRule("android-release.yml: release-android: Restore the ccache directory", "the evict step")],
 ]
 
 for (const [name, changes, reason, review] of MUTATIONS) {
@@ -1236,6 +1284,96 @@ for (const [name, changes, reason, review] of MUTATIONS) {
       const changed = readTree(changes)
       cacheGuard(changed, review ? review(reviewedInventory(changed)) : INVENTORY)
     }, reason)
+  })
+}
+
+test("a compiler cache save in the post step of a combined cache step fails the compiler cache check", () => {
+  assert.throws(() => checkCompilerCaches(readTree(ANDROID_RELEASE_COMBINED)),
+    /android-release\.yml: release-android: Restore the ccache directory: the save is an actions\/cache\/save step/)
+})
+
+// Objects, stats files and tags as a real compile wrote them with ccache 4.9.1 and 4.14.2, with the names that the same
+// keys get at levels 3 and 4. The other paths are what ccache, a setting from a file or a script, or another step can
+// leave in the saved directory: a configuration file, the lock and tmp directories, logs, a file remote storage, a
+// temporary file of a failed clone, and files in non-layout places.
+const CCACHE_LAYOUT_FILES = [
+  "0/stats", "0/0/stats", "4/CACHEDIR.TAG", "4/b/86crhul92ad5er6dg3r02jesp2kihvsR", "4/b/86crhul92ad5er6dg3r02jesp2kihvs0W",
+  "2/0/b7ndefumsjk038q42bncvfjbmcol7ikM", "4/b/8/6crhul92ad5er6dg3r02jesp2kihvsR", "4/b/8/6/crhul92ad5er6dg3r02jesp2kihvs9W",
+  "a/3/476e955e567349d3b61e01b4778955e078ff8c", "a/3/476e955e567349d3b61e01b4778955e078ff8c_00",
+  "a/3/4/76e955e567349d3b61e01b4778955e078ff8c_0a", "a/3/4/7/6e955e567349d3b61e01b4778955e078ff8c",
+]
+const OUTSIDE_CCACHE_LAYOUT = [
+  "ccache.conf", "lock/subdir_4b", "tmp/.cleaned", "tmp/inode-cache-64.v4", "x", "0/ccache.log", "0/0/ccache.log", "1/stats.log",
+  "2/remote/44/586l71cllkrgnohv7325d9k0tq9g2jc", "0/0/remote/5b/f9886624844742c2551781c8139685ba432184", "3/history.log",
+  "3/4/history.log", "3/4/5/history.log", "3/4/5/6/7/history.log", "9/9/a", "9/9/0123456789abcdef0123456789abcdef0123456789abcdef",
+  "8/history/file", "e/f/43b3gd3eto4hukug9519cgldidde9n80W.tmp.kuRTBe.tmp",
+]
+
+// Each path under a directory, with whether it is a directory. A symbolic link is not a directory.
+const walk = (root, prefix = "") => readdirSync(join(root, prefix), { withFileTypes: true }).flatMap((entry) => {
+  const path = prefix ? `${prefix}/${entry.name}` : entry.name
+  return entry.isDirectory() ? [{ path, directory: true }, ...walk(root, path)] : [{ path, directory: false }]
+})
+
+// Runs the evict step of a job of the tree, in bash -e as the runner does, on a saved directory that holds the files and
+// two symbolic links. The ccache on the PATH removes nothing, so only the clean of the step acts. Returns what is left.
+function runEvictStep(currentTree, place, files) {
+  const { run } = cacheStepLists(currentTree).find((list) => list.place === place).entries
+    .find(({ step }) => step.run?.includes("--evict-older-than")).step
+  const directory = mkdtempSync(join(tmpdir(), "ccache-evict-"))
+  try {
+    const home = join(directory, "home")
+    const bin = join(directory, "bin")
+    const saved = COMPILER_CACHE_SAVERS[place].path.replace(/^~/, home).replace("${{ env.CCACHE_DIR }}", join(directory, "workspace-ccache"))
+    for (const file of files) {
+      mkdirSync(dirname(join(saved, file)), { recursive: true })
+      writeFileSync(join(saved, file), file)
+    }
+    mkdirSync(join(saved, "9"), { recursive: true })
+    symlinkSync(join(saved, "0"), join(saved, "9/link"))
+    symlinkSync(directory, join(saved, "link"))
+    mkdirSync(bin)
+    writeFileSync(join(bin, "ccache"), "#!/usr/bin/env bash\nexit 0\n")
+    chmodSync(join(bin, "ccache"), 0o755)
+    const result = spawnSync("bash", ["-e", "-c", run.replaceAll("${{ env.CCACHE_DIR }}", saved)], {
+      encoding: "utf8",
+      env: { PATH: `${bin}:${process.env.PATH}`, HOME: home, COMPILER_CACHE_USED_SINCE: "0" },
+    })
+    assert.equal(result.status, 0, result.stdout + result.stderr)
+    const left = walk(saved)
+    return { files: left.filter((entry) => !entry.directory).map(({ path }) => path).sort(), directories: left.filter((entry) => entry.directory).map(({ path }) => path) }
+  } finally {
+    rmSync(directory, { recursive: true, force: true })
+  }
+}
+
+test(`the evict step of each compiler cache job keeps only the ccache layout of ${CCACHE_LAYOUT_SOURCE}`, () => {
+  for (const place of Object.keys(COMPILER_CACHE_SAVERS)) {
+    const left = runEvictStep(tree, place, [...CCACHE_LAYOUT_FILES, ...OUTSIDE_CCACHE_LAYOUT])
+    assert.deepEqual(left.files, [...CCACHE_LAYOUT_FILES].sort(), `${place}: the files that the evict step keeps`)
+    assert.deepEqual(left.directories.filter((path) => !new RegExp(CCACHE_DIRECTORY).test(path)), [], `${place}: the directories that the evict step keeps`)
+  }
+})
+
+// A ccache setting from a repository file or a script names no ccache in the job, so the settings pin passes it, and the
+// compile writes its log into the saved directory before the evict step. The guard passes on the written inventory, and
+// the evict step of the changed job removes every file that the setting adds.
+const MOBILE_COMPILE = "      - name: Build the release APK\n"
+const IOS_COMPILE = "      - name: Compile without signing or launching a simulator\n"
+const LAYOUT_CASES = [
+  ["C1 a mobile-build step loads a ccache log file setting from a repository env file", "mobile-build.yml: build",
+    changeText(".github/workflows/mobile-build.yml", [MOBILE_COMPILE, `      - run: cat .github/ci/build.env >> "$GITHUB_ENV"\n${MOBILE_COMPILE}`]), ["0/ccache.log"]],
+  ["C2 an ios-build step runs a script that writes a ccache log and stats log setting to GITHUB_ENV", "ios-build.yml: compile",
+    changeText(".github/workflows/ios-build.yml", [IOS_COMPILE, `      - run: bash .github/ci/ios-build-env.sh\n${IOS_COMPILE}`]), ["0/ccache.log", "1/stats.log"]],
+  ["C3 a mobile-build step copies a ccache configuration file with a log file and a file remote storage", "mobile-build.yml: build",
+    changeText(".github/workflows/mobile-build.yml", [MOBILE_COMPILE, `      - run: mkdir -p ~/.config && cp -R .github/ci/config/. ~/.config/\n${MOBILE_COMPILE}`]),
+    ["0/ccache.log", "2/remote/44/586l71cllkrgnohv7325d9k0tq9g2jc"]],
+]
+for (const [name, place, changes, written] of LAYOUT_CASES) {
+  test(`the evict step bounds the entry on ${name}`, () => {
+    const changed = readTree(changes)
+    assert.doesNotThrow(() => cacheGuard(changed, WRITE(reviewedInventory(changed))))
+    assert.deepEqual(runEvictStep(changed, place, [...CCACHE_LAYOUT_FILES, ...written]).files, [...CCACHE_LAYOUT_FILES].sort())
   })
 }
 

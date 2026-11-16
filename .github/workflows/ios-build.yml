@@ -154,13 +154,23 @@ jobs:
       # ccache sets the time of each object that a compile reads or writes, and removes none under its size limit. A
       # passing compile used every object it needs, so the saved entry holds only those and does not grow when the key
       # changes. A failed compile did not reach every object, so its partial entry keeps the restored ones.
-      # The step names the saved directory, so it cleans what the save stores. It then removes each top-level entry other
-      # than the 16 object directories and ccache.conf, so a log, a lock or a temporary file never reaches the entry.
+      # The step names the saved directory, so it cleans what the save stores, and the save is the next step. It then
+      # removes each path that is not in the layout of ccache 4.9.1 and 4.14.2: the 16 object directories, their
+      # one-character subdirectories, the stats and CACHEDIR.TAG files, and the object files. So a log, a lock, a
+      # configuration file or a file that another step writes never reaches the entry.
       - name: Keep only the objects that this compile used
         if: ${{ steps.compile.outcome == 'success' && github.ref == 'refs/heads/main' && steps.compiler-cache.outputs.cache-hit != 'true' }}
         run: |
+          set -euo pipefail
           ccache --dir ${{ env.CCACHE_DIR }} --evict-older-than "$(($(date +%s) - COMPILER_CACHE_USED_SINCE))s"
-          find ${{ env.CCACHE_DIR }} -mindepth 1 -maxdepth 1 ! \( -type d -name '[0-9a-f]' \) ! \( -type f -name ccache.conf \) -exec rm -rf {} +
+          cd ${{ env.CCACHE_DIR }}
+          directory='^[0-9a-f](/[0-9a-f]){0,3}$'
+          file='^[0-9a-f]/(CACHEDIR\.TAG|stats|[0-9a-f]/stats|[0-9a-f](/[0-9a-f]){0,2}/([0-9a-v]{29,31}([MR]|[0-9]W)|[0-9a-f]{36,38}(_[0-9a-f]{2})?))$'
+          find . -mindepth 1 -depth -print0 | while IFS= read -r -d '' entry; do
+            layout=$file
+            if [[ -d $entry ]]; then layout=$directory; fi
+            if [[ -L $entry || ! ( -d $entry || -f $entry ) || ! ${entry#./} =~ $layout ]]; then rm -rf "$entry"; fi
+          done
       # A key is written once, so a passing main compile saves the input key. A failed or timed-out main compile saves
       # a run-scoped partial entry instead: the restore step finds it by prefix, so the next attempt is not cold, and
       # the input key stays free for the passing compile. ccache checksums each entry.
