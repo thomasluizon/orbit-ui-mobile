@@ -34,8 +34,8 @@ UI `main` `ca538e933`; API `main` `38513551a`; landing `main` `20c1b0a90`. Owner
 | api#1116 (`#2150`) | Round 2 was refused by the relay drain and never ran: launch it first (S `note-1116-r2.md`). Review, push, Pullfrog, merge, then the API release with the manual steps (production webhook is broken until then). |
 | ui#2469 (`#2074`) | Round 20 was refused by the relay drain and never ran: launch it (S `note-2469-r20.md`). Review, push. |
 | ui#2464 (`#2137`) | Round 20 runs (S `note-2464-r20.md`). Review, push. |
-| ui#2451 (`#2121`) | Round 22 committed (`2cfecef3c` to `fc7c0f0a9`, two main merges). Diff, review, push with S `body-2451-r22.md`. |
-| ui#2475 (`#2149`) | Round 3 review runs (S `review-order-2475-r3.md`). Push if clean. |
+| ui#2451 (`#2121`) | Round 22 committed (`2cfecef3c` to `fc7c0f0a9`, two main merges). Diff, review, push. |
+| ui#2475 (`#2149`) | Round 3 review: DEFECTS (5) (S `review-2475-r3-local.md`). Round 4 fixes all five. |
 | ui#2476 (`#2145`) | Round 2 committed `3d0b39885` (a macOS write sandbox for read-only workers) on a merge of main. Read the diff, review worker, push with S `body-2476-r2.md`. |
 | `#2146` | Round 3 committed `1822e2e0d` on a main merge. Diff, review, push, open the pull request (S `body-2146-r3.md`). |
 | `#2143` | Round 4 committed `3b9fdecc5` on a merge of main. Read the diff, review worker, push, open the pull request with S `body-2143-r4.md`. |
