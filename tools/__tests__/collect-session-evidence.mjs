@@ -1,7 +1,7 @@
 import { mkdirSync, utimesSync, writeFileSync } from "node:fs"
 import { dirname, join } from "node:path"
 
-import { root, run, T } from "./_harness.mjs"
+import { root, run, same, T } from "./_harness.mjs"
 
 const NOW = "2026-09-12T12:00:00.000Z"
 const INSIDE = "2026-09-11T12:00:00.000Z"
@@ -28,7 +28,6 @@ const collect = (directory) => run("collect-session-evidence.mjs", [
 ])
 
 const parse = (result) => JSON.parse(result.stdout)
-const expectEqual = (name, got, want) => T(name, JSON.stringify(got) === JSON.stringify(want), `got=${JSON.stringify(got)} want=${JSON.stringify(want)}`)
 
 export async function cases() {
   const homeDirectory = join(root, "session-evidence-home")
@@ -42,7 +41,7 @@ export async function cases() {
     writeTranscript(directory, "default-session", [record("user", INSIDE, "default directory turn")])
     const options = { env: { HOME: homeDirectory, USERPROFILE: homeDirectory, CLAUDE_PROJECT_DIR: projectDirectory } }
     const result = run("collect-session-evidence.mjs", ["--now", NOW], options)
-    expectEqual(`collect-session-evidence: default lookup reads ${projectKey}`, {
+    same(`collect-session-evidence: default lookup reads ${projectKey}`, {
       status: result.status,
       userText: result.status === 0 ? parse(result).clusters[0]?.userText : result.stderr,
     }, { status: 0, userText: "default directory turn" })
@@ -50,7 +49,7 @@ export async function cases() {
     const overrideDirectory = join(root, "session-evidence-override")
     writeTranscript(overrideDirectory, "override-session", [record("user", INSIDE, "override directory turn")])
     const overrideResult = run("collect-session-evidence.mjs", ["--transcripts-dir", overrideDirectory, "--now", NOW], options)
-    expectEqual("collect-session-evidence: an explicit directory overrides the project default", {
+    same("collect-session-evidence: an explicit directory overrides the project default", {
       status: overrideResult.status,
       userText: parse(overrideResult).clusters[0]?.userText,
     }, { status: 0, userText: "override directory turn" })
@@ -78,14 +77,14 @@ export async function cases() {
   writeTranscript(join(shapeDirectory, "nested", "subagents"), "agent-secret", [record("user", INSIDE, "nested turn")])
   const shapeResult = collect(shapeDirectory)
   const shapeDigest = parse(shapeResult)
-  expectEqual("collect-session-evidence: window and top-level traversal retain only the human turn", {
+  same("collect-session-evidence: window and top-level traversal retain only the human turn", {
     status: shapeResult.status,
     files: shapeDigest.metrics.filesInWindow,
     humanTurns: shapeDigest.metrics.humanTurns,
     clusters: shapeDigest.metrics.clustersFound,
     malformed: shapeDigest.metrics.malformedRecords,
   }, { status: 0, files: 2, humanTurns: 1, clusters: 1, malformed: 1 })
-  expectEqual("collect-session-evidence: the human and preceding assistant turns are bounded", {
+  same("collect-session-evidence: the human and preceding assistant turns are bounded", {
     userLength: shapeDigest.clusters[0].userText.length,
     assistant: shapeDigest.clusters[0].assistantText,
     truncated: shapeDigest.metrics.truncatedTurns,
@@ -111,7 +110,7 @@ export async function cases() {
   const secretResult = collect(secretDirectory)
   const secretDigest = parse(secretResult)
   const rawSecretFragments = [...secrets, "private-material", "username:password"]
-  expectEqual("collect-session-evidence: every secret family is redacted", {
+  same("collect-session-evidence: every secret family is redacted", {
     rawValuesSurvive: rawSecretFragments.filter((secret) => secretResult.stdout.includes(secret)),
     markers: (secretResult.stdout.match(/\[REDACTED:/g) ?? []).length,
     metric: secretDigest.metrics.redactionsApplied,
@@ -129,14 +128,14 @@ export async function cases() {
   writeTranscript(thresholdDirectory, "session-a", [record("user", INSIDE, repeated), record("user", INSIDE, repeated)])
   writeTranscript(thresholdDirectory, "session-b", [record("user", INSIDE, `  ${repeated.toUpperCase()}  `)])
   const belowDigest = parse(collect(thresholdDirectory))
-  expectEqual("collect-session-evidence: two distinct sessions stay below threshold", {
+  same("collect-session-evidence: two distinct sessions stay below threshold", {
     count: belowDigest.clusters[0].distinctSessionCount,
     sessions: belowDigest.clusters[0].sessionIds,
     atThreshold: belowDigest.clusters[0].atThreshold,
   }, { count: 2, sessions: ["session-a", "session-b"], atThreshold: false })
   writeTranscript(thresholdDirectory, "session-c", [record("user", INSIDE, repeated)])
   const thresholdDigest = parse(collect(thresholdDirectory))
-  expectEqual("collect-session-evidence: three distinct sessions reach threshold with de-duplicated ids", {
+  same("collect-session-evidence: three distinct sessions reach threshold with de-duplicated ids", {
     count: thresholdDigest.clusters[0].distinctSessionCount,
     sessions: thresholdDigest.clusters[0].sessionIds,
     occurrences: thresholdDigest.clusters[0].occurrences,
@@ -153,7 +152,7 @@ export async function cases() {
     writeTranscript(emailIdentityDirectory, sessionId, [record("user", INSIDE, `Contact ${email}`)])
   }
   const emailIdentityDigest = parse(collect(emailIdentityDirectory))
-  expectEqual("collect-session-evidence: distinct emails do not become one exact cluster after redaction", {
+  same("collect-session-evidence: distinct emails do not become one exact cluster after redaction", {
     clusters: emailIdentityDigest.metrics.clustersFound,
     atThreshold: emailIdentityDigest.metrics.clustersAtThreshold,
     displayTexts: [...new Set(emailIdentityDigest.clusters.map((cluster) => cluster.userText))],
@@ -166,7 +165,7 @@ export async function cases() {
     writeTranscript(longIdentityDirectory, sessionId, [record("user", INSIDE, `${sharedPrefix}${suffix}`)])
   }
   const longIdentityDigest = parse(collect(longIdentityDirectory))
-  expectEqual("collect-session-evidence: text after the display limit remains part of exact identity", {
+  same("collect-session-evidence: text after the display limit remains part of exact identity", {
     clusters: longIdentityDigest.metrics.clustersFound,
     atThreshold: longIdentityDigest.metrics.clustersAtThreshold,
     displayLengths: [...new Set(longIdentityDigest.clusters.map((cluster) => cluster.userText.length))],
