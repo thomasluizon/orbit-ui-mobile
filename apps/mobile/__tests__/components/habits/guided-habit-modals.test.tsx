@@ -190,6 +190,21 @@ describe('a guided create on Android from a phrase with a repeat', () => {
     tree.unmount()
   })
 
+  it('keeps the time of the phrase when the repeat of the date question carries no time', async () => {
+    state.create.mockResolvedValue({ id: 'habit-9' })
+    const tree = mountCreate()
+    await settle()
+    await phrase(tree, 'ligar para o João às 8')
+    const words = tree.hosts().find((node) => (node.props as { onChangeText?: unknown }).onChangeText && node.props.accessibilityLabel === ptBR.habits.flow.when.freeLabel)!
+    await act(async () => { (words.props as unknown as { onChangeText: (value: string) => void }).onChangeText('todo dia'); await Promise.resolve() })
+    const submit = tree.hosts().find((node) => node.props.accessibilityLabel === ptBR.habits.flow.when.freeLabel && typeof (node.props as { onSubmitEditing?: unknown }).onSubmitEditing === 'function')!
+    await act(async () => { (submit.props as unknown as { onSubmitEditing: () => void }).onSubmitEditing(); await Promise.resolve() })
+    await tap(tree, ptBR.habits.flow.reminder.no)
+    await primary(tree)
+    expect(sent()).toMatchObject({ title: 'ligar para o João', startDate: '2026-11-13', dueTime: '08:00', frequencyUnit: 'Day', frequencyQuantity: 1 })
+    tree.unmount()
+  })
+
   it('states a refused save on the summary and sends nothing, when an undated task becomes a habit with no start day', async () => {
     const tree = mountCreate()
     await settle()

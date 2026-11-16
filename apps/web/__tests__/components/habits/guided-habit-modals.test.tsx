@@ -221,6 +221,18 @@ describe('the create surface behind orbit_guided_flows', () => {
     expect(state.create.mock.calls[0]![0]).toMatchObject({ title: 'call John', startDate: '2026-11-13', frequencyUnit: 'Day', frequencyQuantity: 1 })
   })
 
+  it('keeps the time of the phrase when the repeat of the date question carries no time', async () => {
+    state.locale = 'en'
+    mountCreate()
+    await waitFor(() => expect(document.querySelector('[data-question-flow]')).not.toBeNull())
+    await phrase('call John at 8am')
+    await act(async () => { fireEvent.change(screen.getByLabelText(en.habits.flow.when.freeLabel), { target: { value: 'every day' } }) })
+    await press(en.habits.flow.continue)
+    await press(en.habits.flow.reminder.no)
+    await press(en.habits.createHabit)
+    expect(state.create.mock.calls[0]![0]).toMatchObject({ title: 'call John', startDate: '2026-11-13', dueTime: '08:00', frequencyUnit: 'Day', frequencyQuantity: 1 })
+  })
+
   it('states a refused save on the summary and sends nothing, when an undated task becomes a habit with no start day', async () => {
     state.locale = 'en'
     mountCreate()

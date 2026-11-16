@@ -41,7 +41,7 @@ import {
   applyHabitFormMode,
   buildEmptyHabitFormValues,
   applyHabitEmojiSuggestion,
-  reportHabitFormValidationError,
+  reportRefusedHabitSave,
   buildHabitFormPatchFromSuggestion,
   EMPTY_HABIT_FORM_PROPOSAL,
   buildParentHabitFormState,
@@ -353,11 +353,6 @@ export function CreateHabitModal({
     else showError(message)
   }, [formHelpers, guided, showError, translate, createErrorKey, createErrorEntity])
 
-  const reportRefusedSave = useCallback((refusal: string) => {
-    if (guided) setSaveError(refusal)
-    else reportHabitFormValidationError(refusal, formHelpers.form.getFieldState, showError)
-  }, [formHelpers, guided, showError])
-
   const submittingRef = useRef(false)
   const submitForm = useCallback(
     async (completion?: GuidedHabitCompletion) => {
@@ -376,7 +371,7 @@ export function CreateHabitModal({
       })
 
       if (error) {
-        reportRefusedSave(error)
+        reportRefusedHabitSave(error, { guided, showSaveError: setSaveError, getFieldState: formHelpers.form.getFieldState, showError })
         return
       }
 
@@ -409,7 +404,7 @@ export function CreateHabitModal({
       }
       } finally { submittingRef.current = false }
     },
-    [guided, reportCreateFailure, reportRefusedSave, requestReminderPermission, finishClose, createHabit, createSubHabit, formHelpers, isOnline, isSubHabitMode, locale, onCreated, onOpenChange, parentHabit, reminderTimes, selectedGoalIds, subHabits, tags],
+    [guided, reportCreateFailure, showError, requestReminderPermission, finishClose, createHabit, createSubHabit, formHelpers, isOnline, isSubHabitMode, locale, onCreated, onOpenChange, parentHabit, reminderTimes, selectedGoalIds, subHabits, tags],
   )
 
   const handleSubmit = useCallback((event: React.SubmitEvent<HTMLFormElement>) => {

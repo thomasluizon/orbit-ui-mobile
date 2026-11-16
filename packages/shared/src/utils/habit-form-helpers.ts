@@ -928,13 +928,20 @@ export function applyHabitEmojiSuggestion(
   return true
 }
 
-export function reportHabitFormValidationError(
-  message: string,
-  getFieldState: (field: 'itemType' | 'datePhrase') => { invalid: boolean },
-  showError: (message: string) => void,
-): void {
-  if (getFieldState('itemType').invalid || getFieldState('datePhrase').invalid) return
-  showError(message)
+export interface HabitSaveRefusalTarget {
+  guided: boolean
+  showSaveError: (message: string) => void
+  getFieldState: (field: 'itemType' | 'datePhrase') => { invalid: boolean }
+  showError: (message: string) => void
+}
+
+export function reportRefusedHabitSave(refusal: string, target: HabitSaveRefusalTarget): void {
+  if (target.guided) {
+    target.showSaveError(refusal)
+    return
+  }
+  if (target.getFieldState('itemType').invalid || target.getFieldState('datePhrase').invalid) return
+  target.showError(refusal)
 }
 
 export function buildHabitEmojiSuggestionAvailability(

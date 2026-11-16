@@ -37,7 +37,7 @@ import {
   applyHabitFormMode,
   buildEditHabitFormState,
   applyHabitEmojiSuggestion,
-  reportHabitFormValidationError,
+  reportRefusedHabitSave,
   buildHabitFormPatchFromSuggestion,
   EMPTY_HABIT_FORM_PROPOSAL,
   coalesceFormText,
@@ -322,11 +322,6 @@ function EditHabitDraft({
     applyHabitFormMode(prefill.mode, formHelpers)
   }, [formHelpers, habit, habitDetail, open, relationshipFieldsLoaded, sessionDetailId, sessionHabitId, tags, initialSuggestion])
 
-  function reportRefusedSave(refusal: string) {
-    if (guided) setSaveError(refusal)
-    else reportHabitFormValidationError(refusal, formHelpers.form.getFieldState, showError)
-  }
-
   async function prepareSave(parentBaseline: HabitDetail['parentId']) {
     if (!formHelpers.form.getValues('itemType')) { formHelpers.validateAll(); return null }
     if (!await formHelpers.form.trigger(undefined, { shouldFocus: true })) return null
@@ -337,7 +332,7 @@ function EditHabitDraft({
     })
 
     if (error) {
-      reportRefusedSave(error)
+      reportRefusedHabitSave(error, { guided, showSaveError: setSaveError, getFieldState: formHelpers.form.getFieldState, showError })
       return null
     }
     const data = habitFormSchema.parse(formHelpers.form.getValues())

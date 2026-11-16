@@ -237,7 +237,7 @@ export {
   buildHabitDaysList,
   buildHabitAstraFallbackCopy,
   applyHabitEmojiSuggestion,
-  reportHabitFormValidationError,
+  reportRefusedHabitSave,
   buildHabitEmojiSuggestionAvailability,
   buildHabitFormPatchFromSuggestion,
   buildHabitUnderstandingLabels,

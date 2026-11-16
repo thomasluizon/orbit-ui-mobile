@@ -177,6 +177,25 @@ describe('the steps of the shared guided habit flow', () => {
     mounted.unmount()
   })
 
+  it('keeps the time of the phrase when the repeat of the date question carries no time', async () => {
+    const mounted = mountFlow({ online: false })
+    await leavePhraseWith(mounted, 'call John at 8am')
+    expect(mounted.flow.current.step).toBe('when')
+    run(() => { mounted.flow.readWhenWords('every day') })
+    expect(mounted.values).toMatchObject({ itemType: 'habit', frequencyUnit: 'Day', dueDate: TODAY, dueTime: '08:00' })
+    expect(mounted.ownership).toHaveBeenLastCalledWith({ cadence: true, dueTime: true })
+    mounted.unmount()
+  })
+
+  it('takes the time of the date words as a time answer and releases the time words of the phrase', async () => {
+    const mounted = mountFlow({ online: false })
+    await leavePhraseWith(mounted, 'call John at 8am')
+    run(() => { mounted.flow.readWhenWords('every day at 9am') })
+    expect(mounted.values).toMatchObject({ itemType: 'habit', frequencyUnit: 'Day', dueDate: TODAY, dueTime: '09:00' })
+    expect(mounted.ownership).toHaveBeenLastCalledWith({ cadence: true, dueTime: false })
+    mounted.unmount()
+  })
+
   it('keeps the date question open for words it cannot read and for a day in the past', async () => {
     const mounted = mountFlow({ online: false })
     await leavePhraseWith(mounted, 'call John')
