@@ -6,7 +6,7 @@ import * as handoff from "../lib/handoff-prompt.mjs"
 import { readRunState, writeRunState } from "../lib/run-state.mjs"
 import { appendChainEntry, closeSessionChain, confirmChainSuccessor, supersededSession } from "../lib/session-chain.mjs"
 
-import { T, realOrchestratorConfig, root, run, stageWithConfig } from "./_harness.mjs"
+import { T, realOrchestratorConfig, root, run, same, stageWithConfig } from "./_harness.mjs"
 
 const UNIT = "lib/handoff-prompt.mjs"
 
@@ -59,8 +59,7 @@ export const cases = () => {
     ["a typed command before expanded tags wins", "/handoff\n<command-name>/wrap-up</command-name><command-args>--sleep</command-args>", { command: "handoff", sleep: false, crank: false }],
     ["expanded tags before a typed command win", "<command-name>/handoff</command-name><command-args></command-args>\n/wrap-up --sleep", { command: "handoff", sleep: false, crank: false }],
   ]) {
-    const actual = parseHandoffRequest(prompt)
-    T(`${UNIT}: ${label}`, JSON.stringify(actual) === JSON.stringify(expected), `got=${JSON.stringify(actual)} want=${JSON.stringify(expected)}`)
+    same(`${UNIT}: ${label}`, parseHandoffRequest(prompt), expected)
   }
   T(`${UNIT}: a complete sleep prompt has no missing requirement`, validateHandoffPrompt(sleepPrompt, { sleep: true }).length === 0, JSON.stringify(validateHandoffPrompt(sleepPrompt, { sleep: true })))
   T(`${UNIT}: auto-work refuses a sleep-only relay`, validateHandoffPrompt(sleepPrompt, { sleep: true, autoWork: true }).length > 0)

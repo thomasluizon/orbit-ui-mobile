@@ -5,6 +5,7 @@ import { existsSync, lstatSync, renameSync, rmSync } from "node:fs"
 import { resolve } from "node:path"
 import { assertRepositoryLabel, readTicket, resolveTicket } from "./lib/github-issues.mjs"
 import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
+import { CLEAN_STATUS_ARGUMENTS, HIDDEN_CHANGE_ARGUMENTS, WORKTREE_REMOVE_ARGUMENTS, findRepositories, hiddenChangesOf, parseWorktreeList } from "./lib/git-worktrees.mjs"
 
 const USAGE = `usage: teardown-worktree.mjs (--issue <ORB-N|#N|N> | --worktree <path>) --repo <ui|api|landing> [--base <ref>]
 
@@ -14,10 +15,15 @@ const USAGE = `usage: teardown-worktree.mjs (--issue <ORB-N|#N|N> | --worktree <
   --base <ref>        optionally narrow the merged pull request lookup to this target branch
   --help, -h          print this usage and exit 0
 
-All four checks must pass before anything is removed: the tree is clean, the pull request is merged
-with its merge commit present in the target branch, the local branch adds no content beyond the
-pull request head and base, and the linked ticket is closed with board status Done or listed as a
-standing ticket.
+All five checks must pass before anything is removed: the tree is clean (an untracked file counts,
+whatever status.showUntrackedFiles, core.excludesFile or info/exclude says, and so does a tracked
+file that an assume-unchanged or skip-worktree flag hides from git status; only a path that a
+.gitignore of the tree ignores goes with the tree), no other repository or worktree lies inside it (git would
+delete one in an ignored directory with the tree), the pull request is merged with its merge commit
+present in the target branch, the local branch adds no content beyond the pull request head and base,
+and the linked ticket is closed with board status Done or listed as a standing ticket.
+The tool reads the flagged files and the untracked files again just before the removal, because the
+other checks take time.
 
 The local contract branch is retained because deleting a branch that is the base of a stacked pull
 request can close that pull request. Existing worktrees can be cleared safely by running this tool
@@ -83,14 +89,7 @@ try {
   fail(1, `ticket assertion failed: ${error.message}`)
 }
 
-const porcelain = git(repositoryPath, ["worktree", "list", "--porcelain"])
-const worktrees = porcelain.split(/\n\s*\n/).filter(Boolean).map((record) => {
-  const fields = Object.fromEntries(record.split("\n").map((line) => {
-    const separator = line.indexOf(" ")
-    return separator === -1 ? [line, true] : [line.slice(0, separator), line.slice(separator + 1)]
-  }))
-  return { path: fields.worktree, branch: typeof fields.branch === "string" ? fields.branch : null }
-})
+const worktrees = parseWorktreeList(git(repositoryPath, ["worktree", "list", "--porcelain"]))
 const ticketNumberFromName = (path) => {
   const match = normalize(path).split("/").at(-1)?.match(/(?:^|[-_])ticket[-_](\d+)(?:[-_]|$)/i)
   return match ? Number(match[1]) : null
@@ -112,7 +111,7 @@ try {
 }
 
 const path = worktree.path
-const branch = (worktree.branch ?? git(path, ["rev-parse", "--abbrev-ref", "HEAD"])).replace(/^refs\/heads\//, "")
+const branch = worktree.branch ?? git(path, ["rev-parse", "--abbrev-ref", "HEAD"])
 let pullRequest
 try {
   const baseFilter = requestedBase ? ["--base", requestedBase] : []
@@ -138,7 +137,14 @@ const contains = (commit, container) => {
   return git(path, ["merge-base", "--is-ancestor", commit, container], { allowFailure: true }) !== null
 }
 
-const dirty = git(path, ["status", "--short"]).split("\n").filter(Boolean)
+const changed = git(path, CLEAN_STATUS_ARGUMENTS).split("\n").filter(Boolean)
+// `git status` and git's own removal refusal never see a change to a file with an index flag, or a file that only `info/exclude` ignores.
+// The listing names each untracked file that `git status` shows too, as `? <path>` beside its `?? <path>`.
+const dirty = [...changed, ...hiddenChangesOf(git(path, HIDDEN_CHANGE_ARGUMENTS)).filter((line) => !changed.includes(`?${line}`))]
+// `git worktree remove` deletes an ignored directory with every worktree and repository in it, and `git status` lists none there.
+const repositories = findRepositories(path)
+if (repositories === null) fail(3, `could not list the repositories inside ${path}`)
+const nested = repositories.filter((directory) => normalize(directory) !== normalize(path))
 const localTip = git(path, ["rev-parse", branch])
 const unsafeLocalCommit = () => {
   if (contains(localTip, pullRequest.headRefOid)) return null
@@ -154,6 +160,7 @@ const mergeCommitInTarget = contains(pullRequest.mergeCommit.oid, baseRef)
 
 const checks = [
   { name: "worktree-clean", ok: dirty.length === 0, detail: `uncommitted paths: ${dirty.join(", ")}` },
+  { name: "no-nested-repository", ok: nested.length === 0, detail: `git worktree remove would delete each repository and worktree inside it: ${nested.join(", ")}` },
   { name: "merge-commit-in-target", ok: mergeCommitInTarget, detail: `pull request #${pullRequest.number} merge commit ${pullRequest.mergeCommit.oid} is not an ancestor of ${baseRef}` },
   { name: "local-tip-in-pull-request-head", ok: unsafeCommit === null, detail: `local tip ${localTip} is not contained in pull request #${pullRequest.number} head ${pullRequest.headRefOid}; local commits would be lost (unsafe commit ${unsafeCommit})` },
   { name: "ticket-done", ok: (ticket.state === "CLOSED" && ticket.status === config.tickets.states.done) || (config.tickets.standing.includes(ticket.number) && mergeCommitInTarget), detail: `ticket is ${ticket.state} with board status ${ticket.status ?? "unknown"}, expected CLOSED and Done` },
@@ -177,7 +184,7 @@ const listWorktrees = () => {
   if (listing === null) fail(3, `git worktree list failed against ${commonDir}; refusing to guess whether ${path} is still registered`)
   return listing
 }
-const isStillListed = () => listWorktrees().split("\n").some((line) => line.startsWith("worktree ") && normalize(line.slice("worktree ".length)) === normalize(path))
+const isStillListed = () => parseWorktreeList(listWorktrees()).some((entry) => normalize(entry.path) === normalize(path))
 
 /** A path can be replaced after Git releases the registration. Device, inode, and birth time are
  * read before removal and again from the staged directory entry, so only the same filesystem object
@@ -197,8 +204,12 @@ try {
   fail(1, `worktree ${path} changed before Git could remove it: ${error.message}`)
 }
 
+// The fetches and the tree walk above take seconds to minutes. Git's own refusal never sees a flagged file or a file that only `info/exclude` ignores.
+const lateChanges = hiddenChangesOf(git(path, HIDDEN_CHANGE_ARGUMENTS))
+if (lateChanges.length > 0) fail(1, `UNMET worktree-clean: uncommitted paths: ${lateChanges.join(", ")}`)
+
 const LOCK_REFUSAL = (reason) => `worktree ${path} is LOCKED (${reason}); git refuses to remove or prune a locked worktree, and nothing was touched`
-const removal = runGitCommon(["worktree", "remove", path])
+const removal = runGitCommon([...WORKTREE_REMOVE_ARGUMENTS, path])
 const stillRegistered = isStillListed()
 const removalDetail = (removal.stderr || removal.stdout || removal.error?.message || "unknown error").trim()
 if (stillRegistered) {
