@@ -129,6 +129,7 @@ describe.each(locales)('guided onboarding in $locale', ({ locale, messages }) =>
       expect(progress()).toBe(messages.habits.flow.progress.replace('{position}', String(index + 1)).replace('{total}', '3'))
       expect(document.querySelector('[data-question-flow] [data-asset="orbit-mascot"]')?.getAttribute('data-orbit-state'), `the pose of intro screen ${index}`).toBe('parado')
       expect(screen.getByRole('button', { name: guided.intro.skip })).toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: flow.skip }), `intro screen ${index} has one skip, and it opens the first question`).toBeNull()
       expect(useOnboardingDraftStore.getState().introSeen, `the intro is not seen on screen ${index}`).toBe(false)
       press(flow.continue)
     })

@@ -404,6 +404,7 @@ export function GuidedOnboardingFlow(props: Readonly<GuidedOnboardingProps>) {
   }
   const stepView = isIntro(view) ? introView(view, t, () => nextIntro(view), leaveIntro) : views[view]
   const back = backAction(backTarget(navigation, introRun), props.onBack, go)
+  /** An intro screen holds one skip, the quiet action that opens the first question, so the header shows no close there. */
   const close = props.onSkip ?? props.onContinueWithout
   const progress = isIntro(view) ? { position: ONBOARDING_INTRO_SCREENS.indexOf(view) + 1, total: ONBOARDING_INTRO_SCREENS.length } : onboardingGuidedPosition(view, cadencePath)
   const statusKey = runningStatusKey(props)
@@ -422,7 +423,7 @@ export function GuidedOnboardingFlow(props: Readonly<GuidedOnboardingProps>) {
         backLabel={t('onboarding.flow.back')}
         closeLabel={t('onboarding.flow.skip')}
         onBack={back}
-        onClose={close}
+        onClose={isIntro(view) ? undefined : close}
         orbitState={statusKey ? 'pensando' : 'parado'}
         statusText={statusKey ? t(statusKey) : undefined}
         options={stepView.options}

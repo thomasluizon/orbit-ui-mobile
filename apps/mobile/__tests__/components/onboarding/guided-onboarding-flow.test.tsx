@@ -118,6 +118,7 @@ describe.each([{ language: 'en', messages: en }, { language: 'pt-BR', messages: 
       expect(texts(tree)).toContain(intro.body)
       expect(progress(tree)).toBe(messages.habits.flow.progress.replace('{position}', String(index + 1)).replace('{total}', '3'))
       expect(texts(tree)).toContain(guided.intro.skip)
+      expect(hosts(tree).filter((node) => node.props.accessibilityLabel === flow.skip), `intro screen ${index} has one skip, and it opens the first question`).toHaveLength(0)
       await press(tree, flow.continue)
     }
     expect(heading(tree)).toBe(guided.what.question)
