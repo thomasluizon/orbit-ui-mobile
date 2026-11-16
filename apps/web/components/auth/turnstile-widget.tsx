@@ -143,25 +143,17 @@ export function TurnstileWidget({
       callbacksRef.current.onToken(token)
     }
 
-    function runAgain(run: () => void) {
-      if (automaticRetriesRef.current >= MAX_AUTOMATIC_RETRIES) {
+    function fail(code: string) {
+      if (automaticRetriesRef.current >= MAX_AUTOMATIC_RETRIES || !isRetriedFailure(code)) {
         update('failed')
-        return
+        return true
       }
       automaticRetriesRef.current += 1
       update('loading')
-      retryTimerRef.current = window.setTimeout(() => { if (active) run() }, TURNSTILE_RETRY_INTERVAL_MS)
-    }
-
-    function fail(code: string) {
-      if (isRetriedFailure(code)) {
-        runAgain(() => {
-          const widgetId = widgetIdRef.current
-          if (widgetId != null) getTurnstile()?.reset(widgetId)
-        })
-      } else {
-        update('failed')
-      }
+      retryTimerRef.current = window.setTimeout(() => {
+        const widgetId = widgetIdRef.current
+        if (active && widgetId != null) getTurnstile()?.reset(widgetId)
+      }, TURNSTILE_RETRY_INTERVAL_MS)
       return true
     }
 
