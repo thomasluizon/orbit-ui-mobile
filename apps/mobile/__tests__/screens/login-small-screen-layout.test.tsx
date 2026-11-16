@@ -26,12 +26,12 @@ const LAYOUT_UNIT = 1 / 64
 
 const mocks = vi.hoisted((): { flow: Record<string, unknown>; insets: { top: number; bottom: number }; words: (key: string, params?: Record<string, string | number>) => string } =>
   ({ flow: {}, insets: { top: 0, bottom: 0 }, words: (key) => key }))
-vi.mock('react-i18next', async () => {
-  const { default: catalog } = await import('@orbit/shared/i18n/pt-BR.json')
-  const sentence = (key: string) => key.split('.').reduce<unknown>((value, part) => (value as Record<string, unknown>)[part], catalog) as string
+vi.mock('react-i18next', async (importOriginal) => {
+  const { testI18n } = await import('@/__tests__/support/i18n')
+  const actual = await importOriginal<typeof import('react-i18next')>()
   return {
     useTranslation: () => ({ t: mocks.words, i18n: { language: 'pt-BR' } }),
-    Trans: ({ i18nKey }: { i18nKey: string }) => sentence(i18nKey).replaceAll(/<\/?\w+>/g, ''),
+    Trans: (props: Parameters<typeof actual.Trans>[0]) => actual.Trans({ ...props, i18n: testI18n, t: testI18n.getFixedT('pt-BR') }),
   }
 })
 vi.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ ...mocks.insets, left: 0, right: 0 }) }))
