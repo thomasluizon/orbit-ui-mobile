@@ -10,7 +10,7 @@ import { __resetTestHostConfig, __setMeasureInWindowImpl, __setWindowDimensions 
 
 const { act, create } = require('react-test-renderer')
 
-type CheckState = 'loading' | 'interactive' | 'failed' | 'solved'
+type CheckState = 'loading' | 'interactive' | 'failed' | 'solved' | 'expired'
 const SMALL_ANDROID = { name: '320 x 640 Android', width: 320, height: 640, top: 24, bottom: 24, keyboardTop: 0 }
 const SE_SIZE_ANDROID = { name: '375 x 667 Android', width: 375, height: 667, top: 24, bottom: 24, keyboardTop: 0 }
 const IPHONE_SE = { name: '375 x 667 iPhone SE', width: 375, height: 667, top: 20, bottom: 0, keyboardTop: 432 }
@@ -170,6 +170,18 @@ describe('mobile sign-in on a small screen', () => {
       const centred = Math.max(0, (safeHeight - column.height) / 2)
       expect(Math.abs(topGap - centred), `${check}: the column starts ${topGap} under the status bar, and the centre is ${centred}`).toBeLessThanOrEqual(LAYOUT_UNIT)
       if (centred > 0) expect(Math.abs(topGap - bottomGap), `${check}: off centre with a top gap of ${topGap} and a bottom gap of ${bottomGap}`).toBeLessThanOrEqual(LAYOUT_UNIT)
+    }
+  })
+
+  const steadyCases = [IPHONE_SE, SE_SIZE_ANDROID, SMALL_ANDROID, IPAD].flatMap((device) => (['email', 'code'] as const).map((step) => ({ step, device, name: device.name })))
+  it.each(steadyCases)('keeps the $step column of the $name at one height and one place in every state of the check', async ({ step, device }) => {
+    const tree = await render(step, device)
+    const beforeMessage = placement(tree, device)
+    const seen = [{ check: 'no bridge message', ...beforeMessage }, ...(['interactive', 'loading', 'solved', 'expired', 'failed'] as const)
+      .map((check) => ({ check, ...showCheck(tree, check) }))]
+    for (const { check, column, first } of seen) {
+      expect({ height: column.height, top: column.top, markTop: first.top }, `${check}: the column moved or changed its height`)
+        .toEqual({ height: beforeMessage.column.height, top: beforeMessage.column.top, markTop: beforeMessage.first.top })
     }
   })
 
