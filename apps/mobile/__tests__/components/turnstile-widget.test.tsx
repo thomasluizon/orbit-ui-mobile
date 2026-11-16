@@ -380,6 +380,27 @@ it('shows the failure only at the shared load deadline and removes the WebView, 
   expect(bridges(renderer)).toHaveLength(0)
 })
 
+it('keeps the one load deadline when a woken bridge posts only its own loading state, so the failure shows at 60 s', async () => {
+  const onToken = vi.fn()
+  const renderer = await renderWithFakeClock(onToken)
+  const wakeMs = 50_000
+  for (let elapsed = 0; elapsed < wakeMs; elapsed += TURNSTILE_RETRY_INTERVAL_MS) {
+    const [bridge] = bridges(renderer)
+    TestRenderer.act(() => bridge!.props.onHttpError(httpError(bridge!.props.source.uri, 503, 'Service Unavailable')))
+    TestRenderer.act(() => { vi.advanceTimersByTime(TURNSTILE_RETRY_INTERVAL_MS) })
+  }
+
+  const [awake] = bridges(renderer)
+  TestRenderer.act(() => awake!.props.onMessage({ nativeEvent: { data: JSON.stringify({ state: 'loading' }) } }))
+  TestRenderer.act(() => { vi.advanceTimersByTime(TURNSTILE_LOAD_DEADLINE_MS - wakeMs - 1) })
+  expect(shownSentences(renderer), `the woken bridge loads its own script again, and at ${TURNSTILE_LOAD_DEADLINE_MS - 1} ms the check still loads`).toEqual(['auth.turnstileLoading'])
+  expect(bridges(renderer)).toEqual([awake])
+  TestRenderer.act(() => { vi.advanceTimersByTime(1) })
+  expect(shownSentences(renderer), 'a loading message from the bridge does not start a second deadline').toEqual(['auth.turnstileFailed'])
+  expect(onToken).toHaveBeenLastCalledWith(null)
+  expect(bridges(renderer)).toHaveLength(0)
+})
+
 it('fails at once on a status that does not pass, and removes the WebView', async () => {
   const renderer = await renderWithFakeClock()
   const [bridge] = bridges(renderer)

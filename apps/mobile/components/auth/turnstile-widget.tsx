@@ -16,7 +16,7 @@ type WidgetState = 'idle' | 'loading' | 'interactive' | 'solved' | 'failed' | 'e
 
 // WHY: Cloudflare sizes the flexible widget at 100% width and 65px height https://developers.cloudflare.com/turnstile/get-started/client-side-rendering/widget-configurations/
 const FLEXIBLE_CHALLENGE_HEIGHT = 65
-// WHY: a sleeping Render web service answers its wake page with 503 and retry-after https://render.com/docs/free
+// WHY: a sleeping Render web service answers its wake page with 503 https://render.com/docs/free
 const TEMPORARY_HTTP_STATUSES = new Set([429, 502, 503, 504])
 
 /** Leaves a Sentry breadcrumb for a main-frame load failure of the bridge, with the host only, because the bridge query carries the site key. */
@@ -30,8 +30,8 @@ function recordLoadFailure(message: string, failure: Readonly<{ url: string; des
 }
 
 /**
- * One load of the bridge runs under one deadline. A load error or a temporary status before the first bridge message keeps
- * the loading state and loads the bridge again, and the failed state comes only at the deadline or on a final status.
+ * One load of the bridge runs under one deadline, and only a bridge state other than loading ends it. A load error or a
+ * temporary status keeps the loading state and loads the bridge again, and the failed state comes only at the deadline or on a final status.
  */
 function useBridgeLoad(resetKey: number, onToken: (token: string | null) => void) {
   const [state, setState] = useState<WidgetState>('idle')
@@ -108,7 +108,7 @@ function useBridgeLoad(resetKey: number, onToken: (token: string | null) => void
       message.state === 'loading' || message.state === 'interactive' || message.state === 'solved' ||
       message.state === 'failed' || message.state === 'expired'
     )) {
-      endLoad()
+      if (message.state !== 'loading') endLoad()
       setState(message.state)
     }
   }
