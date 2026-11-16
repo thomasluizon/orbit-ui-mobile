@@ -29,7 +29,7 @@ UI `main` `ca538e933`; API `main` `38513551a`; landing `main` `20c1b0a90`. Owner
 | Flakes for `#2074` | `turbo-inputs.test.mjs` and `nested-control-fill.spec.ts:101` (green on rerun), `calendar-header-controls-geometry.test.tsx` 320 today ring (ui#2473 chromium 9/16, rerun 43950026215). Fold into `#2074` after r20. |
 | ui#2473 (`#2144`) | At `f3ddba9e2`: Pullfrog COMMENTED, no thread: the body stops at round 4. Add rounds 5 and 6 to the body (the `menus.rs` tray change, the eight tray rasters, the Win32 `SM_CXSMICON` and `tray-icon` behaviour; S `reply-2473-EFCH.md` and S `review-2473-r6-local.md` hold the evidence), read the web unit rerun, request Pullfrog, merge at the bar. |
 | ui#2478 (`#2135`) | Round 2 was refused by the relay drain and never ran: launch it (S `note-2478-r2.md`, Pullfrog P1 `PRRT_kwDOR5Siws64Hdlx`). Review worker, resolve with S `reply-2478-Hdlx.md`, push. |
-| `#2135` grader | Build runs on `fix/ticket-2135-claude-grader` (worktree `ticket-2122-part3`). Diff, review, pull request. |
+| ui#2480 (`#2135` grader) | Open at `8d3174826` (worktree `ticket-2122-part3`). Diff, review, Pullfrog, merge before the read cases run. |
 | `#2135` baseline | After 00:10 UTC: relaunch S `order-2135-baseline-r4.md` per S `result-2135-baseline.md` `## Next window` (240 min). |
 | api#1116 (`#2150`) | Round 2 was refused by the relay drain and never ran: launch it first (S `note-1116-r2.md`). Review, push, Pullfrog, merge, then the API release with the manual steps (production webhook is broken until then). |
 | ui#2469 (`#2074`) | Round 20 was refused by the relay drain and never ran: launch it (S `note-2469-r20.md`). Review, push. |
