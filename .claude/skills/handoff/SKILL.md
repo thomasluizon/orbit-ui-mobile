@@ -318,7 +318,9 @@ records the mode from the owner's own `/handoff` or `/wrap-up` prompt, and `git 
 3. **The goal: finish that spec.** Say it in one line, with the condition that proves it done and the
    query that lists what is left. Never scope the goal to the open pull requests or to whatever this
    session was mid-way through.
-4. The in-flight inventory, one row per item with its disposition.
+4. The in-flight inventory, one row per item with its disposition. A live review or proof worker
+   (`launch-worker.mjs --review` or `--proof`) gets a row with its pull request, head, order file and
+   result file, so the next session reads the result or starts the review again on a worker.
 5. What to do, in the order it has to happen. After the in-flight items, the order comes from the
    spec's own work order section, named by its heading, with the counts from its reconciliation.
    The prompt never invents an order of its own.

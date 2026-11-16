@@ -24,6 +24,7 @@ Operating facts for workers, CI, merges, releases, consoles and devices are in `
 - The owner is the only active Orbit user before launch: read every fleet signal (PostHog versions, Sentry release counts) as the owner's usage, and a build missing from devices as the owner's phone not updated yet.
 - Never create another Claude account and never buy access. When the worker account and the main account both reach their limits, stop new launches until a reset and tell the owner (`orchestrate/SKILL.md` §5.4.1; Batch T changes the account setup).
 - Read every worker diff before it counts, for `DESIGN.md` values and gate edits (D95).
+- Run every pre-push review, fix-round review and device proof on a read-only worker (`launch-worker.mjs --review` or `--proof`, `.claude/playbooks/review-and-audit.md` rule 14), never on an in-session subagent: the main account stays free for the coordinator.
 
 ### The owner
 

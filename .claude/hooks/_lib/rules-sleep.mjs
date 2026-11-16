@@ -59,7 +59,7 @@ export function checkSleepStop({ state, wakeSources = [], orphanedWakeSources = 
           "external limits it cannot argue with. An exhausted API allowance resets on a clock and\n" +
           "no care makes it come back sooner; a reaped worker comes back the moment you start one.\n\n" +
           "USE FEWER WORKERS AND KEEP GOING. Drop to a single worker, relaunch the round that was\n" +
-          "reaped, and let the review subagents wait their turn. The worktree still holds its work,\n" +
+          "reaped, and let the review and proof workers wait their turn. The worktree still holds its work,\n" +
           "so nothing is lost by relaunching and everything is lost by stopping.\n\n" +
           "Then clear that blocker string. It is not one.",
       }

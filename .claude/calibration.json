@@ -151,9 +151,9 @@
     ".claude/skills/astra-eval/SKILL.md": {
       "model": null,
       "effort": null,
-      "digest": "68b1d9c25e950fa9",
+      "digest": "76ea0b8b667f709d",
       "calibratedAt": "2026-11-16",
-      "verdict": "undeclared, inherits the session: runs or extends the configured Astra eval corpus and distinguishes failed behavior from incomplete tool evidence; it declares no model or effort override."
+      "verdict": "undeclared, inherits the session: runs or extends the Astra eval core set gate and launch corpus, and reads its pass^k report to tell failed behavior from incomplete tool evidence; it declares no model or effort override."
     },
     ".claude/skills/audit-code-quality/SKILL.md": {
       "model": null,
@@ -193,8 +193,8 @@
     ".claude/skills/crank/SKILL.md": {
       "model": null,
       "effort": null,
-      "digest": "ce68f3978587e5b3",
-      "calibratedAt": "2026-11-13",
+      "digest": "76d3a38fd031ccb6",
+      "calibratedAt": "2026-11-16",
       "verdict": "undeclared, inherits the session: toggles durable orchestrator scheduling within existing caps and quality gates, without changing model or effort routing."
     },
     ".claude/skills/deep-research/SKILL.md": {
@@ -228,8 +228,8 @@
     ".claude/skills/handoff/SKILL.md": {
       "model": null,
       "effort": "high",
-      "digest": "aa0be8ecb8401653",
-      "calibratedAt": "2026-11-15",
+      "digest": "7cb17e0d4bffa5e3",
+      "calibratedAt": "2026-11-16",
       "verdict": "current: high effort; the skill decides which durable rules enter the spec and when handoff must end the session."
     },
     ".claude/skills/investigate/SKILL.md": {
@@ -270,8 +270,8 @@
     ".claude/skills/orchestrate/SKILL.md": {
       "model": null,
       "effort": "high",
-      "digest": "9b5caaa751e0908b",
-      "calibratedAt": "2026-11-15",
+      "digest": "31d8f48a81eb6eaa",
+      "calibratedAt": "2026-11-16",
       "verdict": "current: high effort; the skill plans the queue, verifies each pull request disposition and merge commit, interprets gate results, and controls merge authority."
     },
     ".claude/skills/prod-readiness/SKILL.md": {
@@ -312,8 +312,8 @@
     ".claude/skills/sleep/SKILL.md": {
       "model": null,
       "effort": null,
-      "digest": "fe7d2c76fffa9e03",
-      "calibratedAt": "2026-11-15",
+      "digest": "48eb064f357da059",
+      "calibratedAt": "2026-11-16",
       "verdict": "undeclared, inherits the session: it makes overnight queue decisions, including whether configured lanes are available."
     },
     ".claude/skills/ticket/SKILL.md": {

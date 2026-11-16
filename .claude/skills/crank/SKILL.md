@@ -42,6 +42,9 @@ While `crank` is true:
 - Start every launchable ticket in the spec's order in parallel as capacity permits. Independent
   review rounds launch as soon as a review or red check lands, within the existing batch and
   attempt limits. Never wait on one pull request when independent work can run.
+- Launch each pre-push review, fix-round review and device proof as a read-only worker
+  (`launch-worker.mjs --review` or `--proof`) as soon as its head is ready, never as an in-session
+  subagent. These workers hold no ticket slot, so they never wait for one.
 - Merge every pull request meeting the merge bar immediately, within the orchestrator's standing
   authority. Run its release immediately: production web, API and landing through `/release`;
   Android Open releases batch the merged Android fixes. Existing release authority and hard
@@ -52,7 +55,7 @@ While `crank` is true:
   wake source, named as `/sleep` requires. Retain the canonical completion condition.
 
 The merge bar stays: the exact approved head, every check green and zero unresolved threads.
-Pullfrog, tests, copy approval, the diff read before every push and all hard stops remain.
+Pullfrog, tests, copy approval, the review worker before every push and all hard stops remain.
 Crank changes scheduling only; it grants no new merge or release authority.
 
 ## Carry the mode forward
