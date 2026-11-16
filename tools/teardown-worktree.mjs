@@ -22,6 +22,8 @@ file that an assume-unchanged or skip-worktree flag hides from git status; only 
 delete one in an ignored directory with the tree), the pull request is merged with its merge commit
 present in the target branch, the local branch adds no content beyond the pull request head and base,
 and the linked ticket is closed with board status Done or listed as a standing ticket.
+The tool reads the flagged files and the untracked files again just before the removal, because the
+other checks take time.
 
 The local contract branch is retained because deleting a branch that is the base of a stacked pull
 request can close that pull request. Existing worktrees can be cleared safely by running this tool
@@ -201,6 +203,10 @@ try {
 } catch (error) {
   fail(1, `worktree ${path} changed before Git could remove it: ${error.message}`)
 }
+
+// The fetches and the tree walk above take seconds to minutes. Git's own refusal never sees a flagged file or a file that only `info/exclude` ignores.
+const lateChanges = hiddenChangesOf(git(path, HIDDEN_CHANGE_ARGUMENTS))
+if (lateChanges.length > 0) fail(1, `UNMET worktree-clean: uncommitted paths: ${lateChanges.join(", ")}`)
 
 const LOCK_REFUSAL = (reason) => `worktree ${path} is LOCKED (${reason}); git refuses to remove or prune a locked worktree, and nothing was touched`
 const removal = runGitCommon([...WORKTREE_REMOVE_ARGUMENTS, path])

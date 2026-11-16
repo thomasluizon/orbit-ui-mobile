@@ -129,6 +129,12 @@ childProcess.spawnSync = (command, args, options) => {
   const removesTarget = worktreeIndex !== -1
     && args[worktreeIndex + 1] === "remove"
     && normalize(args.at(-1)) === normalize(target)
+  // The tool's first git call in the target after the five checks. The config reader asks for the common directory of the staged tool earlier.
+  const afterChecks = args[0] === "-C" && normalize(args[1]) === normalize(target) && args.includes("--git-common-dir")
+  if (process.env.ORBIT_GIT_INTERLEAVE_MODE === "info-excluded-after-checks" && afterChecks) {
+    mkdirSync(target + "/drafts", { recursive: true })
+    writeFileSync(target + "/drafts/late.md", "written after the clean check\\n")
+  }
   if (!removesTarget) return originalSpawnSync(command, args, options)
 
   if (process.env.ORBIT_GIT_INTERLEAVE_MODE === "fail-after-deregister") {
@@ -381,6 +387,15 @@ export const assertRepositoryLabel = (ticket, repoKey) => {
   check(TOOL, "a worktree with a file that only info/exclude ignores is refused as work loss", ["--issue", "ORB-124"],
     { status: 1, stderr: /UNMET worktree-clean: uncommitted paths: \? drafts\/todo\.md$/m }, { env: orcaEnv(teardownPlan(excluded)) })
   T(`${TOOL}: the files that a personal exclude source ignores survive`, existsSync(join(personal.child, "notes", "plan.md")) && existsSync(join(excluded.child, "drafts", "todo.md")))
+  // Git's own refusal honors `info/exclude`, so only the tool's check just before the removal can keep this file.
+  const lateInfoExcluded = stageTeardownWorktree("late-info-exclude", { changed: true, fastForwardMerged: true })
+  writeFileSync(join(lateInfoExcluded.primary, ".git", "info", "exclude"), "drafts/\n")
+  check(TOOL, "a file that only info/exclude ignores, written after the clean check, is refused as work loss", ["--issue", "ORB-124"],
+    { status: 1, stderr: /UNMET worktree-clean: uncommitted paths: \? drafts\/late\.md$/m },
+    { env: gitInterleaveEnv(orcaEnv(teardownPlan(lateInfoExcluded)), "info-excluded-after-checks", lateInfoExcluded.child) })
+  T(`${TOOL}: the file that only info/exclude ignores, written after the clean check, survives`, existsSync(join(lateInfoExcluded.child, "drafts", "late.md")))
+  T(`${TOOL}: the worktree with the late info/exclude file is still registered`,
+    spawnSync("git", ["-C", lateInfoExcluded.primary, "worktree", "list", "--porcelain"], { encoding: "utf8" }).stdout.includes("ticket-124-late-info-exclude"))
 
   const failedAfterDeregister = stageTeardownWorktree("failed-after-deregister", { changed: true, fastForwardMerged: true })
   const failedAfterDeregisterResult = check(
