@@ -138,11 +138,17 @@ export function stripHeredocBodies(command) {
 /** A construct that bash and zsh can read in two ways, or that the reader does not follow: the name for the refusal, and its text. */
 const UNMODELLED_TEXT = [
   { name: "a here-string (`<<<`)", test: /<<</ },
-  { name: 'a `$"..."` quote', test: /\$"/ },
+  // After a pair `$$`, which is the process id, a `"` opens or closes a plain quote.
+  { name: 'a `$"..."` quote', test: /(?<!\$)(?:\$\$)*\$"/ },
   { name: "a run of `$` before a `'`", test: /\$\$'/ },
   { name: "an ANSI-C quote that spells a character as a code", test: /\$'(?:[^'\\]|\\[\s\S])*?\\[xuUc0-7]/ },
   { name: "a line continuation inside a word", test: /[^\s\\]\\\r?\n\S/ },
-  { name: "an `eval` or a `-c` script that holds the value of a variable, which the shell reads again as code", test: /(?:(?:^|[\s;&|(])eval\s[^\n;&|]*|\s-[A-Za-z]*c\s+(?:"(?:\\.|[^"\\])*|[^\s'"]*))\$[A-Za-z_{]/ },
+  {
+    name: "an `eval` or a shell `-c` script that holds the value of a variable, which the shell reads again as code",
+    test: new RegExp(`(?:^|[\\s;&|(/"'])(?:eval\\s[^\\n;&|]*|(?:${SHELLS.join("|")})["']?\\s(?:[^\\n;&|]*\\s)?-[A-Za-z]*c\\s+(?:"(?:\\\\.|[^"\\\\])*|[^\\s'"]*))\\$[A-Za-z_{]`),
+  },
+  { name: "a script from `/dev/stdin`", test: /\/dev\/stdin\b/ },
+  { name: "a process substitution", test: /[<>]\(/ },
 ]
 /** The programs that the rules read by name. A quote or an escape in such a name is one more spelling that the reader does not follow. */
 const READ_PROGRAMS = new Set([...SHELLS, "eval", "git", "rm", "rmdir"])

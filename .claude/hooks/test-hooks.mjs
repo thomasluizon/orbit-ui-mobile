@@ -7,7 +7,7 @@ import { tmpdir } from "node:os"
 import { dirname, join, resolve } from "node:path"
 import { fileURLToPath, pathToFileURL } from "node:url"
 
-import { checkGitCommand, checkGitWorktreeRemove } from "./_lib/rules-git.mjs"
+import { checkGitCommand, checkGitWorktreeRemove, unmodelledConstruct } from "./_lib/rules-git.mjs"
 import { countUnreviewedPendingLessons, isDriftReviewOverdue } from "./_lib/rules-lessons.mjs"
 import { checkEfMigrationRawIndex } from "./_lib/rules-source.mjs"
 import { checkTicketMutation } from "./_lib/rules-tickets.mjs"
@@ -359,11 +359,36 @@ for (const [name, command] of [
   ["a line continuation inside the word git", "gi\\\nt push origin main"],
   ["an ANSI-C quote that spells git as a code", "$'\\x67it' push origin main"],
   ["a quoted shell name before -c", "b''ash -c 'git push origin main'"],
+  ["a script from /dev/stdin", "source /dev/stdin <<'EOF'\ngit push origin main\nEOF"],
+  ["a process substitution to a shell", "bash <(cat <<'EOF'\ngit push origin main\nEOF\n)"],
 ]) T(`git: ${name} still blocks`, blocks(checkGitCommand(command)), true)
+// The fail-closed list: each construct has a name, and a plain command holds none. A construct in a heredoc body that no shell reads does not count.
+for (const [name, command] of [
+  ["a here-string", 'grep -c x <<<"$output"'],
+  ['a `$"..."` quote', 'echo $"hello"'],
+  ["a run of `$` before a `'`", "echo $$'x'"],
+  ["a character as a code", "echo $'\\x41'"],
+  ["a line continuation inside a word", "ec\\\nho x"],
+  ["a `<<` that is no heredoc", "cat <<\\EOF\nx\nEOF"],
+  ["a `<<` that is no heredoc", "cat <<EOF\nx"],
+  ["a `<<` that is no heredoc", "cat <<A <<B\nx\nA\ny\nB"],
+  ["the name of a program", '"bash" script.sh'],
+  ["the name of a program", "r\\m -rf dist"],
+  ["the value of a variable", 'eval "$COMMAND"'],
+  ["the value of a variable", 'bash -c "echo $NAME"'],
+  ["the value of a variable", "/bin/sh -euc $SCRIPT"],
+  ["a script from `/dev/stdin`", "source /dev/stdin"],
+  ["a process substitution", "diff <(sort a) <(sort b)"],
+]) T(`unmodelled: ${command} holds ${name}`, unmodelledConstruct(command).includes(name), true)
+for (const command of ['grep -c "$pattern" notes.md', 'head -c "$count" notes.md', "git commit -m \"$(cat <<'EOF'\nfix: read bash <<<$\"x\" and echo $$'y' and <(z)\nEOF\n)\"", "echo $((1<<2))", "cat <<-'EOF'\n\tx\n\tEOF",
+  'printf "%s\\n" "$$"', "echo $'it\\'s'", "git commit -m x \\\n  -m y", "npm test 2>&1 | tail -n 5", 'eval "$(ssh-agent -s)"', "bash -c 'echo \"$1\"' name value", 'grep -rn "rm" notes.md']) {
+  T(`unmodelled: ${command} holds no such construct`, unmodelledConstruct(command), "")
+}
+T("git: a data heredoc that names a push, after a plain command with -c and a variable, allows", checkGitCommand("grep -c \"$pattern\" notes.md && git commit -F - <<'EOF'\nNever run git push origin main.\nEOF"), null)
 T("git: the fail-closed refusal names the construct and the plain form", ["a here-string", "plain form", "bash /abs/path.sh"].every((text) => (checkGitCommand('bash <<<$"git push origin main"')?.message ?? "").includes(text)), true)
 // The same constructs with no forbidden git command in the text are plain commands, and they pass.
 for (const command of ['bash <<<$"git status"', 'grep -c push <<<"$output"', "echo $$'x' ; git push origin feature/x", "cat <<-'EOF'\n\tgit push origin main\n\tEOF", "echo $((1<<2)) && git status",
-  "printf $'\\x1b[31m%s\\n' red && git log -1"]) {
+  "printf $'\\x1b[31m%s\\n' red && git log -1", "diff <(sort a) <(sort b) && git status"]) {
   T(`git: ${command} allows`, checkGitCommand(command), null)
 }
 // git worktree remove --force follows a Windows junction and deletes the target.
@@ -740,6 +765,9 @@ for (const [command, rule] of [
   [`eval 'echo 'rm -rf "$TMP"''`, "unmodelled-construct"],
   [`eval 'eval 'rm -rf "$TMP"''`, "variable-path"],
   ["bash -c 'echo $'x\\' <<EOF ; echo '\nrm -rf \"$TMP\"\nEOF'", "unmodelled-construct"],
+  // A script from `/dev/stdin`, and a process substitution that gives a shell its script.
+  ["source /dev/stdin <<'EOF'\nrm -rf \"$TMP\"\nEOF", "unmodelled-construct"],
+  ["bash <(cat <<'EOF'\nrm -rf \"$TMP\"\nEOF\n)", "unmodelled-construct"],
 ]) T(`approval: ${command} is refused by ${rule}`, refusedBy(command), rule)
 T("approval: the fail-closed refusal names the construct and the plain form", ["a here-string", "plain form", "literal path"].every((text) => (checkApprovalPrompt(`cat <<<'rm -rf "$TMP"'`, approvalOptions)?.message ?? "").includes(text)), true)
 for (const command of [
@@ -777,6 +805,8 @@ for (const command of [
   "cat <<-'EOF'\n\trm -rf \"$TMP\"\n\tEOF",
   // A quoted word that is no command word is text.
   'grep -rn "rm" .',
+  // `-c` with a variable is a script only after a shell word.
+  "grep -c \"$pattern\" notes.md; cat > clean.sh <<'EOF'\nrm -rf \"$TMP\"\nEOF",
   ...HEREDOC_DATA.map((row) => heredocCommand(row, 'rm -rf "$TMP"')),
 ]) T(`approval: ${command} passes`, refusedBy(command), null)
 // Property: for each command of a generated set, the hooks refuse it, or a direct reading proves that it runs no dangerous command.

@@ -95,7 +95,9 @@ The reader in `command-expander.mjs` reads a command exactly only for the constr
 - a line continuation inside a word
 - a `<<` that is no heredoc with one plain end marker line
 - a quote or an escape in the name of a program that the rules read
-- an `eval` or a `-c` script that holds the value of a variable
+- an `eval` or a shell `-c` script that holds the value of a variable
+- a script from `/dev/stdin`
+- a process substitution
 
 For a command with one of these, the rules read the text again with `looseReadings`: no quote, no escape, and each word
 counts as a word of a command. A command passes only when that text holds nothing that a rule refuses. The refusal asks for a
