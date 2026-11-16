@@ -104,6 +104,39 @@ describe.each(locales)('fresh start flow in $locale', ({ locale, messages }) => 
     expect(mocks.resetAccount).not.toHaveBeenCalled()
   })
 
+  it('closes on Escape while the reset runs, and never steps back to the lists in the middle of the deletion', async () => {
+    stubMedia(false)
+    let finishReset!: () => void
+    mocks.resetAccount.mockReturnValue(new Promise<void>((resolve) => { finishReset = resolve }))
+    const onOpenChange = vi.fn()
+    function Harness() {
+      const [open, setOpen] = useState(true)
+      return <FreshStartModal open={open} guided onOpenChange={(next) => { onOpenChange(next); setOpen(next) }} />
+    }
+    render(withIntl(locale, messages, <Harness />))
+    fireEvent.click(screen.getByRole('button', { name: messages.profile.freshStart.reviewDeletion }))
+    fireEvent.change(screen.getByLabelText(messages.profile.freshStart.confirmInstruction), { target: { value: 'ORBIT' } })
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: messages.profile.freshStart.deleteData })) })
+    expect(mocks.resetAccount).toHaveBeenCalledOnce()
+    expect(screen.queryByRole('button', { name: messages.common.back })).not.toBeInTheDocument()
+
+    await act(async () => { fireEvent.keyDown(document.activeElement ?? document.body, { key: 'Escape' }) })
+
+    expect(screen.queryByRole('heading', { level: 1, name: messages.profile.freshStart.question })).not.toBeInTheDocument()
+    expect(onOpenChange).toHaveBeenCalledWith(false)
+    await act(async () => { finishReset() })
+  })
+
+  it('steps back to the lists on Escape from the confirmation while no reset runs', async () => {
+    stubMedia(false)
+    const onOpenChange = vi.fn()
+    render(withIntl(locale, messages, <FreshStartModal open guided onOpenChange={onOpenChange} />))
+    fireEvent.click(screen.getByRole('button', { name: messages.profile.freshStart.reviewDeletion }))
+    await act(async () => { fireEvent.keyDown(document.activeElement ?? document.body, { key: 'Escape' }) })
+    expect(screen.getByRole('heading', { level: 1, name: messages.profile.freshStart.question })).toBeInTheDocument()
+    expect(onOpenChange).not.toHaveBeenCalled()
+  })
+
   it('goes back to the lists from the confirmation and keeps the typed text', () => {
     stubMedia(false)
     render(withIntl(locale, messages, <FreshStartModal open guided onOpenChange={vi.fn()} />))

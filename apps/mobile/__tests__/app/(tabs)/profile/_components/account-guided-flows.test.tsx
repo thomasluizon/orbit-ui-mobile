@@ -118,6 +118,27 @@ describe.each([{ language: 'en', messages: en }, { language: 'pt-BR', messages: 
     expect(texts(tree)).toContain(messages.result.account.freshStartQueued)
   })
 
+  it('closes on Android back while the reset runs, and steps back to the lists while none runs', async () => {
+    mocks.language = language
+    let finishReset!: (value: object) => void
+    mocks.apiClient.mockReturnValue(new Promise<object>((resolve) => { finishReset = resolve }))
+    const onClose = vi.fn()
+    const tree = await render(<FreshStartModal open guided onClose={onClose} />)
+    const androidBack = () => TestRenderer.act(async () => { (tree.root.findAll((node) => node.type === Modal)[0]!.props.onRequestClose as () => void)(); await Promise.resolve() })
+    await press(tree, messages.profile.freshStart.reviewDeletion)
+    await androidBack()
+    expect(textOf(heading(tree)!)).toBe(messages.profile.freshStart.question)
+    expect(onClose).not.toHaveBeenCalled()
+
+    await press(tree, messages.profile.freshStart.reviewDeletion)
+    await type(tree, 'ORBIT')
+    await press(tree, messages.profile.freshStart.deleteData)
+    expect(mocks.apiClient).toHaveBeenCalledOnce()
+    await androidBack()
+    expect(onClose).toHaveBeenCalledOnce()
+    await TestRenderer.act(async () => { finishReset({}); await Promise.resolve() })
+  })
+
   it('keeps the confirmation step with the failure text when the reset fails', async () => {
     mocks.language = language
     mocks.apiClient.mockRejectedValue(new Error('Failed'))

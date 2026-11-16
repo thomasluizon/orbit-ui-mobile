@@ -59,7 +59,7 @@ export function FreshStartFlow(props: Readonly<FreshStartFlowProps>) {
     props.onReset()
   }
   return (
-    <FlowScreen label={t('profile.settingsRows.startOver')} onDismiss={confirming ? props.onBack : props.onClose}>
+    <FlowScreen label={t('profile.settingsRows.startOver')} onDismiss={confirming && !props.loading ? props.onBack : props.onClose}>
       <QuestionFlow
         flow="fresh_start"
         showOrbit={false}
