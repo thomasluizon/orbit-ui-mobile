@@ -16,7 +16,7 @@ GO FASTER (owner order): start every independent item in the first turn, in para
 
 ## Goal
 
-Finish the spec: an empty board except `#33`, verified releases, the assistant fixed as a class, every `#315` ticket closed, then `#315`, then the store images (`#2147`) before `#33`. Left: `gh issue list --repo thomasluizon/orbit-tickets --state open --limit 400`. The order reconciles: open 25, placed 25, unplaced 0, placed twice 0.
+Finish the spec: an empty board except `#33`, verified releases, the assistant fixed as a class, every `#315` ticket closed, then `#315`, then the store images (`#2147`) before `#33`. Left: `gh issue list --repo thomasluizon/orbit-tickets --state open --limit 400`. The order reconciles: open 24, placed 24, unplaced 0, placed twice 0.
 
 The owner is present now and then; answer him first, in English. `#2074` is MAX priority.
 
