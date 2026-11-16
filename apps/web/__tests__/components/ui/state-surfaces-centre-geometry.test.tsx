@@ -29,7 +29,6 @@ function throttled() {
   return { data: { status: 429, retryAfterUtc: new Date(Date.now() + 60_000).toISOString() } }
 }
 
-/** A surface inside the compact shell owns the region between the shell header and the tab bar. */
 function InShell({ children }: Readonly<{ children: ReactElement }>) {
   return <div className="flex h-dvh flex-col" style={{ ['--shell-scroller-end' as string]: '0px' }}>
     <div data-free-top="" style={{ height: HEADER_HEIGHT, flexShrink: 0 }} />

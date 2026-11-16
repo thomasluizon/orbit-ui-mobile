@@ -18,7 +18,6 @@ interface Workflow<Job extends string> {
 
 const readWorkflow = <Job extends string>(name: string) => parse(readFileSync(resolve(`../../.github/workflows/${name}.yml`), 'utf8')) as Workflow<Job>
 
-/** Every setting `Validate the release configuration` requires, set to a valid staging value. */
 const iosReleaseEnvironment = {
   PATH: process.env.PATH ?? '', NODE_ENV: 'test', ORBIT_APP_VARIANT: 'staging', GITHUB_REF: 'refs/heads/feature/release',
   ORBIT_APPLE_TEAM_ID: 'TESTTEAM01', ORBIT_IOS_APP_STORE_ID: '1234567890',
@@ -193,7 +192,6 @@ describe('iOS build and release boundaries', () => {
 
   const androidCommit = 'a'.repeat(40)
 
-  /** Runs the iOS validation step. The Android record names `androidCommit` (null: no commit); the run builds `commit`. */
   const validateRelease = (options: {
     variant: 'staging' | 'production'; ref: string; androidVersion: string | null; platformOnlyReason?: string
     commit?: string; recordedCommit?: string | null

@@ -6,7 +6,6 @@ import { resolveWebMotionVariables } from '@/lib/theme-dom'
 
 const stylesheet = postcss.parse(readFileSync('app/globals.css', 'utf8'))
 
-/** The declarations of the one rule whose selector list is exactly `selectors`. */
 function declarationsOf(...selectors: string[]): Record<string, string> {
   const found: Record<string, string>[] = []
   stylesheet.walkRules((rule) => {

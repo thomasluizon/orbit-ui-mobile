@@ -68,7 +68,6 @@ function accountAHabitDetail() {
   }
 }
 
-/** The cache is cleared on a replacement, so the next account's map holds nothing of account A. */
 const EMPTY_HABITS_BY_ID = new Map<string, NormalizedHabit>()
 
 beforeEach(() => {

@@ -32,7 +32,6 @@ function MockCircle(
   return React.createElement('Circle', props, children)
 }
 
-/** The real `Svg` exposes `measureInWindow` on its ref; the mock measures through the react-native mock's hook. */
 function MockSvg(
   {
     children,

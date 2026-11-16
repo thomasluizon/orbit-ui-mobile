@@ -9,7 +9,6 @@ vi.mock('@sentry/nextjs', () => ({
   captureRouterTransitionStart: vi.fn(),
 }))
 
-/** Retains the real scrubber across entry-module resets so cold loading finishes during collection. */
 vi.mock('@/lib/sentry-scrub', (importOriginal) => importOriginal())
 
 let initialization: Promise<unknown> | undefined

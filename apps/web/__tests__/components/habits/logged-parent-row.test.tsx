@@ -44,7 +44,6 @@ function child(id: string, title: string) {
     instances: [{ date: TODAY, status: 'Pending', logId: null }] })
 }
 
-/** A daily parent that is due today, with two daily sub-habits that are due today. Nothing has a log. */
 function dueTodayTree(): HabitScheduleItem[] {
   return [createMockHabitScheduleItem({
     id: 'parent', title: 'Parent', dueDate: TODAY, scheduledDates: [TODAY], hasSubHabits: true,
@@ -53,11 +52,6 @@ function dueTodayTree(): HabitScheduleItem[] {
   })]
 }
 
-/**
- * The same tree after the API accepts the parent log. Source: orbit-api `Habit.Log` advances a
- * recurring habit to its next due date and keeps `IsCompleted` false, `MapToScheduleItem` sets
- * `isLoggedInRange` from the log, and no code path logs the children.
- */
 function parentLoggedTree(): HabitScheduleItem[] {
   const [parent] = dueTodayTree()
   return [{ ...parent!, isCompleted: false, isLoggedInRange: true, dueDate: TOMORROW,
@@ -87,7 +81,6 @@ function checkControl(id: string): HTMLButtonElement {
   return row(id).querySelector<HTMLButtonElement>('[data-habit-row-control="check"]')!
 }
 
-/** Everything a sighted person sees on the row: hidden text, names for assistive technology and state attributes are removed. */
 function visiblePresentation(id: string): string {
   const copy = row(id).cloneNode(true) as HTMLElement
   copy.querySelectorAll('.sr-only').forEach((node) => node.remove())
@@ -134,7 +127,6 @@ async function logParentFromTodayList(locale: 'en' | 'pt-BR' = 'en') {
     if (path !== API.habits.log('parent')) throw new Error(`Unexpected write: ${path}`)
     const unlog = api.writes.length > 1
     api.items = unlog ? dueTodayTree() : parentLoggedTree()
-    /** Source: orbit-api `LogHabitCommand.HandleUnlogAsync` answers with the removed log id, no first completion and no XP. */
     return unlog
       ? { logId: 'log-parent', isFirstCompletionToday: false, previousStreak: 1, currentStreak: 0, linkedGoalUpdates: [] }
       : { logId: 'log-parent', isFirstCompletionToday: true, previousStreak: 0, currentStreak: 1,
@@ -152,10 +144,6 @@ async function logParentFromTodayList(locale: 'en' | 'pt-BR' = 'en') {
   await waitFor(() => expect(api.writes.length).toBeGreaterThan(0))
   await waitFor(() => expect(api.listReads).toBeGreaterThan(listReadsBeforeLog))
   await waitFor(() => expect(row('parent').dataset.status).toBe('done'))
-  /**
-   * The row keeps a "recently completed" state for `motionDurations.micro` from the tap. This wait starts later
-   * and has the same length, so it ends after that state; `act` flushes the render that removes it.
-   */
   await act(() => new Promise((resolve) => setTimeout(resolve, motionDurations.micro)))
   return { before, client }
 }

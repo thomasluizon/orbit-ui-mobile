@@ -272,7 +272,6 @@ export function extractBackendError(err: unknown): string | undefined {
 type ContextSet = ReadonlySet<FriendlyErrorContext>
 
 interface MessageRule {
-  /** All substrings must be present (AND logic). */
   includes: readonly string[]
   key: string
   contexts?: ContextSet
@@ -282,10 +281,6 @@ const HABIT_CONTEXTS: ContextSet = new Set(['habit', 'subHabit', 'habitLog'])
 const GOAL_CONTEXTS: ContextSet = new Set(['goal', 'goalProgress'])
 const TAG_CONTEXTS: ContextSet = new Set(['tag'])
 
-/**
- * A rule whose only producer was a `DomainErrors` sentence belongs in `ERROR_CODE_TO_KEY`
- * instead, because the API localizes those sentences at its response boundary.
- */
 const CONTEXTUAL_RULES: readonly MessageRule[] = [
   { includes: ['description', String(MAX_HABIT_DESCRIPTION_LENGTH)], key: 'habits.form.descriptionTooLong', contexts: HABIT_CONTEXTS },
   { includes: ['frequency quantity', 'required'], key: 'habits.form.frequencyRequired', contexts: HABIT_CONTEXTS },
@@ -318,7 +313,6 @@ function matchesIncludes(msg: string, includes: MessageRule['includes']): boolea
   return includes.every((s) => msg.includes(s))
 }
 
-/** Apply contextual rules before title fallback so named fields retain their specific message. */
 function getContextualMessageKey(
   normalizedMessage: string,
   context: FriendlyErrorContext,

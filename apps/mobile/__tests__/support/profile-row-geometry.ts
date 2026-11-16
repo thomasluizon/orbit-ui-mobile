@@ -110,7 +110,6 @@ function applyStyle(node: YogaNode, style: ViewStyle) {
   }
 }
 
-/** The child paths of a control's content. The press-scale face fills the target and holds its padding, so the content is what the face lays out. */
 function contentPaths(rows: HostRow[], path: number[]): number[][] {
   return rows.flatMap((child, index) => {
     if (child.props['data-slot'] === 'list-row-fill') return []

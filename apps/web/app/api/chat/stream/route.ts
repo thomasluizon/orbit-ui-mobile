@@ -6,13 +6,6 @@ import { buildForwardedClientHeaders } from '@/app/api/_utils/forwarded-client-c
 import { buildSessionRefreshHeaders } from '@/lib/session-refresh'
 import { observeProxyFailure, type RecordProxyUpstream } from '@/lib/proxy-failure-log'
 
-/**
- * BFF: streaming proxy for the chat SSE endpoint. The catch-all proxy buffers
- * response bodies, which would defeat token streaming, so the streamed leg
- * pipes the upstream body straight through. Auth mirrors the catch-all: cookie
- * session token plus a single refresh-token rotation on upstream 401.
- */
-
 const API_BASE = process.env.API_BASE ?? 'http://localhost:5000'
 
 async function forwardStream(

@@ -35,7 +35,6 @@ function NotionConnectionDetails({ controller, reconnect, hasConnection }: Reado
         </> : <p className="text-sm text-[var(--fg-2)]" >{t('profile.connections.description')}</p>}</>
 }
 
-/** Holds the place of the workspace name and the last sync line while the connection loads. */
 function NotionDetailsSkeleton({ label }: Readonly<{ label: string }>) {
   return <div role="status" aria-busy="true" aria-label={label} data-notion-details-skeleton="" className="flex flex-col" style={{ gap: 16 }}>
     <span className="block h-6 w-1/2"><Skeleton variant="fill" grouped /></span>

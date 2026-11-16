@@ -9,7 +9,6 @@ import { CalendarTimeGrid, type TimeGridColumn } from './calendar-time-grid'
 interface CalendarWeekViewProps {
   columns: ReadonlyArray<TimeGridColumn>
   dayMap: Map<string, CalendarDayEntry[]>
-  /** Direction of the last week-nav step, driving the grid's slide-in motion. */
   slideDirection: CalendarSlideDirection | null
   isLoading?: boolean
   onSelectDay: (dateStr: string) => void

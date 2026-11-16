@@ -408,12 +408,6 @@ function useHabitListEmptyRendering({ styles, t }: Pick<HabitListEmptyRenderingI
 
 type HabitListRefreshInputs = Pick<ReturnType<typeof useHabitListQueries>, 'isFetching' | 'isLoading' | 'refetch'>
 
-/**
- * Pull to refresh keeps the native gesture and draws no indicator (DESIGN.md Bans). The loaded rows stay in place while the
- * fetch runs, and the list reports the wait as busy. A fetch that TanStack pauses offline is not fetching, so it is not busy.
- * Android's circle keeps a 4 dp shadow with a transparent fill, so it starts 192 dp above the list: it moves at most two
- * 64 dp targets (androidx swiperefreshlayout 1.1.0 `moveSpinner`, `ReactSwipeRefreshLayout.setProgressViewOffset`).
- */
 function useHabitListRefresh({ isFetching, isLoading, refetch }: HabitListRefreshInputs) {
   const refreshControl = useMemo(
     () => (

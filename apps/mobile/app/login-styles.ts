@@ -9,7 +9,6 @@ export function createLoginStyles(tokens: AppTokensV2) {
     scrollContent: { flexGrow: 1, alignItems: 'center', justifyContent: 'center' },
     scrollWide: { justifyContent: 'center', padding: SPACING.s32 },
     formColumn: { width: '100%', paddingVertical: SPACING.s16, paddingHorizontal: SPACING.s16, gap: 32 },
-    /** Yoga reads a vertical or horizontal padding before the padding of all edges, so the panel names both to replace the column's. */
     panel: { width: 420, paddingVertical: SPACING.s32, paddingHorizontal: SPACING.s32, backgroundColor: tokens.bgCard, borderRadius: radius.xl,
       borderWidth: 1, borderColor: tokens.hairlineGhost },
     step: { gap: 24 },
