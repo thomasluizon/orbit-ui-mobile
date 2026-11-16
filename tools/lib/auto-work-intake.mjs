@@ -1,6 +1,6 @@
 import { readRunState, updateRunState, REPO_ROOT } from "./run-state.mjs"
 
-const carryingTicket = (ticket) => /^https:\/\/github\.com\/thomasluizon\/orbit-tickets\/issues\/\d+$/.test(ticket ?? "")
+export const carryingTicket = (ticket) => /^https:\/\/github\.com\/thomasluizon\/orbit-tickets\/issues\/\d+$/.test(ticket ?? "")
 
 /** Semantic classification belongs to the skill; every send boundary enforces this allowlist. */
 export const replyDisposition = (receipt, mailItem) => {

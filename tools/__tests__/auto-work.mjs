@@ -6,6 +6,7 @@ import { setTimeout as wait } from "node:timers/promises"
 import { T, TOOLS_DIR, realOrchestratorConfig, run, stageWithConfig } from "./_harness.mjs"
 import { isRelayWaiter, readRunState, readWakeSourceStates, wakeSourceDirectory, writeRunState } from "../lib/run-state.mjs"
 import { checkSleepStop } from "../../.claude/hooks/_lib/rules-sleep.mjs"
+import { CODE_SCANNING_ALERT, DEPENDABOT_PULL } from "./auto-work-github.mjs"
 
 /** One BoardState page, its node shape copied from a live read of the ticket repository. */
 const BOARD_PAGE = JSON.stringify({ data: { repository: { issues: { pageInfo: { hasNextPage: false, endCursor: "Y3Vyc29yOnYyOpK0MjAyNi0xMS0wOFQyMzozMzoxNFrPAAAAAXYjtkw=" },
@@ -14,17 +15,31 @@ const BOARD_PAGE = JSON.stringify({ data: { repository: { issues: { pageInfo: { 
 
 /**
  * Stand-ins for every source the waiter reads, so no case reaches GitHub or Gmail. The real review
- * cycle command runs; the fake gh answers only the board read and refuses everything else, which
- * also proves no real workflow is dispatched.
+ * cycle command runs; the fake gh answers the board read, the owner token and the pull request and
+ * alert pages, and refuses everything else, which also proves no real workflow is dispatched.
  */
 const stageSources = (base) => {
+  spawnSync("git", ["-C", base, "init", "-q"])
+  spawnSync("git", ["-C", base, "remote", "add", "origin", "https://github.com/thomasluizon/orbit-ui-mobile.git"])
   writeFileSync(join(base, "tools", "orbit-mail.mjs"), `console.log(JSON.stringify({ unseen: ["m-new"] }))\n`)
   for (const tool of ["orbit-play-reviews.mjs", "orbit-app-store-reviews.mjs"]) copyFileSync(join(TOOLS_DIR, tool), join(base, "tools", tool))
   const bin = join(base, "bin")
   mkdirSync(bin, { recursive: true })
   const log = join(base, "gh-calls.log")
   const gh = join(bin, "gh")
-  writeFileSync(gh, `#!/bin/sh\necho "$*" >> "${log}"\ncase "$*" in *"query BoardState"*) printf '%s' '${BOARD_PAGE}'; exit 0;; esac\necho "gh stand-in refuses" >&2\nexit 1\n`)
+  const line = (value) => JSON.stringify(value).replaceAll("'", "'\\''")
+  writeFileSync(gh, `#!/bin/sh
+echo "$*" >> "${log}"
+case "$*" in
+  *"query BoardState"*) printf '%s' '${BOARD_PAGE}'; exit 0;;
+  "auth token --user thomasluizon") echo token-2149; exit 0;;
+  *"repos/thomasluizon/orbit-api/pulls?"*) printf '%s\\n' '${line(DEPENDABOT_PULL)}'; exit 0;;
+  *"repos/thomasluizon/orbit-api/code-scanning/alerts?"*) printf '%s\\n' '${line(CODE_SCANNING_ALERT)}'; exit 0;;
+  "api --paginate "*) exit 0;;
+esac
+echo "gh stand-in refuses" >&2
+exit 1
+`)
   chmodSync(gh, 0o755)
   return { env: { PATH: `${bin}:${process.env.PATH}`, GH_BIN: gh }, log }
 }
@@ -104,12 +119,19 @@ export const cases = async () => {
       if (mode === "source") {
         T("auto-work source: a new mail id and the review failure name their sources", JSON.stringify(result.wakes) === JSON.stringify([
           { source: "mail", kind: "new", items: ["m-new"] },
-          { source: "reviews", kind: "failure", failure: "orbit-play-reviews.mjs --cycle failed (exit 1): gh workflow run failed (exit 1): gh stand-in refuses" }]), stdout)
+          { source: "reviews", kind: "failure", failure: "orbit-play-reviews.mjs --cycle failed (exit 1): gh workflow run failed (exit 1): gh stand-in refuses" },
+          { source: "pullRequests", kind: "new", items: [`api#1106 ${DEPENDABOT_PULL.head}`] },
+          { source: "alerts", kind: "new", items: ["api code-scanning 28"] }]), stdout)
         const wake = readRunState(installation.base).intake.wake
         T("auto-work source: the board baseline, seen mail and failure persist", wake.seen.board[0] === "#2065 2026-11-08T22:53:42Z blocked by #2064" &&
           wake.seen.mail[0] === "m-new" && wake.failures.reviews.startsWith("orbit-play-reviews.mjs --cycle failed") &&
           readRunState(installation.base).intake.play.workflowCycle === undefined, JSON.stringify(wake))
         const ghCalls = readFileSync(sources.log, "utf8").trim().split("\n")
+        T("auto-work source: the seen pull request and alert keys persist", wake.seen.pullRequests[0] === `api#1106 ${DEPENDABOT_PULL.head}` &&
+          wake.seen.alerts[0] === "api code-scanning 28", JSON.stringify(wake))
+        T("auto-work source: the waiter reads every page of the pull requests and the three alert sources of all three repositories",
+          ghCalls.filter((line) => /^api --paginate repos\/thomasluizon\/orbit-(ui-mobile|api|landing-page)\/(pulls|code-scanning\/alerts|secret-scanning\/alerts|dependabot\/alerts)\?state=open/.test(line)).length === 12,
+          ghCalls.join("\n"))
         T("auto-work source: the board is read through GraphQL and the review cycle dispatch went to the gh stand-in",
           ghCalls.some((line) => line.startsWith("api graphql") && line.includes("query BoardState")) &&
           ghCalls.some((line) => /^workflow run orbit-play-reviews\.yml --ref main -f cycle=review-\d{8}T\d{6}-[0-9a-f]{6}$/.test(line)), ghCalls.join("\n"))

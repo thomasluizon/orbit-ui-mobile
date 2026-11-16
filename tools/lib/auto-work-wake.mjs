@@ -1,5 +1,6 @@
 import { join } from "node:path"
 import { setTimeout as wait } from "node:timers/promises"
+import { listedWakeKeys } from "./auto-work-github.mjs"
 import { activeIntakeRun, pendingReviewKeys, REVIEW_RUN_SECONDS } from "./auto-work-intake.mjs"
 import { runBounded } from "./bounded-process.mjs"
 import { listBoardState } from "./github-issues.mjs"
@@ -51,11 +52,16 @@ export const reviewCheck = ({ run, repoRoot = REPO_ROOT }) => async () => {
   return { keys: cycle.keys, ...(typeof cycle.failure === "string" ? { failure: cycle.failure } : {}) }
 }
 
-/** Seen keys, failure signatures and the Sentry listing time, all carried in run state. */
+/**
+ * Seen keys, failure signatures and the Sentry listing time, all carried in run state. The pull
+ * requests and alerts the model listed in its last cycle join the seen keys of the last waiter.
+ */
 export const initialWakeMarks = (intake, nowMilliseconds) => {
   const marks = intake?.wake ?? {}
+  const listed = Object.fromEntries(Object.entries(listedWakeKeys(intake))
+    .map(([source, keys]) => [source, [...new Set([...(marks.seen?.[source] ?? []), ...keys])]]))
   return {
-    seen: { reviews: pendingReviewKeys(intake), ...marks.seen },
+    seen: { reviews: pendingReviewKeys(intake), ...marks.seen, ...listed },
     failures: { ...marks.failures },
     sentryListedAt: Number.isFinite(Date.parse(marks.sentryListedAt)) ? marks.sentryListedAt : new Date(nowMilliseconds).toISOString(),
   }
