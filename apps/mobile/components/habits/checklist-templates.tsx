@@ -29,6 +29,8 @@ import { ListRow } from '@/components/ui/list-row'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { useDismissGuard } from '@/hooks/use-dismiss-guard'
 import { DiscardChangesSheet } from '@/components/ui/discard-changes-sheet'
+import { SkeletonFace } from '@/components/ui/skeleton'
+import { useSubmitHold } from '@/hooks/use-submit-hold'
 
 type AppTokens = ReturnType<typeof createTokensV2>
 
@@ -58,11 +60,70 @@ function ChecklistTemplatesEmptyState({ canSave, onSave, styles, translate }: Re
   )
 }
 
+interface TemplateSaveEditorProps {
+  name: string
+  waiting: boolean
+  onChange: (name: string) => void
+  onSave: () => void
+  onCancel: () => void
+  styles: ReturnType<typeof createStyles>
+  tokens: AppTokens
+}
+
+function TemplateSaveEditor({ name, waiting, onChange, onSave, onCancel, styles, tokens }: Readonly<TemplateSaveEditorProps>) {
+  const { disabled, guard, isDisabled } = useHabitFormInteraction()
+  const { t } = useTranslation()
+  return (
+    <View style={styles.saveRow}>
+      <BottomSheetAppTextInput isChangeDisabled={isDisabled}
+        editable={!disabled && !waiting}
+        accessibilityState={{ disabled: disabled || waiting }}
+        value={name}
+        placeholder={t('habits.form.templateNamePlaceholder')}
+        style={styles.input}
+        accessibilityLabel={t('habits.form.templateNamePlaceholder')}
+        accessibilityHint={t('habits.form.saveAsTemplate')}
+        onChangeText={guard(onChange)}
+        onSubmitEditing={onSave}
+        returnKeyType="done"
+      />
+      <Pressable
+        style={({ pressed }) => [
+          styles.saveButton,
+          waiting && styles.saveButtonWaiting,
+          !name.trim() && !waiting && styles.saveButtonDisabled,
+          pressed && !waiting ? { backgroundColor: tokens.primaryPressed } : null,
+        ]}
+        onPress={onSave}
+        disabled={disabled || !name.trim() || waiting}
+        accessibilityRole="button"
+        accessibilityLabel={t('common.save')}
+        accessibilityState={{ disabled: disabled || !name.trim() || waiting, busy: waiting }}
+      >
+        {waiting ? <SkeletonFace tokens={tokens} /> : null}
+        <Text style={[styles.saveButtonText, waiting && { color: tokens.fg1 }]}>{t('common.save')}</Text>
+      </Pressable>
+      <Pressable
+        disabled={disabled || waiting}
+        style={({ pressed }) => [
+          styles.closeButton,
+          pressed ? { backgroundColor: tokens.bgHover } : null,
+        ]}
+        onPress={onCancel}
+        accessibilityRole="button"
+        accessibilityLabel={t('common.close')}
+      >
+        <X size={16} color={tokens.fg3} strokeWidth={1.8} />
+      </Pressable>
+    </View>
+  )
+}
+
 export function ChecklistTemplates({
   items,
   onLoad,
 }: Readonly<ChecklistTemplatesProps>) {
-  const { disabled, guard, isDisabled } = useHabitFormInteraction()
+  const { disabled, isDisabled } = useHabitFormInteraction()
   const { t } = useTranslation()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(
@@ -74,6 +135,7 @@ export function ChecklistTemplates({
   const { data: templates = [] } = useChecklistTemplates()
   const createTemplate = useCreateChecklistTemplate()
   const deleteTemplate = useDeleteChecklistTemplate()
+  const saving = useSubmitHold()
   const [open, setOpen] = useState(false)
   const { sheetRef, closeSheet } = useSheetHost()
   const [clampedTemplates, setClampedTemplates] = useState<Record<string, boolean>>({})
@@ -83,29 +145,27 @@ export function ChecklistTemplates({
   const finishClose = () => { setOpen(false); setShowSave(false); setTemplateName('') }
   const dismiss = useDismissGuard({ isDirty: showSave && templateName.length > 0, onDismiss: () => dismissActionRef.current() })
   const requestDismiss = (action = () => closeSheet(finishClose)) => {
-    if (createTemplate.isPending) return
+    if (saving.isRunning()) return
     dismissActionRef.current = action
     dismiss.requestDismiss()
   }
   const cancelEditor = () => requestDismiss(() => { setTemplateName(''); setShowSave(false) })
 
-  const handleSave = useCallback(() => {
+  const handleSave = () => {
     const name = templateName.trim()
-    if (isDisabled() || !name || items.length === 0 || createTemplate.isPending) return
-
-    createTemplate.mutate(
-      { name, items: items.map((item) => item.text) },
-      {
-        onSuccess: () => {
-          setTemplateName('')
-          setShowSave(false)
-        },
-        onError: () => {
-          showError(t('habits.form.saveTemplateError'))
-        },
-      },
-    )
-  }, [createTemplate, isDisabled, items, showError, t, templateName])
+    if (isDisabled() || !name || items.length === 0) return
+    void saving.run(async (startRequest) => {
+      startRequest()
+      try {
+        await createTemplate.mutateAsync({ name, items: items.map((item) => item.text) })
+        setTemplateName('')
+        setShowSave(false)
+      } catch {
+        showError(t('habits.form.saveTemplateError'))
+      }
+      return 'stay'
+    })
+  }
 
   function handleLoad(id: string) {
     const template = templates.find((entry) => entry.id === id)
@@ -138,7 +198,7 @@ export function ChecklistTemplates({
         />
       </View>
       {open ? (
-        <Sheet ref={sheetRef} open title={t('habits.form.templates')} onClose={!createTemplate.isPending && dismiss.canDismiss ? finishClose : undefined} onAttemptDismiss={() => requestDismiss()}>
+        <Sheet ref={sheetRef} open title={t('habits.form.templates')} onClose={!saving.waiting && dismiss.canDismiss ? finishClose : undefined} onAttemptDismiss={() => requestDismiss()}>
           <View style={styles.container}>
             {templates.length > 0 && items.length > 0 && !showSave ? (
               <ListRow
@@ -150,46 +210,7 @@ export function ChecklistTemplates({
               />
             ) : null}
             {showSave ? (
-              <View style={styles.saveRow}>
-          <BottomSheetAppTextInput isChangeDisabled={isDisabled}
-            editable={!disabled}
-            accessibilityState={{ disabled }}
-            value={templateName}
-            placeholder={t('habits.form.templateNamePlaceholder')}
-            style={styles.input}
-            accessibilityLabel={t('habits.form.templateNamePlaceholder')}
-            accessibilityHint={t('habits.form.saveAsTemplate')}
-            onChangeText={guard(setTemplateName)}
-            onSubmitEditing={handleSave}
-            returnKeyType="done"
-          />
-          <Pressable
-            style={({ pressed }) => [
-              styles.saveButton,
-              (!templateName.trim() || createTemplate.isPending) && styles.saveButtonDisabled,
-              pressed ? { backgroundColor: tokens.primaryPressed } : null,
-            ]}
-            onPress={handleSave}
-            disabled={disabled || !templateName.trim() || createTemplate.isPending}
-            accessibilityRole="button"
-            accessibilityLabel={t('common.save')}
-            accessibilityState={{ disabled: disabled || !templateName.trim() || createTemplate.isPending }}
-          >
-            <Text style={styles.saveButtonText}>{t('common.save')}</Text>
-          </Pressable>
-          <Pressable
-            disabled={disabled}
-            style={({ pressed }) => [
-              styles.closeButton,
-              pressed ? { backgroundColor: tokens.bgHover } : null,
-            ]}
-            onPress={cancelEditor}
-            accessibilityRole="button"
-            accessibilityLabel={t('common.close')}
-          >
-            <X size={16} color={tokens.fg3} strokeWidth={1.8} />
-          </Pressable>
-              </View>
+              <TemplateSaveEditor name={templateName} waiting={saving.waiting} onChange={setTemplateName} onSave={handleSave} onCancel={cancelEditor} styles={styles} tokens={tokens} />
             ) : null}
             {templates.map((template) => (
               <TemplateRow key={template.id} template={template} disabled={disabled} styles={styles} tokens={tokens}
@@ -273,6 +294,9 @@ function createStyles(tokens: AppTokens) {
     },
     saveButtonDisabled: {
       opacity: 0.4,
+    },
+    saveButtonWaiting: {
+      backgroundColor: 'transparent',
     },
     saveButtonText: {
       fontFamily: 'Geist_500Medium',
