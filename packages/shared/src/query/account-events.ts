@@ -65,7 +65,6 @@ export function invalidateAccountQueriesBefore(
       && query.state.dataUpdatedAt < mountedAt
       && query.state.fetchStatus === 'idle'
       && (!hasReplayCursor || query.isStaleByTime(QUERY_STALE_TIMES.profile))
-  /** Profile usage resets with the user's day without emitting an account event, so replay cannot refresh it. */
   const queryKeys = hasReplayCursor ? [profileKeys.all] : TODAY_KEYS
   for (const queryKey of queryKeys) {
     if (queryClient.getQueryCache().findAll({ queryKey, predicate }).length > 0) {
@@ -91,7 +90,6 @@ export function invalidateAccountQueriesAtFailure(
     if (event.type === 'removed') inFlight.delete(query.queryHash)
     if (event.type === 'updated' && query.state.fetchStatus === 'idle') {
       inFlight.delete(query.queryHash)
-      /** A cancelled fetch hands the query to its canceller, usually an optimistic update that a refetch would overwrite. */
       if (event.action.type !== 'setState') void queryClient.invalidateQueries({ queryKey: query.queryKey, exact: true })
     }
     if (inFlight.size > 0) return

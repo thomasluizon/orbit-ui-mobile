@@ -48,10 +48,6 @@ interface MockRegistration {
   }
 }
 
-/**
- * Mirrors the browser: `ready` never settles until something registers a worker for the page, and
- * `getRegistration` finds a registration only once one exists.
- */
 function createServiceWorkerContainer(registration: MockRegistration, registerRejects: boolean) {
   let registered = false
   let activate!: (value: MockRegistration) => void
@@ -92,10 +88,6 @@ function createMockSubscription(endpoint = 'https://example.com/push'): MockPush
   }
 }
 
-/**
- * Turns push on through the real subscribe flow as the given account, which is how a browser comes to
- * hold a subscription that belongs to one account, then forgets the calls it took to get there.
- */
 async function enablePushAs(accountId: string, subscription = createMockSubscription()) {
   setAccountId(accountId)
   const environment = setupPushEnvironment({ permission: 'granted', subscribeResult: subscription })

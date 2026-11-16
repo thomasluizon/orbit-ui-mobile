@@ -8,20 +8,16 @@ export type OrbitOverlay = symbol | null
 interface LiveClaim {
   readonly claim: symbol
   readonly overlay: OrbitOverlay
-  /** The conversation entry leads its view whenever it is in view. */
   readonly lead: boolean
 }
 
 interface OpenOverlay {
   readonly overlay: symbol
-  /** The overlay this one opened inside, or `null` when it opened on the page. */
   readonly parent: OrbitOverlay
 }
 
 const listeners = new Set<() => void>()
 const liveClaims: LiveClaim[] = []
-/** Open overlays in the order they opened. The last one covers every Orbit outside it, whether it opened inside an
- *  earlier overlay or beside it. */
 const openOverlays: OpenOverlay[] = []
 let motionEnabled = true
 let version = 0

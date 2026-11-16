@@ -66,7 +66,6 @@ export function orbitMascotSizeFor(size: number): OrbitMascotSize {
   return tiers.find((tier) => tier <= size) ?? 16
 }
 
-/** The smallest size that draws the live rig. Every size below it draws the small static face. */
 const ORBIT_MASCOT_LIVE_MIN_SIZE: OrbitMascotLiveSize = 48
 /** The small static face draws in a 4:3 box, so its height is three quarters of its width. */
 export const ORBIT_SMALL_FACE_BOX_RATIO = 3 / 4
@@ -122,7 +121,6 @@ export function orbitRingPath(from: number, to: number, tilt: number, opening: n
   return `M${outer.concat(inner.reverse()).join(' L')} Z`
 }
 
-/** The blink of the idle loop: open, then a short close and reopen at the end of each interval. */
 function blinkScaleAt(phase: number): number {
   if (phase < 0.92) return 1
   if (phase < 0.96) return 1 - (0.9 * (phase - 0.92)) / 0.04

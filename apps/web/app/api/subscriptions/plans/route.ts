@@ -12,12 +12,6 @@ const NO_STORE_CACHE_CONTROL = 'private, no-store, max-age=0'
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
-/**
- * BFF: GET /api/subscriptions/plans Dedicated route that proxies plan pricing to the .NET
- * backend. This takes precedence over the catch-all proxy because Next.js resolves specific
- * routes before [...path].
- */
-
 function buildHeaders(
   token: string | null,
   forwardedClientHeaders: Record<string, string>,

@@ -9,7 +9,6 @@ import { OrbitMascot } from '@/components/ui/orbit-mascot'
 import { InsetFocusPressable } from '@/components/ui/inset-focus-pressable'
 import { SkeletonFace } from '@/components/ui/skeleton'
 
-/** A waiting action clears its fill so its skeleton face shows; otherwise the well fill and the press fill. */
 function proactiveActionFill(waiting: boolean, pressed: boolean, tokens: ReturnType<typeof createTokensV2>): string {
   if (waiting) return 'transparent'
   return pressed ? tokens.bgHover : tokens.bgWell

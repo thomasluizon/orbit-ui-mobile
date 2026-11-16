@@ -36,7 +36,6 @@ interface ReactTestRenderer {
 
 let tree: ReactTestRenderer | undefined
 
-/** Mounts the tree and lets the sheet finish presenting. */
 async function render(element: ReactElement): Promise<ReactTestRenderer> {
   await TestRenderer.act(async () => {
     tree = TestRenderer.create(element)
@@ -45,7 +44,6 @@ async function render(element: ReactElement): Promise<ReactTestRenderer> {
   return tree!
 }
 
-/** The loop of each Orbit by its state, so a test reads the page Orbit and the overlay Orbit apart. */
 function loops(rendered: ReactTestRenderer) {
   return Object.fromEntries(rendered.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'orbit-mascot')
     .map((node) => [String(node.props['data-orbit-state']), node.props['data-orbit-loop']]))

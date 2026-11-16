@@ -99,7 +99,6 @@ it('does not reload for the same build, and retries an offline or malformed meta
   expect(reload).not.toHaveBeenCalled()
 })
 
-/** Fake timers do not drive jsdom's AbortSignal.timeout, so the next poll gets a timeout signal the test aborts. */
 function timeOutNextPoll(rejection: () => Error) {
   const timeout = new AbortController()
   vi.spyOn(AbortSignal, 'timeout').mockReturnValueOnce(timeout.signal)

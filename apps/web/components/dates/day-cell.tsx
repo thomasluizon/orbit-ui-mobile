@@ -16,7 +16,6 @@ function ringStyle(outcome: DayOutcome): CSSProperties {
   return {}
 }
 
-/** Feedback stays on the day disc inside its transparent target. */
 function PressFill({ selected = false }: Readonly<{ selected?: boolean }>) {
   if (selected) return null
   return (

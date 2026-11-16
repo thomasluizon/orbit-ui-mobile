@@ -67,7 +67,6 @@ const mockClassList = {
   contains: (token: string) => rootClasses.has(token),
 }
 
-/** Seeds the root as the server class and the bootstrap script leave it before the first paint. */
 function paintBootstrapTheme(theme: ThemeMode) {
   bootstrapTheme = theme
   rootClasses.add(theme)

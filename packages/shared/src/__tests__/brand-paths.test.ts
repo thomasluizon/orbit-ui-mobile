@@ -29,7 +29,6 @@ const strokesOf = (svg: string) => [...svg.matchAll(/<path fill="none" stroke="[
 
 const EYE_FILL = 'var(--bg, #09090B)'
 
-/** The x of every point in an eye path: the path holds only absolute M, L, C, Q and Z commands, so its numbers come in x, y pairs. */
 function eyeXs(d: string): number[] {
   const numbers = (d.match(/-?\d+(?:\.\d+)?/g) ?? []).map(Number)
   return numbers.filter((_value, index) => index % 2 === 0)

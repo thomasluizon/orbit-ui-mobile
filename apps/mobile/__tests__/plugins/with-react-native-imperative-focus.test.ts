@@ -62,10 +62,6 @@ class MainApplication : Application(), ReactApplication {
 }
 `
 
-/**
- * What `npx expo prebuild` writes before any plugin runs. Root `.gitignore:86` ignores
- * `apps/mobile/android/`, so every CI and EAS build starts from exactly this.
- */
 const PRISTINE_MAIN_APPLICATION_TEMPLATE = MAIN_APPLICATION_TEMPLATE.replace(
   `import com.facebook.react.internal.featureflags.ReactNativeFeatureFlags
 import com.facebook.react.internal.featureflags.ReactNativeFeatureFlagsDefaults
@@ -80,7 +76,6 @@ import com.facebook.react.internal.featureflags.ReactNativeFeatureFlagsDefaults
   '',
 )
 
-/** A template that never imports ReleaseLevel, so nothing but the plugin can supply it. */
 const TEMPLATE_WITHOUT_RELEASE_LEVEL = PRISTINE_MAIN_APPLICATION_TEMPLATE.replace(
   'import com.facebook.react.common.ReleaseLevel\n',
   '',
@@ -94,7 +89,6 @@ const TEMPLATE_WITHOUT_RELEASE_LEVEL = PRISTINE_MAIN_APPLICATION_TEMPLATE.replac
   '',
 )
 
-/** An `android/` tree an older revision of this plugin patched with a block this one cannot match. */
 const STALE_MAIN_APPLICATION_TEMPLATE = PRISTINE_MAIN_APPLICATION_TEMPLATE.replace(
   'import com.facebook.react.defaults.DefaultNewArchitectureEntryPoint\n',
   `import com.facebook.react.defaults.DefaultNewArchitectureEntryPoint

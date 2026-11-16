@@ -45,11 +45,6 @@ describe('buildCommandHabitList', () => {
     ])
   })
 
-  /**
-   * The producer reports a descendant match as `child` on EVERY ancestor above it, at any depth,
-   * and keeps `description` and `tag` on the habit whose own field matched. A picker that offered
-   * an ancestor would log or skip the wrong habit.
-   */
   it.each(['description', 'tag'] as const)('offers only the matching grandchild when a %s match reaches two ancestors', (field) => {
     const grandparent = scheduledHabit('grandparent', { hasSubHabits: true, searchMatches: [{ field: 'child', value: 'walk' }] })
     const parent = scheduledHabit('parent', { parentId: grandparent.id, hasSubHabits: true, searchMatches: [{ field: 'child', value: 'walk' }] })

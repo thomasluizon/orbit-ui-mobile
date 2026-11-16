@@ -45,15 +45,10 @@ it.each([390, 840])('clears the stacked Astra button at the end of the real habi
   } finally { await page.close() }
 })
 
-/** The root style of a page in `mode`: the app reads its mode from the root `color-scheme`, then writes the matching tokens itself. */
 function rootStyle(mode: 'light' | 'dark'): string {
   return [`color-scheme:${mode}`, ...Object.entries(resolveWebThemeVariables('orange', mode)).map(([key, value]) => `${key}:${value}`)].join(';')
 }
 
-/** Every distinct stack of painted layers under a 5 by 5 grid over the entry's 48 mascot, from the canvas up and without the
- *  entry itself, at each `step` px offset of the shell scroller. Runs in the page as one call, because one browser round trip
- *  per offset spends the test timeout. The habit list does not virtualize and nothing paints from a scroll event, so the hit
- *  test reads the new offset as soon as `scrollTop` changes. */
 function layersUnderMascotAtEveryOffset(entry: Element, step: number): string[] {
   const scroller = document.querySelector<HTMLElement>('[data-shell-scroller]')!
   const mascot = entry.querySelector('svg[data-asset="orbit-mascot"]')!

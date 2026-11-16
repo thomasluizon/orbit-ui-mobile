@@ -212,7 +212,6 @@ describe('CalendarImportPrompt gating', () => {
   })
 })
 
-/** Wait for TrueSheet dismissal before changing the state that unmounts it. */
 describe('CalendarImportPrompt quiet dismissal', () => {
   beforeEach(() => {
     sheetTestControls.defer(true)

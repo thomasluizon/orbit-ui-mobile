@@ -20,7 +20,6 @@ const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 
 interface Props { title: string; emoji: string; schedule: OnboardingSchedule; proposed: boolean; correcting: boolean; canSaveRepeatWeeks: boolean; atLimit: boolean; allowance: number; allowancePeriod?: AstraAllowance['aiMessagesPeriod']; onCorrect: () => void; onToggleDay: (day: string) => void; onTimeChange: (value: string) => void; onModeChange: (mode: OnboardingScheduleMode) => void; onFrequencyUnitChange: (unit: FrequencyUnit) => void; onQuantityChange: (quantity: number) => void; onIntervalWeeksChange: (intervalWeeks: number) => void }
 
 function EmphasizedCadence({ text, emphasis, color, strongColor }: Readonly<{ text: string; emphasis: string; color: string; strongColor: string }>) {
-  /** An empty emphasis is a habit with no due time, and ''.indexOf returns 0, which would mark nothing. */
   const start = emphasis ? text.indexOf(emphasis) : -1
   if (start < 0) return <Text style={[styles.sentence, { color }]}>{text}</Text>
   return <Text style={[styles.sentence, { color }]}>{text.slice(0, start)}<Text style={[styles.emphasis, { color: strongColor }]}>{emphasis}</Text>{text.slice(start + emphasis.length)}</Text>

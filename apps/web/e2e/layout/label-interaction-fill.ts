@@ -28,7 +28,6 @@ async function readFill(control: FillControl) {
       }
       return right > left && bottom > top ? new DOMRect(left, top, right - left, bottom - top) : null
     }
-    /** The Orbit mascot's box reserves room for the idle loop's ring tilt and moon orbit, so its drawn shapes are its content: `DESIGN.md` measures the mark by its ink, never its box. */
     function drawnBounds(icon: SVGSVGElement) {
       if (!icon.matches('[data-asset="orbit-mascot"]')) return icon.getBoundingClientRect()
       const shapes = [...icon.querySelectorAll('path, circle')].filter((shape) => !shape.closest('defs')).map((shape) => shape.getBoundingClientRect())

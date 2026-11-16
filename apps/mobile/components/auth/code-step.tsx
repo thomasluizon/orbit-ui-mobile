@@ -12,7 +12,6 @@ import { CapacityNotice } from '@/components/ui/capacity-notice'
 import type { LoginStyles } from '@/app/login-styles'
 import { LoginHeader, LoginOfflineNotice, LoginSuccessMessage } from './login-sections'
 
-/** The rejected code shakes through these offsets over the shared slow duration, as on web. */
 const SHAKE_OFFSETS = [-4, 4, -4, 4, 0] as const
 
 interface CodeStepProps {

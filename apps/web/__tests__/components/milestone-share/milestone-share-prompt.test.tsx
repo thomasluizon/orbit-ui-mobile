@@ -22,11 +22,6 @@ vi.mock('next-intl', async (importOriginal) => {
     : actual.createTranslator({ locale: translations.locale, messages: translations.locale === 'en' ? en : ptBR }) }
 })
 
-/**
- * One client for every render, the way the real `useQueryClient` reads one off a context. A fresh
- * object per render changes the identity of an effect dependency, which re-arms a settle timer
- * this test exists to prove stays cleared.
- */
 const queryCache: { gamificationProfile: unknown } = { gamificationProfile: undefined }
 const queryClientDouble = {
   getQueryData: (key: readonly unknown[]) =>

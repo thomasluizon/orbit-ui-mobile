@@ -15,10 +15,6 @@ import { createTokensV2 } from '@/lib/theme'
 
 const AnimatedBox = Animated.createAnimatedComponent(View)
 
-/**
- * The 24px box. Its fill settles on the selection preset. While its request runs, its face is the skeleton and the
- * check reads `fg1` on it, so the state stays visible.
- */
 function CheckboxBox({ checked, error, loading }: Readonly<Pick<CheckboxProps, 'checked'> & { error: boolean; loading: boolean }>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)

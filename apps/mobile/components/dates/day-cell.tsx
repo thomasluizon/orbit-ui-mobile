@@ -13,7 +13,6 @@ type Tokens = ReturnType<typeof createTokensV2>
 
 type ContentsProps = Readonly<{ props: DayCellProps; outcome: DayOutcome; size: number; tokens: Tokens; pressed: boolean }>
 
-/** Feedback stays on the day disc inside its transparent target. */
 function PressFill({ size, tokens }: Readonly<{ size: number; tokens: Tokens }>) {
   return <View pointerEvents="none" testID="day-press-fill" style={[styles.pressFill, { borderRadius: size / 2, backgroundColor: tokens.bgHover }]} />
 }
@@ -76,7 +75,6 @@ function useYieldMovingSelection(yielding: boolean) {
   }, [reportFocus, yielding])
 }
 
-/** One indicator: a 2px foreground ring with a canvas band inside it, so it reads on every disc fill. */
 function DayFocusRing({ size, tokens }: Readonly<{ size: number; tokens: Tokens }>) {
   return (
     <View pointerEvents="none" testID="day-focus-ring" style={[styles.pressFill, { borderRadius: size / 2, borderColor: tokens.fg1, borderWidth: 2 }]}>

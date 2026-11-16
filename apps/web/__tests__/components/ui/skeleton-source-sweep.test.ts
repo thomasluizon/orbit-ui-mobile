@@ -62,7 +62,6 @@ function drawsAny(node: ts.Node, names: Set<string>, syntax: ts.SourceFile) {
   return found
 }
 
-/** The imported shared names plus each component of the same file that renders one of them. */
 function sharedSkeletonNames(syntax: ts.SourceFile) {
   const names = skeletonNames(syntax)
   const components = new Map<string, ts.Node>()
@@ -80,7 +79,6 @@ function sharedSkeletonNames(syntax: ts.SourceFile) {
   return names
 }
 
-/** Each element named as a skeleton whose subtree draws no shared `Skeleton` or `SkeletonFace`, as `path:line`. */
 function findHandDrawnSkeletons(path: string, contents: string): string[] {
   const syntax = ts.createSourceFile(path, contents, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX)
   const shared = sharedSkeletonNames(syntax)

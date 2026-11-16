@@ -427,7 +427,6 @@ function RescheduleBlock({ habit, rescue: { query, open }, hasProAccess, locale,
   )
 }
 
-/** The rescue before its proposal: the failure line, Orbit resting while the request waits offline, or Orbit thinking while it runs. */
 function RescueWait({ query }: Readonly<{ query: Pick<ReturnType<typeof useRescheduleSuggestion>, 'error' | 'isPaused' | 'isFetching'> }>) {
   const t = useTranslations()
   if (query.error) return <p className="text-sm text-[var(--fg-3)]">{t('habits.detail.rescheduleError')}</p>

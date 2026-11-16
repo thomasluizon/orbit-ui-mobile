@@ -238,11 +238,6 @@ export function CreateHabitModal({
     setSelectedGoalIds((prev) => toggleSelectedId(prev, goalId))
   }, [])
 
-  /**
-   * Closing is the whole reset here, because the effect below rebuilds every field on the next
-   * open. The three owners of this flag are a store, a detail screen and the search page, so the
-   * modal reports the change to whichever one holds it rather than each of them learning it.
-   */
   useResetOnAccountChange(() => {
     onOpenChange(false)
   })

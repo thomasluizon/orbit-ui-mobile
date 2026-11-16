@@ -338,11 +338,6 @@ export interface HabitReorderPosition {
   position: number
 }
 
-/**
- * Sort siblings deterministically by their current stored position,
- * pushing null/undefined positions to the end and preserving creation order.
- * Inputs without creation metadata break ties by id.
- */
 function sortSiblingsByPosition<T extends ReorderableHabitItem>(siblings: T[]): T[] {
   return [...siblings].sort((a, b) => {
     const aPos = a.position ?? Number.MAX_SAFE_INTEGER
@@ -355,12 +350,6 @@ function sortSiblingsByPosition<T extends ReorderableHabitItem>(siblings: T[]): 
   })
 }
 
-/**
- * Nearest neighbour of the moved item in the reordered flat list — walking from
- * `start` in `step` direction — that is an actual sibling (same effective
- * parentId). Sub-habit rows of other expanded parents are skipped so a same-level
- * reorder is never anchored to a different group's expanded children.
- */
 function findSameLevelAnchor(
   list: ReorderableHabitItem[],
   start: number,

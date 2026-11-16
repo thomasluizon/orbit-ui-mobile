@@ -47,7 +47,6 @@ async function openDatePicker(tree: ReactTestRenderer) {
   await act(() => (pressTarget(tree, 'button', 'common.selectedDate').props.onPress as () => void)())
 }
 
-/** The layer a press scales: the face inside a `MotionPressable` target, which itself keeps its box. */
 function scaleLayer(target: ReactTestInstance) {
   const face = pressFace(target)
   if (!face) throw new Error('no press scale face inside the press target')
