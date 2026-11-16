@@ -4,7 +4,7 @@ import { resolve } from "node:path"
 
 import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
 import {
-  claudeConfigDirectories, collectListing, defaultCarryRoot, describeBytes, knownSizesOf, readStoredListing, removeListed, summarize, writeStoredListing,
+  claudeConfigDirectories, collectListing, defaultCarryRoot, describeBytes, knownSizesOf, readStoredListing, removeListed, summarize, takeCleanupLock, writeStoredListing,
 } from "./lib/stale-files.mjs"
 
 const USAGE = `usage: stale-files.mjs [--list] [--json] [--session <id>] [--session-root <path>] [--carry-root <path>]
@@ -41,7 +41,9 @@ const USAGE = `usage: stale-files.mjs [--list] [--json] [--session <id>] [--sess
   --list               (default) compute the listing, store it in the git directory, print each stale item
   --json               with --list: print the stored listing as JSON, with every kept item and its reason
   --delete             compute the listing again and remove each stale item, the deepest first; never a kept
-                       item outside it, and never one that holds an item that could not be removed
+                       item outside it, and never one that holds an item that could not be removed. It holds
+                       a lock in the common git directory while it runs; a second --delete meanwhile prints
+                       NOTHING REMOVED and exits 0
   --session <id>       this session; default: CLAUDE_CODE_SESSION_ID
   --session-root <p>   the directory that holds one directory for each session; default: the root that the
                        stored listing names. Without one, session directories are not checked, and every
@@ -96,14 +98,26 @@ const context = { sessionId, sessionRoot: sessionRoot ? resolve(sessionRoot) : n
 const sizeOf = (item) => (Number.isFinite(item.bytes) ? describeBytes(item.bytes) : "size not measured")
 
 if (switches.has("--delete")) {
-  const fresh = collectListing(context, { knownSizes: knownSizesOf(stored), measure: false })
-  const outcome = removeListed(fresh, fresh, repositories)
-  for (const item of outcome.removed) console.log(`REMOVED ${item.kind} ${item.path} (${sizeOf(item)})`)
-  for (const item of outcome.skipped) console.log(`SKIPPED ${item.kind} ${item.path}: ${item.reason}`)
-  for (const item of outcome.failed) console.error(`FAILED ${item.kind} ${item.path}: ${item.reason}`)
-  writeStoredListing({ ...fresh, stale: outcome.failed.map(({ reason: _reason, ...item }) => item) })
-  console.log(`FREED ${outcome.removed.length === 0 ? "nothing" : summarize(outcome.removed)}; free space changed by ${outcome.freed < 0 ? "-" : "+"}${describeBytes(Math.abs(outcome.freed))}`)
-  process.exit(outcome.failed.length > 0 ? 1 : 0)
+  let release
+  try { release = takeCleanupLock() } catch (error) {
+    if (!error.message.startsWith("EEXIST")) fail(1, `the removal lock could not be taken, so nothing was removed: ${error.message}`)
+    console.log("NOTHING REMOVED: another removal runs and holds the lock")
+    process.exit(0)
+  }
+  let failed
+  try {
+    const fresh = collectListing(context, { knownSizes: knownSizesOf(stored), measure: false })
+    const outcome = removeListed(fresh, repositories)
+    for (const item of outcome.removed) console.log(`REMOVED ${item.kind} ${item.path} (${sizeOf(item)})`)
+    for (const item of outcome.skipped) console.log(`SKIPPED ${item.kind} ${item.path}: ${item.reason}`)
+    for (const item of outcome.failed) console.error(`FAILED ${item.kind} ${item.path}: ${item.reason}`)
+    writeStoredListing({ ...fresh, stale: outcome.failed.map(({ reason: _reason, ...item }) => item) })
+    console.log(`FREED ${outcome.removed.length === 0 ? "nothing" : summarize(outcome.removed)}; free space changed by ${outcome.freed < 0 ? "-" : "+"}${describeBytes(Math.abs(outcome.freed))}`)
+    failed = outcome.failed.length > 0
+  } finally {
+    release()
+  }
+  process.exit(failed ? 1 : 0)
 }
 
 const listing = collectListing(context, { knownSizes: knownSizesOf(stored) })

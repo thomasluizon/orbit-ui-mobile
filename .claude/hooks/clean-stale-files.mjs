@@ -5,7 +5,7 @@
 
 import { dirname } from "node:path"
 
-import { cleanupDueReason, DATA_VOLUME, freeBytes, readCleanupMarker, startCleanup } from "../../tools/lib/stale-files.mjs"
+import { cleanupDueReason, cleanupIsRunning, DATA_VOLUME, freeBytes, readCleanupMarker, startCleanup } from "../../tools/lib/stale-files.mjs"
 import { readRunState } from "../../tools/lib/run-state.mjs"
 import { readStdinJson } from "./_lib/io.mjs"
 
@@ -17,7 +17,7 @@ try {
   const input = readStdinJson()
   // A launched worker and a subagent are not the run: the orchestrating session starts the cleanup.
   if (process.env.ORBIT_LAUNCH_WORKER || input.agent_id || typeof input.session_id !== "string") process.exit(0)
-  const reason = cleanupDueReason({ sessionId: input.session_id, state: readRunState(), marker: readCleanupMarker(), freeDiskBytes: freeDisk() })
+  const reason = cleanupDueReason({ sessionId: input.session_id, state: readRunState(), marker: readCleanupMarker(), running: cleanupIsRunning(), freeDiskBytes: freeDisk() })
   if (reason) {
     // Claude Code names the scratchpad `<session root>/<session id>/scratchpad` in every hook input.
     const sessionRoot = typeof input.scratchpad_dir === "string" ? dirname(dirname(input.scratchpad_dir)) : null

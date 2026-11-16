@@ -22,6 +22,7 @@ import { checkWorkerBrowser } from "./_lib/rules-worker.mjs"
 import { declaredRepoRoots } from "./_lib/repo-roots.mjs"
 import { operationInProgress } from "../../tools/lib/relay-checkout.mjs"
 import { readRunState, writeRunState } from "../../tools/lib/run-state.mjs"
+import { takeCleanupLock } from "../../tools/lib/stale-files.mjs"
 import { checkRelayStop } from "./_lib/rules-relay.mjs"
 import { adoptRelayRun, appendChainEntry, closeSessionChain, confirmChainSuccessor, openSessionChain } from "../../tools/lib/session-chain.mjs"
 
@@ -2463,7 +2464,7 @@ const startedCleanup = async (attempts = 100) => {
   return started
 }
 // A recent finished cleanup, so free disk on this machine cannot start one during the adoption cases.
-const recentCleanup = (adoptedBy = null) => writeFileSync(cleanupMarker, JSON.stringify({ pid: 0, startedAt: Date.now(), reason: "test", adoptedBy }))
+const recentCleanup = (adoptedBy = null) => writeFileSync(cleanupMarker, JSON.stringify({ startedAt: Date.now(), reason: "test", adoptedBy }))
 const removalOrder = ["--delete", "--session", cleanupSession, "--session-root", cleanupSessionRoot]
 
 recentCleanup()
@@ -2478,6 +2479,12 @@ for (const event of ["Stop", "UserPromptSubmit"]) {
   T(`stale cleanup: the marker records the adoption that a ${event} cleaned for`, JSON.parse(readFileSync(cleanupMarker, "utf8")).adoptedBy, cleanupSession)
 }
 T("stale cleanup: one adoption starts one removal", [runCleanupHook().stdout, await startedCleanup(20)], ["", null])
+// A removal that runs holds the lock in the common git directory, however long it runs: a new adoption starts nothing until it ends.
+recentCleanup()
+const releaseRunningRemoval = takeCleanupLock(wakeCheckout)
+T("stale cleanup: a relay adoption starts no removal while a live removal holds the lock", [runCleanupHook().stdout, await startedCleanup(20)], ["", null])
+releaseRunningRemoval()
+T("stale cleanup: the relay adoption starts its removal once the running removal ends", await (runCleanupHook(), startedCleanup()), removalOrder)
 recentCleanup()
 T("stale cleanup: a launched worker starts no removal", [runCleanupHook(cleanupInput("Stop"), { ORBIT_LAUNCH_WORKER: "1" }).stdout, await startedCleanup(20)], ["", null])
 T("stale cleanup: a subagent starts no removal", [runCleanupHook({ ...cleanupInput("Stop"), agent_id: "agent-1" }).stdout, await startedCleanup(20)], ["", null])

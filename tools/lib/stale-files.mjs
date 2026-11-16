@@ -10,7 +10,9 @@ import { existsSync, lstatSync, readFileSync, readdirSync, readlinkSync, realpat
 import { homedir } from "node:os"
 import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "node:path"
 
-import { claudeConfigDirectory, gitDirectoryOf, liveSessionProcesses, processIsAlive, readRunState, readWakeSourceStates, REPO_ROOT, workerLaunchDirectory } from "./run-state.mjs"
+import {
+  acquireRelayLock, claudeConfigDirectory, gitDirectoryOf, isWakeSourceAlive, liveSessionProcesses, processIsAlive, readRunState, readWakeSourceStates, REPO_ROOT, workerLaunchDirectory,
+} from "./run-state.mjs"
 import { readSessionChain } from "./session-chain.mjs"
 import { CLEAN_STATUS_ARGUMENTS, HIDDEN_CHANGE_ARGUMENTS, WORKTREE_REMOVE_ARGUMENTS, findRepositories, hiddenChangesOf, parseWorktreeList } from "./git-worktrees.mjs"
 import { WORKER_ACCOUNT, workerAccounts } from "./orchestrator-config.mjs"
@@ -155,11 +157,13 @@ const scratchpadLinks = (session) => {
  * This checkout and, for a linked worktree, its primary checkout. The run writes its record and its chain ledger in the
  * checkout it runs in, and a session in a linked worktree lists and removes too.
  */
-const runCheckoutsOf = (repoRoot) => {
+const runCheckoutsOf = (repoRoot) => [...new Set([resolve(repoRoot), primaryCheckoutOf(repoRoot)])]
+
+/** The checkout whose git directory is the common one (`git rev-parse --git-common-dir`), from the `commondir` file of a linked worktree. */
+const primaryCheckoutOf = (repoRoot) => {
   const gitDirectory = gitDirectoryOf(repoRoot)
   const commonMarker = join(gitDirectory, "commondir")
-  const primary = existsSync(commonMarker) ? dirname(resolve(gitDirectory, readFileSync(commonMarker, "utf8").trim())) : repoRoot
-  return [...new Set([resolve(repoRoot), resolve(primary)])]
+  return resolve(existsSync(commonMarker) ? dirname(resolve(gitDirectory, readFileSync(commonMarker, "utf8").trim())) : repoRoot)
 }
 
 /**
@@ -459,14 +463,16 @@ const mergedContainerOf = (worktree, tip, probes) => {
 
 /**
  * Why a branch with no pull request stays for its age: a launch makes the branch from the base and its worker starts later,
- * so a branch made after the run's last relay can still be the branch of a queued launch. The creation is the oldest entry
- * of the branch's reflog; a reflog that cannot be read keeps it.
+ * so a branch made after the run's last relay can still be the branch of a queued launch. The creation is the time of the
+ * oldest entry of the branch's reflog, which `%gd` prints as `<branch>@{<unix seconds>}`; `%ct` would give the time of the
+ * commit that the entry points to, and a branch made now from an old commit would look old. A reflog that cannot be read keeps it.
  */
 const youngBranchHoldOf = (worktree, lastRelayAt, probes) => {
   if (lastRelayAt === null) return null
-  const times = probes.git(worktree.path, ["log", "--walk-reflogs", "--format=%ct", `refs/heads/${worktree.branch}`, "--"])
-  const created = Number((times ?? "").split("\n").filter(Boolean).at(-1)) * 1000
-  if (!Number.isFinite(created) || created === 0) return "the age of its branch could not be read, and a branch with no pull request can be the branch of a queued launch"
+  const entries = probes.git(worktree.path, ["log", "--walk-reflogs", "--date=unix", "--format=%gd", `refs/heads/${worktree.branch}`, "--"])
+  const oldest = /@\{(\d+)\}$/.exec((entries ?? "").split("\n").filter(Boolean).at(-1) ?? "")
+  const created = oldest ? Number(oldest[1]) * 1000 : 0
+  if (created === 0) return "the age of its branch could not be read, and a branch with no pull request can be the branch of a queued launch"
   return created >= lastRelayAt ? `its branch has no pull request and was made after the last relay at ${new Date(lastRelayAt).toISOString()}` : null
 }
 
@@ -558,10 +564,26 @@ export const writeStoredListing = (listing, repoRoot = REPO_ROOT) => {
   renameSync(unpublished, path)
 }
 
-const cleanupMarkerPath = (repoRoot) => join(gitDirectoryOf(repoRoot), "orbit-stale-files-cleanup.json")
+/**
+ * The marker of the last start and the lock of the running removal live in the common git directory: a session in the
+ * primary checkout and a session in a linked worktree read the same ones, so neither starts a second removal.
+ */
+const cleanupMarkerPath = (repoRoot) => join(gitDirectoryOf(primaryCheckoutOf(repoRoot)), "orbit-stale-files-cleanup.json")
+const CLEANUP_LOCK = "orbit-stale-files-cleanup-lock"
 
 export const readCleanupMarker = (repoRoot = REPO_ROOT) => {
   try { return JSON.parse(readFileSync(cleanupMarkerPath(repoRoot), "utf8")) } catch { return null }
+}
+
+/**
+ * Takes the lock of the removal for the life of this process, and returns the function that releases it. Only one process
+ * holds it at a time; it throws an `EEXIST` error while a live process holds it, and takes over the lock of a process that died.
+ */
+export const takeCleanupLock = (repoRoot = REPO_ROOT) => acquireRelayLock(primaryCheckoutOf(repoRoot), CLEANUP_LOCK)
+
+/** Whether a live process holds the lock of the removal: the pid runs and its start identity is the one the lock records. */
+export const cleanupIsRunning = (repoRoot = REPO_ROOT) => {
+  try { return isWakeSourceAlive(JSON.parse(readFileSync(join(gitDirectoryOf(primaryCheckoutOf(repoRoot)), CLEANUP_LOCK, "owner.json"), "utf8"))) } catch { return false }
 }
 
 /** Free bytes on `path`'s volume for an unprivileged process. */
@@ -571,12 +593,13 @@ export const freeBytes = (path) => {
 }
 
 /**
- * Why an unattended cleanup is due now; null when it is not. `state` is the run record and `freeDiskBytes` the free space of
- * the data volume (null when it cannot be read). A cleanup is due once for each relay adoption, and again whenever free disk
- * is under the floor, at most once in each interval. A cleanup that still runs is never started twice.
+ * Why an unattended cleanup is due now; null when it is not. `state` is the run record, `running` whether a live removal
+ * holds the lock, and `freeDiskBytes` the free space of the data volume (null when it cannot be read). A cleanup is due
+ * once for each relay adoption, and again whenever free disk is under the floor, at most once in each interval. A removal
+ * that still runs, however long, is never started twice; a second one that starts anyway takes no lock and removes nothing.
  */
-export const cleanupDueReason = ({ sessionId, state, marker, freeDiskBytes, now = Date.now() }) => {
-  if (marker && processIsAlive(marker.pid) && now - marker.startedAt < 2 * LISTING_CEILING_MS) return null
+export const cleanupDueReason = ({ sessionId, state, marker, running, freeDiskBytes, now = Date.now() }) => {
+  if (running) return null
   const adopted = state?.sessionId === sessionId && typeof state?.relay?.from === "string" && state.relay.from !== sessionId
   if (adopted && marker?.adoptedBy !== sessionId) return "relay adoption"
   const low = Number.isFinite(freeDiskBytes) && freeDiskBytes < FREE_DISK_FLOOR_BYTES
@@ -585,7 +608,7 @@ export const cleanupDueReason = ({ sessionId, state, marker, freeDiskBytes, now 
 }
 
 /**
- * Starts one detached removal of every stale item and records its pid. Nobody waits for it, and no owner answer gates it:
+ * Starts one detached removal of every stale item and records the start. Nobody waits for it, and no owner answer gates it:
  * the listing at the removal proves each item stale. The removal runs through Node's `rmSync` and `git worktree remove`.
  */
 export const startCleanup = ({ sessionId, sessionRoot, reason, adoptedBy = null, repoRoot = REPO_ROOT, now = Date.now() }) => {
@@ -593,7 +616,7 @@ export const startCleanup = ({ sessionId, sessionRoot, reason, adoptedBy = null,
     { cwd: repoRoot, detached: true, stdio: "ignore", windowsHide: true })
   child.unref()
   const previous = readCleanupMarker(repoRoot)
-  writeFileSync(cleanupMarkerPath(repoRoot), `${JSON.stringify({ pid: child.pid, startedAt: now, reason, adoptedBy: adoptedBy ?? previous?.adoptedBy ?? null })}\n`)
+  writeFileSync(cleanupMarkerPath(repoRoot), `${JSON.stringify({ startedAt: now, reason, adoptedBy: adoptedBy ?? previous?.adoptedBy ?? null })}\n`)
   return child.pid
 }
 
@@ -644,30 +667,14 @@ const removeWorktree = (item, probes) => {
 }
 
 /**
- * Why `fresh` holds no record of a stored item. Only a path that is gone "no longer exists": the worktrees of a repository
- * that git could not list, and the items of a root that could not be read, are still on disk.
- */
-const absenceOf = (item, fresh) => {
-  if (item.kind === "worktree" && fresh.unlistedRepositories.includes(item.repository)) return `the worktrees of ${item.repository} could not be listed`
-  return lstatSync(item.path, { throwIfNoEntry: false }) ? "the listing at the removal does not hold it" : "it no longer exists"
-}
-
-/**
- * Removes the items of `stored` that `fresh` still calls stale, and nothing else. Returns `{ removed, skipped, failed, freed }`:
+ * Removes the stale items of `listing`, made at the removal, and nothing else. Returns `{ removed, skipped, failed, freed }`:
  * `freed` is the change of free space on the volumes the removed items were on.
  */
-export const removeListed = (stored, fresh, repositories, { probes = systemProbes } = {}) => {
-  const stillStale = new Map(fresh.stale.map((item) => [`${item.kind}\t${item.path}`, item]))
-  const keptNow = new Map(fresh.kept.map((item) => [`${item.kind}\t${item.path}`, item.reason]))
+export const removeListed = (listing, repositories, { probes = systemProbes } = {}) => {
   const outcome = { removed: [], skipped: [], failed: [], freed: 0 }
   const volumes = new Map()
   // The deepest item goes first: git then removes a worktree inside another one itself, and a failed one keeps its container.
-  for (const item of [...stored.stale].sort((left, right) => right.path.length - left.path.length)) {
-    const key = `${item.kind}\t${item.path}`
-    if (!stillStale.has(key)) {
-      outcome.skipped.push({ ...item, reason: keptNow.get(key) ?? absenceOf(item, fresh) })
-      continue
-    }
+  for (const item of [...listing.stale].sort((left, right) => right.path.length - left.path.length)) {
     const failedInside = outcome.failed.find((inner) => within(inner.path, item.path))
     if (failedInside) {
       outcome.skipped.push({ ...item, reason: `${failedInside.path} in it could not be removed` })
@@ -677,8 +684,8 @@ export const removeListed = (stored, fresh, repositories, { probes = systemProbe
       const parent = dirname(item.path)
       const device = statSync(parent).dev
       if (!volumes.has(device)) volumes.set(device, { path: parent, before: freeBytes(parent) })
-      if (item.kind === "worktree") removeWorktree(stillStale.get(key), probes)
-      else removeDirectory(item, item.kind === "session" ? fresh.context.sessionRoot : fresh.context.carryRoot)
+      if (item.kind === "worktree") removeWorktree(item, probes)
+      else removeDirectory(item, item.kind === "session" ? listing.context.sessionRoot : listing.context.carryRoot)
       outcome.removed.push(item)
     } catch (error) {
       outcome.failed.push({ ...item, reason: error.message })

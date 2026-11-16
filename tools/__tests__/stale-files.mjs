@@ -3,6 +3,7 @@ import { appendFileSync, existsSync, mkdirSync, readFileSync, symlinkSync, utime
 import { join } from "node:path"
 
 import { T, orcaEnv, realOrchestratorConfig, root, run, same, stageWithConfig } from "./_harness.mjs"
+import { lockContender } from "./stale-files-core.mjs"
 
 const TOOL = "stale-files.mjs"
 const THIS = "00000000-0000-4000-8000-000000000000"
@@ -18,6 +19,9 @@ const PROBE_REPOSITORY = "99999999-0000-4000-8000-000000000009"
 const NESTED_UNTRACKED = "aaaaaaaa-0000-4000-8000-00000000000a"
 const WORKER = "bbbbbbbb-0000-4000-8000-00000000000b"
 const NESTED_FLAGGED = "cccccccc-0000-4000-8000-00000000000c"
+
+const MADE_AFTER_RELAY = "feature/made-after-relay"
+const MADE_BEFORE_RELAY = "feature/made-before-relay"
 
 const base = join(root, "stale-cli")
 const home = join(base, "home")
@@ -137,7 +141,7 @@ const pullRequestPlan = (worktrees) => {
     one("holds-untracked-repository", 27, "MERGED"),
     one("linked-build", 26, "MERGED"), one("ignore-stat", 28, "MERGED"), one("personal-ignore", 29, "MERGED"), one("holds-flagged-repository", 30, "MERGED"),
     one("info-exclude", 31, "MERGED"), reply("feature/whole", [{ headRefOid: worktrees.part.tip, number: 16, state: "MERGED" }]),
-    reply(worktrees.part.branch, []), reply(worktrees.unmerged.branch, []), reply(worktrees.contained.branch, [])]
+    reply(worktrees.part.branch, []), reply(worktrees.unmerged.branch, []), reply(worktrees.contained.branch, []), reply(MADE_AFTER_RELAY, []), reply(MADE_BEFORE_RELAY, [])]
 }
 
 /** A throwaway repository with two commits, an uncommitted file and no remote, as a session leaves in its scratchpad. */
@@ -177,6 +181,42 @@ const stageDirectories = (worktrees) => {
   mkdirSync(join(workerConfigDirectory, "sessions"), { recursive: true })
   writeFileSync(join(workerConfigDirectory, "sessions", `${process.pid}.json`), JSON.stringify({ pid: process.pid, sessionId: WORKER, cwd: primary }))
   return true
+}
+
+/**
+ * The run relayed one hour ago. A launch made a branch now from a commit of two hours ago, and its worker has not started:
+ * the branch's reflog, not its commit, says when it was made, so it stays. A branch made before the relay goes. While a
+ * removal holds the lock, a second --delete removes nothing.
+ */
+const relayCases = async (tool, checkout) => {
+  const hourAgo = Date.now() - 3_600_000
+  writeFileSync(join(checkout, ".git", "orbit-session-chain.json"), JSON.stringify({ chains: [{ id: "chain", currentSessionId: THIS,
+    entries: [{ sessionId: PREDECESSOR, successorSessionId: THIS, superseded: true, triggeredAt: new Date(hourAgo).toISOString() }] }] }))
+  const twoHoursAgo = `@${Math.floor((Date.now() - 7_200_000) / 1000)} +0000`
+  const dated = (args) => spawnSync("git", ["-C", primary, ...args], { encoding: "utf8", env: { ...process.env, GIT_AUTHOR_DATE: twoHoursAgo, GIT_COMMITTER_DATE: twoHoursAgo } }).status === 0
+  const after = join(worktreeRoot, "made-after-relay")
+  const before = join(worktreeRoot, "made-before-relay")
+  const staged = dated(["commit", "-q", "--allow-empty", "-m", "before the relay"]) && git(primary, ["push", "-q", "origin", "main"]).status === 0
+    && git(primary, ["worktree", "add", "-q", "-b", MADE_AFTER_RELAY, after, "main"]).status === 0 && dated(["worktree", "add", "-q", "-b", MADE_BEFORE_RELAY, before, "main"])
+  T("stale-files: the relay fixture stages", staged)
+  if (!staged) return
+  same("stale-files: the commit of the branch made after the relay is older than the relay",
+    Number(git(after, ["log", "-1", "--format=%ct"]).stdout.trim()) * 1000 < hourAgo, true)
+
+  const holder = lockContender(checkout)
+  same("stale-files: the removal that runs holds the lock", await holder.answer, "taken")
+  const blocked = tool(["--delete", "--session", THIS])
+  T("stale-files: a second --delete while a removal runs exits 0 and removes nothing", blocked.status === 0 && /^NOTHING REMOVED: another removal runs/m.test(blocked.stdout)
+    && !/^REMOVED /m.test(blocked.stdout) && existsSync(before) && existsSync(after), blocked.stdout + blocked.stderr)
+  await holder.end()
+
+  const removed = tool(["--delete", "--session", THIS])
+  T("stale-files: once the running removal ends, --delete removes the branch made before the relay", removed.status === 0
+    && new RegExp(`^REMOVED worktree ${before} \\(`, "m").test(removed.stdout) && !existsSync(before), removed.stdout + removed.stderr)
+  T("stale-files: a branch made after the relay from an older commit, with no commit of its own, survives --delete", existsSync(after) && !removed.stdout.includes(after), removed.stdout)
+  const listed = tool(["--list", "--json", "--session", THIS])
+  const reason = listed.status === 0 ? JSON.parse(listed.stdout).kept.find((item) => item.path === after)?.reason ?? "" : ""
+  T("stale-files: the branch made after the relay carries the young branch reason", /^its branch has no pull request and was made after the last relay at /.test(reason), reason + listed.stderr)
 }
 
 export const cases = async () => {
@@ -298,6 +338,7 @@ export const cases = async () => {
     same("stale-files: the store holds no stale item after the removal", JSON.parse(readFileSync(join(staged.base, ".git", "orbit-stale-files.json"), "utf8")).stale, [])
     const again = tool(["--delete", "--session", THIS])
     T("stale-files: a second --delete finds nothing more to remove", again.status === 0 && /^FREED nothing;/m.test(again.stdout) && !/^REMOVED /m.test(again.stdout), again.stdout + again.stderr)
+    await relayCases(tool, staged.base)
   } finally {
     worker.kill()
   }
