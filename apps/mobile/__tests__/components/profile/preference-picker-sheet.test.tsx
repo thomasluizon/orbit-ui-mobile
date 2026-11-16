@@ -74,10 +74,12 @@ describe('PreferencePickerSheet', () => {
     motion.reduced = true
   })
 
-  it.each([
+  const settleCases = [
     ['clock', '12 hour', 'onClockFormatChange', false],
     ['timeZone', 'Charlie/Three', 'onTimeZoneChange', 'Charlie/Three'],
-  ] as const)('marks the %s answer first and closes the sheet only after the selection settles', (picker, answer, handler, value) => {
+  ] as const
+
+  it.each(settleCases)('marks the %s answer first and closes the sheet only after the selection settles', (picker, answer, handler, value) => {
     vi.useFakeTimers()
     try {
       flag.guided = true
@@ -96,6 +98,28 @@ describe('PreferencePickerSheet', () => {
       void act(() => { vi.advanceTimersByTime(1) })
       expect(props[handler]).toHaveBeenCalledExactlyOnceWith(value)
       expect(props.onHidden).toHaveBeenCalledOnce()
+    } finally {
+      vi.useRealTimers()
+      device.timeZone = 'Alpha/One'
+    }
+  })
+
+  it.each(settleCases)('drops the pending %s answer when the sheet unmounts before the selection settles', (picker, answer, handler) => {
+    vi.useFakeTimers()
+    try {
+      flag.guided = true
+      motion.reduced = false
+      device.timeZone = 'Charlie/Three'
+      const props = { ...baseProps(), activePicker: picker }
+      let tree: any
+      void act(() => { tree = create(withFocusProvenance(<PreferencePickerSheet {...props} />)) })
+      const card = tree.root.findAll((node: any) => typeof node.type === 'string' && node.props.testID === 'option-card' && node.props.accessibilityLabel === answer)[0]
+      void act(() => card.props.onPress())
+      void act(() => tree.unmount())
+      void act(() => { vi.advanceTimersByTime(motionPresets.selection.enterDuration) })
+      expect(props[handler]).not.toHaveBeenCalled()
+      expect(props.closePicker).not.toHaveBeenCalled()
+      expect(props.onHidden).not.toHaveBeenCalled()
     } finally {
       vi.useRealTimers()
       device.timeZone = 'Alpha/One'

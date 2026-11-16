@@ -62,10 +62,12 @@ describe('PreferencePickerSheet', () => {
     motion.reduced = true
   })
 
-  it.each([
+  const settleCases = [
     ['clock', '12 hour', 'onClockFormatChange', false],
     ['timeZone', 'Europe/Lisbon', 'onTimeZoneChange', 'Europe/Lisbon'],
-  ] as const)('marks the %s answer first and closes the sheet only after the selection settles', (picker, answer, handler, value) => {
+  ] as const
+
+  it.each(settleCases)('marks the %s answer first and closes the sheet only after the selection settles', (picker, answer, handler, value) => {
     vi.useFakeTimers()
     try {
       flag.guided = true
@@ -82,6 +84,25 @@ describe('PreferencePickerSheet', () => {
       act(() => { vi.advanceTimersByTime(1) })
       expect(props[handler]).toHaveBeenCalledExactlyOnceWith(value)
       expect(props.onClose).toHaveBeenCalledOnce()
+    } finally {
+      vi.useRealTimers()
+      device.timeZone = 'America/Sao_Paulo'
+    }
+  })
+
+  it.each(settleCases)('drops the pending %s answer when the sheet unmounts before the selection settles', (picker, answer, handler) => {
+    vi.useFakeTimers()
+    try {
+      flag.guided = true
+      motion.reduced = false
+      device.timeZone = 'Europe/Lisbon'
+      const props = { ...baseProps(), activePicker: picker }
+      const view = render(<PreferencePickerSheet {...props} />)
+      fireEvent.click(screen.getByRole('button', { name: answer }))
+      view.unmount()
+      act(() => { vi.advanceTimersByTime(motionPresets.selection.enterDuration) })
+      expect(props[handler]).not.toHaveBeenCalled()
+      expect(props.onClose).not.toHaveBeenCalled()
     } finally {
       vi.useRealTimers()
       device.timeZone = 'America/Sao_Paulo'
