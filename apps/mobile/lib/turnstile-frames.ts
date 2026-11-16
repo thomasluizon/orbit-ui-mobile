@@ -18,3 +18,8 @@ export function shouldLoadTurnstileFrame(
   if (isTopFrame) return isOnOrigin(request.url, bridgeOrigin)
   return CHALLENGE_DOCUMENTS.has(request.url) || isOnOrigin(request.url, CHALLENGE_ORIGIN)
 }
+
+/** The host of a URL without its user, port, path or query, or an empty string when the URL has no host. */
+export function urlHost(url: string): string {
+  return /^[a-z][a-z\d+.-]*:\/\/(?:[^@/?#]*@)?([^:/?#]*)/i.exec(url)?.[1] ?? ''
+}
