@@ -7,7 +7,7 @@ import test from "node:test"
 import yaml from "js-yaml"
 import { RELEASE_FAMILY_KEYS } from "./sweep-actions-caches.mjs"
 import {
-  MISSING_TEXT, REMOTE_INVENTORY_FILE, STEP_INVENTORY_FILE, actionName, cacheStepLists, cacheSteps, canonicalStep, lineOf, readInventory,
+  MISSING_TEXT, REMOTE_INVENTORY_FILE, STEP_INVENTORY_FILE, actionName, cacheStepLists, cacheSteps, canonical, canonicalStep, lineOf, readInventory,
   readTree, remoteActions, restoresACache, root, savesACache,
 } from "./cache-inventory.mjs"
 
@@ -316,21 +316,35 @@ const COMPILER_CACHE_SAVERS = {
 }
 const isCompilerCache = (step) => /ccache/i.test(step.with?.path ?? "")
 
+// The stamp step and the evict step as a reviewer reads them. The name is free text; every other key is the reviewed form,
+// so a shell, a working directory, an env or a continue-on-error cannot stop the step or move it to another directory.
+const reviewedStep = (step, form) => canonical({ name: step?.name, ...form })
+// The run defaults of a job or its workflow set the shell and the directory of each run step that names neither.
+const assertNoRunDefaults = (workflow, job, where) =>
+  assert.deepEqual([workflow.document.defaults, job.defaults], [undefined, undefined], `${where}: the job and its workflow set no run defaults`)
+
 function checkCompilerCaches(currentTree) {
-  const saves = currentTree.workflows.flatMap(({ file, jobs }) => Object.entries(jobs).flatMap(([job, { steps = [] }]) => steps
-    .filter((step) => savesACache(step) && isCompilerCache(step)).map((step) => ({ step, steps, place: `${file}: ${job}`, where: `${file}: ${job}: ${step.name ?? step.uses}` }))))
+  const saves = currentTree.workflows.flatMap((workflow) => Object.entries(workflow.jobs).flatMap(([job, definition]) => (definition.steps ?? [])
+    .filter((step) => savesACache(step) && isCompilerCache(step))
+    .map((step) => ({ step, steps: definition.steps, workflow, definition, place: `${workflow.file}: ${job}`, where: `${workflow.file}: ${job}: ${step.name ?? step.uses}` }))))
   assert.deepEqual(saves.map(({ place }) => place).sort(), Object.keys(COMPILER_CACHE_SAVERS).sort(), "the compiler cache savers")
-  for (const { step: save, steps, place, where } of saves) {
+  for (const { step: save, steps, workflow, definition, place, where } of saves) {
     const [compileStep, evictWhen] = COMPILER_CACHE_SAVERS[place]
+    assertNoRunDefaults(workflow, definition, where)
     const restore = steps.findIndex((step) => restoresACache(step) && isCompilerCache(step))
     assert.ok(steps[restore].with["restore-keys"].trim().length > 0, `${where}: the job restores an older entry by prefix`)
-    const stamp = steps.findIndex((step) => step.run === COMPILER_CACHE_STAMP)
+    assert.equal(save.with.path, steps[restore].with.path, `${where}: the save writes the directory that the job restored and the evict step cleaned`)
+    const stamps = steps.filter((step) => step.run?.includes("COMPILER_CACHE_USED_SINCE="))
+    assert.equal(stamps.length, 1, `${where}: one step records the start of the compiler cache use`)
+    const stamp = steps.indexOf(stamps[0])
     const compile = steps.findIndex((step) => step.id === compileStep || step.name === compileStep)
     const evicts = steps.filter((step) => step.run?.includes("--evict-older-than"))
     assert.equal(evicts.length, 1, `${where}: one step removes the objects that the compile did not use`)
     assert.equal(evicts[0].run, COMPILER_CACHE_EVICT, where)
     assert.equal(evicts[0].if, evictWhen, `${where}: only a passing compile used every object it needs`)
-    assert.equal(steps[stamp]?.if, undefined, `${where}: the stamp step always runs`)
+    assert.equal(stamps[0].if, undefined, `${where}: the stamp step always runs`)
+    assert.deepEqual(canonicalStep(stamps[0]), reviewedStep(stamps[0], { run: COMPILER_CACHE_STAMP }), `${where}: the stamp step differs from its reviewed form`)
+    assert.deepEqual(canonicalStep(evicts[0]), reviewedStep(evicts[0], { if: evictWhen, run: COMPILER_CACHE_EVICT }), `${where}: the evict step differs from its reviewed form`)
     const evict = steps.indexOf(evicts[0])
     assert.ok(restore < stamp && stamp < compile && compile < evict, `${where}: restore, then the stamp, then the compile, then the evict step`)
     if (/^actions\/cache\/save@/i.test(save.uses)) assert.ok(evict < steps.indexOf(save), `${where}: the evict step runs before the save`)
@@ -352,11 +366,20 @@ const assertNoInputs = (step, where, inputs) => {
 // new rule is a change to this file, so a reviewer reads its reason. The line pins the whole step and its job, so a rule
 // checks only why the entry stays bounded. Each check reads the canonical step and the canonical steps of its job.
 const RULES = {
-  // The key changes only with the inputs of the pass. Each marker is under 300 bytes (229 and 232 bytes in
+  // The key changes only with the inputs of the pass. The save writes one file under .ci-pass/, and the step before it
+  // writes only the commit SHA to that file. Each marker is under 300 bytes (229 and 232 bytes in
   // GET /repos/{owner}/{repo}/actions/caches), far under the 5 MB bound of LARGE_ENTRY_BYTES in sweep-actions-caches.mjs.
+  // The sweep never deletes a pass marker, so a larger file under a pass key would stay.
   "pass marker": {
     actions: ["actions/cache/save"],
-    check: ({ step, where }) => assert.match(step.with.key, /^\$\{\{ needs\.(plan|scope)\.outputs\.pass-key \}\}$/, where),
+    check: ({ step, where, list, index }) => {
+      assert.match(step.with.key, /^\$\{\{ needs\.(plan|scope)\.outputs\.pass-key \}\}$/, where)
+      assert.match(step.with.path, /^\.ci-pass\/[\w-]+$/, `${where}: a pass marker is one file under .ci-pass/`)
+      assertNoRunDefaults(list.workflow, list.job, where)
+      const before = list.entries[index - 1]?.step
+      assert.deepEqual(before, reviewedStep(before, { run: `mkdir -p .ci-pass && echo "$GITHUB_SHA" > ${step.with.path}` }),
+        `${where}: the step before the save writes only the commit SHA to the marker`)
+    },
   },
   // The post step of a combined step saves its own key after a miss. The next run restores that key, so nobody writes it again.
   "combined step with an exact key": {
@@ -376,10 +399,21 @@ const RULES = {
       assert.ok(hasNoRestoreKeys(restore), `${where}: the restore of the key has no restore-keys`)
     },
   },
-  npm: { actions: ["actions/cache/save"], check: ({ list, where }) => assert.ok(list.place in NPM_SAVERS, `${where}: NPM_SAVERS names the job`) },
+  // checkNpmSaves holds the key, the condition and the one exact restore of each npm save.
+  npm: {
+    actions: ["actions/cache/save"],
+    check: ({ step, list, where }) => {
+      assert.ok(list.place in NPM_SAVERS, `${where}: NPM_SAVERS names the job`)
+      assert.equal(step.with.path, "${{ steps.npm-cache.outputs.path }}", `${where}: the npm save writes the npm cache directory`)
+    },
+  },
+  // checkCompilerCaches holds the stamp step, the evict step and the order of each compiler cache save.
   "the evict step": {
     actions: ["actions/cache", "actions/cache/save"],
-    check: ({ list, where }) => assert.ok(list.place in COMPILER_CACHE_SAVERS, `${where}: COMPILER_CACHE_SAVERS names the job`),
+    check: ({ step, list, where }) => {
+      assert.ok(list.place in COMPILER_CACHE_SAVERS, `${where}: COMPILER_CACHE_SAVERS names the job`)
+      assert.ok(isCompilerCache(step), `${where}: the evict step bounds only the compiler cache save of its job`)
+    },
   },
   // next/dist/compiled/webpack/bundle5.js sets the filesystem cache default maxAge to 1e3*60*60*24*60, and
   // next/dist/build/webpack-config.js does not change it: webpack removes an item that no build read for 60 days.
@@ -394,8 +428,11 @@ const RULES = {
       const steps = list.entries.map((entry) => entry.step)
       const before = steps[steps.indexOf(step) - 1]
       assert.equal(step.with.path, ".turbo", where)
+      assertNoRunDefaults(list.workflow, list.job, where)
       assert.equal(before?.run, "find .turbo/cache -type f -mtime +30 -delete", `${where}: the step before the save deletes the Turbo results older than 30 days`)
       assert.equal(before.if, step.if, `${where}: the delete step runs on each run that saves`)
+      assert.deepEqual(before, canonical({ if: step.if, name: "Remove the Turbo results that are older than 30 days", run: "find .turbo/cache -type f -mtime +30 -delete" }),
+        `${where}: the delete step differs from its reviewed form`)
     },
   },
   // actions/setup-node at 949feb2413d6458794dcd2491c4babbbce0c15c1 (v7), src/cache-save.ts: the post step saves the
@@ -414,20 +451,26 @@ const RULES = {
     check: ({ step, where }) => assertNoInputs(step, where, ["cache", "cache-jdk", "cache-path", "cache-dependency-path"]),
   },
   // gradle/actions at 8da46b539cd8fe6ab27ca75128919a18d757604c, setup-gradle/action.yml: cache-cleanup defaults to
-  // on-success, which removes the unused files of the Gradle User Home before the save. The writer test below holds the
+  // on-success, which removes the unused files of the Gradle User Home before the save, and gradle-home-cache-includes
+  // defaults to caches and notifications, the paths that the cleanup reads. The writer test below holds the
   // cache-read-only input of each step.
   "one Gradle writer with the default cleanup": {
     actions: ["gradle/actions/setup-gradle"],
-    check: ({ step, where }) => assertNoInputs(step, where, ["cache-write-only", "cache-disabled", "cache-cleanup", "gradle-home-cache-cleanup", "cache-overwrite-existing"]),
+    check: ({ step, where }) => assertNoInputs(step, where, ["cache-write-only", "cache-disabled", "cache-cleanup", "gradle-home-cache-cleanup", "cache-overwrite-existing",
+      "gradle-home-cache-includes", "gradle-home-cache-excludes"]),
   },
   // Swatinem/rust-cache at d1527c8f67ef9af357290475d4af4b0fab8f12e0: action.yml save-if decides whether the post step saves,
   // src/save.ts saves only when the lowercased input is "true", and cleanTargetDir, cleanRegistry and cleanGit run before
   // saveCache. Each target is one key family that Desktop Build writes, so a release of an older commit or another
-  // environment would make the sweep delete the Desktop Build entry.
+  // environment would make the sweep delete the Desktop Build entry. src/config.ts adds each cache-directories path to the
+  // saved paths with no clean step, and in src/save.ts cache-all-crates keeps every registry crate and
+  // cache-workspace-crates keeps the workspace crates in the target directory.
   "one Rust writer": {
     actions: ["swatinem/rust-cache"],
-    check: ({ step, where, list }) =>
-      assert.equal(step.with["save-if"], list.place.startsWith("desktop-build.yml: ") ? "${{ github.ref == 'refs/heads/main' }}" : "false", where),
+    check: ({ step, where, list }) => {
+      assert.equal(step.with["save-if"], list.place.startsWith("desktop-build.yml: ") ? "${{ github.ref == 'refs/heads/main' }}" : "false", where)
+      assertNoInputs(step, where, ["cache-directories", "cache-all-crates", "cache-workspace-crates"])
+    },
   },
   // docker/setup-buildx-action at f87e5991a6d7451dcb8d9637bfbc97413f497069 (v4), src/main.ts:53: the action downloads, and
   // with cache-binary caches, buildx only when the runner has none, a version is set or the driver is cloud. The Ubuntu
@@ -569,7 +612,7 @@ const WEB_UNIT_LOOKUP = `      - name: Look up cached web unit results
 // A case with WRITE runs the guard on the inventory that the write command makes for the changed tree, with the rule of each
 // line kept, so only a rule can fail it. A function in its place changes that inventory as a reviewer could.
 const WRITE = (inventory) => inventory
-const withRule = (step, rule) => (inventory) => inventory.map((line) => (step.test(line.step) && line.rule !== rule && (line.cacheStep.with?.cache === "npm" || /refs\/heads\/main/.test(line.cacheStep.with?.["save-if"] ?? "")) ? { ...line, rule } : line))
+const withRule = (step, rule) => (inventory) => inventory.map((line) => (line.step === step ? { ...line, rule } : line))
 const NO_LINE = /a cache step with no line/
 const NO_REMOTE_LINE = /a remote action with no line/
 const pinned = (field) => new RegExp(PINNED_FIELDS[field])
@@ -577,6 +620,40 @@ const IOS_INSTALL = "      - name: Install the compiler cache\n"
 const NSIS_KEY = "        key: ${{ runner.os }}-nsis-tools-${{ hashFiles('apps/desktop/src-tauri/native/windows/nsis-tools.json') }}\n"
 const SETUP_NODE_INPUT = "          package-manager-cache: false\n"
 const RUST_SAVE_IF = "          save-if: \"false\"\n"
+const TYPE_CHECK_JOB = "  type-check:\n    name: Type Check\n"
+const MOBILE_BUILD_JOB = "  build:\n    name: Android release build\n"
+const MOBILE_BUILD_STAMP = "      - name: Record the start of the compiler cache use\n        run: echo \"COMPILER_CACHE_USED_SINCE=$(date +%s)\" >> \"$GITHUB_ENV\"\n"
+const IOS_RELEASE_EVICT_NAME = "      - name: Keep only the objects that this archive used\n"
+const IOS_RELEASE_SAVE_PATH = "          path: ${{ env.CCACHE_DIR }}\n          key: ${{ steps.compiler-cache.outputs.cache-primary-key }}\n"
+const NPM_SAVE_PATH = "          path: ${{ steps.npm-cache.outputs.path }}\n"
+const DESKTOP_RUST_SAVE_IF = "          save-if: ${{ github.ref == 'refs/heads/main' }}\n"
+const GRADLE_READ_ONLY = "          cache-read-only: true\n"
+// A new workflow whose plan job gives a pass key and whose export job saves a path under it.
+const webExport = (path, before) => ({
+  ".github/workflows/web-export.yml": `name: Web export
+on:
+  push:
+    branches: [main]
+jobs:
+  plan:
+    runs-on: ubuntu-24.04
+    outputs:
+      pass-key: \${{ steps.key.outputs.value }}
+    steps:
+      - id: key
+        run: echo "value=web-export-pass-v1-\${{ hashFiles('apps/web/**') }}" >> "$GITHUB_OUTPUT"
+  export:
+    needs: plan
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+${before}      - name: Save the export
+        uses: actions/cache/save@v6
+        with:
+          path: ${path}
+          key: \${{ needs.plan.outputs.pass-key }}
+`,
+})
 const LOCAL_ACTION = (runs) => ({ ".github/actions/turbo-cache/action.yml": `name: turbo-cache\ndescription: Saves .turbo\nruns:\n${runs}` })
 const callTurboCache = typeCheckAround("      - uses: ./.github/actions/turbo-cache\n", "")
 const MUTATIONS = [
@@ -682,10 +759,43 @@ const MUTATIONS = [
   ["Q6b cache and Cache on one setup-node step", changeText(".github/workflows/test.yml",
     [SETUP_NODE_INPUT, `${SETUP_NODE_INPUT}          cache: npm\n          Cache: npm\n`]), /two inputs of one step differ only in case/],
   ["R1 cache: npm on a setup-node step whose line names the build cache export rule", changeText(".github/workflows/test.yml",
-    [SETUP_NODE_INPUT, `${SETUP_NODE_INPUT}          cache: npm\n`]), /the rule "no build cache export" does not cover actions\/setup-node/, withRule(/^test\.yml: /, "no build cache export")],
+    [SETUP_NODE_INPUT, `${SETUP_NODE_INPUT}          cache: npm\n`]), /the rule "no build cache export" does not cover actions\/setup-node/, withRule("test.yml: plan: actions/setup-node@v7", "no build cache export")],
   ["R2 a Desktop Release Rust step that saves on main, whose line names the setup-java rule", changeText(".github/workflows/desktop-release.yml",
     [RUST_SAVE_IF, "          save-if: ${{ github.ref == 'refs/heads/main' }}\n"]), /the rule "setup-java with no cache" does not cover swatinem\/rust-cache/,
-  withRule(/^desktop-release\.yml: /, "setup-java with no cache")],
+  withRule("desktop-release.yml: build: Restore the Rust compile cache", "setup-java with no cache")],
+  ["T1 the Turbo delete step runs in another directory and its failure does not stop the job", changeText(".github/workflows/test.yml",
+    [TURBO_DELETE, `${TURBO_DELETE}        working-directory: apps/web\n        continue-on-error: true\n`]), /Save turbo: the delete step differs from its reviewed form/, WRITE],
+  ["T1s the Turbo delete step runs in a shell that ignores its script", changeText(".github/workflows/test.yml",
+    [TURBO_DELETE, `${TURBO_DELETE}        shell: true {0}\n`]), /Save turbo: the delete step differs from its reviewed form/, WRITE],
+  ["T2 the Type Check job runs each run step in a shell that ignores its script", changeText(".github/workflows/test.yml",
+    [TYPE_CHECK_JOB, `${TYPE_CHECK_JOB}    defaults:\n      run:\n        shell: true {0}\n`]), /Save turbo: the job and its workflow set no run defaults/, WRITE],
+  ["EVs the ios-build evict step runs in a shell that ignores its script", changeText(".github/workflows/ios-build.yml",
+    [IOS_BUILD_EVICT, `${IOS_BUILD_EVICT}        shell: true {0}\n`]), /ios-build\.yml: compile: Save compiler outputs: the evict step differs from its reviewed form/, WRITE],
+  ["EVe the android-release evict step cleans another directory", changeText(".github/workflows/android-release.yml",
+    [ANDROID_RELEASE_EVICT, `${ANDROID_RELEASE_EVICT}        env:\n          CCACHE_DIR: /tmp/other-ccache\n`]), /the evict step differs from its reviewed form/, WRITE],
+  ["STs the mobile-build stamp step runs in a shell that ignores its script", changeText(".github/workflows/mobile-build.yml",
+    [MOBILE_BUILD_STAMP, `${MOBILE_BUILD_STAMP}        shell: true {0}\n`]), /mobile-build\.yml: build: Save the ccache directory: the stamp step differs from its reviewed form/, WRITE],
+  ["ST2 a second ios-release stamp step just before the evict step", changeText(".github/workflows/ios-release.yml",
+    [IOS_RELEASE_EVICT_NAME, `${STAMP_STEP.split("\n").slice(1).join("\n")}${IOS_RELEASE_EVICT_NAME}`]), /one step records the start of the compiler cache use/, WRITE],
+  ["CP the ios-release save writes the parent of the restored directory", changeText(".github/workflows/ios-release.yml",
+    [IOS_RELEASE_SAVE_PATH, IOS_RELEASE_SAVE_PATH.replace("${{ env.CCACHE_DIR }}", "${{ env.CCACHE_DIR }}/..")]), /the save writes the directory that the job restored/, WRITE],
+  ["CD the mobile-build job runs each run step in another directory", changeText(".github/workflows/mobile-build.yml",
+    [MOBILE_BUILD_JOB, `${MOBILE_BUILD_JOB}    defaults:\n      run:\n        working-directory: apps/mobile\n`]), /mobile-build\.yml: build: Save the (ccache directory|pass marker): the job and its workflow set no run defaults/, WRITE],
+  ["E1 a prefix restore and a save of the derived data in the ios-build compile job, whose line names the evict step", changeText(".github/workflows/ios-build.yml",
+    [IOS_INSTALL, `${restoreStep("Restore the derived data", "~/Library/Developer/Xcode/DerivedData", "derived-data-${{ github.sha }}", "derived-data-", "derived-data")}${
+      saveStep("Save the derived data", "~/Library/Developer/Xcode/DerivedData", "${{ steps.derived-data.outputs.cache-primary-key }}")}${IOS_INSTALL}`]),
+  /Save the derived data: the evict step bounds only the compiler cache save of its job/, withRule("ios-build.yml: compile: Save the derived data", "the evict step")],
+  ["E2 a save of the web build output under a pass key, whose line names the pass marker rule", webExport("apps/web/.next", ""),
+    /Save the export: a pass marker is one file under \.ci-pass\//, withRule("web-export.yml: export: Save the export", "pass marker")],
+  ["E2b a copy of the web build output into a pass marker path, whose line names the pass marker rule",
+    webExport(".ci-pass/web-export", "      - run: mkdir -p .ci-pass && cp -r apps/web/.next .ci-pass/web-export\n"),
+    /Save the export: the step before the save writes only the commit SHA to the marker/, withRule("web-export.yml: export: Save the export", "pass marker")],
+  ["NP the Build npm save writes another directory", changeText(".github/workflows/test.yml", [NPM_SAVE_PATH, "          path: ~/.npm\n"]),
+    /Save the npm cache: the npm save writes the npm cache directory/, WRITE],
+  ["RC the Desktop Build Rust step saves an extra directory", changeText(".github/workflows/desktop-build.yml",
+    [DESKTOP_RUST_SAVE_IF, `${DESKTOP_RUST_SAVE_IF}          cache-directories: apps/desktop/node_modules\n`]), /Restore the Rust compile cache: cache-directories/, WRITE],
+  ["GI the Android Release Gradle step caches the wrapper directory too", changeText(".github/workflows/android-release.yml",
+    [GRADLE_READ_ONLY, `${GRADLE_READ_ONLY}          gradle-home-cache-includes: |\n            caches\n            wrapper\n`]), /gradle-home-cache-includes/, WRITE],
 ]
 
 for (const [name, changes, reason, review] of MUTATIONS) {

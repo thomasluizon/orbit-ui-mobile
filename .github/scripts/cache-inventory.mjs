@@ -115,14 +115,20 @@ export function cacheSteps(tree, remoteInventory) {
     .map((entry) => ({ ...entry, index: list.entries.indexOf(entry), list })))
 }
 
-// Everything around a save that can change what its entry holds: the workflow events and env, the job condition, env,
-// matrix, runner and container, the inputs of each local action that the job enters, the env of each step, and the run
-// text of each step whose text names GITHUB_ENV. A script file that writes GITHUB_ENV is in stepsBeforeSave below.
+// Everything around a save that can change what its entry holds: the workflow events, env and run defaults, the job
+// condition, env, run defaults, matrix, runner and container, the inputs of each local action that the job enters, the env
+// of each step, and the run text of each step whose text names GITHUB_ENV. The run defaults set the shell and the
+// directory of each run step that names neither. A script file that writes GITHUB_ENV is in stepsBeforeSave below.
 function contextOf(list, tree) {
   const directories = [...new Set(list.entries.flatMap(({ calls }) => calls).map(actionDirectory))]
   const inputsOf = (directory) => tree.actions.find(({ file }) => dirname(file) === directory).document.inputs ?? null
   const owner = list.workflow
-    ? { on: list.workflow.document.on, env: list.workflow.document.env, job: { if: list.job.if, env: list.job.env, strategy: list.job.strategy, "runs-on": list.job["runs-on"], container: list.job.container } }
+    ? {
+        on: list.workflow.document.on,
+        env: list.workflow.document.env,
+        defaults: list.workflow.document.defaults,
+        job: { if: list.job.if, env: list.job.env, defaults: list.job.defaults, strategy: list.job.strategy, "runs-on": list.job["runs-on"], container: list.job.container },
+      }
     : { inputs: list.action.document.inputs }
   return canonical({
     ...owner,
