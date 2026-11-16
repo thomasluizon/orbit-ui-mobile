@@ -3,8 +3,9 @@ import { mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { spawnSync } from 'node:child_process'
+import { spawn, spawnSync } from 'node:child_process'
 import { after, test } from 'node:test'
+import { runInNewContext } from 'node:vm'
 import { runChild } from './child-limit.mjs'
 
 // Native notification readers of the push acceptance (#1861): the macOS AX reader, the Windows UIA reader and the
@@ -333,121 +334,402 @@ test('PowerShell producer lists process windows, finds the installed executable,
   assert.ok(tokens.hosts.every((host) => host.error ? host.integrity === null : level.test(String(host.integrity))))
 })
 
-// The installed acceptance reads the Orbit caption through this reader (#2084), so it runs here against a real DWM caption.
-test('Windows caption reader samples the canvas caption that DWMWA_CAPTION_COLOR paints, above the client area and above a menu bar', { skip: process.platform !== 'win32' }, () => {
-  const directory = mkdtempSync(join(tmpdir(), 'orbit-caption-'))
+// The installed acceptance reads the Orbit window bar through this reader (#2132), so it runs here against a real borderless window.
+test('Windows window bar reader finds no caption above the client area and samples the canvas of the bar and the window state', { skip: process.platform !== 'win32' }, () => {
+  const directory = mkdtempSync(join(tmpdir(), 'orbit-window-bar-'))
   try {
-    const reader = fileURLToPath(new URL('./acceptance-caption.cs', import.meta.url))
+    const reader = fileURLToPath(new URL('./acceptance-window-bar.cs', import.meta.url))
     const script = `
 $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -ReferencedAssemblies System.Drawing -TypeDefinition (Get-Content -LiteralPath '${reader}' -Raw)
-Add-Type @'
-using System;
-using System.Runtime.InteropServices;
-public static class CaptionFixture {
-    [DllImport("dwmapi.dll")] public static extern int DwmSetWindowAttribute(IntPtr window, int attribute, ref int value, int size);
-}
-'@
 function Wait-Paint { for ($index = 0; $index -lt 10; $index++) { [System.Windows.Forms.Application]::DoEvents(); Start-Sleep -Milliseconds 50 } }
 $form = New-Object System.Windows.Forms.Form
-$form.Text = 'Orbit caption fixture'
+$form.FormBorderStyle = 'None'
+$form.BackColor = [System.Drawing.Color]::FromArgb(9, 9, 11)
 $form.StartPosition = 'Manual'
 $form.SetBounds(100, 100, 800, 400)
 $form.TopMost = $true
 $form.Show()
-# DWMWA_CAPTION_COLOR (35) takes a COLORREF, 0x00BBGGRR, so the dark canvas #09090B is 0x000B0909.
-$color = 0x000B0909
-$status = [CaptionFixture]::DwmSetWindowAttribute($form.Handle, 35, [ref]$color, 4)
 $form.Activate()
 Wait-Paint
-$plain = [OrbitCaptionReader]::Read($form.Handle, '${join(directory, 'plain.png')}')
-$form.Menu = New-Object System.Windows.Forms.MainMenu
-[void]$form.Menu.MenuItems.Add('File')
+$borderless = [OrbitWindowBarReader]::Read($form.Handle, '${join(directory, 'borderless.png')}')
+$state = [OrbitWindowBarReader]::State($form.Handle)
+$form.WindowState = 'Minimized'
 Wait-Paint
-$menu = [OrbitCaptionReader]::Read($form.Handle, '${join(directory, 'menu.png')}')
+$minimized = [OrbitWindowBarReader]::Read($form.Handle, '${join(directory, 'minimized.png')}')
+$form.WindowState = 'Normal'
+$form.FormBorderStyle = 'Sizable'
+$form.Text = 'Orbit window bar fixture'
+Wait-Paint
+$captioned = [OrbitWindowBarReader]::Read($form.Handle, '${join(directory, 'captioned.png')}')
 $form.Close()
-@{ status = $status; plain = $plain; menu = $menu } | ConvertTo-Json -Depth 6
+@{ borderless = $borderless; captioned = $captioned; state = $state; minimized = ($null -eq $minimized) } | ConvertTo-Json -Depth 6
 `
     const result = spawnSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', script], { encoding: 'utf8', timeout: 60000 })
     assert.equal(result.status, 0, result.stderr)
-    type Caption = { frame: number[]; bottom: number; menuBar: boolean; sampled: number; colors: { color: number[]; count: number }[] }
-    const { status, plain, menu } = JSON.parse(result.stdout) as { status: number; plain: Caption; menu: Caption }
-    assert.equal(status, 0, 'the runner supports DWMWA_CAPTION_COLOR')
-    assert.deepEqual([plain.menuBar, menu.menuBar], [false, true])
-    for (const caption of [plain, menu]) {
-      assert.ok(caption.bottom > caption.frame[1]! && caption.sampled > 0, JSON.stringify(caption))
-      assert.deepEqual(caption.colors[0]!.color, [9, 9, 11], JSON.stringify(caption))
-      assert.ok(caption.colors[0]!.count >= caption.sampled * 0.9, JSON.stringify(caption))
-    }
-    // The menu bar starts below the caption, so its rows never enter the sample.
-    assert.ok(Math.abs((menu.bottom - menu.frame[1]!) - (plain.bottom - plain.frame[1]!)) <= 1, JSON.stringify({ plain, menu }))
-    for (const name of ['plain.png', 'menu.png']) assert.ok(statSync(join(directory, name)).size > 0, name)
+    type Reading = { frame: number[]; captionHeight: number; menuBar: boolean; sampled: number; colors: { color: number[]; count: number }[]
+      actions: { name: string; width: number; height: number; pixels: number[] }[] }
+    const { borderless, captioned, state, minimized } = JSON.parse(result.stdout) as { borderless: Reading; captioned: Reading; minimized: boolean
+      state: { rect: number[]; zoomed: boolean; iconic: boolean; visible: boolean } }
+    assert.equal(borderless.captionHeight, 0, JSON.stringify(borderless))
+    assert.equal(borderless.menuBar, false)
+    assert.deepEqual(borderless.colors[0]!.color, [9, 9, 11], JSON.stringify(borderless))
+    assert.ok(borderless.colors[0]!.count >= borderless.sampled * 0.9, JSON.stringify(borderless))
+    // The reader crops the middle half of each 44px action of the 48px bar; the fixture paints the canvas everywhere.
+    assert.deepEqual(borderless.actions.map(({ name, width, height }) => [name, width, height]),
+      [['menu', 22, 24], ['minimize', 22, 24], ['maximize', 22, 24], ['close', 22, 24]])
+    assert.ok(borderless.actions.every(({ pixels }) => pixels.length === 22 * 24 && pixels.filter((pixel) => pixel === 0x09090b).length >= pixels.length * 0.9),
+      JSON.stringify(borderless.actions.map(({ pixels }) => pixels.slice(0, 4))))
+    // A window that is minimized has no bar to read, even when its state was read before it turned minimized.
+    assert.equal(minimized, true)
+    // A window with the system caption has client area below its frame top, which is what the check rejects.
+    assert.ok(captioned.captionHeight > 0, JSON.stringify(captioned))
+    assert.deepEqual([state.zoomed, state.iconic, state.visible], [false, false, true])
+    assert.deepEqual(state.rect, borderless.frame)
+    for (const name of ['borderless.png', 'captioned.png']) assert.ok(statSync(join(directory, name)).size > 0, name)
   } finally {
     rmSync(directory, { recursive: true, force: true })
   }
 })
 
-// DWMWA_CAPTION_COLOR paints the canvas whatever the window theme is, so the read-back flag is what shows the window theme (#2084).
-// Microsoft documents DWMWA_USE_IMMERSIVE_DARK_MODE for DwmSetWindowAttribute, so this real window proves the read-back on the runner.
-test('Windows caption reader reads back the window theme flag on both Orbit canvas colours', { skip: process.platform !== 'win32' }, () => {
-  const directory = mkdtempSync(join(tmpdir(), 'orbit-caption-theme-'))
+// The installed shell keeps its native menu attached, and tao answers WM_NCCALCSIZE of an undecorated window with a client
+// area equal to the window (tao-0.37.2 src/platform_impl/windows/event_loop.rs:2074). A plain popup window with the same
+// menu shows a menu bar above its client area, so the reader must tell the two apart.
+const menuWindowFixture = `
+using System;
+using System.Runtime.InteropServices;
+using System.Windows.Forms;
+
+public sealed class OrbitMenuWindow : NativeWindow {
+    [DllImport("user32.dll")] private static extern IntPtr CreateMenu();
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)] private static extern bool AppendMenuW(IntPtr menu, uint flags, UIntPtr item, string text);
+    [DllImport("user32.dll")] private static extern bool SetMenu(IntPtr window, IntPtr menu);
+    [DllImport("user32.dll")] private static extern IntPtr GetMenu(IntPtr window);
+    [DllImport("user32.dll")] private static extern bool DrawMenuBar(IntPtr window);
+    [DllImport("user32.dll")] private static extern bool SetWindowPos(IntPtr window, IntPtr after, int x, int y, int width, int height, uint flags);
+    private const int CalculateSize = 0x0083;
+    // SWP_NOSIZE, SWP_NOMOVE, SWP_NOZORDER, SWP_NOACTIVATE and SWP_FRAMECHANGED.
+    private const uint FrameChanged = 0x0001 | 0x0002 | 0x0004 | 0x0010 | 0x0020;
+    private bool clientCoversWindow;
+
+    public OrbitMenuWindow(int x, int y, int width, int height) {
+        // WS_POPUP and WS_VISIBLE, with WS_EX_TOPMOST.
+        var parameters = new CreateParams { Caption = "Orbit menu fixture", X = x, Y = y, Width = width, Height = height,
+            Style = unchecked((int)0x80000000) | 0x10000000, ExStyle = 0x00000008 };
+        CreateHandle(parameters);
+        IntPtr menu = CreateMenu();
+        if (menu == IntPtr.Zero || !AppendMenuW(menu, 0, new UIntPtr(1), "File") || !SetMenu(Handle, menu)) throw new InvalidOperationException("Cannot attach the fixture menu");
+        DrawMenuBar(Handle);
+    }
+
+    public bool HasMenu { get { return GetMenu(Handle) != IntPtr.Zero; } }
+
+    public void CoverWindowWithClient() {
+        clientCoversWindow = true;
+        SetWindowPos(Handle, IntPtr.Zero, 0, 0, 0, 0, FrameChanged);
+    }
+
+    protected override void WndProc(ref Message message) {
+        // Returning 0 for either form keeps the proposed rectangle, so the client area is the whole window, as tao answers it.
+        if (clientCoversWindow && message.Msg == CalculateSize) { message.Result = IntPtr.Zero; return; }
+        base.WndProc(ref message);
+    }
+}
+`
+
+test('Windows window bar reader reports a menu bar only when the menu has a strip above the client area', { skip: process.platform !== 'win32' }, () => {
+  const directory = mkdtempSync(join(tmpdir(), 'orbit-window-menu-'))
   try {
-    const reader = fileURLToPath(new URL('./acceptance-caption.cs', import.meta.url))
+    const reader = fileURLToPath(new URL('./acceptance-window-bar.cs', import.meta.url))
+    const fixture = join(directory, 'menu-window.cs')
+    writeFileSync(fixture, menuWindowFixture)
     const script = `
 $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -ReferencedAssemblies System.Drawing -TypeDefinition (Get-Content -LiteralPath '${reader}' -Raw)
-Add-Type @'
-using System;
-using System.Runtime.InteropServices;
-public static class CaptionFixture {
-    [DllImport("dwmapi.dll")] public static extern int DwmSetWindowAttribute(IntPtr window, int attribute, ref int value, int size);
-}
-'@
-function Wait-Paint { for ($index = 0; $index -lt 20; $index++) { [System.Windows.Forms.Application]::DoEvents(); Start-Sleep -Milliseconds 50 } }
-# DWMWA_CAPTION_COLOR (35) takes a COLORREF, 0x00BBGGRR. DWMWA_USE_IMMERSIVE_DARK_MODE (20) takes a BOOL.
-$canvases = @{ light = 0x00FAFAFA; dark = 0x000B0909 }
-$results = @{}
-foreach ($canvas in 'light', 'dark') {
-  foreach ($theme in 'light', 'dark') {
-    $form = New-Object System.Windows.Forms.Form
-    $form.Text = 'Orbit caption theme fixture'
-    $form.StartPosition = 'Manual'
-    $form.SetBounds(100, 100, 800, 400)
-    $form.TopMost = $true
-    $form.Show()
-    $color = $canvases[$canvas]
-    $dark = if ($theme -eq 'dark') { 1 } else { 0 }
-    $colorStatus = [CaptionFixture]::DwmSetWindowAttribute($form.Handle, 35, [ref]$color, 4)
-    $themeStatus = [CaptionFixture]::DwmSetWindowAttribute($form.Handle, 20, [ref]$dark, 4)
-    $form.Activate()
-    Wait-Paint
-    $reading = [OrbitCaptionReader]::Read($form.Handle, (Join-Path '${directory}' "$canvas-$theme.png"))
-    $results["$canvas-$theme"] = @{ colorStatus = $colorStatus; themeStatus = $themeStatus; caption = $reading }
-    $form.Close()
-  }
-}
-$results | ConvertTo-Json -Depth 7
+Add-Type -ReferencedAssemblies System.Windows.Forms, System.Drawing -TypeDefinition (Get-Content -LiteralPath '${fixture}' -Raw)
+function Wait-Paint { for ($index = 0; $index -lt 10; $index++) { [System.Windows.Forms.Application]::DoEvents(); Start-Sleep -Milliseconds 50 } }
+$window = New-Object OrbitMenuWindow -ArgumentList 100, 100, 800, 400
+Wait-Paint
+$shown = [OrbitWindowBarReader]::Read($window.Handle, '${join(directory, 'menu-shown.png')}')
+$window.CoverWindowWithClient()
+Wait-Paint
+$covered = [OrbitWindowBarReader]::Read($window.Handle, '${join(directory, 'menu-covered.png')}')
+$attached = $window.HasMenu
+$window.DestroyHandle()
+@{ shown = $shown; covered = $covered; attached = $attached } | ConvertTo-Json -Depth 6
 `
-    const result = spawnSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', script], { encoding: 'utf8', timeout: 120000 })
+    const result = spawnSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', script], { encoding: 'utf8', timeout: 60000 })
     assert.equal(result.status, 0, result.stderr)
-    type Reading = { colorStatus: number; themeStatus: number; caption: { colors: { color: number[] }[]; darkMode: number; darkModeStatus: number } }
-    const readings = JSON.parse(result.stdout) as Record<string, Reading>
-    const canvas = { light: [250, 250, 250], dark: [9, 9, 11] }
-    const hresult = (status: number) => `0x${(status >>> 0).toString(16).toUpperCase().padStart(8, '0')}`
-    for (const canvasMode of ['light', 'dark'] as const) {
-      for (const theme of ['light', 'dark'] as const) {
-        const reading = readings[`${canvasMode}-${theme}`]!
-        const label = `${canvasMode} canvas with the ${theme} window theme: ${JSON.stringify(reading)}`
-        assert.equal(reading.colorStatus, 0, `DWMWA_CAPTION_COLOR failed with HRESULT ${hresult(reading.colorStatus)}: ${label}`)
-        assert.equal(reading.themeStatus, 0, `DWMWA_USE_IMMERSIVE_DARK_MODE failed with HRESULT ${hresult(reading.themeStatus)}: ${label}`)
-        assert.equal(reading.caption.darkModeStatus, 0, `The DWMWA_USE_IMMERSIVE_DARK_MODE read-back failed with HRESULT ${hresult(reading.caption.darkModeStatus)}: ${label}`)
-        assert.equal(reading.caption.darkMode, theme === 'dark' ? 1 : 0, `The read-back flag is not the window theme that the fixture set: ${label}`)
-        assert.deepEqual(reading.caption.colors[0]!.color, canvas[canvasMode], `The caption is not the canvas colour: ${label}`)
-      }
-    }
+    type Reading = { captionHeight: number; menuBar: boolean; menuRect: number[] | null }
+    const { shown, covered, attached } = JSON.parse(result.stdout) as { shown: Reading; covered: Reading; attached: boolean }
+    // The shown menu bar sits between the frame top and the client area, so both the caption height and the menu bar fail the check.
+    assert.ok(shown.captionHeight > 0, JSON.stringify(shown))
+    assert.equal(shown.menuBar, true, JSON.stringify(shown))
+    // The covered window keeps its menu, as the shell keeps File > Exit, but has no strip to paint a menu bar in.
+    assert.equal(attached, true)
+    assert.equal(covered.captionHeight, 0, JSON.stringify(covered))
+    assert.equal(covered.menuBar, false, JSON.stringify(covered))
   } finally {
     rmSync(directory, { recursive: true, force: true })
   }
+})
+
+// The installed shell as the popup reading meets it: a window of the class Tauri gives its webview windows, with its native
+// menu attached and the same menu open as a popup under the bar. muda-0.20.0 inserts every item into the menu bar and into a
+// parallel popup menu that holds the same submenus (attach_item), and shows that popup after SetForegroundWindow with
+// TrackPopupMenu, TPM_LEFTALIGN and TPM_RETURNCMD at a client point (show_context_menu). The flag and style values are those
+// of windows-sys-0.61.2.
+const popupWindowFixture = `
+using System;
+using System.IO;
+using System.Runtime.InteropServices;
+using System.Threading;
+
+public static class OrbitPopupFixture {
+    private delegate IntPtr WindowProcedure(IntPtr window, uint message, IntPtr word, IntPtr parameter);
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+    private struct WindowClass {
+        public uint style;
+        public WindowProcedure procedure;
+        public int classExtra;
+        public int windowExtra;
+        public IntPtr instance;
+        public IntPtr icon;
+        public IntPtr cursor;
+        public IntPtr background;
+        public string menuName;
+        public string className;
+    }
+    [StructLayout(LayoutKind.Sequential)] private struct NativePoint { public int X, Y; }
+    [StructLayout(LayoutKind.Sequential)] private struct NativeMessage {
+        public IntPtr window;
+        public uint message;
+        public IntPtr word;
+        public IntPtr parameter;
+        public uint time;
+        public NativePoint point;
+    }
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)] private static extern ushort RegisterClassW(ref WindowClass definition);
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+    private static extern IntPtr CreateWindowExW(uint extended, string className, string title, uint style, int x, int y, int width, int height,
+        IntPtr parent, IntPtr menu, IntPtr instance, IntPtr parameter);
+    [DllImport("user32.dll")] private static extern IntPtr DefWindowProcW(IntPtr window, uint message, IntPtr word, IntPtr parameter);
+    [DllImport("kernel32.dll", CharSet = CharSet.Unicode)] private static extern IntPtr GetModuleHandleW(string name);
+    [DllImport("user32.dll")] private static extern IntPtr CreateMenu();
+    [DllImport("user32.dll")] private static extern IntPtr CreatePopupMenu();
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)] private static extern bool AppendMenuW(IntPtr menu, uint flags, UIntPtr item, string text);
+    [DllImport("user32.dll")] private static extern bool SetMenu(IntPtr window, IntPtr menu);
+    [DllImport("user32.dll")] private static extern bool SetForegroundWindow(IntPtr window);
+    [DllImport("user32.dll")] private static extern bool ClientToScreen(IntPtr window, ref NativePoint point);
+    [DllImport("user32.dll")] private static extern int TrackPopupMenu(IntPtr menu, uint flags, int x, int y, int reserved, IntPtr window, IntPtr rect);
+    [DllImport("user32.dll")] private static extern bool PeekMessageW(out NativeMessage message, IntPtr window, uint first, uint last, uint remove);
+    [DllImport("user32.dll")] private static extern bool TranslateMessage(ref NativeMessage message);
+    [DllImport("user32.dll")] private static extern IntPtr DispatchMessageW(ref NativeMessage message);
+    [DllImport("user32.dll")] private static extern bool DestroyWindow(IntPtr window);
+    [DllImport("user32.dll")] private static extern bool SetCursorPos(int x, int y);
+    [DllImport("user32.dll")] private static extern void mouse_event(uint flags, uint x, uint y, uint data, UIntPtr extra);
+    private const uint Popup = 0x10, Checked = 0x8, ReturnCommand = 0x100, PopupStyle = 0x80000000, Visible = 0x10000000, Topmost = 0x8;
+    private const uint OverlappedWindow = 0x00CF0000, LeftDown = 0x0002, LeftUp = 0x0004;
+    // A field keeps the window procedure alive for as long as the window can call it.
+    private static readonly WindowProcedure procedure = Procedure;
+
+    private static IntPtr Procedure(IntPtr window, uint message, IntPtr word, IntPtr parameter) {
+        return DefWindowProcW(window, message, word, parameter);
+    }
+
+    private static void Append(IntPtr menu, uint flags, UIntPtr item, string text) {
+        if (!AppendMenuW(menu, flags, item, text)) throw new InvalidOperationException("Cannot build the fixture menu");
+    }
+
+    private static UIntPtr Submenu(IntPtr menu) {
+        return new UIntPtr((ulong)menu.ToInt64());
+    }
+
+    // Opens the popup under the bar and returns its command once it closes. The window keeps answering messages after that
+    // until the stop file exists, so the reader can read the window after it presses Escape.
+    public static int Run(string stopFile) {
+        var definition = new WindowClass { procedure = procedure, instance = GetModuleHandleW(null), className = "Tauri Window" };
+        if (RegisterClassW(ref definition) == 0) throw new InvalidOperationException("Cannot register the Tauri Window class");
+        IntPtr window = CreateWindowExW(Topmost, "Tauri Window", "Orbit popup fixture", PopupStyle | Visible, 100, 100, 800, 400,
+            IntPtr.Zero, IntPtr.Zero, definition.instance, IntPtr.Zero);
+        if (window == IntPtr.Zero) throw new InvalidOperationException("Cannot create the fixture window");
+        IntPtr file = CreatePopupMenu(), help = CreatePopupMenu(), bar = CreateMenu(), popup = CreatePopupMenu();
+        Append(file, 0, new UIntPtr(1u), "Exit\\tCtrl+Q");
+        Append(help, 0, new UIntPtr(2u), "Support");
+        Append(help, Checked, new UIntPtr(3u), "Launch at login");
+        foreach (IntPtr menu in new[] { bar, popup }) {
+            Append(menu, Popup, Submenu(file), "File");
+            Append(menu, Popup, Submenu(help), "Help");
+        }
+        if (!SetMenu(window, bar)) throw new InvalidOperationException("Cannot attach the fixture menu");
+        var anchor = new NativePoint { X = 4, Y = 48 };
+        if (!ClientToScreen(window, ref anchor)) throw new InvalidOperationException("Cannot place the fixture popup");
+        Console.Out.WriteLine("ready");
+        Console.Out.Flush();
+        SetForegroundWindow(window);
+        int command = TrackPopupMenu(popup, ReturnCommand, anchor.X, anchor.Y, 0, window, IntPtr.Zero);
+        Pump(stopFile);
+        DestroyWindow(window);
+        return command;
+    }
+
+    private static void Pump(string stopFile) {
+        DateTime deadline = DateTime.UtcNow.AddSeconds(60);
+        NativeMessage message;
+        while (!File.Exists(stopFile) && DateTime.UtcNow < deadline) {
+            while (PeekMessageW(out message, IntPtr.Zero, 0, 0, 1)) {
+                TranslateMessage(ref message);
+                DispatchMessageW(ref message);
+            }
+            Thread.Sleep(20);
+        }
+    }
+
+    // A restored window of the same class with a native caption (WS_OVERLAPPEDWINDOW). The reader presses 24 pixels under
+    // the top of the frame, which is on that caption, so DefWindowProc runs the move loop of a caption press and shows the
+    // window menu of a caption right-click. The window answers messages until the stop file exists.
+    public static void RunCaptioned(string stopFile) {
+        var definition = new WindowClass { procedure = procedure, instance = GetModuleHandleW(null), className = "Tauri Window" };
+        if (RegisterClassW(ref definition) == 0) throw new InvalidOperationException("Cannot register the Tauri Window class");
+        IntPtr window = CreateWindowExW(Topmost, "Tauri Window", "Orbit caption fixture", OverlappedWindow | Visible, 100, 100, 600, 400,
+            IntPtr.Zero, IntPtr.Zero, definition.instance, IntPtr.Zero);
+        if (window == IntPtr.Zero) throw new InvalidOperationException("Cannot create the fixture window");
+        // The reader requires the window in the foreground before a pointer action. A pointer press on a window always
+        // gives it the foreground, whereas the foreground lock can refuse SetForegroundWindow after the pointer and key
+        // input of an earlier case. So the fixture presses the middle of its own client area.
+        var middle = new NativePoint { X = 300, Y = 180 };
+        if (!ClientToScreen(window, ref middle) || !SetCursorPos(middle.X, middle.Y)) throw new InvalidOperationException("Cannot press the fixture window");
+        mouse_event(LeftDown, 0, 0, 0, UIntPtr.Zero);
+        mouse_event(LeftUp, 0, 0, 0, UIntPtr.Zero);
+        Console.Out.WriteLine("ready");
+        Console.Out.Flush();
+        Pump(stopFile);
+        DestroyWindow(window);
+    }
+}
+`
+
+// Runs a fixture window in its own PowerShell process, and gives the body that process and the path of its stop file.
+async function withFixtureWindow(call: (stop: string) => string, body: (processId: number, directory: string, stop: string) => void) {
+  const directory = mkdtempSync(join(tmpdir(), 'orbit-window-fixture-'))
+  const fixture = join(directory, 'fixture-window.cs')
+  const stop = join(directory, 'stop')
+  writeFileSync(fixture, popupWindowFixture)
+  const shell = spawn('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command',
+    `$ErrorActionPreference = 'Stop'; Add-Type -TypeDefinition (Get-Content -LiteralPath '${fixture}' -Raw); ${call(stop)}`],
+  { stdio: ['ignore', 'pipe', 'pipe'] })
+  let output = ''
+  let errors = ''
+  shell.stdout.setEncoding('utf8').on('data', (chunk: string) => { output += chunk })
+  shell.stderr.setEncoding('utf8').on('data', (chunk: string) => { errors += chunk })
+  try {
+    await new Promise<void>((resolve, reject) => {
+      const timer = setTimeout(() => reject(new Error(`The fixture window did not open: ${errors}`)), 60000)
+      shell.stdout.on('data', () => { if (output.includes('ready')) { clearTimeout(timer); resolve() } })
+      shell.on('exit', (code) => { clearTimeout(timer); reject(new Error(`The fixture window exited with ${code}: ${errors}`)) })
+    })
+    body(shell.pid!, directory, stop)
+  } finally {
+    shell.kill()
+    rmSync(directory, { recursive: true, force: true })
+  }
+}
+
+type MenuItem = { id: number; text: string; enabled: boolean; checked: boolean; children: MenuItem[] }
+type BarReading = { state: { rect: number[]; zoomed: boolean }; drag: { distance: number; moveLoopWait: number } | null
+  popup: { rect: number[]; anchor: number[]; pointer?: number[]; items: MenuItem[]; windowMenu?: MenuItem[]; closed: boolean } | null }
+
+// One windowbar command of the reader. The stop file ends the fixture before a failed reading fails the test.
+function readBar(processId: number, action: string, directory: string, stop?: string): BarReading {
+  const reader = spawnSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-File', uiaScript, '-TargetProcessId', String(processId),
+    '-Command', 'windowbar', '-Action', action, '-Capture', join(directory, `${action}.png`)], { encoding: 'utf8', timeout: 60000 })
+  if (stop) writeFileSync(stop, '')
+  assert.equal(reader.status, 0, reader.stderr)
+  return JSON.parse(reader.stdout) as BarReading
+}
+
+// The menu action holds the native menu open as a popup while the reader runs, and UI Automation lists that popup as a
+// top-level window of the same process in front of the app window (#2132). The reader must still read the app window, its
+// menu and the popup, close the popup with Escape and read the window state.
+test('Windows window bar reader reads the Tauri window and its menu while the popup menu of the same process is open', { skip: process.platform !== 'win32' }, async () => {
+  await withFixtureWindow((stop) => `[OrbitPopupFixture]::Run('${stop}')`, (processId, directory, stop) => {
+    const { state, popup } = readBar(processId, 'popup', directory, stop)
+    assert.ok(popup?.windowMenu)
+    const outline = (items: MenuItem[]): unknown[] => items.map(({ text, enabled, checked, children }) => [text, enabled, checked, outline(children)])
+    assert.deepEqual(outline(popup.items), [['File', true, false, [['Exit\tCtrl+Q', true, false, []]]],
+      ['Help', true, false, [['Support', true, false, []], ['Launch at login', true, true, []]]]], JSON.stringify(popup))
+    assert.deepEqual(popup.items, popup.windowMenu)
+    assert.equal(popup.closed, true)
+    // TrackPopupMenu puts the top left corner of the popup at the anchor, the start of the menu action under the bar.
+    assert.ok(Math.abs(popup.rect[0]! - popup.anchor[0]!) <= 8 && Math.abs(popup.rect[1]! - popup.anchor[1]!) <= 8, JSON.stringify(popup))
+    // The state is the fixture window's, which is wider than its popup menu.
+    assert.ok(state.rect[2]! - state.rect[0]! > popup.rect[2]! - popup.rect[0]!, JSON.stringify({ state, popup }))
+  })
+})
+
+// The reader writes the wait as an int. The JavaScript <= operator reads null, '', false and [] as 0, true as 1 and '500' as
+// 500, so the wait must be a whole number from 0 up before the limit means anything.
+const isMoveLoopWaitWithin = (wait: unknown, limit: number) => typeof wait === 'number' && Number.isInteger(wait) && wait >= 0 && wait <= limit
+
+test('the move loop wait check accepts a whole number of milliseconds from 0 to the limit and nothing else', () => {
+  for (const wait of [0, 150, 1000]) assert.equal(isMoveLoopWaitWithin(wait, 1000), true, JSON.stringify(wait))
+  for (const wait of [undefined, null, '', '500', 'abc', true, false, [], -5, -1, 1.5, 1001]) {
+    assert.equal(isMoveLoopWaitWithin(wait, 1000), false, JSON.stringify(wait) ?? 'missing')
+  }
+})
+
+// A pointer that leaves the press point before the window is in its move loop loses that travel: installed runs moved the
+// window 160, 128 and 96 pixels for one 160 pixel pointer travel (#2132). So the drag holds the pointer still until
+// GetGUIThreadInfo reports that loop, and on a window whose caption starts the loop the window travels exactly as far as
+// the pointer. The runner fails a wait above its moveLoopLimit, so the wait that the reader measures on a caption where
+// Windows itself starts the loop must be within that limit, and the case prints it as the baseline of the measure.
+test('Windows window bar reader drags only once the window is in its move loop, so the window travels exactly as far as the pointer', { skip: process.platform !== 'win32' }, async (context) => {
+  const runner = readFileSync(new URL('./acceptance-runner.mjs', import.meta.url), 'utf8')
+  const limit = Number(/^const moveLoopLimit = (\d+)$/m.exec(runner)?.[1])
+  assert.ok(limit > 0, 'the runner states its move loop limit')
+  await withFixtureWindow((stop) => `[OrbitPopupFixture]::RunCaptioned('${stop}')`, (processId, directory) => {
+    const before = readBar(processId, 'read', directory)
+    const { state, drag } = readBar(processId, 'drag', directory)
+    assert.equal(drag?.distance, 160, JSON.stringify(drag))
+    context.diagnostic(`move loop wait on a native caption: ${drag.moveLoopWait} ms, runner limit ${limit} ms`)
+    assert.ok(isMoveLoopWaitWithin(drag.moveLoopWait, limit), JSON.stringify(drag))
+    assert.deepEqual(state.rect.map((edge, index) => edge - before.state.rect[index]!), [160, 0, 160, 0], JSON.stringify({ before: before.state, state, drag }))
+  })
+})
+
+// The runner's expected window menu, read from its source: the command ids and the enabled state of each one.
+function windowMenuContract() {
+  const runner = readFileSync(new URL('./acceptance-runner.mjs', import.meta.url), 'utf8')
+  const context = {} as { commands?: Record<string, number>; states?: (zoomed: boolean) => Record<string, boolean> }
+  runInNewContext(`${runner.slice(runner.indexOf('const systemCommands'), runner.indexOf('// The reader right-clicks'))}
+globalThis.commands = systemCommands; globalThis.states = systemCommandStates`, context)
+  return { commands: context.commands!, states: context.states! }
+}
+
+// The shell opens the window menu for a right-click on the Orbit bar, and the installed run requires the commands and states
+// that a native caption shows (#2132). Here Windows itself shows that menu for a right-click on the caption of a restored
+// window, so the reader's right-click, popup reading and Escape meet the real menu, and the runner's expected states of a
+// restored window meet the native ones. The press point of the reader is under the shorter caption of a maximized window,
+// so only the installed run reads the maximized state.
+test('Windows window bar reader right-clicks the bar and reads the native window menu at the pointer, with the command states the runner requires', { skip: process.platform !== 'win32' }, async () => {
+  await withFixtureWindow((stop) => `[OrbitPopupFixture]::RunCaptioned('${stop}')`, (processId, directory) => {
+    const { state, popup } = readBar(processId, 'systemmenu', directory)
+    assert.equal(state.zoomed, false)
+    assert.ok(popup?.pointer, JSON.stringify(popup))
+    const { commands, states } = windowMenuContract()
+    const found = Object.fromEntries(Object.entries(commands).map(([name, id]) => [name, popup.items.find((item) => item.id === id)?.enabled]))
+    assert.deepEqual(found, { ...states(false) }, JSON.stringify(popup.items))
+    assert.equal(popup.closed, true)
+    assert.ok(Math.abs(popup.rect[0]! - popup.pointer[0]!) <= 8 && Math.abs(popup.rect[1]! - popup.pointer[1]!) <= 8, JSON.stringify(popup))
+  })
+})
+
+// The contract itself holds on every host: six commands, and the states of a restored and of a maximized window.
+test('the window menu contract of the runner names the six window commands and their states in each window state', () => {
+  const { commands, states } = windowMenuContract()
+  assert.deepEqual({ ...commands }, { restore: 0xF120, move: 0xF010, size: 0xF000, minimize: 0xF020, maximize: 0xF030, close: 0xF060 })
+  assert.deepEqual({ ...states(false) }, { restore: false, move: true, size: true, minimize: true, maximize: true, close: true })
+  assert.deepEqual({ ...states(true) }, { restore: true, move: false, size: false, minimize: true, maximize: false, close: true })
 })

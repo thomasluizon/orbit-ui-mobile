@@ -55,6 +55,7 @@ pub fn create_main(
     show: impl FnOnce() -> tauri::Result<()>,
 ) -> tauri::Result<()> {
     crate::launch::configure(&mut config, launch_mode);
+    crate::window_bar::configure_frame(&mut config, crate::window_bar::Platform::current());
     config.visible = false;
     config.focus = false;
     build(&config)?;

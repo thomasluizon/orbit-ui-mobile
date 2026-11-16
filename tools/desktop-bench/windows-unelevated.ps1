@@ -57,10 +57,13 @@ function Initialize-MediumOutput([string]$Directory) {
     @{ assembly = $assembly; label = $label }
 }
 
-function Start-MediumMode([string]$Directory, [string]$Arguments) {
+# A process holds its current directory open without delete sharing, and a process that it starts inherits that directory.
+# A Medium process that starts in the output thus makes the removal of the output fail with EBUSY until that process and its
+# descendants close the handle, which can be after the launcher's exit code is set. Thus every Medium process starts in $PSHOME.
+function Start-MediumMode([string]$Arguments) {
     $powershell = Join-Path $PSHOME 'powershell.exe'
     $commandLine = '"{0}" -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "{1}" {2}' -f $powershell, $PSCommandPath, $Arguments
-    [OrbitIntegrity]::StartAsStandardUser($powershell, $commandLine, $Directory)
+    [OrbitIntegrity]::StartAsStandardUser($powershell, $commandLine, $PSHOME)
 }
 
 # The Windows App SDK names an unpackaged app by the NotificationGUID value under HKCU Software\Classes\AppUserModelId\<the
@@ -145,7 +148,7 @@ switch ($Mode) {
     'start' {
         $directory = Split-Path -Parent $Status
         $prepared = Initialize-MediumOutput $directory
-        $launcher = Start-MediumMode $directory ('-Mode run -Executable "{0}" -Log "{1}" -Output "{2}" -Status "{3}" -Assembly "{4}"' -f
+        $launcher = Start-MediumMode ('-Mode run -Executable "{0}" -Log "{1}" -Output "{2}" -Status "{3}" -Assembly "{4}"' -f
             $Executable, $Log, $Output, $Status, $prepared.assembly)
         [ordered]@{ harness = (ConvertTo-LaunchContext ([OrbitIntegrity]::DescribeCurrent())); launcher = $launcher; outputLabel = $prepared.label } |
             ConvertTo-Json -Compress
@@ -160,7 +163,7 @@ switch ($Mode) {
         # The arguments carry the one-use Done token, so they reach the client through a file the artifacts never upload.
         $call = [ordered]@{ clsid = $registration.clsid; appId = $registration.appId; arguments = $arguments }
         [IO.File]::WriteAllText($Request, ($call | ConvertTo-Json -Compress), [Text.UTF8Encoding]::new($false))
-        $client = Start-MediumMode $directory ('-Mode notify -Status "{0}" -Assembly "{1}" -Request "{2}"' -f $Status, $prepared.assembly, $Request)
+        $client = Start-MediumMode ('-Mode notify -Status "{0}" -Assembly "{1}" -Request "{2}"' -f $Status, $prepared.assembly, $Request)
         [ordered]@{ harness = (ConvertTo-LaunchContext ([OrbitIntegrity]::DescribeCurrent())); client = $client; header = $header
             registration = $registration; argumentKeys = @($arguments.Split(';') | ForEach-Object { $_.Split('=')[0] }) } | ConvertTo-Json -Compress
     }
