@@ -68,10 +68,34 @@ function cutRedirects(command, keepHereStrings) {
  */
 export const withoutRedirects = (command, { keepHereStrings = true } = {}) => cutRedirects(command, keepHereStrings).kept
 
-/** The word of each here-string of the command, as written: text that the command reads on standard input, and no argument. */
-export const hereStringWords = (command) => cutRedirects(command, false).hereStrings
+const ANSI_C_ESCAPES = { n: "\n", t: "\t" }
 
-const HEREDOC_OPENER = /<<-?[ \t]*(['"]?)([A-Za-z_][A-Za-z0-9_]*)\1([^\n]*)\n/y
+/** The text of a word after the shell removes its quotes and its escapes. A `$` expansion stays as written. */
+function unquotedWord(word) {
+  let text = ""
+  let quote = ""
+  for (let index = 0; index < word.length; index++) {
+    const character = word[index]
+    const next = word[index + 1] ?? ""
+    if (character === "\\" && quote === "$'") { text += ANSI_C_ESCAPES[next] ?? next; index++; continue }
+    if (character === "\\" && (quote === "" || (quote === '"' && /["\\$`]/.test(next)))) { text += next; index++; continue }
+    if (quote) {
+      if (character === quote.at(-1)) quote = ""
+      else text += character
+      continue
+    }
+    quote = quoteOpenedAt(word, index)
+    if (quote) index += quote.length - 1
+    else text += character
+  }
+  return text
+}
+
+/** The text of each here-string of the command: what the command reads on standard input, and no argument. */
+export const hereStringTexts = (command) => cutRedirects(command, false).hereStrings.map(unquotedWord)
+
+/** The text after the delimiter runs to the end of the operator line. A backslash before a line end continues the line. */
+const HEREDOC_OPENER = /<<-?[ \t]*(['"]?)([A-Za-z_][A-Za-z0-9_]*)\1((?:\\[\s\S]|[^\n\\])*)\n/y
 
 /** The heredoc whose operator is at `index`, or null when no later line is its terminator. */
 function heredocAt(command, index) {

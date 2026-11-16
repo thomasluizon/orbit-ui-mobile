@@ -183,9 +183,13 @@ const headOnMain = { resolveHeadBranch: () => "main", resolveRemoteUrl: () => "g
 for (const command of ["git push <<<x", "git push -u <<<x", "git push <<<x 2>&1", "git push <<< x", "git push origin <<<x", "git <<<x push", 'bash <<<"git push"']) {
   T(`git: ${command} while HEAD is on main blocks`, blocks(checkGitCommand(command, headOnMain)), true)
 }
-for (const command of ["git <<<x push origin main", "git <<< x push origin main", "git <<<x commit -n -m x", 'bash <<<"git push origin main>/dev/null"', 'bash -s git <<<"git push origin main"', 'bash <<<"git commit -m x -n"']) {
+for (const command of ["git <<<x push origin main", "git <<< x push origin main", "git <<<x commit -n -m x", 'bash <<<"git push origin main>/dev/null"', 'bash -s git <<<"git push origin main"', 'bash <<<"git commit -m x -n"',
+  // The shell removes each quote and each escape from the word of a here-string before the command reads it.
+  "bash <<<git\\ push\\ origin\\ main", "bash <<<git\\ commit\\ -m\\ x\\ -n", "bash <<<$'git push origin main\\n'", "bash <<<$'true\\ngit commit -m x -n'"]) {
   T(`git: ${command} still blocks`, blocks(checkGitCommand(command)), true)
 }
+// The shell removes a quote in the command word too, and an escape can hide the word `git` in the text of the command.
+T("git: g''it push origin main still blocks", blocks(checkGitCommand("g''it push origin main")), true)
 T("git: push <<<x while HEAD is on a feature branch allows", checkGitCommand("git push <<<x", { ...headOnMain, resolveHeadBranch: () => "feature/x" }), null)
 T("git: push origin feature/x <<<x while HEAD is on main allows", checkGitCommand("git push origin feature/x <<<x", headOnMain), null)
 T("git: a here-string word that names main is no ref", checkGitCommand("git push origin feature/x <<<main"), null)
@@ -288,6 +292,8 @@ const HEREDOC_SHELL_LINES = [
   ["`cat <<'EOF'", "`"],
   ["y=1 $(cat <<'EOF'", ")"],
   ["y+=1 $(cat <<'EOF'", ")"],
+  // A backslash at the end of the operator line continues the line, so the reader of the body can be on the next line.
+  "cat <<'EOF' \\\n| bash",
 ]
 /** A row is the operator line, or the operator line and the text after the terminator. */
 const heredocCommand = (row, body) => {
@@ -325,6 +331,7 @@ const HEREDOC_DATA = [
   "git commit -m \"it's <<A\" -F - <<'EOF'",
   // A `<<` with no terminator line, such as a shift, opens no heredoc, and the reader goes on to the next operator.
   "echo $((1<<x)); git commit -F - <<'EOF'",
+  "cat <<'EOF' \\\n| grep push",
   // The shell expands `$(cat)` before it applies the heredoc, so the command string comes from the input of the caller, not from the body.
   "bash -c \"$(cat)\" <<'EOF'",
   "eval \"$(cat)\" <<'EOF'",
@@ -646,6 +653,8 @@ for (const [command, rule] of [
   // A shell runs the word of its here-string as a script, with or without a space around the operator.
   [`bash <<<'rm -rf "$TMP"'`, "variable-path"],
   [`bash -e<<<$'rm -rf "$TMP"'`, "variable-path"],
+  ['bash <<<rm\\ -rf\\ \\"\\$TMP\\"', "variable-path"],
+  [`bash <<<$'echo it\\'s; rm -rf "$TMP"'`, "variable-path"],
   // A quoted `<<EOF` is text, so the line after it is a command.
   ["echo '<<EOF'\nrm -rf \"$TMP\"\nEOF", "variable-path"],
   ['echo "<<EOF"\nrm -rf "$TMP"\nEOF', "variable-path"],

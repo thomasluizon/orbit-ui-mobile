@@ -7,7 +7,7 @@
 import { homedir } from "node:os"
 import { posix } from "node:path"
 
-import { commandWords, hereStringWords, inspectCommands, withoutRedirects } from "./command-expander.mjs"
+import { commandWords, hereStringTexts, inspectCommands, withoutRedirects } from "./command-expander.mjs"
 import { SHELLS, stripHeredocBodies } from "./rules-git.mjs"
 
 /** The tools whose permission check runs the Claude Code removal check. Each one takes the shell command as `tool_input.command`. */
@@ -135,10 +135,10 @@ function nestedScripts(words) {
   return scripts
 }
 
-/** The word of each here-string that a shell in the command reads as its script. A here-string to a command that is no shell is text. */
+/** The text of each here-string that a shell in the command reads as its script. A here-string to a command that is no shell is text. */
 function hereStringScripts(segment) {
   const readByShell = commandWords(withoutRedirects(segment, { keepHereStrings: false })).some((word) => SHELLS.includes(programName(word)))
-  return readByShell ? hereStringWords(segment).map((word) => readWord(word.replace(/^\$(?=')/, "")).value) : []
+  return readByShell ? hereStringTexts(segment) : []
 }
 
 /** One spelling for a path: forward slashes, `C:/x` as the `/c/x` of Git Bash, and the macOS `/private` aliases removed. */

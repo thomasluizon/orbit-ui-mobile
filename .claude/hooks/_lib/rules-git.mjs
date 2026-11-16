@@ -1,4 +1,4 @@
-import { commandsFedBy, commandWords, expandCommands, heredocsOf, hereStringWords, inspectCommands, shellValue, SUBSTITUTION, withoutRedirects } from "./command-expander.mjs"
+import { commandsFedBy, commandWords, expandCommands, heredocsOf, hereStringTexts, inspectCommands, shellValue, SUBSTITUTION, withoutRedirects } from "./command-expander.mjs"
 import { resolve } from "node:path"
 
 // Only these three repositories protect main; other repositories may allow direct pushes.
@@ -143,7 +143,8 @@ const blocked = (command, why) => ({
 })
 
 export function checkGitCommand(command, { resolveHeadBranch, resolveRemoteUrl, cwd } = {}) {
-  if (typeof command !== "string" || !/\bgit\b/.test(command)) return null
+  // No text check for the word `git` comes first: a quote or an escape can divide the word, or put a letter before it.
+  if (typeof command !== "string") return null
 
   // Each command as argv carries it: no redirect reaches argv, and a here-string is a redirect of standard input. The word of a
   // here-string is text that its command reads, so it is read as commands of its own, in the directory of its command.
@@ -152,7 +153,7 @@ export function checkGitCommand(command, { resolveHeadBranch, resolveRemoteUrl, 
     const words = commandWords(segment).map(shellValue)
     if (words[0] === "cd" && words[1]) directory = resolve(directory, words[1])
     segments.push({ segment: withoutRedirects(segment, { keepHereStrings: false }), directory })
-    for (const word of hereStringWords(segment)) inspectCommands(shellValue(word), directory, collect)
+    for (const text of hereStringTexts(segment)) inspectCommands(text, directory, collect)
     return directory
   }
   inspectCommands(stripHeredocBodies(command), cwd || process.cwd(), collect)
