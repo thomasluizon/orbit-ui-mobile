@@ -371,6 +371,21 @@ type Tree = {
   update: (element: React.ReactElement) => void;
 };
 
+type FrameBox = { left: number; top: number; right: number; bottom: number };
+
+function expectWeekFrameRing(tree: Tree, frameBox: FrameBox, ringBox: FrameBox | undefined) {
+  const frame = tree.root.findAll((node) => node.type === 'View' && node.props.testID === 'calendar-time-grid')[0] as TestNode & { children: (TestNode | string)[] };
+  const frameStyle = StyleSheet.flatten<ViewStyle>(frame.props.style);
+  expect.soft(frameStyle.borderWidth, 'the frame hairline takes no layout space').toBeUndefined();
+  expect.soft(frameStyle.outlineWidth, 'the frame does not draw the hairline beneath its flush filled children').toBeUndefined();
+  const lastChild = frame.children.at(-1);
+  const ring = typeof lastChild === 'string' ? undefined : lastChild;
+  expect.soft(ring?.props.testID, 'the frame hairline is the last child, so it paints above the head and gutter fills').toBe('calendar-time-grid-ring');
+  expect.soft(ring?.props.pointerEvents, 'the ring leaves scroll and taps to the grid').toBe('none');
+  expect.soft(StyleSheet.flatten<ViewStyle>(ring?.props.style), 'the frame hairline is an inset ring').toMatchObject({ position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, borderRadius: frameStyle.borderRadius, outlineWidth: 1, outlineOffset: -1, outlineStyle: 'solid' });
+  expect.soft(ringBox, 'the ring covers the frame edge to edge').toMatchObject({ left: frameBox.left, top: frameBox.top, right: frameBox.right, bottom: frameBox.bottom });
+}
+
 function makeEntry(overrides: Partial<CalendarDayEntry>): CalendarDayEntry {
   return {
     habitId: "x",
@@ -798,9 +813,7 @@ describe("CalendarScreen views (mobile)", () => {
         if (view === 'week') {
           const firstColumnTop = Math.min(...measured.controls.filter((control) => control.top >= bottom).map((control) => control.top));
           expect.soft(firstColumnTop - weekFrame!.top, 'the day columns start at the frame edge, as on web').toBe(0);
-          const frameStyle = StyleSheet.flatten<ViewStyle>(tree.root.findAll((node) => node.type === 'View' && node.props.testID === 'calendar-time-grid')[0]!.props.style);
-          expect.soft(frameStyle.borderWidth, 'the frame hairline takes no layout space').toBeUndefined();
-          expect.soft(frameStyle, 'the frame hairline is an inset ring').toMatchObject({ outlineWidth: 1, outlineOffset: -1, outlineStyle: 'solid' });
+          expectWeekFrameRing(tree, weekFrame!, measured.boxes.find((box) => box.testID === 'calendar-time-grid-ring'));
         }
         expect.soft(firstBodyTop - bottom, `${view} body clearance`).toBe(24);
         if (month) TestRenderer.act(() => month.update(<></>));

@@ -2,6 +2,7 @@ import { PADDING, } from '@orbit/shared/theme'
 import type { StatTileProps } from '@orbit/shared/contracts/display'
 import { StyleSheet, Text, View } from 'react-native'
 import { createTokensV2 } from '@/lib/theme'
+import { insetHairlineRing } from '@/components/ui/inset-hairline-ring'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useAppTheme } from '@/lib/use-app-theme'
 
@@ -70,9 +71,7 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     gap: 8,
     borderRadius: 20,
-    outlineWidth: 1,
-    outlineOffset: -1,
-    outlineStyle: 'solid',
+    ...insetHairlineRing,
     padding: PADDING.recordInset,
   },
   value: {

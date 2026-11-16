@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next'
 import type { Profile } from '@orbit/shared/types/profile'
 import { PillButton } from '@/components/ui/pill-button'
 import { ProgressBar } from '@/components/ui/progress-bar'
+import { insetHairlineRing } from '@/components/ui/inset-hairline-ring'
 import { createTokensV2, radius } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
@@ -94,9 +95,7 @@ const styles = StyleSheet.create({
     gap: 12,
     padding: PADDING.recordInset,
     borderRadius: radius.xl,
-    outlineWidth: 1,
-    outlineOffset: -1,
-    outlineStyle: 'solid',
+    ...insetHairlineRing,
   },
   header: {
     minWidth: 0,

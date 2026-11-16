@@ -9,6 +9,7 @@ import {
   View,
 } from 'react-native'
 import { createTokensV2, radius, type AppTokensV2 } from '@/lib/theme'
+import { insetHairlineRing } from '@/components/ui/inset-hairline-ring'
 import { usePrefersReducedMotion } from '@/lib/motion'
 import { useAppTheme } from '@/lib/use-app-theme'
 
@@ -221,9 +222,7 @@ const styles = StyleSheet.create({
   settingsValue: { width: 48, height: 16 },
   statTile: {
     borderRadius: radius.xl,
-    outlineWidth: 1,
-    outlineOffset: -1,
-    outlineStyle: 'solid',
+    ...insetHairlineRing,
     padding: SPACING.s16,
     gap: 8,
     alignItems: 'flex-start',

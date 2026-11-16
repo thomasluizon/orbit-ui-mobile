@@ -67,6 +67,7 @@ import { ProgressRing } from '@/components/ui/progress-ring'
 import { ProBadge } from '@/components/ui/pro-badge'
 import * as Menu from '@/components/ui/dropdown-menu'
 import { Skeleton } from '@/components/ui/skeleton'
+import { insetHairlineRing } from '@/components/ui/inset-hairline-ring'
 import { StatTile } from '@/components/ui/stat-tile'
 import { StatusRing } from '@/components/ui/status-ring'
 import { useGamificationProfile, useRepairStreak, useStreakFreeze } from '@/hooks/use-gamification'
@@ -655,14 +656,14 @@ const styles = StyleSheet.create({
   frozenCopy: { flex: 1, fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 20 },
   copy: { gap: 4 }, body: { fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 20 }, meta: { fontFamily: 'GeistMono_400Regular', fontSize: 12, lineHeight: 16 },
   notice: { borderRadius: 12, fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 20, paddingHorizontal: SPACING.s16, paddingVertical: SPACING.s12 },
-  card: { borderRadius: 20, outlineWidth: 1, outlineOffset: -1, outlineStyle: 'solid', gap: 12, padding: PADDING.recordInset }, cardTitle: { fontFamily: 'Geist_500Medium', fontSize: 16, lineHeight: 20 }, actionStart: { alignSelf: 'flex-start' }, lockHeader: { alignItems: 'center', flexDirection: 'row', gap: 12 },
+  card: { borderRadius: 20, ...insetHairlineRing, gap: 12, padding: PADDING.recordInset }, cardTitle: { fontFamily: 'Geist_500Medium', fontSize: 16, lineHeight: 20 }, actionStart: { alignSelf: 'flex-start' }, lockHeader: { alignItems: 'center', flexDirection: 'row', gap: 12 },
   gapWell: { borderRadius: 12, gap: 12, padding: PADDING.recordInset }, gapBody: { fontFamily: 'Geist_400Regular', fontSize: 16, lineHeight: 24 },
   topHabit: { minHeight: 68, paddingHorizontal: SPACING.s16, paddingVertical: SPACING.s16, borderRadius: 12, overflow: 'hidden', gap: 4, minWidth: 0 },
   topHabitLabelRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
   topHabitChevron: { width: 24, height: 24, flexShrink: 0 },
   topHabitName: { fontFamily: 'Geist_400Regular', fontSize: 17, lineHeight: 24 },
   windowGrid: { gap: 16 }, windowLock: { width: '100%' }, windowRow: { flexDirection: 'row', gap: 16 }, windowSection: { gap: PADDING.sectionTitleGap }, windowTile: { flex: 1, minWidth: 0 },
-  goalsSection: { gap: PADDING.sectionTitleGap }, goalCard: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: PADDING.recordInset, borderRadius: 20, overflow: 'hidden', outlineWidth: 1, outlineOffset: -1, outlineStyle: 'solid' }, goalCardLifted: { zIndex: 2 },
+  goalsSection: { gap: PADDING.sectionTitleGap }, goalCard: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: PADDING.recordInset, borderRadius: 20, overflow: 'hidden', ...insetHairlineRing }, goalCardLifted: { zIndex: 2 },
   goalTitle: { fontFamily: 'Geist_500Medium', fontSize: 17, lineHeight: 24 }, goalMeta: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 },
   goalCopy: { flex: 1, minWidth: 0, gap: 4 }, goalSeparator: { height: 12 },
   emptyLine: { alignItems: 'flex-start', borderRadius: 12, gap: 8, padding: PADDING.recordInset },

@@ -11,6 +11,7 @@ import { X } from '@/components/ui/icons'
 import { Button } from '@/components/ui/pill-button'
 import { OrbitMascot } from '@/components/ui/orbit-mascot'
 import { createTokensV2 } from '@/lib/theme'
+import { insetHairlineRing } from '@/components/ui/inset-hairline-ring'
 import { toAnimatedEasing, usePrefersReducedMotion } from '@/lib/motion'
 import { plural } from '@/lib/plural'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -176,7 +177,7 @@ function CelebrationItem({ active, reduced, closeRef, complete, beforeDismiss, o
 }
 
 const styles = StyleSheet.create({
-  panel: { alignItems: 'center', borderRadius: 20, outlineWidth: 1, outlineOffset: -1, outlineStyle: 'solid', flexDirection: 'row', flexWrap: 'wrap', gap: 16, padding: SPACING.s24 },
+  panel: { alignItems: 'center', borderRadius: 20, ...insetHairlineRing, flexDirection: 'row', flexWrap: 'wrap', gap: 16, padding: SPACING.s24 },
   daily: { gap: 12, padding: SPACING.s16 },
   mark: { height: 48, width: 48, alignItems: 'center', justifyContent: 'center' },
   copy: { flex: 1, minWidth: 0, gap: 4 },

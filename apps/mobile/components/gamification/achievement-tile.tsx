@@ -5,6 +5,7 @@ import { PADDING } from '@orbit/shared/theme'
 import type { AppTokensV2 } from '@/lib/theme'
 import { AchievementMark } from './achievement-mark'
 import { Badge } from '@/components/ui/badge'
+import { insetHairlineRing } from '@/components/ui/inset-hairline-ring'
 import { ProgressBar } from '@/components/ui/progress-bar'
 
 export function AchievementTile({ achievement, tokens, width }: Readonly<{ achievement: Achievement; tokens: AppTokensV2; width: DimensionValue }>) {
@@ -30,7 +31,7 @@ export function AchievementTile({ achievement, tokens, width }: Readonly<{ achie
 
 const styles = StyleSheet.create({
   earnedBadge: { flexShrink: 0 },
-  achievement: { borderRadius: 20, outlineWidth: 1, outlineOffset: -1, outlineStyle: 'solid', gap: 12, minWidth: 0, padding: PADDING.recordInset },
+  achievement: { borderRadius: 20, ...insetHairlineRing, gap: 12, minWidth: 0, padding: PADDING.recordInset },
   achievementHeader: { alignItems: 'center', flexDirection: 'row', flexWrap: 'wrap', gap: 12 }, achievementCopy: { flexGrow: 1, flexShrink: 1, flexBasis: 120, gap: 4, minWidth: 0 },
   achievementName: { fontFamily: 'Geist_500Medium', fontSize: 14, lineHeight: 20 }, achievementBody: { fontFamily: 'Geist_400Regular', fontSize: 12, lineHeight: 17 }, achievementProgress: { gap: 4 },
   meta: { fontFamily: 'GeistMono_400Regular', fontSize: 12, lineHeight: 16 },

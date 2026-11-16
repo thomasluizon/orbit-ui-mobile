@@ -6,6 +6,7 @@ import { Snowflake } from '@/components/ui/icons'
 import { ProgressBar } from '@/components/ui/progress-bar'
 import { StreakLegend } from '@/components/ui/streak-legend'
 import { StatTile } from '@/components/ui/stat-tile'
+import { insetHairlineRing } from '@/components/ui/inset-hairline-ring'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
@@ -64,7 +65,7 @@ const styles = StyleSheet.create({
   hidden: { opacity: 0 },
   meta: { fontFamily: 'GeistMono_400Regular', fontSize: 12, lineHeight: 16 },
   sheetBookkeeping: { gap: 8 },
-  card: { borderRadius: 20, outlineWidth: 1, outlineOffset: -1, outlineStyle: 'solid', gap: 12, padding: SPACING.s16 },
+  card: { borderRadius: 20, ...insetHairlineRing, gap: 12, padding: SPACING.s16 },
   stacked: { flexDirection: 'column' },
   figureRow: { flexDirection: 'row', gap: 16 },
   bookkeepingRow: { flexDirection: 'row', gap: 12 },
