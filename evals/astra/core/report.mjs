@@ -164,11 +164,14 @@ function criteriaRows(criteria) {
 
 // The evidence of a failed case: the attempt files of the window that measured it. A window report lies beside its own
 // `attempts/`; a merged case names the directory of its window relative to the merged report.
-function caseRow(entry) {
+// A case of a merged report that a later build measured names that build: its rerun, or its first verdict.
+function caseRow(entry, firstApiCommit) {
   const directory = entry.evidenceDirectory ? `${entry.evidenceDirectory}/` : ''
   const evidence = entry.passK === 'fail' ? Array.from({ length: entry.attempts }, (_, index) =>
     `[r${index + 1}](${directory}${evidencePath(entry.id, index + 1)})`).join(', ') : ''
-  return `| ${entry.id} | ${entry.family} | ${entry.defectClass} | ${entry.locale} | ${entry.mustPass ? 'yes' : 'no'} | ${entry.k} | ${entry.passed}/${entry.attempts} | ${entry.passK}${entry.rerun ? ' (rerun)' : ''} | ${listed(entry.questionsBeforePreview)} | ${entry.maxQuestions} | ${listed(entry.modelCalls)} | ${listed(entry.seconds)} | ${cell(entry.costUsd)} | ${evidence} |`
+  const laterBuild = entry.apiCommit && entry.apiCommit !== firstApiCommit
+    ? ` (${entry.rerun ? 'rerun' : 'first verdict'} on ${entry.apiCommit.slice(0, 7)})` : ''
+  return `| ${entry.id} | ${entry.family} | ${entry.defectClass} | ${entry.locale} | ${entry.mustPass ? 'yes' : 'no'} | ${entry.k} | ${entry.passed}/${entry.attempts} | ${entry.passK}${laterBuild} | ${listed(entry.questionsBeforePreview)} | ${entry.maxQuestions} | ${listed(entry.modelCalls)} | ${listed(entry.seconds)} | ${cell(entry.costUsd)} | ${evidence} |`
 }
 
 // The reasons of one kind, under their own heading, so a reader never takes a grader limit for a behavior failure.
@@ -177,10 +180,15 @@ function reasonLines(title, cases, field) {
   return lines.length ? ['', title, ...lines] : []
 }
 
-function rerunLine(summary) {
-  if (!summary.rerunApiCommit) return []
-  const count = summary.cases.filter((entry) => entry.rerun).length
-  return [`Rerun of the failed cases after a fix, API commit: ${summary.rerunApiCommit} (${count} ${count === 1 ? 'case' : 'cases'}; each other case was measured on the first build)`]
+const counted = (count, one, many) => `${count} ${count === 1 ? one : many}`
+
+// One line for each later build of a merged report. Each other case was measured on the first build.
+function laterBuildLines(summary) {
+  return (summary.laterApiCommits ?? []).map((apiCommit) => {
+    const measured = summary.cases.filter((entry) => entry.apiCommit === apiCommit)
+    const reruns = measured.filter((entry) => entry.rerun).length
+    return `Later build, API commit: ${apiCommit} (${counted(reruns, 'rerun', 'reruns')} of a failed case or of a grader limit; ${counted(measured.length - reruns, 'case', 'cases')} without a verdict on an earlier build)`
+  })
 }
 
 export function writeReport(summary, directory) {
@@ -188,7 +196,7 @@ export function writeReport(summary, directory) {
   const markdown = [
     `Orbit AI core gate, ${summary.run} run: ${summary.status}`,
     `API commit: ${summary.apiCommit}`,
-    ...rerunLine(summary),
+    ...laterBuildLines(summary),
     `Corpus digest: ${summary.corpusDigest}`,
     ...(summary.utcDayWindows ? [`UTC-day windows: ${summary.utcDayWindows}`] : [`UTC day: ${summary.utcDay}`]),
     ...(summary.cost ? [`Measured run cost (USD): ${cell(summary.cost.runUsd)}`, `Model calls: ${cell(summary.cost.modelCalls)}`] : []),
@@ -196,7 +204,7 @@ export function writeReport(summary, directory) {
     '',
     '| Case | Family | Class | Locale | Must-pass | k | Attempts passed | pass^k | Questions before preview | Allowed | Model calls | Seconds | Cost (USD) | Attempts |',
     '|---|---|---|---|---|---|---|---|---|---|---|---|---|---|',
-    ...summary.cases.map(caseRow),
+    ...summary.cases.map((entry) => caseRow(entry, summary.apiCommit)),
     '',
     '| Family | Locale | Cases passing pass^k | pass^k rate | pass^k |',
     '|---|---|---|---|---|',
@@ -206,6 +214,7 @@ export function writeReport(summary, directory) {
     ...reasonLines(`No evidence (${noEvidenceKinds.slice(0, -1).join(', ')}, or ${noEvidenceKinds.at(-1)}):`, summary.cases, 'unavailableReasons'),
     '',
     'A must-pass case passes only when each of its 3 attempts passes. No rerun on the same build replaces a failed attempt or a grader limit.',
+    'The attempts of one case come from one build.',
     'Incomplete is not a pass. A held preview proves a proposal; the saved state readback proves the write.',
     'Seconds are the time that the person waits for the turns of one attempt.',
     'A turn that fails, a card turn that returns no trace, and a preview turn without the trace that shows a `stored` field add no counted model calls, so the cost of one model call reads a little high.',

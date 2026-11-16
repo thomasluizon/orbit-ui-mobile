@@ -275,7 +275,8 @@ Each pull request that changes the assistant gets one live run of the core set (
 local checkout, on a staging build of that branch, before merge. The app-launch live gate runs the launch
 corpus once, with one attempt per case and a 2 USD spend ceiling for that run; the ceiling returns to
 0.50 USD a day after it. After a fix, the failed cases and the cases with a grader limit run once more
-live on the fixed build. A rerun on the same build never replaces a failed case. There is no
+live on the fixed build. A rerun on the same build never replaces a failed case. When staging serves
+another API commit before the run ends, the cases without a verdict continue on that build. There is no
 other live run. A fix round never calls the provider: it replays recorded real provider
 responses offline at the model-service port, following the `orbit-api`
 `tests/Orbit.Application.Tests/Fixtures/` pattern, or uses a fake completion client.
@@ -526,9 +527,9 @@ without a final event, or a failed approval. Only a throttle (HTTP 429), a spend
 (`AI_DAILY_BUDGET_EXCEEDED` or `AI_PROVIDER_QUOTA_EXHAUSTED`), a failed precondition, a failed rubric
 grader, a card turn without the trace that its answer needs and a preview turn without the trace that
 shows a `stored` field are no evidence. Such an attempt leaves its case incomplete, and only such a
-case may appear again in a later window. The merge refuses a second result for a case that passed,
-failed or holds a grader limit, a window of another API commit, and a case whose `k` differs from the
-corpus.
+case may appear again in a later window of the same build. The merge refuses a second result on one
+build for a case that passed, failed or holds a grader limit, an ordinary window of another API commit,
+and a case whose `k` differs from the corpus.
 
 A reply that the grader cannot read is a grader limit. The case has no verdict, nothing is approved, and
 the report lists grader limits apart from behavior failures. The merge refuses a later window of the same
@@ -547,13 +548,32 @@ After a fix, run the failed cases and the cases with a grader limit once more on
 give those summaries to the merge with `--rerun`:
 
 ```sh
-node core/merge.mjs --run-cost-usd <measured cost of both builds> --baseline <baseline summary.json> \
-  <first-run summaries> --rerun <fixed-build must-pass summary> --rerun <fixed-build other summary>
+node core/merge.mjs --run-cost-usd <measured cost of all builds> --baseline <baseline summary.json> \
+  <first-run summaries> --rerun <later-build must-pass summary> --rerun <later-build other summary>
 ```
 
-The rerun takes the place of the first result. The report names both API commits and marks each rerun
-case. Each other case keeps its verdict of the first build. The merge refuses a rerun on the same build, a
-rerun of a case that neither failed nor holds a grader limit, and a second rerun build.
+The rerun takes the place of the first result. A case has one rerun: the merge refuses a second one.
+
+Staging can serve another API commit before each case has a verdict: after a fix, or after a release
+of another commit. An ordinary window on the new commit is refused, because the ordinary windows measure
+the first build. Run the cases without a verdict on the new build, and give those summaries to the merge
+with `--rerun` also. A case is without a verdict when no window held it, or when its attempts gave no
+evidence. These rules apply to each later build:
+
+- A case without a verdict gets its first verdict on the later build. This uses no rerun, so a failure
+  there keeps the one rerun of the case for the next fixed build.
+- A case that failed or holds a grader limit on an earlier build uses its one rerun.
+- A case that passed keeps its build. The merge refuses a later result for it.
+- The entry of the later build takes the place of the earlier entry, whole. The attempts of one case
+  come from one build, so the attempts of two builds never make one verdict.
+- A later build continues across UTC-day windows as the first build does.
+
+Give the `--rerun` windows of one build together, in the order of the builds. The merge refuses a
+`--rerun` window on the first build and a return to an earlier build. The report names the API commit of
+each later build, with its count of reruns and of first verdicts, and marks each case that a later build
+measured (`rerun on <commit>` or `first verdict on <commit>`). The merged `summary.json` holds
+`laterApiCommits`, and each measured case holds the `apiCommit` of its build. Each other case keeps its
+verdict of the first build.
 
 Offline checks (`npm test --prefix evals/astra -- __tests__/core-outcome.test.mjs __tests__/core-corpus.test.mjs
 __tests__/core-report.test.mjs __tests__/core-cli.test.mjs`) replay recorded staging streams of the
