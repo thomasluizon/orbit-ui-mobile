@@ -242,9 +242,11 @@ function startHostname(script: string, directory: string) {
 // process.kill(pid, 0) answers ESRCH as soon as GetExitCodeProcess gives an exit code (libuv src/win/process.c uv__kill),
 // which is before the process object is signaled. Thus this waits on the process handle, as Microsoft directs:
 // https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-terminateprocess
+// Every branch exits explicitly: a suppressed Get-Process error leaves $? false, and -Command then exits 1
+// https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_powershell_exe?view=powershell-5.1
 function waitForProcessEnd(pid: number) {
   const ended = spawnSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command',
-    `$process = Get-Process -Id ${pid} -ErrorAction SilentlyContinue; if ($process -and -not $process.WaitForExit(30000)) { exit 1 }`],
+    `$process = Get-Process -Id ${pid} -ErrorAction SilentlyContinue; if (-not $process) { exit 0 }; if ($process.WaitForExit(30000)) { exit 0 }; exit 1`],
   { encoding: 'utf8', timeout: 60000 })
   return ended.status === 0
 }
