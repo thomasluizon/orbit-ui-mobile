@@ -187,6 +187,22 @@ export function createUseGuidedHabitFlow({ useState, useEffect, useMemo, useCall
     }), [form, helpers, frequencyUnit, isFlexible, lockedGeneral, onPhraseOwnershipChange, onReminderEnabledChange, onSlipAlertEnabledChange])
   }
 
+  function useAnsweredScheduleController(controller: HabitFormController, setProposals: StateSetter<GuidedHabitProposals>): HabitFormController {
+    return useMemo(() => {
+      const answered = () => setProposals((value) => (value.schedule ? { ...value, schedule: false } : value))
+      return {
+        ...controller,
+        setScheduleMode: (flexible) => { answered(); controller.setScheduleMode(flexible) },
+        setSchedule: (unit, quantity, flexible) => { answered(); controller.setSchedule(unit, quantity, flexible) },
+        setRecurrence: (schedule) => { answered(); controller.setRecurrence(schedule) },
+        toggleDay: (day, daily, selectedDays) => { answered(); controller.toggleDay(day, daily, selectedDays) },
+        toggleMonthDay: (day, anchorDay, selectedMonthDays) => { answered(); controller.toggleMonthDay(day, anchorDay, selectedMonthDays) },
+        setQuantity: (quantity) => { answered(); controller.setQuantity(quantity) },
+        setIntervalWeeks: (intervalWeeks) => { answered(); controller.setIntervalWeeks(intervalWeeks) },
+      }
+    }, [controller, setProposals])
+  }
+
   function useOpeningRead(mode: 'create' | 'edit', applyRead: (read: HabitPhraseRead) => void, localRead: HabitPhraseRead) {
     const opened = useRef(false)
     useEffect(() => {
@@ -405,9 +421,10 @@ export function createUseGuidedHabitFlow({ useState, useEffect, useMemo, useCall
 
     const { leavePhrase, suggestEmoji, reading, usedAiRead } = usePhraseReads({ options, live, localRead, proposals, setProposals, advance, stepsAfter, startRepeat })
     useFieldErrorSteps(helpers, open)
+    const answeredController = useAnsweredScheduleController(controller, setProposals)
 
     return {
-      answers, answerReminder, chooseDate, chooseEmoji, changeTitle, controller, markTypeDeliberate, readWhenWords, answerTime, answerWhen, advance, back, current, leavePhrase,
+      answers, answerReminder, chooseDate, chooseEmoji, changeTitle, controller: answeredController, markTypeDeliberate, readWhenWords, answerTime, answerWhen, advance, back, current, leavePhrase,
       localRead, mode, offline: !isOnline, open, position, proposals, reading, replace, steps, suggestEmoji, today, usedAiRead,
     }
   }

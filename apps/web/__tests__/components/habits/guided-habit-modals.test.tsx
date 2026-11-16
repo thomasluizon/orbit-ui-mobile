@@ -249,6 +249,22 @@ describe('the create surface behind orbit_guided_flows', () => {
     expect(timeRow.closest('[data-proposed]')).toBeNull()
   })
 
+  it('stops marking the repeat as a proposal on the summary when the person changes it on the repeat step', async () => {
+    state.locale = 'en'
+    state.phraseRead.mockResolvedValue({ read: true, emoji: null, frequencyUnit: 'Day', frequencyQuantity: 1, days: [], isFlexible: false, flexibleTarget: null, dueTime: '07:00', subHabits: [], checklistItems: [] })
+    mountCreate()
+    await waitFor(() => expect(document.querySelector('[data-question-flow]')).not.toBeNull())
+    await phrase('water the plants')
+    await press(en.habits.flow.reminder.no)
+    const scheduleRow = () => screen.getByRole('button', { name: new RegExp(`^${en.habits.flow.summary.when}`) })
+    expect(scheduleRow().closest('[data-proposed]')).not.toBeNull()
+    await act(async () => { fireEvent.click(scheduleRow()) })
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: new RegExp(`^${en.habits.flow.repeat.timesIn}`) })) })
+    await press(en.habits.flow.continue)
+    expect(scheduleRow().closest('[data-proposed]')).toBeNull()
+    expect(screen.getByRole('button', { name: new RegExp(`^${en.habits.flow.summary.time}`) }).closest('[data-proposed]')).not.toBeNull()
+  })
+
   it('states a refused save on the summary and sends nothing, when an undated task becomes a habit with no start day', async () => {
     state.locale = 'en'
     mountCreate()

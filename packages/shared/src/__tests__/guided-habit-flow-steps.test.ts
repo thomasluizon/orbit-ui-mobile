@@ -220,6 +220,20 @@ describe('the steps of the shared guided habit flow', () => {
     mounted.unmount()
   })
 
+  it('stops marking a repeat the free read proposed as a proposal when the person changes it on the repeat step', async () => {
+    const readPhrase = vi.fn(async (): Promise<HabitPhraseReadResponse> => ({ ...NO_READ, read: true, frequencyUnit: 'Day', frequencyQuantity: 1, dueTime: '07:00' }))
+    const mounted = mountFlow({ readPhrase })
+    await leavePhraseWith(mounted, 'water the plants')
+    expect(mounted.flow.proposals).toMatchObject({ schedule: true, time: true })
+    run(() => mounted.flow.open('repeat'))
+    run(() => mounted.flow.controller.setSchedule('Week', 1, false))
+    expect(mounted.values).toMatchObject({ frequencyUnit: 'Week', frequencyQuantity: 1 })
+    expect(mounted.flow.proposals).toMatchObject({ schedule: false, time: true })
+    run(() => mounted.flow.controller.setScheduleMode(true))
+    expect(mounted.flow.proposals).toMatchObject({ schedule: false, time: true })
+    mounted.unmount()
+  })
+
   it('keeps the date question open for words it cannot read and for a day in the past', async () => {
     const mounted = mountFlow({ online: false })
     await leavePhraseWith(mounted, 'call John')

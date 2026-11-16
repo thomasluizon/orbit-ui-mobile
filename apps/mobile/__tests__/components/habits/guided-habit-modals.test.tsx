@@ -206,6 +206,23 @@ describe('a guided create on Android from a phrase with a repeat', () => {
     tree.unmount()
   })
 
+  it('stops marking the repeat as a proposal on the summary when the person changes it on the repeat step', async () => {
+    state.phraseRead.mockResolvedValue({ read: true, emoji: null, frequencyUnit: 'Day', frequencyQuantity: 1, days: [], isFlexible: false, flexibleTarget: null, dueTime: '07:00', subHabits: [], checklistItems: [] })
+    const tree = mountCreate()
+    await settle()
+    await phrase(tree, 'regar as plantas')
+    await settle()
+    await tap(tree, ptBR.habits.flow.reminder.no)
+    const marks = () => tree.hosts().filter((node) => node.props.testID === 'proposed-row-label').length
+    expect(marks()).toBe(2)
+    await tap(tree, new RegExp(`^${ptBR.habits.flow.summary.when}, `))
+    await tap(tree, new RegExp(`^${ptBR.habits.flow.repeat.timesIn}`))
+    await primary(tree)
+    expect(control(tree, new RegExp(`^${ptBR.habits.flow.summary.when}, `))).toBeDefined()
+    expect(marks()).toBe(1)
+    tree.unmount()
+  })
+
   it('stops marking the time as a proposal on the summary when the date words replace the time the free read proposed', async () => {
     state.phraseRead.mockResolvedValue({ read: true, emoji: null, frequencyUnit: null, frequencyQuantity: null, days: [], isFlexible: false, flexibleTarget: null, dueTime: '07:00', subHabits: [], checklistItems: [] })
     const tree = mountCreate()
