@@ -107,11 +107,17 @@ It reuses the benchmark build entry, process host, hermetic fixture producer, mo
 and proxy. The release build uses the same staging prepare and package commands as
 `desktop-release.yml`, with no optional Cargo features and no deployed credentials.
 
-The Windows job and a fork pull request's macOS job build with `--no-sign`. A workflow dispatch or a
-pull request from this repository runs macOS in the separate `installed-signed` job instead. That job
-takes the `desktop-staging` environment with `deployment: false`, and the Windows job takes no
-environment. GitHub passes no secrets to a workflow that a fork triggers, so a fork pull request gets
-no signing material and keeps the unsigned APNs skip. The signed build follows `desktop-release.yml`:
+The Windows job builds with `--no-sign`. A workflow dispatch or a pull request from this repository runs
+macOS in the separate `installed-signed` job. That job takes the `desktop-staging` environment with
+`deployment: false`, and the Windows job takes no environment. GitHub passes no secrets to a workflow that
+a fork triggers, so a fork pull request runs the Windows job only. The VM jobs run no producer
+regression. `Tool and Hook Tests` runs every producer test file (`test-acceptance*.ts`,
+`test-child-limit.ts`) on `ubuntu-latest`, where the cases gated on `process.platform` skip.
+`desktop-acceptance-producers.yml` runs each file with such a gate on `windows-latest` and
+`macos-latest`, beside the VM jobs. It also starts when a pull request changes only a producer test or a
+fixture, which the VM jobs skip. `node tools/test-tools.mjs --only desktop-acceptance` fails when a
+gated file is missing from that job or a gated platform has no runner there. Both VM jobs restore the Rust compile cache that `Desktop Build` saves on `main`. A pull request never
+saves it. The signed build follows `desktop-release.yml`:
 
 - `tauri build --no-bundle` compiles the shell without signing credentials.
 - The harness writes the Developer ID provisioning profile into a signing config overlay. It requires
@@ -448,8 +454,8 @@ Controls explicitly marked `IsOffscreen=true` are also excluded, following the
 [UIA visibility property](https://learn.microsoft.com/en-us/dotnet/api/system.windows.automation.automationelement.automationelementinformation.isoffscreen).
 Names and rectangle values never determine visibility. Visible disabled controls still require
 their role and name. A document with no visible interactive descendants fails even if browser
-chrome contains valid controls. The VM jobs exercise the PowerShell rectangle producer before
-building the installed app.
+chrome contains valid controls. The `windows-latest` job of `desktop-acceptance-producers.yml`
+exercises the PowerShell rectangle producer.
 
 Probe failures retain the error message separately from the stack because a webview stack may
 contain only frames. Email failures include the BFF path, HTTP status and response body, including

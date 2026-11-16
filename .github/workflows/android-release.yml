@@ -60,6 +60,8 @@ jobs:
   release-android:
     name: Build and publish Android app
     runs-on: ubuntu-24.04
+    # A warm Gradle cache builds in about 17 minutes and a cold one in up to 38; the gate and the upload add about 4.
+    timeout-minutes: 60
     environment:
       name: ${{ (inputs.track == 'open' || inputs.track == 'production') && 'production' || 'android-internal' }}
       deployment: false
@@ -168,17 +170,6 @@ jobs:
             echo '```'
           } >> "${GITHUB_STEP_SUMMARY}"
 
-      # The isolated node_modules copy + Expo prebuild + a full Gradle release
-      # bundle (with Sentry sourcemaps) overrun the ~14 GB free on ubuntu-latest,
-      # crashing the runner with "No space left on device" mid-build:
-      # https://github.com/thomasluizon/orbit-ui-mobile/actions/runs/29030329772
-      # Reclaim the unused preinstalled toolchains, but keep the Android SDK this
-      # build depends on (android: false).
-      - name: Free disk space for the Android release build
-        uses: jlumbroso/free-disk-space@ceedf095f4ec1a097402bc6bd80831f2e1a6fde6 # v2.0.0
-        with:
-          android: false
-
       - uses: actions/checkout@v7
 
       - name: Require one mobile version
@@ -194,34 +185,6 @@ jobs:
           if [ "$RELEASE_TRACK" = internal ]; then environment=staging; fi
           node apps/mobile/scripts/mobile-version-pair.js check --platform android --environment "$environment" \
             --app-version "$APP_VERSION" --sha "$GITHUB_SHA" --platform-only-reason "$PLATFORM_ONLY_REASON"
-
-      - uses: actions/setup-node@v7
-        env:
-          # Bound stalled cache segments so npm ci can continue with a cold cache.
-          SEGMENT_DOWNLOAD_TIMEOUT_MINS: '1'
-        with:
-          node-version: 22
-          cache: npm
-          cache-dependency-path: |
-            package-lock.json
-            apps/mobile/package.json
-            packages/shared/package.json
-
-      - uses: actions/setup-java@v6
-        with:
-          distribution: temurin
-          java-version: "17"
-
-      # setup-java's `cache: gradle` only cached downloaded dependencies. This caches
-      # the Gradle build cache too, so unchanged tasks are restored instead of rerun
-      # on a runner that starts empty every release. The two must not both run --
-      # gradle/actions documents that its caching interferes with setup-java's, so
-      # `cache: gradle` above is deliberately gone rather than kept alongside:
-      # https://github.com/gradle/actions/blob/main/docs/setup-gradle.md
-      - name: Set up Gradle with dependency and build caching
-        uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
-        with:
-          cache-read-only: false
 
       # SENTRY_AUTH_TOKEN belongs here with the rest: the Sentry sourcemap upload
       # runs inside the Gradle bundle task, so a missing token surfaced ~15 minutes
@@ -283,6 +246,45 @@ jobs:
 
           echo "PLAY_TRACK=${play_track}" >> "${GITHUB_ENV}"
           echo "Release track ${RELEASE_TRACK} uploads to the Google Play ${play_track} track."
+
+      # The isolated node_modules copy + Expo prebuild + a full Gradle release
+      # bundle (with Sentry sourcemaps) overrun the ~14 GB free on ubuntu-latest,
+      # crashing the runner with "No space left on device" mid-build:
+      # https://github.com/thomasluizon/orbit-ui-mobile/actions/runs/29030329772
+      # Reclaim the unused preinstalled toolchains, but keep the Android SDK this
+      # build depends on (android: false).
+      - name: Free disk space for the Android release build
+        uses: jlumbroso/free-disk-space@ceedf095f4ec1a097402bc6bd80831f2e1a6fde6 # v2.0.0
+        with:
+          android: false
+
+      - uses: actions/setup-node@v7
+        env:
+          # Bound stalled cache segments so npm ci can continue with a cold cache.
+          SEGMENT_DOWNLOAD_TIMEOUT_MINS: '1'
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            apps/mobile/package.json
+            packages/shared/package.json
+
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      # setup-java's `cache: gradle` only cached downloaded dependencies. This caches
+      # the Gradle build cache too, so unchanged tasks are restored instead of rerun
+      # on a runner that starts empty every release. The two must not both run --
+      # gradle/actions documents that its caching interferes with setup-java's, so
+      # `cache: gradle` above is deliberately gone rather than kept alongside:
+      # https://github.com/gradle/actions/blob/main/docs/setup-gradle.md
+      # Its default writes the cache only from main, so an internal release of a branch reads the main entries
+      # without adding a branch entry to the full repository cache.
+      - name: Set up Gradle with dependency and build caching
+        uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
 
       - name: Install dependencies from the lockfile
         run: npm ci --prefer-offline --no-audit --fund=false

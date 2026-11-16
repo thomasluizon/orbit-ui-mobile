@@ -51,8 +51,7 @@ executable. Never substitute a personal account. Enable the existing
 previous state, and restore it after the run. The eval provider alone sends the opt-in
 header and a fresh independent request ID; ordinary app requests stay default-off.
 Confirm the named environment and credentials are configured without displaying their values, then run
-`cd evals/astra && npx promptfoo eval`. The same run is available through the `Astra eval`
-workflow's manual dispatch. Do not add a schedule or automatic trigger.
+`cd evals/astra && npx promptfoo eval`. This local run is the only live run. Do not add a schedule or automatic trigger.
 
 Read `evals/astra/reports/summary.md`. Report each case's configured-attempt outcome and distinguish
 failed behavior from incomplete tool evidence. Missing, mismatched, withheld or skipped

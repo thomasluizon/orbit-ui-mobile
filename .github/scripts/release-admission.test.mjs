@@ -109,12 +109,13 @@ test("CI runs automatically on main and supports dispatch without overriding the
 })
 
 test("web release requires both successful workflows and their actual checks before building", () => {
-  const step = stepNamed(web.jobs.build, "Require successful release CI")
+  const step = stepNamed(web.jobs.select, "Require successful release CI")
   const android = stepNamed(load("android-release").jobs["release-android"], "Require successful release CI")
   assert.equal(android.run, step.run)
   assert.equal(android.env.SOURCE_SHA, "${{ github.sha }}")
-  const gateIndex = web.jobs.build.steps.indexOf(step)
-  assert.ok(gateIndex < web.jobs.build.steps.findIndex((candidate) => candidate.uses?.startsWith("docker/build-push-action@")))
+  for (const name of ["build", "admission"]) assert.equal(web.jobs[name].needs, "select")
+  assert.deepEqual(web.jobs["desktop-release"].needs, ["select", "admission"])
+  assert.ok(web.jobs.build.steps.some((candidate) => candidate.uses?.startsWith("docker/build-push-action@")))
   assert.equal(execute(step.run, {}, green()).status, 0)
   for (const mutate of [
     (response) => { response.test[0].workflow_runs = [] },
@@ -133,7 +134,7 @@ test("web release requires both successful workflows and their actual checks bef
 })
 
 test("web and Android reject PR merge-tree evidence associated with the selected feature head", () => {
-  for (const step of [stepNamed(web.jobs.build, "Require successful release CI"), stepNamed(load("android-release").jobs["release-android"], "Require successful release CI")]) {
+  for (const step of [stepNamed(web.jobs.select, "Require successful release CI"), stepNamed(load("android-release").jobs["release-android"], "Require successful release CI")]) {
     const response = green()
     for (const name of ["test", "guards"]) response[name][0].workflow_runs[0].event = "pull_request"
     const result = execute(step.run, {}, response)
@@ -144,7 +145,7 @@ test("web and Android reject PR merge-tree evidence associated with the selected
 })
 
 test("web and Android accept dispatch evidence only for the selected SHA", () => {
-  for (const step of [stepNamed(web.jobs.build, "Require successful release CI"), stepNamed(load("android-release").jobs["release-android"], "Require successful release CI")]) {
+  for (const step of [stepNamed(web.jobs.select, "Require successful release CI"), stepNamed(load("android-release").jobs["release-android"], "Require successful release CI")]) {
     const response = green()
     for (const name of ["test", "guards"]) response[name][0].workflow_runs[0].event = "workflow_dispatch"
     const accepted = execute(step.run, {}, response)
@@ -162,7 +163,7 @@ test("web and Android accept dispatch evidence only for the selected SHA", () =>
 })
 
 test("web build refuses a missing selected browser variable without using the other environment", () => {
-  const step = stepNamed(web.jobs.build, "Validate browser build variables")
+  const step = stepNamed(web.jobs.select, "Validate browser build variables")
   const names = { production: ["PRODUCTION_DSN", "PRODUCTION_APPLE_CLIENT_ID"], staging: ["STAGING_DSN", "STAGING_APPLE_CLIENT_ID"] }
   for (const environment of ["production", "staging"]) {
     const settings = {
@@ -180,8 +181,10 @@ test("web build refuses a missing selected browser variable without using the ot
   }
 })
 
-test("both production gates require a written override reason", () => {
-  for (const job of [web.jobs.admission, web.jobs.production]) {
+test("the production gate requires a written override reason, and production deploys only after it", () => {
+  assert.ok(web.jobs.production.needs.includes("admission"))
+  assert.equal(web.jobs.production.steps.some((step) => step.name === "Require healthy staging commit"), false)
+  for (const job of [web.jobs.admission]) {
     const step = stepNamed(job, "Require healthy staging commit")
     assert.notEqual(execute(step.run, { FORCE_UNSTAGED: "true", OVERRIDE_REASON: "" }).status, 0)
     const allowed = execute(step.run, { FORCE_UNSTAGED: "true", OVERRIDE_REASON: "Staging service is unavailable" })
@@ -260,8 +263,8 @@ const smokeStatus = (state, id = 1) => ({
   created_at: `2000-01-01T00:00:0${id}Z`, updated_at: `2000-01-01T00:00:0${id}Z`,
 })
 
-test("staging status gates reject absent, stale and failed smoke evidence on both production paths", () => {
-  for (const job of [web.jobs.admission, web.jobs.production]) {
+test("the staging status gate rejects absent, stale and failed smoke evidence", () => {
+  for (const job of [web.jobs.admission]) {
     const step = stepNamed(job, "Require healthy staging commit")
     const settings = { FORCE_UNSTAGED: "false", OVERRIDE_REASON: "", STAGING_SERVICE_ID: "fixture-service", RENDER_API_KEY: "fixture-key" }
     for (const statuses of [[], [smokeStatus("failure")], [smokeStatus("pending")], [smokeStatus("success"), smokeStatus("pending", 2)], [smokeStatus("success"), smokeStatus("failure", 2)]]) {

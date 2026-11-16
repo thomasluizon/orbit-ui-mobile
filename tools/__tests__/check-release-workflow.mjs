@@ -1,6 +1,6 @@
 import { load } from "js-yaml"
 import { execFileSync, spawnSync } from "node:child_process"
-import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs"
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 import { runBounded } from "../lib/bounded-process.mjs"
 import { BASH, T, root, stage, toolPath } from "./_harness.mjs"
@@ -332,8 +332,8 @@ async function checkRenderRetries() {
 }
 
 function checkSourceIdentity() {
-  const directory = join(root, "release-source")
-  mkdirSync(directory, { recursive: true })
+  // A fresh repository for each call: release-plan.mjs runs these cases a second time in the same fixture root.
+  const directory = mkdtempSync(join(root, "release-source-"))
   const environment = { ...process.env, GIT_AUTHOR_NAME: "Fixture", GIT_AUTHOR_EMAIL: "fixture@example.invalid",
     GIT_COMMITTER_NAME: "Fixture", GIT_COMMITTER_EMAIL: "fixture@example.invalid" }
   const git = (...args) => execFileSync("git", args, { cwd: directory, env: environment, encoding: "utf8" }).trim()
@@ -348,27 +348,47 @@ function checkSourceIdentity() {
   git("update-ref", "refs/remotes/origin/main", advanced)
   const output = stage("release-source/output", "")
   const resolve = () => spawnSync(BASH, ["-c", stepScript("Resolve source")], { cwd: directory, encoding: "utf8",
-    env: { ...environment, SOURCE_SHA: planned, SOURCE_BRANCH: "main", GITHUB_OUTPUT: output } })
+    env: { ...environment, SOURCE_SHA: planned, GITHUB_OUTPUT: output } })
   const wrongCheckout = resolve()
   T("source rejects the advanced branch checkout", wrongCheckout.status === 1 && wrongCheckout.stdout.includes("Checkout does not match"), wrongCheckout.stderr)
   git("checkout", "-q", "--detach", planned)
   const pinned = resolve()
-  T("source accepts the planned ancestor after the branch advances", pinned.status === 0 && readFileSync(output, "utf8").includes(`sha=${planned}`), pinned.stderr)
+  T("source accepts the checkout of the selected SHA", pinned.status === 0 && readFileSync(output, "utf8").includes(`sha=${planned}`), pinned.stderr)
+  const onBranch = (sha) => spawnSync(BASH, ["-c", stepScript("Require the selected SHA on the source branch")], { cwd: directory, encoding: "utf8",
+    env: { ...environment, SOURCE_SHA: sha, SOURCE_BRANCH: "main" } })
+  const ancestor = onBranch(planned)
+  T("selection accepts the planned ancestor after the branch advances", ancestor.status === 0, ancestor.stdout + ancestor.stderr)
   git("update-ref", "refs/remotes/origin/main", planned)
-  git("checkout", "-q", "--detach", advanced)
-  const outside = spawnSync(BASH, ["-c", stepScript("Resolve source")], { cwd: directory, encoding: "utf8",
-    env: { ...environment, SOURCE_SHA: advanced, SOURCE_BRANCH: "main", GITHUB_OUTPUT: output } })
-  T("source rejects a commit outside the selected branch", outside.status === 1 && outside.stdout.includes("not reachable"), outside.stderr)
+  const outside = onBranch(advanced)
+  T("selection rejects a commit outside the selected branch", outside.status === 1 && outside.stdout.includes("not reachable"), outside.stderr)
 }
 
 function checkPinnedRelease() {
   const parsed = load(workflow)
   const checkout = parsed.jobs.build.steps.find((step) => step.uses?.startsWith("actions/checkout@"))
-  T("build checks out the selected SHA with complete branch history", checkout.with.ref === "${{ steps.selection.outputs.sha }}" && checkout.with["fetch-depth"] === 0)
-  const resolve = stepScript("Resolve source")
-  T("source resolution verifies checkout identity and branch ancestry", resolve.includes('"$sha" != "$SOURCE_SHA"') && resolve.includes('git merge-base --is-ancestor "$SOURCE_SHA" "refs/remotes/origin/$SOURCE_BRANCH"'))
-  const admission = parsed.jobs.production.steps.find((step) => step.name === "Require healthy staging commit")
-  T("production admits staging before deploying", !!admission && parsed.jobs.production.steps.indexOf(admission) < parsed.jobs.production.steps.findIndex((step) => step.name === "Deploy web digest"))
+  T("build checks out the selected SHA", parsed.jobs.build.needs === "select" &&
+    parsed.jobs.select.outputs.sha === "${{ steps.selection.outputs.sha }}" && checkout.with.ref === "${{ needs.select.outputs.sha }}")
+  T("source resolution verifies checkout identity", stepScript("Resolve source").includes('"$sha" != "$SOURCE_SHA"'))
+  // The ancestry refusal must run before every job that builds, admits or publishes, so it lives in select, which they all need.
+  const ancestry = 'git merge-base --is-ancestor "$SOURCE_SHA" "refs/remotes/origin/$SOURCE_BRANCH"'
+  const selectSteps = parsed.jobs.select.steps
+  const selectCheckout = selectSteps.findIndex((step) => step.uses?.startsWith("actions/checkout@"))
+  const refusal = selectSteps.findIndex((step) => step.run?.includes(ancestry))
+  T("select refuses a SHA off the source branch after a full-history checkout", selectCheckout >= 0 && refusal > selectCheckout &&
+    selectSteps[selectCheckout].with?.["fetch-depth"] === 0 && selectSteps[refusal].env?.SOURCE_SHA === "${{ steps.selection.outputs.sha }}" &&
+    selectSteps[refusal].env?.SOURCE_BRANCH === "${{ inputs.branch }}")
+  const ownersOfAncestry = Object.entries(parsed.jobs).filter(([, job]) => (job.steps ?? []).some((step) => step.run?.includes(ancestry))).map(([id]) => id)
+  T("only select owns the branch ancestry refusal", JSON.stringify(ownersOfAncestry) === JSON.stringify(["select"]), ownersOfAncestry.join(", "))
+  const needsOf = (job) => [job.needs ?? []].flat()
+  const dependsOnSelect = (id, seen = new Set()) => id === "select" ||
+    (!seen.has(id) && (seen.add(id), needsOf(parsed.jobs[id]).some((need) => dependsOnSelect(need, seen))))
+  const publishers = Object.keys(parsed.jobs).filter((id) => id !== "select")
+  T("every job that builds, admits or publishes waits for the selection", publishers.length > 0 && publishers.every((id) => dependsOnSelect(id)),
+    publishers.filter((id) => !dependsOnSelect(id)).join(", "))
+  T("the desktop shell publish waits for the selection directly", needsOf(parsed.jobs["desktop-release"]).includes("select"))
+  const admission = parsed.jobs.admission.steps.find((step) => step.name === "Require healthy staging commit")
+  T("production admits staging before deploying", !!admission && parsed.jobs.production.needs.includes("admission") &&
+    !parsed.jobs.production.steps.some((step) => step.name === "Require healthy staging commit"))
   if (!admission) return
   T("production retains staging admission", admission.if === "inputs.environment == 'production'")
   const summary = stage("release-admission/summary", "")
@@ -404,7 +424,7 @@ function checkAppleClientId() {
   // .github/scripts/release-admission.test.mjs (web and Android) and apps/mobile/__tests__/ios-workflows.test.ts (iOS).
   const read = (file) => load(readFileSync(toolPath(`../.github/workflows/${file}`), "utf8"))
   const targets = [
-    { label: "web", steps: read("release.yml").jobs.build.steps, name: "Validate browser build variables", before: ["Build and push production image", "Build and push staging image"],
+    { label: "web", steps: read("release.yml").jobs.select.steps, name: "Validate browser build variables", before: [],
       wiring: { PRODUCTION_APPLE_CLIENT_ID: "${{ vars.PRODUCTION_NEXT_PUBLIC_APPLE_CLIENT_ID }}", STAGING_APPLE_CLIENT_ID: "${{ vars.STAGING_NEXT_PUBLIC_APPLE_CLIENT_ID }}" } },
     { label: "android", steps: read("android-release.yml").jobs["release-android"].steps, name: "Validate release secrets",
       before: ["Resolve Google Play track", "Submit build to Google Play"],
@@ -413,6 +433,9 @@ function checkAppleClientId() {
       before: ["Install dependencies", "Install signing credentials", "Archive the embedded app"],
       jobWiring: { EXPO_PUBLIC_APPLE_CLIENT_ID: "${{ vars.EXPO_PUBLIC_APPLE_CLIENT_ID }}" }, jobEnv: read("ios-release.yml").jobs.release.env },
   ]
+  // The web guard runs in the select job, and the image build needs that job.
+  T("web release guard runs before the image build", read("release.yml").jobs.build.needs === "select" &&
+    read("release.yml").jobs.build.steps.some((step) => step.name === "Build and push production image"))
   for (const { label, steps, name, before, wiring, jobWiring, jobEnv } of targets) {
     const index = steps.findIndex((step) => step.name === name)
     T(`${label} release guard exists`, index >= 0)
@@ -530,7 +553,7 @@ function checkMirrorIndependence() {
   T("a Playwright install-deps command is rejected",
     systemDependencyInstalls("fixture.yml", "steps:\n  - run: npx playwright install-deps chromium\n").length === 1)
   T("a plain Playwright browser install is accepted", systemDependencyInstalls("fixture.yml", "  - run: npx playwright install chromium\n").length === 0)
-  for (const name of ["layout.yml", "release.yml"]) {
+  for (const name of ["test.yml", "release.yml"]) {
     T(`${name} calls no apt command`, !callsApt(read(name)))
   }
   for (const command of ["sudo apt-get install -y ccache", "sudo apt-get -y install libnss3", "sudo apt-get -qq update", "sudo apt -y install fonts-noto"]) {
@@ -563,6 +586,37 @@ function checkMirrorIndependence() {
   }
   T("the ccache directory restores only when ccache is available", restore.if === "env.CCACHE_AVAILABLE == 'true'")
   T("the android build sets no compiler launcher of its own", !Object.keys(build.env ?? {}).some((key) => key.endsWith("_COMPILER_LAUNCHER")))
+}
+
+/** The Android compile saves one compiler cache entry per lockfile on main, and the Android release restores it by prefix. */
+function checkAndroidCompileCache() {
+  const read = (name) => load(readFileSync(toolPath(`../.github/workflows/${name}`), "utf8"))
+  const restoreKeysOf = (step) => step.with["restore-keys"].trim().split("\n").map((line) => line.trim())
+  const steps = read("mobile-build.yml").jobs.build.steps
+  const restore = steps.find((step) => step.name === "Restore the ccache directory")
+  const compile = steps.find((step) => step.name === "Build the release APK")
+  const save = steps.find((step) => step.name === "Save the ccache directory")
+  T("the android compile has an identified ccache restore, compile and save", !!restore?.id && !!compile?.id && !!save)
+  if (!restore?.id || !compile?.id || !save) return
+  const { key, path } = restore.with
+  T("the android compile ccache key does not change on every run", !/run_id|run_attempt/.test(key), key)
+  T("the android compile restores the ccache without a post-step save",
+    restore.uses === "actions/cache/restore@v6" && !steps.some((step) => step.uses === "actions/cache@v6"))
+  const restoreKeys = restoreKeysOf(restore)
+  T("each android compile restore key is a prefix of its key", restoreKeys.length > 0 && restoreKeys.every((prefix) => key.startsWith(prefix)),
+    restoreKeys.join())
+  const primaryKey = `steps.${restore.id}.outputs.cache-primary-key`
+  T("only main saves the android compile ccache, and only when its key missed", save.if ===
+    `\${{ always() && env.CCACHE_AVAILABLE == 'true' && steps.${compile.id}.outcome != 'skipped' && github.ref == 'refs/heads/main' && steps.${restore.id}.outputs.cache-hit != 'true' }}`,
+    save.if)
+  T("a failed android compile saves a run-scoped partial entry", save.with.key ===
+    `\${{ steps.${compile.id}.outcome == 'success' && ${primaryKey} || format('{0}-partial-{1}-{2}', ${primaryKey}, github.run_id, github.run_attempt) }}`,
+    save.with.key)
+  T("the android compile saves the directory it restores", save.with.path === path)
+  const release = read("android-release.yml").jobs["release-android"].steps.find((step) => step.name === "Restore the ccache directory")
+  const releaseKeys = release ? restoreKeysOf(release) : []
+  T("the android release restores the compile entry of its lockfile by prefix", release?.with.path === path &&
+    releaseKeys.includes(restoreKeys[0]) && key.startsWith(releaseKeys[0]), releaseKeys.join())
 }
 
 export async function cases() {
@@ -606,4 +660,5 @@ export async function cases() {
   checkAppleClientId()
   checkExpoDependencyStep()
   checkMirrorIndependence()
+  checkAndroidCompileCache()
 }

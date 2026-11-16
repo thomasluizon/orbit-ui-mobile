@@ -72,6 +72,24 @@ async function waitForWeekGeometry(scroller: Locator) {
   })).toBe(true)
 }
 
+/**
+ * Waits until the horizontal scroll holds still on a column snap position or a scroll edge. A wheel gesture can
+ * rest between columns for a few frames before the browser applies the mandatory snap.
+ */
+async function waitForSnappedRest(scroller: Locator) {
+  await expect.poll(() => scroller.evaluate(async (node) => {
+    const before = node.scrollLeft
+    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))
+    const middle = node.scrollLeft
+    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))
+    if (before !== middle || middle !== node.scrollLeft) return false
+    if (node.scrollLeft <= 0 || node.scrollLeft >= node.scrollWidth - node.clientWidth - 1) return true
+    const snapportStart = node.getBoundingClientRect().left + node.clientLeft + Number.parseFloat(getComputedStyle(node).scrollPaddingLeft)
+    return [...node.querySelectorAll('[data-testid="time-grid-col-header"]')]
+      .some((header) => Math.abs(header.getBoundingClientRect().left - snapportStart) <= 1)
+  })).toBe(true)
+}
+
 async function hasVisibleHour(scroller: Locator) {
   return scroller.evaluate((element) => {
     const viewport = element.getBoundingClientRect()
@@ -228,13 +246,7 @@ test.describe('calendar week scroll at 412px', () => {
         await page.getByTestId('time-grid-col-header').first().evaluate((node) => node.scrollIntoView({ inline: 'start', block: 'nearest' }))
       }
       await expect.poll(() => scroller.evaluate((node) => node.scrollLeft)).toBeLessThan(openingLeft - 100)
-      await expect.poll(() => scroller.evaluate(async (node) => {
-        const before = node.scrollLeft
-        await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))
-        const middle = node.scrollLeft
-        await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))
-        return before === middle && middle === node.scrollLeft
-      })).toBe(true)
+      await waitForSnappedRest(scroller)
       const heldPosition = await scroller.evaluate((node) => ({ left: node.scrollLeft, top: node.scrollTop }))
       refreshed = true
       await advanceLayoutClock(page, 6 * 60_000)

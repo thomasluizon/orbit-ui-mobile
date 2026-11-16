@@ -8,13 +8,9 @@ import { AUTO_COMPACT_TOKENS } from "../lib/session-context.mjs"
 import { FILE_LEDGER_FILES, T, root, realOrchestratorConfig, run, stage, stageRepo, toolPath } from "./_harness.mjs"
 
 const NAME = "orchestrator-config.mjs"
-/** The shipped claude model for each worker tier, in escalation order. */
-const WORKER_TIER_MODELS = [
-  ["default", "claude-sonnet-5-5"],
-  ["mechanical", "claude-sonnet-5-5"],
-  ["deep", "claude-opus-5-5"],
-  ["max", "claude-opus-5-5"],
-]
+/** The worker tiers in escalation order. The owner sets the model of each one per account allowance. */
+const WORKER_TIERS = ["default", "mechanical", "deep", "max"]
+const CLAUDE_MODEL = /^claude-[a-z]+-\d+-\d+$/
 
 /** The message a caller would actually read, or null when the call returned. */
 const thrown = (call) => {
@@ -567,11 +563,13 @@ export const cases = async () => {
     /names .*absent-account, which is not an existing directory; unset it to run workers on the main account$/.test(thrown(() => accountsFor(join(accountDirectory, "absent-account"))) ?? ""))
   T(`${NAME}: an engine with no Claude account has no accounts`,
     JSON.stringify(workerAccounts("codex", real.workers.codex, { [engine.configDirEnv]: accountDirectory })) === "[]")
-  /** Owner order on #2067: default and mechanical run Sonnet 5.5, deep and max keep Opus 5.5, all at high effort. */
-  for (const [tier, model] of WORKER_TIER_MODELS) {
+  /** Each tier resolves the model that the configuration names, at high effort, and passes it as the last argument pair. */
+  for (const tier of WORKER_TIERS) {
     const resolved = resolveWorkerInvocation(engineName, engine, tier)
-    T(`${NAME}: the shipped ${tier} implementer is ${model} at high effort`,
-      resolved.model === model && effortOf(resolved.args) === "high",
+    const model = engine.models?.[tier]?.model
+    T(`${NAME}: the shipped ${tier} implementer is its configured Claude model at high effort`,
+      CLAUDE_MODEL.test(model ?? "") && resolved.model === model && effortOf(resolved.args) === "high" &&
+        resolved.args.slice(-2).join(" ") === `--model ${model}`,
       `.claude/orchestrator.json resolved ${resolved.model} with ${JSON.stringify(resolved.args)}`)
   }
 
@@ -632,9 +630,9 @@ export const cases = async () => {
 
   const fallback = real.workers.claude ?? {}
   T(
-    `${NAME}: the claude engine runs claude with sonnet 5.5 on default and mechanical and opus 5.5 on deep and max`,
-    fallback.command === "claude" &&
-      WORKER_TIER_MODELS.every(([tier, model]) => fallback.models?.[tier]?.model === model),
+    `${NAME}: the claude engine runs claude with a Claude model on every tier and no other tier`,
+    fallback.command === "claude" && JSON.stringify(Object.keys(fallback.models ?? {})) === JSON.stringify(WORKER_TIERS) &&
+      WORKER_TIERS.every((tier) => CLAUDE_MODEL.test(fallback.models[tier]?.model ?? "")),
     `.claude/orchestrator.json declares command ${JSON.stringify(fallback.command)} with ${JSON.stringify(fallback.models)}`,
   )
 

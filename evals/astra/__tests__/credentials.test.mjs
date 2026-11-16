@@ -85,7 +85,6 @@ it('keeps missing credentials local between successful rotations of other accoun
   expect(request.mock.calls.map(([, options]) => JSON.parse(options.body).refreshToken)).toEqual(['old-refresh', 'budget-refresh'])
   expect(JSON.parse(readFileSync(path, 'utf8'))).toEqual({ ORBIT_EVAL_TOKEN: { refreshToken: 'old-refresh-rotated' },
     ORBIT_EVAL_FREE_TOKEN: {}, ORBIT_EVAL_BUDGET_TOKEN: { refreshToken: 'budget-refresh-rotated' } })
-  expect(existsSync(`${path}.rotated`)).toBe(true)
   expect(existsSync(`${path}.refresh-failed`)).toBe(false)
 })
 
@@ -257,7 +256,6 @@ it.each([502, 503, 504, 'network', 'body-network'])('requires session recovery a
   expect(JSON.parse(readFileSync(path, 'utf8')).ORBIT_EVAL_TOKEN.refreshToken).toBe('old-refresh')
   expect(existsSync(`${path}.refresh-failed`)).toBe(true)
   expect(existsSync(`${path}.lock`)).toBe(false)
-  expect(existsSync(`${path}.rotated`)).toBe(false)
   const next = (await beforeEach(attempt())).test
   expect(next.vars.preconditionFailure).toContain('TRANSIENT_INFRASTRUCTURE')
   expect(request).toHaveBeenCalledTimes(1)

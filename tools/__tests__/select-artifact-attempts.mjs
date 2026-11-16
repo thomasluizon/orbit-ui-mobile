@@ -42,6 +42,9 @@ export const cases = () => {
     mkdirSync(join(invalid, name), { recursive: true })
     check("select-artifact-attempts.mjs", `rejects invalid artifact ${name}`, ["--input-dir", invalid, "--output-dir", coverage], { status: 1, stderr: /Expected an attempt-qualified artifact directory/ })
   }
+  const lone = join(root, "lone-artifact", "downloads")
+  stage("lone-artifact/downloads/apps/desktop/coverage/lcov.info", "extracted without its artifact folder")
+  check("select-artifact-attempts.mjs", "rejects a lone match that download-artifact extracted without a folder", ["--input-dir", lone, "--output-dir", coverage], { status: 1, stderr: /Expected an attempt-qualified artifact directory: apps/ })
   const empty = join(root, "empty-artifacts")
   mkdirSync(empty)
   check("select-artifact-attempts.mjs", "rejects an empty artifact set", ["--input-dir", empty, "--output-dir", coverage], { status: 1, stderr: /No artifact directories/ })

@@ -235,17 +235,6 @@ describe('HTTP provider wiring without a server', () => {
 })
 
 describe('corpus and execution constraints', () => {
-  it('has a manual-dispatch-only Action that publishes summary files only', () => {
-    const workflow = parse(readFileSync(resolve(root, '../../.github/workflows/astra-eval.yml'), 'utf8'))
-    expect(Object.keys(workflow.on)).toEqual(['workflow_dispatch'])
-    expect(workflow.on.workflow_dispatch.inputs.case_ids.required).toBe(true)
-    const steps = workflow.jobs.evaluate.steps
-    expect(steps.find((step) => step.name?.startsWith('Evaluate selected')).run).toContain('--filter-metadata')
-    expect(steps.findIndex((step) => step.name?.startsWith('Persist rotated'))).toBeLessThan(steps.findIndex((step) => step.name?.startsWith('Remove local')))
-    expect(steps.find((step) => step.name?.startsWith('Persist rotated')).if).toBe('always()')
-    const upload = workflow.jobs.evaluate.steps.find((step) => step.uses?.startsWith('actions/upload-artifact@'))
-    expect(upload.with.path.trim().split('\n')).toEqual(['evals/astra/reports/summary.json', 'evals/astra/reports/summary.md'])
-  })
   it('contains every required category and unique case IDs', () => {
     const categories = new Set(scenarios.map((scenario) => scenario.metadata.category))
     for (const category of ['single', 'compound', 'bulk', 'ambiguity', 'guardrail', 'moderation', 'grounding', 'bilingual', 'voice', 'edge', 'budget']) {

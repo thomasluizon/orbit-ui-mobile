@@ -79,8 +79,8 @@ gate) and whether a user can complete the core journeys by keyboard or with assi
 technology. React correctness is NOT in this skill's inventory: the `guards.yml` React Doctor step is a
 required CI gate and owns it, including its a11y lint rules (D11); the standing full-repo
 react-doctor backlog is mechanical debt for the ORB-46 project, not a prod-readiness finding.
-`Dependency Review` and `dependabot-auto-merge` gate NEW dependency regressions per PR; neither
-sweeps the standing tree, so the Phase 2b sweep is not a re-flag.
+`Dependency Review` gates NEW dependency regressions per PR; it does not
+sweep the standing tree, so the Phase 2b sweep is not a re-flag.
 
 **The binding inventory (§1), fifteen items:**
 

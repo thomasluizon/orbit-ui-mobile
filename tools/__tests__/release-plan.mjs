@@ -21,7 +21,7 @@ const LANDING = "srv-ffffffffffffffffffff"
 const STAGING_LANDING = "srv-dddddddddddddddddddd"
 const clone = (value) => structuredClone(value)
 
-function clientFor({ ahead = [], diverged = [], noDeployment = [], failedNewest = [], imageApi = false, androidUploads = null } = {}) {
+function clientFor({ ahead = [], diverged = [], noDeployment = [], failedNewest = [], imageApi = false, androidUploads = null, ci = {} } = {}) {
   const calls = []
   const read = (path) => {
     calls.push(path)
@@ -40,6 +40,15 @@ function clientFor({ ahead = [], diverged = [], noDeployment = [], failedNewest 
       commit.sha = ahead.includes(service) || repository === "orbit-ui-mobile" && ahead.includes("android") ? SECOND : FIRST
       commit.commit.message = "Latest change\nBody"
       return commit
+    }
+    const releaseCi = path.match(/\/actions\/workflows\/(test|guards)\.yml\/runs\?head_sha=([a-f0-9]{40})&/)
+    if (releaseCi) {
+      // `ci` maps a workflow to the status and conclusion of its newest run; null means no push or dispatch run exists.
+      const [, workflow, sha] = releaseCi
+      const newest = ci[workflow] === undefined ? { status: "completed", conclusion: "success" } : ci[workflow]
+      const stale = { ...clone(fixture.run), head_sha: sha, path: `.github/workflows/${workflow}.yml`, event: "push", run_number: 1, run_attempt: 1, status: "completed", conclusion: "failure" }
+      const pullRequest = { ...stale, event: "pull_request", run_number: 3, conclusion: "success" }
+      return { workflow_runs: newest === null ? [pullRequest] : [stale, pullRequest, { ...stale, run_number: 2, ...newest }] }
     }
     if (path.includes("/actions/workflows/android-release.yml/runs")) {
       return { workflow_runs: [{ ...clone(fixture.run), head_sha: SECOND, head_branch: "main",
@@ -128,6 +137,21 @@ export async function cases() {
   for (const service of all.services.filter((service) => service.name !== "android")) {
     T(`${service.name} dispatch pins the planned SHA`, service.plannedSha === SECOND &&
       service.dispatchCommand === `gh workflow run release.yml --repo thomasluizon/${service.repo} --ref main -f environment=production -f branch='main' -f sha=${SECOND}`)
+  }
+
+  T("web and Android report successful release CI at the planned SHA", all.services.filter((service) => service.repo === "orbit-ui-mobile").every((service) => service.releaseCi === "success") &&
+    all.services.filter((service) => service.repo !== "orbit-ui-mobile").every((service) => service.releaseCi === undefined))
+  T("an idle UI service reads no release CI", idlePlan.services.every((service) => service.releaseCi === undefined) && !idle.calls.some((path) => path.includes("/actions/workflows/test.yml")))
+  for (const [ci, state] of [
+    [{ test: null }, "missing"],
+    [{ guards: { status: "in_progress", conclusion: null } }, "pending"],
+    [{ test: { status: "completed", conclusion: "failure" }, guards: null }, "failed"],
+    [{ test: { status: "queued", conclusion: null }, guards: null }, "missing"],
+  ]) {
+    const blocked = await planRelease(clientFor({ ahead: ["web", "android"], ci }), "production", IDS)
+    const web = blocked.services.find((service) => service.name === "web")
+    const android = blocked.services.find((service) => service.name === "android")
+    T(`web release CI ${state} prints no dispatch command`, web.releaseCi === state && web.dispatchCommand === undefined && android.releaseCi === state, JSON.stringify(web))
   }
 
   const first = await planRelease(clientFor({ ahead: ["api"] }), "production", { ...IDS, api: null })
@@ -448,7 +472,7 @@ async function androidBaselineCases() {
   const uploadedPlan = await planRelease(uploaded, "production", IDS)
   T("successful Play submission with failed record step uses the repaired deployment", !uploadedPlan.services[3].needsRelease &&
     uploadedPlan.services[3].deployedSha === SECOND)
-  T("Android baseline does not depend on workflow conclusion", !uploaded.calls.some((path) => path.includes("/actions/workflows/")))
+  T("Android baseline does not depend on workflow conclusion", !uploaded.calls.some((path) => path.includes("/actions/workflows/android-release.yml")))
   const productionTrack = await planRelease(clientFor({ ahead: ["android"], androidUploads: [
     { track: "open", sha: SECOND }, { track: "production", sha: FIRST },
   ] }), "production", IDS, "production")

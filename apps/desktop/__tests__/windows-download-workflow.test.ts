@@ -12,7 +12,12 @@ it.each(['desktop-build', 'desktop-release'])('%s restores verified downloads be
   const build = workflow(name).jobs.build!
   const steps = build.steps!
   const cache = steps.find(step => step.name === 'Cache Windows App SDK downloads')!
-  expect(cache.uses).toBe('actions/cache@v6')
+  expect(cache.uses).toBe(name === 'desktop-build' ? 'actions/cache/restore@v6' : 'actions/cache@v6')
+  if (name === 'desktop-build') {
+    const save = steps.find(step => step.uses === 'actions/cache/save@v6' && step.with?.path === cache.with?.path)!
+    expect(save.if).toContain("github.ref == 'refs/heads/main'")
+    expect(steps.indexOf(save)).toBeGreaterThan(steps.findIndex(step => step.name === 'Package unsigned staging shell'))
+  }
   expect(cache.if).toBe("runner.os == 'Windows'")
   const location = steps.find(step => step.name === 'Point the Windows App SDK download cache')!
   expect(location.if).toBe("runner.os == 'Windows'")
@@ -24,14 +29,17 @@ it.each(['desktop-build', 'desktop-release'])('%s restores verified downloads be
   expect(cache.with?.['restore-keys']).toBeUndefined()
   const nativeStep = steps.findIndex(step => step.run?.includes('cargo '))
   expect(steps.indexOf(cache)).toBeLessThan(nativeStep)
-  const host = steps.find(step => step.name === 'Report Windows PowerShell version')!
+})
+
+it('reports the Windows PowerShell version before a release compiles', () => {
+  const host = workflow('desktop-release').jobs.build!.steps!.find(step => step.name === 'Report Windows PowerShell version')!
   expect(host.shell).toBe('powershell')
   expect(host.if).toBe("runner.os == 'Windows'")
   expect(host.run).toContain('$PSVersionTable')
 })
 
-it('keeps web releases on the reusable desktop test and publication paths', () => {
+it('keeps web releases on the reusable desktop publication path without a second desktop build', () => {
   const release = workflow('release')
-  expect(release.jobs['desktop-test']?.uses).toBe('./.github/workflows/desktop-build.yml')
+  expect(release.jobs['desktop-test']).toBeUndefined()
   expect(release.jobs['desktop-release']?.uses).toBe('./.github/workflows/desktop-release.yml')
 })

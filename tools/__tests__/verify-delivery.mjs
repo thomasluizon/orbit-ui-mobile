@@ -463,7 +463,7 @@ export const assertRepositoryLabel = (ticket, repoKey) => {
   writeFileSync(hermeticStaged.configPath, JSON.stringify(hermeticConfig))
 
   /**
-   * Pullfrog reviews only on request, after delivery, so a required `pullfrog-approval` that the
+   * Pullfrog reviews only on request, beside CI, so a required `pullfrog-approval` that the
    * rollup does not carry yet never holds delivery. Readiness still requires it, pinned to Pullfrog's
    * own app 1768019: record-readiness.mjs and readiness-receipt.mjs own the producer cases.
    */

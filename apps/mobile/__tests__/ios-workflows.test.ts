@@ -44,7 +44,7 @@ describe('iOS build and release boundaries', () => {
   })
   it.each(['ios-build', 'ios-release'])('%s resolves the updates entry against the configured Metro root', (name) => {
     const workflow = readWorkflow<string>(name)
-    const job = Object.values(workflow.jobs)[0]!
+    const job = Object.values(workflow.jobs).find((candidate) => candidate['runs-on'].startsWith('macos-'))!
     const entry = execFileSync(process.execPath, ['-e', `
       const { convertEntryPointToRelative, resolveEntryPoint } = require('expo/config/paths')
       const root = process.cwd()
@@ -53,9 +53,14 @@ describe('iOS build and release boundaries', () => {
     expect(resolve(entry)).toBe(resolve('index.js'))
   })
 
-  it('compiles mobile pull requests on macOS without signing or launching a simulator', () => {
+  it('compiles native mobile pull requests on macOS without signing, bundling or launching a simulator', () => {
     const workflow = readWorkflow<'compile'>('ios-build')
-    expect(workflow.on.pull_request?.paths).toContain('apps/mobile/**')
+    const paths = workflow.on.pull_request?.paths ?? []
+    for (const input of ['package-lock.json', 'apps/mobile/app.config.js', 'apps/mobile/plugins/**', 'apps/mobile/modules/**', 'apps/mobile/__tests__/lib/ios-widget-native.test.ts']) {
+      expect(paths).toContain(input)
+    }
+    expect(paths).not.toContain('apps/mobile/**')
+    expect(paths).not.toContain('packages/shared/**')
     expect(workflow.jobs.compile['runs-on']).toMatch(/^macos-/)
     const commands = workflow.jobs.compile.steps.map((step) => step.run ?? '').join('\n')
     expect(commands).toContain('expo prebuild --platform ios')
@@ -65,7 +70,23 @@ describe('iOS build and release boundaries', () => {
     expect(commands).not.toMatch(/simctl|expo start/)
     expect(commands).toContain('-workspace ios/OrbitStaging.xcworkspace -scheme OrbitStaging')
     expect(commands).toContain('-configuration Release -sdk iphonesimulator')
-    expect(workflow.jobs.compile['timeout-minutes']).toBeGreaterThanOrEqual(55)
+    expect(workflow.jobs.compile.steps.find((step) => step.id === 'compile')?.env?.SKIP_BUNDLING).toBe('1')
+    expect(workflow.jobs.compile['timeout-minutes']).toBe(40)
+  })
+
+  it('skips the macOS compile when a pass exists for the same native inputs', () => {
+    const workflow = parse(readFileSync(resolve('../../.github/workflows/ios-build.yml'), 'utf8')) as {
+      jobs: Record<string, { needs?: string[] | string; if?: string; outputs?: Record<string, string>; steps: { id?: string; uses?: string; run?: string; with?: Record<string, string> }[] }>
+    }
+    const { plan, compile, record } = workflow.jobs
+    const lookup = plan!.steps.find((step) => step.id === 'pass')!
+    expect(lookup.uses).toBe('actions/cache/restore@v6')
+    expect(lookup.with?.['lookup-only']).toBe(true)
+    expect(compile!.needs).toBe('plan')
+    expect(compile!.if).toBe("needs.plan.outputs.compile == 'true'")
+    expect(record!.needs).toEqual(['plan', 'compile'])
+    const save = record!.steps.find((step) => step.uses === 'actions/cache/save@v6')!
+    expect(save.with).toEqual({ path: lookup.with?.path, key: '${{ needs.plan.outputs.pass-key }}' })
   })
 
   it('reuses compiler outputs while regenerating and compiling every source revision', () => {
@@ -81,8 +102,11 @@ describe('iOS build and release boundaries', () => {
     for (const input of ['runner.arch', 'package-lock.json', 'apps/mobile/app.json', 'apps/mobile/app.config.js', 'apps/mobile/plugins/**', 'apps/mobile/modules/**']) {
       expect(cache.with?.key).toContain(input)
     }
-    expect(cache.with?.key).toContain('${{ github.run_id }}-${{ github.run_attempt }}')
-    expect(cache.with?.key).toBe(`${cache.with?.['restore-keys']?.trim()}\${{ github.run_id }}-\${{ github.run_attempt }}`)
+    expect(cache.with?.key).not.toMatch(/run_id|run_attempt/)
+    const { key = '', 'restore-keys': restoreKeys = '' } = cache.with ?? {}
+    expect(restoreKeys.trim()).not.toBe('')
+    expect(key.startsWith(restoreKeys.trim())).toBe(true)
+    expect(steps.some((step) => step.uses === 'actions/cache@v6')).toBe(false)
     const installIndex = steps.findIndex((step) => step.run?.includes('brew install ccache'))
     const prebuildIndex = steps.findIndex((step) => step.run?.includes('expo prebuild --platform ios'))
     const compileIndex = steps.findIndex((step) => step.run?.includes('xcodebuild -workspace'))
@@ -96,9 +120,12 @@ describe('iOS build and release boundaries', () => {
     expect(compileId).toBeTypeOf('string')
     const saveIndex = steps.findIndex((step) => step.uses === 'actions/cache/save@v6')
     expect(saveIndex).toBeGreaterThan(compileIndex)
-    expect(steps[saveIndex]?.if).toBe(`\${{ always() && steps.${compileId}.outcome != 'skipped' }}`)
-    expect(steps[saveIndex]?.with).toEqual({ path: cache.with?.path, key: `\${{ steps.${cache.id}.outputs.cache-primary-key }}` })
-    expect(steps.some((step) => step.uses === 'actions/cache@v6')).toBe(false)
+    expect(steps[saveIndex]?.if).toBe(`\${{ always() && steps.${compileId}.outcome != 'skipped' && github.ref == 'refs/heads/main' && steps.${cache.id}.outputs.cache-hit != 'true' }}`)
+    const primaryKey = `steps.${cache.id}.outputs.cache-primary-key`
+    expect(steps[saveIndex]?.with).toEqual({
+      path: cache.with?.path,
+      key: `\${{ steps.${compileId}.outcome == 'success' && ${primaryKey} || format('{0}-partial-{1}-{2}', ${primaryKey}, github.run_id, github.run_attempt) }}`,
+    })
     expect(steps.some((step) => step.run?.includes('ccache --zero-stats'))).toBe(true)
     expect(steps.some((step) => step.run?.includes('ccache --show-stats'))).toBe(true)
     expect(workflow.on.push?.branches).toEqual(['main'])

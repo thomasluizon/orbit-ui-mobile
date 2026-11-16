@@ -114,8 +114,8 @@ for the successor.
 6. Check the iOS app prerequisite `#1561`. Until it exists, record
    `intake.appStore.waitingOn: "#1561"` and log it once, preserving that marker across relays.
    Recheck the prerequisite each cycle without repeating the log. Once the app exists, the
-   same review workflow's optional App Store job uses `ORBIT_IOS_APP_STORE_ID` and the existing
-   iOS release credentials. The step 5 cycle imports its `orbit-app-store-reviews` artifact
+   optional App Store steps of the same review job use `ORBIT_IOS_APP_STORE_ID` and the existing
+   iOS release credentials. The step 5 cycle imports their `orbit-app-store-reviews` artifact
    from the same run when the artifact is present.
    The reader exhausts App Store Connect's customer reviews pagination. It retains review id,
    creation timestamp and content hash in `intake.appStore`; Apple's review schema has no

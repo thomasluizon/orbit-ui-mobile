@@ -18,6 +18,7 @@ const USAGE = `usage: check-dependency-edits.mjs [--root <path>] [--tolerance-se
   SQLite generated sources must match an archived vendor source. Native outputs force verification.
   Without a locked archive, the timestamp finding remains. Unverifiable locked archives fail.
   Archives are read from file: paths or fetched over HTTPS with a 30 second timeout.
+  A failed download or a 408, 429, 500, 502, 503 or 504 response is tried 3 times, 1 and 2 seconds apart.
   Generated .next/standalone copies are excluded, including roots inside that output.
 
   --root <path>              tree to scan (defaults to the parent of this tool's directory)
@@ -183,15 +184,34 @@ function inspectPackageLink(path) {
   findings.push({ path, packageDirectory: path, reason: "symbolic package link without a matching workspace lock entry" })
 }
 
+const ARCHIVE_FETCH_ATTEMPTS = 3
+const TRANSIENT_ARCHIVE_STATUSES = new Set([408, 429, 500, 502, 503, 504])
+
+/** A lost download is not evidence of an edit, so only the third failure in a row becomes a finding. */
+async function fetchLockedArchive(url) {
+  for (let attempt = 1; ; attempt++) {
+    let failure
+    try {
+      const response = await fetch(url, { signal: AbortSignal.timeout(30000) })
+      if (response.ok) return Buffer.from(await response.arrayBuffer())
+      failure = new Error(`locked archive request failed (${response.status})`)
+      if (!TRANSIENT_ARCHIVE_STATUSES.has(response.status)) throw failure
+    } catch (error) {
+      if (error === failure) throw error
+      failure = error
+    }
+    if (attempt === ARCHIVE_FETCH_ATTEMPTS) throw failure
+    await new Promise((resolveDelay) => setTimeout(resolveDelay, attempt * 1000))
+  }
+}
+
 async function readLockedArchive(locked) {
   let archive
   if (locked.resolved.startsWith("file:")) {
     archive = readFileSync(resolve(locked.directory, locked.resolved.slice(5)))
   } else {
     if (!locked.resolved.startsWith("https://")) throw new Error("locked archive must use HTTPS or file:")
-    const response = await fetch(locked.resolved, { signal: AbortSignal.timeout(30000) })
-    if (!response.ok) throw new Error(`locked archive request failed (${response.status})`)
-    archive = Buffer.from(await response.arrayBuffer())
+    archive = await fetchLockedArchive(locked.resolved)
   }
   const hashes = locked.integrity.split(/\s+/).map((hash) => hash.split("-"))
   const algorithm = ["sha512", "sha384", "sha256", "sha1"].find((name) => hashes.some(([kind]) => kind === name))

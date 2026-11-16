@@ -6,6 +6,8 @@ export interface DeploymentRecord { task: string; sha?: string; created_at?: str
 export type DeploymentEnvironment = 'staging' | 'production'
 export type StubDeployments = Partial<Record<DeploymentEnvironment, { android: DeploymentRecord[]; ios: DeploymentRecord[] }>>
 export interface StubWrite { path: string; payload: Record<string, unknown> }
+/** The workflow run fields the version check reads, as GitHub's list workflow runs response returns them. */
+export interface StubRun { display_title: string; head_sha: string; status: string; conclusion: string | null }
 
 const producedAndroidRecord = JSON.parse(
   readFileSync(fileURLToPath(new URL('../../../../tools/__tests__/android-deployment-fixture.json', import.meta.url)), 'utf8'),
@@ -33,6 +35,10 @@ if (args[0] !== 'api' || !path) refuse()
 if (args.includes('POST')) {
   appendFileSync(join(__dirname, 'writes.jsonl'), JSON.stringify({ path, payload: JSON.parse(readFileSync(0, 'utf8')) }) + '\\n')
   process.stdout.write(JSON.stringify({ id: 77 }))
+} else if (path.split('?')[0].endsWith('/actions/workflows/android-release.yml/runs')) {
+  const query = new URLSearchParams(path.split('?')[1])
+  const runs = JSON.parse(readFileSync(join(__dirname, 'runs.json'), 'utf8')).filter((run) => run.head_sha === query.get('head_sha'))
+  process.stdout.write(JSON.stringify({ total_count: runs.length, workflow_runs: runs }))
 } else {
   const query = new URLSearchParams(path.split('?')[1])
   const platform = { 'android-release': 'android', 'ios-release': 'ios' }[query.get('task')]
@@ -43,12 +49,14 @@ if (args.includes('POST')) {
 `
 
 /**
- * Writes an executable `gh` into `directory` that answers deployment calls offline.
+ * Writes an executable `gh` into `directory` that answers deployment and Android run calls offline.
  * A read returns only the records of the `task` and the `environment` the call names; an environment
- * the test did not supply fails the call. A write returns id 77, and `readStubWrites` lists every write.
+ * the test did not supply fails the call. A run read returns the `runs` on the `head_sha` it names.
+ * A write returns id 77, and `readStubWrites` lists every write.
  */
-export function writeGitHubStub(directory: string, deployments: StubDeployments) {
+export function writeGitHubStub(directory: string, deployments: StubDeployments, runs: StubRun[] = []) {
   writeFileSync(join(directory, 'responses.json'), JSON.stringify(deployments))
+  writeFileSync(join(directory, 'runs.json'), JSON.stringify(runs))
   writeFileSync(join(directory, 'gh'), stubSource, { mode: 0o755 })
 }
 

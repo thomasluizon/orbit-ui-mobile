@@ -61,6 +61,7 @@ const PULL_REQUEST_STATE_QUERY = `query PullRequestState($owner: String!, $name:
           nodes {
             __typename
             ... on CheckRun {
+              databaseId
               name
               status
               conclusion
@@ -99,6 +100,7 @@ const normalizeRollupNode = (node) => {
       detailsUrl: node.detailsUrl ?? null,
       workflowName: node.checkSuite?.workflowRun?.workflow?.name ?? null,
       appId: node.checkSuite?.app?.databaseId ?? null,
+      databaseId: node.databaseId ?? null,
     }
   }
   if (node?.__typename === "StatusContext") {
@@ -151,17 +153,34 @@ const normalizeReviewNode = (node) => {
 /** One 100-entry page for this branch. A missing transition blocks review evidence. */
 export const headActivityArgv = (repository, headRefName) => ["api", `repos/${repository}/activity?ref=${encodeURIComponent(`refs/heads/${headRefName}`)}&per_page=100`]
 
+const BRANCH_MOVE_TYPES = new Set(["push", "force_push", "branch_creation"])
+const branchMovesOf = (activities, headRefName) => activities.filter((activity) => BRANCH_MOVE_TYPES.has(activity?.activity_type) &&
+  activity.ref === `refs/heads/${headRefName}`)
+
 /** Both clocks belong to GitHub. The activity must describe this exact branch transition. */
 export const headActivityBoundary = (activities, headOid, headRefName, baseRepository, headRepository) => {
   if (headRepository !== baseRepository || !headRepository) return { time: null, reason: "the head is in a different repository" }
   if (!Array.isArray(activities)) return { time: null, reason: "the repository activity response is incomplete" }
-  const acceptedTypes = new Set(["push", "force_push", "branch_creation"])
-  const matching = activities.filter((activity) => acceptedTypes.has(activity?.activity_type) &&
-    activity.ref === `refs/heads/${headRefName}` && activity.after === headOid)
+  const matching = branchMovesOf(activities, headRefName).filter((activity) => activity.after === headOid)
   if (matching.length === 0) return { time: null, reason: "no matching head activity in the latest 100 branch entries" }
   const times = matching.map((activity) => Date.parse(activity.timestamp ?? ""))
   if (times.some((time) => !Number.isFinite(time))) return { time: null, reason: "the head activity timestamp is unparseable" }
   return { time: Math.max(...times), reason: null }
+}
+
+/**
+ * The commit that a later move of the branch put in place of headOid, or null. A move whose `before` is
+ * headOid replaced it, unless a newer move put headOid back. One-second timestamps cannot order two
+ * moves in the same second, and an unparseable timestamp orders nothing, so both prove no replacement.
+ */
+export const headReplacement = (activities, headOid, headRefName) => {
+  if (!Array.isArray(activities)) return null
+  const moves = branchMovesOf(activities, headRefName).filter((activity) => activity.before === headOid || activity.after === headOid)
+    .map((activity) => ({ after: activity.after, left: activity.before === headOid, time: Date.parse(activity.timestamp ?? "") }))
+  if (moves.length === 0 || moves.some((move) => !Number.isFinite(move.time))) return null
+  const newestTime = Math.max(...moves.map((move) => move.time))
+  const newest = moves.filter((move) => move.time === newestTime)
+  return newest.length === 1 && newest[0].left ? newest[0].after : null
 }
 
 /** The newest review must follow the branch push because GitHub can repoint its commit. */
@@ -317,6 +336,14 @@ export const reviewChecksFor = (requiredChecks) =>
 const requiredChecksAreValid = (required) =>
   Array.isArray(required) && required.every((entry) => typeof entry?.context === "string" && entry.context !== "" && (entry.appId === null || Number.isInteger(entry.appId)))
 
+// Two runs of a check can start in the same second, and GitHub lists the newer one first, so the higher check run id is the newer run there.
+const supersedes = (node, previous) => {
+  const started = startedAtOf(node)
+  const previousStarted = startedAtOf(previous)
+  if (started !== previousStarted) return started > previousStarted
+  return !Number.isInteger(node.databaseId) || !Number.isInteger(previous.databaseId) || node.databaseId > previous.databaseId
+}
+
 /**
  * Newest rerun wins, per PRODUCER. A rerun carries the same context and the same app, so it
  * replaces its own earlier entry, which is what the GitHub UI shows and the only reading under
@@ -331,14 +358,15 @@ export const newestChecks = (rollup) => {
     if (context === null) return null
     const key = JSON.stringify([context, node.appId ?? null])
     const previous = newest.get(key)
-    if (!previous || startedAtOf(node) >= startedAtOf(previous)) newest.set(key, node)
+    if (!previous || supersedes(node, previous)) newest.set(key, node)
   }
   return newest
 }
 
+// The check run id only orders two runs. It stays out of the fingerprint, so a recorded fingerprint still matches.
 export const registrationFingerprint = (state, newestByCheck) => JSON.stringify([
   state.headRefOid, state.currentBaseSha, state.baseRefName,
-  [...newestByCheck].sort(([left], [right]) => left.localeCompare(right)),
+  [...newestByCheck].map(([key, { databaseId, ...node }]) => [key, node]).sort(([left], [right]) => left.localeCompare(right)),
 ])
 
 export const findRegisteredCheck = (newest, required) => {
@@ -372,32 +400,6 @@ export const readinessCiIsGreen = (rollup, requiredChecks, satisfiedOutOfBand = 
     if (!checkPasses(node)) return false
   }
   return true
-}
-
-/**
- * The CI a review request waits on: every check except the reviewer's own, because
- * pullfrog-approval cannot pass before the review it reports exists. It uses the readiness pass rule
- * and newest-rerun reading, so a head that passes here is green for readiness once it is reviewed.
- * Returns null for an unreadable rollup or required set, which the caller fails closed on.
- */
-export const reviewRequestGate = (rollup, requiredChecks) => {
-  if (!requiredChecksAreValid(requiredChecks)) return null
-  const newest = newestChecks(rollup)
-  if (!newest) return null
-  const pending = requiredChecks
-    .filter((required) => required.appId !== REVIEW_APP_ID && required.context !== REVIEW_APP_CONTEXT && !findRegisteredCheck(newest, required))
-    .map((required) => required.context)
-  const failing = []
-  let reported = 0
-  for (const node of newest.values()) {
-    if (node.appId === REVIEW_APP_ID) continue
-    reported += 1
-    if (checkPasses(node)) continue
-    const settled = node.__typename === "StatusContext" ? !["PENDING", "EXPECTED"].includes(node.state) : node.status === "COMPLETED"
-    ;(settled ? failing : pending).push(contextOf(node))
-  }
-  const state = failing.length > 0 ? "FAILING" : pending.length > 0 || reported === 0 ? "PENDING" : "PASSED"
-  return { state, failing, pending, reported }
 }
 
 export const rollupFromGraphQlNodes = (nodes) => {
