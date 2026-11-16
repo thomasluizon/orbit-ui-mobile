@@ -19,7 +19,18 @@ import { useAppToastStore } from '@/stores/app-toast-store'
 import { useUIStore } from '@/stores/ui-store'
 import { useVersionGateStore } from '@/stores/version-gate-store'
 import { loadAppFonts } from '@/__tests__/support/app-fonts'
+import { neutralColors } from '@orbit/shared/theme'
+import { resolveWebThemeVariables } from '@/lib/theme-dom'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
+
+function hairlineShadow(mode: 'dark' | 'light') {
+  const [red, green, blue, alpha] = neutralColors[mode].hairline.match(/[\d.]+/g)!
+  return `rgba(${red}, ${green}, ${blue}, ${alpha}) 0px 0px 0px 1px inset`
+}
+
+function themeStyle(mode: 'dark' | 'light') {
+  return Object.entries(resolveWebThemeVariables('orange', mode)).map(([name, value]) => `${name}:${value}`).join(';')
+}
 
 describe('shared toast geometry', () => {
   let browserLaunch: BrowserLaunch | undefined
@@ -114,13 +125,13 @@ describe('shared toast geometry', () => {
     useUIStore.setState({ openOverlayIds: [] })
     const page = await browser.newPage({ reducedMotion: 'reduce', viewport: { width: 412, height: 915 } })
     try {
-      await page.setContent(`<style>${stylesheet}</style>${markup}`)
+      await page.setContent(`<html class="dark" style="${themeStyle('dark')}"><style>${stylesheet}</style><body>${markup}</body></html>`)
       await loadAppFonts(page)
       const measured = await page.locator('[data-shell-notice-content]').evaluate(measureToastStack)
       expect(measured).toHaveLength(1)
       expect(Math.abs(measured[0]!.actionOffset!)).toBeLessThanOrEqual(1)
       expect(Math.abs(measured[0]!.closeOffset)).toBeLessThanOrEqual(1)
-      expect(await page.locator('[data-kind]').evaluate(element => getComputedStyle(element).boxShadow)).not.toBe('none')
+      expect(await page.locator('[data-kind]').evaluate(element => getComputedStyle(element).boxShadow)).toContain(hairlineShadow('dark'))
     } finally { await page.close() }
   })
 
@@ -168,7 +179,7 @@ describe('shared toast geometry', () => {
     view.unmount()
     const page = await browser.newPage({ viewport: { width, height: 1200 } })
     try {
-      await page.setContent(`<html class="${mode}"><style>${stylesheet}</style><body>${markup}</body></html>`)
+      await page.setContent(`<html class="${mode}" style="${themeStyle(mode)}"><style>${stylesheet}</style><body>${markup}</body></html>`)
       await loadAppFonts(page)
       const measurements = await page.locator('[data-kind]').evaluateAll((surfaces, closeLabel) => surfaces.map(surface => {
         const bounds = surface.getBoundingClientRect()
@@ -185,6 +196,8 @@ describe('shared toast geometry', () => {
           columnWidth: column.width, columnLeft: column.left, columnRight: column.right,
           padding: [style.paddingTop, style.paddingRight, style.paddingBottom, style.paddingLeft],
           radius: style.borderRadius, columnGap: style.columnGap,
+          shadow: style.boxShadow, borderWidth: style.borderTopWidth,
+          copyInset: message.getBoundingClientRect().left - bounds.left,
           fontSize: type.fontSize, lineHeight: type.lineHeight, fontWeight: type.fontWeight,
           closeName: close?.getAttribute('aria-label'), closeWidth: (target?.width ?? 0) + hitPadding * 2,
           closeHeight: (target?.height ?? 0) + hitPadding * 2,
@@ -193,7 +206,10 @@ describe('shared toast geometry', () => {
         }
       }), words.common.close)
       expect(measurements).toHaveLength(6)
+      expect(measurements[0]!.copyInset, 'the inset hairline takes no layout space, so the copy starts at the 16 px padding').toBe(16)
       for (const measured of measurements) {
+        expect(measured.shadow, 'a lifted surface reads from its inset hairline (DESIGN.md, Shape, shadow, motion, icons)').toContain(hairlineShadow(mode))
+        expect(measured.borderWidth).toBe('0px')
         expect(measured).toMatchObject({
           width: measured.columnWidth, left: measured.columnLeft, right: measured.columnRight,
           padding: ['16px', '16px', '16px', '16px'], radius: '20px', columnGap: '12px',

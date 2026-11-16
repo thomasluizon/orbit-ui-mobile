@@ -3,6 +3,8 @@ import { StyleSheet, Text, View, type StyleProp, type TextStyle, type ViewStyle 
 import { act, create } from 'react-test-renderer'
 import { contrastOnSurface } from '@orbit/shared/__tests__/contrast'
 import { createTokensV2 } from '@/lib/theme'
+import { expectInsetHairlineRing } from '@/__tests__/support/inset-hairline-ring'
+import { measureProfileRow } from '@/__tests__/support/profile-row-geometry'
 
 import { Badge } from '@/components/ui/badge'
 
@@ -66,5 +68,17 @@ describe('Badge (mobile)', () => {
       letterSpacing: 0.72,
     })
     expect(StyleSheet.flatten(text.props.style).textTransform).toBeUndefined()
+  })
+
+  it('draws the outline variant hairline inside its edge, so the chip is the size of the solid chip', () => {
+    theme.currentTheme = 'dark'
+    const outline = renderBadge('outline')
+    expectInsetHairlineRing(outline.root.findByType(View).props.style, createTokensV2('orange', 'dark').hairlineStrong)
+    const size = (tree: BadgeTree) => {
+      const measured = measureProfileRow((tree as unknown as { toJSON: () => Parameters<typeof measureProfileRow>[0] }).toJSON(), 360, 1)
+      const text = measured.texts[0]!
+      return { textLeft: text.left, textTop: text.top, height: measured.height }
+    }
+    expect(size(outline)).toEqual(size(renderBadge('solid')))
   })
 })

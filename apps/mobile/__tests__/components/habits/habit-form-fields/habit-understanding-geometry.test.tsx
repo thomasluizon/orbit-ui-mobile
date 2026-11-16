@@ -6,6 +6,7 @@ import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { describe, expect, it, vi } from 'vitest'
 import { HabitUnderstanding } from '@/components/habits/habit-form-fields/habit-understanding'
 import { buildHabitUnderstandingLabels } from '@orbit/shared/utils'
+import { applyBorderWidths } from '@/__tests__/support/yoga-borders'
 
 const renderer = require('react-test-renderer') as typeof import('react-test-renderer')
 vi.mock('@/lib/use-app-theme', () => ({ useAppTheme: () => ({ currentScheme: 'orange', currentTheme: 'dark' }) }))
@@ -32,10 +33,10 @@ describe('native habit understanding geometry', () => {
     const wrapper = Yoga.Node.createWithConfig(config)
     wrapper.setWidth(Math.min(width, 592) - 32)
     const proposal = tree.root.findAll((node) => String(node.type) === 'View' && node.props.testID === 'proposed-block')[0]
-    if (proposal) wrapper.setBorder(Yoga.EDGE_ALL, (StyleSheet.flatten(proposal.props.style) as ViewStyle).borderWidth ?? 0)
+    if (proposal) applyBorderWidths(wrapper, StyleSheet.flatten(proposal.props.style) as ViewStyle)
     const card = Yoga.Node.createWithConfig(config)
     card.setPadding(Yoga.EDGE_ALL, previewStyle.padding as number)
-    card.setBorder(Yoga.EDGE_ALL, previewStyle.borderWidth ?? 0)
+    applyBorderWidths(card, previewStyle)
     wrapper.insertChild(card, 0)
     const row = Yoga.Node.createWithConfig(config)
     row.setFlexDirection(Yoga.FLEX_DIRECTION_ROW)

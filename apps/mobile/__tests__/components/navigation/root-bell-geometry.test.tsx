@@ -17,6 +17,7 @@ import { formatAPIDate } from '@orbit/shared/utils'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { queryClient, persistQueryCache, restoreQueryCache, setQueryCacheScope } from '@/lib/query-client'
 import { pressableStyle } from '@/__tests__/support/press-feedback'
+import { applyBorderWidths } from '@/__tests__/support/yoga-borders'
 
 const renderer = require('react-test-renderer') as typeof import('react-test-renderer')
 const navigation = vi.hoisted(() => ({ push: vi.fn(), replace: vi.fn(), count: 0, restored: false }))
@@ -93,7 +94,7 @@ function applyStyle(node: YogaNode, style: ViewStyle) {
   if (typeof style.paddingBottom === 'number') node.setPadding(Yoga.EDGE_BOTTOM, style.paddingBottom)
   if (typeof style.paddingVertical === 'number') node.setPadding(Yoga.EDGE_VERTICAL, style.paddingVertical)
   if (typeof style.paddingStart === 'number') node.setPadding(Yoga.EDGE_START, style.paddingStart)
-  if (typeof style.borderWidth === 'number') node.setBorder(Yoga.EDGE_ALL, style.borderWidth)
+  applyBorderWidths(node, style)
   if (style.position === 'absolute') node.setPositionType(Yoga.POSITION_TYPE_ABSOLUTE)
   if (typeof style.top === 'number') node.setPosition(Yoga.EDGE_TOP, style.top)
   if (typeof style.right === 'number') node.setPosition(Yoga.EDGE_RIGHT, style.right)
