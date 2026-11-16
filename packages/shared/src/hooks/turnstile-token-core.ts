@@ -9,7 +9,8 @@ export const TURNSTILE_CHALLENGE_HEIGHT = 65
 export const TURNSTILE_CHALLENGE_HOST = 'challenges.cloudflare.com'
 
 export interface TurnstileLoadFailure {
-  kind: 'http' | 'load' | 'script' | 'challenge' | 'deadline' | 'message'
+  /** `script_deadline`: Cloudflare's script did not load in the deadline. `run_deadline`: a run of the check gave no sign in the deadline. */
+  kind: 'http' | 'load' | 'script' | 'script_deadline' | 'challenge' | 'run_deadline' | 'message'
   host: string
   statusCode?: number
   code?: string

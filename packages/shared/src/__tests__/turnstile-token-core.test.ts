@@ -77,8 +77,8 @@ it('sends one event for each different failure of one load, with the kind, the s
   vi.advanceTimersByTime(34_500)
   report({ kind: 'challenge', host: 'challenges.cloudflare.com', code: '300030' })
   report({ kind: 'challenge', host: 'challenges.cloudflare.com', code: '300030' })
-  report({ kind: 'deadline', host: 'challenges.cloudflare.com' })
-  report({ kind: 'deadline', host: 'app.useorbit.org' })
+  report({ kind: 'script_deadline', host: 'challenges.cloudflare.com' })
+  report({ kind: 'run_deadline', host: 'challenges.cloudflare.com' })
 
   expect(capture.mock.calls).toEqual([
     ['turnstile_load_failed', { level: 'warning', tags: { operation: 'turnstile_load', kind: 'http', host: 'app.useorbit.org', status_code: 503, code: null },
@@ -87,10 +87,10 @@ it('sends one event for each different failure of one load, with the kind, the s
       extra: { description: null, elapsed_ms: 3500 }, fingerprint: ['turnstile_load_failed', 'http', '429'] }],
     ['turnstile_load_failed', { level: 'warning', tags: { operation: 'turnstile_load', kind: 'challenge', host: 'challenges.cloudflare.com', status_code: null, code: '300030' },
       extra: { description: null, elapsed_ms: 38_000 }, fingerprint: ['turnstile_load_failed', 'challenge', '300030'] }],
-    ['turnstile_load_failed', { level: 'warning', tags: { operation: 'turnstile_load', kind: 'deadline', host: 'challenges.cloudflare.com', status_code: null, code: null },
-      extra: { description: null, elapsed_ms: 38_000 }, fingerprint: ['turnstile_load_failed', 'deadline', ''] }],
-    ['turnstile_load_failed', { level: 'warning', tags: { operation: 'turnstile_load', kind: 'deadline', host: 'app.useorbit.org', status_code: null, code: null },
-      extra: { description: null, elapsed_ms: 38_000 }, fingerprint: ['turnstile_load_failed', 'deadline', ''] }],
+    ['turnstile_load_failed', { level: 'warning', tags: { operation: 'turnstile_load', kind: 'script_deadline', host: 'challenges.cloudflare.com', status_code: null, code: null },
+      extra: { description: null, elapsed_ms: 38_000 }, fingerprint: ['turnstile_load_failed', 'script_deadline', ''] }],
+    ['turnstile_load_failed', { level: 'warning', tags: { operation: 'turnstile_load', kind: 'run_deadline', host: 'challenges.cloudflare.com', status_code: null, code: null },
+      extra: { description: null, elapsed_ms: 38_000 }, fingerprint: ['turnstile_load_failed', 'run_deadline', ''] }],
   ])
 })
 

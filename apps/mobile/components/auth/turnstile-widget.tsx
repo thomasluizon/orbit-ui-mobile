@@ -19,13 +19,14 @@ type WidgetState = 'idle' | 'loading' | 'interactive' | 'solved' | 'failed' | 'e
 
 // WHY: a sleeping Render web service answers its wake page with 503 https://render.com/docs/free
 const TEMPORARY_HTTP_STATUSES = new Set([429, 502, 503, 504])
-const BRIDGE_FAILURE_KINDS = ['script', 'challenge', 'deadline'] as const
+const BRIDGE_FAILURE_KINDS = ['script', 'script_deadline', 'challenge', 'run_deadline'] as const
 const FAILURE_MESSAGES: Record<TurnstileLoadFailure['kind'], string> = {
   http: 'Human check bridge HTTP error',
   load: 'Human check bridge load error',
   script: 'Human check script load error',
+  script_deadline: 'Human check script load deadline',
   challenge: 'Human check challenge error',
-  deadline: 'Human check load deadline',
+  run_deadline: 'Human check run deadline',
   message: 'Human check bridge message error',
 }
 
@@ -78,7 +79,7 @@ function useBridgeLoad(resetKey: number, bridgeHost: string, onToken: (token: st
     loadDeadline.current = setTimeout(() => {
       loadDeadline.current = undefined
       clearTimeout(reloadTimer.current)
-      recordFailure({ kind: 'deadline', host: bridgeHost })
+      recordFailure({ kind: 'run_deadline', host: bridgeHost })
       onTokenRef.current(null)
       setState('failed')
     }, TURNSTILE_LOAD_DEADLINE_MS)
@@ -131,7 +132,7 @@ function useBridgeLoad(resetKey: number, bridgeHost: string, onToken: (token: st
     }
     if (!message || typeof message !== 'object') return
     const failure = readBridgeFailure(message)
-    if (failure) recordFailure({ ...failure, host: failure.kind === 'deadline' ? bridgeHost : TURNSTILE_CHALLENGE_HOST })
+    if (failure) recordFailure({ ...failure, host: TURNSTILE_CHALLENGE_HOST })
     if ('token' in message && (typeof message.token === 'string' || message.token === null)) {
       onToken(message.token)
     }

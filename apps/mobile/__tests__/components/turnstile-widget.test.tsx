@@ -596,6 +596,7 @@ it('sends one Sentry event for each different load failure, with the kind, the s
   post(awake!, { failure: { kind: 'challenge', code: 'https://example.org/?token=secret-token' } })
   post(awake!, { failure: { kind: 'made-up', code: '1' } })
   post(awake!, { failure: { kind: 'script' } })
+  post(awake!, { failure: { kind: 'script_deadline' } })
   TestRenderer.act(() => { vi.advanceTimersByTime(TURNSTILE_LOAD_DEADLINE_MS) })
   expect(shownSentences(renderer)).toEqual(['auth.turnstileFailed'])
 
@@ -607,7 +608,8 @@ it('sends one Sentry event for each different load failure, with the kind, the s
     event('challenge', 'challenges.cloudflare.com', null, '300010', null, 36_000),
     event('challenge', 'challenges.cloudflare.com', null, null, null, 36_000),
     event('script', 'challenges.cloudflare.com', null, null, null, 36_000),
-    event('deadline', host, null, null, null, 96_000),
+    event('script_deadline', 'challenges.cloudflare.com', null, null, null, 36_000),
+    event('run_deadline', host, null, null, null, 96_000),
   ])
   expect(JSON.stringify(vi.mocked(captureMessage).mock.calls)).not.toMatch(/site-key|siteKey|turnstile-bridge|secret-token|example\.org/)
 })

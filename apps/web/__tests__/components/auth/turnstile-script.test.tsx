@@ -137,7 +137,7 @@ it('sends a new script request under a new load deadline when the form asks for 
   expect(screen.getByRole('alert'), 'the new challenge starts a new load deadline').toHaveTextContent('auth.turnstileFailed')
 })
 
-it('sends one Sentry event for the script load failures of a load and one for the load deadline, with the kind and the host', async () => {
+it('sends one Sentry event for the script load failures of a load and one for the script load deadline, with the kind and the host that did not answer', async () => {
   sentry.captureMessage.mockClear()
   vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] })
   onTestFinished(() => { vi.useRealTimers() })
@@ -155,7 +155,7 @@ it('sends one Sentry event for the script load failures of a load and one for th
   expect(sentry.captureMessage.mock.calls).toEqual([
     ['turnstile_load_failed', { level: 'warning', tags: { operation: 'turnstile_load', kind: 'script', host: 'challenges.cloudflare.com', status_code: null, code: null },
       extra: { description: null, elapsed_ms: 0 }, fingerprint: ['turnstile_load_failed', 'script', ''] }],
-    ['turnstile_load_failed', { level: 'warning', tags: { operation: 'turnstile_load', kind: 'deadline', host: window.location.host, status_code: null, code: null },
-      extra: { description: null, elapsed_ms: TURNSTILE_LOAD_DEADLINE_MS }, fingerprint: ['turnstile_load_failed', 'deadline', ''] }],
+    ['turnstile_load_failed', { level: 'warning', tags: { operation: 'turnstile_load', kind: 'script_deadline', host: 'challenges.cloudflare.com', status_code: null, code: null },
+      extra: { description: null, elapsed_ms: TURNSTILE_LOAD_DEADLINE_MS }, fingerprint: ['turnstile_load_failed', 'script_deadline', ''] }],
   ])
 })

@@ -520,12 +520,12 @@ async function renderWithFakeClock(quietBridge = false) {
   const onToken = vi.fn()
   const onStateChange = vi.fn()
   const onFailure = vi.fn()
-  render(quietBridge
+  const { rerender } = render(quietBridge
     ? <TurnstileWidget siteKey="site-key" resetKey={0} quiet onToken={onToken} onStateChange={onStateChange} onFailure={onFailure} />
     : <TurnstileWidget siteKey="site-key" resetKey={0} onToken={onToken} onStateChange={onStateChange} />)
   await act(async () => { await Promise.resolve() })
   expect(renderWidget, 'the loaded script renders the challenge').toHaveBeenCalledOnce()
-  return { callbacks: renderWidget.mock.calls[0]![1] as ChallengeCallbacks, reset, onToken, onStateChange, onFailure }
+  return { callbacks: renderWidget.mock.calls[0]![1] as ChallengeCallbacks, reset, onToken, onStateChange, onFailure, rerender }
 }
 
 function shownSentences() {
@@ -538,8 +538,8 @@ function advance(milliseconds: number) {
 
 const loadingSentence = { status: 'auth.turnstileLoading', alert: '' }
 const failedSentence = { status: '', alert: 'auth.turnstileFailed' }
-const deadlineEvent = () => ({ message: 'turnstile_load_failed', operation: 'turnstile_load', kind: 'deadline', host: window.location.host,
-  status_code: null, code: null, fingerprint: ['turnstile_load_failed', 'deadline', ''] })
+const deadlineEvent = () => ({ message: 'turnstile_load_failed', operation: 'turnstile_load', kind: 'run_deadline', host: 'challenges.cloudflare.com',
+  status_code: null, code: null, fingerprint: ['turnstile_load_failed', 'run_deadline', ''] })
 
 it('gives the check 60 s after the tap of the person, then shows the failure and Retry when Cloudflare gives no callback', async () => {
   const { callbacks, onToken, onStateChange } = await renderWithFakeClock()
@@ -574,7 +574,7 @@ it('keeps a check that runs its challenge again: each automatic run starts the 6
   advance(1)
   expect(shownSentences(), 'a second run that gives no callback for 60 s fails').toEqual(failedSentence)
   expect(screen.getByRole('button', { name: 'auth.turnstileRetry' })).toBeInTheDocument()
-  expect(reportedFailures()).toMatchObject([{ kind: 'challenge', code: '300010' }, { kind: 'deadline', code: null }])
+  expect(reportedFailures()).toMatchObject([{ kind: 'challenge', code: '300010' }, { kind: 'run_deadline', code: null }])
 })
 
 it('shows the failure 60 s after the script loaded when the first run gives no callback, and Retry starts a new 60 s', async () => {
@@ -594,6 +594,39 @@ it('shows the failure 60 s after the script loaded when the first run gives no c
   expect(shownSentences(), 'Retry starts a new deadline').toEqual(failedSentence)
   expect(onStateChange).toHaveBeenLastCalledWith('failed')
   expect(reportedFailures(), 'Retry starts a new load, so the deadline is one event again').toEqual([deadlineEvent(), deadlineEvent()])
+})
+
+it('starts the 60 s of a run again when the form asks for a new challenge', async () => {
+  const { reset, onToken, onStateChange, rerender } = await renderWithFakeClock()
+  advance(TURNSTILE_LOAD_DEADLINE_MS - 1)
+  expect(shownSentences()).toEqual(loadingSentence)
+  await act(async () => { rerender(<TurnstileWidget siteKey="site-key" resetKey={1} onToken={onToken} onStateChange={onStateChange} />) })
+  expect(reset, 'the new reset key runs the challenge again').toHaveBeenCalledWith('timed-widget')
+  advance(1)
+  expect(shownSentences(), 'the run of the new challenge does not keep the time of the old run').toEqual(loadingSentence)
+  advance(TURNSTILE_LOAD_DEADLINE_MS - 2)
+  expect(shownSentences()).toEqual(loadingSentence)
+  advance(1)
+  expect(shownSentences(), 'the run of the new challenge fails 60 s after the new reset key').toEqual(failedSentence)
+  expect(reportedFailures()).toEqual([deadlineEvent()])
+})
+
+it('sends the script load deadline and the run deadline as two kinds, so Sentry groups them apart', async () => {
+  vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] })
+  onTestFinished(() => { vi.useRealTimers() })
+  vi.mocked(captureMessage).mockClear()
+  delete (window as Window & { turnstile?: unknown }).turnstile
+  vi.resetModules()
+  const { TurnstileWidget: FreshWidget } = await import('@/components/auth/turnstile-widget')
+  const onFailure = vi.fn()
+  const view = render(<FreshWidget siteKey="site-key" resetKey={0} quiet onToken={vi.fn()} onFailure={onFailure} />)
+  advance(TURNSTILE_LOAD_DEADLINE_MS)
+  expect(onFailure.mock.calls, 'the bridge gets the script load deadline as its own kind').toEqual([[{ kind: 'script_deadline' }]])
+  view.unmount()
+
+  await renderWithFakeClock()
+  advance(TURNSTILE_LOAD_DEADLINE_MS)
+  expect(reportedFailures()).toEqual([deadlineEvent()])
 })
 
 it('ends the deadline when the check passes after the tap', async () => {

@@ -1,10 +1,10 @@
 import { expect, type Locator } from '@playwright/test'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { build } from 'esbuild'
 import postcss from 'postcss'
 import tailwind from '@tailwindcss/postcss'
 import { test } from './layout-test'
+import { bundleSignInFixture } from './sign-in-fixture-bundle'
 
 let stylesheet: string
 let fixtureScript: string
@@ -13,12 +13,7 @@ test.use({ storageState: { cookies: [], origins: [] } })
 test.beforeAll(async () => {
   const source = resolve('app/globals.css')
   stylesheet = (await postcss([tailwind()]).process(readFileSync(source, 'utf8'), { from: source })).css
-  const bundle = await build({
-    entryPoints: [resolve('e2e/layout/sign-in-gap-fixture.tsx')], bundle: true, write: false,
-    platform: 'browser', format: 'iife', jsx: 'automatic', tsconfig: resolve('tsconfig.json'),
-    define: { 'process.env': '{}', 'process.env.NODE_ENV': '"production"' },
-  })
-  fixtureScript = bundle.outputFiles[0]!.text
+  fixtureScript = await bundleSignInFixture('e2e/layout/sign-in-gap-fixture.tsx')
 })
 
 async function measureGap(form: Locator) {

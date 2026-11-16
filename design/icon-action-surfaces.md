@@ -50,7 +50,7 @@ Drawn references: [Orbit conversation](canvas/Orbit%20Astra%20Conversation.dc.ht
 | [apps/mobile/app/search.tsx:82](../apps/mobile/app/search.tsx#L82) | `{t('habits.search.previous')}` | ChevronLeft |
 | [apps/mobile/app/search.tsx:83](../apps/mobile/app/search.tsx#L83) | `{t('habits.search.next')}` | ChevronRight |
 | [apps/mobile/app/upgrade.tsx:79](../apps/mobile/app/upgrade.tsx#L79) | `{t('upgrade.billing.retry')}` | RefreshCw |
-| [apps/mobile/components/auth/turnstile-widget.tsx:211](../apps/mobile/components/auth/turnstile-widget.tsx#L211) | `{t('auth.turnstileRetry')}` | RefreshCw |
+| [apps/mobile/components/auth/turnstile-widget.tsx:212](../apps/mobile/components/auth/turnstile-widget.tsx#L212) | `{t('auth.turnstileRetry')}` | RefreshCw |
 | [apps/mobile/components/calendar-sync/calendar-import-content.tsx:496](../apps/mobile/components/calendar-sync/calendar-import-content.tsx#L496) | `{t('common.goBack')}` | ChevronLeft |
 | [apps/mobile/components/calendar-sync/calendar-import-content.tsx:549](../apps/mobile/components/calendar-sync/calendar-import-content.tsx#L549) | `{t('calendar.showMore')}` | ChevronDown |
 | [apps/mobile/components/calendar-sync/calendar-import-content.tsx:629](../apps/mobile/components/calendar-sync/calendar-import-content.tsx#L629) | `{t('common.goBack')}` | ChevronLeft |

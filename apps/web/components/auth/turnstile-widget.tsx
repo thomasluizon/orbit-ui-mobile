@@ -12,7 +12,7 @@ import { useCurrentTheme } from '@/stores/theme-store'
 
 type WidgetState = 'idle' | 'loading' | 'interactive' | 'solved' | 'failed' | 'expired'
 
-type ChallengeFailure = Readonly<{ kind: 'script' | 'challenge' | 'deadline'; code?: string }>
+type ChallengeFailure = Readonly<{ kind: 'script' | 'script_deadline' | 'challenge' | 'run_deadline'; code?: string }>
 
 type ChallengeProps = Readonly<{
   siteKey: string
@@ -152,7 +152,7 @@ function useLoadFailureReport(resetKey: number, onFailure: ChallengeProps['onFai
 
   const recordFailure = useCallback((failure: ChallengeFailure) => {
     if (onFailureRef.current) onFailureRef.current(failure)
-    else report.current?.({ ...failure, host: failure.kind === 'deadline' ? window.location.host : TURNSTILE_CHALLENGE_HOST })
+    else report.current?.({ ...failure, host: TURNSTILE_CHALLENGE_HOST })
   }, [])
   return { recordFailure, startReport }
 }
@@ -179,7 +179,7 @@ function useTurnstileChallenge({ siteKey, resetKey, onToken, onStateChange, onFa
   const { recordFailure, startReport } = useLoadFailureReport(resetKey, onFailure)
   const { loaded, loadAgain } = useTurnstileScript({
     onLoadState: (next) => {
-      recordFailure({ kind: next === 'failed' ? 'deadline' : 'script' })
+      recordFailure({ kind: next === 'failed' ? 'script_deadline' : 'script' })
       setState(next)
       onStateChange?.(next)
       onToken(null)
@@ -257,7 +257,7 @@ function useTurnstileChallenge({ siteKey, resetKey, onToken, onStateChange, onFa
   useChallengeDeadline({
     running: hasLoadDeadline && loaded !== null && state === 'loading', resetKey, stage,
     onDeadline: () => {
-      recordFailure({ kind: 'deadline' })
+      recordFailure({ kind: 'run_deadline' })
       setState('failed')
       onStateChange?.('failed')
       onToken(null)
