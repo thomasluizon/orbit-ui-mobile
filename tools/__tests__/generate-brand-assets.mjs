@@ -66,16 +66,44 @@ const readIcoLayers = (path) => {
 const isAccentPixel = (red, green, blue, alpha) =>
   alpha >= 128 && red > green * 2 && green > blue * 2
 
-/** The elements of an ICNS file: a four-byte type and a big-endian length that counts its header. */
-const readIcnsElements = (path) => {
+// The ICNS types that hold an "ARGB" image instead of a PNG, with their pixel size.
+const ICNS_ARGB_SIZES = { ic04: 16, ic05: 32 }
+
+/** An ICNS "ARGB" image: the four bytes "ARGB", then the alpha, red, green and blue planes, each one
+ *  packed. A control byte below 0x80 copies the next control + 1 bytes; a control byte from 0x80
+ *  repeats the next byte control - 0x80 + 3 times. Returns the image as a PNG. */
+const argbToPng = async (body, size) => {
+  if (body.subarray(0, 4).toString("latin1") !== "ARGB") return null
+  const pixels = Buffer.alloc(size * size * 4)
+  let position = 4
+  for (const channel of [3, 0, 1, 2]) {
+    for (let pixel = 0; pixel < size * size;) {
+      const control = body[position++]
+      if (control < 0x80) {
+        for (let count = 0; count <= control; count += 1) pixels[(pixel++) * 4 + channel] = body[position++]
+      } else {
+        const value = body[position++]
+        for (let count = 0; count < control - 0x80 + 3; count += 1) pixels[(pixel++) * 4 + channel] = value
+      }
+    }
+  }
+  if (position !== body.length) return null
+  return sharp(pixels, { raw: { width: size, height: size, channels: 4 } }).png().toBuffer()
+}
+
+/** The elements of an ICNS file: a four-byte type and a big-endian length that counts its header.
+ *  `format` is "PNG", "ARGB" or "other", and `png` holds the image as a PNG either way. */
+const readIcnsElements = async (path) => {
   if (!existsSync(path)) return { magic: "missing", length: 0, size: 0, elements: [] }
   const icns = readFileSync(path)
   const elements = []
   for (let offset = 8; offset < icns.length; offset += icns.readUInt32BE(offset + 4)) {
-    elements.push({
-      type: icns.subarray(offset, offset + 4).toString("latin1"),
-      png: icns.subarray(offset + 8, offset + icns.readUInt32BE(offset + 4)),
-    })
+    const type = icns.subarray(offset, offset + 4).toString("latin1")
+    const body = icns.subarray(offset + 8, offset + icns.readUInt32BE(offset + 4))
+    const argbSize = ICNS_ARGB_SIZES[type]
+    const argb = argbSize ? await argbToPng(body, argbSize) : null
+    const format = argb ? "ARGB" : body.subarray(1, 4).toString() === "PNG" ? "PNG" : "other"
+    elements.push({ type, format, png: argb ?? body })
   }
   return { magic: icns.subarray(0, 4).toString("latin1"), length: icns.readUInt32BE(4), size: icns.length, elements }
 }
@@ -102,18 +130,54 @@ const isMarkInk = (pixel) => pixel[3] >= 128 && Math.max(pixel[0], pixel[1], pix
 const isPlanetInk = (pixel) => pixel[3] >= 128 && Math.min(pixel[0], pixel[1], pixel[2]) >= 200
 // An eye is the ground colour #09090B, or a hole in a one-ink layer.
 const isEye = (pixel) => pixel[3] < 128 || Math.max(pixel[0], pixel[1], pixel[2]) < 64
+// DESIGN.md Orbit: "The live face needs each eye at least 2px wide". An 8-bit pixel value carries a
+// rounding error of 1/255, so the measured width keeps 0.01px of tolerance below the floor.
+const EYE_FLOOR_PIXELS = 2
+const EYE_WIDTH_TOLERANCE = 0.01
 
-/** The two eye pixels and the planet pixel between them in a raster that draws the mascot. A rig face
- *  is found from its ink box; a small static face sits on its pixel grid, centred in the canvas. */
+/** The width in pixels of the eye through (x, y): the sum of the eye coverage of each pixel in that
+ *  row, out to the planet ink on both sides. Each pixel is laid on the #09090B ground first, so a
+ *  ground eye and a hole read the same: coverage 0 at the colour `planet`, 1 at the ground. */
+// `onPixelGrid` is the small static face. Its eye edges sit on pixel columns, but its round eye ends
+// leave no row fully dark (the 20 face reads 16, not 9), so the sum is divided by the darkest pixel.
+// The live rig is not on the grid, so its sum is the width as it is.
+const eyeWidthAt = (pixelAt, width, x, y, planet, onPixelGrid) => {
+  const onGround = (pixel) => (Math.min(pixel[0], pixel[1], pixel[2]) * pixel[3] + 9 * (255 - pixel[3])) / 255
+  const planetValue = onGround(planet)
+  const coverage = (column) => Math.min(1, Math.max(0, (planetValue - onGround(pixelAt(column, y))) / (planetValue - 9)))
+  let total = coverage(x)
+  let darkest = total
+  if (total === 0) return 0
+  for (const step of [-1, 1]) {
+    for (let column = x + step; column >= 0 && column < width; column += step) {
+      const value = coverage(column)
+      if (value <= 0.02) break
+      total += value
+      darkest = Math.max(darkest, value)
+    }
+  }
+  return onPixelGrid ? total / darkest : total
+}
+
+/** The two eye pixels, the planet pixel between them and the width of each eye in a raster that draws
+ *  the mascot. A rig face is found from its ink box; a small static face sits on its pixel grid,
+ *  centred in the canvas. */
 const facePixels = async (input, smallSize) => {
   if (typeof input === "string" && !existsSync(input)) return null
   const { data, info } = await sharp(input).ensureAlpha().raw().toBuffer({ resolveWithObject: true })
   const pixelAt = (x, y) => [...data.subarray((y * info.width + x) * 4, (y * info.width + x) * 4 + 4)]
+  const face = (leftEye, rightEye, between) => ({
+    leftEye: pixelAt(leftEye.x, leftEye.y),
+    rightEye: pixelAt(rightEye.x, rightEye.y),
+    between: pixelAt(between.x, between.y),
+    leftEyeWidth: eyeWidthAt(pixelAt, info.width, leftEye.x, leftEye.y, pixelAt(between.x, between.y), Boolean(smallSize)),
+    rightEyeWidth: eyeWidthAt(pixelAt, info.width, rightEye.x, rightEye.y, pixelAt(between.x, between.y), Boolean(smallSize)),
+  })
   if (smallSize) {
-    const face = SMALL_FACES[smallSize]
-    const left = Math.floor((info.width - face.width) / 2) + face.leftEye[0]
-    const top = Math.floor((info.height - face.height) / 2) + face.leftEye[1]
-    return { leftEye: pixelAt(left, top), rightEye: pixelAt(left + 4, top), between: pixelAt(left + 2, top) }
+    const small = SMALL_FACES[smallSize]
+    const left = Math.floor((info.width - small.width) / 2) + small.leftEye[0]
+    const top = Math.floor((info.height - small.height) / 2) + small.leftEye[1]
+    return face({ x: left, y: top }, { x: left + 4, y: top }, { x: left + 2, y: top })
   }
   let [minX, minY, maxX, maxY] = [info.width, info.height, -1, -1]
   for (let y = 0; y < info.height; y += 1) {
@@ -126,9 +190,8 @@ const facePixels = async (input, smallSize) => {
     }
   }
   if (maxX < 0) return null
-  const at = ({ x, y }) =>
-    pixelAt(Math.floor(minX + x * (maxX + 1 - minX)), Math.floor(minY + y * (maxY + 1 - minY)))
-  return { leftEye: at(RIG_FACE.leftEye), rightEye: at(RIG_FACE.rightEye), between: at(RIG_FACE.between) }
+  const at = ({ x, y }) => ({ x: Math.floor(minX + x * (maxX + 1 - minX)), y: Math.floor(minY + y * (maxY + 1 - minY)) })
+  return face(at(RIG_FACE.leftEye), at(RIG_FACE.rightEye), at(RIG_FACE.between))
 }
 
 export const cases = async () => {
@@ -462,18 +525,23 @@ export const cases = async () => {
     ...windowsLayers.map(({ size, png }) => ({ label: `icon.ico ${size}px layer`, input: png, smallSize: { 16: 16, 24: 20, 32: 24 }[size] })),
   ]
 
-  const icns = readIcnsElements(join(outputRoot, "apps", "desktop", "src-tauri", "icons", "icon.icns"))
-  const icnsSizes = await Promise.all(icns.elements.map(async ({ type, png }) => `${type}:${(await sharp(png).metadata()).width}`))
+  // `iconutil -c icns` writes the 16 and 32 px images as "ARGB" elements ic04 and ic05, and every
+  // larger image as a PNG element. macOS reads a PNG in icp4 or icp5 as scrambled pixels.
+  const icns = await readIcnsElements(join(outputRoot, "apps", "desktop", "src-tauri", "icons", "icon.icns"))
+  const icnsSizes = await Promise.all(
+    icns.elements.map(async ({ type, format, png }) =>
+      `${type}:${format}:${format === "other" ? 0 : (await sharp(png).metadata()).width}`),
+  )
   T(
-    "generate-brand-assets.mjs: macOS icon.icns carries one PNG element for each icon size",
+    "generate-brand-assets.mjs: macOS icon.icns carries ARGB elements at 16 and 32 and a PNG element for each larger size",
     icns.magic === "icns" &&
       icns.length === icns.size &&
-      icns.elements.every(({ png }) => png.subarray(1, 4).toString() === "PNG") &&
-      icnsSizes.join(" ") === "icp4:16 icp5:32 ic11:32 ic12:64 ic07:128 ic13:256 ic08:256 ic14:512 ic09:512 ic10:1024",
+      icnsSizes.join(" ") ===
+        "ic04:ARGB:16 ic05:ARGB:32 ic11:PNG:32 ic12:PNG:64 ic07:PNG:128 ic13:PNG:256 ic08:PNG:256 ic14:PNG:512 ic09:PNG:512 ic10:PNG:1024",
     `${icns.magic} ${icns.length}/${icns.size}: ${icnsSizes.join(" ")}`,
   )
   for (const [index, { type, png }] of icns.elements.entries()) {
-    const width = Number(icnsSizes[index].split(":")[1])
+    const width = Number(icnsSizes[index].split(":")[2])
     mascotRasters.push({ label: `icon.icns ${type} ${width}px element`, input: png, smallSize: { 16: 16, 32: 24 }[width] })
   }
 
@@ -483,6 +551,13 @@ export const cases = async () => {
       `generate-brand-assets.mjs: ${label} draws the mascot with both eyes`,
       face !== null && isEye(face.leftEye) && isEye(face.rightEye) && isPlanetInk(face.between),
       `${label}: ${face ? `left eye ${face.leftEye}, right eye ${face.rightEye}, between ${face.between}` : "no mark ink or no file"}`,
+    )
+    T(
+      `generate-brand-assets.mjs: ${label} draws each eye at least ${EYE_FLOOR_PIXELS}px wide`,
+      face !== null &&
+        face.leftEyeWidth + EYE_WIDTH_TOLERANCE >= EYE_FLOOR_PIXELS &&
+        face.rightEyeWidth + EYE_WIDTH_TOLERANCE >= EYE_FLOOR_PIXELS,
+      `${label}: ${face ? `left eye ${face.leftEyeWidth.toFixed(2)}px, right eye ${face.rightEyeWidth.toFixed(2)}px` : "no mark ink or no file"}`,
     )
   }
 

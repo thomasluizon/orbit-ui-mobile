@@ -60,7 +60,9 @@ whole 7:5 rig box with the accent moon, centred in a square canvas. The platform
 mascot at rest as `orbit-mascot.svg` draws it: the planet, the two eyes, the ring and the moon. It
 fills 70% of the canvas on the flat `#09090B` ground, with square corners for the platform mask. The
 Android adaptive layers use 58%, so the ring and the moon stay inside the 66 dp safe circle of the
-108 dp layer. An icon layer from 16 to 32px draws the small static face, with its eyes.
+108 dp layer. An icon layer from 16 to 32px draws the small static face, with its eyes. Every
+layer that draws the live rig draws each eye at least 2px wide; the generator fails on a layer that
+would not.
 
 **Ink on each ground.** The eyes and the ring outline take the canvas colour `#09090B` on every
 coloured raster, so they read inside the planet on a dark and on a light ground. The monochrome

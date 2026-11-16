@@ -65,9 +65,12 @@ const BLACK = "#000000"
 // of the accent in the whole system.
 const ACCENT = "#C4530F"
 
-// The rig box is 420 by 300 units.
+// The rig box is 420 by 300 units, and each eye is 22 units wide.
 const RIG_BOX_WIDTH = 420
 const RIG_BOX_HEIGHT = 300
+const EYE_WIDTH_UNITS = 22
+// DESIGN.md Orbit: "The live face needs each eye at least 2px wide".
+const EYE_FLOOR_PIXELS = 2
 // Rasterise the rig at about 3x its box before the trim and the downscale, so a large asset never
 // upscales a 420 px render. The sharp density is dots per inch and 72 maps one unit to one pixel.
 const RENDER_DENSITY = 384
@@ -190,6 +193,14 @@ function assertMaskableSafeZone(asset, inkPixels, inkUnits) {
   }
 }
 
+/** Every rig layer draws each eye at least EYE_FLOOR_PIXELS wide. A layer that cannot hold the rig
+ *  draws the small static face instead. */
+function assertEyeFloor(asset, eyePixels) {
+  if (eyePixels < EYE_FLOOR_PIXELS) {
+    throw new Error(`${asset.path ?? `a ${asset.width}px icon layer`} draws each eye ${eyePixels.toFixed(2)}px wide, under the ${EYE_FLOOR_PIXELS}px floor`)
+  }
+}
+
 /** The mark scale (ink width over canvas width) the adaptive layers use: the ring and the moon fit
  *  the 66 dp safe circle, and the platform scale never exceeds it. */
 const adaptiveScale = (inkUnits) => (ADAPTIVE_SAFE_FRACTION * inkUnits) / MARK_CIRCLE_UNITS
@@ -228,6 +239,7 @@ async function punchHoles(png) {
 
 /** The rig box, at `size` pixels wide, centred in a square canvas of that width. */
 async function renderRigBox(source, asset, size) {
+  assertEyeFloor(asset, (size * EYE_WIDTH_UNITS) / RIG_BOX_WIDTH)
   const baked = bakeColours(source, { ink: asset.ink, groundInk: CANVAS, accent: ACCENT })
   const height = Math.round((size * RIG_BOX_HEIGHT) / RIG_BOX_WIDTH)
   const png = await sharp(Buffer.from(baked), { density: (72 * size) / RIG_BOX_WIDTH })
@@ -294,6 +306,7 @@ async function renderMarkLayer(context, asset) {
     : bakeColours(sources.rig, { ink: asset.ink, groundInk: CANVAS, accent: asset.accent ? ACCENT : null })
   const markFrameWidth = asset.tile ? asset.width - 2 * asset.tile.margin : asset.width
   const targetWidth = Math.round(markFrameWidth * resolveScale(asset, inkUnits))
+  assertEyeFloor(asset, (targetWidth * EYE_WIDTH_UNITS) / inkUnits)
   const rendered = await renderTrimmedRig(baked, targetWidth)
   const { data: png, info } = asset.holes ? await punchHoles(rendered.data) : rendered
   if (asset.maskable) assertMaskableSafeZone(asset, info.width, inkUnits)
@@ -342,7 +355,8 @@ const windowsIconLayers = [
   windowsIconLayer(16, 1, 3, { face: "small", smallSize: 16 }),
   windowsIconLayer(24, 1, 4, { face: "small", smallSize: 20, accent: true }),
   windowsIconLayer(32, 2, 6, { face: "small", smallSize: 24, accent: true }),
-  windowsIconLayer(48, 4, 9, iconMark),
+  // At 0.7 of the 40px tile each eye is 1.70px. At 0.85 the ink is 34px and each eye 2.06px.
+  windowsIconLayer(48, 4, 9, { ...iconMark, scale: 0.85 }),
   windowsIconLayer(64, 6, 11, iconMark),
   windowsIconLayer(256, 24, 44, iconMark),
 ]
@@ -370,7 +384,7 @@ function pngLayersToIco(layers) {
   return Buffer.concat([header, ...entries, ...layers.map(({ png }) => png)])
 }
 
-// The 48 px layer of favicon.ico is the one live rig below 64px. Its eye is 2.1px wide at this scale.
+// The 48 px layer of favicon.ico draws the live rig at 0.72 of the layer. Its eye is 2.1px wide.
 const faviconLayerAssets = [
   generatedAssets.find(({ path }) => path === "apps/web/public/favicon-16.png"),
   generatedAssets.find(({ path }) => path === "apps/web/public/favicon-32.png"),
@@ -393,11 +407,13 @@ const macosIconLayers = {
   512: macosIconLayer(512, iconMark),
   1024: macosIconLayer(1024, iconMark),
 }
-// Each ICNS element type with the pixel size it holds. Every element is a PNG, a form macOS reads for
-// all of these types; `iconutil -c iconset` extracts all ten images from the file this writes.
+// Each ICNS element type with the pixel size it holds, in the form `iconutil -c icns` writes from an
+// .iconset: ic04 and ic05 hold the 16 and 32 px images as "ARGB", every larger type a PNG. macOS reads
+// a PNG in icp4 or icp5 as scrambled pixels.
+const ICNS_ARGB_TYPES = new Set(["ic04", "ic05"])
 const ICNS_TYPES = [
-  ["icp4", 16],
-  ["icp5", 32],
+  ["ic04", 16],
+  ["ic05", 32],
   ["ic11", 32],
   ["ic12", 64],
   ["ic07", 128],
@@ -408,16 +424,53 @@ const ICNS_TYPES = [
   ["ic10", 1024],
 ]
 
+/** One channel packed as an ICNS image packs it: a control byte below 0x80 is followed by
+ *  control + 1 literal bytes, and a control byte from 0x80 repeats the next byte control - 0x80 + 3
+ *  times. A run of 3 or more equal bytes is a repeat, as `iconutil` writes it. */
+function packIcnsChannel(channel) {
+  const packed = []
+  let index = 0
+  const isRunAt = (position) =>
+    position + 2 < channel.length && channel[position] === channel[position + 1] && channel[position] === channel[position + 2]
+  while (index < channel.length) {
+    if (isRunAt(index)) {
+      let length = 3
+      while (length < 130 && index + length < channel.length && channel[index + length] === channel[index]) length += 1
+      packed.push(0x80 + length - 3, channel[index])
+      index += length
+    } else {
+      const start = index
+      while (index < channel.length && index - start < 128 && !isRunAt(index)) index += 1
+      packed.push(index - start - 1, ...channel.subarray(start, index))
+    }
+  }
+  return Buffer.from(packed)
+}
+
+/** An ICNS "ARGB" image: the four bytes "ARGB", then the packed alpha, red, green and blue planes, with
+ *  straight (not premultiplied) colour, as `iconutil` writes them. */
+async function pngToIcnsArgb(png) {
+  const { data, info } = await sharp(png).ensureAlpha().raw().toBuffer({ resolveWithObject: true })
+  const pixelCount = info.width * info.height
+  const planes = [3, 0, 1, 2].map((channel) => {
+    const plane = Buffer.alloc(pixelCount)
+    for (let pixel = 0; pixel < pixelCount; pixel += 1) plane[pixel] = data[pixel * 4 + channel]
+    return packIcnsChannel(plane)
+  })
+  return Buffer.concat([Buffer.from("ARGB", "latin1"), ...planes])
+}
+
 /** The ICNS writer for icon.icns. The file header and each element header are a four-byte type and a
  *  big-endian four-byte length that counts the header itself. */
-function pngLayersToIcns(pngBySize) {
-  const elements = ICNS_TYPES.map(([type, size]) => {
+async function pngLayersToIcns(pngBySize) {
+  const elements = await Promise.all(ICNS_TYPES.map(async ([type, size]) => {
     const png = pngBySize.get(size)
+    const image = ICNS_ARGB_TYPES.has(type) ? await pngToIcnsArgb(png) : png
     const header = Buffer.alloc(8)
     header.write(type, 0, "latin1")
-    header.writeUInt32BE(png.length + 8, 4)
-    return Buffer.concat([header, png])
-  })
+    header.writeUInt32BE(image.length + 8, 4)
+    return Buffer.concat([header, image])
+  }))
   const body = Buffer.concat(elements)
   const header = Buffer.alloc(8)
   header.write("icns", 0, "latin1")
@@ -472,7 +525,7 @@ async function main() {
   for (const [size, asset] of Object.entries(macosIconLayers)) {
     macosIconPngs.set(Number(size), await renderAsset(context, asset))
   }
-  await writeFile(join(repositoryRoot, "apps", "desktop", "src-tauri", "icons", "icon.icns"), pngLayersToIcns(macosIconPngs))
+  await writeFile(join(repositoryRoot, "apps", "desktop", "src-tauri", "icons", "icon.icns"), await pngLayersToIcns(macosIconPngs))
 
   console.log(
     `generated ${generatedAssets.length + 3} brand assets from design/brand/orbit-mascot.svg and orbit-mascot-small.svg`,
