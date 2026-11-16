@@ -14,7 +14,7 @@ export function AchievementTile({ achievement, tokens, width }: Readonly<{ achie
   const hasProgress = current != null && target != null
   const name = t(`gamification.achievements.${achievement.id}.name`)
   return (
-    <View style={[styles.achievement, { width, backgroundColor: tokens.bgCard, borderColor: tokens.hairlineGhost }]} testID={`achievement-tile-${achievement.id}`}>
+    <View style={[styles.achievement, { width, backgroundColor: tokens.bgCard, outlineColor: tokens.hairlineGhost }]} testID={`achievement-tile-${achievement.id}`}>
       <View style={styles.achievementHeader}>
         <AchievementMark achievement={achievement} name={name} tokens={tokens} />
         <View style={styles.achievementCopy}>
@@ -30,7 +30,7 @@ export function AchievementTile({ achievement, tokens, width }: Readonly<{ achie
 
 const styles = StyleSheet.create({
   earnedBadge: { flexShrink: 0 },
-  achievement: { borderRadius: 20, borderWidth: 1, gap: 12, minWidth: 0, padding: PADDING.recordInset },
+  achievement: { borderRadius: 20, outlineWidth: 1, outlineOffset: -1, outlineStyle: 'solid', gap: 12, minWidth: 0, padding: PADDING.recordInset },
   achievementHeader: { alignItems: 'center', flexDirection: 'row', flexWrap: 'wrap', gap: 12 }, achievementCopy: { flexGrow: 1, flexShrink: 1, flexBasis: 120, gap: 4, minWidth: 0 },
   achievementName: { fontFamily: 'Geist_500Medium', fontSize: 14, lineHeight: 20 }, achievementBody: { fontFamily: 'Geist_400Regular', fontSize: 12, lineHeight: 17 }, achievementProgress: { gap: 4 },
   meta: { fontFamily: 'GeistMono_400Regular', fontSize: 12, lineHeight: 16 },

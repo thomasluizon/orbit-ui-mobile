@@ -135,7 +135,7 @@ function WindowFrame({ children, title, tokens, statusText = '' }: Readonly<{
 function LockedCard({ title, body, action, tokens }: Readonly<{ title: string; body: string; action: string; tokens: AppTokensV2 }>) {
   const router = useRouter()
   return (
-    <View testID="progress-locked-card" style={[styles.card, { backgroundColor: tokens.bgCard, borderColor: tokens.hairlineGhost }]}>
+    <View testID="progress-locked-card" style={[styles.card, { backgroundColor: tokens.bgCard, outlineColor: tokens.hairlineGhost }]}>
       <View style={styles.lockHeader}><Lock size={20} strokeWidth={2} color={tokens.fg2} /><ProBadge alwaysVisible /></View>
       <View style={styles.copy}><Text style={[styles.cardTitle, { color: tokens.fg1 }]}>{title}</Text><Text style={[styles.body, { color: tokens.fg3 }]}>{body}</Text></View>
       <View style={styles.actionStart}><PillButton variant="ghost" size="sm" onClick={() => router.push(buildUpgradeHref('/progress'))}>{action}</PillButton></View>
@@ -336,8 +336,8 @@ function GoalIndicator({ goal }: Readonly<{ goal: Goal }>) {
 function goalCardSurfaceStyle(pressed: boolean, isDragging: boolean, tokens: AppTokensV2) {
   return [
     styles.goalCard,
-    { backgroundColor: pressed ? tokens.bgHover : tokens.bgCard, borderColor: tokens.hairlineGhost },
-    isDragging ? { ...shadowsV2.shadow2, borderColor: tokens.hairlineStrong, opacity: 0.5 } : null,
+    { backgroundColor: pressed ? tokens.bgHover : tokens.bgCard, outlineColor: tokens.hairlineGhost },
+    isDragging ? { ...shadowsV2.shadow2, outlineColor: tokens.hairlineStrong, opacity: 0.5 } : null,
   ]
 }
 
@@ -659,14 +659,14 @@ const styles = StyleSheet.create({
   frozenCopy: { flex: 1, fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 20 },
   copy: { gap: 4 }, body: { fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 20 }, meta: { fontFamily: 'GeistMono_400Regular', fontSize: 12, lineHeight: 16 },
   notice: { borderRadius: 12, fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 20, paddingHorizontal: SPACING.s16, paddingVertical: SPACING.s12 },
-  card: { borderRadius: 20, borderWidth: 1, gap: 12, padding: PADDING.recordInset }, cardTitle: { fontFamily: 'Geist_500Medium', fontSize: 16, lineHeight: 20 }, actionStart: { alignSelf: 'flex-start' }, lockHeader: { alignItems: 'center', flexDirection: 'row', gap: 12 },
+  card: { borderRadius: 20, outlineWidth: 1, outlineOffset: -1, outlineStyle: 'solid', gap: 12, padding: PADDING.recordInset }, cardTitle: { fontFamily: 'Geist_500Medium', fontSize: 16, lineHeight: 20 }, actionStart: { alignSelf: 'flex-start' }, lockHeader: { alignItems: 'center', flexDirection: 'row', gap: 12 },
   gapWell: { borderRadius: 12, gap: 12, padding: PADDING.recordInset }, gapBody: { fontFamily: 'Geist_400Regular', fontSize: 16, lineHeight: 24 },
   topHabit: { minHeight: 68, paddingHorizontal: SPACING.s16, paddingVertical: SPACING.s16, borderRadius: 12, overflow: 'hidden', gap: 4, minWidth: 0 },
   topHabitLabelRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
   topHabitChevron: { width: 24, height: 24, flexShrink: 0 },
   topHabitName: { fontFamily: 'Geist_400Regular', fontSize: 17, lineHeight: 24 },
   windowGrid: { gap: 16 }, windowLock: { width: '100%' }, windowRow: { flexDirection: 'row', gap: 16 }, windowSection: { gap: PADDING.sectionTitleGap }, windowTile: { flex: 1, minWidth: 0 },
-  goalsSection: { gap: PADDING.sectionTitleGap }, goalCard: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: PADDING.recordInset, borderRadius: 20, overflow: 'hidden', borderWidth: 1 }, goalCardLifted: { zIndex: 2 },
+  goalsSection: { gap: PADDING.sectionTitleGap }, goalCard: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: PADDING.recordInset, borderRadius: 20, overflow: 'hidden', outlineWidth: 1, outlineOffset: -1, outlineStyle: 'solid' }, goalCardLifted: { zIndex: 2 },
   goalTitle: { fontFamily: 'Geist_500Medium', fontSize: 17, lineHeight: 24 }, goalMeta: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 },
   goalCopy: { flex: 1, minWidth: 0, gap: 4 }, goalSeparator: { height: 12 },
   emptyLine: { alignItems: 'flex-start', borderRadius: 12, gap: 8, padding: PADDING.recordInset },
