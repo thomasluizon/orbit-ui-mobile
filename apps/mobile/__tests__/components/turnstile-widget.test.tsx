@@ -372,11 +372,12 @@ it('shows the failure only at the shared load deadline and removes the WebView, 
   TestRenderer.act(() => renderer.root.findByProps({ label: 'auth.turnstileRetry' }).props.onClick())
   const fresh = bridges(renderer)[0]!
   expect(fresh).not.toBe(last)
-  TestRenderer.act(() => fresh.props.onHttpError(httpError(fresh.props.source.uri, 502, 'Bad Gateway')))
   TestRenderer.act(() => { vi.advanceTimersByTime(TURNSTILE_LOAD_DEADLINE_MS - 1) })
-  expect(shownSentences(renderer), 'Retry starts a new load deadline').toEqual(['auth.turnstileLoading'])
+  expect(shownSentences(renderer), 'a bridge that never answers after Retry keeps the loading state until the new deadline').toEqual(['auth.turnstileLoading'])
+  expect(bridges(renderer)).toEqual([fresh])
   TestRenderer.act(() => { vi.advanceTimersByTime(1) })
-  expect(shownSentences(renderer)).toEqual(['auth.turnstileFailed'])
+  expect(shownSentences(renderer), 'Retry starts a new load deadline').toEqual(['auth.turnstileFailed'])
+  expect(bridges(renderer)).toHaveLength(0)
 })
 
 it('fails at once on a status that does not pass, and removes the WebView', async () => {
