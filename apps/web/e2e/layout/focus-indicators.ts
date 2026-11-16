@@ -230,7 +230,6 @@ async function inspectControlRings(target: Locator, focusedControl: boolean) {
       }
       return true
     }
-    /** A selected control keeps its selection ring directly inside its focus ring (DESIGN.md, Keyboard and focus), so that ring is a selection cue and not a second focus indicator. */
     const selectedRingOwner = (element: Element) => element.matches(':is(.orbit-selection-ring[data-selected], .orbit-selection-ring[aria-checked="true"], .orbit-selection-ring[aria-pressed="true"], .orbit-selection-ring[aria-selected="true"], .chip-active)')
     return [control, ...control.querySelectorAll('*'), ...ancestors].flatMap((element) => {
       if (!visible(element)) return []

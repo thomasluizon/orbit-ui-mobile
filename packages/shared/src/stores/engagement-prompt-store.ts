@@ -18,7 +18,6 @@ type EngagementPromptStoreSet = {
 /** The engagement-prompt families that share one armed slot. */
 export type EngagementPromptKind = 'consent' | 'referral' | 'milestone-share' | 'review'
 
-/** Arbiter weights for the single armed slot: the one-time marketing-consent prompt outranks a review moment, which outranks a milestone-share prompt, which outranks a referral prompt. */
 const ENGAGEMENT_PROMPT_PRIORITY: Record<EngagementPromptKind, number> = {
   consent: 4,
   review: 3,

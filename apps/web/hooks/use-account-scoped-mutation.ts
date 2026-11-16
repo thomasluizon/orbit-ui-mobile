@@ -14,10 +14,6 @@ import { reportsAccountChanged } from '@/app/actions/action-result'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { getAccountGeneration } from '@/lib/session-epoch'
 
-/**
- * The variables the underlying mutation carries: what the caller passed, plus who was signed in
- * when they passed it. Nothing outside this module sees the wrapper.
- */
 interface AccountScopedVariables<TVariables> {
   input: TVariables
   intendedAccountId: string | null

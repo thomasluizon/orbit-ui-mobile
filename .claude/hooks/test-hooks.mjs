@@ -68,8 +68,9 @@ const onDisk = readdirSync(hooksDir).filter((name) => name.endsWith(".mjs") && n
 T("wiring: every hook settings.json names exists on disk", [...wired].filter((name) => !existsSync(join(hooksDir, name))), [])
 T("wiring: every hook on disk is wired in settings.json", onDisk.filter((name) => !wired.has(name)), [])
 T("wiring: the scan is not vacuous", wired.size > 0 && onDisk.length > 0, true)
-const staleMatchers = settings.hooks.PreToolUse.filter((entry) => entry.hooks.some((hook) => hook.command.includes("forbid-stale-text.mjs"))).map((entry) => entry.matcher)
-T("wiring: stale text hook is registered once per matcher", staleMatchers.length, new Set(staleMatchers).size)
+const staleMatchers = (event) => settings.hooks[event].filter((entry) => entry.hooks.some((hook) => hook.command.includes("forbid-stale-text.mjs"))).map((entry) => entry.matcher)
+T("wiring: stale text hook checks a Write before it lands", staleMatchers("PreToolUse"), ["Write"])
+T("wiring: stale text hook checks an Edit after it lands", staleMatchers("PostToolUse"), ["Edit|MultiEdit"])
 // The Monitor tool runs its `tool_input.command` through the same permission check as the Bash tool, so every
 // shell guard runs for both. Claude Code 2.1.325 also selects a `Bash` matcher for a Monitor call that has a command
 // and sends it `tool_name: "Bash"`. That rule is internal, so the matcher names `Monitor` and this check keeps it there.
@@ -1292,16 +1293,19 @@ for (const file of BASH_GUARDS) T(`adapter ${file}: a Monitor that opens a WebSo
 const STALE_TEXT = "forbid-stale-text.mjs"
 const plantedOwner = ["Tho", "mas"].join("")
 T("adapter timeless: a new owner attribution -> 2", runHook(STALE_TEXT, {
+  hook_event_name: "PreToolUse",
   tool_name: "Write",
   tool_input: { file_path: join(repoRoot, "timeless-hook-probe.md"), content: `Ask ${plantedOwner}.\n` },
   cwd: repoRoot,
 }), 2)
-T("adapter timeless: a clean edit -> 0", runHook(STALE_TEXT, {
+T("adapter timeless: an Edit before it lands -> 0", runHook(STALE_TEXT, {
+  hook_event_name: "PreToolUse",
   tool_name: "Edit",
-  tool_input: { file_path: join(repoRoot, "CLAUDE.md"), old_string: "clean", new_string: "still clean" },
+  tool_input: { file_path: join(repoRoot, "CLAUDE.md"), old_string: "# Orbit", new_string: plantedOwner },
   cwd: repoRoot,
 }), 0)
 T("adapter timeless: a scratchpad write -> 0", runHook(STALE_TEXT, {
+  hook_event_name: "PreToolUse",
   tool_name: "Write",
   tool_input: { file_path: join(root, "scratchpad.md"), content: `Ask ${plantedOwner}.\n` },
   cwd: repoRoot,
@@ -2843,9 +2847,23 @@ rmSync(handoffGitRepo, { recursive: true, force: true })
 const timelessHook = join(hooksDir, "forbid-stale-text.mjs")
 T("relative sibling roots resolve from the primary checkout", siblingRoots.includes(join(primaryCommonDirectory, "..", "..", "orbit-api")), true)
 const staleName = ["Tho", "mas"].join("")
-const hookPayload = { tool_name: "Edit", tool_input: { file_path: join(repoRoot, "CLAUDE.md"), old_string: "# Orbit", new_string: staleName } }
-T("timeless hook rejects a planted name", spawnSync(process.execPath, [timelessHook], { input: JSON.stringify(hookPayload), encoding: "utf8" }).status, 2)
-T("timeless hook passes after removal", spawnSync(process.execPath, [timelessHook], { input: JSON.stringify({ ...hookPayload, tool_input: { ...hookPayload.tool_input, new_string: "# Orbit" } }), encoding: "utf8" }).status, 0)
+const timelessRepo = join(root, "timeless-repository")
+mkdirSync(join(timelessRepo, "tools"), { recursive: true })
+cpSync(join(repoRoot, "tools/check-timeless.mjs"), join(timelessRepo, "tools/check-timeless.mjs"))
+writeFileSync(join(timelessRepo, "tools/timeless-allowlist.json"), "[]\n")
+const timelessFile = join(timelessRepo, "CLAUDE.md")
+writeFileSync(timelessFile, "# Orbit\n")
+const inTimelessRepo = (...args) => spawnSync("git", ["-C", timelessRepo, "-c", "user.name=Orbit Gate", "-c", "user.email=gate@orbit.test", ...args], { encoding: "utf8" })
+inTimelessRepo("init", "-q", "--initial-branch=main")
+inTimelessRepo("add", "CLAUDE.md", "tools/check-timeless.mjs", "tools/timeless-allowlist.json")
+T("timeless fixture: the base commit lands", inTimelessRepo("commit", "-qm", "base").status, 0)
+const landedEdit = (written, new_string) => {
+  writeFileSync(timelessFile, written)
+  const hookPayload = { hook_event_name: "PostToolUse", tool_name: "Edit", tool_input: { file_path: timelessFile, old_string: "# Orbit", new_string }, tool_response: {} }
+  return spawnSync(process.execPath, [timelessHook], { input: JSON.stringify(hookPayload), encoding: "utf8" }).status
+}
+T("timeless hook rejects a planted name in a landed Edit", landedEdit(`${staleName}\n`, staleName), 2)
+T("timeless hook passes after removal", landedEdit("# Orbit\n", "# Orbit"), 0)
 
 console.log("\n# second-opinion verdict parsing")
 const claudeFixtureDirectory = join(root, "second-opinion-bin")

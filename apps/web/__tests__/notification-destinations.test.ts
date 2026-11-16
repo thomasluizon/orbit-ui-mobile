@@ -3,7 +3,6 @@ import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { getNotificationDestination } from '@orbit/shared/utils'
 
-/** Values from orbit-api/src/Orbit.Application/Notifications/NotificationUrls.cs. */
 const notificationUrls = [
   '/',
   '/progress',

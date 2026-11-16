@@ -20,7 +20,6 @@ function loopOf(container: HTMLElement, index = 0) {
   return container.querySelectorAll('svg')[index]?.getAttribute('data-orbit-loop')
 }
 
-/** Each mascot's loop state, keyed by its face. */
 function loopsByState(container: HTMLElement) {
   return Object.fromEntries([...container.querySelectorAll('svg[data-orbit-state]')].map((svg) => [svg.getAttribute('data-orbit-state'), svg.getAttribute('data-orbit-loop')]))
 }
@@ -30,7 +29,6 @@ function moonOf(container: HTMLElement) {
   return `${moon?.getAttribute('cx')},${moon?.getAttribute('cy')}`
 }
 
-/** The vertical scale of the eyes: 1 is open, and the blink closes them toward 0.1. */
 function eyeScaleOf(container: HTMLElement) {
   const transform = container.querySelector('[data-part="eye"]')?.getAttribute('transform') ?? ''
   return Number(/^matrix\(1 0 0 ([\d.]+) /.exec(transform)?.[1])

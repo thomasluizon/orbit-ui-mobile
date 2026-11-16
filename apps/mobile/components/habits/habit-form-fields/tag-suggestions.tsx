@@ -20,7 +20,6 @@ interface TagSuggestionsProps {
   disabled: boolean
 }
 
-/** An accepted suggestion waits on its request with a skeleton line in the status slot, named for a screen reader. */
 function TagStatus({ statusKey, accepting, styles }: Readonly<{ statusKey: string | null; accepting: boolean; styles: ReturnType<typeof createStyles> }>) {
   const { t } = useTranslation()
   if (statusKey && accepting) return <View testID="tag-status-skeleton" accessibilityLiveRegion="polite" style={styles.statusSkeleton}><Skeleton variant="fill" label={t(statusKey)} /></View>

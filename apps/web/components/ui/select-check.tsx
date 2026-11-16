@@ -124,7 +124,6 @@ export function RadioRow({ label, selection, hideMeta, wrapLabel, textMode, desc
     style={style}
   >{textMode === 'personal' ? null : content}</button></RadioItem>
 
-  /** The personal text sits beside its radio, so the radio presses its own box over its hit layer and the text presses beside it as a `peer`, as the list row's personal text does. */
   if (!disabled && textMode === 'personal') return <div className="relative min-w-0 has-[>button:enabled]:hover:[--radio-row-secondary:var(--fg-2)] has-[>button:enabled]:hover:[--radio-row-track:var(--fg-3)] has-[>button:enabled:active]:[--radio-row-secondary:var(--fg-2)] has-[>button:enabled:active]:[--radio-row-track:var(--fg-3)]">
     {control}
     <div ref={contentRef} className={`pointer-events-none relative flex w-full min-w-0 items-center transition-[scale] duration-[var(--dur-press)] ease-[var(--ease-out)] ${busy ? '' : 'motion-safe:peer-enabled:peer-active:scale-[0.96]'}`} style={{ ...style, background: undefined, boxShadow: undefined }}>{content}</div>

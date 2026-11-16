@@ -303,7 +303,6 @@ function assertSubscriptionDates(text: string | null, locale: 'en' | 'pt-BR', st
 }
 
 
-/** The back label the upgrade screen shows for a source route; `destination` is null for an Orbit route, which has its own label. */
 function expectedBackLabel(messages: typeof en, source: string | null, from: string | undefined, destination: string | null): string {
   if (source === 'profile' || (!source && !from)) return messages.common.backToProfile
   if (source === 'index') return messages.common.backToToday

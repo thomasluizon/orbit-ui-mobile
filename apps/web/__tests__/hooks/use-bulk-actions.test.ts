@@ -107,11 +107,6 @@ function bulkSuccess(ids: string[]) {
   return { results: ids.map((habitId) => ({ habitId, status: 'Success' as const })) }
 }
 
-/**
- * Ticket #42 is the product authority: a confirmation belongs to an
- * irreversible act only. Bulk log and bulk skip act at once, and only bulk
- * delete asks. These assertions state that requirement rather than inherit it.
- */
 describe('useBulkActions reversibility boundary', () => {
   it.each([false, true])('excludes General habits from bulk Skip, mixed=%s', async (mixed) => {
     const general = createMockHabit({ id: 'general', isGeneral: true, frequencyUnit: null })

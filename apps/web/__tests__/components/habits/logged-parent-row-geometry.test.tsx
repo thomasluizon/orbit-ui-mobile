@@ -52,7 +52,6 @@ describe('logged parent row metadata in Chromium', () => {
           const context = JSON.stringify({ width, locale, depth, open, logged })
           expect(logged.tokens.at(-1)?.text, context).toBe(label)
           expect(logged.tokens.filter((token) => token.clipped), context).toEqual([])
-          /** A nested parent at 320 px is already on the supporting line, which holds two tokens; the whole label then starts the next line. */
           const footerFull = width === 320 && depth === 1
           expect({ lines: logged.lines, supporting: logged.supporting || !open.supporting }, context)
             .toEqual({ lines: footerFull ? 2 : 1, supporting: true })

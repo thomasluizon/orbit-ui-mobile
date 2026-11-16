@@ -6,8 +6,6 @@ export interface ShellWideItem {
   icon?: string
 }
 
-/** The conversation slot and its accessible name travel together, exactly as on Shell412: one
- *  full-screen feature on both platforms, so the two platforms state the rule once. */
 type ConversationSlot =
   | {
       conversation?: undefined
@@ -15,16 +13,11 @@ type ConversationSlot =
       conversationLabel?: never
     }
   | {
-      /** The full-screen column's content. Takes authored markup as readily as a pre-built node. */
       conversation: React.ReactNode
-      /** Omit it and presence means open. Pass it to hold markup permanently and toggle openness. */
       conversationOpen?: boolean
-      /** The conversation's accessible name, in the screen's locale. The shell ships no words. */
       conversationLabel: string
     }
 
-/** The one filled create action and its word. No default exists in either language, so a create
- *  button with no word cannot be rendered. */
 type CreateControl =
   | {
       onCreate?: undefined
@@ -35,8 +28,6 @@ type CreateControl =
       createLabel: string
     }
 
-/** The command-palette entry and its visible word. `paletteHint` is a keycap rather than a word, so
- *  it may default, but it means nothing without the entry it annotates. */
 type PaletteControl =
   | {
       onPalette?: undefined
@@ -51,10 +42,7 @@ type PaletteControl =
 
 interface ShellWideBase {
   children?: React.ReactNode
-  /** PINNED above the main scroller, spanning the pane beside the sidebar. Same slot and same
-   *  component as Shell412's header, so a detail screen behaves identically at both widths. */
   header?: React.ReactNode
-  /** TRANSIENT PINNED CHROME, directly ABOVE the pinned bottom slot and never in its place. */
   notice?: React.ReactNode
 }
 

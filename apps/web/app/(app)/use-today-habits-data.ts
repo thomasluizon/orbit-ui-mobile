@@ -82,11 +82,6 @@ export function useTodayHabitsData({
   const queryOptions = habitViewQueryOptions(activeView, today)
   const queryKey = habitKeys.list(habitListQueryFilters(filters, queryOptions.completeDay, queryOptions.scheduleDate))
   const queryClient = useQueryClient()
-  /**
-   * `initialHabits` is an RSC prop, fetched under whichever account was signed in when the
-   * server rendered this page. That serves the previous account's habit titles to the next
-   * one, so the payload stops counting the moment the account does.
-   */
   const accountGeneration = useAccountGeneration()
   const [renderedAccountGeneration] = useState(accountGeneration)
   const accountHeldInitialHabits =

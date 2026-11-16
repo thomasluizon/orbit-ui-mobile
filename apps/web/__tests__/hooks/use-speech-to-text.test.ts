@@ -54,7 +54,6 @@ function makeStream(): MediaStream {
   return { getTracks: () => [track] } as unknown as MediaStream
 }
 
-/** The microphone this recording opened, which an account change has to close. */
 function openMicrophone(): { stop: ReturnType<typeof vi.fn> } {
   return microphoneTracks.at(-1)!
 }

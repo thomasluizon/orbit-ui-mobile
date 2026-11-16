@@ -24,7 +24,6 @@ export function findFocusRoot(tree: any): FocusRootHost {
   return tree.root.find((node: any) => typeof node.props.onFocusCapture === 'function')
 }
 
-/** Android reports the native view, so a caller holding the composite element resolves to the host it renders. */
 function nativeTagOf(target: FocusableHost): number {
   if (typeof target.props.__nativeTag === 'number') return target.props.__nativeTag
   const [host] = target.findAll?.((node) => typeof node.props?.__nativeTag === 'number') ?? []

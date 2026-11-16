@@ -9,7 +9,7 @@ import vector from '../__fixtures__/signer-vector.json'
 import { collectDmg, downloadName, prepareDownloads, verifyDownloads } from '../scripts/downloads.ts'
 import { artifactName, collectArtifact, targets } from '../scripts/release.ts'
 
-/** WHY: The slowest case measured 5558 ms on a slow Windows runner and 302 ms on a healthy one, so 30 s is about five times the slowest measurement. */
+// WHY: the slowest case took 5558 ms on a slow Windows runner, so 30 s is about five times that measurement: https://github.com/thomasluizon/orbit-ui-mobile/pull/2405
 vi.setConfig({ testTimeout: 30_000 })
 
 const directories: string[] = []

@@ -24,7 +24,6 @@ function nativeSheets() {
   return tree.root.findAll(node => node.type === TrueSheet) as (ReactTestInstance & { instance: TrueSheet })[]
 }
 
-/** Holds the native dismissal open, the way UIKit animates a sheet out before it reports the dismissal. */
 function holdDismissal(sheet: TrueSheet) {
   let finish!: () => void
   const dismiss = vi.fn(() => new Promise<void>((resolve) => {

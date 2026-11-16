@@ -37,7 +37,6 @@ function ringCount(host: { props: { style: unknown }; findAllByType: (type: stri
   }, 0)
 }
 
-/** Focus adds one ring. A selected control keeps its selection ring under focus, directly inside the focus ring. */
 function expectFocused(control: Parameters<typeof ringCount>[0], selected: boolean) {
   expect(ringCount(control)).toBe(selected ? 2 : 1)
   if (!selected) return

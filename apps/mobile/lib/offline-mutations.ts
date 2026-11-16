@@ -247,7 +247,7 @@ export async function executeSkipUndo(mutation: Pick<PersistedQueuedMutation, 'e
   try {
     await apiClient<void>(mutation.endpoint, { method: 'POST', idempotencyKey: mutation.id })
   } catch (error) {
-    /** A cancelled skip may never have reached the API, so an absent receipt means there is nothing left to undo (#1053). */
+    // WHY: a cancelled skip may never reach the API, so SKIP_NOT_FOUND means that nothing is left to undo: https://github.com/thomasluizon/orbit-tickets/issues/1053
     if (extractBackendErrorCode(error) !== 'SKIP_NOT_FOUND') throw error
   }
 }

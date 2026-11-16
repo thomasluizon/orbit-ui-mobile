@@ -1,8 +1,3 @@
-/**
- * The Expo runtime installs a global `expo` object through JSI before any JavaScript runs on
- * a device, then registers each native module on `expo.modules`. Node gives Vitest no such
- * runtime.
- */
 import { installExpoGlobalPolyfill } from 'expo-modules-core/src/polyfill/dangerous-internal'
 
 installExpoGlobalPolyfill()
@@ -18,11 +13,6 @@ function writeSecureStoreValue(value: string, key: string): boolean {
   return true
 }
 
-/**
- * The keys, argument order and accessibility values mirror the real module definition in
- * node_modules/expo-secure-store/ios/SecureStoreModule.swift and the raw values it reads from
- * node_modules/expo-secure-store/ios/SecureStoreAccessible.swift.
- */
 globalThis.expo.modules.ExpoSecureStore = {
   AFTER_FIRST_UNLOCK: 0,
   AFTER_FIRST_UNLOCK_THIS_DEVICE_ONLY: 1,
@@ -43,11 +33,6 @@ globalThis.expo.modules.ExpoSecureStore = {
   canUseBiometricAuthentication: () => false,
 }
 
-/**
- * Every field matches the shape Expo itself ships for a runtime with no native application record,
- * node_modules/expo-application/src/ExpoApplication.web.ts, plus the extra keys
- * node_modules/expo-application/src/Application.ts reads off the module.
- */
 globalThis.expo.modules.ExpoApplication = {
   applicationName: null,
   applicationId: null,

@@ -5,10 +5,6 @@ import * as Primitive from '@radix-ui/react-checkbox'
 import { Check } from '@/components/ui/icons'
 import { SkeletonFace } from '@/components/ui/skeleton'
 
-/**
- * The 24px box. Its fill settles on the selection preset (`.orbit-checkbox-box`). While its request runs, its face is
- * the skeleton and the check reads `--fg-1` on it, so the state stays visible.
- */
 function CheckboxBox({ checked, error, loading }: Readonly<Pick<CheckboxProps, 'checked'> & { error: boolean; loading: boolean }>) {
   const filled = checked && !loading
   return (

@@ -17,16 +17,10 @@ function sourceFiles(directory: string): string[] {
 const sources = ['app', 'components'].flatMap((directory) => sourceFiles(join(root, directory)))
   .map((path) => ({ path: relative(root, path), lines: readFileSync(path, 'utf8').split('\n') }))
 
-/**
- * Tailwind `active:scale-[0.96]` sets the CSS `scale` property, so only a transition on `scale` (or on `transition-transform`, which lists it) eases the press.
- * A `group-active` scale presses a surface inside a press target that keeps its full size, and `group-enabled` holds it still while that target is disabled.
- */
 const PRESS_SCALE_CLASS = /(?:^|[\s"'`])(?:motion-safe:)?(?:(?:group-)?enabled(?:\/[\w-]+)?:)?(?:group-)?active(?:\/[\w-]+)?:scale-\[(?:0\.96|0\.99)\]/
 
-/** Classes whose CSS rule owns the press transition. The rules are checked in the stylesheet test below. */
 const PRESS_TRANSITION_CLASSES = ['habit-control-motion', 'orbit-pill-action', 'orbit-list-row-body', 'orbit-list-row-action', 'icon-btn']
 
-/** Files that hold class fragments only. The element class carrying the transition sits on another line of the same file. */
 const FRAGMENT_FILES = ['components/ui/pill-action-style.ts']
 
 function listOf(text: string | undefined): string[] | undefined {
@@ -39,10 +33,6 @@ function firstMatch(text: string, pattern: RegExp): string | undefined {
   return pattern.exec(text)?.[1]
 }
 
-/**
- * Reads the three paired lists of the Tailwind transition class that names `scale`, as the duration and the easing
- * at the index of `scale`. A list shorter than the property list repeats, as CSS does.
- */
 function pressTransitionOf(classes: string): { duration: string; easing: string } | 'none' {
   const named = [
     ...[...classes.matchAll(new RegExp(`${BOUNDARY}transition-transform(?=[\\s"'\`]|$)`, 'g'))].map((match) => ({ index: match.index, scaleIndex: 0, listed: false })),
@@ -57,7 +47,6 @@ function pressTransitionOf(classes: string): { duration: string; easing: string 
   return { duration: durations?.[at % durations.length] ?? 'unset', easing: easings?.[at % easings.length] ?? 'unset' }
 }
 
-/** The class text of one element: from the nearest `className` line above the press class to the next `className` line below it. */
 function elementClasses(lines: string[], index: number): string {
   let start = index
   for (let step = 0; step < 8 && start > 0 && !/className|Class(?:es)?\b/.test(lines[start]!); step++) start--
@@ -66,21 +55,18 @@ function elementClasses(lines: string[], index: number): string {
   return lines.slice(start, end + 1).join(' ')
 }
 
-/** The source of one element's opening tag: from the nearest line above the press class that opens a JSX element to the press class. */
 function openingTag(lines: string[], index: number): string {
   let start = index
   for (let step = 0; step < 16 && start > 0 && !/<[A-Za-z][\w.]*(?:\s|$)/.test(lines[start]!); step++) start--
   return lines.slice(start, index + 1).join(' ')
 }
 
-/** An inline `style.transition` beats every `transition-*` utility, so the class text of that element never applies. */
 const INLINE_TRANSITION = /\btransition:\s*['"`]/
 
 const pressScaleElements = sources.flatMap(({ path, lines }) => lines.flatMap((line, index) => PRESS_SCALE_CLASS.test(line)
   ? [{ path, line: index + 1, classes: FRAGMENT_FILES.includes(path) ? lines.join(' ') : elementClasses(lines, index), tag: openingTag(lines, index) }]
   : []))
 
-/** The top-level parts of one class token: its variants, then its utility. A colon inside brackets or parentheses stays in its part. */
 function classParts(token: string): string[] {
   const parts: string[] = []
   let depth = 0
@@ -97,17 +83,9 @@ function classParts(token: string): string[] {
   return [...parts, token.slice(start)]
 }
 
-/** A utility that scales: `scale-*`, `scale-x-*`, `scale-y-*`, or an arbitrary `scale` or `transform: scale()` property. */
 const SCALE_UTILITY = /^!?-?scale-(?:[xy]-)?[^\s]|^!?\[scale:|^!?\[transform:[^\]]*scale/
-/** A variant that holds while something is pressed: `active`, `group-active/name`, `has-[>button:active]`, `[&:active]`. Not `data-[state=active]`. */
 const PRESS_VARIANT = /(?:^|[-:(\[_])active(?:$|[/\]):_])/
 
-/**
- * Where a press scale lands. `target`: the pressed element scales its own box. `holder`: a box scales while a descendant
- * it holds is pressed (`has-[…:active]`), so that descendant, the press target, shrinks with it. `face`: a descendant
- * (`[&_svg]`, `*`) or an element inside or beside the pressed target (`group-active`, `peer-active`, `in-active`) scales,
- * and the target keeps its box.
- */
 type PressScaleForm = 'target' | 'holder' | 'face'
 
 function pressScaleForm(variants: readonly string[]): PressScaleForm | undefined {
@@ -117,7 +95,6 @@ function pressScaleForm(variants: readonly string[]): PressScaleForm | undefined
   return 'target'
 }
 
-/** Every class token in one line of source that scales on a press, with the form of that press. */
 function pressScaleTokens(line: string): { token: string; form: PressScaleForm }[] {
   return (line.match(/[^\s"'`{}$]+/g) ?? []).flatMap((token) => {
     const parts = classParts(token)
@@ -131,14 +108,12 @@ const pressScaleTokenSites = sources.flatMap(({ path, lines }) => lines.flatMap(
   ...found, path, line: index + 1, classes: FRAGMENT_FILES.includes(path) ? lines.join(' ') : elementClasses(lines, index),
 }))))
 
-/** A clip on the press target voids its hit layer: the target's scaled clip box cuts the unscaled layer back to 0.96. */
 const CLIP_CLASS = /(?:^|[\s"'`])overflow-(?:hidden|clip)(?:[\s"'`]|$)/
 
 function classPattern(names: readonly string[]): RegExp {
   return new RegExp(`(?:^|[\\s"'\`])(?:${names.join('|')})(?:[\\s"'\`]|$)`)
 }
 
-/** The rules of the stylesheet that scale an element while something is pressed. */
 function pressedScaleRules(): Rule[] {
   const pressed: Rule[] = []
   stylesheet.walkRules((rule) => {
@@ -154,10 +129,6 @@ function reducedMotionGated(rule: Rule): boolean {
   return gate?.name === 'media' && /prefers-reduced-motion:\s*no-preference/.test(gate.params)
 }
 
-/**
- * The classes that carry the unscaled hit layer: a `::before` over the whole box that takes the inverse of the 0.96
- * press while its host is pressed, so the pressed host's hit area stays the size of its laid-out box.
- */
 function hitLayerHosts(): string[] {
   const covers = new Set<string>()
   const counterScales = new Set<string>()
@@ -172,7 +143,6 @@ function hitLayerHosts(): string[] {
   return [...covers].filter((host) => counterScales.has(host))
 }
 
-/** The compound a selector styles: the text after its last combinator outside brackets and parentheses. */
 function subjectOf(selector: string): string {
   let depth = 0
   let start = 0
@@ -185,14 +155,12 @@ function subjectOf(selector: string): string {
   return selector.slice(start)
 }
 
-/** A compound without its functional pseudo-class arguments, so `:not(:has(:active))` leaves no `:active` behind. */
 function outerCompound(compound: string): string {
   let outer = compound
   while (/\([^()]*\)/.test(outer)) outer = outer.replace(/\([^()]*\)/g, '')
   return outer
 }
 
-/** The form of a pressed scale rule's selector, read the way `pressScaleForm` reads a class token. */
 function pressSelectorForm(selector: string): PressScaleForm {
   const subject = subjectOf(selector)
   const outer = outerCompound(subject)
@@ -201,12 +169,10 @@ function pressSelectorForm(selector: string): PressScaleForm {
   return /:has\(/.test(subject) && subject.includes(':active') ? 'holder' : 'face'
 }
 
-/** The class names of a selector's subject, outside its functional pseudo-classes. */
 function subjectClasses(selector: string): string[] {
   return [...outerCompound(subjectOf(selector)).matchAll(/\.([\w-]+)/g)].map(([, name]) => name!)
 }
 
-/** Every stylesheet selector that scales its own pressed box. */
 function pressedTargetSelectors(): string[] {
   return pressedScaleRules().flatMap((rule) => rule.selectors).filter((selector) => pressSelectorForm(selector) === 'target')
 }
@@ -268,7 +234,6 @@ describe('web press scale transitions', () => {
     expect({ clipped, clippedRules }).toEqual({ clipped: [], clippedRules: [] })
   })
 
-  /** `DESIGN.md` Motion has reduced motion remove the scale, so every press scale class, in every form, starts with `motion-safe:`. */
   it('gates every press scale class on motion-safe, so reduced motion keeps the control still', () => {
     const ungated = pressScaleTokenSites.filter(({ token }) => !token.startsWith('motion-safe:')).map(({ path, line, token }) => `${path}:${line} ${token}`)
     expect(ungated).toEqual([])

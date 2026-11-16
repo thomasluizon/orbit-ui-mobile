@@ -1,7 +1,3 @@
-/** Canonical pill-button taxonomy shared by the web (Tailwind) and mobile
- *  (StyleSheet) mirrors. Colors resolve per-scheme at each primitive; only the
- *  scheme-independent geometry lives here so the two mirrors cannot drift.
- *  See DESIGN.md "Buttons" for the rule. */
 import { SMALL_PILL_VISIBLE_MIN } from './breakpoints'
 import { SPACING } from './spacing'
 

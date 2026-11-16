@@ -152,12 +152,6 @@ export function getHabitLogDateConfirmationKeys(intent?: 'log' | 'unlog', perman
     : { message: 'habits.detail.logDateConfirmMessage', action: 'habits.detail.logDateConfirmLog' } as const
 }
 
-/**
- * The words for how far away a future due date is: the next day, relative when due within a week (`in 6d`),
- * otherwise the absolute scheduled date (`scheduled 13 Jun`). The next day reads `due tomorrow`, true
- * for a row that has not happened yet; `loggedParent` gives a parent that comes back its own words.
- * Returns null when the habit's `dueDate` is today or in the past.
- */
 function formatNextDueDistance(
   habit: Pick<NormalizedHabit, 'dueDate'>,
   today: string,
@@ -175,7 +169,6 @@ function formatNextDueDistance(
   })
 }
 
-/** The row inputs that web and mobile both have: the selected and current dates, and the sub-habits the view renders. */
 interface HabitRowDueContext {
   selectedDate: string
   today: string
