@@ -1335,7 +1335,7 @@
       "targets": [
         "mobile:display:common.never"
       ],
-      "reason": "ApiKeyDetails in apps/mobile/components/profile/profile-api-keys.tsx renders common.never when an existing key has no expiry, independently of the creation input placeholder."
+      "reason": "ApiKeyDetails in apps/mobile/components/profile/api-key-list.tsx renders common.never when an existing key has no expiry, independently of the creation input placeholder."
     },
     "mobile:display:common.no": {
       "targets": [
