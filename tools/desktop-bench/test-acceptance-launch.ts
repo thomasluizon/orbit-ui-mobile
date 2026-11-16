@@ -226,10 +226,6 @@ function assertToken(value: Record<string, unknown> | undefined) {
   assert.ok(['absent', 'denyOnly', 'disabled', 'enabled'].includes(String(value?.administrators)), `administrators ${value?.administrators}`)
 }
 
-function launcherRunning(pid: number) {
-  try { process.kill(pid, 0); return true } catch (error) { if ((error as NodeJS.ErrnoException).code === 'ESRCH') return false; throw error }
-}
-
 // The producer check runs in the same elevated job as the installed acceptance, so this launches a real Medium process there.
 // An elevated token lowered only to Medium keeps the Administrators group enabled, and WebView2 fails under it with 0x80010108.
 // TokenIsElevated cannot tell the two apart, because it stays true for the Safer token, so only the group state is asserted.
@@ -242,10 +238,23 @@ function startHostname(script: string, directory: string) {
   return { status, harness: JSON.parse(started.stdout) as { harness: Record<string, unknown>; launcher: number; outputLabel: string } }
 }
 
-async function awaitLauncherExit(launcher: number) {
-  // The exit line is the launcher's last statement, but PowerShell still holds the directory and its library until it ends.
-  for (let attempt = 0; attempt < 120 && launcherRunning(launcher); attempt++) await new Promise((resolve) => setTimeout(resolve, 250))
-  assert.equal(launcherRunning(launcher), false, `launcher ${launcher} still runs 30 s after its exit line`)
+// The exit line is the launcher's last statement, but the launcher still maps its OrbitIntegrity library until it ends.
+// process.kill(pid, 0) answers ESRCH as soon as GetExitCodeProcess gives an exit code (libuv src/win/process.c uv__kill),
+// which is before the process object is signaled. Thus this waits on the process handle, as Microsoft directs:
+// https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-terminateprocess
+// Every branch exits explicitly: a suppressed Get-Process error leaves $? false, and -Command then exits 1
+// https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_powershell_exe?view=powershell-5.1
+function waitForProcessEnd(pid: number) {
+  const ended = spawnSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command',
+    `$process = Get-Process -Id ${pid} -ErrorAction SilentlyContinue; if (-not $process) { exit 0 }; if ($process.WaitForExit(30000)) { exit 0 }; exit 1`],
+  { encoding: 'utf8', timeout: 60000 })
+  return ended.status === 0
+}
+
+function removeLibraryOutput(directory: string, launcher?: number) {
+  if (launcher !== undefined) waitForProcessEnd(launcher)
+  // WHY: DeleteFile fails while a file is still mapped, and Windows can unmap an ended process's library after its handle is signaled https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-deletefilew
+  rmSync(directory, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 })
 }
 
 // The elevated harness token holds the Administrators group enabled, so this check proves the reader can report "enabled" at
@@ -254,8 +263,10 @@ const assertAdministratorsEnabled = (value: Record<string, unknown>) => assert.e
 
 test('the Windows launcher start mode runs a real executable as an unelevated standard user at Medium integrity and records its exit', { skip: process.platform !== 'win32' }, async () => {
   const directory = mkdtempSync(join(tmpdir(), 'orbit-unelevated-'))
+  let launcher: number | undefined
   try {
     const { status, harness } = startHostname(launcherScript, directory)
+    launcher = harness.launcher
     assertToken(harness.harness)
     assertAdministratorsEnabled(harness.harness)
     assert.ok(Number.isInteger(harness.launcher) && harness.launcher > 0)
@@ -274,14 +285,15 @@ test('the Windows launcher start mode runs a real executable as an unelevated st
     assert.ok(Number.isInteger(parsed.pid) && parsed.pid! > 0)
     assert.deepEqual(parsed.exit, { kind: 'exit', code: 0 })
     assert.ok(readFileSync(join(directory, 'hostname.stdout.log'), 'utf8').trim().length > 0)
-    await awaitLauncherExit(harness.launcher)
+    assert.equal(waitForProcessEnd(harness.launcher), true, `launcher ${harness.launcher} still runs 30 s after its exit line`)
   } finally {
-    rmSync(directory, { recursive: true, force: true })
+    removeLibraryOutput(directory, launcher)
   }
 })
 
-test('the Administrators check fails for a token reader that never matches S-1-5-32-544', { skip: process.platform !== 'win32' }, async () => {
+test('the Administrators check fails for a token reader that never matches S-1-5-32-544', { skip: process.platform !== 'win32' }, () => {
   const directory = mkdtempSync(join(tmpdir(), 'orbit-unelevated-'))
+  let launcher: number | undefined
   try {
     const source = readFileSync(launcherTypes, 'utf8')
     const group = 'AdministratorsSid = "S-1-5-32-544"'
@@ -290,12 +302,13 @@ test('the Administrators check fails for a token reader that never matches S-1-5
     copyFileSync(launcherScript, mutated)
     writeFileSync(join(directory, 'windows-unelevated.cs'), source.replace(group, 'AdministratorsSid = "S-1-5-32-0"'))
     const { harness } = startHostname(mutated, directory)
+    launcher = harness.launcher
     assertToken(harness.harness)
     assert.equal(harness.harness.administrators, 'absent')
     assert.throws(() => assertAdministratorsEnabled(harness.harness), /Expected values to be strictly equal/)
-    await awaitLauncherExit(harness.launcher)
+    assert.equal(waitForProcessEnd(harness.launcher), true, `launcher ${harness.launcher} still runs 30 s after its exit line`)
   } finally {
-    rmSync(directory, { recursive: true, force: true })
+    removeLibraryOutput(directory, launcher)
   }
 })
 
@@ -366,7 +379,7 @@ test('the Windows notify mode records a COM failure with its HRESULT for an acti
     assert.equal(parsed.error, `CoCreateInstance(${clsid}, CLSCTX_LOCAL_SERVER) failed with 0x80040154`)
     assert.equal(parsed.hresult, undefined)
   } finally {
-    rmSync(directory, { recursive: true, force: true })
+    removeLibraryOutput(directory)
   }
 })
 

@@ -4,16 +4,24 @@ import { IconButton } from '@/components/ui/icon-button'
 import { RefreshCw } from '@/components/ui/icons'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
-import { TURNSTILE_LOAD_DEADLINE_MS, TURNSTILE_RETRY_INTERVAL_MS } from '@orbit/shared/hooks/turnstile-token-core'
+import { captureMessage } from '@sentry/nextjs'
+import {
+  createTurnstileLoadFailureReporter, TURNSTILE_CHALLENGE_HEIGHT, TURNSTILE_CHALLENGE_HOST, TURNSTILE_LOAD_DEADLINE_MS, TURNSTILE_RETRY_INTERVAL_MS,
+  type TurnstileBridgeStage,
+} from '@orbit/shared/hooks/turnstile-token-core'
 import { useCurrentTheme } from '@/stores/theme-store'
 
 type WidgetState = 'idle' | 'loading' | 'interactive' | 'solved' | 'failed' | 'expired'
+
+type ChallengeFailure = Readonly<{ kind: 'script' | 'script_deadline' | 'challenge' | 'run_deadline'; code?: string }>
 
 type ChallengeProps = Readonly<{
   siteKey: string
   resetKey: number
   onToken: (token: string | null) => void
   onStateChange?: (state: WidgetState) => void
+  onFailure?: (failure: ChallengeFailure) => void
+  onScriptStage?: (stage: TurnstileBridgeStage) => void
 }>
 
 interface TurnstileApi {
@@ -94,14 +102,19 @@ function useChallengeVisibility() {
   return { containerRef, challengeVisible }
 }
 
-function useTurnstileScript({ onLoadState }: Readonly<{ onLoadState: (state: 'loading' | 'failed') => void }>) {
+function useTurnstileScript({ onLoadState, onScriptStage }: Readonly<{
+  onLoadState: (state: 'loading' | 'failed') => void
+  onScriptStage: ChallengeProps['onScriptStage']
+}>) {
   const [loaded, setLoaded] = useState<Readonly<{ turnstile: TurnstileApi }> | null>(null)
   const [load, setLoad] = useState(0)
   const onLoadStateRef = useRef(onLoadState)
+  const onScriptStageRef = useRef(onScriptStage)
 
   useEffect(() => {
     onLoadStateRef.current = onLoadState
-  }, [onLoadState])
+    onScriptStageRef.current = onScriptStage
+  }, [onLoadState, onScriptStage])
 
   useEffect(() => {
     let active = true
@@ -117,6 +130,7 @@ function useTurnstileScript({ onLoadState }: Readonly<{ onLoadState: (state: 'lo
       void loadTurnstile().then((turnstile) => {
         if (!active) return
         window.clearTimeout(deadline)
+        onScriptStageRef.current?.('script_loaded')
         setLoaded({ turnstile })
       }, () => {
         if (!active) return
@@ -125,6 +139,7 @@ function useTurnstileScript({ onLoadState }: Readonly<{ onLoadState: (state: 'lo
       })
     }
 
+    onScriptStageRef.current?.('script_started')
     request()
     return () => {
       active = false
@@ -137,7 +152,31 @@ function useTurnstileScript({ onLoadState }: Readonly<{ onLoadState: (state: 'lo
   return { loaded, loadAgain }
 }
 
-function useTurnstileChallenge({ siteKey, resetKey, onToken, onStateChange, theme, language }: ChallengeProps & Readonly<{ theme: 'light' | 'dark'; language: string }>) {
+function useLoadFailureReport(resetKey: number, onFailure: ChallengeProps['onFailure']) {
+  const onFailureRef = useRef(onFailure)
+  const report = useRef<ReturnType<typeof createTurnstileLoadFailureReporter> | null>(null)
+  const startReport = useCallback(() => { report.current = createTurnstileLoadFailureReporter(captureMessage) }, [])
+  useEffect(() => { onFailureRef.current = onFailure }, [onFailure])
+  useEffect(startReport, [resetKey, startReport])
+
+  const recordFailure = useCallback((failure: ChallengeFailure) => {
+    if (onFailureRef.current) onFailureRef.current(failure)
+    else report.current?.({ ...failure, host: TURNSTILE_CHALLENGE_HOST })
+  }, [])
+  return { recordFailure, startReport }
+}
+
+function useChallengeDeadline({ running, resetKey, runSigns, onDeadline }: Readonly<{ running: boolean; resetKey: number; runSigns: number; onDeadline: () => void }>) {
+  const onDeadlineRef = useRef(onDeadline)
+  useEffect(() => { onDeadlineRef.current = onDeadline }, [onDeadline])
+  useEffect(() => {
+    if (!running) return
+    const deadline = window.setTimeout(() => onDeadlineRef.current(), TURNSTILE_LOAD_DEADLINE_MS)
+    return () => window.clearTimeout(deadline)
+  }, [running, resetKey, runSigns])
+}
+
+function useTurnstileChallenge({ siteKey, resetKey, onToken, onStateChange, onFailure, onScriptStage, theme, language, hasRunDeadline }: ChallengeProps & Readonly<{ theme: 'light' | 'dark'; language: string; hasRunDeadline: boolean }>) {
   const { containerRef, challengeVisible } = useChallengeVisibility()
   const widgetIdRef = useRef<unknown>(null)
   const automaticRetriesRef = useRef(0)
@@ -145,8 +184,12 @@ function useTurnstileChallenge({ siteKey, resetKey, onToken, onStateChange, them
   const callbacksRef = useRef({ onToken, onStateChange })
   const handledResetKey = useRef(resetKey)
   const [state, setState] = useState<WidgetState>('idle')
+  const [runSigns, setRunSigns] = useState(0)
+  const { recordFailure, startReport } = useLoadFailureReport(resetKey, onFailure)
   const { loaded, loadAgain } = useTurnstileScript({
+    onScriptStage,
     onLoadState: (next) => {
+      recordFailure({ kind: next === 'failed' ? 'script_deadline' : 'script' })
       setState(next)
       onStateChange?.(next)
       onToken(null)
@@ -165,12 +208,14 @@ function useTurnstileChallenge({ siteKey, resetKey, onToken, onStateChange, them
     function update(next: WidgetState, token: string | null = null) {
       if (!active) return
       window.clearTimeout(retryTimerRef.current)
+      if (next === 'loading') setRunSigns((value) => value + 1)
       setState(next)
       callbacksRef.current.onStateChange?.(next)
       callbacksRef.current.onToken(token)
     }
 
     function fail(code: string) {
+      recordFailure({ kind: 'challenge', code })
       if (automaticRetriesRef.current >= MAX_AUTOMATIC_RETRIES || !isRetriedFailure(code)) {
         update('failed')
         return true
@@ -209,7 +254,7 @@ function useTurnstileChallenge({ siteKey, resetKey, onToken, onStateChange, them
       if (widgetId != null) getTurnstile()?.remove(widgetId)
       widgetIdRef.current = null
     }
-  }, [containerRef, loaded, siteKey, theme, language])
+  }, [containerRef, loaded, siteKey, theme, language, recordFailure])
 
   const runAgain = useCallback(() => {
     window.clearTimeout(retryTimerRef.current)
@@ -218,6 +263,16 @@ function useTurnstileChallenge({ siteKey, resetKey, onToken, onStateChange, them
     if (widgetId != null) getTurnstile()?.reset(widgetId)
     else loadAgain()
   }, [loadAgain])
+
+  useChallengeDeadline({
+    running: hasRunDeadline && loaded !== null && state === 'loading', resetKey, runSigns,
+    onDeadline: () => {
+      recordFailure({ kind: 'run_deadline' })
+      setState('failed')
+      onStateChange?.('failed')
+      onToken(null)
+    },
+  })
 
   useEffect(() => {
     let active = true
@@ -230,6 +285,7 @@ function useTurnstileChallenge({ siteKey, resetKey, onToken, onStateChange, them
   }, [resetKey, runAgain])
 
   function retry() {
+    startReport()
     onToken(null)
     setState('loading')
     onStateChange?.('loading')
@@ -244,6 +300,8 @@ export function TurnstileWidget({
   resetKey,
   onToken,
   onStateChange,
+  onFailure,
+  onScriptStage,
   theme,
   language,
   quiet = false,
@@ -252,29 +310,33 @@ export function TurnstileWidget({
   const appLocale = useLocale()
   const currentTheme = useCurrentTheme()
   const { containerRef, challengeVisible, state, retry } = useTurnstileChallenge({
-    siteKey, resetKey, onToken, onStateChange, theme: theme ?? currentTheme,
+    siteKey, resetKey, onToken, onStateChange, onFailure, onScriptStage, theme: theme ?? currentTheme, hasRunDeadline: !quiet,
     // WHY: Cloudflare lists Orbit's pt-BR as pt-br https://developers.cloudflare.com/turnstile/reference/supported-languages/
     language: (language ?? appLocale).toLowerCase(),
   })
 
-  const statusVisible = !quiet && (state === 'loading' || state === 'failed' || state === 'expired')
-  const position = challengeVisible || statusVisible ? undefined : 'absolute'
   // WHY: Cloudflare documents no success state for interaction-only, so the form hides the passed widget itself https://developers.cloudflare.com/turnstile/get-started/client-side-rendering/widget-configurations/
-  const challengeStyle = state === 'solved' ? { display: 'none' } : undefined
-  if (quiet) return <div ref={containerRef} style={{ position, ...challengeStyle }} />
+  const passedStyle = { display: state === 'solved' ? 'none' : undefined }
+  if (quiet) return <div ref={containerRef} style={{ position: challengeVisible ? undefined : 'absolute', ...passedStyle }} />
 
+  const stopped = state === 'failed' || state === 'expired'
+  const challengeHidden = state !== 'interactive'
   return (
-    <div className="flex flex-col items-center text-center text-sm text-[var(--fg-2)]" style={{ gap: 8, position }}>
-      <div ref={containerRef} className="w-full" style={challengeStyle} />
-      <p role="status" className={state === 'loading' ? '' : 'sr-only'}>
-        {state === 'loading' ? t('auth.turnstileLoading') : ''}
-      </p>
-      <p role="alert" className={`text-[var(--status-bad-text)] ${state === 'failed' || state === 'expired' ? '' : 'sr-only'}`}>
-        {state === 'failed' || state === 'expired'
-          ? t(state === 'failed' ? 'auth.turnstileFailed' : 'auth.turnstileExpired') : ''}
-      </p>
-      {(state === 'failed' || state === 'expired') &&
-        <IconButton label={t('auth.turnstileRetry')} onClick={retry}><RefreshCw size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton>}
+    <div data-testid="turnstile-slot" className="flex flex-col justify-center text-sm text-[var(--fg-2)]" style={{ minHeight: TURNSTILE_CHALLENGE_HEIGHT }}>
+      <div data-testid="turnstile-challenge" inert={challengeHidden || undefined} aria-hidden={challengeHidden || undefined}
+        style={{ height: challengeHidden ? 0 : TURNSTILE_CHALLENGE_HEIGHT, overflowY: 'clip' }}>
+        <div ref={containerRef} className="w-full" style={passedStyle} />
+      </div>
+      <div className="flex items-center justify-center gap-2 text-center">
+        <p role="status" className={state === 'loading' ? '' : 'sr-only'}>
+          {state === 'loading' ? t('auth.turnstileLoading') : ''}
+        </p>
+        <p role="alert" className={`text-[var(--status-bad-text)] ${stopped ? '' : 'sr-only'}`}>
+          {stopped ? t(state === 'failed' ? 'auth.turnstileFailed' : 'auth.turnstileExpired') : ''}
+        </p>
+        {stopped &&
+          <IconButton label={t('auth.turnstileRetry')} onClick={retry}><RefreshCw size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton>}
+      </div>
     </div>
   )
 }
