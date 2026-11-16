@@ -490,12 +490,15 @@ describe('GoalDetailDrawer', () => {
     expect(headings[0]).toHaveTextContent('Read 12 books')
     expect(headings[0]).toHaveAttribute('tabindex', '-1')
   })
-  it('titles the goal sheet with the goal in the words of the person when the guided flows are on, and keeps the route name on the inline bar', () => {
+  it('titles the goal sheet with the goal in the words of the person when the guided flows are on, shows that title once, and keeps the route name on the inline bar', () => {
     guidedFlag.on = true
     try {
       const sheet = render(<GoalDetailDrawer open onOpenChange={vi.fn()} goalId="1" />)
       expect(screen.getByRole('dialog', { name: 'Read 12 books' })).toBeInTheDocument()
       expect(screen.queryByRole('dialog', { name: 'progressScreen.sections.goals' })).toBeNull()
+      const shownTitles = screen.getAllByText(personalText('Read 12 books')).filter((element) => !element.closest('.sr-only'))
+      expect(shownTitles, 'the body heading is the one goal title the person sees').toHaveLength(1)
+      expect(shownTitles[0]!.closest('h1')).not.toBeNull()
       sheet.unmount()
       detailAvailable = false
       render(<GoalDetailDrawer inline open onOpenChange={vi.fn()} goalId="missing" />)

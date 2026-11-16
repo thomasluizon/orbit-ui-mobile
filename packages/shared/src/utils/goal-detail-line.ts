@@ -30,7 +30,11 @@ export function getGoalDeadlineFact(
   return { kind: 'passed', date: goal.deadline.slice(0, 10) }
 }
 
-/** The title of the goal detail sheet. With the guided flows on, it names the goal in the person's words, so the bare route noun never stands alone as the title. */
-export function getGoalSheetTitle(goal: { title: string } | null, guided: boolean, routeName: string): string {
-  return guided && goal ? goal.title : routeName
+/**
+ * The titles of the goal detail sheet. With the guided flows on, the goal in the person's words names the sheet,
+ * so the bare route noun never stands alone as its name. The body already shows that title as its heading,
+ * so the header gives it as the accessible name only and does not show it a second time.
+ */
+export function getGoalSheetTitle(goal: { title: string } | null, guided: boolean, routeName: string): { title?: string; accessibleTitle?: string } {
+  return guided && goal ? { accessibleTitle: goal.title } : { title: routeName }
 }

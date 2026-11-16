@@ -245,12 +245,17 @@ describe('GoalDetailDrawer', () => {
     TestRenderer.act(() => tree.unmount())
   })
 
-  it('titles the goal sheet with the goal in the words of the person when the guided flows are on', () => {
+  it('titles the goal sheet with the goal in the words of the person when the guided flows are on, and shows that title once', () => {
     guidedFlag.on = true
     try {
       let tree: any
       TestRenderer.act(() => { tree = TestRenderer.create(<GoalDetailDrawer open={true} onClose={vi.fn()} goalId="1" />) })
-      expect(tree.root.findByType('Sheet').props.title).toBe('Read 12 books')
+      const sheet = tree.root.findByType('Sheet')
+      expect(sheet.props.accessibleTitle).toBe('Read 12 books')
+      expect(sheet.props.title).toBeUndefined()
+      const shownTitles = tree.root.findAll((node: any) => typeof node.type === 'string' && node.children.includes('Read 12 books') && node.props.importantForAccessibility !== 'no-hide-descendants')
+      expect(shownTitles, 'the body header is the one goal title the person sees').toHaveLength(1)
+      expect(shownTitles[0].props.accessibilityRole).toBe('header')
       TestRenderer.act(() => tree.unmount())
     } finally {
       guidedFlag.on = false
