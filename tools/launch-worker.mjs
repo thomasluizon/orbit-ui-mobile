@@ -12,7 +12,7 @@ import { ADMISSION_REFUSED_EXIT, checkAdmission, releaseAdmission } from "./lib/
 import { resolveTicket } from "./lib/github-issues.mjs"
 import { logFinalResult, NO_STOP } from "./lib/claude-usage-limit.mjs"
 import { readOrchestratorConfig, resolveWorkerInvocation, workerAccountEnvironment, workerAccounts } from "./lib/orchestrator-config.mjs"
-import { comparableGitIdentity, gitRepositoryIdentity, resolveOnPath } from "./lib/cloud-worker.mjs"
+import { checkoutIdentity, resolveOnPath } from "./lib/cloud-worker.mjs"
 import { clearWakeSource, clearWorkerLaunchReservation, recordReservedWorkerPid, registerWakeSource, reserveWorkerLaunch, readRunState, workerLaunchDirectory } from "./lib/run-state.mjs"
 
 const USAGE = `usage: launch-worker.mjs --issue <ORB-N|#N|N> --worktree <path> --prompt <file> [options]
@@ -288,23 +288,15 @@ if (dryRun) {
   process.exit(0)
 }
 
-/** The comparable identity of the repository that holds `directory`, or null when `directory` is not a Git checkout. */
-const repositoryIdentityOf = (directory) => {
-  try {
-    return comparableGitIdentity(gitRepositoryIdentity(directory))
-  } catch {
-    // A configured repository that is not cloned on this machine is not the one that holds the run directory.
-    return null
-  }
-}
 let repositoryKey = null
 let githubAuth = { environment: researchEnvironment(), secrets: [] }
 let admission = { admitted: true, reservationId: null }
 if (!research) {
-  const repositoryIdentity = repositoryIdentityOf(runDirectory)
+  const repositoryIdentity = checkoutIdentity(runDirectory)
   if (!repositoryIdentity) fail(2, `could not resolve the Git repository identity for ${runDirectory}`)
+  // A configured repository that is not cloned on this machine has no identity, so it is not the one that holds the run directory.
   repositoryKey = Object.entries(config.repos ?? {}).find(([, repository]) =>
-    typeof repository === "string" && repositoryIdentityOf(repository) === repositoryIdentity)?.[0]
+    typeof repository === "string" && checkoutIdentity(repository) === repositoryIdentity)?.[0]
   if (!repositoryKey) fail(2, `${runDirectory} does not belong to a repository configured in .claude/orchestrator.json`)
 
   try {

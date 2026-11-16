@@ -273,12 +273,16 @@ const writeJsonAtomic = (path, value) => {
   renameSync(temporary, path)
 }
 
-export const gitRepositoryIdentity = (worktree) => {
+/** The `code` of the error that `gitRepositoryIdentity` throws when git says that a directory is not a worktree. */
+const NOT_A_GIT_WORKTREE = "NOT_A_GIT_WORKTREE"
+
+const gitRepositoryIdentity = (worktree) => {
   const result = spawnSync("git", ["-C", worktree, "rev-parse", "--git-common-dir"], {
     encoding: "utf8",
     windowsHide: true,
   })
-  if (result.error || result.status !== 0) throw new Error(`${worktree} is not a git worktree`)
+  if (result.error) throw new Error(`could not run git for ${worktree}: ${result.error.message}`)
+  if (result.status !== 0) throw Object.assign(new Error(`${worktree} is not a git worktree`), { code: NOT_A_GIT_WORKTREE })
   const commonDirectory = result.stdout.trim()
   if (!commonDirectory) throw new Error(`git returned no common directory for ${worktree}`)
   const absoluteCommonDirectory = resolve(worktree, commonDirectory)
@@ -289,7 +293,17 @@ export const gitRepositoryIdentity = (worktree) => {
   }
 }
 
-export const comparableGitIdentity = (identity) => process.platform === "win32" ? identity.toLowerCase() : identity
+const comparableGitIdentity = (identity) => process.platform === "win32" ? identity.toLowerCase() : identity
+
+/** The comparable identity of the repository that holds `directory`, or null when git says that `directory` is not a checkout. Any other error propagates. */
+export const checkoutIdentity = (directory) => {
+  try {
+    return comparableGitIdentity(gitRepositoryIdentity(directory))
+  } catch (error) {
+    if (error.code === NOT_A_GIT_WORKTREE) return null
+    throw error
+  }
+}
 
 export const assertSameGitRepository = (worktree, configuredRepository, repositoryKey) => {
   const worktreeIdentity = gitRepositoryIdentity(worktree)
