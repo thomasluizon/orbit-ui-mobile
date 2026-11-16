@@ -22,8 +22,12 @@ const appTheme = vi.hoisted<{ currentTheme: 'dark' | 'light' }>(() => ({ current
 vi.mock('@/lib/use-app-theme', () => ({
   useAppTheme: () => ({ currentScheme: 'purple', currentTheme: appTheme.currentTheme }),
 }))
+const bridgeMounts = vi.hoisted(() => ({ count: 0 }))
 vi.mock('react-native-webview', () => ({
-  WebView: (props: Record<string, unknown>) => React.createElement('WebView', props),
+  WebView: (props: Record<string, unknown>) => {
+    React.useEffect(() => { bridgeMounts.count += 1 }, [])
+    return React.createElement('WebView', props)
+  },
 }))
 const linking = vi.hoisted(() => ({ canOpenURL: vi.fn(() => Promise.resolve(true)), openURL: vi.fn(() => Promise.resolve(true)) }))
 const webViewSharedSource: string = 'react-native-webview/src/WebViewShared'
@@ -314,12 +318,12 @@ function httpError(url: string, statusCode: number, description: string) {
   return { nativeEvent: { url, statusCode, description, title: '', loading: false, canGoBack: false, canGoForward: false, lockIdentifier: 0 } }
 }
 
-async function renderWithFakeClock(onToken = vi.fn()) {
+async function renderWithFakeClock(onToken = vi.fn(), resetKey = 0) {
   vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] })
   onTestFinished(() => { vi.useRealTimers() })
   let renderer!: ReturnType<typeof TestRenderer.create>
   await TestRenderer.act(async () => {
-    renderer = TestRenderer.create(<TurnstileWidget siteKey="site-key" resetKey={0} onToken={onToken} />)
+    renderer = TestRenderer.create(<TurnstileWidget siteKey="site-key" resetKey={resetKey} onToken={onToken} />)
     await Promise.resolve()
   })
   onTestFinished(() => TestRenderer.act(() => renderer.unmount()))
@@ -378,6 +382,19 @@ it('shows the failure only at the shared load deadline and removes the WebView, 
   TestRenderer.act(() => { vi.advanceTimersByTime(1) })
   expect(shownSentences(renderer), 'Retry starts a new load deadline').toEqual(['auth.turnstileFailed'])
   expect(bridges(renderer)).toHaveLength(0)
+})
+
+it('loads one bridge under one load deadline when the form mounts the widget with a new reset key', async () => {
+  bridgeMounts.count = 0
+  const renderer = await renderWithFakeClock(vi.fn(), 1)
+  await TestRenderer.act(async () => { await Promise.resolve() })
+  expect(bridgeMounts.count, 'the mount loads one bridge').toBe(1)
+  expect(bridges(renderer)).toHaveLength(1)
+  expect(shownSentences(renderer)).toEqual(['auth.turnstileLoading'])
+  TestRenderer.act(() => { vi.advanceTimersByTime(TURNSTILE_LOAD_DEADLINE_MS - 1) })
+  expect(bridgeMounts.count).toBe(1)
+  TestRenderer.act(() => { vi.advanceTimersByTime(1) })
+  expect(shownSentences(renderer), 'the mount starts one load deadline').toEqual(['auth.turnstileFailed'])
 })
 
 it('loads a fresh bridge under a new load deadline when the form asks for a new challenge after the load failed', async () => {
