@@ -154,9 +154,13 @@ jobs:
       # ccache sets the time of each object that a compile reads or writes, and removes none under its size limit. A
       # passing compile used every object it needs, so the saved entry holds only those and does not grow when the key
       # changes. A failed compile did not reach every object, so its partial entry keeps the restored ones.
+      # The step names the saved directory, so it cleans what the save stores. It then removes each top-level entry other
+      # than the 16 object directories and ccache.conf, so a log, a lock or a temporary file never reaches the entry.
       - name: Keep only the objects that this compile used
         if: ${{ steps.compile.outcome == 'success' && github.ref == 'refs/heads/main' && steps.compiler-cache.outputs.cache-hit != 'true' }}
-        run: ccache --evict-older-than "$(($(date +%s) - COMPILER_CACHE_USED_SINCE))s"
+        run: |
+          ccache --dir ${{ env.CCACHE_DIR }} --evict-older-than "$(($(date +%s) - COMPILER_CACHE_USED_SINCE))s"
+          find ${{ env.CCACHE_DIR }} -mindepth 1 -maxdepth 1 ! \( -type d -name '[0-9a-f]' \) ! \( -type f -name ccache.conf \) -exec rm -rf {} +
       # A key is written once, so a passing main compile saves the input key. A failed or timed-out main compile saves
       # a run-scoped partial entry instead: the restore step finds it by prefix, so the next attempt is not cold, and
       # the input key stays free for the passing compile. ccache checksums each entry.

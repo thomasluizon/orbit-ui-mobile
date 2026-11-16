@@ -178,9 +178,13 @@ jobs:
             archive
       # ccache sets the time of each object that a compile reads or writes, and removes none under its size limit. The
       # archive used every object it needs, so the saved entry holds only those and does not grow when the key changes.
+      # The step names the saved directory, so it cleans what the save stores. It then removes each top-level entry other
+      # than the 16 object directories and ccache.conf, so a log, a lock or a temporary file never reaches the entry.
       - name: Keep only the objects that this archive used
         if: steps.archive.outcome == 'success' && github.ref == 'refs/heads/main' && steps.compiler-cache.outputs.cache-hit != 'true'
-        run: ccache --evict-older-than "$(($(date +%s) - COMPILER_CACHE_USED_SINCE))s"
+        run: |
+          ccache --dir ${{ env.CCACHE_DIR }} --evict-older-than "$(($(date +%s) - COMPILER_CACHE_USED_SINCE))s"
+          find ${{ env.CCACHE_DIR }} -mindepth 1 -maxdepth 1 ! \( -type d -name '[0-9a-f]' \) ! \( -type f -name ccache.conf \) -exec rm -rf {} +
       - name: Save compiler outputs
         if: steps.archive.outcome == 'success' && github.ref == 'refs/heads/main' && steps.compiler-cache.outputs.cache-hit != 'true'
         uses: actions/cache/save@v6

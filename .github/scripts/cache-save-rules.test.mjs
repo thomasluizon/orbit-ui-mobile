@@ -4,6 +4,7 @@ import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, wr
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import test from "node:test"
+import { isDeepStrictEqual } from "node:util"
 import yaml from "js-yaml"
 import { RELEASE_FAMILY_KEYS } from "./sweep-actions-caches.mjs"
 import {
@@ -103,24 +104,136 @@ const NPM_SAVERS = {
 }
 const NPM_PRIMARY_KEY = "${{ steps.npm-cache.outputs.cache-primary-key }}"
 
-// The inventory lines with the npm rule are the npm saves. The restore count holds the steps of each local action that the
-// job calls, so a nested call of the npm action is a second restore. The restore step inside the npm action follows each
-// call of that action, so the count leaves it out.
+// A restore as a reviewer reads it: the canonical restore step and the canonical local action calls that lead to it, each
+// without its name, which is free text.
+const withoutName = (step) => {
+  const { name, ...form } = canonicalStep(step)
+  return form
+}
+const restoreForm = ({ step, calls }) => ({ step: withoutName(step), calls: calls.map(withoutName) })
+const jobRestores = (list) => list.entries.filter(({ step }) => restoresACache(step)).map(restoreForm)
+
+// The restore step of .github/actions/restore-npm-cache, after the call that leads to it.
+const NPM_ACTION_RESTORE = {
+  env: { SEGMENT_DOWNLOAD_TIMEOUT_MINS: "1" },
+  id: "restore",
+  if: "runner.os != 'macOS'",
+  uses: "actions/cache/restore@v6",
+  with: {
+    key: "npm-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles(inputs.lockfile) }}",
+    path: "${{ steps.directory.outputs.path }}",
+    "restore-keys": RESTORE_OLDER_ENTRY,
+  },
+}
+const npmActionRestore = (call) => ({ step: NPM_ACTION_RESTORE, calls: [{ uses: "./.github/actions/restore-npm-cache", ...call }] })
+const npmSaverRestore = (place) => npmActionRestore({ id: "npm-cache", with: { "restore-older-entry": NPM_SAVERS[place][1] } })
+const unitResultsRestore = (job) => ({
+  step: {
+    if: `needs.${job}-tests.result == 'skipped'`,
+    uses: "actions/cache/restore@v6",
+    with: { "fail-on-cache-miss": true, key: `\${{ needs.plan.outputs.${job}-unit-key }}`, path: `\${{ env.${job.toUpperCase()}_UNIT_RESULTS }}` },
+  },
+  calls: [],
+})
+const unitResultsLookup = (job) => ({
+  step: {
+    id: `${job}-unit`,
+    if: "github.event_name == 'pull_request'",
+    uses: "actions/cache/restore@v6",
+    with: { key: `\${{ steps.plan.outputs.${job}-unit-key }}`, "lookup-only": true, path: `\${{ env.${job.toUpperCase()}_UNIT_RESULTS }}` },
+  },
+  calls: [],
+})
+
+// The rules "npm" and "the key of an exact restore" bound an entry because the save after a key miss holds only what the
+// run wrote. A second restore of the saved path by prefix fills the directory with the previous entry first, under any
+// key, id or spelling of the path. So the test names every restore of each saver job of those rules, with the steps of its
+// local actions, and the restores of the job must equal that list. A restore that the list does not name fails.
+const EXACT_RESTORE_RULES = ["npm", "the key of an exact restore"]
+const REVIEWED_RESTORES = {
+  "desktop-build.yml: build": [
+    npmSaverRestore("desktop-build.yml: build"),
+    {
+      step: {
+        id: "windows-downloads",
+        if: "runner.os == 'Windows'",
+        uses: "actions/cache/restore@v6",
+        with: {
+          key: "${{ runner.os }}-windows-app-sdk-${{ matrix.target }}-${{ hashFiles('apps/desktop/src-tauri/native/windows/downloads.json') }}",
+          path: "${{ env.ORBIT_WINDOWS_DOWNLOAD_CACHE }}",
+        },
+      },
+      calls: [],
+    },
+    {
+      step: {
+        if: "runner.os == 'Windows'",
+        uses: "actions/cache@v6",
+        with: { key: "${{ runner.os }}-nsis-tools-${{ hashFiles('apps/desktop/src-tauri/native/windows/nsis-tools.json') }}", path: "${{ env.ORBIT_NSIS_TOOLS }}" },
+      },
+      calls: [{ if: "runner.os == 'Windows'", uses: "./.github/actions/desktop-nsis-tools" }],
+    },
+  ],
+  "test.yml: build": [
+    npmSaverRestore("test.yml: build"),
+    {
+      step: {
+        id: "next-cache",
+        uses: "actions/cache/restore@v6",
+        with: {
+          key: "${{ runner.os }}-next-hermetic-${{ hashFiles('package-lock.json') }}",
+          path: "apps/web/.next/cache/webpack",
+          "restore-keys": "${{ runner.os }}-next-hermetic-\n",
+        },
+      },
+      calls: [],
+    },
+    {
+      step: {
+        id: "playwright-cache",
+        if: "github.event_name != 'pull_request'",
+        uses: "actions/cache/restore@v6",
+        with: { key: "${{ runner.os }}-playwright-chromium-${{ steps.playwright.outputs.version }}", "lookup-only": true, path: "~/.cache/ms-playwright" },
+      },
+      calls: [],
+    },
+  ],
+  "test.yml: plan": [
+    {
+      step: { id: "turbo-download", uses: "actions/cache/restore@v6", with: { key: "${{ runner.os }}-turbo-cli-${{ steps.turbo.outputs.version }}", path: "~/.npm/_cacache" } },
+      calls: [],
+    },
+    unitResultsLookup("web"),
+    unitResultsLookup("mobile"),
+    unitResultsLookup("workspace"),
+  ],
+  "test.yml: unit-tests": [npmActionRestore({}), unitResultsRestore("web"), unitResultsRestore("mobile"), unitResultsRestore("workspace")],
+}
+
+function checkReviewedRestores(currentTree, inventory) {
+  const lists = new Map(inventory.filter(({ rule }) => EXACT_RESTORE_RULES.includes(rule))
+    .map((line) => saveOf(currentTree, line.step).list).map((list) => [list.place, list]))
+  assert.deepEqual([...lists.keys()].sort(), Object.keys(REVIEWED_RESTORES).sort(), "REVIEWED_RESTORES names each job that saves under the rule npm or the key of an exact restore")
+  for (const [place, list] of lists) {
+    assert.deepEqual(jobRestores(list), REVIEWED_RESTORES[place], `${place}: the restores of the job and its local actions are the reviewed restores`)
+  }
+}
+
+// The inventory lines with the npm rule are the npm saves. checkReviewedRestores holds every restore of each npm saver job,
+// and the reviewed npm restore of the job restores only the exact entry before the save.
 function checkNpmSaves(currentTree, inventory) {
   const saves = inventory.filter(({ rule }) => rule === "npm").map((line) => saveOf(currentTree, line.step))
   assert.deepEqual(saves.map(({ list }) => list.place).sort(), Object.keys(NPM_SAVERS).sort(), "the npm savers")
-  const npmActionSteps = currentTree.actions.find(({ file }) => file === "restore-npm-cache/action.yml").steps
-  for (const { step, where, list } of saves) {
-    const [savesWhen, restoresOlderWhen] = NPM_SAVERS[list.place]
+  for (const { step, where, list, index } of saves) {
+    const savesWhen = NPM_SAVERS[list.place][0]
     assert.equal(step.uses, "actions/cache/save@v6", where)
     assert.equal(step.with.key, NPM_PRIMARY_KEY, where)
     assert.equal(step.if, `${savesWhen} && steps.npm-cache.outputs.cache-hit != 'true'`, where)
     assert.equal(step.with.path, "${{ steps.npm-cache.outputs.path }}", where)
-    const steps = list.entries.map((entry) => entry.step)
-    const restores = steps.filter((candidate) => isNpmRestore(candidate) && !npmActionSteps.includes(candidate))
-    assert.deepEqual(restores.map((candidate) => candidate.id), ["npm-cache"], `${where}: one npm restore in the job and its local actions`)
-    assert.equal(restores[0].with?.["restore-older-entry"], restoresOlderWhen, `${where}: the restore before a save must be exact`)
-    assert.ok(steps.indexOf(restores[0]) < steps.indexOf(step), where)
+    const exact = npmSaverRestore(list.place)
+    assert.ok(REVIEWED_RESTORES[list.place]?.some((reviewed) => isDeepStrictEqual(reviewed, exact)), `${where}: the reviewed restores of the job hold its exact npm restore`)
+    const restore = list.entries.findIndex((entry) => isDeepStrictEqual(restoreForm(entry), exact))
+    assert.ok(restore >= 0 && restore < index, `${where}: the exact npm restore runs before the save`)
   }
   for (const list of cacheStepLists(currentTree).filter(({ place }) => !(place in NPM_SAVERS))) {
     for (const { step, where } of list.entries.filter((entry) => entry.step.uses === "./.github/actions/restore-npm-cache")) {
@@ -306,34 +419,207 @@ test("the sweep keeps the newest main entry of every cache family that a release
 // automatic cleanup starts only above max_size (2 GB in these jobs). So a save after a restore by prefix stores the
 // objects of the older inputs too, and the entry grows with each key change until the evict step removes them.
 const COMPILER_CACHE_STAMP = 'echo "COMPILER_CACHE_USED_SINCE=$(date +%s)" >> "$GITHUB_ENV"'
-const COMPILER_CACHE_EVICT = 'ccache --evict-older-than "$(($(date +%s) - COMPILER_CACHE_USED_SINCE))s"'
+// The evict step names the saved path, so ccache cleans that directory whatever the configuration of the job says: ccache
+// at v4.9.1, src/core/mainoptions.cpp, process_main_options, sets CCACHE_DIR from --dir before it reads the configuration,
+// and CCACHE_DIR outranks the system configuration, ~/.ccache and XDG_CACHE_HOME (src/Config.cpp, Config::read).
+// --evict-older-than visits only the object subdirectories (do_clean_all), so the same step then removes each top-level
+// entry other than the 16 object directories and ccache.conf: a log, a lock or a temporary file never reaches the save.
+const compilerCacheEvict = (path) => `ccache --dir ${path} --evict-older-than "$(($(date +%s) - COMPILER_CACHE_USED_SINCE))s"
+find ${path} -mindepth 1 -maxdepth 1 ! \\( -type d -name '[0-9a-f]' \\) ! \\( -type f -name ccache.conf \\) -exec rm -rf {} +
+`
 const SAVES_A_PASSING_MAIN_COMPILE = "github.ref == 'refs/heads/main' && steps.compiler-cache.outputs.cache-hit != 'true'"
-// Each saver with its reviewed path: the restore and the save name that exact text, and the evict step cleans that
-// directory. ccache at v4.9.1, src/Config.cpp, and at v4.14.2, src/ccache/config.cpp, Config::read: the directory is the
-// command line cache_dir, then CCACHE_DIR, then cache_dir of the system configuration, then ~/.ccache when it exists, then
-// $XDG_CACHE_HOME/ccache, then ~/.cache/ccache on Linux. So the job sets CCACHE_DIR to the reviewed value or, on Linux,
-// leaves it unset, and no step names another of those settings.
+const LINUX_CCACHE_ENV = 'echo "CCACHE_AVAILABLE=true"\n    echo "CMAKE_C_COMPILER_LAUNCHER=ccache"\n    echo "CMAKE_CXX_COMPILER_LAUNCHER=ccache"'
+const NO_LINUX_CCACHE = 'echo "::warning::ccache could not be installed, so the native C++ build runs without the compiler cache."'
+const CCACHE_BINARY = `# React Native's compiler wrappers read CCACHE_BINARY from the process environment.
+CCACHE_BINARY="$(command -v ccache)"
+export CCACHE_BINARY
+`
+// Each saver with its reviewed path, its reviewed env and its reviewed ccache steps. The restore and the save name that
+// exact path, and the evict step is built from it. The env of the job and its workflow, and each step of the job that
+// names ccache in any letter case (other than its cache steps and its evict step), equal the reviewed form, as canonical
+// steps without the name. So a CCACHE_ env name, a ccache configuration command or a ccache configuration file that the
+// reviewed form does not name fails, and nothing writes into the saved directory a file that the evict step keeps.
 const COMPILER_CACHE_SAVERS = {
   "mobile-build.yml: build": {
-    compile: "compile", path: "~/.cache/ccache", ccacheDirectory: undefined,
+    compile: "compile", path: "~/.cache/ccache",
     evictWhen: `\${{ env.CCACHE_AVAILABLE == 'true' && steps.compile.outcome == 'success' && ${SAVES_A_PASSING_MAIN_COMPILE} }}`,
+    env: { EXPO_PUBLIC_CAPTURE_MODE: "true", EXPO_NO_TELEMETRY: "1", EXPO_NO_METRO_WORKSPACE_ROOT: "1", GRADLE_OPTS: "-Dorg.gradle.caching=true" },
+    ccacheSteps: [
+      {
+        shell: "bash",
+        run: `set -euo pipefail
+# A package mirror outage must not fail the compile, so the build runs without ccache.
+if sudo apt-get update -qq && sudo apt-get install -y -qq ccache; then
+  ccache --set-config=max_size=2G
+  ccache --set-config=compiler_check=content
+  ccache --zero-stats
+  {
+    ${LINUX_CCACHE_ENV}
+  } >> "$GITHUB_ENV"
+else
+  ${NO_LINUX_CCACHE}
+fi
+`,
+      },
+      { if: "env.CCACHE_AVAILABLE == 'true'", run: "ccache --show-stats" },
+    ],
   },
   "android-release.yml: release-android": {
-    compile: "Build signed AAB with Gradle", path: "~/.cache/ccache", ccacheDirectory: undefined, evictWhen: "env.CCACHE_AVAILABLE == 'true'",
+    compile: "Build signed AAB with Gradle", path: "~/.cache/ccache", evictWhen: "env.CCACHE_AVAILABLE == 'true'",
+    env: {
+      EAS_BUILD_PROFILE: "production",
+      EXPO_PUBLIC_SENTRY_DSN: "${{ vars.EXPO_PUBLIC_SENTRY_DSN }}",
+      EXPO_PUBLIC_PLAY_INTEGRITY_PROJECT_NUMBER: "${{ vars.EXPO_PUBLIC_PLAY_INTEGRITY_PROJECT_NUMBER }}",
+      EXPO_PUBLIC_TURNSTILE_SITE_KEY: "${{ vars.EXPO_PUBLIC_TURNSTILE_SITE_KEY }}",
+      EXPO_PUBLIC_APPLE_CLIENT_ID: "${{ vars.EXPO_PUBLIC_APPLE_CLIENT_ID }}",
+      EXPO_PUBLIC_GOOGLE_CLIENT_ID: "${{ vars.EXPO_PUBLIC_GOOGLE_CLIENT_ID }}",
+      SENTRY_AUTH_TOKEN: "${{ secrets.SENTRY_AUTH_TOKEN }}",
+    },
+    ccacheSteps: [
+      {
+        shell: "bash",
+        run: `set -euo pipefail
+
+# A package mirror outage must not fail the release, so the build runs without ccache.
+if sudo apt-get update -qq && sudo apt-get install -y -qq ccache; then
+  ccache --set-config=max_size=2G
+  ccache --set-config=compiler_check=content
+  ccache --zero-stats
+  ccache --show-config | grep -E "max_size|compiler_check"
+  {
+    ${LINUX_CCACHE_ENV}
+  } >> "$GITHUB_ENV"
+else
+  ${NO_LINUX_CCACHE}
+fi
+`,
+      },
+      {
+        "working-directory": "apps/mobile/android",
+        shell: "bash",
+        env: {
+          CLEAR_CACHE: "${{ inputs.clear_cache }}",
+          EXPO_NO_METRO_WORKSPACE_ROOT: "1",
+          EAS_BUILD_PROFILE: "${{ env.BUILD_EAS_PROFILE }}",
+          EXPO_PUBLIC_API_BASE: "${{ env.BUILD_API_BASE }}",
+          EXPO_PUBLIC_SENTRY_ENVIRONMENT: "${{ env.DEPLOYMENT_ENVIRONMENT }}",
+          EXPO_PUBLIC_POSTHOG_KEY: "${{ env.BUILD_POSTHOG_KEY }}",
+        },
+        run: `set -euo pipefail
+
+if [ "\${CLEAR_CACHE}" = "true" ]; then
+  rm -rf "\${HOME}/.gradle/caches"
+  rm -rf .gradle
+  if [ "\${CCACHE_AVAILABLE:-}" = "true" ]; then
+    ccache --clear
+  fi
+fi
+
+chmod +x gradlew
+./gradlew --no-daemon --build-cache -PreactNativeArchitectures=armeabi-v7a,arm64-v8a,x86_64 bundleRelease
+
+if [ "\${CCACHE_AVAILABLE:-}" = "true" ]; then
+  echo "ccache statistics for this build:"
+  ccache --show-stats
+fi
+`,
+      },
+    ],
   },
   "ios-build.yml: compile": {
-    compile: "compile", path: "${{ env.CCACHE_DIR }}", ccacheDirectory: "${{ github.workspace }}/.cache/ios-ccache",
+    compile: "compile", path: "${{ env.CCACHE_DIR }}",
     evictWhen: `\${{ steps.compile.outcome == 'success' && ${SAVES_A_PASSING_MAIN_COMPILE} }}`,
+    env: {
+      ORBIT_APP_VARIANT: "staging",
+      EXPO_NO_TELEMETRY: "1",
+      EXPO_NO_METRO_WORKSPACE_ROOT: "1",
+      EXPO_PUBLIC_API_BASE: "https://api-staging.useorbit.org",
+      SENTRY_DISABLE_AUTO_UPLOAD: "true",
+      USE_CCACHE: "1",
+      CCACHE_DIR: "${{ github.workspace }}/.cache/ios-ccache",
+      CCACHE_MAXSIZE: "2G",
+      CCACHE_COMPILERCHECK: "content",
+    },
+    ccacheSteps: [
+      { run: "brew install ccache" },
+      { run: "ccache --zero-stats" },
+      {
+        id: "compile",
+        "working-directory": "apps/mobile",
+        env: { SKIP_BUNDLING: "1" },
+        run: `set -euo pipefail
+${CCACHE_BINARY}# The generic simulator destination also compiles x86_64, which doubles every compile and no shipped build uses.
+xcodebuild -workspace ios/OrbitStaging.xcworkspace -scheme OrbitStaging \\
+  -configuration Release -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' \\
+  -derivedDataPath "$RUNNER_TEMP/orbit-ios-build" ARCHS=arm64 \\
+  CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO build
+`,
+      },
+      {
+        if: "${{ !cancelled() }}",
+        run: `set -euo pipefail
+ccache --show-stats
+if ! ccache --print-stats | awk '
+  $1 == "cache_miss" || $1 == "direct_cache_hit" || $1 == "preprocessed_cache_hit" { calls += $2 }
+  END { exit(calls == 0) }
+'; then
+  echo "::error::ccache recorded zero cacheable compiler calls; check CCACHE_BINARY and the generated compiler settings." >&2
+  exit 1
+fi
+`,
+      },
+    ],
   },
   "ios-release.yml: release": {
-    compile: "archive", path: "${{ env.CCACHE_DIR }}", ccacheDirectory: "${{ github.workspace }}/.cache/ios-device-ccache",
+    compile: "archive", path: "${{ env.CCACHE_DIR }}",
     evictWhen: `steps.archive.outcome == 'success' && ${SAVES_A_PASSING_MAIN_COMPILE}`,
+    env: {
+      ORBIT_APP_VARIANT: "${{ inputs.variant }}",
+      ORBIT_APPLE_TEAM_ID: "${{ vars.ORBIT_APPLE_TEAM_ID }}",
+      ORBIT_IOS_APP_STORE_ID: "${{ vars.ORBIT_IOS_APP_STORE_ID }}",
+      IOS_PROVISIONING_PROFILE_NAME: "${{ vars.IOS_PROVISIONING_PROFILE_NAME }}",
+      IOS_WIDGET_PROVISIONING_PROFILE_NAME: "${{ vars.IOS_WIDGET_PROVISIONING_PROFILE_NAME }}",
+      EXPO_PUBLIC_API_BASE: "${{ inputs.variant == 'staging' && 'https://api-staging.useorbit.org' || 'https://api.useorbit.org' }}",
+      EXPO_PUBLIC_APP_STORE_MONTHLY_PRODUCT_ID: "${{ vars.EXPO_PUBLIC_APP_STORE_MONTHLY_PRODUCT_ID }}",
+      EXPO_PUBLIC_APP_STORE_YEARLY_PRODUCT_ID: "${{ vars.EXPO_PUBLIC_APP_STORE_YEARLY_PRODUCT_ID }}",
+      EXPO_PUBLIC_APPLE_CLIENT_ID: "${{ vars.EXPO_PUBLIC_APPLE_CLIENT_ID }}",
+      EXPO_PUBLIC_GOOGLE_CLIENT_ID: "${{ vars.EXPO_PUBLIC_GOOGLE_CLIENT_ID }}",
+      EXPO_PUBLIC_TURNSTILE_SITE_KEY: "${{ vars.EXPO_PUBLIC_TURNSTILE_SITE_KEY }}",
+      EXPO_PUBLIC_SENTRY_DSN: "${{ vars.EXPO_PUBLIC_SENTRY_DSN }}",
+      EXPO_PUBLIC_SENTRY_ENVIRONMENT: "${{ inputs.variant }}",
+      SENTRY_AUTH_TOKEN: "${{ secrets.SENTRY_AUTH_TOKEN }}",
+      SENTRY_ORG: "orbit-ai-habit-tracker",
+      SENTRY_PROJECT: "orbit-mobile",
+      APP_STORE_CONNECT_API_KEY_ID: "${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}",
+      APP_STORE_CONNECT_API_ISSUER_ID: "${{ secrets.APP_STORE_CONNECT_API_ISSUER_ID }}",
+      EXPO_NO_TELEMETRY: "1",
+      EXPO_NO_METRO_WORKSPACE_ROOT: "1",
+      USE_CCACHE: "1",
+      CCACHE_DIR: "${{ github.workspace }}/.cache/ios-device-ccache",
+      CCACHE_MAXSIZE: "2G",
+      CCACHE_COMPILERCHECK: "content",
+    },
+    ccacheSteps: [
+      { run: "brew install ccache" },
+      {
+        id: "archive",
+        "working-directory": "apps/mobile",
+        run: `set -euo pipefail
+${CCACHE_BINARY}scheme=Orbit
+if [ "$ORBIT_APP_VARIANT" = staging ]; then scheme=OrbitStaging; fi
+xcodebuild -workspace "ios/$scheme.xcworkspace" -scheme "$scheme" -configuration Release \\
+  -destination 'generic/platform=iOS' -archivePath "$RUNNER_TEMP/Orbit.xcarchive" \\
+  DEVELOPMENT_TEAM="$ORBIT_APPLE_TEAM_ID" CODE_SIGN_STYLE=Manual \\
+  CODE_SIGN_IDENTITY='Apple Distribution' \\
+  archive
+`,
+      },
+      { run: "ccache --show-stats" },
+    ],
   },
 }
 const COMPILER_CACHE_PATHS = new Set(Object.values(COMPILER_CACHE_SAVERS).map(({ path }) => path))
 const savesExactly = (path) => `the save writes exactly ${path}, the directory that the evict step cleans`
-// A name or a run text that can move the ccache directory, in any letter case.
-const MOVES_CCACHE_DIRECTORY = /cache_dir|xdg_cache_home|ccache_configpath|\.ccache\b/i
 
 // The stamp step and the evict step as a reviewer reads them. The name is free text; every other key is the reviewed form,
 // so a shell, a working directory, an env or a continue-on-error cannot stop the step or move it to another directory.
@@ -342,16 +628,14 @@ const reviewedStep = (step, form) => canonical({ name: step?.name, ...form })
 const assertNoRunDefaults = (workflow, job, where) =>
   assert.deepEqual([workflow.document.defaults, job.defaults], [undefined, undefined], `${where}: the job and its workflow set no run defaults`)
 
-// The ccache directory of the job is the reviewed one: the job env sets CCACHE_DIR to the reviewed value or leaves it
-// unset, and nothing else in the workflow or the job names a setting that moves the directory.
-function assertCompilerCacheDirectory(list, ccacheDirectory, where) {
-  const failure = `${where}: the compiler cache directory of the job is the reviewed one`
-  const { env: jobEnv = {} } = list.job
-  assert.equal(jobEnv.CCACHE_DIR, ccacheDirectory, failure)
-  const otherEnvNames = [...Object.keys(list.workflow.document.env ?? {}), ...Object.keys(jobEnv).filter((name) => name !== "CCACHE_DIR"),
-    ...list.entries.flatMap(({ step }) => Object.keys(step.env ?? {}))]
-  assert.deepEqual(otherEnvNames.filter((name) => MOVES_CCACHE_DIRECTORY.test(name)), [], failure)
-  assert.deepEqual(list.entries.filter(({ step }) => MOVES_CCACHE_DIRECTORY.test(step.run ?? "")).map((entry) => entry.where), [], failure)
+// The ccache settings of the job are the reviewed ones: the workflow sets no env, the job env is the reviewed env, and each
+// step of the job that names ccache, other than its cache steps and its evict step, is a reviewed step in reviewed order.
+function assertCompilerCacheSettings(list, { env, ccacheSteps }, evictStep, where) {
+  assert.deepEqual({ workflow: list.workflow.document.env, job: list.job.env }, { workflow: undefined, job: env },
+    `${where}: the env of the job and its workflow is the reviewed env`)
+  const named = list.entries.filter(({ step }) => !restoresACache(step) && !savesACache(step) && step !== evictStep &&
+    /ccache/i.test(JSON.stringify(canonicalStep(step))))
+  assert.deepEqual(named.map(({ step }) => withoutName(step)), ccacheSteps.map(canonical), `${where}: each step that names ccache is a reviewed step`)
 }
 
 function checkCompilerCaches(currentTree) {
@@ -360,10 +644,10 @@ function checkCompilerCaches(currentTree) {
     .map(({ step, where }) => ({ step, list, where })))
   assert.deepEqual(saves.map(({ list }) => list.place).sort(), Object.keys(COMPILER_CACHE_SAVERS).sort(), "the compiler cache savers")
   for (const { step: save, list, where } of saves) {
-    const { compile: compileStep, evictWhen, path, ccacheDirectory } = COMPILER_CACHE_SAVERS[list.place]
+    const saver = COMPILER_CACHE_SAVERS[list.place]
+    const { compile: compileStep, evictWhen, path } = saver
     const steps = list.entries.map((entry) => entry.step)
     assertNoRunDefaults(list.workflow, list.job, where)
-    assertCompilerCacheDirectory(list, ccacheDirectory, where)
     assert.equal(save.with.path, path, `${where}: ${savesExactly(path)}`)
     const restore = steps.findIndex((step) => restoresACache(step) && step.with?.path === path)
     assert.ok(restore >= 0, `${where}: a restore of the job restores exactly ${path}`)
@@ -374,11 +658,12 @@ function checkCompilerCaches(currentTree) {
     const compile = steps.findIndex((step) => step.id === compileStep || step.name === compileStep)
     const evicts = steps.filter((step) => step.run?.includes("--evict-older-than"))
     assert.equal(evicts.length, 1, `${where}: one step removes the objects that the compile did not use`)
-    assert.equal(evicts[0].run, COMPILER_CACHE_EVICT, where)
     assert.equal(evicts[0].if, evictWhen, `${where}: only a passing compile used every object it needs`)
     assert.equal(stamps[0].if, undefined, `${where}: the stamp step always runs`)
     assert.deepEqual(canonicalStep(stamps[0]), reviewedStep(stamps[0], { run: COMPILER_CACHE_STAMP }), `${where}: the stamp step differs from its reviewed form`)
-    assert.deepEqual(canonicalStep(evicts[0]), reviewedStep(evicts[0], { if: evictWhen, run: COMPILER_CACHE_EVICT }), `${where}: the evict step differs from its reviewed form`)
+    assert.deepEqual(canonicalStep(evicts[0]), reviewedStep(evicts[0], { if: evictWhen, run: compilerCacheEvict(path) }),
+      `${where}: the evict step differs from its reviewed form, which cleans exactly ${path}`)
+    assertCompilerCacheSettings(list, saver, evicts[0], where)
     const evict = steps.indexOf(evicts[0])
     assert.ok(restore < stamp && stamp < compile && compile < evict, `${where}: restore, then the stamp, then the compile, then the evict step`)
     if (/^actions\/cache\/save@/i.test(save.uses)) assert.ok(evict < steps.indexOf(save), `${where}: the evict step runs before the save`)
@@ -433,24 +718,28 @@ const RULES = {
     actions: ["actions/cache"],
     check: ({ step, where }) => assert.ok(hasNoRestoreKeys(step), `${where}: a combined step with restore-keys saves an older entry under a new key`),
   },
-  // The save writes the key of a restore of the same path with no restore-keys, as its text or as the primary key output
-  // of that restore. The next run restores that key, so nobody writes it again.
+  // The save writes the key of a reviewed restore of the same path with no restore-keys, as its text or as the primary key
+  // output of that restore. The next run restores that key, so nobody writes it again. checkReviewedRestores holds every
+  // restore of the job, so no other restore fills the directory before the save.
   "the key of an exact restore": {
     actions: ["actions/cache/save"],
     check: ({ step, where, list }) => {
+      assert.ok(Object.hasOwn(REVIEWED_RESTORES, list.place), `${where}: REVIEWED_RESTORES names the job`)
       const id = PRIMARY_KEY.exec(step.with.key)?.[1]
-      const restore = list.entries.map((entry) => entry.step).find((candidate) => restoresACache(candidate) && candidate !== step &&
-        (id === undefined ? candidate.with?.key === step.with.key : candidate.id === id))
-      assert.ok(restore, `${where}: no restore in the job has this key`)
+      const restore = REVIEWED_RESTORES[list.place].map((reviewed) => reviewed.step)
+        .find((candidate) => (id === undefined ? candidate.with.key === step.with.key : candidate.id === id))
+      assert.ok(restore, `${where}: no reviewed restore of the job has this key`)
       assert.equal(restore.with.path, step.with.path, `${where}: the restore of the key has the same path`)
       assert.ok(hasNoRestoreKeys(restore), `${where}: the restore of the key has no restore-keys`)
     },
   },
-  // checkNpmSaves holds the key, the condition and the one exact restore of each npm save.
+  // checkNpmSaves holds the key, the condition and the exact restore of each npm save, and checkReviewedRestores holds
+  // every restore of its job.
   npm: {
     actions: ["actions/cache/save"],
     check: ({ step, list, where }) => {
       assert.ok(list.place in NPM_SAVERS, `${where}: NPM_SAVERS names the job`)
+      assert.ok(Object.hasOwn(REVIEWED_RESTORES, list.place), `${where}: REVIEWED_RESTORES names the job`)
       assert.equal(step.with.path, "${{ steps.npm-cache.outputs.path }}", `${where}: the npm save writes the npm cache directory`)
     },
   },
@@ -605,6 +894,7 @@ function cacheGuard(currentTree, inventory, rules = RULES, remoteInventory = REM
     check({ ...canonicalSave(save), tree: currentTree })
   }
   checkCompilerCaches(currentTree)
+  checkReviewedRestores(currentTree, inventory)
   checkNpmSaves(currentTree, inventory)
 }
 
@@ -628,18 +918,19 @@ const newAction = (directory, steps) => ({ [`.github/actions/${directory}/action
 const TYPE_CHECK_RUN = "      - run: npx turbo run type-check\n"
 const WORKSPACE_ENV = "      ARTIFACT_NAME: workspace-unit-coverage-attempt-${{ github.run_attempt }}\n"
 const WORKSPACE_RUN = "      - name: Run workspaces with coverage thresholds\n"
-const EVICT_RUN = 'run: ccache --evict-older-than "$(($(date +%s) - COMPILER_CACHE_USED_SINCE))s"'
+const evictRun = (path) => `run: |\n${compilerCacheEvict(path).trimEnd().split("\n").map((line) => `          ${line}`).join("\n")}`
+const ANDROID_EVICT_RUN = evictRun("~/.cache/ccache")
 const STAMP_STEP = `      # The stamp follows the restore, so every restored object is older than it.
       - name: Record the start of the compiler cache use
         run: echo "COMPILER_CACHE_USED_SINCE=$(date +%s)" >> "$GITHUB_ENV"
 `
 const ANDROID_RELEASE_EVICT = `      - name: Keep only the objects that this build used
         if: env.CCACHE_AVAILABLE == 'true'
-        ${EVICT_RUN}
+        ${ANDROID_EVICT_RUN}
 `
 const IOS_BUILD_EVICT = `      - name: Keep only the objects that this compile used
         if: \${{ steps.compile.outcome == 'success' && github.ref == 'refs/heads/main' && steps.compiler-cache.outputs.cache-hit != 'true' }}
-        ${EVICT_RUN}
+        ${evictRun("${{ env.CCACHE_DIR }}")}
 `
 const TURBO_DELETE = `      - name: Remove the Turbo results that are older than 30 days
         if: github.event_name != 'pull_request'
@@ -710,6 +1001,11 @@ const MOBILE_BUILD_GRADLE_OPTS = "      GRADLE_OPTS: -Dorg.gradle.caching=true\n
 const TYPE_CHECK_IF = "    if: needs.plan.outputs.type-check == 'true'\n"
 const TURBO_JSON_HEAD = '{\n  "$schema": "https://turbo.build/schema.json",\n'
 const NEXT_CACHE_PATH = "          path: apps/web/.next/cache/webpack\n"
+const NPM_RESTORE_OLDER_ENTRY = "          restore-older-entry: ${{ github.event_name == 'pull_request' }}\n"
+const PLAN_HASH_STEP = "      - name: Hash the test tasks and read the changed paths\n"
+const IOS_COMPILER_CHECK_ENV = "      CCACHE_COMPILERCHECK: content\n"
+const MOBILE_COMPILER_CHECK = "            ccache --set-config=compiler_check=content\n"
+const MOBILE_SHOW_STATS = "        run: ccache --show-stats\n"
 // A new workflow whose plan job gives a pass key and whose export job saves a path under it.
 const webExport = (path, before) => ({
   ".github/workflows/web-export.yml": `name: Web export
@@ -747,8 +1043,8 @@ const MUTATIONS = [
   ["M4 the ios-release evict condition loses the archive outcome", changeText(".github/workflows/ios-release.yml",
     ["      - name: Keep only the objects that this archive used\n        if: steps.archive.outcome == 'success' && ", "      - name: Keep only the objects that this archive used\n        if: always() && "]), /only a passing compile/, WRITE],
   ["M5 the mobile-build evict step runs after a failed compile", changeText(".github/workflows/mobile-build.yml",
-    [`env.CCACHE_AVAILABLE == 'true' && steps.compile.outcome == 'success' && github.ref == 'refs/heads/main' && steps.compiler-cache.outputs.cache-hit != 'true' }}\n        ${EVICT_RUN}`,
-      `always() && env.CCACHE_AVAILABLE == 'true' && steps.compile.outcome != 'skipped' && github.ref == 'refs/heads/main' && steps.compiler-cache.outputs.cache-hit != 'true' }}\n        ${EVICT_RUN}`]), /only a passing compile/, WRITE],
+    [`env.CCACHE_AVAILABLE == 'true' && steps.compile.outcome == 'success' && github.ref == 'refs/heads/main' && steps.compiler-cache.outputs.cache-hit != 'true' }}\n        ${ANDROID_EVICT_RUN}`,
+      `always() && env.CCACHE_AVAILABLE == 'true' && steps.compile.outcome != 'skipped' && github.ref == 'refs/heads/main' && steps.compiler-cache.outputs.cache-hit != 'true' }}\n        ${ANDROID_EVICT_RUN}`]), /only a passing compile/, WRITE],
   ["M6 the android-release evict step moved before the Gradle build", changeText(".github/workflows/android-release.yml", [ANDROID_RELEASE_EVICT, ""],
     ["      - name: Build signed AAB with Gradle\n", `${ANDROID_RELEASE_EVICT}      - name: Build signed AAB with Gradle\n`]), /restore, then the stamp, then the compile, then the evict step/, WRITE],
   ["M7 the Turbo delete step deleted", changeText(".github/workflows/test.yml", [TURBO_DELETE, ""]), /deletes the Turbo results older than 30 days/, WRITE],
@@ -855,7 +1151,7 @@ const MUTATIONS = [
     [IOS_BUILD_EVICT, `${IOS_BUILD_EVICT}        shell: true {0}\n`]), /ios-build\.yml: compile: Save compiler outputs: the evict step differs from its reviewed form/, WRITE],
   ["EVe the android-release evict step cleans another directory", changeText(".github/workflows/android-release.yml",
     [ANDROID_RELEASE_EVICT, `${ANDROID_RELEASE_EVICT}        env:\n          CCACHE_DIR: /tmp/other-ccache\n`]),
-    /android-release\.yml: release-android: Restore the ccache directory: the compiler cache directory of the job is the reviewed one/, WRITE],
+    /android-release\.yml: release-android: Restore the ccache directory: the evict step differs from its reviewed form/, WRITE],
   ["STs the mobile-build stamp step runs in a shell that ignores its script", changeText(".github/workflows/mobile-build.yml",
     [MOBILE_BUILD_STAMP, `${MOBILE_BUILD_STAMP}        shell: true {0}\n`]), /mobile-build\.yml: build: Save the ccache directory: the stamp step differs from its reviewed form/, WRITE],
   ["ST2 a second ios-release stamp step just before the evict step", changeText(".github/workflows/ios-release.yml",
@@ -892,10 +1188,10 @@ const MUTATIONS = [
     /mobile-build\.yml: build: Save the ccache directory: the save writes exactly ~\/\.cache\/ccache/, WRITE],
   ["EVj the mobile-build job env moves the ccache directory away from the saved path", changeText(".github/workflows/mobile-build.yml",
     [MOBILE_BUILD_GRADLE_OPTS, `${MOBILE_BUILD_GRADLE_OPTS}      XDG_CACHE_HOME: /tmp/other-cache\n`]),
-    /mobile-build\.yml: build: Save the ccache directory: the compiler cache directory of the job is the reviewed one/, WRITE],
+    /mobile-build\.yml: build: Save the ccache directory: the env of the job and its workflow is the reviewed env/, WRITE],
   ["EVr a step of the android-release job creates the legacy ccache directory", changeText(".github/workflows/android-release.yml",
     [ANDROID_RELEASE_EVICT, `      - run: mkdir -p ~/.ccache\n${ANDROID_RELEASE_EVICT}`]),
-    /android-release\.yml: release-android: Restore the ccache directory: the compiler cache directory of the job is the reviewed one/, WRITE],
+    /android-release\.yml: release-android: Restore the ccache directory: each step that names ccache is a reviewed step/, WRITE],
   ["B1 turbo.json moves the Turbo cache directory", changeText("turbo.json", [TURBO_JSON_HEAD, `${TURBO_JSON_HEAD}  "cacheDir": ".turbo/results",\n`]),
     /Save turbo: turbo\.json sets no cacheDir/],
   ["B2 the Type Check job env moves the Turbo cache directory", changeText(".github/workflows/test.yml",
@@ -910,6 +1206,28 @@ const MUTATIONS = [
     /Save the Next compiler cache: the save writes exactly apps\/web\/\.next\/cache\/webpack/, WRITE],
   ["W2 the Build job restores the whole Next cache directory", changeText(".github/workflows/test.yml", [NEXT_CACHE_PATH, "          path: apps/web/.next/cache\n"]),
     /Save the Next compiler cache: the restore of the key restores exactly apps\/web\/\.next\/cache\/webpack/, WRITE],
+  ["G1 the Build job restores an older npm entry by prefix under another key after its exact npm restore", changeText(".github/workflows/test.yml",
+    [NPM_RESTORE_OLDER_ENTRY, `${NPM_RESTORE_OLDER_ENTRY}      - name: Restore an older npm entry
+        if: steps.npm-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/restore@v6
+        with:
+          path: "\${{ steps.npm-cache.outputs.path }}"
+          key: npm-older-\${{ github.sha }}
+          restore-keys: npm-\${{ runner.os }}-\${{ runner.arch }}-
+`]), /test\.yml: build: the restores of the job and its local actions are the reviewed restores/, WRITE],
+  ["G2 the plan job restores an older Turbo download by prefix under another key", changeText(".github/workflows/test.yml",
+    [PLAN_HASH_STEP, `${restoreStep("Restore an older Turbo download", "~/.npm/_cacache", "older-turbo-cli-${{ github.sha }}", "${{ runner.os }}-turbo-cli-")}${PLAN_HASH_STEP}`]),
+  /test\.yml: plan: the restores of the job and its local actions are the reviewed restores/, WRITE],
+  ["G3 the ios-build compile job env writes the ccache log inside the saved directory", changeText(".github/workflows/ios-build.yml",
+    [IOS_COMPILER_CHECK_ENV, `${IOS_COMPILER_CHECK_ENV}      CCACHE_LOGFILE: \${{ github.workspace }}/.cache/ios-ccache/ccache.log\n`]),
+  /ios-build\.yml: compile: Save compiler outputs: the env of the job and its workflow is the reviewed env/, WRITE],
+  ["G4 the mobile-build setup step sets a ccache log file inside the saved directory", changeText(".github/workflows/mobile-build.yml",
+    [MOBILE_COMPILER_CHECK, `${MOBILE_COMPILER_CHECK}            ccache --set-config=log_file="$HOME/.cache/ccache/ccache.log"\n`]),
+  /mobile-build\.yml: build: Save the ccache directory: each step that names ccache is a reviewed step/, WRITE],
+  ["G5 a mobile-build step installs a system ccache configuration that moves the cache directory before the evict step", {
+    ".github/ccache.conf": "cache_dir = /mnt/ccache\n",
+    ...changeText(".github/workflows/mobile-build.yml", [MOBILE_SHOW_STATS, `${MOBILE_SHOW_STATS}      - run: sudo cp .github/ccache.conf /etc/ccache.conf\n`]),
+  }, /mobile-build\.yml: build: Save the ccache directory: each step that names ccache is a reviewed step/, WRITE],
 ]
 
 for (const [name, changes, reason, review] of MUTATIONS) {
@@ -944,7 +1262,7 @@ test("a reviewed inventory line is the only way to make a new cache step pass, a
   // A second ccache saver and a nested npm restore fail their own rules, whatever the inventory holds.
   for (const [name, changes] of MUTATIONS.filter(([name]) => /^M(18|21) /.test(name))) {
     const changed = readTree(changes)
-    assert.throws(() => cacheGuard(changed, reviewedInventory(changed), rules), /the compiler cache savers|one npm restore in the job/, name)
+    assert.throws(() => cacheGuard(changed, reviewedInventory(changed), rules), /the compiler cache savers|the restores of the job and its local actions are the reviewed restores/, name)
   }
   // A remote action needs a reviewed line of its own; with it, its steps follow the step inventory like any other.
   const ccache = readTree(MUTATIONS.find(([name]) => name.startsWith("P10 "))[1])

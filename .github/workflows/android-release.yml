@@ -464,9 +464,13 @@ jobs:
       # ccache sets the time of each object that a compile reads or writes, and removes none under its size limit. The
       # cache step saves when the job passes, so the entry of each run holds only the objects of this build and does not
       # grow from one release to the next.
+      # The step names the saved directory, so it cleans what the save stores. It then removes each top-level entry other
+      # than the 16 object directories and ccache.conf, so a log, a lock or a temporary file never reaches the entry.
       - name: Keep only the objects that this build used
         if: env.CCACHE_AVAILABLE == 'true'
-        run: ccache --evict-older-than "$(($(date +%s) - COMPILER_CACHE_USED_SINCE))s"
+        run: |
+          ccache --dir ~/.cache/ccache --evict-older-than "$(($(date +%s) - COMPILER_CACHE_USED_SINCE))s"
+          find ~/.cache/ccache -mindepth 1 -maxdepth 1 ! \( -type d -name '[0-9a-f]' \) ! \( -type f -name ccache.conf \) -exec rm -rf {} +
 
       - name: Verify AAB signing certificate matches the upload keystore
         working-directory: apps/mobile/android
