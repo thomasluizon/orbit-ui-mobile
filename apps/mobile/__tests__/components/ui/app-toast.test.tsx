@@ -10,6 +10,7 @@ import { createTokensV2 } from '@/lib/theme'
 import { contrastOnSurface, withAlpha } from '@orbit/shared/__tests__/contrast'
 import { pressableStyle } from '@/__tests__/support/press-feedback'
 import { applyBorderWidths } from '@/__tests__/support/yoga-borders'
+import { measureProfileRow } from '@/__tests__/support/profile-row-geometry'
 
 const safeArea = vi.hoisted(() => ({ top: 0, bottom: 0, left: 0, right: 0 }))
 vi.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => safeArea }))
@@ -119,6 +120,24 @@ describe('mobile Toast', () => {
     expect(target.width + close.props.hitSlop * 2).toBe(48)
     TestRenderer.act(() => close.props.onPress())
     expect(tree.root.findAllByProps({ testID: `toast-${props.kind}` })).toHaveLength(0)
+    TestRenderer.act(() => tree.unmount())
+  })
+
+  it.each(variants)('draws no ring around the $kind toast, so the copy starts at the 16 dp padding of its web twin', (props) => {
+    const tree = render(<Toast {...props} />)
+    advance(0)
+    const surface = tree.root.findByProps({ testID: `toast-${props.kind}` })
+    const style = StyleSheet.flatten(surface.props.style)
+    expect(style.borderWidth, 'the web toast has only the shadow-2 elevation, with no ring').toBeUndefined()
+    expect(style.borderColor).toBeUndefined()
+    expect(style).toMatchObject({ shadowOpacity: 0.28, shadowRadius: 16 })
+    const measured = measureProfileRow(tree.toJSON(), 360, 1)
+    const close = measured.controls.find((control) => control.accessibilityLabel === 'common.close')!
+    expect(close.right, 'the close control ends at the 16 dp padding').toBe(360 - 16)
+    if (props.kind === 'neutral') {
+      const copy = measured.texts.find((text) => text.label === 'Feedback')!
+      expect(copy.left, 'the copy starts at the 16 dp padding').toBe(16)
+    }
     TestRenderer.act(() => tree.unmount())
   })
 

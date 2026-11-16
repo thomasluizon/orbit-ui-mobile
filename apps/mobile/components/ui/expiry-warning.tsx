@@ -206,7 +206,7 @@ function createStyles(tokens: AppTokensV2) {
       right: 0,
       zIndex: zLayers.toast,
       paddingTop: SPACING.s48,
-      paddingHorizontal: SPACING.s8,
+      paddingHorizontal: SPACING.s12,
     },
     banner: {
       flexDirection: 'row',

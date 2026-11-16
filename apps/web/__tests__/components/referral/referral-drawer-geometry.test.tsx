@@ -50,7 +50,9 @@ describe('Referral drawer sheet insets in Chromium', () => {
         const block = isLoading
           ? document.querySelector('[data-slot="referral-skeleton"]')!.firstElementChild!
           : document.querySelector('[aria-label="referral.drawer.copyLink"]')!.parentElement!
-        return { height: block.getBoundingClientRect().height, radius: getComputedStyle(block).borderTopLeftRadius }
+        const panel = document.querySelector('.orbit-sheet-panel')!.getBoundingClientRect()
+        const rect = block.getBoundingClientRect()
+        return { top: rect.top - panel.top, height: rect.height, radius: getComputedStyle(block).borderTopLeftRadius }
       }, loading)
     } finally {
       await page.close()
@@ -58,11 +60,13 @@ describe('Referral drawer sheet insets in Chromium', () => {
     }
   }
 
-  it('holds the place of the loaded link well with a skeleton of the same height', async () => {
+  it('holds the place of the loaded link well with a skeleton at the same top and height', async () => {
     const loaded = await measureLinkBlock(false)
     expect(loaded.height).toBe(56)
     expect(loaded.radius, 'the link well has the 12 px field radius, as its mobile twin').toBe('12px')
-    expect((await measureLinkBlock(true)).height, 'the content does not move when the referral loads').toBe(loaded.height)
+    const skeleton = await measureLinkBlock(true)
+    expect(skeleton.height, 'the link skeleton is as tall as the link well').toBe(loaded.height)
+    expect(skeleton.top, 'the link well does not move when the referral loads').toBe(loaded.top)
   })
 
   it.each(widths)('aligns content and the pinned Share at %ipx, including copy failure', async (width) => {

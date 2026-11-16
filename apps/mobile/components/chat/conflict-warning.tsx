@@ -36,7 +36,7 @@ function severityColors(
       };
     case "LOW":
       return {
-        text: tokens.primary,
+        text: tokens.fg1,
         graphic: tokens.primary,
         bg: tintFromPrimary(tokens, 0.1),
         border: tintFromPrimary(tokens, 0.3),

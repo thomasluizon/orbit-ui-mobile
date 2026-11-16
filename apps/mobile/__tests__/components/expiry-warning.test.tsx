@@ -231,7 +231,7 @@ describe('ExpiryWarning', () => {
     expectInsetHairlineRing(hostNodes(instance, 'View')[1]!.props.style as never, `rgba(${red}, ${green}, ${blue}, 0.28)`)
     const measured = measureProfileRow((instance as TestInstance & { toJSON: () => never }).toJSON(), 412, 1)
     const copy = measured.texts.find((text) => text.label === i18n.t('auth.sessionRefreshFailed'))!
-    expect(copy.left, 'the copy starts 12 dp inside the banner, which sits 8 dp inside the screen').toBe(8 + 12)
+    expect(copy.left, 'the copy starts 12 dp inside the banner, which sits 12 dp inside the screen, as its web twin').toBe(12 + 12)
   })
 
   it.each(['dark', 'light'] as const)('uses token interaction fills in %s', async (mode) => {

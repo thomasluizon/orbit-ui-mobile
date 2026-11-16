@@ -32,11 +32,15 @@ interface LoadedContentProps {
   onCopy: () => void
 }
 
-function ReferralSkeleton({ label }: Readonly<{ label: string }>) {
+function ReferralSkeleton() {
+  const t = useTranslations()
   return (
-    <div role="status" aria-label={label} aria-busy="true" data-slot="referral-skeleton" className="flex flex-col gap-4">
-      <div style={{ height: TOUCH_TARGET_MIN + SPACING.s8 }}><Skeleton variant="fill" grouped /></div>
-      <Skeleton variant="settings" rows={2} grouped />
+    <div>
+      <SectionLabel>{t('referral.drawer.yourLink')}</SectionLabel>
+      <div role="status" aria-label={t('common.loading')} aria-busy="true" data-slot="referral-skeleton" className="flex flex-col gap-4">
+        <div style={{ height: TOUCH_TARGET_MIN + SPACING.s8 }}><Skeleton variant="fill" grouped /></div>
+        <Skeleton variant="settings" rows={2} grouped />
+      </div>
     </div>
   )
 }
@@ -192,7 +196,7 @@ function ReferralDrawerContent({
     >
       <>
         {isLoading ? (
-          <ReferralSkeleton label={t('common.loading')} />
+          <ReferralSkeleton />
         ) : null}
         {isError ? <ErrorState message={error.message} /> : null}
         {isLoaded ? (

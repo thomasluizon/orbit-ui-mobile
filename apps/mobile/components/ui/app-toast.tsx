@@ -143,13 +143,7 @@ export function Toast(props: Readonly<ToastProps & { onDismiss?: () => void; per
       onPointerLeave={() => setHovered(false)}
       onFocus={() => setFocused(true)}
       onBlur={() => setFocused(false)}
-      style={[
-        styles.toast,
-        {
-          backgroundColor: colors.background,
-          borderColor: tokens.hairline,
-        },
-      ]}
+      style={[styles.toast, { backgroundColor: colors.background }]}
       testID={`toast-${props.kind}`}
     >
       <ToastLeadingMark props={props} tokens={tokens} />
@@ -217,7 +211,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
     rowGap: 0,
-    borderWidth: 1,
     borderRadius: radius.xl,
     padding: SPACING.s16,
     ...shadowsV2.shadow2,

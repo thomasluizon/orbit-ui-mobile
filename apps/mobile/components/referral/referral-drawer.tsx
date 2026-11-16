@@ -204,9 +204,12 @@ function ReferralDrawerContent({ onClose, sheetRef, closeSheet }: Readonly<Pick<
     >
       <View style={styles.content}>
         {isLoading ? (
-          <View testID="referral-skeleton" style={styles.content} accessibilityRole="progressbar" accessibilityLabel={t('common.loading')} accessibilityState={{ busy: true }}>
-            <View style={styles.linkSkeleton}><Skeleton variant="fill" grouped /></View>
-            <Skeleton variant="settings" rows={2} grouped />
+          <View>
+            <SectionLabel>{t('referral.drawer.yourLink')}</SectionLabel>
+            <View testID="referral-skeleton" style={styles.content} accessibilityRole="progressbar" accessibilityLabel={t('common.loading')} accessibilityState={{ busy: true }}>
+              <View style={styles.linkSkeleton}><Skeleton variant="fill" grouped /></View>
+              <Skeleton variant="settings" rows={2} grouped />
+            </View>
           </View>
         ) : null}
         {isError ? <ErrorState message={error.message} /> : null}

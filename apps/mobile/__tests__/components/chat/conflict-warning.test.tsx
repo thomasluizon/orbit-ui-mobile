@@ -1,5 +1,5 @@
 import React from 'react'
-import { StyleSheet, Text } from 'react-native'
+import { StyleSheet, Text, type TextStyle } from 'react-native'
 import type { ReactTestInstance, ReactTestRenderer } from 'react-test-renderer'
 import { describe, expect, it, vi } from 'vitest'
 import type { ConflictWarning as ConflictWarningType } from '@orbit/shared/types/chat'
@@ -15,7 +15,7 @@ vi.mock('@/lib/theme', async (importOriginal) => {
   return {
     ...actual,
     createTokensV2: () => new Proxy({}, {
-      get: (_target, property) => property === 'statusBad' ? '#222222' : '#111111',
+      get: (_target, property) => ({ statusBad: '#222222', primary: '#333333', fg1: '#444444' } as Record<PropertyKey, string>)[property] ?? '#111111',
     }),
   }
 })
@@ -53,6 +53,26 @@ describe('ConflictWarning (mobile)', () => {
     })
     expect(StyleSheet.flatten(recommendation.props.style)).not.toHaveProperty('opacity')
     expect(tree.root.findAll((node) => node.props.size === 16 && node.props.color === '#222222'))
+      .not.toHaveLength(0)
+  })
+
+  it('writes the low-severity copy in fg1 and keeps the primary accent on the graphic, as its web twin', () => {
+    const warning: ConflictWarningType = {
+      hasConflict: true,
+      conflictingHabits: [{ habitId: 'habit-1', habitTitle: 'Run', conflictDescription: 'Same hour' }],
+      recommendation: 'Move this habit to Tuesday',
+      severity: 'LOW',
+    }
+    const tree = renderWarning(warning)
+    const color = (node: ReactTestInstance) => (StyleSheet.flatten(node.props.style) as TextStyle | undefined)?.color
+    const texts = tree.root.findAll((node: ReactTestInstance) => node.type === Text && color(node) !== undefined)
+    const recommendation = texts.find((node) => renderedText(node.props.children) === warning.recommendation)!
+    const title = texts.find((node) => renderedText(node.props.children) === 'chat.conflict.title')!
+    const habit = texts.find((node) => renderedText(node.props.children).startsWith('Run'))!
+    for (const copy of [recommendation, title, habit]) {
+      expect(color(copy), 'primary is fill and graphic only, never small text').toBe('#444444')
+    }
+    expect(tree.root.findAll((node) => node.props.size === 16 && node.props.color === '#333333'))
       .not.toHaveLength(0)
   })
 

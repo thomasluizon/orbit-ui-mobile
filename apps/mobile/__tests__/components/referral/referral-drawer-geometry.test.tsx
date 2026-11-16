@@ -106,6 +106,13 @@ function bounds(node: YogaNode) {
   return { left, right: left + node.getComputedWidth() }
 }
 
+function absoluteTop(node: YogaNode) {
+  let top = node.getComputedTop()
+  let ancestor = node.getParent()
+  while (ancestor) { top += ancestor.getComputedTop(); ancestor = ancestor.getParent() }
+  return top
+}
+
 function findHost(elements: HostNode[], matches: (element: HostNode) => boolean): HostNode {
   const queue = [...elements]
   while (queue.length > 0) {
@@ -129,7 +136,8 @@ async function measureLinkBlock(loading: boolean) {
     const block = loading
       ? findHost(elements, (element) => element.props.testID === 'referral-skeleton').children![0] as HostNode
       : findHost(elements, (element) => (element.children ?? []).some((child) => typeof child !== 'string' && child.props.accessibilityLabel === 'referral.drawer.copyLink'))
-    return nodes.get(block)!.getComputedHeight()
+    const node = nodes.get(block)!
+    return { top: absoluteTop(node), height: node.getComputedHeight() }
   } finally {
     layout.freeRecursive()
     await TestRenderer.act(() => { tree!.unmount() })
@@ -142,11 +150,13 @@ describe('Referral drawer sheet geometry (mobile)', () => {
     referralState.loading = false
   })
 
-  it('holds the place of the loaded link well with a skeleton of the same height', async () => {
+  it('holds the place of the loaded link well with a skeleton at the same top and height', async () => {
     __setWindowDimensions({ width: 412, height: 915, scale: 1, fontScale: 1 })
-    const loadedHeight = await measureLinkBlock(false)
-    expect(loadedHeight).toBe(TOUCH_TARGET_MIN + SPACING.s8)
-    expect(await measureLinkBlock(true), 'the content does not move when the referral loads').toBe(loadedHeight)
+    const loaded = await measureLinkBlock(false)
+    expect(loaded.height).toBe(TOUCH_TARGET_MIN + SPACING.s8)
+    const skeleton = await measureLinkBlock(true)
+    expect(skeleton.height, 'the link skeleton is as tall as the link well').toBe(loaded.height)
+    expect(skeleton.top, 'the link well does not move when the referral loads').toBe(loaded.top)
   })
 
   it.each([320, 412, 640, 915])('aligns content and pinned Share at %ipx, including copy failure', async (width) => {
