@@ -194,6 +194,18 @@ test('the Windows launcher compiles its native types only in the High start and 
   for (const mode of ['start', 'activate']) assert.ok(block(mode).some((line) => line.includes('Initialize-MediumOutput $directory')), mode)
 })
 
+// A process holds its current directory open without delete sharing, so a Medium process that starts in the output keeps the
+// caller from removing that output: in producer run 43780904422, rmdir failed with EBUSY after the launcher's exit code was set.
+test('the Windows launcher starts its Medium processes outside the output it writes', () => {
+  const lines = readFileSync(launcherScript, 'utf8').split(/\r?\n/)
+  const start = lines.findIndex((line) => line.startsWith('function Start-MediumMode('))
+  const end = lines.findIndex((line, index) => index > start && line === '}')
+  assert.ok(start >= 0 && end > start, 'the script starts its Medium processes in one function')
+  const calls = lines.slice(start, end).filter((line) => line.includes('[OrbitIntegrity]::StartAsStandardUser('))
+  assert.deepEqual(calls.map((line) => line.trim()), ['[OrbitIntegrity]::StartAsStandardUser($powershell, $commandLine, $PSHOME)'])
+  assert.doesNotMatch(lines[start]!, /\$Directory\b/)
+})
+
 const powershellHost = ['pwsh', 'powershell'].find((command) => spawnSync(command, ['-NoProfile', '-Command', 'exit 0']).status === 0)
 
 test('the Windows launcher script parses without errors', { skip: !powershellHost }, () => {
