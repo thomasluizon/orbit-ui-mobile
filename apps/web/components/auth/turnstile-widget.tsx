@@ -2,12 +2,19 @@
 
 import { IconButton } from '@/components/ui/icon-button'
 import { RefreshCw } from '@/components/ui/icons'
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
 import { TURNSTILE_LOAD_DEADLINE_MS, TURNSTILE_RETRY_INTERVAL_MS } from '@orbit/shared/hooks/turnstile-token-core'
 import { useCurrentTheme } from '@/stores/theme-store'
 
 type WidgetState = 'idle' | 'loading' | 'interactive' | 'solved' | 'failed' | 'expired'
+
+type ChallengeProps = Readonly<{
+  siteKey: string
+  resetKey: number
+  onToken: (token: string | null) => void
+  onStateChange?: (state: WidgetState) => void
+}>
 
 interface TurnstileApi {
   render: (container: HTMLElement, options: {
@@ -88,52 +95,79 @@ function useChallengeVisibility() {
   return { containerRef, challengeVisible }
 }
 
-export function TurnstileWidget({
-  siteKey,
-  resetKey,
-  onToken,
-  onStateChange,
-  theme,
-  language,
-  quiet = false,
-}: Readonly<{
-  siteKey: string
-  resetKey: number
-  onToken: (token: string | null) => void
-  onStateChange?: (state: WidgetState) => void
-  theme?: 'light' | 'dark'
-  language?: string
-  quiet?: boolean
-}>) {
-  const t = useTranslations()
-  const appLocale = useLocale()
-  // WHY: Cloudflare lists Orbit's pt-BR as pt-br https://developers.cloudflare.com/turnstile/reference/supported-languages/
-  const challengeLanguage = (language ?? appLocale).toLowerCase()
-  const currentTheme = useCurrentTheme()
-  const challengeTheme = theme ?? currentTheme
+/**
+ * Loads the Turnstile script under one load deadline, as `useBridgeLoad` loads the bridge on mobile. A failed load reports
+ * `loading` and loads the script again after TURNSTILE_RETRY_INTERVAL_MS. The deadline drops a stalled load and reports `failed`.
+ * `loadAgain` starts a new load under a new deadline.
+ */
+function useTurnstileScript(report: (state: 'loading' | 'failed') => void) {
+  const [loaded, setLoaded] = useState<Readonly<{ turnstile: TurnstileApi }> | null>(null)
+  const [load, setLoad] = useState(0)
+  const reportRef = useRef(report)
+
+  useEffect(() => {
+    reportRef.current = report
+  }, [report])
+
+  useEffect(() => {
+    let active = true
+    let reloadTimer: number | undefined
+    const deadline = window.setTimeout(() => {
+      active = false
+      window.clearTimeout(reloadTimer)
+      if (turnstileLoad) forgetTurnstileLoad(turnstileLoad.script)
+      reportRef.current('failed')
+    }, TURNSTILE_LOAD_DEADLINE_MS)
+
+    function request() {
+      void loadTurnstile().then((turnstile) => {
+        if (!active) return
+        window.clearTimeout(deadline)
+        setLoaded({ turnstile })
+      }, () => {
+        if (!active) return
+        reportRef.current('loading')
+        reloadTimer = window.setTimeout(request, TURNSTILE_RETRY_INTERVAL_MS)
+      })
+    }
+
+    request()
+    return () => {
+      active = false
+      window.clearTimeout(deadline)
+      window.clearTimeout(reloadTimer)
+    }
+  }, [load])
+
+  const loadAgain = useCallback(() => setLoad((value) => value + 1), [])
+  return { loaded, loadAgain }
+}
+
+/**
+ * Renders the challenge once the script loads and runs a failure that Cloudflare marks Retry: Yes again, at most MAX_AUTOMATIC_RETRIES times.
+ * A new reset key or Retry resets the rendered challenge, or loads the script again when no challenge exists.
+ */
+function useTurnstileChallenge({ siteKey, resetKey, onToken, onStateChange, theme, language }: ChallengeProps & Readonly<{ theme: 'light' | 'dark'; language: string }>) {
   const { containerRef, challengeVisible } = useChallengeVisibility()
   const widgetIdRef = useRef<unknown>(null)
   const automaticRetriesRef = useRef(0)
   const retryTimerRef = useRef<number | undefined>(undefined)
-  const loadDeadlineRef = useRef<number | null>(null)
   const callbacksRef = useRef({ onToken, onStateChange })
   const [state, setState] = useState<WidgetState>('idle')
-  const [attempt, setAttempt] = useState(0)
+  const { loaded, loadAgain } = useTurnstileScript((next) => {
+    setState(next)
+    onStateChange?.(next)
+    onToken(null)
+  })
 
   useEffect(() => {
     callbacksRef.current = { onToken, onStateChange }
   }, [onToken, onStateChange])
 
   useEffect(() => {
-    let active = true
-    queueMicrotask(() => { if (active) setState('loading') })
-    return () => { active = false }
-  }, [resetKey])
-
-  useEffect(() => {
-    let active = true
     const container = containerRef.current
-    if (!container) return
+    if (!container || !loaded) return
+    let active = true
 
     function update(next: WidgetState, token: string | null = null) {
       if (!active) return
@@ -157,78 +191,76 @@ export function TurnstileWidget({
       return true
     }
 
-    function renderWidget() {
-      const turnstile = getTurnstile()
-      if (!turnstile || !container || !active) return
-      automaticRetriesRef.current = 0
-      widgetIdRef.current = turnstile.render(container, {
-        sitekey: siteKey,
-        appearance: 'interaction-only',
-        size: 'flexible',
-        theme: challengeTheme,
-        language: challengeLanguage,
-        retry: 'never',
-        callback: (token) => {
-          automaticRetriesRef.current = 0
-          update('solved', token)
-        },
-        'error-callback': fail,
-        'expired-callback': () => update('expired'),
-        'before-interactive-callback': () => update('interactive'),
-        'after-interactive-callback': () => update('loading'),
-      })
-    }
-
-    function loadAgain() {
-      if (!active) return
-      update('loading')
-      retryTimerRef.current = window.setTimeout(() => { if (active) setAttempt((value) => value + 1) }, TURNSTILE_RETRY_INTERVAL_MS)
-    }
-
-    loadDeadlineRef.current ??= Date.now() + TURNSTILE_LOAD_DEADLINE_MS
-    const loadDeadline = window.setTimeout(() => {
-      loadDeadlineRef.current = null
-      if (turnstileLoad) forgetTurnstileLoad(turnstileLoad.script)
-      update('failed')
-      active = false
-    }, loadDeadlineRef.current - Date.now())
-    void loadTurnstile().then(() => {
-      window.clearTimeout(loadDeadline)
-      loadDeadlineRef.current = null
-      renderWidget()
-    }, loadAgain)
+    automaticRetriesRef.current = 0
+    widgetIdRef.current = loaded.turnstile.render(container, {
+      sitekey: siteKey,
+      appearance: 'interaction-only',
+      size: 'flexible',
+      theme,
+      language,
+      retry: 'never',
+      callback: (token) => {
+        automaticRetriesRef.current = 0
+        update('solved', token)
+      },
+      'error-callback': fail,
+      'expired-callback': () => update('expired'),
+      'before-interactive-callback': () => update('interactive'),
+      'after-interactive-callback': () => update('loading'),
+    })
 
     return () => {
       active = false
-      window.clearTimeout(loadDeadline)
       window.clearTimeout(retryTimerRef.current)
       const widgetId = widgetIdRef.current
       if (widgetId != null) getTurnstile()?.remove(widgetId)
       widgetIdRef.current = null
     }
-  }, [containerRef, siteKey, challengeTheme, challengeLanguage, attempt])
+  }, [containerRef, loaded, siteKey, theme, language])
 
-  useEffect(() => {
-    if (resetKey === 0) return
+  /** Resets the rendered challenge, or loads the script again when the load failed and no challenge exists. */
+  const runAgain = useCallback(() => {
     window.clearTimeout(retryTimerRef.current)
     automaticRetriesRef.current = 0
     const widgetId = widgetIdRef.current
     if (widgetId != null) getTurnstile()?.reset(widgetId)
-  }, [resetKey])
+    else loadAgain()
+  }, [loadAgain])
+
+  useEffect(() => {
+    let active = true
+    queueMicrotask(() => { if (active) setState('loading') })
+    if (resetKey !== 0) runAgain()
+    return () => { active = false }
+  }, [resetKey, runAgain])
 
   function retry() {
     onToken(null)
     setState('loading')
     onStateChange?.('loading')
-    window.clearTimeout(retryTimerRef.current)
-    automaticRetriesRef.current = 0
-    const widgetId = widgetIdRef.current
-    if (widgetId != null) {
-      getTurnstile()?.reset(widgetId)
-    } else {
-      setAttempt((value) => value + 1)
-    }
+    runAgain()
   }
+
+  return { containerRef, challengeVisible, state, retry }
+}
+
+export function TurnstileWidget({
+  siteKey,
+  resetKey,
+  onToken,
+  onStateChange,
+  theme,
+  language,
+  quiet = false,
+}: ChallengeProps & Readonly<{ theme?: 'light' | 'dark'; language?: string; quiet?: boolean }>) {
+  const t = useTranslations()
+  const appLocale = useLocale()
+  const currentTheme = useCurrentTheme()
+  const { containerRef, challengeVisible, state, retry } = useTurnstileChallenge({
+    siteKey, resetKey, onToken, onStateChange, theme: theme ?? currentTheme,
+    // WHY: Cloudflare lists Orbit's pt-BR as pt-br https://developers.cloudflare.com/turnstile/reference/supported-languages/
+    language: (language ?? appLocale).toLowerCase(),
+  })
 
   const statusVisible = !quiet && (state === 'loading' || state === 'failed' || state === 'expired')
   const position = challengeVisible || statusVisible ? undefined : 'absolute'
