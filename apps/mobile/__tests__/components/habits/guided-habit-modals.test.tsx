@@ -354,6 +354,40 @@ describe('a guided create on Android from a phrase with a repeat', () => {
     tree.unmount()
   })
 
+  it.each([
+    ['the day', ptBR.habits.flow.when.tomorrow, { read: true, emoji: null, frequencyUnit: 'Day', frequencyQuantity: 1, days: [], isFlexible: false, flexibleTarget: null, dueTime: '07:00', subHabits: [], checklistItems: [] }, { dueDate: '2026-11-14' }],
+    ['the repeat', ptBR.habits.flow.when.everyDay, { read: true, emoji: null, frequencyUnit: 'Week', frequencyQuantity: 1, days: ['Monday'], isFlexible: false, flexibleTarget: null, dueTime: null, subHabits: [], checklistItems: [] }, { startDate: '2026-11-13', frequencyUnit: 'Day', frequencyQuantity: 1 }],
+  ] as const)('keeps %s the person answered when a later free read of the phrase proposes a repeat', async (_label, answer, laterRead, expected) => {
+    state.create.mockResolvedValue({ id: 'habit-9' })
+    state.phraseRead
+      .mockResolvedValueOnce({ read: false, emoji: null, frequencyUnit: null, frequencyQuantity: null, days: [], isFlexible: false, flexibleTarget: null, dueTime: null, subHabits: [], checklistItems: [] })
+      .mockResolvedValueOnce(laterRead)
+    const tree = mountCreate()
+    await settle()
+    await phrase(tree, 'ligar para a mãe')
+    await settle()
+    await tap(tree, answer)
+    await tap(tree, ptBR.habits.flow.time.none)
+    expect(heading(tree)).toBe(ptBR.habits.flow.confirm.question)
+    const whenRow = new RegExp(`^${ptBR.habits.flow.summary.when}, `)
+    const answered = control(tree, whenRow)!.props.accessibilityLabel
+    await tap(tree, new RegExp(`^${ptBR.habits.flow.summary.title}`))
+    await phrase(tree, 'ligar para a mãe e perguntar da viagem')
+    await settle()
+    expect(state.phraseRead).toHaveBeenCalledTimes(2)
+    expect(heading(tree)).toBe(ptBR.habits.flow.confirm.question)
+    expect(control(tree, whenRow)!.props.accessibilityLabel).toBe(answered)
+    expect(rowMarked(tree, whenRow)).toBe(false)
+    await primary(tree)
+    expect(state.create).toHaveBeenCalledTimes(1)
+    const sent = state.create.mock.calls[0]![0] as Record<string, unknown>
+    expect(sent).toMatchObject({ title: 'ligar para a mãe e perguntar da viagem', ...expected })
+    expect(sent.days ?? []).toEqual([])
+    expect(sent).not.toHaveProperty('dueTime')
+    if (!('frequencyUnit' in expected)) expect(sent).not.toHaveProperty('frequencyUnit')
+    tree.unmount()
+  })
+
   it('reads a repeat typed in the phrase after the person makes a task a habit on the type step', async () => {
     state.create.mockResolvedValue({ id: 'habit-9' })
     state.phraseRead.mockResolvedValue({ read: false, emoji: null, frequencyUnit: null, frequencyQuantity: null, days: [], isFlexible: false, flexibleTarget: null, dueTime: null, subHabits: [], checklistItems: [] })

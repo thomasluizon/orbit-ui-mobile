@@ -312,7 +312,7 @@ export function createUseGuidedHabitFlow({ useState, useEffect, useMemo, useCall
 
     const applyFreeRead = useCallback((response: HabitPhraseReadResponse) => {
       const { answers, deliberateType } = live.current
-      const patch = guardHabitReadPatch(buildHabitFormPatchFromSuggestion(response), { deliberateType, timeAnswered: answers.time, lockedGeneral })
+      const patch = guardHabitReadPatch(buildHabitFormPatchFromSuggestion(response), { deliberateType, timeAnswered: answers.time, whenAnswered: answers.when, lockedGeneral })
       const scheduleBefore = readSchedule(form)
       const { dueTime: timeBefore, emoji: emojiBefore } = form.getValues()
       if (patch.mode !== 'oneTime' && deliberateType === null && form.getValues().itemType !== 'habit') helpers.chooseItemType('habit')
