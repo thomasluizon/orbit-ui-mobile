@@ -74,9 +74,28 @@ const hiddenChangeCases = () => {
   same("git-worktrees: a tree with no hidden change gives no line", hiddenChangesOf("H .gitignore\nH plain.txt\n"), [])
 }
 
+/** An fsmonitor hook that always answers "nothing changed": `git status` then never looks at an edited file again. */
+const fsmonitorCases = () => {
+  const base = join(root, "git-worktrees-fsmonitor")
+  const repository = join(base, "repository")
+  mkdirSync(repository, { recursive: true })
+  writeFileSync(join(base, "fsmonitor-hook.sh"), "#!/bin/sh\nprintf 'token\\0'\n", { mode: 0o755 })
+  writeFileSync(join(repository, "tracked.txt"), "committed\n")
+  const git = (args) => spawnSync("git", ["-C", repository, ...args], { encoding: "utf8" })
+  // Two runs of `git status` store the fsmonitor state in the index; from then on git trusts the hook.
+  const staged = [["init", "-q", "--initial-branch=main"], ["add", "tracked.txt"], ["-c", "user.email=gate@orbit.test", "-c", "user.name=Orbit Gate", "commit", "-q", "-m", "base"],
+    ["config", "core.fsmonitor", join(base, "fsmonitor-hook.sh")], ["status", "--porcelain"], ["status", "--porcelain"]].every((args) => git(args).status === 0)
+  T("git-worktrees: the fsmonitor fixture stages", staged)
+  if (!staged) return
+  appendFileSync(join(repository, "tracked.txt"), "edited, never committed\n")
+  same("git-worktrees: git status with the fsmonitor hook hides the edit", git(["status", "--porcelain"]).stdout, "")
+  same("git-worktrees: the clean check shows the edit that the fsmonitor hook hides", git(CLEAN_STATUS_ARGUMENTS).stdout, " M tracked.txt\n")
+}
+
 export const cases = () => {
   walkCases()
   hiddenChangeCases()
+  fsmonitorCases()
   const staged = stageRepository()
   T("git-worktrees: the git fixture stages", staged !== null)
   if (staged === null) return

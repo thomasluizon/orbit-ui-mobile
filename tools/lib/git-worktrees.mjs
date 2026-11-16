@@ -14,10 +14,11 @@ const WALK_TIMEOUT_MS = 120_000
 /**
  * `git status` arguments that turn off each setting that hides a change, whatever any config file says:
  * `status.showUntrackedFiles=no`, `core.excludesFile` or its default `$XDG_CONFIG_HOME/git/ignore` (an empty value names
- * no file and turns the default off), and `diff.ignoreSubmodules` or `submodule.<name>.ignore`. No setting turns off an
- * index flag or `info/exclude`, so a clean check also reads `HIDDEN_CHANGE_ARGUMENTS`.
+ * no file and turns the default off), a `core.fsmonitor` that misses an edit, and `diff.ignoreSubmodules` or
+ * `submodule.<name>.ignore`. No setting turns off an index flag or `info/exclude`: a clean check reads both below.
  */
-export const CLEAN_STATUS_ARGUMENTS = ["-c", "core.excludesFile=", "status", "--porcelain", "--untracked-files=all", "--ignore-submodules=none"]
+export const CLEAN_STATUS_ARGUMENTS = ["-c", "core.excludesFile=", "-c", "core.fsmonitor=false", "status", "--porcelain", "--untracked-files=all",
+  "--ignore-submodules=none"]
 
 /**
  * `git ls-files` arguments that tag each tracked path and list each untracked path that no `.gitignore` of the tree
@@ -35,12 +36,12 @@ export const HIDDEN_CHANGE_ARGUMENTS = ["ls-files", "-v", "--cached", "--others"
 export const hiddenChangesOf = (listing) => listing.split("\n").filter((line) => /^(?:[a-z]|S|\?) /.test(line))
 
 /**
- * `git worktree remove` refuses a changed tree through its own `git status`, which reads `status.showUntrackedFiles` and
- * `core.excludesFile` too. A `-c` setting reaches that child git and wins over every config file, so the refusal sees each
- * untracked file that a `.gitignore` or `info/exclude` does not ignore. The refusal never sees a change that an index flag
- * hides or a file that only `info/exclude` ignores: no setting turns those off, so the caller checks them first.
+ * `git worktree remove` refuses a changed tree through its own `git status`, which reads the same settings. A `-c` setting
+ * reaches that child git and wins over every config file, so the refusal sees each change that `CLEAN_STATUS_ARGUMENTS`
+ * sees. It never sees a change that an index flag hides or a file that only `info/exclude` ignores: no setting turns those
+ * off, so the caller checks them first.
  */
-export const WORKTREE_REMOVE_ARGUMENTS = ["-c", "status.showUntrackedFiles=all", "-c", "core.excludesFile=", "worktree", "remove"]
+export const WORKTREE_REMOVE_ARGUMENTS = ["-c", "status.showUntrackedFiles=all", "-c", "core.excludesFile=", "-c", "core.fsmonitor=false", "worktree", "remove"]
 
 /**
  * `{ path, branch, locked, prunable }` for each record of `git worktree list --porcelain`, the primary checkout first.

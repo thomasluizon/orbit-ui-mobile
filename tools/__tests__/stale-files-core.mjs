@@ -384,6 +384,38 @@ const hiddenChangeRemovalCases = () => {
   T("stale-files: the file that only info/exclude ignores survives the removal", existsSync(join(excluded.finished, "drafts", "todo.md")))
 }
 
+/**
+ * A `core.fsmonitor` hook that answers "nothing changed" makes `git status` skip an edited file, in the listing's check
+ * and in git's own refusal. The check before the removal must see an edit made before it, and git's refusal one made after it.
+ */
+const fsmonitorRemovalCases = () => {
+  const hook = join(root, "stale-core", "fsmonitor-hook.sh")
+  mkdirSync(dirname(hook), { recursive: true })
+  writeFileSync(hook, "#!/bin/sh\nprintf 'token\\0'\n", { mode: 0o755 })
+  for (const when of ["before the check", "after the check"]) {
+    const fixture = stageFinishedWorktree(`fsmonitor-${when.replaceAll(" ", "-")}`, [["config", "core.fsmonitor", hook]])
+    if (fixture === null) continue
+    const tracked = join(fixture.finished, "tracked.txt")
+    // Two runs of `git status` store the fsmonitor state in the index; from then on git trusts the hook.
+    const prime = () => [0, 1].every(() => fixture.git(["-C", fixture.finished, "status", "--porcelain"]).status === 0)
+    const edit = () => appendFileSync(tracked, "edited, never committed\n")
+    T(`stale-files: the fsmonitor state is stored (${when})`, prime())
+    if (when === "before the check") edit()
+    const probes = { ...systemProbes, git: (cwd, args, timeoutMs) => {
+      if (when === "after the check" && args.includes("remove")) {
+        prime()
+        edit()
+      }
+      return systemProbes.git(cwd, args, timeoutMs)
+    } }
+    if (when === "before the check") same("stale-files: the fixture's git status hides the edit under the fsmonitor hook", fixture.git(["-C", fixture.finished, "status", "--porcelain"]).stdout, "")
+    const outcome = removeListed(fixture.listing, fixture.listing, {}, { probes })
+    same(`stale-files: the removal refuses a worktree whose edit the fsmonitor hook hides, made ${when}`, outcome.failed.map((item) => item.reason),
+      [when === "before the check" ? `${fixture.finished} was not removed: it holds an uncommitted change` : `git worktree remove refused ${fixture.finished}`])
+    same(`stale-files: the edit that the fsmonitor hook hides survives the removal (${when})`, existsSync(tracked) ? readFileSync(tracked, "utf8") : null, "committed\nedited, never committed\n")
+  }
+}
+
 /** The walk of a finished worktree's tree runs only inside the listing's time limit; past it, the worktree stays. */
 const deadlineCases = () => {
   const machine = stageMachine("deadline")
@@ -459,6 +491,7 @@ export const cases = () => {
   nestedRemovalCases()
   hiddenUntrackedRemovalCases()
   hiddenChangeRemovalCases()
+  fsmonitorRemovalCases()
   deadlineCases()
   exportCases()
   reportCases()
