@@ -33,7 +33,7 @@ UI `main` `e353daa9d`; API `main` `38513551a`; landing `main` `7e6d150e0`. Stagi
 | ui#2470 (`#2140`) | Round 14 result S `fix-2470-r14-result.md`: read, review worker. |
 | ui#2451 (`#2121`) | Round 18 result S `fix-2451-r18-result.md`: read, review worker. |
 | `#2143` | Round 2 result: read, review worker, open the pull request. |
-| `#2135` | Baseline result S `result-2135-baseline.md`: `NEEDS_FLAG` means turn on `astra_eval_trace` through `/flag` for the eval accounts and relaunch. |
+| `#2135` | Baseline BLOCKED (S `result-2135-baseline.md`): the staging Pro eval account lost Pro (its trial ended), so every fixture precondition fails before any paid call. Restore its Pro access on staging through the existing admin path (read the result for the account label and the precondition), then relaunch S `order-2135-baseline.md`. |
 | `#2148` (owner order) | New: build it (S `ticket-create-loading.md` is its body); reuse an idle merged worktree. |
 | `#2145` | Build when free disk allows, or in a reused merged worktree. |
 | ui#2453 (`#2122`) | Stacked; after `#2121`. |
