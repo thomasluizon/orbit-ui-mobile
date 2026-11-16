@@ -20,7 +20,8 @@ const USAGE = `usage: stale-files.mjs [--list] [--json] [--session <id>] [--sess
              copy of a protected or live session
   worktree   a linked worktree of a repository in .claude/orchestrator.json whose pull request merged or
              closed, or whose branch a merged branch contains, with no uncommitted change and no unpushed
-             commit. Its local branch always stays.
+             commit. An untracked file counts as a change, whatever status.showUntrackedFiles says. Its local
+             branch always stays.
 
   An item stays when a live process or a live session uses it, when the scratchpad of a session that stays
   links into it from any project root beside --session-root, when it holds a registered worktree that the

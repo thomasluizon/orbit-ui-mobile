@@ -140,6 +140,7 @@ childProcess.spawnSync = (command, args, options) => {
     return { ...result, status: 9, stderr: "simulated failure after Git deregistered the worktree\\n" }
   }
 
+  if (process.env.ORBIT_GIT_INTERLEAVE_MODE === "untracked-before-remove") writeFileSync(target + "/late-untracked.txt", "written after the clean check\\n")
   const result = originalSpawnSync(command, args, options)
   if (result.status === 0 && process.env.ORBIT_GIT_INTERLEAVE_MODE === "recreate-after-success") {
     if (existsSync(target)) throw new Error("Git unexpectedly left the regular fixture path behind")
@@ -335,6 +336,18 @@ export const assertRepositoryLabel = (ticket, repoKey) => {
   const dirty = stageTeardownWorktree("dirty", { changed: true, fastForwardMerged: true, dirty: true })
   check(TOOL, "a dirty worktree is refused as work loss", ["--issue", "ORB-124"], { status: 1, stderr: /UNMET worktree-clean: uncommitted paths: (?:\?\? )?dirty\.txt/ }, { env: orcaEnv(teardownPlan(dirty)) })
   T(`${TOOL}: the dirty refusal leaves the tree in place`, existsSync(dirty.child), "the dirty fixture was removed")
+
+  // Global git config that hides every untracked file from `git status` and from the refusal of `git worktree remove`.
+  const hideUntracked = stage("teardown/hide-untracked.gitconfig", "[status]\n\tshowUntrackedFiles = no\n")
+  const hiddenDirty = stageTeardownWorktree("hidden-dirty", { changed: true, fastForwardMerged: true, dirty: true })
+  check(TOOL, "a dirty worktree is refused while status.showUntrackedFiles=no hides its untracked file", ["--issue", "ORB-124"],
+    { status: 1, stderr: /UNMET worktree-clean: uncommitted paths: \?\? dirty\.txt/ }, { env: { ...orcaEnv(teardownPlan(hiddenDirty)), GIT_CONFIG_GLOBAL: hideUntracked } })
+  T(`${TOOL}: the hidden untracked file survives the refusal`, existsSync(join(hiddenDirty.child, "dirty.txt")))
+  const lateUntracked = stageTeardownWorktree("late-untracked", { changed: true, fastForwardMerged: true })
+  check(TOOL, "git refuses the removal when an untracked file the config hides appears after the clean check", ["--issue", "ORB-124"],
+    { status: 3, stderr: /git worktree remove .* failed without deregistering it: .*untracked files/ },
+    { env: gitInterleaveEnv({ ...orcaEnv(teardownPlan(lateUntracked)), GIT_CONFIG_GLOBAL: hideUntracked }, "untracked-before-remove", lateUntracked.child) })
+  T(`${TOOL}: the untracked file written after the clean check survives`, existsSync(join(lateUntracked.child, "late-untracked.txt")))
 
   const failedAfterDeregister = stageTeardownWorktree("failed-after-deregister", { changed: true, fastForwardMerged: true })
   const failedAfterDeregisterResult = check(

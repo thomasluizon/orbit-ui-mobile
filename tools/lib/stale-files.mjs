@@ -12,7 +12,7 @@ import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "nod
 
 import { claudeConfigDirectory, gitDirectoryOf, liveSessionProcesses, processIsAlive, readRunState, REPO_ROOT } from "./run-state.mjs"
 import { readSessionChain } from "./session-chain.mjs"
-import { findRepositories, parseWorktreeList } from "./git-worktrees.mjs"
+import { CLEAN_STATUS_ARGUMENTS, WORKTREE_REMOVE_ARGUMENTS, findRepositories, parseWorktreeList } from "./git-worktrees.mjs"
 
 /** The hook starts a new listing when the stored one is older than this. */
 export const LISTING_MAX_AGE_MS = 15 * 60_000
@@ -231,7 +231,7 @@ const useOf = (path, evidence, sessionId = null) => {
  */
 const nestedWorktreeHold = (worktree, probes) => {
   if (worktree.locked) return "it is locked"
-  if (probes.git(worktree.path, ["status", "--porcelain"]) !== "") return "it holds an uncommitted change"
+  if (probes.git(worktree.path, CLEAN_STATUS_ARGUMENTS) !== "") return "it holds an uncommitted change"
   if (worktree.branch !== null) {
     const verdict = judgeBranch(worktree, probes)
     return verdict.stale ? null : verdict.reason
@@ -248,7 +248,7 @@ const nestedRepositoryHold = (directory, probes) => {
   // A broken `.git` makes git search upward, and then it reads the repository around this one.
   const top = probes.git(directory, ["rev-parse", "--show-toplevel"])
   if (top === null || canonical(top) !== canonical(directory)) return "git cannot read it"
-  if (probes.git(directory, ["status", "--porcelain"]) !== "") return "it holds an uncommitted change"
+  if (probes.git(directory, CLEAN_STATUS_ARGUMENTS) !== "") return "it holds an uncommitted change"
   return probes.git(directory, ["rev-list", "--count", "--all", "--not", "--remotes"]) === "0" ? null : "it holds a commit that no remote has"
 }
 
@@ -392,7 +392,7 @@ const classifyWorktrees = (evidence, probes, deadline) => evidence.worktrees
   .map((worktree) => {
     const keep = (worktree.branch === null ? "its HEAD is detached, so no branch proves its work merged" : null)
       ?? (worktree.locked ? "it is locked" : null) ?? useOf(worktree.path, evidence) ?? otherSessionHoldOf(worktree.path, evidence)
-      ?? (probes.git(worktree.path, ["status", "--porcelain"]) === "" ? null : "it holds an uncommitted change")
+      ?? (probes.git(worktree.path, CLEAN_STATUS_ARGUMENTS) === "" ? null : "it holds an uncommitted change")
       ?? (Date.now() > deadline ? "the listing reached its time limit before this check" : null)
     const verdict = keep === null ? judgeBranch(worktree, probes) : { stale: false, reason: keep }
     // Only a finished worktree pays for the walk of its tree, and only inside the listing's time limit.
@@ -520,9 +520,12 @@ const removeDirectory = (item, root) => {
   rmSync(item.path, { recursive: true, force: true })
 }
 
-/** Git refuses a tree with a tracked or untracked change, and a locked one. The local branch stays. */
+/**
+ * Git refuses a tree with a tracked or untracked change, whatever `status.showUntrackedFiles` says, and a locked one.
+ * An ignored file goes with the tree. The local branch stays.
+ */
 const removeWorktree = (item, probes) => {
-  if (probes.git(item.repository, ["worktree", "remove", item.path], REMOVAL_TIMEOUT_MS) === null) throw new Error(`git worktree remove refused ${item.path}`)
+  if (probes.git(item.repository, [...WORKTREE_REMOVE_ARGUMENTS, item.path], REMOVAL_TIMEOUT_MS) === null) throw new Error(`git worktree remove refused ${item.path}`)
 }
 
 /**

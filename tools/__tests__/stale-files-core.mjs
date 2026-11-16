@@ -296,14 +296,38 @@ const nestedRemovalCases = () => {
   const listing = { ...collectListing(machine.context, { probes: quietProbes }), stale: [outer, inner].map((path) => ({ kind: "worktree", path, repository: machine.checkout, reason: "pull request #1 merged" })) }
   const removals = []
   const probes = { ...quietProbes, git: (cwd, args) => {
-    if (args[0] !== "worktree" || args[1] !== "remove") return ""
-    removals.push(args[2])
-    return args[2] === inner ? null : ""
+    if (!args.includes("remove")) return ""
+    removals.push(args.at(-1))
+    return args.at(-1) === inner ? null : ""
   } }
   const outcome = removeListed(listing, listing, {}, { probes })
   same("stale-files: the removal asks git for the inner worktree only, never for the worktree around it", removals, [inner])
   same("stale-files: the inner worktree that git refused is reported as failed", outcome.failed.map((item) => item.path), [inner])
   same("stale-files: the worktree around a refused inner worktree is skipped with the reason", outcome.skipped.map((item) => `${item.path}: ${item.reason}`), [`${outer}: ${inner} in it could not be removed`])
+}
+
+/**
+ * A file can appear in a listed worktree after the listing, and `git worktree remove` refuses it through its own
+ * `git status`, which reads `status.showUntrackedFiles` too. With that setting at `no` in the repository's config, the
+ * removal must still see the untracked file and keep it.
+ */
+const hiddenUntrackedRemovalCases = () => {
+  const machine = stageMachine("hidden-untracked-removal")
+  const repository = join(machine.base, "repository")
+  const finished = join(machine.base, "finished")
+  mkdirSync(repository)
+  const git = (args) => spawnSync("git", ["-C", repository, ...args], { encoding: "utf8" })
+  const staged = [["init", "-q", "--initial-branch=main"], ["-c", "user.email=gate@orbit.test", "-c", "user.name=Orbit Gate", "commit", "-q", "--allow-empty", "-m", "base"],
+    ["worktree", "add", "-q", "-b", "feature/finished", finished], ["config", "status.showUntrackedFiles", "no"]].every((args) => git(args).status === 0)
+  T("stale-files: the hidden untracked file fixture stages", staged)
+  if (!staged) return
+  writeFileSync(join(finished, "draft.txt"), "written after the listing\n")
+  same("stale-files: the fixture's git status hides the untracked file", git(["-C", finished, "status", "--porcelain"]).stdout, "")
+  const listing = { ...collectListing(machine.context, { probes: quietProbes }), stale: [{ kind: "worktree", path: finished, repository, reason: "pull request #1 merged" }] }
+  const outcome = removeListed(listing, listing, {}, { probes: systemProbes })
+  same("stale-files: git refuses the removal of a worktree whose untracked file the config hides", outcome.failed.map((item) => item.path), [finished])
+  T("stale-files: the hidden untracked file survives the removal", existsSync(join(finished, "draft.txt")))
+  T("stale-files: the worktree whose removal git refused stays registered", git(["worktree", "list", "--porcelain"]).stdout.includes(finished))
 }
 
 /** The walk of a finished worktree's tree runs only inside the listing's time limit; past it, the worktree stays. */
@@ -379,6 +403,7 @@ export const cases = () => {
   recordCases()
   removalCases()
   nestedRemovalCases()
+  hiddenUntrackedRemovalCases()
   deadlineCases()
   exportCases()
   reportCases()

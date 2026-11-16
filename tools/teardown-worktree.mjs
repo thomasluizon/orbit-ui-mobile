@@ -5,7 +5,7 @@ import { existsSync, lstatSync, renameSync, rmSync } from "node:fs"
 import { resolve } from "node:path"
 import { assertRepositoryLabel, readTicket, resolveTicket } from "./lib/github-issues.mjs"
 import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
-import { findRepositories, parseWorktreeList } from "./lib/git-worktrees.mjs"
+import { CLEAN_STATUS_ARGUMENTS, WORKTREE_REMOVE_ARGUMENTS, findRepositories, parseWorktreeList } from "./lib/git-worktrees.mjs"
 
 const USAGE = `usage: teardown-worktree.mjs (--issue <ORB-N|#N|N> | --worktree <path>) --repo <ui|api|landing> [--base <ref>]
 
@@ -15,11 +15,11 @@ const USAGE = `usage: teardown-worktree.mjs (--issue <ORB-N|#N|N> | --worktree <
   --base <ref>        optionally narrow the merged pull request lookup to this target branch
   --help, -h          print this usage and exit 0
 
-All five checks must pass before anything is removed: the tree is clean, no other repository or
-worktree lies inside it (git would delete one in an ignored directory with the tree), the pull
-request is merged with its merge commit present in the target branch, the local branch adds no
-content beyond the pull request head and base, and the linked ticket is closed with board status
-Done or listed as a standing ticket.
+All five checks must pass before anything is removed: the tree is clean (an untracked file counts,
+whatever status.showUntrackedFiles says), no other repository or worktree lies inside it (git would
+delete one in an ignored directory with the tree), the pull request is merged with its merge commit
+present in the target branch, the local branch adds no content beyond the pull request head and base,
+and the linked ticket is closed with board status Done or listed as a standing ticket.
 
 The local contract branch is retained because deleting a branch that is the base of a stacked pull
 request can close that pull request. Existing worktrees can be cleared safely by running this tool
@@ -133,7 +133,7 @@ const contains = (commit, container) => {
   return git(path, ["merge-base", "--is-ancestor", commit, container], { allowFailure: true }) !== null
 }
 
-const dirty = git(path, ["status", "--short"]).split("\n").filter(Boolean)
+const dirty = git(path, CLEAN_STATUS_ARGUMENTS).split("\n").filter(Boolean)
 // `git worktree remove` deletes an ignored directory with every worktree and repository in it, and `git status` lists none there.
 const repositories = findRepositories(path)
 if (repositories === null) fail(3, `could not list the repositories inside ${path}`)
@@ -198,7 +198,7 @@ try {
 }
 
 const LOCK_REFUSAL = (reason) => `worktree ${path} is LOCKED (${reason}); git refuses to remove or prune a locked worktree, and nothing was touched`
-const removal = runGitCommon(["worktree", "remove", path])
+const removal = runGitCommon([...WORKTREE_REMOVE_ARGUMENTS, path])
 const stillRegistered = isStillListed()
 const removalDetail = (removal.stderr || removal.stdout || removal.error?.message || "unknown error").trim()
 if (stillRegistered) {
