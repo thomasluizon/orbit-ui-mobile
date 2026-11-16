@@ -30,8 +30,9 @@ const USAGE = `usage: stale-files.mjs [--list] [--json] [--session <id>] [--sess
   remote has, when a kept item lives in it, when it is in the directory of a session that stays in another
   project root, or when a check cannot read its evidence. A repository in a session directory or a carry
   copy goes with it. A removal takes the whole tree, ignored directories included. Live sessions come from
-  the Claude session records; a record that cannot be judged, or no record of this session, keeps every
-  item that a live session could use.
+  the Claude session records of this session's config directory, ~/.claude and the worker account directory
+  in the variable that workers.claude.configDirEnv names; a record that cannot be judged, or no record of
+  this session, keeps every item that a live session could use.
 
   --list               (default) compute the listing, store it in the git directory, print each stale item
   --json               with --list: print the stored listing as JSON, with every kept item and its reason
@@ -79,14 +80,17 @@ if (!sessionId) fail(2, `${USAGE}\n\nname this session with --session <id>: its 
 
 const stored = readStoredListing()
 let repositories
+let configDirectories
 try {
-  repositories = readOrchestratorConfig().repos
+  const config = readOrchestratorConfig()
+  repositories = config.repos
+  configDirectories = claudeConfigDirectories(config)
 } catch (error) {
   fail(1, error.message)
 }
 const sessionRoot = values["--session-root"] ?? stored?.context?.sessionRoot ?? null
 const context = { sessionId, sessionRoot: sessionRoot ? resolve(sessionRoot) : null, carryRoot: resolve(values["--carry-root"] ?? defaultCarryRoot()),
-  repositories, configDirectories: claudeConfigDirectories() }
+  repositories, configDirectories }
 const sizeOf = (item) => (Number.isFinite(item.bytes) ? describeBytes(item.bytes) : "size not measured")
 
 if (switches.has("--delete")) {

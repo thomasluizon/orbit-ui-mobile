@@ -13,6 +13,7 @@ import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "nod
 import { claudeConfigDirectory, gitDirectoryOf, liveSessionProcesses, processIsAlive, readRunState, REPO_ROOT } from "./run-state.mjs"
 import { readSessionChain } from "./session-chain.mjs"
 import { CLEAN_STATUS_ARGUMENTS, WORKTREE_REMOVE_ARGUMENTS, findRepositories, parseWorktreeList } from "./git-worktrees.mjs"
+import { WORKER_ACCOUNT, workerAccounts } from "./orchestrator-config.mjs"
 
 /** The hook starts a new listing when the stored one is older than this. */
 export const LISTING_MAX_AGE_MS = 15 * 60_000
@@ -79,9 +80,15 @@ const isShell = (command) => SHELLS.has(basename(command.split(" ")[0].replace(/
 const readLiveSessions = (configDirectories) => configDirectories.flatMap((directory) => liveSessionProcesses(directory)
   .map((live) => ({ sessionId: live.sessionId, cwd: live.cwd ?? null })))
 
-export const claudeConfigDirectories = (environment = process.env) => [...new Set([
-  claudeConfigDirectory(), join(homedir(), ".claude"), environment.ORBIT_WORKER_CLAUDE_CONFIG_DIR,
-].filter((directory) => typeof directory === "string" && directory !== "").map((directory) => resolve(directory)))]
+/**
+ * The Claude config directories whose session records the listing reads: this session's, the default one, and the worker
+ * account's, which the variable that `workers.claude.configDirEnv` of `config` names gives, as the worker launch reads it.
+ */
+export const claudeConfigDirectories = (config, environment = process.env) => {
+  const worker = workerAccounts("claude", config.workers?.claude, environment).find((account) => account.name === WORKER_ACCOUNT)
+  return [...new Set([claudeConfigDirectory(), join(homedir(), ".claude"), worker?.configDirectory].filter((directory) => typeof directory === "string")
+    .map((directory) => resolve(directory)))]
+}
 
 const runGit = (cwd, args, timeoutMs = COMMAND_TIMEOUT_MS) => {
   const result = spawnSync(process.env.GIT_BIN || "git", ["-C", cwd, ...args], { encoding: "utf8", timeout: timeoutMs, maxBuffer: 32 * 1024 * 1024 })

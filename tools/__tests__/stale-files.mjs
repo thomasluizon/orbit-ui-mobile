@@ -16,10 +16,12 @@ const NESTED_UNPUSHED = "77777777-0000-4000-8000-000000000007"
 const NESTED_DONE = "88888888-0000-4000-8000-000000000008"
 const PROBE_REPOSITORY = "99999999-0000-4000-8000-000000000009"
 const NESTED_UNTRACKED = "aaaaaaaa-0000-4000-8000-00000000000a"
+const WORKER = "bbbbbbbb-0000-4000-8000-00000000000b"
 
 const base = join(root, "stale-cli")
 const home = join(base, "home")
 const configDirectory = join(base, "claude-config")
+const workerConfigDirectory = join(base, "worker-config")
 const sessionRoot = join(base, "sessions")
 const carryRoot = join(home, ".orbit-run-carry")
 const primary = join(base, "repository")
@@ -125,7 +127,7 @@ const stageProbeRepository = (directory) => {
 }
 
 const stageDirectories = (worktrees) => {
-  for (const session of [THIS, PREDECESSOR, LIVE, WORKED_IN, STALE]) mkdirSync(join(sessionRoot, session, "scratchpad"), { recursive: true })
+  for (const session of [THIS, PREDECESSOR, LIVE, WORKED_IN, STALE, WORKER]) mkdirSync(join(sessionRoot, session, "scratchpad"), { recursive: true })
   mkdirSync(outside, { recursive: true })
   writeFileSync(join(outside, "sentinel.txt"), "must survive\n")
   symlinkSync(outside, join(sessionRoot, STALE, "scratchpad", "outside"), "dir")
@@ -144,6 +146,9 @@ const stageDirectories = (worktrees) => {
   writeFileSync(join(configDirectory, "sessions", `${process.pid}.json`), JSON.stringify({ pid: process.pid, sessionId: LIVE, cwd: worktrees["in-use"].path }))
   // The session that lists runs too; without its own record the listing cannot see live sessions and keeps everything they could use.
   writeFileSync(join(configDirectory, "sessions", "listing-session.json"), JSON.stringify({ pid: process.pid, sessionId: THIS, cwd: primary }))
+  // A worker session runs on the worker account, whose directory the variable that `workers.claude.configDirEnv` names gives.
+  mkdirSync(join(workerConfigDirectory, "sessions"), { recursive: true })
+  writeFileSync(join(workerConfigDirectory, "sessions", `${process.pid}.json`), JSON.stringify({ pid: process.pid, sessionId: WORKER, cwd: primary }))
   return true
 }
 
@@ -154,14 +159,18 @@ export const cases = async () => {
   const directoriesStaged = stageDirectories(worktrees)
   T("stale-files: the directory fixture stages", directoriesStaged)
   if (!directoriesStaged) return
-  const staged = stageWithConfig("stale-cli", TOOL, { ...realOrchestratorConfig(), repos: { ui: primary } })
+  const config = realOrchestratorConfig()
+  // A variable name other than the shipped one: the listing must read the name from the config, as the worker launch does.
+  const workerVariable = "ORBIT_STALE_GATE_WORKER_CONFIG_DIR"
+  const staged = stageWithConfig("stale-cli", TOOL, { ...config, repos: { ui: primary },
+    workers: { ...config.workers, claude: { ...config.workers.claude, configDirEnv: workerVariable } } })
   // Global git config that hides every untracked file from `git status` and from the refusal of `git worktree remove`.
   const hidingConfig = join(base, "hide-untracked.gitconfig")
   writeFileSync(hidingConfig, "[status]\n\tshowUntrackedFiles = no\n")
   mkdirSync(join(staged.base, ".git"))
   writeFileSync(join(staged.base, ".git", "orbit-orchestrate-run.json"), JSON.stringify({ sessionId: THIS, relay: { from: PREDECESSOR, pending: false } }))
   const env = { ...orcaEnv(pullRequestPlan(worktrees)), HOME: home, USERPROFILE: home, CLAUDE_CONFIG_DIR: configDirectory, CLAUDE_CODE_SESSION_ID: "",
-    GIT_CONFIG_GLOBAL: hidingConfig }
+    [workerVariable]: workerConfigDirectory, GIT_CONFIG_GLOBAL: hidingConfig }
   const tool = (argv) => run(TOOL, argv, { path: staged.path, env })
   const session = (id) => join(sessionRoot, id)
   const copy = (name) => join(carryRoot, name)
@@ -204,6 +213,7 @@ export const cases = async () => {
         new RegExp(`^worktree ${worktrees["nested-untracked"].path} in it stays: it holds an uncommitted change$`)],
       ["a finished worktree that holds a repository whose only change is a hidden untracked file", worktrees["holds-untracked-repository"].path,
         new RegExp(`^repository ${join(worktrees["holds-untracked-repository"].path, "node_modules", "scratch")} in it stays: it holds an uncommitted change$`)],
+      ["the session of a live record in the worker account directory that the config names", session(WORKER), /^live session bbbbbbbb uses it$/],
     ]) T(`stale-files: ${name} is kept`, reason.test(keptReason(path)), `reason: ${keptReason(path)}`)
 
     const text = tool(["--list", "--session", THIS])
@@ -228,7 +238,7 @@ export const cases = async () => {
     T("stale-files: a listed worktree with a new uncommitted file is skipped and survives", removed.stdout.includes(`SKIPPED worktree ${worktrees.closed.path}: it holds an uncommitted change`) && existsSync(join(worktrees.closed.path, "new-work.txt")), removed.stdout)
     T("stale-files: --delete prints what it freed", /^FREED 9 items, .* \(3 session directories, 1 durable carry copy, 5 worktrees\); free space changed by [+-]/m.test(removed.stdout), removed.stdout)
     T("stale-files: a session directory that went stale after the listing survives", existsSync(session(LATER)))
-    const keptPaths = [session(THIS), session(PREDECESSOR), session(LIVE), session(WORKED_IN), session(NESTED_OPEN), session(NESTED_UNPUSHED), session(NESTED_UNTRACKED),
+    const keptPaths = [session(THIS), session(PREDECESSOR), session(LIVE), session(WORKED_IN), session(NESTED_OPEN), session(NESTED_UNPUSHED), session(NESTED_UNTRACKED), session(WORKER),
       copy("durable-0b0b0b0b"), copy("durable-0c0c0c0c"), ...["open", "unpushed", "dirty", "unmerged", "detached", "in-use", "unreadable", "locked", "nested-open", "nested-unpushed",
         "nested-untracked", "holds-dirty", "nested-dirty", "holds-detached", "detached-inner", "holds-repository", "holds-untracked-repository", "linked-build"].map((name) => worktrees[name].path)]
     same("stale-files: every protected item survives", keptPaths.filter((path) => !existsSync(path)), [])
