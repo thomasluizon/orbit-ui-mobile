@@ -554,7 +554,7 @@ export function HabitFormFields({
                   focusRequest={newTagErrors.focusRequest}
                   value={tags.newTagName}
                   placeholder={t('habits.form.tagName')}
-                  disabled={createTag.isPending}
+                  pending={createTag.isPending}
                   inputAriaLabel={t('habits.form.tagName')}
                   cancelAriaLabel={t('common.cancel')}
                   actionLabel={t('common.add')}
@@ -567,7 +567,7 @@ export function HabitFormFields({
                   error={editTagErrors.fieldErrors.name}
                   focusRequest={editTagErrors.focusRequest}
                   initialValue={initialTagName} value={tags.editTagName}
-                  disabled={updateTag.isPending}
+                  pending={updateTag.isPending}
                   inputAriaLabel={t('habits.form.tagName')}
                   cancelAriaLabel={t('common.cancel')}
                   actionLabel={t('common.save')}

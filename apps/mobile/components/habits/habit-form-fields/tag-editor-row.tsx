@@ -8,6 +8,7 @@ import { View, Text, } from "react-native";
 import { X } from "@/components/ui/icons";
 import { MAX_TAG_NAME_LENGTH } from "@orbit/shared/validation";
 import { BottomSheetAppTextInput } from "@/components/ui/bottom-sheet-app-text-input";
+import { SkeletonFace } from "@/components/ui/skeleton";
 import { type AppTokens, createStyles } from "./styles";
 
 interface TagEditorRowProps {
@@ -20,6 +21,7 @@ interface TagEditorRowProps {
   actionLabel: string;
   cancelAriaLabel: string;
   disabled: boolean;
+  pending?: boolean;
   onChange: (value: string) => void;
   onCommit: () => void;
   onCancel: () => void;
@@ -36,7 +38,8 @@ export function TagEditorRow({
   inputAriaLabel,
   actionLabel,
   cancelAriaLabel,
-  disabled,
+  disabled: formDisabled,
+  pending = false,
   onChange,
   onCommit,
   onCancel,
@@ -44,6 +47,8 @@ export function TagEditorRow({
   tokens,
 }: Readonly<TagEditorRowProps>) {
   const { isDisabled } = useHabitFormInteraction()
+  const disabled = formDisabled || pending
+  const commit = () => { if (!disabled) onCommit() }
   const dismiss = useDismissGuard({ isDirty: value !== initialValue, onDismiss: onCancel })
   const requestCancel = () => { if (!disabled) dismiss.requestDismiss() }
   const inputRef = useRef<TextInput>(null)
@@ -63,21 +68,24 @@ export function TagEditorRow({
         accessibilityState={{ disabled }}
         style={{ flex: 1 }}
         onChangeText={onChange}
-        onSubmitEditing={onCommit}
+        onSubmitEditing={commit}
       />
       <Pressable
         style={({ pressed }) => [
           styles.tagFormSave,
-          disabled && { opacity: 0.45 },
-          pressed && { backgroundColor: tokens.primaryPressed },
+          pending && { backgroundColor: 'transparent' },
+          formDisabled && !pending && { opacity: 0.45 },
+          pressed && !pending && { backgroundColor: tokens.primaryPressed },
         ]}
 
         accessibilityRole="button"
         accessibilityLabel={actionLabel}
+        accessibilityState={{ disabled, busy: pending }}
         disabled={disabled}
-        onPress={onCommit}
+        onPress={commit}
       >
-        <Text style={styles.tagFormSaveText}>{actionLabel}</Text>
+        {pending ? <SkeletonFace tokens={tokens} /> : null}
+        <Text style={[styles.tagFormSaveText, pending && { color: tokens.fg1 }]}>{actionLabel}</Text>
       </Pressable>
       <Pressable
         style={({ pressed }) => [

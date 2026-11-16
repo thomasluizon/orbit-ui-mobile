@@ -32,4 +32,20 @@ describe('tag editor press fills', () => {
     expect(caption?.props.accessibilityLiveRegion).toBeUndefined()
     void renderer.act(() => tree.update(<></>))
   })
+
+  it('keeps its label and shows the skeleton face while the tag request runs, and sends nothing on a second press', () => {
+    const tokens = createTokensV2()
+    const onCommit = vi.fn()
+    let tree!: import('react-test-renderer').ReactTestRenderer
+    void renderer.act(() => { tree = renderer.create(<TagEditorRow value="Health" inputAriaLabel="Tag" actionLabel="Add" cancelAriaLabel="Cancel" pending onChange={vi.fn()} onCommit={onCommit} onCancel={vi.fn()} styles={createStyles(tokens)} tokens={tokens} />) })
+    const action = tree.root.findAll((node) => String(node.type) === 'Pressable' && node.props.accessibilityLabel === 'Add')[0]!
+    expect(action.props.accessibilityState).toMatchObject({ busy: true, disabled: true })
+    expect(action.findAll((node) => String(node.type) === 'Text').some((node) => node.props.children === 'Add')).toBe(true)
+    expect(action.findAll((node) => String(node.type) === 'View' && node.props.testID === 'skeleton-face')).toHaveLength(1)
+    if (!action.props.disabled) (action.props.onPress as () => void)()
+    const input = tree.root.findAll((node) => node.props.accessibilityLabel === 'Tag')[0]!
+    expect(input.props.editable).toBe(false)
+    expect(onCommit).not.toHaveBeenCalled()
+    void renderer.act(() => tree.update(<></>))
+  })
 })
