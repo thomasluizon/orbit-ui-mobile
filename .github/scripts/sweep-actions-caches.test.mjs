@@ -190,8 +190,9 @@ test("the command rejects a call without one repository", () => {
   assert.equal(spawnSync(process.execPath, [script, "--help"], { encoding: "utf8" }).status, 0)
 })
 
-test("the Cache Budget workflow sweeps on a closed pull request, on a schedule and on a dispatch, from main code only", () => {
-  const workflow = yaml.load(readFileSync(resolve(here, "../workflows/cache-budget.yml"), "utf8"))
+const CACHE_BUDGET = readFileSync(resolve(here, "../workflows/cache-budget.yml"), "utf8")
+function checkCacheBudget(text) {
+  const workflow = yaml.load(text)
   assert.deepEqual(workflow.on.pull_request, { types: ["closed"] })
   assert.ok(workflow.on.schedule.length === 1 && "workflow_dispatch" in workflow.on)
   assert.deepEqual(workflow.permissions, {})
@@ -208,4 +209,15 @@ test("the Cache Budget workflow sweeps on a closed pull request, on a schedule a
   assert.equal(run.run, 'node .github/scripts/sweep-actions-caches.mjs --repository "$GITHUB_REPOSITORY"')
   assert.deepEqual(run.env, { GH_TOKEN: "${{ github.token }}" })
   assert.ok(job.steps.every((step) => !/^actions\/(cache|setup-node)/.test(step.uses ?? "")), "the sweep saves and restores no cache")
+}
+
+test("the Cache Budget workflow sweeps on a closed pull request, on a schedule and on a dispatch, from main code only", () => {
+  checkCacheBudget(CACHE_BUDGET)
+})
+
+test("the Cache Budget check fails on M12, the condition that a close by Dependabot passes", () => {
+  const condition = "(github.event.pull_request.head.repo.full_name == github.repository && github.actor != 'dependabot[bot]')"
+  assert.ok(CACHE_BUDGET.includes(condition))
+  const changed = CACHE_BUDGET.replace(condition, "github.event.pull_request.head.repo.full_name == github.repository")
+  assert.throws(() => checkCacheBudget(changed), /a close by Dependabot have a read-only token/)
 })
