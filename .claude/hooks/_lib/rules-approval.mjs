@@ -7,8 +7,8 @@
 import { homedir } from "node:os"
 import { posix } from "node:path"
 
-import { commandWords, hereStringTexts, inspectCommands, withoutRedirects } from "./command-expander.mjs"
-import { SHELLS, stripHeredocBodies } from "./rules-git.mjs"
+import { commandWords, hereStringTexts, inspectCommands, looseReadings, withoutRedirects } from "./command-expander.mjs"
+import { SHELLS, stripHeredocBodies, unmodelledConstruct } from "./rules-git.mjs"
 
 /** The tools whose permission check runs the Claude Code removal check. Each one takes the shell command as `tool_input.command`. */
 export const REMOVAL_CHECK_TOOLS = ["Bash", "Monitor"]
@@ -40,8 +40,10 @@ const MOUNTED_DRIVE = /^\/(?:system\/)?volumes(?:\/[^/]+){0,2}$|^\/mnt\/(?:[^/]+
 const TRAILING_STARS = /(?:\/\*+)+\/*$/
 const ROOTED = /^(?:[\\/]|[A-Za-z]:[\\/])/
 
-const programName = (word) => word.replace(/^\\/, "").split(/[\\/]/).pop().replace(/\.exe$/i, "").toLowerCase()
-const removalProgram = (word) => (["rm", "rmdir"].includes(programName(word)) ? programName(word) : null)
+/** The program that a word names. The shell removes each quote from the word first, and a backslash is a path separator of Windows. */
+const programName = (word) => word.replace(/\$?["']/g, "").replace(/^\\/, "").split(/[\\/]/).pop().replace(/\.exe$/i, "").toLowerCase()
+/** `rm` or `rmdir` when the word names one, also with an escape inside the name, such as `r\m`. */
+const removalProgram = (word) => [programName(word), programName(word.replaceAll("\\", ""))].find((name) => ["rm", "rmdir"].includes(name)) ?? null
 
 /**
  * One command word as the shell reads it: `value` with the quotes removed and each expansion kept as written,
@@ -152,7 +154,7 @@ const LITERAL = "Write the literal path of the directory you mean."
 
 /**
  * The removal rules, in the order that gives the most useful rewrite. `judge` returns a refusal or null for one target,
- * and `judgeCommand` for the whole command. `covers` names the `removalRule` values of the Claude Code check that the
+ * `judgeCommand` for the whole command, and `judgeUnread` for a command that no other rule refuses. `covers` names the `removalRule` values of the Claude Code check that the
  * rule is a superset of.
  */
 export const REMOVAL_RULES = [
@@ -251,6 +253,18 @@ export const REMOVAL_RULES = [
         : null
     },
   },
+  {
+    // Fail closed: the rules above read the command exactly only for the constructs that the reader models.
+    name: "unmodelled-construct",
+    judgeUnread: (context, rules) => {
+      const construct = unmodelledConstruct(context.command)
+      const held = construct ? looseReadings(context.command).map((text) => looseRemoval(text, context, rules)).find(Boolean) : null
+      return held
+        ? refuse("inline_shell_unchecked, unparsed_line", `the command uses ${construct}, which no check reads with certainty in bash and in zsh, and its text holds the removal ${held.segment.slice(0, 120)}: ${held.why}`,
+          "Rewrite the command in a plain form: each removal as its own direct command with a literal path, with no here-string, no heredoc, no `$\"...\"` quote, no `$` before `$'`, and no quote or escape in a program name.")
+        : null
+    },
+  },
 ]
 
 /** Where a literal target lands, or null while a guarded variable that this check cannot read remains in it. */
@@ -281,6 +295,35 @@ function stripComments(source) {
   return quote === "" ? read : null
 }
 
+/** The first refusal of a rule for one removal, or null. `placed` holds the directory in which the removal runs. */
+function judgeInvocation(invocation, segment, placed, rules) {
+  const { flags, targets } = removalTargets(invocation)
+  for (const target of targets) {
+    const judged = { ...placed, target, flags, program: invocation.program, path: placeTarget(target, placed) }
+    for (const rule of rules) {
+      const refusal = rule.judge?.(judged)
+      if (refusal) return { ...refusal, rule: rule.name, program: invocation.program, segment: segment.trim() }
+    }
+  }
+  return null
+}
+
+/**
+ * The first refusal in a text of `looseReadings`: each `rm` or `rmdir` word counts as a removal, wherever it is in its command.
+ * The directory can differ from the session directory, so a relative glob is not resolvable.
+ */
+function looseRemoval(text, context, rules) {
+  for (const segment of text.split(/[;&|\n]+/)) {
+    const words = commandWords(segment)
+    for (const [index, word] of words.entries()) {
+      const program = removalProgram(word)
+      const refusal = program && judgeInvocation({ program, args: words.slice(index + 1) }, segment, { ...context, moved: true }, rules)
+      if (refusal) return refusal
+    }
+  }
+  return null
+}
+
 /** The first refusal in `source`, with the count of removals it runs; a nested script is read in the directory that reaches it. */
 function inspectRemovals(source, context, rules) {
   let found = null
@@ -294,14 +337,7 @@ function inspectRemovals(source, context, rules) {
     }
     for (const invocation of removalInvocations(words)) {
       removals++
-      const { flags, targets } = removalTargets(invocation)
-      for (const target of targets) {
-        const judged = { ...context, ...state, target, flags, program: invocation.program, path: placeTarget(target, { ...context, ...state }) }
-        for (const rule of rules) {
-          const refusal = rule.judge?.(judged)
-          if (refusal) found ??= { ...refusal, rule: rule.name, program: invocation.program, segment: segment.trim() }
-        }
-      }
+      found ??= judgeInvocation(invocation, segment, { ...context, ...state }, rules)
     }
     const program = programName(readWord(words[0] ?? "").value)
     if (!["cd", "pushd", "popd"].includes(program)) return state
@@ -343,7 +379,7 @@ export function checkPersonPrompt(toolName) {
  * @returns `{ block, message, rule }` when Claude Code would hold the command for an approval, else null
  */
 export function checkApprovalPrompt(command, { cwd = "", home = homedir(), workingDirectories = [], rules = REMOVAL_RULES, windows = process.platform === "win32" } = {}) {
-  if (typeof command !== "string" || !/rm/i.test(command)) return null
+  if (typeof command !== "string" || ![command, ...looseReadings(command)].some((text) => /rm/i.test(text))) return null
   const directory = canonical(cwd || "/")
   const context = { command, directory, windows: windows || /^[A-Za-z]:[\\/]/.test(cwd), home: canonical(home), workingDirectories: [directory, ...workingDirectories.map(canonical)] }
   const { found, removals } = inspectRemovals(command, context, rules)
@@ -351,7 +387,11 @@ export function checkApprovalPrompt(command, { cwd = "", home = homedir(), worki
     const refusal = rule.judgeCommand?.(context)
     return refusal ? [{ ...refusal, rule: rule.name, program: "rm", segment: command.trim() }] : []
   })
-  const refusal = found ?? whole[0]
+  const unread = () => rules.flatMap((rule) => {
+    const judged = rule.judgeUnread?.(context, rules)
+    return judged ? [{ ...judged, rule: rule.name, program: "rm", segment: command.trim() }] : []
+  })
+  const refusal = found ?? whole[0] ?? unread()[0]
   if (!refusal) return null
   return {
     block: true,

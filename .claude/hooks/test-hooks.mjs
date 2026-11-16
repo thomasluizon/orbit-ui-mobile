@@ -337,6 +337,35 @@ const HEREDOC_DATA = [
   "eval \"$(cat)\" <<'EOF'",
 ]
 for (const row of HEREDOC_DATA) T(`git: the heredoc of ${heredocName(row)} is data`, checkGitCommand(heredocCommand(row, "git push origin main")), null)
+// A hygiene flag counts only as a word of a git command. The same text in an argument of another command is data.
+const NO_SIGN = "--no-gpg-" + "sign"
+for (const command of [`grep -rn -- '${NV}' .claude/hooks`, `rg -n -e '${NV}' .claude`, `echo 'Never use ${NV}.'`, `printf '%s\\n' 'Never use ${NV}.' >> notes.md`,
+  `gh pr comment 1 --body 'The hook refuses ${NV}.'`, `cat <<<'${NV}'`, `Select-String -Pattern '${NO_SIGN}' -Path .claude/hooks/*.mjs`, `grep -c -- '${NV}' $(git ls-files)`]) {
+  T(`git: ${command} allows`, checkGitCommand(command), null)
+}
+for (const command of [`git commit ${NV} -m x`, "git commit -n -m x", `git commit ${NO_SIGN} -m x`, "git -c commit.gpgsign=false commit -m x", `git push ${NV} origin feature/x`,
+  `git commit --no-ver''ify -m x`, `sudo git commit -m x ${NV}`, `npm run lint && git commit -m x ${NV}`]) {
+  T(`git: ${command} still blocks`, blocks(checkGitCommand(command)), true)
+}
+// The reader fails closed. With a construct that it does not model exactly in bash and in zsh, each word of the text counts as a
+// word of a command, so the rule refuses a forbidden git command that any reading can run.
+for (const [name, command] of [
+  ['a here-string in a $"..." quote to bash', 'bash <<<$"git push origin main"'],
+  ['a here-string in a $"..." quote to zsh', 'zsh <<<$"git push origin main"'],
+  ["a heredoc operator after $$'", "echo $$'x\\' <<EOF ; echo '\ngit push origin main\nEOF"],
+  ["a <<- end marker after a tab", "cat <<-'EOF'\n\tdata\n\tEOF\ngit push origin main\nEOF"],
+  ["a line that looks like the end marker", "cat <<'EOF'\ndata\nEOF \ngit push origin main\nEOF"],
+  ["an end marker that is not one plain word", "cat <<E\"O\"F\ndata\nE\nit's\nEOF\ngit push origin main\necho it's"],
+  ["a line continuation inside the word git", "gi\\\nt push origin main"],
+  ["an ANSI-C quote that spells git as a code", "$'\\x67it' push origin main"],
+  ["a quoted shell name before -c", "b''ash -c 'git push origin main'"],
+]) T(`git: ${name} still blocks`, blocks(checkGitCommand(command)), true)
+T("git: the fail-closed refusal names the construct and the plain form", ["a here-string", "plain form", "bash /abs/path.sh"].every((text) => (checkGitCommand('bash <<<$"git push origin main"')?.message ?? "").includes(text)), true)
+// The same constructs with no forbidden git command in the text are plain commands, and they pass.
+for (const command of ['bash <<<$"git status"', 'grep -c push <<<"$output"', "echo $$'x' ; git push origin feature/x", "cat <<-'EOF'\n\tgit push origin main\n\tEOF", "echo $((1<<2)) && git status",
+  "printf $'\\x1b[31m%s\\n' red && git log -1"]) {
+  T(`git: ${command} allows`, checkGitCommand(command), null)
+}
 // git worktree remove --force follows a Windows junction and deletes the target.
 T("git-worktree: --force blocks", blocks(checkGitWorktreeRemove("git worktree remove --force .claude/worktrees/x")), true)
 T("git-worktree: no force allows", checkGitWorktreeRemove("git worktree remove .claude/worktrees/x"), null)
@@ -618,6 +647,7 @@ const approvalRules = [
   ["working-directory", "rm -rf .", "rm -rf dist"],
   ["mounted-drive", "rm -rf /Volumes/Backup", "rm -rf /Volumes/Backup/orbit/old"],
   ["unreadable-script", 'bash -c "alias wipe=rm; rm -rf dist"', "rm -rf dist"],
+  ["unmodelled-construct", 'bash <<<$"rm -rf \\"\\$TMP\\""', "rm -rf /tmp/orbit-build"],
 ]
 T("approval: every removal rule has a refusal case", approvalRules.map(([rule]) => rule), REMOVAL_RULES.map((rule) => rule.name))
 // The README rule table names each rule and the `covers` text of its refusal, so a changed rule fails here.
@@ -685,7 +715,33 @@ for (const [command, rule] of [
   // A comment hides nothing from the rules: the removal before it is still read.
   ['rm -rf "$DST" # it\'s stale', "variable-path"],
   ["rm -rf build 'unbalanced # not a comment", "unreadable-script"],
+  // The shell removes each quote and each escape from the name of a program before it runs the program.
+  [`"bash" <<<'rm -rf "$TMP"'`, "variable-path"],
+  [`b''ash <<<'rm -rf "$TMP"'`, "variable-path"],
+  [`b''ash -c 'rm -rf "$TMP"'`, "variable-path"],
+  ['sudo "rm" -rf "$TMP"', "variable-path"],
+  ['r\\m -rf "$TMP"', "variable-path"],
+  // `<<-` removes the leading tabs of the end marker line, so the body ends at line 3 and the shell runs line 4.
+  ["cat <<-'EOF'\n\tdata\n\tEOF\nrm -rf \"$TMP\"\nEOF", "variable-path"],
+  // The reader fails closed on a construct that it does not model exactly in bash and in zsh: a run of `$` before `'`,
+  // a `$"..."` quote, a here-string, a heredoc with no exact end marker, and a quote in the name of a shell.
+  ["echo \\$$$'a\\'b' ; rm -rf \"$TMP\" # '", "unmodelled-construct"],
+  ["echo \\\\\\$$$'a\\'b' ; rm -rf \"$TMP\" # '", "unmodelled-construct"],
+  ["echo \\$$$$$'a\\'b' ; rm -rf \"$TMP\" # '", "unmodelled-construct"],
+  ["echo $$$'a\\' ; rm -rf \"$TMP\" # '", "unmodelled-construct"],
+  ["echo \\$$'a\\' ; rm -rf \"$TMP\" # '", "unmodelled-construct"],
+  ['bash <<<$"rm -rf \\"\\$TMP\\""', "unmodelled-construct"],
+  [`cat <<<'rm -rf "$TMP"'`, "unmodelled-construct"],
+  [`cat <<<'rm -rf "$TMP"' | bash`, "unmodelled-construct"],
+  ["echo $$'x\\' <<EOF ; echo '\nrm -rf \"$TMP\"\nEOF", "unmodelled-construct"],
+  ["cat <<'EOF'\ndata\nEOF \nrm -rf \"$TMP\"\nEOF", "unmodelled-construct"],
+  [`bash <<<$'\\x72m -rf "$TMP"'`, "unmodelled-construct"],
+  // `eval` joins its words and reads them again, so the value of the variable is code. A `<<` with no end marker line takes the rest as its body in one reading.
+  [`eval 'echo 'rm -rf "$TMP"''`, "unmodelled-construct"],
+  [`eval 'eval 'rm -rf "$TMP"''`, "variable-path"],
+  ["bash -c 'echo $'x\\' <<EOF ; echo '\nrm -rf \"$TMP\"\nEOF'", "unmodelled-construct"],
 ]) T(`approval: ${command} is refused by ${rule}`, refusedBy(command), rule)
+T("approval: the fail-closed refusal names the construct and the plain form", ["a here-string", "plain form", "literal path"].every((text) => (checkApprovalPrompt(`cat <<<'rm -rf "$TMP"'`, approvalOptions)?.message ?? "").includes(text)), true)
 for (const command of [
   "rm -rf build",
   "rm -rf node_modules && npm ci",
@@ -711,14 +767,161 @@ for (const command of [
   "rm -rf dist # it's stale",
   "rm -rf dist # don't keep it\nnpm run build # it's fast",
   "bash -c 'rm -rf dist' # the alias function() is gone",
-  // A here-string to a command that is no shell is text.
-  `cat <<<'rm -rf "$TMP"'`,
-  // After an odd count of `$`, and after an escaped `$`, both shells read an ANSI-C quote: `\\'` does not end it, so the removal is text.
+  // After one `$`, both shells read an ANSI-C quote: `\\'` does not end it, so the removal is text.
   "echo $'a\\' ; rm -rf \"$TMP\" # '",
-  "echo $$$'a\\' ; rm -rf \"$TMP\" # '",
-  "echo \\$$'a\\' ; rm -rf \"$TMP\" # '",
+  // A construct that the reader does not model passes when the text holds no removal that a rule refuses.
+  "bash <<<'rm -rf dist'",
+  "bash -c 'cat' <<<'rm -rf dist'",
+  'grep -c rm <<<"$output"',
+  "echo $$'x' ; rm -rf dist",
+  "cat <<-'EOF'\n\trm -rf \"$TMP\"\n\tEOF",
+  // A quoted word that is no command word is text.
+  'grep -rn "rm" .',
   ...HEREDOC_DATA.map((row) => heredocCommand(row, 'rm -rf "$TMP"')),
 ]) T(`approval: ${command} passes`, refusedBy(command), null)
+// Property: for each command of a generated set, the hooks refuse it, or a direct reading proves that it runs no dangerous command.
+// The set puts `git push origin main` and `rm -rf "$TMP"` into each pair of the constructs below, one inside the other and one after the other.
+const DANGEROUS_COMMANDS = ["git push origin main", 'rm -rf "$TMP"']
+const CONSTRUCTS = [
+  "%", "echo '%'", 'echo "%"', "echo ok ; %", "echo x # %",
+  "echo $'a\\'b' ; % # '", "echo $$'a\\'b' ; % # '", "echo \\$$$'a\\'b' ; % # '",
+  'bash <<<$"%"', "bash <<<'%'", `"bash" <<<'%'`, "b''ash <<<'%'", "cat <<<'%'", "cat <<<'%' | bash",
+  "bash -c '%'", `"bash" -c '%'`, "b''ash -c '%'", "eval '%'",
+  "cat <<'EOF'\n%\nEOF", "cat <<EOF\n%\nEOF", "bash <<'EOF'\n%\nEOF", "cat <<'EOF' | bash\n%\nEOF",
+  "cat <<-'EOF'\n\tdata\n\tEOF\n%\nEOF", "cat <<'EOF'\ndata\nEOF \n%\nEOF", "cat <<E\"O\"F\n%\nEOF",
+  "echo $$'x\\' <<EOF ; echo '\n%\nEOF", "echo $'x\\' <<EOF ; echo '\n%\nEOF",
+]
+const within = (construct, text) => construct.replace("%", () => text)
+const GENERATED_COMMANDS = DANGEROUS_COMMANDS.flatMap((dangerous) => CONSTRUCTS.flatMap((outer) => CONSTRUCTS.flatMap((inner) =>
+  [within(outer, within(inner, dangerous)), `${within(outer, "echo ok")}\n${within(inner, dangerous)}`])))
+/** The programs of the generated set that run no word of their input. `EOF` is an end marker that a nested heredoc leaves as a command. */
+const HARMLESS_PROGRAMS = new Set(["echo", "cat", "grep", "true", "EOF"])
+/** Stands for the value of a `$NAME` that the shell expands: no reading can prove a script that holds it. */
+const EXPANDED = "\u0000"
+/** The text of the `"..."` quote that opens at `start`, with the index of its close, or null when the direct reading cannot read it. */
+const directDoubleQuote = (source, start) => {
+  let text = ""
+  for (let index = start + 1; index < source.length; index++) {
+    const character = source[index]
+    if (character === '"') return { text, close: index }
+    if (character === "`" || (character === "$" && source[index + 1] === "(")) return null
+    if (character === "\\" && /["\\$`\n]/.test(source[index + 1] ?? "")) text += source[++index]
+    else if (character === "$" && /[A-Za-z_]/.test(source[index + 1] ?? "")) text += EXPANDED
+    else text += character
+  }
+  return null
+}
+/** The body of the heredoc whose operator line ends at `lineEnd`, with the index after its end marker line, or null when the end marker is not exact. */
+const directHeredocBody = (source, lineEnd, { marker, tabs }) => {
+  const lines = source.slice(lineEnd + 1).split("\n")
+  const end = lines.findIndex((line) => line.trim() === marker)
+  if (end < 0 || !(tabs ? /^\t*$/ : /^$/).test(lines[end].slice(0, -marker.length))) return null
+  const body = lines.slice(0, end).map((line) => (tabs ? line.replace(/^\t+/, "") : line)).join("\n")
+  return { body, resume: lineEnd + 1 + lines.slice(0, end + 1).join("\n").length }
+}
+/**
+ * A direct reading in a small grammar that bash and zsh read in one way: plain words, a `'...'` quote, a `"..."` quote with no
+ * substitution, a `$'...'` quote after one `$` with no escape but `\'` and `\\`, `$NAME`, a comment, the separators `;`, `&`, `|`
+ * and the line end, and a heredoc with one plain end marker. Each command is `{ words, piped, body }`: `piped` is true after a `|`,
+ * and `body` is the heredoc body of its operator, with `expands` true for an unquoted end marker. Null for each other text.
+ */
+function directReading(source) {
+  const commands = []
+  let words = []
+  let word = null
+  let heredoc = null
+  let piped = false
+  const endWord = () => { if (word !== null) words.push(word); word = null }
+  const endCommand = (separator) => {
+    endWord()
+    if (words.length > 0) commands.push({ words, piped, heredoc })
+    if (words.length > 0 || separator !== "|") piped = separator === "|" && words.length > 0
+    words = []
+  }
+  let pending = null
+  for (let index = 0; index < source.length; index++) {
+    const character = source[index]
+    const rest = source.slice(index)
+    if (character === "'") {
+      const close = source.indexOf("'", index + 1)
+      if (close < 0) return null
+      word = (word ?? "") + source.slice(index + 1, close)
+      index = close
+    } else if (rest.startsWith("$'")) {
+      const quoted = /^\$'((?:\\['\\]|[^'\\])*)'/.exec(rest)
+      if (!quoted) return null
+      word = (word ?? "") + quoted[1].replace(/\\(.)/g, "$1")
+      index += quoted[0].length - 1
+    } else if (character === '"') {
+      const quoted = directDoubleQuote(source, index)
+      if (!quoted) return null
+      word = (word ?? "") + quoted.text
+      index = quoted.close
+    } else if (character === " " || character === "\t") endWord()
+    else if (character === "#" && word === null) {
+      const lineEnd = source.indexOf("\n", index)
+      index = (lineEnd < 0 ? source.length : lineEnd) - 1
+    } else if (/[;&|]/.test(character)) endCommand(character)
+    else if (character === "\n") {
+      endCommand(character)
+      if (!pending) continue
+      const read = directHeredocBody(source, index, pending)
+      if (!read) return null
+      pending.body = read.body
+      pending = null
+      index = read.resume - 1
+    } else if (character === "<") {
+      const opener = /^<<(-?)(?:'([A-Za-z_]\w*)'|([A-Za-z_]\w*))(?=[ \t;|&\n]|$)/.exec(rest)
+      if (!opener || pending || heredoc) return null
+      endWord()
+      pending = { marker: opener[2] ?? opener[3], tabs: opener[1] === "-", expands: opener[2] === undefined, body: null }
+      heredoc = pending
+      index += opener[0].length - 1
+      continue
+    } else if (character === "$") {
+      const name = /^\$[A-Za-z_]\w*/.exec(rest)
+      if (!name) return null
+      word = (word ?? "") + EXPANDED
+      index += name[0].length - 1
+    } else if (/[\w./:=+,@%-]/.test(character)) word = (word ?? "") + character
+    else return null
+    if (/[;&|\n]/.test(character)) heredoc = null
+  }
+  endCommand("\n")
+  return pending ? null : commands
+}
+/**
+ * True only when the direct reading proves that the text runs no dangerous command: each command starts with a word of
+ * `HARMLESS_PROGRAMS`, or is a `git` or an `rm` with no argument, or is `bash -c` or `eval` with a script that the same reading proves, or is a `bash` with no argument
+ * whose script is the body of its own quoted heredoc, or the body that a `cat` with no argument pipes to it.
+ */
+function provesNoDangerousCommand(source, depth = 0) {
+  const commands = depth > 6 ? null : directReading(source)
+  if (!commands) return false
+  return commands.every(({ words, piped, heredoc }, index) => {
+    // A `git` or an `rm` with no argument changes nothing.
+    if (HARMLESS_PROGRAMS.has(words[0]) || (words.length === 1 && ["git", "rm"].includes(words[0]))) return true
+    if (words[0] === "eval") return provesNoDangerousCommand(words.slice(1).join(" "), depth + 1)
+    if (words[0] !== "bash") return false
+    if (words[1] === "-c" && words.length > 2) return provesNoDangerousCommand(words[2], depth + 1)
+    const feeder = commands[index - 1]
+    const script = heredoc ?? (piped && feeder?.words.join(" ") === "cat" && !feeder.piped ? feeder.heredoc : null)
+    return words.length === 1 && Boolean(script) && !script.expands && provesNoDangerousCommand(script.body, depth + 1)
+  })
+}
+const hooksRefuse = (command, rules = REMOVAL_RULES) => blocks(checkGitCommand(command)) === true || refusedBy(command, { ...approvalOptions, rules }) !== null
+const passesWithNoProof = (rules) => GENERATED_COMMANDS.filter((command) => !hooksRefuse(command, rules) && !provesNoDangerousCommand(command))
+T(`property: each of ${GENERATED_COMMANDS.length} generated commands is refused, or a direct reading proves that it runs no dangerous command`, passesWithNoProof(REMOVAL_RULES), [])
+T("property: the generated set holds refused commands and proven commands", [GENERATED_COMMANDS.some((command) => hooksRefuse(command)), GENERATED_COMMANDS.some((command) => !hooksRefuse(command) && provesNoDangerousCommand(command))], [true, true])
+// The direct reading proves a command whose text is data, and proves no command that runs the text or that it cannot read.
+T("property: the direct reading proves commands whose dangerous text is data", ["echo 'git push origin main'", 'echo "rm -rf "$TMP""', "cat <<'EOF'\nrm -rf \"$TMP\"\nEOF", "echo x # git push origin main",
+  "bash -c 'echo ok' git push origin main", "eval 'echo ok # git push origin main'", "bash <<'EOF'\necho 'git push origin main'\nEOF", "cat <<'EOF' | bash\necho ok\nEOF", "echo $'a\\'b ; git push origin main'",
+  "cat <<-'EOF'\n\tgit push origin main\n\tEOF"].map((command) => provesNoDangerousCommand(command)), Array(10).fill(true))
+T("property: the direct reading proves no command that runs the text or that it cannot read", ["git push origin main", "echo ok ; rm -rf \"$TMP\"", "bash -c 'git push origin main'", "cat <<'EOF' | bash\ngit push origin main\nEOF",
+  "eval 'eval 'rm -rf \"$TMP\"''", "eval echo $X", "bash", "cat <<'EOF' ; bash\necho ok\nEOF", "bash <<EOF\necho ok\nEOF", "echo $$'a' ; echo b", "echo $'\\x67'", "cat <<<'x'", "cat <<'EOF'\nx\nEOF \nEOF",
+  "cat <<-'EOF'\n\tx\n\tEOF\ngit push origin main"].map((command) => provesNoDangerousCommand(command)), Array(14).fill(false))
+// The guard broken: without the fail-closed rule, a generated removal passes with no proof. The full rule set above restores it.
+T("property: with the fail-closed rule removed, a generated command passes with no proof", passesWithNoProof(REMOVAL_RULES.filter((rule) => rule.name !== "unmodelled-construct")).length > 0, true)
 T("approval windows: the top level of a drive is critical", refusedBy("rm -rf C:/work", { ...approvalOptions, cwd: "C:\\work\\repo", windows: true }), "critical-path")
 T("approval windows: a deeper drive path passes", refusedBy("rm -rf C:/work/other/build", { ...approvalOptions, cwd: "C:\\work\\repo", windows: true }), null)
 T("approval: a non-string command passes", checkApprovalPrompt(undefined, approvalOptions), null)
@@ -1499,6 +1702,8 @@ T("adapter lessons: malformed drift state exits 0 and emits the overdue line", {
 T("adapter git-guardrails: push main -> 2", runHook("git-guardrails.mjs", bash("git push origin main")), 2)
 T("adapter git-guardrails: the same push from Bash and from Monitor -> 2, 2", bashAndMonitor("git-guardrails.mjs", "git push origin main"), [2, 2])
 T("adapter git-guardrails: push feature -> 0", runHook("git-guardrails.mjs", bash("git push origin feature/x")), 0)
+T("adapter git-guardrails: a grep for the flag that skips the hooks -> 0", runHook("git-guardrails.mjs", bash(`grep -rn -- '${NV}' .claude/hooks`)), 0)
+T("adapter git-guardrails: a push to main in a here-string with a $\"...\" quote -> 2", runHook("git-guardrails.mjs", bash('bash <<<$"git push origin main"')), 2)
 T("adapter git-guardrails: worktree remove --force -> 2", runHook("git-guardrails.mjs", bash("git worktree remove --force .claude/worktrees/x")), 2)
 
 const ORCH = "orchestrator-guardrails.mjs"
@@ -1689,6 +1894,9 @@ writeRunState({ sessionId: "approval-coordinator", sleep: true, remaining: [] },
 const refusedRemoval = approvalHook(heldRemoval())
 T("adapter approval: the held removal in an unattended run -> 2", refusedRemoval.status, 2)
 T("adapter approval: the refusal tells the agent how to rewrite the command", refusedRemoval.stderr.includes('"${DST:?}/${d:?}/node_modules"') && refusedRemoval.stderr.includes("literal path"), true)
+const refusedUnmodelled = approvalHook({ ...heldRemoval(), tool_input: { command: 'bash <<<$"rm -rf \\"\\$TMP\\""' } })
+T("adapter approval: a removal in a construct that the reader does not model -> 2", refusedUnmodelled.status, 2)
+T("adapter approval: that refusal asks for the plain form", refusedUnmodelled.stderr.includes("plain form"), true)
 // Claude Code runs its removal check for the Bash tool and the Monitor tool, and the guarded rewrite is Bash syntax.
 T("adapter approval: a PowerShell command is outside the removal check -> 0", approvalHook(heldRemoval("PowerShell")).status, 0)
 const monitorRemoval = { ...heldRemoval("Monitor"), tool_input: { command: 'until test -f "$OUT/done"; do sleep 5; done; rm -rf "$OUT/$d"', description: "Wait for the build", timeout_ms: 300000 } }

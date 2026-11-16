@@ -91,33 +91,65 @@ function unquotedWord(word) {
   return text
 }
 
+/** The character that an ANSI-C quote reads for a code such as `\\x67`, `\\147` or `\\u0067`. */
+const characterOfCode = (digits, radix) => String.fromCodePoint(Math.min(Number.parseInt(digits, radix), 0x10ffff))
+
+/**
+ * The command with no structure, for a command that the reader cannot read with certainty: each quote and each escape is
+ * gone, and each substitution, comment, here-string and heredoc operator starts a new command. Thus each word that some
+ * reading can run is a word of a command. An escaped letter is the letter in the first text, and the white space that an
+ * ANSI-C quote reads for it in the second one.
+ */
+export function looseReadings(command) {
+  const open = command
+    .replace(/\\(?:x([0-9A-Fa-f]{1,2})|u([0-9A-Fa-f]{1,4})|U([0-9A-Fa-f]{1,8}))/g, (_code, ...digits) => characterOfCode(digits.find(Boolean), 16))
+    .replace(/\\([0-7]{1,3})/g, (_code, digits) => characterOfCode(digits, 8))
+    .replace(/\\\r?\n/g, "")
+    .replace(/<<<|<<-?|\$\(|[`()]|(?<=^|[\s;|&])#/g, " ; ")
+    .replace(/\$+(?=["'])/g, "")
+    .replace(/["']/g, "")
+  return [open.replace(/\\/g, ""), open.replace(/\\[ntrvfaeE]/g, "\n").replace(/\\/g, "")]
+}
+
 /** The text of each here-string of the command: what the command reads on standard input, and no argument. */
 export const hereStringTexts = (command) => cutRedirects(command, false).hereStrings.map(unquotedWord)
 
 /** The text after the delimiter runs to the end of the operator line. A backslash before a line end continues the line. */
 const HEREDOC_OPENER = /<<-?[ \t]*(['"]?)([A-Za-z_][A-Za-z0-9_]*)\1((?:\\[\s\S]|[^\n\\])*)\n/y
 
-/** The heredoc whose operator is at `index`, or null when no later line is its terminator. */
+/**
+ * The heredoc whose operator is at `index`. The terminator is a line that is the delimiter and nothing more; `<<-` also removes
+ * its leading tabs. `inexact` is true when the reader cannot prove where the body ends: the delimiter is not one plain word,
+ * no later line is the terminator, or an earlier line is the delimiter with white space around it.
+ */
 function heredocAt(command, index) {
   HEREDOC_OPENER.lastIndex = index
   const opener = HEREDOC_OPENER.exec(command)
-  if (!opener) return null
+  if (!opener || /^[^\s;&|<>()]/.test(opener[3])) return { inexact: true }
   const bodyStart = index + opener[0].length
-  const terminator = new RegExp(`^${opener[2]}[ \\t]*$`, "gm")
-  terminator.lastIndex = bodyStart
-  const closed = terminator.exec(command)
-  if (!closed) return null
-  return { start: index, end: closed.index + closed[0].length, bodyStart, quote: opener[1], restOfLine: opener[3], body: command.slice(bodyStart, closed.index) }
+  const firstLine = (pattern) => {
+    const line = new RegExp(pattern, "gm")
+    line.lastIndex = bodyStart
+    return line.exec(command)
+  }
+  const closed = firstLine(`^${command[index + 2] === "-" ? "\\t*" : ""}${opener[2]}$`)
+  const lookalike = firstLine(`^[ \\t]*${opener[2]}[ \\t\\r]*$`)
+  if (!closed) return { inexact: true }
+  return { start: index, end: closed.index + closed[0].length, bodyStart, quote: opener[1], restOfLine: opener[3], body: command.slice(bodyStart, closed.index), inexact: lookalike.index < closed.index }
 }
+
+const INEXACT_HEREDOC = "a `<<` that is no heredoc with one plain end marker: the marker is not one plain word, no line is the marker, or a line that looks like the marker has white space around it"
 
 /**
  * Each heredoc of the command, in order. The shell reads the operator only outside a quote, an escape and a comment.
  * A heredoc runs from `start`, at its operator, to `end`, after its terminator. `lineStart` is the start of the outermost
  * command line that holds the operator, so a substitution that opens on an earlier line is part of that line.
+ * `unmodelled` names the first `<<` that the reader cannot read as one exact heredoc, or is "".
  */
-export function heredocsOf(command) {
+export function heredocScan(command) {
   const heredocs = []
   const substitutions = []
+  let unmodelled = ""
   let quote = ""
   let lineStart = 0
   let open = null
@@ -131,7 +163,7 @@ export function heredocsOf(command) {
       else { substitutions.push({ quote, backtick: true, depth: 0 }); quote = "" }
       continue
     }
-    if (character === "$" && command[index + 1] === "(") { substitutions.push({ quote, backtick: false, depth: 0 }); quote = ""; index++; continue }
+    if (character === "$" && command[index + 1] === "(") { substitutions.push({ quote, backtick: false, depth: 0, arithmetic: command[index + 2] === "(" }); quote = ""; index++; continue }
     if (quote) { if (character === '"') quote = ""; continue }
     quote = quoteOpenedAt(command, index)
     if (quote) { index += quote.length - 1; continue }
@@ -145,15 +177,21 @@ export function heredocsOf(command) {
       index = lineEnd - 1
       continue
     }
-    if (open || character !== "<" || command[index + 1] !== "<") continue
+    if (character !== "<" || command[index + 1] !== "<") continue
     if (command[index + 2] === "<") { index += 2; continue }
-    open = heredocAt(command, index)
-    if (!open) { index++; continue }
+    // In `$((...))` a `<<` is a shift.
+    if (substitution?.arithmetic) { index++; continue }
+    const found = open ? { inexact: true } : heredocAt(command, index)
+    if (found.inexact) unmodelled ||= INEXACT_HEREDOC
+    if (!found.end) { index++; continue }
+    open = found
     heredocs.push({ ...open, lineStart })
     index = open.bodyStart - 1 - open.restOfLine.length - 1
   }
-  return heredocs
+  return { heredocs, unmodelled }
 }
+
+export const heredocsOf = (command) => heredocScan(command).heredocs
 
 function substitutionEnd(source, start, backtick) {
   let depth = 1
@@ -272,20 +310,21 @@ export function commandsFedBy(source, marker, depth = 0) {
 function wrapperBody(segment) {
   const words = commandWords(segment)
   while (/^\w+\+?=/.test(words[0] ?? "")) words.shift()
-  const binary = shellValue(words[0]).split(/[\\/]/).pop()
-  if (binary === "eval") {
+  // The shell removes each quote of the word. A backslash stays a path separator for a Windows path.
+  const names = [shellValue(words[0]), unquotedWord(words[0] ?? "")].map((value) => value.split(/[\\/]/).pop())
+  if (names.includes("eval")) {
     const redirect = words.findIndex((word, index) => index > 0 && /^\d*[<>]/.test(word))
     const end = redirect < 0 ? words.length : redirect
     return {
-      source: words.slice(1, end).map(shellValue).join(" "),
+      source: words.slice(1, end).map(unquotedWord).join(" "),
       command: ["eval", "__shell_body__", ...words.slice(end)].join(" "),
       isolated: false,
     }
   }
-  if (!["sh", "bash", "zsh"].includes(binary)) return null
+  if (!names.some((name) => ["sh", "bash", "zsh"].includes(name))) return null
   const flag = words.findIndex((word, index) => index > 0 && /^-[a-z]*c[a-z]*$/i.test(word))
   if (flag < 0) return null
-  const source = shellValue(words[flag + 1])
+  const source = unquotedWord(words[flag + 1] ?? "")
   words[flag + 1] = "__shell_body__"
   return { source, command: words.join(" "), isolated: true }
 }

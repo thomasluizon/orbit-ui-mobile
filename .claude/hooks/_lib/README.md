@@ -67,7 +67,7 @@ changes; do not extend it from memory.
 | `isolatePeerMachines` | the SendMessage tool | none: not a shell command |
 | `connectorFileSend` | a connector tool | none: not a shell command |
 
-The 10 rules in `REMOVAL_RULES`, in source order, and the `removalRule` values
+The 11 rules in `REMOVAL_RULES`, in source order, and the `removalRule` values
 that each one covers (the `covers` text of its refusal):
 
 | rule | covers |
@@ -82,6 +82,25 @@ that each one covers (the `covers` text of its refusal):
 | `working-directory` | `working_directory` |
 | `mounted-drive` | `mounted_drive_path` |
 | `unreadable-script` | `inline_shell_unchecked`, `eval_trap_string`, `unparsed_line` |
+| `unmodelled-construct` | `inline_shell_unchecked`, `unparsed_line` |
+
+`unmodelled-construct` is the fail-closed rule, and `checkGitCommand` in `rules-git.mjs` applies the same reading to the git rules.
+The reader in `command-expander.mjs` reads a command exactly only for the constructs that it models in one way for bash and for zsh.
+`unmodelledConstruct` names each other construct:
+
+- a here-string
+- a `$"..."` quote
+- a run of `$` before a `'`
+- an ANSI-C quote that spells a character as a code
+- a line continuation inside a word
+- a `<<` that is no heredoc with one plain end marker line
+- a quote or an escape in the name of a program that the rules read
+- an `eval` or a `-c` script that holds the value of a variable
+
+For a command with one of these, the rules read the text again with `looseReadings`: no quote, no escape, and each word
+counts as a word of a command. A command passes only when that text holds nothing that a rule refuses. The refusal asks for a
+plain form. A heredoc body that no shell reads is data, so a construct that the body names does not count. Add a construct to
+this list when the reader cannot prove one reading; do not add one more exact case to the reader.
 
 Each removal rule refuses a superset of the `removalRule` values it names, because the analyzer
 behind them is not a stable interface. Three values depend on the state of that analyzer and have no
