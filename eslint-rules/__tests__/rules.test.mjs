@@ -800,6 +800,7 @@ ruleTester.run('no-spinner', rule('no-spinner'), {
     { code: 'turn.value = withRepeat(withTiming(1), -1); const style = useAnimatedStyle(() => { const base = turn.value * 2 * Math.PI; const angle = base; return { transform: [{ rotate: `${angle}rad` }] } })', errors: [{ messageId: 'noSpinner' }] },
     { code: "<Animated.View style={{ animationName: { to: { transform: [{ rotate: '360deg' }] } }, animationDuration: '1s', animationIterationCount: ['infinite'] as const }} />", errors: [{ messageId: 'noSpinner' }] },
     { code: "<motion.div animate={{ transform: 'rotateZ(1turn)' }} transition={{ repeat: Infinity }} />", errors: [{ messageId: 'noSpinner' }] },
+    { code: "<motion.div animate={{ transform: 'rotateX(400grad)' }} transition={{ repeat: Infinity }} />", errors: [{ messageId: 'noSpinner' }] },
     { code: 'const listProps = { data: rows, onRefresh: refetch, refreshing: busy }; const list = <FlatList {...listProps} />', errors: [{ messageId: 'visibleRefreshIndicator' }] },
     { code: 'function Rows({ onRefresh }) { const base = { onRefresh }; const listProps = { ...base, data: rows }; return <Animated.FlatList {...listProps} /> }', errors: [{ messageId: 'visibleRefreshIndicator' }] },
     { code: '<ScrollView {...{ onRefresh: refetch, refreshing: busy }} />', errors: [{ messageId: 'visibleRefreshIndicator' }] },
