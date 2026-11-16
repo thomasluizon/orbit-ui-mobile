@@ -3,6 +3,7 @@
 import { resolve } from "node:path"
 
 import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
+import { REPO_ROOT } from "./lib/run-state.mjs"
 import {
   claudeConfigDirectories, collectListing, defaultCarryRoot, describeBytes, knownSizesOf, readStoredListing, removeListed, summarize, takeCleanupLock, writeStoredListing,
 } from "./lib/stale-files.mjs"
@@ -43,8 +44,10 @@ const USAGE = `usage: stale-files.mjs [--list] [--json] [--session <id>] [--sess
   --delete             compute the listing again and remove each stale item, the deepest first; never a kept
                        item outside it, and never one that holds an item that could not be removed or stays.
                        Just before each item it reads the live sessions, the processes, the run queue, the wake
-                       sources, the launch reservations and the scratchpad links again, and keeps an item that
-                       one of them now holds.
+                       sources, the launch reservations, the scratchpad links and the worktrees again, and applies
+                       the listing's rules again: an item stays when one of them now holds it, when its worktree
+                       now holds a change, a detached HEAD, another branch or a tip other than the listed one, or
+                       when a worktree or a repository inside it now holds work.
                        It holds a lock in the common git directory while it runs; a second --delete meanwhile
                        prints NOTHING REMOVED and exits 0
   --session <id>       this session; default: CLAUDE_CODE_SESSION_ID
@@ -97,7 +100,7 @@ try {
 }
 const sessionRoot = values["--session-root"] ?? stored?.context?.sessionRoot ?? null
 const context = { sessionId, sessionRoot: sessionRoot ? resolve(sessionRoot) : null, carryRoot: resolve(values["--carry-root"] ?? defaultCarryRoot()),
-  repositories, configDirectories }
+  repositories, configDirectories, repoRoot: REPO_ROOT }
 const sizeOf = (item) => (Number.isFinite(item.bytes) ? describeBytes(item.bytes) : "size not measured")
 
 if (switches.has("--delete")) {

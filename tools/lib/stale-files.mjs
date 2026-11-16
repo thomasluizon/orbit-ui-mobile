@@ -266,14 +266,20 @@ const readLiveEvidence = (context, probes) => {
     processes: probes.processes(), liveSessions, liveSessionsUnknown }
 }
 
-/** What every class reads once: the live evidence and the worktrees. */
-const gatherEvidence = (context, probes) => {
-  const listed = Object.values(context.repositories).filter((path) => existsSync(path)).map((path) => ({ path, worktrees: listWorktrees(path, probes) }))
+/**
+ * The registered worktrees of `repositories` that exist, with canonical paths, and each repository whose worktrees git
+ * could not list. The listing reads them once, and the removal reads them again just before each item.
+ */
+const readWorktrees = (repositories, probes) => {
+  const listed = Object.values(repositories).filter((path) => existsSync(path)).map((path) => ({ path, worktrees: listWorktrees(path, probes) }))
   const worktrees = listed.flatMap((repository) => repository.worktrees ?? [])
     .filter((worktree) => !worktree.missing).map((worktree) => ({ ...worktree, path: canonical(worktree.path) }))
-  return { ...readLiveEvidence(context, probes), sessionRoot: context.sessionRoot ? canonical(context.sessionRoot) : null, carryRoot: canonical(context.carryRoot), worktrees,
-    unlistedRepositories: listed.filter((repository) => repository.worktrees === null).map((repository) => repository.path) }
+  return { worktrees, unlistedRepositories: listed.filter((repository) => repository.worktrees === null).map((repository) => repository.path) }
 }
+
+/** What every class reads once: the live evidence and the worktrees. */
+const gatherEvidence = (context, probes) => ({ ...readLiveEvidence(context, probes), sessionRoot: context.sessionRoot ? canonical(context.sessionRoot) : null,
+  carryRoot: canonical(context.carryRoot), ...readWorktrees(context.repositories, probes) })
 
 /** Why a live process or session still uses `path`; null when none does. An unreadable process table or unknown live sessions count as in use. */
 const useOf = (path, evidence, sessionId = null) => {
@@ -295,10 +301,11 @@ const useOf = (path, evidence, sessionId = null) => {
 const liveHoldOf = (item, evidence) => {
   if (item.kind === "session") return evidence.protectedSessions.get(basename(item.path)) ?? useOf(item.path, evidence, basename(item.path))
   if (item.kind === "carry") {
-    const prefix = DURABLE_COPY.exec(basename(item.path))[1]
+    // A listing that this library did not make can name another directory; the removal refuses it by its name.
+    const prefix = DURABLE_COPY.exec(basename(item.path))?.[1] ?? null
     const owner = [...evidence.protectedSessions].find(([sessionId]) => sessionId.slice(0, 8) === prefix)
     // A live session mirrors its scratchpad into its own copy; with three live sessions the third copy is not one of the newest two.
-    const live = evidence.liveSessions.find((session) => session.sessionId.startsWith(prefix))
+    const live = prefix === null ? undefined : evidence.liveSessions.find((session) => session.sessionId.startsWith(prefix))
     return (owner ? `the durable copy of ${owner[1]}` : null) ?? (live ? `the durable copy of live session ${prefix}` : null) ?? useOf(item.path, evidence)
   }
   const queued = queuedTicketOf(item, evidence.queued)
@@ -369,9 +376,10 @@ const linkHoldOf = (path, evidence) => {
  * registered worktree in it must stay. A removal takes the whole tree, and `git worktree remove` takes an ignored
  * directory too, with every worktree in it.
  */
-const holdOf = (path, evidence, probes) => {
-  const link = linkHoldOf(path, evidence)
-  if (link) return link
+const holdOf = (path, evidence, probes) => linkHoldOf(path, evidence) ?? nestedWorktreesHoldOf(path, evidence, probes)
+
+/** Why a registered worktree inside `path` must stay, or why the worktrees cannot be told; null when none must. */
+const nestedWorktreesHoldOf = (path, evidence, probes) => {
   // A worktree git could not list is invisible here, and it can be the tree of an open pull request.
   if (evidence.unlistedRepositories.length > 0) return `the worktrees of ${evidence.unlistedRepositories.join(", ")} could not be listed`
   for (const worktree of evidence.worktrees.filter((candidate) => candidate.path !== path && within(candidate.path, path))) {
@@ -511,7 +519,7 @@ const youngBranchHoldOf = (worktree, lastRelayAt, probes) => {
   return created >= lastRelayAt ? `its branch has no pull request and was made after the last relay at ${new Date(lastRelayAt).toISOString()}` : null
 }
 
-/** `{ stale, reason }` for one clean, idle worktree with a branch, from its pull requests and its commits. */
+/** `{ stale, reason, tip }` for one clean, idle worktree with a branch, from its pull requests and its commits: a stale verdict judged the commits of `tip`. */
 const judgeBranch = (worktree, probes, lastRelayAt = null) => {
   const tip = probes.git(worktree.path, ["rev-parse", "HEAD"])
   if (tip === null) return { stale: false, reason: "git rev-parse could not be read" }
@@ -523,7 +531,7 @@ const judgeBranch = (worktree, probes, lastRelayAt = null) => {
     const { container, unread } = mergedContainerOf(worktree, tip, probes)
     if (!container) return { stale: false, reason: unread ?? "it holds work nobody merged: no pull request, and no merged branch contains its branch" }
     const young = youngBranchHoldOf(worktree, lastRelayAt, probes)
-    return young ? { stale: false, reason: young } : { stale: true, reason: container }
+    return young ? { stale: false, reason: young } : { stale: true, reason: container, tip }
   }
   const readHeads = pullRequests.filter((pullRequest) => hasPullRequestHead(worktree, pullRequest, probes))
   const unreadHead = pullRequests.find((pullRequest) => !readHeads.includes(pullRequest))
@@ -532,7 +540,7 @@ const judgeBranch = (worktree, probes, lastRelayAt = null) => {
     unreadHead ? `the head of pull request #${unreadHead.number} could not be read` : "it holds a commit that no remote and no pull request has", probes)
   if (unpushed) return { stale: false, reason: unpushed }
   const finished = pullRequests.find((pullRequest) => pullRequest.state === "MERGED") ?? pullRequests[0]
-  return { stale: true, reason: `pull request #${finished.number} ${finished.state === "MERGED" ? "merged" : "closed"}` }
+  return { stale: true, reason: `pull request #${finished.number} ${finished.state === "MERGED" ? "merged" : "closed"}`, tip }
 }
 
 const classifyWorktrees = (evidence, probes, deadline) => evidence.worktrees
@@ -679,29 +687,67 @@ export const summarize = (stale) => {
 /** The nearest directory at or above `path` that still exists: the removal of a worktree takes the parent of a worktree inside it. */
 const existingAncestor = (path) => (existsSync(path) || dirname(path) === path ? path : existingAncestor(dirname(path)))
 
-/** A session directory or a carry copy: only a real directory directly under its root. A link is never followed. */
+/** A session directory or a carry copy: only a real directory directly under its root, with the name of its kind. A link is never followed. */
 const removeDirectory = (item, root) => {
   if (root === null || dirname(item.path) !== root || !lstatSync(item.path).isDirectory()) throw new Error(`${item.path} is not a directory directly under ${root}`)
+  const name = item.kind === "session" ? SESSION_ID : DURABLE_COPY
+  if (!name.test(basename(item.path))) throw new Error(`${item.path} has no ${item.kind === "session" ? "session id" : "durable-<8 hex digits>"} name`)
   rmSync(item.path, { recursive: true, force: true })
 }
 
 /**
  * Git refuses a tree with a change that its `git status` shows, whatever `status.showUntrackedFiles` or `core.excludesFile`
  * says, and a locked one. Its refusal cannot see a change that an index flag hides or a file that only `info/exclude`
- * ignores, so the same check as the listing's runs first. A file that a `.gitignore` ignores goes with the tree. The local
- * branch stays.
+ * ignores, so the check just before the removal reads those first. A file that a `.gitignore` ignores goes with the tree.
+ * The local branch stays.
  */
 const removeWorktree = (item, probes) => {
-  const change = changeOf(item.path, probes)
-  if (change) throw new Error(`${item.path} was not removed: ${change}`)
   if (probes.git(item.repository, [...WORKTREE_REMOVE_ARGUMENTS, item.path], REMOVAL_TIMEOUT_MS) === null) throw new Error(`git worktree remove refused ${item.path}`)
 }
 
 /**
+ * Why a listed worktree changed since the listing; null when it did not. The listing judged the commits of one tip on one
+ * branch, and the same tip holds the same commits. So a new commit, or an unpushed one, moves the tip or the HEAD, and a
+ * commit on a detached HEAD has no branch that outlives the tree. A change in the tree counts too.
+ */
+const worktreeChangeOf = (item, evidence, probes) => {
+  const change = changeOf(item.path, probes)
+  if (change) return change
+  // `--symbolic-full-name` prints `refs/heads/<branch>` for a HEAD on a branch and `HEAD` for a detached one.
+  const head = probes.git(item.path, ["rev-parse", "--symbolic-full-name", "HEAD"])
+  if (head === null) return "git rev-parse could not be read"
+  if (head === "HEAD") return "its HEAD is detached, so no branch proves its work merged"
+  if (head !== `refs/heads/${item.branch}`) return `its HEAD is on ${head}, not on its listed branch ${item.branch}`
+  const tip = probes.git(item.path, ["rev-parse", "HEAD"])
+  if (tip === null) return "git rev-parse could not be read"
+  if (tip !== item.tip) return `its branch tip is ${tip.slice(0, 12)}, not the tip ${item.tip?.slice(0, 12) ?? "(none)"} that the listing judged`
+  return otherSessionHoldOf(item.path, evidence)
+}
+
+/**
+ * Why `item` must stay just before its removal; null when it can go. Everything the listing read can change after it,
+ * also with no process left in the item: a session resumes, a launch claims a worktree, a scratchpad links into it, or a
+ * session or the owner commits, detaches the HEAD or makes a worktree or a repository in it. So this reads the live
+ * evidence, the scratchpad links and the worktrees again, and applies the listing's rules to every kind of item.
+ */
+const removalHoldOf = (item, context, repositories, probes) => {
+  const live = { ...readLiveEvidence(context, probes), sessionRoot: context.sessionRoot }
+  const liveHold = liveHoldOf(item, live)
+  if (liveHold) return `it is in use now: ${liveHold}`
+  const evidence = { ...live, ...readSessionLinks(live), ...readWorktrees(repositories, probes) }
+  const link = linkHoldOf(item.path, evidence)
+  if (link) return `it is in use now: ${link}`
+  const worktree = item.kind === "worktree"
+  const tree = (worktree ? worktreeChangeOf(item, evidence, probes) : null) ?? nestedWorktreesHoldOf(item.path, evidence, probes)
+    ?? (worktree ? repositoryHoldOf(item.path, evidence, probes) : null)
+  return tree ? `the check before the removal keeps it: ${tree}` : null
+}
+
+/**
  * Removes the stale items of `listing`, made at the removal, and nothing else. Returns `{ removed, skipped, failed, freed }`:
- * `freed` is the change of free space on the volumes the removed items were on. A session can resume, a process can start,
- * a scratchpad can link and a launch can claim a worktree after the listing, so the live evidence and the scratchpad links
- * are read again just before each item, and an item that they hold stays. Evidence that cannot be read fails the item, which keeps it.
+ * `freed` is the change of free space on the volumes the removed items were on. Just before each item, `removalHoldOf`
+ * applies the listing's rules again, and an item that they now keep is skipped with the reason. Evidence that cannot be
+ * read keeps the item too.
  */
 export const removeListed = (listing, repositories, { probes = systemProbes } = {}) => {
   const outcome = { removed: [], skipped: [], failed: [], freed: 0 }
@@ -715,10 +761,9 @@ export const removeListed = (listing, repositories, { probes = systemProbes } = 
       continue
     }
     try {
-      const live = { ...readLiveEvidence(listing.context, probes), sessionRoot: listing.context.sessionRoot }
-      const hold = liveHoldOf(item, live) ?? linkHoldOf(item.path, { ...live, ...readSessionLinks(live) })
+      const hold = removalHoldOf(item, listing.context, repositories, probes)
       if (hold) {
-        outcome.skipped.push({ ...item, reason: `it is in use now: ${hold}` })
+        outcome.skipped.push({ ...item, reason: hold })
         continue
       }
       const parent = dirname(item.path)

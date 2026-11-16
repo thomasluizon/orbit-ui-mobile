@@ -50,6 +50,10 @@ const liveRecords = (...sessionIds) => () => sessionIds.map((sessionId) => ({ se
 const quietProbes = { ...systemProbes, processes: () => [], liveSessions: liveRecords(THIS, OTHER), git: () => "", pullRequests: () => [], measure: () => 1024 }
 /** Real git with the live evidence stubbed: the suite has no live session record, so real liveness reads would keep every item. */
 const realGitProbes = { ...quietProbes, git: systemProbes.git }
+/** A listed worktree as the stub listings judge it: on its branch `done` at the tip `2`. */
+const finishedItem = (path, repository) => ({ kind: "worktree", path, repository, branch: "done", tip: "2", reason: "pull request #1 merged" })
+/** The stub git answer of a worktree on the branch `done` at the tip `2`; every other read answers empty. */
+const onFinishedTip = (args) => (args[0] !== "rev-parse" ? "" : args.includes("--symbolic-full-name") ? "refs/heads/done" : "2")
 const reasonOf = (listing, path) => listing.kept.find((item) => item.path === path)?.reason
 const stalePaths = (listing, kind) => listing.stale.filter((item) => item.kind === kind).map((item) => item.path)
 
@@ -275,13 +279,21 @@ const removalCases = () => {
   const listing = collectListing(machine.context, { probes, measure: false })
   same("stale-files: the removal fixture lists every session directory that no session and no process owns", stalePaths(listing, "session").sort(), unowned.map(directory).sort())
   const foreign = { kind: "session", path: outside, bytes: 1, reason: "planted" }
-  const outcome = removeListed({ ...listing, stale: [...listing.stale, foreign] }, {}, { probes })
+  // A listing that this library did not make can name a directory directly under a root that is no item of that kind.
+  const forgedCopy = join(machine.carryRoot, "not-a-copy")
+  const forgedSession = join(machine.sessionRoot, "tasks-not-a-session")
+  mkdirSync(forgedCopy)
+  const forged = [{ kind: "carry", path: forgedCopy, bytes: 1, reason: "planted" }, { kind: "session", path: forgedSession, bytes: 1, reason: "planted" }]
+  const outcome = removeListed({ ...listing, stale: [...listing.stale, foreign, ...forged] }, {}, { probes })
+  same("stale-files: a directory under a root without the name of its kind is refused by its name, not removed",
+    outcome.failed.filter((item) => item.path !== outside).map((item) => `${item.reason}: ${existsSync(item.path)}`).sort(),
+    [`${forgedCopy} has no durable-<8 hex digits> name: true`, `${forgedSession} has no session id name: true`])
   same("stale-files: removal deletes each stale item of the listing", outcome.removed.map((item) => item.path).sort(), unowned.map(directory).sort())
   same("stale-files: the removed directories are gone", outcome.removed.some((item) => existsSync(item.path)), false)
   T("stale-files: a directory that a live process works in survives", existsSync(directory(LIVE_COMMAND)))
   T("stale-files: a protected session directory survives", [THIS, CHAIN_PREDECESSOR, RUN_PREDECESSOR, SUCCESSOR].every((session) => existsSync(directory(session))))
   same("stale-files: a link inside a removed directory is unlinked and its target survives", readFileSync(join(outside, "sentinel.txt"), "utf8"), "must survive\n")
-  T("stale-files: a path outside the session root is refused, not removed", outcome.failed.map((item) => item.path).join() === outside && existsSync(outside), JSON.stringify(outcome.failed))
+  T("stale-files: a path outside the session root is refused, not removed", outcome.failed.some((item) => item.path === outside) && existsSync(outside), JSON.stringify(outcome.failed))
   T("stale-files: removal reports the change of free space as a number", Number.isFinite(outcome.freed))
 }
 
@@ -291,10 +303,10 @@ const nestedRemovalCases = () => {
   const outer = join(machine.base, "outer")
   const inner = join(outer, ".claude", "worktrees", "inner")
   mkdirSync(inner, { recursive: true })
-  const listing = { ...collectListing(machine.context, { probes: quietProbes }), stale: [outer, inner].map((path) => ({ kind: "worktree", path, repository: machine.checkout, reason: "pull request #1 merged" })) }
+  const listing = { ...collectListing(machine.context, { probes: quietProbes }), stale: [outer, inner].map((path) => finishedItem(path, machine.checkout)) }
   const removals = []
   const probes = { ...quietProbes, git: (cwd, args) => {
-    if (!args.includes("remove")) return ""
+    if (!args.includes("remove")) return onFinishedTip(args)
     removals.push(args.at(-1))
     return args.at(-1) === inner ? null : ""
   } }
@@ -315,7 +327,8 @@ const stageFinishedWorktree = (label, configure = []) => {
   const staged = [["init", "-q", "--initial-branch=main"], ["add", "tracked.txt"], ["-c", "user.email=gate@orbit.test", "-c", "user.name=Orbit Gate", "commit", "-q", "-m", "base"],
     ...configure, ["worktree", "add", "-q", "-b", "feature/finished", finished]].every((args) => git(args).status === 0)
   T(`stale-files: the ${label} fixture stages`, staged)
-  const listing = { ...collectListing(machine.context, { probes: quietProbes }), stale: [{ kind: "worktree", path: finished, repository, reason: "pull request #1 merged" }] }
+  const tip = git(["rev-parse", "HEAD"]).stdout.trim()
+  const listing = { ...collectListing(machine.context, { probes: quietProbes }), stale: [{ kind: "worktree", path: finished, repository, branch: "feature/finished", tip, reason: "pull request #1 merged" }] }
   return staged ? { machine, repository, finished, git, listing } : null
 }
 
@@ -340,7 +353,7 @@ const hiddenUntrackedRemovalCases = () => {
       }
       return systemProbes.git(cwd, args, timeoutMs)
     } }
-    const outcome = removeListed(fixture.listing, {}, { probes })
+    const outcome = removeListed(fixture.listing, { ui: fixture.repository }, { probes })
     same(`stale-files: the fixture's git status hides the file that ${setting} hides`, fixture.git(["-C", fixture.finished, "status", "--porcelain"]).stdout, "")
     same(`stale-files: git refuses the removal of a worktree whose late untracked file ${setting} hides`, outcome.failed.map((item) => item.path), [fixture.finished])
     T(`stale-files: the late untracked file that ${setting} hides survives the removal`, existsSync(late))
@@ -364,9 +377,9 @@ const hiddenChangeRemovalCases = () => {
     T(`stale-files: the ${label} flag stages`, prepare(fixture))
     appendFileSync(join(fixture.finished, "tracked.txt"), "edited, never committed\n")
     same(`stale-files: the fixture's git status hides the edit under ${label}`, fixture.git(["-C", fixture.finished, "status", "--porcelain"]).stdout, "")
-    const outcome = removeListed(fixture.listing, {}, { probes: realGitProbes })
-    same(`stale-files: the removal refuses a worktree whose edit ${label} hides`, outcome.failed.map((item) => `${item.path}: ${item.reason}`),
-      [`${fixture.finished}: ${fixture.finished} was not removed: git status cannot show a change to tracked.txt, an assume-unchanged or skip-worktree file`])
+    const outcome = removeListed(fixture.listing, { ui: fixture.repository }, { probes: realGitProbes })
+    same(`stale-files: the removal keeps a worktree whose edit ${label} hides`, outcome.skipped.map((item) => `${item.path}: ${item.reason}`),
+      [`${fixture.finished}: the check before the removal keeps it: git status cannot show a change to tracked.txt, an assume-unchanged or skip-worktree file`])
     same(`stale-files: the edit that ${label} hides survives the removal`, existsSync(fixture.finished) ? readFileSync(join(fixture.finished, "tracked.txt"), "utf8") : null,
       "committed\nedited, never committed\n")
   }
@@ -376,9 +389,9 @@ const hiddenChangeRemovalCases = () => {
   mkdirSync(join(excluded.finished, "drafts"))
   writeFileSync(join(excluded.finished, "drafts", "todo.md"), "never added\n")
   same("stale-files: the fixture's git status hides the file that only info/exclude ignores", excluded.git(["-C", excluded.finished, "status", "--porcelain", "--untracked-files=all"]).stdout, "")
-  const outcome = removeListed(excluded.listing, {}, { probes: realGitProbes })
-  same("stale-files: the removal refuses a worktree with a file that only info/exclude ignores", outcome.failed.map((item) => item.reason),
-    [`${excluded.finished} was not removed: it holds an untracked file that no .gitignore ignores: drafts/todo.md`])
+  const outcome = removeListed(excluded.listing, { ui: excluded.repository }, { probes: realGitProbes })
+  same("stale-files: the removal keeps a worktree with a file that only info/exclude ignores", outcome.skipped.map((item) => item.reason),
+    ["the check before the removal keeps it: it holds an untracked file that no .gitignore ignores: drafts/todo.md"])
   T("stale-files: the file that only info/exclude ignores survives the removal", existsSync(join(excluded.finished, "drafts", "todo.md")))
 }
 
@@ -407,9 +420,9 @@ const fsmonitorRemovalCases = () => {
       return systemProbes.git(cwd, args, timeoutMs)
     } }
     if (when === "before the check") same("stale-files: the fixture's git status hides the edit under the fsmonitor hook", fixture.git(["-C", fixture.finished, "status", "--porcelain"]).stdout, "")
-    const outcome = removeListed(fixture.listing, {}, { probes })
-    same(`stale-files: the removal refuses a worktree whose edit the fsmonitor hook hides, made ${when}`, outcome.failed.map((item) => item.reason),
-      [when === "before the check" ? `${fixture.finished} was not removed: it holds an uncommitted change` : `git worktree remove refused ${fixture.finished}`])
+    const outcome = removeListed(fixture.listing, { ui: fixture.repository }, { probes })
+    same(`stale-files: the removal keeps a worktree whose edit the fsmonitor hook hides, made ${when}`, [...outcome.skipped, ...outcome.failed].map((item) => item.reason),
+      [when === "before the check" ? "the check before the removal keeps it: it holds an uncommitted change" : `git worktree remove refused ${fixture.finished}`])
     same(`stale-files: the edit that the fsmonitor hook hides survives the removal (${when})`, existsSync(tracked) ? readFileSync(tracked, "utf8") : null, "committed\nedited, never committed\n")
   }
 }
@@ -480,12 +493,25 @@ const unreadableGitCases = () => {
   // At the removal: a failed read keeps the item, and the line that the owner reads names the read.
   const stored = { ...readable, stale: readable.stale.filter((item) => item.path === finished) }
   const removals = []
-  const refused = removeListed(stored, {}, { probes: { ...quietProbes, git: (cwd, args) => {
-    if (args.includes("remove")) removals.push(args.at(-1))
-    return args.includes("status") ? null : ""
-  } } })
-  same("stale-files: the removal of a worktree whose git status fails reports the unreadable reason", refused.failed.map((item) => item.reason), [`${finished} was not removed: git status could not be read`])
+  const readAtRemoval = (cwd, args) => (args[0] === "worktree" ? records : onFinishedTip(args))
+  for (const [read, fails, reason] of [
+    ["git status", (args) => args.includes("status"), "git status could not be read"],
+    ["worktree list", (args) => args[0] === "worktree", `the worktrees of ${machine.checkout} could not be listed`],
+    ["symbolic HEAD", (args) => args.includes("--symbolic-full-name"), "git rev-parse could not be read"],
+    ["tip", (args) => args.join(" ") === "rev-parse HEAD", "git rev-parse could not be read"],
+  ]) {
+    const refused = removeListed(stored, { ui: machine.checkout }, { probes: { ...quietProbes, git: (cwd, args) => {
+      if (args.includes("remove")) removals.push(args.at(-1))
+      return fails(args) ? null : readAtRemoval(cwd, args)
+    } } })
+    same(`stale-files: the removal of a worktree whose ${read} read fails keeps it with the unreadable reason`, refused.skipped.map((item) => item.reason), [`the check before the removal keeps it: ${reason}`])
+  }
   same("stale-files: git is never asked to remove a worktree whose evidence could not be read", removals, [])
+  const readableRemoval = removeListed(stored, { ui: machine.checkout }, { probes: { ...quietProbes, git: (cwd, args) => {
+    if (args.includes("remove")) removals.push(args.at(-1))
+    return readAtRemoval(cwd, args)
+  } } })
+  same("stale-files: with every read at the removal answered, the finished worktree is removed", readableRemoval.removed.map((item) => item.path), [finished])
 }
 
 /** The walk of a finished worktree's tree runs only inside the listing's time limit; past it, the worktree stays. */
@@ -628,11 +654,10 @@ const lateLivenessCases = async () => {
     processes: () => (late ? [{ command: "node build.mjs", directory: directory(LIVE_DIRECTORY) }, { command: `node wait.mjs --file ${directory(LIVE_COMMAND)}/done.json`, directory: null }] : []),
     git: (cwd, args) => {
       if (args.includes("remove")) removals.push(args.at(-1))
-      return ""
+      return onFinishedTip(args)
     } }
   const listed = collectListing(machine.context, { probes, measure: false })
-  const worktrees = ["ticket-5151-late", "reserved-late", "outer", "untouched"].map(tree).concat(inner)
-    .map((path) => ({ kind: "worktree", path, repository: machine.checkout, reason: "pull request #1 merged" }))
+  const worktrees = ["ticket-5151-late", "reserved-late", "outer", "untouched"].map(tree).concat(inner).map((path) => finishedItem(path, machine.checkout))
   const listing = { ...listed, stale: [...listed.stale, ...worktrees] }
   const turnsLive = [LIVE_RECORD, LIVE_DIRECTORY, LIVE_COMMAND, CHAINED, HOLDS_WORK, LINKED].map(directory)
   same("stale-files: every session directory that turns live after the listing is stale in the listing", turnsLive.filter((path) => !stalePaths(listing, "session").includes(path)), [])
@@ -691,6 +716,76 @@ const lateLivenessCases = async () => {
   } finally {
     sleeper.kill()
   }
+}
+
+/**
+ * The tree of an item can change after the listing with no process left in it: a session runs `git -C <tree> ...` from
+ * elsewhere and ends, or the owner works in the Orca login shell. Real git, pull requests merged at the listed tips. The
+ * removal applies the listing's tree rules again just before each item, for every kind, and keeps the work.
+ */
+const lateTreeCases = () => {
+  const machine = stageMachine("late-tree")
+  const repository = join(machine.base, "repository")
+  const tree = (name) => join(machine.base, "trees", name)
+  const commit = (cwd, message) => spawnSync("git", ["-C", cwd, "-c", "user.email=gate@orbit.test", "-c", "user.name=Orbit Gate", "commit", "-q", "--allow-empty", "-m", message]).status === 0
+  const git = (cwd, args) => spawnSync("git", ["-C", cwd, ...args], { encoding: "utf8" })
+  mkdirSync(repository)
+  // Claude Code keeps its own worktrees under `.claude/worktrees/`, which the repository ignores: a tree there is no change of its container.
+  writeFileSync(join(repository, ".gitignore"), "ignored/\n")
+  const names = ["detached", "nested-worktree", "nested-repository", "moved-tip", "other-branch", "unchanged"]
+  let staged = git(repository, ["init", "-q", "--initial-branch=main"]).status === 0 && git(repository, ["add", ".gitignore"]).status === 0 && commit(repository, "base")
+  for (const name of names) staged &&= git(repository, ["worktree", "add", "-q", "-b", `feature/${name}`, tree(name)]).status === 0 && commit(tree(name), name)
+  for (const [name, hours] of [["durable-0a0a0a0a", 30], ["durable-0b0b0b0b", 20], ["durable-0c0c0c0c", 10]]) {
+    mkdirSync(join(machine.carryRoot, name))
+    utimesSync(join(machine.carryRoot, name), new Date(Date.now() - hours * 3_600_000), new Date(Date.now() - hours * 3_600_000))
+  }
+  T("stale-files: the late tree fixture stages", staged)
+  if (!staged) return
+  const tipOf = (branch) => git(repository, ["rev-parse", `refs/heads/${branch}`]).stdout.trim()
+  const probes = { ...realGitProbes, repositories: systemProbes.repositories,
+    pullRequests: (path, branch) => (branch.startsWith("feature/") ? [{ number: 1, state: "MERGED", headRefOid: tipOf(branch) }] : []) }
+  const listing = collectListing({ ...machine.context, repositories: { ui: repository } }, { probes, measure: false })
+  const session = join(machine.sessionRoot, STALE)
+  const carry = join(machine.carryRoot, "durable-0a0a0a0a")
+  same("stale-files: the late tree fixture lists every finished worktree as stale", stalePaths(listing, "worktree").sort(), names.map(tree).sort())
+  T("stale-files: the late tree fixture lists the session directory and the old durable copy as stale",
+    stalePaths(listing, "session").includes(session) && stalePaths(listing, "carry").includes(carry), JSON.stringify(listing.stale.map((item) => item.path)))
+
+  // After the listing, and with no process left in any item: a commit on a detached HEAD, a commit on the listed branch,
+  // a checkout of another branch, a registered worktree with an uncommitted file in an ignored path, and a repository
+  // with a local commit in an ignored path. A worktree with an uncommitted file appears in the session directory and in the durable copy.
+  staged = git(tree("detached"), ["checkout", "-q", "--detach"]).status === 0 && commit(tree("detached"), "detached work")
+  const detachedCommit = git(tree("detached"), ["rev-parse", "HEAD"]).stdout.trim()
+  staged &&= commit(tree("moved-tip"), "late work") && git(tree("other-branch"), ["checkout", "-q", "-b", "feature/elsewhere"]).status === 0
+  const inner = join(tree("nested-worktree"), "ignored", "inner")
+  const scratch = join(tree("nested-repository"), "ignored", "scratch")
+  const sessionInner = join(session, "scratchpad", "inner")
+  const carryInner = join(carry, "inner")
+  for (const [path, branch] of [[inner, "inner"], [sessionInner, "session-inner"], [carryInner, "carry-inner"]]) {
+    staged &&= git(repository, ["worktree", "add", "-q", "-b", branch, path]).status === 0
+    writeFileSync(join(path, "draft.txt"), "never added\n")
+  }
+  mkdirSync(scratch, { recursive: true })
+  staged &&= git(scratch, ["init", "-q"]).status === 0 && commit(scratch, "scratch work")
+  T("stale-files: the changes after the listing stage", staged)
+  const outcome = removeListed(listing, { ui: repository }, { probes })
+  const skipped = new Map(outcome.skipped.map((item) => [item.path, item.reason]))
+  const keeps = "the check before the removal keeps it: "
+  for (const [name, path, reason] of [
+    ["a worktree whose HEAD was detached and moved on", tree("detached"), `${keeps}its HEAD is detached, so no branch proves its work merged`],
+    ["a worktree whose branch tip moved", tree("moved-tip"), new RegExp(`^${keeps}its branch tip is [0-9a-f]{12}, not the tip [0-9a-f]{12} that the listing judged$`)],
+    ["a worktree that checked out another branch", tree("other-branch"), `${keeps}its HEAD is on refs/heads/feature/elsewhere, not on its listed branch feature/other-branch`],
+    ["a worktree that holds a new worktree with an uncommitted file", tree("nested-worktree"), `${keeps}worktree ${inner} in it stays: it holds an uncommitted change`],
+    ["a worktree that holds a new repository with a local commit", tree("nested-repository"), `${keeps}repository ${scratch} in it stays: it holds a commit that no remote has`],
+    ["a session directory that holds a new worktree with an uncommitted file", session, `${keeps}worktree ${sessionInner} in it stays: it holds an uncommitted change`],
+    ["a durable copy that holds a new worktree with an uncommitted file", carry, `${keeps}worktree ${carryInner} in it stays: it holds an uncommitted change`],
+  ]) {
+    const matches = typeof reason === "string" ? skipped.get(path) === reason : reason.test(skipped.get(path) ?? "")
+    T(`stale-files: the removal keeps ${name} after the listing, with the reason`, existsSync(path) && matches, `reason: ${skipped.get(path)}`)
+  }
+  same("stale-files: the removal still removes the worktree that stays unchanged", outcome.removed.filter((item) => item.kind === "worktree").map((item) => item.path), [tree("unchanged")])
+  T("stale-files: the detached commit made after the listing survives in its worktree", git(tree("detached"), ["rev-parse", "HEAD"]).stdout.trim() === detachedCommit)
+  T("stale-files: the uncommitted files made after the listing survive", [inner, sessionInner, carryInner].every((path) => existsSync(join(path, "draft.txt"))))
 }
 
 /** A process that tries the removal lock of `repoRoot`, prints `taken` or `busy`, and holds what it took until its stdin closes. */
@@ -770,5 +865,6 @@ export const cases = async () => {
   cleanupDueCases()
   launchCases()
   await lateLivenessCases()
+  lateTreeCases()
   await lockCases()
 }
