@@ -4,7 +4,7 @@ import { IconButton } from '@/components/ui/icon-button'
 import { RefreshCw } from '@/components/ui/icons'
 import { useEffect, useRef, useState } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
-import { TURNSTILE_LOAD_DEADLINE_MS, TURNSTILE_MAX_AUTOMATIC_RETRIES, TURNSTILE_RETRY_INTERVAL_MS } from '@orbit/shared/hooks/turnstile-token-core'
+import { TURNSTILE_LOAD_DEADLINE_MS, TURNSTILE_RETRY_INTERVAL_MS } from '@orbit/shared/hooks/turnstile-token-core'
 import { useCurrentTheme } from '@/stores/theme-store'
 
 type WidgetState = 'idle' | 'loading' | 'interactive' | 'solved' | 'failed' | 'expired'
@@ -30,6 +30,7 @@ interface TurnstileApi {
 // WHY: Cloudflare marks these codes Retry: Yes, but api.js with retry auto skips its retry for 200500 and during a reset, so the widget runs them again itself https://developers.cloudflare.com/turnstile/troubleshooting/client-side-errors/error-codes/
 const RETRIED_ERROR_CODES = new Set(['110600', '110620', '200500'])
 const RETRIED_ERROR_FAMILIES = ['300', '600']
+const MAX_AUTOMATIC_RETRIES = 2
 
 function isRetriedFailure(code: string): boolean {
   return RETRIED_ERROR_CODES.has(code) || RETRIED_ERROR_FAMILIES.some((family) => code.startsWith(family))
@@ -137,7 +138,7 @@ export function TurnstileWidget({
     }
 
     function runAgain(run: () => void) {
-      if (automaticRetriesRef.current >= TURNSTILE_MAX_AUTOMATIC_RETRIES) {
+      if (automaticRetriesRef.current >= MAX_AUTOMATIC_RETRIES) {
         update('failed')
         return
       }
