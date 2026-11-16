@@ -154,7 +154,7 @@ Drawn references: [Orbit conversation](canvas/Orbit%20Astra%20Conversation.dc.ht
 | [apps/web/app/(app)/wrapped/_components/wrapped-cover.tsx:89](../apps/web/app/(app)/wrapped/_components/wrapped-cover.tsx#L89) | `{t('wrapped.retry')}` | RefreshCw |
 | [apps/web/app/(app)/wrapped/_components/wrapped-slide.tsx:125](../apps/web/app/(app)/wrapped/_components/wrapped-slide.tsx#L125) | `{t('wrapped.retry')}` | RefreshCw |
 | [apps/web/app/(auth)/error.tsx:14](../apps/web/app/(auth)/error.tsx#L14) | `{t('common.retry')}` | RefreshCw |
-| [apps/web/components/auth/turnstile-widget.tsx:250](../apps/web/components/auth/turnstile-widget.tsx#L250) | `{t('auth.turnstileRetry')}` | RefreshCw |
+| [apps/web/components/auth/turnstile-widget.tsx:289](../apps/web/components/auth/turnstile-widget.tsx#L289) | `{t('auth.turnstileRetry')}` | RefreshCw |
 | [apps/web/components/calendar-sync/calendar-import-content.tsx:390](../apps/web/components/calendar-sync/calendar-import-content.tsx#L390) | `{t('common.goBack')}` | ChevronLeft |
 | [apps/web/components/calendar-sync/calendar-import-content.tsx:437](../apps/web/components/calendar-sync/calendar-import-content.tsx#L437) | `{t('calendar.showMore')}` | ChevronDown |
 | [apps/web/components/calendar-sync/calendar-import-content.tsx:555](../apps/web/components/calendar-sync/calendar-import-content.tsx#L555) | `{t('common.goBack')}` | ChevronLeft |
