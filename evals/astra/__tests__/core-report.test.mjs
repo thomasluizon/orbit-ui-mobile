@@ -279,6 +279,12 @@ describe('a case without a verdict on an earlier build', () => {
   const requiredOn = (apiCommit, results = attempts(required, 3)) => run(results, [required], 'must-pass', apiCommit)
   const optionalOn = (apiCommit, options) => run([result(optional, options)], [optional], 'other', apiCommit)
   const merged = (windows, reruns) => mergeRuns(windows, { descriptors, asBaseline: true, runCostUsd: 0.006, reruns })
+  const reported = (summary) => {
+    const target = mkdtempSync(join(tmpdir(), 'core-report-'))
+    scratch.push(target)
+    return writeReport(summary, target)
+  }
+  const laterBuildLine = (reruns, firstVerdicts, withoutVerdict) => `Later build, API commit: ${fixedBuild} (${reruns} of a failed case or of a grader limit; ${firstVerdicts}; ${withoutVerdict} with no verdict and no rerun)`
 
   // Day 1 on the first build: one case fails and the spend ceiling stops the other case after 2 attempts. Day 2: staging
   // serves the fix.
@@ -342,13 +348,46 @@ describe('a case without a verdict on an earlier build', () => {
   })
 
   it('names each later build in the report, and marks each case that it measured', () => {
-    const target = mkdtempSync(join(tmpdir(), 'core-report-'))
-    scratch.push(target)
-    const markdown = writeReport(merged(cutShort(), [requiredOn(fixedBuild), optionalOn(fixedBuild)]), target)
-    expect(markdown).toContain(`Later build, API commit: ${fixedBuild} (1 rerun of a failed case or of a grader limit; 1 case without a verdict on an earlier build)`)
+    const markdown = reported(merged(cutShort(), [requiredOn(fixedBuild), optionalOn(fixedBuild)]))
+    expect(markdown).toContain(laterBuildLine('1 rerun', '1 first verdict', '0 cases'))
     expect(markdown).toContain('| required | owner-turns | b | en | yes | 3 | 3/3 | pass (first verdict on bbbbbbb) |')
     expect(markdown).toContain('| optional | same-title | b | pt-BR | no | 1 | 1/1 | pass (rerun on bbbbbbb) |')
     expect(markdown).toContain('The attempts of one case come from one build.')
+  })
+
+  it('marks a fail without a rerun as a first verdict, and a rerun without evidence as a rerun', () => {
+    const failedLater = requiredOn(fixedBuild, [...attempts(required, 2), result(required, { pass: false })])
+    const markdown = reported(merged(cutShort(), [failedLater, optionalOn(fixedBuild, { unavailable: true })]))
+    expect(markdown).toContain(laterBuildLine('1 rerun', '1 first verdict', '0 cases'))
+    expect(markdown).toContain('| required | owner-turns | b | en | yes | 3 | 2/3 | fail (first verdict on bbbbbbb) |')
+    expect(markdown).toContain('| optional | same-title | b | pt-BR | no | 1 | 0/1 | incomplete (rerun on bbbbbbb) |')
+  })
+
+  // A later build can leave a case incomplete: its attempts gave no evidence again, or the grader could not read a
+  // reply. The merge holds no verdict for that case, so the report must not name one.
+  it.each([
+    ['gave no evidence', (apiCommit) => stopped(apiCommit)],
+    ['holds a grader limit', (apiCommit) => requiredOn(apiCommit, [...attempts(required, 2), result(required, { graderLimit: true })])],
+  ])('never reports a first verdict for a case that %s on the later build', (_, laterWindow) => {
+    const summary = merged([stopped(meta.apiCommit), optionalOn(meta.apiCommit)], [laterWindow(fixedBuild)])
+    expect(summary.cases[0]).toMatchObject({ passK: 'incomplete', apiCommit: fixedBuild })
+    expect(summary.cases[0].rerun).toBeUndefined()
+    const markdown = reported(summary)
+    expect(markdown).toContain('| required | owner-turns | b | en | yes | 3 | 2/3 | incomplete (no verdict on bbbbbbb) |')
+    expect(markdown).toContain(laterBuildLine('0 reruns', '0 first verdicts', '1 case'))
+    expect(markdown).not.toContain('first verdict on')
+  })
+
+  // Producer: the marks of a real merged report. The skill and TESTING.md name each mark as the report prints it.
+  it('names each mark of a later build in the skill and in TESTING.md', () => {
+    const markdown = [merged(cutShort(), [requiredOn(fixedBuild), optionalOn(fixedBuild)]),
+      merged([stopped(meta.apiCommit), optionalOn(meta.apiCommit)], [stopped(fixedBuild)])].map(reported).join('\n')
+    const marks = [...new Set([...markdown.matchAll(/\(([a-z ]+) on bbbbbbb\)/gu)].map(([, mark]) => mark))]
+    expect(marks.sort()).toEqual(['first verdict', 'no verdict', 'rerun'])
+    for (const path of ['.claude/skills/astra-eval/SKILL.md', 'TESTING.md']) {
+      const text = readFileSync(new URL(`../../../${path}`, import.meta.url), 'utf8')
+      for (const mark of marks) expect(text, `${path}: ${mark}`).toContain(`\`${mark} on <commit>\``)
+    }
   })
 })
 
@@ -400,7 +439,7 @@ describe('the report files', () => {
     const first = [run([...attempts(required, 2), result(required, { pass: false })], [required]), run([result(optional)], [optional], 'other')]
     const summary = mergeRuns(first, { descriptors, asBaseline: true, runCostUsd: 0.0105, reruns: [run(attempts(required, 3), [required], 'must-pass', fixedBuild)] })
     const markdown = writeReport(summary, directory())
-    expect(markdown).toContain(`Later build, API commit: ${fixedBuild} (1 rerun of a failed case or of a grader limit; 0 cases without a verdict on an earlier build)`)
+    expect(markdown).toContain(`Later build, API commit: ${fixedBuild} (1 rerun of a failed case or of a grader limit; 0 first verdicts; 0 cases with no verdict and no rerun)`)
     expect(markdown).toContain('| required | owner-turns | b | en | yes | 3 | 3/3 | pass (rerun on bbbbbbb) |')
     expect(markdown).toContain('| optional | same-title | b | pt-BR | no | 1 | 1/1 | pass |')
   })

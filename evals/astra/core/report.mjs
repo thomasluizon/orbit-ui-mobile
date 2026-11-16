@@ -162,15 +162,19 @@ function criteriaRows(criteria) {
     `| Cost of one model call (USD) | ${cell(cost.perModelCallUsd)} | at or below ${cost.limitUsd} (D147) | ${cost.status} |`]
 }
 
+// The mark of a case that a later build measured. A rerun keeps its mark with each result. Without a rerun, only a pass
+// or a fail is a first verdict: a case that stays incomplete (no evidence, or a grader limit) has no verdict there.
+const laterBuildMark = (entry) => entry.rerun ? 'rerun' : entry.passK === 'incomplete' ? 'no verdict' : 'first verdict'
+
 // The evidence of a failed case: the attempt files of the window that measured it. A window report lies beside its own
 // `attempts/`; a merged case names the directory of its window relative to the merged report.
-// A case of a merged report that a later build measured names that build: its rerun, or its first verdict.
+// A case of a merged report that a later build measured names that build, with its mark.
 function caseRow(entry, firstApiCommit) {
   const directory = entry.evidenceDirectory ? `${entry.evidenceDirectory}/` : ''
   const evidence = entry.passK === 'fail' ? Array.from({ length: entry.attempts }, (_, index) =>
     `[r${index + 1}](${directory}${evidencePath(entry.id, index + 1)})`).join(', ') : ''
   const laterBuild = entry.apiCommit && entry.apiCommit !== firstApiCommit
-    ? ` (${entry.rerun ? 'rerun' : 'first verdict'} on ${entry.apiCommit.slice(0, 7)})` : ''
+    ? ` (${laterBuildMark(entry)} on ${entry.apiCommit.slice(0, 7)})` : ''
   return `| ${entry.id} | ${entry.family} | ${entry.defectClass} | ${entry.locale} | ${entry.mustPass ? 'yes' : 'no'} | ${entry.k} | ${entry.passed}/${entry.attempts} | ${entry.passK}${laterBuild} | ${listed(entry.questionsBeforePreview)} | ${entry.maxQuestions} | ${listed(entry.modelCalls)} | ${listed(entry.seconds)} | ${cell(entry.costUsd)} | ${evidence} |`
 }
 
@@ -182,12 +186,13 @@ function reasonLines(title, cases, field) {
 
 const counted = (count, one, many) => `${count} ${count === 1 ? one : many}`
 
-// One line for each later build of a merged report. Each other case was measured on the first build.
+// One line for each later build of a merged report, with the count of each mark. Each other case was measured on the
+// first build.
 function laterBuildLines(summary) {
   return (summary.laterApiCommits ?? []).map((apiCommit) => {
-    const measured = summary.cases.filter((entry) => entry.apiCommit === apiCommit)
-    const reruns = measured.filter((entry) => entry.rerun).length
-    return `Later build, API commit: ${apiCommit} (${counted(reruns, 'rerun', 'reruns')} of a failed case or of a grader limit; ${counted(measured.length - reruns, 'case', 'cases')} without a verdict on an earlier build)`
+    const marks = summary.cases.filter((entry) => entry.apiCommit === apiCommit).map(laterBuildMark)
+    const marked = (mark) => marks.filter((candidate) => candidate === mark).length
+    return `Later build, API commit: ${apiCommit} (${counted(marked('rerun'), 'rerun', 'reruns')} of a failed case or of a grader limit; ${counted(marked('first verdict'), 'first verdict', 'first verdicts')}; ${counted(marked('no verdict'), 'case', 'cases')} with no verdict and no rerun)`
   })
 }
 

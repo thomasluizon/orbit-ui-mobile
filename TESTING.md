@@ -560,8 +560,9 @@ the first build. Run the cases without a verdict on the new build, and give thos
 with `--rerun` also. A case is without a verdict when no window held it, or when its attempts gave no
 evidence. These rules apply to each later build:
 
-- A case without a verdict gets its first verdict on the later build. This uses no rerun, so a failure
-  there keeps the one rerun of the case for the next fixed build.
+- A case without a verdict runs on the later build and uses no rerun. A pass or a fail there is its first
+  verdict, so a failure there keeps the one rerun of the case for the next fixed build. A case that
+  stays incomplete there (no evidence again, or a grader limit) has no verdict on that build.
 - A case that failed or holds a grader limit on an earlier build uses its one rerun.
 - A case that passed keeps its build. The merge refuses a later result for it.
 - The entry of the later build takes the place of the earlier entry, whole. The attempts of one case
@@ -570,10 +571,16 @@ evidence. These rules apply to each later build:
 
 Give the `--rerun` windows of one build together, in the order of the builds. The merge refuses a
 `--rerun` window on the first build and a return to an earlier build. The report names the API commit of
-each later build, with its count of reruns and of first verdicts, and marks each case that a later build
-measured (`rerun on <commit>` or `first verdict on <commit>`). The merged `summary.json` holds
-`laterApiCommits`, and each measured case holds the `apiCommit` of its build. Each other case keeps its
-verdict of the first build.
+each later build, with three counts: the reruns, the first verdicts, and the cases with no verdict and
+no rerun. The pass^k column of each case that a later build measured holds one of these marks:
+
+- `rerun on <commit>`: the case used its one rerun on that build. The mark stays with each result of the
+  rerun, `incomplete` included.
+- `first verdict on <commit>`: the case got a pass or a fail on that build, and used no rerun.
+- `no verdict on <commit>`: the case stays incomplete on that build, and used no rerun.
+
+The merged `summary.json` holds `laterApiCommits`, and each measured case holds the `apiCommit` of its
+build. Each other case keeps its verdict of the first build.
 
 Offline checks (`npm test --prefix evals/astra -- __tests__/core-outcome.test.mjs __tests__/core-corpus.test.mjs
 __tests__/core-report.test.mjs __tests__/core-cli.test.mjs`) replay recorded staging streams of the
