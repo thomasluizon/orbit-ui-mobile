@@ -7,7 +7,7 @@
 import { homedir } from "node:os"
 import { posix } from "node:path"
 
-import { commandWords, inspectCommands } from "./command-expander.mjs"
+import { commandWords, hereStringWords, inspectCommands, withoutRedirects } from "./command-expander.mjs"
 import { SHELLS, stripHeredocBodies } from "./rules-git.mjs"
 
 /** The tools whose permission check runs the Claude Code removal check. Each one takes the shell command as `tool_input.command`. */
@@ -133,6 +133,12 @@ function nestedScripts(words) {
     if (body !== undefined) scripts.push(body)
   }
   return scripts
+}
+
+/** The word of each here-string that a shell in the command reads as its script. A here-string to a command that is no shell is text. */
+function hereStringScripts(segment) {
+  const readByShell = commandWords(withoutRedirects(segment, { keepHereStrings: false })).some((word) => SHELLS.includes(programName(word)))
+  return readByShell ? hereStringWords(segment).map((word) => readWord(word.replace(/^\$(?=')/, "")).value) : []
 }
 
 /** One spelling for a path: forward slashes, `C:/x` as the `/c/x` of Git Bash, and the macOS `/private` aliases removed. */
@@ -281,7 +287,7 @@ function inspectRemovals(source, context, rules) {
   let removals = 0
   inspectCommands(stripHeredocBodies(source), { directory: context.directory, moved: false }, (segment, state) => {
     const words = commandWords(segment)
-    for (const script of nestedScripts(words)) {
+    for (const script of [...nestedScripts(words), ...hereStringScripts(segment)]) {
       const nested = inspectRemovals(script, { ...context, directory: state.directory }, rules)
       removals += nested.removals
       found ??= nested.found

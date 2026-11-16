@@ -1,4 +1,4 @@
-import { commandsFedBy, commandWords, expandCommands, inspectCommands, shellValue, SUBSTITUTION, withoutRedirects } from "./command-expander.mjs"
+import { commandsFedBy, commandWords, expandCommands, heredocsOf, hereStringWords, inspectCommands, shellValue, SUBSTITUTION, withoutRedirects } from "./command-expander.mjs"
 import { resolve } from "node:path"
 
 // Only these three repositories protect main; other repositories may allow direct pushes.
@@ -32,13 +32,10 @@ function pushTargetDir(segment, cwd) {
   return directory
 }
 
-const heredoc = /^([^\n]*?)(?<!<)<<(?!<)-?[ \t]*(['"]?)([A-Za-z_][A-Za-z0-9_]*)\2([^\n]*)\n([\s\S]*?)^\3[ \t]*$/gm
-
 /** An unquoted heredoc expands command substitutions before its consumer starts. */
 export function unquotedHeredocRunsCommand(command) {
-  for (const match of command.matchAll(heredoc)) {
-    if (match[2] !== "") continue
-    const body = match[5]
+  for (const { quote, body } of heredocsOf(command)) {
+    if (quote !== "") continue
     const escapedAt = (index) => {
       let backslashes = 0
       for (let cursor = index - 1; cursor >= 0 && body[cursor] === "\\"; cursor--) backslashes++
@@ -108,10 +105,10 @@ function runsSubstitution(words) {
 
 /**
  * True when a command substitution is the command word: the shell runs the words of its output as a command.
- * An assignment with a value can come first. `x=$(` is an assignment with no value before the substitution, so it is data.
+ * An assignment with a value can come first, also in its append form `y+=1`. `x=$(` is an assignment with no value before the substitution, so it is data.
  */
 const substitutionIsCommandWord = (command) =>
-  (argumentsOf(command).find((word) => !/^[A-Za-z_]\w*=./.test(word)) ?? "").startsWith(SUBSTITUTION)
+  (argumentsOf(command).find((word) => !/^[A-Za-z_]\w*\+?=./.test(word)) ?? "").startsWith(SUBSTITUTION)
 
 /**
  * True when a shell runs the heredoc as a script. Redirects do not count.
@@ -128,9 +125,14 @@ function feedsShell(beforeOperator, restOfLine) {
 
 /** Strip heredoc bodies so a message that NAMES a flag is not read as using it. A body that a shell reads stays; a file named `x.sh` is not a shell. */
 export function stripHeredocBodies(command) {
-  return command.replace(heredoc, (match, beforeOperator, _quote, _tag, restOfLine) =>
-    feedsShell(beforeOperator, restOfLine) ? match : `${beforeOperator}${restOfLine}`,
-  )
+  let kept = ""
+  let cursor = 0
+  for (const { start, end, lineStart, restOfLine } of heredocsOf(command)) {
+    if (feedsShell(command.slice(lineStart, start), restOfLine)) continue
+    kept += command.slice(cursor, start) + restOfLine
+    cursor = end
+  }
+  return kept + command.slice(cursor)
 }
 
 const blocked = (command, why) => ({
@@ -143,9 +145,17 @@ const blocked = (command, why) => ({
 export function checkGitCommand(command, { resolveHeadBranch, resolveRemoteUrl, cwd } = {}) {
   if (typeof command !== "string" || !/\bgit\b/.test(command)) return null
 
-  // Match against the command only. The full string, heredoc bodies included,
-  // is still what gets shown back in the block message.
-  const scannable = expandCommands(stripHeredocBodies(command)).map(withoutRedirects).join("\n")
+  // Each command as argv carries it: no redirect reaches argv, and a here-string is a redirect of standard input. The word of a
+  // here-string is text that its command reads, so it is read as commands of its own, in the directory of its command.
+  const segments = []
+  const collect = (segment, directory) => {
+    const words = commandWords(segment).map(shellValue)
+    if (words[0] === "cd" && words[1]) directory = resolve(directory, words[1])
+    segments.push({ segment: withoutRedirects(segment, { keepHereStrings: false }), directory })
+    for (const word of hereStringWords(segment)) inspectCommands(shellValue(word), directory, collect)
+    return directory
+  }
+  inspectCommands(stripHeredocBodies(command), cwd || process.cwd(), collect)
 
   // Hygiene rules are universal: bypassing hooks or signing is wrong anywhere.
   const hygieneRules = [
@@ -162,18 +172,13 @@ export function checkGitCommand(command, { resolveHeadBranch, resolveRemoteUrl, 
       why: "`-n` is git's short alias for --no-verify on commit; it skips the pre-commit hooks. Commit normally.",
     },
   ]
-  const hit = hygieneRules.find((rule) => rule.test.test(scannable))
+  // Match each command on its own, so no flag of one command counts for the command before it. The full string,
+  // heredoc bodies included, is still what gets shown back in the block message.
+  const hit = hygieneRules.find((rule) => segments.some(({ segment }) => rule.test.test(segment)))
   if (hit) return blocked(command, hit.why)
 
   // Everything below is branch protection, so it applies only to the repos that
   // actually have it.
-  const segments = []
-  inspectCommands(stripHeredocBodies(command), cwd || process.cwd(), (segment, directory) => {
-    const words = commandWords(segment).map(shellValue)
-    if (words[0] === "cd" && words[1]) directory = resolve(directory, words[1])
-    segments.push({ segment, directory })
-    return directory
-  })
 
   /** The token as argv carries it: no escape and no quote, also not the `$` that opens an ANSI-C quote. */
   const unquoteToken = (token) => token.replace(/\\(.)/g, "$1").replace(/\$?["']/g, "")
@@ -183,9 +188,9 @@ export function checkGitCommand(command, { resolveHeadBranch, resolveRemoteUrl, 
 
   const isGitBinary = (token) => /(?:^|[\\/])git(?:\.exe)?$/i.test(token)
 
-  /** Everything after the git command word, normalized to what argv would carry: no redirect reaches argv. */
+  /** Everything after the git command word, normalized to what argv would carry. */
   const gitTokens = (segment) => {
-    const tokens = withoutRedirects(segment).split(/\s+/).map(unquoteToken).filter(Boolean)
+    const tokens = segment.split(/\s+/).map(unquoteToken).filter(Boolean)
     let index = 0
     while (index < tokens.length && isEnvironmentAssignment(tokens[index])) index++
     while (index < tokens.length && !isGitBinary(tokens[index])) index++

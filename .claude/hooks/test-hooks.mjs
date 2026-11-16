@@ -178,6 +178,29 @@ T("git: a here-string with no space before its word still blocks", blocks(checkG
 T("git: a here-string with no space on either side still blocks", blocks(checkGitCommand("bash<<<'git push origin main'")), true)
 // A here-string is no heredoc, so a later line that repeats its word ends nothing and the lines between are commands.
 T("git: a here-string word that a later line repeats opens no heredoc", blocks(checkGitCommand("cat <<<x\ngit push origin main\nx")), true)
+// A here-string is a redirect of standard input, so git reads no argument from it: its operator and its word are no ref and no flag.
+const headOnMain = { resolveHeadBranch: () => "main", resolveRemoteUrl: () => "git@github.com:o/orbit-ui-mobile.git", cwd: "." }
+for (const command of ["git push <<<x", "git push -u <<<x", "git push <<<x 2>&1", "git push <<< x", "git push origin <<<x", "git <<<x push", 'bash <<<"git push"']) {
+  T(`git: ${command} while HEAD is on main blocks`, blocks(checkGitCommand(command, headOnMain)), true)
+}
+for (const command of ["git <<<x push origin main", "git <<< x push origin main", "git <<<x commit -n -m x", 'bash <<<"git push origin main>/dev/null"', 'bash -s git <<<"git push origin main"', 'bash <<<"git commit -m x -n"']) {
+  T(`git: ${command} still blocks`, blocks(checkGitCommand(command)), true)
+}
+T("git: push <<<x while HEAD is on a feature branch allows", checkGitCommand("git push <<<x", { ...headOnMain, resolveHeadBranch: () => "feature/x" }), null)
+T("git: push origin feature/x <<<x while HEAD is on main allows", checkGitCommand("git push origin feature/x <<<x", headOnMain), null)
+T("git: a here-string word that names main is no ref", checkGitCommand("git push origin feature/x <<<main"), null)
+T("git: a here-string word that names -n is no flag", checkGitCommand("git commit -m x <<< -n"), null)
+// The shell reads a heredoc operator only outside a quote, an escape and a comment. Each other `<<EOF` is text, so the next lines are commands.
+for (const [name, command] of [
+  ["a single quote", "echo '<<EOF'\ngit push origin main\nEOF"],
+  ["a double quote", 'echo "<<EOF"\ngit push origin main\nEOF'],
+  ["an ANSI-C quote", "echo $'it\\'s <<EOF'\ngit push origin main\nEOF"],
+  ["an escape", "echo a\\<<EOF\ngit push origin main\nEOF"],
+  ["a comment", "true # <<EOF\ngit push origin main\nEOF"],
+  ["a quote that spans lines", 'echo "a\n<<EOF"\ngit push origin main\nEOF'],
+]) T(`git: <<EOF in ${name} opens no heredoc`, blocks(checkGitCommand(command)), true)
+// A substitution that opens on an earlier line still gives the heredoc body to its command.
+T("git: a heredoc on a later line of a command string keeps its body in scope", blocks(checkGitCommand("bash -c \"$(\ncat <<'EOF'\ngit push origin main\nEOF\n)\"")), true)
 // In an ANSI-C quote a backslash escapes the next character, so `\'` does not end the quote, and a `>`, `;` or `$(` in it is text.
 for (const [name, command] of [
   ["commit -n after $'it\\'s > x'", "git commit -m $'it\\'s > x' -n -m it\\'s"],
@@ -264,6 +287,7 @@ const HEREDOC_SHELL_LINES = [
   ["$(cat <<'EOF'", ")"],
   ["`cat <<'EOF'", "`"],
   ["y=1 $(cat <<'EOF'", ")"],
+  ["y+=1 $(cat <<'EOF'", ")"],
 ]
 /** A row is the operator line, or the operator line and the text after the terminator. */
 const heredocCommand = (row, body) => {
@@ -296,6 +320,9 @@ const HEREDOC_DATA = [
   ["y=1 x=$(cat <<'EOF'", ")"],
   ["echo $(cat <<'EOF'", ")"],
   ["bash script.sh \"$(cat <<'EOF'", ")\""],
+  // A quoted `<<A` before the operator is text: the heredoc is the one that has a terminator line.
+  "git commit -m 'x <<A' -F - <<'EOF'",
+  "git commit -m \"it's <<A\" -F - <<'EOF'",
   // The shell expands `$(cat)` before it applies the heredoc, so the command string comes from the input of the caller, not from the body.
   "bash -c \"$(cat)\" <<'EOF'",
   "eval \"$(cat)\" <<'EOF'",
@@ -614,6 +641,18 @@ for (const [command, rule] of [
   ...HEREDOC_SHELL_LINES.map((row) => [heredocCommand(row, 'rm -rf "$TMP"'), "variable-path"]),
   // A here-string is no heredoc: the line after it is a command, also when a later line repeats its word.
   ['cat <<<x\nrm -rf "$TMP"\nx', "variable-path"],
+  // A shell runs the word of its here-string as a script, with or without a space around the operator.
+  [`bash <<<'rm -rf "$TMP"'`, "variable-path"],
+  [`bash -e<<<$'rm -rf "$TMP"'`, "variable-path"],
+  // A quoted `<<EOF` is text, so the line after it is a command.
+  ["echo '<<EOF'\nrm -rf \"$TMP\"\nEOF", "variable-path"],
+  ['echo "<<EOF"\nrm -rf "$TMP"\nEOF', "variable-path"],
+  // bash reads `$$` as the process id and then a plain quote, which the backslash does not keep open. zsh reads an ANSI-C quote after `$$`.
+  ["echo $$'a\\' ; rm -rf \"$TMP\" # '", "variable-path"],
+  ["echo $$'a\\'b' ; rm -rf \"$TMP\" # '", "variable-path"],
+  ["echo $$$$'a\\' ; rm -rf \"$TMP\" # '", "variable-path"],
+  // The append form of an assignment comes before a command as the plain form does.
+  ["y+=1 eval 'rm -rf \"$TMP\"'", "variable-path"],
   ["rm -rf `pwd`/dist", "command-substitution"],
   ["docker exec box sh -c 'rm -rf /'", "critical-path"],
   ["rm -rf /", "critical-path"],
@@ -661,6 +700,12 @@ for (const command of [
   "rm -rf dist # it's stale",
   "rm -rf dist # don't keep it\nnpm run build # it's fast",
   "bash -c 'rm -rf dist' # the alias function() is gone",
+  // A here-string to a command that is no shell is text.
+  `cat <<<'rm -rf "$TMP"'`,
+  // After an odd count of `$`, and after an escaped `$`, both shells read an ANSI-C quote: `\\'` does not end it, so the removal is text.
+  "echo $'a\\' ; rm -rf \"$TMP\" # '",
+  "echo $$$'a\\' ; rm -rf \"$TMP\" # '",
+  "echo \\$$'a\\' ; rm -rf \"$TMP\" # '",
   ...HEREDOC_DATA.map((row) => heredocCommand(row, 'rm -rf "$TMP"')),
 ]) T(`approval: ${command} passes`, refusedBy(command), null)
 T("approval windows: the top level of a drive is critical", refusedBy("rm -rf C:/work", { ...approvalOptions, cwd: "C:\\work\\repo", windows: true }), "critical-path")
