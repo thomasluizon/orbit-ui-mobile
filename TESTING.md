@@ -572,7 +572,8 @@ evidence. These rules apply to each later build:
 Give the `--rerun` windows of one build together, in the order of the builds. The merge refuses a
 `--rerun` window on the first build and a return to an earlier build. The report names the API commit of
 each later build, with three counts: the reruns, the first verdicts, and the cases with no verdict and
-no rerun. The pass^k column of each case that a later build measured holds one of these marks:
+no rerun. Each count holds only the cases whose final entry comes from that build: a case that a later
+build measures again counts only on the last build that measured it. The pass^k column of each case that a later build measured holds one of these marks:
 
 - `rerun on <commit>`: the case used its one rerun on that build. The mark stays with each result of the
   rerun, `incomplete` included.

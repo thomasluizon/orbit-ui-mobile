@@ -69,8 +69,8 @@ the first result, and the report names each build and marks the case `rerun on <
 Staging can serve another API commit before each case has a verdict: after a fix, or after a release of another
 commit. A case without a verdict (no window held it, or its attempts gave no evidence) then runs on the new build, in
 the same `--rerun` windows, and uses no rerun. A pass or a fail there is its first verdict (`first verdict on <commit>`
-in the report). A case that stays incomplete there has no verdict (`no verdict on <commit>`). A case that passed keeps
-its build. The attempts of one case always come from one build. Give the `--rerun` windows of one build together, in
+in the report). A case that stays incomplete there has no verdict (`no verdict on <commit>`). The counts on the line of each
+later build hold only the cases whose final entry comes from that build. A case that passed keeps its build. The attempts of one case always come from one build. Give the `--rerun` windows of one build together, in
 build order.
 
 A fix round never calls the provider: replay recorded real provider responses offline at the model-service port,
