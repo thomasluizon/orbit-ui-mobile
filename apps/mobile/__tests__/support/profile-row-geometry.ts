@@ -75,6 +75,18 @@ function applyAlignment(node: YogaNode, style: ViewStyle) {
   if (typeof style.gap === 'number') node.setGap(Yoga.GUTTER_ALL, style.gap)
 }
 
+/** React Native gives each border its width inside the box, so a border moves the content as padding does. */
+function applyBorders(node: YogaNode, style: ViewStyle) {
+  for (const [property, edge] of [
+    ['borderWidth', Yoga.EDGE_ALL], ['borderTopWidth', Yoga.EDGE_TOP], ['borderBottomWidth', Yoga.EDGE_BOTTOM],
+    ['borderLeftWidth', Yoga.EDGE_LEFT], ['borderRightWidth', Yoga.EDGE_RIGHT],
+    ['borderStartWidth', Yoga.EDGE_START], ['borderEndWidth', Yoga.EDGE_END],
+  ] as const) {
+    const border = style[property]
+    if (typeof border === 'number') node.setBorder(edge, border)
+  }
+}
+
 function applyStyle(node: YogaNode, style: ViewStyle) {
   applyFlexStyle(node, style)
   if (style.position === 'absolute') node.setPositionType(Yoga.POSITION_TYPE_ABSOLUTE)
@@ -108,6 +120,7 @@ function applyStyle(node: YogaNode, style: ViewStyle) {
     const margin = style[property]
     if (typeof margin === 'number') node.setMargin(edge, margin)
   }
+  applyBorders(node, style)
 }
 
 /** The child paths of a control's content. The press-scale face fills the target and holds its padding, so the content is what the face lays out. */
@@ -133,8 +146,7 @@ function hitExtension({ hitSlop }: HostRow['props']) {
   return { hitWidth: (hitSlop.left ?? 0) + (hitSlop.right ?? 0), hitHeight: (hitSlop.top ?? 0) + (hitSlop.bottom ?? 0) }
 }
 
-/** `layOutBorders` gives each border its width inside the box, as React Native does. */
-export function measureProfileRow(host: HostRow, width: number, scale: number, scaledPixels = (size: number) => size * scale, layOutBorders = false) {
+export function measureProfileRow(host: HostRow, width: number, scale: number, scaledPixels = (size: number) => size * scale) {
   const config = Yoga.Config.create()
   config.setPointScaleFactor(0)
   const boxes: { node: YogaNode; testID: string }[] = []
@@ -150,7 +162,6 @@ export function measureProfileRow(host: HostRow, width: number, scale: number, s
     const style = { ...StyleSheet.flatten(typeof declared === 'function' ? declared({ pressed: false }) : declared ?? {}) } as TextStyle & ViewStyle
     if (style.opacity === 0) { node.setWidth(0); node.setHeight(0); return node }
     applyStyle(node, style)
-    if (layOutBorders && typeof style.borderWidth === 'number') node.setBorder(Yoga.EDGE_ALL, style.borderWidth)
     if (host.props.testID) boxes.push({ node, testID: host.props.testID })
     if (host.props['data-slot']) parts.push({ node, slot: host.props['data-slot'], style })
     if (host.type === 'Pressable') {

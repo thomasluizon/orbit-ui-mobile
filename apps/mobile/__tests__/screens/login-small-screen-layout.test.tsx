@@ -77,7 +77,7 @@ function forLayout(host: GeometryHost | string): GeometryHost | string {
 }
 
 function layout(tree: Tree, device: Device) {
-  const measured = measureProfileRow(forLayout(tree.toJSON()) as Host, device.width, 1, undefined, true)
+  const measured = measureProfileRow(forLayout(tree.toJSON()) as Host, device.width, 1)
   return (testID: string) => measured.boxes.find((candidate) => candidate.testID === testID)
 }
 
@@ -148,7 +148,7 @@ function placement(tree: Tree, device: Device) {
   const json = forLayout(tree.toJSON()) as GeometryHost
   const named = (host: GeometryHost | string): GeometryHost | string => typeof host === 'string' ? host
     : { ...host, props: { ...host.props, testID: layoutName(host) }, children: host.children?.map(named) ?? null }
-  const measured = measureProfileRow(named(json) as Host, device.width, 1, undefined, true)
+  const measured = measureProfileRow(named(json) as Host, device.width, 1)
   const box = (testID: string) => measured.boxes.find((candidate) => candidate.testID === testID)
   const column = box('login-column')!
   const { first, last } = contentEdges(tree, box)
