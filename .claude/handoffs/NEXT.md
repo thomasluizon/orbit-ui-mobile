@@ -25,7 +25,7 @@ UI `main` `e353daa9d`; API `main` `38513551a`; landing `main` `7e6d150e0`. Stagi
 | Item | Disposition |
 | --- | --- |
 | ui#2473 (`#2144`) | Red at `0d9baa6d6` (2 P1 threads, a flaky turnstile test): round 3 result S `fix-2144-r3-result.md`, then review worker, push. |
-| `#2146` (owner order) | Round 1 result S `fix-2146-r1-result.md`: read the diff, review worker, push, open the pull request. |
+| `#2146` (owner order) | Round 1 `6d35d0df2` (live loop done, diff not read yet); background: launch round 2 with S `note-2146-r2.md` (decision: `--bg-elev` circle with a 1px `--border-control` edge); then read both diffs, review worker, push, open the pull request. |
 | `#2131` | Round 8 result S `fix-2131-r8-result.md`; the next round fixes `turnstile-widget.test.tsx:250`. |
 | ui#2464 (`#2137`) | Review S `review-2464-r17-local.md`: clean, push; defects, round 18. |
 | ui#2469 (`#2074`) | Round 17 result: read the diff, review worker. |
