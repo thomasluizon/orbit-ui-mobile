@@ -75,7 +75,6 @@ function applyAlignment(node: YogaNode, style: ViewStyle) {
   if (typeof style.gap === 'number') node.setGap(Yoga.GUTTER_ALL, style.gap)
 }
 
-/** React Native gives each border its width inside the box, so a border moves the content as padding does. */
 function applyBorders(node: YogaNode, style: ViewStyle) {
   for (const [property, edge] of [
     ['borderWidth', Yoga.EDGE_ALL], ['borderTopWidth', Yoga.EDGE_TOP], ['borderBottomWidth', Yoga.EDGE_BOTTOM],
