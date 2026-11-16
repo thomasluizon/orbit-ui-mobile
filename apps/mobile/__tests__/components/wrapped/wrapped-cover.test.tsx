@@ -1,3 +1,4 @@
+import { pressableStyle } from '@/__tests__/support/press-feedback'
 import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { RECAP_SHARE_PERIODS } from '@orbit/shared/utils'
@@ -47,8 +48,8 @@ vi.mock('@/components/ui/pill-button', () => ({
     size?: string
   }) => React.createElement('Button', { disabled, onPress: onClick, label, accessibilityLabel: label, size }, children),
 }))
-vi.mock('@/components/ui/orbit-mark', () => ({
-  OrbitMark: () => React.createElement('OrbitMark'),
+vi.mock('@/components/ui/orbit-mascot', () => ({
+  OrbitMascot: () => React.createElement('OrbitMascot'),
 }))
 vi.mock('@/components/ui/icon', () => ({
   Icon: ({ name }: { name: string }) => React.createElement('Icon', { name }),
@@ -135,13 +136,13 @@ describe('mobile WrappedCover', () => {
       expect(chips).toHaveLength(3)
       for (const [index, chip] of chips.entries()) {
         const selected = RECAP_SHARE_PERIODS[index] === period
-        const resolveStyle = chip.props.style as (state: { pressed: boolean }) => unknown
-        expect(StyleSheet.flatten(resolveStyle({ pressed: false }))).toMatchObject({
+        const resolveStyle = (state: { pressed: boolean }) => pressableStyle(chip, state.pressed)
+        expect(resolveStyle({ pressed: false })).toMatchObject({
           minHeight: 48,
           backgroundColor: selected ? palette.primaryDim : palette.bgWell,
-          borderColor: selected ? palette.primary : palette.hairline,
-          borderWidth: selected ? 1.5 : 1,
         })
+        const ring = StyleSheet.flatten(chip.findAll((node: { props: { testID?: string } }) => node.props.testID === 'selection-ring')[0]!.props.style as never) as { borderColor: string; borderWidth: number }
+        expect(ring).toMatchObject({ borderColor: selected ? palette.primary : palette.hairline, borderWidth: selected ? 1.5 : 1 })
         expect(chip.props.accessibilityState).toEqual({ selected })
         const label = nodesByType(chip, 'Text')[0]!
         expect(StyleSheet.flatten(label.props.style)).toMatchObject({
@@ -149,7 +150,7 @@ describe('mobile WrappedCover', () => {
           fontSize: typeRoles.secondary.size,
           color: selected ? palette.fg1 : palette.fg2,
         })
-        expect(StyleSheet.flatten(resolveStyle({ pressed: true }))).toMatchObject({
+        expect(resolveStyle({ pressed: true })).toMatchObject({
           backgroundColor: palette.bgHover,
         })
         TestRenderer.act(() => { (chip.props.onPress as () => void)() })

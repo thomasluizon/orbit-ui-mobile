@@ -12,7 +12,7 @@ import {
   SHARE_CARD_HEIGHT,
   SHARE_CARD_WIDTH,
 } from '@orbit/shared/utils'
-import { OrbitMark } from '@/components/ui/orbit-mark'
+import { OrbitMascot } from '@/components/ui/orbit-mascot'
 
 interface ShareCardProps {
   recap: Recap
@@ -49,7 +49,7 @@ export function ShareCard({ recap, ref, variant = 'wrapped' }: Readonly<ShareCar
       }}
     >
       <div className="flex items-center" style={{ gap: 8 }}>
-        <OrbitMark size={28} accent />
+        <OrbitMascot size={24} />
         <span
           translate="no"
           style={{

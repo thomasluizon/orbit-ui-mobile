@@ -77,6 +77,11 @@ describe('UpdateAvailableBanner', () => {
     await act(async () => {})
     expect(screen.getByRole('status')).toBeInTheDocument()
     expect(screen.getByText('forceUpdate.banner')).toBeInTheDocument()
+    const face = screen.getByRole('status').querySelector('[data-asset="orbit-mascot"]')!
+    expect(face).toHaveAttribute('data-orbit-state', 'parado')
+    expect(face).toHaveAttribute('width', '48')
+    expect(face.nextElementSibling).toHaveTextContent('forceUpdate.banner')
+    expect(screen.getByRole('button', { name: 'versionUpdate.laterCta' })).toBeInTheDocument()
   })
 
   it.each([

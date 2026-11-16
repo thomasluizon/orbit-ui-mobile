@@ -8,10 +8,8 @@ export async function waitForSettledAstraStack(page: Page) {
 }
 
 export function getShellConversationEntry(page: Page, width: number, messages: {
-  nav: { astra: string }
   shell: { astraButton: { open: string } }
 }) {
-  const wide = width >= 1024
-  return page.locator(wide ? '[data-shell-sidebar]' : SETTLED_COMPACT_FAB_COLUMN)
-    .getByRole('button', { name: wide ? messages.nav.astra : messages.shell.astraButton.open, exact: true })
+  return page.locator(width >= 1024 ? '[data-shell-sidebar]' : SETTLED_COMPACT_FAB_COLUMN)
+    .getByRole('button', { name: messages.shell.astraButton.open, exact: true })
 }

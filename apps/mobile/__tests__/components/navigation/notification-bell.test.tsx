@@ -499,7 +499,17 @@ describe('mobile alerts', () => {
   it('reserves three skeleton lines per row and exposes busy state', () => {
     state.isLoading = true
     const tree = render()
-    expect(testId(tree, 'notification-skeleton-line')).toHaveLength(15)
+    const lines = testId(tree, 'notification-skeleton-line')
+    expect(lines).toHaveLength(15)
+    const tokens = createTokensV2('purple', state.mode as 'dark' | 'light')
+    const flat = (node: Node): ViewStyle => StyleSheet.flatten(node.props.style as StyleProp<ViewStyle>)
+    for (const line of lines) {
+      expect(flat(line).borderRadius).toBeUndefined()
+      const unit = line.findAll((child) => child.props.testID === 'skeleton-unit-fill')[0]!
+      expect(unit.props).toMatchObject({ accessibilityElementsHidden: true, importantForAccessibility: 'no-hide-descendants' })
+      const blocks = unit.findAll((child) => typeof child.type === 'string' && flat(child).backgroundColor !== undefined)
+      expect(blocks.map((block) => flat(block).backgroundColor)).toEqual([tokens.bgWell])
+    }
     const list = hosts(tree, 'View', 'Alerts').find((node) => node.findAll((child) => child.props.testID === 'notification-skeleton-line').length > 0)
     expect(list!.props.accessibilityState).toEqual({ busy: true })
     expect(text(tree, 'Nothing to see here')).toHaveLength(0)

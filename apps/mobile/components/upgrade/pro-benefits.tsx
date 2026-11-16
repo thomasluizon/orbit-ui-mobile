@@ -1,11 +1,11 @@
-import { AstraGlyph } from '@/components/ui/astra-glyph'
+import { OrbitMascotIcon } from '@/components/ui/orbit-mascot'
 import { Text, View } from 'react-native'
 import { Calendar, Eye, FileText } from '@/components/ui/icons'
 import { styles } from './styles'
 import type { Tokens, UpgradeTextFn } from './types'
 
 const OUTCOMES = [
-  { key: 'astra', Icon: AstraGlyph },
+  { key: 'astra', Icon: OrbitMascotIcon },
   { key: 'calendar', Icon: Calendar },
   { key: 'retrospective', Icon: FileText },
   { key: 'noticing', Icon: Eye },

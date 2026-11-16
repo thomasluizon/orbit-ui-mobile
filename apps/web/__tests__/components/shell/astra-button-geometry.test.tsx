@@ -33,14 +33,21 @@ it.each(['light', 'dark'] as const)('paints a distinct neutral hover and press s
     const control = page.locator('[data-astra-button]')
     await control.waitFor()
     await page.mouse.move(0, 0)
-    const restingSurface = await control.evaluate(element => getComputedStyle(element).backgroundColor)
     const resting = await control.evaluate(readControlPaint)
+    expect(resting.background).toBe('rgba(0, 0, 0, 0)')
+    const hoverFill = await control.evaluate(() => {
+      const probe = document.createElement('i')
+      probe.style.backgroundColor = 'var(--bg-hover)'
+      document.body.append(probe)
+      const fill = getComputedStyle(probe).backgroundColor
+      probe.remove()
+      return fill
+    })
     await control.hover()
-    expect(await control.evaluate(element => getComputedStyle(element).backgroundColor)).toBe(restingSurface)
-    expect((await control.evaluate(readControlPaint)).background).not.toBe(resting.background)
+    expect((await control.evaluate(readControlPaint)).background).toBe(hoverFill)
     await expectFillShape(control, 'hover')
     await page.mouse.down()
-    expect((await control.evaluate(readControlPaint)).background).not.toBe(resting.background)
+    expect((await control.evaluate(readControlPaint)).background).toBe(hoverFill)
     await expectFillShape(control, 'press')
     await page.mouse.move(0, 0)
     await page.mouse.up()
@@ -291,32 +298,26 @@ it('keeps the stack above a visible notice slot', async () => {
   } finally { await page.close() }
 })
 
-it.each(['light', 'dark'] as const)('rests with the hairline ring and shadow tokens, never the canvas ring, in %s', async mode => {
+it.each(['light', 'dark'] as const)('rests as the bare mascot with no fill, ring or shadow, and keeps them off through a press, in %s', async mode => {
   const page = await browser.newPage({ viewport: { width: 412, height: 915 }, reducedMotion: 'no-preference' })
   try {
     const theme = Object.entries(resolveWebThemeVariables('orange', mode)).map(([key, value]) => `${key}:${value}`).join(';')
     await mountAstraEntry(page, {}, content => `<html class="${mode}" style="${theme}">${content}</html>`)
     const control = page.locator('[data-astra-button]')
     const paint = () => control.evaluate(element => {
-      const probe = document.createElement('i')
-      probe.style.color = 'var(--bg)'
-      document.body.append(probe)
-      const canvas = getComputedStyle(probe).color
-      probe.remove()
-      return { shadow: getComputedStyle(element).boxShadow, ring: getComputedStyle(element.querySelector('[data-press-fill]')!).boxShadow, canvas, scale: getComputedStyle(element).scale }
+      const style = getComputedStyle(element)
+      return { shadow: style.boxShadow, border: [style.borderTopWidth, style.borderRightWidth, style.borderBottomWidth, style.borderLeftWidth].join(' '), fillLayers: element.querySelectorAll('[data-press-fill]').length, mascots: element.querySelectorAll('[data-asset="orbit-mascot"]').length, scale: style.scale }
     })
-    const hairline = mode === 'dark' ? 'rgba(255, 255, 255, 0.16)' : 'rgba(9, 9, 11, 0.16)'
+    expect((await control.evaluate(readControlPaint)).background).toBe('rgba(0, 0, 0, 0)')
     const resting = await paint()
-    expect(resting.shadow).not.toMatch(/0px 0px 0px 6px/)
-    expect(resting.shadow).not.toContain(resting.canvas)
-    expect(resting.shadow).toBe('rgba(0, 0, 0, 0.28) 0px 4px 16px 0px')
-    expect(resting.ring).toContain(`${hairline} 0px 0px 0px 1px inset`)
+    expect(resting).toEqual({ shadow: 'none', border: '0px 0px 0px 0px', fillLayers: 0, mascots: 1, scale: 'none' })
     const box = (await control.boundingBox())!
+    expect(box.width).toBe(60)
+    expect(box.height).toBe(60)
     await page.mouse.move(box.x + 30, box.y + 30)
     await page.mouse.down()
     await expect.poll(async () => (await paint()).scale).toBe('0.96')
-    expect((await paint()).shadow).toBe(resting.shadow)
-    expect((await paint()).ring).toBe(resting.ring)
+    expect(await paint()).toEqual({ ...resting, scale: '0.96' })
     await page.mouse.move(0, 0)
     await page.mouse.up()
     await expect.poll(async () => (await paint()).scale).not.toBe('0.96')

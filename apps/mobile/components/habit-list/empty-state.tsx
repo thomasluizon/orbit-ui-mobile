@@ -1,14 +1,14 @@
 import { IconButton } from '@/components/ui/icon-button'
 import { RefreshCw } from '@/components/ui/icons'
-import { AstraGlyph } from '@/components/ui/astra-glyph'
-import { SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
+import { OrbitMascot, useStateMascotSize } from '@/components/ui/orbit-mascot'
+import { orbitMascotHeight } from '@orbit/shared/contracts/brand'
+import { SPACING, TOUCH_TARGET_MIN, WIDE_DESKTOP_BREAKPOINT } from '@orbit/shared/theme'
 
 import { ActionRow } from '@/components/ui/action-row'
 import { type ReactNode } from 'react'
-import { Pressable, StyleSheet, Text, View } from 'react-native'
+import { Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { PillButton } from '@/components/ui/pill-button'
-import { OrbitMark } from '@/components/ui/orbit-mark'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { HABIT_FREQUENCY_FILTER_OPTIONS } from '@orbit/shared/utils/habit-frequency-filter'
@@ -26,6 +26,11 @@ interface HabitListEmptyStateProps {
   variant?: 'primary' | 'secondary'
 }
 
+/** The filled action of a pair: primary in the compact shell, secondary at the wide breakpoint, as the Hoje drawing draws it. */
+function filledVariantFor(width: number): 'primary' | 'secondary' {
+  return width >= WIDE_DESKTOP_BREAKPOINT ? 'secondary' : 'primary'
+}
+
 export function HabitListEmptyState({
   title,
   description,
@@ -38,6 +43,8 @@ export function HabitListEmptyState({
 }: Readonly<HabitListEmptyStateProps>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
+  const mascotSize = useStateMascotSize()
+  const { width } = useWindowDimensions()
   const isAstraPrompt = variant === 'primary'
   const hasDistinctDescription = Boolean(description) && description !== title
   const showAstraAction =
@@ -61,8 +68,7 @@ export function HabitListEmptyState({
         ) : null}
         {showAstraAction && askAstraLabel ? (
           <PillButton
-
-            leadingIcon={<AstraGlyph size={16} />}
+            variant={filledVariantFor(width)}
             onClick={onAskAstra}
 
           >
@@ -95,7 +101,7 @@ export function HabitListEmptyState({
 
   return (
     <View style={styles.container}>
-      <OrbitMark size={96} />
+      <OrbitMascot size={mascotSize} />
       <Text style={[styles.title, { color: tokens.fg1 }]}>{title}</Text>
       {hasDistinctDescription ? (
         <Text style={[styles.description, { color: tokens.fg2 }]}>{description}</Text>
@@ -112,7 +118,7 @@ export function HabitListAllDone({ onSeeUpcoming }: Readonly<{ onSeeUpcoming?: (
   return (
     <View testID="habit-list-all-done" style={styles.allDone}>
       <View testID="completed-day-mark" style={styles.allDoneMark} importantForAccessibility="no-hide-descendants">
-        <OrbitMark size={48} accent={false} />
+        <OrbitMascot size={96} state="feliz" />
       </View>
       <View style={styles.allDoneText}>
         <Text style={[styles.allDoneTitle, { color: tokens.fg1 }]}>{t('habits.allDoneToday')}</Text>
@@ -152,8 +158,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.s24,
   },
   allDoneMark: {
-    width: 48,
-    height: 48,
+    width: 96,
+    height: orbitMascotHeight(96),
     alignItems: 'center',
     justifyContent: 'center',
   },

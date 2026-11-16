@@ -12,6 +12,7 @@ export const updateMarketingConsent = bindServerAction(serverActions.updateMarke
 export const updateWeekStartDay = bindServerAction(serverActions.updateWeekStartDay)
 export const updateClockFormat = bindServerAction(serverActions.updateClockFormat)
 export const updateThemePreference = bindServerAction(serverActions.updateThemePreference)
+export const updateMascotMotion = bindServerAction(serverActions.updateMascotMotion)
 export const completeOnboarding = bindServerAction(serverActions.completeOnboarding)
 export const resetAccount = bindServerAction(serverActions.resetAccount, 'reject')
 export const exportUserData = bindServerAction(serverActions.exportUserData)

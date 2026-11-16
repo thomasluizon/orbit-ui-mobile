@@ -49,6 +49,11 @@ export function __setMeasureInWindowImpl(impl: MeasureInWindowImpl) {
   measureInWindowImpl = impl
 }
 
+/** Measures a host that another mock renders, such as the react-native-svg `Svg`, through the same test hook. */
+export function __measureInWindow(callback: MeasureInWindowCallback, props: HostProps, name: string) {
+  measureInWindowImpl(callback, props, name)
+}
+
 export function __setHostRefsNull(value: boolean) {
   hostRefsNull = value
 }
@@ -208,7 +213,6 @@ const TextInput = createHostComponent('TextInput')
 const Switch = createHostComponent('Switch')
 const Image = createHostComponent('Image')
 const Modal = createHostComponent('Modal')
-const ActivityIndicator = createHostComponent('ActivityIndicator')
 const AnimatedView = createHostComponent('AnimatedView')
 const AnimatedText = createHostComponent('AnimatedText')
 const KeyboardAvoidingView = createHostComponent('KeyboardAvoidingView')
@@ -385,7 +389,6 @@ export const LayoutAnimation = {
 }
 
 export {
-  ActivityIndicator,
   FlatList,
   Image,
   KeyboardAvoidingView,
@@ -401,7 +404,6 @@ export {
 }
 
 export default {
-  ActivityIndicator,
   Animated,
   AppState,
   AccessibilityInfo,
