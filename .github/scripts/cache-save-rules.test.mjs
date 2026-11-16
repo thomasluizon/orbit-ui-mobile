@@ -388,21 +388,63 @@ const BOUNDED_PREFIX_SAVERS = {
   "test.yml: type-check: Restore turbo": "the step that deletes results older than 30 days",
 }
 
-test("every job that restores an entry by prefix and saves it has a rule that bounds the entry", () => {
+// actions/cache at 55cc8345863c7cc4c66a329aec7e433d2d1c52a9 (v6), src/utils/actionUtils.ts getInputAsArray: the path
+// input holds one path on each line, and a line that starts with "!" excludes a path. A save stores the restored files
+// when one of its paths is a restored path, its parent or its child, whatever key the save names.
+const cachePaths = (step) => String(step.with?.path ?? "").split("\n").map((line) => line.trim().replace(/^\.\//, "").replace(/\/+$/, ""))
+  .filter((line) => line !== "" && !line.startsWith("!"))
+const holdsPath = (outer, inner) => inner === outer || inner.startsWith(`${outer}/`)
+const savesTheRestoredFiles = (save, restore) => cachePaths(save).some((saved) =>
+  cachePaths(restore).some((restored) => holdsPath(saved, restored) || holdsPath(restored, saved)))
+const savesUnderTheRestoredKey = (save, restore) => restore.id !== undefined &&
+  String(save.with?.key ?? "").includes(`steps.${restore.id}.outputs.cache-primary-key`)
+
+function prefixSaversOf(workflowList) {
   const prefixSavers = []
-  for (const { file, jobs } of workflows) {
+  for (const { file, jobs } of workflowList) {
     for (const [job, { steps = [] }] of Object.entries(jobs)) {
-      for (const step of steps) {
-        if (!step.with?.["restore-keys"]?.trim()) continue
-        const savedLater = steps.some((candidate) => candidate.uses?.startsWith("actions/cache/save@") &&
-          candidate.with.key.includes(`steps.${step.id}.outputs.cache-primary-key`))
-        if (step.uses?.startsWith("actions/cache@") || (step.uses?.startsWith("actions/cache/restore@") && savedLater)) {
-          prefixSavers.push(`${file}: ${job}: ${step.name}`)
-        }
+      for (const restore of steps) {
+        if (!/^actions\/cache(\/restore)?@/.test(restore.uses ?? "") || !String(restore.with?.["restore-keys"] ?? "").trim()) continue
+        const saved = restore.uses.startsWith("actions/cache@") || steps.some((save) => save !== restore &&
+          /^actions\/cache(\/save)?@/.test(save.uses ?? "") && (savesTheRestoredFiles(save, restore) || savesUnderTheRestoredKey(save, restore)))
+        if (saved) prefixSavers.push(`${file}: ${job}: ${restore.name ?? restore.uses}`)
       }
     }
   }
-  assert.deepEqual(prefixSavers.sort(), Object.keys(BOUNDED_PREFIX_SAVERS).sort())
+  return prefixSavers.sort()
+}
+
+const withMoreSteps = (file, job, moreSteps) => workflows.map((workflow) => workflow.file !== file ? workflow
+  : { ...workflow, jobs: { ...workflow.jobs, [job]: { ...workflow.jobs[job], steps: [...workflow.jobs[job].steps, ...moreSteps] } } })
+const LINT_KEY = "eslint-${{ github.sha }}"
+const restoreLint = (step = {}) => ({ name: "Restore eslint", uses: "actions/cache/restore@v6", with: { path: ".eslintcache", key: LINT_KEY, "restore-keys": "eslint-\n" }, ...step })
+const saveLint = (input = {}) => ({ name: "Save eslint", if: "github.event_name != 'pull_request'", uses: "actions/cache/save@v6", with: { path: ".eslintcache", key: LINT_KEY, ...input } })
+
+for (const [name, moreSteps, restoreName = "Restore eslint"] of [
+  ["a literal key, after a restore step with no id", [restoreLint(), saveLint()]],
+  ["a literal key, after a restore step with an id", [restoreLint({ id: "eslint-cache" }), saveLint()]],
+  ["the primary key of the restore step", [restoreLint({ id: "eslint-cache" }), saveLint({ key: "${{ steps.eslint-cache.outputs.cache-primary-key }}" })]],
+  ["the primary key of the restore step and another form of the path", [restoreLint({ id: "eslint-cache" }), saveLint({ path: "${{ github.workspace }}/.eslintcache", key: "${{ steps.eslint-cache.outputs.cache-primary-key }}" })]],
+  ["a literal key and the path among other paths", [restoreLint(), saveLint({ path: "coverage\n./.eslintcache/\n" })]],
+  ["a literal key and the parent directory of the path", [restoreLint({ with: { path: "tooling/cache/eslint", key: LINT_KEY, "restore-keys": "eslint-" } }), saveLint({ path: "tooling/cache" })]],
+  ["the post step of a combined cache step", [restoreLint(), { name: "Cache eslint", uses: "actions/cache@v6", with: { path: ".eslintcache", key: LINT_KEY } }]],
+  ["a restore step with no name", [restoreLint({ name: undefined }), saveLint()], "actions/cache/restore@v6"],
+]) {
+  test(`a new job step that saves a prefix restore under ${name} needs a rule that bounds the entry`, () => {
+    const found = prefixSaversOf(withMoreSteps("test.yml", "type-check", moreSteps))
+    assert.deepEqual(found, [...prefixSaversOf(workflows), `test.yml: type-check: ${restoreName}`].sort())
+  })
+}
+
+test("a prefix restore that no step saves, and a save after a restore of the exact key only, need no rule", () => {
+  const exactRestore = restoreLint({ with: { path: ".eslintcache", key: LINT_KEY } })
+  for (const moreSteps of [[restoreLint()], [exactRestore, saveLint()], [restoreLint(), saveLint({ path: ".eslintcache-next" })]]) {
+    assert.deepEqual(prefixSaversOf(withMoreSteps("test.yml", "type-check", moreSteps)), prefixSaversOf(workflows))
+  }
+})
+
+test("every job that restores an entry by prefix and saves it has a rule that bounds the entry", () => {
+  assert.deepEqual(prefixSaversOf(workflows), Object.keys(BOUNDED_PREFIX_SAVERS).sort())
 
   // Turbo keeps each result at .turbo/cache/<hash>.tar.zst with two JSON files and never removes one.
   const typeCheck = stepsOf("test.yml", "type-check")
