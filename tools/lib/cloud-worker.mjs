@@ -27,7 +27,7 @@ const ISO_TIMESTAMP = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d
 const TASK_STATUSES = new Set(["pending", "ready", "applied", "error"])
 const TERMINAL_TASK_STATUSES = new Set(["ready", "applied", "error"])
 const LOCK_RETRY_SIGNAL = new Int32Array(new SharedArrayBuffer(4))
-export const CLOUD_EMPTY_RESULT_LIMIT = 2
+const CLOUD_EMPTY_RESULT_LIMIT = 2
 const CLOUD_CIRCUIT_BREAKER_FILE = "cloud-circuit-breaker.json"
 
 export const isTerminalTaskStatus = (status) => TERMINAL_TASK_STATUSES.has(status)
@@ -71,7 +71,7 @@ export const cloudOrder = (order, emptyRetryOf = null) => {
     : completed
 }
 
-export const resolveOnPath = (command, options = {}) => {
+const resolveOnPath = (command, options = {}) => {
   if (command.includes("/") || command.includes("\\")) {
     return existsSync(command) ? resolve(command) : null
   }
@@ -261,14 +261,14 @@ export const readJsonFile = (path, label) => {
   }
 }
 
-export const writeJsonAtomic = (path, value) => {
+const writeJsonAtomic = (path, value) => {
   mkdirSync(dirname(path), { recursive: true })
   const temporary = `${path}.${process.pid}.${Date.now()}.tmp`
   writeFileSync(temporary, `${JSON.stringify(value, null, 2)}\n`, "utf8")
   renameSync(temporary, path)
 }
 
-export const gitRepositoryIdentity = (worktree) => {
+const gitRepositoryIdentity = (worktree) => {
   const result = spawnSync("git", ["-C", worktree, "rev-parse", "--git-common-dir"], {
     encoding: "utf8",
     windowsHide: true,
@@ -299,7 +299,7 @@ export const assertSameGitRepository = (worktree, configuredRepository, reposito
 
 export const cloudStateRoot = (worktree) => join(gitRepositoryIdentity(worktree), "orbit-cloud")
 
-export const cloudCircuitBreakerPath = (orderFile) =>
+const cloudCircuitBreakerPath = (orderFile) =>
   join(dirname(resolve(orderFile)), CLOUD_CIRCUIT_BREAKER_FILE)
 
 const comparablePath = (path) => process.platform === "win32" ? path.toLowerCase() : path

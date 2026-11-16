@@ -1,9 +1,10 @@
 #!/usr/bin/env node
 
 import { existsSync, readdirSync, readFileSync } from "node:fs"
-import { dirname, join, relative } from "node:path"
+import { spawnSync } from "node:child_process"
+import { dirname, join, relative, resolve } from "node:path"
 import { performance } from "node:perf_hooks"
-import { fileURLToPath } from "node:url"
+import { fileURLToPath, pathToFileURL } from "node:url"
 
 import { parseShard, partitionModules, TIMINGS_MARKER } from "./lib/test-shards.mjs"
 
@@ -395,6 +396,39 @@ T(
   "no comment in tools/ ends directly above a doc comment",
   strandedComments.length === 0,
   `a comment ends directly above a doc comment at: ${strandedComments.join(", ")}\n     Merge the two comments, or move the upper one to the declaration that it describes.`,
+)
+// An import names its source exactly: a named import, or a destructured dynamic import, of a literal path.
+const NAMED_IMPORT = /(?:import\s*\{([^}]*)\}\s*from|\{([^}]*)\}\s*=\s*await\s+import\()\s*["'`]([^"'`?]+)/g
+// A namespace import, or a dynamic import kept whole, whose argument names `lib/<module>.mjs` (not `_lib/`).
+const WHOLE_IMPORT = /(?:import\s*\*\s*as\s+\w+\s+from\s*|(?<!\}\s*=\s*await\s+)import\()[^;\n]*?(?<!\w)lib\/([A-Za-z0-9_-]+)\.mjs/g
+/** The names that each tools/lib module exports, and the names that another source file imports from it. */
+const libraryImports = async () => {
+  const repositoryRoot = join(TOOLS_DIR, "..")
+  const modules = libraries.map((file) => join(LIB_DIR, file))
+  const exported = new Map(await Promise.all(modules.map(async (path) => [path, Object.keys(await import(pathToFileURL(path).href))])))
+  const imported = new Map(modules.map((path) => [path, new Set()]))
+  const naming = spawnSync("git", ["-C", repositoryRoot, "grep", "-l", "-E", "lib/[A-Za-z0-9_-]+\\.mjs", "--", "*.mjs", "*.js", "*.cjs", "*.ts", "*.tsx"], { encoding: "utf8" })
+  if (naming.status !== 0) throw new Error(`git grep for tools/lib importers failed: ${naming.stderr.trim()}`)
+  // A tools/lib module imports a sibling as `./<module>.mjs`, which the search does not name, so each module is read too.
+  for (const path of new Set([...naming.stdout.split("\n").filter(Boolean).map((file) => join(repositoryRoot, file)), ...modules])) {
+    const source = readFileSync(path, "utf8")
+    for (const match of source.matchAll(NAMED_IMPORT)) {
+      const names = imported.get(resolve(dirname(path), match[3]))
+      for (const part of names ? (match[1] ?? match[2]).split(",") : []) names.add(part.trim().split(/\s+as\s+|\s*:\s*/)[0])
+    }
+    // A namespace reads its names as members, so each export name that the importing file holds counts.
+    for (const match of source.matchAll(WHOLE_IMPORT)) {
+      const module = join(LIB_DIR, `${match[1]}.mjs`)
+      for (const name of exported.get(module) ?? []) if (new RegExp(`\\b${name}\\b`).test(source)) imported.get(module).add(name)
+    }
+  }
+  return modules.flatMap((path) => exported.get(path).filter((name) => !imported.get(path).has(name)).map((name) => `${relative(TOOLS_DIR, path)} ${name}`))
+}
+const unimportedExports = await libraryImports()
+T(
+  `another file imports each export of a tools/lib/ module (${libraries.length} modules)`,
+  unimportedExports.length === 0,
+  `no importer for: ${unimportedExports.join(", ")}\n     Drop the export when the module uses the name itself, or delete the code that nothing uses.`,
 )
 
 console.log("\n# universal contract (tools/CONVENTIONS.md)")
