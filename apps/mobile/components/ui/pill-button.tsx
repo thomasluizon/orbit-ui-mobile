@@ -3,7 +3,6 @@ import { cloneElement, isValidElement, useContext, useState, type Ref } from 're
 import { ActionRowContext } from './action-row'
 import type { ButtonProps } from '@orbit/shared/contracts/actions'
 import {
-  ActivityIndicator,
   StyleSheet,
   Text,
   type ViewStyle,
@@ -16,6 +15,8 @@ import { SPACING, APPLE_SIGN_IN_BUTTON, APPLE_SIGN_IN_TITLE_SIZE, ICON_ACTION_ST
 import { createTokensV2, mixHex, radius, type AppTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { ThemedMotionPressable } from './motion-pressable'
+import { SkeletonFace } from './skeleton'
+import { OrbitMascot } from './orbit-mascot'
 
 const SMALL_PILL_HIT_PADDING = (TOUCH_TARGET_MIN - SMALL_PILL_VISIBLE_MIN) / 2
 
@@ -26,6 +27,77 @@ function buttonTextColors(tokens: ReturnType<typeof createTokensV2>, quiet: bool
     ghost: quiet ? tokens.fg2 : tokens.fg1,
     destructive: tokens.fgOnBad,
     caution: tokens.fgOnOverdue,
+  }
+}
+
+function waitingTextColor(tokens: AppTokensV2, variant: ButtonVariant, quiet: boolean): string {
+  return variant === 'ghost' && quiet ? tokens.fg2 : tokens.fg1
+}
+
+function waitsOnSkeletonFace(loading: boolean, apple: boolean): boolean {
+  return loading && !apple
+}
+
+function waitingFaceStyle(variant: ButtonVariant, ghostBorderWidth: number): ViewStyle {
+  return { backgroundColor: 'transparent', borderWidth: variant === 'ghost' ? ghostBorderWidth : 0, borderColor: 'transparent' }
+}
+
+interface VariantFaceInput {
+  readonly variant: ButtonVariant
+  readonly tokens: AppTokensV2
+  readonly pressed: boolean
+  readonly hovered: boolean
+  readonly elevated: boolean
+  readonly quiet: boolean
+  readonly ghostBorderWidth: number
+  readonly brandFill: string | undefined
+}
+
+function variantFaceStyle({ variant, tokens, pressed, hovered, elevated, quiet, ghostBorderWidth, brandFill }: VariantFaceInput): ViewStyle {
+  if (brandFill) return { backgroundColor: brandFill }
+  switch (variant) {
+    case 'secondary':
+      return { backgroundColor: pressed ? mixHex(tokens.fg1, tokens.bg, 0.1) : tokens.fg1 }
+    case 'ghost':
+      return { backgroundColor: pressed || hovered ? ghostActiveFill(tokens, elevated, quiet) : ghostRestFill(tokens, elevated), borderWidth: ghostBorderWidth, borderColor: tokens.hairlineStrong }
+    case 'destructive':
+      return { backgroundColor: pressed ? mixHex(tokens.statusBad, tokens.fg1, 0.15) : tokens.statusBad }
+    case 'caution':
+      return { backgroundColor: pressed ? mixHex(tokens.statusOverdue, '#000000', 0.15) : tokens.statusOverdue }
+    default:
+      return { backgroundColor: pressed ? tokens.primaryPressed : tokens.primary }
+  }
+}
+
+function ghostRestFill(tokens: AppTokensV2, elevated: boolean): string {
+  return elevated ? tokens.bgElev : 'transparent'
+}
+
+function ghostActiveFill(tokens: AppTokensV2, elevated: boolean, quiet: boolean): string {
+  if (elevated) return tokens.bgElevHover
+  return quiet ? tokens.bgHoverOpaque : tokens.bgHover
+}
+
+interface PillBoxInput {
+  readonly sizeSpec: (typeof BUTTON_SIZES)[keyof typeof BUTTON_SIZES]
+  readonly iconOnly: boolean | undefined
+  readonly minimumHeight: number | undefined
+  readonly edge: 'start' | undefined
+  readonly matchedWidth: boolean
+  readonly hasLeadingIcon: boolean
+  readonly signIn: boolean
+}
+
+function pillBoxStyle({ sizeSpec, iconOnly, minimumHeight, edge, matchedWidth, hasLeadingIcon, signIn }: PillBoxInput): ViewStyle {
+  if (iconOnly) return iconOnlyStyle(Math.max(minimumHeight ?? sizeSpec.height, SMALL_PILL_VISIBLE_MIN), edge)
+  return {
+    height: minimumHeight === undefined && !signIn ? Math.max(sizeSpec.height, SMALL_PILL_VISIBLE_MIN) : undefined,
+    minHeight: Math.max(minimumHeight ?? 0, SMALL_PILL_VISIBLE_MIN),
+    width: matchedWidth ? MATCHED_PILL_WIDTH : undefined,
+    paddingVertical: SPACING.s4,
+    paddingHorizontal: sizeSpec.paddingX,
+    paddingStart: hasLeadingIcon ? sizeSpec.paddingX - 2 : sizeSpec.paddingX,
+    gap: sizeSpec.gap,
   }
 }
 
@@ -88,42 +160,13 @@ export function ThemedButton({
   const [hovered, setHovered] = useState(false)
   const [focused, setFocused] = useState(false)
 
-  const visibleHeight = Math.max(sizeSpec.height, SMALL_PILL_VISIBLE_MIN)
   const signIn = signInButtonSpec(brand)
   const appleColors = brand === 'apple' ? APPLE_SIGN_IN_BUTTON.colors[themeMode] : null
-  const textColor = appleColors?.ink ?? buttonTextColors(tokens, quiet)[variant]
+  const skeletonWaiting = waitsOnSkeletonFace(loading, appleColors !== null)
+  const textColor = skeletonWaiting ? waitingTextColor(tokens, variant, quiet) : appleColors?.ink ?? buttonTextColors(tokens, quiet)[variant]
   const leadingGlyph = buttonLeadingGlyph(leadingIcon, textColor)
 
-  const ghostPressedFill = elevated ? tokens.bgElevHover : quiet ? tokens.bgHoverOpaque : tokens.bgHover
-  const ghostFill = elevated ? tokens.bgElev : 'transparent'
   const ghostBorderWidth = borderless ? 0 : 1.5
-  const variantStyle = (pressed: boolean): ViewStyle => {
-    if (variant === 'secondary') {
-      return { backgroundColor: pressed ? mixHex(tokens.fg1, tokens.bg, 0.1) : tokens.fg1 }
-    }
-    if (appleColors) return { backgroundColor: appleColors.fill }
-    if (variant === 'ghost') {
-      const active = pressed || (hovered && !disabled && !loading)
-      return {
-        backgroundColor: active ? ghostPressedFill : ghostFill,
-        borderWidth: ghostBorderWidth,
-        borderColor: tokens.hairlineStrong,
-      }
-    }
-    if (variant === 'destructive') {
-      return {
-        backgroundColor: pressed ? mixHex(tokens.statusBad, tokens.fg1, 0.15) : tokens.statusBad,
-      }
-    }
-    if (variant === 'caution') {
-      return {
-        backgroundColor: pressed ? mixHex(tokens.statusOverdue, '#000000', 0.15) : tokens.statusOverdue,
-      }
-    }
-    return {
-      backgroundColor: pressed ? tokens.primaryPressed : tokens.primary,
-    }
-  }
 
   return (
     <ThemedMotionPressable
@@ -146,16 +189,14 @@ export function ThemedButton({
       style={({ pressed }) => [
         styles.base,
         retainLeadingIcon ? { maxWidth: '100%' } : null,
-        iconOnly
-          ? iconOnlyStyle(Math.max(minimumHeight ?? sizeSpec.height, SMALL_PILL_VISIBLE_MIN), edge)
-          : { height: minimumHeight === undefined && !signIn ? visibleHeight : undefined, minHeight: Math.max(minimumHeight ?? 0, SMALL_PILL_VISIBLE_MIN), width: matchedWidth ? MATCHED_PILL_WIDTH : undefined, paddingVertical: SPACING.s4, paddingHorizontal: sizeSpec.paddingX, paddingStart: leadingIcon ? sizeSpec.paddingX - 2 : sizeSpec.paddingX, gap: sizeSpec.gap },
+        pillBoxStyle({ sizeSpec, iconOnly, minimumHeight, edge, matchedWidth, hasLeadingIcon: Boolean(leadingIcon), signIn: signIn !== null }),
         signIn ? signInPillStyle(signIn) : null,
-        variantStyle(pressed && !disabled && !loading),
+        skeletonWaiting ? waitingFaceStyle(variant, ghostBorderWidth) : variantFaceStyle({ variant, tokens, pressed: pressed && !disabled, hovered: hovered && !disabled, elevated, quiet, ghostBorderWidth, brandFill: appleColors?.fill }),
         focused ? buttonFocusStyle(variant, appleColors?.ink ?? tokens.fg1) : null,
-        disabled && !loading ? styles.disabled : null,
+        nativelyDisabled && !skeletonWaiting ? styles.disabled : null,
       ]}
     >
-      <ButtonContents loading={loading} retainLeadingIcon={retainLeadingIcon} iconOnly={iconOnly} leadingGlyph={leadingGlyph} textColor={textColor} sizeSpec={sizeSpec}
+      <ButtonContents tokens={tokens} skeletonWaiting={skeletonWaiting} retainLeadingIcon={retainLeadingIcon} iconOnly={iconOnly} leadingGlyph={leadingGlyph} textColor={textColor}
         signIn={signIn} labelSize={appleColors ? APPLE_SIGN_IN_TITLE_SIZE : sizeSpec.fontSize}>{children}</ButtonContents>
     </ThemedMotionPressable>
   )
@@ -164,6 +205,10 @@ export function ThemedButton({
 /** Native navigation with the same visual contract as PillButton. */
 export function PillLink({ onPress, children }: Readonly<{ onPress: () => void; children: string }>) {
   return <Button accessibilityRole="link" onClick={onPress}>{children}</Button>
+}
+
+function iconOnlyStyle(side: number, edge: 'start' | undefined): ViewStyle {
+  return { height: side, width: side, paddingHorizontal: SPACING.s0, gap: 0, marginStart: edge === 'start' ? ICON_ACTION_START_HANG : undefined }
 }
 
 function signInPillStyle({ paddingX, paddingY, gap }: SignInButtonSpec): ViewStyle {
@@ -179,20 +224,15 @@ function labelWrapping(signIn: SignInButtonSpec | null, retainLeadingIcon: boole
   return { numberOfLines: retainLeadingIcon && fontScale > 1.3 ? undefined : 1, shrink: retainLeadingIcon ? styles.labelShrink : null }
 }
 
-function iconOnlyStyle(side: number, edge: 'start' | undefined): ViewStyle {
-  return { height: side, width: side, paddingHorizontal: SPACING.s0, gap: 0, marginStart: edge === 'start' ? ICON_ACTION_START_HANG : undefined }
-}
-
-function ButtonContents({ loading, retainLeadingIcon, iconOnly, leadingGlyph, children, textColor, sizeSpec, signIn, labelSize }: Readonly<Pick<ButtonProps, 'children' | 'iconOnly'> & {
-  loading: boolean; retainLeadingIcon: boolean; leadingGlyph: React.ReactNode; textColor: string; sizeSpec: typeof BUTTON_SIZES.sm; signIn: SignInButtonSpec | null; labelSize: number
+function ButtonContents({ tokens, skeletonWaiting, retainLeadingIcon, iconOnly, leadingGlyph, children, textColor, signIn, labelSize }: Readonly<Pick<ButtonProps, 'children' | 'iconOnly'> & {
+  tokens: AppTokensV2; skeletonWaiting: boolean; retainLeadingIcon: boolean; leadingGlyph: React.ReactNode; textColor: string; signIn: SignInButtonSpec | null; labelSize: number
 }>) {
   const { fontScale } = useWindowDimensions()
   const iconColor = isValidElement<{ color?: string }>(children) ? children.props.color : undefined
   const wrapping = labelWrapping(signIn, retainLeadingIcon, fontScale)
-  const lead = loading && !retainLeadingIcon ? (
-    <ActivityIndicator size="small" color={textColor} />
-  ) : iconOnly ? buttonLeadingGlyph(children, iconColor ?? textColor) : leadingGlyph
+  const lead = iconOnly ? buttonLeadingGlyph(children, iconColor ?? textColor) : leadingGlyph
   return <>
+      {skeletonWaiting ? <SkeletonFace tokens={tokens} /> : null}
       {signIn && lead ? <ButtonLead signIn={signIn}>{lead}</ButtonLead> : lead}
       {iconOnly ? null : (
         <Text
@@ -206,7 +246,6 @@ function ButtonContents({ loading, retainLeadingIcon, iconOnly, leadingGlyph, ch
           {children}
         </Text>
       )}
-      {retainLeadingIcon && !iconOnly ? <View accessible={false} importantForAccessibility="no-hide-descendants" style={{ width: sizeSpec.iconSize, height: sizeSpec.iconSize }}>{loading ? <ActivityIndicator animating size="small" color={textColor} /> : null}</View> : null}
   </>
 }
 
@@ -234,5 +273,6 @@ const styles = StyleSheet.create({
 export { Button as PillButton }
 
 function buttonLeadingGlyph(icon: React.ReactNode, color: string) {
-  return isValidElement<{ color?: string }>(icon) ? cloneElement(icon, { color }) : icon
+  if (!isValidElement<{ color?: string }>(icon) || icon.type === OrbitMascot) return icon
+  return cloneElement(icon, { color })
 }

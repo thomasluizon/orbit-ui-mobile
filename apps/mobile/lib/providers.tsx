@@ -29,9 +29,10 @@ import {
 import { queryClient, restoreQueryCache, persistQueryCache, clearPersistedQueryCache } from './query-client'
 import { syncWidgetData } from './orbit-widget'
 import { useAuthStore } from '@/stores/auth-store'
-import { AppState, type AppStateStatus, View, ActivityIndicator } from 'react-native'
+import { AppState, type AppStateStatus, View } from 'react-native'
 import { createTokensV2, getRuntimeTheme } from './theme'
 import { ThemeProvider } from './theme-provider'
+import { ShellSkeleton } from '@/components/ui/shell-skeleton'
 import { useOffline } from '@/hooks/use-offline'
 import { AccountEventConnection } from './account-event-connection'
 import { useOnboardingDraftHydrated } from '@/stores/onboarding-draft-store'
@@ -199,11 +200,7 @@ function AuthInitializer({
   }, [appReady])
 
   if (!appReady && !hasRenderedApp) {
-    return (
-      <View style={{ flex: 1, backgroundColor: runtimeTokens.bg, justifyContent: 'center', alignItems: 'center' }}>
-        <ActivityIndicator size="large" color={runtimeTokens.primary} />
-      </View>
-    )
+    return <View testID="startup-canvas" style={{ flex: 1, backgroundColor: runtimeTokens.bg }} />
   }
 
   return (
@@ -214,20 +211,7 @@ function AuthInitializer({
           <OfflineManager />
           <AccountEventConnection />
           <StoreBillingProvider>{children}</StoreBillingProvider>
-          {!appReady ? (
-            <View
-              pointerEvents="auto"
-              style={{
-                position: 'absolute',
-                inset: 0,
-                backgroundColor: runtimeTokens.bg,
-                justifyContent: 'center',
-                alignItems: 'center',
-              }}
-            >
-              <ActivityIndicator size="large" color={runtimeTokens.primary} />
-            </View>
-          ) : null}
+          {!appReady ? <ShellSkeleton /> : null}
         </View>
       </ThemeProvider>
     </CaptureReadinessContext.Provider>

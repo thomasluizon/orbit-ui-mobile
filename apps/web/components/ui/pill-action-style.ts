@@ -10,22 +10,31 @@ const variantClasses: Record<ButtonVariant, string> = {
 }
 
 const buttonInteractionClasses: Record<ButtonVariant, string> = {
-  primary: 'enabled:active:scale-[0.96]',
-  secondary: 'enabled:hover:bg-[color-mix(in_srgb,var(--fg-1)_90%,var(--bg))] enabled:active:scale-[0.96] enabled:active:bg-[color-mix(in_srgb,var(--fg-1)_90%,var(--bg))]',
+  primary: 'motion-safe:enabled:active:scale-[0.96]',
+  secondary: 'enabled:hover:bg-[color-mix(in_srgb,var(--fg-1)_90%,var(--bg))] motion-safe:enabled:active:scale-[0.96] enabled:active:bg-[color-mix(in_srgb,var(--fg-1)_90%,var(--bg))]',
   ghost: 'enabled:hover:bg-[var(--bg-hover)] enabled:active:bg-[var(--bg-hover)] motion-safe:enabled:active:scale-[0.96]',
-  destructive: 'enabled:hover:bg-[color-mix(in_srgb,var(--status-bad)_85%,var(--fg-1))] enabled:active:scale-[0.96] enabled:active:bg-[color-mix(in_srgb,var(--status-bad)_85%,var(--fg-1))]',
-  caution: 'enabled:hover:bg-[color-mix(in_srgb,var(--status-overdue)_85%,black)] enabled:active:scale-[0.96] enabled:active:bg-[color-mix(in_srgb,var(--status-overdue)_85%,black)]',
+  destructive: 'enabled:hover:bg-[color-mix(in_srgb,var(--status-bad)_85%,var(--fg-1))] motion-safe:enabled:active:scale-[0.96] enabled:active:bg-[color-mix(in_srgb,var(--status-bad)_85%,var(--fg-1))]',
+  caution: 'enabled:hover:bg-[color-mix(in_srgb,var(--status-overdue)_85%,black)] motion-safe:enabled:active:scale-[0.96] enabled:active:bg-[color-mix(in_srgb,var(--status-overdue)_85%,black)]',
 }
 
 const linkInteractionClasses: Record<ButtonVariant, string> = {
-  primary: 'hover:bg-[var(--primary-hover)] active:scale-[0.96] active:bg-[var(--primary-pressed)]',
-  secondary: 'hover:bg-[color-mix(in_srgb,var(--fg-1)_90%,var(--bg))] active:scale-[0.96] active:bg-[color-mix(in_srgb,var(--fg-1)_90%,var(--bg))]',
+  primary: 'hover:bg-[var(--primary-hover)] motion-safe:active:scale-[0.96] active:bg-[var(--primary-pressed)]',
+  secondary: 'hover:bg-[color-mix(in_srgb,var(--fg-1)_90%,var(--bg))] motion-safe:active:scale-[0.96] active:bg-[color-mix(in_srgb,var(--fg-1)_90%,var(--bg))]',
   ghost: 'hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] motion-safe:active:scale-[0.96]',
-  destructive: 'hover:bg-[color-mix(in_srgb,var(--status-bad)_85%,var(--fg-1))] active:scale-[0.96] active:bg-[color-mix(in_srgb,var(--status-bad)_85%,var(--fg-1))]',
-  caution: 'hover:bg-[color-mix(in_srgb,var(--status-overdue)_85%,black)] active:scale-[0.96] active:bg-[color-mix(in_srgb,var(--status-overdue)_85%,black)]',
+  destructive: 'hover:bg-[color-mix(in_srgb,var(--status-bad)_85%,var(--fg-1))] motion-safe:active:scale-[0.96] active:bg-[color-mix(in_srgb,var(--status-bad)_85%,var(--fg-1))]',
+  caution: 'hover:bg-[color-mix(in_srgb,var(--status-overdue)_85%,black)] motion-safe:active:scale-[0.96] active:bg-[color-mix(in_srgb,var(--status-overdue)_85%,black)]',
 }
 
 const baseClasses = 'focus-visible:-outline-offset-2 orbit-pill-action press-hit-layer inline-flex cursor-pointer items-center justify-center whitespace-nowrap rounded-full border-0 font-medium disabled:cursor-not-allowed'
+
+const waitingFaceClasses = 'relative isolate bg-transparent text-[var(--fg-1)]'
+
+function faceClasses(variant: ButtonVariant, loading: boolean, elevated: boolean, borderless: boolean): string[] {
+  if (loading) return [waitingFaceClasses]
+  const fill = variant === 'ghost' && borderless ? 'text-[var(--fg-1)] outline-0 focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-[var(--fg-1)] focus-visible:-outline-offset-2' : variantClasses[variant]
+  if (variant !== 'ghost') return [fill]
+  return [fill, elevated ? 'bg-[var(--bg-elev)]' : 'bg-transparent']
+}
 
 export function actionClasses(variant: ButtonVariant, size: ButtonSize, element: 'button' | 'link', loading = false, quiet = false, elevated = false, borderless = false) {
   const variantInteractions = element === 'button'
@@ -36,7 +45,7 @@ export function actionClasses(variant: ButtonVariant, size: ButtonSize, element:
     : quiet && variant === 'ghost'
     ? 'enabled:hover:bg-[var(--bg-hover-opaque)] enabled:active:bg-[var(--bg-hover-opaque)] motion-safe:enabled:active:scale-[0.96]'
     : variantInteractions
-  return [baseClasses, variant === 'ghost' && borderless ? 'text-[var(--fg-1)] outline-0 focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-[var(--fg-1)] focus-visible:-outline-offset-2' : variantClasses[variant], variant === 'ghost' ? elevated ? 'bg-[var(--bg-elev)]' : 'bg-transparent' : undefined, loading ? undefined : interactionClasses,
+  return [baseClasses, ...faceClasses(variant, loading, elevated, borderless), loading ? undefined : interactionClasses,
     element === 'button' && !loading ? 'disabled:opacity-40' : undefined,
     size === 'sm' ? 'touch-target' : undefined]
     .filter(Boolean)

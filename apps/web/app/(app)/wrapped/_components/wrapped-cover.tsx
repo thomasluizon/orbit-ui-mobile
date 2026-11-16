@@ -7,7 +7,7 @@ import { RECAP_SHARE_PERIODS, type RecapSharePeriod } from '@orbit/shared/utils'
 import { Chip } from '@/components/ui/chip'
 import { ErrorState } from '@/components/ui/error-state'
 import { Icon } from '@/components/ui/icon'
-import { OrbitMark } from '@/components/ui/orbit-mark'
+import { OrbitMascot } from '@/components/ui/orbit-mascot'
 import { Button } from '@/components/ui/pill-button'
 import { Skeleton } from '@/components/ui/skeleton'
 import {
@@ -40,7 +40,7 @@ export function WrappedCover({
       className="flex flex-1 flex-col items-start justify-center text-start gap-6 overflow-y-auto px-6 py-8"
       data-state={state}
     >
-      <OrbitMark size={96} />
+      <OrbitMascot size={96} />
 
       <div className="flex flex-col items-start gap-2">
         <p style={coverEyebrowStyle}>{t('wrapped.title')}</p>

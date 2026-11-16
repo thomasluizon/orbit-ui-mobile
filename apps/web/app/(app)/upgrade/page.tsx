@@ -188,7 +188,7 @@ export default function UpgradePage() {
     )
   } else if (screenState === 'load-failed') {
     content = (
-      <ErrorState
+      <ErrorState fullSurface
         message={t('upgrade.billing.error')}
         action={
           <IconButton label={t('upgrade.billing.retry')} loading={isSettling} onClick={retryLoad}><RefreshCw size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton>

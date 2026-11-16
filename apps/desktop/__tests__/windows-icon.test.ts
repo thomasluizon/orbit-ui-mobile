@@ -61,15 +61,20 @@ describe('Windows icon.ico', () => {
     expect(pixelAt(Math.floor(size / 2), corner + 1)).toEqual(tileColour)
   })
 
-  it('draws the 16px entry with the native 16px mark', async () => {
-    const markSource = readFileSync(new URL('../../../design/brand/orbit-mark-16.svg', import.meta.url), 'utf8')
-    const { data: mark } = await sharp(Buffer.from(markSource.replaceAll('currentColor', '#FFFFFF')))
-      .resize(16, 16).ensureAlpha().raw().toBuffer({ resolveWithObject: true })
+  it('draws the 16px entry with the small static face', async () => {
+    const markSource = readFileSync(new URL('../../../design/brand/orbit-mascot-small.svg', import.meta.url), 'utf8')
+    const symbol = /<symbol id="small-16" viewBox="([^"]+)">([\s\S]*?)<\/symbol>/.exec(markSource)!
+    const face = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${symbol[1]}" width="16" height="12" fill="none">${symbol[2]}</svg>`
+    const { data: mark } = await sharp(Buffer.from(face.replaceAll('var(--primary, currentColor)', '#FFFFFF')
+      .replaceAll('var(--orbit-surface, var(--bg, #09090B))', '#09090B').replaceAll('var(--bg, #09090B)', '#09090B')
+      .replaceAll('currentColor', '#FFFFFF')))
+      .ensureAlpha().raw().toBuffer({ resolveWithObject: true })
     const { pixelAt } = await decode(entries.find(({ size }) => size === 16)!)
     const covered: [number, number][] = []
-    for (let y = 0; y < 16; y += 1) {
+    for (let y = 0; y < 12; y += 1) {
       for (let x = 0; x < 16; x += 1) {
-        if (mark[(y * 16 + x) * 4 + 3] === 255) covered.push([x, y])
+        const offset = (y * 16 + x) * 4
+        if (mark[offset + 3] === 255 && mark[offset] === 255) covered.push([x, y + 2])
       }
     }
     expect(covered.length).toBeGreaterThan(0)

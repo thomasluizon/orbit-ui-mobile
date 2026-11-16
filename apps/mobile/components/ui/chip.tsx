@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 import { SPACING, TOUCH_TARGET_MIN, typeRoles } from '@orbit/shared/theme'
 import { StyleSheet, Text, View } from 'react-native'
-import { PressScalePressable as Pressable } from '@/components/motion/press-scale'
+import { MotionPressable as Pressable } from '@/components/ui/motion-pressable'
 import { createTokensV2, radius, tintFromPrimary } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
@@ -30,8 +30,10 @@ export function Chip({
 
   return (
     <Pressable
+      focusInset
       selectionRingWidth={isPeriod ? 1.5 : 1}
       selectionRingColor={isPeriod ? tokens.primary : tintFromPrimary(tokens, 0.45)}
+      selectionRingRestColor={tokens.hairline}
       onPress={onPress}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
@@ -44,8 +46,6 @@ export function Chip({
           styles.chip,
           {
             backgroundColor: active ? pressed ? tokens.bgHover : selectedBackground : pressedBackground,
-            borderColor: tokens.hairline,
-            borderWidth: active && isPeriod ? 1.5 : 1,
           },
         ]
       }}
@@ -69,7 +69,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.s16,
     borderRadius: radius.full,
     overflow: 'hidden',
-    borderWidth: 1,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,

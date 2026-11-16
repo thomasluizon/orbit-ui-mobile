@@ -110,6 +110,14 @@ function applyStyle(node: YogaNode, style: ViewStyle) {
   }
 }
 
+function contentPaths(rows: HostRow[], path: number[]): number[][] {
+  return rows.flatMap((child, index) => {
+    if (child.props['data-slot'] === 'list-row-fill') return []
+    if (child.props['data-slot'] === 'press-scale') return contentPaths((child.children ?? []).filter((inner): inner is HostRow => typeof inner !== 'string'), [...path, index])
+    return [[...path, index]]
+  })
+}
+
 function position(node: YogaNode): { left: number; top: number; right: number; bottom: number; width: number; height: number } {
   let left = 0
   let top = 0
@@ -130,7 +138,7 @@ export function measureProfileRow(host: HostRow, width: number, scale: number, s
   const boxes: { node: YogaNode; testID: string }[] = []
   const parts: { node: YogaNode; slot: string; style: ViewStyle }[] = []
   const texts: { node: YogaNode; label: string; style: TextStyle; limit: number | undefined; textPixels: (size: number) => number }[] = []
-  const controls: { node: YogaNode; labels: string[]; accessibilityLabel?: string; contentIndexes: number[]; hitWidth: number; hitHeight: number }[] = []
+  const controls: { node: YogaNode; labels: string[]; accessibilityLabel?: string; contentPaths: number[][]; hitWidth: number; hitHeight: number }[] = []
   function labelsOf(host: HostRow): string[] {
     return (host.children ?? []).flatMap((child) => typeof child === 'string' ? [child] : labelsOf(child))
   }
@@ -144,8 +152,7 @@ export function measureProfileRow(host: HostRow, width: number, scale: number, s
     if (host.props['data-slot']) parts.push({ node, slot: host.props['data-slot'], style })
     if (host.type === 'Pressable') {
       const children = (host.children ?? []).filter((child): child is HostRow => typeof child !== 'string')
-      const contentIndexes = children.flatMap((child, index) => child.props['data-slot'] === 'list-row-fill' ? [] : [index])
-      controls.push({ node, labels: labelsOf(host), accessibilityLabel: host.props.accessibilityLabel, contentIndexes, ...hitExtension(host.props) })
+      controls.push({ node, labels: labelsOf(host), accessibilityLabel: host.props.accessibilityLabel, contentPaths: contentPaths(children, []), ...hitExtension(host.props) })
     }
     if (host.type === 'Text') {
       const label = labelsOf(host).join('')
@@ -169,9 +176,9 @@ export function measureProfileRow(host: HostRow, width: number, scale: number, s
   const layout = layoutHost(Array.isArray(host) ? { type: 'View', props: {}, children: host } : host)
   try {
     layout.calculateLayout(width, 'auto', Yoga.DIRECTION_LTR)
-    return { height: layout.getComputedHeight(), boxes: boxes.map(({ node, testID }) => ({ testID, ...position(node) })), parts: parts.map(({ node, slot, style }) => ({ slot, style, ...position(node) })), controls: controls.map(({ node, labels, accessibilityLabel, contentIndexes, hitWidth, hitHeight }) => {
+    return { height: layout.getComputedHeight(), boxes: boxes.map(({ node, testID }) => ({ testID, ...position(node) })), parts: parts.map(({ node, slot, style }) => ({ slot, style, ...position(node) })), controls: controls.map(({ node, labels, accessibilityLabel, contentPaths, hitWidth, hitHeight }) => {
       const bounds = position(node)
-      const content = contentIndexes.map((index) => position(node.getChild(index)))
+      const content = contentPaths.map((path) => position(path.reduce((parent, index) => parent.getChild(index), node)))
       const startClearance = Math.min(...content.map((child) => child.left)) - bounds.left
       const endClearance = bounds.right - Math.max(...content.map((child) => child.right))
       return { labels, accessibilityLabel, ...bounds, targetWidth: bounds.width + hitWidth, targetHeight: bounds.height + hitHeight, startClearance, endClearance, inlineClearance: Math.min(startClearance, endClearance) }

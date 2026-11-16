@@ -37,6 +37,7 @@ interface HabitDrillProps {
   listHeaderComponent: ReactNode
   drillListRef: RefObject<FlatList<NormalizedHabit> | null>
   refreshControl: ReactElement<RefreshControlProps>
+  busy: boolean
   onListScroll: (event: NativeSyntheticEvent<NativeScrollEvent>) => void
   onFocus?: (event: FocusEvent) => void
   onScrollBeginDrag?: () => void
@@ -80,6 +81,7 @@ export function HabitDrill({
   listHeaderComponent,
   drillListRef,
   refreshControl,
+  busy,
   onListScroll,
   onFocus,
   onScrollBeginDrag,
@@ -182,6 +184,7 @@ export function HabitDrill({
       key={drill.currentParentId}
       ref={drillListRef}
       accessibilityLabel={t('habits.sectionLabel')}
+      accessibilityState={{ busy }}
       data={presentation.items}
       onLayout={reservation.onLayout}
       keyboardShouldPersistTaps="handled"

@@ -339,7 +339,7 @@ function DestinationShellContent({
       <ShellWide
         {...conversationSlot}
         items={wideItems}
-        astraRow={{ label: t('nav.astra'), onOpen: () => useUIStore.getState().setAstraConversationOpen(true) }}
+        astraRow={{ label: t('shell.astraButton.open'), onOpen: () => useUIStore.getState().setAstraConversationOpen(true) }}
         activeId={activeId}
         navLabel={t('nav.mainNavigation')}
         onSelect={(id) => navigate(id as ShellDestinationId)}

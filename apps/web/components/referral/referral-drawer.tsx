@@ -3,7 +3,8 @@
 import { PillButton } from '@/components/ui/pill-button'
 
 import { useState } from 'react'
-import { Loader2 } from '@/components/ui/icons'
+import { Skeleton } from '@/components/ui/skeleton'
+import { SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { CopyStateIcon } from '@/components/ui/copy-state-icon'
 import { useTranslations } from 'next-intl'
 import type { ReferralPresentationStats } from '@orbit/shared/types/referral'
@@ -29,6 +30,15 @@ interface LoadedContentProps {
   copied: boolean
   copyFailed: boolean
   onCopy: () => void
+}
+
+function ReferralSkeleton({ label }: Readonly<{ label: string }>) {
+  return (
+    <div role="status" aria-label={label} aria-busy="true" data-slot="referral-skeleton" className="flex flex-col gap-4">
+      <div style={{ height: TOUCH_TARGET_MIN + SPACING.s8 }}><Skeleton variant="fill" grouped /></div>
+      <Skeleton variant="settings" rows={2} grouped />
+    </div>
+  )
 }
 
 function LoadedContent({
@@ -182,15 +192,7 @@ function ReferralDrawerContent({
     >
       <>
         {isLoading ? (
-          <output
-            aria-label={t('common.loading')}
-            className="flex justify-center py-12"
-          >
-            <Loader2
-              className="size-6 animate-spin text-[var(--fg-3)]"
-              aria-hidden="true"
-            />
-          </output>
+          <ReferralSkeleton label={t('common.loading')} />
         ) : null}
         {isError ? <ErrorState message={error.message} /> : null}
         {isLoaded ? (

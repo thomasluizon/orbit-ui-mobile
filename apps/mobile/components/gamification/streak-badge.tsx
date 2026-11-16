@@ -1,12 +1,12 @@
 import { SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { type GestureResponderEvent, StyleSheet, Text, View } from 'react-native'
-import { MotionPressable } from '@/components/ui/motion-pressable'
 import Svg, { Line } from 'react-native-svg'
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { plural } from '@/lib/plural'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
+import { MotionPressable } from '@/components/ui/motion-pressable'
 
 interface StreakBadgeProps {
   streak: number

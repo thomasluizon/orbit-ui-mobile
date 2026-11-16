@@ -6,8 +6,9 @@ import { EmptyState } from '@/components/ui/empty-state'
 import { ErrorState } from '@/components/ui/error-state'
 import { Skeleton } from '@/components/ui/skeleton'
 import { StatTile } from '@/components/ui/stat-tile'
-import { OrbitMark } from '@/components/ui/orbit-mark'
-import { AstraGlyph } from '@/components/ui/astra-glyph'
+import { OrbitMascot } from '@/components/ui/orbit-mascot'
+import { createTokensV2 } from '@/lib/theme'
+import { __resetTestHostConfig, __setWindowDimensions } from '@/test-mocks/react-native'
 
 const TestRenderer = require('react-test-renderer')
 
@@ -80,15 +81,11 @@ describe('mobile feedback primitives', () => {
       .toBe(StyleSheet.flatten(loaded.props.style).minHeight)
   })
 
-  it('defaults an empty state to Orbit and switches to Astra', () => {
+  it('draws one mascot at 96 in an empty state', () => {
     const orbit = render(<EmptyState title="Nothing here" />)
-    expect(orbit.root.findByProps({ testID: 'empty-state-mark-orbit' })).toBeTruthy()
-    expect(orbit.root.findByType(OrbitMark).props.size).toBe(48)
+    expect(orbit.root.findByProps({ testID: 'empty-state-mark' })).toBeTruthy()
+    expect(orbit.root.findByType(OrbitMascot).props.size).toBe(96)
     expect(textValues(orbit)).toContain('Nothing here')
-
-    const astra = render(<EmptyState title="Ask Astra" mark="astra" />)
-    expect(astra.root.findByProps({ testID: 'empty-state-mark-astra' })).toBeTruthy()
-    expect(astra.root.findByType(AstraGlyph).props.size).toBe(48)
   })
 
   it('renders exactly one empty-state action', () => {
@@ -149,5 +146,27 @@ describe('mobile feedback primitives', () => {
 
     expect(output).not.toContain('statusBad')
     expect(tree.root.findAll((node: any) => node.type === 'Pressable' && node.props.accessibilityRole === 'button')).toHaveLength(1)
+  })
+
+  it('draws no mascot in an inline error, and Orbit in Parado above a full-surface error at 96 and 128', () => {
+    expect(render(<ErrorState message="Try again." />).root.findAllByType(OrbitMascot)).toHaveLength(0)
+    for (const [width, size] of [[412, 96], [1024, 128]] as const) {
+      __setWindowDimensions({ width, height: 892, scale: 1, fontScale: 1 })
+      const tree = render(<ErrorState fullSurface message="Check the connection and try again." action={<Pressable accessibilityRole="button" accessibilityLabel="Retry" />} />)
+      const mascot = tree.root.findByType(OrbitMascot)
+      expect(mascot.props).toMatchObject({ size })
+      expect(mascot.props.state ?? 'parado').toBe('parado')
+      expect(textValues(tree)).toEqual(['Check the connection and try again.'])
+      expect(tree.root.findByProps({ testID: 'error-state-action' })).toBeTruthy()
+    }
+    __resetTestHostConfig()
+  })
+
+  it('rests Orbit at 48 beside the reason only where the AI is the missing part, with neutral tokens', () => {
+    expect(render(<CapacityNotice message="Ten habits per goal." />).root.findAllByType(OrbitMascot)).toHaveLength(0)
+    const tree = render(<CapacityNotice message="Five messages today." mascotState="descansando" />)
+    expect(tree.root.findByType(OrbitMascot).props).toMatchObject({ size: 48, state: 'descansando' })
+    expect(textValues(tree)).toEqual(['Five messages today.'])
+    expect(JSON.stringify(tree.toJSON())).not.toContain(createTokensV2('orange', 'dark').statusBad)
   })
 })

@@ -1,7 +1,7 @@
 import { resolveHabitAccessibleStatus } from '@orbit/shared/utils'
 import { InsetFocusPressable as Pressable } from '@/components/ui/inset-focus-pressable'
 import { View } from 'react-native'
-import { PressScale, PressScalePressable } from '@/components/motion/press-scale'
+import { PressScale } from '@/components/motion/press-scale'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { MoreVertical } from '@/components/ui/icons'
@@ -13,6 +13,7 @@ import type { HabitStatus } from '@orbit/shared/contracts/lists'
 import { CheckCircle } from './habit-row-check-circle'
 import type { HabitRowActions } from './habit-row'
 import { styles } from './habit-row-styles'
+import { MotionPressable } from '@/components/ui/motion-pressable'
 
 interface HabitRowTrailingProps {
   habit: NormalizedHabit
@@ -97,7 +98,7 @@ export function HabitRowTrailing(props: Readonly<HabitRowTrailingProps>) {
       <HabitRowCompletion {...props} />
       {hasMenuActions ? (
         <Menu.Trigger asChild>
-          <PressScalePressable
+          <MotionPressable focusInset
             onHoverIn={() => setMenuHovered(true)}
             onHoverOut={() => setMenuHovered(false)}
             accessibilityRole="button"
@@ -113,7 +114,7 @@ export function HabitRowTrailing(props: Readonly<HabitRowTrailingProps>) {
               color={tokens.fg3}
               strokeWidth={1.8}
             />
-          </PressScalePressable>
+          </MotionPressable>
         </Menu.Trigger>
       ) : null}
     </View>

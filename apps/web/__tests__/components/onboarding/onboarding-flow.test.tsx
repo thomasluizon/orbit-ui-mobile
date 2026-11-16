@@ -40,6 +40,7 @@ const mocks = vi.hoisted(() => {
     useRealPush: false,
     isOnline: true,
     useRealShell: false,
+    wide: false,
     dialogOpenChanges: vi.fn(),
     createHabit: vi.fn(),
     updateHabit: vi.fn(),
@@ -88,7 +89,7 @@ vi.mock('next-intl', () => ({
 vi.mock('next/navigation', async (importOriginal) => ({ ...(await importOriginal<typeof import('next/navigation')>()), useRouter: () => { const { navigate } = React.useContext(NavigationContext); return { push: navigate, replace: navigate } }, usePathname: () => new URL(React.useContext(NavigationContext).url, 'https://orbit.test').pathname, useSearchParams: () => new URL(React.useContext(NavigationContext).url, 'https://orbit.test').searchParams }))
 vi.mock('@/lib/providers', () => ({ Providers: ({ children }: { children: React.ReactNode }) => <>{children}</> }))
 vi.mock('@/hooks/use-offline', () => ({ useOffline: () => ({ isOnline: mocks.isOnline }) }))
-vi.mock('@/hooks/use-is-desktop', () => ({ useIsWideDesktop: () => false }))
+vi.mock('@/hooks/use-is-desktop', () => ({ useIsWideDesktop: () => mocks.wide }))
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: mocks.profileAvailable ? mocks.profile : undefined, refetch: mocks.refetchProfile }) }))
 vi.mock('@/lib/actions/profile', () => ({ updateTimezone: mocks.updateTimezone }))
 vi.mock('@/hooks/use-habit-suggestion', () => ({
@@ -211,6 +212,7 @@ describe('OnboardingFlow state model', () => {
     mocks.useRealPush = false
     mocks.isOnline = true
     mocks.useRealShell = false
+    mocks.wide = false
     vi.clearAllMocks()
     useVersionGateStore.setState(useVersionGateStore.getInitialState())
     setApiFetchTranslate((key) => key)
@@ -410,7 +412,7 @@ describe('OnboardingFlow state model', () => {
   it.each([
     { locale: 'en', sentence: 'Read every Monday at 18:00', title: 'Read' },
     { locale: 'pt-BR', sentence: 'Meditar dez minutos depois do café, menos aos domingos', title: 'Meditar dez minutos depois do café, menos aos domingos' },
-  ])('reads the signed-out sentence through Astra in $locale without adding a tour step', async ({ locale, sentence, title }) => {
+  ])('reads the signed-out sentence through Orbit in $locale without adding a tour step', async ({ locale, sentence, title }) => {
     mocks.locale = locale
     mocks.realProposal = true
     mocks.anonymousAvailable = true
@@ -418,7 +420,10 @@ describe('OnboardingFlow state model', () => {
     mount(false)
     fireEvent.change(screen.getByLabelText('sentence'), { target: { value: sentence } })
     fireEvent.click(screen.getByRole('button', { name: 'continue' }))
-    expect(await screen.findByRole('img', { name: 'Astra' })).toBeVisible()
+    const speaker = (await screen.findByText('when.astraRead')).parentElement!.querySelector('[data-asset="orbit-mascot"]')
+    expect(speaker).toBeVisible()
+    expect(speaker!.closest('[aria-hidden="true"]')).not.toBeNull()
+    expect(screen.queryByRole('img', { name: /^(Astra|Orbit)$/ })).toBeNull()
     expect(screen.getByText(title)).toBeVisible()
     expect(screen.getByText('when.astraRead')).toBeVisible()
     expect(mocks.anonymous).toHaveBeenCalledWith({ title: sentence, language: locale })
@@ -653,6 +658,20 @@ describe('OnboardingFlow state model', () => {
     expect(mocks.finishOnboarding).not.toHaveBeenCalled()
     fireEvent.click(screen.getByRole('button', { name: 'enter-day' }))
     await waitFor(() => expect(mocks.finishOnboarding).toHaveBeenCalledOnce())
+  })
+
+  it('names the wide Done sidebar conversation row like the compact entry and opens the conversation after the final step', async () => {
+    mocks.useRealShell = true
+    mocks.wide = true
+    mocks.profile.hasProAccess = false
+    await reachDone(true)
+    const row = screen.getByRole('button', { name: 'shell.astraButton.open' })
+    expect(row).toHaveAttribute('data-shell-astra-row')
+    fireEvent.click(row)
+    await screen.findByTestId('pro-step')
+    expect(mocks.navigate).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: 'enter-day' }))
+    await waitFor(() => expect(mocks.navigate).toHaveBeenCalledWith('/?astra=open'))
   })
 
   it('keeps the selected Done tab until the final step finishes', async () => {

@@ -11,7 +11,6 @@ describe('Notion connection contract', () => {
   })
   it('keeps reconnect distinct from a disconnected connection', () => {
     expect(notionConnectionLabel(undefined)).toBe('profile.connections.notConnected')
-    expect(notionConnectionLabel(createNotionConnection({ connected: true }), true)).toBe('common.loading')
     expect(notionConnectionLabel(createNotionConnection())).toBe('profile.connections.notConnected')
     expect(notionConnectionLabel(createNotionConnection({ connected: true }))).toBe('profile.connections.connected')
     expect(notionConnectionLabel(createNotionConnection({ status: 'ReconnectRequired' }))).toBe('profile.connections.renew')

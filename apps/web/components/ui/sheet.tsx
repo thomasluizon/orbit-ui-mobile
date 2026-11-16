@@ -15,6 +15,7 @@ import { useTranslations } from 'next-intl'
 import { X } from '@/components/ui/icons'
 import { UpdateAvailableBanner } from '@/components/ui/update-available-banner'
 import { AppToastHost } from '@/components/ui/app-toast-host'
+import { OrbitOverlayLayer } from '@/components/ui/orbit-overlay-layer'
 import {
   registerModalFocusOwner,
   registerOverlay,
@@ -124,6 +125,7 @@ export function Sheet({ title, titleMode = 'label', titleTranslate, accessibleTi
   }
 
   return (
+    <OrbitOverlayLayer>
     <Dialog.Root
       open={presented}
       modal
@@ -179,7 +181,7 @@ export function Sheet({ title, titleMode = 'label', titleTranslate, accessibleTi
                 </div>
               </div>
             )}
-            <UpdateAvailableBanner modalId={modalId} />
+            <UpdateAvailableBanner modalId={modalId} mascot={false} />
             <div className="empty:hidden shrink-0 px-6 pb-4" data-sheet-notice="">
               <AppToastHost placement="modal" modalId={modalId} />
             </div>
@@ -193,6 +195,7 @@ export function Sheet({ title, titleMode = 'label', titleTranslate, accessibleTi
         </Dialog.Viewport>
       </Dialog.Portal>
     </Dialog.Root>
+    </OrbitOverlayLayer>
   )
 }
 

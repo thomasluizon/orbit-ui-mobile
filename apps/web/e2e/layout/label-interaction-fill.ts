@@ -28,11 +28,18 @@ async function readFill(control: FillControl) {
       }
       return right > left && bottom > top ? new DOMRect(left, top, right - left, bottom - top) : null
     }
+    function drawnBounds(icon: SVGSVGElement) {
+      if (!icon.matches('[data-asset="orbit-mascot"]')) return icon.getBoundingClientRect()
+      const shapes = [...icon.querySelectorAll('path, circle')].filter((shape) => !shape.closest('defs')).map((shape) => shape.getBoundingClientRect())
+      const left = Math.min(...shapes.map((shape) => shape.left))
+      const top = Math.min(...shapes.map((shape) => shape.top))
+      return new DOMRect(left, top, Math.max(...shapes.map((shape) => shape.right)) - left, Math.max(...shapes.map((shape) => shape.bottom)) - top)
+    }
     const { bounds, target } = paint
     const visualContent = element.parentElement?.hasAttribute('data-personal-text-action')
       ? element.parentElement.querySelector('[data-personal-text-content]')!
       : element
-    const content: DOMRect[] = [...visualContent.querySelectorAll('svg')].map((icon) => icon.getBoundingClientRect())
+    const content: DOMRect[] = [...visualContent.querySelectorAll('svg')].map(drawnBounds)
     const walker = document.createTreeWalker(visualContent, NodeFilter.SHOW_TEXT)
     while (walker.nextNode()) {
       const node = walker.currentNode

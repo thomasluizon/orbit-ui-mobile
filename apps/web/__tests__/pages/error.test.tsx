@@ -95,6 +95,13 @@ describe('AuthError', () => {
     expect(screen.getByText('auth.genericError')).toBeInTheDocument()
     expect(screen.queryByText(error.message)).not.toBeInTheDocument()
   })
+
+  it('shows Orbit in Parado on the full-surface failure, like the app route error', () => {
+    render(<AuthError error={new Error('fail')} reset={mockReset} />)
+    const face = screen.getByRole('alert').querySelector('[data-asset="orbit-mascot"]')
+    expect(face).not.toBeNull()
+    expect(face).toHaveAttribute('data-orbit-state', 'parado')
+  })
 })
 
 describe('GlobalError', () => {

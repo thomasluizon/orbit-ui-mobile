@@ -46,6 +46,8 @@ export function useRescheduleSuggestion({
   return {
     suggestion: query.data ?? null,
     isLoading: query.isLoading,
+    isFetching: query.isFetching,
+    isPaused: query.isPaused,
     error: query.error,
     refetch: query.refetch,
   }

@@ -27,7 +27,7 @@ vi.mock('react-i18next', () => ({
     i18n: { language: preferenceLocale.value ?? 'en' },
   }),
 }))
-vi.mock('@/app/use-preference-controls', () => ({ usePreferenceControls: () => ({ selectedLanguage: preferenceLocale.value, currentTheme: 'dark', currentScheme: 'orange', showGeneralOnToday: true, handleShowGeneralToggle: vi.fn(), activePicker: null, setActivePicker: vi.fn(), handleThemeModeChange: vi.fn(), timeZoneMutation: { mutate: vi.fn() }, weekStartMutation: { mutate: vi.fn() }, clockFormatMutation: { mutate: vi.fn() } }) }))
+vi.mock('@/app/use-preference-controls', () => ({ usePreferenceControls: () => ({ mascotMotion: { enabled: true, pending: false, toggle: vi.fn() }, selectedLanguage: preferenceLocale.value, currentTheme: 'dark', currentScheme: 'orange', showGeneralOnToday: true, handleShowGeneralToggle: vi.fn(), activePicker: null, setActivePicker: vi.fn(), handleThemeModeChange: vi.fn(), timeZoneMutation: { mutate: vi.fn() }, weekStartMutation: { mutate: vi.fn() }, clockFormatMutation: { mutate: vi.fn() } }) }))
 vi.mock('@/components/profile/preferences-sections', () => ({ PreferencePickerSheet: () => null }))
 
 const { push } = vi.hoisted(() => ({ push: vi.fn() }))

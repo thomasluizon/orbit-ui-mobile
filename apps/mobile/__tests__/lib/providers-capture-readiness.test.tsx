@@ -150,6 +150,8 @@ describe('capture readiness gating', () => {
     })
 
     expect(childRendered(tree)).toBe(false)
+    expect(tree.root.findAll((node: any) => node.type === 'View' && node.props.testID === 'startup-canvas')).toHaveLength(1)
+    expect(tree.root.findAll((node: any) => node.type === 'ActivityIndicator')).toHaveLength(0)
 
     applyPendingLanguage()
     await flush()
@@ -171,6 +173,8 @@ describe('capture readiness gating', () => {
     expect(childRendered(tree)).toBe(true)
     expect(childReadiness(tree)).toBe('waiting')
     expect(pendingSplashHides).toHaveLength(1)
+    expect(tree.root.findAll((node: any) => node.type === 'View' && node.props.testID === 'shell-skeleton')).toHaveLength(1)
+    expect(tree.root.findAll((node: any) => node.type === 'ActivityIndicator')).toHaveLength(0)
 
     applyPendingLanguage()
     await flush()

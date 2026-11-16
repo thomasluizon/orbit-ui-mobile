@@ -156,7 +156,7 @@ describe('Astra block layout in Chromium', () => {
     expect(turns.map(turn => turn.querySelectorAll('section[data-state]').length)).toEqual([0, 2, 0, 2, 0])
     for (const turn of [turns[0]!, turns[3]!]) {
       expect(turn.querySelector('[data-astra-avatar]')).toHaveAttribute('aria-hidden', 'true')
-      expect(turn.querySelector('[data-astra-avatar] svg')).toHaveAttribute('data-asset', 'astra-mark')
+      expect(turn.querySelector('[data-astra-avatar] svg')).toHaveAttribute('data-asset', 'orbit-mascot')
     }
     const page = await browser.newPage({ viewport: { width, height: 915 } })
     try {

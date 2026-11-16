@@ -278,7 +278,7 @@ function assertSubscriptionContent(tree: Awaited<ReturnType<typeof renderScreen>
     && node.props.accessibilityLabel === (pitch ? messages.upgrade.outcomes.label : messages.upgrade.included))
   expect(resourceLists).toHaveLength(pitch ? 2 : 1)
   for (const resourceList of resourceLists) {
-    expect(resourceList.findAll((node) => typeof node.type === 'string' && node.props.testID === 'astra-mark')).toHaveLength(1)
+    expect(resourceList.findAll((node) => typeof node.type === 'string' && node.props.testID === 'orbit-mascot')).toHaveLength(1)
   }
   const text = JSON.stringify(tree.toJSON())
   for (const outcome of Object.values(messages.upgrade.outcomes).slice(1)) expect(text).toContain(outcome)
@@ -302,6 +302,12 @@ function assertSubscriptionDates(text: string | null, locale: 'en' | 'pt-BR', st
     (state === 'canceled' ? messages.upgrade.billing.plan.canceledHint : messages.upgrade.billing.plan.renewsOn).replace('{date}', date('2027-01-20T00:00:00Z')))
 }
 
+
+function expectedBackLabel(messages: typeof en, source: string | null, from: string | undefined, destination: string | null): string {
+  if (source === 'profile' || (!source && !from)) return messages.common.backToProfile
+  if (source === 'index') return messages.common.backToToday
+  return destination === null ? messages.common.backToOrbit : messages.common.backToDestination.replace('{destination}', destination)
+}
 
 describe('UpgradeScreen', () => {
   afterEach(() => { Platform.OS = 'android' })
@@ -520,14 +526,14 @@ describe('UpgradeScreen', () => {
   describe.each([{ locale: 'en', messages: en }, { locale: 'pt-BR', messages: ptBR }])('back destination in $locale', ({ locale, messages }) => {
     it.each([
       { source: 'profile', from: undefined, destination: messages.nav.profile },
-      { source: 'profile/astra', from: '/profile/astra', destination: messages.profile.groups.astra },
+      { source: 'profile/astra', from: '/profile/astra', destination: null },
       { source: 'calendar', from: undefined, destination: messages.nav.calendar },
       { source: 'habits/new', from: undefined, destination: messages.habits.form.newHabit },
       { source: 'index', from: '/', destination: messages.nav.today },
       { source: 'calendar', from: '/profile/astra', destination: messages.nav.calendar },
-      { source: 'chat', from: undefined, destination: messages.chat.title },
+      { source: 'chat', from: undefined, destination: null },
       { source: null, from: undefined, destination: messages.nav.profile },
-      { source: null, from: '/profile/astra', destination: messages.profile.groups.astra },
+      { source: null, from: '/profile/astra', destination: null },
     ])('names and returns to $source with from=$from', async ({ source, from, destination }) => {
       mocks.realNavigation = true
       mocks.renderComposition = true
@@ -551,9 +557,7 @@ describe('UpgradeScreen', () => {
       mocks.navigationState = state
       mocks.router.canDismiss.mockReturnValue(Boolean(source))
       const tree = await renderScreen()
-      const label = source === 'profile' || (!source && !from)
-        ? messages.common.backToProfile
-        : source === 'index' ? messages.common.backToToday : messages.common.backToDestination.replace('{destination}', destination)
+      const label = expectedBackLabel(messages, source, from, destination)
       const back = tree.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityRole === 'button' && node.props.accessibilityLabel === label)[0]!
       expect(back, label).toBeDefined()
       await TestRenderer.act(() => { (back.props.onPress as () => void)() })

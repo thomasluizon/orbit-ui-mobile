@@ -298,13 +298,13 @@ describe('WrappedPage player reload banner geometry in Chromium', () => {
         probe.remove()
         return {
           background: style.backgroundColor, expected, overflow: style.overflow,
-          before: getComputedStyle(element, '::before').content,
+          before: [getComputedStyle(element, '::before').content, getComputedStyle(element, '::before').inset, getComputedStyle(element, '::before').backgroundColor],
           after: getComputedStyle(element, '::after').content,
         }
       })
       await close.hover()
       const hovered = await readFill()
-      expect(hovered).toMatchObject({ background: hovered.expected, overflow: 'hidden', before: 'none', after: 'none' })
+      expect(hovered, 'the fill is the target\'s own, and the ::before is its unpainted, unclipped hit layer').toMatchObject({ background: hovered.expected, overflow: 'visible', before: ['""', '0px', 'rgba(0, 0, 0, 0)'], after: 'none' })
       await page.mouse.down()
       const pressed = await readFill()
       expect(pressed.background).toBe(pressed.expected)

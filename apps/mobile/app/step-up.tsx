@@ -1,7 +1,6 @@
 import { SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { useEffect, useMemo, useState } from 'react'
 import { StyleSheet, Text, View } from 'react-native'
-import { MotionPressable as Pressable } from '@/components/ui/motion-pressable'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import type { TFunction } from 'i18next'
@@ -34,6 +33,7 @@ import {
   readStepUpTiming,
 } from '@/lib/step-up-storage'
 import { PROFILE_STEP_UP_DESTINATIONS } from '@orbit/shared/utils/profile-routes'
+import { getBackLabel } from '@orbit/shared/utils/back-label'
 import { useProfile } from '@/hooks/use-profile'
 import { useDateFormat } from '@/hooks/use-date-format'
 import { useLogout } from '@/hooks/use-logout'
@@ -46,6 +46,7 @@ import { FlowShell } from '@/components/shell/flow-shell'
 import { OtpInput } from '@/components/ui/otp-input'
 import { PillButton } from '@/components/ui/pill-button'
 import { CapacityNotice } from '@/components/ui/capacity-notice'
+import { MotionPressable } from '@/components/ui/motion-pressable'
 
 export default function StepUpScreen() {
   const accountGeneration = useAccountGeneration()
@@ -278,11 +279,7 @@ function StepUpScreenContent() {
       <MobileStepUpExhausted
         {...sharedView}
         lockSeconds={lockSeconds}
-        backLabel={t('common.backToDestination', {
-          destination: operation === 'keys'
-            ? t('profile.groups.astra')
-            : t('profile.submenus.account'),
-        })}
+        backLabel={getBackLabel(returnDestination, t)}
         onBack={() => router.replace(returnDestination)}
       />
     )
@@ -453,14 +450,14 @@ function QuietAction({ label, onPress }: Readonly<{ label: string; onPress: () =
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   return (
-    <Pressable
+    <MotionPressable
       onPress={onPress}
       accessibilityRole="link"
       accessibilityLabel={label}
       style={({ pressed }) => [styles.quietAction, pressed ? { backgroundColor: tokens.bgHover } : null]}
     >
       <Text style={[styles.quietLabel, { color: tokens.fg2 }]}>{label}</Text>
-    </Pressable>
+    </MotionPressable>
   )
 }
 
