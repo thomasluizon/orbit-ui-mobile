@@ -193,7 +193,7 @@ Code facts that no gate or owner document states:
 
 ## Current state
 
-UI `main` `e353daa9d`, API `main` `38513551a`, landing `main` `7e6d150e0`. Staging web serves `f58a889af`; staging API and production API serve `38513551a`; production web serves `0ed7244d3` with desktop 0.1.34; Android 1.3.156 (217) is on Open; iOS 1.3.156 (6) is in `Orbit beta`. Open pull requests: ui#2451, ui#2453, ui#2464, ui#2469, ui#2470, ui#2473, landing#136 and the relay pull request. Every idle branch holds a merge of `main` `e353daa9d`. Workers run on the main account: the worker account is at its weekly limit until 18 November 07:00 BRT (under 3 days, so no reset). Free disk on `/System/Volumes/Data` is about 44 GiB, under the 50 GiB floor: new work reuses an idle worktree whose branch is merged elsewhere.
+UI `main` `e353daa9d`, API `main` `38513551a`, landing `main` `7e6d150e0`. Staging web serves `f58a889af`; staging API and production API serve `38513551a`; production web serves `0ed7244d3` with desktop 0.1.34; Android 1.3.156 (217) is on Open; iOS 1.3.156 (6) is in `Orbit beta`. Open pull requests: ui#2451, ui#2453, ui#2464, ui#2469, ui#2470, ui#2473, landing#136 and the relay pull request. Every idle branch holds a merge of `main` `e353daa9d`. Workers run on the worker account again: the owner reset its weekly limit. Free disk on `/System/Volumes/Data` is about 44 GiB, under the 50 GiB floor: new work reuses an idle worktree whose branch is merged elsewhere.
 
 ## Open questions
 
