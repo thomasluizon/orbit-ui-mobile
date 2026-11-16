@@ -97,17 +97,17 @@ function useChallengeVisibility() {
 
 /**
  * Loads the Turnstile script under one load deadline, as `useBridgeLoad` loads the bridge on mobile. A failed load reports
- * `loading` and loads the script again after TURNSTILE_RETRY_INTERVAL_MS. The deadline drops a stalled load and reports `failed`.
- * `loadAgain` starts a new load under a new deadline.
+ * `loading` through `onLoadState` and loads the script again after TURNSTILE_RETRY_INTERVAL_MS. The deadline drops a stalled
+ * load and reports `failed`. `loadAgain` starts a new load under a new deadline.
  */
-function useTurnstileScript(report: (state: 'loading' | 'failed') => void) {
+function useTurnstileScript({ onLoadState }: Readonly<{ onLoadState: (state: 'loading' | 'failed') => void }>) {
   const [loaded, setLoaded] = useState<Readonly<{ turnstile: TurnstileApi }> | null>(null)
   const [load, setLoad] = useState(0)
-  const reportRef = useRef(report)
+  const onLoadStateRef = useRef(onLoadState)
 
   useEffect(() => {
-    reportRef.current = report
-  }, [report])
+    onLoadStateRef.current = onLoadState
+  }, [onLoadState])
 
   useEffect(() => {
     let active = true
@@ -116,7 +116,7 @@ function useTurnstileScript(report: (state: 'loading' | 'failed') => void) {
       active = false
       window.clearTimeout(reloadTimer)
       if (turnstileLoad) forgetTurnstileLoad(turnstileLoad.script)
-      reportRef.current('failed')
+      onLoadStateRef.current('failed')
     }, TURNSTILE_LOAD_DEADLINE_MS)
 
     function request() {
@@ -126,7 +126,7 @@ function useTurnstileScript(report: (state: 'loading' | 'failed') => void) {
         setLoaded({ turnstile })
       }, () => {
         if (!active) return
-        reportRef.current('loading')
+        onLoadStateRef.current('loading')
         reloadTimer = window.setTimeout(request, TURNSTILE_RETRY_INTERVAL_MS)
       })
     }
@@ -156,10 +156,12 @@ function useTurnstileChallenge({ siteKey, resetKey, onToken, onStateChange, them
   const callbacksRef = useRef({ onToken, onStateChange })
   const handledResetKey = useRef(resetKey)
   const [state, setState] = useState<WidgetState>('idle')
-  const { loaded, loadAgain } = useTurnstileScript((next) => {
-    setState(next)
-    onStateChange?.(next)
-    onToken(null)
+  const { loaded, loadAgain } = useTurnstileScript({
+    onLoadState: (next) => {
+      setState(next)
+      onStateChange?.(next)
+      onToken(null)
+    },
   })
 
   useEffect(() => {
