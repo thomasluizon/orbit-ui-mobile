@@ -127,8 +127,6 @@ it.each([belowBudget, aboveBudget])('enforces latency through the final hook: %i
   const previousExitCode = process.exitCode
   process.exitCode = undefined
   const stdout = vi.spyOn(process.stdout, 'write').mockImplementation(() => true)
-  const summaryPath = process.env.GITHUB_STEP_SUMMARY
-  delete process.env.GITHUB_STEP_SUMMARY
   try {
     process.chdir(directory)
     const finish = () => afterAll({ results, suite: { tests: [results[0].testCase] } })
@@ -138,7 +136,6 @@ it.each([belowBudget, aboveBudget])('enforces latency through the final hook: %i
     process.exitCode = previousExitCode
     process.chdir(previous)
     stdout.mockRestore()
-    if (summaryPath !== undefined) process.env.GITHUB_STEP_SUMMARY = summaryPath
     rmSync(directory, { recursive: true, force: true })
   }
 })
