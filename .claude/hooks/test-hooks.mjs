@@ -7,7 +7,8 @@ import { tmpdir } from "node:os"
 import { dirname, join, resolve } from "node:path"
 import { fileURLToPath, pathToFileURL } from "node:url"
 
-import { checkGitCommand, checkGitWorktreeRemove, unmodelledConstruct } from "./_lib/rules-git.mjs"
+import { readCommand } from "./_lib/command-expander.mjs"
+import { checkGitCommand, checkGitWorktreeRemove } from "./_lib/rules-git.mjs"
 import { countUnreviewedPendingLessons, isDriftReviewOverdue } from "./_lib/rules-lessons.mjs"
 import { checkEfMigrationRawIndex } from "./_lib/rules-source.mjs"
 import { checkTicketMutation } from "./_lib/rules-tickets.mjs"
@@ -38,6 +39,10 @@ const T = (name, got, want) => {
   console.log(`${ok ? "PASS" : "FAIL"} ${name}${ok ? "" : `  got=${JSON.stringify(got)} want=${JSON.stringify(want)}`}`)
 }
 const blocks = (verdict) => !!verdict?.block
+/** True for a command that the modelled subset reads. The hooks refuse each other command as not modelled. */
+const isModelled = (command) => readCommand(command).notModelled === ""
+const HERE_STRING = "a here-string (`<<<`)"
+const ANSI_C_QUOTE = "an ANSI-C quote `$'...'`"
 const NV = "--no-" + "verify"
 const ADMIN = "--" + "admin"
 
@@ -190,10 +195,11 @@ for (const command of ["git <<<x push origin main", "git <<< x push origin main"
 }
 // The shell removes a quote in the command word too, and an escape can hide the word `git` in the text of the command.
 T("git: g''it push origin main still blocks", blocks(checkGitCommand("g''it push origin main")), true)
-T("git: push <<<x while HEAD is on a feature branch allows", checkGitCommand("git push <<<x", { ...headOnMain, resolveHeadBranch: () => "feature/x" }), null)
-T("git: push origin feature/x <<<x while HEAD is on main allows", checkGitCommand("git push origin feature/x <<<x", headOnMain), null)
-T("git: a here-string word that names main is no ref", checkGitCommand("git push origin feature/x <<<main"), null)
-T("git: a here-string word that names -n is no flag", checkGitCommand("git commit -m x <<< -n"), null)
+// A here-string is outside the modelled subset, so each command with one is refused, also a command that runs nothing forbidden.
+T("git: push <<<x while HEAD is on a feature branch is not modelled", checkGitCommand("git push <<<x", { ...headOnMain, resolveHeadBranch: () => "feature/x" })?.notModelled, HERE_STRING)
+T("git: push origin feature/x <<<x while HEAD is on main is not modelled", checkGitCommand("git push origin feature/x <<<x", headOnMain)?.notModelled, HERE_STRING)
+T("git: a here-string word that names main is not modelled", checkGitCommand("git push origin feature/x <<<main")?.notModelled, HERE_STRING)
+T("git: a here-string word that names -n is not modelled", checkGitCommand("git commit -m x <<< -n")?.notModelled, HERE_STRING)
 // The shell reads a heredoc operator only outside a quote, an escape and a comment. Each other `<<EOF` is text, so the next lines are commands.
 for (const [name, command] of [
   ["a single quote", "echo '<<EOF'\ngit push origin main\nEOF"],
@@ -215,9 +221,13 @@ for (const [name, command] of [
   ["push origin main after $'don\\'t; x'", "git push -o $'don\\'t; x' origin main"],
   ["commit -n after $'it\\'s $(x'", "git commit -m $'it\\'s $(x' -n"],
 ]) T(`git: ${name} still blocks`, blocks(checkGitCommand(command)), true)
-T("git: an ANSI-C message that names -n after > allows", checkGitCommand("git commit -m $'it\\'s > -n'"), null)
-T("git: an ANSI-C message that names a push after ; allows", checkGitCommand("git commit -m $'don\\'t; git push origin main'"), null)
-T("git: a redirect to an ANSI-C target cuts the whole target", checkGitCommand("git push origin feature/x > $'it\\'s main'"), null)
+// An ANSI-C quote is outside the modelled subset. The same messages in a plain quote are data.
+T("git: an ANSI-C message that names -n after > is not modelled", checkGitCommand("git commit -m $'it\\'s > -n'")?.notModelled, ANSI_C_QUOTE)
+T("git: an ANSI-C message that names a push after ; is not modelled", checkGitCommand("git commit -m $'don\\'t; git push origin main'")?.notModelled, ANSI_C_QUOTE)
+T("git: a redirect to an ANSI-C target is not modelled", checkGitCommand("git push origin feature/x > $'it\\'s main'")?.notModelled, ANSI_C_QUOTE)
+T("git: a quoted message that names -n after > allows", checkGitCommand('git commit -m "it is > -n"'), null)
+T("git: a quoted message that names a push after ; allows", checkGitCommand('git commit -m "do not; git push origin main"'), null)
+T("git: a redirect to a quoted target cuts the whole target", checkGitCommand('git push origin feature/x > "its main"'), null)
 // The shell removes an ANSI-C quote from a word before git reads argv, as it removes each other quote.
 for (const command of ["$'git' push origin main", "git $'push' origin main", "git push origin $'main'", "bash -c $'git push origin main'"]) {
   T(`git: ${command} still blocks`, blocks(checkGitCommand(command)), true)
@@ -336,19 +346,27 @@ const HEREDOC_DATA = [
   "bash -c \"$(cat)\" <<'EOF'",
   "eval \"$(cat)\" <<'EOF'",
 ]
-for (const row of HEREDOC_DATA) T(`git: the heredoc of ${heredocName(row)} is data`, checkGitCommand(heredocCommand(row, "git push origin main")), null)
+for (const row of HEREDOC_DATA) {
+  const command = heredocCommand(row, "git push origin main")
+  if (isModelled(command)) T(`git: the heredoc of ${heredocName(row)} is data`, checkGitCommand(command), null)
+  else T(`git: the heredoc of ${heredocName(row)} is not modelled`, typeof checkGitCommand(command)?.notModelled, "string")
+}
+T("subset: the heredoc data rows that the subset models", HEREDOC_DATA.filter((row) => isModelled(heredocCommand(row, "x"))).map(heredocName), ["bash script.sh <<'EOF'", "bash -O extglob script.sh <<'EOF'", "bash --rcfile rc script.sh <<'EOF'", "bash -- script.sh <<'EOF'", "bash -c cat <<'EOF'", "bash <<'EOF' script.sh", "cat > bash <<'EOF'",
+  "cat <<'EOF' | grep push", "cat <<'EOF' | bash script.sh", "cat <<'EOF' > run.sh", "cat <<'EOF' >bash", "git commit -m 'x <<A' -F - <<'EOF'", "git commit -m \"it's <<A\" -F - <<'EOF'"])
+T("subset: the heredoc shell rows that the subset models", [...HEREDOC_SHELLS.map((shell) => `${shell} <<'EOF'`), ...HEREDOC_SHELL_LINES].filter((row) => isModelled(heredocCommand(row, "x"))).map(heredocName), ["bash -e <<'EOF'", "bash -s <<'EOF'", "sh -x <<'EOF'", "/bin/bash -euo pipefail <<'EOF'", "bash -o pipefail -e <<'EOF'", "zsh +o nomatch <<'EOF'", "ksh <<'EOF'", "dash -e <<'EOF'", "bash -O extglob <<'EOF'",
+  "bash +O extglob <<'EOF'", "bash -oe pipefail <<'EOF'", "bash -s -- one two <<'EOF'", "bash -es one <<'EOF'", "bash --rcfile /dev/null <<'EOF'", "zsh --emulate sh <<'EOF'", "ksh -R xref <<'EOF'", "mksh -T tty <<'EOF'",
+  "bash -x 2>log <<'EOF'", "bash <<'EOF' 2>log", "bash 2> log <<'EOF'", "bash &>log <<'EOF'", "bash -s <<'EOF' one two", "bash>/dev/null <<'EOF'", "bash&>/dev/null <<'EOF'"])
 // A hygiene flag counts only as a word of a git command. The same text in an argument of another command is data.
 const NO_SIGN = "--no-gpg-" + "sign"
 for (const command of [`grep -rn -- '${NV}' .claude/hooks`, `rg -n -e '${NV}' .claude`, `echo 'Never use ${NV}.'`, `printf '%s\\n' 'Never use ${NV}.' >> notes.md`,
-  `gh pr comment 1 --body 'The hook refuses ${NV}.'`, `cat <<<'${NV}'`, `Select-String -Pattern '${NO_SIGN}' -Path .claude/hooks/*.mjs`, `grep -c -- '${NV}' $(git ls-files)`]) {
+  `gh pr comment 1 --body 'The hook refuses ${NV}.'`, `Select-String -Pattern '${NO_SIGN}' -Path .claude/hooks/*.mjs`, `grep -c -- '${NV}' $(git ls-files)`]) {
   T(`git: ${command} allows`, checkGitCommand(command), null)
 }
 for (const command of [`git commit ${NV} -m x`, "git commit -n -m x", `git commit ${NO_SIGN} -m x`, "git -c commit.gpgsign=false commit -m x", `git push ${NV} origin feature/x`,
   `git commit --no-ver''ify -m x`, `sudo git commit -m x ${NV}`, `npm run lint && git commit -m x ${NV}`]) {
   T(`git: ${command} still blocks`, blocks(checkGitCommand(command)), true)
 }
-// The reader fails closed. With a construct that it does not model exactly in bash and in zsh, each word of the text counts as a
-// word of a command, so the rule refuses a forbidden git command that any reading can run.
+// The reader is an allow list. A command with a construct outside the modelled subset is refused, so no reading of it can run a forbidden git command.
 for (const [name, command] of [
   ['a here-string in a $"..." quote to bash', 'bash <<<$"git push origin main"'],
   ['a here-string in a $"..." quote to zsh', 'zsh <<<$"git push origin main"'],
@@ -362,35 +380,130 @@ for (const [name, command] of [
   ["a script from /dev/stdin", "source /dev/stdin <<'EOF'\ngit push origin main\nEOF"],
   ["a process substitution to a shell", "bash <(cat <<'EOF'\ngit push origin main\nEOF\n)"],
 ]) T(`git: ${name} still blocks`, blocks(checkGitCommand(command)), true)
-// The fail-closed list: each construct has a name, and a plain command holds none. A construct in a heredoc body that no shell reads does not count.
+// The modelled subset: `readCommand` names the first construct outside it, and names none for a plain command.
 for (const [name, command] of [
   ["a here-string", 'grep -c x <<<"$output"'],
   ['a `$"..."` quote', 'echo $"hello"'],
-  ["a run of `$` before a `'`", "echo $$'x'"],
-  ["a character as a code", "echo $'\\x41'"],
-  ["a line continuation inside a word", "ec\\\nho x"],
-  ["a `<<` that is no heredoc", "cat <<\\EOF\nx\nEOF"],
-  ["a `<<` that is no heredoc", "cat <<EOF\nx"],
-  ["a `<<` that is no heredoc", "cat <<A <<B\nx\nA\ny\nB"],
-  ["the name of a program", '"bash" script.sh'],
-  ["the name of a program", "r\\m -rf dist"],
-  ["the value of a variable", 'eval "$COMMAND"'],
-  ["the value of a variable", 'bash -c "echo $NAME"'],
-  ["the value of a variable", "/bin/sh -euc $SCRIPT"],
-  ["a script from `/dev/stdin`", "source /dev/stdin"],
+  ["a run of `$` before a quote", "echo $$'x'"],
+  ["an ANSI-C quote", "echo $'\\x41'"],
+  ["an ANSI-C quote", "echo $'it\\'s'"],
+  ["a line continuation", "ec\\\nho x"],
+  ["a line continuation", "git commit -m x \\\n  -m y"],
+  ["a line continuation", 'echo "a\\\nb"'],
+  ["a here document with a delimiter that is not one quoted literal word", "cat <<\\EOF\nx\nEOF"],
+  ["a here document with a delimiter that is not one quoted literal word", "cat <<EOF\nx\nEOF"],
+  ["a here document with a delimiter that is not one quoted literal word", "cat <<E\"O\"F\nx\nEOF"],
+  ["a here document with no end marker line", "cat <<'EOF'\nx"],
+  ["a here document with a line that looks like its end marker", "cat <<'EOF'\nx\nEOF "],
+  ["a here document inside a substitution or a subshell", "(cat <<'EOF'\nx\nEOF\n)"],
+  ["the redirect `<<-`", "cat <<-'EOF'\n\tx\n\tEOF"],
+  ["a here document inside a substitution", "git commit -m \"$(cat <<'EOF'\nfix: x\nEOF\n)\""],
+  ["an arithmetic expansion `$((`", "echo $((1<<2))"],
+  ["an arithmetic expansion `$[`", "echo $[ 1 <<true ]"],
+  ["a function, an array or an arithmetic command", "(( x = 1 <<true ))"],
+  ["a function, an array or an arithmetic command", "wipe() { ls; }"],
+  ["a function, an array or an arithmetic command", "list=(a b)"],
+  ["a `${...}` expansion with an operator", "echo ${x:- <<true }"],
+  ["a `${...}` expansion with an operator", 'echo "${name%/*}"'],
+  ["the builtin `eval`", 'eval "$COMMAND"'],
+  ["the builtin `eval`", "eval 'echo ok'"],
+  ["the builtin `alias`", "alias wipe=ls"],
+  ["the builtin `trap`", "trap 'echo ok' EXIT"],
+  ["in the words of a shell command", 'bash -c "echo $NAME"'],
+  ["in the words of a shell command", "/bin/sh -euc $SCRIPT"],
+  ["a shell that reads its script from standard input", "echo 'echo ok' | bash"],
+  ["a shell that reads its script from standard input", "cat run.sh | while read -r line; do bash; done"],
+  ["a shell that reads its script from standard input", "{ bash; } <<'EOF'\necho ok\nEOF"],
+  ["a shell that reads its script from standard input", "(sh -s) <<'EOF'\necho ok\nEOF"],
+  ["a shell command that gets its words from `xargs`", "echo ok | xargs -I{} bash -c '{}'"],
+  ["a shell `-c` with no script word", "bash -c"],
+  ["a script from `/dev/stdin`", "source /dev/stdin <<'EOF'\necho ok\nEOF"],
+  ["a script from `/dev/stdin`", "bash /dev/stdin <<'EOF'\necho ok\nEOF"],
+  ["a script inside a script, deeper than the hook reads", Array.from({ length: 10 }).reduce((script) => `bash -c ${JSON.stringify(script)}`, "true")],
+  ["the shell keyword `case`", "case x in x) echo ok;; esac"],
+  ["the shell keyword `function`", "function wipe { ls; }"],
   ["a process substitution", "diff <(sort a) <(sort b)"],
-]) T(`unmodelled: ${command} holds ${name}`, unmodelledConstruct(command).includes(name), true)
-for (const command of ['grep -c "$pattern" notes.md', 'head -c "$count" notes.md', "git commit -m \"$(cat <<'EOF'\nfix: read bash <<<$\"x\" and echo $$'y' and <(z)\nEOF\n)\"", "echo $((1<<2))", "cat <<-'EOF'\n\tx\n\tEOF",
-  'printf "%s\\n" "$$"', "echo $'it\\'s'", "git commit -m x \\\n  -m y", "npm test 2>&1 | tail -n 5", 'eval "$(ssh-agent -s)"', "bash -c 'echo \"$1\"' name value", 'grep -rn "rm" notes.md']) {
-  T(`unmodelled: ${command} holds no such construct`, unmodelledConstruct(command), "")
+  ["a backtick substitution", "echo `date`"],
+  ["a backtick substitution", 'echo "`date`"'],
+  ["a word that starts with `=`", "=git status"],
+  ["a glob in a command word", "/usr/bin/gi? status"],
+  ["a glob in a command word", "/usr/bin/gi[t] status"],
+  ["a variable in a command word", "$g status"],
+  ["a variable in a command word", 'sudo -u "$USER" ls'],
+  ["a command substitution in a command word", "$(which git) status"],
+  ["a brace expansion in a command word", "{git,status}"],
+  ["a variable in a `git` argument", 'git log "$BRANCH"'],
+  ["a glob in a `git` argument", "git add *.md"],
+  ["a brace expansion in a `git` argument", "git push origin m{a,}in"],
+  ["a command substitution in a `git` argument", "git push origin $(echo x)"],
+  ["a `git` command that gets its arguments from `xargs`", "echo main | xargs git push origin"],
+  ["the operator `|&`", "make |& tail"],
+  ["a quote with no end", "echo 'x"],
+  ["a quote with no end", 'echo "x'],
+  ["to a target that is not a literal path", 'echo x > "$OUT"'],
+  ["to a target that is not a literal path", "echo x > out-*.log"],
+  ["to a target that is no file descriptor", "echo x >&out.log"],
+  ["a `{name}>` redirect", "echo x {fd}>/dev/null"],
+  ["a comment inside a substitution", "echo $(date # now\n)"],
+  ["a `$(` with no `)`", "echo $(date"],
+  ["a `)` with no `$(`", "echo x)"],
+  ["a `$` before a character that zsh can read as an expansion flag", 'echo "$=NAME"'],
+  ["a `$` before a character that zsh can read as an expansion flag", "git $=verb origin"],
+]) T(`subset: ${command} holds ${name}`, readCommand(command).notModelled.includes(name), true)
+for (const command of ['grep -c "$pattern" notes.md', 'head -c "$count" notes.md', "git commit -F - <<'EOF'\nfix: read bash <<<$\"x\" and echo $$'y' and <(z) and `w`\nEOF", 'printf "%s\\n" "$$"',
+  "npm test 2>&1 | tail -n 5", "bash -c 'echo \"$1\"' name value", 'grep -rn "rm" notes.md', "cd apps/web && npx vitest run src/x.test.ts > /tmp/out.log 2>&1", "ls -la *.md | head -3",
+  'echo "$HOME" "${TMPDIR:?}" "${TMPDIR:?not set}" $(date) "at $(date +%s)"', "CI=1 NAME='a b' npm test", "[ -f package.json ] && echo yes || echo no", "find . -name '*.ts' -exec grep -l x {} \;",
+  "echo ok &>/dev/null", "echo ok >&2", "echo ok 2>/dev/null >> out.log < in.txt", "true # a comment with $(x) and 'y", "cat > notes.md <<'EOF'\n$(x) `y` <<<z ${a:-b}\nEOF\necho ok",
+  "git log --oneline -5 main..HEAD", "git commit -m \"fix: a 'quoted' word; and more\"", "git show HEAD@{1} --stat", 'grep -E "^a$" notes.md', "echo a |\n  tail -1", "bash scripts/run.sh --flag value",
+  "cat <<'A' <<\"B\"\nx\nA\ny\nB", "source .venv/bin/activate && python tool.py", "ROOT=$(pwd); ls", 'export OUT="$HOME/out"', "while IFS= read -r line; do echo \"$line\"; done < in.txt",
+  "for f in a b; do echo \"$f\"; done", "if [ -f x ]; then echo yes; elif [[ -d x ]]; then echo dir; else echo no; fi", "{ echo x; echo y; } > out.log", "(cd apps && ls) | tail -1", "sleep 5 & wait",
+  'until test -f "$OUT/done"; do sleep 5; done', "! grep -q x notes.md", "bash < scripts/run.sh", "bash -c 'for f in a b; do echo $f; done'"]) {
+  T(`subset: ${command} is modelled`, readCommand(command).notModelled, "")
 }
+const wordTexts = (command) => readCommand(command).list.map((pipeline) => pipeline.map(({ words }) => words.map((word) => word.text)))
+T("subset: a word is read with no quote and no escape, as argv carries it", wordTexts(`g''it p"us"h ori\\gin 'ma'in`), [[["git", "push", "origin", "main"]]])
+T("subset: a list divides at each operator, and a pipeline keeps its commands together", wordTexts("a 1; b 2 && c | d\ne || f"), [[["a", "1"]], [["b", "2"]], [["c"], ["d"]], [["e"]], [["f"]]])
+T("subset: a redirect, its file descriptor and its target are no words", wordTexts("git push origin main2>&1 >out.log 2>/dev/null"), [[["git", "push", "origin", "main2"]]])
+T("subset: an assignment before the command word is no word", [wordTexts("A=1 B='x y' git status"), readCommand("A=1 B='x y' git status").list[0][0].assignments.map((word) => word.text)], [[[["git", "status"]]], ["A=1", "B=x y"]])
+T("subset: a heredoc body is no word, and the text after its end marker is read", wordTexts("cat > x.sh <<'EOF'\ngit push origin main\nEOF\necho ok"), [[["cat"]], [["echo", "ok"]]])
+T("subset: a loop, a condition and a group give the commands between their words", wordTexts("until test -f a; do sleep 5; done; if ! b; then { c; }; else d; fi"), [[["test", "-f", "a"]], [["sleep", "5"]], [["b"]], [["c"]], [["d"]]])
+T("subset: a structure word is a plain word after the command word, and in a quote", wordTexts("echo done fi; 'if' x"), [[["echo", "done", "fi"]], [["if", "x"]]])
+T("subset: a subshell is a command with no word, and its list is a script", [wordTexts("(a; b) | c"), readCommand("(a; b) | c").list[0][0].scripts.length], [[[[], ["c"]]], 1])
+T("subset: a shell reads its -c word and its heredoc as a script", [readCommand("bash -c 'git status'").list[0][0].scripts.length, readCommand("bash -e <<'EOF'\ngit status\nEOF").list[0][0].scripts.length, readCommand("cat <<'EOF'\ngit status\nEOF").list[0][0].scripts.length], [1, 1, 0])
+T("subset: a script that is not modelled makes its command not modelled", [readCommand("bash -c 'echo $((1))'").notModelled, readCommand("bash <<'EOF'\necho `date`\nEOF").notModelled], ["an arithmetic expansion `$((`", "a backtick substitution"])
 T("git: a data heredoc that names a push, after a plain command with -c and a variable, allows", checkGitCommand("grep -c \"$pattern\" notes.md && git commit -F - <<'EOF'\nNever run git push origin main.\nEOF"), null)
-T("git: the fail-closed refusal names the construct and the plain form", ["a here-string", "plain form", "bash /abs/path.sh"].every((text) => (checkGitCommand('bash <<<$"git push origin main"')?.message ?? "").includes(text)), true)
-// The same constructs with no forbidden git command in the text are plain commands, and they pass.
+T(`git: cat <<<'${NV}' is not modelled`, checkGitCommand(`cat <<<'${NV}'`)?.notModelled, HERE_STRING)
+T("git: the not-modelled refusal names the construct, the plain subset and the script file", ["a here-string", "plain subset", "bash /abs/path.sh"].every((text) => (checkGitCommand('bash <<<$"git push origin main"')?.message ?? "").includes(text)), true)
+// The same constructs with no forbidden git command in the text are refused too: the reader does not read them, so it proves nothing about them.
 for (const command of ['bash <<<$"git status"', 'grep -c push <<<"$output"', "echo $$'x' ; git push origin feature/x", "cat <<-'EOF'\n\tgit push origin main\n\tEOF", "echo $((1<<2)) && git status",
   "printf $'\\x1b[31m%s\\n' red && git log -1", "diff <(sort a) <(sort b) && git status"]) {
-  T(`git: ${command} allows`, checkGitCommand(command), null)
+  T(`git: ${command} is not modelled`, typeof checkGitCommand(command)?.notModelled, "string")
 }
+// Each command of the round 12 review. The reader at that head allowed each of the first two groups.
+const REVIEW_GIT_REFUSED = [
+  "bash -c $'git\\tpush\\torigin\\tm\\x61in'", "bash <<<$'git\\tpush\\torigin\\tm\\x61in'", "bash -c $'git\\cIpush\\cIorigin\\cImain'", "bash -c $'echo\\cJgit push origin main'",
+  "(( x = 1 <<true ))\ngit push origin main\ntrue", "echo ${x:- <<true }\ngit push origin main\ntrue", "echo $[ 1 <<true ]\ngit push origin main\ntrue",
+  "git \\\npush origin main", "git \\\ncommit -n -m x", "git push \\\norigin",
+  "=git push origin main", "/usr/bin/gi? push origin main", "/usr/bin/gi[t] push origin main", "git push origin $(echo main)", "git push origin `echo main`", 'B=main; git push origin "$B"', "git push origin m{a,}in",
+  "git commit -m x '-n'", 'git commit -m x "-n"', "git commit -m x \\-n", "git --no-pager commit -n -m x", "git -c commit.gpgSign=false commit -m x", "git -c commit.gpgsign=no commit -m x",
+  "git -c commit.gpgsign=off commit -m x", "git -c commit.gpgsign=0 commit -m x", "git -c commit.GPGSIGN= commit -m x", "git -c core.hookspath=/dev/null commit -m x", `git commit ${NV.slice(0, 9)} -m x`,
+  // The limits that the round 12 body listed as allowed.
+  "(cat <<'EOF'\ngit push origin main\nEOF\n) | bash", "{ cat <<'EOF'\ngit push origin main\nEOF\n} | bash", "echo \"$(cat <<'EOF'\ngit push origin main\nEOF\n)\" | bash", "cat <<'EOF' |\ngit push origin main\nEOF\nbash",
+  "env $(cat <<'EOF'\ngit push origin main\nEOF\n)", "x= $(cat <<'EOF'\ngit push origin main\nEOF\n)", "git push origin {fd}>/dev/null", "{git,push,origin,main}", "g=git; $g push origin main",
+  "echo 'git push origin main' | bash", "echo 'git push origin main' | while true; do bash; done", "echo 'git push origin main' | { true; bash; }", "echo main | xargs git push origin", "echo 'git push origin main' | xargs -I{} bash -c '{}'",
+  "bash /dev/stdin <<'EOF'\ngit push origin main\nEOF",
+]
+for (const command of REVIEW_GIT_REFUSED) T(`git review: ${JSON.stringify(command)} is refused`, blocks(checkGitCommand(command, headOnMain)), true)
+const REVIEW_APPROVAL_REFUSED = [
+  "echo $((cat <<EOF\n'\nEOF\n) ); rm -rf \"$TMP\" # '", "bash <<<$'rm\\t-rf\\t\\x24TMP'", "(( x = 1 <<true ))\nrm -rf \"$TMP\"\ntrue",
+  "bash -c \"cat <<X\n'\nX\nrm -rf \\\"\\$TMP\\\" # '\"", "eval \"cat <<X\n'\nX\nrm -rf \\\"\\$TMP\\\" # '\"", "bash <<'EOF'\ncat <<X\n'\nX\nrm -rf \"$TMP\" # '\nEOF",
+  "echo 'rm -rf \"$TMP\"' | bash", "=rm -rf \"$TMP\"", "/bin/r? -rf \"$TMP\"", "r{m,} -rf \"$TMP\"",
+]
+// The approval rows run in the loop below the approval options.
+// A hygiene flag counts only as a flag of a git command in the parsed words: the same text in an argument of another program is data.
+const REVIEW_GIT_ALLOWED = [`grep -rn "git commit ${NV}" .claude`, `echo 'git commit ${NV} is refused'`, `gh pr comment 1 --body 'The hook refuses git push ${NV}.'`, "echo 'git commit -n skips the hooks'",
+  `echo git commit ${NV}`, "git commit -mnote", "git commit -m 'run -n later'", `git commit -m 'never pass ${NV}'`, "git log -n 5", "git commit -uno -m x", "which git && man git-push"]
+for (const command of REVIEW_GIT_ALLOWED) T(`git review: ${JSON.stringify(command)} allows`, checkGitCommand(command), null)
 // git worktree remove --force follows a Windows junction and deletes the target.
 T("git-worktree: --force blocks", blocks(checkGitWorktreeRemove("git worktree remove --force .claude/worktrees/x")), true)
 T("git-worktree: no force allows", checkGitWorktreeRemove("git worktree remove .claude/worktrees/x"), null)
@@ -671,8 +784,8 @@ const approvalRules = [
   ["critical-path", "rm -rf /tmp", "rm -rf /tmp/orbit-build"],
   ["working-directory", "rm -rf .", "rm -rf dist"],
   ["mounted-drive", "rm -rf /Volumes/Backup", "rm -rf /Volumes/Backup/orbit/old"],
-  ["unreadable-script", 'bash -c "alias wipe=rm; rm -rf dist"', "rm -rf dist"],
-  ["unmodelled-construct", 'bash <<<$"rm -rf \\"\\$TMP\\""', "rm -rf /tmp/orbit-build"],
+  ["unreadable-script", `bash -c 'rm -rf dist; echo ${"x".repeat(2000)}'`, "rm -rf dist"],
+  ["not-modelled", 'bash <<<$"rm -rf \\"\\$TMP\\""', "rm -rf /tmp/orbit-build"],
 ]
 T("approval: every removal rule has a refusal case", approvalRules.map(([rule]) => rule), REMOVAL_RULES.map((rule) => rule.name))
 // The README rule table names each rule and the `covers` text of its refusal, so a changed rule fails here.
@@ -689,6 +802,7 @@ for (const [rule, refused, rewritten] of approvalRules) {
   T(`approval ${rule}: refused again with the rule restored`, refusedBy(refused, { ...approvalOptions, rules: REMOVAL_RULES }), rule)
   T(`approval ${rule}: the rewrite passes`, refusedBy(rewritten), null)
 }
+let modelledRefusals = 0
 for (const [command, rule] of [
   ['for d in web mobile; do rm "$DST/$d/node_modules"; done', "variable-path"],
   ["rm -rf $1", "variable-path"],
@@ -748,28 +862,36 @@ for (const [command, rule] of [
   ['r\\m -rf "$TMP"', "variable-path"],
   // `<<-` removes the leading tabs of the end marker line, so the body ends at line 3 and the shell runs line 4.
   ["cat <<-'EOF'\n\tdata\n\tEOF\nrm -rf \"$TMP\"\nEOF", "variable-path"],
-  // The reader fails closed on a construct that it does not model exactly in bash and in zsh: a run of `$` before `'`,
-  // a `$"..."` quote, a here-string, a heredoc with no exact end marker, and a quote in the name of a shell.
-  ["echo \\$$$'a\\'b' ; rm -rf \"$TMP\" # '", "unmodelled-construct"],
-  ["echo \\\\\\$$$'a\\'b' ; rm -rf \"$TMP\" # '", "unmodelled-construct"],
-  ["echo \\$$$$$'a\\'b' ; rm -rf \"$TMP\" # '", "unmodelled-construct"],
-  ["echo $$$'a\\' ; rm -rf \"$TMP\" # '", "unmodelled-construct"],
-  ["echo \\$$'a\\' ; rm -rf \"$TMP\" # '", "unmodelled-construct"],
-  ['bash <<<$"rm -rf \\"\\$TMP\\""', "unmodelled-construct"],
-  [`cat <<<'rm -rf "$TMP"'`, "unmodelled-construct"],
-  [`cat <<<'rm -rf "$TMP"' | bash`, "unmodelled-construct"],
-  ["echo $$'x\\' <<EOF ; echo '\nrm -rf \"$TMP\"\nEOF", "unmodelled-construct"],
-  ["cat <<'EOF'\ndata\nEOF \nrm -rf \"$TMP\"\nEOF", "unmodelled-construct"],
-  [`bash <<<$'\\x72m -rf "$TMP"'`, "unmodelled-construct"],
+  // Each construct outside the modelled subset is refused as not modelled: a run of `$` before `'`, a `$"..."` quote,
+  // a here-string, a heredoc with no exact end marker, and `eval`.
+  ["echo \\$$$'a\\'b' ; rm -rf \"$TMP\" # '", "not-modelled"],
+  ["echo \\\\\\$$$'a\\'b' ; rm -rf \"$TMP\" # '", "not-modelled"],
+  ["echo \\$$$$$'a\\'b' ; rm -rf \"$TMP\" # '", "not-modelled"],
+  ["echo $$$'a\\' ; rm -rf \"$TMP\" # '", "not-modelled"],
+  ["echo \\$$'a\\' ; rm -rf \"$TMP\" # '", "not-modelled"],
+  ['bash <<<$"rm -rf \\"\\$TMP\\""', "not-modelled"],
+  [`cat <<<'rm -rf "$TMP"'`, "not-modelled"],
+  [`cat <<<'rm -rf "$TMP"' | bash`, "not-modelled"],
+  ["echo $$'x\\' <<EOF ; echo '\nrm -rf \"$TMP\"\nEOF", "not-modelled"],
+  ["cat <<'EOF'\ndata\nEOF \nrm -rf \"$TMP\"\nEOF", "not-modelled"],
+  [`bash <<<$'\\x72m -rf "$TMP"'`, "not-modelled"],
   // `eval` joins its words and reads them again, so the value of the variable is code. A `<<` with no end marker line takes the rest as its body in one reading.
-  [`eval 'echo 'rm -rf "$TMP"''`, "unmodelled-construct"],
+  [`eval 'echo 'rm -rf "$TMP"''`, "not-modelled"],
   [`eval 'eval 'rm -rf "$TMP"''`, "variable-path"],
-  ["bash -c 'echo $'x\\' <<EOF ; echo '\nrm -rf \"$TMP\"\nEOF'", "unmodelled-construct"],
+  ["bash -c 'echo $'x\\' <<EOF ; echo '\nrm -rf \"$TMP\"\nEOF'", "not-modelled"],
   // A script from `/dev/stdin`, and a process substitution that gives a shell its script.
-  ["source /dev/stdin <<'EOF'\nrm -rf \"$TMP\"\nEOF", "unmodelled-construct"],
-  ["bash <(cat <<'EOF'\nrm -rf \"$TMP\"\nEOF\n)", "unmodelled-construct"],
-]) T(`approval: ${command} is refused by ${rule}`, refusedBy(command), rule)
-T("approval: the fail-closed refusal names the construct and the plain form", ["a here-string", "plain form", "literal path"].every((text) => (checkApprovalPrompt(`cat <<<'rm -rf "$TMP"'`, approvalOptions)?.message ?? "").includes(text)), true)
+  ["source /dev/stdin <<'EOF'\nrm -rf \"$TMP\"\nEOF", "not-modelled"],
+  ["bash <(cat <<'EOF'\nrm -rf \"$TMP\"\nEOF\n)", "not-modelled"],
+]) {
+  // A command outside the subset is refused before a removal rule reads it.
+  const expected = isModelled(command) ? rule : "not-modelled"
+  modelledRefusals += isModelled(command) ? 1 : 0
+  T(`approval: ${command} is refused by ${expected}`, refusedBy(command), expected)
+}
+T("approval: the count of refused rows that the subset models, each refused by its removal rule", modelledRefusals, 55)
+for (const command of REVIEW_APPROVAL_REFUSED) T(`approval review: ${JSON.stringify(command)} is refused`, refusedBy(command), "not-modelled")
+T("approval: the not-modelled refusal names the construct, the plain subset and the script file", ["a here-string", "plain subset", "literal path"].every((text) => (checkApprovalPrompt(`cat <<<'rm -rf "$TMP"'`, approvalOptions)?.message ?? "").includes(text)), true)
+let modelledPasses = 0
 for (const command of [
   "rm -rf build",
   "rm -rf node_modules && npm ci",
@@ -808,7 +930,13 @@ for (const command of [
   // `-c` with a variable is a script only after a shell word.
   "grep -c \"$pattern\" notes.md; cat > clean.sh <<'EOF'\nrm -rf \"$TMP\"\nEOF",
   ...HEREDOC_DATA.map((row) => heredocCommand(row, 'rm -rf "$TMP"')),
-]) T(`approval: ${command} passes`, refusedBy(command), null)
+]) {
+  // A command outside the subset is refused as not modelled, also when it runs no removal that Claude Code holds.
+  const expected = isModelled(command) ? null : "not-modelled"
+  modelledPasses += isModelled(command) ? 1 : 0
+  T(`approval: ${command} ${expected ? "is not modelled" : "passes"}`, refusedBy(command), expected)
+}
+T("approval: the count of safe rows that the subset models, each one allowed", modelledPasses, 35)
 // Property: for each command of a generated set, the hooks refuse it, or a direct reading proves that it runs no dangerous command.
 // The set puts `git push origin main` and `rm -rf "$TMP"` into each pair of the constructs below, one inside the other and one after the other.
 const DANGEROUS_COMMANDS = ["git push origin main", 'rm -rf "$TMP"']
@@ -950,8 +1078,9 @@ T("property: the direct reading proves commands whose dangerous text is data", [
 T("property: the direct reading proves no command that runs the text or that it cannot read", ["git push origin main", "echo ok ; rm -rf \"$TMP\"", "bash -c 'git push origin main'", "cat <<'EOF' | bash\ngit push origin main\nEOF",
   "eval 'eval 'rm -rf \"$TMP\"''", "eval echo $X", "bash", "cat <<'EOF' ; bash\necho ok\nEOF", "bash <<EOF\necho ok\nEOF", "echo $$'a' ; echo b", "echo $'\\x67'", "cat <<<'x'", "cat <<'EOF'\nx\nEOF \nEOF",
   "cat <<-'EOF'\n\tx\n\tEOF\ngit push origin main"].map((command) => provesNoDangerousCommand(command)), Array(14).fill(false))
-// The guard broken: without the fail-closed rule, a generated removal passes with no proof. The full rule set above restores it.
-T("property: with the fail-closed rule removed, a generated command passes with no proof", passesWithNoProof(REMOVAL_RULES.filter((rule) => rule.name !== "unmodelled-construct")).length > 0, true)
+// The guard broken: without the not-modelled rule, a generated removal passes with no proof. The full rule set restores it.
+const removalPassesWithNoProof = (rules) => GENERATED_COMMANDS.filter((command) => command.includes("rm -rf") && refusedBy(command, { ...approvalOptions, rules }) === null && !provesNoDangerousCommand(command))
+T("property: with the not-modelled rule removed, the approval rule passes a generated removal with no proof", [removalPassesWithNoProof(REMOVAL_RULES.filter((rule) => rule.name !== "not-modelled")).length > 0, removalPassesWithNoProof(REMOVAL_RULES)], [true, []])
 T("approval windows: the top level of a drive is critical", refusedBy("rm -rf C:/work", { ...approvalOptions, cwd: "C:\\work\\repo", windows: true }), "critical-path")
 T("approval windows: a deeper drive path passes", refusedBy("rm -rf C:/work/other/build", { ...approvalOptions, cwd: "C:\\work\\repo", windows: true }), null)
 T("approval: a non-string command passes", checkApprovalPrompt(undefined, approvalOptions), null)
@@ -1078,13 +1207,16 @@ for (const wrap of isolatedDirectoryBodies) {
     [`cd ${installedPackage}; ${wrap("git push origin main")}`, root, true],
     [`${wrap("git push origin main")}; cd ${installedPackage}`, root, false],
     [`${wrap(`cd ${installedPackage}`)}; git push origin main`, root, false],
-  ]) T(`git scope: ${command}`, blocks(checkGitCommand(command, { cwd, resolveRemoteUrl })), expected)
+    // A body that the subset does not model is refused wherever its push goes.
+  ]) T(`git scope: ${command}`, blocks(checkGitCommand(command, { cwd, resolveRemoteUrl })), expected || !isModelled(command))
 }
+T("subset: the isolated bodies that the subset models", isolatedDirectoryBodies.map((wrap) => isModelled(wrap("true"))), [true, false, true, true, true, true, true, true, false])
 T("dependency scope: eval changes the parent directory", blocks(dependencyCommand("eval 'cd node_modules/react-native'; touch package.json")), true)
 T("dependency scope: eval can leave the installed package", checkDependencyCommand(`eval 'cd ${root}'; touch package.json`, { cwd: installedPackage }), null)
 const scopeRemote = (directory) => directory === root ? "https://example.invalid/other.git" : "https://example.invalid/orbit-ui-mobile.git"
 T("git scope: eval changes the parent directory", blocks(checkGitCommand(`eval 'cd ${installedPackage}'; git push origin main`, { cwd: root, resolveRemoteUrl: scopeRemote })), true)
-T("git scope: eval can leave a protected repository", checkGitCommand(`eval 'cd ${root}'; git push origin main`, { cwd: installedPackage, resolveRemoteUrl: scopeRemote }), null)
+T("git scope: eval is not modelled, also when it leaves a protected repository", checkGitCommand(`eval 'cd ${root}'; git push origin main`, { cwd: installedPackage, resolveRemoteUrl: scopeRemote })?.notModelled.includes("the builtin `eval`"), true)
+T("git scope: a plain cd can leave a protected repository", checkGitCommand(`cd ${root}; git push origin main`, { cwd: installedPackage, resolveRemoteUrl: scopeRemote }), null)
 const interpreterReads = [
   `node -e 'require("fs").readFileSync("node_modules/js-yaml/package.json", "utf8")'`,
   `node -e 'require("node_modules/js-yaml/package.json")'`,
@@ -1805,10 +1937,15 @@ for (const wrap of isolatedDirectoryBodies) {
     [`cd ${scopedProtectedRepo}; ${wrap(`cd ${scopedOtherRepo}`)}; git push origin main`, root, 2],
     [`cd ${scopedProtectedRepo}; ${wrap("git push origin main")}`, root, 2],
     [`${wrap("git push origin main")}; cd ${scopedProtectedRepo}`, scopedOtherRepo, 0],
-  ]) T(`adapter git scope: ${command}`, runHook("git-guardrails.mjs", bash(command, cwd)), expected)
+  ]) T(`adapter git scope: ${command}`, runHook("git-guardrails.mjs", bash(command, cwd)), isModelled(command) ? expected : 2)
 }
 T("adapter git scope: eval can enter a protected repository", runHook("git-guardrails.mjs", bash(`eval 'cd ${scopedProtectedRepo}'; git push origin main`, scopedOtherRepo)), 2)
-T("adapter git scope: eval can leave a protected repository", runHook("git-guardrails.mjs", bash(`eval 'cd ${scopedOtherRepo}'; git push origin main`, scopedProtectedRepo)), 0)
+T("adapter git scope: eval is not modelled -> 2", runHook("git-guardrails.mjs", bash(`eval 'cd ${scopedOtherRepo}'; git push origin main`, scopedProtectedRepo)), 2)
+T("adapter git scope: a plain cd can leave a protected repository -> 0", runHook("git-guardrails.mjs", bash(`cd ${scopedOtherRepo}; git push origin main`, scopedProtectedRepo)), 0)
+T("adapter git-guardrails: a command word that zsh expands to git -> 2", runHook("git-guardrails.mjs", bash("=git push origin main", scopedOtherRepo)), 2)
+T("adapter git-guardrails: a line continuation after the git word -> 2", runHook("git-guardrails.mjs", bash("git \\\npush origin main", scopedOtherRepo)), 2)
+T("adapter git-guardrails: a quoted -n on a commit -> 2", runHook("git-guardrails.mjs", bash("git commit -m x '-n'", scopedOtherRepo)), 2)
+T("adapter git-guardrails: a grep for a git command with the flag -> 0", runHook("git-guardrails.mjs", bash(`grep -rn "git commit ${NV}" .claude`, scopedOtherRepo)), 0)
 const edit = (toolName, filePath) => ({ tool_name: toolName, tool_input: { file_path: filePath }, cwd: dependencyTree })
 T("adapter dependency-write: Write inside node_modules -> 2", runHook(DEPENDENCY, edit("Write", installedFile)), 2)
 T("adapter dependency-write: Edit through a relative path -> 2", runHook(DEPENDENCY, edit("Edit", "node_modules/react-native/flags.kt")), 2)
@@ -1926,7 +2063,7 @@ T("adapter approval: the held removal in an unattended run -> 2", refusedRemoval
 T("adapter approval: the refusal tells the agent how to rewrite the command", refusedRemoval.stderr.includes('"${DST:?}/${d:?}/node_modules"') && refusedRemoval.stderr.includes("literal path"), true)
 const refusedUnmodelled = approvalHook({ ...heldRemoval(), tool_input: { command: 'bash <<<$"rm -rf \\"\\$TMP\\""' } })
 T("adapter approval: a removal in a construct that the reader does not model -> 2", refusedUnmodelled.status, 2)
-T("adapter approval: that refusal asks for the plain form", refusedUnmodelled.stderr.includes("plain form"), true)
+T("adapter approval: that refusal names the construct and asks for the plain subset", refusedUnmodelled.stderr.includes("a here-string") && refusedUnmodelled.stderr.includes("plain subset"), true)
 // Claude Code runs its removal check for the Bash tool and the Monitor tool, and the guarded rewrite is Bash syntax.
 T("adapter approval: a PowerShell command is outside the removal check -> 0", approvalHook(heldRemoval("PowerShell")).status, 0)
 const monitorRemoval = { ...heldRemoval("Monitor"), tool_input: { command: 'until test -f "$OUT/done"; do sleep 5; done; rm -rf "$OUT/$d"', description: "Wait for the build", timeout_ms: 300000 } }

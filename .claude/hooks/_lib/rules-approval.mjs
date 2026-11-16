@@ -7,8 +7,7 @@
 import { homedir } from "node:os"
 import { posix } from "node:path"
 
-import { commandWords, hereStringTexts, inspectCommands, looseReadings, withoutRedirects } from "./command-expander.mjs"
-import { SHELLS, stripHeredocBodies, unmodelledConstruct } from "./rules-git.mjs"
+import { invocationsOf, PLAIN_SUBSET_ADVICE, programName, readCommand, SHELLS, SUBSTITUTION, walkCommands } from "./command-expander.mjs"
 
 /** The tools whose permission check runs the Claude Code removal check. Each one takes the shell command as `tool_input.command`. */
 export const REMOVAL_CHECK_TOOLS = ["Bash", "Monitor"]
@@ -22,35 +21,27 @@ export const PERSON_PROMPT_TOOLS = ["AskUserQuestion", "OfferChromeSetup", "Publ
 /** The launcher exports this into every worker it starts (tools/launch-worker.mjs). A worker is headless. */
 const LAUNCHER_MARKER = "ORBIT_LAUNCH_WORKER"
 
-/** Words the shell reads before a command, and programs that run the command that follows them. */
-const CONTROL_WORDS = new Set(["do", "then", "else", "elif", "if", "while", "until", "!", "{", "coproc"])
-const WRAPPERS = new Set(["sudo", "doas", "exec", "command", "builtin", "noglob", "env", "nice", "nohup", "busybox", "time", "timeout", "stdbuf", "setsid", "ionice", "pkexec", "runuser", "xargs"])
-const ASSIGNMENT = /^[A-Za-z_][A-Za-z0-9_]*\+?=/
 const REDIRECT = /^[\d&]*[<>]/
 const BARE_REDIRECT = /^(?:\d+|&)?(?:>>?[|&]?|<<?<?|<>)$/
-const FIND_EXEC = /^-(?:exec|execdir|ok|okdir)$/
 const EXPANSION = /^\$(?:\{([^}]*)\}|([A-Za-z_][A-Za-z0-9_]*|[0-9@*#?!$-]))/
 const GUARDED = /^(?:[A-Za-z_][A-Za-z0-9_]*|[0-9]+):\?/
 const SIMPLE_NAME = /^(?:[A-Za-z_][A-Za-z0-9_]*|[0-9]+)$/
 const BRACE_EXPANSION = /\{[^{}]*(?:,|\.\.)[^{}]*\}/
-const INLINE_SCRIPT = new RegExp(`(?:^|[\\s;&|(])(?:(?:[^\\s=]*\\/)?(?:${SHELLS.join("|")})\\s+(?:\\S+\\s+)*?-[A-Za-z]*c|eval|trap)(?=\\s)`)
-const UNREADABLE_SCRIPT = /\balias\b|\bIFS\b|\bfunction\b|\w\s*\(\s*\)|\$'/
+const INLINE_SCRIPT = new RegExp(`(?:^|[\\s;&|(])(?:[^\\s=]*\\/)?(?:${SHELLS.join("|")})\\s+(?:\\S+\\s+)*?-[A-Za-z]*c(?=\\s)`)
 const INLINE_SCRIPT_MAX_LENGTH = 2000
 const MOUNTED_DRIVE = /^\/(?:system\/)?volumes(?:\/[^/]+){0,2}$|^\/mnt\/(?:[^/]+|[a-z]\/[^/]+)$|^\/(?:run\/)?media(?:\/[^/]+){0,3}$/i
 const TRAILING_STARS = /(?:\/\*+)+\/*$/
 const ROOTED = /^(?:[\\/]|[A-Za-z]:[\\/])/
 
-/** The program that a word names. The shell removes each quote from the word first, and a backslash is a path separator of Windows. */
-const programName = (word) => word.replace(/\$?["']/g, "").replace(/^\\/, "").split(/[\\/]/).pop().replace(/\.exe$/i, "").toLowerCase()
-/** `rm` or `rmdir` when the word names one, also with an escape inside the name, such as `r\m`. */
-const removalProgram = (word) => [programName(word), programName(word.replaceAll("\\", ""))].find((name) => ["rm", "rmdir"].includes(name)) ?? null
+/** `rm` or `rmdir` when the parsed word names one. */
+const removalProgram = (word) => ["rm", "rmdir"].find((name) => name === programName(word.text)) ?? null
 
 /**
  * One command word as the shell reads it: `value` with the quotes removed and each expansion kept as written,
  * `bare` holding only the unquoted characters, and every `$` expansion outside single quotes.
  */
 function readWord(raw) {
-  const word = { raw, value: "", bare: "", expansions: [], substitution: /__substitution__|__subshell__/.test(raw) }
+  const word = { raw, value: "", bare: "", expansions: [], substitution: raw.includes(SUBSTITUTION) }
   let quote = ""
   for (let index = 0; index < raw.length; index++) {
     const character = raw[index]
@@ -65,7 +56,6 @@ function readWord(raw) {
       continue
     }
     if (character === '"' || character === "'") { quote = quote ? "" : character; continue }
-    if (character === "`") word.substitution = true
     const expansion = character === "$" ? EXPANSION.exec(raw.slice(index)) : null
     if (expansion) {
       const name = expansion[1] ?? expansion[2]
@@ -80,30 +70,9 @@ function readWord(raw) {
   return word
 }
 
-/** Every `rm` or `rmdir` a word list runs: behind control words, assignments and wrappers, and after `find -exec`. */
-function removalInvocations(words) {
-  const invocations = []
-  const collect = (start) => {
-    let index = start
-    while (index < words.length && (CONTROL_WORDS.has(words[index]) || ASSIGNMENT.test(words[index]))) index++
-    while (index < words.length && WRAPPERS.has(programName(words[index]))) {
-      index++
-      while (index < words.length && !removalProgram(words[index]) && !WRAPPERS.has(programName(words[index]))) {
-        const word = words[index]
-        if (word.startsWith("-")) {
-          const value = words[index + 1]
-          index += value !== undefined && !value.startsWith("-") && !value.includes("=") && !removalProgram(value) && !WRAPPERS.has(programName(value)) ? 2 : 1
-        } else if (ASSIGNMENT.test(word) || /^\d/.test(word)) index++
-        else break
-      }
-    }
-    const program = index < words.length ? removalProgram(words[index]) : null
-    if (program) invocations.push({ program, args: words.slice(index + 1) })
-  }
-  collect(0)
-  words.forEach((word, index) => { if (FIND_EXEC.test(word)) collect(index + 1) })
-  return invocations
-}
+/** Every `rm` or `rmdir` that the parsed words of a command run: behind assignments and wrappers, and after `find -exec`. Each argument is the word as written. */
+const removalInvocations = (words) => invocationsOf(words).filter(({ program }) => removalProgram(program))
+  .map(({ program, args }) => ({ program: removalProgram(program), args: args.map((word) => word.raw) }))
 
 /** The operands of one removal: flags, redirects and the `find -exec` terminator are not targets. */
 function removalTargets({ args }) {
@@ -119,28 +88,6 @@ function removalTargets({ args }) {
     else targets.push(readWord(word))
   }
   return { flags, targets }
-}
-
-/** A string that a shell reads again as a script: a `trap` body, and a `-c` body behind another program. */
-function nestedScripts(words) {
-  const scripts = []
-  const values = words.map((word) => readWord(word).value)
-  words.forEach((word, index) => {
-    if (index === 0 || !SHELLS.includes(programName(word))) return
-    const flag = words.findIndex((candidate, position) => position > index && /^-[A-Za-z]*c[A-Za-z]*$/.test(candidate))
-    if (flag > 0 && values[flag + 1] !== undefined) scripts.push(values[flag + 1])
-  })
-  if (programName(words[0] ?? "") === "trap") {
-    const body = values.slice(1).find((value) => !value.startsWith("-"))
-    if (body !== undefined) scripts.push(body)
-  }
-  return scripts
-}
-
-/** The text of each here-string that a shell in the command reads as its script. A here-string to a command that is no shell is text. */
-function hereStringScripts(segment) {
-  const readByShell = commandWords(withoutRedirects(segment, { keepHereStrings: false })).some((word) => SHELLS.includes(programName(word)))
-  return readByShell ? hereStringTexts(segment) : []
 }
 
 /** One spelling for a path: forward slashes, `C:/x` as the `/c/x` of Git Bash, and the macOS `/private` aliases removed. */
@@ -245,25 +192,17 @@ export const REMOVAL_RULES = [
   },
   {
     name: "unreadable-script",
-    judgeCommand: ({ command }) => {
-      const read = stripComments(stripHeredocBodies(command))
-      return read === null || (INLINE_SCRIPT.test(read) && (UNREADABLE_SCRIPT.test(read) || command.length > INLINE_SCRIPT_MAX_LENGTH))
-      ? refuse("inline_shell_unchecked, eval_trap_string, unparsed_line", "the command runs a removal inside a script or a quoted string that no check can read with certainty",
+    judgeCommand: ({ command }) => INLINE_SCRIPT.test(command) && command.length > INLINE_SCRIPT_MAX_LENGTH
+      ? refuse("inline_shell_unchecked, eval_trap_string, unparsed_line", "the command runs a removal with an inline script that is too long for a check to read with certainty",
         "Run each removal as its own direct command, with a literal path.")
-        : null
-    },
+      : null,
   },
   {
-    // Fail closed: the rules above read the command exactly only for the constructs that the reader models.
-    name: "unmodelled-construct",
-    judgeUnread: (context, rules) => {
-      const construct = unmodelledConstruct(context.command)
-      const held = construct ? looseReadings(context.command).map((text) => looseRemoval(text, context, rules)).find(Boolean) : null
-      return held
-        ? refuse("inline_shell_unchecked, unparsed_line", `the command uses ${construct}, which no check reads with certainty in bash and in zsh, and its text holds the removal ${held.segment.slice(0, 120)}: ${held.why}`,
-          "Rewrite the command in a plain form: each removal as its own direct command with a literal path, with no here-string, no heredoc, no `$\"...\"` quote, no `$` before `$'`, and no quote or escape in a program name.")
-        : null
-    },
+    // Fail safe: the rules above read only the parsed words of the modelled subset, so a command outside it has no reading.
+    name: "not-modelled",
+    judgeUnread: ({ notModelled }) => notModelled
+      ? refuse("inline_shell_unchecked, unparsed_line", `the command holds ${notModelled}, which is outside the plain shell subset that the hook reads exactly`, PLAIN_SUBSET_ADVICE)
+      : null,
   },
 ]
 
@@ -273,26 +212,6 @@ function placeTarget(target, { directory, home }) {
   if (literal.includes("$")) return null
   const full = canonical(ROOTED.test(literal) ? literal : `${directory}/${literal}`)
   return { full, base: full.replace(TRAILING_STARS, "") || "/" }
-}
-
-/** The source as the shell reads it, with no `#` comment: an apostrophe in a comment opens no quote. Null when a quote stays open. */
-function stripComments(source) {
-  let read = ""
-  let quote = ""
-  for (let index = 0; index < source.length; index++) {
-    const character = source[index]
-    if (character === "\\" && quote !== "'") { read += source.slice(index, index + 2); index++; continue }
-    if (quote) { if (character === quote) quote = "" }
-    else if (character === '"' || character === "'") quote = character
-    else if (character === "#" && (index === 0 || /[\s;|&()]/.test(source[index - 1]))) {
-      const lineEnd = source.indexOf("\n", index)
-      if (lineEnd < 0) break
-      index = lineEnd - 1
-      continue
-    }
-    read += character
-  }
-  return quote === "" ? read : null
 }
 
 /** The first refusal of a rule for one removal, or null. `placed` holds the directory in which the removal runs. */
@@ -308,44 +227,29 @@ function judgeInvocation(invocation, segment, placed, rules) {
   return null
 }
 
-/**
- * The first refusal in a text of `looseReadings`: each `rm` or `rmdir` word counts as a removal, wherever it is in its command.
- * The directory can differ from the session directory, so a relative glob is not resolvable.
- */
-function looseRemoval(text, context, rules) {
-  for (const segment of text.split(/[;&|\n]+/)) {
-    const words = commandWords(segment)
-    for (const [index, word] of words.entries()) {
-      const program = removalProgram(word)
-      const refusal = program && judgeInvocation({ program, args: words.slice(index + 1) }, segment, { ...context, moved: true }, rules)
-      if (refusal) return refusal
-    }
-  }
-  return null
-}
-
-/** The first refusal in `source`, with the count of removals it runs; a nested script is read in the directory that reaches it. */
-function inspectRemovals(source, context, rules) {
+/** The first refusal in the parsed `list`, with the count of removals it runs; a nested script is read in the directory that reaches it. */
+function inspectRemovals(list, context, rules) {
   let found = null
   let removals = 0
-  inspectCommands(stripHeredocBodies(source), { directory: context.directory, moved: false }, (segment, state) => {
-    const words = commandWords(segment)
-    for (const script of [...nestedScripts(words), ...hereStringScripts(segment)]) {
-      const nested = inspectRemovals(script, { ...context, directory: state.directory }, rules)
-      removals += nested.removals
-      found ??= nested.found
-    }
+  walkCommands(list, { directory: context.directory, moved: false }, ({ words }, state) => {
     for (const invocation of removalInvocations(words)) {
       removals++
-      found ??= judgeInvocation(invocation, segment, { ...context, ...state }, rules)
+      found ??= judgeInvocation(invocation, words.map((word) => word.raw).join(" "), { ...context, ...state }, rules)
     }
-    const program = programName(readWord(words[0] ?? "").value)
+    const program = programName(words[0]?.text)
     if (!["cd", "pushd", "popd"].includes(program)) return state
-    const destination = readWord(words[1] ?? "")
-    const known = program === "cd" && words[1] !== undefined && destination.expansions.length === 0 && !destination.substitution
-    return { moved: true, directory: known ? canonical(ROOTED.test(destination.value) ? destination.value : `${state.directory}/${destination.value}`) : state.directory }
+    const destination = words[1]
+    const known = program === "cd" && destination !== undefined && !destination.dynamic
+    return { moved: true, directory: known ? canonical(ROOTED.test(destination.text) ? destination.text : `${state.directory}/${destination.text}`) : state.directory }
   })
   return { found, removals }
+}
+
+/** The parsed commands as text, for a rule that reads the whole command: each assignment and each word as written, and no heredoc body. */
+function parsedText(list) {
+  const commands = []
+  walkCommands(list, null, ({ assignments, words }) => { commands.push([...assignments, ...words].map((word) => word.source).join(" ")); return null })
+  return commands.join(" ; ")
 }
 
 /** A run that no person watches: a launched worker, or the session that owns a `sleep: true` run record, with its subagents. */
@@ -379,29 +283,33 @@ export function checkPersonPrompt(toolName) {
  * @returns `{ block, message, rule }` when Claude Code would hold the command for an approval, else null
  */
 export function checkApprovalPrompt(command, { cwd = "", home = homedir(), workingDirectories = [], rules = REMOVAL_RULES, windows = process.platform === "win32" } = {}) {
-  if (typeof command !== "string" || ![command, ...looseReadings(command)].some((text) => /rm/i.test(text))) return null
+  if (typeof command !== "string") return null
   const directory = canonical(cwd || "/")
-  const context = { command, directory, windows: windows || /^[A-Za-z]:[\\/]/.test(cwd), home: canonical(home), workingDirectories: [directory, ...workingDirectories.map(canonical)] }
-  const { found, removals } = inspectRemovals(command, context, rules)
+  const { list, notModelled } = readCommand(command)
+  const context = { command: parsedText(list), notModelled, directory, windows: windows || /^[A-Za-z]:[\\/]/.test(cwd), home: canonical(home), workingDirectories: [directory, ...workingDirectories.map(canonical)] }
+  const { found, removals } = inspectRemovals(list, context, rules)
   const whole = removals === 0 ? [] : rules.flatMap((rule) => {
     const refusal = rule.judgeCommand?.(context)
     return refusal ? [{ ...refusal, rule: rule.name, program: "rm", segment: command.trim() }] : []
   })
-  const unread = () => rules.flatMap((rule) => {
-    const judged = rule.judgeUnread?.(context, rules)
-    return judged ? [{ ...judged, rule: rule.name, program: "rm", segment: command.trim() }] : []
+  const unread = rules.flatMap((rule) => {
+    const judged = rule.judgeUnread?.(context)
+    return judged ? [{ ...judged, rule: rule.name, segment: command.trim() }] : []
   })
-  const refusal = found ?? whole[0] ?? unread()[0]
+  const refusal = unread[0] ?? found ?? whole[0]
   if (!refusal) return null
+  const held = refusal.program
+    ? `Refused in an unattended run: Claude Code holds this ${refusal.program} for an approval, and no person is present to give it.`
+    : "Refused in an unattended run: the hook cannot read this command exactly, so it cannot prove that Claude Code holds no part of it for an approval. No person is present to give one."
   return {
     block: true,
     rule: refusal.rule,
     message:
-      `Refused in an unattended run: Claude Code holds this ${refusal.program} for an approval, and no person is present to give it.\n` +
+      `${held}\n` +
       `  ${refusal.segment.slice(0, 240)}\n\n` +
       `Reason: ${refusal.why}.\n` +
       `Claude Code check: dangerous removal (${refusal.covers}). No permission rule allows it without a person.\n\n` +
       `${refusal.rewrite}\n` +
-      "Then run the command again. Do not put the removal in a script file to pass this check.\n",
+      (refusal.program ? "Then run the command again. Do not put the removal in a script file to pass this check.\n" : "Then run the command again.\n"),
   }
 }

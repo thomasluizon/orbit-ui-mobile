@@ -38,7 +38,7 @@ Session hooks block commands or edits before they happen.
 | `handoff-git.mjs` | every `NEXT.md` version a commit could record, and the newest committed one on any branch | require-handoff-prompt |
 | `rules-relay.mjs` | the context relay: drain sources, thresholds, and the superseded session | relay-at-threshold (PostToolUse, Stop), require-wake-source (Stop), forbid-superseded-session (PreToolUse, UserPromptSubmit) |
 | `rules-sleep.mjs` | an unattended run never ends a turn with no live wake source | require-wake-source (Stop) |
-| `command-expander.mjs` | shell bodies read as words and commands, with no part run | the shell rules above |
+| `command-expander.mjs` | the modelled shell subset (`readCommand`) for the git rule and the approval rule, and shell bodies read as words and commands for the other rules, with no part run | the shell rules above |
 | `io.mjs` | payload normalizers | each adapter |
 
 `rules-orchestrator.mjs` is **cost-raising defence in depth and never the control**:
@@ -82,27 +82,38 @@ that each one covers (the `covers` text of its refusal):
 | `working-directory` | `working_directory` |
 | `mounted-drive` | `mounted_drive_path` |
 | `unreadable-script` | `inline_shell_unchecked`, `eval_trap_string`, `unparsed_line` |
-| `unmodelled-construct` | `inline_shell_unchecked`, `unparsed_line` |
+| `not-modelled` | `inline_shell_unchecked`, `unparsed_line` |
 
-`unmodelled-construct` is the fail-closed rule, and `checkGitCommand` in `rules-git.mjs` applies the same reading to the git rules.
-The reader in `command-expander.mjs` reads a command exactly only for the constructs that it models in one way for bash and for zsh.
-`unmodelledConstruct` names each other construct:
+`not-modelled` is the fail-safe rule. The reader is an allow list: `readCommand` in `command-expander.mjs` reads one shell
+subset exactly, the same way in bash and in zsh, and names each other construct as not modelled. The approval rule and
+`checkGitCommand` in `rules-git.mjs` read only the parsed words of that subset, never the text of the command. Each one
+refuses a command outside the subset. The refusal names the construct, and it asks for the plain subset or for a script
+file that the agent runs by its literal path.
 
-- a here-string
-- a `$"..."` quote
-- a run of `$` before a `'`
-- an ANSI-C quote that spells a character as a code
-- a line continuation inside a word
-- a `<<` that is no heredoc with one plain end marker line
-- a quote or an escape in the name of a program that the rules read
-- an `eval` or a shell `-c` script that holds the value of a variable
-- a script from `/dev/stdin`
-- a process substitution
+The subset:
 
-For a command with one of these, the rules read the text again with `looseReadings`: no quote, no escape, and each word
-counts as a word of a command. A command passes only when that text holds nothing that a rule refuses. The refusal asks for a
-plain form. A heredoc body that no shell reads is data, so a construct that the body names does not count. Add a construct to
-this list when the reader cannot prove one reading; do not add one more exact case to the reader.
+- plain words, `'...'` quotes, `"..."` quotes and a backslash before one character
+- the operators `;`, `&&`, `||`, `|`, a background `&` and a line end, and a `#` comment at the top level
+- the redirects `>`, `>>`, `<` and `&>` to a literal path, with or without a file descriptor, and `>&N`, such as `2>&1`
+- a here document at the top level with a quoted literal delimiter, such as `<<'EOF'`, and an exact end marker line
+- `VAR=value` before a command or alone
+- `$NAME`, `${NAME}`, `${NAME:?message}` and `$(command)`, where the reader reads the command of the substitution with
+  the same subset
+- `if`, `while`, `until` and `for NAME in WORDS` with `then`, `elif`, `else`, `do`, `done` and `fi`, a `!`, a `( ... )`
+  subshell and a `{ ...; }` group: the reader gives each command between these words to the rules
+- a shell with a literal `-c` script, and a shell with a here document of its own as its script: the reader reads the
+  script with the same subset
+
+A variable, a glob, a brace expansion or a substitution makes a word dynamic: the reader does not know its value. A dynamic
+word is not modelled in a command word (also after a wrapper such as `sudo` or `env`), in an argument of `git`, and in a
+command that names a shell. Each other construct is not modelled, for example: `$((`, `(( ))`, `$[ ]`, `${ }` with an
+operator, an ANSI-C quote, a `$"..."` quote, a backtick, a line continuation, a here-string, a here document with a
+delimiter that is not quoted, a here document in a substitution, a process substitution, `case`, a function, `eval`,
+`alias`, `trap`, a word that starts with `=`, a shell that reads its script from standard input with no here document of
+its own, and a redirect to a path that is not literal.
+
+Widen the subset only with a construct that the reader models exactly, and add its rows to the `subset:` group of
+`test-hooks.mjs`. Do not add a second reading of a construct that the reader does not model.
 
 Each removal rule refuses a superset of the `removalRule` values it names, because the analyzer
 behind them is not a stable interface. Three values depend on the state of that analyzer and have no

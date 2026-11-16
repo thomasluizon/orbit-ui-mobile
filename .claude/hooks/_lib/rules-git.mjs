@@ -1,10 +1,8 @@
-import { commandsFedBy, commandWords, expandCommands, heredocScan, heredocsOf, hereStringTexts, inspectCommands, looseReadings, shellValue, SUBSTITUTION, withoutRedirects } from "./command-expander.mjs"
+import { commandsFedBy, commandWords, expandCommands, heredocsOf, invocationsOf, PLAIN_SUBSET_ADVICE, programName, readCommand, readsStandardInput, shellValue, SHELLS, SUBSTITUTION, walkCommands, withoutRedirects } from "./command-expander.mjs"
 import { resolve } from "node:path"
 
 // Only these three repositories protect main; other repositories may allow direct pushes.
 const PROTECTED_REPOS = ["orbit-ui-mobile", "orbit-api", "orbit-landing-page"]
-
-const unquote = (token) => token.replace(/^["']|["']$/g, "")
 
 function repoNameFrom(remoteUrl) {
   if (typeof remoteUrl !== "string") return null
@@ -26,9 +24,9 @@ function targetsProtectedRepo(dir, resolveRemoteUrl) {
 
 // The push may target another repo: `git -C <dir> push`, or a `cd <dir> &&`
 // earlier in the same chain. Honor both before falling back to the session cwd.
-function pushTargetDir(segment, cwd) {
+function pushTargetDir(globals, cwd) {
   let directory = cwd
-  for (const match of segment.matchAll(/(?:^|\s)-C\s+("[^"]+"|'[^']+'|[^\s"']+)/g)) directory = resolve(directory, unquote(match[1]))
+  globals.forEach((token, index) => { if (token === "-C" && globals[index + 1] !== undefined) directory = resolve(directory, globals[index + 1]) })
   return directory
 }
 
@@ -49,20 +47,13 @@ export function unquotedHeredocRunsCommand(command) {
   return false
 }
 
-/** The shells that read standard input as a script. */
-export const SHELLS = ["bash", "sh", "zsh", "dash", "ksh", "mksh", "ash", "hush", "rbash"]
-/**
- * Option letters that take the next word in a shell of `SHELLS`: `o` (POSIX `sh`), `O` (bash), `R` (ksh) and `T` (mksh).
- * A letter that takes no word in the shell at hand keeps a body that is data, so the rules refuse more, never less.
- */
-const LETTERS_WITH_ARGUMENT = new Set(["o", "O", "R", "T"])
-/** Long options that take the next word: `--rcfile` and `--init-file` in bash, `--emulate` in zsh. */
-const LONG_OPTIONS_WITH_ARGUMENT = new Set(["--rcfile", "--init-file", "--emulate"])
+export { SHELLS }
+
 /** Stands for the heredoc operator, so that the shell parser finds the commands that read the body. */
 const HEREDOC_OPERATOR = "__heredoc_operator__"
 
 /** The words of a simple command, without its redirects. A here-string is a redirect of standard input, so it is no argument. */
-const argumentsOf = (command) => commandWords(withoutRedirects(command, { keepHereStrings: false })).map(shellValue)
+const argumentsOf = (command) => commandWords(withoutRedirects(command)).map(shellValue)
 
 const isShell = (word) => SHELLS.includes(word.split(/[\\/]/).pop())
 const holdsSubstitution = (words) => words.some((word) => word.includes(SUBSTITUTION))
@@ -70,28 +61,6 @@ const holdsSubstitution = (words) => words.some((word) => word.includes(SUBSTITU
 const hasWordThat = (command, isCommandWord, accepts) => {
   const words = argumentsOf(command)
   return words.some((word, index) => isCommandWord(word) && accepts(words.slice(index + 1)))
-}
-
-/**
- * True when the words after a shell word leave it no script file, so it reads its script from standard input.
- * Each option letter in `LETTERS_WITH_ARGUMENT` takes one word. After `-s`, each word that is not an option is a positional argument.
- */
-function readsStandardInput(words) {
-  let positionalArguments = false
-  for (let index = 0; index < words.length; index++) {
-    const word = words[index]
-    if (/^[-+]-?$/.test(word)) return positionalArguments || index === words.length - 1
-    if (/^[-+]-/.test(word)) {
-      if (LONG_OPTIONS_WITH_ARGUMENT.has(word)) index++
-      continue
-    }
-    if (!/^[-+]./.test(word)) return positionalArguments
-    for (const letter of word.slice(1)) {
-      if (letter === "s") positionalArguments = true
-      if (LETTERS_WITH_ARGUMENT.has(letter)) index++
-    }
-  }
-  return true
 }
 
 /**
@@ -135,56 +104,6 @@ export function stripHeredocBodies(command) {
   return kept + command.slice(cursor)
 }
 
-/** A construct that bash and zsh can read in two ways, or that the reader does not follow: the name for the refusal, and its text. */
-const UNMODELLED_TEXT = [
-  { name: "a here-string (`<<<`)", test: /<<</ },
-  // After a pair `$$`, which is the process id, a `"` opens or closes a plain quote.
-  { name: 'a `$"..."` quote', test: /(?<!\$)(?:\$\$)*\$"/ },
-  { name: "a run of `$` before a `'`", test: /\$\$'/ },
-  { name: "an ANSI-C quote that spells a character as a code", test: /\$'(?:[^'\\]|\\[\s\S])*?\\[xuUc0-7]/ },
-  { name: "a line continuation inside a word", test: /[^\s\\]\\\r?\n\S/ },
-  {
-    name: "an `eval` or a shell `-c` script that holds the value of a variable, which the shell reads again as code",
-    test: new RegExp(`(?:^|[\\s;&|(/"'])(?:eval\\s[^\\n;&|]*|(?:${SHELLS.join("|")})["']?\\s(?:[^\\n;&|]*\\s)?-[A-Za-z]*c\\s+(?:"(?:\\\\.|[^"\\\\])*|[^\\s'"]*))\\$[A-Za-z_{]`),
-  },
-  { name: "a script from `/dev/stdin`", test: /\/dev\/stdin\b/ },
-  { name: "a process substitution", test: /[<>]\(/ },
-]
-/** The programs that the rules read by name. A quote or an escape in such a name is one more spelling that the reader does not follow. */
-const READ_PROGRAMS = new Set([...SHELLS, "eval", "git", "rm", "rmdir"])
-const ASSIGNMENT_WORD = /^[A-Za-z_]\w*\+?=/
-
-/** True for a command with a quote or an escape in the name of a shell or `eval`, or in a command word that names a program of `READ_PROGRAMS`. */
-function spellsProgramName(segment) {
-  const words = commandWords(segment)
-  const commandIndex = words.findIndex((word) => !ASSIGNMENT_WORD.test(word))
-  return words.some((word, index) => {
-    const name = word.replace(/\$?["']|\\/g, "").split("/").pop()
-    return /["'\\]/.test(word) && READ_PROGRAMS.has(name) && (index === commandIndex || isShell(name) || name === "eval")
-  })
-}
-
-/**
- * The name of the first construct that the reader does not model exactly in bash and in zsh, or "". The rules fail closed on
- * it: they read the command again with `looseReadings`, and refuse what that text holds. A heredoc body that no shell reads
- * is data, so a construct that it names does not count.
- */
-export function unmodelledConstruct(command) {
-  const { heredocs, unmodelled } = heredocScan(command)
-  if (unmodelled) return unmodelled
-  let read = ""
-  let cursor = 0
-  for (const { start, end, lineStart, restOfLine, body } of heredocs) {
-    const script = feedsShell(command.slice(lineStart, start), restOfLine) ? body : ""
-    read += `${command.slice(cursor, start)} ${restOfLine}\n${script}`
-    cursor = end
-  }
-  read += command.slice(cursor)
-  const construct = UNMODELLED_TEXT.find(({ test }) => test.test(read))
-  if (construct) return construct.name
-  return expandCommands(stripHeredocBodies(command)).some(spellsProgramName) ? "a quote or an escape in the name of a program" : ""
-}
-
 const blocked = (command, why) => ({
   block: true,
   message:
@@ -192,30 +111,8 @@ const blocked = (command, why) => ({
     `The user has prevented this. See the "Git workflow" section of CLAUDE.md.\n`,
 })
 
-/** The token as argv carries it: no escape and no quote, also not the `$` that opens an ANSI-C quote. */
-const unquoteToken = (token) => token.replace(/\\(.)/g, "$1").replace(/\$?["']/g, "")
-
-/** A leading `NAME=value` is an environment assignment, not the command word. */
-const isEnvironmentAssignment = (token) => /^[A-Za-z_][A-Za-z0-9_]*=/.test(token)
-
-const isGitBinary = (token) => /(?:^|[\\/])git(?:\.exe)?$/i.test(token)
-
-/** Everything after the git command word, normalized to what argv would carry. Empty for a command that names no git. */
-const gitTokens = (segment) => {
-  const tokens = segment.split(/\s+/).map(unquoteToken).filter(Boolean)
-  let index = 0
-  while (index < tokens.length && isEnvironmentAssignment(tokens[index])) index++
-  while (index < tokens.length && !isGitBinary(tokens[index])) index++
-  return index < tokens.length ? tokens.slice(index + 1) : []
-}
-
-/**
- * The subcommand and everything after it. Both come from ONE normalized tokenization, because
- * re-scanning the raw segment for the word `push` misses `git p''ush`, whose quotes sit inside
- * the token rather than around it.
- */
-const gitCommandParts = (segment) => {
-  const tokens = gitTokens(segment)
+/** The subcommand of a git command, the options before it, and everything after it. `tokens` are the words after the git word, as argv carries them. */
+const gitCommandParts = (tokens) => {
   for (let index = 0; index < tokens.length; index++) {
     const token = tokens[index]
     if (token === "-C" || token === "-c" || token === "--git-dir" || token === "--work-tree") {
@@ -225,7 +122,7 @@ const gitCommandParts = (segment) => {
     if (token.startsWith("-")) continue
     return { subcommand: token, globals: tokens.slice(0, index), rest: tokens.slice(index + 1) }
   }
-  return { subcommand: null, globals: [], rest: [] }
+  return { subcommand: null, globals: tokens, rest: [] }
 }
 
 const pushesProtectedRef = (rest) => rest.some((token) => {
@@ -235,43 +132,61 @@ const pushesProtectedRef = (rest) => rest.some((token) => {
   return /^(?:main|master)$/.test(destination.replace(/^refs\/heads\//, ""))
 })
 
+/** True for the long option, and for each short form that git reads as the option: git takes a prefix that names one option only. */
+const isLongOption = (token, option, shortest) => token.length >= shortest.length && option.startsWith(token.split("=")[0]) && token.startsWith(shortest)
+
+/** Short options of `git commit` that take the rest of the word, or the next word, as their value. */
+const COMMIT_VALUE_LETTERS = "mFCctuS"
+/** True for a short option word of `git commit` that holds `-n`, such as `-n` or `-an`. In `-mn` the `n` is the message. */
+function holdsCommitNoVerify(token) {
+  if (!/^-[A-Za-z]/.test(token)) return false
+  for (const letter of token.slice(1)) {
+    if (letter === "n") return true
+    if (COMMIT_VALUE_LETTERS.includes(letter)) return false
+  }
+  return false
+}
+
+/** git reads a config key with no case, and `no`, `off`, `0` and an empty value as false. */
+const UNSIGNED_CONFIG = /^(?:-c)?commit\.gpgsign=(?:false|no|off|0)?$/i
+const HOOKS_PATH_CONFIG = /^(?:-c)?core\.hookspath=/i
+
 // Hygiene rules are universal: bypassing hooks or signing is wrong anywhere. A flag counts only as a word of a git command:
-// the same text in the argument of `grep`, `echo` or `gh` is data.
+// the same text in the argument of `grep`, `echo` or `gh` is data. Each rule reads the words after the git command word.
 const HYGIENE_RULES = [
   {
-    test: ({ gitWords }) => /(?<![\w-])--no-verify\b/.test(gitWords),
+    test: ({ tokens }) => tokens.some((token) => isLongOption(token, "--no-verify", "--no-veri")),
     why: "--no-verify skips the pre-commit/pre-push hooks. Fix what the hook flags, then commit normally.",
   },
   {
-    test: ({ gitWords }) => /(?<![\w-])--no-gpg-sign\b|commit\.gpgsign\s*=\s*false/.test(gitWords),
+    test: ({ tokens }) => tokens.some((token) => isLongOption(token, "--no-gpg-sign", "--no-g") || UNSIGNED_CONFIG.test(token) || (/^--config-env/.test(token) && /commit\.gpgsign/i.test(token))),
     why: "This bypasses commit signing. Let the commit sign as configured.",
   },
   {
-    test: ({ segment }) => /\bgit\s+(?:-C\s+\S+\s+|-c\s+\S+\s+)*commit\s+(?:[^\n]*?\s)?-[A-Za-z]*n[A-Za-z]*(?=\s|$)/.test(segment),
+    test: ({ subcommand, rest }) => subcommand === "commit" && rest.some(holdsCommitNoVerify),
     why: "`-n` is git's short alias for --no-verify on commit; it skips the pre-commit hooks. Commit normally.",
   },
 ]
 
-/** The refusal for the commands in `segments`, each one `{ segment, directory }`, or null. `command` is the text that the message shows. */
-function judgeGitCommands(command, segments, { resolveHeadBranch, resolveRemoteUrl }) {
-  // Match each command on its own, so no flag of one command counts for the command before it. The full string,
+/** The refusal for the git commands in `gitCommands`, each one `{ tokens, directory }`, or null. `command` is the text that the message shows. */
+function judgeGitCommands(command, gitCommands, { resolveHeadBranch, resolveRemoteUrl }) {
+  // Each git command is judged on its own words, so no flag of one command counts for another. The full string,
   // heredoc bodies included, is still what gets shown back in the block message.
-  const hit = HYGIENE_RULES.find((rule) => segments.some(({ segment }) => rule.test({ segment, gitWords: gitTokens(segment).join(" ") })))
+  const read = gitCommands.map(({ tokens, directory }) => ({ tokens, directory, ...gitCommandParts(tokens) }))
+  const hit = HYGIENE_RULES.find((rule) => read.some((parts) => rule.test(parts)))
   if (hit) return blocked(command, hit.why)
 
   // Everything below is branch protection, so it applies only to the repos that actually have it.
   // Each push in a chained command is judged on its own target. An early push to
   // an unprotected sibling repo must never vouch for a later push to a protected
   // main, and a protected push must not be blamed for a `main` ref belonging to a
-  // different segment.
-  for (const { segment, directory } of segments) {
-    const { subcommand, globals, rest } = gitCommandParts(segment)
-    if (["commit", "push"].includes(subcommand) && globals.some((token, offset) =>
-      (token === "-c" && globals[offset + 1]?.startsWith("core.hooksPath=")) || token.startsWith("-ccore.hooksPath="))) {
+  // different command.
+  for (const { subcommand, globals, rest, directory } of read) {
+    if (["commit", "push"].includes(subcommand) && globals.some((token) => HOOKS_PATH_CONFIG.test(token))) {
       return blocked(command, "Overriding core.hooksPath bypasses the repository hooks.")
     }
     if (subcommand !== "push") continue
-    const targetDir = pushTargetDir(segment, directory)
+    const targetDir = pushTargetDir(globals, directory)
     if (!targetsProtectedRepo(targetDir, resolveRemoteUrl)) continue
 
     if (pushesProtectedRef(rest) || rest.some((token) => ["--all", "--mirror", "--branches"].includes(token))) {
@@ -300,36 +215,31 @@ function judgeGitCommands(command, segments, { resolveHeadBranch, resolveRemoteU
   return null
 }
 
+/**
+ * The refusal for a command that holds a git command which the workflow forbids, or null. The rule reads only the parsed
+ * words of the modelled subset (`readCommand`). It refuses a command outside the subset, because it cannot prove what that command runs.
+ */
 export function checkGitCommand(command, { resolveHeadBranch, resolveRemoteUrl, cwd } = {}) {
-  // No text check for the word `git` comes first: a quote or an escape can divide the word, or put a letter before it.
   if (typeof command !== "string") return null
-  const startDirectory = cwd || process.cwd()
-
-  // Each command as argv carries it: no redirect reaches argv, and a here-string is a redirect of standard input. The word of a
-  // here-string is text that its command reads, so it is read as commands of its own, in the directory of its command.
-  const segments = []
-  const collect = (segment, directory) => {
-    const words = commandWords(segment).map(shellValue)
-    if (words[0] === "cd" && words[1]) directory = resolve(directory, words[1])
-    segments.push({ segment: withoutRedirects(segment, { keepHereStrings: false }), directory })
-    for (const text of hereStringTexts(segment)) inspectCommands(text, directory, collect)
-    return directory
+  const { list, notModelled } = readCommand(command)
+  if (notModelled) {
+    return {
+      block: true,
+      notModelled,
+      message:
+        `BLOCKED command (the Orbit hooks cannot read it):\n  ${command.slice(0, 400)}\n\n` +
+        `The command holds ${notModelled}. The git workflow hook reads one plain shell subset exactly, and it refuses each command outside it, ` +
+        `because it cannot prove that such a command runs no forbidden git command.\n${PLAIN_SUBSET_ADVICE}\n`,
+    }
   }
-  inspectCommands(stripHeredocBodies(command), startDirectory, collect)
-  const refusal = judgeGitCommands(command, segments, { resolveHeadBranch, resolveRemoteUrl })
-  if (refusal) return refusal
-
-  // Fail closed: the reading above is exact only for the constructs that the reader models. With one that it does not model,
-  // each word of the text counts as a word of a command, in the session directory, and no remote lookup clears a push.
-  const construct = unmodelledConstruct(command)
-  if (!construct) return null
-  const holdsRefusal = looseReadings(command).some((text) => judgeGitCommands(command,
-    text.split(/[;&|\n]+/).map((segment) => ({ segment: withoutRedirects(segment, { keepHereStrings: false }), directory: startDirectory })), { resolveHeadBranch }))
-  return holdsRefusal
-    ? blocked(command, `This command uses ${construct}. The hook does not read that with certainty in bash and in zsh, and the text of the command holds a git command that the workflow forbids.\n` +
-      "Rewrite the command in a plain form: no here-string, no `$\"...\"` quote, no `$` before `$'`, no quote or escape in a program name, and a heredoc only with a plain end marker. " +
-      "Put a longer script in a file and run it by its literal path, such as `bash /abs/path.sh`.")
-    : null
+  const gitCommands = []
+  walkCommands(list, cwd || process.cwd(), ({ words }, directory) => {
+    for (const { program, args } of invocationsOf(words)) {
+      if (programName(program.text) === "git") gitCommands.push({ tokens: args.map((word) => word.text), directory })
+    }
+    return words[0]?.text === "cd" && words[1] ? resolve(directory, words[1].text) : directory
+  })
+  return judgeGitCommands(command, gitCommands, { resolveHeadBranch, resolveRemoteUrl })
 }
 
 export function checkGitWorktreeRemove(command) {
