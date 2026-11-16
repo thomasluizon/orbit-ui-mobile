@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import { createUseGoalCreation, type GoalCreationOptions } from '../hooks/goal-creation-core'
+import { createUseSubmitHold } from '../hooks/submit-hold-core'
 import type { CreateGoalRequest } from '../types/goal'
 import { createHookStateHarness } from '../test-support/hook-state'
 
@@ -20,7 +21,8 @@ function setup(initialHabitIds: string[] = []) {
     useState: harness.useState, useRef: () => ({ current: null }), useEffect: (effect) => effect(),
     useDismissGuard: ({ isDirty, onDismiss }) => ({ canDismiss: !isDirty, showDiscardDialog: false, requestDismiss: onDismiss, cancelDismiss: vi.fn(), confirmDismiss: onDismiss }),
     getAccountGeneration: () => generation,
-    useCreateGoal: () => ({ isPending: false, mutateAsync: create }), useBackendFieldErrors: () => backend,
+    useCreateGoal: () => ({ mutateAsync: create }), useBackendFieldErrors: () => backend,
+    useSubmitHold: createUseSubmitHold({ useState: harness.useState, useRef: (initial) => harness.useState(() => ({ current: initial }))[0] }),
   })
   const render = () => harness.render(() => useCreation(options))
   const fill = () => {
@@ -46,6 +48,33 @@ describe('shared goal creation', () => {
     expect(context.options.onCreated).toHaveBeenCalledExactlyOnceWith('created-goal', habitIds)
     expect(context.options.onClose).toHaveBeenCalledOnce()
     expect(context.render()).toMatchObject({ isDirty: false, description: '', habitIds })
+  })
+
+  it('waits from the request until the sheet has left, and creates once for a second submit', async () => {
+    const context = setup()
+    context.fill()
+    let finish!: (created: { id: string }) => void
+    context.create.mockImplementationOnce(() => new Promise((resolve) => { finish = resolve }))
+    expect(context.render().isSubmitting).toBe(false)
+    const first = context.render().onSubmit()
+    const second = context.render().onSubmit()
+    expect(context.render().isSubmitting).toBe(true)
+    finish({ id: 'created-goal' })
+    await Promise.all([first, second])
+    expect(context.render().isSubmitting).toBe(true)
+    await context.render().onSubmit()
+    expect(context.create).toHaveBeenCalledOnce()
+    context.finishDismiss()
+    expect(context.render().isSubmitting).toBe(false)
+    expect(context.options.onClose).toHaveBeenCalledOnce()
+  })
+
+  it('ends the waiting state when the request fails', async () => {
+    const context = setup()
+    context.fill()
+    context.create.mockRejectedValueOnce(new Error('Save failed'))
+    await context.render().onSubmit()
+    expect(context.render()).toMatchObject({ isSubmitting: false, formError: expect.any(String) })
   })
 
   it('retains habit selection while goal type changes and allows removing every habit', () => {

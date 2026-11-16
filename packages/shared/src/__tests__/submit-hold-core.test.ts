@@ -1,27 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import { createUseSubmitHold, type SubmitHold, type SubmitOutcome } from '../hooks/submit-hold-core'
+import { createHookStateHarness } from '../test-support/hook-state'
 
 function mountSubmitHold() {
-  const slots: unknown[] = []
-  let cursor = 0
-  const useState = <State>(initial: State | (() => State)) => {
-    const index = cursor++
-    if (!(index in slots)) slots[index] = typeof initial === 'function' ? (initial as () => State)() : initial
-    const set = (update: State | ((current: State) => State)) => {
-      slots[index] = typeof update === 'function' ? (update as (current: State) => State)(slots[index] as State) : update
-    }
-    return [slots[index] as State, set] as [State, typeof set]
-  }
-  const useRef = <Value>(initial: Value) => {
-    const index = cursor++
-    if (!(index in slots)) slots[index] = { current: initial }
-    return slots[index] as { current: Value }
-  }
-  const useSubmitHold = createUseSubmitHold({ useState, useRef })
-  return () => {
-    cursor = 0
-    return useSubmitHold()
-  }
+  const harness = createHookStateHarness()
+  const useSubmitHold = createUseSubmitHold({ useState: harness.useState, useRef: (initial) => harness.useState(() => ({ current: initial }))[0] })
+  return () => harness.render(useSubmitHold)
 }
 
 function deferred() {
