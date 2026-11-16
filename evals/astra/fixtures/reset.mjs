@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs'
 import { pathToFileURL } from 'node:url'
 import { parse } from 'yaml'
 import { apiOrigin, readCredentials, refreshCredential, safeFailureMessage, updateCredentials } from '../credentials.mjs'
-import { publicApi, requireEvalAccess } from './api.mjs'
+import { guid, publicApi, requireEvalAccess } from './api.mjs'
 import { fixtureNames, fixtureHabitTitles, habitlessFixtures, maliciousHabitTitle, sameTitleSet, startingChecklistItems } from './names.mjs'
 import { exhaustAllowance } from './allowance.mjs'
 import { seedRestart } from './restart.mjs'
@@ -58,7 +58,7 @@ async function remember(key, field, value) {
   await updateCredentials((credentials) => { credentials[key][field] = value })
 }
 function idFrom(payload) {
-  if (typeof payload?.id !== 'string' || !/^[\da-f]{8}(-[\da-f]{4}){3}-[\da-f]{12}$/i.test(payload.id)) {
+  if (typeof payload?.id !== 'string' || !guid.test(payload.id)) {
     throw new Error('Fixture creation did not return a UUID.')
   }
   return payload.id

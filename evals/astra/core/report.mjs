@@ -1,6 +1,6 @@
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { attemptEvidence, evidencePath, openPrivateEvidence, unavailableAssertion, writePrivateJson } from '../evidence.mjs'
-import { guid } from '../fixtures/api.mjs'
+import { guid, guidPattern } from '../fixtures/api.mjs'
 import { changeList, recordId } from './change-list.mjs'
 import { corpusDigest } from './corpus.mjs'
 
@@ -45,7 +45,7 @@ function attemptsOf(results) {
 }
 
 // The record ids inside a longer text: the eval's one GUID rule without its anchors.
-const recordIds = new RegExp(guid.source.slice(1, -1), 'giu')
+const recordIds = new RegExp(guidPattern, 'giu')
 
 // The held previews of an attempt, kept so that an extended grader regrades the attempt offline with gradePreview, the
 // records of the case under the same names, and the fields that the held writes name (`written`, which gradePreview

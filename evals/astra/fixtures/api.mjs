@@ -3,7 +3,9 @@ import { apiOrigin, safeFailureMessage } from '../credentials.mjs'
 
 // The eval's one GUID rule. orbit-api constrains every route parameter to a GUID ({id:guid}), so a GUID segment is the
 // only identifier in a route, and the graders and the report evidence read record and request ids in the same dashed form.
-export const guid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu
+// `guidPattern` is the rule without its anchors, for a GUID inside a longer text.
+export const guidPattern = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'
+export const guid = new RegExp(`^${guidPattern}$`, 'iu')
 
 function isFixtureLog(method, path) {
   const [resource, id, action, ...remaining] = path.split('/')

@@ -1,6 +1,6 @@
 import { chmodSync, mkdirSync, renameSync, writeFileSync } from 'node:fs'
 import { redactCredentials } from './credentials.mjs'
-import { guid } from './fixtures/api.mjs'
+import { guid, guidPattern } from './fixtures/api.mjs'
 import { tools, legacyTools, postReadTools, habitSetupTools, offerTools, offerPostReadTools, offerHabitSetupTools, normalizeField } from './trace-policy.mjs'
 import { schemaVariants } from './tool-schema.mjs'
 
@@ -30,7 +30,10 @@ function collectStrings(value, withheld) {
   else if (value && typeof value === 'object') Object.values(value).forEach((child) => collectStrings(child, withheld))
 }
 
-export const identity = /^(?:[0-9a-f]{32}|[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12})$/i
+// An identity value: a GUID, or 32 hex digits. `identitiesInText` finds each one inside a longer text.
+export const identity = new RegExp(`^(?:[0-9a-f]{32}|${guidPattern})$`, 'i')
+export const identitiesInText = new RegExp(`\\b(?:[0-9a-f]{32}|${guidPattern})\\b`, 'gi')
+const guidsInText = new RegExp(`\\b${guidPattern}\\b`, 'gi')
 
 // An id-shaped field can hold a public name such as the surface id today, so only identity values are withheld.
 export function collectIdentities(value, withheld) {
@@ -108,7 +111,7 @@ export function sanitizeEvidence(value, withheld = new Set()) {
     let text = redactCredentials(value)
     for (const secret of [...withheld].sort((left, right) => right.length - left.length)) text = text.replaceAll(secret, '[redacted]')
     return text.replace(/[A-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, '[redacted]')
-      .replace(/\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/gi, '[redacted]')
+      .replace(guidsInText, '[redacted]')
       .replace(/\bBearer\s+[^\s"\\]+/gi, 'Bearer [redacted]')
   }
   if (Array.isArray(value)) return value.map((child) => sanitizeEvidence(child, withheld))
