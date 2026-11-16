@@ -96,8 +96,16 @@ const generatedAssets = [
   // PNG; Play requires a 32-bit PNG, so its alpha channel stays present with every pixel opaque.
   { path: "design/brand/exports/oauth-consent-logo-512.png", width: 512, height: 512, ink: FOREGROUND, background: CANVAS, scale: 0.7, face: "rig", accent: true, opaque: true },
   { path: "design/brand/exports/play-icon-512.png", width: 512, height: 512, ink: FOREGROUND, background: CANVAS, scale: 0.7, face: "rig", accent: true },
-  // The Tauri window and Linux icon, and the 512 artwork of icon.icns.
+  // The default window icon that tauri-codegen embeds from the first PNG of bundle.icon in a macOS
+  // build, which fails without it (tauri-codegen 2.7.4 src/context.rs). macOS draws no window icon
+  // and the tray draws tray.png, so no macOS surface shows this file. icon.icns and icon.ico render
+  // their own layers.
   { path: "apps/desktop/src-tauri/icons/icon.png", width: 512, height: 512, ink: FOREGROUND, background: CANVAS, scale: 0.7, face: "rig", accent: true },
+  // The macOS menu bar tray, which build_tray in menus.rs loads. tray-icon 0.25.1 draws its image 18pt
+  // tall, so this is the 24 small static face at 2x: 36px tall on a Retina display, with 4px eyes. A 1x
+  // display halves it onto the pixel grid of the 24 face, with 2px eyes. It keeps the canvas ground
+  // that the tray had when it drew icon.png.
+  { path: "apps/desktop/src-tauri/icons/tray.png", width: 48, height: 36, ink: FOREGROUND, background: CANVAS, face: "small", smallSize: 24, pixelRatio: 2, accent: true },
   { path: "apps/mobile/assets/adaptive-icon-background.png", width: 1024, height: 1024, background: CANVAS },
   // The adaptive layers keep the ring and the moon inside the 66 dp safe circle.
   // Eye ink of the foreground: CANVAS, the adaptive background layer and backgroundColor in apps/mobile/app.json.
@@ -264,14 +272,15 @@ function smallFaceSvg(source, size) {
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${viewBox}" width="${width}" height="${height}" fill="none">${inner}</svg>`
 }
 
-/** The small static face, rasterised on its pixel grid. No trim and no rescale. */
+/** The small static face, rasterised on its pixel grid at `pixelRatio` device pixels to each grid
+ *  pixel. No trim and no rescale. */
 async function renderSmallFace(source, asset) {
   const baked = bakeColours(smallFaceSvg(source, asset.smallSize), {
     ink: asset.ink,
     groundInk: CANVAS,
     accent: asset.accent ? ACCENT : null,
   })
-  return sharp(Buffer.from(baked)).png().toBuffer({ resolveWithObject: true })
+  return sharp(Buffer.from(baked), { density: 72 * (asset.pixelRatio ?? 1) }).png().toBuffer({ resolveWithObject: true })
 }
 
 /** The CANVAS shape a transparent asset draws behind its mark: a full disc, or an inset rounded tile. */

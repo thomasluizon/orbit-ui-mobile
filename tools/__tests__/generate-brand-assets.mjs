@@ -14,6 +14,7 @@ const expectedAssets = [
   ["design/brand/exports/oauth-consent-logo-512.png", 512, 512],
   ["design/brand/exports/play-icon-512.png", 512, 512],
   ["apps/desktop/src-tauri/icons/icon.png", 512, 512],
+  ["apps/desktop/src-tauri/icons/tray.png", 48, 36],
   ["apps/mobile/assets/adaptive-icon-background.png", 1024, 1024],
   ["apps/mobile/assets/adaptive-icon-foreground.png", 1024, 1024],
   ["apps/mobile/assets/adaptive-icon-monochrome.png", 1024, 1024],
@@ -168,8 +169,8 @@ const eyeWidthAt = (pixelAt, width, x, y, planet, onPixelGrid) => {
 
 /** The two eye pixels, the planet pixel between them and the width of each eye in a raster that draws
  *  the mascot. A rig face is found from its ink box; a small static face sits on its pixel grid,
- *  centred in the canvas. */
-const facePixels = async (input, smallSize) => {
+ *  centred in the canvas, drawn `pixelRatio` device pixels to each grid pixel. */
+const facePixels = async (input, smallSize, pixelRatio = 1) => {
   if (typeof input === "string" && !existsSync(input)) return null
   const { data, info } = await sharp(input).ensureAlpha().raw().toBuffer({ resolveWithObject: true })
   const pixelAt = (x, y) => [...data.subarray((y * info.width + x) * 4, (y * info.width + x) * 4 + 4)]
@@ -182,9 +183,9 @@ const facePixels = async (input, smallSize) => {
   })
   if (smallSize) {
     const small = SMALL_FACES[smallSize]
-    const left = Math.floor((info.width - small.width) / 2) + small.leftEye[0]
-    const top = Math.floor((info.height - small.height) / 2) + small.leftEye[1]
-    return face({ x: left, y: top }, { x: left + 4, y: top }, { x: left + 2, y: top })
+    const left = Math.floor((info.width - small.width * pixelRatio) / 2) + small.leftEye[0] * pixelRatio
+    const top = Math.floor((info.height - small.height * pixelRatio) / 2) + small.leftEye[1] * pixelRatio
+    return face({ x: left, y: top }, { x: left + 4 * pixelRatio, y: top }, { x: left + 2 * pixelRatio, y: top })
   }
   let [minX, minY, maxX, maxY] = [info.width, info.height, -1, -1]
   for (let y = 0; y < info.height; y += 1) {
@@ -207,7 +208,7 @@ export const cases = async () => {
     "generate-brand-assets.mjs",
     "writes the complete derived asset inventory",
     ["--write", "--root", outputRoot],
-    { status: 0, stdout: /generated 28 brand assets/ },
+    { status: 0, stdout: /generated 29 brand assets/ },
   )
 
   for (const [relativePath, width, height] of expectedAssets) {
@@ -553,8 +554,32 @@ export const cases = async () => {
     mascotRasters.push({ label: `icon.icns ${type} ${width}px element`, input: png, smallSize: { 16: 16, 32: 24 }[width] })
   }
 
-  for (const { label, input, smallSize } of mascotRasters) {
-    const face = await facePixels(input, smallSize)
+  // The macOS menu bar tray draws the image that build_tray in menus.rs loads with
+  // tauri::include_image!, or, with no such image, app.default_window_icon(): on macOS tauri-codegen
+  // takes that from the first PNG of bundle.icon (tauri-codegen 2.7.4 src/context.rs). tray-icon 0.25.1
+  // draws it 18pt tall, so the test draws it 36px tall for a Retina display and 18px tall for a 1x one.
+  const desktopRoot = ["apps", "desktop", "src-tauri"]
+  const menusSource = readFileSync(join(REPO_ROOT, ...desktopRoot, "src", "menus.rs"), "utf8")
+  const tauriConfig = JSON.parse(readFileSync(join(REPO_ROOT, ...desktopRoot, "tauri.conf.json"), "utf8"))
+  const trayImage = /include_image!\("([^"]+)"\)/.exec(menusSource)?.[1] ?? tauriConfig.bundle.icon.find((path) => path.endsWith(".png"))
+  const trayPath = join(outputRoot, ...desktopRoot, ...trayImage.split("/"))
+  T(
+    "generate-brand-assets.mjs: the generator writes the image the macOS tray loads",
+    existsSync(trayPath),
+    `${trayImage} is missing from the generated set`,
+  )
+  for (const pixelRatio of [2, 1]) {
+    if (!existsSync(trayPath)) break
+    mascotRasters.push({
+      label: `macOS tray ${trayImage} at 18pt on a ${pixelRatio}x display`,
+      input: await sharp(trayPath).resize({ height: 18 * pixelRatio }).png().toBuffer(),
+      smallSize: trayImage === "icons/tray.png" ? 24 : undefined,
+      pixelRatio,
+    })
+  }
+
+  for (const { label, input, smallSize, pixelRatio } of mascotRasters) {
+    const face = await facePixels(input, smallSize, pixelRatio)
     T(
       `generate-brand-assets.mjs: ${label} draws the mascot with both eyes`,
       face !== null && isEye(face.leftEye) && isEye(face.rightEye) && isPlanetInk(face.between),

@@ -102,12 +102,18 @@ fn build_tray(
             &MenuItem::with_id(app, "quit", labels.text("quit"), true, None::<&str>)?,
         ],
     )?;
+    // The macOS menu bar draws the tray image 18pt tall, where the live rig in icon.png has eyes
+    // under 2px, so tray.png draws the small static face. Windows takes icon.ico, whose small
+    // layers draw the same face.
+    #[cfg(target_os = "macos")]
+    let icon = tauri::include_image!("icons/tray.png");
+    #[cfg(not(target_os = "macos"))]
+    let icon = app
+        .default_window_icon()
+        .ok_or("Desktop requires an icon")?
+        .clone();
     TrayIconBuilder::with_id("orbit")
-        .icon(
-            app.default_window_icon()
-                .ok_or("Desktop requires an icon")?
-                .clone(),
-        )
+        .icon(icon)
         .tooltip(app.config().product_name.as_deref().unwrap_or("Orbit"))
         .menu(&tray)
         .show_menu_on_left_click(true)

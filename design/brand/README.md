@@ -27,7 +27,7 @@ The planet and the ring paint with `currentColor`. The moon paints with `var(--p
 
 **The accent tints exactly one element.** `DESIGN.md` gives the accent four roles and this is the fourth: the moon carries it and nothing else does. A second tinted element is a violation, not a variation.
 
-**The raster pipeline reads two sources.** `tools/generate-brand-assets.mjs` draws every raster from `orbit-mascot.svg` and `orbit-mascot-small.svg`. The small static face serves each raster below 40px. The live rig serves the rest.
+**The raster pipeline reads two sources.** `tools/generate-brand-assets.mjs` draws every raster from `orbit-mascot.svg` and `orbit-mascot-small.svg`. The small static face serves each raster below 40px, and each raster that a platform draws below 40px. The macOS menu bar tray is one: it draws `tray.png` 18pt tall, so that file is the 24 face at 2x. The live rig serves the rest.
 
 **The lockup's 28 measures the MARK, not a 28 box.** `DESIGN.md:269` says so explicitly. The 1024
 art carries wide empty margin, so a literal 28 box draws ink about 8px tall beside a 15.4px cap
