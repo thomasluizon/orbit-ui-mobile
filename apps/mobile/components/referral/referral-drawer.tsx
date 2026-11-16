@@ -29,6 +29,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { useSheetPresence } from '@/components/ui/sheet-presence'
 import { createTokensV2, radius } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
+import { insetHairlineRing } from '@/components/ui/inset-hairline-ring'
 
 interface ReferralDrawerProps {
   open: boolean
@@ -237,15 +238,15 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       gap: 16,
     },
     linkSkeleton: {
-      height: TOUCH_TARGET_MIN + SPACING.s8 + 2,
+      height: TOUCH_TARGET_MIN + SPACING.s8,
     },
     linkWell: {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 8,
-      borderRadius: 12,
-      borderWidth: 1,
-      borderColor: tokens.hairline,
+      borderRadius: radius.md,
+      ...insetHairlineRing,
+      outlineColor: tokens.hairline,
       backgroundColor: tokens.bgField,
       paddingLeft: SPACING.s16,
       paddingRight: SPACING.s8,

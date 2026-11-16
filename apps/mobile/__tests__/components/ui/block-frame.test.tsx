@@ -8,6 +8,8 @@ import { AccessibilityInfo, Pressable, StyleSheet, Text, type ViewStyle, type Te
 import { BlockFrame } from '@/components/ui/block-frame'
 import { PersonalTextDetails } from '@/components/ui/personal-text-details'
 import { Button } from '@/components/ui/pill-button'
+import { createTokensV2 } from '@/lib/theme'
+import { expectInsetHairlineRing } from '@/__tests__/support/inset-hairline-ring'
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
@@ -134,6 +136,9 @@ describe('BlockFrame on mobile', () => {
       const body = nodes.get('block-frame-body')!
       expect(absoluteTop(body) - absoluteTop(header) - header.getComputedHeight()).toBeCloseTo(12, 1)
       expect(root.getComputedPadding(Yoga.EDGE_LEFT)).toBe(16)
+      expect(absoluteLeft(header) - absoluteLeft(root), 'the header starts at the 16 dp inset of the web frame').toBe(16)
+      expect(absoluteTop(header) - absoluteTop(root)).toBe(16)
+      expectInsetHairlineRing(prop<ViewStyle>(tree.root.find(node => typeof node.type === 'string' && prop(node, 'testID') === 'block-frame-resting'), 'style'), createTokensV2('orange', 'dark').hairline)
       expect(nodes.get('block-frame-item-one-pending')!.getComputedPadding(Yoga.EDGE_LEFT)).toBe(12)
       const count = tree.root.find(node => node.type === 'Text' && prop(node, 'children') === 2)
       expect(StyleSheet.flatten(prop<TextStyle>(count, 'style')).fontFamily).toBe('Geist_400Regular')

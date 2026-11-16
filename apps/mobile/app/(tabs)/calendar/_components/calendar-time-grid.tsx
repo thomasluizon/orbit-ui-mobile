@@ -36,7 +36,6 @@ const BLOCK_MIN_WIDTH = 48;
 const BLOCK_HORIZONTAL_INSET = 4;
 const MIN_LANE_WIDTH = 96;
 const MIN_COLUMN_WIDTH = 192;
-const FRAME_RADIUS = 12;
 const HOURS = Array.from({ length: 24 }, (_, h) => h);
 
 export interface TimeGridColumn {
@@ -170,7 +169,7 @@ function TimedBlock({
         minWidth: BLOCK_MIN_WIDTH,
         paddingVertical: SPACING.s4,
         paddingHorizontal: SPACING.s4,
-        borderRadius: 8,
+        borderRadius: radius.sm,
         overflow: "hidden",
         justifyContent: "space-between",
         alignItems: "flex-start",
@@ -183,7 +182,7 @@ function TimedBlock({
       })}
     >
       {({ pressed }) => <>
-      <InsetHairlineRingOverlay testID="time-grid-event-ring" color={isFuture ? tokens.hairlineGhost : tokens.hairline} radius={8} />
+      <InsetHairlineRingOverlay testID="time-grid-event-ring" color={isFuture ? tokens.hairlineGhost : tokens.hairline} radius={radius.sm} />
       <PersonalText numberOfLines={2} testID="time-grid-event-name" style={{ fontFamily: 'Geist_400Regular', fontSize: 12, lineHeight: 16.8, color: tokens.fg1 }}>{block.entry.title}</PersonalText>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, width: '100%' }}>
       <View importantForAccessibility="no-hide-descendants">
@@ -206,8 +205,8 @@ function AllDayChip({ label, accessibilityLabel, onPress, tokens, fontScale, mor
   more?: boolean;
 }>) {
   return <InsetFocusPressable testID={more ? 'time-grid-all-day-more' : 'time-grid-all-day-event'} accessibilityRole="button" accessibilityLabel={accessibilityLabel} onPress={onPress}
-    style={({ pressed }) => ({ minHeight: Math.max(48, 44.8 * fontScale), minWidth: 48, padding: SPACING.s0, borderRadius: 8, overflow: 'hidden', alignItems: 'center', justifyContent: 'center', backgroundColor: pressed ? tokens.bgHover : 'transparent' })}>
-    <View style={{ height: 28 * fontScale, width: '100%', paddingHorizontal: SPACING.s8, borderRadius: 8, backgroundColor: tokens.bgWell, ...insetHairlineRing, outlineColor: tokens.hairline, justifyContent: 'center' }}>
+    style={({ pressed }) => ({ minHeight: Math.max(48, 44.8 * fontScale), minWidth: 48, padding: SPACING.s0, borderRadius: radius.sm, overflow: 'hidden', alignItems: 'center', justifyContent: 'center', backgroundColor: pressed ? tokens.bgHover : 'transparent' })}>
+    <View style={{ height: 28 * fontScale, width: '100%', paddingHorizontal: SPACING.s8, borderRadius: radius.sm, backgroundColor: tokens.bgWell, ...insetHairlineRing, outlineColor: tokens.hairline, justifyContent: 'center' }}>
       <Text numberOfLines={1} ellipsizeMode="tail" style={{ fontFamily: 'Geist_400Regular', fontSize: 12, lineHeight: 16.8, color: tokens.fg2 }}>{label}</Text>
     </View>
   </InsetFocusPressable>;
@@ -598,7 +597,7 @@ export function CalendarTimeGrid({
             <Text style={styles.emptyText}>{t("calendar.timeGrid.empty")}</Text>
           </View>
         ) : null}
-        <InsetHairlineRingOverlay testID="calendar-time-grid-ring" color={tokens.hairline} radius={FRAME_RADIUS} />
+        <InsetHairlineRingOverlay testID="calendar-time-grid-ring" color={tokens.hairline} radius={radius.md} />
       </View>
       {disclosure ? <CalendarEntryDetails entries={disclosure.entries} title={disclosure.title} displayTime={displayTime} onClose={() => setDisclosure(null)} /> : null}
     </View>
@@ -624,7 +623,7 @@ function createStyles(tokens: Tokens) {
     card: {
       flex: 1,
       minHeight: 0,
-      borderRadius: FRAME_RADIUS,
+      borderRadius: radius.md,
       overflow: "hidden",
       backgroundColor: tokens.bgCard,
     },

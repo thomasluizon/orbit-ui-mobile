@@ -4,7 +4,7 @@ import { StyleSheet, Text, View } from 'react-native'
 import QRCode from 'react-native-qrcode-svg'
 import { useTranslation } from 'react-i18next'
 import { achievementEmoji } from '@orbit/shared/utils'
-import { createTokensV2 } from '@/lib/theme'
+import { createTokensV2, radius } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { InsetHairlineRingOverlay } from '@/components/ui/inset-hairline-ring'
 import { OrbitMascot } from '@/components/ui/orbit-mascot'
@@ -12,8 +12,6 @@ import { OrbitMascot } from '@/components/ui/orbit-mascot'
 export type MilestoneShareVariant =
   | { kind: 'streak'; streak: number }
   | { kind: 'achievement'; achievementId: string; iconKey: string; rarity: string }
-
-const CARD_RADIUS = 20
 
 interface MilestoneShareCardProps {
   variant: MilestoneShareVariant
@@ -83,7 +81,7 @@ export const MilestoneShareCard = forwardRef<View, MilestoneShareCardProps>(
             </View>
           </View>
         ) : null}
-        <InsetHairlineRingOverlay testID="milestone-share-card-ring" color={tokens.hairline} radius={CARD_RADIUS} />
+        <InsetHairlineRingOverlay testID="milestone-share-card-ring" color={tokens.hairline} radius={radius.xl} />
       </View>
     )
   },
@@ -93,7 +91,7 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
   return StyleSheet.create({
     card: {
       width: 360,
-      borderRadius: CARD_RADIUS,
+      borderRadius: radius.xl,
       overflow: 'hidden',
       backgroundColor: tokens.bg,
     },

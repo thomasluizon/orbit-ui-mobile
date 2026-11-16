@@ -2,7 +2,10 @@ import React from 'react'
 import { StyleSheet } from 'react-native'
 import Yoga, { type Node as YogaNode } from 'yoga-layout'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { TOUCH_TARGET_MIN, SPACING } from '@orbit/shared/theme'
 import { InfoCard } from '@/components/ui/info-card'
+import { createTokensV2 } from '@/lib/theme'
+import { expectInsetHairlineRing } from '@/__tests__/support/inset-hairline-ring'
 import { ReferralDrawer } from '@/components/referral/referral-drawer'
 import { __resetTestHostConfig, __setWindowDimensions } from '../../../test-mocks/react-native'
 import { renderedText } from '../../support/react-test-renderer'
@@ -56,8 +59,10 @@ function applyEdges(node: YogaNode, style: Record<string, unknown>) {
   for (const [suffix, edge] of edges) {
     const padding = style[`padding${suffix}`]
     const margin = style[`margin${suffix}`]
+    const border = style[`border${suffix}Width`]
     if (typeof padding === 'number') node.setPadding(edge, padding)
     if (typeof margin === 'number') node.setMargin(edge, margin)
+    if (typeof border === 'number') node.setBorder(edge, border)
   }
 }
 
@@ -133,6 +138,10 @@ describe('Referral drawer sheet geometry (mobile)', () => {
       for (const surface of [link, card, disclaimer, error, progress]) {
         expect(bounds(nodes.get(surface)!)).toEqual({ left: 24, right: panelWidth - 24 })
       }
+      expectInsetHairlineRing(link.props.style as never, createTokensV2('orange', 'dark').hairline)
+      expect(nodes.get(link)!.getComputedHeight(), 'the link well is as tall as its web twin and its loading skeleton').toBe(TOUCH_TARGET_MIN + SPACING.s8)
+      const linkText = findHost([link], (element) => element.type === 'Text')
+      expect(bounds(nodes.get(linkText)!).left, 'the link starts at the 16 dp well padding').toBe(24 + SPACING.s16)
       const share = findHost(elements, (element) => element.type === 'Pressable' && renderedText(element).trim() === 'referral.drawer.share')
       const button = nodes.get(share)!
       const parent = button.getParent()!
