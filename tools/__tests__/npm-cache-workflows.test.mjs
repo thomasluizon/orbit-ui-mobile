@@ -19,7 +19,7 @@ test("every npm cache restore has a one-minute segment bound", () => {
     (job.steps ?? []).filter((step) => step.uses?.startsWith("actions/cache/restore@") && String(step.with.key).startsWith("npm-"))
       .map((step) => [`${file}: ${jobId}`, step])))
   const restores = [["restore-npm-cache", action.runs.steps.find((step) => step.id === "restore")], ...inline]
-  assert.equal(restores.length, 6, "the shared action and the five release jobs that restore inline")
+  assert.equal(restores.length, 5, "the shared action and the four release jobs that restore inline")
   for (const [where, step] of restores) {
     assert.equal(String(step.env?.SEGMENT_DOWNLOAD_TIMEOUT_MINS), "1", `${where} must bound a stalled segment`)
     assert.equal(step["continue-on-error"], undefined, `${where} must surface restore failures`)

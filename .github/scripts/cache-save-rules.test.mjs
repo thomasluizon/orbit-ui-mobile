@@ -64,6 +64,34 @@ const NPM_KEY = /^npm-\$\{\{ runner\.os \}\}-\$\{\{ runner\.arch \}\}-\$\{\{ has
 const isNpmRestore = (step) => step.uses === "./.github/actions/restore-npm-cache" ||
   (step.uses === "actions/cache/restore@v6" && NPM_KEY.test(step.with.key))
 
+const inlineNpmRestores = () => uses("actions/cache/restore@v6").filter(({ step, where }) => NPM_KEY.test(step.with.key) && !where.startsWith("restore-npm-cache/"))
+const rootCheckoutRef = (file, job) => workflows.find((workflow) => workflow.file === file).jobs[job].steps
+  .find((step) => step.uses?.startsWith("actions/checkout@") && step.with?.path === undefined).with?.ref
+
+// A local action comes from the root checkout. A job whose root checkout is the release commit can run a commit that is
+// older than the action, so it holds the two steps inline. A job whose root checkout is the commit of the workflow
+// always has the action, also when a second checkout puts the release commit in a subdirectory.
+test("only a job whose root checkout is the release commit restores the npm cache inline, and the lockfile input has its caller", () => {
+  const inline = inlineNpmRestores()
+  assert.deepEqual(inline.map(({ file, job }) => `${file}: ${job}`).sort(),
+    ["desktop-release.yml: build", "desktop-release.yml: publish", "desktop-release.yml: staple", "release.yml: smoke"])
+  for (const { step, where, file, job } of inline) {
+    assert.match(rootCheckoutRef(file, job), /^\$\{\{ (inputs\.source_sha \|\| github\.sha|needs\.build\.outputs\.source_sha) \}\}$/, where)
+    assert.equal(step.with.key, "npm-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('package-lock.json') }}", where)
+  }
+
+  assert.equal(load(".github/actions/restore-npm-cache/action.yml").inputs.lockfile.default, "package-lock.json")
+  const otherLockfile = everyStep.filter(({ step }) => step.uses === "./.github/actions/restore-npm-cache" && step.with?.lockfile !== undefined)
+  assert.deepEqual(otherLockfile.map(({ file, job, step }) => [`${file}: ${job}`, step.with.lockfile]),
+    [["release.yml: staging", "staging-smoke-source/package-lock.json"]])
+  const staging = workflows.find(({ file }) => file === "release.yml").jobs.staging.steps
+  assert.equal(rootCheckoutRef("release.yml", "staging"), "${{ github.sha }}")
+  const releaseCheckout = staging.findIndex((step) => step.uses?.startsWith("actions/checkout@") && step.with?.path === "staging-smoke-source")
+  const restore = staging.indexOf(otherLockfile[0].step)
+  const install = staging.findIndex((step) => step.run === "npm ci" && step["working-directory"] === "staging-smoke-source")
+  assert.ok(releaseCheckout >= 0 && releaseCheckout < restore && restore < install, "release checkout, then the restore, then npm ci in that directory")
+})
+
 test("every job that installs from the lockfile restores the npm cache first, and one main job for each runner family saves it", () => {
   const withoutCache = []
   const stepLists = [...workflows.flatMap(({ file, jobs }) => Object.entries(jobs).map(([job, { steps = [] }]) => [`${file}: ${job}`, steps])), ...actions.map(({ file, steps }) => [file, steps])]
@@ -82,8 +110,8 @@ test("every job that installs from the lockfile restores the npm cache first, an
   assert.match(restore.with.key, NPM_KEY)
   assert.equal(restore.with.path, "${{ steps.directory.outputs.path }}")
   assert.equal(action.find((step) => step.id === "directory").run, 'echo "path=$(npm config get cache)" >> "$GITHUB_OUTPUT"')
-  // The five release jobs restore inline and never save, so each keeps the prefix fallback.
-  for (const { step, where } of uses("actions/cache/restore@v6").filter(({ step, where }) => NPM_KEY.test(step.with.key) && !where.startsWith("restore-npm-cache/"))) {
+  // The four release jobs restore inline and never save, so each keeps the prefix fallback.
+  for (const { step, where } of inlineNpmRestores()) {
     assert.equal(step.with["restore-keys"].trim(), "npm-${{ runner.os }}-${{ runner.arch }}-", where)
     assert.equal(step.with.path, "${{ steps.npm-cache-directory.outputs.path }}", where)
   }
