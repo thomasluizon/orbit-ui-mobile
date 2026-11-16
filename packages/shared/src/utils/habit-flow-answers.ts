@@ -44,6 +44,11 @@ export function answerHabitWhen(port: HabitFlowFormPort, choice: HabitWhenChoice
   port.setField('dueDate', choice === 'tomorrow' ? shiftCalendarDate(today, 1) : today)
 }
 
+/** A repeat that has no start day and is not undated. The form refuses to save it, so the flow gives it a start before the summary. */
+export function habitRepeatLacksStart(values: { dueDate?: string | null | undefined; frequencyUnit?: string | null | undefined; isFlexible?: boolean | undefined; isGeneral?: boolean | undefined }): boolean {
+  return !values.isGeneral && !values.dueDate && (Boolean(values.frequencyUnit) || values.isFlexible === true)
+}
+
 /** A quick option of the "time" step. `null` is "no set time". */
 export function answerHabitTime(port: HabitFlowFormPort, time: string | null): void {
   port.setField('dueTime', time ?? '')

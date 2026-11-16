@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useLocale } from 'next-intl'
 import { createUseGuidedHabitFlow, type GuidedHabitFlowForm } from '@orbit/shared/hooks/guided-habit-flow-core'
-import type { HabitFormSuggestionPatch } from '@orbit/shared/utils'
+import type { HabitFormSuggestionPatch, HabitPhraseFormOwnership } from '@orbit/shared/utils'
 import type { HabitFormHelpers } from '@/hooks/use-habit-form'
 import { useHabitPhraseRead } from '@/hooks/use-habit-phrase-read'
 import { useOffline } from '@/hooks/use-offline'
@@ -20,10 +20,11 @@ interface GuidedHabitFlowOptions {
   mode: 'create' | 'edit'
   onReminderEnabledChange?: (enabled: boolean) => void
   onSlipAlertEnabledChange?: (enabled: boolean) => void
+  onPhraseOwnershipChange?: (ownership: HabitPhraseFormOwnership) => void
 }
 
 /** The web wiring of the shared guided habit flow: the form of the modal, the locale of next-intl, the profile and the free phrase reader. */
-export function useGuidedHabitFlow({ formHelpers, lockedGeneral, mode, onReminderEnabledChange, onSlipAlertEnabledChange }: Readonly<GuidedHabitFlowOptions>) {
+export function useGuidedHabitFlow({ formHelpers, lockedGeneral, mode, onReminderEnabledChange, onSlipAlertEnabledChange, onPhraseOwnershipChange }: Readonly<GuidedHabitFlowOptions>) {
   const { form } = formHelpers
   const { profile } = useProfile()
   const { isOnline } = useOffline()
@@ -34,7 +35,7 @@ export function useGuidedHabitFlow({ formHelpers, lockedGeneral, mode, onReminde
   }), [form])
   const applySchedule = useCallback((patch: HabitFormSuggestionPatch) => applySuggestionSchedule(patch, formHelpers), [formHelpers])
   return useGuidedHabitFlowCore({
-    mode, lockedGeneral, onReminderEnabledChange, onSlipAlertEnabledChange,
+    mode, lockedGeneral, onReminderEnabledChange, onSlipAlertEnabledChange, onPhraseOwnershipChange,
     locale: useLocale(),
     timeZone: profile?.timeZone,
     isOnline,

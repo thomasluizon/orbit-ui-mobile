@@ -73,8 +73,8 @@ async function phrase(tree: Tree, text: string) {
 
 const storedHabit = createMockHabit({ id: 'habit-1', title: 'Correr', frequencyUnit: 'Day', frequencyQuantity: 1, dueDate: '2026-11-13', dueTime: '07:00', reminderEnabled: false })
 
-function mountCreate() {
-  return renderNavigation(<QueryClientProvider client={new QueryClient()}><CreateHabitModal open onClose={vi.fn()} /></QueryClientProvider>)
+function mountCreate(initialDate?: string) {
+  return renderNavigation(<QueryClientProvider client={new QueryClient()}><CreateHabitModal open onClose={vi.fn()} initialDate={initialDate} /></QueryClientProvider>)
 }
 function mountEdit(onClose = vi.fn()) {
   return renderNavigation(<QueryClientProvider client={new QueryClient()}><EditHabitModal open onClose={onClose} habit={storedHabit} /></QueryClientProvider>)
@@ -129,6 +129,78 @@ describe('the Android create surface behind orbit_guided_flows', () => {
     })
     expect(state.completed).toHaveBeenCalledWith('habit_create', 5, false)
     expect(tree.hosts().some((node) => typeof node.props.children === 'string' && node.props.children.includes('08:00') && node.props.children.startsWith('A tarefa ficou marcada para'))).toBe(true)
+    tree.unmount()
+  })
+})
+
+describe('a guided create on Android from a phrase with a repeat', () => {
+  const sent = () => state.create.mock.calls[0]![0] as Record<string, unknown>
+  const alertText = (tree: Tree) => tree.hosts().filter((node) => node.props.accessibilityRole === 'alert').map((node) => node.props.children)
+
+  it('gives the repeat its start day and saves the title with no schedule words', async () => {
+    state.create.mockResolvedValue({ id: 'habit-9' })
+    const tree = mountCreate()
+    await settle()
+    await phrase(tree, 'ligar para o João todo dia às 8')
+    expect(heading(tree)).toBe(ptBR.habits.flow.reminder.question.replace('{time}', '08:00'))
+    await tap(tree, ptBR.habits.flow.reminder.no)
+    await primary(tree)
+    expect(state.create).toHaveBeenCalledTimes(1)
+    expect(sent()).toMatchObject({ title: 'ligar para o João', startDate: '2026-11-13', dueTime: '08:00', frequencyUnit: 'Day', frequencyQuantity: 1 })
+    expect(alertText(tree)).toEqual([])
+    tree.unmount()
+  })
+
+  it('saves the title with no schedule words when the flow opens with a day', async () => {
+    state.create.mockResolvedValue({ id: 'habit-9' })
+    const tree = mountCreate('2026-11-20')
+    await settle()
+    await phrase(tree, 'ligar para o João todo dia às 8')
+    await tap(tree, ptBR.habits.flow.reminder.no)
+    await primary(tree)
+    expect(sent()).toMatchObject({ title: 'ligar para o João', startDate: '2026-11-20', dueTime: '08:00', frequencyUnit: 'Day', frequencyQuantity: 1 })
+    tree.unmount()
+  })
+
+  it('keeps the words of a time the person changed in the saved title, as the full form does', async () => {
+    state.create.mockResolvedValue({ id: 'habit-9' })
+    const tree = mountCreate()
+    await settle()
+    await phrase(tree, 'ligar para o João todo dia às 8')
+    await tap(tree, ptBR.habits.flow.reminder.no)
+    await tap(tree, /^Hora,/)
+    await tap(tree, '14:00')
+    await primary(tree)
+    expect(sent()).toMatchObject({ title: 'ligar para o João às 8', startDate: '2026-11-13', dueTime: '14:00', frequencyUnit: 'Day' })
+    tree.unmount()
+  })
+
+  it('gives the repeat of the date question its start day', async () => {
+    state.create.mockResolvedValue({ id: 'habit-9' })
+    const tree = mountCreate()
+    await settle()
+    await phrase(tree, 'ligar para o João')
+    const words = tree.hosts().find((node) => (node.props as { onChangeText?: unknown }).onChangeText && node.props.accessibilityLabel === ptBR.habits.flow.when.freeLabel)!
+    await act(async () => { (words.props as unknown as { onChangeText: (value: string) => void }).onChangeText('todo dia'); await Promise.resolve() })
+    const submit = tree.hosts().find((node) => node.props.accessibilityLabel === ptBR.habits.flow.when.freeLabel && typeof (node.props as { onSubmitEditing?: unknown }).onSubmitEditing === 'function')!
+    await act(async () => { (submit.props as unknown as { onSubmitEditing: () => void }).onSubmitEditing(); await Promise.resolve() })
+    await tap(tree, ptBR.habits.flow.time.none)
+    await primary(tree)
+    expect(sent()).toMatchObject({ title: 'ligar para o João', startDate: '2026-11-13', frequencyUnit: 'Day', frequencyQuantity: 1 })
+    tree.unmount()
+  })
+
+  it('states a refused save on the summary and sends nothing, when an undated task becomes a habit with no start day', async () => {
+    const tree = mountCreate()
+    await settle()
+    await phrase(tree, 'ligar para o João')
+    await tap(tree, ptBR.habits.flow.when.noDate)
+    await tap(tree, new RegExp(`^${ptBR.habits.flow.summary.type}`))
+    await tap(tree, new RegExp(`^${ptBR.habits.form.typeHabit}`))
+    await primary(tree)
+    expect(state.create).not.toHaveBeenCalled()
+    expect(heading(tree)).toBe(ptBR.habits.flow.confirm.question)
+    expect(alertText(tree)).toEqual([ptBR.habits.form.dateStale])
     tree.unmount()
   })
 })

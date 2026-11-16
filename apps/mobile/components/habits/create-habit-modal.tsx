@@ -423,6 +423,11 @@ export function CreateHabitModal({
     else showError(message)
   }, [formHelpers, guided, isSubHabitMode, showError, translate])
 
+  const reportRefusedSave = useCallback((refusal: string) => {
+    if (guided) setSaveError(refusal)
+    else reportHabitFormValidationError(refusal, formHelpers.form.getFieldState, showError)
+  }, [formHelpers, guided, showError])
+
   const submittingRef = useRef(false)
   const handleSubmit = useCallback(async (completion?: GuidedHabitCompletion) => {
     if (submittingRef.current) return
@@ -440,9 +445,10 @@ export function CreateHabitModal({
       subHabits: subHabitValues,
     })
     if (error) {
-      reportHabitFormValidationError(error, formHelpers.form.getFieldState, showError)
+      reportRefusedSave(error)
       return
     }
+    setSaveError(null)
     const data = habitFormSchema.parse(formHelpers.form.getValues())
 
     try {
@@ -492,8 +498,8 @@ export function CreateHabitModal({
     finishClose,
     onClose,
     onCreated,
-    showError,
     reportCreateFailure,
+    reportRefusedSave,
   ])
 
   const handleSuggestEmoji = useCallback(async () => {

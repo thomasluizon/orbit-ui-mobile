@@ -70,10 +70,10 @@ async function phrase(text: string) {
   await press(messages().habits.flow.continue)
 }
 
-function mountCreate() {
+function mountCreate(initialDate?: string) {
   const client = new QueryClient()
   const closed = vi.fn()
-  render(<QueryClientProvider client={client}><CreateHabitModal open onOpenChange={closed} /></QueryClientProvider>)
+  render(<QueryClientProvider client={client}><CreateHabitModal open onOpenChange={closed} initialDate={initialDate} /></QueryClientProvider>)
   return { closed }
 }
 
@@ -171,6 +171,68 @@ describe('the create surface behind orbit_guided_flows', () => {
     expect(heading()).toHaveTextContent(ptBR.habits.flow.confirm.question)
     expect(screen.getByRole('alert')).not.toBeEmptyDOMElement()
     expect(screen.queryByRole('dialog', { name: ptBR.result.title })).not.toBeInTheDocument()
+  })
+
+  it.each([['en', 'call John every day at 8am', 'call John'], ['pt-BR', 'ligar para o João todo dia às 8', 'ligar para o João']] as const)(
+    'gives a repeat phrase its start day and saves the title with no schedule words in %s', async (locale, sentence, title) => {
+      state.locale = locale
+      mountCreate()
+      await waitFor(() => expect(document.querySelector('[data-question-flow]')).not.toBeNull())
+      await phrase(sentence)
+      expect(heading()).toHaveTextContent(messages().habits.flow.reminder.question.replace('{time}', '08:00'))
+      await press(messages().habits.flow.reminder.no)
+      await press(messages().habits.createHabit)
+      expect(state.create).toHaveBeenCalledTimes(1)
+      expect(state.create.mock.calls[0]![0]).toMatchObject({ title, startDate: '2026-11-13', dueTime: '08:00', frequencyUnit: 'Day', frequencyQuantity: 1 })
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    })
+
+  it('saves the title with no schedule words when the flow opens with a day', async () => {
+    state.locale = 'en'
+    mountCreate('2026-11-20')
+    await waitFor(() => expect(document.querySelector('[data-question-flow]')).not.toBeNull())
+    await phrase('call John every day at 8am')
+    await press(en.habits.flow.reminder.no)
+    await press(en.habits.createHabit)
+    expect(state.create.mock.calls[0]![0]).toMatchObject({ title: 'call John', startDate: '2026-11-20', dueTime: '08:00', frequencyUnit: 'Day', frequencyQuantity: 1 })
+  })
+
+  it('keeps the words of a time the person changed in the saved title, as the full form does', async () => {
+    state.locale = 'en'
+    mountCreate()
+    await waitFor(() => expect(document.querySelector('[data-question-flow]')).not.toBeNull())
+    await phrase('call John every day at 8am')
+    await press(en.habits.flow.reminder.no)
+    await press(/^Time/)
+    await press('14:00')
+    await press(en.habits.createHabit)
+    expect(state.create.mock.calls[0]![0]).toMatchObject({ title: 'call John at 8am', startDate: '2026-11-13', dueTime: '14:00', frequencyUnit: 'Day' })
+  })
+
+  it('gives the repeat of the date question its start day', async () => {
+    state.locale = 'en'
+    mountCreate()
+    await waitFor(() => expect(document.querySelector('[data-question-flow]')).not.toBeNull())
+    await phrase('call John')
+    await act(async () => { fireEvent.change(screen.getByLabelText(en.habits.flow.when.freeLabel), { target: { value: 'every day' } }) })
+    await press(en.habits.flow.continue)
+    await press(en.habits.flow.time.none)
+    await press(en.habits.createHabit)
+    expect(state.create.mock.calls[0]![0]).toMatchObject({ title: 'call John', startDate: '2026-11-13', frequencyUnit: 'Day', frequencyQuantity: 1 })
+  })
+
+  it('states a refused save on the summary and sends nothing, when an undated task becomes a habit with no start day', async () => {
+    state.locale = 'en'
+    mountCreate()
+    await waitFor(() => expect(document.querySelector('[data-question-flow]')).not.toBeNull())
+    await phrase('call John')
+    await press(en.habits.flow.when.noDate)
+    await press(new RegExp(`^${en.habits.flow.summary.type}`))
+    await act(async () => { fireEvent.click(screen.getByRole('radio', { name: new RegExp(`^${en.habits.form.typeHabit}`) })) })
+    await press(en.habits.createHabit)
+    expect(state.create).not.toHaveBeenCalled()
+    expect(heading()).toHaveTextContent(en.habits.flow.confirm.question)
+    expect(screen.getByRole('alert')).toHaveTextContent(en.habits.form.dateStale)
   })
 
   it('shows the current offline refusal on the summary and sends nothing offline', async () => {

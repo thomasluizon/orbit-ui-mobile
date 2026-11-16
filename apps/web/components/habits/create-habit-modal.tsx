@@ -353,6 +353,11 @@ export function CreateHabitModal({
     else showError(message)
   }, [formHelpers, guided, showError, translate, createErrorKey, createErrorEntity])
 
+  const reportRefusedSave = useCallback((refusal: string) => {
+    if (guided) setSaveError(refusal)
+    else reportHabitFormValidationError(refusal, formHelpers.form.getFieldState, showError)
+  }, [formHelpers, guided, showError])
+
   const submittingRef = useRef(false)
   const submitForm = useCallback(
     async (completion?: GuidedHabitCompletion) => {
@@ -371,9 +376,11 @@ export function CreateHabitModal({
       })
 
       if (error) {
-        reportHabitFormValidationError(error, formHelpers.form.getFieldState, showError)
+        reportRefusedSave(error)
         return
       }
+
+      setSaveError(null)
       if (!isOnline) return
       const data = habitFormSchema.parse(formHelpers.form.getValues())
       if (data.reminderEnabled) requestReminderPermission()
@@ -402,7 +409,7 @@ export function CreateHabitModal({
       }
       } finally { submittingRef.current = false }
     },
-    [guided, reportCreateFailure, requestReminderPermission, finishClose, createHabit, createSubHabit, formHelpers, isOnline, isSubHabitMode, locale, onCreated, onOpenChange, parentHabit, reminderTimes, selectedGoalIds, showError, subHabits, tags],
+    [guided, reportCreateFailure, reportRefusedSave, requestReminderPermission, finishClose, createHabit, createSubHabit, formHelpers, isOnline, isSubHabitMode, locale, onCreated, onOpenChange, parentHabit, reminderTimes, selectedGoalIds, subHabits, tags],
   )
 
   const handleSubmit = useCallback((event: React.SubmitEvent<HTMLFormElement>) => {

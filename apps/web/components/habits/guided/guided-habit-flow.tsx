@@ -21,7 +21,7 @@ export type { GuidedHabitCompletion, GuidedHabitFields, GuidedHabitFlowProps } f
 export function GuidedHabitFlow(props: Readonly<GuidedHabitFlowProps>) {
   const { formHelpers, fields, mode = 'create' } = props
   const t = useTranslations()
-  const flow = useGuidedHabitFlow({ formHelpers, lockedGeneral: props.lockedGeneral, mode, onReminderEnabledChange: fields.onReminderEnabledChange, onSlipAlertEnabledChange: fields.onSlipAlertEnabledChange })
+  const flow = useGuidedHabitFlow({ formHelpers, lockedGeneral: props.lockedGeneral, mode, onReminderEnabledChange: fields.onReminderEnabledChange, onSlipAlertEnabledChange: fields.onSlipAlertEnabledChange, onPhraseOwnershipChange: fields.onPhraseOwnershipChange })
   const input = { flow, formHelpers }
   const views: Partial<Record<string, FlowStepView>> = {
     what: usePhraseView(input),
