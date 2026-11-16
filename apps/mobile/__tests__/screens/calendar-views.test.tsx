@@ -793,9 +793,12 @@ describe("CalendarScreen views (mobile)", () => {
         if (switchTop === undefined) switchTop = top;
         expect.soft(top, view).toBe(switchTop);
         const firstBodyText = measured.texts.filter((text) => text.top >= bottom).sort((a, b) => a.top - b.top)[0]!;
-        const firstBodyTop = view === 'week'
-          ? Math.min(...measured.controls.filter((control) => control.top >= bottom).map((control) => control.top))
-          : firstBodyText.top;
+        const weekFrame = measured.boxes.find((box) => box.testID === 'calendar-time-grid');
+        const firstBodyTop = view === 'week' ? weekFrame!.top : firstBodyText.top;
+        if (view === 'week') {
+          const firstColumnTop = Math.min(...measured.controls.filter((control) => control.top >= bottom).map((control) => control.top));
+          expect.soft(firstColumnTop - weekFrame!.top, 'the day columns start inside the 1 dp frame hairline').toBe(1);
+        }
         expect.soft(firstBodyTop - bottom, `${view} body clearance`).toBe(24);
         if (month) TestRenderer.act(() => month.update(<></>));
       }
