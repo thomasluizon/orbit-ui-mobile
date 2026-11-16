@@ -74,8 +74,8 @@ function heldPreviewsOf(previews, written, vars) {
 }
 
 // Private evidence of each attempt for the triage of a failure: the sanitized tool calls and answer of the last turn,
-// the held change list, the held previews and the saved state verdict. The summary files hold case identifiers, counts
-// and the paths of this evidence only.
+// the held change list, the held previews and the saved state verdict. The summary files hold case identifiers, counts,
+// measurements, the failure reasons and the paths of this evidence, never the evidence itself.
 export function writeResults(results, directory) {
   openPrivateEvidence(directory)
   const attempts = attemptsOf(results).map(({ entry, attempt }) => {

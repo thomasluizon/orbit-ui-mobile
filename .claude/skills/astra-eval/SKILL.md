@@ -105,9 +105,10 @@ readback proves the write.
 
 Preserve each window's sanitized summaries and `attempts/` directory before another run overwrites them. The merged
 report links each attempt of a failed case to the `attempts/` file of its window, so keep each window directory where
-the merge read it. Do not attach raw promptfoo databases, responses, or traces to a pull request. The summary contains
-only case identifiers, counts and the paths of the private evidence. Record behavior failures on the work ticket; this skill does not authorize behavior changes, ticket writes,
-or outbound messages.
+the merge read it. Do not attach raw promptfoo databases, responses, or traces to a pull request. The summary holds
+case identifiers, counts, measurements, the failure reasons and the paths of the private evidence; the evidence itself
+stays in `attempts/`. Record behavior failures on the work ticket; this skill does not authorize behavior changes,
+ticket writes, or outbound messages.
 
 ## The launch corpus
 
