@@ -106,7 +106,6 @@ function rootMarkup(platform: string, body: string, stylesheet: string) {
   return `<html class="dark" data-desktop-window-bar="${platform}" style="${variables}"><style>${stylesheet}</style>${body}</html>`
 }
 
-/** The top of every visible control inside the surface, so a test can require each one below the bar. */
 function controlTops(page: Page, surface: string) {
   return page.locator(surface).evaluate((element) => [...element.querySelectorAll('button, a[href], input, textarea, [role="tab"]')]
     .map((control) => control.getBoundingClientRect())

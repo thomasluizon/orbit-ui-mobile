@@ -6,7 +6,6 @@ export type DesktopWindowAction = 'state' | 'drag' | 'minimize' | 'toggle_maximi
 /** CSS pixels from the top left of the page, where the shell opens a menu that the keyboard opened. */
 export type DesktopWindowAnchor = { x: number; y: number }
 
-/** The shell marks the root element with this attribute at document creation, and only a shell without a native title bar does. */
 const DESKTOP_WINDOW_BAR_ATTRIBUTE = 'data-desktop-window-bar'
 
 /**
