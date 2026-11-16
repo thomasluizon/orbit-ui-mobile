@@ -1,32 +1,41 @@
 import { spawnSync } from "node:child_process"
-import { chmodSync, mkdirSync, writeFileSync } from "node:fs"
+import { chmodSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
-import { alertCheck, githubPageReader, listedWakeKeys, listOpenAlerts, listOpenPullRequests, markItem, pendingItems, pullRequestCheck, recordListing, runPullRequestKeys, unexpectedAuthor, unreportedPullRequests } from "../lib/auto-work-github.mjs"
+import { alertCheck, dismissAlert, githubPageReader, listedWakeKeys, listOpenAlerts, listOpenPullRequests, markItem, pendingItems, pullRequestCheck, recordListing, runPullRequestKeys, unexpectedAuthor, unreportedPullRequests } from "../lib/auto-work-github.mjs"
+import { evaluateChecks } from "../lib/auto-work-wake.mjs"
 import { readRunState, writeRunState } from "../lib/run-state.mjs"
-import { T, root } from "./_harness.mjs"
+import { T, TOOLS_DIR, root } from "./_harness.mjs"
 
 const REPOSITORIES = [{ key: "ui", slug: "thomasluizon/orbit-ui-mobile" }, { key: "api", slug: "thomasluizon/orbit-api" },
   { key: "landing", slug: "thomasluizon/orbit-landing-page" }]
 const TICKET = "https://github.com/thomasluizon/orbit-tickets/issues/2149"
 
 /* Each item is a live projection of a real REST response; the pull requests and the alerts are closed ones, read with their state filter removed. */
-export const DEPENDABOT_PULL = { number: 1106, author: "dependabot[bot]", authorType: "Bot", head: "1eb7c13b62064064a60a3589eff1b1812f39190e", base: "main",
-  draft: false, title: "Bump System.Formats.Cbor from 10.0.14 to 10.0.15", url: "https://github.com/thomasluizon/orbit-api/pull/1106" }
-const OWNER_PULL = { number: 2473, author: "thomasluizon", authorType: "User", head: "859e0638209bff39521cb381642f00d203f75116", base: "main", draft: false,
+export const DEPENDABOT_PULL = { number: 1106, author: "dependabot[bot]", authorType: "Bot", head: "1eb7c13b62064064a60a3589eff1b1812f39190e",
+  branch: "dependabot/nuget/src/Orbit.Infrastructure/System.Formats.Cbor-10.0.15", base: "main", draft: false, title: "Bump System.Formats.Cbor from 10.0.14 to 10.0.15", url: "https://github.com/thomasluizon/orbit-api/pull/1106" }
+const OWNER_PULL = { number: 2473, author: "thomasluizon", authorType: "User", head: "859e0638209bff39521cb381642f00d203f75116", branch: "fix/ticket-2144-icon-eyes", base: "main", draft: false,
   title: "fix(brand): draw every app icon as the mascot with its eyes (#2144)", url: "https://github.com/thomasluizon/orbit-ui-mobile/pull/2473" }
 /** An owner pull request that no entry of the current run names, so an earlier run opened it. */
-const EARLIER_OWNER_PULL = { number: 1115, author: "thomasluizon", authorType: "User", head: "fcfcc2d215a0eca16b43935efd77635bec167183", base: "main", draft: false,
+const EARLIER_OWNER_PULL = { number: 1115, author: "thomasluizon", authorType: "User", head: "fcfcc2d215a0eca16b43935efd77635bec167183", branch: "fix/ticket-2074-timeless-loop", base: "main", draft: false,
   title: "test: run the cross-repository timeless hook test once and give each fixture value and helper one name", url: "https://github.com/thomasluizon/orbit-api/pull/1115" }
-const CONTRACT_PULL = { number: 2462, author: "orbit-contract-rebaseline[bot]", authorType: "Bot", head: "1fe4df96f28dedab74f55c6b285a7bc956116bfb", base: "main", draft: false,
+const CONTRACT_PULL = { number: 2462, author: "orbit-contract-rebaseline[bot]", authorType: "Bot", head: "1fe4df96f28dedab74f55c6b285a7bc956116bfb", branch: "chore/contract-snapshot", base: "main", draft: false,
   title: "Update pinned API contract snapshot", url: "https://github.com/thomasluizon/orbit-ui-mobile/pull/2462" }
 /** A pull request from an account that no repository configures to open pull requests. */
-export const UNEXPECTED_PULL = { number: 20, author: "bellaFG", authorType: "User", head: "8edde4aebbb2f26a21a0c83b2b4d986e1e2757e2", base: "main", draft: false,
+export const UNEXPECTED_PULL = { number: 20, author: "bellaFG", authorType: "User", head: "8edde4aebbb2f26a21a0c83b2b4d986e1e2757e2", branch: "fix/mobile-ring-centering", base: "main", draft: false,
   title: "fix: center orbital rings over hero title on mobile", url: "https://github.com/thomasluizon/orbit-landing-page/pull/20" }
 export const CODE_SCANNING_ALERT = { line: 84, message: "Cookie attribute 'Secure' is not set to true.\nCookie attribute 'Secure' is not set to true.", number: 28,
   path: "tests/Orbit.Infrastructure.Tests/Controllers/OAuthControllerTests.CookiePolicy.cs", rule: "cs/web/cookie-secure-not-set", severity: "medium", tool: "CodeQL",
   url: "https://github.com/thomasluizon/orbit-api/security/code-scanning/28" }
-const DEPENDABOT_ALERT = { message: "hono: Hono: `csrf()` does not check requests sent by hyperlink auditing (`text/ping`)", number: 186, path: "evals/astra/package-lock.json",
+export const DEPENDABOT_ALERT = { message: "hono: Hono: `csrf()` does not check requests sent by hyperlink auditing (`text/ping`)", number: 186, path: "evals/astra/package-lock.json",
   rule: "GHSA-46wx-v44x-9hh2", severity: "medium", tool: "npm", url: "https://github.com/thomasluizon/orbit-ui-mobile/security/dependabot/186" }
+/** Two cursor pages of ui Dependabot alerts at per_page=2, each line the live output of the Dependabot projection for that page. */
+const DEPENDABOT_PAGES = [[DEPENDABOT_ALERT,
+  { message: "hono: Hono: `mount()` and `app.mount()` can forward a path that bypasses middleware scoped inside the mount prefix", number: 185, path: "evals/astra/package-lock.json",
+    rule: "GHSA-4m76-xfj5-7975", severity: "medium", tool: "npm", url: "https://github.com/thomasluizon/orbit-ui-mobile/security/dependabot/185" }],
+[{ message: "hono: Hono: `css` helper does not escape a closing tag split between the template and an interpolated value, allowing HTML injection", number: 184,
+  path: "evals/astra/package-lock.json", rule: "GHSA-3gg2-335m-rxc6", severity: "low", tool: "npm", url: "https://github.com/thomasluizon/orbit-ui-mobile/security/dependabot/184" },
+{ message: "hono: Hono: `validator('form')` skips validation for `multipart/form-data` requests with extra parameters", number: 183, path: "evals/astra/package-lock.json",
+  rule: "GHSA-4h7h-rv7c-7m2v", severity: "medium", tool: "npm", url: "https://github.com/thomasluizon/orbit-ui-mobile/security/dependabot/183" }]]
 /** The gh failure line for a missing resource, copied from a live read. */
 export const NOT_FOUND = "gh: Not Found (HTTP 404)"
 
@@ -105,13 +114,31 @@ const readerCases = async () => {
     let message = ""
     try { await read("repos/thomasluizon/orbit-api/code-scanning/alerts?state=open&per_page=100", ".[]") } catch (error) { message = error.message }
     T("github: a failed page read names the path and the last gh line", message === `GitHub read failed at repos/thomasluizon/orbit-api/code-scanning/alerts?state=open&per_page=100: ${NOT_FOUND}`, message)
+
+    /* gh prints the projection of each page in order with --paginate, and only the first page without it. */
+    const pages = DEPENDABOT_PAGES.map((page, index) => {
+      const file = join(checkout, `page-${index + 1}.jsonl`)
+      writeFileSync(file, page.map((alert) => `${JSON.stringify(alert)}\n`).join(""))
+      return file
+    })
+    writeFileSync(gh, `#!/bin/sh
+case "$*" in
+  "auth token --user thomasluizon") echo token-2149;;
+  "api --paginate "*) cat "${pages[0]}" "${pages[1]}";;
+  "api "*) cat "${pages[0]}";;
+  *) exit 1;;
+esac
+`)
+    const paged = await githubPageReader({ config, repoRoot: checkout })("repos/thomasluizon/orbit-ui-mobile/dependabot/alerts?state=open&per_page=2", ".[] | tojson")
+    T("github: the reader returns the items of both pages in order", JSON.stringify(paged.map((alert) => alert.number)) === JSON.stringify([186, 185, 184, 183]) &&
+      JSON.stringify(paged) === JSON.stringify(DEPENDABOT_PAGES.flat()), JSON.stringify(paged.map((alert) => alert.number)))
   } finally {
     if (previous === undefined) delete process.env.GH_BIN
     else process.env.GH_BIN = previous
   }
 }
 
-const stateCases = ({ pullListing, alertListing }) => {
+const stateCases = async ({ pullListing, alertListing }) => {
   const checkout = fresh("state", { pullRequests: [{ repositoryKey: "ui", prNumber: 2473, receiptPath: "receipt.json" }] })
   const pulls = recordListing("pullRequests", pullListing, checkout, "2026-11-16T12:00:00.000Z")
   T("github: the listing persists in intake.pullRequests and reads back", JSON.stringify(readRunState(checkout).intake.pullRequests) === JSON.stringify(pulls) &&
@@ -160,10 +187,17 @@ const stateCases = ({ pullListing, alertListing }) => {
     pendingItems("alerts", alerts).length === 2 && readRunState(checkout).intake.pullRequests !== undefined)
   T("github: an alert mark needs its ticket and the verified cause", refusal(() => markItem("alerts", { key: "api code-scanning 28", action: "ticket", ticket: TICKET }, checkout)) ===
     "an alert needs its carrying ticket and the verified cause")
-  T("github: a dismissal without a written analysis is refused", refusal(() => markItem("alerts", { key: "api code-scanning 28", action: "dismissed", ticket: TICKET }, checkout))
+  T("github: a mark never dismisses an alert", refusal(() => markItem("alerts", { key: "api code-scanning 28", action: "dismissed", ticket: TICKET }, checkout))
     .startsWith("Unknown alerts action") &&
-    refusal(() => markItem("alerts", { key: "api code-scanning 28", action: "false-positive", ticket: TICKET }, checkout)) ===
-    "a false positive needs the ticket that holds the analysis and the reason")
+    refusal(() => markItem("alerts", { key: "api code-scanning 28", action: "false-positive", ticket: TICKET, reason: "Test fixture." }, checkout)) ===
+    "a false positive is recorded only by --dismiss, which dismisses the alert first")
+  const writes = []
+  let dismissal = ""
+  try {
+    await dismissAlert({ key: "api code-scanning 28", ticket: TICKET }, { repositories: REPOSITORIES, write: async (...call) => { writes.push(call) }, repoRoot: checkout })
+  } catch (error) { dismissal = error.message }
+  T("github: a dismissal without the written analysis is refused before any GitHub write", dismissal === "a false positive needs the ticket that holds the analysis and the reason" &&
+    writes.length === 0, `${dismissal} ${JSON.stringify(writes)}`)
   const ticketed = markItem("alerts", { key: "api code-scanning 28", action: "ticket", ticket: TICKET, cause: "The test fixture sets Secure false on purpose." }, checkout)
   T("github: an alert mark keeps the rule, the file and line, the ticket and the cause", JSON.stringify({ ...ticketed.marks["api code-scanning 28"], markedAt: undefined }) ===
     JSON.stringify({ action: "ticket", rule: "cs/web/cookie-secure-not-set", location: "tests/Orbit.Infrastructure.Tests/Controllers/OAuthControllerTests.CookiePolicy.cs:84",
@@ -177,8 +211,67 @@ const stateCases = ({ pullListing, alertListing }) => {
     JSON.stringify(["ui#1", "api#2"]) && runPullRequestKeys(null).size === 0)
 }
 
+/** The live run state names #2144 in remaining and has no pull request entry for its open pull request ui#2473. */
+const ownershipCases = async ({ pullListing }) => {
+  const checkout = fresh("ownership", { remaining: ["#2144", "#2149"] })
+  const pulls = recordListing("pullRequests", pullListing, checkout)
+  T("github: an owner pull request whose branch names an in-flight ticket is run owned and not pending", pulls.open["ui#2473"]?.runOwned === true &&
+    !pendingItems("pullRequests", pulls).some((pull) => pull.key === "ui#2473"), JSON.stringify(pulls.open["ui#2473"]))
+  T("github: an owner pull request of a ticket outside remaining stays pending", pulls.open["api#1115"]?.runOwned === false &&
+    pendingItems("pullRequests", pulls).some((pull) => pull.key === "api#1115"))
+  const renamed = recordListing("pullRequests", { ...pullListing, items: pullListing.items.map((pull) => pull.key === "ui#2473" ? { ...pull, branch: "fix/icon-eyes" } : pull) }, checkout)
+  T("github: an owner pull request whose title alone names an in-flight ticket is run owned", renamed.open["ui#2473"]?.runOwned === true, JSON.stringify(renamed.open["ui#2473"]))
+  const borrowed = recordListing("pullRequests", { ...pullListing, items: pullListing.items.map((pull) => pull.key === "api#1106"
+    ? { ...pull, branch: "fix/ticket-2144-bump", title: `${pull.title} (#2144)` } : pull) }, checkout)
+  T("github: a bot pull request never becomes run owned through a ticket reference", borrowed.open["api#1106"]?.runOwned === false &&
+    pendingItems("pullRequests", borrowed).some((pull) => pull.key === "api#1106"))
+  const keys = await pullRequestCheck({ list: async () => pullListing, readState: () => readRunState(checkout) })()
+  T("github: the waiter skips an owner pull request of an in-flight ticket", JSON.stringify(keys.keys) ===
+    JSON.stringify([`ui#2462 ${CONTRACT_PULL.head}`, `api#1106 ${DEPENDABOT_PULL.head}`, `api#1115 ${EARLIER_OWNER_PULL.head}`, "landing#20"]), JSON.stringify(keys))
+}
+
+/* The same failure wakes the model once: a read that fails keeps its seen keys, so its recovery is not new. */
+const failedReadCases = async () => {
+  const healthy = { "repos/thomasluizon/orbit-api/pulls": [DEPENDABOT_PULL], "repos/thomasluizon/orbit-ui-mobile/pulls": [CONTRACT_PULL],
+    "repos/thomasluizon/orbit-api/code-scanning": [CODE_SCANNING_ALERT], "repos/thomasluizon/orbit-ui-mobile/dependabot": [DEPENDABOT_ALERT] }
+  const failing = { ...healthy, "repos/thomasluizon/orbit-api/pulls": "timed out", "repos/thomasluizon/orbit-api/code-scanning": "timed out" }
+  let answers = healthy
+  const readPages = (path, projection) => fakeReader(answers).readPages(path, projection)
+  const checks = [
+    { source: "pullRequests", run: pullRequestCheck({ list: () => listOpenPullRequests({ repositories: REPOSITORIES, readPages }), readState: () => ({}) }) },
+    { source: "alerts", run: alertCheck({ list: () => listOpenAlerts({ repositories: REPOSITORIES, readPages }) }) }]
+  let marks = { seen: {}, failures: {}, sentryListedAt: new Date(0).toISOString() }
+  const interval = async (current) => {
+    answers = current
+    const evaluated = evaluateChecks(checks, await Promise.allSettled(checks.map((check) => check.run())), marks, 0)
+    marks = evaluated.marks
+    return evaluated.wakes
+  }
+  const first = await interval(healthy)
+  const failed = await interval(failing)
+  const again = await interval(failing)
+  const seenAfterFailure = marks.seen
+  const recovered = await interval(healthy)
+  T("github: a partial read failure wakes once per source and keeps the seen keys of the failed read", first.length === 2 &&
+    JSON.stringify(failed.map((wake) => [wake.source, wake.kind])) === JSON.stringify([["pullRequests", "failure"], ["alerts", "failure"]]) && again.length === 0 &&
+    seenAfterFailure.pullRequests.includes(`api#1106 ${DEPENDABOT_PULL.head}`) && seenAfterFailure.alerts.includes("api code-scanning 28"),
+  JSON.stringify({ failed, again, seenAfterFailure }))
+  T("github: the recovery of the same failure wakes nothing", recovered.length === 0, JSON.stringify(recovered))
+}
+
+/* Step 7 asks for the review before its waiter, and steps 7 and 8 name each GitHub write. */
+const skillCases = () => {
+  const skill = readFileSync(join(TOOLS_DIR, "..", ".claude", "skills", "auto-work", "SKILL.md"), "utf8")
+  const waiters = skill.match(/node tools\/wait-ci\.mjs[^`]*/g) ?? []
+  T("github skill: every CI waiter of step 7 waits for the requested Pullfrog review", waiters.length > 0 &&
+    waiters.every((command) => command.includes("--require-check pullfrog-approval")) && skill.includes("node tools/list-bot-threads.mjs --pr <n> --repo <key> --head <sha>"),
+  waiters.join("\n"))
+  T("github skill: the close of a pull request and the dismissal of an alert name their commands",
+    skill.includes("gh pr close <n> --repo <owner/name> --comment <reason>") && skill.includes("node tools/auto-work-github.mjs --dismiss"))
+}
+
 const checkCases = async ({ pullListing, alertListing }) => {
-  const pulls = await pullRequestCheck({ list: async () => pullListing, ownedKeys: () => new Set(["ui#2473"]) })()
+  const pulls = await pullRequestCheck({ list: async () => pullListing, readState: () => ({ pullRequests: [{ repositoryKey: "ui", prNumber: 2473 }] }) })()
   T("github: the pull request check keys each pull request the run did not open by its head, and an unexpected author once", JSON.stringify(pulls) ===
     JSON.stringify({ keys: [`ui#2462 ${CONTRACT_PULL.head}`, `api#1106 ${DEPENDABOT_PULL.head}`, `api#1115 ${EARLIER_OWNER_PULL.head}`, "landing#20"] }), JSON.stringify(pulls))
   const listed = listedWakeKeys({ pullRequests: { open: { "ui#2473": { key: "ui#2473", head: OWNER_PULL.head, runOwned: true },
@@ -196,6 +289,9 @@ const checkCases = async ({ pullListing, alertListing }) => {
 export const cases = async () => {
   const listings = await listingCases()
   await readerCases()
-  stateCases(listings)
+  await stateCases(listings)
+  await ownershipCases(listings)
+  await failedReadCases()
+  skillCases()
   await checkCases(listings)
 }

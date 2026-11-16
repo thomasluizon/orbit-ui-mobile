@@ -97,7 +97,9 @@ export const evaluateChecks = (checks, outcomes, marks, nowMilliseconds, sentryP
     } else delete next.failures[check.source]
     if (outcome.status === "rejected") return
     const known = next.seen[check.source]
-    const keys = outcome.value.keys
+    // A key whose read failed stays seen, so the recovery of that read is not new.
+    const unread = (known ?? []).filter((key) => (outcome.value.unreadPrefixes ?? []).some((prefix) => key.startsWith(prefix)))
+    const keys = [...new Set([...outcome.value.keys, ...unread])]
     next.seen[check.source] = keys
     if (known === undefined && check.seed) return
     const items = keys.filter((key) => !(known ?? []).includes(key))

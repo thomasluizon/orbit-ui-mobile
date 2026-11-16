@@ -132,9 +132,11 @@ for the successor.
    list together with the configuration that lets it open pull requests. The tool prints
    `pending`: each pull request from a configured author with no mark, or whose head moved after
    its mark. This includes an owner pull request that an earlier run opened. A pull request in
-   `runOwned` is one this run opened; step 2 drives it, so skip it here. Exit 3 means at least
-   one read failed: the tool names it in `failures` and keeps that read's previous items. Log
-   each failure and retry next cycle.
+   `runOwned` is the work of this run: the run recorded it in `pullRequests` or the readiness
+   ledger, or the owner account opened it with a `ticket-<N>-` branch or a `(#N)` title for a
+   ticket in `remaining`. Step 2 drives it, so skip it here. Exit 3 means at least one read
+   failed: the tool names it in `failures` and keeps that read's previous items. Log each
+   failure and retry next cycle.
 
    A pull request in `unexpectedAuthor` comes from an author outside the configured list. Never
    merge, fix or close it, and never give its branch to a worker. Put it to the owner through
@@ -142,21 +144,32 @@ for the successor.
    `{key, head, action: reported}` with `node tools/auto-work-github.mjs --mark pullRequests`.
    The tool refuses every other action for it, and a new head does not ask the owner again.
 
-   For each pending pull request, read its diff, checks, review threads and base first. Then do
-   one of these:
+   An owner pull request in `pending` that names an open ticket in its branch or its title
+   already has its carrying ticket. Do not write a second ticket for it. Adopt it: append that
+   ticket to `remaining` through `updateRunState` and read back the queue. Then drive the pull
+   request through `/orchestrate` from its step 7, as for a salvaged pull request. The next
+   `--collect` lists it in `runOwned`.
+
+   For each other pending pull request, read its diff, checks, review threads and base first.
+   Then do one of these:
    - **Merge** it at the standing merge bar of `.claude/skills/sleep/SKILL.md` section 7: green
      checks, a fresh Pullfrog approval at the exact head (`/orchestrate` step 8), zero unresolved
      threads, and up to date with its base. Bring a Dependabot branch up to date with the
      `@dependabot rebase` comment, not a merge commit. Use only
-     `gh pr merge <n> --repo <owner/name> --squash --match-head-commit <sha>`. While its checks
-     or its review still run, register `node tools/wait-ci.mjs --repo <key> --pr <n>` through
+     `gh pr merge <n> --repo <owner/name> --squash --match-head-commit <sha>`. Pullfrog reviews
+     only on request. When the head has no review, run the local review gate on that head
+     (`.claude/playbooks/review-and-audit.md` rule 14). Then ask for the review with
+     `node tools/list-bot-threads.mjs --pr <n> --repo <key> --head <sha>`, as `/orchestrate`
+     step 8 does. While its checks or its review still run, register
+     `node tools/wait-ci.mjs --repo <key> --pr <n> --require-check pullfrog-approval` through
      `/orchestrate`'s wake protocol and leave it unmarked.
    - **Fix** it when a check, a review finding or a conflict keeps it red. Write a ticket with
      `.claude/skills/ticket/SKILL.md` through `node tools/create-ticket.mjs`, with the pull
      request, the red check and its verified cause. Admit its worker through `/orchestrate`
      in this cycle. The worker carries the same upgrade with the fix in its own pull request.
    - **Close** it with a written reason on the pull request when a newer one supersedes it,
-     including a Dependabot pull request that the fix pull request replaces.
+     including a Dependabot pull request that the fix pull request replaces. Use
+     `gh pr close <n> --repo <owner/name> --comment <reason>`.
    A Dependabot major upgrade gets the same root-cause review as any other change. Read the
    changelog and the breaking changes before you merge it. Respect each pin that a repository
    declares, such as the manual review of Stripe.net majors in `orbit-api`'s
@@ -176,9 +189,15 @@ for the successor.
    is an owner action: put it to the owner through `/questions`. Record each alert with
    `node tools/auto-work-github.mjs --mark alerts` and `{key, action: ticket, ticket, cause}`.
    An alert closes only when its fix is on the default branch and the next scan shows it as
-   fixed. Never dismiss an alert to empty the list. Dismiss it only when the analysis proves a
-   false positive: write that analysis on its ticket first, then dismiss it with that reason
-   and record `{key, action: false-positive, ticket, reason}`.
+   fixed. An alert in `ticketClosed` is still open after its carrying ticket closed, so it is
+   pending again. Compare the newest scan of the default branch with the merge of the fix
+   first. When the scan is older than the merge, wait for the next cycle. When it is newer, the
+   fix did not remove the alert: reopen the ticket or write a new one with the alert, and mark
+   the alert again. Never dismiss an alert to empty the list. Dismiss it only when the analysis proves a
+   false positive. Write that analysis on its ticket first. Then run
+   `node tools/auto-work-github.mjs --dismiss` with `{key, ticket, reason}` on stdin. The tool
+   sends the request of the alert kind and records the false-positive mark only after GitHub
+   accepts the dismissal. Never dismiss an alert through another command.
 9. Read `node tools/plan-queue.mjs --board` and use `/orchestrate`'s `--auto` selection to admit
    every finishable open ticket in that order within the current run. Append newly admitted
    tickets to `remaining` through `updateRunState` and read back the queue; never enter a second

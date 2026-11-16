@@ -1,6 +1,6 @@
 import { resolve } from "node:path"
 import { configuredRepositorySlug } from "./admission.mjs"
-import { activeIntakeRun, carryingTicket } from "./auto-work-intake.mjs"
+import { activeIntakeRun, carryingTicket, intakeRun } from "./auto-work-intake.mjs"
 import { runBounded } from "./bounded-process.mjs"
 import { githubEnvironment, redactSecrets, repositorySlug } from "./github-auth.mjs"
 import { readOrchestratorConfig } from "./orchestrator-config.mjs"
@@ -19,15 +19,17 @@ export const CONFIGURED_PULL_REQUEST_BOTS = {
   landing: ["dependabot[bot]"],
 }
 
+const ownerOf = (slug) => slug.split("/")[0]
+
 /** An author outside the configured bots and the repository owner is unexpected. */
-export const unexpectedAuthor = ({ key, slug }, author) => author !== slug.split("/")[0] && !(CONFIGURED_PULL_REQUEST_BOTS[key] ?? []).includes(author)
+export const unexpectedAuthor = ({ key, slug }, author) => author !== ownerOf(slug) && !(CONFIGURED_PULL_REQUEST_BOTS[key] ?? []).includes(author)
 
 /*
  * Each projection prints one JSON line per item across every page. The fields come from live reads;
  * the secret scanning fields come from GitHub's published REST description, because no repository
  * has had a secret scanning alert. The secret is never projected, and hide_secret omits it.
  */
-const PULL_REQUEST_PROJECTION = ".[] | {number, author: .user.login, authorType: .user.type, head: .head.sha, base: .base.ref, draft, title, url: .html_url} | tojson"
+const PULL_REQUEST_PROJECTION = ".[] | {number, author: .user.login, authorType: .user.type, head: .head.sha, branch: .head.ref, base: .base.ref, draft, title, url: .html_url} | tojson"
 
 const ALERT_READS = [
   { kind: "code-scanning", query: "state=open&per_page=100",
@@ -46,21 +48,34 @@ export const autoWorkRepositories = (config = readOrchestratorConfig(), repoRoot
   return REPOSITORY_KEYS.map((key) => ({ key, slug: configuredRepositorySlug(resolve(repoRoot, config.repos[key]), owner) }))
 }
 
-/** Reads every page of one REST list through gh with the token of the repository owner. */
-export const githubPageReader = ({ config = readOrchestratorConfig(), repoRoot = REPO_ROOT, run = runBounded, signal } = {}) => {
+/** Runs one gh api call with the token of the repository owner and returns its stdout. */
+const ownerGitHub = ({ config, repoRoot, run, signal }) => {
   let authentication
-  return async (path, projection) => {
-    // A failed token read is not kept, so the next read of a long-lived waiter tries again.
+  return async (verb, path, args, input) => {
+    // A failed token read is not kept, so the next call of a long-lived waiter tries again.
     const auth = await (authentication ??= githubEnvironment(resolve(repoRoot, config.repos.ui))
       .catch((error) => { authentication = undefined; throw error }))
-    const result = await run(process.env.GH_BIN || "gh", ["api", "--paginate", path, "--jq", projection],
-      { env: auth.environment, timeoutMs: config.timeouts.gitRemoteSeconds * 1000, signal })
+    const result = await run(process.env.GH_BIN || "gh", ["api", ...args],
+      { env: auth.environment, timeoutMs: config.timeouts.gitRemoteSeconds * 1000, signal, ...(input === undefined ? {} : { input }) })
     if (result.error || result.timedOut || result.status !== 0) {
       const reason = result.error?.message ?? (result.timedOut ? "timed out" : lastLine(result.stderr) || `exit ${result.status}`)
-      throw new Error(`GitHub read failed at ${path}: ${redactSecrets(reason, auth.secrets)}`)
+      throw new Error(`GitHub ${verb} failed at ${path}: ${redactSecrets(reason, auth.secrets)}`)
     }
-    return result.stdout.split("\n").filter((line) => line.trim()).map((line) => JSON.parse(line))
+    return result.stdout
   }
+}
+
+/** Reads every page of one REST list through gh with the token of the repository owner. */
+export const githubPageReader = ({ config = readOrchestratorConfig(), repoRoot = REPO_ROOT, run = runBounded, signal } = {}) => {
+  const call = ownerGitHub({ config, repoRoot, run, signal })
+  return async (path, projection) => (await call("read", path, ["--paginate", path, "--jq", projection]))
+    .split("\n").filter((line) => line.trim()).map((line) => JSON.parse(line))
+}
+
+/** Sends one JSON body to a REST path through gh with the token of the repository owner. */
+export const githubWriter = ({ config = readOrchestratorConfig(), repoRoot = REPO_ROOT, run = runBounded } = {}) => {
+  const call = ownerGitHub({ config, repoRoot, run })
+  return (method, path, body) => call("write", path, ["--method", method, "--input", "-", path], JSON.stringify(body))
 }
 
 /** Runs each read on its own; a failed read is a named failure and never an empty list. */
@@ -79,7 +94,7 @@ export const listOpenPullRequests = ({ repositories, readPages }) => settleReads
   read: `${repository.key} pulls`,
   list: async () => (await readPages(`repos/${repository.slug}/pulls?state=open&per_page=100`, PULL_REQUEST_PROJECTION)).map((pull) => ({
     key: `${repository.key}#${pull.number}`, read: `${repository.key} pulls`, repository: repository.key, ...pull,
-    unexpectedAuthor: unexpectedAuthor(repository, pull.author) })),
+    ownerAuthor: pull.author === ownerOf(repository.slug), unexpectedAuthor: unexpectedAuthor(repository, pull.author) })),
 })))
 
 export const listOpenAlerts = ({ repositories, readPages }) => settleReads(repositories.flatMap(({ key, slug }) => ALERT_READS.map((source) => ({
@@ -89,10 +104,24 @@ export const listOpenAlerts = ({ repositories, readPages }) => settleReads(repos
     message: String(alert.message ?? "").trim().split("\n")[0] })),
 }))))
 
-/** The pull requests this run opened, which /orchestrate already drives from its readiness ledger. */
+/** The pull requests this run recorded, which /orchestrate already drives from its readiness ledger. */
 export const runPullRequestKeys = (state) => new Set([...(state?.pullRequests ?? []), ...(state?.readinessLedger ?? [])]
   .filter((entry) => typeof entry?.repositoryKey === "string" && Number.isInteger(entry?.prNumber))
   .map((entry) => `${entry.repositoryKey}#${entry.prNumber}`))
+
+/** The ticket numbers a pull request names: a `ticket-<N>-` branch, as sync-issue-state.mjs reads it, or `(#N)` in its title. */
+const namedTickets = (pull) => [...String(pull.branch ?? "").matchAll(/(?:^|[^A-Z0-9])ticket-([1-9]\d*)(?=-)/gi),
+  ...String(pull.title ?? "").matchAll(/\(#([1-9]\d*)\)/g)].map(([, number]) => `#${number}`)
+
+/**
+ * A pull request is the run's own when the run recorded it, or when the owner account opened it for
+ * a ticket in `remaining`: a worker of this run carries it before the run records its number.
+ */
+const runOwnedPullRequest = (state) => {
+  const recorded = runPullRequestKeys(state)
+  const inFlight = new Set(Array.isArray(state?.remaining) ? state.remaining : [])
+  return (pull) => recorded.has(pull.key) || (pull.ownerAuthor === true && namedTickets(pull).some((ticket) => inFlight.has(ticket)))
+}
 
 /**
  * The waiter key of a pull request carries its head, so a new head is a new key. The owner hears
@@ -100,20 +129,23 @@ export const runPullRequestKeys = (state) => new Set([...(state?.pullRequests ??
  */
 export const pullRequestWakeKey = (pull) => pull.unexpectedAuthor ? pull.key : `${pull.key} ${pull.head}`
 
-/** Turns a listing into waiter keys; it rejects only when no read succeeded. */
-const wakeKeys = (listing, keyOf) => {
+/**
+ * Turns a listing into waiter keys; it rejects only when no read succeeded. `unreadPrefixes` holds
+ * the key prefix of each failed read, so the waiter keeps the seen keys that read cannot confirm.
+ */
+const wakeKeys = (listing, keyOf, prefixOf) => {
   const failure = listing.failures.map((entry) => entry.message).join("; ")
   if (listing.failures.length === listing.reads.length) throw new Error(failure)
-  return { keys: listing.items.map(keyOf), ...(failure ? { failure } : {}) }
+  return { keys: listing.items.map(keyOf), ...(failure ? { failure, unreadPrefixes: listing.failures.map((entry) => prefixOf(entry.read)) } : {}) }
 }
 
-export const pullRequestCheck = ({ list, ownedKeys = () => new Set() }) => async () => {
+export const pullRequestCheck = ({ list, readState }) => async () => {
   const listing = await list()
-  const owned = ownedKeys()
-  return wakeKeys({ ...listing, items: listing.items.filter((pull) => !owned.has(pull.key)) }, pullRequestWakeKey)
+  const owned = runOwnedPullRequest(readState())
+  return wakeKeys({ ...listing, items: listing.items.filter((pull) => !owned(pull)) }, pullRequestWakeKey, (read) => `${read.split(" ")[0]}#`)
 }
 
-export const alertCheck = ({ list }) => async () => wakeKeys(await list(), (alert) => alert.key)
+export const alertCheck = ({ list }) => async () => wakeKeys(await list(), (alert) => alert.key, (read) => `${read} `)
 
 /** The keys the model listed in its last cycle, so the waiter does not wake for them again. */
 export const listedWakeKeys = (intake) => ({
@@ -141,10 +173,10 @@ const writeSource = (source, change, repoRoot) => {
 export const recordListing = (source, listing, repoRoot = REPO_ROOT, listedAt = new Date().toISOString()) =>
   writeSource(source, (previous, state) => {
     const failed = new Set(listing.failures.map((failure) => failure.read))
-    const owned = runPullRequestKeys(state)
+    const owned = runOwnedPullRequest(state)
     const open = {
       ...Object.fromEntries(Object.entries(previous.open).filter(([, item]) => failed.has(item.read))),
-      ...Object.fromEntries(listing.items.map((item) => [item.key, source === "pullRequests" ? { ...item, runOwned: owned.has(item.key) } : item])),
+      ...Object.fromEntries(listing.items.map((item) => [item.key, source === "pullRequests" ? { ...item, runOwned: owned(item) } : item])),
     }
     return { open, marks: Object.fromEntries(Object.entries(previous.marks).filter(([key]) => key in open)), listedAt,
       ...(listing.failures.length ? { failures: listing.failures } : {}) }
@@ -162,6 +194,22 @@ export const pendingItems = (source, contents) => Object.values(contents.open).f
 
 /** The pull requests from an unexpected author that the owner did not hear about yet. */
 export const unreportedPullRequests = (contents) => Object.values(contents.open).filter((pull) => pull.unexpectedAuthor && !contents.marks[pull.key])
+
+/**
+ * The open alerts whose carrying ticket is closed: the ticket ended while its alert stayed open, so
+ * the work needs the model again. A failed ticket read is a named failure, and its alerts stay quiet.
+ */
+export const alertsWithClosedTickets = async (contents, readTicketState) => {
+  const marked = Object.values(contents.open).filter((alert) => contents.marks[alert.key]?.action === "ticket")
+  const tickets = [...new Set(marked.map((alert) => contents.marks[alert.key].ticket))]
+  const states = await Promise.allSettled(tickets.map((ticket) => readTicketState(Number(ticket.split("/").at(-1)))))
+  const closed = new Set(tickets.filter((ticket, index) => states[index].status === "fulfilled" && states[index].value === "CLOSED"))
+  return {
+    items: marked.filter((alert) => closed.has(contents.marks[alert.key].ticket)).map((alert) => ({ ...alert, ticket: contents.marks[alert.key].ticket })),
+    failures: tickets.flatMap((ticket, index) => states[index].status === "rejected"
+      ? [{ read: `ticket ${ticket}`, message: String(states[index].reason?.message ?? states[index].reason) }] : []),
+  }
+}
 
 const text = (value) => typeof value === "string" && value.trim().length > 0
 
@@ -185,8 +233,8 @@ const markOf = (source, item, receipt) => source === "pullRequests"
   : { action: receipt.action, rule: item.rule ?? null, location: item.path ? `${item.path}${item.line ? `:${item.line}` : ""}` : null, ticket: receipt.ticket,
     ...(receipt.cause ? { cause: receipt.cause } : {}), ...(receipt.reason ? { reason: receipt.reason } : {}) }
 
-/** Records what the model did with one open item, at the head it acted on for a pull request. */
-export const markItem = (source, receipt, repoRoot = REPO_ROOT) => writeSource(source, (current) => {
+/** Returns the open item of a valid receipt, or throws the requirement the receipt misses. */
+const receiptItem = (source, current, receipt) => {
   const actions = ACTIONS[source]
   if (!actions) throw new Error(`Unknown source ${source}; use ${INTAKE_GITHUB_SOURCES.join(" or ")}`)
   const item = current.open[receipt?.key]
@@ -198,5 +246,40 @@ export const markItem = (source, receipt, repoRoot = REPO_ROOT) => writeSource(s
       : "only a pull request from an unexpected author is reported")
   }
   if (source === "pullRequests" && receipt.head !== item.head) throw new Error(`The receipt head is not the current head ${item.head}`)
+  return item
+}
+
+const writeMark = (source, receipt, repoRoot) => writeSource(source, (current) => {
+  const item = receiptItem(source, current, receipt)
   return { ...current, marks: { ...current.marks, [item.key]: { ...markOf(source, item, receipt), markedAt: new Date().toISOString() } } }
 }, repoRoot)
+
+/**
+ * Records what the model did with one open item, at the head it acted on for a pull request. A false
+ * positive is recorded only by dismissAlert, so the mark never exists without its dismissal.
+ */
+export const markItem = (source, receipt, repoRoot = REPO_ROOT) => {
+  if (source === "alerts" && receipt?.action === "false-positive") throw new Error("a false positive is recorded only by --dismiss, which dismisses the alert first")
+  return writeMark(source, receipt, repoRoot)
+}
+
+/** The request of each alert kind that closes a false positive, from the REST description of each "Update an alert" endpoint. */
+const DISMISSALS = {
+  "code-scanning": { body: { state: "dismissed", dismissed_reason: "false positive" }, comment: "dismissed_comment" },
+  dependabot: { body: { state: "dismissed", dismissed_reason: "inaccurate" }, comment: "dismissed_comment" },
+  "secret-scanning": { body: { state: "resolved", resolution: "false_positive" }, comment: "resolution_comment" },
+}
+
+/**
+ * Dismisses a false positive on GitHub, then records its mark. A failed write records nothing.
+ * The comment names the ticket that holds the analysis; it stays below the 280-character limit.
+ */
+export const dismissAlert = async (receipt, { repositories, write, repoRoot = REPO_ROOT }) => {
+  const dismissal = { ...receipt, action: "false-positive" }
+  const alert = receiptItem("alerts", sourceOf(intakeRun(repoRoot), "alerts"), dismissal)
+  const slug = repositories.find((repository) => repository.key === alert.repository)?.slug
+  if (!slug) throw new Error(`No repository matches ${alert.repository}`)
+  const { body, comment } = DISMISSALS[alert.kind]
+  await write("PATCH", `repos/${slug}/${alert.kind}/alerts/${alert.number}`, { ...body, [comment]: `False positive; the analysis is on ${receipt.ticket}` })
+  return writeMark("alerts", dismissal, repoRoot)
+}

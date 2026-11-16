@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { alertCheck, autoWorkRepositories, githubPageReader, listOpenAlerts, listOpenPullRequests, pullRequestCheck, runPullRequestKeys } from "./lib/auto-work-github.mjs"
+import { alertCheck, autoWorkRepositories, githubPageReader, listOpenAlerts, listOpenPullRequests, pullRequestCheck } from "./lib/auto-work-github.mjs"
 import { boardCheck, commandRunner, initialWakeMarks, mailCheck, reviewCheck, saveWakeMarks, SENTRY_MODE, watchIntake } from "./lib/auto-work-wake.mjs"
 import { REPO_ROOT, clearWakeSource, readRunState, registerWakeSource } from "./lib/run-state.mjs"
 
@@ -50,7 +50,7 @@ try {
   const result = await watchIntake({
     checks: [{ source: "board", seed: true, run: boardCheck() }, { source: "mail", run: mailCheck({ run }) },
       { source: "reviews", run: reviewCheck({ run }) },
-      { source: "pullRequests", run: pullRequestCheck({ list: () => listOpenPullRequests(reading()), ownedKeys: () => runPullRequestKeys(readRunState()) }) },
+      { source: "pullRequests", run: pullRequestCheck({ list: () => listOpenPullRequests(reading()), readState: readRunState }) },
       { source: "alerts", run: alertCheck({ list: () => listOpenAlerts(reading()) }) }],
     marks: initialWakeMarks(state.intake, started),
     intervalMilliseconds: seconds * 1000,
