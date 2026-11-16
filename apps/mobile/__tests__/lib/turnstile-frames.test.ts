@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest'
-import { shouldLoadTurnstileFrame } from '@/lib/turnstile-frames'
+import { shouldLoadTurnstileFrame, urlHost } from '@/lib/turnstile-frames'
 
 const bridgeOrigin = 'https://app-staging.useorbit.org'
 const bridgeUrl = `${bridgeOrigin}/turnstile-bridge?siteKey=site-key&theme=dark&language=pt-BR`
@@ -43,4 +43,14 @@ it.each([
   ['an unparseable frame address', 'not a url', false],
 ])('decides %s in a subframe', (_case, url, expected) => {
   expect(shouldLoadTurnstileFrame({ url, isTopFrame: false }, bridgeOrigin)).toBe(expected)
+})
+
+it.each([
+  ['the bridge page', bridgeUrl, 'app-staging.useorbit.org'],
+  ['an address with a user and a port', 'https://person:secret@app.useorbit.org:8443/turnstile-bridge?siteKey=site-key#top', 'app.useorbit.org'],
+  ['an address with only a host', 'https://app.useorbit.org', 'app.useorbit.org'],
+  ['the srcdoc document', 'about:srcdoc', ''],
+  ['an unparseable address', 'not a url', ''],
+])('keeps only the host of %s', (_case, url, expected) => {
+  expect(urlHost(url)).toBe(expected)
 })
