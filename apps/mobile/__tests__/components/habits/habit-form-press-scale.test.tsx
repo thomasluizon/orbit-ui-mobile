@@ -1,3 +1,4 @@
+import { controlStyle } from '@/__tests__/support/press-feedback'
 import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { join, relative, resolve } from 'node:path'
 import { act, create, type ReactTestRenderer } from 'react-test-renderer'
@@ -43,7 +44,7 @@ describe('habit form press scale on mobile', () => {
     let tree!: ReactTestRenderer
     await act(() => { tree = create(<MotionPressable accessibilityLabel="Preset" style={({ pressed }) => (pressed ? { transform: [{ scale: 0.98 }] } : null)} onPress={vi.fn()} />) })
     const host = () => tree.root.findAll((node) => typeof node.type === 'string')[0]!
-    const scale = () => (StyleSheet.flatten(host().props.style) as ViewStyle).transform
+    const scale = () => (controlStyle(host()) as ViewStyle).transform
     expect(scale()).toEqual([{ scale: 1 }])
     await act(() => { (host().props.onPressIn as () => void)() })
     expect(scale()).toEqual([{ scale: orbitalMotion.press.scale }])

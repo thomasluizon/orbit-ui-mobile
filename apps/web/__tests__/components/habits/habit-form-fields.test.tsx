@@ -28,25 +28,26 @@ describe('HabitFormFields', () => {
     }
   })
 
-  it('keeps the frequency fill action mounted with one spinner during its request', () => {
+  it('keeps the frequency fill action mounted with its glyph on the skeleton face during its request', () => {
     const view = renderForm(createFormHelpers({ title: 'Build a stronger routine' }), vi.fn(() => SETUP_PROPOSAL))
     const action = screen.getByRole('button', { name: 'habits.form.askAstra' })
-    expect(action.querySelector('[data-asset^="astra-mark"]')).toBeInTheDocument()
+    expect(action.querySelector('[data-asset^="orbit-mascot"]')).toBeInTheDocument()
     view.rerenderForm(true)
     expect(screen.getByRole('button', { name: 'habits.form.askAstra' })).toBe(action)
     expect(action).toHaveAttribute('aria-busy', 'true')
     expect(action).toHaveAttribute('data-borderless', 'true')
-    expect(action.querySelector('[data-asset^="astra-mark"]')).toBeNull()
-    expect(action.querySelectorAll('svg')).toHaveLength(1)
+    expect(action.querySelector('[data-asset^="orbit-mascot"]')).toBeInTheDocument()
+    expect(action.querySelector('[data-slot="skeleton-face"] .skeleton-pulse')).toBeInTheDocument()
+    expect(action.querySelector('.animate-spin')).toBeNull()
     view.rerenderForm()
     expect(action).not.toHaveAttribute('aria-busy')
-    expect(action.querySelector('[data-asset^="astra-mark"]')).toBeInTheDocument()
+    expect(action.querySelector('[data-asset^="orbit-mascot"]')).toBeInTheDocument()
   })
 
   it('renders every form Astra action without visible text', () => {
     const helpers = createFormHelpers({ itemType: 'habit', title: 'Build a stronger routine', datePhrase: 'after my vacation' })
     const view = renderForm(helpers, vi.fn(() => SETUP_PROPOSAL), false, false, null, undefined, { onSuggestEmoji: vi.fn() })
-    const actions = [...view.container.querySelectorAll('button')].filter(button => button.querySelector('[data-asset^="astra-mark"]'))
+    const actions = [...view.container.querySelectorAll('button')].filter(button => button.querySelector('[data-asset^="orbit-mascot"]'))
     expect(actions).toHaveLength(2)
     for (const action of actions) {
       expect(action.textContent).toBe('')
@@ -134,8 +135,9 @@ describe('HabitFormFields', () => {
     view.rerenderForm(true)
     const busy = screen.getByRole('button', { name: 'habits.form.suggestEmoji' })
     expect(busy).toBe(button)
-    expect(busy.querySelector('[data-asset^="astra-mark"]')).toBeNull()
-    expect(busy.querySelectorAll('svg')).toHaveLength(1)
+    expect(busy.querySelector('[data-asset^="orbit-mascot"]')).toBeInTheDocument()
+    expect(busy.querySelector('[data-slot="skeleton-face"] .skeleton-pulse')).toBeInTheDocument()
+    expect(busy.querySelector('.animate-spin')).toBeNull()
     expect(busy).toHaveAttribute('aria-busy', 'true')
     expect(busy).not.toBeDisabled()
     expect(busy).toHaveAttribute('aria-disabled', 'true')
@@ -150,7 +152,7 @@ describe('HabitFormFields', () => {
     expect(screen.getByRole('button', { name: 'habits.form.suggestEmoji' })).toBe(button)
     expect(button.closest('[data-proposed]')).toBeNull()
     expect(screen.getByRole('button', { name: 'habits.form.emojiOpenPicker' }).querySelector('[data-proposed]')).toBeInTheDocument()
-    expect(button.querySelector('[data-asset^="astra-mark"]')).toBeInTheDocument()
+    expect(button.querySelector('[data-asset^="orbit-mascot"]')).toBeInTheDocument()
     expect(moveFocus ? phrase : button).toHaveFocus()
   })
 
@@ -575,7 +577,7 @@ describe('HabitFormFields', () => {
     expect(formHelpers.form.getValues('dueEndTime')).toBe('09:00')
   })
 
-  it('keeps every local control live when the Astra allowance is exhausted', () => {
+  it('keeps every local control live when the AI allowance is exhausted', () => {
     mockProfileState.aiMessagesUsed = 5
     const onSuggestSetup = vi.fn(() => SETUP_PROPOSAL)
     const formHelpers = createFormHelpers({ title: 'Run', frequencyQuantity: 3 })

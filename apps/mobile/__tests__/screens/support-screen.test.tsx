@@ -1,3 +1,4 @@
+import { controlStyle } from '@/__tests__/support/press-feedback'
 import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
@@ -174,8 +175,7 @@ describe('SupportScreen', () => {
         expect(label.props.numberOfLines).toBeUndefined()
         expect(label.props.ellipsizeMode).toBeUndefined()
         expect(label.props.allowFontScaling).not.toBe(false)
-        const resolveStyle = rows[index]!.props.style as (state: { pressed: boolean }) => ViewStyle
-        const style = StyleSheet.flatten<ViewStyle>(resolveStyle({ pressed: false }))
+        const style = controlStyle(rows[index]!) as ViewStyle
         expect(style.minHeight).toBe(52)
         expect(style.height).toBeUndefined()
         expect(style.paddingVertical).toBe(8)

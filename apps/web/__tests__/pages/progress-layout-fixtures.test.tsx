@@ -75,7 +75,7 @@ describe('Progress layout fixtures through the real page and query hooks', () =>
     const words = locale === 'en' ? en : ptBR
     const { container } = renderLayoutProgress(locale)
     await screen.findByText(words.progressScreen.goals.empty)
-    expect(container.querySelector('[data-mark="orbit"]')).toBeInTheDocument()
+    expect(container.querySelector('[data-empty-state] [data-asset="orbit-mascot"]')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: words.progressScreen.goals.createAction })).toBeInTheDocument()
     await waitFor(() => expect(fetchJson).toHaveBeenCalledWith(`${API.goals.list}?pageSize=100`))
     expect(fetchJson).not.toHaveBeenCalledWith(API.gamification.streak, expect.anything())
@@ -86,7 +86,7 @@ describe('Progress layout fixtures through the real page and query hooks', () =>
     expect(gamificationProfileFixture.currentStreak).toBe(0)
     const { container } = renderLayoutProgress('en', true)
     await screen.findByText(en.progressScreen.goals.empty)
-    expect(container.querySelector('[data-mark="orbit"]')).toBeInTheDocument()
+    expect(container.querySelector('[data-empty-state] [data-asset="orbit-mascot"]')).toBeInTheDocument()
     expect(screen.queryByRole('region', { name: en.progressScreen.sections.goals })).not.toBeInTheDocument()
     expect(container.querySelector('[data-goals-empty]')).toBeNull()
   })
@@ -95,7 +95,7 @@ describe('Progress layout fixtures through the real page and query hooks', () =>
     const { container } = renderLayoutProgress('en', true, 'achievements')
     await screen.findByText(en.progressScreen.achievements.empty)
     expect(container.querySelector('[data-testid="progress-xp-summary"]')).toBeInTheDocument()
-    expect(container.querySelector('[data-mark="orbit"]')).toBeInTheDocument()
+    expect(container.querySelector('[data-empty-state] [data-asset="orbit-mascot"]')).toBeInTheDocument()
   })
 
   it.each(['', '?pageSize=100', '?pageSize=100&page=2'])('matches the goals request with suffix %s', (suffix) => {

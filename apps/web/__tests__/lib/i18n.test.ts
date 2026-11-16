@@ -17,8 +17,8 @@ it.each([{ locale: 'en', messages: en }, { locale: 'pt-BR', messages: ptBR }] as
 })
 
 it.each([
-  { locale: 'en', lapsed: 'Astra messages went back to 5 a day.', exhausted: "Today's allowance of 15 Astra messages is used.", five: "Today's allowance of 5 Astra messages is used.", events: 'View all (4)' },
-  { locale: 'pt-BR', lapsed: 'A cota da Astra voltou para 5 mensagens por dia.', exhausted: 'Você usou as 15 mensagens de hoje com a Astra.', five: 'Você usou as 5 mensagens de hoje com a Astra.', events: 'Ver todos (4)' },
+  { locale: 'en', lapsed: 'AI messages went back to 5 a day.', exhausted: "Today's allowance of 15 AI messages is used.", five: "Today's allowance of 5 AI messages is used.", events: 'View all (4)' },
+  { locale: 'pt-BR', lapsed: 'A cota de IA voltou para 5 mensagens por dia.', exhausted: 'Você usou as 15 mensagens de IA de hoje.', five: 'Você usou as 5 mensagens de IA de hoje.', events: 'Ver todos (4)' },
 ] as const)('formats the hermetic layout expectations in $locale', ({ locale, lapsed, exhausted, five, events }) => {
   expect(formatCatalogMessage(locale, 'upgrade.billing.lapsed.lostMessages', { limit: 5 })).toBe(lapsed)
   expect(formatCatalogMessage(locale, 'shell.composer.limit.reason', { allowance: 15 })).toBe(exhausted)

@@ -7,6 +7,14 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { HabitFormFields } from '@/components/habits/habit-form-fields'
 import { useTagSelection } from '@/hooks/use-tag-selection'
 
+/** An accepted suggestion waits with a skeleton line in the status slot, named for a screen reader, and no Loading text. */
+function expectAcceptSkeleton() {
+  const status = screen.getByRole('status', { name: 'habits.form.suggestTags' })
+  expect(within(status).getByRole('progressbar', { name: 'common.loading' })).toHaveAttribute('aria-busy', 'true')
+  expect(status.querySelector('[data-tag-status-skeleton] .skeleton-pulse')).toHaveClass('bg-[var(--bg-well)]')
+  expect(status).toHaveTextContent(/^$/)
+}
+
 vi.mock('@sentry/nextjs', () => ({ captureException: vi.fn() }))
 
 it('keeps rejected tag Name validation beside its input in the owning habit editor', async () => {
@@ -176,7 +184,7 @@ describe('habit tag suggestions', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Reading', pressed: false }))
     expect(screen.getByRole('textbox', { name: 'habits.form.searchTags' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Outdoors', pressed: false })).toBeDisabled()
-    expect(screen.getByRole('status', { name: 'habits.form.suggestTags' })).toHaveTextContent('common.loading')
+    expectAcceptSkeleton()
     expect(screen.getByRole('button', { name: 'habits.form.suggestTags' })).toBeDisabled()
     if (outcome === 'success') {
       await act(async () => complete({ id: 'created' }))
@@ -224,13 +232,13 @@ describe('habit tag suggestions', () => {
     formLocale.language = 'pt-BR'
     renderTagForm('Run', '   ')
     const action = screen.getByRole('button', { name: 'habits.form.suggestTags' })
-    expect(screen.getByRole('dialog', { name: 'habits.form.tags' }).querySelector('[data-asset^="astra-mark"]')).toHaveAttribute('aria-hidden', 'true')
+    expect(screen.getByRole('dialog', { name: 'habits.form.tags' }).querySelector('[data-asset^="orbit-mascot"]')).toHaveAttribute('aria-hidden', 'true')
     fireEvent.click(action)
     expect(action).toBeDisabled()
     expect(action).toHaveAttribute('aria-busy', 'true')
     expect(action).toHaveAttribute('data-borderless', 'true')
-    expect(action.querySelector('[data-asset^="astra-mark"]')).toBeNull()
-    expect(action.querySelectorAll('svg')).toHaveLength(1)
+    expect(action.querySelector('[data-asset^="orbit-mascot"]')).toBeInTheDocument()
+    expect(action.querySelector('[data-slot="skeleton-face"] .skeleton-pulse')).toBeInTheDocument()
     expect(action).toHaveAccessibleDescription('habits.form.suggestingTags')
     expect(within(screen.getByRole('dialog', { name: 'habits.form.tags' })).getByRole('status', { name: 'habits.form.suggestTags' })).toHaveTextContent('habits.form.suggestingTags')
     fireEvent.click(action)
@@ -239,7 +247,7 @@ describe('habit tag suggestions', () => {
     await act(async () => resolve({ tags: [] }))
     expect(within(screen.getByRole('dialog', { name: 'habits.form.tags' })).getByRole('status', { name: 'habits.form.suggestTags' })).toHaveTextContent('habits.form.noTagSuggestions')
     expect(action).toBeEnabled()
-    expect(screen.getByRole('dialog', { name: 'habits.form.tags' }).querySelector('[data-asset^="astra-mark"]')).toHaveAttribute('aria-hidden', 'true')
+    expect(screen.getByRole('dialog', { name: 'habits.form.tags' }).querySelector('[data-asset^="orbit-mascot"]')).toHaveAttribute('aria-hidden', 'true')
   })
 
   it('shows request failure inline and permits a successful retry', async () => {
@@ -260,7 +268,7 @@ describe('habit tag suggestions', () => {
     fireEvent.click(screen.getByRole('button', { name: 'habits.form.suggestTags' }))
     fireEvent.click(await screen.findByRole('button', { name: 'Reading', pressed: false }))
     expect(screen.getByRole('button', { name: 'Reading', pressed: false })).toBeDisabled()
-    expect(screen.getByRole('status', { name: 'habits.form.suggestTags' })).toHaveTextContent('common.loading')
+    expectAcceptSkeleton()
     expect(screen.getByRole('button', { name: 'habits.form.suggestTags' })).toBeDisabled()
     await act(async () => reject(new Error('Unavailable')))
     expect(await screen.findByRole('alert')).toBeInTheDocument()

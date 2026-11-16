@@ -30,7 +30,7 @@ Web `components/navigation/notification-bell.tsx` retains its existing visible-o
 | About account fact | `app/(app)/about/page.tsx`, shared column CSS | `app/about.tsx` | 8px inline extension leaves 8px inside the page inset |
 | Calendar import events | `components/calendar-sync/calendar-sync-event-row.tsx`, shared column CSS | `components/calendar-sync/calendar-sync-event-row.tsx` | 8px inline extension leaves 8px inside the page inset |
 | Pills and icon pills | `components/ui/pill-button.tsx`, `app/globals.css` | `components/ui/pill-button.tsx` | Existing 12px action gaps accommodate focus rings; the 2px hit extension paints nothing |
-| Daily summary and proactive Astra line | `components/today/today-astra-line.tsx`, `app/globals.css` | `components/today/today-astra-line.tsx` | The full-line action contains its hover and pressed overlay and uses an inset focus indicator |
+| Daily summary and proactive Orbit line | `components/today/today-astra-line.tsx`, `app/globals.css` | `components/today/today-astra-line.tsx` | The full-line action contains its hover and pressed overlay and uses an inset focus indicator |
 | Compact focus groups | Weekday pills, segmented controls, profile theme choices and explicit control focus utilities | Existing inset focus pressables on the corresponding surfaces | Explicit outward focus offsets become inset where adjacent controls can have an 8px gap |
 | Segmented view tracks | `components/ui/segmented-control.tsx` | `components/ui/segmented-control.tsx` | Full-segment fills retain 8px gaps, 8px inline label padding and 48px targets. The track keeps 4px block padding and no inline padding. Android paints the position ring as an absolute overlay, excluding it from label measurement. Unit cases compute at least 8px spare for all four Portuguese calendar labels in a 288px frame |
 | Menu item focus | `components/ui/dropdown-menu-content.tsx`, `app/globals.css` | `components/ui/dropdown-menu.tsx` | Web keeps the single focus indicator inside the existing row fill, preserving 8px before the account header and adjacent content; native row press paint remains inside its existing target |
@@ -43,10 +43,10 @@ Web `components/navigation/notification-bell.tsx` retains its existing visible-o
 | Destination tab focus | `components/navigation/bottom-tab-bar.tsx`, `app/globals.css` | `components/navigation/bottom-tab-bar.tsx` | The single focus perimeter sits 8px inside the full-column target, including at the page edge and in forced colors |
 | Wide sidebar brand controls | `components/shell/shell-wide.tsx`, `components/navigation/notification-bell.tsx` | Web-only navigation chrome | The bell and collapse use IconButton: centred glyphs in 44px round paint with transparent 2px hit extensions. Their 12px paint gap and 14px lockup gap reserve at least 8px around interaction feedback inside the unchanged 232px and 96px rails. The passive inbox bell keeps the same 44px box and glyph and count placement, without an interactive target |
 | Unscheduled habit child explanation | `components/habits/habit-detail-screen.tsx` | `components/habits/habit-detail-screen.tsx` | Both platforms reserve 8px above the explanation, covering the menu control's outward focus indicator plus the shared clearance |
-| Progresso bar chart and Astra metrics and period insight | `components/ui/bar-chart.tsx` | `components/ui/bar-chart.tsx` | Transparent full-height columns paint feedback only on their own bar using the existing selected-bar foreground. No column background or column focus box approaches a neighbour. One inset focus indicator follows the padded moving readout and the live radio `:focus-visible` state, including a keyboard press after pointer focus and dense series; all columns remain visible without horizontal scrolling |
+| Progresso bar chart and Orbit metrics and period insight | `components/ui/bar-chart.tsx` | `components/ui/bar-chart.tsx` | Transparent full-height columns paint feedback only on their own bar using the existing selected-bar foreground. No column background or column focus box approaches a neighbour. One inset focus indicator follows the padded moving readout and the live radio `:focus-visible` state, including a keyboard press after pointer focus and dense series; all columns remain visible without horizontal scrolling |
 | Calendar time grid | `components/calendar/calendar-time-grid.tsx` | `app/(tabs)/calendar/_components/calendar-time-grid.tsx` | Timed lanes retain 8px separation and inset focus; all-day rows retain 8px gaps and column padding; full-column date headers compose rounded hover, held press and focus paint inset by the shared 8px clearance from their cell edges and the pinned time gutter, with one inset focus indicator and press-only scale suppressed by reduced motion |
 | Picker and checklist template rows | `components/ui/picker-row.tsx`, `components/habits/checklist-templates.tsx` | Same paths | The complete radius-12 row owns body feedback behind the supporting count, disclosure and trailing action. Template delete retains its independent round feedback and loading action, and its hover or press keeps the row at rest; template neighbours reserve 8px |
-| Astra habit block rows | `components/chat/habit-block-row.tsx` | Same path | Body feedback paints the complete radius-20 card behind the independent trailing check or supplied metric; the check's own hover or press keeps the card at rest; supporting text and proposed titles retain their contrast foregrounds |
+| Orbit habit block rows | `components/chat/habit-block-row.tsx` | Same path | Body feedback paints the complete radius-20 card behind the independent trailing check or supplied metric; the check's own hover or press keeps the card at rest; supporting text and proposed titles retain their contrast foregrounds |
 | Calendar import selection | `components/calendar-sync/calendar-picker-section.tsx`, `components/ui/check-row.tsx` | Same paths | Shared personal rows reserve label padding and an 8px checkbox gap; event body feedback fills the complete radius-12 row behind the sibling disclosure and dismissal, with 8px inline content clearance and independent action feedback. Hovering or pressing the disclosure or dismissal keeps the row at rest |
 | Goal titles and expanded personal text | `components/chat/goal-list-card.tsx`, `components/ui/personal-text-details.tsx` | Same paths | The 8px negative inline margin is part of the control box; the adjacent content reserves 8px and focus stays inset |
 | Truncated sheet titles | `components/ui/sheet.tsx`, `app/globals.css` | `components/ui/sheet.tsx` | Only measured truncation creates a control. Its text box keeps the existing 8px padding and radius 12, with an inset focus indicator and the header's 16px gap before Close. Fitting headings have no interaction fill |
@@ -54,7 +54,7 @@ Web `components/navigation/notification-bell.tsx` retains its existing visible-o
 | Login legal sentence, including the callback email step | `app/(auth)/login/email-step.tsx` | `components/auth/email-step.tsx`, `app/login-styles.ts` | Terms and privacy links share 24px line spacing; web labels stay whole so their native focus outlines cannot span neighbouring links |
 
 The composer slot reaches two surfaces on both platforms: the habit detail dock
-owned by `app/(app)/layout.tsx` on web and `app/_layout.tsx` on Android, and the full-screen Astra
+owned by `app/(app)/layout.tsx` on web and `app/_layout.tsx` on Android, and the full-screen Orbit
 conversation owned by `components/chat/conversation.tsx`. They all use `components/shell/composer.tsx`.
 The slot swaps Paste and Clear without changing the attachment tray, Send target or pill radius.
 When the whole placeholder cannot fit beside the text-action slot, both text actions move into the
@@ -251,7 +251,7 @@ The paired ListRow primitive carries the full-row treatment into Perfil API keys
 invoice history. Checklist templates use a separate stacked row and receive the same treatment.
 Calendar import selection, review dismissal and disclosure share the full event row feedback.
 PickerRow covers linked habits, goals and tags, plus contextual picker controls supplied by callers.
-Astra HabitBlockRow covers answer options, habit lists, day summaries, rankings and period insights.
+Orbit HabitBlockRow covers answer options, habit lists, day summaries, rankings and period insights.
 Their body feedback includes the supplied trailing control or metric.
 
 Full-row feedback is the sole interaction overlay. Legacy body backgrounds, body pseudo-elements
@@ -297,7 +297,7 @@ focus. On web, the HabitBlockRow proposed title reads `--orbit-list-row-secondar
 only while the row is lit.
 
 Web `__tests__/components/ui/nested-control-fill.test.tsx` hovers and presses each nested control
-in Chromium for the notification row, a ListRow action, a calendar import event row and an Astra
+in Chromium for the notification row, a ListRow action, a calendar import event row and an Orbit
 habit block row with its check. It asserts the resting parent background, the nested `bgHover`
 fill and the parent fill after the pointer returns to the body. It also hovers each nested control
 while the body holds keyboard focus and asserts the resting parent fill and text colours, and the

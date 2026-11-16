@@ -20,7 +20,7 @@ export interface ButtonSizeSpec {
   paddingX: number
   /** Label font size in px. */
   fontSize: number
-  /** Leading-icon / busy-spinner size in px. */
+  /** Leading-icon size in px. */
   iconSize: 16 | 20 | 24
   /** Gap between the leading slot and the label in px. */
   gap: number
@@ -70,6 +70,15 @@ export type SignInButtonSpec = typeof GOOGLE_SIGN_IN_BUTTON | typeof APPLE_SIGN_
 export function signInButtonSpec(brand: 'google' | 'apple' | undefined): SignInButtonSpec | null {
   if (brand === 'google') return GOOGLE_SIGN_IN_BUTTON
   return brand === 'apple' ? APPLE_SIGN_IN_BUTTON : null
+}
+
+/**
+ * The height of the slot that holds a provider mark: the resting pill height less the vertical padding and
+ * the outline that the platform lays out inside the pill. With it, every provider pill rests at
+ * `SIGN_IN_BUTTON_HEIGHT`, outline included.
+ */
+export function signInLeadHeight(spec: SignInButtonSpec, outlineWidth: number): number {
+  return SIGN_IN_BUTTON_HEIGHT - 2 * spec.paddingY - 2 * outlineWidth
 }
 
 /** The resting title size in px of an Apple sign-in pill: 43% of its height. */

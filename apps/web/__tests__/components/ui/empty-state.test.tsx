@@ -3,27 +3,18 @@ import { describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { EmptyState } from '@/components/ui/empty-state'
 
-vi.mock('@/components/ui/orbit-mark', () => ({
-  OrbitMark: () => <svg data-testid="orbit-mark" />,
-}))
-vi.mock('@/components/ui/astra-glyph', () => ({
-  AstraGlyph: () => <svg data-testid="astra-glyph" />,
+vi.mock('@/components/ui/orbit-mascot', () => ({
+  OrbitMascot: ({ size }: { size: number }) => <svg data-testid="orbit-mascot" data-size={size} />,
+  useStateMascotSize: () => 96,
 }))
 
 describe('EmptyState', () => {
-  it('defaults to the orbital mark and always renders its title', () => {
+  it('draws one mascot and always renders its title', () => {
     render(<EmptyState title="Nothing here" />)
 
     expect(screen.getByText('Nothing here')).toBeInTheDocument()
-    expect(screen.getByTestId('orbit-mark')).toBeInTheDocument()
-    expect(screen.queryByTestId('astra-glyph')).not.toBeInTheDocument()
-  })
-
-  it('renders the Astra glyph for an Astra-owned region', () => {
-    render(<EmptyState title="Ask Astra" mark="astra" />)
-
-    expect(screen.getByTestId('astra-glyph')).toBeInTheDocument()
-    expect(screen.queryByTestId('orbit-mark')).not.toBeInTheDocument()
+    expect(screen.getAllByTestId('orbit-mascot')).toHaveLength(1)
+    expect(screen.getByTestId('orbit-mascot')).toHaveAttribute('data-size', '96')
   })
 
   it('renders exactly the one action element supplied by the caller', () => {

@@ -5,28 +5,33 @@ import { useTranslation } from 'react-i18next'
 import { formatQuestionNumber, type QuestionControlProps } from '@orbit/shared/chat'
 import { RadioGroup, RadioItem } from '@/components/ui/radio-group'
 import { RadioRow } from '@/components/ui/select-check'
-import { InsetFocusPressable } from '@/components/ui/inset-focus-pressable'
+import { InsetFocusPressable, SelectionRing, focusRingInnerEdge } from '@/components/ui/inset-focus-pressable'
 import { CheckRow } from '@/components/ui/check-row'
 import { Input } from '@/components/ui/input'
 import { Slider } from '@/components/ui/slider'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
+import { usePrefersReducedMotion } from '@/lib/motion'
+
+/** The scale option's focus ring sits on the edge of its fill, which is inset by half the fill clearance. */
+const SCALE_FOCUS_OFFSET = -2
 
 function QuestionScale({ question, answer, disabled, controller, words }: QuestionControlProps) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const [availableWidth, setAvailableWidth] = useState(0)
+  const reducedMotion = usePrefersReducedMotion()
   const optionWidth = Math.max(TOUCH_TARGET_MIN, availableWidth / 5)
   if (question.type !== 'scale') return null
   return <View style={{ minWidth: 0, gap: 8 }}>
     <RadioGroup testID="question-scale" accessibilityLabel={question.prompt} accessibilityHint={words.required} onLayout={event => setAvailableWidth(event.nativeEvent.layout.width)} style={{ flexDirection: 'row', gap: 0 }}>
       {[1, 2, 3, 4, 5].map(number => <RadioItem key={number} selected={answer?.number === number} disabled={disabled} onSelect={() => controller.setAnswer(question, { number })}>
-        <InsetFocusPressable accessibilityRole="radio" accessibilityLabel={String(number)} accessibilityState={{ checked: answer?.number === number, disabled }} disabled={disabled} focusable={!disabled} focusInset={INTERACTION_FILL_CLEARANCE / 2} focusOffset={-2}
+        <InsetFocusPressable accessibilityRole="radio" accessibilityLabel={String(number)} accessibilityState={{ checked: answer?.number === number, disabled }} disabled={disabled} focusable={!disabled} focusInset={INTERACTION_FILL_CLEARANCE / 2} focusOffset={SCALE_FOCUS_OFFSET}
           style={[styles.scaleOption, { width: optionWidth, opacity: disabled ? 0.6 : 1 }]}>
           {({ pressed, focused }) => <View data-slot="question-scale-fill" style={[styles.scaleFill, {
             backgroundColor: pressed || focused ? tokens.bgHover : answer?.number === number ? tokens.bgWell : 'transparent',
-            outlineWidth: answer?.number === number && !focused ? 2 : 0, outlineOffset: -2, outlineStyle: 'solid', outlineColor: tokens.primary,
           }]}>
+            <SelectionRing shape={styles.scaleFill} width={2} color={tokens.primary} shown={answer?.number === number} inset={focused ? focusRingInnerEdge(0, SCALE_FOCUS_OFFSET, false) : 0} reducedMotion={reducedMotion} />
             <Text style={{ color: tokens.fg1, fontSize: 16, lineHeight: 24, fontFamily: 'Geist_400Regular' }}>{number}</Text>
           </View>}
         </InsetFocusPressable>

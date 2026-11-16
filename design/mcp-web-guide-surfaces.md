@@ -2,7 +2,7 @@
 
 **At a glance:** the Claude Web connection guide, its client selector, settings entry and copy states on web and Android.
 
-The guide lives in Perfil > Astra > API keys and MCP. It follows the existing Pro and verified
+The guide lives in Perfil > Orbit > API keys and MCP. It follows the existing Pro and verified
 step-up access rules of the section. The client selector retains the Claude Code JSON configuration
 and its copy action. The Claude Web tab keeps the endpoint and OAuth note; its connection
 instructions open the shared sheet primitive;

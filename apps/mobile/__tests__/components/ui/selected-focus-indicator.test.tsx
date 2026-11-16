@@ -15,7 +15,7 @@ import { HabitEmojiSelector } from '@/components/habits/habit-form-fields/habit-
 import { createStyles } from '@/components/habits/habit-form-fields/styles'
 import { ThemeToggle } from '@/components/ui/theme-toggle'
 import { createTokensV2, tintFromPrimary } from '@/lib/theme'
-import { pressableStyle } from '@/__tests__/support/press-feedback'
+import { controlStyle, pressableStyle } from '@/__tests__/support/press-feedback'
 
 vi.unmock('@/components/ui/date-field')
 
@@ -37,7 +37,15 @@ function ringCount(host: { props: { style: unknown }; findAllByType: (type: stri
   }, 0)
 }
 
-describe('selected controls share one focus indicator', () => {
+/** Focus adds one ring. A selected control keeps its selection ring under focus, directly inside the focus ring. */
+function expectFocused(control: Parameters<typeof ringCount>[0], selected: boolean) {
+  expect(ringCount(control)).toBe(selected ? 2 : 1)
+  if (!selected) return
+  const ring = (control as unknown as { findAllByProps: (props: object) => { props: { style: StyleProp<ViewStyle> } }[] }).findAllByProps({ testID: 'selection-ring' })[0]!
+  expect(StyleSheet.flatten(ring.props.style).top, 'the selection ring sits inside the focus ring').toBeGreaterThanOrEqual(2)
+}
+
+describe('a focused selected control keeps its selection ring inside the focus ring', () => {
   for (const selected of [false, true]) {
     for (const variant of ['default', 'period'] as const) {
       it(`Chip ${variant}, selected ${selected}`, () => {
@@ -60,8 +68,7 @@ describe('selected controls share one focus indicator', () => {
     expect(StyleSheet.flatten(group.props.style)).toMatchObject({ paddingHorizontal: 0, paddingVertical: 4, gap: 8, borderRadius: 12, backgroundColor: tokens.bgWell })
     expect(StyleSheet.flatten(group.props.style).borderWidth ?? 0).toBe(0)
     for (const option of tree!.root.findAllByType('Pressable')) {
-      const style = typeof option.props.style === 'function' ? option.props.style({ pressed: false }) : option.props.style
-      expect(StyleSheet.flatten(style).paddingHorizontal).toBeGreaterThanOrEqual(8)
+      expect(controlStyle(option).paddingHorizontal).toBeGreaterThanOrEqual(8)
     }
     TestRenderer.act(() => tree!.unmount())
   })
@@ -75,7 +82,7 @@ function verify(element: React.ReactNode, selected: boolean) {
   const target = {}
   const event = { target, currentTarget: target }
   TestRenderer.act(() => host().props.onFocus?.(event))
-  expect(ringCount(host())).toBe(1)
+  expectFocused(host(), selected)
   TestRenderer.act(() => host().props.onBlur?.(event))
   expect(ringCount(host())).toBe(selected ? 1 : 0)
   TestRenderer.act(() => tree!.unmount())
@@ -97,7 +104,7 @@ function verifyAllChoices(tree: ReturnType<typeof TestRenderer.create>, { stable
     const event = { target, currentTarget: target }
     TestRenderer.act(() => choice.props.onFocus?.(event))
     choice = choices()[index]
-    expect(ringCount(choice)).toBe(1)
+    expectFocused(choice, Boolean(choice.props.accessibilityState.selected || choice.props.accessibilityState.checked))
     TestRenderer.act(() => choice.props.onBlur?.(event))
     choice = choices()[index]
     const settledSelected = Boolean(choice.props.accessibilityState.selected || choice.props.accessibilityState.checked)
@@ -108,7 +115,7 @@ function verifyAllChoices(tree: ReturnType<typeof TestRenderer.create>, { stable
 it.each([
   ...HOURS_24.map((hour) => ['common.hours', padTimePart(hour), hour === 9] as const),
   ...MINUTES.map((minute) => ['common.minutes', padTimePart(minute), minute === 0] as const),
-])('TimeField %s option %s uses one indicator, selected %s', (columnLabel, optionLabel, selected) => {
+])('TimeField %s option %s keeps its selection ring under focus, selected %s', (columnLabel, optionLabel, selected) => {
   let tree: ReturnType<typeof TestRenderer.create>
   TestRenderer.act(() => { tree = TestRenderer.create(<TimeField label="Time" value="09:00" hourCycle="h23" onChange={vi.fn()} />) })
   TestRenderer.act(() => tree!.root.findAllByType('Pressable')[0].props.onPress())
@@ -120,13 +127,13 @@ it.each([
   const target = {}
   const event = { target, currentTarget: target }
   TestRenderer.act(() => choice().props.onFocus(event))
-  expect(ringCount(choice())).toBe(1)
+  expectFocused(choice(), choice().props.accessibilityState.checked)
   TestRenderer.act(() => choice().props.onBlur(event))
   expect(ringCount(choice())).toBe(choice().props.accessibilityState.checked ? 1 : 0)
   TestRenderer.act(() => tree!.unmount())
 })
 
-it.each([false, true])('emoji options and category chips share the focus rule, category selected %s', (selectCategory) => {
+it.each([false, true])('emoji options and category chips keep their selection ring under focus, category selected %s', (selectCategory) => {
   let tree: ReturnType<typeof TestRenderer.create>
   TestRenderer.act(() => { tree = TestRenderer.create(<HabitEmojiSelector selectedEmoji="😀" tokens={tokens} styles={createStyles(tokens)} onSelect={vi.fn()} />) })
   TestRenderer.act(() => tree!.root.findAllByType('Pressable')[0].props.onPress())
@@ -164,14 +171,14 @@ it.each(['empty', 'today', 'tomorrow'] as const)('DateField day focus replaces t
     const event = { target, currentTarget: target }
     TestRenderer.act(() => control().props.onFocus?.(event))
     expect(ringCount(control())).toBe(1)
-    expect(control().findAllByType('View').filter((node: { props: { style: StyleProp<ViewStyle> } }) => StyleSheet.flatten(node.props.style).outlineWidth === 2)).toHaveLength(1)
+    expect([control(), ...control().findAllByType('View')].filter((node: { props: { style: StyleProp<ViewStyle> } }) => StyleSheet.flatten(node.props.style).outlineWidth === 2)).toHaveLength(1)
     TestRenderer.act(() => control().props.onBlur?.(event))
     expect(ringCount(control())).toBe(restingRings)
   }
   TestRenderer.act(() => tree!.unmount())
 })
 
-it('habit form day pills share one indicator', () => {
+it('habit form day pills keep their selection ring under focus', () => {
   let tree: ReturnType<typeof TestRenderer.create>
   TestRenderer.act(() => { tree = TestRenderer.create(<HabitUnderstanding value="Read" emoji="" days={['Monday']} dayOptions={[{ value: 'Monday', label: 'Mon', accessibleLabel: 'Monday' }, { value: 'Tuesday', label: 'Tue', accessibleLabel: 'Tuesday' }]} quantity={1} mode="fixed" sentence={null} consumed={[]} labels={buildHabitUnderstandingLabels((key) => key)} onValueChange={vi.fn()} onEmojiSelect={vi.fn()} onToggleDay={vi.fn()} onQuantityChange={vi.fn()} />) })
   verifyAllChoices(tree)
@@ -186,7 +193,7 @@ it.each([false, true])('disabled RadioRow retains its selection perimeter, selec
   TestRenderer.act(() => tree!.unmount())
 })
 
-it.each(['Standard', 'Streak'] as const)('goal type choices share one indicator, selected %s', (goalType) => {
+it.each(['Standard', 'Streak'] as const)('goal type choices keep their selection ring under focus, selected %s', (goalType) => {
   let tree: ReturnType<typeof TestRenderer.create>
   TestRenderer.act(() => { tree = TestRenderer.create(<GoalTypeSelector styles={createGoalStyles(tokens)} goalType={goalType} onTypeChange={vi.fn()} />) })
   verifyAllChoices(tree)

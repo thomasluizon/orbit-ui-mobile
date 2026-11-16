@@ -6,17 +6,17 @@ Assinatura lives at `/upgrade` on web, Android and iOS. It explains the current 
 
 | Presentation | Hero and facts | Action and resources |
 | --- | --- | --- |
-| Free | Astra glyph, free-plan status and daily allowance comparison | Purchase tiers with four Pro resources, checkout and stay-free action |
-| Trial | Astra glyph, remaining trial time and trial end date | Purchase tiers with four Pro resources, checkout and stay-free action |
-| Monthly Stripe | Astra glyph, monthly plan, price and renewal date | Stripe portal, Pro resources, payment method, usage and invoices |
-| Yearly Stripe | Astra glyph, yearly plan, price and renewal date | Stripe portal, Pro resources, payment method, usage and invoices |
-| Monthly Play | Astra glyph, monthly plan and renewal date; native store price when available | Google Play subscriptions, Pro resources and usage |
-| Yearly Play | Astra glyph, yearly plan and renewal date; native store price when available | Google Play subscriptions, Pro resources and usage |
-| App Store | Astra glyph, plan and renewal date; native store price on iOS | Apple subscription management on iOS; an iPhone instruction without a provider link on web and Android |
-| Expired | Astra glyph, end date, retained records and three separate lost entitlements | Reassubscribe into the purchase presentation; resources are explicitly labeled as included with Pro |
-| Lifetime | Astra glyph and permanent entitlement | Pro resources and usage, without renewal or provider actions |
-| Canceled with access | Astra glyph, cancellation status and access end date | Existing provider management, Pro resources and usage until access ends |
-| Past due with access | Astra glyph, payment status and provider recovery explanation | Existing provider management, Pro resources and usage while access remains |
+| Free | small static face, free-plan status and daily allowance comparison | Purchase tiers with four Pro resources, checkout and stay-free action |
+| Trial | small static face, remaining trial time and trial end date | Purchase tiers with four Pro resources, checkout and stay-free action |
+| Monthly Stripe | small static face, monthly plan, price and renewal date | Stripe portal, Pro resources, payment method, usage and invoices |
+| Yearly Stripe | small static face, yearly plan, price and renewal date | Stripe portal, Pro resources, payment method, usage and invoices |
+| Monthly Play | small static face, monthly plan and renewal date; native store price when available | Google Play subscriptions, Pro resources and usage |
+| Yearly Play | small static face, yearly plan and renewal date; native store price when available | Google Play subscriptions, Pro resources and usage |
+| App Store | small static face, plan and renewal date; native store price on iOS | Apple subscription management on iOS; an iPhone instruction without a provider link on web and Android |
+| Expired | small static face, end date, retained records and three separate lost entitlements | Reassubscribe into the purchase presentation; resources are explicitly labeled as included with Pro |
+| Lifetime | small static face and permanent entitlement | Pro resources and usage, without renewal or provider actions |
+| Canceled with access | small static face, cancellation status and access end date | Existing provider management, Pro resources and usage until access ends |
+| Past due with access | small static face, payment status and provider recovery explanation | Existing provider management, Pro resources and usage while access remains |
 
 Each row has a web and Android presentation. Cancellation and payment-failure details come from the existing subscription summary; a retained Play entitlement uses the available status snapshot rather than requesting Stripe billing.
 
@@ -34,7 +34,7 @@ Each row has a web and Android presentation. Cancellation and payment-failure de
 
 ## Shared consumers
 
-`PricingSection` and `PlanSelection` serve the route and onboarding on both platforms. The subscription route owns its purchase-state Astra glyph, so the shared `ProPitch` retains the onboarding composition. `ProBenefits` supplies the same four resource rows to purchase tiers and subscription management without changing their meaning.
+`PricingSection` and `PlanSelection` serve the route and onboarding on both platforms. The subscription route owns its purchase-state small static face, so the shared `ProPitch` retains the onboarding composition. `ProBenefits` supplies the same four resource rows to purchase tiers and subscription management without changing their meaning.
 
 ## Verification owners
 

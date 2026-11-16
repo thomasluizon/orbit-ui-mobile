@@ -29,6 +29,12 @@ describe('ConfirmSheet controlled close', () => {
     expect(cancel).toMatchObject({ height: 44, paddingStart: BUTTON_SIZES.sm.paddingX, paddingHorizontal: BUTTON_SIZES.sm.paddingX, borderWidth: 1.5 })
     expect(cancel!.height).toBe(confirm!.height)
   })
+  it('draws no Orbit inside a destructive confirmation', () => {
+    let tree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<ConfirmSheet open title="Delete habit" message="Permanent action" confirmLabel="Delete habit" onCancel={vi.fn()} onConfirm={vi.fn()} />) })
+    expect(tree!.root.findAll((node: ReactTestInstance) => node.props.testID === 'orbit-mascot')).toHaveLength(0)
+  })
+
   it('finishes native dismissal before unmounting when open becomes false', () => {
     sheetTestControls.defer(true)
     const props = {

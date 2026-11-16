@@ -8,6 +8,7 @@ import { createTokensV2 } from '@/lib/theme'
 import { useOverlayFocus } from './focus-provenance-view'
 import { useOverlayMotion } from '@/lib/overlay-motion'
 import { useNativeWindow } from './native-window-host'
+import { OrbitOverlayLayer, OrbitOverlayLayerPortal, useOrbitOverlay } from './orbit-overlay-layer'
 
 interface NativeDialogProps {
   open: boolean
@@ -18,7 +19,7 @@ interface NativeDialogProps {
 
 export function NativeDialog({ open, onOpenChange, title, children }: Readonly<NativeDialogProps>) {
   return <Dialog.Root open={open} onOpenChange={onOpenChange}>
-    <WindowPortal title={title}>{children}</WindowPortal>
+    <OrbitOverlayLayer active={open}><WindowPortal title={title}>{children}</WindowPortal></OrbitOverlayLayer>
   </Dialog.Root>
 }
 
@@ -30,6 +31,7 @@ function WindowPortal({ title, children }: Readonly<Pick<NativeDialogProps, 'tit
   const motion = useOverlayMotion(open, 'dialog')
   useOverlayFocus(open)
   const { hostName, topDialogId, register } = useNativeWindow()
+  const orbitOverlay = useOrbitOverlay()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const overlayId = `dialog:${useId()}`
@@ -58,7 +60,7 @@ function WindowPortal({ title, children }: Readonly<Pick<NativeDialogProps, 'tit
       <AnimatedDialogContent forceMount ref={contentRef} style={[styles.content, { transform: motion.style.transform }]} accessibilityLabel={title} accessibilityViewIsModal
         onAccessibilityEscape={() => { if (topmost) close() }}>
         <Dialog.Title style={styles.hiddenTitle} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">{title}</Dialog.Title>
-        <ShellSideInsetsContext.Provider value={false}>{children}</ShellSideInsetsContext.Provider>
+        <OrbitOverlayLayerPortal overlay={orbitOverlay}><ShellSideInsetsContext.Provider value={false}>{children}</ShellSideInsetsContext.Provider></OrbitOverlayLayerPortal>
       </AnimatedDialogContent>
     </AnimatedDialogOverlay>
   </Dialog.Portal>

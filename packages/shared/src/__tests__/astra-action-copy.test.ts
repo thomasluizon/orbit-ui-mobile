@@ -19,11 +19,11 @@ describe.each([en, ptBR])('assistant action copy', messages => {
 
   it.each([messages.habits.form.suggestDate, messages.habits.form.suggestEmoji, messages.habits.form.suggestTags])('names the specific action in the accessible name: %s', name => {
     expect(name).toMatch(/^(Suggest|Sugerir) /)
-    expect(name.match(/Astra/g)).toHaveLength(1)
+    expect(name.match(/Orbit/g)).toHaveLength(1)
   })
 
   it.each(Object.entries(surfaces))('keeps %s meaningful without repeating the assistant name', (_surface, text) => {
     expect(text.trim().length).toBeGreaterThan(0)
-    expect(text).not.toMatch(/Astra/)
+    expect(text).not.toMatch(/Orbit/)
   })
 })

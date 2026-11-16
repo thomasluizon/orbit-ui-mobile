@@ -4,8 +4,9 @@ import { Platform, StyleSheet, View } from 'react-native'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
-import { GOOGLE_SIGN_IN_BUTTON, SMALL_PILL_VISIBLE_MIN, SPACING } from '@orbit/shared/theme'
+import { GOOGLE_SIGN_IN_BUTTON, SIGN_IN_BUTTON_HEIGHT, SMALL_PILL_VISIBLE_MIN, SPACING } from '@orbit/shared/theme'
 import { AppleSignInButton } from '@/components/auth/apple-sign-in-button'
+import { AppleSignInLogo } from '@/components/auth/apple-sign-in-logo'
 import { PillButton } from '@/components/ui/pill-button'
 import { GoogleMark } from '@/components/auth/google-mark'
 import { pressableStyle } from '@/__tests__/support/press-feedback'
@@ -57,8 +58,9 @@ describe('Apple sign-in controls', () => {
     const tree = renderBesideGoogle({ disabled: false, onPress })
     const googleStyle = pressableStyle(tree.root.findByType('Pressable'), false)
     expect(googleStyle).toMatchObject({ minHeight: SMALL_PILL_VISIBLE_MIN, borderRadius: SMALL_PILL_VISIBLE_MIN / 2 })
+    const googleHeight = measureProfileRow(tree.toJSON(), 343, 1, undefined, true).controls[0]!.height
     const control = tree.root.findByType('NativeAppleButton')
-    expect(control.props).toMatchObject({ buttonType: 1, buttonStyle, cornerRadius: googleStyle.borderRadius, style: { width: '100%', height: googleStyle.minHeight } })
+    expect(control.props).toMatchObject({ buttonType: 1, buttonStyle, cornerRadius: googleStyle.borderRadius, style: { width: '100%', height: googleHeight } })
     expect(tree.root.findAll((node: { type: unknown; props: { children: unknown } }) => node.type === 'Text' && node.props.children === 'auth.signInWithApple')).toHaveLength(0)
     TestRenderer.act(() => control.props.onPress())
     expect(onPress).toHaveBeenCalledOnce()
@@ -126,12 +128,35 @@ describe('Apple sign-in controls', () => {
     expect(googleStyle).toMatchObject({ minHeight: SMALL_PILL_VISIBLE_MIN, borderRadius: SMALL_PILL_VISIBLE_MIN / 2 })
     expect(appleStyle).toMatchObject({ minHeight: googleStyle.minHeight, borderRadius: googleStyle.borderRadius, paddingVertical: 0, backgroundColor: fill })
     expect(appleStyle.borderWidth ?? 0).toBe(0)
+    expect(googleStyle.borderWidth, 'the Google outline takes part of the pill height').toBeGreaterThan(0)
+    const [googlePill, applePill] = measureProfileRow(tree.toJSON(), 343, 1, undefined, true).controls
+    expect({ google: googlePill!.height, apple: applePill!.height }, 'both actions resolve to one outer height, outline included').toEqual({ google: SIGN_IN_BUTTON_HEIGHT, apple: SIGN_IN_BUTTON_HEIGHT })
     const title = StyleSheet.flatten(tree.root.find((node: { type: unknown; props: { children: unknown } }) =>
       node.type === 'Text' && node.props.children === 'auth.signInWithApple').props.style)
     expect(title).toMatchObject({ color: ink, fontSize: Math.round(SMALL_PILL_VISIBLE_MIN * 0.43) })
     expect(StyleSheet.flatten(tree.root.findByProps({ testID: 'apple-sign-in-logo' }).props.style)).toMatchObject({ height: SMALL_PILL_VISIBLE_MIN })
     TestRenderer.act(() => apple!.props.onPress())
     expect(onPress).toHaveBeenCalledOnce()
+    TestRenderer.act(() => tree.unmount())
+  })
+
+  /** The opaque background of each Apple logo tile (`apple-sign-in-logo-on-white.png` for the dark theme, `-on-black` for the light). */
+  const LOGO_TILE_BACKGROUND = { dark: '#FFFFFF', light: '#000000' } as const
+
+  it.each([['dark', '#FFFFFF', '#000000'], ['light', '#000000', '#FFFFFF']] as const)('keeps Apple\'s face, logo and title on a busy Android action in the %s theme and dims it to the disabled opacity, as the iPhone control does', (mode, fill, ink) => {
+    Platform.OS = 'android'
+    theme.mode = mode
+    vi.stubEnv('EXPO_PUBLIC_APPLE_CLIENT_ID', 'client-id')
+    const tree = renderBesideGoogle({ disabled: false, loading: true, onPress: vi.fn() })
+    const [, apple] = tree.root.findAllByType('Pressable') as { props: Record<string, unknown>; findAll: (predicate: (node: { props: Record<string, unknown> }) => boolean) => { props: Record<string, unknown> }[] }[]
+    expect(apple!.props.accessibilityState).toMatchObject({ busy: true, disabled: true })
+    expect(pressableStyle(apple!, false)).toMatchObject({ backgroundColor: fill, opacity: 0.4 })
+    expect(apple!.findAll((node) => node.props.testID === 'skeleton-face'), 'no skeleton face covers Apple\'s face').toHaveLength(0)
+    const logo = tree.root.findByType(AppleSignInLogo)
+    expect(LOGO_TILE_BACKGROUND[logo.props.theme as 'dark' | 'light'], 'the opaque logo tile sits on its own colour, so it draws no square').toBe(fill)
+    const title = StyleSheet.flatten(tree.root.find((node: { type: unknown; props: { children: unknown } }) =>
+      node.type === 'Text' && node.props.children === 'auth.signInWithApple').props.style)
+    expect(title).toMatchObject({ color: ink })
     TestRenderer.act(() => tree.unmount())
   })
 
@@ -144,7 +169,7 @@ describe('Apple sign-in controls', () => {
     copy.words = { 'auth.signInWithApple': words.auth.signInWithApple }
     const tree = renderBesideGoogle({ disabled: false, onPress: vi.fn() }, words.auth.signInWithGoogle)
     const column = width - 2 * (width < 336 ? SPACING.s8 : SPACING.s16)
-    const measured = measureProfileRow(tree.toJSON(), column, fontScale)
+    const measured = measureProfileRow(tree.toJSON(), column, fontScale, undefined, true)
     for (const [label, markID] of [[words.auth.signInWithGoogle, 'google-mark'], [words.auth.signInWithApple, 'apple-sign-in-logo']] as const) {
       const pill = measured.controls.find((control) => control.labels.includes(label))!
       const title = measured.texts.find((text) => text.label === label)!

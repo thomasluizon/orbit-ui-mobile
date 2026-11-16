@@ -6,11 +6,13 @@ import { getErrorSurface, getRetryCountdown } from '@orbit/shared/utils'
 import { i18n } from '@/lib/i18n'
 import { createTokensV2, getRuntimeTheme } from '@/lib/theme'
 import { ThemedButton } from '@/components/ui/pill-button'
+import { OrbitMascot, useStateMascotSize } from '@/components/ui/orbit-mascot'
 import { errorSurfaceStyles as styles } from './error-surface-styles'
 
 export function AppErrorScreen({ error, retry, standalone = false }: Readonly<{ error: unknown; retry: () => void | Promise<void>; standalone?: boolean }>) {
   const sideInsets = useShellSideInsets()
   const { width } = useWindowDimensions()
+  const mascotSize = useStateMascotSize()
   // WHY: The root error screen must render even if theme state is missing: https://github.com/thomasluizon/orbit-tickets/issues/1737
   const runtimeTheme = getRuntimeTheme() as ReturnType<typeof getRuntimeTheme> | undefined
   const tokens = createTokensV2('orange', runtimeTheme?.themeMode === 'light' ? 'light' : 'dark')
@@ -32,6 +34,7 @@ export function AppErrorScreen({ error, retry, standalone = false }: Readonly<{ 
   }
   const screen = (
     <ScrollView style={{ backgroundColor: tokens.bg }} contentContainerStyle={[styles.root, styles.flow, { paddingLeft: styles.root.paddingHorizontal + sideInsets.left, paddingRight: styles.root.paddingHorizontal + sideInsets.right }]} testID={countdown ? 'throttle-screen' : 'failure-screen'}>
+      <OrbitMascot size={mascotSize} tokens={tokens} />
       <Text accessibilityRole="header" textBreakStrategy="simple" android_hyphenationFrequency="none" style={[styles.title, width >= 1024 && styles.titleWide, { color: tokens.fg1 }]}>{i18n.t(countdown ? 'errorScreen.throttleTitle' : 'errorScreen.title')}</Text>
       <Text style={[styles.body, { color: tokens.fg2 }]}>{i18n.t(countdown ? 'errorScreen.throttleBody' : 'errorScreen.body')}</Text>
       {countdown ? <Text accessibilityRole="timer" style={[styles.countdown, { color: tokens.fg1 }]}>{countdown.label}</Text> : null}

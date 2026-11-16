@@ -3,7 +3,6 @@ import { cloneElement, isValidElement, useContext, useState, type Ref } from 're
 import { ActionRowContext } from './action-row'
 import type { ButtonProps } from '@orbit/shared/contracts/actions'
 import {
-  ActivityIndicator,
   StyleSheet,
   Text,
   type ViewStyle,
@@ -12,10 +11,12 @@ import {
   useWindowDimensions,
 } from 'react-native'
 import type { ThemeMode } from '@orbit/shared/types/profile'
-import { SPACING, APPLE_SIGN_IN_BUTTON, APPLE_SIGN_IN_TITLE_SIZE, ICON_ACTION_START_HANG, BUTTON_SIZES, MATCHED_PILL_WIDTH, TOUCH_TARGET_MIN, SIGN_IN_BUTTON_HEIGHT, SMALL_PILL_VISIBLE_MIN, signInButtonSpec, type ButtonVariant, type SignInButtonSpec } from '@orbit/shared/theme'
+import { SPACING, APPLE_SIGN_IN_BUTTON, APPLE_SIGN_IN_TITLE_SIZE, ICON_ACTION_START_HANG, BUTTON_SIZES, MATCHED_PILL_WIDTH, TOUCH_TARGET_MIN, SIGN_IN_BUTTON_HEIGHT, SMALL_PILL_VISIBLE_MIN, signInButtonSpec, signInLeadHeight, type ButtonVariant, type SignInButtonSpec } from '@orbit/shared/theme'
 import { createTokensV2, mixHex, radius, type AppTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { ThemedMotionPressable } from './motion-pressable'
+import { SkeletonFace } from './skeleton'
+import { OrbitMascot } from './orbit-mascot'
 
 const SMALL_PILL_HIT_PADDING = (TOUCH_TARGET_MIN - SMALL_PILL_VISIBLE_MIN) / 2
 
@@ -29,6 +30,85 @@ function buttonTextColors(tokens: ReturnType<typeof createTokensV2>, quiet: bool
   }
 }
 
+/** A waiting action's face is the skeleton, so its label reads `fg1` on the skeleton tone; a quiet ghost keeps `fg2`. */
+function waitingTextColor(tokens: AppTokensV2, variant: ButtonVariant, quiet: boolean): string {
+  return variant === 'ghost' && quiet ? tokens.fg2 : tokens.fg1
+}
+
+/**
+ * A waiting pill takes the skeleton face. Apple's sign-in rules keep Apple's face, logo and title, so a waiting Apple pill
+ * dims to the existing disabled opacity instead, as Apple's iPhone control does.
+ */
+function waitsOnSkeletonFace(loading: boolean, apple: boolean): boolean {
+  return loading && !apple
+}
+
+/** The waiting face clears the variant fill for the skeleton and keeps the ghost border width, so the size stays. */
+function waitingFaceStyle(variant: ButtonVariant, ghostBorderWidth: number): ViewStyle {
+  return { backgroundColor: 'transparent', borderWidth: variant === 'ghost' ? ghostBorderWidth : 0, borderColor: 'transparent' }
+}
+
+interface VariantFaceInput {
+  readonly variant: ButtonVariant
+  readonly tokens: AppTokensV2
+  readonly pressed: boolean
+  readonly hovered: boolean
+  readonly elevated: boolean
+  readonly quiet: boolean
+  readonly ghostBorderWidth: number
+  readonly brandFill: string | undefined
+}
+
+/** The variant fill of a pill at rest or pressed. A ghost also fills while the pointer is on it. A provider pill keeps its brand fill. */
+function variantFaceStyle({ variant, tokens, pressed, hovered, elevated, quiet, ghostBorderWidth, brandFill }: VariantFaceInput): ViewStyle {
+  if (brandFill) return { backgroundColor: brandFill }
+  switch (variant) {
+    case 'secondary':
+      return { backgroundColor: pressed ? mixHex(tokens.fg1, tokens.bg, 0.1) : tokens.fg1 }
+    case 'ghost':
+      return { backgroundColor: pressed || hovered ? ghostActiveFill(tokens, elevated, quiet) : ghostRestFill(tokens, elevated), borderWidth: ghostBorderWidth, borderColor: tokens.hairlineStrong }
+    case 'destructive':
+      return { backgroundColor: pressed ? mixHex(tokens.statusBad, tokens.fg1, 0.15) : tokens.statusBad }
+    case 'caution':
+      return { backgroundColor: pressed ? mixHex(tokens.statusOverdue, '#000000', 0.15) : tokens.statusOverdue }
+    default:
+      return { backgroundColor: pressed ? tokens.primaryPressed : tokens.primary }
+  }
+}
+
+function ghostRestFill(tokens: AppTokensV2, elevated: boolean): string {
+  return elevated ? tokens.bgElev : 'transparent'
+}
+
+function ghostActiveFill(tokens: AppTokensV2, elevated: boolean, quiet: boolean): string {
+  if (elevated) return tokens.bgElevHover
+  return quiet ? tokens.bgHoverOpaque : tokens.bgHover
+}
+
+interface PillBoxInput {
+  readonly sizeSpec: (typeof BUTTON_SIZES)[keyof typeof BUTTON_SIZES]
+  readonly iconOnly: boolean | undefined
+  readonly minimumHeight: number | undefined
+  readonly edge: 'start' | undefined
+  readonly matchedWidth: boolean
+  readonly hasLeadingIcon: boolean
+  readonly signIn: boolean
+}
+
+/** The box of a pill: a square for an icon-only action, else the size row's height, padding and gap. */
+function pillBoxStyle({ sizeSpec, iconOnly, minimumHeight, edge, matchedWidth, hasLeadingIcon, signIn }: PillBoxInput): ViewStyle {
+  if (iconOnly) return iconOnlyStyle(Math.max(minimumHeight ?? sizeSpec.height, SMALL_PILL_VISIBLE_MIN), edge)
+  return {
+    height: minimumHeight === undefined && !signIn ? Math.max(sizeSpec.height, SMALL_PILL_VISIBLE_MIN) : undefined,
+    minHeight: Math.max(minimumHeight ?? 0, SMALL_PILL_VISIBLE_MIN),
+    width: matchedWidth ? MATCHED_PILL_WIDTH : undefined,
+    paddingVertical: SPACING.s4,
+    paddingHorizontal: sizeSpec.paddingX,
+    paddingStart: hasLeadingIcon ? sizeSpec.paddingX - 2 : sizeSpec.paddingX,
+    gap: sizeSpec.gap,
+  }
+}
+
 function buttonFocusStyle(variant: ButtonVariant, outlineColor: string): ViewStyle {
   return {
     outlineWidth: 2,
@@ -37,6 +117,11 @@ function buttonFocusStyle(variant: ButtonVariant, outlineColor: string): ViewSty
     outlineOffset: -2,
     ...(variant === 'ghost' ? { borderColor: 'transparent' } : null),
   }
+}
+
+/** The ghost outline that React Native lays out inside the pill height. Apple's pill has none. */
+function ghostOutlineWidth(variant: ButtonVariant, brand: ButtonProps['brand'], borderless: boolean) {
+  return variant === 'ghost' && brand !== 'apple' && !borderless ? 1.5 : 0
 }
 
 type NativeButtonProps = Readonly<ButtonProps & { retainLeadingIcon?: boolean } & Omit<PressableProps, 'children' | 'onFocus' | 'onBlur'> & { ref?: Ref<View>; buttonRef?: Ref<View>; accessibilityRole?: 'button' | 'link'; quiet?: boolean; borderless?: boolean; expanded?: boolean; onFocus?: () => void; onBlur?: () => void; onHoverIn?: () => void; onHoverOut?: () => void }>
@@ -88,42 +173,13 @@ export function ThemedButton({
   const [hovered, setHovered] = useState(false)
   const [focused, setFocused] = useState(false)
 
-  const visibleHeight = Math.max(sizeSpec.height, SMALL_PILL_VISIBLE_MIN)
   const signIn = signInButtonSpec(brand)
   const appleColors = brand === 'apple' ? APPLE_SIGN_IN_BUTTON.colors[themeMode] : null
-  const textColor = appleColors?.ink ?? buttonTextColors(tokens, quiet)[variant]
+  const skeletonWaiting = waitsOnSkeletonFace(loading, appleColors !== null)
+  const textColor = skeletonWaiting ? waitingTextColor(tokens, variant, quiet) : appleColors?.ink ?? buttonTextColors(tokens, quiet)[variant]
   const leadingGlyph = buttonLeadingGlyph(leadingIcon, textColor)
 
-  const ghostPressedFill = elevated ? tokens.bgElevHover : quiet ? tokens.bgHoverOpaque : tokens.bgHover
-  const ghostFill = elevated ? tokens.bgElev : 'transparent'
-  const ghostBorderWidth = borderless ? 0 : 1.5
-  const variantStyle = (pressed: boolean): ViewStyle => {
-    if (variant === 'secondary') {
-      return { backgroundColor: pressed ? mixHex(tokens.fg1, tokens.bg, 0.1) : tokens.fg1 }
-    }
-    if (appleColors) return { backgroundColor: appleColors.fill }
-    if (variant === 'ghost') {
-      const active = pressed || (hovered && !disabled && !loading)
-      return {
-        backgroundColor: active ? ghostPressedFill : ghostFill,
-        borderWidth: ghostBorderWidth,
-        borderColor: tokens.hairlineStrong,
-      }
-    }
-    if (variant === 'destructive') {
-      return {
-        backgroundColor: pressed ? mixHex(tokens.statusBad, tokens.fg1, 0.15) : tokens.statusBad,
-      }
-    }
-    if (variant === 'caution') {
-      return {
-        backgroundColor: pressed ? mixHex(tokens.statusOverdue, '#000000', 0.15) : tokens.statusOverdue,
-      }
-    }
-    return {
-      backgroundColor: pressed ? tokens.primaryPressed : tokens.primary,
-    }
-  }
+  const outlineWidth = ghostOutlineWidth(variant, brand, borderless)
 
   return (
     <ThemedMotionPressable
@@ -146,17 +202,15 @@ export function ThemedButton({
       style={({ pressed }) => [
         styles.base,
         retainLeadingIcon ? { maxWidth: '100%' } : null,
-        iconOnly
-          ? iconOnlyStyle(Math.max(minimumHeight ?? sizeSpec.height, SMALL_PILL_VISIBLE_MIN), edge)
-          : { height: minimumHeight === undefined && !signIn ? visibleHeight : undefined, minHeight: Math.max(minimumHeight ?? 0, SMALL_PILL_VISIBLE_MIN), width: matchedWidth ? MATCHED_PILL_WIDTH : undefined, paddingVertical: SPACING.s4, paddingHorizontal: sizeSpec.paddingX, paddingStart: leadingIcon ? sizeSpec.paddingX - 2 : sizeSpec.paddingX, gap: sizeSpec.gap },
+        pillBoxStyle({ sizeSpec, iconOnly, minimumHeight, edge, matchedWidth, hasLeadingIcon: Boolean(leadingIcon), signIn: signIn !== null }),
         signIn ? signInPillStyle(signIn) : null,
-        variantStyle(pressed && !disabled && !loading),
+        skeletonWaiting ? waitingFaceStyle(variant, outlineWidth) : variantFaceStyle({ variant, tokens, pressed: pressed && !disabled, hovered: hovered && !disabled, elevated, quiet, ghostBorderWidth: outlineWidth, brandFill: appleColors?.fill }),
         focused ? buttonFocusStyle(variant, appleColors?.ink ?? tokens.fg1) : null,
-        disabled && !loading ? styles.disabled : null,
+        nativelyDisabled && !skeletonWaiting ? styles.disabled : null,
       ]}
     >
-      <ButtonContents loading={loading} retainLeadingIcon={retainLeadingIcon} iconOnly={iconOnly} leadingGlyph={leadingGlyph} textColor={textColor} sizeSpec={sizeSpec}
-        signIn={signIn} labelSize={appleColors ? APPLE_SIGN_IN_TITLE_SIZE : sizeSpec.fontSize}>{children}</ButtonContents>
+      <ButtonContents tokens={tokens} skeletonWaiting={skeletonWaiting} retainLeadingIcon={retainLeadingIcon} iconOnly={iconOnly} leadingGlyph={leadingGlyph} textColor={textColor}
+        signIn={signIn} outlineWidth={outlineWidth} labelSize={appleColors ? APPLE_SIGN_IN_TITLE_SIZE : sizeSpec.fontSize}>{children}</ButtonContents>
     </ThemedMotionPressable>
   )
 }
@@ -166,14 +220,18 @@ export function PillLink({ onPress, children }: Readonly<{ onPress: () => void; 
   return <Button accessibilityRole="link" onClick={onPress}>{children}</Button>
 }
 
+function iconOnlyStyle(side: number, edge: 'start' | undefined): ViewStyle {
+  return { height: side, width: side, paddingHorizontal: SPACING.s0, gap: 0, marginStart: edge === 'start' ? ICON_ACTION_START_HANG : undefined }
+}
+
 /** A provider pill grows around a title that large text wraps and keeps its resting capsule radius, so no corner cuts the title. */
 function signInPillStyle({ paddingX, paddingY, gap }: SignInButtonSpec): ViewStyle {
   return { minHeight: SIGN_IN_BUTTON_HEIGHT, borderRadius: SIGN_IN_BUTTON_HEIGHT / 2, paddingVertical: paddingY, paddingHorizontal: paddingX, paddingStart: paddingX, gap }
 }
 
 /** A provider pill holds its mark in a slot of the resting content height at the top, so a wrapped title keeps the mark on its first line. */
-function ButtonLead({ signIn, children }: Readonly<{ signIn: SignInButtonSpec; children: React.ReactNode }>) {
-  return <View style={{ height: SIGN_IN_BUTTON_HEIGHT - signIn.paddingY * 2, alignSelf: 'flex-start', justifyContent: 'center' }}>{children}</View>
+function ButtonLead({ signIn, outlineWidth, children }: Readonly<{ signIn: SignInButtonSpec; outlineWidth: number; children: React.ReactNode }>) {
+  return <View style={{ height: signInLeadHeight(signIn, outlineWidth), alignSelf: 'flex-start', justifyContent: 'center' }}>{children}</View>
 }
 
 /** A provider title wraps whenever it does not fit; another label with a retained icon wraps above font scale 1.3. */
@@ -182,21 +240,17 @@ function labelWrapping(signIn: SignInButtonSpec | null, retainLeadingIcon: boole
   return { numberOfLines: retainLeadingIcon && fontScale > 1.3 ? undefined : 1, shrink: retainLeadingIcon ? styles.labelShrink : null }
 }
 
-function iconOnlyStyle(side: number, edge: 'start' | undefined): ViewStyle {
-  return { height: side, width: side, paddingHorizontal: SPACING.s0, gap: 0, marginStart: edge === 'start' ? ICON_ACTION_START_HANG : undefined }
-}
-
-function ButtonContents({ loading, retainLeadingIcon, iconOnly, leadingGlyph, children, textColor, sizeSpec, signIn, labelSize }: Readonly<Pick<ButtonProps, 'children' | 'iconOnly'> & {
-  loading: boolean; retainLeadingIcon: boolean; leadingGlyph: React.ReactNode; textColor: string; sizeSpec: typeof BUTTON_SIZES.sm; signIn: SignInButtonSpec | null; labelSize: number
+/** The face, glyph and label. A waiting action keeps its glyph and label on the skeleton face. */
+function ButtonContents({ tokens, skeletonWaiting, retainLeadingIcon, iconOnly, leadingGlyph, children, textColor, signIn, outlineWidth, labelSize }: Readonly<Pick<ButtonProps, 'children' | 'iconOnly'> & {
+  tokens: AppTokensV2; skeletonWaiting: boolean; retainLeadingIcon: boolean; leadingGlyph: React.ReactNode; textColor: string; signIn: SignInButtonSpec | null; outlineWidth: number; labelSize: number
 }>) {
   const { fontScale } = useWindowDimensions()
   const iconColor = isValidElement<{ color?: string }>(children) ? children.props.color : undefined
   const wrapping = labelWrapping(signIn, retainLeadingIcon, fontScale)
-  const lead = loading && !retainLeadingIcon ? (
-    <ActivityIndicator size="small" color={textColor} />
-  ) : iconOnly ? buttonLeadingGlyph(children, iconColor ?? textColor) : leadingGlyph
+  const lead = iconOnly ? buttonLeadingGlyph(children, iconColor ?? textColor) : leadingGlyph
   return <>
-      {signIn && lead ? <ButtonLead signIn={signIn}>{lead}</ButtonLead> : lead}
+      {skeletonWaiting ? <SkeletonFace tokens={tokens} /> : null}
+      {signIn && lead ? <ButtonLead signIn={signIn} outlineWidth={outlineWidth}>{lead}</ButtonLead> : lead}
       {iconOnly ? null : (
         <Text
           numberOfLines={wrapping.numberOfLines}
@@ -209,7 +263,6 @@ function ButtonContents({ loading, retainLeadingIcon, iconOnly, leadingGlyph, ch
           {children}
         </Text>
       )}
-      {retainLeadingIcon && !iconOnly ? <View accessible={false} importantForAccessibility="no-hide-descendants" style={{ width: sizeSpec.iconSize, height: sizeSpec.iconSize }}>{loading ? <ActivityIndicator animating size="small" color={textColor} /> : null}</View> : null}
   </>
 }
 
@@ -236,6 +289,8 @@ const styles = StyleSheet.create({
 
 export { Button as PillButton }
 
+/** The pill paints its glyph in its label colour. Orbit owns its inks (the planet in the foreground, the moon in the accent), so the mascot keeps them on every variant, as on web. */
 function buttonLeadingGlyph(icon: React.ReactNode, color: string) {
-  return isValidElement<{ color?: string }>(icon) ? cloneElement(icon, { color }) : icon
+  if (!isValidElement<{ color?: string }>(icon) || icon.type === OrbitMascot) return icon
+  return cloneElement(icon, { color })
 }

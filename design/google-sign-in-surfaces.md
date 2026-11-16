@@ -7,7 +7,7 @@
 | Web login email step | `apps/web/app/(auth)/login/email-step.tsx` | Light and dark; English and Brazilian Portuguese; idle, invalid email, sending, Google request, Google failure, offline, referral and onboarding entry |
 | Android login email step | `apps/mobile/components/auth/email-step.tsx` | The same themes, locales and states as web |
 
-The Google mark occupies the existing leading slot of `PillButton`. Its visible label names the action; the SVG contributes no accessible name or focus stop. During a Google request, the primitive replaces the mark with its busy spinner and retains the label. Offline and email-request states disable the action without removing the mark.
+The Google mark occupies the existing leading slot of `PillButton`. Its visible label names the action; the SVG contributes no accessible name or focus stop. During a Google request, the primitive keeps the mark and the label and lays its skeleton face (`SkeletonFace`) over the pill. Offline and email-request states disable the action without removing the mark.
 
 Provider actions stack vertically and fill the same content width as the primary email action, including Apple when configured. They belong to the login column rather than a label-sized `ActionRow`.
 

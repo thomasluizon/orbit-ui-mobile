@@ -8,7 +8,7 @@ import { setLayoutProfileSession, setLayoutFixtureSession } from './profile-sess
 import { test } from './upgrade-fixtures'
 
 async function expectRowCentres(surface: Locator, scale: number) {
-  await expect(surface.locator('[data-slot="list-row-title"]')).toHaveCount(5)
+  await expect(surface.locator('[data-slot="list-row-title"]')).toHaveCount(6)
   await expect(surface.locator('[data-slot="list-row-value"]')).toHaveCount(4)
   await expect(async () => {
     const rows = await surface.locator('.orbit-list-row-shell').evaluateAll((rows, scale) => rows.map((row) => {

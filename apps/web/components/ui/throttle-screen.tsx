@@ -5,6 +5,7 @@ import { useThrottleStore } from '@/stores/throttle-store'
 import { getQueryClient } from '@/lib/query-client'
 import { DesktopWindowBar } from '@/components/desktop-window-bar'
 import { FailureScreen } from './failure-screen'
+import { OrbitOverlayLayer } from './orbit-overlay-layer'
 
 /** A modal dialog makes the rest of the page inert and covers it, so the screen draws its own desktop window bar, after its content as the root layout does. */
 export function ThrottleScreen() {
@@ -17,13 +18,15 @@ export function ThrottleScreen() {
   return (
     <dialog ref={dialog} aria-labelledby="throttle-heading" onCancel={(event) => event.preventDefault()}
       className="fixed inset-0 m-0 h-dvh max-h-none w-full max-w-none border-0 bg-[var(--bg)] p-0 pt-[var(--safe-top)] pb-[var(--safe-bottom)] pl-[var(--safe-left)] pr-[var(--safe-right)] text-[var(--fg-1)]">
-      {error ? <>
-        <FailureScreen error={error} titleId="throttle-heading" retry={async () => {
-          clear()
-          await getQueryClient().refetchQueries({ type: 'active' })
-        }} />
-        <DesktopWindowBar />
-      </> : null}
+      <OrbitOverlayLayer active={Boolean(error)}>
+        {error ? <>
+          <FailureScreen error={error} titleId="throttle-heading" retry={async () => {
+            clear()
+            await getQueryClient().refetchQueries({ type: 'active' })
+          }} />
+          <DesktopWindowBar />
+        </> : null}
+      </OrbitOverlayLayer>
     </dialog>
   )
 }

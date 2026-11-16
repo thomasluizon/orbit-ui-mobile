@@ -32,7 +32,7 @@ export function ProfileSubscreen({ screen }: Readonly<{ screen: ProfileSubmenuId
   return <div className="w-full min-w-0">
     <PageHeader title={t(submenu.labelKey)} backLabel={t('common.backToProfile')} onBack={() => router.replace('/profile')} />
     <div className="orbit-content-frame flex flex-col py-4" style={{ gap: 12 }} data-testid={`profile-settings-group-${screen}`}>
-      {isLoading ? <Skeleton variant="settings" rows={8} label={t('profile.loading')} /> : error ? <ErrorState message={t('errors.loadProfile')} action={<IconButton label={t('common.retry')} onClick={() => void refetch()}><RefreshCw size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton>} /> : <Content profile={profile} patchProfile={patchProfile} />}
+      {isLoading ? <Skeleton variant="settings" rows={8} label={t('profile.loading')} /> : error ? <ErrorState fullSurface message={t('errors.loadProfile')} action={<IconButton label={t('common.retry')} onClick={() => void refetch()}><RefreshCw size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton>} /> : <Content profile={profile} patchProfile={patchProfile} />}
     </div>
   </div>
 }

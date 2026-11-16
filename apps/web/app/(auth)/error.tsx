@@ -10,7 +10,7 @@ import { ErrorState } from '@/components/ui/error-state'
 export default function AuthError({ error, reset }: Readonly<{ error: Error & { digest?: string }; reset: () => void }>) {
   const t = useTranslations()
   useEffect(() => { Sentry.captureException(error) }, [error])
-  return <ErrorState message={t('auth.genericError')} action={
+  return <ErrorState fullSurface message={t('auth.genericError')} action={
     <IconButton label={t('common.retry')} onClick={reset}><RefreshCw size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton>
   } />
 }

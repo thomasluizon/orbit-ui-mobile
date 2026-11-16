@@ -7,8 +7,8 @@ import { useContext, useId, type CSSProperties, type ComponentProps, type ReactN
 import { actionClasses, actionStyle } from './pill-action-style'
 import { ActionRowContext } from './action-row'
 import type { ButtonProps } from '@orbit/shared/contracts/actions'
-import { Loader2 } from '@/components/ui/icons'
-import { APPLE_SIGN_IN_TITLE_SIZE, ICON_ACTION_START_HANG, BUTTON_SIZES, SIGN_IN_BUTTON_HEIGHT, signInButtonSpec, type ButtonSize, type ButtonVariant, type SignInButtonSpec } from '@orbit/shared/theme'
+import { SkeletonFace } from '@/components/ui/skeleton'
+import { APPLE_SIGN_IN_TITLE_SIZE, ICON_ACTION_START_HANG, BUTTON_SIZES, SIGN_IN_BUTTON_HEIGHT, signInButtonSpec, signInLeadHeight, type ButtonSize, type ButtonVariant, type SignInButtonSpec } from '@orbit/shared/theme'
 
 function buttonDescriptionIds(descriptionId: string | undefined, hintId: string, hint: string | undefined) {
   return [descriptionId, hint ? hintId : undefined].filter(Boolean).join(' ') || undefined
@@ -56,24 +56,34 @@ const APPLE_SIGN_IN_COLOURS: CSSProperties = {
   outlineColor: 'currentColor',
 }
 
-/** A provider pill holds its mark in a slot of the resting content height at the top, so a wrapped title keeps the mark on its first line. */
+/**
+ * A provider pill holds its mark in a slot of the resting content height at the top, so a wrapped title keeps the mark on its first line.
+ * The web ghost outline is an inset shadow and the pill has no border, so no outline takes part of the height.
+ */
 function ButtonLead({ signIn, children }: Readonly<{ signIn: SignInButtonSpec | null; children: ReactNode }>) {
   if (!signIn) return children
-  return <span aria-hidden="true" style={{ display: 'inline-flex', flexShrink: 0, alignItems: 'center', alignSelf: 'flex-start', height: SIGN_IN_BUTTON_HEIGHT - signIn.paddingY * 2 }}>{children}</span>
+  return <span aria-hidden="true" style={{ display: 'inline-flex', flexShrink: 0, alignItems: 'center', alignSelf: 'flex-start', height: signInLeadHeight(signIn, 0) }}>{children}</span>
 }
 
-function ButtonIcon({ size, loading, retainLeadingIcon, iconOnly, children, leadingIcon }: Readonly<Pick<ButtonProps, 'loading' | 'iconOnly' | 'children' | 'leadingIcon'> & { size: ButtonSize; retainLeadingIcon: boolean }>) {
-  if (loading && !retainLeadingIcon) return <Loader2 size={BUTTON_SIZES[size].iconSize} strokeWidth={1.8} className="animate-spin orbit-essential-loading" aria-hidden="true" />
-  return iconOnly ? children : leadingIcon
+/** The face, glyph and label. A waiting action keeps its glyph and label on the skeleton face. */
+function ButtonContent({ skeletonWaiting, iconOnly, children, leadingIcon, signIn }: Readonly<Pick<ButtonProps, 'iconOnly' | 'children' | 'leadingIcon'> & { skeletonWaiting: boolean; signIn: SignInButtonSpec | null }>) {
+  return <>
+    {skeletonWaiting ? <SkeletonFace /> : null}
+    <ButtonLead signIn={signIn}>{iconOnly ? children : leadingIcon}</ButtonLead>
+    {iconOnly ? null : <span>{children}</span>}
+  </>
+}
+
+/**
+ * A waiting pill takes the skeleton face. Apple's sign-in rules keep Apple's face, logo and title, so a waiting Apple pill
+ * keeps the resting classes and dims through the existing disabled opacity instead, as Apple's iPhone control does.
+ */
+function waitsOnSkeletonFace(loading: boolean, brand: ButtonProps['brand']): boolean {
+  return loading && brand !== 'apple'
 }
 
 function persistentButtonStyle(style: CSSProperties, retain: boolean): CSSProperties {
   return retain ? { ...style, maxWidth: '100%', whiteSpace: 'normal' } : style
-}
-
-function PersistentLoadingIndicator({ visible, loading, size }: Readonly<{ visible: boolean; loading: boolean; size: ButtonSize }>) {
-  if (!visible) return null
-  return <span aria-hidden="true" style={{ display: 'inline-flex', flexShrink: 0, width: BUTTON_SIZES[size].iconSize, height: BUTTON_SIZES[size].iconSize }}>{loading ? <Loader2 size={BUTTON_SIZES[size].iconSize} strokeWidth={1.8} className="animate-spin orbit-essential-loading" /> : null}</span>
 }
 
 /** The canonical five-variant pill action in the shared two-size geometry. */
@@ -116,6 +126,7 @@ export function Button({
   const hintId = useId()
   const descriptionIds = buttonDescriptionIds(descriptionId, hintId, hint)
   const size = withinRow ? 'sm' : requestedSize
+  const skeletonWaiting = waitsOnSkeletonFace(loading, brand)
 
   return (
     <><button
@@ -140,12 +151,10 @@ export function Button({
       data-size={size}
       data-loading={loading || undefined}
       data-borderless={borderless || undefined}
-      className={actionClasses(variant, size, 'button', loading, quiet, elevated, borderless)}
+      className={actionClasses(variant, size, 'button', skeletonWaiting, quiet, elevated, borderless)}
       style={persistentButtonStyle(buttonStyle(size, withinRow, { minimumHeight, iconOnly, matchedWidth, leadingIcon, brand, variant, quiet, edge }), retainLeadingIcon)}
     >
-      <ButtonLead signIn={signInButtonSpec(brand)}><ButtonIcon size={size} loading={loading} retainLeadingIcon={retainLeadingIcon} iconOnly={iconOnly} leadingIcon={leadingIcon}>{children}</ButtonIcon></ButtonLead>
-      {iconOnly ? null : <span>{children}</span>}
-      <PersistentLoadingIndicator visible={retainLeadingIcon && !iconOnly} loading={loading} size={size} />
+      <ButtonContent skeletonWaiting={skeletonWaiting} iconOnly={iconOnly} leadingIcon={leadingIcon} signIn={signInButtonSpec(brand)}>{children}</ButtonContent>
     </button>{hint ? <span id={hintId} hidden>{hint}</span> : null}</>
   )
 }

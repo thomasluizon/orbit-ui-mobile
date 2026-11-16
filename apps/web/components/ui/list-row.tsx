@@ -189,7 +189,7 @@ export function ListRow(original: Readonly<WebListRowProps>) {
     <div data-text-mode={props.textMode} className={`orbit-list-row-shell ${action ? 'orbit-list-action-surface' : ''} flex items-stretch ${props.placement !== undefined ? 'orbit-list-row-column' : ''} ${props.placement === 'field' ? 'orbit-list-row-field' : ''}`} style={{ minHeight: 52, marginBlock: action ? SPACING.s4 : undefined }}>
       {(props.textMode === 'personal' || props.valueTextMode === 'personal') && props.personalExpanded !== undefined && !readOnly && (href || onClick) ? <PersonalTextAction className="flex-1" label={accessibilityLabel ?? rowAccessibleText(props)} contentClassName="flex min-w-0 flex-1 items-center" contentStyle={{ ...bodyStyle, opacity: props.disabled ? 0.5 : undefined }} control={actionBody} /> : actionBody}
       {action ? (
-        <button type="button" aria-label={action.label} onClick={action.onPress} className="orbit-list-row-action flex size-[var(--touch-min)] shrink-0 cursor-pointer items-center justify-center rounded-full border-0 bg-transparent active:scale-[0.96]" style={getActionStyle(!!props.description)}>
+        <button type="button" aria-label={action.label} onClick={action.onPress} className="press-hit-layer orbit-list-row-action flex size-[var(--touch-min)] shrink-0 cursor-pointer items-center justify-center rounded-full border-0 bg-transparent motion-safe:active:scale-[0.96]" style={getActionStyle(!!props.description)}>
           <span className="flex shrink-0 items-center justify-center" style={{ width: TOUCH_TARGET_MIN, height: TOUCH_TARGET_MIN }}>
             <Icon name={action.icon} size={20} color={action.danger ? 'var(--status-bad)' : 'var(--fg-2)'} />
           </span>
