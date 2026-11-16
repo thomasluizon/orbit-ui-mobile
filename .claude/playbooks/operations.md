@@ -120,6 +120,7 @@ Hermetic layout facts live in `TESTING.md` `### Hermetic layout harness facts`.
 - Keep the Mac awake while a session runs; a closed lid still sleeps it. The keep-awake hook holds `caffeinate -dims`: without `-d` the display sleeps and the screen locks at once, which hides Chrome.
 - Never configure anything that needs administrator rights on the owner's Mac. Never build the desktop app locally; install it only on the owner's explicit order.
 - A reboot empties the system temporary directory: session scratchpads, scratch merge-check worktrees under them and `orbit-workers` vanish. Leave registrations to `git worktree prune`.
+- A long run leaves old session directories, durable carry copies and finished worktrees. `node tools/stale-files.mjs --list` names each one with its size and reason, and the `offer-stale-cleanup` hook adds the offer to every prompt while one exists. Run the printed `--delete --listing <id>` command only after the owner says yes; it removes only the listed items and keeps every local branch.
 - The orchestrator guardrail refuses a redirect whose target holds an expansion (`> $DIR/file`, `> $(...)`): name a literal path or run a helper script.
 - `ls` is aliased to eza, which rejects `-t` with a path: scripts use `command ls`. A pipe whose producer fails can leave `awk` reading standard input. In zsh, `"$SHA:path"` applies a modifier: write `"${SHA}:path"`.
 - A leftover `next-server` on port 3000 serves a stale build: check `lsof -nP -iTCP:3000 -sTCP:LISTEN` before a local smoke run.

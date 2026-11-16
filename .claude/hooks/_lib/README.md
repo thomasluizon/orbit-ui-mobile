@@ -3,7 +3,7 @@
 The surviving session hooks keep their rule logic **once** in this `_lib/`
 directory. The `.mjs` files in `.claude/hooks/` are thin adapters: read the stdin
 payload, call a `_lib` rule, `exit 2` + stderr on a block. Wired in
-`.claude/settings.json` (`SessionStart` / `PreToolUse` / `PostToolUse`).
+`.claude/settings.json` (`SessionStart` / `UserPromptSubmit` / `PreToolUse` / `PostToolUse` / `Stop`).
 
 Every `PreToolUse` guard is registered on **PowerShell** and `Bash` so either
 shell receives the same checks.

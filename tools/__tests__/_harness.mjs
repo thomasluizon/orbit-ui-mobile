@@ -57,6 +57,9 @@ export const T = (name, ok, detail = "") => {
   console.log(`${ok ? "PASS" : "FAIL"} ${name}${ok ? "" : `\n     ${detail}`}`)
 }
 
+/** One check that `got` and `want` serialize to the same JSON; a failure prints both. */
+export const same = (name, got, want) => T(name, JSON.stringify(got) === JSON.stringify(want), `got ${JSON.stringify(got)}, want ${JSON.stringify(want)}`)
+
 // Resolve the temp root to its real path so fixtures match paths returned by git.
 export const root = mkdtempSync(join(realpathSync(tmpdir()), "orbit-tools-gate-"))
 
