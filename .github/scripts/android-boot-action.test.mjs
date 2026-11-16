@@ -88,6 +88,15 @@ test("an install that exits 0 without the image files counts as failed, and four
   assert.equal(result.installed, false, "the last partial image is deleted too")
 })
 
+test("an empty image file counts as failed when every named file exists", () => {
+  for (const emptyFile of ["system.img", "package.xml"]) {
+    const result = runInstall(`${installImage}; : > "$image/${emptyFile}"`)
+    assert.equal(result.status, 1, `${emptyFile}: ${result.stdout}${result.stderr}`)
+    assert.equal(result.calls.length, 4, emptyFile)
+    assert.match(result.stdout, /::error::system-images;android-35;google_apis;x86_64 did not install in 4 attempts\./)
+  }
+})
+
 test("an image that is already installed needs one attempt and no wait", () => {
   const result = runInstall(installImage)
   assert.equal(result.status, 0, result.stderr)

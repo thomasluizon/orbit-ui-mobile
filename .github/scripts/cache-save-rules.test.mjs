@@ -204,9 +204,9 @@ ${sdkmanagerScript}`)
 const leavePartialNdk = `mkdir -p "$ndk" "$ANDROID_HOME/.temp/PackageOperation01" "$ANDROID_HOME/.downloadIntermediates"
 touch "$ANDROID_HOME/.downloadIntermediates/android-ndk-r27b-linux.zip"
 echo "Pkg.Revision = ${NDK_VERSION}" > "$ndk/source.properties"`
-const installNdk = (revision) => `mkdir -p "$ndk/build/cmake" "$ndk/toolchains/llvm/prebuilt/linux-x86_64/bin"
-echo "Pkg.Revision = ${revision}" > "$ndk/source.properties"
-echo toolchain > "$ndk/build/cmake/android.toolchain.cmake"
+const installNdk = (revisionLine, toolchainFile = "toolchain") => `mkdir -p "$ndk/build/cmake" "$ndk/toolchains/llvm/prebuilt/linux-x86_64/bin"
+echo "${revisionLine}" > "$ndk/source.properties"
+printf '%s' "${toolchainFile}" > "$ndk/build/cmake/android.toolchain.cmake"
 printf '#!/usr/bin/env bash\\necho "clang version 18.0.2"\\n' > "$ndk/toolchains/llvm/prebuilt/linux-x86_64/bin/clang"
 chmod +x "$ndk/toolchains/llvm/prebuilt/linux-x86_64/bin/clang"`
 
@@ -215,7 +215,7 @@ test("a corrupt NDK download and an NDK install that exits 0 without its files b
   1) ${leavePartialNdk}; echo "Warning: An error occurred while preparing SDK package NDK: not in GZIP format." >&2; exit 1 ;;
   2) ${leavePartialNdk}; exit 0 ;;
 esac
-${installNdk(NDK_VERSION)}`)
+${installNdk(`Pkg.Revision = ${NDK_VERSION}`)}`)
   assert.equal(result.status, 0, result.stdout + result.stderr)
   assert.equal(result.calls.length, 3, "the install that exited 0 without the toolchain file did not end the retries")
   assert.deepEqual(result.states, Array(3).fill("ndk=no temp=no intermediates=no"), "each attempt starts without the partial download")
@@ -224,15 +224,23 @@ ${installNdk(NDK_VERSION)}`)
   assert.match(result.stdout, new RegExp(`Verified Android NDK ${NDK_VERSION} before Gradle\\.`))
 })
 
-test("an NDK with another revision counts as failed, and four failed attempts stop the step before Gradle", () => {
-  const result = runNdkInstall(installNdk("27.0.11718014"))
-  assert.equal(result.status, 1)
-  assert.equal(result.calls.length, 4)
-  assert.deepEqual(result.states, Array(4).fill("ndk=no temp=no intermediates=no"))
-  assert.deepEqual(result.sleeps, ["5", "10", "15"])
-  assert.match(result.stdout, new RegExp(`::error::ndk;${NDK_VERSION} did not install in 4 attempts\\.`))
-  assert.doesNotMatch(result.stdout, /before Gradle\./)
-})
+// Each install exits 0 and leaves a compiler that runs, so only the two checks of the shared script can fail it.
+for (const [name, install] of [
+  ["an NDK with another revision", installNdk("Pkg.Revision = 27.0.11718014")],
+  ["an NDK whose revision only starts with the version", installNdk(`Pkg.Revision = ${NDK_VERSION}1`)],
+  ["an NDK whose revision line has text before the expected line", installNdk(`Old.Pkg.Revision = ${NDK_VERSION}`)],
+  ["an NDK with an empty toolchain file", installNdk(`Pkg.Revision = ${NDK_VERSION}`, "")],
+]) {
+  test(`${name} counts as failed, and four failed attempts stop the step before Gradle`, () => {
+    const result = runNdkInstall(install)
+    assert.equal(result.status, 1, result.stdout + result.stderr)
+    assert.equal(result.calls.length, 4)
+    assert.deepEqual(result.states, Array(4).fill("ndk=no temp=no intermediates=no"))
+    assert.deepEqual(result.sleeps, ["5", "10", "15"])
+    assert.match(result.stdout, new RegExp(`::error::ndk;${NDK_VERSION} did not install in 4 attempts\\.`))
+    assert.doesNotMatch(result.stdout, /before Gradle\./)
+  })
+}
 
 // gradle/actions at 8da46b539cd8fe6ab27ca75128919a18d757604c: setup-gradle/action.yml defaults cache-read-only to
 // github.event.repository != null && github.ref_name != github.event.repository.default_branch, and
