@@ -1,88 +1,34 @@
 import assert from "node:assert/strict"
 import { spawnSync } from "node:child_process"
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs"
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
-import { dirname, join, resolve } from "node:path"
-import { fileURLToPath } from "node:url"
+import { join } from "node:path"
 import test from "node:test"
 import yaml from "js-yaml"
 import { RELEASE_FAMILY_KEYS } from "./sweep-actions-caches.mjs"
+import {
+  MISSING_TEXT, REMOTE_INVENTORY_FILE, STEP_INVENTORY_FILE, actionName, cacheStepLists, cacheSteps, lineOf, readInventory,
+  readTree, remoteActions, restoresACache, root, savesACache,
+} from "./cache-inventory.mjs"
 
-const root = resolve(dirname(fileURLToPath(import.meta.url)), "../..")
 const load = (path) => yaml.load(readFileSync(join(root, path), "utf8"))
-const WORKFLOW_PATHS = readdirSync(join(root, ".github/workflows")).filter((file) => /\.ya?ml$/.test(file)).map((file) => `.github/workflows/${file}`)
-const ACTION_PATHS = readdirSync(join(root, ".github/actions")).map((directory) => `.github/actions/${directory}/action.yml`)
-// The key of a case change whose text a workflow edit removed.
-const MISSING_TEXT = Symbol("missing text")
-// The workflows and the local actions, with the text of some files changed or added, for a test that breaks the guard.
-function readTree(changes = {}) {
-  assert.equal(changes[MISSING_TEXT], undefined, changes[MISSING_TEXT])
-  const read = (path) => yaml.load(changes[path] ?? readFileSync(join(root, path), "utf8"))
-  const added = (pattern) => Object.keys(changes).filter((path) => pattern.test(path))
-  const workflows = [...new Set([...WORKFLOW_PATHS, ...added(/^\.github\/workflows\//)])].map((path) => ({ path, document: read(path) }))
-    .map(({ path, document }) => ({ file: path.split("/").at(-1), on: Object.keys(document.on), jobs: document.jobs }))
-  const actions = [...new Set([...ACTION_PATHS, ...added(/^\.github\/actions\//)])]
-    .map((path) => ({ file: path.replace(".github/actions/", ""), steps: read(path).runs.steps }))
-  return { workflows, actions }
-}
 const tree = readTree()
 const { workflows, actions } = tree
 const everyStep = [
-  ...workflows.flatMap(({ file, on, jobs }) => Object.entries(jobs).flatMap(([job, { steps = [] }]) =>
-    steps.map((step) => ({ step, where: `${file}: ${job}: ${step.name ?? step.uses ?? step.run}`, file, job, pullRequest: on.includes("pull_request") })))),
-  // A local action runs in the workflow that calls it, and pull request workflows call every local action.
-  ...actions.flatMap(({ file, steps }) => steps.map((step) => ({ step, where: `${file}: ${step.name ?? step.uses ?? step.run}`, file, job: "action", pullRequest: true }))),
+  ...workflows.flatMap(({ file, jobs }) => Object.entries(jobs).flatMap(([job, { steps = [] }]) =>
+    steps.map((step) => ({ step, where: `${file}: ${job}: ${step.name ?? step.uses ?? step.run}`, file, job })))),
+  ...actions.flatMap(({ file, steps }) => steps.map((step) => ({ step, where: `${file}: ${step.name ?? step.uses ?? step.run}`, file, job: "action" }))),
 ]
-const uses = (prefix) => everyStep.filter(({ step }) => step.uses?.startsWith(prefix))
-// GitHub reads an action name without regard to case.
-const savesACache = (step) => /^actions\/cache(\/save)?@/i.test(step.uses ?? "")
-const restoresACache = (step) => /^actions\/cache(\/restore)?@/i.test(step.uses ?? "")
-// One JSON object on each line: the save step, its path, its key, the cache restores of its job and the rule that bounds its entry.
-const INVENTORY_FILE = ".github/scripts/cache-save-inventory.jsonl"
-const INVENTORY = readFileSync(join(root, INVENTORY_FILE), "utf8").split("\n").filter(Boolean).map((line) => JSON.parse(line))
-
-const MAIN_ONLY = /github\.ref == 'refs\/heads\/main'|github\.event_name != 'pull_request'/
-
-// Entries that every ref can save, because each one is far under the 5 MB bound of the sweep
-// (LARGE_ENTRY_BYTES in sweep-actions-caches.mjs). Sizes are from GET /repos/{owner}/{repo}/actions/caches.
-const SMALL_ENTRIES = {
-  "android-startup.yml: boot: Save the pass marker": "under 300 bytes, like the two markers below",
-  "ios-build.yml: record: Save the pass marker": "229 bytes",
-  "mobile-build.yml: build: Save the pass marker": "232 bytes",
-  "desktop-nsis-tools/action.yml: Cache the NSIS tools": "1.9 MB",
-}
-
-test("every cache save step that can exceed the size bound saves only on main or outside a pull request", () => {
-  const unruled = []
-  for (const { step, where, pullRequest } of everyStep) {
-    const savesAlways = step.uses?.startsWith("actions/cache/save@") && !MAIN_ONLY.test(step.if ?? "")
-    const combined = step.uses?.startsWith("actions/cache@") && pullRequest
-    if (savesAlways || combined) unruled.push(where)
-  }
-  assert.deepEqual(unruled.sort(), Object.keys(SMALL_ENTRIES).sort())
-  for (const where of Object.keys(SMALL_ENTRIES).filter((name) => name.includes("pass marker"))) {
-    const { step } = everyStep.find((candidate) => candidate.where === where)
-    assert.match(step.with.key, /^\$\{\{ needs\.(plan|scope)\.outputs\.pass-key \}\}$/, where)
-  }
-})
-
-// actions/setup-node at 949feb2413d6458794dcd2491c4babbbce0c15c1 (v7), src/cache-save.ts: the post step saves the
-// npm cache from every ref on a key miss, and the action has no input that restores without a save.
-test("no setup-node step restores or saves the npm cache", () => {
-  const steps = uses("actions/setup-node@")
-  assert.ok(steps.length > 30)
-  for (const { step, where } of steps) {
-    assert.equal(step.with?.["package-manager-cache"], false, where)
-    assert.equal(step.with?.cache, undefined, where)
-    assert.equal(step.with?.["cache-dependency-path"], undefined, where)
-  }
-})
+const uses = (name) => everyStep.filter(({ step }) => actionName(step.uses) === name)
+// The cache step inventory has one JSON object on each line; the remote inventory names each remote action and whether it can cache.
+const INVENTORY = readInventory(STEP_INVENTORY_FILE)
+const REMOTE_INVENTORY = readInventory(REMOTE_INVENTORY_FILE)
 
 const NPM_KEY = /^npm-\$\{\{ runner\.os \}\}-\$\{\{ runner\.arch \}\}-\$\{\{ hashFiles\((inputs\.lockfile|'[\w./-]*package-lock\.json')\) \}\}$/
 const isNpmRestore = (step) => step.uses === "./.github/actions/restore-npm-cache" ||
-  (step.uses === "actions/cache/restore@v6" && NPM_KEY.test(step.with.key))
+  (actionName(step.uses) === "actions/cache/restore" && NPM_KEY.test(step.with.key))
 
-const inlineNpmRestores = () => uses("actions/cache/restore@v6").filter(({ step, where }) => NPM_KEY.test(step.with.key) && !where.startsWith("restore-npm-cache/"))
+const inlineNpmRestores = () => uses("actions/cache/restore").filter(({ step, where }) => NPM_KEY.test(step.with.key) && !where.startsWith("restore-npm-cache/"))
 const rootCheckoutRef = (file, job) => workflows.find((workflow) => workflow.file === file).jobs[job].steps
   .find((step) => step.uses?.startsWith("actions/checkout@") && step.with?.path === undefined).with?.ref
 
@@ -169,7 +115,6 @@ function checkNpmSaves(currentTree, inventory) {
     assert.equal(step.uses, "actions/cache/save@v6", where)
     assert.equal(step.with.key, NPM_PRIMARY_KEY, where)
     assert.equal(step.if, `${savesWhen} && steps.npm-cache.outputs.cache-hit != 'true'`, where)
-    assert.match(savesWhen, MAIN_ONLY, where)
     assert.equal(step.with.path, "${{ steps.npm-cache.outputs.path }}", where)
     const steps = list.entries.map((entry) => entry.step)
     const restores = steps.filter((candidate) => isNpmRestore(candidate) && !npmActionSteps.includes(candidate))
@@ -198,7 +143,7 @@ test("macOS restores and saves no npm entry, and no workflow caches the Android 
   assert.equal(action.find((step) => step.id === "restore").if, "runner.os != 'macOS'")
   const desktopSave = load(".github/workflows/desktop-build.yml").jobs.build.steps.find((step) => step.name === "Save the npm cache")
   assert.match(desktopSave.if, /^runner\.os == 'Windows' && /)
-  const ndkCaches = [...uses("actions/cache/restore@"), ...uses("actions/cache/save@"), ...uses("actions/cache@")]
+  const ndkCaches = [...uses("actions/cache/restore"), ...uses("actions/cache/save"), ...uses("actions/cache")]
     .filter(({ step }) => /ndk/i.test(`${step.with?.key ?? ""} ${step.with?.path ?? ""}`))
   assert.deepEqual(ndkCaches.map(({ where }) => where), [])
 })
@@ -308,12 +253,11 @@ for (const [name, install] of [
 // content hash and shared by every job, so a second writer on main puts other hashes into the same key family, and the
 // cache sweep then keeps that writer's entries as the newest and deletes the ones Mobile Android Build restores.
 test("only Mobile Android Build writes the Gradle caches, so a release never writes a Gradle entry", () => {
-  const steps = uses("gradle/actions/setup-gradle@")
+  const steps = uses("gradle/actions/setup-gradle")
   assert.equal(steps.length, 3)
   const writers = []
   for (const { step, where, file } of steps) {
     assert.equal(step.uses, "gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c", where)
-    for (const input of ["cache-write-only", "cache-disabled"]) assert.equal(step.with?.[input], undefined, `${where}: ${input}`)
     const events = workflows.find((workflow) => workflow.file === file).on
     const pullRequestOnly = events.every((event) => event === "pull_request")
     if (step.with?.["cache-read-only"] !== true && !pullRequestOnly) writers.push(where)
@@ -321,18 +265,6 @@ test("only Mobile Android Build writes the Gradle caches, so a release never wri
   assert.deepEqual(writers, ["mobile-build.yml: build: Set up Gradle caching"])
   const build = steps.find(({ file }) => file === "mobile-build.yml").step
   assert.equal(build.with?.["cache-read-only"], undefined, "Mobile Android Build keeps the default: write on main, read elsewhere")
-})
-
-// Swatinem/rust-cache at d1527c8f67ef9af357290475d4af4b0fab8f12e0: action.yml save-if decides whether the post step
-// saves, and src/save.ts saves only when the lowercased input is "true". Each target is one key family that Desktop Build
-// writes, so a release of an older commit or another environment would make the sweep delete the Desktop Build entry.
-test("only Desktop Build writes the Rust compile cache, and no setup-java step saves a cache", () => {
-  const rust = uses("Swatinem/rust-cache@")
-  assert.equal(rust.length, 4)
-  for (const { step, where, file } of rust) {
-    assert.equal(step.with["save-if"], file === "desktop-build.yml" ? "${{ github.ref == 'refs/heads/main' }}" : "false", where)
-  }
-  for (const { step, where } of uses("actions/setup-java@")) assert.equal(step.with.cache, undefined, where)
 })
 
 // How the sweep matches each expression of a release cache key. hashFiles gives a 64-digit hex SHA-256, as in the
@@ -355,7 +287,7 @@ function keyPattern(template) {
 // A release is a dispatch with no bound on its gap, so the sweep keeps the newest main entry of each family that a
 // release saves whatever its last read. The local actions that a release calls save only the NSIS tools entry above.
 test("the sweep keeps the newest main entry of every cache family that a release saves, matched on the full key", () => {
-  const releaseSaves = everyStep.filter(({ file, step }) => /(^|-)release\.yml$/.test(file) && /^actions\/cache(\/save)?@/.test(step.uses ?? ""))
+  const releaseSaves = everyStep.filter(({ file, step }) => /(^|-)release\.yml$/.test(file) && savesACache(step))
   assert.deepEqual(releaseSaves.map(({ where }) => where).sort(), [
     "android-release.yml: release-android: Restore the ccache directory",
     "ios-release.yml: release: Save compiler outputs",
@@ -409,41 +341,18 @@ test("each compiler cache entry holds only the objects that its own compile used
   checkCompilerCaches(tree)
 })
 
-// The steps of a local action run in the job that calls it, so each call is followed by the steps of its action.
-function withActionSteps(steps, actionSteps, callers = []) {
-  return steps.flatMap((step) => {
-    const entry = { step, action: callers.at(-1) }
-    if (!step.uses?.startsWith("./")) return [entry]
-    const action = step.uses.replace(/\/+$/, "")
-    assert.ok(actionSteps[action] !== undefined && !callers.includes(action), `${step.uses}: the guard must read the steps of each local action`)
-    return [entry, ...withActionSteps(actionSteps[action], actionSteps, [...callers, action])]
-  })
-}
-
-// Each job with the steps of its local actions, and each local action as a list of its own. A step that a local action
-// holds carries the name of its action file.
-function cacheStepLists({ workflows: workflowList, actions: actionList }) {
-  const actionSteps = Object.fromEntries(actionList.map(({ file, steps }) => [`./.github/actions/${dirname(file)}`, steps]))
-  const listOf = (place, steps) => ({
-    place,
-    entries: withActionSteps(steps, actionSteps).map(({ step, action }) =>
-      ({ step, action, where: `${place}: ${action ? `${action.replace("./.github/actions/", "")}/action.yml: ` : ""}${step.name ?? step.uses}` })),
-  })
-  return [
-    ...workflowList.flatMap(({ file, jobs }) => Object.entries(jobs).map(([job, { steps = [] }]) => listOf(`${file}: ${job}`, steps))),
-    ...actionList.map(({ file, steps }) => listOf(file, steps)),
-  ]
-}
-const cacheSaves = (currentTree) => cacheStepLists(currentTree)
-  .flatMap((list) => list.entries.filter(({ step }) => savesACache(step)).map((entry) => ({ ...entry, list })))
-const saveOf = (currentTree, where) => cacheSaves(currentTree).find((save) => save.where === where)
+const saveOf = (currentTree, where) => cacheSteps(currentTree, REMOTE_INVENTORY).find((save) => save.where === where)
 const hasNoRestoreKeys = (step) => String(step.with?.["restore-keys"] ?? "").trim() === ""
 const PRIMARY_KEY = /^\$\{\{ steps\.([\w-]+)\.outputs\.cache-primary-key \}\}$/
+const assertNoInputs = (step, where, inputs) => {
+  for (const input of inputs) assert.equal(step.with?.[input], undefined, `${where}: ${input}`)
+}
 
-// The rule of each inventory line, and the check that the save step and its job follow it. A new rule is a change to this
-// file, so a reviewer reads its reason.
+// The rule of each inventory line, and the check that the cache step and its job follow it. A new rule is a change to this
+// file, so a reviewer reads its reason. The line pins the whole step and its job, so a rule checks only why the entry stays bounded.
 const RULES = {
-  // The key changes only with the inputs of the pass, and SMALL_ENTRIES holds the size of each marker.
+  // The key changes only with the inputs of the pass. Each marker is under 300 bytes (229 and 232 bytes in
+  // GET /repos/{owner}/{repo}/actions/caches), far under the 5 MB bound of LARGE_ENTRY_BYTES in sweep-actions-caches.mjs.
   "pass marker": ({ step, where }) => assert.match(step.with.key, /^\$\{\{ needs\.(plan|scope)\.outputs\.pass-key \}\}$/, where),
   // The post step of a combined step saves its own key after a miss. The next run restores that key, so nobody writes it again.
   "combined step with an exact key": ({ step, where }) => {
@@ -473,25 +382,68 @@ const RULES = {
     assert.equal(before?.run, "find .turbo/cache -type f -mtime +30 -delete", `${where}: the step before the save deletes the Turbo results older than 30 days`)
     assert.equal(before.if, step.if, `${where}: the delete step runs on each run that saves`)
   },
+  // actions/setup-node at 949feb2413d6458794dcd2491c4babbbce0c15c1 (v7), src/cache-save.ts: the post step saves the
+  // npm cache from every ref on a key miss, and the action has no input that restores without a save.
+  "setup-node with no package manager cache": ({ step, where }) => {
+    assert.equal(step.with?.["package-manager-cache"], false, where)
+    assertNoInputs(step, where, ["cache", "cache-dependency-path"])
+  },
+  // actions/setup-java at v6, action.yml: cache-jdk is on only when cache is set, and cache-path and cache-dependency-path
+  // apply only with cache.
+  "setup-java with no cache": ({ step, where }) => assertNoInputs(step, where, ["cache", "cache-jdk", "cache-path", "cache-dependency-path"]),
+  // gradle/actions at 8da46b539cd8fe6ab27ca75128919a18d757604c, setup-gradle/action.yml: cache-cleanup defaults to
+  // on-success, which removes the unused files of the Gradle User Home before the save. The writer test below holds the
+  // cache-read-only input of each step.
+  "one Gradle writer with the default cleanup": ({ step, where }) =>
+    assertNoInputs(step, where, ["cache-write-only", "cache-disabled", "cache-cleanup", "gradle-home-cache-cleanup", "cache-overwrite-existing"]),
+  // Swatinem/rust-cache at d1527c8f67ef9af357290475d4af4b0fab8f12e0: action.yml save-if decides whether the post step saves,
+  // src/save.ts saves only when the lowercased input is "true", and cleanTargetDir, cleanRegistry and cleanGit run before
+  // saveCache. Each target is one key family that Desktop Build writes, so a release of an older commit or another
+  // environment would make the sweep delete the Desktop Build entry.
+  "one Rust writer": ({ step, where, list }) =>
+    assert.equal(step.with["save-if"], list.place.startsWith("desktop-build.yml: ") ? "${{ github.ref == 'refs/heads/main' }}" : "false", where),
+  // docker/setup-buildx-action at f87e5991a6d7451dcb8d9637bfbc97413f497069 (v4), src/main.ts:53: the action downloads, and
+  // with cache-binary caches, buildx only when the runner has none, a version is set or the driver is cloud. The Ubuntu
+  // runner image has buildx.
+  "the buildx of the runner image": ({ step, where }) => {
+    assertNoInputs(step, where, ["version"])
+    assert.notEqual(step.with?.driver, "cloud", where)
+  },
+  // docker/build-push-action at c3c9e263c25d99ce0380d002d59b67737d91b0dc (v7), action.yml: only cache-to exports a build cache.
+  "no build cache export": ({ step, where }) => assertNoInputs(step, where, ["cache-to"]),
+  // github/codeql-action at 33d7b85da1a04171e211befe2c739303b9a4c066: src/caching-utils.ts getCachingKind gives no dependency
+  // cache for an unset input, and src/trap-caching.ts uploadTrapCaches saves only from the default branch. Cache Budget
+  // deletes each overlay base database that a newer one replaced, then the older main entries above 5 MB.
+  "CodeQL saves only on main": ({ step, where }) => assertNoInputs(step, where, ["dependency-caching", "trap-caching"]),
 }
 
-// Each actions/cache and actions/cache/save step, in each job and each local action, has one inventory line. The line pins
-// the path, the key, each cache restore of the same job and the rule that bounds the entry. The guard never decides that
-// two paths are apart and reads no env value, so a new save step or a new restore beside a save needs a reviewed line.
-function cacheGuard(currentTree, inventory, rules = RULES) {
-  const saves = cacheSaves(currentTree)
+// The fields of a line and the text of a failure when the tree differs from one of them.
+const PINNED_FIELDS = {
+  cacheStep: "the cache step differs",
+  calls: "the call steps differ",
+  restores: "the restores of its job differ",
+  context: "the context of its job differs",
+}
+
+// Each remote action has a line in the remote inventory. Each step that can write the Actions cache, in each job and each
+// local action, has one line in the step inventory, and the line equals the step, its call steps, the cache restores of its
+// job and the context of its job as canonical JSON. A change to any of them fails until a reviewed line changes.
+function cacheGuard(currentTree, inventory, rules = RULES, remoteInventory = REMOTE_INVENTORY) {
+  const listed = new Set(remoteInventory.map(({ action }) => action))
+  assert.deepEqual(remoteActions(currentTree).filter((name) => !listed.has(name)), [], `a remote action with no line in ${REMOTE_INVENTORY_FILE}`)
+  const saves = cacheSteps(currentTree, remoteInventory)
   const names = saves.map(({ where }) => where)
-  assert.deepEqual(names.filter((name, index) => names.indexOf(name) !== index), [], "each cache save step has a name of its own in its job")
+  assert.deepEqual(names.filter((name, index) => names.indexOf(name) !== index), [], "each cache step has a name of its own in its job")
   const lines = new Map(inventory.map((line) => [line.step, line]))
   assert.equal(lines.size, inventory.length, "each inventory line names another step")
-  assert.deepEqual(names.filter((name) => !lines.has(name)), [], `a cache save step with no line in ${INVENTORY_FILE}`)
-  assert.deepEqual([...lines.keys()].filter((name) => !names.includes(name)), [], `a line in ${INVENTORY_FILE} that matches no cache save step`)
+  assert.deepEqual(names.filter((name) => !lines.has(name)), [], `a cache step with no line in ${STEP_INVENTORY_FILE}`)
+  assert.deepEqual([...lines.keys()].filter((name) => !names.includes(name)), [], `a line in ${STEP_INVENTORY_FILE} that matches no cache step`)
   for (const save of saves) {
     const line = lines.get(save.where)
-    assert.equal(save.step.with?.path, line.path, `${save.where}: the path differs from its inventory line`)
-    assert.equal(save.step.with?.key, line.key, `${save.where}: the key differs from its inventory line`)
-    assert.deepEqual(save.list.entries.filter(({ step }) => restoresACache(step)).map(({ where }) => where), line.restores,
-      `${save.where}: the cache restores of its job differ from its inventory line`)
+    const expected = lineOf(save, line.rule, currentTree)
+    for (const [field, failure] of Object.entries(PINNED_FIELDS)) {
+      assert.equal(JSON.stringify(line[field]), JSON.stringify(expected[field]), `${save.where}: ${failure} from its inventory line`)
+    }
     assert.ok(Object.hasOwn(rules, line.rule), `${save.where}: the rule "${line.rule}" is not in RULES`)
     rules[line.rule](save)
   }
@@ -499,20 +451,13 @@ function cacheGuard(currentTree, inventory, rules = RULES) {
   checkNpmSaves(currentTree, inventory)
 }
 
-test("every cache save step has an inventory line with its path, its key, the restores of its job and a rule that bounds its entry", () => {
+test("every cache step has an inventory line that pins the step, its job and the restores of its job, with a rule that bounds its entry", () => {
   cacheGuard(tree, INVENTORY)
-
-  // gradle/actions at 8da46b539cd8fe6ab27ca75128919a18d757604c, setup-gradle/action.yml: cache-cleanup defaults to
-  // on-success, which removes the unused files of the Gradle User Home before the save. Swatinem/rust-cache at
-  // d1527c8f67ef9af357290475d4af4b0fab8f12e0, src/save.ts: cleanTargetDir, cleanRegistry and cleanGit run before saveCache.
-  for (const { step, where } of uses("gradle/actions/setup-gradle@")) {
-    for (const input of ["cache-cleanup", "gradle-home-cache-cleanup"]) assert.equal(step.with?.[input], undefined, `${where}: ${input}`)
-  }
 })
 
-// Each case changes the real text of a workflow or adds a local action, in memory. Each one fails the guard with the
-// committed inventory, for the reason that its pattern names. When a workflow edit removes the text that a case replaces,
-// only that case fails, and the main guard test still reports the real tree.
+// Each case changes the real text of a workflow or adds a workflow or a local action, in memory. Each one fails the guard
+// with the committed inventory, for the reason that its pattern names. When a workflow edit removes the text that a case
+// replaces, only that case fails, and the main guard test still reports the real tree.
 const changeText = (path, ...replacements) => {
   let text = readFileSync(join(root, path), "utf8")
   for (const [from, to] of replacements) {
@@ -549,9 +494,9 @@ ${id ? `        id: ${id}\n` : ""}        uses: actions/cache/restore@v6
           path: ${path}
           key: ${key}
 ${restoreKeys ? `          restore-keys: |\n            ${restoreKeys}\n` : ""}`
-const saveStep = (name, path, key) => `      - name: ${name}
+const saveStep = (name, path, key, uses = "actions/cache/save@v6") => `      - name: ${name}
         if: github.event_name != 'pull_request'
-        uses: actions/cache/save@v6
+        uses: ${uses}
         with:
           path: ${path}
           key: ${key}
@@ -562,8 +507,26 @@ const workspaceTestsWith = (envValue, steps) => changeText(".github/workflows/te
   [WORKSPACE_ENV, `${WORKSPACE_ENV}      STYLE_CACHE: ${envValue}\n`], [WORKSPACE_RUN, `${steps}${WORKSPACE_RUN}`])
 const STYLE_PREFIX_RESTORE = restoreStep("Restore stylelint", ".stylelintcache", "stylelint-${{ github.sha }}", "stylelint-")
 const STYLE_ENV_SAVE = saveStep("Save stylelint", "${{ env.STYLE_CACHE }}", "stylelint-${{ github.sha }}")
+const LINT_JOB = `    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+${restoreStep("Restore eslint", ".eslintcache", ESLINT_KEY, "eslint-")}${saveStep("Save eslint", ".eslintcache", ESLINT_KEY)}`
+// A local action that Type Check calls, with the steps of one remote action.
+const typeCheckToolStep = (step) => ({ ...newAction("setup-tools", step), ...typeCheckAround("      - uses: ./.github/actions/setup-tools\n", "") })
+const NEXT_SAVE = "      - name: Save the Next compiler cache\n        if: github.event_name != 'pull_request' && steps.next-cache.outputs.cache-hit != 'true'\n        uses: actions/cache/save@v6\n"
+const WEB_UNIT_LOOKUP = `      - name: Look up cached web unit results
+        id: web-unit
+        if: github.event_name == 'pull_request'
+        uses: actions/cache/restore@v6
+        with:
+          path: \${{ env.WEB_UNIT_RESULTS }}
+          key: \${{ steps.plan.outputs.web-unit-key }}
+          lookup-only: true
+`
 
-const NO_LINE = /a cache save step with no line/
+const NO_LINE = /a cache step with no line/
+const NO_REMOTE_LINE = /a remote action with no line/
+const pinned = (field) => new RegExp(PINNED_FIELDS[field])
 const MUTATIONS = [
   ["M1 the android-release evict step deleted", changeText(".github/workflows/android-release.yml", [ANDROID_RELEASE_EVICT, ""]), /one step removes the objects/],
   ["M2 the ios-build stamp moved before the restore", changeText(".github/workflows/ios-build.yml", [STAMP_STEP, ""],
@@ -591,7 +554,7 @@ const MUTATIONS = [
   ["M15 restore-keys on the combined step of a local action", changeText(".github/actions/desktop-nsis-tools/action.yml",
     ["        key: ${{ runner.os }}-nsis-tools-${{ hashFiles('apps/desktop/src-tauri/native/windows/nsis-tools.json') }}\n",
       "        key: ${{ runner.os }}-nsis-tools-${{ hashFiles('apps/desktop/src-tauri/native/windows/nsis-tools.json') }}\n        restore-keys: |\n          ${{ runner.os }}-nsis-tools-\n"]),
-  /a combined step with restore-keys/],
+  pinned("cacheStep")],
   ["M16 a save of the restored path through the workspace expression", typeCheckAround(restoreStep("Restore eslint", ".eslintcache", ESLINT_KEY, "eslint-"),
     saveStep("Save eslint", "${{ github.workspace }}/.eslintcache", ESLINT_KEY)), NO_LINE],
   ["M16b a save of another restored path through the workspace expression", typeCheckAround(restoreStep("Restore prettier", ".prettiercache", "prettier-${{ github.sha }}", "prettier-"),
@@ -612,13 +575,48 @@ const MUTATIONS = [
     ...newAction("setup-workspace", "    - uses: ./.github/actions/restore-npm-cache\n"),
     ...changeText(".github/workflows/test.yml", ["      - id: npm-cache\n        uses: ./.github/actions/restore-npm-cache\n        with:\n          restore-older-entry: ${{ github.event_name == 'pull_request' }}\n",
       "      - uses: ./.github/actions/setup-workspace\n      - id: npm-cache\n        uses: ./.github/actions/restore-npm-cache\n        with:\n          restore-older-entry: ${{ github.event_name == 'pull_request' }}\n"]),
-  }, /the cache restores of its job differ/],
+  }, pinned("restores")],
   ["M22 a save in a local action of an env path that the calling step sets", {
     ...newAction("save-style", STYLE_ENV_SAVE.replace(/^ {6}/gm, "    ")),
     ...workspaceTestsWith(".stylecache-unused", `${STYLE_PREFIX_RESTORE}      - if: github.event_name != 'pull_request'\n        uses: ./.github/actions/save-style\n        env:\n          STYLE_CACHE: .stylelintcache\n`),
   }, NO_LINE],
   ["M23 a save of an env path that a script changes through GITHUB_ENV", workspaceTestsWith(".stylecache-unused",
     `${STYLE_PREFIX_RESTORE}      - run: node .github/scripts/set-style-cache.mjs\n${STYLE_ENV_SAVE}`), NO_LINE],
+  ["P1 a save in a new workflow", { ".github/workflows/lint-cache.yml": `name: Lint cache\non:\n  push:\n    branches: [main]\njobs:\n  lint:\n${LINT_JOB}` }, NO_LINE],
+  ["P2 a save in a new reusable workflow that a job of test.yml calls", {
+    ".github/workflows/lint-reusable.yml": `name: Lint reusable\non:\n  workflow_call:\njobs:\n  lint:\n${LINT_JOB}`,
+    ...changeText(".github/workflows/test.yml", ["  type-check:\n", "  lint-reusable:\n    uses: ./.github/workflows/lint-reusable.yml\n  type-check:\n"]),
+  }, NO_LINE],
+  ["P3 a new save through actions/cache/save by commit SHA", typeCheckAround("", saveStep("Save eslint", ".eslintcache", ESLINT_KEY, "actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830")), NO_LINE],
+  ["P4 a new save through ACTIONS/CACHE/SAVE", typeCheckAround("", saveStep("Save eslint", ".eslintcache", ESLINT_KEY, "ACTIONS/CACHE/SAVE@v6")), NO_LINE],
+  ["P5 the Next compiler cache save as Actions/cache/save with no condition", changeText(".github/workflows/test.yml",
+    [NEXT_SAVE, "      - name: Save the Next compiler cache\n        uses: Actions/cache/save@v6\n"]), pinned("cacheStep")],
+  ["P6 a local action with actions/setup-node and cache npm", typeCheckToolStep("    - uses: actions/setup-node@v7\n      with:\n        node-version-file: .nvmrc\n        cache: npm\n"), NO_LINE],
+  ["P7 a local action with Actions/setup-node and no inputs", typeCheckToolStep("    - uses: Actions/setup-node@v7\n"), NO_LINE],
+  ["P8 a local action with actions/setup-java and cache gradle", typeCheckToolStep("    - uses: actions/setup-java@v5\n      with:\n        distribution: temurin\n        java-version: '17'\n        cache: gradle\n"), NO_LINE],
+  ["P9 a local action with Actions/setup-java and cache gradle", typeCheckToolStep("    - uses: Actions/setup-java@v5\n      with:\n        distribution: temurin\n        java-version: '17'\n        cache: gradle\n"), NO_LINE],
+  ["P10 a local action with hendrikmuhs/ccache-action", typeCheckToolStep("    - uses: hendrikmuhs/ccache-action@v1.2\n      with:\n        key: type-check\n"), NO_REMOTE_LINE],
+  ["P11 a local action with actions/setup-python and cache pip", typeCheckToolStep("    - uses: actions/setup-python@v6\n      with:\n        python-version: '3.12'\n        cache: pip\n"), NO_REMOTE_LINE],
+  ["P12 a lookup of the plan job becomes a prefix restore of the Turbo download path before its save", changeText(".github/workflows/test.yml", [WEB_UNIT_LOOKUP, ""],
+    ["      - name: Hash the test tasks and read the changed paths\n", `      - name: Look up cached web unit results
+        id: web-unit
+        if: steps.turbo-download.outputs.cache-hit != 'true'
+        uses: actions/cache/restore@v6
+        with:
+          path: ~/.npm/_cacache
+          key: \${{ runner.os }}-turbo-cli-
+          restore-keys: |
+            \${{ runner.os }}-turbo-cli-
+      - name: Hash the test tasks and read the changed paths
+`]), pinned("restores")],
+  ["P13 the ios-build CCACHE_DIR value becomes the macOS cache directory", changeText(".github/workflows/ios-build.yml",
+    ["      CCACHE_DIR: ${{ github.workspace }}/.cache/ios-ccache\n", "      CCACHE_DIR: ~/Library/Caches\n"]), pinned("context")],
+  ["P13b a step of the ios-build compile job writes CCACHE_DIR to GITHUB_ENV", changeText(".github/workflows/ios-build.yml",
+    ["      - name: Install the compiler cache\n", "      - run: echo \"CCACHE_DIR=$HOME/Library/Caches\" >> \"$GITHUB_ENV\"\n      - name: Install the compiler cache\n"]), pinned("context")],
+  ["P15 the playwright-cache id moves to the Next restore", changeText(".github/workflows/test.yml",
+    ["        id: playwright-cache\n", "        id: playwright-lookup\n"], ["        id: next-cache\n", "        id: playwright-cache\n"]), /differs? from its inventory line/],
+  ["P16 the Next save condition gains || true", changeText(".github/workflows/test.yml",
+    [NEXT_SAVE, NEXT_SAVE.replace("&& steps.next-cache.outputs.cache-hit != 'true'", "|| true")]), pinned("cacheStep")],
 ]
 
 for (const [name, changes, reason] of MUTATIONS) {
@@ -627,29 +625,23 @@ for (const [name, changes, reason] of MUTATIONS) {
   })
 }
 
-// The inventory of a tree after a review: the committed lines with the restores of each job now, and one line for each new
-// save step under a rule that the review adds.
+// The inventory of a tree after a review: one line for each cache step as the write command makes it, with the committed
+// rule, and a rule that the review adds for each new step.
 function reviewedInventory(currentTree) {
-  const committed = new Map(INVENTORY.map((line) => [line.step, line]))
-  return cacheSaves(currentTree).map(({ step, where, list }) => ({
-    step: where,
-    path: step.with?.path,
-    key: step.with?.key,
-    restores: list.entries.filter((entry) => restoresACache(entry.step)).map((entry) => entry.where),
-    rule: committed.get(where)?.rule ?? "a reviewed bound",
-  }))
+  const committed = new Map(INVENTORY.map((line) => [line.step, line.rule]))
+  return cacheSteps(currentTree, REMOTE_INVENTORY).map((save) => lineOf(save, committed.get(save.where) ?? "a reviewed bound", currentTree))
 }
 
-test("a reviewed inventory line is the only way to make a new save step pass, and a line that differs from its step fails", () => {
+test("a reviewed inventory line is the only way to make a new cache step pass, and a line that differs from its step fails", () => {
   const rules = { ...RULES, "a reviewed bound": () => {} }
   for (const [name, changes] of MUTATIONS.filter(([name, , reason]) => reason === NO_LINE && !name.startsWith("M18 "))) {
     const changed = readTree(changes)
     const inventory = reviewedInventory(changed)
     assert.doesNotThrow(() => cacheGuard(changed, inventory, rules), name)
     const added = inventory.findIndex((line) => line.rule === "a reviewed bound")
-    for (const [field, value] of [["path", "other"], ["key", "other"], ["restores", []]]) {
-      const wrong = inventory.map((line, index) => index === added ? { ...line, [field]: value } : line)
-      assert.throws(() => cacheGuard(changed, wrong, rules), /differs from its inventory line|differ from its inventory line/, `${name}: ${field}`)
+    for (const field of Object.keys(PINNED_FIELDS).filter((key) => key in inventory[added])) {
+      const wrong = inventory.map((line, index) => index === added ? { ...line, [field]: field === "context" || field === "cacheStep" ? {} : [{}] } : line)
+      assert.throws(() => cacheGuard(changed, wrong, rules), pinned(field), `${name}: ${field}`)
     }
     assert.throws(() => cacheGuard(changed, inventory.filter((line, index) => index !== added), rules), NO_LINE, name)
   }
@@ -658,20 +650,37 @@ test("a reviewed inventory line is the only way to make a new save step pass, an
     const changed = readTree(changes)
     assert.throws(() => cacheGuard(changed, reviewedInventory(changed), rules), /the compiler cache savers|one npm restore in the job/, name)
   }
+  // A remote action needs a reviewed line of its own; with it, its steps follow the step inventory like any other.
+  const ccache = readTree(MUTATIONS.find(([name]) => name.startsWith("P10 "))[1])
+  const remote = [...REMOTE_INVENTORY, { action: "hendrikmuhs/ccache-action", cache: "cache step", why: "a test line" }]
+  assert.throws(() => cacheGuard(ccache, reviewedInventory(ccache), rules, remote), NO_LINE)
+  const withCcache = cacheSteps(ccache, remote).map((save) => lineOf(save, INVENTORY.find((line) => line.step === save.where)?.rule ?? "a reviewed bound", ccache))
+  assert.doesNotThrow(() => cacheGuard(ccache, withCcache, rules, remote))
 })
 
 test("a restore in a job with no save needs no line, and a restore beside a save needs the changed line", () => {
   const restoreOnly = (changes) => () => cacheGuard(readTree(changes), INVENTORY)
   assert.doesNotThrow(restoreOnly(workspaceTestsWith(".stylelintcache", STYLE_PREFIX_RESTORE)))
-  assert.throws(restoreOnly(typeCheckAround(restoreStep("Restore eslint", ".eslintcache", ESLINT_KEY, "eslint-"), "")), /Save turbo: the cache restores of its job differ/)
+  assert.throws(restoreOnly(typeCheckAround(restoreStep("Restore eslint", ".eslintcache", ESLINT_KEY, "eslint-"), "")), /Save turbo: the restores of its job differ/)
 })
 
-test("the inventory has one JSON line for each save step, with the five fields and a rule from RULES", () => {
-  const text = readFileSync(join(root, INVENTORY_FILE), "utf8")
-  assert.ok(text.endsWith("}\n") && !text.includes("\n\n"), "one line for each step and a final newline")
+test("the step inventory is the exact output of the write command, and each line names a rule from RULES", () => {
+  const text = readFileSync(join(root, STEP_INVENTORY_FILE), "utf8")
+  assert.equal(text, `${reviewedInventory(tree).map((line) => JSON.stringify(line)).join("\n")}\n`, "run node .github/scripts/cache-inventory.mjs --write")
   for (const line of INVENTORY) {
-    assert.deepEqual(Object.keys(line), ["step", "path", "key", "restores", "rule"], line.step)
+    const fields = savesACache(line.cacheStep) ? ["step", "rule", "cacheStep", "calls", "restores", "context"] : ["step", "rule", "cacheStep", "calls"]
+    assert.deepEqual(Object.keys(line), fields, line.step)
     assert.ok(Object.hasOwn(RULES, line.rule), `${line.step}: ${line.rule}`)
+  }
+})
+
+test("the remote inventory has one sorted line for each remote action in use, and each says whether its steps can cache", () => {
+  const names = REMOTE_INVENTORY.map(({ action }) => action)
+  assert.deepEqual(names, remoteActions(tree), "one line for each remote action in use, in order")
+  for (const line of REMOTE_INVENTORY) {
+    assert.deepEqual(Object.keys(line), ["action", "cache", "why"], line.action)
+    assert.ok(["no cache", "restore only", "cache step"].includes(line.cache), line.action)
+    assert.equal(line.action, line.action.toLowerCase(), line.action)
   }
 })
 
