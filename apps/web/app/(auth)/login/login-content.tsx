@@ -90,7 +90,7 @@ function LoginEmailStep({ flow, callback, callbackDismissed, onDismissCallback, 
     isAppleLoading={flow.isAppleLoading || pendingProvider === 'apple'}
     errorKey={providerCallbackFailed ? callbackErrorKey : flow.errorKey}
     fieldError={flow.emailFieldError}
-    errorMessage={providerCallbackFailed ? t(callbackErrorKey) : flow.errorMessage}
+    errorMessage={providerCallbackFailed ? callback?.provider === 'apple' ? t('auth.errors.appleError') : t('auth.errors.googleError') : flow.errorMessage}
     isOnline={flow.isOnline} t={t} emailFocusRequest={flow.emailFocusRequest}
     canSubmitTurnstile={canSubmitTurnstile} turnstileWidget={turnstileWidget}
     onSendCode={() => { onDismissCallback(); void flow.sendCode() }}

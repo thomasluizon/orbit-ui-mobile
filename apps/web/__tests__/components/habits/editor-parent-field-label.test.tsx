@@ -22,9 +22,9 @@ function parent(value: string): ReturnType<typeof useEditorParent> {
 
 describe('the parent row of the habit editor', () => {
   it.each([
-    ['pt-BR', true, 'Faz parte de, Rotina da manhã'],
+    ['pt-BR', true, 'Item principal, Rotina da manhã'],
     ['pt-BR', false, 'Hábito principal, Rotina da manhã'],
-    ['en', true, 'Part of, Rotina da manhã'],
+    ['en', true, 'Parent item, Rotina da manhã'],
     ['en', false, 'Parent habit, Rotina da manhã'],
   ] as const)('in %s with guided %s names the row in the words of its surface', (locale, guided, name) => {
     state.locale = locale

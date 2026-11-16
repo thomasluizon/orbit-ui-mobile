@@ -631,7 +631,7 @@
         "goals": "Does this help a goal?",
         "endDate": "Does it have an end date?",
         "parent": "Is this part of another item?",
-        "parentRow": "Part of",
+        "parentRow": "Parent item",
         "parentPicker": "Part of which item?",
         "none": "No end date",
         "yes": "Yes",
