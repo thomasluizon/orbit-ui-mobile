@@ -1,8 +1,9 @@
-import { useLayoutEffect, useMemo, useRef, type ReactNode } from 'react'
-import { Animated, Text, View } from 'react-native'
+import { useLayoutEffect, useRef, type ReactNode } from 'react'
+import { Text, View } from 'react-native'
+import Animated, { Easing, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated'
 import { WifiOff } from '@/components/ui/icons'
 import type { AppTokensV2 } from '@/lib/theme'
-import { toAnimatedEasing, useResolvedMotionPreset } from '@/lib/motion'
+import { useResolvedMotionPreset } from '@/lib/motion'
 import type { LoginStyles } from '@/app/login-styles'
 
 type Translate = (key: string, params?: Record<string, unknown>) => string
@@ -40,23 +41,21 @@ export function LoginOfflineNotice({ t, styles, tokens }: Readonly<{ t: Translat
   </View>
 }
 
+/** WHY Reanimated: a native-driver Animated fade leaves its JS copy at 0, and on iOS Fabric a re-render plus a resize writes that 0 back to the layer after the fade (RCTViewComponentView.mm invalidateLayer), so the step stayed blank. Reanimated's commit hook puts the live value into every React commit. */
 export function LoginStepStage({ step, children }: Readonly<{ step: string; children: ReactNode }>) {
   const motionPreset = useResolvedMotionPreset('route-replace')
   const reduced = motionPreset.reducedMotionEnabled
   const previousStep = useRef(step)
-  const progress = useMemo(() => new Animated.Value(1), [])
+  const progress = useSharedValue(1)
+  const shift = motionPreset.shift * (step === 'email' ? -1 : 1)
+  const style = useAnimatedStyle(() => ({ opacity: progress.value, transform: [{ translateX: (1 - progress.value) * shift }] }))
   useLayoutEffect(() => {
-    if (previousStep.current === step || reduced) { progress.setValue(1); previousStep.current = step; return }
+    if (previousStep.current === step || reduced) { progress.value = 1; previousStep.current = step; return }
     previousStep.current = step
-    progress.setValue(0)
-    const animation = Animated.timing(progress, { toValue: 1, duration: motionPreset.enterDuration,
-      easing: toAnimatedEasing(motionPreset.enterEasing), useNativeDriver: true })
-    animation.start()
-    return () => animation.stop()
+    progress.value = 0
+    progress.value = withTiming(1, { duration: motionPreset.enterDuration, easing: Easing.bezier(...motionPreset.enterEasing) })
   }, [progress, reduced, step, motionPreset.enterDuration, motionPreset.enterEasing])
-  return <Animated.View style={{ opacity: progress, transform: [{ translateX: progress.interpolate({
-    inputRange: [0, 1], outputRange: [motionPreset.shift * (step === 'email' ? -1 : 1), 0],
-  }) }] }}>{children}</Animated.View>
+  return <Animated.View style={style}>{children}</Animated.View>
 }
 
 

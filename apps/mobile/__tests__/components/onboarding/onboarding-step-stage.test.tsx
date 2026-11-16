@@ -1,6 +1,6 @@
 import React from 'react'
-import { Animated } from 'react-native'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { StyleSheet } from 'react-native'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { motionDurations, motionEasings, motionLayerTiming } from '@orbit/shared/theme'
 import { OnboardingStepStage } from '@/components/onboarding/onboarding-step-stage'
 
@@ -8,11 +8,22 @@ const TestRenderer: typeof import('react-test-renderer') = require('react-test-r
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 
 const mocks = vi.hoisted(() => ({ reduced: false }))
-const bezier = vi.hoisted(() => ({ received: [] as unknown[] }))
+const motion = vi.hoisted(() => ({ bezier: [] as unknown[], timings: [] as { toValue: unknown; config: unknown }[], values: [] as { value: unknown }[] }))
 vi.mock('@/lib/motion', () => ({
-  toAnimatedEasing: (controlPoints: unknown) => { bezier.received.push(controlPoints); return undefined },
+  toAnimatedEasing: () => undefined,
   usePrefersReducedMotion: () => mocks.reduced,
 }))
+vi.mock('react-native-reanimated', async () => {
+  const base = await import('@/test-mocks/react-native-reanimated')
+  const { useState } = await import('react')
+  return {
+    ...base,
+    Easing: { ...base.Easing, bezier: (...points: number[]) => { motion.bezier.push(points); return base.Easing.linear } },
+    useSharedValue: (initial: unknown) => useState(() => { const shared = { value: initial }; motion.values.push(shared); return shared })[0],
+    useAnimatedStyle: (updater: () => unknown) => useState(updater)[0],
+    withTiming: (toValue: unknown, config: unknown) => { motion.timings.push({ toValue, config }); return { pendingTimingTo: toValue } },
+  }
+})
 
 async function renderStage(step: number) {
   let tree!: ReturnType<typeof TestRenderer.create>
@@ -22,58 +33,79 @@ async function renderStage(step: number) {
   return tree
 }
 
+async function showStep(tree: ReturnType<typeof TestRenderer.create>, step: number) {
+  await TestRenderer.act(() => { tree.update(<OnboardingStepStage step={step}>body</OnboardingStepStage>) })
+}
+
+function committedStyle(tree: ReturnType<typeof TestRenderer.create>) {
+  const stage = tree.root.findAll((node) => (node.type as unknown) === 'AnimatedView')[0]!
+  return StyleSheet.flatten(stage.props.style) as { opacity?: unknown; transform?: { translateY?: unknown }[] }
+}
+
 describe('OnboardingStepStage', () => {
-  let timing: ReturnType<typeof vi.spyOn>
-  let interpolate: ReturnType<typeof vi.spyOn>
   beforeEach(() => {
     mocks.reduced = false
-    bezier.received = []
-    timing = vi.spyOn(Animated, 'timing')
-    interpolate = vi.spyOn(Animated.Value.prototype, 'interpolate')
+    motion.bezier = []
+    motion.timings = []
+    motion.values = []
   })
-  afterEach(() => { timing.mockRestore(); interpolate.mockRestore() })
 
   it('leaves the step that opens the flow still', async () => {
     await renderStage(0)
-    expect(timing).not.toHaveBeenCalled()
+    expect(motion.timings).toEqual([])
+    expect(motion.values.at(-1)!.value).toBe(1)
   })
 
-  it('enters a changed step with the base duration, enter easing and the shared shift', async () => {
+  it('enters a changed step with the base duration and the enter easing', async () => {
     const tree = await renderStage(0)
-    await TestRenderer.act(() => { tree.update(<OnboardingStepStage step={1}>body</OnboardingStepStage>) })
-    expect(timing).toHaveBeenCalledOnce()
-    expect(timing.mock.calls[0]![1]).toMatchObject({ toValue: 1, duration: motionDurations.base, useNativeDriver: true })
-    expect(bezier.received).toEqual([[...motionEasings.enter]])
-    expect(interpolate).toHaveBeenCalledWith({ inputRange: [0, 1], outputRange: [motionLayerTiming.routeShift, 0] })
+    await showStep(tree, 1)
+    expect(motion.timings).toEqual([{ toValue: 1, config: expect.objectContaining({ duration: motionDurations.base }) }])
+    expect(motion.bezier).toEqual([[...motionEasings.enter]])
   })
 
-  it('takes the shift, the duration and the curve from the shared tokens', async () => {
+  it('takes the duration and the curve from the shared tokens', async () => {
     const durations = motionDurations as unknown as Record<string, number>
     const easings = motionEasings as unknown as Record<string, readonly number[]>
-    const layerTiming = motionLayerTiming as unknown as Record<string, number>
     const originalBase = durations.base
     const originalEnter = easings.enter
-    const originalShift = layerTiming.routeShift
     durations.base = 333
     easings.enter = [0.1, 0.2, 0.3, 0.4]
-    layerTiming.routeShift = 37
     try {
       const tree = await renderStage(0)
-      await TestRenderer.act(() => { tree.update(<OnboardingStepStage step={1}>body</OnboardingStepStage>) })
-      expect(timing.mock.calls[0]![1]).toMatchObject({ duration: 333 })
-      expect(bezier.received).toEqual([[0.1, 0.2, 0.3, 0.4]])
-      expect(interpolate).toHaveBeenCalledWith({ inputRange: [0, 1], outputRange: [37, 0] })
+      await showStep(tree, 1)
+      expect(motion.timings).toEqual([{ toValue: 1, config: expect.objectContaining({ duration: 333 }) }])
+      expect(motion.bezier).toEqual([[0.1, 0.2, 0.3, 0.4]])
     } finally {
       durations.base = originalBase!
       easings.enter = originalEnter!
-      layerTiming.routeShift = originalShift!
     }
+  })
+
+  it('commits the new step at full opacity and no shift on every render during the fade, so no React commit carries a copy the fade left at 0', async () => {
+    expect(motionLayerTiming.routeShift).not.toBe(0)
+    const tree = await renderStage(0)
+    await showStep(tree, 1)
+    await showStep(tree, 1)
+    const style = committedStyle(tree)
+    expect(style.opacity).toBe(1)
+    expect(style.transform?.[0]?.translateY).toBeCloseTo(0)
+  })
+
+  it('shows the step at once when the motion preference changes during its fade', async () => {
+    const tree = await renderStage(0)
+    await showStep(tree, 1)
+    const fading = motion.values.at(-1)!
+    expect(fading.value).toEqual({ pendingTimingTo: 1 })
+    mocks.reduced = true
+    await showStep(tree, 1)
+    expect(fading.value).toBe(1)
   })
 
   it('changes at once under reduced motion', async () => {
     mocks.reduced = true
     const tree = await renderStage(0)
-    await TestRenderer.act(() => { tree.update(<OnboardingStepStage step={1}>body</OnboardingStepStage>) })
-    expect(timing).not.toHaveBeenCalled()
+    await showStep(tree, 1)
+    expect(motion.timings).toEqual([])
+    expect(motion.values.at(-1)!.value).toBe(1)
   })
 })

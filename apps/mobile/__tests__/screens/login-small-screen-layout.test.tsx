@@ -32,6 +32,11 @@ vi.mock('react-i18next', async (importOriginal) => {
 })
 vi.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ ...mocks.insets, left: 0, right: 0 }) }))
 vi.mock('@/app/use-login-flow', () => ({ useLoginFlow: () => mocks.flow }))
+vi.mock('react-native-reanimated', async () => {
+  const base = await import('@/test-mocks/react-native-reanimated')
+  const { Animated } = await import('react-native')
+  return { ...base, default: { ...base.default, View: Animated.View } }
+})
 vi.mock('react-native-webview', () => ({ WebView: (props: Record<string, unknown>) => React.createElement('WebView', props) }))
 vi.mock('@/lib/use-app-theme', () => ({ useAppTheme: () => ({ currentScheme: 'purple', currentTheme: 'dark' }) }))
 vi.mock('@/lib/motion', () => ({ usePrefersReducedMotion: () => true, toAnimatedEasing: (value: unknown) => value, useResolvedMotionPreset: (scenario: MotionScenario) => resolveMotionPreset(scenario, true) }))
