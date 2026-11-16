@@ -58,7 +58,6 @@ export function GoalDetailDrawer({ open, inline = false, goalId, onOpenChange, o
   const draftHydrated = useChatStore(state => state.draftHydrated)
   const router = useRouter()
   const guided = useFlag('orbit_guided_flows')
-  const sheetTitle = getGoalSheetTitle(sheetGoal, guided, t('progressScreen.sections.goals'))
   const outcomes = useGoalDetailOutcomes(goal, guided, useViewportMatch('(prefers-reduced-motion: reduce)'))
   const orbitLine = useGoalOrbitLine(goal, guided)
   const { progressFormOpened } = outcomes
@@ -167,7 +166,7 @@ export function GoalDetailDrawer({ open, inline = false, goalId, onOpenChange, o
 
   return (
     <>
-      {open && (inline || !editingProgress) ? inline ? <><AppBar title={t('progressScreen.sections.goals')} titleIsHeading={!goal} titleRef={barHeadingRef} onBack={() => close()} backLabel={t('common.back')} />{body}</> : <Sheet ref={sheetRef} open onClose={onClose} title={sheetTitle.title} accessibleTitle={sheetTitle.accessibleTitle}>{body}</Sheet> : null}
+      {open && (inline || !editingProgress) ? inline ? <><AppBar title={t('progressScreen.sections.goals')} titleIsHeading={!goal} titleRef={barHeadingRef} onBack={() => close()} backLabel={t('common.back')} />{body}</> : <Sheet ref={sheetRef} open onClose={onClose} {...getGoalSheetTitle(goal, guided, t('progressScreen.sections.goals'))}>{body}</Sheet> : null}
       {open && editingProgress && sheetGoal ? <GoalProgressForm key={goalId} goal={sheetGoal} refetchDetail={refetch} asQuestion={guided} onClose={() => { setEditingProgress(false); outcomes.progressFormClosed() }} /> : null}
       {sheetGoal ? <EditGoalModal open={editing} onOpenChange={setEditing} goal={sheetGoal} /> : null}
       <GoalStatusResultDialog result={outcomes.result} onClose={outcomes.clearResult} onOpenList={openGoalsList} />

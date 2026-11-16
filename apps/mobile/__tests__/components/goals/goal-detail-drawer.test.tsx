@@ -257,6 +257,35 @@ describe('GoalDetailDrawer', () => {
       expect(shownTitles, 'the body header is the one goal title the person sees').toHaveLength(1)
       expect(shownTitles[0].props.accessibilityRole).toBe('header')
       TestRenderer.act(() => tree.unmount())
+      const barTitles = (root: any) => root.findAll((node: any) => node.props.backLabel === 'common.back' && 'title' in node.props).map((node: any) => node.props.title)
+      TestRenderer.act(() => { tree = TestRenderer.create(<GoalDetailDrawer inline open onClose={vi.fn()} goalId="1" />) })
+      expect(barTitles(tree.root), 'the inline bar keeps the route name').toEqual(['progressScreen.sections.goals'])
+      TestRenderer.act(() => tree.unmount())
+      detailAvailable = false
+      TestRenderer.act(() => { tree = TestRenderer.create(<GoalDetailDrawer inline open onClose={vi.fn()} goalId="missing" />) })
+      const fallbackHeaders = tree.root.findAll((node: any) =>
+        typeof node.type === 'string' && node.props.accessibilityRole === 'header' && node.props.children === 'progressScreen.sections.goals')
+      expect(fallbackHeaders).toHaveLength(1)
+      TestRenderer.act(() => tree.unmount())
+    } finally {
+      guidedFlag.on = false
+      detailAvailable = true
+    }
+  })
+
+  it('shows the route name as the guided goal sheet title when a refresh drops the goal while the sheet is open', () => {
+    guidedFlag.on = true
+    try {
+      let tree: any
+      TestRenderer.act(() => { tree = TestRenderer.create(<GoalDetailDrawer open={true} onClose={vi.fn()} goalId="1" />) })
+      expect(tree.root.findByType('Sheet').props.accessibleTitle).toBe('Read 12 books')
+      detailAvailable = false
+      listGoalAvailable = false
+      TestRenderer.act(() => tree.update(<GoalDetailDrawer open={true} onClose={vi.fn()} goalId="1" />))
+      const sheet = tree.root.findByType('Sheet')
+      expect(sheet.props.title, 'the header shows a title while the body has no goal heading').toBe('progressScreen.sections.goals')
+      expect(sheet.props.accessibleTitle).toBeUndefined()
+      TestRenderer.act(() => tree.unmount())
     } finally {
       guidedFlag.on = false
     }
