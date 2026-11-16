@@ -39,14 +39,12 @@ function measurable(host: Host): Host {
   return { ...host, children: host.children?.map((child) => typeof child === 'string' ? child : measurable(child)) ?? null }
 }
 
-/** The drawn ink of the mascot: its paths and circles, outside the clip definitions, rendered by resvg for the true bounds. */
 function inkOf(svg: Host): string {
   return descendants(svg).filter((host) => host.type === 'Path' || host.type === 'Circle').map((host) => host.type === 'Path'
     ? `<path d="${host.props.d}"/>`
     : `<circle cx="${host.props.cx}" cy="${host.props.cy}" r="${host.props.r}"/>`).join('')
 }
 
-/** How far the drawn centre of the Orbit inside `owner` sits from the owner's own centre, in px. */
 function drawnOffset(owner: Host, width: number) {
   const svg = descendants(owner).find((host) => host.type === 'Svg' && host.props.testID === 'orbit-mascot')!
   const bounds = new Resvg(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="${svg.props.viewBox}">${inkOf(svg)}</svg>`).getBBox()!

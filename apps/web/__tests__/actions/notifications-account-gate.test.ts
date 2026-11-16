@@ -34,11 +34,6 @@ const pushSubscription = {
   keys: { p256dh: 'p256dh-key', auth: 'auth-key' },
 }
 
-/**
- * The claim the API puts the account id under. It is the literal `auth-api.ts` reads and the one
- * `JwtTokenServiceTests` in the orbit-api repository pins, so a token built here carries an account
- * the real `getAccountIdFromToken` can find.
- */
 const ACCOUNT_CLAIM = 'http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier'
 
 function encodeJwtSegment(value: Record<string, unknown>): string {
@@ -58,7 +53,6 @@ function makeAccessToken(accountId: string): string {
   ].join('.')
 }
 
-/** Puts the account the browser's shared cookie now names in front of the server action. */
 function holdCookieForAccount(accountId: string): void {
   mockCookieStore.get.mockImplementation((name: string) =>
     name === 'auth_token' ? { value: makeAccessToken(accountId) } : undefined,

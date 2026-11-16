@@ -54,7 +54,7 @@ interface WebSheetProps extends SheetProps {
   virtualizedBody?: boolean
   initialFocus?: RefObject<HTMLElement | null>
   finalFocus?: Dialog.Popup.Props['finalFocus']
-  /** The handle `useSheetHost` fills in, so the host can close through the exit transition. */
+  titleTranslate?: 'no'
   ref?: Ref<SheetHandle>
 }
 

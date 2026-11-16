@@ -9,7 +9,6 @@ import { OrbitMascot, useStateMascotSize } from '@/components/ui/orbit-mascot'
 import { Skeleton } from '@/components/ui/skeleton'
 import { NotificationRow } from './notification-row'
 
-/** Width and height of the title, body and target lines that a notification row draws. */
 const NOTIFICATION_SKELETON_LINES = [['80%', 22], ['100%', 21], ['32%', 16]] as const
 
 export function NotificationList({ items, isLoading, isError, onRetry, onOpen, onDelete }: Readonly<{

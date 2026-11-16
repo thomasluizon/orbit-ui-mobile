@@ -45,7 +45,6 @@ export function useBulkActions({
     currentPermission.current = { selectedDateStr, completionReadOnly }
   }, [selectedDateStr, completionReadOnly])
 
-  /** Clear an armed delete when the account changes, not only when the date changes. */
   const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useAccountScopedState(false)
 
   const applyBulkMutationSuccesses = useCallback((

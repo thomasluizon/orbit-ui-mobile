@@ -61,7 +61,6 @@ it('clears failed and expired tokens and offers retry', async () => {
 })
 
 it('renders the challenge once when the form mounts the widget with a new reset key after the script loaded', async () => {
-  /** act() renders again before the loaded script resolves and hides a second load at mount, so this case uses browser scheduling. */
   const actEnvironment = globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
   const previousActEnvironment = actEnvironment.IS_REACT_ACT_ENVIRONMENT
   actEnvironment.IS_REACT_ACT_ENVIRONMENT = false

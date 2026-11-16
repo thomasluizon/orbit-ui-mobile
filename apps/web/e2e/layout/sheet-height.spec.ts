@@ -25,10 +25,6 @@ async function overrideSafeAreaInsets(page: Page) {
   await session.send('Emulation.setSafeAreaInsetsOverride', { insets: { bottom: SAFE_AREA_BOTTOM } })
 }
 
-/**
- * Every sheet here runs under a real inset. Before the panel reserved it, the actions row padded
- * itself to the inset, so its box reached the viewport bottom and an actions-less sheet reserved nothing.
- */
 test.beforeEach(async ({ page }) => {
   await overrideSafeAreaInsets(page)
 })
@@ -42,7 +38,6 @@ async function measureSheet(panel: Locator) {
     const panelStyle = getComputedStyle(element)
     const bodyBounds = body.getBoundingClientRect()
     const bodyStyle = getComputedStyle(body)
-    /** A flex item keeps its margins, and the grabber sits 12px below the panel's top edge. */
     const outerHeight = (child: Element) => {
       const childStyle = getComputedStyle(child)
       return child.getBoundingClientRect().height
@@ -192,11 +187,6 @@ test('a long creation screen scrolls under its pinned safe area footer', async (
   expect(measured.actionBottomGap).toBeGreaterThanOrEqual(measured.bottomInset)
 })
 
-/**
- * The panel, not the actions row, reserves the bottom inset, so a sheet that carries no actions
- * keeps its last row above the home indicator too. Before that move the reservation lived in
- * `.orbit-sheet-actions`, which this sheet never renders.
- */
 test('a menu sheet without actions keeps its last row above the safe area', async ({ page, context }) => {
   const habitsPage = createPaginatedSchema(habitScheduleItemSchema).parse({
     items: [habitScheduleItemSchema.parse(makeHabitScheduleItem({

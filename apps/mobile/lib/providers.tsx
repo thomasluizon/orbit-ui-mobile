@@ -106,12 +106,10 @@ function AuthInitializer({
   const initialize = useAuthStore((s) => s.initialize)
   const captureTuple = captureTupleKey(capturePreferences)
   const [appliedCaptureTuple, setAppliedCaptureTuple] = useState<string | null>(null)
-  /** Derived during render, never flipped by an effect: see captureTupleKey. */
   const ready = appliedCaptureTuple === captureTuple
   const onboardingDraftHydrated = useOnboardingDraftHydrated()
   const runtimeTheme = getRuntimeTheme()
   const runtimeTokens = createTokensV2(runtimeTheme.scheme, runtimeTheme.themeMode)
-  /** Expo Router's warm-link transition must retain its navigator while the next tuple applies. */
   const [hasRenderedApp, setHasRenderedApp] = useState(false)
   const [fontsLoaded] = useFonts({
     Geist_400Regular,
@@ -124,10 +122,6 @@ function AuthInitializer({
   })
 
   useEffect(() => {
-    /**
-     * A tuple that changes mid-boot abandons the boot in flight. Without this, the older boot could
-     * resolve last and publish its own tuple as applied, gating a render that is already correct.
-     */
     let abandoned = false
     async function boot() {
       let isAuthenticated = false
@@ -198,7 +192,6 @@ function AuthInitializer({
 
   const appReady = ready && fontsLoaded && onboardingDraftHydrated
 
-  /** Sticky on the first ready render, independently of asynchronous splash cleanup. */
   if (appReady && !hasRenderedApp) setHasRenderedApp(true)
 
   useEffect(() => {
@@ -206,7 +199,6 @@ function AuthInitializer({
     void SplashScreen.hideAsync()
   }, [appReady])
 
-  /** The native splash image stays over this canvas until the app is ready. */
   if (!appReady && !hasRenderedApp) {
     return <View testID="startup-canvas" style={{ flex: 1, backgroundColor: runtimeTokens.bg }} />
   }

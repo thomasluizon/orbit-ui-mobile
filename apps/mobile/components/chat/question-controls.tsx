@@ -13,7 +13,6 @@ import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { usePrefersReducedMotion } from '@/lib/motion'
 
-/** The scale option's focus ring sits on the edge of its fill, which is inset by half the fill clearance. */
 const SCALE_FOCUS_OFFSET = -2
 
 function QuestionScale({ question, answer, disabled, controller, words }: QuestionControlProps) {

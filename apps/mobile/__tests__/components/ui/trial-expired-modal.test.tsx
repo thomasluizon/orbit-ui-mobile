@@ -19,7 +19,6 @@ function create(element: React.ReactElement) {
   return tree
 }
 
-/** Signs the device in, because the notice is owed to one account and its key names that account. */
 function holdAccount(userId: string): void {
   useAuthStore.setState({
     isAuthenticated: true,
@@ -27,7 +26,6 @@ function holdAccount(userId: string): void {
   })
 }
 
-/** Answers a `multiGet` the way AsyncStorage does, one pair per requested key. */
 function storedFlags(stored: Record<string, string>) {
   return vi
     .spyOn(AsyncStorage, 'multiGet')

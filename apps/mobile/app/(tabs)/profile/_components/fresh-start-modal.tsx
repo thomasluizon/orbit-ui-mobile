@@ -39,10 +39,6 @@ import { FreshStartLists } from './fresh-start-lists'
 
 const TRIAL_EXPIRED_SEEN_STORAGE_KEY = 'orbit_trial_expired_seen'
 
-/**
- * Lets the trial notice appear again for this account. The pre-rename key goes with it, because
- * left behind it answers for every account and keeps suppressing the notice this reset restores.
- */
 async function removeScopedTrialExpiredFlag(accountId: string | null): Promise<void> {
   const keys = [TRIAL_EXPIRED_SEEN_STORAGE_KEY]
   if (accountId !== null) {
@@ -60,7 +56,6 @@ function accountStillCurrent(accountGeneration: number, accountId: string | null
 interface FreshStartModalProps {
   open: boolean
   onClose: () => void
-  /** The flag `orbit_guided_flows`: the one-question flow and its result dialog replace the sheet. */
   guided?: boolean
 }
 

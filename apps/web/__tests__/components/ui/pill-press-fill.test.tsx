@@ -13,7 +13,6 @@ import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch
 
 const variants: ButtonVariant[] = ['primary', 'secondary', 'ghost', 'destructive', 'caution']
 
-/** The press fill of each variant, as the mobile `PillButton` paints it. */
 const pressFills: Record<ButtonVariant, string> = {
   primary: 'var(--primary-pressed)',
   secondary: 'color-mix(in srgb, var(--fg-1) 90%, var(--bg))',

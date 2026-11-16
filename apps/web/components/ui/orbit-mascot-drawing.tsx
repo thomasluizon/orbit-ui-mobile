@@ -16,13 +16,9 @@ import {
 } from '@orbit/shared/contracts/brand'
 import { mascotMotion } from '@orbit/shared/theme'
 
-/** The Orbit drawing, with no hooks and no client directive, so a page the server renders on its own (the desktop
- *  sign-in completion page) can draw it. `OrbitMascot` runs the idle loop and draws each frame through it. */
 
-/** Zero is the rest frame every still face draws, with the eyes open. */
 const ORBIT_REST_FRAME = orbitMascotFrame(0, mascotMotion)
 
-/** The eyes at rest: no travel toward a control. */
 const ORBIT_EYES_AT_REST = { x: 0, y: 0 } as const
 
 function Eye({ shape, blink }: Readonly<{ shape: OrbitEyeShape; blink?: string }>) {
@@ -43,7 +39,6 @@ function Moon({ frame }: Readonly<{ frame: OrbitMascotFrame }>) {
   return <circle cx={frame.moon.x} cy={frame.moon.y} r={frame.moon.radius} fill="var(--primary)" data-part="moon" />
 }
 
-/** The planet and its eyes, clipped by the ring outline cut-out, so the outline shows whatever surface is behind the mascot. */
 function Planet({ viewBox, outline, clipId, children }: Readonly<{ viewBox: string; outline: string; clipId: string; children: React.ReactNode }>) {
   return (
     <>
@@ -99,16 +94,11 @@ function SmallFace({ size, clipId }: Readonly<{ size: OrbitMascotSmallSize; clip
 
 interface OrbitMascotDrawingProps extends Pick<OrbitMascotProps, 'size' | 'color'> {
   readonly state?: NonNullable<OrbitMascotProps['state']>
-  /** The planet clip id. It must be unique in the document. */
   readonly clipId: string
-  /** The loop frame to draw. A still Orbit draws the rest frame. */
   readonly frame?: OrbitMascotFrame
   readonly running?: boolean
-  /** The state `data-orbit-state` exposes, such as olhando while Orbit looks at a control. It defaults to `state`. */
   readonly shownState?: OrbitShownState
-  /** True while a ring turn draws. */
   readonly turning?: boolean
-  /** The eye shift toward the control in focus, in rig units. */
   readonly eyeOffset?: { readonly x: number; readonly y: number }
   readonly ref?: React.Ref<SVGSVGElement>
 }

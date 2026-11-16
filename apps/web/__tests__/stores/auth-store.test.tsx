@@ -61,7 +61,6 @@ vi.mock('@sentry/nextjs', async (importOriginal) => ({
   captureException: pushMocks.captureException,
 }))
 
-/** The browser push stack, as far as the real subscribe flow and the account boundary touch it. */
 function installBrowserPush(order: string[] = []) {
   let current: unknown = null
   const subscription = {
@@ -98,7 +97,6 @@ function installBrowserPush(order: string[] = []) {
   return subscription
 }
 
-/** Turns push on through the real subscribe flow as whichever account the store holds. */
 async function enablePush() {
   const { subscribeToPushNotifications } = await import('@/hooks/use-push-notification-preferences')
   pushMocks.subscribePush.mockResolvedValue(undefined)
@@ -1237,11 +1235,6 @@ describe('auth store', () => {
   describe('a cross-tab account signal', () => {
     const ACCOUNT_SIGNAL_CHANNEL = 'orbit-account-signal'
 
-    /**
-     * Records every signal this tab receives, on the same channel the store listens on. Delivery
-     * runs on the event loop rather than on a timer, so a fixed wait proves nothing under load.
-     * Both listeners run in one dispatch, so a signal this one has seen the store has seen too.
-     */
     let delivered: Array<string | null> = []
     let stopRecording: () => void = () => {}
 
@@ -1271,15 +1264,10 @@ describe('auth store', () => {
       })
     }
 
-    /** Settles the work a real browser task would settle, with the poll interval still frozen. */
     function settle(): Promise<void> {
       return new Promise((resolve) => setTimeout(resolve, 0))
     }
 
-    /**
-     * Stands in for a second tab. Its channel stays open for the whole block, because a channel
-     * closed in the turn it posted delivers nothing.
-     */
     let otherTab: BroadcastChannel | null = null
 
     async function announceFromAnotherTab(accountId: string | null): Promise<void> {
@@ -1289,10 +1277,6 @@ describe('auth store', () => {
       await vi.waitFor(() => expect(delivered.length).toBeGreaterThan(deliveredBefore))
     }
 
-    /**
-     * Freezes `setInterval` and leaves `setTimeout` real, so the 60-second poll cannot fire while
-     * the signal is delivered. Anything the signal path achieves here is the signal's alone.
-     */
     async function startTabHoldingAccountOne(): Promise<() => void> {
       vi.useFakeTimers({ toFake: ['setInterval'] })
       useAuthStore.getState().setAuth(makeLoginResponse())

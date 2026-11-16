@@ -177,7 +177,6 @@ function OnboardingHeader({ step, onBack, onSkip, completionPending }: Readonly<
   </div>
 }
 
-/** Reports a guided run that saved its habit once, when every condition holds. */
 function useGuidedRunCompletion(conditions: readonly boolean[], usedAiRead: boolean) {
   const completed = conditions.every(Boolean)
   useLayoutEffect(() => {
@@ -188,7 +187,6 @@ function useGuidedRunCompletion(conditions: readonly boolean[], usedAiRead: bool
 
 interface StepsPhaseProps extends Omit<GuidedOnboardingProps, 'onBack' | 'onSkip'> {
   guided: boolean
-  /** The current step shell, shown with the flag off. */
   legacy: ReactNode
   resolvingDeferredPush: boolean
   habitCreated: boolean
@@ -196,13 +194,11 @@ interface StepsPhaseProps extends Omit<GuidedOnboardingProps, 'onBack' | 'onSkip
   onLeave: () => void
 }
 
-/** The steps before the done shell. Back is absent while a deferred push registration is recovered, and leaving is absent once the habit exists. */
 function StepsPhase({ guided, legacy, resolvingDeferredPush, habitCreated, onStepBack, onLeave, ...props }: Readonly<StepsPhaseProps>) {
   if (!guided) return legacy
   return <GuidedOnboardingFlow {...props} onBack={resolvingDeferredPush ? undefined : onStepBack} onSkip={habitCreated ? undefined : onLeave} />
 }
 
-/** The result dialog opens over the done shell once a guided run saved its habit, and closes for good on a dismissal. Every condition must hold. */
 function GuidedResultSlot({ open, ...props }: Readonly<ComponentProps<typeof GuidedOnboardingResult> & { open: readonly boolean[] }>) {
   return open.every(Boolean) ? <GuidedOnboardingResult {...props} /> : null
 }
@@ -470,7 +466,6 @@ export function OnboardingFlow({ finalStepOnly = false, onExit, guided = false }
 
   const decisionProps: OnboardingDecisionProps = { step, sentence, locale, marks: read.consumed, isLive, emoji: emoji || '◎', schedule, dueTime, proposed, correcting, atLimit, allowance, allowancePeriod: profile?.aiMessagesPeriod, createFailed, creating, suggestionPending, reminderDecision, reminderState, createdTitle, onAccount: () => { useOnboardingDraftStore.getState().markOnboardingLocallyDone(); router.push(loginUrl) }, onSentence: (value) => { if (!suggestionPending) setSentence(value) }, onContinueWhat: () => void continueFromWhat(sentence), onStarter: chooseStarter, onCorrect: () => setCorrecting(true), onToggleDay: (day) => setSchedule((current) => toggleOnboardingScheduleDay(current, day)), onTime: (value) => setSchedule((current) => ({ ...current, dueTime: value })), onMode: (mode) => setSchedule((current) => changeOnboardingScheduleMode(current, mode)), onFrequencyUnit: (frequencyUnit) => setSchedule((current) => ({ ...current, frequencyUnit, days: [], isGeneral: false })), onQuantity: (frequencyQuantity) => setSchedule((current) => ({ ...current, frequencyQuantity })), onIntervalWeeks: (intervalWeeks) => setSchedule((current) => ({ ...current, intervalWeeks })), onSave: () => void saveHabit(), onAllow: () => void allowReminders(), onContinueWithout: () => void continueWithoutReminders(), onEditSchedule: () => runStepTransition(() => setStep(ONBOARDING_WHEN_STEP)) }
 
-  /** The one exit for the done button, the done tab bar and Escape. */
   async function finishAndLeave(destination = destinationAfterPro) {
     const accountId = getHeldAccountId()
     const generation = getAccountGeneration()

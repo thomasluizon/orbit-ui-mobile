@@ -42,7 +42,6 @@ function focusField(name: string) {
   act(() => screen.getByRole('textbox', { name }).focus())
 }
 
-/** The size report a browser delivers after `observe()` and after every later size change. */
 function reportGroupSizes() {
   act(() => resizeCallbacks.forEach((callback) => callback([], {} as ResizeObserver)))
 }

@@ -382,11 +382,6 @@ describe('Sheet', () => {
   })
 })
 
-/**
- * The host may never flip its own open state: `onClose` has to arrive from the
- * finished exit, and a scheduled action has to run after it. Mobile depends on
- * this to avoid unmounting a presented TrueSheet, and web keeps the same path.
- */
 describe('Sheet close path', () => {
   function Host({
     onClose,

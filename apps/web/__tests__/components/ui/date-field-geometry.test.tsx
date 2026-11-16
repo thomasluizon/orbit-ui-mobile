@@ -64,10 +64,6 @@ describe('DateField sheet geometry in Chromium', () => {
     } finally { await page.close() }
   })
 
-  /**
-   * Resolves each token in its own new probe. Under reduced motion the global `0.01ms` transition reset reaches
-   * every element, and `transition-property` defaults to `all`, so a reused probe reports the start of its transition.
-   */
   async function openPaintPage(markup: string, mode: 'dark' | 'light', options: { hasTouch?: boolean; reducedMotion?: 'reduce' | 'no-preference' } = {}) {
     const variables = Object.entries(resolveWebThemeVariables('orange', mode)).map(([name, value]) => `${name}: ${value};`).join(' ')
     const page = await browser.newPage({ viewport: { width: 412, height: 915 }, hasTouch: options.hasTouch ?? false, reducedMotion: options.reducedMotion ?? 'no-preference' })

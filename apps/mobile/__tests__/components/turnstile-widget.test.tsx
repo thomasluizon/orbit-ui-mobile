@@ -339,7 +339,6 @@ function bridges(renderer: ReturnType<typeof TestRenderer.create>): BridgeNode[]
   return renderer.root.findAllByType('WebView')
 }
 
-/** The Android shape of `onReceivedHttpError` in react-native-webview 14.0.1 (`RNCWebViewClient.java`): the event base, the status code and the reason phrase. */
 function httpError(url: string, statusCode: number, description: string) {
   return { nativeEvent: { url, statusCode, description, title: '', loading: false, canGoBack: false, canGoForward: false, lockIdentifier: 0 } }
 }

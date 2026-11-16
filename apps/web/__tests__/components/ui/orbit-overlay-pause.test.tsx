@@ -16,7 +16,6 @@ vi.mock('next/navigation', async (importOriginal) => ({
 vi.mock('next-intl', () => ({ useLocale: () => 'en', useTranslations: () => (key: string) => key }))
 vi.mock('@/components/command/command-menu', () => ({ CommandMenu: () => <p>Commands</p> }))
 
-/** The loop of each Orbit by its state, so a test reads the page Orbit and the overlay Orbit apart. */
 function loops(container: ParentNode) {
   return Object.fromEntries([...container.querySelectorAll('[data-asset="orbit-mascot"]')]
     .map((mascot) => [mascot.getAttribute('data-orbit-state'), mascot.getAttribute('data-orbit-loop')]))

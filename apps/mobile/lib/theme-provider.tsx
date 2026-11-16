@@ -80,7 +80,6 @@ export function ThemeProvider({
     ),
   )
   const [transitionBackground, setTransitionBackground] = useState<string | null>(null)
-  /** React 19 forbids reading a ref during render, so this stable value is memoized. */
   const transitionOpacity = useMemo(() => new Animated.Value(0), [])
   const transitionFrameRef = useRef<number | null>(null)
   const hasMountedRef = useRef(false)
@@ -149,7 +148,6 @@ export function ThemeProvider({
     }
   }, [captureTheme, currentScheme, currentTheme, runThemeTransition])
 
-  /** React 19 requires prop-driven state transitions to be adjusted during render. */
   const targetScheme = resolveActiveScheme(profile)
   const [previousTargetScheme, setPreviousTargetScheme] = useState<ColorScheme | null>(targetScheme)
   if (targetScheme !== null && targetScheme !== previousTargetScheme) {

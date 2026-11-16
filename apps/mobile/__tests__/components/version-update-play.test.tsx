@@ -150,11 +150,6 @@ function footerHost(testID: 'sheet-footer' | 'sheet-footer-space') {
   if (!host?.props.onLayout) throw new Error(`Missing ${testID}`)
   return host.props.onLayout
 }
-/**
- * TrueSheet reports `position` as the sheet top in the window frame, while `measureInWindow` stops at the
- * TrueSheetView root node and returns the footer relative to the sheet container. The measured footer child
- * ends above the native bottom inset that TrueSheetFooterView pads below it.
- */
 function placeFooter(sheetTop: number, footerLocalBottom: number) {
   mocks.sheetPosition = sheetTop
   __setMeasureInWindowImpl((callback, props) => {

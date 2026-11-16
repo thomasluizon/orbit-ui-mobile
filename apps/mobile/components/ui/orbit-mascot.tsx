@@ -35,16 +35,12 @@ import { usePrefersReducedMotion } from '@/lib/motion'
 import { useOrbitOverlay } from '@/components/ui/orbit-overlay-layer'
 import { useOrbitScreenFocused } from '@/components/ui/orbit-screen-focus'
 
-/** How often a mascot that may animate checks that it is still on screen. Being on screen only decides whether the
- *  idle loop runs, so a quarter second of delay is not visible, and the probe costs four measures a second, not thirty. */
 const ON_SCREEN_PROBE_MS = 250
 
 interface WindowMeasurable {
   measureInWindow(callback: (x: number, y: number, width: number, height: number) => void): void
 }
 
-/** Whether the mascot is inside the window. React Native has no public IntersectionObserver, so while the
- *  mascot may run its loop it measures itself in the window at once and then every `ON_SCREEN_PROBE_MS`. */
 function useOnScreen(target: RefObject<WindowMeasurable | null>, active: boolean): boolean {
   const [onScreen, setOnScreen] = useState(true)
   const { width, height } = useWindowDimensions()
@@ -62,12 +58,6 @@ function useOnScreen(target: RefObject<WindowMeasurable | null>, active: boolean
   return onScreen
 }
 
-/** The idle loop clock in milliseconds. It runs only while this mascot holds the one live slot, the
- *  person has not paused Orbit, it sits in the overlay opened last (or on the page), the mascot is on screen, its screen is focused
- *  and the app is in the foreground. A mascot off screen or on a screen that is not focused gives the live
- *  slot to the next Orbit in view. It never runs under reduced motion. The focus comes from `orbitScreenLayout`,
- *  which each navigator renders around its screens; outside a navigator, such as on the root error screen,
- *  the screen counts as focused. */
 function useOrbitLoopClock(wantsLoop: boolean, lead: boolean, target: RefObject<WindowMeasurable | null>) {
   const [claim] = useState(() => Symbol('orbit-mascot'))
   const overlay = useOrbitOverlay()
@@ -112,7 +102,6 @@ function useOrbitLoopClock(wantsLoop: boolean, lead: boolean, target: RefObject<
   return { clock: candidate ? clock : 0, running }
 }
 
-/** One ring turn when `turnKey` changes. The first value draws no turn, reduced motion and a still face draw none, and a new value restarts the turn so turns never queue. */
 function useRingTurn(turnKey: string | number | undefined, enabled: boolean): number {
   const [progress, setProgress] = useState(0)
   const seen = useRef(turnKey)
@@ -134,7 +123,6 @@ function useRingTurn(turnKey: string | number | undefined, enabled: boolean): nu
   return progress
 }
 
-/** A paused Orbit keeps its pose, but its eyes are open: half-closed eyes held still read as Descansando. */
 function pausedFrame(frame: OrbitMascotFrame, running: boolean): OrbitMascotFrame {
   return running ? frame : { ...frame, blinkScale: 1 }
 }
@@ -153,8 +141,6 @@ function Moon({ frame, palette }: Readonly<{ frame: OrbitMascotFrame; palette: P
   return <Circle cx={frame.moon.x} cy={frame.moon.y} r={frame.moon.radius} fill={palette.moon} />
 }
 
-/** The planet and its eyes, clipped by the ring outline cut-out, so the outline shows whatever surface is behind the mascot.
- *  react-native-svg reads the clip rule from the clipped group on Android, and the web reads it from the clip path, so both carry it. */
 function Planet({ viewBox, outline, clipId, children }: Readonly<{ viewBox: string; outline: string; clipId: string; children: ReactNode }>) {
   return (
     <>
@@ -213,7 +199,6 @@ function paletteFrom(tokens: AppTokensV2): Palette {
 }
 
 type MobileOrbitMascotProps = OrbitMascotProps & {
-  /** The resolved tokens of a surface that must render without theme state, such as the root error screen. */
   tokens?: AppTokensV2
 }
 

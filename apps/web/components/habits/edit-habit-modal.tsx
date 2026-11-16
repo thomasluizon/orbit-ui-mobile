@@ -66,12 +66,6 @@ interface EditHabitModalProps {
   habit: NormalizedHabit | null
   onSaved?: () => void | Promise<void>
   relationshipFieldsLoaded?: boolean
-  /**
-   * The General setting this habit must match, given its position in the tree: its
-   * parent's General value when it is a sub-habit, or its existing sub-habits'
-   * General value when it is a parent. `null` when unconstrained. The caller (which
-   * holds the full habit map) is responsible for deriving this.
-   */
   lockedGeneral?: boolean | null
 }
 

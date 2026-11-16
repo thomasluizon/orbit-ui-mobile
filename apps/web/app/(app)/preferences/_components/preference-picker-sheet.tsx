@@ -21,7 +21,6 @@ export type { PreferencePicker }
 
 const TIME_ZONE_OPTIONS = getTimezoneList()
 
-/** Arrow keys move the draft and only an activation commits it, so navigating never writes a preference per keypress. */
 function PickerOptions<Value extends string | number>({
   label,
   options,
@@ -35,7 +34,6 @@ function PickerOptions<Value extends string | number>({
 }>) {
   const [draft, setDraft] = useState<Value | null>(null)
   const draftRef = useRef<Value | null>(null)
-  /** Null until focus moves, so a profile that resolves after the first render still checks its row. */
   const checked = draft ?? selected
   const selectDraft = (next: Value) => {
     draftRef.current = next
@@ -60,7 +58,6 @@ function PickerOptions<Value extends string | number>({
   )
 }
 
-/** With `orbit_guided_flows` on, a short picker shows its answers as quick options: a press marks the answer, then answers and closes the sheet. Arrow keys move focus and never select. */
 function QuickOptions<Value extends string | number>({ label, options, selected, onCommit }: Readonly<{
   label: string
   options: readonly { value: Value; label: string }[]
@@ -127,7 +124,6 @@ function TimeZoneOptions({
 
 interface TimeZoneOptionsProps {
   selected?: string | null
-  /** The question of the sheet: the accessible name of the quick options in guided mode. */
   questionLabel: string
   searchLabel: string
   noResultsLabel: string
@@ -135,10 +131,6 @@ interface TimeZoneOptionsProps {
   onCommit: (timeZone: string) => void
 }
 
-/**
- * With `orbit_guided_flows` on, the time zone question follows the pattern of the short pickers: the stored time zone and the
- * time zone of the device are the quick options, and the search is the free path to every other time zone. A press answers and closes the sheet.
- */
 function GuidedTimeZoneOptions({ selected, questionLabel, searchLabel, noResultsLabel, showMoreLabel, onCommit }: Readonly<TimeZoneOptionsProps>) {
   const [query, setQuery] = useState('')
   const [visibleCount, setVisibleCount] = useState(TIME_ZONE_PAGE_SIZE)
@@ -220,7 +212,6 @@ export function PreferencePickerSheet(props: Readonly<PreferencePickerSheetProps
     onClose()
     apply()
   })
-  /** A quick option closes the sheet after its selection settles (`motionPresets.selection`), and at once under reduced motion. */
   const commitSelection = (apply: () => void, settle: boolean) => {
     clearTimeout(settleTimer.current)
     if (!settle || reducedMotion) close(apply)

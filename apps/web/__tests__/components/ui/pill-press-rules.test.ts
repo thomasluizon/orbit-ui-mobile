@@ -6,7 +6,6 @@ import { actionClasses } from '@/components/ui/pill-action-style'
 
 const stylesheet = postcss.parse(readFileSync('app/globals.css', 'utf8'))
 
-/** The press fill of each variant, as the mobile `PillButton` paints it: primary pressed, the 90% secondary mix, the neutral fill, and the hover mixes of the status fills. */
 const pressFills: Record<ButtonVariant, string> = {
   primary: 'var(--primary-pressed)',
   secondary: 'color-mix(in_srgb,var(--fg-1)_90%,var(--bg))',

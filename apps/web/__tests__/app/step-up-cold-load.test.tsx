@@ -61,12 +61,6 @@ afterEach(async () => {
   vi.clearAllMocks()
 })
 
-/**
- * The reload a person does when they leave the tab to read the emailed code. Nothing on this route
- * has ever observed a session, so the held account is null and only the proxy knows who they are.
- * The null precondition is asserted rather than assumed, because every later test in this file
- * records an account into the same module variable.
- */
 it('renders the live challenge on a cold load that has observed no session', async () => {
   expect(getHeldAccountId()).toBeNull()
   storeLiveChallenge('user-1')
@@ -87,7 +81,6 @@ it('starts the session monitor to verify the server account', async () => {
   await waitFor(() => expect(globalThis.fetch).toHaveBeenCalledWith('/api/auth/session', { headers: expect.any(Headers) }))
 })
 
-/** A replacement account has no challenge record, code, or scheduled deletion under its key. */
 it('returns to Profile when another account replaces the tab mid challenge', async () => {
   storeLiveChallenge('user-1')
   await act(async () => {

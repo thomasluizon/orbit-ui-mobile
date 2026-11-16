@@ -111,7 +111,6 @@ function isActiveIntervalWeek(source: HabitScheduleSource, date: Date, weekStart
   return trueModulo(weekDifference, intervalWeeks) === 0
 }
 
-/** Chosen month days follow the API rule; otherwise the anchor's day repeats, clamped to a short month. */
 function matchesMonth(monthDays: readonly number[], date: Date, anchor: Date, quantity: number): boolean {
   const dayMatches = monthDays.length > 0
     ? matchesHabitMonthDays(monthDays, date)

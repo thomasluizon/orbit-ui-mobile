@@ -494,7 +494,6 @@ export default function SupportScreen() {
   )
 }
 
-/** The form rows and the rows inside the field and action group keep one rhythm. */
 const FORM_GAP = SPACING.s24
 
 const styles = StyleSheet.create({

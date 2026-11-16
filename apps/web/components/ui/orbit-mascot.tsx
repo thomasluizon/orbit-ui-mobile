@@ -23,10 +23,6 @@ import { useViewportMatch } from '@/hooks/use-viewport-match'
 import { useOrbitOverlay } from '@/components/ui/orbit-overlay-layer'
 import { OrbitMascotDrawing } from '@/components/ui/orbit-mascot-drawing'
 
-/** The idle loop clock in milliseconds. It runs only while this mascot holds the one live slot, the
- *  person has not paused Orbit, it sits in the overlay opened last (or on the page), the mascot is on screen and the tab is in
- *  the foreground. It never runs under reduced motion. An Orbit off screen, such as a hidden conversation
- *  entry, gives the slot to the next Orbit in view. */
 function useOrbitLoopClock(wantsLoop: boolean, lead: boolean, target: React.RefObject<SVGSVGElement | null>) {
   const [claim] = useState(() => Symbol('orbit-mascot'))
   const overlay = useOrbitOverlay()
@@ -78,7 +74,6 @@ function useOrbitLoopClock(wantsLoop: boolean, lead: boolean, target: React.RefO
   return { clock: candidate ? clock : 0, running }
 }
 
-/** One ring turn when `turnKey` changes. The first value draws no turn, reduced motion and a still face draw none, and a new value restarts the turn so turns never queue. */
 function useRingTurn(turnKey: string | number | undefined, enabled: boolean): number {
   const [progress, setProgress] = useState(0)
   const seen = useRef(turnKey)
@@ -99,7 +94,6 @@ function useRingTurn(turnKey: string | number | undefined, enabled: boolean): nu
   return progress
 }
 
-/** A paused Orbit keeps its pose, but its eyes are open: half-closed eyes held still read as Descansando. */
 function pausedFrame(frame: OrbitMascotFrame, running: boolean): OrbitMascotFrame {
   return running ? frame : { ...frame, blinkScale: 1 }
 }

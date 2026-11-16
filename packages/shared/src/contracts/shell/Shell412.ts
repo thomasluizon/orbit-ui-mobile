@@ -1,10 +1,4 @@
 
-/** The conversation slot and its accessible name travel together.
- *
- * The shell ships no words, so there is no default name in either language. A conversation with no
- * name would reach a screen reader as an unlabelled dialog, and prose asking for the name is the
- * kind of rule that loses (D71), so the pair is the type. `conversationOpen` belongs here too: it
- * says whether the overlay is open, which is not a state a shell without a conversation has. */
 type ConversationSlot =
   | {
       conversation?: undefined
@@ -12,28 +6,16 @@ type ConversationSlot =
       conversationLabel?: never
     }
   | {
-      /** The overlay's CONTENT. Takes authored markup as readily as a pre-built node. */
       conversation: React.ReactNode
-      /** Omit it and presence means open. Pass it to hold markup permanently and toggle openness. */
       conversationOpen?: boolean
-      /** The overlay dialog's accessible name, in the screen's locale. */
       conversationLabel: string
     }
 
 interface Shell412Base {
   children?: React.ReactNode
-  /** Pinned above the scroller. Hoje and Calendário pass a minimum-height 48 row with a trailing
-   * theme action and Avisos bell; Hoje also has its conditional day jump, search and options, Calendário its options.
-   * Progresso and Perfil put their theme-and-bell minimum-height 48 row in children so it scrolls, with
-   * no screen title. A detail header keeps its title and back control visible. A screen with no
-   * header passes nothing and the scroller takes the full height. */
   header?: React.ReactNode
-  /** TRANSIENT PINNED CHROME, directly ABOVE the pinned bottom slot and never in its place. A toast
-   *  or a celebration rides here so it stays separate from the Astra button stacked above the create FAB. */
   notice?: React.ReactNode
-  /** Floats above the bottom chrome. A screen that puts its create action in the header passes nothing. */
   fab?: React.ReactNode
-  /** Hoje only: top-centre back-to-top below the pinned header, separate from the create FAB. */
   scrollToTop?: React.ReactNode
   sheets?: React.ReactNode
 }

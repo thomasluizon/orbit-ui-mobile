@@ -776,10 +776,6 @@ describe('notification mutations across an account switch', () => {
     return input instanceof URL ? input.href : input.url
   }
 
-  /**
-   * Answers the session endpoint with one account and everything else with the notification list,
-   * so the tab's own session check cannot be what notices the replacement.
-   */
   function respondToSessionCheckWith(accountId: string) {
     mockFetch.mockImplementation((input: RequestInfo | URL) => {
       if (readRequestUrl(input).includes('/api/auth/session')) {
@@ -801,7 +797,6 @@ describe('notification mutations across an account switch', () => {
     return new Promise((resolve) => setTimeout(resolve, 0))
   }
 
-  /** A second tab, whose channel stays open because a closed one delivers nothing. */
   let otherTab: BroadcastChannel | null = null
 
   afterEach(() => {
@@ -809,11 +804,6 @@ describe('notification mutations across an account switch', () => {
     otherTab = null
   })
 
-  /**
-   * Posts the signal and waits for this tab to receive it, on the same channel the store listens
-   * on. Delivery runs on the event loop rather than on a timer, and both listeners run in one
-   * dispatch, so a signal this one has seen the store has seen too.
-   */
   async function announceAccountFromAnotherTab(accountId: string): Promise<void> {
     otherTab ??= new BroadcastChannel('orbit-account-signal')
     const delivered: string[] = []

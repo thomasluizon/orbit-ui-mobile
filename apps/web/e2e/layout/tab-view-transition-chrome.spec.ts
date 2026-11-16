@@ -18,12 +18,9 @@ declare global {
 const TAB_PAGE_LEG = '(orbit-tab-page)'
 const SHELL_SCROLLER = '[data-shell-scroller]'
 const SAMPLE = 24
-/** Narrower than the gap between Orbit's eyes at 48, and short enough to stay above the ring. */
 const PLANET_PATCH = { width: 4, height: 6 }
 const LEAVING_SCROLL_OFFSET = 40
 
-/** Seeds Today with `count` habits for an account that paused Orbit. The conversation entry is the live Orbit, and its idle
- *  loop blinks the eyes and turns the ring every frame, so only a still Orbit lets two pixel samples compare the stacking. */
 async function seedHabits(context: BrowserContext, count: number) {
   const date = getAccountDay(new Date(LAYOUT_FIXED_TIME), 'UTC')
   const items = Array.from({ length: count }, (_, index) => makeHabitScheduleItem({
@@ -94,9 +91,6 @@ async function sampleCentre(page: Page, selector: string) {
   })
 }
 
-/** A patch of the conversation entry's own planet fill, between the eyes and above the ring. The entry draws Orbit with no
- *  background at a fractional offset, and the transition snapshot rasterises Orbit's edges differently from the page, so
- *  only a patch of flat planet fill shows whether a tab page leg covers the entry. */
 async function sampleEntryPlanet(page: Page) {
   const box = await page.locator('[data-astra-button] svg[data-asset="orbit-mascot"]').boundingBox()
   expect(box).not.toBeNull()

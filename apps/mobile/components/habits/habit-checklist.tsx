@@ -29,9 +29,7 @@ interface HabitChecklistProps {
   pendingItemText?: string
   onPendingItemChange?: (text: string) => void
   items: ChecklistItem[]
-  /** Interactive mode: user can toggle checkboxes */
   interactive?: boolean
-  /** Editable mode: user can add/remove/reorder items */
   editable?: boolean
   proposedItemCount?: number
   onItemsChange?: (items: ChecklistItem[]) => void

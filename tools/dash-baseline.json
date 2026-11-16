@@ -21,7 +21,6 @@
   "apps/web/e2e/support/api.ts": 2,
   "eslint-rules/animate-presence-stable-key.cjs": 1,
   "eslint-rules/no-calc-percentage-width.cjs": 1,
-  "eslint-rules/no-comments.cjs": 1,
   "eslint-rules/no-dead-href.cjs": 1,
   "eslint-rules/no-decorative-glow.cjs": 3,
   "eslint-rules/no-dynamic-tailwind-class.cjs": 1,
