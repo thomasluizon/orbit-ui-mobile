@@ -30,7 +30,8 @@ case "$*" in
   "api --method PATCH --input - repos/"*)
     if [ -n "\${DISMISS_FAIL:-}" ]; then echo '${NOT_FOUND}' >&2; exit 1; fi
     cat > "${installation.base}/patch-\$(echo "$6" | tr '/' '_').json"; echo '{}';;
-  *"repos/thomasluizon/orbit-api/pulls?"*) printf '%s\\n' '${JSON.stringify(DEPENDABOT_PULL)}'; if [ -n "\${OWNER_PULL:-}" ]; then printf '%s\\n' '${quoted(CLOSED_TICKET_PULL)}'; fi;;
+  *"repos/thomasluizon/orbit-api/pulls?"*) printf '%s\\n' '${JSON.stringify(DEPENDABOT_PULL)}'
+    if [ -n "\${OWNER_PULL:-}" ]; then printf '%s\\n' '${quoted(CLOSED_TICKET_PULL)}' | sed "s/${CLOSED_TICKET_PULL.head}/\${OWNER_HEAD:-${CLOSED_TICKET_PULL.head}}/"; fi;;
   *"repos/thomasluizon/orbit-landing-page/pulls?"*) printf '%s\\n' '${JSON.stringify(UNEXPECTED_PULL)}';;
   *"repos/thomasluizon/orbit-api/code-scanning/alerts?"*) printf '%s\\n' '${quoted(CODE_SCANNING_ALERT)}';;
   *"repos/thomasluizon/orbit-ui-mobile/dependabot/alerts?"*) printf '%s\\n' '${quoted(DEPENDABOT_ALERT)}';;
@@ -132,6 +133,27 @@ esac
   T("github cli: a pull request of a closed ticket is never merged, is reported once and leaves the list", closedMerge.status === 1 &&
     closedMerge.stderr.includes("never merged or fixed") && closedReport.status === 0 && afterReport.result.pullRequests?.ticketClosed?.length === 0 &&
     !afterReport.result.pullRequests.pending.some((pull) => pull.key === "api#1115"), `${closedMerge.stderr}${closedReport.stderr}${afterReport.stdout}`)
+  /* One reported decision holds at every later head, until a ticket or its close reason changes. */
+  const movedHead = "b".repeat(40)
+  const collectMoved = (issueState, issueReason) => {
+    const again = run("auto-work-github.mjs", ["--collect"], { path: installation.path,
+      env: { ...env, OWNER_PULL: "1", OWNER_HEAD: movedHead, ISSUE_STATE: issueState, ISSUE_REASON: issueReason } })
+    try { return { ...again, result: JSON.parse(again.stdout) } } catch { return { ...again, result: {} } }
+  }
+  const ownerMark = () => readRunState(installation.base).intake.pullRequests.marks["api#1115"]
+  const reportedMoved = collectMoved("CLOSED", "NOT_PLANNED")
+  T("github cli: a reported pull request of a closed ticket is not asked again at a new head", reportedMoved.result.pullRequests?.ticketClosed?.length === 0 &&
+    !reportedMoved.result.pullRequests.pending.some((pull) => pull.key === "api#1115") && ownerMark()?.action === "reported",
+  `${reportedMoved.status} ${reportedMoved.stdout}${reportedMoved.stderr}`)
+  const reasonChanged = collectMoved("CLOSED", "DUPLICATE")
+  T("github cli: a reported pull request of a closed ticket is asked again when a close reason changes", ownerMark() === undefined &&
+    JSON.stringify((reasonChanged.result.pullRequests?.ticketClosed ?? []).map((pull) => [pull.key, pull.closedTickets])) ===
+      JSON.stringify([["api#1115", [{ number: 2140, stateReason: "DUPLICATE" }]]]), `${reasonChanged.status} ${reasonChanged.stdout}${reasonChanged.stderr}`)
+  run("auto-work-github.mjs", ["--mark", "pullRequests"], { path: installation.path, env, input: JSON.stringify({ key: "api#1115", head: movedHead, action: "reported" }) })
+  const reopened = collectMoved("OPEN", "COMPLETED")
+  T("github cli: a reopened ticket ends the report, and the pull request is pending for adoption", ownerMark() === undefined &&
+    reopened.result.pullRequests?.pending.some((pull) => pull.key === "api#1115") && reopened.result.pullRequests.ticketClosed?.length === 0,
+  `${reopened.status} ${reopened.stdout}${reopened.stderr}`)
 
   const foreign = run("auto-work-github.mjs", ["--collect"], { path: installation.path, env: { ...env, CLAUDE_CODE_SESSION_ID: "foreign" } })
   T("github cli: another session cannot write the intake", foreign.status === 1 && foreign.stderr.includes("No matching active auto-work run"), foreign.stderr)

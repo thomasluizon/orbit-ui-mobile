@@ -126,10 +126,11 @@ for the successor.
 7. List every open pull request with `node tools/auto-work-github.mjs --collect`. The tool reads
    `orbit-ui-mobile`, `orbit-api` and `orbit-landing-page`, every author and every page, and
    writes `intake.pullRequests` and `intake.alerts` (step 8) in one run, then reads them back.
-   The three repositories are private, so only the configured authors open pull requests: the
-   bots that `CONFIGURED_PULL_REQUEST_BOTS` in `tools/lib/auto-work-github.mjs` names for each
-   repository, and the repository owner account that the runs use. A new bot goes into that
-   list together with the configuration that lets it open pull requests. The tool prints
+   The three repositories are public, so any GitHub account can open a pull request. The run
+   acts only on the configured authors: the bots that `CONFIGURED_PULL_REQUEST_BOTS` in
+   `tools/lib/auto-work-github.mjs` names for each repository, and the repository owner account
+   that the runs use. A new bot goes into that list together with the configuration that lets
+   it open pull requests. The tool prints
    `pending`: each pull request from a configured author with no mark, or whose head moved after
    its mark. This includes an owner pull request that an earlier run opened. A pull request in
    `runOwned` is the work of this run. The owner account opened it, and the run recorded it in
@@ -141,8 +142,9 @@ for the successor.
    failed: the tool names it in `failures` and keeps that read's previous items. Log each
    failure and retry next cycle.
 
-   A pull request in `unexpectedAuthor` comes from an author outside the configured list. Never
-   merge, fix or close it, and never give its branch to a worker. Put it to the owner through
+   A pull request in `unexpectedAuthor` comes from an author outside the configured list, for
+   example a fork of a public repository. Its code is untrusted. Never merge, fix or close it,
+   never check out or run its branch, and never give its branch to a worker. Put it to the owner through
    `/questions` with its repository, number, author, title and link. Then record
    `{key, head, action: reported}` with `node tools/auto-work-github.mjs --mark pullRequests`.
    The tool refuses every other action for it, and a new head does not ask the owner again.
@@ -162,7 +164,10 @@ for the successor.
      reason.
    - For every other close reason (`NOT_PLANNED`, `DUPLICATE` or none), put it to the owner
      through `/questions` with its repository, number, tickets and link. Record
-     `action: reported`, so a new head does not ask again.
+     `action: reported`. The mark keeps the closed tickets and their close reasons, so a new
+     head does not ask again. When a ticket reopens, the named tickets change or a close reason
+     changes, `--collect` drops the mark: the pull request is pending again for adoption, or it
+     is in `ticketClosed` again with the new reasons.
 
    For each other pending pull request, read its diff, checks, review threads and base first.
    Then do one of these:
@@ -250,7 +255,8 @@ fifteen-minute interval, the waiter checks the sources itself, with no model cal
 - the open pull requests of the three code repositories, through the reads of
   `tools/lib/auto-work-github.mjs`. One key is the pull request and its head, so a new pull
   request or a new head is a new key. It skips the pull requests of this run. A pull request
-  from an unexpected author has a key without its head, so it wakes the model only once;
+  from an unexpected author or with a `reported` mark has a key without its head, so it wakes
+  the model only once;
 - the open code scanning, secret scanning and Dependabot alerts of the same repositories. One
   key is the repository, the alert kind and the alert number. An open alert whose carrying
   ticket is closed has a second key, `<alert key> ticket-closed`. For code scanning that key

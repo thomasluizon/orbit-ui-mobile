@@ -1,7 +1,8 @@
 import { spawnSync } from "node:child_process"
 import { chmodSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
-import { alertCheck, dismissAlert, githubPageReader, listedWakeKeys, listOpenAlerts, listOpenPullRequests, markItem, pendingItems, pullRequestCheck, recordListing, runPullRequestKeys, unexpectedAuthor, unreportedPullRequests } from "../lib/auto-work-github.mjs"
+import { alertCheck, dismissAlert, githubPageReader, listedWakeKeys, listOpenAlerts, listOpenPullRequests, markItem, PULL_REQUEST_CLASSES, pendingItems, pullRequestCheck,
+  pullRequestClass, recordClosedTicketPullRequests, recordListing, runPullRequestKeys, unexpectedAuthor, unreportedPullRequests } from "../lib/auto-work-github.mjs"
 import { evaluateChecks } from "../lib/auto-work-wake.mjs"
 import { readRunState, writeRunState } from "../lib/run-state.mjs"
 import { T, TOOLS_DIR, root } from "./_harness.mjs"
@@ -266,6 +267,21 @@ const recordedAuthorCases = async ({ pullListing }) => {
     keys.keys.includes("landing#20") && keys.keys.includes(`ui#2462 ${CONTRACT_PULL.head}`), JSON.stringify(keys))
 }
 
+/** One table row names the actions of each pull request class, and markItem permits exactly those actions. */
+const permissionCases = ({ pullListing }) => {
+  T("github: the pull request permission table has one row of actions for each class", JSON.stringify(Object.fromEntries(Object.entries(PULL_REQUEST_CLASSES)
+    .map(([name, row]) => [name, row.actions]))) === JSON.stringify({ unexpectedAuthor: ["reported"], closedTickets: ["closed", "reported"], configured: ["merged", "fix", "closed"] }),
+  JSON.stringify(PULL_REQUEST_CLASSES))
+  const checkout = fresh("permissions")
+  recordListing("pullRequests", pullListing, checkout)
+  const pulls = recordClosedTicketPullRequests({ items: [{ key: "api#1115", closedTickets: [{ number: 2140, stateReason: "COMPLETED" }] }] }, checkout)
+  const permitted = Object.fromEntries(["landing#20", "api#1115", "api#1106"].map((key) => [pullRequestClass(pulls.open[key]),
+    ["merged", "fix", "closed", "reported"].filter((action) => refusal(() => markItem("pullRequests", { key, head: pulls.open[key].head, action, ticket: TICKET, reason: "Superseded." },
+      checkout)) === "")]))
+  T("github: markItem permits exactly the actions of each pull request class", JSON.stringify(permitted) ===
+    JSON.stringify(Object.fromEntries(Object.entries(PULL_REQUEST_CLASSES).map(([name, row]) => [name, row.actions]))), JSON.stringify(permitted))
+}
+
 /* An open alert whose carrying ticket closes wakes the idle waiter once, and the next scan that still finds it wakes it once more. */
 const closedTicketAlertWakeCases = async () => {
   const listing = await listOpenAlerts({ repositories: REPOSITORIES, readPages: fakeReader({ "repos/thomasluizon/orbit-api/code-scanning": [CODE_SCANNING_ALERT] }).readPages })
@@ -342,6 +358,10 @@ const skillCases = () => {
   T("github skill: step 7 never merges a pull request of a closed ticket, closes it when completed and asks the owner otherwise",
     closedTicketRule.includes("Never merge it") && closedTicketRule.includes("`COMPLETED`") && closedTicketRule.includes("superseded") &&
     closedTicketRule.includes("`NOT_PLANNED`") && closedTicketRule.includes("`/questions`"), closedTicketRule)
+  /* gh api repos/thomasluizon/<name> --jq '{private, visibility}' gives {"private":false,"visibility":"public"} for orbit-ui-mobile, orbit-api and orbit-landing-page. */
+  const authorRule = skill.slice(skill.indexOf("7. List every open pull request"), skill.indexOf("An owner pull request in `pending`"))
+  T("github skill: step 7 states that the three repositories are public and never runs the branch of an unexpected author",
+    authorRule.includes("The three repositories are public") && !/\bprivate\b/.test(authorRule) && authorRule.includes("never check out or run its branch"), authorRule)
 }
 
 const checkCases = async ({ pullListing, alertListing }) => {
@@ -353,6 +373,12 @@ const checkCases = async ({ pullListing, alertListing }) => {
     "landing#20": { key: "landing#20", head: UNEXPECTED_PULL.head, runOwned: false, unexpectedAuthor: true } } } })
   T("github: the listed wake keys skip run owned pull requests and match the check keys", JSON.stringify(listed) ===
     JSON.stringify({ pullRequests: [`api#1106 ${DEPENDABOT_PULL.head}`, "landing#20"] }), JSON.stringify(listed))
+  const reportedMarks = { "api#1115": { head: "0".repeat(40), action: "reported", closedTickets: [{ number: 2140, stateReason: "NOT_PLANNED" }] } }
+  const reported = await pullRequestCheck({ list: async () => pullListing, readState: () => ({ intake: { pullRequests: { marks: reportedMarks } } }) })()
+  const reportedListed = listedWakeKeys({ pullRequests: { open: { "api#1115": { key: "api#1115", head: EARLIER_OWNER_PULL.head, runOwned: false } }, marks: reportedMarks } })
+  T("github: a reported pull request keys without its head, so a new head does not wake the waiter", reported.keys.includes("api#1115") &&
+    !reported.keys.some((key) => key.startsWith("api#1115 ")) && JSON.stringify(reportedListed) === JSON.stringify({ pullRequests: ["api#1115"] }),
+  `${JSON.stringify(reported)} ${JSON.stringify(reportedListed)}`)
   const partial = await alertCheck({ list: async () => alertListing })()
   T("github: a partial alert read passes its keys and names the failure", partial.keys.length === 2 && partial.failure.includes(NOT_FOUND), JSON.stringify(partial))
   let message = ""
@@ -367,6 +393,7 @@ export const cases = async () => {
   await ownershipCases(listings)
   await migratedOwnershipCases(listings)
   await recordedAuthorCases(listings)
+  permissionCases(listings)
   await closedTicketAlertWakeCases()
   await failedReadCases()
   skillCases()

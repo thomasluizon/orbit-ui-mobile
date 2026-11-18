@@ -15,9 +15,10 @@ of the ui, api and landing repositories, every author and every page, for auto-w
                remaining, each name resolved to its GitHub issue number) and
                unexpectedAuthor: the pull requests whose author is not a configured bot of its
                repository or the repository owner, and that have no reported mark. pullRequests also adds ticketClosed: the owner pull requests
-               with no mark at their head whose every named ticket (ticket-<N>-, (#N) or
+               with no mark that holds at their head whose every named ticket (ticket-<N>-, (#N) or
                ORB-N in the branch or the title) is closed, each with closedTickets
-               [{number, stateReason}]. Neither list is pending. A pull request whose ticket
+               [{number, stateReason}]. Neither list is pending. A reported mark holds at
+               every head; collect drops it when the closed tickets or a close reason change. A pull request whose ticket
                read failed is not pending in that collection. alerts adds ticketClosed: the
                open alerts whose carrying ticket is closed, each with its ticket and, for code
                scanning, scannedCommit (the commit of the newest scan of main); they are
@@ -28,8 +29,8 @@ of the ui, api and landing repositories, every author and every page, for auto-w
                pullRequests {key, head, action: merged|fix|closed|reported, ticket?, reason?}
                  fix needs ticket (an orbit-tickets issue URL); closed needs reason; head must be
                  the current head. reported is the only action for an unexpected author. A
-                 pull request in ticketClosed takes only closed or reported. No other pull
-                 request is reported.
+                 pull request in ticketClosed takes only closed or reported, and its reported mark
+                 keeps its closedTickets. No other pull request is reported.
                alerts {key, action: ticket, ticket, cause}
 --dismiss      stdin JSON receipt {key, ticket, reason} for one open alert that the analysis on
                its ticket proves a false positive. Dismisses it on GitHub with the request of its
@@ -67,7 +68,7 @@ try {
   const [pullListing, alertListing] = await Promise.all([listOpenPullRequests(reading), listOpenAlerts(reading)])
   const readTicketState = (number) => readTicket(number, { withProjectItem: false })
   const pullTickets = await pullRequestsWithClosedTickets(recordListing("pullRequests", pullListing), readTicketState)
-  const pulls = recordClosedTicketPullRequests(pullTickets.items)
+  const pulls = recordClosedTicketPullRequests(pullTickets)
   const openPulls = Object.values(pulls.open)
   const alerts = recordListing("alerts", alertListing)
   const closedTickets = await alertsWithClosedTickets(alerts, { readTicketState, readNewestScan: (key) => newestScanCommit(reading, key) })

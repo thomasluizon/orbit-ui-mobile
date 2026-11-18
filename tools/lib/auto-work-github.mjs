@@ -25,6 +25,16 @@ const ownerOf = (slug) => slug.split("/")[0]
 /** An author outside the configured bots and the repository owner is unexpected. */
 export const unexpectedAuthor = ({ key, slug }, author) => author !== ownerOf(slug) && !(CONFIGURED_PULL_REQUEST_BOTS[key] ?? []).includes(author)
 
+/** The actions that each class of pull request permits, and the refusal of every other action. */
+export const PULL_REQUEST_CLASSES = {
+  unexpectedAuthor: { actions: ["reported"], refusal: "a pull request from an unexpected author is never merged, fixed or closed; report it to the owner" },
+  closedTickets: { actions: ["closed", "reported"], refusal: "a pull request whose tickets are closed is never merged or fixed; close it as superseded or report it to the owner" },
+  configured: { actions: ["merged", "fix", "closed"], refusal: "only a pull request from an unexpected author or with closed tickets is reported" },
+}
+
+/** The class of one open pull request: an unexpected author, an owner pull request whose tickets are all closed, or a configured author. */
+export const pullRequestClass = (pull) => pull.unexpectedAuthor ? "unexpectedAuthor" : pull.closedTickets ? "closedTickets" : "configured"
+
 /*
  * Each projection prints one JSON line per item across every page. The fields come from live reads;
  * the secret scanning fields come from GitHub's published REST description, because no repository
@@ -140,9 +150,9 @@ const runOwnedPullRequest = (state) => {
 
 /**
  * The waiter key of a pull request carries its head, so a new head is a new key. The owner hears
- * about a pull request from an unexpected author once, so its key has no head.
+ * about a pull request from an unexpected author or with a reported mark once, so its key has no head.
  */
-export const pullRequestWakeKey = (pull) => pull.unexpectedAuthor ? pull.key : `${pull.key} ${pull.head}`
+export const pullRequestWakeKey = (pull, mark) => pull.unexpectedAuthor || mark?.action === "reported" ? pull.key : `${pull.key} ${pull.head}`
 
 /**
  * Turns a listing into waiter keys; it rejects only when no read succeeded. `unreadPrefixes` holds
@@ -156,8 +166,10 @@ const wakeKeys = (listing, keyOf, prefixOf) => {
 
 export const pullRequestCheck = ({ list, readState }) => async () => {
   const listing = await list()
-  const owned = runOwnedPullRequest(readState())
-  return wakeKeys({ ...listing, items: listing.items.filter((pull) => !owned(pull)) }, pullRequestWakeKey, (read) => `${read.split(" ")[0]}#`)
+  const state = readState()
+  const owned = runOwnedPullRequest(state)
+  const marks = state?.intake?.pullRequests?.marks ?? {}
+  return wakeKeys({ ...listing, items: listing.items.filter((pull) => !owned(pull)) }, (pull) => pullRequestWakeKey(pull, marks[pull.key]), (read) => `${read.split(" ")[0]}#`)
 }
 
 /**
@@ -191,7 +203,8 @@ export const alertCheck = ({ list, readState = () => ({}), readTicketState, read
 
 /** The keys the model listed in its last cycle, so the waiter does not wake for them again. */
 export const listedWakeKeys = (intake) => ({
-  ...(intake?.pullRequests?.open ? { pullRequests: Object.values(intake.pullRequests.open).filter((pull) => !pull.runOwned).map(pullRequestWakeKey) } : {}),
+  ...(intake?.pullRequests?.open ? { pullRequests: Object.values(intake.pullRequests.open).filter((pull) => !pull.runOwned)
+    .map((pull) => pullRequestWakeKey(pull, intake.pullRequests.marks?.[pull.key])) } : {}),
   ...(intake?.alerts?.open ? { alerts: [...Object.keys(intake.alerts.open), ...(intake.alerts.ticketClosed ?? [])] } : {}),
 })
 
@@ -224,9 +237,10 @@ export const recordListing = (source, listing, repoRoot = REPO_ROOT, listedAt = 
       ...(listing.failures.length ? { failures: listing.failures } : {}) }
   }, repoRoot)
 
+/** A pull request mark holds at its head; a reported mark holds at every head, until the collection drops it. */
 const unmarkedAtHead = (source, contents, item) => {
   const mark = contents.marks[item.key]
-  return !mark || (source === "pullRequests" && mark.head !== item.head)
+  return !mark || (source === "pullRequests" && mark.action !== "reported" && mark.head !== item.head)
 }
 
 /**
@@ -234,12 +248,12 @@ const unmarkedAtHead = (source, contents, item) => {
  * pull request from an unexpected author or with closed tickets is never pending: it has its own list.
  */
 export const pendingItems = (source, contents) => Object.values(contents.open)
-  .filter((item) => !item.runOwned && !item.unexpectedAuthor && !item.closedTickets && unmarkedAtHead(source, contents, item))
+  .filter((item) => !item.runOwned && (source !== "pullRequests" || pullRequestClass(item) === "configured") && unmarkedAtHead(source, contents, item))
 
 /** The pull requests from an unexpected author that the owner did not hear about yet. */
 export const unreportedPullRequests = (contents) => Object.values(contents.open).filter((pull) => pull.unexpectedAuthor && !contents.marks[pull.key])
 
-/** The pull requests whose every named ticket is closed, with no mark at their current head. */
+/** The pull requests whose every named ticket is closed, with no mark that holds at their current head. */
 export const closedTicketPullRequests = (contents) => Object.values(contents.open).filter((pull) => pull.closedTickets && unmarkedAtHead("pullRequests", contents, pull))
 
 /** Reads the state of each ticket number once; a failed read is a named failure. */
@@ -280,28 +294,38 @@ export const alertsWithClosedTickets = async (contents, { readTicketState, readN
 }
 
 /**
- * The pending owner pull requests whose every named ticket is closed, each with its tickets and their
- * close reasons. A pull request with an open ticket stays pending for adoption. A failed ticket read
- * is a named failure, and the pull request it names is not pending in that collection.
+ * The pending and reported owner pull requests whose every named ticket is closed, with the close
+ * reasons; one with an open ticket stays pending. `staleReports` names each reported pull request whose
+ * tickets or close reasons differ from its mark, so the collection drops that mark. A failed ticket read
+ * is a named failure: its pull request is not pending in that collection, and its mark holds.
  */
 export const pullRequestsWithClosedTickets = async (contents, readTicketState) => {
-  const named = pendingItems("pullRequests", contents).filter((pull) => pull.ownerAuthor === true)
-    .map((pull) => ({ pull, numbers: namedTicketNumbers(pull) })).filter(({ numbers }) => numbers.length > 0)
-  const tickets = await readTicketStates(named.flatMap(({ numbers }) => numbers), readTicketState)
-  const unread = named.filter(({ numbers }) => numbers.some((number) => !tickets.stateOf.has(number)))
+  const reported = (pull) => contents.marks[pull.key]?.action === "reported"
+  const candidates = Object.values(contents.open).filter((pull) => pull.ownerAuthor === true && !pull.runOwned && pullRequestClass(pull) === "configured" &&
+    (reported(pull) || unmarkedAtHead("pullRequests", contents, pull))).map((pull) => ({ pull, numbers: namedTicketNumbers(pull) }))
+  const tickets = await readTicketStates(candidates.flatMap(({ numbers }) => numbers), readTicketState)
+  const unread = candidates.filter(({ numbers }) => numbers.some((number) => !tickets.stateOf.has(number)))
+  const closedTicketsOf = ({ numbers }) => numbers.length > 0 && numbers.every((number) => tickets.stateOf.get(number)?.state === "CLOSED")
+    ? numbers.map((number) => ({ number, stateReason: tickets.stateOf.get(number).stateReason ?? null })) : null
+  const read = candidates.filter((candidate) => !unread.includes(candidate)).map((candidate) => ({ ...candidate, closedTickets: closedTicketsOf(candidate) }))
   return {
-    items: named.filter(({ numbers }) => numbers.every((number) => tickets.stateOf.get(number)?.state === "CLOSED"))
-      .map(({ pull, numbers }) => ({ key: pull.key, closedTickets: numbers.map((number) => ({ number, stateReason: tickets.stateOf.get(number).stateReason ?? null })) })),
-    failures: tickets.failures.map(({ read, message }) => ({ read, message })),
+    items: read.filter(({ closedTickets }) => closedTickets).map(({ pull, closedTickets }) => ({ key: pull.key, closedTickets })),
+    staleReports: read.filter(({ pull, closedTickets }) => reported(pull) &&
+      JSON.stringify(contents.marks[pull.key].closedTickets ?? null) !== JSON.stringify(closedTickets)).map(({ pull }) => pull.key),
+    failures: tickets.failures.map(({ read: name, message }) => ({ read: name, message })),
     unreadKeys: unread.map(({ pull }) => pull.key),
   }
 }
 
-/** Records the closed tickets of each pull request in this collection on its open item, and reads it back. */
-export const recordClosedTicketPullRequests = (items, repoRoot = REPO_ROOT) => writeSource("pullRequests", (current) => {
+/**
+ * Records the closed tickets of each pull request in this collection on its open item, drops the
+ * reported mark of each stale report, and reads it back.
+ */
+export const recordClosedTicketPullRequests = ({ items, staleReports = [] }, repoRoot = REPO_ROOT) => writeSource("pullRequests", (current) => {
   const closedTicketsOf = new Map(items.map((item) => [item.key, item.closedTickets]))
   return { ...current, open: Object.fromEntries(Object.entries(current.open)
-    .map(([key, pull]) => [key, closedTicketsOf.has(key) ? { ...pull, closedTickets: closedTicketsOf.get(key) } : pull])) }
+    .map(([key, pull]) => [key, closedTicketsOf.has(key) ? { ...pull, closedTickets: closedTicketsOf.get(key) } : pull])),
+  marks: Object.fromEntries(Object.entries(current.marks).filter(([key]) => !staleReports.includes(key))) }
 }, repoRoot)
 
 /** Records the waiter keys of the closed-ticket alerts the model listed, so the waiter does not wake for them again. */
@@ -325,7 +349,8 @@ const ACTIONS = {
 export const INTAKE_GITHUB_SOURCES = Object.keys(ACTIONS)
 
 const markOf = (source, item, receipt) => source === "pullRequests"
-  ? { head: item.head, action: receipt.action, ...(receipt.ticket ? { ticket: receipt.ticket } : {}), ...(receipt.reason ? { reason: receipt.reason } : {}) }
+  ? { head: item.head, action: receipt.action, ...(receipt.ticket ? { ticket: receipt.ticket } : {}), ...(receipt.reason ? { reason: receipt.reason } : {}),
+    ...(receipt.action === "reported" && item.closedTickets ? { closedTickets: item.closedTickets } : {}) }
   : { action: receipt.action, rule: item.rule ?? null, location: item.path ? `${item.path}${item.line ? `:${item.line}` : ""}` : null, ticket: receipt.ticket,
     ...(receipt.cause ? { cause: receipt.cause } : {}), ...(receipt.reason ? { reason: receipt.reason } : {}) }
 
@@ -337,16 +362,10 @@ const receiptItem = (source, current, receipt) => {
   if (!item) throw new Error(`No open ${source} item matches the receipt key`)
   if (!Object.hasOwn(actions, receipt.action)) throw new Error(`Unknown ${source} action; use ${Object.keys(actions).join(", ")}`)
   if (!actions[receipt.action].valid(receipt)) throw new Error(actions[receipt.action].requirement)
-  if (source === "pullRequests" && item.unexpectedAuthor && receipt.action !== "reported") {
-    throw new Error("a pull request from an unexpected author is never merged, fixed or closed; report it to the owner")
-  }
-  if (source === "pullRequests" && item.closedTickets && !["closed", "reported"].includes(receipt.action)) {
-    throw new Error("a pull request whose tickets are closed is never merged or fixed; close it as superseded or report it to the owner")
-  }
-  if (source === "pullRequests" && !item.unexpectedAuthor && !item.closedTickets && receipt.action === "reported") {
-    throw new Error("only a pull request from an unexpected author or with closed tickets is reported")
-  }
-  if (source === "pullRequests" && receipt.head !== item.head) throw new Error(`The receipt head is not the current head ${item.head}`)
+  if (source !== "pullRequests") return item
+  const { actions: permitted, refusal } = PULL_REQUEST_CLASSES[pullRequestClass(item)]
+  if (!permitted.includes(receipt.action)) throw new Error(refusal)
+  if (receipt.head !== item.head) throw new Error(`The receipt head is not the current head ${item.head}`)
   return item
 }
 

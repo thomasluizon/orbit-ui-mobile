@@ -9,7 +9,7 @@ Register an idle wake source, then check the intake sources at the end of each i
 The board (open tickets on the project with their updatedAt and open blockers, read through
 tools/lib/github-issues.mjs with no model call), the mailbox (orbit-mail.mjs --unseen), the reviews
 (orbit-play-reviews.mjs --cycle), the open pull requests the run did not open (one key per pull
-request and head, and one key per pull request from an unexpected author) and the open code scanning, secret scanning and Dependabot alerts of the ui, api
+request and head, and one key per pull request from an unexpected author or with a reported mark) and the open code scanning, secret scanning and Dependabot alerts of the ui, api
 and landing repositories (tools/lib/auto-work-github.mjs) are checked. An open alert whose carrying
 ticket is closed has a second key, which for code scanning names the commit of the newest scan of
 main. A key absent from intake.wake.seen is new.
