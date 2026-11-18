@@ -302,6 +302,33 @@ const liveRunCases = async ({ pullListing }) => {
   T("github: an owner pull request of a run whose session is gone is pending for adoption", gone.open["api#1115"]?.otherRun === false &&
     pendingItems("pullRequests", gone).some((pull) => pull.key === "api#1115"))
 
+  /*
+   * A live session maps to the run record of the checkout that contains its cwd, and that record claims only while its
+   * own session, or its pending relay successor, is live. EARLIER_OWNER_PULL's branch names #2074.
+   */
+  const earlierPull = { ...EARLIER_OWNER_PULL, key: "api#1115", ownerAuthor: true }
+  const deadCheckout = fresh("live-run-dead", { sessionId: "dead", remaining: ["#2074"] })
+  const unrelated = otherLiveRuns(readRunState(checkout), { repoRoot: checkout, sessions: sessions({ sessionId: "fresh", pid: 3, cwd: deadCheckout }) })
+  T("github: a live session in a checkout whose run record names a dead session claims nothing", unrelated.failure === undefined && !unrelated.claims(earlierPull),
+    JSON.stringify(unrelated.failure))
+  const relayCheckout = fresh("live-run-relay", { sessionId: "dead", remaining: ["#2074"], relay: { pending: true, successorSessionId: "heir" } })
+  const relayed = otherLiveRuns(readRunState(checkout), { repoRoot: checkout, sessions: sessions({ sessionId: "heir", pid: 4, cwd: relayCheckout }) })
+  T("github: the live relay successor of a run record keeps its claim", relayed.failure === undefined && relayed.claims(earlierPull), JSON.stringify(relayed.failure))
+  const subdirectory = join(otherCheckout, "apps", "web")
+  mkdirSync(subdirectory, { recursive: true })
+  const nested = otherLiveRuns(readRunState(checkout), { repoRoot: checkout, sessions: sessions({ ...otherSession, cwd: subdirectory }) })
+  T("github: a live run whose session cwd is a subdirectory of its checkout claims its pull request", nested.failure === undefined && nested.claims(earlierPull),
+    JSON.stringify(nested.failure))
+  const ownSubdirectory = join(checkout, "apps", "web")
+  mkdirSync(ownSubdirectory, { recursive: true })
+  const ownNested = otherLiveRuns({ ...readRunState(checkout), remaining: ["#2074"] }, { repoRoot: checkout,
+    sessions: () => [{ sessionId: "github", pid: 1, cwd: checkout }, { sessionId: "github", pid: 5, cwd: ownSubdirectory }] })
+  T("github: a session cwd inside this run's own checkout is never another run", ownNested.failure === undefined && !ownNested.claims(earlierPull), JSON.stringify(ownNested.failure))
+  const outside = join(root, "auto-work-github-no-checkout")
+  mkdirSync(outside, { recursive: true })
+  const skipped = otherLiveRuns(readRunState(checkout), { repoRoot: checkout, sessions: sessions({ sessionId: "elsewhere", pid: 6, cwd: outside }, otherSession) })
+  T("github: a live session cwd outside any git checkout is skipped, not a failure", skipped.failure === undefined && skipped.claims(earlierPull), JSON.stringify(skipped.failure))
+
   const unseen = otherLiveRuns(readRunState(checkout), { repoRoot: checkout, sessions: () => [otherSession] })
   const blind = recordListing("pullRequests", pullListing, checkout, { otherRuns: unseen })
   T("github: when this run's own session is not among the live sessions, the live runs are a named failure", unseen.failure?.read === "live runs" &&

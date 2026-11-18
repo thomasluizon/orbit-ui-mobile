@@ -1,4 +1,5 @@
-import { resolve } from "node:path"
+import { existsSync } from "node:fs"
+import { dirname, join, resolve } from "node:path"
 import { configuredRepositorySlug } from "./admission.mjs"
 import { activeIntakeRun, carryingTicket, intakeRun } from "./auto-work-intake.mjs"
 import { runBounded } from "./bounded-process.mjs"
@@ -152,11 +153,19 @@ const runOwnedPullRequest = (state) => {
   return (pull) => pull.ownerAuthor === true && (recorded.has(pull.key) || namedTicketNumbers(pull).some((number) => inFlight.has(number)))
 }
 
+/** The root of the checkout that contains `directory`: the nearest directory with a `.git` entry, as gitDirectoryOf reads it; null outside any checkout. */
+const checkoutRootOf = (directory) => {
+  for (let current = resolve(directory); ; current = dirname(current)) {
+    if (existsSync(join(current, ".git"))) return current
+    if (dirname(current) === current) return null
+  }
+}
+
 /**
- * The owner pull requests that another live run drives. Run state lives in each checkout, so this reads the run state
- * of the checkout of each live Claude session, and a run owns there what runOwnedPullRequest gives. This run's own
- * session must be among the live sessions, or a missing record proves nothing. When the live runs cannot be read,
- * every owner pull request is claimed and the failure is named, so a failed read never adopts a pull request.
+ * The owner pull requests that another live run drives: per checkout that contains a live session cwd, its run record
+ * claims by runOwnedPullRequest while its session or pending relay successor is live, as foreignRunHold counts a run.
+ * This run's session must be live, or a missing record proves nothing. A failed read claims every owner pull request
+ * and names the failure, so it never adopts one.
  */
 export const otherLiveRuns = (state, { repoRoot = REPO_ROOT, sessions = liveSessionProcesses, readState = readRunState } = {}) => {
   try {
@@ -164,9 +173,12 @@ export const otherLiveRuns = (state, { repoRoot = REPO_ROOT, sessions = liveSess
     if (!live.some((session) => session.sessionId === state?.sessionId)) {
       throw new Error(`the session ${state?.sessionId} of this run is not among the live Claude sessions of ${claudeConfigDirectory()}, so the other runs are unknown`)
     }
+    const liveIds = new Set(live.map((session) => session.sessionId))
+    const driven = (record) => liveIds.has(record?.sessionId) || (record?.relay?.pending === true && liveIds.has(record.relay.successorSessionId))
     const own = gitDirectoryOf(repoRoot)
-    const checkouts = [...new Set(live.flatMap((session) => typeof session.cwd === "string" ? [session.cwd] : []))].filter((cwd) => gitDirectoryOf(cwd) !== own)
-    const owners = checkouts.map((cwd) => runOwnedPullRequest(readState(cwd)))
+    const checkouts = new Map(live.flatMap((session) => typeof session.cwd === "string" ? [checkoutRootOf(session.cwd)] : [])
+      .filter((checkout) => checkout !== null && gitDirectoryOf(checkout) !== own).map((checkout) => [gitDirectoryOf(checkout), checkout]))
+    const owners = [...checkouts.values()].map((checkout) => readState(checkout)).filter(driven).map(runOwnedPullRequest)
     return { claims: (pull) => owners.some((owns) => owns(pull)) }
   } catch (error) {
     return { claims: (pull) => pull.ownerAuthor === true, failure: { read: "live runs", message: `Cannot read the other live runs: ${error.message}` } }

@@ -153,8 +153,10 @@ for the successor.
    The tool refuses every other action for it, and a new head does not ask the owner again.
 
    Run state lives in each checkout, so an owner pull request that another run drives looks
-   abandoned from this checkout. The tool reads the run state of the checkout of each live
-   Claude session. An owner pull request in `otherRun` is one that another live run records
+   abandoned from this checkout. The tool reads the run state of the checkout that contains
+   the working directory of each live Claude session. A run state counts only while its
+   session, or its pending relay successor, is live. A working directory outside any
+   checkout is skipped. An owner pull request in `otherRun` is one that another live run records
    or whose ticket it names in `remaining`. Skip it: never adopt, merge, fix, close or report
    it. The tool refuses every mark for it. When the tool cannot read the live runs (for
    example, it does not find the session of this run among the live sessions), it names the
