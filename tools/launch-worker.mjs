@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 
 import { spawn, spawnSync } from "node:child_process"
-import { closeSync, existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, readdirSync, realpathSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs"
+import { closeSync, existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, readdirSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
-import { delimiter, dirname, extname, join, resolve } from "node:path"
+import { dirname, extname, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 
 import { assertOutsideRepository, researchEnvironment, researchInvocation, researchPaths, researchPrompt } from "./lib/research-run.mjs"
@@ -14,7 +14,8 @@ import { orderSealProblem, runNotesIn } from "./lib/run-notes.mjs"
 import { resolveTicket } from "./lib/github-issues.mjs"
 import { logFinalResult, NO_STOP } from "./lib/claude-usage-limit.mjs"
 import { readOrchestratorConfig, resolveWorkerInvocation, workerAccountEnvironment, workerAccounts } from "./lib/orchestrator-config.mjs"
-import { clearWakeSource, clearWorkerLaunchReservation, FIX_ROUND_KINDS, fixRoundRefusal, fixRoundRefusalReason, readDesignChange, readFixRounds, recordFixRound, recordReservedWorkerPid, registerWakeSource, reserveWorkerLaunch, readRunState, REVIEW_BATCH_ORDER_MARKER, workerLaunchDirectory } from "./lib/run-state.mjs"
+import { checkoutIdentity, resolveOnPath } from "./lib/cloud-worker.mjs"
+import { clearWakeSource, clearWorkerLaunchReservation, FIX_ROUND_KINDS, fixRoundRefusal, fixRoundRefusalReason, readDesignChange, readFixRounds, recordFixRound, recordReservedWorkerPid, releaseFixRound, registerWakeSource, reserveWorkerLaunch, readRunState, REVIEW_BATCH_ORDER_MARKER, workerLaunchDirectory } from "./lib/run-state.mjs"
 
 const USAGE = `usage: launch-worker.mjs --issue <ORB-N|#N|N> --worktree <path> --prompt <file> [options]
 
@@ -42,9 +43,11 @@ const USAGE = `usage: launch-worker.mjs --issue <ORB-N|#N|N> --worktree <path> -
   --relaunch-reason <text>
                      deliberate reason for launching after this branch reaches its configured cap
   --fix-round <local|pullfrog>
-                     this order answers a review: spend the next caps.reviewFixAttempts round of
-                     the branch in the fix-rounds.mjs ledger. Required for an order that
-                     compose-prompt.mjs --review-batch wrote. --relaunch-reason never passes this cap.
+                     this order answers a review: claim the next caps.reviewFixAttempts round of
+                     the branch in the fix-rounds.mjs ledger. A launch that ends with no commit
+                     gives the round back, so its relaunch spends the same round. Required for an
+                     order that compose-prompt.mjs --review-batch wrote. --relaunch-reason never
+                     passes this cap.
                      The order must quote a round note for the worktree's head, posted to the ticket
                      with tools/post-run-note.mjs --kind round-note before the order was composed
   --design-change <file>
@@ -286,27 +289,6 @@ const workerPointer = (worktreePath, branch) =>
 const continuationPointer = (worktreePath, branch) =>
   `${workerPointer(worktreePath, branch)} An earlier worker on this branch stopped at its account's usage limit before it finished. Read git log and git status first, keep the work it already did, and finish the order.`
 
-/**
- * Resolve a bare command the way the platform's launcher does, so the result is a real file rather
- * than a name Node will refuse. On win32 only PATHEXT candidates count: npm also drops an
- * extensionless shell script next to the shim, and Windows cannot execute it.
- */
-const resolveOnPath = (command) => {
-  if (command.includes("/") || command.includes("\\")) {
-    return existsSync(command) ? resolve(command) : null
-  }
-  const extensions = process.platform === "win32"
-    ? (process.env.PATHEXT ?? ".COM;.EXE;.BAT;.CMD").split(";").filter(Boolean)
-    : [""]
-  for (const directory of (process.env.PATH ?? "").split(delimiter).filter(Boolean)) {
-    for (const extension of extensions) {
-      const candidate = join(directory, `${command}${extension}`)
-      if (existsSync(candidate) && statSync(candidate).isFile()) return candidate
-    }
-  }
-  return null
-}
-
 const NPM_SHIM_SCRIPT = /"%dp0%\\+([^"]+\.js)"/i
 const headlessInvocation = () => {
   const resolved = resolveOnPath(engine.command)
@@ -358,16 +340,6 @@ if (dryRun) {
   process.exit(0)
 }
 
-const gitRepositoryIdentity = (directory) => {
-  const result = spawnSync("git", ["-C", directory, "rev-parse", "--git-common-dir"], { encoding: "utf8", windowsHide: true })
-  if (result.error || result.status !== 0 || result.stdout.trim() === "") return null
-  try {
-    const identity = realpathSync.native(resolve(directory, result.stdout.trim()))
-    return process.platform === "win32" ? identity.toLowerCase() : identity
-  } catch {
-    return null
-  }
-}
 const gate = await passLaunchGate(config.launchGate)
 console.error(`${issue} passed the launch gate at load ${gate.load.toFixed(2)} after ${Math.round(gate.waitedMs / 1000)} s`)
 try { launchRunState = readRunState() } catch (error) { fail(2, error.message) }
@@ -380,10 +352,11 @@ let repositoryKey = null
 let githubAuth = { environment: researchEnvironment(), secrets: [] }
 let admission = { admitted: true, reservationId: null }
 if (!research) {
-  const repositoryIdentity = gitRepositoryIdentity(runDirectory)
+  const repositoryIdentity = checkoutIdentity(runDirectory)
   if (!repositoryIdentity) fail(2, `could not resolve the Git repository identity for ${runDirectory}`)
+  // A configured repository that is not cloned on this machine has no identity, so it is not the one that holds the run directory.
   repositoryKey = Object.entries(config.repos ?? {}).find(([, repository]) =>
-    typeof repository === "string" && gitRepositoryIdentity(repository) === repositoryIdentity)?.[0]
+    typeof repository === "string" && checkoutIdentity(repository) === repositoryIdentity)?.[0]
   if (!repositoryKey) fail(2, `${runDirectory} does not belong to a repository configured in .claude/orchestrator.json`)
 
   try {
@@ -443,6 +416,13 @@ if (fixRoundArgument !== null) {
     fail(2, `${fixRoundRefusalReason(fixRound.refusal, fixRoundContext)}, while this launch started; --relaunch-reason does not pass it`)
   }
   console.error(`${issue} spends fix round ${fixRound.number} of ${config.caps.reviewFixAttempts} on ${branch}`)
+  // Only a commit spends the round. A launch that ends with no commit gives the round back on every exit path, so the
+  // relaunch of that order spends the same round. A count that git cannot read keeps the round.
+  process.on("exit", () => {
+    if (startHead === "" || gitIn(["rev-list", "--count", `${startHead}..HEAD`]) !== "0") return
+    releaseFixRound(branch, fixRound.number, runDirectory)
+    console.error(`${issue} wrote no commit: fix round ${fixRound.number} on ${branch} is not spent`)
+  })
 }
 
 const accountLabel = (account) => account === null ? "" : ` on the ${account.name} account${account.configDirectory === null ? " (default Claude config)" : ` (${account.configDirectory})`}`

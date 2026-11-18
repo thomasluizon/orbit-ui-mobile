@@ -24,7 +24,7 @@ export const pendingReviewKeys = (intake) => [
 ]
 
 /** The local run record when it is the active auto-work run this process may write intake to; the intake itself lives on GitHub. */
-export const activeIntakeRun = (state, repoRoot = REPO_ROOT) => {
+const activeIntakeRun = (state, repoRoot = REPO_ROOT) => {
   if (!state?.sessionId || !state.sleep || !state.autoWork ||
       (repoRoot === REPO_ROOT && process.env.CLAUDE_CODE_SESSION_ID && process.env.CLAUDE_CODE_SESSION_ID !== state.sessionId)) throw new Error("No matching active auto-work run")
   return state

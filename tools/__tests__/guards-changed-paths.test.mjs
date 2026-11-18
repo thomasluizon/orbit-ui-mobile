@@ -71,8 +71,15 @@ function runCase(jobId, stepName, changedPath, mode, options = {}) {
       return
     }
     assert.equal(first.status, 0, `${jobId}: changed paths must resolve: ${first.stderr}`)
+    // A gate runs an installed binary by its path, so each stub binary is a file at that path of the tree.
+    for (const [binary, script] of Object.entries(options.binaries ?? {})) {
+      mkdirSync(dirname(join(directory, binary)), { recursive: true })
+      writeFileSync(join(directory, binary), `#!/bin/sh\n${script}\n`, { mode: 0o755 })
+    }
+    const gateDirectory = join(directory, gate["working-directory"] ?? "")
+    mkdirSync(gateDirectory, { recursive: true })
     const second = spawnSync("bash", ["-e", "-c", `${options.stubs ?? "node() { echo GATE_RAN; }"}\n${substitute(gate.run)}`], {
-      cwd: directory, env: environment, encoding: "utf8",
+      cwd: gateDirectory, env: environment, encoding: "utf8",
     })
     assert.equal(second.status, mode === "owned" ? (options.ownedStatus ?? 0) : 0,
       `${jobId}: gate step exit: ${second.stderr}`)
@@ -92,13 +99,13 @@ for (const [jobId, stepName, path] of cases) {
 
 for (const [jobId, stepName, path, options] of [
   ["lint", "Lint only files changed by this pull request", "apps/web/app/page.tsx",
-    { stubs: "npm() { echo GATE_RAN; }" }],
+    { binaries: { "apps/web/node_modules/.bin/eslint": "echo GATE_RAN" } }],
   ["design-guard", "Ban raw --slate-*, transition-all, h-screen in app code", "apps/web/app/page.tsx",
     { content: "transition-all\n", ownedStatus: 1, marker: "DESIGN.md ban" }],
   ["design-guard", "Ban decorative gradients in app code", "tools/check-gradients.mjs", {}],
   ["workflow-syntax", "Lint all workflows", ".github/actions/setup/action.yml", { stubs: "gh() { echo GATE_RAN; exit 0; }" }],
   ["expo-pin", "Dependencies resolve to the SDK 58 set", "apps/mobile/package.json",
-    { stubs: "node() { :; }\nnpx() { echo \"EXPO_CHECK EXPO_OFFLINE=${EXPO_OFFLINE:-unset} $*\"; }",
+    { stubs: "node() { :; }", binaries: { "node_modules/.bin/expo": 'echo "EXPO_CHECK EXPO_OFFLINE=${EXPO_OFFLINE:-unset} expo $*"' },
       marker: "EXPO_CHECK EXPO_OFFLINE=1 expo install --check" }],
 ]) {
   test(`${jobId}: ${stepName} resolves before consuming changed paths`, () => {
@@ -329,7 +336,20 @@ test("script guards share one checkout and install, and run after another guard 
   assert.deepEqual(Object.keys(workflow.jobs), ["guards"])
   const steps = workflow.jobs.guards.steps
   assert.equal(steps.filter((step) => step.uses?.startsWith("actions/checkout@")).length, 1)
-  assert.equal(steps.filter((step) => /^npm ci\b/.test(step.run ?? "")).length, 1)
+  // One step installs the workspace tree. The React Doctor step installs only its own lockfile, outside that tree.
+  const installs = steps.flatMap((step) => (step.run ?? "").split("\n").filter((line) => /^\s*npm ci\b/.test(line))
+    .map((line) => [step.id ?? step.name, line.trim()]))
+  assert.deepEqual(installs, [
+    ["Install dependencies", "npm ci --no-audit"],
+    ["react-doctor__1", "npm ci --prefix .github/react-doctor --ignore-scripts --no-audit --no-fund"],
+  ])
+  const reactDoctor = steps.find((step) => step.id === "react-doctor__1")
+  assert.match(reactDoctor.run, /^\.github\/react-doctor\/node_modules\/\.bin\/react-doctor \. /m, "React Doctor runs the binary of its locked tree")
+  const reactDoctorLock = JSON.parse(readFileSync(join(repositoryRoot, ".github/react-doctor/package-lock.json"), "utf8"))
+  const reactDoctorManifest = JSON.parse(readFileSync(join(repositoryRoot, ".github/react-doctor/package.json"), "utf8"))
+  assert.match(reactDoctorManifest.devDependencies["react-doctor"], /^\d+\.\d+\.\d+$/, "the manifest pins one exact React Doctor version")
+  assert.deepEqual(reactDoctorLock.packages[""].devDependencies, reactDoctorManifest.devDependencies, "npm ci needs the manifest and the lockfile to agree")
+  assert.equal(reactDoctorLock.packages["node_modules/react-doctor"].version, reactDoctorManifest.devDependencies["react-doctor"])
   for (const step of steps.filter((candidate) => candidate.id?.includes("__"))) {
     assert.ok(step.name, `${step.id} must name the guard`)
     assert.match(step.if, /!cancelled\(\)/, `${step.id} must run after a previous failure`)
@@ -354,8 +374,8 @@ test("pull requests run each source check through one owner", () => {
   }
   assert.ok(testWorkflow.jobs["tool-tests"].steps.some((step) => step.run?.startsWith("node tools/test-tools.mjs --shard ")))
   assert.ok(testWorkflow.jobs["web-tests"].steps.some((step) => step.name === "Run web shard with coverage"))
-  assert.ok(testWorkflow.jobs["workspace-tests"].steps.some((step) => step.run === "npx turbo run test --filter=@orbit/desktop --filter=@orbit/shared --filter=@orbit/eslint-rules --concurrency=1 -- --coverage"))
-  assert.equal(testWorkflow.jobs["unit-tests"].steps.some((step) => step.run?.includes("npx turbo run test")), false)
+  assert.ok(testWorkflow.jobs["workspace-tests"].steps.some((step) => step.run === "./node_modules/.bin/turbo run test --filter=@orbit/desktop --filter=@orbit/shared --filter=@orbit/eslint-rules --concurrency=1 -- --coverage"))
+  assert.equal(testWorkflow.jobs["unit-tests"].steps.some((step) => step.run?.includes("turbo run test")), false)
 })
 
 test("every pull request runs the full-tree surface scope scan outside the cached unit task", () => {

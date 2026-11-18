@@ -284,7 +284,7 @@ export const reserveWorkerLaunch = (launch, cap, repoRoot = REPO_ROOT) => {
   return { allowed: true, earlierLaunches, recorded: override.recorded }
 }
 
-export const fixRoundDirectory = (repoRoot = REPO_ROOT) => join(gitDirectoryOf(repoRoot), "orbit-fix-rounds")
+const fixRoundDirectory =(repoRoot = REPO_ROOT) => join(gitDirectoryOf(repoRoot), "orbit-fix-rounds")
 export const FIX_ROUND_KINDS = ["local", "pullfrog"]
 /** compose-prompt.mjs writes this line into a review batch order; launch-worker.mjs then requires --fix-round. */
 export const REVIEW_BATCH_ORDER_MARKER = "<!-- orbit-order: review-batch -->"
@@ -348,6 +348,10 @@ export const recordFixRound = (round, cap, repoRoot = REPO_ROOT) => {
     if (!claim.contended) throw new Error(`cannot record fix round ${number} in ${directory}`)
   }
 }
+
+/** Gives back the fix round that a launch claimed and ended without a commit, so its relaunch spends the same round. */
+export const releaseFixRound = (branch, number, repoRoot = REPO_ROOT) =>
+  rmSync(join(fixRoundDirectory(repoRoot), `${fixRoundBranchKey(branch)}-round-${number}.json`), { force: true })
 
 export const recordReservedWorkerPid = (launcherPid, workerPid, repoRoot = REPO_ROOT) => {
   const path = occupiedWorktreePath(repoRoot)
@@ -758,7 +762,8 @@ export const readWakeSourceStates = (repoRoot = REPO_ROOT) => {
 export const readWakeSources = (repoRoot = REPO_ROOT) => readWakeSourceStates(repoRoot).live
 
 /** Relay waiters observe work that can outlive the session and are stopped at succession. */
-export const isRelayWaiter = (source) => source.kind === "auto-work-waiter" || source.kind === "file-waiter" || source.what?.startsWith("CI ") === true
+export const BACKGROUND_RUN_WAITER = "background-run-waiter"
+export const isRelayWaiter = (source) => source.kind === "auto-work-waiter" || source.kind === "file-waiter" || source.kind === BACKGROUND_RUN_WAITER || source.what?.startsWith("CI ") === true
 
 export const registerWakeSource = (source, repoRoot = REPO_ROOT) => {
   try {

@@ -7,7 +7,7 @@ import { join } from "node:path"
 import { acquireRelayLock, gitDirectoryOf, REPO_ROOT } from "./run-state.mjs"
 
 const LOCK_NAME = "orbit-launch-gate-lock"
-export const LAUNCH_GATE_POLL_MS = 5000
+const LAUNCH_GATE_POLL_MS = 5000
 
 export const launchGateStampPath = (repoRoot = REPO_ROOT) => join(gitDirectoryOf(repoRoot), "orbit-launch-gate.json")
 

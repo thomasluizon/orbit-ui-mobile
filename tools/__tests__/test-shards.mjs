@@ -12,7 +12,7 @@ const TOOL = "lib/test-shards.mjs"
 const SHARD_JOB_LIMIT_SECONDS = 360
 /**
  * Checkout, setup-node, the npm version and npm ci --prefer-offline --no-audit before the harness step: the same steps took
- * 35 to 56 s in the layout shards of PR Tests runs 44216168902, 44221130214 and 44219082100, plus 3 to 5 s for the npm version.
+ * 35 to 56 s in the layout shards of PR Tests runs 44216168902 and 44221130214, plus 3 to 5 s for the npm version.
  */
 const SHARD_SETUP_SECONDS = 70
 const SHARD_HARNESS_BUDGET_SECONDS = SHARD_JOB_LIMIT_SECONDS - SHARD_SETUP_SECONDS

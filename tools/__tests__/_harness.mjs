@@ -3,10 +3,6 @@ import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync,
 import { tmpdir } from "node:os"
 import { dirname, join, resolve } from "node:path"
 
-/**
- * Injected by the runner. These are live bindings: configure() runs before any case
- * module is imported, so every module reads the runner's own resolution.
- */
 /** Run files (the intake marks) go to a directory in each test checkout's git directory, never to GitHub. */
 process.env.ORBIT_TEST_RUN_FILES = "1"
 
@@ -17,6 +13,10 @@ export const seedIntake = (checkout, intake) => {
   writeFileSync(join(directory, "intake.json"), `${JSON.stringify(intake, null, 2)}\n`)
 }
 
+/**
+ * Injected by the runner. These are live bindings: configure() runs before any case
+ * module is imported, so every module reads the runner's own resolution.
+ */
 export let TOOLS_DIR = ""
 export let REPO_ROOT = ""
 export let SELF = ""
@@ -461,6 +461,17 @@ export const stageWithConfig = (label, tool, config) => {
   cpSync(join(TOOLS_DIR, tool), join(base, "tools", tool))
   cpSync(join(TOOLS_DIR, "lib"), join(base, "tools", "lib"), { recursive: true })
   return { path: join(base, "tools", tool), base, configPath: join(base, ".claude", "orchestrator.json") }
+}
+
+/**
+ * A subagent transcript in the shape that Claude Code 2.1.325 writes. The fixture holds lines of a real subagent
+ * transcript with each value replaced and each path a token. The agent works in `worktree` through `cd` and absolute
+ * file paths, visits `otherRepository` once, and every entry carries the session directory as `cwd`.
+ */
+export const subagentTranscript = ({ worktree, sessionDirectory, otherRepository, scratchpad }) => {
+  const tokens = { WORKTREE: worktree, SESSION_DIRECTORY: sessionDirectory, OTHER_REPOSITORY: otherRepository, SCRATCHPAD: scratchpad }
+  return readFileSync(new URL("./fixtures/claude-subagent-transcript.jsonl", import.meta.url), "utf8")
+    .replace(/\{\{([A-Z_]+)\}\}/g, (_token, name) => JSON.stringify(tokens[name]).slice(1, -1))
 }
 
 /** A real git repository with a bare origin and one commit on main, under the fixture root. */
