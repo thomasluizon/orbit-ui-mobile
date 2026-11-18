@@ -53,12 +53,14 @@ function readPathnameOnScreen(navigationType: string) {
 /**
  * Receives each navigation start from Next (`onRouterTransitionStart` in `instrumentation-client.ts`).
  * An intent stays only for a navigation that starts in the task that wrote it and that goes to another pathname.
- * No pathname commit follows any other intent, so the end of its task clears it. A traversal is a back navigation.
+ * No pathname commit follows any other intent, so the end of its task clears it. A traversal to another pathname is a back navigation.
  * A traversal moves `location` before Next reports it, so the navigation history gives the pathname on screen.
  */
 export function claimRouteTransitionIntent(href: string, navigationType: string) {
+  const leavesPathname = new URL(href, location.href).pathname !== readPathnameOnScreen(navigationType)
+
   if (writeTask === null) {
-    if (navigationType !== 'traverse') {
+    if (navigationType !== 'traverse' || !leavesPathname) {
       resetRouteTransitionIntent()
       return
     }
@@ -66,11 +68,7 @@ export function claimRouteTransitionIntent(href: string, navigationType: string)
     setRouteTransitionIntent('back')
   }
 
-  if (snapshot.version === claimedVersion) {
-    return
-  }
-
-  if (new URL(href, location.href).pathname !== readPathnameOnScreen(navigationType)) {
+  if (leavesPathname) {
     claimedVersion = snapshot.version
   }
 }

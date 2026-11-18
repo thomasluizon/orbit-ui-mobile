@@ -108,10 +108,19 @@ describe('route intent lifetime', () => {
     expect(getCurrentRouteTransitionIntent()).toBe('back')
   })
 
-  it('clears the back intent of a traversal between two dates of Today', () => {
+  it('writes no back intent for a traversal between two dates of Today', () => {
     showPage('/?date=2026-11-17')
 
     traverseTo('/?date=2026-11-16')
+
+    expect(getCurrentRouteTransitionIntent()).toBe('neutral')
+  })
+
+  it('gives no back intent to a push that follows a traversal on the pathname in the same task', () => {
+    showPage('/habits/new?from=%2F')
+
+    traverseTo('/habits/new?from=%2F')
+    onRouterTransitionStart('/upgrade', 'push')
     endTask()
 
     expect(getCurrentRouteTransitionIntent()).toBe('neutral')
