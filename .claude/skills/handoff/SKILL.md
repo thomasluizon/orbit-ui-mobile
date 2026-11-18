@@ -329,8 +329,9 @@ records the mode from the owner's own `/handoff` or `/wrap-up` prompt, and `git 
    whose body invokes `/crank` immediately after `/sleep` entry. This also requires every
    `--sleep` prompt rule. Context relays preserve the same flags.
    A cranked prompt orders no hold of ready work. `validateHandoffPrompt` refuses `X FIRST`, a
-   merge of one item before or ahead of another, and a hold of one item until another, and its
-   message quotes the clause. Why: the successor obeys the prompt, so one such line keeps every
+   merge of one item before, ahead of, after or once another, and a hold of one item until another,
+   and its message quotes the clause. It is a tripwire for these phrasings, not the guarantee: write
+   no hold in any wording, because the successor obeys the prompt. Why: the successor obeys the prompt, so one such line keeps every
    pull request at the merge bar waiting for the named one, and crank permits no wait except the
    merge bar, the admission caps, the load gate and a relay drain. Say what state each item is in
    and let `run-status.mjs` report `MERGE_NOW`. A real dependency is a ticket relation or a

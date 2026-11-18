@@ -118,18 +118,23 @@ const SETTLED_LABEL = /^[\s>*+-]*(?:superseded|done)\s*:/i
 // A start order says which item starts first when the worker pool is short. It names the cap and holds no ready work.
 const START_ORDER = /\bunder the (?:[\w.-]+\s+){0,2}caps?\b/i
 
-/** One item merges before or ahead of the next one, or an order before it holds it until the next one. */
+// An item that merges after another one, or once another one has merged, waits for it as `before` does.
+const AFTER_WORD = /\b(?:after|once|then)\b/i
+
+/** One item merges before or ahead of the next one, or after or once the previous one, or an order before it holds it until the next one. */
 const ordersPair = (clause, first, next) => {
   const leading = clause.slice(0, first.index)
   const between = clause.slice(first.index + first[0].length, next.index)
   const ahead = AHEAD_WORD.exec(between)
   if (ahead) return MERGE_ORDER.test(leading) || MERGE_ORDER.test(between.slice(0, ahead.index))
+  const after = AFTER_WORD.exec(between)
+  if (after) return MERGE_ORDER.test(leading) || MERGE_ORDER.test(between.slice(after.index))
   return /\buntil\b/i.test(between) && MERGE_ORDER.test(leading)
 }
 
 /**
  * Each clause that orders one item of work ahead of another: `X FIRST`, a merge of one item before or
- * ahead of another, or a hold of one item until another. An order that its own clause labels as
+ * ahead of another or after or once another, or a hold of one item until another. An order that its own clause labels as
  * superseded or done orders nothing: the word counts only after the order, not anywhere on the line.
  * A start order under the cap with no merge word holds no ready work, and a past merge is a fact.
  */

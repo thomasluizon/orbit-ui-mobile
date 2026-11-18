@@ -30,21 +30,27 @@ Read its one JSON object and follow `nextActions[].command` from `commandDirecto
 Commands use relative paths when those are shorter. The action set is closed:
 `MERGE_NOW`, `UPDATE_BRANCH`, `RETARGET`, `REARM_WAIT_CI`, `VERIFY_DELIVERY`, `READ_REVIEW`,
 `RECORD_READINESS`, `BEHIND_BASE`, `CHECK_FAILED`, `MERGE_CANDIDATE`, `SLOT_FREE`,
-`ORPHANED_WORKER`, `INTAKE`, `NO_ACTION`.
+`ORPHANED_WORKER`, `RECORD_MERGE`, `INTAKE`, `NO_ACTION`.
 
 **Read `MERGE_NOW` first.** The snapshot lists it before every other action. It names a pull
 request that GitHub shows at the merge bar, in the run or opened by the repository owner outside
 it: every check green with every required check present, `pullfrog-approval` SUCCESS at the
 head, zero unresolved threads and `behind_by=0`. Its command is the squash merge of that exact
 head. Run it in the same turn under the standing authority of Hard prohibitions and log the head.
-For a pull request of the run, write the merge sha to its ledger row as Step 9 says. Outside that
-authority, leave the pull request ready for the owner. `UPDATE_BRANCH` comes next: the pull
+For a pull request of the run, `MERGE_NOW` is enough to merge: the bar is the GitHub facts, and a
+missing or stale receipt never holds it. Write the merge sha to its ledger row as Step 9 says, then
+synchronize the ticket in the same turn, never before the merge. Outside that authority, leave the
+pull request ready for the owner. `UPDATE_BRANCH` comes next: the pull
 request is only behind its base, and its command merges the base into the branch. The new head
 needs its checks and a review request again, as step 8 says. `RETARGET` names a pull request that
 meets the bar except that its base is a branch no open pull request owns, because the parent
-merged or closed. Its command changes the base to the default branch; run it, then the next wake
-reports `MERGE_NOW`. A draft, a merge conflict and a stacked child whose parent is still open get
+merged or closed. Its command changes the base to the default branch and then merges that branch into the pull
+request, because a squash merge leaves the child behind the default branch and a base change starts
+no check. The merge pushes a head, which starts the checks and the review of the new base. Run it;
+`MERGE_NOW` follows once those checks and the review are green at that head. A draft, a merge conflict and a stacked child whose parent is still open get
 none of these actions. The snapshot names no other action for a pull request that has one of them.
+`RECORD_MERGE` names a pull request of the run that GitHub shows as merged while its ledger row has
+no sha, as when another session merged it. Run its command: it writes the sha that the stop hook waits for.
 
 Delivery and readiness remain decisions of their named tools. A merge candidate calls the
 recorder again; it grants no merge authority. A foreign session has no actions. A linked
@@ -929,7 +935,8 @@ a worker-delivered one does.** Opening the pull request is the MIDDLE of salvage
 its `{repositoryKey, prNumber, receiptPath}` identity to `pullRequests` in the run record the moment
 it opens. It remains outstanding until current-head delivery, green CI carrying the review verdict
 admissible on that base under Hard prohibitions, `behind_by=0`, and ticket synchronization are all
-recorded for the same head/base pair.
+recorded for the same head/base pair. A `MERGE_NOW` for the pull request ends the wait: merge, record
+the merge sha and synchronize the ticket in that turn.
 
 **Never read the worker's own exit code as proof of anything.** Three documented CLI bugs make it
 meaningless: openai/codex#20919, openai/codex#19945, anthropics/claude-code#25629. Artifacts are the
@@ -1196,8 +1203,9 @@ For each existing PR, repeat within the configured `caps.reviewFixAttempts` fixe
    before merge. Size never affects ticket status.
 5. Re-record and evaluate. READY ends the loop. A genuine permission, external, or human-only
    blocker, or exhaustion of the bounded fixer budget, produces a precise handoff and keeps
-   the PR in the run record. A READY result permits a merge only under the D88/D90 conditions
-   in Hard prohibitions; a blocked result never does, with one exception and only this one.
+   the PR in the run record. A READY result or a `MERGE_NOW` action permits a merge, only under the
+   D88/D90 conditions in Hard prohibitions. A blocked result without `MERGE_NOW` never does, with one
+   exception and only this one.
 
 **The exception: a receipt blocked only on the review axis, on an unprotected base.** Its single
 verdict is `CI_STALE`, the one unsatisfied required check is the `pullfrog-approval` the recorder

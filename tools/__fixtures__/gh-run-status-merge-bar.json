@@ -2949,5 +2949,23 @@
         }
       }
     }
+  },
+  "mergeCommit": {
+    "method": "Recorded verbatim from one separate read-only live gh api graphql call, after the main recording. No value was entered by hand.",
+    "producer": "gh api graphql -F owner=<repository-owner> -F name=<repository-name> -f query=<query>",
+    "query": "query RunStatusMergeCommit($owner: String!, $name: String!) {\n  repository(owner: $owner, name: $name) {\n    pr2487: pullRequest(number: 2487) {\n      number state\n      mergeCommit { oid }\n    }\n  }\n}",
+    "response": {
+      "data": {
+        "repository": {
+          "pr2487": {
+            "number": 2487,
+            "state": "MERGED",
+            "mergeCommit": {
+              "oid": "b320dacf840c8717aa400dcba260e9588fb695d4"
+            }
+          }
+        }
+      }
+    }
   }
 }

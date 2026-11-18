@@ -57,8 +57,9 @@ While `crank` is true:
   another one, and the relay validator refuses a merge or launch hold.
 - A stacked parent merges without `--delete-branch`. Retarget each child to the parent's base,
   then delete the parent branch. A stacked child gets no `MERGE_NOW` while its parent is open.
-  After the parent merges, `run-status.mjs` reports `RETARGET` with the exact `gh pr edit`
-  command; the child merges only after that base change.
+  After the parent merges, `run-status.mjs` reports `RETARGET` with the exact `gh pr edit` and
+  `gh pr update-branch` commands. A base change starts no check, so the branch update that pushes a
+  head follows it, and the child merges once its checks and review are green at that head.
 - Never idle while work can proceed. Every turn with unfinished work ends with a live registered
   wake source, named as `/sleep` requires. Retain the canonical completion condition.
 
@@ -79,5 +80,6 @@ spreads the predecessor's run state, so a successor inherits `crank: true` until
 A cranked context relay uses `/handoff --relay --sleep --crank`. Its `NEXT.md` starts with
 `/sleep`, or `/auto-work` when that mode is enabled, and carries a `## Crank` section telling the successor to invoke `/crank` immediately
 after `/sleep` entry. Read back the adopted state before queue work and apply this skill then.
-`validateHandoffPrompt` refuses a cranked prompt that orders a hold of ready work, so the mode
-cannot be lowered by the prompt that carries it.
+`validateHandoffPrompt` refuses a cranked prompt that orders a hold of ready work in the recorded
+phrasings. It is a tripwire, not the guarantee: a reworded order can pass it. The guarantee is that
+`MERGE_NOW` comes first in the snapshot and that no ordering preference holds ready work.

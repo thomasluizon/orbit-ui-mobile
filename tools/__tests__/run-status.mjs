@@ -389,8 +389,11 @@ const mergeBarCases = async () => {
   const { repository: slug, numbers: recordedNumbers } = barFixture.generation
   // The default branch was recorded in a separate read, so the main recording lacks that one selection.
   const defaultBranchSelection = "    defaultBranchRef { name }\n"
-  T("run-status: the merge-bar recording came from the production query", statusQuery(recordedNumbers).includes(defaultBranchSelection) &&
-    barFixture.query === statusQuery(recordedNumbers).replace(defaultBranchSelection, "") && barFixture.defaultBranch.query.includes(defaultBranchSelection))
+  const mergeCommitSelection = "      mergeCommit { oid }\n"
+  T("run-status: the merge-bar recording came from the production query", statusQuery(recordedNumbers).includes(defaultBranchSelection) && statusQuery(recordedNumbers).includes(mergeCommitSelection) &&
+    barFixture.query === statusQuery(recordedNumbers).replace(defaultBranchSelection, "").replaceAll(mergeCommitSelection, "") &&
+    barFixture.defaultBranch.query.includes(defaultBranchSelection) && barFixture.mergeCommit.query.includes(mergeCommitSelection))
+  const recordedMergeCommit = barFixture.mergeCommit.response.data.repository.pr2487.mergeCommit.oid
   const recordedDefaultBranch = barFixture.defaultBranch.response.data.repository.defaultBranchRef
   const repo = stageRepo("run-status-merge-bar")
   repo.git(["remote", "set-url", "origin", `https://github.com/${slug}.git`])
@@ -510,7 +513,7 @@ const mergeBarCases = async () => {
     recorded.pr2488.baseRef.branchProtectionRule === null && parent !== undefined && parent.number !== 2488)
   report = await snapshot({ 2488: stackedChild() }, { openNodes: listed(2488, parent.number) })
   T("run-status: a stacked child at the bar gets neither action while its parent is open", neither(report, 2488), JSON.stringify(report.nextActions))
-  const retarget = { type: "RETARGET", pr: "ui#2488", command: `gh pr edit 2488 --repo '${slug}' --base '${recordedDefaultBranch.name}'` }
+  const retarget = { type: "RETARGET", pr: "ui#2488", command: `gh pr edit 2488 --repo '${slug}' --base '${recordedDefaultBranch.name}' && gh pr update-branch 2488 --repo '${slug}'` }
   report = await snapshot({ 2488: stackedChild() })
   same("run-status: the same pull request gets the retarget and no merge when no open pull request owns its base", report.nextActions, [retarget])
   const merged = recorded.pr2487
@@ -535,6 +538,14 @@ const mergeBarCases = async () => {
   report = await snapshot({ 2488: stackedChild(), [number]: atBar() })
   T("run-status: a response without the default branch names no merge, branch update or retarget", !report.nextActions.some((entry) => ["MERGE_NOW", "UPDATE_BRANCH", "RETARGET"].includes(entry.type)), JSON.stringify(report.nextActions))
   defaultBranchRef = recordedDefaultBranch
+
+  const mergedElsewhere = () => ({ ...structuredClone(recorded.pr2487), mergeCommit: { oid: recordedMergeCommit } })
+  report = await snapshot({ 2487: mergedElsewhere() })
+  same("run-status: a run row that GitHub shows as merged, with no sha in the ledger, gets the write of the merge sha", report.nextActions,
+    [{ type: "RECORD_MERGE", pr: "ui#2487", command: `node tools/record-merge.mjs --repo 'ui' --pr 2487 --sha ${recordedMergeCommit}` }])
+  T("run-status: the recorded merge commit is a full sha", /^[0-9a-f]{40}$/.test(recordedMergeCommit))
+  report = await snapshot({ 2487: structuredClone(recorded.pr2487) })
+  T("run-status: a merged row whose response carries no merge commit gets no write", report.nextActions.length === 1 && report.nextActions[0].type === "NO_ACTION", JSON.stringify(report.nextActions))
 
   report = await snapshot({ [number]: atBar() }, { rows: [] })
   T("run-status: an open pull request of the owner outside the run is read in a second query", JSON.stringify(reads) === JSON.stringify([[], [number]]), JSON.stringify(reads))

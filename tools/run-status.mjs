@@ -27,11 +27,14 @@ MERGE_NOW, UPDATE_BRANCH and RETARGET come first. They come from GitHub alone: n
 MERGE_NOW names the squash merge of the exact head into the default branch: every check green with
 every required check present, pullfrog-approval SUCCESS, zero unresolved threads, behind_by 0 and a
 clean merge state. UPDATE_BRANCH names the branch update when only behind_by fails.
-RETARGET names the base change to the default branch. It is for a pull request whose checks, review
+RETARGET names the base change to the default branch, then the branch update that starts the checks of
+the new base. It is for a pull request whose checks, review
 check and threads hold and whose base is another branch that no open pull request owns: the parent
 merged or closed and its branch remains. A merge conflict gets no MERGE_NOW and no
 UPDATE_BRANCH. A draft and a pull request whose base is the head of an open pull request get none of
 the three.
+RECORD_MERGE names the write of the merge sha when GitHub shows a pull request of the run as MERGED and
+its ledger row has no sha.
 Errors are redacted; tokens are scoped to child environments; pull request bodies are never read.
 Active auto-work wakes append INTAKE after in-flight actions, including with an empty queue.
 Ordinary sleep keeps NO_ACTION; a pending relay drain suppresses intake.
@@ -47,6 +50,7 @@ export const statusQuery = (numbers) => `query RunStatus($owner: String!, $name:
     pullRequests(states: OPEN, first: 100) { totalCount nodes { number headRefName author { login } } }
     ${numbers.map((number) => `pr${number}: pullRequest(number: ${number}) {
       number state isDraft headRefName headRefOid baseRefName baseRefOid mergeStateStatus
+      mergeCommit { oid }
       baseRef { name target { __typename oid }
         compare(headRef: "refs/pull/${number}/head") { behindBy baseTarget { oid } headTarget { oid } }
         branchProtectionRule { requiredStatusChecks { context app { databaseId } } } }
@@ -133,7 +137,8 @@ const mergeBarOf = (pull, { repositoryKey, slug, openBranches, defaultBranch }) 
   const mergeable = ["CLEAN", "HAS_HOOKS"].includes(pull.mergeStateStatus)
   const identity = { repositoryKey, prNumber: pull.number }
   if (restHolds && pull.baseRefName !== defaultBranch) {
-    return { behindBy, approval, action: action("RETARGET", `gh pr edit ${pull.number} --repo ${quote(slug)} --base ${quote(defaultBranch)}`, identity) }
+    // A base change starts no check, and a squash merge leaves the child behind the default branch, so the update that pushes a head follows it.
+    return { behindBy, approval, action: action("RETARGET", `gh pr edit ${pull.number} --repo ${quote(slug)} --base ${quote(defaultBranch)} && gh pr update-branch ${pull.number} --repo ${quote(slug)}`, identity) }
   }
   if (restHolds && behindBy === 0 && mergeable) {
     return { behindBy, approval, action: action("MERGE_NOW", `gh pr merge ${pull.number} --repo ${quote(slug)} --squash --match-head-commit ${pull.headRefOid}`, identity) }
@@ -184,6 +189,11 @@ const observePull = (row, pull, launches, wakes) => {
     unresolved: pull.reviewThreads.pageInfo.hasNextPage ? null : unresolved, ...(complete ? {} : { complete: false }), receipt: receiptStatus, ...(receiptStatus === "MISSING_OR_CORRUPT" ? {} : { receiptVerdict }) }
   const actions = []
   const add = (type, command) => actions.push(action(type, command, identity))
+  if (pull.state === "MERGED") {
+    // A merge from another session leaves the run row without its sha, and the stop hook waits for that sha.
+    const sha = pull.mergeCommit?.oid
+    return { observation, actions: /^[0-9a-f]{40}$/.test(sha ?? "") ? [action("RECORD_MERGE", `node tools/record-merge.mjs --repo ${quote(row.repositoryKey)} --pr ${row.prNumber} --sha ${sha}`, identity)] : [] }
+  }
   if (pull.state !== "OPEN") return { observation, actions }
   if (bar.action) return { observation, actions: [bar.action] }
   if (unresolved > 0 || review?.state === "CHANGES_REQUESTED" || review?.state === "COMMENTED") {
