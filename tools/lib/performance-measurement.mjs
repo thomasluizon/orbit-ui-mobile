@@ -205,7 +205,7 @@ const rootSource = (tokens, depths, fromIndex) => {
  * Reads only the SELECT facts the performance audit needs. A shape outside this conservative
  * grammar reports unknown; callers never reinterpret unknown as zero, false, or one column.
  */
-export const analyzeQueryShape = (queryShape, columnCount) => {
+const analyzeQueryShape = (queryShape, columnCount) => {
   const lexed = tokenizeSql(queryShape)
   if (!lexed.tokens) return unknownSql(lexed.reason)
   const tokens = lexed.tokens
