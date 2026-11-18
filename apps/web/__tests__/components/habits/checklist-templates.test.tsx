@@ -8,19 +8,17 @@ vi.mock('next-intl', () => ({
 }))
 
 const mockTemplates = vi.fn<() => { data: ChecklistTemplate[] }>(() => ({ data: [] }))
-const mockCreate = vi.fn()
+const mockCreate = vi.fn<(request: { name: string; items: string[] }) => Promise<unknown>>()
 const mockDelete = vi.fn()
 const mockShowError = vi.fn()
-let mockIsPending = false
 
 vi.mock('@/hooks/use-checklist-templates', () => ({
   useChecklistTemplates: () => mockTemplates(),
-  useCreateChecklistTemplate: () => ({
-    mutate: mockCreate,
-    isPending: mockIsPending,
-  }),
+  useCreateChecklistTemplate: () => ({ mutateAsync: mockCreate }),
   useDeleteChecklistTemplate: () => ({ mutate: mockDelete }),
 }))
+
+vi.mock('@/components/ui/pill-action-style', async (importOriginal) => ({ ...await importOriginal<object>(), waitingFaceClasses: 'probe-waiting-face' }))
 
 vi.mock('@/hooks/use-app-toast', () => ({
   useAppToast: () => ({ showError: mockShowError, showSuccess: vi.fn(), showInfo: vi.fn() }),
@@ -44,7 +42,6 @@ describe('ChecklistTemplates', () => {
     mockCreate.mockReset()
     mockDelete.mockReset()
     mockShowError.mockReset()
-    mockIsPending = false
   })
 
   it('renders the templates glyph in a compact, rounded form row', () => {
@@ -95,87 +92,88 @@ describe('ChecklistTemplates', () => {
     expect(classNames).not.toContain('focus:shadow-[inset_0_0_0_2px_var(--primary)]')
   })
 
-  it('calls createTemplate mutation with the typed name and items', () => {
-    const items: ChecklistItem[] = [{ text: 'Step 1', isChecked: false }]
-    render(<ChecklistTemplates items={items} onLoad={vi.fn()} />)
+  function openSaveEditor(name: string) {
+    render(<ChecklistTemplates items={[{ text: 'Step 1', isChecked: false }]} onLoad={vi.fn()} />)
     openTemplates()
-
     fireEvent.click(screen.getByText('habits.form.saveCurrentList'))
     const input = screen.getByPlaceholderText('habits.form.templateNamePlaceholder')
-    fireEvent.change(input, { target: { value: 'Morning Routine' } })
-    fireEvent.click(screen.getByText('common.save'))
+    fireEvent.change(input, { target: { value: name } })
+    return input
+  }
 
-    expect(mockCreate).toHaveBeenCalledWith(
-      { name: 'Morning Routine', items: ['Step 1'] },
-      expect.objectContaining({
-        onSuccess: expect.any(Function),
-        onError: expect.any(Function),
-      }),
-    )
+  function pendingCreate() {
+    let settle!: { resolve: () => void; reject: (failure: Error) => void }
+    mockCreate.mockImplementation(() => new Promise((resolve, reject) => { settle = { resolve: () => resolve({ id: 'template-1' }), reject } }))
+    return () => settle
+  }
+
+  it('sends the typed name and items', async () => {
+    mockCreate.mockResolvedValue({ id: 'template-1' })
+    openSaveEditor('Morning Routine')
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'common.save' })) })
+    expect(mockCreate).toHaveBeenCalledWith({ name: 'Morning Routine', items: ['Step 1'] })
   })
 
-  it('does not fire a second mutation while one is in-flight', () => {
-    const items: ChecklistItem[] = [{ text: 'Step 1', isChecked: false }]
-    mockIsPending = true
-    render(<ChecklistTemplates items={items} onLoad={vi.fn()} />)
-    openTemplates()
+  it('saves a named template from the Enter key', async () => {
+    mockCreate.mockResolvedValue({ id: 'template-1' })
+    const input = openSaveEditor('Morning')
+    await act(async () => { fireEvent.keyDown(input, { key: 'Enter' }) })
+    expect(mockCreate).toHaveBeenCalledWith({ name: 'Morning', items: ['Step 1'] })
+  })
 
-    fireEvent.click(screen.getByText('habits.form.saveCurrentList'))
-    const input = screen.getByPlaceholderText('habits.form.templateNamePlaceholder')
-    fireEvent.change(input, { target: { value: 'Morning Routine' } })
-
+  it('keeps the Save label and shows the skeleton face while the request runs, and sends nothing on a second press', () => {
+    pendingCreate()
+    const input = openSaveEditor('Morning')
+    fireEvent.click(screen.getByRole('button', { name: 'common.save' }))
+    const save = screen.getByRole('button', { name: 'common.save' })
+    expect(save).toHaveAttribute('aria-busy', 'true')
+    expect(save).toBeDisabled()
+    expect(save).toHaveTextContent('common.save')
+    expect(save.querySelector('[data-slot="skeleton-face"] .skeleton-pulse')).not.toBeNull()
+    fireEvent.click(save)
     fireEvent.keyDown(input, { key: 'Enter' })
-    expect(mockCreate).not.toHaveBeenCalled()
+    expect(mockCreate).toHaveBeenCalledOnce()
   })
 
-  it('saves a named template from the Enter key', () => {
-    const items: ChecklistItem[] = [{ text: 'Step 1', isChecked: false }]
-    render(<ChecklistTemplates items={items} onLoad={vi.fn()} />)
-    openTemplates()
-    fireEvent.click(screen.getByText('habits.form.saveCurrentList'))
-    const input = screen.getByPlaceholderText('habits.form.templateNamePlaceholder')
-    fireEvent.change(input, { target: { value: 'Morning' } })
-    fireEvent.keyDown(input, { key: 'Enter' })
-    expect(mockCreate).toHaveBeenCalledWith(
-      { name: 'Morning', items: ['Step 1'] },
-      expect.any(Object),
-    )
+  it('takes the Save waiting face from the shared pill waiting face, so a change to that face reaches this action', () => {
+    pendingCreate()
+    openSaveEditor('Morning')
+    fireEvent.click(screen.getByRole('button', { name: 'common.save' }))
+    expect(screen.getByRole('button', { name: 'common.save' })).toHaveClass('probe-waiting-face')
   })
 
-  it('shows an error toast when create fails', () => {
-    const items: ChecklistItem[] = [{ text: 'Step 1', isChecked: false }]
-    render(<ChecklistTemplates items={items} onLoad={vi.fn()} />)
-    openTemplates()
-
-    fireEvent.click(screen.getByText('habits.form.saveCurrentList'))
-    fireEvent.change(
-      screen.getByPlaceholderText('habits.form.templateNamePlaceholder'),
-      { target: { value: 'Bad' } },
-    )
-    fireEvent.click(screen.getByText('common.save'))
-
-    const onError = mockCreate.mock.calls[0]![1].onError as () => void
-    onError()
-    expect(mockShowError).toHaveBeenCalledWith('habits.form.saveTemplateError')
-  })
-
-  it('closes the form via onSuccess after a successful save', () => {
-    const items: ChecklistItem[] = [{ text: 'Step 1', isChecked: false }]
-    render(<ChecklistTemplates items={items} onLoad={vi.fn()} />)
-    openTemplates()
-
-    fireEvent.click(screen.getByText('habits.form.saveCurrentList'))
-    const input = screen.getByPlaceholderText('habits.form.templateNamePlaceholder')
-    fireEvent.change(input, { target: { value: 'Saved' } })
-    fireEvent.click(screen.getByText('common.save'))
-
-    const onSuccess = mockCreate.mock.calls[0]![1].onSuccess as () => void
+  it('sends one request for two presses in the same event turn', () => {
+    pendingCreate()
+    const input = openSaveEditor('Morning')
     act(() => {
-      onSuccess()
+      fireEvent.keyDown(input, { key: 'Enter' })
+      fireEvent.keyDown(input, { key: 'Enter' })
     })
-    expect(
-      screen.queryByPlaceholderText('habits.form.templateNamePlaceholder'),
-    ).not.toBeInTheDocument()
+    expect(mockCreate).toHaveBeenCalledOnce()
+  })
+
+  it('closes the editor after the request succeeds', async () => {
+    const settle = pendingCreate()
+    openSaveEditor('Saved')
+    fireEvent.click(screen.getByRole('button', { name: 'common.save' }))
+    await act(async () => { settle().resolve() })
+    expect(screen.queryByPlaceholderText('habits.form.templateNamePlaceholder')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { busy: true })).toBeNull()
+  })
+
+  it('ends the waiting face and shows an error toast when the request fails', async () => {
+    const settle = pendingCreate()
+    openSaveEditor('Bad')
+    fireEvent.click(screen.getByRole('button', { name: 'common.save' }))
+    await act(async () => { settle().reject(new Error('offline')) })
+    expect(mockShowError).toHaveBeenCalledWith('habits.form.saveTemplateError')
+    const save = screen.getByRole('button', { name: 'common.save' })
+    expect(save).not.toHaveAttribute('aria-busy')
+    expect(save).toBeEnabled()
+    expect(save.querySelector('[data-slot="skeleton-face"]')).toBeNull()
+    mockCreate.mockResolvedValue({ id: 'template-1' })
+    await act(async () => { fireEvent.click(save) })
+    expect(mockCreate).toHaveBeenCalledTimes(2)
   })
 
   it('loads a template calling onLoad with checklist items', () => {
@@ -237,7 +235,6 @@ describe('ChecklistTemplates across an account change', () => {
     vi.clearAllMocks()
     vi.stubGlobal('fetch', vi.fn())
     mockTemplates.mockReturnValue({ data: [] })
-    mockIsPending = false
     holdAccount('user-1')
   })
 

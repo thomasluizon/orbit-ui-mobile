@@ -82,9 +82,9 @@ const DISABLED_PRESS_CONTROLS: ReadonlyArray<readonly [string, () => HTMLElement
     fireEvent.click(screen.getByText('habits.form.saveCurrentList'))
     return [screen.getByRole('button', { name: 'common.save' })]
   }],
-  ['the tag editor save and cancel', () => {
-    render(<TagEditorRow value="Health" inputAriaLabel="Tag name" actionLabel="Save tag" cancelAriaLabel="Cancel tag" disabled onChange={vi.fn()} onCommit={vi.fn()} onCancel={vi.fn()} />)
-    return [screen.getByRole('button', { name: 'Save tag' }), screen.getByRole('button', { name: 'Cancel tag' })]
+  ['the tag editor cancel while its tag request runs', () => {
+    render(<TagEditorRow value="Health" inputAriaLabel="Tag name" actionLabel="Save tag" cancelAriaLabel="Cancel tag" pending onChange={vi.fn()} onCommit={vi.fn()} onCancel={vi.fn()} />)
+    return [screen.getByRole('button', { name: 'Cancel tag' })]
   }],
   ['the emoji trigger and remove', () => {
     const view = render(<HabitEmojiSelector selectedEmoji="🏃" onSelect={vi.fn()} />)
