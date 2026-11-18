@@ -7,11 +7,13 @@
 
 import { spawnSync } from "node:child_process"
 import { createHash, randomUUID } from "node:crypto"
-import { existsSync, linkSync, mkdirSync, readFileSync, realpathSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs"
+import { existsSync, linkSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs"
 import { createServer } from "node:net"
+import { homedir, tmpdir } from "node:os"
 import { dirname, join, relative, resolve, isAbsolute } from "node:path"
 
 import { parseWorktreeList } from "./git-worktrees.mjs"
+import { githubEnvironment, redactSecrets } from "./github-auth.mjs"
 import { researchPaths } from "./research-run.mjs"
 import { isWakeSourceAlive, processStartIdentity } from "./run-state.mjs"
 
@@ -42,7 +44,8 @@ const inside = (path, directory) => {
 /**
  * The checked order, output and run directory of a read-only run. The order and the output follow the
  * research rules: outside every repository, and the output a new file. The run directory is a worktree
- * root, such as a detached worktree at the head under review, or a copy outside every repository.
+ * root, such as a detached worktree at the head under review, or a copy outside every repository. A
+ * directory inside a git directory is neither: the worker could write that repository's config, hooks and refs.
  */
 export const readOnlyPaths = (orderArgument, outputArgument, directoryArgument, mode) => {
   if (!directoryArgument || directoryArgument.startsWith("--")) throw new Error(`--directory is required for --${mode}`)
@@ -52,6 +55,9 @@ export const readOnlyPaths = (orderArgument, outputArgument, directoryArgument, 
   if (!statSync(runDirectory).isDirectory()) throw new Error(`run directory is not a directory: ${runDirectory}`)
   for (const [label, path] of [["order", orderFile], ["output", outputFile]]) {
     if (inside(path, runDirectory)) throw new Error(`${label} lives inside the run directory ${runDirectory}; keep it in the scratchpad`)
+  }
+  if (git(runDirectory, ["rev-parse", "--is-inside-git-dir"]).stdout.trim() === "true") {
+    throw new Error(`run directory ${runDirectory} is inside a git directory; use a detached worktree at the head or a copy that holds no repository`)
   }
   const topLevel = git(runDirectory, ["rev-parse", "--show-toplevel"])
   if (topLevel.status === 0 && realpathSync(topLevel.stdout.trim()) !== runDirectory) {
@@ -130,12 +136,15 @@ const regexLiteral = (path) => path.replace(/[\\.*+?^${}()|[\]]/g, "\\$&")
 /**
  * The sandbox profile of a read-only run. A later rule wins: the run directory and the node_modules test
  * caches open inside a protected directory, then the run directory's `.git` closes again. `homeDirectory`
- * scopes the git-directory rule. A run directory that holds a protected or home directory would open it, so it is refused.
+ * scopes the git-directory rule. A run directory that holds a protected or home directory would open it, so it is
+ * refused. So is one outside git (`gitWorktree` false) that sits inside a protected directory: no list holds it.
  */
-export const writeSandboxProfile = ({ protectedDirectories: directories, homeDirectory, runDirectory }) => {
+export const writeSandboxProfile = ({ protectedDirectories: directories, homeDirectory, runDirectory, gitWorktree }) => {
   const held = directories.find((directory) => directory !== runDirectory && inside(directory, runDirectory))
   if (held !== undefined) throw new Error(`run directory ${runDirectory} holds the protected directory ${held}; use a detached worktree at the head or a copy that holds no repository`)
   if (inside(homeDirectory, runDirectory)) throw new Error(`run directory ${runDirectory} holds the home directory ${homeDirectory}; use a detached worktree at the head or a copy that holds no repository`)
+  const holder = gitWorktree ? undefined : directories.find((directory) => inside(runDirectory, directory))
+  if (holder !== undefined) throw new Error(`run directory ${runDirectory} is outside git and sits inside the protected directory ${holder}; use a detached worktree at the head or a copy in the scratchpad`)
   return [
     "(version 1)",
     "(allow default)",
@@ -288,6 +297,131 @@ export const runDirectoryWrites = (before, after, runDirectory) => {
     .filter((file) => before.tracked[file] !== after.tracked[file]).sort()
   if (paths.length > 0) writes.push({ kind: "tracked-change", directory: runDirectory, detail: paths.join(", ") })
   return writes
+}
+
+/**
+ * The launch mode of a review or a proof (`mode`), with the values and steps that tools/launch-worker.mjs
+ * names at its `launchMode`. `argv`, `argOf` and `fail` are the launcher's arguments, its flag reader and
+ * its exit with a code and a message.
+ */
+export const readOnlyLaunch = (mode, { argv, argOf, fail }) => {
+  const valueFlags = new Set(["--order", "--out", "--directory", "--tier", "--hard-ceiling-minutes"])
+  const switches = new Set([`--${mode}`, "--measurement", "--dry-run"])
+  for (let index = 2; index < argv.length; index++) {
+    const flag = argv[index]
+    if (valueFlags.has(flag)) index++
+    else if (!switches.has(flag)) fail(2, `unsupported --${mode} option: ${flag}`)
+  }
+  let paths
+  try { paths = readOnlyPaths(argOf("--order"), argOf("--out"), argOf("--directory"), mode) } catch (error) { fail(2, error.message) }
+  const { orderFile, outputFile, runDirectory, gitWorktree } = paths
+  const configuredRepositories = (config) => Object.values(config.repos ?? {}).filter((path) => typeof path === "string")
+  let storage = null
+  /** The worker writes its result here; only the finish step copies it to --out. */
+  let stagedResult = null
+  let profile = null
+  let portClaim = null
+  let snapshotBefore = null
+  const launch = {
+    label: mode,
+    runDirectory,
+    promptFile: orderFile,
+    wake: { what: mode, research: false, review: true },
+    /** A read-only run claims a git run directory against a second launch, but holds no branch slot. */
+    reservation: gitWorktree ? { branchCap: null } : null,
+    repositoryKey: null,
+    clearsClaimsOnExit: true,
+    inheritedDescriptors: [],
+    plan: null,
+    workerArguments: null,
+    environment: null,
+    checkRunDirectory: ({ config }) => {
+      if (!writeSandboxAvailable()) fail(2, `--${mode} needs the macOS write sandbox (${SANDBOX_EXEC}), and ${process.platform} has none. A read-only worker never runs without it.`)
+      if (!gitWorktree) return
+      try { assertDetachedRunDirectory(runDirectory, configuredRepositories(config)) } catch (error) { fail(2, error.message) }
+    },
+    /**
+     * A read-only claude worker loads its user settings and the launcher checkout's settings only. Claude Code
+     * sets CLAUDE_PROJECT_DIR to the run directory, so a project settings file would run the hooks of the head
+     * under review. --setting-sources user drops that file; --settings adds the launcher's hooks by path.
+     */
+    prepare: async ({ config, launcherRoot, engineName, invocation, scriptArgs }) => {
+      if (engineName !== "claude") fail(2, `--${mode} needs the claude worker engine, whose hooks hold the read-only guards; .claude/orchestrator.json names "${engineName}"`)
+      storage = mkdtempSync(join(tmpdir(), `orbit-${mode}-`))
+      stagedResult = join(storage, "result.md")
+      const settingsFile = join(storage, "settings.json")
+      try {
+        writeFileSync(settingsFile, launcherSettings(readFileSync(join(launcherRoot, ".claude", "settings.json"), "utf8"), launcherRoot), { flag: "wx", mode: 0o600 })
+      } catch (error) { fail(2, `could not write the read-only worker settings from ${launcherRoot}: ${error.message}`) }
+      const pointer = `Read ${orderFile} and execute it in full. That file is your complete order for a read-only ${mode} run. You are in ${runDirectory}. Write your complete result to ${stagedResult}; its first line is the verdict line the order names. Write no tracked file, commit, branch or push in any repository. Do not summarise the file back to me, start the work now.`
+      launch.workerArguments = [...scriptArgs, ...invocation.args, "--setting-sources", "user", "--settings", settingsFile, pointer]
+      const directories = protectedDirectories({
+        repositories: configuredRepositories(config),
+        runDirectory: gitWorktree ? runDirectory : null,
+        // The worker never changes the hooks it runs under.
+        extraRoots: [...Object.values(config.hygieneRoots ?? {}), launcherRoot],
+      })
+      try {
+        profile = writeSandboxProfile({ protectedDirectories: directories, homeDirectory: realpathSync(homedir()), runDirectory, gitWorktree })
+      } catch (error) { fail(2, error.message) }
+      if (mode === "proof") {
+        try { portClaim = await claimEmulatorPort({ claimDirectory: emulatorPortClaimDirectory(launcherRoot) }) } catch (error) { fail(2, `could not claim an emulator port: ${error.message}`) }
+        if (portClaim === null) fail(3, "no free emulator port pair from 5560 to 5681 for the proof's throwaway emulator")
+      }
+      launch.plan = { issue: null, research: false, mode, outputFile, writeSandbox: directories, proofEmulatorPort: portClaim?.port ?? null }
+    },
+    admit: async ({ launched }) => {
+      // A copy outside every repository has no remote to choose a GitHub owner from, so it keeps the caller's own gh sign-in.
+      let github = { environment: process.env }
+      if (gitWorktree) {
+        try { github = await githubEnvironment(runDirectory) } catch (error) { fail(2, `could not resolve GitHub reads for ${runDirectory}: ${redactSecrets(error.message)}`) }
+      }
+      launch.environment = {
+        ...launched(github.environment),
+        // A read-only status never takes the index lock, which the sandbox refuses.
+        GIT_OPTIONAL_LOCKS: "0",
+        ORBIT_READ_ONLY_RUN: "1",
+        // adb sends each command without a device flag to ANDROID_SERIAL, the proof's own throwaway emulator.
+        ...(portClaim === null ? {} : { ORBIT_DEVICE_PROOF: "1", ANDROID_SERIAL: `emulator-${portClaim.port}`, ORBIT_PROOF_EMULATOR_PORT: String(portClaim.port) }),
+      }
+    },
+    begin: () => { snapshotBefore = runDirectorySnapshot(runDirectory, gitWorktree) },
+    spawn: (executable, args) => sandboxedInvocation(profile, executable, args),
+    /** A read-only order starts again from its beginning, so a partial result of the first attempt cannot be published. */
+    relaunchArguments: () => {
+      rmSync(stagedResult, { force: true })
+      return launch.workerArguments
+    },
+    /**
+     * Publishes the result only when the worker exited 0, the run directory holds no write of it, and the
+     * staged result opens with the mode's verdict line. A write fails the run with exit 5.
+     */
+    finish: ({ attempts, startedAt, engine, tier, model }) => {
+      const last = attempts.at(-1)
+      const { outcome, exitCode } = last
+      const writes = runDirectoryWrites(snapshotBefore, runDirectorySnapshot(runDirectory, gitWorktree), runDirectory)
+      for (const write of writes) console.error(`the ${mode} worker left a ${write.kind} in ${write.directory}: ${write.detail}`)
+      let published = false
+      let verdict = null
+      if (outcome === "EXITED" && exitCode === 0 && writes.length === 0) {
+        try {
+          const text = readFileSync(stagedResult, "utf8")
+          verdict = resultVerdict(text, mode)
+          if (verdict === null) throw new Error(`the result does not open with the ${mode} verdict line: ${JSON.stringify(text.split(/\r?\n/, 1)[0])}`)
+          const checked = readOnlyPaths(orderFile, outputFile, runDirectory, mode)
+          writeFileSync(checked.outputFile, text, { flag: "wx", mode: 0o600 })
+          published = true
+        } catch (error) { console.error(`could not publish the ${mode} result: ${error.message}`) }
+      }
+      console.log(JSON.stringify({ mode, outputFile, published, verdict, writes, runDirectory, engine, tier, model, account: last.account, configDirectory: last.configDirectory, pid: last.pid, logFile: last.logFile, startedAt, endedAt: last.endedAt, exitCode, outcome, usageLimitReached: last.usageLimitReached, authenticationFailed: last.authenticationFailed, resultError: last.resultError, attempts }, null, 2))
+      return writes.length > 0 ? 5 : published ? 0 : 1
+    },
+    release: () => {
+      if (storage !== null) rmSync(storage, { recursive: true, force: true })
+      portClaim?.release()
+    },
+  }
+  return launch
 }
 
 const BRIEF_HEADING = "#### The review brief"

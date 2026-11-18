@@ -1,8 +1,8 @@
 import { spawn, spawnSync } from "node:child_process"
-import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, realpathSync, writeFileSync } from "node:fs"
+import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, realpathSync, statSync, writeFileSync } from "node:fs"
 import { dirname, join } from "node:path"
 
-import { REPO_ROOT, T, check, root, run, stage } from "./_harness.mjs"
+import { REPO_ROOT, T, TOOLS_DIR, check, root, run, stage } from "./_harness.mjs"
 import { emulatorPortClaimDirectory } from "../lib/review-run.mjs"
 import { clearWorkerLaunchReservation, gitDirectoryOf, reserveWorkerLaunch } from "../lib/run-state.mjs"
 import { discardAttemptLogs, githubAuthEnv, launch, launchConfig, stubEngine } from "./launch-worker.mjs"
@@ -146,17 +146,31 @@ const usageCases = () => {
   ]) {
     check(TOOL, name, argv, { status: 2, stderr: pattern }, { path: fixture.path })
   }
+  // Each refused directory gets its own output, so a launch that wrongly starts cannot fail the next case.
+  const refusedDirectory = (name, directory, pattern) => {
+    const refusedOut = fixture.output()
+    const refused = check(TOOL, name, ["--review", "--order", fixture.order, "--out", refusedOut, "--directory", directory], { status: 2, stderr: pattern }, { path: fixture.path })
+    T(`${TOOL}: ${name.replace(" is refused", "")} publishes nothing`, !existsSync(refusedOut), refused.stderr)
+  }
+  refusedDirectory("a review in the git directory of the configured repository is refused (thread __od)", join(fixture.worktree, ".git"), /is inside a git directory/)
   if (process.platform !== "darwin") return
   const branchWorktree = join(dirname(fixture.worktree), "launch-worker-review-usage-branch")
   fixture.git(["worktree", "add", "-q", "-b", "ticket-branch", branchWorktree])
+  const plainSibling = join(dirname(fixture.worktree), "launch-worker-review-usage-plain")
+  mkdirSync(plainSibling, { recursive: true })
   for (const [name, directory, pattern] of [
     ["a review in the configured primary checkout is refused (thread vkfc)", fixture.worktree, /is the configured repository/],
     ["a review in a branch worktree is refused (thread vkfc)", branchWorktree, /is on a branch; make a detached worktree at the head/],
     ["a review in the directory that holds the configured repository is refused (thread yoYL)", dirname(fixture.worktree), /holds the protected directory/],
+    ["a review in a plain directory next to the configured repository is refused (thread __od)", plainSibling, /is outside git and sits inside the protected directory/],
   ]) {
-    const refused = check(TOOL, name, ["--review", "--order", fixture.order, "--out", out, "--directory", directory], { status: 2, stderr: pattern }, { path: fixture.path })
-    T(`${TOOL}: ${name.replace(" is refused", "")} publishes nothing`, !existsSync(out), refused.stderr)
+    refusedDirectory(name, directory, pattern)
   }
+  const copy = dirname(stage("launch-worker-review/usage-copy/tracked.txt", "a copy of the head\n"))
+  const copied = check(TOOL, "a review in a copy outside git and outside every protected directory still publishes (thread __od)",
+    ["--review", "--order", fixture.order, "--out", out, "--directory", copy], { status: 0 }, { path: fixture.path, env: githubAuthEnv() })
+  discardAttemptLogs(copied.stdout)
+  T(`${TOOL}: the review in a copy publishes the worker's own result`, existsSync(out) && readFileSync(out, "utf8") === "VERDICT: CLEAN\n", copied.stderr)
   const workers = launchConfig().workers
   const codex = reviewFixture("codex", "fs.writeFileSync(resultPath, 'VERDICT: CLEAN\\n')", {}, { worker: "codex", workers: { ...workers, codex: { ...workers.codex, command: process.execPath } } })
   check(TOOL, "a review on an engine with no read-only hooks is refused (thread vkfg)", codex.argv("review", codex.output()), { status: 2, stderr: /needs the claude worker engine/ }, { path: codex.path })
@@ -238,6 +252,8 @@ fs.writeFileSync(resultPath, "VERDICT: CLEAN\\n")
     brainHead: plainGit(brain, ["rev-parse", "HEAD"]).stdout.trim(),
     brainNote: readFileSync(join(brain, "note.md"), "utf8"),
     strayHead: plainGit(stray, ["rev-parse", "HEAD"]).stdout.trim(),
+    primaryConfig: readFileSync(join(fixture.worktree, ".git", "config"), "utf8"),
+    linkCounts: [join(other, "tracked.txt"), join(fixture.worktree, ".git", "config")].map((path) => statSync(path).nlink).join(" "),
   })
   const before = snapshot()
   const attempts = [
@@ -255,6 +271,8 @@ fs.writeFileSync(resultPath, "VERDICT: CLEAN\\n")
     ["an edit and a commit in a worktree that another launcher holds (finding 13)", `printf 'reviewer write' > "$OTHER/second.txt"; git -C "$OTHER" -c core.hooksPath=/nonexistent -c user.email=a@b -c user.name=n commit -q --allow-empty -m reviewer`],
     ["a commit in an unconfigured repository under the home directory (finding 7)", `git -C "$STRAY" -c user.email=a@b -c user.name=n commit -q --allow-empty -m w`],
     ["a commit and a branch in the run directory", `git -c user.email=a@b -c user.name=n commit -q --allow-empty -m w; git branch reviewer-branch`],
+    ["a hard link to a protected tracked file, then a write through the link (thread __o2)", `ln "$OTHER/tracked.txt" "$SCRATCH/linked-tracked" && printf changed >> "$SCRATCH/linked-tracked"`],
+    ["a hard link to a protected git config, then a write through the link (thread __o2)", `ln "$PRIMARY/.git/config" "$SCRATCH/linked-config" && printf '[core]\\n\\thooksPath = /nonexistent\\n' >> "$SCRATCH/linked-config"`],
   ]
   reserveWorkerLaunch({ launcherPid: process.pid, issue: "ORB-201", runDirectory: other, repositoryKey: "ui", branch: "other-branch", headSha: null, tier: "default", timestamp: new Date().toISOString(), relaunchReason: null }, null, other)
   let outcome
@@ -281,9 +299,13 @@ fs.writeFileSync(resultPath, "VERDICT: CLEAN\\n")
     ["brainHead", "the brain vault HEAD did not move (finding 7)"],
     ["brainNote", "the brain vault note is unchanged (finding 7)"],
     ["strayHead", "an unconfigured repository under the home directory did not move (finding 7)"],
+    ["primaryConfig", "the git config of the primary checkout is unchanged behind a hard link (thread __o2)"],
+    ["linkCounts", "no protected file got a second hard link (thread __o2)"],
   ]) {
     T(`${TOOL}: sandbox: ${label}`, after[field] === before[field], `${before[field]}\n---\n${after[field]}`)
   }
+  T(`${TOOL}: sandbox: the scratch directory holds no hard link to a protected file (thread __o2)`,
+    !existsSync(join(scratch, "linked-tracked")) && !existsSync(join(scratch, "linked-config")), readdirSync(scratch).join(", "))
   T(`${TOOL}: sandbox: the held worktree's second tracked file is unchanged (finding 13)`, readFileSync(join(other, "second.txt"), "utf8") === "committed\n", readFileSync(join(other, "second.txt"), "utf8"))
 }
 
@@ -340,7 +362,23 @@ fs.writeFileSync(resultPath, fs.existsSync(resultPath) ? "VERDICT: CLEAN\\nthe s
   T(`${TOOL}: a killed review publishes no result file`, burned.report?.published === false && burned.published === null, burned.result.stdout)
 }
 
+/**
+ * The launcher chooses its mode on one line. After that line, the clocks, the CPU probe, the wake source and
+ * the attempt loop read the values of the mode, so no later line names a mode flag (thread __pE).
+ */
+const modeChoiceCase = () => {
+  const lines = readFileSync(join(TOOLS_DIR, TOOL), "utf8").split("\n")
+  const choice = lines.findIndex((line) => line.startsWith("const launchMode = "))
+  T(`${TOOL}: one line chooses between the research, read-only and ticket modes (thread __pE)`,
+    choice !== -1 && ["researchLaunch(", "readOnlyLaunch(", "ticketLaunch("].every((mode) => lines[choice].includes(mode)), lines[choice] ?? "no launchMode line")
+  const branches = choice === -1 ? ["no launchMode line"] : lines.slice(choice + 1)
+    .map((line, index) => `${choice + index + 2}: ${line.trim()}`)
+    .filter((line) => /\b(?:research|review|proof|readOnly|ticketWork|reservesWorktree)\w*\b|\bmode ===/.test(line.replace(/^\d+: /, "")))
+  T(`${TOOL}: no line after the mode choice names a mode (thread __pE)`, branches.length === 0, branches.join("\n     "))
+}
+
 export const cases = async () => {
+  modeChoiceCase()
   usageCases()
   if (process.platform !== "darwin") {
     unsandboxedCase()

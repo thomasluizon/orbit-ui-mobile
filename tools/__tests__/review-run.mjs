@@ -3,7 +3,7 @@ import { existsSync, mkdirSync, readFileSync, readdirSync, realpathSync, symlink
 import { dirname, join } from "node:path"
 
 import { REPO_ROOT, T, same, stage, stageRepo } from "./_harness.mjs"
-import { assertDetachedRunDirectory, claimEmulatorPort, emulatorPortClaimDirectory, launcherSettings, proofOrder, protectedDirectories, readOnlyPaths, resultVerdict, reviewBrief, reviewOrder, runDirectorySnapshot, runDirectoryWrites, SANDBOX_EXEC, sandboxedInvocation, writeSandboxAvailable, writeSandboxProfile } from "../lib/review-run.mjs"
+import { assertDetachedRunDirectory, claimEmulatorPort, emulatorPortClaimDirectory, launcherSettings, proofOrder, protectedDirectories, readOnlyLaunch, readOnlyPaths, resultVerdict, reviewBrief, reviewOrder, runDirectorySnapshot, runDirectoryWrites, SANDBOX_EXEC, sandboxedInvocation, writeSandboxAvailable, writeSandboxProfile } from "../lib/review-run.mjs"
 import { processStartIdentity } from "../lib/run-state.mjs"
 
 const UNIT = "lib/review-run.mjs"
@@ -66,6 +66,9 @@ const pathCases = () => {
     ["an output that already exists", [order, order, copy], /review output must be a new file/],
     ["an order inside the run directory", [join(copy, "file.txt"), output, copy], /order lives inside the run directory/],
     ["an output inside the run directory", [order, join(copy, "result.md"), copy], /output lives inside the run directory/],
+    ["the git directory of a repository (thread __od)", [order, output, join(repository.path, ".git")], /is inside a git directory/],
+    ["a directory inside a git directory (thread __od)", [order, output, join(repository.path, ".git", "refs")], /is inside a git directory/],
+    ["the git directory of a linked worktree (thread __od)", [order, output, join(repository.path, ".git", "worktrees", "review-run-paths-detached")], /is inside a git directory/],
   ]) {
     let message = "accepted"
     try { readOnlyPaths(...argv, "review") } catch (error) { message = error.message }
@@ -75,7 +78,7 @@ const pathCases = () => {
 
 /** The profile closes the protected directories, opens the run directory inside them, then closes its git link again. */
 const profileCases = () => {
-  const profile = writeSandboxProfile({ protectedDirectories: ["/work/repos", "/work/repos/ui"], homeDirectory: "/home/a.b", runDirectory: "/work/repos/review" })
+  const profile = writeSandboxProfile({ protectedDirectories: ["/work/repos", "/work/repos/ui"], homeDirectory: "/home/a.b", runDirectory: "/work/repos/review", gitWorktree: true })
   const lines = profile.split("\n")
   const at = (text) => lines.findIndex((line) => line.includes(text))
   T(`${UNIT}: the profile allows by default and denies each protected directory`,
@@ -105,11 +108,24 @@ const profileCases = () => {
     ["a parent of the home directory", "/home", /holds the home directory \/home\/a\.b/],
   ]) {
     let message = "accepted"
-    try { writeSandboxProfile({ protectedDirectories: ["/work/repos", "/work/repos/ui"], homeDirectory: "/home/a.b", runDirectory }) } catch (error) { message = error.message }
+    try { writeSandboxProfile({ protectedDirectories: ["/work/repos", "/work/repos/ui"], homeDirectory: "/home/a.b", runDirectory, gitWorktree: false }) } catch (error) { message = error.message }
     T(`${UNIT}: the profile refuses a run directory that is ${label} (thread yoYL)`, pattern.test(message), message)
   }
-  T(`${UNIT}: a run directory that is itself a protected directory, or sits inside one, still gets a profile (thread yoYL)`,
-    [writeSandboxProfile({ protectedDirectories: ["/work/repos", "/work/review"], homeDirectory: "/home/a.b", runDirectory: "/work/review" }), profile].every((text) => text.startsWith("(version 1)")))
+  T(`${UNIT}: a git run directory that is itself a protected directory, or sits inside one, still gets a profile (thread yoYL)`,
+    [writeSandboxProfile({ protectedDirectories: ["/work/repos", "/work/review"], homeDirectory: "/home/a.b", runDirectory: "/work/review", gitWorktree: true }), profile].every((text) => text.startsWith("(version 1)")))
+  // A run directory outside git is in no protected list, so the rule that opens it would open a protected directory (thread __od).
+  for (const [label, runDirectory, pattern] of [
+    ["a hygiene root", "/work/vault", /is outside git and sits inside the protected directory \/work\/vault/],
+    ["a directory inside a hygiene root", "/work/vault/notes", /is outside git and sits inside the protected directory \/work\/vault/],
+    ["a plain directory next to the configured repositories", "/work/repos/copy", /is outside git and sits inside the protected directory \/work\/repos/],
+  ]) {
+    let message = "accepted"
+    try { writeSandboxProfile({ protectedDirectories: ["/work/repos", "/work/repos/ui", "/work/vault"], homeDirectory: "/home/a.b", runDirectory, gitWorktree: false }) } catch (error) { message = error.message }
+    T(`${UNIT}: the profile refuses a run directory outside git that is ${label} (thread __od)`, pattern.test(message), message)
+  }
+  T(`${UNIT}: a copy outside git and outside every protected directory still gets a profile (thread __od)`,
+    writeSandboxProfile({ protectedDirectories: ["/work/repos", "/work/repos/ui", "/work/vault"], homeDirectory: "/home/a.b", runDirectory: "/home/a.b/scratchpad/copy", gitWorktree: false })
+      .includes('(allow file-write* (subpath "/home/a.b/scratchpad/copy"))'))
   const invocation = sandboxedInvocation(profile, "claude", ["-p", "order"])
   same(`${UNIT}: the sandboxed invocation runs the worker under the profile`, [invocation.executable, ...invocation.args], [SANDBOX_EXEC, "-p", profile, "claude", "-p", "order"])
   same(`${UNIT}: only macOS has the write sandbox`, [writeSandboxAvailable("linux"), writeSandboxAvailable("win32")], [false, false])
@@ -263,7 +279,42 @@ const orderCases = () => {
   T(`${UNIT}: both orders cap the final message at 12 lines`, maximum(review) === 12 && maximum(proof) === 12, `${maximum(review)} ${maximum(proof)}`)
 }
 
+/** A read-only mode decides its own values once; the launcher reads them and never asks which mode runs (thread __pE). */
+const launchModeCases = () => {
+  const order = stage("review-run/mode-order.md", "Review the head.\n")
+  const output = join(dirname(order), "mode-result.md")
+  const copy = dirname(stage("review-run/mode-copy/file.txt", "a copy outside every repository\n"))
+  const repository = stageRepo("review-run-mode")
+  const detached = join(dirname(repository.path), "review-run-mode-detached")
+  gitWith({})(repository.path, ["worktree", "add", "-q", "--detach", detached])
+  const refusals = []
+  const cli = (given) => ({
+    argv: ["node", "launch-worker.mjs", ...given],
+    argOf: (flag) => given.includes(flag) ? given[given.indexOf(flag) + 1] : null,
+    fail: (code, message) => { refusals.push(code); throw new Error(message) },
+  })
+  const review = readOnlyLaunch("review", cli(["--review", "--order", order, "--out", output, "--directory", detached, "--tier", "deep"]))
+  const proof = readOnlyLaunch("proof", cli(["--proof", "--order", order, "--out", output, "--directory", copy]))
+  same(`${UNIT}: a review in a git worktree claims its run directory and no branch slot (thread __pE)`, review.reservation, { branchCap: null })
+  same(`${UNIT}: a proof in a copy outside git claims nothing (thread __pE)`, proof.reservation, null)
+  same(`${UNIT}: each read-only mode names itself in its label and its review wake source (thread __pE)`,
+    [review.label, review.wake, proof.label, proof.wake], ["review", { what: "review", research: false, review: true }, "proof", { what: "proof", research: false, review: true }])
+  T(`${UNIT}: a read-only mode runs in its checked run directory, reads its order, and clears its claims on exit (thread __pE)`,
+    review.runDirectory === realpathSync(detached) && proof.runDirectory === realpathSync(copy) && review.promptFile === realpathSync(order) && review.clearsClaimsOnExit === true,
+    JSON.stringify([review.runDirectory, proof.runDirectory, review.promptFile]))
+  for (const [label, given, pattern] of [
+    ["a ticket option", ["--review", "--order", order, "--out", output, "--directory", detached, "--issue", "ORB-201"], /unsupported --review option: --issue/],
+    ["a run directory inside a git directory", ["--review", "--order", order, "--out", output, "--directory", join(repository.path, ".git")], /is inside a git directory/],
+  ]) {
+    refusals.length = 0
+    let message = "accepted"
+    try { readOnlyLaunch("review", cli(given)) } catch (error) { message = error.message }
+    T(`${UNIT}: the review mode refuses ${label} with exit 2 (thread __pE)`, pattern.test(message) && refusals.join() === "2", `${message} ${refusals.join()}`)
+  }
+}
+
 export const cases = async () => {
+  launchModeCases()
   orderCases()
   sandboxEscapeCases()
   await portClaimCases()

@@ -1,5 +1,6 @@
 import { spawnSync } from "node:child_process"
-import { existsSync, lstatSync, readFileSync, realpathSync, statSync } from "node:fs"
+import { closeSync, existsSync, lstatSync, mkdirSync, mkdtempSync, openSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync } from "node:fs"
+import { tmpdir } from "node:os"
 import { basename, dirname, join, resolve } from "node:path"
 
 const ENVIRONMENT_KEYS = new Set([
@@ -67,3 +68,79 @@ export const researchPrompt = (orderFile) =>
   "Research the following order. Return findings with source links in your final response. " +
   "Treat this as research only. Do not change files, run git writes, create branches, commits or pull requests.\n\n" +
   readFileSync(orderFile, "utf8")
+
+/**
+ * The launch mode of research, with the values and steps that tools/launch-worker.mjs names at its
+ * `launchMode`. The engine runs in an empty temporary directory with a stripped environment, writes one
+ * report file, and never runs a second time: its order is rerun whole.
+ */
+export const researchLaunch = ({ argv, argOf, fail }) => {
+  const allowed = new Set(["--research", "--order", "--out", "--dry-run"])
+  for (let index = 2; index < argv.length; index++) {
+    const flag = argv[index]
+    if (!allowed.has(flag)) fail(2, `unsupported research option: ${flag}`)
+    if (["--order", "--out"].includes(flag)) index++
+  }
+  let paths
+  try { paths = researchPaths(argOf("--order"), argOf("--out")) } catch (error) { fail(2, error.message) }
+  const { orderFile, outputFile } = paths
+  const storage = mkdtempSync(join(tmpdir(), "orbit-research-"))
+  const release = () => rmSync(storage, { recursive: true, force: true })
+  const runDirectory = join(storage, "workspace")
+  mkdirSync(runDirectory)
+  try { assertOutsideRepository(runDirectory, "research directory") } catch (error) {
+    release()
+    fail(2, error.message)
+  }
+  const reportFile = join(storage, "findings.txt")
+  let claudeEngine = false
+  let reportDescriptor = null
+  const launch = {
+    label: "research",
+    runDirectory,
+    promptFile: orderFile,
+    wake: { what: "research", research: true, review: false },
+    reservation: null,
+    repositoryKey: null,
+    clearsClaimsOnExit: true,
+    inheritedDescriptors: [],
+    plan: null,
+    workerArguments: null,
+    environment: researchEnvironment(),
+    checkRunDirectory: () => {},
+    prepare: ({ engineName, invocation, scriptArgs }) => {
+      try { launch.workerArguments = [...scriptArgs, ...researchInvocation(engineName, invocation, reportFile)] } catch (error) { fail(2, error.message) }
+      claudeEngine = engineName === "claude"
+      launch.plan = { issue: null, research: true, mode: null, outputFile, writeSandbox: null, proofEmulatorPort: null }
+    },
+    admit: () => {},
+    /** Claude prints its findings to a descriptor that the gate hands down; Codex writes the report file itself. */
+    begin: () => {
+      if (!claudeEngine) return
+      reportDescriptor = openSync(reportFile, "wx")
+      launch.inheritedDescriptors = [reportDescriptor]
+    },
+    spawn: (executable, args, firstInheritedDescriptor) => ({ executable, args, input: researchPrompt(orderFile), reportDescriptor: reportDescriptor === null ? null : firstInheritedDescriptor }),
+    relaunchArguments: () => null,
+    /** Publishes only a non-empty report of an engine that exited 0. */
+    finish: ({ attempts, startedAt, engine, model }) => {
+      const last = attempts.at(-1)
+      const { outcome, exitCode } = last
+      if (reportDescriptor !== null) closeSync(reportDescriptor)
+      let published = false
+      if (outcome === "EXITED" && exitCode === 0) {
+        try {
+          const findings = readFileSync(reportFile, "utf8")
+          if (!findings.trim()) throw new Error("research returned no findings")
+          const checked = researchPaths(orderFile, outputFile)
+          writeFileSync(checked.outputFile, findings, { flag: "wx", mode: 0o600 })
+          published = true
+        } catch (error) { console.error(`could not publish research findings: ${error.message}`) }
+      }
+      console.log(JSON.stringify({ research: true, outputFile, published, engine, model, account: last.account, pid: last.pid, logFile: last.logFile, startedAt, endedAt: last.endedAt, exitCode, outcome, authenticationFailed: last.authenticationFailed, resultError: last.resultError }, null, 2))
+      return published ? 0 : 1
+    },
+    release,
+  }
+  return launch
+}
