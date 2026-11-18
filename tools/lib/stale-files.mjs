@@ -6,7 +6,7 @@
 
 import { spawn, spawnSync } from "node:child_process"
 import { randomUUID } from "node:crypto"
-import { existsSync, lstatSync, readFileSync, readdirSync, readlinkSync, realpathSync, renameSync, rmSync, statfsSync, statSync, writeFileSync } from "node:fs"
+import { appendFileSync, closeSync, existsSync, lstatSync, openSync, readFileSync, readdirSync, readlinkSync, realpathSync, renameSync, rmSync, statfsSync, statSync, writeFileSync } from "node:fs"
 import { homedir } from "node:os"
 import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "node:path"
 
@@ -647,12 +647,36 @@ export const cleanupDueReason = ({ sessionId, state, marker, running, freeDiskBy
 }
 
 /**
+ * The record of each unattended removal: nobody reads its output, so the log outside every repository keeps each start, each
+ * `REMOVED`, `SKIPPED` and `FAILED` line and any crash. Before each start, a log past the limit keeps only its newest half.
+ */
+const cleanupLogPath = () => join(homedir(), ".orbit-stale-files-cleanup.log")
+const CLEANUP_LOG_LIMIT_BYTES = 1024 * 1024
+
+const boundCleanupLog = (path) => {
+  if (!existsSync(path) || statSync(path).size <= CLEANUP_LOG_LIMIT_BYTES) return
+  const text = readFileSync(path)
+  const tail = text.subarray(text.length - CLEANUP_LOG_LIMIT_BYTES / 2)
+  writeFileSync(path, tail.subarray(tail.indexOf(0x0a) + 1))
+}
+
+/**
  * Starts one detached removal of every stale item and records the start. Nobody waits for it, and no owner answer gates it:
- * the listing at the removal proves each item stale. The removal runs through Node's `rmSync` and `git worktree remove`.
+ * the listing at the removal proves each item stale. The removal runs through Node's `rmSync` and `git worktree remove`,
+ * and writes its output and any crash to `cleanupLogPath()`.
  */
 export const startCleanup = ({ sessionId, sessionRoot, reason, adoptedBy = null, repoRoot = REPO_ROOT, now = Date.now() }) => {
-  const child = spawn(process.execPath, [join(repoRoot, "tools", "stale-files.mjs"), "--delete", "--session", sessionId, ...(sessionRoot ? ["--session-root", sessionRoot] : [])],
-    { cwd: repoRoot, detached: true, stdio: "ignore", windowsHide: true })
+  const logPath = cleanupLogPath()
+  boundCleanupLog(logPath)
+  appendFileSync(logPath, `=== ${new Date(now).toISOString()} unattended removal started: ${reason} (session ${sessionId})\n`)
+  const log = openSync(logPath, "a")
+  let child
+  try {
+    child = spawn(process.execPath, [join(repoRoot, "tools", "stale-files.mjs"), "--delete", "--session", sessionId, ...(sessionRoot ? ["--session-root", sessionRoot] : [])],
+      { cwd: repoRoot, detached: true, stdio: ["ignore", log, log], windowsHide: true })
+  } finally {
+    closeSync(log)
+  }
   child.unref()
   const previous = readCleanupMarker(repoRoot)
   writeFileSync(cleanupMarkerPath(repoRoot), `${JSON.stringify({ startedAt: now, reason, adoptedBy: adoptedBy ?? previous?.adoptedBy ?? null })}\n`)

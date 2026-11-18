@@ -1,6 +1,7 @@
 import { spawn, spawnSync } from "node:child_process"
-import { appendFileSync, existsSync, mkdirSync, readFileSync, symlinkSync, utimesSync, writeFileSync } from "node:fs"
+import { appendFileSync, chmodSync, existsSync, mkdirSync, readFileSync, statSync, symlinkSync, utimesSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
+import { pathToFileURL } from "node:url"
 
 import { T, orcaEnv, realOrchestratorConfig, root, run, same, stageWithConfig } from "./_harness.mjs"
 import { lockContender } from "./stale-files-core.mjs"
@@ -19,6 +20,9 @@ const PROBE_REPOSITORY = "99999999-0000-4000-8000-000000000009"
 const NESTED_UNTRACKED = "aaaaaaaa-0000-4000-8000-00000000000a"
 const WORKER = "bbbbbbbb-0000-4000-8000-00000000000b"
 const NESTED_FLAGGED = "cccccccc-0000-4000-8000-00000000000c"
+const RECORD_REMOVED = "dddddddd-0000-4000-8000-00000000000d"
+const RECORD_OUTER = "feature/record-outer"
+const RECORD_STUCK = "feature/record-stuck"
 
 const MADE_AFTER_RELAY = "feature/made-after-relay"
 const MADE_BEFORE_RELAY = "feature/made-before-relay"
@@ -141,7 +145,7 @@ const pullRequestPlan = (worktrees) => {
     one("holds-untracked-repository", 27, "MERGED"),
     one("linked-build", 26, "MERGED"), one("ignore-stat", 28, "MERGED"), one("personal-ignore", 29, "MERGED"), one("holds-flagged-repository", 30, "MERGED"),
     one("info-exclude", 31, "MERGED"), reply("feature/whole", [{ headRefOid: worktrees.part.tip, number: 16, state: "MERGED" }]),
-    reply(worktrees.part.branch, []), reply(worktrees.unmerged.branch, []), reply(worktrees.contained.branch, []), reply(MADE_AFTER_RELAY, []), reply(MADE_BEFORE_RELAY, [])]
+    reply(worktrees.part.branch, []), reply(worktrees.unmerged.branch, []), reply(worktrees.contained.branch, []), reply(MADE_AFTER_RELAY, []), reply(MADE_BEFORE_RELAY, []), reply(RECORD_OUTER, []), reply(RECORD_STUCK, [])]
 }
 
 /** A throwaway repository with two commits, an uncommitted file and no remote, as a session leaves in its scratchpad. */
@@ -217,6 +221,61 @@ const relayCases = async (tool, checkout) => {
   const listed = tool(["--list", "--json", "--session", THIS])
   const reason = listed.status === 0 ? JSON.parse(listed.stdout).kept.find((item) => item.path === after)?.reason ?? "" : ""
   T("stale-files: the branch made after the relay carries the young branch reason", /^its branch has no pull request and was made after the last relay at /.test(reason), reason + listed.stderr)
+}
+
+/**
+ * The hook starts the removal detached, and nobody reads its output: the log in the home directory and the store keep what
+ * it removed, skipped and could not remove, each with its reason. A worktree with a read-only ignored directory makes
+ * `git worktree remove` fail, and the finished worktree that holds it then stays. The log keeps its newest half past its limit.
+ */
+const removalRecordCases = async (checkout, env) => {
+  const removedSession = join(sessionRoot, RECORD_REMOVED)
+  mkdirSync(join(removedSession, "scratchpad"), { recursive: true })
+  // Branches with no pull request that main contains, made before the relay: stale worktrees, as the relay cases stage one.
+  const twoHoursAgo = `@${Math.floor((Date.now() - 7_200_000) / 1000)} +0000`
+  const outer = join(worktreeRoot, "record-outer")
+  const stuck = join(outer, ".claude", "worktrees", "record-stuck")
+  const staged = [[RECORD_OUTER, outer], [RECORD_STUCK, stuck]].every(([branch, path]) => spawnSync("git", ["-C", primary, "worktree", "add", "-q", "-b", branch, path, "main"],
+    { encoding: "utf8", env: { ...process.env, GIT_AUTHOR_DATE: twoHoursAgo, GIT_COMMITTER_DATE: twoHoursAgo } }).status === 0)
+  T("stale-files: the removal record fixture stages", staged)
+  if (!staged) return
+  const readOnly = join(stuck, "node_modules", "read-only")
+  mkdirSync(readOnly, { recursive: true })
+  writeFileSync(join(readOnly, "pinned.txt"), "cannot be unlinked\n")
+  chmodSync(readOnly, 0o555)
+  const log = join(home, ".orbit-stale-files-cleanup.log")
+  const oldest = "an old line that the bound drops\n"
+  writeFileSync(log, `${oldest}${"an older line that the bound keeps\n".repeat(Math.ceil(1_200_000 / 35))}`)
+  try {
+    // The hook's own call: the staged library's `startCleanup`, in a process with the run's environment. The stub preload
+    // answers a node process whose first argument is no file, so the call lives in a file.
+    const script = join(base, "start-cleanup.mjs")
+    writeFileSync(script, `import { startCleanup } from ${JSON.stringify(pathToFileURL(join(checkout, "tools", "lib", "stale-files.mjs")).href)}
+console.log(startCleanup({ sessionId: ${JSON.stringify(THIS)}, sessionRoot: ${JSON.stringify(sessionRoot)}, reason: "relay adoption", repoRoot: ${JSON.stringify(checkout)} }))\n`)
+    const starter = spawnSync(process.execPath, [script], { encoding: "utf8", env: { ...process.env, ...env } })
+    const pid = Number(starter.stdout.trim())
+    T("stale-files: the unattended removal starts the way the hook starts it", starter.status === 0 && pid > 0, starter.stdout + starter.stderr)
+    const alive = () => {
+      try { return process.kill(pid, 0) } catch { return false }
+    }
+    for (let waited = 0; pid > 0 && alive() && waited < 120_000; waited += 100) await new Promise((resolve) => setTimeout(resolve, 100))
+    const text = existsSync(log) ? readFileSync(log, "utf8") : ""
+    T("stale-files: the log names the start of the unattended removal and its reason", /^=== \S+ unattended removal started: relay adoption \(session 00000000-/m.test(text), text.slice(-2000))
+    T("stale-files: the log keeps the removed item of the unattended removal", new RegExp(`^REMOVED session ${removedSession} \\(`, "m").test(text) && !existsSync(removedSession), text.slice(-2000))
+    T("stale-files: the log keeps the skipped item of the unattended removal with its reason",
+      text.includes(`SKIPPED worktree ${outer}: ${stuck} in it could not be removed\n`), text.slice(-2000))
+    T("stale-files: the log keeps the failed item of the unattended removal with its reason", text.includes(`FAILED worktree ${stuck}: git worktree remove refused ${stuck}\n`), text.slice(-2000))
+    T("stale-files: the log keeps what the unattended removal freed", /^FREED 1 item, .* \(1 session directory\); free space changed by [+-]/m.test(text), text.slice(-2000))
+    T("stale-files: past its limit, the log drops its oldest lines and starts at a whole line", !text.startsWith(oldest) && text.startsWith("an older line")
+      && statSync(log).size < 1_100_000, `size ${statSync(log).size}`)
+    const store = JSON.parse(readFileSync(join(checkout, ".git", "orbit-stale-files.json"), "utf8"))
+    const reasonOf = (list, path) => store.removal?.[list]?.find((item) => item.path === path)?.reason
+    same("stale-files: the store keeps each item of the removal with its reason", [reasonOf("removed", removedSession), reasonOf("skipped", outer), reasonOf("failed", stuck)],
+      ["not this session, its predecessor, or a session with a live process", `${stuck} in it could not be removed`, `git worktree remove refused ${stuck}`])
+    same("stale-files: the store keeps the failed item as stale for the next removal", store.stale.map((item) => item.path), [stuck])
+  } finally {
+    chmodSync(readOnly, 0o755)
+  }
 }
 
 export const cases = async () => {
@@ -339,6 +398,7 @@ export const cases = async () => {
     const again = tool(["--delete", "--session", THIS])
     T("stale-files: a second --delete finds nothing more to remove", again.status === 0 && /^FREED nothing;/m.test(again.stdout) && !/^REMOVED /m.test(again.stdout), again.stdout + again.stderr)
     await relayCases(tool, staged.base)
+    await removalRecordCases(staged.base, env)
   } finally {
     worker.kill()
   }

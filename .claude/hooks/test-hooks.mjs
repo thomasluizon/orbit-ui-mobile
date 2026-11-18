@@ -2456,7 +2456,11 @@ const cleanupSessionRoot = join(root, "stale-cleanup-sessions")
 const cleanupSession = "5e5e5e5e-0000-4000-8000-00000000005e"
 const cleanupInput = (event) => ({ session_id: cleanupSession, hook_event_name: event, cwd: wakeCheckout, scratchpad_dir: join(cleanupSessionRoot, cleanupSession, "scratchpad"),
   ...(event === "UserPromptSubmit" ? { prompt: "Continue." } : { stop_hook_active: false }) })
-const runCleanupHook = (payload = cleanupInput("Stop"), env = {}) => spawnSync(process.execPath, [join(wakeHooks, CLEANUP_HOOK)], { input: JSON.stringify(payload), encoding: "utf8", env: { ...process.env, ORBIT_LAUNCH_WORKER: "", ...env } })
+// The removal writes its log in the home directory: a home of its own keeps the test out of this machine's log.
+const cleanupHome = join(root, "stale-cleanup-home")
+mkdirSync(cleanupHome, { recursive: true })
+const runCleanupHook = (payload = cleanupInput("Stop"), env = {}) => spawnSync(process.execPath, [join(wakeHooks, CLEANUP_HOOK)], { input: JSON.stringify(payload), encoding: "utf8",
+  env: { ...process.env, HOME: cleanupHome, USERPROFILE: cleanupHome, ORBIT_LAUNCH_WORKER: "", ...env } })
 const startedCleanup = async (attempts = 100) => {
   for (let attempt = 0; attempt < attempts && !existsSync(cleanupArguments); attempt += 1) await new Promise((resolve) => setTimeout(resolve, 50))
   const started = existsSync(cleanupArguments) ? JSON.parse(readFileSync(cleanupArguments, "utf8")) : null
@@ -2478,6 +2482,8 @@ for (const event of ["Stop", "UserPromptSubmit"]) {
   T(`stale cleanup: a ${event} after a relay adoption starts the removal with no listing id`, await startedCleanup(), removalOrder)
   T(`stale cleanup: the marker records the adoption that a ${event} cleaned for`, JSON.parse(readFileSync(cleanupMarker, "utf8")).adoptedBy, cleanupSession)
 }
+T("stale cleanup: the log in the home directory records each removal that the hook starts",
+  readFileSync(join(cleanupHome, ".orbit-stale-files-cleanup.log"), "utf8").match(new RegExp(`^=== \\S+ unattended removal started: relay adoption \\(session ${cleanupSession}\\)$`, "gm"))?.length, 2)
 T("stale cleanup: one adoption starts one removal", [runCleanupHook().stdout, await startedCleanup(20)], ["", null])
 // A removal that runs holds the lock in the common git directory, however long it runs: a new adoption starts nothing until it ends.
 recentCleanup()

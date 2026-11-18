@@ -13,7 +13,9 @@ const USAGE = `usage: stale-files.mjs [--list] [--json] [--session <id>] [--sess
 
   Lists the stale files of a long run with their size and the reason, and removes them. An unattended run starts
   --delete itself at each relay adoption and whenever free disk on /System/Volumes/Data is under 50 GiB; no owner
-  answer gates it, because the listing at the removal proves each item stale.
+  answer gates it, because the listing at the removal proves each item stale. Each unattended start, each REMOVED,
+  SKIPPED and FAILED line and any crash go to ~/.orbit-stale-files-cleanup.log, which keeps its newest half past
+  1 MiB; the store keeps each removed, skipped and failed item of the last --delete with its reason.
 
   session    a session directory under --session-root that is not this session, the run session, a live
              session, the predecessor of one of them, the nominated successor of the run, or a session
@@ -117,7 +119,9 @@ if (switches.has("--delete")) {
     for (const item of outcome.removed) console.log(`REMOVED ${item.kind} ${item.path} (${sizeOf(item)})`)
     for (const item of outcome.skipped) console.log(`SKIPPED ${item.kind} ${item.path}: ${item.reason}`)
     for (const item of outcome.failed) console.error(`FAILED ${item.kind} ${item.path}: ${item.reason}`)
-    writeStoredListing({ ...fresh, stale: outcome.failed.map(({ reason: _reason, ...item }) => item) })
+    // The next removal measures each item that failed again; `removal` keeps what this one did, with each reason.
+    writeStoredListing({ ...fresh, stale: outcome.failed.map(({ reason: _reason, ...item }) => item),
+      removal: { finishedAt: new Date().toISOString(), removed: outcome.removed, skipped: outcome.skipped, failed: outcome.failed } })
     console.log(`FREED ${outcome.removed.length === 0 ? "nothing" : summarize(outcome.removed)}; free space changed by ${outcome.freed < 0 ? "-" : "+"}${describeBytes(Math.abs(outcome.freed))}`)
     failed = outcome.failed.length > 0
   } finally {
