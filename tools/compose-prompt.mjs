@@ -152,8 +152,8 @@ const focusedVerification = `
 
 **Run only the focused checks of your change; CI runs every full suite.** Judge each check by its exit code:
 - Vitest: \`npx vitest related <changed source files> --run\` in each changed workspace. Never start Vitest without a file name.
-- Tools: \`node tools/test-tools.mjs --only <case module>\` for each case module that covers a changed tool (repeat \`--only\`; \`--list\` prints the names). Never run the complete tools suite.
-- Hooks: \`node .claude/hooks/test-hooks.mjs\` only after a change under \`.claude/hooks/**\`.
+- Tools: \`node tools/test-tools.mjs --only <case module>\` for each case module that covers a changed tool or reads a changed file (\`grep -rl <file name> tools/__tests__\` finds the readers; repeat \`--only\`; \`--list\` prints the names). Never run the complete tools suite.
+- Hooks: \`node .claude/hooks/test-hooks.mjs\` after a change to \`.claude/**\`, a tracked \`*.md\` file, or another file the harness reads or imports (\`grep -n <file name> .claude/hooks/test-hooks.mjs\`). It checks the wiring in \`.claude/settings.json\` and scans every tracked doc.
 - The type check and the lint of each changed workspace or project, and the focused tests of a changed project in a repository without Vitest.
 
 CI runs the full web and mobile Vitest suites, the complete tools suite and the layout tests on the pull request. Do not run them. To reproduce a flake, run the affected file again or in parallel instances.`

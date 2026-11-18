@@ -311,9 +311,22 @@ export const readDesignChange = (path) => {
   return { path: resolve(path), sha256: createHash("sha256").update(text).digest("hex"), summary: text.trim().split("\n")[0].slice(0, 200) }
 }
 
-/** The earlier round of `rounds` that a design change with the same digest already allowed, or null. */
-export const roundOfDesignChange = (rounds, designChange) =>
-  designChange === null ? null : rounds.find((round) => round.designChange?.sha256 === designChange.sha256) ?? null
+/**
+ * Why the next fix round after `rounds` may not start, or null when it may. At `cap` rounds or more,
+ * the round needs a design change whose digest no earlier round used: one file allows one round.
+ * `spentBy` is the earlier round that used the same design change, or null when none was given.
+ */
+export const fixRoundRefusal = (rounds, cap, designChange) => {
+  if (rounds.length < cap) return null
+  if (designChange === null) return { spentBy: null }
+  const spentBy = rounds.find((round) => round.designChange?.sha256 === designChange.sha256)
+  return spentBy === undefined ? null : { spentBy }
+}
+
+/** The first sentence of every fix round refusal; each caller adds its own next step. */
+export const fixRoundRefusalReason = (refusal, { cap, branch, designChange }) => refusal.spentBy
+  ? `design change ${designChange.path} already allowed fix round ${refusal.spentBy.number} on branch ${branch}: one file allows one round`
+  : `fix round cap ${cap} reached for branch ${branch}`
 
 /**
  * Spends the next fix round of `round.branch`. Each round number is one exclusive file, so two
@@ -327,8 +340,8 @@ export const recordFixRound = (round, cap, repoRoot = REPO_ROOT) => {
   for (let number = 1; ; number++) {
     if (number > cap) {
       const rounds = readFixRounds(round.branch, repoRoot)
-      const spentBy = roundOfDesignChange(rounds, round.designChange)
-      if (round.designChange === null || spentBy !== null) return { allowed: false, number, rounds, spentBy }
+      const refusal = fixRoundRefusal(rounds, cap, round.designChange)
+      if (refusal !== null) return { allowed: false, number, rounds, refusal }
     }
     const claim = claimLaunchFile(join(directory, `${key}-round-${number}.json`), { ...round, number })
     if (claim.claimed) return { allowed: true, number, rounds: readFixRounds(round.branch, repoRoot) }

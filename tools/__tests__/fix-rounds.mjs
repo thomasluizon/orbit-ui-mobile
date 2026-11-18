@@ -1,6 +1,7 @@
 import { readdirSync } from "node:fs"
 import { join } from "node:path"
-import { check, realOrchestratorConfig, stage, stageRepo, stageWithConfig, T } from "./_harness.mjs"
+import { fixRoundRefusal, fixRoundRefusalReason } from "../lib/run-state.mjs"
+import { check, realOrchestratorConfig, same, stage, stageRepo, stageWithConfig, T } from "./_harness.mjs"
 
 const TOOL = "fix-rounds.mjs"
 
@@ -8,7 +9,31 @@ const parse = (result) => {
   try { return JSON.parse(result.stdout) } catch { return null }
 }
 
+/** One admission rule serves the launcher pre-check and the ledger write, so each row is a case of both. */
+const refusalTable = () => {
+  const design = { path: "/x/design.md", sha256: "a".repeat(64) }
+  const other = { path: "/x/other.md", sha256: "b".repeat(64) }
+  const below = [{ number: 1, designChange: null }]
+  const atCap = [...below, { number: 2, designChange: null }]
+  const usedDesign = [...atCap, { number: 3, designChange: design }]
+  const rows = [
+    ["below the cap without a design change", below, null, null],
+    ["below the cap with a design change", below, design, null],
+    ["at the cap without a design change", atCap, null, { spentBy: null }],
+    ["at the cap with a new design change", atCap, design, null],
+    ["above the cap with the same design change", usedDesign, design, { spentBy: usedDesign[2] }],
+    ["above the cap with a new design change", usedDesign, other, null],
+    ["above the cap without a design change", usedDesign, null, { spentBy: null }],
+  ]
+  for (const [name, rounds, designChange, expected] of rows) {
+    same(`${TOOL}: fixRoundRefusal ${name}`, fixRoundRefusal(rounds, 2, designChange), expected)
+  }
+  same(`${TOOL}: the cap refusal names the cap and the branch`, fixRoundRefusalReason({ spentBy: null }, { cap: 2, branch: "main", designChange: null }), "fix round cap 2 reached for branch main")
+  same(`${TOOL}: the reuse refusal names the file and the round it allowed`, fixRoundRefusalReason({ spentBy: usedDesign[2] }, { cap: 2, branch: "main", designChange: design }), "design change /x/design.md already allowed fix round 3 on branch main: one file allows one round")
+}
+
 export const cases = () => {
+  refusalTable()
   const real = realOrchestratorConfig()
   const staged = stageWithConfig("fix-rounds", TOOL, { ...real, caps: { ...real.caps, reviewFixAttempts: 2 } })
   const repo = stageRepo("fix-rounds")

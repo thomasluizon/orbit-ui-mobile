@@ -5,7 +5,7 @@ import { existsSync } from "node:fs"
 import { resolve } from "node:path"
 
 import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
-import { FIX_ROUND_KINDS, readDesignChange, readFixRounds, recordFixRound } from "./lib/run-state.mjs"
+import { FIX_ROUND_KINDS, fixRoundRefusalReason, readDesignChange, readFixRounds, recordFixRound } from "./lib/run-state.mjs"
 
 const USAGE = `usage: fix-rounds.mjs --worktree <path> [--record <local|pullfrog> [--design-change <file>]]
 
@@ -87,7 +87,8 @@ try {
 } catch (error) { fail(2, error.message) }
 if (!result.allowed) {
   console.log(JSON.stringify(report(result.rounds, null), null, 2))
-  if (result.spentBy) fail(5, `design change ${designChange.path} already allowed fix round ${result.spentBy.number} on branch ${branch}: one file allows one round. Write the next design change in a new file, or push the head that meets the acceptance and file the rest.`)
-  fail(5, `fix round cap ${cap} reached for branch ${branch}: ${result.rounds.map((round) => `${round.number}. ${round.kind} at ${round.headSha.slice(0, 9)}`).join(", ")}. Push the head that meets the acceptance and file the rest, or write the design change and pass --design-change <file>.`)
+  const reason = fixRoundRefusalReason(result.refusal, { cap, branch, designChange })
+  if (result.refusal.spentBy) fail(5, `${reason}. Write the next design change in a new file, or push the head that meets the acceptance and file the rest.`)
+  fail(5, `${reason}: ${result.rounds.map((round) => `${round.number}. ${round.kind} at ${round.headSha.slice(0, 9)}`).join(", ")}. Push the head that meets the acceptance and file the rest, or write the design change and pass --design-change <file>.`)
 }
 console.log(JSON.stringify(report(result.rounds, result.number), null, 2))

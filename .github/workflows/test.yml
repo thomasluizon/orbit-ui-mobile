@@ -124,8 +124,12 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
         run: node .github/scripts/merged-unit-results.mjs find --repository "$GITHUB_REPOSITORY" --sha "$GITHUB_SHA" | tee -a "$GITHUB_OUTPUT"
 
+      # download-artifact v8 calls setFailed on a missing artifact or a transport error. The match step reads only a
+      # complete download (outcome is the result before continue-on-error), so a failed one runs the tests on main.
       - name: Download the unit results of the merged pull request
+        id: merged-download
         if: steps.merged.outputs.artifact-id != ''
+        continue-on-error: true
         uses: actions/download-artifact@v8
         with:
           artifact-ids: ${{ steps.merged.outputs.artifact-id }}
@@ -134,7 +138,7 @@ jobs:
 
       - name: Match the unit result keys of the merged pull request
         id: adopt
-        if: steps.merged.outputs.artifact-id != ''
+        if: steps.merged-download.outcome == 'success'
         env:
           WEB_UNIT_KEY: ${{ steps.plan.outputs.web-unit-key }}
           MOBILE_UNIT_KEY: ${{ steps.plan.outputs.mobile-unit-key }}

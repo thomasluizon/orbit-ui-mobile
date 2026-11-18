@@ -128,8 +128,11 @@ export const cases = () => {
     `${TOOL}: the brief asks for the focused checks of the change and leaves every full suite to CI`,
     /Run only the focused checks of your change; CI runs every full suite/.test(prompt) &&
       /`npx vitest related <changed source files> --run`/.test(prompt) && /Never start Vitest without a file name/.test(prompt) &&
-      /`node tools\/test-tools\.mjs --only <case module>`/.test(prompt) && /Never run the complete tools suite/.test(prompt) &&
-      /`node \.claude\/hooks\/test-hooks\.mjs` only after a change under `\.claude\/hooks\/\*\*`/.test(prompt) &&
+      /`node tools\/test-tools\.mjs --only <case module>` for each case module that covers a changed tool or reads a changed file \(`grep -rl <file name> tools\/__tests__`/.test(prompt) &&
+      /Never run the complete tools suite/.test(prompt) &&
+      // The hooks harness reads .claude/settings.json and every tracked doc, so a trigger narrower than these skips the suite that covers the edit.
+      /`node \.claude\/hooks\/test-hooks\.mjs` after a change to `\.claude\/\*\*`, a tracked `\*\.md` file, or another file the harness reads or imports \(`grep -n <file name> \.claude\/hooks\/test-hooks\.mjs`\)/.test(prompt) &&
+      !/hooks\/\*\*`/.test(prompt) &&
       !/run them in full|broader suite|broader verification/i.test(prompt),
     prompt,
   )

@@ -219,10 +219,13 @@ test("a push or a dispatch on main saves the unit results of the merged pull req
   assert.equal(find.env.GITHUB_TOKEN, "${{ github.token }}")
   const download = plan.steps.find((step) => step.uses?.startsWith("actions/download-artifact@"))
   assert.equal(download.if, "steps.merged.outputs.artifact-id != ''")
+  assert.equal(download.id, "merged-download")
+  assert.equal(download["continue-on-error"], true, "a failed download must not fail Plan, which would skip every test job on main")
   assert.deepEqual(download.with, { "artifact-ids": "${{ steps.merged.outputs.artifact-id }}", "run-id": "${{ steps.merged.outputs.run-id }}", "github-token": "${{ github.token }}" },
     "one artifact downloads at the workspace root, where its paths name the cached files")
   const match = plan.steps.find((step) => step.id === "adopt")
   assert.equal(match.run, 'node .github/scripts/merged-unit-results.mjs match --keys-file unit-test-keys.json | tee -a "$GITHUB_OUTPUT"')
+  assert.equal(match.if, "steps.merged-download.outcome == 'success'", "a partial download is never matched, so main runs the tests")
   assert.ok(ids.indexOf("merged") < plan.steps.indexOf(download) && plan.steps.indexOf(download) < ids.indexOf("adopt"))
   for (const group of ["web-unit", "mobile-unit", "workspace-unit"]) {
     const variable = `\${{ env.${group.replace("-unit", "").toUpperCase()}_UNIT_RESULTS }}`

@@ -47,6 +47,6 @@ Web cookie is httpOnly + sameSite strict + secure; mobile tokens live in SecureS
 
 ## Tooling
 
-- Tools follow `tools/CONVENTIONS.md`, cataloged in `tools/README.md`. After you change `tools/**` or `.claude/**`, RUN `node tools/test-tools.mjs --only <module>` per changed tool (a full run: `--parallel 8`), and `node .claude/hooks/test-hooks.mjs` after a `.claude/hooks/**` change.
+- Tools follow `tools/CONVENTIONS.md`, cataloged in `tools/README.md`. After you change `tools/**` or `.claude/**`, RUN `node tools/test-tools.mjs --only <module>` per changed tool and per module that reads a changed file (`grep -rl <file name> tools/__tests__`; a full run: `--parallel 8`). RUN `node .claude/hooks/test-hooks.mjs` after a change to `.claude/**`, a tracked `*.md` file, or another file it reads or imports.
 - Testing: Vitest unit and behavior tests for every feature, no new E2E against prod. Locally run only focused tests (`vitest related`); CI runs every full suite. `TESTING.md` is the catalog.
 - **Research reports do not live in this repo**: they go stale silently, then get cited as authority. Durable knowledge is an ADR in the brain vault.

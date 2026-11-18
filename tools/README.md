@@ -213,16 +213,21 @@ as specified, and that every hook wired in `.claude/settings.json` exists on dis
 
 The `Tool and Hook Tests` job in `.github/workflows/test.yml` aggregates two kinds of job on every PR to
 `main`. Four `Tool tests (i/4)` jobs each run `node tools/test-tools.mjs --shard i/4`, and one `Hook and
-workflow tests` job runs the hooks harness. The aggregate fails unless every one of them succeeded, and it
-keeps the check name that branch protection requires. A shard takes its modules from a longest-first
+workflow tests` job runs the hooks harness. The aggregate fails unless the plan and every one of them succeeded; a
+shard may also end skipped when the plan skipped the shards for a relay record diff. The aggregate keeps the
+check name that branch protection requires. A shard takes its modules from a longest-first
 partition of `test-tools-timings.json`, which holds the median CI seconds of each module over the runs in
 its `sourceRuns` field. The harness fails when a module is in no shard or in two. It also projects the slowest
 shard from the committed snapshot: the snapshot seconds of that shard's modules plus `fixedSeconds`. It fails
 when that projection exceeds the 290 second harness budget, or when one module alone exceeds it. The
 projection changes only when you regenerate the snapshot with `node tools/record-tool-timings.mjs <run-id>...`.
 The live guard is the 8 minute `timeout-minutes` of the `tool-tests` job. When the projection or a shard job
-is too slow, split the slowest case module or add a shard, then regenerate. There is no changed-path filter,
-so producer-only UI changes exercise the fixtures too. Locally, run `node tools/test-tools.mjs --only <module>` for each changed tool, and `node .claude/hooks/test-hooks.mjs` after a `.claude/hooks/**` change.
+is too slow, split the slowest case module or add a shard, then regenerate. The only changed-path filter skips
+the shards when the whole diff is the relay record (`.claude/handoffs/NEXT.md` and `.claude/specs/*.md`). The hook
+job always runs, because the hooks harness scans every tracked doc, and a producer-only UI change runs both
+harnesses. Locally, run `node tools/test-tools.mjs --only <module>` for each changed tool and each module that
+reads a changed file (`grep -rl <file name> tools/__tests__`). Run `node .claude/hooks/test-hooks.mjs` after a
+change to `.claude/**`, a tracked `*.md` file, or another file it reads or imports.
 
 ## Fixtures
 
