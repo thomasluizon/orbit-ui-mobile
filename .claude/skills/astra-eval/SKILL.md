@@ -130,8 +130,8 @@ ticket writes, or outbound messages.
 local run is the only live run of the corpus. A case holds one grade method (`grade-method.mjs`).
 A case with `vars.outcome` runs on the client path (`POST /api/chat/stream`, with a conversation id) and gets the outcome
 grade of the core set: no tool name is graded. A case with `vars.expectations` runs on `POST /api/chat` and grades
-request-bound tool evidence against `catalog.yaml`. The lifecycle families and the offers keep the tool-name grade until
-their tickets convert them, and it stays until the old assistant path is deleted. Merge its
+request-bound tool evidence against `catalog.yaml`. The lifecycle families keep the tool-name grade until their ticket converts them, and it stays
+until the old assistant path is deleted. The `offers-*` cases hold an `outcome` on the client path. Merge its
 window summaries in chronological order with `node merge-reports.mjs`; a continuation replaces only incomplete case
 entries. `--rerun` declares the single permitted rerun of a failed case after a fix; a rerun on the same build never
 replaces a failure. Follow `TESTING.md` `### Daily windows and combined report` for the exact commands.
@@ -140,7 +140,7 @@ For an offline assertion audit, run `node evals/astra/replay.mjs <source-window>
 schemas distinct from continuation instruction constraints: the API retains the cacheable `ask` schema throughout the
 turn, including nullable draft bindings on every form. The audit never calls the provider or judge and retains
 semantic rubric verdicts. Offer attempt artifacts retain sanitized issued offers, selected keys and declared mutation
-scope; older artifacts that omit this context cannot prove why a lifecycle failed.
+scope (empty for an `offers-*` case); older artifacts that omit this context cannot prove why a lifecycle failed.
 
 Keep ORB-20 open through live capability verification after all carrying code is deployed to the API the gate runs
 against (staging, or production with the disposable eval accounts). Source adapter tests cannot replace that
@@ -170,7 +170,7 @@ A launch corpus case states its `outcome` in one of four forms: `read: true` (no
 `question: true` (a question card and no preview; plain text fails), `refusal: true` (the status and the error code of
 the case) or `changes` (the change list of the held previews, with each record by its fixture name and never by its id).
 A `changes` case holds no rubric, and it grades a bulk write and a single write the same way. A case of the lifecycle
-families or of the offers keeps `expectations`: exact ID and enum assertions, tolerant text matching, and unordered
+families keeps `expectations`: exact ID and enum assertions, tolerant text matching, and unordered
 compound tool requirements, with one bulk call for a bulk case. Grade only the final rendered answer
 projection with `llm-rubric`; it includes visible blocks and preview fields, excludes traces and execution payloads,
 and accepts block-only replies. Verify the fixture reset can recreate the case before each configured attempt. Run

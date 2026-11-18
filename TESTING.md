@@ -1373,7 +1373,8 @@ exams and the bounded preparation commitments as creates. Avoid cases require Fu
 parent, weekly vitamin D and daily rosuvastatin, without duplicate roots or questions. A wrapper that also edits a stored
 parent holds an update of that parent, and the outcome fails it as a change outside the request.
 
-Only medical correction cases declare `vars.setup`. After fixture reset, the hook sends that original request on the
+The medical correction cases declare `vars.setup`. The `offers-dismissal`, `offers-preview-rejection` and
+`offers-action-lifecycle` cases declare one too, and `prepareHeldPreview` sends each setup the same way. After fixture reset, the hook sends that original request on the
 client path, in the conversation of the case, with a separate fresh request identity. The setup grades its held preview
 by its own `outcome`, and the preview stays held. The actual preview becomes the comparison baseline, and the
 correction turn runs in the same conversation. The correction requires 16:00 and preserves every other
@@ -1400,8 +1401,8 @@ rendered consumers; this harness change does not unblock broad rollout by itself
    `question: true` ends in a question card and holds no preview. `refusal: true` gives the `expectedHttpStatus` and
    `expectedErrorCode` of the case. `changes` lists the held changes by kind, with each record by its fixture name
    (`water`, `walk`, `first`, `second`) and never by its id. A `changes` case holds no rubric. A case that reads
-   an answer holds a final-answer rubric. The lifecycle families and the offers keep `expectations` until their own
-   tickets convert them.
+   an answer holds a final-answer rubric. The lifecycle families keep `expectations` until their ticket converts them. The
+   `offers-*` cases hold an `outcome` and no `expectations`.
    Composition cases also declare `metadata.family`, `metadata.locale`, `vars.clientContext` and
    `vars.composition`. Add every family in both `en` and `pt-BR`.
    `{habitId}`, `{secondHabitId}`, `{overdueDate}`, rolling analytics date tokens and their localized variants are substituted in inputs and expected
