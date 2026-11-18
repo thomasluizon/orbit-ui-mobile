@@ -382,7 +382,7 @@ test("Unit Tests merges coverage under the unchanged thresholds and ends with th
   const download = stepNamed(unitSteps, "Download workspace coverage")
   assert.equal(download.with.pattern, "workspace-unit-coverage-*")
   assert.equal(download.with["merge-multiple"], true)
-  assert.equal(unitSteps.at(-1).uses, "SonarSource/sonarqube-scan-action@e805d875275f728fac1885b413934be6d7c63f65")
+  assert.equal(unitSteps.at(-1).uses, "SonarSource/sonarqube-scan-action@59202af334b4ba7b5db01b701b8e79f8b3bef0f4")
   assert.equal(unitSteps.at(-1).if, undefined)
   assert.equal(unitSteps.at(-2).name, "Merge Coverage Reports")
   assert.ok(unitSteps.indexOf(stepNamed(unitSteps, "Verify coverage reports")) < unitSteps.length - 2)
