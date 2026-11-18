@@ -449,22 +449,22 @@ describe('Wrapped root shell', () => {
     await TestRenderer.act(() => tree.update(React.createElement(React.Fragment)))
   })
 
-  it('keeps the first empty Today render and its remount free of a FAB', async () => {
+  it('draws the FAB on the first empty Today render and on its remount, then removes it once the empty list settles', async () => {
     routeState.pathname = '/'
     routeState.segments = ['(tabs)']
     routeState.mountToday = true
     createState.profile = { hasProAccess: true }
     const tree = await renderRoot()
-    expect(routeState.paints[0]).toBe(false)
-    expect(routeState.paints.every((visible) => !visible)).toBe(true)
-    expect(findByTestId(tree, 'fab')).toHaveLength(0)
-    expect(findByTestId(tree, 'shell-fab')).toHaveLength(0)
+    expect(routeState.paints[0]).toBe(true)
+    expect(findByTestId(tree, 'fab')).toHaveLength(1)
     routeState.hasData = true
     await TestRenderer.act(() => tree.update(<RootLayout />))
     expect(findByTestId(tree, 'fab')).toHaveLength(0)
     await TestRenderer.act(() => tree.update(<></>))
+    routeState.paints.length = 0
+    routeState.hasData = false
     await TestRenderer.act(() => tree.update(<RootLayout />))
-    expect(routeState.paints.every((visible) => !visible)).toBe(true)
+    expect(routeState.paints[0]).toBe(true)
     await TestRenderer.act(() => tree.update(<></>))
   })
 
@@ -485,25 +485,36 @@ describe('Wrapped root shell', () => {
       expect(fab).toBeDefined()
       await TestRenderer.act(() => tree.update(<RootLayout />))
       expect(findByTestId(tree, 'fab')[0]).toBe(fab)
-      expect(visibility).toEqual([true])
+      expect(visibility).toEqual([])
       unsubscribe()
       await TestRenderer.act(() => tree.update(<></>))
     } finally { unsubscribe() }
   })
 
-  it('retains the Today bottom viewport when its habits become available', async () => {
+  it('draws the create FAB and the tab bar on the first frame while the profile and the habits are pending', async () => {
+    routeState.pathname = '/'
+    routeState.segments = ['(tabs)']
+    routeState.mountToday = true
+    createState.profile = undefined
+    const tree = await renderRoot()
+    expect(findByTestId(tree, 'fab')).toHaveLength(1)
+    expect(findByTestId(tree, 'shell-tab-bar')).toHaveLength(1)
+  })
+
+  it('retains the Today FAB and bottom viewport when its habits become available', async () => {
     routeState.pathname = '/'
     routeState.segments = ['(tabs)']
     routeState.mountToday = true
     createState.profile = { hasProAccess: true }
     const tree = await renderRoot()
     const [bottomViewport] = findByTestId(tree, 'shell-bottom-viewport')
-    expect(findByTestId(tree, 'fab')).toHaveLength(0)
+    const [fab] = findByTestId(tree, 'fab')
+    expect(fab).toBeDefined()
     expect(bottomViewport?.props.scrollEnabled).toBe(true)
     routeState.habits = normalizeHabitQueryData([createMockHabitScheduleItem()]).habitsById
     routeState.hasData = true
     await TestRenderer.act(() => tree.update(<RootLayout />))
-    expect(findByTestId(tree, 'fab')).toHaveLength(1)
+    expect(findByTestId(tree, 'fab')[0]).toBe(fab)
     expect(findByTestId(tree, 'shell-bottom-viewport')[0]).toBe(bottomViewport)
     expect(bottomViewport?.props.scrollEnabled).toBe(true)
   })
@@ -530,15 +541,12 @@ describe('Wrapped root shell', () => {
     const tree = await renderRoot()
     expect(findByTestId(tree, 'shell-fab')).toHaveLength(0)
     expect(findByTestId(tree, 'shell-bottom-viewport')[0]?.props.scrollEnabled).toBe(false)
-    await TestRenderer.act(() => tree.update(<></>))
-    expect(useUIStore.getState().todayFabPending).toBe(true)
   })
 
   it.each(['/calendar', '/progress', '/profile', '/habits/habit-1'])('uses its own chrome on %s while Today is pending', async (pathname) => {
     routeState.pathname = pathname
     routeState.segments = [pathname.slice(1)]
     const tree = await renderRoot()
-    expect(useUIStore.getState().todayFabPending).toBe(true)
     expect(findByTestId(tree, 'shell-fab')).toHaveLength(0)
     expect(findByTestId(tree, 'shell-bottom-viewport')[0]?.props.scrollEnabled).toBe(false)
   })

@@ -151,7 +151,6 @@ function RootLayoutNav() {
   const setShowCreateModal = useUIStore((s) => s.setShowCreateModal)
   const lastDestination = useUIStore((s) => s.lastDestination)
   const todayFabHidden = useUIStore((state) => state.todayFabHidden)
-  const todayFabPending = useUIStore((state) => state.todayFabPending)
   const setLastDestination = useUIStore((s) => s.setLastDestination)
   const astraConversationOpen = useUIStore((s) => s.astraConversationOpen)
   const setAstraConversationOpen = useUIStore((s) => s.setAstraConversationOpen)
@@ -297,7 +296,6 @@ function RootLayoutNav() {
               ? <AppCreateFab onCreate={handleCreate} />
               : undefined}
             astraButton={pathname === '/' && !isNotFound}
-            fabPending={pathname === '/' && todayFabPending}
           >
             <RootStackScreens />
           </Shell412>

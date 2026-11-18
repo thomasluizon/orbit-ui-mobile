@@ -95,6 +95,11 @@ export function TodayPageClient({
   const { profile, isError, refetch } = useProfile({
     initialData: preloadedProfile,
   })
+  const setTodayFabHidden = useUIStore((state) => state.setTodayFabHidden)
+  useEffect(() => () => setTodayFabHidden(false), [setTodayFabHidden])
+  useEffect(() => {
+    if (!profile) setTodayFabHidden(isError)
+  }, [isError, profile, setTodayFabHidden])
   if (!profile) {
     return isError
       ? <><h1 className="sr-only" tabIndex={-1}>{t('nav.today')}</h1><ErrorState fullSurface message={t('common.error')} action={<IconButton label={t('common.retry')} onClick={() => void refetch()}><RefreshCw size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton>} /></>

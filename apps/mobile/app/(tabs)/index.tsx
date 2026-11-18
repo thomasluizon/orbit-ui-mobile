@@ -89,9 +89,9 @@ export default function TodayScreen() {
   const { profile, isError, refetch } = useProfile()
   const todayResetVersion = useUIStore((state) => state.todayResetVersion)
   const setTodayFabHidden = useUIStore((state) => state.setTodayFabHidden)
-  useEffect(() => () => setTodayFabHidden(true, true), [setTodayFabHidden])
+  useEffect(() => () => setTodayFabHidden(false), [setTodayFabHidden])
   useEffect(() => {
-    if (!profile) setTodayFabHidden(true, !isError)
+    if (!profile) setTodayFabHidden(isError)
   }, [isError, profile, setTodayFabHidden])
   const { requestFirstUsePermission } = usePushNotifications()
   const readyForNotifications = profile?.hasCompletedOnboarding === true
@@ -233,8 +233,8 @@ function TodayScreenContent() {
 
   useEffect(() => {
     const hidden = isSelectMode || showCreateModal || editHabit !== null || listSurfaceOpen ||
-      !habitsQuery.data || habitsById.size === 0
-    setTodayFabHidden(hidden, !habitsQuery.data && !habitsQuery.isError)
+      habitsQuery.isError || (habitsQuery.data !== undefined && habitsById.size === 0)
+    setTodayFabHidden(hidden)
   }, [
     editHabit,
     habitsById.size,

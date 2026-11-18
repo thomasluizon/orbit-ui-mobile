@@ -6,7 +6,7 @@ import { Keyboard, ScrollView, StyleSheet, View, useWindowDimensions, type HostI
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import type { Shell412Props } from '@orbit/shared/contracts/shell'
 import { ShellNoticeSlotProvider, useShellNoticeHost } from '@/hooks/use-shell-notice-slot'
-import { FAB_SIZE, PADDING, SPACING, TOUCH_TARGET_MIN, BUTTON_SIZES, zLayers, SHELL_CONTENT_MAX_WIDTH, TAB_BAR_MIN_HEIGHT } from '@orbit/shared/theme'
+import { PADDING, SPACING, TOUCH_TARGET_MIN, BUTTON_SIZES, zLayers, SHELL_CONTENT_MAX_WIDTH, TAB_BAR_MIN_HEIGHT } from '@orbit/shared/theme'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { ShellComposerSlotProvider, useShellComposerHost } from './shell-composer-slot'
@@ -160,14 +160,13 @@ function ShellScrollToTopSlot({ visible, content }: Readonly<{ visible: boolean;
   return <View testID="shell-scroll-to-top" pointerEvents="box-none" style={styles.scrollToTop}>{content}</View>
 }
 
-function ShellFabColumn({ astraVisible, fab, fabPending, height }: Readonly<{ astraVisible: boolean; fab: ReactNode; fabPending: boolean; height: number }>) {
+function ShellFabColumn({ astraVisible, fab, height }: Readonly<{ astraVisible: boolean; fab: ReactNode; height: number }>) {
   if (!astraVisible && fab === undefined) return null
   return <View testID="shell-fab-band" pointerEvents="box-none" style={[styles.fabBand, { height }]}>
     <ShellContent style={{ height }} pointerEvents="box-none"><View style={styles.fabBandFill} pointerEvents="box-none">
       <View testID="shell-fab-column" pointerEvents="box-none" style={styles.fabColumn}>
         {astraVisible ? <AstraButton /> : null}
         {fab !== undefined ? <View testID="shell-fab" pointerEvents="box-none">{fab}</View> : null}
-        {fab === undefined && fabPending ? <View testID="shell-fab-pending" pointerEvents="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={styles.fabPending} /> : null}
       </View>
     </View></ShellContent>
   </View>
@@ -228,7 +227,7 @@ function useFabColumn({ astraButton, conversationOpen, floating, reservesSpace }
   return { astraVisible, scrollerClearance, height: astraVisible && floating ? ASTRA_STACK_CLEARANCE : SHELL_SCROLLER_CLEARANCE }
 }
 
-export function Shell412(props: Readonly<Shell412Props & { safeAreaTop?: boolean; fabPending?: boolean; astraButton?: boolean }>) {
+export function Shell412(props: Readonly<Shell412Props & { safeAreaTop?: boolean; astraButton?: boolean }>) {
   const [slotHeight, setSlotHeight] = useState(0)
   const mainRef = useRef<View>(null)
   const focusTarget = useRef<number | null>(null)
@@ -241,7 +240,7 @@ export function Shell412(props: Readonly<Shell412Props & { safeAreaTop?: boolean
   const registeredComposer = useShellComposerHost()
   const registeredNotice = useShellNoticeHost()
   const navigationEnabled = props.nav !== false
-  const floating = props.fab !== undefined || props.fabPending === true
+  const floating = props.fab !== undefined
   const pinnedSlot = navigationEnabled ? (registeredComposer.content ?? props.composer) : props.action
   const notice = registeredNotice.content === undefined
     ? props.notice
@@ -310,7 +309,7 @@ export function Shell412(props: Readonly<Shell412Props & { safeAreaTop?: boolean
           <View ref={mainRef} focusable testID="shell-scroller" style={[styles.scroller, floating && styles.floatingScroller, viewport.relaxedScroller && styles.flowScroller]}>
             <ShellListFocusContext.Provider value={revealListFocus}><ShellPageContent framed={header !== undefined} navigationEnabled={navigationEnabled} safeAreaTop={props.safeAreaTop}>{props.children}</ShellPageContent></ShellListFocusContext.Provider>
             <ShellScrollToTopSlot visible={!conversationOpen} content={scrollToTop} />
-            <ShellFabColumn astraVisible={fabColumn.astraVisible} fab={props.fab} fabPending={props.fabPending === true} height={fabColumn.height} />
+            <ShellFabColumn astraVisible={fabColumn.astraVisible} fab={props.fab} height={fabColumn.height} />
           </View>
 
           <ShellBottomChrome
@@ -423,7 +422,6 @@ const styles = StyleSheet.create({
   fabBand: { position: 'absolute', bottom: 0, left: 0, right: 0, zIndex: zLayers.sticky },
   fabBandFill: { flex: 1 },
   fabColumn: { bottom: 16, position: 'absolute', right: 16, alignItems: 'center', gap: ASTRA_BUTTON_GAP },
-  fabPending: { width: FAB_SIZE, height: FAB_SIZE },
   conversation: {
     alignSelf: 'center',
     width: '100%',
