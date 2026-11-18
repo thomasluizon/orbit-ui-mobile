@@ -219,7 +219,7 @@ its parent. `/orchestrate` and `/merge-prs` own that rule.
    | a completed entry other than `pullfrog-approval` that fails | a check fails: say what that check protects |
    | `pullfrog-approval` is completed and fails | the review asked for a fix |
    | no `pullfrog-approval` entry | the review did not run yet |
-   | `pullfrog-approval` is `SUCCESS` and every other entry passes | only the merge is left |
+   | `pullfrog-approval` passes and every other entry passes | only the merge is left |
 
    Work that a ledger row or step 4 shows with no pull request is built on a local head: say nobody
    offered it for review yet.
