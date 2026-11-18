@@ -2449,6 +2449,7 @@ const CLEANUP_HOOK = "clean-stale-files.mjs"
 cpSync(join(hooksDir, CLEANUP_HOOK), join(wakeHooks, CLEANUP_HOOK))
 const cleanupArguments = join(root, "stale-cleanup-arguments.json")
 const cleanupMarker = join(wakeCheckout, ".git", "orbit-stale-files-cleanup.json")
+const cleanupAdoption = join(wakeCheckout, ".git", "orbit-stale-files-adoption.json")
 const cleanupRunState = join(wakeCheckout, ".git", "orbit-orchestrate-run.json")
 // The real tool reads the whole machine. This stand-in only records how the hook starts the removal.
 writeFileSync(join(wakeCheckout, "tools", "stale-files.mjs"), `import { writeFileSync } from "node:fs"\nwriteFileSync(${JSON.stringify(cleanupArguments)}, JSON.stringify(process.argv.slice(2)))\n`)
@@ -2468,7 +2469,7 @@ const startedCleanup = async (attempts = 100) => {
   return started
 }
 // A recent finished cleanup, so free disk on this machine cannot start one during the adoption cases.
-const recentCleanup = (adoptedBy = null) => writeFileSync(cleanupMarker, JSON.stringify({ startedAt: Date.now(), reason: "test", adoptedBy }))
+const recentCleanup = () => writeFileSync(cleanupMarker, JSON.stringify({ startedAt: Date.now(), reason: "test" }))
 const removalOrder = ["--delete", "--session", cleanupSession, "--session-root", cleanupSessionRoot]
 
 recentCleanup()
@@ -2477,16 +2478,36 @@ T("stale cleanup: with no relay adoption and a recent cleanup, a stop starts not
 writeFileSync(cleanupRunState, JSON.stringify({ sessionId: cleanupSession, sleep: true, remaining: [], relay: { from: "4d4d4d4d-0000-4000-8000-00000000004d", pending: false } }))
 for (const event of ["Stop", "UserPromptSubmit"]) {
   recentCleanup()
+  rmSync(cleanupAdoption, { force: true })
   const adopted = runCleanupHook(cleanupInput(event))
   T(`stale cleanup: a ${event} after a relay adoption adds no context and asks nobody`, [adopted.status, adopted.stdout, adopted.stderr], [0, "", ""])
   T(`stale cleanup: a ${event} after a relay adoption starts the removal with no listing id`, await startedCleanup(), removalOrder)
-  T(`stale cleanup: the marker records the adoption that a ${event} cleaned for`, JSON.parse(readFileSync(cleanupMarker, "utf8")).adoptedBy, cleanupSession)
+  T(`stale cleanup: the checkout records the adoption that a ${event} cleaned for`, JSON.parse(readFileSync(cleanupAdoption, "utf8")).sessionId, cleanupSession)
 }
 T("stale cleanup: the log in the home directory records each removal that the hook starts",
   readFileSync(join(cleanupHome, ".orbit-stale-files-cleanup.log"), "utf8").match(new RegExp(`^=== \\S+ unattended removal started: relay adoption \\(session ${cleanupSession}\\)$`, "gm"))?.length, 2)
 T("stale cleanup: one adoption starts one removal", [runCleanupHook().stdout, await startedCleanup(20)], ["", null])
+// A second relayed run in a linked worktree of the same repository adopts its own relay. Each adoption still starts one removal.
+const cleanupLinked = join(root, "stale-cleanup-linked")
+const cleanupLinkedGit = join(wakeCheckout, ".git", "worktrees", "stale-cleanup-linked")
+mkdirSync(cleanupLinkedGit, { recursive: true })
+writeFileSync(join(cleanupLinkedGit, "commondir"), "../..\n")
+mkdirSync(join(cleanupLinked, ".claude"), { recursive: true })
+writeFileSync(join(cleanupLinked, ".git"), `gitdir: ${cleanupLinkedGit}\n`)
+cpSync(join(wakeCheckout, "tools"), join(cleanupLinked, "tools"), { recursive: true })
+cpSync(wakeHooks, join(cleanupLinked, ".claude", "hooks"), { recursive: true })
+const linkedSession = "6f6f6f6f-0000-4000-8000-00000000006f"
+writeFileSync(join(cleanupLinkedGit, "orbit-orchestrate-run.json"), JSON.stringify({ sessionId: linkedSession, sleep: true, remaining: [], relay: { from: "7a7a7a7a-0000-4000-8000-00000000007a", pending: false } }))
+const runLinkedCleanupHook = () => spawnSync(process.execPath, [join(cleanupLinked, ".claude", "hooks", CLEANUP_HOOK)],
+  { input: JSON.stringify({ ...cleanupInput("Stop"), session_id: linkedSession, cwd: cleanupLinked, scratchpad_dir: join(cleanupSessionRoot, linkedSession, "scratchpad") }), encoding: "utf8",
+    env: { ...process.env, HOME: cleanupHome, USERPROFILE: cleanupHome, ORBIT_LAUNCH_WORKER: "" } })
+T("stale cleanup: the adoption in a linked worktree starts its own removal", await (runLinkedCleanupHook(), startedCleanup()),
+  ["--delete", "--session", linkedSession, "--session-root", cleanupSessionRoot])
+T("stale cleanup: after an adoption in another checkout, the next stop of an adopted run starts nothing", [runCleanupHook().stdout, await startedCleanup(20)], ["", null])
+T("stale cleanup: after an adoption in another checkout, the next stop of the linked run starts nothing", [runLinkedCleanupHook().stdout, await startedCleanup(20)], ["", null])
 // A removal that runs holds the lock in the common git directory, however long it runs: a new adoption starts nothing until it ends.
 recentCleanup()
+rmSync(cleanupAdoption, { force: true })
 const releaseRunningRemoval = takeCleanupLock(wakeCheckout)
 T("stale cleanup: a relay adoption starts no removal while a live removal holds the lock", [runCleanupHook().stdout, await startedCleanup(20)], ["", null])
 releaseRunningRemoval()
@@ -2500,6 +2521,7 @@ const offerSources = [join(".claude", "hooks"), join(".claude", "hooks", "_lib")
 T("stale cleanup: no hook or library offers the cleanup to the owner",
   offerSources.filter((path) => /stale-files\.mjs --delete --listing|Offer this cleanup/.test(readFileSync(join(repoRoot, path), "utf8"))), [])
 rmSync(cleanupMarker, { force: true })
+rmSync(cleanupAdoption, { force: true })
 rmSync(cleanupRunState, { force: true })
 
 console.log(`\n${fails === 0 ? "ORBIT HOOKS OK" : `ORBIT HOOKS FAILED (${fails})`}`)

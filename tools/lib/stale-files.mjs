@@ -615,6 +615,16 @@ export const readCleanupMarker = (repoRoot = REPO_ROOT) => {
 }
 
 /**
+ * An adoption is per checkout, so the record of the adoption that a removal started for lives beside the run record that
+ * names it: an adoption in another checkout of the repository never erases it.
+ */
+const cleanupAdoptionPath = (repoRoot) => join(gitDirectoryOf(repoRoot), "orbit-stale-files-adoption.json")
+
+export const readCleanupAdoption = (repoRoot = REPO_ROOT) => {
+  try { return JSON.parse(readFileSync(cleanupAdoptionPath(repoRoot), "utf8")) } catch { return null }
+}
+
+/**
  * Takes the lock of the removal for the life of this process, and returns the function that releases it. Only one process
  * holds it at a time; it throws an `EEXIST` error while a live process holds it, and takes over the lock of a process that died.
  */
@@ -632,15 +642,14 @@ export const freeBytes = (path) => {
 }
 
 /**
- * Why an unattended cleanup is due now; null when it is not. `state` is the run record, `running` whether a live removal
- * holds the lock, and `freeDiskBytes` the free space of the data volume (null when it cannot be read). A cleanup is due
- * once for each relay adoption, and again whenever free disk is under the floor, at most once in each interval. A removal
- * that still runs, however long, is never started twice; a second one that starts anyway takes no lock and removes nothing.
+ * Why an unattended cleanup is due now; null when it is not. `adoption` is this checkout's adoption record, `marker` the
+ * common start marker, and `freeDiskBytes` null when it cannot be read. A cleanup is due once for each relay adoption, and
+ * whenever free disk is under the floor, at most once in each interval. A live removal (`running`) is never started twice.
  */
-export const cleanupDueReason = ({ sessionId, state, marker, running, freeDiskBytes, now = Date.now() }) => {
+export const cleanupDueReason = ({ sessionId, state, adoption, marker, running, freeDiskBytes, now = Date.now() }) => {
   if (running) return null
   const adopted = state?.sessionId === sessionId && typeof state?.relay?.from === "string" && state.relay.from !== sessionId
-  if (adopted && marker?.adoptedBy !== sessionId) return "relay adoption"
+  if (adopted && adoption?.sessionId !== sessionId) return "relay adoption"
   const low = Number.isFinite(freeDiskBytes) && freeDiskBytes < FREE_DISK_FLOOR_BYTES
   if (low && !(marker && now - marker.startedAt < CLEANUP_INTERVAL_MS)) return `free disk ${describeBytes(freeDiskBytes)} is under the floor of ${describeBytes(FREE_DISK_FLOOR_BYTES)}`
   return null
@@ -678,8 +687,8 @@ export const startCleanup = ({ sessionId, sessionRoot, reason, adoptedBy = null,
     closeSync(log)
   }
   child.unref()
-  const previous = readCleanupMarker(repoRoot)
-  writeFileSync(cleanupMarkerPath(repoRoot), `${JSON.stringify({ startedAt: now, reason, adoptedBy: adoptedBy ?? previous?.adoptedBy ?? null })}\n`)
+  writeFileSync(cleanupMarkerPath(repoRoot), `${JSON.stringify({ startedAt: now, reason })}\n`)
+  if (adoptedBy) writeFileSync(cleanupAdoptionPath(repoRoot), `${JSON.stringify({ sessionId: adoptedBy, startedAt: now })}\n`)
   return child.pid
 }
 

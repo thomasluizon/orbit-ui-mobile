@@ -5,7 +5,7 @@ import { dirname, join } from "node:path"
 import { fileURLToPath } from "node:url"
 
 import {
-  CLEANUP_INTERVAL_MS, FREE_DISK_FLOOR_BYTES, cleanupDueReason, cleanupIsRunning, collectListing, describeBytes, readCleanupMarker, removeListed, summarize, systemProbes, takeCleanupLock,
+  CLEANUP_INTERVAL_MS, FREE_DISK_FLOOR_BYTES, cleanupDueReason, cleanupIsRunning, collectListing, describeBytes, readCleanupAdoption, readCleanupMarker, removeListed, summarize, systemProbes, takeCleanupLock,
 } from "../lib/stale-files.mjs"
 import * as staleFiles from "../lib/stale-files.mjs"
 import { T, root, same } from "./_harness.mjs"
@@ -570,8 +570,10 @@ const cleanupDueCases = () => {
   const low = FREE_DISK_FLOOR_BYTES - 1
   const due = (overrides) => cleanupDueReason({ sessionId: THIS, state: null, marker: null, running: false, freeDiskBytes: plenty, now, ...overrides })
   same("stale-files: a relay adoption starts a cleanup", due({ state: adopted }), "relay adoption")
-  same("stale-files: a relay adoption starts no second cleanup for the same session", due({ state: adopted, marker: { pid: 0, startedAt: now, adoptedBy: THIS } }), null)
-  same("stale-files: the next adoption starts its own cleanup", due({ state: adopted, marker: { pid: 0, startedAt: now, adoptedBy: RUN_PREDECESSOR } }), "relay adoption")
+  same("stale-files: a relay adoption starts no second cleanup for the same session", due({ state: adopted, adoption: { sessionId: THIS, startedAt: now }, marker: { startedAt: now } }), null)
+  same("stale-files: the next adoption starts its own cleanup", due({ state: adopted, adoption: { sessionId: RUN_PREDECESSOR, startedAt: now }, marker: { startedAt: now } }), "relay adoption")
+  same("stale-files: a later start for an adoption in another checkout starts no second cleanup for this adoption",
+    due({ state: adopted, adoption: { sessionId: THIS, startedAt: now - 1000 }, marker: { startedAt: now, reason: "relay adoption" } }), null)
   same("stale-files: a run that another session adopted starts no cleanup here", due({ state: { ...adopted, sessionId: OTHER } }), null)
   same("stale-files: a pending relay is no adoption", due({ state: { sessionId: THIS, relay: { pending: true, successorSessionId: SUCCESSOR } } }), null)
   same("stale-files: free disk above the floor and no adoption start nothing", due({}), null)
@@ -824,8 +826,11 @@ const lockCases = async () => {
   mkdirSync(linked, { recursive: true })
   writeFileSync(join(linked, ".git"), `gitdir: ${join(primary, ".git", "worktrees", "linked")}\n`)
   writeFileSync(join(primary, ".git", "worktrees", "linked", "commondir"), "../..\n")
-  writeFileSync(join(primary, ".git", "orbit-stale-files-cleanup.json"), JSON.stringify({ startedAt: 1, reason: "test", adoptedBy: THIS }))
-  same("stale-files: a linked worktree reads the cleanup marker of the common git directory", readCleanupMarker(linked)?.adoptedBy, THIS)
+  writeFileSync(join(primary, ".git", "orbit-stale-files-cleanup.json"), JSON.stringify({ startedAt: 1, reason: "test" }))
+  same("stale-files: a linked worktree reads the cleanup marker of the common git directory", readCleanupMarker(linked)?.startedAt, 1)
+  writeFileSync(join(primary, ".git", "orbit-stale-files-adoption.json"), JSON.stringify({ sessionId: OTHER, startedAt: 1 }))
+  writeFileSync(join(primary, ".git", "worktrees", "linked", "orbit-stale-files-adoption.json"), JSON.stringify({ sessionId: THIS, startedAt: 2 }))
+  same("stale-files: each checkout reads its own adoption record", [readCleanupAdoption(primary)?.sessionId, readCleanupAdoption(linked)?.sessionId], [OTHER, THIS])
 
   const contenders = [lockContender(linked), lockContender(primary)]
   const answers = await Promise.all(contenders.map((contender) => contender.answer))
