@@ -41,7 +41,7 @@ const ORPHAN_AFTER_MS = 24 * 60 * 60 * 1000
 // that main stopped restoring one. cache-save-rules.test.mjs derives these patterns from the key of every release save step.
 export const RELEASE_FAMILY_KEYS = [
   /^ccache-android-release-[0-9a-f]{64}-\d+$/,
-  /^macos-26-[A-Z0-9]+-xcode-26\.6-ios-device-ccache-v1-[0-9a-f]{64}$/,
+  /^xcode-27-[A-Z0-9]+-xcode-27\.1-ios-device-ccache-v1-[0-9a-f]{64}$/,
 ]
 
 const PULL_REQUEST_REF = /^refs\/pull\/(\d+)\/merge$/
