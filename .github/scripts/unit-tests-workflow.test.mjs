@@ -336,6 +336,9 @@ test("mobile shards merge their blobs under the unchanged mobile thresholds", ()
   assert.deepEqual(mobile.strategy.matrix.shard, Array.from({ length: mobileShardCount }, (_, index) => index + 1))
   const run = stepNamed(mobile.steps, "Run mobile shard with coverage")
   assert.equal(run["working-directory"], "apps/mobile")
+  // apps/mobile/__tests__/scripts/widget-color-generator.test.ts runs a workspace script with the npm CLI that
+  // npm_execpath names, and only npm sets that variable. So the shard runs vitest through the workspace test script.
+  assert.match(run.run, /^npm run test -- --shard=/, "the mobile shard runs vitest through npm")
   assert.match(run.run, /--shard=\$\{\{ matrix.shard \}\}\/\$\{\{ matrix.total \}\}/)
   assert.match(run.run, /--coverage\.thresholds\.lines=0/)
   assert.match(run.run, /--outputFile\.blob=\.artifacts\/unit-tests\/blobs\/mobile-\$\{\{ matrix.shard \}\}\.json/)
@@ -372,7 +375,7 @@ test("every test workspace runs in exactly one test job", () => {
   const workspaces = workflow.jobs["workspace-tests"]
   assert.equal(workspaces.strategy, undefined)
   assert.equal(stepNamed(workspaces.steps, "Run workspaces with coverage thresholds").run,
-    "npx turbo run test --filter=@orbit/desktop --filter=@orbit/shared --filter=@orbit/eslint-rules --concurrency=1 -- --coverage")
+    "./node_modules/.bin/turbo run test --filter=@orbit/desktop --filter=@orbit/shared --filter=@orbit/eslint-rules --concurrency=1 -- --coverage")
   assert.equal(workspaces.env.ARTIFACT_NAME, "workspace-unit-coverage-attempt-${{ github.run_attempt }}")
   const upload = workspaces.steps.find((step) => step.uses?.startsWith("actions/upload-artifact@"))
   assert.equal(upload.with.name, "${{ env.ARTIFACT_NAME }}")
@@ -571,9 +574,13 @@ test("pull request runs save no cache that a push to main saves", () => {
 })
 
 test("real Vitest reports combine project coverage and reject incomplete coverage", { timeout: 120_000 }, () => {
-  const directory = mkdtempSync(join(root, ".tmp-unit-reports-"))
-  const shardCommand = stepNamed(workflow.jobs["web-tests"].steps, "Run web shard with coverage").run
-  const mergeCommand = stepNamed(unitSteps, "Merge web reports and enforce coverage thresholds").run
+  const shardStep = stepNamed(workflow.jobs["web-tests"].steps, "Run web shard with coverage")
+  const mergeStep = stepNamed(unitSteps, "Merge web reports and enforce coverage thresholds")
+  assert.equal(shardStep["working-directory"], mergeStep["working-directory"])
+  // Each command runs the Vitest binary by a path relative to its working directory, so the scratch project takes the place of that directory.
+  const directory = mkdtempSync(join(root, dirname(shardStep["working-directory"]), ".tmp-unit-reports-"))
+  const shardCommand = shardStep.run
+  const mergeCommand = mergeStep.run
   const run = (command, expected) => {
     const result = spawnSync("bash", ["-e", "-c", command], { cwd: directory, env: { ...process.env, CI: "true" }, encoding: "utf8", timeout: 30_000 })
     assert.equal(result.status, expected, `${result.stdout}\n${result.stderr}`)
@@ -608,4 +615,9 @@ test("real Vitest reports combine project coverage and reject incomplete coverag
   } finally {
     rmSync(directory, { recursive: true, force: true })
   }
+})
+
+test("the web test timings upload only after the web report selection ran", () => {
+  assert.equal(stepNamed(unitSteps, "Select latest web report attempts").id, "select-web-reports")
+  assert.equal(stepNamed(unitSteps, "Upload web test timings").if, "${{ !cancelled() && steps.select-web-reports.outcome == 'success' }}")
 })

@@ -93,7 +93,7 @@ test("CI gives each suite runner the host while local worker caps stay bounded",
     }
   }
   const workspaces = workflow("test").jobs["workspace-tests"]
-  assert.ok(workspaces.steps.some((step) => step.run === "npx turbo run test --filter=@orbit/desktop --filter=@orbit/shared --filter=@orbit/eslint-rules --concurrency=1 -- --coverage"))
+  assert.ok(workspaces.steps.some((step) => step.run === "./node_modules/.bin/turbo run test --filter=@orbit/desktop --filter=@orbit/shared --filter=@orbit/eslint-rules --concurrency=1 -- --coverage"))
 })
 
 test("PR coverage analysis stays present", () => {
