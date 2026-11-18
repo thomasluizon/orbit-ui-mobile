@@ -11,7 +11,7 @@ const cases = [
   ['fixed-medication', { scheduled_reminders: [[{ time: '08:00', when: 'same_day' }, { time: '20:00', when: 'same_day' }], 'requested'] },
     (fields) => { fields[0].proposedValue[1].time = '21:00' }],
   ['ordinary-reading', { title: ['Read a book', 'requested'] }, (fields) => { fields.push(field('repeat_reminder', { interval_minutes: 120 }, 'suggested')) }],
-  ['unsupported-schedule', { frequency_unit: ['Week', 'requested'] }, (fields) => { fields.push(field('repeat_reminder', { interval_minutes: 120 }, 'suggested')) }],
+  ['unsupported-schedule', { frequency_unit: ['Week', 'requested'], days: [['Monday'], 'requested'] }, (fields) => { fields.push(field('repeat_reminder', { interval_minutes: 120 }, 'suggested')) }],
   ['dated-reminder', { due_date: ['2031-06-12', 'requested'], reminder_enabled: [true, 'suggested'] }, (fields) => { fields.pop() }],
   ['parent', { parent_habit_id: [owned, 'suggested'] }, (fields) => { fields[0].proposedValue = unknown }],
   ['root', { title: ['Journal', 'requested'] }, (fields) => { fields.push(field('parent_habit_id', owned, 'suggested')) }],
@@ -33,7 +33,7 @@ it.each(cases)('accepts the typed %s proposal and rejects a deliberately wrong f
   for (const entry of suggestedReminders) entry.removal.fields = suggestedReminders.map((entry) => entry.field)
   const output = { composition: { parts: [], pendingOperations: [pending] }, trace: { calls: [] } }
   const vars = { offerFamily: family, clientContext: { supportsProactiveOffers: true }, composition: { mode: 'preview' },
-    offerStartDate: '2031-06-11', offerEndDate: '2031-06-17', fixtureEvidence: { habits: [{ id: owned }], goals: [{ id: owned }] } }
+    requestedDays: ['Monday'], offerStartDate: '2031-06-11', offerEndDate: '2031-06-17', fixtureEvidence: { habits: [{ id: owned }], goals: [{ id: owned }] } }
   expect(proactiveOffers(output, { vars }).pass).toBe(true)
   breakField(pending.items[0].fields)
   expect(proactiveOffers(output, { vars }).pass).toBe(false)
