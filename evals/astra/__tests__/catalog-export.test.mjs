@@ -25,14 +25,18 @@ it('builds and runs the exporter against the API commit that the catalog names a
   expect(run.stdout).toContain(`catalog.yaml matches the exporter output at API ${apiCommit}.`)
 }, 600000)
 
-// Producer: credentials.mjs waitForHealthyApi reads the eval target's /health body, as the live run does.
+// Producer: credentials.mjs waitForHealthyApi reads the eval target's /health body, as the live run does. The preload
+// code is a constant; the served commit reaches it as data in ASTRA_TEST_SERVED_COMMIT, never as code text.
+const target = 'data:text/javascript,globalThis.fetch = async (url) => { if (String(url) !== '
+  + "'https://eval-target.invalid/health') throw new Error('unexpected ' + url); return Response.json("
+  + "{ status: 'Healthy', commit: process.env.ASTRA_TEST_SERVED_COMMIT, checks: [] }) }"
 function checkAgainstTarget(servedCommit) {
-  const health = JSON.stringify({ status: 'Healthy', commit: servedCommit, checks: [] })
-  const target = `data:text/javascript,globalThis.fetch = async (url) => { if (String(url) !== 'https://eval-target.invalid/health') throw new Error('unexpected ' + url); return Response.json(${encodeURIComponent(health)}) }`
   // A missing repository stops the check at its fetch, so a target check that lets the build start fails this test fast.
   const missingRepository = join(tmpdir(), 'astra-missing-api-repository')
   return spawnSync(process.execPath, ['--import', target, generator, '--check', missingRepository], {
-    encoding: 'utf8', env: { ...offlineEnvironment, ORBIT_EVAL_BASE_URL: 'https://eval-target.invalid' }, timeout: 60000,
+    encoding: 'utf8',
+    env: { ...offlineEnvironment, ORBIT_EVAL_BASE_URL: 'https://eval-target.invalid', ASTRA_TEST_SERVED_COMMIT: servedCommit },
+    timeout: 60000,
   })
 }
 
