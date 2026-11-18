@@ -11,8 +11,10 @@ import { measureSafeArea, type GeometryTree } from '@/__tests__/support/safe-are
 import { __setWindowDimensions } from '@/test-mocks/react-native'
 import { controlStyle, expectMotionPress } from '@/__tests__/support/press-feedback'
 import { createTokensV2 } from '@/lib/theme'
+import { contrastOnSurface } from '@orbit/shared/__tests__/contrast'
 
-vi.mock('@/lib/use-app-theme', () => ({ useAppTheme: () => ({ currentScheme: 'orange', currentTheme: 'dark' }) }))
+const theme: { mode: 'dark' | 'light' } = vi.hoisted(() => ({ mode: 'dark' }))
+vi.mock('@/lib/use-app-theme', () => ({ useAppTheme: () => ({ currentScheme: 'orange', currentTheme: theme.mode }) }))
 vi.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ top: 24, bottom: 24, left: 0, right: 0 }) }))
 vi.mock('@react-native-async-storage/async-storage', () => ({ default: { getItem: () => Promise.resolve(null), setItem: () => Promise.resolve() } }))
 vi.mock('@/lib/sentry', () => ({ captureError: vi.fn() }))
@@ -22,7 +24,7 @@ const HEIGHT = 915
 let tree: GeometryTree
 const clearances: number[] = []
 
-beforeEach(() => { clearances.length = 0; useUIStore.setState(useUIStore.getInitialState()) })
+beforeEach(() => { clearances.length = 0; theme.mode = 'dark'; useUIStore.setState(useUIStore.getInitialState()) })
 afterEach(async () => { await act(() => tree.unmount()) })
 
 function hosts(testID: string) { return tree.root.findAll(node => typeof node.type === 'string' && node.props.testID === testID) }
@@ -153,14 +155,18 @@ it('hides while selection mode owns the bottom of Hoje and returns to the stack 
   expect(boxes.get('create-fab')!.top - boxes.get('astra-button')!.bottom).toBe(ASTRA_BUTTON_GAP)
 })
 
-it('is the live Orbit at 48 with no background, in a 60 press target', async () => {
+it.each(['light', 'dark'] as const)('is the live Orbit at 48 on a solid elevated circle with a control edge, the size of its 60 press target, in %s', async mode => {
+  theme.mode = mode
   await mountShell(412)
+  const tokens = createTokensV2('orange', mode)
+  expect(tokens.bgElev).toMatch(/^#[0-9A-F]{6}$/)
+  expect(contrastOnSurface(tokens.borderControl, [tokens.bg])).toBeGreaterThanOrEqual(3)
   const mascot = host('astra-button').findAll(node => node.props['data-orbit-face'] === 'rig')[0]!
   expect(mascot.props).toMatchObject({ width: 48, accessible: false })
   const flattened = controlStyle(host('astra-button'))
-  expect(flattened).toMatchObject({ width: 60, height: 60 })
-  expect(flattened.backgroundColor).toBeUndefined()
+  expect(flattened).toMatchObject({ width: 60, height: 60, borderRadius: 30, backgroundColor: tokens.bgElev, borderWidth: 1, borderColor: tokens.borderControl })
   expect(flattened.boxShadow).toBeUndefined()
+  expect(flattened.elevation).toBeUndefined()
   expect(hosts('fab-press-fill')).toHaveLength(0)
 })
 
@@ -170,17 +176,16 @@ it('keeps the conversation entry still on press under reduced motion, with no pr
   expect(hosts('fab-press-fill')).toHaveLength(0)
 })
 
-it('paints the neutral hover fill of its round target on pointer hover and draws the focus ring on keyboard focus, as web does', async () => {
+it('paints the opaque elevated hover fill of its circle on pointer hover and draws the focus ring on keyboard focus, as web does', async () => {
   await mountShell(412)
   const tokens = createTokensV2('orange', 'dark')
   const style = () => controlStyle(host('astra-button'))
-  expect(style()).toMatchObject({ borderRadius: 30 })
-  expect(style().backgroundColor).toBeUndefined()
+  expect(style()).toMatchObject({ borderRadius: 30, backgroundColor: tokens.bgElev, borderColor: tokens.borderControl })
   expect(style().outlineWidth).toBeUndefined()
   await act(() => { (host('astra-button').props.onHoverIn as () => void)() })
-  expect(style().backgroundColor).toBe(tokens.bgHover)
+  expect(style()).toMatchObject({ backgroundColor: tokens.bgElevHover, borderColor: tokens.borderControl })
   await act(() => { (host('astra-button').props.onHoverOut as () => void)() })
-  expect(style().backgroundColor).toBeUndefined()
+  expect(style().backgroundColor).toBe(tokens.bgElev)
   await act(() => { (host('astra-button').props.onFocus as (event: unknown) => void)({ target: 1, currentTarget: 1 }) })
   expect(style()).toMatchObject({ outlineColor: tokens.primary, outlineOffset: 2, outlineStyle: 'solid', outlineWidth: 2 })
   await act(() => { (host('astra-button').props.onBlur as (event: unknown) => void)({ target: 1, currentTarget: 1 }) })

@@ -197,7 +197,7 @@ test("the production gate requires a written override reason, and production dep
 test("staging smoke success is published only after the selected build passes smoke", () => {
   const steps = web.jobs.staging.steps
   const smoke = stepNamed(web.jobs.staging, "Run staging smoke suite")
-  assert.equal(smoke.run, "npm --workspace @orbit/web run test:smoke")
+  assert.equal(smoke.run, "npm run test:smoke --workspace @orbit/web")
   assert.equal(smoke.env.SMOKE_BASE_URL, "${{ steps.health.outputs.deployment_url }}")
   assert.equal(smoke.env.SMOKE_TEST_EMAIL, "${{ secrets.STAGING_SMOKE_TEST_EMAIL }}")
   const record = stepNamed(web.jobs.staging, "Record staging smoke pass")

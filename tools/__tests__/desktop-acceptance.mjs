@@ -848,10 +848,10 @@ export async function cases() {
     ['ORBIT_APPLE_TEAM_ID', 'ORBIT_APNS_KEY_ID', 'ORBIT_APNS_PRIVATE_KEY'].every((name) => signed.includes(`${name}: `) && !unsigned.includes(name)) &&
       ['ORBIT_DESKTOP_WNS_OBJECT_ID', 'ORBIT_WNS_TENANT_ID', 'ORBIT_WNS_CLIENT_ID', 'ORBIT_WNS_CLIENT_SECRET'].every((name) => unsigned.includes(`${name}: `) && !signed.includes(name)))
   // This suite runs every producer test file on Linux; desktop-acceptance-producers.yml runs the platform-gated ones natively, so neither VM job repeats them.
-  T('both jobs share the setup action, which runs no producer test, and both read the Rust compile cache that only main saves',
+  T('both jobs share the setup action, which runs no producer test, and both only read the Rust compile cache that Desktop Build saves',
     !setup.includes('tools/desktop-bench/test-') &&
       [unsigned, signed].every((text) => text.includes('uses: ./.github/actions/desktop-acceptance-setup') &&
-        text.includes('uses: Swatinem/rust-cache@') && text.includes("save-if: ${{ github.ref == 'refs/heads/main' }}")) &&
+        text.includes('uses: Swatinem/rust-cache@') && text.includes('save-if: "false"')) &&
       workflow.includes("- '.github/actions/desktop-acceptance-setup/**'"))
   const producerWorkflow = load(readFileSync(join(REPO_ROOT, '.github/workflows/desktop-acceptance-producers.yml'), 'utf8'))
   const nativeProducers = producerWorkflow.jobs.native
