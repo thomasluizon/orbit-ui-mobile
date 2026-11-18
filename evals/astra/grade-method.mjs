@@ -5,7 +5,8 @@ import { parse } from 'yaml'
 export const TOOL_NAME_KEYS = ['required', 'allowed', 'forbidden', 'counts', 'permittedMutations']
 
 // How a case selects its grade method: a case that states its expected `outcome` runs on the client path and gets the
-// outcome grade of the core set. Each other case runs on POST /api/chat and gets the tool-name grade.
+// outcome grade of the core set. A case that refines a draft runs on the refine route and gets the grade of that draft. Each
+// other case runs on POST /api/chat and gets the tool-name grade.
 export const gradedByOutcome = (vars) => vars?.outcome != null
 
 export const readCorpus = () => ['scenarios.yaml', 'composition-scenarios.yaml'].flatMap((path) =>

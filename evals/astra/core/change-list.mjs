@@ -6,7 +6,7 @@ const { marksExistingHabit } = await tsImport('../../../packages/shared/src/chat
 // and the bulk form of one write are one kind. A key outside this table is not classified; it is never guessed.
 const kindByActionKey = {
   createHabit: 'create', createHabits: 'create', createSubHabit: 'create',
-  updateHabit: 'update', updateHabits: 'update', rescheduleHabits: 'update', updateHabitEmojis: 'update',
+  updateHabit: 'update', updateHabits: 'update', rescheduleHabits: 'update', updateHabitEmojis: 'update', updateChecklist: 'update',
   deleteHabit: 'delete', deleteHabits: 'delete',
   logHabit: 'log', logHabits: 'log',
   skipHabit: 'skip', skipHabits: 'skip',
@@ -77,6 +77,15 @@ function itemKind(item, actionKey) {
   return kindByActionKey[actionKey] ?? null
 }
 
+// Producer: PendingOperationChangePreviewer.AddProposedFields shows a field that the write names and the habit already holds
+// as a row whose old and new value are the proposed value. It changes nothing, so it is no changed field. An update keeps
+// such a row apart (`kept`), for a request that allows a record to stay where it is (a restart keeps some habits today).
+function keptFields(fields, kind) {
+  const kept = fields.filter((field) => kind === 'update' && field.valueType !== 'action' && field.field !== 'habit_id'
+    && field.newValue != null && field.oldValue === field.newValue)
+  return Object.fromEntries(kept.map((field) => [field.field, field.newValue]))
+}
+
 function changedFields(fields, kind) {
   const changed = fields.filter((field) => field.valueType !== 'action' && field.field !== 'habit_id'
     && (kind === 'create' ? field.newValue != null && field.newValue !== '' : field.oldValue !== field.newValue))
@@ -115,8 +124,9 @@ const childCreates = (drafts, preview) => Array.isArray(drafts) ? drafts.flatMap
 // record, the fields that the model writes, the fields that the preview offers, the fields that the server derives, and
 // the titles of the records that the offered drafts add. A stored row is written when the held writes name its field
 // (`written`, from writtenFields), and derived otherwise; without the trace (`written` null) it is undetermined. A row
-// of a create preview that only names a habit the create reuses is no change.
-export function changeList(pendingOperations, written = null, { nestedCreates = false } = {}) {
+// of a create preview that only names a habit the create reuses is no change, and a `reuse` change with `reuses`: a
+// request that names a stored habit to reuse (a brain dump) holds it in its list.
+export function changeList(pendingOperations, written = null, { nestedCreates = false, reuses = false } = {}) {
   const changes = []
   const unclassified = []
   for (const operation of pendingOperations ?? []) {
@@ -129,15 +139,21 @@ export function changeList(pendingOperations, written = null, { nestedCreates = 
       if (!kind) { unclassified.push(operation.actionKey ?? 'a preview without an action key'); continue }
       const children = nestedCreates && kind === 'create'
         ? item.fields.filter((field) => field.field === 'sub_habits' && !isOffer(field)).flatMap((field) => childCreates(field.proposedValue, operation.id)) : []
-      if (kind === 'create' && item.fields.some(marksExistingHabit)) { changes.push(...children); continue }
+      if (kind === 'create' && item.fields.some(marksExistingHabit)) {
+        if (reuses) changes.push({ kind: 'reuse', target: recordId(item.entityId), preview: operation.id, fields: {}, offered: {},
+          derived: {}, undetermined: {}, drafts: [] })
+        changes.push(...children)
+        continue
+      }
       const offers = item.fields.filter(isOffer)
       const stored = item.fields.filter((field) => field.provenance === 'stored')
       const derived = written ? stored.filter((field) => !written.includes(field.field)) : []
       const undetermined = written ? [] : stored
       const requested = item.fields.filter((field) => !isOffer(field) && !derived.includes(field) && !undetermined.includes(field))
+      const kept = keptFields(requested, kind)
       changes.push({ kind, target: recordId(item.entityId), preview: operation.id, fields: changedFields(requested, kind),
         offered: changedFields(offers, kind), derived: changedFields(derived, kind), undetermined: changedFields(undetermined, kind),
-        drafts: offeredDrafts(offers) }, ...children)
+        drafts: offeredDrafts(offers), ...(Object.keys(kept).length ? { kept } : {}) }, ...children)
     }
   }
   return { changes, unclassified: [...new Set(unclassified)] }

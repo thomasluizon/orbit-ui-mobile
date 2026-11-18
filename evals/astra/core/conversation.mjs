@@ -35,13 +35,23 @@ async function readSaved(api, { expected, baseline }) {
   return saved
 }
 
-// Approves each held preview as the client does, then reads the saved state back. Nothing is approved when the held
-// preview already changed the account.
+// What the person does with a held preview. The person approves it as the client does, or rejects it: the client revises
+// the preview to hold no item, and the server then refuses to confirm it.
+async function decide(preview, conversation, vars, api) {
+  if (vars.core.decision !== 'reject') return approvePendingOperation(api, preview.id, clientContextOf(conversation))
+  const path = `ai/pending-operations/${preview.id}`
+  await api('POST', `${path}/revise`, { previewFingerprint: preview.previewFingerprint, items: [], clientContext: clientContextOf(conversation) })
+  const confirmation = await api('POST', `${path}/confirm`, undefined, [], [404])
+  if (confirmation.status !== 404) throw new Error('A rejected preview remains confirmable.')
+}
+
+// Decides each held preview, then reads the saved state back. Nothing is decided when the held preview already changed
+// the account.
 async function approveAndReadBack(previews, conversation, vars, api) {
   try {
     const held = await readHabits(api)
     const unchanged = JSON.stringify(savedRecords(held, vars.accountDate)) === JSON.stringify(savedRecords(vars.core.baseline, vars.accountDate))
-    if (unchanged) for (const preview of previews) await approvePendingOperation(api, preview.id, clientContextOf(conversation))
+    if (unchanged) for (const preview of previews) await decide(preview, conversation, vars, api)
     return { baseline: vars.core.baseline, held, after: unchanged ? await readSaved(api, vars.core) : held }
   } catch (error) {
     return requestFailure(error, 'Approval or the saved state readback')

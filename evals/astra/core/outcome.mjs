@@ -9,13 +9,30 @@ const sameMembers = (left, right) => left.length === right.length && left.every(
 const tally = (changes) => Object.entries(Object.groupBy(changes, (change) => change.kind))
   .map(([kind, members]) => `${kind} ${members.length}`).join(', ') || 'no change'
 
+// A checklist as the preview shows it (the JSON text of its items, each with is_checked) and as the account stores it
+// (each item with isChecked), in one form: the text and the checked state of each item, in order.
+function checklistOf(value) {
+  try {
+    const items = typeof value === 'string' ? JSON.parse(value) : value
+    return Array.isArray(items) ? items.map((item) => ({ text: item.text, checked: (item.is_checked ?? item.isChecked) === true })) : null
+  } catch {
+    return null
+  }
+}
+
 // The value a field must take: an exact string, a text that holds one of several words, a date counted from the
-// account date, a month and day in any year, a clock time to the minute, or one of several exact strings.
+// account date, a date within a span of days counted from it, a month and day in any year, a clock time to the minute,
+// one of several exact strings, or a whole checklist.
 export function matchesField(expected, value, accountDate) {
   if (typeof expected === 'string') return value === expected
   if (expected.oneOf) return expected.oneOf.includes(value)
   if (expected.contains) return expected.contains.some((text) => normalize(value).includes(normalize(text)))
   if (expected.daysFromToday !== undefined) return value === dateOffset(accountDate, expected.daysFromToday)
+  if (expected.withinDays) {
+    const [from, to] = expected.withinDays
+    return /^\d{4}-\d{2}-\d{2}$/u.test(value ?? '') && value >= dateOffset(accountDate, from) && value <= dateOffset(accountDate, to)
+  }
+  if (expected.checklist) return JSON.stringify(checklistOf(value)) === JSON.stringify(expected.checklist)
   if (expected.monthDay) return /^\d{4}-\d{2}-\d{2}$/u.test(value ?? '') && value.slice(5) === expected.monthDay
   if (expected.time) return typeof value === 'string' && value.slice(0, 5) === expected.time
   throw new Error('Unknown field expectation in the core set.')
@@ -30,6 +47,7 @@ const savedField = {
   due_time: (habit) => habit.dueTime,
   frequency_unit: (habit) => habit.frequencyUnit,
   frequency_quantity: (habit) => habit.frequencyQuantity == null ? null : String(habit.frequencyQuantity),
+  checklist_items: (habit) => habit.checklistItems,
 }
 export const detailFields = ['due_time']
 
@@ -54,14 +72,26 @@ function expectedTargets(targets, records, answered) {
   return targets.count === undefined ? { ids: [...set] } : { among: set, count: targets.count }
 }
 
+// The value of a field in a change. A field that the request lets a record keep (`mayStay`) is the value the preview
+// shows it holding when it is no change (`kept`).
+const heldValue = (expected, change, field) => change.fields[field] ?? (expected.fields[field]?.mayStay ? change.kept?.[field] : undefined)
+
 function fieldFailure(expected, change, accountDate) {
-  const wanted = Object.keys(expected.fields ?? {})
   const changed = Object.keys(change.fields)
+  const wanted = Object.keys(expected.fields ?? {}).filter((field) => changed.includes(field) || heldValue(expected, change, field) === undefined)
   if (expected.kind === 'update' && !sameMembers(changed, wanted)) {
-    return `changes ${changed.join(', ') || 'no field'} where the request changes ${wanted.join(', ')}`
+    return `changes ${changed.join(', ') || 'no field'} where the request changes ${Object.keys(expected.fields ?? {}).join(', ')}`
   }
-  const wrong = wanted.find((field) => !matchesField(expected.fields[field], change.fields[field], accountDate))
-  return wrong ? `gives ${wrong} the value ${JSON.stringify(change.fields[wrong] ?? null)}` : null
+  const wrong = Object.keys(expected.fields ?? {}).find((field) => !matchesField(expected.fields[field], heldValue(expected, change, field), accountDate))
+  return wrong ? `gives ${wrong} the value ${JSON.stringify(heldValue(expected, change, wrong) ?? null)}` : null
+}
+
+// How many of the held changes leave the habit due on the account date, counting a habit that stays due then. A request
+// states the number it needs (`dueToday`: a count, or a span of min and max).
+function dueTodayFailure(expected, held, accountDate) {
+  if (expected.dueToday === undefined) return null
+  const count = held.filter((change) => (change.fields.due_date ?? change.kept?.due_date) === accountDate).length
+  return withinRange(count, expected.dueToday, 0) ? null : `leaves ${count} of ${held.length} due today, and the request needs ${JSON.stringify(expected.dueToday)}`
 }
 
 // Compares the change list of the held previews with the expected list: each expected change is held over exactly its
@@ -87,6 +117,8 @@ function compareChanges(expected, actual, { records, accountDate }, answered) {
       if (wrong) return { failure: `A ${change.kind} of the preview ${wrong}.` }
       remaining.splice(remaining.indexOf(candidate), 1)
     }
+    const spread = dueTodayFailure(change, held, accountDate)
+    if (spread) return { failure: `The ${change.kind} of the preview ${spread}.` }
     matched.push({ expected: change, held })
   }
   return remaining.length ? { failure: `The preview holds a change outside the request. ${needs}` } : { matched }
@@ -133,7 +165,8 @@ export function gradePreview(output, vars) {
   if (!previews.length) return verdict(false, `No preview came after ${questions} question(s).`)
   if (questions < min) return verdict(false, 'The assistant held a change without the question that the request needs.')
   if (!withinRange(previews.length, expected.previews, 1)) return verdict(false, `The request is held in ${previews.length} previews.`)
-  const { changes, unclassified } = changeList(previews, output.written ?? null, { nestedCreates: vars.core.nestedCreates === true })
+  const { changes, unclassified } = changeList(previews, output.written ?? null,
+    { nestedCreates: vars.core.nestedCreates === true, reuses: vars.core.reuses === true })
   if (unclassified.length) {
     return verdict(false, `The grader cannot classify a held preview: ${unclassified.join(', ')}.`, { graderLimit: true })
   }
@@ -231,5 +264,5 @@ export function outcome(output, context) {
     const resent = gradeResend(attempt.resend, attempt.previews)
     if (!resent.pass) return resent
   }
-  return gradeSavedState(attempt.readback, preview.metadata.matched, vars)
+  return gradeSavedState(attempt.readback, vars.core.decision === 'reject' ? [] : preview.metadata.matched, vars)
 }
