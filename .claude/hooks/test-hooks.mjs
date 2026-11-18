@@ -3600,11 +3600,14 @@ T("progress: the answer has two parts and no tracking number", {
   restatesThePassRule: progressSkill.includes("`SUCCESS`, `NEUTRAL` or `SKIPPED`") && progressSkill.includes("`PASSING_CONCLUSIONS`") && progressSkill.includes("`CANCELLED` and `TIMED_OUT`"),
   readsOnlyTheNewestRun: /read only the newest entry of each\s+`name` by\s+`startedAt`/.test(progressSkill),
   hasNoUnknownRuleThatContradictsTheTable: !/does not name is unknown/.test(progressSkill),
+  readsMergeability: progressSkill.includes("isDraft,statusCheckRollup,mergeable"),
+  stackedPullRequestWaitsForItsParent: progressSkill.includes("| `baseRefName` is not the resolved integration branch | it waits for the work it is stacked on to merge"),
+  conflictingPullRequestNeedsAFix: progressSkill.includes("| `mergeable` is `CONFLICTING` | it conflicts with its base"),
   holdsNothingWhenTheReviewPasses: progressSkill.includes("| `pullfrog-approval` passes and every other entry passes | only the merge is left |") && !progressSkill.includes("`pullfrog-approval` is `SUCCESS`"),
   keepsTheWindowStartLine: progressSkill.includes("window.localStartedAt"),
   hasNoOwnerQuestionPart: !progressSkill.includes("What is waiting on the owner"),
   placesMissingBehaviourInsideTheItem: !/is missing three behaviours\. Name\s+them\./.test(progressSkill) && /qualifier inside the item of that screen/.test(progressSkill),
-}, { mergedIsFirst: true, builtNotMergedIsSecond: true, bansNumbersAndVersions: true, readsWhatHoldsEachItem: true, restatesThePassRule: true, readsOnlyTheNewestRun: true, hasNoUnknownRuleThatContradictsTheTable: true, holdsNothingWhenTheReviewPasses: true, keepsTheWindowStartLine: true, hasNoOwnerQuestionPart: true, placesMissingBehaviourInsideTheItem: true })
+}, { mergedIsFirst: true, builtNotMergedIsSecond: true, bansNumbersAndVersions: true, readsWhatHoldsEachItem: true, restatesThePassRule: true, readsOnlyTheNewestRun: true, hasNoUnknownRuleThatContradictsTheTable: true, readsMergeability: true, stackedPullRequestWaitsForItsParent: true, conflictingPullRequestNeedsAFix: true, holdsNothingWhenTheReviewPasses: true, keepsTheWindowStartLine: true, hasNoOwnerQuestionPart: true, placesMissingBehaviourInsideTheItem: true })
 T("progress: --remaining reads the open board in dependency order and the open pull requests", {
   isAnArgument: /^argument-hint: "\[--remaining \| --full\]/m.test(progressSkill),
   readsTheBoardPlan: progressSkill.includes("node tools/plan-queue.mjs --board"),

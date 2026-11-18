@@ -198,7 +198,7 @@ its parent. `/orchestrate` and `/merge-prs` own that rule.
 
    ```bash
    gh pr list --state open --limit 100 \
-     --json number,headRefName,baseRefName,isCrossRepository,title,isDraft,statusCheckRollup
+     --json number,headRefName,baseRefName,isCrossRepository,title,isDraft,statusCheckRollup,mergeable
    ```
 
    This listing carries every field of the base-chain listing, so one read serves both. A listing
@@ -219,6 +219,8 @@ its parent. `/orchestrate` and `/merge-prs` own that rule.
    | a completed entry other than `pullfrog-approval` that fails | a check fails: say what that check protects |
    | `pullfrog-approval` is completed and fails | the review asked for a fix |
    | no `pullfrog-approval` entry | the review did not run yet |
+   | `baseRefName` is not the resolved integration branch | it waits for the work it is stacked on to merge, and the full checks run only once it targets the integration branch |
+   | `mergeable` is `CONFLICTING` | it conflicts with its base: the conflict needs a fix, then the checks and the review run again |
    | `pullfrog-approval` passes and every other entry passes | only the merge is left |
 
    Work that a ledger row or step 4 shows with no pull request is built on a local head: say nobody
