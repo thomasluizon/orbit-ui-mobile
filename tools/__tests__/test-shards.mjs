@@ -3,14 +3,17 @@ import { readdirSync, readFileSync } from "node:fs"
 import { join } from "node:path"
 import yaml from "js-yaml"
 
-import { mergeTimingLines, parseShard, partitionDefects, partitionModules, runShardsInParallel, shardSeconds, slowestShardSeconds, TIMINGS_MARKER } from "../lib/test-shards.mjs"
+import { medianTimings, mergeTimingLines, parseShard, partitionDefects, partitionModules, runShardsInParallel, shardSeconds, slowestShardSeconds, TIMINGS_MARKER } from "../lib/test-shards.mjs"
 import { BASH, REPO_ROOT, T, run, stage, toolPath } from "./_harness.mjs"
 
 const TOOL = "lib/test-shards.mjs"
 
 /** One shard job must finish in 6 minutes (the ticket). */
 const SHARD_JOB_LIMIT_SECONDS = 360
-/** Checkout, setup-node and npm ci before the harness step: 66 s at most on PR Tests runs 42915781433 and 42944546478. */
+/**
+ * Checkout, setup-node, the npm version and npm ci --prefer-offline --no-audit before the harness step: the same steps took
+ * 35 to 56 s in the layout shards of PR Tests runs 44216168902, 44221130214 and 44219082100, plus 3 to 5 s for the npm version.
+ */
 const SHARD_SETUP_SECONDS = 70
 const SHARD_HARNESS_BUDGET_SECONDS = SHARD_JOB_LIMIT_SECONDS - SHARD_SETUP_SECONDS
 
@@ -128,6 +131,16 @@ export const cases = async () => {
   T(`${TOOL}: no single module outweighs the budget, so a partition can fit it`,
     Math.max(...Object.values(timings.seconds)) + timings.fixedSeconds <= SHARD_HARNESS_BUDGET_SECONDS,
     `heaviest module: ${Object.entries(timings.seconds).sort(([, left], [, right]) => right - left)[0].join(" ")}s. Split it into case modules.`)
+
+  T(`${TOOL}: medianTimings gives each registered module the median of its runs and the largest overhead`,
+    JSON.stringify(medianTimings([
+      { fixedSeconds: 1, seconds: { a: 10, b: 4, gone: 1 } },
+      { fixedSeconds: 2.5, seconds: { a: 30, b: 5 } },
+      { fixedSeconds: 1.5, seconds: { a: 20.04, c: 7 } },
+    ], ["a", "b", "c", "d"])) === JSON.stringify({ fixedSeconds: 2.5, seconds: { a: 20, b: 4.5, c: 7 }, unregistered: ["gone"] }))
+  T(`${TOOL}: the shard jobs install with the offline npm cache flags their setup budget measured`,
+    job?.steps?.some((step) => step.run === "npm ci --prefer-offline --no-audit --fund=false") && !job?.steps?.some((step) => step.run === "npm ci"),
+    JSON.stringify(job?.steps?.map((step) => step.run).filter(Boolean)))
 
   const timingLine = (shard, seconds, fixedSeconds = 0.4) =>
     `Tool tests (${shard})\tUNKNOWN STEP\t2026-11-11T02:49:33.7612538Z ${TIMINGS_MARKER}${JSON.stringify({ shard, fixedSeconds, seconds })}\n`

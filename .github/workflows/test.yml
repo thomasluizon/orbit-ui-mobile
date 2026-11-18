@@ -274,11 +274,13 @@ jobs:
           key: ${{ steps.playwright-cache.outputs.cache-primary-key }}
 
   # Each shard runs a deterministic share of the tools harness case modules.
-  # tools/test-tools-timings.json holds CI seconds per module from the run in its sourceRun field, and the tools
-  # harness fails when that snapshot projects the slowest shard past its budget. timeout-minutes is the live guard.
-  # Regenerate the snapshot with node tools/record-tool-timings.mjs <run-id>. Tool and Hook Tests below keeps the required check name.
+  # tools/test-tools-timings.json holds the median CI seconds per module over the runs in its sourceRuns field, and the
+  # tools harness fails when that snapshot projects the slowest shard past its budget. timeout-minutes is the live guard.
+  # Regenerate the snapshot with node tools/record-tool-timings.mjs <run-id>.... Tool and Hook Tests below keeps the required check name.
   # Run 42961275542 (four shards) took 4:31 to 5:25 end to end per shard, and the harness step took 215 to 260 s.
   # The 8 minute limit is about 1.5 times the slowest end to end time of 325 s.
+  # npm ci with --prefer-offline --no-audit took 27 to 48 s in the layout shards of runs 44216168902 and 44221130214;
+  # plain npm ci took 90 to 168 s in these shards, and pushed shard 2 of runs 44217309946 and 44149853753 past the limit.
   tool-tests:
     name: Tool tests (${{ matrix.shard }}/${{ matrix.total }})
     runs-on: ubuntu-latest
@@ -301,7 +303,7 @@ jobs:
       - name: Use the repository npm version
         run: npm install --global "$(node -p "require('./package.json').packageManager")" --no-audit --no-fund
 
-      - run: npm ci
+      - run: npm ci --prefer-offline --no-audit --fund=false
 
       - name: Run tools harness shard
         run: node tools/test-tools.mjs --shard ${{ matrix.shard }}/${{ matrix.total }}
@@ -325,7 +327,7 @@ jobs:
       - name: Use the repository npm version
         run: npm install --global "$(node -p "require('./package.json').packageManager")" --no-audit --no-fund
 
-      - run: npm ci
+      - run: npm ci --prefer-offline --no-audit --fund=false
 
       - name: Validate the dependency tree
         env:

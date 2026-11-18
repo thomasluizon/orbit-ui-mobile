@@ -66,7 +66,7 @@ export const TIMINGS_MARKER = "# tool-timings "
  * carry a stale description forward: `sourceRun` is the only provenance field.
  */
 export const TIMINGS_METHOD =
-  "Per-shard # tool-timings lines from every Tool tests (i/n) job of the sourceRun PR Tests run, merged by tools/record-tool-timings.mjs. Each module owns the wall seconds of its contract checks and cases. fixedSeconds is the largest per-shard harness overhead outside the modules."
+  "Per-shard # tool-timings lines from every Tool tests (i/n) job of each sourceRuns PR Tests run, merged by tools/record-tool-timings.mjs. Each module owns the median over those runs of the wall seconds of its contract checks and cases, so one slow runner does not move the split. fixedSeconds is the largest per-shard harness overhead outside the modules. Only modules that test-tools.mjs registers are kept."
 
 /**
  * Merge the timing lines of every shard of one run into one table.
@@ -93,6 +93,32 @@ export const mergeTimingLines = (text) => {
   return {
     fixedSeconds: Math.max(...timings.map((timing) => timing.fixedSeconds)),
     seconds: Object.fromEntries(Object.entries(seconds).sort(([left], [right]) => left.localeCompare(right))),
+  }
+}
+
+const median = (values) => {
+  const sorted = [...values].sort((left, right) => left - right)
+  const middle = Math.floor(sorted.length / 2)
+  const value = sorted.length % 2 === 1 ? sorted[middle] : (sorted[middle - 1] + sorted[middle]) / 2
+  return Math.round(value * 10) / 10
+}
+
+/**
+ * Combine the merged tables of several runs: each module of `modules` gets the median of the seconds that the runs
+ * measured for it, and fixedSeconds is the largest overhead. A module that no run measured is left out, so the
+ * partition gives it the mean weight. Returns the names that the runs measured but `modules` does not register.
+ */
+export const medianTimings = (tables, modules) => {
+  const registered = new Set(modules)
+  const measured = new Map()
+  for (const table of tables) {
+    for (const [module, seconds] of Object.entries(table.seconds)) measured.set(module, [...(measured.get(module) ?? []), seconds])
+  }
+  const names = [...measured.keys()].sort((left, right) => left.localeCompare(right))
+  return {
+    fixedSeconds: Math.max(...tables.map((table) => table.fixedSeconds)),
+    seconds: Object.fromEntries(names.filter((module) => registered.has(module)).map((module) => [module, median(measured.get(module))])),
+    unregistered: names.filter((module) => !registered.has(module)),
   }
 }
 

@@ -29,8 +29,8 @@ const USAGE = `usage: test-tools.mjs
   --help, -h     print this usage and exit 0
 
   The shard partition reads tools/test-tools-timings.json. Every run prints one "# tool-timings"
-  JSON line; node tools/record-tool-timings.mjs <run-id> merges those lines from every shard of a
-  CI run into that file.
+  JSON line; node tools/record-tool-timings.mjs <run-id>... merges those lines from every shard of
+  one or more CI runs into that file, with the median seconds of each module.
 
 exit codes: 0 every check passed, 1 a failing check, 2 usage error`
 
