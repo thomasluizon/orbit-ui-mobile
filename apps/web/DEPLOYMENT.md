@@ -93,8 +93,9 @@ option, not through the `withSentryConfig` `tunnelRoute` rewrite. Next.js forwar
 request header on an external rewrite, so that rewrite sent the session cookies to Sentry. The
 handler forwards an envelope only when its header names the build's `NEXT_PUBLIC_SENTRY_DSN`,
 and it sends the body to that project's ingest endpoint with only a `Content-Type` header.
-`SENTRY_TUNNEL_ROUTE` in `lib/public-paths.ts` names the path, so a signed-out visitor
-reaches it.
+`isRouteHandlerPath` in `proxy.ts` passes `/monitoring` through before session resolution,
+so a signed-out visitor reaches it. `SENTRY_TUNNEL_ROUTE` in `lib/public-paths.ts` keeps the
+pages under `/monitoring/` public.
 
 Do not set `tunnelRoute` again. Today `next.config.ts` has no `rewrites()`, so Next.js loads the
 `tunnelRoute` rewrite in `afterFiles`, after the `/monitoring` Route Handler, and it does nothing.
