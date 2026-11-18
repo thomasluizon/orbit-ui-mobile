@@ -13,10 +13,17 @@ import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
 import { currentBaseShaOf, newestChecks, readinessReport, PASSING_CONCLUSIONS } from "./lib/readiness-receipt.mjs"
 import { gitDirectoryOf, REPO_ROOT, readRunState, readWakeSourceStates, readWorkerLaunches, workerLaunchDirectory } from "./lib/run-state.mjs"
 import { parseWorktreeList } from "./lib/git-worktrees.mjs"
+import { listOpenTickets, readComments } from "./lib/github-issues.mjs"
+import { readIntake } from "./lib/auto-work-intake.mjs"
+import { latestRunNote } from "./lib/run-notes.mjs"
+import { readinessReceiptPath } from "./lib/readiness-receipt.mjs"
 
-const USAGE = `usage: run-status.mjs --session <id>
+const USAGE = `usage: run-status.mjs [--session <id>]
 
 Reads the owning checkout's run, wake sources, launcher results, receipts and GitHub board.
+With no run record in the checkout (a fresh clone, another computer, or after a reboot), it rebuilds the
+run from GitHub alone and prints status COLD_START: the board queue, every open ticket pull request
+with its next step, the latest round note and review of each in-flight ticket, and the intake marks.
 Prints one compact JSON object with observations and exact next commands. No verdict is decided.
 A foreign session has no actions. A linked worktree names the main checkout without reading its run.
 The wake-source reader removes registrations only when both recorded processes are dead.
@@ -25,14 +32,14 @@ Errors are redacted; tokens are scoped to child environments; pull request bodie
 Active auto-work wakes append INTAKE after in-flight actions, including with an empty queue.
 Ordinary sleep keeps NO_ACTION; a pending relay drain suppresses intake.
 
-  --session <id>  current orchestrating session id (required when a run exists)
+  --session <id>  current orchestrating session id (required when a run exists; unused for a cold start)
   --help, -h     print this usage and exit 0
 
 exit codes: 0 snapshot (including absent, foreign or unreadable runs), 2 usage or environment error`
 
 export const statusQuery = (numbers) => `query RunStatus($owner: String!, $name: String!) {
   repository(owner: $owner, name: $name) {
-    pullRequests(states: OPEN, first: 100) { totalCount nodes { headRefName } }
+    pullRequests(states: OPEN, first: 100) { totalCount nodes { number headRefName } }
     ${numbers.map((number) => `pr${number}: pullRequest(number: ${number}) {
       number state isDraft headRefName headRefOid baseRefName baseRefOid mergeStateStatus
       baseRef { name target { __typename oid } }
@@ -238,12 +245,77 @@ const recoverLaunchResults = ({ repositories, wakes, launches, sessionId }) => {
   return [...results.values()]
 }
 
-export const runStatus = async ({ repoRoot = REPO_ROOT, sessionId = "", config, runner = runBounded, authenticate = githubEnvironment, now = Date.now() } = {}) => {
+const ticketOfBranch = (branch) => /ticket-(\d+)/.exec(branch)?.[1] ?? null
+const noteSummary = (note) => note && { ...note.note, createdAt: note.createdAt, author: note.author }
+const sourceSummary = (source) => ({ pending: Object.keys(source?.pending ?? {}).length, completed: Object.keys(source?.completed ?? {}).length,
+  highWater: source?.highWater ?? null })
+
+/**
+ * A run rebuilt from GitHub alone: no run record, scratchpad or receipt is read as the record. Readiness is
+ * recomputed from each pull request's checks, review and threads at its exact head, so a missing receipt only
+ * names the verify-delivery command that writes a fresh one.
+ */
+const coldStart = async ({ repoRoot, config, runner, authenticate, now, reads }) => {
+  const owner = repositorySlug(repoRoot).split("/")[0]
+  const [repositories, board, intake] = await Promise.all([
+    Promise.resolve(repositoryTargets({ config, rows: [], owner, authenticate })),
+    reads.listTickets().then((tickets) => ({ tickets }), (error) => ({ error: redactSecrets(error.message).slice(0, 256) })),
+    Promise.resolve().then(() => reads.readIntakeMarks(repoRoot)).then((marks) => ({ marks }), (error) => ({ error: redactSecrets(error.message).slice(0, 256) })),
+  ])
+  const listed = await Promise.all(repositories.map((repository) => readRepository({ ...repository, rows: [], budget: null, runner, now })))
+  const rows = listed.flatMap((snapshot, index) => (snapshot.pulls.pullRequests?.nodes ?? [])
+    .filter((pull) => Number.isInteger(pull.number) && ticketOfBranch(pull.headRefName))
+    .map((pull) => ({ repositoryKey: repositories[index].key, prNumber: pull.number, issue: `#${ticketOfBranch(pull.headRefName)}`,
+      receiptPath: readinessReceiptPath(repoRoot, repositories[index].key, pull.number) })))
+  const snapshots = await Promise.all(repositories.map((repository) => readRepository({ ...repository, rows: rows.filter((row) => row.repositoryKey === repository.key), budget: null, runner, now })))
+  const wakes = { live: [], orphaned: [] }
+  const pullRequests = []
+  const nextActions = []
+  for (const row of rows) {
+    const snapshot = snapshots.find((entry) => entry.repositoryKey === row.repositoryKey)
+    if (snapshot?.status !== "OK") {
+      pullRequests.push({ repositoryKey: row.repositoryKey, prNumber: row.prNumber, issue: row.issue, status: snapshot?.status ?? "UNREADABLE" })
+      continue
+    }
+    const pull = snapshot.pulls[`pr${row.prNumber}`]
+    const observed = observePull({ ...row, worktree: repositories.find((entry) => entry.key === row.repositoryKey)?.worktrees.get(pull?.headRefName), commandRoot: repoRoot }, pull, [], wakes)
+    pullRequests.push({ ...observed.observation, issue: row.issue })
+    nextActions.push(...observed.actions)
+  }
+  const inFlight = [...new Set([...rows.map((row) => Number(row.issue.slice(1))),
+    ...(board.tickets ?? []).filter((ticket) => ["In Progress", "In Review"].includes(ticket.status)).map((ticket) => ticket.number)])].sort((left, right) => left - right)
+  const tickets = await Promise.all(inFlight.map(async (number) => {
+    try {
+      const comments = await reads.readTicketComments(number)
+      return { ticket: `#${number}`, latestRoundNote: noteSummary(latestRunNote(comments, "round-note")), latestReview: noteSummary(latestRunNote(comments, "review")),
+        latestReport: noteSummary(latestRunNote(comments, "report")) }
+    } catch (error) {
+      return { ticket: `#${number}`, error: redactSecrets(error.message).slice(0, 256) }
+    }
+  }))
+  const queue = board.tickets?.filter((ticket) => ticket.status !== null && !["Done", "Canceled", "Duplicate"].includes(ticket.status))
+    .map(({ number, title, status }) => ({ ticket: `#${number}`, title, status }))
+  if (queue?.some((ticket) => ["Todo", "Backlog"].includes(ticket.status))) nextActions.push(action("PLAN_QUEUE", "node tools/plan-queue.mjs --board --sleep"))
+  if (nextActions.length === 0) nextActions.push(action("NO_ACTION", "node tools/run-status.mjs"))
+  const marks = intake.marks
+  return { status: "COLD_START", commandDirectory: repoRoot,
+    repositories: snapshots.map(({ repositoryKey, status, openPullRequests, error }) => ({ repositoryKey, status, openPullRequests, error })),
+    queue: queue ?? { error: board.error }, pullRequests, tickets,
+    intake: marks ? { ...Object.fromEntries(["gmail", "play", "appStore"].map((source) => [source, sourceSummary(marks[source])])),
+      wake: { seen: Object.fromEntries(Object.entries(marks.wake?.seen ?? {}).map(([source, keys]) => [source, keys.length])), sentryListedAt: marks.wake?.sentryListedAt ?? null } }
+      : { error: intake.error },
+    nextActions }
+}
+
+const GITHUB_READS = { listTickets: () => listOpenTickets(), readTicketComments: (number) => readComments(number), readIntakeMarks: (repoRoot) => readIntake(repoRoot) }
+
+export const runStatus = async ({ repoRoot = REPO_ROOT, sessionId = "", config, runner = runBounded, authenticate = githubEnvironment, now = Date.now(), reads = GITHUB_READS } = {}) => {
   const state = readRunState(repoRoot)
   if (!state) {
     const gitdir = gitDirectoryOf(repoRoot)
     const linked = dirname(gitdir).endsWith(`${join(".git", "worktrees")}`)
-    return { status: "no run record", ...(linked ? { warning: "linked worktree has separate run state", mainCheckout: dirname(dirname(dirname(gitdir))) } : {}), nextActions: [] }
+    if (linked) return { status: "no run record", warning: "linked worktree has separate run state", mainCheckout: dirname(dirname(dirname(gitdir))), nextActions: [] }
+    return coldStart({ repoRoot, config: config ?? readOrchestratorConfig(), runner, authenticate, now, reads })
   }
   if (!sessionId) throw new Error("--session is required when a run exists")
   if (state.sessionId !== sessionId) return { status: "FOREIGN_SESSION", nextActions: [] }

@@ -6,6 +6,7 @@ import { T, check, orcaEnv, realOrchestratorConfig, stage, stageRepo, stageWithC
 import { runStatus, statusQuery } from "../run-status.mjs"
 import { readAdmissionCounts, RELEASE_HOLD_MS } from "../lib/admission.mjs"
 import { writeReadinessReceipt } from "../lib/readiness-receipt.mjs"
+import { composeRunNote } from "../lib/run-notes.mjs"
 import { clearWakeSource, readRunState, registerWakeSource, reserveWorkerLaunch, runStatePath, workerLaunchDirectory, writeRunState } from "../lib/run-state.mjs"
 
 const fixture = JSON.parse(readFileSync(join(TOOLS_DIR, "__fixtures__", "gh-run-status.json"), "utf8"))
@@ -17,6 +18,42 @@ const readyPull = () => {
   pull.mergeStateStatus = "CLEAN"
   pull.statusCheckRollup.contexts.nodes = pull.statusCheckRollup.contexts.nodes.map((check) => ({ ...check, status: "COMPLETED", conclusion: "SUCCESS" }))
   return pull
+}
+
+/** A fresh clone: no run record, no receipt and no launch result, so every fact comes from the stubbed GitHub reads. */
+const coldStartCases = async ({ repo, options, authenticate, readCalls, setResponse }) => {
+  const head = readyPull()
+  const open = { data: { repository: { pullRequests: { totalCount: 2, nodes: [{ number: 1459, headRefName: head.headRefName }, { number: 7, headRefName: "chore/prod-release-relay-c315" }] } } } }
+  const statuses = { data: { repository: { ...open.data.repository, pr1459: head } } }
+  setResponse(open)
+  const runner = async (file, args, invocation) => {
+    readCalls.push(args)
+    const query = args.at(-1)
+    const payload = args[1] === "graphql" ? (query.includes("pr1459:") ? statuses : open) : { total_count: 0, workflow_runs: [] }
+    return { status: 0, stdout: JSON.stringify(payload), stderr: "", error: null, timedOut: false, overflowed: false }
+  }
+  const roundNote = composeRunNote({ kind: "round-note", round: 2, head: head.headRefOid, body: "Fix the two findings." })
+  const review = composeRunNote({ kind: "review", head: head.headRefOid, body: "VERDICT: CLEAN" })
+  const commentsRead = []
+  const reads = {
+    listTickets: async () => [{ number: 1092, title: "Fixture ticket", status: "In Review" }, { number: 1093, title: "Next ticket", status: "Todo" }, { number: 1, title: "Finished", status: "Done" }],
+    readTicketComments: async (number) => { commentsRead.push(number); return number === 1092 ? [{ body: roundNote, createdAt: "2026-10-01T20:00:00Z", author: "owner" }, { body: review, createdAt: "2026-10-01T20:30:00Z", author: "owner" }] : [] },
+    readIntakeMarks: () => ({ gmail: { pending: { m2: {} }, completed: { m1: {} }, highWater: "m2" }, wake: { seen: { mail: ["m2"], board: ["#1092 x", "#1093 y"] }, sentryListedAt: "2026-10-01T19:00:00Z" } }),
+  }
+  const cold = await runStatus({ ...options, sessionId: "", authenticate, runner, reads })
+  T("run-status: a checkout with no run record rebuilds the run from GitHub", cold.status === "COLD_START", JSON.stringify(cold))
+  T("run-status: a cold start finds each open ticket pull request and skips other branches", cold.pullRequests.length === 1 && cold.pullRequests[0].prNumber === 1459 && cold.pullRequests[0].issue === "#1092", JSON.stringify(cold.pullRequests))
+  T("run-status: a cold start recomputes readiness from GitHub and names the delivery check that writes a fresh receipt", cold.pullRequests[0].receipt === "MISSING_OR_CORRUPT" &&
+    cold.nextActions.some((entry) => entry.type === "VERIFY_DELIVERY" && entry.pr === "ui#1459"), JSON.stringify(cold.nextActions))
+  T("run-status: a cold start carries the latest round note and review of each in-flight ticket", cold.tickets.length === 1 && cold.tickets[0].ticket === "#1092" &&
+    cold.tickets[0].latestRoundNote.round === "2" && cold.tickets[0].latestRoundNote.head === head.headRefOid && cold.tickets[0].latestReview.verdict === "clean" && cold.tickets[0].latestReport === null, JSON.stringify(cold.tickets))
+  T("run-status: a cold start lists the board queue without finished tickets and plans it", JSON.stringify(cold.queue.map((ticket) => ticket.ticket)) === JSON.stringify(["#1092", "#1093"]) &&
+    cold.nextActions.some((entry) => entry.type === "PLAN_QUEUE" && entry.command === "node tools/plan-queue.mjs --board --sleep"), JSON.stringify(cold.queue))
+  T("run-status: a cold start summarizes the intake marks from the tickets repository", JSON.stringify(cold.intake.gmail) === JSON.stringify({ pending: 1, completed: 1, highWater: "m2" }) &&
+    cold.intake.wake.seen.board === 2 && cold.intake.play.pending === 0, JSON.stringify(cold.intake))
+  T("run-status: a cold start writes no run record", !existsSync(join(repo.path, ".git", "orbit-orchestrate-run.json")))
+  const failing = await runStatus({ ...options, sessionId: "", authenticate, runner, reads: { ...reads, listTickets: async () => { throw new Error("board read failed ghp_abcdefghijklmnopqrstuvwx") } } })
+  T("run-status: a failed board read is reported and redacted, never an empty queue", failing.queue.error?.includes("board read failed") && !failing.queue.error.includes("ghp_abcdefghijklmnopqrstuvwx"), JSON.stringify(failing.queue))
 }
 
 export const cases = async () => {
@@ -43,13 +80,20 @@ export const cases = async () => {
     return { status: 0, stdout: malformedJson ? "status-secret" : JSON.stringify(payload), stderr: "", error: null, timedOut: false, overflowed: false }
   }
   const snapshot = (extra = {}) => runStatus({ ...options, authenticate, runner, ...extra })
-  T("run-status: no record exits without any GitHub calls", (await snapshot()).status === "no run record" && readCalls.length === 0)
+  await coldStartCases({ repo, options, authenticate, readCalls, setResponse: (next) => { response = next } })
+  response = structuredClone(fixture.response)
+  readCalls.length = 0
   const cliPath = join(repo.path, "tools", "run-status.mjs")
   mkdirSync(dirname(cliPath), { recursive: true })
   cpSync(join(TOOLS_DIR, "run-status.mjs"), cliPath)
   cpSync(join(TOOLS_DIR, "lib"), join(repo.path, "tools", "lib"), { recursive: true })
-  check("run-status.mjs", "the CLI succeeds when its staged checkout has no run record", [],
-    { status: 0, stdout: /no run record/ }, { path: cliPath })
+  mkdirSync(join(repo.path, ".claude"), { recursive: true })
+  for (const file of ["linear-to-github-map.json", "orchestrator.json"]) cpSync(join(TOOLS_DIR, "..", ".claude", file), join(repo.path, ".claude", file))
+  const unreachable = stage("run-status-cold/gh", "#!/bin/sh\necho 'gh: offline (HTTP 503)' >&2\nexit 1\n")
+  spawnSync("chmod", ["755", unreachable])
+  const cold = check("run-status.mjs", "the CLI rebuilds from GitHub when its staged checkout has no run record, and reports what it cannot read", [],
+    { status: 0, stdout: /"status":"COLD_START"/ }, { path: cliPath, env: { GH_BIN: unreachable } })
+  T("run-status: an unreachable GitHub leaves each source marked unreadable, never an empty success", /"queue":\{"error":/.test(cold.stdout) && /"status":"UNREADABLE"/.test(cold.stdout), cold.stdout)
   const linked = dirname(stage("run-status-linked/.git", `gitdir: ${join(repo.path, ".git", "worktrees", "linked")}\n`))
   const linkedStatus = await snapshot({ repoRoot: linked })
   T("run-status: linked worktrees never read the main checkout's run", linkedStatus.mainCheckout === repo.path && linkedStatus.warning.includes("linked worktree"))
