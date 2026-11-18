@@ -7,7 +7,8 @@
 import { homedir } from "node:os"
 import { posix } from "node:path"
 
-import { invocationsOf, PLAIN_SUBSET_ADVICE, programName, readCommand, SUBSTITUTION, walkCommands } from "./command-expander.mjs"
+import { SUBSTITUTION } from "./command-expander.mjs"
+import { BRACE_EXPANSION, invocationsOf, PLAIN_SUBSET_ADVICE, programName, readCommand, walkCommands } from "./shell-subset.mjs"
 
 /** The tools whose permission check runs the Claude Code removal check. Each one takes the shell command as `tool_input.command`. */
 export const REMOVAL_CHECK_TOOLS = ["Bash", "Monitor"]
@@ -24,7 +25,6 @@ const LAUNCHER_MARKER = "ORBIT_LAUNCH_WORKER"
 const EXPANSION = /^\$(?:\{([^}]*)\}|([A-Za-z_][A-Za-z0-9_]*|[0-9@*#?!$-]))/
 const GUARDED = /^(?:[A-Za-z_][A-Za-z0-9_]*|[0-9]+):\?/
 const SIMPLE_NAME = /^(?:[A-Za-z_][A-Za-z0-9_]*|[0-9]+)$/
-const BRACE_EXPANSION = /\{[^{}]*(?:,|\.\.)[^{}]*\}/
 const MOUNTED_DRIVE = /^\/(?:system\/)?volumes(?:\/[^/]+){0,2}$|^\/mnt\/(?:[^/]+|[a-z]\/[^/]+)$|^\/(?:run\/)?media(?:\/[^/]+){0,3}$/i
 const TRAILING_STARS = /(?:\/\*+)+\/*$/
 const ROOTED = /^(?:[\\/]|[A-Za-z]:[\\/])/

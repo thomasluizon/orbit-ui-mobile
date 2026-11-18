@@ -3,7 +3,7 @@
 // context relay request, so the model cannot talk its way past it.
 
 import { HANDOFF_PROMPT_PATH, handoffAutoWork, handoffCrank, validateHandoffPrompt } from "../../../tools/lib/handoff-prompt.mjs"
-import { PLAIN_SUBSET_ADVICE } from "./command-expander.mjs"
+import { PLAIN_SUBSET_ADVICE } from "./shell-subset.mjs"
 import { gitCommandParts, gitDirectoryChain, readGitCommands } from "./rules-git.mjs"
 
 /**

@@ -38,7 +38,8 @@ Session hooks block commands or edits before they happen.
 | `handoff-git.mjs` | every `NEXT.md` version a commit could record, and the newest committed one on any branch | require-handoff-prompt |
 | `rules-relay.mjs` | the context relay: drain sources, thresholds, and the superseded session | relay-at-threshold (PostToolUse, Stop), require-wake-source (Stop), forbid-superseded-session (PreToolUse, UserPromptSubmit) |
 | `rules-sleep.mjs` | an unattended run never ends a turn with no live wake source | require-wake-source (Stop) |
-| `command-expander.mjs` | the modelled shell subset (`readCommand`) for the git rule and the approval rule, and shell bodies read as words and commands for the other rules, with no part run | the shell rules above |
+| `shell-subset.mjs` | the modelled shell subset (`readCommand`, `walkCommands`) for the git rule, the approval rule and the handoff gate, with no part run | git-guardrails, forbid-approval-prompt, require-handoff-prompt |
+| `command-expander.mjs` | the text inspector: shell bodies read as words and commands for the other rules, with no part run | the shell rules above |
 | `io.mjs` | payload normalizers | each adapter |
 
 `rules-orchestrator.mjs` is **cost-raising defence in depth and never the control**:
@@ -83,7 +84,7 @@ that each one covers (the `covers` text of its refusal):
 | `mounted-drive` | `mounted_drive_path` |
 | `not-modelled` | `inline_shell_unchecked`, `eval_trap_string`, `unparsed_line` |
 
-`not-modelled` is the fail-safe rule. The reader is an allow list: `readCommand` in `command-expander.mjs` reads one small
+`not-modelled` is the fail-safe rule. The reader is an allow list: `readCommand` in `shell-subset.mjs` reads one small
 grammar, and names each other construct as not modelled. The approval rule and `checkGitCommand` in `rules-git.mjs` read only
 the parsed words of that grammar, through `walkCommands`, never the text of the command. The refusal names the construct, and
 it asks for the plain subset, for a `.mjs` file that `node` runs for a search or a filter, or for a script file that the agent
@@ -197,7 +198,13 @@ script file that the agent runs by its path are not read. A `cd` that fails is r
 the environment is not read.
 
 `checkGitCommand` refuses a command outside the grammar in an unattended run, the same runs in which the approval rule applies.
-In an attended session it refuses such a command only when the text, with its quotes and backslashes removed, names `git`.
+In an attended session it refuses such a command only when the text, with its heredoc bodies, quotes and backslashes removed, names
+`git` and a push or a hygiene marker: `push`, `no-verify`, `no-gpg-sign`, `gpgsign`, `hookspath`, or `-n` after `commit`. So the
+default commit form of Claude Code, `git commit -m "$(cat <<'EOF' ... EOF)"`, and a git command with a variable argument pass
+attended, and the handoff gate reads such a commit from its text. A variable that holds a push or a hygiene flag is not read in an
+attended session. The rule reads a `PowerShell` command with the same bash grammar: this is a deliberate choice, because a
+cmdlet is not in `KNOWN_COMMAND_WORDS`. So an unattended run refuses each cmdlet, and an attended session refuses a cmdlet line
+only when its text names git and a push or a hygiene marker.
 The rule never resolves a `-C` path in Node: it gives git the directory after the `cd` model and each raw `-C` word, as
 `git -C <dir> -C <w1> ... -C <wn> remote get-url --push <remote>`, because git applies `-C` with `chdir`, which follows a
 symlink before it reads `..`. The shell `cd` reads `..` by text, so the `cd` model does the same.

@@ -1,4 +1,5 @@
-import { commandsFedBy, commandWords, expandCommands, heredocsOf, invocationsOf, PLAIN_SUBSET_ADVICE, programName, readCommand, readsStandardInput, shellValue, SHELLS, SUBSTITUTION, walkCommands, withoutRedirects } from "./command-expander.mjs"
+import { commandsFedBy, commandWords, expandCommands, heredocsOf, shellValue, SUBSTITUTION, withoutRedirects } from "./command-expander.mjs"
+import { invocationsOf, PLAIN_SUBSET_ADVICE, programName, readCommand, readsStandardInput, SHELLS, walkCommands } from "./shell-subset.mjs"
 import { posix, resolve } from "node:path"
 
 // Only these three repositories protect main; other repositories may allow direct pushes.
@@ -65,8 +66,6 @@ export function unquotedHeredocRunsCommand(command) {
   }
   return false
 }
-
-export { SHELLS }
 
 /** Stands for the heredoc operator, so that the shell parser finds the commands that read the body. */
 const HEREDOC_OPERATOR = "__heredoc_operator__"
@@ -313,8 +312,21 @@ function judgeGitCommands(command, gitCommands, { resolveRemoteUrl, unattended }
   return null
 }
 
-/** True when the dequoted text names git: an attended session refuses a command outside the subset only then. */
-const namesGit = (command) => /git/i.test(command.replace(/['"\\]/g, ""))
+/** A push, and each hygiene marker that `HYGIENE_RULES` and the `core.hooksPath` check read, by its text with no case. */
+const ATTENDED_RISK = /push|no-?verify|no-?gpg-?sign|gpgsign|hookspath/i
+/**
+ * True when the text, without its heredoc bodies, quotes and backslashes, names git and a push or a hygiene marker: an attended session
+ * refuses a command outside the subset only then. A commit `-n` counts in each word after `commit` up to the next `;`, `&`, `|` or line end.
+ */
+function attendedTextIsRisky(command) {
+  const text = stripHeredocBodies(command).replace(/['"\\]/g, "")
+  if (!/git/i.test(text)) return false
+  if (ATTENDED_RISK.test(text)) return true
+  return text.split(/[;&|\n]/).some((segment) => {
+    const words = segment.trim().split(/\s+/)
+    return words.some((word, index) => word === "commit" && words.slice(index + 1).some(holdsCommitNoVerify))
+  })
+}
 
 const notModelledRefusal = (command, notModelled) => ({
   block: true,
@@ -346,12 +358,13 @@ export function readGitCommands(command, { cwd, home } = {}) {
 /**
  * The refusal for a command that holds a git command which the workflow forbids, or null. The rule reads only the parsed
  * words of the modelled subset (`readCommand`). In an unattended run it refuses each command outside the subset, because it
- * cannot prove what that command runs. In an attended session it refuses such a command only when its dequoted text names git.
+ * cannot prove what that command runs. In an attended session it refuses such a command only when its text names git and a push or a
+ * hygiene marker (`attendedTextIsRisky`), so the default commit form of Claude Code and a git command with a variable argument pass.
  */
 export function checkGitCommand(command, { resolveRemoteUrl, cwd, home, unattended = true } = {}) {
   if (typeof command !== "string") return null
   const { gitCommands, notModelled } = readGitCommands(command, { cwd, home })
-  if (notModelled) return unattended || namesGit(command) ? notModelledRefusal(command, notModelled) : null
+  if (notModelled) return unattended || attendedTextIsRisky(command) ? notModelledRefusal(command, notModelled) : null
   return judgeGitCommands(command, gitCommands, { resolveRemoteUrl, unattended })
 }
 

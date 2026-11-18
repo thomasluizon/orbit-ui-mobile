@@ -4,8 +4,8 @@
     "snapshot": "none",
     "constants": [
       {
-        "name": "inline script length limit",
-        "source": "Claude Code 2.1.325 Bash permission check, the inline shell script length it reads"
+        "name": "shell reader limits",
+        "source": ".claude/hooks/_lib/shell-subset.mjs MAX_LENGTH, MAX_DEPTH, MAX_STATES and MAX_VISITS, the bounds that the hook chooses for its own reader"
       }
     ]
   },

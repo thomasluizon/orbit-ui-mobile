@@ -7,7 +7,7 @@ import { tmpdir } from "node:os"
 import { dirname, join, resolve } from "node:path"
 import { fileURLToPath, pathToFileURL } from "node:url"
 
-import { PLAIN_SUBSET_ADVICE, readCommand, walkCommands } from "./_lib/command-expander.mjs"
+import { PLAIN_SUBSET_ADVICE, readCommand, walkCommands } from "./_lib/shell-subset.mjs"
 import { checkGitCommand, checkGitWorktreeRemove, GIT_SUBCOMMANDS } from "./_lib/rules-git.mjs"
 import { countUnreviewedPendingLessons, isDriftReviewOverdue } from "./_lib/rules-lessons.mjs"
 import { checkEfMigrationRawIndex } from "./_lib/rules-source.mjs"
@@ -620,10 +620,19 @@ for (const [name, command] of [
 ]) T(`subset: ${command.slice(0, 80)} holds ${name}`, readCommand(command).notModelled.startsWith(name), true)
 // A relative `cd` that the shell can skip doubles the directories that are possible, and the walk stops at its limit.
 T("git: ten skippable relative cd commands are more states than the hook reads", checkGitCommand(Array.from({ length: 10 }, () => "true && cd a || cd b").join("; "), r13Options)?.notModelled, "more possible states than the hook reads")
-// An attended session refuses a command outside the subset only when its text names git.
+// An attended session refuses a command outside the subset only when its text, without heredoc bodies, quotes and backslashes, names git and a
+// push or a hygiene marker. So the default commit form of Claude Code and a git command with a variable argument pass, also with a message that names a push.
 T("git attended: a command outside the subset that names no git allows", checkGitCommand("while true; do sleep 5; done", { unattended: false }), null)
-T("git attended: a command outside the subset that names git blocks", blocks(checkGitCommand("{ git push origin main; }", { unattended: false })), true)
+T("git attended: a command outside the subset that names a git push blocks", blocks(checkGitCommand("{ git push origin main; }", { unattended: false })), true)
 T("git attended: a quote inside the word git still names git", blocks(checkGitCommand("{ g''it push origin main; }", { unattended: false })), true)
+const CLAUDE_COMMIT_FORM = "git commit -m \"$(cat <<'EOF'\nfix(hooks): push the branch, never with --no-verify\n\nCo-Authored-By: Claude\nEOF\n)\""
+const ATTENDED_TEXT_PASSES = [CLAUDE_COMMIT_FORM, 'git checkout "$BRANCH"', 'git -C "$HOME/work" status', 'git log --since="$(date -v-1d +%F)"',
+  'for f in .github/workflows/*.yml; do echo "$f"; done', "git status | Select-String modified", "Get-Content .gitignore", 'git commit -m "$MESSAGE" && head -n 3 log.txt']
+for (const command of ATTENDED_TEXT_PASSES) T(`git attended: ${JSON.stringify(command.slice(0, 70))} outside the subset allows`, checkGitCommand(command, { unattended: false }), null)
+const ATTENDED_TEXT_REFUSED = ['git push origin "$BRANCH"', 'git commit --no-verify -m "$X"', 'git commit -n -m "$X"', 'git commit -an -m "$X"', 'git commit --no-gpg-sign -m "$X"',
+  'git -c core.hooksPath=/dev/null commit -m "$X"', 'git -c commit.gpgsign=false commit -m "$X"', "git commit -m \"$(cat <<'EOF'\nx\nEOF\n)\" && git push origin main"]
+for (const command of ATTENDED_TEXT_REFUSED) T(`git attended: ${JSON.stringify(command.slice(0, 70))} outside the subset blocks`, blocks(checkGitCommand(command, { unattended: false })), true)
+for (const command of ATTENDED_TEXT_PASSES.slice(0, 5)) T(`git: ${JSON.stringify(command.slice(0, 70))} outside the subset blocks in an unattended run`, blocks(checkGitCommand(command)), true)
 
 // Each command of the round 14 review. The session directory is a protected repository, \`/work/brain\` is not protected, and the named remote \`ui\` has no URL, so the rule treats it as protected.
 const REVIEW_R14_GIT_REFUSED = [
@@ -1512,6 +1521,11 @@ T("approval: the same removal passes with no settings scope read", refusedBy(`rm
 // The real project settings of this repository add the two sibling repositories, as a real session lists them.
 T("additional directories: the real project settings add the sibling repositories", additionalWorkingDirectories(repoRoot, { ...scopeOptions, configDirectory: scopeManaged })
   .map((directory) => directory.slice(dirname(resolve(repoRoot)).length + 1)).filter((name) => ["orbit-api", "orbit-landing-page"].includes(name)), ["orbit-api", "orbit-landing-page"])
+// The gate charter names the limits that the approval hook has: each constant that its source names is declared in the shell reader.
+const approvalCharterSources = JSON.parse(readFileSync(join(repoRoot, "tools", "gate-charter.json"), "utf8"))[".claude/hooks/forbid-approval-prompt.mjs"].constants.map(({ source }) => source).join(" ")
+const shellReaderSource = readFileSync(join(hooksDir, "_lib", "shell-subset.mjs"), "utf8")
+const namedReaderLimits = approvalCharterSources.match(/\b[A-Z][A-Z0-9_]{2,}\b/g) ?? []
+T("approval charter: the gate charter names each limit of the shell reader, and only those", { named: namedReaderLimits.length > 0, missing: namedReaderLimits.filter((name) => !new RegExp(`^const ${name} = `, "m").test(shellReaderSource)) }, { named: true, missing: [] })
 const sleepingRun = { sleep: true, sessionId: "coordinator" }
 T("approval scope: the coordinator of an unattended run", isUnattendedRun({ state: sleepingRun, sessionId: "coordinator" }), true)
 // A subagent's tool hooks carry the session id of the coordinator, so the same record covers it.
@@ -2263,6 +2277,8 @@ T("adapter git-guardrails: push feature -> 0", runHook("git-guardrails.mjs", bas
 T("adapter git-guardrails: a grep for the flag that skips the hooks -> 0", runHook("git-guardrails.mjs", bash(`grep -rn -- '${NV}' .claude/hooks`)), 0)
 T("adapter git-guardrails: a push to main in a here-string with a $\"...\" quote -> 2", runHook("git-guardrails.mjs", bash('bash <<<$"git push origin main"')), 2)
 T("adapter git-guardrails: worktree remove --force -> 2", runHook("git-guardrails.mjs", bash("git worktree remove --force .claude/worktrees/x")), 2)
+T("adapter git-guardrails: the default commit form of Claude Code in an attended session -> 0", runHook("git-guardrails.mjs", bash(CLAUDE_COMMIT_FORM)), 0)
+T("adapter git-guardrails: the default commit form of Claude Code in a worker run -> 2", runHook("git-guardrails.mjs", bash(CLAUDE_COMMIT_FORM), { ORBIT_LAUNCH_WORKER: "1" }), 2)
 // git applies each `-C` word with `chdir`, which follows a symlink before it reads `..`. The fixture: a repository with no protection that
 // holds a symlink to a directory of a protected repository. The adapter reads the remote with real git, attended and in an unattended run.
 const symlinkFixture = join(root, "git-symlink")
@@ -3848,9 +3864,12 @@ const handoffChainRows = [
     { ORBIT_LAUNCH_WORKER: "1" }, { status: 2, refusal: "BLOCKED commit (the handoff gate cannot read it):" }],
 ]
 for (const [name, command, cwd, env, want] of handoffChainRows) T(`handoff chain hook: ${name}`, chainHook(command, cwd, env), want)
-// Attended, the handoff gate reads a command outside the subset from its text. The git rule in the same matcher refuses each such command that names git.
-T("handoff chain hook: an attended `find -execdir` commit is refused by the git rule in the same matcher",
-  runHook("git-guardrails.mjs", bash(`find ${stagedChainRepository} -maxdepth 1 -name .claude -execdir git commit -m x \\;`, cleanChainRepository)), 2)
+// Attended, the handoff gate reads a command outside the subset from its text. The git rule in the same matcher passes such a commit when its
+// text names no push and no hygiene marker, so the verdict of the handoff gate decides the tool call.
+T("handoff chain hook: the git rule in the same matcher passes the attended heredoc commit that the handoff gate refuses",
+  [runHook("git-guardrails.mjs", bash("git commit -m \"$(cat <<'EOF'\nx\nEOF\n)\"", stagedChainRepository)), chainHook("git commit -m \"$(cat <<'EOF'\nx\nEOF\n)\"", stagedChainRepository, {}).status], [0, 2])
+T("handoff chain hook: the git rule in the same matcher passes an attended `find -execdir` commit",
+  runHook("git-guardrails.mjs", bash(`find ${stagedChainRepository} -maxdepth 1 -name .claude -execdir git commit -m x \\;`, cleanChainRepository)), 0)
 T("handoff chain hook: the unattended refusal names the plain subset rewrite",
   spawnSync(process.execPath, [handoffHook], { input: JSON.stringify({ hook_event_name: "PreToolUse", session_id: "s-handoff-none", cwd: cleanChainRepository, tool_input: { command: 'git -C "$WT" commit -m x' } }),
     encoding: "utf8", env: { ...process.env, ORBIT_LAUNCH_WORKER: "1" } }).stderr.includes(PLAIN_SUBSET_ADVICE), true)
