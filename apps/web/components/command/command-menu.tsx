@@ -68,7 +68,10 @@ export function CommandMenu({ navItems, onCreateHabit, onClose }: Readonly<Comma
   const selectionMatchesSearch = selection.text === search.text && selection.page === page && selection.resultPage === search.page
   if (!selectionMatchesSearch) setSelection({ text: search.text, page, resultPage: search.page, value: '' })
   const selectedValue = selectionMatchesSearch && values.includes(selection.value) ? selection.value : values[0] ?? ''
-  function run(action: () => void) { setRouteTransitionIntent('instant'); action(); onClose() }
+  function run(action: () => void) {
+    requestHabitCreateNavigation(() => { setRouteTransitionIntent('instant'); action() })
+    onClose()
+  }
   function back() { setPage(null); search.changeText('') }
   function chooseCommand(id: SearchCommandId) {
     if (id === 'create') createHabit()
@@ -78,7 +81,7 @@ export function CommandMenu({ navItems, onCreateHabit, onClose }: Readonly<Comma
     if (logHabit.isPending || skipHabit.isPending) return
     if (page === 'log') logHabit.mutate({ habitId: id, intent: 'log' }, { onSuccess: () => { back(); onClose() } })
     else if (page === 'skip') skipHabit.mutate({ habitId: id }, { onSuccess: () => { back(); onClose() }, onError: onActionError })
-    else run(() => requestHabitCreateNavigation(() => router.push(`/habits/${id}`)))
+    else run(() => router.push(`/habits/${id}`))
   }
   function handleKeyDown(event: KeyboardEvent<HTMLDivElement>) {
     if (page && (event.key === 'Escape' || (event.key === 'Backspace' && search.text === ''))) {
