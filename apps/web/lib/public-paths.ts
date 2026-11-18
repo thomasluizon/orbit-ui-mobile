@@ -11,7 +11,6 @@ const PUBLIC_PATHS = [
   '/delete-account',
   '/turnstile-bridge',
   '/.well-known',
-  '/ingest',
   SENTRY_TUNNEL_ROUTE,
 ]
 

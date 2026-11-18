@@ -81,13 +81,18 @@ const askingWords = /\b(?:which|what|quais|qual|quantos|quantas)\b/u
 // questions are the sentences that end with ?, else the whole text. So "Leaving 4 to rename, which 2 should I delete?"
 // and "Want me to rename four? Which two should I delete?" ask the deletion, and a comma or the "e" of "qual é" inside
 // the asking clause does not hide the verb. Null when no asking word comes before an action, so a clause about the
-// other half never decides: the case reports a grader limit, never a guessed half.
+// other half never decides, and null when a negation or an alternative (noProposalWords) stands between the asking word
+// and that action, as in "Which ones shouldn't I delete?": the case reports a grader limit, never a guessed half.
 function askedAction(text) {
   const questions = text.split(sentenceEnd).filter((sentence) => sentence.trim().endsWith('?'))
   for (const question of questions.length ? questions : [text]) {
     const asking = question.search(askingWords)
-    const action = asking >= 0 ? firstAction(question.slice(asking)) : null
-    if (action) return action
+    const asked = asking >= 0 ? question.slice(asking) : ''
+    const action = firstAction(asked)
+    if (!action) continue
+    // A negation before the asked action ("Which ones shouldn't I delete?") asks the other half: never guess it.
+    const actionAt = firstAt(asked, action === 'deleted' ? [deletionWords] : [renameVerbs, listRenameWords])
+    return noProposalWords.test(asked.slice(0, actionAt)) ? null : action
   }
   return null
 }
