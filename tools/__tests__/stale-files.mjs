@@ -1,5 +1,5 @@
 import { spawn, spawnSync } from "node:child_process"
-import { appendFileSync, existsSync, mkdirSync, readFileSync, symlinkSync, utimesSync, writeFileSync } from "node:fs"
+import { appendFileSync, existsSync, mkdirSync, readFileSync, symlinkSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 
 import { T, orcaEnv, realOrchestratorConfig, root, run, same, stageWithConfig } from "./_harness.mjs"
@@ -24,7 +24,6 @@ const home = join(base, "home")
 const configDirectory = join(base, "claude-config")
 const workerConfigDirectory = join(base, "worker-config")
 const sessionRoot = join(base, "sessions")
-const carryRoot = join(home, ".orbit-run-carry")
 const primary = join(base, "repository")
 const worktreeRoot = join(base, "worktrees")
 const outside = join(base, "outside")
@@ -159,15 +158,10 @@ const stageDirectories = (worktrees) => {
   writeFileSync(join(outside, "sentinel.txt"), "must survive\n")
   symlinkSync(outside, join(sessionRoot, STALE, "scratchpad", "outside"), "dir")
   writeFileSync(join(sessionRoot, STALE, "scratchpad", "notes.txt"), "old notes\n")
-  // This session reads a build directory of a finished worktree through its scratchpad.
+  // A link from this session's scratchpad into a finished worktree holds nothing: no relay carries a scratchpad forward.
   symlinkSync(join(worktrees["linked-build"].path, "build"), join(sessionRoot, THIS, "scratchpad", "build"), "dir")
-  // An old session and the oldest durable copy hold a throwaway probe repository: it goes with them.
+  // An old session holds a throwaway probe repository: it goes with it.
   if (!stageProbeRepository(join(sessionRoot, PROBE_REPOSITORY, "scratchpad", "probe"))) return false
-  if (!stageProbeRepository(join(carryRoot, "durable-0a0a0a0a", "probe"))) return false
-  for (const [name, hours] of [["durable-0a0a0a0a", 30], ["durable-0b0b0b0b", 20], ["durable-0c0c0c0c", 10]]) {
-    mkdirSync(join(carryRoot, name), { recursive: true })
-    utimesSync(join(carryRoot, name), new Date(Date.now() - hours * 3_600_000), new Date(Date.now() - hours * 3_600_000))
-  }
   mkdirSync(join(configDirectory, "sessions"), { recursive: true })
   // A session record with `pid`, `sessionId` and `cwd` only: without `procStart` the reader proves its pid, this live test process, alone.
   writeFileSync(join(configDirectory, "sessions", `${process.pid}.json`), JSON.stringify({ pid: process.pid, sessionId: LIVE, cwd: worktrees["in-use"].path }))
@@ -198,7 +192,6 @@ export const cases = async () => {
     [workerVariable]: workerConfigDirectory, GIT_CONFIG_GLOBAL: hidingConfig }
   const tool = (argv) => run(TOOL, argv, { path: staged.path, env })
   const session = (id) => join(sessionRoot, id)
-  const copy = (name) => join(carryRoot, name)
   const worker = spawn(process.execPath, ["-e", "setInterval(() => {}, 1000)"], { cwd: session(WORKED_IN), stdio: "ignore" })
   try {
     const flaggedClone = join(worktrees["holds-flagged-repository"].path, "node_modules", "flagged")
@@ -208,14 +201,14 @@ export const cases = async () => {
     const listed = tool(["--list", "--json", "--session", THIS, "--session-root", sessionRoot])
     same("stale-files: --list --json exits 0", listed.status, 0)
     const listing = listed.status === 0 ? JSON.parse(listed.stdout) : { stale: [], kept: [] }
-    const expectedStale = [session(STALE), session(NESTED_DONE), session(PROBE_REPOSITORY), copy("durable-0a0a0a0a"), worktrees.merged.path, worktrees.closed.path, worktrees.part.path, worktrees.contained.path,
-      worktrees["clean-outer"].path, worktrees["nested-clean"].path].sort()
+    const expectedStale = [session(STALE), session(NESTED_DONE), session(PROBE_REPOSITORY), worktrees.merged.path, worktrees.closed.path, worktrees.part.path, worktrees.contained.path,
+      worktrees["clean-outer"].path, worktrees["nested-clean"].path, worktrees["linked-build"].path].sort()
     same("stale-files: the listing marks each stale class and nothing else", listing.stale.map((item) => item.path).sort(), expectedStale)
     const staleReason = (path) => listing.stale.find((item) => item.path === path)?.reason ?? ""
     for (const [name, path, reason] of [
       ["a session directory", session(STALE), /not this session, its predecessor, or a session with a live process/],
       ["a session directory that holds a throwaway repository with local commits and no remote", session(PROBE_REPOSITORY), /^not this session, its predecessor, or a session with a live process$/],
-      ["a durable copy that holds a throwaway repository with local commits and no remote", copy("durable-0a0a0a0a"), /^older than the newest two durable copies$/],
+      ["a finished worktree that the scratchpad of this session links into", worktrees["linked-build"].path, /^pull request #26 merged$/],
       ["a merged worktree", worktrees.merged.path, /^pull request #11 merged$/], ["a closed worktree", worktrees.closed.path, /^pull request #12 closed$/],
       ["a branch in a merged branch", worktrees.part.path, /contained in feature\/whole, which pull request #16 merged/], ["a branch in the base branch", worktrees.contained.path, /contained in origin\/main/],
     ]) T(`stale-files: ${name} carries its reason`, reason.test(staleReason(path)), `reason: ${staleReason(path)}`)
@@ -227,7 +220,7 @@ export const cases = async () => {
       ["an unpushed commit", worktrees.unpushed.path, /a commit that no remote and no pull request has/], ["a dirty tree", worktrees.dirty.path, /uncommitted change/],
       ["work nobody merged", worktrees.unmerged.path, /work nobody merged/], ["a detached worktree", worktrees.detached.path, /detached/],
       ["a worktree a live session works in", worktrees["in-use"].path, /live session 22222222 uses it/], ["an unreadable pull request state", worktrees.unreadable.path, /could not be read/],
-      ["a locked worktree", worktrees.locked.path, /locked/], ["the newest durable copy", copy("durable-0c0c0c0c"), /newest two/], ["the second durable copy", copy("durable-0b0b0b0b"), /newest two/],
+      ["a locked worktree", worktrees.locked.path, /locked/],
       ["a session directory that holds an open pull request's worktree", session(NESTED_OPEN), /pull request #19 is open/],
       ["a session directory that holds a worktree with an unpushed commit", session(NESTED_UNPUSHED), /holds a commit that no remote has/],
       ["a finished worktree that holds a worktree with an uncommitted change", worktrees["holds-dirty"].path,
@@ -236,7 +229,6 @@ export const cases = async () => {
       ["a finished worktree that holds a kept detached worktree", worktrees["holds-detached"].path, new RegExp(`^worktree ${worktrees["detached-inner"].path} in it stays: its HEAD is detached`)],
       ["a finished worktree that holds a repository with a commit no remote has", worktrees["holds-repository"].path,
         new RegExp(`^repository ${join(worktrees["holds-repository"].path, "node_modules", "vendored")} in it stays: it holds a commit that no remote has$`)],
-      ["a finished worktree that the scratchpad of this session links into", worktrees["linked-build"].path, /^the scratchpad of session 00000000 links into it$/],
       ["a finished worktree whose only change is an untracked file that status.showUntrackedFiles=no hides", worktrees.dirty.path, /^it holds an uncommitted change$/],
       ["a session directory that holds a worktree whose only change is a hidden untracked file", session(NESTED_UNTRACKED),
         new RegExp(`^worktree ${worktrees["nested-untracked"].path} in it stays: it holds an uncommitted change$`)],
@@ -255,7 +247,7 @@ export const cases = async () => {
 
     const text = tool(["--list", "--session", THIS])
     T("stale-files: --list reuses the stored session root and prints each item, the total and the removal command", text.status === 0
-      && text.stdout.includes(`STALE session ${session(STALE)} (`) && /TOTAL 10 items, .* \(3 session directories, 1 durable carry copy, 6 worktrees\)/.test(text.stdout)
+      && text.stdout.includes(`STALE session ${session(STALE)} (`) && /TOTAL 10 items, .* \(3 session directories, 7 worktrees\)/.test(text.stdout)
       && text.stdout.includes(`node tools/stale-files.mjs --delete --listing ${listing.listingId}`), text.stdout + text.stderr)
     same("stale-files: the listing is stored in the git directory", JSON.parse(readFileSync(join(staged.base, ".git", "orbit-stale-files.json"), "utf8")).listingId, listing.listingId)
     same("stale-files: no session identity is a usage error", tool(["--list"]).status, 2)
@@ -273,12 +265,12 @@ export const cases = async () => {
     same("stale-files: --delete removes exactly the listed items that are still stale", gone.filter((path) => existsSync(path)), [])
     same("stale-files: --delete prints one line for each removed item", gone.filter((path) => !new RegExp(`^REMOVED \\w+ ${path} \\(`, "m").test(removed.stdout)), [])
     T("stale-files: a listed worktree with a new uncommitted file is skipped and survives", removed.stdout.includes(`SKIPPED worktree ${worktrees.closed.path}: it holds an uncommitted change`) && existsSync(join(worktrees.closed.path, "new-work.txt")), removed.stdout)
-    T("stale-files: --delete prints what it freed", /^FREED 9 items, .* \(3 session directories, 1 durable carry copy, 5 worktrees\); free space changed by [+-]/m.test(removed.stdout), removed.stdout)
+    T("stale-files: --delete prints what it freed", /^FREED 9 items, .* \(3 session directories, 6 worktrees\); free space changed by [+-]/m.test(removed.stdout), removed.stdout)
     T("stale-files: a session directory that went stale after the listing survives", existsSync(session(LATER)))
     const keptPaths = [session(THIS), session(PREDECESSOR), session(LIVE), session(WORKED_IN), session(NESTED_OPEN), session(NESTED_UNPUSHED), session(NESTED_UNTRACKED), session(WORKER),
       session(NESTED_FLAGGED),
-      copy("durable-0b0b0b0b"), copy("durable-0c0c0c0c"), ...["open", "unpushed", "dirty", "unmerged", "detached", "in-use", "unreadable", "locked", "nested-open", "nested-unpushed",
-        "nested-untracked", "holds-dirty", "nested-dirty", "holds-detached", "detached-inner", "holds-repository", "holds-untracked-repository", "linked-build", "ignore-stat",
+      ...["open", "unpushed", "dirty", "unmerged", "detached", "in-use", "unreadable", "locked", "nested-open", "nested-unpushed",
+        "nested-untracked", "holds-dirty", "nested-dirty", "holds-detached", "detached-inner", "holds-repository", "holds-untracked-repository", "ignore-stat",
         "nested-flagged", "personal-ignore", "info-exclude", "holds-flagged-repository"].map((name) => worktrees[name].path)]
     same("stale-files: every protected item survives", keptPaths.filter((path) => !existsSync(path)), [])
     same("stale-files: a link inside a removed session directory keeps its target", readFileSync(join(outside, "sentinel.txt"), "utf8"), "must survive\n")

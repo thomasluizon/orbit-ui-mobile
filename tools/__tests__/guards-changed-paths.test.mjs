@@ -108,16 +108,18 @@ for (const [jobId, stepName, path, options] of [
   })
 }
 
-test("handoff-size: the step fails an oversized changed relay document and ignores an unchanged one", () => {
+test("handoff-size: the step fails an oversized or machine-bound changed relay document and ignores an unchanged one", () => {
   const job = guardGroups(workflow)["handoff-size"]
   const prepare = job.steps.find((step) => step.name === "Resolve pull request changed paths")
-  const gate = job.steps.find((step) => step.name === "Changed specs and the relay prompt stay inside their byte ceilings")
+  const gate = job.steps.find((step) => step.name === "Changed specs and the relay prompt stay inside their byte ceilings and name no local file")
   assert.ok(prepare?.run && gate?.run, "handoff-size must prepare changed paths and run its guard")
   for (const [label, changes, passes] of [
     ["an oversized changed spec fails", { ".claude/specs/grown.md": "x".repeat(41984) }, false],
     ["an oversized changed prompt fails", { ".claude/handoffs/NEXT.md": "x".repeat(8300) }, false],
     ["a spec at its ceiling passes", { ".claude/specs/grown.md": "x".repeat(40960) }, true],
     ["an unchanged oversized spec elsewhere passes", { "notes.txt": "changed\n" }, true],
+    ["a changed prompt that names the old run carry fails", { ".claude/handoffs/NEXT.md": `Run \`$HOME/.orbit-${"run-carry"}/carry.sh\` first.\n` }, false],
+    ["a changed spec that names a scratchpad file fails", { ".claude/specs/grown.md": "Read `S note-2469-r20.md`.\n" }, false],
   ]) {
     const directory = mkdtempSync(join(tmpdir(), "guards-handoff-size-"))
     try {
@@ -145,7 +147,7 @@ test("handoff-size: the step fails an oversized changed relay document and ignor
       const guarded = spawnSync("bash", ["-e", "-c", gate.run], { cwd: directory, env: environment, encoding: "utf8" })
       // WHY: GNU xargs reports a failed child as 123 and BSD xargs as 1; the step only has to fail (https://github.com/thomasluizon/orbit-tickets/issues/2064).
       assert.equal(guarded.status === 0, passes, `${label}: exit ${guarded.status} ${guarded.stdout}${guarded.stderr}`)
-      if (!passes) assert.match(guarded.stderr, new RegExp(`\`${Object.keys(changes)[0].replaceAll(".", "\\.")}\` within \\d+ B \\(it is \\d+ B\\)`))
+      if (!passes) assert.match(guarded.stderr, new RegExp(`\`${Object.keys(changes)[0].replaceAll(".", "\\.")}\` (?:within \\d+ B \\(it is \\d+ B\\)|without )`))
     } finally {
       rmSync(directory, { recursive: true, force: true })
     }
