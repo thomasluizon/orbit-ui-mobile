@@ -2494,9 +2494,11 @@ T("stale cleanup: the relay adoption starts its removal once the running removal
 recentCleanup()
 T("stale cleanup: a launched worker starts no removal", [runCleanupHook(cleanupInput("Stop"), { ORBIT_LAUNCH_WORKER: "1" }).stdout, await startedCleanup(20)], ["", null])
 T("stale cleanup: a subagent starts no removal", [runCleanupHook({ ...cleanupInput("Stop"), agent_id: "agent-1" }).stdout, await startedCleanup(20)], ["", null])
-T("adapter clean-stale-files: no hook output anywhere holds an offer", [unadopted.stdout, runCleanupHook().stdout].some((output) => /offer|owner|--listing/i.test(output)), false)
-T("stale cleanup: no hook offers the cleanup to the owner", readdirSync(hooksDir).filter((name) => name.endsWith(".mjs") && name !== "test-hooks.mjs")
-  .filter((name) => /stale-files\.mjs --delete --listing|Offer this cleanup/.test(readFileSync(join(hooksDir, name), "utf8"))), [])
+// The offer text was built in the library and added by a prompt hook: scan both places, so the old offer cannot come back in either one.
+const offerSources = [join(".claude", "hooks"), join(".claude", "hooks", "_lib"), join("tools", "lib")]
+  .flatMap((directory) => readdirSync(join(repoRoot, directory)).filter((name) => name.endsWith(".mjs") && name !== "test-hooks.mjs").map((name) => join(directory, name)))
+T("stale cleanup: no hook or library offers the cleanup to the owner",
+  offerSources.filter((path) => /stale-files\.mjs --delete --listing|Offer this cleanup/.test(readFileSync(join(repoRoot, path), "utf8"))), [])
 rmSync(cleanupMarker, { force: true })
 rmSync(cleanupRunState, { force: true })
 
