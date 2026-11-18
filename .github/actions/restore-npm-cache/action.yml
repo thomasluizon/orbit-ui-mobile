@@ -1,0 +1,43 @@
+name: Restore the npm cache
+description: Restore the npm cache that main saves, so a pull request reads it and never saves its own entry
+inputs:
+  lockfile:
+    description: Lockfile whose hash names the cache entry
+    default: package-lock.json
+  restore-older-entry:
+    description: The string false restores only the entry of this lockfile, for a job that saves on a miss
+    default: 'true'
+outputs:
+  cache-hit:
+    description: The string true when the entry of this lockfile was restored
+    value: ${{ steps.restore.outputs.cache-hit }}
+  cache-primary-key:
+    description: Key of the entry of this lockfile, for the save step of a main run
+    value: ${{ steps.restore.outputs.cache-primary-key }}
+  path:
+    description: The npm cache directory, for the save step of a main run
+    value: ${{ steps.directory.outputs.path }}
+runs:
+  using: composite
+  steps:
+    # setup-node reads the same directory and saves it from every ref on a key miss, about 470 MB for each
+    # operating system: actions/setup-node at 949feb2413d6458794dcd2491c4babbbce0c15c1, src/cache-save.ts.
+    - name: Read the npm cache directory
+      id: directory
+      shell: bash
+      run: echo "path=$(npm config get cache)" >> "$GITHUB_OUTPUT"
+    # A changed lockfile restores the newest main entry by prefix, and npm ci downloads only the difference.
+    # npm never removes a tarball from its cache, so a job that saves restores no older entry: its save then holds
+    # only the tarballs of this lockfile, and the entry size stays the same over lockfile changes.
+    # macOS has no entry: there npm ci took 53 to 59 s without the cache and 48 to 88 s after a 5 to 14 s restore.
+    - name: Restore the npm cache
+      id: restore
+      if: runner.os != 'macOS'
+      uses: actions/cache/restore@v6
+      env:
+        # Bound stalled cache segments so npm ci can continue with a cold cache.
+        SEGMENT_DOWNLOAD_TIMEOUT_MINS: '1'
+      with:
+        path: ${{ steps.directory.outputs.path }}
+        key: npm-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles(inputs.lockfile) }}
+        restore-keys: ${{ inputs.restore-older-entry == 'true' && format('npm-{0}-{1}-', runner.os, runner.arch) || '' }}

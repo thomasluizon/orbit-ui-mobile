@@ -37,7 +37,7 @@ for (const width of [320, 412, 1280]) {
       await setLayoutProfileSession(context, profile, calendars)
       const responses: ReadonlyArray<readonly [string, unknown]> = [
         [API.profile.get, profile], [API.habits.calendarMonth, month],
-        [API.calendar.calendars, calendars], [API.calendar.events, events],
+        [API.calendar.events, events],
         [API.calendar.autoSyncState, calendarAutoSyncStateSchema.parse({ enabled: false, status: 'Idle', lastSyncedAt: null, hasGoogleConnection: true })],
       ]
       for (const [path, response] of responses) {
