@@ -1,5 +1,5 @@
 {
-  "calibratedAt": "2026-11-16",
+  "calibratedAt": "2026-11-18",
   "classifier": {
     "model": "claude-sonnet-5-5",
     "promptDigest": "780092b4659dfd6e",
@@ -151,8 +151,8 @@
     ".claude/skills/astra-eval/SKILL.md": {
       "model": null,
       "effort": null,
-      "digest": "68b1d9c25e950fa9",
-      "calibratedAt": "2026-11-16",
+      "digest": "ef8da2a8ce3479dc",
+      "calibratedAt": "2026-11-18",
       "verdict": "undeclared, inherits the session: runs or extends the configured Astra eval corpus and distinguishes failed behavior from incomplete tool evidence; it declares no model or effort override."
     },
     ".claude/skills/audit-code-quality/SKILL.md": {
@@ -193,8 +193,8 @@
     ".claude/skills/crank/SKILL.md": {
       "model": null,
       "effort": null,
-      "digest": "ce68f3978587e5b3",
-      "calibratedAt": "2026-11-13",
+      "digest": "bd5adf4fd72a41d3",
+      "calibratedAt": "2026-11-18",
       "verdict": "undeclared, inherits the session: toggles durable orchestrator scheduling within existing caps and quality gates, without changing model or effort routing."
     },
     ".claude/skills/deep-research/SKILL.md": {
@@ -228,8 +228,8 @@
     ".claude/skills/handoff/SKILL.md": {
       "model": null,
       "effort": "high",
-      "digest": "aa0be8ecb8401653",
-      "calibratedAt": "2026-11-15",
+      "digest": "029fa84fc2572a42",
+      "calibratedAt": "2026-11-18",
       "verdict": "current: high effort; the skill decides which durable rules enter the spec and when handoff must end the session."
     },
     ".claude/skills/investigate/SKILL.md": {
@@ -270,8 +270,8 @@
     ".claude/skills/orchestrate/SKILL.md": {
       "model": null,
       "effort": "high",
-      "digest": "9b5caaa751e0908b",
-      "calibratedAt": "2026-11-15",
+      "digest": "edd542f27a58b331",
+      "calibratedAt": "2026-11-18",
       "verdict": "current: high effort; the skill plans the queue, verifies each pull request disposition and merge commit, interprets gate results, and controls merge authority."
     },
     ".claude/skills/prod-readiness/SKILL.md": {

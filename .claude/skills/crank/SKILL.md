@@ -43,15 +43,27 @@ While `crank` is true:
   review rounds launch as soon as a review or red check lands, within the existing batch and
   attempt limits. Never wait on one pull request when independent work can run.
 - Merge every pull request meeting the merge bar immediately, within the orchestrator's standing
-  authority. Run its release immediately: production web, API and landing through `/release`;
-  Android Open releases batch the merged Android fixes. Existing release authority and hard
-  stops still apply.
-- Merge the base into a branch immediately when a red check needs it, without waiting for another
-  pull request to land first.
+  authority. `tools/run-status.mjs` reports each one as `MERGE_NOW`, first in `nextActions`, with
+  the exact command, read from GitHub alone. Run its release immediately: production web, API and
+  landing through `/release`; Android Open releases batch the merged Android fixes. Existing
+  release authority and hard stops still apply.
+- Merge the base into a branch immediately when a red check needs it or `UPDATE_BRANCH` names it,
+  without waiting for another pull request to land first.
+- Act on every `MERGE_NOW`, `UPDATE_BRANCH` and `SLOT_FREE` in the turn that reads it. Ready work
+  waits for four things only: the merge bar, the admission caps, the load gate and a relay drain.
+  No ordering preference holds it: not a relay prompt, not a priority, not the spec's order and
+  not this session's own plan. A work order decides which item starts first when capacity is
+  short; it never keeps a ready item waiting for another one.
+- A stacked parent merges without `--delete-branch`. Retarget each child to the parent's base,
+  then delete the parent branch. A stacked child gets no `MERGE_NOW` while its parent is open.
 - Never idle while work can proceed. Every turn with unfinished work ends with a live registered
   wake source, named as `/sleep` requires. Retain the canonical completion condition.
 
-The merge bar stays: the exact approved head, every check green and zero unresolved threads.
+The test of the mode: a faster step that no gate forbids is already taken, without an owner order
+to go faster.
+
+The merge bar stays: the exact approved head, every check green, zero unresolved threads and
+`behind_by=0`.
 Pullfrog, tests, copy approval, the diff read before every push and all hard stops remain.
 Crank changes scheduling only; it grants no new merge or release authority.
 
@@ -64,3 +76,5 @@ spreads the predecessor's run state, so a successor inherits `crank: true` until
 A cranked context relay uses `/handoff --relay --sleep --crank`. Its `NEXT.md` starts with
 `/sleep`, or `/auto-work` when that mode is enabled, and carries a `## Crank` section telling the successor to invoke `/crank` immediately
 after `/sleep` entry. Read back the adopted state before queue work and apply this skill then.
+`validateHandoffPrompt` refuses a cranked prompt that orders a hold of ready work, so the mode
+cannot be lowered by the prompt that carries it.

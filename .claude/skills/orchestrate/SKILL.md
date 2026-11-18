@@ -28,8 +28,22 @@ node tools/run-status.mjs --session "<this session id>"
 
 Read its one JSON object and follow `nextActions[].command` from `commandDirectory`.
 Commands use relative paths when those are shorter. The action set is closed:
-`REARM_WAIT_CI`, `VERIFY_DELIVERY`, `READ_REVIEW`, `RECORD_READINESS`, `BEHIND_BASE`,
-`CHECK_FAILED`, `MERGE_CANDIDATE`, `SLOT_FREE`, `ORPHANED_WORKER`, `INTAKE`, `NO_ACTION`.
+`MERGE_NOW`, `UPDATE_BRANCH`, `REARM_WAIT_CI`, `VERIFY_DELIVERY`, `READ_REVIEW`,
+`RECORD_READINESS`, `BEHIND_BASE`, `CHECK_FAILED`, `MERGE_CANDIDATE`, `SLOT_FREE`,
+`ORPHANED_WORKER`, `INTAKE`, `NO_ACTION`.
+
+**Read `MERGE_NOW` first.** The snapshot lists it before every other action. It names a pull
+request that GitHub shows at the merge bar, in the run or opened by the repository owner outside
+it: every check green with every required check present, `pullfrog-approval` SUCCESS at the
+head, zero unresolved threads and `behind_by=0`. Its command is the squash merge of that exact
+head. Run it in the same turn under the standing authority of Hard prohibitions and log the head.
+For a pull request of the run, write the merge sha to its ledger row as Step 9 says. Outside that
+authority, leave the pull request ready for the owner. `UPDATE_BRANCH` comes next: the pull
+request is only behind its base, and its command merges the base into the branch. The new head
+needs its checks and a review request again, as step 8 says. A draft, a merge conflict and a
+stacked child whose parent is still open get neither action. The snapshot names no other action
+for a pull request that has one of these two.
+
 Delivery and readiness remain decisions of their named tools. A merge candidate calls the
 recorder again; it grants no merge authority. A foreign session has no actions. A linked
 worktree warning names the main checkout where the orchestrating run lives.
