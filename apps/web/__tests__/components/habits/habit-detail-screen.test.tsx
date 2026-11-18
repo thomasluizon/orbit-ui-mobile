@@ -840,6 +840,7 @@ describe('HabitDetailScreen', () => {
   })
 
   it('moves the Orbit of the suggest date button while a retry with a kept error runs, with no skeleton light', () => {
+    vi.stubGlobal('matchMedia', (query: string) => ({ matches: false, media: query, addEventListener: () => {}, removeEventListener: () => {} }))
     openRescueGate()
     mocks.rescheduleError = createApiClientError(500, { error: 'Unavailable' }, 'Failed')
     const view = render(<HabitDetailScreen habitId="habit-1" />)
