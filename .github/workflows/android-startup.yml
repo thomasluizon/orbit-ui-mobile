@@ -21,6 +21,7 @@ on:
       - "tools/check-android-bundle.mjs"
       - "tools/android-boot.mjs"
       - ".github/actions/android-boot/**"
+      - ".github/scripts/install-android-sdk-package.sh"
       - ".github/workflows/android-startup.yml"
 
 permissions:
@@ -48,7 +49,7 @@ jobs:
         run: |
           set -euo pipefail
           paths=$(git diff --name-only --no-renames HEAD^1 HEAD)
-          if grep -Eq '^\.github/actions/android-boot/|^\.github/workflows/android-startup\.yml$|^tools/android-boot\.mjs$' <<< "$paths"; then
+          if grep -Eq '^\.github/actions/android-boot/|^\.github/scripts/install-android-sdk-package\.sh$|^\.github/workflows/android-startup\.yml$|^tools/android-boot\.mjs$' <<< "$paths"; then
             echo 'boot=true' >> "$GITHUB_OUTPUT"
           else
             echo 'boot=false' >> "$GITHUB_OUTPUT"
@@ -56,7 +57,7 @@ jobs:
       # The diff above is the whole pull request, so a later push that keeps the boot harness skips a proven boot.
       - name: Hash the boot harness
         id: key
-        run: echo "value=android-boot-pass-v1-${{ hashFiles('.github/actions/android-boot/**', 'tools/android-boot.mjs', '.github/workflows/android-startup.yml') }}" >> "$GITHUB_OUTPUT"
+        run: echo "value=android-boot-pass-v1-${{ hashFiles('.github/actions/android-boot/**', '.github/scripts/install-android-sdk-package.sh', 'tools/android-boot.mjs', '.github/workflows/android-startup.yml') }}" >> "$GITHUB_OUTPUT"
       - name: Look up a pass for this boot harness
         id: pass
         if: steps.paths.outputs.boot == 'true'
@@ -75,11 +76,10 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
-        env:
-          SEGMENT_DOWNLOAD_TIMEOUT_MINS: '1'
         with:
           node-version: 22
-          cache: npm
+          package-manager-cache: false
+      - uses: ./.github/actions/restore-npm-cache
       - run: npm ci --prefer-offline --no-audit --fund=false
       - name: Export Android Hermes bundle and source map
         working-directory: apps/mobile
@@ -87,7 +87,7 @@ jobs:
           CI: "1"
           EXPO_NO_TELEMETRY: "1"
           EXPO_NO_METRO_WORKSPACE_ROOT: "1"
-        run: npx expo export --platform android --source-maps --output-dir ../../.artifacts/android-bundle
+        run: ../../node_modules/.bin/expo export --platform android --source-maps --output-dir ../../.artifacts/android-bundle
       - name: Require unique bundled native modules and component names
         shell: bash
         run: |
@@ -126,11 +126,10 @@ jobs:
         with:
           android: false
       - uses: actions/setup-node@v7
-        env:
-          SEGMENT_DOWNLOAD_TIMEOUT_MINS: '1'
         with:
           node-version: 22
-          cache: npm
+          package-manager-cache: false
+      - uses: ./.github/actions/restore-npm-cache
       - uses: actions/setup-java@v6
         with:
           distribution: temurin
@@ -159,7 +158,7 @@ jobs:
         working-directory: apps/mobile
         run: |
           node -e 'const fs = require("node:fs"); fs.writeFileSync("google-services.json", JSON.stringify({project_info:{project_number:"123456789",project_id:"android-boot-check",storage_bucket:"android-boot-check.invalid"},client:[{client_info:{mobilesdk_app_id:"1:123456789:android:0000000000000000",android_client_info:{package_name:"org.useorbit.app"}},api_key:[{current_key:"A"+"0".repeat(38)}]}],configuration_version:"1"}))'
-          npx expo prebuild --platform android --no-install
+          ../../node_modules/.bin/expo prebuild --platform android --no-install
       - name: Build the release AAB
         working-directory: apps/mobile/android
         run: ./gradlew --no-daemon --build-cache -PreactNativeArchitectures=armeabi-v7a,arm64-v8a,x86_64 bundleRelease

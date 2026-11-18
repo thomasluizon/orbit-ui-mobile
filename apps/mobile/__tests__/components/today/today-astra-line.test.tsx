@@ -5,7 +5,7 @@ import { TodayAstraLine } from '@/components/today/today-astra-line'
 import { createTokensV2 } from '@/lib/theme'
 
 describe('Hoje Orbit line on Android', () => {
-  it('draws Orbit at 48 at the start edge, still inside its press target, with the foreground planet', async () => {
+  it('draws the live Orbit at 48 at the start edge inside its press target, with the foreground planet, still while no conversation entry runs with it', async () => {
     const onPress = vi.fn()
     let tree: ReactTestRenderer | undefined
     await act(() => { tree = create(<TodayAstraLine text="Sua rotina mudou. Vamos conversar?" destination="Abre a conversa" onPress={onPress} />) })
