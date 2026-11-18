@@ -81,7 +81,8 @@ jobs:
     name: iOS simulator compile
     needs: plan
     if: needs.plan.outputs.compile == 'true'
-    runs-on: macos-26
+    # The hosted image with macOS 27 and Xcode 27, so the build uses the iOS 27 SDK (Apple warning ITMS-90725).
+    runs-on: xcode-27
     # The arm64 slice with no bundle phase; a cold compiler cache compiles every native source once inside this limit.
     timeout-minutes: 40
     env:
@@ -100,7 +101,7 @@ jobs:
           persist-credentials: false
       - name: Select Xcode
         run: |
-          sudo xcode-select --switch /Applications/Xcode_26.6.app/Contents/Developer
+          sudo xcode-select --switch /Applications/Xcode_27.1.app/Contents/Developer
           xcodebuild -version
       - uses: actions/setup-node@v7
         env:
@@ -120,9 +121,9 @@ jobs:
           SEGMENT_DOWNLOAD_TIMEOUT_MINS: '1'
         with:
           path: ${{ env.CCACHE_DIR }}
-          key: macos-26-${{ runner.arch }}-xcode-26.6-ios-release-ccache-v2-${{ hashFiles('package-lock.json', 'apps/mobile/app.json', 'apps/mobile/app.config.js', 'apps/mobile/plugins/**', 'apps/mobile/modules/**', '.github/workflows/ios-build.yml') }}
+          key: xcode-27-${{ runner.arch }}-xcode-27.1-ios-release-ccache-v2-${{ hashFiles('package-lock.json', 'apps/mobile/app.json', 'apps/mobile/app.config.js', 'apps/mobile/plugins/**', 'apps/mobile/modules/**', '.github/workflows/ios-build.yml') }}
           restore-keys: |
-            macos-26-${{ runner.arch }}-xcode-26.6-ios-release-ccache-v2-
+            xcode-27-${{ runner.arch }}-xcode-27.1-ios-release-ccache-v2-
       - name: Reset compiler cache statistics
         run: ccache --zero-stats
       - name: Test the compiled widget state and session adapter

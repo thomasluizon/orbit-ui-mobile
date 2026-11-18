@@ -18,6 +18,8 @@ interface Workflow<Job extends string> {
 
 const readWorkflow = <Job extends string>(name: string) => parse(readFileSync(resolve(`../../.github/workflows/${name}.yml`), 'utf8')) as Workflow<Job>
 
+const XCODE_27_HOSTED_RUNNER = 'xcode-27'
+
 const iosReleaseEnvironment = {
   PATH: process.env.PATH ?? '', NODE_ENV: 'test', ORBIT_APP_VARIANT: 'staging', GITHUB_REF: 'refs/heads/feature/release',
   ORBIT_APPLE_TEAM_ID: 'TESTTEAM01', ORBIT_IOS_APP_STORE_ID: '1234567890',
@@ -43,7 +45,7 @@ describe('iOS build and release boundaries', () => {
   })
   it.each(['ios-build', 'ios-release'])('%s resolves the updates entry against the configured Metro root', (name) => {
     const workflow = readWorkflow<string>(name)
-    const job = Object.values(workflow.jobs).find((candidate) => candidate['runs-on'].startsWith('macos-'))!
+    const job = Object.values(workflow.jobs).find((candidate) => candidate['runs-on'] === XCODE_27_HOSTED_RUNNER)!
     const entry = execFileSync(process.execPath, ['-e', `
       const { convertEntryPointToRelative, resolveEntryPoint } = require('expo/config/paths')
       const root = process.cwd()
@@ -60,7 +62,7 @@ describe('iOS build and release boundaries', () => {
     }
     expect(paths).not.toContain('apps/mobile/**')
     expect(paths).not.toContain('packages/shared/**')
-    expect(workflow.jobs.compile['runs-on']).toMatch(/^macos-/)
+    expect(workflow.jobs.compile['runs-on']).toBe(XCODE_27_HOSTED_RUNNER)
     const commands = workflow.jobs.compile.steps.map((step) => step.run ?? '').join('\n')
     expect(commands).toContain('expo prebuild --platform ios')
     expect(commands).toContain("-destination 'generic/platform=iOS Simulator'")
@@ -134,7 +136,20 @@ describe('iOS build and release boundaries', () => {
   it('keeps credentialed TestFlight publishing manual', () => {
     const workflow = readWorkflow<'release'>('ios-release')
     expect(Object.keys(workflow.on)).toEqual(['workflow_dispatch'])
-    expect(workflow.jobs.release['runs-on']).toMatch(/^macos-/)
+    expect(workflow.jobs.release['runs-on']).toBe(XCODE_27_HOSTED_RUNNER)
+  })
+
+  it.each([['ios-build', 'compile'], ['ios-release', 'release']] as const)('%s selects an Xcode 27 of its image and names the image and that Xcode in the compiler cache key', (name, jobName) => {
+    const job = readWorkflow<typeof jobName>(name).jobs[jobName]
+    expect(job['runs-on']).toBe(XCODE_27_HOSTED_RUNNER)
+    const select = job.steps.find((step) => step.name === 'Select Xcode')?.run ?? ''
+    const version = /xcode-select --switch \/Applications\/Xcode_(27\.\d+)\.app\/Contents\/Developer\n/.exec(select)?.[1]
+    expect(version).toBeDefined()
+    const prefix = `${XCODE_27_HOSTED_RUNNER}-\${{ runner.arch }}-xcode-${version}-ios-`
+    const cache = job.steps.find((step) => step.id === 'compiler-cache')!
+    expect(cache.with?.key?.startsWith(prefix)).toBe(true)
+    expect(cache.with?.['restore-keys']?.trim().startsWith(prefix)).toBe(true)
+    expect(cache.with?.key?.startsWith(cache.with['restore-keys']!.trim())).toBe(true)
   })
 
   it('exports the installed cache executable to compiler subprocesses', () => {
