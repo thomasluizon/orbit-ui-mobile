@@ -100,6 +100,20 @@ it('states in the skill and in TESTING.md that k=1 holds only for a change with 
   }
 })
 
+// The documents that tell an operator how to run the eval name the path setting, its two values, the flag that each
+// value needs and the daily ceiling of each environment (orbit-api infra/configuration.tf).
+it('states the run path setting and the daily ceiling of each environment in the skill and in TESTING.md', () => {
+  for (const path of ['.claude/skills/astra-eval/SKILL.md', 'TESTING.md']) {
+    const text = repository(path).replace(/\s+/gu, ' ')
+    expect(text, path).toContain('`ORBIT_EVAL_ASTRA_PATH` names the path that a run measures')
+    for (const value of ['`block-first`', '`change-plan`', '`ai_change_plan`', '`changePlan`']) expect(text, path).toContain(value)
+    expect(text, path).toMatch(/stops when `features\.ai_change_plan\.enabled` does not agree with the path/u)
+    expect(text, path).toMatch(/refuses? windows of two paths in one verdict/u)
+    expect(text, path).toMatch(/1\.20 USD on staging and 0\.50 USD on production/u)
+    expect(text, path).not.toMatch(/0\.50 USD (?:a|per UTC) day/u)
+  }
+})
+
 it('holds each owner turn on record as a must-pass case, word for word in pt-BR', () => {
   const first = (id) => situations.find((situation) => situation.id === id).phrasings['pt-BR'][0]
   expect(first('owner-water-request')).toBe(ownerRequest)

@@ -45,6 +45,14 @@ build queue of #2129). The pull request body of that change says why its model i
 the merged report state their k. The merge refuses a k=1 window, rerun or baseline in a k=3 verdict, and a k=3 one
 in a k=1 verdict, so a k=1 gate compares with a baseline of `main` that also ran with `ORBIT_EVAL_MUST_PASS_K=1`.
 
+`ORBIT_EVAL_ASTRA_PATH` names the path that a run measures: `block-first`, the default, for the API without the
+`ai_change_plan` flag, or `change-plan` for the API with that flag on. Set it on both core set runs and on the launch
+corpus run. The run reads `/api/config` for each eval account before its first turn, and it stops when
+`features.ai_change_plan.enabled` does not agree with the path. `catalog.yaml` holds the lists of both paths: the
+`block-first` lists under their own keys, and the `change-plan` lists under `changePlan`. Each window and each merged
+report state their path, and a summary with no path measured `block-first`. The merge refuses windows of two paths in
+one verdict. A `change-plan` run compares with the `block-first` baseline of `main`.
+
 The gate passes when every must-pass case passes, the pass^k rate of the core set is at or above the baseline, no
 attempt asks more often than its case allows, and one model call costs at most the D147 limit. An attempt stops one
 question past the allowed count and keeps that count. The baseline is the merged report of `main` in which every case has a verdict; the baseline run of `main`
@@ -92,21 +100,22 @@ and becomes an ADR first.
 
 Eval traffic uses `AI__EvalApiKey`, the separate OpenAI key for the `Orbit Eval` project with a hard monthly limit.
 An eval account without that key fails closed and never falls back to the production key. The API enforces
-`AI__EvalDailyBudgetUsd`, a hard shared ceiling of 0.50 USD per UTC day per environment for all eval accounts
-together, including accounts with `astra_eval_unmetered`. A ceiling stop ends that UTC day's window; the run
+`AI__EvalDailyBudgetUsd`, a hard shared ceiling per UTC day per environment for all eval accounts together, including
+accounts with `astra_eval_unmetered`: 1.20 USD on staging and 0.50 USD on production (`infra/configuration.tf` in
+`orbit-api`). A ceiling stop ends that UTC day's window; the run
 continues with its incomplete cases in the next UTC day's window. Never continue it on another account, key or
 environment, reset a counter, raise a ceiling or rotate accounts to finish.
 
 Write the cost estimate on the owning ticket before any paid-key run (cases x attempts x calls x price, from the
 newest measured figures). Record the actual cost there afterward: read it from the API's daily `AI cost` line for the
 eval purpose and pass it to the merge as `--run-cost-usd`. A core set run stays under the daily ceiling in each
-window. The launch corpus gate runs once, with a 2 USD spend ceiling for that run; the ceiling returns to 0.50 USD a
-day after it.
+window. The launch corpus gate runs once, with a 2 USD spend ceiling for that run; the ceiling returns to the daily
+value of its environment after it.
 
 Use the configured disposable eval accounts and their fixture reset executable. Never substitute a personal account.
 Enable the existing `astra_eval_trace` account flag through `/flag` only for disposable fixtures, record its previous
 state, and restore it after the run. The core set run reads `/api/config` before its first turn and stops when the flag
-is off. The eval alone sends the opt-in header and a fresh request ID for each turn;
+is off. For a `change-plan` run, turn on `ai_change_plan` for the eval accounts in the same way. The eval alone sends the opt-in header and a fresh request ID for each turn;
 ordinary app requests stay default-off. Confirm the named environment and credentials are configured without
 displaying their values.
 
@@ -128,12 +137,15 @@ ticket writes, or outbound messages.
 
 `scenarios.yaml` and `composition-scenarios.yaml` are the full corpus (`npx promptfoo eval`, one attempt per case). This
 local run is the only live run of the corpus. It
-grades request-bound tool evidence against `catalog.yaml` and stays until the old assistant path is deleted. Merge its
+grades request-bound tool evidence against the lists of its path in `catalog.yaml` and stays until the old assistant
+path is deleted. The read before `ask` and the `selection_required` clause apply to the `block-first` path only: on the
+`change-plan` path the API needs no read before `ask`, and its `ask` takes `about` and `several`. Merge its
 window summaries in chronological order with `node merge-reports.mjs`; a continuation replaces only incomplete case
 entries. `--rerun` declares the single permitted rerun of a failed case after a fix; a rerun on the same build never
 replaces a failure. Follow `TESTING.md` `### Daily windows and combined report` for the exact commands.
 
-For an offline assertion audit, run `node evals/astra/replay.mjs <source-window> <separate-output>`. Keep request
+For an offline assertion audit, run `node evals/astra/replay.mjs <source-window> <separate-output>`. The audit replays
+each call against the lists of the path that the window summary states. Keep request
 schemas distinct from continuation instruction constraints: the API retains the cacheable `ask` schema throughout the
 turn, including nullable draft bindings on every form. The audit never calls the provider or judge and retains
 semantic rubric verdicts. Offer attempt artifacts retain sanitized issued offers, selected keys and declared mutation
