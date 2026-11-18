@@ -383,17 +383,29 @@ on that ticket afterward.
 Before a live run, regenerate the tool catalogs from a clean checkout of the evaluated API
 commit with `node evals/astra/generate-catalog.mjs <api-checkout>` from the repository root.
 The exporter uses the API's tool registrations, request builder and strict schema normalizer for both
-composition and legacy clients, with `AstraBlockFirst` enabled for the gate;
+composition and legacy clients, with `AiBlockFirst` enabled for the gate;
 `catalog.yaml` records the full source SHA as `apiCommit`. Generation refuses a dirty API tree.
 The parts export advertises `CHAT_BLOCK_KINDS` from the shared client registry; the legacy export
 omits part kinds. The catalog regression requires `ask` for the parts client and excludes it for legacy.
 The exporter supplies chat context values by constructor parameter name and refuses unknown parameters,
-listing their names before invoking the constructor. Its offline regression test requires the .NET SDK.
+listing their names before invoking the constructor. Each API service that the exporter stubs is a class that
+implements its whole interface, so a new interface member stops the build until the exporter answers or refuses it,
+and a refused member that the export reaches fails with its own name.
+`node evals/astra/generate-catalog.mjs --check [<api-repository>]` fetches the commit that `catalog.yaml` names
+(from the public `orbit-api` repository by default), builds and runs the exporter against it, and fails when the
+exporter does not build or run, or when its output differs from `catalog.yaml`. So it proves this repository's
+exporter, generator, `CHAT_BLOCK_KINDS` and `catalog.yaml` against that commit. The commit does not move, so
+`orbit-api` drift after it reaches the eval only through the API that the eval target serves. With
+`ORBIT_EVAL_BASE_URL` set, the check first reads the target's `/health` and refuses a served commit other than
+`apiCommit`, with the message of the live run's own check. Regenerate at the served commit; exporter drift then
+stops the build with CS0535 or a refusal that names the member. The offline suite runs the check without
+`ORBIT_EVAL_BASE_URL`; set `ORBIT_API_REPOSITORY` to a local `orbit-api` repository to fetch the commit without the
+network. The exporter tests require the .NET SDK.
 Structural validation selects the schema matching the case's `clientContext.supportsParts` and removes
 only properties the API's trace sensitivity collector marks for omission, retaining all observable constraints.
 The live gate checks `/health` before its first case and before refreshing credentials. It refuses to
 start unless the reported `commit` matches `apiCommit`, naming both commits and the regeneration command.
-Offline unit tests validate against the committed catalog without contacting the API.
+The other offline unit tests validate against the committed catalog without contacting the API.
 
 Fixture requests retry one transport timeout or network failure for `GET`, `DELETE`, and verified
 replacement `PUT` routes: `habits/{id}`, `habits/{id}/checklist`, `tags/{id}/assign`,
