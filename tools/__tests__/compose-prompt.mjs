@@ -3,6 +3,7 @@ import { createHash } from "node:crypto"
 import { join } from "node:path"
 import { cloudOrder } from "../lib/cloud-worker.mjs"
 import { parityExemptTerms } from "../lib/parity-scope.mjs"
+import { REVIEW_BATCH_ORDER_MARKER } from "../lib/run-state.mjs"
 
 import { check, githubIssueReadPlan, orcaEnv, realOrchestratorConfig, REPO_ROOT, root, stage, stageWithConfig, T } from "./_harness.mjs"
 
@@ -231,6 +232,11 @@ export const cases = () => {
       !/One commit series on your branch, pushed/.test(reviewPrompt) &&
       !/The pull request must NOT be a draft/.test(reviewPrompt),
     reviewPrompt,
+  )
+  T(
+    `${TOOL}: only the review batch order carries the marker that makes launch-worker.mjs spend a fix round`,
+    reviewPrompt.includes(REVIEW_BATCH_ORDER_MARKER) && !prompt.includes(REVIEW_BATCH_ORDER_MARKER),
+    reviewPrompt.slice(0, 400),
   )
   T(
     `${TOOL}: review batch report ends with the literal sections the orchestrator copies into the body`,

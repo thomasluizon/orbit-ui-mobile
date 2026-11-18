@@ -6,6 +6,7 @@ import { assertRepositoryLabel, readComments, readTicket, resolveTicket } from "
 import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
 import { CLOUD_FINISHING_CONTRACT } from "./lib/cloud-worker.mjs"
 import { parityExemptTerms } from "./lib/parity-scope.mjs"
+import { REVIEW_BATCH_ORDER_MARKER } from "./lib/run-state.mjs"
 
 const USAGE = `usage: compose-prompt.mjs --issue <ORB-N|#N|N> --repo <ui|api|landing> --out <absolute path>
 
@@ -16,7 +17,8 @@ const USAGE = `usage: compose-prompt.mjs --issue <ORB-N|#N|N> --repo <ui|api|lan
   --branch <name>   branch already checked out for the worker
   --base <ref>      base branch the pull request targets (default: main)
   --layout-guard    allow editing only apps/web/e2e/layout/ among e2e files; never run it (ui only)
-  --review-batch    stop a local review fix after a tested commit
+  --review-batch    stop a local review fix after a tested commit. The order carries the review batch
+                    marker, so launch-worker.mjs requires --fix-round for it
   --cloud          compose the container contract instead of local PR delivery
   --help, -h        print this usage and exit 0
 
@@ -257,7 +259,9 @@ migration or backfill), each naming the exact key, the exact console or screen, 
 took effect. The harness reads both sections mechanically at handover; prose elsewhere in the body
 does not reach it.`
 
-const reviewBatchFinishing = `## Finishing contract
+const reviewBatchFinishing = `${REVIEW_BATCH_ORDER_MARKER}
+
+## Finishing contract
 
 You may run \`node tools/arch-map.mjs\` to read the generated map. Never stage or commit \`architecture.json\`, \`architecture.html\` or \`architecture.mmd\`.
 

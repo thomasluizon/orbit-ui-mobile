@@ -3,7 +3,7 @@ import { appendFileSync, cpSync, existsSync, mkdirSync, readFileSync, readdirSyn
 import { dirname, join } from "node:path"
 
 import { processIsRunning, T, check, orcaEnv, realOrchestratorConfig, run, stage, stageRepo, stageWithConfig, TOOLS_DIR, WORKER_CONFIG_DIRECTORY, WORKER_CONFIG_DIRECTORY_VARIABLE } from "./_harness.mjs"
-import { clearWorkerLaunchReservation, readWakeSourceStates, recordReservedWorkerPid, reserveWorkerLaunch, writeRunState } from "../lib/run-state.mjs"
+import { clearWorkerLaunchReservation, readWakeSourceStates, recordReservedWorkerPid, reserveWorkerLaunch, REVIEW_BATCH_ORDER_MARKER, writeRunState } from "../lib/run-state.mjs"
 import { cases as lifecycleCases, cleanupLifecycleLaunch, gateSignalCases, launcherResult } from "./launch-worker-lifecycle.mjs"
 import { SIGN_IN_TEXT, TRANSIENT_TEXT, limitResultLine, resultLine, signInFailureLines } from "./claude-usage-limit.mjs"
 
@@ -59,6 +59,46 @@ const launch = (label, config) => {
   const configured = { ...config, repos: { ...config.repos, ...stagedSiblings(config), [config.cloud.repositoryKey]: repo.path } }
   const staged = stageWithConfig(`launch-worker-${label}`, TOOL, configured)
   return { ...staged, worktree: repo.path, git: repo.git, prompt: stage(`launch-worker/${label}-prompt.md`, "the work order, verbatim\n") }
+}
+
+/** caps.reviewFixAttempts counts every fix round of a branch, and the launch cap override never passes it. */
+const fixRoundCases = () => {
+  const fixRounds = launch("fix-rounds", launchConfig({ ...stubEngine(IMMEDIATE), caps: { workerLaunchesPerBranch: 1, reviewFixAttempts: 1 } }))
+  const batchPrompt = stage("launch-worker/fix-rounds-batch.md", `${REVIEW_BATCH_ORDER_MARKER}\n\nthe review batch order\n`)
+  const fixArgs = ["--issue", "ORB-201", "--worktree", fixRounds.worktree, "--prompt", batchPrompt]
+  const fixOptions = { path: fixRounds.path, env: githubAuthEnv() }
+  check(TOOL, "a review batch order without --fix-round exits 2", fixArgs, { status: 2, stderr: /is a review batch order, which is a fix round: pass --fix-round/ }, fixOptions)
+  check(TOOL, "an unknown fix round kind exits 2", [...fixArgs, "--fix-round", "worker"], { status: 2, stderr: /--fix-round must be local or pullfrog/ }, fixOptions)
+  const dryPlan = check(TOOL, "a dry run names the fix round it would spend", [...fixArgs, "--fix-round", "local", "--dry-run"], { status: 0 }, fixOptions)
+  T(`${TOOL}: the dry run plans fix round 1 of 1 and records nothing`, /"fixRound": \{\s*"kind": "local",\s*"number": 1,\s*"cap": 1/.test(dryPlan.stdout) &&
+    !existsSync(join(fixRounds.worktree, ".git", "orbit-fix-rounds")), dryPlan.stdout)
+  discardLog(check(TOOL, "the first fix round launches", [...fixArgs, "--fix-round", "local"], { status: 0, stderr: /spends fix round 1 of 1/ }, fixOptions).stdout)
+  check(
+    TOOL,
+    "a fix round above the cap exits 2 even with a relaunch reason",
+    [...fixArgs, "--fix-round", "pullfrog", "--relaunch-reason", "Pullfrog found one more spelling"],
+    { status: 2, stderr: /fix round cap 1 reached for branch main[\s\S]*--relaunch-reason does not pass it/ },
+    fixOptions,
+  )
+  const launchSlots = () => readdirSync(join(fixRounds.worktree, ".git", "orbit-worker-launches")).filter((name) => /-(slot|override)-/.test(name)).length
+  T(`${TOOL}: a refused fix round spends no launch slot`, launchSlots() === 1, String(launchSlots()))
+  const design = stage("launch-worker/fix-rounds-design.md", "One default-deny table replaces the per-cell checks.\n")
+  discardLog(check(
+    TOOL,
+    "a written design change passes the fix round cap",
+    [...fixArgs, "--fix-round", "pullfrog", "--relaunch-reason", "design change round", "--design-change", design],
+    { status: 0, stderr: /spends fix round 2 of 1/ },
+    fixOptions,
+  ).stdout)
+  const roundDirectory = join(fixRounds.worktree, ".git", "orbit-fix-rounds")
+  const rounds = readdirSync(roundDirectory).filter((name) => name.endsWith(".json")).sort()
+    .map((name) => JSON.parse(readFileSync(join(roundDirectory, name), "utf8")))
+  T(
+    `${TOOL}: the ledger holds both rounds, and the second names its design change`,
+    rounds.length === 2 && rounds.map((round) => round.kind).join(",") === "local,pullfrog" &&
+      rounds[1].designChange?.summary === "One default-deny table replaces the per-cell checks." && rounds[0].issue === "ORB-201",
+    JSON.stringify(rounds),
+  )
 }
 
 const githubAuthEnv = ({ branchPulls = [], pulls = [], queuedRuns = 0, readError = false } = {}) => orcaEnv([
@@ -946,6 +986,7 @@ if (process.argv[1]?.endsWith("worker-gate.cjs")) {
       capped.git(["status", "--short"]).stdout.trim() === "",
     JSON.stringify({ launchLedger, status: capped.git(["status", "--short"]).stdout }),
   )
+  fixRoundCases()
   /**
    * Both clocks are read from config.timeouts, and the only way to prove that is to move them:
    * a hardcoded 45 and 10 minutes would leave a sleeping worker running until the suite's own

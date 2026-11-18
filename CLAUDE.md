@@ -4,7 +4,7 @@ Personal habit tracker. Turborepo monorepo: `apps/web`, `apps/mobile` (Android, 
 
 ## Maximum implementation (overrides global rule 4, "surgical changes")
 
-Fix anything broken, stale, or wrong that you find in the same PR; never call it "out of scope" or "pre-existing." Exception: `/audit-*` reports against its rubric and does not fix mid-pass. Do everything yourself (MCP servers, CLIs, APIs); involve me only when no other way exists.
+Fix anything broken, stale, or wrong that you find in the same PR; never call it "out of scope" or "pre-existing." Exception: `/audit-*` reports against its rubric and does not fix mid-pass. In a review round, only a BLOCKING finding (`review-and-audit.md` rule 14) gets a fix; each other finding is filed one time on the ticket that owns its area. Do everything yourself (MCP servers, CLIs, APIs); involve me only when no other way exists.
 
 ## The workflow (D1-D9)
 

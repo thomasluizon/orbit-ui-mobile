@@ -284,6 +284,51 @@ export const reserveWorkerLaunch = (launch, cap, repoRoot = REPO_ROOT) => {
   return { allowed: true, earlierLaunches, recorded: override.recorded }
 }
 
+export const fixRoundDirectory = (repoRoot = REPO_ROOT) => join(gitDirectoryOf(repoRoot), "orbit-fix-rounds")
+export const FIX_ROUND_KINDS = ["local", "pullfrog"]
+/** compose-prompt.mjs writes this line into a review batch order; launch-worker.mjs then requires --fix-round. */
+export const REVIEW_BATCH_ORDER_MARKER = "<!-- orbit-order: review-batch -->"
+const FIX_ROUND_FILE = /^([0-9a-f]{64})-round-(\d+)\.json$/
+const fixRoundBranchKey = (branch) => createHash("sha256").update(branch).digest("hex")
+
+/** The fix rounds of one branch in this checkout, oldest first. */
+export const readFixRounds = (branch, repoRoot = REPO_ROOT) => {
+  const directory = fixRoundDirectory(repoRoot)
+  const key = fixRoundBranchKey(branch)
+  let names
+  try { names = readdirSync(directory) } catch { return [] }
+  return names
+    .map((name) => FIX_ROUND_FILE.exec(name))
+    .filter((match) => match && match[1] === key)
+    .sort((left, right) => Number(left[2]) - Number(right[2]))
+    .flatMap((match) => readLaunchFiles([join(directory, match[0])]))
+}
+
+/** The written design change that lets one fix round pass the cap: its path, digest and first line. */
+export const readDesignChange = (path) => {
+  const text = readFileSync(path, "utf8")
+  if (text.trim() === "") throw new Error(`design change file is empty: ${path}`)
+  return { path: resolve(path), sha256: createHash("sha256").update(text).digest("hex"), summary: text.trim().split("\n")[0].slice(0, 200) }
+}
+
+/**
+ * Spends the next fix round of `round.branch`. Each round number is one exclusive file, so two
+ * writers cannot spend the same round. A round above `cap` needs `round.designChange`.
+ */
+export const recordFixRound = (round, cap, repoRoot = REPO_ROOT) => {
+  const directory = fixRoundDirectory(repoRoot)
+  mkdirSync(directory, { recursive: true })
+  const key = fixRoundBranchKey(round.branch)
+  for (let number = 1; ; number++) {
+    if (number > cap && round.designChange === null) {
+      return { allowed: false, number, rounds: readFixRounds(round.branch, repoRoot) }
+    }
+    const claim = claimLaunchFile(join(directory, `${key}-round-${number}.json`), { ...round, number })
+    if (claim.claimed) return { allowed: true, number, rounds: readFixRounds(round.branch, repoRoot) }
+    if (!claim.contended) throw new Error(`cannot record fix round ${number} in ${directory}`)
+  }
+}
+
 export const recordReservedWorkerPid = (launcherPid, workerPid, repoRoot = REPO_ROOT) => {
   const path = occupiedWorktreePath(repoRoot)
   try {
