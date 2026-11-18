@@ -135,19 +135,28 @@ const namedFirstOf = (clause) => {
   return next && isDeployApiFirst(namedReference, next) ? null : named
 }
 
-/** One item merges before or ahead of the next one, or after or once the previous one, or an order before it holds it until the next one. */
-const ordersPair = (clause, first, next) => {
+/**
+ * One item merges before or ahead of the next one, or after or once the previous one, or an order before it holds it until the next one.
+ * `firstItem` and `nextItem` are the repository-qualified items of the two references, so a bare ticket between two items names neither.
+ */
+const ordersPair = (clause, first, next, firstItem, nextItem) => {
   const leading = clause.slice(0, first.index)
   const between = clause.slice(first.index + first[0].length, next.index)
   const ahead = AHEAD_WORD.exec(between)
-  if (ahead) return (MERGE_ORDER.test(leading) || MERGE_ORDER.test(between.slice(0, ahead.index))) && !isDeployApiFirst(first, next)
+  if (ahead) return (MERGE_ORDER.test(leading) || MERGE_ORDER.test(between.slice(0, ahead.index))) && !isDeployApiFirst(firstItem, nextItem)
   const after = AFTER_WORD.exec(between)
   if (after) {
     // `Wait for Y to merge, then merge X` merges the first reference earlier; `Merge X after Y` and `X once Y merged` merge the next one earlier.
-    const [earlier, later] = after[0].toLowerCase() === "then" ? [first, next] : [next, first]
+    const [earlier, later] = after[0].toLowerCase() === "then" ? [firstItem, nextItem] : [nextItem, firstItem]
     return (MERGE_ORDER.test(leading) || MERGE_ORDER.test(between.slice(after.index))) && !isDeployApiFirst(earlier, later)
   }
-  return /\buntil\b/i.test(between) && MERGE_ORDER.test(leading) && !isDeployApiFirst(next, first)
+  return /\buntil\b/i.test(between) && MERGE_ORDER.test(leading) && !isDeployApiFirst(nextItem, firstItem)
+}
+
+// The nearest repository-qualified reference from `index`, looking in `step` direction; a clause with none keeps the reference at `index`.
+const itemAt = (references, index, step) => {
+  for (let at = index; at >= 0 && at < references.length; at += step) if (repositoryOf(references[at]) !== "") return references[at]
+  return references[index]
 }
 
 /**
@@ -162,7 +171,7 @@ const orderingHolds = (text) => {
     for (const clause of line.split(/[.;](?:\s|$)/)) {
       const named = namedFirstOf(clause)
       const references = [...clause.matchAll(WORK_REFERENCE)]
-      const second = references.slice(1).find((next, index) => ordersPair(clause, references[index], next))
+      const second = references.slice(1).find((next, index) => ordersPair(clause, references[index], next, itemAt(references, index, -1), itemAt(references, index + 1, 1)))
       if (!named && !second) continue
       const orderEnd = named ? named.index + named[0].length : second.index + second[0].length
       if (SETTLED_LABEL.test(clause) || SETTLED_ORDER.test(clause.slice(orderEnd))) continue
