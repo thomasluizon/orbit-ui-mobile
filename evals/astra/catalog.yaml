@@ -1,6 +1,6 @@
 # Generated through the API request and continuation builders, StrictToolSchema and eval trace sensitivity collector.
 # Regenerate with node evals/astra/generate-catalog.mjs <api-checkout>.
-apiCommit: ba8aeb605e311ffad721281f77f467fc7fad93a6
+apiCommit: b659df38c733768cfd67f5d6b9bfd571e2c13d8b
 offerTools:
   - type: function
     writes: false

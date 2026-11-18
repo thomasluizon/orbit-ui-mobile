@@ -6,7 +6,7 @@ const catalog = parse(readFileSync(new URL('./catalog.yaml', import.meta.url), '
 export const { habitSetupBinding } = catalog
 
 // The path of a run. The block-first path is the API without the ai_change_plan flag; the change-plan path is the API
-// with that flag on for the account (orbit-api FeatureFlagKeys.AiChangePlan, ChatContext.ChangePlan). The API sends
+// with that flag on for the account (orbit-api FeatureFlagKeys.AiChangePlan, which ChatContext.Policy resolves through TurnPolicy.For). The API sends
 // other tool declarations on each path, so each path has its own lists of the catalog.
 export const RUN_PATH_VARIABLE = 'ORBIT_EVAL_ASTRA_PATH'
 export const BLOCK_FIRST_PATH = 'block-first'

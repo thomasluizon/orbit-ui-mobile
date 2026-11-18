@@ -120,8 +120,8 @@ it.each([['launch corpus', beforeAll, suiteFor(credentialKeys)], ['core set', be
   },
 )
 
-// Producer: orbit-api ChatContext.ChangePlan reads ai_change_plan from the flags of the account, and GET api/config
-// returns the same flag. A run whose path does not agree with that flag would grade one path with the lists of the other.
+// Producer: orbit-api TurnPolicy.For resolves ChatContext.Policy from ai_change_plan in the flags of the account, and
+// GET api/config returns the same flag. A run whose path does not agree with that flag would grade one path with the lists of the other.
 const flagState = (enabled) => (index) => preflightResponse({ enabled: index === 0, planRequirement: null }, { enabled, planRequirement: null })
 const disagreement = (path, key) => `Eval preflight failed: this run measures the ${path} path (ORBIT_EVAL_ASTRA_PATH); turn ${path === 'change-plan' ? 'on' : 'off'} ai_change_plan for ${key} through /flag on staging, then verify /api/config and retry.`
 
