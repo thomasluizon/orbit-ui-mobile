@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs'
 import { outcome } from '../client-path.mjs'
 import { readCorpus } from '../grade-method.mjs'
 import { dateOffset } from '../fixtures/reset.mjs'
-import { preview } from './fixtures/producer.mjs'
+import { createPreview } from './fixtures/producer.mjs'
 
 const corpus = readCorpus()
 const captured = JSON.parse(readFileSync(new URL('./fixtures/medical-titles.json', import.meta.url), 'utf8'))
@@ -11,18 +11,7 @@ const scenario = corpus.find((entry) => entry.metadata.id === 'composition-medic
 const vars = { ...JSON.parse(JSON.stringify(scenario.vars).replace(/\{accountDate([+]\d+)\}/g,
   (_, offset) => dateOffset('2026-10-29', Number(offset)))), accountDate: '2026-10-29' }
 
-// Producer: orbit-api CreationFields gives a create preview one row for each argument that holds a value, in the text
-// that AgentArgumentPreview.FormatValue gives it, and a `sub_habits` row with the child drafts as its proposedValue.
-const shown = (value) => typeof value === 'boolean' ? (value ? 'True' : 'False') : String(value)
-function heldPreview(arguments_) {
-  const template = preview().items[0]
-  return { ...preview(), changeTargetCount: arguments_.habits.length, items: arguments_.habits.map((habit, index) => ({
-    ...template, itemId: String(index), entityName: habit.title,
-    fields: Object.entries(habit).filter(([field, value]) => value !== null && (field === 'sub_habits' || typeof value !== 'object'))
-      .map(([field, value]) => ({ ...template.fields[0], entityName: habit.title, field, valueType: 'text',
-        newValue: field === 'sub_habits' ? JSON.stringify(value) : shown(value), proposedValue: value })) })) }
-}
-const grade = (arguments_) => outcome({ turns: 1, questionsBeforePreview: 0, previews: [heldPreview(arguments_)], asked: false, written: [] }, { vars })
+const grade = (arguments_) => outcome({ turns: 1, questionsBeforePreview: 0, previews: [createPreview(arguments_.habits)], asked: false, written: [] }, { vars })
 
 it('accepts the captured medical batch with the person\'s pt-BR titles through the outcome grade', () => {
   expect(grade(captured.arguments)).toMatchObject({ pass: true, reason: 'The held previews hold exactly the requested changes.' })

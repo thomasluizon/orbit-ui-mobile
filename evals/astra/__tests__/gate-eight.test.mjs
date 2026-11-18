@@ -1,88 +1,49 @@
 import { expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
-import { parse } from 'yaml'
-import { behavior } from '../assertions.mjs'
+import { outcome } from '../client-path.mjs'
+import { readCorpus } from '../grade-method.mjs'
 import { dateOffset } from '../fixtures/reset.mjs'
-import { toolCall, chatResponse } from './fixtures/producer.mjs'
-import parseResponse from '../response.mjs'
+import { createPreview } from './fixtures/producer.mjs'
 
-const corpus = parse(readFileSync(new URL('../composition-scenarios.yaml', import.meta.url), 'utf8'))
+const corpus = readCorpus()
 const recorded = JSON.parse(readFileSync(new URL('./fixtures/gate-eight.json', import.meta.url), 'utf8'))
-const scenario = (id) => structuredClone(corpus.find((entry) => entry.metadata.id === id))
-const outputFor = (calls) => parseResponse(chatResponse('request', calls), '',
-  { response: { status: 200, headers: { 'x-orbit-request-id': 'request' } } })
-const grade = (test, calls) => behavior(outputFor(calls), { vars: { ...test.vars, evalRequestId: 'request' } })
+const accountDate = '2026-10-23'
+function scenario(id) {
+  const test = structuredClone(corpus.find((entry) => entry.metadata.id === id))
+  test.vars = { ...JSON.parse(JSON.stringify(test.vars).replace(/\{accountDate([+]\d+)\}/g,
+    (_, offset) => dateOffset(accountDate, Number(offset)))), accountDate }
+  return test
+}
+const recordedHabits = (id) => structuredClone(recorded.find(({ caseId }) => caseId === id).toolCalls[0].arguments.habits)
+// The outcome of one case for the preview that the server builds from the habits of a recorded create.
+const grade = (test, habits) => outcome({ turns: 1, questionsBeforePreview: 0, previews: [createPreview(habits)], asked: false, written: [] },
+  { vars: test.vars })
 
-it.each(['en', 'pt-BR'])('allows the coaching tool and preserves its recorded outcome in %s', (locale) => {
-  const test = scenario(`composition-coaching-advice-${locale}`)
-  const recordedCall = recorded.find(({ caseId }) => caseId === test.metadata.id).toolCalls[0]
-  const call = toolCall(recordedCall.name, recordedCall.arguments, recordedCall.resultStatus)
-  const verdict = grade(test, [call])
-  expect(verdict.pass).toBe(recordedCall.resultStatus === 'Succeeded')
-  expect(verdict.reason).not.toContain('outside the allowed set')
-  if (recordedCall.resultStatus === 'Failed') expect(verdict.reason).toContain('expected outcome')
-  call.arguments.one_small_step = false
-  const rejected = grade(test, [call])
-  expect(rejected.pass).toBe(false)
-  expect(rejected.reason).toBe('Mutation outside the declared operation scope: suggest_breakdown')
-})
-
-it.each(['en', 'pt-BR'])('constrains optional coaching arguments and count after a read reclassification in %s', (locale) => {
-  const test = scenario(`composition-coaching-advice-${locale}`)
-  const call = toolCall('suggest_breakdown', { one_small_step: true, language: locale }, 'Succeeded', 'step')
-  expect(grade(test, [call]).pass).toBe(true)
-  call.arguments.language = locale === 'en' ? 'pt-BR' : 'en'
-  expect(grade(test, [call])).toMatchObject({ pass: false,
-    reason: 'Mutation outside the declared operation scope: suggest_breakdown' })
-  call.arguments.language = locale
-  const duplicate = { ...structuredClone(call), id: 'extra', result: { ...call.result, id: 'extra' } }
-  expect(grade(test, [call, duplicate])).toMatchObject({ pass: false,
-    reason: 'Mutation outside the declared operation scope: suggest_breakdown' })
-})
-
-it.each(['en', 'pt-BR'])('accepts inherited owned parent IDs but rejects a different parent in %s', (locale) => {
-  const test = scenario(`composition-existing-parents-${locale}`)
-  const args = structuredClone(recorded.find(({ caseId }) => caseId === 'composition-existing-parents-pt-BR').toolCalls.at(-1).arguments)
-  args.habits.forEach((parent, index) => {
-    parent.habit_id = index ? '{secondHabitId}' : '{habitId}'
-    if (locale === 'en') {
-      parent.title = index ? 'Before Bed' : 'Post Lunch'
-      parent.sub_habits[0].title = index ? 'Take rosuvastatin' : 'Take vitamin D'
-    }
-  })
-  expect(grade(test, [toolCall('bulk_create_habits', args, 'PendingConfirmation')]).pass).toBe(true)
-  args.habits[0].sub_habits[0].parent_habit_id = 'different-parent'
-  expect(grade(test, [toolCall('bulk_create_habits', args, 'PendingConfirmation')]).pass).toBe(false)
-})
-
-it.each(['en', 'pt-BR'])('accepts either avoid creation tool while retaining the recurring cadence in %s', (locale) => {
+it.each(['en', 'pt-BR'])('accepts the avoid habit only with its recurring cadence in %s', (locale) => {
   const test = scenario(`composition-avoid-form-${locale}`)
-  const args = structuredClone(recorded.find(({ caseId }) => caseId === test.metadata.id).toolCalls[0].arguments)
-  expect(grade(test, [toolCall('bulk_create_habits', args, 'PendingConfirmation')]).pass).toBe(false)
-  Object.assign(args.habits[0], { frequency_unit: 'Day', frequency_quantity: 1, is_general: false })
-  expect(grade(test, [toolCall('bulk_create_habits', args, 'PendingConfirmation')]).pass).toBe(true)
-  expect(grade(test, [toolCall('create_habit', args.habits[0], 'PendingConfirmation')]).pass).toBe(true)
-  args.habits.push(structuredClone(args.habits[0]))
-  expect(grade(test, [toolCall('bulk_create_habits', args, 'PendingConfirmation')]).pass).toBe(false)
+  const habits = recordedHabits(test.metadata.id)
+  expect(grade(test, habits).pass).toBe(false)
+  Object.assign(habits[0], { frequency_unit: 'Day', frequency_quantity: 1, is_general: false })
+  expect(grade(test, habits)).toMatchObject({ pass: true, reason: 'The held previews hold exactly the requested changes.' })
+  expect(grade(test, [{ ...habits[0], is_bad_habit: false }]).pass).toBe(false)
+  habits.push(structuredClone(habits[0]))
+  expect(grade(test, habits).reason).toMatch(/^The preview holds a change outside the request\./u)
 })
 
 it.each(['en', 'pt-BR'])('preserves medical title wording without admitting wrong dates or cadence in %s', (locale) => {
   const test = scenario(`composition-medical-batch-${locale}`)
-  test.vars = JSON.parse(JSON.stringify(test.vars).replace(/\{accountDate([+]\d+)\}/g,
-    (_, offset) => dateOffset('2026-10-23', Number(offset))))
-  const args = structuredClone(recorded.find(({ caseId }) => caseId === test.metadata.id).toolCalls[0].arguments)
-  expect(grade(test, [toolCall('bulk_create_habits', args, 'PendingConfirmation')]).pass).toBe(false)
-  Object.assign(args.habits[2], { title: locale === 'en' ? 'Stop multivitamins' : 'Parar com multivitamínico',
+  const habits = recordedHabits(test.metadata.id)
+  expect(grade(test, habits).pass).toBe(false)
+  Object.assign(habits[2], { title: locale === 'en' ? 'Stop multivitamins' : 'Parar com multivitamínico',
     frequency_unit: 'Day', due_date: '2026-10-27', end_date: '2026-10-30' })
-  Object.assign(args.habits[3], { frequency_unit: 'Day', due_date: '2026-10-29', end_date: '2026-10-30' })
-  expect(grade(test, [toolCall('bulk_create_habits', args, 'PendingConfirmation')]).pass).toBe(true)
-  expect(test.vars.rubric).toContain("Preserve the person's own wording")
+  Object.assign(habits[3], { frequency_unit: 'Day', due_date: '2026-10-29', end_date: '2026-10-30' })
+  expect(grade(test, habits)).toMatchObject({ pass: true })
   for (const wrong of ['title', 'date', 'cadence', 'time']) {
-    const changed = structuredClone(args)
-    if (wrong === 'title') changed.habits[2].title = locale === 'en' ? 'Take multivitamins' : 'Tomar multivitamínico'
-    if (wrong === 'date') changed.habits[2].due_date = '2026-10-29'
-    if (wrong === 'cadence') changed.habits[2].frequency_unit = 'OneTime'
-    if (wrong === 'time') changed.habits[0].due_time = '16:50'
-    expect(grade(test, [toolCall('bulk_create_habits', changed, 'PendingConfirmation')]).pass).toBe(false)
+    const changed = structuredClone(habits)
+    if (wrong === 'title') changed[2].title = locale === 'en' ? 'Take multivitamins' : 'Tomar multivitamínico'
+    if (wrong === 'date') changed[2].due_date = '2026-10-29'
+    if (wrong === 'cadence') changed[2].frequency_unit = 'OneTime'
+    if (wrong === 'time') changed[0].due_time = '16:50'
+    expect(grade(test, changed).pass).toBe(false)
   }
 })

@@ -156,14 +156,6 @@ it('allows only the essential searched-text line beside the generic empty piano 
   expect(prompt).toContain('Any other repeated fact still fails')
 })
 
-it.each(['en', 'pt-BR'])('grades preserved medical wording without prescribing a replacement title in %s', async (locale) => {
-  const test = compositionCases.find((entry) => entry.metadata.id === `composition-medical-batch-${locale}`)
-  const prompt = await gradingPrompt(test, locale === 'en' ? 'Stop multivitamins' : 'Parar com multivitamínico')
-  expect(prompt).toContain("Preserve the person's own wording")
-  expect(prompt).toContain('Reject a title that reverses or changes the medical instruction')
-  expect(prompt).toContain('is_bad_habit=false')
-})
-
 it.each(['en', 'pt-BR'])('T grades restart for today and leaves occurrence binding to the typed check in %s', async (locale) => {
   for (const family of ['missed', 'missed-non-daily']) {
     const test = compositionCases.find((entry) => entry.metadata.id === `offers-${family}-${locale}`)

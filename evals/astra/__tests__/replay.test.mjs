@@ -2,7 +2,8 @@ import { afterEach, expect, it, vi } from 'vitest'
 import { mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync, mkdirSync, symlinkSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
-import { replayWindow } from '../replay.mjs'
+import { replayAttempt, replayWindow } from '../replay.mjs'
+import { readCorpus } from '../grade-method.mjs'
 import { recordedGateThirteen } from './fixtures/gate-thirteen.mjs'
 
 const saved = recordedGateThirteen()
@@ -139,4 +140,13 @@ it('still counts an unredacted schema failure on a passing case as a regression'
   attempt.toolCalls[0].arguments.relative_period = 'tomorrow'
   const source = window([attempt])
   await expect(replayWindow(source, `${directory}/output`)).rejects.toThrow('changed a previously passing case')
+})
+
+it('keeps the recorded tool grades of a case with an outcome and grades its calls against no expectations', async () => {
+  const descriptor = readCorpus().find((entry) => entry.metadata.id === 'composition-medical-correction-en')
+  const scope = { metric: 'toolBehavior', pass: false, reason: 'Mutation outside the declared operation scope: log_habit' }
+  const attempt = { caseId: descriptor.metadata.id, repeat: 1, pass: false, toolCalls: [], assertions: [scope],
+    setup: { toolCalls: [{ name: 'bulk_create_habits', arguments: { habits: [] }, resultStatus: 'PendingConfirmation' }] } }
+  const result = await replayAttempt(attempt, descriptor, { allAttemptsPass: 'fail' })
+  expect(result).toMatchObject({ before: 'fail', after: 'fail', assertions: [scope], notes: [] })
 })
