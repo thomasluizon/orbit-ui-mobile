@@ -120,8 +120,8 @@ function isStaleServerAction(request: NextRequest) {
     deploymentId && clientDeploymentId && clientDeploymentId !== deploymentId
 }
 
-function isRouteHandlerPath(pathname: string): boolean {
-  return pathname === SENTRY_TUNNEL_ROUTE || pathname === '/ingest' || pathname.startsWith('/ingest/')
+export function isRouteHandlerPath(pathname: string): boolean {
+  return pathname.startsWith('/api/') || pathname === SENTRY_TUNNEL_ROUTE || pathname === '/ingest' || pathname.startsWith('/ingest/')
 }
 
 // WHY: Next treats every multipart POST to a page as a possible form action and answers 500 when the body does not parse: https://github.com/vercel/next.js/blob/v16.4.3/packages/next/src/server/lib/server-action-request-meta.ts
@@ -193,7 +193,6 @@ export async function proxy(request: NextRequest) {
   }
 
   if (
-    pathname.startsWith('/api/') ||
     isRouteHandlerPath(pathname) ||
     pathname.startsWith('/_next/') ||
     STATIC_IMAGE_PATH.test(pathname) ||

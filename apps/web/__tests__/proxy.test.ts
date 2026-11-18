@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { readdirSync, readFileSync } from 'node:fs'
 import { NextRequest, NextResponse } from 'next/server'
 import { unstable_doesMiddlewareMatch } from 'next/experimental/testing/server'
-import { config, proxy } from '@/proxy'
+import { config, isRouteHandlerPath, proxy } from '@/proxy'
 import {
   clearSessionCookies,
   resolveSessionTokens,
@@ -878,6 +878,14 @@ describe('malformed Server Action requests', () => {
   it('lists the Route Handlers of a Windows checkout through the proxy matcher', () => {
     expect(routeHandlerPaths(['monitoring\\route.ts', 'ingest\\[[...path]]\\route.ts', 'api\\health\\route.ts', '(app)\\page.tsx']))
       .toEqual(['/monitoring', '/ingest/segment'])
+  })
+
+  it.each(routeHandlerPaths())('holds the Route Handler %s in the one Route Handler predicate', (path) => {
+    expect(isRouteHandlerPath(path)).toBe(true)
+  })
+
+  it.each(['/login', '/habits', '/api', '/apis/x', '/monitoring/x', '/ingestion'])('keeps the page path %s out of the Route Handler predicate', (path) => {
+    expect(isRouteHandlerPath(path)).toBe(false)
   })
 
   it.each(['/monitoring', '/ingest/e/'])('passes a POST with an invalid action header through to the Route Handler %s', async (path) => {
