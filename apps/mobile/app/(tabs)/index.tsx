@@ -233,7 +233,7 @@ function TodayScreenContent() {
 
   useEffect(() => {
     const hidden = isSelectMode || showCreateModal || editHabit !== null || listSurfaceOpen ||
-      habitsQuery.isError || (habitsQuery.data !== undefined && habitsById.size === 0)
+      (habitsQuery.data === undefined ? habitsQuery.isError : habitsById.size === 0)
     setTodayFabHidden(hidden)
   }, [
     editHabit,
