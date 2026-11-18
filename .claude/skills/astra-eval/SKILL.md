@@ -127,8 +127,11 @@ ticket writes, or outbound messages.
 ## The launch corpus
 
 `scenarios.yaml` and `composition-scenarios.yaml` are the full corpus (`npx promptfoo eval`, one attempt per case). This
-local run is the only live run of the corpus. It
-grades request-bound tool evidence against `catalog.yaml` and stays until the old assistant path is deleted. Merge its
+local run is the only live run of the corpus. A case holds one grade method (`grade-method.mjs`).
+A case with `vars.outcome` runs on the client path (`POST /api/chat/stream`, with a conversation id) and gets the outcome
+grade of the core set: no tool name is graded. A case with `vars.expectations` runs on `POST /api/chat` and grades
+request-bound tool evidence against `catalog.yaml`. The lifecycle families and the offers keep the tool-name grade until
+their tickets convert them, and it stays until the old assistant path is deleted. Merge its
 window summaries in chronological order with `node merge-reports.mjs`; a continuation replaces only incomplete case
 entries. `--rerun` declares the single permitted rerun of a failed case after a fix; a rerun on the same build never
 replaces a failure. Follow `TESTING.md` `### Daily windows and combined report` for the exact commands.
@@ -151,9 +154,9 @@ that evidence. Each composition case declares its family, locale, client capabil
 Supported clients require ordered parts; legacy and missing-kind cases require readable fallbacks. Keep the structural
 composition check and semantic rubric together: the rubric catches paraphrased repetition of figures.
 
-Medical correction cases first issue the original request through the same HTTP provider, verify its trace and
-preview, then submit the correction with that actual answer as history. Each attempt uses its own pending preview; no
-write is approved. Count this setup call in the existing allowance. The existing-parent fixture binds Post Lunch to
+Medical correction cases first send the original request on the client path, in the conversation of the case, and grade
+its held preview by the `outcome` of the setup. They then send the correction in that conversation. Each attempt uses
+its own pending preview; no write is approved. Count this setup call in the existing allowance. The existing-parent fixture binds Post Lunch to
 `ORBIT_EVAL_HABIT_ID` and Before Bed to `ORBIT_EVAL_SECOND_HABIT_ID`. Do not create duplicate parents to satisfy a
 case.
 
@@ -163,8 +166,12 @@ A core set situation states the outcome: the expected change list, the allowed q
 gives. Add a situation with its 3 phrasings in both locales; never edit a committed situation, because the corpus
 digest ties each report to the cases it measured. pt-BR phrasings read as a Brazilian wrote them.
 
-A launch corpus case keeps exact ID and enum assertions, tolerant text matching, and unordered compound tool
-requirements. Bulk cases require one bulk call and forbid single-item calls. Grade only the final rendered answer
+A launch corpus case states its `outcome` in one of four forms: `read: true` (no preview and no card that asks),
+`question: true` (a question card and no preview; plain text fails), `refusal: true` (the status and the error code of
+the case) or `changes` (the change list of the held previews, with each record by its fixture name and never by its id).
+A `changes` case holds no rubric, and it grades a bulk write and a single write the same way. A case of the lifecycle
+families or of the offers keeps `expectations`: exact ID and enum assertions, tolerant text matching, and unordered
+compound tool requirements, with one bulk call for a bulk case. Grade only the final rendered answer
 projection with `llm-rubric`; it includes visible blocks and preview fields, excludes traces and execution payloads,
 and accepts block-only replies. Verify the fixture reset can recreate the case before each configured attempt. Run
 the offline tests after changing a corpus or its assertions.

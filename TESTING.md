@@ -1111,7 +1111,7 @@ Forced-second-call checks in fix rounds use recorded responses or a fake complet
 Fixture timings do not calibrate the budget. No additional live latency run is permitted.
 
 The corpus classifies `composition.mode: data` as read cases, together with legacy `fallback` cases
-that declare nonempty read-only `expectations.allowed` tools. Preview, clarification and refusal
+that declare nonempty read-only `expectations.allowed` tools or `outcome: { read: true }`. Preview, clarification and refusal
 cases retain their existing assertions. Each read case must still pass every capability assertion;
 the median must be below the budget.
 Any count other than exactly `k` completed requests, or a fixture-precondition failure, leaves latency incomplete,
@@ -1352,22 +1352,19 @@ retain their normal expiry, and strict call-scope checks still apply. No pending
 directly. These are explicit reproducibility assumptions, not evidence that stale/offline/revocation cases
 have passed. The gate keeps its strict assertions and genuine final acceptance remains required.
 
-The medical batch keeps the original message intact, with no setup or follow-up. It requires one
-bulk proposal with one-time exams and bounded preparation commitments. Avoid cases require Fumar
-or Smoking with `is_bad_habit: true`. Existing-parent cases require exactly one bulk proposal and
-exact parent IDs, weekly vitamin D and daily rosuvastatin, without duplicate roots or questions.
+The medical batch keeps the original message intact, with no setup or follow-up. Its outcome holds the one-time
+exams and the bounded preparation commitments as creates. Avoid cases require Fumar or Smoking with
+`is_bad_habit: true`, a daily cadence and a habit that is not general. Existing-parent cases require one create under each stored
+parent, weekly vitamin D and daily rosuvastatin, without duplicate roots or questions. A wrapper that also edits a stored
+parent holds an update of that parent, and the outcome fails it as a change outside the request.
 
-Only medical correction cases declare `vars.setup`. After fixture reset, the hook issues that
-original request using the same installed HTTP provider and capabilities, with a separate fresh
-request identity. Structure, behavior and composition must all pass before the correction runs.
-The actual final answer becomes chat history, the returned `conversationId` joins the client context,
-and the actual preview becomes the comparison baseline. The correction requires 16:00 and preserves every other
-preview field and item identity.
-A correction requires exactly one held `bulk_create_habits` call. Setup derives its full argument
-scope from the verified original trace, changing only the named exam's `due_time`; exact argument
-matching rejects added fields, changed siblings and additional mutations. Successful writes
-cannot satisfy the required `PendingConfirmation` outcome.
-A missing baseline or failed setup stops the attempt. This setup adds one paid request per attempt;
+Only medical correction cases declare `vars.setup`. After fixture reset, the hook sends that original request on the
+client path, in the conversation of the case, with a separate fresh request identity. The setup grades its held preview
+by its own `outcome`, and the preview stays held. The actual preview becomes the comparison baseline, and the
+correction turn runs in the same conversation. The correction requires 16:00 and preserves every other
+preview field and item identity. The outcome of the correction holds the same change list with the new time.
+No tool name is graded, and a successful write cannot satisfy the held preview.
+A missing baseline or a setup that fails its outcome stops the attempt. This setup adds one paid request per attempt;
 it never approves a write or resets spend or message allowance. The full corpus can exceed the
 historical starter-run cost estimate. Stay within existing ceilings and report incomplete runs.
 
@@ -1381,7 +1378,15 @@ rendered consumers; this harness change does not unblock broad rollout by itself
 ### Add a scenario
 
 1. Add an entry to `evals/astra/scenarios.yaml` or `composition-scenarios.yaml` with a unique stable `metadata.id`, a category,
-   a fixture, a credential environment key, an input, expectations, and a final-answer rubric.
+   a fixture, a credential environment key, an input, and its grade method. A case holds one grade method
+   (`grade-method.mjs`). `vars.outcome` selects the client path (`POST /api/chat/stream`, with a conversation id) and the
+   outcome grade of the core set. `vars.expectations` selects `POST /api/chat` and the tool-name grade. A case never
+   holds both. An `outcome` has one of four forms. `read: true` holds no preview and no card that asks the person.
+   `question: true` ends in a question card and holds no preview. `refusal: true` gives the `expectedHttpStatus` and
+   `expectedErrorCode` of the case. `changes` lists the held changes by kind, with each record by its fixture name
+   (`water`, `walk`, `first`, `second`) and never by its id. A `changes` case holds no rubric. A case that reads
+   an answer holds a final-answer rubric. The lifecycle families and the offers keep `expectations` until their own
+   tickets convert them.
    Composition cases also declare `metadata.family`, `metadata.locale`, `vars.clientContext` and
    `vars.composition`. Add every family in both `en` and `pt-BR`.
    `{habitId}`, `{secondHabitId}`, `{overdueDate}`, rolling analytics date tokens and their localized variants are substituted in inputs and expected
@@ -1391,11 +1396,11 @@ rendered consumers; this harness change does not unblock broad rollout by itself
    Use these placeholders in every case `input` and `setup.input` instead of fixed calendar dates.
    Unknown placeholders fail the precondition before chat. Never commit credentials or real account values.
 2. Extend the reset executable if the case needs new state. Describe that state in this catalog.
-   Compound cases require every tool and its key arguments. Bulk cases require exactly one bulk
-   call and forbid its single-item counterpart. Ambiguity cases allow only appropriate reads
-   and asks; the rubric requires a question rather than action. Use `composition.mode: clarification`
-   to accept either one to three short plain-text lines without a block or exactly one `choice` or
-   `question` card. The API sends a `question` card for the same intent: it folds only one short
+   A case with `expectations` states compound cases by every tool and its key arguments, and bulk cases by exactly
+   one bulk call. A case with an `outcome` states them by the change list, whatever tool wrote it. Ambiguity cases
+   of the outcome grade end in `question: true`, which only a question card satisfies; the rubric requires a question
+   rather than action. Use `composition.mode: clarification` to accept either one to three short plain-text lines without
+   a block or exactly one `choice` or `question` card. A case with `question: true` still needs the card. The API sends a `question` card for the same intent: it folds only one short
    `singleChoice` question into a choice, and it sends a record card over more than four records as a
    question. Other block kinds, multiple blocks and pending writes fail this policy. A case that
    declares `sameTitleSet` also needs its card to offer each stored child as a separate option, and
