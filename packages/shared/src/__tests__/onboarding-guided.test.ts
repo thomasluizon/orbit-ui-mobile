@@ -15,6 +15,15 @@ import {
   onboardingModeKey,
   onboardingNeedsCadence,
   phraseLineKey,
+  isOnboardingIntroScreen,
+  ONBOARDING_REMIND_STEP,
+  ONBOARDING_WHAT_STEP,
+  ONBOARDING_WHEN_STEP,
+  onboardingBackTarget,
+  onboardingInitialView,
+  onboardingRunningStatusKey,
+  onboardingViewAfterStep,
+  type OnboardingGuidedNavigation,
   type OnboardingSchedule,
 } from '../utils'
 
@@ -150,5 +159,43 @@ describe('the Orbit line of the first step', () => {
   it('says what the device read once it read a part, and that the details are left when it read none', () => {
     expect(phraseLineKey('walk every day', true)).toBe('habits.flow.what.lineUnderstood')
     expect(phraseLineKey('walk', false)).toBe('habits.flow.what.lineTyped')
+  })
+})
+
+describe('guided onboarding views and back targets', () => {
+  const at = (view: OnboardingGuidedNavigation['view'], patch: Partial<OnboardingGuidedNavigation> = {}): OnboardingGuidedNavigation => ({ view, direction: 1, cadencePath: [], editing: false, walking: false, pendingEdit: null, ...patch })
+
+  it('opens on the intro on a first run, else on the view of the step', () => {
+    expect(onboardingInitialView(ONBOARDING_WHAT_STEP, true)).toBe('talk')
+    expect(onboardingInitialView(ONBOARDING_WHAT_STEP, false)).toBe('what')
+    expect(onboardingInitialView(ONBOARDING_WHEN_STEP, false)).toBe('summary')
+    expect(onboardingInitialView(ONBOARDING_REMIND_STEP, false)).toBe('remind')
+  })
+
+  it('asks how it repeats after the phrase only when the read left the schedule open, and opens a pending edit after the remind step', () => {
+    expect(onboardingViewAfterStep(at('what'), ONBOARDING_WHAT_STEP, ONBOARDING_WHEN_STEP, true)).toMatchObject({ view: 'mode', cadencePath: ['mode'], direction: 1 })
+    expect(onboardingViewAfterStep(at('what'), ONBOARDING_WHAT_STEP, ONBOARDING_WHEN_STEP, false)).toMatchObject({ view: 'summary', cadencePath: [] })
+    expect(onboardingViewAfterStep(at('remind', { pendingEdit: 'time' }), ONBOARDING_REMIND_STEP, ONBOARDING_WHEN_STEP, false)).toMatchObject({ view: 'time', editing: true, pendingEdit: null, direction: -1 })
+  })
+
+  it('goes back through the intro, the repeat steps and the summary, and hands the rest to the previous step', () => {
+    expect(onboardingBackTarget(at('talk'), true)).toBeNull()
+    expect(onboardingBackTarget(at('routine'), true)).toBe('talk')
+    expect(onboardingBackTarget(at('what'), true)).toBe('restart')
+    expect(onboardingBackTarget(at('what'), false)).toBeNull()
+    expect(onboardingBackTarget(at('time', { editing: true }), false)).toBe('summary')
+    expect(onboardingBackTarget(at('summary', { cadencePath: ['mode', 'days'] }), false)).toBe('days')
+    expect(onboardingBackTarget(at('days', { cadencePath: ['mode', 'days'] }), false)).toBe('mode')
+    expect(onboardingBackTarget(at('mode', { cadencePath: ['mode', 'days'] }), false)).toBe('step')
+    expect(isOnboardingIntroScreen('restart')).toBe(true)
+    expect(isOnboardingIntroScreen('remind')).toBe(false)
+  })
+
+  it('names the request that runs, the read first', () => {
+    const idle = { suggestionPending: false, creating: false, reminderDecision: 'idle', completionPending: false }
+    expect(onboardingRunningStatusKey(idle)).toBeNull()
+    expect(onboardingRunningStatusKey({ ...idle, suggestionPending: true, creating: true })).toBe('habits.flow.what.reading')
+    expect(onboardingRunningStatusKey({ ...idle, creating: true })).toBe('onboarding.flow.guided.creating')
+    expect(onboardingRunningStatusKey({ ...idle, reminderDecision: 'declining' })).toBe('onboarding.flow.guided.remind.pending')
   })
 })

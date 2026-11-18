@@ -127,6 +127,32 @@ describe.each(locales)('fresh start flow in $locale', ({ locale, messages }) => 
     await act(async () => { finishReset() })
   })
 
+  it('opens on the lists again, with no result, when the reset lands after a close during the request', async () => {
+    stubMedia(false)
+    let finishReset!: () => void
+    mocks.resetAccount.mockReturnValue(new Promise<void>((resolve) => { finishReset = resolve }))
+    function Harness() {
+      const [open, setOpen] = useState(true)
+      return (
+        <>
+          <button type="button" onClick={() => setOpen(true)}>reopen</button>
+          <FreshStartModal open={open} guided onOpenChange={setOpen} />
+        </>
+      )
+    }
+    render(withIntl(locale, messages, <Harness />))
+    fireEvent.click(screen.getByRole('button', { name: messages.profile.freshStart.reviewDeletion }))
+    fireEvent.change(screen.getByLabelText(messages.profile.freshStart.confirmInstruction), { target: { value: 'ORBIT' } })
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: messages.profile.freshStart.deleteData })) })
+    await act(async () => { fireEvent.keyDown(document.activeElement ?? document.body, { key: 'Escape' }) })
+    await act(async () => { finishReset() })
+
+    fireEvent.click(screen.getByRole('button', { name: 'reopen' }))
+
+    expect(document.querySelector('[data-result-dialog]')).toBeNull()
+    expect(screen.getByRole('heading', { level: 1, name: messages.profile.freshStart.question })).toBeInTheDocument()
+  })
+
   it('steps back to the lists on Escape from the confirmation while no reset runs', async () => {
     stubMedia(false)
     const onOpenChange = vi.fn()

@@ -343,6 +343,32 @@ describe.each(locales)('guided onboarding in $locale', ({ locale, messages }) =>
     expect(mocks.updateHabit).toHaveBeenLastCalledWith('habit-1', expect.objectContaining({ reminderEnabled: true, reminderTimes: [15] }))
   })
 
+  it('saves only the created habit on a close after Create, and states a failed save on the step in view', async () => {
+    useOnboardingDraftStore.setState({ introSeen: true })
+    mount(locale, messages)
+    const phrase = locale === 'en' ? 'Walk every Monday at 18:00' : 'Caminhar toda segunda às 18:00'
+    const created = buildOnboardingHabitInput({ sentence: phrase, locale, emoji: '', reminderEnabled: false, schedule: buildOnboardingScheduleFromPhrase(phrase, locale, true) })
+    await typePhrase(messages, phrase)
+    await act(async () => { press(flow.create) })
+    press(flow.back)
+    expect(heading()).toBe(guided.summary.question)
+    fireEvent.click(within(screen.getByRole('group', { name: guided.summary.question })).getByRole('button', { name: new RegExp(guided.summary.what) }))
+    fireEvent.change(screen.getByLabelText(guided.what.question, { selector: 'textarea' }), { target: { value: locale === 'en' ? 'Read every Friday at 07:00' : 'Ler toda sexta às 07:00' } })
+    mocks.updateHabit.mockRejectedValueOnce(new Error('offline'))
+
+    await act(async () => { press(flow.skip) })
+
+    expect(mocks.updateHabit).toHaveBeenCalledWith('habit-1', created)
+    expect(heading()).toBe(guided.what.question)
+    expect(screen.getByRole('alert')).toHaveTextContent(flow.completionFailed)
+    expect(document.querySelector('[data-result-dialog]')).toBeNull()
+
+    await act(async () => { press(flow.skip) })
+
+    expect(mocks.updateHabit).toHaveBeenLastCalledWith('habit-1', created)
+    expect(screen.queryByText(flow.completionFailed)).toBeNull()
+  })
+
   it('closes with the result dialog built from the saved habit read back from the query cache, then opens Today on a Pro plan', async () => {
     useOnboardingDraftStore.setState({ introSeen: true })
     mount(locale, messages)

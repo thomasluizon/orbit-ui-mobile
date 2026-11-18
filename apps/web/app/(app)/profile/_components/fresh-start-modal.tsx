@@ -2,7 +2,7 @@
 
 import { SPACING } from '@orbit/shared/theme'
 
-import { useRef, useCallback } from 'react'
+import { useRef, useCallback, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { resetAccountQueries } from '@orbit/shared/query'
 import { useTranslations } from 'next-intl'
@@ -77,7 +77,19 @@ export function FreshStartModal({ open, onOpenChange, guided = false }: Readonly
   const requestPending = useRef(false)
   const [error, setError] = useAccountScopedState('')
   const [resultShown, setResultShown] = useAccountScopedState(false)
+  const [prevOpen, setPrevOpen] = useState(open)
   const { isOnline } = useOffline()
+
+  if (open !== prevOpen) {
+    setPrevOpen(open)
+    if (open) {
+      setStep('info')
+      setConfirmText('')
+      setError('')
+      setLoading(false)
+      setResultShown(false)
+    }
+  }
 
   const isConfirmed = confirmText.trim().toUpperCase() === 'ORBIT'
   const { sheetRef, closeSheet } = useSheetHost()

@@ -430,9 +430,14 @@ export type { OnboardingCompleteCopy, OnboardingCompleteState, OnboardingProposa
 export {
   describeOnboardingCadence,
   describeOnboardingResult,
+  isOnboardingIntroScreen,
   ONBOARDING_INTRO_SCREENS,
   ONBOARDING_MODE_OPTIONS,
+  onboardingBackTarget,
   onboardingGuidedPosition,
+  onboardingInitialView,
+  onboardingRunningStatusKey,
+  onboardingViewAfterStep,
   onboardingModeDetailSteps,
   onboardingScheduleFromSaved,
   describeSavedOnboardingResult,
@@ -443,7 +448,7 @@ export {
   onboardingNeedsCadence,
   phraseLineKey,
 } from './onboarding-guided'
-export type { OnboardingCadenceText, OnboardingIntroScreen, OnboardingQuestionStep, OnboardingResultSentence } from './onboarding-guided'
+export type { OnboardingBackTarget, OnboardingCadenceText, OnboardingFlowView, OnboardingGuidedNavigation, OnboardingIntroScreen, OnboardingQuestionStep, OnboardingResultSentence } from './onboarding-guided'
 export {
   isMissingBillingError,
   isMissingBillingStatus,

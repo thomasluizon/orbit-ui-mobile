@@ -80,6 +80,7 @@ function DoneContent({ step, proContent, doneContent }: Readonly<{ step: number;
 }
 
 type ReminderDecision = 'idle' | 'allowing' | 'declining'
+interface SavedOnboardingHabit { sentence: string; emoji: string; schedule: OnboardingSchedule }
 
 function FlowActions({ primary, secondary, reason }: Readonly<{ primary: ReactNode; secondary?: ReactNode; reason?: ReactNode }>) {
   return <div className="flex w-full flex-col gap-2"><ActionRow>{secondary}{primary}</ActionRow>{reason}</div>
@@ -229,6 +230,8 @@ export function OnboardingFlow({ finalStepOnly = false, onExit, guided = false }
   const [correcting, setCorrecting] = useState(false)
   const [createdId, setCreatedId] = useState<string | null>(resolvingDeferredPush ? 'deferred' : null)
   const [createdTitle, setCreatedTitle] = useState(deferredHabit?.title ?? '')
+  const [savedHabit, setSavedHabit] = useState<SavedOnboardingHabit | null>(null)
+  const [leaveFailed, setLeaveFailed] = useState(false)
   const [creating, setCreating] = useState(false)
   const [createFailed, setCreateFailed] = useState(false)
   const [reminderState, setReminderState] = useState<OnboardingRemindState>(resolvingDeferredPush ? 'failed' : 'ask')
@@ -312,6 +315,7 @@ export function OnboardingFlow({ finalStepOnly = false, onExit, guided = false }
     const intendedAccountId = getHeldAccountId()
     setCreating(true)
     setCreateFailed(false)
+    setLeaveFailed(false)
     const input = buildOnboardingHabitInput({ sentence, locale, emoji, reminderEnabled: false, schedule })
     try {
       const accountProfile = isLive ? profile ?? (await refetchProfile()).data : undefined
@@ -326,6 +330,7 @@ export function OnboardingFlow({ finalStepOnly = false, onExit, guided = false }
         setCreatedId(result.id)
       }
       setCreatedTitle(input.title)
+      setSavedHabit({ sentence, emoji, schedule })
       setCreatedDueToday(isOnboardingHabitDueToday(schedule, new Date(), accountTimeZone))
       setCreatedGeneral(schedule.isGeneral)
       setReminderState(resolveReminderState())
@@ -338,8 +343,8 @@ export function OnboardingFlow({ finalStepOnly = false, onExit, guided = false }
   }
 
   async function persistReminderDecision(enabled: boolean): Promise<boolean> {
-    if (!createdId || resolvingDeferredPush) return true
-    const input = buildOnboardingHabitInput({ sentence, locale, emoji, reminderEnabled: enabled, schedule })
+    if (!createdId || !savedHabit || resolvingDeferredPush) return true
+    const input = buildOnboardingHabitInput({ ...savedHabit, locale, reminderEnabled: enabled })
     try {
       await actions.updateHabit(createdId, input)
       return true
@@ -430,12 +435,16 @@ export function OnboardingFlow({ finalStepOnly = false, onExit, guided = false }
   async function continueWithoutReminders() {
     if (reminderDecision !== 'idle') return
     setReminderDecision('declining')
+    setLeaveFailed(false)
     try {
       if (resolvingDeferredPush) {
         await finishDeferredPushRecovery()
         return
       }
-      if (!await persistReminderDecision(false)) return
+      if (!await persistReminderDecision(false)) {
+        setLeaveFailed(true)
+        return
+      }
       setRemindersOff(true)
       await showDone()
     } catch (error) {
@@ -499,7 +508,7 @@ export function OnboardingFlow({ finalStepOnly = false, onExit, guided = false }
   ) : (
     <StepsPhase guided={guided} legacy={<FlowShell nav={false} landmark={false} mode="onboarding" header={<OnboardingHeader completionPending={completionPending} step={step} onBack={resolvingDeferredPush ? undefined : goBack} onSkip={createdId ? undefined : () => void skip()} />} action={<div className="contents" inert={completionPending || undefined}><DecisionAction {...decisionProps} /></div>} notice={<><UpdateAvailableBanner modalId={modalId} inset={false} />{createFailed ? <ErrorState message={t('createFailed')} /> : null}<AppToastHost placement="modal" modalId={modalId} /></>}><div className="contents" inert={completionPending || undefined}><OnboardingStepStage step={step}><DecisionContent {...decisionProps} /></OnboardingStepStage>{suggestion.verification}</div></FlowShell>} {...decisionProps} habitEmoji={emoji} emojiProposed={emojiProposed} onEmoji={(value) => { setEmoji(value); setEmojiProposed(false) }} completionPending={completionPending} offline={!isOnline}
       notices={<><UpdateAvailableBanner modalId={modalId} inset={false} /><AppToastHost placement="modal" modalId={modalId} />{suggestion.verification}</>}
-      resolvingDeferredPush={resolvingDeferredPush} habitCreated={createdId !== null} onStepBack={goBack} onLeave={() => void skip()} />
+      leaveFailed={leaveFailed} resolvingDeferredPush={resolvingDeferredPush} habitCreated={createdId !== null} onStepBack={goBack} onLeave={() => void skip()} />
   )
   const result = <GuidedResultSlot open={[guided, step === ONBOARDING_DONE_STEP, overlayOpen, Boolean(createdTitle), !skipped, !resultDismissed]} habitId={createdId} signedOut={!isLive} timeZone={profile?.timeZone}
     onPrimary={() => completeAndLeave(isLive ? '/' : undefined)} onClose={() => setResultDismissed(true)} />

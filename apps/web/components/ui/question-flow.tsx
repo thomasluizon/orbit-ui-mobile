@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useId, useRef, useState } from 'react'
 import { motion } from 'motion/react'
 import type { QuestionFlowProps } from '@orbit/shared/contracts/flow'
+import { createQuestionFlowHooks } from '@orbit/shared/hooks/question-flow-core'
 import { createUseStepChange } from '@orbit/shared/hooks/step-change-core'
 import { motionDurations, motionEasings } from '@orbit/shared/theme'
 import { ArrowLeft, X } from '@/components/ui/icons'
@@ -10,13 +11,13 @@ import { OrbitMascot } from '@/components/ui/orbit-mascot'
 import { PagerSegments } from '@/components/ui/pager'
 import { PillButton } from '@/components/ui/pill-button'
 import { PrimaryActionSlot } from '@/components/ui/primary-action-slot'
-import { useFlowAnnouncement } from '@/hooks/use-flow-announcement'
-import { useGuidedFlowTracking } from '@/hooks/use-guided-flow-tracking'
 import { useOrbitLook } from '@/hooks/use-orbit-look'
 import { useViewportMatch } from '@/hooks/use-viewport-match'
+import { captureGuidedFlowEvent } from '@/lib/posthog'
 
 const WIDE_SHIFT = 12
 const useStepChange = createUseStepChange({ useEffect, useRef })
+const { useFlowAnnouncement, useGuidedFlowTracking } = createQuestionFlowHooks({ useState, useEffect, useRef, capture: (event) => captureGuidedFlowEvent(event) })
 
 function HeaderButton({ label, onPress, children }: Readonly<{ label: string; onPress: () => void; children: React.ReactNode }>) {
   return <PillButton variant="ghost" iconOnly label={label} minimumHeight={48} onClick={onPress}>{children}</PillButton>

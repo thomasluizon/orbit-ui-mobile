@@ -16,12 +16,12 @@ import {
   getOnboardingReminderPreviewTime,
   getOnboardingScheduleMode,
   HABIT_TIME_OPTIONS,
+  isOnboardingIntroScreen,
   ONBOARDING_INTRO_SCREENS,
+  onboardingBackTarget,
+  onboardingRunningStatusKey,
   ONBOARDING_MODE_OPTIONS,
-  ONBOARDING_REMIND_STEP,
   ONBOARDING_STARTERS,
-  ONBOARDING_WHAT_STEP,
-  ONBOARDING_WHEN_STEP,
   getHabitPhraseTitle,
   onboardingGuidedPosition,
   onboardingModeDetailSteps,
@@ -36,6 +36,7 @@ import {
   type OnboardingSchedule,
   type OnboardingScheduleMode,
 } from '@orbit/shared/utils'
+import { createUseGuidedOnboardingNavigation } from '@orbit/shared/hooks'
 import { PhraseField } from '@/components/habits/guided/phrase-field'
 import { HabitEmojiSelector } from '@/components/habits/habit-form-fields/habit-emoji-selector'
 import { CapacityNotice } from '@/components/ui/capacity-notice'
@@ -56,6 +57,7 @@ import type { OnboardingDecisionProps } from './onboarding-flow'
 
 const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'] as const
 const WEEKDAYS: readonly string[] = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday']
+const useGuidedNavigation = createUseGuidedOnboardingNavigation({ useState })
 
 export interface GuidedOnboardingProps extends OnboardingDecisionProps {
   /** The emoji of the habit: the one the model proposed or the one the person chose, or empty. */
@@ -71,34 +73,13 @@ export interface GuidedOnboardingProps extends OnboardingDecisionProps {
   onBack?: () => void
   /** Leaves onboarding. Absent once the habit exists. */
   onSkip?: () => void
+  /** The close after Create did not save the habit. The remind step states it with its own failure. */
+  leaveFailed: boolean
 }
 
-type FlowView = OnboardingIntroScreen | OnboardingQuestionStep
 type Translate = ReturnType<typeof useTranslations>
 
 type StepView = FlowStepView & Pick<QuestionFlowProps, 'footer'>
-
-interface Navigation {
-  view: FlowView
-  direction: 1 | -1
-  cadencePath: OnboardingQuestionStep[]
-  editing: boolean
-  walking: boolean
-  pendingEdit: OnboardingQuestionStep | null
-}
-
-function isIntro(view: FlowView): view is OnboardingIntroScreen {
-  return (ONBOARDING_INTRO_SCREENS as readonly string[]).includes(view)
-}
-
-function viewAfterStep(navigation: Navigation, previous: number, step: number, needsCadence: boolean): Navigation {
-  const direction = step > previous ? 1 : -1
-  if (step === ONBOARDING_WHAT_STEP) return { ...navigation, view: 'what', direction, editing: false, cadencePath: [] }
-  if (step === ONBOARDING_REMIND_STEP) return { ...navigation, view: 'remind', direction, editing: false }
-  if (previous === ONBOARDING_WHAT_STEP) return { ...navigation, view: needsCadence ? 'mode' : 'summary', direction, editing: false, cadencePath: needsCadence ? ['mode'] : [] }
-  const target = navigation.pendingEdit ?? 'summary'
-  return { ...navigation, view: target, direction, editing: target !== 'summary', pendingEdit: null }
-}
 
 function useCadenceText(schedule: OnboardingSchedule) {
   const t = useTranslations()
@@ -306,52 +287,11 @@ function useRemindView(props: GuidedOnboardingProps, onEdit: (step: OnboardingQu
   return { ...base, primary: { label: t('onboarding.flow.remind.continue'), onPress: props.onContinueWithout, loading: props.reminderDecision === 'declining' } }
 }
 
-function initialView(step: number, introRun: boolean): FlowView {
-  if (introRun) return 'talk'
-  if (step === ONBOARDING_REMIND_STEP) return 'remind'
-  return step === ONBOARDING_WHEN_STEP ? 'summary' : 'what'
-}
-
-function useGuidedNavigation(props: GuidedOnboardingProps) {
-  const [introRun] = useState(() => props.step === ONBOARDING_WHAT_STEP && !useOnboardingDraftStore.getState().introSeen)
-  const [navigation, setNavigation] = useState<Navigation>(() => ({ view: initialView(props.step, introRun), direction: 1, cadencePath: [], editing: false, walking: false, pendingEdit: null }))
-  const [trackedStep, setTrackedStep] = useState(props.step)
-  if (trackedStep !== props.step) {
-    setTrackedStep(props.step)
-    setNavigation((current) => viewAfterStep(current, trackedStep, props.step, onboardingNeedsCadence(props.schedule, props.proposed)))
-  }
-  const go = (view: FlowView, direction: 1 | -1, patch: Partial<Navigation> = {}) => setNavigation((current) => ({ ...current, ...patch, view, direction }))
-  return { navigation, introRun, go }
-}
-
-function backTarget(navigation: Navigation, introRun: boolean): FlowView | 'step' | null {
-  const { view, editing, cadencePath } = navigation
-  if (view === 'talk') return null
-  if (isIntro(view)) return ONBOARDING_INTRO_SCREENS[ONBOARDING_INTRO_SCREENS.indexOf(view) - 1]!
-  if (view === 'what') return introRun ? 'restart' : null
-  if (editing) return 'summary'
-  if (view === 'summary') return cadencePath.at(-1) ?? 'step'
-  const index = cadencePath.indexOf(view)
-  return index > 0 ? cadencePath[index - 1]! : 'step'
-}
-
-function backAction(target: FlowView | 'step' | null, onStepBack: (() => void) | undefined, go: (view: FlowView, direction: 1 | -1, patch?: Partial<Navigation>) => void): (() => void) | undefined {
-  if (target === null) return undefined
-  if (target !== 'step') return () => go(target, -1, { editing: false })
-  return onStepBack
-}
-
-function runningStatusKey(props: GuidedOnboardingProps): string | null {
-  if (props.suggestionPending) return 'habits.flow.what.reading'
-  if (props.creating) return 'onboarding.flow.guided.creating'
-  return props.reminderDecision !== 'idle' || props.completionPending ? 'onboarding.flow.guided.remind.pending' : null
-}
-
 /** The guided onboarding: the intro, then one question at a time on the shared flow shell. The state, the requests and the reminder logic stay in `OnboardingFlow`. */
 export function GuidedOnboardingFlow(props: Readonly<GuidedOnboardingProps>) {
   const t = useTranslations()
   const locale = useLocale() === 'pt-BR' ? 'pt-BR' : 'en'
-  const { navigation, introRun, go } = useGuidedNavigation(props)
+  const { navigation, introRun, go, backAction } = useGuidedNavigation({ step: props.step, readIntroSeen: () => useOnboardingDraftStore.getState().introSeen, readNeedsCadence: () => onboardingNeedsCadence(props.schedule, props.proposed) })
   const { view, direction, cadencePath, editing } = navigation
   const toSummary = () => go('summary', 1, { editing: false, walking: false })
   const answered = (step: OnboardingQuestionStep) => {
@@ -390,11 +330,11 @@ export function GuidedOnboardingFlow(props: Readonly<GuidedOnboardingProps>) {
     if (next) go(next, 1)
     else leaveIntro()
   }
-  const stepView = isIntro(view) ? introView(view, t, () => nextIntro(view), leaveIntro) : views[view]
-  const back = backAction(backTarget(navigation, introRun), props.onBack, go)
+  const stepView = isOnboardingIntroScreen(view) ? introView(view, t, () => nextIntro(view), leaveIntro) : views[view]
+  const back = backAction(onboardingBackTarget(navigation, introRun), props.onBack)
   const close = props.onSkip ?? props.onContinueWithout
-  const progress = isIntro(view) ? { position: ONBOARDING_INTRO_SCREENS.indexOf(view) + 1, total: ONBOARDING_INTRO_SCREENS.length } : onboardingGuidedPosition(view, cadencePath)
-  const statusKey = runningStatusKey(props)
+  const progress = isOnboardingIntroScreen(view) ? { position: ONBOARDING_INTRO_SCREENS.indexOf(view) + 1, total: ONBOARDING_INTRO_SCREENS.length } : onboardingGuidedPosition(view, cadencePath)
+  const statusKey = onboardingRunningStatusKey(props)
 
   return (
     <FlowScreen label={t('onboarding.flow.guided.screenLabel')} onDismiss={back ?? close}>
@@ -410,12 +350,15 @@ export function GuidedOnboardingFlow(props: Readonly<GuidedOnboardingProps>) {
         backLabel={t('onboarding.flow.back')}
         closeLabel={t('onboarding.flow.skip')}
         onBack={back}
-        onClose={isIntro(view) ? undefined : close}
+        onClose={isOnboardingIntroScreen(view) ? undefined : close}
         orbitState={statusKey ? 'pensando' : 'parado'}
         statusText={statusKey ? t(statusKey) : undefined}
         options={stepView.options}
         primary={stepView.primary}
-        footer={<>{stepView.footer}{props.notices}</>}
+        footer={<>
+          {props.leaveFailed && view !== 'remind' ? <p role="alert" className="text-center text-sm text-[var(--status-bad-text)]">{t('onboarding.flow.completionFailed')}</p> : null}
+          {stepView.footer}{props.notices}
+        </>}
       >
         {stepView.free}
       </QuestionFlow>

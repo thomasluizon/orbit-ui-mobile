@@ -71,6 +71,7 @@ import { useOffline } from '@/hooks/use-offline'
 import { captureGuidedFlowCompleted } from '@/lib/posthog'
 
 type ReminderDecision = 'idle' | 'allowing' | 'declining'
+interface SavedOnboardingHabit { sentence: string; emoji: string; schedule: OnboardingSchedule }
 
 function FlowActions({ primary, secondary, reason }: Readonly<{ primary: ReactNode; secondary?: ReactNode; reason?: ReactNode }>) { return <View style={styles.actions}><ActionRow>{secondary}{primary}</ActionRow>{reason}</View> }
 
@@ -202,6 +203,8 @@ export function OnboardingFlow({ finalStepOnly = false, guided = false }: Readon
   const [correcting, setCorrecting] = useState(false)
   const [createdId, setCreatedId] = useState<string | null>(resolvingDeferredPush ? 'deferred' : null)
   const [createdTitle, setCreatedTitle] = useState(deferredHabit?.title ?? '')
+  const [savedHabit, setSavedHabit] = useState<SavedOnboardingHabit | null>(null)
+  const [leaveFailed, setLeaveFailed] = useState(false)
   const [creating, setCreating] = useState(false)
   const [createFailed, setCreateFailed] = useState(false)
   const [reminderState, setReminderState] = useState<OnboardingRemindState>(resolvingDeferredPush ? 'failed' : 'ask')
@@ -258,7 +261,7 @@ export function OnboardingFlow({ finalStepOnly = false, guided = false }: Readon
 
   async function saveHabit() {
     if (creating) return
-    setCreating(true); setCreateFailed(false)
+    setCreating(true); setCreateFailed(false); setLeaveFailed(false)
     const input = buildOnboardingHabitInput({ sentence, locale, emoji, reminderEnabled: false, schedule })
     try {
       const accountProfile = isLive ? profile ?? (await refetchProfile()).data : undefined
@@ -272,6 +275,7 @@ export function OnboardingFlow({ finalStepOnly = false, guided = false }: Readon
       if (createdId) await actions.updateHabit(createdId, { ...input, isGeneral: schedule.isGeneral, isFlexible: schedule.isFlexible }, ...(timezoneDependency ? [timezoneDependency] : []))
       else { const result = await actions.createHabit(input, ...(timezoneDependency ? [timezoneDependency] : [])); setCreatedId(result.id) }
       setCreatedTitle(input.title)
+      setSavedHabit({ sentence, emoji, schedule })
       setCreatedDueToday(isOnboardingHabitDueToday(schedule, new Date(), accountTimeZone))
       setCreatedGeneral(schedule.isGeneral)
       setReminderState(resolveReminderState()); setStep(ONBOARDING_REMIND_STEP)
@@ -279,8 +283,8 @@ export function OnboardingFlow({ finalStepOnly = false, guided = false }: Readon
   }
 
   async function persistReminderDecision(enabled: boolean): Promise<boolean> {
-    if (!createdId || resolvingDeferredPush) return true
-    const input = buildOnboardingHabitInput({ sentence, locale, emoji, reminderEnabled: enabled, schedule })
+    if (!createdId || !savedHabit || resolvingDeferredPush) return true
+    const input = buildOnboardingHabitInput({ ...savedHabit, locale, reminderEnabled: enabled })
     try {
       await actions.updateHabit(createdId, input)
       return true
@@ -326,12 +330,16 @@ export function OnboardingFlow({ finalStepOnly = false, guided = false }: Readon
   async function continueWithoutReminders() {
     if (reminderDecision !== 'idle') return
     setReminderDecision('declining')
+    setLeaveFailed(false)
     try {
       if (resolvingDeferredPush) {
         await finishDeferredPushRecovery()
         return
       }
-      if (!await persistReminderDecision(false)) return
+      if (!await persistReminderDecision(false)) {
+        setLeaveFailed(true)
+        return
+      }
       setRemindersOff(true)
       setStep(ONBOARDING_DONE_STEP)
     } finally {
@@ -373,7 +381,7 @@ export function OnboardingFlow({ finalStepOnly = false, guided = false }: Readon
 
   const decisionProps: OnboardingDecisionProps = { step, sentence, locale, marks: read.consumed, isLive, emoji: emoji || '◎', schedule, dueTime, proposed, correcting, atLimit, allowance, allowancePeriod: profile?.aiMessagesPeriod, createFailed, creating, suggestionPending, reminderDecision, reminderState, createdTitle, onAccount: () => { useOnboardingDraftStore.getState().markOnboardingLocallyDone(); router.replace('/login') }, onSentence: (value) => { if (!suggestionPending) setSentence(value) }, onContinueWhat: () => void continueFromWhat(sentence), onStarter: chooseStarter, onCorrect: () => setCorrecting(true), onToggleDay: (day) => setSchedule((current) => toggleOnboardingScheduleDay(current, day)), onTime: (value) => setSchedule((current) => ({ ...current, dueTime: value })), onMode: (mode) => setSchedule((current) => changeOnboardingScheduleMode(current, mode)), onFrequencyUnit: (frequencyUnit) => setSchedule((current) => ({ ...current, frequencyUnit, days: [], isGeneral: false })), onQuantity: (frequencyQuantity) => setSchedule((current) => ({ ...current, frequencyQuantity })), onIntervalWeeks: (intervalWeeks) => setSchedule((current) => ({ ...current, intervalWeeks })), onSave: () => void saveHabit(), onAllow: () => void allowReminders(), onContinueWithout: () => void continueWithoutReminders(), onEditSchedule: () => runStepTransition(() => setStep(ONBOARDING_WHEN_STEP)) }
   return <StepsPhase guided={guided} legacy={<NativeDialog open title={t('onboarding.flow.step', { current: getOnboardingDisplayStep(step), total: getOnboardingDisplayTotal() })} onOpenChange={(open) => { if (!open) runStepTransition(() => { if (resolvingDeferredPush) void finishDeferredPushRecovery(); else if (step > 0) setStep(step - 1) }) }}><FlowShell nav={false} header={<FlowHeader step={step} onBack={resolvingDeferredPush ? undefined : goBack} onSkip={createdId ? undefined : skip} />} action={<DecisionAction {...decisionProps} />} notice={createFailed ? <ErrorState message={t('onboarding.flow.createFailed')} /> : undefined}><View style={styles.content}><OnboardingStepStage step={step}><DecisionContent {...decisionProps} /></OnboardingStepStage>{suggestion.verification}</View></FlowShell></NativeDialog>} {...decisionProps} habitEmoji={emoji} emojiProposed={emojiProposed} onEmoji={(value) => { setEmoji(value); setEmojiProposed(false) }} completionPending={false} offline={!isOnline}
-    notices={suggestion.verification} resolvingDeferredPush={resolvingDeferredPush} habitCreated={createdId !== null} onStepBack={goBack} onLeave={skip} />
+    notices={suggestion.verification} leaveFailed={leaveFailed} resolvingDeferredPush={resolvingDeferredPush} habitCreated={createdId !== null} onStepBack={goBack} onLeave={skip} />
 }
 
 const styles = StyleSheet.create({ header: { alignItems: 'center', flexDirection: 'row', gap: 16, justifyContent: 'space-between', minHeight: 56, paddingHorizontal: SPACING.s12 }, headerStart: { alignItems: 'center', flexDirection: 'row', flexShrink: 0, gap: 8 }, back: { alignItems: 'center', borderRadius: 999, justifyContent: 'center', minHeight: 48, overflow: 'hidden', width: 48 }, counter: { fontFamily: 'GeistMono_500Medium', fontSize: 12, fontVariant: ['tabular-nums'], letterSpacing: 0.48 }, srOnly: { height: 1, opacity: 0, position: 'absolute', width: 1 }, content: { alignSelf: 'center', flexGrow: 1, justifyContent: 'center', maxWidth: 440, width: '100%' }, actions: { gap: 8 }, reason: { fontFamily: 'Geist_400Regular', fontSize: 14, textAlign: 'center' }, doneScroll: { flex: 1 }, done: { alignSelf: 'center', flexGrow: 1, justifyContent: 'center', maxWidth: 440, paddingHorizontal: SPACING.s16, width: '100%' } })

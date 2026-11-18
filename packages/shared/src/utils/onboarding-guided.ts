@@ -1,6 +1,6 @@
 import type { FrequencyUnit } from '../types/habit'
 import { describeHabitResult, type HabitResultSentence } from './habit-flow'
-import { getOnboardingScheduleMode, type OnboardingSchedule, type OnboardingScheduleMode } from './onboarding'
+import { getOnboardingScheduleMode, ONBOARDING_REMIND_STEP, ONBOARDING_WHAT_STEP, ONBOARDING_WHEN_STEP, type OnboardingSchedule, type OnboardingScheduleMode } from './onboarding'
 
 /** The three intro screens, in order: who Orbit is, what it does with the words, and the restart after a miss. */
 export const ONBOARDING_INTRO_SCREENS = ['talk', 'routine', 'restart'] as const
@@ -144,4 +144,64 @@ export function onboardingModeKey(schedule: OnboardingSchedule): string {
 export function phraseLineKey(value: string, understood: boolean): 'habits.flow.what.lineEmpty' | 'habits.flow.what.lineUnderstood' | 'habits.flow.what.lineTyped' {
   if (value.trim().length === 0) return 'habits.flow.what.lineEmpty'
   return understood ? 'habits.flow.what.lineUnderstood' : 'habits.flow.what.lineTyped'
+}
+
+/** One view of the guided onboarding: an intro screen or a question step. */
+export type OnboardingFlowView = OnboardingIntroScreen | OnboardingQuestionStep
+
+/** Where the guided onboarding stands, and how it reached that view. */
+export interface OnboardingGuidedNavigation {
+  view: OnboardingFlowView
+  direction: 1 | -1
+  /** The repeat steps this draft walks, in order. */
+  cadencePath: OnboardingQuestionStep[]
+  /** The summary opened this step, so the answer returns to the summary. */
+  editing: boolean
+  /** The flow walks the steps of a repeat mode. */
+  walking: boolean
+  /** The step that the remind step opens after the flow returns to the When step. */
+  pendingEdit: OnboardingQuestionStep | null
+}
+
+/** A target of the back action: a view, the previous step of `OnboardingFlow`, or no back action. */
+export type OnboardingBackTarget = OnboardingFlowView | 'step' | null
+
+export function isOnboardingIntroScreen(view: OnboardingFlowView): view is OnboardingIntroScreen {
+  return (ONBOARDING_INTRO_SCREENS as readonly string[]).includes(view)
+}
+
+/** The first view: the intro on a first run, else the view of the step that `OnboardingFlow` opens on. */
+export function onboardingInitialView(step: number, introRun: boolean): OnboardingFlowView {
+  if (introRun) return 'talk'
+  if (step === ONBOARDING_REMIND_STEP) return 'remind'
+  return step === ONBOARDING_WHEN_STEP ? 'summary' : 'what'
+}
+
+/** The view after `OnboardingFlow` moves from one step to another. */
+export function onboardingViewAfterStep(navigation: OnboardingGuidedNavigation, previous: number, step: number, needsCadence: boolean): OnboardingGuidedNavigation {
+  const direction = step > previous ? 1 : -1
+  if (step === ONBOARDING_WHAT_STEP) return { ...navigation, view: 'what', direction, editing: false, cadencePath: [] }
+  if (step === ONBOARDING_REMIND_STEP) return { ...navigation, view: 'remind', direction, editing: false }
+  if (previous === ONBOARDING_WHAT_STEP) return { ...navigation, view: needsCadence ? 'mode' : 'summary', direction, editing: false, cadencePath: needsCadence ? ['mode'] : [] }
+  const target = navigation.pendingEdit ?? 'summary'
+  return { ...navigation, view: target, direction, editing: target !== 'summary', pendingEdit: null }
+}
+
+/** The target of the back action on the current view. */
+export function onboardingBackTarget(navigation: OnboardingGuidedNavigation, introRun: boolean): OnboardingBackTarget {
+  const { view, editing, cadencePath } = navigation
+  if (view === 'talk') return null
+  if (isOnboardingIntroScreen(view)) return ONBOARDING_INTRO_SCREENS[ONBOARDING_INTRO_SCREENS.indexOf(view) - 1]!
+  if (view === 'what') return introRun ? 'restart' : null
+  if (editing) return 'summary'
+  if (view === 'summary') return cadencePath.at(-1) ?? 'step'
+  const index = cadencePath.indexOf(view)
+  return index > 0 ? cadencePath[index - 1]! : 'step'
+}
+
+/** The status line key while a request runs: the read of the phrase, the create, or the reminder decision. */
+export function onboardingRunningStatusKey(state: { suggestionPending: boolean; creating: boolean; reminderDecision: string; completionPending: boolean }): string | null {
+  if (state.suggestionPending) return 'habits.flow.what.reading'
+  if (state.creating) return 'onboarding.flow.guided.creating'
+  return state.reminderDecision !== 'idle' || state.completionPending ? 'onboarding.flow.guided.remind.pending' : null
 }

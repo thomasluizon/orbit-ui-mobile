@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AccessibilityInfo, Animated, Easing, findNodeHandle, Keyboard, StyleSheet, Text, View, useWindowDimensions } from 'react-native'
 import type { QuestionFlowProps } from '@orbit/shared/contracts/flow'
+import { createQuestionFlowHooks } from '@orbit/shared/hooks/question-flow-core'
 import { createUseStepChange } from '@orbit/shared/hooks/step-change-core'
 import { motionDurations, motionEasings } from '@orbit/shared/theme'
 import { ArrowLeft, X } from '@/components/ui/icons'
@@ -9,17 +10,17 @@ import { KeyboardAwareScrollView } from '@/components/ui/keyboard-aware-scroll-v
 import { OrbitMascot } from '@/components/ui/orbit-mascot'
 import { PagerSegments } from '@/components/ui/pager'
 import { PillButton } from '@/components/ui/pill-button'
-import { useFlowAnnouncement } from '@/hooks/use-flow-announcement'
-import { useGuidedFlowTracking } from '@/hooks/use-guided-flow-tracking'
 import { createTokensV2 } from '@/lib/theme'
 import { usePrefersReducedMotion } from '@/lib/motion'
 import { useAppTheme } from '@/lib/use-app-theme'
+import { captureGuidedFlowEvent } from '@/lib/posthog'
 
 const WIDE_SHIFT = 12
 const WIDE_WIDTH = 1024
 const SM_WIDTH = 640
 const KEYBOARD_LOOK = { x: 0, y: 1 } as const
 const useStepChange = createUseStepChange({ useEffect, useRef })
+const { useFlowAnnouncement, useGuidedFlowTracking } = createQuestionFlowHooks({ useState, useEffect, useRef, capture: (event) => captureGuidedFlowEvent(event) })
 
 function FlowHeader({ props }: Readonly<{ props: QuestionFlowProps }>) {
   const { position, total, progressLabel, backLabel, closeLabel, onBack, onClose } = props

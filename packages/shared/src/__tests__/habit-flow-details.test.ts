@@ -136,6 +136,12 @@ describe('guardHabitReadPatch', () => {
     expect(guardHabitReadPatch(patch, nothingSet)).toEqual(patch)
   })
 
+  it('keeps the proposed repeat when the person chose Habit on the type step', () => {
+    const guarded = guardHabitReadPatch(patch, { ...nothingSet, deliberateType: 'habit' })
+    expect(guarded).toEqual(patch)
+    expect(guarded).toMatchObject({ mode: 'recurring', frequencyUnit: 'Day', days: ['Monday'] })
+  })
+
   it.each([
     ['a deliberate task', { deliberateType: 'task' as const }, noSchedule],
     ['a When the person set', { whenSet: true }, noSchedule],

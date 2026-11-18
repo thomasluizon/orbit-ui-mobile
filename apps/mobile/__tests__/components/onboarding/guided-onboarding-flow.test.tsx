@@ -262,6 +262,35 @@ describe.each([{ language: 'en', messages: en }, { language: 'pt-BR', messages: 
     expect(mocks.createHabit).toHaveBeenCalledTimes(2)
   })
 
+  it('saves only the created habit on a close after Create, and states a failed save on the step in view', async () => {
+    useOnboardingDraftStore.setState({ introSeen: true })
+    const tree = await mount()
+    const phrase = language === 'en' ? 'Walk every Monday at 18:00' : 'Caminhar toda segunda às 18:00'
+    const created = buildOnboardingHabitInput({ sentence: phrase, locale: language, emoji: '', reminderEnabled: false, schedule: buildOnboardingScheduleFromPhrase(phrase, language, true) })
+    const alerts = () => hosts(tree).filter((node) => node.type === 'Text' && node.props.accessibilityRole === 'alert').map(textOf)
+    await typePhrase(tree, messages, phrase)
+    await press(tree, flow.create)
+    await press(tree, flow.back)
+    expect(heading(tree)).toBe(guided.summary.question)
+    const whatRow = hosts(tree).find((node) => node.props.accessibilityRole === 'button' && String(node.props.accessibilityLabel).startsWith(`${guided.summary.what},`))!
+    await TestRenderer.act(() => { (whatRow.props.onPress as () => void)() })
+    const field = hosts(tree).find((node) => node.type === 'TextInput' && node.props.accessibilityLabel === guided.what.question)!
+    await TestRenderer.act(() => { (field.props.onChangeText as (value: string) => void)(language === 'en' ? 'Read every Friday at 07:00' : 'Ler toda sexta às 07:00') })
+    mocks.updateHabit.mockRejectedValueOnce(new Error('offline'))
+
+    await press(tree, flow.skip)
+
+    expect(mocks.updateHabit).toHaveBeenCalledWith('habit-1', created)
+    expect(heading(tree)).toBe(guided.what.question)
+    expect(alerts()).toContain(flow.completionFailed)
+    expect(hosts(tree).some((node) => node.props.testID === 'result-dialog')).toBe(false)
+
+    await press(tree, flow.skip)
+
+    expect(mocks.updateHabit).toHaveBeenLastCalledWith('habit-1', created)
+    expect(alerts()).not.toContain(flow.completionFailed)
+  })
+
   it('asks for reminders with two quick options and closes with the result dialog from the saved habit', async () => {
     useOnboardingDraftStore.setState({ introSeen: true })
     const tree = await mount()
