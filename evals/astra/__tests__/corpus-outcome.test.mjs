@@ -452,9 +452,17 @@ describe('the client path of a converted case', () => {
 
   it('sends the shared client context with a conversation id for a case that states no context', async () => {
     const { context } = await sentContext('single-read-en')
-    expect(context).toEqual({ ...buildChatClientContext({ platform: 'web', locale: 'en', conversationId: context.conversationId, dismissedOfferKeys: [] }) })
+    expect(context).toEqual({ ...buildChatClientContext({ platform: 'web', locale: 'en', conversationId: context.conversationId, dismissedOfferKeys: [] }),
+      supportsProactiveOffers: false })
     expect(context.conversationId).toMatch(guid)
   })
+
+  it.each(['single-read-en', 'composition-tags-en', 'composition-existing-parents-en', 'composition-compound-missing-kind-en'])(
+    'sends %s with offers off, as the context that grades it states', async (id) => {
+      const { context, vars } = await sentContext(id)
+      expect(context.supportsProactiveOffers).toBe(false)
+      expect(vars.clientContext.supportsProactiveOffers ?? false).toBe(context.supportsProactiveOffers)
+    })
 
   it('keeps the context of a client with no parts and adds the conversation id alone', async () => {
     const { context } = await sentContext('legacy-create-pt')
@@ -468,7 +476,7 @@ describe('the client path of a converted case', () => {
     const { context, vars } = await sentContext('composition-compound-missing-kind-en')
     expect(context.partKinds).toEqual([])
     expect(context).toEqual({ ...buildChatClientContext({ platform: 'web', locale: 'en', conversationId: context.conversationId, dismissedOfferKeys: [] }),
-      ...vars.clientContext })
+      supportsProactiveOffers: false, ...vars.clientContext })
   })
 
   it('sends the recorded history of a case as the messages that the client holds', async () => {
