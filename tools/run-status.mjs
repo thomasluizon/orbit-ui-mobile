@@ -227,9 +227,12 @@ const repositoryTargets = ({ config, rows, owner, authenticate }) => {
   })
 }
 
-const recoverLaunchResults = ({ repositories, wakes, launches, sessionId }) => {
+/** A worker the predecessor launched stays owed to this session until its result is read: the relay snapshot is the only record that names it. */
+const carriedLauncherPids = (state) => new Set((Array.isArray(state.relay?.carriedWorkers) ? state.relay.carriedWorkers : []).map((worker) => worker?.launcherPid).filter(Number.isInteger))
+
+const recoverLaunchResults = ({ repositories, wakes, launches, sessionId, carriedPids }) => {
   const indexed = repositories.flatMap((repository) => [...repository.worktrees.values()].flatMap((worktree) => readWorkerLaunches(worktree)))
-    .filter((launch) => launch.sessionId === sessionId && typeof launch.issue === "string" && typeof launch.runDirectory === "string")
+    .filter((launch) => (launch.sessionId === sessionId || carriedPids.has(launch.launcherPid)) && typeof launch.issue === "string" && typeof launch.runDirectory === "string")
   const results = new Map(launches.map((launch) => [launch.launcherPid, launch]))
   for (const launch of indexed) {
     if ([...wakes.live, ...wakes.orphaned].some((source) => source.pid === launch.launcherPid)) continue
@@ -250,14 +253,15 @@ export const runStatus = async ({ repoRoot = REPO_ROOT, sessionId = "", config, 
   if (state.sessionId !== sessionId) return { status: "FOREIGN_SESSION", nextActions: [] }
   config ??= readOrchestratorConfig()
   const wakes = readWakeSourceStates(repoRoot)
-  let launches = readLaunchResults(repoRoot).filter((launch) => !launch.sessionId || launch.sessionId === sessionId)
+  const carriedPids = carriedLauncherPids(state)
+  let launches = readLaunchResults(repoRoot).filter((launch) => !launch.sessionId || launch.sessionId === sessionId || carriedPids.has(launch.launcherPid))
   const rows = [...new Map([...(Array.isArray(state.pullRequests) ? state.pullRequests : []), ...(Array.isArray(state.readinessLedger) ? state.readinessLedger : [])]
     .filter((row) => typeof row?.repositoryKey === "string" && Number.isInteger(row.prNumber) && row.prNumber > 0 && typeof row.receiptPath === "string")
     .map((row) => [`${row.repositoryKey}#${row.prNumber}`, row])).values()]
   const liveRows = rows.filter((row) => !(typeof row.merged === "string" && /^[0-9a-f]{7,40}$/.test(row.merged)))
   const owner = repositorySlug(repoRoot).split("/")[0]
   const repositories = repositoryTargets({ config, rows: liveRows, owner, authenticate })
-  launches = recoverLaunchResults({ repositories, wakes, launches, sessionId })
+  launches = recoverLaunchResults({ repositories, wakes, launches, sessionId, carriedPids })
   let budget = null
   try {
     const auth = await repositories[0].auth
@@ -286,7 +290,7 @@ export const runStatus = async ({ repoRoot = REPO_ROOT, sessionId = "", config, 
     nextActions.push(...observed.actions)
   }
   for (const launch of launches) {
-    if (snapshots.find((entry) => entry.repositoryKey === launch.repositoryKey)?.status === "OK" && launch.sessionId === sessionId && launch.issue && launch.runDirectory && launch.branch &&
+    if (snapshots.find((entry) => entry.repositoryKey === launch.repositoryKey)?.status === "OK" && (launch.sessionId === sessionId || carriedPids.has(launch.launcherPid)) && launch.issue && launch.runDirectory && launch.branch &&
         !rows.some((row) => row.repositoryKey === launch.repositoryKey && snapshots.find((entry) => entry.repositoryKey === row.repositoryKey)?.pulls[`pr${row.prNumber}`]?.headRefName === launch.branch || (row.repositoryKey === launch.repositoryKey && row.branch === launch.branch))) {
       nextActions.push(action("VERIFY_DELIVERY", `node tools/verify-delivery.mjs --repo ${quote(launch.repositoryKey)} --issue ${quote(launch.issue)} --worktree ${quote(launch.runDirectory)} --branch ${quote(launch.branch)}`, { launcherPid: launch.launcherPid }))
     }

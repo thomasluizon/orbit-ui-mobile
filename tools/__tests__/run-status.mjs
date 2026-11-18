@@ -203,6 +203,19 @@ export const cases = async () => {
   report = await snapshot()
   T("run-status: an exited worker without a PR requests verification", report.nextActions.some((entry) => entry.type === "VERIFY_DELIVERY" && entry.launcherPid === 123))
 
+  // A worker that ended after the relay snapshot has a result stamped with the predecessor's session: only relay.carriedWorkers names it as owed.
+  reset()
+  const predecessorResult = (launcherPid) => writeFileSync(join(resultDirectory, `${launcherPid}.json`), JSON.stringify({ ...launch, sessionId: "predecessor-session", launcherPid, issue: `#${launcherPid}`, branch: `fix/${launcherPid}` }))
+  predecessorResult(124); predecessorResult(125)
+  rmSync(launchResultPath)
+  writeFileSync(runStatePath(repo.path), JSON.stringify({ sessionId, sleep: true, remaining: [], pullRequests: [], readinessLedger: [],
+    relay: { from: "predecessor-session", pending: false, carriedWorkers: [{ launcherPid: 124, issue: "#124" }] } }))
+  report = await snapshot()
+  const verified = report.nextActions.filter((entry) => entry.type === "VERIFY_DELIVERY").map((entry) => entry.launcherPid)
+  T("run-status: a carried worker that ended after the relay snapshot requests verification from the successor", verified.includes(124), JSON.stringify(report.nextActions))
+  T("run-status: a predecessor's worker that relay.carriedWorkers does not list requests nothing", !verified.includes(125) && !report.launcherResults.some((entry) => entry.launcherPid === 125), JSON.stringify(report))
+  rmSync(join(resultDirectory, "124.json")); rmSync(join(resultDirectory, "125.json"))
+
   reset(); registerWakeSource({ pid: 999999999, workerPid: process.pid, logFile: stage("run-status/worker.log", "worker remains live"), what: "orphan" }, repo.path)
   report = await snapshot()
   T("run-status: live orphan workers are reported and suppress capacity actions", report.wakeSources.orphaned.length === 1 && report.nextActions.some((entry) => entry.type === "ORPHANED_WORKER"))
