@@ -348,7 +348,7 @@ const endedWorkerCases = async () => {
   T("relay-session: a launch whose supervisor died without a result is carried through its ledger record", carried.some((worker) => worker.launcherPid === diedPid && worker.ended === true && worker.issue === `ORB-${diedPid}` && worker.branch === `fix/${diedPid}` && worker.worktree === staged.checkout), JSON.stringify(carried))
   T("relay-session: a ledger launch of another session is not carried", !carried.some((worker) => worker.launcherPid === diedOtherPid), JSON.stringify(carried))
   T("relay-session: an ended launch whose branch has a pull request row leaves the carry, in either ledger", !carried.some((worker) => [deliveredEarlierPid, deliveredOwnPid].includes(worker.launcherPid)), JSON.stringify(carried))
-  T("relay-session: a result of another session is not carried",!carried.some((worker) => worker.launcherPid === otherPid), JSON.stringify(carried))
+  T("relay-session: a result of another session is not carried", !carried.some((worker) => worker.launcherPid === otherPid), JSON.stringify(carried))
   T("relay-session: the successor owes the ended worker a verification and no waiter", workersWithoutWaiter(staged.checkout, readRunState(staged.checkout).sessionId).length === 0)
   T("relay-session: a worker that the first relay carried stays carried through the second relay while its result exists", carried.some((worker) => worker.launcherPid === earlierPid && worker.ended === true), JSON.stringify(carried))
 }
