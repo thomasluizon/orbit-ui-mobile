@@ -4,7 +4,7 @@ import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { fileURLToPath } from 'node:url'
 import { resolve } from 'node:path'
-import { MUST_PASS_ATTEMPTS, coreCases, corpusDigest } from '../core/corpus.mjs'
+import { MUST_PASS_ATTEMPTS, coreCases, corpusDigest, corpusDigestFor } from '../core/corpus.mjs'
 import { mergeRuns } from '../core/merge.mjs'
 import { gradePreview } from '../core/outcome.mjs'
 import { offlineCredentials } from './fixtures/credentials.mjs'
@@ -52,7 +52,8 @@ describe('the must-pass run through the real promptfoo CLI', () => {
     const caseId = requestId
     const { run, directory, summary } = runGate('complete')
     expect(run.status, run.stdout + run.stderr).toBe(0)
-    expect(summary).toMatchObject({ gate: 'core', run: 'must-pass', status: 'pass', corpusDigest })
+    expect(summary).toMatchObject({ gate: 'core', run: 'must-pass', k: 3, status: 'pass', corpusDigest })
+    expect(run.stdout).toContain('Orbit AI core gate, must-pass run, k=3: pass')
     expect(summary.cases).toHaveLength(1)
     expect(summary.cases[0]).toMatchObject({ id: caseId, family: 'owner-turns', locale: 'pt-BR', mustPass: true, k: MUST_PASS_ATTEMPTS,
       attempts: 3, passed: 3, passK: 'pass', maxQuestions: 1, questionsBeforePreview: [1, 1, 1], reasons: [] })
@@ -60,6 +61,25 @@ describe('the must-pass run through the real promptfoo CLI', () => {
     const evidence = JSON.parse(readFileSync(resolve(directory, 'reports/core-must-pass/attempts', `${caseId}-r3.json`), 'utf8'))
     expect(evidence).toMatchObject({ caseId, repeat: 3, pass: true, questionsBeforePreview: 1 })
     expect(evidence.heldChanges.map(({ kind }) => kind)).toEqual(['delete', 'delete', 'update', 'update', 'update', 'update'])
+  })
+
+  it('runs one attempt of each must-pass case when the run names ORBIT_EVAL_MUST_PASS_K=1, and states k=1', () => {
+    const { run, directory, summary } = runGate('complete', requestId, { ORBIT_EVAL_MUST_PASS_K: '1' })
+    expect(run.status, run.stdout + run.stderr).toBe(0)
+    expect(summary).toMatchObject({ gate: 'core', run: 'must-pass', k: 1, status: 'pass', corpusDigest: corpusDigestFor(1) })
+    expect(summary.cases[0]).toMatchObject({ id: requestId, mustPass: true, k: 1, attempts: 1, passed: 1, passK: 'pass' })
+    expect(run.stdout).toContain('Orbit AI core gate, must-pass run, k=1: pass')
+    expect(existsSync(resolve(directory, 'reports/core-must-pass/attempts', `${requestId}-r1.json`))).toBe(true)
+    expect(existsSync(resolve(directory, 'reports/core-must-pass/attempts', `${requestId}-r2.json`))).toBe(false)
+  })
+
+  it('stops before any chat turn when ORBIT_EVAL_MUST_PASS_K names a k other than 3 or 1', () => {
+    const { run, summaryPath } = spawnGate('complete', requestId, { ORBIT_EVAL_MUST_PASS_K: '2' })
+    const printed = run.stdout + run.stderr
+    expect(run.status, printed).not.toBe(0)
+    expect(printed).toContain('ORBIT_EVAL_MUST_PASS_K is "2"; name 3, the default, or 1, only for a change whose model input equals the model input of main.')
+    expect(printed).not.toContain('core-test: chat turn sent')
+    expect(existsSync(summaryPath)).toBe(false)
   })
 
   it('fails pass^3, with no rerun, when the attempts reach the preview that holds half of the request', () => {

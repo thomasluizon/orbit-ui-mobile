@@ -2,7 +2,7 @@ import { mkdirSync, writeFileSync } from 'node:fs'
 import { attemptEvidence, evidencePath, openPrivateEvidence, unavailableAssertion, writePrivateJson } from '../evidence.mjs'
 import { guid, guidPattern } from '../fixtures/api.mjs'
 import { changeList, recordId } from './change-list.mjs'
-import { corpusDigest } from './corpus.mjs'
+import { EQUAL_MODEL_INPUT_ATTEMPTS, MUST_PASS_ATTEMPTS, corpusDigestFor } from './corpus.mjs'
 
 const mean = (values) => values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : null
 const rounded = (value, digits) => value === null ? null : Number(value.toFixed(digits))
@@ -140,12 +140,13 @@ export function totalsOf(cases) {
     modelCalls: calls.every((count) => count !== null) ? calls.reduce((sum, count) => sum + count, 0) : null }
 }
 
-// The summary of one promptfoo run of the core set (the must-pass run or the other run) in one UTC-day window.
-export function summarize(results, descriptors, { run, apiCommit }) {
+// The summary of one promptfoo run of the core set (the must-pass run or the other run) in one UTC-day window. `k` is the
+// k of the must-pass cases of the gate run that the window belongs to, also in the window of the other cases.
+export function summarize(results, descriptors, { run, apiCommit, k = MUST_PASS_ATTEMPTS }) {
   const attempts = attemptsOf(results).map(({ attempt }) => attempt)
   const cases = descriptors.map((descriptor) => caseOf(descriptor, attempts.filter((attempt) => attempt.caseId === descriptor.id)))
   const unexpected = attempts.some((attempt) => !descriptors.some((descriptor) => descriptor.id === attempt.caseId))
-  return { gate: 'core', run, apiCommit, corpusDigest, utcDay: new Date().toISOString().slice(0, 10),
+  return { gate: 'core', run, k, apiCommit, corpusDigest: corpusDigestFor(k), utcDay: new Date().toISOString().slice(0, 10),
     status: unexpected && statusOf(cases) === 'pass' ? 'incomplete' : statusOf(cases), cases, groups: groupsOf(cases), totals: totalsOf(cases) }
 }
 
@@ -196,10 +197,16 @@ function laterBuildLines(summary) {
   })
 }
 
+// The k of the must-pass cases, and the one condition under which a gate run holds k=1.
+const kLines = (k) => k === EQUAL_MODEL_INPUT_ATTEMPTS
+  ? ['A must-pass case runs at k=1 and passes only when its one attempt passes.',
+    'k=1 holds only for a change whose model input equals the model input of main, and the pull request body of that change says why.']
+  : [`A must-pass case passes only when each of its ${k} attempts passes.`]
+
 export function writeReport(summary, directory) {
   mkdirSync(directory, { recursive: true })
   const markdown = [
-    `Orbit AI core gate, ${summary.run} run: ${summary.status}`,
+    `Orbit AI core gate, ${summary.run} run, k=${summary.k}: ${summary.status}`,
     `API commit: ${summary.apiCommit}`,
     ...laterBuildLines(summary),
     `Corpus digest: ${summary.corpusDigest}`,
@@ -218,7 +225,8 @@ export function writeReport(summary, directory) {
     ...reasonLines('Grader limits (the grader could not read the reply; no verdict on the assistant):', summary.cases, 'graderLimitReasons'),
     ...reasonLines(`No evidence (${noEvidenceKinds.slice(0, -1).join(', ')}, or ${noEvidenceKinds.at(-1)}):`, summary.cases, 'unavailableReasons'),
     '',
-    'A must-pass case passes only when each of its 3 attempts passes. No rerun on the same build replaces a failed attempt or a grader limit.',
+    ...kLines(summary.k),
+    'No rerun on the same build replaces a failed attempt or a grader limit.',
     'The attempts of one case come from one build.',
     'Incomplete is not a pass. A held preview proves a proposal; the saved state readback proves the write.',
     'Seconds are the time that the person waits for the turns of one attempt.',
