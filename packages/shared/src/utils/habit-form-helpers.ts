@@ -2,7 +2,7 @@ import type { HabitRecurrence } from './habit-recurrence-phrase'
 import { formatWeekdaySchedule } from './weekday-schedule'
 import { formatHabitMonthDaySchedule, toggleHabitMonthDay } from './month-days'
 import { MAX_HABIT_INTERVAL_WEEKS, type ChecklistItem, type FrequencyUnit, type HabitSetupSuggestion, type NormalizedHabit } from '../types/habit'
-import { habitPhraseRepeats, type HabitPhraseRead, type HabitPhraseSpan, type HabitPhraseToken } from './habit-phrase-parser'
+import { habitPhraseFormRepeats, type HabitPhraseRead, type HabitPhraseSpan, type HabitPhraseToken } from './habit-phrase-parser'
 import type { HabitFormData } from '../validation/habit-form'
 import {
   validateGoalSelection,
@@ -400,6 +400,8 @@ export interface HabitFormControllerOptions {
   onReminderEnabledChange?: (enabled: boolean) => void
   onSlipAlertEnabledChange?: (enabled: boolean) => void
   onSuggestionContextChange?: () => void
+  /** Only the guided flow sets it: a bare interval such as `every 2 weeks` becomes the repeat. The full form keeps the words in the title. */
+  readsBareInterval?: boolean
   target: HabitFormControllerTarget
 }
 
@@ -435,6 +437,7 @@ export function createHabitFormController({
   onReminderEnabledChange,
   onSlipAlertEnabledChange,
   onSuggestionContextChange,
+  readsBareInterval = false,
   target,
 }: HabitFormControllerOptions): HabitFormController {
   const resolveSection = (section: 'setup' | 'checklist' | 'subHabits') => {
@@ -466,9 +469,9 @@ export function createHabitFormController({
     releaseDueTime: (): void => releaseOwnership('dueTime'),
     reconcilePhraseOwnership: (read): void => {
       const ownership = target.getOwnership()
-      target.setOwnership({ ...ownership, cadence: ownership.cadence && habitPhraseRepeats(read), dueTime: ownership.dueTime && read.dueTime !== null })
+      target.setOwnership({ ...ownership, cadence: ownership.cadence && habitPhraseFormRepeats(read, readsBareInterval), dueTime: ownership.dueTime && read.dueTime !== null })
     },
-    readPhrase: (enabled, read) => readOwnedHabitPhrase(enabled, read, lockedGeneral, target),
+    readPhrase: (enabled, read) => readOwnedHabitPhrase(enabled, read, lockedGeneral, target, readsBareInterval),
     setDueTime: (dueTime: string): void => {
       releaseOwnership('dueTime')
       target.setField('dueTime', dueTime)
@@ -558,8 +561,9 @@ function readOwnedHabitPhrase(
   read: HabitPhraseRead,
   lockedGeneral: boolean | null,
   target: HabitFormControllerTarget,
+  readsBareInterval: boolean,
 ): void {
-  target.setOwnership(applyHabitPhraseRead(enabled, read, lockedGeneral, target.getOwnership(), target))
+  target.setOwnership(applyHabitPhraseRead(enabled, read, lockedGeneral, target.getOwnership(), target, readsBareInterval))
 }
 
 export function applyHabitDayCorrection(
@@ -597,6 +601,7 @@ export function applyHabitPhraseRead(
   lockedGeneral: boolean | null,
   ownership: HabitPhraseFormOwnership,
   target: HabitPhraseFormTarget,
+  readsBareInterval = false,
 ): HabitPhraseFormOwnership {
   if (!enabled) return ownership
   if (lockedGeneral === true) {
@@ -611,7 +616,7 @@ export function applyHabitPhraseRead(
   } else if (ownership.dueTime) {
     target.setField('dueTime', '')
   }
-  if (!habitPhraseRepeats(read)) {
+  if (!habitPhraseFormRepeats(read, readsBareInterval)) {
     if (ownership.cadence) target.setOneTime()
     return nextOwnership
   }

@@ -613,7 +613,7 @@ describe('the steps of the shared guided habit flow', () => {
     expect({ ...mounted.values, frequencyUnit: mounted.values.frequencyUnit ?? null, days: mounted.values.days ?? [] }).toMatchObject(values)
     expect(mounted.flow.proposals).toEqual(proposals)
     const ownership = mounted.ownership.mock.calls.at(-1)?.[0] ?? { cadence: false, dueTime: false }
-    expect(getHabitPhraseTitle(mounted.values.title, 'en', ownership)).toBe(title)
+    expect(getHabitPhraseTitle(mounted.values.title, 'en', ownership, true)).toBe(title)
     mounted.unmount()
   })
 
@@ -636,7 +636,7 @@ describe('the steps of the shared guided habit flow', () => {
     run(() => mounted.flow.answerWhen('today'))
     expect(mounted.values.dueDate).toBe(TODAY)
     const ownership = mounted.ownership.mock.calls.at(-1)?.[0] ?? { cadence: false, dueTime: false }
-    expect(getHabitPhraseTitle(mounted.values.title, 'en', ownership)).toBe('call mom tomorrow')
+    expect(getHabitPhraseTitle(mounted.values.title, 'en', ownership, true)).toBe('call mom tomorrow')
     mounted.unmount()
   })
 

@@ -192,6 +192,7 @@ export function createUseGuidedHabitFlow({ useState, useEffect, useMemo, useCall
       lockedGeneral,
       onReminderEnabledChange,
       onSlipAlertEnabledChange,
+      readsBareInterval: true,
       target: {
         hasSchedule: () => isFlexible || Boolean(frequencyUnit),
         getOwnership: () => ownership.current,

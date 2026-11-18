@@ -463,7 +463,7 @@ export function CreateHabitModal({
           data: subRequest,
         })
       } else {
-        const title = getHabitPhraseTitle(data.title, resolveSupportedLocale(i18n.language), phraseOwnershipRef.current)
+        const title = getHabitPhraseTitle(data.title, resolveSupportedLocale(i18n.language), phraseOwnershipRef.current, guided)
         const request = buildCreateHabitRequest(
           { ...data, title },
           reminderTimes,

@@ -547,6 +547,11 @@ export function habitPhraseRepeats(read: Pick<HabitPhraseRead, 'cadence' | 'inte
   return read.cadence !== null || read.intervalWeeks !== null
 }
 
+/** The repeat a habit form takes from the words. Only the guided flow takes a bare interval; the full form applies a cadence alone and keeps the interval words in the title. */
+export function habitPhraseFormRepeats(read: Pick<HabitPhraseRead, 'cadence' | 'intervalWeeks'>, readsBareInterval: boolean): boolean {
+  return readsBareInterval ? habitPhraseRepeats(read) : read.cadence !== null
+}
+
 export function segmentHabitPhrase(text: string, consumed: readonly HabitPhraseToken[]): HabitPhraseSegment[] {
   if (text.length === 0) return []
   const segments: HabitPhraseSegment[] = []

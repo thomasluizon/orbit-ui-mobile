@@ -262,7 +262,7 @@ export function OnboardingFlow({ finalStepOnly = false, onExit, guided = false }
 
   async function continueFromWhat(phrase: string) {
     if (!phrase.trim() || suggestionPending) return
-    const localSchedule = clampOnboardingRepeatWeeks(buildOnboardingScheduleFromPhrase(phrase, locale), isLive)
+    const localSchedule = clampOnboardingRepeatWeeks(buildOnboardingScheduleFromPhrase(phrase, locale, guided), isLive)
     setEmoji('')
     setEmojiProposed(false)
     setSchedule(localSchedule)
@@ -278,7 +278,7 @@ export function OnboardingFlow({ finalStepOnly = false, onExit, guided = false }
     try {
       const result = await suggestion.mutateAsync({ title: phrase, language: locale })
       if (suggestionRevision.current !== revision) return
-      const proposal = buildOnboardingProposal(result, phrase, locale)
+      const proposal = buildOnboardingProposal(result, phrase, locale, guided)
       setEmoji(proposal.emoji)
       setEmojiProposed(Boolean(proposal.emoji))
       setSchedule(clampOnboardingRepeatWeeks(proposal.schedule, isLive))

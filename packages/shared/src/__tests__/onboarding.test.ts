@@ -300,11 +300,18 @@ describe('onboarding helpers', () => {
     ['a day', 'Water the plants every monday', { frequencyUnit: 'Day', days: ['Monday'], isFlexible: false, dueTime: '07:00' }, '🌿'],
     ['an emoji', '💧 Water the plants', { frequencyUnit: 'Day', days: [], isFlexible: false, dueTime: '07:00' }, ''],
     ['a bare interval', 'Water the plants every 2 weeks', { frequencyUnit: 'Week', frequencyQuantity: 2, days: [], isFlexible: false, dueTime: '07:00' }, '🌿'],
-    ['a day of the month', 'Pay the rent every 5th of the month', { frequencyUnit: 'Month', frequencyQuantity: 1, days: [], isFlexible: false, dueTime: '07:00' }, '🌿'],
     ['no emoji when the sentence holds only a text sign', 'Buy Coca-Cola® zero', { frequencyUnit: 'Day', days: [], isFlexible: false, dueTime: '07:00' }, '🌿'],
   ] as const)('keeps %s the person typed in the sentence over the Orbit suggestion, which fills only the rest', (_field, sentence, schedule, emoji) => {
     const proposal = buildOnboardingProposal(everyDayAtSeven, sentence, 'en')
     expect(proposal).toMatchObject({ schedule: { ...schedule, isGeneral: false }, emoji })
+  })
+
+  it('reads a day of the month as the month unit only in the guided flow, and keeps the legacy flow open with the Orbit suggestion', () => {
+    const sentence = 'Pay the rent every 5th of the month'
+    expect(buildOnboardingScheduleFromPhrase(sentence, 'en', true)).toMatchObject({ frequencyUnit: 'Month', frequencyQuantity: 1, isGeneral: false })
+    expect(buildOnboardingProposal(everyDayAtSeven, sentence, 'en', true).schedule).toMatchObject({ frequencyUnit: 'Month', frequencyQuantity: 1, days: [], isGeneral: false, dueTime: '07:00' })
+    expect(buildOnboardingScheduleFromPhrase(sentence, 'en')).toMatchObject({ frequencyUnit: null, frequencyQuantity: null, isGeneral: true })
+    expect(buildOnboardingProposal(everyDayAtSeven, sentence, 'en').schedule).toMatchObject({ frequencyUnit: 'Day', frequencyQuantity: 1, days: [], isGeneral: false, dueTime: '07:00' })
   })
 })
 

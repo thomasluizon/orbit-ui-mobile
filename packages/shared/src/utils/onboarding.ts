@@ -142,11 +142,12 @@ export function isOnboardingHabitDueToday(schedule: OnboardingSchedule, today: D
  * Reads a typed sentence into the schedule the when screen shows. A bare "every 2 weeks" becomes the week unit with
  * quantity 2, not `intervalWeeks`, because the interval stepper binds the quantity and the API fires a weekly habit on
  * every `frequencyQuantity`-th week. `intervalWeeks` stays 1 unless the sentence also names weekdays, the one shape that
- * shows and corrects it. A day of the month becomes the month unit: the when screen has no day of the month.
+ * shows and corrects it. Only `guided` reads a day of the month as the month unit; the legacy flow keeps it open.
  */
 export function buildOnboardingScheduleFromPhrase(
   sentence: string,
   locale: SupportedLocale,
+  guided = false,
 ): OnboardingSchedule {
   const read = readHabitPhrase(sentence, locale)
   if (read.cadence === 'flexible') {
@@ -168,7 +169,7 @@ export function buildOnboardingScheduleFromPhrase(
       days: [], isGeneral: false, isFlexible: false, dueTime: read.dueTime ?? '',
     }
   }
-  if (read.cadence === 'monthly') {
+  if (guided && read.cadence === 'monthly') {
     return {
       frequencyUnit: 'Month', frequencyQuantity: 1, intervalWeeks: 1,
       days: [], isGeneral: false, isFlexible: false, dueTime: read.dueTime ?? '',
@@ -190,14 +191,16 @@ export interface OnboardingProposal {
  * Reads an Orbit proposal into the schedule and the emoji the when screen shows. A value the person typed in the
  * sentence wins, by the rule of {@link guardHabitReadPatch}, so the proposal fills only the rest. A flexible LLM
  * proposal with no period takes the week, as both screens show it, because the API never makes a habit with no unit due.
+ * A typed repeat counts only when {@link buildOnboardingScheduleFromPhrase} reads it for this flow.
  */
 export function buildOnboardingProposal(
   suggestion: HabitSetupSuggestion,
   sentence: string,
   locale: SupportedLocale,
+  guided = false,
 ): OnboardingProposal {
-  const typedSchedule = buildOnboardingScheduleFromPhrase(sentence, locale)
-  const typed = readHabitPhraseValues(sentence, readHabitPhrase(sentence, locale))
+  const typedSchedule = buildOnboardingScheduleFromPhrase(sentence, locale, guided)
+  const typed = { ...readHabitPhraseValues(sentence, readHabitPhrase(sentence, locale)), repeat: !typedSchedule.isGeneral }
   const patch = guardHabitReadPatch(buildHabitFormPatchFromSuggestion(suggestion), {
     deliberateType: null, whenSet: false, timeSet: false, emojiSet: false, typed, undated: false,
   })

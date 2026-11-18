@@ -1,5 +1,5 @@
 import type { SupportedLocale } from '../types/profile'
-import { habitPhraseRepeats, readHabitPhrase, type HabitPhraseSpan } from './habit-phrase-parser'
+import { habitPhraseFormRepeats, readHabitPhrase, type HabitPhraseSpan } from './habit-phrase-parser'
 
 export interface AppliedHabitPhraseFields {
   cadence: boolean
@@ -56,11 +56,12 @@ export function getHabitPhraseTitle(
   sentence: string,
   locale: SupportedLocale,
   applied?: AppliedHabitPhraseFields,
+  readsBareInterval = false,
 ): string {
   const read = readHabitPhrase(sentence, locale)
   const consumed = read.consumed.filter((token) => {
     if (!applied) return true
-    return token.kind === 'time' ? applied.dueTime : applied.cadence && habitPhraseRepeats(read)
+    return token.kind === 'time' ? applied.dueTime : applied.cadence && habitPhraseFormRepeats(read, readsBareInterval)
   })
   const date = applied?.date ?? null
   if (consumed.length === 0 && date === null) return sentence.trim()

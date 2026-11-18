@@ -900,7 +900,7 @@ await Promise.resolve()
     expect(mockBuildCreateHabitRequest.mock.calls[0]?.[0]).toMatchObject({ title: 'Alongar' })
   })
 
-  it('drops the words of a bare interval the phrase still repeats by, after the only weekday goes', async () => {
+  it('keeps an unapplied interval in a one-time habit title', async () => {
     const phrase = 'Run every 2 weeks'
     mockGetValues.mockReturnValue({ title: phrase, frequencyUnit: null, frequencyQuantity: null, dueTime: '' })
     const tree = renderModal(<CreateHabitModal open onClose={vi.fn()} />)
@@ -918,17 +918,14 @@ await Promise.resolve()
     TestRenderer.act(() => {
       tree.root.findAll((node: any) => node.type === 'HabitFormFields')[0]?.props.onPhraseOwnershipChange?.(ownership)
     })
-    expect(setOneTime).not.toHaveBeenCalled()
-    expect(target.setField).toHaveBeenCalledWith('frequencyUnit', 'Week')
-    expect(target.setField).toHaveBeenCalledWith('frequencyQuantity', 2)
-    expect(ownership.cadence).toBe(true)
+    expect(setOneTime).toHaveBeenCalledOnce()
 
     await TestRenderer.act(async () => {
       findSubmit(tree.root).props.onPress()
       await Promise.resolve()
     })
 
-    expect(mockBuildCreateHabitRequest.mock.calls[0]?.[0]).toMatchObject({ title: 'Run' })
+    expect(mockBuildCreateHabitRequest.mock.calls[0]?.[0]).toMatchObject({ title: phrase })
   })
 
   it('preserves nested sub-habits after a downgrade', async () => {

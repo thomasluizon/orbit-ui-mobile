@@ -54,7 +54,7 @@ describe('getHabitPhraseTitle', () => {
     })).toBe('Read at 8am')
   })
 
-  it('reads a bare interval left after removing the only weekday as the repeat, and drops its words', () => {
+  it('keeps an interval after removing the only weekday from a phrase', () => {
     const setOneTime = vi.fn()
     const target = {
       setOneTime,
@@ -68,18 +68,33 @@ describe('getHabitPhraseTitle', () => {
     const finalPhrase = 'Run every 2 weeks'
     const ownership = applyHabitPhraseRead(true, readHabitPhrase(finalPhrase, 'en'), false, applied, target)
 
-    expect(setOneTime).not.toHaveBeenCalled()
-    expect(target.setField).toHaveBeenCalledWith('frequencyUnit', 'Week')
-    expect(target.setField).toHaveBeenCalledWith('frequencyQuantity', 2)
+    expect(setOneTime).toHaveBeenCalledOnce()
     expect(ownership.cadence).toBe(true)
-    expect(getHabitPhraseTitle(finalPhrase, 'en', ownership)).toBe('Run')
+    expect(getHabitPhraseTitle(finalPhrase, 'en', ownership)).toBe(finalPhrase)
   })
 
-  it('removes an applied time while keeping an interval the form did not apply', () => {
+  it('removes an applied time while keeping an unapplied interval', () => {
     expect(getHabitPhraseTitle('Run every 2 weeks at 8am', 'en', {
-      cadence: false,
+      cadence: true,
       dueTime: true,
     })).toBe('Run every 2 weeks')
+  })
+
+  it.each([
+    ['the full form, flag off, keeps it a one-time item with the words in the title', false, 'Run every 2 weeks'],
+    ['the guided flow, flag on, makes it a habit every 2 weeks and drops the words', true, 'Run'],
+  ] as const)('reads Run every 2 weeks after the only weekday goes: %s', (_path, readsBareInterval, title) => {
+    const target = { setOneTime: vi.fn(), setRecurring: vi.fn(), setFlexible: vi.fn(), setGeneral: vi.fn(), setField: vi.fn() }
+    const applied = applyHabitPhraseRead(true, readHabitPhrase('Run Monday every 2 weeks', 'en'), false,
+      { cadence: false, dueTime: false }, target, readsBareInterval)
+    target.setField.mockClear()
+    const phrase = 'Run every 2 weeks'
+    const ownership = applyHabitPhraseRead(true, readHabitPhrase(phrase, 'en'), false, applied, target, readsBareInterval)
+
+    expect(target.setOneTime).toHaveBeenCalledTimes(readsBareInterval ? 0 : 1)
+    expect(target.setField.mock.calls.some(([field, value]) => field === 'frequencyUnit' && value === 'Week')).toBe(readsBareInterval)
+    expect(target.setField.mock.calls.some(([field, value]) => field === 'frequencyQuantity' && value === 2)).toBe(readsBareInterval)
+    expect(getHabitPhraseTitle(phrase, 'en', ownership, readsBareInterval)).toBe(title)
   })
 
   it('keeps onboarding interval title stripping', () => {

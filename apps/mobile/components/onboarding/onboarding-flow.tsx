@@ -225,7 +225,7 @@ export function OnboardingFlow({ finalStepOnly = false, guided = false }: Readon
 
   async function continueFromWhat(phrase: string) {
     if (!phrase.trim() || suggestionPending) return
-    setEmoji(''); setEmojiProposed(false); setSchedule(clampOnboardingRepeatWeeks(buildOnboardingScheduleFromPhrase(phrase, locale), isLive)); setProposed(false); setCorrecting(false)
+    setEmoji(''); setEmojiProposed(false); setSchedule(clampOnboardingRepeatWeeks(buildOnboardingScheduleFromPhrase(phrase, locale, guided), isLive)); setProposed(false); setCorrecting(false)
     if (!shouldRequestOnboardingSuggestion({ isLive, atLimit, available: suggestion.available })) { setStep(ONBOARDING_WHEN_STEP); return }
     const revision = suggestionRevision.current + 1
     suggestionRevision.current = revision
@@ -233,7 +233,7 @@ export function OnboardingFlow({ finalStepOnly = false, guided = false }: Readon
     try {
       const result = await suggestion.mutateAsync({ title: phrase, language: locale })
       if (suggestionRevision.current !== revision) return
-      const proposal = buildOnboardingProposal(result, phrase, locale)
+      const proposal = buildOnboardingProposal(result, phrase, locale, guided)
       setEmoji(proposal.emoji); setEmojiProposed(Boolean(proposal.emoji)); setSchedule(clampOnboardingRepeatWeeks(proposal.schedule, isLive)); setProposed(true)
     } catch {
       if (suggestionRevision.current !== revision) return

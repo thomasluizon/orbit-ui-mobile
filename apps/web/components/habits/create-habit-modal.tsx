@@ -384,7 +384,7 @@ export function CreateHabitModal({
           const subRequest = buildSubHabitRequest(data, reminderTimes, tags.selectedTagIds)
           await createSubHabit.mutateAsync({ parentId: parentHabit.id, data: subRequest })
         } else {
-          const title = getHabitPhraseTitle(data.title, resolveSupportedLocale(locale), phraseOwnershipRef.current)
+          const title = getHabitPhraseTitle(data.title, resolveSupportedLocale(locale), phraseOwnershipRef.current, guided)
           const request = buildCreateHabitRequest({ ...data, title }, reminderTimes, tags.selectedTagIds, selectedGoalIds, subHabitValues)
           const created = await createHabit.mutateAsync(request)
           if (guided && getAccountGeneration() === submittingAccount) {
