@@ -8,6 +8,7 @@ import { actionClasses, actionStyle } from './pill-action-style'
 import { ActionRowContext } from './action-row'
 import type { ButtonProps } from '@orbit/shared/contracts/actions'
 import { SkeletonFace } from '@/components/ui/skeleton'
+import { useOrbitReadMotionAllowed } from '@/components/ui/orbit-read-motion'
 import { APPLE_SIGN_IN_TITLE_SIZE, ICON_ACTION_START_HANG, BUTTON_SIZES, SIGN_IN_BUTTON_HEIGHT, signInButtonSpec, signInLeadHeight, type ButtonSize, type ButtonVariant, type SignInButtonSpec } from '@orbit/shared/theme'
 
 function buttonDescriptionIds(descriptionId: string | undefined, hintId: string, hint: string | undefined) {
@@ -64,7 +65,8 @@ function ButtonContent({ skeletonWaiting, iconOnly, children, leadingIcon, signI
   </>
 }
 
-function waitsOnSkeletonFace(loading: boolean, brand: ButtonProps['brand']): boolean {
+function waitingFace(loading: boolean, brand: ButtonProps['brand'], loadingFace: ButtonProps['loadingFace'], readMotionAllowed: boolean): boolean | 'icon' {
+  if (loading && loadingFace === 'icon' && readMotionAllowed) return 'icon'
   return loading && brand !== 'apple'
 }
 
@@ -88,6 +90,7 @@ export function Button({
   onMouseLeave,
   disabled = false,
   loading = false,
+  loadingFace,
   focusableWhenLoading = false,
   children,
   accessibleName,
@@ -112,7 +115,8 @@ export function Button({
   const hintId = useId()
   const descriptionIds = buttonDescriptionIds(descriptionId, hintId, hint)
   const size = withinRow ? 'sm' : requestedSize
-  const skeletonWaiting = waitsOnSkeletonFace(loading, brand)
+  const waiting = waitingFace(loading, brand, loadingFace, useOrbitReadMotionAllowed())
+  const skeletonWaiting = waiting === true
 
   return (
     <><button
@@ -137,7 +141,7 @@ export function Button({
       data-size={size}
       data-loading={loading || undefined}
       data-borderless={borderless || undefined}
-      className={actionClasses(variant, size, 'button', skeletonWaiting, quiet, elevated, borderless)}
+      className={actionClasses(variant, size, 'button', waiting, quiet, elevated, borderless)}
       style={persistentButtonStyle(buttonStyle(size, withinRow, { minimumHeight, iconOnly, matchedWidth, leadingIcon, brand, variant, quiet, edge }), retainLeadingIcon)}
     >
       <ButtonContent skeletonWaiting={skeletonWaiting} iconOnly={iconOnly} leadingIcon={leadingIcon} signIn={signInButtonSpec(brand)}>{children}</ButtonContent>
