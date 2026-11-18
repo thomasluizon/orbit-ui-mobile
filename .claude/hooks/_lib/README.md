@@ -117,7 +117,10 @@ The reader is an allow list in each class:
 - `rules-worker.mjs` keeps no list of wrappers, reserved words or redirect forms. It judges the program and the arguments that
   `readCommand` and `invocationsOf` find, so a wrapper that the reader passes through never hides a `gh` write or an `adb` serial.
   For a command outside the subset, the read-only rule and the device proof refuse it, and the browser rule of another worker reads the text
-  segments with `invocationsOf` and `LIST_START_WORDS`.
+  segments with `invocationsOf` and `LIST_START_WORDS`. Two rules read what a program takes in the same word as its option, so each is an
+  allow list: a proof lets only `-s <pinned serial>` lead an `adb` call and boots only the AVD `orbit-proof-<pinned port>`, and a read-only
+  run refuses each `curl` call to a GitHub host. A `for` loop that binds a pinned name, and an `xargs` that runs `gh`, `curl`, `adb`,
+  `emulator` or the boot tool, are refused, because the loop and the standard input decide the value that no word on the line shows.
 - The allowed builtins are `cd`, `echo`, `printf`, `test`, `[`, `true`, `false`, `:`, `pwd`, `export`, `local`, `readonly`,
   `declare`, `typeset`, `unset`, `set`, `exit`, `type` and `kill`. `cd` is followed. `set` takes only `-e`, `-u` and `-x`.
   `printf` takes no `-v`. `export`, `local`, `readonly`, `declare`, `typeset` and `unset` take only a name and `NAME=value`,

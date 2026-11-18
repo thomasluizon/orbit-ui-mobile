@@ -888,8 +888,8 @@ function distinct(...groups) {
   return states
 }
 
-function walk(list, state, visit, check = null) {
-  const context = { visit, check, home: list.home, visits: 0 }
+function walk(list, state, visit, check = null, onBinding = null) {
+  const context = { visit, check, onBinding, home: list.home, visits: 0 }
   walkSequence(list, [{ variables: NO_VARIABLES, state }], context)
 }
 
@@ -920,6 +920,7 @@ function walkAndOr(andOr, states, context) {
 function walkNode(node, states, context) {
   if (node.type === "for") {
     for (const value of node.values) {
+      context.onBinding?.(node.name, value)
       const entered = distinct(states.map((current) => ({ ...current, variables: withVariable(current.variables, node.name, value) })))
       states = walkSequence(node.body, entered, context)
     }
@@ -949,12 +950,12 @@ function walkSimple(command, current, context) {
 /**
  * Calls `visit(command, state)` for each command in the order in which the shell runs them, once for each state that is possible
  * there, with each variable that the walk knows replaced by its value. `visit` returns the next state. A substitution and a command
- * of a longer pipeline inherit the state and do not change it. The shell can skip a command after `&&` or `||` and a branch of `if`,
- * so each state before such a command stays possible after it. Returns "" or the construct that is outside what the walk reads.
+ * of a longer pipeline inherit the state. The shell can skip a command after `&&` or `||` and a branch of `if`, so each earlier state stays.
+ * `onBinding(name, value)` runs before a `for` body for each value. Returns "" or the construct that the walk does not read.
  */
-export function walkCommands(list, state, visit) {
+export function walkCommands(list, state, visit, onBinding = null) {
   try {
-    walk(list, state, visit)
+    walk(list, state, visit, null, onBinding)
     return ""
   } catch (error) {
     if (!(error instanceof NotModelled)) throw error

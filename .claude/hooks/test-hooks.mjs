@@ -1157,11 +1157,11 @@ const PROOF_PIN = { ORBIT_LAUNCH_WORKER: "1", ORBIT_DEVICE_PROOF: "1", ANDROID_S
 // A command that the reader of `shell-subset.mjs` cannot model is refused in a proof: nothing proves what it does to the pinned device.
 const PROOF_REFUSAL = /pinned device emulator-5594|cannot inspect in a device proof/
 const proofWorker = (command, env = PROOF_PIN) => checkWorkerBrowser(command, { env, cwd: repoRoot, repoRoots: [] })
-for (const command of ["adb shell input tap 1 1", "adb -s emulator-5594 shell input swipe 1 1 9 9 600", "adb devices", "emulator -avd orbit-proof-2145 -port 5594 -no-window", "node tools/android-emulator.mjs --avd orbit-proof-2145 --port 5594", "node tools/android-emulator.mjs --status --avd orbit-proof-2145", "ANDROID_SERIAL=emulator-5594 adb install app.apk", "xcrun simctl boot 'iPhone 17'"]) {
+for (const command of ["adb shell input tap 1 1", "adb -s emulator-5594 shell input swipe 1 1 9 9 600", "adb devices", "emulator -avd orbit-proof-5594 -port 5594 -no-window", "node tools/android-emulator.mjs --avd orbit-proof-5594 --port 5594", "node tools/android-emulator.mjs --status --avd orbit-proof-5594", "ANDROID_SERIAL=emulator-5594 adb install app.apk", "xcrun simctl boot 'iPhone 17'"]) {
   T(`worker-browser: a device proof may run ${command}`, proofWorker(command), null)
 }
 for (const command of ["emulator -avd Orbit_Pixel_9_API_35", "emulator @Orbit_Pixel_9_API_35 -no-window", "node tools/android-emulator.mjs", "node tools/android-emulator.mjs --status && adb devices"]) {
-  T(`worker-browser: a device proof may not reach the owner's emulator: ${command}`, /may not use the owner's emulator Orbit_Pixel_9_API_35/.test(proofWorker(command)?.message ?? ""), true)
+  T(`worker-browser: a device proof may not reach the owner's emulator: ${command}`, /may boot only its throwaway AVD orbit-proof-5594, never the owner's emulator Orbit_Pixel_9_API_35/.test(proofWorker(command)?.message ?? ""), true)
 }
 // The launcher pins the proof's own serial; adb reaches any running emulator by serial, so each other one is refused.
 for (const command of [
@@ -1174,10 +1174,10 @@ for (const command of [
   "env ANDROID_SERIAL=emulator-5554 adb shell input tap 1 1",
   "unset ANDROID_SERIAL; adb install app.apk",
   "export ANDROID_SERIAL=emulator-5554",
-  "emulator -avd orbit-proof-2145 -no-window",
-  "emulator -avd orbit-proof-2145 -port 5554",
-  "node tools/android-emulator.mjs --avd orbit-proof-2145",
-  "node tools/android-emulator.mjs --avd orbit-proof-2145 --port 5554",
+  "emulator -avd orbit-proof-5594 -no-window",
+  "emulator -avd orbit-proof-5594 -port 5554",
+  "node tools/android-emulator.mjs --avd orbit-proof-5594",
+  "node tools/android-emulator.mjs --avd orbit-proof-5594 --port 5554",
 ]) {
   T(`worker-browser: a device proof may not leave its pinned device: ${command}`, /pinned device emulator-5594/.test(proofWorker(command)?.message ?? ""), true)
 }
@@ -1270,6 +1270,57 @@ for (const wrapper of ["stdbuf -oL", "setsid", "ionice -c 3", "noglob", "nice -n
 }
 T("worker-browser: a device proof may not move a pinned variable with an env word", /pinned device emulator-5594/.test(proofWorker("env ANDROID_SERIAL=emulator-5554 adb install app.apk")?.message ?? ""), true)
 T("worker-browser: a device proof may not append to a pinned variable", /pinned device emulator-5594/.test(proofWorker("ANDROID_SERIAL+=x adb install app.apk")?.message ?? ""), true)
+// A flag value that adb reads in the same word cannot pass the pin (thread M_8G): only `-s <pinned serial>` leads.
+for (const command of [
+  "adb -t1 shell pm clear org.useorbit.app",
+  "adb -s127.0.0.1:5555 shell pm clear org.useorbit.app",
+  "adb -P5038 devices",
+  "adb -Hhost devices",
+  "adb -s emulator-5594 -t1 shell pm clear org.useorbit.app",
+  "adb -s$ANDROID_SERIAL shell pm clear org.useorbit.app",
+]) {
+  T(`worker-browser: a device proof may not pass an adb option with an attached value: ${command}`, /pinned device emulator-5594/.test(proofWorker(command)?.message ?? ""), true)
+}
+// The AVD is judged as an allow list (thread M_8V): only `orbit-proof-<pinned port>` boots, whatever variable or loop names it.
+for (const command of [
+  "N=35; emulator -avd Orbit_Pixel_9_API_$N -port 5594 -no-window",
+  "AVD=Orbit_Pixel_9_API_35; node tools/android-emulator.mjs --avd $AVD --port $ORBIT_PROOF_EMULATOR_PORT",
+  "for A in Orbit_Pixel_9_API_35; do emulator -avd $A -port 5594 -no-window; done",
+  "emulator -avd orbit-proof-2145 -port 5594 -no-window",
+  "emulator -avd orbit-proof-5594 -avd Orbit_Pixel_9_API_35 -port 5594",
+  "emulator @orbit-proof-5555 -port 5594 -no-window",
+  "node tools/android-emulator.mjs --avd=Orbit_Pixel_9_API_35 --port 5594",
+  "node tools/android-emulator.mjs --avd orbit-proof-$OTHER --port 5594",
+]) {
+  T(`worker-browser: a device proof boots only its own AVD: ${command}`, /may boot only its throwaway AVD orbit-proof-5594/.test(proofWorker(command)?.message ?? ""), true)
+}
+for (const command of [
+  "emulator @orbit-proof-5594 -port 5594 -no-window",
+  "emulator -avd orbit-proof-$ORBIT_PROOF_EMULATOR_PORT -port $ORBIT_PROOF_EMULATOR_PORT -no-window",
+  'node tools/android-emulator.mjs --avd="orbit-proof-${ORBIT_PROOF_EMULATOR_PORT}" --port 5594',
+]) {
+  T(`worker-browser: a device proof may boot its own AVD: ${command}`, proofWorker(command), null)
+}
+// A `for` loop binds a name for its body, so it cannot move a pinned variable (thread M_8V).
+for (const command of [
+  "for ANDROID_SERIAL in emulator-5554; do adb shell pm clear org.useorbit.app; done",
+  "for ORBIT_PROOF_EMULATOR_PORT in 5554; do node tools/android-emulator.mjs --avd orbit-proof-5594 --port $ORBIT_PROOF_EMULATOR_PORT; done",
+  "for ANDROID_SERIAL in emulator-5594 emulator-5554; do adb shell pm clear org.useorbit.app; done",
+]) {
+  T(`worker-browser: a device proof may not bind a pinned variable in a for loop: ${command}`, /pinned device emulator-5594/.test(proofWorker(command)?.message ?? ""), true)
+}
+T("worker-browser: a device proof may bind a pinned variable to its pinned value", proofWorker("for ANDROID_SERIAL in emulator-5594; do adb shell pm clear org.useorbit.app; done"), null)
+// xargs adds the words from standard input, which the pin cannot read (thread M_8d).
+for (const command of [
+  "echo -s emulator-5554 shell pm clear org.useorbit.app | xargs adb",
+  "echo -e install app.apk | xargs -r adb",
+  "echo emulator-5554 | xargs -I {} adb -s {} shell pm clear org.useorbit.app",
+  "echo '-avd Orbit_Pixel_9_API_35 -port 5594' | xargs emulator",
+  "echo --avd Orbit_Pixel_9_API_35 | xargs node tools/android-emulator.mjs --port 5594",
+]) {
+  T(`worker-browser: a device proof may not run a device program through xargs: ${command}`, /pinned device emulator-5594|boot only its throwaway AVD/.test(proofWorker(command)?.message ?? ""), true)
+}
+T("worker-browser: a device proof may run xargs for a program that is no device program", proofWorker("echo app.apk | xargs ls"), null)
 // The ticket worker rule reads through the same prefixes.
 for (const command of ["for i in 1; do npx playwright test; done", "if true; then npm run dev; fi", "exec npx playwright test", "timeout 60 npx playwright test"]) {
   T(`worker-browser: a ticket worker may not hide a browser driver behind a prefix: ${command}`, blocks(worker(command)), true)
@@ -1332,7 +1383,6 @@ for (const command of [
   "gh auth status --hostname github.com",
   "gh auth status -h github.com",
   "gh auth status --json hosts",
-  "curl -s https://api.github.com/repos/thomasluizon/orbit-ui-mobile",
   "git log --oneline -3",
 ]) {
   T(`read-only run: ${command} allows`, readOnlyWorker(command), null)
@@ -1376,6 +1426,20 @@ for (const command of [
   "git credential fill",
   "curl -X POST -H 'Authorization: token x' https://api.github.com/repos/thomasluizon/orbit-ui-mobile/git/refs -d '{}'",
   "npx gh pr comment 2476 --body x",
+  // A curl or wget call to a GitHub host is refused whatever its spelling: curl reads a body from `-d<value>`, `-d@file` and `-T<file>`, and
+  // a read goes through `gh` (thread M_8G).
+  "curl -s https://api.github.com/repos/thomasluizon/orbit-ui-mobile",
+  "curl -H \"Authorization: token $GH_TOKEN\" -d'{\"body\":\"x\"}' https://api.github.com/repos/thomasluizon/orbit-ui-mobile/issues/2476/comments",
+  "curl -d@body.json https://api.github.com/repos/thomasluizon/orbit-ui-mobile/issues/2476/comments",
+  "curl -Tbody.json https://api.github.com/repos/thomasluizon/orbit-ui-mobile/contents/x",
+  "curl -dhello https://api.github.com/repos/thomasluizon/orbit-ui-mobile/issues/2476/comments",
+  "curl --json '{}' https://api.github.com/repos/thomasluizon/orbit-ui-mobile/issues/2476/comments",
+  // xargs adds the words from standard input, which no rule reads (thread M_8d).
+  "echo 2476 | xargs gh pr view",
+  "echo pr merge 2476 --squash | xargs gh",
+  "echo -f body=x | xargs gh api repos/thomasluizon/orbit-ui-mobile/issues/2476/comments",
+  "echo https://api.github.com/repos/thomasluizon/orbit-ui-mobile | xargs curl",
+  "echo pr comment 2476 | xargs -n 3 npx gh",
 ]) {
   T(`read-only run: ${command} blocks`, /A read-only run writes nothing to GitHub/.test(readOnlyWorker(command)?.message ?? ""), true)
 }
@@ -1451,8 +1515,9 @@ for (const command of [
   "for n in 1 2; do gh pr view $n; done",
   "if true; then gh pr diff 2476; fi",
   "timeout 60 gh pr checks 2476",
-  "echo 2476 | xargs gh pr view",
   "grep -rn \"gh pr merge\" .claude",
+  "curl -s https://example.com/status",
+  "echo 2476 | xargs echo",
   "bash /abs/path.sh",
   "cat <<'EOF'\n$(gh pr merge 2476 --squash)\nEOF",
 ]) {
@@ -1464,6 +1529,9 @@ for (const command of [
   "bash -c 'gh pr view 2476'",
   "sh -c \"gh pr merge 2476 --squash\"",
   "eval gh pr merge 2476 --squash",
+  // The reader does not know wget, so a wget call to GitHub is outside the subset (thread M_8G).
+  "wget --post-data=x https://api.github.com/repos/thomasluizon/orbit-ui-mobile/issues/2476/comments",
+  "wget -qO- https://raw.githubusercontent.com/thomasluizon/orbit-ui-mobile/main/README.md",
   "echo `gh pr comment 2476 --body x`",
   "gh api graphql -f query=`cat q.graphql`",
   "gh api graphql -f query=\"$(cat <<'EOF'\nmutation { resolveReviewThread(input: {threadId: \"x\"}) { clientMutationId } }\nEOF\n)\"",

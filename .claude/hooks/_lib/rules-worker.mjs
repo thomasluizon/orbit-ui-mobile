@@ -17,10 +17,10 @@ const OWNER_EMULATOR = "Orbit_Pixel_9_API_35"
 /** The launcher pins a proof's throwaway emulator: adb's default serial and the emulator console port. */
 const PINNED_SERIAL = "ANDROID_SERIAL"
 const PINNED_PORT = "ORBIT_PROOF_EMULATOR_PORT"
-/** adb flags that choose a device or a server other than the default serial. `-s` is judged on its value. */
-const ADB_DEVICE_FLAGS = new Set(["-e", "-d", "-t", "-H", "-P", "-L"])
 /** `launch-worker.mjs --review` and `--proof` add this. A typed assignment never sets it. */
 const READ_ONLY_MARKER = "ORBIT_READ_ONLY_RUN"
+/** The programs that call GitHub. A read-only run never starts one through `xargs`. */
+const GITHUB_PROGRAMS = new Set(["gh", "curl", "wget"])
 /** The gh subcommands that only read GitHub. `gh api` is judged on its method and fields. */
 const GH_READS = new Map([
   ["pr", new Set(["view", "diff", "checks", "list", "status"])],
@@ -40,7 +40,6 @@ const GH_READS = new Map([
 /** gh api flags that take a value, so the value is never read as the endpoint. */
 const GH_API_VALUE_FLAGS = new Set(["-X", "--method", "-f", "-F", "--field", "--raw-field", "--input", "-H", "--header", "-q", "--jq", "-t", "--template", "--cache", "--hostname", "-p", "--preview"])
 const GH_API_BODY_FLAGS = new Set(["-f", "-F", "--field", "--raw-field", "--input"])
-const CURL_BODY_FLAGS = new Set(["-d", "--data", "--data-raw", "--data-binary", "--data-urlencode", "--json", "-F", "--form", "-T", "--upload-file"])
 
 /** Binaries whose arguments are PROSE. A commit message naming `npm run dev` is not a dev server. */
 const BROWSER_DRIVERS = new Set(["playwright", "maestro", "cypress", "puppeteer", "chromedriver", "geckodriver", "webdriver", "adb", "emulator"])
@@ -132,16 +131,47 @@ function textInvocations(segment) {
   return invocationsOf(tokens.slice(start).map((text) => ({ text, dynamic: "" }))).map(({ program, args }) => [program.text, ...args.map((word) => word.text)])
 }
 
-const OWNER_EMULATOR_ACTION = "the owner's emulator"
-
-/** Whether a device proof segment reaches the owner's emulator: by name, or through the tool whose default AVD it is. */
-function reachesOwnerEmulator(tokens) {
-  if (tokens.some((token) => token.replaceAll(/["']/g, "").replace(/^@/, "").endsWith(OWNER_EMULATOR))) return true
-  return normalize(tokens[0]) === "node" && normalize(tokens[1]) === "android-emulator.mjs" && !tokens.some((token) => token === "--avd" || token.startsWith("--avd="))
-}
+const OTHER_AVD_ACTION = "an AVD other than the throwaway of the proof"
 
 const UNPINNED_ACTION = "an unpinned device"
 const unquote = (token) => String(token ?? "").replaceAll(/["']/g, "")
+
+/** Whether the words start the boot tool of the proof order: `node <path>/android-emulator.mjs`. */
+const isBootTool = (tokens) => normalize(tokens[0]) === "node" && normalize(tokens[1]) === "android-emulator.mjs"
+
+/** Whether the words start `adb`, `emulator` or the boot tool of the proof order. */
+const isDeviceProgram = (tokens) => ["adb", "emulator"].includes(normalize(tokens[0])) || isBootTool(tokens)
+
+/** The text with each reference to the pinned port, `$NAME` or `${NAME}`, replaced by the pinned port. */
+const withPinnedPort = (text, pin) => text.replaceAll(new RegExp(String.raw`\$\{${PINNED_PORT}\}|\$${PINNED_PORT}(?![A-Za-z0-9_])`, "g"), pin.port)
+
+/**
+ * The AVD names that the words of an `emulator` or boot tool call select: `-avd NAME`, `--avd NAME`, `--avd=NAME` and `@NAME`. A word that
+ * starts an AVD option in another spelling is listed as it is, so it never equals the name of the proof.
+ */
+function selectedAvds(tokens) {
+  const names = []
+  for (let index = 1; index < tokens.length; index += 1) {
+    const token = unquote(tokens[index])
+    if (token === "-avd" || token === "--avd") names.push(unquote(tokens[++index]))
+    else if (token.startsWith("--avd=")) names.push(token.slice("--avd=".length))
+    else if (token.startsWith("@")) names.push(token.slice(1))
+    else if (/^--?avd/.test(token)) names.push(token)
+  }
+  return names
+}
+
+/**
+ * Whether an `emulator` or boot tool call of a proof boots any AVD but `orbit-proof-<pinned port>`, which is the AVD that the proof order names.
+ * The default AVD of the boot tool is the owner's, so a call with no AVD boots another one. The check is an allow list on the text of each name
+ * after each reference to the pinned port is read as its value, so no variable or loop can supply the owner's name.
+ */
+function bootsOtherAvd(tokens, pin) {
+  if (normalize(tokens[0]) !== "emulator" && !isBootTool(tokens)) return false
+  if (!pin.port) return false
+  const names = selectedAvds(tokens)
+  return names.length === 0 || names.some((name) => withPinnedPort(name, pin) !== `orbit-proof-${pin.port}`)
+}
 
 /**
  * A token with a reference to a pinned variable, `$NAME` or `${NAME}` bare or quoted, read as the
@@ -196,16 +226,13 @@ function changesPinnedVariable({ assignments, invocations }, pin) {
  */
 function leavesPinnedDevice(tokens, pin) {
   const binary = normalize(tokens[0])
-  const bootTool = binary === "node" && normalize(tokens[1]) === "android-emulator.mjs"
-  if (binary !== "adb" && binary !== "emulator" && !bootTool) return false
+  const bootTool = isBootTool(tokens)
+  if (!isDeviceProgram(tokens)) return false
   if (!pin.serial || !pin.port) return true
   if (binary === "adb") {
-    for (let index = 1; index < tokens.length && tokens[index].startsWith("-"); index += 1) {
-      const token = unquote(tokens[index])
-      if (token === "-s") {
-        if (pinnedValue(tokens[index + 1], pin) !== pin.serial) return true
-        index += 1
-      } else if (ADB_DEVICE_FLAGS.has(token)) return true
+    // An allow list: adb reads a value in the same word as its option (`-t1`, `-s127.0.0.1:5555`, `-P5038`), so only `-s <pinned serial>` leads.
+    for (let index = 1; index < tokens.length && tokens[index].startsWith("-"); index += 2) {
+      if (unquote(tokens[index]) !== "-s" || pinnedValue(tokens[index + 1], pin) !== pin.serial) return true
     }
     return false
   }
@@ -221,7 +248,7 @@ function forbiddenAction(words, deviceProof) {
   const binary = normalize(tokens[0])
   const args = tokens.slice(1).filter((token) => !token.startsWith("-")).map(normalize)
 
-  if (deviceProof && reachesOwnerEmulator(tokens)) return OWNER_EMULATOR_ACTION
+  if (deviceProof && bootsOtherAvd(tokens, deviceProof)) return OTHER_AVD_ACTION
   if (deviceProof && leavesPinnedDevice(tokens, deviceProof)) return UNPINNED_ACTION
   if (deviceProof && DEVICE_DRIVERS.has(binary)) return null
   if (BROWSER_DRIVERS.has(binary)) return "a browser driver or an emulator"
@@ -354,13 +381,17 @@ function inspectWords(words, source, context) {
 function judgeCommand(command, context) {
   const read = readCommand(command)
   const calls = []
-  const reason = read.notModelled || walkCommands(read.list, null, (call) => { calls.push(call); return null })
+  // A `for` loop sets its name in the shell, so a binding is a call with no word and one assignment.
+  const bind = (name, value) => calls.push({ words: [], assignments: [{ text: `${name}=${value}`, dynamic: "" }], source: `for ${name} in ${value}` })
+  const reason = read.notModelled || walkCommands(read.list, null, (call) => { calls.push(call); return null }, bind)
   if (reason === "") {
     for (const call of calls) {
       const invocations = invocationsOf(call.words)
-      const source = call.words.map((word) => word.text).join(" ")
+      const source = call.source ?? call.words.map((word) => word.text).join(" ")
       if (context.deviceProof && changesPinnedVariable({ assignments: call.assignments, invocations }, context.deviceProof)) return { action: UNPINNED_ACTION, source }
-      for (const { program, args } of invocations) {
+      for (const { program, args, wrappers } of invocations) {
+        // xargs adds the words from standard input to the program, so the words on the line do not decide the device.
+        if (context.deviceProof && wrappers.includes("xargs") && isDeviceProgram(withoutRunners([program, ...args].map((word) => word.text)))) return { action: UNPINNED_ACTION, source }
         const found = inspectWords([program, ...args].map((word) => word.text), source, context)
         if (found) return found
       }
@@ -394,14 +425,14 @@ export function checkWorkerBrowser(command, { env = {}, cwd = "", repoRoots = []
   const { action, source, reason } = found
   if (action === UNINSPECTABLE_ACTION) return UNINSPECTABLE
   if (action === UNREADABLE_PROOF_ACTION) return unreadable(reason, "a device proof")
-  if (action === OWNER_EMULATOR_ACTION) {
+  if (action === OTHER_AVD_ACTION) {
     return {
       block: true,
       message:
-        `A device proof may not use the owner's emulator ${OWNER_EMULATOR}. Refused: ${source.trim().slice(0, 160)}\n\n` +
-        "Use the simulators that the order names, or create one throwaway AVD from the installed arm64 play image,\n" +
-        "run it headless with no personal account, and delete it when the proof ends. Pass --avd <throwaway name>\n" +
-        "to node tools/android-emulator.mjs, whose default AVD is the owner's.",
+        `A device proof may boot only its throwaway AVD orbit-proof-${deviceProof.port || "<port>"}, never the owner's emulator ${OWNER_EMULATOR}. Refused: ${source.trim().slice(0, 160)}\n\n` +
+        "Use the simulators that the order names, or boot the throwaway AVD with the command of the order:\n" +
+        `node <launcher>/tools/android-emulator.mjs --avd orbit-proof-$${PINNED_PORT} --port $${PINNED_PORT}\n` +
+        "The default AVD of that tool is the owner's, so pass --avd. Delete the AVD when the proof ends.",
     }
   }
   if (action === UNPINNED_ACTION) {
@@ -410,8 +441,8 @@ export function checkWorkerBrowser(command, { env = {}, cwd = "", repoRoots = []
       message:
         `A device proof may use only its pinned device ${deviceProof.serial || "(the launcher pinned none)"}. Refused: ${source.trim().slice(0, 160)}\n\n` +
         `The launcher sets ${PINNED_SERIAL} and ${PINNED_PORT}. Boot the throwaway AVD with\n` +
-        `node tools/android-emulator.mjs --avd <throwaway name> --port $${PINNED_PORT}, run adb with no device flag\n` +
-        `or with -s $${PINNED_SERIAL}, and never clear or change either variable.`,
+        `node <launcher>/tools/android-emulator.mjs --avd orbit-proof-$${PINNED_PORT} --port $${PINNED_PORT}, run adb with no option\n` +
+        `or with -s $${PINNED_SERIAL} first, and never clear, change or bind either variable. Run adb and emulator directly, never through xargs.`,
     }
   }
   return {
@@ -529,12 +560,8 @@ function githubWrite(invocationWords, command) {
   }
   if (binary === "security") return args.some((arg) => /^(?:find-(?:generic|internet)-password|dump-keychain|export)$/.test(arg))
   if (binary === "git") return args[0] === "credential" || args[0]?.startsWith("credential-")
-  if (["curl", "wget"].includes(binary) && /github(?:usercontent)?\.com/i.test(tokens.join(" "))) {
-    const method = flagValue(tokens, "-X") ?? flagValue(tokens, "--request") ?? flagValue(tokens, "--method") ?? tokens.find((token) => /^-X[A-Za-z]/.test(token))?.slice(2) ?? null
-    if (method !== null && method.toUpperCase() !== "GET") return true
-    return tokens.some((token) => CURL_BODY_FLAGS.has(unquote(token)) || unquote(token).startsWith("--post-") || unquote(token).startsWith("--data"))
-  }
-  return false
+  // curl and wget read a body or a method from many spellings (`-d<value>`, `-d@file`, `-T<file>`), so a call to a GitHub host never passes: a read goes through `gh`.
+  return ["curl", "wget"].includes(binary) && /github(?:usercontent)?\.com/i.test(tokens.join(" "))
 }
 
 /** The refusal for a command that the reader cannot model, in a read-only run or a proof: the guards cannot judge what such a command runs. */
@@ -555,8 +582,10 @@ export function checkReadOnlyRun(command, { env = {} } = {}) {
   const reason = read.notModelled || walkCommands(read.list, null, (call) => { calls.push(call); return null })
   if (reason !== "") return unreadable(reason)
   for (const { words } of calls) {
-    for (const { program, args } of invocationsOf(words)) {
-      if (!githubWrite([program, ...args], command)) continue
+    for (const { program, args, wrappers } of invocationsOf(words)) {
+      // xargs adds the words from standard input, which decide the subcommand, the method and the body.
+      const throughXargs = wrappers.includes("xargs") && GITHUB_PROGRAMS.has(normalize(withoutRunners([program, ...args].map((word) => word.text))[0]))
+      if (!throughXargs && !githubWrite([program, ...args], command)) continue
       return {
         block: true,
         message:
