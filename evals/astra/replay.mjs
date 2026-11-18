@@ -2,20 +2,18 @@
 import { existsSync, mkdirSync, readFileSync, readdirSync, realpathSync, writeFileSync } from 'node:fs'
 import { basename, dirname, resolve, sep } from 'node:path'
 import { pathToFileURL } from 'node:url'
-import { parse } from 'yaml'
 import { validateToolArguments } from './tool-validation.mjs'
 import { tools, legacyTools, offerTools, observableSchema } from './trace-policy.mjs'
 import { configureOffers } from './offer-context.mjs'
 import { toolBehavior } from './assertions.mjs'
 import { historicalReadExpectations } from './offer-lifecycle.mjs'
 import parseResponse from './response.mjs'
-import { gradedByOutcome } from './grade-method.mjs'
+import { gradedByOutcome, readCorpus } from './grade-method.mjs'
 import { tsImport } from 'tsx/esm/api'
 
 const { buildChatClientContext } = await tsImport('../../packages/shared/src/chat/client-context.ts', import.meta.url)
 
-const corpus = ['scenarios.yaml', 'composition-scenarios.yaml'].flatMap((path) =>
-  parse(readFileSync(new URL(path, import.meta.url), 'utf8'), { merge: true }))
+const corpus = readCorpus()
 const observable = (catalog) => catalog.map((tool) => ({ ...tool, function: { ...tool.function,
   description: tool.function.description ?? undefined,
   parameters: observableSchema(tool.function.parameters, new Set(tool.sensitiveFields)),

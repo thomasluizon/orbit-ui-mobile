@@ -18,7 +18,7 @@ function namedRecords(value, vars) {
 
 // The vars of one launch corpus case in the form that the core set runs and grades: its expected outcome, the answer of
 // the person, and the records of its fixture by name. The expected fields are resolved here; the targets stay names.
-export function coreVars(vars) {
+function coreVars(vars) {
   const expected = vars.outcome.changes
     ? { ...vars.outcome, changes: vars.outcome.changes.map((change) => ({ ...change, ...(change.fields ? { fields: namedRecords(change.fields, vars) } : {}) })) }
     : vars.outcome

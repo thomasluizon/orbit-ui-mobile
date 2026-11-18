@@ -6,6 +6,7 @@ import { changeList } from '../core/change-list.mjs'
 import { composition } from '../composition.mjs'
 import { outcome, runOutcomeCase } from '../client-path.mjs'
 import { corpusTests, gradedByOutcome, readCorpus } from '../grade-method.mjs'
+import { summarize } from '../report.mjs'
 import { captures } from './fixtures/core-streams.mjs'
 import { recordedStream } from './fixtures/core-replay.mjs'
 import { apiKeysStepUpResponse, habitBlock, preview, toolCall, traceTiming } from './fixtures/producer.mjs'
@@ -249,9 +250,15 @@ describe('the kinds that the change list gained', () => {
     const unknown = structuredClone(heldPreview)
     unknown.pendingOperations[0].actionKey = 'moveHabit'
     unknown.pendingOperations[0].items = [unknown.pendingOperations[0].items.find((item) => !item.fields.some((field) => field.valueType === 'action'))]
-    const { verdict } = await scripted('single-create-pt', [unknown])
+    const { verdict, response, vars } = await scripted('single-create-pt', [unknown])
     expect(verdict).toMatchObject({ pass: false, reason: 'The grader cannot classify a held preview: moveHabit.',
       metadata: { graderLimit: true, unavailable: true } })
+    // The launch report keeps the case incomplete with the key in its reason: it is no failure of the assistant.
+    const metadata = { id: 'single-create-pt', family: 'bilingual', locale: 'pt-BR' }
+    const graded = { testCase: { metadata, vars }, success: false, response, gradingResult: { componentResults: [
+      { ...verdict, assertion: { metric: 'outcome' } }, { pass: true, assertion: { metric: 'composition' } }] } }
+    expect(summarize([graded], [metadata]).cases[0]).toMatchObject({ allAttemptsPass: 'incomplete', passed: 0, unavailable: 1,
+      unavailableReasons: ['The grader cannot classify a held preview: moveHabit.'] })
   })
 
   it('classifies a preview without items and with another action key as before', () => {
