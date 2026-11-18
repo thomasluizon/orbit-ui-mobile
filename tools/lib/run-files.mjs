@@ -17,6 +17,7 @@ const COMMAND_TIMEOUT_MS = 30_000
 const MAX_BUFFER = 128 * 1024 * 1024
 const WRITE_ATTEMPTS = 5
 const STATUS = /\(HTTP (\d{3})\)/
+const MISSING_SHA = /"sha" wasn't supplied/
 
 export class RunFileConflict extends Error {}
 
@@ -60,8 +61,10 @@ export const githubRunFiles = ({ repository = readOrchestratorConfig().tickets.r
       const location = `repos/${repository}/contents/${runFilePath(path)}`
       const body = JSON.stringify({ message, content: Buffer.from(bytes).toString("base64"), ...(sha ? { sha } : {}) })
       const response = api(["-X", "PUT", location, "--input", "-"], body)
-      // A stale or missing sha is refused with 409 or 422; the caller reads again and retries.
-      if (!response.ok && [409, 422].includes(response.status)) throw new RunFileConflict(`${location} changed since sha ${sha ?? "none"}`)
+      // GitHub refuses a stale sha with 409 and a missing sha on an existing file with 422 and this message; the caller
+      // reads again and retries. Each other 422 is an invalid request, which a retry cannot correct.
+      const conflict = response.status === 409 || (response.status === 422 && MISSING_SHA.test(response.stderr))
+      if (!response.ok && conflict) throw new RunFileConflict(`${location} changed since sha ${sha ?? "none"}`)
       if (!response.ok) throw new Error(`gh api PUT ${location} failed: ${response.stderr}`)
       const written = json(location, response.stdout)
       if (typeof written?.content?.sha !== "string") throw new Error(`${location} write returned no content sha`)

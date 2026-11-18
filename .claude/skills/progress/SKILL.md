@@ -61,7 +61,7 @@ with equal weight. Decisions are each entry's `decisionNotes`, the decision run 
 tickets and to the run record. For sessions without one, derive decisions and owner questions from
 the fallback `conversation`. It carries only owner-typed prompts and assistant text replies within
 the window, each capped at 1,500 characters plus a visible truncation marker. Tool results, system
-notifications and skill bodies are excluded. Entries with non-empty `decisions` omit `conversation`.
+notifications and skill bodies are excluded. Entries with decision notes omit `conversation`.
 Do not compress earlier sessions to a token line while giving the current session the whole report.
 Gather every entry before the ancestry checks below. Deduplicate repository and pull request pairs
 without dropping decisions or owner questions. Use the helper's merges alongside ledger identities

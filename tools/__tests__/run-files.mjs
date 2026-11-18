@@ -56,16 +56,30 @@ export const cases = () => {
   written.store.write("run-state/intake.json", "{}\n", null, "intake: first")
   T(`${UNIT}: the first write of a file sends no sha`, !("sha" in JSON.parse(written.calls()[1].input)))
 
-  for (const status of [409, 422]) {
-    const stale = fakeGh(`stale-${status}`, [{ match: `api -X PUT ${location} --input -`, status, message: "run-state/intake.json does not match a1" }])
+  const gone = fakeGh("gone", [{ match: `api ${location}`, status: 404, message: "Not Found" }])
+  same(`${UNIT}: a file that a repository with commits lacks reads as absent`, gone.store.read("run-state/intake.json"), { bytes: null, sha: null })
+
+  // Each status and message below is a recorded response of the contents API (thomasluizon/orbit-tickets#2152).
+  for (const [label, status, message] of [["a stale sha", 409, "run-state/intake.json does not match a1"],
+    ["no sha for a file that exists", 422, "Invalid request.\n\n\"sha\" wasn't supplied."]]) {
+    const stale = fakeGh(`stale-${status}`, [{ match: `api -X PUT ${location} --input -`, status, message }])
     let error
     try { stale.store.write("run-state/intake.json", "{}\n", "a1", "intake") } catch (caught) { error = caught }
-    T(`${UNIT}: a refused write with HTTP ${status} is a conflict to retry`, error instanceof RunFileConflict, String(error))
+    T(`${UNIT}: a write refused for ${label} (HTTP ${status}) is a conflict to retry`, error instanceof RunFileConflict, String(error))
   }
-  const broken = fakeGh("broken", [{ match: `api -X PUT ${location} --input -`, status: 403, message: "Resource not accessible" }])
-  let denied
-  try { broken.store.write("run-state/intake.json", "{}\n", "a1", "intake") } catch (caught) { denied = caught }
-  T(`${UNIT}: any other refused write is an error, never a retry`, denied && !(denied instanceof RunFileConflict) && /Resource not accessible/.test(denied.message), String(denied))
+  for (const [label, status, message] of [["no commit message", 422, "Invalid request.\n\n\"message\" wasn't supplied."],
+    ["content that is not base64", 422, "content is not valid Base64"], ["no access", 403, "Resource not accessible"]]) {
+    const broken = fakeGh(`broken-${label.replaceAll(" ", "-")}`, [{ match: `api -X PUT ${location} --input -`, status, message }])
+    let denied
+    try { broken.store.write("run-state/intake.json", "{}\n", "a1", "intake") } catch (caught) { denied = caught }
+    T(`${UNIT}: a write refused for ${label} (HTTP ${status}) is an error, never a retry`, denied && !(denied instanceof RunFileConflict) && denied.message.includes(message), String(denied))
+  }
+  const invalid = fakeGh("invalid-update", [{ match: `api ${location}`, status: 404, message: "Not Found" },
+    { match: `api -X PUT ${location} --input -`, status: 422, message: "content is not valid Base64" }])
+  let stopped
+  try { updateRunJson("run-state/intake.json", () => ({}), "intake", invalid.store) } catch (error) { stopped = error.message }
+  T(`${UNIT}: an update with an invalid request stops at the first write and reports the refusal`, /content is not valid Base64/.test(stopped ?? "") &&
+    invalid.calls().filter((call) => call.line.includes("-X PUT")).length === 1, `${stopped} after ${invalid.calls().length} calls`)
 
   for (const path of ["../secret", "/etc/passwd", "run-state/../x", "run state.json", ""]) {
     let refused = false

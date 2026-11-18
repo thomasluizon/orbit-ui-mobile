@@ -71,6 +71,8 @@ const ownerBoundaryCases = async () => {
   const earlier = windowReport.entries.find((entry) => entry.sessionId === "earlier")
   T("progress-window: overlapping session conversations retain decision and question evidence",
     earlier?.conversation.some((turn) => turn.text.includes("Owner question: which track?")))
+  T("progress-window: current session with recorded decisions has no conversation",
+    !Object.hasOwn(windowReport.entries.find((entry) => entry.sessionId === "current"), "conversation"))
   T("progress-window: baseline source and local start are explicit",
     windowReport.baselineSource === "previous-progress" && typeof windowReport.window.localStartedAt === "string")
   T("progress-window: the current session reads its decisions from the ticket comments",
@@ -208,7 +210,9 @@ const directoryCases = async () => {
     writeFileSync(join(linkedDirectory, "overlapping.jsonl"), JSON.stringify({ type: "assistant",
       timestamp: "2026-10-01T02:30:00Z", message: { role: "assistant", content: "Linked checkout decision." } }) + "\n")
     process.env.CLAUDE_PROJECT_DIR = linkedCheckout
-    const explicit = await collectProgressWindow({ ...staged.options, repoRoot: linkedCheckout, transcriptPath })
+    // No decision note here: the conversation of the current session proves that its explicit transcript was read.
+    const explicit = await collectProgressWindow({ ...staged.options, repoRoot: linkedCheckout, transcriptPath,
+      readPages: async (path, projection, source) => source.kind === "decisionNotes" ? [[]] : staged.options.readPages(path, projection, source) })
     T("progress-window: explicit linked transcript retains the canonical previous-progress boundary",
       explicit.baselineSource === "previous-progress" && explicit.window.startedAt === new Date(previous).toISOString())
     T("progress-window: explicit linked transcript retains merges before the current session",

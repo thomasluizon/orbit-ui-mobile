@@ -88,6 +88,10 @@ const coldStartCases = async ({ repo, options, authenticate, readCalls, setRespo
     cold.tickets[0].latestRoundNote.round === "2" && cold.tickets[0].latestRoundNote.head === head.headRefOid && cold.tickets[0].latestReview.verdict === "clean" && cold.tickets[0].latestReport === null, JSON.stringify(cold.tickets))
   T("run-status: a cold start lists the board queue without finished tickets and plans it", JSON.stringify(cold.queue.map((ticket) => ticket.ticket)) === JSON.stringify(["#1092", "#1093"]) &&
     cold.nextActions.some((entry) => entry.type === "PLAN_QUEUE" && entry.command === "node tools/plan-queue.mjs --board --sleep"), JSON.stringify(cold.queue))
+  const closedSet = /The action set is closed:\n([\s\S]*?)\n\n/.exec(readFileSync(join(REPO_ROOT, ".claude", "skills", "orchestrate", "SKILL.md"), "utf8"))?.[1] ?? ""
+  const named = new Set(closedSet.match(/`[A-Z_]+`/g)?.map((name) => name.slice(1, -1)))
+  T("run-status: the closed action set of the orchestrate skill names each cold start action", cold.nextActions.every((entry) => named.has(entry.type)),
+    JSON.stringify(cold.nextActions.map((entry) => entry.type).filter((type) => !named.has(type))))
   T("run-status: a cold start summarizes the intake marks from the tickets repository", JSON.stringify(cold.intake.gmail) === JSON.stringify({ pending: 1, completed: 1, highWater: "m2" }) &&
     cold.intake.wake.seen.board === 2 && cold.intake.play.pending === 0, JSON.stringify(cold.intake))
   T("run-status: a cold start writes no run record", !existsSync(join(repo.path, ".git", "orbit-orchestrate-run.json")))

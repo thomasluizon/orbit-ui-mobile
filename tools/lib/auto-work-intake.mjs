@@ -32,11 +32,14 @@ export const activeIntakeRun = (state, repoRoot = REPO_ROOT) => {
 
 export const intakeRun = (repoRoot = REPO_ROOT) => activeIntakeRun(readRunState(repoRoot), repoRoot)
 
+// WHY: until INTAKE_FILE exists, an older run record still holds the marks, so no reader before tools/migrate-run-state.mjs sees fewer marks than that record (thomasluizon/orbit-tickets#2152).
+const legacyIntake = (repoRoot) => readRunState(repoRoot)?.intake ?? {}
+
 /**
  * Every intake mark (Gmail, Play, App Store, the waiter's seen keys), read from INTAKE_FILE in the private tickets
  * repository. Any computer reads the same marks, so a relay or a new computer never reads a message twice.
  */
-export const readIntake = (repoRoot = REPO_ROOT) => readRunJson(INTAKE_FILE, runFiles(repoRoot)).value ?? {}
+export const readIntake = (repoRoot = REPO_ROOT) => readRunJson(INTAKE_FILE, runFiles(repoRoot)).value ?? legacyIntake(repoRoot)
 
 const intakeSourceOf = (intake, source) => ({ completed: {}, pending: {}, highWater: null, ...intake?.[source] })
 
@@ -46,15 +49,17 @@ export const intakeSource = (source, repoRoot = REPO_ROOT) => {
 }
 
 /**
- * One compare-and-swap of the whole intake file for one source. `change` receives the source as it is now and runs
- * again when another writer replaced the file first, so it derives everything from its argument.
+ * One compare-and-swap of the whole intake file for one key. `change` receives the whole intake object as it is now
+ * and runs again when another writer replaced the file first, so it derives everything from its argument. The first
+ * write of the file starts from the marks of the local run record, so it carries them to GitHub.
  */
 export const updateIntake = (key, change, repoRoot = REPO_ROOT) => {
   intakeRun(repoRoot)
   let contents
   const written = updateRunJson(INTAKE_FILE, (intake) => {
-    contents = change(intake ?? {})
-    return contents === undefined ? undefined : { ...intake, [key]: contents }
+    const current = intake ?? legacyIntake(repoRoot)
+    contents = change(current)
+    return contents === undefined ? undefined : { ...current, [key]: contents }
   }, `intake: ${key}`, runFiles(repoRoot))
   if (contents !== undefined && JSON.stringify(written?.[key]) !== JSON.stringify(contents)) throw new Error("Intake write was not confirmed")
   return contents

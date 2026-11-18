@@ -57,8 +57,10 @@ Read its one JSON object and follow `nextActions[].command` from `commandDirecto
 Commands use relative paths when those are shorter. The action set is closed:
 `REARM_WAIT_CI`, `VERIFY_DELIVERY`, `READ_REVIEW`, `RECORD_READINESS`, `BEHIND_BASE`,
 `CHECK_FAILED`, `MERGE_CANDIDATE`, `SLOT_FREE`, `ORPHANED_WORKER`, `INTAKE`, `NO_ACTION`,
-`CREATE_WORKTREE`. For `CREATE_WORKTREE`, run `command`, set `$WORKTREE` to the path it prints,
+`CREATE_WORKTREE`, `PLAN_QUEUE`. For `CREATE_WORKTREE`, run `command`, set `$WORKTREE` to the path it prints,
 then run its `then` command, which checks out the head branch of the pull request.
+`PLAN_QUEUE` appears only on a cold start, when the board holds a `Todo` or `Backlog` ticket. Its
+command, `node tools/plan-queue.mjs --board --sleep`, plans the queue from every open board ticket.
 Delivery and readiness remain decisions of their named tools. A merge candidate calls the
 recorder again; it grants no merge authority. A foreign session has no actions. A linked
 worktree warning names the main checkout where the orchestrating run lives.

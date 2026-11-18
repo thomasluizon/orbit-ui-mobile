@@ -48,7 +48,7 @@ try {
     marks: initialWakeMarks(readIntake(), started),
     intervalMilliseconds: seconds * 1000,
     modeChanged: () => modeChangedIn(readRunState()),
-    // The mode check and the save share one locked update; after a mode change the next loop pass reports MODE_CHANGED.
+    // saveWakeMarks skips the save after a mode change; the next loop pass reports MODE_CHANGED.
     saveMarks: (marks) => saveWakeMarks(marks, REPO_ROOT, modeChangedIn),
   })
   finish(result.reason, 0, result.wakes)

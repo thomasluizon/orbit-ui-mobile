@@ -218,6 +218,8 @@ export const collectProgressWindow = async ({ sessionId, repoRoot, transcriptPat
   }
   for (const entry of entries) {
     for (const kind of ["merges", "releases", "closedTickets", "createdTickets", "decisionNotes"]) entry[kind].sort((left, right) => left.time.localeCompare(right.time) || left.id - right.id)
+    // The conversation is the fallback for an entry with no recorded decision.
+    if (entry.decisionNotes.length > 0) delete entry.conversation
   }
   return { baseline: "available", baselineSource, sessionId: currentSessionId, window: { startedAt, endedAt: now, localStartedAt: new Date(startedAt).toLocaleString(undefined, { timeZoneName: "short" }) }, entries }
 }

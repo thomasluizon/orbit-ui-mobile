@@ -19,6 +19,20 @@ export const cases = () => {
     { ...simple, classification: "bug", replyKind: "known bug" },
     { ...simple, classification: "question", replyKind: "supported how-to" },
   ]) T("intake: every other reply remains a draft", intake.replyDisposition?.(receipt) === "draft")
+  const cutover = join(root, "intake-cutover")
+  mkdirSync(join(cutover, ".git"), { recursive: true })
+  const legacy = { gmail: { completed: { handled: { id: "handled", classification: "noise" } }, pending: {}, highWater: "handled" },
+    play: { completed: {}, pending: { review: { id: "review" } }, highWater: null }, wake: { seen: { board: ["#1"] }, failures: {} } }
+  writeRunState({ sessionId: "parent", sleep: true, autoWork: true, intake: legacy }, cutover)
+  T("intake: before the intake file exists, a read returns the marks of the local run record",
+    JSON.stringify(intake.readIntake(cutover)) === JSON.stringify(legacy) && intakeSource("gmail", cutover).completed.handled.classification === "noise", JSON.stringify(intake.readIntake(cutover)))
+  intake.updateIntake("wake", () => ({ seen: { board: ["#1", "#2"] }, failures: {} }), cutover)
+  writeRunState({ sessionId: "parent", sleep: true, autoWork: true, intake: null }, cutover)
+  T("intake: the first write of the intake file carries the marks of the local run record to GitHub",
+    intakeSource("gmail", cutover).completed.handled?.classification === "noise" && intakeSource("play", cutover).pending.review?.id === "review" &&
+    intake.readIntake(cutover).wake.seen.board.length === 2, JSON.stringify(intake.readIntake(cutover)))
+  writeRunState({ sessionId: "parent", sleep: true, autoWork: true, intake: { gmail: { completed: {}, pending: {}, highWater: "stale" } } }, cutover)
+  T("intake: after the intake file exists, the local run record is never read", intakeSource("gmail", cutover).highWater === "handled")
   const checkout = join(root, "intake")
   mkdirSync(join(checkout, ".git"), { recursive: true })
   writeRunState({ sessionId: "parent", sleep: true, autoWork: true }, checkout)
