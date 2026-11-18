@@ -1838,23 +1838,13 @@
     composition:
       mode: suggestions
       count: 2
-    expectations:
-      required:
-        - name: suggest_habits
-          arguments:
-            language: en
-            count: 2
-      allowed:
-        - query_habits
-        - query_goals
-        - suggest_habits
-      counts:
-        suggest_habits: 1
     rubric: Answer in English. Show two complete editable habit drafts for reading and stretching in a
       habitSuggestions block, allowing only the short server introduction. Drafts include a concrete
       schedule, emoji and a short reason. Checklists are optional and accepted when present.
       No saved claim, approval preview or prose list
       replacing the block.
+    outcome:
+      read: true
 - description: suggestions-duplicate in en
   metadata:
     id: composition-suggestions-duplicate-en
@@ -1879,22 +1869,12 @@
       existing:
         - id: "{habitId}"
           title: Water
-    expectations:
-      required:
-        - name: suggest_habits
-          arguments:
-            language: en
-            count: 2
-      allowed:
-        - query_habits
-        - query_goals
-        - suggest_habits
-      counts:
-        suggest_habits: 1
     rubric: Answer in English. Two editable drafts. Exactly one editable draft carries the stored title
       Water verbatim as an adjustment with existingHabitId. Its own title field belongs to the same draft;
       no second draft has that title. Reading is a new habit. No saved claim
       or approval preview.
+    outcome:
+      read: true
 - description: suggestions-refine in en
   metadata:
     id: composition-suggestions-refine-en
@@ -1929,27 +1909,15 @@
         dueTime: 22:30:00
         frequencyUnit: Day
         frequencyQuantity: 1
+    rubric: Answer in English. Only the first draft changes to weekdays at 22:30. Keep its meaning,
+      identity and language. The other draft remains exactly as supplied. No saved claim.
     setup:
       input: "Suggest two simple evening habits: reading and stretching. Do not create anything yet."
       composition:
         mode: suggestions
         count: 2
-      expectations:
-        required:
-          - name: suggest_habits
-            arguments:
-              language: en
-              count: 2
-        allowed:
-          - query_habits
-          - query_goals
-          - suggest_habits
-        counts:
-          suggest_habits: 1
-    expectations:
-      allowed: []
-    rubric: Answer in English. Only the first draft changes to weekdays at 22:30. Keep its meaning,
-      identity and language. The other draft remains exactly as supplied. No saved claim.
+      outcome:
+        read: true
 - description: suggestions in pt-BR
   metadata:
     id: composition-suggestions-pt-BR
@@ -1971,23 +1939,13 @@
     composition:
       mode: suggestions
       count: 2
-    expectations:
-      required:
-        - name: suggest_habits
-          arguments:
-            language: pt-BR
-            count: 2
-      allowed:
-        - query_habits
-        - query_goals
-        - suggest_habits
-      counts:
-        suggest_habits: 1
     rubric: Answer in Brazilian Portuguese. Show two complete editable habit drafts for reading and
       stretching in a habitSuggestions block, allowing only the short server introduction. Drafts
       include a concrete schedule, emoji and a short reason. Checklists are optional and accepted
       when present. No saved claim, approval
       preview or prose list replacing the block.
+    outcome:
+      read: true
 - description: suggestions-duplicate in pt-BR
   metadata:
     id: composition-suggestions-duplicate-pt-BR
@@ -2012,22 +1970,12 @@
       existing:
         - id: "{habitId}"
           title: Beber água
-    expectations:
-      required:
-        - name: suggest_habits
-          arguments:
-            language: pt-BR
-            count: 2
-      allowed:
-        - query_habits
-        - query_goals
-        - suggest_habits
-      counts:
-        suggest_habits: 1
     rubric: Answer in Brazilian Portuguese. Two editable drafts. Exactly one editable draft carries the
       stored title Beber água verbatim as an adjustment with existingHabitId. Its own title field belongs
       to the same draft; no second draft has that title. Reading is a new
       habit. No saved claim or approval preview.
+    outcome:
+      read: true
 - description: suggestions-refine in pt-BR
   metadata:
     id: composition-suggestions-refine-pt-BR
@@ -2062,28 +2010,15 @@
         dueTime: 22:30:00
         frequencyUnit: Day
         frequencyQuantity: 1
+    rubric: Answer in Brazilian Portuguese. Only the first draft changes to weekdays at 22:30. Keep its
+      meaning, identity and language. The other draft remains exactly as supplied. No saved claim.
     setup:
-      input: "Me sugira dois hábitos simples para a noite: ler e fazer alongamento. Ainda não quero criar
-        nada."
+      input: "Me sugira dois hábitos simples para a noite: ler e fazer alongamento. Ainda não quero criar nada."
       composition:
         mode: suggestions
         count: 2
-      expectations:
-        required:
-          - name: suggest_habits
-            arguments:
-              language: pt-BR
-              count: 2
-        allowed:
-          - query_habits
-          - query_goals
-          - suggest_habits
-        counts:
-          suggest_habits: 1
-    expectations:
-      allowed: []
-    rubric: Answer in Brazilian Portuguese. Only the first draft changes to weekdays at 22:30. Keep its
-      meaning, identity and language. The other draft remains exactly as supplied. No saved claim.
+      outcome:
+        read: true
 - description: one-small-step in en
   metadata:
     id: composition-one-small-step-en
@@ -2103,20 +2038,11 @@
     input: I can't get myself to start studying.
     composition:
       mode: one-small-step
-    expectations:
-      required:
-        - name: suggest_breakdown
-          arguments:
-            one_small_step: true
-            language: en
-          resultStatus: Succeeded
-      allowed:
-        - suggest_breakdown
-      counts:
-        suggest_breakdown: 1
     rubric: Answer in English. Return exactly one concrete, immediately doable starting action for the
       activity. No plan, framing prose, saved claim or unsolicited question. Show one oneSmallStep
       block with the three server action labels.
+    outcome:
+      read: true
 - description: one-small-step-smaller in en
   metadata:
     id: composition-one-small-step-smaller-en
@@ -2137,17 +2063,6 @@
     input: ""
     composition:
       mode: one-small-step
-    expectations:
-      required:
-        - name: suggest_breakdown
-          arguments:
-            one_small_step: true
-            language: en
-          resultStatus: Succeeded
-      allowed:
-        - suggest_breakdown
-      counts:
-        suggest_breakdown: 1
     rubric: Answer in English. Return exactly one concrete, immediately doable starting action for the
       activity. No plan, framing prose, saved claim or unsolicited question. Show one oneSmallStep
       block with the three server action labels. Compare with the previous starting step supplied as
@@ -2158,17 +2073,10 @@
       input: I can't get myself to start studying.
       composition:
         mode: one-small-step
-      expectations:
-        required:
-          - name: suggest_breakdown
-            arguments:
-              one_small_step: true
-              language: en
-            resultStatus: Succeeded
-        allowed:
-          - suggest_breakdown
-        counts:
-          suggest_breakdown: 1
+      outcome:
+        read: true
+    outcome:
+      read: true
 - description: one-small-step-smaller-legacy in en
   metadata:
     id: composition-one-small-step-smaller-legacy-en
@@ -2188,17 +2096,6 @@
     input: ""
     composition:
       mode: one-small-step-legacy
-    expectations:
-      required:
-        - name: suggest_breakdown
-          arguments:
-            one_small_step: true
-            language: en
-          resultStatus: Succeeded
-      allowed:
-        - suggest_breakdown
-      counts:
-        suggest_breakdown: 1
     rubric: Answer in English. Return exactly one concrete, immediately doable starting action for the
       activity. No plan, framing prose, saved claim or unsolicited question. Show only the readable step text,
       without block actions. Compare with the previous starting step supplied as
@@ -2217,17 +2114,10 @@
       input: I can't get myself to start studying.
       composition:
         mode: one-small-step
-      expectations:
-        required:
-          - name: suggest_breakdown
-            arguments:
-              one_small_step: true
-              language: en
-            resultStatus: Succeeded
-        allowed:
-          - suggest_breakdown
-        counts:
-          suggest_breakdown: 1
+      outcome:
+        read: true
+    outcome:
+      read: true
 - description: one-small-step-save-task in en
   metadata:
     id: composition-one-small-step-save-task-en
@@ -2247,35 +2137,17 @@
     input: ""
     composition:
       mode: preview
-    expectations:
-      required:
-        - name: create_habit
-          resultStatus: PendingConfirmation
-      allowed:
-        - query_habits
-        - create_habit
-      counts:
-        create_habit: 1
-    rubric: Answer in English. The held approval preview is the entire answer. Do not claim a saved
-      change before approval. Exactly one preview proposes the previous starting step
-      verbatim as the title of a one-time task, without recurrence or additional creations.
-      The create_habit tool selection is harness evidence, not part of the answer being graded.
     startingStepAction: saveTask
     setup:
       input: I can't get myself to start studying.
       composition:
         mode: one-small-step
-      expectations:
-        required:
-          - name: suggest_breakdown
-            arguments:
-              one_small_step: true
-              language: en
-            resultStatus: Succeeded
-        allowed:
-          - suggest_breakdown
-        counts:
-          suggest_breakdown: 1
+      outcome:
+        read: true
+    outcome:
+      decision: approve
+      changes:
+        - { kind: create, fields: { title: { previousStep: true }, frequency_unit: { oneOf: [OneTime, null] } } }
 - description: one-small-step-save-checklist in en
   metadata:
     id: composition-one-small-step-save-checklist-en
@@ -2295,37 +2167,18 @@
     input: ""
     composition:
       mode: preview
-    expectations:
-      required:
-        - name: update_checklist
-          resultStatus: PendingConfirmation
-      allowed:
-        - query_habits
-        - update_checklist
-      counts:
-        update_checklist: 1
-    rubric: Answer in English. The held approval preview is the entire answer. Do not claim a saved
-      change before approval. Exactly one preview targets the named existing habit
-      and preserves every existing checklist item and checked state in order, appending the previous
-      starting step once as an unchecked item.
-      The update_checklist tool selection is harness evidence, not part of the answer being graded.
     startingStepAction: saveChecklistItem
+    checklistHabitId: "{habitId}"
     setup:
       input: I can't get myself to drink water.
       composition:
         mode: one-small-step
-      expectations:
-        required:
-          - name: suggest_breakdown
-            arguments:
-              one_small_step: true
-              language: en
-            resultStatus: Succeeded
-        allowed:
-          - suggest_breakdown
-        counts:
-          suggest_breakdown: 1
-    checklistHabitId: "{habitId}"
+      outcome:
+        read: true
+    outcome:
+      decision: approve
+      changes:
+        - { kind: update, targets: { record: first }, fields: { checklist_items: { appendsPreviousStep: true } } }
 - description: one-small-step-legacy in en
   metadata:
     id: composition-one-small-step-legacy-en
@@ -2344,20 +2197,11 @@
     input: I can't get myself to start studying.
     composition:
       mode: one-small-step-legacy
-    expectations:
-      required:
-        - name: suggest_breakdown
-          arguments:
-            one_small_step: true
-            language: en
-          resultStatus: Succeeded
-      allowed:
-        - suggest_breakdown
-      counts:
-        suggest_breakdown: 1
     rubric: Answer in English. Return exactly one concrete, immediately doable starting action for the
       activity. No plan, framing prose, saved claim or unsolicited question. The legacy client sees
       only the readable step text, without a block, action labels or action request messages.
+    outcome:
+      read: true
 - description: one-small-step in pt-BR
   metadata:
     id: composition-one-small-step-pt-BR
@@ -2377,20 +2221,11 @@
     input: Não consigo começar a estudar. Me ajuda a dar o primeiro passo?
     composition:
       mode: one-small-step
-    expectations:
-      required:
-        - name: suggest_breakdown
-          arguments:
-            one_small_step: true
-            language: pt-BR
-          resultStatus: Succeeded
-      allowed:
-        - suggest_breakdown
-      counts:
-        suggest_breakdown: 1
     rubric: Answer in Brazilian Portuguese. Return exactly one concrete, immediately doable starting
       action for the activity. No plan, framing prose, saved claim or unsolicited question. Show one
       oneSmallStep block with the three server action labels.
+    outcome:
+      read: true
 - description: one-small-step-smaller in pt-BR
   metadata:
     id: composition-one-small-step-smaller-pt-BR
@@ -2411,17 +2246,6 @@
     input: ""
     composition:
       mode: one-small-step
-    expectations:
-      required:
-        - name: suggest_breakdown
-          arguments:
-            one_small_step: true
-            language: pt-BR
-          resultStatus: Succeeded
-      allowed:
-        - suggest_breakdown
-      counts:
-        suggest_breakdown: 1
     rubric: Answer in Brazilian Portuguese. Return exactly one concrete, immediately doable starting
       action for the activity. No plan, framing prose, saved claim or unsolicited question. Show one
       oneSmallStep block with the three server action labels. Compare with the previous starting
@@ -2433,17 +2257,10 @@
       input: Não consigo começar a estudar. Me ajuda a dar o primeiro passo?
       composition:
         mode: one-small-step
-      expectations:
-        required:
-          - name: suggest_breakdown
-            arguments:
-              one_small_step: true
-              language: pt-BR
-            resultStatus: Succeeded
-        allowed:
-          - suggest_breakdown
-        counts:
-          suggest_breakdown: 1
+      outcome:
+        read: true
+    outcome:
+      read: true
 - description: one-small-step-smaller-legacy in pt-BR
   metadata:
     id: composition-one-small-step-smaller-legacy-pt-BR
@@ -2463,17 +2280,6 @@
     input: ""
     composition:
       mode: one-small-step-legacy
-    expectations:
-      required:
-        - name: suggest_breakdown
-          arguments:
-            one_small_step: true
-            language: pt-BR
-          resultStatus: Succeeded
-      allowed:
-        - suggest_breakdown
-      counts:
-        suggest_breakdown: 1
     rubric: Answer in Brazilian Portuguese. Return exactly one concrete, immediately doable starting
       action for the activity. No plan, framing prose, saved claim or unsolicited question. Show only
       the readable step text, without block actions. Compare with the previous starting step
@@ -2493,17 +2299,10 @@
       input: Não consigo começar a estudar. Me ajuda a dar o primeiro passo?
       composition:
         mode: one-small-step
-      expectations:
-        required:
-          - name: suggest_breakdown
-            arguments:
-              one_small_step: true
-              language: pt-BR
-            resultStatus: Succeeded
-        allowed:
-          - suggest_breakdown
-        counts:
-          suggest_breakdown: 1
+      outcome:
+        read: true
+    outcome:
+      read: true
 - description: one-small-step-save-task in pt-BR
   metadata:
     id: composition-one-small-step-save-task-pt-BR
@@ -2523,36 +2322,17 @@
     input: ""
     composition:
       mode: preview
-    expectations:
-      required:
-        - name: create_habit
-          resultStatus: PendingConfirmation
-      allowed:
-        - query_habits
-        - create_habit
-      counts:
-        create_habit: 1
-    rubric: Answer in Brazilian Portuguese. The held approval preview is the entire answer. Do not claim
-      a saved change before approval. Exactly one preview proposes the previous
-      starting step verbatim as the title of a one-time task, without recurrence or additional
-      creations.
-      The create_habit tool selection is harness evidence, not part of the answer being graded.
     startingStepAction: saveTask
     setup:
       input: Não consigo começar a estudar. Me ajuda a dar o primeiro passo?
       composition:
         mode: one-small-step
-      expectations:
-        required:
-          - name: suggest_breakdown
-            arguments:
-              one_small_step: true
-              language: pt-BR
-            resultStatus: Succeeded
-        allowed:
-          - suggest_breakdown
-        counts:
-          suggest_breakdown: 1
+      outcome:
+        read: true
+    outcome:
+      decision: approve
+      changes:
+        - { kind: create, fields: { title: { previousStep: true }, frequency_unit: { oneOf: [OneTime, null] } } }
 - description: one-small-step-save-checklist in pt-BR
   metadata:
     id: composition-one-small-step-save-checklist-pt-BR
@@ -2572,37 +2352,18 @@
     input: ""
     composition:
       mode: preview
-    expectations:
-      required:
-        - name: update_checklist
-          resultStatus: PendingConfirmation
-      allowed:
-        - query_habits
-        - update_checklist
-      counts:
-        update_checklist: 1
-    rubric: Answer in Brazilian Portuguese. The held approval preview is the entire answer. Do not claim
-      a saved change before approval. Exactly one preview targets the named
-      existing habit and preserves every existing checklist item and checked state in order,
-      appending the previous starting step once as an unchecked item.
-      The update_checklist tool selection is harness evidence, not part of the answer being graded.
     startingStepAction: saveChecklistItem
+    checklistHabitId: "{habitId}"
     setup:
       input: Tô travado até pra beber água. Me ajuda a começar?
       composition:
         mode: one-small-step
-      expectations:
-        required:
-          - name: suggest_breakdown
-            arguments:
-              one_small_step: true
-              language: pt-BR
-            resultStatus: Succeeded
-        allowed:
-          - suggest_breakdown
-        counts:
-          suggest_breakdown: 1
-    checklistHabitId: "{habitId}"
+      outcome:
+        read: true
+    outcome:
+      decision: approve
+      changes:
+        - { kind: update, targets: { record: first }, fields: { checklist_items: { appendsPreviousStep: true } } }
 - description: one-small-step-legacy in pt-BR
   metadata:
     id: composition-one-small-step-legacy-pt-BR
@@ -2621,21 +2382,12 @@
     input: Não consigo começar a estudar. Me ajuda a dar o primeiro passo?
     composition:
       mode: one-small-step-legacy
-    expectations:
-      required:
-        - name: suggest_breakdown
-          arguments:
-            one_small_step: true
-            language: pt-BR
-          resultStatus: Succeeded
-      allowed:
-        - suggest_breakdown
-      counts:
-        suggest_breakdown: 1
     rubric: Answer in Brazilian Portuguese. Return exactly one concrete, immediately doable starting
       action for the activity. No plan, framing prose, saved claim or unsolicited question. The
       legacy client sees only the readable step text, without a block, action labels or action
       request messages.
+    outcome:
+      read: true
 
 
 - description: Brain dump mixed in en
@@ -2644,25 +2396,12 @@
     credentialKey: ORBIT_EVAL_TOKEN
     clientContext: { platform: web, locale: en, timeFormat: 24h, supportsParts: true, supportsPendingOperationChanges: true }
     input: "My head is all over the place. Need to call the dentist tomorrow, and I want to stretch every morning at eight starting today. Can you organize this?"
-    composition: { mode: preview }
-    brainDump:
-      items:
-        - { titleContains: dentist, habitType: Task, frequency_unit: OneTime, due_date: '{tomorrowDate}' }
-        - { titleContains: stretch, habitType: Habit, frequency_unit: Day, frequency_quantity: 1, due_date: '{accountDate}', due_time: '08:00' }
-    expectations:
-      required:
-        - { name: bulk_create_habits, resultStatus: PendingConfirmation }
-      counts: { bulk_create_habits: 1 }
-      allowed: [query_habits, bulk_create_habits]
-    rubric: >-
-      Respond in English. Organize the messy message into one held preview containing
-      the dentist task tomorrow and daily stretching at eight in the morning starting today.
-      Preservation of existing account habits is harness evidence, not part of the answer being graded.
-      Do not add unrequested activities or grouping habits.
-      At most one short sentence without figures may accompany the preview. Reject prose that repeats counts,
-      schedules, dates, times or other facts from the preview, including spelled-out figures.
-      Distinguish the held proposal from a saved change. The later approval readback is harness evidence,
-      not part of the answer being graded. Stored titles stay verbatim.
+    composition: { mode: preview, allowPreviewNote: true }
+    outcome:
+      decision: approve
+      changes:
+        - { kind: create, fields: { title: { contains: [dentist] }, frequency_unit: { oneOf: [OneTime, null] }, due_date: { daysFromToday: 1 } } }
+        - { kind: create, fields: { title: { contains: [stretch] }, frequency_unit: Day, frequency_quantity: "1", due_date: { daysFromToday: 0 }, due_time: { time: 08:00 } } }
 
 - description: Brain dump mixed in pt-BR
   metadata: { id: brain-dump-mixed-pt-BR, category: composition, family: brain-dump-mixed, locale: pt-BR, platform: mobile, fixture: pro }
@@ -2670,25 +2409,12 @@
     credentialKey: ORBIT_EVAL_TOKEN
     clientContext: { platform: mobile, locale: pt-BR, timeFormat: 24h, supportsParts: true, supportsPendingOperationChanges: true }
     input: "Minha cabeça tá uma bagunça. Amanhã preciso ligar para o dentista, e quero alongar todo dia de manhã, às oito, começando hoje. Organiza isso pra mim?"
-    composition: { mode: preview }
-    brainDump:
-      items:
-        - { titleContains: dentista, habitType: Task, frequency_unit: OneTime, due_date: '{tomorrowDate}' }
-        - { titleContains: along, habitType: Habit, frequency_unit: Day, frequency_quantity: 1, due_date: '{accountDate}', due_time: '08:00' }
-    expectations:
-      required:
-        - { name: bulk_create_habits, resultStatus: PendingConfirmation }
-      counts: { bulk_create_habits: 1 }
-      allowed: [query_habits, bulk_create_habits]
-    rubric: >-
-      Respond in native Brazilian Portuguese. Organize the messy message into one held preview containing
-      the dentist task tomorrow and daily stretching at eight in the morning starting today.
-      Preservation of existing account habits is harness evidence, not part of the answer being graded.
-      Do not add unrequested activities or grouping habits.
-      At most one short sentence without figures may accompany the preview. Reject prose that repeats counts,
-      schedules, dates, times or other facts from the preview, including spelled-out figures.
-      Distinguish the held proposal from a saved change. The later approval readback is harness evidence,
-      not part of the answer being graded. Stored titles stay verbatim.
+    composition: { mode: preview, allowPreviewNote: true }
+    outcome:
+      decision: approve
+      changes:
+        - { kind: create, fields: { title: { contains: [dentista] }, frequency_unit: { oneOf: [OneTime, null] }, due_date: { daysFromToday: 1 } } }
+        - { kind: create, fields: { title: { contains: [along] }, frequency_unit: Day, frequency_quantity: "1", due_date: { daysFromToday: 0 }, due_time: { time: 08:00 } } }
 
 - description: Brain dump reuse in en
   metadata: { id: brain-dump-reuse-en, category: composition, family: brain-dump-reuse, locale: en, platform: web, fixture: pro }
@@ -2696,28 +2422,13 @@
     credentialKey: ORBIT_EVAL_TOKEN
     clientContext: { platform: web, locale: en, timeFormat: 24h, supportsParts: true, supportsPendingOperationChanges: true }
     input: "My head is all over the place. Need to call the dentist tomorrow, and I want to stretch every morning at eight starting today. Can you organize this? Oh, and put Water on there every day too. That habit is already in my list, use that one."
-    composition: { mode: preview }
-    brainDump:
-      items:
-        - { titleContains: dentist, habitType: Task, frequency_unit: OneTime, due_date: '{tomorrowDate}' }
-        - { titleContains: stretch, habitType: Habit, frequency_unit: Day, frequency_quantity: 1, due_date: '{accountDate}', due_time: '08:00' }
-        - { titleContains: Water, habitType: Habit, habit_id: '{habitId}' }
-    expectations:
-      required:
-        - { name: bulk_create_habits, resultStatus: PendingConfirmation }
-      counts: { bulk_create_habits: 1 }
-      allowed: [query_habits, bulk_create_habits]
-    rubric: >-
-      Respond in English. Organize the messy message into one held preview containing
-      the dentist task tomorrow and daily stretching at eight in the morning starting today.
-      Exactly one preview item carries the stored title Water verbatim. That item's own title field belongs
-      to the same item; no second item has that title.
-      Identity reuse and the absence of persisted duplicates are harness evidence, not part of the answer being graded.
-      Do not add unrequested activities or grouping habits.
-      At most one short sentence without figures may accompany the preview. Reject prose that repeats counts,
-      schedules, dates, times or other facts from the preview, including spelled-out figures.
-      Distinguish the held proposal from a saved change. The later approval readback is harness evidence,
-      not part of the answer being graded. Stored titles stay verbatim.
+    composition: { mode: preview, allowPreviewNote: true }
+    outcome:
+      decision: approve
+      changes:
+        - { kind: create, fields: { title: { contains: [dentist] }, frequency_unit: { oneOf: [OneTime, null] }, due_date: { daysFromToday: 1 } } }
+        - { kind: create, fields: { title: { contains: [stretch] }, frequency_unit: Day, frequency_quantity: "1", due_date: { daysFromToday: 0 }, due_time: { time: 08:00 } } }
+        - { kind: reuse, targets: { record: first } }
 
 - description: Brain dump reuse in pt-BR
   metadata: { id: brain-dump-reuse-pt-BR, category: composition, family: brain-dump-reuse, locale: pt-BR, platform: mobile, fixture: pro }
@@ -2725,28 +2436,13 @@
     credentialKey: ORBIT_EVAL_TOKEN
     clientContext: { platform: mobile, locale: pt-BR, timeFormat: 24h, supportsParts: true, supportsPendingOperationChanges: true }
     input: "Minha cabeça tá uma bagunça. Amanhã preciso ligar para o dentista, e quero alongar todo dia de manhã, às oito, começando hoje. Organiza isso pra mim? Ah, e coloca Beber água todo dia também. Esse hábito já está na minha lista, aproveita ele."
-    composition: { mode: preview }
-    brainDump:
-      items:
-        - { titleContains: dentista, habitType: Task, frequency_unit: OneTime, due_date: '{tomorrowDate}' }
-        - { titleContains: along, habitType: Habit, frequency_unit: Day, frequency_quantity: 1, due_date: '{accountDate}', due_time: '08:00' }
-        - { titleContains: Beber água, habitType: Habit, habit_id: '{habitId}' }
-    expectations:
-      required:
-        - { name: bulk_create_habits, resultStatus: PendingConfirmation }
-      counts: { bulk_create_habits: 1 }
-      allowed: [query_habits, bulk_create_habits]
-    rubric: >-
-      Respond in native Brazilian Portuguese. Organize the messy message into one held preview containing
-      the dentist task tomorrow and daily stretching at eight in the morning starting today.
-      Exactly one preview item carries the stored title Beber água verbatim. That item's own title field belongs
-      to the same item; no second item has that title.
-      Identity reuse and the absence of persisted duplicates are harness evidence, not part of the answer being graded.
-      Do not add unrequested activities or grouping habits.
-      At most one short sentence without figures may accompany the preview. Reject prose that repeats counts,
-      schedules, dates, times or other facts from the preview, including spelled-out figures.
-      Distinguish the held proposal from a saved change. The later approval readback is harness evidence,
-      not part of the answer being graded. Stored titles stay verbatim.
+    composition: { mode: preview, allowPreviewNote: true }
+    outcome:
+      decision: approve
+      changes:
+        - { kind: create, fields: { title: { contains: [dentista] }, frequency_unit: { oneOf: [OneTime, null] }, due_date: { daysFromToday: 1 } } }
+        - { kind: create, fields: { title: { contains: [along] }, frequency_unit: Day, frequency_quantity: "1", due_date: { daysFromToday: 0 }, due_time: { time: 08:00 } } }
+        - { kind: reuse, targets: { record: first } }
 
 - description: Brain dump ideas in en
   metadata: { id: brain-dump-ideas-en, category: composition, family: brain-dump-ideas, locale: en, platform: web, fixture: pro }
@@ -2754,27 +2450,13 @@
     credentialKey: ORBIT_EVAL_TOKEN
     clientContext: { platform: web, locale: en, timeFormat: 24h, supportsParts: true, supportsPendingOperationChanges: true }
     input: "My head is all over the place. Need to call the dentist tomorrow, and I want to stretch every morning at eight starting today. Can you organize this? Also suggest one simple daily habit idea and put everything together for me to approve."
-    composition: { mode: preview }
-    brainDump:
-      items:
-        - { titleContains: dentist, habitType: Task, frequency_unit: OneTime, due_date: '{tomorrowDate}' }
-        - { titleContains: stretch, habitType: Habit, frequency_unit: Day, frequency_quantity: 1, due_date: '{accountDate}', due_time: '08:00' }
-      additionalIdeas: 1
-    expectations:
-      required:
-        - { name: bulk_create_habits, resultStatus: PendingConfirmation }
-        - { name: suggest_habits, arguments: { language: en, count: 1 } }
-      counts: { bulk_create_habits: 1 }
-      allowed: [query_habits, bulk_create_habits, suggest_habits]
-    rubric: >-
-      Respond in English. Organize the messy message into one held preview containing
-      the dentist task tomorrow and daily stretching at eight in the morning starting today.
-      Preservation of existing account habits is harness evidence, not part of the answer being graded.
-      Include one additional simple daily habit idea in that same preview, without a separate suggestion card.
-      At most one short sentence without figures may accompany the preview. Reject prose that repeats counts,
-      schedules, dates, times or other facts from the preview, including spelled-out figures.
-      Distinguish the held proposal from a saved change. The later approval readback is harness evidence,
-      not part of the answer being graded. Stored titles stay verbatim.
+    composition: { mode: preview, allowPreviewNote: true }
+    outcome:
+      decision: approve
+      changes:
+        - { kind: create, fields: { title: { contains: [dentist] }, frequency_unit: { oneOf: [OneTime, null] }, due_date: { daysFromToday: 1 } } }
+        - { kind: create, fields: { title: { contains: [stretch] }, frequency_unit: Day, frequency_quantity: "1", due_date: { daysFromToday: 0 }, due_time: { time: 08:00 } } }
+        - { kind: create }
 
 - description: Brain dump ideas in pt-BR
   metadata: { id: brain-dump-ideas-pt-BR, category: composition, family: brain-dump-ideas, locale: pt-BR, platform: mobile, fixture: pro }
@@ -2782,27 +2464,13 @@
     credentialKey: ORBIT_EVAL_TOKEN
     clientContext: { platform: mobile, locale: pt-BR, timeFormat: 24h, supportsParts: true, supportsPendingOperationChanges: true }
     input: "Minha cabeça tá uma bagunça. Amanhã preciso ligar para o dentista, e quero alongar todo dia de manhã, às oito, começando hoje. Organiza isso pra mim? Me dá também uma ideia simples de hábito diário e coloca tudo junto pra eu aprovar."
-    composition: { mode: preview }
-    brainDump:
-      items:
-        - { titleContains: dentista, habitType: Task, frequency_unit: OneTime, due_date: '{tomorrowDate}' }
-        - { titleContains: along, habitType: Habit, frequency_unit: Day, frequency_quantity: 1, due_date: '{accountDate}', due_time: '08:00' }
-      additionalIdeas: 1
-    expectations:
-      required:
-        - { name: bulk_create_habits, resultStatus: PendingConfirmation }
-        - { name: suggest_habits, arguments: { language: pt-BR, count: 1 } }
-      counts: { bulk_create_habits: 1 }
-      allowed: [query_habits, bulk_create_habits, suggest_habits]
-    rubric: >-
-      Respond in native Brazilian Portuguese. Organize the messy message into one held preview containing
-      the dentist task tomorrow and daily stretching at eight in the morning starting today.
-      Preservation of existing account habits is harness evidence, not part of the answer being graded.
-      Include one additional simple daily habit idea in that same preview, without a separate suggestion card.
-      At most one short sentence without figures may accompany the preview. Reject prose that repeats counts,
-      schedules, dates, times or other facts from the preview, including spelled-out figures.
-      Distinguish the held proposal from a saved change. The later approval readback is harness evidence,
-      not part of the answer being graded. Stored titles stay verbatim.
+    composition: { mode: preview, allowPreviewNote: true }
+    outcome:
+      decision: approve
+      changes:
+        - { kind: create, fields: { title: { contains: [dentista] }, frequency_unit: { oneOf: [OneTime, null] }, due_date: { daysFromToday: 1 } } }
+        - { kind: create, fields: { title: { contains: [along] }, frequency_unit: Day, frequency_quantity: "1", due_date: { daysFromToday: 0 }, due_time: { time: 08:00 } } }
+        - { kind: create }
 - description: restart-preview in en
   metadata:
     id: composition-restart-preview-en
@@ -2837,28 +2505,9 @@
     composition:
       mode: preview
       previews: 1
-    restart:
-      decision: preview
-      windowDays: 7
-    expectations:
-      required:
-        - name: query_habits
-          argumentsAnyOf: &todayHabitArguments
-            - { relative_period: today, date: { optional: '{accountDate}' } }
-            - { relative_period: today, date: today }
-            - { date: today, relative_period: { optional: null } }
-            - { date: '{accountDate}', relative_period: { optional: null } }
-        - name: bulk_reschedule_habits
-          resultStatus: PendingConfirmation
-      allowed:
-        - query_habits
-        - bulk_reschedule_habits
-      counts:
-        bulk_reschedule_habits: 1
-    rubric: Answer in English. Return the complete held restart preview alone. Keep a smaller set today
-      and defer the rest within the next week. All dates and figures belong in the preview. Do not
-      repeat prerequisite reads or claim the proposal was saved. Stored habit titles remain
-      verbatim.
+    outcome:
+      changes:
+        - { kind: update, targets: { of: habits }, fields: { due_date: { withinDays: [0, 7], mayStay: true } }, dueToday: { min: 1, max: 5 } }
 - description: restart-approve in en
   metadata:
     id: composition-restart-approve-en
@@ -2893,24 +2542,10 @@
     composition:
       mode: preview
       previews: 1
-    restart:
+    outcome:
       decision: approve
-      windowDays: 7
-    expectations:
-      required:
-        - name: query_habits
-          argumentsAnyOf: *todayHabitArguments
-        - name: bulk_reschedule_habits
-          resultStatus: PendingConfirmation
-      allowed:
-        - query_habits
-        - bulk_reschedule_habits
-      counts:
-        bulk_reschedule_habits: 1
-    rubric: Answer in English. Return the complete held restart preview alone. Keep a smaller set today
-      and defer the rest within the next week. All dates and figures belong in the preview. Do not
-      repeat prerequisite reads or claim the proposal was saved. Stored habit titles remain
-      verbatim.
+      changes:
+        - { kind: update, targets: { of: habits }, fields: { due_date: { withinDays: [0, 7], mayStay: true } }, dueToday: { min: 1, max: 5 } }
 - description: restart-reject in en
   metadata:
     id: composition-restart-reject-en
@@ -2945,24 +2580,10 @@
     composition:
       mode: preview
       previews: 1
-    restart:
+    outcome:
       decision: reject
-      windowDays: 7
-    expectations:
-      required:
-        - name: query_habits
-          argumentsAnyOf: *todayHabitArguments
-        - name: bulk_reschedule_habits
-          resultStatus: PendingConfirmation
-      allowed:
-        - query_habits
-        - bulk_reschedule_habits
-      counts:
-        bulk_reschedule_habits: 1
-    rubric: Answer in English. Return the complete held restart preview alone. Keep a smaller set today
-      and defer the rest within the next week. All dates and figures belong in the preview. Do not
-      repeat prerequisite reads or claim the proposal was saved. Stored habit titles remain
-      verbatim.
+      changes:
+        - { kind: update, targets: { of: habits }, fields: { due_date: { withinDays: [0, 7], mayStay: true } }, dueToday: { min: 1, max: 5 } }
 - description: restart-preference in en
   metadata:
     id: composition-restart-preference-en
@@ -2997,25 +2618,9 @@
     composition:
       mode: preview
       previews: 1
-    restart:
-      decision: preview
-      windowDays: 7
-      todayCount: 2
-    expectations:
-      required:
-        - name: query_habits
-          argumentsAnyOf: *todayHabitArguments
-        - name: bulk_reschedule_habits
-          resultStatus: PendingConfirmation
-      allowed:
-        - query_habits
-        - bulk_reschedule_habits
-      counts:
-        bulk_reschedule_habits: 1
-    rubric: Answer in English. Return the complete held restart preview alone. Keep a smaller set today,
-      exactly two habits and defer the rest within the next week. All dates and figures belong in
-      the preview. Do not repeat prerequisite reads or claim the proposal was saved. Stored habit
-      titles remain verbatim.
+    outcome:
+      changes:
+        - { kind: update, targets: { of: habits }, fields: { due_date: { withinDays: [0, 7], mayStay: true } }, dueToday: 2 }
 - description: restart-preview in pt-BR
   metadata:
     id: composition-restart-preview-pt-BR
@@ -3050,24 +2655,9 @@
     composition:
       mode: preview
       previews: 1
-    restart:
-      decision: preview
-      windowDays: 7
-    expectations:
-      required:
-        - name: query_habits
-          argumentsAnyOf: *todayHabitArguments
-        - name: bulk_reschedule_habits
-          resultStatus: PendingConfirmation
-      allowed:
-        - query_habits
-        - bulk_reschedule_habits
-      counts:
-        bulk_reschedule_habits: 1
-    rubric: Answer in Brazilian Portuguese. Return the complete held restart preview alone. Keep a
-      smaller set today and defer the rest within the next week. All dates and figures belong in the
-      preview. Do not repeat prerequisite reads or claim the proposal was saved. Stored habit titles
-      remain verbatim.
+    outcome:
+      changes:
+        - { kind: update, targets: { of: habits }, fields: { due_date: { withinDays: [0, 7], mayStay: true } }, dueToday: { min: 1, max: 5 } }
 - description: restart-approve in pt-BR
   metadata:
     id: composition-restart-approve-pt-BR
@@ -3102,24 +2692,10 @@
     composition:
       mode: preview
       previews: 1
-    restart:
+    outcome:
       decision: approve
-      windowDays: 7
-    expectations:
-      required:
-        - name: query_habits
-          argumentsAnyOf: *todayHabitArguments
-        - name: bulk_reschedule_habits
-          resultStatus: PendingConfirmation
-      allowed:
-        - query_habits
-        - bulk_reschedule_habits
-      counts:
-        bulk_reschedule_habits: 1
-    rubric: Answer in Brazilian Portuguese. Return the complete held restart preview alone. Keep a
-      smaller set today and defer the rest within the next week. All dates and figures belong in the
-      preview. Do not repeat prerequisite reads or claim the proposal was saved. Stored habit titles
-      remain verbatim.
+      changes:
+        - { kind: update, targets: { of: habits }, fields: { due_date: { withinDays: [0, 7], mayStay: true } }, dueToday: { min: 1, max: 5 } }
 - description: restart-reject in pt-BR
   metadata:
     id: composition-restart-reject-pt-BR
@@ -3154,24 +2730,10 @@
     composition:
       mode: preview
       previews: 1
-    restart:
+    outcome:
       decision: reject
-      windowDays: 7
-    expectations:
-      required:
-        - name: query_habits
-          argumentsAnyOf: *todayHabitArguments
-        - name: bulk_reschedule_habits
-          resultStatus: PendingConfirmation
-      allowed:
-        - query_habits
-        - bulk_reschedule_habits
-      counts:
-        bulk_reschedule_habits: 1
-    rubric: Answer in Brazilian Portuguese. Return the complete held restart preview alone. Keep a
-      smaller set today and defer the rest within the next week. All dates and figures belong in the
-      preview. Do not repeat prerequisite reads or claim the proposal was saved. Stored habit titles
-      remain verbatim.
+      changes:
+        - { kind: update, targets: { of: habits }, fields: { due_date: { withinDays: [0, 7], mayStay: true } }, dueToday: { min: 1, max: 5 } }
 - description: restart-preference in pt-BR
   metadata:
     id: composition-restart-preference-pt-BR
@@ -3206,25 +2768,9 @@
     composition:
       mode: preview
       previews: 1
-    restart:
-      decision: preview
-      windowDays: 7
-      todayCount: 2
-    expectations:
-      required:
-        - name: query_habits
-          argumentsAnyOf: *todayHabitArguments
-        - name: bulk_reschedule_habits
-          resultStatus: PendingConfirmation
-      allowed:
-        - query_habits
-        - bulk_reschedule_habits
-      counts:
-        bulk_reschedule_habits: 1
-    rubric: Answer in Brazilian Portuguese. Return the complete held restart preview alone. Keep a
-      smaller set today, exactly two habits and defer the rest within the next week. All dates and
-      figures belong in the preview. Do not repeat prerequisite reads or claim the proposal was
-      saved. Stored habit titles remain verbatim.
+    outcome:
+      changes:
+        - { kind: update, targets: { of: habits }, fields: { due_date: { withinDays: [0, 7], mayStay: true } }, dueToday: 2 }
 
 - description: "proactive repeat in en"
   metadata: {"id": "offers-repeat-en", "category": "composition", "family": "offers-repeat", "locale": "en", "fixture": "empty"}

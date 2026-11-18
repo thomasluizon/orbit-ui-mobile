@@ -6,14 +6,24 @@ import AstraHttpProvider from './http-provider.mjs'
 import { behavior, composition, structural } from './assertions.mjs'
 import { publicApi } from './fixtures/api.mjs'
 import { offerActions, proactiveOfferSetup } from './proactive-offers.mjs'
-import { readStartingHabits } from './step-persistence.mjs'
 import { attemptEvidence } from './evidence.mjs'
 import { followConversation } from './offer-context.mjs'
-import { gradedByOutcome } from './grade-method.mjs'
 import { holdCase, openCaseConversation, outcome } from './client-path.mjs'
 
-function prepareStartingAction(test, block) {
-  const vars = test.vars
+// The values that a case takes from its setup turn: `{ previousStep: true }` is the step that the setup turn showed, and
+// `{ appendsPreviousStep: true }` is the checklist of the named habit with that step appended unchecked.
+function resolvedOutcome(value, step, checklist) {
+  if (Array.isArray(value)) return value.map((entry) => resolvedOutcome(entry, step, checklist))
+  if (!value || typeof value !== 'object') return value
+  if (value.previousStep === true) return step
+  if (value.appendsPreviousStep === true) return { checklist: [...checklist.map(({ text, isChecked }) => ({ text, checked: isChecked })), { text: step, checked: false }] }
+  return Object.fromEntries(Object.entries(value).map(([key, child]) => [key, resolvedOutcome(child, step, checklist)]))
+}
+
+// The follow-up turn of a starting-step case: the person presses the action of the block that the setup turn showed, as the
+// client does. The client sends the request of the action and, for a smaller step, the previous step; a save request for
+// a checklist names the habit.
+function prepareStartingAction(vars, block, conversation) {
   vars.previousStartingStep = structuredClone(block.suggestion)
   const action = block.actions.find(({ id }) => id === vars.startingStepAction)
   vars.input = action.message
@@ -21,41 +31,46 @@ function prepareStartingAction(test, block) {
   delete vars.clientContext.previousStartingStep
   if (action.id === 'smaller' && action.previousStep) vars.clientContext.previousStartingStep = structuredClone(action.previousStep)
   vars.clientContextJson = JSON.stringify(vars.clientContext)
-  const required = vars.expectations.required[0]
-  if (vars.startingStepAction === 'saveTask') required.arguments = { title: block.suggestion.step, frequency_unit: 'OneTime' }
-  if (vars.startingStepAction !== 'saveChecklistItem') return
-  const habit = vars.startingHabitBaseline.find((habit) => habit.id === vars.checklistHabitId)
-  if (!habit?.checklistItems.length) throw new Error('Starting-step setup requires an owned habit with existing checklist items.')
-  vars.input += vars.clientContext.locale === 'pt-BR' ? ` Use o hábito ${JSON.stringify(habit.title)}.` : ` Use the habit ${JSON.stringify(habit.title)}.`
-  required.arguments = { anyOf: [
-    { habit_id: habit.id, item_to_add: block.suggestion.step, checklist_items: { optional: null } },
-    { habit_id: habit.id, item_to_add: { optional: null },
-      checklist_items: [...habit.checklistItems, { text: block.suggestion.step, isChecked: false }]
-        .map(({ text, isChecked }) => ({ text, is_checked: isChecked ? true : { optional: false } })) },
-  ] }
+  conversation.context = vars.clientContext
+  const habit = vars.fixtureEvidence.habits.find((stored) => stored.id === vars.checklistHabitId)
+  if (vars.startingStepAction === 'saveChecklistItem') {
+    if (!habit?.checklistItems.length) throw new Error('Starting-step setup requires an owned habit with existing checklist items.')
+    vars.input += vars.clientContext.locale === 'pt-BR' ? ` Use o hábito ${JSON.stringify(habit.title)}.` : ` Use the habit ${JSON.stringify(habit.title)}.`
+  }
+  if (vars.outcome.changes) vars.outcome = resolvedOutcome(vars.outcome, block.suggestion.step, habit?.checklistItems ?? [])
 }
 
-// The setup of a case with an outcome runs on the client path, in the conversation of the case: its preview is graded
-// by its outcome and stays held, so the turn of the case corrects it.
+// The setup of a case with an outcome runs on the client path, in the conversation of the case: its turn is graded by its
+// outcome and a preview stays held, so the turn of the case continues it. A setup that states a client of its own runs on
+// that client, and the turn of the case then continues on the client that the case states. A setup whose turn the case
+// reads (a starting step to act on, a suggestion draft to refine) must also show the answer that its composition states.
 async function prepareHeldPreview(test) {
   const vars = test.vars
-  const conversation = openCaseConversation(vars)
-  const setup = { ...vars, input: vars.setup.input, outcome: vars.setup.outcome, evalRequestId: randomUUID() }
+  const setup = { ...vars, refine: undefined, ...(vars.setup.clientContext ? { clientContext: vars.setup.clientContext } : {}), input: vars.setup.input,
+    outcome: vars.setup.outcome, composition: vars.setup.composition, evalRequestId: randomUUID() }
+  const conversation = openCaseConversation(setup)
   const held = await holdCase(setup, { conversation })
   const verdict = held.error ? { pass: false, reason: held.error } : outcome(held, { vars: setup })
-  if (!verdict.pass) throw new Error(`Correction setup failed${vars.setup.caseId ? ` dependency ${vars.setup.caseId}` : ''}: ${verdict.reason}`)
+  const shape = verdict.pass && (vars.startingStepAction || vars.refine) ? await composition(held, { vars: setup }) : verdict
+  if (!shape.pass || shape.metadata?.unavailable) {
+    throw new Error(`Correction setup failed${vars.setup.caseId ? ` dependency ${vars.setup.caseId}` : ''}: ${shape.reason}`)
+  }
   vars.baselinePreview = held.previews
   vars.conversation = conversation
+  conversation.context = vars.clientContext
+  if (vars.startingStepAction) prepareStartingAction(vars, held.composition.parts[0].block, conversation)
+  if (vars.refine) {
+    const drafts = held.composition.parts.find((part) => part.kind === 'habitSuggestions').block.drafts
+    vars.baselineDrafts = structuredClone(drafts)
+    vars.refineDraft = structuredClone(drafts[0])
+  }
   return { test }
 }
 
 export async function prepareCorrection(test) {
   delete test.vars.setupEvidence
-  if (gradedByOutcome(test.vars)) return prepareHeldPreview(test)
+  if (test.vars.setup.outcome) return prepareHeldPreview(test)
   const setup = test.vars.setup
-  if (['saveTask', 'saveChecklistItem'].includes(test.vars.startingStepAction)) {
-    test.vars.startingHabitBaseline = await readStartingHabits(test.vars.credentialKey)
-  }
   const requestId = randomUUID()
   const configuration = parse(readFileSync(new URL('./promptfooconfig.yaml', import.meta.url), 'utf8'))
   const provider = new AstraHttpProvider({ config: {
@@ -97,14 +112,6 @@ export async function prepareCorrection(test) {
       test.vars.clientContext.selectedOfferKey = actions[0].action.offerKey
       test.vars.clientContextJson = JSON.stringify(test.vars.clientContext)
     }
-  }
-  if (test.vars.startingStepAction) prepareStartingAction(test, response.output.composition.parts[0].block)
-  if (test.vars.refine) {
-    const drafts = response.output.composition.parts.find((part) => part.kind === 'habitSuggestions').block.drafts
-    test.vars.baselineDrafts = structuredClone(drafts)
-    test.vars.refineDraft = structuredClone(drafts[0])
-    delete test.vars.setupEvidence
-    return { test }
   }
   test.vars.baselinePreview = response.output.composition.pendingOperations
   const correction = test.vars.composition?.correction

@@ -3,12 +3,6 @@ import { withLegacyProfileLanguage } from './fixtures/language.mjs'
 import { suggestionAnswer } from './suggestions.mjs'
 import { loadApiProvider } from 'promptfoo'
 import { visibleAnswer } from './visible-answer.mjs'
-import { completeRestart } from './restart-lifecycle.mjs'
-import { completeSameTitleSet } from './same-title-set-lifecycle.mjs'
-import { structural, behavior, composition } from './assertions.mjs'
-import { brainDumpPreview } from './brain-dumps.mjs'
-import { approveBrainDump, brainDumpBaseline } from './brain-dump-approval.mjs'
-import { approveStartingStep } from './step-persistence.mjs'
 import { safeFailureMessage } from './credentials.mjs'
 import { restoreOfferTimeZone } from './fixtures/offer-timezone.mjs'
 import { gradedByOutcome } from './grade-method.mjs'
@@ -46,19 +40,6 @@ export default class AstraHttpProvider {
     finally { await restoreOfferTimeZone(context.vars) }
   }
 
-  async saveStartingStep(output, context) {
-    try {
-      const gradingContext = { vars: context.vars, test: context.test ?? { vars: context.vars } }
-      for (const grade of [structural, behavior, composition]) {
-        const check = await grade(output, gradingContext)
-        if (check.pass !== true || check.metadata?.unavailable) return { pass: false, score: 0,
-          reason: `Saved-step approval blocked: ${check.reason}`, metadata: check.metadata }
-      }
-      return await approveStartingStep(output, context.vars)
-    } catch (error) { return { pass: false, score: 0,
-      reason: `Saved-step approval or readback failed: ${safeFailureMessage(error)}` } }
-  }
-
   async attempt(prompt, context, options) {
     if (gradedByOutcome(context.vars)) return runOutcomeCase(context.vars)
     if (context.vars.offerFamily) {
@@ -69,28 +50,7 @@ export default class AstraHttpProvider {
       }
       return response
     }
-    if (context.vars.sameTitleSet) {
-      const response = await this.chat(prompt, context, options)
-      if (!response.output?.composition || response.error) return response
-      try { response.output = await completeSameTitleSet(response.output, context.vars, (input, next) => this.chat(input, next, options)) } catch (error) {
-        return { ...response, error: `Same-title approval or independent persisted readback failed: ${safeFailureMessage(error)}` }
-      }
-      return response
-    }
-    if (!context.vars.brainDump || context.vars.preconditionFailure) return this.chat(prompt, context, options)
-    const baseline = await brainDumpBaseline(context.vars)
-    const response = await this.chat(prompt, context, options)
-    let verdict = { pass: false, score: 0, reason: response.error ?? 'Missing brain dump response.' }
-    if (response.output?.composition && !response.error) {
-      for (const grade of [structural, behavior, brainDumpPreview]) {
-        verdict = await (grade === brainDumpPreview ? grade(response.output, context.vars)
-          : grade(response.output, { vars: context.vars, test: context.test ?? { vars: context.vars } }))
-        if (!verdict.pass) break
-      }
-    }
-    response.output ??= {}
-    response.output.brainDumpReadback = await approveBrainDump(response.output, context.vars, baseline, verdict)
-    return response
+    return this.chat(prompt, context, options)
   }
 
   async chat(prompt, context, options) {
@@ -128,15 +88,6 @@ export default class AstraHttpProvider {
           output: { ...response.output, answer: null, renderError },
         }
       }
-    }
-    if (context.vars.restart && response.output?.composition && !response.error) {
-      try { response.output = await completeRestart(response.output, context.vars) } catch (error) {
-        return { ...response, error: `Restart approval or independent persisted readback failed: ${safeFailureMessage(error)}` }
-      }
-    }
-    if (['saveTask', 'saveChecklistItem'].includes(context.vars.startingStepAction)
-      && response.output?.composition && !response.error && !response.output.error) {
-      response.output.savedStepReadback = await this.saveStartingStep(response.output, context)
     }
     return response
   }
