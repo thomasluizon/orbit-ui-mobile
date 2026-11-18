@@ -1,5 +1,5 @@
 import { spawnSync } from "node:child_process"
-import { chmodSync, readFileSync, writeFileSync } from "node:fs"
+import { chmodSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 import { readRunState, writeRunState } from "../lib/run-state.mjs"
 import { T, realOrchestratorConfig, run, stageWithConfig } from "./_harness.mjs"
@@ -44,7 +44,12 @@ esac
 `)
   chmodSync(gh, 0o755)
   writeRunState({ sessionId: "cli", sleep: true, autoWork: true, remaining: [] }, installation.base)
-  const env = { GH_BIN: gh, CLAUDE_CODE_SESSION_ID: "cli" }
+  /* The Claude session records of the run and of another live run, in the shape of a live record; this test process stands in for both sessions. */
+  const claudeDirectory = join(installation.base, "claude")
+  const sessionRecord = (sessionId, cwd) => writeFileSync(join(claudeDirectory, "sessions", `${sessionId}.json`), JSON.stringify({ pid: process.pid, sessionId, cwd }))
+  mkdirSync(join(claudeDirectory, "sessions"), { recursive: true })
+  sessionRecord("cli", installation.base)
+  const env = { GH_BIN: gh, CLAUDE_CODE_SESSION_ID: "cli", CLAUDE_CONFIG_DIR: claudeDirectory }
   const collected = run("auto-work-github.mjs", ["--collect"], { path: installation.path, env })
   let result = {}
   try { result = JSON.parse(collected.stdout) } catch { /* the assertion below reports the raw output */ }
@@ -182,6 +187,29 @@ esac
   T("github cli: a reopened ticket ends the report, and the pull request is pending for adoption", ownerMark() === undefined &&
     reopened.result.pullRequests?.pending.some((pull) => pull.key === "api#1115") && reopened.result.pullRequests.ticketClosed?.length === 0,
   `${reopened.status} ${reopened.stdout}${reopened.stderr}`)
+
+  /* Another live run in its own checkout names ticket #2140 in remaining, so api#1115 has a live driver and is never adopted here. */
+  const otherCheckout = join(installation.base, "other-run")
+  mkdirSync(join(otherCheckout, ".git"), { recursive: true })
+  writeRunState({ sessionId: "other", sleep: true, autoWork: true, remaining: ["#2140"] }, otherCheckout)
+  sessionRecord("other", otherCheckout)
+  const driven = collectOwner("OPEN", "COMPLETED")
+  const drivenMerge = run("auto-work-github.mjs", ["--mark", "pullRequests"], { path: installation.path, env,
+    input: JSON.stringify({ key: "api#1115", head: CLOSED_TICKET_PULL.head, action: "merged" }) })
+  T("github cli: an owner pull request whose ticket another live run names is in otherRun, is not pending and takes no mark",
+    JSON.stringify(driven.result.pullRequests?.otherRun) === JSON.stringify(["api#1115"]) && !driven.result.pullRequests.pending.some((pull) => pull.key === "api#1115") &&
+    drivenMerge.status === 1 && drivenMerge.stderr.includes("another live run drives this pull request"), `${driven.stdout}${driven.stderr} ${drivenMerge.stderr}`)
+  rmSync(join(claudeDirectory, "sessions", "other.json"))
+  const ended = collectOwner("OPEN", "COMPLETED")
+  T("github cli: when the other run's session ends, its owner pull request is pending for adoption", ended.result.pullRequests?.otherRun?.length === 0 &&
+    ended.result.pullRequests.pending.some((pull) => pull.key === "api#1115"), `${ended.stdout}${ended.stderr}`)
+  rmSync(join(claudeDirectory, "sessions", "cli.json"))
+  const blind = collectOwner("OPEN", "COMPLETED")
+  T("github cli: without the run's own session record the live runs are a named failure, and no owner pull request is pending", blind.status === 3 &&
+    blind.result.pullRequests?.failures.some((failure) => failure.read === "live runs" && failure.message.includes("session cli of this run")) &&
+    JSON.stringify(blind.result.pullRequests.otherRun) === JSON.stringify(["api#1115"]) && !blind.result.pullRequests.pending.some((pull) => pull.key === "api#1115"),
+  `${blind.status} ${blind.stdout}${blind.stderr}`)
+  sessionRecord("cli", installation.base)
 
   const foreign = run("auto-work-github.mjs", ["--collect"], { path: installation.path, env: { ...env, CLAUDE_CODE_SESSION_ID: "foreign" } })
   T("github cli: another session cannot write the intake", foreign.status === 1 && foreign.stderr.includes("No matching active auto-work run"), foreign.stderr)

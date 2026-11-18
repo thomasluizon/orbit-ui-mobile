@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { alertCheck, autoWorkRepositories, githubPageReader, listOpenAlerts, listOpenPullRequests, newestScanCommit, pullRequestCheck } from "./lib/auto-work-github.mjs"
+import { alertCheck, autoWorkRepositories, githubPageReader, listOpenAlerts, listOpenPullRequests, newestScanCommit, otherLiveRuns, pullRequestCheck } from "./lib/auto-work-github.mjs"
 import { readTicket } from "./lib/github-issues.mjs"
 import { boardCheck, commandRunner, initialWakeMarks, mailCheck, reviewCheck, saveWakeMarks, SENTRY_MODE, watchIntake } from "./lib/auto-work-wake.mjs"
 import { REPO_ROOT, clearWakeSource, readRunState, registerWakeSource } from "./lib/run-state.mjs"
@@ -8,8 +8,9 @@ const USAGE = `usage: wait-auto-work.mjs [--interval-seconds <n>]
 Register an idle wake source, then check the intake sources at the end of each interval.
 The board (open tickets on the project with their updatedAt and open blockers, read through
 tools/lib/github-issues.mjs with no model call), the mailbox (orbit-mail.mjs --unseen), the reviews
-(orbit-play-reviews.mjs --cycle), the open pull requests the run did not open (one key per pull
-request and head, and one key per pull request from an unexpected author or with a reported mark) and the open code scanning, secret scanning and Dependabot alerts of the ui, api
+(orbit-play-reviews.mjs --cycle), the open pull requests that neither the run nor another live run
+owns (one key per pull request and head, and one key per pull request from an unexpected author or
+with a reported mark) and the open code scanning, secret scanning and Dependabot alerts of the ui, api
 and landing repositories (tools/lib/auto-work-github.mjs) are checked. An open alert whose carrying
 ticket is closed has a second key, which for code scanning names the commit of the newest scan of
 main. A key absent from intake.wake.seen is new.
@@ -52,7 +53,7 @@ try {
   const result = await watchIntake({
     checks: [{ source: "board", seed: true, run: boardCheck() }, { source: "mail", run: mailCheck({ run }) },
       { source: "reviews", run: reviewCheck({ run }) },
-      { source: "pullRequests", run: pullRequestCheck({ list: () => listOpenPullRequests(reading()), readState: readRunState }) },
+      { source: "pullRequests", run: pullRequestCheck({ list: () => listOpenPullRequests(reading()), readState: readRunState, readOtherRuns: otherLiveRuns }) },
       { source: "alerts", run: alertCheck({ list: () => listOpenAlerts(reading()), readState: readRunState,
         readTicketState: (number) => readTicket(number, { withProjectItem: false }), readNewestScan: (key) => newestScanCommit(reading(), key) }) }],
     marks: initialWakeMarks(state.intake, started),

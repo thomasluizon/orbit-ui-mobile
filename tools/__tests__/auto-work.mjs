@@ -41,7 +41,11 @@ echo "gh stand-in refuses" >&2
 exit 1
 `)
   chmodSync(gh, 0o755)
-  return { env: { PATH: `${bin}:${process.env.PATH}`, GH_BIN: gh }, log }
+  // The waiter reads the other live runs from the Claude session records; this test process stands in for the run's live session.
+  const claudeDirectory = join(base, "claude")
+  mkdirSync(join(claudeDirectory, "sessions"), { recursive: true })
+  writeFileSync(join(claudeDirectory, "sessions", "auto.json"), JSON.stringify({ pid: process.pid, sessionId: "auto", cwd: base }))
+  return { env: { PATH: `${bin}:${process.env.PATH}`, GH_BIN: gh, CLAUDE_CONFIG_DIR: claudeDirectory }, log }
 }
 
 /**

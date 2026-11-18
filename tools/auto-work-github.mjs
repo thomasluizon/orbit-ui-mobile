@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 import { alertsWithClosedTickets, autoWorkRepositories, closedTicketPullRequests, dismissAlert, githubPageReader, githubWriter, INTAKE_GITHUB_SOURCES, listOpenAlerts,
-  listOpenPullRequests, markItem, newestScanCommit, pendingItems, pullRequestsWithClosedTickets, recordClosedTicketPullRequests, recordListing,
+  listOpenPullRequests, markItem, newestScanCommit, otherLiveRuns, pendingItems, pullRequestsWithClosedTickets, recordClosedTicketPullRequests, recordListing,
   recordTicketClosedAlerts, unreportedPullRequests } from "./lib/auto-work-github.mjs"
+import { intakeRun } from "./lib/auto-work-intake.mjs"
 import { readTicket } from "./lib/github-issues.mjs"
 import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
 
@@ -12,7 +13,10 @@ of the ui, api and landing repositories, every author and every page, for auto-w
                {pullRequests, alerts}, each with open, pending (items with no mark, or a pull
                request whose head moved) and failures. pullRequests adds runOwned (the owner
                pull requests that the run recorded or whose branch or title names a ticket in
-               remaining, each name resolved to its GitHub issue number) and
+               remaining, each name resolved to its GitHub issue number), otherRun (the
+               owner pull requests that the run state of another live Claude session's
+               checkout records or names the same way; every owner pull request the run does
+               not own when the live runs cannot be read, with the failure "live runs") and
                unexpectedAuthor: the pull requests whose author is not a configured bot of its
                repository or the repository owner, and that have no reported mark. pullRequests also adds ticketClosed: the owner pull requests
                with no mark that holds at their head whose every named ticket (ticket-<N>-, (#N) or
@@ -32,7 +36,8 @@ of the ui, api and landing repositories, every author and every page, for auto-w
                  fix needs ticket (an orbit-tickets issue URL); closed needs reason; head must be
                  the current head. reported is the only action for an unexpected author. A
                  pull request in ticketClosed takes only closed or reported, and its reported mark
-                 keeps its closedTickets. No other pull request is reported.
+                 keeps its closedTickets. No other pull request is reported. A pull request in
+                 otherRun takes no mark.
                alerts {key, action: ticket|reported, ticket?, cause?}
                  ticket needs ticket and cause. reported is the only action for an alert in
                  ticketClosed whose stateReason is NOT_PLANNED or null, and its mark keeps
@@ -72,7 +77,8 @@ try {
   const reading = { repositories, readPages: githubPageReader({ config }) }
   const [pullListing, alertListing] = await Promise.all([listOpenPullRequests(reading), listOpenAlerts(reading)])
   const readTicketState = (number) => readTicket(number, { withProjectItem: false })
-  const pullTickets = await pullRequestsWithClosedTickets(recordListing("pullRequests", pullListing), readTicketState)
+  const otherRuns = otherLiveRuns(intakeRun())
+  const pullTickets = await pullRequestsWithClosedTickets(recordListing("pullRequests", pullListing, undefined, { otherRuns }), readTicketState)
   const pulls = recordClosedTicketPullRequests(pullTickets)
   const openPulls = Object.values(pulls.open)
   const alerts = recordListing("alerts", alertListing)
@@ -80,8 +86,9 @@ try {
   recordTicketClosedAlerts(closedTickets.items)
   const result = {
     pullRequests: { open: openPulls.length, pending: pendingItems("pullRequests", pulls).filter((pull) => !pullTickets.unreadKeys.includes(pull.key)),
-      runOwned: openPulls.filter((pull) => pull.runOwned).map((pull) => pull.key), unexpectedAuthor: unreportedPullRequests(pulls),
-      ticketClosed: closedTicketPullRequests(pulls), failures: [...pullListing.failures, ...pullTickets.failures] },
+      runOwned: openPulls.filter((pull) => pull.runOwned).map((pull) => pull.key), otherRun: openPulls.filter((pull) => pull.otherRun).map((pull) => pull.key),
+      unexpectedAuthor: unreportedPullRequests(pulls), ticketClosed: closedTicketPullRequests(pulls),
+      failures: [...pullListing.failures, ...(otherRuns.failure ? [otherRuns.failure] : []), ...pullTickets.failures] },
     alerts: { open: Object.keys(alerts.open).length, pending: [...pendingItems("alerts", alerts), ...closedTickets.items], ticketClosed: closedTickets.items,
       failures: [...alertListing.failures, ...closedTickets.failures] },
   }

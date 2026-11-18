@@ -5,16 +5,16 @@ import { runBounded } from "./bounded-process.mjs"
 import { githubEnvironment, redactSecrets, repositorySlug } from "./github-auth.mjs"
 import { resolveTicket } from "./github-issues.mjs"
 import { readOrchestratorConfig } from "./orchestrator-config.mjs"
-import { REPO_ROOT, updateRunState } from "./run-state.mjs"
+import { REPO_ROOT, claudeConfigDirectory, gitDirectoryOf, liveSessionProcesses, readRunState, updateRunState } from "./run-state.mjs"
 
 /** The three code repositories whose open pull requests and alerts auto-work reads every cycle. */
-export const REPOSITORY_KEYS = ["ui", "api", "landing"]
+const REPOSITORY_KEYS = ["ui", "api", "landing"]
 
 /*
  * The REST logins of the bots each repository configures to open pull requests: Dependabot (dependabot.yml
  * and the security updates setting) and the App of ui's contract-rebaseline.yml. Runs open as the owner.
  */
-export const CONFIGURED_PULL_REQUEST_BOTS = {
+const CONFIGURED_PULL_REQUEST_BOTS = {
   ui: ["dependabot[bot]", "orbit-contract-rebaseline[bot]"],
   api: ["dependabot[bot]"],
   landing: ["dependabot[bot]"],
@@ -28,12 +28,16 @@ export const unexpectedAuthor = ({ key, slug }, author) => author !== ownerOf(sl
 /** The actions that each class of pull request permits, and the refusal of every other action. */
 export const PULL_REQUEST_CLASSES = {
   unexpectedAuthor: { actions: ["reported"], refusal: "a pull request from an unexpected author is never merged, fixed or closed; report it to the owner" },
+  otherRun: { actions: [], refusal: "another live run drives this pull request, or the live runs could not be read; skip it" },
   closedTickets: { actions: ["closed", "reported"], refusal: "a pull request whose tickets are closed is never merged or fixed; close it as superseded or report it to the owner" },
   configured: { actions: ["merged", "fix", "closed"], refusal: "only a pull request from an unexpected author or with closed tickets is reported" },
 }
 
-/** The class of one open pull request: an unexpected author, an owner pull request whose tickets are all closed, or a configured author. */
-export const pullRequestClass = (pull) => pull.unexpectedAuthor ? "unexpectedAuthor" : pull.closedTickets ? "closedTickets" : "configured"
+/**
+ * The class of one open pull request: an unexpected author, an owner pull request of another live run, an owner pull
+ * request whose tickets are all closed, or a configured author.
+ */
+export const pullRequestClass = (pull) => pull.unexpectedAuthor ? "unexpectedAuthor" : pull.otherRun ? "otherRun" : pull.closedTickets ? "closedTickets" : "configured"
 
 /*
  * Each projection prints one JSON line per item across every page. The fields come from live reads;
@@ -132,7 +136,7 @@ const issueNumberOf = (name) => {
 }
 
 /** The GitHub issue numbers that the branch and the title of a pull request name. */
-export const namedTicketNumbers = (pull) => {
+const namedTicketNumbers = (pull) => {
   const text = `${pull.branch ?? ""}\n${pull.title ?? ""}`
   return [...new Set(TICKET_NAMES.flatMap((pattern) => [...text.matchAll(pattern)].map(([, name]) => issueNumberOf(name))).filter((number) => number !== null))]
 }
@@ -149,10 +153,31 @@ const runOwnedPullRequest = (state) => {
 }
 
 /**
+ * The owner pull requests that another live run drives. Run state lives in each checkout, so this reads the run state
+ * of the checkout of each live Claude session, and a run owns there what runOwnedPullRequest gives. This run's own
+ * session must be among the live sessions, or a missing record proves nothing. When the live runs cannot be read,
+ * every owner pull request is claimed and the failure is named, so a failed read never adopts a pull request.
+ */
+export const otherLiveRuns = (state, { repoRoot = REPO_ROOT, sessions = liveSessionProcesses, readState = readRunState } = {}) => {
+  try {
+    const live = sessions()
+    if (!live.some((session) => session.sessionId === state?.sessionId)) {
+      throw new Error(`the session ${state?.sessionId} of this run is not among the live Claude sessions of ${claudeConfigDirectory()}, so the other runs are unknown`)
+    }
+    const own = gitDirectoryOf(repoRoot)
+    const checkouts = [...new Set(live.flatMap((session) => typeof session.cwd === "string" ? [session.cwd] : []))].filter((cwd) => gitDirectoryOf(cwd) !== own)
+    const owners = checkouts.map((cwd) => runOwnedPullRequest(readState(cwd)))
+    return { claims: (pull) => owners.some((owns) => owns(pull)) }
+  } catch (error) {
+    return { claims: (pull) => pull.ownerAuthor === true, failure: { read: "live runs", message: `Cannot read the other live runs: ${error.message}` } }
+  }
+}
+
+/**
  * The waiter key of a pull request carries its head, so a new head is a new key. The owner hears
  * about a pull request from an unexpected author or with a reported mark once, so its key has no head.
  */
-export const pullRequestWakeKey = (pull, mark) => pull.unexpectedAuthor || mark?.action === "reported" ? pull.key : `${pull.key} ${pull.head}`
+const pullRequestWakeKey = (pull, mark) => pull.unexpectedAuthor || mark?.action === "reported" ? pull.key : `${pull.key} ${pull.head}`
 
 /**
  * Turns a listing into waiter keys; it rejects only when no read succeeded. `unreadPrefixes` holds
@@ -164,12 +189,21 @@ const wakeKeys = (listing, keyOf, prefixOf) => {
   return { keys: listing.items.map(keyOf), ...(failure ? { failure, unreadPrefixes: listing.failures.map((entry) => prefixOf(entry.read)) } : {}) }
 }
 
-export const pullRequestCheck = ({ list, readState }) => async () => {
+/**
+ * Keys each pull request that neither this run nor another live run owns. When the live runs cannot be read, the
+ * withheld owner pull requests keep their seen keys, so the same failure wakes the model once and its recovery is not new.
+ */
+export const pullRequestCheck = ({ list, readState, readOtherRuns }) => async () => {
   const listing = await list()
   const state = readState()
   const owned = runOwnedPullRequest(state)
+  const otherRuns = readOtherRuns(state)
   const marks = state?.intake?.pullRequests?.marks ?? {}
-  return wakeKeys({ ...listing, items: listing.items.filter((pull) => !owned(pull)) }, (pull) => pullRequestWakeKey(pull, marks[pull.key]), (read) => `${read.split(" ")[0]}#`)
+  const keyOf = (pull) => pullRequestWakeKey(pull, marks[pull.key])
+  const checked = wakeKeys({ ...listing, items: listing.items.filter((pull) => !owned(pull) && !otherRuns.claims(pull)) }, keyOf, (read) => `${read.split(" ")[0]}#`)
+  if (!otherRuns.failure) return checked
+  const withheld = listing.items.filter((pull) => !owned(pull) && otherRuns.claims(pull)).map(keyOf)
+  return { keys: checked.keys, failure: [checked.failure, otherRuns.failure.message].filter(Boolean).join("; "), unreadPrefixes: [...(checked.unreadPrefixes ?? []), ...withheld] }
 }
 
 /**
@@ -177,7 +211,7 @@ export const pullRequestCheck = ({ list, readState }) => async () => {
  * as completed it carries the commit of the newest scan of the default branch, so a later scan that
  * still finds the alert is new. No other close reason compares scans, so a new scan wakes nothing.
  */
-export const ticketClosedWakeKey = (alert) => `${alert.key} ticket-closed${alert.scannedCommit ? ` ${alert.scannedCommit}` : ""}`
+const ticketClosedWakeKey = (alert) => `${alert.key} ticket-closed${alert.scannedCommit ? ` ${alert.scannedCommit}` : ""}`
 
 /** Reads the commit of the newest code scanning analysis of the default branch from one page. */
 export const newestScanCommit = async ({ repositories, readPages }, repositoryKey) => {
@@ -204,7 +238,7 @@ export const alertCheck = ({ list, readState = () => ({}), readTicketState, read
 
 /** The keys the model listed in its last cycle, so the waiter does not wake for them again. */
 export const listedWakeKeys = (intake) => ({
-  ...(intake?.pullRequests?.open ? { pullRequests: Object.values(intake.pullRequests.open).filter((pull) => !pull.runOwned)
+  ...(intake?.pullRequests?.open ? { pullRequests: Object.values(intake.pullRequests.open).filter((pull) => !pull.runOwned && !pull.otherRun)
     .map((pull) => pullRequestWakeKey(pull, intake.pullRequests.marks?.[pull.key])) } : {}),
   ...(intake?.alerts?.open ? { alerts: [...Object.keys(intake.alerts.open), ...(intake.alerts.ticketClosed ?? [])] } : {}),
 })
@@ -224,19 +258,27 @@ const writeSource = (source, change, repoRoot) => {
 
 /**
  * Replaces the open items of every read that succeeded. A failed read keeps its previous items, so
- * a failure never empties a source. Marks remain only for items that are still open.
+ * a failure never empties a source. Marks remain only for items that are still open. A pull request
+ * listing needs `otherRuns` from otherLiveRuns, and a failed live run read is named in its failures.
  */
-export const recordListing = (source, listing, repoRoot = REPO_ROOT, listedAt = new Date().toISOString()) =>
-  writeSource(source, (previous, state) => {
+export const recordListing = (source, listing, repoRoot = REPO_ROOT, { listedAt = new Date().toISOString(), otherRuns } = {}) => {
+  if (source === "pullRequests" && !otherRuns) throw new Error("a pull request listing needs the live runs")
+  return writeSource(source, (previous, state) => {
     const failed = new Set(listing.failures.map((failure) => failure.read))
     const owned = runOwnedPullRequest(state)
+    const ownership = (item) => {
+      const runOwned = owned(item)
+      return { runOwned, otherRun: !runOwned && otherRuns.claims(item) }
+    }
     const open = {
       ...Object.fromEntries(Object.entries(previous.open).filter(([, item]) => failed.has(item.read))),
-      ...Object.fromEntries(listing.items.map((item) => [item.key, source === "pullRequests" ? { ...item, runOwned: owned(item) } : item])),
+      ...Object.fromEntries(listing.items.map((item) => [item.key, source === "pullRequests" ? { ...item, ...ownership(item) } : item])),
     }
+    const failures = [...listing.failures, ...(otherRuns?.failure ? [otherRuns.failure] : [])]
     return { open, marks: Object.fromEntries(Object.entries(previous.marks).filter(([key]) => key in open)), listedAt,
-      ...(listing.failures.length ? { failures: listing.failures } : {}) }
+      ...(failures.length ? { failures } : {}) }
   }, repoRoot)
+}
 
 /** A pull request mark holds at its head; a reported mark holds at every head, until the collection drops it. */
 const unmarkedAtHead = (source, contents, item) => {
