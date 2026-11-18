@@ -35,17 +35,52 @@ function prepareStartingAction(test, block) {
   ] }
 }
 
+// The setup of an offers case: its first turn must issue the offer that the case continues from. The person dismisses
+// the issued offer, or selects it, through the API as a client does.
+async function prepareOfferSetup(test, held, setup) {
+  const vars = test.vars
+  const context = { vars: { ...setup, offerFamily: undefined }, test }
+  const structure = await composition(held, context)
+  if (structure.pass !== true || structure.metadata?.skipped || structure.metadata?.unavailable) {
+    throw new Error(`Correction setup failed: ${structure.reason}`)
+  }
+  const previewFamily = vars.offerFamily === 'preview-rejection' ? 'preview-rejection' : 'repeat'
+  const offerCheck = proactiveOfferSetup(held, { vars: { ...setup, offerFamily: setup.composition.mode === 'preview' ? previewFamily : 'empty',
+    offerRequireReadback: false } })
+  if (!offerCheck.pass) throw new Error(`Offer setup failed: ${offerCheck.reason}`)
+  const actions = offerActions(held.composition)
+  if (vars.offerFamily !== 'preview-rejection' && actions.length !== 1) throw new Error('Offer setup requires exactly one issued action.')
+  vars.issuedOffer = structuredClone(actions[0] ?? null)
+  if (vars.offerFamily === 'dismissal') {
+    const dismissed = await publicApi(vars.credentialKey)('POST', 'chat/offers/dismiss', {
+      conversationId: vars.clientContext.conversationId, offerKeys: [actions[0].action.offerKey],
+    })
+    if (dismissed.status !== 204) throw new Error('Offer dismissal did not return HTTP 204.')
+  }
+  if (vars.offerFamily === 'action-lifecycle') {
+    vars.clientContext.selectedOfferKey = actions[0].action.offerKey
+    vars.clientContextJson = JSON.stringify(vars.clientContext)
+  }
+}
+
 // The setup of a case with an outcome runs on the client path, in the conversation of the case: its preview is graded
-// by its outcome and stays held, so the turn of the case corrects it.
+// by its outcome and stays held, so the turn of the case corrects it. An offers setup sends the client context of its own.
 async function prepareHeldPreview(test) {
   const vars = test.vars
-  const conversation = openCaseConversation(vars)
-  const setup = { ...vars, input: vars.setup.input, outcome: vars.setup.outcome, evalRequestId: randomUUID() }
+  const { caseId: _caseId, ...turn } = vars.setup
+  const setup = { ...vars, ...turn, evalRequestId: randomUUID() }
+  const conversation = openCaseConversation(setup)
   const held = await holdCase(setup, { conversation })
   const verdict = held.error ? { pass: false, reason: held.error } : outcome(held, { vars: setup })
   if (!verdict.pass) throw new Error(`Correction setup failed${vars.setup.caseId ? ` dependency ${vars.setup.caseId}` : ''}: ${verdict.reason}`)
   vars.baselinePreview = held.previews
   vars.conversation = conversation
+  if (vars.offerFamily) {
+    await prepareOfferSetup(test, held, setup)
+    vars.setupEvidence = { ...attemptEvidence({ response: { output: held }, testCase: { vars: setup } }, { pass: false, assertions: [] }),
+      requestId: setup.evalRequestId }
+    conversation.context = vars.clientContext
+  }
   return { test }
 }
 
@@ -78,26 +113,6 @@ export async function prepareCorrection(test) {
     test.vars.clientContext = followConversation(test.vars.clientContext, response.output)
     test.vars.clientContextJson = JSON.stringify(test.vars.clientContext)
   }
-  if (test.vars.offerFamily) {
-    const previewFamily = test.vars.offerFamily === 'preview-rejection' ? 'preview-rejection' : 'repeat'
-    const policy = { ...vars, offerFamily: setup.composition.mode === 'preview' ? previewFamily : 'empty',
-      offerRequireReadback: false }
-    const offerCheck = proactiveOfferSetup(response.output, { vars: policy })
-    if (!offerCheck.pass) throw new Error(`Offer setup failed: ${offerCheck.reason}`)
-    const actions = offerActions(response.output.composition)
-    if (test.vars.offerFamily !== 'preview-rejection' && actions.length !== 1) throw new Error('Offer setup requires exactly one issued action.')
-    test.vars.issuedOffer = structuredClone(actions[0] ?? null)
-    if (test.vars.offerFamily === 'dismissal') {
-      const dismissed = await publicApi(test.vars.credentialKey)('POST', 'chat/offers/dismiss', {
-        conversationId: test.vars.clientContext.conversationId, offerKeys: [actions[0].action.offerKey],
-      })
-      if (dismissed.status !== 204) throw new Error('Offer dismissal did not return HTTP 204.')
-    }
-    if (test.vars.offerFamily === 'action-lifecycle') {
-      test.vars.clientContext.selectedOfferKey = actions[0].action.offerKey
-      test.vars.clientContextJson = JSON.stringify(test.vars.clientContext)
-    }
-  }
   if (test.vars.startingStepAction) prepareStartingAction(test, response.output.composition.parts[0].block)
   if (test.vars.refine) {
     const drafts = response.output.composition.parts.find((part) => part.kind === 'habitSuggestions').block.drafts
@@ -124,6 +139,6 @@ export async function prepareCorrection(test) {
     }
   }
   test.vars.historyJson = JSON.stringify([{ role: 'user', content: setup.input }, { role: 'assistant', content: response.output.answer }])
-  if (!test.vars.offerFamily) delete test.vars.setupEvidence
+  delete test.vars.setupEvidence
   return { test }
 }

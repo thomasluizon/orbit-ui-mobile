@@ -68,6 +68,14 @@ export async function runOutcomeCase(vars, dependencies) {
   return output.error ? { error: output.error, output } : { output }
 }
 
+// The turns that an offers case sends after its first, for its lifecycle: in the conversation of the case, or after a
+// reload in a conversation with the same id and none of its messages. Each turn is graded by the outcome of its own policy.
+export const offerTurns = (conversation, dependencies) => (next, reload) => {
+  const turnConversation = reload ? { ...openCaseConversation(next), conversationId: conversation.conversationId } : conversation
+  turnConversation.context = next.clientContext
+  return runOutcomeCase(next, { ...dependencies, conversation: turnConversation })
+}
+
 // promptfoo assertion: the outcome of one attempt of a launch corpus case, before any approval. A preview that the
 // grader cannot classify is missing evidence of the grader, so the case stays incomplete and does not fail the build.
 export function outcome(output, context) {

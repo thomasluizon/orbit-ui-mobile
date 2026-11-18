@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { isDeepStrictEqual } from 'node:util'
-import { structural, behavior, composition } from './assertions.mjs'
+import { composition } from './assertions.mjs'
+import { outcome } from './client-path.mjs'
 import { offerActions, offerResult, offerSafety, proactiveOffers } from './proactive-offers.mjs'
 import { publicApi } from './fixtures/api.mjs'
 import { readOfferState } from './fixtures/offers.mjs'
@@ -9,9 +10,11 @@ import { approveOfferTask, preservesOfferFields, rejectOfferPreview, removeOffer
 import { attemptEvidence, sanitizeEvidence } from './evidence.mjs'
 import { groundingEvidence } from './grading-input.mjs'
 
+const read = { read: true }
+
 async function verified(output, vars, evidence = []) {
   const context = { vars: { ...vars, offerRequireReadback: false }, test: { vars } }
-  for (const grade of [structural, behavior, composition, vars.offerFamily ? proactiveOffers : offerSafety]) {
+  for (const grade of [outcome, composition, vars.offerFamily ? proactiveOffers : offerSafety]) {
     const verdict = await grade(output, context)
     evidence.push(sanitizeEvidence({ metric: grade.name, ...verdict }))
     if (verdict.pass !== true || verdict.metadata?.unavailable || verdict.metadata?.skipped) {
@@ -20,16 +23,16 @@ async function verified(output, vars, evidence = []) {
   }
 }
 
-function continuation(vars, chat, evidence, output) {
-  let history = [...JSON.parse(vars.historyJson ?? '[]'), { role: 'user', content: vars.input },
-    { role: 'assistant', content: output.answer }]
+// The turns of an offers case after its first run on the client path, in the conversation of the case. A reload opens the
+// conversation again with the same id and none of its messages. `send(next, reload)` runs one turn.
+function continuation(vars, send, evidence) {
   return async (input, policy = {}, client = vars.clientContext, reload = false) => {
     await refreshCredential(vars.credentialKey)
     const clientContext = { ...client }
     delete clientContext.selectedOfferKey
     const next = { ...vars, ...policy, input, clientContext, evalRequestId: randomUUID(),
-      offerFamily: undefined, historyJson: JSON.stringify(reload ? [] : history), clientContextJson: JSON.stringify(clientContext) }
-    const response = await chat(input, { vars: next })
+      offerFamily: undefined, clientContextJson: JSON.stringify(clientContext) }
+    const response = await send(next, reload)
     const recorded = attemptEvidence({ response, testCase: { vars: next } }, {
       requestId: next.evalRequestId, conversationId: clientContext.conversationId,
       platform: clientContext.platform, reloaded: reload, assertions: [],
@@ -44,7 +47,6 @@ function continuation(vars, chat, evidence, output) {
     }
     if (response.error || !response.output) throw new Error(response.error ?? 'Missing offer continuation response.')
     await verified(response.output, next, recorded.assertions)
-    history = [...(reload ? [] : history), { role: 'user', content: input }, { role: 'assistant', content: response.output.answer }]
     recorded.actions = sanitizeEvidence(offerActions(response.output.composition).map(({ action }) => action))
     return response.output
   }
@@ -58,11 +60,11 @@ export async function checkSuppression(api, vars, turn) {
   }
   for (let index = 0; index < 11; index++) {
     check(await turn(vars.clientContext.locale === 'pt-BR' ? 'Olá.' : 'Hello.', {
-      composition: { mode: 'text' }, expectations: { allowed: [] },
+      composition: { mode: 'text' }, outcome: read,
     }))
   }
   const input = vars.setup.input
-  const policy = { composition: { mode: 'data' }, expectations: { allowed: ['get_daily_summary', 'query_habits'] } }
+  const policy = { composition: { mode: 'data' }, outcome: read }
   check(await turn(input, policy, vars.clientContext, true))
   check(await turn(input, policy, { ...vars.clientContext, platform: 'mobile' }, true))
   if (!isDeepStrictEqual(await readOfferState(api), vars.offerBaseline)) throw new Error('Dismissal or unrelated turns changed account fields.')
@@ -104,9 +106,8 @@ export async function checkActionLifecycle(api, output, vars, turn) {
   const block = output.composition.parts.find((part) => part.kind === 'oneSmallStep')?.block
   const save = block?.actions.find((action) => action.id === 'saveTask')
   if (!save || !vars.issuedOffer?.action || vars.clientContext.selectedOfferKey !== vars.issuedOffer.action.offerKey) throw new Error('Lifecycle did not select its actually issued offer.')
-  const policy = { composition: { mode: 'preview', previews: 1 }, expectations: {
-    permittedMutations: [{ name: 'create_habit' }, { name: 'bulk_create_habits' }, { name: 'revise_pending_changes' }],
-  } }
+  const policy = { composition: { mode: 'preview', previews: 1 }, outcome: { changes: [{ kind: 'create',
+    fields: { title: { oneOf: [block.suggestion.step] }, frequency_unit: 'OneTime' } }] } }
   const proposed = await turn(save.message, policy)
   let pending = proposed.composition.pendingOperations[0]
   const removed = await removeOfferGroup(api, pending, vars.clientContext)
@@ -126,23 +127,23 @@ export async function checkActionLifecycle(api, output, vars, turn) {
   return approveOfferTask(api, approval, vars, block.suggestion.step)
 }
 
-// RelativeReadPeriod.ResolveDay lets relative_period replace date, and the named day is always the account's yesterday.
-export const historicalReadExpectations = (date) => ({ required: [{ name: 'query_habits', argumentsAnyOf: [
-  { date, relative_period: { optional: null } },
-  { relative_period: 'yesterday', date: { optional: date } },
-] }] })
+// Producer: orbit-api QueryHabitsTool answers a read of one date other than today with a habitList block of the scope
+// `date` that carries the requested date.
+const showsDay = (output, date) => output.composition.parts.some((part) => part.type === 'block' && part.kind === 'habitList'
+  && part.block.scope === 'date' && part.block.date === date)
 
 export async function checkReadScopes(api, vars, turn) {
+  // The account's yesterday: the named day of the request.
   const date = new Date(Date.parse(`${vars.accountDate}T12:00:00Z`) - 86400000).toISOString().slice(0, 10)
   const locale = vars.clientContext.locale
   const historical = await turn(locale === 'pt-BR' ? `Liste meus hábitos agendados em ${date}.` : `List my habits scheduled on ${date}.`, {
-    composition: { mode: 'data', kinds: ['habitList'] }, expectations: historicalReadExpectations(date),
+    composition: { mode: 'data', kinds: ['habitList'] }, outcome: read,
   })
+  if (!showsDay(historical, date)) throw new Error('Historical scope did not show the requested day.')
   if (offerActions(historical.composition).some(({ action }) => ['log', 'skip', 'restart', 'smallStep'].includes(action.offerKey.split(':')[0]))) throw new Error('Historical scope received a current-day offer.')
   const partial = await turn(locale === 'pt-BR' ? 'Liste meus hábitos de hoje, apenas o primeiro resultado, com limite 1.'
     : 'List my habits today, only the first result with limit 1.', {
-    composition: { mode: 'data', blocks: [{ kind: 'habitList', completeness: 'partial' }] },
-    expectations: { required: [{ name: 'query_habits', arguments: { limit: 1 } }] },
+    composition: { mode: 'data', blocks: [{ kind: 'habitList', completeness: 'partial' }] }, outcome: read,
   })
   if (offerActions(partial.composition).length || !isDeepStrictEqual(await readOfferState(api), vars.offerBaseline)) throw new Error('Partial scope offered an unsafe action or changed stored fields.')
 }
@@ -161,13 +162,13 @@ async function checkEditablePreview(api, output, vars) {
   await rejectOfferPreview(api, revised, vars)
 }
 
-export async function completeOfferAttempt(output, vars, chat) {
+export async function completeOfferAttempt(output, vars, send) {
   const api = publicApi(vars.credentialKey)
   const turns = []
   try {
     await verified(output, vars)
     if (!vars.offerBaseline || !isDeepStrictEqual(await readOfferState(api), vars.offerBaseline)) throw new Error('Offer turn changed persisted fields without approval.')
-    const turn = continuation(vars, chat, turns, output)
+    const turn = continuation(vars, send, turns)
     let approval
     if (vars.offerFamily === 'dismissal') {
       if (offerActions(output.composition).some(({ action }) => action.offerKey === vars.issuedOffer?.action.offerKey)) throw new Error('Dismissed offer returned on the dismissal turn.')
