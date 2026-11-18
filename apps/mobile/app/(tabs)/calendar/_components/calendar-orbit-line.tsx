@@ -2,15 +2,13 @@ import { useEffect, useRef, useState, type RefObject } from 'react'
 import { StyleSheet, Text, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { PADDING, SPACING } from '@orbit/shared/theme'
-import { conversationMascotState, promptDisabledReason } from '@orbit/shared/chat'
-import { buildComposerAvailability } from '@orbit/shared/hooks'
+import { getOrbitRest } from '@orbit/shared/chat'
 import { prepareChatRequest } from '@orbit/shared/stores'
 import type { CalendarDayEntry } from '@orbit/shared/types/calendar'
 import type { CalendarView } from '@orbit/shared/utils/calendar-navigation'
 import { buildCalendarOrbitRequest, formatAPIDate, formatCalendarOrbitLine, nextCalendarPageTurn, resolveCalendarOrbitLine, type CalendarMonthDisplayState, type CalendarOrbitLine as CalendarOrbitLineModel } from '@orbit/shared/utils'
 import { TodayAstraLine } from '@/components/today/today-astra-line'
 import { useFlowLookState } from '@/components/ui/flow-look'
-import { useAstraAllowanceCopy } from '@/hooks/use-astra-allowance-copy'
 import { useFlag } from '@/hooks/use-flag'
 import { useOffline } from '@/hooks/use-offline'
 import { useProfile } from '@/hooks/use-profile'
@@ -70,14 +68,12 @@ function useSelectedDayLook(selectedDay: string, page: string, selectedDayRef: R
   return { mascotRef, lookAt }
 }
 
-function useOrbitAvailability(todayKey: string) {
+function useOrbitRest() {
   const { t } = useTranslation()
   const { profile } = useProfile()
   const { isOnline } = useOffline()
-  const allowanceText = useAstraAllowanceCopy()
-  const { atMessageLimit, aiMessagesLimit } = buildComposerAvailability({ profile, dailyBudgetDate: null, today: todayKey, replyActive: false, isTyping: false, streamingMessageId: null, messages: [], input: '', isOnline, attachments: [] })
-  const reason = promptDisabledReason({ isOnline, atMessageLimit, aiMessagesLimit, isSending: false, allowanceReason: allowanceText('shell.composer.limit.reason', { allowance: aiMessagesLimit }) }, t)
-  return { reason, mascotState: conversationMascotState({ isOnline, atMessageLimit }) }
+  const rest = getOrbitRest({ isOnline, profile })
+  return { reason: rest ? t(rest) : undefined, mascotState: rest ? 'descansando' as const : 'parado' as const }
 }
 
 /** The Orbit line of Calendário: Orbit at 48 and one fact about the selected day or the shown month. A press opens the conversation with that period offered above the composer. With the guided flows off, Calendário has no line. */
@@ -90,7 +86,7 @@ function CalendarOrbitLineRow(props: Readonly<CalendarOrbitLineProps>) {
   const { line, page } = useCalendarOrbitModel(props)
   const turns = usePageTurns(props.view, page)
   const { mascotRef, lookAt } = useSelectedDayLook(props.selectedDay, page, props.selectedDayRef)
-  const { reason, mascotState } = useOrbitAvailability(props.todayKey)
+  const { reason, mascotState } = useOrbitRest()
   if (!line) return null
   const sentence = line.kind === 'loading' ? null : line
   const openConversation = () => {

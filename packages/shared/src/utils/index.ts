@@ -53,7 +53,6 @@ export {
   buildHabitStripModel,
   canNavigateHabitHistoryBack,
   canNavigateHabitHistoryForward,
-  HABIT_SLIPPING_RATE_LIMIT,
   countDoneInRecentDays,
   getHabitHistoryLog,
   getHabitStartDate,
@@ -831,23 +830,10 @@ export type {
   ProgressGoalFilter,
   StreakRepairState,
 } from './progress'
-export {
-  hasReturnedAfterGap,
-  resolveProgressOrbitLine,
-  resolveProgressWindowStatus,
-  resolveStreakOrbitLine,
-  type ProgressOrbitLine,
-  type ProgressWindowStatus,
-  type StreakOrbitLine,
-} from './progress-orbit-line'
-export {
-  changedProgressFigures,
-  parseProgressFigures,
-  PROGRESS_FIGURE_KEYS,
-  readProgressFigures,
-  type ProgressFigureKey,
-  type ProgressFigureValues,
-} from './progress-figures'
+export { hasReturnedAfterGap, resolveProgressOrbitLine, resolveProgressWindowStatus, resolveStreakOrbitLine } from './progress-orbit-line'
+export type { ProgressOrbitLine, ProgressWindowStatus, StreakOrbitLine } from './progress-orbit-line'
+export { changedProgressFigures, parseProgressFigures, PROGRESS_FIGURE_KEYS, readProgressFigures } from './progress-figures'
+export type { ProgressFigureKey, ProgressFigureValues } from './progress-figures'
 export {
   PROFILE_NAV_ITEMS,
   shouldRedirectProfileNavItem,
@@ -912,7 +898,7 @@ export {
 
 export { resolveHabitAccessibleStatus, buildHabitRowDateModel } from './habit-row-status'
 
-export { proactiveActionLabelKey, getProactiveActionReason, getTodayAstraLine, getTodayOrbitRest, getTodayAstraSlot } from './proactive'
+export { proactiveActionLabelKey, getProactiveActionReason, getTodayAstraLine, getTodayAstraSlot } from './proactive'
 export { buildHabitViewFilters, type HabitViewFiltersInput } from './habit-view-filters'
 
 export { buildHabitDateBuckets, type HabitDateBucket } from './habit-list-progress'

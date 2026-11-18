@@ -77,6 +77,18 @@ export function conversationRestReason(state: ConversationAvailability): 'todayA
   return state.dailyBudgetReached === true || state.atMessageLimit ? 'conversation.restLimit' : null
 }
 
+type AiAllowance = { aiMessagesUsed?: number; aiMessagesLimit?: number; hasProAccess?: boolean }
+
+/** The AI messages a person may use in the period. A profile that does not name the limit gets the limit of its plan. */
+export function resolveAiMessagesLimit(profile: AiAllowance | undefined): number {
+  return profile?.aiMessagesLimit ?? (profile?.hasProAccess ? 50 : 5)
+}
+
+/** The reason the AI rests for the person, from the connection and the profile alone. Hoje and Calendário read it. The conversation adds its own daily budget to the same mapping. */
+export function getOrbitRest(state: { isOnline: boolean; profile: AiAllowance | undefined }): ReturnType<typeof conversationRestReason> {
+  return conversationRestReason({ isOnline: state.isOnline, atMessageLimit: (state.profile?.aiMessagesUsed ?? 0) >= resolveAiMessagesLimit(state.profile) })
+}
+
 /** Orbit rests on the conversation while the AI is unavailable. */
 export function conversationMascotState(state: ConversationAvailability): 'parado' | 'descansando' {
   return conversationRestReason(state) ? 'descansando' : 'parado'

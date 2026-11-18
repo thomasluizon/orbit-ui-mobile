@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next'
 import { useRouter } from 'expo-router'
-import { getReturningInterval, getTodayOrbitRest, getTodayAstraSlot } from '@orbit/shared/utils'
+import { getOrbitRest } from '@orbit/shared/chat'
+import { getReturningInterval, getTodayAstraSlot } from '@orbit/shared/utils'
 import { useFlag } from '@/hooks/use-flag'
 import { useOffline } from '@/hooks/use-offline'
 import { useProactiveItem } from '@/hooks/use-proactive-item'
@@ -22,7 +23,7 @@ export function TodayAstra({ today, isTodaySelected, suppressed }: Readonly<Toda
   const { item: proactive, openItem } = useProactiveItem()
   const guided = useFlag('orbit_guided_flows')
   const { isOnline } = useOffline()
-  const rest = guided ? getTodayOrbitRest({ isOnline, aiMessagesUsed: profile?.aiMessagesUsed, aiMessagesLimit: profile?.aiMessagesLimit, hasProAccess: profile?.hasProAccess }) : null
+  const rest = guided ? getOrbitRest({ isOnline, profile }) : null
   const line = getTodayAstraSlot({
     isTodaySelected, inDrillOrSurface: suppressed, item: proactive, guided,
     returning: getReturningInterval(profile?.lastCompletionDate, profile?.timeZone),

@@ -94,7 +94,7 @@ it('moves screen reader focus after the previous and the next control, and keeps
     resetTestFlags()
     focus.mockClear()
     await mount()
-    await renderer.act(() => optionCards().length)
+    await renderer.act(async () => {})
     expect(focus).not.toHaveBeenCalled()
   } finally { findNode.mockRestore(); focus.mockRestore() }
 })

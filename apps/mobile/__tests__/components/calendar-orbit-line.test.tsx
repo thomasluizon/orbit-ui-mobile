@@ -1,7 +1,6 @@
 import { createRef, type ReactElement } from 'react'
 import { StyleSheet, View, type StyleProp, type TextStyle } from 'react-native'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { IntlMessageFormat } from 'intl-messageformat'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import type { CalendarDayEntry } from '@orbit/shared/types/calendar'
@@ -115,13 +114,14 @@ describe('the Calendário Orbit line on Android', () => {
 
   it.each([
     ['at the message limit', { aiMessagesUsed: 50, aiMessagesLimit: 50 }, true],
+    ['at the free plan limit that the profile does not name', { aiMessagesUsed: 5, aiMessagesLimit: undefined, hasProAccess: false }, true],
     ['offline', {}, false],
   ] as const)('rests Orbit and disables the row with the reason %s, while the day sentence still shows', (_case, profile, online) => {
     state.profile = { ...state.profile, ...profile }
     state.online = online
     const tree = render(<CalendarOrbitLine {...props()} />)
     const row = host(tree.root, 'today-astra-slot')!
-    const reason = online ? String(new IntlMessageFormat(en.shell.composer.limit.reason, 'en').format({ allowance: 50 })) : en.shell.composer.offline.reason
+    const reason = online ? en.conversation.restLimit : en.todayAstra.offline
     expect(row.props.accessibilityLabel).toBe('The 13th: 1 of 3 done.')
     expect(row.props.accessibilityState).toMatchObject({ disabled: true })
     expect(row.props.accessibilityHint).toBe(reason)

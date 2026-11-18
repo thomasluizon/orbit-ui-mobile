@@ -99,6 +99,7 @@ describe('the Calendário Orbit line', () => {
 
   it.each([
     ['at the message limit', { aiMessagesUsed: 50, aiMessagesLimit: 50 }, true],
+    ['at the free plan limit that the profile does not name', { aiMessagesUsed: 5, aiMessagesLimit: undefined, hasProAccess: false }, true],
     ['offline', {}, false],
   ] as const)('rests Orbit and disables the row with the reason %s, while the day sentence still shows', (_case, profile, isOnline) => {
     state.profile = { ...state.profile, ...profile }
@@ -107,7 +108,7 @@ describe('the Calendário Orbit line', () => {
     expect(row).toBeDisabled()
     expect(screen.getByTestId('calendar-orbit-line-reason')).toHaveStyle({ fontSize: '12px', lineHeight: '1.4' })
     const reason = screen.getByTestId('calendar-orbit-line-reason').textContent!
-    expect(reason).toBe(isOnline ? 'Today\'s allowance of 50 AI messages is used.' : en.shell.composer.offline.reason)
+    expect(reason).toBe(isOnline ? en.conversation.restLimit : en.todayAstra.offline)
     expect(row).toHaveAccessibleDescription(reason)
     expect(document.querySelector('[data-asset="orbit-mascot"]')?.getAttribute('data-orbit-state')).toBe('descansando')
   })

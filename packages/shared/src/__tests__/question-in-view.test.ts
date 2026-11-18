@@ -61,6 +61,21 @@ describe('the one rule of the quick options', () => {
     expect(answerUsesQuickOptions({ options: [option('a', 'a', 'detail'), option('b')] })).toBe(false)
   })
 
+  it.each([
+    [1, false], [2, true], [3, true], [4, true], [5, false],
+  ])('answers a single choice of %i options with quick options: %s', async (count, expected) => {
+    const { usesQuickOptions } = await import('../chat')
+    const options = ['a', 'b', 'c', 'd', 'e'].slice(0, count).map((id) => ({ id, label: `Option ${id}` }))
+    expect(usesQuickOptions({ id: 'time', prompt: 'When?', allowFreeText: false, type: 'singleChoice', options })).toBe(expected)
+  })
+
+  it('keeps the check list for a multiple-choice question whose labels fit', async () => {
+    const { usesQuickOptions } = await import('../chat')
+    const options = [{ id: 'a', label: 'Walking' }, { id: 'b', label: 'Reading' }, { id: 'c', label: 'Swimming' }]
+    expect(usesQuickOptions({ id: 'activities', prompt: 'Which activities?', allowFreeText: true, type: 'multipleChoice', options })).toBe(false)
+    expect(usesQuickOptions({ id: 'activities', prompt: 'Which activities?', allowFreeText: true, type: 'singleChoice', options })).toBe(true)
+  })
+
   it('keeps the row layout when one label holds more than 4 words', async () => {
     const { answerUsesQuickOptions, fitsQuickOptions, usesQuickOptions } = await import('../chat')
     expect(fitsQuickOptions([{ label: 'Depois do café da manhã' }, { label: 'À noite' }])).toBe(false)

@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
-import { buildComposerControls, buildComposerPrimaryControl, selectComposerAction, submitComposerFromKeyboard } from '../chat/composer-controls'
+import { buildComposerControls, buildComposerPrimaryControl, conversationRestReason, getOrbitRest, resolveAiMessagesLimit, selectComposerAction, submitComposerFromKeyboard } from '../chat/composer-controls'
+import { buildComposerAvailability } from '../hooks/chat-composer-state-core'
 import type { ComposerProps } from '../contracts/composer'
 
 function composerProps() {
@@ -152,5 +153,38 @@ describe('composer controls', () => {
     expect(props.onRetry ?? vi.fn()).toHaveBeenCalledTimes(expected === 'retry' ? 1 : 0)
     expect(props.onSend).toHaveBeenCalledTimes(expected === 'send' ? 1 : 0)
     expect(props.onVoice).not.toHaveBeenCalled()
+  })
+})
+
+describe('when the AI rests', () => {
+  const available = { aiMessagesUsed: 0, aiMessagesLimit: 5 as number | undefined, hasProAccess: false }
+
+  it.each([
+    [true, { aiMessagesUsed: 0 }, null],
+    [false, { aiMessagesUsed: 0 }, 'todayAstra.offline'],
+    [true, { aiMessagesUsed: 4 }, null],
+    [true, { aiMessagesUsed: 5 }, 'conversation.restLimit'],
+    [true, { aiMessagesUsed: 4, aiMessagesLimit: undefined, hasProAccess: false }, null],
+    [true, { aiMessagesUsed: 5, aiMessagesLimit: undefined, hasProAccess: false }, 'conversation.restLimit'],
+    [true, { aiMessagesUsed: 49, aiMessagesLimit: undefined, hasProAccess: true }, null],
+    [true, { aiMessagesUsed: 50, aiMessagesLimit: undefined, hasProAccess: true }, 'conversation.restLimit'],
+  ] as const)('gives the reason for online %s and %j: %s', (isOnline, profile, reason) => {
+    expect(getOrbitRest({ isOnline, profile: { ...available, ...profile } })).toBe(reason)
+  })
+
+  it('treats a missing profile as a free plan that has used nothing', () => {
+    expect(getOrbitRest({ isOnline: true, profile: undefined })).toBeNull()
+    expect(resolveAiMessagesLimit(undefined)).toBe(5)
+  })
+
+  it.each([
+    [{ aiMessagesUsed: 0, aiMessagesLimit: undefined, hasProAccess: false }],
+    [{ aiMessagesUsed: 5, aiMessagesLimit: undefined, hasProAccess: false }],
+    [{ aiMessagesUsed: 50, aiMessagesLimit: undefined, hasProAccess: true }],
+    [{ aiMessagesUsed: 7, aiMessagesLimit: 7, hasProAccess: false }],
+  ] as const)('gives the conversation the same limit as Hoje and Calendário for %j', (profile) => {
+    const composer = buildComposerAvailability({ profile: profile as never, dailyBudgetDate: null, today: '2026-11-13', replyActive: false, isTyping: false, streamingMessageId: null, messages: [], input: '', isOnline: true, attachments: [] })
+    expect(conversationRestReason({ isOnline: true, atMessageLimit: composer.atMessageLimit })).toBe(getOrbitRest({ isOnline: true, profile }))
+    expect(composer.aiMessagesLimit).toBe(resolveAiMessagesLimit(profile))
   })
 })
