@@ -132,7 +132,6 @@ async function isMalformedServerAction(request: NextRequest): Promise<boolean> {
   if (actionId !== null && !mightBeServerReferenceId(actionId)) return true
   const contentType = request.headers.get('content-type') ?? ''
   if (!contentType.startsWith('multipart/form-data')) return false
-  if (actionId === null && isRouteHandlerPath(request.nextUrl.pathname)) return false
   try {
     await request.clone().formData()
     return false
@@ -196,6 +195,7 @@ export async function proxy(request: NextRequest) {
 
   if (
     pathname.startsWith('/api/') ||
+    isRouteHandlerPath(pathname) ||
     pathname.startsWith('/_next/') ||
     STATIC_IMAGE_PATH.test(pathname) ||
     PUBLIC_ROOT_FILES.has(pathname)

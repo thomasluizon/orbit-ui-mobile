@@ -795,15 +795,15 @@ describe('proxy', () => {
 })
 
 
-function routeHandlerPaths(): string[] {
-  const matcher = new RegExp(`^${config.matcher[0]}$`)
-  return readdirSync('app', { recursive: true, encoding: 'utf8' })
+function routeHandlerPaths(files: string[] = readdirSync('app', { recursive: true, encoding: 'utf8' })): string[] {
+  return files
+    .map((file) => file.replaceAll('\\', '/'))
     .filter((file) => /(?:^|\/)route\.(?:ts|tsx|js)$/.test(file))
     .map((file) => `/${file.split('/').slice(0, -1)
       .filter((segment) => !/^\(.+\)$/.test(segment))
       .map((segment) => (segment.startsWith('[') ? 'segment' : segment))
       .join('/')}`)
-    .filter((path) => matcher.test(path))
+    .filter((path) => unstable_doesMiddlewareMatch({ config, url: `https://app.useorbit.org${path}` }))
 }
 
 describe('malformed Server Action requests', () => {
@@ -871,6 +871,20 @@ describe('malformed Server Action requests', () => {
     expect(response).toMatchObject({ type: 'next' })
     expect(clone).not.toHaveBeenCalled()
     expect(await request.text()).toBe('not=form&data')
+  })
+
+  it('lists the Route Handlers of a Windows checkout through the proxy matcher', () => {
+    expect(routeHandlerPaths(['monitoring\\route.ts', 'ingest\\[[...path]]\\route.ts', 'api\\health\\route.ts', '(app)\\page.tsx']))
+      .toEqual(['/monitoring', '/ingest/segment'])
+  })
+
+  it.each(['/monitoring', '/ingest/e/'])('passes a POST with an invalid action header through to the Route Handler %s', async (path) => {
+    vi.mocked(resolveSessionTokens).mockClear()
+    const response = await proxy(new NextRequest(`https://app.useorbit.org${path}`, {
+      method: 'POST', headers: { 'next-action': 'not-an-action-id', 'content-type': 'multipart/form-data; boundary=x' }, body: 'not form data',
+    }))
+    expect(response).toMatchObject({ type: 'next' })
+    expect(resolveSessionTokens).not.toHaveBeenCalled()
   })
 
   it.each(routeHandlerPaths())('leaves a malformed multipart POST without an action header unread at the Route Handler %s', async (path) => {
