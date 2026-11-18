@@ -24,12 +24,10 @@ jobs:
         with:
           persist-credentials: false
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
-        env:
-          # Bound stalled cache segments so npm ci can continue with a cold cache.
-          SEGMENT_DOWNLOAD_TIMEOUT_MINS: '1'
         with:
           node-version: 22
-          cache: npm
+          package-manager-cache: false
+      - uses: ./.github/actions/restore-npm-cache
       - run: npm ci --prefer-offline --no-audit --fund=false
       - name: Provide the NSIS bundler tools
         if: runner.os == 'Windows'

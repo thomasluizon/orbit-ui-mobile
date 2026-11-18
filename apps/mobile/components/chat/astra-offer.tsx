@@ -23,7 +23,7 @@ function ActiveAstraOffer(props: Readonly<AstraOfferProps>) {
   if (!props.action) return null
   return <>{offer.visible ? <View testID="astra-offer" style={styles.slot}>
     <View style={styles.actions}>
-      <PillButton size="sm" variant="ghost" minimumHeight={SMALL_PILL_VISIBLE_MIN} retainLeadingIcon leadingIcon={props.action.kind === 'openSurface' ? undefined : <OrbitMascot size={16} />} loading={offer.pending} accessibleName={props.action.label} disabled={offer.disabled} onClick={() => void offer.act()}>{props.action.label}</PillButton>
+      <PillButton size="sm" variant="ghost" minimumHeight={SMALL_PILL_VISIBLE_MIN} retainLeadingIcon leadingIcon={props.action.kind === 'openSurface' ? undefined : <OrbitMascot size={16} reading={offer.pending} />} loading={offer.pending} loadingFace={props.action.kind === 'openSurface' ? 'skeleton' : 'icon'} accessibleName={props.action.label} disabled={offer.disabled} onClick={() => void offer.act()}>{props.action.label}</PillButton>
       <IconButton label={t('chat.offers.dismiss')} disabled={offer.dismissDisabled} onClick={() => void offer.dismiss()}><X size={20} strokeWidth={1.5} accessible={false} /></IconButton>
     </View>
     <Text accessibilityLiveRegion="polite" style={{ color: tokens.fg2, fontSize: SECONDARY_TEXT_SIZE }}>{offer.failed ? t('chat.offers.failed') : offer.reason ? t(offer.reason) : ''}</Text>
