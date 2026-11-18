@@ -10,7 +10,7 @@ const HOUR = 3_600_000
 const ceiling = () => Object.assign(new Error("GitHub read ceiling reached"), { code: "GITHUB_READ_CEILING" })
 
 /** Reserve worst-case counted reads, even when an endpoint has no ETag or every poll changes. */
-export const reserveCiRead = (state, now) => {
+const reserveCiRead = (state, now) => {
   const { limit, remaining, reset } = state.rate
   const allowance = Math.floor(limit / 2)
   state.reservations = state.reservations.filter((timestamp) => timestamp > now - HOUR)

@@ -1,24 +1,27 @@
 #!/usr/bin/env node
 
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, statSync, symlinkSync, writeFileSync } from "node:fs"
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, statSync, symlinkSync, utimesSync, writeFileSync } from "node:fs"
 import { spawn, spawnSync } from "node:child_process"
 import { performance } from "node:perf_hooks"
 import { tmpdir } from "node:os"
 import { dirname, join, resolve } from "node:path"
 import { fileURLToPath, pathToFileURL } from "node:url"
 
-import { checkGitCommand, checkGitWorktreeRemove } from "./_lib/rules-git.mjs"
+import { PLAIN_SUBSET_ADVICE, readCommand, walkCommands } from "./_lib/shell-subset.mjs"
+import { checkGitCommand as checkGitCommandWith, GIT_SUBCOMMANDS } from "./_lib/rules-git.mjs"
 import { countUnreviewedPendingLessons, isDriftReviewOverdue } from "./_lib/rules-lessons.mjs"
 import { checkEfMigrationRawIndex } from "./_lib/rules-source.mjs"
 import { checkTicketMutation } from "./_lib/rules-tickets.mjs"
 import { checkInventedIdentifier, extractNodeIds } from "./_lib/rules-identifier.mjs"
 import { checkAdminMerge, checkBroadStaging, checkEngineInvocation } from "./_lib/rules-orchestrator.mjs"
 import { checkSleepStop } from "./_lib/rules-sleep.mjs"
-import { checkHandoffCommit, checkHandoffStop, gitCommitDirectory } from "./_lib/rules-handoff.mjs"
-import { newestCommittedPrompt, promptsForCommit, specsForCommit } from "./_lib/handoff-git.mjs"
+import { checkHandoffCommit, checkHandoffStop, gitCommitChains } from "./_lib/rules-handoff.mjs"
+import { newestCommittedPrompt, promptsForCommit, specsForCommit, topLevelOf } from "./_lib/handoff-git.mjs"
 import { adoptOwnerHandoffRun, parseHandoffRequest, prepareOwnerHandoffRun, readHandoffRequest, recordHandoffRequest, validateHandoffPrompt } from "../../tools/lib/handoff-prompt.mjs"
 import { checkDependencyCommand, checkDependencyFileWrite } from "./_lib/rules-dependencies.mjs"
 import { checkWorkerBrowser } from "./_lib/rules-worker.mjs"
+import { PERSON_PROMPT_TOOLS, REMOVAL_CHECK_TOOLS, REMOVAL_RULES, checkApprovalPrompt, checkPersonPrompt, isUnattendedRun } from "./_lib/rules-approval.mjs"
+import { additionalWorkingDirectories } from "./_lib/working-directories.mjs"
 import { declaredRepoRoots } from "./_lib/repo-roots.mjs"
 import { operationInProgress } from "../../tools/lib/relay-checkout.mjs"
 import { readRunState, writeRunState } from "../../tools/lib/run-state.mjs"
@@ -37,6 +40,13 @@ const T = (name, got, want) => {
   console.log(`${ok ? "PASS" : "FAIL"} ${name}${ok ? "" : `  got=${JSON.stringify(got)} want=${JSON.stringify(want)}`}`)
 }
 const blocks = (verdict) => !!verdict?.block
+// A fixture with no real repository resolves each branch word of a push to its own branch, as git does for a plain branch. The symbolic ref rows use real git.
+const ownBranchRef = (_chain, branch) => `refs/heads/${branch}`
+const checkGitCommand = (command, options = {}) => checkGitCommandWith(command, { resolveBranchRef: ownBranchRef, ...options })
+/** True for a command that the modelled subset reads. The hooks refuse each other command as not modelled. */
+const isModelled = (command) => readCommand(command).notModelled === ""
+const HERE_STRING = "a here-string (`<<<`)"
+const ANSI_C_QUOTE = "an ANSI-C quote `$'...'`"
 const NV = "--no-" + "verify"
 const ADMIN = "--" + "admin"
 
@@ -70,6 +80,23 @@ T("wiring: the scan is not vacuous", wired.size > 0 && onDisk.length > 0, true)
 const staleMatchers = (event) => settings.hooks[event].filter((entry) => entry.hooks.some((hook) => hook.command.includes("forbid-stale-text.mjs"))).map((entry) => entry.matcher)
 T("wiring: stale text hook checks a Write before it lands", staleMatchers("PreToolUse"), ["Write"])
 T("wiring: stale text hook checks an Edit after it lands", staleMatchers("PostToolUse"), ["Edit|MultiEdit"])
+// The Monitor tool runs its `tool_input.command` through the same permission check as the Bash tool, so every
+// shell guard runs for both. Claude Code 2.1.325 also selects a `Bash` matcher for a Monitor call that has a command
+// and sends it `tool_name: "Bash"`. That rule is internal, so the matcher names `Monitor` and this check keeps it there.
+const hookFileOf = (hook) => /\.claude[/\\]hooks[/\\]([A-Za-z0-9._-]+\.mjs)/.exec(hook?.command ?? "")?.[1]
+const guardsOn = (entries, tool) => entries.filter((entry) => (entry.matcher ?? "").split("|").includes(tool)).flatMap((entry) => entry.hooks.map(hookFileOf))
+const missingFromMonitor = (entries) => guardsOn(entries, "Bash").filter((file) => !guardsOn(entries, "Monitor").includes(file))
+const BASH_GUARDS = guardsOn(settings.hooks.PreToolUse, "Bash")
+T("wiring: every guard on the Bash matcher also runs for the Monitor tool", missingFromMonitor(settings.hooks.PreToolUse), [])
+T("wiring: the Monitor tool runs the guards of the Bash tool in the same order", guardsOn(settings.hooks.PreToolUse, "Monitor"), BASH_GUARDS)
+T("wiring: every shell guard on the Bash matcher also runs for the PowerShell tool, except the approval hook",
+  guardsOn(settings.hooks.PreToolUse, "PowerShell"), BASH_GUARDS.filter((file) => file !== "forbid-approval-prompt.mjs"))
+// The check broken: a copy that moves Monitor to its own entry without git-guardrails must name that guard.
+const monitorSplit = settings.hooks.PreToolUse.flatMap((entry) => guardsOn([entry], "Bash").length && guardsOn([entry], "Monitor").length
+  ? [{ ...entry, matcher: "Bash" }, { ...entry, matcher: "Monitor", hooks: entry.hooks.filter((hook) => hookFileOf(hook) !== "git-guardrails.mjs") }]
+  : [entry])
+T("wiring: the Monitor check names a Bash guard that a copy leaves off Monitor", missingFromMonitor(monitorSplit), ["git-guardrails.mjs"])
+T("wiring: the Monitor check is not vacuous", BASH_GUARDS.length >= 8 && BASH_GUARDS.every(Boolean), true)
 
 const metadataWorkflow = readFileSync(join(repoRoot, ".github/workflows/pr-metadata.yml"), "utf8")
 T("parity gate: metadata invokes the live-label validator", metadataWorkflow.includes("node .github/scripts/check-pr-metadata.mjs"), true)
@@ -110,8 +137,8 @@ T("git: deleting main still blocks", blocks(checkGitCommand("git push origin :ma
 T("git: +main force syntax still blocks", blocks(checkGitCommand("git push origin +main")), true)
 // The destination decides, not the source: this one really does land on main.
 T("git: redesign/main:refs/heads/main still blocks", blocks(checkGitCommand("git push origin redesign/main:refs/heads/main")), true)
-// And the reverse lands on redesign/main, so it is ordinary work.
-T("git: main:refs/heads/redesign/main allows", checkGitCommand("git push origin main:refs/heads/redesign/main"), null)
+// A refspec with `:` other than `HEAD:<branch>` is outside the push forms that a protected repository allows, also when it lands on another branch.
+T("git: main:refs/heads/redesign/main blocks", blocks(checkGitCommand("git push origin main:refs/heads/redesign/main")), true)
 // The rule reads the git SUBCOMMAND, not the word push anywhere on the line. A branch name carrying
 T("git: checkout of a branch named for push allows", checkGitCommand("git checkout -b chore/x-push-guard main"), null)
 T("git: log naming a push branch allows", checkGitCommand("git log --oneline main..chore/push-guard"), null)
@@ -119,7 +146,7 @@ T("git: -C before push still blocks", blocks(checkGitCommand("git -C . push orig
 T("git: a quoted push subcommand still blocks", blocks(checkGitCommand('git "push" origin main')), true)
 T("git: a quoted main ref still blocks", blocks(checkGitCommand('git push origin "main"')), true)
 T("git: single-quoted push still blocks", blocks(checkGitCommand("git 'push' origin main")), true)
-T("git: quoted bare push while HEAD is on main blocks", blocks(checkGitCommand('git "push" origin', { resolveHeadBranch: () => "main", cwd: "." })), true)
+T("git: quoted bare push while HEAD is on main blocks", blocks(checkGitCommand('git "push" origin', { cwd: "." })), true)
 // The shell removes escapes and embedded quotes before git sees argv, so these are all one command.
 T("git: backslash-escaped push still blocks", blocks(checkGitCommand("git \\push origin main")), true)
 T("git: embedded quotes in the subcommand still block", blocks(checkGitCommand("git p''ush origin main")), true)
@@ -131,21 +158,783 @@ T("git: env assignment naming git still blocks", blocks(checkGitCommand("FOO=git
 T("git: a PATH prefix naming git still blocks", blocks(checkGitCommand("PATH=/opt/git/bin:$PATH git push origin main")), true)
 T("git: an absolute git path still blocks", blocks(checkGitCommand("/usr/bin/git push origin main")), true)
 T("git: a wrapper before git still blocks", blocks(checkGitCommand("sudo git push origin main")), true)
-T("git: bare push while HEAD is on main blocks", blocks(checkGitCommand("git push", { resolveHeadBranch: () => "main", cwd: "." })), true)
-T("git: bare push while HEAD is on a feature branch allows", checkGitCommand("git push", { resolveHeadBranch: () => "feature/x", cwd: "." }), null)
+T("git: bare push while HEAD is on main blocks", blocks(checkGitCommand("git push", { cwd: "." })), true)
+T("git: a bare push blocks in a protected repository, also while HEAD is on a feature branch", blocks(checkGitCommand("git push", { cwd: "." })), true)
 T(`git: ${NV} blocks`, blocks(checkGitCommand("git commit -m x " + NV)), true)
 // Branch protection is Orbit's, not universal: a session driven from this repo
 // routinely pushes sibling repos whose sanctioned workflow IS direct-to-main.
 const brainRemote = () => "https://github.com/thomasluizon/brain.git"
+// The rule gives a remote reader the chain of directories that git changes to. A fixture with no symlink reads it by text; the symlink rows use real git.
+const byTextDirectory = (fixture) => (chain, remote) => fixture(chain.reduce((directory, word) => resolve(directory, word)), remote)
 T("git: push to main in a non-Orbit repo allows", checkGitCommand("git push origin main", { resolveRemoteUrl: brainRemote, cwd: "." }), null)
 T("git: an unresolvable remote still blocks (fails safe)", blocks(checkGitCommand("git push origin main", { resolveRemoteUrl: () => "", cwd: "." })), true)
+// The shell cuts a redirect from a word before git reads argv, with or without a space, so a redirect hides no ref, subcommand or flag.
+for (const tail of ["main&>/dev/null", "main>/dev/null", "main 2>&1", "main>|log", "main>>log", "main<input", "main>&2", "main 2>/dev/null", "HEAD:main&>log", "+main>log"]) {
+  T(`git: push origin ${tail} still blocks`, blocks(checkGitCommand(`git push origin ${tail}`)), true)
+}
+T("git: a redirect on the push subcommand still blocks", blocks(checkGitCommand("git push>/dev/null origin main")), true)
+T("git: a redirect on --all still blocks", blocks(checkGitCommand("git push --all>/dev/null origin")), true)
+T("git: a redirect on the -n of a commit still blocks", blocks(checkGitCommand("git commit -n>/dev/null -m x")), true)
+T("git: &> on the -n of a commit still blocks", blocks(checkGitCommand("git commit -m x -an&>/dev/null")), true)
+// A quoted or escaped `>` is a character of the ref name, which git permits, so it cuts nothing.
+T("git: a quoted > in the source ref still blocks", blocks(checkGitCommand('git push origin "a>b:main"')), true)
+// A ref with a character outside a plain branch name is outside the push forms that a protected repository allows.
+T("git: a quoted > in a branch name blocks", blocks(checkGitCommand('git push origin "main>x"')), true)
+T("git: an escaped > in a branch name blocks", blocks(checkGitCommand("git push origin main\\>x")), true)
+T("git: main2 before >&1 is another branch", checkGitCommand("git push origin main2>&1"), null)
+T("git: a redirect to a file named main allows", checkGitCommand("git push origin feature/x > main"), null)
+T("git: a force push of a feature branch blocks in a protected repository", blocks(checkGitCommand("git push -f origin feature/x&>/dev/null")), true)
+T("git: a feature push with a redirect on the ref allows", checkGitCommand("git push origin feature/x&>/dev/null"), null)
+T("git: a here-string to a shell still blocks", blocks(checkGitCommand('bash <<< "git push origin main"')), true)
+// The shell reads a here-string with or without a space around its operator.
+T("git: a here-string with no space before its word still blocks", blocks(checkGitCommand('bash <<<"git push origin main"')), true)
+T("git: a here-string with no space on either side still blocks", blocks(checkGitCommand("bash<<<'git push origin main'")), true)
+// A here-string is no heredoc, so a later line that repeats its word ends nothing and the lines between are commands.
+T("git: a here-string word that a later line repeats opens no heredoc", blocks(checkGitCommand("cat <<<x\ngit push origin main\nx")), true)
+// A here-string is a redirect of standard input, so git reads no argument from it: its operator and its word are no ref and no flag.
+const inProtectedRepo = { resolveRemoteUrl: () => "git@github.com:o/orbit-ui-mobile.git", cwd: "." }
+for (const command of ["git push <<<x", "git push -u <<<x", "git push <<<x 2>&1", "git push <<< x", "git push origin <<<x", "git <<<x push", 'bash <<<"git push"']) {
+  T(`git: ${command} while HEAD is on main blocks`, blocks(checkGitCommand(command, inProtectedRepo)), true)
+}
+for (const command of ["git <<<x push origin main", "git <<< x push origin main", "git <<<x commit -n -m x", 'bash <<<"git push origin main>/dev/null"', 'bash -s git <<<"git push origin main"', 'bash <<<"git commit -m x -n"',
+  // The shell removes each quote and each escape from the word of a here-string before the command reads it.
+  "bash <<<git\\ push\\ origin\\ main", "bash <<<git\\ commit\\ -m\\ x\\ -n", "bash <<<$'git push origin main\\n'", "bash <<<$'true\\ngit commit -m x -n'"]) {
+  T(`git: ${command} still blocks`, blocks(checkGitCommand(command)), true)
+}
+// The shell removes a quote in the command word too, and an escape can hide the word `git` in the text of the command.
+T("git: g''it push origin main still blocks", blocks(checkGitCommand("g''it push origin main")), true)
+// A here-string is outside the modelled subset, so each command with one is refused, also a command that runs nothing forbidden.
+T("git: push <<<x while HEAD is on a feature branch is not modelled", checkGitCommand("git push <<<x", inProtectedRepo)?.notModelled, HERE_STRING)
+T("git: push origin feature/x <<<x while HEAD is on main is not modelled", checkGitCommand("git push origin feature/x <<<x", inProtectedRepo)?.notModelled, HERE_STRING)
+T("git: a here-string word that names main is not modelled", checkGitCommand("git push origin feature/x <<<main")?.notModelled, HERE_STRING)
+T("git: a here-string word that names -n is not modelled", checkGitCommand("git commit -m x <<< -n")?.notModelled, HERE_STRING)
+// The shell reads a heredoc operator only outside a quote, an escape and a comment. Each other `<<EOF` is text, so the next lines are commands.
+for (const [name, command] of [
+  ["a single quote", "echo '<<EOF'\ngit push origin main\nEOF"],
+  ["a double quote", 'echo "<<EOF"\ngit push origin main\nEOF'],
+  ["an ANSI-C quote", "echo $'it\\'s <<EOF'\ngit push origin main\nEOF"],
+  ["an escape", "echo a\\<<EOF\ngit push origin main\nEOF"],
+  ["a comment", "true # <<EOF\ngit push origin main\nEOF"],
+  ["a quote that spans lines", 'echo "a\n<<EOF"\ngit push origin main\nEOF'],
+]) T(`git: <<EOF in ${name} opens no heredoc`, blocks(checkGitCommand(command)), true)
+// A substitution that opens on an earlier line still gives the heredoc body to its command.
+T("git: a heredoc on a later line of a command string keeps its body in scope", blocks(checkGitCommand("bash -c \"$(\ncat <<'EOF'\ngit push origin main\nEOF\n)\"")), true)
+// In an ANSI-C quote a backslash escapes the next character, so `\'` does not end the quote, and a `>`, `;` or `$(` in it is text.
+for (const [name, command] of [
+  ["commit -n after $'it\\'s > x'", "git commit -m $'it\\'s > x' -n -m it\\'s"],
+  [`commit ${NV} after $'it\\'s > x'`, `git commit -m $'it\\'s > x' ${NV} -m it\\'s`],
+  ["push origin main after $'it\\'s > x'", "git push -o $'it\\'s > x' origin main -o it\\'s"],
+  ["push origin HEAD:main after $'it\\'s > x'", "git push -o $'it\\'s > x' origin HEAD:main -o it\\'s"],
+  ["commit -n after $'don\\'t; x'", "git commit -m $'don\\'t; x' -n"],
+  ["push origin main after $'don\\'t; x'", "git push -o $'don\\'t; x' origin main"],
+  ["commit -n after $'it\\'s $(x'", "git commit -m $'it\\'s $(x' -n"],
+]) T(`git: ${name} still blocks`, blocks(checkGitCommand(command)), true)
+// An ANSI-C quote is outside the modelled subset. The same messages in a plain quote are data.
+T("git: an ANSI-C message that names -n after > is not modelled", checkGitCommand("git commit -m $'it\\'s > -n'")?.notModelled, ANSI_C_QUOTE)
+T("git: an ANSI-C message that names a push after ; is not modelled", checkGitCommand("git commit -m $'don\\'t; git push origin main'")?.notModelled, ANSI_C_QUOTE)
+T("git: a redirect to an ANSI-C target is not modelled", checkGitCommand("git push origin feature/x > $'it\\'s main'")?.notModelled, ANSI_C_QUOTE)
+T("git: a quoted message that names -n after > allows", checkGitCommand('git commit -m "it is > -n"'), null)
+T("git: a quoted message that names a push after ; allows", checkGitCommand('git commit -m "do not; git push origin main"'), null)
+T("git: a redirect to a quoted target cuts the whole target", checkGitCommand('git push origin feature/x > "its main"'), null)
+// The shell removes an ANSI-C quote from a word before git reads argv, as it removes each other quote.
+for (const command of ["$'git' push origin main", "git $'push' origin main", "git push origin $'main'", "bash -c $'git push origin main'"]) {
+  T(`git: ${command} still blocks`, blocks(checkGitCommand(command)), true)
+}
+// In a single quote a backslash is text, so the quote ends at the next `'` and the substitution holds the push.
+T("git: a single quote that ends in a backslash hides no command of its substitution", blocks(checkGitCommand("echo $(echo 'a\\' ; git push origin main)")), true)
+for (const tail of ["2>&1", "2>/dev/null", "> /dev/null", ">/dev/null", "&>/dev/null", "2>&1 | tail -3"]) {
+  T(`git: push origin ${tail} while HEAD is on main blocks`, blocks(checkGitCommand(`git push origin ${tail}`, { cwd: "." })), true)
+}
+T("git: push origin feature/x 2>&1 while HEAD is on main allows", checkGitCommand("git push origin feature/x 2>&1", { cwd: "." }), null)
 // A heredoc body is data: writing ABOUT a banned flag is not using it.
 T(`git: a heredoc message naming ${NV} allows`, checkGitCommand(`git commit -F - <<'EOF'\nfix: stop passing ${NV} in CI\nEOF`), null)
 T("git: a heredoc feeding a shell keeps its body in scope", blocks(checkGitCommand("bash <<'EOF'\ngit push origin main\nEOF")), true)
-// git worktree remove --force follows a Windows junction and deletes the target.
-T("git-worktree: --force blocks", blocks(checkGitWorktreeRemove("git worktree remove --force .claude/worktrees/x")), true)
-T("git-worktree: no force allows", checkGitWorktreeRemove("git worktree remove .claude/worktrees/x"), null)
-T("git-worktree: force on a later chained command allows", checkGitWorktreeRemove("git worktree remove .claude/worktrees/x && npm test -- --force"), null)
+// A file named for a shell is not a shell: the body is data that the command writes.
+T("git: a heredoc written to a .sh file is data", checkGitCommand("cat > push.sh <<'EOF'\ngit push origin main\nEOF"), null)
+T("git: a heredoc feeding a shell by path keeps its body in scope", blocks(checkGitCommand("/bin/bash <<'EOF'\ngit push origin main\nEOF")), true)
+// A shell reads the heredoc as its script whatever options sit between the shell word and the operator.
+// An option can take the next word (`-o`, `-O`, `-R`, `-T`, `--rcfile`, `--emulate`), and after `-s` each other word is a positional argument.
+const HEREDOC_SHELLS = [
+  "bash -e",
+  "bash -s",
+  "sh -x",
+  "/bin/bash -euo pipefail",
+  "bash -o pipefail -e",
+  "zsh +o nomatch",
+  "ksh",
+  "dash -e",
+  "bash -O extglob",
+  "bash +O extglob",
+  "bash -oe pipefail",
+  "bash -s -- one two",
+  "bash -es one",
+  "bash --rcfile /dev/null",
+  "zsh --emulate sh",
+  "ksh -R xref",
+  "mksh -T tty",
+]
+for (const shell of HEREDOC_SHELLS) T(`git: a heredoc feeding ${shell} keeps its body in scope`, blocks(checkGitCommand(`${shell} <<'EOF'\ngit push origin main\nEOF`)), true)
+// A redirect in any order is not an argument, and a pipeline from the heredoc into a shell that reads standard input runs the body.
+const HEREDOC_SHELL_LINES = [
+  "bash -x 2>log <<'EOF'",
+  "bash <<'EOF' 2>log",
+  "bash 2> log <<'EOF'",
+  "bash &>log <<'EOF'",
+  "bash -s <<'EOF' one two",
+  "cat <<'EOF' | bash",
+  "cat <<'EOF' | sh -s -- a",
+  "cat <<'EOF' | tee copy.sh | bash",
+  "cat <<'EOF' | (cd /tmp && bash)",
+  "(bash -e) <<'EOF'",
+  "bash>/dev/null <<'EOF'",
+  "bash&>/dev/null <<'EOF'",
+  "cat <<'EOF' | bash>log",
+  "cat <<'EOF' |& bash",
+  "cat <<'EOF' |& tee copy.sh | bash",
+  // A command substitution gives the body to its command as text, and a command string or `eval` runs that text.
+  ["bash -c \"$(cat <<'EOF'", ")\""],
+  ["sh -c \"$(cat <<'EOF'", ")\""],
+  ["bash -euc \"$(cat <<'EOF'", ")\""],
+  ["/bin/bash -o pipefail -c \"$(cat <<'EOF'", ")\""],
+  ["bash -c -o pipefail \"$(cat <<'EOF'", ")\""],
+  ["bash -c \"echo first $(cat <<'EOF'", ")\""],
+  ["eval \"$(cat <<'EOF'", ")\""],
+  ["eval `cat <<'EOF'", "`"],
+  // A here-string is one more redirect of standard input: bash gives the shell the last one, and zsh gives it each one.
+  "bash <<<\"\" <<'EOF'",
+  "bash <<<x <<'EOF'",
+  "bash <<< x <<'EOF'",
+  "bash <<'EOF' <<<x",
+  // A command substitution in the command word runs the words of its output as a command, also after an assignment.
+  ["$(cat <<'EOF'", ")"],
+  ["`cat <<'EOF'", "`"],
+  ["y=1 $(cat <<'EOF'", ")"],
+  ["y+=1 $(cat <<'EOF'", ")"],
+  // A backslash at the end of the operator line continues the line, so the reader of the body can be on the next line.
+  "cat <<'EOF' \\\n| bash",
+]
+/** A row is the operator line, or the operator line and the text after the terminator. */
+const heredocCommand = (row, body) => {
+  const [line, afterTerminator] = [row].flat()
+  return `${line}\n${body}\nEOF${afterTerminator ? `\n${afterTerminator}` : ""}`
+}
+const heredocName = (row) => [row].flat().join(" ... ")
+for (const row of HEREDOC_SHELL_LINES) T(`git: the heredoc of ${heredocName(row)} keeps its body in scope`, blocks(checkGitCommand(heredocCommand(row, "git push origin main"))), true)
+// A shell that runs a script file or a command string, a command after a separator, and a pipeline with no shell read the heredoc as data.
+const HEREDOC_DATA = [
+  "bash script.sh <<'EOF'",
+  "bash -O extglob script.sh <<'EOF'",
+  "bash --rcfile rc script.sh <<'EOF'",
+  "bash -- script.sh <<'EOF'",
+  "bash -c cat <<'EOF'",
+  "bash -s one; cat <<'EOF'",
+  "bash <<'EOF' script.sh",
+  "cat > bash <<'EOF'",
+  "cat <<'EOF' | grep push",
+  "cat <<'EOF' | bash script.sh",
+  "cat <<'EOF' && bash",
+  "cat <<'EOF' > run.sh",
+  "cat <<'EOF' >bash",
+  "cat <<'EOF' |& grep push",
+  ["echo \"$(cat <<'EOF'", ")\""],
+  ["git commit -m \"$(cat <<'EOF'", ")\""],
+  ["gh pr create --body \"$(cat <<'EOF'", ")\""],
+  ["x=$(cat <<'EOF'", ")"],
+  ["x=\"$(cat <<'EOF'", ")\""],
+  ["y=1 x=$(cat <<'EOF'", ")"],
+  ["echo $(cat <<'EOF'", ")"],
+  ["bash script.sh \"$(cat <<'EOF'", ")\""],
+  // A quoted `<<A` before the operator is text: the heredoc is the one that has a terminator line.
+  "git commit -m 'x <<A' -F - <<'EOF'",
+  "git commit -m \"it's <<A\" -F - <<'EOF'",
+  // A `<<` with no terminator line, such as a shift, opens no heredoc, and the reader goes on to the next operator.
+  "echo $((1<<x)); git commit -F - <<'EOF'",
+  "cat <<'EOF' \\\n| grep push",
+  // The shell expands `$(cat)` before it applies the heredoc, so the command string comes from the input of the caller, not from the body.
+  "bash -c \"$(cat)\" <<'EOF'",
+  "eval \"$(cat)\" <<'EOF'",
+]
+for (const row of HEREDOC_DATA) {
+  const command = heredocCommand(row, "git push origin main")
+  if (isModelled(command)) T(`git: the heredoc of ${heredocName(row)} is data`, checkGitCommand(command), null)
+  else T(`git: the heredoc of ${heredocName(row)} is not modelled`, typeof checkGitCommand(command)?.notModelled, "string")
+}
+T("subset: the heredoc data rows that the subset models", HEREDOC_DATA.filter((row) => isModelled(heredocCommand(row, "x"))).map(heredocName), ["cat > bash <<'EOF'", "cat <<'EOF' | grep push", "cat <<'EOF' > run.sh",
+  "cat <<'EOF' >bash", "git commit -m 'x <<A' -F - <<'EOF'", "git commit -m \"it's <<A\" -F - <<'EOF'"])
+// A shell with a here document of its own is outside the subset: the hook never reads a script that a shell gets from standard input.
+T("subset: the heredoc shell rows that the subset models", [...HEREDOC_SHELLS.map((shell) => `${shell} <<'EOF'`), ...HEREDOC_SHELL_LINES].filter((row) => isModelled(heredocCommand(row, "x"))).map(heredocName), [])
+// A hygiene flag counts only as a word of a git command. The same text in an argument of another command is data.
+const NO_SIGN = "--no-gpg-" + "sign"
+for (const command of [`grep -rn -- '${NV}' .claude/hooks`, `rg -n -e '${NV}' .claude`, `echo 'Never use ${NV}.'`, `printf '%s\\n' 'Never use ${NV}.' >> notes.md`,
+  `gh pr comment 1 --body 'The hook refuses ${NV}.'`, `grep -c -- '${NV}' $(git ls-files)`]) {
+  T(`git: ${command} allows`, checkGitCommand(command), null)
+}
+// A command word that the hook does not know, such as a PowerShell cmdlet, is refused in an unattended run, and passes in an attended session when it names no git.
+T("git: a PowerShell cmdlet that names a flag allows in an attended session", checkGitCommand(`Select-String -Pattern '${NO_SIGN}' -Path .claude/hooks/*.mjs`, { unattended: false }), null)
+T("git: a PowerShell cmdlet is an unknown command word in an unattended run", checkGitCommand(`Select-String -Pattern '${NO_SIGN}' -Path .claude/hooks/*.mjs`)?.notModelled?.startsWith("the command word `select-string`"), true)
+for (const command of [`git commit ${NV} -m x`, "git commit -n -m x", `git commit ${NO_SIGN} -m x`, "git -c commit.gpgsign=false commit -m x", `git push ${NV} origin feature/x`,
+  `git commit --no-ver''ify -m x`, `sudo git commit -m x ${NV}`, `npm run lint && git commit -m x ${NV}`]) {
+  T(`git: ${command} still blocks`, blocks(checkGitCommand(command)), true)
+}
+// The reader is an allow list. A command with a construct outside the modelled subset is refused, so no reading of it can run a forbidden git command.
+for (const [name, command] of [
+  ['a here-string in a $"..." quote to bash', 'bash <<<$"git push origin main"'],
+  ['a here-string in a $"..." quote to zsh', 'zsh <<<$"git push origin main"'],
+  ["a heredoc operator after $$'", "echo $$'x\\' <<EOF ; echo '\ngit push origin main\nEOF"],
+  ["a <<- end marker after a tab", "cat <<-'EOF'\n\tdata\n\tEOF\ngit push origin main\nEOF"],
+  ["a line that looks like the end marker", "cat <<'EOF'\ndata\nEOF \ngit push origin main\nEOF"],
+  ["an end marker that is not one plain word", "cat <<E\"O\"F\ndata\nE\nit's\nEOF\ngit push origin main\necho it's"],
+  ["a line continuation inside the word git", "gi\\\nt push origin main"],
+  ["an ANSI-C quote that spells git as a code", "$'\\x67it' push origin main"],
+  ["a quoted shell name before -c", "b''ash -c 'git push origin main'"],
+  ["a script from /dev/stdin", "source /dev/stdin <<'EOF'\ngit push origin main\nEOF"],
+  ["a process substitution to a shell", "bash <(cat <<'EOF'\ngit push origin main\nEOF\n)"],
+]) T(`git: ${name} still blocks`, blocks(checkGitCommand(command)), true)
+// The modelled subset: `readCommand` names the first construct outside it, and names none for a plain command.
+for (const [name, command] of [
+  ["a here-string", 'grep -c x <<<"$output"'],
+  ['a `$"..."` quote', 'echo $"hello"'],
+  ["a run of `$` before a quote", "echo $$'x'"],
+  ["an ANSI-C quote", "echo $'\\x41'"],
+  ["an ANSI-C quote", "echo $'it\\'s'"],
+  ["a line continuation", "ec\\\nho x"],
+  ["a line continuation", "git commit -m x \\\n  -m y"],
+  ["a line continuation", 'echo "a\\\nb"'],
+  ["a here document with a delimiter that is not one quoted literal word", "cat <<\\EOF\nx\nEOF"],
+  ["a here document with a delimiter that is not one quoted literal word", "cat <<EOF\nx\nEOF"],
+  ["a here document with a delimiter that is not one quoted literal word", "cat <<E\"O\"F\nx\nEOF"],
+  ["a here document with no end marker line", "cat <<'EOF'\nx"],
+  ["a here document with a line that looks like its end marker", "cat <<'EOF'\nx\nEOF "],
+  ["a subshell", "(cat <<'EOF'\nx\nEOF\n)"],
+  ["the redirect `<<-`", "cat <<-'EOF'\n\tx\n\tEOF"],
+  ["a here document inside a substitution", "git commit -m \"$(cat <<'EOF'\nfix: x\nEOF\n)\""],
+  ["an arithmetic expansion `$((`", "echo $((1<<2))"],
+  ["an arithmetic expansion `$[`", "echo $[ 1 <<true ]"],
+  ["a function, an array or an arithmetic command", "(( x = 1 <<true ))"],
+  ["a function, an array or an arithmetic command", "wipe() { ls; }"],
+  ["a function, an array or an arithmetic command", "list=(a b)"],
+  ["a `${...}` expansion with an operator", "echo ${x:- <<true }"],
+  ["a `${...}` expansion with an operator", 'echo "${name%/*}"'],
+  ["the builtin `eval`", 'eval "$COMMAND"'],
+  ["the builtin `eval`", "eval 'echo ok'"],
+  ["the builtin `alias`", "alias wipe=ls"],
+  ["the builtin `trap`", "trap 'echo ok' EXIT"],
+  ["in the words of a shell command", 'bash -c "echo $NAME"'],
+  ["in the words of a shell command", "/bin/sh -euc $SCRIPT"],
+  ["a shell that reads its script from standard input", "echo 'echo ok' | bash"],
+  ["the shell keyword `while`", "cat run.sh | while read -r line; do bash; done"],
+  ["the word `{`", "{ bash; } <<'EOF'\necho ok\nEOF"],
+  ["a subshell", "(sh -s) <<'EOF'\necho ok\nEOF"],
+  ["an `xargs` that runs `bash`", "echo ok | xargs -I{} bash -c '{}'"],
+  ["a shell `-c`", "bash -c"],
+  ["the builtin `source`", "source /dev/stdin <<'EOF'\necho ok\nEOF"],
+  ["a shell with a script under `/dev` or `/proc`", "bash /dev/stdin <<'EOF'\necho ok\nEOF"],
+  ["a shell `-c`", Array.from({ length: 10 }).reduce((script) => `bash -c ${JSON.stringify(script)}`, "true")],
+  ["the shell keyword `case`", "case x in x) echo ok;; esac"],
+  ["the shell keyword `function`", "function wipe { ls; }"],
+  ["a process substitution", "diff <(sort a) <(sort b)"],
+  ["a backtick substitution", "echo `date`"],
+  ["a backtick substitution", 'echo "`date`"'],
+  ["a word that starts with `=` in a command word", "=git status"],
+  ["a word that starts with `=` in a command word", "env =git status"],
+  ["a word that starts with `=` in a `git` argument", "git push origin =main"],
+  ["a glob in a command word", "/usr/bin/gi? status"],
+  ["a glob in a command word", "/usr/bin/gi[t] status"],
+  ["a variable in a command word", "$g status"],
+  ["a variable in a command word", 'nice "$USER" ls'],
+  ["a command substitution in a command word", "$(which git) status"],
+  ["a brace expansion in a command word", "{git,status}"],
+  ["a variable in a `git` argument", 'git log "$BRANCH"'],
+  ["a glob in a `git` argument", "git add *.md"],
+  ["a brace expansion in a `git` argument", "git push origin m{a,}in"],
+  ["a command substitution in a `git` argument", "git push origin $(echo x)"],
+  ["an `xargs` that runs `git`", "echo main | xargs git push origin"],
+  ["the operator `|&`", "make |& tail"],
+  ["a quote with no end", "echo 'x"],
+  ["a quote with no end", 'echo "x'],
+  ["to a target that is not a literal path", 'echo x > "$OUT"'],
+  ["to a target that is not a literal path", "echo x > out-*.log"],
+  ["to a target that is no file descriptor", "echo x >&out.log"],
+  ["a `{name}>` redirect", "echo x {fd}>/dev/null"],
+  ["a comment inside a substitution", "echo $(date # now\n)"],
+  ["a shell `-c`", "bash -c 'echo \"$1\"' name value"],
+  ["a shell `-c`", "bash -c 'for f in a b; do echo $f; done'"],
+  ["the builtin `source`", "source .venv/bin/activate && python tool.py"],
+  ["the shell keyword `while`", "while IFS= read -r line; do echo \"$line\"; done < in.txt"],
+  ["the shell keyword `elif`", "if [ -f x ]; then echo yes; elif [ -d x ]; then echo dir; else echo no; fi"],
+  ["the word `[[`", "if [[ -d x ]]; then echo dir; fi"],
+  ["the word `{`", "{ echo x; echo y; } > out.log"],
+  ["a subshell", "(cd apps && ls) | tail -1"],
+  ["a background `&`", "sleep 5 & wait"],
+  ["the shell keyword `until`", 'until test -f "$OUT/done"; do sleep 5; done'],
+  ["the shell keyword `!`", "! grep -q x notes.md"],
+  ["a shell that reads its script from standard input", "bash < scripts/run.sh"],
+  ["a `$(` with no `)`", "echo $(date"],
+  ["a `)` with no `$(`", "echo x)"],
+  ["a `$` before a character that zsh can read as an expansion flag", 'echo "$=NAME"'],
+  ["a `$` before a character that zsh can read as an expansion flag", "git $=verb origin"],
+]) T(`subset: ${command} holds ${name}`, readCommand(command).notModelled.includes(name), true)
+for (const command of ['grep -c "$pattern" notes.md', 'head -c "$count" notes.md', "git commit -F - <<'EOF'\nfix: read bash <<<$\"x\" and echo $$'y' and <(z) and `w`\nEOF", 'printf "%s\\n" "$$"',
+  "npm test 2>&1 | tail -n 5", 'grep -rn "rm" notes.md', "cd apps/web && npx vitest run src/x.test.ts > /tmp/out.log 2>&1", "ls -la *.md | head -3",
+  'echo "$HOME" "${TMPDIR:?}" "${TMPDIR:?not set}" $(date) "at $(date +%s)"', "CI=1 NAME='a b' npm test", "[ -f package.json ] && echo yes || echo no", "find . -name '*.ts' -exec grep -l x {} \;",
+  "echo ok &>/dev/null", "echo ok >&2", "echo ok 2>/dev/null >> out.log < in.txt", "true # a comment with $(x) and 'y", "cat > notes.md <<'EOF'\n$(x) `y` <<<z ${a:-b}\nEOF\necho ok",
+  "git log --oneline -5 main..HEAD", "git commit -m \"fix: a 'quoted' word; and more\"", "git show HEAD@{1} --stat", 'grep -E "^a$" notes.md', "echo a |\n  tail -1", "bash scripts/run.sh --flag value",
+  "cat <<'A' <<\"B\"\nx\nA\ny\nB", "ROOT=$(pwd); ls", 'export OUT="$HOME/out"',
+  "for f in a b; do echo \"$f\"; done", "if [ -f x ]; then echo yes; else echo no; fi", "echo ==== section ====; [ a = b ]", "bash scripts/run.sh"]) {
+  T(`subset: ${command} is modelled`, readCommand(command).notModelled, "")
+}
+/** The words of each command that the walk visits, as argv carries them, in the order in which the shell runs them. */
+const wordTexts = (command) => {
+  const visited = []
+  walkCommands(readCommand(command).list, null, ({ words }) => { visited.push(words.map((word) => word.text)); return null })
+  return visited
+}
+T("subset: a word is read with no quote and no escape, as argv carries it", wordTexts(`g''it p"us"h ori\\gin 'ma'in`), [["git", "push", "origin", "main"]])
+T("subset: a list divides at each operator, and a pipeline keeps its commands in order", wordTexts("echo 1; ls 2 && cat | wc\ntrue || pwd"), [["echo", "1"], ["ls", "2"], ["cat"], ["wc"], ["true"], ["pwd"]])
+T("subset: a redirect, its file descriptor and its target are no words", wordTexts("git push origin main2>&1 >out.log 2>/dev/null"), [["git", "push", "origin", "main2"]])
+T("subset: an assignment before the command word is no word", [wordTexts("A=1 B='x y' git status"), readCommand("A=1 B='x y' git status").list[0][0].node.commands[0].assignments.map(({ name }) => name)], [[["git", "status"]], ["A", "B"]])
+T("subset: a heredoc body is no word, and the text after its end marker is read", wordTexts("cat > x.sh <<'EOF'\ngit push origin main\nEOF\necho ok"), [["cat"], ["echo", "ok"]])
+T("subset: a loop runs its body once for each literal word, and a condition gives each branch", wordTexts("for w in a b; do echo $w; done; if test -f a; then true; else false; fi"), [["echo", "a"], ["echo", "b"], ["test", "-f", "a"], ["true"], ["false"]])
+T("subset: a structure word is a plain word after the command word, and in a quote", wordTexts("echo done fi; echo 'if' fi"), [["echo", "done", "fi"], ["echo", "if", "fi"]])
+T("subset: a quoted structure word in the place of a command word is an unknown command word", readCommand("'if' x").notModelled.startsWith("the command word `if`"), true)
+T("subset: a variable that the line sets to a literal value is read as its value; another variable stays as written", wordTexts('d=/work/x; git -C "$d" status; echo "$HOME" $d'), [[], ["git", "-C", "/work/x", "status"], ["echo", "$HOME", "/work/x"]])
+T("subset: a shell with a script file is a plain command, and `-c` or a here document of its own is not modelled", [readCommand("bash scripts/run.sh").notModelled, readCommand("bash -c 'git status'").notModelled, readCommand("bash -e <<'EOF'\ngit status\nEOF").notModelled],
+  ["", "a shell `-c`, which runs its next word as a script", "a shell that reads its script from standard input"])
+T("git: a data heredoc that names a push, after a plain command with -c and a variable, allows", checkGitCommand("grep -c \"$pattern\" notes.md && git commit -F - <<'EOF'\nNever run git push origin main.\nEOF"), null)
+T(`git: cat <<<'${NV}' is not modelled`, checkGitCommand(`cat <<<'${NV}'`)?.notModelled, HERE_STRING)
+T("git: the not-modelled refusal names the construct, the plain subset and the script file", ["a here-string", "plain subset", "bash /abs/path.sh"].every((text) => (checkGitCommand('bash <<<$"git push origin main"')?.message ?? "").includes(text)), true)
+// The same constructs with no forbidden git command in the text are refused too: the reader does not read them, so it proves nothing about them.
+for (const command of ['bash <<<$"git status"', 'grep -c push <<<"$output"', "echo $$'x' ; git push origin feature/x", "cat <<-'EOF'\n\tgit push origin main\n\tEOF", "echo $((1<<2)) && git status",
+  "printf $'\\x1b[31m%s\\n' red && git log -1", "diff <(sort a) <(sort b) && git status"]) {
+  T(`git: ${command} is not modelled`, typeof checkGitCommand(command)?.notModelled, "string")
+}
+// Each command of the round 12 review. The reader at that head allowed each of the first two groups.
+const REVIEW_GIT_REFUSED = [
+  "bash -c $'git\\tpush\\torigin\\tm\\x61in'", "bash <<<$'git\\tpush\\torigin\\tm\\x61in'", "bash -c $'git\\cIpush\\cIorigin\\cImain'", "bash -c $'echo\\cJgit push origin main'",
+  "(( x = 1 <<true ))\ngit push origin main\ntrue", "echo ${x:- <<true }\ngit push origin main\ntrue", "echo $[ 1 <<true ]\ngit push origin main\ntrue",
+  "git \\\npush origin main", "git \\\ncommit -n -m x", "git push \\\norigin",
+  "=git push origin main", "/usr/bin/gi? push origin main", "/usr/bin/gi[t] push origin main", "git push origin $(echo main)", "git push origin `echo main`", 'B=main; git push origin "$B"', "git push origin m{a,}in",
+  "git commit -m x '-n'", 'git commit -m x "-n"', "git commit -m x \\-n", "git --no-pager commit -n -m x", "git -c commit.gpgSign=false commit -m x", "git -c commit.gpgsign=no commit -m x",
+  "git -c commit.gpgsign=off commit -m x", "git -c commit.gpgsign=0 commit -m x", "git -c commit.GPGSIGN= commit -m x", "git -c core.hookspath=/dev/null commit -m x", `git commit ${NV.slice(0, 9)} -m x`,
+  // The limits that the round 12 body listed as allowed.
+  "(cat <<'EOF'\ngit push origin main\nEOF\n) | bash", "{ cat <<'EOF'\ngit push origin main\nEOF\n} | bash", "echo \"$(cat <<'EOF'\ngit push origin main\nEOF\n)\" | bash", "cat <<'EOF' |\ngit push origin main\nEOF\nbash",
+  "env $(cat <<'EOF'\ngit push origin main\nEOF\n)", "x= $(cat <<'EOF'\ngit push origin main\nEOF\n)", "git push origin {fd}>/dev/null", "{git,push,origin,main}", "g=git; $g push origin main",
+  "echo 'git push origin main' | bash", "echo 'git push origin main' | while true; do bash; done", "echo 'git push origin main' | { true; bash; }", "echo main | xargs git push origin", "echo 'git push origin main' | xargs -I{} bash -c '{}'", "sudo =git push origin main", "find . -maxdepth 0 -exec =git push origin main \\;",
+  "bash /dev/stdin <<'EOF'\ngit push origin main\nEOF",
+  // zsh runs the words after each of these words as a command, and bash reads the name of a program.
+  "nocorrect git push origin main", "repeat 1 git push origin main", "- git push origin main", "time nocorrect git push origin main", "noglob nocorrect git commit -n -m x",
+  "{ true; } always { git push origin main; }",
+]
+for (const command of REVIEW_GIT_REFUSED) T(`git review: ${JSON.stringify(command)} is refused`, blocks(checkGitCommand(command, inProtectedRepo)), true)
+for (const [name, command] of [["nocorrect", "nocorrect ls"], ["repeat", "repeat 3 ls"], ["-", "- ls"], ["always", "always ls"], ["foreach", "foreach f in a; ls; end"]]) {
+  T(`subset: ${command} holds the zsh command word ${name}`, readCommand(command).notModelled, `the zsh command word \`${name}\`, which runs the words after it as a command`)
+}
+T("subset: a zsh command word after the command word is a plain word", readCommand("echo nocorrect repeat - always foreach").notModelled, "")
+// A ref `HEAD` or `@` with no destination names the branch that HEAD is on, and the value of a push option is no repository and no ref.
+// A protected repository allows only `git push [-u] origin <branch>` and `git push origin HEAD:<branch>`, with a plain branch that is not main.
+for (const command of ["git push origin HEAD", "git push -u origin HEAD", "git push origin @", "git push origin +HEAD", "git push -o ci.skip origin", "git push --push-option ci.skip origin", "git push --repo origin",
+  "git push --receive-pack git-receive-pack origin", "git push --recurse-submodules check origin", "git push -o ci.skip origin feature/x", "git push origin head", "git push origin heads/main", "git push origin refs/heads/Main",
+  "git push -u origin HEAD:feature/x", "git push origin feature/x feature/y", "git push --force origin feature/x", "git push origin feature/x:feature/y", "git push upstream feature/x"]) {
+  T(`git: ${command} blocks in a protected repository`, blocks(checkGitCommand(command, inProtectedRepo)), true)
+}
+for (const command of ["git push origin HEAD:feature/x", "git push origin feature/x", "git push -u origin feature/x", "git push origin HEAD:refs/heads/feature/x", "git push origin redesign/main"]) {
+  T(`git: ${command} allows in a protected repository`, checkGitCommand(command, inProtectedRepo), null)
+}
+// The ref names `HEAD`, `ORIG_HEAD` and `FETCH_HEAD` are refused as the branch word in each case. A branch name that only ends in the letters `head` is a plain branch.
+for (const command of ["git push origin fix/stay-ahead", "git push origin fix/ticket-2200-final-head", "git push -u origin feature/overhead", "git push origin HEAD:fix/final-head"]) {
+  T(`git review r25: ${command} allows in a protected repository`, checkGitCommand(command, inProtectedRepo), null)
+}
+for (const command of ["git push origin ORIG_HEAD", "git push origin fetch_head", "git push -u origin HEAD", "git push origin HEAD:head", "git push origin HEAD:FETCH_HEAD"]) {
+  T(`git review r25: ${command} blocks in a protected repository`, blocks(checkGitCommand(command, inProtectedRepo)), true)
+}
+// git gives a push with no destination the ref that its local word resolves to, so a symbolic ref under `refs/heads/` can name `main`.
+// The rule asks git for that ref in the chain of directories of the push, and it fails safe. `HEAD:<branch>` names its destination, so git resolves no local word.
+const symbolicToMain = { ...inProtectedRepo, resolveBranchRef: (_chain, branch) => (branch === "sneaky" ? "refs/heads/main" : `refs/heads/${branch}`) }
+for (const command of ["git push origin sneaky", "git push -u origin sneaky"]) {
+  T(`git review r26: ${command} blocks when git resolves the word to another ref`, blocks(checkGitCommand(command, symbolicToMain)), true)
+}
+T("git review r26: the refusal names the ref that git resolves the word to", (checkGitCommand("git push origin sneaky", symbolicToMain)?.message ?? "").includes("git resolves `sneaky` to `refs/heads/main`"), true)
+for (const command of ["git push origin feature/x", "git push -u origin feature/x", "git push origin HEAD:sneaky"]) {
+  T(`git review r26: ${command} allows when git resolves the word to its own branch`, checkGitCommand(command, symbolicToMain), null)
+}
+T("git review r26: a push of a branch word blocks when no caller resolves it (fails safe)", blocks(checkGitCommandWith("git push origin feature/x", inProtectedRepo)), true)
+T("git review r26: a push of a branch word that git cannot resolve blocks (fails safe)",
+  blocks(checkGitCommand("git push origin feature/x", { ...inProtectedRepo, resolveBranchRef: () => { throw new Error("exit 128") } })), true)
+T("git review r26: HEAD:<branch> needs no resolver", checkGitCommandWith("git push origin HEAD:feature/x", inProtectedRepo), null)
+T("git review r26: a repository with no protection resolves no branch word", checkGitCommandWith("git push origin sneaky", { resolveRemoteUrl: brainRemote, cwd: ".", unattended: false }), null)
+const resolvedChains = []
+checkGitCommand("git -C /work/ui -C sub push origin feature/x", { ...inProtectedRepo, cwd: "/work", resolveBranchRef: (chain, branch) => { resolvedChains.push([chain, branch]); return `refs/heads/${branch}` } })
+T("git review r26: the resolver gets the chain of directories of the push and the branch word", resolvedChains, [[["/work", "/work/ui", "sub"], "feature/x"]])
+// A command of the same line can make the word a symbolic ref after the hook reads it: `git symbolic-ref`, and a redirect that writes under a `.git` directory.
+for (const [command, names] of [["git symbolic-ref refs/heads/other refs/heads/main && git push origin other", "`git symbolic-ref`"],
+  ["printf 'ref: refs/heads/main\\n' > .git/refs/heads/third && git push -u origin third", "`/work/ui/.git/refs/heads/third`"],
+  ["cd .git && printf 'ref: refs/heads/main\\n' >> refs/heads/third; cd ..; git push origin third", "`/work/ui/.git/refs/heads/third`"],
+  ["git push origin third 2> /work/ui/.GIT/push.log", "`/work/ui/.GIT/push.log`"]]) {
+  const verdict = checkGitCommand(command, { ...inProtectedRepo, cwd: "/work/ui" })
+  T(`git review r26: ${command} blocks in a protected repository and names ${names}`, [blocks(verdict), (verdict?.message ?? "").includes(names)], [true, true])
+}
+for (const command of ["git push origin feature/x > push.log", "printf x > notes.git && git push origin feature/x", "git push origin feature/x 2> /tmp/git/push.log", "cat < .git/HEAD && git push origin feature/x",
+  "git symbolic-ref HEAD", "printf x > .git/info/note"]) {
+  T(`git review r26: ${command} allows in a protected repository`, checkGitCommand(command, { ...inProtectedRepo, cwd: "/work/ui" }), null)
+}
+T("git review r26: a symbolic-ref with a push to a repository with no protection allows", checkGitCommand("git symbolic-ref refs/heads/other refs/heads/main && git push origin other", { resolveRemoteUrl: brainRemote, cwd: ".", unattended: false }), null)
+// A `cd` that the shell can skip leaves the push in the directory before it, so the rule judges the push in each directory that is possible.
+const fromProtected = { cwd: "/work/ui", resolveRemoteUrl: byTextDirectory((directory) => (directory.startsWith("/other") ? "git@github.com:o/sandbox.git" : "git@github.com:o/orbit-ui-mobile.git")) }
+for (const command of ["false && cd /other; git push origin main", "true || cd /other; git push origin main", "cd /other || git push origin main", "if false; then cd /other; fi; git push origin main",
+  "for d in; do cd /other; done; git push origin main", "while false; do cd /other; done; git push origin main", "until true; do cd /other; done; git push origin main", "false &&\ncd /other\ngit push origin main",
+  "if true; then cd /work/ui; else cd /other; fi; git push origin main", "bash -c 'false && cd /other; git push origin main'", "(false && cd /other; git push origin main)", "cd /other; cd /work/ui; git push origin main",
+  "{ cd /other; }; git push origin main", "if true; then cd /other && git push origin main; fi", "cd /other | cat; git push origin main", "echo $(cd /other); git push origin main"]) {
+  T(`git: ${JSON.stringify(command)} from a protected repository blocks`, blocks(checkGitCommand(command, fromProtected)), true)
+}
+for (const command of ["cd /other && git push origin main", "cd /other; git push origin main", "cd /other && npm test && git push origin main", "cd /other\ngit push origin main",
+  "true && cd /other && git push origin main", "git -C /other push origin main", "cd /other; if true; then git push origin main; fi", "d=/other; cd \"$d\" && git push origin main"]) {
+  T(`git: ${JSON.stringify(command)} from a protected repository allows`, checkGitCommand(command, fromProtected), null)
+}
+const REVIEW_APPROVAL_REFUSED = [
+  "echo $((cat <<EOF\n'\nEOF\n) ); rm -rf \"$TMP\" # '", "bash <<<$'rm\\t-rf\\t\\x24TMP'", "(( x = 1 <<true ))\nrm -rf \"$TMP\"\ntrue",
+  "bash -c \"cat <<X\n'\nX\nrm -rf \\\"\\$TMP\\\" # '\"", "eval \"cat <<X\n'\nX\nrm -rf \\\"\\$TMP\\\" # '\"", "bash <<'EOF'\ncat <<X\n'\nX\nrm -rf \"$TMP\" # '\nEOF",
+  "echo 'rm -rf \"$TMP\"' | bash", "=rm -rf \"$TMP\"", "/bin/r? -rf \"$TMP\"", "r{m,} -rf \"$TMP\"",
+  'nocorrect rm -rf "$TMP"', 'repeat 1 rm -rf "$TMP"', '- rm -rf "$TMP"', '{ true; } always { rm -rf "$TMP"; }',
+]
+// The approval rows run in the loop below the approval options.
+// A hygiene flag counts only as a flag of a git command in the parsed words: the same text in an argument of another program is data.
+const REVIEW_GIT_ALLOWED = [`grep -rn "git commit ${NV}" .claude`, `echo 'git commit ${NV} is refused'`, `gh pr comment 1 --body 'The hook refuses git push ${NV}.'`, "echo 'git commit -n skips the hooks'",
+  `echo git commit ${NV}`, "git commit -mnote", "git commit -m 'run -n later'", `git commit -m 'never pass ${NV}'`, "git log -n 5", "git commit -uno -m x", "which git && man git-push"]
+for (const command of REVIEW_GIT_ALLOWED) T(`git review: ${JSON.stringify(command)} allows`, checkGitCommand(command), null)
+// Each command of the round 13 review. The review options: the session directory is a protected repository, `/work/brain` is not protected,
+// and each other directory has no remote, so the rule treats it as protected.
+const r13Remote = byTextDirectory((directory, remote = "origin") => remote !== "origin" ? "" : directory.startsWith("/work/orbit-ui-mobile") ? "https://github.com/thomasluizon/orbit-ui-mobile.git" : directory.startsWith("/work/brain") ? "https://github.com/thomasluizon/brain.git" : "")
+const r13Options = { cwd: "/work/orbit-ui-mobile", resolveRemoteUrl: r13Remote }
+const fromBrain = { ...r13Options, cwd: "/work/brain" }
+const REVIEW_R13_GIT_REFUSED = [
+  // Defect 1: a byte that the reader did not read made it loop. The rows that hold such a byte run in a child process below, with a time limit.
+  // Defect 2: zsh reads a command after `[[ ... ]]` or `{ ... }` with no separator.
+  "if [[ 1 ]] git push origin main", "if [[ 1 ]] { git push origin main }", "while [[ 1 ]] { git push origin main; break }", "if [[ 1 ]] then git push origin main; fi", "if { true } git push origin main",
+  // Defect 3: a `cd` in a group in a pipeline or in the background changes no directory of the shell.
+  "{ cd /work/brain; } | cat; git push origin main", "{ cd /work/brain; } & git push origin main",
+  // Defect 4: a shell or `source` that reads its here document through another spelling of /dev/stdin.
+  "source //dev/stdin <<'EOF'\ngit push origin main\nEOF", "bash /dev/./stdin <<'EOF'\ngit push origin main\nEOF", "bash //dev/stdin <<'EOF'\ngit push origin main\nEOF",
+  // Defect 5: `env -S` runs its value as a command.
+  "env -S 'git push origin main'", "env --split-string='git push origin main'",
+  // Defect 6: quoted text that a shell later runs as code.
+  "PS4='$(git push origin main)' bash -xc true", "set -o promptsubst; PS4='$(git push origin main)'; set -x; true", "printf -v 'a[$(git push origin main)]' x", "typeset 'a[$(git push origin main)]=1'",
+  "read 'a[$(git push origin main)]' <<'EOF'\n1\nEOF", "bash -c \"let 'a[\\$(git push origin main)]'\"", "[[ 'a[$(git push origin main)]' -eq 0 ]]", "typeset -i x='a[$(git push origin main)]'",
+  // Defect 7: push forms that push main of a protected repository.
+  "git push origin :", "git push origin 'refs/heads/*:refs/heads/*'", "git -c alias.p='push origin main' p", "git -c push.default=matching push", "git -c remote.origin.push=HEAD:main push origin",
+  "HP=/dev/null git --config-env=core.hooksPath=HP commit -m x",
+]
+for (const command of REVIEW_R13_GIT_REFUSED) T(`git review r13: ${JSON.stringify(command)} is refused`, blocks(checkGitCommand(command, r13Options)), true)
+// Defect 3 from the other side, and defect 7 from a repository with no protection: each one pushes main of a protected repository.
+for (const command of ["true | { cd /work/orbit-ui-mobile; }; git push origin main", "git --git-dir=/work/orbit-ui-mobile/.git push origin main", "GIT_DIR=/work/orbit-ui-mobile/.git git push origin main",
+  "pushd /work/orbit-ui-mobile && git push origin main", "git push https://github.com/thomasluizon/orbit-ui-mobile.git main", "git push ../orbit-ui-mobile main", "git push upstream main",
+  "git remote set-url origin https://github.com/thomasluizon/orbit-ui-mobile.git && git push origin main"]) {
+  T(`git review r13: ${JSON.stringify(command)} from a repository with no protection is refused`, blocks(checkGitCommand(command, fromBrain)), true)
+}
+// The controls: a push to main of the repository with no protection, and a plain cd out of the protected repository, still pass.
+T("git review r13: a push to main from the repository with no protection allows", checkGitCommand("git push origin main", fromBrain), null)
+T("git review r13: a plain cd to the repository with no protection allows a push to its main", checkGitCommand("cd /work/brain && git push origin main", r13Options), null)
+T("git review r13: a git -C to the repository with no protection allows a push to its main", checkGitCommand("git -C /work/brain push origin main", r13Options), null)
+// Item 5 of the order: each command form that the coordinator uses passes both rules in an unattended run.
+const COORDINATOR_FORMS = [
+  "git status", "git status --short", "git log --oneline -1", "git -C /work/orbit-ui-mobile rev-parse HEAD", "node tools/run-status.mjs --json", "gh pr view 2464 --repo thomasluizon/orbit-ui-mobile --json body",
+  "for w in ticket-1 ticket-2; do d=/work/worktrees/$w; git -C \"$d\" status --short; done", "for w in ticket-1 ticket-2\ndo\n  d=/work/worktrees/$w\n  git -C \"$d\" log --oneline -1\ndone",
+  "if git merge --no-edit origin/main; then echo merged; else git merge --abort; fi", "if git merge --no-edit origin/main; then echo merged; fi",
+  "node .claude/hooks/test-hooks.mjs 2>&1 | tail -5", "git log --oneline | head -3", "git diff --stat | grep hooks", "git log --format=%H | cut -c1-7", "gh pr view 1 --json body | node -e 'process.stdin.pipe(process.stdout)'",
+  "echo \"head $(git rev-parse --short HEAD)\"", "echo head $(git rev-parse --short HEAD)", "node tools/test-tools.mjs > /tmp/tools.log 2>&1", "git --literal-pathspecs add .claude/hooks/test-hooks.mjs",
+  "cd /work/orbit-ui-mobile && git fetch origin && git status -sb", "git push origin fix/ticket-2137-no-prompt", "git push -u origin fix/ticket-2137-no-prompt", "git push origin HEAD:fix/ticket-2137-no-prompt",
+]
+for (const command of COORDINATOR_FORMS) T(`git coordinator form: ${JSON.stringify(command)} allows`, checkGitCommand(command, r13Options), null)
+T("subset: a loop over literal words gives git the value of the variable that the loop sets", wordTexts(COORDINATOR_FORMS[6]).filter((words) => words[0] === "git"), [["git", "-C", "/work/worktrees/ticket-1", "status", "--short"], ["git", "-C", "/work/worktrees/ticket-2", "status", "--short"]])
+// The walk forgets a variable after a program that can set it, and a loop over words that are not literal is not modelled.
+for (const [name, command] of [
+  ["the builtin `read`", 'd=/work/x; read -r d; git -C "$d" status'],
+  ["a variable in a `git` argument", 'git -C "$d" status'],
+  ["a variable whose value bash and zsh split or expand in different ways", "d='/work/a b'; git -C $d status"],
+  ["a `for` loop that is not", "for f in *.md; do git add \"$f\"; done"],
+  ["a `for` loop that is not", "for f in $(ls); do echo \"$f\"; done"],
+  ["a `for` loop that is not", "for f in a b; echo \"$f\""],
+  ["an empty command", "if true; then; fi"],
+  ["more commands than the hook reads", `for a in ${Array.from({ length: 200 }, (_, i) => i).join(" ")}; do for b in ${Array.from({ length: 200 }, (_, i) => i).join(" ")}; do echo x; done; done`],
+  ["a `[` or a `:` directly after `$NAME`", "echo $d[1]"],
+  ["a `[` or a `:` directly after `$NAME`", "echo $d:h"],
+  ["an assignment in a pipeline", "true | d=/x"],
+  ["the builtin `break`", "for w in a b; do break; done"],
+]) T(`subset: ${command.slice(0, 80)} holds ${name}`, readCommand(command).notModelled.startsWith(name), true)
+// A relative `cd` that the shell can skip doubles the directories that are possible, and the walk stops at its limit.
+T("git: ten skippable relative cd commands are more states than the hook reads", checkGitCommand(Array.from({ length: 10 }, () => "true && cd a || cd b").join("; "), r13Options)?.notModelled, "more possible states than the hook reads")
+// An attended session refuses a command outside the subset only when its text, without heredoc bodies, quotes and backslashes, names git and a
+// push or a hygiene marker. So the default commit form of Claude Code and a git command with a variable argument pass, also with a message that names a push.
+T("git attended: a command outside the subset that names no git allows", checkGitCommand("while true; do sleep 5; done", { unattended: false }), null)
+T("git attended: a command outside the subset that names a git push blocks", blocks(checkGitCommand("{ git push origin main; }", { unattended: false })), true)
+T("git attended: a quote inside the word git still names git", blocks(checkGitCommand("{ g''it push origin main; }", { unattended: false })), true)
+const CLAUDE_COMMIT_FORM = "git commit -m \"$(cat <<'EOF'\nfix(hooks): push the branch, never with --no-verify\n\nCo-Authored-By: Claude\nEOF\n)\""
+const ATTENDED_TEXT_PASSES = [CLAUDE_COMMIT_FORM, 'git checkout "$BRANCH"', 'git -C "$HOME/work" status', 'git log --since="$(date -v-1d +%F)"',
+  'for f in .github/workflows/*.yml; do echo "$f"; done', "git status | Select-String modified", "Get-Content .gitignore", 'git commit -m "$MESSAGE" && head -n 3 log.txt']
+for (const command of ATTENDED_TEXT_PASSES) T(`git attended: ${JSON.stringify(command.slice(0, 70))} outside the subset allows`, checkGitCommand(command, { unattended: false }), null)
+const ATTENDED_TEXT_REFUSED = ['git push origin "$BRANCH"', 'git commit --no-verify -m "$X"', 'git commit -n -m "$X"', 'git commit -an -m "$X"', 'git commit --no-gpg-sign -m "$X"',
+  'git -c core.hooksPath=/dev/null commit -m "$X"', 'git -c commit.gpgsign=false commit -m "$X"', "git commit -m \"$(cat <<'EOF'\nx\nEOF\n)\" && git push origin main",
+  "git commit -m \"$(cat <<'EOF'\nx\nEOF\n)\" -n", 'git commit -m "a; b $X" -n']
+for (const command of ATTENDED_TEXT_REFUSED) T(`git attended: ${JSON.stringify(command.slice(0, 70))} outside the subset blocks`, blocks(checkGitCommand(command, { unattended: false })), true)
+for (const command of ATTENDED_TEXT_PASSES.slice(0, 5)) T(`git: ${JSON.stringify(command.slice(0, 70))} outside the subset blocks in an unattended run`, blocks(checkGitCommand(command)), true)
+
+// Each command of the round 14 review. The session directory is a protected repository, \`/work/brain\` is not protected, and the named remote \`ui\` has no URL, so the rule treats it as protected.
+const REVIEW_R14_GIT_REFUSED = [
+  // Defect 2: a builtin that assigns a name, and \`export\` or \`typeset\` of a refused name with no \`=\`.
+  "read GIT_CONFIG_COUNT GIT_CONFIG_KEY_0 GIT_CONFIG_VALUE_0 <<'EOF'\n1 alias.p push origin main\nEOF\nexport GIT_CONFIG_COUNT GIT_CONFIG_KEY_0 GIT_CONFIG_VALUE_0\ngit p",
+  "read PS4 <<'EOF'\n$(git push origin main)\nEOF\nset -x\ntrue", "read IFS <<'EOF'\n/\nEOF\nd=feature/main; git push origin $d", "export GIT_DIR", "typeset -x GIT_DIR", "getopts a GIT_DIR",
+  "mapfile -C 'git push origin main #' -c 1 x <<'EOF'\n1\nEOF", "readarray -C 'git push origin main #' -c 1 x <<'EOF'\n1\nEOF", "export IFS", "local PATH=/tmp/evil", "unset -f git",
+  // Defect 4: a git subcommand that pushes or runs a command, and an alias.
+  "git rebase --exec 'git push origin main' HEAD~1", "git rebase -x 'git push origin main' HEAD~1", "git rebase -ix 'git push origin main' HEAD~1", "git submodule foreach 'git push origin main'",
+  "git bisect run git push origin main", "git subtree push --prefix=apps origin main", "git send-pack git@github.com:thomasluizon/orbit-ui-mobile.git main", "git p",
+  "git fetch --upload-pack='git push origin main' origin", "git grep -O'git push origin main' x", "git difftool -x 'git push origin main'",
+  // Defect 5: a shell that is not a POSIX shell, by name or by path.
+  "tcsh -c 'git push origin main'", "csh -c 'git push origin main'", "fish -c 'git push origin main'", "/bin/tcsh -fc 'git push origin main'", "pwsh -Command 'git push origin main'",
+  // Defect 6: zsh reads \`<N-M>\` and \`<->\` as a glob that matches a number.
+  "git push origin HEAD:feature <0-9> HEAD:main", "git push origin feature <-> main", "git push origin feature 2<1-9>",
+  // A command word that the hook does not know.
+  "caffeinate -i git push origin main", "watch git push origin main", "ssh host git push origin main",
+]
+for (const command of REVIEW_R14_GIT_REFUSED) T(`git review r14: ${JSON.stringify(command)} is refused`, blocks(checkGitCommand(command, r13Options)), true)
+for (const command of [
+  // Defect 1: another spelling of the URL of a protected repository, and \`--repo\`.
+  "git push https://github.com/thomasluizon/ORBIT-UI-MOBILE.git main", "git push https://github.com/thomasluizon/Orbit-UI-Mobile main", "git push https://github.com/thomasluizon/orbit-ui-mobile.git/ main",
+  "git push https://github.com/thomasluizon/orbit-ui-mobile.GIT main", "git push https://github.com/thomasluizon/orbit%2Dui-mobile main", "git push --repo https://github.com/thomasluizon/orbit-ui-mobile.git",
+  "git push --repo=https://github.com/thomasluizon/orbit-ui-mobile.git", "git push --force --repo https://github.com/thomasluizon/orbit-ui-mobile.git", "git push --repo ui", "git push --repo=ui main", "git push ui main",
+  // Defect 2 and defect 3 from a repository with no protection.
+  "read GIT_DIR <<'EOF'\n/work/orbit-ui-mobile/.git\nEOF\nexport GIT_DIR\ngit push origin main", "zformat -f GIT_DIR /work/orbit-ui-mobile/.git; export GIT_DIR; git push origin main",
+  "declare -n r=GIT_DIR; r=/work/orbit-ui-mobile/.git; export GIT_DIR; git push origin main", "chdir /work/orbit-ui-mobile; git push origin main", "chdir /work/orbit-ui-mobile && git push origin main",
+  "builtin chdir /work/orbit-ui-mobile; git push origin main", "git send-pack git@github.com:thomasluizon/orbit-ui-mobile.git main", "git push --receive-pack='git push origin main' ../x main",
+]) {
+  T(`git review r14: ${JSON.stringify(command)} from a repository with no protection is refused`, blocks(checkGitCommand(command, fromBrain)), true)
+}
+T("git review r14: in an attended session, a URL with the name of a repository with no protection allows a push to its main", checkGitCommand("git push https://github.com/thomasluizon/Brain.git/ main", { ...fromBrain, unattended: false }), null)
+T("git review r14: an attended session in a repository with no protection allows a subcommand that the hook does not know", checkGitCommand("git bisect run npm test", { ...fromBrain, unattended: false }), null)
+T("git review r14: an attended session in a protected repository refuses a subcommand that the hook does not know", blocks(checkGitCommand("git subtree push --prefix=apps origin feature/x", { ...r13Options, unattended: false })), true)
+T("git review r14: the refusal of an unknown subcommand names the subcommands that the hook knows", (checkGitCommand("git p", r13Options)?.message ?? "").includes("The hook knows only: add apply"), true)
+T("git review r14: the refusal of an unknown command word names the command words that the hook knows", (checkGitCommand("caffeinate -i git status", r13Options)?.message ?? "").includes("The hook knows only: exec command"), true)
+// Defect 8: a \`git\` argument can use a variable with a lower case name that the line sets. An upper case name is refused, and the advice says so.
+T("git review r14: a lower case variable that the line sets passes in a git argument", checkGitCommand("wt=/work/orbit-ui-mobile; git -C \"$wt\" status --short", r13Options), null)
+T("git review r14: an upper case variable that the line sets is refused in a git argument", checkGitCommand("WT=/work/orbit-ui-mobile; git -C \"$WT\" status --short", r13Options)?.notModelled, "a variable in a \`git\` argument")
+T("git review r14: the advice names the lower case rule", (checkGitCommand("WT=/work/orbit-ui-mobile; git -C \"$WT\" status --short", r13Options)?.message ?? "").includes("An upper case name such as \`$WT\` is never read there"), true)
+
+// Each defect of the round 15 review. Defect 1: git and GitHub resolve a dot segment, a repeated `/`, an escape, a query and a path, so in an unattended run
+// a push names a URL only in a canonical form. In an attended session, the name reader removes each dot segment, and it treats a name that it cannot read as protected.
+const REVIEW_R15_URLS = ["git push https://github.com/thomasluizon/orbit-ui-mobile.git/. main", "git push https://github.com/thomasluizon/orbit-ui-mobile/x/.. main",
+  "git push --repo=https://github.com/thomasluizon/orbit-ui-mobile.git/./", "git push https://github.com/thomasluizon/orbit-ui-mobile/./ main"]
+for (const command of [...REVIEW_R15_URLS, "git push https://github.com//thomasluizon/brain.git main", "git push 'https://github.com/thomasluizon/brain.git?x=1' main",
+  "git push https://github.com/thomasluizon/brain.git#x main", "git push https://github.com/thomasluizon/br%61in main", "git push ../brain main", "git push ssh://git@github.com/thomasluizon/brain.git main",
+  "git push https://GitHub.com/thomasluizon/brain main", "git push https://github.com/thomasluizon/brain/ main", "git push https://github.com/thomasluizon/.git main"]) {
+  T(`git review r15: ${JSON.stringify(command)} from a repository with no protection is refused`, blocks(checkGitCommand(command, fromBrain)), true)
+}
+for (const command of REVIEW_R15_URLS) T(`git review r15: ${JSON.stringify(command)} from a repository with no protection is refused in an attended session`, blocks(checkGitCommand(command, { ...fromBrain, unattended: false })), true)
+for (const command of ["git push https://github.com/thomasluizon/brain.git main", "git push https://github.com/thomasluizon/brain main", "git push git@github.com:thomasluizon/brain.git main",
+  "git push git@github.com:thomasluizon/Brain main", "git push --repo=https://github.com/thomasluizon/brain.git"]) {
+  T(`git review r15: the canonical form ${JSON.stringify(command)} from a repository with no protection allows a push to its main`, checkGitCommand(command, fromBrain), null)
+}
+T("git review r15: the refusal of a URL names the canonical forms", (checkGitCommand(REVIEW_R15_URLS[0], fromBrain)?.message ?? "").includes("`https://github.com/<owner>/<repo>` or `git@github.com:<owner>/<repo>`, each with an optional `.git`"), true)
+T("git review r15: a remote URL with a dot segment from the config makes the directory protected", blocks(checkGitCommand("git push origin main", { cwd: "/work/brain", resolveRemoteUrl: () => "https://github.com/thomasluizon/orbit-ui-mobile.git/." })), true)
+// The options of a wrapper are an allow list. Each option that the list does not name is not modelled, in each spelling: a short option in a
+// group or with its value in the same word, and each unique prefix of a GNU long option. Both rules refuse it in an unattended run.
+const WRAPPER_OPTIONS_REFUSED = ["env -P /tmp/x git status", "env -P/tmp/x git status", "env -vP /tmp/x git status", "env -P /tmp/x git push origin fix/a", "env --sp='rm -rf \"$TMP\"'",
+  "env --sp='git push origin main'", "env --split git status", "env --split-s=x git status", "env --ch=/work/orbit-ui-mobile git push origin main", "env --chd /work/x git status", "env --chdi=/work/x git status",
+  "env --ignore-env git push origin main", "env --ign git push origin main", "env --uns=HOME git push origin main", "env --u=HOME git push origin main", "exec -c git push origin main",
+  "exec -a x git status", "exec -l git status", "nice -5 git status", "nice --adjustment=5 git status", "timeout git status", "timeout --signal=KILL 5 git status", "timeout -v 5 git status", "time -v git status",
+  "stdbuf --output=L git status", "nohup -- git status", "noglob -x git status", "builtin -x echo", "setsid -w git status", "sudo -u root git status", "sudo -E git status", "doas -u root git status",
+  "command -p git status", "xargs -a list.txt git status", "ionice -p 1 git status", "nice -n", "runuser git -c 'rm -rf \"$TMP\"'", "runuser -u root git status"]
+for (const command of WRAPPER_OPTIONS_REFUSED) {
+  T(`subset: the wrapper option in ${JSON.stringify(command)} is refused by both rules`, [Boolean(checkGitCommand(command, fromBrain)?.notModelled), checkApprovalPrompt(command, { cwd: "/work/brain" })?.rule], [true, "not-modelled"])
+}
+// The refusal names the file that declares the allow list of the wrapper options.
+const wrapperRefusal = readCommand("env -P /tmp/x git status").notModelled
+const wrapperListFile = /`WRAPPER_OPTIONS` in `([\w.-]+\.mjs)`/.exec(wrapperRefusal)?.[1] ?? ""
+T("subset review r25: the wrapper option refusal names the file that declares WRAPPER_OPTIONS", wrapperListFile !== "" && /^const WRAPPER_OPTIONS = /m.test(readFileSync(join(hooksDir, "_lib", wrapperListFile), "utf8")), true)
+// The controls: each option that the allow list names passes, with its value in the next word or in the same word.
+for (const command of ["env FOO=1 git status", "env -- FOO=1 git status", "nice git status", "nice -n 5 git status", "nice -n5 git status", "timeout 60 git fetch origin", "timeout -s KILL -k 5 60 npm test",
+  "timeout --preserve-status --foreground 5m npm test", "time -p npm test", "stdbuf -oL -e 0 tail -1 notes.md", "command -v git", "xargs -0 -r -n 1 -I{} echo {}", "ionice -c 3 nice -n 10 npm test",
+  "exec git status", "nohup npm test", "env FOO=1 nice -n 5 timeout 60 git status"]) {
+  T(`subset: the wrapper options in ${JSON.stringify(command)} are modelled`, readCommand(command).notModelled, "")
+}
+// Each way that the subset can run a program in a directory other than the shell directory is refused by the git rule, the handoff gate
+// and the approval rule. `find -execdir` and `-okdir` run in the directory of each found file, `env -C` and `sudo -D` in the named directory,
+// `sudo` in the `runcwd` of its policy, `pkexec` in the home directory of the user, and `make -C` in the named directory.
+for (const [name, command] of [
+  ["`find -execdir`", "find /work/orbit-ui-mobile -maxdepth 1 -name apps -execdir git commit -m x \\;"],
+  ["`find -okdir`", "find /work/orbit-ui-mobile -maxdepth 1 -name apps -okdir git commit -m x \\;"],
+  ["`find -execdir` with `+`", "find /work/orbit-ui-mobile -maxdepth 1 -name apps -execdir git commit -m x {} +"],
+  ["`find -execdir` after a wrapper", "nice -n 5 find /work/orbit-ui-mobile -maxdepth 1 -name apps -execdir git commit -m x \\;"],
+  ["`find -execdir` after `xargs`", "echo /work/orbit-ui-mobile | xargs -I{} find {} -maxdepth 1 -name apps -execdir git commit -m x \\;"],
+  ["`find -execdir` in the command of `find -exec`", "find . -maxdepth 0 -exec find /work/orbit-ui-mobile -maxdepth 1 -name apps -execdir git commit -m x \\; \\;"],
+  ["`find -execdir` with a relative removal", "find /work/orbit-ui-mobile -maxdepth 1 -name apps -execdir rm -rf build \\; ; git commit -m x"],
+  ["a `{}` in a `git` argument after `find -exec`", "find /work/orbit-ui-mobile -maxdepth 0 -exec git -C {} commit -m x \\;"],
+  ["`env -C`", "env -C /work/orbit-ui-mobile git commit -m x"],
+  ["`env --chdir`", "env --chdir=/work/orbit-ui-mobile git commit -m x"],
+  ["`env --chdir` with its value in the next word", "env --chdir /work/orbit-ui-mobile git commit -m x"],
+  ["`sudo`", "sudo git commit -m x"],
+  ["`sudo -D`", "sudo -D /work/orbit-ui-mobile git commit -m x"],
+  ["`sudo --chdir`", "sudo --chdir=/work/orbit-ui-mobile git commit -m x"],
+  ["`doas`", "doas git commit -m x"],
+  ["`pkexec`", "pkexec git commit -m x"],
+  ["`pkexec --keep-cwd`", "pkexec --keep-cwd git commit -m x"],
+  ["`make -C`", "make -C /work/orbit-ui-mobile commit GIT='git commit -m x'"],
+  ["`xargs` before `git`", "echo /work/orbit-ui-mobile | xargs -I{} git -C {} commit -m x"],
+  // A computed word of `find` can be `-execdir`, `-okdir`, `-exec` or `-ok`. The reader refuses each one that it cannot prove is no such action.
+  ["a variable that gives `find` the word `-execdir`", "x=-execdir; find /work/orbit-ui-mobile -maxdepth 1 -name apps $x git commit -m x \\;"],
+  ["a quoted variable that gives `find` the word `-execdir`", 'x=-execdir; find /work/orbit-ui-mobile -maxdepth 1 -name apps "$x" git commit -m x \\;'],
+  ["an exported upper case variable that gives `find` the word `-execdir`", 'export X=-execdir; find /work/orbit-ui-mobile -maxdepth 1 -name apps "$X" git commit -m x \\;'],
+  ["a variable that gives `find` the word `-okdir`", 'x=-okdir; find /work/orbit-ui-mobile -maxdepth 1 -name apps "$x" git commit -m x \\;'],
+  ["a variable that gives `find` the word `-exec`", 'x=-exec; find /work/orbit-ui-mobile -maxdepth 0 "$x" git commit -m x \\;'],
+  ["a brace expansion that gives `find` the word `-execdir`", "find /work/orbit-ui-mobile -maxdepth 1 -name apps -{print,execdir} git commit -m x \\;"],
+  ["a glob that can give `find` the word `-execdir`", "find /work/orbit-ui-mobile -maxdepth 1 -name apps -execdi? git commit -m x \\;"],
+  ["an unquoted variable after a literal prefix, which the shell splits", 'x="a -execdir"; find /work/orbit-ui-mobile -maxdepth 1 -name apps b$x git commit -m x \\;'],
+  ["a variable that gives `find` its path", 'find "$DIR" -maxdepth 1 -name apps -exec git commit -m x \\;'],
+  // `xargs` adds words from standard input, so the program that it runs must read no program or action from its words.
+  ["`xargs find`", "printf '%s\\n' -execdir git commit -m x ';' | xargs find /work/orbit-ui-mobile -maxdepth 1 -name apps"],
+  ["`xargs env`", "printf '%s\\n' git -C /work/orbit-ui-mobile commit -m x | xargs env"],
+  ["`xargs env --`", "printf '%s\\n' git commit -m x | xargs env --"],
+  ["`xargs nice`", "printf '%s\\n' git -C /work/orbit-ui-mobile commit -m x | xargs nice"],
+  ["`xargs time`", "printf '%s\\n' git commit -m x | xargs time"],
+  ["`xargs nohup`", "printf '%s\\n' git commit -m x | xargs nohup"],
+  ["`xargs nice` before a program", "printf '%s\\n' x | xargs nice ls; git commit -m x"],
+  ["`xargs` with no command word", "printf '%s\\n' x | xargs -n 1; git commit -m x"],
+]) {
+  T(`subset other directory: ${name} is refused by the git rule, the handoff gate and the approval rule`,
+    [Boolean(checkGitCommand(command, fromBrain)?.notModelled), gitCommitChains(command, { cwd: "/work/brain" }).notModelled !== "", checkApprovalPrompt(command, { cwd: "/work/brain" })?.rule],
+    [true, true, "not-modelled"])
+}
+// The controls: a computed word of `find` that cannot be an action, and an `xargs` whose program reads no program from its words, stay modelled.
+for (const command of ['find "$DST/apps" -maxdepth 1 -name "*.tmp"', 'wt=/work/x; find "$wt" -name "*.tmp"', "find apps/*/src -name x", 'x=-name; find . "$x" a',
+  'find . -name "*$ext"', 'find ~/x -name y', 'find . -name a"$x"', "printf '%s\\n' a b | xargs -n 1 echo", "printf '%s\\n' a | xargs -0 -r grep -l x"]) {
+  T(`subset other directory: the control ${JSON.stringify(command)} is modelled`, readCommand(command).notModelled, "")
+}
+T("subset other directory: the refusal of a computed `find` word names the actions and the rewrite", readCommand('find . "$X" git status \\;').notModelled,
+  "a variable in the words of `find`, which can be an action that runs a program (`-exec`, `-execdir`, `-ok`, `-okdir`). Write each action as a literal word, quote a pattern " +
+  "such as `-name '*.mjs'`, and give a path as a literal path, as a path with a literal character such as `\"$DIR/\"`, or as a lower case variable that the line sets to a literal value")
+T("subset other directory: the refusal of `xargs` names the program that it runs", readCommand("printf x | xargs env").notModelled,
+  "an `xargs` that runs `env`, which can run a program or an action that the words from standard input name. Give `xargs` a program that runs no other program, such as `grep` or `rm`, or write the loop in a `.mjs` file")
+T("subset other directory: the refusal of `find -execdir` names the construct and the rewrite", readCommand("find . -name apps -execdir git status \\;").notModelled,
+  "`find -execdir` or `-okdir`, which runs its command in the directory of each found file, which the `cd` model cannot know. Use `-exec` with an absolute path")
+T("subset other directory: the refusal of `sudo` names the wrapper", readCommand("sudo git status").notModelled,
+  "the wrapper `sudo`, which runs its command as another user, in a directory, a home and a git config that the hook does not read")
+T("subset other directory: `sudo` is not in the list of the command words that the hook knows", (checkGitCommand("caffeinate git status", r13Options)?.message ?? "").includes(" sudo "), false)
+// The controls: each wrapper and `find -exec` and `-ok` run their command in the shell directory, so the `cd` model holds in each rule.
+for (const wrapper of ["env A=1", "env --", "nice -n 5", "nohup", "time -p", "timeout 60", "stdbuf -o L", "setsid", "ionice -c 3", "exec", "command", "find . -maxdepth 0 -exec", "find . -maxdepth 0 -ok"]) {
+  const tail = wrapper.startsWith("find") ? " \\;" : ""
+  T(`subset other directory: \`${wrapper}\` keeps the \`cd\` model in the handoff gate, the git rule and the approval rule`, [
+    gitCommitChains(`cd /work/b; ${wrapper} git commit -m x${tail}`, { cwd: "/work/brain" }),
+    blocks(checkGitCommand(`cd /work/orbit-ui-mobile; ${wrapper} git push origin main${tail}`, fromBrain)),
+    checkGitCommand(`cd /work/orbit-ui-mobile; ${wrapper} git push origin fix/x${tail}`, fromBrain),
+    checkApprovalPrompt(`cd /work/checkouts/repo/x; ${wrapper} rm -rf ..${tail}`, { cwd: "/work/checkouts/repo", home: "/fixture-home", windows: false })?.rule,
+  ], [{ chains: [{ chain: ["/work/b"], subcommand: "commit" }], notModelled: "" }, true, null, "working-directory"])
+}
+// A program that runs code from a file or from its arguments, such as `npm`, gives no invocation that a rule reads, in any directory:
+// `./README.md` names that limit. The documented procedure `npm test --prefix evals/astra` stays modelled.
+T("subset other directory: `npm --prefix` is modelled, and its only invocation is `npm`", [readCommand("npm test --prefix evals/astra").notModelled,
+  readCommand("npm test --prefix evals/astra").list[0][0].node.commands[0].words.map((word) => word.text)], ["", ["npm", "test", "--prefix", "evals/astra"]])
+// Defect 2: `HOME`, each `XDG_*` name and each other name that gives the shell or git a directory or a config file is refused in each assignment form.
+const DIRECTORY_NAMES = ["HOME", "XDG_CONFIG_HOME", "XDG_DATA_HOME", "XDG_CACHE_HOME", "PWD", "OLDPWD", "USERPROFILE", "HOMEDRIVE", "HOMEPATH", "GIT_CONFIG_GLOBAL", "ZDOTDIR", "CDPATH"]
+for (const name of DIRECTORY_NAMES) {
+  const forms = [`${name}=/x git status`, `${name}=/x; git status`, `env ${name}=/x git status`, `export ${name}=/x`, `declare ${name}=/x`, `typeset ${name}`, `unset ${name}`, `for ${name} in /x; do true; done`]
+  T(`subset: each assignment form of ${name} is refused`, forms.map((command) => readCommand(command).notModelled.startsWith(`an assignment to \`${name}\``)), forms.map(() => true))
+}
+for (const command of ["HOME=/x; cd ~/y; git push origin main", "HOME=/x git push origin main", "XDG_CONFIG_HOME=/x git push origin main", "env -i git push origin main", "env -u HOME git push origin main",
+  "env --unset=HOME git push origin main", "env - git push origin main", "env --ignore-environment git push origin main", "unset HOME; git push origin main"]) {
+  T(`git review r15: ${JSON.stringify(command)} from a repository with no protection is refused`, blocks(checkGitCommand(command, fromBrain)), true)
+  T(`git review r15: ${JSON.stringify(command)} from a repository with no protection is refused in an attended session`, blocks(checkGitCommand(command, { ...fromBrain, unattended: false })), true)
+}
+// Defect 3: two states whose variable maps hold the same entries are one state, so a loop with a branch that assigns stays within the state limit.
+const loopWords = Array.from({ length: 8 }, (_, index) => `w${index}`).join(" ")
+const REVIEW_R15_STATE_ROWS = [`for w in ${loopWords}; do if test -f /work/x/$w; then f=/work/x/$w; git add "$f"; fi; done`,
+  `for w in ${loopWords}; do d=/work/orbit-ui-mobile; git -C "$d" status && x=1; done`, `${Array.from({ length: 7 }, () => "if true; then x=/a; else x=/a; fi").join("; ")}; git -C "$x" status`]
+for (const command of REVIEW_R15_STATE_ROWS) {
+  T(`subset: ${JSON.stringify(command.slice(0, 90))} stays within the state limit`, checkGitCommand(command, r13Options), null)
+  T(`subset: ${JSON.stringify(command.slice(0, 90))} stays within the state limit in an attended session`, checkGitCommand(command, { ...r13Options, unattended: false }), null)
+}
+T("subset: two maps with other values stay two states", blocks(checkGitCommand("if test -f a; then d=/work/brain; else d=/work/orbit-ui-mobile; fi; git -C \"$d\" push origin main", r13Options)), true)
+T("subset: two maps with the same values in another order of assignment are one state", wordTexts("if test -f a; then x=/a; y=/b; else y=/b; x=/a; fi; git -C \"$x$y\" status").filter((words) => words[0] === "git"), [["git", "-C", "/a/b", "status"]])
+// Defect 4: each git command that a procedure under .claude/ or tools/ tells a session or a worker to run passes in both modes. The placeholders hold plain values.
+const PROCEDURE_GIT_FORMS = ["git fetch origin main", "git show HEAD:.claude/handoffs/NEXT.md", "git log --oneline", "git merge-tree --write-tree --name-only HEAD origin/main",
+  "git merge-tree --write-tree HEAD origin/main", "git show feature/x:README.md", "git diff main...feature/x", "git diff --name-only", "git worktree prune", "git diff abc1234..def5678", "git diff",
+  "git show", "git rev-parse --abbrev-ref HEAD", "git rev-parse --abbrev-ref --symbolic-full-name @{u}", "git fetch origin feature/x", "git rev-parse HEAD", "git rev-parse origin/feature/x", "git status",
+  "git log @{u}..", "git worktree list", "git stash list", "git status --ignored", "git commit -m handoff -- .claude/specs/x.md .claude/handoffs/NEXT.md", "git switch -c feature/orb-1-x",
+  "git switch -c feature/orb-2-y feature/orb-1-x", "git status --porcelain", "git rev-list --count main..HEAD", "git rev-list origin/feature/x..HEAD", "git -C /work/orbit-ui-mobile status --porcelain",
+  "git -C /work/orbit-ui-mobile rev-parse --abbrev-ref HEAD", "git -C /work/other switch main", "git -C /work/orbit-ui-mobile fetch origin main", "git -C /work/orbit-ui-mobile merge --ff-only origin/main",
+  "git -C /work/orbit-ui-mobile rev-list --count HEAD..origin/main", "git push -u origin feature/orb-1-x", "git worktree add /work/worktrees/sweep main", "git merge-base --is-ancestor abc1234 origin/main",
+  "git status --short", "git worktree remove /work/worktrees/ticket-1", "git worktree list --porcelain", "git ls-files", "git --literal-pathspecs add .claude/hooks/test-hooks.mjs",
+  "git commit -F - <<'EOF'\nfix: x\nEOF", "git push -u origin fix/ticket-2137-no-prompt"]
+for (const command of PROCEDURE_GIT_FORMS) {
+  T(`git procedure form: ${JSON.stringify(command)} allows in an unattended run`, checkGitCommand(command, r13Options), null)
+  T(`git procedure form: ${JSON.stringify(command)} allows in an attended session`, checkGitCommand(command, { ...r13Options, unattended: false }), null)
+}
+/** Each git subcommand that a code span or a fenced line of a Markdown file under .claude/ or tools/ names. Read from the files, so a new procedure joins the check. */
+const procedureSubcommands = () => {
+  const found = new Map()
+  const visit = (directory) => {
+    for (const name of readdirSync(directory)) {
+      if (name === "node_modules") continue
+      const path = join(directory, name)
+      if (statSync(path).isDirectory()) visit(path)
+      else if (name.endsWith(".md")) {
+        let fenced = false
+        for (const line of readFileSync(path, "utf8").split("\n")) {
+          if (/^\s*\`\`\`/.test(line)) { fenced = !fenced; continue }
+          for (const span of fenced ? [line] : [...line.matchAll(/\`([^\`]+)\`/g)].map((match) => match[1])) {
+            for (const piece of span.trim().split(/\s*(?:&&|\|\||;|\|)\s*/)) {
+              const words = piece.split(/\s+/)
+              if (words[0] !== "git") continue
+              let index = 1
+              while (words[index] === "-C" || words[index] === "-c" || words[index]?.startsWith("--")) index += words[index].startsWith("--") ? 1 : 2
+              if (/^[a-z][a-z-]*$/.test(words[index] ?? "")) found.set(words[index], path.slice(repoRoot.length + 1))
+            }
+          }
+        }
+      }
+    }
+  }
+  visit(join(repoRoot, ".claude"))
+  visit(join(repoRoot, "tools"))
+  return found
+}
+const namedSubcommands = procedureSubcommands()
+T("git procedure: the procedure files name git subcommands", namedSubcommands.size >= 10 && namedSubcommands.has("merge-tree"), true)
+T("git procedure: each git subcommand that a procedure file names is one that the hook knows", [...namedSubcommands].filter(([subcommand]) => !GIT_SUBCOMMANDS.includes(subcommand)).map(([subcommand, place]) => `${subcommand} (${place})`), [])
+T("git review r15: the refusal of an unknown subcommand names the script file route", (checkGitCommand("git p", r13Options)?.message ?? "").includes("run the file by its literal path, such as `bash /abs/path.sh`"), true)
+T("git attended: the same command in an unattended run blocks", blocks(checkGitCommand("while true; do sleep 5; done")), true)
+T("git attended: a push to main in the subset blocks in an attended session", blocks(checkGitCommand("git push origin main", { unattended: false })), true)
+// Each fenced `bash` block with no `<placeholder>` of the two skills that an unattended run follows passes both hooks as written. Read from the files, so a new block joins the check.
+const PRESCRIBED_BLOCKS = [".claude/skills/orchestrate/SKILL.md", ".claude/skills/sleep/SKILL.md"].flatMap((file) =>
+  [...readFileSync(join(repoRoot, file), "utf8").matchAll(/^\`\`\`bash\n([\s\S]*?)^\`\`\`/gm)].map((match) => match[1]).filter((block) => !/<[A-Za-z][\w-]*>/.test(block)).map((block) => [file, block]))
+T("git procedure: the preflight blocks are read from the skill files", ["orca --version", "wc -c CLAUDE.md", "| uniq -d"].map((text) => PRESCRIBED_BLOCKS.some(([, block]) => block.includes(text))), [true, true, true])
+for (const [file, block] of PRESCRIBED_BLOCKS) {
+  T(`git procedure block: ${file} ${JSON.stringify(block.slice(0, 70))} passes both hooks in an unattended run`, [readCommand(block).notModelled, checkGitCommand(block, { cwd: repoRoot, resolveRemoteUrl: r13Remote }),
+    checkApprovalPrompt(block, { cwd: repoRoot, workingDirectories: [repoRoot] })], ["", null, null])
+}
+// git worktree remove --force follows a Windows junction and deletes the target. git reads `--force`, each prefix of it down to `--f`, and a short group with `f` as force.
+const WORKTREE_FORCE_FORMS = ["git worktree remove --force .claude/worktrees/x", "git worktree remove -f .claude/worktrees/x", "git worktree remove -ff .claude/worktrees/x",
+  "git worktree remove --forc .claude/worktrees/x", "git worktree remove --fo .claude/worktrees/x", "git worktree remove --f .claude/worktrees/x", "git worktree remove .claude/worktrees/x --force",
+  "git -C /work/brain worktree remove -ff ../w"]
+for (const command of WORKTREE_FORCE_FORMS) {
+  for (const [label, options] of [["unattended", r13Options], ["attended", { ...r13Options, unattended: false }], ["attended with no protection", { ...fromBrain, unattended: false }]]) {
+    T(`git-worktree: ${JSON.stringify(command)} blocks (${label})`, (checkGitCommand(command, options)?.message ?? "").includes("worktree junction footgun"), true)
+  }
+}
+// A command outside the subset in an attended session: the text of each command that `expandCommands` finds is read.
+for (const command of ['git worktree remove -ff "$W"', 'git worktree remove --forc "$W"', "echo $(git worktree remove --fo ../w)", '/usr/bin/git worktree remove -f "$W"']) {
+  T(`git-worktree: ${JSON.stringify(command)} outside the subset blocks in an attended session`, (checkGitCommand(command, { ...fromBrain, unattended: false })?.message ?? "").includes("worktree junction footgun"), true)
+}
+for (const command of ["git worktree remove .claude/worktrees/x", "git worktree remove .claude/worktrees/x && npm test -- --force", "git log --grep 'worktree remove -f'", "git worktree list --porcelain"]) {
+  T(`git-worktree: ${JSON.stringify(command)} allows`, checkGitCommand(command, { ...fromBrain, unattended: false }), null)
+}
+for (const command of ['git worktree remove "$W" && npm test -- --force', "git commit -m \"$(cat <<'EOF'\ngit worktree remove --force x\nEOF\n)\""]) {
+  T(`git-worktree: ${JSON.stringify(command.slice(0, 60))} outside the subset allows in an attended session`, checkGitCommand(command, { ...fromBrain, unattended: false }), null)
+}
+// The global option refusal is the hooks hygiene: no `core.hooksPath` override reaches git past it, in each repository and session.
+for (const [command, option] of [["git -c core.hooksPath=/dev/null commit -m x", "-c"], ["git -ccore.hooksPath=/dev/null push origin feature/x", "-ccore.hooksPath=/dev/null"],
+  ["git --config-env=core.hooksPath=HP commit -m x", "--config-env=core.hooksPath=HP"]]) {
+  for (const [label, options] of [["protected", { ...r13Options, unattended: false }], ["no protection", { ...fromBrain, unattended: false }]]) {
+    T(`git hooksPath: ${JSON.stringify(command)} gets the global option refusal (${label})`, (checkGitCommand(command, options)?.message ?? "").includes(`The git option \`${option}\` before the subcommand`), true)
+  }
+}
+T("git hooksPath: `-C core.hooksPath=x` names a directory, not an override", checkGitCommand("git -C core.hooksPath=x commit -m y", { ...r13Options, unattended: false }), null)
 
 console.log("\n# orchestrator-guardrails (_lib/rules-orchestrator.mjs)")
 T("engine: Orca terminal create cannot bypass launcher", blocks(checkEngineInvocation('orca terminal create --command "claude --model opus"')), true)
@@ -154,7 +943,7 @@ T("engine: Orca shell terminal remains permitted", checkEngineInvocation('orca t
 // The admin-merge prohibition is absolute for every agent and takes no context:
 // banning only the CLI flag would leave both raw API paths open, which is the
 // exact bypass shape it exists to close. (The rule lives in rules-orchestrator,
-// not rules-git; both hooks are wired to Bash and PowerShell.)
+// not rules-git; both hooks are wired to Bash, Monitor and PowerShell.)
 T(`admin-merge: gh pr merge ${ADMIN} blocks`, blocks(checkAdminMerge(`gh pr merge 667 --squash ${ADMIN}`)), true)
 T("admin-merge: an ordinary gh pr merge --squash allows", checkAdminMerge("gh pr merge 667 --squash --delete-branch"), null)
 for (const [label, method] of [
@@ -403,6 +1192,437 @@ T("worker-browser: a recursive script fails closed", blocks(worker("npm run test
 T("worker-browser: an allowed mobile Vitest script passes", worker("npm test -w @orbit/mobile"), null)
 T("worker-browser: curl to a public host allows while localhost blocks", worker("curl https://example.com") === null && blocks(worker("curl http://localhost:3000")), true)
 
+console.log("\n# forbid-approval-prompt (_lib/rules-approval.mjs)")
+const approvalOptions = { cwd: "/work/checkouts/repo", home: "/fixture-home", workingDirectories: ["/work/checkouts/api"], windows: false }
+const refusedBy = (command, options = approvalOptions) => checkApprovalPrompt(command, options)?.rule ?? null
+const HELD_REMOVAL = 'rm "$DST/$d/node_modules"'
+T("approval: the held removal is refused", refusedBy(HELD_REMOVAL), "variable-path")
+T("approval: the refusal gives the guarded rewrite", checkApprovalPrompt(HELD_REMOVAL, approvalOptions).message.includes('"${DST:?}/${d:?}/node_modules"'), true)
+T("approval: the refusal gives the literal path rewrite", checkApprovalPrompt(HELD_REMOVAL, approvalOptions).message.includes("Write the literal path"), true)
+T("approval: the refusal names the reason and the command", ["no person is present", HELD_REMOVAL, "dangerous removal"].every((text) => checkApprovalPrompt(HELD_REMOVAL, approvalOptions).message.includes(text)), true)
+// Each row is one rule: a command it refuses, and the rewrite its refusal asks for.
+const approvalRules = [
+  ["command-substitution", 'rm -rf "$(git rev-parse --show-toplevel)/dist"', "rm -rf /work/checkouts/repo/dist"],
+  ["variable-path", HELD_REMOVAL, 'rm "${DST:?}/${d:?}/node_modules"'],
+  ["brace-expansion", "rm -rf dist/{web,mobile}", "rm -rf dist/web dist/mobile"],
+  ["windows-path", "rm -rf C:work", "rm -rf C:/work/build"],
+  ["derived-variable", 'ROOT=$(git rev-parse --show-toplevel); rm -rf "${ROOT:?}"', "rm -rf /work/checkouts/repo/dist"],
+  ["glob-target", "cd apps && rm -rf ./*", "rm -rf /work/checkouts/repo/apps/web/.next"],
+  ["critical-path", "rm -rf /tmp", "rm -rf /tmp/orbit-build"],
+  ["working-directory", "rm -rf .", "rm -rf dist"],
+  ["mounted-drive", "rm -rf /Volumes/Backup", "rm -rf /Volumes/Backup/orbit/old"],
+  ["not-modelled", 'bash <<<$"rm -rf \\"\\$TMP\\""', "rm -rf /tmp/orbit-build"],
+]
+T("approval: every removal rule has a refusal case", approvalRules.map(([rule]) => rule), REMOVAL_RULES.map((rule) => rule.name))
+// The README rule table names each rule and the `covers` text of its refusal, so a changed rule fails here.
+const readmeRules = Object.fromEntries([...readFileSync(join(hooksDir, "_lib", "README.md"), "utf8").matchAll(/^\| `([a-z-]+)` \| (`\w+`(?:, `\w+`)*) \|$/gm)]
+  .map(([, rule, covers]) => [rule, covers.replaceAll("`", "")]))
+const refusalCovers = (command) => /dangerous removal \(([^)]+)\)/.exec(checkApprovalPrompt(command, approvalOptions)?.message ?? "")?.[1] ?? null
+T("approval: the README rule table lists each removal rule in source order", Object.keys(readmeRules), REMOVAL_RULES.map((rule) => rule.name))
+T("approval: the README rule table gives the covers text of each refusal", approvalRules.map(([rule, refused]) => [rule, refusalCovers(refused)]), approvalRules.map(([rule]) => [rule, readmeRules[rule] ?? null]))
+for (const [rule, refused, rewritten] of approvalRules) {
+  T(`approval ${rule}: refused`, refusedBy(refused), rule)
+  // The guard broken: with this one rule removed the same command passes, so the refusal belongs to the rule.
+  T(`approval ${rule}: passes with the rule removed`, refusedBy(refused, { ...approvalOptions, rules: REMOVAL_RULES.filter((candidate) => candidate.name !== rule) }), null)
+  // The guard restored: the full rule set refuses again, and the rewrite the refusal asks for passes.
+  T(`approval ${rule}: refused again with the rule restored`, refusedBy(refused, { ...approvalOptions, rules: REMOVAL_RULES }), rule)
+  T(`approval ${rule}: the rewrite passes`, refusedBy(rewritten), null)
+}
+let modelledRefusals = 0
+for (const [command, rule] of [
+  ['for d in web mobile; do rm "$DST/$d/node_modules"; done', "variable-path"],
+  ["rm -rf $1", "variable-path"],
+  ['rm -rf "${TMP:-/tmp}/build"', "variable-path"],
+  ['rm -rf "$DST" 2>/dev/null', "variable-path"],
+  ['rmdir "$DST"', "variable-path"],
+  ['sudo rm -rf "$DST"', "variable-path"],
+  ['xargs rm -rf "$DST"', "variable-path"],
+  ['find /tmp/build -name "*.tmp" -exec rm -f "$DST/x" \\;', "variable-path"],
+  // A variable that gives `find` its path can be an action that runs a program, so the reader refuses it.
+  ['find "$DST" -name "*.tmp" -exec rm -f "$DST/x" \\;', "not-modelled"],
+  [`bash -c 'rm -rf "$DST/"'`, "variable-path"],
+  [`trap 'rm -rf "$TMP"' EXIT`, "variable-path"],
+  ["bash <<'EOF'\nrm -rf \"$TMP\"\nEOF", "variable-path"],
+  ...HEREDOC_SHELLS.map((shell) => [`${shell} <<'EOF'\nrm -rf "$TMP"\nEOF`, "variable-path"]),
+  ...HEREDOC_SHELL_LINES.map((row) => [heredocCommand(row, 'rm -rf "$TMP"'), "variable-path"]),
+  // A here-string is no heredoc: the line after it is a command, also when a later line repeats its word.
+  ['cat <<<x\nrm -rf "$TMP"\nx', "variable-path"],
+  // A shell runs the word of its here-string as a script, with or without a space around the operator.
+  [`bash <<<'rm -rf "$TMP"'`, "variable-path"],
+  [`bash -e<<<$'rm -rf "$TMP"'`, "variable-path"],
+  ['bash <<<rm\\ -rf\\ \\"\\$TMP\\"', "variable-path"],
+  [`bash <<<$'echo it\\'s; rm -rf "$TMP"'`, "variable-path"],
+  // A quoted `<<EOF` is text, so the line after it is a command.
+  ["echo '<<EOF'\nrm -rf \"$TMP\"\nEOF", "variable-path"],
+  ['echo "<<EOF"\nrm -rf "$TMP"\nEOF', "variable-path"],
+  // bash reads `$$` as the process id and then a plain quote, which the backslash does not keep open. zsh reads an ANSI-C quote after `$$`.
+  ["echo $$'a\\' ; rm -rf \"$TMP\" # '", "variable-path"],
+  ["echo $$'a\\'b' ; rm -rf \"$TMP\" # '", "variable-path"],
+  ["echo $$$$'a\\' ; rm -rf \"$TMP\" # '", "variable-path"],
+  // The append form of an assignment comes before a command as the plain form does.
+  ["y+=1 eval 'rm -rf \"$TMP\"'", "variable-path"],
+  ["rm -rf `pwd`/dist", "command-substitution"],
+  ["docker exec box sh -c 'rm -rf /'", "critical-path"],
+  ["rm -rf /", "critical-path"],
+  ["rm -rf ~", "critical-path"],
+  ['rm -rf "${HOME:?}"', "critical-path"],
+  [`rm -rf ${["", "private", "tmp"].join("/")}`, "critical-path"],
+  ["rm -rf /usr/", "critical-path"],
+  ["rm -rf ./*", "working-directory"],
+  ["rm -rf *", "working-directory"],
+  ["rm -rf ..", "working-directory"],
+  ["rm -rf /work/checkouts", "working-directory"],
+  ["rm -rf /work/checkouts/api", "working-directory"],
+  ["rm -rf apps/*/*", "glob-target"],
+  ["rm -rf ~/*", "glob-target"],
+  ["rm -rf ../*", "glob-target"],
+  ["rmdir -p apps/web/*", "glob-target"],
+  ["rm -rf \\\\", "windows-path"],
+  ['bash -c "IFS=: ; rm -rf dist"', "not-modelled"],
+  ['rm -rf build "unbalanced', "not-modelled"],
+  // A comment hides nothing from the rules: the removal before it is still read.
+  ['rm -rf "$DST" # it\'s stale', "variable-path"],
+  ["rm -rf build 'unbalanced # not a comment", "not-modelled"],
+  // The shell removes each quote and each escape from the name of a program before it runs the program.
+  [`"bash" <<<'rm -rf "$TMP"'`, "variable-path"],
+  [`b''ash <<<'rm -rf "$TMP"'`, "variable-path"],
+  [`b''ash -c 'rm -rf "$TMP"'`, "variable-path"],
+  ['sudo "rm" -rf "$TMP"', "variable-path"],
+  ['r\\m -rf "$TMP"', "variable-path"],
+  // `<<-` removes the leading tabs of the end marker line, so the body ends at line 3 and the shell runs line 4.
+  ["cat <<-'EOF'\n\tdata\n\tEOF\nrm -rf \"$TMP\"\nEOF", "variable-path"],
+  // Each construct outside the modelled subset is refused as not modelled: a run of `$` before `'`, a `$"..."` quote,
+  // a here-string, a heredoc with no exact end marker, and `eval`.
+  ["echo \\$$$'a\\'b' ; rm -rf \"$TMP\" # '", "not-modelled"],
+  ["echo \\\\\\$$$'a\\'b' ; rm -rf \"$TMP\" # '", "not-modelled"],
+  ["echo \\$$$$$'a\\'b' ; rm -rf \"$TMP\" # '", "not-modelled"],
+  ["echo $$$'a\\' ; rm -rf \"$TMP\" # '", "not-modelled"],
+  ["echo \\$$'a\\' ; rm -rf \"$TMP\" # '", "not-modelled"],
+  ['bash <<<$"rm -rf \\"\\$TMP\\""', "not-modelled"],
+  [`cat <<<'rm -rf "$TMP"'`, "not-modelled"],
+  [`cat <<<'rm -rf "$TMP"' | bash`, "not-modelled"],
+  ["echo $$'x\\' <<EOF ; echo '\nrm -rf \"$TMP\"\nEOF", "not-modelled"],
+  ["cat <<'EOF'\ndata\nEOF \nrm -rf \"$TMP\"\nEOF", "not-modelled"],
+  [`bash <<<$'\\x72m -rf "$TMP"'`, "not-modelled"],
+  // `eval` joins its words and reads them again, so the value of the variable is code. A `<<` with no end marker line takes the rest as its body in one reading.
+  [`eval 'echo 'rm -rf "$TMP"''`, "not-modelled"],
+  [`eval 'eval 'rm -rf "$TMP"''`, "variable-path"],
+  ["bash -c 'echo $'x\\' <<EOF ; echo '\nrm -rf \"$TMP\"\nEOF'", "not-modelled"],
+  // A script from `/dev/stdin`, and a process substitution that gives a shell its script.
+  ["source /dev/stdin <<'EOF'\nrm -rf \"$TMP\"\nEOF", "not-modelled"],
+  ["bash <(cat <<'EOF'\nrm -rf \"$TMP\"\nEOF\n)", "not-modelled"],
+]) {
+  // A command outside the subset is refused before a removal rule reads it.
+  const expected = isModelled(command) ? rule : "not-modelled"
+  modelledRefusals += isModelled(command) ? 1 : 0
+  T(`approval: ${command} is refused by ${expected}`, refusedBy(command), expected)
+}
+// The two rows with a last line `EOF` are not modelled: `EOF` is a command word that the hook does not know.
+// `sudo` runs its command as another user, so the two `sudo` rows are not modelled.
+T("approval: the count of refused rows that the subset models, each refused by its removal rule", modelledRefusals, 23)
+for (const command of REVIEW_APPROVAL_REFUSED) T(`approval review: ${JSON.stringify(command)} is refused`, refusedBy(command), "not-modelled")
+// Each removal command of the round 13 review is refused.
+for (const command of ["if [[ 1 ]] rm -rf \"$TMP\"", "if { true } rm -rf \"$TMP\"", "{ cd /work/checkouts/repo/x/y/z/w; } | cat; rm -rf ../..", "{ cd /work/checkouts/repo/x/y/z/w; } & rm -rf ../..",
+  "source //dev/stdin <<'EOF'\nrm -rf \"$TMP\"\nEOF", "bash /dev/./stdin <<'EOF'\nrm -rf \"$TMP\"\nEOF", "bash //dev/stdin <<'EOF'\nrm -rf \"$TMP\"\nEOF", "env -S 'rm -rf \"$TMP\"'",
+  "PS4='$(rm -rf \"$TMP\")' bash -xc true", "printf -v 'a[$(rm -rf \"$TMP\")]' x"]) {
+  T(`approval review r13: ${JSON.stringify(command)} is refused`, refusedBy(command), "not-modelled")
+}
+T("approval review r13: the plain removal in the review is refused by its rule", [refusedBy('rm -rf "$TMP"'), refusedBy("rm -rf ../..")], ["variable-path", "critical-path"])
+for (const command of ["git status", "for w in ticket-1 ticket-2; do d=/work/worktrees/$w; git -C \"$d\" status --short; done", "if git merge --no-edit origin/main; then echo merged; else git merge --abort; fi",
+  "node .claude/hooks/test-hooks.mjs 2>&1 | tail -5", "echo \"head $(git rev-parse --short HEAD)\"", "node tools/test-tools.mjs > /tmp/tools.log 2>&1", "gh pr view 2464 --repo thomasluizon/orbit-ui-mobile --json body"]) {
+  T(`approval coordinator form: ${JSON.stringify(command)} passes`, refusedBy(command), null)
+}
+for (const command of ["read d <<'EOF'\n/\nEOF\nrm -rf \"${d:?}\"", "chdir /; rm -rf Users", "tcsh -c 'rm -rf $TMP'", "csh -c 'rm -rf $TMP'", "caffeinate rm -rf /tmp/x", "rm -rf build <0-9>"]) {
+  T(`approval review r14: ${JSON.stringify(command)} is refused`, refusedBy(command), "not-modelled")
+}
+// Item 10 of the order: each command form of the coordinator passes the approval rule too.
+for (const command of COORDINATOR_FORMS) T(`approval coordinator form: ${JSON.stringify(command)} passes`, refusedBy(command), null)
+// Round 15 review: the state rows and the procedure forms pass the approval rule, and `HOME` is refused there too.
+for (const command of [...REVIEW_R15_STATE_ROWS, `for w in ${loopWords}; do if test -f /work/checkouts/repo/$w; then d=/work/checkouts/repo/$w; rm -rf /work/checkouts/repo/build; fi; done`, ...PROCEDURE_GIT_FORMS]) {
+  T(`approval review r15: ${JSON.stringify(command.slice(0, 90))} passes`, refusedBy(command), null)
+}
+// The form of the review is read within the state limit, and its removal is refused by its own rule: Claude Code reads `$d` in the raw text.
+T("approval review r15: the loop of the review is refused by the variable path rule, not as a command that the hook cannot read",
+  refusedBy(`for w in ${loopWords}; do if test -f /work/checkouts/repo/$w; then d=/work/checkouts/repo/$w; rm -rf "$d/build"; fi; done`), "variable-path")
+for (const command of ["HOME=/work/checkouts/repo; rm -rf ~/build", "env -u HOME rm -rf /work/checkouts/repo/build"]) T(`approval review r15: ${JSON.stringify(command)} is refused`, refusedBy(command), "not-modelled")
+// Defect 7: the walk is linear in the number of assignments. A 100 KB chain of assignments ends in each real hook file within 1 s.
+const assignmentChain = (tail, value = "x") => { let chain = ""; for (let index = 0; chain.length < 100_000 - tail.length - 16; index++) chain += `a${index}=${value};`; return chain + tail }
+for (const [file, command, env, want] of [["git-guardrails.mjs", assignmentChain("git push origin main"), {}, 2], ["forbid-approval-prompt.mjs", assignmentChain('rm -rf "$TMP"'), { ORBIT_LAUNCH_WORKER: "1" }, 2],
+  ["git-guardrails.mjs", assignmentChain("git status"), {}, 0], ["forbid-approval-prompt.mjs", `x=/w;${assignmentChain("rm -rf build", "$x")}`, { ORBIT_LAUNCH_WORKER: "1" }, 0]]) {
+  const started = performance.now()
+  const result = spawnSync(process.execPath, [join(hooksDir, file)], { input: JSON.stringify({ tool_name: "Bash", tool_input: { command }, cwd: repoRoot, session_id: "" }), encoding: "utf8", env: { ...process.env, ORBIT_LAUNCH_WORKER: "", ...env }, timeout: 20000 })
+  const seconds = (performance.now() - started) / 1000
+  T(`subset: ${file} reads a chain of ${command.split(";").length - 1} assignments (${command.length} characters) that ends in ${JSON.stringify(command.slice(command.lastIndexOf(";") + 1))} -> ${want} within 1 s`, [result.status, seconds < 1], [want, true])
+}
+// Defect 1: a byte outside printable ASCII outside a quote ends in a refusal within 1 s. A child process runs the rules, so a loop fails this test and not the suite.
+const UNREAD_BYTES = { CR: "\r", "form feed": "\f", "vertical tab": "\v", "U+00A0": " ", "U+2028": " ", NUL: "\u0000" }
+const unreadByteCommands = Object.entries(UNREAD_BYTES).flatMap(([name, byte]) => [[`git push origin main ;${byte}`, name], [`echo a${byte}b; git push origin main`, name], [`rm -rf "$TMP" ;${byte}`, name], [`git status${byte}`, name]])
+const byteProbe = spawnSync(process.execPath, ["--input-type=module", "-e", `
+  import { performance } from "node:perf_hooks"
+  import { checkGitCommand } from ${JSON.stringify(pathToFileURL(join(hooksDir, "_lib", "rules-git.mjs")).href)}
+  import { checkApprovalPrompt } from ${JSON.stringify(pathToFileURL(join(hooksDir, "_lib", "rules-approval.mjs")).href)}
+  const rows = JSON.parse(process.argv[1]).map(([command]) => {
+    const start = performance.now()
+    const refused = Boolean(checkGitCommand(command, { cwd: "/work/x", resolveRemoteUrl: () => "https://github.com/o/orbit-ui-mobile.git" })?.notModelled) && Boolean(checkApprovalPrompt(command, { cwd: "/work/x" })?.rule === "not-modelled")
+    return { refused, milliseconds: performance.now() - start }
+  })
+  process.stdout.write(JSON.stringify(rows))
+`, JSON.stringify(unreadByteCommands)], { encoding: "utf8", timeout: 20000 })
+const byteRows = byteProbe.status === 0 ? JSON.parse(byteProbe.stdout) : []
+unreadByteCommands.forEach(([command, name], index) => {
+  T(`subset: ${JSON.stringify(command)} with a ${name} outside a quote is refused within 1 s`, (byteRows[index]?.refused ?? false) && byteRows[index].milliseconds < 1000, true)
+})
+T("subset: a CR, a form feed and U+00A0 inside a quote are text", ["git commit -m 'a\rb'", 'git commit -m "a\fb"', "echo 'a b'"].map((command) => readCommand(command).notModelled), ["", "", ""])
+T("approval: the not-modelled refusal names the construct, the plain subset and the script file", ["a here-string", "plain subset", "literal path"].every((text) => (checkApprovalPrompt(`cat <<<'rm -rf "$TMP"'`, approvalOptions)?.message ?? "").includes(text)), true)
+let modelledPasses = 0
+for (const command of [
+  "rm -rf build",
+  "rm -rf node_modules && npm ci",
+  'rm -rf "apps/web/.next" apps/mobile/dist',
+  "rm -f dist/*.js",
+  "rm -rf dist/*",
+  "rm -rf ~/cache/orbit",
+  'rm -rf "${HOME:?}/cache/orbit"',
+  "rm -rf /tmp/orbit-build",
+  "rm -rf '$literal/x'",
+  "rm -- -weird",
+  'TMP=$(mktemp -d); rm -rf "${TMP:?}"',
+  'find . -name "*.tmp" -exec rm -rf {} +',
+  // Text that names a removal does not run one.
+  'git rm -r "$DST"',
+  'echo "rm -rf $DST"',
+  'git commit -m "rm \\"$DST/\\" stops"',
+  'grep -rn "rm -rf" tools',
+  "cat > cleanup.sh <<'EOF'\nrm -rf \"$TMP\"\nEOF",
+  "git commit -F - <<'EOF'\nrm -rf \"$TMP\"\nEOF",
+  "npm run build",
+  // The shell does not read a comment, so an apostrophe or a script word there changes nothing.
+  "rm -rf dist # it's stale",
+  "rm -rf dist # don't keep it\nnpm run build # it's fast",
+  "bash -c 'rm -rf dist' # the alias function() is gone",
+  // After one `$`, both shells read an ANSI-C quote: `\\'` does not end it, so the removal is text.
+  "echo $'a\\' ; rm -rf \"$TMP\" # '",
+  // A construct that the reader does not model passes when the text holds no removal that a rule refuses.
+  "bash <<<'rm -rf dist'",
+  "bash -c 'cat' <<<'rm -rf dist'",
+  'grep -c rm <<<"$output"',
+  "echo $$'x' ; rm -rf dist",
+  "cat <<-'EOF'\n\trm -rf \"$TMP\"\n\tEOF",
+  // A quoted word that is no command word is text.
+  'grep -rn "rm" .',
+  // `-c` with a variable is a script only after a shell word.
+  "grep -c \"$pattern\" notes.md; cat > clean.sh <<'EOF'\nrm -rf \"$TMP\"\nEOF",
+  ...HEREDOC_DATA.map((row) => heredocCommand(row, 'rm -rf "$TMP"')),
+]) {
+  // A command outside the subset is refused as not modelled, also when it runs no removal that Claude Code holds.
+  const expected = isModelled(command) ? null : "not-modelled"
+  modelledPasses += isModelled(command) ? 1 : 0
+  T(`approval: ${command} ${expected ? "is not modelled" : "passes"}`, refusedBy(command), expected)
+}
+T("approval: the count of safe rows that the subset models, each one allowed", modelledPasses, 27)
+// Only the `{}` of a `find -exec` command is no target: the reader ends that command before its `;` or `{} +`. A file named `+` or `;` is a target, bare or quoted.
+const inRootDirectory = { ...approvalOptions, cwd: "/" }
+for (const command of ["rm -rf +", "rm -rf '+'", "rm -rf \\;", "rm -rf ';'"]) {
+  T(`approval review r26: ${command} in the root directory names a top-level entry`, refusedBy(command, inRootDirectory), "critical-path")
+}
+for (const command of ["find /work/build -name x -exec rm -rf {} +", "find /work/build -name x -exec rm -rf {} \\;", "find /work/build -name x -exec rm -rf {} ';'", "find /work/build -name x -exec rm -rf {} ';' -exec rmdir {} +"]) {
+  T(`approval review r26: ${command} in the root directory has no target`, refusedBy(command, inRootDirectory), null)
+}
+// Property: for each command of a generated set, the hooks refuse it, or a direct reading proves that it runs no dangerous command.
+// The set puts `git push origin main` and `rm -rf "$TMP"` into each pair of the constructs below, one inside the other and one after the other.
+const DANGEROUS_COMMANDS = ["git push origin main", 'rm -rf "$TMP"']
+const CONSTRUCTS = [
+  "%", "echo '%'", 'echo "%"', "echo ok ; %", "echo x # %",
+  "echo $'a\\'b' ; % # '", "echo $$'a\\'b' ; % # '", "echo \\$$$'a\\'b' ; % # '",
+  'bash <<<$"%"', "bash <<<'%'", `"bash" <<<'%'`, "b''ash <<<'%'", "cat <<<'%'", "cat <<<'%' | bash",
+  "bash -c '%'", `"bash" -c '%'`, "b''ash -c '%'", "eval '%'",
+  "cat <<'EOF'\n%\nEOF", "cat <<EOF\n%\nEOF", "bash <<'EOF'\n%\nEOF", "cat <<'EOF' | bash\n%\nEOF",
+  "cat <<-'EOF'\n\tdata\n\tEOF\n%\nEOF", "cat <<'EOF'\ndata\nEOF \n%\nEOF", "cat <<E\"O\"F\n%\nEOF",
+  "echo $$'x\\' <<EOF ; echo '\n%\nEOF", "echo $'x\\' <<EOF ; echo '\n%\nEOF",
+]
+const within = (construct, text) => construct.replace("%", () => text)
+const GENERATED_COMMANDS = DANGEROUS_COMMANDS.flatMap((dangerous) => CONSTRUCTS.flatMap((outer) => CONSTRUCTS.flatMap((inner) =>
+  [within(outer, within(inner, dangerous)), `${within(outer, "echo ok")}\n${within(inner, dangerous)}`])))
+/** The programs of the generated set that run no word of their input. `EOF` is an end marker that a nested heredoc leaves as a command. */
+const HARMLESS_PROGRAMS = new Set(["echo", "cat", "grep", "true", "EOF"])
+/** Stands for the value of a `$NAME` that the shell expands: no reading can prove a script that holds it. */
+const EXPANDED = "\u0000"
+/** The text of the `"..."` quote that opens at `start`, with the index of its close, or null when the direct reading cannot read it. */
+const directDoubleQuote = (source, start) => {
+  let text = ""
+  for (let index = start + 1; index < source.length; index++) {
+    const character = source[index]
+    if (character === '"') return { text, close: index }
+    if (character === "`" || (character === "$" && source[index + 1] === "(")) return null
+    if (character === "\\" && /["\\$`\n]/.test(source[index + 1] ?? "")) text += source[++index]
+    else if (character === "$" && /[A-Za-z_]/.test(source[index + 1] ?? "")) text += EXPANDED
+    else text += character
+  }
+  return null
+}
+/** The body of the heredoc whose operator line ends at `lineEnd`, with the index after its end marker line, or null when the end marker is not exact. */
+const directHeredocBody = (source, lineEnd, { marker, tabs }) => {
+  const lines = source.slice(lineEnd + 1).split("\n")
+  const end = lines.findIndex((line) => line.trim() === marker)
+  if (end < 0 || !(tabs ? /^\t*$/ : /^$/).test(lines[end].slice(0, -marker.length))) return null
+  const body = lines.slice(0, end).map((line) => (tabs ? line.replace(/^\t+/, "") : line)).join("\n")
+  return { body, resume: lineEnd + 1 + lines.slice(0, end + 1).join("\n").length }
+}
+/**
+ * A direct reading in a small grammar that bash and zsh read in one way: plain words, a `'...'` quote, a `"..."` quote with no
+ * substitution, a `$'...'` quote after one `$` with no escape but `\'` and `\\`, `$NAME`, a comment, the separators `;`, `&`, `|`
+ * and the line end, and a heredoc with one plain end marker. Each command is `{ words, piped, body }`: `piped` is true after a `|`,
+ * and `body` is the heredoc body of its operator, with `expands` true for an unquoted end marker. Null for each other text.
+ */
+function directReading(source) {
+  const commands = []
+  let words = []
+  let word = null
+  let heredoc = null
+  let piped = false
+  const endWord = () => { if (word !== null) words.push(word); word = null }
+  const endCommand = (separator) => {
+    endWord()
+    if (words.length > 0) commands.push({ words, piped, heredoc })
+    if (words.length > 0 || separator !== "|") piped = separator === "|" && words.length > 0
+    words = []
+  }
+  let pending = null
+  for (let index = 0; index < source.length; index++) {
+    const character = source[index]
+    const rest = source.slice(index)
+    if (character === "'") {
+      const close = source.indexOf("'", index + 1)
+      if (close < 0) return null
+      word = (word ?? "") + source.slice(index + 1, close)
+      index = close
+    } else if (rest.startsWith("$'")) {
+      const quoted = /^\$'((?:\\['\\]|[^'\\])*)'/.exec(rest)
+      if (!quoted) return null
+      word = (word ?? "") + quoted[1].replace(/\\(.)/g, "$1")
+      index += quoted[0].length - 1
+    } else if (character === '"') {
+      const quoted = directDoubleQuote(source, index)
+      if (!quoted) return null
+      word = (word ?? "") + quoted.text
+      index = quoted.close
+    } else if (character === " " || character === "\t") endWord()
+    else if (character === "#" && word === null) {
+      const lineEnd = source.indexOf("\n", index)
+      index = (lineEnd < 0 ? source.length : lineEnd) - 1
+    } else if (/[;&|]/.test(character)) endCommand(character)
+    else if (character === "\n") {
+      endCommand(character)
+      if (!pending) continue
+      const read = directHeredocBody(source, index, pending)
+      if (!read) return null
+      pending.body = read.body
+      pending = null
+      index = read.resume - 1
+    } else if (character === "<") {
+      const opener = /^<<(-?)(?:'([A-Za-z_]\w*)'|([A-Za-z_]\w*))(?=[ \t;|&\n]|$)/.exec(rest)
+      if (!opener || pending || heredoc) return null
+      endWord()
+      pending = { marker: opener[2] ?? opener[3], tabs: opener[1] === "-", expands: opener[2] === undefined, body: null }
+      heredoc = pending
+      index += opener[0].length - 1
+      continue
+    } else if (character === "$") {
+      const name = /^\$[A-Za-z_]\w*/.exec(rest)
+      if (!name) return null
+      word = (word ?? "") + EXPANDED
+      index += name[0].length - 1
+    } else if (/[\w./:=+,@%-]/.test(character)) word = (word ?? "") + character
+    else return null
+    if (/[;&|\n]/.test(character)) heredoc = null
+  }
+  endCommand("\n")
+  return pending ? null : commands
+}
+/**
+ * True only when the direct reading proves that the text runs no dangerous command: each command starts with a word of
+ * `HARMLESS_PROGRAMS`, or is a `git` or an `rm` with no argument, or is `bash -c` or `eval` with a script that the same reading proves, or is a `bash` with no argument
+ * whose script is the body of its own quoted heredoc, or the body that a `cat` with no argument pipes to it.
+ */
+function provesNoDangerousCommand(source, depth = 0) {
+  const commands = depth > 6 ? null : directReading(source)
+  if (!commands) return false
+  return commands.every(({ words, piped, heredoc }, index) => {
+    // A `git` or an `rm` with no argument changes nothing.
+    if (HARMLESS_PROGRAMS.has(words[0]) || (words.length === 1 && ["git", "rm"].includes(words[0]))) return true
+    if (words[0] === "eval") return provesNoDangerousCommand(words.slice(1).join(" "), depth + 1)
+    if (words[0] !== "bash") return false
+    if (words[1] === "-c" && words.length > 2) return provesNoDangerousCommand(words[2], depth + 1)
+    const feeder = commands[index - 1]
+    const script = heredoc ?? (piped && feeder?.words.join(" ") === "cat" && !feeder.piped ? feeder.heredoc : null)
+    return words.length === 1 && Boolean(script) && !script.expands && provesNoDangerousCommand(script.body, depth + 1)
+  })
+}
+const hooksRefuse = (command, rules = REMOVAL_RULES) => blocks(checkGitCommand(command)) === true || refusedBy(command, { ...approvalOptions, rules }) !== null
+const passesWithNoProof = (rules) => GENERATED_COMMANDS.filter((command) => !hooksRefuse(command, rules) && !provesNoDangerousCommand(command))
+T(`property: each of ${GENERATED_COMMANDS.length} generated commands is refused, or a direct reading proves that it runs no dangerous command`, passesWithNoProof(REMOVAL_RULES), [])
+T("property: the generated set holds refused commands and proven commands", [GENERATED_COMMANDS.some((command) => hooksRefuse(command)), GENERATED_COMMANDS.some((command) => !hooksRefuse(command) && provesNoDangerousCommand(command))], [true, true])
+// The direct reading proves a command whose text is data, and proves no command that runs the text or that it cannot read.
+T("property: the direct reading proves commands whose dangerous text is data", ["echo 'git push origin main'", 'echo "rm -rf "$TMP""', "cat <<'EOF'\nrm -rf \"$TMP\"\nEOF", "echo x # git push origin main",
+  "bash -c 'echo ok' git push origin main", "eval 'echo ok # git push origin main'", "bash <<'EOF'\necho 'git push origin main'\nEOF", "cat <<'EOF' | bash\necho ok\nEOF", "echo $'a\\'b ; git push origin main'",
+  "cat <<-'EOF'\n\tgit push origin main\n\tEOF"].map((command) => provesNoDangerousCommand(command)), Array(10).fill(true))
+T("property: the direct reading proves no command that runs the text or that it cannot read", ["git push origin main", "echo ok ; rm -rf \"$TMP\"", "bash -c 'git push origin main'", "cat <<'EOF' | bash\ngit push origin main\nEOF",
+  "eval 'eval 'rm -rf \"$TMP\"''", "eval echo $X", "bash", "cat <<'EOF' ; bash\necho ok\nEOF", "bash <<EOF\necho ok\nEOF", "echo $$'a' ; echo b", "echo $'\\x67'", "cat <<<'x'", "cat <<'EOF'\nx\nEOF \nEOF",
+  "cat <<-'EOF'\n\tx\n\tEOF\ngit push origin main"].map((command) => provesNoDangerousCommand(command)), Array(14).fill(false))
+// The guard broken: without the not-modelled rule, a generated removal passes with no proof. The full rule set restores it.
+const removalPassesWithNoProof = (rules) => GENERATED_COMMANDS.filter((command) => command.includes("rm -rf") && refusedBy(command, { ...approvalOptions, rules }) === null && !provesNoDangerousCommand(command))
+T("property: with the not-modelled rule removed, the approval rule passes a generated removal with no proof", [removalPassesWithNoProof(REMOVAL_RULES.filter((rule) => rule.name !== "not-modelled")).length > 0, removalPassesWithNoProof(REMOVAL_RULES)], [true, []])
+T("approval windows: the top level of a drive is critical", refusedBy("rm -rf C:/work", { ...approvalOptions, cwd: "C:\\work\\repo", windows: true }), "critical-path")
+T("approval windows: a deeper drive path passes", refusedBy("rm -rf C:/work/other/build", { ...approvalOptions, cwd: "C:\\work\\repo", windows: true }), null)
+T("approval: a non-string command passes", checkApprovalPrompt(undefined, approvalOptions), null)
+T("approval: the removal check runs for the Bash tool and the Monitor tool", REMOVAL_CHECK_TOOLS, ["Bash", "Monitor"])
+// Each settings scope that Claude Code reads adds working directories; a relative entry resolves from the project directory.
+const settingsScopes = join(mkdtempSync(join(tmpdir(), "orbit-settings-")), "scopes")
+const scopeProject = join(settingsScopes, "work", "project")
+const scopeAccount = join(settingsScopes, "account")
+const scopeManaged = join(settingsScopes, "managed")
+const scopeOptions = { configDirectory: scopeAccount, home: join(settingsScopes, "home"), managedDirectory: scopeManaged }
+for (const directory of [join(scopeProject, ".claude"), scopeAccount, join(scopeManaged, "managed-settings.d")]) mkdirSync(directory, { recursive: true })
+const writeScope = (path, directories) => writeFileSync(path, JSON.stringify({ permissions: { additionalDirectories: directories } }))
+T("additional directories: no settings file adds none", additionalWorkingDirectories(scopeProject, scopeOptions), [])
+writeScope(join(scopeAccount, "settings.json"), [join(settingsScopes, "vault"), "~/notes", "~"])
+writeScope(join(scopeProject, ".claude", "settings.json"), ["../api", "../landing"])
+writeScope(join(scopeProject, ".claude", "settings.local.json"), [join(settingsScopes, "local-only"), "../api"])
+writeScope(join(scopeManaged, "managed-settings.json"), [join(settingsScopes, "managed-root")])
+writeScope(join(scopeManaged, "managed-settings.d", "10-team.json"), [join(settingsScopes, "managed-drop-in")])
+T("additional directories: the user, project, local and managed scopes each add their entries, once each", additionalWorkingDirectories(scopeProject, scopeOptions), [
+  join(settingsScopes, "vault"), join(settingsScopes, "home", "notes"), join(settingsScopes, "home"),
+  join(settingsScopes, "work", "api"), join(settingsScopes, "work", "landing"), join(settingsScopes, "local-only"),
+  join(settingsScopes, "managed-root"), join(settingsScopes, "managed-drop-in"),
+])
+writeFileSync(join(scopeProject, ".claude", "settings.local.json"), "{ not json")
+writeFileSync(join(scopeManaged, "managed-settings.json"), JSON.stringify({ permissions: { additionalDirectories: "not a list" } }))
+writeFileSync(join(scopeManaged, "managed-settings.d", "10-team.json"), JSON.stringify({ permissions: { additionalDirectories: [7, "", join(settingsScopes, "managed-drop-in")] } }))
+T("additional directories: a file that does not parse, a value that is not a list and an entry that is not a path add nothing", additionalWorkingDirectories(scopeProject, scopeOptions), [
+  join(settingsScopes, "vault"), join(settingsScopes, "home", "notes"), join(settingsScopes, "home"),
+  join(settingsScopes, "work", "api"), join(settingsScopes, "work", "landing"), join(settingsScopes, "managed-drop-in"),
+])
+T("approval: removal of a directory that a settings scope adds is refused", refusedBy(`rm -rf ${join(settingsScopes, "vault")}`, { ...approvalOptions, workingDirectories: additionalWorkingDirectories(scopeProject, scopeOptions) }), "working-directory")
+T("approval: the same removal passes with no settings scope read", refusedBy(`rm -rf ${join(settingsScopes, "vault")}`), null)
+// The real project settings of this repository add the two sibling repositories, as a real session lists them.
+T("additional directories: the real project settings add the sibling repositories", additionalWorkingDirectories(repoRoot, { ...scopeOptions, configDirectory: scopeManaged })
+  .map((directory) => directory.slice(dirname(resolve(repoRoot)).length + 1)).filter((name) => ["orbit-api", "orbit-landing-page"].includes(name)), ["orbit-api", "orbit-landing-page"])
+// The gate charter names the limits that the approval hook has: each constant that its source names is declared in the shell reader.
+const approvalCharterSources = JSON.parse(readFileSync(join(repoRoot, "tools", "gate-charter.json"), "utf8"))[".claude/hooks/forbid-approval-prompt.mjs"].constants.map(({ source }) => source).join(" ")
+const shellReaderSource = readFileSync(join(hooksDir, "_lib", "shell-subset.mjs"), "utf8")
+const namedReaderLimits = approvalCharterSources.match(/\b[A-Z][A-Z0-9_]{2,}\b/g) ?? []
+T("approval charter: the gate charter names each limit of the shell reader, and only those", { named: namedReaderLimits.length > 0, missing: namedReaderLimits.filter((name) => !new RegExp(`^const ${name} = `, "m").test(shellReaderSource)) }, { named: true, missing: [] })
+const sleepingRun = { sleep: true, sessionId: "coordinator" }
+T("approval scope: the coordinator of an unattended run", isUnattendedRun({ state: sleepingRun, sessionId: "coordinator" }), true)
+// A subagent's tool hooks carry the session id of the coordinator, so the same record covers it.
+T("approval scope: a session with no id fails closed", isUnattendedRun({ state: sleepingRun }), true)
+T("approval scope: a launched worker", isUnattendedRun({ env: { ORBIT_LAUNCH_WORKER: "1" }, state: null }), true)
+T("approval scope: an attended run", isUnattendedRun({ state: { sleep: false, sessionId: "coordinator" }, sessionId: "coordinator" }), false)
+T("approval scope: another session beside an unattended run", isUnattendedRun({ state: sleepingRun, sessionId: "owner" }), false)
+T("approval scope: no run record", isUnattendedRun({ env: {}, state: null, sessionId: "owner" }), false)
+for (const tool of PERSON_PROMPT_TOOLS) T(`person prompt: ${tool} waits for a person and is refused`, checkPersonPrompt(tool)?.rule ?? null, "person-prompt")
+for (const tool of ["Bash", "Monitor", "Agent", "Read", undefined]) T(`person prompt: ${tool} is not a question to a person`, checkPersonPrompt(tool), null)
+
 console.log("\n# forbid-node-modules-write (_lib/rules-dependencies.mjs)")
 // the package was extracted, npm install left them alone, and four contradictory citations of
 // those two files were published across three sessions. Unlike the browser ban, this one takes no
@@ -464,6 +1684,7 @@ const isolatedDirectoryBodies = [
   (body) => `zsh -c '${body}'`,
   (body) => `${body} | cat`,
   (body) => `${body} & wait`,
+  (body) => `true |& ${body}`,
 ]
 for (const wrap of isolatedDirectoryBodies) {
   for (const [command, cwd, expected] of [
@@ -474,7 +1695,7 @@ for (const wrap of isolatedDirectoryBodies) {
     [`${wrap("touch package.json")}; cd ${installedPackage}`, root, false],
     [`${wrap(`cd ${installedPackage}`)}; touch package.json`, root, false],
   ]) T(`dependency scope: ${command}`, blocks(checkDependencyCommand(command, { cwd })), expected)
-  const resolveRemoteUrl = (directory) => directory === root ? "https://example.invalid/other.git" : "https://example.invalid/orbit-ui-mobile.git"
+  const resolveRemoteUrl = byTextDirectory((directory) => directory === root ? "https://example.invalid/other.git" : "https://example.invalid/orbit-ui-mobile.git")
   for (const [command, cwd, expected] of [
     [`${wrap(`cd ${root}`)}; git push origin main`, installedPackage, true],
     [`cd ${installedPackage}; ${wrap(`cd ${root}`)}; git push origin main`, root, true],
@@ -482,13 +1703,16 @@ for (const wrap of isolatedDirectoryBodies) {
     [`cd ${installedPackage}; ${wrap("git push origin main")}`, root, true],
     [`${wrap("git push origin main")}; cd ${installedPackage}`, root, false],
     [`${wrap(`cd ${installedPackage}`)}; git push origin main`, root, false],
-  ]) T(`git scope: ${command}`, blocks(checkGitCommand(command, { cwd, resolveRemoteUrl })), expected)
+    // A body that the subset does not model is refused wherever its push goes.
+  ]) T(`git scope: ${command}`, blocks(checkGitCommand(command, { cwd, resolveRemoteUrl })), expected || !isModelled(command))
 }
+T("subset: the isolated bodies that the subset models", isolatedDirectoryBodies.map((wrap) => isModelled(wrap("true"))), [true, false, false, false, false, false, true, false, false])
 T("dependency scope: eval changes the parent directory", blocks(dependencyCommand("eval 'cd node_modules/react-native'; touch package.json")), true)
 T("dependency scope: eval can leave the installed package", checkDependencyCommand(`eval 'cd ${root}'; touch package.json`, { cwd: installedPackage }), null)
-const scopeRemote = (directory) => directory === root ? "https://example.invalid/other.git" : "https://example.invalid/orbit-ui-mobile.git"
+const scopeRemote = byTextDirectory((directory) => directory === root ? "https://example.invalid/other.git" : "https://example.invalid/orbit-ui-mobile.git")
 T("git scope: eval changes the parent directory", blocks(checkGitCommand(`eval 'cd ${installedPackage}'; git push origin main`, { cwd: root, resolveRemoteUrl: scopeRemote })), true)
-T("git scope: eval can leave a protected repository", checkGitCommand(`eval 'cd ${root}'; git push origin main`, { cwd: installedPackage, resolveRemoteUrl: scopeRemote }), null)
+T("git scope: eval is not modelled, also when it leaves a protected repository", checkGitCommand(`eval 'cd ${root}'; git push origin main`, { cwd: installedPackage, resolveRemoteUrl: scopeRemote })?.notModelled.includes("the builtin `eval`"), true)
+T("git scope: a plain cd can leave a protected repository", checkGitCommand(`cd ${root}; git push origin main`, { cwd: installedPackage, resolveRemoteUrl: scopeRemote }), null)
 const interpreterReads = [
   `node -e 'require("fs").readFileSync("node_modules/js-yaml/package.json", "utf8")'`,
   `node -e 'require("node_modules/js-yaml/package.json")'`,
@@ -963,7 +2187,7 @@ const runHookResult = (file, input, env) =>
     env: { ...process.env, ORBIT_LAUNCH_WORKER: "", ...env },
   })
 const runHook = (file, payload, env) => runHookResult(file, JSON.stringify(payload), env).status
-for (const hook of ["git-guardrails", "orchestrator-guardrails", "forbid-invented-identifier", "forbid-worker-browser", "forbid-node-modules-write", "forbid-raw-ticket-mutation", "forbid-ef-migration-raw-index", "require-handoff-prompt", "require-wake-source", "forbid-superseded-session"]) {
+for (const hook of ["git-guardrails", "orchestrator-guardrails", "forbid-invented-identifier", "forbid-worker-browser", "forbid-node-modules-write", "forbid-approval-prompt", "forbid-raw-ticket-mutation", "forbid-ef-migration-raw-index", "require-handoff-prompt", "require-wake-source", "forbid-superseded-session"]) {
   const result = runHookResult(`${hook}.mjs`, "not json")
   T(`adapter ${hook}: malformed stdin blocks`, result.status, 2)
   T(`adapter ${hook}: failure identifies the hook`, result.stderr.includes(hook), true)
@@ -973,6 +2197,16 @@ for (const hook of ["surface-pending-lessons", "record-handoff-request", "relay-
 }
 const bash = (command, cwd = root) => ({ tool_name: "Bash", tool_input: { command }, cwd })
 const powershell = (command, cwd = root) => ({ tool_name: "PowerShell", tool_input: { command }, cwd })
+// The Monitor tool input of Claude Code 2.1.325: `description`, `timeout_ms`, `persistent`, and `command` or `ws`.
+const monitor = (command, cwd = root) => ({ tool_name: "Monitor", tool_input: { command, description: "Watch the run", timeout_ms: 300000, persistent: false }, cwd })
+const monitorSocket = { tool_name: "Monitor", tool_input: { ws: { url: "wss://events.example.com/stream" }, description: "Events", timeout_ms: 300000, persistent: false }, cwd: root }
+/** One command as a Bash payload and as a Monitor payload. It records the guard, so a guard with no Monitor case fails below. */
+const monitorRefusalGuards = new Set()
+const bashAndMonitor = (file, command, { cwd = root, env, extra = {} } = {}) => {
+  monitorRefusalGuards.add(file)
+  return [runHook(file, { ...bash(command, cwd), ...extra }, env), runHook(file, { ...monitor(command, cwd), ...extra }, env)]
+}
+for (const file of BASH_GUARDS) T(`adapter ${file}: a Monitor that opens a WebSocket has no command -> 0`, runHook(file, monitorSocket), 0)
 const STALE_TEXT = "forbid-stale-text.mjs"
 const plantedOwner = ["Tho", "mas"].join("")
 T("adapter timeless: a new owner attribution -> 2", runHook(STALE_TEXT, {
@@ -1124,8 +2358,80 @@ T("adapter lessons: malformed drift state exits 0 and emits the overdue line", {
 }, { status: 0, stdout: "Workflow drift review is overdue. Run /drift-review.", stderr: "" })
 
 T("adapter git-guardrails: push main -> 2", runHook("git-guardrails.mjs", bash("git push origin main")), 2)
-T("adapter git-guardrails: push feature -> 0", runHook("git-guardrails.mjs", bash("git push origin feature/x")), 0)
+T("adapter git-guardrails: the same push from Bash and from Monitor -> 2, 2", bashAndMonitor("git-guardrails.mjs", "git push origin main"), [2, 2])
+// The fixture root is no repository, so git resolves no branch word there and the rule fails safe. The symbolic ref rows below push a branch that exists -> 0.
+T("adapter git-guardrails: push feature in a directory with no repository -> 2", runHook("git-guardrails.mjs", bash("git push origin feature/x")), 2)
+T("adapter git-guardrails: a grep for the flag that skips the hooks -> 0", runHook("git-guardrails.mjs", bash(`grep -rn -- '${NV}' .claude/hooks`)), 0)
+T("adapter git-guardrails: a push to main in a here-string with a $\"...\" quote -> 2", runHook("git-guardrails.mjs", bash('bash <<<$"git push origin main"')), 2)
 T("adapter git-guardrails: worktree remove --force -> 2", runHook("git-guardrails.mjs", bash("git worktree remove --force .claude/worktrees/x")), 2)
+T("adapter git-guardrails: the default commit form of Claude Code in an attended session -> 0", runHook("git-guardrails.mjs", bash(CLAUDE_COMMIT_FORM)), 0)
+T("adapter git-guardrails: the default commit form of Claude Code in a worker run -> 2", runHook("git-guardrails.mjs", bash(CLAUDE_COMMIT_FORM), { ORBIT_LAUNCH_WORKER: "1" }), 2)
+// git applies each `-C` word with `chdir`, which follows a symlink before it reads `..`. The fixture: a repository with no protection that
+// holds a symlink to a directory of a protected repository. The adapter reads the remote with real git, attended and in an unattended run.
+const symlinkFixture = join(root, "git-symlink")
+const protectedCheckout = join(symlinkFixture, "orbit-ui-mobile")
+const openCheckout = join(symlinkFixture, "brain")
+for (const [checkout, url] of [[protectedCheckout, "https://github.com/thomasluizon/orbit-ui-mobile.git"], [openCheckout, "https://github.com/thomasluizon/brain.git"]]) {
+  mkdirSync(join(checkout, "apps"), { recursive: true })
+  spawnSync("git", ["init", "-q", checkout])
+  spawnSync("git", ["-C", checkout, "remote", "add", "origin", url])
+}
+// The control row below pushes `fix/x` from the protected checkout, so that branch exists there: git resolves the branch word of a push.
+T("adapter git-guardrails symlink fixture: the protected checkout has the branch fix/x", [["config", "user.email", "hooks@test.invalid"], ["config", "user.name", "hooks"], ["config", "commit.gpgsign", "false"],
+  ["commit", "-q", "--allow-empty", "-m", "fixture"], ["branch", "fix/x"]].map((args) => spawnSync("git", ["-C", protectedCheckout, ...args]).status).filter((status) => status !== 0), [])
+const linkToProtected = join(openCheckout, "link")
+symlinkSync(join(protectedCheckout, "apps"), linkToProtected, "junction")
+const fromOpenCheckout = (command, env) => runHook("git-guardrails.mjs", bash(command, openCheckout), env)
+for (const command of [`git -C ${linkToProtected}/.. push origin main`, "git -C link/.. push origin main", "git -C link/.. push origin HEAD:main", `cd ${linkToProtected}; git -C .. push origin main`,
+  "git -C link -C .. push origin main"]) {
+  T(`adapter git-guardrails symlink: ${command} from a repository with no protection -> 2, 2`, [fromOpenCheckout(command), fromOpenCheckout(command, { ORBIT_LAUNCH_WORKER: "1" })], [2, 2])
+}
+// The controls: the shell `cd` is logical, so `cd link/..` stays in the repository with no protection, and a push to its main passes.
+for (const command of [`cd ${linkToProtected}/..; git push origin main`, `git -C ${openCheckout} push origin main`, "git -C link/.. push origin fix/x"]) {
+  T(`adapter git-guardrails symlink: ${command} from a repository with no protection -> 0, 0`, [fromOpenCheckout(command), fromOpenCheckout(command, { ORBIT_LAUNCH_WORKER: "1" })], [0, 0])
+}
+// git pushes a symbolic ref under `refs/heads/` to the ref that it resolves to. The fixture: a bare `orbit-ui-mobile.git`, and a clone with the plain
+// branches `plain`, `other` and `third` and with `sneaky`, a symbolic ref to `main`. The adapter resolves each branch word with real git.
+const symbolicFixture = join(root, "git-symbolic")
+const symbolicOrigin = join(symbolicFixture, "orbit-ui-mobile.git")
+const symbolicClone = join(symbolicFixture, "clone")
+mkdirSync(symbolicClone, { recursive: true })
+const inSymbolicClone = (...args) => spawnSync("git", args, { cwd: symbolicClone, encoding: "utf8" })
+writeFileSync(join(symbolicClone, "tracked.txt"), "tracked\n")
+T("adapter git-guardrails symbolic ref fixture: each git step exits 0", [["init", "-q", "--bare", "-b", "main", symbolicOrigin], ["init", "-q", "-b", "main"], ["remote", "add", "origin", symbolicOrigin],
+  ["config", "user.email", "hooks@test.invalid"], ["config", "user.name", "hooks"], ["config", "commit.gpgsign", "false"], ["add", "tracked.txt"], ["commit", "-q", "-m", "fixture"], ["branch", "plain"], ["branch", "other"],
+  ["branch", "third"], ["symbolic-ref", "refs/heads/sneaky", "refs/heads/main"]].map((args) => inSymbolicClone(...args).status).filter((status) => status !== 0), [])
+T("adapter git-guardrails symbolic ref fixture: git resolves sneaky to main and plain to its own branch",
+  ["sneaky", "plain"].map((name) => inSymbolicClone("rev-parse", "--symbolic-full-name", name).stdout.trim()), ["refs/heads/main", "refs/heads/plain"])
+const fromSymbolicClone = (command, cwd = symbolicClone) => [runHook("git-guardrails.mjs", bash(command, cwd)), runHook("git-guardrails.mjs", bash(command, cwd), { ORBIT_LAUNCH_WORKER: "1" })]
+for (const command of ["git push origin main", "git push origin sneaky", "git push -u origin sneaky", "git push origin missing", "git symbolic-ref refs/heads/other refs/heads/main && git push origin other",
+  "printf 'ref: refs/heads/main\\n' > .git/refs/heads/third && git push -u origin third"]) {
+  T(`adapter git-guardrails symbolic ref: ${command} in a protected repository -> 2, 2`, fromSymbolicClone(command), [2, 2])
+}
+T("adapter git-guardrails symbolic ref: git -C <clone> push origin sneaky from the directory above -> 2, 2", fromSymbolicClone(`git -C ${symbolicClone} push origin sneaky`, symbolicFixture), [2, 2])
+// The controls: git resolves a plain branch to its own ref, `HEAD:<branch>` names its destination, and the two commands that the same line refuses pass alone.
+for (const command of ["git push origin plain", "git push -u origin plain", "git push origin other", "git push -u origin third", "git push origin HEAD:sneaky", "git push origin HEAD:missing",
+  "git symbolic-ref refs/heads/other2 refs/heads/main", "printf 'ref: refs/heads/main\\n' > .git/refs/heads/third2"]) {
+  T(`adapter git-guardrails symbolic ref: ${command} in a protected repository -> 0, 0`, fromSymbolicClone(command), [0, 0])
+}
+T("adapter git-guardrails symbolic ref: git -C <clone> push origin plain from the directory above -> 0, 0", fromSymbolicClone(`git -C ${symbolicClone} push origin plain`, symbolicFixture), [0, 0])
+T("adapter git-guardrails symbolic ref: the refusal names the ref that git resolves the word to",
+  runHookResult("git-guardrails.mjs", JSON.stringify(bash("git push origin sneaky", symbolicClone))).stderr.includes("git resolves `sneaky` to `refs/heads/main`"), true)
+T("handoff git: the top level follows the -C chain as git does", topLevelOf([openCheckout, "link/.."]), realpathSync(protectedCheckout))
+// `find -execdir` runs git in the directory that holds each found file, here the protected checkout, which the `cd` model cannot know.
+// The git rule refuses it attended and in a worker run, and the approval rule refuses it in a worker run.
+for (const command of [`find ${protectedCheckout} -maxdepth 1 -name apps -execdir git push origin main \\;`, `find ${protectedCheckout} -maxdepth 1 -name apps -execdir git push --force origin HEAD:main \\;`,
+  `find ${protectedCheckout} -maxdepth 1 -name apps -okdir git push origin main \\;`,
+  // A variable gives `find` its `-execdir`, and `xargs` gives `find` or `env` the words of a push.
+  `x=-execdir; find ${protectedCheckout} -maxdepth 1 -name apps "$x" git push origin main \\;`,
+  `printf '%s\\n' -execdir git push origin main ';' | xargs find ${protectedCheckout} -maxdepth 1 -name apps`,
+  `printf '%s\\n' git -C ${protectedCheckout} push origin main | xargs env`]) {
+  T(`adapter other directory: ${command} from a repository with no protection -> git 2, 2 and approval 2`,
+    [fromOpenCheckout(command), fromOpenCheckout(command, { ORBIT_LAUNCH_WORKER: "1" }), runHook("forbid-approval-prompt.mjs", bash(command, openCheckout), { ORBIT_LAUNCH_WORKER: "1" })], [2, 2, 2])
+}
+T(`adapter other directory: the control \`cd ${protectedCheckout}; git push origin main\` -> 2`, fromOpenCheckout(`cd ${protectedCheckout}; git push origin main`), 2)
+T("adapter other directory: the control `find -exec` push of a feature branch from the shell directory -> 0, 0",
+  [fromOpenCheckout(`find ${openCheckout} -maxdepth 0 -exec git push origin fix/x \\;`), fromOpenCheckout(`find ${openCheckout} -maxdepth 0 -exec git push origin fix/x \\;`, { ORBIT_LAUNCH_WORKER: "1" })], [0, 0])
 
 const ORCH = "orchestrator-guardrails.mjs"
 for (const [shape, command] of descriptorSuffixAllows) {
@@ -1136,6 +2442,7 @@ for (const [shape, command] of descriptorSafetyRefusals) {
 }
 T("adapter orchestrator: codex exec -> 2", runHook(ORCH, bash('codex exec "do the thing"')), 2)
 T(`adapter orchestrator: gh pr merge ${ADMIN} -> 2`, runHook(ORCH, bash(`gh pr merge 1 --squash ${ADMIN}`)), 2)
+T(`adapter orchestrator: the same gh pr merge ${ADMIN} from Bash and from Monitor -> 2, 2`, bashAndMonitor(ORCH, `gh pr merge 1 --squash ${ADMIN}`), [2, 2])
 T("adapter orchestrator: gh pr merge --squash -> 0", runHook(ORCH, bash("gh pr merge 1 --squash")), 0)
 T("adapter orchestrator: codex --version -> 0", runHook(ORCH, bash("codex --version")), 0)
 T("adapter orchestrator: grep over a codex pattern -> 0", runHook(ORCH, bash("grep -rnE 'claude|codex' tools/")), 0)
@@ -1163,6 +2470,7 @@ T(
 const BROWSER = "forbid-worker-browser.mjs"
 T("adapter worker-browser: a worker starting a dev server -> 2", runHook(BROWSER, bash("npm run dev"), { ORBIT_LAUNCH_WORKER: "1" }), 2)
 T("adapter worker-browser: a worker running playwright -> 2", runHook(BROWSER, bash("npx playwright test"), { ORBIT_LAUNCH_WORKER: "1" }), 2)
+T("adapter worker-browser: the same playwright run from Bash and from Monitor -> 2, 2", bashAndMonitor(BROWSER, "npx playwright test", { env: { ORBIT_LAUNCH_WORKER: "1" } }), [2, 2])
 T("adapter worker-browser: a worker running the tests -> 0", runHook(BROWSER, bash("npm test", repoRoot), { ORBIT_LAUNCH_WORKER: "1" }), 0)
 T("adapter worker-browser: a workspace layout script -> 2", runHook(BROWSER, bash("npm run test:layout -w apps/web", repoRoot), { ORBIT_LAUNCH_WORKER: "1" }), 2)
 T("adapter worker-browser: the same dev server outside a worker -> 0", runHook(BROWSER, bash("npm run dev")), 0)
@@ -1194,16 +2502,30 @@ for (const wrap of isolatedDirectoryBodies) {
     [`cd ${scopedProtectedRepo}; ${wrap(`cd ${scopedOtherRepo}`)}; git push origin main`, root, 2],
     [`cd ${scopedProtectedRepo}; ${wrap("git push origin main")}`, root, 2],
     [`${wrap("git push origin main")}; cd ${scopedProtectedRepo}`, scopedOtherRepo, 0],
-  ]) T(`adapter git scope: ${command}`, runHook("git-guardrails.mjs", bash(command, cwd)), expected)
+  ]) T(`adapter git scope: ${command}`, runHook("git-guardrails.mjs", bash(command, cwd)), isModelled(command) ? expected : 2)
 }
 T("adapter git scope: eval can enter a protected repository", runHook("git-guardrails.mjs", bash(`eval 'cd ${scopedProtectedRepo}'; git push origin main`, scopedOtherRepo)), 2)
-T("adapter git scope: eval can leave a protected repository", runHook("git-guardrails.mjs", bash(`eval 'cd ${scopedOtherRepo}'; git push origin main`, scopedProtectedRepo)), 0)
+T("adapter git scope: eval is not modelled -> 2", runHook("git-guardrails.mjs", bash(`eval 'cd ${scopedOtherRepo}'; git push origin main`, scopedProtectedRepo)), 2)
+T("adapter git scope: a plain cd can leave a protected repository -> 0", runHook("git-guardrails.mjs", bash(`cd ${scopedOtherRepo}; git push origin main`, scopedProtectedRepo)), 0)
+T("adapter git-guardrails: a command word that zsh expands to git -> 2", runHook("git-guardrails.mjs", bash("=git push origin main", scopedOtherRepo)), 2)
+T("adapter git-guardrails: a line continuation after the git word -> 2", runHook("git-guardrails.mjs", bash("git \\\npush origin main", scopedOtherRepo)), 2)
+T("adapter git-guardrails: a quoted -n on a commit -> 2", runHook("git-guardrails.mjs", bash("git commit -m x '-n'", scopedOtherRepo)), 2)
+T("adapter git-guardrails: a grep for a git command with the flag -> 0", runHook("git-guardrails.mjs", bash(`grep -rn "git commit ${NV}" .claude`, scopedOtherRepo)), 0)
+// Defect 1 through the real hook files: each one exits 2 within the time limit, where a loop ends in a kill or an abort.
+for (const [name, byte] of [["CR", "\r"], ["form feed", "\f"], ["U+00A0", " "]]) {
+  for (const [file, command, env] of [["git-guardrails.mjs", `git push origin main ;${byte}`, {}], ["forbid-approval-prompt.mjs", `rm -rf "$TMP" ;${byte}`, { ORBIT_LAUNCH_WORKER: "1" }]]) {
+    const result = spawnSync(process.execPath, [join(hooksDir, file)], { input: JSON.stringify(bash(command, scopedOtherRepo)), encoding: "utf8", env: { ...process.env, ORBIT_LAUNCH_WORKER: "", ...env }, timeout: 10000 })
+    T(`adapter ${file}: a ${name} outside a quote -> 2 within the time limit`, [result.status, result.signal], [2, null])
+  }
+}
+T("adapter git-guardrails: a worker refuses a command outside the subset that names no git -> 2", runHook("git-guardrails.mjs", bash("while true; do sleep 5; done", scopedOtherRepo), { ORBIT_LAUNCH_WORKER: "1" }), 2)
 const edit = (toolName, filePath) => ({ tool_name: toolName, tool_input: { file_path: filePath }, cwd: dependencyTree })
 T("adapter dependency-write: Write inside node_modules -> 2", runHook(DEPENDENCY, edit("Write", installedFile)), 2)
 T("adapter dependency-write: Edit through a relative path -> 2", runHook(DEPENDENCY, edit("Edit", "node_modules/react-native/flags.kt")), 2)
 T("adapter dependency-write: MultiEdit on the repository's own source -> 0", runHook(DEPENDENCY, edit("MultiEdit", "apps/mobile/app/index.tsx")), 0)
 T("adapter dependency-write: a worker redirect into a dependency -> 2", runHook(DEPENDENCY, bash("echo true > node_modules/react-native/flags.kt", dependencyTree), { ORBIT_LAUNCH_WORKER: "1" }), 2)
 T("adapter dependency-write: the same redirect outside a worker still -> 2", runHook(DEPENDENCY, bash("echo true > node_modules/react-native/flags.kt", dependencyTree)), 2)
+T("adapter dependency-write: the same redirect from Bash and from Monitor -> 2, 2", bashAndMonitor(DEPENDENCY, "echo true > node_modules/react-native/flags.kt", { cwd: dependencyTree }), [2, 2])
 T("adapter dependency-write: the PowerShell tool is guarded too -> 2", runHook(DEPENDENCY, powershell("Set-Content -Path node_modules/react-native/flags.kt -Value true", dependencyTree)), 2)
 T("adapter dependency-write: a case-different spelling -> 2", runHook(DEPENDENCY, edit("Write", "NODE_MODULES/react-native/flags.kt")), 2)
 T("adapter dependency-write: npx -y patch-package -> 2", runHook(DEPENDENCY, bash("npx -y patch-package react-native", dependencyTree)), 2)
@@ -1228,6 +2550,7 @@ T(
   runHook(IDENT_HOOK, { tool_name: "PowerShell", tool_input: { command: resolveCommand(INVENTED) }, cwd: repoRoot, session_id: IDENT_SESSION }),
   2,
 )
+T("adapter identifier: the same id from Bash and from Monitor -> 2, 2", bashAndMonitor(IDENT_HOOK, resolveCommand(INVENTED), { cwd: repoRoot, extra: { session_id: IDENT_SESSION } }), [2, 2])
 
 const scratchpadArtifact = join(tmpdir(), "claude", "orbit-hooks-gate-project", IDENT_SESSION, "scratchpad", "threads.json")
 mkdirSync(dirname(scratchpadArtifact), { recursive: true })
@@ -1296,7 +2619,114 @@ T("relay fixture: local origin initializes", stagingGit(["init", "--bare", wakeO
 T("relay fixture: local origin is configured", stagingGit(["remote", "add", "origin", wakeOrigin], wakeCheckout).status, 0)
 T("relay fixture: main is published locally", stagingGit(["push", "origin", "HEAD:refs/heads/main"], wakeCheckout).status, 0)
 T("relay fixture: base configuration is available", stagingGit(["update-ref", "refs/remotes/origin/redesign/main", "HEAD"], wakeCheckout).status, 0)
-for (const name of ["relay-at-threshold.mjs", "forbid-superseded-session.mjs", "record-handoff-request.mjs", "require-handoff-prompt.mjs"]) cpSync(join(hooksDir, name), join(wakeHooks, name))
+for (const name of ["relay-at-threshold.mjs", "forbid-superseded-session.mjs", "record-handoff-request.mjs", "require-handoff-prompt.mjs", "forbid-approval-prompt.mjs"]) cpSync(join(hooksDir, name), join(wakeHooks, name))
+// The staged checkout owns its run record, so the run that executes this suite cannot change the verdict.
+const APPROVAL_HOOK = "forbid-approval-prompt.mjs"
+const approvalHook = (payload, env = {}) => spawnSync(process.execPath, [join(wakeHooks, APPROVAL_HOOK)], {
+  input: JSON.stringify(payload), encoding: "utf8", env: { ...process.env, ORBIT_LAUNCH_WORKER: "", ...env },
+})
+const heldRemoval = (toolName = "Bash", sessionId = "approval-coordinator") => ({ tool_name: toolName, tool_input: { command: HELD_REMOVAL }, cwd: wakeCheckout, session_id: sessionId })
+T("adapter approval: no run record -> 0", approvalHook(heldRemoval()).status, 0)
+writeRunState({ sessionId: "approval-coordinator", sleep: false, remaining: [] }, wakeCheckout)
+T("adapter approval: an attended run -> 0", approvalHook(heldRemoval()).status, 0)
+T("adapter approval: a worker in an attended run -> 2", approvalHook(heldRemoval(), { ORBIT_LAUNCH_WORKER: "1" }).status, 2)
+writeRunState({ sessionId: "approval-coordinator", sleep: true, remaining: [] }, wakeCheckout)
+const refusedRemoval = approvalHook(heldRemoval())
+T("adapter approval: the held removal in an unattended run -> 2", refusedRemoval.status, 2)
+T("adapter approval: the refusal tells the agent how to rewrite the command", refusedRemoval.stderr.includes('"${DST:?}/${d:?}/node_modules"') && refusedRemoval.stderr.includes("literal path"), true)
+const refusedUnmodelled = approvalHook({ ...heldRemoval(), tool_input: { command: 'bash <<<$"rm -rf \\"\\$TMP\\""' } })
+T("adapter approval: a removal in a construct that the reader does not model -> 2", refusedUnmodelled.status, 2)
+T("adapter approval: that refusal names the construct and asks for the plain subset", refusedUnmodelled.stderr.includes("a here-string") && refusedUnmodelled.stderr.includes("plain subset"), true)
+// The live held command of the order: a variable in a path and an escaped `$(` in a grep pattern, which Claude Code held for a person.
+// In an unattended run the hook refuses it first, and the refusal names the `.mjs` route for a search.
+const LIVE_HELD_COMMAND = String.raw`N=/tmp/scratchpad/rv-2464-r16; awk '/^const HEREDOC_DATA/{on=1;next} on&&/^\]/{exit} on' $N/head/.claude/hooks/test-hooks.mjs | grep -n "bash script.sh\"\|x=\\$(cat" | head; grep -n "^const HEREDOC_DATA" -A6 $N/head/.claude/hooks/test-hooks.mjs | head -8`
+const refusedLiveCommand = approvalHook({ ...heldRemoval(), tool_input: { command: LIVE_HELD_COMMAND } })
+T("adapter approval: the live held command of the order in an unattended run -> 2", refusedLiveCommand.status, 2)
+T("adapter approval: that refusal asks for a .mjs file that node runs", refusedLiveCommand.stderr.includes("node /abs/path.mjs"), true)
+T("approval: the live held command of the order is refused by both rules", [Boolean(checkGitCommand(LIVE_HELD_COMMAND, { cwd: "/work/x" })?.notModelled), checkApprovalPrompt(LIVE_HELD_COMMAND, { cwd: "/work/x" })?.rule], [true, "not-modelled"])
+// Claude Code runs its removal check for the Bash tool and the Monitor tool, and the guarded rewrite is Bash syntax.
+T("adapter approval: a PowerShell command is outside the removal check -> 0", approvalHook(heldRemoval("PowerShell")).status, 0)
+const monitorRemoval = { ...heldRemoval("Monitor"), tool_input: { command: 'sleep 5 && test -f "$OUT/done" && rm -rf "$OUT/$d"', description: "Wait for the build", timeout_ms: 300000 } }
+const refusedMonitor = approvalHook(monitorRemoval)
+T("adapter approval: a Monitor command that removes a variable path -> 2", refusedMonitor.status, 2)
+// The approval hook runs from the staged checkout, so it records its own case for the parity check.
+T("adapter approval: the same held removal from Monitor -> 2", approvalHook(heldRemoval("Monitor")).status, 2)
+monitorRefusalGuards.add(APPROVAL_HOOK)
+T("adapter approval: the Monitor refusal gives the guarded rewrite", refusedMonitor.stderr.includes('"${OUT:?}/${d:?}"'), true)
+T("adapter approval: a Monitor command with a guarded removal -> 0", approvalHook({ ...monitorRemoval, tool_input: { ...monitorRemoval.tool_input, command: 'sleep 5 && test -f "$OUT/done" && rm -rf "${OUT:?}/${d:?}"' } }).status, 0)
+T("adapter approval: a Monitor that opens a WebSocket has no command -> 0", approvalHook({ ...heldRemoval("Monitor"), tool_input: { ws: { url: "wss://events.example.com/stream" }, description: "Events", timeout_ms: 300000 } }).status, 0)
+T("adapter approval: the hook is wired to each tool that runs the removal check, and to no other shell", settings.hooks.PreToolUse.filter((entry) => entry.hooks.some((hook) => hook.command.includes(APPROVAL_HOOK))).flatMap((entry) => entry.matcher.split("|")).filter((tool) => !PERSON_PROMPT_TOOLS.includes(tool)).sort(), ["Bash", "Monitor"])
+// The guard broken: with Monitor removed from the tool list the same command passes, as it did before the list held it.
+const approvalRulesPath = join(wakeHooks, "_lib", "rules-approval.mjs")
+const approvalRulesSource = readFileSync(approvalRulesPath, "utf8")
+const removalToolsLine = 'export const REMOVAL_CHECK_TOOLS = ["Bash", "Monitor"]'
+T("adapter approval: the broken guard targets the production tool list", approvalRulesSource.includes(removalToolsLine), true)
+writeFileSync(approvalRulesPath, approvalRulesSource.replace(removalToolsLine, 'export const REMOVAL_CHECK_TOOLS = ["Bash"]'))
+T("adapter approval: with Monitor removed from the tool list the Monitor command passes -> 0", approvalHook(monitorRemoval).status, 0)
+writeFileSync(approvalRulesPath, approvalRulesSource)
+T("adapter approval: with the tool list restored the Monitor command is refused again -> 2", approvalHook(monitorRemoval).status, 2)
+// AskUserQuestion waits for a person with no limit. The payload copies the PreToolUse input of Claude Code 2.1.325
+// (session_id, transcript_path, cwd, hook_event_name, tool_name, tool_input, tool_use_id) and the tool input of a real transcript.
+const ownerQuestion = (sessionId = "approval-coordinator") => ({
+  session_id: sessionId, transcript_path: join(root, `${sessionId}.jsonl`), cwd: wakeCheckout, permission_mode: "bypassPermissions", hook_event_name: "PreToolUse", tool_name: "AskUserQuestion",
+  tool_input: { questions: [{ question: "Which branch takes the fix?", header: "Branch", multiSelect: false, options: [{ label: "main", description: "The default branch" }, { label: "redesign/main", description: "The redesign branch" }] }] },
+  tool_use_id: "toolu_question",
+})
+const refusedQuestion = approvalHook(ownerQuestion())
+T("adapter person prompt: AskUserQuestion in an unattended run -> 2", refusedQuestion.status, 2)
+T("adapter person prompt: the refusal tells the agent to decide and log it, or to queue the owner question and ask it in reply text",
+  ["no person is present", "best option", "decision log", "openOwnerQuestions", "{ question, blocks }", "updateRunState", "plain reply text"].every((text) => refusedQuestion.stderr.includes(text)), true)
+T("adapter person prompt: a subagent of the unattended run -> 2", approvalHook({ ...ownerQuestion(), agent_id: "fix-agent", agent_type: "general-purpose" }).status, 2)
+T("adapter person prompt: another session beside the unattended run -> 0", approvalHook(ownerQuestion("owner-session")).status, 0)
+writeRunState({ sessionId: "approval-coordinator", sleep: false, remaining: [] }, wakeCheckout)
+T("adapter person prompt: an attended run -> 0", approvalHook(ownerQuestion()).status, 0)
+T("adapter person prompt: a launched worker in an attended run -> 2", approvalHook(ownerQuestion(), { ORBIT_LAUNCH_WORKER: "1" }).status, 2)
+writeRunState({ sessionId: "approval-coordinator", sleep: true, remaining: [] }, wakeCheckout)
+T("adapter person prompt: the hook is wired to each tool that waits for a person", settings.hooks.PreToolUse.filter((entry) => entry.hooks.some((hook) => hook.command.includes(APPROVAL_HOOK)))
+  .flatMap((entry) => entry.matcher.split("|")).filter((tool) => !["Bash", "Monitor"].includes(tool)).sort(), ["AskUserQuestion", "OfferChromeSetup", "PublishPlugin", "SendToProject", "ShowOnboardingRolePicker"])
+// The guard broken: with AskUserQuestion removed from the tool list the question passes, as it did before the list held it.
+const personToolsLine = 'export const PERSON_PROMPT_TOOLS = ["AskUserQuestion", "OfferChromeSetup", "PublishPlugin", "SendToProject", "ShowOnboardingRolePicker"]'
+T("adapter person prompt: the broken guard targets the production tool list", approvalRulesSource.includes(personToolsLine), true)
+writeFileSync(approvalRulesPath, approvalRulesSource.replace(personToolsLine, 'export const PERSON_PROMPT_TOOLS = ["OfferChromeSetup", "PublishPlugin", "SendToProject", "ShowOnboardingRolePicker"]'))
+T("adapter person prompt: with AskUserQuestion removed from the tool list the question passes -> 0", approvalHook(ownerQuestion()).status, 0)
+writeFileSync(approvalRulesPath, approvalRulesSource)
+T("adapter person prompt: with the tool list restored the question is refused again -> 2", approvalHook(ownerQuestion()).status, 2)
+// Claude Code adds `permissions.additionalDirectories` of each settings scope to the working directories of the session.
+const approvalAccount = join(root, "approval-account")
+const addedDirectories = { user: join(root, "added-by-user", "notes"), project: join(root, "added-by-project", "site"), local: join(root, "added-by-local", "vault") }
+mkdirSync(approvalAccount, { recursive: true })
+const settingsWith = (directories) => JSON.stringify({ permissions: { additionalDirectories: directories } })
+const scopeFiles = { user: join(approvalAccount, "settings.json"), project: join(wakeCheckout, ".claude", "settings.json"), local: join(wakeCheckout, ".claude", "settings.local.json") }
+const removalOf = (directory) => approvalHook({ ...heldRemoval(), tool_input: { command: `rm -rf ${directory}` } }, { CLAUDE_CONFIG_DIR: approvalAccount }).status
+for (const scope of Object.keys(scopeFiles)) {
+  T(`adapter approval: a directory that no settings file adds can be removed (${scope}) -> 0`, removalOf(addedDirectories[scope]), 0)
+  // The project entry is relative, as the real project settings write it: Claude Code resolves it from the project directory.
+  writeFileSync(scopeFiles[scope], settingsWith([scope === "project" ? "../added-by-project/site" : addedDirectories[scope]]))
+  T(`adapter approval: removal of a directory that the ${scope} settings add -> 2`, removalOf(addedDirectories[scope]), 2)
+  T(`adapter approval: removal of a parent of a directory that the ${scope} settings add -> 2`, removalOf(dirname(addedDirectories[scope])), 2)
+  T(`adapter approval: removal of an entry inside a directory that the ${scope} settings add -> 0`, removalOf(join(addedDirectories[scope], "build")), 0)
+  rmSync(scopeFiles[scope])
+}
+// The guard broken: with the settings read removed the directory that the user settings add can be removed again.
+writeFileSync(scopeFiles.user, settingsWith([addedDirectories.user]))
+const approvalAdapterPath = join(wakeHooks, APPROVAL_HOOK)
+const approvalAdapterSource = readFileSync(approvalAdapterPath, "utf8")
+const settingsRead = ", ...additionalWorkingDirectories(repoRoot)]"
+T("adapter approval: the broken guard targets the production settings read", approvalAdapterSource.includes(settingsRead), true)
+writeFileSync(approvalAdapterPath, approvalAdapterSource.replace(settingsRead, "]"))
+T("adapter approval: with the settings read removed the added directory passes -> 0", removalOf(addedDirectories.user), 0)
+writeFileSync(approvalAdapterPath, approvalAdapterSource)
+T("adapter approval: with the settings read restored the added directory is refused again -> 2", removalOf(addedDirectories.user), 2)
+rmSync(scopeFiles.user)
+T("adapter approval: a subagent carries the coordinator session -> 2", approvalHook({ ...heldRemoval(), agent_id: "fix-agent", agent_type: "general-purpose" }).status, 2)
+T("adapter approval: the guarded rewrite -> 0", approvalHook({ ...heldRemoval(), tool_input: { command: 'rm "${DST:?}/${d:?}/node_modules"' } }).status, 0)
+T("adapter approval: removal of the checkout itself -> 2", approvalHook({ ...heldRemoval(), tool_input: { command: `rm -rf ${wakeCheckout}` } }).status, 2)
+T("adapter approval: another session beside the unattended run -> 0", approvalHook(heldRemoval("Bash", "owner-session")).status, 0)
+writeFileSync(runStatePath(wakeCheckout), "not json")
+T("adapter approval: an unreadable run record fails closed -> 2", approvalHook(heldRemoval()).status, 2)
+T("adapter person prompt: an unreadable run record fails closed -> 2", approvalHook(ownerQuestion()).status, 2)
+T("adapter approval: an unreadable run record still allows a safe command -> 0", approvalHook({ ...heldRemoval(), tool_input: { command: "npm test" } }).status, 0)
+rmSync(runStatePath(wakeCheckout))
 const relayDecisionLog = join(wakeCheckout, ".git", "relay-decisions.md")
 writeFileSync(relayDecisionLog, "No open decisions.\n")
 const relayState = { autoWork: false, sessionId: "relay-parent", sleep: true, remaining: ["#1091"], decisionLogPath: relayDecisionLog }
@@ -1538,6 +2968,72 @@ for (const [type, tool] of [["workflow", "Workflow"], ["subagent", "Agent"]]) {
   writeFileSync(recordPath, JSON.stringify({ ...record, processStartIdentity: "previous process" }))
   T(`relay adapter: stale ${type} does not strand the pending drain`, backgroundHook({ ...relayPayload, hook_event_name: "PostToolUse", tool_name: "Bash", tool_response: {} }).stdout.includes("drain is complete"), true)
 }
+// A subagent that waits on a prompt stays live in every Stop payload and writes no more transcript.
+writeRunState(relayState, wakeCheckout)
+backgroundHook({ ...relayPayload, hook_event_name: "PostToolUse", tool_name: "Agent", tool_response: backgroundLaunches.subagent })
+const heldAgent = backgroundLaunches.subagent.agentId
+const heldStop = { ...relayPayload, background_tasks: [{ id: heldAgent, type: "subagent", status: "running", description: "Background work" }] }
+const heldRecordPath = join(wakeCheckout, ".git", "orbit-background-runs", relayPayload.session_id, `${heldAgent}.json`)
+const heldRecord = JSON.parse(readFileSync(heldRecordPath, "utf8"))
+const wakeStop = (payload) => spawnSync(process.execPath, [join(wakeHooks, WAKE_HOOK)], { input: JSON.stringify(payload), encoding: "utf8", env: { ...process.env, CLAUDE_CONFIG_DIR: claudeDirectory } })
+T("stuck limit: the launch record names the subagent transcript", heldRecord.transcript, join(dirname(relayTranscript), relayPayload.session_id, "subagents", `agent-${heldAgent}.jsonl`))
+T("stuck limit: a live subagent below the limit holds the drain", backgroundHook(heldStop).stdout, "")
+const unwatchedDrain = wakeStop(heldStop)
+T("stuck limit: a drain that waits on a subagent with no waiter refuses the turn end", { status: unwatchedDrain.status, names: unwatchedDrain.stderr.includes("node tools/wait-background-runs.mjs") && unwatchedDrain.stderr.includes(`subagent ${heldAgent}`) }, { status: 2, names: true })
+// A whole second: Node 22 utimes cuts the fraction to microseconds after a float multiply, so a millisecond time can read back 1 ms early.
+const silentTime = new Date(Math.floor((Date.now() - 31 * 60_000) / 1000) * 1000)
+const silentSince = silentTime.toISOString()
+// The held agent works in its own worktree and branch. Every entry of its transcript carries the coordinator checkout as `cwd`.
+const heldWorktree = join(root, "wake-identity-held-agent")
+T("stuck limit: the agent worktree is created", stagingGit(["worktree", "add", "-b", "fix/held-agent", heldWorktree], wakeCheckout).status, 0)
+T("stuck limit: the agent commits in its worktree", stagingGit(["commit", "--allow-empty", "-m", "agent work"], heldWorktree).status, 0)
+const headOf = (directory) => stagingGit(["rev-parse", "HEAD"], directory).stdout.trim()
+const transcriptTokens = { WORKTREE: heldWorktree, SESSION_DIRECTORY: wakeCheckout, OTHER_REPOSITORY: wakeOrigin, SCRATCHPAD: root }
+const heldTranscript = readFileSync(join(repoRoot, "tools", "__tests__", "fixtures", "claude-subagent-transcript.jsonl"), "utf8")
+  .replace(/\{\{([A-Z_]+)\}\}/g, (_token, name) => JSON.stringify(transcriptTokens[name]).slice(1, -1))
+writeFileSync(heldRecordPath, JSON.stringify({ ...heldRecord, observedAt: new Date(Date.now() - 29 * 60_000).toISOString() }))
+T("stuck limit: a subagent with no transcript on disk holds the drain below the limit", backgroundHook(heldStop).stdout, "")
+writeFileSync(heldRecordPath, JSON.stringify({ ...heldRecord, observedAt: new Date(silentTime.getTime() - 60_000).toISOString() }))
+mkdirSync(dirname(heldRecord.transcript), { recursive: true })
+writeFileSync(heldRecord.transcript, heldTranscript)
+utimesSync(heldRecord.transcript, silentTime, silentTime)
+const releasedDrain = backgroundHook(heldStop)
+T("stuck limit: 30 minutes with no transcript progress completes the drain", releasedDrain.stdout.includes("drain is complete"), true)
+T("stuck limit: the drain message names the stuck subagent for the handoff", releasedDrain.stdout.includes(`subagent ${heldAgent}`) && releasedDrain.stdout.includes("stuckBackgroundRuns"), true)
+T("stuck limit: the drain message names the worktree and the branch of the agent", releasedDrain.stdout.includes(`worktree ${JSON.stringify(heldWorktree).slice(1, -1)}`) && releasedDrain.stdout.includes("branch fix/held-agent"), true)
+// The agent branch has no upstream, and no remote holds its one commit.
+T("stuck limit: the drain message says what the worktree holds that no remote holds", releasedDrain.stdout.includes("uncommitted changes 0, unpushed commits 1"), true)
+T("stuck limit: the run state records the worktree, branch and last commit of the stuck subagent, not of the coordinator",
+  readRunState(wakeCheckout).stuckBackgroundRuns?.map((run) => [run.id, run.type, run.sessionId, run.worktree, run.branch, run.lastCommit, run.lastProgressAt]),
+  [[heldAgent, "subagent", relayPayload.session_id, heldWorktree, "fix/held-agent", headOf(heldWorktree), silentSince]])
+T("stuck limit: the agent and the coordinator have different last commits", headOf(heldWorktree) === headOf(wakeCheckout), false)
+T("stuck limit: the turn end no longer waits on the stuck subagent", wakeStop(heldStop).status, 0)
+// The guard broken: with no limit the same silent subagent holds the drain, as it did before the limit existed.
+const stuckLimitSource = readFileSync(join(wakeCheckout, "tools", "lib", "background-runs.mjs"), "utf8")
+const stuckLimitLine = "export const STUCK_RUN_MILLISECONDS = 30 * 60_000"
+T("stuck limit: the broken guard targets the production limit", stuckLimitSource.includes(stuckLimitLine), true)
+writeFileSync(join(wakeCheckout, "tools", "lib", "background-runs.mjs"), stuckLimitSource.replace(stuckLimitLine, "export const STUCK_RUN_MILLISECONDS = Infinity"))
+T("stuck limit: with the limit removed the silent subagent holds the drain again", backgroundHook(heldStop).stdout, "")
+T("stuck limit: with the limit removed the turn end waits again", wakeStop(heldStop).status, 2)
+writeFileSync(join(wakeCheckout, "tools", "lib", "background-runs.mjs"), stuckLimitSource)
+T("stuck limit: with the limit restored the drain completes again", backgroundHook(heldStop).stdout.includes("drain is complete"), true)
+// The relay rule reads no drain below the soft threshold and no Stop rule reads one without a pending relay, so the
+// hooks spend no transcript read and no git process on it there. A drain read records the silent subagent as stuck.
+const drainedState = readRunState(wakeCheckout)
+const heldToolCall = { ...heldStop, hook_event_name: "PostToolUse", tool_name: "Bash", tool_response: {} }
+softCall(relaySoft - 1)
+for (const [event, run] of [["a PostToolUse below the soft threshold", () => backgroundHook(heldToolCall)], ["a Stop below the soft threshold", () => backgroundHook(heldStop)], ["a turn end with no pending relay", () => wakeStop(heldStop)]]) {
+  writeRunState(relayState, wakeCheckout)
+  run()
+  T(`stuck limit: ${event} reads no drain`, readRunState(wakeCheckout).stuckBackgroundRuns, undefined)
+}
+writeRunState(relayState, wakeCheckout)
+softCall(relaySoft)
+backgroundHook(heldToolCall)
+T("stuck limit: a PostToolUse at the soft threshold reads the drain", readRunState(wakeCheckout).stuckBackgroundRuns?.map((run) => run.id), [heldAgent])
+writeFileSync(relayTranscript, hardRelayTranscript)
+writeRunState(drainedState, wakeCheckout)
+backgroundHook(relayPayload)
 const backgroundModulePath = join(wakeCheckout, "tools", "lib", "background-runs.mjs")
 const backgroundModuleSource = readFileSync(backgroundModulePath, "utf8")
 const probeMarker = join(claudeDirectory, "identity-probe-entered")
@@ -1925,6 +3421,7 @@ T("wake merged: the adapter surfaces the merged ending and its sha, the way it s
 // The ticket guard is wired to BOTH events: the shell call and source that would issue it later.
 const TICKET_HOOK = "forbid-raw-ticket-mutation.mjs"
 T("adapter tickets: raw issue edit -> 2", runHook(TICKET_HOOK, bash(`gh issue edit 215 --repo ${TICKET_REPO} --add-label Bug`)), 2)
+T("adapter tickets: the same raw issue edit from Bash and from Monitor -> 2, 2", bashAndMonitor(TICKET_HOOK, `gh issue edit 215 --repo ${TICKET_REPO} --add-label Bug`), [2, 2])
 T("adapter tickets: pull request read -> 0", runHook(TICKET_HOOK, bash(`gh pr view 12 --repo ${CODE_REPO}`)), 0)
 const mutatingScript = { tool_name: "Write", tool_input: { file_path: join(root, "post.mjs"), content: `gh issue comment 215 --repo ${TICKET_REPO} --body fixed` } }
 T("adapter tickets: a written script that mutates -> 2", runHook(TICKET_HOOK, mutatingScript), 2)
@@ -2171,7 +3668,72 @@ T("handoff commit: a sleep request accepts a complete prompt", handoffCommit("gi
 T("handoff commit: a commit that leaves NEXT.md alone passes", handoffCommit("git commit -m fix -- src/a.ts", { sleep: true }, null), null)
 T("handoff commit: a command that commits nothing passes", handoffCommit("git status --short", { sleep: true }, "anything"), null)
 T("handoff commit: a failing working copy blocks even when the staged prompt passes", blocks(checkHandoffCommit({ command: "git commit -m docs", cwd: "/repo", request: { sleep: true }, promptsForCommit: () => [goodSleepPrompt, attendedPrompt] })), true)
-T("handoff commit: -C names the directory the commit runs in", gitCommitDirectory("git -C /other/repo commit -m x", "/repo"), "/other/repo")
+T("handoff commit: -C names the directory the commit runs in", gitCommitChains("git -C /other/repo commit -m x", { cwd: "/repo" }),
+  { chains: [{ chain: ["/repo", "/other/repo"], subcommand: "commit" }], notModelled: "" })
+const commitChains = (command, options) => gitCommitChains(command, { cwd: "/work/a", home: "/fixture-home", ...options }).chains.map(({ chain }) => chain)
+for (const [name, command, want] of [
+  ["a `cd` before the commit moves the directory", "cd /work/b; git commit -m x", [["/work/b"]]],
+  ["a relative `cd` reads `..` by text", "cd ../b && git commit -m x", [["/work/b"]]],
+  ["a `-C` variable that the line sets gives its value", 'wt=/work/b; git -C "$wt" commit -m x', [["/work/a", "/work/b"]]],
+  ["a `-C ~/...` word gives the home directory", "git -C ~/repo commit -m x", [["/work/a", "/fixture-home/repo"]]],
+  ["a relative `-C` word stays for git to read", "git -C l/.. commit -m x", [["/work/a", "l/.."]]],
+  ["an echo of a commit text gives no chain", 'echo "git -C /nowhere commit"', []],
+  ["a gh body that names a commit gives no chain", 'gh pr comment 1 -b "git -C /nowhere then commit"', []],
+  ["an echo with `..` gives no chain", 'echo "git -C .. push, then commit"', []],
+  ["a commit after a wrapper gives its chain", "env A=1 nice -n 5 git -C /work/c commit -m x", [["/work/a", "/work/c"]]],
+  ["each commit of a line gives its own chain", "cd /work/b; git commit -m x; cd /work/c; git commit -m y", [["/work/b"], ["/work/c"]]],
+  ["a commit that runs twice in one directory gives one chain", "git commit -m x || git commit -m y", [["/work/a"]]],
+  ["a git command that is not a commit gives no chain", "git -C /work/b status && git log --grep commit", []],
+  // Each git subcommand that can record the index in a commit is judged as `git commit` is.
+  ["`git merge --continue` gives its chain", "git merge --continue", [["/work/a"]]],
+  ["`git merge` of a branch gives its chain", "git merge --no-edit origin/main", [["/work/a"]]],
+  ["`git cherry-pick --continue` gives its chain", "cd /work/b; git cherry-pick --continue", [["/work/b"]]],
+  ["`git revert --continue` gives its chain", "git -C /work/c revert --continue", [["/work/a", "/work/c"]]],
+  ["`git rebase --continue` gives its chain", 'wt=/work/b; git -C "$wt" rebase --continue', [["/work/a", "/work/b"]]],
+  ["`git am --continue` gives its chain", "git am --continue", [["/work/a"]]],
+  ["`git pull` gives its chain", "git pull origin main", [["/work/a"]]],
+  ["each recording subcommand of a line gives its own chain", "git -C /work/b merge --continue; git -C /work/c commit -m x", [["/work/a", "/work/b"], ["/work/a", "/work/c"]]],
+  ["a git command that records nothing gives no chain", "git stash list; git status; git log --merges", []],
+  // `git stash` records the index in a stash commit, and an allowed `git merge --ff-only refs/stash` puts that commit on the branch.
+  ["`git stash` gives its chain", "git stash", [["/work/a"]]],
+  ["`git stash push` gives its chain", "cd /work/b; git stash push -m x", [["/work/b"]]],
+  ["`git stash save` gives its chain", "git -C /work/c stash save x", [["/work/a", "/work/c"]]],
+  ["`git stash create` gives its chain", "git stash create", [["/work/a"]]],
+  ["`git stash` with an option first gives its chain", "git stash -m x", [["/work/a"]]],
+  ["`git stash` with a pathspec gives its chain", "git stash -- .claude/handoffs", [["/work/a"]]],
+  ["a `git stash` form that records nothing gives no chain", "git stash list; git stash show; git stash pop; git stash apply; git stash drop; git stash clear; git stash branch b; git stash store x", []],
+]) T(`handoff chain: ${name}`, commitChains(command), want)
+T("handoff chain: each chain keeps its subcommand", gitCommitChains("git pull; git -C /work/b merge x; git stash; git commit -m y", { cwd: "/work/a" }).chains,
+  [{ chain: ["/work/a"], subcommand: "pull" }, { chain: ["/work/a", "/work/b"], subcommand: "merge" }, { chain: ["/work/a"], subcommand: "stash" }, { chain: ["/work/a"], subcommand: "commit" }])
+// The checkout refresh merges `origin/main`. It runs only before `git commit`, never before the subcommand that the agent asked for.
+const refreshedChains = []
+T("handoff commit: each recording subcommand is judged, and only a commit refreshes the checkout", checkHandoffCommit({ command: "git pull; git -C /work/b merge x; git stash; git -C /work/c commit -m y",
+  cwd: "/work/a", request: { sleep: true }, promptsForCommit: () => [goodSleepPrompt], refreshCheckout: (chain) => refreshedChains.push(chain) }), null)
+T("handoff commit: the refresh reads only the commit chain", refreshedChains, [["/work/a", "/work/c"]])
+// An attended line outside the subset is read from its text: each git command of the text gives its own chain.
+for (const [name, command, want] of [
+  ["a merge before the commit refreshes the commit chain", 'git merge "$B" && git commit -m y', [["/work/a"]]],
+  ["a `git stash list` before the commit refreshes the commit chain", 'git stash list "$X"; git commit -m y', [["/work/a"]]],
+]) {
+  const refreshed = []
+  T(`handoff commit attended text: ${name}`, [checkHandoffCommit({ command, cwd: "/work/a", unattended: false, promptsForCommit: () => [],
+    refreshCheckout: (chain) => refreshed.push(chain) }), refreshed], [null, want])
+}
+T("handoff chain: an attended `git stash list` outside the subset gives no chain", gitCommitChains('git stash list "$X"', { cwd: "/work/a", unattended: false }), { chains: [], notModelled: "" })
+T("handoff chain: an unattended recording subcommand outside the subset names the construct", gitCommitChains('git -C "$WT" merge --continue', { cwd: "/work/a" }),
+  { chains: [], notModelled: "a variable in a `git` argument" })
+T("handoff chain: an attended recording subcommand outside the subset is read from its text", gitCommitChains('git -C "$WT" rebase --continue', { cwd: "/work/a", unattended: false }),
+  { chains: [{ chain: ["/work/a", "$WT"], subcommand: "rebase" }], notModelled: "" })
+T("handoff chain: an unattended commit outside the subset names the construct", gitCommitChains('git -C "$WT" commit -m x', { cwd: "/work/a" }), { chains: [], notModelled: "a variable in a `git` argument" })
+T("handoff chain: an attended commit outside the subset is read from its text", gitCommitChains('git -C "$WT" commit -m x', { cwd: "/work/a", unattended: false }),
+  { chains: [{ chain: ["/work/a", "$WT"], subcommand: "commit" }], notModelled: "" })
+T("handoff chain: text outside the subset that names no commit gives no chain", gitCommitChains('echo "$(cat <<\'EOF\'\nx\nEOF\n)"', { cwd: "/work/a" }), { chains: [], notModelled: "" })
+T("handoff commit: an unattended commit outside the subset is refused with the rewrite", checkHandoffCommit({ command: 'git -C "$WT" commit -m x', cwd: "/repo", request: { sleep: true },
+  promptsForCommit: () => [goodSleepPrompt] })?.message.includes(PLAIN_SUBSET_ADVICE), true)
+const judgedChains = []
+T("handoff commit: each commit of the line is judged in its own directory", checkHandoffCommit({ command: "cd /work/b; git commit -m x; git -C /work/c commit -m y", cwd: "/work/a", request: { sleep: true },
+  promptsForCommit: (chain) => { judgedChains.push(chain); return [goodSleepPrompt] } }), null)
+T("handoff commit: the judged chains follow the `cd` model", judgedChains, [["/work/b"], ["/work/b", "/work/c"]])
 
 T("handoff stop: a failing prompt committed after the request refuses the stop", blocks(checkHandoffStop({ request: { sleep: true, recordedAt: "2026-01-01T10:00:00Z" }, headPrompt: attendedPrompt, headPromptCommittedAt: "2026-01-01T10:05:00Z" })), true)
 T("handoff stop: a prompt committed before the request is not judged", checkHandoffStop({ request: { sleep: true, recordedAt: "2026-01-01T10:00:00Z" }, headPrompt: attendedPrompt, headPromptCommittedAt: "2026-01-01T09:00:00Z" }), null)
@@ -2179,7 +3741,7 @@ T("handoff stop: no recorded request allows the stop", checkHandoffStop({ reques
 
 const handoffSpecPath = ".claude/specs/orbit-prod-release.md"
 const specCommit = (versions, prompt = goodSleepPrompt) => checkHandoffCommit({ command: "git commit -m docs", cwd: "/repo", request: { sleep: true },
-  promptsForCommit: () => [prompt], specsForCommit: (directory, path) => (directory === "/repo" && path === handoffSpecPath ? versions : []) })
+  promptsForCommit: () => [prompt], specsForCommit: (chain, path) => (chain.join("|") === "/repo" && path === handoffSpecPath ? versions : []) })
 T("handoff size: a commit of a 41984 B spec is refused with its name and size", /`\.claude\/specs\/orbit-prod-release\.md` within 40960 B \(it is 41984 B\)/.test(specCommit(["x".repeat(41984)])?.message ?? ""), true)
 T("handoff size: a commit of a 40960 B spec passes", specCommit(["x".repeat(40960)]), null)
 T("handoff size: an oversized working copy blocks even when the staged spec fits", blocks(specCommit(["small", "x".repeat(40961)])), true)
@@ -2263,11 +3825,11 @@ inSpecRepo("config", "user.email", "hooks@test.invalid")
 inSpecRepo("config", "user.name", "hooks")
 mkdirSync(join(specGitRepo, ".claude", "specs"), { recursive: true })
 mkdirSync(join(specGitRepo, ".claude", "handoffs"), { recursive: true })
-T("handoff git: a spec in neither the index nor the tree has no version", specsForCommit(specGitRepo, handoffSpecPath), [])
+T("handoff git: a spec in neither the index nor the tree has no version", specsForCommit([specGitRepo], handoffSpecPath), [])
 writeFileSync(join(specGitRepo, handoffSpecPath), "staged\n")
 inSpecRepo("add", handoffSpecPath)
 writeFileSync(join(specGitRepo, handoffSpecPath), "working\n")
-T("handoff git: a staged spec and its working copy are both versions", specsForCommit(specGitRepo, handoffSpecPath), ["staged\n", "working\n"])
+T("handoff git: a staged spec and its working copy are both versions", specsForCommit([specGitRepo], handoffSpecPath), ["staged\n", "working\n"])
 writeFileSync(join(specGitRepo, ".claude", "handoffs", "NEXT.md"), goodSleepPrompt)
 inSpecRepo("add", ".claude")
 T("handoff fixture: the spec handoff commits", inSpecRepo("commit", "-q", "-m", "handoff").status, 0)
@@ -2323,16 +3885,17 @@ const handoffOrigin = join(root, "handoff-origin.git")
 T("handoff fixture: local origin initializes", inHandoffRepo("init", "--bare", handoffOrigin).status, 0)
 T("handoff fixture: local origin is configured", inHandoffRepo("remote", "add", "origin", handoffOrigin).status, 0)
 T("handoff fixture: main is published locally", inHandoffRepo("push", "origin", "HEAD:refs/heads/main").status, 0)
-T("handoff git: an unchanged NEXT.md yields no version to judge", promptsForCommit(handoffGitRepo), [])
+T("handoff git: an unchanged NEXT.md yields no version to judge", promptsForCommit([handoffGitRepo]), [])
 writeFileSync(handoffFile, "# NEXT\n")
-T("handoff git: an unstaged edit yields the working copy", promptsForCommit(handoffGitRepo), ["# NEXT\n"])
+T("handoff git: an unstaged edit yields the working copy", promptsForCommit([handoffGitRepo]), ["# NEXT\n"])
 const handoffHook = join(hooksDir, "require-handoff-prompt.mjs")
 const handoffHookRun = (command) => spawnSync(process.execPath, [handoffHook], { input: JSON.stringify({ hook_event_name: "PreToolUse", session_id: "s-handoff-none", cwd: handoffGitRepo, tool_input: { command } }), encoding: "utf8" }).status
 T("handoff hook: a directory pathspec commit of an invalid prompt is refused", handoffHookRun("git commit -m x -- .claude/handoffs"), 2)
+T("handoff hook: the same commit from Bash and from Monitor is refused", bashAndMonitor("require-handoff-prompt.mjs", "git commit -m x -- .claude/handoffs", { cwd: handoffGitRepo, extra: { hook_event_name: "PreToolUse", session_id: "s-handoff-none" } }), [2, 2])
 T("handoff hook: a glob pathspec commit of an invalid prompt is refused", handoffHookRun("git commit -m x -- '.claude/*'"), 2)
 inHandoffRepo("add", ".")
 writeFileSync(handoffFile, attendedPrompt)
-T("handoff git: a staged edit and a different working copy yield both versions", promptsForCommit(handoffGitRepo), ["# NEXT\n", attendedPrompt])
+T("handoff git: a staged edit and a different working copy yield both versions", promptsForCommit([handoffGitRepo]), ["# NEXT\n", attendedPrompt])
 T("handoff hook: an index-only commit of a staged invalid prompt is refused", handoffHookRun("git commit -m x"), 2)
 inHandoffRepo("add", ".")
 T("handoff hook: a commit that leaves a valid prompt passes", handoffHookRun("git commit -m x -- .claude/handoffs"), 0)
@@ -2356,6 +3919,131 @@ T("handoff fixture: git show really fails for the missing blob", inHandoffRepo("
 const failedShowStop = spawnSync(process.execPath, [join(copiedHandoffHooks, "require-handoff-prompt.mjs")], { input: JSON.stringify({ hook_event_name: "Stop", session_id: "show-failure" }), encoding: "utf8" })
 T("handoff hook: failing git show with a live request blocks Stop", failedShowStop.status, 2)
 rmSync(handoffGitRepo, { recursive: true, force: true })
+
+// The handoff gate reads the directory of a commit as the shell and the git rule read it: the `cd` model, a variable, `~`, and no commit in quoted text.
+const chainHome = mkdtempSync(join(tmpdir(), "orbit-handoff-chain-"))
+const chainRepository = (name, stagedPrompt) => {
+  const repository = join(chainHome, name)
+  const inRepository = (...args) => spawnSync("git", ["-C", repository, ...args], { encoding: "utf8" }).status
+  mkdirSync(join(repository, ".claude", "handoffs"), { recursive: true })
+  writeFileSync(join(repository, ".claude", "handoffs", "NEXT.md"), attendedPrompt)
+  const steps = [inRepository("init", "-q", "-b", "main"), inRepository("config", "user.email", "hooks@test.invalid"), inRepository("config", "user.name", "hooks"),
+    inRepository("add", "."), inRepository("commit", "-q", "-m", "handoff")]
+  if (stagedPrompt !== undefined) {
+    writeFileSync(join(repository, ".claude", "handoffs", "NEXT.md"), stagedPrompt)
+    steps.push(inRepository("add", "."))
+  }
+  T(`handoff chain fixture: the ${name} repository builds`, steps, steps.map(() => 0))
+  return repository
+}
+const stagedChainRepository = chainRepository("staged", "# NEXT\n")
+const cleanChainRepository = chainRepository("clean")
+const plainChainDirectory = join(chainHome, "plain")
+mkdirSync(plainChainDirectory)
+T("handoff chain fixture: the staged repository stages an invalid NEXT.md", spawnSync("git", ["-C", stagedChainRepository, "diff", "--cached", "--name-only"], { encoding: "utf8" }).stdout.trim(), ".claude/handoffs/NEXT.md")
+const chainHook = (command, cwd, env = {}) => {
+  const result = spawnSync(process.execPath, [handoffHook], { input: JSON.stringify({ hook_event_name: "PreToolUse", session_id: "s-handoff-none", cwd, tool_input: { command } }),
+    encoding: "utf8", env: { ...process.env, ORBIT_LAUNCH_WORKER: "", HOME: chainHome, ...env } })
+  return { status: result.status, refusal: result.stderr.split("\n")[0] }
+}
+const handoffMismatch = "BLOCKED: .claude/handoffs/NEXT.md does not match the unrecorded handoff the owner asked for."
+const handoffChainRows = [
+  ["a `cd` to the checkout with a staged invalid NEXT.md is refused", `cd ${stagedChainRepository}; git commit -m x`, cleanChainRepository, {}, { status: 2, refusal: handoffMismatch }],
+  ["control: the same commit from the clean checkout passes", "git commit -m x", cleanChainRepository, {}, { status: 0, refusal: "" }],
+  ["control: the same commit in the staged checkout is refused", "git commit -m x", stagedChainRepository, {}, { status: 2, refusal: handoffMismatch }],
+  ["a `-C` variable that the line sets passes", `wt=${cleanChainRepository}; git -C "$wt" commit -m x --dry-run`, plainChainDirectory, {}, { status: 0, refusal: "" }],
+  ["a `-C` variable that names the staged checkout is refused", `wt=${stagedChainRepository}; git -C "$wt" commit -m x`, plainChainDirectory, {}, { status: 2, refusal: handoffMismatch }],
+  ["a `-C ~/...` path passes", "git -C ~/clean commit -m x --dry-run", plainChainDirectory, {}, { status: 0, refusal: "" }],
+  ["a `-C ~/...` path that names the staged checkout is refused", "git -C ~/staged commit -m x", plainChainDirectory, {}, { status: 2, refusal: handoffMismatch }],
+  ["an echo of a commit text passes", 'echo "git -C /nowhere commit"', plainChainDirectory, {}, { status: 0, refusal: "" }],
+  ["a gh body that names a commit passes", 'gh pr comment 1 -b "git -C /nowhere then commit"', plainChainDirectory, {}, { status: 0, refusal: "" }],
+  ["an echo with `..` outside a repository passes", 'echo "git -C .. push, then commit"', plainChainDirectory, {}, { status: 0, refusal: "" }],
+  ["an unattended commit outside the subset is refused with the rewrite", 'git -C "$WT" commit -m x', cleanChainRepository, { ORBIT_LAUNCH_WORKER: "1" },
+    { status: 2, refusal: "BLOCKED commit (the handoff gate cannot read it):" }],
+  ["an attended commit outside the subset is read from its text", "git commit -m \"$(cat <<'EOF'\nx\nEOF\n)\"", stagedChainRepository, {}, { status: 2, refusal: handoffMismatch }],
+  ["control: that attended commit in the clean checkout passes", "git commit -m \"$(cat <<'EOF'\nx\nEOF\n)\"", cleanChainRepository, {}, { status: 0, refusal: "" }],
+  ["an unattended text outside the subset that runs no commit passes", 'echo "$(cat <<\'EOF\'\nx\nEOF\n)"', plainChainDirectory, { ORBIT_LAUNCH_WORKER: "1" }, { status: 0, refusal: "" }],
+  // `git merge --continue` and the other recording subcommands record the staged NEXT.md, so the gate judges them as a commit.
+  ["`git merge --continue` with a staged invalid NEXT.md is refused", "git merge --continue", stagedChainRepository, {}, { status: 2, refusal: handoffMismatch }],
+  ["`git merge --continue` with a staged invalid NEXT.md is refused in a worker run", "git merge --continue", stagedChainRepository, { ORBIT_LAUNCH_WORKER: "1" }, { status: 2, refusal: handoffMismatch }],
+  ["`git -C` to the staged checkout with `rebase --continue` is refused", `git -C ${stagedChainRepository} rebase --continue`, cleanChainRepository, {}, { status: 2, refusal: handoffMismatch }],
+  ["control: `git merge --continue` in the clean checkout passes", "git merge --continue", cleanChainRepository, {}, { status: 0, refusal: "" }],
+  // `git stash` records the staged NEXT.md in a stash commit, so the gate judges it as a commit.
+  ["`git stash` with a staged invalid NEXT.md is refused", "git stash", stagedChainRepository, {}, { status: 2, refusal: handoffMismatch }],
+  ["`git stash` with a staged invalid NEXT.md is refused in a worker run", "git stash", stagedChainRepository, { ORBIT_LAUNCH_WORKER: "1" }, { status: 2, refusal: handoffMismatch }],
+  ["`git stash push` with a staged invalid NEXT.md is refused in a worker run", "git stash push -m x", stagedChainRepository, { ORBIT_LAUNCH_WORKER: "1" }, { status: 2, refusal: handoffMismatch }],
+  ["`git stash create` with a staged invalid NEXT.md is refused in a worker run", "git stash create", stagedChainRepository, { ORBIT_LAUNCH_WORKER: "1" }, { status: 2, refusal: handoffMismatch }],
+  ["control: `git stash list` with a staged invalid NEXT.md passes", "git stash list", stagedChainRepository, { ORBIT_LAUNCH_WORKER: "1" }, { status: 0, refusal: "" }],
+  // `find -execdir` runs git in the directory of the found file, so a worker run refuses it as not modelled.
+  ["an unattended `find -execdir` commit is refused with the rewrite", `find ${stagedChainRepository} -maxdepth 1 -name .claude -execdir git commit -m x \\;`, cleanChainRepository,
+    { ORBIT_LAUNCH_WORKER: "1" }, { status: 2, refusal: "BLOCKED commit (the handoff gate cannot read it):" }],
+  ["an unattended `{}` after `find -exec` in a commit is refused with the rewrite", `find ${stagedChainRepository} -maxdepth 0 -exec git -C {} commit -m x \\;`, cleanChainRepository,
+    { ORBIT_LAUNCH_WORKER: "1" }, { status: 2, refusal: "BLOCKED commit (the handoff gate cannot read it):" }],
+]
+for (const [name, command, cwd, env, want] of handoffChainRows) T(`handoff chain hook: ${name}`, chainHook(command, cwd, env), want)
+// Attended, the handoff gate reads a command outside the subset from its text. The git rule in the same matcher passes such a commit when its
+// text names no push and no hygiene marker, so the verdict of the handoff gate decides the tool call.
+T("handoff chain hook: the git rule in the same matcher passes the attended heredoc commit that the handoff gate refuses",
+  [runHook("git-guardrails.mjs", bash("git commit -m \"$(cat <<'EOF'\nx\nEOF\n)\"", stagedChainRepository)), chainHook("git commit -m \"$(cat <<'EOF'\nx\nEOF\n)\"", stagedChainRepository, {}).status], [0, 2])
+T("handoff chain hook: the git rule in the same matcher passes an attended `find -execdir` commit",
+  runHook("git-guardrails.mjs", bash(`find ${stagedChainRepository} -maxdepth 1 -name .claude -execdir git commit -m x \\;`, cleanChainRepository)), 0)
+T("handoff chain hook: the unattended refusal names the plain subset rewrite",
+  spawnSync(process.execPath, [handoffHook], { input: JSON.stringify({ hook_event_name: "PreToolUse", session_id: "s-handoff-none", cwd: cleanChainRepository, tool_input: { command: 'git -C "$WT" commit -m x' } }),
+    encoding: "utf8", env: { ...process.env, ORBIT_LAUNCH_WORKER: "1" } }).stderr.includes(PLAIN_SUBSET_ADVICE), true)
+// The checkout refresh runs only before `git commit`. The fixture: branch `feature/x` with an unstaged spec edit, a branch `other`, and an
+// `origin/main` one commit ahead. Only the hook runs, never the command, so HEAD moves only when the hook itself merges.
+const refreshOrigin = join(chainHome, "refresh-origin.git")
+const refreshSeed = join(chainHome, "refresh-seed")
+const refreshCheckout = join(chainHome, "refresh")
+const inRefresh = (directory, ...args) => spawnSync("git", ["-C", directory, ...args], { encoding: "utf8" })
+const refreshSetup = [
+  () => spawnSync("git", ["init", "-q", "--bare", "-b", "main", refreshOrigin], { encoding: "utf8" }),
+  () => spawnSync("git", ["init", "-q", "-b", "main", refreshSeed], { encoding: "utf8" }),
+  () => inRefresh(refreshSeed, "config", "user.email", "hooks@test.invalid"),
+  () => inRefresh(refreshSeed, "config", "user.name", "hooks"),
+  () => { mkdirSync(join(refreshSeed, ".claude", "specs"), { recursive: true }); writeFileSync(join(refreshSeed, ".claude", "specs", "a.md"), "spec\n"); return inRefresh(refreshSeed, "add", ".") },
+  () => inRefresh(refreshSeed, "commit", "-qm", "base"),
+  () => inRefresh(refreshSeed, "remote", "add", "origin", refreshOrigin),
+  () => inRefresh(refreshSeed, "push", "-q", "origin", "main"),
+  () => spawnSync("git", ["clone", "-q", refreshOrigin, refreshCheckout], { encoding: "utf8" }),
+  () => inRefresh(refreshCheckout, "config", "user.email", "hooks@test.invalid"),
+  () => inRefresh(refreshCheckout, "config", "user.name", "hooks"),
+  () => inRefresh(refreshCheckout, "checkout", "-qb", "other"),
+  () => { writeFileSync(join(refreshCheckout, "other.txt"), "other\n"); return inRefresh(refreshCheckout, "add", "other.txt") },
+  () => inRefresh(refreshCheckout, "commit", "-qm", "other"),
+  () => inRefresh(refreshCheckout, "checkout", "-qb", "feature/x", "main"),
+  () => { writeFileSync(join(refreshSeed, "ahead.txt"), "ahead\n"); return inRefresh(refreshSeed, "add", "ahead.txt") },
+  () => inRefresh(refreshSeed, "commit", "-qm", "main ahead"),
+  () => inRefresh(refreshSeed, "push", "-q", "origin", "main"),
+  () => { writeFileSync(join(refreshCheckout, ".claude", "specs", "a.md"), "edited spec\n"); return inRefresh(refreshCheckout, "status", "--short") },
+]
+T("handoff refresh fixture: the relay checkout builds", refreshSetup.map((step) => step().status), refreshSetup.map(() => 0))
+const refreshHead = () => inRefresh(refreshCheckout, "rev-parse", "HEAD").stdout.trim()
+const refreshStart = { "feature/x": inRefresh(refreshCheckout, "rev-parse", "feature/x").stdout.trim(), main: inRefresh(refreshCheckout, "rev-parse", "main").stdout.trim() }
+/** Each row starts on `branch` at its first commit, behind `origin/main`, with the unstaged spec edit, so a merge by the hook moves HEAD in each row. */
+const refreshRun = (command, env = {}, branch = "feature/x") => {
+  const reset = [inRefresh(refreshCheckout, "checkout", "-qf", branch).status, inRefresh(refreshCheckout, "reset", "-q", "--hard", refreshStart[branch]).status]
+  writeFileSync(join(refreshCheckout, ".claude", "specs", "a.md"), "edited spec\n")
+  const before = refreshHead()
+  const { status, refusal } = chainHook(command, refreshCheckout, env)
+  return { reset, status, refusal, headUnchanged: refreshHead() === before }
+}
+for (const [name, command, env] of [
+  ["an attended `git pull`", "git pull", {}],
+  ["an attended `git pull --ff-only` of the branch", "git pull --ff-only origin feature/x", {}],
+  ["a worker `git merge` of a branch", "git merge --no-edit other", { ORBIT_LAUNCH_WORKER: "1" }],
+  ["an attended `git merge` of a branch", "git merge --no-edit other", {}],
+  ["an attended `git rebase`", "git rebase --onto other other~0 feature/x", {}],
+  ["a worker `git cherry-pick --continue` with no open operation", "git cherry-pick --continue", { ORBIT_LAUNCH_WORKER: "1" }],
+  ["a worker `git stash`", "git stash", { ORBIT_LAUNCH_WORKER: "1" }],
+]) T(`handoff refresh hook: ${name} with an unstaged spec edit passes and leaves HEAD unchanged`, refreshRun(command, env), { reset: [0, 0], status: 0, refusal: "", headUnchanged: true })
+T("handoff refresh hook: an attended `git pull` on `main` with a spec edit passes", refreshRun("git pull", {}, "main"), { reset: [0, 0], status: 0, refusal: "", headUnchanged: true })
+T("handoff refresh hook: a worker `git merge` on `main` with a spec edit passes", refreshRun("git merge --no-edit other", { ORBIT_LAUNCH_WORKER: "1" }, "main"),
+  { reset: [0, 0], status: 0, refusal: "", headUnchanged: true })
+// The control: a `git commit` with the spec edit refreshes the relay branch, so the hook merges `origin/main` before it.
+T("handoff refresh hook: the control `git commit` with an unstaged spec edit merges `origin/main` first", [refreshRun("git commit -m x"),
+  inRefresh(refreshCheckout, "merge-base", "--is-ancestor", "origin/main", "HEAD").status], [{ reset: [0, 0], status: 0, refusal: "", headUnchanged: false }, 0])
+rmSync(chainHome, { recursive: true, force: true })
 
 const timelessHook = join(hooksDir, "forbid-stale-text.mjs")
 T("relative sibling roots resolve from the primary checkout", siblingRoots.includes(join(primaryCommonDirectory, "..", "..", "orbit-api")), true)
@@ -2526,6 +4214,8 @@ T("stale cleanup: no hook or library offers the cleanup to the owner",
 rmSync(cleanupMarker, { force: true })
 rmSync(cleanupAdoption, { force: true })
 rmSync(cleanupRunState, { force: true })
+
+T("monitor parity: each guard on the Bash matcher refuses one command from Bash and from Monitor in a test", BASH_GUARDS.filter((file) => !monitorRefusalGuards.has(file)), [])
 
 console.log(`\n${fails === 0 ? "ORBIT HOOKS OK" : `ORBIT HOOKS FAILED (${fails})`}`)
 process.exit(fails === 0 ? 0 : 1)
