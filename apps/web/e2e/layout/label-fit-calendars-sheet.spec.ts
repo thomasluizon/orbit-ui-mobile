@@ -73,7 +73,6 @@ for (const width of [320, 360, 384, 412, 600]) {
         await setLayoutProfileSession(context, profile, calendars)
         const responses: ReadonlyArray<readonly [string, unknown]> = [
           [API.calendar.events, events],
-          [API.calendar.calendars, calendars],
           [API.calendar.autoSyncState, calendarAutoSyncStateSchema.parse({ enabled: false, status: 'Idle', lastSyncedAt: null, hasGoogleConnection: true })],
           [API.habits.calendarMonth, calendarMonthResponseSchema.parse({ habits: [], logs: {} })],
         ]

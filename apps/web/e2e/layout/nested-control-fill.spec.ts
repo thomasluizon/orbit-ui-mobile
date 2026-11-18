@@ -103,7 +103,6 @@ for (const width of [412, 1352]) {
         await setLayoutFixtureSession(context, [{ path: API.profile.get, body: profile }])
         const responses: ReadonlyArray<readonly [string, unknown]> = [
           [API.calendar.events, events],
-          [API.calendar.calendars, calendars],
           [API.calendar.autoSyncState, calendarAutoSyncStateSchema.parse({ enabled: false, status: 'Idle', lastSyncedAt: null, hasGoogleConnection: true })],
           [API.habits.calendarMonth, calendarMonthResponseSchema.parse({ habits: [], logs: {} })],
         ]
@@ -116,6 +115,9 @@ for (const width of [412, 1352]) {
         await expect(body).toBeVisible()
         const surface = surfaceOf(body)
         const details = surface.getByRole('button', { name: en.contextMenu.viewDetails, exact: true })
+        // WHY: the calendar list and the import action arrive after the event row, and each changes the sheet height. The centred sheet then moves the row away from a pointer that stays still. https://github.com/thomasluizon/orbit-tickets/issues/2074
+        await expect(sheet.getByRole('checkbox', { name: 'Family', exact: true })).toBeVisible()
+        await expect(sheet.locator('[data-slot="sheet-actions"]')).toBeVisible()
         await expectInnermostFill(page, surface, body, details)
       })
     })
