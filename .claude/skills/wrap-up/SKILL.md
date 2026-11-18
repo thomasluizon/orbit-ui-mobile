@@ -8,7 +8,7 @@ effort: medium
 # /wrap-up
 
 The spec receives timeless rules and one overwritten `## Current state` section through `/handoff`.
-Timed session evidence stays in the scratchpad outside the repository.
+Timed session evidence goes to GitHub as run notes on the tickets and the run record issue.
 Read the open chain with `openSessionChain` from `tools/lib/session-chain.mjs` using this
 session's exact id. `/progress` uses its default window since the previous owner-typed
 `/progress`, including every overlapping session. `/questions` covers the open chain plus the

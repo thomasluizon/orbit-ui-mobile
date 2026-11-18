@@ -8,15 +8,42 @@ effort: high
 # /orchestrate: a queue of tickets, a stack of reviewed pull requests
 
 Tracked prose produced during orchestration states current rules and facts without dated incidents,
-attributed quotes, personal machine paths or session IDs. Keep timed run evidence in the scratchpad.
+attributed quotes, personal machine paths or session IDs. Timed run evidence goes to GitHub, never to a
+file that only this computer holds (see "Run state lives on GitHub" below).
 
 Constants:
 
 - Ticket repository `thomasluizon/orbit-tickets`; the configured Projects v2 board carries Status.
 - The session always runs from orbit-ui-mobile (D17). Each worktree opens in whichever repo its
   ticket's `repo:*` label names.
-- **Scratchpad** = this session's scratchpad directory. Every prompt, diff, log and findings file
-  goes there. Never inside a repo: a file written into the worktree gets committed by the worker.
+- **Scratchpad** = this session's scratchpad directory: temporary space for one session, never
+  carried to a successor. A composed order, a diff or a log may go there. Never inside a repo: a file
+  written into the worktree gets committed by the worker.
+
+## Run state lives on GitHub
+
+Anyone with a clone of the three repositories, `gh` signed in and a Claude account continues the run
+from their own computer. So each kind of state has one home on GitHub:
+
+| state | home |
+|---|---|
+| a worker order and each fix round's note | a ticket comment posted before the launch: `node tools/post-run-note.mjs --kind round-note --issue <ref> --round <n> --head <sha>`. `compose-prompt.mjs` reads every comment, and `launch-worker.mjs --fix-round` refuses an order that quotes no round note for the worktree's head |
+| the standing worker rules | the brief inside `tools/compose-prompt.mjs`. Never append a note to a composed order: `launch-worker.mjs` refuses an order whose seal does not match |
+| a review result | a ticket comment that names the reviewed head: `--kind review --head <sha>`, body starting `VERDICT:` |
+| a worker's final report | the pull request body, plus a ticket comment with the commit SHAs: `--kind report --commits <sha,...>` |
+| a pull request body or a thread reply | written straight to the pull request, never a draft file |
+| a decision about one ticket | a ticket comment: `--kind decision --issue <ref>` |
+| a run-wide decision, or an owner question no ticket owns | a comment on the closed "Orbit run record" issue: `--kind decision --run-record` |
+| intake marks (Gmail, Play, App Store, the waiter's seen keys) | `run-state/intake.json` in `thomasluizon/orbit-tickets`, through `tools/lib/auto-work-intake.mjs` |
+| the queue | the board Status and the spec's order; `remaining` is derived at each wake |
+| readiness | recomputed from GitHub at each wake; a local receipt is a cache |
+| process liveness (wake sources, locks, reservations, pids, worker logs) | local in `.git` and the system temporary directory; it holds no work |
+
+Only a pull request body and a thread reply go to a public repository. Everything else goes to the
+private tickets repository. With no run record in the checkout, `node tools/run-status.mjs` rebuilds
+the queue, every open ticket pull request with its next step, each ticket's latest round note and the
+intake marks from GitHub alone. A one-time move of an older run is `node tools/migrate-run-state.mjs`
+(a dry run first, then `--apply`).
 
 ## Every wakeup starts with the run snapshot
 
@@ -731,9 +758,8 @@ read-only sandbox with live web search; Claude exposes only WebSearch and WebFet
 arguments that grant writes are replaced by the research restrictions. The order arrives on stdin,
 and only a successful non-empty final response reaches the output file. No branch, commit, pull
 request, ticket admission reservation or parallel ticket slot is created. Both clocks, log caps and
-wake registration still apply. Start research through the same scratchpad launch gate as workers:
-wait for the one-minute load below 20 and 90 seconds since the previous launch, under its lock.
-Background the gated launcher as a harness task so its completion wakes the session. Raw model
+wake registration still apply. Research passes the same launch gate as workers inside
+`launch-worker.mjs`. Background the launcher as a harness task so its completion wakes the session. Raw model
 commands remain forbidden.
 
 `launch-worker.mjs` runs in the FOREGROUND as its own watchdog and owns both clocks: the hard

@@ -57,7 +57,8 @@ Start the answer's first line with that window start in the owner's local time, 
 to the owner's known timezone. Name the fallback when no previous report exists.
 
 Read every entry's merges, releases, closed and created tickets, decisions and owner questions
-with equal weight. For sessions without a decision log, derive decisions and owner questions from
+with equal weight. Decisions are each entry's `decisionNotes`, the decision run notes posted to
+tickets and to the run record. For sessions without one, derive decisions and owner questions from
 the fallback `conversation`. It carries only owner-typed prompts and assistant text replies within
 the window, each capped at 1,500 characters plus a visible truncation marker. Tool results, system
 notifications and skill bodies are excluded. Entries with non-empty `decisions` omit `conversation`.
@@ -182,7 +183,7 @@ its parent. `/orchestrate` and `/merge-prs` own that rule.
    visible there. This does not create a session baseline. It also cannot see uncommitted work in
    linked worktrees from the orchestrating checkout. When no ledger row names that work yet, say the
    session report can omit pre-pull-request changes in linked worktrees. Use `remaining` for queued
-   work and the session's decision log for unresolved decisions.
+   work and the decision run notes for unresolved decisions.
 
 For the full scope, add:
 

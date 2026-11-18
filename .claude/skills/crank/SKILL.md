@@ -27,9 +27,8 @@ Read back with `readRunState` and confirm the session id and requested boolean.
 The matching run's boolean is authoritative for handoff guards and relay publication.
 `recordHandoffRequest` applies a new true request to that run when recording it, so a later
 disable supersedes an earlier request and a still newer explicit request enables it again.
-Append one decision to this session's decision log using `/sleep`'s decision format. Use the
-record's `decisionLogPath`; if absent, create the log in the session scratchpad outside every
-repository and record that path. Disabling reports that the run is back to the default pace.
+Post one decision in `/sleep`'s decision format with `node tools/post-run-note.mjs --kind decision` `--run-record`.
+Disabling reports that the run is back to the default pace.
 
 ## Schedule at maximum velocity
 

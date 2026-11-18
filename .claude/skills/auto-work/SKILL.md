@@ -13,10 +13,12 @@ relaxes a quality gate or changes merge and release authority.
 ## Entry and mode
 
 Read `.claude/skills/sleep/SKILL.md` and enter through that skill, including relay adoption,
-the initial write and readback, the scratchpad decision log and canonical orchestrator entry.
+the initial write and readback, the decisions posted to GitHub and canonical orchestrator entry.
 After its initial state write or adoption, enable this mode before canonical queue selection
 or dispatch, so a fresh session with an empty board still reaches the first intake cycle.
-An existing run keeps its admitted queue, readiness ledger, relay and decision log. With no
+An existing run keeps its admitted queue, readiness ledger and relay. With no run record in the
+checkout, run `node tools/run-status.mjs` first: it rebuilds the queue, the in-flight pull requests,
+the latest round notes and the intake marks from GitHub. With no
 focus, use `/sleep`'s `/orchestrate --auto` entry. Adopt a nominated relay before changing mode.
 
 Run `node tools/auto-work-state.mjs --enable` in the orchestrating checkout. Read the state
