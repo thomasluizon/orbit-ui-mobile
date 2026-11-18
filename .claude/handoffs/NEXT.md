@@ -27,11 +27,11 @@ UI `main` `077a7ef26`; API `main` `f7abe19fc`; landing `main` `20c1b0a90`. Owner
 | Item | Disposition |
 | --- | --- |
 | Pushed with Pullfrog asked: ui#2486, ui#2489, ui#2497, ui#2491, ui#2480, ui#2494, ui#2493, ui#2476, ui#2475, ui#2495, ui#2488 (heads in S task-map) | One `wait-ci.mjs --require-check pullfrog-approval` per repository; merge each at the bar; a failed Pullfrog gets one round. |
-| Committed, not reviewed: ui#2500 r2 `14a1a856e`, ui#2483 r10 `df810749c`, ui#2453 critic2 `1a6c5c423` | Delta review (ui#2453: the whole review and the copy approval of each new string), then push. |
+| Committed, not reviewed: ui#2500 r2 `14a1a856e`, ui#2483 r10 `df810749c`, ui#2451 r29 `939d59c24`, ui#2501 r2 `a8f3fb07b`, ui#2498 r3 `c102e64eb` (with a main merge), ui#2453 critic2 `1a6c5c423` | Delta review (ui#2453: the whole review and the copy approval of each new string), then push. |
 | ui#2499 (`#2175`, owner report) | Review 2499-r2 BLOCKING 1: the saved sidebar preference of an existing user resets (old localStorage key `orbit-shell-store` no longer read). Fix round r3, then the delta review, push. |
 | ui#2485 (`#2156`) | Pullfrog FAILED, 1 thread at `ea4bfd9e8`: `make-frog-note.mjs 2485 r6`, round. |
 | ui#2502 (`#2074`, the Windows runner Clang break) | Whole review, CI. |
-| Running at the drain, outcome unknown: ui#2451 r29, ui#2501 r2, ui#2498 r3; reviews 2492-r3, 2490-r3, 1129-r3, 1126-r3 | Read each worktree's `git log` and each `review-<key>-local.md` first, then continue the loop. |
+| Reviewed, push next: ui#2492 r3 NOTES 2, ui#2490 r3 NOTES 1, api#1129 r3 NOTES 1, api#1126 r3 CLEAN (S `review-<key>-local.md`) | File the notes, `merge-main.mjs` (not for a stacked branch), `push-round.mjs` with `body-<pr>-r3.md`, waiter. |
 | ui#2498 (`#2173`) | Merge condition: the live relay proof A and B of S `body-2498-main1.md` lines 35 to 55, run by the coordinator. |
 | api#1120, api#1121, api#1124, api#1125, api#1127, api#1128 | Green and approved; each waits on the core set eval gate (`#2135`) or its stack parent. |
 | `#2146` | Web check through `claude-in-chrome` after the web release; Android proof through the ui#2476 `--proof` mode once it merges. |
