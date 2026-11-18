@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { readFileSync } from 'node:fs'
+import { readdirSync, readFileSync } from 'node:fs'
 import { NextRequest, NextResponse } from 'next/server'
 import { unstable_doesMiddlewareMatch } from 'next/experimental/testing/server'
 import { config, proxy } from '@/proxy'
@@ -795,6 +795,17 @@ describe('proxy', () => {
 })
 
 
+function routeHandlerPaths(): string[] {
+  const matcher = new RegExp(`^${config.matcher[0]}$`)
+  return readdirSync('app', { recursive: true, encoding: 'utf8' })
+    .filter((file) => /(?:^|\/)route\.(?:ts|tsx|js)$/.test(file))
+    .map((file) => `/${file.split('/').slice(0, -1)
+      .filter((segment) => !/^\(.+\)$/.test(segment))
+      .map((segment) => (segment.startsWith('[') ? 'segment' : segment))
+      .join('/')}`)
+    .filter((path) => matcher.test(path))
+}
+
 describe('malformed Server Action requests', () => {
   it.each([
     { 'next-action': 'a'.repeat(42), 'content-type': 'multipart/form-data' },
@@ -822,7 +833,59 @@ describe('malformed Server Action requests', () => {
     expect(resolveSessionTokens).toHaveBeenCalled()
   })
 
-  it.each(['/login', '/api/uploads'])('leaves a multipart POST without an action header untouched at %s', async (path) => {
+  it.each([
+    { path: '/login', contentType: 'multipart/form-data; boundary=x' },
+    { path: '/habits', contentType: 'multipart/form-data; boundary=x' },
+    { path: '/login', contentType: 'multipart/form-data' },
+  ])('rejects a malformed form POST without an action header at $path ($contentType)', async ({ path, contentType }) => {
+    vi.mocked(resolveSessionTokens).mockResolvedValue({ token: null, expiresAt: null, refreshed: false, refreshFailed: false })
+    vi.mocked(resolveSessionTokens).mockClear()
+    vi.mocked(NextResponse.next).mockClear()
+    const response = await proxy(new NextRequest(`https://app.useorbit.org${path}?returnUrl=%2F`, {
+      method: 'POST', headers: { 'content-type': contentType }, body: 'not form data',
+    }))
+    expect(response.status).toBe(400)
+    expect(response.headers.get('Cache-Control')).toBe('no-store')
+    expect(response.headers.get('Content-Security-Policy')).toContain("default-src 'self'")
+    expect(resolveSessionTokens).not.toHaveBeenCalled()
+    expect(NextResponse.next).not.toHaveBeenCalled()
+  })
+
+  it('passes a well-formed form POST without an action header through to the framework', async () => {
+    vi.mocked(resolveSessionTokens).mockResolvedValue({ token: null, expiresAt: null, refreshed: false, refreshFailed: false })
+    vi.mocked(resolveSessionTokens).mockClear()
+    const form = new FormData()
+    form.set('email', 'person@example.com')
+    const response = await proxy(new NextRequest('https://app.useorbit.org/login', { method: 'POST', body: form }))
+    expect(response).toMatchObject({ type: 'next' })
+    expect(resolveSessionTokens).toHaveBeenCalled()
+  })
+
+  it('leaves a URL-encoded POST to a page untouched', async () => {
+    vi.mocked(resolveSessionTokens).mockResolvedValue({ token: null, expiresAt: null, refreshed: false, refreshFailed: false })
+    const request = new NextRequest('https://app.useorbit.org/login', {
+      method: 'POST', headers: { 'content-type': 'application/x-www-form-urlencoded' }, body: 'not=form&data',
+    })
+    const clone = vi.spyOn(request, 'clone')
+    const response = await proxy(request)
+    expect(response).toMatchObject({ type: 'next' })
+    expect(clone).not.toHaveBeenCalled()
+    expect(await request.text()).toBe('not=form&data')
+  })
+
+  it.each(routeHandlerPaths())('leaves a malformed multipart POST without an action header unread at the Route Handler %s', async (path) => {
+    vi.mocked(resolveSessionTokens).mockResolvedValue({ token: null, expiresAt: null, refreshed: false, refreshFailed: false })
+    const request = new NextRequest(`https://app.useorbit.org${path}`, {
+      method: 'POST', headers: { 'content-type': 'multipart/form-data; boundary=x' }, body: 'not form data',
+    })
+    const clone = vi.spyOn(request, 'clone')
+    const response = await proxy(request)
+    expect(response).toMatchObject({ type: 'next' })
+    expect(clone).not.toHaveBeenCalled()
+    expect(await request.text()).toBe('not form data')
+  })
+
+  it.each(['/api/uploads'])('leaves a multipart POST without an action header untouched at %s', async (path) => {
     vi.mocked(resolveSessionTokens).mockResolvedValue({ token: null, expiresAt: null, refreshed: false, refreshFailed: false })
     const request = new NextRequest(`https://app.useorbit.org${path}`, {
       method: 'POST', headers: { 'content-type': 'multipart/form-data; boundary=upload' }, body: 'route-owned body',

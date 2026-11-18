@@ -10,7 +10,7 @@ import {
   type SessionTokens,
 } from '@/lib/auth-api'
 import { accountEventApiBase } from '@/lib/account-event-api-base'
-import { isPublicPath } from '@/lib/public-paths'
+import { isPublicPath, SENTRY_TUNNEL_ROUTE } from '@/lib/public-paths'
 import { z } from 'zod'
 import { GOOGLE_OAUTH_COOKIE } from '@/lib/google-oauth-cookie'
 import { desktopAttemptSchema } from '@/lib/desktop-auth'
@@ -19,6 +19,7 @@ import { mightBeServerReferenceId } from 'next/dist/shared/lib/server-reference-
 const CONTENT_SECURITY_POLICY = 'Content-Security-Policy'
 const STATIC_IMAGE_PATH = /\.(?:svg|png|jpg|jpeg|gif|webp|ico)$/
 const PUBLIC_ROOT_FILES = new Set(['/sw.js', '/robots.txt'])
+const ROUTE_HANDLER_PREFIXES = ['/ingest', SENTRY_TUNNEL_ROUTE]
 const desktopCallbackAttemptSchema = z.object({
   state: z.string().min(1),
   desktop: desktopAttemptSchema,
@@ -120,13 +121,18 @@ function isStaleServerAction(request: NextRequest) {
     deploymentId && clientDeploymentId && clientDeploymentId !== deploymentId
 }
 
+function isRouteHandlerPath(pathname: string): boolean {
+  return ROUTE_HANDLER_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`))
+}
+
+// WHY: Next treats every multipart POST to a page as a possible form action and answers 500 when the body does not parse: https://github.com/vercel/next.js/blob/v16.4.3/packages/next/src/server/lib/server-action-request-meta.ts
 async function isMalformedServerAction(request: NextRequest): Promise<boolean> {
   if (request.method !== 'POST') return false
   const actionId = request.headers.get('next-action')
-  if (actionId === null) return false
-  if (!mightBeServerReferenceId(actionId)) return true
+  if (actionId !== null && !mightBeServerReferenceId(actionId)) return true
   const contentType = request.headers.get('content-type') ?? ''
   if (!contentType.startsWith('multipart/form-data')) return false
+  if (actionId === null && isRouteHandlerPath(request.nextUrl.pathname)) return false
   try {
     await request.clone().formData()
     return false
