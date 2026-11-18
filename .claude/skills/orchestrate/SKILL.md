@@ -1052,8 +1052,9 @@ is a new batch and may launch one new worker.
 
 Either path allows one commit at most. Keep every filed-ticket disposition and test every fix. Only
 the batch's single commit spends one `caps.reviewFixAttempts` round; a batch that writes no commit
-spends nothing. A worker batch spends it at launch (`launch-worker.mjs --fix-round pullfrog`); a
-fix the orchestrator writes spends it with `node tools/fix-rounds.mjs --worktree <p> --record
+spends nothing. A worker batch claims it at launch (`launch-worker.mjs --fix-round pullfrog`), and
+the launcher gives it back when the launch ends with no commit, so the relaunch of that order spends
+the same round; a fix the orchestrator writes spends it with `node tools/fix-rounds.mjs --worktree <p> --record
 pullfrog` before its commit. If the batch has only FILE or not-applicable findings, perform their existing reply,
 resolve and same-head re-review transitions without launching a worker or inventing a commit.
 
@@ -1424,7 +1425,8 @@ owner action.
 **Read the launch JSON's `account` before acting on `authenticationFailed: true`.** When it is
 `worker`, start no further launch on the worker account. Relaunch that order, and every later one,
 in single-account mode by prefixing the launch command with `ORBIT_WORKER_CLAUDE_CONFIG_DIR=`, with
-`--relaunch-reason` when the branch ledger needs it. Record `resultError` in the handoff inventory
+`--relaunch-reason` when the branch ledger needs it. A review batch order passes `--fix-round`
+again: a launch that wrote no commit gave its round back. Record `resultError` in the handoff inventory
 and the step 11 report, with the owner's fix: remove the export from the shell profile. When it is
 `main` (single-account mode, or a fallback relaunch that failed sign-in), no account can run a
 worker: start no further launch and never relaunch on that account. Record `resultError` with the

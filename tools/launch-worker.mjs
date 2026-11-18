@@ -12,7 +12,7 @@ import { ADMISSION_REFUSED_EXIT, checkAdmission, releaseAdmission } from "./lib/
 import { resolveTicket } from "./lib/github-issues.mjs"
 import { logFinalResult, NO_STOP } from "./lib/claude-usage-limit.mjs"
 import { readOrchestratorConfig, resolveWorkerInvocation, workerAccountEnvironment, workerAccounts } from "./lib/orchestrator-config.mjs"
-import { clearWakeSource, clearWorkerLaunchReservation, FIX_ROUND_KINDS, fixRoundRefusal, fixRoundRefusalReason, readDesignChange, readFixRounds, recordFixRound, recordReservedWorkerPid, registerWakeSource, reserveWorkerLaunch, readRunState, REVIEW_BATCH_ORDER_MARKER, workerLaunchDirectory } from "./lib/run-state.mjs"
+import { clearWakeSource, clearWorkerLaunchReservation, FIX_ROUND_KINDS, fixRoundRefusal, fixRoundRefusalReason, readDesignChange, readFixRounds, recordFixRound, recordReservedWorkerPid, releaseFixRound, registerWakeSource, reserveWorkerLaunch, readRunState, REVIEW_BATCH_ORDER_MARKER, workerLaunchDirectory } from "./lib/run-state.mjs"
 
 const USAGE = `usage: launch-worker.mjs --issue <ORB-N|#N|N> --worktree <path> --prompt <file> [options]
 
@@ -39,9 +39,11 @@ const USAGE = `usage: launch-worker.mjs --issue <ORB-N|#N|N> --worktree <path> -
   --relaunch-reason <text>
                      deliberate reason for launching after this branch reaches its configured cap
   --fix-round <local|pullfrog>
-                     this order answers a review: spend the next caps.reviewFixAttempts round of
-                     the branch in the fix-rounds.mjs ledger. Required for an order that
-                     compose-prompt.mjs --review-batch wrote. --relaunch-reason never passes this cap
+                     this order answers a review: claim the next caps.reviewFixAttempts round of
+                     the branch in the fix-rounds.mjs ledger. A launch that ends with no commit
+                     gives the round back, so its relaunch spends the same round. Required for an
+                     order that compose-prompt.mjs --review-batch wrote. --relaunch-reason never
+                     passes this cap
   --design-change <file>
                      the written design change that allows one fix round above caps.reviewFixAttempts
   --dry-run          print the resolved plan as JSON and exit 0, spawning nothing. The plan names
@@ -416,6 +418,13 @@ if (fixRoundArgument !== null) {
     fail(2, `${fixRoundRefusalReason(fixRound.refusal, fixRoundContext)}, while this launch started; --relaunch-reason does not pass it`)
   }
   console.error(`${issue} spends fix round ${fixRound.number} of ${config.caps.reviewFixAttempts} on ${branch}`)
+  // Only a commit spends the round. A launch that ends with no commit gives the round back on every exit path, so the
+  // relaunch of that order spends the same round. A count that git cannot read keeps the round.
+  process.on("exit", () => {
+    if (startHead === "" || gitIn(["rev-list", "--count", `${startHead}..HEAD`]) !== "0") return
+    releaseFixRound(branch, fixRound.number, runDirectory)
+    console.error(`${issue} wrote no commit: fix round ${fixRound.number} on ${branch} is not spent`)
+  })
 }
 
 const accountLabel = (account) => account === null ? "" : ` on the ${account.name} account${account.configDirectory === null ? " (default Claude config)" : ` (${account.configDirectory})`}`

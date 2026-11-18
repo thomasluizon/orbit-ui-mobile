@@ -61,9 +61,31 @@ const launch = (label, config) => {
   return { ...staged, worktree: repo.path, git: repo.git, prompt: stage(`launch-worker/${label}-prompt.md`, "the work order, verbatim\n") }
 }
 
+/** A review fix worker that writes its one commit and exits. */
+const FIX_COMMITTER = stage(
+  "launch-worker/fix-committing-worker.js",
+  'require("node:child_process").spawnSync("git", ["commit", "-q", "--allow-empty", "-m", "fix the review findings"], { stdio: "ignore" })\n',
+)
+const fixRoundFiles = (worktree) => {
+  const directory = join(worktree, ".git", "orbit-fix-rounds")
+  return existsSync(directory) ? readdirSync(directory).filter((name) => name.endsWith(".json")).sort() : []
+}
+
+/** A fix launch that ends with no commit gives its round back, so the relaunch of that order passes the cap again. */
+const fixRoundReleaseCases = () => {
+  const release = launch("fix-round-release", launchConfig({ ...stubEngine(IMMEDIATE), caps: { workerLaunchesPerBranch: 2, reviewFixAttempts: 1 } }))
+  const batchPrompt = stage("launch-worker/fix-round-release-batch.md", `${REVIEW_BATCH_ORDER_MARKER}\n\nthe review batch order\n`)
+  const args = ["--issue", "ORB-201", "--worktree", release.worktree, "--prompt", batchPrompt, "--fix-round", "pullfrog"]
+  const options = { path: release.path, env: githubAuthEnv() }
+  discardLog(check(TOOL, "a fix launch that writes no commit gives its round back", args,
+    { status: 0, stderr: /spends fix round 1 of 1[\s\S]*wrote no commit: fix round 1 on main is not spent/ }, options).stdout)
+  T(`${TOOL}: the ledger holds no round after a fix launch with no commit`, fixRoundFiles(release.worktree).length === 0, JSON.stringify(fixRoundFiles(release.worktree)))
+  discardLog(check(TOOL, "the relaunch of that order at the cap is admitted and spends the same round", args, { status: 0, stderr: /spends fix round 1 of 1/ }, options).stdout)
+}
+
 /** caps.reviewFixAttempts counts every fix round of a branch, and the launch cap override never passes it. */
 const fixRoundCases = () => {
-  const fixRounds = launch("fix-rounds", launchConfig({ ...stubEngine(IMMEDIATE), caps: { workerLaunchesPerBranch: 1, reviewFixAttempts: 1 } }))
+  const fixRounds = launch("fix-rounds", launchConfig({ ...stubEngine(FIX_COMMITTER), caps: { workerLaunchesPerBranch: 1, reviewFixAttempts: 1 } }))
   const batchPrompt = stage("launch-worker/fix-rounds-batch.md", `${REVIEW_BATCH_ORDER_MARKER}\n\nthe review batch order\n`)
   const fixArgs = ["--issue", "ORB-201", "--worktree", fixRounds.worktree, "--prompt", batchPrompt]
   const fixOptions = { path: fixRounds.path, env: githubAuthEnv() }
@@ -72,7 +94,7 @@ const fixRoundCases = () => {
   const dryPlan = check(TOOL, "a dry run names the fix round it would spend", [...fixArgs, "--fix-round", "local", "--dry-run"], { status: 0 }, fixOptions)
   T(`${TOOL}: the dry run plans fix round 1 of 1 and records nothing`, /"fixRound": \{\s*"kind": "local",\s*"number": 1,\s*"cap": 1/.test(dryPlan.stdout) &&
     !existsSync(join(fixRounds.worktree, ".git", "orbit-fix-rounds")), dryPlan.stdout)
-  discardLog(check(TOOL, "the first fix round launches", [...fixArgs, "--fix-round", "local"], { status: 0, stderr: /spends fix round 1 of 1/ }, fixOptions).stdout)
+  discardLog(check(TOOL, "the first fix round launches", [...fixArgs, "--fix-round", "local"], { status: 0, stderr: /spends fix round 1 of 1(?![\s\S]*is not spent)/ }, fixOptions).stdout)
   check(
     TOOL,
     "a fix round above the cap exits 2 even with a relaunch reason",
@@ -98,9 +120,7 @@ const fixRoundCases = () => {
     fixOptions,
   )
   T(`${TOOL}: a refused design change reuse spends no launch slot`, launchSlots() === 2, String(launchSlots()))
-  const roundDirectory = join(fixRounds.worktree, ".git", "orbit-fix-rounds")
-  const rounds = readdirSync(roundDirectory).filter((name) => name.endsWith(".json")).sort()
-    .map((name) => JSON.parse(readFileSync(join(roundDirectory, name), "utf8")))
+  const rounds = fixRoundFiles(fixRounds.worktree).map((name) => JSON.parse(readFileSync(join(fixRounds.worktree, ".git", "orbit-fix-rounds", name), "utf8")))
   T(
     `${TOOL}: the ledger holds both rounds, and the second names its design change`,
     rounds.length === 2 && rounds.map((round) => round.kind).join(",") === "local,pullfrog" &&
@@ -995,6 +1015,7 @@ if (process.argv[1]?.endsWith("worker-gate.cjs")) {
     JSON.stringify({ launchLedger, status: capped.git(["status", "--short"]).stdout }),
   )
   fixRoundCases()
+  fixRoundReleaseCases()
   /**
    * Both clocks are read from config.timeouts, and the only way to prove that is to move them:
    * a hardcoded 45 and 10 minutes would leave a sleeping worker running until the suite's own
@@ -1219,11 +1240,12 @@ const poll = setInterval(() => {
   const salvageable = check(
     TOOL,
     "a kill that leaves commits exits 4 and NAMES them in the result",
-    ["--issue", "ORB-201", "--worktree", committedKill.worktree, "--prompt", committedKill.prompt],
+    ["--issue", "ORB-201", "--worktree", committedKill.worktree, "--prompt", committedKill.prompt, "--fix-round", "local"],
     { status: 4, stdout: /"outcome": "KILLED_HARD_CEILING"[\s\S]*"commitsSinceLaunch": 1[\s\S]*deliver the work/ },
     { path: committedKill.path, env: githubAuthEnv() },
   )
   discardLog(salvageable.stdout)
+  T(`${TOOL}: a killed fix launch that left a commit keeps its round`, fixRoundFiles(committedKill.worktree).length === 1 && !/is not spent/.test(salvageable.stderr), salvageable.stderr)
 
   const ceilingOverride = check(TOOL, "--hard-ceiling-minutes overrides the configured ceiling for one launch", [...argv, "--hard-ceiling-minutes", "90", "--dry-run"], { status: 0, stdout: /"hardCeilingMinutes": 90/ }, options)
   discardLog(ceilingOverride.stdout)
