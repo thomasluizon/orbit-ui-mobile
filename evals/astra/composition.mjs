@@ -130,6 +130,7 @@ function coachingStartingStep(parsed, vars) {
 function startingStepBlock(response, client) {
   const parts = response.parts
   const surfaces = ['actions', 'pendingOperations', 'policyDenials', 'relatedSurfaces', 'followUps', 'followUpContext'].some((key) => response[key]?.length)
+    || (response.operations ?? []).some((operation) => operation.status !== 'Succeeded')
   return !surfaces && client?.supportsParts === true && client.partKinds?.includes('oneSmallStep') && parts.length === 1
     && (response.aiMessage == null || response.aiMessage === '') && validStartingBlock(parts[0].block, client.locale)
     ? result(true, 'One starting step with its server actions and no prose.')

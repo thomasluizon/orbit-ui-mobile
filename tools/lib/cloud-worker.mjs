@@ -27,7 +27,7 @@ const ISO_TIMESTAMP = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d
 const TASK_STATUSES = new Set(["pending", "ready", "applied", "error"])
 const TERMINAL_TASK_STATUSES = new Set(["ready", "applied", "error"])
 const LOCK_RETRY_SIGNAL = new Int32Array(new SharedArrayBuffer(4))
-export const CLOUD_EMPTY_RESULT_LIMIT = 2
+const CLOUD_EMPTY_RESULT_LIMIT = 2
 const CLOUD_CIRCUIT_BREAKER_FILE = "cloud-circuit-breaker.json"
 
 export const isTerminalTaskStatus = (status) => TERMINAL_TASK_STATUSES.has(status)
@@ -71,6 +71,11 @@ export const cloudOrder = (order, emptyRetryOf = null) => {
     : completed
 }
 
+/**
+ * Resolve a bare command the way the platform's launcher does, so the result is a real file rather
+ * than a name Node will refuse. On win32 only PATHEXT candidates count: npm also drops an
+ * extensionless shell script next to the shim, and Windows cannot execute it.
+ */
 export const resolveOnPath = (command, options = {}) => {
   if (command.includes("/") || command.includes("\\")) {
     return existsSync(command) ? resolve(command) : null
@@ -261,19 +266,23 @@ export const readJsonFile = (path, label) => {
   }
 }
 
-export const writeJsonAtomic = (path, value) => {
+const writeJsonAtomic = (path, value) => {
   mkdirSync(dirname(path), { recursive: true })
   const temporary = `${path}.${process.pid}.${Date.now()}.tmp`
   writeFileSync(temporary, `${JSON.stringify(value, null, 2)}\n`, "utf8")
   renameSync(temporary, path)
 }
 
-export const gitRepositoryIdentity = (worktree) => {
+/** The `code` of the error that `gitRepositoryIdentity` throws when git says that a directory is not a worktree. */
+const NOT_A_GIT_WORKTREE = "NOT_A_GIT_WORKTREE"
+
+const gitRepositoryIdentity = (worktree) => {
   const result = spawnSync("git", ["-C", worktree, "rev-parse", "--git-common-dir"], {
     encoding: "utf8",
     windowsHide: true,
   })
-  if (result.error || result.status !== 0) throw new Error(`${worktree} is not a git worktree`)
+  if (result.error) throw new Error(`could not run git for ${worktree}: ${result.error.message}`)
+  if (result.status !== 0) throw Object.assign(new Error(`${worktree} is not a git worktree`), { code: NOT_A_GIT_WORKTREE })
   const commonDirectory = result.stdout.trim()
   if (!commonDirectory) throw new Error(`git returned no common directory for ${worktree}`)
   const absoluteCommonDirectory = resolve(worktree, commonDirectory)
@@ -285,6 +294,16 @@ export const gitRepositoryIdentity = (worktree) => {
 }
 
 const comparableGitIdentity = (identity) => process.platform === "win32" ? identity.toLowerCase() : identity
+
+/** The comparable identity of the repository that holds `directory`, or null when git says that `directory` is not a checkout. Any other error propagates. */
+export const checkoutIdentity = (directory) => {
+  try {
+    return comparableGitIdentity(gitRepositoryIdentity(directory))
+  } catch (error) {
+    if (error.code === NOT_A_GIT_WORKTREE) return null
+    throw error
+  }
+}
 
 export const assertSameGitRepository = (worktree, configuredRepository, repositoryKey) => {
   const worktreeIdentity = gitRepositoryIdentity(worktree)
@@ -299,7 +318,7 @@ export const assertSameGitRepository = (worktree, configuredRepository, reposito
 
 export const cloudStateRoot = (worktree) => join(gitRepositoryIdentity(worktree), "orbit-cloud")
 
-export const cloudCircuitBreakerPath = (orderFile) =>
+const cloudCircuitBreakerPath = (orderFile) =>
   join(dirname(resolve(orderFile)), CLOUD_CIRCUIT_BREAKER_FILE)
 
 const comparablePath = (path) => process.platform === "win32" ? path.toLowerCase() : path
