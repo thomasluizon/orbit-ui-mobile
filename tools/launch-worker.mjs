@@ -9,6 +9,7 @@ import { fileURLToPath } from "node:url"
 import { assertOutsideRepository, researchEnvironment, researchInvocation, researchPaths, researchPrompt } from "./lib/research-run.mjs"
 import { githubEnvironment, redactSecrets } from "./lib/github-auth.mjs"
 import { ADMISSION_REFUSED_EXIT, checkAdmission, releaseAdmission } from "./lib/admission.mjs"
+import { passLaunchGate } from "./lib/launch-gate.mjs"
 import { resolveTicket } from "./lib/github-issues.mjs"
 import { logFinalResult, NO_STOP } from "./lib/claude-usage-limit.mjs"
 import { readOrchestratorConfig, resolveWorkerInvocation, workerAccountEnvironment, workerAccounts } from "./lib/orchestrator-config.mjs"
@@ -21,7 +22,7 @@ const USAGE = `usage: launch-worker.mjs --issue <ORB-N|#N|N> --worktree <path> -
   --order <file>     non-empty research order outside every repository
   --out <file>       new findings file in an existing scratchpad directory outside every repository
                      Engine output is published only on successful completion. Uses the same
-                     session load and launch-spacing gate as ticket work
+                     machine load and launch spacing gate as ticket work
 
   --issue <reference> migrated ORB identifier or GitHub issue reference (required)
   --worktree <path>  the existing worktree the worker runs in (required)
@@ -45,8 +46,14 @@ const USAGE = `usage: launch-worker.mjs --issue <ORB-N|#N|N> --worktree <path> -
   --design-change <file>
                      the written design change that allows one fix round above caps.reviewFixAttempts
   --dry-run          print the resolved plan as JSON and exit 0, spawning nothing. The plan names
-                     account and configDirectory, the account a claude worker runs under
+                     account and configDirectory, the account a claude worker runs under. A dry run
+                     never waits at the launch gate
   --help, -h         print this usage and exit 0
+
+Before admission, every launch waits at the launch gate: until the one-minute load is under
+launchGate.loadMax and launchGate.spacingSeconds have passed since the previous launch from this
+checkout (.claude/orchestrator.json). The check and the launch record share one lock, so start each
+launch in its own background command and never gate a launch by hand
 
 Prints one JSON object on stdout when the worker is gone: issue, engine, tier, account, pid,
 logFile, startedAt, endedAt, exitCode, outcome, usageLimitReached, authenticationFailed, resultError
@@ -349,6 +356,14 @@ const gitRepositoryIdentity = (directory) => {
     return null
   }
 }
+const gate = await passLaunchGate(config.launchGate)
+console.error(`${issue} passed the launch gate at load ${gate.load.toFixed(2)} after ${Math.round(gate.waitedMs / 1000)} s`)
+try { launchRunState = readRunState() } catch (error) { fail(2, error.message) }
+if (config.relay.enabled && launchRunState?.relay?.pending === true) {
+  console.log(JSON.stringify({ admitted: false, reason: "ADMISSION_REFUSED", refusalReason: "RELAY_DRAIN", error: "RELAY_DRAIN" }))
+  process.exit(ADMISSION_REFUSED_EXIT)
+}
+
 let repositoryKey = null
 let githubAuth = { environment: researchEnvironment(), secrets: [] }
 let admission = { admitted: true, reservationId: null }
