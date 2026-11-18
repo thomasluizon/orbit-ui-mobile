@@ -3,7 +3,7 @@ import { appendFileSync, chmodSync, existsSync, mkdirSync, readFileSync, statSyn
 import { join } from "node:path"
 import { pathToFileURL } from "node:url"
 
-import { T, orcaEnv, realOrchestratorConfig, root, run, same, stageWithConfig } from "./_harness.mjs"
+import { T, orcaEnv, realOrchestratorConfig, root, run, same, stage, stageWithConfig } from "./_harness.mjs"
 import { lockContender } from "./stale-files-core.mjs"
 
 const TOOL = "stale-files.mjs"
@@ -24,6 +24,7 @@ const RECORD_REMOVED = "dddddddd-0000-4000-8000-00000000000d"
 const RECORD_OUTER = "feature/record-outer"
 const RECORD_STUCK = "feature/record-stuck"
 
+const MERGED_DIRECTORY = "ticket-11-merged"
 const MADE_AFTER_RELAY = "feature/made-after-relay"
 const MADE_BEFORE_RELAY = "feature/made-before-relay"
 
@@ -72,8 +73,10 @@ const stageRepository = () => {
   for (const args of [["add", ".gitignore"], ["commit", "-q", "-m", "base"], ["remote", "add", "origin", origin], ["push", "-q", "-u", "origin", "main"]]) {
     if (git(primary, args).status !== 0) return null
   }
-  const names = ["merged", "closed", "open", "unpushed", "dirty", "part", "in-use", "unreadable", "locked"]
+  const names = ["closed", "open", "unpushed", "dirty", "part", "in-use", "unreadable", "locked"]
   const worktrees = Object.fromEntries(names.map((name) => [name, stageWorktree(name)]))
+  // The directory name carries the ticket number, as an Orca worktree does: the standard teardown finds the worktree by it.
+  worktrees.merged = stageWorktree("merged", { path: join(worktreeRoot, MERGED_DIRECTORY) })
   worktrees.unmerged = stageWorktree("unmerged", { push: false })
   worktrees.contained = stageWorktree("contained", { push: false })
   worktrees.detached = stageWorktree("detached", { detach: true })
@@ -278,6 +281,23 @@ console.log(startCleanup({ sessionId: ${JSON.stringify(THIS)}, sessionRoot: ${JS
   }
 }
 
+/** The standard teardown runs on a ticket whose merged worktree the removal already took. */
+const stageTeardownAfterRemoval = (config, worktrees, env) => {
+  const teardown = stageWithConfig("stale-teardown", "teardown-worktree.mjs", { ...config, repos: { ui: primary } })
+  stage("staged/stale-teardown/tools/lib/github-issues.mjs", `export const resolveTicket = (reference) => ({ identifier: null, number: Number(String(reference).replace("#", "")) })
+export const readTicket = async (number) => ({ identifier: null, number, status: "Done", state: "CLOSED", labels: [{ name: "repo:ui" }] })
+export const assertRepositoryLabel = (ticket, repoKey) => {
+  if (ticket.labels.length !== 1 || ticket.labels[0].name !== "repo:" + repoKey) throw new Error("ticket repository label mismatch")
+  return ticket
+}
+`)
+  const result = run("teardown-worktree.mjs", ["--issue", "#11", "--repo", "ui"], { path: teardown.path, env })
+  same("stale-files: the standard teardown of a ticket whose merged worktree --delete removed exits 4", result.status, 4)
+  T("stale-files: that teardown reports the worktree as already removed and a failure for nothing",
+    /^ALREADY REMOVED no worktree is registered for ticket 11; /m.test(result.stdout) && result.stderr === "", result.stdout + result.stderr)
+  T("stale-files: that teardown touches nothing", !existsSync(worktrees.merged.path) && git(primary, ["rev-parse", "--verify", "--quiet", worktrees.merged.branch]).status === 0)
+}
+
 export const cases = async () => {
   const worktrees = stageRepository()
   T("stale-files: the git fixture stages", worktrees !== null)
@@ -394,6 +414,7 @@ export const cases = async () => {
     T("stale-files: a removed worktree leaves the worktree list and keeps its branch", !git(primary, ["worktree", "list", "--porcelain"]).stdout.includes(worktrees.merged.path)
       && git(primary, ["rev-parse", "--verify", "--quiet", worktrees.merged.branch]).status === 0)
     T("stale-files: a worktree inside a removed session directory leaves the worktree list", !git(primary, ["worktree", "list", "--porcelain"]).stdout.includes(worktrees["nested-done"].path))
+    stageTeardownAfterRemoval(config, worktrees, env)
     same("stale-files: the store holds no stale item after the removal", JSON.parse(readFileSync(join(staged.base, ".git", "orbit-stale-files.json"), "utf8")).stale, [])
     const again = tool(["--delete", "--session", THIS])
     T("stale-files: a second --delete finds nothing more to remove", again.status === 0 && /^FREED nothing;/m.test(again.stdout) && !/^REMOVED /m.test(again.stdout), again.stdout + again.stderr)

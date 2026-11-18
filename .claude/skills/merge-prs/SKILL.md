@@ -120,7 +120,9 @@ Immediately after each confirmed merge:
    That tool now posts the ticket's **manual steps** as a comment before it closes the issue, and
    returns them on its `manualSteps` field. **Collect every one of them across the merged set.** A
    ticket with no such step returns null and is silent, which is the normal case.
-2. Run the repository's canonical teardown tool for that ticket.
+2. Run the repository's canonical teardown tool for that ticket. Exit 4 with the line
+   `ALREADY REMOVED` means the unattended stale-file cleanup removed the merged worktree. Treat it
+   as done, and skip step 3. Any other non-zero exit is a failure.
 3. If a server-side update left the local worktree at the approved head, fetch
    `refs/pull/<pr>/head`, fast-forward that exact local branch, and rerun teardown.
 4. Delete the remote head branch only after confirming the PR is merged; accept already-absent as
