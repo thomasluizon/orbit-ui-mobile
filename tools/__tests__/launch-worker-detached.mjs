@@ -1,5 +1,6 @@
 import { spawn, spawnSync } from "node:child_process"
-import { cpSync, existsSync, readFileSync, rmSync } from "node:fs"
+import { cpSync, existsSync, readdirSync, readFileSync, rmSync } from "node:fs"
+import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { setTimeout as pause } from "node:timers/promises"
 
@@ -57,6 +58,12 @@ const startEntry = (fixture, extraEnvironment) => {
 
 const parentOf = (pid) => Number(spawnSync("ps", ["-o", "ppid=", "-p", String(pid)], { encoding: "utf8" }).stdout.trim())
 
+/** The temp files that one entry process creates for its supervisor: `launch-<entry pid>-<ms>.{stdout,stderr,exit.json}`. */
+const entryFiles = (entryPid) => {
+  const directory = join(tmpdir(), "orbit-workers")
+  return existsSync(directory) ? readdirSync(directory).filter((name) => name.startsWith(`launch-${entryPid}-`)).map((name) => join(directory, name)) : []
+}
+
 const detachedSource = (fixture) => readWakeSourceStates(fixture.base).live.find((source) => source.detached === true && Number.isInteger(source.workerPid))
 
 export const cases = async ({ launch, launchConfig, stubEngine, githubAuthEnv, discardLog, IMMEDIATE }) => {
@@ -86,6 +93,7 @@ const timer = setInterval(() => { if (existsSync(${JSON.stringify(trigger)})) { 
     T(`${TOOL}: ending the entry the way the session ends a background task stops only the entry`, ended !== null && !processIsRunning(entry.child.pid), JSON.stringify(ended))
     T(`${TOOL}: the supervisor and the worker keep running after the entry is gone`, processIsRunning(supervisorPid) && processIsRunning(source.workerPid), JSON.stringify({ supervisorPid, workerPid: source?.workerPid }))
     T(`${TOOL}: the supervisor stays a live wake source and never an orphaned worker`, readWakeSourceStates(fixture.base).live.some((live) => live.pid === supervisorPid) && readWakeSourceStates(fixture.base).orphaned.length === 0)
+    T(`${TOOL}: the entry's temp files still exist while the worker runs`, entryFiles(entry.child.pid).some((path) => path.endsWith(".stderr")), JSON.stringify(entryFiles(entry.child.pid)))
     T(`${TOOL}: the completion file does not exist while the worker runs`, !existsSync(workerCompletionFile(supervisorPid, fixture.base)))
 
     const completionFile = workerCompletionFile(supervisorPid, fixture.base)
@@ -104,6 +112,7 @@ const timer = setInterval(() => { if (existsSync(${JSON.stringify(trigger)})) { 
     T(`${TOOL}: the worker ends on its own and the supervisor writes the completion file`, completion?.outcome === "EXITED" && completion.exitCode === 0 && completion.launcherPid === supervisorPid && completion.issue === "ORB-201" && completion.pid === source.workerPid, JSON.stringify(completion))
     T(`${TOOL}: the file waiter wakes on that file and reports it found`, waiterStatus === 0 && JSON.parse(waiterOutput).found === true && JSON.parse(waiterOutput).reason === "FOUND", `${waiterStatus} ${waiterOutput}`)
     T(`${TOOL}: the supervisor leaves no wake source and no process once the worker is done`, await waitUntil(() => !processIsRunning(supervisorPid) && readWakeSourceStates(fixture.base).live.every((live) => live.pid !== supervisorPid), 10000) !== null)
+    T(`${TOOL}: the supervisor removes the stdout, stderr and exit files of an entry that a relay ended`, entryFiles(entry.child.pid).length === 0, JSON.stringify(entryFiles(entry.child.pid)))
   } finally {
     waiter?.kill("SIGKILL")
     for (const pid of [supervisorPid, source?.workerPid]) if (processIsRunning(pid)) try { process.kill(pid, "SIGKILL") } catch { /* already gone */ }
@@ -121,6 +130,35 @@ const timer = setInterval(() => { if (existsSync(${JSON.stringify(trigger)})) { 
   const refused = launch("detached-refusal", launchConfig(stubEngine(IMMEDIATE)))
   const refusedRun = await startEntry(refused, githubAuthEnv({ branchPulls: [], pulls: Array.from({ length: 200 }, (_, index) => ({ number: index + 1 })) })).closed
   T(`${TOOL}: an admission refusal reaches the entry as the same stdout and exit code 8`, refusedRun.status === 8 && JSON.parse(refusedRun.stdout).reason === "ADMISSION_REFUSED", JSON.stringify(refusedRun))
+
+  // A launcher that runs inside a worker is an entry of its own: it must not inherit the link to the outer entry.
+  rmSync(trigger, { force: true })
+  const nestedReport = stage("launch-worker/detached-nested-report.json", "")
+  rmSync(nestedReport, { force: true })
+  const nestingWorker = stage("launch-worker/detached-nesting-worker.cjs", `const { existsSync, writeFileSync } = require("node:fs")
+const { spawnSync } = require("node:child_process")
+const linked = Object.fromEntries(["ORBIT_LAUNCH_SUPERVISOR", "ORBIT_LAUNCH_ENTRY_PID", "ORBIT_LAUNCH_EXIT_FILE"].map((name) => [name, process.env[name] ?? null]))
+const nested = spawnSync(process.execPath, [process.env.NESTED_LAUNCHER, "--issue", "ORB-1", "--worktree", "/nonexistent-nested-worktree", "--prompt", "/nonexistent-nested-prompt", "--dry-run"], { env: process.env, encoding: "utf8" })
+writeFileSync(${JSON.stringify(nestedReport)}, JSON.stringify({ linked, nestedStatus: nested.status }))
+const timer = setInterval(() => { if (existsSync(${JSON.stringify(trigger)})) { clearInterval(timer); process.exit(0) } }, 50)
+`)
+  const nesting = launch("detached-nesting", launchConfig({ ...stubEngine(nestingWorker), timeouts: { pollSeconds: 0.2 } }))
+  const nestingEntry = startEntry(nesting, { ...githubAuthEnv(), NESTED_LAUNCHER: nesting.path })
+  let nestingSource
+  try {
+    const report = await waitUntil(() => existsSync(nestedReport) && readFileSync(nestedReport, "utf8") !== "" && JSON.parse(readFileSync(nestedReport, "utf8")))
+    nestingSource = await waitUntil(() => detachedSource(nesting))
+    await pause(1000)
+    T(`${TOOL}: the worker gets none of the three variables that link the supervisor to its entry`, report !== null && Object.values(report.linked).every((value) => value === null), JSON.stringify(report))
+    T(`${TOOL}: a launcher that runs inside the worker exits on its own`, report?.nestedStatus === 2, JSON.stringify(report))
+    T(`${TOOL}: a launcher inside the worker does not end the outer entry or write its exit file`, processIsRunning(nestingEntry.child.pid) && !entryFiles(nestingEntry.child.pid).some((path) => path.endsWith(".exit.json")), JSON.stringify({ files: entryFiles(nestingEntry.child.pid), ...nestingEntry.output() }))
+    spawnSync(process.execPath, ["-e", `require("node:fs").writeFileSync(${JSON.stringify(trigger)}, "finish")`])
+    const finished = await Promise.race([nestingEntry.closed, pause(30000).then(() => null)])
+    T(`${TOOL}: the outer entry ends with the worker's own result`, finished?.status === 0 && JSON.parse(finished.stdout).outcome === "EXITED", JSON.stringify(finished))
+  } finally {
+    for (const pid of [nestingSource?.pid, nestingSource?.workerPid]) if (processIsRunning(pid)) try { process.kill(pid, "SIGKILL") } catch { /* already gone */ }
+    try { process.kill(-nestingEntry.child.pid, "SIGKILL") } catch { /* already gone */ }
+  }
 
   // A signal to the entry ends only the entry. A signal to the supervisor stops the worker and records STOPPED.
   rmSync(trigger, { force: true })

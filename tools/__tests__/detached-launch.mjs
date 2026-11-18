@@ -2,7 +2,8 @@ import { spawnSync } from "node:child_process"
 import { existsSync, readFileSync, writeFileSync } from "node:fs"
 import { dirname, join } from "node:path"
 
-import { followDetached, startOrphaned, writeExitFile } from "../lib/detached-launch.mjs"
+import { followDetached, settleSupervised, startOrphaned, supervisionPaths, writeExitFile } from "../lib/detached-launch.mjs"
+import { processStartIdentity } from "../lib/run-state.mjs"
 import { processIsRunning, stage, T } from "./_harness.mjs"
 
 const field = (name, pid) => spawnSync("ps", ["-o", `${name}=`, "-p", String(pid)], { encoding: "utf8" }).stdout.trim()
@@ -43,4 +44,22 @@ export const cases = async () => {
   writeFileSync(marker, "stale")
   writeExitFile(marker, 143)
   T("detached-launch: writeExitFile replaces an older marker", JSON.parse(readFileSync(marker, "utf8")).exitCode === 143)
+
+  const settleFiles = (label) => {
+    const files = supervisionPaths(join(directory, label))
+    for (const path of [files.stdoutPath, files.stderrPath]) writeFileSync(path, "output")
+    return files
+  }
+  const present = (files) => [files.stdoutPath, files.stderrPath, files.exitPath].filter(existsSync).length
+  const liveEntry = settleFiles("settle-live")
+  settleSupervised({ exitPath: liveEntry.exitPath, entryPid: process.pid, entryProcessStartIdentity: processStartIdentity(process.pid), exitCode: 3 })
+  T("detached-launch: settleSupervised publishes the marker and keeps the files for a live entry", JSON.parse(readFileSync(liveEntry.exitPath, "utf8")).exitCode === 3 && present(liveEntry) === 3)
+  const goneEntry = settleFiles("settle-gone")
+  const gonePid = await startOrphaned({ command: process.execPath, args: ["-e", "process.exit(0)"], cwd: directory, environment: process.env, ...paths("settle-gone-process") })
+  await followDetached({ pid: gonePid, ...paths("settle-gone-process"), forward: () => {}, pollMilliseconds: 20 })
+  settleSupervised({ exitPath: goneEntry.exitPath, entryPid: gonePid, entryProcessStartIdentity: null, exitCode: 0 })
+  T("detached-launch: settleSupervised removes the stdout, stderr and exit files when the entry is gone", present(goneEntry) === 0)
+  const reusedEntry = settleFiles("settle-reused")
+  settleSupervised({ exitPath: reusedEntry.exitPath, entryPid: process.pid, entryProcessStartIdentity: "another-process-start", exitCode: 0 })
+  T("detached-launch: settleSupervised treats a pid that another process now holds as a gone entry", present(reusedEntry) === 0)
 }

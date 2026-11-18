@@ -13,7 +13,7 @@ import { resolveTicket } from "./lib/github-issues.mjs"
 import { logFinalResult, NO_STOP } from "./lib/claude-usage-limit.mjs"
 import { readOrchestratorConfig, resolveWorkerInvocation, workerAccountEnvironment, workerAccounts } from "./lib/orchestrator-config.mjs"
 import { clearWakeSource, clearWorkerLaunchReservation, processStartIdentity, recordReservedWorkerPid, registerWakeSource, reserveWorkerLaunch, readRunState, relayIsRunning, workerCompletionFile } from "./lib/run-state.mjs"
-import { followDetached, startOrphaned, writeExitFile } from "./lib/detached-launch.mjs"
+import { followDetached, settleSupervised, startOrphaned, supervisionPaths } from "./lib/detached-launch.mjs"
 
 const USAGE = `usage: launch-worker.mjs --issue <ORB-N|#N|N> --worktree <path> --prompt <file> [options]
 
@@ -134,11 +134,21 @@ if (research) {
  * for the worker. This entry process stays attached only to give the session its exit notification.
  */
 const supervisorRole = process.env.ORBIT_LAUNCH_SUPERVISOR === "1"
+/**
+ * These three variables link this supervisor to its entry process. Read them once and remove them, so
+ * nothing this launcher starts inherits them: a launcher inside the worker would otherwise act as this
+ * supervisor and write the exit marker that ends the entry process.
+ */
+const entryLink = supervisorRole ? {
+  entryPid: Number(process.env.ORBIT_LAUNCH_ENTRY_PID),
+  entryProcessStartIdentity: processStartIdentity(Number(process.env.ORBIT_LAUNCH_ENTRY_PID)),
+  exitPath: process.env.ORBIT_LAUNCH_EXIT_FILE,
+} : null
+for (const name of ["ORBIT_LAUNCH_SUPERVISOR", "ORBIT_LAUNCH_ENTRY_PID", "ORBIT_LAUNCH_EXIT_FILE"]) delete process.env[name]
 if (!research && !dryRun && !supervisorRole) {
   const directory = join(tmpdir(), "orbit-workers")
   mkdirSync(directory, { recursive: true })
-  const stem = join(directory, `launch-${process.pid}-${Date.now()}`)
-  const paths = { stdoutPath: `${stem}.stdout`, stderrPath: `${stem}.stderr`, exitPath: `${stem}.exit.json` }
+  const paths = supervisionPaths(join(directory, `launch-${process.pid}-${Date.now()}`))
   let supervisorPid
   try {
     supervisorPid = await startOrphaned({
@@ -163,8 +173,8 @@ if (!research && !dryRun && !supervisorRole) {
   if (followed.exitCode === null) fail(1, `launcher ${supervisorPid} ended without an exit marker; read ${workerCompletionFile(supervisorPid)} if it exists`)
   process.exit(followed.exitCode)
 }
-if (supervisorRole && process.env.ORBIT_LAUNCH_EXIT_FILE) {
-  process.on("exit", (exitCode) => writeExitFile(process.env.ORBIT_LAUNCH_EXIT_FILE, exitCode))
+if (entryLink?.exitPath) {
+  process.on("exit", (exitCode) => settleSupervised({ ...entryLink, exitCode }))
 }
 
 let issue = research ? "research" : null
@@ -435,10 +445,10 @@ const startedAt = new Date().toISOString()
  */
 const detachedFields = () => {
   if (research || !supervisorRole) return {}
-  const entryPid = Number(process.env.ORBIT_LAUNCH_ENTRY_PID)
+  const { entryPid, entryProcessStartIdentity } = entryLink
   return {
     detached: true, ownerSessionId: launchSessionId, issue, runDirectory, branch, completionFile: workerCompletionFile(process.pid),
-    ...(Number.isInteger(entryPid) && entryPid > 0 ? { entryPid, entryProcessStartIdentity: processStartIdentity(entryPid) } : {}),
+    ...(Number.isInteger(entryPid) && entryPid > 0 ? { entryPid, entryProcessStartIdentity } : {}),
   }
 }
 /**

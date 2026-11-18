@@ -11,6 +11,8 @@ import { setTimeout as pause } from "node:timers/promises"
 import { fileURLToPath } from "node:url"
 import { processIsAlive, processStartIdentity } from "./run-state.mjs"
 
+const EXIT_SUFFIX = ".exit.json"
+
 const STARTER = fileURLToPath(new URL("./detached-starter.cjs", import.meta.url))
 
 /** Resolves with the pid of a child that is its own session leader and whose parent is gone. */
@@ -29,6 +31,9 @@ export const startOrphaned = ({ command, args, cwd, environment, stdoutPath, std
     else reject(new Error(`could not start the detached process: ${failure.trim() || `starter exit ${status}`}`))
   })
 })
+
+/** The three files that link an entry process to its supervisor, named from one stem. */
+export const supervisionPaths = (stem) => ({ stdoutPath: `${stem}.stdout`, stderrPath: `${stem}.stderr`, exitPath: `${stem}${EXIT_SUFFIX}` })
 
 /** Atomic publication of the exit marker that the supervisor leaves for its entry process. */
 export const writeExitFile = (path, exitCode) => {
@@ -77,4 +82,17 @@ export const followDetached = async ({ pid, stdoutPath, stderrPath, exitPath, fo
   const stdout = existsSync(stdoutPath) ? readFileSync(stdoutPath, "utf8") : ""
   for (const path of [stdoutPath, stderrPath, exitPath]) rmSync(path, { force: true })
   return { stdout, exitCode: Number.isInteger(exitCode) ? exitCode : null }
+}
+
+/**
+ * Runs when the supervisor ends. It publishes the exit marker for a live entry process, which
+ * `followDetached` then reads and removes. A relay ends the entry process first, so nothing reads
+ * the three files: the supervisor removes them itself.
+ */
+export const settleSupervised = ({ exitPath, entryPid, entryProcessStartIdentity, exitCode }) => {
+  writeExitFile(exitPath, exitCode)
+  const entryLives = processIsAlive(entryPid) && (entryProcessStartIdentity === null || processStartIdentity(entryPid) === entryProcessStartIdentity)
+  if (entryLives) return
+  const { stdoutPath, stderrPath } = supervisionPaths(exitPath.slice(0, -EXIT_SUFFIX.length))
+  for (const path of [stdoutPath, stderrPath, exitPath]) rmSync(path, { force: true })
 }
