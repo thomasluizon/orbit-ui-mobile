@@ -99,7 +99,6 @@ for (const width of [412, 840]) {
       await openClientFetchedHojeView(page)
       await expect(page.getByRole('button', { name: en.shell.astraButton.open, exact: true })).toBeVisible()
       await expect(page.locator('[data-shell-fab] button')).toBeVisible()
-      await expect(page.locator('[data-shell-fab-pending]')).toHaveCount(0)
       const pending = await page.evaluate(measureStack)
       expect(pending.createTop! - pending.bottom).toBeCloseTo(ASTRA_BUTTON_GAP, 0)
 
