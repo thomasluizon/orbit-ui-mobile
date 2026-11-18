@@ -82,16 +82,14 @@ No diet ticket holds admission: `#2071` is closed; `#2074` merged in the API, an
 
 A finding from an owner review or a rendered sweep that shows broken behaviour lands here.
 
-No open ticket.
+- `#2175` Draw the whole shell on the first frame and a skeleton only where content waits on the API, on every platform (owner report on the Mac desktop app). Next: `ui#2499` round 2 (scratchpad `note-2499-r2.md`: the wide sidebar width swap and the mobile two-step skeleton), then the whole review, CI, Pullfrog, and the web release plus the mobile pair.
 
 ### Batch 0b: the harness and the standing syncs
 
 The gates every later batch runs through. Re-read each ticket against the tree before you build it.
 
-- `#2137` Never let an unattended run stop on an approval prompt or wait without limit on a subagent (owner order, live harness defect). Next: `ui#2464` round 26 is committed (`6f3ce712f`): delta review, `main` merge, push.
 - `#2149` Make auto-work read every open pull request (Dependabot and every other author) and every code scanning, secret scanning and Dependabot alert in the three repositories, and fix them (owner order). Next: `ui#2475` round 9 is committed (`421a4408d`): delta review, `main` merge, push. `ui#2481` is merged. Dependabot alert 189 (`picomatch` GHSA-fc5q-39xc-vjpf, range `<= 4.0.7`, no patched version) turns the landing `Build` red through `npm audit`: the gate stays; recheck `npm view picomatch version` each cycle, then one lockfile pull request in landing and one in UI. Until ui#2475 merges, read every open pull request and alert by hand each cycle (S `prs-alerts.mjs`). A Dependabot pull request merges by itself after its Pullfrog approval and moves `main`.
 - `#2145` Run the pre-push reviews and the device proofs as workers on the worker account (owner order). Next: `ui#2476` round 6 is committed (`3891f57fe`): delta review, `main` merge, push.
-- `#2139` Run every shell guard on a command that the Monitor tool runs (filed by an agent). Next: built inside `ui#2464`; when it merges, post scratchpad `comment-2139.md` with `tools/comment-ticket.mjs` and close the ticket as folded into `#2137`.
 - `#2143` Delete stale files in an unattended run without asking the owner (owner order: never offer, delete with the node tool so nothing prompts). Next: `ui#2483` round 9 for one Pullfrog thread (note written).
 
 
@@ -167,7 +165,6 @@ Each ticket is its body plus its work-order comments: one pull request each, nev
 ### Batch 8: new platforms, iOS first, then desktop
 
 - `#1561` Ship Orbit for iPhone and iPad to TestFlight, with push and the home-screen widget, and the production app on the owner's iPhone (owner order). The iPhone app is a launch requirement. Next: the real-device checks once the owner installs it, and the profiling step for Sentry `ORBIT-MOBILE-R` (a 3 s hang on the App Review iPhone; ticket comment of 12 November 2026). The iPad findings in the ticket comments (unread badge font scale, "Widget do Android" label) stay in scope. App Review approved iOS 1.3.152 (app store version `f093e30c-9704-4ff5-bf4a-e858784c0ecc`, `PENDING_DEVELOPER_RELEASE`, `MANUAL`): it waits for the owner's Android launch order. iOS 1.3.157 (7) is in the outside group `Orbit beta` and waits for Beta App Review. Add each later build with scratchpad `asc-external-group.mjs group <build id>`, then `submit <build id>`. `ui#2489` (App Store Connect retry, `xcode-27` runner) is approved at `d190f6149` but conflicts with `main`: the base merge (note written), push, Pullfrog, merge. `ui#2496` (the sign-in email field scrambled on the App Review iPad, Sentry `ORBIT-MOBILE-Y`; reproduced red and green on the iPad and SE simulators) is open at `a3045b7ec`: the whole review, CI, Pullfrog, merge, the mobile pair, then resolve the Sentry issue after the carrying build shows no new event. Scratchpad tools: `asc-api.mjs` (team key `~/.orbit-ios-signing`), `asc-pro.sh on|off`.
-- `#2174` (filed by a worker; its finding is folded into `#1561` by comment). Next: close it as not planned with a repository ticket tool.
 - `#1563` Show the App Store badge and the Mac and Windows downloads on the landing page. Next: `landing#127` is live in production landing `7fb212c42`; the App Store card follows the App Store listing (`#1561`).
 
 ## How the work runs
@@ -214,7 +211,7 @@ Code facts that no gate or owner document states:
 
 ## Current state
 
-UI `main` is `e8fa116f9`, API `main` `f7abe19fc`, landing `main` `20c1b0a90`. Production: API `3930b6d5b`, web `d356d1b5d`, landing `20c1b0a90`; Android Open and TestFlight 1.3.157 from `d356d1b5d`. Every worker tier runs `claude-sonnet-5-5`; the worker account reached its Fable limit, and every launch on Fable or Opus after it ended with no work (scratchpad `task-map.md` top block lists each one and its exact relaunch command). Pushed with a Pullfrog request and a CI waiter: `ui#2464`, `ui#2475`, `ui#2476`, `ui#2488` (stacked on the ui#2486 branch), `ui#2493`, `ui#2496`; `api#1127` is green and approved, stacked on `api#1125` and `api#1120`. Reviewed and ready to push: `ui#2486` round 4 (NOTES 1, a missing space at `tools/lib/run-state.mjs:356` and one body sentence), `ui#2485` round 4 (CLEAN), `ui#2494` (whole review NOTES 4). Committed, review still needed: `ui#2451` round 28 (needs a `main` merge first: ten mascot paths conflict, note written), `ui#2483` round 9, `api#1121` round 4, `ui#2489` base merge, `ui#2490` round 2, `ui#2491` round 2, `ui#2492` round 2, `api#1126` round 2. `ui#2495` round 2 and `ui#2480` round 5 stopped on the limit with their fixes uncommitted in the tree. The founder X header holds only the Orbit lockup (thomas-brain `#15`).
+UI `main` is `82dda31a2` (ui#2464 merged, `#2137` and `#2139` closed), API `main` `f7abe19fc`, landing `main` `20c1b0a90`. Production: API `3930b6d5b`, web `d356d1b5d`, landing `20c1b0a90`; Android Open and TestFlight 1.3.157. The coordinator and Pullfrog run Opus 5.5; every worker tier runs `claude-sonnet-5-5`. A worker cannot start a browser, a dev server or an emulator (`forbid-worker-browser.mjs`): the web part of a rendered proof is the coordinator's through `claude-in-chrome`, and the device part waits for the `--proof` mode of ui#2476 (`#2145`). New pull requests: ui#2497 (Dependabot alert 191, `#2149`), ui#2498 (`#2173`), ui#2499 (`#2175`), ui#2500 (`#2167`), ui#2501 (`#2168`), api#1129 (`#2172`). Scratchpad `task-map.md` top block holds each pull request head, its Pullfrog result and the exact next command.
 
 ## Open questions
 
