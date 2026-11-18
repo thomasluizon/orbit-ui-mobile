@@ -4,7 +4,7 @@ Read `.claude/specs/orbit-prod-release.md` first: `## Standing rules`, `## The o
 
 Entry: `/auto-work` enters `/sleep`, adopts this relay (`adoptRelayRun`), keeps `autoWork: true`, then `/crank`, then `/orchestrate` over the admitted queue without replanning. Check that this prompt is the newest open relay (`gh pr list --repo thomasluizon/orbit-ui-mobile --state open --search "relay in:title"`) and run `node tools/relay-checkout.mjs --check`.
 
-Scratchpad (S): run `node $HOME/.orbit-run-carry/carry-lean.mjs <new full id> <predecessor full id>` (the predecessor id is `relay.from`). Start a new `sleep-decisions.md` from D542 with the Write tool. A missing file: `node S/restore-missing.mjs '<name pattern>'`.
+Scratchpad (S): run `node $HOME/.orbit-run-carry/carry-lean.mjs <new full id> <predecessor full id>` (the predecessor id is `relay.from`). Start a new `sleep-decisions.md` from D555 with the Write tool. A missing file: `node S/restore-missing.mjs '<name pattern>'`.
 
 Account (owner orders): the session and the workers run on the worker account until the owner switches back. FULL crank with `claude-opus-5-5` workers until that account's weekly reset (10:00 UTC; `rateLimits.seven_day.resets_at` in `$HOME/.claude/usage-snapshot.json`). At the reset, or at once when it passed, set every `claude` tier in `.claude/orchestrator.json` to `claude-fable-5-2` and return to the normal pace. Set a one-shot `CronCreate` reminder for 07:03 local when that time is ahead. Sentry is connected; Gmail, Orbit and Chrome are not.
 
@@ -26,17 +26,17 @@ Answer the owner first, in English. `#2074` is MAX priority, then `#2152`.
 
 ## In flight
 
-UI `main` `d356d1b5d`; API `main` `f7abe19fc`; landing `main` `20c1b0a90`; production API `3930b6d5b`. Owner order: `/crank` and `/sleep` stay on; finish every ticket. Owner question queue: one row (the Pullfrog token). No stash; every worktree is clean. The spec bullets hold each next step; the top tables of S `task-map.md` name each worktree, head, note and review file.
+UI `main` `d356d1b5d`; API `main` `f7abe19fc`; landing `main` `20c1b0a90`; production API `3930b6d5b`, web `d356d1b5d`, landing `20c1b0a90`. Owner order: `/crank` and `/sleep` stay on; finish every ticket. Owner question queue: one row (the Pullfrog token). No stash; every worktree is clean. The spec bullets hold each next step; the top tables of S `task-map.md` name each worktree, head, note and review file.
 
 | Item | Disposition |
 | --- | --- |
-| ui#2486, ui#2469, ui#2464, ui#2475, ui#2476, ui#2483, ui#2485, ui#2484, ui#2480, api#1121, api#1124, landing#137 | Pushed after a local review with no blocking finding; no Pullfrog review yet. Read `pr-bar.mjs`, rerun a cancelled `Tool tests` shard, ask Pullfrog when it works, merge at the bar, ui#2486 FIRST. landing#137 keeps a red `Build` until a patched `picomatch` exists. |
-| ui#2451 | Pushed at `e6e51aa5d` (round 26). `SonarCloud` stays red: one small round adds its web and Android mirror pairs to `sonar.cpd.exclusions`, as its spec bullet says. |
-| `#2152` | `ui#2488` is open at `43312fc91`, stacked on the ui#2486 branch (worktree `ticket-2152-run-state-github`): run the whole review (`whole - -`). Retarget it to `main` before the ui#2486 branch is deleted. |
-| `#2125` Part 5 | `thomasluizon/brain#2` is open and not reviewed: read S `report-2125-part5.md`, run one review agent on the whole diff, rebase, then merge. Tell the owner its items (student data in four record lines). |
+| ui#2486, ui#2488, ui#2469, ui#2464, ui#2475, ui#2476, ui#2483, ui#2485, ui#2484, ui#2480, api#1121, api#1124, landing#137 | Pushed after a local review with no blocking finding; no Pullfrog review yet. ui#2488 is stacked on the ui#2486 branch: retarget it to `main` before that branch is deleted. Read `pr-bar.mjs`, rerun a cancelled `Tool tests` shard, ask Pullfrog when it works, merge at the bar, ui#2486 FIRST. landing#137 keeps a red `Build` until a patched `picomatch` exists. |
+| ui#2451 | Round 27 is committed and NOT pushed (`b3a0b137a`, `57620f3a7`). Run the delta review of those commits, then merge `main`, push and wait for CI. |
+| api#1125 (`#2162`), api#1126 (`#2160`) | New stacked builds, not reviewed: run each whole review (`whole - -`); api#1126 then gets the provider probe and its second launch (spec bullet). |
+| `#2125` Part 5 | `thomasluizon/brain#2` is merged; two small steps are left (spec bullet). |
 | api#1120 | Green and approved at `d7596be4f`, behind `main`; its k=1 gate needs ui#2480 merged and the `#2135` baseline window. |
-| Releases | `node tools/release-plan.mjs`: web when `releaseCi` is `success` (staging first, then production), then landing, then the Android and iOS pair. No API release: its head holds no runtime change. |
-| `#2161`, `#2162`, `#2163`, `#2160`, `#2146` item 5, `#2125` Parts 3 and 4, ui#2453 | As their spec bullets say. |
+| Releases | Web and landing are live. Android Open 1.3.157 (218) is run 44274558335 and iOS 1.3.157 (7) is run 44274605446, both from `d356d1b5d`: read both runs, then add the iOS build to the outside group. No API release. |
+| `#2161`, `#2163`, `#2146` item 5, `#2125` Parts 3 and 4, ui#2453 | As their spec bullets say. ui#2453 starts after round 27 of ui#2451 is pushed. |
 | Intake | One cycle ran: no new Sentry event, mail, store review or alert. |
 
 ## Then, in this order
@@ -55,8 +55,8 @@ Unattended: never ask the owner; decide with the best option and log it. Keep a 
 
 ## Previous prompt, disposition
 
-- Done: the adoption; ui#2481 merged; `#2150` closed; `#2161`, `#2162` and `#2163` filed; twelve heads reviewed and pushed; one intake cycle.
-- Superseded: "start `#2152` when ui#2486 merges" (it runs stacked); the `pullfrog-approval` wait while Pullfrog is down.
+- Done: the adoption; the web and landing releases and the mobile pair dispatch; `thomasluizon/brain#2` merged; ui#2488 and ui#2484 fixed and pushed; the stacked builds of `#2162` and `#2160`; round 27 of ui#2451 committed; one intake cycle.
+- Superseded: "build `#2162` and `#2160` after their bases merge" (they run stacked); the `pullfrog-approval` wait while Pullfrog is down.
 - Carried: every In flight row and every standing order above.
 
 Treat every identifier here as a lead to verify.
