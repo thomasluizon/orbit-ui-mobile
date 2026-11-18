@@ -3,12 +3,15 @@ import { chmodSync, readFileSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 import { readRunState, writeRunState } from "../lib/run-state.mjs"
 import { T, realOrchestratorConfig, run, stageWithConfig } from "./_harness.mjs"
-import { CODE_SCANNING_ALERT, DEPENDABOT_ALERT, DEPENDABOT_PULL, NOT_FOUND, UNEXPECTED_PULL } from "./auto-work-github.mjs"
+import { API_SCAN_COMMIT, CODE_SCANNING_ALERT, DEPENDABOT_ALERT, DEPENDABOT_PULL, NOT_FOUND, UNEXPECTED_PULL } from "./auto-work-github.mjs"
 
 const CLOSED_TICKET_URL = "https://github.com/thomasluizon/orbit-tickets/issues/2140"
 /** The live output of the REST issue filter in tools/lib/github-issues.mjs for a closed ticket, with its body left out. */
 const ISSUE_2140 = { body: "", html_url: CLOSED_TICKET_URL, labels: [{ name: "repo:ui" }, { name: "Improvement" }, { name: "parity:no" }, { name: "needs:no-conversation" }],
   number: 2140, state: "CLOSED", state_reason: "COMPLETED", title: "Lay out borders in the mobile Yoga test helpers, so a geometry test sees the device size" }
+/** An owner pull request from an earlier run whose branch and title name ticket #2140, projected from the live api#1115 with its branch and title changed. */
+const CLOSED_TICKET_PULL = { number: 1115, author: "thomasluizon", authorType: "User", head: "fcfcc2d215a0eca16b43935efd77635bec167183", branch: "fix/ticket-2140-part-2", base: "main",
+  draft: false, title: "fix(test): lay out borders in the Yoga test helpers, part 2 (#2140)", url: "https://github.com/thomasluizon/orbit-api/pull/1115" }
 const quoted = (value) => JSON.stringify(value).replaceAll("'", "'\\''")
 
 /** The CLI against a gh stand-in whose answers are the live projections above. */
@@ -22,11 +25,12 @@ export const cases = () => {
 echo "$*" >> "${log}"
 case "$*" in
   "auth token --user thomasluizon") echo token-2149;;
-  "api repos/thomasluizon/orbit-tickets/issues/2140 --jq "*) printf '%s\\n' '${quoted(ISSUE_2140)}' | sed "s/\\"CLOSED\\"/\\"\${ISSUE_STATE:-OPEN}\\"/";;
+  "api repos/thomasluizon/orbit-tickets/issues/2140 --jq "*) printf '%s\\n' '${quoted(ISSUE_2140)}' | sed "s/\\"CLOSED\\"/\\"\${ISSUE_STATE:-OPEN}\\"/; s/\\"COMPLETED\\"/\\"\${ISSUE_REASON:-COMPLETED}\\"/";;
+  "api repos/thomasluizon/orbit-api/code-scanning/analyses?ref=refs/heads/main&per_page=1 --jq "*) printf '%s\\n' '{"commit":"${API_SCAN_COMMIT}"}';;
   "api --method PATCH --input - repos/"*)
     if [ -n "\${DISMISS_FAIL:-}" ]; then echo '${NOT_FOUND}' >&2; exit 1; fi
     cat > "${installation.base}/patch-\$(echo "$6" | tr '/' '_').json"; echo '{}';;
-  *"repos/thomasluizon/orbit-api/pulls?"*) printf '%s\\n' '${JSON.stringify(DEPENDABOT_PULL)}';;
+  *"repos/thomasluizon/orbit-api/pulls?"*) printf '%s\\n' '${JSON.stringify(DEPENDABOT_PULL)}'; if [ -n "\${OWNER_PULL:-}" ]; then printf '%s\\n' '${quoted(CLOSED_TICKET_PULL)}'; fi;;
   *"repos/thomasluizon/orbit-landing-page/pulls?"*) printf '%s\\n' '${JSON.stringify(UNEXPECTED_PULL)}';;
   *"repos/thomasluizon/orbit-api/code-scanning/alerts?"*) printf '%s\\n' '${quoted(CODE_SCANNING_ALERT)}';;
   *"repos/thomasluizon/orbit-ui-mobile/dependabot/alerts?"*) printf '%s\\n' '${quoted(DEPENDABOT_ALERT)}';;
@@ -77,6 +81,10 @@ esac
     ticketClosed.result.alerts?.pending.some((alert) => alert.key === "api code-scanning 28") &&
     JSON.stringify((ticketClosed.result.alerts.ticketClosed ?? []).map((alert) => [alert.key, alert.ticket])) === JSON.stringify([["api code-scanning 28", CLOSED_TICKET_URL]]),
   `${ticketClosed.status} ${ticketClosed.stdout}${ticketClosed.stderr}`)
+  T("github cli: a closed-ticket code scanning alert names the newest scan of main, and its waiter key is recorded",
+    ticketClosed.result.alerts?.ticketClosed?.[0]?.scannedCommit === API_SCAN_COMMIT &&
+    JSON.stringify(readRunState(installation.base).intake.alerts.ticketClosed) === JSON.stringify([`api code-scanning 28 ticket-closed ${API_SCAN_COMMIT}`]),
+  `${ticketClosed.stdout}${ticketClosed.stderr}`)
 
   /* The secret scanning item is seeded in run state: no repository has had a secret scanning alert to record. */
   const seeded = readRunState(installation.base)
@@ -103,6 +111,28 @@ esac
   const marks = readRunState(installation.base).intake.alerts.marks
   T("github cli: a dismissal records the false positive mark with its ticket and reason", ["api code-scanning 28", "ui dependabot 186", "landing secret-scanning 3"]
     .every((key) => marks[key]?.action === "false-positive" && marks[key].ticket === CLOSED_TICKET_URL && marks[key].reason === falsePositive.reason), JSON.stringify(marks))
+  /* An owner pull request that names a closed ticket has its own list, and the tool refuses to merge or fix it. */
+  const collectOwner = (issueState, issueReason) => {
+    const again = run("auto-work-github.mjs", ["--collect"], { path: installation.path, env: { ...env, OWNER_PULL: "1", ISSUE_STATE: issueState, ISSUE_REASON: issueReason } })
+    try { return { ...again, result: JSON.parse(again.stdout) } } catch { return { ...again, result: {} } }
+  }
+  const ownerOpen = collectOwner("OPEN", "COMPLETED")
+  T("github cli: an owner pull request whose ticket is open stays pending for adoption", ownerOpen.result.pullRequests?.pending.some((pull) => pull.key === "api#1115") &&
+    ownerOpen.result.pullRequests.ticketClosed?.length === 0, `${ownerOpen.status} ${ownerOpen.stdout}${ownerOpen.stderr}`)
+  const ownerClosed = collectOwner("CLOSED", "NOT_PLANNED")
+  T("github cli: an owner pull request whose ticket closed is listed in ticketClosed with the close reason and is not pending",
+    !ownerClosed.result.pullRequests?.pending.some((pull) => pull.key === "api#1115") &&
+    JSON.stringify((ownerClosed.result.pullRequests?.ticketClosed ?? []).map((pull) => [pull.key, pull.closedTickets])) ===
+      JSON.stringify([["api#1115", [{ number: 2140, stateReason: "NOT_PLANNED" }]]]), `${ownerClosed.status} ${ownerClosed.stdout}${ownerClosed.stderr}`)
+  const closedMerge = run("auto-work-github.mjs", ["--mark", "pullRequests"], { path: installation.path, env,
+    input: JSON.stringify({ key: "api#1115", head: CLOSED_TICKET_PULL.head, action: "merged" }) })
+  const closedReport = run("auto-work-github.mjs", ["--mark", "pullRequests"], { path: installation.path, env,
+    input: JSON.stringify({ key: "api#1115", head: CLOSED_TICKET_PULL.head, action: "reported" }) })
+  const afterReport = collectOwner("CLOSED", "NOT_PLANNED")
+  T("github cli: a pull request of a closed ticket is never merged, is reported once and leaves the list", closedMerge.status === 1 &&
+    closedMerge.stderr.includes("never merged or fixed") && closedReport.status === 0 && afterReport.result.pullRequests?.ticketClosed?.length === 0 &&
+    !afterReport.result.pullRequests.pending.some((pull) => pull.key === "api#1115"), `${closedMerge.stderr}${closedReport.stderr}${afterReport.stdout}`)
+
   const foreign = run("auto-work-github.mjs", ["--collect"], { path: installation.path, env: { ...env, CLAUDE_CODE_SESSION_ID: "foreign" } })
   T("github cli: another session cannot write the intake", foreign.status === 1 && foreign.stderr.includes("No matching active auto-work run"), foreign.stderr)
 }

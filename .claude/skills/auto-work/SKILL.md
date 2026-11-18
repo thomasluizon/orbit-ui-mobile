@@ -132,9 +132,12 @@ for the successor.
    list together with the configuration that lets it open pull requests. The tool prints
    `pending`: each pull request from a configured author with no mark, or whose head moved after
    its mark. This includes an owner pull request that an earlier run opened. A pull request in
-   `runOwned` is the work of this run: the run recorded it in `pullRequests` or the readiness
-   ledger, or the owner account opened it with a `ticket-<N>-` branch or a `(#N)` title for a
-   ticket in `remaining`. Step 2 drives it, so skip it here. Exit 3 means at least one read
+   `runOwned` is the work of this run. The owner account opened it, and the run recorded it in
+   `pullRequests` or the readiness ledger, or its branch or title names a ticket in `remaining`
+   (`ticket-<N>-`, `(#N)` or `ORB-N`). The tool resolves each name and each `remaining` entry
+   to the GitHub issue number, so `#33` and `ORB-27` are one ticket. A bot pull request is
+   never run owned, also when the run recorded it. Step 2 drives a run-owned pull request, so
+   skip it here. Exit 3 means at least one read
    failed: the tool names it in `failures` and keeps that read's previous items. Log each
    failure and retry next cycle.
 
@@ -149,6 +152,17 @@ for the successor.
    ticket to `remaining` through `updateRunState` and read back the queue. Then drive the pull
    request through `/orchestrate` from its step 7, as for a salvaged pull request. The next
    `--collect` lists it in `runOwned`.
+
+   An owner pull request in `ticketClosed` names only tickets that are closed. Each entry
+   carries `closedTickets`, with the number and the `stateReason` of each ticket. It is never
+   in `pending`, and the tool refuses `merged` and `fix` for it. Never merge it:
+   - When every ticket closed as `COMPLETED`, the work landed in another pull request. Close
+     it as superseded with `gh pr close <n> --repo <owner/name> --comment <reason>`, and name
+     the pull request or the commit that carried the ticket. Record `action: closed` with that
+     reason.
+   - For every other close reason (`NOT_PLANNED`, `DUPLICATE` or none), put it to the owner
+     through `/questions` with its repository, number, tickets and link. Record
+     `action: reported`, so a new head does not ask again.
 
    For each other pending pull request, read its diff, checks, review threads and base first.
    Then do one of these:
@@ -190,8 +204,10 @@ for the successor.
    `node tools/auto-work-github.mjs --mark alerts` and `{key, action: ticket, ticket, cause}`.
    An alert closes only when its fix is on the default branch and the next scan shows it as
    fixed. An alert in `ticketClosed` is still open after its carrying ticket closed, so it is
-   pending again. Compare the newest scan of the default branch with the merge of the fix
-   first. When the scan is older than the merge, wait for the next cycle. When it is newer, the
+   pending again. For code scanning, `scannedCommit` names the commit of the newest scan of the
+   default branch. Compare it with the merge of the fix first. When the scan is older than the
+   merge, do nothing more for that alert in this cycle: the next scan of the default branch
+   changes its waiter key and wakes the model again. When it is newer, the
    fix did not remove the alert: reopen the ticket or write a new one with the alert, and mark
    the alert again. Never dismiss an alert to empty the list. Dismiss it only when the analysis proves a
    false positive. Write that analysis on its ticket first. Then run
@@ -236,7 +252,10 @@ fifteen-minute interval, the waiter checks the sources itself, with no model cal
   request or a new head is a new key. It skips the pull requests of this run. A pull request
   from an unexpected author has a key without its head, so it wakes the model only once;
 - the open code scanning, secret scanning and Dependabot alerts of the same repositories. One
-  key is the repository, the alert kind and the alert number.
+  key is the repository, the alert kind and the alert number. An open alert whose carrying
+  ticket is closed has a second key, `<alert key> ticket-closed`. For code scanning that key
+  also names the commit of the newest scan of `main`. Thus the close of the ticket wakes the
+  model once, and a newer scan that still finds the alert wakes it once more.
 
 The pull request and alert keys from the last step 7 collection count as seen. A read that
 fails is a named failure; a source with no successful read keeps its seen keys.

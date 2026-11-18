@@ -1,6 +1,7 @@
 #!/usr/bin/env node
-import { alertsWithClosedTickets, autoWorkRepositories, dismissAlert, githubPageReader, githubWriter, INTAKE_GITHUB_SOURCES, listOpenAlerts, listOpenPullRequests, markItem,
-  pendingItems, recordListing, unreportedPullRequests } from "./lib/auto-work-github.mjs"
+import { alertsWithClosedTickets, autoWorkRepositories, closedTicketPullRequests, dismissAlert, githubPageReader, githubWriter, INTAKE_GITHUB_SOURCES, listOpenAlerts,
+  listOpenPullRequests, markItem, newestScanCommit, pendingItems, pullRequestsWithClosedTickets, recordClosedTicketPullRequests, recordListing,
+  recordTicketClosedAlertKeys, ticketClosedWakeKey, unreportedPullRequests } from "./lib/auto-work-github.mjs"
 import { readTicket } from "./lib/github-issues.mjs"
 import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
 
@@ -9,19 +10,26 @@ Lists every open pull request and every open alert (code scanning, secret scanni
 of the ui, api and landing repositories, every author and every page, for auto-work steps 7 and 8.
 --collect      writes intake.pullRequests and intake.alerts, reads them back and prints
                {pullRequests, alerts}, each with open, pending (items with no mark, or a pull
-               request whose head moved) and failures. pullRequests adds runOwned (the pull
-               requests the run recorded, and the owner pull requests whose branch or title
-               names a ticket in remaining) and unexpectedAuthor: the pull requests whose author
-               is not a configured bot of its repository or the repository owner, and that have
-               no reported mark. They are never pending. alerts adds ticketClosed: the open
-               alerts whose carrying ticket is closed, each with its ticket; they are pending
-               again. A failed read, also a failed ticket read, is named in failures; a failed
-               list read keeps its previous items, and it is never an empty source.
+               request whose head moved) and failures. pullRequests adds runOwned (the owner
+               pull requests that the run recorded or whose branch or title names a ticket in
+               remaining, each name resolved to its GitHub issue number) and
+               unexpectedAuthor: the pull requests whose author is not a configured bot of its
+               repository or the repository owner, and that have no reported mark. pullRequests also adds ticketClosed: the owner pull requests
+               with no mark at their head whose every named ticket (ticket-<N>-, (#N) or
+               ORB-N in the branch or the title) is closed, each with closedTickets
+               [{number, stateReason}]. Neither list is pending. A pull request whose ticket
+               read failed is not pending in that collection. alerts adds ticketClosed: the
+               open alerts whose carrying ticket is closed, each with its ticket and, for code
+               scanning, scannedCommit (the commit of the newest scan of main); they are
+               pending again. A failed read, also a failed ticket or scan read, is named in
+               failures; a failed list read keeps its previous items, and it is never an empty
+               source.
 --mark <source> stdin JSON receipt for one open item:
                pullRequests {key, head, action: merged|fix|closed|reported, ticket?, reason?}
                  fix needs ticket (an orbit-tickets issue URL); closed needs reason; head must be
-                 the current head. reported is the only action for an unexpected author, and
-                 only for one.
+                 the current head. reported is the only action for an unexpected author. A
+                 pull request in ticketClosed takes only closed or reported. No other pull
+                 request is reported.
                alerts {key, action: ticket, ticket, cause}
 --dismiss      stdin JSON receipt {key, ticket, reason} for one open alert that the analysis on
                its ticket proves a false positive. Dismisses it on GitHub with the request of its
@@ -57,13 +65,17 @@ try {
   }
   const reading = { repositories, readPages: githubPageReader({ config }) }
   const [pullListing, alertListing] = await Promise.all([listOpenPullRequests(reading), listOpenAlerts(reading)])
-  const pulls = recordListing("pullRequests", pullListing)
+  const readTicketState = (number) => readTicket(number, { withProjectItem: false })
+  const pullTickets = await pullRequestsWithClosedTickets(recordListing("pullRequests", pullListing), readTicketState)
+  const pulls = recordClosedTicketPullRequests(pullTickets.items)
   const openPulls = Object.values(pulls.open)
   const alerts = recordListing("alerts", alertListing)
-  const closedTickets = await alertsWithClosedTickets(alerts, async (number) => (await readTicket(number, { withProjectItem: false })).state)
+  const closedTickets = await alertsWithClosedTickets(alerts, { readTicketState, readNewestScan: (key) => newestScanCommit(reading, key) })
+  recordTicketClosedAlertKeys(closedTickets.items.map(ticketClosedWakeKey))
   const result = {
-    pullRequests: { open: openPulls.length, pending: pendingItems("pullRequests", pulls), runOwned: openPulls.filter((pull) => pull.runOwned).map((pull) => pull.key),
-      unexpectedAuthor: unreportedPullRequests(pulls), failures: pullListing.failures },
+    pullRequests: { open: openPulls.length, pending: pendingItems("pullRequests", pulls).filter((pull) => !pullTickets.unreadKeys.includes(pull.key)),
+      runOwned: openPulls.filter((pull) => pull.runOwned).map((pull) => pull.key), unexpectedAuthor: unreportedPullRequests(pulls),
+      ticketClosed: closedTicketPullRequests(pulls), failures: [...pullListing.failures, ...pullTickets.failures] },
     alerts: { open: Object.keys(alerts.open).length, pending: [...pendingItems("alerts", alerts), ...closedTickets.items], ticketClosed: closedTickets.items,
       failures: [...alertListing.failures, ...closedTickets.failures] },
   }

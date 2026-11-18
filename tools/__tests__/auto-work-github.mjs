@@ -9,8 +9,13 @@ import { T, TOOLS_DIR, root } from "./_harness.mjs"
 const REPOSITORIES = [{ key: "ui", slug: "thomasluizon/orbit-ui-mobile" }, { key: "api", slug: "thomasluizon/orbit-api" },
   { key: "landing", slug: "thomasluizon/orbit-landing-page" }]
 const TICKET = "https://github.com/thomasluizon/orbit-tickets/issues/2149"
+/** The commit of the newest code scanning analysis of orbit-api main, from a live read of code-scanning/analyses?ref=refs/heads/main&per_page=1. */
+export const API_SCAN_COMMIT = "38513551ad4eb24eb93a8c7bc33891a4920bce89"
 
-/* Each item is a live projection of a real REST response; the pull requests and the alerts are closed ones, read with their state filter removed. */
+/*
+ * Each item is a live projection of a real REST response. OWNER_PULL (ui#2473) is an open owner pull request; the other pull requests and the
+ * alerts are closed ones, read with their state filter removed.
+ */
 export const DEPENDABOT_PULL = { number: 1106, author: "dependabot[bot]", authorType: "Bot", head: "1eb7c13b62064064a60a3589eff1b1812f39190e",
   branch: "dependabot/nuget/src/Orbit.Infrastructure/System.Formats.Cbor-10.0.15", base: "main", draft: false, title: "Bump System.Formats.Cbor from 10.0.14 to 10.0.15", url: "https://github.com/thomasluizon/orbit-api/pull/1106" }
 const OWNER_PULL = { number: 2473, author: "thomasluizon", authorType: "User", head: "859e0638209bff39521cb381642f00d203f75116", branch: "fix/ticket-2144-icon-eyes", base: "main", draft: false,
@@ -152,8 +157,8 @@ const stateCases = async ({ pullListing, alertListing }) => {
   T("github: a pull request from an unexpected author is never merged, fixed or closed", ["merged", "closed", "fix"].every((action) =>
     refusal(() => markItem("pullRequests", { key: "landing#20", head: UNEXPECTED_PULL.head, action, ticket: TICKET, reason: "Superseded." }, checkout)) ===
     "a pull request from an unexpected author is never merged, fixed or closed; report it to the owner"))
-  T("github: only a pull request from an unexpected author is reported", refusal(() => markItem("pullRequests", { key: "api#1106", head: DEPENDABOT_PULL.head,
-    action: "reported" }, checkout)) === "only a pull request from an unexpected author is reported")
+  T("github: only a pull request from an unexpected author or with closed tickets is reported", refusal(() => markItem("pullRequests", { key: "api#1106", head: DEPENDABOT_PULL.head,
+    action: "reported" }, checkout)) === "only a pull request from an unexpected author or with closed tickets is reported")
   const reported = markItem("pullRequests", { key: "landing#20", head: UNEXPECTED_PULL.head, action: "reported" }, checkout)
   T("github: a reported pull request from an unexpected author is not reported again", unreportedPullRequests(reported).length === 0 &&
     readRunState(checkout).intake.pullRequests.marks["landing#20"].action === "reported")
@@ -230,6 +235,71 @@ const ownershipCases = async ({ pullListing }) => {
     JSON.stringify([`ui#2462 ${CONTRACT_PULL.head}`, `api#1106 ${DEPENDABOT_PULL.head}`, `api#1115 ${EARLIER_OWNER_PULL.head}`, "landing#20"]), JSON.stringify(keys))
 }
 
+/** Open ticket #33 is the migrated ORB-27 (.claude/linear-to-github-map.json), so remaining can name it either way, and so can a branch or a title. */
+const migratedOwnershipCases = async ({ pullListing }) => {
+  const migrated = [{ ...OWNER_PULL, number: 5, head: "5".repeat(40), branch: "fix/ticket-33-migrated", title: "docs: record the demo clips (#33)" },
+    { ...OWNER_PULL, number: 6, head: "6".repeat(40), branch: "fix/orb-27-migrated", title: "docs: record the demo clips (ORB-27)" },
+    { ...OWNER_PULL, number: 7, head: "7".repeat(40), branch: "fix/orb-99999-unknown", title: "docs: a name outside the migration map (ORB-99999)" }]
+  const listing = { ...pullListing, items: [...pullListing.items, ...(await listOpenPullRequests({ repositories: REPOSITORIES,
+    readPages: fakeReader({ "repos/thomasluizon/orbit-ui-mobile/pulls": migrated }).readPages })).items] }
+  for (const name of ["#33", "ORB-27"]) {
+    const checkout = fresh(`migrated-${name.replace("#", "")}`, { remaining: ["#2144", "#2149", name] })
+    const pulls = recordListing("pullRequests", listing, checkout)
+    T(`github: with ${name} in remaining, the #33 and the ORB-27 owner pull requests are both run owned`, pulls.open["ui#5"]?.runOwned === true &&
+      pulls.open["ui#6"]?.runOwned === true && !pendingItems("pullRequests", pulls).some((pull) => ["ui#5", "ui#6"].includes(pull.key)), JSON.stringify([pulls.open["ui#5"], pulls.open["ui#6"]]))
+    T(`github: with ${name} in remaining, an ORB-N outside the migration map names no ticket and stays pending`, pulls.open["ui#7"]?.runOwned === false &&
+      pendingItems("pullRequests", pulls).some((pull) => pull.key === "ui#7"))
+  }
+}
+
+/** The run records bot pull requests too (the live run state records Dependabot api#1106), but only an owner pull request is ever the run's own. */
+const recordedAuthorCases = async ({ pullListing }) => {
+  const checkout = fresh("recorded-authors", { remaining: ["#2144"], pullRequests: [{ repositoryKey: "api", prNumber: 1106 }, { repositoryKey: "landing", prNumber: 20 }],
+    readinessLedger: [{ repositoryKey: "ui", prNumber: 2462, receiptPath: "receipt-2462.json" }] })
+  const pulls = recordListing("pullRequests", pullListing, checkout)
+  T("github: a recorded Dependabot, contract bot or unexpected author pull request is not run owned", ["api#1106", "ui#2462", "landing#20"]
+    .every((key) => pulls.open[key]?.runOwned === false), JSON.stringify(Object.values(pulls.open).map((pull) => [pull.key, pull.runOwned])))
+  T("github: a recorded bot pull request stays pending and a recorded unexpected author waits for its report",
+    pendingItems("pullRequests", pulls).some((pull) => pull.key === "api#1106") && unreportedPullRequests(pulls).some((pull) => pull.key === "landing#20"))
+  const keys = await pullRequestCheck({ list: async () => pullListing, readState: () => readRunState(checkout) })()
+  T("github: the waiter keeps the keys of a recorded bot and a recorded unexpected author pull request", keys.keys.includes(`api#1106 ${DEPENDABOT_PULL.head}`) &&
+    keys.keys.includes("landing#20") && keys.keys.includes(`ui#2462 ${CONTRACT_PULL.head}`), JSON.stringify(keys))
+}
+
+/* An open alert whose carrying ticket closes wakes the idle waiter once, and the next scan that still finds it wakes it once more. */
+const closedTicketAlertWakeCases = async () => {
+  const listing = await listOpenAlerts({ repositories: REPOSITORIES, readPages: fakeReader({ "repos/thomasluizon/orbit-api/code-scanning": [CODE_SCANNING_ALERT] }).readPages })
+  const state = { intake: { alerts: { marks: { "api code-scanning 28": { action: "ticket", ticket: TICKET, cause: "The test fixture sets Secure false on purpose." } } } } }
+  let ticket = { state: "OPEN", stateReason: null }
+  let scan = API_SCAN_COMMIT
+  const ticketReads = []
+  const check = { source: "alerts", run: alertCheck({ list: async () => listing, readState: () => state,
+    readTicketState: async (number) => { ticketReads.push(number); if (ticket instanceof Error) throw ticket; return { number, ...ticket } }, readNewestScan: async () => scan }) }
+  let marks = { seen: { alerts: ["api code-scanning 28"] }, failures: {}, sentryListedAt: new Date(0).toISOString() }
+  const interval = async () => {
+    const evaluated = evaluateChecks([check], await Promise.allSettled([check.run()]), marks, 0)
+    marks = evaluated.marks
+    return evaluated.wakes
+  }
+  const open = await interval()
+  ticket = { state: "CLOSED", stateReason: "COMPLETED" }
+  const closed = await interval()
+  const again = await interval()
+  ticket = new Error("GitHub read failed at repos/thomasluizon/orbit-tickets/issues/2149: timed out")
+  const failed = await interval()
+  ticket = { state: "CLOSED", stateReason: "COMPLETED" }
+  const recovered = await interval()
+  scan = "a".repeat(40)
+  const rescanned = await interval()
+  T("github: an open ticketed alert wakes nothing while its ticket is open", open.length === 0 && ticketReads[0] === 2149, JSON.stringify(open))
+  T("github: the close of the carrying ticket of an open alert wakes the waiter once with alerts", JSON.stringify(closed) ===
+    JSON.stringify([{ source: "alerts", kind: "new", items: [`api code-scanning 28 ticket-closed ${API_SCAN_COMMIT}`] }]) && again.length === 0, JSON.stringify({ closed, again }))
+  T("github: a failed ticket read wakes once as a failure and its recovery wakes nothing", failed.length === 1 && failed[0].kind === "failure" &&
+    recovered.length === 0, JSON.stringify({ failed, recovered }))
+  T("github: a newer scan that still finds the alert wakes the waiter once more", JSON.stringify(rescanned) ===
+    JSON.stringify([{ source: "alerts", kind: "new", items: [`api code-scanning 28 ticket-closed ${"a".repeat(40)}`] }]), JSON.stringify(rescanned))
+}
+
 /* The same failure wakes the model once: a read that fails keeps its seen keys, so its recovery is not new. */
 const failedReadCases = async () => {
   const healthy = { "repos/thomasluizon/orbit-api/pulls": [DEPENDABOT_PULL], "repos/thomasluizon/orbit-ui-mobile/pulls": [CONTRACT_PULL],
@@ -268,6 +338,10 @@ const skillCases = () => {
   waiters.join("\n"))
   T("github skill: the close of a pull request and the dismissal of an alert name their commands",
     skill.includes("gh pr close <n> --repo <owner/name> --comment <reason>") && skill.includes("node tools/auto-work-github.mjs --dismiss"))
+  const closedTicketRule = skill.slice(skill.indexOf("An owner pull request in `ticketClosed`"), skill.indexOf("For each other pending pull request"))
+  T("github skill: step 7 never merges a pull request of a closed ticket, closes it when completed and asks the owner otherwise",
+    closedTicketRule.includes("Never merge it") && closedTicketRule.includes("`COMPLETED`") && closedTicketRule.includes("superseded") &&
+    closedTicketRule.includes("`NOT_PLANNED`") && closedTicketRule.includes("`/questions`"), closedTicketRule)
 }
 
 const checkCases = async ({ pullListing, alertListing }) => {
@@ -291,6 +365,9 @@ export const cases = async () => {
   await readerCases()
   await stateCases(listings)
   await ownershipCases(listings)
+  await migratedOwnershipCases(listings)
+  await recordedAuthorCases(listings)
+  await closedTicketAlertWakeCases()
   await failedReadCases()
   skillCases()
   await checkCases(listings)
