@@ -76,8 +76,10 @@ for the successor.
 4. Read the Orbit mailbox with `node tools/orbit-mail.mjs --collect`. This uses the Gmail API
    as `contact@useorbit.org`; the claude.ai Gmail connection reads a different mailbox and
    cannot substitute. Exhaust all pages. The tool scans received message ids, including spam
-   and trash, without an age cutoff or an ordering assumption; it fetches bodies only for ids
-   absent from completed state and from completely read pending items. Every text MIME part
+   and trash, without an age cutoff or an ordering assumption; it reads each id absent from
+   completed state again from Gmail and prints its content. The intake file keeps only ids,
+   thread ids, completeness and reply receipts, never text, sender or subject, and it is written
+   once per mailbox page. Drafting and sending read the reply headers from Gmail by id. Every text MIME part
    behind `attachmentId` is fetched through Gmail's attachments endpoint. Unreadable parts
    retain their identifiers and mark the message incomplete; replies remain drafts regardless
    of classification. The next collection retries incomplete messages while preserving reply

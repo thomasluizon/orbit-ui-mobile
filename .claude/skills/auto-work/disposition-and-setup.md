@@ -58,7 +58,7 @@ After ticketing and confirming the required send or draft, acknowledge through `
 reviews also include `reply`. Include the same reply policy fields used for disposition.
 The tool requires the carrying ticket for bugs and requests and a saved reply for a person;
 a simple reply also requires durable send confirmation. Receipts, pending items and high-water marks live in the
-untracked run state's `intake`. Never clear completed ids to shorten a relay.
+intake file on GitHub. Never clear completed ids to shorten a relay.
 
 ## One-time mailbox setup, after merge
 
