@@ -1,6 +1,3 @@
-import { Duplex } from 'node:stream'
-import { createBrotliCompress, createDeflate, createGzip } from 'node:zlib'
-
 const CLIENT_CLOSED_REQUEST = 499
 const POSTHOG_PATH_PREFIXES = [
   '/e/', '/s/', '/i/', '/flags/', '/static/', '/array/',
@@ -10,13 +7,6 @@ const POSTHOG_PATH_PREFIXES = [
 const POSTHOG_ORIGINS = {
   api: 'https://us.i.posthog.com',
   assets: 'https://us-assets.i.posthog.com',
-}
-
-const CONTENT_ENCODERS: Record<string, (() => Duplex) | undefined> = {
-  gzip: createGzip,
-  'x-gzip': createGzip,
-  deflate: createDeflate,
-  br: createBrotliCompress,
 }
 
 function endToEndHeaders(original: Headers): Headers {
@@ -29,18 +19,10 @@ function endToEndHeaders(original: Headers): Headers {
   return headers
 }
 
-function restoreFetchContentEncoding(upstream: Response): ReadableStream<Uint8Array> | null {
-  let body: ReadableStream<Uint8Array> | null = upstream.body
-  const encoding = upstream.headers.get('content-encoding')
-  if (!body || !encoding) return body
-  const encoders = encoding.toLowerCase().split(',').map(coding => CONTENT_ENCODERS[coding.trim()])
-  if (encoders.some(encoder => !encoder)) return body
-  for (const encoder of encoders) {
-    if (encoder) {
-      body = body.pipeThrough(Duplex.toWeb(encoder()) as ReadableWritablePair<Uint8Array, Uint8Array>)
-    }
-  }
-  return body
+function fetchDecodedBodyHeaders(upstream: Headers): Headers {
+  const headers = endToEndHeaders(upstream)
+  headers.delete('content-encoding')
+  return headers
 }
 
 function postHogDestination(requestUrl: string): URL | null {
@@ -83,10 +65,10 @@ async function forwardPostHog(request: Request): Promise<Response> {
     if (request.signal.aborted) return new Response(null, { status: CLIENT_CLOSED_REQUEST })
     throw error
   }
-  return new Response(restoreFetchContentEncoding(upstream), {
+  return new Response(upstream.body, {
     status: upstream.status,
     statusText: upstream.statusText,
-    headers: endToEndHeaders(upstream.headers),
+    headers: fetchDecodedBodyHeaders(upstream.headers),
   })
 }
 

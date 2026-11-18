@@ -85,8 +85,8 @@ Automatic resend requires the API idempotency contract tracked by #1675.
 PostHog's `/ingest` route streams through a Route Handler instead of Next.js's external
 rewrite proxy. Static SDK and `/array` configuration requests use the US asset host; all
 other paths use the US ingestion host. The handler strips application credentials and
-hop-by-hop headers and restores the content encoding decoded by Node's fetch before
-streaming the response. Keep the SDK's `api_host` at `/ingest` and preserve trailing slashes.
+hop-by-hop headers and streams the body that Node's fetch decoded, without the upstream
+`content-encoding` header. Keep the SDK's `api_host` at `/ingest` and preserve trailing slashes.
 
 Browser Sentry envelopes post to the `/monitoring` Route Handler through the SDK's `tunnel`
 option, not through the `withSentryConfig` `tunnelRoute` rewrite. Next.js forwards every
