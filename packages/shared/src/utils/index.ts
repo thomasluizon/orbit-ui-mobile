@@ -932,8 +932,8 @@ export { SETTLE_DELAY_MS } from './engagement-prompt-timing'
 export { AuthRefreshNetworkError, isNetworkUnavailableError } from './network-error'
 export { buildBulkCompletionChunks, getBulkCompletionReplay, normalizeBulkCompletionInput, isBulkGatewayFailure } from './bulk-completion'
 export type { BulkCompletionInput, BulkRetryChunk } from './bulk-completion'
-export { subscribeOrbitLoop, getOrbitLoopVersion, setOrbitMotionEnabled, isOrbitMotionEnabled, pauseOrbitLoopForOverlay, claimOrbitLiveSlot, mayOrbitRunLoop } from './orbit-mascot-loop'
-export type { OrbitOverlay } from './orbit-mascot-loop'
+export { subscribeOrbitLoop, getOrbitLoopVersion, setOrbitMotionEnabled, isOrbitMotionEnabled, pauseOrbitLoopForOverlay, claimOrbitLiveSlot, mayOrbitRunLoop, runOrbitLoopClock, runOrbitReadClock } from './orbit-mascot-loop'
+export type { OrbitFrameScheduler, OrbitOverlay } from './orbit-mascot-loop'
 export {
   remainingHabitFlowSteps,
   readPhraseCoverage,

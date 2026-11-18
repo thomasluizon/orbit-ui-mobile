@@ -15,8 +15,8 @@ import {
   ORBIT_SMALL_FACES,
   isOrbitMascotSmallSize,
   orbitBlinkMatrix,
+  orbitMascotDrawnFrame,
   orbitMascotFrame,
-  orbitPausedFrame,
   orbitMascotHeight,
   orbitMascotSizeFor,
   orbitOutlineCutout,
@@ -92,10 +92,11 @@ describe('the rest frame', () => {
     expect(orbitMascotFrame(mascotMotion.blinkInterval * 0.5, mascotMotion).blinkScale).toBe(1)
   })
 
-  it('opens both eyes of a mascot whose loop does not run, and keeps every other part of the frame', () => {
-    const blinking = orbitMascotFrame(mascotMotion.blinkInterval * 0.96, mascotMotion)
-    expect(orbitPausedFrame(blinking, true)).toBe(blinking)
-    expect(orbitPausedFrame(blinking, false)).toEqual({ ...blinking, blinkScale: 1 })
+  it('draws the frame of the clock while the Orbit runs, and the same pose with open eyes when it stops in a blink', () => {
+    const inBlink = mascotMotion.blinkInterval * 0.96
+    expect(orbitMascotDrawnFrame(inBlink, mascotMotion, true)).toEqual(orbitMascotFrame(inBlink, mascotMotion))
+    expect(orbitMascotDrawnFrame(inBlink, mascotMotion, false)).toEqual({ ...orbitMascotFrame(inBlink, mascotMotion), blinkScale: 1 })
+    expect(orbitMascotDrawnFrame(inBlink, mascotMotion, false, 0.5)).toEqual({ ...orbitMascotFrame(inBlink, mascotMotion, 0.5), blinkScale: 1 })
   })
 
   it('closes an eye about its own centre line, so the line stays where it was', () => {

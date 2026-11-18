@@ -1,12 +1,19 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import { conversationMascotState } from '../chat/composer-controls'
+import { ORBIT_MASCOT_MAX_FRAME_STEP_MS } from '../contracts/brand'
+import { mascotMotion } from '../theme'
 import {
+  advanceOrbitLoopClock,
   claimOrbitLiveSlot,
   getOrbitLoopVersion,
+  joinOrbitLoopClock,
   mayOrbitRunLoop,
   pauseOrbitLoopForOverlay,
+  runOrbitLoopClock,
+  runOrbitReadClock,
   setOrbitMotionEnabled,
   subscribeOrbitLoop,
+  type OrbitFrameScheduler,
 } from '../utils/orbit-mascot-loop'
 
 afterEach(() => setOrbitMotionEnabled(undefined))
@@ -138,12 +145,59 @@ describe('Orbit idle loop permission', () => {
     const emptyState = Symbol('empty-state')
     const entry = Symbol('entry')
     const releaseEmptyState = claimOrbitLiveSlot(emptyState)
-    const releaseEntry = claimOrbitLiveSlot(entry, null, true)
+    const releaseEntry = claimOrbitLiveSlot(entry, null, 'lead')
     expect(mayOrbitRunLoop(entry)).toBe(true)
     expect(mayOrbitRunLoop(emptyState)).toBe(false)
     releaseEntry()
     expect(mayOrbitRunLoop(emptyState)).toBe(true)
     releaseEmptyState()
+  })
+
+  it('runs the conversation entry and every Orbit line of its view together, and keeps any other Orbit still', () => {
+    const emptyState = Symbol('empty-state')
+    const summary = Symbol('summary')
+    const proactive = Symbol('proactive')
+    const entry = Symbol('entry')
+    const releaseEmptyState = claimOrbitLiveSlot(emptyState)
+    const releaseSummary = claimOrbitLiveSlot(summary, null, 'withLead')
+    const releaseProactive = claimOrbitLiveSlot(proactive, null, 'withLead')
+    const releaseEntry = claimOrbitLiveSlot(entry, null, 'lead')
+    expect([entry, summary, proactive, emptyState].map(mayOrbitRunLoop)).toEqual([true, true, true, false])
+    releaseEntry()
+    expect([summary, proactive, emptyState].map(mayOrbitRunLoop)).toEqual([false, false, true])
+    releaseEmptyState()
+    expect([summary, proactive].map(mayOrbitRunLoop)).toEqual([false, false])
+    releaseSummary()
+    releaseProactive()
+  })
+
+  it('keeps an Orbit line still on a view without the conversation entry, and runs the first other Orbit even when the line claims first', () => {
+    const summary = Symbol('summary')
+    const emptyState = Symbol('empty-state')
+    const releaseSummary = claimOrbitLiveSlot(summary, null, 'withLead')
+    const releaseEmptyState = claimOrbitLiveSlot(emptyState)
+    expect([summary, emptyState].map(mayOrbitRunLoop)).toEqual([false, true])
+    releaseEmptyState()
+    releaseSummary()
+  })
+
+  it('pauses the entry and its Orbit lines together under an overlay and when the switch is off', () => {
+    const summary = Symbol('summary')
+    const entry = Symbol('entry')
+    const inSheet = Symbol('in-sheet')
+    const sheet = Symbol('sheet')
+    const releaseSummary = claimOrbitLiveSlot(summary, null, 'withLead')
+    const releaseEntry = claimOrbitLiveSlot(entry, null, 'lead')
+    const closeSheet = pauseOrbitLoopForOverlay(sheet)
+    const releaseInSheet = claimOrbitLiveSlot(inSheet, sheet)
+    expect([entry, summary, inSheet].map(mayOrbitRunLoop)).toEqual([false, false, true])
+    releaseInSheet()
+    closeSheet()
+    expect([entry, summary].map(mayOrbitRunLoop)).toEqual([true, true])
+    setOrbitMotionEnabled(false)
+    expect([entry, summary].map(mayOrbitRunLoop)).toEqual([false, false])
+    releaseEntry()
+    releaseSummary()
   })
 
   it('notifies subscribers and changes its version on each change', () => {
@@ -156,6 +210,148 @@ describe('Orbit idle loop permission', () => {
     stop()
     setOrbitMotionEnabled(true)
     expect(calls).toBe(1)
+  })
+})
+
+describe('Orbit shared loop clock', () => {
+  const frame = mascotMotion.frameInterval
+
+  it('counts each frame once when two running Orbits advance it with the same timestamp', () => {
+    const leaveEntry = joinOrbitLoopClock(0)
+    const leaveSummary = joinOrbitLoopClock(0)
+    const start = advanceOrbitLoopClock(1000)
+    expect(advanceOrbitLoopClock(1000)).toBe(start)
+    const next = advanceOrbitLoopClock(1000 + frame)
+    expect(advanceOrbitLoopClock(1000 + frame)).toBe(next)
+    expect(next - start).toBe(frame)
+    expect(advanceOrbitLoopClock(1000 + frame / 2)).toBe(next)
+    leaveEntry()
+    leaveSummary()
+  })
+
+  it('draws on one grid of the frame interval, so two Orbits that read it in different frames draw the same pose', () => {
+    const leave = joinOrbitLoopClock(0)
+    const start = advanceOrbitLoopClock(2000)
+    expect(start % frame).toBe(0)
+    expect(advanceOrbitLoopClock(2000 + frame / 3)).toBe(start)
+    expect(advanceOrbitLoopClock(2000 + frame * 2) - start).toBe(frame * 2)
+    leave()
+  })
+
+  it('caps one step and does not count the time while no Orbit runs', () => {
+    const leave = joinOrbitLoopClock(0)
+    const start = advanceOrbitLoopClock(5000)
+    const paused = advanceOrbitLoopClock(9000)
+    leave()
+    leave()
+    const leaveAgain = joinOrbitLoopClock(paused)
+    const resumed = advanceOrbitLoopClock(60_000)
+    const next = advanceOrbitLoopClock(60_000 + frame)
+    leaveAgain()
+    expect(paused - start).toBe(Math.round(ORBIT_MASCOT_MAX_FRAME_STEP_MS / frame) * frame)
+    expect(resumed).toBe(paused)
+    expect(next - resumed).toBe(frame)
+  })
+
+  it('starts from the time of the first Orbit that joins, and gives a later Orbit the shared time', () => {
+    const leaveOther = joinOrbitLoopClock(0)
+    advanceOrbitLoopClock(30_000)
+    const otherLeft = advanceOrbitLoopClock(30_000 + 2500)
+    leaveOther()
+    expect(otherLeft).toBeGreaterThan(0)
+    const leaveFresh = joinOrbitLoopClock(0)
+    expect(advanceOrbitLoopClock(40_000)).toBe(0)
+    expect(advanceOrbitLoopClock(40_000 + frame)).toBe(frame)
+    const leaveJoiner = joinOrbitLoopClock(frame * 30)
+    expect(advanceOrbitLoopClock(40_000 + frame)).toBe(frame)
+    leaveFresh()
+    leaveJoiner()
+    const leaveResumed = joinOrbitLoopClock(frame * 7)
+    expect(advanceOrbitLoopClock(50_000)).toBe(frame * 7)
+    leaveResumed()
+  })
+
+  it('keeps counting while one Orbit still runs after the other stops', () => {
+    const leaveEntry = joinOrbitLoopClock(0)
+    const leaveSummary = joinOrbitLoopClock(0)
+    const start = advanceOrbitLoopClock(20_000)
+    leaveSummary()
+    expect(advanceOrbitLoopClock(20_000 + frame) - start).toBe(frame)
+    leaveEntry()
+  })
+})
+
+function manualFrames() {
+  let nextFrame = 0
+  let waiting: { readonly frame: number; readonly step: (now: number) => void } | null = null
+  const cancelled: number[] = []
+  const scheduler: OrbitFrameScheduler = {
+    requestAnimationFrame(step) {
+      nextFrame += 1
+      waiting = { frame: nextFrame, step }
+      return nextFrame
+    },
+    cancelAnimationFrame(frame) {
+      cancelled.push(frame)
+      if (waiting?.frame === frame) waiting = null
+    },
+  }
+  const fire = (now: number) => {
+    const current = waiting
+    waiting = null
+    current?.step(now)
+  }
+  return { scheduler, fire, cancelled, isWaiting: () => waiting !== null }
+}
+
+describe('Orbit frame runners', () => {
+  const frame = mascotMotion.frameInterval
+
+  it('draws the shared clock on each frame from the time the Orbit drew last, and stops the frames and leaves the clock', () => {
+    const frames = manualFrames()
+    const drawn: number[] = []
+    const stop = runOrbitLoopClock(frames.scheduler, frame * 4, (time) => drawn.push(time))
+    expect(frames.isWaiting()).toBe(true)
+    frames.fire(60_000)
+    frames.fire(60_000 + frame)
+    expect(drawn).toEqual([frame * 4, frame * 5])
+    stop()
+    expect(frames.cancelled).toEqual([3])
+    expect(frames.isWaiting()).toBe(false)
+    const leaveNext = joinOrbitLoopClock(0)
+    expect(advanceOrbitLoopClock(70_000)).toBe(0)
+    leaveNext()
+  })
+
+  it('lets two runners draw the same pose from one shared clock', () => {
+    const entry = manualFrames()
+    const summary = manualFrames()
+    const entryTimes: number[] = []
+    const summaryTimes: number[] = []
+    const stopEntry = runOrbitLoopClock(entry.scheduler, 0, (time) => entryTimes.push(time))
+    const stopSummary = runOrbitLoopClock(summary.scheduler, frame * 9, (time) => summaryTimes.push(time))
+    entry.fire(80_000)
+    summary.fire(80_000)
+    entry.fire(80_000 + frame * 2)
+    summary.fire(80_000 + frame * 2)
+    expect(summaryTimes).toEqual(entryTimes)
+    expect(entryTimes).toEqual([0, frame * 2])
+    stopEntry()
+    stopSummary()
+  })
+
+  it('starts the read clock at 0 on its first frame and draws the time since then on the frame grid', () => {
+    const frames = manualFrames()
+    const drawn: number[] = []
+    const stop = runOrbitReadClock(frames.scheduler, (time) => drawn.push(time))
+    frames.fire(5_000)
+    frames.fire(5_000 + frame - 1)
+    frames.fire(5_000 + frame * 3 + 1)
+    expect(drawn).toEqual([0, 0, frame * 3])
+    stop()
+    expect(frames.isWaiting()).toBe(false)
+    frames.fire(9_000)
+    expect(drawn).toHaveLength(3)
   })
 })
 

@@ -170,7 +170,7 @@ for (const width of [412, 1352]) for (const locale of ['en', 'pt-BR'] as const) 
       await setLayoutProfileSession(context, profile, calendars)
       const responses: ReadonlyArray<readonly [string, unknown]> = [
         [API.profile.get, profile], [API.habits.get(habit.id), habit], [API.habits.logs(habit.id), []], [API.habits.metrics(habit.id), metrics],
-        [API.calendar.events, events], [API.calendar.calendars, calendars],
+        [API.calendar.events, events],
         [API.calendar.autoSyncState, calendarAutoSyncStateSchema.parse({ enabled: false, status: 'Idle', lastSyncedAt: null, hasGoogleConnection: true })],
         [API.habits.calendarMonth, calendarMonthResponseSchema.parse({ habits: [schedule], logs: {} })],
       ]
@@ -239,6 +239,8 @@ for (const width of [412, 1352]) for (const locale of ['en', 'pt-BR'] as const) 
           return body.right - box.right
         })
         expect(Math.abs(inset - 20)).toBeLessThanOrEqual(0.5)
+        // WHY: the event rows and the import action can arrive after the calendar list, and each changes the sheet height, which can move the calendar row away from a pointer that stays still. https://github.com/thomasluizon/orbit-tickets/issues/2074
+        await expect(sheet.locator('[data-slot="sheet-actions"]')).toBeVisible()
         await expectInteractionFill(checkbox)
         await expectInteractionFill(label)
         const importText = createTranslator({ locale, messages: words })('calendar.importButton', { count: 2 })
