@@ -73,11 +73,10 @@ jobs:
           sudo xcode-select --switch /Applications/Xcode_26.6.app/Contents/Developer
           xcodebuild -version
       - uses: actions/setup-node@v7
-        env:
-          SEGMENT_DOWNLOAD_TIMEOUT_MINS: '1'
         with:
           node-version: 22
-          cache: npm
+          package-manager-cache: false
+      - uses: ./.github/actions/restore-npm-cache
       - name: Validate the release configuration
         env:
           APP_VERSION: ${{ inputs.app_version }}
@@ -116,6 +115,9 @@ jobs:
           key: macos-26-${{ runner.arch }}-xcode-26.6-ios-device-ccache-v1-${{ hashFiles('package-lock.json', 'apps/mobile/app.json', 'apps/mobile/app.config.js', 'apps/mobile/plugins/**', 'apps/mobile/modules/**') }}
           restore-keys: |
             macos-26-${{ runner.arch }}-xcode-26.6-ios-device-ccache-v1-
+      # The stamp follows the restore, so every restored object is older than it.
+      - name: Record the start of the compiler cache use
+        run: echo "COMPILER_CACHE_USED_SINCE=$(date +%s)" >> "$GITHUB_ENV"
       - name: Select analytics for the variant
         env:
           STAGING_POSTHOG_KEY: ${{ vars.STAGING_EXPO_PUBLIC_POSTHOG_KEY }}
@@ -158,7 +160,7 @@ jobs:
           printf '%s' "$APP_STORE_CONNECT_API_PRIVATE_KEY" > "$HOME/.appstoreconnect/private_keys/AuthKey_${APP_STORE_CONNECT_API_KEY_ID}.p8"
       - name: Generate the iOS project and install pods
         working-directory: apps/mobile
-        run: npx expo prebuild --platform ios
+        run: ../../node_modules/.bin/expo prebuild --platform ios
       - name: Archive the embedded app
         id: archive
         working-directory: apps/mobile
@@ -174,8 +176,32 @@ jobs:
             DEVELOPMENT_TEAM="$ORBIT_APPLE_TEAM_ID" CODE_SIGN_STYLE=Manual \
             CODE_SIGN_IDENTITY='Apple Distribution' \
             archive
-      - name: Save compiler outputs
+      # ccache sets the time of each object that a compile reads or writes, and removes none under its size limit. The
+      # archive used every object it needs, so the saved entry holds only those and does not grow when the key changes.
+      # The step names the saved directory, and the save is the next step. It removes each path that is not in the
+      # layout of ccache 4.9.1 and 4.14.2: the 16 object directories, their one-character subdirectories, the stats
+      # and CACHEDIR.TAG files, and the object files. The save runs only when this step passes, so no saved entry
+      # holds a log, a lock, a configuration file or a file that another step writes.
+      # A failed clean must not fail the release. With continue-on-error, a failed step has the outcome failure and the
+      # conclusion success, and the save reads the outcome, so it still skips. Source: steps context in
+      # https://docs.github.com/en/actions/reference/workflows-and-actions/contexts#steps-context
+      - name: Keep only the objects that this archive used
+        id: evict
         if: steps.archive.outcome == 'success' && github.ref == 'refs/heads/main' && steps.compiler-cache.outputs.cache-hit != 'true'
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          ccache --dir ${{ env.CCACHE_DIR }} --evict-older-than "$(($(date +%s) - COMPILER_CACHE_USED_SINCE))s"
+          cd ${{ env.CCACHE_DIR }}
+          directory='^[0-9a-f](/[0-9a-f]){0,3}$'
+          file='^[0-9a-f]/(CACHEDIR\.TAG|stats|[0-9a-f]/stats|[0-9a-f](/[0-9a-f]){0,2}/([0-9a-v]{29,31}([MR]|[0-9]W)|[0-9a-f]{36,38}(_[0-9a-f]{2})?))$'
+          find . -mindepth 1 -depth -print0 | while IFS= read -r -d '' entry; do
+            layout=$file
+            if [[ -d $entry ]]; then layout=$directory; fi
+            if [[ -L $entry || ! ( -d $entry || -f $entry ) || ! ${entry#./} =~ $layout ]]; then rm -rf "$entry"; fi
+          done
+      - name: Save compiler outputs
+        if: steps.evict.outcome == 'success'
         uses: actions/cache/save@v6
         with:
           path: ${{ env.CCACHE_DIR }}
