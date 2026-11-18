@@ -3,7 +3,7 @@ import { readdirSync, readFileSync } from "node:fs"
 import { join } from "node:path"
 import yaml from "js-yaml"
 
-import { medianTimings, mergeTimingLines, parseShard, partitionDefects, partitionModules, runShardsInParallel, shardSeconds, slowestShardSeconds, TIMINGS_MARKER } from "../lib/test-shards.mjs"
+import { localShardCount, MAX_LOCAL_SHARDS, medianTimings, mergeTimingLines, parseShard, partitionDefects, partitionModules, runShardsInParallel, shardSeconds, slowestShardSeconds, TIMINGS_MARKER } from "../lib/test-shards.mjs"
 import { BASH, REPO_ROOT, T, run, stage, toolPath } from "./_harness.mjs"
 
 const TOOL = "lib/test-shards.mjs"
@@ -179,6 +179,10 @@ export const cases = async () => {
     const refused = run("test-tools.mjs", argv)
     T(`${TOOL}: test-tools.mjs ${argv.join(" ")} exits 2`, refused.status === 2 && /--parallel/.test(refused.stderr), refused.stderr)
   }
+  const sizes = [[1, 1], [4, 4], [8, 8], [16, 8], [0, 1], [4.9, 4]].map(([cores, expected]) => [cores, expected, localShardCount(cores)])
+  T(`${TOOL}: a full local run starts one shard for each core, at most ${MAX_LOCAL_SHARDS}, and at least one`, sizes.every(([, expected, actual]) => actual === expected), JSON.stringify(sizes))
+  const automatic = run("test-tools.mjs", ["--parallel", "auto", "--list"])
+  T(`${TOOL}: --parallel auto is a parallel run, so it refuses --list`, automatic.status === 2 && /--parallel cannot combine/.test(automatic.stderr), automatic.stderr)
   await parallelCases()
 }
 

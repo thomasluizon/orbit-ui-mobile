@@ -14,6 +14,16 @@ export const parseShard = (text) => {
   return index >= 1 && index <= count ? { index, count } : null
 }
 
+/** The most shards a local run starts at one time: the CI shard count of the tools gate. */
+export const MAX_LOCAL_SHARDS = 8
+
+/**
+ * The shard count of a full local run: one shard for each core, at most MAX_LOCAL_SHARDS.
+ * A shard that shares a core with another shard runs its timed cases late and fails them, so a
+ * machine with fewer cores than shards gets fewer shards, never a red run from CPU starvation.
+ */
+export const localShardCount = (cores) => Math.min(MAX_LOCAL_SHARDS, Math.max(1, Math.floor(cores)))
+
 /** A module with no measured weight costs the mean of the measured weights, so a new module still lands in a shard. */
 const meanSeconds = (modules, seconds) => {
   const measured = modules.filter((module) => seconds[module] !== undefined)
