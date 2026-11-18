@@ -63,13 +63,13 @@ describe('a wait shows a skeleton shaped like its final layout on Android, never
     expectNoSpinner(root)
   })
 
-  it('keeps the proactive action label on its skeleton face while its status loads, with no Loading line', () => {
+  it('keeps the proactive action label on its well with its Orbit reading and no skeleton face while its status loads, with no Loading line', () => {
     const root = render(<ProactiveAction item={createMockProactiveItem()} acted={false} isOnline onSend={vi.fn()} />)
     const action = root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityRole === 'button')[0]!
     expect(action.props).toMatchObject({ disabled: true, accessibilityState: { disabled: true, busy: true }, accessibilityHint: undefined })
     const style = StyleSheet.flatten(typeof action.props.style === 'function' ? action.props.style({ pressed: false }) : action.props.style)
-    expect(style).toMatchObject({ backgroundColor: 'transparent', opacity: 1 })
-    expect(hosts(action, 'skeleton-face')).toHaveLength(1)
+    expect(style).toMatchObject({ backgroundColor: tokens.bgWell, opacity: 1 })
+    expect(hosts(action, 'skeleton-face')).toHaveLength(0)
     expect(texts(root)).not.toContain('common.loading')
     expectNoSpinner(root)
   })

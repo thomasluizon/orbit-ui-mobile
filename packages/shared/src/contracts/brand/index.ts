@@ -1,4 +1,4 @@
-export type { OrbitMascotProps, OrbitMascotSize, OrbitMascotLiveSize, OrbitMascotSmallSize } from './OrbitMascot'
+export type { OrbitLiveRole, OrbitMascotProps, OrbitMascotSize, OrbitMascotLiveSize, OrbitMascotSmallSize } from './OrbitMascot'
 export { ORBIT_MASCOT_LIVE_SIZES, ORBIT_MASCOT_SMALL_SIZES } from './OrbitMascot'
 export type { IconProps } from './Icon'
 export type { LockupProps } from './Lockup'

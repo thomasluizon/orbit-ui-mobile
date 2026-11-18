@@ -124,7 +124,7 @@ describe('Orbit idle loop on web', () => {
 
   it('lets the conversation entry lead the view when it returns after another Orbit', () => {
     const { container, rerender } = render(<><OrbitMascot size={96} />{null}</>)
-    rerender(<><OrbitMascot size={96} /><OrbitMascot size={48} lead /></>)
+    rerender(<><OrbitMascot size={96} /><OrbitMascot size={48} live="lead" /></>)
     expect([loopOf(container, 0), loopOf(container, 1)]).toEqual(['still', 'running'])
   })
 
@@ -244,6 +244,14 @@ describe('Hoje Orbit line with the conversation entry on web', () => {
     const [summaryMoon, , entryMoon] = moonsOf(container)
     expect(summaryMoon).toBe(entryMoon)
     expect(summaryMoon).not.toBe(moonsOf(render(<OrbitMascot size={48} still />).container)[0])
+  })
+
+  it('keeps the summary Orbit still and runs the empty state Orbit on wide Hoje, where no entry mounts', () => {
+    const { container } = render(<NextIntlClientProvider locale="en" messages={en}>
+      <TodayAstraLine text="Two habits left today." destination="Opens the conversation" onPress={() => {}} />
+      <OrbitMascot size={128} state="feliz" />
+    </NextIntlClientProvider>)
+    expect([summaryLoop(container), loopsByState(container).feliz]).toEqual(['still', 'running'])
   })
 
   it('keeps the summary Orbit and the entry still under reduced motion', () => {

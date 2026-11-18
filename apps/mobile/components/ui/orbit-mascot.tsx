@@ -11,6 +11,7 @@ import {
   orbitOutlineCutout,
   orbitSmallFaceFrame,
   type OrbitEyeShape,
+  type OrbitLiveRole,
   type OrbitMascotFrame,
   type OrbitMascotProps,
   type OrbitMascotSmallSize,
@@ -25,7 +26,6 @@ import {
   joinOrbitLoopClock,
   mayOrbitRunLoop,
   subscribeOrbitLoop,
-  type OrbitLiveRole,
 } from '@orbit/shared/utils'
 import { useEffect, useId, useMemo, useRef, useState, useSyncExternalStore, type ReactNode, type RefObject } from 'react'
 import { AppState, useWindowDimensions } from 'react-native'
@@ -127,10 +127,6 @@ function useOrbitReadClock(reading: boolean) {
   return { clock: running ? clock : 0, running }
 }
 
-function liveRole(lead: boolean, withLead: boolean): OrbitLiveRole {
-  return lead ? 'lead' : withLead ? 'withLead' : 'single'
-}
-
 function pausedFrame(frame: OrbitMascotFrame, running: boolean): OrbitMascotFrame {
   return running ? frame : { ...frame, blinkScale: 1 }
 }
@@ -221,11 +217,11 @@ function ThemedOrbitMascot(props: Readonly<OrbitMascotProps>) {
   return <OrbitMascotDrawing {...props} tokens={tokens} />
 }
 
-function OrbitMascotDrawing({ size, state = 'parado', still = false, reading = false, color, lead = false, withLead = false, tokens }: Readonly<OrbitMascotProps & { tokens: AppTokensV2 }>) {
+function OrbitMascotDrawing({ size, state = 'parado', still = false, reading = false, color, live = 'single', tokens }: Readonly<OrbitMascotProps & { tokens: AppTokensV2 }>) {
   const clipId = `orbit-planet-${useId().replaceAll(':', '')}`
   const svgRef = useRef<Svg | null>(null)
   const small = isOrbitMascotSmallSize(size)
-  const { clock, running: looping } = useOrbitLoopClock(!small && !still, liveRole(lead, withLead), svgRef)
+  const { clock, running: looping } = useOrbitLoopClock(!small && !still, live, svgRef)
   const frame = pausedFrame(orbitMascotFrame(clock, mascotMotion), looping)
   const read = useOrbitReadClock(small && reading)
   const smallMotion = small && read.running ? orbitSmallFaceFrame(read.clock, size, mascotMotion) : undefined

@@ -1,3 +1,4 @@
+import type { OrbitLiveRole } from '../contracts/brand/OrbitMascot'
 import { ORBIT_MASCOT_MAX_FRAME_STEP_MS } from '../contracts/brand/OrbitMascotGeometry'
 import { mascotMotion } from '../theme/motion'
 
@@ -7,9 +8,6 @@ import { mascotMotion } from '../theme/motion'
 
 /** The overlay that holds a mascot, or `null` for a mascot on the page. */
 export type OrbitOverlay = symbol | null
-
-/** `lead` is the conversation entry. `withLead` is an Orbit line that runs together with the entry of its view. */
-export type OrbitLiveRole = 'lead' | 'withLead' | 'single'
 
 interface LiveClaim {
   readonly claim: symbol
@@ -75,7 +73,8 @@ export function pauseOrbitLoopForOverlay(overlay: symbol, parent: OrbitOverlay =
 }
 
 /** A live mascot claims a slot while it is in view. In the top overlay, the leading claim and every claim that runs
- *  with it run the loop. With no leading claim there, only the first claim runs. */
+ *  with it run the loop. With no leading claim there, a claim that runs with the lead is still, and only the first
+ *  single claim runs. */
 export function claimOrbitLiveSlot(claim: symbol, overlay: OrbitOverlay = null, role: OrbitLiveRole = 'single'): () => void {
   liveClaims.push({ claim, overlay, role })
   notify()
@@ -92,7 +91,7 @@ export function mayOrbitRunLoop(claim: symbol): boolean {
   if (!motionEnabled) return false
   const top = openOverlays.at(-1)?.overlay ?? null
   const live = liveClaims.filter((entry) => entry.overlay === top)
-  if (!live.some((entry) => entry.role === 'lead')) return live[0]?.claim === claim
+  if (!live.some((entry) => entry.role === 'lead')) return live.find((entry) => entry.role === 'single')?.claim === claim
   return live.some((entry) => entry.claim === claim && entry.role !== 'single')
 }
 

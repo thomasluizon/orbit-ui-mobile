@@ -5,6 +5,7 @@ import {
   orbitMascotFrame,
   orbitMascotSizeFor,
   orbitSmallFaceFrame,
+  type OrbitLiveRole,
   type OrbitMascotFrame,
   type OrbitMascotProps,
 } from '@orbit/shared/contracts/brand'
@@ -17,7 +18,6 @@ import {
   joinOrbitLoopClock,
   mayOrbitRunLoop,
   subscribeOrbitLoop,
-  type OrbitLiveRole,
 } from '@orbit/shared/utils'
 import { useEffect, useId, useRef, useState, useSyncExternalStore } from 'react'
 import { useViewportMatch } from '@/hooks/use-viewport-match'
@@ -99,19 +99,15 @@ function useOrbitReadClock(reading: boolean) {
   return { clock: running ? clock : 0, running }
 }
 
-function liveRole(lead: boolean, withLead: boolean): OrbitLiveRole {
-  return lead ? 'lead' : withLead ? 'withLead' : 'single'
-}
-
 function pausedFrame(frame: OrbitMascotFrame, running: boolean): OrbitMascotFrame {
   return running ? frame : { ...frame, blinkScale: 1 }
 }
 
-export function OrbitMascot({ size, state = 'parado', still = false, reading = false, color, lead = false, withLead = false }: Readonly<OrbitMascotProps>) {
+export function OrbitMascot({ size, state = 'parado', still = false, reading = false, color, live = 'single' }: Readonly<OrbitMascotProps>) {
   const clipId = `orbit-planet-${useId().replaceAll(':', '')}`
   const svgRef = useRef<SVGSVGElement | null>(null)
   const small = isOrbitMascotSmallSize(size)
-  const { clock, running } = useOrbitLoopClock(!small && !still, liveRole(lead, withLead), svgRef)
+  const { clock, running } = useOrbitLoopClock(!small && !still, live, svgRef)
   const frame = pausedFrame(orbitMascotFrame(clock, mascotMotion), running)
   const read = useOrbitReadClock(small && reading)
   const smallMotion = small && read.running ? orbitSmallFaceFrame(read.clock, size, mascotMotion) : undefined

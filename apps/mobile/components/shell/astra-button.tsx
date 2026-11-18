@@ -32,7 +32,7 @@ export function AstraButton() {
     focusColor={tokens.primary}
     style={[styles.target, { backgroundColor: hovered ? tokens.bgElevHover : tokens.bgElev, borderColor: tokens.borderControl }]}
   >
-    <OrbitMascot size={48} lead />
+    <OrbitMascot size={48} live="lead" />
   </MotionPressable>
 }
 

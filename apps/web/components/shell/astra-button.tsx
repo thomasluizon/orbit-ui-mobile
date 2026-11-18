@@ -15,9 +15,9 @@ export function AstraButton() {
     aria-label={t('shell.astraButton.open')}
     data-astra-button=""
     onClick={() => useUIStore.getState().setAstraConversationOpen(true)}
-    className="press-hit-layer flex cursor-pointer appearance-none items-center justify-center rounded-full border border-solid border-[var(--border-control)] bg-[var(--bg-elev)] p-0 transition-[background-color,scale] [transition-duration:var(--dur-hover-control),var(--dur-press)] [transition-timing-function:var(--ease-standard),var(--ease-out)] hover:bg-[var(--bg-elev-hover)] motion-safe:active:scale-[0.96] touch-manipulation"
+    className="press-hit-layer flex cursor-pointer appearance-none items-center justify-center rounded-full before:-inset-px border border-solid border-[var(--border-control)] bg-[var(--bg-elev)] p-0 transition-[background-color,scale] [transition-duration:var(--dur-hover-control),var(--dur-press)] [transition-timing-function:var(--ease-standard),var(--ease-out)] hover:bg-[var(--bg-elev-hover)] motion-safe:active:scale-[0.96] touch-manipulation"
     style={{ height: FAB_SIZE, width: FAB_SIZE }}
   >
-    <OrbitMascot size={48} lead />
+    <OrbitMascot size={48} live="lead" />
   </button>
 }

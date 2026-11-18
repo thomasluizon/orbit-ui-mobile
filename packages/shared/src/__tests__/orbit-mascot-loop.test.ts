@@ -163,9 +163,19 @@ describe('Orbit idle loop permission', () => {
     releaseEntry()
     expect([summary, proactive, emptyState].map(mayOrbitRunLoop)).toEqual([false, false, true])
     releaseEmptyState()
-    expect([summary, proactive].map(mayOrbitRunLoop)).toEqual([true, false])
+    expect([summary, proactive].map(mayOrbitRunLoop)).toEqual([false, false])
     releaseSummary()
     releaseProactive()
+  })
+
+  it('keeps an Orbit line still on a view without the conversation entry, and runs the first other Orbit even when the line claims first', () => {
+    const summary = Symbol('summary')
+    const emptyState = Symbol('empty-state')
+    const releaseSummary = claimOrbitLiveSlot(summary, null, 'withLead')
+    const releaseEmptyState = claimOrbitLiveSlot(emptyState)
+    expect([summary, emptyState].map(mayOrbitRunLoop)).toEqual([false, true])
+    releaseEmptyState()
+    releaseSummary()
   })
 
   it('pauses the entry and its Orbit lines together under an overlay and when the switch is off', () => {

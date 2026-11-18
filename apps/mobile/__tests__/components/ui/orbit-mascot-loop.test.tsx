@@ -304,7 +304,7 @@ describe('Orbit idle loop on Android', () => {
 
   it('lets the conversation entry lead the view when it returns after another Orbit', () => {
     const tree = render(<View><OrbitMascot size={96} />{null}</View>)
-    TestRenderer.act(() => tree.update(<View><OrbitMascot size={96} /><OrbitMascot size={48} lead /></View>))
+    TestRenderer.act(() => tree.update(<View><OrbitMascot size={96} /><OrbitMascot size={48} live="lead" /></View>))
     expect(loops(tree)).toEqual(['still', 'running'])
     tree.unmount()
   })
@@ -437,6 +437,11 @@ describe('Hoje Orbit line with the conversation entry on Android', () => {
       .map((moon) => `${String(moon.props.cx)},${String(moon.props.cy)}`)
     expect(moons[0]).toBe(moons[2])
     expect(moons[0]).not.toBe(moonOf(render(<OrbitMascot size={48} still />)))
+  })
+
+  it('keeps the summary Orbit still and runs the empty state Orbit on a view that shows no entry', () => {
+    const tree = render(<View><TodayAstraLine text="Two habits left today." destination="Opens the conversation" onPress={() => {}} /><OrbitMascot size={96} state="feliz" /></View>)
+    expect([loopIn(tree, 'today-astra-slot'), loopsByState(tree).feliz]).toEqual(['still', 'running'])
   })
 
   it('keeps the summary Orbit and the entry still under reduced motion', () => {
