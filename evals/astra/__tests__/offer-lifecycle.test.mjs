@@ -1,6 +1,5 @@
 import { expect, it } from 'vitest'
 import { checkSuppression, checkReadScopes, checkPreviewRejection, checkActionLifecycle } from '../offer-lifecycle.mjs'
-import { toolBehavior } from '../assertions.mjs'
 import { preview } from './fixtures/producer.mjs'
 
 const baseline = () => ({ habits: [], goals: [], tags: [], checklistTemplates: [] })
@@ -10,9 +9,11 @@ const issued = { offerKey: `smallStep:account:${today}`, kind: 'continueChat', l
   surface: null, prompt: 'Help me choose one small step I can take today.', entityId: null, date: today }
 const varsFor = () => ({ accountDate: today, clientContext: { platform: 'web', locale: 'en', conversationId: habitId },
   issuedOffer: { action: issued }, offerBaseline: baseline(), setup: { input: 'Show my day.' } })
-const answer = (action) => ({ composition: { parts: [{ type: 'block', kind: 'habitList', block: {
-  scope: 'today', items: [], read: { nextAction: action },
+const answer = (action, block = {}) => ({ composition: { parts: [{ type: 'block', kind: 'habitList', block: {
+  scope: 'today', items: [], read: { nextAction: action }, ...block,
 } }] } })
+// Producer: orbit-api QueryHabitsTool answers a read of one date other than today with the scope `date` and that date.
+const dated = (date) => ({ scope: 'date', date })
 
 it.each(['valid', 'repeated', 'different-missing', 'write'])('checks eleven turns, reload, another device and a different offer: %s', async (fault) => {
   const vars = varsFor()
@@ -44,34 +45,34 @@ it.each(['valid', 'repeated', 'different-missing', 'write'])('checks eleven turn
 
 it.each(['valid', 'historical-log', 'partial-offer', 'write'])('replays historical and partial scopes: %s', async (fault) => {
   let calls = 0
+  const policies = []
   const turn = async (_input, policy) => {
     calls++
-    expect(policy.expectations.required[0].name).toBe('query_habits')
+    policies.push(policy)
     return answer(fault === 'historical-log' && calls === 1 ? { ...issued, offerKey: `log:${habitId}:${today}` }
-      : fault === 'partial-offer' && calls === 2 ? issued : undefined)
+      : fault === 'partial-offer' && calls === 2 ? issued : undefined, calls === 1 ? dated('2031-06-09') : {})
   }
   const api = async () => ({ payload: fault === 'write' ? { ...baseline(), goals: [{ id: 'unapproved' }] } : baseline() })
   const promise = checkReadScopes(api, varsFor(), turn)
-  if (fault === 'valid') { await promise; expect(calls).toBe(2) }
-  else await expect(promise).rejects.toThrow()
+  if (fault === 'valid') {
+    await promise
+    expect(calls).toBe(2)
+    expect(policies.map((policy) => policy.outcome)).toEqual([{ read: true }, { read: true }])
+    expect(policies.flatMap((policy) => Object.keys(policy))).not.toContain('expectations')
+  } else await expect(promise).rejects.toThrow()
 })
 
-const historicalCall = (args) => ({ name: 'query_habits', resultStatus: 'Succeeded',
-  result: { success: true, error: null, payload: {} }, arguments: { relative_period: null, date: null, ...args } })
-
 it.each([
-  ['the named date', { date: '2031-06-09' }, true],
-  ['the server-resolved yesterday', { relative_period: 'yesterday' }, true],
-  ['yesterday beside its named date', { relative_period: 'yesterday', date: '2031-06-09' }, true],
-  ['another date', { date: '2031-06-08' }, false],
-  ['today overriding the named date', { relative_period: 'today', date: '2031-06-09' }, false],
-  ['an unscoped list', {}, false],
-])('accepts only the requested historical day on the real behavior grade: %s', async (_name, args, accepted) => {
-  const policies = []
-  const turn = async (_input, policy) => { policies.push(policy); return answer(undefined) }
-  await checkReadScopes(async () => ({ payload: baseline() }), { ...varsFor(), offerBaseline: baseline() }, turn)
-  const verdict = toolBehavior([historicalCall(args)], policies[0].expectations)
-  expect(verdict.pass).toBe(accepted)
+  ['the named date', dated('2031-06-09'), true],
+  ['another date', dated('2031-06-08'), false],
+  ['today', { scope: 'today' }, false],
+  ['today with the named date', { scope: 'today', date: '2031-06-09' }, false],
+  ['an unscoped list', { scope: 'all' }, false],
+])('accepts only the requested historical day in the habit list that the turn shows: %s', async (_name, block, accepted) => {
+  const turn = async (_input, policy) => answer(undefined, policy.composition.kinds ? block : {})
+  const promise = checkReadScopes(async () => ({ payload: baseline() }), varsFor(), turn)
+  if (accepted) await expect(promise).resolves.toBeUndefined()
+  else await expect(promise).rejects.toThrow('Historical scope did not show the requested day.')
 })
 
 function reminderPreview() {
