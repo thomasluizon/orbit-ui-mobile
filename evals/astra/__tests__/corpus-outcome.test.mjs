@@ -4,7 +4,8 @@ import { parse } from 'yaml'
 import { tsImport } from 'tsx/esm/api'
 import { changeList } from '../core/change-list.mjs'
 import { composition } from '../composition.mjs'
-import { outcome, runOutcomeCase } from '../client-path.mjs'
+import { openCaseConversation, outcome, runOutcomeCase } from '../client-path.mjs'
+import { clientContextOf } from '../core/client-turn.mjs'
 import { corpusTests, gradedByOutcome, readCorpus } from '../grade-method.mjs'
 import { summarize } from '../report.mjs'
 import { mergeReports } from '../merge-reports.mjs'
@@ -483,6 +484,14 @@ describe('the client path of a converted case', () => {
     const { form } = await sentContext('composition-proactive-en')
     expect(form.get('message')).toBe('Show what is left for today from this reminder.')
     expect(JSON.parse(form.get('history'))).toEqual([{ role: 'assistant', content: 'You have habits left for today. Want to see what is pending?' }])
+  })
+
+  it('sends the proactive offers setting that the case file states, for each case with parts', () => {
+    const withParts = corpus.filter((entry) => entry.vars.clientContext?.supportsParts === true)
+    expect(withParts.length).toBeGreaterThan(0)
+    const mismatched = withParts.filter((entry) => clientContextOf(openCaseConversation(entry.vars)).supportsProactiveOffers
+      !== (entry.vars.clientContext.supportsProactiveOffers === true)).map((entry) => entry.metadata.id)
+    expect(mismatched).toEqual([])
   })
 
   it('returns a precondition failure before any turn', async () => {
