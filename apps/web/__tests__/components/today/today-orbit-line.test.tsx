@@ -54,10 +54,11 @@ describe('web Orbit line on Hoje', () => {
     expect(screen.getByRole('button', { name: 'todayAstra.limit' })).toBeInTheDocument()
   })
 
-  it('keeps the 20 px glyph and the proactive sentence while the flag is off', () => {
+  it('keeps the still Orbit at 48 and the proactive sentence while the flag is off', () => {
     mocks.online = false
     const { container } = renderLine()
-    expect(mascot(container)).toHaveAttribute('width', '20')
+    expect(mascot(container)).toHaveAttribute('width', '48')
+    expect(mascot(container)).toHaveAttribute('data-orbit-loop', 'still')
     expect(screen.getByRole('button', { name: 'Check in' })).toBeInTheDocument()
   })
 })

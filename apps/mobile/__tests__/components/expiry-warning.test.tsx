@@ -75,7 +75,10 @@ const mocks = vi.hoisted(() => {
   }
 })
 
+const motionState = vi.hoisted(() => ({ reducedMotion: false }))
+
 vi.mock('@/lib/use-app-theme', () => ({ useAppTheme: () => mocks.theme }))
+vi.mock('@/lib/motion', async (importOriginal) => ({ ...await importOriginal<typeof import('@/lib/motion')>(), usePrefersReducedMotion: () => motionState.reducedMotion }))
 vi.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => mocks.insets }))
 
 vi.mock('@/stores/auth-store', async () => {
@@ -436,12 +439,14 @@ describe('ExpiryWarning', () => {
 
   it.each([[false, 'running'], [true, 'still']] as const)('draws Orbit with reduced motion %s as %s, with the guided flows on', async (reducedMotion, loop) => {
     enableTestFlags('orbit_guided_flows')
+    motionState.reducedMotion = reducedMotion
     reanimatedTestState.reducedMotion = reducedMotion
     try {
       const instance = await renderExpiredWarning()
       const rigs = instance.root.findAll((node) => typeof node.type === 'string' && node.props['data-orbit-face'] === 'rig')
       expect(rigs.map((node) => node.props['data-orbit-loop'] as string)).toEqual([loop])
     } finally {
+      motionState.reducedMotion = false
       reanimatedTestState.reducedMotion = false
     }
   })

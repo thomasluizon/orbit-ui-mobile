@@ -330,7 +330,8 @@ describe('the plan question of the Android upgrade route', () => {
   it.each([false, true])('settles the selection ring with reduced motion %s', (reducedMotion) => {
     mocks.reducedMotion = reducedMotion
     const tree = renderNavigation(<UpgradeScreen />)
-    const style = JSON.stringify(byTestId(tree, 'upgrade-plan-option-monthly')!.props.style)
+    const ring = byTestId(tree, 'upgrade-plan-option-monthly')!.findAll((node) => typeof node.type === 'string' && node.props.testID === 'selection-ring')[0]!
+    const style = JSON.stringify(ring.props.style)
     expect(style.includes('"transition":"none"')).toBe(reducedMotion)
     tree.unmount()
   })
@@ -488,14 +489,14 @@ describe('the dashboards and the notices of the Android route with the guided fl
 })
 
 describe('the Android upgrade route with the guided flows off', () => {
-  it('keeps the current billing error with no Orbit', () => {
+  it('keeps the current full-surface billing error, with its Orbit in Parado', () => {
     resetTestFlags()
     mocks.statusError = true
     mocks.status = null
     const tree = renderNavigation(<UpgradeScreen />)
     expect(screenText(tree)).toContain("Couldn't load billing details")
     expect(byTestId(tree, 'upgrade-load-failed')).toBeUndefined()
-    expect(orbitStates(tree)).toEqual([])
+    expect(orbitStates(tree)).toEqual(['parado'])
     tree.unmount()
   })
 

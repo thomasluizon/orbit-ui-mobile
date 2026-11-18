@@ -55,13 +55,14 @@ describe('the root Orbit line row', () => {
     expect(container.querySelector('[data-asset="orbit-mascot"]')?.getAttribute('data-orbit-loop')).toBe('still')
   })
 
-  it('keeps the current 20 face and never fades the sentence with the guided flows off', () => {
+  it('keeps the still Orbit at 48 and never fades the sentence with the guided flows off', () => {
     resetTestFlags()
     const { container, rerender } = render(<TodayAstraLine text="Dia 2: tudo feito." destination="Abrir conversa" mascotState="descansando" />)
     rerender(<TodayAstraLine text="Nada marcado nesse dia." destination="Abrir conversa" mascotState="descansando" />)
     const mascot = container.querySelector('[data-asset="orbit-mascot"]')!
-    expect(mascot.getAttribute('width')).toBe('20')
-    expect(mascot.getAttribute('data-orbit-face')).toBe('small')
+    expect(mascot.getAttribute('width')).toBe('48')
+    expect(mascot.getAttribute('data-orbit-face')).toBe('rig')
+    expect(mascot.getAttribute('data-orbit-loop')).toBe('still')
     expect(container.querySelector('[data-sentence-change]')).toBeNull()
     expect(container.textContent).toContain('Nada marcado nesse dia.')
   })

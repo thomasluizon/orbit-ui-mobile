@@ -67,10 +67,11 @@ describe('Android Orbit line on Hoje', () => {
     expect(row(tree).props.accessibilityLabel).toBe('todayAstra.limit')
   })
 
-  it('keeps the 20 px glyph while the flag is off', async () => {
+  it('keeps the still Orbit at 48 while the flag is off', async () => {
     mocks.online = false
     const tree = await renderLine()
-    expect(probe(tree).size).toBe(20)
+    expect(probe(tree).size).toBe(48)
+    expect(probe(tree).still).toBe(true)
     expect(row(tree).props.accessibilityLabel).toBe('Check in')
   })
 })

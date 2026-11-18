@@ -316,6 +316,7 @@ describe('Sequência with orbit_guided_flows on (Android)', () => {
   })
 
   it('keeps the Orbit at 48 still under reduced motion', async () => {
+    mocks.reducedMotion = true
     reanimatedTestState.reducedMotion = true
     const root = await renderIn('en', 'streak')
     expect(mascots(root)[0]!.props['data-orbit-loop']).toBe('still')

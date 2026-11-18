@@ -30,7 +30,7 @@ describe('state surface Orbit size', () => {
   it.each([[1023, '96'], [1024, '128']] as const)('draws the empty notification list Orbit at %ipx as %s', (width, size) => {
     stubViewportWidth(width)
     const { container } = render(
-      <NotificationList items={[]} isLoading={false} isError={false} onRetry={vi.fn()} onOpen={vi.fn()} onDelete={vi.fn()} />,
+      <NotificationList items={[]} scope="" isLoading={false} isError={false} onRetry={vi.fn()} onOpen={vi.fn()} onDelete={vi.fn()} />,
     )
     expect(stateMascotWidths(container)).toEqual([size])
   })

@@ -239,7 +239,7 @@ describe('the Android search screen on the Orbit logic', () => {
     await type('walk')
     await TestRenderer.act(() => { vi.advanceTimersByTime(300) })
     const row = byTestId('search-orbit-line')[0]!
-    expect(row.findAll(isText).map((node) => renderedText(node.props.children))).toContain('Searching')
+    expect(row.findAll((node) => typeof node.type === 'string' && node.props.testID === 'search-skeleton').map((node) => node.props.accessibilityLabel)).toEqual(['Searching'])
     expect(mascots()[0]!.props['data-orbit-state']).toBe('olhando')
     expect(byTestId('search-rows')[0]!.props.accessibilityState).toEqual({ busy: true })
     expect(input().props.value).toBe('walk')

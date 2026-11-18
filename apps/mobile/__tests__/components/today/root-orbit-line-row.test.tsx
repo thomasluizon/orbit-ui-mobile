@@ -54,13 +54,14 @@ describe('the root Orbit line row on Android', () => {
     expect(hostByTestId(tree.root, 'today-astra-slot').props.accessibilityLabel).toBe('Nada marcado nesse dia.')
   })
 
-  it('keeps the current 20 face and never fades the sentence with the guided flows off', () => {
+  it('keeps the still Orbit at 48 and never fades the sentence with the guided flows off', () => {
     resetTestFlags()
     const tree = render(<TodayAstraLine text="Dia 2: tudo feito." destination="Abrir conversa" mascotState="descansando" />)
     TestRenderer.act(() => tree.update(<TodayAstraLine text="Nada marcado nesse dia." destination="Abrir conversa" mascotState="descansando" />))
     const mascot = hostByTestId(tree.root, 'orbit-mascot')
-    expect(mascot.props.width).toBe(20)
-    expect(mascot.props['data-orbit-face']).toBe('small')
+    expect(mascot.props.width).toBe(48)
+    expect(mascot.props['data-orbit-face']).toBe('rig')
+    expect(mascot.props['data-orbit-loop']).toBe('still')
     expect(withTimingCalls).toHaveLength(0)
     expect(hostByTestId(tree.root, 'today-astra-slot').props.accessibilityLabel).toBe('Nada marcado nesse dia.')
   })

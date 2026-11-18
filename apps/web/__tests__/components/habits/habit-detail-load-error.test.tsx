@@ -40,9 +40,10 @@ describe('web habit detail load error', () => {
     expect(screen.getByRole('alert')).toHaveTextContent('Could not load')
   })
 
-  it('renders the current error with the flag off', () => {
+  it('renders the current full-surface error, with its Orbit in Parado, with the flag off', () => {
     render(<HabitDetailLoadError message="Could not load" retryLabel="Retry" onRetry={vi.fn()} />)
-    expect(mascot()).toBeNull()
+    expect(mascot()).toHaveAttribute('data-orbit-state', 'parado')
+    expect(document.querySelector('[data-habit-detail-load-error]')).toBeNull()
     expect(screen.getByRole('alert')).toHaveTextContent('Could not load')
     expect(screen.getByRole('button', { name: 'Retry' })).toBeInTheDocument()
   })

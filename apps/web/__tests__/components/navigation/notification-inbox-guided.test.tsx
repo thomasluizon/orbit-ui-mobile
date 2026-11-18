@@ -116,11 +116,11 @@ describe('the Avisos inbox with the guided flows off', () => {
     expect(container.querySelectorAll('ul > li[data-read]')).toHaveLength(3)
   })
 
-  it('renders the current failed state with no Orbit, and the current empty state with the mark at 96 at 1024 and above', () => {
+  it('renders the current failed state with no Orbit, and the current empty state with the mark at 128 at 1024 and above', () => {
     view.wide = true
     seed([])
     const { container, unmount } = mount()
-    expect(container.querySelector('[data-notification-state="empty"] [data-asset="orbit-mascot"]')!.getAttribute('width')).toBe('96')
+    expect(container.querySelector('[data-notification-state="empty"] [data-asset="orbit-mascot"]')!.getAttribute('width')).toBe('128')
     unmount()
     queryClient.clear()
     vi.mocked(fetchJson).mockRejectedValue(new Error('offline'))

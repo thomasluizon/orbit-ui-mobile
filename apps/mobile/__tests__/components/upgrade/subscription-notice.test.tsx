@@ -9,7 +9,10 @@ import type { UpgradeTextFn } from '@/components/upgrade/types'
 import { createTokensV2 } from '@/lib/theme'
 import { reanimatedTestState } from '@/test-mocks/react-native-reanimated'
 
+const motionState = vi.hoisted(() => ({ reducedMotion: false }))
+
 vi.mock('@/components/upgrade/usage-card', () => ({ UsageCard: vi.fn(() => null) }))
+vi.mock('@/lib/motion', async (importOriginal) => ({ ...await importOriginal<typeof import('@/lib/motion')>(), usePrefersReducedMotion: () => motionState.reducedMotion }))
 vi.mock('@/hooks/use-subscription-plans', () => ({ formatPrice: vi.fn(), monthlyEquivalent: vi.fn() }))
 
 const TestRenderer = require('react-test-renderer')
@@ -35,6 +38,7 @@ function noticeText(nextStatus: SubscriptionStatus) {
 describe('lapsed subscription notice (mobile)', () => {
   it.each([[false, 'running'], [true, 'still']] as const)('draws Orbit with reduced motion %s as %s, with the guided flows on', (reducedMotion, loop) => {
     enableTestFlags('orbit_guided_flows')
+    motionState.reducedMotion = reducedMotion
     reanimatedTestState.reducedMotion = reducedMotion
     let tree: import('react-test-renderer').ReactTestRenderer | undefined
     try {
@@ -45,6 +49,7 @@ describe('lapsed subscription notice (mobile)', () => {
       expect(rigs.map((node: { props: Record<string, unknown> }) => node.props['data-orbit-loop'])).toEqual([loop])
     } finally {
       TestRenderer.act(() => tree?.unmount())
+      motionState.reducedMotion = false
       reanimatedTestState.reducedMotion = false
     }
   })
