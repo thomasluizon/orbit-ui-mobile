@@ -515,7 +515,8 @@ const mergedContainerOf = (worktree, tip, probes) => {
  * oldest entry of the branch's reflog, which `%gd` prints as `<branch>@{<unix seconds>}`; `%ct` would give the time of the
  * commit that the entry points to, and a branch made now from an old commit would look old. A reflog that cannot be read keeps it.
  */
-const youngBranchHoldOf = (worktree, lastRelayAt, probes, now) => {  const entries = probes.git(worktree.path, ["log", "--walk-reflogs", "--date=unix", "--format=%gd", `refs/heads/${worktree.branch}`, "--"])
+const youngBranchHoldOf = (worktree, lastRelayAt, probes, now) => {
+  const entries = probes.git(worktree.path, ["log", "--walk-reflogs", "--date=unix", "--format=%gd", `refs/heads/${worktree.branch}`, "--"])
   const oldest = /@\{(\d+)\}$/.exec((entries ?? "").split("\n").filter(Boolean).at(-1) ?? "")
   const created = oldest ? Number(oldest[1]) * 1000 : 0
   if (created === 0) return "the age of its branch could not be read, and a branch with no pull request can be the branch of a queued launch"
