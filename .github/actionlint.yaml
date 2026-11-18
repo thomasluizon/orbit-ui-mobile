@@ -1,0 +1,5 @@
+# actionlint reads this key for each runner label that its own list of hosted labels does not hold.
+# `xcode-27` is the hosted macOS 27 image with Xcode 27 (the actions/runner-images README table).
+self-hosted-runner:
+  labels:
+    - xcode-27
