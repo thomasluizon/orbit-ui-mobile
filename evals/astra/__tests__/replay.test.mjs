@@ -3,8 +3,9 @@ import { mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync, mkdirSyn
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { replayWindow } from '../replay.mjs'
+import { recordedGateThirteen } from './fixtures/gate-thirteen.mjs'
 
-const saved = JSON.parse(readFileSync(new URL('./fixtures/gate-thirteen.json', import.meta.url), 'utf8'))
+const saved = recordedGateThirteen()
 let directory
 afterEach(() => { if (directory) rmSync(directory, { recursive: true, force: true }); vi.unstubAllGlobals() })
 
