@@ -41,6 +41,7 @@ const routeState = vi.hoisted(() => ({
   paints: [] as boolean[],
   pathname: '/wrapped',
   segments: ['wrapped'],
+  searchParams: {},
 }))
 const authState = vi.hoisted(() => ({ isAuthenticated: true }))
 const createState = vi.hoisted(() => ({
@@ -72,7 +73,7 @@ vi.mock('expo-router', () => {
     Stack,
     ThemeProvider: ({ children }: Readonly<{ children?: ReactNode }>) =>
       React.createElement(RootPortalContext.Provider, { value: `${useContext(RootPortalContext)}/navigation` }, children),
-    useGlobalSearchParams: () => ({}),
+    useGlobalSearchParams: () => routeState.searchParams,
     usePathname: () => routeState.pathname,
     useRouter: () => ({ push: createState.push, replace: vi.fn() }),
     useSegments: () => routeState.segments,
@@ -347,6 +348,7 @@ describe('Wrapped root shell', () => {
     createState.portalVisible = false
     routeState.pathname = '/wrapped'
     routeState.segments = ['wrapped']
+    routeState.searchParams = {}
     createState.profile = undefined
     createState.profileError = false
     createState.reducedMotion = false
@@ -411,6 +413,31 @@ describe('Wrapped root shell', () => {
     createState.profile = { hasProAccess: true }
     await TestRenderer.act(() => tree.update(React.createElement(RootLayout)))
     expect(createState.push).toHaveBeenCalledTimes(1)
+    createState.showCreate.mockReset()
+  })
+
+  it('opens the create screen on the pinned route date, not the account day', async () => {
+    routeState.pathname = '/'
+    routeState.segments = ['(tabs)']
+    routeState.searchParams = { date: '2026-01-05' }
+    createState.showCreate.mockImplementation((open: boolean) => useUIStore.setState({ showCreateModal: open }))
+    const tree = await renderRoot()
+    const [createFab] = findByTestId(tree, 'fab')
+    await TestRenderer.act(() => (createFab?.props.onPress as () => void)())
+    expect(createState.push).toHaveBeenCalledExactlyOnceWith('/habits/new?date=2026-01-05&from=%2F')
+    createState.showCreate.mockReset()
+  })
+
+  it('opens the create screen with no date off the Today view', async () => {
+    routeState.pathname = '/'
+    routeState.segments = ['(tabs)']
+    routeState.searchParams = { date: '2026-01-05' }
+    useUIStore.setState({ activeView: 'all' })
+    createState.showCreate.mockImplementation((open: boolean) => useUIStore.setState({ showCreateModal: open }))
+    const tree = await renderRoot()
+    const [createFab] = findByTestId(tree, 'fab')
+    await TestRenderer.act(() => (createFab?.props.onPress as () => void)())
+    expect(createState.push).toHaveBeenCalledExactlyOnceWith('/habits/new?from=%2F')
     createState.showCreate.mockReset()
   })
 
