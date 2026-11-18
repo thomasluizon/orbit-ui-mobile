@@ -14,11 +14,11 @@ import { questionFilterGaps } from "./lib/owner-questions.mjs"
 import { HANDOFF_PROMPT_PATH, checkoutSpecVersions, handoffAutoWork, handoffCrank, openingSpecPaths, prepareOwnerHandoffRun, readHandoffRequest, recordHandoffRequest, validateHandoffPrompt } from "./lib/handoff-prompt.mjs"
 import { REPO_ROOT, acquireRelayLock, clearWakeSource, foreignRunHold, isDetachedWorker, isRelayWaiter, isWakeSourceAlive, readRunState, readWakeSourceStates, readWorkerLaunches, registerWakeSource, updateRunState } from "./lib/run-state.mjs"
 
-const USAGE = `usage: relay-session.mjs [--retry-wake | --workers | --owner-check | --close-chain | --close-terminal <payload>]
+const USAGE = `usage: relay-session.mjs [--retry-wake | --owner-check | --close-chain | --close-terminal <payload>]
 
   Relays the current unattended orchestrator through a committed and pushed NEXT.md.
-  Detached workers do not delay the relay. NEXT.md must carry each live one with its exact
-  wait command, which --workers prints, and the successor starts one file waiter for each.
+  Detached workers do not delay the relay. The run record carries each live one, and the successor
+  starts one file waiter for each worker that run-status.mjs names in a WAIT_WORKER action.
   Waits on no background run that made no transcript progress for 30 minutes: such a run
   counts as stuck, and the run state records its worktree, branch and last commit in
   stuckBackgroundRuns for the successor.
@@ -27,9 +27,6 @@ const USAGE = `usage: relay-session.mjs [--retry-wake | --workers | --owner-chec
   Reads session identity from CLAUDE_CODE_SESSION_ID, context from its transcript,
   and model and permission mode from machine observations. Accepts no model claim.
   --retry-wake   background wake source until the failed relay's ten minute retry time
-  --workers     print one JSON array with every live detached worker: issue, launcherPid, workerPid,
-                worktree, branch, logFile, startedAt, launchRecord, completionFile and waitCommand.
-                Reads only; the handoff copies each waitCommand into NEXT.md
   --owner-check refuse, before an owner handoff writes anything, while another session's
                 unattended run or unadopted auto-work handoff owns this checkout's run state;
                 the refusal names the owner's next step. An unattended run counts only while
@@ -163,9 +160,6 @@ export const relaySession = async ({ repoRoot = REPO_ROOT, sessionId = process.e
   if (metrics.calls < 20) throw new Error(`session has ${metrics.calls} assistant calls; relay requires at least 20`)
   if (previous.relay.lastAttemptAt && Date.now() - Date.parse(previous.relay.lastAttemptAt) < 600_000) throw new Error("relay retry is not due for ten minutes")
   assertNothingBlocks(repoRoot, sessionId)
-  // A handoff that omits a live worker is fixed by rewriting it, so it is refused before the failure bookkeeping and its retry cooldown.
-  const carryGaps = uncarriedGaps(repoRoot)
-  if (carryGaps.length) throw new Error(`NEXT.md misses: ${carryGaps.join("; ")}`)
   const questionGaps = questionFilterGaps(sessionId, repoRoot)
   if (questionGaps.length) throw new Error(`relay question filter: ${questionGaps.join("; ")}`)
   let releaseLock
@@ -201,19 +195,9 @@ const assertNothingBlocks = (repoRoot, sessionId) => {
   if (blockersMessage.length) throw new Error(`relay drain has ${blockersMessage.join("; ")}`)
 }
 
-/** NEXT.md names each live worker by its exact wait command, so a worker launched after the handoff stops the relay until the handoff is rewritten. */
-const uncarriedWorkers = (prompt, workers) => workers.filter((worker) => !prompt.includes(worker.waitCommand))
-const carryGap = (worker) => `the wait command of live worker ${worker.issue}: ${worker.waitCommand}`
-const uncarriedGaps = (repoRoot) => {
-  let prompt
-  try { prompt = readFileSync(join(repoRoot, HANDOFF_PROMPT_PATH), "utf8") } catch (error) { if (error.code === "ENOENT") return []; throw error }
-  return uncarriedWorkers(prompt, liveDetachedWorkers(repoRoot)).map(carryGap)
-}
-
-const provePromptPublished = (repoRoot, execute, crank, autoWork, workers) => {
+const provePromptPublished = (repoRoot, execute, crank, autoWork) => {
   const prompt = readFileSync(join(repoRoot, HANDOFF_PROMPT_PATH), "utf8")
-  const missing = [...validateHandoffPrompt(prompt, { sleep: true, crank, autoWork, specVersions: checkoutSpecVersions(repoRoot) }),
-    ...uncarriedWorkers(prompt, workers).map(carryGap)]
+  const missing = validateHandoffPrompt(prompt, { sleep: true, crank, autoWork, specVersions: checkoutSpecVersions(repoRoot) })
   if (missing.length) throw new Error(`NEXT.md misses: ${missing.join("; ")}`)
   const paths = [HANDOFF_PROMPT_PATH, ...openingSpecPaths(prompt)]
   for (const path of paths) {
@@ -249,15 +233,15 @@ const launchSuccessor = async ({ previous, metrics, sessionId, repoRoot, execute
   const crank = handoffCrank(readHandoffRequest(sessionId, repoRoot), readRunState(repoRoot))
   const autoWork = handoffAutoWork(readHandoffRequest(sessionId, repoRoot), readRunState(repoRoot))
   recordHandoffRequest(sessionId, { command: "handoff", origin: "context-relay", sleep: true, crank, autoWork }, now, repoRoot)
-  const workers = liveDetachedWorkers(repoRoot)
-  const prompt = provePromptPublished(repoRoot, execute, crank, autoWork, workers)
+  const prompt = provePromptPublished(repoRoot, execute, crank, autoWork)
   const successorSessionId = randomUUID()
   const command = successorCommand(metrics.lastCall.model, previous.relay.permissionMode, successorSessionId, repoRoot)
   assertNothingBlocks(repoRoot, sessionId)
   const attempting = updateRunState((current) => {
     if (current?.sessionId !== sessionId || !current.relay?.pending) throw new Error("owner canceled the relay drain")
-    // runningSince is the only mark that refuses a launch: the carry above is complete only until a worker starts after it.
-    return { ...current, relay: { ...current.relay, successorSessionId, lastAttemptAt: now, runningSince: now, carriedWorkers: workers, attempts: (current.relay.attempts ?? 0) + 1 } }
+    // A launch that passed admission before runningSince was written can register after this read, and no refusal or carry covers it.
+    // The Stop hook of the successor blocks on a worker with no file waiter, and run-status.mjs names its wait command.
+    return { ...current, relay: { ...current.relay, successorSessionId, lastAttemptAt: now, runningSince: now, carriedWorkers: liveDetachedWorkers(repoRoot), attempts: (current.relay.attempts ?? 0) + 1 } }
   }, repoRoot, { sessionId })
   stopRelayWaiters(sessionId, repoRoot)
   appendChainEntry(await sessionChainEntry(attempting, previous.relay.transcriptPath), repoRoot)
@@ -327,12 +311,8 @@ const main = async () => {
     closeRelayTerminal(request)
     return
   }
-  if (args.length > 1 || args.some((argument) => !["--retry-wake", "--workers", "--owner-check", "--close-chain"].includes(argument))) {
+  if (args.length > 1 || args.some((argument) => !["--retry-wake", "--owner-check", "--close-chain"].includes(argument))) {
     process.stderr.write(`${USAGE}\n`); process.exitCode = 2; return
-  }
-  if (args[0] === "--workers") {
-    process.stdout.write(`${JSON.stringify(liveDetachedWorkers(REPO_ROOT))}\n`)
-    return
   }
   const sessionId = process.env.CLAUDE_CODE_SESSION_ID
   const state = readRunState()

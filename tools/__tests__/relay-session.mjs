@@ -257,14 +257,6 @@ const stageDetachedWorker = (staged, issue) => {
   return { supervisor, worker, issue, completionFile, startedAt }
 }
 
-const publishWorkers = (staged, workers) => {
-  const section = `## Live workers\n${workers.map((worker) => `- ${worker.waitCommand}`).join("\n")}\n`
-  writeFileSync(join(staged.checkout, ".claude", "handoffs", "NEXT.md"), readFileSync(join(staged.checkout, ".claude", "handoffs", "NEXT.md"), "utf8") + section)
-  staged.git(["add", ".claude/handoffs/NEXT.md"])
-  staged.git(["commit", "-qm", "carry workers"])
-  staged.git(["push", "-q", "origin", "relay-docs"])
-}
-
 const detachedWorkerCases = async () => {
   const staged = fixture("detached-workers")
   cpSync(toolPath("lib"), join(staged.checkout, "tools", "lib"), { recursive: true })
@@ -278,14 +270,8 @@ const detachedWorkerCases = async () => {
       carriedBefore.length === 3 && carriedBefore.every((worker, index) => worker.completionFile === detached[index].completionFile && worker.worktree.endsWith(detached[index].issue) &&
         worker.waitCommand.startsWith("node tools/wait-file.mjs --file ") && worker.waitCommand.includes(`--started-at ${detached[index].startedAt}`) && worker.launchRecord.endsWith(`${detached[index].supervisor.pid}.json`)), JSON.stringify(carriedBefore))
     T("relay-session: a pending relay that has not started its tool run refuses no launch", readRunState(staged.checkout).relay.pending === true && !relayIsRunning(readRunState(staged.checkout)))
-    const refusedOperations = []
-    const refused = await failure({ repoRoot: staged.checkout, sessionId: "predecessor", execute: executeFor(staged.checkout, { commands: refusedOperations }), wait: async () => {}, confirmMilliseconds: 10 })
-    T("relay-session: a handoff that carries no live worker is refused, naming each wait command", detached.every((entry, index) => String(refused).includes(carriedBefore[index].waitCommand)) && /NEXT.md misses/.test(refused), String(refused))
-    T("relay-session: the refused relay launched no successor, kept no running mark and owes no retry cooldown", refusedOperations.length === 0 && !relayIsRunning(readRunState(staged.checkout)) && readRunState(staged.checkout).relay.lastAttemptAt === undefined)
-    const cli = spawnSync(process.execPath, [join(staged.checkout, "tools", "relay-session.mjs"), "--workers"], { encoding: "utf8", cwd: staged.checkout, env: { ...process.env, CLAUDE_CODE_SESSION_ID: "predecessor" } })
-    T("relay-session: --workers prints the carry that the handoff copies", cli.status === 0 && JSON.parse(cli.stdout).map((worker) => worker.waitCommand).join() === carriedBefore.map((worker) => worker.waitCommand).join(), cli.stderr)
-
-    publishWorkers(staged, carriedBefore)
+    const handoff = readFileSync(join(staged.checkout, ".claude", "handoffs", "NEXT.md"), "utf8")
+    T("relay-session: the handoff names no worker, so its size does not grow with the worker count", carriedBefore.every((worker) => !handoff.includes(worker.waitCommand) && !handoff.includes(worker.issue)))
     const runningDuringRelay = []
     const operations = []
     const result = await relaySession({ repoRoot: staged.checkout, sessionId: "predecessor", wait: async () => {}, confirmMilliseconds: 10,
@@ -296,7 +282,7 @@ const detachedWorkerCases = async () => {
         return executeFor(staged.checkout, { commands: operations })(binary, args, cwd, environment)
       } })
     const successor = readRunState(staged.checkout)
-    T("relay-session: three live workers do not delay the relay and the successor is confirmed", successor.sessionId === result.successorSessionId && operations.some((args) => args[1] === "create"))
+    T("relay-session: three live workers that NEXT.md does not name neither delay nor stop the relay, and the successor is confirmed", successor.sessionId === result.successorSessionId && operations.some((args) => args[1] === "create"))
     T("relay-session: launches are refused only while the relay tool composes the successor", runningDuringRelay.length > 0 && runningDuringRelay.every(Boolean) && !relayIsRunning(successor))
     T("relay-session: the successor's run record carries each worker", successor.relay.carriedWorkers.map((worker) => worker.issue).join() === "ORB-301,ORB-302,ORB-303")
     T("relay-session: the relay stops no worker supervisor and no worker",

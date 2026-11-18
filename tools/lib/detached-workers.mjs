@@ -25,18 +25,19 @@ const carried = (source, repoRoot) => ({
   waitCommand: workerWaitCommand(source),
 })
 
-/** Every detached worker whose supervisor still runs, including one inside its start window. */
-export const liveDetachedWorkers = (repoRoot) => readWakeSourceStates(repoRoot).live
+/** Every detached worker whose supervisor still runs, including one inside its start window. `live` is a read the caller already made. */
+export const liveDetachedWorkers = (repoRoot, live = readWakeSourceStates(repoRoot).live) => live
   .filter((source) => isDetachedWorker(source) && typeof source.completionFile === "string" && typeof source.issue === "string")
   .map((source) => carried(source, repoRoot))
 
 /**
  * The detached workers that no file waiter watches and that need one for `sessionId`. A worker needs a waiter when
  * its entry process is gone, or when another session launched it: only that entry wakes the session that started it.
+ * `live` is a read the caller already made, so a caller that probes every source once does not probe each again.
  */
-export const workersWithoutWaiter = (repoRoot, sessionId) => {
-  const waiters = readWakeSourceStates(repoRoot).live.filter((source) => source.kind === "file-waiter" && typeof source.file === "string")
-  return liveDetachedWorkers(repoRoot).filter((worker) => {
+export const workersWithoutWaiter = (repoRoot, sessionId, live = readWakeSourceStates(repoRoot).live) => {
+  const waiters = live.filter((source) => source.kind === "file-waiter" && typeof source.file === "string")
+  return liveDetachedWorkers(repoRoot, live).filter((worker) => {
     const entryAlive = Number.isInteger(worker.entryPid) && isWakeSourceAlive({ pid: worker.entryPid, processStartIdentity: worker.entryProcessStartIdentity })
     return (!entryAlive || worker.ownerSessionId !== sessionId) && !waiters.some((waiter) => waiter.file === worker.completionFile)
   })

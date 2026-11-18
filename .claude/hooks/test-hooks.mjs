@@ -3408,6 +3408,34 @@ T("wake identity: a proven dead registration is removed", existsSync(deadWakeFil
 clearWakeSource(process.pid, wakeCheckout)
 T("wake identity: cleanup removes the matching launch registration", existsSync(wakeFile), false)
 
+/** A detached supervisor outlives its session, so a successor with no file waiter on its completion file must not end the turn. */
+const unwatchedSession = "orbit-hooks-unwatched-session"
+writeFileSync(runStatePath(wakeCheckout), JSON.stringify({ sessionId: unwatchedSession, sleep: true, remaining: ["ORB-9"] }))
+const sleeperProcess = () => spawn(process.execPath, ["-e", "setTimeout(() => {}, 60000)"], { stdio: "ignore" })
+const supervisorProcess = sleeperProcess()
+const workerProcess = sleeperProcess()
+const waiterProcess = sleeperProcess()
+const unwatchedCompletionFile = join(wakeCheckout, "results", `${supervisorProcess.pid}.json`)
+const unwatchedStartedAt = "2026-11-18T12:00:00.000Z"
+const unwatchedStop = () => spawnSync(process.execPath, [join(wakeHooks, WAKE_HOOK)], { input: JSON.stringify({ session_id: unwatchedSession, stop_hook_active: false }), encoding: "utf8", windowsHide: true })
+try {
+  registerWakeSource({ pid: supervisorProcess.pid, workerPid: workerProcess.pid, what: "worker ORB-9", detached: true, issue: "ORB-9", runDirectory: join(wakeCheckout, "ORB-9"),
+    branch: "fix/orb-9", logFile: join(wakeCheckout, "ORB-9.log"), startedAt: unwatchedStartedAt, completionFile: unwatchedCompletionFile, ownerSessionId: "predecessor-session", entryPid: exitedProcess.pid }, wakeCheckout)
+  const unwatched = unwatchedStop()
+  T("wake detached: a successor with only the predecessor's live supervisor blocks the real Stop adapter", unwatched.status, 2)
+  T("wake detached: the refusal names the exact wait command of the worker", unwatched.stderr.includes(`node tools/wait-file.mjs --file ${unwatchedCompletionFile} --started-at ${unwatchedStartedAt}`), true)
+  registerWakeSource({ pid: waiterProcess.pid, kind: "file-waiter", sessionId: unwatchedSession, file: unwatchedCompletionFile, what: "worker ORB-9" }, wakeCheckout)
+  T("wake detached: a file waiter on its completion file lets the real Stop adapter allow the stop", unwatchedStop().status, 0)
+} finally {
+  for (const child of [supervisorProcess, workerProcess, waiterProcess]) { child.kill("SIGKILL"); clearWakeSource(child.pid, wakeCheckout) }
+}
+const unwatchedWorker = { issue: "ORB-9", waitCommand: "node tools/wait-file.mjs --file /x/results/1.json --started-at 2026-11-18T12:00:00.000Z --what 'worker ORB-9'" }
+T("sleep-stop: an unwatched detached worker blocks even though a supervisor is live", blocks(checkSleepStop({ state: sleeping, wakeSources: [{ pid: 4242, detached: true, ownerSessionId: "predecessor" }], unwatchedWorkers: [unwatchedWorker], sessionId: "s1", isWakeSourceAlive: alive })), true)
+T("sleep-stop: the unwatched worker block names its wait command", checkSleepStop({ state: sleeping, unwatchedWorkers: [unwatchedWorker], sessionId: "s1" })?.message.includes(unwatchedWorker.waitCommand), true)
+T("sleep-stop: an unwatched worker blocks an exhausted queue too", blocks(checkSleepStop({ state: { ...sleeping, remaining: [] }, unwatchedWorkers: [unwatchedWorker], sessionId: "s1" })), true)
+T("sleep-stop: a pending relay still allows the stop with an unwatched worker, because the relay carries it", checkSleepStop({ state: { ...sleeping, relay: { pending: true } }, unwatchedWorkers: [unwatchedWorker], sessionId: "s1" })?.block, false)
+T("sleep-stop: a watched detached worker allows", checkSleepStop({ state: sleeping, wakeSources: [{ pid: 4242, detached: true }], unwatchedWorkers: [], sessionId: "s1", isWakeSourceAlive: alive }), null)
+
 const mergedAdapterSha = "4d5901100fe6d3f6db9004468c653f9ff9239ff4"
 writeFileSync(runStatePath(wakeCheckout), JSON.stringify({
   sessionId: stopPayload.session_id,

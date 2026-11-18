@@ -1,12 +1,12 @@
 import { BACKGROUND_RUN_WAITER } from "../../../tools/lib/run-state.mjs"
 
 /**
- * @param options `{ state, wakeSources, backgroundRuns, sessionId, stopHookActive, isWakeSourceAlive, receiptVerdict }`
- * `backgroundRuns` holds the live background workflows and subagents that do not count as stuck.
+ * @param options `{ state, wakeSources, unwatchedWorkers, backgroundRuns, sessionId, stopHookActive, isWakeSourceAlive, receiptVerdict }`
+ * `unwatchedWorkers` and `backgroundRuns` hold what no wake source of this session watches (`workersWithoutWaiter`) and the live, not stuck, background runs.
  * `isWakeSourceAlive(source)` must compare the persisted identity with a fresh OS observation.
  * @returns `{ block, message }` when an unattended run is about to go quiet, else null
  */
-export function checkSleepStop({ state, wakeSources = [], orphanedWakeSources = [], backgroundRuns = [], sessionId = "", stopHookActive = false, relayEnabled = true, isWakeSourceAlive = () => false, receiptVerdict = () => null } = {}) {
+export function checkSleepStop({ state, wakeSources = [], orphanedWakeSources = [], unwatchedWorkers = [], backgroundRuns = [], sessionId = "", stopHookActive = false, relayEnabled = true, isWakeSourceAlive = () => false, receiptVerdict = () => null } = {}) {
   // A blocked stop that blocks again is an infinite loop, and Claude Code sets this flag on the
   // second pass for exactly that reason.
   if (stopHookActive) return null
@@ -28,6 +28,16 @@ export function checkSleepStop({ state, wakeSources = [], orphanedWakeSources = 
       }
     }
     return { block: false, terminal: "RELAY_DRAIN", message: "Launch nothing new. Workers keep running and the relay carries them: wait only for release watchers, background workflows and background subagents, then run /handoff --relay --sleep and node tools/relay-session.mjs." }
+  }
+
+  // A detached worker outlives its session, so it counts as a wake source only through a file waiter that this session started.
+  if (unwatchedWorkers.length > 0) {
+    return {
+      block: true,
+      message:
+        `Start a file waiter for each worker below, as a background task, and then end the turn. No wake source of this session watches ${unwatchedWorkers.length === 1 ? "it" : "them"}, so its result would reach nobody.\n` +
+        unwatchedWorkers.map((worker) => `  ${worker.issue}: ${worker.waitCommand}`).join("\n"),
+    }
   }
 
   const remaining = Array.isArray(state.remaining) ? state.remaining.filter((entry) => typeof entry === "string" && entry !== "") : []

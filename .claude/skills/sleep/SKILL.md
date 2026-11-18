@@ -162,14 +162,14 @@ failures on 6; none is successful CI. Exit 3 is the ceiling; 1 or 2 is a read or
 - With `relay.enabled: true` and `relay.pending: true`, launch no new work, including review batches.
   Do not wait for worker launchers: each ticket worker runs under a detached supervisor and writes
   its completion file when it ends. Wait only for release watchers, research launchers, background
-  workflows and background subagents, which end with this session. Then run
-  `node tools/relay-session.mjs --workers`, follow `/handoff --relay --sleep` with each printed
-  `waitCommand` in the prompt, and run `node tools/relay-session.mjs`. Admission refuses a launch
-  only while that tool runs.
+  workflows and background subagents, which end with this session. Then follow
+  `/handoff --relay --sleep`, which lists no worker, and run `node tools/relay-session.mjs`. Admission refuses a launch
+  while that tool runs, which narrows the window to seconds but does not close it: the Stop hook of the successor is the backstop.
   CI and file waiters may remain live; neither blocks the relay. The relay tool stops
   this session's waiters while a worker supervisor or a local check detached with `setsid` keeps running.
   The successor starts one `node tools/wait-file.mjs` for each carried worker and each carried
-  check on its absolute completion file; a `WAIT_WORKER` action of `run-status.mjs` names any that it lacks.
+  check on its absolute completion file; a `WAIT_WORKER` action of `run-status.mjs` names each worker that lacks one,
+  and the Stop hook blocks the successor's turn end until none lacks one.
   A failed relay keeps this session responsible and uses `--retry-wake` for its ten minute
   cooldown. `/handoff --relay` filters the owner questions through `/questions --relay`; never ask
   the owner during the relay.

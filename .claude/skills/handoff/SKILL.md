@@ -49,9 +49,10 @@ It never asks the owner anything, and it never ends the session before a success
 is confirmed. This is the exception to the owner handoff's ending
 rule below. Every other inventory, spec, prompt, commit and push requirement still applies.
 
-Workers do not delay a relay. Run `node tools/relay-session.mjs --workers` and put each printed worker in the
-in-flight inventory with its worktree, branch, launch record, completion file and `waitCommand`, the exact command that the
-successor runs as a background task. The relay tool refuses a prompt that lacks the `waitCommand` of a live worker.
+Workers do not delay a relay, and the handoff lists none of them: the size cap of `NEXT.md` must not shrink the carry as the
+worker count grows. Write one constant line in `NEXT.md`: the successor starts each `WAIT_WORKER` command that
+`node tools/run-status.mjs --session <session id>` prints, as a background task. The relay stores each live worker in the
+run record as `relay.carriedWorkers`, and the Stop hook blocks the successor until a file waiter watches each one.
 
 For a local check detached with `setsid` to survive the relay, start
 `node tools/wait-file.mjs --file <absolute completion file> --started-at <original ISO start> --what <check label>` as a background

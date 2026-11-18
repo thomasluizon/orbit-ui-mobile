@@ -5,7 +5,8 @@ import { readFileSync } from "node:fs"
 import { readinessReport } from "../../tools/lib/readiness-receipt.mjs"
 import { readOrchestratorConfig } from "../../tools/lib/orchestrator-config.mjs"
 import { readSessionContext } from "../../tools/lib/session-context.mjs"
-import { isWakeSourceAlive, readRunState, readWakeSourceStates } from "../../tools/lib/run-state.mjs"
+import { REPO_ROOT, isWakeSourceAlive, readRunState, readWakeSourceStates } from "../../tools/lib/run-state.mjs"
+import { workersWithoutWaiter } from "../../tools/lib/detached-workers.mjs"
 import { liveBackgroundTasks, readDrainBlockers } from "../../tools/lib/background-runs.mjs"
 import { readStdinJson } from "./_lib/io.mjs"
 import { checkSleepStop } from "./_lib/rules-sleep.mjs"
@@ -52,6 +53,7 @@ try {
     relayEnabled: config.relay.enabled,
     wakeSources: wakeSourceStates.live,
     orphanedWakeSources: wakeSourceStates.orphaned,
+    unwatchedWorkers: state?.sleep === true && state.sessionId === input?.session_id ? workersWithoutWaiter(REPO_ROOT, input.session_id, wakeSourceStates.live) : [],
     backgroundRuns: waitingBackgroundRuns(input, state, config.relay.enabled),
     sessionId: input?.session_id ?? "",
     stopHookActive: input?.stop_hook_active === true,

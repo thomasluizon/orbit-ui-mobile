@@ -1509,14 +1509,15 @@ Context relays are the confirmed successor exception to this invariant. The Stop
 message tells the session to finish the unit in front of it. The relay begins at the next quiet
 point, a turn end with every in-flight item waiting on a live wake source, or at the hard ceiling
 on any call. Then it writes `relay.pending`. The owner set both values from the cost band that `node tools/measure-relay-cost.mjs` prints. Keep the admitted queue and
-ledger. Launch no new work after `relay.pending`, because the handoff names the workers that exist when it is written.
+ledger. Launch no new work after `relay.pending`: the relay reads the live workers once, near its end.
 
 A worker does not delay the relay. `tools/launch-worker.mjs` starts each ticket worker under a
 detached supervisor that the session cannot end, and the supervisor writes the completion file
 `<git dir>/orbit-worker-launches/results/<launcherPid>.json` atomically when the worker is gone. The relay carries each live worker
 to the successor, and the successor waits for it with `tools/wait-file.mjs` on that file. Admission refuses a launch
-only while `node tools/relay-session.mjs` runs, which is the `relay.runningSince` mark and lasts seconds.
-A launch that happens after the handoff was written makes the tool refuse with the missing wait command: write the handoff again.
+while `node tools/relay-session.mjs` runs, which is the `relay.runningSince` mark and lasts seconds. That check does not close the
+window: a launch that passed admission before the mark can register after the relay read the workers, and the relay neither refuses nor carries it.
+The Stop hook `require-wake-source.mjs` is the backstop: it blocks a `--sleep` turn end while a live worker has no file waiter in this session.
 
 Live background Workflow runs and background subagents still hold the relay open until completion, because they end with this session; a record is stale only when the owning Stop omits the run, a terminal workflow snapshot proves it settled, or its recorded process start identity is no longer live. Research launchers and release watchers hold it open for the same reason.
 
@@ -1526,15 +1527,14 @@ No drain waits on one without a limit. While one holds the drain, start `node to
 The same hook refuses `AskUserQuestion` and each other tool in `PERSON_PROMPT_TOOLS` for the coordinator, every subagent and every worker of an unattended run, because such a tool waits for a person with no limit. Decide with the best option and log the decision. For a real owner question, add a `{ question, blocks }` row to `openOwnerQuestions` through `updateRunState` and ask it in plain reply text, which never blocks.
 The hook loads in a session whose project checkout holds it, so a subagent and a workflow agent of this session load it in every worktree. A worker in a repository without the hook does not load it: for that order, `compose-prompt.mjs` says so and names the hook of this repository by its absolute path. Never point a brief at a hook path that the checkout of its agent does not hold.
 
-When none of those remain, run `node tools/relay-session.mjs --workers`, which prints each live worker with its
-worktree, launch record, completion file and exact `waitCommand`. Invoke `/handoff --relay --sleep` and copy each `waitCommand` into
-the prompt, then run `node tools/relay-session.mjs`.
+When none of those remain, invoke `/handoff --relay --sleep`, which lists no worker and writes one constant line for them,
+then run `node tools/relay-session.mjs`.
 The handoff filters the owner questions through `/questions --relay`, so only the questions that
-survive stay in the spec and run state. Never ask the owner during this transition. The tool verifies the pushed spec and prompt, refuses a prompt that lacks the wait command of a live worker, stops this
+survive stay in the spec and run state. Never ask the owner during this transition. The tool verifies the pushed spec and prompt, stops this
 session's CI and file waiters and confirms a nominated successor from its run-state write. A worker supervisor
 and a local check detached with `setsid` keep running when the waiters stop. The successor starts one `tools/wait-file.mjs`
-waiter for each carried worker, passing the original start with `--started-at`; the run record's `relay.carriedWorkers` and the
-`WAIT_WORKER` action of `run-status.mjs` name the same commands. Successor
+waiter for each worker that a `WAIT_WORKER` action of `run-status.mjs` names, with the original start in `--started-at`. The run record's
+`relay.carriedWorkers` holds the same workers, and the Stop hook blocks the successor until a file waiter watches each one. Successor
 adoption durably fences the predecessor before the reporting chain is finalized; reading
 the open chain reconciles interrupted finalization. The successor enters through `/sleep`, adopts the run with
 `adoptRelayRun`, and starts its first wakeup with `run-status.mjs` as usual. The open chain

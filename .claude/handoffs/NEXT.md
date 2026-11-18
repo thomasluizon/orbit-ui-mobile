@@ -44,7 +44,7 @@ Invoke `/crank` immediately after `/sleep` entry; `crank: true` is inherited. Ke
 
 ## Sleep
 
-Unattended: never ask the owner; decide with the best option and log it. Keep a live wake source (`tools/launch-worker.mjs`, `tools/wait-ci.mjs`, `tools/wait-release.mjs` or `tools/wait-file.mjs`, as Bash background tasks with timeout 7200000). Merge only with `gh pr merge --squash --match-head-commit <full sha>` after green checks, a fresh Pullfrog approval at that head and zero unresolved threads. Never add an attribution line. At the context threshold, relay through `node tools/relay-session.mjs`, with the wait command of each live worker in the handoff.
+Unattended: never ask the owner; decide with the best option and log it. Keep a live wake source (`tools/launch-worker.mjs`, `tools/wait-ci.mjs`, `tools/wait-release.mjs` or `tools/wait-file.mjs`, as Bash background tasks with timeout 7200000). Merge only with `gh pr merge --squash --match-head-commit <full sha>` after green checks, a fresh Pullfrog approval at that head and zero unresolved threads. Never add an attribution line. At the context threshold, relay through `node tools/relay-session.mjs`. After entry, start each `WAIT_WORKER` command that `node tools/run-status.mjs --session <session id>` prints.
 
 ## Previous prompt, disposition
 
