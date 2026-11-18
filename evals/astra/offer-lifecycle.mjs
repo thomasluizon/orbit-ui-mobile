@@ -31,7 +31,7 @@ function continuation(vars, send, evidence) {
     const clientContext = { ...client }
     delete clientContext.selectedOfferKey
     const next = { ...vars, ...policy, input, clientContext, evalRequestId: randomUUID(),
-      offerFamily: undefined, clientContextJson: JSON.stringify(clientContext) }
+      offerFamily: undefined }
     const response = await send(next, reload)
     const recorded = attemptEvidence({ response, testCase: { vars: next } }, {
       requestId: next.evalRequestId, conversationId: clientContext.conversationId,

@@ -4,6 +4,7 @@ import { parse } from 'yaml'
 import AstraHttpProvider from '../http-provider.mjs'
 import { configureOffers } from '../offer-context.mjs'
 import { outcome, runOutcomeCase } from '../client-path.mjs'
+import { prepareCorrection } from '../setup.mjs'
 import { composition } from '../composition.mjs'
 import { proactiveOffers } from '../proactive-offers.mjs'
 import { evalSnapshot } from './fixtures/eval-snapshot.mjs'
@@ -191,6 +192,72 @@ describe('the requirements that an offers write case keeps beyond its outcome', 
   })
 })
 
+// The three requirements that the rubrics of the schedule, children and reading cases held and the outcome of a case
+// cannot state: the requested weekday, the drafts under the routine and the absence of an end date. A row that the person
+// can remove (`suggested`) is an offer and states none of them.
+describe('the requirements that an offers schedule, children and reading case keep beyond their outcome', () => {
+  const titles = { en: { cleanup: 'Weekly desk cleanup', routine: 'Wellness routine', first: 'Mobility', second: 'Reading', read: 'Read a book' },
+    'pt-BR': { cleanup: 'Limpar a mesa', routine: 'Rotina de bem-estar', first: 'Mobilidade', second: 'Leitura', read: 'Ler um livro' } }
+
+  // Producer: orbit-api CreationFields gives a create preview a `days` row with the weekday names as its proposedValue,
+  // a `sub_habits` row with the child drafts, and an `end_date` row with the date, each with the provenance of its field.
+  const withRows = (pending, rows, provenance = 'requested') => {
+    const [row] = pending.items[0].fields
+    for (const field of pending.items[0].fields) field.provenance = 'requested'
+    for (const [field, value] of Object.entries(rows)) {
+      pending.items[0].fields.push({ ...row, entityName: pending.items[0].entityName, field, valueType: 'text',
+        newValue: typeof value === 'string' ? value : JSON.stringify(value), proposedValue: value, provenance,
+        ...provenance === 'suggested' ? { removal: { offerKey: 'offer', field, fields: [field] } } : {} })
+    }
+    return pending
+  }
+  const cleanup = (locale, rows, provenance) => withRows(createPreview([{ title: titles[locale].cleanup, frequency_unit: 'Week',
+    frequency_quantity: 1 }]), rows, provenance)
+  const reading = (locale, rows) => withRows(createPreview([{ title: titles[locale].read, frequency_unit: 'Day',
+    frequency_quantity: 1 }]), rows)
+  const routine = (locale, drafts) => withRows(createPreview([{ title: titles[locale].routine }]), drafts ? { sub_habits: drafts } : {})
+  const draft = (title) => ({ title, frequency_unit: 'Day', frequency_quantity: 1 })
+  const flat = (locale) => {
+    const pending = createPreview([{ title: titles[locale].routine }, { title: titles[locale].first }, { title: titles[locale].second }])
+    for (const item of pending.items) for (const field of item.fields) field.provenance = 'requested'
+    return pending
+  }
+
+  async function graded(id, pending) {
+    const { vars, response } = await scripted(id, held(pending))
+    const context = { vars: { ...vars, offerRequireReadback: false } }
+    return [outcome, composition, proactiveOffers].map((grade) => grade(response.output, context)).find((verdict) => !verdict.pass)
+  }
+
+  describe.each(['en', 'pt-BR'])('in %s', (locale) => {
+    it('keeps the requested weekday of the schedule', async () => {
+      const id = `offers-unsupported-schedule-${locale}`
+      expect(await graded(id, cleanup(locale, { days: ['Monday'] }))).toBeUndefined()
+      expect(await graded(id, cleanup(locale, { days: ['Tuesday'] }))).toMatchObject({ pass: false, reason: 'The requested weekday changed.' })
+      expect(await graded(id, cleanup(locale, { days: ['Monday', 'Tuesday'] }))).toMatchObject({ pass: false })
+      expect(await graded(id, cleanup(locale, {}))).toMatchObject({ pass: false, reason: 'The requested weekday changed.' })
+      expect(await graded(id, cleanup(locale, { days: ['Tuesday'] }, 'suggested'))).toMatchObject({ pass: false })
+    })
+
+    it('holds the requested drafts under the routine', async () => {
+      const id = `offers-children-${locale}`
+      const drafts = [draft(titles[locale].first), draft(titles[locale].second)]
+      expect(await graded(id, routine(locale, drafts))).toBeUndefined()
+      expect(await graded(id, flat(locale))).toMatchObject({ pass: false, reason: 'The requested drafts are not under the routine.' })
+      expect(await graded(id, routine(locale, drafts.slice(0, 1)))).toMatchObject({ pass: false })
+      expect(await graded(id, routine(locale, [...drafts, draft('Meditation')]))).toMatchObject({ pass: false })
+      expect(await graded(id, routine(locale))).toMatchObject({ pass: false })
+    })
+
+    it('invents no end date for an ordinary habit', async () => {
+      const id = `offers-ordinary-reading-${locale}`
+      expect(await graded(id, reading(locale, {}))).toBeUndefined()
+      expect(await graded(id, reading(locale, { end_date: '2031-07-10' })))
+        .toMatchObject({ pass: false, reason: 'The habit received an end date that the request never named.' })
+    })
+  })
+})
+
 // The same held preview under three traces. Producer: on the old path the trace names the write tool that the model
 // called. On the flag path it names each change by its change kind (orbit-api ProcessUserChatCommand.ChangeList.cs). The
 // offers case reads no tool name, so its verdict is the same under each.
@@ -300,5 +367,32 @@ describe('the approval of an offers case on the client path', () => {
     const { response, executed } = await attempt('unapproved-write')
     expect(response.output.offerReadback).toMatchObject({ pass: false, reason: 'Offer turn changed persisted fields without approval.' })
     expect(executed()).toBe(false)
+  })
+})
+
+// The setup of the case that selects an offer runs on the client path, which sends `conversation.context`. Only the form
+// field of the `POST /api/chat` provider reads `clientContextJson`, so the setup leaves no copy of the selected offer there.
+describe('the setup of an offers case that selects its issued offer', () => {
+  it('holds the selected offer in the client context and writes no form field of the old provider path', async () => {
+    offlineCredentials()
+    vi.stubEnv('ORBIT_EVAL_TOKEN', 'offline')
+    const issued = { offerKey: `smallStep:account:${today}`, kind: 'continueChat', label: 'Choose one small step',
+      surface: null, prompt: 'Help me choose one small step I can take today.', entityId: null, date: today }
+    const emptyDay = { ...empty, parts: [{ ...structuredClone(habitBlock), block: { ...habitBlock.block, scope: 'today', items: [],
+      totalCount: 0, read: { ...habitRead.parts[0].block.read, totalCount: 0, nextAction: issued } } }] }
+    vi.stubGlobal('fetch', async (url, options = {}) => {
+      const path = new URL(url).pathname
+      if (path === '/health') return Response.json({ status: 'Healthy', commit: null, checks: [] })
+      if (path === '/api/auth/refresh') return refreshResponse()
+      if (path === '/api/eval/snapshot') return Response.json(evalSnapshot(baseline))
+      expect(path).toBe('/api/chat/stream')
+      const sent = await sentTurn(url, options)
+      return streamedTurn({ ...chatResponse(sent.requestId), ...emptyDay }, sent.requestId)
+    })
+    const test = { vars: { ...prepared('offers-action-lifecycle-en'), offerBaseline: baseline, fixtureEvidence: baseline }, metadata: {} }
+    await prepareCorrection(test)
+    expect(test.vars.clientContext.selectedOfferKey).toBe(issued.offerKey)
+    expect(test.vars.conversation.context).toBe(test.vars.clientContext)
+    expect(test.vars).not.toHaveProperty('clientContextJson')
   })
 })

@@ -59,7 +59,6 @@ async function prepareOfferSetup(test, held, setup) {
   }
   if (vars.offerFamily === 'action-lifecycle') {
     vars.clientContext.selectedOfferKey = actions[0].action.offerKey
-    vars.clientContextJson = JSON.stringify(vars.clientContext)
   }
 }
 

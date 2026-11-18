@@ -3280,6 +3280,7 @@
     credentialKey: ORBIT_EVAL_TOKEN
     clientContext: {<<: *offers_en, conversationId: "c46090fe-9abf-55e4-8694-919a3e0a91fb"}
     input: "Create Weekly desk cleanup on Monday."
+    requestedDays: ["Monday"]
     composition: {"mode": "preview", "previews": 1}
     outcome: {"changes":[{"kind":"create","fields":{"title":{"contains":["desk"]},"frequency_unit":"Week","frequency_quantity":"1"}}]}
 - description: "proactive unsupported-schedule in pt-BR"
@@ -3288,6 +3289,7 @@
     credentialKey: ORBIT_EVAL_TOKEN
     clientContext: {<<: *offers_pt, conversationId: "4564ce50-26e6-507a-93de-b9c01ee1b224"}
     input: "Crie Limpar a mesa semanalmente na segunda-feira."
+    requestedDays: ["Monday"]
     composition: {"mode": "preview", "previews": 1}
     outcome: {"changes":[{"kind":"create","fields":{"title":{"contains":["mesa"]},"frequency_unit":"Week","frequency_quantity":"1"}}]}
 - description: "proactive dated-reminder in en"
@@ -3332,6 +3334,7 @@
     credentialKey: ORBIT_EVAL_TOKEN
     clientContext: {<<: *offers_en, conversationId: "fd29f6db-e83d-5748-9ae4-e8314872acae"}
     input: "Create a daily wellness routine: mobility in the morning and reading at night, each tracked separately."
+    childDrafts: [["mobility"],["reading","read"]]
     composition: {"mode": "preview", "previews": 1}
     outcome: {"changes":[{"kind":"create","fields":{"title":{"contains":["mobility"]}}},{"kind":"create","fields":{"title":{"contains":["reading","read"]}}},{"kind":"create","fields":{"title":{"contains":["wellness","routine"]}}}]}
 - description: "proactive children in pt-BR"
@@ -3340,6 +3343,7 @@
     credentialKey: ORBIT_EVAL_TOKEN
     clientContext: {<<: *offers_pt, conversationId: "d33d5539-7559-5932-80c2-da6c92e85f02"}
     input: "Crie uma rotina diária de bem-estar: mobilidade pela manhã e leitura à noite, com acompanhamento separado."
+    childDrafts: [["mobilidade"],["leitura","ler"]]
     composition: {"mode": "preview", "previews": 1}
     outcome: {"changes":[{"kind":"create","fields":{"title":{"contains":["mobilidade"]}}},{"kind":"create","fields":{"title":{"contains":["leitura","ler"]}}},{"kind":"create","fields":{"title":{"contains":["bem-estar","rotina"]}}}]}
 - description: "proactive parent in en"

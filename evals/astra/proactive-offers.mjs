@@ -135,6 +135,27 @@ function checklistFailure(fields, vars) {
   return listed.length === steps.length ? null : 'The checklist holds a step outside the request.'
 }
 
+// The weekday of the request stays as the person named it. Producer: orbit-api CreationFields gives a create preview a
+// `days` row with the weekday names (AgentArgumentSchema `days`) as its proposedValue. The `requestedDays` of the case name them.
+function weekdayFailure(fields, vars) {
+  const days = fields.find((field) => field.field === 'days' && field.provenance !== 'suggested')?.proposedValue
+  const requested = vars.requestedDays
+  if (!Array.isArray(requested) || !requested.length) return 'Missing the weekday of the schedule case.'
+  return Array.isArray(days) && isDeepStrictEqual([...days].sort(), [...requested].sort()) ? null : 'The requested weekday changed.'
+}
+
+// Each requested child is its own draft under the routine, and no other draft is there. Producer: CreationFields gives a
+// create preview a `sub_habits` row with the child drafts as its proposedValue. The `childDrafts` of the case name each
+// draft by the words that its title may use.
+function childDraftFailure(fields, vars) {
+  const requested = vars.childDrafts
+  if (!Array.isArray(requested) || !requested.length) return 'Missing the child drafts of the children case.'
+  const drafts = fields.find((field) => field.field === 'sub_habits' && field.provenance !== 'suggested')?.proposedValue
+  if (!Array.isArray(drafts)) return 'The requested drafts are not under the routine.'
+  if (requested.some((words) => !drafts.some((draft) => matchesField({ contains: words }, draft?.title)))) return 'A requested child draft is missing.'
+  return drafts.length === requested.length ? null : 'The routine holds a child draft outside the request.'
+}
+
 function familyFailure(response, vars, actions) {
   const families = actions.map(({ action }) => action.offerKey.split(':')[0])
   const fields = (response.pendingOperations ?? []).flatMap((pending) => pending.items ?? []).flatMap((item) => item.fields)
@@ -162,6 +183,11 @@ function familyFailure(response, vars, actions) {
     || !fields.some((field) => ['due_date', 'start_date'].includes(field.field) && field.proposedValue === vars.offerStartDate))) return 'Requested inclusive boundary changed.'
   if (vars.offerFamily === 'root' && fields.some((field) => field.field === 'parent_habit_id' && field.proposedValue != null)) return 'Explicit root placement received a parent.'
   if (vars.offerFamily === 'checklist') return checklistFailure(fields, vars)
+  if (vars.offerFamily === 'unsupported-schedule') return weekdayFailure(fields, vars)
+  if (vars.offerFamily === 'children') return childDraftFailure(fields, vars)
+  if (vars.offerFamily === 'ordinary-reading' && fields.some((field) => field.field === 'end_date' && field.provenance !== 'suggested')) {
+    return 'The habit received an end date that the request never named.'
+  }
   if (vars.offerFamily === 'parent' && !suggested.some((field) => field.field === 'parent_habit_id'
     && vars.fixtureEvidence?.habits?.some((habit) => habit.id === field.proposedValue))) return 'Suggested parent is missing or unowned.'
   if (vars.offerFamily === 'goal-link' && !suggested.some((field) => field.field === 'goal_ids'

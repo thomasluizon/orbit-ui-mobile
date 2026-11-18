@@ -133,6 +133,26 @@ it('records the failing continuation turn before its verification fails the life
   expect(verdict.turns[0].trace.responseRequestId).toBe(verdict.turns[0].trace.requestId)
 })
 
+// A continuation turn runs on the client path, which sends `conversation.context`. Only the form field of the
+// `POST /api/chat` provider reads `clientContextJson`, so a continuation turn carries no copy of it.
+it('gives a continuation turn the client context and no form field of the old provider path', async () => {
+  offlineCredentials()
+  vi.stubEnv('ORBIT_EVAL_TOKEN', 'offline')
+  const state = { habits: [], goals: [], tags: [], checklistTemplates: [] }
+  vi.stubGlobal('fetch', async (url) => new URL(url).pathname === '/health'
+    ? Response.json({ status: 'Healthy' }) : new URL(url).pathname === '/api/auth/refresh'
+      ? refreshResponse() : Response.json(state))
+  const output = { composition: { aiMessage: 'Hello.', parts: [{ type: 'text', text: 'Hello.' }] } }
+  const vars = { ...context.vars, credentialKey: 'ORBIT_EVAL_TOKEN', offerFamily: 'dismissal',
+    composition: { mode: 'text' }, outcome: { read: true }, offerBaseline: state,
+    issuedOffer: { action: { offerKey: 'smallStep:account:2031-06-10' } } }
+  const sent = []
+  await completeOfferAttempt(output, vars, async (next) => { sent.push(next); return { error: 'stop after the first turn' } })
+  expect(sent).toHaveLength(1)
+  expect(sent[0].clientContext).toEqual(vars.clientContext)
+  expect(sent[0]).not.toHaveProperty('clientContextJson')
+})
+
 // The selected starting step is the one block that a turn may show without a person asking for it, and the answer names no tool.
 it('exempts only the bound selected starting-step block from the unsolicited-step guard', () => {
   const test = structuredClone(corpus.find((entry) => entry.metadata.id === 'offers-action-lifecycle-en'))
