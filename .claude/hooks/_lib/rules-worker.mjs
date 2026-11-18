@@ -3,7 +3,8 @@ import { dirname, join, relative, resolve } from "node:path"
 
 import { expandCommands } from "./command-expander.mjs"
 import { dropLeadingFlags } from "./rules-dependencies.mjs"
-import { stripHeredocBodies } from "./rules-git.mjs"
+import { stripHeredocBodies, unquotedHeredocRunsCommand } from "./rules-git.mjs"
+import { readsStandardInput, SHELLS } from "./shell-subset.mjs"
 import { insideLinkedWorktree } from "./repo-roots.mjs"
 
 /** The launcher exports this into every worker it starts (tools/launch-worker.mjs). */
@@ -45,6 +46,19 @@ const CURL_BODY_FLAGS = new Set(["-d", "--data", "--data-raw", "--data-binary", 
 const BROWSER_DRIVERS = new Set(["playwright", "maestro", "cypress", "puppeteer", "chromedriver", "geckodriver", "webdriver", "adb", "emulator"])
 /** Package runners that front another program. The real invocation is whatever follows them. */
 const RUNNER_PREFIXES = new Set(["npx", "bunx", "sudo", "command", "time"])
+/** Shell reserved words that start a segment: `if true; then X; fi` splits into `if true`, `then X` and `fi`, and X is the command. */
+const RESERVED_WORDS = new Set(["if", "then", "elif", "else", "do", "while", "until", "!", "{"])
+/**
+ * Prefixes that run the program after them. `values` holds the flags that take the next word, and
+ * `operands` the words that follow the flags before the program: the duration of `timeout`.
+ */
+const EXEC_PREFIXES = new Map([
+  ["exec", { values: new Set(["-a"]), operands: 0 }],
+  ["nohup", { values: new Set(), operands: 0 }],
+  ["nice", { values: new Set(["-n", "--adjustment"]), operands: 0 }],
+  ["timeout", { values: new Set(["-s", "--signal", "-k", "--kill-after"]), operands: 1 }],
+  ["xargs", { values: new Set(["-n", "--max-args", "-I", "--replace", "-P", "--max-procs", "-L", "--max-lines", "-d", "--delimiter", "-E", "-s", "--max-chars", "-a", "--arg-file"]), operands: 0 }],
+])
 const RUNNER_SUBCOMMANDS = new Map([
   ["pnpm", "dlx"],
   ["yarn", "dlx"],
@@ -111,11 +125,29 @@ function withoutEnv(tokens) {
   return tokens.slice(index)
 }
 
-/** Strips package-runner prefixes so `npx playwright test` is judged as `playwright test`. */
+/** Drops an exec-style prefix with its flags, their values and its operands, so `timeout 30 adb devices` is judged as `adb devices`. */
+function withoutExecPrefix(tokens, { values, operands }) {
+  let index = 1
+  while (index < tokens.length && tokens[index].startsWith("-")) index += values.has(tokens[index]) ? 2 : 1
+  return tokens.slice(index + operands)
+}
+
+/**
+ * Strips shell reserved words, exec-style prefixes and package-runner prefixes, so `do adb devices`,
+ * `exec adb devices` and `npx playwright test` are judged as the program that follows them.
+ */
 function withoutRunners(tokens) {
   let rest = tokens
-  for (let guard = 0; guard < 4 && rest.length > 1; guard += 1) {
+  for (let guard = 0; guard < 8 && rest.length > 1; guard += 1) {
     const binary = normalize(rest[0])
+    if (RESERVED_WORDS.has(binary)) {
+      rest = rest.slice(1)
+      continue
+    }
+    if (EXEC_PREFIXES.has(binary)) {
+      rest = withoutExecPrefix(rest, EXEC_PREFIXES.get(binary))
+      continue
+    }
     if (binary === "env") {
       rest = withoutEnv(rest)
       continue
@@ -144,6 +176,31 @@ function reachesOwnerEmulator(tokens) {
 const UNPINNED_ACTION = "an unpinned device"
 const unquote = (token) => String(token ?? "").replaceAll(/["']/g, "")
 
+/** `env -i`, `env --ignore-environment` and the legacy `env -` start the program with an empty environment, so the pinned variables are gone. */
+function clearsEnvironment(tokens) {
+  return tokens.some((token, start) => {
+    if (normalize(token) !== "env") return false
+    for (let index = start + 1; index < tokens.length; index += 1) {
+      const word = unquote(tokens[index])
+      if (word === "-" || word === "--ignore-environment" || /^-[A-Za-z]*i[A-Za-z]*$/.test(word)) return true
+      if (word === "-u" || word === "--unset") index += 1
+      else if (!word.startsWith("-") && !/^[A-Za-z_][A-Za-z0-9_]*=/.test(word)) return false
+    }
+    return false
+  })
+}
+
+/** `export -n NAME`, `declare +x NAME` and `typeset +x NAME` keep the variable in the shell and take it out of the environment of the program. */
+function unexportsPinned(tokens) {
+  return tokens.some((token, start) => {
+    const builtin = normalize(token)
+    const unexport = builtin === "export" ? /^-[A-Za-z]*n/ : builtin === "declare" || builtin === "typeset" ? /^\+[A-Za-z]*x/ : null
+    if (unexport === null) return false
+    const words = tokens.slice(start + 1).map(unquote)
+    return words.some((word) => unexport.test(word)) && words.some((word) => [PINNED_SERIAL, PINNED_PORT].includes(word.split("=")[0]))
+  })
+}
+
 /**
  * A token with a reference to a pinned variable, `$NAME` or `${NAME}` bare or quoted, read as the
  * pinned value. The shell expands the reference after this hook reads the command, and the assignment
@@ -171,6 +228,7 @@ function flagValue(tokens, flag) {
  * adb reaches every running emulator by serial, so only the pinned serial keeps the owner's emulator safe.
  */
 function leavesPinnedDevice(segment, tokens, pin) {
+  if (clearsEnvironment(tokensOf(segment)) || unexportsPinned(tokensOf(segment))) return true
   for (const [name, value] of [[PINNED_SERIAL, pin.serial], [PINNED_PORT, pin.port]]) {
     if (new RegExp(`\\bunset\\b[^\\n]*\\b${name}\\b`).test(segment) || new RegExp(`(?:^|\\s)(?:-u|--unset)[\\s=]*${name}\\b`).test(segment)) return true
     for (const match of segment.matchAll(new RegExp(`\\b${name}=(["']?)([^\\s"']*)\\1`, "g"))) if (match[2] !== value) return true
@@ -482,6 +540,44 @@ function githubWrite(segment, command) {
   return false
 }
 
+const REDIRECT_OPERATOR = /^\d*(?:<<<?-?|<>|<&|>&|&>>?|<|>>?)$/
+const REDIRECT_WITH_TARGET = /^\d*(?:<<<?-?|<>|<&|>&|&>>?|<|>>?)./
+
+/** The words of a segment program without its redirects, each operator with its separate target word. */
+function withoutRedirectWords(words) {
+  const kept = []
+  for (let index = 0; index < words.length; index += 1) {
+    if (REDIRECT_OPERATOR.test(words[index])) index += 1
+    else if (!REDIRECT_WITH_TARGET.test(words[index])) kept.push(words[index])
+  }
+  return kept
+}
+
+/** Whether a segment is a shell with no script file and no `-c` string: it reads its commands from a pipe, a heredoc or a file that the hook cannot read. */
+function isShellReadingStandardInput(segment) {
+  const tokens = withoutRunners(tokensOf(segment))
+  return SHELLS.includes(normalize(tokens[0])) && readsStandardInput(withoutRedirectWords(tokens.slice(1)).map(unquote))
+}
+
+const unreadable = (shape) => ({
+  block: true,
+  message:
+    `Refused: this command holds ${shape}, which the hook cannot inspect in a read-only run.\n\n` +
+    "Write the commands as plain commands, each on its own line. Run a script as a file with a literal path,\n" +
+    "such as bash /abs/path.sh, and quote the delimiter of a heredoc, as in <<'EOF'.",
+})
+
+/**
+ * The refusal for a command that hides the commands it runs in a form the guards cannot read, or null.
+ * The guards judge each segment on its program, so text that a shell reads from stdin, or that an
+ * unquoted heredoc expands first, would run with no judgment.
+ */
+function unreadableShape(command, segments) {
+  if (segments.some(isShellReadingStandardInput)) return unreadable("a shell that reads its commands from standard input")
+  if (unquotedHeredocRunsCommand(command)) return unreadable("an unquoted heredoc that runs a command substitution")
+  return null
+}
+
 /**
  * A read-only review or proof (launch-worker.mjs --review or --proof) reads GitHub and never writes it.
  * This judges the command text only: a script that calls GitHub itself passes. The worker still holds
@@ -492,6 +588,8 @@ export function checkReadOnlyRun(command, { env = {} } = {}) {
   if (typeof command !== "string" || env[READ_ONLY_MARKER] !== "1") return null
   const segments = executableSegments(command)
   if (segments === null) return UNINSPECTABLE
+  const unreadableCommand = unreadableShape(command, segments)
+  if (unreadableCommand) return unreadableCommand
   for (const segment of segments) {
     if (!githubWrite(segment, command)) continue
     return {

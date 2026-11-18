@@ -1220,6 +1220,46 @@ for (const command of [
   T(`worker-browser: a device proof may not hide a command in a wrapper: ${command}`, /pinned device emulator-5594/.test(proofWorker(command)?.message ?? ""), true)
 }
 T("worker-browser: a device proof wrapper of the pinned device passes", proofWorker("bash -c 'adb -s emulator-5594 shell input tap 1 1'"), null)
+// A reserved word or an exec-style prefix before the program cannot hide it from the pin (thread Go0p).
+for (const command of [
+  "for d in $(adb devices | awk 'NR>1{print $1}'); do adb -s $d shell pm clear org.useorbit.app; done",
+  "if true; then adb -s emulator-5554 install app.apk; fi",
+  "while read d; do adb -s \"$d\" install app.apk; done < devices.txt",
+  "until false; do adb -s emulator-5554 install app.apk; done",
+  "true && { adb -s emulator-5554 install app.apk; }",
+  "exec adb -s emulator-5554 install app.apk",
+  "nohup adb -s emulator-5554 install app.apk",
+  "nice -n 5 adb -s emulator-5554 install app.apk",
+  "timeout 30 adb -s emulator-5554 install app.apk",
+  "timeout -s KILL -k 5 30 adb -s emulator-5554 install app.apk",
+  "echo emulator-5554 | xargs -n 1 adb -s emulator-5554 install app.apk",
+  "echo app.apk | xargs -I {} adb -e install {}",
+  "if true; then exec timeout 30 nohup adb -d install app.apk; fi",
+  "env -i adb install app.apk",
+  "env -i ANDROID_SERIAL=emulator-5594 adb install app.apk",
+  "env --ignore-environment adb install app.apk",
+  "env - adb install app.apk",
+  "export -n ANDROID_SERIAL; adb install app.apk",
+  "declare +x ANDROID_SERIAL; adb install app.apk",
+  "typeset +x ORBIT_PROOF_EMULATOR_PORT",
+]) {
+  T(`worker-browser: a device proof may not hide a device command behind a prefix or clear a pin: ${command}`, /pinned device emulator-5594/.test(proofWorker(command)?.message ?? ""), true)
+}
+for (const command of [
+  "for f in a.apk; do adb -s $ANDROID_SERIAL install $f; done",
+  "if true; then adb -s emulator-5594 install app.apk; fi",
+  "exec adb -s emulator-5594 install app.apk",
+  "timeout 30 adb -s $ANDROID_SERIAL install app.apk",
+  "env -u OTHER adb -s emulator-5594 install app.apk",
+  "export ANDROID_SERIAL=emulator-5594",
+  "export -n OTHER_VARIABLE",
+]) {
+  T(`worker-browser: a device proof may run the pinned form behind a prefix: ${command}`, proofWorker(command), null)
+}
+// The ticket worker rule reads through the same prefixes.
+for (const command of ["for i in 1; do npx playwright test; done", "if true; then npm run dev; fi", "exec npx playwright test", "timeout 60 npx playwright test"]) {
+  T(`worker-browser: a ticket worker may not hide a browser driver behind a prefix: ${command}`, blocks(worker(command)), true)
+}
 T("worker-browser: a nesting the expander gives up on is refused", blocks(proofWorker(`${"echo $(".repeat(40)}adb devices${")".repeat(40)}`)), true)
 // The proof order and the hook agree: each command of the order passes the hook of the same pin.
 {
@@ -1318,6 +1358,55 @@ for (const command of [
   "gh -h",
   "bash -c 'gh pr view 2476'",
   "echo $(gh pr diff 2476)",
+]) {
+  T(`read-only run: ${command} allows`, readOnlyWorker(command), null)
+}
+// A reserved word or an exec-style prefix cannot hide a GitHub write, and the shapes the guards cannot read are refused (thread Go0p).
+for (const command of [
+  "if true; then gh pr merge 2476 --squash; fi",
+  "for n in 2476; do gh pr comment $n --body x; done",
+  "true || ! gh pr merge 2476 --squash",
+  "while true; do gh pr merge 2476 --squash; done",
+  "exec gh pr merge 2476 --squash",
+  "nohup gh pr merge 2476 --squash",
+  "nice -n 5 gh pr merge 2476 --squash",
+  "timeout 60 gh pr merge 2476 --squash",
+  "timeout -s KILL 60 gh pr merge 2476 --squash",
+  "echo 2476 | xargs gh pr merge --squash",
+  "echo 2476 | xargs -n 1 gh pr merge --squash",
+]) {
+  T(`read-only run: ${command} blocks`, /A read-only run writes nothing to GitHub/.test(readOnlyWorker(command)?.message ?? ""), true)
+}
+for (const command of [
+  "echo 'gh pr merge 2476 --squash' | bash",
+  "echo 'gh pr merge 2476 --squash' | sh",
+  "echo 'gh pr merge 2476 --squash' | zsh",
+  "echo 'gh pr merge 2476 --squash' | sudo bash -s",
+  "echo 'gh pr merge 2476 --squash' | env A=1 bash",
+  "bash -s <<'EOF'\ngh pr merge 2476 --squash\nEOF",
+  "bash -x <<'EOF'\ngh pr view 2476\nEOF",
+  "bash <<EOF\ngh pr view 2476\nEOF",
+  "sh < commands.txt",
+]) {
+  T(`read-only run: ${command} is refused as a shell that reads standard input`, /shell that reads its commands from standard input/.test(readOnlyWorker(command)?.message ?? ""), true)
+}
+for (const command of [
+  "cat <<EOF\n$(gh pr merge 2476 --squash)\nEOF",
+  "cat <<EOF\n`gh pr merge 2476 --squash`\nEOF",
+  "cat <<-EOF\n$(gh pr merge 2476 --squash)\nEOF",
+]) {
+  T(`read-only run: ${command} is refused as an unquoted heredoc that runs a command`, /unquoted heredoc that runs a command substitution/.test(readOnlyWorker(command)?.message ?? ""), true)
+}
+for (const command of [
+  "for n in 1 2; do gh pr view $n; done",
+  "if true; then gh pr diff 2476; fi",
+  "timeout 60 gh pr checks 2476",
+  "echo 2476 | xargs gh pr view",
+  "grep -rn \"gh pr merge\" .claude",
+  "bash /abs/path.sh",
+  "bash -c 'gh pr view 2476'",
+  "cat <<'EOF'\n$(gh pr merge 2476 --squash)\nEOF",
+  "cat <<EOF\nplain text\nEOF",
 ]) {
   T(`read-only run: ${command} allows`, readOnlyWorker(command), null)
 }
