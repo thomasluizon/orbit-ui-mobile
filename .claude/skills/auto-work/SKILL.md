@@ -171,17 +171,27 @@ for the successor.
 
    An owner pull request in `ticketClosed` names only tickets that are closed. Each entry
    carries `closedTickets`, with the number and the `stateReason` of each ticket. It is never
-   in `pending`, and the tool refuses `merged` and `fix` for it. Never merge it:
-   - When every ticket closed as `COMPLETED`, the work landed in another pull request. Close
-     it as superseded with `gh pr close <n> --repo <owner/name> --comment <reason>`, and name
-     the pull request or the commit that carried the ticket. Record `action: closed` with that
-     reason.
-   - For every other close reason (`NOT_PLANNED`, `DUPLICATE` or none), put it to the owner
-     through `/questions` with its repository, number, tickets and link. Record
-     `action: reported`. The mark keeps the closed tickets and their close reasons, so a new
-     head does not ask again. When a ticket reopens, the named tickets change or a close reason
-     changes, `--collect` drops the mark: the pull request is pending again for adoption, or it
-     is in `ticketClosed` again with the new reasons.
+   in `pending`, and the tool refuses `merged` and `fix` for it. Never merge it. A closed
+   ticket does not show that the change of the pull request is on its base. A revert copies
+   the title of the pull request that it undoes, with its `(#N)`, and a later fix names the
+   same ticket.
+   - Close it as superseded only when every ticket closed as `COMPLETED` and the merge of the
+     pull request changes nothing on its base. For the second condition, use the checkout of
+     its repository (`repos` in `.claude/orchestrator.json`) and the `number`, `base` and
+     `head` of the entry. Run `git -C <checkout> fetch origin <base> pull/<n>/head`. Then run
+     `git -C <checkout> merge-tree --write-tree origin/<base> <head>` and
+     `git -C <checkout> rev-parse origin/<base>^{tree}`. The condition is true only when each
+     command exits 0 and the last two commands print the same tree. A revert, a later fix
+     and a conflict give a different result. Then close the pull request with
+     `gh pr close <n> --repo <owner/name> --comment <reason>`, and name the pull request or
+     the commit that carried the change. Record `action: closed` with that reason.
+   - In every other case (a change that is not on the base, or a ticket closed as
+     `NOT_PLANNED`, as `DUPLICATE` or with no reason), put it to the owner through
+     `/questions` with its repository, number, tickets and link, and the result of the base
+     check when you ran it. Record `action: reported`. The mark keeps the closed tickets and
+     their close reasons, so a new head does not ask again. When a ticket reopens, the named
+     tickets change or a close reason changes, `--collect` drops the mark: the pull request
+     is pending again for adoption, or it is in `ticketClosed` again with the new reasons.
 
    For each other pending pull request, read its diff, checks, review threads and base first.
    Then do one of these:

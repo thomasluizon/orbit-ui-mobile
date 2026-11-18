@@ -1,7 +1,7 @@
 import { spawnSync } from "node:child_process"
 import { chmodSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
-import { alertCheck, alertsWithClosedTickets, dismissAlert, githubPageReader, listedWakeKeys, listOpenAlerts, listOpenPullRequests, markItem, otherLiveRuns, PULL_REQUEST_CLASSES,
+import { alertCheck, alertsWithClosedTickets, closedTicketPullRequests, dismissAlert, githubPageReader, listedWakeKeys, listOpenAlerts, listOpenPullRequests, markItem, otherLiveRuns, PULL_REQUEST_CLASSES,
   pendingItems, pullRequestCheck, pullRequestClass, pullRequestsWithClosedTickets, recordClosedTicketPullRequests, recordListing, runPullRequestKeys, unexpectedAuthor,
   unreportedPullRequests } from "../lib/auto-work-github.mjs"
 import { evaluateChecks } from "../lib/auto-work-wake.mjs"
@@ -27,6 +27,12 @@ const EARLIER_OWNER_PULL = { number: 1115, author: "thomasluizon", authorType: "
   title: "test: run the cross-repository timeless hook test once and give each fixture value and helper one name", url: "https://github.com/thomasluizon/orbit-api/pull/1115" }
 const CONTRACT_PULL = { number: 2462, author: "orbit-contract-rebaseline[bot]", authorType: "Bot", head: "1fe4df96f28dedab74f55c6b285a7bc956116bfb", branch: "chore/contract-snapshot", base: "main", draft: false,
   title: "Update pinned API contract snapshot", url: "https://github.com/thomasluizon/orbit-ui-mobile/pull/2462" }
+/**
+ * An owner revert with the title of the review thread of ui#2475: a revert copies the title of the pull request that it undoes, so `(#2149)` names a
+ * completed ticket. The branch is a stand-in that names no ticket, and the scratch repository of baseCheckCases gives the head.
+ */
+const REVERT_PULL = { number: 2490, author: "thomasluizon", authorType: "User", branch: "revert-auto-work-intake", base: "main", draft: false,
+  title: 'Revert "feat(auto-work): act on every open pull request and security alert in all three repositories (#2149)"', url: "https://github.com/thomasluizon/orbit-ui-mobile/pull/2490" }
 /** A pull request from an account that no repository configures to open pull requests. */
 export const UNEXPECTED_PULL = { number: 20, author: "bellaFG", authorType: "User", head: "8edde4aebbb2f26a21a0c83b2b4d986e1e2757e2", branch: "fix/mobile-ring-centering", base: "main", draft: false,
   title: "fix: center orbital rings over hero title on mobile", url: "https://github.com/thomasluizon/orbit-landing-page/pull/20" }
@@ -484,18 +490,74 @@ const failedReadCases = async () => {
   T("github: the recovery of the same failure wakes nothing", recovered.length === 0, JSON.stringify(recovered))
 }
 
+const autoWorkSkill = () => readFileSync(join(TOOLS_DIR, "..", ".claude", "skills", "auto-work", "SKILL.md"), "utf8")
+
+/** The rule of step 7 for an owner pull request whose every named ticket is closed. */
+const closedTicketRuleOf = (skill) => skill.slice(skill.indexOf("An owner pull request in `ticketClosed`"), skill.indexOf("For each other pending pull request"))
+
+/**
+ * A scratch origin with three pull request heads, and a checkout of it whose `origin/main` is stale. Pull 7 carries a change that main also
+ * holds, pull 2490 reverts that change, and pull 9 changes the same line in another way.
+ */
+const baseCheckRepository = () => {
+  const [work, origin, checkout] = ["work", "origin.git", "checkout"].map((name) => join(root, "auto-work-github", "base-check", name))
+  const git = (directory, ...args) => spawnSync("git", ["-C", directory, "-c", "user.name=test", "-c", "user.email=test@example.invalid", ...args], { encoding: "utf8" })
+  const commit = (lines, message, ...branch) => {
+    if (branch.length) git(work, "checkout", "-q", ...branch)
+    writeFileSync(join(work, "file.txt"), lines)
+    git(work, "--literal-pathspecs", "add", "file.txt")
+    git(work, "commit", "-q", "-m", message)
+  }
+  mkdirSync(work, { recursive: true })
+  spawnSync("git", ["init", "-q", "-b", "main", work])
+  commit("one\ntwo\nthree\n", "base")
+  git(work, "branch", "base")
+  commit("one\nTWO\nthree\n", "feat: change (#2149)", "-b", "landed")
+  commit("one\nTWO\nthree\nfour\n", "feat: change, and a later line (#2149)", "main")
+  commit("one\ntwo\nthree\nfour\n", REVERT_PULL.title, "-b", "revert")
+  commit("one\n2\nthree\n", "fix: another change of the same line (#2149)", "-b", "conflict", "base")
+  spawnSync("git", ["init", "-q", "--bare", "-b", "main", origin])
+  git(origin, "fetch", "-q", work, "base:main", "landed:refs/pull/7/head", `revert:refs/pull/${REVERT_PULL.number}/head`, "conflict:refs/pull/9/head")
+  spawnSync("git", ["clone", "-q", origin, checkout])
+  git(origin, "fetch", "-q", work, "main:main")
+  return { checkout, headOf: (number) => git(origin, "rev-parse", `refs/pull/${number}/head`).stdout.trim() }
+}
+
+/* A closed ticket does not show that the change of a pull request is on its base, so step 7 closes only after its base check; the check runs here as the skill writes it. */
+const baseCheckCases = async () => {
+  const { checkout, headOf } = baseCheckRepository()
+  const listing = await listOpenPullRequests({ repositories: REPOSITORIES,
+    readPages: fakeReader({ "repos/thomasluizon/orbit-ui-mobile/pulls": [{ ...REVERT_PULL, head: headOf(REVERT_PULL.number) }] }).readPages })
+  const state = fresh("revert")
+  const tickets = await pullRequestsWithClosedTickets(recordListing("pullRequests", listing, state, NO_OTHER_RUN), async (number) => ({ number, state: "CLOSED", stateReason: "COMPLETED" }))
+  const [revert] = closedTicketPullRequests(recordClosedTicketPullRequests(tickets, state))
+  T("github: a revert whose copied title names a completed ticket is in ticketClosed with its number, base and head", JSON.stringify([revert?.key, revert?.number, revert?.base,
+    revert?.head, revert?.closedTickets]) === JSON.stringify(["ui#2490", 2490, "main", headOf(2490), [{ number: 2149, stateReason: "COMPLETED" }]]), JSON.stringify(revert))
+  const commands = [...closedTicketRuleOf(autoWorkSkill()).matchAll(/`git (-C <checkout> [^`]+)`/g)].map(([, command]) => command.split(" "))
+  const changesNothingOnBase = ({ number, base, head }) => {
+    const values = { "<checkout>": checkout, "<base>": base, "<n>": String(number), "<head>": head }
+    const results = commands.map((command) => spawnSync("git", command.map((part) => part.replace(/<\w+>/g, (name) => values[name] ?? name)), { encoding: "utf8" }))
+    return { exits: results.map((result) => result.status), sameTree: results.length === 3 && results[1].stdout === results[2].stdout }
+  }
+  const checked = Object.fromEntries([["landed", { number: 7, base: "main", head: headOf(7) }], ["revert", revert ?? {}], ["conflict", { number: 9, base: "main", head: headOf(9) }]]
+    .map(([name, pull]) => [name, changesNothingOnBase(pull)]))
+  T("github skill: the base check of step 7 passes for a change that is on the base, and fails for a revert and for a conflict", JSON.stringify(checked) === JSON.stringify({
+    landed: { exits: [0, 0, 0], sameTree: true }, revert: { exits: [0, 0, 0], sameTree: false }, conflict: { exits: [0, 1, 0], sameTree: false } }), JSON.stringify(checked))
+}
+
 /* Step 7 asks for the review before its waiter, and steps 7 and 8 name each GitHub write. */
 const skillCases = () => {
-  const skill = readFileSync(join(TOOLS_DIR, "..", ".claude", "skills", "auto-work", "SKILL.md"), "utf8")
+  const skill = autoWorkSkill()
   const waiters = skill.match(/node tools\/wait-ci\.mjs[^`]*/g) ?? []
   T("github skill: every CI waiter of step 7 waits for the requested Pullfrog review", waiters.length > 0 &&
     waiters.every((command) => command.includes("--require-check pullfrog-approval")) && skill.includes("node tools/list-bot-threads.mjs --pr <n> --repo <key> --head <sha>"),
   waiters.join("\n"))
   T("github skill: the close of a pull request and the dismissal of an alert name their commands",
     skill.includes("gh pr close <n> --repo <owner/name> --comment <reason>") && skill.includes("node tools/auto-work-github.mjs --dismiss"))
-  const closedTicketRule = skill.slice(skill.indexOf("An owner pull request in `ticketClosed`"), skill.indexOf("For each other pending pull request"))
-  T("github skill: step 7 never merges a pull request of a closed ticket, closes it when completed and asks the owner otherwise",
-    closedTicketRule.includes("Never merge it") && closedTicketRule.includes("`COMPLETED`") && closedTicketRule.includes("superseded") &&
+  const closedTicketRule = closedTicketRuleOf(skill)
+  T("github skill: step 7 never merges a pull request of a closed ticket, closes it only when completed and on its base, and asks the owner otherwise",
+    closedTicketRule.includes("Never merge it") && closedTicketRule.includes("superseded only when every ticket closed as `COMPLETED` and") &&
+    closedTicketRule.includes("changes nothing on its base") && closedTicketRule.includes("In every other case") &&
     closedTicketRule.includes("`NOT_PLANNED`") && closedTicketRule.includes("`/questions`"), closedTicketRule)
   /* gh api repos/thomasluizon/<name> --jq '{private, visibility}' gives {"private":false,"visibility":"public"} for orbit-ui-mobile, orbit-api and orbit-landing-page. */
   const authorRule = skill.slice(skill.indexOf("7. List every open pull request"), skill.indexOf("An owner pull request in `pending`"))
@@ -554,5 +616,6 @@ export const cases = async () => {
   await notPlannedAlertWakeCases()
   await failedReadCases()
   skillCases()
+  await baseCheckCases()
   await checkCases(listings)
 }
