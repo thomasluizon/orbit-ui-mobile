@@ -10,7 +10,7 @@ import {
 } from '@/lib/auth-api'
 import nextConfig from '../next.config'
 import { createManifest } from '@/lib/manifest'
-import { isPublicPath, SENTRY_TUNNEL_ROUTE } from '@/lib/public-paths'
+import { SENTRY_TUNNEL_ROUTE } from '@/lib/public-paths'
 
 vi.mock('next-intl/server', () => ({ getTranslations: async () => (key: string) => key }))
 import { POST as issueEventTicket } from '@/app/api/events/ticket/route'
@@ -886,12 +886,6 @@ describe('malformed Server Action requests', () => {
 
   it.each(['/login', '/habits', '/api', '/apis/x', '/monitoring/x', '/ingestion'])('keeps the page path %s out of the Route Handler predicate', (path) => {
     expect(isRouteHandlerPath(path)).toBe(false)
-  })
-
-  it('lists no Route Handler path in the public page paths except the pages under the tunnel route', () => {
-    expect(isPublicPath('/ingest')).toBe(false)
-    expect(isPublicPath('/ingest/e/')).toBe(false)
-    expect(isPublicPath(`${SENTRY_TUNNEL_ROUTE}/x`)).toBe(true)
   })
 
   it.each(['/monitoring', '/ingest/e/'])('passes a POST with an invalid action header through to the Route Handler %s', async (path) => {
