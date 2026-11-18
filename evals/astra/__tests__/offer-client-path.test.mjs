@@ -103,6 +103,14 @@ describe('a converted offers write case', () => {
     expect((await scripted('offers-calendar-gap-en', held(wrong))).verdict.pass).toBe(false)
   })
 
+  // Producer: orbit-api PendingOperationActionKeys gives each write its own key; the change list classifies five kinds of
+  // habit change and never guesses another. The offers cases gain no kind, so an unknown key stays a limit of the grader.
+  it('reports an action key that it does not classify as a limit of the grader, with the key', async () => {
+    const { verdict } = await scripted('offers-ordinary-reading-en', held({ ...reading(), actionKey: 'updateChecklist' }))
+    expect(verdict).toMatchObject({ pass: false, reason: 'The grader cannot classify a held preview: updateChecklist.',
+      metadata: { graderLimit: true, unavailable: true } })
+  })
+
   it('approves nothing and holds no rubric, so no model grades it', async () => {
     const api = vi.fn()
     vi.stubGlobal('fetch', api)
