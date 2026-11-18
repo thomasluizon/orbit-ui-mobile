@@ -23,7 +23,8 @@ on:
       - "apps/mobile/scripts/android-release-apk.js"
       - "apps/mobile/scripts/fix-hoisting.js"
       - ".github/workflows/mobile-build.yml"
-  # A main run saves the Gradle, NDK and compiler caches and the pass marker that pull requests read.
+      - ".github/scripts/install-android-sdk-package.sh"
+  # A main run saves the Gradle and compiler caches and the pass marker that pull requests read.
   push:
     branches: [main]
     paths:
@@ -42,6 +43,7 @@ on:
       - "apps/mobile/scripts/android-release-apk.js"
       - "apps/mobile/scripts/fix-hoisting.js"
       - ".github/workflows/mobile-build.yml"
+      - ".github/scripts/install-android-sdk-package.sh"
   workflow_dispatch:
 
 concurrency:
@@ -67,7 +69,7 @@ jobs:
       # workflow. A pass recorded for the same native inputs skips the compile.
       - name: Hash the native inputs
         id: key
-        run: echo "value=android-compile-pass-v1-${{ hashFiles('package.json', 'package-lock.json', 'apps/mobile/package.json', 'apps/mobile/app.json', 'apps/mobile/app.config.js', 'apps/mobile/babel.config.js', 'apps/mobile/metro.config.js', 'apps/mobile/assets/**', 'apps/mobile/locales/**', 'apps/mobile/plugins/**', 'apps/mobile/modules/**', 'apps/mobile/scripts/android-release-apk.js', 'apps/mobile/scripts/fix-hoisting.js', '.github/workflows/mobile-build.yml') }}" >> "$GITHUB_OUTPUT"
+        run: echo "value=android-compile-pass-v1-${{ hashFiles('package.json', 'package-lock.json', 'apps/mobile/package.json', 'apps/mobile/app.json', 'apps/mobile/app.config.js', 'apps/mobile/babel.config.js', 'apps/mobile/metro.config.js', 'apps/mobile/assets/**', 'apps/mobile/locales/**', 'apps/mobile/plugins/**', 'apps/mobile/modules/**', 'apps/mobile/scripts/android-release-apk.js', 'apps/mobile/scripts/fix-hoisting.js', '.github/workflows/mobile-build.yml', '.github/scripts/install-android-sdk-package.sh') }}" >> "$GITHUB_OUTPUT"
       - name: Look up a pass for these native inputs
         id: pass
         uses: actions/cache/restore@v6
@@ -101,12 +103,11 @@ jobs:
           persist-credentials: false
 
       - uses: actions/setup-node@v7
-        env:
-          # Bound stalled cache segments so npm ci can continue with a cold cache.
-          SEGMENT_DOWNLOAD_TIMEOUT_MINS: '1'
         with:
           node-version: 22
-          cache: npm
+          package-manager-cache: false
+
+      - uses: ./.github/actions/restore-npm-cache
 
       - uses: actions/setup-java@v6
         with:
@@ -135,13 +136,6 @@ jobs:
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "path=$ANDROID_HOME/ndk/$version" >> "$GITHUB_OUTPUT"
 
-      - name: Restore the Android NDK
-        id: ndk-cache
-        uses: actions/cache/restore@v6
-        with:
-          path: ${{ steps.ndk.outputs.path }}
-          key: ubuntu-24.04-x64-ndk-v1-${{ steps.ndk.outputs.version }}
-
       - name: Install and verify the Android NDK
         shell: bash
         env:
@@ -149,26 +143,10 @@ jobs:
           NDK_PATH: ${{ steps.ndk.outputs.path }}
         run: |
           set -euo pipefail
-          if [ -d "$NDK_PATH" ]; then
-            echo "Using cached or preinstalled Android NDK $NDK_VERSION."
-          else
-            # The runner image installs sdkmanager here and leaves it off PATH.
-            sdkmanager="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
-            if [ ! -x "$sdkmanager" ]; then
-              echo "::error::sdkmanager is missing at $sdkmanager; Gradle will not start."
-              exit 1
-            fi
-            echo "Installing Android NDK $NDK_VERSION with sdkmanager."
-            if ! "$sdkmanager" --sdk_root="$ANDROID_HOME" --install "ndk;$NDK_VERSION"; then
-              echo "::error::Android NDK $NDK_VERSION installation failed before Gradle; rerun to retry the SDK download."
-              exit 1
-            fi
-          fi
-          if ! grep -Fqx "Pkg.Revision = $NDK_VERSION" "$NDK_PATH/source.properties" ||
-             [ ! -s "$NDK_PATH/build/cmake/android.toolchain.cmake" ]; then
-            echo "::error::Android NDK $NDK_VERSION is incomplete or has the wrong revision; Gradle will not start."
-            exit 1
-          fi
+          # No cache entry: a 0.62 GB entry saved about 20 s of this step, the lowest value per GB of the main caches.
+          # The runner image does not hold this NDK, and the SDK manager downloads nothing for a package that it holds.
+          bash .github/scripts/install-android-sdk-package.sh "ndk;$NDK_VERSION" \
+            "source.properties=Pkg.Revision = $NDK_VERSION" build/cmake/android.toolchain.cmake
           if ! compiler=$(find "$NDK_PATH/toolchains/llvm/prebuilt" -path '*/bin/clang' -print -quit) ||
              [ ! -x "$compiler" ] || ! "$compiler" --version; then
             echo "::error::Android NDK $NDK_VERSION compiler verification failed; Gradle will not start."
@@ -176,16 +154,8 @@ jobs:
           fi
           echo "Verified Android NDK $NDK_VERSION before Gradle."
 
-      # A pull request never saves: the NDK entry is about 600 MB, and main keeps the one entry that every run reads.
-      - name: Save the Android NDK
-        if: github.ref == 'refs/heads/main' && steps.ndk-cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v6
-        with:
-          path: ${{ steps.ndk.outputs.path }}
-          key: ubuntu-24.04-x64-ndk-v1-${{ steps.ndk.outputs.version }}
-
       # The Gradle build cache does not cover the CMake tasks of the native modules. CMake reads the compiler
-      # launcher from these variables, and the Android release uses the same compiler cache prefix.
+      # launcher from these variables.
       - name: Set up ccache for the native C++ builds
         shell: bash
         run: |
@@ -205,17 +175,22 @@ jobs:
           fi
 
       # Keyed on the lockfile, which pins the native modules whose C and C++ sources this compile reads: main saves one
-      # entry per lockfile and a pull request only reads. The android-release.yml restore keys match this key by prefix.
+      # entry per lockfile and a pull request only reads. The prefix is not the android-release.yml prefix: this compile
+      # and the release compile do not hit the objects of each other, and a restore takes the newest entry of its prefix.
       - name: Restore the ccache directory
         id: compiler-cache
         if: env.CCACHE_AVAILABLE == 'true'
         uses: actions/cache/restore@v6
         with:
           path: ~/.cache/ccache
-          key: ccache-android-release-${{ hashFiles('package-lock.json') }}-compile
+          key: ccache-android-apk-${{ hashFiles('package-lock.json') }}-compile
           restore-keys: |
-            ccache-android-release-${{ hashFiles('package-lock.json') }}-
-            ccache-android-release-
+            ccache-android-apk-${{ hashFiles('package-lock.json') }}-
+            ccache-android-apk-
+
+      # The stamp follows the restore, so every restored object is older than it.
+      - name: Record the start of the compiler cache use
+        run: echo "COMPILER_CACHE_USED_SINCE=$(date +%s)" >> "$GITHUB_ENV"
 
       # Runs the Expo prebuild and the Gradle release assemble across the whole
       # native module graph, which is where a broken native dependency or a
@@ -229,11 +204,39 @@ jobs:
         if: env.CCACHE_AVAILABLE == 'true'
         run: ccache --show-stats
 
+      # ccache sets the time of each object that a compile reads or writes, and removes none under its size limit.
+      # After a passing compile, the step removes each object that the compile did not use, so the entry does not grow
+      # when the key changes. After a failed compile, it removes no object, so the partial entry keeps the restored
+      # objects for the next attempt.
+      # The step names the saved directory, and the save is the next step. It removes each path that is not in the
+      # layout of ccache 4.9.1 and 4.14.2: the 16 object directories, their one-character subdirectories, the stats
+      # and CACHEDIR.TAG files, and the object files. The save runs only when this step passes, so no saved entry
+      # holds a log, a lock, a configuration file or a file that another step writes.
+      - name: Clean the ccache directory before its save
+        id: evict
+        if: ${{ always() && env.CCACHE_AVAILABLE == 'true' && steps.compile.outcome != 'skipped' && github.ref == 'refs/heads/main' && steps.compiler-cache.outputs.cache-hit != 'true' }}
+        env:
+          COMPILE_OUTCOME: ${{ steps.compile.outcome }}
+        run: |
+          set -euo pipefail
+          if [[ $COMPILE_OUTCOME == success ]]; then
+            ccache --dir ~/.cache/ccache --evict-older-than "$(($(date +%s) - COMPILER_CACHE_USED_SINCE))s"
+          fi
+          cd ~/.cache/ccache
+          directory='^[0-9a-f](/[0-9a-f]){0,3}$'
+          file='^[0-9a-f]/(CACHEDIR\.TAG|stats|[0-9a-f]/stats|[0-9a-f](/[0-9a-f]){0,2}/([0-9a-v]{29,31}([MR]|[0-9]W)|[0-9a-f]{36,38}(_[0-9a-f]{2})?))$'
+          find . -mindepth 1 -depth -print0 | while IFS= read -r -d '' entry; do
+            layout=$file
+            if [[ -d $entry ]]; then layout=$directory; fi
+            if [[ -L $entry || ! ( -d $entry || -f $entry ) || ! ${entry#./} =~ $layout ]]; then rm -rf "$entry"; fi
+          done
+
       # A key is written once, so a passing main compile saves the lockfile key. A failed main compile saves a
       # run-scoped partial entry instead: the restore step finds it by prefix, so the next attempt is not cold, and
-      # the lockfile key stays free for the passing compile. ccache checksums each entry.
+      # the lockfile key stays free for the passing compile. ccache checksums each entry. A failed, cancelled or skipped
+      # clean step skips the save.
       - name: Save the ccache directory
-        if: ${{ always() && env.CCACHE_AVAILABLE == 'true' && steps.compile.outcome != 'skipped' && github.ref == 'refs/heads/main' && steps.compiler-cache.outputs.cache-hit != 'true' }}
+        if: ${{ always() && steps.evict.outcome == 'success' }}
         uses: actions/cache/save@v6
         with:
           path: ~/.cache/ccache

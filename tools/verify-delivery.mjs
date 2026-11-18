@@ -231,13 +231,11 @@ checks.prCount = {
 if (!checks.prCount.pass) emit("NO_PR")
 
 /**
- * `--head` filters on the BRANCH and nothing else, so a pull request that never names the ticket
- * still lands here and would read as delivered. The composed work order requires a pull request
- * that links the issue, and this file is the only thing that checks the work order was honoured.
+ * `--head` filters on the BRANCH alone, so a pull request that never names the ticket would read as delivered. The work
+ * order requires a pull request that links the issue, and only this file checks it. Keep bare #N and migrated identifiers:
+ * this checks a ticket mention, not GitHub's closing semantics. A qualified reference must name the configured ticket
+ * repository, and the wider leading boundary stops a different owner or repository from matching by suffix.
  */
-/** Keep bare #N and migrated identifiers for compatibility: this checks a ticket mention, not
- * GitHub's closing semantics. Qualified references must name the configured ticket repository;
- * the wider leading boundary prevents a different owner or repository from matching by suffix. */
 const ticketMention = new RegExp(`(?:(^|[^A-Za-z0-9])${escapeRegex(issue)}|(^|[^A-Za-z0-9_./-])(?:${escapeRegex(ticketReference)}|${escapeRegex(ticketUrl)}))(?![A-Za-z0-9])`, "i")
 const mentionsIssue = (text) => typeof text === "string" && ticketMention.test(text)
 checks.linksTicket = {

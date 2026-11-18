@@ -131,6 +131,7 @@ function startingStep(response, vars) {
   const client = vars.clientContext
   const parts = response.parts
   const surfaces = ['actions', 'pendingOperations', 'policyDenials', 'relatedSurfaces', 'followUps', 'followUpContext'].some((key) => response[key]?.length)
+    || (response.operations ?? []).some((operation) => operation.status !== 'Succeeded')
   const legacy = vars.composition.mode === 'one-small-step-legacy'
   const step = legacy ? response.aiMessage : parts?.[0]?.block?.suggestion?.step
   if (vars.previousStartingStep && step === vars.previousStartingStep.step) {

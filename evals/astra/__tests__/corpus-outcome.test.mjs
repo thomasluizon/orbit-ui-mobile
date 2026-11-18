@@ -12,12 +12,14 @@ import { describeCase } from '../latency.mjs'
 import parseResponse from '../response.mjs'
 import { captures } from './fixtures/core-streams.mjs'
 import { recordedStream } from './fixtures/core-replay.mjs'
-import { apiKeysStepUpResponse, habitBlock, preview, toolCall, traceTiming } from './fixtures/producer.mjs'
+import { apiKeysStepUpResponse, createPreview as createBulkPreview, habitBlock, preview, toolCall, traceTiming } from './fixtures/producer.mjs'
+import { startingResponse } from './fixtures/starting-step.mjs'
 import { recordedGateThirteen } from './fixtures/gate-thirteen.mjs'
 
 const { buildChatClientContext } = await tsImport('../../../packages/shared/src/chat/client-context.ts', import.meta.url)
 const configuration = parse(readFileSync(new URL('../promptfooconfig.yaml', import.meta.url), 'utf8'))
 const recorded = JSON.parse(readFileSync(new URL('./fixtures/gate-seven.json', import.meta.url), 'utf8'))
+const recordedWrappers = JSON.parse(readFileSync(new URL('./fixtures/gate-eight.json', import.meta.url), 'utf8'))
 const corpus = readCorpus()
 const requestId = '77777777-7777-4777-8777-777777777777'
 const water = '11111111-aaaa-4aaa-8aaa-111111111111'
@@ -369,6 +371,68 @@ describe('the kinds that the change list gained', () => {
     expect(outcome(attempt, { vars })).toMatchObject({ pass: true })
     held.items[1].fields.find((field) => field.field === 'parent_habit_id').newValue = 'Post Lunch'
     expect(outcome(attempt, { vars }).pass).toBe(false)
+  })
+
+  // The recorded wrapper of the existing parents (gate-eight.json): each stored parent is one item that the create reuses
+  // (a habit_id row, and its record id as the item entity id), and each child draft names no parent of its own.
+  // Producer: PendingOperationChangePreviewer.PreviewCreateAsync gives the reused item `existing?.Id` as its entity id.
+  describe('a child draft under a reused parent', () => {
+    const wrapperDrafts = recordedWrappers.find((attempt) => attempt.caseId === 'composition-existing-parents-pt-BR').toolCalls.at(-1).arguments.habits
+    const wrapped = (parentIds) => {
+      const held = createBulkPreview(wrapperDrafts.map((draft, index) => ({ ...draft, habit_id: parentIds[index] })))
+      held.items.forEach((item, index) => { item.entityId = parentIds[index] })
+      return held
+    }
+    const grade = (held) => outcome({ turns: 1, questionsBeforePreview: 0, previews: [held], asked: false, written: [] },
+      { vars: prepared('composition-existing-parents-pt-BR') })
+
+    it('takes the parent of each child from the reused item that holds it', () => {
+      expect(wrapperDrafts.map((draft) => draft.sub_habits[0].parent_habit_id)).toEqual([null, null])
+      expect(grade(wrapped([water, walk]))).toMatchObject({ pass: true, reason: 'The held previews hold exactly the requested changes.' })
+    })
+
+    it('fails a child that goes under the other stored parent', () => {
+      expect(grade(wrapped([walk, water]))).toMatchObject({ pass: false })
+    })
+
+    it('fails a child draft that names another parent of its own', () => {
+      const held = wrapped([water, walk])
+      held.items[0].fields.find((field) => field.field === 'sub_habits').proposedValue[0].parent_habit_id = 'different-parent'
+      expect(grade(held)).toMatchObject({ pass: false })
+    })
+
+    it('gives a child of a new parent no parent field', () => {
+      const { changes } = changeList([nested], [], { nestedCreates: true })
+      expect(changes.map((change) => change.fields.parent_habit_id)).toEqual([undefined, undefined, undefined, undefined, undefined])
+    })
+  })
+})
+
+describe('the question cases of the first group', () => {
+  it('asks for a question card in the outcome and in the rubric alike', () => {
+    const asking = corpus.filter((entry) => gradedByOutcome(entry.vars) && entry.vars.outcome.question)
+    expect(asking.map((entry) => entry.metadata.id)).toEqual(expect.arrayContaining(['ambiguity-pt', 'ambiguity-en']))
+    for (const entry of asking) expect(entry.vars.rubric, entry.metadata.id).not.toMatch(/plain text/u)
+  })
+})
+
+describe('the starting step of a case with an outcome', () => {
+  const graded = (response) => composition({ composition: response }, { vars: prepared('composition-coaching-advice-en') })
+  const block = () => ({ ...startingResponse('en', requestId), aiMessage: null, evalTrace: undefined })
+
+  it('passes one starting step with its actions and no other surface', () => {
+    expect(graded(block())).toMatchObject({ pass: true })
+  })
+
+  it.each([
+    ['an operation that failed', { operations: [{ operationId: 'suggest_habits', status: 'Failed' }] }],
+    ['a follow-up', { followUps: ['Anything else?'] }],
+  ])('fails a starting step beside %s', (_name, extra) => {
+    expect(graded({ ...block(), ...extra })).toMatchObject({ pass: false, reason: 'Missing one starting-step block with server actions and no prose.' })
+  })
+
+  it('passes a starting step beside an operation that succeeded', () => {
+    expect(graded({ ...block(), operations: [{ operationId: 'suggest_breakdown', status: 'Succeeded' }] })).toMatchObject({ pass: true })
   })
 })
 
