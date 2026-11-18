@@ -169,6 +169,8 @@ describe('CommandPalette', () => {
     expect(screen.getAllByText('errors.api.appUpdated')).toHaveLength(1)
     expect(dialog).toContainElement(screen.getByRole('button', { name: 'errors.api.reload' }))
     expect(document.querySelectorAll('[data-update-banner]')).toHaveLength(1)
+    expect(dialog.querySelector('[data-update-banner]')).not.toBeNull()
+    expect(dialog.querySelectorAll('[data-asset="orbit-mascot"], [data-orbit-state]')).toHaveLength(0)
   })
 
   it('renders the search input when the palette is open', async () => {

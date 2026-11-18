@@ -1,4 +1,5 @@
 import { afterEach, expect, it, vi } from 'vitest'
+import { StyleSheet, type StyleProp, type TextStyle } from 'react-native'
 import type { ReactTestInstance, ReactTestRenderer } from 'react-test-renderer'
 import { questionBlockFixture as block } from '@orbit/shared/test-support/chat-fixtures'
 import { enableTestFlags } from '@orbit/shared/test-support/flag-state'
@@ -50,4 +51,11 @@ it('keeps the radio list and every question in view while the flag is off', asyn
   expect(control('chat.question.next')).toBeUndefined()
   expect(texts()).toContain('chat.question.progress')
   expect(prompts()).toEqual(expect.arrayContaining(['Which activities?', 'How much energy?', 'How long?', 'Add a reminder?']))
+})
+
+it('sets the recommended note under the quick options in the type of the Recommended line of the row layout', async () => {
+  enableTestFlags('orbit_guided_flows')
+  await mount()
+  const note = tree!.root.findAll(node => typeof node.type === 'string' && typeof node.props.children === 'string' && /: chat\.placement\.recommended$/.test(node.props.children))[0]!
+  expect(StyleSheet.flatten(note.props.style as StyleProp<TextStyle>)).toMatchObject({ fontSize: 14, lineHeight: 19.6 })
 })

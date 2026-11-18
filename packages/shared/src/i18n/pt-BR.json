@@ -349,9 +349,9 @@
     "returningElapsed": "Guardei seu progresso do jeito que você deixou.",
     "returningBounded": "Você concluiu um hábito pela última vez há mais de 30 dias.",
     "viewProgress": "Ver no Progresso",
-    "offline": "Preciso de conexão para conversar. Você ainda pode registrar hábitos offline.",
+    "offline": "Preciso de conexão para conversar.",
     "offlineLog": "Salvo neste aparelho. Eu sincronizo quando você se reconectar.",
-    "limit": "Eu volto a conversar quando suas mensagens de IA renovarem."
+    "limit": "Volto quando renovarem suas mensagens de IA."
   },
   "command": {
     "title": "O que você quer fazer",
@@ -3209,7 +3209,7 @@
     "retry": "Tentar de novo",
     "askAstra": "Analisar resumo",
     "upgrade": "Fazer upgrade",
-    "freePrompt": "No Pro, você recebe um resumo diário dos seus hábitos."
+    "freePrompt": "O Pro traz um resumo diário dos seus hábitos."
   },
   "result": {
     "title": "Pronto!",

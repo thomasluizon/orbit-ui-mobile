@@ -100,6 +100,6 @@ function CalendarOrbitLineRow(props: Readonly<CalendarOrbitLineProps>) {
     <TodayAstraLine text={sentence ? formatCalendarOrbitLine(sentence, locale, t) : t('calendar.loading')}
       destination={reason ?? t('todayAstra.openConversation')} loading={!sentence} busy={!sentence} disabled={!sentence || Boolean(reason)}
       onPress={openConversation} mascotState={mascotState} lookAt={lookAt} turnKey={turns} mascotRef={mascotRef} />
-    {reason ? <p data-testid="calendar-orbit-line-reason" className="m-0 px-screen-gutter text-xs text-[var(--fg-3)]">{reason}</p> : null}
+    {reason ? <p data-testid="calendar-orbit-line-reason" className="m-0 px-screen-gutter text-[var(--fg-3)]" style={{ fontSize: 12, lineHeight: 1.4 }}>{reason}</p> : null}
   </div>
 }

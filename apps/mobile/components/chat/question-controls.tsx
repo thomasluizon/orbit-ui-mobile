@@ -63,7 +63,7 @@ export function QuestionControls(props: QuestionControlProps) {
         return <OptionCard key={option.id} label={option.label} selected={selected} disabled={disabled} onSelect={press} />
       })}
     </View>
-    {choices.filter(option => option.recommended).map(option => <Text key={option.id} style={{ color: tokens.fg3, fontSize: 12, lineHeight: 16, textAlign: 'center' }}>{`${option.label}: ${words.recommended}`}</Text>)}
+    {choices.filter(option => option.recommended).map(option => <Text key={option.id} style={{ color: tokens.fg3, fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 19.6, textAlign: 'center' }}>{`${option.label}: ${words.recommended}`}</Text>)}
     {question.allowFreeText ? <Input label={words.freeText} value={answer?.freeText ?? ''} onChange={value => controller.setFreeText(question, value)} disabled={disabled} maxLength={500} /> : null}
   </View>
   const rows = choices.map(option => question.type === 'multipleChoice'

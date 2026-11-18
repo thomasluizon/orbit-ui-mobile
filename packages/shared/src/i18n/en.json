@@ -349,7 +349,7 @@
     "returningElapsed": "I kept your progress right where you left it.",
     "returningBounded": "You last completed a habit over 30 days ago.",
     "viewProgress": "See it on Progress",
-    "offline": "I need a connection to talk. Habit logging still works offline.",
+    "offline": "I need a connection to talk.",
     "offlineLog": "Saved on this device. I sync it when you reconnect.",
     "limit": "I can talk again when your AI messages renew."
   },

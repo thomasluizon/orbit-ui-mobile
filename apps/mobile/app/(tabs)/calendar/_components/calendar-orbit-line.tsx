@@ -108,5 +108,5 @@ function CalendarOrbitLineRow(props: Readonly<CalendarOrbitLineProps>) {
 
 const styles = StyleSheet.create({
   block: { gap: SPACING.s4, paddingVertical: PADDING.sectionGap - SPACING.s16 },
-  reason: { fontFamily: 'Geist_400Regular', fontSize: 12, lineHeight: 16 },
+  reason: { fontFamily: 'Geist_400Regular', fontSize: 12, lineHeight: 16.8 },
 })

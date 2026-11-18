@@ -24,7 +24,7 @@ export function TodayAstra({ today, isTodaySelected, suppressed }: Readonly<Toda
   const { isOnline } = useOffline()
   const rest = guided ? getTodayAstraRest({ isOnline, aiMessagesUsed: profile?.aiMessagesUsed, aiMessagesLimit: profile?.aiMessagesLimit, hasProAccess: profile?.hasProAccess }) : null
   const line = getTodayAstraSlot({
-    isTodaySelected, inDrillOrSurface: suppressed, item: proactive,
+    isTodaySelected, inDrillOrSurface: suppressed, item: proactive, guided,
     returning: getReturningInterval(profile?.lastCompletionDate, profile?.timeZone),
   }, t)
 

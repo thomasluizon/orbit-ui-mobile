@@ -27,6 +27,7 @@ describe('sidebar account menu geometry in Chromium', () => {
     script = bundleGeometry(`import React from 'react';
       import { createRoot } from 'react-dom/client';
       import { NextIntlClientProvider } from 'next-intl';
+      import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
       import { ShellWide } from './components/shell/shell-wide';
       import SearchPage from './app/(app)/search/page';
       import { useShellStore } from './stores/shell-store';
@@ -36,11 +37,12 @@ describe('sidebar account menu geometry in Chromium', () => {
       const configuration = JSON.parse(root.dataset.configuration);
       const words = configuration.locale === 'en' ? en : ptBR;
       useShellStore.setState({ sidebarCollapsed: configuration.collapsed });
-      createRoot(root).render(<NextIntlClientProvider locale={configuration.locale} messages={words} timeZone="UTC">
+      const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+      createRoot(root).render(<QueryClientProvider client={queryClient}><NextIntlClientProvider locale={configuration.locale} messages={words} timeZone="UTC">
         <ShellWide items={[{ id: 'perfil', href: '/profile', label: words.nav.profile, icon: 'perfil' }]}
           activeId="perfil" navLabel={words.nav.mainNavigation} astraRow={{ label: 'Astra', onOpen: () => {} }}
           account={configuration.account} accountEmail={configuration.email}>{configuration.search ? <SearchPage /> : <h1>Orbit</h1>}</ShellWide>
-      </NextIntlClientProvider>);`, {
+      </NextIntlClientProvider></QueryClientProvider>);`, {
       '@/stores/auth-store': 'export const useAuthStore = selector => selector({ logout: async () => {} });',
       '@sentry/nextjs': 'export const captureException = error => { throw error; };',
       '@/components/ui/sheet': "export { Sheet, useSheetHost } from './__tests__/support/sheet-double';",

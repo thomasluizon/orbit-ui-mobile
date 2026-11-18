@@ -1,4 +1,5 @@
 import React from 'react'
+import { StyleSheet, type StyleProp, type TextStyle } from 'react-native'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ReactTestInstance, ReactTestRenderer } from 'react-test-renderer'
 import en from '@orbit/shared/i18n/en.json'
@@ -87,6 +88,8 @@ describe('the guided milestone share prompt on Android', () => {
     expect(byTestId(root, 'milestone-share-dialog-centre')[0]!.props.style).toEqual(expect.arrayContaining([expect.objectContaining({ alignItems: 'center', justifyContent: 'center' })]))
     expect(hosts(root).some((node) => String(node.type) === 'Sheet')).toBe(false)
     expect(texts(root)).toEqual(expect.arrayContaining([copy.title, copy.body, copy.streakEyebrow]))
+    const title = hosts(root).find((node) => String(node.type) === 'Text' && renderedText(node.props.children) === copy.title)!
+    expect(StyleSheet.flatten(title.props.style as StyleProp<TextStyle>)).toMatchObject({ fontSize: 22, lineHeight: 26.4 })
     expect(feliz(root)).toHaveLength(1)
     expect(feliz(root)[0]!.props).toMatchObject({ width: 96, 'data-orbit-face': 'rig' })
 

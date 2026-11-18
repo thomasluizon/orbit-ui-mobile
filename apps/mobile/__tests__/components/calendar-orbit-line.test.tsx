@@ -1,5 +1,5 @@
 import { createRef, type ReactElement } from 'react'
-import { View } from 'react-native'
+import { StyleSheet, View, type StyleProp, type TextStyle } from 'react-native'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { IntlMessageFormat } from 'intl-messageformat'
 import en from '@orbit/shared/i18n/en.json'
@@ -126,6 +126,7 @@ describe('the Calendário Orbit line on Android', () => {
     expect(row.props.accessibilityState).toMatchObject({ disabled: true })
     expect(row.props.accessibilityHint).toBe(reason)
     expect(host(tree.root, 'calendar-orbit-line-reason')!.props.children).toBe(reason)
+    expect(StyleSheet.flatten(host(tree.root, 'calendar-orbit-line-reason')!.props.style as StyleProp<TextStyle>)).toMatchObject({ fontFamily: 'Geist_400Regular', fontSize: 12, lineHeight: 16.8 })
     expect(host(tree.root, 'orbit-mascot')!.props['data-orbit-state']).toBe('descansando')
   })
 

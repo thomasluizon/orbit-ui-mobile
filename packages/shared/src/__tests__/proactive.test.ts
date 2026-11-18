@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import { getProactiveActionReason, getTodayAstraLine, getTodayAstraSlot, proactiveActionLabelKey } from '../utils/proactive'
 import { createMockProactiveItem } from './factories'
+import en from '../i18n/en.json'
+import ptBR from '../i18n/pt-BR.json'
 
 describe('today Astra line', () => {
   const item = createMockProactiveItem()
-  const available = { isTodaySelected: true, inDrillOrSurface: false, item: null, returning: null }
+  const available = { isTodaySelected: true, inDrillOrSurface: false, item: null, returning: null, guided: false }
   const translate = (key: string, values?: { days: number }) => values ? `${key}:${values.days}` : key
 
   it('prefers the proactive item over a returning line', () => {
@@ -27,6 +29,13 @@ describe('today Astra line', () => {
     expect(getTodayAstraLine(available, translate)).toBeNull()
   })
 
+  it('shows the sentence with no count of days for a gap beyond the window while the guided flows are on', () => {
+    const expected = { text: 'todayAstra.returningElapsed', destination: 'todayAstra.viewProgress', item: null }
+    expect(getTodayAstraLine({ ...available, guided: true, returning: { kind: 'bounded' } }, translate)).toEqual(expected)
+    expect(getTodayAstraSlot({ ...available, guided: true, returning: { kind: 'bounded' } }, translate)).toEqual(expected)
+    expect(getTodayAstraLine({ ...available, guided: true, returning: { kind: 'elapsed', days: 5 } }, translate)).toEqual(expected)
+  })
+
   it('uses the summary only after the proactive and returning lines', () => {
     expect(getTodayAstraSlot({ ...available, item, returning: { kind: 'elapsed', days: 5 } }, translate))
       .toEqual({ text: item.text, destination: 'todayAstra.openConversation', item })
@@ -44,6 +53,16 @@ describe('today Astra line', () => {
     expect(getTodayAstraSlot({ ...available, ...state }, translate)).toBeNull()
     expect(getTodayAstraSlot({ ...available, item, ...state }, translate)).toBeNull()
     expect(getTodayAstraSlot({ ...available, returning: { kind: 'elapsed', days: 5 }, ...state }, translate)).toBeNull()
+  })
+})
+
+describe('the sentences of the Orbit line while it rests', () => {
+  it.each([
+    ['en offline', en.todayAstra.offline], ['pt-BR offline', ptBR.todayAstra.offline],
+    ['en limit', en.todayAstra.limit], ['pt-BR limit', ptBR.todayAstra.limit],
+  ])('writes the %s reason as one sentence', (_name, sentence) => {
+    expect(sentence.match(/[.!?]/gu)).toEqual(['.'])
+    expect(sentence.endsWith('.')).toBe(true)
   })
 })
 

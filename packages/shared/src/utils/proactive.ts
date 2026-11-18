@@ -10,6 +10,7 @@ interface TodayAstraState {
   inDrillOrSurface: boolean
   item: ProactiveItem | null
   returning: ReturningInterval | null
+  guided: boolean
 }
 
 type TodayAstraTranslate = (key: 'todayAstra.openConversation' | 'todayAstra.viewProgress' | 'todayAstra.returningElapsed' | 'todayAstra.returningBounded') => string
@@ -18,12 +19,13 @@ export function getTodayAstraSlot(state: TodayAstraState, translate: TodayAstraT
   return getTodayAstraLine(state, translate) ?? (shouldShowTodayAstraSurface(state) ? 'summary' : null)
 }
 
+/** With the guided flows on, the line after a gap never counts days: a gap beyond the window shows the same sentence as a gap inside it. */
 export function getTodayAstraLine(state: TodayAstraState, translate: TodayAstraTranslate): TodayAstraLine | null {
   if (!shouldShowTodayAstraSurface(state)) return null
   if (state.item) return { text: state.item.text, destination: translate('todayAstra.openConversation'), item: state.item }
   if (!state.returning) return null
   return {
-    text: state.returning.kind === 'elapsed'
+    text: state.guided || state.returning.kind === 'elapsed'
       ? translate('todayAstra.returningElapsed')
       : translate('todayAstra.returningBounded'),
     destination: translate('todayAstra.viewProgress'),

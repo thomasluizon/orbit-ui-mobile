@@ -93,19 +93,22 @@ describe('Calendar header geometry in Chromium', () => {
       stdin: { contents: `import React, { useState } from 'react';
         import { createRoot } from 'react-dom/client';
         import { NextIntlClientProvider } from 'next-intl';
+        import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
         import { CalendarGrid } from './components/calendar/calendar-grid';
         const configuration = JSON.parse(document.getElementById('configuration').textContent);
         const completed = { habitId: 'walk', title: 'Walking', status: 'completed', isBadHabit: false, dueTime: null, isOneTime: false };
         const missed = { ...completed, habitId: 'read', title: 'Reading', status: 'missed' };
         const dayMap = new Map([['2026-09-10', [completed, missed]], ['2026-09-11', [completed, { ...completed, habitId: 'read' }]]]);
+        const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
         function Month() {
           const [selected, select] = useState('2026-09-11');
-          return <NextIntlClientProvider locale={configuration.locale} messages={configuration.messages} timeZone="UTC">
+          return <QueryClientProvider client={queryClient}><NextIntlClientProvider locale={configuration.locale} messages={configuration.messages} timeZone="UTC">
             <CalendarGrid currentMonth={new Date(2026, 8, 1)} dayMap={dayMap} onSelectDay={select} todayKey="2026-09-11" selectedDateStr={selected} weekStartsOn={1} />
-          </NextIntlClientProvider>;
+          </NextIntlClientProvider></QueryClientProvider>;
         }
         createRoot(document.getElementById('root')).render(<Month />);`, resolveDir: process.cwd(), loader: 'tsx' },
       bundle: true, write: false, format: 'iife', platform: 'browser', jsx: 'automatic',
+      alias: { '@sentry/nextjs': '@sentry/browser' },
       define: { 'process.env.NODE_ENV': '"production"' },
     })], { maxBuffer: 10 * 1024 * 1024 }).toString()
   })

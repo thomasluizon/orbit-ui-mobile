@@ -51,6 +51,7 @@ function bundleConversation() {
   const contents = `import React, { createRef } from 'react';
     import { createRoot } from 'react-dom/client';
     import { NextIntlClientProvider } from 'next-intl';
+    import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
     import { createChatThreadScroll } from '@orbit/shared/hooks';
     import en from '@orbit/shared/i18n/en.json';
     import { DestinationShell } from './components/shell/destination-shell';
@@ -58,6 +59,7 @@ function bundleConversation() {
     import { DesktopWindowBar } from './components/desktop-window-bar';
     import { useUIStore } from './stores/ui-store';
     useUIStore.getState().setAstraConversationOpen(true);
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     const threadScroll = createChatThreadScroll();
     const chatContainerRef = createRef();
     function App() {
@@ -65,12 +67,12 @@ function bundleConversation() {
       const composerProps = { state: 'idle', value: '', onChangeValue: () => {}, onSend: () => {}, suggestions: [], words: en.shell.composer };
       const chat = { composerProps, threadScroll, chatContainerRef, messages: [], activeSteps: [],
         isTyping: false, streamingMessageId: null, showSuggestions: false, canShowFollowUps: false, scrollToBottom: () => {} };
-      return <NextIntlClientProvider locale="en" messages={en} timeZone="UTC">
+      return <QueryClientProvider client={queryClient}><NextIntlClientProvider locale="en" messages={en} timeZone="UTC">
         <DestinationShell onCreate={() => {}} conversationOpen={open} conversationLabel="Astra" conversation={<AstraConversation chat={chat} />}>
           <h1 className="p-4">Destination</h1>
         </DestinationShell>
         <DesktopWindowBar />
-      </NextIntlClientProvider>;
+      </NextIntlClientProvider></QueryClientProvider>;
     }
     createRoot(document.getElementById('root')).render(<App />);`
   const boundaries = {

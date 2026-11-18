@@ -105,6 +105,7 @@ describe('the Calendário Orbit line', () => {
     renderLine(props({ isOnline }))
     const row = screen.getByRole('button', { name: 'The 13th: 1 of 3 done.' })
     expect(row).toBeDisabled()
+    expect(screen.getByTestId('calendar-orbit-line-reason')).toHaveStyle({ fontSize: '12px', lineHeight: '1.4' })
     const reason = screen.getByTestId('calendar-orbit-line-reason').textContent!
     expect(reason).toBe(isOnline ? 'Today\'s allowance of 50 AI messages is used.' : en.shell.composer.offline.reason)
     expect(row).toHaveAccessibleDescription(reason)

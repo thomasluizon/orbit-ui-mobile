@@ -100,3 +100,10 @@ it('keeps the radio list and every question in view while the flag is off', () =
   expect(screen.queryByRole('button', { name: en.chat.question.next })).toBeNull()
   expect(screen.getByText(`0 of ${block.questions.length} questions answered`)).toBeInTheDocument()
 })
+
+it('sets the recommended note under the quick options in the type of the Recommended line of the row layout', () => {
+  enableTestFlags('orbit_guided_flows')
+  render(element(interaction()))
+  const note = within(question('When?') as HTMLElement).getByText(new RegExp(`: ${en.chat.placement.recommended}$`))
+  expect(note).toHaveStyle({ fontSize: '14px', lineHeight: '1.4' })
+})

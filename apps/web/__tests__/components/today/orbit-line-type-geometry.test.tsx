@@ -14,12 +14,14 @@ import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch
 
 const LONG_SERVER_SENTENCE = 'Sua rotina mudou. Vamos conversar sobre os hábitos que você quer retomar e organizar os próximos passos desta semana?'
 
-function deviceSentences(words: typeof en): string[] {
-  return [words.todayAstra.offline, words.todayAstra.limit, words.todayAstra.returningBounded, ...wholeSentences(words, 'en')]
-}
+const RECENT_DAY_COUNTS = [1, 2, 3, 4, 5, 6, 7]
 
-function wholeSentences(words: typeof en, locale: string): string[] {
-  return [words.todayAstra.returningElapsed, String(new IntlMessageFormat(words.habits.detail.orbit.lastSevenDays, locale).format({ done: 7 }))]
+function orbitLineSentences(words: typeof en, locale: string): string[] {
+  return [
+    words.todayAstra.offline, words.todayAstra.limit, words.todayAstra.returningElapsed,
+    words.summary.freePrompt, words.summary.error, words.habits.detail.askAstra,
+    ...RECENT_DAY_COUNTS.map((done) => String(new IntlMessageFormat(words.habits.detail.orbit.lastSevenDays, locale).format({ done }))),
+  ]
 }
 
 describe('the Orbit line row type role', () => {
@@ -55,24 +57,19 @@ describe('the Orbit line row type role', () => {
     } finally { await page.close() }
   }
 
-  it.each([['en', en], ['pt-BR', pt]] as const)('sets each %s device sentence of Hoje and habit detail in the orbit-line role, in two lines or fewer at 320', async (_locale, words) => {
-    for (const sentence of deviceSentences(words)) {
+  it.each([['en', en], ['pt-BR', pt]] as const)('shows each %s Orbit line sentence of Hoje and habit detail whole in the orbit-line role, in two lines or fewer at 320', async (locale, words) => {
+    const cut: string[] = []
+    for (const sentence of orbitLineSentences(words, locale)) {
       const row = await measure(sentence, true)
       expect(row, sentence).toMatchObject({ fontSize: '16px', fontWeight: '400', rowWidth: 288, overflow: false })
       expect(row.lineHeight, sentence).toBeCloseTo(22.4, 1)
       expect(row.sentenceHeight, sentence).toBeLessThanOrEqual(row.lineHeight * 2 + 0.5)
       expect(row.rowHeight, sentence).toBeGreaterThanOrEqual(48)
+      if (!row.whole || /(?:…|\.\.\.)$/u.test(sentence)) cut.push(sentence)
       cleanup()
       resetTestFlags()
     }
-  })
-
-  it.each([['en', en], ['pt-BR', pt]] as const)('shows the %s habit detail fact and the sentence after a gap whole at 320', async (locale, words) => {
-    for (const sentence of wholeSentences(words, locale)) {
-      expect((await measure(sentence, true)).whole, sentence).toBe(true)
-      cleanup()
-      resetTestFlags()
-    }
+    expect(cut).toEqual([])
   })
 
   it('holds a long server sentence to two lines at 320', async () => {

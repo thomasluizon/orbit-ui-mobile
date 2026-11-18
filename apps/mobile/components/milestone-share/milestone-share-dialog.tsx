@@ -83,7 +83,7 @@ const styles = StyleSheet.create({
   panel: { width: '100%', maxWidth: PANEL_MAX_WIDTH, maxHeight: '100%', borderRadius: 20, padding: PADDING.cardInset, gap: SPACING.s24, elevation: 8 },
   scroller: { flexGrow: 0, flexShrink: 1 },
   content: { alignItems: 'center', gap: SPACING.s24 },
-  title: { fontFamily: 'SpaceGrotesk_500Medium', fontSize: 22, lineHeight: 26, letterSpacing: -0.44, textAlign: 'center' },
+  title: { fontFamily: 'SpaceGrotesk_500Medium', fontSize: 22, lineHeight: 26.4, letterSpacing: -0.44, textAlign: 'center' },
   previewFrame: { width: '100%', alignItems: 'center', overflow: 'hidden' },
   body: { fontFamily: 'Geist_400Regular', fontSize: 16, lineHeight: 24, textAlign: 'center' },
   actions: { gap: SPACING.s12 },

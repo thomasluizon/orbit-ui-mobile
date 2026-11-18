@@ -8,20 +8,24 @@ import { useUIStore } from '@/stores/ui-store'
 
 const mocks = vi.hoisted(() => ({
   online: true,
-  profile: { id: 'profile', timeZone: 'UTC', hasProAccess: false, aiMessagesUsed: 0, aiMessagesLimit: 5 } as { id: string; timeZone: string; hasProAccess: boolean; aiMessagesUsed: number; aiMessagesLimit: number },
+  proactive: true,
+  profile: { id: 'profile', timeZone: 'UTC', hasProAccess: false, aiMessagesUsed: 0, aiMessagesLimit: 5 } as { id: string; timeZone: string; hasProAccess: boolean; aiMessagesUsed: number; aiMessagesLimit: number; lastCompletionDate?: string },
 }))
 
 vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: mocks.profile, isPending: false, isError: false }) }))
 vi.mock('@/hooks/use-offline', () => ({ useOffline: () => ({ isOnline: mocks.online }) }))
-vi.mock('@/hooks/use-proactive-item', () => ({ useProactiveItem: () => ({ item: createMockProactiveItem({ text: 'Check in' }), openItem: vi.fn() }) }))
+vi.mock('@/hooks/use-proactive-item', () => ({ useProactiveItem: () => ({ item: mocks.proactive ? createMockProactiveItem({ text: 'Check in' }) : null, openItem: vi.fn() }) }))
 
 const mascot = (container: HTMLElement) => container.querySelector<SVGElement>('[data-asset="orbit-mascot"]')!
+const DAY = 86_400_000
+const beyondTheWindow = () => formatAPIDateInTimeZone(new Date(Date.now() - 40 * DAY), 'UTC')
 const renderLine = () => render(<TodayAstra today={formatAPIDateInTimeZone(new Date(), 'UTC')} isTodaySelected suppressed={false} />)
 
 describe('web Orbit line on Hoje', () => {
   beforeEach(() => {
     mocks.online = true
+    mocks.proactive = true
     mocks.profile = { id: 'profile', timeZone: 'UTC', hasProAccess: false, aiMessagesUsed: 0, aiMessagesLimit: 5 }
     useUIStore.setState({ astraConversationOpen: false })
   })
@@ -52,6 +56,22 @@ describe('web Orbit line on Hoje', () => {
     const { container } = renderLine()
     expect(mascot(container)).toHaveAttribute('data-orbit-state', 'descansando')
     expect(screen.getByRole('button', { name: 'todayAstra.limit' })).toBeInTheDocument()
+  })
+
+  it('shows the sentence with no count of days for a gap beyond the window, and it opens Progresso', () => {
+    enableTestFlags('orbit_guided_flows')
+    mocks.proactive = false
+    mocks.profile = { ...mocks.profile, lastCompletionDate: beyondTheWindow() }
+    renderLine()
+    expect(screen.getByRole('link', { name: 'todayAstra.returningElapsed' })).toHaveAttribute('href', '/progress')
+    expect(screen.queryByText('todayAstra.returningBounded')).not.toBeInTheDocument()
+  })
+
+  it('keeps the bounded sentence for a gap beyond the window while the flag is off', () => {
+    mocks.proactive = false
+    mocks.profile = { ...mocks.profile, lastCompletionDate: beyondTheWindow() }
+    renderLine()
+    expect(screen.getByRole('link', { name: 'todayAstra.returningBounded' })).toHaveAttribute('href', '/progress')
   })
 
   it('keeps the still Orbit at 48 and the proactive sentence while the flag is off', () => {
