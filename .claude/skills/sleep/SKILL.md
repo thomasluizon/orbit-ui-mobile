@@ -250,7 +250,7 @@ Use `tools/compose-prompt.mjs` for local orders. Only pass `--cloud` for Cloud o
 `.claude/orchestrator.json` has `cloud.enabled: true`. Do not append push-and-stop text to every
 order: the canonical generator selects one consistent contract.
 
-**Local order:** compile and run focused tests, commit, run broader verification, push and open or
+**Local order:** compile and run focused tests, commit, push and open or
 update exactly one non-draft pull request against the supplied base. Report its URL and tests, then
 stop. Do not wait on CI or poll GitHub Actions; the orchestrator owns CI waiting and readiness.
 Opening the pull request remains part of the worker's job.
@@ -267,8 +267,8 @@ any edit/test bullet, as encoded by `CLOUD_FINISHING_CONTRACT` in `tools/lib/clo
 
 > Commit the implementation. Without a commit there is no diff and the work is lost.
 
-Then edit, compile and run focused tests in the container, stage named paths and commit before
-broader verification. Never bypass a rejecting hook; report its exact output. Never push, create
+Then edit, compile and run focused tests in the container, stage named paths and commit. CI
+runs every full suite, so run no broader suite. Never bypass a rejecting hook; report its exact output. Never push, create
 a branch or open a pull request. Report the commit and test results, then stop without waiting on
 CI. The orchestrator owns materialization, local delivery and CI waiting. The submitter reuses the
 same contract without duplicating it. Never send a locally composed order to the Cloud submitter.

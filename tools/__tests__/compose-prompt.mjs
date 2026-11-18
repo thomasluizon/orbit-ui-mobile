@@ -380,6 +380,17 @@ export const cases = () => {
       deliverySentences.every((sentence) => !cloudPrompt.includes(sentence)),
     cloudPrompt.slice(-1200),
   )
+  for (const [name, text] of [
+    ["the Cloud order", cloudPrompt],
+    ["the orchestrate skill", readFileSync(join(REPO_ROOT, ".claude", "skills", "orchestrate", "SKILL.md"), "utf8")],
+    ["the sleep skill", readFileSync(join(REPO_ROOT, ".claude", "skills", "sleep", "SKILL.md"), "utf8")],
+  ]) {
+    T(
+      `${TOOL}: ${name} asks for no broader verification beside the focused checks`,
+      !/broader verification/i.test(text),
+      text.split("\n").filter((line) => /broader verification/i.test(line)).join("\n"),
+    )
+  }
   /**
    * One brief feeds the local, Cloud and explicit main orders, so each one is asserted separately: a
    * later split could drop the block from any single mode and the other two would stay green. Each

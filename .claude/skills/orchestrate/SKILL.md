@@ -604,7 +604,7 @@ The Cloud contract leads with the commit requirement and its consequence, before
 
 > Commit the implementation. Without a commit there is no diff and the work is lost.
 
-Then edit, compile, run focused tests and commit named paths before broader verification. A hook
+Then edit, compile, run focused tests and commit named paths. CI runs every full suite, so run no broader suite. A hook
 failure is reported with its exact output; never bypass hooks or change baselines to force a commit.
 Never push, create a branch or open a PR from Cloud. Report the commit and tests and stop without
 polling CI. The orchestrator materializes and delivers the change locally and owns CI waiting.
