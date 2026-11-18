@@ -115,6 +115,19 @@ for (const [jobId, stepName, path, options] of [
   })
 }
 
+test("workflow-syntax: a pull request that changes only the actionlint configuration runs the gate", () => {
+  for (const mode of ["owned", "unowned"]) {
+    runCase("workflow-syntax", "Lint all workflows", ".github/actionlint.yaml", mode, { stubs: "gh() { echo GATE_RAN; exit 0; }" })
+  }
+})
+
+test("the actionlint configuration holds only the self-hosted runner labels and no ignore", () => {
+  const configuration = yaml.load(readFileSync(join(repositoryRoot, ".github/actionlint.yaml"), "utf8"))
+  assert.deepEqual(Object.keys(configuration), ["self-hosted-runner"], "a paths or ignore key would hide a finding the gate reports")
+  assert.deepEqual(Object.keys(configuration["self-hosted-runner"]), ["labels"])
+  assert.ok(Array.isArray(configuration["self-hosted-runner"].labels), "labels must be a list")
+})
+
 test("handoff-size: the step fails an oversized changed relay document and ignores an unchanged one", () => {
   const job = guardGroups(workflow)["handoff-size"]
   const prepare = job.steps.find((step) => step.name === "Resolve pull request changed paths")
