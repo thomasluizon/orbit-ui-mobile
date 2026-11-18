@@ -28,10 +28,11 @@ UI `main` `2263a8b67` (ui#2485 merged); API `main` `70c66e7be` (api#1129 merged)
 | --- | --- |
 | API release of `70c66e7be` | Staging run 44400226678 failed only at "Require green release CI" (the API Tests push run 44399860378 was still running). When it is green, dispatch staging again (S task-map has the command), `wait-release.mjs` with `--service-url https://api-staging.useorbit.org`, then production. No migration. Then close `#2172`. |
 | Pushed, Pullfrog asked: ui#2489, ui#2502, ui#2490, ui#2486, ui#2488, ui#2493, ui#2499, ui#2453, ui#2492, ui#2451 (heads in S task-map) | One `wait-ci.mjs --require-check pullfrog-approval` per repository; merge each at the bar; a failed Pullfrog gets one round. |
-| Pullfrog FAILED, no round yet: ui#2476, ui#2498 | `make-frog-note.mjs`, then a round each. |
-| Rounds committed or running: ui#2480 r9 (it gates the assistant set), ui#2495 r6 (a regression of r5) | `round-result.mjs`, delta review, push. |
-| Reviews finished or running: 2483-r12, 2500-r3, 2475-r13 | Read S `review-<key>-local.md`; on CLEAN or NOTES push with `body-<pr>-<round>.md`. ui#2500 merges its base branch first. |
-| ui#2501 r4 CLEAN at `448eb93b6`, not pushed | Its base merge conflicts in `evals/astra/__tests__/corpus.test.mjs`: a base-merge round, its review, then push with `body-2501-r4.md`. |
+| Also pushed during the drain: ui#2475 r13 `6df48d139`, ui#2490 `db7f377d4` (main merge of an approved head) | Their waiter; merge at the bar. |
+| Pullfrog FAILED, no round yet: ui#2476, ui#2498, ui#2502 (1 thread), ui#2453 (3 threads, S `note-2453-f2.md` written with the base merge) | `make-frog-note.mjs` where no note exists, then a round each. |
+| Rounds committed: ui#2480 r9 `c8b7a8d17` (it gates the assistant set), ui#2495 r6 `9f477c54b` (a regression of r5) | Delta review (S task-map has each `rv.sh` line), merge main, push. |
+| Review 2483-r12 finished | Read S `review-2483-r12-local.md`; on CLEAN or NOTES push with `body-2483-r12.md`. |
+| ui#2501 r4 CLEAN at `448eb93b6` and ui#2500 r3 NOTES at `5ac0e3fdf`, not pushed | Each base merge of `origin/chore/ticket-2166-corpus-outcome-batch1` conflicts (`corpus.test.mjs`, `core/outcome.mjs`): a base-merge round each, its review, then push. Post S `filed-notes-2500-r3.md` on `#2167`. |
 | api#1126 green and approved | Stacked on api#1124; merge order `#2155`, `#2154`, `#2159`, then this. |
 | ui#2498 (`#2173`) | Merge condition: the live relay proofs A and B of S `body-2498-main1.md` lines 35 to 55. |
 | ui#2491, ui#2494; api#1120, api#1121, api#1124, api#1125, api#1127, api#1128 | Wait on api#1124 and on the `#2135` core set gate after ui#2480 merges. |
