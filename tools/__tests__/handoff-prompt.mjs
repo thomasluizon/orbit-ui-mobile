@@ -130,6 +130,7 @@ export const cases = () => {
     ["a user interface item named FIRST before an API item", "- ui#2488 FIRST, then api#412", "ui#2488 FIRST"],
     ["an API item named FIRST with no user interface item after it", "- api#412 FIRST", "api#412 FIRST"],
     ["an API item named FIRST before another API item", "- api#412 FIRST, then api#413", "api#412 FIRST"],
+    ["an API item named FIRST before an API item that precedes a user interface item", "- api#412 FIRST, then api#413 and ui#2488", "api#412 FIRST"],
     ["an item named FIRST before a sentence about a finished release", "- ui#2486 FIRST. The release of ui#2480 is done.", "ui#2486 FIRST"],
     ["a merge order that names the cap", "- Queue order under the cap: merge ui#2486 first, then ui#2488", "Queue order under the cap: merge ui#2486 first"],
     ["an item named FIRST before a sentence that names the cap", "- ui#2486 FIRST. Keep the pool full under the cap.", "ui#2486 FIRST"],
@@ -162,6 +163,7 @@ export const cases = () => {
     ["an API merge and deploy first, then a user interface merge", "- api#412 merges and deploys first, then ui#2488"],
     ["an API item named FIRST before a user interface item", "- api#412 FIRST, then ui#2488"],
     ["an API merge first, then a landing merge", "- Merge api#412 first, then landing#31"],
+    ["an API item named FIRST before a user interface item with a ticket after it", "- api#412 FIRST, then ui#2488 (#2171)"],
     ["a ticket that stays open until its pull request merges", "- `#1628` stays open until `ui#1959` merges and a later build carries it"],
   ]) {
     T(`${UNIT}: crank accepts ${label}`, holdsOf(line).length === 0, JSON.stringify(holdsOf(line)))

@@ -125,13 +125,13 @@ const AFTER_WORD = /\b(?:after|once|then)\b/i
 const repositoryOf = (reference) => reference[0].slice(0, reference[0].indexOf("#"))
 const isDeployApiFirst = (earlier, later) => repositoryOf(earlier) === "api" && ["ui", "landing"].includes(repositoryOf(later))
 
-// `X FIRST` names a hold unless X is an API item and a user interface or landing item follows it in the clause.
+// `X FIRST` names a hold unless X is an API item and the next item in the clause is a user interface or landing item.
 const namedFirstOf = (clause) => {
   const named = NAMED_FIRST.exec(clause)
   if (!named) return null
   const namedReference = new RegExp(WORK_REFERENCE.source).exec(named[0])
-  const later = [...clause.slice(named.index + named[0].length).matchAll(WORK_REFERENCE)]
-  return later.some((reference) => isDeployApiFirst(namedReference, reference)) ? null : named
+  const [next] = clause.slice(named.index + named[0].length).matchAll(WORK_REFERENCE)
+  return next && isDeployApiFirst(namedReference, next) ? null : named
 }
 
 /** One item merges before or ahead of the next one, or after or once the previous one, or an order before it holds it until the next one. */

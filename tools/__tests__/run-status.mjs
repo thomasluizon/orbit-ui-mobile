@@ -530,6 +530,10 @@ const mergeBarCases = async () => {
   behindChild.baseRef.compare.behindBy = recorded[`pr${number}`].baseRef.compare.behindBy
   report = await snapshot({ 2488: behindChild })
   same("run-status: a child behind the branch of its merged parent gets the retarget and no branch update", report.nextActions, [retarget])
+  const conflictedChild = stackedChild()
+  conflictedChild.mergeStateStatus = "DIRTY"
+  report = await snapshot({ 2488: conflictedChild })
+  same("run-status: a child with a merge conflict against its closed parent still gets the retarget", report.nextActions, [retarget])
   const failedChild = childOfMerged()
   checkOf(failedChild, "pullfrog-approval").conclusion = conclusionOf("FAILURE")
   report = await snapshot({ 2488: failedChild })

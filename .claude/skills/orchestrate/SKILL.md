@@ -47,8 +47,8 @@ meets the bar except that its base is a branch no open pull request owns, becaus
 merged or closed. Its command changes the base to the default branch and then merges that branch into the pull
 request, because a squash merge leaves the child behind the default branch and a base change starts
 no check. The merge pushes a head, which starts the checks and the review of the new base. Run it;
-`MERGE_NOW` follows once those checks and the review are green at that head. A draft, a merge conflict and a stacked child whose parent is still open get
-none of these actions. The snapshot names no other action for a pull request that has one of them.
+`MERGE_NOW` follows once those checks and the review are green at that head. A draft and a stacked child whose parent is still open get
+none of these actions, and a merge conflict gets no `MERGE_NOW` or `UPDATE_BRANCH`. A pull request that has one of these actions gets no other action.
 `RECORD_MERGE` names a pull request of the run that GitHub shows as merged while its ledger row has
 no sha, as when another session merged it. Run its command: it writes the sha that the stop hook waits for.
 
