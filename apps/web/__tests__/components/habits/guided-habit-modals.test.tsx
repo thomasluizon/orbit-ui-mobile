@@ -236,6 +236,38 @@ describe('the create surface behind orbit_guided_flows', () => {
     expect(state.create.mock.calls[0]![0]).toMatchObject({ title: 'call John', startDate: '2026-11-13', dueTime: '08:00', frequencyUnit: 'Day', frequencyQuantity: 1 })
   })
 
+  it('keeps the repeat words of the phrase in the title after the type step makes the item a task and the date question gives a day', async () => {
+    state.locale = 'en'
+    mountCreate()
+    await waitFor(() => expect(document.querySelector('[data-question-flow]')).not.toBeNull())
+    await phrase('call John every day at 8am')
+    await press(en.habits.flow.reminder.no)
+    await press(new RegExp(`^${en.habits.flow.summary.type}`))
+    await act(async () => { fireEvent.click(screen.getByRole('radio', { name: new RegExp(`^${en.habits.form.typeTask}`) })) })
+    await press(new RegExp(`^${en.habits.flow.summary.when}`))
+    await press(en.habits.flow.when.today)
+    await press(en.habits.createTask)
+    expect(state.create).toHaveBeenCalledTimes(1)
+    expect(state.create.mock.calls[0]![0]).toMatchObject({ title: 'call John every day', dueDate: '2026-11-13', dueTime: '08:00' })
+    expect(state.create.mock.calls[0]![0]).not.toHaveProperty('frequencyUnit')
+  })
+
+  it('keeps the repeat words of the phrase in the title after the type step makes the item a task with no date', async () => {
+    state.locale = 'en'
+    mountCreate()
+    await waitFor(() => expect(document.querySelector('[data-question-flow]')).not.toBeNull())
+    await phrase('call John every day at 8am')
+    await press(en.habits.flow.reminder.no)
+    await press(new RegExp(`^${en.habits.flow.summary.type}`))
+    await act(async () => { fireEvent.click(screen.getByRole('radio', { name: new RegExp(`^${en.habits.form.typeTask}`) })) })
+    await press(new RegExp(`^${en.habits.flow.summary.when}`))
+    await press(en.habits.flow.when.noDate)
+    await press(en.habits.createTask)
+    expect(state.create).toHaveBeenCalledTimes(1)
+    expect(state.create.mock.calls[0]![0].title).toBe('call John every day at 8am')
+    expect(state.create.mock.calls[0]![0]).not.toHaveProperty('frequencyUnit')
+  })
+
   it('stops marking the time as a proposal on the summary when the date words replace the time the free read proposed', async () => {
     state.locale = 'en'
     state.phraseRead.mockResolvedValue({ read: true, emoji: null, frequencyUnit: null, frequencyQuantity: null, days: [], isFlexible: false, flexibleTarget: null, dueTime: '07:00', subHabits: [], checklistItems: [] })

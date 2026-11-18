@@ -10,7 +10,7 @@ import {
   type SessionTokens,
 } from '@/lib/auth-api'
 import { accountEventApiBase } from '@/lib/account-event-api-base'
-import { isPublicPath } from '@/lib/public-paths'
+import { isPublicPath, SENTRY_TUNNEL_ROUTE } from '@/lib/public-paths'
 import { z } from 'zod'
 import { GOOGLE_OAUTH_COOKIE } from '@/lib/google-oauth-cookie'
 import { desktopAttemptSchema } from '@/lib/desktop-auth'
@@ -120,11 +120,15 @@ function isStaleServerAction(request: NextRequest) {
     deploymentId && clientDeploymentId && clientDeploymentId !== deploymentId
 }
 
+export function isRouteHandlerPath(pathname: string): boolean {
+  return pathname.startsWith('/api/') || pathname === SENTRY_TUNNEL_ROUTE || pathname === '/ingest' || pathname.startsWith('/ingest/')
+}
+
+// WHY: Next treats every multipart POST to a page as a possible form action and answers 500 when the body does not parse: https://github.com/vercel/next.js/blob/v16.4.3/packages/next/src/server/lib/server-action-request-meta.ts
 async function isMalformedServerAction(request: NextRequest): Promise<boolean> {
   if (request.method !== 'POST') return false
   const actionId = request.headers.get('next-action')
-  if (actionId === null) return false
-  if (!mightBeServerReferenceId(actionId)) return true
+  if (actionId !== null && !mightBeServerReferenceId(actionId)) return true
   const contentType = request.headers.get('content-type') ?? ''
   if (!contentType.startsWith('multipart/form-data')) return false
   try {
@@ -189,7 +193,7 @@ export async function proxy(request: NextRequest) {
   }
 
   if (
-    pathname.startsWith('/api/') ||
+    isRouteHandlerPath(pathname) ||
     pathname.startsWith('/_next/') ||
     STATIC_IMAGE_PATH.test(pathname) ||
     PUBLIC_ROOT_FILES.has(pathname)

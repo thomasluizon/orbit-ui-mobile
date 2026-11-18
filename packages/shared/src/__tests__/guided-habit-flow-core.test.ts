@@ -28,7 +28,7 @@ function mountFlow(readPhrase: GuidedHabitFlowOptions['readPhrase']) {
     render = () => setVersion((version) => version + 1)
     flow = useGuidedHabitFlow({
       mode: 'create', lockedGeneral: null, locale: 'en', timeZone: 'UTC', isOnline: true, helpers, form, readPhrase, applySchedule,
-      watched: { title: values.title, dueDate: values.dueDate, dueTime: values.dueTime, frequencyUnit: values.frequencyUnit, isFlexible: values.isFlexible },
+      watched: { title: values.title, itemType: values.itemType, dueDate: values.dueDate, dueTime: values.dueTime, frequencyUnit: values.frequencyUnit, isFlexible: values.isFlexible },
     })
     return null
   }

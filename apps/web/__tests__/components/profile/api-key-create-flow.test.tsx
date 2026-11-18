@@ -21,14 +21,18 @@ function stubMedia(reducedMotion: boolean) {
   vi.stubGlobal('matchMedia', (query: string) => ({ matches: reducedMotion && query.includes('prefers-reduced-motion'), media: query, addEventListener: () => {}, removeEventListener: () => {} }))
 }
 
-function Harness({ scoped = false, draft = '', timeZone = 'America/Sao_Paulo', onCreate, onClose }: Readonly<{ scoped?: boolean; draft?: string; timeZone?: string; onCreate: (...args: unknown[]) => Promise<ApiKeyCreateResponse | null>; onClose: () => void }>) {
+function Harness({ scoped = false, draft = '', timeZone = 'America/Sao_Paulo', trackBusy = false, onCreate, onClose }: Readonly<{ scoped?: boolean; draft?: string; timeZone?: string; trackBusy?: boolean; onCreate: (...args: unknown[]) => Promise<ApiKeyCreateResponse | null>; onClose: () => void }>) {
   const [readOnly, setReadOnly] = useState(false)
   const [expiresAt, setExpiresAt] = useState(draft)
   const [created, setCreated] = useState<ApiKeyCreateResponse | null>(null)
   const [handedOff, setHandedOff] = useState(false)
+  const [busy, setBusy] = useState(false)
   if (handedOff) return null
-  return <ApiKeyCreateFlow scoped={scoped} busy={false} error={null} isReadOnly={readOnly} onReadOnlyChange={setReadOnly} expiresAt={expiresAt} timeZone={timeZone} onExpiryChange={setExpiresAt}
-    createdKey={created} onCreate={onCreate} onCreateGrantRequired={() => setHandedOff(true)} onCreated={setCreated} onClose={onClose} />
+  const create = trackBusy
+    ? async (...args: unknown[]) => { setBusy(true); try { return await onCreate(...args) } finally { setBusy(false) } }
+    : onCreate
+  return <ApiKeyCreateFlow scoped={scoped} busy={busy} error={null} isReadOnly={readOnly} onReadOnlyChange={setReadOnly} expiresAt={expiresAt} timeZone={timeZone} onExpiryChange={setExpiresAt}
+    createdKey={created} onCreate={create} onCreateGrantRequired={() => setHandedOff(true)} onCreated={setCreated} onClose={onClose} />
 }
 
 function mount(locale: string, messages: typeof en, props: Parameters<typeof Harness>[0]) {
@@ -121,6 +125,26 @@ describe.each([{ locale: 'en', messages: en }, { locale: 'pt-BR', messages: ptBR
     await act(async () => { fireEvent.click(screen.getByRole('button', { name: messages.profile.apiKeys.scopeAction })) })
     expect(onCreate).not.toHaveBeenCalled()
     expect(screen.getByRole('alert')).toHaveTextContent(messages.profile.apiKeys.expiryDayPassed)
+  })
+
+  it('keeps the flow on the expiry step with no close path while the create request runs', async () => {
+    let resolveCreate: (value: ApiKeyCreateResponse) => void = () => {}
+    const onCreate = vi.fn(() => new Promise<ApiKeyCreateResponse | null>((resolve) => { resolveCreate = resolve }))
+    const onClose = vi.fn()
+    mount(locale, messages, { trackBusy: true, onCreate, onClose })
+    fireEvent.change(screen.getByRole('textbox', { name: messages.orbitMcp.keyName }), { target: { value: 'Script' } })
+    fireEvent.click(screen.getByRole('button', { name: messages.common.continue }))
+    fireEvent.click(screen.getByRole('button', { name: messages.orbitMcp.permReadOnly }))
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: messages.common.never })) })
+    expect(onCreate).toHaveBeenCalledOnce()
+    expect(screen.queryByRole('button', { name: messages.common.close })).toBeNull()
+    expect(screen.queryByRole('button', { name: messages.common.back })).toBeNull()
+    await act(async () => { fireEvent.keyDown(document.activeElement ?? document.body, { key: 'Escape' }) })
+    expect(screen.getByRole('heading', { level: 1, name: messages.profile.apiKeys.expiryQuestion })).toBeInTheDocument()
+    expect(screen.queryByText(messages.common.discardChangesTitle)).toBeNull()
+    expect(onClose).not.toHaveBeenCalled()
+    await act(async () => { resolveCreate(createdKey) })
+    expect(screen.getByRole('heading', { level: 1, name: messages.orbitMcp.revealHeading })).toBeInTheDocument()
   })
 
   it('keeps every answer on the way back and asks before it drops a draft', () => {

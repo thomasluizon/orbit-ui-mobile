@@ -41,7 +41,7 @@ export function useGuidedHabitFlow({ formHelpers, lockedGeneral, mode, onReminde
     isOnline,
     helpers: formHelpers,
     form: flowForm,
-    watched: { title: form.watch('title'), dueDate: form.watch('dueDate'), dueTime: form.watch('dueTime'), frequencyUnit: form.watch('frequencyUnit'), isFlexible: form.watch('isFlexible') },
+    watched: { title: form.watch('title'), itemType: form.watch('itemType'), dueDate: form.watch('dueDate'), dueTime: form.watch('dueTime'), frequencyUnit: form.watch('frequencyUnit'), isFlexible: form.watch('isFlexible') },
     readPhrase,
     applySchedule,
   })

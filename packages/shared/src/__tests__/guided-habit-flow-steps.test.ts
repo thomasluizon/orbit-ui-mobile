@@ -56,7 +56,7 @@ function mountFlow({ mode = 'create', lockedGeneral = null, online = true, value
     flow = useGuidedHabitFlow({
       mode, lockedGeneral, locale: 'en', timeZone: 'UTC', isOnline: online, helpers: { ...helpers, isGeneral: helpers.isGeneral, backendFocusRequest: backend.request, backendFocusField: backend.field },
       form, readPhrase, applySchedule, onReminderEnabledChange: reminder, onPhraseOwnershipChange: ownership,
-      watched: { title: values.title, dueDate: values.dueDate, dueTime: values.dueTime, frequencyUnit: values.frequencyUnit, isFlexible: values.isFlexible },
+      watched: { title: values.title, itemType: values.itemType, dueDate: values.dueDate, dueTime: values.dueTime, frequencyUnit: values.frequencyUnit, isFlexible: values.isFlexible },
     })
     return null
   }

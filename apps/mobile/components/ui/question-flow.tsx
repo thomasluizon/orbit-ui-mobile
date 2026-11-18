@@ -162,7 +162,7 @@ const styles = StyleSheet.create({
   questionWide: { fontSize: 34, lineHeight: 39 },
   options: { width: '100%', flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', rowGap: 12 },
   freePath: { width: '100%', gap: 12 },
-  status: { position: 'absolute', width: 1, height: 1, opacity: 0 },
+  status: { position: 'absolute', width: 1, height: 1, overflow: 'hidden', color: 'transparent' },
   primaryCompact: { paddingHorizontal: 16, paddingBottom: 16, paddingTop: 8 },
   primaryWide: { maxWidth: 360 },
 })
