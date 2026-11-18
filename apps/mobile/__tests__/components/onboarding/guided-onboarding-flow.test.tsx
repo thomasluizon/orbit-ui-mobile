@@ -291,6 +291,50 @@ describe.each([{ language: 'en', messages: en }, { language: 'pt-BR', messages: 
     expect(alerts()).not.toContain(flow.completionFailed)
   })
 
+  const openPhraseFromSummary = async (tree: TestTree) => {
+    const whatRow = hosts(tree).find((node) => node.props.accessibilityRole === 'button' && String(node.props.accessibilityLabel).startsWith(`${guided.summary.what},`))!
+    await TestRenderer.act(() => { (whatRow.props.onPress as () => void)() })
+  }
+  const editPhrase = async (tree: TestTree, phrase: string) => {
+    const field = hosts(tree).find((node) => node.type === 'TextInput' && node.props.accessibilityLabel === guided.what.question)!
+    await TestRenderer.act(() => { (field.props.onChangeText as (value: string) => void)(phrase) })
+    await press(tree, flow.continue)
+  }
+
+  it('returns to the summary when Continue follows a phrase edited from the summary', async () => {
+    useOnboardingDraftStore.setState({ introSeen: true })
+    const tree = await mount()
+    await typePhrase(tree, messages, language === 'en' ? 'Walk every Monday at 18:00' : 'Caminhar toda segunda às 18:00')
+    await openPhraseFromSummary(tree)
+    expect(heading(tree)).toBe(guided.what.question)
+    await editPhrase(tree, language === 'en' ? 'Read every Friday at 07:00' : 'Ler toda sexta às 07:00')
+    expect(heading(tree)).toBe(guided.summary.question)
+    expect(summaryRow(tree, guided.summary.what)?.props.accessibilityLabel).toBe(`${guided.summary.what}, ${language === 'en' ? 'Read' : 'Ler'}`)
+  })
+
+  it('asks the repeat question when the phrase edited from the summary gave no repeat', async () => {
+    useOnboardingDraftStore.setState({ introSeen: true })
+    const tree = await mount()
+    await typePhrase(tree, messages, language === 'en' ? 'Walk every Monday at 18:00' : 'Caminhar toda segunda às 18:00')
+    await openPhraseFromSummary(tree)
+    await editPhrase(tree, language === 'en' ? 'Read a book' : 'Ler um livro')
+    expect(heading(tree)).toBe(flow.when.scheduleMode)
+  })
+
+  it('goes back from a phrase edited from the summary to the summary, before Create and after Create then Back', async () => {
+    useOnboardingDraftStore.setState({ introSeen: true })
+    const tree = await mount()
+    await typePhrase(tree, messages, language === 'en' ? 'Walk every Monday at 18:00' : 'Caminhar toda segunda às 18:00')
+    await openPhraseFromSummary(tree)
+    await press(tree, flow.back)
+    expect(heading(tree)).toBe(guided.summary.question)
+    await press(tree, flow.create)
+    await press(tree, flow.back)
+    await openPhraseFromSummary(tree)
+    await press(tree, flow.back)
+    expect(heading(tree)).toBe(guided.summary.question)
+  })
+
   it('asks for reminders with two quick options and closes with the result dialog from the saved habit', async () => {
     useOnboardingDraftStore.setState({ introSeen: true })
     const tree = await mount()

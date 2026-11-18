@@ -31,7 +31,7 @@ afterEach(async () => { if (tree) await act(() => tree!.unmount()); tree = null 
 function props(): GuidedOnboardingProps {
   return {
     step: ONBOARDING_WHAT_STEP, sentence: '', locale: 'pt-BR', marks: [], isLive: true, emoji: '◎', schedule: buildOnboardingScheduleFromPhrase('', 'pt-BR'), dueTime: '',
-    proposed: false, correcting: false, atLimit: false, allowance: 5, createFailed: false, creating: false, suggestionPending: false, reminderDecision: 'idle',
+    proposed: false, correcting: false, atLimit: false, allowance: 5, createFailed: false, creating: false, suggestionPending: false, phraseReads: 0, reminderDecision: 'idle',
     reminderState: 'ask', createdTitle: '', onAccount: noop, onSentence: noop, onContinueWhat: noop, onStarter: noop, onCorrect: noop, onToggleDay: noop, onTime: noop,
     onMode: noop, onFrequencyUnit: noop, onQuantity: noop, onIntervalWeeks: noop, onSave: noop, onAllow: noop, onContinueWithout: noop, onEditSchedule: noop,
     habitEmoji: '', emojiProposed: false, onEmoji: noop, completionPending: false, offline: false, notices: null, onBack: noop, onSkip: noop, leaveFailed: false,

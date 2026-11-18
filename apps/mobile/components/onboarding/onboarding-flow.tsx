@@ -93,7 +93,7 @@ export interface OnboardingDecisionProps {
   step: number; sentence: string; locale: 'en' | 'pt-BR'; marks: ReturnType<typeof readHabitPhrase>['consumed']; isLive: boolean
   emoji: string; schedule: OnboardingSchedule; dueTime: string; proposed: boolean; correcting: boolean
   atLimit: boolean; allowance: number; allowancePeriod?: AstraAllowance['aiMessagesPeriod']; createFailed: boolean; creating: boolean
-  suggestionPending: boolean; reminderDecision: ReminderDecision; reminderState: OnboardingRemindState; createdTitle: string
+  suggestionPending: boolean; phraseReads: number; reminderDecision: ReminderDecision; reminderState: OnboardingRemindState; createdTitle: string
   onAccount: () => void; onSentence: (value: string) => void; onContinueWhat: () => void
   /** A starter fills the phrase and continues in one press. */
   onStarter: (value: string) => void
@@ -213,6 +213,7 @@ export function OnboardingFlow({ finalStepOnly = false, guided = false }: Readon
   const [createdGeneral, setCreatedGeneral] = useState(false)
   const [skipped, setSkipped] = useState(false)
   const [suggestionPending, setSuggestionPending] = useState(false)
+  const [phraseReads, setPhraseReads] = useState(0)
   const [reminderDecision, setReminderDecision] = useState<ReminderDecision>('idle')
   const [overlayOpen, setOverlayOpen] = useState(true)
   const [destinationAfterPro, setDestinationAfterPro] = useState<string | undefined>()
@@ -226,10 +227,15 @@ export function OnboardingFlow({ finalStepOnly = false, guided = false }: Readon
   const atLimit = isLive && (profile?.aiMessagesUsed ?? 0) >= allowance
   useGuidedRunCompletion([guided, step === ONBOARDING_DONE_STEP, Boolean(createdTitle)], proposed)
 
+  function finishPhraseRead() {
+    setPhraseReads((reads) => reads + 1)
+    setStep(ONBOARDING_WHEN_STEP)
+  }
+
   async function continueFromWhat(phrase: string) {
     if (!phrase.trim() || suggestionPending) return
     setEmoji(''); setEmojiProposed(false); setSchedule(clampOnboardingRepeatWeeks(buildOnboardingScheduleFromPhrase(phrase, locale, guided), isLive)); setProposed(false); setCorrecting(false)
-    if (!shouldRequestOnboardingSuggestion({ isLive, atLimit, available: suggestion.available })) { setStep(ONBOARDING_WHEN_STEP); return }
+    if (!shouldRequestOnboardingSuggestion({ isLive, atLimit, available: suggestion.available })) { finishPhraseRead(); return }
     const revision = suggestionRevision.current + 1
     suggestionRevision.current = revision
     setSuggestionPending(true)
@@ -242,7 +248,7 @@ export function OnboardingFlow({ finalStepOnly = false, guided = false }: Readon
       if (suggestionRevision.current !== revision) return
       setCorrecting(true)
     } finally {
-      if (suggestionRevision.current === revision) { setSuggestionPending(false); setStep(ONBOARDING_WHEN_STEP) }
+      if (suggestionRevision.current === revision) { setSuggestionPending(false); finishPhraseRead() }
     }
   }
 
@@ -379,7 +385,7 @@ export function OnboardingFlow({ finalStepOnly = false, guided = false }: Readon
   if (step === ONBOARDING_PRO_STEP) return <NativeDialog open={overlayOpen} title={t('upgrade.pitchTitle')} onOpenChange={(open) => { if (!open) completeAndLeave() }}><Shell412 tabBar={<DoneTabBar onSelect={(id) => completeAndLeave(SHELL_DESTINATION_PATHS[id as ShellDestinationId])} />}><DoneScroll><OnboardingProStep ref={proStepRef} onFinish={finishAndLeave} /></DoneScroll></Shell412></NativeDialog>
   if (step === ONBOARDING_DONE_STEP) return <NativeDialog open={overlayOpen} title={t(`onboarding.flow.done.${getOnboardingCompleteCopy({ skipped, signedOut: !isLive, remindersOff, dueToday: createdDueToday, general: createdGeneral }).titleKey}`)} onOpenChange={(open) => { if (!open) completeAndLeave() }}><Shell412 tabBar={<DoneTabBar onSelect={(id) => void completeAndLeave(isLive ? SHELL_DESTINATION_PATHS[id as ShellDestinationId] : undefined)} />}><DoneScroll><OnboardingComplete createdHabit={createdTitle} emoji={emoji || '◎'} remindersOff={remindersOff} skipped={skipped} signedOut={!isLive} continuesToPro={isLive && getCurrentPlan(profile) !== 'Pro'} dueToday={createdDueToday} general={createdGeneral} onFinish={() => void completeAndLeave()} /></DoneScroll></Shell412><GuidedResultSlot open={[guided, overlayOpen, Boolean(createdTitle), !skipped, !resultDismissed]} habitId={createdId} optimistic={schedule} signedOut={!isLive} timeZone={profile?.timeZone} onPrimary={() => completeAndLeave(isLive ? SHELL_DESTINATION_PATHS.hoje : undefined)} onClose={() => setResultDismissed(true)} /></NativeDialog>
 
-  const decisionProps: OnboardingDecisionProps = { step, sentence, locale, marks: read.consumed, isLive, emoji: emoji || '◎', schedule, dueTime, proposed, correcting, atLimit, allowance, allowancePeriod: profile?.aiMessagesPeriod, createFailed, creating, suggestionPending, reminderDecision, reminderState, createdTitle, onAccount: () => { useOnboardingDraftStore.getState().markOnboardingLocallyDone(); router.replace('/login') }, onSentence: (value) => { if (!suggestionPending) setSentence(value) }, onContinueWhat: () => void continueFromWhat(sentence), onStarter: chooseStarter, onCorrect: () => setCorrecting(true), onToggleDay: (day) => setSchedule((current) => toggleOnboardingScheduleDay(current, day)), onTime: (value) => setSchedule((current) => ({ ...current, dueTime: value })), onMode: (mode) => setSchedule((current) => changeOnboardingScheduleMode(current, mode)), onFrequencyUnit: (frequencyUnit) => setSchedule((current) => ({ ...current, frequencyUnit, days: [], isGeneral: false })), onQuantity: (frequencyQuantity) => setSchedule((current) => ({ ...current, frequencyQuantity })), onIntervalWeeks: (intervalWeeks) => setSchedule((current) => ({ ...current, intervalWeeks })), onSave: () => void saveHabit(), onAllow: () => void allowReminders(), onContinueWithout: () => void continueWithoutReminders(), onEditSchedule: () => runStepTransition(() => setStep(ONBOARDING_WHEN_STEP)) }
+  const decisionProps: OnboardingDecisionProps = { step, sentence, locale, marks: read.consumed, isLive, emoji: emoji || '◎', schedule, dueTime, proposed, correcting, atLimit, allowance, allowancePeriod: profile?.aiMessagesPeriod, createFailed, creating, suggestionPending, phraseReads, reminderDecision, reminderState, createdTitle, onAccount: () => { useOnboardingDraftStore.getState().markOnboardingLocallyDone(); router.replace('/login') }, onSentence: (value) => { if (!suggestionPending) setSentence(value) }, onContinueWhat: () => void continueFromWhat(sentence), onStarter: chooseStarter, onCorrect: () => setCorrecting(true), onToggleDay: (day) => setSchedule((current) => toggleOnboardingScheduleDay(current, day)), onTime: (value) => setSchedule((current) => ({ ...current, dueTime: value })), onMode: (mode) => setSchedule((current) => changeOnboardingScheduleMode(current, mode)), onFrequencyUnit: (frequencyUnit) => setSchedule((current) => ({ ...current, frequencyUnit, days: [], isGeneral: false })), onQuantity: (frequencyQuantity) => setSchedule((current) => ({ ...current, frequencyQuantity })), onIntervalWeeks: (intervalWeeks) => setSchedule((current) => ({ ...current, intervalWeeks })), onSave: () => void saveHabit(), onAllow: () => void allowReminders(), onContinueWithout: () => void continueWithoutReminders(), onEditSchedule: () => runStepTransition(() => setStep(ONBOARDING_WHEN_STEP)) }
   return <StepsPhase guided={guided} legacy={<NativeDialog open title={t('onboarding.flow.step', { current: getOnboardingDisplayStep(step), total: getOnboardingDisplayTotal() })} onOpenChange={(open) => { if (!open) runStepTransition(() => { if (resolvingDeferredPush) void finishDeferredPushRecovery(); else if (step > 0) setStep(step - 1) }) }}><FlowShell nav={false} header={<FlowHeader step={step} onBack={resolvingDeferredPush ? undefined : goBack} onSkip={createdId ? undefined : skip} />} action={<DecisionAction {...decisionProps} />} notice={createFailed ? <ErrorState message={t('onboarding.flow.createFailed')} /> : undefined}><View style={styles.content}><OnboardingStepStage step={step}><DecisionContent {...decisionProps} /></OnboardingStepStage>{suggestion.verification}</View></FlowShell></NativeDialog>} {...decisionProps} habitEmoji={emoji} emojiProposed={emojiProposed} onEmoji={(value) => { setEmoji(value); setEmojiProposed(false) }} completionPending={false} offline={!isOnline}
     notices={suggestion.verification} leaveFailed={leaveFailed} resolvingDeferredPush={resolvingDeferredPush} habitCreated={createdId !== null} onStepBack={goBack} onLeave={skip} />
 }

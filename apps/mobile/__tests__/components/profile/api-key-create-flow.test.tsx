@@ -18,7 +18,7 @@ vi.mock('@/lib/motion', async (importOriginal) => ({ ...await importOriginal<typ
 vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))
 vi.mock('@/components/ui/date-field', () => ({ DateField: (props: Record<string, unknown>) => React.createElement('DateField', props) }))
 
-interface TestNode { type: unknown; props: Record<string, unknown>; children: unknown[]; findAll(predicate: (node: TestNode) => boolean): TestNode[] }
+interface TestNode { type: unknown; props: Record<string, unknown>; children: unknown[]; parent: TestNode | null; findAll(predicate: (node: TestNode) => boolean): TestNode[] }
 interface TestTree { root: TestNode }
 const TestRenderer: { create(element: React.ReactNode): TestTree; act(callback: () => void | Promise<void>): Promise<void> } = require('react-test-renderer')
 
@@ -123,6 +123,18 @@ describe.each([{ language: 'en', messages: en }, { language: 'pt-BR', messages: 
     const events = vi.mocked(captureGuidedFlowEvent).mock.calls.map(([event]) => event.name)
     expect(events).toContain('guided_flow_step_viewed')
     expect(events).not.toContain('guided_flow_abandoned')
+  })
+
+  it('opens the discard sheet inside the flow screen, because a sheet beside the flow modal lands under it', async () => {
+    mocks.language = language
+    const tree = await render({ onCreate: vi.fn(() => Promise.resolve(createdKey)), onClose: vi.fn() })
+    await type(tree, 'Script')
+    await press(tree, messages.common.close)
+    const title = hosts(tree).find((node) => node.type === 'Text' && textOf(node) === messages.common.discardChangesTitle)
+    expect(title).toBeDefined()
+    const ancestors: unknown[] = []
+    for (let node = title!.parent; node; node = node.parent) ancestors.push(node.props.testID)
+    expect(ancestors).toContain('flow-screen')
   })
 
   it('refuses a kept expiry draft that is in the past, with the reason under the date', async () => {

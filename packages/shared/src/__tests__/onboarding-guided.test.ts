@@ -183,6 +183,8 @@ describe('guided onboarding views and back targets', () => {
     expect(onboardingBackTarget(at('routine'), true)).toBe('talk')
     expect(onboardingBackTarget(at('what'), true)).toBe('restart')
     expect(onboardingBackTarget(at('what'), false)).toBeNull()
+    expect(onboardingBackTarget(at('what', { editing: true }), false), 'the phrase opened from the summary').toBe('summary')
+    expect(onboardingBackTarget(at('what', { editing: true }), true)).toBe('summary')
     expect(onboardingBackTarget(at('time', { editing: true }), false)).toBe('summary')
     expect(onboardingBackTarget(at('summary', { cadencePath: ['mode', 'days'] }), false)).toBe('days')
     expect(onboardingBackTarget(at('days', { cadencePath: ['mode', 'days'] }), false)).toBe('mode')

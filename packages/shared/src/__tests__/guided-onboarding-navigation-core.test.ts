@@ -10,17 +10,20 @@ function mountNavigation(step: number, { introSeen = true, needsCadence = false 
   const readIntroSeen = vi.fn(() => introSeen)
   const readNeedsCadence = vi.fn(() => needsCadence)
   let state!: GuidedOnboardingNavigationState
-  function NavigationProbe(props: { step: number }) {
-    state = useGuidedOnboardingNavigation({ step: props.step, readIntroSeen, readNeedsCadence })
+  function NavigationProbe(props: { step: number; phraseReads: number }) {
+    state = useGuidedOnboardingNavigation({ step: props.step, phraseReads: props.phraseReads, readIntroSeen, readNeedsCadence })
     return null
   }
   let tree!: ReturnType<typeof create>
-  void act(() => { tree = create(createElement(NavigationProbe, { step })) })
+  let phraseReads = 0
+  void act(() => { tree = create(createElement(NavigationProbe, { step, phraseReads })) })
+  let currentStep = step
   return {
     get state() { return state },
     readIntroSeen,
     readNeedsCadence,
-    moveTo: (next: number) => { void act(() => tree.update(createElement(NavigationProbe, { step: next }))) },
+    moveTo: (next: number) => { currentStep = next; void act(() => tree.update(createElement(NavigationProbe, { step: next, phraseReads }))) },
+    settlePhraseRead: () => { phraseReads += 1; void act(() => tree.update(createElement(NavigationProbe, { step: currentStep, phraseReads }))) },
     unmount: () => { void act(() => tree.unmount()) },
   }
 }
@@ -62,6 +65,32 @@ describe('shared guided onboarding navigation', () => {
     expect(mounted.state.navigation).toMatchObject({ view: 'summary', direction: 1, cadencePath: [] })
     mounted.moveTo(ONBOARDING_WHAT_STEP)
     expect(mounted.state.navigation).toMatchObject({ view: 'what', direction: -1, editing: false, cadencePath: [] })
+    mounted.unmount()
+  })
+
+  it('leaves the phrase view for the summary when a phrase edited from the summary settles with no step change', () => {
+    const mounted = mountNavigation(ONBOARDING_WHEN_STEP)
+    void act(() => mounted.state.go('what', 1, { editing: true }))
+    expect(mounted.state.navigation).toMatchObject({ view: 'what', editing: true })
+    mounted.settlePhraseRead()
+    expect(mounted.state.navigation).toMatchObject({ view: 'summary', direction: 1, editing: false, cadencePath: [] })
+    expect(mounted.readNeedsCadence).toHaveBeenCalledTimes(1)
+    mounted.unmount()
+  })
+
+  it('opens the first repeat question when the phrase edited from the summary needs a repeat', () => {
+    const mounted = mountNavigation(ONBOARDING_WHEN_STEP, { needsCadence: true })
+    void act(() => mounted.state.go('what', 1, { editing: true }))
+    mounted.settlePhraseRead()
+    expect(mounted.state.navigation).toMatchObject({ view: 'mode', cadencePath: ['mode'], editing: false })
+    mounted.unmount()
+  })
+
+  it('reads the new phrase once when the step and the read change in the same render', () => {
+    const mounted = mountNavigation(ONBOARDING_WHAT_STEP)
+    mounted.settlePhraseRead()
+    mounted.moveTo(ONBOARDING_WHEN_STEP)
+    expect(mounted.state.navigation.view).toBe('summary')
     mounted.unmount()
   })
 

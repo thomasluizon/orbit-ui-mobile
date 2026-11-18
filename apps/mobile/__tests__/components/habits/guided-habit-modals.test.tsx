@@ -543,6 +543,36 @@ describe('a guided create on Android from a phrase with a repeat', () => {
   })
 })
 
+function discardSheetAncestors(tree: Tree): string[] {
+  const title = tree.hosts().find((node) => node.props.children === ptBR.common.discardChangesTitle) as unknown as ReactTestInstance | undefined
+  if (!title) return []
+  const testIds: string[] = []
+  for (let node = title.parent; node; node = node.parent) if (typeof node.props.testID === 'string') testIds.push(node.props.testID)
+  return testIds
+}
+
+describe('the discard sheet of a guided habit flow on Android', () => {
+  it('opens inside the flow screen above the guided create, because a sheet beside the flow modal lands under it', async () => {
+    const tree = mountCreate()
+    await settle()
+    expect(discardSheetAncestors(tree)).toEqual([])
+    await phrase(tree, 'Beber água')
+    await tap(tree, ptBR.habits.flow.close)
+    expect(discardSheetAncestors(tree)).toContain('flow-screen')
+    tree.unmount()
+  })
+
+  it('opens inside the flow screen above the guided edit', async () => {
+    const tree = mountEdit()
+    await settle()
+    await tap(tree, /^Hora,/)
+    await tap(tree, '20:00')
+    await tap(tree, ptBR.habits.flow.close)
+    expect(discardSheetAncestors(tree)).toContain('flow-screen')
+    tree.unmount()
+  })
+})
+
 describe('the Android edit surface behind orbit_guided_flows', () => {
   it('renders the current form with the flag off', async () => {
     state.flag = false

@@ -588,10 +588,10 @@ function EditHabitDraft({
                 pending={saving} detailsLoading={guidedDetails.loading} detailsError={guidedDetailsError} saveError={saveError} createLabel={t('common.save')}
                 onSubmit={handleSubmit} onClose={requestDismiss} />
             </HabitFormInteractionProvider>
+            {discardDialog}
           </FlowScreen>
         )}
         {saved && habit ? <HabitResultDialog habitId={habit.id} change="updated" onClose={() => { setSaved(false); onClose(); void onSaved?.() }} /> : null}
-        {discardDialog}
       </>
     )
   }

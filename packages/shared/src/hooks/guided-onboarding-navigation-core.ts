@@ -2,9 +2,10 @@ import { ONBOARDING_WHAT_STEP } from '../utils/onboarding'
 import { onboardingInitialView, onboardingViewAfterStep, type OnboardingFlowView, type OnboardingGuidedNavigation } from '../utils/onboarding-guided'
 import type { StateHook } from './state-adapter'
 
-/** `readIntroSeen` runs once, on the first render. `readNeedsCadence` runs on each step change of `OnboardingFlow`. */
+/** `readIntroSeen` runs once, on the first render. `readNeedsCadence` runs on each step change of `OnboardingFlow` and on each settled read of the phrase. `phraseReads` counts the settled reads, because a phrase edited from the summary settles with no step change. */
 export interface GuidedOnboardingNavigationInput {
   step: number
+  phraseReads: number
   readIntroSeen: () => boolean
   readNeedsCadence: () => boolean
 }
@@ -19,13 +20,16 @@ export interface GuidedOnboardingNavigationState {
 
 /** The view of the guided onboarding. It follows each step change of `OnboardingFlow` and moves between the views inside a step. */
 export function createUseGuidedOnboardingNavigation({ useState }: { useState: StateHook }): (input: GuidedOnboardingNavigationInput) => GuidedOnboardingNavigationState {
-  return function useGuidedOnboardingNavigation({ step, readIntroSeen, readNeedsCadence }: GuidedOnboardingNavigationInput): GuidedOnboardingNavigationState {
+  return function useGuidedOnboardingNavigation({ step, phraseReads, readIntroSeen, readNeedsCadence }: GuidedOnboardingNavigationInput): GuidedOnboardingNavigationState {
     const [introRun] = useState(() => step === ONBOARDING_WHAT_STEP && !readIntroSeen())
     const [navigation, setNavigation] = useState<OnboardingGuidedNavigation>(() => ({ view: onboardingInitialView(step, introRun), direction: 1, cadencePath: [], editing: false, walking: false, pendingEdit: null }))
     const [trackedStep, setTrackedStep] = useState(step)
-    if (trackedStep !== step) {
+    const [trackedReads, setTrackedReads] = useState(phraseReads)
+    if (trackedStep !== step || trackedReads !== phraseReads) {
+      const previous = trackedStep === step ? ONBOARDING_WHAT_STEP : trackedStep
       setTrackedStep(step)
-      setNavigation((current) => onboardingViewAfterStep(current, trackedStep, step, readNeedsCadence()))
+      setTrackedReads(phraseReads)
+      setNavigation((current) => onboardingViewAfterStep(current, previous, step, readNeedsCadence()))
     }
     const go = (view: OnboardingFlowView, direction: 1 | -1, patch: Partial<OnboardingGuidedNavigation> = {}) => setNavigation((current) => ({ ...current, ...patch, view, direction }))
     const backAction: GuidedOnboardingNavigationState['backAction'] = (target, onStepBack) => {
