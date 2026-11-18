@@ -1,0 +1,53 @@
+name: Cache Budget
+
+# The repository cache has a 10 GB limit. Above it, GitHub evicts the least recently read entries, and the first to
+# go are the pass markers that let a pull request skip a native compile or an emulator boot. This sweep keeps the
+# total under the cap in .github/scripts/sweep-actions-caches.mjs, so that eviction never starts.
+# A closed pull request starts it, because nothing can read the entries of its merge ref again. The end of each
+# CodeQL run on main starts it, because that run saves a new overlay base database 12 to 18 minutes after the merge,
+# so at most one replaced base exists between two sweeps. The schedule clears a missed event and the other entries
+# that main replaced since the last sweep.
+on:
+  pull_request:
+    types: [closed]
+  workflow_run:
+    workflows: [CodeQL]
+    types: [completed]
+    branches: [main]
+  schedule:
+    - cron: "17 * * * *"
+  workflow_dispatch:
+
+permissions: {}
+
+# One sweep at a time: two sweeps that read the same list send the same delete twice.
+concurrency:
+  group: cache-budget
+  cancel-in-progress: false
+
+jobs:
+  sweep:
+    name: Sweep the Actions cache
+    # A fork pull request, or a pull request that Dependabot closes, gets a read-only token, so its deletes would fail;
+    # the hourly run sweeps its entries.
+    if: github.event_name != 'pull_request' || (github.event.pull_request.head.repo.full_name == github.repository && github.actor != 'dependabot[bot]')
+    runs-on: ubuntu-latest
+    # The job is one sparse checkout and three list requests, then one delete request for each selected entry.
+    timeout-minutes: 3
+    permissions:
+      # DELETE /repos/{owner}/{repo}/actions/caches/{cache_id} needs the Actions write permission:
+      # https://docs.github.com/en/rest/actions/cache#delete-a-github-actions-cache-for-a-repository-using-a-cache-id
+      actions: write
+      contents: read
+      pull-requests: read
+    steps:
+      # The sweep script always comes from main, so a pull request cannot change the code that holds the write token.
+      - uses: actions/checkout@v7
+        with:
+          ref: main
+          persist-credentials: false
+          sparse-checkout: .github/scripts
+      - name: Delete the entries that are over the budget
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node .github/scripts/sweep-actions-caches.mjs --repository "$GITHUB_REPOSITORY"

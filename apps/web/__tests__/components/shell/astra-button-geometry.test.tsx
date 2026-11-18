@@ -24,7 +24,18 @@ beforeAll(async () => {
 })
 afterAll(async () => { await closeChrome(launch) }, 30_000)
 
-it.each(['light', 'dark'] as const)('paints a distinct neutral hover and press surface in %s', async mode => {
+function resolveColor(page: Page, value: string) {
+  return page.evaluate(color => {
+    const probe = document.createElement('i')
+    probe.style.backgroundColor = color
+    document.body.append(probe)
+    const fill = getComputedStyle(probe).backgroundColor
+    probe.remove()
+    return fill
+  }, value)
+}
+
+it.each(['light', 'dark'] as const)('rests on the solid elevated circle and paints the opaque elevated hover surface on hover and press in %s', async mode => {
   const page = await browser.newPage({ viewport: { width: 412, height: 915 }, reducedMotion: 'reduce' })
   try {
     const theme = Object.entries(resolveWebThemeVariables('orange', mode)).map(([key, value]) => `${key}:${value}`).join(';')
@@ -34,15 +45,9 @@ it.each(['light', 'dark'] as const)('paints a distinct neutral hover and press s
     await control.waitFor()
     await page.mouse.move(0, 0)
     const resting = await control.evaluate(readControlPaint)
-    expect(resting.background).toBe('rgba(0, 0, 0, 0)')
-    const hoverFill = await control.evaluate(() => {
-      const probe = document.createElement('i')
-      probe.style.backgroundColor = 'var(--bg-hover)'
-      document.body.append(probe)
-      const fill = getComputedStyle(probe).backgroundColor
-      probe.remove()
-      return fill
-    })
+    expect(resting.background).toBe(await resolveColor(page, 'var(--bg-elev)'))
+    const hoverFill = await resolveColor(page, 'var(--bg-elev-hover)')
+    expect(hoverFill).not.toBe(resting.background)
     await control.hover()
     expect((await control.evaluate(readControlPaint)).background).toBe(hoverFill)
     await expectFillShape(control, 'hover')
@@ -298,7 +303,7 @@ it('keeps the stack above a visible notice slot', async () => {
   } finally { await page.close() }
 })
 
-it.each(['light', 'dark'] as const)('rests as the bare mascot with no fill, ring or shadow, and keeps them off through a press, in %s', async mode => {
+it.each(['light', 'dark'] as const)('rests on a solid elevated circle with a 1px control edge and no shadow, and keeps them through a press, in %s', async mode => {
   const page = await browser.newPage({ viewport: { width: 412, height: 915 }, reducedMotion: 'no-preference' })
   try {
     const theme = Object.entries(resolveWebThemeVariables('orange', mode)).map(([key, value]) => `${key}:${value}`).join(';')
@@ -306,11 +311,19 @@ it.each(['light', 'dark'] as const)('rests as the bare mascot with no fill, ring
     const control = page.locator('[data-astra-button]')
     const paint = () => control.evaluate(element => {
       const style = getComputedStyle(element)
-      return { shadow: style.boxShadow, border: [style.borderTopWidth, style.borderRightWidth, style.borderBottomWidth, style.borderLeftWidth].join(' '), fillLayers: element.querySelectorAll('[data-press-fill]').length, mascots: element.querySelectorAll('[data-asset="orbit-mascot"]').length, scale: style.scale }
+      return { shadow: style.boxShadow, border: [style.borderTopWidth, style.borderRightWidth, style.borderBottomWidth, style.borderLeftWidth].join(' '), borderStyle: style.borderTopStyle, borderColor: style.borderTopColor, round: Number.parseFloat(style.borderTopLeftRadius) >= 30, background: style.backgroundImage, fillLayers: element.querySelectorAll('[data-press-fill]').length, mascots: element.querySelectorAll('[data-asset="orbit-mascot"]').length, scale: style.scale }
     })
-    expect((await control.evaluate(readControlPaint)).background).toBe('rgba(0, 0, 0, 0)')
+    expect((await control.evaluate(readControlPaint)).background).toBe(await resolveColor(page, 'var(--bg-elev)'))
+    const edge = await control.evaluate(() => {
+      const probe = document.createElement('i')
+      probe.style.color = 'var(--border-control)'
+      document.body.append(probe)
+      const color = getComputedStyle(probe).color
+      probe.remove()
+      return color
+    })
     const resting = await paint()
-    expect(resting).toEqual({ shadow: 'none', border: '0px 0px 0px 0px', fillLayers: 0, mascots: 1, scale: 'none' })
+    expect(resting).toEqual({ shadow: 'none', border: '1px 1px 1px 1px', borderStyle: 'solid', borderColor: edge, round: true, background: 'none', fillLayers: 0, mascots: 1, scale: 'none' })
     const box = (await control.boundingBox())!
     expect(box.width).toBe(60)
     expect(box.height).toBe(60)

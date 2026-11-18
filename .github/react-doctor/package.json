@@ -1,0 +1,12 @@
+{
+  "name": "@orbit/react-doctor-gate",
+  "version": "1.0.0",
+  "private": true,
+  "description": "The React Doctor version that the Guards job installs from this lockfile, outside the workspace tree.",
+  "engines": {
+    "node": "^20.19.0 || >=22.13.0"
+  },
+  "devDependencies": {
+    "react-doctor": "0.7.6"
+  }
+}
