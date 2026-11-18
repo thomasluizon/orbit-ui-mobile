@@ -64,9 +64,9 @@ const fakeReader = (answers) => {
 }
 
 /**
- * A stand-in for the ticket read of readTicket (withProjectItem false): `tickets` maps an issue number to the routing key of its
- * `repo:<key>` label and its state. A number outside the map answers as orbit-tickets answers a missing issue, with the failure
- * line of a live read of issue 99999999. The ticket shape is the normalized output of readTicket.
+ * A stand-in for readTicketState: `tickets` maps an issue number to the routing key of its `repo:<key>` label and its state.
+ * A number outside the map answers as orbit-tickets answers a missing issue, with the failure line of a live read of issue
+ * 99999999. The ticket shape is the output of readTicketState.
  */
 export const ticketReader = (tickets) => async (number) => {
   const ticket = tickets[number]
@@ -805,6 +805,16 @@ const fixMarkAndTicketReadCases = async () => {
   T("github: a ticket named by several pull requests is read once in a listing", reads.length === 12 && new Set(reads).size === 12 &&
     listing.items.length === owner.length && listing.items.find((pull) => pull.key === "ui#3100").tickets.length === 2 && listing.failures.length === 0, JSON.stringify(reads))
   T("github: a listing keeps at most four ticket reads in flight, however many pull requests are open", peak > 1 && peak <= 4, `peak ${peak}`)
+  reads.length = 0
+  peak = 0
+  const alertNumbers = Array.from({ length: 30 }, (_, index) => 5000 + (index % 29))
+  const alertMarks = Object.fromEntries(alertNumbers.map((number, index) => [`api code-scanning ${index}`,
+    { action: "ticket", ticket: `https://github.com/thomasluizon/orbit-tickets/issues/${number}` }]))
+  const alertOpen = Object.fromEntries(alertNumbers.map((_, index) => [`api code-scanning ${index}`,
+    { key: `api code-scanning ${index}`, kind: "code-scanning", repository: "api" }]))
+  const alertClosure = await alertsWithClosedTickets({ open: alertOpen, marks: alertMarks }, { readTicketState, readNewestScan: async () => null })
+  T("github: an alert check keeps at most four carrying-ticket reads in flight and reads each ticket once",
+    peak > 1 && peak <= 4 && reads.length === 29 && new Set(reads).size === 29 && alertClosure.failures.length === 0, JSON.stringify({ peak, reads: reads.length, failures: alertClosure.failures }))
   const shared = async (number) => {
     if (number === 4000) throw new Error("gh api repos/thomasluizon/orbit-tickets/issues/4000 failed: gh: Bad Gateway (HTTP 502)")
     return readTicketState(number)
