@@ -285,7 +285,7 @@ export async function resetFixture(test, today = new Date().toISOString().slice(
   }
   if (fixture === 'free-at-limit') await fillCapacity(api, today)
   test.vars.fixtureEvidence = fixtureEvidence(await verifyFixture(api, account, fixture, today, titles), fixture, today, account)
-  if (fixture === 'composition-stale') return seedStaleRetrospective(api, today, test.metadata.locale ?? 'en',
+  if (fixture === 'composition-stale') await seedStaleRetrospective(api, today, test.metadata.locale ?? 'en',
     test.vars.offerFamily === 'stale' ? 'week' : 'month', profile.weekStartDay)
 }
 

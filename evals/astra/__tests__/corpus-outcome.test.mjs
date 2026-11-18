@@ -527,3 +527,11 @@ describe('the client path of a converted case', () => {
     expect(api).not.toHaveBeenCalled()
   })
 })
+
+// questionCards of core/answers.mjs counts these three kinds, and the converted choice and pickList cases rely on it.
+describe('the text that states the question outcome', () => {
+  it.each(['TESTING.md', '.claude/skills/astra-eval/SKILL.md', 'evals/astra/scenarios.yaml'])('names each card kind that satisfies question: true in %s', (path) => {
+    const text = readFileSync(new URL(`../../../${path}`, import.meta.url), 'utf8').replace(/[\s#]+/gu, ' ')
+    expect(text).toMatch(/`?choice`?, `?question`? or `?pickList`?/u)
+  })
+})

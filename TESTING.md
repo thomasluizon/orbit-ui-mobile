@@ -1401,9 +1401,10 @@ rendered consumers; this harness change does not unblock broad rollout by itself
 2. Extend the reset executable if the case needs new state. Describe that state in this catalog.
    A case with `expectations` states compound cases by every tool and its key arguments, and bulk cases by exactly
    one bulk call. A case with an `outcome` states them by the change list, whatever tool wrote it. Ambiguity cases
-   of the outcome grade end in `question: true`, which only a question card satisfies; the rubric requires a question
-   rather than action. Use `composition.mode: clarification` to accept either one to three short plain-text lines without
-   a block or exactly one `choice` or `question` card. A case with `question: true` still needs the card. The API sends a `question` card for the same intent: it folds only one short
+   of the outcome grade end in `question: true`. Any card that asks satisfies it (`choice`, `question` or `pickList`,
+   `questionCards` of `core/answers.mjs`) and plain text never does; the rubric requires a question rather than action.
+   Use `composition.mode: clarification` to accept either one to three short plain-text lines without a block or exactly
+   one `choice` or `question` card. The API sends a `question` card for the same intent: it folds only one short
    `singleChoice` question into a choice, and it sends a record card over more than four records as a
    question. Other block kinds, multiple blocks and pending writes fail this policy. A case that
    declares `sameTitleSet` also needs its card to offer each stored child as a separate option, and
