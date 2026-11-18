@@ -799,10 +799,12 @@ in `target_ids`. An option that declares none stands for its own id when that id
 the API's `AiChoiceSelection.TargetsOf`. Every such record must be a stored child, each child must be selectable,
 and one selection the card allows must state the whole decision. When a list can hold the deleted half and the
 renamed half, the grader selects the half that its question asks about: the action words of the question, else the
-count that it states. In a list question, `keep` and `manter` are rename words, because the records to keep are the
-records to rename. When the question tells neither, or the two signals disagree, the case fails with a message that
-names a grader limit, not a model fault. A `yesNo` question beside the lists is answered yes only when its verb
-proposes the decided action for the half that the lists leave out. A count can confirm that half, but a count alone
+count that it states. When the question names both actions, the grader selects the half of the first action in its
+first question sentence, and a count only confirms the action that its clause names. In a list question, `keep` and
+`manter` are rename words, because the records to keep are the records to rename. When the question tells neither, or
+the two signals disagree, the case fails with a message that names a grader limit, not a model fault. A `yesNo`
+question beside the lists is answered yes only when its verb proposes the decided action for the half that the lists
+leave out. A count can confirm that half, but a count alone
 never decides it. In a `yesNo` question, `keep`, `manter`, `leave`, `stay`, `ficar` and each other verb of no change
 are not rename words, and `title` and `título` are not rename words. A negation (`not`, `don't`, `without`,
 `instead`, `não`, `sem`, `em vez`) or an alternative (`or`, `ou`) makes the prompt propose no one action. A `yesNo`
@@ -1025,8 +1027,10 @@ From `evals/astra`, set `ORBIT_EVAL_GRADER=file://claude-grader.mjs`. The provid
 (`claude` on the runner's `PATH`) on the worker account: `ORBIT_WORKER_CLAUDE_CONFIG_DIR` must name the signed-in
 worker account directory, as `tools/launch-worker.mjs` reads it. The child gets `CLAUDE_CONFIG_DIR` set to that
 directory. Every `ANTHROPIC_`, `CLAUDE_CODE_`, `CCR_` and `ORBIT_EVAL_` variable and `AWS_BEARER_TOKEN_BEDROCK` are
-removed, so the sign-in of that directory is the only credential the CLI can select. The offline test holds this rule
-and the variable name equal to the worker launch, and the eval package does not import the harness. When the variable
+removed, so the sign-in of that directory is the only credential the CLI can select. After that filter, the child also
+gets `CLAUDE_CODE_DISABLE_ATTACHMENTS=1`: the grading prompt holds Astra's answer, and the CLI would otherwise turn an
+`@/path` mention in it into a file attachment. The offline test holds these rules and the variable name equal to the
+worker launch, and the eval package does not import the harness. When the variable
 is unset or names no directory, the grader fails closed and never runs the CLI, so it never spends the main account.
 The grader spends no eval key and does not count against the 0.50 USD daily eval ceiling.
 The provider executes
@@ -1036,8 +1040,8 @@ grade from the `structured_output` of the one JSON result (`type: "result"`, `su
 `is_error: false`), validates `{ "pass": true, "score": 1, "reason": "<grading explanation>" }` against the
 checked-in schema constraints, and returns promptfoo's `{ output: "<JSON grade>" }`. Each call has a two-minute time
 limit. A missing CLI, a non-zero exit, an error result, a malformed grade, a timeout or a cancellation returns a
-sanitized provider error that names the failure; after one retry it stays a grader error, the attempt gives no
-evidence, and it never becomes a passing rubric. Promptfoo continues to pass only the final rendered answer projection
+sanitized provider error that names the failure. A cancellation gets no retry. Any other failure gets one retry, and
+then it stays a grader error: the attempt gives no evidence, and it never becomes a passing rubric. Promptfoo continues to pass only the final rendered answer projection
 to the rubric. The offline test drives a fake executable with responses recorded from one real call of the installed
 CLI (`__tests__/fixtures/claude-grader-result.json` and `claude-grader-error.json`).
 

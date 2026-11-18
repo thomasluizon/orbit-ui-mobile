@@ -385,8 +385,9 @@ const deletedHalf = ids.slice(4)
 const renamedHalf = ids.slice(0, 4)
 
 // A question that names both actions asks for one selection, and the size of the selection tells its half, because the
-// decision deletes two and renames four. The person selects the half the question names first, or the one count it
-// states. The prompts of the completed records card are the real prompts of the five baseline grader-limit cases.
+// decision deletes two and renames four. The person selects the half of the action that the question asks first: the
+// first action of its first question sentence. A count belongs to the action its clause names, so it only confirms that
+// action. The prompts of the completed records card are the real prompts of the five baseline grader-limit cases.
 it.each([
   ['the completed records card', 'en', 'Six found, not seven. Which two to delete and which four to rename?', deletedHalf],
   ['the completed records card', 'en', 'I found 6, not 7. Which 2 should I delete, leaving 4 to rename?', deletedHalf],
@@ -395,7 +396,13 @@ it.each([
   ['the completed records card', 'pt-BR', 'Quais dois hábitos “Water - 710ml” você quer apagar? Também diga quais quatro renomear para “Water - 1.18L”.', deletedHalf],
   ['the completed records card', 'pt-BR', 'Quais dois dos seis você quer remover? Os outros quatro serão renomeados para Water - 1.18L.', deletedHalf],
   ['the completed records card', 'en', 'Which four should I rename, and which two should I delete?', renamedHalf],
-  ['the completed records card', 'en', 'Which ones should I delete, and which four should I rename?', renamedHalf],
+  ['the completed records card', 'en', 'Which ones should I delete, and which four should I rename?', deletedHalf],
+  ['the completed records card', 'en', 'Which ones should I keep? The other two get deleted.', renamedHalf],
+  ['the completed records card', 'en', 'The other two get deleted. Which ones should I keep?', renamedHalf],
+  ['the completed records card', 'en', 'Which ones should I delete? The other four get renamed.', deletedHalf],
+  ['the completed records card', 'en', 'The other four get renamed. Which ones should I delete?', deletedHalf],
+  ['the completed records card', 'pt-BR', 'Quais eu mantenho? Os outros dois serão excluídos.', renamedHalf],
+  ['the completed records card', 'pt-BR', 'Os outros dois serão excluídos. Quais eu mantenho?', renamedHalf],
   ['the model records card', 'pt-BR', streams.run3.card.block.question, deletedHalf],
   ['the model records card', 'pt-BR', 'Quais dois excluo? Diga por ordem quais quatro renomeio.', deletedHalf],
 ])('answers %s in %s whose question names both actions: %s', async (shape, locale, prompt, half) => {
@@ -413,6 +420,16 @@ it.each([
   const answer = sameTitleCard(shown(card, trace), cardVars(ids, locale))
   expect(answer).toMatchObject({ pass: true, reason: 'The card can hold the whole decision.' })
   expect(sentBy(answer)).toEqual(await clientAnswer(card, [option], locale))
+})
+
+// A count that its clause names with the other half's action contradicts the question, so the grader never guesses one.
+it.each([
+  ['en', 'Which ones should I keep? The other four get deleted.'],
+  ['en', 'Which two should I keep, and which ones should I delete?'],
+  ['pt-BR', 'Quais eu mantenho? Os outros quatro serão excluídos.'],
+])('reports a grader limit for a %s question that names both actions and whose count its clause contradicts: %s', (locale, prompt) => {
+  expect(sameTitleCard(shown(completedRecordsCard(prompt, locale)), cardVars(ids, locale))).toEqual({ pass: false, score: 0,
+    reason: `The grader cannot tell which action the card question asks about (delete or rename): ${prompt}` })
 })
 
 // Halves of one size give a selection that names neither half, so the grader never guesses one.

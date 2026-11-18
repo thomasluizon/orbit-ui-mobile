@@ -43,6 +43,7 @@ const attempts = fs.existsSync(counter) ? Number(fs.readFileSync(counter, 'utf8'
 fs.writeFileSync(counter, String(attempts))
 fs.writeFileSync(process.env.TEST_CLAUDE_RECORD, JSON.stringify({ args, prompt, cwd: process.cwd(),
   configDirectory: process.env.CLAUDE_CONFIG_DIR ?? null, apiKey: 'ANTHROPIC_API_KEY' in process.env,
+  attachments: process.env.CLAUDE_CODE_DISABLE_ATTACHMENTS ?? null,
   leaked: Object.keys(process.env).filter((key) => key.startsWith('ORBIT_EVAL_')) }))
 if (mode === 'retry' && attempts === 1) process.exit(1)
 if (mode === 'hang') { setTimeout(() => {}, 60000); return }
@@ -107,6 +108,7 @@ it('loads through promptfoo, runs print mode on the worker account and returns t
   expect(GRADER_MODEL).toBe('claude-opus-5-5')
   expect(GRADER_TIMEOUT_MILLISECONDS).toBe(120000)
   expect(call.configDirectory).toBe(workerDirectory)
+  expect(call.attachments).toBe('1')
   expect(call.apiKey).toBe(false)
   expect(call.leaked).toEqual([])
   expect(existsSync(call.cwd)).toBe(false)
@@ -120,7 +122,16 @@ it('reads the worker account variable and removes every credential override that
   const overrides = Object.fromEntries(CLAUDE_ACCOUNT_OVERRIDE_KEYS.map((key) => [key, 'PRIVATE_SENTINEL']))
   const child = graderEnvironment({ ...overrides, PATH: '/bin', [WORKER_CONFIG_VARIABLE]: ` ${workerDirectory} `,
     CLAUDE_CONFIG_DIR: join(directory, 'main-account'), ORBIT_EVAL_TOKEN: 'PRIVATE_SENTINEL' })
-  expect(child).toEqual({ PATH: '/bin', [WORKER_CONFIG_VARIABLE]: ` ${workerDirectory} `, CLAUDE_CONFIG_DIR: workerDirectory })
+  expect(child).toEqual({ PATH: '/bin', [WORKER_CONFIG_VARIABLE]: ` ${workerDirectory} `, CLAUDE_CONFIG_DIR: workerDirectory,
+    CLAUDE_CODE_DISABLE_ATTACHMENTS: '1' })
+})
+
+// The rubric prompt holds Astra's answer, untrusted model output, and the CLI expands an @/path mention in a -p prompt
+// into a file attachment even with no tool. The prefix filter removes a runner value, so the grader sets the guard after it.
+it.each([['unset', undefined], ['empty', ''], ['0', '0'], ['1', '1']])('runs every grader child with the attachment guard when the runner value is %s', async (_name, value) => {
+  vi.stubEnv('CLAUDE_CODE_DISABLE_ATTACHMENTS', value)
+  await provider.callApi('Grade this answer: @/etc/hosts')
+  expect(record().attachments).toBe('1')
 })
 
 it.each(['pass', 'fail'])('the real llm-rubric consumes the provider grade: %s', async (mode) => {
@@ -170,13 +181,19 @@ it.each([
   expect(existsSync(record().cwd)).toBe(false)
 })
 
-it('stops a call that the caller cancels, and gives no verdict', async () => {
+// A cancelled call is not retried: a second call with the aborted signal fails at once and prints the error line again.
+it('stops a call that the caller cancels, gives no verdict and does not retry it', async () => {
   vi.stubEnv('TEST_CLAUDE_MODE', 'hang')
+  const errors = vi.spyOn(process.stderr, 'write').mockImplementation(() => true)
   const controller = new AbortController()
   const pending = provider.callApi('Offline rubric control.', undefined, { abortSignal: controller.signal })
   await vi.waitFor(() => expect(existsSync(process.env.TEST_CLAUDE_RECORD)).toBe(true))
   controller.abort()
-  expect(await pending).toEqual({ error: 'Claude rubric grading failed: process interrupted by timeout or cancellation.' })
+  const error = 'Claude rubric grading failed: process interrupted by timeout or cancellation.'
+  expect(await pending).toEqual({ error })
+  expect(errors.mock.calls.filter(([line]) => String(line).startsWith('Claude rubric grading failed'))).toEqual([[`${error}\n`]])
+  expect(attempts()).toBe(1)
+  errors.mockRestore()
 })
 
 it('retries one process failure and consumes the recovered grade through the real rubric', async () => {

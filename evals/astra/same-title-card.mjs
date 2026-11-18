@@ -75,15 +75,31 @@ const onlyOne = (deleted, renamed) => deleted === renamed ? null : deleted ? 'de
 const countHalf = (text, decision) => onlyOne(statesCount(text, decision.deleted.length), statesCount(text, decision.renamed.length))
 
 const firstAt = (text, patterns) => Math.min(...patterns.map((pattern) => text.search(pattern)).filter((index) => index >= 0))
+// The action a text names first, or null when it names none.
+function firstAction(text) {
+  const [deletion, rename] = [firstAt(text, [deletionWords]), firstAt(text, [renameVerbs, listRenameWords])]
+  return deletion === rename ? null : deletion < rename ? 'deleted' : 'renamed'
+}
+// A sentence ends at ?, ! or a period that no digit follows, so the title 1.18L stays whole. A clause also ends at a comma,
+// a semicolon or a joining and or e.
+const sentenceEnd = /(?<=[?!]|\.(?!\d))/u
+const clauseEnd = /[?!,;]|\.(?!\d)|\b(?:and|e)\b/u
 
 // The half of a list question that names both actions, as "Which two to delete and which four to rename?" does: one
-// selection answers one half, and the person selects the half that the question names first, else the one count it
-// states. Its size tells which half it is, so the halves must differ in size. Null when they do not.
+// selection answers one half, and the person selects the half of the action that the question asks first, the first
+// action of its first question sentence. A count belongs to the action its clause names (in a clause that names one), so
+// it only confirms that action. The halves must differ in size, because the selection's size tells its half. Null when
+// they do not, or when a count names the other half of its action, as "Which two should I keep?" does.
 function bothActionsHalf(text, decision) {
   if (decision.deleted.length === decision.renamed.length) return null
-  const byCount = countHalf(text, decision)
-  if (byCount) return byCount
-  return firstAt(text, [deletionWords]) < firstAt(text, [renameVerbs, listRenameWords]) ? 'deleted' : 'renamed'
+  const asked = text.split(sentenceEnd).filter((sentence) => sentence.trim().endsWith('?')).map(firstAction).find(Boolean)
+    ?? firstAction(text)
+  const contradicted = text.split(clauseEnd).some((clause) => {
+    const byCount = countHalf(clause, decision)
+    const named = deletionWords.test(clause) === (renameVerbs.test(clause) || listRenameWords.test(clause)) ? asked : firstAction(clause)
+    return byCount && byCount !== named
+  })
+  return contradicted ? null : asked
 }
 
 // The half of the decision a list question asks about: the action it names, else the count it states. A question that

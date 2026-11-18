@@ -14,7 +14,8 @@ const schema = readFileSync(new URL('./grader-schema.json', import.meta.url), 'u
 const accountOverride = /^(?:ANTHROPIC_|CLAUDE_CODE_|CCR_|AWS_BEARER_TOKEN_BEDROCK$)/u
 
 // Print mode of the installed CLI, confirmed against a real call (claude-grader.test.mjs records its response): the grade
-// comes back as structured_output of one JSON result. The grader reads no tool, MCP server, CLAUDE.md, hook or session.
+// comes back as structured_output of one JSON result. The grader reads no tool, MCP server, CLAUDE.md, hook or session,
+// and graderEnvironment turns off the file attachment that an @/path mention in the prompt would otherwise add.
 export const graderArguments = ['-p', '--model', GRADER_MODEL, '--output-format', 'json', '--json-schema', schema,
   '--tools', '', '--strict-mcp-config', '--safe-mode', '--no-session-persistence']
 
@@ -31,6 +32,7 @@ class GradeFailure extends Error {}
 
 // The child environment: the sign-in of the worker account directory is the only credential the CLI can select, and no
 // Orbit eval secret reaches it. Unset, or naming no directory, the grader fails closed and never spends the main account.
+// The prompt holds Astra's answer, untrusted text, so the attachment guard is set after the filter that removes a runner value.
 export function graderEnvironment(environment = process.env) {
   const directory = environment[WORKER_CONFIG_VARIABLE]?.trim()
   if (!directory) throw new GradeFailure(`${WORKER_CONFIG_VARIABLE} is not set`)
@@ -39,7 +41,7 @@ export function graderEnvironment(environment = process.env) {
     throw new GradeFailure(`${WORKER_CONFIG_VARIABLE} names no existing directory`)
   }
   const kept = Object.entries(environment).filter(([key]) => !key.startsWith('ORBIT_EVAL_') && !accountOverride.test(key))
-  return { ...Object.fromEntries(kept), CLAUDE_CONFIG_DIR: configDirectory }
+  return { ...Object.fromEntries(kept), CLAUDE_CONFIG_DIR: configDirectory, CLAUDE_CODE_DISABLE_ATTACHMENTS: '1' }
 }
 
 function runCli(prompt, environment, directory, signal) {
@@ -62,9 +64,10 @@ function runCli(prompt, environment, directory, signal) {
 export default class ClaudeGrader {
   id() { return 'astra-claude-grader' }
 
+  // One retry of a failed call, never of a cancelled one: the aborted signal would fail the retry at once.
   async callApi(prompt, _context, options) {
     const first = await this.grade(prompt, options)
-    return first.error ? this.grade(prompt, options) : first
+    return first.error && !options?.abortSignal?.aborted ? this.grade(prompt, options) : first
   }
 
   async grade(prompt, options) {
