@@ -56,7 +56,7 @@ export const requireKeyringOwner = async (repoPath, { ghBin = process.env.GH_BIN
   return owner
 }
 
-export const redactSecrets =(value, secrets = []) => {
+export const redactSecrets = (value, secrets = []) => {
   let redacted = String(value ?? "")
   for (const secret of secrets) {
     if (secret) redacted = redacted.replaceAll(secret, "<redacted>")
