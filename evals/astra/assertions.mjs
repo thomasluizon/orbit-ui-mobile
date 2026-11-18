@@ -6,20 +6,18 @@ export { composition }
 export { proactiveOffers } from './proactive-offers.mjs'
 import { matchesArguments, matchesOperation, outcomeCalls, failedBeforeDispatch } from './operation-matcher.mjs'
 import { validateToolArguments } from './tool-validation.mjs'
-import { tools, legacyTools, habitSetupTools, habitSetupBinding,
-  toolWrites, toolSensitiveFields, observableSchema, offerTools, offerHabitSetupTools } from './trace-policy.mjs'
+import { habitSetupBinding, toolWrites, toolSensitiveFields, observableSchema, catalogOf, runPathOf,
+  RUN_PATHS, CHANGE_PLAN_PATH } from './trace-policy.mjs'
 import { resolveSchema } from './tool-schema.mjs'
 
 const traceCatalog = (catalog) => catalog.map((tool) => ({ ...tool, function: { ...tool.function,
   description: tool.function.description ?? undefined,
   parameters: observableSchema(tool.function.parameters, new Set(tool.sensitiveFields)),
 } }))
-const compositionCatalog = traceCatalog(tools)
-const legacyCatalog = traceCatalog(legacyTools)
+// The observable lists of each path of a run (trace-policy.mjs catalogOf).
+const traceCatalogs = Object.fromEntries(RUN_PATHS.map((path) => [path, Object.fromEntries(
+  Object.entries(catalogOf(path)).map(([key, list]) => [key, traceCatalog(list)]))]))
 const mergeCatalog = (initial, updates) => [...new Map([...initial, ...updates].map((tool) => [tool.function.name, tool])).values()]
-const offerCatalog = traceCatalog(offerTools)
-const habitSetupCatalog = traceCatalog(habitSetupTools)
-const offerHabitSetupCatalog = traceCatalog(offerHabitSetupTools)
 
 const result = (pass, reason, metadata = {}) => ({ pass, score: pass ? 1 : 0, reason, metadata })
 const decode = (output) => typeof output === 'string' ? JSON.parse(output) : output
@@ -37,13 +35,13 @@ function bindDraftSchema(schema, draft, root) {
     : bindDraftSchema(value, draft, root)]))
 }
 
-function boundHabitSetupCatalog(drafts, offers = false) {
-  const bound = structuredClone(offers ? offerHabitSetupCatalog : habitSetupCatalog)
+function boundHabitSetupCatalog(drafts, lists, offers) {
+  const bound = structuredClone(offers ? lists.offerHabitSetupTools : lists.habitSetupTools)
   for (const tool of bound) {
     const root = tool.function.parameters
     root.properties.input = { anyOf: [...drafts.values()].map((draft) => bindDraftSchema(root.properties.input, draft, root)) }
   }
-  return mergeCatalog(offers ? offerCatalog : compositionCatalog, bound)
+  return mergeCatalog(offers ? lists.offerTools : lists.tools, bound)
 }
 
 function recordHabitSetupDraft(call, drafts) {
@@ -113,21 +111,27 @@ export async function structural(output, context) {
   if ('pass' in trace) return trace
   const supportsParts = context.vars.clientContext?.supportsParts === true
   const offers = context.vars.clientContext?.supportsProactiveOffers === true
-  if (offers && !offerCatalog.length) return result(false, 'Missing producer-exported proactive tool catalog; regenerate against the evaluated API.', { unavailable: true })
-  const catalog = offers ? offerCatalog : supportsParts ? compositionCatalog : legacyCatalog
+  const path = runPathOf()
+  const lists = traceCatalogs[path]
+  if (offers && !lists.offerTools.length) return result(false, 'Missing producer-exported proactive tool catalog; regenerate against the evaluated API.', { unavailable: true })
+  const catalog = offers ? lists.offerTools : supportsParts ? lists.tools : lists.legacyTools
+  // The read before ask, with its selection_required clause, is a rule of the block-first path. On the ai_change_plan
+  // path ProcessUserChatCommand.ChangePlanAsk.cs needs no read, a read returns no selection, and the ask declaration
+  // never changes during a turn.
+  const readBeforeAsk = supportsParts && path !== CHANGE_PLAN_PATH
   let hasSuccessfulAccountRead = false
   const drafts = new Map()
   let verdict = result(true, 'No tool calls to validate.')
   for (const call of trace.calls) {
     // ProcessUserChatCommand.Ask.cs enforces a typed read or bound missing-field draft before ask.
-    if (supportsParts && call.name === 'ask' && !hasSuccessfulAccountRead && !drafts.size) {
+    if (readBeforeAsk && call.name === 'ask' && !hasSuccessfulAccountRead && !drafts.size) {
       return result(false, 'ask requires a typed account read or a bound missing-field draft.')
     }
     // AiIntentService.AppendToolConstraints retains the initial SDK schema throughout the turn.
     verdict = await validateToolArguments(call, [catalog], context)
     if (!verdict.pass) return verdict
-    if (supportsParts && call.name === 'ask' && !hasSuccessfulAccountRead) {
-      verdict = await validateToolArguments(call, [boundHabitSetupCatalog(drafts, offers)], context)
+    if (readBeforeAsk && call.name === 'ask' && !hasSuccessfulAccountRead) {
+      verdict = await validateToolArguments(call, [boundHabitSetupCatalog(drafts, lists, offers)], context)
       if (!verdict.pass) return verdict
     }
     // ProcessUserChatCommand.Ask.cs and ToolResults.cs bind prerequisites to typed results in this turn.
@@ -135,7 +139,7 @@ export async function structural(output, context) {
       && call.resultStatus === 'Succeeded' && call.result.success === true
       && (call.result.readDirective === `[[orbit:read:${call.id}]]`
         || (call.name === 'query_habits' && call.result.payload?.selection_required === true))
-    if (supportsParts) {
+    if (readBeforeAsk) {
       recordHabitSetupDraft(call, drafts)
       hasSuccessfulAccountRead ||= successfulAccountRead
     }

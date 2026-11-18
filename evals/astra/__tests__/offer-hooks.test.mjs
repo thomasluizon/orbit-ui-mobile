@@ -9,15 +9,21 @@ import { offlineCredentials, refreshResponse } from './fixtures/credentials.mjs'
 import { chatResponse, toolCall } from './fixtures/producer.mjs'
 import { buildChatClientContext } from '../../../packages/shared/src/chat/client-context.ts'
 
-const catalogFault = vi.hoisted(() => ({ missing: false }))
+// The catalog that the offer check of a run reads: the committed file, or a file without the named offer lists.
+const catalogFault = vi.hoisted(() => ({ missing: false, without: null }))
 vi.mock('node:fs', async (original) => {
   const filesystem = await original()
-  return { ...filesystem, readFileSync: (path, ...options) => catalogFault.missing && String(path).endsWith('/catalog.yaml')
-    ? 'apiCommit: offline\n' : filesystem.readFileSync(path, ...options) }
+  const { parse: parseYaml, stringify } = await import('yaml')
+  return { ...filesystem, readFileSync: (path, ...options) => {
+    if (!String(path).endsWith('/catalog.yaml')) return filesystem.readFileSync(path, ...options)
+    if (catalogFault.missing) return 'apiCommit: offline\n'
+    if (!catalogFault.without) return filesystem.readFileSync(path, ...options)
+    return stringify(catalogFault.without(parseYaml(filesystem.readFileSync(path, 'utf8'))))
+  } }
 })
 
 vi.mock('../fixtures/reset.mjs', async (original) => ({ ...await original(), resetFixture: vi.fn() }))
-afterEach(() => { catalogFault.missing = false; vi.unstubAllGlobals(); vi.unstubAllEnvs() })
+afterEach(() => { catalogFault.missing = false; catalogFault.without = null; vi.unstubAllGlobals(); vi.unstubAllEnvs() })
 const corpus = parse(readFileSync(new URL('../composition-scenarios.yaml', import.meta.url), 'utf8'), { merge: true })
 
 it.each(['en', 'pt-BR'])('prepares the shared client kinds for %s offer requests and preview setup', async (locale) => {
@@ -125,4 +131,30 @@ it('stops an offer run before HTTP when the committed catalog lacks producer var
   await expect(beforeAll({ suite: { tests: [structuredClone(corpus.find((entry) => entry.metadata.id === 'offers-empty-en'))] } }))
     .rejects.toThrow('Regenerate the proactive tool catalogs')
   expect(fetch).not.toHaveBeenCalled()
+})
+
+// The offer check reads the offer lists of the path of the run. The ai_change_plan path has one offer list; the
+// block-first path has three.
+const offerCase = () => ({ suite: { tests: [structuredClone(corpus.find((entry) => entry.metadata.id === 'offers-empty-en'))] } })
+it.each([
+  ['change-plan', (catalog) => ({ ...catalog, changePlan: { ...catalog.changePlan, offerTools: [] } }), true],
+  ['change-plan', (catalog) => ({ ...catalog, offerPostReadTools: [], offerHabitSetupTools: [] }), false],
+  ['block-first', (catalog) => ({ ...catalog, offerPostReadTools: [] }), true],
+  ['block-first', (catalog) => ({ ...catalog, changePlan: { ...catalog.changePlan, offerTools: [] } }), false],
+])('checks the offer lists of the %s path before a run of offer cases (case %#)', async (path, without, refused) => {
+  offlineCredentials()
+  vi.stubEnv('ORBIT_EVAL_GRADER', 'offline')
+  vi.stubEnv('ORBIT_EVAL_ASTRA_PATH', path)
+  // Producer: orbit-api WebApplicationExtensions /health. Another commit stops the run at its next check.
+  const fetch = vi.fn(async () => Response.json({ status: 'Healthy', commit: 'a'.repeat(40), checks: [] }))
+  vi.stubGlobal('fetch', fetch)
+  catalogFault.without = without
+  const failure = await beforeAll(offerCase()).catch((error) => error)
+  if (refused) {
+    expect(failure.message).toBe('Regenerate the proactive tool catalogs from the evaluated API before running offer cases.')
+    expect(fetch).not.toHaveBeenCalled()
+  } else {
+    expect(failure.message).toContain(`differs from API ${'a'.repeat(40)}`)
+    expect(fetch).toHaveBeenCalledTimes(1)
+  }
 })

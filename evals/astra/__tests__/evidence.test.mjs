@@ -6,7 +6,7 @@ import { join } from 'node:path'
 import { writeResults } from '../report.mjs'
 import parseResponse from '../response.mjs'
 import { behavior } from '../assertions.mjs'
-import { chatResponse, toolCall, traceTiming, suggestionDraft } from './fixtures/producer.mjs'
+import { chatResponse, toolCall, changePlanToolCall, traceTiming, suggestionDraft } from './fixtures/producer.mjs'
 import { offlineCredentials } from './fixtures/credentials.mjs'
 import { tsImport } from 'tsx/esm/api'
 
@@ -353,4 +353,22 @@ it('retains sanitized restart proposals and independent persisted readbacks', ()
     after: [{ habit: { id: '[redacted]', title: 'Water', dueDate: '2026-10-29' }, logs: [] }],
   })
   expect(text).not.toContain(id)
+})
+
+// Producer: orbit-api AskTool.GetChangePlanParameterSchema declares `about` and `several` only on the ai_change_plan
+// path, so only a run of that path reads them as declared arguments. A record id never reaches the evidence.
+it('keeps about and several of an ai_change_plan ask and redacts each record id', () => {
+  const records = ['22222222-2222-4222-8222-222222222222', '33333333-3333-4333-8333-333333333333']
+  const question = 'Which Water - 710ml do you mean?'
+  const call = changePlanToolCall('ask', { input: { form: 'choice', missing_input: 'record_selection', question,
+    about: records, several: true, allowFreeText: false } }, 'Succeeded', 'ask', { supportsParts: true })
+  vi.stubEnv('ORBIT_EVAL_ASTRA_PATH', 'change-plan')
+  const changePlan = persist(outputFor([call]))
+  expect(changePlan.evidence.toolCalls[0]).toMatchObject({ name: 'ask', resultStatus: 'Succeeded', arguments: { orbit_read_complete: false,
+    input: { form: 'choice', missing_input: 'record_selection', question, about: ['[redacted]', '[redacted]'], several: true, allowFreeText: false } } })
+  for (const id of records) expect(changePlan.text).not.toContain(id)
+  vi.stubEnv('ORBIT_EVAL_ASTRA_PATH', 'block-first')
+  const blockFirst = persist(outputFor([call]))
+  expect(blockFirst.evidence.toolCalls[0].arguments.input).toEqual({ form: 'choice', missing_input: 'record_selection', question, allowFreeText: false })
+  for (const id of records) expect(blockFirst.text).not.toContain(id)
 })

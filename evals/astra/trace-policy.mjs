@@ -5,7 +5,40 @@ import { completionControls } from './tool-schema.mjs'
 const catalog = parse(readFileSync(new URL('./catalog.yaml', import.meta.url), 'utf8'))
 export const { tools, legacyTools, postReadTools, habitSetupTools, habitSetupBinding,
   offerTools = [], offerPostReadTools = [], offerHabitSetupTools = [] } = catalog
-const allTools = [...tools, ...legacyTools, ...postReadTools, ...habitSetupTools, ...offerTools, ...offerPostReadTools, ...offerHabitSetupTools]
+
+// The path of a run. The block-first path is the API without the ai_change_plan flag; the change-plan path is the API
+// with that flag on for the account (orbit-api FeatureFlagKeys.AiChangePlan, ChatContext.ChangePlan). The API sends
+// other tool declarations on each path, so each path has its own lists of the catalog.
+export const RUN_PATH_VARIABLE = 'ORBIT_EVAL_ASTRA_PATH'
+export const BLOCK_FIRST_PATH = 'block-first'
+export const CHANGE_PLAN_PATH = 'change-plan'
+export const RUN_PATHS = [BLOCK_FIRST_PATH, CHANGE_PLAN_PATH]
+export const CHANGE_PLAN_FLAG = 'ai_change_plan'
+
+// The path that one run measures. A run that names no path measures the block-first path.
+export function runPathOf(environment = process.env) {
+  const named = environment[RUN_PATH_VARIABLE]
+  if (named === undefined) return BLOCK_FIRST_PATH
+  if (!RUN_PATHS.includes(named)) {
+    throw new Error(`${RUN_PATH_VARIABLE} is "${named}"; name ${BLOCK_FIRST_PATH}, the default, for the path without ${CHANGE_PLAN_FLAG}, or ${CHANGE_PLAN_PATH} for the path of that flag.`)
+  }
+  return named
+}
+
+// The path of a summary. A summary written before summaries named their path measured the block-first path.
+export const pathOf = (summary) => summary.path ?? BLOCK_FIRST_PATH
+
+// The lists of one path. The change-plan path keeps one ask declaration for the whole turn (orbit-api RefreshAskSchema
+// returns no update there), so it has no post-read list and no habit-setup list.
+const pathLists = {
+  [BLOCK_FIRST_PATH]: { tools, legacyTools, postReadTools, habitSetupTools, offerTools, offerPostReadTools, offerHabitSetupTools },
+  [CHANGE_PLAN_PATH]: { ...catalog.changePlan, postReadTools: [], habitSetupTools: [], offerPostReadTools: [], offerHabitSetupTools: [] },
+}
+export const catalogOf = (path) => pathLists[path]
+
+// The exporter takes the write class and the sensitive fields of a tool from its registry entry, which no flag changes,
+// so one map of each classifies the calls of both paths.
+const allTools = RUN_PATHS.flatMap((path) => Object.values(pathLists[path]).flat())
 export const toolCompletionControls = new Map(tools.map((tool) => [tool.function.name, completionControls(tool.function.parameters)]))
 export const toolWrites = new Map(allTools.map((tool) => [tool.function.name, tool.writes]))
 export const normalizeField = (name) => name.replaceAll('_', '').replaceAll('-', '').toLowerCase()

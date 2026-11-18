@@ -2,14 +2,18 @@ import { readFileSync } from 'node:fs'
 import { parse } from 'yaml'
 import { completionControls, nullableSchema, resolveSchema, schemaVariants } from '../../tool-schema.mjs'
 
-const { tools, legacyTools, postReadTools, offerTools, offerPostReadTools } = parse(readFileSync(new URL('../../catalog.yaml', import.meta.url), 'utf8'))
+const exported = parse(readFileSync(new URL('../../catalog.yaml', import.meta.url), 'utf8'))
+// The ai_change_plan path has no post-read declaration (catalog-export.cs).
+const changePlanLists = { ...exported.changePlan, postReadTools: [], offerPostReadTools: [] }
 const normalizeField = (name) => name.replaceAll('_', '').replaceAll('-', '').toLowerCase()
 
 // StrictToolSchema requires nullable properties; composition reads require completion; traces omit marked fields.
 function strictArguments(schema, supplied, root = schema, complete = false) {
   if (!supplied || typeof supplied !== 'object') return supplied
   const variants = schemaVariants(schema, root).filter((variant) => variant.type !== 'null')
-  const selected = variants.find((variant) => resolveSchema(variant.properties?.form, root)?.enum?.includes(supplied.form))
+  // The flag-on ask declares two choice forms, so a form that declares each supplied field wins over the first of its name.
+  const forms = variants.filter((variant) => resolveSchema(variant.properties?.form, root)?.enum?.includes(supplied.form))
+  const selected = forms.find((variant) => Object.keys(supplied).every((name) => Object.hasOwn(variant.properties, name))) ?? forms[0]
   const resolved = selected ?? (variants.length === 1 ? variants[0] : resolveSchema(schema, root))
   if (Array.isArray(supplied)) return supplied.map((entry) => strictArguments(resolved?.items, entry, root))
   const properties = resolved?.properties ?? {}
@@ -31,7 +35,11 @@ function omitSensitiveFields(value, sensitiveFields) {
 }
 
 // Contract: orbit-api 5e376417, ChatResponse, ChatEvalTrace and AiToolCallResult.
-export function toolCall(name, arguments_, status = 'Succeeded', id = 'call-1', clientContext = {}, complete = false) {
+export const toolCall = (...call) => declaredCall(exported, ...call)
+// The same call against the declarations of the ai_change_plan path.
+export const changePlanToolCall = (...call) => declaredCall(changePlanLists, ...call)
+
+function declaredCall({ tools, legacyTools, postReadTools, offerTools, offerPostReadTools }, name, arguments_, status = 'Succeeded', id = 'call-1', clientContext = {}, complete = false) {
   const catalog = clientContext.supportsProactiveOffers === true ? [...offerTools, ...offerPostReadTools]
     : clientContext.supportsParts === true ? [...tools, ...postReadTools] : legacyTools
   const tool = catalog.find((entry) => entry.function.name === name)

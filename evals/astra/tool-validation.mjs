@@ -8,12 +8,16 @@ const run = (call, catalog, context) => assertions.runAssertion({
     function: { name: call.name, arguments: JSON.stringify(call.arguments) } }] },
 })
 
-function selectedAskForm(catalog, form) {
+// The ask declaration with only the branch of the form that the call is closest to. The ai_change_plan ask declares two
+// choice branches, so the branch that declares the most fields of the call wins.
+function selectedAskForm(catalog, input) {
   return catalog.map((tool) => {
     if (tool.function.name !== 'ask') return tool
     const root = tool.function.parameters
-    const branch = schemaVariants(root.properties.input, root)
-      .find((schema) => resolveSchema(schema.properties?.form, root)?.enum?.includes(form))
+    const declared = (schema) => Object.keys(input).filter((name) => Object.hasOwn(schema.properties ?? {}, name)).length
+    const [branch] = schemaVariants(root.properties.input, root)
+      .filter((schema) => resolveSchema(schema.properties?.form, root)?.enum?.includes(input.form))
+      .toSorted((left, right) => declared(right) - declared(left))
     return branch ? { ...tool, function: { ...tool.function, parameters: {
       ...root, properties: { ...root.properties, input: branch },
     } } } : tool
@@ -29,7 +33,7 @@ export async function validateToolArguments(call, catalogs, context) {
   }
   const form = call.name === 'ask' ? call.arguments?.input?.form : undefined
   if (!['choice', 'pickList', 'question'].includes(form)) return failures[0]
-  const diagnostics = await Promise.all(catalogs.map((catalog) => run(call, selectedAskForm(catalog, form), context)))
+  const diagnostics = await Promise.all(catalogs.map((catalog) => run(call, selectedAskForm(catalog, call.arguments.input), context)))
   const closest = diagnostics.toSorted((left, right) => left.reason.length - right.reason.length)[0]
   return { ...closest, pass: false, score: 0, reason: `ask ${form}: ${closest.reason}` }
 }

@@ -8,6 +8,8 @@ import { parse } from 'yaml'
 import { beforeAll } from '../hooks.mjs'
 import { beforeAll as beforeCoreRun } from '../core/hooks.mjs'
 import { structural } from '../assertions.mjs'
+import { completionControls } from '../tool-schema.mjs'
+import { RUN_PATHS, catalogOf, toolCompletionControls, toolSensitiveFields, toolWrites } from '../trace-policy.mjs'
 import parseResponse from '../response.mjs'
 import { offlineCredentials } from './fixtures/credentials.mjs'
 import { chatResponse, toolCall } from './fixtures/producer.mjs'
@@ -34,6 +36,23 @@ it('keeps each flag-off key and holds the three flag-on lists under changePlan',
     expect(namesOf(exported[key])).toEqual(['ask'])
   }
   expect(namesOf(exported.changePlan.legacyTools)).not.toContain('ask')
+})
+
+// One map of each kind classifies the calls of both paths: the exporter takes the write class and the sensitive fields
+// from the registry entry of a tool, and the flag-on schema keeps the completion arguments of each tool.
+it('gives each tool one write class, one set of sensitive fields and one set of completion controls on both paths', () => {
+  expect(RUN_PATHS).toEqual(['block-first', 'change-plan'])
+  expect(Object.keys(catalogOf('change-plan')).toSorted()).toEqual(Object.keys(catalogOf('block-first')).toSorted())
+  expect(catalogOf('change-plan')).toMatchObject({ postReadTools: [], habitSetupTools: [], offerPostReadTools: [], offerHabitSetupTools: [] })
+  const declared = RUN_PATHS.flatMap((path) => Object.values(catalogOf(path)).flat())
+  expect(declared.length).toBeGreaterThan(400)
+  for (const tool of declared) {
+    expect(toolWrites.get(tool.function.name), tool.function.name).toBe(tool.writes)
+    expect([...toolSensitiveFields.get(tool.function.name)], tool.function.name).toEqual(tool.sensitiveFields)
+  }
+  for (const tool of catalogOf('change-plan').tools) {
+    expect(completionControls(tool.function.parameters), tool.function.name).toEqual(toolCompletionControls.get(tool.function.name))
+  }
 })
 
 // Producer: orbit-api AskTool.GetChangePlanParameterSchema adds one choice form with `about` and `several`, and removes

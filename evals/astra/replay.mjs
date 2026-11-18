@@ -4,7 +4,7 @@ import { basename, dirname, resolve, sep } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { parse } from 'yaml'
 import { validateToolArguments } from './tool-validation.mjs'
-import { tools, legacyTools, offerTools, observableSchema } from './trace-policy.mjs'
+import { catalogOf, observableSchema, pathOf, RUN_PATHS } from './trace-policy.mjs'
 import { configureOffers } from './offer-context.mjs'
 import { toolBehavior } from './assertions.mjs'
 import { historicalReadExpectations } from './offer-lifecycle.mjs'
@@ -20,7 +20,9 @@ const observable = (catalog) => catalog.map((tool) => ({ ...tool, function: { ..
   parameters: observableSchema(tool.function.parameters, new Set(tool.sensitiveFields)),
 } }))
 
-function declarations(vars) {
+// The request declarations of the path that the window measured.
+function declarations(vars, path) {
+  const { tools, legacyTools, offerTools } = catalogOf(path)
   if (vars.clientContext?.supportsParts !== true) return [observable(legacyTools)]
   const offers = vars.clientContext.supportsProactiveOffers === true
   return [observable(offers ? offerTools : tools)]
@@ -65,14 +67,14 @@ async function schemaVerdict(call, validate) {
   return (await validate({ ...call, arguments: projected })).pass ? { ...verdict, redacted: true } : verdict
 }
 
-export async function replayAttempt(attempt, descriptor, recorded) {
+async function replayAttempt(attempt, descriptor, recorded, path) {
   const before = recorded.allAttemptsPass
   const test = structuredClone(descriptor)
   configureOffers(test)
   test.vars.clientContext ??= buildChatClientContext({ platform: test.metadata.platform ?? 'web', locale: test.metadata.locale ?? 'en' })
   const assertions = structuredClone(attempt.assertions)
   const notes = []
-  const validate = (call) => validateToolArguments(call, declarations(test.vars), { test, vars: test.vars })
+  const validate = (call) => validateToolArguments(call, declarations(test.vars, path), { test, vars: test.vars })
   const schemas = await Promise.all(attempt.toolCalls.map((call) => schemaVerdict(call, validate)))
   if (schemas.some((verdict) => verdict.redacted)) notes.push('A recorded argument holds a redacted value, so its schema cannot be replayed.')
   const structure = assertions.find((assertion) => assertion.metric === 'toolStructure')
@@ -125,6 +127,8 @@ export async function replayWindow(source, destination) {
     throw new Error('Replay output must be separate from the read-only source window.')
   }
   const original = JSON.parse(readFileSync(`${input}/summary.json`, 'utf8'))
+  const path = pathOf(original)
+  if (!RUN_PATHS.includes(path)) throw new Error(`The window names the path "${path}"; a run measures ${RUN_PATHS.join(' or ')}.`)
   const files = readdirSync(`${input}/attempts`).filter((name) => name.endsWith('.json')).sort()
   const results = []
   for (const file of files) {
@@ -132,7 +136,7 @@ export async function replayWindow(source, destination) {
     const descriptor = corpus.find((entry) => entry.metadata.id === attempt.caseId)
     const recorded = original.cases.find((entry) => entry.id === attempt.caseId)
     if (!descriptor || !recorded) throw new Error('Replay case is missing its corpus policy or original verdict.')
-    results.push(await replayAttempt(attempt, descriptor, recorded))
+    results.push(await replayAttempt(attempt, descriptor, recorded, path))
   }
   if (results.length !== original.cases.length || new Set(results.map((entry) => entry.caseId)).size !== original.cases.length) {
     throw new Error('Replay requires the complete window with one recorded attempt per case.')
