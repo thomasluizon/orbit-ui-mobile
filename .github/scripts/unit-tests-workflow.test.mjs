@@ -13,6 +13,7 @@ const chromiumShardCount = workflow.jobs["web-tests"].strategy.matrix.total[0]
 const jsdomShards = workflow.jobs["web-tests"].strategy.matrix.include
 const mobileShardCount = workflow.jobs["mobile-tests"].strategy.matrix.total[0]
 const workspaceDirectories = ["apps/desktop", "packages/shared", "eslint-rules"]
+const mergedAction = yaml.load(readFileSync(resolve(root, ".github/actions/merged-unit-results/action.yml"), "utf8"))
 const unitSteps = workflow.jobs["unit-tests"].steps
 const stepNamed = (steps, name) => steps.find((step) => step.name === name)
 const webLegs = [...jsdomShards, ...Array.from({ length: chromiumShardCount }, (_, index) => ({ project: "chromium", shard: index + 1, total: chromiumShardCount }))]
@@ -185,7 +186,7 @@ test("each test group starts only without a cached result, and every event looks
   for (const [job, group] of [["web-tests", "web-unit"], ["mobile-tests", "mobile-unit"], ["workspace-tests", "workspace-unit"]]) {
     assert.equal(workflow.jobs[job].needs, "plan")
     assert.equal(workflow.jobs[job].if, `needs.plan.outputs.${group}-hit != 'true'`)
-    assert.equal(plan.outputs[`${group}-hit`], `\${{ steps.${group}.outputs.cache-hit == 'true' || steps.${group}-merged.outputs.cache-hit == 'true' }}`)
+    assert.equal(plan.outputs[`${group}-hit`], `\${{ steps.${group}.outputs.cache-hit == 'true' || steps.merged.outputs.${group}-hit == 'true' }}`)
     assert.equal(plan.outputs[`${group}-key`], `\${{ steps.plan.outputs.${group}-key }}`)
     const lookup = plan.steps.find((step) => step.id === group)
     assert.equal(lookup.if, undefined)
@@ -211,33 +212,39 @@ test("each test group starts only without a cached result, and every event looks
 test("a push or a dispatch on main saves the unit results of the merged pull request when its keys are equal", () => {
   const plan = workflow.jobs.plan
   assert.deepEqual(plan.permissions, { contents: "read", actions: "read", "pull-requests": "read" })
-  const ids = plan.steps.map((step) => step.id)
-  const find = plan.steps.find((step) => step.id === "merged")
-  assert.match(find.if, /^github\.event_name != 'pull_request' && \(/)
-  for (const group of ["web-unit", "mobile-unit", "workspace-unit"]) assert.match(find.if, new RegExp(`steps\\.${group}\\.outputs\\.cache-hit != 'true'`))
+  const call = plan.steps.find((step) => step.id === "merged")
+  assert.equal(call.uses, "./.github/actions/merged-unit-results")
+  assert.match(call.if, /^github\.event_name != 'pull_request' && \(/)
+  for (const group of ["web-unit", "mobile-unit", "workspace-unit"]) assert.match(call.if, new RegExp(`steps\\.${group}\\.outputs\\.cache-hit != 'true'`))
+  const steps = mergedAction.runs.steps
+  const ids = steps.map((step) => step.id)
+  const find = steps.find((step) => step.id === "merged")
   assert.equal(find.run, 'node .github/scripts/merged-unit-results.mjs find --repository "$GITHUB_REPOSITORY" --sha "$GITHUB_SHA" | tee -a "$GITHUB_OUTPUT"')
   assert.equal(find.env.GITHUB_TOKEN, "${{ github.token }}")
-  const download = plan.steps.find((step) => step.uses?.startsWith("actions/download-artifact@"))
+  const download = steps.find((step) => step.uses?.startsWith("actions/download-artifact@"))
   assert.equal(download.if, "steps.merged.outputs.artifact-id != ''")
   assert.equal(download.id, "merged-download")
   assert.equal(download["continue-on-error"], true, "a failed download must not fail Plan, which would skip every test job on main")
   assert.deepEqual(download.with, { "artifact-ids": "${{ steps.merged.outputs.artifact-id }}", "run-id": "${{ steps.merged.outputs.run-id }}", "github-token": "${{ github.token }}" },
     "one artifact downloads at the workspace root, where its paths name the cached files")
-  const match = plan.steps.find((step) => step.id === "adopt")
+  const match = steps.find((step) => step.id === "adopt")
   assert.equal(match.run, 'node .github/scripts/merged-unit-results.mjs match --keys-file unit-test-keys.json | tee -a "$GITHUB_OUTPUT"')
   assert.equal(match.if, "steps.merged-download.outcome == 'success'", "a partial download is never matched, so main runs the tests")
-  assert.ok(ids.indexOf("merged") < plan.steps.indexOf(download) && plan.steps.indexOf(download) < ids.indexOf("adopt"))
+  assert.ok(ids.indexOf("merged") < steps.indexOf(download) && steps.indexOf(download) < ids.indexOf("adopt"))
   for (const group of ["web-unit", "mobile-unit", "workspace-unit"]) {
-    const variable = `\${{ env.${group.replace("-unit", "").toUpperCase()}_UNIT_RESULTS }}`
-    const key = `\${{ steps.plan.outputs.${group}-key }}`
-    assert.equal(match.env[`${group.replace("-unit", "").toUpperCase()}_UNIT_KEY`], key)
-    const save = plan.steps.find((step) => step.uses?.startsWith("actions/cache/save@") && step.with.key === key)
-    assert.equal(save.if, `github.event_name != 'pull_request' && steps.${group}.outputs.cache-hit != 'true' && steps.adopt.outputs.${group} == 'true'`)
-    const confirm = plan.steps.find((step) => step.id === `${group}-merged`)
-    assert.equal(confirm.if, `steps.${group}.outputs.cache-hit != 'true' && steps.adopt.outputs.${group} == 'true'`)
-    assert.deepEqual(confirm.with, { path: variable, key, "lookup-only": true })
-    assert.equal(save.with.path, variable)
-    assert.ok(ids.indexOf("adopt") < plan.steps.indexOf(save) && plan.steps.indexOf(save) < ids.indexOf(`${group}-merged`))
+    const prefix = group.replace("-unit", "")
+    const upper = prefix.toUpperCase()
+    assert.deepEqual([call.with[`${prefix}-key`], call.with[`${prefix}-path`], call.with[`${prefix}-hit`]],
+      [`\${{ steps.plan.outputs.${group}-key }}`, `\${{ env.${upper}_UNIT_RESULTS }}`, `\${{ steps.${group}.outputs.cache-hit }}`], `${group}: the call passes the key, the path and the first lookup`)
+    assert.equal(match.env[`${upper}_UNIT_KEY`], `\${{ inputs.${prefix}-key }}`)
+    const save = steps.find((step) => step.uses?.startsWith("actions/cache/save@") && step.with.key === `\${{ inputs.${prefix}-key }}`)
+    assert.equal(save.if, `github.event_name != 'pull_request' && inputs.${prefix}-hit != 'true' && steps.adopt.outputs.${prefix}-unit == 'true'`)
+    const confirm = steps.find((step) => step.id === `${group}-merged`)
+    assert.equal(confirm.if, `inputs.${prefix}-hit != 'true' && steps.adopt.outputs.${prefix}-unit == 'true'`)
+    assert.deepEqual(confirm.with, { path: `\${{ inputs.${prefix}-path }}`, key: `\${{ inputs.${prefix}-key }}`, "lookup-only": true })
+    assert.equal(save.with.path, confirm.with.path)
+    assert.ok(ids.indexOf("adopt") < steps.indexOf(save) && steps.indexOf(save) < ids.indexOf(`${group}-merged`))
+    assert.equal(mergedAction.outputs[`${group}-hit`].value, `\${{ steps.${group}-merged.outputs.cache-hit }}`)
   }
   const record = stepNamed(unitSteps, "Record the unit result keys")
   assert.equal(record.run, "node .github/scripts/merged-unit-results.mjs record > unit-test-keys.json")
@@ -620,4 +627,11 @@ test("real Vitest reports combine project coverage and reject incomplete coverag
 test("the web test timings upload only after the web report selection ran", () => {
   assert.equal(stepNamed(unitSteps, "Select latest web report attempts").id, "select-web-reports")
   assert.equal(stepNamed(unitSteps, "Upload web test timings").if, "${{ !cancelled() && steps.select-web-reports.outcome == 'success' }}")
+})
+
+// The review rule "a file over 1000 lines" in .claude/playbooks/review-and-audit.md: the merged result steps live in a local action.
+test("test.yml stays within 1000 lines, so the merged unit result steps stay in their local action", () => {
+  const lines = readFileSync(resolve(root, ".github/workflows/test.yml"), "utf8").trimEnd().split("\n").length
+  assert.ok(lines <= 1000, `test.yml has ${lines} lines`)
+  assert.equal(workflow.jobs.plan.steps.some((step) => step.uses?.startsWith("actions/download-artifact@")), false)
 })
