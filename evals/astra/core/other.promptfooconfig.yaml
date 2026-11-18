@@ -12,8 +12,9 @@ defaultTest:
       value: file://outcome.mjs:outcome
       metric: outcome
 tests: file://tests.mjs:other
+# Each test carries its own repeat, the k of its case (core/corpus.mjs). ORBIT_EVAL_MUST_PASS_K names the k of the
+# must-pass cases: 3 when unset, 1 only for a change whose model input equals the model input of main.
 evaluateOptions:
-  repeat: 1
   maxConcurrency: 1
   cache: false
 commandLineOptions:

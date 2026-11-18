@@ -2,7 +2,7 @@
 import { readFileSync } from 'node:fs'
 import { dirname, relative } from 'node:path'
 import { pathToFileURL } from 'node:url'
-import { coreDescriptors, corpusDigest } from './corpus.mjs'
+import { MUST_PASS_ATTEMPTS, MUST_PASS_K_VALUES, coreDescriptors, corpusDigestFor } from './corpus.mjs'
 import { callsOf, caseOf, groupsOf, totalsOf, writeReport } from './report.mjs'
 
 // D147 limit: the warm mean cost of one model call (orbit-api tests/Orbit.Infrastructure.Tests/AI/AiInputBudgetTests).
@@ -34,7 +34,7 @@ const open = (entry) => !entry || (entry.passK === 'incomplete' && entry.graderL
 // case keeps the API commit and the evidence directory of the window that measured it. A window of another API commit
 // is refused: the windows of one call measure one build, and a summary holds no time finer than its UTC day, so the
 // refusal names both commits and leaves the operator to give the builds in their order.
-function casesOfBuild(windows, descriptors) {
+function casesOfBuild(windows, descriptors, corpusDigest) {
   const collected = new Map()
   for (const window of windows) {
     const input = window.inputPosition
@@ -81,8 +81,8 @@ function onLaterBuild(id, entry, earlier) {
 // Joins the run summaries of one gate run. The first build holds the ordinary windows. Staging can serve another API
 // commit before each case has a verdict: after a fix, or after a release of another commit. Each later build then
 // measures only the cases without a pass: the single rerun of a failed case or of a grader limit, and the open cases.
-function joinRuns(windows, laterWindows, descriptors) {
-  const cases = casesOfBuild(windows, descriptors)
+function joinRuns(windows, laterWindows, descriptors, corpusDigest) {
+  const cases = casesOfBuild(windows, descriptors, corpusDigest)
   const builds = [windows[0].apiCommit]
   for (const build of laterBuildsOf(laterWindows)) {
     const { apiCommit } = build[0]
@@ -91,7 +91,7 @@ function joinRuns(windows, laterWindows, descriptors) {
       throw new Error(`Input ${build[0].inputPosition} returns to the API commit of an earlier build; give the windows of one build together, in the order of the builds.`)
     }
     builds.push(apiCommit)
-    for (const [id, entry] of casesOfBuild(build, descriptors)) cases.set(id, onLaterBuild(id, entry, cases.get(id)))
+    for (const [id, entry] of casesOfBuild(build, descriptors, corpusDigest)) cases.set(id, onLaterBuild(id, entry, cases.get(id)))
   }
   return { cases: descriptors.map((descriptor) => cases.get(descriptor.id) ?? caseOf(descriptor, [])), laterApiCommits: builds.slice(1) }
 }
@@ -108,10 +108,15 @@ function costOf(cases, runCostUsd, modelCalls) {
     status: !measured ? 'incomplete' : perModelCallUsd <= COST_PER_MODEL_CALL_LIMIT_USD ? 'pass' : 'fail' } }
 }
 
-// The pass^k rate of the baseline: a merged report of this corpus in which every case has a verdict. A window summary
-// or a report with an incomplete case counts that case as not passed, so its low rate would pass any later run.
-function baselineRateOf(baseline, descriptors) {
+// The pass^k rate of the baseline: a merged report of this corpus at the k of this run, in which every case has a
+// verdict. A window summary or a report with an incomplete case counts that case as not passed, so its low rate would
+// pass any later run. A pass^1 rate is at or above the pass^3 rate of the same build, so a baseline of the other k
+// would move the rate criterion.
+function baselineRateOf(baseline, descriptors, k, corpusDigest) {
   if (baseline.gate !== 'core' || baseline.run !== 'merged' || !Array.isArray(baseline.cases)) throw new Error('The baseline is not a merged report of the core set.')
+  if (kOf(baseline) !== k) {
+    throw new Error(`The baseline measured the must-pass cases at k=${kOf(baseline)}, and this run at k=${k}; a k=${k} verdict never compares with a k=${kOf(baseline)} baseline. Give a baseline of main measured at k=${k}.`)
+  }
   if (baseline.corpusDigest !== corpusDigest) throw new Error('The baseline measured another corpus than this core set.')
   if (baseline.cases.length !== descriptors.length || descriptors.some(({ id }) => !baseline.cases.some((entry) => entry.id === id))) {
     throw new Error('The baseline does not hold exactly the cases of the core set.')
@@ -140,13 +145,28 @@ function criteriaOf(cases, totals, cost, baselineRate) {
 
 const WINDOW_RUNS = ['must-pass', 'other']
 
+// The k of the must-pass cases of a summary. A summary written before summaries named their k comes from a k=3 run:
+// k=3 was the only k then, and each of its cases still names its own k for windowCase.
+const kOf = (summary) => summary.k ?? MUST_PASS_ATTEMPTS
+
+// The k of the windows of one gate run. A k=1 result never joins a k=3 verdict, and a k=3 result never joins a k=1
+// verdict: each window states the k of its gate run, and one merge holds one k.
+function kOfWindows(windows) {
+  const [first] = windows
+  const mixed = windows.find((window) => kOf(window) !== kOf(first))
+  if (mixed) {
+    throw new Error(`Input ${mixed.inputPosition} ran the must-pass cases at k=${kOf(mixed)}, and input ${first.inputPosition} at k=${kOf(first)}; a k=${kOf(mixed)} result never joins a k=${kOf(first)} verdict.`)
+  }
+  return kOf(first)
+}
+
 // A gate run names its baseline report, or is declared the baseline run of `main`: a run without either would pass
 // the rate criterion against nothing. `reruns` holds the windows of the later builds. A window names its
 // `evidenceDirectory` relative to the merged report, so that the report links the private evidence of each failed case
 // to the window that holds it. An input has one number, its `inputPosition`: its one-based position among the summary
 // paths of the command line, without `--rerun` itself and without the baseline. Each `Input N` refusal and the `sourceWindow`
 // of each case read it. A window without that position takes its place in the arrays: the ordinary windows, then `reruns`.
-export function mergeRuns(ordinaryWindows, { baseline, asBaseline = false, reruns: rerunWindows = [], runCostUsd, descriptors = coreDescriptors() } = {}) {
+export function mergeRuns(ordinaryWindows, { baseline, asBaseline = false, reruns: rerunWindows = [], runCostUsd, descriptors: givenDescriptors } = {}) {
   const numbered = (list, offset) => list.map((window, index) => ({ ...window, inputPosition: window?.inputPosition ?? offset + index + 1 }))
   const windows = numbered(ordinaryWindows, 0)
   const reruns = numbered(rerunWindows, ordinaryWindows.length)
@@ -157,18 +177,24 @@ export function mergeRuns(ordinaryWindows, { baseline, asBaseline = false, rerun
   // array, and the merged report (`run: 'merged'`) also has `gate` and `cases`. core/hooks.mjs names each window run.
   // The runner records the API commit of the health check only after requireCatalogCommit holds it to 40 lowercase
   // hexadecimal characters (core/hooks.mjs), and each build check compares these commits. A window without one would merge with no build or stop the merge with a TypeError.
-  for (const window of [...windows, ...reruns].sort((first, second) => first.inputPosition - second.inputPosition)) {
+  const inputs = [...windows, ...reruns].sort((first, second) => first.inputPosition - second.inputPosition)
+  for (const window of inputs) {
     if (window.gate !== 'core' || !WINDOW_RUNS.includes(window.run) || !Array.isArray(window.cases)) throw new Error(`Input ${window.inputPosition} is not a core set run summary.`)
     if (typeof window.apiCommit !== 'string' || !/^[0-9a-f]{40}$/u.test(window.apiCommit)) {
       throw new Error(`Input ${window.inputPosition} names no API commit of 40 lowercase hexadecimal characters.`)
     }
+    if (!MUST_PASS_K_VALUES.includes(kOf(window))) throw new Error(`Input ${window.inputPosition} names the k ${window.k}; a core set run holds k=3 or k=1.`)
   }
-  const baselineRate = baseline ? baselineRateOf(baseline, descriptors) : null
-  const joined = joinRuns(windows, reruns, descriptors)
+  const k = kOfWindows(inputs)
+  // One merge holds one k, and the merged report states it. A test gives its own descriptors; the command line takes the core set at that k.
+  const descriptors = givenDescriptors ?? coreDescriptors(k)
+  const corpusDigest = corpusDigestFor(k)
+  const baselineRate = baseline ? baselineRateOf(baseline, descriptors, k, corpusDigest) : null
+  const joined = joinRuns(windows, reruns, descriptors, corpusDigest)
   const totals = totalsOf(joined.cases)
   const { cases, cost } = costOf(joined.cases, runCostUsd, totals.modelCalls)
   const criteria = criteriaOf(cases, totals, cost, baselineRate)
-  return { gate: 'core', run: 'merged', apiCommit: windows[0].apiCommit,
+  return { gate: 'core', run: 'merged', k, apiCommit: windows[0].apiCommit,
     ...(joined.laterApiCommits.length ? { laterApiCommits: joined.laterApiCommits } : {}),
     corpusDigest, utcDayWindows: new Set([...windows, ...reruns].map((window) => window.utcDay)).size,
     status: overall(Object.values(criteria).map(({ status }) => status === 'baseline' ? 'pass' : status)),
