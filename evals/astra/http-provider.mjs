@@ -61,6 +61,7 @@ export default class AstraHttpProvider {
 
   // A case with an outcome runs on the client path. An offers case then runs its lifecycle in the same conversation.
   async outcomeCase(vars) {
+    if (vars.preconditionFailure) return runOutcomeCase(vars)
     const conversation = vars.conversation ?? openCaseConversation(vars)
     const response = await runOutcomeCase(vars, { conversation })
     if (vars.offerFamily && response.output?.composition && !response.error) {
