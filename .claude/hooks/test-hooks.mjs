@@ -2513,7 +2513,10 @@ T("stale cleanup: a relay adoption starts no removal while a live removal holds 
 releaseRunningRemoval()
 T("stale cleanup: the relay adoption starts its removal once the running removal ends", await (runCleanupHook(), startedCleanup()), removalOrder)
 recentCleanup()
+// The adoption is due again before each case, so only the guard stops a launched worker or a subagent from starting the removal.
+rmSync(cleanupAdoption, { force: true })
 T("stale cleanup: a launched worker starts no removal", [runCleanupHook(cleanupInput("Stop"), { ORBIT_LAUNCH_WORKER: "1" }).stdout, await startedCleanup(20)], ["", null])
+rmSync(cleanupAdoption, { force: true })
 T("stale cleanup: a subagent starts no removal", [runCleanupHook({ ...cleanupInput("Stop"), agent_id: "agent-1" }).stdout, await startedCleanup(20)], ["", null])
 // The offer text was built in the library and added by a prompt hook: scan both places, so the old offer cannot come back in either one.
 const offerSources = [join(".claude", "hooks"), join(".claude", "hooks", "_lib"), join("tools", "lib")]
