@@ -56,7 +56,7 @@ export function RescheduleSheet({ open, onOpenChange, habit }: Readonly<Reschedu
   const todayStr = useCurrentDate(profile?.timeZone)
   const { sheetRef, closeSheet } = useSheetHost()
 
-  const { suggestion, isLoading, error, refetch } = useRescheduleSuggestion({
+  const { suggestion, isLoading, isPaused, error, refetch } = useRescheduleSuggestion({
     habitId: habit?.id ?? '',
     locale,
     enabled: open && hasProAccess && isOverdue,
@@ -94,6 +94,9 @@ export function RescheduleSheet({ open, onOpenChange, habit }: Readonly<Reschedu
           <Skeleton variant="habit-row" grouped />
         </View>
       )
+    }
+    if (isPaused) {
+      return <Text style={styles.bodyText}>{t('shell.composer.offline.reason')}</Text>
     }
     if (error) {
       return <Text style={styles.bodyText}>{t('habits.reschedule.error')}</Text>
@@ -144,7 +147,7 @@ export function RescheduleSheet({ open, onOpenChange, habit }: Readonly<Reschedu
           <PillButton variant="ghost" size="sm" onClick={() => closeSheet()}>
             {t('habits.reschedule.dismiss')}
           </PillButton>
-          <PillButton leadingIcon={<OrbitMascot size={16} />} variant={filledVariant} size="sm" onClick={() => void refetch()}>
+          <PillButton variant={filledVariant} size="sm" onClick={() => void refetch()}>
             {t('habits.reschedule.suggestDate')}
           </PillButton>
         </>
@@ -179,7 +182,7 @@ export function RescheduleSheet({ open, onOpenChange, habit }: Readonly<Reschedu
     >
       <View style={styles.scrollContent}>
         <View style={styles.headerRow}>
-          <OrbitMascot size={48} state={hasProAccess && isLoading ? 'pensando' : 'parado'} />
+          <OrbitMascot size={48} state={rescheduleMascotState(hasProAccess, isPaused, isLoading)} />
           <Text style={styles.astraName}>Orbit</Text>
           <Badge>{t('aiDisclosure.isAiLabel')}</Badge>
         </View>
@@ -215,4 +218,10 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       gap: 12,
     },
   })
+}
+
+function rescheduleMascotState(hasProAccess: boolean, isPaused: boolean, isLoading: boolean): 'descansando' | 'pensando' | 'parado' {
+  if (!hasProAccess) return 'parado'
+  if (isPaused) return 'descansando'
+  return isLoading ? 'pensando' : 'parado'
 }

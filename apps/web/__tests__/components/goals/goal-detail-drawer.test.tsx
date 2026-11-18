@@ -490,6 +490,42 @@ describe('GoalDetailDrawer', () => {
     expect(headings[0]).toHaveTextContent('Read 12 books')
     expect(headings[0]).toHaveAttribute('tabindex', '-1')
   })
+  it('titles the goal sheet with the goal in the words of the person when the guided flows are on, shows that title once, and keeps the route name on the inline bar', () => {
+    guidedFlag.on = true
+    try {
+      const sheet = render(<GoalDetailDrawer open onOpenChange={vi.fn()} goalId="1" />)
+      expect(screen.getByRole('dialog', { name: 'Read 12 books' })).toBeInTheDocument()
+      expect(screen.queryByRole('dialog', { name: 'progressScreen.sections.goals' })).toBeNull()
+      const shownTitles = screen.getAllByText(personalText('Read 12 books')).filter((element) => !element.closest('.sr-only'))
+      expect(shownTitles, 'the body heading is the one goal title the person sees').toHaveLength(1)
+      expect(shownTitles[0]!.closest('h1')).not.toBeNull()
+      sheet.unmount()
+      const inlineWithGoal = render(<GoalDetailDrawer inline open onOpenChange={vi.fn()} goalId="1" />)
+      expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Read 12 books')
+      expect(screen.getByText('progressScreen.sections.goals').closest('header'), 'the inline bar keeps the route name').not.toBeNull()
+      inlineWithGoal.unmount()
+      detailAvailable = false
+      render(<GoalDetailDrawer inline open onOpenChange={vi.fn()} goalId="missing" />)
+      expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('progressScreen.sections.goals')
+    } finally {
+      guidedFlag.on = false
+      detailAvailable = true
+    }
+  })
+  it('shows the route name as the guided goal sheet title when a refresh drops the goal while the sheet is open', () => {
+    guidedFlag.on = true
+    try {
+      const view = render(<GoalDetailDrawer open onOpenChange={vi.fn()} goalId="1" />)
+      expect(screen.getByRole('dialog', { name: 'Read 12 books' })).toBeInTheDocument()
+      detailAvailable = false
+      listAvailable = false
+      view.rerender(<GoalDetailDrawer open onOpenChange={vi.fn()} goalId="1" />)
+      const dialog = screen.getByRole('dialog', { name: 'progressScreen.sections.goals' })
+      expect(dialog.querySelector('.orbit-sheet-title'), 'the header shows a title while the body has no goal heading').toHaveTextContent('progressScreen.sections.goals')
+    } finally {
+      guidedFlag.on = false
+    }
+  })
   it('keeps one fallback heading while an inline goal has no data', () => {
     detailAvailable = false
     const view = render(<GoalDetailDrawer inline open onOpenChange={vi.fn()} goalId="missing" />)

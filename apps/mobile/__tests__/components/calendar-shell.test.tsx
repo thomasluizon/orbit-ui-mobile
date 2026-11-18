@@ -201,6 +201,11 @@ describe("CalendarHeader month and year navigation (mobile)", () => {
     const tree = renderHeader(onSelectMonth);
     pressByAccessibilityLabel(tree, "April, calendar.monthPicker");
     expect(useUIStore.getState().openOverlayIds).toHaveLength(1);
+    const selectedMonth = tree.root.findAll((node) => node.type === "Pressable" && node.props.accessibilityLabel === "April" && node.props.accessibilityState?.selected === true);
+    expect(selectedMonth).toHaveLength(1);
+    const selectedMonthStyle = StyleSheet.flatten(selectedMonth[0]!.props.style({ pressed: false }));
+    expect(selectedMonthStyle.borderWidth).toBeUndefined();
+    expect(selectedMonthStyle).toMatchObject({ padding: 8, outlineWidth: 2, outlineOffset: -2, outlineStyle: "solid", outlineColor: createTokensV2("purple", "dark").fg1 });
     pressByAccessibilityLabel(tree, "2026, common.selectYear");
     expect(tree.root.findAll((node) => node.type === "ScrollView")).toHaveLength(1);
     expect(tree.root.findAll((node) => node.props.testID === "sheet-body-scroll")).toHaveLength(0);

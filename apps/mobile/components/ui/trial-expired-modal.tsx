@@ -33,7 +33,6 @@ const PAUSED_FEATURES = [
   'trial.expired.proactiveAstra',
 ] as const
 
-/** The centred dialog of the guided flows. It reads the plans only while it shows, for its savings line. */
 function GuidedTrialExpired(actions: Readonly<{ onSeePlans: () => void; onContinueFree: () => void; onClose: () => void }>) {
   const { plans } = useSubscriptionPlans({ handlesError: true })
   return <TrialExpiredDialog {...actions} pausedFeatures={PAUSED_FEATURES} savingsPercent={plans?.savingsPercent} />
@@ -70,11 +69,6 @@ export function TrialExpiredModal({ suppressed = false }: Readonly<{ suppressed?
   const unregisterOpenOverlay = useUIStore((state) => state.unregisterOpenOverlay)
   const reservationId = `${promptId}:${scopedKey ?? ''}`
 
-  /**
-   * Moves a notice dismissed before this key carried an account on to the account signed in now,
-   * then consumes the old key. Left in place it would answer for every later account too, which
-   * is the defect rather than a milder version of it.
-   */
   useEffect(() => {
     if (scopedKey === null) return
     let cancelled = false

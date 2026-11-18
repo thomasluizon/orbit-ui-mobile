@@ -123,17 +123,18 @@ describe.each(authLocales)('mobile auth composition in %s', (locale) => {
     expect(contentStyle).toMatchObject({ flexGrow: 1, justifyContent: 'center', alignItems: 'center' })
     act(() => tree.unmount())
   })
-  it.each(['email', 'code'] as const)('starts the %s column at the top while the keyboard is open', (step) => {
+  it.each(['email', 'code'] as const)('places the %s column the same way whatever keyboard events came before', (step) => {
     setFixture(step, locale)
     const tree = render()
     const scrollStyle = () => {
       const scroll = tree.root.findAll((node) => node.props.testID === 'login-scroll-content')[0]
       return StyleSheet.flatten(scroll?.props.style) as Record<string, unknown>
     }
+    const resting = scrollStyle()
     act(() => __emitKeyboardEvent('keyboardDidShow'))
-    expect(scrollStyle().justifyContent).toBe('flex-start')
+    expect(scrollStyle()).toEqual(resting)
     act(() => __emitKeyboardEvent('keyboardDidHide'))
-    expect(scrollStyle().justifyContent).toBe('center')
+    expect(scrollStyle()).toEqual(resting)
     act(() => tree.unmount())
   })
   it('registers the focused code field so the scroll view can reveal it above the keyboard', () => {

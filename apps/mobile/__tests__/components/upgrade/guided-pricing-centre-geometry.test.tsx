@@ -51,7 +51,6 @@ async function mount(width: number, element: React.ReactElement) {
   await act(() => { tree = create(<View testID="frame" style={{ width, height: HEIGHT }}>{element}</View>) as GeometryTree })
 }
 
-/** The boxes of the open dialog. The window of a `Modal` fills the screen, so the `Modal` host is the root that takes the viewport. */
 function measureDialog(width: number) {
   const modal = findHost([tree!.toJSON()], (host) => host.type === 'Modal')!
   return measureSafeArea(modal, (host) => host.props.testID, { width, height: HEIGHT })
@@ -86,11 +85,6 @@ function planSection(t: UpgradeTextFn) {
   )
 }
 
-/**
- * `design/canvas/Orbit Pro.dc.html` stacks the tiers at 412 (line 79) and puts them side by side, each hugging its content, in the wide frame (lines 169 and 171),
- * with the interval control capped at 320 (line 156). `DESIGN.md` maps that boundary to the `sm` boundary of the upgrade screen, 640 on both platforms.
- * The pinned action spans the column below the mobile breakpoint, 768, and hugs its label from it (`DESIGN.md`, Buttons, width).
- */
 describe('the plan cards, the interval control and the pinned action of the compact shell from 412 to 1023 px', () => {
   async function mountSection(width: number) {
     mocks.language = 'en'

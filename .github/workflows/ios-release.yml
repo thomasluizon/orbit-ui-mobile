@@ -34,11 +34,13 @@ jobs:
   release:
     name: Archive and upload to internal TestFlight
     runs-on: macos-26
-    timeout-minutes: 60
+    # The archive takes up to 40 minutes, and the upload step waits up to 45 more for the Android record.
+    timeout-minutes: 90
     environment: ios-${{ inputs.variant }}
     permissions:
       contents: read
       deployments: read
+      actions: read
     env:
       ORBIT_APP_VARIANT: ${{ inputs.variant }}
       ORBIT_APPLE_TEAM_ID: ${{ vars.ORBIT_APPLE_TEAM_ID }}
@@ -60,6 +62,10 @@ jobs:
       APP_STORE_CONNECT_API_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_API_ISSUER_ID }}
       EXPO_NO_TELEMETRY: '1'
       EXPO_NO_METRO_WORKSPACE_ROOT: '1'
+      USE_CCACHE: '1'
+      CCACHE_DIR: ${{ github.workspace }}/.cache/ios-device-ccache
+      CCACHE_MAXSIZE: 2G
+      CCACHE_COMPILERCHECK: content
     steps:
       - uses: actions/checkout@v7
       - name: Select Xcode
@@ -91,11 +97,25 @@ jobs:
             APP_STORE_CONNECT_API_ISSUER_ID; do
             if [ -z "${!key//[[:space:]]/}" ]; then echo "::error::Missing $key"; exit 1; fi
           done
+          # The build may start while the Android release of this version and commit runs; the upload waits for its record.
           node apps/mobile/scripts/mobile-version-pair.js check --platform ios --environment "$ORBIT_APP_VARIANT" \
-            --app-version "$APP_VERSION" --sha "$GITHUB_SHA" --platform-only-reason "$PLATFORM_ONLY_REASON"
+            --app-version "$APP_VERSION" --sha "$GITHUB_SHA" --platform-only-reason "$PLATFORM_ONLY_REASON" --stage build
           node apps/mobile/scripts/set-app-version.js "$APP_VERSION" '' "$IOS_BUILD_NUMBER"
       - name: Install dependencies
-        run: npm ci
+        run: npm ci --prefer-offline --no-audit --fund=false
+      - name: Install the compiler cache
+        run: brew install ccache
+      # Device objects differ from the simulator objects of ios-build.yml, so the archive keeps its own entry, saved from main.
+      - name: Restore compiler outputs
+        id: compiler-cache
+        uses: actions/cache/restore@v6
+        env:
+          SEGMENT_DOWNLOAD_TIMEOUT_MINS: '1'
+        with:
+          path: ${{ env.CCACHE_DIR }}
+          key: macos-26-${{ runner.arch }}-xcode-26.6-ios-device-ccache-v1-${{ hashFiles('package-lock.json', 'apps/mobile/app.json', 'apps/mobile/app.config.js', 'apps/mobile/plugins/**', 'apps/mobile/modules/**') }}
+          restore-keys: |
+            macos-26-${{ runner.arch }}-xcode-26.6-ios-device-ccache-v1-
       - name: Select analytics for the variant
         env:
           STAGING_POSTHOG_KEY: ${{ vars.STAGING_EXPO_PUBLIC_POSTHOG_KEY }}
@@ -140,9 +160,13 @@ jobs:
         working-directory: apps/mobile
         run: npx expo prebuild --platform ios
       - name: Archive the embedded app
+        id: archive
         working-directory: apps/mobile
         run: |
           set -euo pipefail
+          # React Native's compiler wrappers read CCACHE_BINARY from the process environment.
+          CCACHE_BINARY="$(command -v ccache)"
+          export CCACHE_BINARY
           scheme=Orbit
           if [ "$ORBIT_APP_VARIANT" = staging ]; then scheme=OrbitStaging; fi
           xcodebuild -workspace "ios/$scheme.xcworkspace" -scheme "$scheme" -configuration Release \
@@ -150,6 +174,14 @@ jobs:
             DEVELOPMENT_TEAM="$ORBIT_APPLE_TEAM_ID" CODE_SIGN_STYLE=Manual \
             CODE_SIGN_IDENTITY='Apple Distribution' \
             archive
+      - name: Save compiler outputs
+        if: steps.archive.outcome == 'success' && github.ref == 'refs/heads/main' && steps.compiler-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: ${{ env.CCACHE_DIR }}
+          key: ${{ steps.compiler-cache.outputs.cache-primary-key }}
+      - name: Report compiler cache statistics
+        run: ccache --show-stats
       - name: Upload dSYMs to Sentry
         run: |
           test -d "$RUNNER_TEMP/Orbit.xcarchive/dSYMs"
@@ -176,6 +208,17 @@ jobs:
           PY
           xcodebuild -exportArchive -archivePath "$RUNNER_TEMP/Orbit.xcarchive" \
             -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist" -exportPath "$RUNNER_TEMP/orbit-export"
+      # One version ships Android first: this archive runs beside the Android release, and only the Android record of
+      # this version from this commit lets the upload start.
+      - name: Wait for the Android upload of this version
+        env:
+          APP_VERSION: ${{ inputs.app_version }}
+          PLATFORM_ONLY_REASON: ${{ inputs.platform_only_reason }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          node apps/mobile/scripts/mobile-version-pair.js check --platform ios --environment "$ORBIT_APP_VARIANT" \
+            --app-version "$APP_VERSION" --sha "$GITHUB_SHA" --platform-only-reason "$PLATFORM_ONLY_REASON" \
+            --stage upload --wait-minutes 45
       - name: Upload to TestFlight with the App Store Connect API key
         run: |
           set -euo pipefail

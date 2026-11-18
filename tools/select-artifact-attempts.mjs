@@ -7,6 +7,8 @@ const USAGE = `usage: select-artifact-attempts.mjs --input-dir <path> --output-d
 
   Copies only the highest numeric attempt of each logical artifact into the output directory.
   Input contains artifact directories named <logical-name>-attempt-<positive-integer>.
+  actions/download-artifact gives that layout for any match count only with merge-multiple: true
+  and artifacts that hold one folder named after themselves: it extracts a lone match without a folder.
   Output preserves each selected artifact's internal paths and prints selected names as JSON.
   The caller supplies a fresh report destination and verifies required reports after selection.
   No stdin is read. Explicit paths are resolved from the caller's working directory.

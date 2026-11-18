@@ -1,8 +1,9 @@
 import { SPACING } from '@orbit/shared/theme'
 import { StyleSheet, Text, View } from 'react-native'
 import { Proposed } from '@/components/ui/proposed'
-import { createTokensV2 } from '@/lib/theme'
+import { createTokensV2, radius } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
+import { insetHairlineRing } from '@/components/ui/inset-hairline-ring'
 
 export interface RescheduleProposalProps {
   proposedLabel: string
@@ -28,7 +29,7 @@ export function RescheduleProposal({
   return (
     <View style={styles.root}>
       <Proposed proposed scope="block" label={proposedLabel}>
-        <View style={[styles.card, { backgroundColor: tokens.bgCard, borderColor: tokens.hairlineGhost }]}>
+        <View testID="reschedule-proposal-card" style={[styles.card, { backgroundColor: tokens.bgCard, outlineColor: tokens.hairlineGhost }]}>
           <Text testID="reschedule-proposed-schedule" style={[styles.value, { color: tokens.fg1 }]}>
             {dateLabel}{timeLabel ? ` · ${timeLabel}` : ''}
           </Text>
@@ -43,7 +44,7 @@ export function RescheduleProposal({
 
 const styles = StyleSheet.create({
   root: { gap: 12 },
-  card: { gap: 4, padding: SPACING.s24, borderRadius: 20, borderWidth: 1 },
+  card: { gap: 4, padding: SPACING.s24, borderRadius: radius.xl, ...insetHairlineRing },
   value: { fontFamily: 'SpaceGrotesk_500Medium', fontSize: 20, fontVariant: ['tabular-nums'] },
   schedule: { fontFamily: 'Geist_400Regular', fontSize: 14 },
   rationale: { fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 22 },

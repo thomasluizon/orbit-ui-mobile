@@ -2,20 +2,28 @@ import React from 'react'
 import { StyleSheet } from 'react-native'
 import Yoga, { type Node as YogaNode } from 'yoga-layout'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { TOUCH_TARGET_MIN, SPACING } from '@orbit/shared/theme'
 import { InfoCard } from '@/components/ui/info-card'
+import { createTokensV2 } from '@/lib/theme'
+import { expectInsetHairlineRing } from '@/__tests__/support/inset-hairline-ring'
 import { ReferralDrawer } from '@/components/referral/referral-drawer'
 import { __resetTestHostConfig, __setWindowDimensions } from '../../../test-mocks/react-native'
 import { renderedText } from '../../support/react-test-renderer'
+import { applyBorderWidths } from '@/__tests__/support/yoga-borders'
 
 vi.unmock('@/components/ui/sheet')
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }))
 vi.mock('expo-clipboard', () => ({ setStringAsync: () => { throw new Error('denied') } }))
+const loadedReferral = {
+  stats: { successfulReferrals: 1, pendingReferrals: 2, maxReferrals: 5, rewardType: 'pro_days', proDaysPerReferral: 7, discountPercent: 20 },
+  referralUrl: 'https://useorbit.org/r/ORBIT1',
+  isLoading: false, isError: false, error: null,
+}
+const referralState = vi.hoisted(() => ({ loading: false }))
 vi.mock('@/hooks/use-referral', () => ({
-  useReferral: () => ({
-    stats: { successfulReferrals: 1, pendingReferrals: 2, maxReferrals: 5, rewardType: 'pro_days', proDaysPerReferral: 7, discountPercent: 20 },
-    referralUrl: 'https://useorbit.org/r/ORBIT1',
-    isLoading: false, isError: false, error: null,
-  }),
+  useReferral: () => referralState.loading
+    ? { stats: null, referralUrl: null, isLoading: true, isError: false, error: null }
+    : loadedReferral,
 }))
 vi.mock('@lodev09/react-native-true-sheet', () => ({
   TrueSheet: class extends React.Component<{ children?: React.ReactNode; footer?: React.ReactNode }> {
@@ -63,6 +71,7 @@ function applyEdges(node: YogaNode, style: Record<string, unknown>) {
 
 function applyStyle(node: YogaNode, style: Record<string, unknown>) {
   applyEdges(node, style)
+  applyBorderWidths(node, style)
   if (style.flexDirection === 'row') node.setFlexDirection(Yoga.FLEX_DIRECTION_ROW)
   if (style.justifyContent === 'flex-end') node.setJustifyContent(Yoga.JUSTIFY_FLEX_END)
   if (style.alignItems === 'center') node.setAlignItems(Yoga.ALIGN_CENTER)
@@ -82,7 +91,6 @@ function buildLayout(element: HostNode, nodes: Map<HostNode, YogaNode>): YogaNod
   const style = StyleSheet.flatten(resolvedStyle as never) as Record<string, unknown> | undefined
   if (style) applyStyle(node, style)
   if (element.type === 'Text') {
-    /** Fixed text measurements isolate horizontal insets from native font rendering. */
     node.setMeasureFunc(() => ({ width: 64, height: 20 }))
   } else {
     (element.children ?? []).filter((child): child is HostNode => typeof child !== 'string')
@@ -98,6 +106,13 @@ function bounds(node: YogaNode) {
   return { left, right: left + node.getComputedWidth() }
 }
 
+function absoluteTop(node: YogaNode) {
+  let top = node.getComputedTop()
+  let ancestor = node.getParent()
+  while (ancestor) { top += ancestor.getComputedTop(); ancestor = ancestor.getParent() }
+  return top
+}
+
 function findHost(elements: HostNode[], matches: (element: HostNode) => boolean): HostNode {
   const queue = [...elements]
   while (queue.length > 0) {
@@ -108,8 +123,41 @@ function findHost(elements: HostNode[], matches: (element: HostNode) => boolean)
   throw new Error('Rendered surface missing')
 }
 
+async function measureLinkBlock(loading: boolean) {
+  referralState.loading = loading
+  let tree: RenderedTree
+  await TestRenderer.act(() => { tree = TestRenderer.create(<ReferralDrawer open onClose={vi.fn()} />) })
+  const elements = tree!.toJSON()
+  const nodes = new Map<HostNode, YogaNode>()
+  const layout = Yoga.Node.create()
+  elements.forEach((element, index) => layout.insertChild(buildLayout(element, nodes), index))
+  try {
+    layout.calculateLayout(412, undefined)
+    const block = loading
+      ? findHost(elements, (element) => element.props.testID === 'referral-skeleton').children![0] as HostNode
+      : findHost(elements, (element) => (element.children ?? []).some((child) => typeof child !== 'string' && child.props.accessibilityLabel === 'referral.drawer.copyLink'))
+    const node = nodes.get(block)!
+    return { top: absoluteTop(node), height: node.getComputedHeight() }
+  } finally {
+    layout.freeRecursive()
+    await TestRenderer.act(() => { tree!.unmount() })
+  }
+}
+
 describe('Referral drawer sheet geometry (mobile)', () => {
-  afterEach(() => { __resetTestHostConfig() })
+  afterEach(() => {
+    __resetTestHostConfig()
+    referralState.loading = false
+  })
+
+  it('holds the place of the loaded link well with a skeleton at the same top and height', async () => {
+    __setWindowDimensions({ width: 412, height: 915, scale: 1, fontScale: 1 })
+    const loaded = await measureLinkBlock(false)
+    expect(loaded.height).toBe(TOUCH_TARGET_MIN + SPACING.s8)
+    const skeleton = await measureLinkBlock(true)
+    expect(skeleton.height, 'the link skeleton is as tall as the link well').toBe(loaded.height)
+    expect(skeleton.top, 'the link well does not move when the referral loads').toBe(loaded.top)
+  })
 
   it.each([320, 412, 640, 915])('aligns content and pinned Share at %ipx, including copy failure', async (width) => {
     __setWindowDimensions({ width, height: 915, scale: 1, fontScale: 1 })
@@ -134,6 +182,11 @@ describe('Referral drawer sheet geometry (mobile)', () => {
       for (const surface of [link, card, disclaimer, error, progress]) {
         expect(bounds(nodes.get(surface)!)).toEqual({ left: 24, right: panelWidth - 24 })
       }
+      expectInsetHairlineRing(link.props.style as never, createTokensV2('orange', 'dark').hairline)
+      expect((StyleSheet.flatten(link.props.style as never) as { borderRadius?: number }).borderRadius, 'the link well has the 12 dp field radius, as its web twin').toBe(12)
+      expect(nodes.get(link)!.getComputedHeight(), 'the link well is as tall as its web twin and its loading skeleton').toBe(TOUCH_TARGET_MIN + SPACING.s8)
+      const linkText = findHost([link], (element) => element.type === 'Text')
+      expect(bounds(nodes.get(linkText)!).left, 'the link starts at the 16 dp well padding').toBe(24 + SPACING.s16)
       const share = findHost(elements, (element) => element.type === 'Pressable' && renderedText(element).trim() === 'referral.drawer.share')
       const button = nodes.get(share)!
       const parent = button.getParent()!

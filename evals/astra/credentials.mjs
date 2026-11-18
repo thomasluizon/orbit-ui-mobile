@@ -142,7 +142,6 @@ async function rotateCredential(key) {
     const path = process.env.ORBIT_EVAL_CREDENTIALS_FILE
     if (!path) throw new Error('Missing credentials file.')
     if (existsSync(`${path}.refresh-failed`)) throw uncertainRefresh('A refresh already failed.')
-    let rotated = false
     const token = await updateCredentials(async (credentials) => {
       const account = credentials[key]
       if (typeof account?.refreshToken !== 'string' || !account.refreshToken.trim()) throw new Error('Missing refresh token.')
@@ -156,11 +155,9 @@ async function rotateCredential(key) {
       const session = await requestRefresh(refreshUrl, refreshOptions)
       if (typeof session?.token !== 'string' || !session.token.trim()
         || typeof session.refreshToken !== 'string' || !session.refreshToken.trim()) throw uncertainRefresh('Malformed refresh response.')
-      rotated = account.refreshToken !== session.refreshToken
       account.refreshToken = session.refreshToken
       return session.token
     })
-    if (rotated) writeFileSync(`${path}.rotated`, '', { mode: 0o600 })
     unlinkSync(`${path}.refresh-failed`)
     process.env[key] = token
   } catch (error) {

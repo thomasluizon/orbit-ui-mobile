@@ -56,7 +56,7 @@ function MoveTargetRow({
 function MoveInventoryStatus({ state, onRetry, t, selectionOnly }: Readonly<{
   selectionOnly: boolean; state: MoveParentPickerProps['inventoryState']; onRetry: MoveParentPickerProps['onRetryInventory']; t: MoveParentOverlayProps['t']
 }>) {
-  if (state === 'loading' && selectionOnly) return <div role="status"><p>{t('common.loading')}</p></div>
+  if (state === 'loading' && selectionOnly) return <Skeleton variant="settings" rows={3} label={t('common.loading')} />
   if (state === 'loading') return <Skeleton variant="habit-row" label={t('common.loading')} />
   return <>
     {state ? <ErrorState message={t(selectionOnly ? 'habits.loadError' : 'errors.fetchHabits')}
@@ -64,12 +64,11 @@ function MoveInventoryStatus({ state, onRetry, t, selectionOnly }: Readonly<{
   </>
 }
 
-/** The heading of the move sheet. With the guided flows on, the title is the question and the subject is the line under it. */
-function useMoveParentHeading(t: MoveParentOverlayProps['t'], selectionOnly: boolean, movingHabitCount?: number) {
+function useMoveParentHeading(t: MoveParentOverlayProps['t'], selectionOnly: boolean, selectionTitle: string | undefined, movingHabitCount?: number) {
   const asksOneQuestion = useFlag('orbit_guided_flows') && !selectionOnly
   const question = t('habits.moveParent.destinations', { count: movingHabitCount ?? 1 })
   const moveSubject = movingHabitCount === undefined ? t('habits.moveParent.title') : plural(t('habits.moveParent.titleMany', { count: movingHabitCount }), movingHabitCount)
-  const subject = selectionOnly ? t('habits.form.parentHabit') : moveSubject
+  const subject = selectionOnly ? selectionTitle ?? t('habits.form.parentHabit') : moveSubject
   return { asksOneQuestion, question, subject, title: asksOneQuestion ? question : subject }
 }
 
@@ -83,6 +82,7 @@ function MoveQuestionLabel({ visible, question }: Readonly<{ visible: boolean; q
 
 export function MoveParentOverlay({
   selectionOnly = false,
+  selectionTitle,
   t,
   open,
   isMoving,
@@ -102,7 +102,7 @@ export function MoveParentOverlay({
   const [searchQuery, setSearchQuery] = useState('')
   const hasPositionedRef = useRef(false)
   useEffect(() => { if (!open || inventoryState) hasPositionedRef.current = false }, [open, inventoryState])
-  const { asksOneQuestion, question, subject, title } = useMoveParentHeading(t, selectionOnly, movingHabitCount)
+  const { asksOneQuestion, question, subject, title } = useMoveParentHeading(t, selectionOnly, selectionTitle, movingHabitCount)
   async function confirmMove() {
     if (await onConfirm() === true) {
       closeSheet(finishClose)

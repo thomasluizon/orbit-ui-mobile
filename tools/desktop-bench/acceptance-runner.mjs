@@ -1,4 +1,5 @@
 import { createRequire } from 'node:module'
+import { cpus } from 'node:os'
 import { existsSync } from 'node:fs'
 import { appendFile, cp, mkdir, readFile, writeFile, rm } from 'node:fs/promises'
 import { basename, dirname, join } from 'node:path'
@@ -9,7 +10,7 @@ import { readFixtures } from './build.mjs'
 import { startProxy } from './server.mjs'
 import { assertFree, delay, execute, start, stop, stopAll, waitFor, waitForHttp } from './host.mjs'
 import { activateUnelevated, apsdReceipt, buildInstaller, capturePushDiagnostics, desktopOrigin, install, isolateOrigins, keepInstalledLaunchCopy, launchContext, launchUnelevated, startHttpsListener, startPushServices, startRecording } from './acceptance-platform.mjs'
-import { NativeTreePendingError, assertAccessibleTree, assertCookieEvidence, assertPaletteFocus, corruptSignature } from './acceptance-contract.mjs'
+import { NativeTreePendingError, assertAccessibleTree, assertCookieEvidence, assertPaletteFocus, claimedKey, corruptSignature, deliverKey } from './acceptance-contract.mjs'
 import { exercisePush, pushSender, signedApsEnvironment, unsignedReason } from './acceptance-push.mjs'
 
 const require = createRequire(import.meta.url)
@@ -20,11 +21,11 @@ const record = (path, value) => writeFile(path, `${JSON.stringify(value, null, 2
 async function nativeTool(output) {
   const executable = join(output, 'accessibility')
   if (!windows) await execute('clang', ['-fobjc-arc', '-framework', 'AppKit', '-framework', 'ApplicationServices', join(directory, 'acceptance-ax.m'), '-o', executable])
-  return async (pid, command, menuCommandId, { title, label, invoke = false, openCenter = false, executable: target, capture, bundle } = {}) => {
+  return async (pid, command, menuCommandId, { title, label, action, invoke = false, openCenter = false, executable: target, capture, bundle } = {}) => {
     const reply = windows
       ? await execute('powershell.exe', ['-NoProfile', '-NonInteractive', '-File', join(directory, 'acceptance-uia.ps1'), '-TargetProcessId', String(pid), '-Command', command,
         ...(menuCommandId === undefined ? [] : ['-MenuCommandId', String(menuCommandId)]),
-        ...(title === undefined ? [] : ['-Title', title, '-Label', label]), ...(invoke ? ['-Invoke'] : []), ...(openCenter ? ['-OpenCenter'] : []),
+        ...(title === undefined ? [] : ['-Title', title, '-Label', label]), ...(action === undefined ? [] : ['-Action', action, ...(label === undefined ? [] : ['-Label', label])]), ...(invoke ? ['-Invoke'] : []), ...(openCenter ? ['-OpenCenter'] : []),
         ...(target === undefined ? [] : ['-Executable', target]), ...(capture === undefined ? [] : ['-Capture', capture])])
       : await execute(executable, [String(pid), command, ...(title === undefined ? [] : [title, label, invoke ? '1' : '0', openCenter ? '1' : '0']),
         ...(bundle === undefined ? [] : [bundle])])
@@ -150,23 +151,32 @@ async function inspectSurfaces(proxy, native, handle, output, report) {
   } else await dismissAstra(proxy, native, handle, output, report)
   if (astraTree.denied) proxy.send('palette')
   else {
-    await native(handle.child.pid, 'palette')
+    // The probe records palette keys from the Astra close on, so the Command+K that opens the palette has a receipt too.
+    const modifier = process.platform === 'win32' ? 'ctrlKey' : 'metaKey'
+    await pressKey(proxy, native, handle, report, 'palette', 'palette-key', (event) => event.key.toLowerCase() === 'k' && event[modifier])
     proxy.send('palette-ready')
   }
   const previous = await waitFor(() => proxy.read('palette'), 'palette surface')
   const tree = await dump('palette')
   if (tree.denied) { report.paletteFocus = { skipped: tree.error }; return }
   await traversePalette(proxy, native, handle, dump, previous, report)
-  await native(handle.child.pid, 'escape')
+  await pressKey(proxy, native, handle, report, 'escape', 'palette-key', (event) => event.key === 'Escape')
+}
+
+// Every native key waits for its page keydown receipt. report.json keyDelivery keeps each post with its native reply and,
+// for a post with no receipt, every key event of that probe kind; the job log prints one line per post.
+function pressKey(proxy, native, handle, report, command, kind, matches) {
+  return deliverKey({ name: command, post: () => native(handle.child.pid, command), events: () => proxy.events().filter((event) => event.kind === kind),
+    matches, waitFor, now: () => Date.now(), record: report.keyDelivery ??= [], log: (line) => process.stdout.write(`${line}\n`) })
 }
 
 async function dismissAstra(proxy, native, handle, output, report) {
-  await native(handle.child.pid, 'escape')
+  await pressKey(proxy, native, handle, report, 'escape', 'astra-key', (event) => event.key === 'Escape')
   proxy.send('astra-closed')
   try {
     await waitFor(() => proxy.read('astra-closed'), 'Astra dismissal')
   } catch (error) {
-    // The page probe records every keydown while Astra is open, so a timeout tells a lost key from an unhandled one.
+    // The Escape reached the page, so a timeout is the app's; the page's Astra keydowns show what it received.
     report.astraKeys = proxy.events().filter((event) => event.kind === 'astra-key')
     let tree
     try { tree = await native(handle.child.pid, 'dump') } catch (dumpError) { tree = { denied: false, error: dumpError.message, nodes: [] } }
@@ -178,32 +188,12 @@ async function dismissAstra(proxy, native, handle, output, report) {
 
 async function traversePalette(proxy, native, handle, dump, previous, report) {
   const focus = []
-  // A native Down can return without reaching WebKit, so only the probe's keydown receipt proves delivery (#1560).
-  // The probe POSTs each receipt from its keydown capture listener, so 5 s bounds one loopback request; three posts add at most 15 s of receipt waiting.
-  const paletteKeyWindow = 5000
-  const paletteKeyPosts = 3
-  const keys = () => proxy.events().filter((event) => event.kind === 'palette-key')
-  // WebKit gives a Down that the macOS input method claimed keyCode 229, and cmdk ignores a composing or 229 keydown.
-  const downKeys = () => keys().filter((event) => event.key === 'ArrowDown' && event.keyCode !== 229 && !event.composing).length
-  report.paletteUndelivered = []
   for (let index = 0; index < 2; index++) {
     const before = proxy.events().filter((event) => event.kind === 'focus').length
-    const received = downKeys()
-    for (let post = 1; downKeys() === received; post++) {
-      if (post > paletteKeyPosts) {
-        throw new Error(`Palette received no usable native Down for step ${index + 1} after ${paletteKeyPosts} posts: each Down was missing or claimed by the input method (keyCode 229 or composing)`)
-      }
-      const keysBefore = keys().length
-      await native(handle.child.pid, 'down')
-      const deadline = Date.now() + paletteKeyWindow
-      await waitFor(() => downKeys() > received || Date.now() >= deadline, 'native Down receipt')
-      if (downKeys() === received) report.paletteUndelivered.push({ step: index + 1, post, keys: keys().slice(keysBefore) })
-    }
+    // cmdk ignores a claimed Down (keyCode 229 or composing), so only an unclaimed Down counts as received and a claimed one posts again.
+    await pressKey(proxy, native, handle, report, 'down', 'palette-key', (event) => event.key === 'ArrowDown' && !claimedKey(event))
     proxy.send(`focus-${previous.selected + 1}`)
-    const current = await waitFor(() => {
-      if (downKeys() > received + 1) throw new Error(`Palette step ${index + 1} received ${downKeys() - received} native Down keys`)
-      return proxy.events().filter((event) => event.kind === 'focus')[before]
-    }, 'palette result focus')
+    const current = await waitFor(() => proxy.events().filter((event) => event.kind === 'focus')[before], 'palette result focus')
     const selectedTree = await dump(`palette-result-${index + 1}`)
     assertPaletteFocus(previous, current, selectedTree)
     focus.push(current)
@@ -212,32 +202,154 @@ async function traversePalette(proxy, native, handle, dump, previous, report) {
   report.paletteFocus = focus
 }
 
-// The DESIGN.md canvas tokens, which the shell paints into the Windows 11 caption for each page mode (#2084).
-const captionCanvas = { light: [250, 250, 250], dark: [9, 9, 11] }
+// The DESIGN.md canvas tokens, which the Orbit window bar paints for each page mode (#2132).
+const barCanvas = { light: [250, 250, 250], dark: [9, 9, 11] }
+const barActions = ['menu', 'minimize', 'maximize', 'close']
 
-// DWMWA_CAPTION_COLOR paints the canvas whatever the window theme is, and the caption-button glyphs follow the caption colour,
-// so only the DWMWA_USE_IMMERSIVE_DARK_MODE flag that the reader reads back from the window proves the runtime window theme.
-const captionDarkMode = { light: 0, dark: 1 }
+// The least glyph extent of each 20px icon, as [width, height] in CSS pixels: the menu dots stand tall, the minimize line
+// lies wide, and the maximize square and the close cross take both directions.
+const glyphExtent = { menu: [0, 8], minimize: [8, 0], maximize: [8, 8], close: [8, 8] }
 
-async function inspectCaption(proxy, native, handle, output, report) {
-  report.caption = {}
+// The longest time, in milliseconds, between the press on the bar and the window move loop. The bar is page content, so the
+// press crosses the page and the shell before the window follows the pointer, and pointer travel before the loop moves
+// nothing. Source: windowBar.actions.drag in the report.json of the desktop-installed-Windows-X64 artifact of eight Desktop
+// Acceptance runs, where the pointer left the press point in ten steps of 30 ms. The slowest run lost four steps (a 96 pixel
+// window travel for a 160 pixel pointer travel), so its loop started 120 to 150 ms after the press. The limit keeps about
+// seven times that for a loaded runner, and it fails a bar that stays still for more than one second under a moving pointer.
+const moveLoopLimit = 1000
+
+// An action area shows its glyph on the canvas, as the minimize and close areas do: most of its middle is canvas, and the
+// pixels that stand apart from the canvas have the extent of its icon. A blank area has no glyph, a window painted over the
+// area has little canvas, and a stray line has the wrong extent. The snap region over the maximize action blends 1/255 of
+// black, so a canvas pixel may differ by a few levels. The reader samples the middle half of the 44px action, 22px wide.
+function glyphVisible(area, canvas) {
+  const scale = area.width / 22
+  let flat = 0
+  const rows = []
+  const columns = []
+  area.pixels.forEach((pixel, index) => {
+    if (pixel < 0) return
+    const distance = Math.max(...[16, 8, 0].map((shift, channel) => Math.abs(((pixel >> shift) & 255) - canvas[channel])))
+    if (distance <= 4) flat++
+    if (distance >= 64) {
+      rows.push(Math.floor(index / area.width))
+      columns.push(index % area.width)
+    }
+  })
+  const [width, height] = glyphExtent[area.name]
+  const extent = (values) => values.length ? Math.max(...values) - Math.min(...values) + 1 : 0
+  return rows.length > 0 && flat >= area.pixels.length * 0.6 &&
+    extent(columns) >= width * scale && extent(rows) >= height * scale
+}
+
+const glyphsVisible = (bar, canvas) => bar.actions?.map(({ name }) => name).join() === barActions.join() &&
+  bar.actions.every((area) => glyphVisible(area, canvas))
+
+async function inspectWindowBar(proxy, native, handle, output, report) {
+  const names = await catalogValue('../../packages/shared/src/i18n', (catalogue) => catalogue.desktopWindow)
+  const named = (key) => names.map((catalogue) => catalogue[key])
+  // Only the two mode reads keep their screenshot, so the later reads write to a scratch capture.
+  const read = (action = 'read', label, capture = 'window-action') => native(handle.child.pid, 'windowbar', undefined, { action, label, capture: join(output, `${capture}.png`) })
+  // UI Automation reads the bar's buttons left to right: the menu action, then minimize, maximize or restore, and close.
+  const hasActions = (bar, middle) => bar.buttons.length === 4 && named('menu').includes(bar.buttons[0]) && named('minimize').includes(bar.buttons[1]) &&
+    named(middle).includes(bar.buttons[2]) && named('close').includes(bar.buttons[3])
+  report.windowBar = {}
   for (const mode of ['light', 'dark']) {
     proxy.send(`appearance-${mode}`)
-    await waitFor(() => proxy.read(`appearance-${mode}`), `${mode} page appearance`)
-    const expected = captionCanvas[mode]
-    let caption
+    // The probe reports the canvas token the page paints with, so a wrong bar colour tells a page that kept its mode from a shell
+    // fault. It also reports prefers-color-scheme, the WebView2 colour scheme that the shell sets with the window theme of the mode.
+    const page = await waitFor(() => proxy.read(`appearance-${mode}`), `${mode} page appearance`)
+    const expected = barCanvas[mode]
+    let bar
     try {
-      // The shell applies a reported mode asynchronously, so the reader polls until the caption shows its colour and window theme.
+      // The shell applies a reported mode asynchronously, so the reader polls until the bar shows the canvas of the page mode.
       await waitFor(async () => {
-        caption = await native(handle.child.pid, 'caption', undefined, { capture: join(output, `caption-${mode}.png`) })
-        const [dominant] = caption.colors
-        return dominant?.color.join() === expected.join() && dominant.count >= caption.sampled * 0.9 &&
-          caption.darkModeStatus === 0 && caption.darkMode === captionDarkMode[mode]
-      }, `${mode} caption in the Orbit canvas colour`, 30000)
+        bar = await read('read', undefined, `window-${mode}`)
+        const [dominant] = bar.bar.colors
+        return page.prefersDark === (mode === 'dark') && bar.bar.captionHeight === 0 && !bar.bar.menuBar && dominant?.color.join() === expected.join() &&
+          dominant.count >= bar.bar.sampled * 0.9 && glyphsVisible(bar.bar, expected)
+      }, `${mode} window bar in the Orbit canvas colour with no native caption, a glyph on every action and the ${mode} WebView2 colour scheme`, 30000)
     } finally {
-      report.caption[mode] = { expected, ...caption }
+      report.windowBar[mode] = { expected, pageCanvas: page.canvas, prefersDark: page.prefersDark, ...bar }
     }
   }
+  const actions = report.windowBar.actions = {}
+  const settled = (description, ready) => waitFor(async () => { const bar = await read(); return ready(bar) ? bar : undefined }, description, 15000)
+  const initial = await settled('the menu, minimize, maximize and close actions of the window bar', (bar) => hasActions(bar, 'maximize'))
+  actions.buttons = initial.buttons
+  await inspectMenuAction(proxy, read, actions)
+  const dragged = await read('drag')
+  actions.drag = { before: initial.state.rect, after: dragged.state.rect, ...dragged.drag }
+  // The reader moves the pointer only once the window is in its move loop, so the window travels exactly as far as the
+  // pointer, with its size and its top edge unchanged.
+  const travelled = dragged.state.rect.map((edge, index) => edge - initial.state.rect[index])
+  if (!(dragged.drag?.distance >= 100) || travelled.join() !== [dragged.drag.distance, 0, dragged.drag.distance, 0].join()) {
+    throw new Error(`Dragging the window bar did not move the window with the pointer: ${JSON.stringify(actions.drag)}`)
+  }
+  // The reader waits up to 5000 ms for the move loop, so the exact travel alone passes a window that started late. The
+  // reader writes the wait as an int; <= alone reads null, '', false and [] as 0, so a value that is not a whole number
+  // from 0 up is no measure.
+  const wait = dragged.drag.moveLoopWait
+  if (!Number.isInteger(wait) || wait < 0) {
+    throw new Error(`The reader reported no drag start wait in whole milliseconds from 0 up (moveLoopWait ${JSON.stringify(wait) ?? 'missing'}): ${JSON.stringify(actions.drag)}`)
+  }
+  if (wait > moveLoopLimit) {
+    throw new Error(`The window started to follow the pointer ${wait} ms after the press on the window bar, above the limit of ${moveLoopLimit} ms: ${JSON.stringify(actions.drag)}`)
+  }
+  actions.systemMenu = await inspectSystemMenu(read, false)
+  // A pointer on the maximize action lands on the native snap region (caption.cpp), not on the page button, so the reader
+  // presses it with the pointer. UI Automation Invoke would run the page button and never reach the snap region.
+  await read('click')
+  actions.maximize = (await settled('a pointer press on the maximize action maximizing the window, with the restore action', (bar) => bar.state.zoomed && hasActions(bar, 'restore'))).state
+  actions.systemMenuMaximized = await inspectSystemMenu(read, true)
+  await read('click')
+  actions.restore = (await settled('a pointer press on the restore action restoring the window, with the maximize action', (bar) => !bar.state.zoomed && hasActions(bar, 'maximize'))).state
+  await read('doubleclick')
+  actions.doubleClickMaximize = (await settled('a double click on the bar maximizing the window', (bar) => bar.state.zoomed)).state
+  await read('doubleclick')
+  actions.doubleClickRestore = (await settled('a double click on the bar restoring the window', (bar) => !bar.state.zoomed)).state
+  await read('invoke', initial.buttons[1])
+  actions.minimize = (await settled('the minimized window', (bar) => bar.state.iconic)).state
+  await read('restore')
+  actions.restoreFromMinimize = (await settled('the window restored from minimize', (bar) => !bar.state.iconic && bar.state.visible)).state
+}
+
+// The probe presses the menu action as a person does; the shell then holds its native menu open as a popup until Escape.
+async function inspectMenuAction(proxy, read, actions) {
+  proxy.send('window-menu')
+  await waitFor(() => proxy.read('window-menu'), 'the probe pressing the menu action')
+  const { popup } = await read('popup')
+  actions.menu = popup
+  if (!popup.closed) throw new Error(`Escape did not close the native popup menu: ${JSON.stringify(popup.rect)}`)
+  if (!popup.items.length || JSON.stringify(popup.items) !== JSON.stringify(popup.windowMenu)) {
+    throw new Error(`The menu action did not open the window menu: ${JSON.stringify({ items: popup.items, windowMenu: popup.windowMenu })}`)
+  }
+  // TrackPopupMenu puts the top left corner of the menu at the anchor, here the start of the menu action under the bar.
+  if (Math.abs(popup.rect[0] - popup.anchor[0]) > 8 || Math.abs(popup.rect[1] - popup.anchor[1]) > 8) {
+    throw new Error(`The native popup menu did not open under the menu action: ${JSON.stringify({ rect: popup.rect, anchor: popup.anchor })}`)
+  }
+}
+
+// The commands of the window menu (WinUser.h SC_RESTORE, SC_MOVE, SC_SIZE, SC_MINIMIZE, SC_MAXIMIZE and SC_CLOSE), each
+// with the enabled state that the caption of a restored or a maximized window gives it.
+const systemCommands = { restore: 0xF120, move: 0xF010, size: 0xF000, minimize: 0xF020, maximize: 0xF030, close: 0xF060 }
+const systemCommandStates = (zoomed) => ({ restore: zoomed, move: !zoomed, size: !zoomed, minimize: true, maximize: !zoomed, close: true })
+
+// The reader right-clicks the empty bar as a person does; the shell then holds the window menu open at the pointer until Escape.
+async function inspectSystemMenu(read, zoomed) {
+  const { popup } = await read('systemmenu')
+  const window = zoomed ? 'maximized' : 'restored'
+  if (!popup.closed) throw new Error(`Escape did not close the window menu of the ${window} window: ${JSON.stringify(popup.rect)}`)
+  const expected = systemCommandStates(zoomed)
+  const found = Object.fromEntries(Object.entries(systemCommands).map(([name, id]) => [name, popup.items.find((item) => item.id === id)?.enabled]))
+  if (JSON.stringify(found) !== JSON.stringify(expected)) {
+    throw new Error(`A right-click on the bar of the ${window} window did not open the window menu with the command states of that window: ${JSON.stringify({ expected, found, items: popup.items })}`)
+  }
+  // TrackPopupMenu puts the top left corner of the menu at the pointer.
+  if (Math.abs(popup.rect[0] - popup.pointer[0]) > 8 || Math.abs(popup.rect[1] - popup.pointer[1]) > 8) {
+    throw new Error(`The window menu of the ${window} window did not open at the pointer: ${JSON.stringify({ rect: popup.rect, pointer: popup.pointer })}`)
+  }
+  return popup
 }
 
 async function installedLaunch(executable, output, name, report) {
@@ -374,19 +486,6 @@ async function pushPhase({ proxy, native, updates, handle, executable, output, r
   if (cleanup.length) throw new Error(`Push acceptance cleanup failed: ${cleanup.join('; ')}`)
 }
 
-// Each native key reply names its delivery path, so report.json shows how every key reached the shell.
-const keyCommands = new Set(['escape', 'palette', 'down', 'home', 'quit'])
-function recordKeys(native, report) {
-  return async (pid, command, ...rest) => {
-    const reply = await native(pid, command, ...rest)
-    if (keyCommands.has(command)) {
-      report.keyDelivery ??= []
-      report.keyDelivery.push({ command, ...reply })
-    }
-    return reply
-  }
-}
-
 function menuCommands(items, enabled = true) {
   return items.flatMap((item) => item.children.length
     ? menuCommands(item.children, enabled && item.enabled)
@@ -408,13 +507,16 @@ export async function acceptance({ repository, output, credentials = {}, signing
     const proxyPort = windows ? 443 : 3443
     for (const port of [proxyPort, 5099, 3401]) await assertFree(port)
     if (!windows) await startHttpsListener()
+    // The runner class decides how often a native key is lost (#2074), so every run names its vCPU count.
+    report.runner = { cpus: cpus().length }
+    process.stdout.write(`Runner vCPUs: ${report.runner.cpus}\n`)
     finishRecording = await startRecording(output)
     const checkpoint = (event) => report.launchChecks.push({ event, recordingSeconds: (Date.now() - finishRecording.startedAt) / 1000 })
     process.stdout.write('Building release-shaped installer and hermetic web application\n')
     const shell = await buildInstaller(repository, output, signing)
     builtWeb = true
     await hermeticServices(repository, output)
-    const native = recordKeys(await nativeTool(output), report)
+    const native = await nativeTool(output)
     const updates = await updateServer(repository, output, shell, report)
     isolation = await isolateOrigins(output)
     proxy = await startProxy({ probePath: join(directory, 'acceptance-probe.js'), port: proxyPort, upstreamPort: 3401, tls: isolation, route: updates.route, acceptance: true })
@@ -440,8 +542,8 @@ export async function acceptance({ repository, output, credentials = {}, signing
       report.paletteFocus ??= proxy.events().filter((event) => event.kind === 'focus')
     }
     if (windows) {
-      checkpoint('caption')
-      await inspectCaption(proxy, native, handle, output, report)
+      checkpoint('window-bar')
+      await inspectWindowBar(proxy, native, handle, output, report)
     }
     const beforeReload = proxy.events().filter((event) => event.kind === 'hoje').length
     checkpoint('reload')

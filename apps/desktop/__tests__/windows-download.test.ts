@@ -8,11 +8,10 @@ import { afterAll, beforeAll, expect, it } from 'vitest'
 const native = fileURLToPath(new URL('../src-tauri/native/windows', import.meta.url))
 const shell = process.platform === 'win32' ? 'powershell.exe' : 'pwsh'
 const available = process.platform === 'win32' || spawnSync(shell, ['-NoProfile', '-Command', 'exit 0']).status === 0
-/** WHY: Windows CI uses the build's PowerShell host; other hosts run these cases when pwsh is installed. */
 const downloadTest = it.skipIf(!available)
 if (!available) process.stderr.write(`PowerShell download tests skipped: ${shell} is unavailable\n`)
 
-/** WHY: One cold PowerShell start took 0.34 to 2.4 s on healthy Windows runners and 20.6 to 22.4 s on a slow runner, so every case starts at once and 120 s is about five times the slowest start. */
+// WHY: one cold PowerShell start took up to 22.4 s on a slow Windows runner, so every case starts at once and 120 s is about five times that start: https://github.com/thomasluizon/orbit-ui-mobile/pull/2405
 const caseTimeoutMilliseconds = 120_000
 
 interface Scenario { mode: string; cached?: string; architecture?: string; artifact?: string; complete?: boolean; signature?: string; url?: string }
@@ -38,11 +37,13 @@ $ErrorActionPreference = 'Stop'
 $script:attempts = 0
 function Invoke-WebRequest {
     param($Uri, $OutFile, [switch]$UseBasicParsing, $TimeoutSec)
-    if ($OutFile -like "*$($env:TEST_ARTIFACT)*") {
+    # WHY: Match the file name only. The random temp folder in the full path can contain an artifact name.
+    $isTestArtifact = [System.IO.Path]::GetFileName($OutFile) -like "$($env:TEST_ARTIFACT).*"
+    if ($isTestArtifact) {
         $script:attempts++
         Add-Content (Join-Path $env:TEST_ROOT 'attempts') $script:attempts
     }
-    if ($OutFile -like "*$($env:TEST_ARTIFACT)*" -and ($env:TEST_MODE -eq 'always' -or ($env:TEST_MODE -eq 'transient' -and $script:attempts -lt 3))) {
+    if ($isTestArtifact -and ($env:TEST_MODE -eq 'always' -or ($env:TEST_MODE -eq 'transient' -and $script:attempts -lt 3))) {
         [System.IO.File]::WriteAllText($OutFile, 'partial')
         throw 'simulated network failure'
     }

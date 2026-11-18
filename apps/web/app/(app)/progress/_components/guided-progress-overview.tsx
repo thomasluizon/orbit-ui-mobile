@@ -37,7 +37,6 @@ import { TopHabitRow, WindowFigureGrid, WindowFigureLoading, WindowFrame } from 
 
 const LINE_FADE = { duration: motionDurations.micro / 1000 }
 
-/** A line that changes cross-fades in. The first line and every line under reduced motion appear still. */
 function useLineFade(line: string | null, reducedMotion: boolean) {
   const lineRef = useRef<HTMLParagraphElement>(null)
   const shownLine = useRef(line)
@@ -51,7 +50,6 @@ function useLineFade(line: string | null, reducedMotion: boolean) {
   return lineRef
 }
 
-/** Orbit at 96 (128 at 1024 and above), centred, with the one Orbit line of the root under it. */
 function ProgressOrbitGroup({ line, mascotRef, lookAt, action }: Readonly<{
   line: string | null
   mascotRef: RefObject<HTMLSpanElement | null>
@@ -86,7 +84,6 @@ function GuidedWindowFigures({ metrics }: Readonly<{ metrics: RetrospectiveMetri
   )
 }
 
-/** The 30-day window under the question heading. The empty window has no heading: Orbit states it. */
 function GuidedWindowSection({ status, retrospective, chartRef, onSelectPoint }: Readonly<{
   status: ProgressWindowStatus
   retrospective: ReturnType<typeof useProgressRetrospective>
@@ -118,7 +115,6 @@ function GuidedWindowSection({ status, retrospective, chartRef, onSelectPoint }:
   )
 }
 
-/** A press on a bar changes the line to that day and Orbit looks at the bar. The same bar again, or a press outside the chart, returns the default line. */
 function useBarSelection(chartRef: RefObject<HTMLDivElement | null>) {
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
   const { mascotRef, lookAt, lookTowards, lookAway } = useOrbitLook()

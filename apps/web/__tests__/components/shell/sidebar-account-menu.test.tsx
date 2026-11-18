@@ -156,7 +156,7 @@ it.each([false, true])('signs out through the existing account command with port
 })
 
 it.each([false, true].flatMap(collapsed => ['dark', 'light'].flatMap(theme => [false, true].map(open => ({ collapsed, theme, open })))))
-  ('renders only the Astra mark with collapsed=$collapsed, theme=$theme and open=$open', ({ collapsed, theme, open }) => {
+  ('renders only the Orbit face, its planet in the foreground ink, with collapsed=$collapsed, theme=$theme and open=$open', ({ collapsed, theme, open }) => {
     document.documentElement.classList.toggle('light', theme === 'light')
     useShellStore.setState({ sidebarCollapsed: collapsed })
     try {
@@ -167,6 +167,6 @@ it.each([false, true].flatMap(collapsed => ['dark', 'light'].flatMap(theme => [f
       expect(glyph).toHaveAttribute('data-asset', 'orbit-mascot')
       expect(glyph).toHaveAttribute('width', '20')
       expect(glyph).toHaveAttribute('height', '15')
-      expect(glyph).toHaveAttribute('color', open ? 'var(--primary)' : 'var(--fg-3)')
+      expect(glyph).toHaveAttribute('color', 'var(--fg-1)')
     } finally { document.documentElement.classList.remove('light') }
   })

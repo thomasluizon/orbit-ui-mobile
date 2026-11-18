@@ -95,6 +95,24 @@ describe('QuestionFlow', () => {
     expect(screen.getByRole('heading', { level: 1, name: 'Tem hora certa?' })).toHaveFocus()
   })
 
+  it.each([['when', 'time'], ['summary', 'type']])('moves focus to the question and looks away on a return to the first step %s', (first, second) => {
+    const { rerender } = render(<Flow stepKey={first} question="Primeira?" />)
+    rerender(<Flow stepKey={second} question="Segunda?" />)
+    expect(screen.getByRole('heading', { level: 1, name: 'Segunda?' })).toHaveFocus()
+    fireEvent.focus(screen.getByRole('button', { name: 'Hoje' }))
+    expect(document.querySelector('[data-question-flow]')).toHaveAttribute('data-orbit-state', 'parado')
+    expect(document.querySelector('svg[data-asset="orbit-mascot"]')).toHaveAttribute('data-orbit-state', 'olhando')
+    rerender(<Flow stepKey={first} question="Primeira?" direction={-1} />)
+    expect(screen.getByRole('heading', { level: 1, name: 'Primeira?' })).toHaveFocus()
+    expect(document.querySelector('svg[data-asset="orbit-mascot"]')).toHaveAttribute('data-orbit-state', 'parado')
+  })
+
+  it('claims no main landmark, so the host that mounts it owns the one main of the page', () => {
+    render(<main><Flow /></main>)
+    expect(screen.getAllByRole('main')).toHaveLength(1)
+    expect(screen.getByRole('main')).toContainElement(screen.getByRole('heading', { level: 1 }))
+  })
+
   it('closes up when no line applies', () => {
     render(<Flow line={null} />)
     expect(screen.getByRole('heading', { level: 1 }).getAttribute('aria-describedby')).toBeNull()
@@ -104,13 +122,13 @@ describe('QuestionFlow', () => {
     render(<Flow />)
     const primary = screen.getByRole('button', { name: 'Continuar' })
     expect(primary).toBeEnabled()
-    expect(primary.closest('main')).toBeNull()
+    expect(primary.closest('[data-flow-scroll]')).toBeNull()
   })
 
   it('places the primary action inside the block under it on a wide window', () => {
     stubMedia(['min-width: 1024px', 'min-width: 640px'])
     render(<Flow />)
-    expect(screen.getByRole('button', { name: 'Continuar' }).closest('main')).not.toBeNull()
+    expect(screen.getByRole('button', { name: 'Continuar' }).closest('[data-flow-scroll]')).not.toBeNull()
   })
 
   it('reports Pensando on the frame and shows a text status for assistive technology', () => {
@@ -147,11 +165,11 @@ describe('QuestionFlow', () => {
   it('slides a step change with the slow duration, and draws it still with a still mascot under reduced motion', () => {
     stubMedia([])
     const { unmount } = render(<Flow />)
-    expect(document.querySelector('[data-question-flow] main > div')).toHaveAttribute('data-step-duration', String(motionDurations.slow))
+    expect(document.querySelector('[data-question-flow] [data-flow-scroll] > div')).toHaveAttribute('data-step-duration', String(motionDurations.slow))
     unmount()
     stubMedia(['prefers-reduced-motion'])
     render(<Flow />)
-    expect(document.querySelector('[data-question-flow] main > div')).toHaveAttribute('data-step-duration', '0')
+    expect(document.querySelector('[data-question-flow] [data-flow-scroll] > div')).toHaveAttribute('data-step-duration', '0')
     expect(document.querySelector('[data-orbit-loop]')).toHaveAttribute('data-orbit-loop', 'still')
   })
 

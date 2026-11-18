@@ -3,8 +3,6 @@ name: API contract rebaseline
 on:
   schedule:
     - cron: '23 */6 * * *'
-  repository_dispatch:
-    types: [orbit-api-contract-drift]
 
 permissions:
   contents: read
@@ -16,6 +14,7 @@ concurrency:
 jobs:
   generate:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       contents: read
     outputs:
@@ -25,10 +24,11 @@ jobs:
       # This job never holds a write token. npm ci runs install scripts, including Lefthook's hook
       # installer, and Orval runs generated code, so anything they leave behind dies with this runner.
       # Only the contract output and its complete source metadata cross to the write job.
+      # It compares two named commits and needs no merge base, so it fetches one commit of each.
       - uses: actions/checkout@v7
         with:
           ref: main
-          fetch-depth: 0
+          fetch-depth: 1
           persist-credentials: false
 
       - uses: actions/setup-node@v7
@@ -51,13 +51,15 @@ jobs:
           branch=chore/contract-snapshot
           comparison=HEAD
           if git ls-remote --exit-code --heads origin "$branch"; then
-            git fetch origin "$branch:refs/remotes/origin/$branch"
+            git fetch --depth=1 origin "$branch:refs/remotes/origin/$branch"
             comparison="origin/$branch"
           else
             status=$?
             if [ "$status" -ne 2 ]; then exit "$status"; fi
           fi
-          if git diff --quiet "$comparison" -- packages/shared/src/types/__generated__/api.generated.ts packages/shared/src/types/__generated__/api.spec.commit packages/shared/src/types/__generated__/api.spec.selection.json; then
+          # The pin alone never publishes: a producer move with identical output and selection waits
+          # for the next change to either, and the pin moves with it.
+          if git diff --quiet "$comparison" -- packages/shared/src/types/__generated__/api.generated.ts packages/shared/src/types/__generated__/api.spec.selection.json; then
             echo 'moved=false' >> "$GITHUB_OUTPUT"
           else
             echo 'moved=true' >> "$GITHUB_OUTPUT"
@@ -78,6 +80,7 @@ jobs:
     needs: generate
     if: needs.generate.outputs.moved == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     permissions:
       contents: write
       pull-requests: write
@@ -154,8 +157,8 @@ jobs:
             git -c core.hooksPath=/dev/null commit -m 'Update pinned API contract snapshot'
           fi
           git -c core.hooksPath=/dev/null push origin HEAD:refs/heads/chore/contract-snapshot
-          if git diff --quiet origin/main -- "$snapshot" "$pin" "$selection"; then
-            echo 'The pinned snapshot already matches main.'
+          if git diff --quiet origin/main -- "$snapshot" "$selection"; then
+            echo 'The generated snapshot and selection already match main.'
             exit 0
           fi
           cat > "$RUNNER_TEMP/contract-pr-body.md" <<'BODY'

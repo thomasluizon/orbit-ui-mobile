@@ -44,7 +44,7 @@ import { HabitChecklist } from './habit-checklist'
 import { HabitScheduleFields } from './habit-form-fields/habit-schedule-fields'
 import { HabitMonthDaysField } from './habit-form-fields/habit-month-days-field'
 import { HabitUnderstanding, HabitRepeatInterval } from './habit-form-fields/habit-understanding'
-import { HabitTagsField } from './habit-form-fields/habit-tags-field'
+import { HabitTagsField, useHabitTagEditor } from './habit-form-fields/habit-tags-field'
 import { EndDateEditor } from './habit-form-fields/end-date-editor'
 import { HabitAvoidanceFields } from './habit-form-fields/habit-avoidance-fields'
 import { createTokensV2 } from '@/lib/theme'
@@ -211,6 +211,7 @@ export function HabitFormFields({
     if (expandAdvancedSignal > 0) setDetailsOpen(true)
   }
 
+  const tagEditor = useHabitTagEditor({ tags, title, description })
   const localRead = useMemo(
     () => readTypedHabitPhrase(title, locale, itemType, formHelpers.isGeneral),
     [formHelpers.isGeneral, itemType, locale, title],
@@ -384,7 +385,7 @@ export function HabitFormFields({
             <View style={{ gap: 16 }}>
               <FormSectionLabel>{t('habits.form.organize')}</FormSectionLabel>
             {parentField}
-            <HabitTagsField tags={tags} title={title} description={description} />
+            <HabitTagsField tags={tags} tagEditor={tagEditor} />
             <View><GoalLinkingField habitId={habitId} onGoalCreated={guard(onGoalCreated ?? onToggleGoal)} selectedGoalIds={selectedGoalIds} atGoalLimit={atGoalLimit} onToggleGoal={guard(onToggleGoal)} /></View>
             </View>
             <EndDateEditor visible={showEndDate} value={endDate} onChange={guard((value) => setValue('endDate', value, { shouldDirty: true }))} t={t} />

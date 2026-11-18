@@ -8,6 +8,7 @@ import { buildAccountScopedStorageKey, getTrialDaysLeft, TRIAL_EXPIRED_SEEN_KEY 
 import { ErrorState } from '@/components/ui/error-state'
 import { OrbitMascot, useStateMascotSize } from '@/components/ui/orbit-mascot'
 import { PillButton } from '@/components/ui/pill-button'
+import { Skeleton } from '@/components/ui/skeleton'
 import { GuidedPricingSection } from '@/components/upgrade/guided-pricing-section'
 import { PricingSection } from '@/components/upgrade/pricing-section'
 import { ProPitch } from '@/components/upgrade/pro-pitch'
@@ -79,7 +80,6 @@ export function OnboardingProStep({ onFinish, ref }: Readonly<{ onFinish: (desti
   return <div className="w-full py-8">{content}<p role="alert" className="text-sm text-[var(--fg-2)]">{finishFailed ? t('onboarding.flow.completionFailed') : ''}</p></div>
 }
 
-/** The plan read that loads or that failed. With the guided flows on, Orbit sits above the plan question, which stays the heading of the step, and names the error. */
 function PlanReadState({ guided, failed, title, exitAction, onRetry, t }: Readonly<{
   guided: boolean
   failed: boolean
@@ -94,7 +94,6 @@ function PlanReadState({ guided, failed, title, exitAction, onRetry, t }: Readon
   return <section className="flex flex-col gap-6">{heading}<ErrorState message={t(guided ? 'upgrade.orbitLine.billingError' : 'upgrade.billing.error')} action={retry} />{exitAction}</section>
 }
 
-/** With the guided flows on, Orbit sits above each state of the step in Parado. It never sells, so it carries no line here. */
 function GuidedOrbit({ guided }: Readonly<{ guided: boolean }>) {
   const mascotSize = useStateMascotSize()
   if (!guided) return null
@@ -102,10 +101,13 @@ function GuidedOrbit({ guided }: Readonly<{ guided: boolean }>) {
 }
 
 function ProSkeleton() {
-  const block = 'rounded-[var(--r-well)] bg-[var(--bg-well)]'
-  return <div aria-hidden="true" className="flex flex-col gap-8">
-    <div className="flex flex-col gap-3"><div className={`${block} h-3 w-1/3`} /><div className={`${block} h-16 w-4/5`} /><div className={`${block} h-14 w-full`} /></div>
-    <div className={`${block} h-[136px] w-full rounded-[var(--r-card)]`} />
-    <div className="flex flex-col gap-3">{[0, 1, 2].map((key) => <div key={key} className={`${block} h-16 w-full`} />)}</div>
+  return <div aria-hidden="true" data-pro-skeleton="" className="flex flex-col gap-8">
+    <div className="flex flex-col gap-3">{['h-3 w-1/3', 'h-16 w-4/5', 'h-14 w-full'].map((size) => <ProSkeletonBlock key={size} className={size} />)}</div>
+    <ProSkeletonBlock className="h-[136px] w-full overflow-hidden rounded-[var(--r-card)]" />
+    <div className="flex flex-col gap-3">{[0, 1, 2].map((key) => <ProSkeletonBlock key={key} className="h-16 w-full" />)}</div>
   </div>
+}
+
+function ProSkeletonBlock({ className }: Readonly<{ className: string }>) {
+  return <div className={className}><Skeleton variant="fill" grouped /></div>
 }

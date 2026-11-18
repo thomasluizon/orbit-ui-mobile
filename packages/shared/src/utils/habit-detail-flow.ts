@@ -25,6 +25,8 @@ export const HABIT_DETAIL_FREQUENCY_UNITS = ['Day', 'Week', 'Month', 'Year'] as 
 const HISTORY_LOOKBACK_DAYS = 365
 /** A habit is slipping only while its 30-day completion rate is below this percentage. */
 export const HABIT_SLIPPING_RATE_LIMIT = 50
+/** The widest stat card value. Its hidden copy sizes the value slot, so the loading skeleton and the loaded value wrap the row the same way. */
+export const STAT_VALUE_SIZER = '100%'
 
 interface HabitScheduleSource {
   createdAtUtc: string
@@ -109,7 +111,6 @@ function isActiveIntervalWeek(source: HabitScheduleSource, date: Date, weekStart
   return trueModulo(weekDifference, intervalWeeks) === 0
 }
 
-/** Chosen month days follow the API rule; otherwise the anchor's day repeats, clamped to a short month. */
 function matchesMonth(monthDays: readonly number[], date: Date, anchor: Date, quantity: number): boolean {
   const dayMatches = monthDays.length > 0
     ? matchesHabitMonthDays(monthDays, date)

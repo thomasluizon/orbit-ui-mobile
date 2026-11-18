@@ -1,7 +1,8 @@
 import React from 'react'
-import { TextInput } from 'react-native'
+import { Platform, ScrollView, StyleSheet, TextInput, View } from 'react-native'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
+  AccessibilityInfo as TestAccessibilityInfo,
   __emitKeyboardEvent,
   __resetTestHostConfig,
   __setHostRefsNull,
@@ -10,11 +11,15 @@ import {
 } from '../../../test-mocks/react-native'
 import {
   KeyboardAwareFlatList,
+  KeyboardAwareScreenShiftProvider,
+  KeyboardAwareScrollHost,
   KeyboardAwareSheetScrollView,
   KeyboardAwareScrollView,
   KeyboardAwareView,
   useKeyboardAwareInputReveal,
 } from '@/components/ui/keyboard-aware-scroll-view'
+import { KeyboardRevealGroup } from '@/components/ui/keyboard-reveal-group'
+import { TypedTextInput } from '@/components/ui/typed-text-input'
 
 const TestRenderer = require('react-test-renderer')
 
@@ -253,6 +258,181 @@ describe('KeyboardAwareScrollView (mobile)', () => {
     })
     expect(measureSpy).not.toHaveBeenCalled()
   })
+
+  describe('a field and its action at 375 x 667 with the keyboard top at 432', () => {
+    const SCREEN_HEIGHT = 667
+    const KEYBOARD_TOP = 432
+    const REVEAL_MARGIN = 24
+    function renderFieldAndAction(group: { current: MeasureResult }) {
+      const scrollTo = vi.fn()
+      __setScrollToImpl(scrollTo)
+      __setMeasureInWindowImpl((callback, props, name) => {
+        if (name === 'ScrollView') callback(0, 20, 375, KEYBOARD_TOP - 20)
+        else if (props.testID === 'field-action') callback(0, group.current.y, 375, group.current.height)
+        else callback(0, 300, 375, 56)
+      })
+      let tree!: ReturnType<typeof TestRenderer.create>
+      TestRenderer.act(() => {
+        tree = TestRenderer.create(
+          <KeyboardAwareScrollView>
+            <KeyboardRevealGroup testID="field-action">
+              <TypedTextInput accessibilityLabel="Code" />
+              <View accessibilityRole="button" />
+            </KeyboardRevealGroup>
+          </KeyboardAwareScrollView>,
+        )
+      })
+      return { tree, scrollTo }
+    }
+
+    it('lifts the whole group above the keyboard when the field alone already fits', () => {
+      const group = { current: { y: 300, height: 243 } }
+      const { tree, scrollTo } = renderFieldAndAction(group)
+      TestRenderer.act(() => tree.root.findByType(TextInput).props.onFocus({ nativeEvent: {} }))
+      TestRenderer.act(() => __emitKeyboardEvent('keyboardDidShow', { endCoordinates: { screenY: KEYBOARD_TOP } }))
+      expect(scrollTo).toHaveBeenLastCalledWith({ y: 300 + 243 - (KEYBOARD_TOP - REVEAL_MARGIN), animated: true })
+    })
+
+    it.each([true, false])('lifts the group with no animation exactly when reduce motion is on, as web jumps (reduce motion: %s)', (reduced) => {
+      const listeners = new Set<(enabled: boolean) => void>()
+      const subscription = vi.spyOn(TestAccessibilityInfo, 'addEventListener').mockImplementation((event, listener) => {
+        if (event === 'reduceMotionChanged') listeners.add(listener)
+        return { remove: () => { listeners.delete(listener) } }
+      })
+      const { tree, scrollTo } = renderFieldAndAction({ current: { y: 300, height: 243 } })
+      try {
+        TestRenderer.act(() => listeners.forEach((listener) => listener(reduced)))
+        TestRenderer.act(() => tree.root.findByType(TextInput).props.onFocus({ nativeEvent: {} }))
+        TestRenderer.act(() => __emitKeyboardEvent('keyboardDidShow', { endCoordinates: { screenY: KEYBOARD_TOP } }))
+        expect(scrollTo).toHaveBeenLastCalledWith({ y: 300 + 243 - (KEYBOARD_TOP - REVEAL_MARGIN), animated: !reduced })
+      } finally {
+        TestRenderer.act(() => listeners.forEach((listener) => listener(false)))
+        TestRenderer.act(() => tree.unmount())
+        subscription.mockRestore()
+      }
+    })
+
+    it('lifts the group again when it grows while the field keeps focus', () => {
+      const group = { current: { y: 200, height: 150 } }
+      const { tree, scrollTo } = renderFieldAndAction(group)
+      TestRenderer.act(() => tree.root.findByType(TextInput).props.onFocus({ nativeEvent: {} }))
+      TestRenderer.act(() => __emitKeyboardEvent('keyboardDidShow', { endCoordinates: { screenY: KEYBOARD_TOP } }))
+      expect(scrollTo).not.toHaveBeenCalled()
+      group.current = { y: 200, height: 150 + 65 + 24 }
+      const groupHost = tree.root.findAll((node: { type: unknown; props: Record<string, unknown> }) =>
+        node.type === 'View' && node.props.testID === 'field-action')[0]
+      TestRenderer.act(() => groupHost.props.onLayout())
+      expect(scrollTo).toHaveBeenLastCalledWith({ y: 200 + 239 - (KEYBOARD_TOP - REVEAL_MARGIN), animated: true })
+    })
+
+    function renderPaddedScroller(viewport: number, field: boolean) {
+      __setMeasureInWindowImpl((callback) => callback(0, 20, 375, viewport))
+      let tree!: ReturnType<typeof TestRenderer.create>
+      TestRenderer.act(() => {
+        tree = TestRenderer.create(<KeyboardAwareScrollView contentContainerStyle={{ paddingBottom: 16 }}>
+          {field ? <TypedTextInput accessibilityLabel="Code" /> : <View />}
+        </KeyboardAwareScrollView>)
+      })
+      if (field) TestRenderer.act(() => tree.root.findByType(TextInput).props.onFocus({ nativeEvent: {} }))
+      const paddingBottom = () => StyleSheet.flatten(tree.root.findByType(ScrollView).props.contentContainerStyle).paddingBottom as number
+      return { tree, paddingBottom }
+    }
+
+    it.each([{ viewport: SCREEN_HEIGHT - 20, label: 'under' }, { viewport: KEYBOARD_TOP - 20, label: 'above' }])(
+      'ends the scroll of the focused field clear of the keyboard when the scroller reaches $label it', ({ viewport }) => {
+        const { paddingBottom } = renderPaddedScroller(viewport, true)
+        TestRenderer.act(() => __emitKeyboardEvent('keyboardDidShow', { endCoordinates: { screenY: KEYBOARD_TOP } }))
+        const lastLineBottomAtScrollEnd = 20 + viewport - paddingBottom()
+        expect(lastLineBottomAtScrollEnd).toBeLessThanOrEqual(KEYBOARD_TOP - REVEAL_MARGIN)
+      })
+
+    it('keeps the reveal margin in a focused scroller that ends more than the margin above the keyboard, as the chat composer does', () => {
+      const { paddingBottom } = renderPaddedScroller(KEYBOARD_TOP - 20 - REVEAL_MARGIN - 100, true)
+      TestRenderer.act(() => __emitKeyboardEvent('keyboardDidShow', { endCoordinates: { screenY: KEYBOARD_TOP } }))
+      expect(paddingBottom()).toBe(16 + REVEAL_MARGIN)
+    })
+
+    const fieldlessScrollers = {
+      ScrollView: () => <KeyboardAwareScrollView contentContainerStyle={{ paddingBottom: 16 }}><View /></KeyboardAwareScrollView>,
+      SheetScrollView: () => <KeyboardAwareSheetScrollView contentContainerStyle={{ paddingBottom: 16 }}><View /></KeyboardAwareSheetScrollView>,
+      FlatList: () => <KeyboardAwareFlatList data={[]} renderItem={() => null} contentContainerStyle={{ paddingBottom: 16 }} />,
+      ScrollHost: function ScrollHost() {
+        const scrollRef = React.useRef<ScrollView>(null)
+        return <KeyboardAwareScrollHost scrollRef={scrollRef as unknown as React.RefObject<null>} contentContainerStyle={{ paddingBottom: 16 }}>
+          {(bindings) => <ScrollView ref={scrollRef} contentContainerStyle={bindings.contentContainerStyle} />}
+        </KeyboardAwareScrollHost>
+      },
+    }
+
+    it.each(Object.keys(fieldlessScrollers) as (keyof typeof fieldlessScrollers)[])(
+      'keeps the covered part and the reveal margin in a %s that holds no field, so a list beside the field ends as far above the keyboard as before', (kind) => {
+        __setMeasureInWindowImpl((callback) => callback(0, 20, 375, SCREEN_HEIGHT - 20))
+        let tree!: ReturnType<typeof TestRenderer.create>
+        const Scroller = fieldlessScrollers[kind]
+        TestRenderer.act(() => { tree = TestRenderer.create(<Scroller />) })
+        TestRenderer.act(() => __emitKeyboardEvent('keyboardDidShow', { endCoordinates: { screenY: KEYBOARD_TOP } }))
+        const host = tree.root.findAll((node: { type: unknown }) => node.type === 'ScrollView' || node.type === 'FlatList')[0]
+        expect(StyleSheet.flatten(host.props.contentContainerStyle).paddingBottom).toBe(16 + SCREEN_HEIGHT - KEYBOARD_TOP + REVEAL_MARGIN)
+      })
+
+    function renderNestedScrollers(group: boolean) {
+      const outerPadding = () => StyleSheet.flatten(tree.root.findAll((node: { type: unknown; props: Record<string, unknown> }) =>
+        node.type === 'ScrollView' && node.props.testID === 'outer')[0].props.contentContainerStyle).paddingBottom as number
+      const innerPadding = () => StyleSheet.flatten(tree.root.findAll((node: { type: unknown; props: Record<string, unknown> }) =>
+        node.type === 'ScrollView' && node.props.testID === 'inner')[0].props.contentContainerStyle).paddingBottom as number
+      __setMeasureInWindowImpl((callback, props, name) => {
+        if (name === 'ScrollView' && props.testID === 'outer') callback(0, 0, 375, SCREEN_HEIGHT)
+        else if (name === 'ScrollView') callback(0, 20, 375, KEYBOARD_TOP - 20)
+        else callback(0, 200, 375, 56)
+      })
+      const field = <TypedTextInput accessibilityLabel="Email" />
+      const screen = (withGroup: boolean) => <KeyboardAwareSheetScrollView testID="outer" contentContainerStyle={{ paddingBottom: 16 }}>
+        <KeyboardAwareScrollView testID="inner" avoidKeyboard={false} contentContainerStyle={{ paddingBottom: 16 }}>
+          {withGroup ? <KeyboardRevealGroup testID="field-action">{field}</KeyboardRevealGroup> : field}
+        </KeyboardAwareScrollView>
+      </KeyboardAwareSheetScrollView>
+      let tree!: ReturnType<typeof TestRenderer.create>
+      TestRenderer.act(() => { tree = TestRenderer.create(screen(group)) })
+      TestRenderer.act(() => tree.root.findByType(TextInput).props.onFocus({ nativeEvent: {} }))
+      TestRenderer.act(() => __emitKeyboardEvent('keyboardDidShow', { endCoordinates: { screenY: KEYBOARD_TOP } }))
+      return { tree, screen, outerPadding, innerPadding }
+    }
+
+    it('lets a scroller with a field and action group reach the keyboard edge: the scroller around it reserves only the covered part', () => {
+      const { tree, screen, outerPadding, innerPadding } = renderNestedScrollers(true)
+      expect(outerPadding()).toBe(16 + SCREEN_HEIGHT - KEYBOARD_TOP)
+      expect(innerPadding()).toBe(16 + REVEAL_MARGIN)
+      TestRenderer.act(() => tree.update(screen(false)))
+      expect(outerPadding()).toBe(16 + SCREEN_HEIGHT - KEYBOARD_TOP + REVEAL_MARGIN)
+    })
+
+    it('keeps the reveal margin in the scroller around a nested field that has no group, as before', () => {
+      const { outerPadding } = renderNestedScrollers(false)
+      expect(outerPadding()).toBe(16 + SCREEN_HEIGHT - KEYBOARD_TOP + REVEAL_MARGIN)
+    })
+
+    it.each([true, false])('drops the keyboard space when iOS hides the keyboard and then reports the end frame (focused field: %s)', (field) => {
+      const previous = Platform.OS
+      Object.defineProperty(Platform, 'OS', { configurable: true, value: 'ios' })
+      try {
+        const { tree, paddingBottom } = renderPaddedScroller(SCREEN_HEIGHT - 20, field)
+        TestRenderer.act(() => {
+          __emitKeyboardEvent('keyboardWillShow', { endCoordinates: { screenY: KEYBOARD_TOP } })
+          __emitKeyboardEvent('keyboardDidChangeFrame', { endCoordinates: { screenY: KEYBOARD_TOP } })
+        })
+        expect(paddingBottom()).toBeGreaterThan(16)
+        TestRenderer.act(() => {
+          if (field) tree.root.findByType(TextInput).props.onBlur({ nativeEvent: {} })
+          __emitKeyboardEvent('keyboardWillHide')
+          __emitKeyboardEvent('keyboardDidChangeFrame', { endCoordinates: { screenY: SCREEN_HEIGHT } })
+          __emitKeyboardEvent('keyboardDidHide')
+        })
+        expect(paddingBottom()).toBe(16)
+      } finally {
+        Object.defineProperty(Platform, 'OS', { configurable: true, value: previous })
+      }
+    })
+  })
 })
 
 describe('KeyboardAwareSheetScrollView (mobile)', () => {
@@ -279,6 +459,44 @@ describe('KeyboardAwareSheetScrollView (mobile)', () => {
     })
     expect(tree!.root.findByType('ScrollView').props.nestedScrollEnabled).toBe(true)
     expect(onScroll).toHaveBeenCalledWith(event)
+  })
+
+  it('lifts a focused sheet field above the footer and keyboard when the sheet draws below where its content is measured', () => {
+    const SHEET_TOP = 160
+    const KEYBOARD_TOP = 590
+    const FOOTER = 100
+    const REVEAL_MARGIN = 24
+    const field = { y: 400, height: 54 }
+    vi.stubGlobal('requestAnimationFrame', (callback: (time: number) => void) => {
+      callback(0)
+      return 0
+    })
+    const scrollTo = vi.fn()
+    __setScrollToImpl(scrollTo)
+    __setMeasureInWindowImpl((callback, _props, name) => {
+      if (name === 'ScrollView') callback(0, 70, 375, 580)
+      else callback(0, field.y, 375, field.height)
+    })
+    let tree!: ReturnType<typeof TestRenderer.create>
+    try {
+      TestRenderer.act(() => {
+        tree = TestRenderer.create(
+          <KeyboardAwareScreenShiftProvider value={() => SHEET_TOP}>
+            <KeyboardAwareSheetScrollView keyboardVerticalOffset={FOOTER}>
+              <TypedTextInput accessibilityLabel="Anything to note?" />
+            </KeyboardAwareSheetScrollView>
+          </KeyboardAwareScreenShiftProvider>,
+        )
+      })
+      TestRenderer.act(() => tree.root.findByType(TextInput).props.onFocus({ nativeEvent: {} }))
+      TestRenderer.act(() => __emitKeyboardEvent('keyboardDidShow', { endCoordinates: { screenY: KEYBOARD_TOP } }))
+      const keyboardEdgeInSheet = KEYBOARD_TOP - SHEET_TOP - FOOTER
+      expect(scrollTo).toHaveBeenLastCalledWith({ y: field.y + field.height - (keyboardEdgeInSheet - REVEAL_MARGIN), animated: true })
+      expect(StyleSheet.flatten(tree.root.findByType(ScrollView).props.contentContainerStyle).paddingBottom).toBe(70 + 580 - keyboardEdgeInSheet + REVEAL_MARGIN)
+    } finally {
+      TestRenderer.act(() => tree.unmount())
+      vi.unstubAllGlobals()
+    }
   })
 })
 

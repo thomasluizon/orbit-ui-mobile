@@ -26,7 +26,6 @@ interface HabitListConfirmDialogsProps {
   onCancelParent: () => void
 }
 
-/** The words of the parent prompt. With the guided flows on, the title is the question and the two answers are quick options. */
 function parentPromptCopy(t: HabitListConfirmDialogsProps['t'], prompt: ParentPromptChain | null, question: boolean) {
   const skip = prompt?.mode === 'skip'
   const severalAncestors = prompt !== null && prompt.ancestors.length > 1

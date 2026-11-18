@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
+import { View } from 'react-native'
 import { useQueryClient } from '@tanstack/react-query'
 import { connectionKeys } from '@orbit/shared/query'
 import { API } from '@orbit/shared/api'
@@ -35,5 +36,5 @@ export default function NotionCallbackScreen() {
     }
     void complete()
   }, [code, state, error, router, queryClient])
-  return <Skeleton variant="settings" rows={4} label={t('common.loading')} />
+  return <View accessibilityLiveRegion="polite"><Skeleton variant="settings" rows={2} label={t('common.loading')} /></View>
 }

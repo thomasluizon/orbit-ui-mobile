@@ -18,7 +18,6 @@ import { resolveWebThemeVariables } from '@/lib/theme-dom'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn(), back: vi.fn() }), usePathname: () => '/search' }))
-/** What the search returns: no read yet, or one shown row out of `totalCount`. */
 const search = vi.hoisted(() => ({ totalCount: null as number | null }))
 vi.mock('@/hooks/use-habit-queries', () => ({ useSearchHabits: () => {
   const habits = search.totalCount ? [createMockHabit({ id: 'walk', title: 'Walk', searchMatches: [{ field: 'title', value: null }] })] : []

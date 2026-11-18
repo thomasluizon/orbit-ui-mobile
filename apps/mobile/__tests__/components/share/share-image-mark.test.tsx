@@ -36,7 +36,6 @@ async function renderCard(card: React.ReactElement, testID: string) {
 const hostsOf = (card: ReactTestInstance) => card.findAll((node) => typeof node.type === 'string')
 const textOf = (card: ReactTestInstance) => hostsOf(card).filter((node) => String(node.type) === 'Text').map((node) => renderedText(node.props.children))
 
-/** The mark of a shared image: one small static face, never the live rig and never a running loop. */
 function expectStaticMark(card: ReactTestInstance) {
   const marks = hostsOf(card).filter((node) => node.props.testID === 'orbit-mascot')
   expect(marks).toHaveLength(1)

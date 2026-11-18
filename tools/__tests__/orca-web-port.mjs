@@ -40,6 +40,10 @@ const orcaWebPortCases = () => {
   const secondPort = Number(run("orca-web-port.mjs", [], { cwd: second }).stdout.trim())
   T("orca-web-port.mjs: linked worktrees report their own distinct assignments", firstPort !== secondPort && firstPort >= 3100 && secondPort >= 3100)
   T("orca-web-port.mjs: setup does not clobber an existing local environment file", readFileSync(join(first, "apps", "web", ".env.local"), "utf8") === "API_BASE=http://example.test\n")
+  const unsetApiBase = { env: { API_BASE: undefined, NODE_ENV: undefined } }
+  check("orca-web-port.mjs", "--api-base prints the API_BASE that the web env files set", ["--api-base"], { status: 0, stdout: /^http:\/\/example\.test\n$/ }, { cwd: first, ...unsetApiBase })
+  check("orca-web-port.mjs", "--api-base gives the shell API_BASE precedence over the env files, as Next does", ["--api-base"], { status: 0, stdout: /^http:\/\/shell\.test\n$/ }, { cwd: first, env: { API_BASE: "http://shell.test", NODE_ENV: undefined } })
+  check("orca-web-port.mjs", "--api-base falls back to the local API when nothing sets API_BASE", ["--api-base"], { status: 0, stdout: /^http:\/\/localhost:5000\n$/ }, { cwd: second, ...unsetApiBase })
   check("orca-web-port.mjs", "refuses a deterministic port collision before persisting", ["--setup"], { status: 1, stderr: /collides with linked worktree collision-worktree-29/ }, { cwd: collision })
   T("orca-web-port.mjs: collision refusal leaves no marker behind", !existsSync(join(collision, ".orca", "web-port")))
 

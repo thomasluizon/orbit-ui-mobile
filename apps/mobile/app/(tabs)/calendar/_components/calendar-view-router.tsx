@@ -40,14 +40,12 @@ import { createStyles } from './calendar-screen-styles'
 
 import { PADDING, motionDurations, motionEasings, resolveMotionPreset } from '@orbit/shared/theme'
 
-/** The Calendário motion belongs to the guided flows: with the flag off, or under reduced motion, a change shows at once. */
 function useCalendarMotionStill(): boolean {
   const guided = useFlag('orbit_guided_flows')
   const reducedMotion = usePrefersReducedMotion()
   return !guided || reducedMotion
 }
 
-/** A new selected day cross-fades the day card on the base duration. The first day, the guided flows off and reduced motion show at once. */
 function useDayCardFade(dayKey: string) {
   const still = useCalendarMotionStill()
   const opacity = useSharedValue(1)
@@ -74,7 +72,6 @@ function CalendarInlineDaySlot({ loading, dayKey, children }: Readonly<{ loading
 
 interface CalendarMonthFeedbackProps {
   state: CalendarMonthDisplayState
-  /** Absent when the Orbit line states the month. */
   text: string | null
   createLabel: string
   onCreate: () => void
@@ -163,7 +160,6 @@ function CalendarMonthView({ state }: Readonly<{ state: CalendarScreenState }>) 
 
 const VIEW_ORDER: readonly CalendarScreenState['view'][] = ['month', 'week', 'range', 'agenda']
 
-/** A view switch enters on the tab-switch preset, shifted toward the side of the chosen segment. The guided flows off and reduced motion swap the view at once. */
 function useViewSwitchMotion(view: CalendarScreenState['view']) {
   const still = useCalendarMotionStill()
   const progress = useSharedValue(1)

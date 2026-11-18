@@ -1,4 +1,5 @@
 import React from 'react'
+import { __measureInWindow } from './react-native'
 
 function createSvgComponent(name: string) {
   return function MockSvgComponent({
@@ -31,7 +32,25 @@ function MockCircle(
   return React.createElement('Circle', props, children)
 }
 
-export const Svg = createSvgComponent('Svg')
+function MockSvg(
+  {
+    children,
+    ...props
+  }: Readonly<{
+    children?: React.ReactNode
+    [key: string]: unknown
+  }>,
+  ref: React.ForwardedRef<{ measureInWindow: (callback: (x: number, y: number, width: number, height: number) => void) => void }>,
+) {
+  React.useImperativeHandle(
+    ref,
+    () => ({ measureInWindow: (callback) => __measureInWindow(callback, props, 'Svg') }),
+    [props],
+  )
+  return React.createElement('Svg', props, children)
+}
+
+export const Svg = React.forwardRef(MockSvg)
 
 export const Circle = React.forwardRef(MockCircle)
 export const ClipPath = createSvgComponent('ClipPath')

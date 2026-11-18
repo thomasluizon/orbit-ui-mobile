@@ -13,11 +13,11 @@ import { OrbitMascot, useStateMascotSize } from '@/components/ui/orbit-mascot'
 import { useFlag } from '@/hooks/use-flag'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
+import { Skeleton } from '@/components/ui/skeleton'
 import { NotificationRow } from './notification-row'
 
 interface NotificationListProps {
   items: NotificationItem[]
-  /** The ids the inbox holds, pending deletes included. It changes only when the inbox itself changes. */
   scope: string
   isLoading: boolean
   isError: boolean
@@ -28,23 +28,15 @@ interface NotificationListProps {
 
 type Tokens = ReturnType<typeof createTokensV2>
 
-/** The scope wrapper skips the entrance of the rows it mounts with, so the row motion holds no snapshot of its own. */
 const NO_SNAPSHOT: readonly string[] = []
 
 interface ScopeMotion {
   scope: string
   ids: readonly string[]
-  /** The rows that a change of the inbox brought. They mount with no entrance. */
   quiet: ReadonlySet<string>
-  /** Grows when a change of the inbox takes a shown row away. The wrapper then mounts again, which skips that exit. */
   generation: number
 }
 
-/**
- * Only a row the person deletes or restores moves. A change of `scope` (the inbox itself changed) brings its new rows
- * with no entrance. It mounts the rows again only when it takes a shown row away, so that row leaves with no exit;
- * the commit of a pending delete and a new notification keep every mounted row.
- */
 function useScopeMotion(scope: string, ids: readonly string[]): ScopeMotion {
   const [previous, setPrevious] = useState<ScopeMotion>(() => ({ scope, ids, quiet: new Set(), generation: 0 }))
   if (previous.scope === scope && previous.ids.join(' ') === ids.join(' ')) return previous
@@ -59,10 +51,6 @@ function useScopeMotion(scope: string, ids: readonly string[]): ScopeMotion {
   return next
 }
 
-/**
- * The rows on the Orbit logic. A row the person deletes leaves with `list-exit` and the gap closes; undo returns it with
- * `list-enter`. A change of the inbox itself moves no row.
- */
 function GuidedRows({ items, scope, onOpen, onDelete }: Readonly<Pick<NotificationListProps, 'items' | 'scope' | 'onOpen' | 'onDelete'>>) {
   const motion = useListRowMotion(NO_SNAPSHOT)
   const { quiet, generation } = useScopeMotion(scope, items.map((item) => item.id))
@@ -79,32 +67,29 @@ function GuidedRows({ items, scope, onOpen, onDelete }: Readonly<Pick<Notificati
   )
 }
 
-function SkeletonRows({ tokens }: Readonly<{ tokens: Tokens }>) {
+function SkeletonRows() {
   return Array.from({ length: 5 }, (_, index) => (
     <View key={index} accessible={false} style={styles.skeletonRow}>
       <View style={styles.dotColumn} />
       <View style={styles.skeletonContent}>
-        <View testID="notification-skeleton-line" style={[styles.skeletonTitle, { backgroundColor: tokens.bgElev }]} />
-        <View testID="notification-skeleton-line" style={[styles.skeletonBody, { backgroundColor: tokens.bgElev }]} />
-        <View testID="notification-skeleton-line" style={[styles.skeletonTarget, { backgroundColor: tokens.bgElev }]} />
+        {NOTIFICATION_SKELETON_LINES.map((line, index) => <View key={index} testID="notification-skeleton-line" style={line}><Skeleton variant="fill" grouped /></View>)}
       </View>
     </View>
   ))
 }
 
-/** The empty inbox and the failed inbox. On the Orbit logic both show Orbit in Parado at the state size; the failed inbox keeps its message and retry. */
 function InboxState({ failed, guided, tokens, onRetry }: Readonly<{ failed: boolean; guided: boolean; tokens: Tokens; onRetry: () => void }>) {
   const { t } = useTranslation()
   const stateMascotSize = useStateMascotSize()
-  const mascot = guided ? <OrbitMascot size={stateMascotSize} /> : null
+  const mascot = <OrbitMascot size={stateMascotSize} />
   return (
     <ShellCentredRegion><View testID="notification-empty" style={styles.empty}>
       {failed ? <>
-        {mascot}
+        {guided ? mascot : null}
         <Text style={[styles.copy, { color: tokens.fg3 }]}>{t('notifications.loadError')}</Text>
         <IconButton label={t('common.retry')} onPress={onRetry}><RefreshCw size={20} strokeWidth={1.5} accessible={false} /></IconButton>
       </> : <>
-        {mascot ?? <OrbitMascot size={96} />}
+        {mascot}
         <Text style={[styles.copy, { color: tokens.fg3 }]}>{t('notifications.empty')}</Text>
       </>}
     </View></ShellCentredRegion>
@@ -117,7 +102,7 @@ export function NotificationList({ items, scope, isLoading, isError, onRetry, on
   const guided = useFlag('orbit_guided_flows')
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
-  const loading = guided ? <View testID="notification-skeletons" style={styles.rows}><SkeletonRows tokens={tokens} /></View> : <SkeletonRows tokens={tokens} />
+  const loading = guided ? <View testID="notification-skeletons" style={styles.rows}><SkeletonRows /></View> : <SkeletonRows />
   const rest = isLoading ? loading : <InboxState failed={isError} guided={guided} tokens={tokens} onRetry={onRetry} />
   return (
     <View accessibilityLabel={t('notifications.title')} accessibilityState={{ busy: isLoading }} style={[contentFrameStyle, styles.list, guided ? styles.guidedList : null]}>
@@ -134,9 +119,11 @@ const styles = StyleSheet.create({
   skeletonRow: { flexDirection: 'row', gap: 12, padding: SPACING.s16, borderRadius: 12 },
   dotColumn: { width: 8 },
   skeletonContent: { flex: 1, gap: 8 },
-  skeletonTitle: { width: '80%', height: 22, borderRadius: 999 },
-  skeletonBody: { width: '100%', height: 21, borderRadius: 999 },
-  skeletonTarget: { width: '32%', height: 16, borderRadius: 999 },
+  skeletonTitle: { width: '80%', height: 22 },
+  skeletonBody: { width: '100%', height: 21 },
+  skeletonTarget: { width: '32%', height: 16 },
   empty: { padding: SPACING.s32, gap: 16, borderRadius: 20, alignItems: 'center' },
   copy: { fontFamily: 'Geist_400Regular', fontSize: 14, textAlign: 'center' },
 })
+
+const NOTIFICATION_SKELETON_LINES = [styles.skeletonTitle, styles.skeletonBody, styles.skeletonTarget]

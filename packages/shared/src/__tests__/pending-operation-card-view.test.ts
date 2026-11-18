@@ -630,11 +630,6 @@ it('labels the pending operation from its capability without exposing risk', () 
   })
 })
 
-/**
- * orbit-api src/Orbit.Application/Chat/PendingOperationChangePreviewer.cs:41,50,362,980;
- * PendingOperationChangePreviewer.Reuse.cs:59 and .Offers.cs:327,348 declare habit and nested offer fields.
- * AgentArgumentPreview.cs:70 and PendingOperationRevisionService.cs:169,249 restrict schema-backed edits.
- */
 const producerEditableFieldsWithCopy = [
   'title', 'description', 'emoji', 'frequency_unit', 'frequency_quantity', 'interval_weeks',
   'days', 'due_date', 'start_date', 'end_date', 'due_time', 'due_end_time',
@@ -642,17 +637,11 @@ const producerEditableFieldsWithCopy = [
   'is_general', 'is_flexible', 'checklist_items', 'sub_habits', 'slip_alert_enabled',
   'reminder_enabled', 'reminder_times', 'scheduled_reminders', 'relative_reminders',
   'repeat_reminder', 'is_completed', 'date',
-  /** Tools/Implementations/UpdateHabitTool.cs:35; AgentEditableArguments.cs:25; ManageApiKeysTool.cs:29. */
   'clear_parent', 'scopes', 'is_read_only', 'expires_at_utc',
-  /** AgentEditableArguments.cs:26,27; Tools/Implementations/ManageSubscriptionTool.cs:18; ManageAccountTool.cs:19. */
   'interval', 'code',
-  /** Tools/Implementations/CreateGoalTool.cs:23; UpdateGoalProgressTool.cs:25; UpdateGoalStatusTool.cs:27. */
   'target_value', 'unit', 'deadline', 'goal_type', 'current_value', 'note', 'status', 'habit_ids',
-  /** Tools/Implementations/TagTools.cs:39,79; ChecklistTemplateTools.cs:52,98; ReorderHabitsTool.cs:20; ReorderGoalsTool.cs:20. */
   'name', 'color', 'items', 'positions',
-  /** AgentEditableArguments.cs:14; Tools/Implementations/ProfileTools.cs:58,184; CalendarTools.cs:132. */
   'timezone', 'language', 'week_start_day', 'uses_24_hour_clock', 'theme_preference', 'enabled',
-  /** Tools/Implementations/SendSupportRequestTool.cs:17. */
   'email', 'subject', 'message',
 ] as const
 
@@ -1448,7 +1437,7 @@ it.each([{ locale: 'en', messages: en }, { locale: 'pt-BR', messages: ptBR }])('
     rejected: 'The 2 changes were rejected. Nothing was saved.', more: 'and 3 more', open: 'Open details: Water',
   } : {
     group: 'Onde colocar Water', option: 'Item do checklist de Morning routine',
-    recommendation: 'Orbit sugere: Item do checklist de Morning routine. Você já tem 4 itens no checklist aqui.',
+    recommendation: 'O Orbit sugere: Item do checklist de Morning routine. Você já tem 4 itens no checklist aqui.',
     rejected: 'As 2 mudanças foram rejeitadas. Nada foi salvo.', more: 'e mais 3', open: 'Abrir detalhes: Water',
   })
   expect(formatPreviewMeta('Every day · at 08:00')).toBe('Every day · at\u00a008:00')

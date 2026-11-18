@@ -9,8 +9,8 @@ import type { NotificationPermissionStatus } from '@/lib/push-notification-permi
 import { RowList } from '@/components/ui/row-list'
 import { PillButton } from '@/components/ui/pill-button'
 import { RotateCcw, Settings } from '@/components/ui/icons'
-import type { AppTokensV2 } from '@/lib/theme'
 import { Skeleton } from '@/components/ui/skeleton'
+import type { AppTokensV2 } from '@/lib/theme'
 
 function PushDevicesFeedback({
   tokens,
@@ -109,7 +109,7 @@ export function PushDevicesRow({
         if (!currentDeviceRegistered && !canEnable) return
         onToggle()
       } }} />
-      {loading ? <Skeleton variant="settings" rows={1} label={t('profile.loading')} /> : null}
+      {loading ? <View testID="push-devices-skeleton" style={{ paddingHorizontal: SPACING.s16, paddingBottom: SPACING.s12 }}><View style={{ width: '50%', height: 20 }}><Skeleton variant="fill" label={t('profile.loading')} /></View></View> : null}
       <PushDevicesFeedback
         tokens={tokens}
         error={error}

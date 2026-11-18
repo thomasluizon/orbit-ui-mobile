@@ -157,12 +157,6 @@ function applyUpdateScheduleFields(
   if (hasHabitMonthDaySchedule(data)) request.monthDays = data.monthDays
 }
 
-/**
- * Writes only the reminder store the edit form is actually editing, so a Save never wipes
- * the store it left untouched. Reminders live in two mutually-exclusive stores:
- * `reminderTimes` (minute offsets, used with a due time) and `scheduledReminders` (absolute
- * times, used without one).
- */
 function applyUpdateReminderFields(
   request: UpdateHabitRequest,
   data: HabitFormData,

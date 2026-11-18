@@ -51,7 +51,6 @@ async function mount(width = 360) {
 
 const hosts = () => tree.root.findAll((node) => typeof node.type === 'string')
 const byTestId = (testID: string) => hosts().filter((node) => node.props.testID === testID)
-/** The touch target height of every control with the button role below the app bar: the laid out height plus the hit slop. */
 function buttonTargets(width: number) {
   const cover = tree.root.findAll((node) => typeof node.type === 'string' && typeof node.props.testID === 'string' && node.props.testID.startsWith('wrapped-cover-'))[0]!
   const names = new Set(cover.findAll((node) => typeof node.type === 'string' && node.props.accessibilityRole === 'button').map((node) => node.props.accessibilityLabel as string | undefined))

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { listMilestones, listTickets, readTickets, resolveTicket } from "./lib/github-issues.mjs"
+import { listMilestones, listOpenTickets, readTickets, resolveTicket } from "./lib/github-issues.mjs"
 import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
 import { classifyConversationFirst, classifyExecutability } from "./lib/ticket-executability.mjs"
 
@@ -92,9 +92,9 @@ const ticketReferences = async () => {
       if (!milestones.includes(projectArg)) {
         throw new Error(`unknown project ${JSON.stringify(projectArg)}; available milestones: ${milestones.join(", ") || "none"}`)
       }
-      return (await listTickets({ state: "open", milestone: projectArg })).slice(0, limit).map((ticket) => ticket.identifier ?? `#${ticket.number}`)
+      return (await listOpenTickets({ milestone: projectArg })).slice(0, limit).map((ticket) => ticket.identifier ?? `#${ticket.number}`)
     }
-    return (await listTickets({ state: "open" }))
+    return (await listOpenTickets())
       .filter((ticket) => typeof ticket.projectItemId === "string")
       .slice(0, limit)
       .map((ticket) => ticket.identifier ?? `#${ticket.number}`)

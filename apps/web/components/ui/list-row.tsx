@@ -12,6 +12,7 @@ import type { ListRowProps } from '@orbit/shared/contracts/lists'
 import { ChevronDown, ChevronRight } from '@/components/ui/icons'
 import { SwitchTrack } from '@/components/ui/switch'
 import { Icon } from '@/components/ui/icon'
+import { OrbitNameText } from '@/components/ui/orbit-name-text'
 
 const ROW_TOGGLE_HEIGHT = 28
 const ROW_TEXT_LINE = '1.4875rem'
@@ -68,7 +69,7 @@ function titleClass(textMode: WebListRowProps['textMode'], wrapTitle: boolean | 
 function PlainRowText({ children, style, ...props }: Readonly<Omit<ComponentProps<'span'>, 'children'> & { children: string }>) {
   const textRef = useRef<HTMLSpanElement>(null)
   const lineHeight = useReadableLineHeight(textRef, children, style)
-  return <span {...props} data-row-multiline={typeof lineHeight === 'string' ? '' : undefined} ref={textRef} style={{ ...style, lineHeight }}>{children}</span>
+  return <span {...props} data-row-multiline={typeof lineHeight === 'string' ? '' : undefined} ref={textRef} style={{ ...style, lineHeight }}>{props.translate === 'no' ? children : <OrbitNameText text={children} />}</span>
 }
 
 function RowText({ title, textMode, titleTranslate, wrapTitle, description, wrapValue, danger, trailing, value, readOnly, toggle, personalExpanded, personalTextInsetStart }: Readonly<Pick<WebListRowProps, 'title' | 'textMode' | 'titleTranslate' | 'wrapTitle' | 'description' | 'wrapValue' | 'danger' | 'trailing' | 'compact' | 'value' | 'readOnly' | 'toggle' | 'personalExpanded' | 'personalTextInsetStart'>>) {
@@ -189,7 +190,7 @@ export function ListRow(original: Readonly<WebListRowProps>) {
     <div data-text-mode={props.textMode} className={`orbit-list-row-shell ${action ? 'orbit-list-action-surface' : ''} flex items-stretch ${props.placement !== undefined ? 'orbit-list-row-column' : ''} ${props.placement === 'field' ? 'orbit-list-row-field' : ''}`} style={{ minHeight: 52, marginBlock: action ? SPACING.s4 : undefined }}>
       {(props.textMode === 'personal' || props.valueTextMode === 'personal') && props.personalExpanded !== undefined && !readOnly && (href || onClick) ? <PersonalTextAction className="flex-1" label={accessibilityLabel ?? rowAccessibleText(props)} contentClassName="flex min-w-0 flex-1 items-center" contentStyle={{ ...bodyStyle, opacity: props.disabled ? 0.5 : undefined }} control={actionBody} /> : actionBody}
       {action ? (
-        <button type="button" aria-label={action.label} onClick={action.onPress} className="orbit-list-row-action flex size-[var(--touch-min)] shrink-0 cursor-pointer items-center justify-center rounded-full border-0 bg-transparent active:scale-[0.96]" style={getActionStyle(!!props.description)}>
+        <button type="button" aria-label={action.label} onClick={action.onPress} className="press-hit-layer orbit-list-row-action flex size-[var(--touch-min)] shrink-0 cursor-pointer items-center justify-center rounded-full border-0 bg-transparent motion-safe:active:scale-[0.96]" style={getActionStyle(!!props.description)}>
           <span className="flex shrink-0 items-center justify-center" style={{ width: TOUCH_TARGET_MIN, height: TOUCH_TARGET_MIN }}>
             <Icon name={action.icon} size={20} color={action.danger ? 'var(--status-bad)' : 'var(--fg-2)'} />
           </span>

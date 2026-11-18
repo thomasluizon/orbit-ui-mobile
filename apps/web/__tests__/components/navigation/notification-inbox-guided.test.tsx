@@ -47,7 +47,6 @@ function seed(items: NotificationItem[]) {
   vi.mocked(fetchJson).mockResolvedValue(response)
 }
 
-/** What the server returns on the next read. The cache keeps what the surface shows now. */
 function serve(items: NotificationItem[]) {
   vi.mocked(fetchJson).mockResolvedValue({ items, unreadCount: items.filter((item) => !item.isRead).length })
 }

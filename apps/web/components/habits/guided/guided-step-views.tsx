@@ -4,18 +4,21 @@ import { useState, type ReactNode } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
 import type { FlowStepView } from '@orbit/shared/contracts/flow'
 import { backendFormFieldFocusRequest, resolveBackendFormFieldMessage } from '@orbit/shared/hooks'
-import { buildHabitUnderstandingSentence, formatLocaleDate, phraseLineKey, summaryValueStep, toTime24, HABIT_TIME_OPTIONS, type HabitFormCommonProps } from '@orbit/shared/utils'
+import { buildHabitUnderstandingSentence, describeHabitFlowSummary, phraseLineKey, summaryValueStep, toTime24, HABIT_TIME_OPTIONS, type HabitFlowAnswerFields, type HabitFormCommonProps } from '@orbit/shared/utils'
 import { MAX_HABIT_TITLE_LENGTH } from '@orbit/shared/validation'
 import type { HabitFormHelpers } from '@/hooks/use-habit-form'
 import type { TagSelectionState } from '@/hooks/use-tag-selection'
 import { useTimeFormat } from '@/hooks/use-time-format'
 import { DateField } from '@/components/ui/date-field'
+import { InlineLoadError } from '@/components/ui/inline-load-error'
 import { Input } from '@/components/ui/input'
 import { ListRow } from '@/components/ui/list-row'
 import { OptionCard } from '@/components/ui/option-card'
 import { PillButton } from '@/components/ui/pill-button'
+import { PrimaryActionSlot } from '@/components/ui/primary-action-slot'
 import { Proposed } from '@/components/ui/proposed'
 import { QuestionRow } from '@/components/ui/question-row'
+import { Skeleton } from '@/components/ui/skeleton'
 import { TimeField } from '@/components/ui/time-field'
 import { HabitEmojiSelector } from '../habit-form-fields/habit-emoji-selector'
 import { HabitTypeField } from '../habit-form-fields/habit-type-field'
@@ -25,7 +28,7 @@ import type { useGuidedHabitFlow } from './use-guided-habit-flow'
 export type GuidedFlow = ReturnType<typeof useGuidedHabitFlow>
 
 /** The inputs of every detail question: the same props the full form takes, so both views share one form state. */
-export type GuidedHabitFields = Omit<HabitFormCommonProps<HabitFormHelpers, TagSelectionState, ReactNode>, 'formHelpers'>
+export type GuidedHabitFields = Omit<HabitFormCommonProps<HabitFormHelpers, TagSelectionState, ReactNode>, 'formHelpers'> & HabitFlowAnswerFields
 
 export interface GuidedHabitCompletion {
   stepCount: number
@@ -39,8 +42,10 @@ export interface GuidedHabitFlowProps {
   lockedGeneral: boolean | null
   fromConversation: boolean
   pending: boolean
-  /** An edit whose stored details still load. The summary keeps its values and the save waits. */
+  /** An edit whose stored details still load. The summary shows a skeleton for each row and the save stays off. */
   detailsLoading?: boolean
+  /** An edit whose stored details did not load. The summary states it with a retry and the save stays off. */
+  detailsError?: { message: string; onRetry: () => void } | null
   /** The server message of a failed save. The flow stays on the summary. */
   saveError: string | null
   /** The capacity, Pro or offline notice of a refused save. It shows on the summary. */
@@ -55,10 +60,6 @@ interface ViewInput {
   formHelpers: HabitFormHelpers
 }
 
-/**
- * What the device read in the phrase of a create, as the `{parts}` of the Orbit line, or null when it read nothing. An edit only renames, so it reads nothing.
- * The form shows the same sentence on a line of its own, so a few open with a capital; after the colon of the Orbit line it opens in lower case.
- */
 function usePhraseParts({ flow, formHelpers }: Readonly<ViewInput>): string | null {
   const t = useTranslations()
   const locale = useLocale()
@@ -88,8 +89,8 @@ export function usePhraseView({ flow, formHelpers }: Readonly<ViewInput>): FlowS
     free: <PhraseField label={t('habits.flow.what.label')} value={title} placeholder={t('habits.flow.what.placeholder')} maxLength={MAX_HABIT_TITLE_LENGTH} hint={hint ?? serverError}
       marks={flow.mode === 'create' ? flow.localRead.consumed : []} marksLabel={t('habits.form.understood')}
       focusRequest={focusRequest || backendFormFieldFocusRequest('title', formHelpers.backendFocusField, formHelpers.backendFocusRequest)}
-      onChange={(value) => { setHint(undefined); flow.changeTitle(value) }} />,
-    primary: { label: t('habits.flow.continue'), onPress: submit },
+      onChange={(value) => { setHint(undefined); flow.changeTitle(value) }} onSubmit={submit} />,
+    primary: { label: t('habits.flow.continue'), onPress: submit, loading: flow.reading },
   }
 }
 
@@ -114,7 +115,7 @@ export function useWhenView({ flow, formHelpers }: Readonly<ViewInput>): FlowSte
     free: <>
       <Input label={t('habits.flow.when.freeLabel')} name="datePhrase" value={text} placeholder={t('habits.flow.when.freePlaceholder')} error={issue} onChange={(value) => { setText(value); setIssue(undefined) }} onSubmit={submitText} />
       <DateField label={t('habits.flow.when.calendar')} value={dueDate} minDate={flow.mode === 'create' ? flow.today : undefined} onChange={(date) => { if (date) flow.chooseDate(date) }} />
-      <PillButton variant="ghost" onClick={submitText}>{t('habits.flow.continue')}</PillButton>
+      <PrimaryActionSlot><PillButton variant="ghost" onClick={submitText}>{t('habits.flow.continue')}</PillButton></PrimaryActionSlot>
     </>,
   }
 }
@@ -152,7 +153,7 @@ export function useTypeView({ flow, formHelpers, lockedGeneral }: Readonly<ViewI
   return {
     question: t('habits.flow.type.question'),
     line: t('habits.flow.type.line'),
-    free: <HabitTypeField formHelpers={formHelpers} lockedGeneral={lockedGeneral} onChange={() => { flow.markTypeDeliberate(); flow.advance() }} />,
+    free: <HabitTypeField formHelpers={formHelpers} lockedGeneral={lockedGeneral} onChange={(type) => { flow.markTypeDeliberate(type); flow.advance() }} />,
   }
 }
 
@@ -173,27 +174,21 @@ function useSummaryValues(formHelpers: HabitFormHelpers) {
   const t = useTranslations()
   const locale = useLocale()
   const { displayTime } = useTimeFormat()
-  const { form } = formHelpers
-  const dueDate = form.watch('dueDate') ?? ''
-  const dueTime = form.watch('dueTime') ?? ''
-  const dueEndTime = form.watch('dueEndTime') ?? ''
-  const dated = !formHelpers.isGeneral && dueDate !== ''
-  const unit = form.watch('frequencyUnit')
-  const quantity = form.watch('frequencyQuantity') ?? 1
-  const cadence = unit && form.watch('itemType') === 'habit'
-    ? (form.watch('isFlexible') ? t('habits.form.flexibleDescription', { n: quantity, unit }) : t(`result.cadence.${unit.toLowerCase()}`, { count: quantity }))
-    : null
-  return {
-    type: form.watch('itemType') === 'task' ? t('habits.form.typeTask') : t('habits.form.typeHabit'),
-    when: cadence ?? (dated ? formatLocaleDate(dueDate, locale) : t('habits.flow.summary.noDate')),
-    time: dueTime ? displayTime(dueTime) : t('habits.flow.summary.noTime'),
-    duration: dueEndTime ? t('habits.flow.summary.until', { time: displayTime(dueEndTime) }) : t('habits.flow.summary.noDuration'),
-    reminder: form.watch('reminderEnabled') ? t('habits.flow.summary.withReminder') : t('habits.flow.summary.noReminder'),
-    timed: dueTime !== '',
-  }
+  return describeHabitFlowSummary({ ...formHelpers.form.watch(), isGeneral: formHelpers.isGeneral }, { translate: (key, values) => t(key, values), locale, displayTime })
 }
 
-export function useSummaryView({ flow, formHelpers, props }: Readonly<ViewInput & { props: GuidedHabitFlowProps }>): FlowStepView {
+const SUMMARY_SKELETON_ROWS = ['title', 'type', 'when', 'time', 'reminder', 'more'] as const
+
+function SummarySkeleton() {
+  const t = useTranslations()
+  return (
+    <div role="progressbar" aria-busy="true" aria-label={t('common.loading')} data-summary-skeleton="" className="flex flex-col gap-3">
+      {SUMMARY_SKELETON_ROWS.map((row) => <div key={row} className="h-12 overflow-hidden rounded-[12px]"><Skeleton variant="fill" grouped /></div>)}
+    </div>
+  )
+}
+
+function SummaryRows({ flow, formHelpers, props }: Readonly<ViewInput & { props: GuidedHabitFlowProps }>) {
   const t = useTranslations()
   const { form } = formHelpers
   const values = useSummaryValues(formHelpers)
@@ -202,21 +197,32 @@ export function useSummaryView({ flow, formHelpers, props }: Readonly<ViewInput 
   const whenLocked = props.lockedGeneral === true
   const row = (key: string, label: string, value: string, onClick?: () => void) =>
     <ListRow key={key} placement="field" title={label} value={value} disabled={!onClick} description={!onClick ? t('common.locked') : undefined} onClick={onClick} />
-  const fromConversation = props.fromConversation ? t('habits.flow.orbit.fromConversation') : t('habits.flow.confirm.line')
+  return <>
+    <SummaryTitle flow={flow} formHelpers={formHelpers} />
+    <QuestionRow question={t('habits.flow.summary.type')} value={values.type} onPress={() => flow.open('type')} />
+    <Proposed proposed={flow.proposals.schedule} scope="row" label={proposedLabel}>{row('when', t('habits.flow.summary.when'), values.when, whenLocked ? undefined : () => flow.open(summaryValueStep('when', item)))}</Proposed>
+    {formHelpers.isGeneral ? null : <>
+      <Proposed proposed={flow.proposals.time} scope="row" label={proposedLabel}>{row('time', t('habits.flow.summary.time'), values.time, () => flow.open('time'))}</Proposed>
+      {values.timed ? row('duration', t('habits.flow.summary.duration'), values.duration, () => flow.open('duration')) : null}
+    </>}
+    {row('reminder', t('habits.flow.summary.reminder'), values.reminder, () => flow.open(summaryValueStep('reminder', item)))}
+  </>
+}
+
+export function useSummaryView({ flow, formHelpers, props }: Readonly<ViewInput & { props: GuidedHabitFlowProps }>): FlowStepView {
+  const t = useTranslations()
+  const fromConversation = props.fromConversation ? t('habits.form.fromConversation') : t('habits.flow.confirm.line')
+  const detailsReady = !props.detailsLoading && !props.detailsError
+  const waiting = props.detailsLoading ? <SummarySkeleton /> : props.detailsError ? <InlineLoadError message={props.detailsError.message} onRetry={props.detailsError.onRetry} /> : null
   return {
     question: t('habits.flow.confirm.question'),
     line: flow.offline ? t('habits.flow.orbit.offline') : fromConversation,
     free: <div role="group" aria-label={t('habits.flow.confirm.question')} className="flex flex-col gap-3">
-      <SummaryTitle flow={flow} formHelpers={formHelpers} />
-      <QuestionRow question={t('habits.flow.summary.type')} value={values.type} onPress={() => flow.open('type')} />
-      <Proposed proposed={flow.proposals.schedule} scope="row" label={proposedLabel}>{row('when', t('habits.flow.summary.when'), values.when, whenLocked ? undefined : () => flow.open(summaryValueStep('when', item)))}</Proposed>
-      <Proposed proposed={flow.proposals.time} scope="row" label={proposedLabel}>{row('time', t('habits.flow.summary.time'), values.time, () => flow.open('time'))}</Proposed>
-      {values.timed ? row('duration', t('habits.flow.summary.duration'), values.duration, () => flow.open('duration')) : null}
-      {row('reminder', t('habits.flow.summary.reminder'), values.reminder, () => flow.open(summaryValueStep('reminder', item)))}
+      {waiting ?? <SummaryRows flow={flow} formHelpers={formHelpers} props={props} />}
       {props.notice}
       {props.saveError ? <p role="alert" className="text-sm text-[var(--status-bad-text)]">{props.saveError}</p> : null}
-      <QuestionRow question={t('habits.flow.more')} onPress={() => flow.open('more')} />
+      {detailsReady ? <QuestionRow question={t('habits.flow.more')} onPress={() => flow.open('more')} /> : null}
     </div>,
-    primary: { label: props.createLabel, onPress: () => props.onSubmit({ stepCount: flow.steps.length, usedAiRead: flow.usedAiRead }), loading: props.pending || props.detailsLoading },
+    primary: { label: props.createLabel, onPress: () => props.onSubmit({ stepCount: flow.steps.length, usedAiRead: flow.usedAiRead }), loading: props.pending || Boolean(props.detailsLoading), disabled: !props.detailsLoading && Boolean(props.detailsError) },
   }
 }

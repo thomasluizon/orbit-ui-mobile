@@ -18,10 +18,8 @@ type CountPlacement = 'inline' | 'corner'
 
 const COUNT_ROLL = { duration: motionDurations.slow / 1000, ease: [...motionEasings.standard] as [number, number, number, number] }
 
-/** How the count shows a change: `roll` rolls the new figure in once, `still` swaps it under reduced motion, and null is the surface with the guided flows off. */
 type CountMotion = 'roll' | 'still' | null
 
-/** True from the first change of a loaded count. The count the bell opens with, and the first count a cold inbox loads, never roll. */
 function useCountChanged(count: number, loaded: boolean): boolean {
   const [first, setFirst] = useState<number | null>(loaded ? count : null)
   const [changed, setChanged] = useState(false)

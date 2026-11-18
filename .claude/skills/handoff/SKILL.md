@@ -12,6 +12,14 @@ effort: high
 next session whose entry point is `/sleep`. Nobody has to add anything before it runs. Anything else
 is extra work for the NEXT session. You never do that work now.
 
+An owner `/handoff` runs `node tools/relay-session.mjs --owner-check` first, before it writes
+anything. The check refuses while another live session runs unattended in this checkout, while a
+live relay successor did not adopt the run yet, or while another session holds an auto-work handoff
+that no successor adopted yet. Beside another session's unattended run, it also refuses when it
+cannot find this session's own Claude session record, because then it cannot see whether that run is
+live. If it refuses, write and push nothing, and give the owner its message, which names his next
+step.
+
 `--crank` or `/crank` includes `--sleep`. Read the current session's run state with
 `readRunState` from `tools/lib/run-state.mjs`: `crank: true` includes it automatically,
 including on a context relay. The prompt then carries a `## Crank` section telling the next
@@ -37,7 +45,7 @@ prompts, unrelated runs and disabled auto-work cannot inherit it. Keep intake ou
 
 `--relay` is the unattended context transition requested by `relay-at-threshold.mjs`.
 It includes `--sleep`, and `--crank` automatically when the run state has `crank: true`.
-It never invokes `/questions`, asks the owner anything, or ends the session before a successor
+It never asks the owner anything, and it never ends the session before a successor
 is confirmed. This is the exception to the owner handoff's ending
 rule below. Every other inventory, spec, prompt, commit and push requirement still applies.
 
@@ -52,11 +60,23 @@ until it exits; a plain shell polling loop does not.
 Relay mode waits for every live background Workflow run and background subagent to finish before ending the session, with the hook and relay tool checking recorded launch and completion evidence and the owning process start identity.
 
 Read the open chain with `openSessionChain` from `tools/lib/session-chain.mjs`, using this
-session's exact id. Carry every chain entry's complete decisions and open owner questions,
-along with the current decision log. Put every unresolved owner question in the spec's
-`## Open questions` and the run state's `openOwnerQuestions` array. Record who must answer and
-what it blocks; defer it without asking. Retain questions from earlier chain entries even if
-the current session did not discover them.
+session's exact id. Carry every chain entry's complete decisions, along with the current
+decision log.
+
+With `--relay`, invoke `/questions --relay` before writing the spec or the prompt. It answers or
+decides every queued question the run can settle, and it records each disposition where the work
+reads it. Only the owner's questions stay in the run state's `openOwnerQuestions`, each once, with
+every source and blocker. A step the spec lists as owner-only, never reminded, stays out of the
+queue. The successor inherits the queue, and the owner answers it only through his own `/questions`.
+
+An owner `/handoff` never runs `/questions --relay`. Only the owner's own `/questions` filters the
+queue: `/wrap-up` runs it before this skill, and a bare owner `/handoff` runs none. In both
+modes, every row that `node tools/owner-questions.mjs --list` prints goes in the spec's
+`## Open questions`, with who must answer and what it blocks. When this session owns no run, the
+list also holds the queue of a run whose session is no longer live, and that no relay successor or
+unadopted auto-work handoff holds. Remove a question from that section
+only when a filter or the owner settled it. Keep the owner-only steps and the settled decisions that
+the section also holds.
 
 Add this one timeless line to the spec: `The session chain ledger lives untracked at .git/orbit-session-chain.json.`
 Keep session ids, timestamps, terminal handles and timed decision logs in that ledger.
@@ -73,8 +93,9 @@ the auto compact point, the hook records the fallback and permits ordinary conti
 
 An owner-origin `/handoff` clears a pending drain through `record-handoff-request.mjs`.
 After an owner handoff has finished its committed and pushed outputs, run
-`node tools/relay-session.mjs --close-chain` before the final reply. This records the current
-session and closes the reporting chain. An automatic relay leaves it open.
+`node tools/relay-session.mjs --close-chain` before the final reply. When this session has an open
+reporting chain, the tool records the session and closes that chain; with no open chain it records
+nothing. It repeats the `--owner-check` refusal as a backstop. An automatic relay leaves the chain open.
 
 Two outputs, both committed files in this repo:
 

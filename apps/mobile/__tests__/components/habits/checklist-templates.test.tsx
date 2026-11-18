@@ -1,3 +1,4 @@
+import { controlStyle } from '@/__tests__/support/press-feedback'
 import { act, create, type ReactTestRenderer } from 'react-test-renderer'
 import { measureClampedPersonalText, expectPersonalTextLayout, expandedTextControls, pressTextControl } from '@/__tests__/support/personal-text'
 import React from 'react'
@@ -9,10 +10,9 @@ import { ChecklistTemplates } from '@/components/habits/checklist-templates'
 
 const mocks = vi.hoisted(() => ({
   templates: [] as ChecklistTemplate[],
-  create: vi.fn(),
+  create: vi.fn<(request: { name: string; items: string[] }) => Promise<unknown>>(),
   remove: vi.fn(),
   showError: vi.fn(),
-  isPending: false,
   closeSheet: vi.fn<(afterClose: () => void) => void>(),
 }))
 
@@ -26,9 +26,11 @@ vi.mock('@/lib/use-app-theme', () => ({
 
 vi.mock('@/hooks/use-checklist-templates', () => ({
   useChecklistTemplates: () => ({ data: mocks.templates }),
-  useCreateChecklistTemplate: () => ({ mutate: mocks.create, isPending: mocks.isPending }),
+  useCreateChecklistTemplate: () => ({ mutateAsync: mocks.create }),
   useDeleteChecklistTemplate: () => ({ mutate: mocks.remove }),
 }))
+
+vi.mock('@/components/ui/pill-button', async (importOriginal) => ({ ...await importOriginal<object>(), waitingFaceStyle: () => ({ backgroundColor: '#123456' }), waitingTextColor: () => '#654321' }))
 
 vi.mock('@/hooks/use-app-toast', () => ({
   useAppToast: () => ({ showError: mocks.showError }),
@@ -93,7 +95,6 @@ describe('ChecklistTemplates mobile', () => {
     mocks.create.mockReset()
     mocks.remove.mockReset()
     mocks.showError.mockReset()
-    mocks.isPending = false
     mocks.closeSheet.mockReset()
   })
 
@@ -118,7 +119,7 @@ describe('ChecklistTemplates mobile', () => {
     const fill = tree.root.findAll((node) => node.type === 'View' && node.props.testID === 'template-row-feedback')[0]!
     const deleteControl = tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityLabel === 'common.delete: Workout')[0]!
     expect(StyleSheet.flatten(fill.props.style as StyleProp<ViewStyle>).backgroundColor).toBe('transparent')
-    expect(StyleSheet.flatten(deleteControl.props.style as StyleProp<ViewStyle>).backgroundColor).toBe(createTokensV2('orange', 'light').bgHover)
+    expect(controlStyle(deleteControl as never).backgroundColor).toBe(createTokensV2('orange', 'light').bgHover)
     expect(mocks.remove).not.toHaveBeenCalled()
   })
 
@@ -135,7 +136,7 @@ describe('ChecklistTemplates mobile', () => {
     const { tree } = renderTemplates()
     press(listRow(tree, 'habits.form.useTemplate'))
     const saveCurrent = () => tree.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityRole === 'button' && node.findAll((child) => child.type === 'Text' && child.props.children === 'habits.form.saveCurrentList').length > 0)[0]!
-    const paint = () => StyleSheet.flatten(saveCurrent().props.style as StyleProp<ViewStyle>)
+    const paint = () => controlStyle(saveCurrent())
     expect(paint().backgroundColor).toBe(tokens.bgWell)
     TestRenderer.act(() => (saveCurrent().props.onPressIn as () => void)())
     expect(paint().backgroundColor).toBe(tokens.bgHover)
@@ -143,25 +144,92 @@ describe('ChecklistTemplates mobile', () => {
     expect(paint().backgroundColor).toBe(tokens.bgWell)
   })
 
-  it('saves the current checklist under a trimmed template name', () => {
+  function openSaveEditor(name: string) {
     const { tree } = renderTemplates()
     press(listRow(tree, 'habits.form.useTemplate'))
     const saveCurrent = tree.root.findAll((node) => node.props.accessibilityRole === 'button' && node.findAll((child) => child.type === 'Text' && child.props.children === 'habits.form.saveCurrentList').length > 0)[0]!
     press(saveCurrent, 'onPress')
-
-    const input = tree.root.findAll((node) => node.type === 'TextInput')[0]!
+    const input = () => tree.root.findAll((node) => node.type === 'TextInput')[0]!
     TestRenderer.act(() => {
-      ;(input.props.onChangeText as (value: string) => void)('  Morning  ')
+      ;(input().props.onChangeText as (value: string) => void)(name)
     })
-    const save = tree.root.findAll(
-      (node) => node.props.accessibilityRole === 'button' && node.props.accessibilityLabel === 'common.save',
-    )[0]!
-    press(save, 'onPress')
+    const save = () => tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityLabel === 'common.save')[0]!
+    return { tree, input, save }
+  }
 
-    expect(mocks.create).toHaveBeenCalledWith(
-      { name: 'Morning', items: ['Shoes'] },
-      expect.objectContaining({ onSuccess: expect.any(Function), onError: expect.any(Function) }),
-    )
+  function pendingCreate() {
+    let settle!: { resolve: () => void; reject: (failure: Error) => void }
+    mocks.create.mockImplementation(() => new Promise((resolve, reject) => { settle = { resolve: () => resolve({ id: 'template-1' }), reject } }))
+    return () => settle
+  }
+
+  function pressSave(save: TestNode) {
+    TestRenderer.act(() => {
+      if (!save.props.disabled) (save.props.onPress as () => void)()
+    })
+  }
+
+  it('saves the current checklist under a trimmed template name', async () => {
+    mocks.create.mockResolvedValue({ id: 'template-1' })
+    const { save } = openSaveEditor('  Morning  ')
+    pressSave(save())
+    await act(async () => {})
+    expect(mocks.create).toHaveBeenCalledWith({ name: 'Morning', items: ['Shoes'] })
+  })
+
+  it('keeps the Save label and shows the skeleton face while the request runs, and sends nothing on a second press', () => {
+    pendingCreate()
+    const { input, save } = openSaveEditor('Morning')
+    pressSave(save())
+    expect(save().props.accessibilityState).toMatchObject({ busy: true, disabled: true })
+    expect(save().findAll((node) => node.type === 'Text').some((node) => node.props.children === 'common.save')).toBe(true)
+    expect(save().findAll((node) => String(node.type) === 'View' && node.props.testID === 'skeleton-face')).toHaveLength(1)
+    pressSave(save())
+    TestRenderer.act(() => (input().props.onSubmitEditing as () => void)())
+    expect(input().props.editable).toBe(false)
+    expect(mocks.create).toHaveBeenCalledOnce()
+  })
+
+  it('takes the Save waiting face and label colour from the shared pill waiting face, so a change to that face reaches this action', () => {
+    pendingCreate()
+    const { save } = openSaveEditor('Morning')
+    pressSave(save())
+    expect(controlStyle(save() as never).backgroundColor).toBe('#123456')
+    const label = save().findAll((node) => node.type === 'Text' && node.props.children === 'common.save')[0]!
+    expect(StyleSheet.flatten(label.props.style as StyleProp<TextStyle>).color).toBe('#654321')
+  })
+
+  it('sends one request for two presses in the same event turn', () => {
+    pendingCreate()
+    const { save } = openSaveEditor('Morning')
+    const onPress = save().props.onPress as () => void
+    TestRenderer.act(() => {
+      onPress()
+      onPress()
+    })
+    expect(mocks.create).toHaveBeenCalledOnce()
+  })
+
+  it('closes the editor after the request succeeds', async () => {
+    const settle = pendingCreate()
+    const { tree, save } = openSaveEditor('Saved')
+    pressSave(save())
+    await act(async () => { settle().resolve(); await Promise.resolve() })
+    expect(tree.root.findAll((node) => node.type === 'TextInput')).toHaveLength(0)
+  })
+
+  it('ends the waiting face and shows an error toast when the request fails', async () => {
+    const settle = pendingCreate()
+    const { save } = openSaveEditor('Bad')
+    pressSave(save())
+    await act(async () => { settle().reject(new Error('offline')); await Promise.resolve() })
+    expect(mocks.showError).toHaveBeenCalledWith('habits.form.saveTemplateError')
+    expect(save().props.accessibilityState).toMatchObject({ busy: false, disabled: false })
+    expect(save().findAll((node) => String(node.type) === 'View' && node.props.testID === 'skeleton-face')).toHaveLength(0)
+    mocks.create.mockResolvedValue({ id: 'template-1' })
+    pressSave(save())
+    await act(async () => {})
+    expect(mocks.create).toHaveBeenCalledTimes(2)
   })
 
   it('rings the template name field with the control border at rest and the primary ring while focused', async () => {

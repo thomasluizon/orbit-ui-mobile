@@ -6,7 +6,6 @@ import { OrbitMascot } from '@/components/ui/orbit-mascot'
 import { Sheet, type SheetHandle } from '@/components/ui/sheet'
 import { MILESTONE_SHARE_CARD_WIDTH } from './milestone-share-card'
 
-/** The card keeps its logical width for the image. The preview scales it down to the width of the dialog. */
 function MilestoneCardPreview({ children }: Readonly<{ children: ReactNode }>) {
   const frameRef = useRef<HTMLDivElement>(null)
   const cardRef = useRef<HTMLDivElement>(null)

@@ -32,7 +32,6 @@ export function NotificationBell() {
     )} />
 }
 
-/** True from the first change of a loaded count. The count the bell opens with, and the first count a cold inbox loads, never roll. */
 function useCountChanged(count: number, loaded: boolean): boolean {
   const [first, setFirst] = useState<number | null>(loaded ? count : null)
   const [changed, setChanged] = useState(false)
@@ -42,7 +41,6 @@ function useCountChanged(count: number, loaded: boolean): boolean {
   return changed
 }
 
-/** A changed count rolls up into the pill once. The pill clips the figure and stays in place. */
 function CountRoll({ children }: Readonly<{ children: ReactNode }>) {
   const [progress] = useState(() => new Animated.Value(0))
   useEffect(() => {

@@ -8,7 +8,6 @@ import { CreateGoalSheet } from '@/components/goals/create-goal-sheet'
 
 const mocks = vi.hoisted(() => ({
   create: vi.fn().mockResolvedValue({ id: 'created-goal' }),
-  pending: false,
   habitFormReady: Promise.resolve(),
   locale: 'en',
   habits: { data: { habitsById: new Map<string, ReturnType<typeof createMockHabit>>() }, isLoading: false, isError: false, refetch: vi.fn() },
@@ -24,7 +23,7 @@ vi.mock('@/components/habits/create-habit-modal', async () => {
   await mocks.habitFormReady
   return { CreateHabitModal: ({ onOpenChange }: { onOpenChange: (open: boolean) => void }) => <button type="button" onClick={() => onOpenChange(false)}>Finish habit creation</button> }
 })
-vi.mock('@/hooks/use-goals', () => ({ useCreateGoal: () => ({ mutateAsync: mocks.create, isPending: mocks.pending }) }))
+vi.mock('@/hooks/use-goals', () => ({ useCreateGoal: () => ({ mutateAsync: mocks.create }) }))
 vi.mock('@/hooks/use-habit-queries', () => ({ useHabits: () => mocks.habits }))
 vi.mock('@/hooks/use-app-toast', () => ({ useAppToast: () => ({ showError: vi.fn() }) }))
 vi.mock('@/components/ui/date-field', () => ({
@@ -33,7 +32,6 @@ vi.mock('@/components/ui/date-field', () => ({
 
 beforeEach(() => {
   mocks.create.mockReset().mockResolvedValue({ id: 'created-goal' })
-  mocks.pending = false
   mocks.locale = 'en'
   mocks.habits.data.habitsById.clear()
   mocks.habits.isLoading = false
@@ -213,11 +211,21 @@ describe('goal creation with habits', () => {
     await waitFor(() => expect(screen.getByLabelText('What do you want to reach?')).toHaveValue('Read every day'))
   })
 
-  it.each(['en', 'pt-BR'])('keeps the submit label and disables it while saving in %s', (locale) => {
+  it.each(['en', 'pt-BR'])('keeps the submit label and shows the waiting face while saving in %s', async (locale) => {
     mocks.locale = locale
-    mocks.pending = true
+    const messages = locale === 'en' ? en : ptBR
+    mocks.create.mockImplementation(() => new Promise(() => {}))
     render(<CreateGoalSheet open onClose={vi.fn()} />)
-    expect(screen.getByRole('button', { name: locale === 'en' ? 'Create goal' : 'Criar meta' })).toBeDisabled()
-    expect(screen.getByRole('button', { name: locale === 'en' ? 'Cancel' : 'Cancelar' })).toBeDisabled()
+    fireEvent.change(screen.getByLabelText(messages.goals.form.description), { target: { value: 'Read every day' } })
+    fireEvent.change(screen.getByLabelText(messages.goals.form.targetValueQuestion), { target: { value: '12' } })
+    fireEvent.change(screen.getByLabelText(messages.goals.form.unitQuestion), { target: { value: 'books' } })
+    const create = screen.getByRole('button', { name: messages.goals.create })
+    fireEvent.click(create)
+    await waitFor(() => expect(create).toHaveAttribute('aria-busy', 'true'))
+    expect(create).toBeDisabled()
+    expect(create.querySelector('[data-slot="skeleton-face"]')).not.toBeNull()
+    expect(screen.getByRole('button', { name: messages.common.cancel })).toBeDisabled()
+    fireEvent.submit((create as HTMLButtonElement).form!)
+    expect(mocks.create).toHaveBeenCalledOnce()
   })
 })

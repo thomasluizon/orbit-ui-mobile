@@ -5,6 +5,7 @@ import Yoga, { type Node as YogaNode } from 'yoga-layout'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { formatLocaleTime } from '@orbit/shared/utils'
 import { INTERACTION_FILL_CLEARANCE, SPACING, TOUCH_TARGET_MIN, motionPresets } from '@orbit/shared/theme'
+import { pressableStyle } from '@/__tests__/support/press-feedback'
 import {
   __resetTestHostConfig,
   __setScrollToImpl,
@@ -14,6 +15,7 @@ import { TimeField } from '@/components/ui/time-field'
 import { PillButton } from '@/components/ui/pill-button'
 import { createTokensV2 } from '@/lib/theme'
 import { focusHost, withFocusProvenance } from '../../support/focus-provenance'
+import { applyBorderWidths } from '@/__tests__/support/yoga-borders'
 
 const TestRenderer = require('react-test-renderer')
 
@@ -113,7 +115,7 @@ function layoutNode(element: HostJson): YogaNode {
   if (typeof style.width === 'number') node.setWidth(style.width)
   if (typeof style.height === 'number') node.setHeight(style.height)
   if (typeof style.minHeight === 'number') node.setMinHeight(style.minHeight)
-  if (typeof style.borderWidth === 'number') node.setBorder(Yoga.EDGE_ALL, style.borderWidth)
+  applyBorderWidths(node, style)
   if (typeof style.paddingHorizontal === 'number') node.setPadding(Yoga.EDGE_HORIZONTAL, style.paddingHorizontal)
   if (typeof style.paddingRight === 'number') node.setPadding(Yoga.EDGE_RIGHT, style.paddingRight)
   hostChildren(element).forEach((child, index) => node.insertChild(layoutNode(child), index))
@@ -418,7 +420,7 @@ await Promise.resolve()
     })
     for (const label of ['Start: common.selectTime', 'common.clear']) {
       const button = tree.root.findAllByType(Pressable).find((node: any) => node.props.accessibilityLabel === label)
-      const paint = (pressed: boolean) => StyleSheet.flatten(button.props.style({ pressed }))
+      const paint = (pressed: boolean) => pressableStyle(button, pressed)
       expect(paint(false).backgroundColor).toBeUndefined()
       expect(paint(true)).toMatchObject({ backgroundColor: tokens.bgHover, width: TOUCH_TARGET_MIN, height: TOUCH_TARGET_MIN, borderRadius: TOUCH_TARGET_MIN / 2, overflow: 'hidden' })
     }

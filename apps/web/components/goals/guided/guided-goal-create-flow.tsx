@@ -5,14 +5,14 @@ import { useTranslations } from 'next-intl'
 import type { FlowStepView } from '@orbit/shared/contracts/flow'
 import type { CreateGoalSheetProps } from '@orbit/shared/hooks'
 import type { GoalType } from '@orbit/shared/types/goal'
-import { buildGoalTitle, getGoalFlowStepError, type GoalFlowStep } from '@orbit/shared/utils'
+import { buildGoalTitle, getGoalFlowStepError, goalFlowStepOfField, type GoalDraftPort, type GoalFlowStep } from '@orbit/shared/utils'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { useGoalCreation } from '@/hooks/use-goal-creation'
 import { captureGuidedFlowCompleted } from '@/lib/posthog'
-import { GoalSummary, useAmountView, useDeadlineView, useTrackView, useWhatView, type GoalDraftPort } from './goal-flow-steps'
+import { GoalSummary, useAmountView, useDeadlineView, useTrackView, useWhatView } from './goal-flow-steps'
 import { useGoalHabitsSummary, useGoalHabitsView } from './goal-habits-step'
 import { GoalResultDialog } from './goal-result-dialog'
-import { GoalFlowFrame, stepOfField, useStepHints, type SavedGoal } from './guided-goal-flow'
+import { GoalFlowFrame, useStepHints, type SavedGoal } from './guided-goal-flow'
 import { useGuidedGoalFlow } from './use-guided-goal-flow'
 
 function GoalCreateRun({ props, onSaved }: Readonly<{ props: CreateGoalSheetProps; onSaved: (goal: SavedGoal) => void }>) {
@@ -44,7 +44,7 @@ function GoalCreateRun({ props, onSaved }: Readonly<{ props: CreateGoalSheetProp
   const context = { draft, hint: hints.hint, submit: hints.submit, advance: flow.advance }
   const create = () => {
     const error = getGoalFlowStepError('what', form) ?? getGoalFlowStepError('amount', form)
-    if (error) { hints.show(error); flow.open(stepOfField(error.field)); return }
+    if (error) { hints.show(error); flow.open(goalFlowStepOfField(error.field)); return }
     submitted.current = { title: buildGoalTitle(form.description, form.targetValue, form.unit), deadline: form.deadline }
     void form.onSubmit()
   }

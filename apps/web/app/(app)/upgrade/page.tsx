@@ -50,29 +50,24 @@ import { useHeldAccountId } from '@/stores/auth-store'
 
 const PORTAL_RETURN_KEY = 'orbit.subscription.portal-return'
 const AI_SETTINGS_ROUTE = '/profile/ai'
-/** The old slug of the AI settings page. Stored links still send it as `from`. */
 const LEGACY_AI_SETTINGS_ROUTE = '/profile/astra'
 
-/** The route a `from` value names. Only the AI settings page sends one. */
 function knownOrigin(from: string | null): string | null {
   return from === AI_SETTINGS_ROUTE || from === LEGACY_AI_SETTINGS_ROUTE ? AI_SETTINGS_ROUTE : null
 }
 
-/** The place the result of a purchase returns to: the AI settings page under either address, or another place of the app that `from` names. */
 function purchaseOrigin(from: string | null): string | null {
   return knownOrigin(from) ?? (isSafeAuthReturnUrl(from) ? from : null)
 }
 
-/** The plan question with the guided flows on, and the current pitch with them off. Both send the same checkout. */
 function UpgradePitchSection({ guided, usage, ...props }: ComponentProps<typeof PricingSection> & Pick<GuidedPricingSectionProps, 'usage'> & { guided: boolean }) {
   return guided ? <GuidedPricingSection {...props} usage={usage} /> : <PricingSection {...props} />
 }
 
-/** The billing read failed. With the guided flows on, Orbit names the state in the first person above the retry. */
 function UpgradeLoadFailed({ guided, retrying, onRetry, t }: Readonly<{ guided: boolean; retrying: boolean; onRetry: () => void; t: ReturnType<typeof useTranslations> }>) {
   const mascotSize = useStateMascotSize()
   const retry = <IconButton label={t('upgrade.billing.retry')} loading={retrying} onClick={onRetry}><RefreshCw size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton>
-  if (!guided) return <ErrorState message={t('upgrade.billing.error')} action={retry} />
+  if (!guided) return <ErrorState fullSurface message={t('upgrade.billing.error')} action={retry} />
   return (
     <div data-upgrade-load-failed="" className="flex flex-col items-center">
       <span aria-hidden="true"><OrbitMascot size={mascotSize} state="parado" /></span>
@@ -81,17 +76,14 @@ function UpgradeLoadFailed({ guided, retrying, onRetry, t }: Readonly<{ guided: 
   )
 }
 
-/** The subscription read that the result of a purchase trusts: null while the screen loads or after it failed. */
 function settledStatus<Status>(state: SubscriptionScreenState, status: Status | null): Status | null {
   return state === 'loading' || state === 'load-failed' ? null : status
 }
 
-/** While a Stripe return settles, the guided primary keeps its label on the waiting face, so a person who just paid cannot start a second checkout. */
 function settlingCheckout<Interval>(guided: boolean, isSettling: boolean, checkoutLoading: Interval | null): Interval | 'yearly' | null {
   return checkoutLoading ?? (guided && isSettling ? 'yearly' : null)
 }
 
-/** The plan question is the `h1` of the guided pitch, so the header title is plain text there. */
 function headerTitleIsHeading(guided: boolean, contentCap: 'pitch' | undefined): boolean {
   return !guided || contentCap !== 'pitch'
 }

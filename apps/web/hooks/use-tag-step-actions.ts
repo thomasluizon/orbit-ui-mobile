@@ -3,12 +3,12 @@
 import { useCallback } from 'react'
 import * as Sentry from '@sentry/nextjs'
 import { useLocale, useTranslations } from 'next-intl'
-import { validateTagForm } from '@orbit/shared/validation'
-import { extractBackendStatus, getFriendlyErrorMessage } from '@orbit/shared/utils'
+import { createTagRequests } from '@orbit/shared/hooks'
 import { useBackendFieldErrors } from '@/hooks/use-backend-field-errors'
 import { useAccountScopedState } from '@/hooks/use-session-reset'
 import { useCreateTag, useDeleteTag, useSuggestTags, useTags, useUpdateTag } from '@/hooks/use-tags'
 import { useTagSuggestions } from '@/hooks/use-tag-suggestions'
+import { useSubmitHold } from '@/hooks/use-submit-hold'
 import type { TagSelectionState } from '@/hooks/use-tag-selection'
 
 interface TagStepRequest {
@@ -26,7 +26,9 @@ export function useTagStepActions(tags: TagSelectionState, { title, description 
   const updateTag = useUpdateTag()
   const deleteTag = useDeleteTag()
   const suggestTags = useSuggestTags()
-  const pending = createTag.isPending || updateTag.isPending || deleteTag.isPending
+  const createHold = useSubmitHold()
+  const renameHold = useSubmitHold()
+  const pending = createHold.waiting || renameHold.waiting || createTag.isPending || updateTag.isPending || deleteTag.isPending
   const newTagErrors = useBackendFieldErrors({ name: tags.newTagName }, { name: 'Name' })
   const editTagErrors = useBackendFieldErrors({ name: tags.editTagName }, { name: 'Name' })
   const [newTagHint, setNewTagHint] = useAccountScopedState<string | undefined>(undefined)
@@ -38,60 +40,34 @@ export function useTagStepActions(tags: TagSelectionState, { title, description 
     accept: (suggestion) => tags.acceptSuggestedTag(suggestion, async (name, color) => (await createTag.mutateAsync({ name, color })).id),
   })
 
-  const changeNewTagName = (name: string) => { setNewTagHint(undefined); tags.setNewTagName(name) }
-  const changeEditTagName = (name: string) => { setEditTagHint(undefined); tags.setEditTagName(name) }
-  const discardEditor = () => {
-    newTagErrors.clearBackendErrors()
-    editTagErrors.clearBackendErrors()
-    setEditTagHint(undefined)
-    tags.cancelEditTag()
-  }
-
-  async function createNewTag() {
-    const validationError = validateTagForm(tags.newTagName, tags.newTagColor)
-    if (validationError) { setNewTagHint(translate(validationError)); return }
-    try {
-      await tags.createAndSelectTag(async (name, color) => (await createTag.mutateAsync({ name, color })).id)
-    } catch (error: unknown) {
-      if (!newTagErrors.reportBackendErrors(error).handled) setNewTagHint(getFriendlyErrorMessage(error, translate, 'toast.errors.validation', 'tag'))
-    }
-  }
-
-  async function saveEditedTag() {
-    try {
-      await tags.saveEditTag(async (id, name, color) => { await updateTag.mutateAsync({ tagId: id, name, color }) })
-    } catch (error: unknown) {
-      if (!editTagErrors.reportBackendErrors(error).handled) setEditTagHint(getFriendlyErrorMessage(error, translate, 'toast.errors.validation', 'tag'))
-    }
-  }
-
-  async function deleteExistingTag(id: string) {
-    setDeleteError(null)
-    try {
-      await tags.deleteTag(id, async (tagId) => { await deleteTag.mutateAsync(tagId) })
-    } catch (error: unknown) {
-      setDeleteError(getFriendlyErrorMessage(error, translate, 'toast.errors.unknown', 'tag'))
-      if (extractBackendStatus(error) !== 409) Sentry.captureException(error)
-    }
-  }
+  const requests = createTagRequests({
+    tags,
+    translate,
+    createTag: async (name, color) => (await createTag.mutateAsync({ name, color })).id,
+    updateTag: async (tagId, name, color) => { await updateTag.mutateAsync({ tagId, name, color }) },
+    deleteTag: async (tagId) => { await deleteTag.mutateAsync(tagId) },
+    createHold,
+    renameHold,
+    newTagErrors,
+    editTagErrors,
+    setNewTagHint,
+    setEditTagHint,
+    setDeleteError,
+    reportError: (error) => { Sentry.captureException(error) },
+  })
 
   return {
     availableTags,
     pending,
-    creating: createTag.isPending,
-    renaming: updateTag.isPending,
+    creating: createHold.waiting,
+    renaming: renameHold.waiting,
     suggestions,
     newTagError: newTagErrors.fieldErrors.name ?? newTagHint,
     newTagFocusRequest: newTagErrors.focusRequest,
     editTagError: editTagErrors.fieldErrors.name ?? editTagHint,
     editTagFocusRequest: editTagErrors.focusRequest,
     deleteError,
-    changeNewTagName,
-    changeEditTagName,
-    discardEditor,
-    createNewTag,
-    saveEditedTag,
-    deleteExistingTag,
+    ...requests,
   }
 }
 

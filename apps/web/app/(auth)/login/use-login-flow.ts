@@ -24,7 +24,7 @@ export function useLoginFlow(isAuthCallback = false) {
   const searchParams = useSearchParams()
   const t = useTranslations()
   const locale = useLocale()
-  const { setAuth } = useAuthStore()
+  const { setAuth, isAuthenticated: signedIn } = useAuthStore()
   const { isOnline } = useOffline()
   const turnstileSiteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY
   const {
@@ -211,6 +211,11 @@ export function useLoginFlow(isAuthCallback = false) {
     } finally { busy.current = false; setIsSubmitting(false) }
   }
 
+  function refuseEmptyEmail() {
+    setErrorKey('auth.errors.invalidEmail')
+    setEmailFocusRequest((request) => request + 1)
+  }
+
   function reportValidationFailure(error: unknown): boolean {
     if (!extractBackendFieldErrors(error)) return false
     setErrorKey(null)
@@ -287,6 +292,8 @@ export function useLoginFlow(isAuthCallback = false) {
 
   function handleTurnstileToken(token: string | null) {
     if (!onTurnstileToken(token)) return
+    if (token && step === 'code' && codeFailure !== 'locked' && codeFailure !== 'expired'
+      && !isValidVerificationCode(entry.codeDigits.join(''))) setCodeFocusRequest((request) => request + 1)
     if (!token || !isOnline || !pendingAutoCode.current) return
     const pending = pendingAutoCode.current
     pendingAutoCode.current = null
@@ -395,7 +402,7 @@ export function useLoginFlow(isAuthCallback = false) {
     setErrorKey(null)
   }
 
-  return { t, step, email, setEmail: changeEmail, emailFocusRequest, isSubmitting, isResending, isGoogleLoading, isAppleLoading, errorKey,
+  return { t, step, email, signedIn, setEmail: changeEmail, emailFocusRequest, isSubmitting, isResending, isGoogleLoading, isAppleLoading, errorKey,
     emailFieldError: getBackendFieldError(validationError, 'Email'),
     codeFieldError: getBackendFieldError(validationError, 'Code'),
     codeFocusRequest,
@@ -406,5 +413,5 @@ export function useLoginFlow(isAuthCallback = false) {
     errorMessage: errorKey ? t(errorKey) : null, successMessage, referralCode, fromOnboarding,
     turnstileSiteKey, turnstileToken, turnstileResetKey, onTurnstileToken: handleTurnstileToken,
     pendingHabitCount, isOnline, authStepMotion, ...entry, onCodeChange, codeFailure, lockCountdown, accountBack,
-    sendCode, verifyCode, resendCode, backToEmail, signInWithGoogle, signInWithApple, continueAccount }
+    sendCode, refuseEmptyEmail, verifyCode, resendCode, backToEmail, signInWithGoogle, signInWithApple, continueAccount }
 }

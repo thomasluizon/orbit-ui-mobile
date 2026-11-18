@@ -12,11 +12,6 @@ vi.mock('next-intl', async (importActual) => {
   return { ...actual, useTranslations: () => (key: string, params?: Record<string, string | number>) => rewardState.locale ? (() => { const translate = actual.createTranslator({ locale: rewardState.locale, messages: rewardState.locale === 'en' ? en : ptBR }); return translate(key as Parameters<typeof translate>[0], params) })() : key }
 })
 
-/**
- * One client for every render, the way the real `useQueryClient` reads one off a context. A fresh
- * object per render changes the identity of an effect dependency, which re-arms a settle timer
- * this test exists to prove stays cleared.
- */
 const queryClientDouble = { getQueryData: () => rewardState.stats ? { stats: rewardState.stats } : undefined }
 vi.mock('@tanstack/react-query', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@tanstack/react-query')>()),

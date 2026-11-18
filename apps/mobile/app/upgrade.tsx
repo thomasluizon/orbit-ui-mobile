@@ -54,11 +54,10 @@ import type { SubscriptionInterval, UpgradeTextFn } from '@/components/upgrade/t
 import { useAppToast } from '@/hooks/use-app-toast'
 import { useFlag } from '@/hooks/use-flag'
 
-/** The billing read failed. With the guided flows on, Orbit names the state in the first person above the retry. */
 function UpgradeLoadFailed({ guided, onRetry, t }: Readonly<{ guided: boolean; onRetry: () => void; t: UpgradeTextFn }>) {
   const mascotSize = useStateMascotSize()
   const retry = <IconButton label={t('upgrade.billing.retry')} onClick={onRetry}><RefreshCw size={20} strokeWidth={1.5} accessible={false} /></IconButton>
-  if (!guided) return <View style={styles.padBlock}><ErrorState message={t('upgrade.billing.error')} action={retry} /></View>
+  if (!guided) return <View style={styles.padBlock}><ErrorState fullSurface message={t('upgrade.billing.error')} action={retry} /></View>
   return (
     <View testID="upgrade-load-failed" style={[styles.padBlock, styles.centred]}>
       <View importantForAccessibility="no-hide-descendants" accessibilityElementsHidden><OrbitMascot size={mascotSize} state="parado" /></View>
@@ -107,19 +106,16 @@ function UpgradeContent({
   )
 }
 
-/** The plan question with the guided flows on, and the current pitch with them off. Both start the same purchase. */
 function UpgradePitchSection({ guided, usage, primaryInFooter, monthlyDisplayPrice, yearlyDisplayPrice, inset, ...props }: ComponentProps<typeof PricingSection> & Pick<GuidedPricingSectionProps, 'usage' | 'primaryInFooter'> & { guided: boolean }) {
   return guided
     ? <GuidedPricingSection {...props} usage={usage} primaryInFooter={primaryInFooter} />
     : <PricingSection {...props} inset={inset} monthlyDisplayPrice={monthlyDisplayPrice} yearlyDisplayPrice={yearlyDisplayPrice} />
 }
 
-/** The subscription read that the result of a purchase trusts: null while the screen loads or after it failed. */
 function settledStatus(state: SubscriptionScreenState, status: SubscriptionStatus | null): SubscriptionStatus | null {
   return state === 'loading' || state === 'load-failed' ? null : status
 }
 
-/** The plan question is the header of the guided pitch, so the screen title is plain text there. */
 function headerTitleIsHeading(guided: boolean, contentCap: 560 | 620): boolean {
   return !guided || contentCap !== 620
 }

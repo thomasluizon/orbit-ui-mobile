@@ -57,7 +57,6 @@ function boxesOf(width: number, height: number) {
   return { boxes, hosts }
 }
 
-/** Hands the measured heights to the layout handlers, as the native layout pass does, then measures again. */
 async function settle(width: number, height: number) {
   const { boxes } = boxesOf(width, height)
   await act(() => {
@@ -76,7 +75,6 @@ function read(width: number, height: number) {
   const fieldGap = Number(StyleSheet.flatten(hosts.get('search-question')!.props.style as StyleProp<ViewStyle>).paddingBottom)
   return {
     free: { top: viewport.top + Number(padding.paddingTop), bottom: boxes.get('tab-bar')!.top - Number(padding.paddingBottom) },
-    /** The visible block: from the top of Orbit to the bottom of the field. The gap under the field belongs to the rows. */
     block: { top: boxes.get('search-orbit')!.top, bottom: boxes.get('search-question')!.bottom - fieldGap },
     rows: boxes.get('search-rows')!,
     question: boxes.get('search-question')!,

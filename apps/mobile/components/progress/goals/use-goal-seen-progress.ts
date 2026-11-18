@@ -10,7 +10,6 @@ import {
 } from '@orbit/shared/utils/goal-seen-progress'
 import { accountStorageKey } from '@/lib/account-storage-key'
 
-/** A refused write only means the next visit draws every ring at rest. */
 function writeSeen(seen: GoalSeenProgress) {
   AsyncStorage.setItem(accountStorageKey(GOAL_SEEN_PROGRESS_STORAGE_KEY), JSON.stringify(seen)).catch(() => undefined)
 }

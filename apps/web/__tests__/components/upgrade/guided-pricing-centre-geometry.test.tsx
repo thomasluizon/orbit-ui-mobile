@@ -82,7 +82,6 @@ describe('the plan question and the trial expired dialog in Chromium', () => {
           return tops.size
         }
         const box = (element: Element) => { const rect = element.getBoundingClientRect(); return { left: rect.left, right: rect.right, top: rect.top, height: rect.height } }
-        /** The press target: the box plus the hit area that a small pill draws past its edges with `::after`. */
         const target = (element: Element) => {
           const after = getComputedStyle(element, '::after')
           const reach = after.content === 'none' ? 0 : Math.max(0, -parseFloat(after.top)) + Math.max(0, -parseFloat(after.bottom))
@@ -155,11 +154,6 @@ describe('the plan question and the trial expired dialog in Chromium', () => {
     } finally { await page.close(); view.unmount(); vi.unstubAllGlobals() }
   })
 
-  /**
-   * `design/canvas/Orbit Pro.dc.html` stacks the tiers at 412 (line 79) and puts them side by side, each hugging its content, in the wide frame (lines 169 and 171),
-   * with the interval control capped at 320 (line 156). `DESIGN.md` maps that boundary to the `sm` boundary of the upgrade screen, 640 on both platforms.
-   * The pinned action spans the column below the mobile breakpoint, 768, and hugs its label from it (`DESIGN.md`, Buttons, width).
-   */
   it.each([[412, false, true], [639, false, true], [640, true, true], [767, true, true], [768, true, false], [1023, true, false]] as const)(
     'lays out the plan cards, the interval control and the pinned action at %i px (side by side: %s, spanning action: %s)', async (width, sideBySide, spans) => {
       stubViewport(width)

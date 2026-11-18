@@ -9,7 +9,7 @@ import { IconButton } from '@/components/ui/icon-button'
 import { ChevronLeft, ChevronRight } from '@/components/ui/icons'
 import { InlineLoadError } from '@/components/ui/inline-load-error'
 import { Skeleton } from '@/components/ui/skeleton'
-import { useFlowAnnouncement } from '@/hooks/use-flow-announcement'
+import { useFlowAnnouncement } from '@/components/ui/question-flow'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { SearchOrbitLine } from './search-question-block'
@@ -39,7 +39,6 @@ function SearchPagination({ search }: Readonly<{ search: SearchScreenModel['sear
   </ActionRow></View>
 }
 
-/** The loading and the load error rows of the current surface, and of the guided surface while no query is typed. */
 function SearchProgress({ search }: Readonly<{ search: SearchScreenModel['search'] }>) {
   const { t } = useTranslation()
   const tokens = useTokens()
@@ -49,10 +48,6 @@ function SearchProgress({ search }: Readonly<{ search: SearchScreenModel['search
   </>
 }
 
-/**
- * Orbit at 48 beside one sentence: the status, the count, the miss or the load error. The sentence comes from the
- * result set the search already holds, so it starts no request of its own. A changed sentence is announced after a pause.
- */
 function SearchOutcomeLine({ model, mascotRef, lookAt }: Readonly<{ model: SearchScreenModel } & OrbitLineProps>) {
   const { t } = useTranslation()
   const tokens = useTokens()

@@ -647,21 +647,24 @@ describe('subscription dashboards (mobile)', () => {
   it.each([
     [true, false, null, false, false],
     [false, false, null, true, false],
-    [true, true, null, true, false],
+    [true, true, null, false, false],
     [true, false, 'yearly', true, true],
   ] as const)(
-    'dims unavailable links and shows the restore skeleton face with online=%s restoring=%s checkout=%s',
+    'dims unavailable links, keeps a waiting restore focusable and shows its skeleton face with online=%s restoring=%s checkout=%s',
     (isOnline, isRestoring, checkoutLoading, restoreDisabled, declineDisabled) => {
       const onRestore = vi.fn()
       const onStayFree = vi.fn()
       const tree = renderPricing({ plans, isOnline, isRestoring, checkoutLoading, onRestore, onStayFree })
       expect(tree.root.findAll((node) => node.type === 'View' && node.props.testID === 'skeleton-face')).toHaveLength((isRestoring ? 1 : 0) + (checkoutLoading ? 1 : 0))
       expect(tree.root.findAll((node) => node.type === 'ActivityIndicator')).toHaveLength(0)
+      const restore = tree.root.findAll((node) => node.type === 'Pressable' && (node.props.hitSlop as { top?: number } | undefined)?.top === 6)[0]!
+      expect(restore.props.onPress).toBe(isRestoring ? undefined : onRestore)
+      expect(restore.props.accessibilityState).toMatchObject({ busy: isRestoring })
       for (const [onPress, disabled] of [[onRestore, restoreDisabled], [onStayFree, declineDisabled]] as const) {
-        const action = tree.root.findAll((node) => node.type === 'Pressable' && node.props.onPress === onPress)[0]!
-        expect(action.props.disabled).toBe(disabled)
-        expect(action.props.accessibilityState).toMatchObject({ disabled })
+        const action = onPress === onRestore ? restore : tree.root.findAll((node) => node.type === 'Pressable' && node.props.onPress === onPress)[0]!
         const waiting = onPress === onRestore && isRestoring
+        expect(action.props.disabled).toBe(disabled)
+        expect(action.props.accessibilityState).toMatchObject({ disabled: disabled || waiting })
         for (const pressed of [false, true]) {
           expect(pressableStyle(action, pressed).opacity ?? 1).toBe(disabled && !waiting ? 0.4 : 1)
         }

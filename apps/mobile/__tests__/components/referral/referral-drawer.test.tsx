@@ -1,3 +1,4 @@
+import { controlStyle } from '@/__tests__/support/press-feedback'
 import { referralCopyCases } from '@orbit/shared/__tests__/referral-copy-fixtures'
 import { enableTestFlags } from '@orbit/shared/test-support/flag-state'
 import React from 'react'
@@ -127,7 +128,7 @@ describe('ReferralDrawer (mobile)', () => {
     motionState.reduced = reducedMotion
     const tree = renderDrawer()
     const host = () => slot(tree, 'SheetBody').findAll((node: any) => typeof node.type === 'string' && node.props.accessibilityLabel === 'referral.drawer.copyLink')[0]
-    const paint = (pressed: boolean) => { const style = host().props.style; return StyleSheet.flatten(typeof style === 'function' ? style({ pressed }) : style) }
+    const paint = (pressed: boolean) => controlStyle(host() as never, pressed)
     expect(paint(false)).toMatchObject({ transform: [{ scale: 1 }], transition: reducedMotion ? 'none' : 'transform 150ms cubic-bezier(0.16,1,0.3,1)' })
     TestRenderer.act(() => { host().props.onPressIn?.() })
     expect(paint(true)).toMatchObject({ backgroundColor: createTokensV2('purple', 'dark').bgHover, transform: [{ scale: reducedMotion ? 1 : 0.96 }], transition: reducedMotion ? 'none' : 'transform 150ms cubic-bezier(0.16,1,0.3,1)' })
@@ -220,7 +221,7 @@ describe('ReferralDrawer (mobile)', () => {
     const tree = renderDrawer()
     const loading = tree.root.findAll((node: { type: unknown; props: Record<string, unknown> }) => node.type === 'View' && node.props.testID === 'referral-skeleton')
     expect(loading).toHaveLength(1)
-    expect(loading[0]!.props).toMatchObject({ accessibilityRole: 'progressbar', accessibilityLabel: 'common.loading', accessibilityState: { busy: true } })
+    expect(loading[0]!.props).toMatchObject({ accessible: true, accessibilityRole: 'progressbar', accessibilityLabel: 'common.loading', accessibilityState: { busy: true } })
     expect(loading[0]!.findAll((node: { type: unknown; props: Record<string, unknown> }) => node.type === 'View' && node.props.testID === 'settings-skeleton-row')).toHaveLength(2)
     expect(loading[0]!.findAll((node: { type: unknown; props: Record<string, unknown> }) => node.type === 'View' && node.props.testID === 'skeleton-unit-fill')).toHaveLength(1)
     expect(tree.root.findAll((node: { type: unknown }) => node.type === 'ActivityIndicator')).toHaveLength(0)

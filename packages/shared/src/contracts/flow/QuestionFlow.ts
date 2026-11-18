@@ -17,10 +17,12 @@ export interface QuestionFlowProps {
   /** The accessible name of the progress, for example `Passo 2 de 3`. */
   progressLabel: string
   backLabel: string
-  closeLabel: string
+  /** Absent with `onClose` on a flow that has no surface to close to, such as sign-in. */
+  closeLabel?: string
   /** Absent on the first step. The 48 slot stays. */
   onBack?: (() => void) | undefined
-  onClose: () => void
+  /** Absent on a flow that is the whole surface, such as sign-in. The 48 slot stays. */
+  onClose?: (() => void) | undefined
   /** 1 forward, -1 back. */
   direction: 1 | -1
   orbitState?: 'parado' | 'pensando' | 'feliz' | 'descansando'
@@ -35,6 +37,8 @@ export interface QuestionFlowProps {
     label: string
     onPress: () => void
     loading?: boolean
+    /** Off while the step cannot act yet, such as an edit whose stored values did not load. The step states the reason. */
+    disabled?: boolean
     hint?: string
     /** The tone of a step that deletes, such as the typed confirmation of a fresh start. Default primary. */
     variant?: 'caution' | 'destructive'
@@ -52,4 +56,11 @@ export type FlowStepView = Pick<QuestionFlowProps, 'question' | 'line' | 'option
   stepKey?: string
   /** Back inside the step. When present, the host calls it instead of its own back. */
   onBack?: () => void
+}
+
+/** The frame of one step of a short Perfil flow: its place, its question and line, its way back, the close of its screen and its main action. */
+export type FlowStepFrame = Pick<QuestionFlowProps, 'position' | 'direction' | 'question' | 'onBack' | 'primary'> & {
+  line: string | null
+  /** The close of the screen: the way back when there is one, else the close of the flow. */
+  onDismiss: () => void
 }

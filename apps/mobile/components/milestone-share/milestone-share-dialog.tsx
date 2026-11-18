@@ -12,7 +12,6 @@ import { MILESTONE_SHARE_CARD_WIDTH } from './milestone-share-card'
 
 const PANEL_MAX_WIDTH = 420
 
-/** The card keeps its logical width for the image. The preview scales it down to the width of the dialog. */
 function MilestoneCardPreview({ children }: Readonly<{ children: ReactNode }>) {
   const [frameWidth, setFrameWidth] = useState(0)
   const [cardHeight, setCardHeight] = useState(0)

@@ -14,9 +14,7 @@ import { useListRowMotion } from './list-row-motion'
 interface TagStepRowsProps {
   tags: TagSelectionState
   actions: TagStepActions
-  /** The search words. A row shows when its name holds them. */
   query: string
-  /** Every row shows while the person renames or deletes. Otherwise rows show only for a search. */
   managing: boolean
   onPressTag: (tagId: string) => void
 }
@@ -27,10 +25,6 @@ function matches(tag: HabitTag, query: string): boolean {
 
 type RowMotion = ReturnType<typeof useListRowMotion>
 
-/**
- * The search words the rows show. A new query first commits the rows with no exit for one frame, then applies, so the
- * rows it hides leave at once, as web's list scope does. A delete under the same words keeps its exit.
- */
 function useAppliedQuery(query: string) {
   const [applied, setApplied] = useState(query)
   useEffect(() => {
@@ -41,10 +35,6 @@ function useAppliedQuery(query: string) {
   return { applied, changing: applied !== query }
 }
 
-/**
- * A tag the person creates enters and a tag the person deletes fades out; the gap then closes at once, as on web. A
- * search moves no row.
- */
 function TagRowMotion({ tagId, motion, changing, children }: Readonly<{ tagId: string; motion: RowMotion; changing: boolean; children: ReactNode }>) {
   return <Animated.View testID="tag-step-row" entering={motion.enteringFor(tagId)} exiting={changing ? undefined : motion.exiting}>{children}</Animated.View>
 }
@@ -72,7 +62,7 @@ export function TagStepRows({ tags, actions, query, managing, onPressTag }: Read
               focusRequest={actions.editTagFocusRequest}
               initialValue={initialName}
               value={tags.editTagName}
-              disabled={actions.renaming}
+              pending={actions.renaming}
               inputAriaLabel={t('habits.form.tagName')}
               cancelAriaLabel={t('common.cancel')}
               actionLabel={t('common.save')}

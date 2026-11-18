@@ -10,6 +10,7 @@ import { TodayDateControl } from '@/components/today/today-date-control'
 import { HabitRow } from '@/components/habits/habit-row'
 import { createTokensV2 } from '@/lib/theme'
 import { __setWindowDimensions } from '../../../test-mocks/react-native'
+import { applyBorderWidths } from '@/__tests__/support/yoga-borders'
 
 const TestRenderer: typeof import('react-test-renderer') = require('react-test-renderer')
 const { act, create } = TestRenderer
@@ -81,10 +82,7 @@ function applyInsets(node: YogaNode, style: ViewStyle) {
     const padding = style[`padding${suffix}`]
     if (typeof padding === 'number') node.setPadding(edge, padding)
   }
-  for (const [key, edge] of [['borderWidth', Yoga.EDGE_ALL], ['borderLeftWidth', Yoga.EDGE_LEFT], ['borderRightWidth', Yoga.EDGE_RIGHT], ['borderTopWidth', Yoga.EDGE_TOP], ['borderBottomWidth', Yoga.EDGE_BOTTOM]] as const) {
-    const border = style[key]
-    if (typeof border === 'number') node.setBorder(edge, border)
-  }
+  applyBorderWidths(node, style)
 }
 
 function applyPositions(node: YogaNode, style: ViewStyle) {

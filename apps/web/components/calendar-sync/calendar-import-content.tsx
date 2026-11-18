@@ -84,7 +84,6 @@ export interface CalendarImportActionState {
 type CalendarEvent = CalendarSyncEvent
 
 export function CalendarImportContent({ reviewMode, initialEventId, onClose, onGoToHabits, actionRef, onActionStateChange, onImported }: Readonly<{ reviewMode: boolean; initialEventId: string | null; onClose: () => void; onGoToHabits: () => void; actionRef: Ref<CalendarImportActionHandle>; onActionStateChange: (state: CalendarImportActionState | null) => void
-  /** A full success hands the count the server returned to the result dialog of the caller. A partial failure keeps the per-item result in the sheet. */
   onImported?: (count: number) => void }>) {
   const t = useTranslations()
   const locale = useLocale()

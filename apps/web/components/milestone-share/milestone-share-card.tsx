@@ -57,12 +57,12 @@ export function MilestoneShareCard({
       <div
         ref={ref}
         data-testid="milestone-share-card"
+        className="relative after:pointer-events-none after:absolute after:inset-0 after:rounded-[inherit] after:[box-shadow:inset_0_0_0_1px_var(--hairline)]"
         style={{
           width: MILESTONE_SHARE_CARD_WIDTH,
           background: 'var(--bg)',
           borderRadius: 20,
           overflow: 'hidden',
-          boxShadow: 'inset 0 0 0 1px var(--hairline)',
           fontFamily: 'var(--font-sans)',
           color: 'var(--fg-1)',
         }}

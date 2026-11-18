@@ -23,7 +23,6 @@ function media(rule: Rule): string[] {
   return conditions
 }
 
-/** Every rule that sets `property` for a selector that contains `fragment`, with its at-rule conditions. */
 function rulesSetting(property: string, fragment: string): { selectors: string[]; value: string; conditions: string[] }[] {
   const found: { selectors: string[]; value: string; conditions: string[] }[] = []
   stylesheet.walkRules((rule) => {
@@ -51,6 +50,15 @@ describe('press feedback that keeps the press target on web', () => {
     for (const selector of press!.selectors) {
       expect(selector, 'the scale lands on a child, never on the control that holds the press').toMatch(/:active.*>/)
     }
+  })
+
+  it('never scales a control that waits for its own request, which keeps its focus with aria-disabled', () => {
+    const [press] = rulesSetting('scale', '.orbit-press-content:active')
+    const pressContent = press!.selectors.filter((selector) => selector.startsWith('.orbit-press-content:active'))
+    expect(pressContent).toHaveLength(2)
+    for (const selector of pressContent) expect(selector).toContain(':not(:disabled, [data-disabled], [aria-disabled="true"])')
+    render(<CheckRow label="Water" checked={false} onChange={vi.fn()} loading />)
+    expect(screen.getByRole('checkbox', { name: 'Water' })).toHaveAttribute('aria-disabled', 'true')
   })
 
   it('eases each content layer over the shared press duration on the enter curve', () => {

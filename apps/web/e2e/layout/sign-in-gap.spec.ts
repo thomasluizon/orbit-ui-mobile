@@ -1,10 +1,10 @@
 import { expect, type Locator } from '@playwright/test'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { build } from 'esbuild'
 import postcss from 'postcss'
 import tailwind from '@tailwindcss/postcss'
 import { test } from './layout-test'
+import { bundleSignInFixture } from './sign-in-fixture-bundle'
 
 let stylesheet: string
 let fixtureScript: string
@@ -13,12 +13,7 @@ test.use({ storageState: { cookies: [], origins: [] } })
 test.beforeAll(async () => {
   const source = resolve('app/globals.css')
   stylesheet = (await postcss([tailwind()]).process(readFileSync(source, 'utf8'), { from: source })).css
-  const bundle = await build({
-    entryPoints: [resolve('e2e/layout/sign-in-gap-fixture.tsx')], bundle: true, write: false,
-    platform: 'browser', format: 'iife', jsx: 'automatic', tsconfig: resolve('tsconfig.json'),
-    define: { 'process.env': '{}', 'process.env.NODE_ENV': '"production"' },
-  })
-  fixtureScript = bundle.outputFiles[0]!.text
+  fixtureScript = await bundleSignInFixture('e2e/layout/sign-in-gap-fixture.tsx')
 })
 
 async function measureGap(form: Locator) {
@@ -42,11 +37,15 @@ async function measureChallenge(challenge: Locator) {
   })
 }
 
+// WHY: Cloudflare sizes the flexible widget at 65px height, and the visible form keeps a slot of that height in every state https://developers.cloudflare.com/turnstile/get-started/client-side-rendering/widget-configurations/
+const CHALLENGE_HEIGHT = 65
+const GAP = 24
+
 for (const width of [320, 1440]) {
   for (const locale of ['en', 'pt-BR']) {
     test.describe(`sign-in field spacing in ${locale} at ${width}px`, () => {
       test.use({ viewport: { width, height: 915 } })
-      test('keeps one gap without a challenge and one on each side of a visible challenge', async ({ page }) => {
+      test('keeps one gap on each side of the check slot, and one gap for the quiet check without a challenge', async ({ page }) => {
         // WHY: a setContent page has an opaque origin, where document.cookie throws. https://html.spec.whatwg.org/multipage/dom.html#dom-document-cookie
         const fixtureUrl = 'http://orbit-layout.test/sign-in-gap-fixture'
         await page.route(fixtureUrl, route => route.fulfill({
@@ -61,6 +60,7 @@ for (const width of [320, 1440]) {
               frame.title = 'Layout challenge';
               frame.style.cssText = 'display:block;width:0;height:0;border:0';
               container.appendChild(frame);
+              container.showChallenge = () => options['before-interactive-callback']();
               container.solveChallenge = () => options.callback('layout-token');
               return 'layout-widget';
             },
@@ -75,14 +75,20 @@ for (const width of [320, 1440]) {
           const challenge = form.locator('iframe')
           await expect(challenge).toHaveCount(1)
           const quiet = await section.getAttribute('data-quiet') === 'true'
-          if (quiet) await expect.poll(() => measureGap(form)).toEqual({ distance: 24, gap: 24 })
-          await challenge.evaluate(frame => { frame.style.height = '65px'; frame.style.width = '100%' })
-          if (quiet) await expect.poll(() => measureGap(form)).toEqual({ distance: 24 + 65 + 24, gap: 24 })
-          await expect.poll(() => measureChallenge(challenge)).toEqual({ before: 24, after: 24, widthShortfall: 0 })
+          const withSlot = { distance: GAP + CHALLENGE_HEIGHT + GAP, gap: GAP }
+          const resting = quiet ? { distance: GAP, gap: GAP } : withSlot
+          await expect.poll(() => measureGap(form)).toEqual(resting)
+          await challenge.evaluate(frame => {
+            frame.style.height = '65px'
+            frame.style.width = '100%'
+            ;(frame.parentElement as HTMLElement & { showChallenge: () => void }).showChallenge()
+          })
+          await expect.poll(() => measureGap(form)).toEqual(withSlot)
+          await expect.poll(() => measureChallenge(challenge)).toEqual({ before: GAP, after: GAP, widthShortfall: 0 })
           await challenge.evaluate(frame => (frame.parentElement as HTMLElement & { solveChallenge: () => void }).solveChallenge())
-          await expect.poll(() => measureGap(form)).toEqual({ distance: 24, gap: 24 })
+          await expect.poll(() => measureGap(form)).toEqual(resting)
           await challenge.evaluate(frame => { frame.style.height = '65px'; frame.style.width = '100%' })
-          await expect.poll(() => measureGap(form)).toEqual({ distance: 24, gap: 24 })
+          await expect.poll(() => measureGap(form)).toEqual(resting)
         }
       })
     })

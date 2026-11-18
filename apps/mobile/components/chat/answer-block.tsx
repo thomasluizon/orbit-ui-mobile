@@ -37,7 +37,6 @@ function AnswerOptions({ view, controller }: Pick<AnswerContentProps, 'view' | '
       </Proposed>)
 }
 
-/** Two to four plain options answer with quick options: a press selects one answer, or toggles one of several. */
 function AnswerQuickOptions({ view, controller }: Pick<AnswerContentProps, 'view' | 'controller'>) {
   return <View role="group" accessibilityLabel={view.title} style={optionGridStyle}>
     {view.options.map(option => <OptionCard key={option.id} label={option.label} selected={option.selected} disabled={view.disabled}

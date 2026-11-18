@@ -1,5 +1,6 @@
-import type { ReactNode } from 'react'
-import { Text } from 'react-native'
+import { useState, type ReactNode } from 'react'
+import * as ReactNative from 'react-native'
+import { AccessibilityInfo, StyleSheet, Text } from 'react-native'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act } from 'react-test-renderer'
 import en from '@orbit/shared/i18n/en.json'
@@ -7,11 +8,14 @@ import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { GuidedHabitFlow, type GuidedHabitFields } from '@/components/habits/guided/guided-habit-flow'
 import { useHabitForm } from '@/hooks/use-habit-form'
 import { useTagSelection } from '@/hooks/use-tag-selection'
+import { buildCreateHabitRequest, buildEmptyHabitFormValues, buildUpdateHabitRequest } from '@orbit/shared/utils'
 import { i18n } from '@/lib/i18n'
+import { __setWindowDimensions } from '@/test-mocks/react-native'
 import { press, renderNavigation } from '../ui/navigation-render'
 
 const state = vi.hoisted(() => ({
-  helpers: null as ReturnType<typeof useHabitForm> | null, read: vi.fn(), online: true, pro: true, goalToggle: vi.fn(), messagesUsed: 0, reducedMotion: false,
+  helpers: null as ReturnType<typeof useHabitForm> | null, read: vi.fn(), online: true, pro: true, goalToggle: vi.fn(), messagesUsed: 0, reducedMotion: false, reminderTimes: [] as number[],
+  templates: [{ id: 'template-1', name: 'Manhã', items: ['Separar roupa'] }],
 }))
 
 vi.mock('@/lib/motion', async (importOriginal) => ({ ...await importOriginal<typeof import('@/lib/motion')>(), usePrefersReducedMotion: () => state.reducedMotion }))
@@ -30,7 +34,7 @@ vi.mock('@/hooks/use-app-toast', () => ({ useAppToast: () => ({ showError: vi.fn
 vi.mock('@/hooks/use-reminder-permission', () => ({ useReminderPermission: (_enabled: boolean, onToggle: () => void) => ({ toggleReminder: onToggle, showNotice: true }) }))
 vi.mock('@/lib/posthog', () => ({ captureGuidedFlowEvent: vi.fn(), captureGuidedFlowCompleted: vi.fn() }))
 vi.mock('@/hooks/use-checklist-templates', () => ({
-  useChecklistTemplates: () => ({ data: [{ id: 'template-1', name: 'Manhã', items: ['Separar roupa'] }], isLoading: false, isError: false, refetch: vi.fn() }),
+  useChecklistTemplates: () => ({ data: state.templates, isLoading: false, isError: false, refetch: vi.fn() }),
   useCreateChecklistTemplate: () => ({ mutate: vi.fn(), isPending: false }),
   useDeleteChecklistTemplate: () => ({ mutate: vi.fn() }),
 }))
@@ -53,15 +57,20 @@ const submit = vi.fn()
 const close = vi.fn()
 const helpers = () => state.helpers!
 
-interface HarnessProps { mode?: 'create' | 'edit'; saveError?: string | null; lockedGeneral?: boolean | null; initial?: Record<string, unknown>; parentField?: ReactNode; subHabits?: boolean }
+interface HarnessProps {
+  mode?: 'create' | 'edit'; saveError?: string | null; lockedGeneral?: boolean | null; initial?: Record<string, unknown>; parentField?: ReactNode; subHabits?: boolean
+  goalIds?: string[]; subHabitTitles?: string[]; parentValue?: string; linkedGoals?: { id: string; title: string }[]
+}
 
-function Harness({ mode = 'create', saveError = null, lockedGeneral = null, initial = {}, parentField, subHabits = true }: Readonly<HarnessProps>) {
+function Harness({ mode = 'create', saveError = null, lockedGeneral = null, initial = {}, parentField, subHabits = true, goalIds = [], subHabitTitles, parentValue, linkedGoals }: Readonly<HarnessProps>) {
   const formHelpers = useHabitForm({ initialData: { dueDate: '', ...initial } })
   const tags = useTagSelection()
+  const [reminderTimes, setReminderTimes] = useState([0, 15])
   state.helpers = formHelpers
+  state.reminderTimes = reminderTimes
   const fields: GuidedHabitFields = {
-    tags, selectedGoalIds: [], atGoalLimit: false, onToggleGoal: state.goalToggle, reminderTimes: [0, 15], onReminderTimesChange: vi.fn(), onUpgrade: vi.fn(),
-    parentField, children: subHabits ? () => <Text>sub-habit-editor</Text> : undefined,
+    tags, selectedGoalIds: goalIds, atGoalLimit: false, onToggleGoal: state.goalToggle, reminderTimes, onReminderTimesChange: setReminderTimes, onUpgrade: vi.fn(),
+    parentField, children: subHabits ? () => <Text>sub-habit-editor</Text> : undefined, subHabitTitles, parentValue, linkedGoals,
   }
   return (
     <GuidedHabitFlow mode={mode} formHelpers={formHelpers} fields={fields} lockedGeneral={lockedGeneral} fromConversation={false} pending={false}
@@ -76,7 +85,12 @@ const matches = (label: string | undefined, name: string | RegExp) => (typeof na
 const control = (tree: Tree, name: string | RegExp) => tree.hosts().find((node) => matches(node.props.accessibilityLabel, name) && typeof node.props.onPress === 'function')
 const heading = (tree: Tree) => tree.hosts().filter((node) => node.props.accessibilityRole === 'header').map((node) => (typeof node.props.children === 'string' ? node.props.children : ''))[0] ?? ''
 const progress = (tree: Tree) => tree.hosts().find((node) => /^(Passo|Step) \d (de|of) \d$/.test(node.props.accessibilityLabel ?? ''))?.props.accessibilityLabel
+const summaryRow = (tree: Tree, label: string) => tree.hosts().find((node) => (node.props.accessibilityLabel ?? '').startsWith(`${label}, `))
 const hasText = (tree: Tree, text: string) => tree.hosts().some((node) => node.props.children === text)
+function textIn(node: unknown): string {
+  const hosts = (node as { findAll: (predicate: (child: { type: unknown }) => boolean) => { props: { children?: unknown } }[] }).findAll((child) => child.type === 'Text')
+  return hosts.map((host) => host.props.children).filter((value): value is string => typeof value === 'string').join('')
+}
 async function tap(tree: Tree, name: string | RegExp) {
   const target = control(tree, name)
   if (!target) throw new Error(`no control named ${String(name)}`)
@@ -102,12 +116,20 @@ async function phrase(tree: Tree, text: string) {
   await primary(tree)
 }
 
+const DAILY_AT_SEVEN = { read: true, emoji: null, frequencyUnit: 'Day', frequencyQuantity: 1, days: [], isFlexible: false, flexibleTarget: null, dueTime: '07:00', subHabits: [], checklistItems: [] }
+function deferredRead() {
+  let arrive!: (response: typeof DAILY_AT_SEVEN | null) => void
+  state.read.mockReturnValueOnce(new Promise((resolve) => { arrive = resolve }))
+  return { arrive: (response: typeof DAILY_AT_SEVEN | null) => arrive(response) }
+}
+
 beforeEach(() => {
   state.read.mockReset().mockResolvedValue(null)
   state.online = true
   state.pro = true
   state.messagesUsed = 0
   state.goalToggle.mockReset()
+  state.templates = [{ id: 'template-1', name: 'Manhã', items: ['Separar roupa'] }]
   submit.mockReset()
   close.mockReset()
   vi.useFakeTimers({ now: new Date('2026-11-13T12:00:00Z'), toFake: ['Date'] })
@@ -193,6 +215,24 @@ describe.each([
     tree.unmount()
   })
 
+  it('scenario 2: offers no time and no length on the summary after the answer no date', async () => {
+    const tree = renderNavigation(<Harness />)
+    await phrase(tree, locale === 'en' ? 'tidy the garage' : 'arrumar a garagem')
+    await tap(tree, flowCopy().when.noDate)
+    expect(heading(tree)).toBe(flowCopy().confirm.question)
+    expect(summaryRow(tree, flowCopy().summary.time)).toBeUndefined()
+    expect(summaryRow(tree, flowCopy().summary.duration)).toBeUndefined()
+    tree.unmount()
+  })
+
+  it('scenario 7: offers no time on the summary under a General parent', async () => {
+    const tree = renderNavigation(<Harness lockedGeneral initial={{ isGeneral: true, itemType: 'task' }} />)
+    await phrase(tree, locale === 'en' ? 'pack the bag' : 'arrumar a mala')
+    expect(heading(tree)).toBe(flowCopy().confirm.question)
+    expect(summaryRow(tree, flowCopy().summary.time)).toBeUndefined()
+    tree.unmount()
+  })
+
   it('scenario 11: closes from step 1 and keeps the back slot empty there', async () => {
     const tree = renderNavigation(<Harness />)
     expect(control(tree, flowCopy().back)).toBeUndefined()
@@ -235,6 +275,64 @@ describe.each([
     await phrase(tree, locale === 'en' ? 'water the big plants' : 'regar as plantas grandes')
     expect(heading(tree)).toBe(flowCopy().when.question)
     expect(state.read).toHaveBeenCalledTimes(2)
+    tree.unmount()
+  })
+
+  it('moves accessibility focus to the question on each step change, a return to the first step included', async () => {
+    const findNode = vi.spyOn(ReactNative, 'findNodeHandle').mockReturnValue(42)
+    const focus = vi.spyOn(AccessibilityInfo, 'setAccessibilityFocus').mockImplementation(() => {})
+    const tree = renderNavigation(<Harness />)
+    expect(focus).not.toHaveBeenCalled()
+    await phrase(tree, locale === 'en' ? 'call John' : 'ligar para o João')
+    expect(heading(tree)).toBe(flowCopy().when.question)
+    expect(focus).toHaveBeenCalledTimes(1)
+    await tap(tree, flowCopy().back)
+    expect(heading(tree)).toBe(flowCopy().what.question)
+    expect(focus).toHaveBeenCalledTimes(2)
+    tree.unmount()
+    findNode.mockRestore()
+    focus.mockRestore()
+  })
+
+  it('scenario 14: holds the phrase step while the free read runs, so a second press never passes the read', async () => {
+    const read = deferredRead()
+    const tree = renderNavigation(<Harness />)
+    await phrase(tree, locale === 'en' ? 'water the plants' : 'regar as plantas')
+    const waiting = tree.hosts().find((node) => node.props.testID === 'button-primary-sm')!
+    await act(async () => { press(waiting); await Promise.resolve(); await Promise.resolve() })
+    expect(state.read).toHaveBeenCalledTimes(1)
+    expect(heading(tree)).toBe(flowCopy().what.question)
+    expect(tree.hosts().some((node) => (node.props.accessibilityState as { busy?: boolean } | undefined)?.busy === true)).toBe(true)
+    await act(async () => { read.arrive(DAILY_AT_SEVEN); await Promise.resolve(); await Promise.resolve() })
+    expect(heading(tree)).toContain(flowCopy().reminder.question.split('{')[0]!.trim())
+    expect(helpers().form.getValues()).toMatchObject({ itemType: 'habit', frequencyUnit: 'Day', dueTime: '07:00' })
+    tree.unmount()
+  })
+
+  it('scenario 14: drops a read that arrives after the person changed the phrase', async () => {
+    const read = deferredRead()
+    const tree = renderNavigation(<Harness />)
+    await phrase(tree, locale === 'en' ? 'water the plants' : 'regar as plantas')
+    await type(tree, flowCopy().what.label, locale === 'en' ? 'call John' : 'ligar para o João')
+    await act(async () => { read.arrive(DAILY_AT_SEVEN); await Promise.resolve(); await Promise.resolve() })
+    expect(heading(tree)).toBe(flowCopy().what.question)
+    expect(helpers().form.getValues('itemType')).not.toBe('habit')
+    expect(helpers().form.getValues('frequencyUnit') ?? null).toBeNull()
+    expect(helpers().form.getValues('dueTime') ?? '').toBe('')
+    tree.unmount()
+  })
+
+  it('scenario 14: drops a read that arrives after the flow left the phrase step', async () => {
+    const read = deferredRead()
+    const tree = renderNavigation(<Harness />)
+    await phrase(tree, locale === 'en' ? 'water the plants' : 'regar as plantas')
+    await act(async () => { helpers().reportBackendErrors({ status: 400, data: { errors: { Description: ['Too long'] } } }); await Promise.resolve() })
+    const leftTo = heading(tree)
+    expect(leftTo).not.toBe(flowCopy().what.question)
+    await act(async () => { read.arrive(DAILY_AT_SEVEN); await Promise.resolve(); await Promise.resolve() })
+    expect(heading(tree)).toBe(leftTo)
+    expect(helpers().form.getValues('itemType')).not.toBe('habit')
+    expect(helpers().form.getValues('dueTime') ?? '').toBe('')
     tree.unmount()
   })
 
@@ -386,12 +484,172 @@ describe.each(['pt-BR', 'en'] as const)('the detail questions on Android in %s',
     tree.unmount()
   })
 
-  it('scenario 18: opens the reminder kinds with the permission notice and the repeat editor', async () => {
+  const optionalRowName = (tree: Tree, id: 'tags' | 'goals' | 'subHabits' | 'parent') =>
+    control(tree, new RegExp(`^${flowCopy().optional[id].replace('?', '\\?')}`))?.props.accessibilityLabel
+
+  it('scenario 17: answers the tag, goal and sub-item rows with the names the person chose, never a count', async () => {
+    const tree = renderNavigation(<Harness goalIds={['goal-1']} subHabitTitles={['Alongar', '  ', 'Beber água']} />)
+    await phrase(tree, locale === 'en' ? 'run every day at 7' : 'correr todo dia às 7')
+    await tap(tree, flowCopy().reminder.no)
+    await openOptional(tree, 'tags')
+    await tap(tree, 'Saúde')
+    await primary(tree)
+    expect(optionalRowName(tree, 'tags')).toBe(`${flowCopy().optional.tags} Saúde`)
+    expect(optionalRowName(tree, 'goals')).toBe(`${flowCopy().optional.goals} Correr 5 km`)
+    expect(optionalRowName(tree, 'subHabits')).toBe(`${flowCopy().optional.subHabits} ${locale === 'en' ? 'Alongar and Beber água' : 'Alongar e Beber água'}`)
+    tree.unmount()
+  })
+
+  it('scenario 17: leaves the tag, goal and sub-item rows with no answer when the person chose none', async () => {
+    const tree = await toSummary()
+    await tap(tree, flowCopy().more)
+    for (const id of ['tags', 'goals', 'subHabits'] as const) expect(optionalRowName(tree, id)).toBe(flowCopy().optional[id])
+    tree.unmount()
+  })
+
+  it('scenario 17: names a linked goal the goal list does not hold from the links of the habit, and counts a goal with no name yet', async () => {
+    const first = renderNavigation(<Harness mode="edit" goalIds={['goal-77', 'goal-1']} linkedGoals={[{ id: 'goal-77', title: 'Ler 12 livros' }]} subHabits={false} initial={{ title: 'Correr', itemType: 'habit', frequencyUnit: 'Day', frequencyQuantity: 1, dueDate: '2026-11-13' }} />)
+    await tap(first, flowCopy().more)
+    expect(optionalRowName(first, 'goals')).toBe(`${flowCopy().optional.goals} ${locale === 'en' ? 'Ler 12 livros and Correr 5 km' : 'Ler 12 livros e Correr 5 km'}`)
+    first.unmount()
+    const second = renderNavigation(<Harness mode="edit" goalIds={['goal-77', 'goal-99']} linkedGoals={[{ id: 'goal-77', title: 'Ler 12 livros' }]} subHabits={false} initial={{ title: 'Correr', itemType: 'habit', frequencyUnit: 'Day', frequencyQuantity: 1, dueDate: '2026-11-13' }} />)
+    await tap(second, flowCopy().more)
+    expect(optionalRowName(second, 'goals')).toBe(`${flowCopy().optional.goals} 2`)
+    second.unmount()
+  })
+
+  it('scenario 17: answers the parent row with the parent the edit holds', async () => {
+    const tree = renderNavigation(<Harness mode="edit" parentField={<Text>parent-picker</Text>} parentValue="Rotina da manhã" subHabits={false} initial={{ title: 'Correr', itemType: 'habit', frequencyUnit: 'Day', frequencyQuantity: 1, dueDate: '2026-11-13' }} />)
+    await tap(tree, flowCopy().more)
+    expect(optionalRowName(tree, 'parent')).toBe(`${flowCopy().optional.parent} Rotina da manhã`)
+    tree.unmount()
+  })
+
+  it.each([{ width: 412, style: { alignSelf: 'stretch' } }, { width: 1440, style: { alignSelf: 'center', maxWidth: 360 } }])('keeps the continue of the date free path and the write action of the template question in the action slot: at most 360 wide in the centre from 1024 ($width px)', async ({ width, style }) => {
+    __setWindowDimensions({ width, height: 900, scale: 1, fontScale: 1 })
+    const tree = renderNavigation(<Harness />)
+    await phrase(tree, locale === 'en' ? 'call John' : 'ligar para o João')
+    const slot = () => tree.hosts().filter((node) => node.props.testID === 'primary-action-slot')
+    const slotWords = () => slot().map((node) => textIn(node))
+    expect(slotWords()).toEqual([flowCopy().continue])
+    expect(StyleSheet.flatten(slot()[0]!.props.style)).toEqual(style)
+    await tap(tree, flowCopy().when.noDate)
+    await openOptional(tree, 'checklist')
+    state.templates = []
+    await tap(tree, flowCopy().checklist.useTemplate)
+    expect(slotWords()).toEqual([flowCopy().templates.write])
+    expect(StyleSheet.flatten(slot()[0]!.props.style)).toEqual(style)
+    tree.unmount()
+    __setWindowDimensions({ width: 412, height: 900, scale: 1, fontScale: 1 })
+  })
+
+  const optionCards = (tree: Tree) => tree.hosts().filter((node) => node.props.testID === 'option-card')
+  const hostsWithRole = (tree: Tree, role: string) => tree.hosts().filter((node) => node.props.accessibilityRole === role)
+
+  it('scenario 18: asks the reminder kind with one quick option for each kind and no switch, radio or second heading', async () => {
     const tree = await toSummary()
     await tap(tree, new RegExp(`^${flowCopy().summary.reminder},`))
     expect(heading(tree)).toBe(flowCopy().reminderKind.question)
+    expect(optionCards(tree).map((option) => option.props.accessibilityLabel)).toEqual([flowCopy().reminderKind.scheduled, flowCopy().reminderKind.repeat, flowCopy().reminder.no])
+    expect(optionCards(tree).map((option) => option.props.accessibilityState?.selected)).toEqual([false, false, true])
+    expect(hostsWithRole(tree, 'switch')).toHaveLength(0)
+    expect(hostsWithRole(tree, 'radio')).toHaveLength(0)
+    expect(hostsWithRole(tree, 'header')).toHaveLength(1)
+    await tap(tree, flowCopy().reminderKind.repeat)
+    expect(helpers().form.getValues('reminderEnabled')).toBe(true)
+    expect(helpers().form.getValues('repeatReminder')).toMatchObject({ intervalMinutes: 30 })
+    expect(hostsWithRole(tree, 'radio')).toHaveLength(0)
+    expect(hostsWithRole(tree, 'header')).toHaveLength(1)
     tree.unmount()
   })
+
+  it('scenario 18: turns the reminder off from the reminder kinds in one press and returns to the summary', async () => {
+    const tree = await toSummary()
+    await tap(tree, new RegExp(`^${flowCopy().summary.reminder},`))
+    await tap(tree, flowCopy().reminderKind.scheduled)
+    expect(helpers().form.getValues('reminderEnabled')).toBe(true)
+    await tap(tree, flowCopy().reminder.no)
+    expect(helpers().form.getValues('reminderEnabled')).toBe(false)
+    expect(heading(tree)).toBe(flowCopy().confirm.question)
+    tree.unmount()
+  })
+
+  it('scenario 18: offers an undated item the repeat only', async () => {
+    const tree = renderNavigation(<Harness mode="edit" subHabits={false} initial={{ title: 'Alongar', itemType: 'habit', isGeneral: true }} />)
+    await tap(tree, new RegExp(`^${flowCopy().summary.reminder},`))
+    expect(optionCards(tree).map((option) => option.props.accessibilityLabel)).toEqual([flowCopy().reminderKind.repeat, flowCopy().reminder.no])
+    await tap(tree, flowCopy().reminderKind.repeat)
+    expect(helpers().form.getValues()).toMatchObject({ reminderEnabled: true, repeatReminder: { intervalMinutes: 30 } })
+    expect(state.reminderTimes).toEqual([])
+    tree.unmount()
+  })
+
+  const formCopy = () => copy().habits.form
+  const removeActions = (tree: Tree) => tree.hosts().filter((node) => typeof node.props.onPress === 'function' && [formCopy().removeReminder, formCopy().removeScheduledReminder].includes(node.props.accessibilityLabel ?? ''))
+  async function toReminderKinds() {
+    const tree = await toSummary()
+    await tap(tree, new RegExp(`^${flowCopy().summary.reminder},`))
+    await tap(tree, flowCopy().reminderKind.scheduled)
+    return tree
+  }
+  async function tapText(tree: Tree, text: string) {
+    const target = tree.hosts().find((node) => typeof node.props.onPress === 'function' && textIn(node) === text)
+    if (!target) throw new Error(`no control with the text ${text}`)
+    await act(async () => { press(target); await Promise.resolve() })
+  }
+  async function setTime(tree: Tree, label: string, value: string) {
+    await type(tree, label, value)
+    const input = tree.hosts().find((node) => (node.props as { onChangeText?: unknown }).onChangeText && node.props.accessibilityLabel === label)
+    await act(async () => { (input?.props as unknown as { onBlur?: () => void }).onBlur?.(); await Promise.resolve() })
+  }
+
+  it('scenario 18: turns the reminder on with the default times and shows the permission notice', async () => {
+    const tree = await toReminderKinds()
+    expect(helpers().form.getValues('reminderEnabled')).toBe(true)
+    expect(optionCards(tree).find((option) => option.props.accessibilityLabel === flowCopy().reminderKind.scheduled)?.props.accessibilityState?.selected).toBe(true)
+    expect(state.reminderTimes).toEqual([0, 15])
+    expect(removeActions(tree)).toHaveLength(2)
+    expect(tree.hosts().some((node) => node.props.accessibilityLabel === formCopy().reminderPermissionNeeded)).toBe(true)
+    tree.unmount()
+  })
+
+  it('scenario 18: adds an offset preset, then a custom offset before the time', async () => {
+    const tree = await toReminderKinds()
+    await tapText(tree, formCopy().reminderAdd)
+    await tapText(tree, formCopy().reminder30min)
+    expect(state.reminderTimes).toEqual([30, 15, 0])
+    await tapText(tree, formCopy().reminderAdd)
+    await tapText(tree, formCopy().reminderCustom)
+    await type(tree, formCopy().reminderCustomLabel, '45')
+    await tap(tree, copy().common.add)
+    expect(state.reminderTimes).toEqual([45, 30, 15, 0])
+    expect(removeActions(tree)).toHaveLength(4)
+    tree.unmount()
+  })
+
+  it('scenario 18: adds a clock reminder for the day before', async () => {
+    const tree = await toReminderKinds()
+    await tap(tree, formCopy().scheduledReminderDayBefore)
+    await setTime(tree, formCopy().scheduledReminderTime, '21:00')
+    expect(helpers().form.getValues('scheduledReminders')).toEqual([{ when: 'day_before', time: '21:00' }])
+    expect(removeActions(tree)).toHaveLength(3)
+    tree.unmount()
+  })
+
+  it('scenario 18: repeats every 30 minutes inside the active hours and drops the fixed times', async () => {
+    const tree = await toReminderKinds()
+    await tap(tree, flowCopy().reminderKind.repeat)
+    expect(helpers().form.getValues('repeatReminder')).toMatchObject({ intervalMinutes: 30 })
+    expect(state.reminderTimes).toEqual([])
+    await tap(tree, formCopy().repeatAllDay)
+    await setTime(tree, formCopy().repeatActiveStart, '09:00')
+    await setTime(tree, formCopy().repeatActiveEnd, '18:00')
+    expect(helpers().form.getValues('repeatReminder')).toMatchObject({ intervalMinutes: 30, activeStart: '09:00', activeEnd: '18:00' })
+    await primary(tree)
+    expect(heading(tree)).toBe(flowCopy().confirm.question)
+    tree.unmount()
+  })
+
 
   it('opens the end time question from the length value and refuses an end before the start', async () => {
     const tree = await toSummary()
@@ -425,7 +683,7 @@ describe.each(['pt-BR', 'en'] as const)('the monthly repeat and the conversation
     const tree = renderNavigation(<GuidedFromConversation />)
     const question = tree.hosts().find((node) => node.props.accessibilityRole === 'header')
     expect(question?.props.children).toBe(flowCopy().confirm.question)
-    expect((question?.props as { accessibilityHint?: string } | undefined)?.accessibilityHint).toBe(flowCopy().orbit.fromConversation)
+    expect((question?.props as { accessibilityHint?: string } | undefined)?.accessibilityHint).toBe((i18n.language === 'en' ? en : ptBR).habits.form.fromConversation)
     tree.unmount()
   })
 })
@@ -436,6 +694,75 @@ function GuidedFromConversation() {
   return <GuidedHabitFlow mode="edit" formHelpers={formHelpers} lockedGeneral={null} fromConversation pending={false} saveError={null} createLabel="Salvar" onSubmit={submit} onClose={close}
     fields={{ tags, selectedGoalIds: [], atGoalLimit: false, onToggleGoal: vi.fn(), reminderTimes: [], onReminderTimesChange: vi.fn(), onUpgrade: vi.fn() }} />
 }
+
+const savedValues = () => helpers().form.getValues() as Parameters<typeof buildCreateHabitRequest>[0]
+
+describe('the request body of the guided flow on Android', () => {
+  beforeEach(async () => { await i18n.changeLanguage('pt-BR') })
+
+  it('creates with the body the current form sends for a task tomorrow at 8:00 with a reminder', async () => {
+    const tree = renderNavigation(<Harness />)
+    await phrase(tree, 'ligar para o João')
+    await tap(tree, ptBR.habits.flow.when.tomorrow)
+    await tap(tree, '08:00')
+    await tap(tree, ptBR.habits.flow.reminder.yes)
+    const body = buildCreateHabitRequest(savedValues(), state.reminderTimes, [], [], [])
+    const currentForm = { ...buildEmptyHabitFormValues(''), title: 'ligar para o João', dueDate: '2026-11-14', dueTime: '08:00', reminderEnabled: true }
+    expect(body).toEqual(buildCreateHabitRequest(currentForm, [0, 15], [], [], []))
+    expect(body).toMatchInlineSnapshot(`
+      {
+        "dueDate": "2026-11-14",
+        "dueTime": "08:00",
+        "isBadHabit": false,
+        "relativeReminders": [
+          {
+            "minutesBefore": 0,
+          },
+          {
+            "minutesBefore": 15,
+          },
+        ],
+        "reminderEnabled": true,
+        "reminderTimes": [],
+        "title": "ligar para o João",
+      }
+    `)
+    tree.unmount()
+  })
+
+  it('edits with the body the current form sends when only the time changes', async () => {
+    const stored = { title: 'Correr', itemType: 'habit' as const, frequencyUnit: 'Day' as const, frequencyQuantity: 1, dueDate: '2026-11-13', dueTime: '07:00' }
+    const tree = renderNavigation(<Harness mode="edit" subHabits={false} initial={stored} />)
+    await tap(tree, /^Hora,/)
+    await tap(tree, '20:00')
+    const body = buildUpdateHabitRequest(savedValues(), false, '', state.reminderTimes, [])
+    const currentForm = { ...buildEmptyHabitFormValues(''), ...stored, dueTime: '20:00' }
+    expect(body).toEqual(buildUpdateHabitRequest(currentForm, false, '', [0, 15], []))
+    expect(body).toMatchInlineSnapshot(`
+      {
+        "checklistItems": [],
+        "description": "",
+        "dueEndTime": undefined,
+        "dueTime": "20:00",
+        "emoji": null,
+        "frequencyQuantity": 1,
+        "frequencyUnit": "Day",
+        "goalIds": [],
+        "intervalWeeks": 1,
+        "isBadHabit": false,
+        "isFlexible": false,
+        "isGeneral": false,
+        "relativeReminders": [],
+        "reminderEnabled": false,
+        "reminderTimes": [],
+        "slipAlertEnabled": false,
+        "startDate": "2026-11-13",
+        "title": "Correr",
+      }
+    `)
+    tree.unmount()
+  })
+})
 
 describe('the guided edit flow on Android', () => {
   beforeEach(async () => { await i18n.changeLanguage('pt-BR') })
@@ -456,6 +783,12 @@ describe('the guided edit flow on Android', () => {
     const tree = renderNavigation(<Harness mode="edit" subHabits={false} initial={{ title: 'Alongar', itemType: 'habit', isGeneral: true }} />)
     expect(helpers().form.getValues()).toMatchObject({ itemType: 'habit', isGeneral: true })
     expect(helpers().form.formState.isDirty).toBe(false)
+    tree.unmount()
+  })
+  it('scenario 8: offers no time on the summary of a stored undated habit', () => {
+    const tree = renderNavigation(<Harness mode="edit" subHabits={false} initial={{ title: 'Alongar', itemType: 'habit', isGeneral: true }} />)
+    expect(summaryRow(tree, ptBR.habits.flow.summary.when)?.props.accessibilityLabel).toBe(`${ptBR.habits.flow.summary.when}, ${ptBR.habits.flow.summary.noDate}`)
+    expect(summaryRow(tree, ptBR.habits.flow.summary.time)).toBeUndefined()
     tree.unmount()
   })
 })

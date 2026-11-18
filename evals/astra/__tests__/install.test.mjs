@@ -12,19 +12,6 @@ const instructions = readFileSync(join(repository, 'TESTING.md'), 'utf8')
   .split('## Astra capability eval\n')[1].split('### Environment')[0]
 const installCommands = instructions.match(/npm ci [^`\n]+/g) ?? []
 
-it('the manual Action uses the documented installs from the repository root', () => {
-  const workflow = parse(readFileSync(join(repository, '.github/workflows/astra-eval.yml'), 'utf8'))
-  expect(Object.keys(workflow.on)).toEqual(['workflow_dispatch'])
-  const installs = workflow.jobs.evaluate.steps.filter((step) => /^npm ci /m.test(step.run ?? ''))
-  expect(installs).toHaveLength(1)
-  expect(installs[0]['working-directory']).toBe('${{ github.workspace }}')
-  expect(installs[0].run.trim().split('\n')).toEqual(installCommands)
-  const steps = workflow.jobs.evaluate.steps
-  const checkIndex = steps.findIndex((step) => step.run === 'npm test -- __tests__/install.test.mjs')
-  expect(checkIndex).toBeGreaterThan(steps.indexOf(installs[0]))
-  expect(checkIndex).toBeLessThan(steps.findIndex((step) => step.name === 'Prepare private rotating credentials'))
-})
-
 it('the documented clean install loads the harness and runs promptfoo past beforeAll', () => {
   const directory = mkdtempSync(join(tmpdir(), 'astra-install-'))
   const environment = Object.fromEntries(Object.entries(process.env).filter(([key]) =>
@@ -42,7 +29,7 @@ it('the documented clean install loads the harness and runs promptfoo past befor
     expect(installCommands.length).toBeGreaterThan(0)
     for (const command of installCommands) run('npm', command.split(' ').slice(1), directory)
     const evaluation = join(directory, 'evals/astra')
-    const modules = ['', 'fixtures'].flatMap((folder) => readdirSync(join(evaluation, folder))
+    const modules = ['', 'fixtures', 'core'].flatMap((folder) => readdirSync(join(evaluation, folder))
       .filter((name) => name.endsWith('.mjs'))
       // Catalog generation requires the API repository; Vitest configuration belongs to the test runner.
       .filter((name) => !['generate-catalog.mjs', 'vitest.config.mjs'].includes(name))

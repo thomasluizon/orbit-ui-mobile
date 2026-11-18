@@ -32,12 +32,15 @@ interface LoadedContentProps {
   onCopy: () => void
 }
 
-/** The loaded layout's shape while the referral loads: the link field, then the completed and pending rows. */
-function ReferralSkeleton({ label }: Readonly<{ label: string }>) {
+function ReferralSkeleton() {
+  const t = useTranslations()
   return (
-    <div role="status" aria-label={label} aria-busy="true" data-slot="referral-skeleton" className="flex flex-col gap-4">
-      <div style={{ height: TOUCH_TARGET_MIN + SPACING.s8 }}><Skeleton variant="fill" grouped /></div>
-      <Skeleton variant="settings" rows={2} grouped />
+    <div>
+      <SectionLabel>{t('referral.drawer.yourLink')}</SectionLabel>
+      <div role="status" aria-label={t('common.loading')} aria-busy="true" data-slot="referral-skeleton" className="flex flex-col gap-4">
+        <div style={{ height: TOUCH_TARGET_MIN + SPACING.s8 }}><Skeleton variant="fill" grouped /></div>
+        <Skeleton variant="settings" rows={2} grouped />
+      </div>
     </div>
   )
 }
@@ -59,7 +62,7 @@ function LoadedContent({
     <div className="flex flex-col gap-4">
       <div>
         <SectionLabel>{t('referral.drawer.yourLink')}</SectionLabel>
-        <div className="flex items-center gap-2 rounded-xl bg-[var(--bg-field)] py-1 pl-4 pr-2 shadow-[inset_0_0_0_1px_var(--hairline)]">
+        <div className="flex items-center gap-2 rounded-md bg-[var(--bg-field)] py-1 pl-4 pr-2 shadow-[inset_0_0_0_1px_var(--hairline)]">
           <span className="min-w-0 flex-1 overflow-hidden text-ellipsis whitespace-nowrap font-mono text-base font-medium tabular-nums text-[var(--fg-1)]">
             {referralUrl}
           </span>
@@ -193,7 +196,7 @@ function ReferralDrawerContent({
     >
       <>
         {isLoading ? (
-          <ReferralSkeleton label={t('common.loading')} />
+          <ReferralSkeleton />
         ) : null}
         {isError ? <ErrorState message={error.message} /> : null}
         {isLoaded ? (

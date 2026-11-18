@@ -4,7 +4,6 @@ import { describe, expect, it } from 'vitest'
 
 const stylesheet = postcss.parse(readFileSync('app/globals.css', 'utf8'))
 
-/** Every declaration of `property` inside a reduced-motion query, keyed by the rule's selector list. */
 function reducedDeclarations(property: string): Map<string, string[]> {
   const found = new Map<string, string[]>()
   stylesheet.walkAtRules('media', (media: AtRule) => {

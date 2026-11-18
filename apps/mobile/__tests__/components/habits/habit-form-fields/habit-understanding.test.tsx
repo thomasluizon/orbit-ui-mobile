@@ -1,4 +1,4 @@
-import { expectPressFill } from '../../../support/press-feedback'
+import { controlStyle , expectPressFill } from '@/__tests__/support/press-feedback'
 import React from "react";
 import { describe, expect, it, vi } from "vitest";
 import { StyleSheet, type TextStyle, type ViewStyle } from "react-native";
@@ -265,11 +265,11 @@ describe('schedule press fills', () => {
       expect(targetStyle.minWidth).toBe(24);
       expect(targetStyle.minHeight).toBe(48);
       const fill = () => target;
-      const resting = StyleSheet.flatten(fill().props.style as ViewStyle).backgroundColor;
+      const resting = controlStyle(fill()).backgroundColor;
       TestRenderer.act(() => (target.props.onPressIn as () => void)());
-      expect(StyleSheet.flatten(fill().props.style as ViewStyle).backgroundColor).toBe(tokens.bgHover);
+      expect(controlStyle(fill() as never).backgroundColor).toBe(tokens.bgHover);
       TestRenderer.act(() => (target.props.onPressOut as () => void)());
-      expect(StyleSheet.flatten(fill().props.style as ViewStyle).backgroundColor).toBe(resting);
+      expect(controlStyle(fill() as never).backgroundColor).toBe(resting);
     }
   });
   it('fills both quantity controls in flexible mode', () => {

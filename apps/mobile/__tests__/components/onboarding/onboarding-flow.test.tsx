@@ -1,8 +1,9 @@
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
 import React from 'react'
-import { Animated, I18nManager, StyleSheet } from 'react-native'
+import { I18nManager, StyleSheet } from 'react-native'
 import { motionDurations } from '@orbit/shared/theme'
 import { __setWindowDimensions } from '@/test-mocks/react-native'
+import { withTimingCalls } from '@/test-mocks/react-native-reanimated'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { API } from '@orbit/shared/api'
 import type { HabitSetupSuggestion } from '@orbit/shared/types/habit'
@@ -384,18 +385,16 @@ describe('OnboardingFlow state model', () => {
     const durations = motionDurations as unknown as Record<string, number>
     const originalBase = durations.base
     durations.base = 333
-    const timing = vi.spyOn(Animated, 'timing')
     try {
       const tree = await mount(false)
       await enterSentence(tree, 'Walk every Monday at 18:00')
-      const callsBeforeContinue = timing.mock.calls.length
+      const callsBeforeContinue = withTimingCalls.length
       await click(tree, 'onboarding.flow.continue')
-      const stepCalls = timing.mock.calls.slice(callsBeforeContinue)
+      const stepCalls = withTimingCalls.slice(callsBeforeContinue)
       expect(stepCalls).toHaveLength(1)
-      expect(stepCalls[0]![1]).toMatchObject({ toValue: 1, duration: 333, useNativeDriver: true })
+      expect(stepCalls[0]).toMatchObject({ value: 1, config: { duration: 333 } })
     } finally {
       durations.base = originalBase!
-      timing.mockRestore()
     }
   })
 
@@ -631,6 +630,22 @@ describe('OnboardingFlow state model', () => {
     const request = mocks.createHabit.mock.calls[0]?.[0]
     expect(request).not.toHaveProperty('isGeneral')
     expect(request).not.toHaveProperty('isFlexible')
+  })
+
+  it.each([
+    ['a time', 'Water the plants at 9am', { title: 'Water the plants', frequencyUnit: 'Day', dueTime: '09:00', emoji: '🌿' }],
+    ['a repeat', 'Water the plants 3 times a week', { title: 'Water the plants', frequencyUnit: 'Week', frequencyQuantity: 3, isFlexible: true, dueTime: '07:00', emoji: '🌿' }],
+    ['a day', 'Water the plants every monday', { title: 'Water the plants', frequencyUnit: 'Day', days: ['Monday'], dueTime: '07:00', emoji: '🌿' }],
+    ['an emoji', '💧 Water the plants', { title: '💧 Water the plants', frequencyUnit: 'Day', dueTime: '07:00', emoji: null }],
+    ['a bare interval', 'Water the plants every 2 weeks', { title: 'Water the plants', frequencyUnit: 'Week', frequencyQuantity: 2, dueTime: '07:00', emoji: '🌿' }],
+    ['no emoji when the sentence holds only a text sign', 'Buy Coca-Cola® zero', { title: 'Buy Coca-Cola® zero', frequencyUnit: 'Day', dueTime: '07:00', emoji: '🌿' }],
+  ] as const)('keeps %s the person typed in the sentence when the Orbit suggestion proposes another value', async (_field, sentence, expected) => {
+    mocks.suggest.mockResolvedValue({ emoji: '🌿', frequencyUnit: 'Day', frequencyQuantity: 1, days: [], isFlexible: false, flexibleTarget: null, dueTime: '07:00', subHabits: [], checklistItems: [] })
+    const tree = await mount(true)
+    await enterSentence(tree, sentence)
+    await click(tree, 'onboarding.flow.continue')
+    await click(tree, 'onboarding.flow.create')
+    expect(mocks.createHabit).toHaveBeenCalledWith(expect.objectContaining(expected))
   })
 
   it.each([

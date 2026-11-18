@@ -48,7 +48,6 @@ const COVER_CASES = COVER_STATES.flatMap((cover) => LOCALES.flatMap((locale) => 
 const DIALOG_CASES = LOCALES.flatMap((locale) => WIDTHS.map((width) => ({ ...locale, width })))
 const themeStyle = Object.entries(resolveWebThemeVariables('orange', 'dark')).map(([key, value]) => `${key}:${value}`).join(';')
 
-/** Runs in the page, so it reads nothing from this module. The number of text lines inside each element, read from its text nodes. */
 function measureTextLines(elements: Element[]) {
   return elements.map((element) => {
     const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT)
@@ -101,7 +100,6 @@ describe('the guided Wrapped cover, the share sheet and the milestone dialog in 
           range.selectNodeContents(element)
           return new Set([...range.getClientRects()].map((rect) => Math.round(rect.top))).size
         }
-        /** The press target: the box plus the hit area that a small pill draws past its edges with `::after`. */
         const target = (element: Element | null | undefined) => {
           if (!element) return null
           const after = getComputedStyle(element, '::after')
@@ -167,7 +165,6 @@ describe('the guided Wrapped cover, the share sheet and the milestone dialog in 
           const rect = document.querySelector(selector)!.getBoundingClientRect()
           return { top: rect.top, bottom: rect.bottom, left: rect.left, right: rect.right, width: rect.width }
         }
-        /** The visible content of the block: from its first child to its last, so padding on the block cannot hide a wider gap. */
         const children = [...document.querySelector('[data-wrapped-cover-block]')!.children].map((child) => child.getBoundingClientRect())
         return {
           scroller: box('[data-wrapped-cover="guided"] > div'),

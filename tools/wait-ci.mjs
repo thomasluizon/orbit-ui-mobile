@@ -5,7 +5,7 @@ import { githubEnvironment, redactSecrets, repositorySlug } from "./lib/github-a
 import { createCiBudget } from "./lib/ci-budget.mjs"
 import { readGithub, readGithubPull } from "./lib/github-read.mjs"
 import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
-import { REVIEW_APP_CONTEXT, requiredChecksFromResponse } from "./lib/readiness-receipt.mjs"
+import { REVIEW_APP_CONTEXT, newestChecks, requiredChecksFromResponse } from "./lib/readiness-receipt.mjs"
 import { clearWakeSource, registerWakeSource, readRunState } from "./lib/run-state.mjs"
 
 const USAGE = `usage: wait-ci.mjs --repo <key> --pr <n> [--pr <n> ...] [--require-check <name> ...] [--ceiling-minutes <n>]
@@ -13,9 +13,11 @@ const USAGE = `usage: wait-ci.mjs --repo <key> --pr <n> [--pr <n> ...] [--requir
 Watch every named pull request's current head through GitHub REST checks and commit statuses.
 Exit when all checks settle, a head moves, a pull request closes, or the ceiling expires.
 A required pullfrog-approval check counts only with --require-check pullfrog-approval: Pullfrog reviews
-on request, so a plain waiter settles on the CI that must pass before that request.
+only on request, so a plain waiter settles on CI alone and never waits for a review nobody asked for.
 A head with a failing check settles once nothing is pending, even when a required check never arrives;
 a passing head waits for every required check.
+Only the newest check run of each check name and app counts: a run that a newer run of the same
+check superseded is never failing. A cancelled run that nothing superseded is failing.
 Transient GitHub errors retry until the ceiling; JSON includes their count and last text.
 Waiters in this checkout share half the live REST hourly limit per account, use conditional
 reads, and slow down when capacity is low. Budget waits remain inside the ceiling.
@@ -168,12 +170,14 @@ try {
         finish("HEAD_MOVED", 4)
       }
       const required = await requiredForBase(pull.base.ref)
-      const checks = await checksForHead(entry.head)
+      const reportedChecks = await checksForHead(entry.head)
       const statuses = await statusesForHead(entry.head)
-      if (checks.some((check) => typeof check.name !== "string" || typeof check.status !== "string" || !Number.isInteger(check.app?.id) || !("conclusion" in check)) ||
+      if (reportedChecks.some((check) => !Number.isInteger(check.id) || typeof check.name !== "string" || typeof check.status !== "string" || typeof check.started_at !== "string" || !Number.isInteger(check.app?.id) || !("conclusion" in check)) ||
           statuses.some((item) => typeof item.context !== "string" || !["pending", "success", "failure", "error"].includes(item.state))) {
         throw new Error("GitHub checks or statuses had an unexpected shape")
       }
+      // A concurrency cancel, a rerun or a second pull request event leaves the older run of a check on the head. Only the newest run of a check is its verdict.
+      const checks = [...newestChecks(reportedChecks.map((check) => ({ ...check, appId: check.app.id, startedAt: check.started_at, databaseId: check.id }))).values()]
       const pending = checks.some((check) => check.status !== "completed" || check.conclusion === null) ||
         statuses.some((item) => item.state === "pending")
       const completedNames = new Set([
@@ -186,7 +190,7 @@ try {
       ]
       const runsPending = (await runsForHead(entry.head)).some((run) => run.status !== "completed")
       const requiredArrived = required.every(({ context, appId }) => checks.some((check) => check.name === context && (appId === null || check.app.id === appId) && check.status === "completed" && check.conclusion !== null) || (appId === null && statuses.some((item) => item.context === context && item.state !== "pending")))
-      // A failed job can skip the job that feeds a required check (a failed Unit Tests skips SonarCloud Analysis), so that check never arrives. Only a passing head waits for every required context.
+      // A failed job can stop before the step that feeds a required check (a failed Unit Tests never reaches its SonarCloud scan), so that check never arrives. Only a passing head waits for every required context.
       const quiet = completedNames.size > 0 && !pending && !runsPending && (entry.failingChecks.length > 0 || requiredArrived)
       const observed = JSON.stringify({ checks: checks.map((check) => [check.name, check.app.id, check.status, check.conclusion]).sort(), statuses: statuses.map((item) => [item.context, item.state]).sort() })
       entry.settled = quiet && lastQuietSet.get(entry.number) === observed

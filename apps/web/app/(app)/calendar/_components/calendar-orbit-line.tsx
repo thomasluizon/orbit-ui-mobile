@@ -49,7 +49,6 @@ function useCalendarOrbitModel(props: CalendarOrbitLineProps): { line: CalendarO
   return { line, page: span?.from ?? monthStart }
 }
 
-/** One ring turn for each page the person turns. A view switch is not a page turn. */
 function usePageTurns(view: CalendarView, page: string): number {
   const [turn, setTurn] = useState({ view, page, turns: 0 })
   const next = nextCalendarPageTurn(turn, view, page)
@@ -57,7 +56,6 @@ function usePageTurns(view: CalendarView, page: string): number {
   return next.turns
 }
 
-/** Orbit looks toward the day the person selects. A page turn ends the look. */
 function useSelectedDayLook(selectedDay: string, page: string) {
   const { mascotRef, lookAt, lookTowards, lookAway } = useOrbitLook()
   const shown = useRef({ selectedDay, page })

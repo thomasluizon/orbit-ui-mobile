@@ -42,7 +42,6 @@ export function HabitCheck({ status, label, unavailable = false, progress }: Rea
   useEffect(() => {
     const check = checkRef.current
     if (settleFrom === null || !check) return
-    /** A number spring writes only through `onUpdate`; an element animation writes on a later frame, after this cleanup. */
     const settle = animate(settleFrom, 1, {
       type: 'spring', ...motionSprings.completion,
       onUpdate: (scale) => { check.style.transform = `scale(${scale})` },

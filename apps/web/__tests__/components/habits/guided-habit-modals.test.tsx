@@ -4,13 +4,15 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
+import type { HabitPhraseReadResponse } from '@orbit/shared/types'
 import { CreateHabitModal } from '@/components/habits/create-habit-modal'
 import { EditHabitModal } from '@/components/habits/edit-habit-modal'
 
 const state = vi.hoisted(() => ({
   locale: 'pt-BR' as 'en' | 'pt-BR', flag: true, online: true, clock24: true,
   create: vi.fn(), update: vi.fn(), saved: null as Record<string, unknown> | null, detail: null as Record<string, unknown> | null,
-  completed: vi.fn(), push: vi.fn(),
+  completed: vi.fn(), push: vi.fn(), phraseRead: vi.fn(), subCreate: vi.fn(),
+  detailPending: false, detailFetching: false, detailError: null as Error | null, refetchDetail: vi.fn(),
 }))
 
 function lookup(messages: Record<string, unknown>, key: string): string {
@@ -32,18 +34,18 @@ vi.mock('@/hooks/use-profile', () => ({
 }))
 vi.mock('@/hooks/use-app-toast', () => ({ useAppToast: () => ({ showError: vi.fn(), showSuccess: vi.fn(), showInfo: vi.fn() }) }))
 vi.mock('@/hooks/use-create-habit', () => ({ useCreateHabit: () => ({ mutateAsync: state.create, isPending: false }) }))
-vi.mock('@/hooks/use-create-sub-habit', () => ({ useCreateSubHabit: () => ({ mutateAsync: vi.fn(), isPending: false }) }))
+vi.mock('@/hooks/use-create-sub-habit', () => ({ useCreateSubHabit: () => ({ mutateAsync: state.subCreate, isPending: false }) }))
 vi.mock('@/hooks/use-update-habit', () => ({ useUpdateHabit: () => ({ mutateAsync: state.update, isPending: false }) }))
 vi.mock('@/hooks/use-habit-queries', async (importOriginal) => ({
   ...await importOriginal<typeof import('@/hooks/use-habit-queries')>(),
-  useHabitDetail: () => ({ data: state.detail, isPending: false, error: null, refetch: vi.fn().mockResolvedValue(undefined) }),
+  useHabitDetail: () => ({ data: state.detail ?? undefined, isPending: state.detailPending, isFetching: state.detailFetching, error: state.detailError, refetch: state.refetchDetail }),
 }))
 vi.mock('@/hooks/use-habits', async (importOriginal) => ({
   ...await importOriginal<typeof import('@/hooks/use-habits')>(),
   useHabitDetail: () => ({ data: state.saved }),
 }))
 vi.mock('@/hooks/use-habit-suggestion', () => ({ useHabitSuggestion: () => ({ mutateAsync: vi.fn(), isPending: false }) }))
-vi.mock('@/hooks/use-habit-phrase-read', () => ({ useHabitPhraseRead: () => ({ mutateAsync: vi.fn().mockResolvedValue(null), isPending: false }) }))
+vi.mock('@/hooks/use-habit-phrase-read', () => ({ useHabitPhraseRead: () => ({ mutateAsync: state.phraseRead, isPending: false }) }))
 vi.mock('@/hooks/use-reminder-permission', () => ({ useReminderPermission: (_enabled: boolean, onToggle: () => void) => ({ toggleReminder: onToggle, showNotice: false, requestPermission: vi.fn() }) }))
 vi.mock('@/hooks/use-tags', () => ({
   useTags: () => ({ tags: [] }), useSuggestTags: () => ({ mutateAsync: vi.fn(), isPending: false }),
@@ -69,10 +71,10 @@ async function phrase(text: string) {
   await press(messages().habits.flow.continue)
 }
 
-function mountCreate() {
+function mountCreate(initialDate?: string) {
   const client = new QueryClient()
   const closed = vi.fn()
-  render(<QueryClientProvider client={client}><CreateHabitModal open onOpenChange={closed} /></QueryClientProvider>)
+  render(<QueryClientProvider client={client}><CreateHabitModal open onOpenChange={closed} initialDate={initialDate} /></QueryClientProvider>)
   return { closed }
 }
 
@@ -93,8 +95,14 @@ beforeEach(() => {
   state.create.mockReset().mockResolvedValue({ id: 'habit-9' })
   state.update.mockReset().mockResolvedValue({})
   state.completed.mockReset()
+  state.phraseRead.mockReset().mockResolvedValue(null)
+  state.subCreate.mockReset().mockResolvedValue({ id: 'child-1' })
   state.saved = { id: 'habit-9', title: 'Ligar para o João', isGeneral: false, dueDate: '2026-11-14', dueTime: '08:30', frequencyUnit: null, frequencyQuantity: null, isFlexible: false }
   state.detail = null
+  state.detailPending = false
+  state.detailFetching = false
+  state.detailError = null
+  state.refetchDetail.mockReset().mockResolvedValue(undefined)
   vi.useFakeTimers({ now: new Date('2026-11-13T12:00:00Z'), toFake: ['Date'] })
   vi.stubGlobal('matchMedia', (query: string) => ({ matches: false, media: query, addEventListener: () => {}, removeEventListener: () => {} }))
 })
@@ -139,7 +147,7 @@ describe('the create surface behind orbit_guided_flows', () => {
     expect(state.completed).toHaveBeenCalledWith('habit_create', 5, false)
     const dialog = await screen.findByRole('dialog', { name: messages().result.title })
     expect(dialog).toHaveAccessibleDescription(messages().result.task.datedTimed.replace('{date}', expect.any(String) as unknown as string).split('{')[0]!.trim() ? expect.stringContaining('08:30') : '')
-    expect(screen.getByRole('button', { name: messages().result.seeCalendar })).toHaveFocus()
+    await waitFor(() => expect(screen.getByRole('button', { name: messages().result.seeCalendar })).toHaveFocus())
     expect(document.querySelector('[data-orbit-state="feliz"]')).not.toBeNull()
   })
 
@@ -166,6 +174,389 @@ describe('the create surface behind orbit_guided_flows', () => {
     expect(heading()).toHaveTextContent(ptBR.habits.flow.confirm.question)
     expect(screen.getByRole('alert')).not.toBeEmptyDOMElement()
     expect(screen.queryByRole('dialog', { name: ptBR.result.title })).not.toBeInTheDocument()
+  })
+
+  it.each([['en', 'call John every day at 8am', 'call John'], ['pt-BR', 'ligar para o João todo dia às 8', 'ligar para o João']] as const)(
+    'gives a repeat phrase its start day and saves the title with no schedule words in %s', async (locale, sentence, title) => {
+      state.locale = locale
+      mountCreate()
+      await waitFor(() => expect(document.querySelector('[data-question-flow]')).not.toBeNull())
+      await phrase(sentence)
+      expect(heading()).toHaveTextContent(messages().habits.flow.reminder.question.replace('{time}', '08:00'))
+      await press(messages().habits.flow.reminder.no)
+      await press(messages().habits.createHabit)
+      expect(state.create).toHaveBeenCalledTimes(1)
+      expect(state.create.mock.calls[0]![0]).toMatchObject({ title, startDate: '2026-11-13', dueTime: '08:00', frequencyUnit: 'Day', frequencyQuantity: 1 })
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    })
+
+  it('saves the title with no schedule words when the flow opens with a day', async () => {
+    state.locale = 'en'
+    mountCreate('2026-11-20')
+    await waitFor(() => expect(document.querySelector('[data-question-flow]')).not.toBeNull())
+    await phrase('call John every day at 8am')
+    await press(en.habits.flow.reminder.no)
+    await press(en.habits.createHabit)
+    expect(state.create.mock.calls[0]![0]).toMatchObject({ title: 'call John', startDate: '2026-11-20', dueTime: '08:00', frequencyUnit: 'Day', frequencyQuantity: 1 })
+  })
+
+  it('keeps the words of a time the person changed in the saved title, as the full form does', async () => {
+    state.locale = 'en'
+    mountCreate()
+    await waitFor(() => expect(document.querySelector('[data-question-flow]')).not.toBeNull())
+    await phrase('call John every day at 8am')
+    await press(en.habits.flow.reminder.no)
+    await press(/^Time/)
+    await press('14:00')
+    await press(en.habits.createHabit)
+    expect(state.create.mock.calls[0]![0]).toMatchObject({ title: 'call John at 8am', startDate: '2026-11-13', dueTime: '14:00', frequencyUnit: 'Day' })
+  })
+
+  it('gives the repeat of the date question its start day', async () => {
+    state.locale = 'en'
+    mountCreate()
+    await waitFor(() => expect(document.querySelector('[data-question-flow]')).not.toBeNull())
+    await phrase('call John')
+    await act(async () => { fireEvent.change(screen.getByLabelText(en.habits.flow.when.freeLabel), { target: { value: 'every day' } }) })
+    await press(en.habits.flow.continue)
+    await press(en.habits.flow.time.none)
+    await press(en.habits.createHabit)
+    expect(state.create.mock.calls[0]![0]).toMatchObject({ title: 'call John', startDate: '2026-11-13', frequencyUnit: 'Day', frequencyQuantity: 1 })
+  })
+
+  it('keeps the time of the phrase when the repeat of the date question carries no time', async () => {
+    state.locale = 'en'
+    mountCreate()
+    await waitFor(() => expect(document.querySelector('[data-question-flow]')).not.toBeNull())
+    await phrase('call John at 8am')
+    await act(async () => { fireEvent.change(screen.getByLabelText(en.habits.flow.when.freeLabel), { target: { value: 'every day' } }) })
+    await press(en.habits.flow.continue)
+    await press(en.habits.flow.reminder.no)
+    await press(en.habits.createHabit)
+    expect(state.create.mock.calls[0]![0]).toMatchObject({ title: 'call John', startDate: '2026-11-13', dueTime: '08:00', frequencyUnit: 'Day', frequencyQuantity: 1 })
+  })
+
+  it('stops marking the time as a proposal on the summary when the date words replace the time the free read proposed', async () => {
+    state.locale = 'en'
+    state.phraseRead.mockResolvedValue({ read: true, emoji: null, frequencyUnit: null, frequencyQuantity: null, days: [], isFlexible: false, flexibleTarget: null, dueTime: '07:00', subHabits: [], checklistItems: [] })
+    mountCreate()
+    await waitFor(() => expect(document.querySelector('[data-question-flow]')).not.toBeNull())
+    await phrase('water the plants')
+    expect(state.phraseRead).toHaveBeenCalledTimes(1)
+    await act(async () => { fireEvent.change(screen.getByLabelText(en.habits.flow.when.freeLabel), { target: { value: 'every day at 9am' } }) })
+    await press(en.habits.flow.continue)
+    await press(en.habits.flow.reminder.no)
+    const timeRow = screen.getByRole('button', { name: new RegExp(`^${en.habits.flow.summary.time}`) })
+    expect(timeRow).toHaveTextContent('09:00')
+    expect(timeRow.closest('[data-proposed]')).toBeNull()
+  })
+
+  it('stops marking the repeat as a proposal on the summary when the person changes it on the repeat step', async () => {
+    state.locale = 'en'
+    state.phraseRead.mockResolvedValue({ read: true, emoji: null, frequencyUnit: 'Day', frequencyQuantity: 1, days: [], isFlexible: false, flexibleTarget: null, dueTime: '07:00', subHabits: [], checklistItems: [] })
+    mountCreate()
+    await waitFor(() => expect(document.querySelector('[data-question-flow]')).not.toBeNull())
+    await phrase('water the plants')
+    await press(en.habits.flow.reminder.no)
+    const scheduleRow = () => screen.getByRole('button', { name: new RegExp(`^${en.habits.flow.summary.when}`) })
+    expect(scheduleRow().closest('[data-proposed]')).not.toBeNull()
+    await act(async () => { fireEvent.click(scheduleRow()) })
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: new RegExp(`^${en.habits.flow.repeat.timesIn}`) })) })
+    await press(en.habits.flow.continue)
+    expect(scheduleRow().closest('[data-proposed]')).toBeNull()
+    expect(screen.getByRole('button', { name: new RegExp(`^${en.habits.flow.summary.time}`) }).closest('[data-proposed]')).not.toBeNull()
+  })
+
+  it('stops marking the repeat and the cleared time as proposals on the summary when the person makes the habit a one-time task', async () => {
+    state.locale = 'en'
+    state.phraseRead.mockResolvedValue({ read: true, emoji: null, frequencyUnit: 'Day', frequencyQuantity: 1, days: [], isFlexible: false, flexibleTarget: null, dueTime: '07:00', subHabits: [], checklistItems: [] })
+    mountCreate()
+    await waitFor(() => expect(document.querySelector('[data-question-flow]')).not.toBeNull())
+    await phrase('water the plants')
+    await press(en.habits.flow.reminder.no)
+    const scheduleRow = () => screen.getByRole('button', { name: new RegExp(`^${en.habits.flow.summary.when}`) })
+    const timeRow = () => screen.getByRole('button', { name: new RegExp(`^${en.habits.flow.summary.time}`) })
+    expect(scheduleRow().closest('[data-proposed]')).not.toBeNull()
+    expect(timeRow()).toHaveTextContent('07:00')
+    expect(timeRow().closest('[data-proposed]')).not.toBeNull()
+    await press(new RegExp(`^${en.habits.flow.summary.type}`))
+    await act(async () => { fireEvent.click(screen.getByRole('radio', { name: new RegExp(`^${en.habits.form.typeTask}`) })) })
+    expect(heading()).toHaveTextContent(en.habits.flow.confirm.question)
+    expect(scheduleRow().closest('[data-proposed]')).toBeNull()
+    expect(timeRow()).toHaveTextContent(en.habits.flow.summary.noTime)
+    expect(timeRow().closest('[data-proposed]')).toBeNull()
+  })
+
+  it('stops marking the time and the repeat as proposals on the summary when the person types them in the title', async () => {
+    state.locale = 'en'
+    state.phraseRead.mockResolvedValue({ read: true, emoji: null, frequencyUnit: 'Day', frequencyQuantity: 1, days: [], isFlexible: false, flexibleTarget: null, dueTime: '07:00', subHabits: [], checklistItems: [] })
+    mountCreate()
+    await waitFor(() => expect(document.querySelector('[data-question-flow]')).not.toBeNull())
+    await phrase('water the plants')
+    await press(en.habits.flow.reminder.no)
+    const scheduleRow = () => screen.getByRole('button', { name: new RegExp(`^${en.habits.flow.summary.when}`) })
+    const timeRow = () => screen.getByRole('button', { name: new RegExp(`^${en.habits.flow.summary.time}`) })
+    expect(timeRow()).toHaveTextContent('07:00')
+    expect(timeRow().closest('[data-proposed]')).not.toBeNull()
+    await press(new RegExp(`^${en.habits.flow.summary.title}`))
+    await phrase('water the plants at 9am')
+    expect(heading()).toHaveTextContent(en.habits.flow.confirm.question)
+    expect(timeRow()).toHaveTextContent('09:00')
+    expect(timeRow().closest('[data-proposed]')).toBeNull()
+    expect(scheduleRow().closest('[data-proposed]')).not.toBeNull()
+    await press(new RegExp(`^${en.habits.flow.summary.title}`))
+    await phrase('water the plants every monday at 9am')
+    expect(scheduleRow().closest('[data-proposed]')).toBeNull()
+    expect(timeRow().closest('[data-proposed]')).toBeNull()
+    expect(state.phraseRead).toHaveBeenCalledTimes(1)
+  })
+
+  it.each([['en', 'water the plants every monday at 9am', 'every Monday'], ['pt-BR', 'regar as plantas toda segunda às 9h', 'toda segunda']] as const)(
+    'names the chosen weekday on the summary and in the result sentence in %s', async (locale, words, schedule) => {
+      state.locale = locale
+      state.saved = { id: 'habit-9', title: words, isGeneral: false, dueDate: '2026-11-13', dueTime: '09:00', frequencyUnit: 'Day', frequencyQuantity: 1, isFlexible: false, days: ['Monday'], monthDays: null, intervalWeeks: 1 }
+      mountCreate()
+      await waitFor(() => expect(document.querySelector('[data-question-flow]')).not.toBeNull())
+      await phrase(words)
+      await press(messages().habits.flow.reminder.no)
+      expect(screen.getByRole('button', { name: new RegExp(`^${messages().habits.flow.summary.when}`) })).toHaveTextContent(schedule)
+      await press(messages().habits.createHabit)
+      expect(state.create.mock.calls[0]![0]).toMatchObject({ frequencyUnit: 'Day', frequencyQuantity: 1, days: ['Monday'], dueTime: '09:00' })
+      expect(await screen.findByRole('dialog', { name: messages().result.title })).toHaveAccessibleDescription(expect.stringContaining(`${schedule} `))
+    },
+  )
+
+  it.each([
+    ['an emoji', { emoji: '🪴', dueTime: null }, false],
+    ['a time', { emoji: null, dueTime: '07:00' }, true],
+  ] as const)('never marks a repeat the person typed as a proposal when the free read gives the same repeat and %s', async (_label, extra, timeProposed) => {
+    state.locale = 'en'
+    state.phraseRead.mockResolvedValue({ read: true, frequencyUnit: 'Day', frequencyQuantity: 1, days: ['Monday'], isFlexible: false, flexibleTarget: null, subHabits: [], checklistItems: [], ...extra })
+    mountCreate()
+    await waitFor(() => expect(document.querySelector('[data-question-flow]')).not.toBeNull())
+    await phrase('water the plants every monday')
+    expect(state.phraseRead).toHaveBeenCalledTimes(1)
+    if (screen.queryByRole('button', { name: en.habits.flow.time.none })) await press(en.habits.flow.time.none)
+    if (screen.queryByRole('button', { name: en.habits.flow.reminder.no })) await press(en.habits.flow.reminder.no)
+    expect(heading()).toHaveTextContent(en.habits.flow.confirm.question)
+    const scheduleRow = screen.getByRole('button', { name: new RegExp(`^${en.habits.flow.summary.when}`) })
+    expect(scheduleRow).toHaveTextContent('every Monday')
+    expect(scheduleRow.closest('[data-proposed]')).toBeNull()
+    expect(screen.getByRole('button', { name: new RegExp(`^${en.habits.flow.summary.time}`) }).closest('[data-proposed]') !== null).toBe(timeProposed)
+  })
+
+  it('keeps a child of a General parent undated when the free read proposes a repeat and a time, and marks only the emoji', async () => {
+    state.locale = 'en'
+    state.phraseRead.mockResolvedValue({ read: true, emoji: '🪴', frequencyUnit: 'Day', frequencyQuantity: 1, days: [], isFlexible: false, flexibleTarget: null, dueTime: '07:00', subHabits: [], checklistItems: [] })
+    const parent = createMockHabit({ id: 'parent-1', title: 'Home', isGeneral: true, frequencyUnit: null, frequencyQuantity: null, dueTime: null })
+    render(<QueryClientProvider client={new QueryClient()}><CreateHabitModal open onOpenChange={vi.fn()} parentHabit={parent} /></QueryClientProvider>)
+    await waitFor(() => expect(document.querySelector('[data-question-flow]')).not.toBeNull())
+    await phrase('water the plants')
+    expect(state.phraseRead).toHaveBeenCalledTimes(1)
+    if (screen.queryByRole('button', { name: en.habits.flow.time.none })) await press(en.habits.flow.time.none)
+    if (screen.queryByRole('button', { name: en.habits.flow.reminder.no })) await press(en.habits.flow.reminder.no)
+    expect(heading()).toHaveTextContent(en.habits.flow.confirm.question)
+    expect(screen.getByText(en.habits.flow.summary.when)).toBeInTheDocument()
+    expect(screen.queryByText(en.habits.flow.summary.time)).toBeNull()
+    expect([...document.querySelectorAll('[data-proposed]')].map((node) => node.textContent)).toEqual(['🪴'])
+    await press(en.common.create)
+    expect(state.subCreate).toHaveBeenCalledTimes(1)
+    const sent = (state.subCreate.mock.calls[0]![0] as { data: Record<string, unknown> }).data
+    expect(sent).toMatchObject({ title: 'water the plants', emoji: '🪴' })
+    expect(sent).not.toHaveProperty('frequencyUnit')
+    expect(sent).not.toHaveProperty('dueTime')
+    expect(sent).not.toHaveProperty('dueDate')
+  })
+
+  it('keeps the day the person answered when a later free read of the phrase proposes a repeat', async () => {
+    state.locale = 'en'
+    state.phraseRead
+      .mockResolvedValueOnce({ read: false, emoji: null, frequencyUnit: null, frequencyQuantity: null, days: [], isFlexible: false, flexibleTarget: null, dueTime: null, subHabits: [], checklistItems: [] })
+      .mockResolvedValueOnce({ read: true, emoji: null, frequencyUnit: 'Day', frequencyQuantity: 1, days: [], isFlexible: false, flexibleTarget: null, dueTime: '07:00', subHabits: [], checklistItems: [] })
+    mountCreate()
+    await waitFor(() => expect(document.querySelector('[data-question-flow]')).not.toBeNull())
+    await phrase('call mom')
+    await press(en.habits.flow.when.tomorrow)
+    await press(en.habits.flow.time.none)
+    expect(heading()).toHaveTextContent(en.habits.flow.confirm.question)
+    await press(new RegExp(`^${en.habits.flow.summary.title}`))
+    await phrase('call mom and ask about the trip')
+    expect(state.phraseRead).toHaveBeenCalledTimes(2)
+    expect(heading()).toHaveTextContent(en.habits.flow.confirm.question)
+    const scheduleRow = screen.getByRole('button', { name: new RegExp(`^${en.habits.flow.summary.when}`) })
+    expect(scheduleRow).not.toHaveTextContent('every day')
+    expect(scheduleRow.closest('[data-proposed]')).toBeNull()
+    await press(en.habits.createTask)
+    expect(state.create).toHaveBeenCalledTimes(1)
+    const sent = state.create.mock.calls[0]![0] as Record<string, unknown>
+    expect(sent).toMatchObject({ title: 'call mom and ask about the trip', dueDate: '2026-11-14' })
+    expect(sent).not.toHaveProperty('frequencyUnit')
+    expect(sent).not.toHaveProperty('dueTime')
+  })
+
+  it('keeps the repeat the person answered when a later free read of the phrase proposes another repeat', async () => {
+    state.locale = 'en'
+    state.phraseRead
+      .mockResolvedValueOnce({ read: false, emoji: null, frequencyUnit: null, frequencyQuantity: null, days: [], isFlexible: false, flexibleTarget: null, dueTime: null, subHabits: [], checklistItems: [] })
+      .mockResolvedValueOnce({ read: true, emoji: null, frequencyUnit: 'Week', frequencyQuantity: 1, days: ['Monday'], isFlexible: false, flexibleTarget: null, dueTime: null, subHabits: [], checklistItems: [] })
+    mountCreate()
+    await waitFor(() => expect(document.querySelector('[data-question-flow]')).not.toBeNull())
+    await phrase('call mom')
+    await press(en.habits.flow.when.everyDay)
+    await press(en.habits.flow.time.none)
+    expect(heading()).toHaveTextContent(en.habits.flow.confirm.question)
+    await press(new RegExp(`^${en.habits.flow.summary.title}`))
+    await phrase('call mom and ask about the trip')
+    expect(state.phraseRead).toHaveBeenCalledTimes(2)
+    expect(heading()).toHaveTextContent(en.habits.flow.confirm.question)
+    const scheduleRow = screen.getByRole('button', { name: new RegExp(`^${en.habits.flow.summary.when}`) })
+    expect(scheduleRow).toHaveTextContent('every day')
+    expect(scheduleRow.closest('[data-proposed]')).toBeNull()
+    await press(en.habits.createHabit)
+    expect(state.create).toHaveBeenCalledTimes(1)
+    const sent = state.create.mock.calls[0]![0] as Record<string, unknown>
+    expect(sent).toMatchObject({ title: 'call mom and ask about the trip', startDate: '2026-11-13', frequencyUnit: 'Day', frequencyQuantity: 1 })
+    expect(sent.days ?? []).toEqual([])
+  })
+
+  const MISSED_READ: HabitPhraseReadResponse = { read: false, emoji: null, frequencyUnit: null, frequencyQuantity: null, days: [], isFlexible: false, flexibleTarget: null, dueTime: null, subHabits: [], checklistItems: [] }
+  const DAILY_READ: HabitPhraseReadResponse = { ...MISSED_READ, read: true, emoji: '🪴', frequencyUnit: 'Day', frequencyQuantity: 1, dueTime: '07:00' }
+  const LATER_READ: HabitPhraseReadResponse = { ...MISSED_READ, read: true, emoji: '🌿', frequencyUnit: 'Week', frequencyQuantity: 1, days: ['Monday'], dueTime: '18:00' }
+  const summaryRow = (label: string) => screen.getByRole('button', { name: new RegExp(`^${label}`) })
+  const toSummaryFromReminder = async () => { await press(en.habits.flow.reminder.no) }
+  interface SummaryAfter { when: string; whenProposed: boolean; time: string | null; timeProposed: boolean; sent: Record<string, unknown>; absent: string[] }
+  const expectSummaryRows = (after: SummaryAfter) => {
+    const whenRow = summaryRow(en.habits.flow.summary.when)
+    const timeRow = screen.queryByRole('button', { name: new RegExp(`^${en.habits.flow.summary.time}`) })
+    expect({ when: whenRow.textContent, whenProposed: whenRow.closest('[data-proposed]') !== null, time: timeRow?.textContent ?? null, timeProposed: timeRow?.closest('[data-proposed]') != null })
+      .toMatchObject({ when: expect.stringContaining(after.when), whenProposed: after.whenProposed, time: after.time === null ? null : expect.stringContaining(after.time), timeProposed: after.timeProposed })
+  }
+  const SET_ON_A_STEP: [string, HabitPhraseReadResponse, () => Promise<void>, SummaryAfter][] = [
+    ['"No date" on the When step', MISSED_READ, async () => { await press(en.habits.flow.when.noDate) },
+      { when: en.habits.flow.summary.noDate, whenProposed: false, time: null, timeProposed: false, sent: { isGeneral: true, emoji: '🌿' }, absent: ['dueTime', 'frequencyUnit', 'dueDate'] }],
+    ['"Tomorrow" on the When step', MISSED_READ, async () => { await press(en.habits.flow.when.tomorrow); await press(en.habits.flow.time.none) },
+      { when: '11/14/2026', whenProposed: false, time: en.habits.flow.summary.noTime, timeProposed: false, sent: { dueDate: '2026-11-14', emoji: '🌿' }, absent: ['dueTime', 'frequencyUnit'] }],
+    ['a repeat in the words of the When step', MISSED_READ, async () => {
+      await act(async () => { fireEvent.change(screen.getByLabelText(en.habits.flow.when.freeLabel), { target: { value: 'every friday' } }) })
+      await act(async () => { fireEvent.click(screen.getAllByRole('button', { name: en.habits.flow.continue }).at(-1)!) })
+      await press(en.habits.flow.time.none)
+    }, { when: 'every Friday', whenProposed: false, time: en.habits.flow.summary.noTime, timeProposed: false, sent: { frequencyUnit: 'Day', days: ['Friday'], emoji: '🌿' }, absent: ['dueTime'] }],
+    ['"When I can" on the repeat step', DAILY_READ, async () => {
+      await toSummaryFromReminder()
+      await press(new RegExp(`^${en.habits.flow.summary.when}`))
+      await press(en.habits.flow.repeat.timesIn)
+      await press(en.habits.flow.continue)
+    }, { when: 'once a day', whenProposed: false, time: '18:00', timeProposed: true, sent: { isFlexible: true, frequencyUnit: 'Day', dueTime: '18:00' }, absent: ['days'] }],
+    ['a time on the time step', DAILY_READ, async () => {
+      await toSummaryFromReminder()
+      await press(new RegExp(`^${en.habits.flow.summary.time}`))
+      await press('20:00')
+    }, { when: 'every week', whenProposed: true, time: '20:00', timeProposed: false, sent: { frequencyUnit: 'Week', dueTime: '20:00' }, absent: [] }],
+    ['an end time on the duration step', DAILY_READ, async () => {
+      await toSummaryFromReminder()
+      await press(new RegExp(`^${en.habits.flow.summary.duration}`))
+      await act(async () => { fireEvent.change(screen.getByLabelText(en.habits.form.dueEndTime), { target: { value: '08:30' } }) })
+      await press(en.habits.flow.continue)
+    }, { when: 'every week', whenProposed: true, time: '07:00', timeProposed: true, sent: { frequencyUnit: 'Week', dueTime: '07:00', dueEndTime: '08:30' }, absent: [] }],
+    ['the removal of the emoji', DAILY_READ, async () => {
+      await toSummaryFromReminder()
+      await press(en.habits.form.emojiOpenPicker)
+      await press(en.habits.form.emojiRemove)
+      await act(async () => { fireEvent.keyDown(document.activeElement ?? document.body, { key: 'Escape' }) })
+    }, { when: 'every week', whenProposed: true, time: '18:00', timeProposed: true, sent: { frequencyUnit: 'Week', dueTime: '18:00' }, absent: ['emoji'] }],
+  ]
+
+  it.each(SET_ON_A_STEP)('keeps %s when a later free read of a new phrase proposes other values, and the summary shows what the save sends', async (_step, firstRead, setOnStep, after) => {
+    state.locale = 'en'
+    state.phraseRead.mockResolvedValueOnce(firstRead).mockResolvedValueOnce(LATER_READ)
+    mountCreate()
+    await waitFor(() => expect(document.querySelector('[data-question-flow]')).not.toBeNull())
+    await phrase('water the plants')
+    await setOnStep()
+    expect(heading()).toHaveTextContent(en.habits.flow.confirm.question)
+    await press(new RegExp(`^${en.habits.flow.summary.title}`))
+    await phrase('water the plants in the garden')
+    expect(state.phraseRead).toHaveBeenCalledTimes(2)
+    expect(heading()).toHaveTextContent(en.habits.flow.confirm.question)
+    expectSummaryRows(after)
+    await press(new RegExp(`^(${en.habits.createTask}|${en.habits.createHabit})$`))
+    expect(state.create).toHaveBeenCalledTimes(1)
+    const sent = state.create.mock.calls[0]![0] as Record<string, unknown>
+    expect(sent).toMatchObject({ title: 'water the plants in the garden', ...after.sent })
+    for (const field of after.absent) expect(sent).not.toHaveProperty(field)
+  })
+
+  const ONE_TIME_READ: HabitPhraseReadResponse = { ...MISSED_READ, read: true, emoji: '🌿', dueTime: '07:00' }
+  const EVERY_DAY_READ: HabitPhraseReadResponse = { ...ONE_TIME_READ, frequencyUnit: 'Day', frequencyQuantity: 1 }
+  const TYPED_IN_THE_PHRASE: [string, string, HabitPhraseReadResponse, SummaryAfter][] = [
+    ['a time', 'water the plants at 9am', EVERY_DAY_READ,
+      { when: 'every day', whenProposed: true, time: '09:00', timeProposed: false, sent: { title: 'water the plants', frequencyUnit: 'Day', frequencyQuantity: 1, dueTime: '09:00', emoji: '🌿' }, absent: ['days'] }],
+    ['a repeat', 'water the plants 3 times a week', EVERY_DAY_READ,
+      { when: 'times a week, any day', whenProposed: false, time: '07:00', timeProposed: true, sent: { title: 'water the plants', isFlexible: true, frequencyUnit: 'Week', frequencyQuantity: 3, dueTime: '07:00', emoji: '🌿' }, absent: ['days'] }],
+    ['a day', 'water the plants every monday', EVERY_DAY_READ,
+      { when: 'every Monday', whenProposed: false, time: '07:00', timeProposed: true, sent: { title: 'water the plants', frequencyUnit: 'Day', frequencyQuantity: 1, days: ['Monday'], dueTime: '07:00', emoji: '🌿' }, absent: [] }],
+    ['an emoji', '💧 water the plants', EVERY_DAY_READ,
+      { when: 'every day', whenProposed: true, time: '07:00', timeProposed: true, sent: { title: '💧 water the plants', frequencyUnit: 'Day', frequencyQuantity: 1, dueTime: '07:00' }, absent: ['emoji'] }],
+    ['the type', 'water the plants every monday', ONE_TIME_READ,
+      { when: 'every Monday', whenProposed: false, time: '07:00', timeProposed: true, sent: { title: 'water the plants', frequencyUnit: 'Day', days: ['Monday'], dueTime: '07:00', emoji: '🌿' }, absent: [] }],
+    ['a date', 'call mom tomorrow', EVERY_DAY_READ,
+      { when: '11/14/2026', whenProposed: false, time: '07:00', timeProposed: true, sent: { title: 'call mom', dueDate: '2026-11-14', dueTime: '07:00', emoji: '🌿' }, absent: ['frequencyUnit', 'startDate'] }],
+    ['a bare interval', 'water the plants every 2 weeks', EVERY_DAY_READ,
+      { when: 'every # weeks', whenProposed: false, time: '07:00', timeProposed: true, sent: { title: 'water the plants', frequencyUnit: 'Week', frequencyQuantity: 2, dueTime: '07:00', emoji: '🌿' }, absent: ['days'] }],
+    ['no emoji when the phrase holds only a text sign', 'buy Coca-Cola® zero', EVERY_DAY_READ,
+      { when: 'every day', whenProposed: true, time: '07:00', timeProposed: true, sent: { title: 'buy Coca-Cola® zero', frequencyUnit: 'Day', frequencyQuantity: 1, dueTime: '07:00', emoji: '🌿' }, absent: ['days'] }],
+  ]
+
+  it.each(TYPED_IN_THE_PHRASE)('keeps %s the person typed in the phrase when the free read of that phrase proposes another value, and the summary and the title show what the save sends', async (_field, typed, read, after) => {
+    state.locale = 'en'
+    state.phraseRead.mockResolvedValue(read)
+    mountCreate()
+    await waitFor(() => expect(document.querySelector('[data-question-flow]')).not.toBeNull())
+    await phrase(typed)
+    expect(state.phraseRead).toHaveBeenCalledTimes(1)
+    if (screen.queryByRole('button', { name: en.habits.flow.time.none })) await press(en.habits.flow.time.none)
+    if (screen.queryByRole('button', { name: en.habits.flow.reminder.no })) await press(en.habits.flow.reminder.no)
+    expect(heading()).toHaveTextContent(en.habits.flow.confirm.question)
+    expectSummaryRows(after)
+    await press(new RegExp(`^(${en.habits.createTask}|${en.habits.createHabit})$`))
+    expect(state.create).toHaveBeenCalledTimes(1)
+    const sent = state.create.mock.calls[0]![0] as Record<string, unknown>
+    expect(sent).toMatchObject(after.sent)
+    for (const field of after.absent) expect(sent).not.toHaveProperty(field)
+  })
+
+  it('reads a repeat typed in the phrase after the person makes a task a habit on the type step', async () => {
+    state.locale = 'en'
+    state.phraseRead.mockResolvedValue({ read: false, emoji: null, frequencyUnit: null, frequencyQuantity: null, days: [], isFlexible: false, flexibleTarget: null, dueTime: null, subHabits: [], checklistItems: [] })
+    mountCreate()
+    await waitFor(() => expect(document.querySelector('[data-question-flow]')).not.toBeNull())
+    await phrase('call John')
+    await press(en.habits.flow.when.tomorrow)
+    await press('08:00')
+    await press(en.habits.flow.reminder.no)
+    await press(new RegExp(`^${en.habits.flow.summary.type}`))
+    await act(async () => { fireEvent.click(screen.getByRole('radio', { name: new RegExp(`^${en.habits.form.typeHabit}`) })) })
+    await press(new RegExp(`^${en.habits.flow.summary.title}`))
+    await act(async () => { fireEvent.change(screen.getByLabelText(en.habits.flow.what.label), { target: { value: 'call John every monday' } }) })
+    await press(en.habits.flow.continue)
+    expect(heading()).toHaveTextContent(en.habits.flow.confirm.question)
+    await press(en.habits.createHabit)
+    expect(state.create).toHaveBeenCalledTimes(1)
+    expect(state.create.mock.calls[0]![0]).toMatchObject({ title: 'call John', startDate: '2026-11-14', frequencyUnit: 'Day', days: ['Monday'], dueTime: '08:00' })
+  })
+
+  it('states a refused save on the summary and sends nothing, when an undated task becomes a habit with no start day', async () => {
+    state.locale = 'en'
+    mountCreate()
+    await waitFor(() => expect(document.querySelector('[data-question-flow]')).not.toBeNull())
+    await phrase('call John')
+    await press(en.habits.flow.when.noDate)
+    await press(new RegExp(`^${en.habits.flow.summary.type}`))
+    await act(async () => { fireEvent.click(screen.getByRole('radio', { name: new RegExp(`^${en.habits.form.typeHabit}`) })) })
+    await press(en.habits.createHabit)
+    expect(state.create).not.toHaveBeenCalled()
+    expect(heading()).toHaveTextContent(en.habits.flow.confirm.question)
+    expect(screen.getByRole('alert')).toHaveTextContent(en.habits.form.dateStale)
   })
 
   it('shows the current offline refusal on the summary and sends nothing offline', async () => {
@@ -211,5 +602,64 @@ describe('the edit surface behind orbit_guided_flows', () => {
     expect(data).toMatchObject({ title: 'Correr', frequencyUnit: 'Day', frequencyQuantity: 1, dueTime: '20:00' })
     expect(state.completed).toHaveBeenCalledWith('habit_edit', 1, false)
     expect(await screen.findByRole('dialog', { name: ptBR.result.title })).toHaveAccessibleDescription(ptBR.result.habit.updated)
+  })
+
+  const summary = () => screen.getByRole('group', { name: ptBR.habits.flow.confirm.question })
+  const save = () => screen.getByRole('button', { name: ptBR.common.save })
+
+  it('shows a skeleton for each summary row while the stored details load, with no spinner and the save waiting on its label', async () => {
+    state.detailPending = true
+    state.detailFetching = true
+    mountEdit()
+    await waitFor(() => expect(heading()).toHaveTextContent(ptBR.habits.flow.confirm.question))
+    const skeleton = summary().querySelector('[data-summary-skeleton]')
+    expect(skeleton).toHaveAttribute('aria-busy', 'true')
+    expect(skeleton).toHaveAccessibleName(ptBR.common.loading)
+    expect(skeleton!.querySelectorAll('[data-variant="fill"]').length).toBeGreaterThan(1)
+    expect(screen.queryByRole('button', { name: /^Hora/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: ptBR.habits.flow.more })).not.toBeInTheDocument()
+    expect(document.querySelector('.animate-spin')).toBeNull()
+    expect(save()).toBeEnabled()
+    expect(save()).toHaveAttribute('aria-busy', 'true')
+    expect(save()).toHaveAttribute('aria-disabled', 'true')
+    expect(save()).toHaveAttribute('data-loading')
+    expect(save()).toHaveTextContent(ptBR.common.save)
+    await act(async () => { save().click() })
+    expect(state.update).not.toHaveBeenCalled()
+  })
+
+  it('states a failed detail read on the summary with a retry, keeps the save off and sends nothing', async () => {
+    state.detailError = new Error('offline')
+    mountEdit()
+    await waitFor(() => expect(heading()).toHaveTextContent(ptBR.habits.flow.confirm.question))
+    expect(summary().querySelector('[data-summary-skeleton]')).toBeNull()
+    expect(screen.getByRole('alert')).not.toBeEmptyDOMElement()
+    expect(screen.queryByRole('button', { name: /^Hora/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: ptBR.habits.flow.more })).not.toBeInTheDocument()
+    expect(save()).toBeDisabled()
+    await act(async () => { save().click() })
+    expect(state.update).not.toHaveBeenCalled()
+    await press(ptBR.common.retry)
+    expect(state.refetchDetail).toHaveBeenCalledTimes(1)
+  })
+
+  it('shows the skeleton again while the retry of a failed detail read runs', async () => {
+    state.detailError = new Error('offline')
+    state.detailFetching = true
+    mountEdit()
+    await waitFor(() => expect(heading()).toHaveTextContent(ptBR.habits.flow.confirm.question))
+    expect(summary().querySelector('[data-summary-skeleton]')).not.toBeNull()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(save()).toBeEnabled()
+    expect(save()).toHaveAttribute('aria-busy', 'true')
+  })
+
+  it('shows the stored values and an enabled save once the details load', async () => {
+    state.detail = { ...storedHabit, parentId: null, children: [], endDate: null }
+    mountEdit()
+    await waitFor(() => expect(heading()).toHaveTextContent(ptBR.habits.flow.confirm.question))
+    expect(summary().querySelector('[data-summary-skeleton]')).toBeNull()
+    expect(screen.getByRole('button', { name: /^Hora/ })).toHaveTextContent('07:00')
+    expect(save()).toBeEnabled()
   })
 })

@@ -25,7 +25,6 @@ function conditions(node: Node): string[] {
   return found
 }
 
-/** Every `scale` the stylesheet writes for a selector that contains `fragment`, with its at-rule conditions. */
 function scales(fragment: string) {
   const found: { value: string; conditions: string[] }[] = []
   stylesheet.walkRules((rule) => {

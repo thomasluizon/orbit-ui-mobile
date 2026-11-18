@@ -7,6 +7,7 @@ import tailwind from '@tailwindcss/postcss'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
+import { ORBIT_MASCOT_BOX_HEIGHT, ORBIT_MASCOT_BOX_WIDTH } from '@orbit/shared/contracts/brand'
 import { CelebrationPanel } from '@/components/gamification/celebration-panel'
 import { useUIStore } from '@/stores/ui-store'
 import { resolveWebThemeVariables } from '@/lib/theme-dom'
@@ -48,7 +49,7 @@ describe('daily streak static and numeral geometry in Chromium', () => {
               const previous = panel.querySelector('.daily-streak-previous')!
               const current = panel.querySelector('[data-current-streak]')!
               const mark = panel.querySelector('[data-asset="orbit-mascot"]')!
-              const paths = [...mark.querySelectorAll('path')]
+              const ringPaths = [...mark.querySelectorAll(':scope > path')]
               const button = panel.querySelector('button')!
               const clip = current.parentElement!
               const text = document.createRange()
@@ -58,8 +59,9 @@ describe('daily streak static and numeral geometry in Chromium', () => {
               return {
                 previousOpacity: getComputedStyle(previous).opacity,
                 currentOpacity: getComputedStyle(current).opacity, currentText: current.textContent,
-                neutral: paths.every(path => getComputedStyle(path).fill === getComputedStyle(current).color),
-                paths: paths.map(path => path.getAttribute('d')), circles: panel.querySelectorAll('circle').length,
+                neutral: ringPaths.length > 0 && ringPaths.every(path => getComputedStyle(path).fill === getComputedStyle(current).color),
+                mascotState: mark.getAttribute('data-orbit-state'), mascotLoop: mark.getAttribute('data-orbit-loop'),
+                circlesOutsideMascot: [...panel.querySelectorAll('circle')].filter(circle => !circle.closest('[data-asset="orbit-mascot"]')).length,
                 markCentred: Math.abs(mark.getBoundingClientRect().y + mark.getBoundingClientRect().height / 2
                   - mark.parentElement!.getBoundingClientRect().y - mark.parentElement!.getBoundingClientRect().height / 2) < 1,
                 numberFits: bounds.width <= clip.getBoundingClientRect().width + 1,
@@ -71,8 +73,10 @@ describe('daily streak static and numeral geometry in Chromium', () => {
               }
             })
             expect(final, JSON.stringify({ mode, width, scale, final })).toMatchObject({ previousOpacity: '0', currentOpacity: '1',
-              currentText: new Intl.NumberFormat(locale).format(streak), neutral: true, circles: 0, numberFits: true,
-              markCentred: true, noCloseOverlap: true, withinViewport: true, markSize: [44, 44], clipWidth })
+              currentText: new Intl.NumberFormat(locale).format(streak), neutral: true, mascotState: 'feliz', mascotLoop: 'still', circlesOutsideMascot: 0, numberFits: true,
+              markCentred: true, noCloseOverlap: true, withinViewport: true, clipWidth })
+            expect(final.markSize[0]).toBe(48)
+            expect(final.markSize[1]).toBeCloseTo((48 * ORBIT_MASCOT_BOX_HEIGHT) / ORBIT_MASCOT_BOX_WIDTH, 1)
             expect(final.closeSize.every((size) => size >= 48)).toBe(true)
             await page.emulateMedia({ reducedMotion: 'reduce' })
             expect(await page.locator('.daily-streak-number').evaluate((number) => getComputedStyle(number).animationName)).toBe('none')

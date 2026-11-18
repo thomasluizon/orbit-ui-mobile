@@ -20,7 +20,8 @@ interface TagEditorRowProps {
   inputAriaLabel: string;
   actionLabel: string;
   cancelAriaLabel: string;
-  disabled: boolean;
+  disabled?: boolean;
+  pending?: boolean;
   onChange: (value: string) => void;
   onCommit: () => void;
   onCancel: () => void;
@@ -37,7 +38,8 @@ export function TagEditorRow({
   inputAriaLabel,
   actionLabel,
   cancelAriaLabel,
-  disabled,
+  disabled: formDisabled = false,
+  pending = false,
   onChange,
   onCommit,
   onCancel,
@@ -45,6 +47,8 @@ export function TagEditorRow({
   tokens,
 }: Readonly<TagEditorRowProps>) {
   const { isDisabled } = useHabitFormInteraction()
+  const disabled = formDisabled || pending
+  const commit = () => { if (!disabled) onCommit() }
   const dismiss = useDismissGuard({ isDirty: value !== initialValue, onDismiss: onCancel })
   const requestCancel = () => { if (!disabled) dismiss.requestDismiss() }
   const inputRef = useRef<TextInput>(null)
@@ -64,9 +68,9 @@ export function TagEditorRow({
         accessibilityState={{ disabled }}
         style={{ flex: 1 }}
         onChangeText={onChange}
-        onSubmitEditing={onCommit}
+        onSubmitEditing={commit}
       />
-      <PillButton size="sm" minimumHeight={48} disabled={disabled} onClick={onCommit}>{actionLabel}</PillButton>
+      <PillButton size="sm" minimumHeight={48} accessibleName={actionLabel} disabled={formDisabled} loading={pending} onClick={commit}>{actionLabel}</PillButton>
       <Pressable
         style={({ pressed }) => [
           styles.tagFormCancel,

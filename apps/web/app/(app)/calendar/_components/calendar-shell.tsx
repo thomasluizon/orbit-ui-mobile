@@ -16,9 +16,7 @@ import { formatAPIDate, formatCalendarMonthHeading, formatLocaleDate, parseAPIDa
 
 interface CalendarHeaderProps extends CalendarHeaderNavigationProps {
   viewSelector?: ReactNode
-  /** The Orbit line row, between the period navigation and the view switch. It brings its own gutter. */
   orbitLine?: ReactNode
-  /** The guided flows: the month picker asks one question with quick options and a typed date. */
   guided?: boolean
   onSelectDate?: (date: string) => void
 }
@@ -48,7 +46,6 @@ interface CalendarJumpQuestionProps {
   onDate: (date: string) => void
 }
 
-/** The quick options and the typed date of the month picker. The typed date is read on the device: "dia 20" is day 20 of the shown month. */
 function CalendarJumpQuestion({ currentMonth, todayKey, onToday, onMonth, onDate }: Readonly<CalendarJumpQuestionProps>) {
   const t = useTranslations()
   const locale = useLocale()

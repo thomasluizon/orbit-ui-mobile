@@ -19,7 +19,7 @@ Brings up the three tiers **in order, each gated on the previous being ready**: 
 
 - DB connection (from `appsettings.Development.json`): `Host=localhost;Port=5432;Database=orbit;Username=postgres;Password=postgres`.
 - Read the web port before starting or checking web: `node tools/orca-web-port.mjs`. A linked worktree with no assignment is an error, not a fallback to 3000. The root checkout still reports 3000.
-- Web→API wiring needs nothing: the BFF proxy reads `API_BASE` and defaults to `http://localhost:5000`. The web-port runner preserves that local API base on every assigned web port. **Only** intervene if `apps/web/.env*` sets `API_BASE` to a non-localhost value (then the local web would hit prod) - warn the user, don't edit their `.env`.
+- Web→API wiring needs nothing: the BFF proxy reads `API_BASE` and defaults to `http://localhost:5000`. The web-port runner preserves that local API base on every assigned web port. **Only** intervene if `API_BASE` is a non-localhost value (then the local web would hit prod) - warn the user, don't edit their `.env`. Read the value with `node tools/orca-web-port.mjs --api-base`: it prints only the `API_BASE` that Next dev loads from the shell and `apps/web/.env*`. The settings deny every read of the `.env` files themselves, because they hold secrets.
 - The database and API remain shared across worktrees at 5432 and 5000. This skill isolates only the web server port.
 
 ## Mode (from `$ARGUMENTS`)

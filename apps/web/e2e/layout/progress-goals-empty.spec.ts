@@ -53,7 +53,7 @@ for (const locale of ['pt-BR', 'en'] as const) {
           await expect(page.locator('html')).toHaveClass(new RegExp(mode))
           const section = page.locator('[data-progress-screen="goals"]')
           const well = section.locator('[data-goals-empty]')
-          const empty = section.locator('[data-mark="orbit"]')
+          const empty = section.locator('[data-empty-state]')
           await expect(empty).toBeVisible()
           await expect(empty.getByRole('button', { name: words.progressScreen.goals.createAction })).toHaveAttribute('data-variant', viewport.width >= 768 ? 'secondary' : 'primary')
           await expect(empty.locator('p')).toHaveText(words.progressScreen.goals.empty)

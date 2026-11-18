@@ -17,11 +17,9 @@ const PANEL_MAX_WIDTH = 420
 /** The trial expired notice as a centred dialog: Orbit in Parado, the heading, the paused features and the two actions. Orbit is never Feliz here. */
 export function TrialExpiredDialog({ pausedFeatures, savingsPercent, onSeePlans, onContinueFree, onClose }: Readonly<{
   pausedFeatures: readonly string[]
-  /** The yearly saving of the plans read. Absent until the read answers. */
   savingsPercent: number | undefined
   onSeePlans: () => void
   onContinueFree: () => void
-  /** Android back and a scrim press. */
   onClose: () => void
 }>) {
   const { t } = useTranslation()

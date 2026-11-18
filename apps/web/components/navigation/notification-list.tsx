@@ -7,13 +7,12 @@ import type { NotificationItem } from '@orbit/shared/types/notification'
 import { useTranslations } from 'next-intl'
 import { ListMotionItem, ListPresence, ListScope } from '@/components/motion/list-motion'
 import { OrbitMascot, useStateMascotSize } from '@/components/ui/orbit-mascot'
+import { Skeleton } from '@/components/ui/skeleton'
 import { useFlag } from '@/hooks/use-flag'
 import { NotificationRow } from './notification-row'
 
-/**
- * The rows on the Orbit logic. A row the person deletes leaves with `list-exit` and the gap closes; undo returns it with
- * `list-enter`. A change of `scope` (the inbox itself changed) moves no row.
- */
+const NOTIFICATION_SKELETON_LINES = [['80%', 22], ['100%', 21], ['32%', 16]] as const
+
 function GuidedRows({ items, scope, onOpen, onDelete }: Readonly<Pick<NotificationListProps, 'items' | 'scope' | 'onOpen' | 'onDelete'>>) {
   return (
     <ListScope scope={scope}><ListPresence>
@@ -24,7 +23,6 @@ function GuidedRows({ items, scope, onOpen, onDelete }: Readonly<Pick<Notificati
 
 interface NotificationListProps {
   items: NotificationItem[]
-  /** The ids the inbox holds, pending deletes included. It changes only when the inbox itself changes. */
   scope: string
   isLoading: boolean
   isError: boolean
@@ -37,28 +35,27 @@ function SkeletonRows() {
   return Array.from({ length: 5 }, (_, index) => (
     <li key={index} aria-hidden="true" className="flex gap-3 rounded-[var(--r-well)] p-4">
       <span className="w-2 shrink-0" />
-      <span className="flex flex-1 flex-col gap-2 motion-safe:animate-pulse">
-        {[['80%', 22], ['100%', 21], ['32%', 16]].map(([width, height], line) => (
-          <span key={line} data-skeleton-line="" className="rounded-full bg-[var(--bg-elev)]" style={{ width, height }} />
+      <span className="flex flex-1 flex-col gap-2">
+        {NOTIFICATION_SKELETON_LINES.map(([width, height], line) => (
+          <span key={line} data-skeleton-line="" className="block" style={{ width, height }}><Skeleton variant="fill" grouped /></span>
         ))}
       </span>
     </li>
   ))
 }
 
-/** The empty inbox and the failed inbox. On the Orbit logic both show Orbit in Parado at the state size; the failed inbox keeps its message and retry. */
 function InboxState({ failed, guided, onRetry }: Readonly<{ failed: boolean; guided: boolean; onRetry: () => void }>) {
   const t = useTranslations()
   const stateMascotSize = useStateMascotSize()
-  const mascot = guided ? <OrbitMascot size={stateMascotSize} /> : null
+  const mascot = <OrbitMascot size={stateMascotSize} />
   return (
     <li className="flex flex-1 flex-col"><ShellCentredRegion><div data-notification-state={failed ? 'failed' : 'empty'} className="flex flex-col items-center gap-4 rounded-[var(--r-card)] p-8 text-center">
       {failed ? <>
-        {mascot}
+        {guided ? mascot : null}
         <p className="text-sm text-[var(--fg-3)]">{t('notifications.loadError')}</p>
         <IconButton label={t('common.retry')} onClick={onRetry}><RefreshCw size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton>
       </> : <>
-        {mascot ?? <OrbitMascot size={96} />}
+        {mascot}
         <p className="text-sm text-[var(--fg-3)]">{t('notifications.empty')}</p>
       </>}
     </div></ShellCentredRegion></li>

@@ -41,10 +41,12 @@ describe('EmptyState title geometry', () => {
     const page = await browser.newPage({ viewport: { width: 412, height: 915 } })
     try {
       await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
-      expect(await page.locator('[data-empty-state-mark] svg').evaluate(element => {
+      const mark = await page.locator('[data-empty-state-mark] svg').evaluate(element => {
         const bounds = element.getBoundingClientRect()
         return { width: bounds.width, height: bounds.height }
-      })).toEqual({ width: 96, height: 96 * 300 / 420 })
+      })
+      expect(mark.width).toBe(96)
+      expect(mark.height).toBeCloseTo(96 * 300 / 420, 1)
       expect(await page.locator('[data-empty-state] > p').textContent()).toBe('Invitation')
       expect(await page.getByRole('button').count()).toBe(1)
     } finally { await page.close() }

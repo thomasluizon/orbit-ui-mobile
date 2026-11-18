@@ -1,4 +1,4 @@
-import { useEffect, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { act, fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import en from '@orbit/shared/i18n/en.json'
@@ -6,10 +6,11 @@ import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { GuidedHabitFlow, type GuidedHabitFields } from '@/components/habits/guided/guided-habit-flow'
 import { useHabitForm } from '@/hooks/use-habit-form'
 import { useTagSelection } from '@/hooks/use-tag-selection'
+import { HABIT_REMINDER_PRESETS, buildCreateHabitRequest, buildEmptyHabitFormValues, buildUpdateHabitRequest } from '@orbit/shared/utils'
 
 const state = vi.hoisted(() => ({
   locale: 'pt-BR' as 'en' | 'pt-BR', read: vi.fn(), helpers: null as unknown, online: true, pro: true, reducedMotion: false,
-  goalToggle: vi.fn(), messagesUsed: 0,
+  goalToggle: vi.fn(), messagesUsed: 0, reminderTimes: [] as number[],
 }))
 
 function lookup(messages: Record<string, unknown>, key: string): string {
@@ -56,15 +57,19 @@ const submit = vi.fn()
 const close = vi.fn()
 const helpers = () => state.helpers as ReturnType<typeof useHabitForm>
 
-interface HarnessProps { mode?: 'create' | 'edit'; saveError?: string | null; lockedGeneral?: boolean | null; initial?: Record<string, unknown>; parentField?: ReactNode; subHabits?: boolean }
+interface HarnessProps {
+  mode?: 'create' | 'edit'; saveError?: string | null; lockedGeneral?: boolean | null; initial?: Record<string, unknown>; parentField?: ReactNode; subHabits?: boolean
+  goalIds?: string[]; subHabitTitles?: string[]; parentValue?: string; linkedGoals?: { id: string; title: string }[]
+}
 
-function Harness({ mode = 'create', saveError = null, lockedGeneral = null, initial = {}, parentField, subHabits = true }: Readonly<HarnessProps>) {
+function Harness({ mode = 'create', saveError = null, lockedGeneral = null, initial = {}, parentField, subHabits = true, goalIds = [], subHabitTitles, parentValue, linkedGoals }: Readonly<HarnessProps>) {
   const formHelpers = useHabitForm({ initialData: { dueDate: '', ...initial } })
   const tags = useTagSelection()
-  useEffect(() => { state.helpers = formHelpers })
+  const [reminderTimes, setReminderTimes] = useState([0, 15])
+  useEffect(() => { state.helpers = formHelpers; state.reminderTimes = reminderTimes })
   const fields: GuidedHabitFields = {
-    tags, selectedGoalIds: [], atGoalLimit: false, onToggleGoal: state.goalToggle, reminderTimes: [0, 15], onReminderTimesChange: vi.fn(),
-    parentField, children: subHabits ? () => <p>sub-habit-editor</p> : undefined,
+    tags, selectedGoalIds: goalIds, atGoalLimit: false, onToggleGoal: state.goalToggle, reminderTimes, onReminderTimesChange: setReminderTimes,
+    parentField, children: subHabits ? () => <p>sub-habit-editor</p> : undefined, subHabitTitles, parentValue, linkedGoals,
   }
   return (
     <GuidedHabitFlow mode={mode} formHelpers={formHelpers} fields={fields} lockedGeneral={lockedGeneral} fromConversation={false} pending={false}
@@ -75,6 +80,7 @@ function Harness({ mode = 'create', saveError = null, lockedGeneral = null, init
 const messages = () => (state.locale === 'en' ? en : ptBR).habits.flow
 const progress = () => screen.getByRole('list', { name: /^(Passo|Step) \d/ }).getAttribute('aria-label')
 const heading = () => screen.getByRole('heading', { level: 1 })
+const summaryRow = (label: string) => screen.queryByRole('button', { name: new RegExp(`^${label}`) })
 async function type(label: string, text: string) {
   await act(async () => { fireEvent.change(screen.getByLabelText(label), { target: { value: text } }) })
 }
@@ -84,6 +90,13 @@ async function press(name: string | RegExp) {
 async function phrase(text: string) {
   await type(messages().what.label, text)
   await press(messages().continue)
+}
+
+const DAILY_AT_SEVEN = { read: true, emoji: null, frequencyUnit: 'Day', frequencyQuantity: 1, days: [], isFlexible: false, flexibleTarget: null, dueTime: '07:00', subHabits: [], checklistItems: [] }
+function deferredRead() {
+  let arrive!: (response: typeof DAILY_AT_SEVEN | null) => void
+  state.read.mockReturnValueOnce(new Promise((resolve) => { arrive = resolve }))
+  return { arrive: (response: typeof DAILY_AT_SEVEN | null) => arrive(response) }
 }
 
 beforeEach(() => {
@@ -185,6 +198,28 @@ describe.each([
     expect(helpers().form.formState.isDirty).toBe(false)
   })
 
+  it('scenario 2: offers no time and no length on the summary after the answer no date', async () => {
+    render(<Harness />)
+    await phrase(locale === 'en' ? 'tidy the garage' : 'arrumar a garagem')
+    await press(messages().when.noDate)
+    expect(heading()).toHaveTextContent(messages().confirm.question)
+    expect(summaryRow(messages().summary.time)).toBeNull()
+    expect(summaryRow(messages().summary.duration)).toBeNull()
+  })
+
+  it('scenario 7: offers no time on the summary under a General parent', async () => {
+    render(<Harness lockedGeneral initial={{ isGeneral: true, itemType: 'task' }} />)
+    await phrase(locale === 'en' ? 'pack the bag' : 'arrumar a mala')
+    expect(heading()).toHaveTextContent(messages().confirm.question)
+    expect(summaryRow(messages().summary.time)).toBeNull()
+  })
+
+  it('scenario 8: offers no time on the summary of a stored undated habit', () => {
+    render(<Harness mode="edit" subHabits={false} initial={{ title: 'Alongar', itemType: 'habit', isGeneral: true }} />)
+    expect(summaryRow(messages().summary.when)).toHaveTextContent(messages().summary.noDate)
+    expect(summaryRow(messages().summary.time)).toBeNull()
+  })
+
   it('scenario 11: closes from step 1 and keeps the back slot empty there', async () => {
     render(<Harness />)
     expect(screen.queryByRole('button', { name: messages().back })).not.toBeInTheDocument()
@@ -234,6 +269,44 @@ describe.each([
     expect(heading()).toHaveTextContent(messages().when.question)
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
     expect(state.read).toHaveBeenCalledTimes(2)
+  })
+
+  it('scenario 14: holds the phrase step while the free read runs, so a second press never passes the read', async () => {
+    const read = deferredRead()
+    render(<Harness />)
+    await phrase(locale === 'en' ? 'water the plants' : 'regar as plantas')
+    await press(messages().continue)
+    expect(state.read).toHaveBeenCalledTimes(1)
+    expect(heading()).toHaveTextContent(messages().what.question)
+    expect(screen.getByRole('button', { name: messages().continue })).toHaveAttribute('aria-busy', 'true')
+    await act(async () => { read.arrive(DAILY_AT_SEVEN) })
+    expect(heading().textContent).toContain(messages().reminder.question.split('{')[0]!.trim())
+    expect(helpers().form.getValues()).toMatchObject({ itemType: 'habit', frequencyUnit: 'Day', dueTime: '07:00' })
+  })
+
+  it('scenario 14: drops a read that arrives after the person changed the phrase', async () => {
+    const read = deferredRead()
+    render(<Harness />)
+    await phrase(locale === 'en' ? 'water the plants' : 'regar as plantas')
+    await type(messages().what.label, locale === 'en' ? 'call John' : 'ligar para o João')
+    await act(async () => { read.arrive(DAILY_AT_SEVEN) })
+    expect(heading()).toHaveTextContent(messages().what.question)
+    expect(helpers().form.getValues('itemType')).not.toBe('habit')
+    expect(helpers().form.getValues('frequencyUnit') ?? null).toBeNull()
+    expect(helpers().form.getValues('dueTime') ?? '').toBe('')
+  })
+
+  it('scenario 14: drops a read that arrives after the flow left the phrase step', async () => {
+    const read = deferredRead()
+    render(<Harness />)
+    await phrase(locale === 'en' ? 'water the plants' : 'regar as plantas')
+    await act(async () => { helpers().reportBackendErrors({ status: 400, data: { errors: { Description: ['Too long'] } } }) })
+    const leftTo = heading().textContent
+    expect(leftTo).not.toBe(messages().what.question)
+    await act(async () => { read.arrive(DAILY_AT_SEVEN) })
+    expect(heading().textContent).toBe(leftTo)
+    expect(helpers().form.getValues('itemType')).not.toBe('habit')
+    expect(helpers().form.getValues('dueTime') ?? '').toBe('')
   })
 
   it('scenario 14: skips the steps the free read answered, marks them proposed, and keeps a deliberate task on a later read', async () => {
@@ -290,6 +363,18 @@ describe.each([
     expect(heading()).toHaveTextContent(messages().time.question)
   })
 
+  it('answers the phrase step with Enter, as the primary action does, and leaves Shift+Enter to the field', async () => {
+    render(<Harness />)
+    const field = () => screen.getByLabelText(messages().what.label)
+    await act(async () => { fireEvent.keyDown(field(), { key: 'Enter' }) })
+    expect(screen.getByText(messages().what.hint)).toBeInTheDocument()
+    await type(messages().what.label, locale === 'en' ? 'Read' : 'Ler')
+    await act(async () => { fireEvent.keyDown(field(), { key: 'Enter', shiftKey: true }) })
+    expect(heading()).toHaveTextContent(messages().what.question)
+    await act(async () => { fireEvent.keyDown(field(), { key: 'Enter' }) })
+    expect(heading()).not.toHaveTextContent(messages().what.question)
+  })
+
   it('shows the hint and focuses the phrase field on an empty submit', async () => {
     render(<Harness />)
     await press(messages().continue)
@@ -314,6 +399,14 @@ describe.each([
     await phrase(locale === 'en' ? 'call John' : 'ligar para o João')
     expect(heading()).toHaveFocus()
     expect(heading()).toHaveAccessibleDescription(messages().when.line)
+  })
+
+  it('moves focus to the question again on a return to the first step', async () => {
+    render(<Harness />)
+    await phrase(locale === 'en' ? 'call John' : 'ligar para o João')
+    await press(messages().back)
+    expect(heading()).toHaveTextContent(messages().what.question)
+    expect(heading()).toHaveFocus()
   })
 })
 
@@ -409,14 +502,137 @@ describe.each(['pt-BR', 'en'] as const)('the detail questions in %s', (locale) =
     expect(screen.getByText('parent-picker')).toBeInTheDocument()
   })
 
-  it('scenario 18: opens the reminder kinds from the reminder value with the permission notice and each editor', async () => {
+  const optionalRow = (id: 'tags' | 'goals' | 'subHabits' | 'parent') =>
+    within(screen.getByRole('list', { name: messages().more })).getByRole('button', { name: new RegExp(messages().optional[id].replace('?', '\\?')) })
+
+  it('scenario 17: answers the tag, goal and sub-item rows with the names the person chose, never a count', async () => {
+    render(<Harness goalIds={['goal-1']} subHabitTitles={['Alongar', '  ', 'Beber água']} />)
+    await phrase(locale === 'en' ? 'run every day at 7' : 'correr todo dia às 7')
+    await press(messages().reminder.no)
+    await openOptional(messages().optional.tags)
+    await press('Saúde')
+    await press(messages().continue)
+    expect(optionalRow('tags').querySelector('[data-question-value]')).toHaveTextContent(/^Saúde$/)
+    expect(optionalRow('goals').querySelector('[data-question-value]')).toHaveTextContent(/^Correr 5 km$/)
+    expect(optionalRow('subHabits').querySelector('[data-question-value]')).toHaveTextContent(locale === 'en' ? /^Alongar and Beber água$/ : /^Alongar e Beber água$/)
+  })
+
+  it('scenario 17: names a linked goal the goal list does not hold from the links of the habit, and counts a goal with no name yet', async () => {
+    const view = render(<Harness mode="edit" goalIds={['goal-77', 'goal-1']} linkedGoals={[{ id: 'goal-77', title: 'Ler 12 livros' }]} subHabits={false} initial={{ title: 'Correr', itemType: 'habit', frequencyUnit: 'Day', frequencyQuantity: 1, dueDate: '2026-11-13' }} />)
+    await press(messages().more)
+    expect(optionalRow('goals').querySelector('[data-question-value]')).toHaveTextContent(locale === 'en' ? /^Ler 12 livros and Correr 5 km$/ : /^Ler 12 livros e Correr 5 km$/)
+    view.unmount()
+    render(<Harness mode="edit" goalIds={['goal-77', 'goal-99']} linkedGoals={[{ id: 'goal-77', title: 'Ler 12 livros' }]} subHabits={false} initial={{ title: 'Correr', itemType: 'habit', frequencyUnit: 'Day', frequencyQuantity: 1, dueDate: '2026-11-13' }} />)
+    await press(messages().more)
+    expect(optionalRow('goals').querySelector('[data-question-value]')).toHaveTextContent(/^2$/)
+  })
+
+  it('scenario 17: leaves the tag, goal and sub-item rows with no answer when the person chose none', async () => {
+    await toSummary()
+    await press(messages().more)
+    for (const id of ['tags', 'goals', 'subHabits'] as const) expect(optionalRow(id).querySelector('[data-question-value]')).toBeNull()
+  })
+
+  it('scenario 17: answers the parent row with the parent the edit holds', async () => {
+    render(<Harness mode="edit" parentField={<p>parent-picker</p>} parentValue="Rotina da manhã" subHabits={false} initial={{ title: 'Correr', itemType: 'habit', frequencyUnit: 'Day', frequencyQuantity: 1, dueDate: '2026-11-13' }} />)
+    await press(messages().more)
+    expect(optionalRow('parent').querySelector('[data-question-value]')).toHaveTextContent(/^Rotina da manhã$/)
+  })
+
+  it('scenario 18: asks the reminder kind with one quick option for each kind and no switch, radio or second heading', async () => {
     await toSummary()
     await press(new RegExp(`^${messages().summary.reminder}`))
     expect(heading()).toHaveTextContent(messages().reminderKind.question)
-    await act(async () => { fireEvent.click(screen.getByRole('switch', { name: locale === 'en' ? en.habits.form.reminder : ptBR.habits.form.reminder })) })
+    const options = within(screen.getByRole('group', { name: messages().reminderKind.question })).getAllByRole('button')
+    expect(options.map((option) => option.textContent)).toEqual([messages().reminderKind.scheduled, messages().reminderKind.repeat, messages().reminder.no])
+    expect(options.map((option) => option.getAttribute('aria-pressed'))).toEqual(['false', 'false', 'true'])
+    expect(screen.queryByRole('switch')).toBeNull()
+    expect(screen.queryByRole('radio')).toBeNull()
+    expect(screen.getAllByRole('heading')).toHaveLength(1)
+    await press(messages().reminderKind.repeat)
     expect(helpers().form.getValues('reminderEnabled')).toBe(true)
-    await act(async () => { fireEvent.click(screen.getByRole('radio', { name: new RegExp(locale === 'en' ? en.habits.form.repeatEvery : ptBR.habits.form.repeatEvery) })) })
     expect(helpers().form.getValues('repeatReminder')).toMatchObject({ intervalMinutes: 30 })
+    expect(screen.queryByRole('radio')).toBeNull()
+    expect(screen.getAllByRole('heading')).toHaveLength(1)
+  })
+
+  it('scenario 18: turns the reminder off from the reminder kinds in one press and returns to the summary', async () => {
+    await toSummary()
+    await press(new RegExp(`^${messages().summary.reminder}`))
+    await press(messages().reminderKind.scheduled)
+    expect(helpers().form.getValues('reminderEnabled')).toBe(true)
+    await press(messages().reminder.no)
+    expect(helpers().form.getValues('reminderEnabled')).toBe(false)
+    expect(heading()).toHaveTextContent(messages().confirm.question)
+  })
+
+  it('scenario 18: offers an undated item the repeat only', async () => {
+    render(<Harness mode="edit" subHabits={false} initial={{ title: 'Alongar', itemType: 'habit', isGeneral: true }} />)
+    await press(new RegExp(`^${messages().summary.reminder}`))
+    const options = within(screen.getByRole('group', { name: messages().reminderKind.question })).getAllByRole('button')
+    expect(options.map((option) => option.textContent)).toEqual([messages().reminderKind.repeat, messages().reminder.no])
+    await press(messages().reminderKind.repeat)
+    expect(helpers().form.getValues()).toMatchObject({ reminderEnabled: true, repeatReminder: { intervalMinutes: 30 } })
+    expect(state.reminderTimes).toEqual([])
+  })
+
+  const formCopy = () => (locale === 'en' ? en : ptBR).habits.form
+  const reminderChips = () => document.querySelectorAll('[data-reminder-chip]')
+  async function toReminderKinds() {
+    await toSummary()
+    await press(new RegExp(`^${messages().summary.reminder}`))
+    await press(messages().reminderKind.scheduled)
+  }
+  async function setTime(label: string, value: string) {
+    await act(async () => { fireEvent.change(screen.getByLabelText(label), { target: { value } }) })
+  }
+
+  it('scenario 18: turns the reminder on with the default times and shows the permission notice with its way to the settings', async () => {
+    await toReminderKinds()
+    expect(helpers().form.getValues('reminderEnabled')).toBe(true)
+    expect(screen.getByRole('button', { name: messages().reminderKind.scheduled })).toHaveAttribute('aria-pressed', 'true')
+    expect(state.reminderTimes).toEqual([0, 15])
+    expect(reminderChips()).toHaveLength(2)
+    const notice = screen.getByRole('link', { name: formCopy().reminderPermissionNeeded })
+    expect(notice).toHaveAttribute('href', '/profile/notifications')
+    expect(notice).toHaveAccessibleDescription(formCopy().reminderSettingsDescription)
+  })
+
+  it('scenario 18: adds an offset preset, then a custom offset before the time', async () => {
+    await toReminderKinds()
+    const preset = HABIT_REMINDER_PRESETS.find((item) => item.value === 30)!
+    await press(formCopy().reminderAdd)
+    await press(lookup(locale === 'en' ? en : ptBR, preset.key))
+    expect(state.reminderTimes).toEqual([30, 15, 0])
+    await press(formCopy().reminderAdd)
+    await press(formCopy().reminderCustom)
+    await act(async () => { fireEvent.change(screen.getByRole('spinbutton', { name: formCopy().reminderCustomLabel }), { target: { value: '45' } }) })
+    await press((locale === 'en' ? en : ptBR).common.add)
+    expect(state.reminderTimes).toEqual([45, 30, 15, 0])
+    expect(reminderChips()).toHaveLength(4)
+  })
+
+  it('scenario 18: adds a clock reminder for the day before', async () => {
+    await toReminderKinds()
+    await act(async () => { fireEvent.click(screen.getByRole('radio', { name: formCopy().scheduledReminderDayBefore })) })
+    await setTime(formCopy().scheduledReminderTime, '21:00')
+    await act(async () => { fireEvent.blur(screen.getByLabelText(formCopy().scheduledReminderTime)) })
+    expect(helpers().form.getValues('scheduledReminders')).toEqual([{ when: 'day_before', time: '21:00' }])
+    expect(reminderChips()).toHaveLength(3)
+  })
+
+  it('scenario 18: repeats every 30 minutes inside the active hours and drops the fixed times', async () => {
+    await toReminderKinds()
+    await press(messages().reminderKind.repeat)
+    expect(helpers().form.getValues('repeatReminder')).toMatchObject({ intervalMinutes: 30 })
+    expect(state.reminderTimes).toEqual([])
+    expect(screen.getByRole('switch', { name: formCopy().repeatAllDay })).toBeChecked()
+    await act(async () => { fireEvent.click(screen.getByRole('switch', { name: formCopy().repeatAllDay })) })
+    await setTime(formCopy().repeatActiveStart, '09:00')
+    await setTime(formCopy().repeatActiveEnd, '18:00')
+    expect(helpers().form.getValues('repeatReminder')).toMatchObject({ intervalMinutes: 30, activeStart: '09:00', activeEnd: '18:00' })
+    await press(messages().continue)
+    expect(heading()).toHaveTextContent(messages().confirm.question)
   })
 
   it('opens the end time question from the length value and refuses an end before the start', async () => {
@@ -450,7 +666,7 @@ describe.each(['pt-BR', 'en'] as const)('the monthly repeat and the conversation
   it('scenario 10: opens a conversation draft on the summary with the notice', () => {
     render(<GuidedFromConversation />)
     expect(heading()).toHaveTextContent(messages().confirm.question)
-    expect(heading()).toHaveAccessibleDescription(messages().orbit.fromConversation)
+    expect(heading()).toHaveAccessibleDescription((locale === 'en' ? en : ptBR).habits.form.fromConversation)
   })
 })
 
@@ -460,6 +676,73 @@ function GuidedFromConversation() {
   return <GuidedHabitFlow mode="edit" formHelpers={formHelpers} lockedGeneral={null} fromConversation pending={false} saveError={null} createLabel="Salvar" onSubmit={submit} onClose={close}
     fields={{ tags, selectedGoalIds: [], atGoalLimit: false, onToggleGoal: vi.fn(), reminderTimes: [], onReminderTimesChange: vi.fn() }} />
 }
+
+const savedValues = () => helpers().form.getValues() as Parameters<typeof buildCreateHabitRequest>[0]
+
+describe('the request body of the guided flow', () => {
+  beforeEach(() => { state.locale = 'pt-BR'; state.reducedMotion = false })
+
+  it('creates with the body the current form sends for a task tomorrow at 8:00 with a reminder', async () => {
+    render(<Harness />)
+    await phrase('ligar para o João')
+    await press(ptBR.habits.flow.when.tomorrow)
+    await press('08:00')
+    await press(ptBR.habits.flow.reminder.yes)
+    const body = buildCreateHabitRequest(savedValues(), state.reminderTimes, [], [], [])
+    const currentForm = { ...buildEmptyHabitFormValues(''), title: 'ligar para o João', dueDate: '2026-11-14', dueTime: '08:00', reminderEnabled: true }
+    expect(body).toEqual(buildCreateHabitRequest(currentForm, [0, 15], [], [], []))
+    expect(body).toMatchInlineSnapshot(`
+      {
+        "dueDate": "2026-11-14",
+        "dueTime": "08:00",
+        "isBadHabit": false,
+        "relativeReminders": [
+          {
+            "minutesBefore": 0,
+          },
+          {
+            "minutesBefore": 15,
+          },
+        ],
+        "reminderEnabled": true,
+        "reminderTimes": [],
+        "title": "ligar para o João",
+      }
+    `)
+  })
+
+  it('edits with the body the current form sends when only the time changes', async () => {
+    const stored = { title: 'Correr', itemType: 'habit' as const, frequencyUnit: 'Day' as const, frequencyQuantity: 1, dueDate: '2026-11-13', dueTime: '07:00' }
+    render(<Harness mode="edit" subHabits={false} initial={stored} />)
+    await press(/Hora/)
+    await press('20:00')
+    const body = buildUpdateHabitRequest(savedValues(), false, '', state.reminderTimes, [])
+    const currentForm = { ...buildEmptyHabitFormValues(''), ...stored, dueTime: '20:00' }
+    expect(body).toEqual(buildUpdateHabitRequest(currentForm, false, '', [0, 15], []))
+    expect(body).toMatchInlineSnapshot(`
+      {
+        "checklistItems": [],
+        "description": "",
+        "dueEndTime": undefined,
+        "dueTime": "20:00",
+        "emoji": null,
+        "frequencyQuantity": 1,
+        "frequencyUnit": "Day",
+        "goalIds": [],
+        "intervalWeeks": 1,
+        "isBadHabit": false,
+        "isFlexible": false,
+        "isGeneral": false,
+        "relativeReminders": [],
+        "reminderEnabled": false,
+        "reminderTimes": [],
+        "slipAlertEnabled": false,
+        "startDate": "2026-11-13",
+        "title": "Correr",
+      }
+    `)
+  })
+})
 
 describe('the guided edit flow', () => {
   beforeEach(() => { state.locale = 'pt-BR'; state.reducedMotion = false })
@@ -477,6 +760,7 @@ describe('the guided edit flow', () => {
     await press(/Hora/)
     await press('20:00')
     expect(heading()).toHaveTextContent(ptBR.habits.flow.confirm.question)
+    expect(heading()).toHaveFocus()
     expect(helpers().form.getValues()).toMatchObject({ title: 'Correr', frequencyUnit: 'Day', dueDate: '2026-11-13', dueTime: '20:00' })
   })
 

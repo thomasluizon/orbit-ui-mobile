@@ -11,9 +11,7 @@ import type { TagStepActions } from '@/hooks/use-tag-step-actions'
 interface TagStepRowsProps {
   tags: TagSelectionState
   actions: TagStepActions
-  /** The search words. A row shows when its name holds them. */
   query: string
-  /** Every row shows while the person renames or deletes. Otherwise rows show only for a search. */
   managing: boolean
   onPressTag: (tagId: string) => void
 }
@@ -42,7 +40,7 @@ export function TagStepRows({ tags, actions, query, managing, onPressTag }: Read
                 focusRequest={actions.editTagFocusRequest}
                 initialValue={initialName}
                 value={tags.editTagName}
-                disabled={actions.renaming}
+                pending={actions.renaming}
                 inputAriaLabel={t('habits.form.tagName')}
                 cancelAriaLabel={t('common.cancel')}
                 actionLabel={t('common.save')}

@@ -189,7 +189,6 @@ export function useRestoreGoal() {
 }
 
 interface DeleteGoalOptions {
-  /** Takes the undo instead of the undo toast, so a result dialog can offer it. `release` is what the toast runs when it leaves without an undo. */
   onDeleted?: (actions: { undo: () => void; release?: () => void }) => void
 }
 

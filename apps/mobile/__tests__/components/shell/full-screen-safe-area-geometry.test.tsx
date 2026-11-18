@@ -159,7 +159,7 @@ it.each(surfaces)('keeps $name below the top inset; new full-screen owners must 
       }
       const owner = geometry.get('wrapped') ?? geometry.get('login') ?? geometry.get('owner')
       expect(owner, surface.name).toBeDefined()
-      expect(owner!.contentTop, surface.name).toBe(surface.name === 'Wrapped player' ? Math.max(8, top) : top)
+      expect(owner!.contentTop, surface.name).toBe(surface.name === 'Wrapped player' ? top + 8 : top)
       if (surface.aligned) expect(geometry.get('header-0')!.top).toBe(top)
       if (surface.modal) expect(tree.root.findAll((node) => String(node.type) === 'Modal' && node.props.visible === true)).toHaveLength(1)
     } finally { await renderer.act(() => tree.unmount()) }

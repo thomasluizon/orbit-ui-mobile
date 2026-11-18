@@ -12,20 +12,18 @@ import { OptionCard } from '@/components/ui/option-card'
 import { OrbitMascot } from '@/components/ui/orbit-mascot'
 import { Button } from '@/components/ui/pill-button'
 import { Skeleton } from '@/components/ui/skeleton'
-import { useFlowAnnouncement } from '@/hooks/use-flow-announcement'
+import { useFlowAnnouncement } from '@/components/ui/question-flow'
 import { usePrefersReducedMotion } from '@/lib/motion'
 import { styles as wrappedStyles } from '@/app/wrapped-styles'
 import type { WrappedCoverProps } from './wrapped-cover'
 
 const WIDE_WIDTH = 1024
 
-/** The Orbit line names the empty and the failed states. A ready or loading cover has no job for it, so the block closes up. */
 const COVER_LINE_KEYS = {
   empty: 'wrapped.orbitLine.empty',
   failed: 'wrapped.error',
 } as const
 
-/** The title and the line fade in when the person picks another period. The first paint and reduced motion are still. */
 function usePeriodFade(period: RecapSharePeriod, reducedMotion: boolean) {
   const [opacity] = useState(() => new Animated.Value(1))
   const shownPeriod = useRef(period)
@@ -41,10 +39,6 @@ function usePeriodFade(period: RecapSharePeriod, reducedMotion: boolean) {
   return opacity
 }
 
-/**
- * The text of the status region of the cover. It names the load, and the empty line after a pause. The failed line is an alert of its own,
- * and a ready cover announces nothing, so a line the cover no longer shows is never announced again.
- */
 function useCoverAnnouncement(state: WrappedCoverProps['state'], line: string | null) {
   const { t } = useTranslation()
   const emptyLine = useFlowAnnouncement(state === 'empty' ? line : null, 'cover')
@@ -52,7 +46,6 @@ function useCoverAnnouncement(state: WrappedCoverProps['state'], line: string | 
   return state === 'empty' ? emptyLine : ''
 }
 
-/** Compact: pinned under the scroller and spanning the column. Wide: out of the flow of the lower space, hugging its label, at most 360 wide. */
 function StartAction({ wide, loading, onStart, onMeasure }: Readonly<{ wide: boolean; loading: boolean; onStart: () => void; onMeasure: (height: number) => void }>) {
   const { t } = useTranslation()
   const button = <Button loading={loading} focusableWhenLoading onClick={onStart}>{t('wrapped.start')}</Button>

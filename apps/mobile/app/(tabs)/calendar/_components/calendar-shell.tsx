@@ -20,9 +20,7 @@ type Tokens = ReturnType<typeof createTokensV2>
 
 interface CalendarHeaderProps extends CalendarHeaderNavigationProps {
   viewSelector?: ReactNode
-  /** The Orbit line row, between the period navigation and the view switch. */
   orbitLine?: ReactNode
-  /** The guided flows: the month picker asks one question with quick options and a typed date. */
   guided?: boolean
   onSelectDate?: (date: string) => void
   tokens: Tokens
@@ -36,7 +34,6 @@ interface CalendarJumpQuestionProps {
   onDate: (date: string) => void
 }
 
-/** The quick options and the typed date of the month picker. The typed date is read on the device: "dia 20" is day 20 of the shown month. */
 function CalendarJumpQuestion({ currentMonth, todayKey, onToday, onMonth, onDate }: Readonly<CalendarJumpQuestionProps>) {
   const { t, i18n } = useTranslation()
   const [phrase, setPhrase] = useState('')
@@ -103,7 +100,6 @@ interface CalendarMonthPickerSheetProps extends Pick<CalendarHeaderProps, 'curre
   onClose: () => void
 }
 
-/** The month picker. With the guided flows on it asks one question: two quick options, then the typed date and the month grid as the free path. */
 function CalendarMonthPickerSheet({ currentMonth, todayKey, tokens, guided = false, onCurrentMonth, onSelectMonth, onSelectDate, onClose }: Readonly<CalendarMonthPickerSheetProps>) {
   const { t } = useTranslation()
   const styles = createStyles(tokens)
@@ -186,7 +182,7 @@ function createStyles(tokens: Tokens) {
     span: { flexShrink: 1, fontFamily: 'GeistMono_400Regular', fontSize: 14, lineHeight: 19.6, color: tokens.fg2, fontVariant: ['tabular-nums'] },
     year: { color: tokens.fg2 },
     label: { fontFamily: 'Geist_500Medium', fontSize: 16, color: tokens.fg1 },
-    selectedMonth: { borderWidth: 2, borderColor: tokens.fg1 },
+    selectedMonth: { outlineWidth: 2, outlineOffset: -2, outlineStyle: 'solid', outlineColor: tokens.fg1 },
     picker: { gap: 16, flexShrink: 1, minHeight: 0 },
     pickerBody: { gap: SPACING.s24, flexShrink: 1, minHeight: 0 },
     months: { flexDirection: 'row', flexWrap: 'wrap' },

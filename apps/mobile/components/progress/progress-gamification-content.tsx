@@ -33,7 +33,7 @@ function GamificationBody({ screen, guided, access, tokens }: Readonly<{ screen:
   const { t } = useTranslation()
   const { account, gamification, available, error, loading, retry } = access
   if (error && guided) return <ProgressSurfaceError onRetry={retry} />
-  if (error) return <ErrorState message={t('progressScreen.error')} action={<IconButton label={t('progressScreen.retry')} onClick={retry}><RefreshCw size={20} strokeWidth={1.5} accessible={false} /></IconButton>} />
+  if (error) return <ErrorState fullSurface message={t('progressScreen.error')} action={<IconButton label={t('progressScreen.retry')} onClick={retry}><RefreshCw size={20} strokeWidth={1.5} accessible={false} /></IconButton>} />
   if (loading) return <ProgressLoading label={t('progressScreen.loading')} screen={screen} />
   if (screen === 'achievements') return <AchievementsSection gamificationAvailable={available} profile={gamification.profile} xpProgress={gamification.xpProgress} tokens={tokens} />
   const Section = guided ? GuidedStreakSection : StreakSection

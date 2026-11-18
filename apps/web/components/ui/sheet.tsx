@@ -15,6 +15,7 @@ import { useTranslations } from 'next-intl'
 import { X } from '@/components/ui/icons'
 import { UpdateAvailableBanner } from '@/components/ui/update-available-banner'
 import { AppToastHost } from '@/components/ui/app-toast-host'
+import { OrbitNameText } from '@/components/ui/orbit-name-text'
 import { OrbitOverlayLayer } from '@/components/ui/orbit-overlay-layer'
 import {
   registerModalFocusOwner,
@@ -53,13 +54,11 @@ interface WebSheetProps extends SheetProps {
   virtualizedBody?: boolean
   initialFocus?: RefObject<HTMLElement | null>
   finalFocus?: Dialog.Popup.Props['finalFocus']
-  titleTranslate?: 'no'
-  /** The handle `useSheetHost` fills in, so the host can close through the exit transition. */
   ref?: Ref<SheetHandle>
 }
 
 /** The sole modal surface. Callers mount it to open and unmount it to close. */
-export function Sheet({ title, centred = false, titleMode = 'label', titleTranslate, accessibleTitle, accessibleDescription, headerAccessory, actions, minimumBodyWidth, boundedBody, virtualizedBody, initialFocus, finalFocus, onClose, onAttemptDismiss, children, ref }: Readonly<WebSheetProps>) {
+export function Sheet({ title, centred = false, titleMode = 'label', accessibleTitle, accessibleDescription, headerAccessory, actions, minimumBodyWidth, boundedBody, virtualizedBody, initialFocus, finalFocus, onClose, onAttemptDismiss, children, ref }: Readonly<WebSheetProps>) {
   const t = useTranslations()
   const { titleClamped, titleExpanded, onClampedChange, bodyRef, toggleTitle } = useSheetTitleDisclosure(title)
   const viewportRef = useSheetKeyboardViewport(bodyRef, virtualizedBody)
@@ -150,7 +149,7 @@ export function Sheet({ title, centred = false, titleMode = 'label', titleTransl
           <Dialog.Popup className="orbit-sheet-panel" data-centred={String(centred)} initialFocus={initialFocus} finalFocus={finalFocus}>
             <div className="orbit-sheet-grabber-target" aria-hidden="true" onPointerDown={drag.start}><div className="orbit-sheet-grabber" /></div>
             <header className="orbit-sheet-header">
-              <Dialog.Title aria-label={accessibleTitle} translate={titleTranslate} className={title ? 'orbit-sheet-title' : 'sr-only'} data-title-mode={titleMode}>
+              <Dialog.Title aria-label={accessibleTitle} className={title ? 'orbit-sheet-title' : 'sr-only'} data-title-mode={titleMode}>
                 <SheetTitleContent title={title} titleMode={titleMode} accessibleTitle={accessibleTitle}
                   expanded={titleExpanded} onToggle={toggleTitle}
                   clamped={titleClamped} onClampedChange={onClampedChange}
@@ -183,7 +182,7 @@ export function Sheet({ title, centred = false, titleMode = 'label', titleTransl
                 </div>
               </div>
             )}
-            <UpdateAvailableBanner modalId={modalId} />
+            <UpdateAvailableBanner modalId={modalId} mascot={false} />
             <div className="empty:hidden shrink-0 px-6 pb-4" data-sheet-notice="">
               <AppToastHost placement="modal" modalId={modalId} />
             </div>
@@ -214,7 +213,7 @@ function SheetTitleContent({ title, titleMode, accessibleTitle, expanded, onTogg
   onClampedChange: (clamped: boolean) => void
 }) {
   const t = useTranslations()
-  if (!title || titleMode !== 'typed') return title ?? accessibleTitle ?? t('common.appName')
+  if (!title || titleMode !== 'typed') return <SheetLabelTitle text={title ?? accessibleTitle ?? t('common.appName')} />
   const text = <PersonalText className="orbit-sheet-typed-title" onClampedChange={onClampedChange}>{title}</PersonalText>
   return clamped ? <button type="button" className="orbit-sheet-title-content orbit-sheet-title-button" aria-expanded={expanded}
     aria-controls={fullTitleId} onClick={onToggle}>{text}</button>
@@ -310,6 +309,11 @@ function useSheetBodyFocusVisibility(virtualizedBody: boolean | undefined) {
     observer.observe(body)
     observer.observe(event.target)
   }
+}
+
+function SheetLabelTitle({ text }: Readonly<{ text: string }>) {
+  if (!text.includes('Orbit')) return text
+  return <span data-slot="sheet-title-label"><OrbitNameText text={text} /></span>
 }
 
 function SheetDescription({ text }: Readonly<{ text: string | undefined }>) {

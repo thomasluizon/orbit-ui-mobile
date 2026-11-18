@@ -65,7 +65,6 @@ async function focusField(focused = true) {
   await TestRenderer.act(() => { ((focused ? field.props.onFocus : field.props.onBlur) as () => void)() })
 }
 const orbitOffset = () => StyleSheet.flatten(byTestId('search-orbit')[0]!.props.style as ViewStyle).marginTop
-/** Hands the scroller, Orbit and the question a height, as the native layout pass does. */
 async function layout() {
   await TestRenderer.act(() => {
     for (const [testID, height] of [['search-scroller', 800], ['search-orbit', 120], ['search-question', 100]] as const) {

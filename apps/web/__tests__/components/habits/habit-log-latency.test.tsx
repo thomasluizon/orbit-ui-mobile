@@ -8,7 +8,6 @@ import { HabitRow } from '@/components/habits/habit-row'
 vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key, useLocale: () => 'en' }))
 afterEach(() => { cleanup(); vi.unstubAllGlobals() })
 
-/** The row owner flips the state in the press handler, as the optimistic log does, so the measure is the press to the painted state. */
 function LoggedRow({ onLog }: Readonly<{ onLog: () => void }>) {
   const [done, setDone] = useState(false)
   return <HabitRow habit={createMockHabit({ id: 'habit-1', title: 'Read' })} state={done ? 'done' : 'empty'}

@@ -1,5 +1,6 @@
 import { StyleSheet, type TextStyle, type ViewStyle } from 'react-native'
 import Yoga, { type Node as YogaNode } from 'yoga-layout'
+import { applyBorderWidths } from '@/__tests__/support/yoga-borders'
 
 export interface GeometryHost {
   type: string
@@ -59,6 +60,7 @@ function applyStyle(node: YogaNode, style: ViewStyle) {
   for (const [property, edge] of [['padding', Yoga.EDGE_ALL], ['paddingHorizontal', Yoga.EDGE_HORIZONTAL], ['paddingVertical', Yoga.EDGE_VERTICAL], ['paddingTop', Yoga.EDGE_TOP], ['paddingBottom', Yoga.EDGE_BOTTOM], ['paddingLeft', Yoga.EDGE_LEFT], ['paddingRight', Yoga.EDGE_RIGHT]] as const) {
     if (typeof style[property] === 'number') node.setPadding(edge, style[property])
   }
+  applyBorderWidths(node, style)
 }
 
 function bounds(node: YogaNode) {
@@ -66,13 +68,16 @@ function bounds(node: YogaNode) {
   let left = 0
   let ancestor: YogaNode | null = node
   while (ancestor) { top += ancestor.getComputedTop(); left += ancestor.getComputedLeft(); ancestor = ancestor.getParent() }
-  return { left, width: node.getComputedWidth(), top, bottom: top + node.getComputedHeight(), contentTop: top + node.getComputedPadding(Yoga.EDGE_TOP) }
+  return { left, width: node.getComputedWidth(), top, bottom: top + node.getComputedHeight(), contentTop: top + node.getComputedBorder(Yoga.EDGE_TOP) + node.getComputedPadding(Yoga.EDGE_TOP) }
 }
 
-export function measureSafeArea(host: GeometryHost, select: (host: GeometryHost) => string | undefined, viewport = { width: 412, height: 915 }) {
+/** `pixelRatio` is the device pixels per point that Yoga snaps each edge to, as React Native does with the screen scale. */
+export function measureSafeArea(host: GeometryHost, select: (host: GeometryHost) => string | undefined, viewport = { width: 412, height: 915 }, pixelRatio = 1) {
   const selected = new Map<string, YogaNode>()
+  const config = Yoga.Config.create()
+  config.setPointScaleFactor(pixelRatio)
   function build(host: GeometryHost): YogaNode {
-    const node = Yoga.Node.create()
+    const node = Yoga.Node.create(config)
     if (host.type === 'ScrollView') {
       node.setFlexGrow(1)
       node.setFlexShrink(1)
@@ -90,7 +95,7 @@ export function measureSafeArea(host: GeometryHost, select: (host: GeometryHost)
     }
     let owner = node
     if (host.props.contentContainerStyle) {
-      owner = Yoga.Node.create()
+      owner = Yoga.Node.create(config)
       applyStyle(owner, StyleSheet.flatten(host.props.contentContainerStyle))
       node.insertChild(owner, 0)
     }
@@ -101,5 +106,21 @@ export function measureSafeArea(host: GeometryHost, select: (host: GeometryHost)
   try {
     layout.calculateLayout(viewport.width, viewport.height, Yoga.DIRECTION_LTR)
     return new Map([...selected].map(([key, node]) => [key, bounds(node)]))
-  } finally { layout.freeRecursive() }
+  } finally {
+    layout.freeRecursive()
+    config.free()
+  }
+}
+
+/** The test host mock measures a host with the props of its last render, and the committed tree keeps the same style object, so the style finds the host that `measureInWindow` asks for. */
+export function committedHost(root: GeometryHost | string, name: string, props: Readonly<Record<string, unknown>>): GeometryHost | undefined {
+  if (typeof root === 'string') return undefined
+  const committedStyle: unknown = root.props.style
+  const sameStyle = props.style !== undefined && committedStyle === props.style
+  if (root.type === name && root.props.testID === props.testID && (sameStyle || (props.style === undefined && props.testID !== undefined))) return root
+  for (const child of root.children ?? []) {
+    const found = committedHost(child, name, props)
+    if (found) return found
+  }
+  return undefined
 }

@@ -10,7 +10,6 @@ import { PendingOperationCard } from '@/components/chat/pending-operation-card'
 type Controls = { start: Mock; set: Mock; stop: Mock; subscribe: (node: { current?: unknown }) => () => void; node?: { current?: unknown } }
 const motion = vi.hoisted(() => ({ reduced: false, controls: [] as Controls[] }))
 vi.mock('@/hooks/use-viewport-match', () => ({ useViewportMatch: (query: string) => query === '(prefers-reduced-motion: reduce)' && motion.reduced }))
-/** Each `ConversationChange` gets its own controls, which remember the element they drive. */
 vi.mock('motion/react', async (importOriginal) => {
   const actual = await importOriginal<typeof import('motion/react')>()
   const { useState } = await import('react')
@@ -31,7 +30,6 @@ const items = ['Run', 'Read'].map((name, index) => ({
 const preview = makePendingAgentOperation({ riskClass: 'Low', confirmationRequirement: 'None', previewFingerprint: 'preview-1', items, changeTargetCount: 2 })
 const confirm = vi.fn()
 
-/** The card as the conversation holds it: each settled patch returns as the saved state of the message. */
 function ConversationCard({ onRevise }: Readonly<{ onRevise?: RevisePendingOperation }>) {
   const [savedState, setSavedState] = useState<PendingOperationMessageState>()
   return <PendingOperationCard pendingOperation={preview} savedState={savedState} onStateChange={(patch) => setSavedState((current) => ({ ...current, ...patch }))}
@@ -59,7 +57,6 @@ const flows = {
 }
 const outcomes = Object.keys(flows) as (keyof typeof flows)[]
 
-/** The controls of the card's own change, the outermost one, and not those of the block frame inside it. */
 function cardChange(): Controls {
   const element = document.querySelector('[data-conversation-change]')
   const controls = motion.controls.find((candidate) => candidate.node?.current === element)

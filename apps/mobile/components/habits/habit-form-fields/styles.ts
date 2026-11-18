@@ -163,8 +163,6 @@ export function createSectionStyles(tokens: AppTokens) {
       borderRadius: radius.full,
       overflow: "hidden",
       backgroundColor: tokens.bgField,
-      borderWidth: 1,
-      borderColor: "transparent",
       alignItems: "center",
     },
     whenButtonActive: {
@@ -346,8 +344,6 @@ export function createStyles(tokens: AppTokens) {
       justifyContent: "center",
       overflow: "hidden",
       backgroundColor: tokens.bgField,
-      borderWidth: 1,
-      borderColor: "transparent",
       borderRadius: radius.full,
       paddingHorizontal: SPACING.s12,
       paddingVertical: SPACING.s8,
@@ -392,8 +388,6 @@ export function createStyles(tokens: AppTokens) {
       alignItems: "center",
       justifyContent: "center",
       backgroundColor: tokens.bgField,
-      borderWidth: 2,
-      borderColor: "transparent",
     },
     emojiOptionSelected: {
       backgroundColor: tintFromPrimary(tokens, 0.1),

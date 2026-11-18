@@ -19,21 +19,15 @@ interface ConfirmSheetProps {
   confirmLabel: string
   cancelLabel?: string
   minimumActionHeight?: number
-  /** Marks the confirm action as the destructive one. */
   destructive?: boolean
   inlineActions?: boolean
-  /** Asks the title as one question: the two answers are quick options in the body, and the children are the free path. */
   quickOptions?: boolean
-  /** The action of the free path under the quick options. It confirms with the choices the children hold. */
   freePathLabel?: string
-  /** Starts the action on press while the controlled sheet closes. */
   confirmImmediately?: boolean
   loading?: boolean
   onCloseComplete?: () => void
   onCancelStart?: () => void
-  /** Runs after the sheet is gone when the person cancels. It has to hide the sheet. */
   onCancel: () => void
-  /** Confirms the action and hides the sheet, on press when confirmImmediately is set. */
   onConfirm: () => void
 }
 
@@ -170,7 +164,6 @@ interface QuestionBodyProps {
   children?: ReactNode
 }
 
-/** The body of a question: the supporting line, the two answers as quick options, then the free path with its own action. */
 function QuestionBody({ title, message, confirmLabel, cancelLabel, freePathLabel, answersDisabled, confirmDisabled, onConfirm, onCancel, children }: Readonly<QuestionBodyProps>) {
   return (
     <div className="flex flex-col gap-6">

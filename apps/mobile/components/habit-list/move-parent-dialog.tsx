@@ -34,12 +34,11 @@ function MoveDialogDescription({
   return <Text style={styles.moveDialogDescription}>{t('habits.moveParent.description', { name })}</Text>
 }
 
-/** The heading of the move sheet. With the guided flows on, the title is the question and the subject is the line under it. */
-function useMoveParentHeading(t: MoveParentDialogProps['t'], selectionOnly: boolean, movingHabitCount?: number) {
+function useMoveParentHeading(t: MoveParentDialogProps['t'], selectionOnly: boolean, selectionTitle: string | undefined, movingHabitCount?: number) {
   const asksOneQuestion = useFlag('orbit_guided_flows') && !selectionOnly
   const question = t('habits.moveParent.destinations', { count: movingHabitCount ?? 1 })
   const moveSubject = movingHabitCount === undefined ? t('habits.moveParent.title') : plural(t('habits.moveParent.titleMany', { count: movingHabitCount }), movingHabitCount)
-  const subject = selectionOnly ? t('habits.form.parentHabit') : moveSubject
+  const subject = selectionOnly ? selectionTitle ?? t('habits.form.parentHabit') : moveSubject
   return { asksOneQuestion, question, subject, title: asksOneQuestion ? question : subject }
 }
 
@@ -82,10 +81,10 @@ function MoveTargetRow({
   )
 }
 
-function MoveInventoryStatus({ state, onRetry, t, selectionOnly, styles }: Readonly<{
-  selectionOnly: boolean; styles: Styles; state: MoveParentPickerProps['inventoryState']; onRetry: MoveParentPickerProps['onRetryInventory']; t: MoveParentDialogProps['t']
+function MoveInventoryStatus({ state, onRetry, t, selectionOnly }: Readonly<{
+  selectionOnly: boolean; state: MoveParentPickerProps['inventoryState']; onRetry: MoveParentPickerProps['onRetryInventory']; t: MoveParentDialogProps['t']
 }>) {
-  if (state === 'loading' && selectionOnly) return <View accessibilityLiveRegion="polite"><Text style={styles.moveDialogEmpty}>{t('common.loading')}</Text></View>
+  if (state === 'loading' && selectionOnly) return <View accessibilityLiveRegion="polite"><Skeleton variant="settings" rows={3} label={t('common.loading')} /></View>
   if (state === 'loading') return <Skeleton variant="habit-row" label={t('common.loading')} />
   return <>
     {state ? <ErrorState message={t(selectionOnly ? 'habits.loadError' : 'errors.fetchHabits')}
@@ -97,6 +96,7 @@ function MoveInventoryStatus({ state, onRetry, t, selectionOnly, styles }: Reado
  *  owns the move state and supplies the validated option list plus handlers. */
 export function MoveParentDialog({
   selectionOnly = false,
+  selectionTitle,
   t,
   visible,
   isPending,
@@ -140,7 +140,7 @@ export function MoveParentDialog({
       contentLaidOutRef.current = false
     }
   }, [visible, inventoryState])
-  const { asksOneQuestion, question, subject, title } = useMoveParentHeading(t, selectionOnly, movingHabitCount)
+  const { asksOneQuestion, question, subject, title } = useMoveParentHeading(t, selectionOnly, selectionTitle, movingHabitCount)
   async function confirmMove() {
     if (await onConfirm() === true) {
       closeSheet(hideDialog, hideDialog)
@@ -176,7 +176,7 @@ export function MoveParentDialog({
       }
     >
       <View testID="move-parent-questions" style={{ flexShrink: 1, gap: 16 }}>
-        <MoveInventoryStatus styles={styles} selectionOnly={selectionOnly} state={inventoryState} onRetry={onRetryInventory} t={t} />
+        <MoveInventoryStatus selectionOnly={selectionOnly} state={inventoryState} onRetry={onRetryInventory} t={t} />
         {inventoryState !== 'loading' && inventoryState !== 'error' ? <>
 
         <MoveDialogDescription

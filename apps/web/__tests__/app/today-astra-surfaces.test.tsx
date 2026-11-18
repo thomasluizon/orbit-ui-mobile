@@ -22,6 +22,8 @@ const mocks = vi.hoisted(() => ({
   motionSets: [] as number[],
   lastCompletionDate: undefined as string | null | undefined,
   profileReady: true,
+  profileError: false,
+  errorStates: [] as Array<{ message: string; fullSurface?: boolean }>,
   checklistProfile: null as Profile | null,
   hasProAccess: true,
   timeZone: 'UTC',
@@ -75,6 +77,8 @@ vi.mock('@/hooks/use-profile', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/hooks/use-profile')>()),
   useProfile: (options?: { initialData?: Profile }) => ({
     profile: options?.initialData ?? mocks.checklistProfile ?? (mocks.profileReady ? { timeZone: mocks.timeZone, lastCompletionDate: mocks.lastCompletionDate, hasProAccess: mocks.hasProAccess, aiSummaryEnabled: false, language: 'en' } : undefined),
+    isError: mocks.profileError,
+    refetch: vi.fn(),
   }),
 }))
 vi.mock('@/hooks/use-notifications', () => ({
@@ -84,7 +88,11 @@ vi.mock('@/hooks/use-notifications', () => ({
 vi.mock('@/hooks/use-proactive-item', () => ({
   useProactiveItem: () => ({ item: mocks.proactiveItem, openItem: vi.fn() }),
 }))
-vi.mock('@/components/ui/orbit-mascot', () => ({ OrbitMascot: () => null }))
+vi.mock('@/components/ui/orbit-mascot', () => ({ OrbitMascot: () => null, useStateMascotSize: () => 96 }))
+vi.mock('@/components/ui/error-state', async (importOriginal) => {
+  const original = await importOriginal<typeof import('@/components/ui/error-state')>()
+  return { ErrorState: (props: Parameters<typeof original.ErrorState>[0]) => { mocks.errorStates.push(props); return <original.ErrorState {...props} /> } }
+})
 vi.mock('@/components/today/today-astra', async (importOriginal) => {
   const original = await importOriginal<typeof import('@/components/today/today-astra')>()
   return {
@@ -129,6 +137,19 @@ vi.mock('motion/react', async () => {
 })
 
 describe('web Today Astra owned surfaces', () => {
+  it('stands Orbit in Parado over the whole of Hoje when the profile fails to load', () => {
+    mocks.profileReady = false
+    mocks.profileError = true
+    mocks.errorStates.length = 0
+    try {
+      render(<TodayPageClient initialToday={mocks.view.nav.today} initialHabits={null} />)
+      expect(mocks.errorStates.at(-1)).toMatchObject({ fullSurface: true, message: 'common.error' })
+    } finally {
+      mocks.profileReady = true
+      mocks.profileError = false
+    }
+  })
+
   it.each([false, true])('clears the Astra slot for completion and restores it on undo, proactive=%s', (proactive) => {
     mocks.hasProAccess = false
     mocks.proactiveItem = proactive ? createMockProactiveItem({ text: 'Day complete' }) : null

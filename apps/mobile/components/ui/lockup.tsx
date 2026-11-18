@@ -32,7 +32,7 @@ export function Lockup(_props: Readonly<LockupProps>) {
     >
       <G transform={LOCKUP_MARK_TRANSFORM}>
         {LOCKUP_MARK_PATHS.map((path) => (
-          <Path key={path.d} d={path.d} fill="currentColor" fillRule={path.fillRule} />
+          <Path key={path.d} d={path.d} fill={path.part === 'moon' ? tokens.primary : 'currentColor'} fillRule={path.fillRule} />
         ))}
       </G>
       <G transform={LOCKUP_WORD_TRANSFORM}>

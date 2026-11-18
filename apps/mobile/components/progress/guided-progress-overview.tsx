@@ -38,7 +38,6 @@ import { LockedCard } from './locked-card'
 import { progressStyles } from './progress-styles'
 import { TopHabitRow, WindowFigureGrid, WindowFigureLoading, WindowFrame } from './progress-window'
 
-/** A line that changes cross-fades in. The first line and every line under reduced motion appear still. */
 function useLineFade(line: string | null, reducedMotion: boolean) {
   const [opacity] = useState(() => new Animated.Value(1))
   const shownLine = useRef(line)
@@ -54,7 +53,6 @@ function useLineFade(line: string | null, reducedMotion: boolean) {
   return opacity
 }
 
-/** Orbit at 96 (128 at 1024 and above), centred, with the one Orbit line of the root under it. */
 function ProgressOrbitGroup({ line, mascotRef, lookAt, action, tokens }: Readonly<{
   line: string | null
   mascotRef: RefObject<View | null>
@@ -91,7 +89,6 @@ function GuidedWindowFigures({ metrics }: Readonly<{ metrics: RetrospectiveMetri
   )
 }
 
-/** The 30-day window under the question heading. The empty window has no heading: Orbit states it. */
 function GuidedWindowSection({ status, retrospective, tokens, onSelectPoint, onChartTouch }: Readonly<{
   status: ProgressWindowStatus
   retrospective: ReturnType<typeof useProgressRetrospective>
@@ -117,7 +114,6 @@ function GuidedWindowSection({ status, retrospective, tokens, onSelectPoint, onC
   )
 }
 
-/** A press on a bar changes the line to that day and Orbit looks at the bar. The same bar again, or a touch outside the chart, returns the default line. */
 function useBarSelection() {
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
   const { lookAt, mascotRef, lookAtControl, lookAway } = useFlowLookState()

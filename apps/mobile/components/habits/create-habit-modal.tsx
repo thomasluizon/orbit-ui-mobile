@@ -26,6 +26,8 @@ import {
 import { SubHabitEditor, type SubHabitEntry } from './create-habit-modal/sub-habit-editor'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { useOverlayBack } from '@/hooks/use-overlay-back'
+import { useSubmitHold } from '@/hooks/use-submit-hold'
+import type { SubmitOutcome } from '@orbit/shared/hooks'
 import { useDismissGuard } from '@/hooks/use-dismiss-guard'
 import { useHabitCreateNavigationGuard } from '@/hooks/use-habit-create-navigation-guard'
 import { useHabitForm } from '@/hooks/use-habit-form'
@@ -37,7 +39,7 @@ import {
   applyHabitFormMode,
   buildEmptyHabitFormValues,
   applyHabitEmojiSuggestion,
-  reportHabitFormValidationError,
+  reportRefusedHabitSave,
   buildHabitFormPatchFromSuggestion,
   EMPTY_HABIT_FORM_PROPOSAL,
   buildParentHabitFormState,
@@ -255,10 +257,16 @@ export function CreateHabitModal({
   const [leaveAction, setLeaveAction] = useState<(() => void) | null>(null)
   const pendingNavigation = useRef<(() => void) | null>(null)
   useEffect(() => { leaveAction?.() }, [leaveAction])
-  const finishClose = useCallback((action: () => void) => {
-    if (presentation === 'screen') setLeaveAction(() => action)
-    else closeSheet(action)
-  }, [closeSheet, presentation])
+  const { waiting: submissionWaiting, run: runSubmission, release: releaseSubmission } = useSubmitHold()
+  const finishClose = useCallback((action: () => void, automatic = false) => {
+    if (presentation === 'screen') {
+      setLeaveAction(() => action)
+      return
+    }
+    const leave = () => { releaseSubmission(); action() }
+    if (automatic) closeSheet(leave, leave)
+    else closeSheet(leave)
+  }, [closeSheet, presentation, releaseSubmission])
   const dismissGuard = useDismissGuard({
     isDirty,
     onDismiss: () => finishClose(pendingNavigation.current ?? onClose),
@@ -423,15 +431,11 @@ export function CreateHabitModal({
     else showError(message)
   }, [formHelpers, guided, isSubHabitMode, showError, translate])
 
-  const submittingRef = useRef(false)
-  const handleSubmit = useCallback(async (completion?: GuidedHabitCompletion) => {
-    if (submittingRef.current) return
-    submittingRef.current = true
-    try {
+  const submitCreate = useCallback(async (startRequest: () => void, completion?: GuidedHabitCompletion): Promise<SubmitOutcome> => {
     flushBufferedInputsRef.current()
 
     const subHabitValues = subHabits.map((entry) => entry.value)
-    if (!await formHelpers.form.trigger(undefined, { shouldFocus: true })) return
+    if (!await formHelpers.form.trigger(undefined, { shouldFocus: true })) return 'stay'
 
     const error = formHelpers.validateAll({
       reminderTimes,
@@ -440,11 +444,13 @@ export function CreateHabitModal({
       subHabits: subHabitValues,
     })
     if (error) {
-      reportHabitFormValidationError(error, formHelpers.form.getFieldState, showError)
-      return
+      reportRefusedHabitSave(error, { guided, showSaveError: setSaveError, getFieldState: formHelpers.form.getFieldState, showError })
+      return 'stay'
     }
+    setSaveError(null)
     const data = habitFormSchema.parse(formHelpers.form.getValues())
 
+    startRequest()
     try {
       if (isSubHabitMode) {
         const subRequest = buildSubHabitRequest(
@@ -457,7 +463,7 @@ export function CreateHabitModal({
           data: subRequest,
         })
       } else {
-        const title = getHabitPhraseTitle(data.title, resolveSupportedLocale(i18n.language), phraseOwnershipRef.current)
+        const title = getHabitPhraseTitle(data.title, resolveSupportedLocale(i18n.language), phraseOwnershipRef.current, guided)
         const request = buildCreateHabitRequest(
           { ...data, title },
           reminderTimes,
@@ -469,14 +475,15 @@ export function CreateHabitModal({
         if (guided) {
           captureGuidedFlowCompleted('habit_create', completion?.stepCount ?? 0, completion?.usedAiRead ?? false)
           setSaved({ id: created.id, optimistic: optimisticHabitResult(data) })
-          return
+          return 'stay'
         }
       }
-      finishClose(() => { onClose(); onCreated?.() })
+      finishClose(() => { onClose(); onCreated?.() }, true)
+      return 'leave'
     } catch (error: unknown) {
       reportCreateFailure(error)
+      return 'stay'
     }
-    } finally { submittingRef.current = false }
   }, [
     formHelpers,
     i18n.language,
@@ -492,8 +499,8 @@ export function CreateHabitModal({
     finishClose,
     onClose,
     onCreated,
-    showError,
     reportCreateFailure,
+    showError,
   ])
 
   const handleSuggestEmoji = useCallback(async () => {
@@ -606,7 +613,7 @@ export function CreateHabitModal({
   }, [allowanceText, formHelpers, i18n.language, replaceSubHabits, showError, showInfo, showSuccess, suggestion, suggestionRequests, suggestionRevision, suggestionSessionId, t])
 
 
-  const isPending = createHabit.isPending || createSubHabit.isPending
+  const isPending = submissionWaiting
 
   const updateSubHabitValue = useCallback((id: string, value: string) => {
     resolveSubHabitProposalRef.current()
@@ -686,7 +693,7 @@ export function CreateHabitModal({
           </View>
           <HabitCreateActions task={formHelpers.form.watch('itemType') === 'task'} presentation={presentation} pending={isPending}
             empty={watchedTitle.trim().length === 0} subHabit={isSubHabitMode}
-            onCancel={dismissGuard.requestDismiss} onSubmit={() => void handleSubmit()} />
+            onCancel={dismissGuard.requestDismiss} onSubmit={() => void runSubmission(submitCreate)} />
       </>
     )
   }
@@ -698,14 +705,14 @@ export function CreateHabitModal({
       <GuidedHabitFlow
         key={flowRun}
         formHelpers={formHelpers}
-        fields={buildFieldProps()}
+        fields={{ ...buildFieldProps(), subHabitTitles: subHabits.map((entry) => entry.value), linkedGoals: parentHabit?.linkedGoals }}
         lockedGeneral={lockedGeneral}
         fromConversation={fromConversation}
         pending={isPending}
         saveError={saveError}
         notice={<CreateBoundaryNotice boundary={createBoundary} onUpgrade={navigateToUpgrade} />}
         createLabel={createLabel}
-        onSubmit={(completion) => void handleSubmit(completion)}
+        onSubmit={(completion) => void runSubmission((startRequest) => submitCreate(startRequest, completion))}
         onClose={dismissGuard.requestDismiss}
       />
     )

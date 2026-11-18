@@ -68,7 +68,7 @@ function openTiming(tree: ReturnType<typeof TestRenderer.create>) {
 
 const useWatchMock = vi.fn()
 const tagCollection = vi.hoisted(() => ({ tags: [] as HabitTag[] }))
-const tagMutations = vi.hoisted(() => ({ create: vi.fn(), suggest: vi.fn(), delete: vi.fn() }))
+const tagMutations = vi.hoisted(() => ({ create: vi.fn(), update: vi.fn(), suggest: vi.fn(), delete: vi.fn() }))
 const formLocale = vi.hoisted((): { language: string; realController: boolean; realDates: boolean; realDateCopy: boolean; theme: 'dark' | 'light' } => ({ language: 'en', realController: false, realDates: false, realDateCopy: false, theme: 'dark' }))
 const dateRequests = vi.hoisted(() => ({ request: vi.fn() }))
 const connection = vi.hoisted(() => ({ isOnline: true }))
@@ -157,7 +157,7 @@ vi.mock('@/hooks/use-tags', () => ({
   useAssignTags: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useSuggestTags: () => ({ isPending: false, mutateAsync: tagMutations.suggest }),
   useTags: () => ({ tags: tagCollection.tags }), useCreateTag: () => ({ isPending: false, mutateAsync: tagMutations.create }),
-  useUpdateTag: () => ({ isPending: false, mutateAsync: vi.fn() }), useDeleteTag: () => ({ isPending: false, mutateAsync: tagMutations.delete }),
+  useUpdateTag: () => ({ isPending: false, mutateAsync: tagMutations.update }), useDeleteTag: () => ({ isPending: false, mutateAsync: tagMutations.delete }),
 }))
 vi.mock('@/components/ui/keyboard-aware-scroll-view', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/components/ui/keyboard-aware-scroll-view')>()
@@ -1178,15 +1178,119 @@ describe('habit tag suggestions', () => {
   }
   const selected = () => tree.root.findAll((node: { type: unknown; props: Record<string, unknown> }) => node.type === 'Text' && node.props.testID === 'selected-tags')[0]!.props.children
   const text = (value: string) => tree.root.findAll((node: { type: unknown; props: Record<string, unknown> }) => node.type === 'Text' && node.props.children === value)
+  const expectAcceptSkeleton = () => {
+    expect(text('common.loading')).toHaveLength(0)
+    const status = tree.root.findAll((node: { type: unknown; props: Record<string, unknown> }) => typeof node.type === 'string' && node.props.testID === 'tag-status-skeleton')
+    expect(status).toHaveLength(1)
+    expect(status[0]!.props.accessibilityLiveRegion).toBe('polite')
+    const unit = status[0]!.findAll((node: { type: unknown; props: Record<string, unknown> }) => typeof node.type === 'string' && node.props.testID === 'skeleton-unit-fill')[0]!
+    expect(unit.props).toMatchObject({ accessibilityRole: 'progressbar', accessibilityLabel: 'common.loading', accessibilityState: { busy: true } })
+  }
   beforeEach(() => {
     tagCollection.tags = []
     tagMutations.suggest.mockReset()
     tagMutations.create.mockReset()
+    tagMutations.update.mockReset()
     tagMutations.delete.mockReset()
     formLocale.language = 'en'
     useWatchMock.mockImplementation(({ control, name }: { control: { values: Record<string, unknown> }; name: string }) => control.values[name])
   })
   afterEach(async () => { if (tree) await TestRenderer.act(() => tree.unmount()) })
+
+  function deferred() {
+    let settle!: { resolve: (value?: unknown) => void; reject: (failure: Error) => void }
+    const promise = new Promise((resolve, reject) => { settle = { resolve, reject } })
+    return { promise, settle: () => settle }
+  }
+  const tagNameInput = () => tree.root.findAll((node: { type: unknown; props: Record<string, unknown> }) => node.type === 'TextInput' && node.props.accessibilityLabel === 'habits.form.tagName')[0]
+  const expectTagActionWaiting = (label: string, waiting: boolean) => {
+    const action = button(label)
+    expect(action.props.accessibilityState).toMatchObject({ busy: waiting, disabled: waiting })
+    expect(action.findAll((node: { type: unknown; props: Record<string, unknown> }) => node.type === 'Text' && node.props.children === label).length).toBeGreaterThan(0)
+    expect(action.findAll((node: { type: unknown; props: Record<string, unknown> }) => node.type === 'View' && node.props.testID === 'skeleton-face')).toHaveLength(waiting ? 1 : 0)
+  }
+  const pressTwice = (label: string) => TestRenderer.act(() => {
+    const onPress = button(label).props.onPress as () => void
+    onPress()
+    onPress()
+  })
+
+  it('holds the tag Add action from the press: one request for two presses, the waiting face, and the editor leaves on success', async () => {
+    const request = deferred()
+    tagMutations.create.mockReturnValue(request.promise)
+    await renderTagForm('Read')
+    await TestRenderer.act(() => button('habits.form.newTag').props.onPress())
+    await TestRenderer.act(() => tagNameInput()!.props.onChangeText('Health'))
+    await pressTwice('common.add')
+    expect(tagMutations.create).toHaveBeenCalledOnce()
+    expectTagActionWaiting('common.add', true)
+    await TestRenderer.act(async () => { request.settle().resolve({ id: 'tag-created', name: 'Health', color: '#C4530F' }); await Promise.resolve() })
+    expect(tagNameInput()).toBeUndefined()
+    expect(selected()).toBe('tag-created')
+  })
+
+  async function collapseAndReopenDetails() {
+    const details = () => tree.root.findAllByType(ListRow).find((node: { props: Record<string, unknown> }) => node.props.title === 'habits.form.moreDetails')!
+    await TestRenderer.act(() => details().props.onClick())
+    expect(tree.root.findAllByType(ListRow).some((node: { props: Record<string, unknown> }) => node.props.title === 'habits.form.tags')).toBe(false)
+    await TestRenderer.act(() => details().props.onClick())
+    const picker = tree.root.findAllByType(ListRow).find((node: { props: Record<string, unknown> }) => node.props.title === 'habits.form.tags')!
+    await TestRenderer.act(() => picker.props.onClick())
+  }
+
+  it('keeps fetched suggestions when More details collapses and opens again, with no second request', async () => {
+    tagMutations.suggest.mockResolvedValue({ tags: [{ name: 'Outdoors', color: '#7c3aed', isExisting: false, id: null }] })
+    await renderTagForm()
+    await TestRenderer.act(async () => { button('habits.form.suggestTags').props.onPress(); await Promise.resolve() })
+    expect(proposalButton('Outdoors')).toBeDefined()
+    await collapseAndReopenDetails()
+    expect(proposalButton('Outdoors')).toBeDefined()
+    expect(tagMutations.suggest).toHaveBeenCalledOnce()
+  })
+
+  it('keeps the tag Add hold when More details collapses and opens again during the request', async () => {
+    const request = deferred()
+    tagMutations.create.mockReturnValue(request.promise)
+    await renderTagForm('Read')
+    await TestRenderer.act(() => button('habits.form.newTag').props.onPress())
+    await TestRenderer.act(() => tagNameInput()!.props.onChangeText('Health'))
+    await TestRenderer.act(() => button('common.add').props.onPress())
+    await collapseAndReopenDetails()
+    expectTagActionWaiting('common.add', true)
+    expect(button('common.add').props.onPress).toBeUndefined()
+    expect(tagMutations.create).toHaveBeenCalledOnce()
+    await TestRenderer.act(async () => { request.settle().resolve({ id: 'tag-created', name: 'Health', color: '#C4530F' }); await Promise.resolve() })
+    expect(selected()).toBe('tag-created')
+  })
+
+  it('ends the tag Add waiting face when the request fails, and the next press sends again', async () => {
+    const request = deferred()
+    tagMutations.create.mockReturnValue(request.promise)
+    await renderTagForm('Read')
+    await TestRenderer.act(() => button('habits.form.newTag').props.onPress())
+    await TestRenderer.act(() => tagNameInput()!.props.onChangeText('Health'))
+    await TestRenderer.act(() => button('common.add').props.onPress())
+    expectTagActionWaiting('common.add', true)
+    await TestRenderer.act(async () => { request.settle().reject(new Error('offline')); await Promise.resolve() })
+    expectTagActionWaiting('common.add', false)
+    tagMutations.create.mockResolvedValue({ id: 'tag-created', name: 'Health', color: '#C4530F' })
+    await TestRenderer.act(async () => { button('common.add').props.onPress(); await Promise.resolve() })
+    expect(tagMutations.create).toHaveBeenCalledTimes(2)
+  })
+
+  it('holds the tag Save action from the press: one request for two presses, and the waiting face ends on failure', async () => {
+    tagCollection.tags = [{ id: 'existing', name: 'Health', color: '#7c3aed' }]
+    const request = deferred()
+    tagMutations.update.mockReturnValue(request.promise)
+    await renderTagForm('Read')
+    await TestRenderer.act(() => button('habits.form.editTag: Health').props.onPress())
+    await TestRenderer.act(() => tagNameInput()!.props.onChangeText('Fitness'))
+    await pressTwice('common.save')
+    expect(tagMutations.update).toHaveBeenCalledOnce()
+    expectTagActionWaiting('common.save', true)
+    await TestRenderer.act(async () => { request.settle().reject(new Error('offline')); await Promise.resolve() })
+    expectTagActionWaiting('common.save', false)
+  })
 
   it.each([409, 500])('handles rejected tag deletion status %i and restores the selection', async (status) => {
     tagCollection.tags = [{ id: 'existing', name: 'Health', color: '#7c3aed' }]
@@ -1276,7 +1380,7 @@ describe('habit tag suggestions', () => {
     await TestRenderer.act(() => button('Reading').props.onPress())
     expect(tree.root.findByType(BottomSheetAppTextInput)).toBeDefined()
     expect(button('Outdoors')?.props.disabled).toBe(true)
-    expect(text('common.loading')).toHaveLength(1)
+    expectAcceptSkeleton()
     expect(button('habits.form.suggestTags').props.disabled).toBe(true)
     if (outcome === 'success') {
       await TestRenderer.act(() => complete({ id: 'created' }))
@@ -1356,7 +1460,7 @@ describe('habit tag suggestions', () => {
     await TestRenderer.act(() => button('habits.form.suggestTags').props.onPress())
     await TestRenderer.act(() => button('Reading').props.onPress())
     expect(button('Reading').props.disabled).toBe(true)
-    expect(text('common.loading')[0]!.props.accessibilityLiveRegion).toBe('polite')
+    expectAcceptSkeleton()
     expect(button('habits.form.suggestTags').props.disabled).toBe(true)
     await TestRenderer.act(() => reject(new Error('Unavailable')))
     expect(selected()).toBe('')

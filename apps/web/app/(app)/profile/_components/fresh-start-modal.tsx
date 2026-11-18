@@ -2,7 +2,7 @@
 
 import { SPACING } from '@orbit/shared/theme'
 
-import { useRef, useCallback } from 'react'
+import { useRef, useCallback, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { resetAccountQueries } from '@orbit/shared/query'
 import { useTranslations } from 'next-intl'
@@ -13,6 +13,7 @@ import {
   buildFreshStartDeletedItems,
   buildFreshStartPreservedItems,
   getFriendlyErrorMessage,
+  isFreshStartConfirmed,
 } from '@orbit/shared/utils'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { Input } from '@/components/ui/input'
@@ -63,7 +64,6 @@ function FreshStartHero({ body }: Readonly<{ body: string }>) {
 interface FreshStartModalProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  /** The flag `orbit_guided_flows`: the one-question flow and its result dialog replace the sheet. */
   guided?: boolean
 }
 
@@ -78,9 +78,21 @@ export function FreshStartModal({ open, onOpenChange, guided = false }: Readonly
   const requestPending = useRef(false)
   const [error, setError] = useAccountScopedState('')
   const [resultShown, setResultShown] = useAccountScopedState(false)
+  const [prevOpen, setPrevOpen] = useState(open)
   const { isOnline } = useOffline()
 
-  const isConfirmed = confirmText.trim().toUpperCase() === 'ORBIT'
+  if (open !== prevOpen) {
+    setPrevOpen(open)
+    if (open) {
+      setStep('info')
+      setConfirmText('')
+      setError('')
+      setLoading(false)
+      setResultShown(false)
+    }
+  }
+
+  const isConfirmed = isFreshStartConfirmed(confirmText)
   const { sheetRef, closeSheet } = useSheetHost()
 
   const handleOpenChange = useCallback(

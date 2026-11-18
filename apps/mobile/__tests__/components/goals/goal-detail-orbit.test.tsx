@@ -25,7 +25,6 @@ const ORBIT_STATES = ['parado', 'olhando', 'pensando', 'feliz', 'descansando']
 const listGoal = createMockGoal({ id: '1', title: 'Read 12 books', currentValue: 3, targetValue: 12, unit: 'books', progressPercentage: 25 })
 let detailGoal: GoalDetailWithMetrics['goal'] = { ...listGoal, progressHistory: [] }
 
-/** The local test renderer types expose `findAll` only, and props as unknown. */
 const byProp = (root: ReactTestInstance, name: string, value: unknown) => root.findAll((node) => node.props[name] === value)[0]!
 const allByProp = (root: ReactTestInstance, name: string, value: unknown) => root.findAll((node) => node.props[name] === value)
 const call = (node: ReactTestInstance, prop: string, ...values: unknown[]) => (node.props[prop] as (...args: unknown[]) => unknown)(...values)
@@ -90,6 +89,19 @@ async function changeEntry(label: string, value: string) {
   const input = tree.root.findAll((node) => node.props.accessibilityLabel === label && typeof node.props.onChangeText === 'function')[0]!
   await act(() => { call(input, 'onChangeText', value) })
 }
+function holdFrames() {
+  const queued = new Map<number, (timestamp: number) => void>()
+  let handle = 0
+  vi.stubGlobal('requestAnimationFrame', (callback: (timestamp: number) => void) => { handle += 1; queued.set(handle, callback); return handle })
+  vi.stubGlobal('cancelAnimationFrame', (cancelled: number) => { queued.delete(cancelled) })
+  return async function runFrame() {
+    await act(() => {
+      const due = [...queued.values()]
+      queued.clear()
+      due.forEach((callback) => callback(performance.now()))
+    })
+  }
+}
 const detailRing = (): ReactTestInstance => byProp(tree.root, 'testID', 'goal-detail-ring')
 const ringValue = () => (byProp(detailRing(), 'accessibilityRole', 'progressbar').props.accessibilityValue as { now: number }).now
 
@@ -109,12 +121,12 @@ describe('goal detail on the Orbit logic', () => {
   afterEach(async () => { await act(() => tree.unmount()); vi.useRealTimers() })
 
   it.each([
-    ['en', '2026-11-20', '7 days left until the deadline.'],
-    ['pt-BR', '2026-11-20', 'Faltam 7 dias para o prazo.'],
-    ['en', '2026-11-14', '1 day left until the deadline.'],
-    ['pt-BR', '2026-11-14', 'Falta 1 dia para o prazo.'],
-    ['en', '2026-11-13', 'The deadline is today.'],
-    ['pt-BR', '2026-11-13', 'O prazo é hoje.'],
+    ['en', '2026-11-20', 'By my count, 7 days are left until the deadline.'],
+    ['pt-BR', '2026-11-20', 'Pelas minhas contas, faltam 7 dias para o prazo.'],
+    ['en', '2026-11-14', 'By my count, 1 day is left until the deadline.'],
+    ['pt-BR', '2026-11-14', 'Pelas minhas contas, falta 1 dia para o prazo.'],
+    ['en', '2026-11-13', 'By my count, the deadline is today.'],
+    ['pt-BR', '2026-11-13', 'Pelas minhas contas, o prazo é hoje.'],
   ] as const)('states one date fact in the Orbit line in %s for %s', async (locale, deadline, sentence) => {
     await useCatalog(locale)
     detailGoal = { ...detailGoal, deadline }
@@ -130,13 +142,13 @@ describe('goal detail on the Orbit logic', () => {
   it('states a passed deadline with its date', async () => {
     detailGoal = { ...detailGoal, deadline: '2026-10-03' }
     await renderDetail()
-    expect(byProp(tree.root, 'testID', 'today-astra-slot').props.accessibilityLabel).toBe(`The deadline was ${formatLocaleDate('2026-10-03', 'en')}.`)
+    expect(byProp(tree.root, 'testID', 'today-astra-slot').props.accessibilityLabel).toBe(`By my count, the deadline ended on ${formatLocaleDate('2026-10-03', 'en')}.`)
   })
 
   it('opens the conversation with the seeded question from the line row, the one way in', async () => {
     detailGoal = { ...detailGoal, deadline: '2026-11-20' }
     await renderDetail()
-    await press('7 days left until the deadline.')
+    await press('By my count, 7 days are left until the deadline.')
     expect(useUIStore.getState().astraConversationOpen).toBe(true)
     expect(pressables(`${i18n.t('goals.detail.askAstraEyebrow')}: ${i18n.t('goals.detail.askAstraDefault')}`)).toHaveLength(0)
   })
@@ -205,13 +217,17 @@ describe('goal detail on the Orbit logic', () => {
     await press(i18n.t('goals.updateProgress'))
     expect(tree.root.findAll((node) => node.props.accessibilityLabel === i18n.t('goals.form.progressNoteQuestion') && typeof node.props.onChangeText === 'function')).not.toHaveLength(0)
     await changeEntry(i18n.t('goals.form.progressQuestion'), '6')
+    const runFrame = holdFrames()
     await press(i18n.t('common.save'))
     await act(async () => { await Promise.resolve() })
     expect(mocks.updateProgress).toHaveBeenCalled()
     expect(ringValue()).toBe(25)
     expect(detailRing().props['data-ring-sweep']).toBe('sweeping')
-    await act(async () => { await new Promise((resolve) => setTimeout(resolve, 5)) })
+    await runFrame()
+    expect(ringValue(), 'the sweep waits two frames').toBe(25)
+    await runFrame()
     expect(ringValue()).toBe(50)
+    expect(detailRing().props['data-ring-sweep']).toBe('rest')
     expect(resultDialog(), 'a progress update keeps its in-place feedback').toBeUndefined()
   })
 

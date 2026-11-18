@@ -1,8 +1,7 @@
 import { StyleSheet, Text, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
-import type { TFunction } from 'i18next'
 import { SPACING } from '@orbit/shared/theme'
-import { SUPPORT_SUBJECT_OPTIONS, type SupportSubjectId } from '@orbit/shared/utils'
+import { describeSupportFlowStep, SUPPORT_SUBJECT_OPTIONS, type SupportSubjectId } from '@orbit/shared/utils'
 import { SupportReplyEmail } from '@/components/support-reply-email'
 import { FlowScreen } from '@/components/ui/flow-screen'
 import { Input } from '@/components/ui/input'
@@ -41,7 +40,7 @@ function SubjectOptions({ props }: Readonly<{ props: SupportFlowProps }>) {
   return SUPPORT_SUBJECT_OPTIONS.map((option) => (
     <OptionCard
       key={option.id}
-      label={t(option.labelKey)}
+      label={t(option.optionKey)}
       selected={props.subject === option.id}
       disabled={props.isSending}
       disabledReason={t('profile.support.subjectSendingReason')}
@@ -93,20 +92,10 @@ function SubjectError({ error }: Readonly<{ error: string | null }>) {
   return error ? <Text accessibilityRole="alert" style={[styles.note, { color: tokens.statusBadText }]}>{error}</Text> : null
 }
 
-function describeStep(props: SupportFlowProps, t: TFunction) {
-  if (props.step === 'subject') {
-    return { position: 1, direction: -1 as const, question: t('profile.support.subject'), line: null, onBack: undefined, onDismiss: props.onClose, primary: undefined }
-  }
-  const onBack = props.isSending ? undefined : props.onBack
-  const hint = props.isOnline ? props.disabledReason ?? undefined : undefined
-  const primary = { label: t(props.error ? 'profile.support.retry' : 'profile.support.send'), onPress: props.onSend, loading: props.isSending, hint }
-  return { position: 2, direction: 1 as const, question: t('profile.support.message'), line: t('profile.support.description'), onBack, onDismiss: onBack ?? props.onClose, primary }
-}
-
 /** The support request as a one-question flow: the subject, then the message. No mascot. A failure stays on the message step with the failure text and retry. */
 export function SupportFlow(props: Readonly<SupportFlowProps>) {
   const { t } = useTranslation()
-  const step = describeStep(props, t)
+  const step = describeSupportFlowStep(props, (key, values) => t(key, values))
   const messaging = props.step === 'message'
   return (
     <FlowScreen label={t('profile.support.title')} onDismiss={step.onDismiss}>

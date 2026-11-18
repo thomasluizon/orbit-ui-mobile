@@ -54,7 +54,6 @@ function CalendarOptionsContent({ onGoogleCalendar, guided }: Readonly<CalendarO
 
 interface CalendarOptionsProps {
   onGoogleCalendar?: () => void
-  /** The guided flows: the legend sheet asks what each mark means. */
   guided?: boolean
 }
 

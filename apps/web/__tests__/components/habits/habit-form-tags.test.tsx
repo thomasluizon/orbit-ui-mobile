@@ -7,6 +7,13 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { HabitFormFields } from '@/components/habits/habit-form-fields'
 import { useTagSelection } from '@/hooks/use-tag-selection'
 
+function expectAcceptSkeleton() {
+  const status = screen.getByRole('status', { name: 'habits.form.suggestTags' })
+  expect(within(status).getByRole('progressbar', { name: 'common.loading' })).toHaveAttribute('aria-busy', 'true')
+  expect(status.querySelector('[data-tag-status-skeleton] .skeleton-pulse')).toHaveClass('bg-[var(--bg-well)]')
+  expect(status).toHaveTextContent(/^$/)
+}
+
 vi.mock('@sentry/nextjs', () => ({ captureException: vi.fn() }))
 
 it('keeps rejected tag Name validation beside its input in the owning habit editor', async () => {
@@ -77,8 +84,114 @@ describe('habit tag suggestions', () => {
     tagCollection.tags = []
     tagMutations.suggest.mockReset()
     tagMutations.create.mockReset()
+    tagMutations.update.mockReset()
     tagMutations.delete.mockReset()
     formLocale.language = 'en'
+  })
+
+  function deferred() {
+    let settle!: { resolve: (value?: unknown) => void; reject: (failure: Error) => void }
+    const promise = new Promise((resolve, reject) => { settle = { resolve, reject } })
+    return { promise, settle: () => settle }
+  }
+
+  function expectWaiting(action: HTMLElement, label: string) {
+    expect(action).toHaveAttribute('aria-busy', 'true')
+    expect(action).toBeDisabled()
+    expect(action).toHaveTextContent(label)
+    expect(action.querySelector('[data-slot="skeleton-face"] .skeleton-pulse')).not.toBeNull()
+  }
+
+  it('holds the tag Add action from the press: one request for two presses, the waiting face, and the editor leaves on success', async () => {
+    const request = deferred()
+    tagMutations.create.mockReturnValue(request.promise)
+    renderTagForm('Read')
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.newTag' }))
+    fireEvent.change(screen.getByRole('textbox', { name: 'habits.form.tagName' }), { target: { value: 'Health' } })
+    const add = screen.getByRole('button', { name: 'common.add' })
+    act(() => {
+      fireEvent.click(add)
+      fireEvent.click(add)
+    })
+    expect(tagMutations.create).toHaveBeenCalledOnce()
+    expectWaiting(screen.getByRole('button', { name: 'common.add' }), 'common.add')
+    await act(async () => { request.settle().resolve({ id: 'tag-created' }) })
+    expect(screen.queryByRole('textbox', { name: 'habits.form.tagName' })).toBeNull()
+    expect(screen.getByLabelText('Selected tags')).toHaveTextContent('tag-created')
+  })
+
+  function collapseAndReopenDetails() {
+    const details = screen.getByRole('button', { name: 'habits.form.moreDetails', hidden: true })
+    const region = document.getElementById(details.getAttribute('aria-controls')!)!
+    fireEvent.click(details)
+    const transitionEnd = new Event('transitionend', { bubbles: true })
+    Object.defineProperty(transitionEnd, 'propertyName', { value: 'opacity' })
+    fireEvent(region, transitionEnd)
+    expect(region).not.toBeInTheDocument()
+    fireEvent.click(details)
+    fireEvent.click(screen.getByRole('button', { name: /^habits.form.tags/ }))
+  }
+
+  it('keeps fetched suggestions when More details collapses and opens again, with no second request', async () => {
+    tagMutations.suggest.mockResolvedValue({ tags: [{ name: 'Outdoors', color: '#7c3aed', isExisting: false, id: null }] })
+    renderTagForm()
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.suggestTags' }))
+    expect(await screen.findByRole('button', { name: 'Outdoors', pressed: false })).toBeEnabled()
+    collapseAndReopenDetails()
+    expect(within(screen.getByRole('group', { name: 'habits.form.suggestedTagsLabel' })).getByRole('button', { name: 'Outdoors', pressed: false })).toBeEnabled()
+    expect(tagMutations.suggest).toHaveBeenCalledOnce()
+  })
+
+  it('keeps the tag Add hold when More details collapses and opens again during the request', async () => {
+    const request = deferred()
+    tagMutations.create.mockReturnValue(request.promise)
+    renderTagForm('Read')
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.newTag' }))
+    fireEvent.change(screen.getByRole('textbox', { name: 'habits.form.tagName' }), { target: { value: 'Health' } })
+    fireEvent.click(screen.getByRole('button', { name: 'common.add' }))
+    collapseAndReopenDetails()
+    const add = screen.getByRole('button', { name: 'common.add' })
+    expectWaiting(add, 'common.add')
+    fireEvent.click(add)
+    expect(tagMutations.create).toHaveBeenCalledOnce()
+    await act(async () => { request.settle().resolve({ id: 'tag-created' }) })
+    expect(screen.getByLabelText('Selected tags')).toHaveTextContent('tag-created')
+  })
+
+  it('ends the tag Add waiting face when the request fails, and the next press sends again', async () => {
+    const request = deferred()
+    tagMutations.create.mockReturnValue(request.promise)
+    renderTagForm('Read')
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.newTag' }))
+    fireEvent.change(screen.getByRole('textbox', { name: 'habits.form.tagName' }), { target: { value: 'Health' } })
+    fireEvent.click(screen.getByRole('button', { name: 'common.add' }))
+    expectWaiting(screen.getByRole('button', { name: 'common.add' }), 'common.add')
+    await act(async () => { request.settle().reject(new Error('offline')) })
+    const add = screen.getByRole('button', { name: 'common.add' })
+    expect(add).not.toHaveAttribute('aria-busy')
+    expect(add).toBeEnabled()
+    tagMutations.create.mockResolvedValue({ id: 'tag-created' })
+    await act(async () => { fireEvent.click(add) })
+    expect(tagMutations.create).toHaveBeenCalledTimes(2)
+  })
+
+  it('holds the tag Save action from the press: one request for two presses, and the waiting face ends on failure', async () => {
+    tagCollection.tags = [{ id: 'existing', name: 'Health', color: '#7c3aed' }]
+    const request = deferred()
+    tagMutations.update.mockReturnValue(request.promise)
+    renderTagForm('Read')
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.editTag: Health' }))
+    fireEvent.change(screen.getByRole('textbox', { name: 'habits.form.tagName' }), { target: { value: 'Fitness' } })
+    const save = screen.getByRole('button', { name: 'common.save' })
+    act(() => {
+      fireEvent.click(save)
+      fireEvent.click(save)
+    })
+    expect(tagMutations.update).toHaveBeenCalledOnce()
+    expectWaiting(screen.getByRole('button', { name: 'common.save' }), 'common.save')
+    await act(async () => { request.settle().reject(new Error('offline')) })
+    expect(screen.getByRole('button', { name: 'common.save' })).not.toHaveAttribute('aria-busy')
+    expect(screen.getByRole('button', { name: 'common.save' })).toBeEnabled()
   })
 
   it.each([409, 500])('handles rejected tag deletion status %i and restores the selection', async (status) => {
@@ -176,7 +289,7 @@ describe('habit tag suggestions', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Reading', pressed: false }))
     expect(screen.getByRole('textbox', { name: 'habits.form.searchTags' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Outdoors', pressed: false })).toBeDisabled()
-    expect(screen.getByRole('status', { name: 'habits.form.suggestTags' })).toHaveTextContent('common.loading')
+    expectAcceptSkeleton()
     expect(screen.getByRole('button', { name: 'habits.form.suggestTags' })).toBeDisabled()
     if (outcome === 'success') {
       await act(async () => complete({ id: 'created' }))
@@ -260,7 +373,7 @@ describe('habit tag suggestions', () => {
     fireEvent.click(screen.getByRole('button', { name: 'habits.form.suggestTags' }))
     fireEvent.click(await screen.findByRole('button', { name: 'Reading', pressed: false }))
     expect(screen.getByRole('button', { name: 'Reading', pressed: false })).toBeDisabled()
-    expect(screen.getByRole('status', { name: 'habits.form.suggestTags' })).toHaveTextContent('common.loading')
+    expectAcceptSkeleton()
     expect(screen.getByRole('button', { name: 'habits.form.suggestTags' })).toBeDisabled()
     await act(async () => reject(new Error('Unavailable')))
     expect(await screen.findByRole('alert')).toBeInTheDocument()

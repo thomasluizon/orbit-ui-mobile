@@ -228,6 +228,7 @@ describe('Sheet', () => {
 
   it('leaves the short widget sheet bottom inset to the primitive', () => {
     render(<WidgetInfoOverlay open onOpenChange={vi.fn()} t={(key) => key} />)
+    expect(screen.getByRole('dialog', { name: 'profile.widgetQuestion' })).toBeInTheDocument()
     const body = screen.getByRole('dialog').querySelector('[data-slot="sheet-body"]')!
     const caller = body.firstElementChild!
     expect(Number.parseFloat(getComputedStyle(caller).paddingBottom) || 0).toBe(0)
@@ -327,6 +328,44 @@ describe('Sheet', () => {
         expect(footerStyle).toEqual({ top: '16px', border: 0, shadow: 'none' })
       } finally { await page.close() }
     })
+
+    it('keeps the space before the name Orbit in a label title', async () => {
+      render(<Sheet open title="Como funciona o widget do Orbit?" />)
+      const dialog = screen.getByRole('dialog', { name: 'Como funciona o widget do Orbit?' })
+      const page = await browser.newPage()
+      try {
+        await page.setContent(`<style>${stylesheet}</style>${dialog.outerHTML}`)
+        const measured = await page.locator('.orbit-sheet-title').evaluate((heading) => {
+          const name = heading.querySelector('[translate="no"]')!
+          const before = name.previousSibling!
+          const range = document.createRange()
+          range.setStart(before, before.textContent!.length - 2)
+          range.setEnd(before, before.textContent!.length - 1)
+          const lastLetter = range.getBoundingClientRect()
+          range.selectNodeContents(name)
+          const nameBox = range.getBoundingClientRect()
+          range.selectNodeContents(name.nextSibling!)
+          const mark = range.getBoundingClientRect()
+          return { spaceBefore: nameBox.left - lastLetter.right, gapAfter: mark.left - nameBox.right, nameWidth: nameBox.width, sameLine: Math.abs(nameBox.top - lastLetter.top) <= 1 && Math.abs(mark.top - nameBox.top) <= 1 }
+        })
+        expect(measured.nameWidth).toBeGreaterThan(0)
+        expect(measured.sameLine).toBe(true)
+        expect(measured.spaceBefore).toBeGreaterThan(2)
+        expect(Math.abs(measured.gapAfter)).toBeLessThanOrEqual(1)
+      } finally { await page.close() }
+    })
+
+    it.each(['Como funciona o widget do Orbit?', 'How does the Orbit widget work?', 'Orbit: o que muda?'])('names the dialog with the exact sentence when a mark follows the name Orbit: %s', async (title) => {
+      render(<Sheet open title={title} />)
+      const dialog = screen.getByRole('dialog', { name: title })
+      const page = await browser.newPage()
+      try {
+        await page.setContent(`<style>${stylesheet}</style>${dialog.outerHTML}`)
+        expect(await page.getByRole('dialog', { name: title, exact: true }).count()).toBe(1)
+        expect(await page.getByRole('heading', { name: title, exact: true }).count()).toBe(1)
+        expect(await page.locator('.orbit-sheet-title [translate="no"]').evaluate((name) => getComputedStyle(name).display)).toBe('inline')
+      } finally { await page.close() }
+    })
   })
 
   it('finishes its exit before reporting close', async () => {
@@ -381,11 +420,6 @@ describe('Sheet', () => {
   })
 })
 
-/**
- * The host may never flip its own open state: `onClose` has to arrive from the
- * finished exit, and a scheduled action has to run after it. Mobile depends on
- * this to avoid unmounting a presented TrueSheet, and web keeps the same path.
- */
 describe('Sheet close path', () => {
   function Host({
     onClose,

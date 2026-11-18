@@ -19,7 +19,6 @@ type Tokens = ReturnType<typeof createTokensV2>
 
 const AnimatedCircle = Animated.createAnimatedComponent(Circle)
 
-/** The share of the day done. With the guided flows on, a log sweeps the arc from the old share to the new one on the slow duration; the flag off and reduced motion draw the new share at once. */
 function PartialArc({ size, stroke, fraction, color }: Readonly<{ size: number; stroke: number; fraction: number; color: string }>) {
   const guided = useFlag('orbit_guided_flows')
   const reducedMotion = usePrefersReducedMotion()
@@ -47,7 +46,6 @@ function PartialArc({ size, stroke, fraction, color }: Readonly<{ size: number; 
 
 type ContentsProps = Readonly<{ props: DayCellProps; outcome: DayOutcome; size: number; tokens: Tokens; pressed: boolean }>
 
-/** Feedback stays on the day disc inside its transparent target. */
 function PressFill({ size, tokens }: Readonly<{ size: number; tokens: Tokens }>) {
   return <View pointerEvents="none" testID="day-press-fill" style={[styles.pressFill, { borderRadius: size / 2, backgroundColor: tokens.bgHover }]} />
 }
@@ -98,7 +96,6 @@ function useYieldMovingSelection(yielding: boolean) {
   }, [reportFocus, yielding])
 }
 
-/** One indicator: a 2px foreground ring with a canvas band inside it, so it reads on every disc fill. */
 function DayFocusRing({ size, tokens }: Readonly<{ size: number; tokens: Tokens }>) {
   return (
     <View pointerEvents="none" testID="day-focus-ring" style={[styles.pressFill, { borderRadius: size / 2, borderColor: tokens.fg1, borderWidth: 2 }]}>

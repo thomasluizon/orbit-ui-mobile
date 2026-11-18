@@ -8,7 +8,6 @@ const { distance } = calendarSlideMotion
 
 interface CalendarSlideProps {
   direction: CalendarSlideDirection | null
-  /** Identity of the shown month or week. A change starts one slide. */
   stepKey: string
   style?: StyleProp<ViewStyle>
   testID?: string

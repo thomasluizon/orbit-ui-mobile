@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 import { SPACING, TOUCH_TARGET_MIN, typeRoles } from '@orbit/shared/theme'
 import { StyleSheet, Text, View } from 'react-native'
-import { PressScalePressable as Pressable } from '@/components/motion/press-scale'
+import { MotionPressable as Pressable } from '@/components/ui/motion-pressable'
 import { createTokensV2, radius, tintFromPrimary } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
@@ -10,7 +10,6 @@ interface ChipProps {
   active?: boolean
   onPress?: () => void
   leading?: ReactNode
-  /** Accessibility label override. Defaults to the chip text content. */
   accessibilityLabel?: string
   variant?: 'default' | 'period'
 }
@@ -31,7 +30,8 @@ export function Chip({
 
   return (
     <Pressable
-      selectionRingWidth={active && isPeriod ? 1.5 : 1}
+      focusInset
+      selectionRingWidth={isPeriod ? 1.5 : 1}
       selectionRingColor={isPeriod ? tokens.primary : tintFromPrimary(tokens, 0.45)}
       selectionRingRestColor={tokens.hairline}
       onPress={onPress}

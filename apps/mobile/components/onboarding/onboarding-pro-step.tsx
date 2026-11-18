@@ -2,13 +2,14 @@ import { IconButton } from '@/components/ui/icon-button'
 import { RefreshCw } from '@/components/ui/icons'
 import { SPACING } from '@orbit/shared/theme'
 import { useEffect, useImperativeHandle, useRef, useState, type ComponentProps, type ReactNode, type Ref } from 'react'
-import { StyleSheet, Text, View } from 'react-native'
+import { StyleSheet, Text, View, type ViewStyle } from 'react-native'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { useTranslation } from 'react-i18next'
 import { buildAccountScopedStorageKey, getTrialDaysLeft, TRIAL_EXPIRED_SEEN_KEY } from '@orbit/shared/utils'
 import { ErrorState } from '@/components/ui/error-state'
 import { OrbitMascot, useStateMascotSize } from '@/components/ui/orbit-mascot'
 import { PillButton } from '@/components/ui/pill-button'
+import { Skeleton } from '@/components/ui/skeleton'
 import { GuidedPlanFooter, GuidedPricingSection, usePinnedPlanPrimary } from '@/components/upgrade/guided-pricing-section'
 import { PricingSection } from '@/components/upgrade/pricing-section'
 import { ProPitch } from '@/components/upgrade/pro-pitch'
@@ -31,7 +32,6 @@ export type OnboardingProFrame = (body: ReactNode, footer: ReactNode) => ReactNo
 
 const inlineFrame: OnboardingProFrame = (body, footer) => <>{body}{footer}</>
 
-/** The paywall of a free person pins its primary action under the host's scroller in the compact shell. */
 function usePaywallFooter(guided: boolean, plan: ReturnType<typeof useOnboardingPlan>['plan']): boolean {
   const pinned = usePinnedPlanPrimary()
   return guided && pinned && plan === 'Free'
@@ -119,7 +119,7 @@ export function OnboardingProStep({ onFinish, ref, frame = inlineFrame }: Readon
   const title = <StepTitle guided={guided} color={tokens.fg1} t={t} />
   const exitAction = <PillButton variant="ghost" loading={finishing} onClick={() => exit()}>{t('onboarding.flow.done.seeDay')}</PillButton>
   let content
-  if (plan === 'loading' || plan === 'Pro' || plan === null) content = <PlanReadState guided={guided} failed={plan === null} title={title} exitAction={exitAction} skeletonColor={tokens.bgWell} onRetry={retry} t={t} />
+  if (plan === 'loading' || plan === 'Pro' || plan === null) content = <PlanReadState guided={guided} failed={plan === null} title={title} exitAction={exitAction} onRetry={retry} t={t} />
   else if (plan === 'Trial') content = <View testID="onboarding-step-trial" style={styles.pitch}><GuidedOrbit guided={guided} /><ProPitch inset={false} focusOnMount headingId="onboarding-title" profile={profile ?? null} trialDaysLeft={getTrialDaysLeft(profile)} titleKey="onboarding.flow.trial.title" bodyKey="onboarding.flow.trial.body" dateHint={profile?.trialEndsAt ? t('upgrade.billing.plan.trialHint', { date: new Intl.DateTimeFormat(i18n.language, { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(profile.trialEndsAt)) }) : undefined} t={t} tokens={tokens} /><PillButton loading={finishing} onClick={() => exit()}>{t('onboarding.flow.done.seeDay')}</PillButton></View>
   else content = <View testID="onboarding-step-paywall" style={styles.stack}>{guided
     ? <GuidedPricingSection headingId="onboarding-title" focusOnMount usage={profile ?? null} primaryInFooter={paywallFooter} {...pricing} />
@@ -128,29 +128,25 @@ export function OnboardingProStep({ onFinish, ref, frame = inlineFrame }: Readon
   return frame(body, paywallFooter ? <GuidedPlanFooter {...pricing} tokens={tokens} /> : null)
 }
 
-/** The heading of the step: the plan question with the guided flows on, and the current pitch title with them off. */
 function StepTitle({ guided, color, t }: Readonly<{ guided: boolean; color: string; t: (key: string) => string }>) {
   if (guided) return <Text nativeID="onboarding-title" accessibilityRole="header" textBreakStrategy="balanced" style={[styles.question, { color }]}>{t('upgrade.question')}</Text>
   return <Text nativeID="onboarding-title" accessibilityRole="header" style={{ fontFamily: 'Geist_500Medium', fontSize: 20, color }}>{t('upgrade.pitchTitle')}</Text>
 }
 
-/** The plan read that loads or that failed. With the guided flows on, Orbit sits above the plan question, which stays the heading of the step, and names the error. */
-function PlanReadState({ guided, failed, title, exitAction, skeletonColor, onRetry, t }: Readonly<{
+function PlanReadState({ guided, failed, title, exitAction, onRetry, t }: Readonly<{
   guided: boolean
   failed: boolean
   title: ReactNode
   exitAction: ReactNode
-  skeletonColor: string
   onRetry: () => void
   t: (key: string) => string
 }>) {
   const heading = guided ? <><GuidedOrbit guided />{title}</> : title
-  if (!failed) return <View accessibilityState={{ busy: true }} accessibilityLabel={t('common.loading')} style={styles.stack}>{heading}<ProSkeleton color={skeletonColor} />{exitAction}</View>
+  if (!failed) return <View accessibilityState={{ busy: true }} accessibilityLabel={t('common.loading')} style={styles.stack}>{heading}<ProSkeleton />{exitAction}</View>
   const retry = <IconButton label={t('upgrade.billing.retry')} onClick={onRetry}><RefreshCw size={20} strokeWidth={1.5} accessible={false} /></IconButton>
   return <View style={styles.stack}>{heading}<ErrorState message={t(guided ? 'upgrade.orbitLine.billingError' : 'upgrade.billing.error')} action={retry} />{exitAction}</View>
 }
 
-/** With the guided flows on, Orbit sits above each state of the step in Parado. It never sells, so it carries no line here. */
 function GuidedOrbit({ guided }: Readonly<{ guided: boolean }>) {
   const mascotSize = useStateMascotSize()
   if (!guided) return null
@@ -165,11 +161,14 @@ const styles = StyleSheet.create({
   question: { fontFamily: 'SpaceGrotesk_500Medium', fontSize: 28, lineHeight: 33, textAlign: 'center' },
 })
 
-function ProSkeleton({ color }: Readonly<{ color: string }>) {
-  const block = { backgroundColor: color, borderRadius: radius.md }
-  return <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={{ gap: 32 }}>
-    <View style={{ gap: 12 }}><View style={[block, { height: 12, width: '33%' }]} /><View style={[block, { height: 64, width: '80%' }]} /><View style={[block, { height: 56 }]} /></View>
-    <View style={[block, { height: 136, borderRadius: radius.xl }]} />
-    <View style={{ gap: 12 }}>{[0, 1, 2].map((key) => <View key={key} style={[block, { height: 64 }]} />)}</View>
+function ProSkeleton() {
+  return <View testID="pro-skeleton" accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={{ gap: 32 }}>
+    <View style={{ gap: 12 }}>{[{ height: 12, width: '33%' as const }, { height: 64, width: '80%' as const }, { height: 56 }].map((size) => <ProSkeletonBlock key={size.height} style={size} />)}</View>
+    <ProSkeletonBlock style={{ height: 136, borderRadius: radius.xl, overflow: 'hidden' }} />
+    <View style={{ gap: 12 }}>{[0, 1, 2].map((key) => <ProSkeletonBlock key={key} style={{ height: 64 }} />)}</View>
   </View>
+}
+
+function ProSkeletonBlock({ style }: Readonly<{ style: ViewStyle }>) {
+  return <View style={style}><Skeleton variant="fill" grouped /></View>
 }

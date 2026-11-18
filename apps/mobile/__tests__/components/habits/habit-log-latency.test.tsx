@@ -17,7 +17,6 @@ afterEach(() => { motion.reduced = false })
 const EMPTY = createMockHabit({ id: 'habit-1', title: 'Read', isCompleted: false, isLoggedInRange: false })
 const LOGGED = { ...EMPTY, isLoggedInRange: true }
 
-/** The row owner swaps in the logged habit in the press handler, as the optimistic log does, so the measure is the press to the rendered state. */
 function LoggedRow({ onLog }: Readonly<{ onLog: () => void }>) {
   const [done, setDone] = useState(false)
   return <HabitRow habit={done ? LOGGED : EMPTY}

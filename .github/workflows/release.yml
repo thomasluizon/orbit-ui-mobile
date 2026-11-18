@@ -54,12 +54,19 @@ env:
   IMAGE: ghcr.io/thomasluizon/orbit-web
 
 jobs:
-  build:
+  # The refusals run first and alone, so the image build, staging admission and the desktop plan start together after them.
+  select:
+    name: Select the release commit
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     outputs:
-      source_sha: ${{ steps.source.outputs.sha }}
-      digest: ${{ steps.image.outputs.digest }}
+      sha: ${{ steps.selection.outputs.sha }}
     steps:
+      # The full history holds every branch, so the ancestry refusal below sees the source branch.
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
       - name: Validate release selection
         id: selection
         env:
@@ -87,6 +94,16 @@ jobs:
             echo "::error::Select a full 40-character commit SHA; staging requires an explicit SHA"; exit 1
           fi
           echo "sha=$SOURCE_SHA" >> "$GITHUB_OUTPUT"
+      # Every later job needs this one, so no image, admission or desktop shell starts for a SHA off the branch.
+      - name: Require the selected SHA on the source branch
+        env:
+          SOURCE_SHA: ${{ steps.selection.outputs.sha }}
+          SOURCE_BRANCH: ${{ inputs.branch }}
+        run: |
+          set -euo pipefail
+          if ! git merge-base --is-ancestor "$SOURCE_SHA" "refs/remotes/origin/$SOURCE_BRANCH"; then
+            echo "::error::The selected release SHA is not reachable from $SOURCE_BRANCH"; exit 1
+          fi
       - name: Require successful release CI
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -129,10 +146,18 @@ jobs:
           if [ -z "${apple_client_id//[[:space:]]/}" ]; then
             echo "::error::Missing ${RELEASE_ENVIRONMENT} NEXT_PUBLIC_APPLE_CLIENT_ID; Sign in with Apple ships on every release"; exit 1
           fi
+
+  build:
+    needs: select
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    outputs:
+      source_sha: ${{ steps.source.outputs.sha }}
+      digest: ${{ steps.image.outputs.digest }}
+    steps:
       - uses: actions/checkout@v7
         with:
-          ref: ${{ steps.selection.outputs.sha }}
-          fetch-depth: 0
+          ref: ${{ needs.select.outputs.sha }}
           persist-credentials: false
       - uses: docker/setup-buildx-action@v4
         with:
@@ -141,16 +166,12 @@ jobs:
       - name: Resolve source
         id: source
         env:
-          SOURCE_SHA: ${{ steps.selection.outputs.sha }}
-          SOURCE_BRANCH: ${{ inputs.branch }}
+          SOURCE_SHA: ${{ needs.select.outputs.sha }}
         run: |
           set -euo pipefail
           sha=$(git rev-parse HEAD)
           if [ "$sha" != "$SOURCE_SHA" ]; then
             echo "::error::Checkout does not match the selected release SHA"; exit 1
-          fi
-          if ! git merge-base --is-ancestor "$SOURCE_SHA" "refs/remotes/origin/$SOURCE_BRANCH"; then
-            echo "::error::The selected release SHA is not reachable from $SOURCE_BRANCH"; exit 1
           fi
           echo "sha=$SOURCE_SHA" >> "$GITHUB_OUTPUT"
       - uses: docker/login-action@v4
@@ -221,8 +242,9 @@ jobs:
           echo "digest=${DIGEST}" >> "$GITHUB_OUTPUT"
 
   admission:
-    needs: build
+    needs: select
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     environment:
       name: ${{ inputs.environment }}
       deployment: false
@@ -234,7 +256,7 @@ jobs:
       - name: Require healthy staging commit
         if: inputs.environment == 'production'
         env:
-          SOURCE_SHA: ${{ needs.build.outputs.source_sha }}
+          SOURCE_SHA: ${{ needs.select.outputs.sha }}
           FORCE_UNSTAGED: ${{ inputs.force_unstaged }}
           OVERRIDE_REASON: ${{ inputs.override_reason }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -271,14 +293,10 @@ jobs:
           fi
           echo "Staging served $SOURCE_SHA with status ok" >> "$GITHUB_STEP_SUMMARY"
 
-  desktop-test:
-    needs: build
-    uses: ./.github/workflows/desktop-build.yml
-    with:
-      source_sha: ${{ needs.build.outputs.source_sha }}
-
+  # PR Tests and Guards on this SHA already prove the desktop types and unit tests, and desktop-release.yml compiles
+  # and verifies every target whenever the shell inputs changed, so no separate desktop build runs here.
   desktop-release:
-    needs: [build, desktop-test, admission]
+    needs: [select, admission]
     uses: ./.github/workflows/desktop-release.yml
     permissions:
       contents: write
@@ -293,13 +311,15 @@ jobs:
       APP_STORE_CONNECT_API_PRIVATE_KEY: ${{ secrets.APP_STORE_CONNECT_API_PRIVATE_KEY }}
     with:
       variant: ${{ inputs.environment }}
-      source_sha: ${{ needs.build.outputs.source_sha }}
+      source_sha: ${{ needs.select.outputs.sha }}
       staging_admitted: ${{ inputs.environment == 'production' }}
 
   production:
     if: inputs.environment == 'production'
-    needs: [build, desktop-release]
+    needs: [build, admission, desktop-release]
     runs-on: ubuntu-latest
+    # The deploy poll stops at 10 minutes and each health check at 3.
+    timeout-minutes: 20
     environment:
       name: production
       deployment: false
@@ -314,45 +334,6 @@ jobs:
         with:
           ref: ${{ github.sha }}
           persist-credentials: false
-      - name: Require healthy staging commit
-        if: inputs.environment == 'production'
-        env:
-          SOURCE_SHA: ${{ needs.build.outputs.source_sha }}
-          FORCE_UNSTAGED: ${{ inputs.force_unstaged }}
-          OVERRIDE_REASON: ${{ inputs.override_reason }}
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          STAGING_SERVICE_ID: ${{ vars.RENDER_WEB_STAGING_SERVICE_ID }}
-          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
-        run: |
-          set -euo pipefail
-          source "$GITHUB_WORKSPACE/.github/scripts/render-api.sh"
-          {
-            echo '## Production staging admission'
-            echo "Selected SHA: $SOURCE_SHA"
-            echo "force_unstaged: $FORCE_UNSTAGED"
-          } >> "$GITHUB_STEP_SUMMARY"
-          if [ "$FORCE_UNSTAGED" = true ]; then
-            if [ -z "${OVERRIDE_REASON//[[:space:]]/}" ]; then
-              echo "::error::force_unstaged requires a non-empty override_reason"; exit 1
-            fi
-            printf 'Staging override reason: %s\n' "$OVERRIDE_REASON" >> "$GITHUB_STEP_SUMMARY"
-            echo "::notice::Operator override permits production release of $SOURCE_SHA without staging admission"
-            exit 0
-          fi
-          statuses=$(gh api --paginate --slurp "repos/${GITHUB_REPOSITORY}/commits/${SOURCE_SHA}/status?per_page=100")
-          if ! jq -e '[.[] | .statuses[] | select(.context == "web-staging-smoke")]
-            | max_by([.created_at, .id]) | .state == "success"' <<< "$statuses" >/dev/null; then
-            echo "::error::Selected SHA requires a successful web-staging-smoke status"; exit 1
-          fi
-          if [ -z "$STAGING_SERVICE_ID" ]; then echo "::error::Missing RENDER_WEB_STAGING_SERVICE_ID"; exit 1; fi
-          if [ -z "$RENDER_API_KEY" ]; then echo "::error::Missing production RENDER_API_KEY"; exit 1; fi
-          origin=$(render_get "https://api.render.com/v1/services/${STAGING_SERVICE_ID}" | jq -er '.serviceDetails.url')
-          health=$(curl --fail-with-body --silent --show-error --max-time 30 "${origin%/}/api/health")
-          if ! jq -e --arg sha "$SOURCE_SHA" '.status == "ok" and .commit == $sha' <<< "$health" >/dev/null; then
-            echo "::error::Staging must serve $SOURCE_SHA with status ok before production release; force_unstaged is the explicit override"
-            exit 1
-          fi
-          echo "Staging served $SOURCE_SHA with status ok" >> "$GITHUB_STEP_SUMMARY"
       - name: Deploy web digest
         env:
           RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
@@ -443,6 +424,8 @@ jobs:
     if: inputs.environment == 'staging'
     needs: [build, desktop-release]
     runs-on: ubuntu-latest
+    # The health wait stops at 15 minutes and the API wake at 5; the smoke suite takes about 2.
+    timeout-minutes: 25
     environment:
       name: staging
       deployment: false
@@ -633,6 +616,7 @@ jobs:
     needs: [build, production]
     if: inputs.environment == 'production'
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     env:
       SMOKE_BASE_URL: ${{ needs.production.outputs.smoke_base_url }}
       SMOKE_TEST_EMAIL: ${{ secrets.SMOKE_TEST_EMAIL }}

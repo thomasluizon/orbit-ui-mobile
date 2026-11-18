@@ -1,6 +1,10 @@
+import { IntlMessageFormat } from 'intl-messageformat'
 import { describe, expect, it } from 'vitest'
+import en from '../i18n/en.json'
+import ptBR from '../i18n/pt-BR.json'
 import {
   describeHabitResult,
+  formatHabitCadence,
   optimisticHabitResult,
   phraseLeavesWordsUnread,
   readPhraseCoverage,
@@ -102,6 +106,24 @@ describe('describeHabitResult', () => {
     expect(describeHabitResult(habit, 'updated').key).toBe('result.habit.updated')
   })
 
+  it.each([
+    ['en', en, { monday: 'every Monday', mondayThursday: 'every Monday and Thursday', monthDays: 'on the 1st and 15th', flexible: '3 times a week, any day', daily: 'every day', twoWeeks: 'every 2 weeks' }],
+    ['pt-BR', ptBR, { monday: 'toda segunda', mondayThursday: 'às segundas e quintas', monthDays: 'todo dia 1 e 15', flexible: '3 vezes por semana, qualquer dia', daily: 'todo dia', twoWeeks: 'a cada 2 semanas' }],
+  ] as const)('names the whole saved schedule in %s: chosen weekdays, chosen month days and a flexible count, not the unit alone', (locale, messages, expected) => {
+    const translate = (key: string, values?: Record<string, string | number>) => {
+      const message = key.split('.').reduce<unknown>((node, part) => (node as Record<string, unknown>)[part], messages)
+      return String(new IntlMessageFormat(message as string, locale).format(values))
+    }
+    const habit = { ...task, itemType: 'habit', frequencyUnit: 'Day', frequencyQuantity: 1 } as const
+    const words = (item: Parameters<typeof describeHabitResult>[0]) => formatHabitCadence(describeHabitResult(item, 'created').cadence!, locale, translate)
+    expect(words({ ...habit, days: ['Monday'] })).toBe(expected.monday)
+    expect(words({ ...habit, days: ['Thursday', 'Monday'] })).toBe(expected.mondayThursday)
+    expect(words({ ...habit, frequencyUnit: 'Month', monthDays: [15, 1] })).toBe(expected.monthDays)
+    expect(words({ ...habit, frequencyUnit: 'Week', frequencyQuantity: 3, isFlexible: true })).toBe(expected.flexible)
+    expect(words(habit)).toBe(expected.daily)
+    expect(words({ ...habit, frequencyUnit: 'Week', frequencyQuantity: 2 })).toBe(expected.twoWeeks)
+  })
+
   it('names the place: Today for a due or undated item, Calendar for a later one', () => {
     expect(resolveResultDestination({ dueDate: '2026-11-13', isGeneral: false }, '2026-11-13')).toBe('today')
     expect(resolveResultDestination({ dueDate: '2026-11-20', isGeneral: false }, '2026-11-13')).toBe('calendar')
@@ -124,11 +146,11 @@ describe('habitPhraseReadSchema', () => {
 describe('optimisticHabitResult', () => {
   it('names the facts of a draft so a queued create states what it saved', () => {
     expect(optimisticHabitResult({ itemType: 'habit', isGeneral: false, dueDate: '2026-11-14', dueTime: '08:00', frequencyUnit: 'Day', frequencyQuantity: 1 }))
-      .toEqual({ itemType: 'habit', isGeneral: false, dueDate: '2026-11-14', dueTime: '08:00', frequencyUnit: 'Day', frequencyQuantity: 1 })
+      .toEqual({ itemType: 'habit', isGeneral: false, dueDate: '2026-11-14', dueTime: '08:00', frequencyUnit: 'Day', frequencyQuantity: 1, isFlexible: false, days: [], monthDays: [], intervalWeeks: null })
   })
 
   it('reads an empty date and an empty time as none, and an undecided type as a task', () => {
     expect(optimisticHabitResult({ itemType: null, isGeneral: true, dueDate: '', dueTime: '' }))
-      .toEqual({ itemType: 'task', isGeneral: true, dueDate: null, dueTime: null, frequencyUnit: null, frequencyQuantity: null })
+      .toEqual({ itemType: 'task', isGeneral: true, dueDate: null, dueTime: null, frequencyUnit: null, frequencyQuantity: null, isFlexible: false, days: [], monthDays: [], intervalWeeks: null })
   })
 })

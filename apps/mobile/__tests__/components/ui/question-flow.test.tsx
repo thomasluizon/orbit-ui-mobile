@@ -1,4 +1,5 @@
-import { Animated, Modal, StyleSheet, type StyleProp, type ViewStyle } from 'react-native'
+import * as ReactNative from 'react-native'
+import { AccessibilityInfo, Animated, Modal, StyleSheet, type StyleProp, type ViewStyle } from 'react-native'
 import { motionDurations } from '@orbit/shared/theme'
 import { reanimatedTestState } from '@/test-mocks/react-native-reanimated'
 import { markGuidedFlowCompleted } from '@orbit/shared/utils'
@@ -65,6 +66,37 @@ describe('QuestionFlow on Android', () => {
     timing.mockRestore()
     motion.reduced = false
     reanimatedTestState.reducedMotion = false
+    tree.unmount()
+  })
+
+  it.each([['when', 'time'], ['summary', 'type']])('moves accessibility focus to the question and slides on each step change, and on a return to the first step %s', (first, second) => {
+    const findNode = vi.spyOn(ReactNative, 'findNodeHandle').mockReturnValue(42)
+    const focus = vi.spyOn(AccessibilityInfo, 'setAccessibilityFocus').mockImplementation(() => {})
+    const timing = vi.spyOn(Animated, 'timing')
+    const slides = () => timing.mock.calls.filter(([, config]) => config.duration === motionDurations.slow).length
+    const tree = renderNavigation(flow({ stepKey: first }))
+    expect(focus).not.toHaveBeenCalled()
+    expect(slides()).toBe(0)
+    tree.update(flow({ stepKey: second }))
+    expect(focus).toHaveBeenCalledTimes(1)
+    expect(slides()).toBe(1)
+    tree.update(flow({ stepKey: first, direction: -1 }))
+    expect(focus).toHaveBeenCalledTimes(2)
+    expect(focus).toHaveBeenLastCalledWith(42)
+    expect(slides()).toBe(2)
+    tree.update(flow({ stepKey: first, direction: -1, position: 1 }))
+    expect(focus).toHaveBeenCalledTimes(2)
+    tree.unmount()
+    findNode.mockRestore()
+    focus.mockRestore()
+    timing.mockRestore()
+  })
+
+  it('mounts one scroller and claims no landmark, so the screen that hosts it owns both', () => {
+    const tree = renderNavigation(flow())
+    expect(tree.hosts().filter((node) => node.props.testID === 'question-flow-scroll')).toHaveLength(1)
+    expect(tree.hosts().filter((node) => node.type === 'ScrollView' || node.type === 'RCTScrollView')).toHaveLength(1)
+    expect(tree.hosts().some((node) => (node.props as { role?: string }).role === 'main' || node.props.accessibilityRole === 'main')).toBe(false)
     tree.unmount()
   })
 

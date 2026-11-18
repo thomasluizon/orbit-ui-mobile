@@ -337,6 +337,7 @@ describe('Composer', () => {
         expect(control.querySelectorAll('svg')).toHaveLength(1)
         expect(control.querySelector('svg')).toHaveAttribute('data-asset', 'orbit-mascot')
         expect(control.querySelector('svg')).toHaveAttribute('aria-hidden', 'true')
+        expect(control.querySelector('svg')).toHaveAttribute('color', 'var(--fg-1)')
       }
       fireEvent.click(controls[1]!)
       expect(chips[1]!.onSelect).toHaveBeenCalledOnce()
@@ -538,6 +539,13 @@ describe('Composer', () => {
       'motion-safe:[&_svg]:duration-[var(--dur-press)]',
       'motion-safe:[&_svg]:ease-[var(--ease-out)]',
     )
+  })
+
+  it('draws the open conversation glyph with the foreground planet and the moon as its only accent', () => {
+    render(<Composer {...props({ onOpenConversation: vi.fn(), conversationLabel: en.todayAstra.openConversation })} />)
+    const face = screen.getByRole('button', { name: en.todayAstra.openConversation }).querySelector('svg')!
+    expect(face).toHaveAttribute('color', 'var(--fg-1)')
+    expect([...face.querySelectorAll('[fill="var(--primary)"]')].map((part) => part.getAttribute('data-part'))).toEqual(['moon'])
   })
 
   it('renders three suggestions in their named group', () => {

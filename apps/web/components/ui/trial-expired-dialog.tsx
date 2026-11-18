@@ -13,7 +13,6 @@ import { Sheet, type SheetHandle } from '@/components/ui/sheet'
 export function TrialExpiredDialog({ sheetRef, pausedFeatures, savingsPercent, onSeePlans, onContinueFree, onClose }: Readonly<{
   sheetRef: Ref<SheetHandle>
   pausedFeatures: readonly string[]
-  /** The yearly saving of the plans read. Absent until the read answers. */
   savingsPercent: number | undefined
   onSeePlans: () => void
   onContinueFree: () => void

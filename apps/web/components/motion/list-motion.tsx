@@ -73,13 +73,11 @@ function useExitDeadline(duration: number) {
 
 export function ListMotionItem({ children, className, style, ref, positionMotion = true, layoutMotion = true, as = 'div' }: Readonly<{
   ref?: Ref<HTMLDivElement>
-  /** The element of the row. A row of a `ul` passes `li`. Default `div`. */
   as?: 'div' | 'li'
   children: ReactNode
   className?: string
   style?: CSSProperties
   positionMotion?: boolean
-  /** False keeps the preset shift of the entry and the exit but lets the gap close at once, with no glide of the other rows. */
   layoutMotion?: boolean
 }>) {
   const reduced = useViewportMatch('(prefers-reduced-motion: reduce)')

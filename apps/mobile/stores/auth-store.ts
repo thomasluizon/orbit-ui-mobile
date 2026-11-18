@@ -243,11 +243,6 @@ async function clearSessionCredentials(
   })
 }
 
-/**
- * Drops every unsent thing the previous account left on this device. Both drafts live under
- * one key with no account in it, so one of them left behind is the next person reading, and
- * sending, text that is not theirs.
- */
 async function forgetPreviousAccountContent(): Promise<void> {
   await useChatStore.getState().resetAccountScopedChat()
   await forgetStoredSupportDraft()
@@ -318,10 +313,6 @@ async function classifyRejectedRefresh(
   return { status: response.status === 401 ? 'unauthorized' : 'network-error' }
 }
 
-/**
- * Uses raw fetch because apiClient's own 401 handler calls this function. Routing the
- * refresh through apiClient would recurse instead of returning a discriminated outcome.
- */
 async function rotateSessionToken(
   epoch: number,
   expectedCredentialVersion: number,

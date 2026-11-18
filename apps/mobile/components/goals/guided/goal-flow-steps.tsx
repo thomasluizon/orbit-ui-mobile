@@ -6,43 +6,24 @@ import type { GoalType } from '@orbit/shared/types/goal'
 import { MAX_GOAL_TITLE_LENGTH, MAX_GOAL_UNIT_LENGTH } from '@orbit/shared/validation'
 import {
   formatLocaleDate,
+  GOAL_DEADLINE_CHOICES,
   getAccountDay,
   isGoalDeadlinePast,
   parseDatePhrase,
   resolveGoalDeadlineChoice,
-  type GoalDeadlineChoice,
+  goalStepHintFor,
+  type GoalDraftPort,
   type GoalFlowStep,
-  type GoalFlowStepError,
+  type GoalStepHint,
 } from '@orbit/shared/utils'
 import { DateField } from '@/components/ui/date-field'
 import { Input } from '@/components/ui/input'
 import { ListRow } from '@/components/ui/list-row'
 import { OptionCard } from '@/components/ui/option-card'
 import { PillButton } from '@/components/ui/pill-button'
+import { PrimaryActionSlot } from '@/components/ui/primary-action-slot'
 import { useProfile } from '@/hooks/use-profile'
 import { useThemeTokens } from '@/hooks/use-theme-tokens'
-
-/** The draft a goal flow answers. Create and edit each hold their own owner and pass this view of it. */
-export interface GoalDraftPort {
-  goalType: GoalType
-  description: string
-  targetValue: string
-  unit: string
-  deadline: string
-  setDescription: (value: string) => void
-  setTargetValue: (value: string) => void
-  setUnit: (value: string) => void
-  setDeadline: (value: string) => void
-  /** Absent on edit: the type of a stored goal is shown, not changed. */
-  chooseType?: (type: GoalType) => void
-}
-
-/** The hint of an empty or invalid continue. `request` moves focus to the field each time it changes. */
-export interface GoalStepHint {
-  field: GoalFlowStepError['field']
-  message: string
-  request: number
-}
 
 export interface GoalStepContext {
   draft: GoalDraftPort
@@ -54,10 +35,6 @@ export interface GoalStepContext {
   deadlineAnswered?: boolean
 }
 
-function hintFor(hint: GoalStepHint | null, field: GoalStepHint['field']) {
-  return hint?.field === field ? { error: hint.message, focusRequest: hint.request } : {}
-}
-
 export function useWhatView({ draft, hint, submit }: GoalStepContext): FlowStepView {
   const { t } = useTranslation()
   const question = t('goals.form.title')
@@ -66,7 +43,7 @@ export function useWhatView({ draft, hint, submit }: GoalStepContext): FlowStepV
     line: t('goals.flow.what.line'),
     free: <Input autoFocus label={question} hideLabel value={draft.description} maxLength={MAX_GOAL_TITLE_LENGTH}
       placeholder={draft.goalType === 'Streak' ? t('goals.form.streakDescriptionPlaceholder') : t('goals.form.descriptionPlaceholder')}
-      {...hintFor(hint, 'description')} onChange={draft.setDescription} onSubmit={() => submit('what')} />,
+      {...goalStepHintFor(hint, 'description')} onChange={draft.setDescription} onSubmit={() => submit('what')} />,
     primary: { label: t('habits.flow.continue'), onPress: () => submit('what') },
   }
 }
@@ -93,20 +70,14 @@ export function useAmountView({ draft, hint, submit }: GoalStepContext): FlowSte
     line: t(streak ? 'goals.flow.amount.streakLine' : 'goals.flow.amount.line'),
     free: <>
       <Input autoFocus label={question} hideLabel kind="number" inputMode="decimal" value={draft.targetValue}
-        placeholder={streak ? t('goals.form.streakTargetPlaceholder') : undefined} {...hintFor(hint, 'targetValue')}
+        placeholder={streak ? t('goals.form.streakTargetPlaceholder') : undefined} {...goalStepHintFor(hint, 'targetValue')}
         onChange={draft.setTargetValue} onSubmit={() => submit('amount')} />
       {streak ? null : <Input label={t('goals.form.unitQuestion')} value={draft.unit} maxLength={MAX_GOAL_UNIT_LENGTH}
-        placeholder={t('goals.form.unitPlaceholder')} {...hintFor(hint, 'unit')} onChange={draft.setUnit} onSubmit={() => submit('amount')} />}
+        placeholder={t('goals.form.unitPlaceholder')} {...goalStepHintFor(hint, 'unit')} onChange={draft.setUnit} onSubmit={() => submit('amount')} />}
     </>,
     primary: { label: t('habits.flow.continue'), onPress: () => submit('amount') },
   }
 }
-
-const DEADLINE_CHOICES: readonly { choice: GoalDeadlineChoice; label: string }[] = [
-  { choice: 'none', label: 'goals.flow.deadline.none' },
-  { choice: 'monthEnd', label: 'goals.flow.deadline.monthEnd' },
-  { choice: 'yearEnd', label: 'goals.flow.deadline.yearEnd' },
-]
 
 export function useDeadlineView({ draft, advance, deadlineAnswered = false }: GoalStepContext): FlowStepView {
   const { t, i18n } = useTranslation()
@@ -128,7 +99,7 @@ export function useDeadlineView({ draft, advance, deadlineAnswered = false }: Go
     question: t('goals.form.deadlineQuestion'),
     line: t('goals.flow.deadline.line'),
     options: <>
-      {DEADLINE_CHOICES.map(({ choice, label }) => {
+      {GOAL_DEADLINE_CHOICES.map(({ choice, label }) => {
         const value = resolveGoalDeadlineChoice(choice, now, profile?.timeZone)
         return <OptionCard key={choice} label={t(label)} selected={answered && draft.deadline === value} onSelect={() => choose(value)} />
       })}
@@ -137,18 +108,15 @@ export function useDeadlineView({ draft, advance, deadlineAnswered = false }: Go
       <Input label={t('habits.flow.when.freeLabel')} value={words} error={issue}
         onChange={(value) => { setIssue(undefined); setWords(value) }} onSubmit={submitWords} />
       <DateField label={t('habits.flow.when.calendar')} value={draft.deadline} minDate={today} onChange={(date) => { if (date) choose(date) }} />
-      <PillButton variant="ghost" onClick={submitWords}>{t('habits.flow.continue')}</PillButton>
+      <PrimaryActionSlot><PillButton variant="ghost" onClick={submitWords}>{t('habits.flow.continue')}</PillButton></PrimaryActionSlot>
     </>,
   }
 }
 
 interface GoalSummaryProps {
   draft: GoalDraftPort
-  /** Edit shows the type of the stored goal and no habits row. */
   mode: 'create' | 'edit'
-  /** The linked habits as the row shows them. Absent on edit. */
   habitsValue?: string
-  /** False when the goal starts from a habit: the row shows that habit and opens nothing. */
   habitsEditable?: boolean
   error?: string
   onOpen: (step: GoalFlowStep) => void

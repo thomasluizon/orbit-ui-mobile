@@ -9,6 +9,7 @@ import {
   View,
 } from 'react-native'
 import { createTokensV2, radius, type AppTokensV2 } from '@/lib/theme'
+import { insetHairlineRing } from '@/components/ui/inset-hairline-ring'
 import { usePrefersReducedMotion } from '@/lib/motion'
 import { useAppTheme } from '@/lib/use-app-theme'
 
@@ -79,7 +80,7 @@ function StatTileSkeleton({ tokens, opacity }: Readonly<{ tokens: AppTokensV2; o
       testID="skeleton-stat-tile-shape"
       accessibilityElementsHidden
       importantForAccessibility="no-hide-descendants"
-      style={[styles.statTile, { backgroundColor: tokens.bgCard, borderColor: tokens.hairline }]}
+      style={[styles.statTile, { backgroundColor: tokens.bgCard, outlineColor: tokens.hairline }]}
     >
       <View style={styles.statValue}>
         <Text style={styles.statValueLine}>0</Text>
@@ -221,7 +222,7 @@ const styles = StyleSheet.create({
   settingsValue: { width: 48, height: 16 },
   statTile: {
     borderRadius: radius.xl,
-    borderWidth: 1,
+    ...insetHairlineRing,
     padding: SPACING.s16,
     gap: 8,
     alignItems: 'flex-start',

@@ -1,0 +1,30 @@
+description: Orbit AI core gate, other run
+prompts:
+  - '{{input}}'
+providers:
+  - id: file://provider.mjs
+    label: orbit-chat-stream
+defaultTest:
+  options:
+    provider: '{{env.ORBIT_EVAL_GRADER}}'
+  assert:
+    - type: javascript
+      value: file://outcome.mjs:outcome
+      metric: outcome
+tests: file://tests.mjs:other
+# Each test carries its own repeat, the k of its case (core/corpus.mjs). ORBIT_EVAL_MUST_PASS_K names the k of the
+# must-pass cases: 3 when unset, 1 only for a change whose model input equals the model input of main.
+evaluateOptions:
+  maxConcurrency: 1
+  cache: false
+commandLineOptions:
+  cache: false
+  write: false
+  share: false
+  table: false
+sharing: false
+extensions:
+  - file://hooks.mjs:beforeAll
+  - file://hooks.mjs:beforeEach
+  - file://hooks.mjs:afterEach
+  - file://hooks.mjs:afterAll

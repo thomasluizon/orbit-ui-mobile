@@ -1,14 +1,39 @@
+import { chmodSync, mkdirSync, renameSync, writeFileSync } from 'node:fs'
 import { redactCredentials } from './credentials.mjs'
-import { guid } from './fixtures/api.mjs'
+import { guid, guidPattern } from './fixtures/api.mjs'
 import { tools, legacyTools, postReadTools, habitSetupTools, offerTools, offerPostReadTools, offerHabitSetupTools, normalizeField } from './trace-policy.mjs'
 import { schemaVariants } from './tool-schema.mjs'
+
+// The private evidence file of one attempt, relative to the directory of its run.
+export const evidencePath = (caseId, repeat) => `attempts/${encodeURIComponent(caseId)}-r${repeat}.json`
+
+// An assertion that gave no evidence of the build: its precondition or its grader was not available.
+export const unavailableAssertion = (assertion) => assertion.metadata?.unavailable === true || assertion.metadata?.graderError === true
+
+// The directory of a run and its `attempts/` directory, which only their owner opens.
+export function openPrivateEvidence(directory) {
+  mkdirSync(`${directory}/attempts`, { recursive: true, mode: 0o700 })
+  chmodSync(directory, 0o700)
+  chmodSync(`${directory}/attempts`, 0o700)
+}
+
+// Writes evidence that only its owner reads, in one rename, so a reader never sees a partial file.
+export function writePrivateJson(path, value) {
+  const next = `${path}.next`
+  writeFileSync(next, `${JSON.stringify(value, null, 2)}\n`, { mode: 0o600 })
+  chmodSync(next, 0o600)
+  renameSync(next, path)
+}
 
 function collectStrings(value, withheld) {
   if (typeof value === 'string' && value) withheld.add(value)
   else if (value && typeof value === 'object') Object.values(value).forEach((child) => collectStrings(child, withheld))
 }
 
-export const identity = /^(?:[0-9a-f]{32}|[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12})$/i
+// An identity value: a GUID, or 32 hex digits. `identitiesInText` finds each one inside a longer text.
+export const identity = new RegExp(`^(?:[0-9a-f]{32}|${guidPattern})$`, 'i')
+export const identitiesInText = new RegExp(`\\b(?:[0-9a-f]{32}|${guidPattern})\\b`, 'gi')
+const guidsInText = new RegExp(`\\b${guidPattern}\\b`, 'gi')
 
 // An id-shaped field can hold a public name such as the surface id today, so only identity values are withheld.
 export function collectIdentities(value, withheld) {
@@ -86,7 +111,7 @@ export function sanitizeEvidence(value, withheld = new Set()) {
     let text = redactCredentials(value)
     for (const secret of [...withheld].sort((left, right) => right.length - left.length)) text = text.replaceAll(secret, '[redacted]')
     return text.replace(/[A-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, '[redacted]')
-      .replace(/\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/gi, '[redacted]')
+      .replace(guidsInText, '[redacted]')
       .replace(/\bBearer\s+[^\s"\\]+/gi, 'Bearer [redacted]')
   }
   if (Array.isArray(value)) return value.map((child) => sanitizeEvidence(child, withheld))

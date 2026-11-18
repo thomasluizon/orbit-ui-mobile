@@ -238,14 +238,14 @@ describe('UpgradePage', () => {
   describe.each([{ locale: 'en', messages: en }, { locale: 'pt-BR', messages: ptBR }] as const)('back destination in $locale', ({ locale, messages }) => {
     it.each([
       { source: '/profile', from: '', destination: messages.nav.profile },
-      { source: '/profile/ai', from: '/profile/ai', destination: messages.profile.groups.astra },
+      { source: '/profile/ai', from: '/profile/ai', destination: null },
       { source: '/calendar?view=month', from: '', destination: messages.nav.calendar },
       { source: '/habits/new?draft=retained', from: '', destination: messages.habits.form.newHabit },
       { source: '/', from: '', destination: messages.nav.today },
       { source: '/calendar', from: '/profile/ai', destination: messages.nav.calendar },
-      { source: '/chat', from: '', destination: messages.chat.title },
+      { source: '/chat', from: '', destination: null },
       { source: null, from: '', destination: messages.nav.profile },
-      { source: null, from: '/profile/ai', destination: messages.profile.groups.astra },
+      { source: null, from: '/profile/ai', destination: null },
     ])('names and returns to $source with from=$from', ({ source, from, destination }) => {
       navigation.real = true
       mockLocale.value = locale
@@ -260,7 +260,7 @@ describe('UpgradePage', () => {
       render(<UpgradePage />)
       const label = source === '/profile' || (!source && !from)
         ? messages.common.backToProfile
-        : source === '/' ? messages.common.backToToday : messages.common.backToDestination.replace('{destination}', destination)
+        : source === '/' ? messages.common.backToToday : destination === null ? messages.common.backToOrbit : messages.common.backToDestination.replace('{destination}', destination)
       fireEvent.click(screen.getByRole('button', { name: label }))
       if (source) {
         expect(navigation.back).toHaveBeenCalledExactlyOnceWith()
@@ -434,7 +434,7 @@ describe('UpgradePage', () => {
       history.replaceState({}, '', `/upgrade?from=${from}`)
       try {
         render(<UpgradePage />)
-        const backLabel = messages.common.backToDestination.replace('{destination}', messages.profile.groups.astra)
+        const backLabel = messages.common.backToOrbit
         fireEvent.click(screen.getByRole('button', { name: backLabel }))
         expect(mockGoBackOrFallback).toHaveBeenCalledWith('/profile/ai')
         expect(screen.getByRole('link', { name: messages.upgrade.convert.stayFree })).toHaveAttribute('href', '/profile/ai')

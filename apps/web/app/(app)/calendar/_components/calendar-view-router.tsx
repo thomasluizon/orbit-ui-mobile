@@ -21,7 +21,6 @@ import type { CalendarScreenState } from './use-calendar-screen-state'
 
 interface CalendarMonthFeedbackProps {
   state: CalendarMonthDisplayState
-  /** Absent when the Orbit line states the month. */
   text: string | null
   createLabel: string
   createVariant: 'primary' | 'secondary'
@@ -51,7 +50,6 @@ function CalendarMonthFeedback({
   )
 }
 
-/** The Calendário motion belongs to the guided flows: with the flag off, or under reduced motion, a change shows at once. */
 function useCalendarMotionStill(): boolean {
   const guided = useFlag('orbit_guided_flows')
   const reducedMotion = useViewportMatch('(prefers-reduced-motion: reduce)')
@@ -60,7 +58,6 @@ function useCalendarMotionStill(): boolean {
 
 const DAY_CARD_FADE = { duration: motionDurations.base, easing: `cubic-bezier(${motionEasings.standard.join(', ')})` }
 
-/** A new selected day cross-fades the day card on the base duration. The first day, the guided flows off and reduced motion show at once. */
 function CalendarDayCardSlot({ dayKey, children }: Readonly<{ dayKey: string; children: ReactNode }>) {
   const slotRef = useRef<HTMLDivElement>(null)
   const still = useCalendarMotionStill()
@@ -79,7 +76,6 @@ function CalendarDayCardSlot({ dayKey, children }: Readonly<{ dayKey: string; ch
 function calendarActionVariant(wide: boolean): 'primary' | 'secondary' {
   return wide ? 'secondary' : 'primary'
 }
-/** With the guided flows on, the create action of an empty month opens the create flow on the selected day. */
 function useCreateOnSelectedDay(state: CalendarScreenState, guided: boolean): () => void {
   const router = useRouter()
   const pathname = usePathname()
@@ -158,7 +154,6 @@ function CalendarMonthView({ state }: Readonly<{ state: CalendarScreenState }>) 
 
 const VIEW_ORDER: readonly CalendarScreenState['view'][] = ['month', 'week', 'range', 'agenda']
 
-/** A view switch enters on the tab-switch preset, shifted toward the side of the chosen segment. The guided flows off and reduced motion swap the view at once. */
 function CalendarViewSwitch({ view, children }: Readonly<{ view: CalendarScreenState['view']; children: ReactNode }>) {
   const viewRef = useRef<HTMLDivElement>(null)
   const still = useCalendarMotionStill()

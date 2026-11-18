@@ -1,5 +1,6 @@
 import { StyleSheet, type StyleProp, type ViewStyle } from 'react-native'
 import Yoga, { type Node as YogaNode } from 'yoga-layout'
+import { applyBorderWidths } from '@/__tests__/support/yoga-borders'
 
 export interface GeometryHost {
   props: { testID?: string; style?: StyleProp<ViewStyle> | ((state: { pressed: boolean }) => StyleProp<ViewStyle>) }
@@ -28,6 +29,7 @@ function applyGridStyle(node: YogaNode, style: ViewStyle) {
   if (typeof style.rowGap === 'number') node.setGap(Yoga.GUTTER_ROW, style.rowGap)
   if (typeof style.columnGap === 'number') node.setGap(Yoga.GUTTER_COLUMN, style.columnGap)
   if (typeof style.padding === 'number') node.setPadding(Yoga.EDGE_ALL, style.padding)
+  applyBorderWidths(node, style)
   if (typeof style.paddingHorizontal === 'number') node.setPadding(Yoga.EDGE_HORIZONTAL, style.paddingHorizontal)
   applyGridPosition(node, style)
 }

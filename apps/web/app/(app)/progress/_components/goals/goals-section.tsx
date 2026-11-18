@@ -24,7 +24,6 @@ interface GoalsSectionProps {
   setFilter: (filter: ProgressGoalFilter) => void
   onCreate: () => void
   onOpenGoal: (goalId: string) => void
-  /** The value each card's ring sweeps from once, or null for a card with no change since the last visit. */
   sweepFrom: (goal: Goal) => number | null
   onSwept: (goalId: string) => void
 }

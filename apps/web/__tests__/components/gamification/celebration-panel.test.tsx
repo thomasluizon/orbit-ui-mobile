@@ -87,6 +87,8 @@ describe('CelebrationPanel', () => {
     expect(mark).toHaveAttribute('width', '48')
     expect(mark).toHaveAttribute('data-orbit-state', 'feliz')
     expect(mark).toHaveAttribute('data-orbit-loop', 'still')
+    expect(mark?.parentElement).toHaveAttribute('data-celebration-mark')
+    expect(mark?.parentElement).toHaveClass('size-[48px]')
     expect(panel).not.toHaveAttribute('aria-modal')
     expect(container.querySelector('[data-shell-background]')).not.toHaveAttribute('inert')
     expect(screen.getByRole('button', { name: 'Log habit' })).toBeEnabled()

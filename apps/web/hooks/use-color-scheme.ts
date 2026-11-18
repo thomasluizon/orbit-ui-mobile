@@ -73,10 +73,6 @@ export function useColorScheme() {
   }, [currentTheme, applyTheme])
 
 
-  /**
-   * Sync cookie with DB value (DB is source of truth).
-   * Call this after profile loads to ensure cross-device sync.
-   */
   const syncThemeFromProfile = useCallback((dbThemePreference: string | null | undefined) => {
     const dbTheme: ThemeMode | null =
       dbThemePreference === 'dark' || dbThemePreference === 'light'
@@ -88,11 +84,6 @@ export function useColorScheme() {
     }
   }, [currentScheme, currentTheme])
 
-  /**
-   * First-login detection: if DB themePreference is missing, detect
-   * system preference, apply it locally, and persist to DB so future
-   * logins are consistent across devices.
-   */
   const detectAndSaveThemeIfNeeded = useCallback((dbThemePreference: string | null | undefined) => {
     if (dbThemePreference === 'dark' || dbThemePreference === 'light' || getSavedTheme()) return
     const detected: ThemeMode =

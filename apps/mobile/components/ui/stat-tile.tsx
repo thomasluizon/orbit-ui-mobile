@@ -4,6 +4,8 @@ import type { StatTileProps } from '@orbit/shared/contracts/display'
 import { Animated, Easing, StyleSheet, Text, View } from 'react-native'
 import { usePrefersReducedMotion } from '@/lib/motion'
 import { createTokensV2 } from '@/lib/theme'
+import { insetHairlineRing } from '@/components/ui/inset-hairline-ring'
+import { Skeleton } from '@/components/ui/skeleton'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 function shownStatValue(props: StatTileProps): string | number {
@@ -30,7 +32,6 @@ function TileValue({ value, isEmpty, color }: Readonly<{
   )
 }
 
-/** A changed figure rolls up into its own line once, inside a clip. Reduced motion keeps it still. */
 function RollingValue({ children }: Readonly<{ children: ReactNode }>) {
   const reducedMotion = usePrefersReducedMotion()
   const [progress] = useState(() => new Animated.Value(reducedMotion ? 1 : 0))
@@ -58,14 +59,14 @@ export function StatTile(props: Readonly<StatTileProps>) {
 
   return (
     <View
-      style={[styles.tile, { backgroundColor: tokens.bgCard, borderColor: tokens.hairline }]}
+      style={[styles.tile, { backgroundColor: tokens.bgCard, outlineColor: tokens.hairline }]}
       testID={`stat-tile-${state}`}
       accessibilityRole={state === 'loading' ? 'progressbar' : undefined}
       accessibilityLabel={state === 'loading' ? props.loadingLabel : undefined}
     >
       {state === 'loading' ? (
         <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={styles.loadingValue}>
-          <Text style={[styles.value, { opacity: 0 }]}>0</Text><View style={[styles.valueSkeleton, { position: 'absolute', backgroundColor: tokens.bgElev2 }]} />
+          <Text style={[styles.value, { opacity: 0 }]}>0</Text><View style={[styles.valueSkeleton, { position: 'absolute' }]}><Skeleton variant="fill" grouped /></View>
         </View>
       ) : (
         rollValue(props, <TileValue
@@ -77,7 +78,7 @@ export function StatTile(props: Readonly<StatTileProps>) {
       {state === 'loading' ? (
         <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={styles.loadingLabel}>
           <Text style={[styles.label, { opacity: 0 }]}>{label}</Text>
-          <View style={[styles.labelSkeleton, { backgroundColor: tokens.bgElev2 }]} />
+          <View style={styles.labelSkeleton}><Skeleton variant="fill" grouped /></View>
         </View>
       ) : <Text style={[styles.label, { color: isEmpty ? tokens.fg3 : tokens.fg2 }]}>{label}</Text>}
     </View>
@@ -96,7 +97,7 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     gap: 8,
     borderRadius: 20,
-    borderWidth: 1,
+    ...insetHairlineRing,
     padding: PADDING.recordInset,
   },
   value: {
@@ -121,10 +122,9 @@ const styles = StyleSheet.create({
   },
   loadingValue: { width: '100%', maxWidth: 64, justifyContent: 'center' },
   loadingLabel: { maxWidth: '100%' },
-  labelSkeleton: { position: 'absolute', width: '66%', height: '100%', borderRadius: 8 },
+  labelSkeleton: { position: 'absolute', width: '66%', height: '100%' },
   valueSkeleton: {
     width: '100%',
     height: 22,
-    borderRadius: 8,
   },
 })

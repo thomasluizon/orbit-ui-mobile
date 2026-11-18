@@ -39,13 +39,11 @@ function closeControl(header: ReactTestRenderer): ReactTestInstance {
   return controls[0]!
 }
 
-/** The resolved style of the close control itself: the box that owns its press fill and its 48dp target. */
 function controlStyle(control: ReactTestInstance, pressed: boolean) {
   const style = control.props.style as StyleProp<ViewStyle> | ((state: { pressed: boolean }) => StyleProp<ViewStyle>)
   return StyleSheet.flatten(typeof style === 'function' ? style({ pressed }) : style)
 }
 
-/** The press scale layer inside the close control, which holds only the glyph. */
 function glyphLayer(control: ReactTestInstance) {
   const layers = control.findAll((node) => typeof node.type === 'string' && node.props['data-slot'] === 'press-scale')
   expect(layers, 'a press scale layer holds the close glyph inside the control').toHaveLength(1)

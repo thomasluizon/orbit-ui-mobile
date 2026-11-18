@@ -30,11 +30,11 @@ export const checkRelayStop = ({ enabled, softTokens, hardTokens, state, session
       if (state.relay?.armed === true) return null
       return { arm: true, message: `Context relay is armed at the soft threshold. Finish the work in front of you: launch a composed order, finish reading a failure. The relay starts at the next turn end with every item waiting on a wake source, or at the hard ceiling of ${hardTokens} tokens.` }
     }
-    return { begin: true, forced, message: `Context relay ${forced ? "hard ceiling" : "quiet point"} reached. Launch nothing, including review batches. Drain the live worker launchers, release watchers, background workflows and background subagents.${backgroundMessage} When none remain, run /handoff --relay --sleep, record every open owner question, then run node tools/relay-session.mjs. Never run /questions or ask the owner during a relay.` }
+    return { begin: true, forced, message: `Context relay ${forced ? "hard ceiling" : "quiet point"} reached. Launch nothing, including review batches. Drain the live worker launchers, release watchers, background workflows and background subagents.${backgroundMessage} When none remain, run /handoff --relay --sleep, which filters the owner questions through /questions --relay, then run node tools/relay-session.mjs. Never ask the owner during a relay.` }
   }
   if (draining.length > 0 || stopHookActive) return null
   if (state.relay.lastAttemptAt && now - Date.parse(state.relay.lastAttemptAt) < RETRY_MS) return null
-  return { begin: false, message: "Context relay drain is complete. Launch nothing. Run /handoff --relay --sleep and node tools/relay-session.mjs. Preserve every open owner question and confirm the successor before ending this session." }
+  return { begin: false, message: "Context relay drain is complete. Launch nothing. Run /handoff --relay --sleep, which filters the owner questions through /questions --relay, and node tools/relay-session.mjs. Queue only the questions that survive the filter and confirm the successor before ending this session." }
 }
 
 export const supersededMessage = (successor) => successor

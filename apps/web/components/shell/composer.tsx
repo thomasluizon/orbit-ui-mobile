@@ -382,7 +382,7 @@ function ComposerInputRow({ props }: Readonly<{ props: WebComposerProps }>) {
           onClick={props.onOpenConversation}
           className="flex min-w-12 min-h-12 max-w-full shrink-0 items-center justify-center gap-2 px-2 py-1 rounded-full border-0 bg-transparent text-[var(--fg-2)] transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] motion-safe:active:[&_svg]:scale-[0.96] motion-safe:[&_svg]:transition-transform motion-safe:[&_svg]:duration-[var(--dur-press)] motion-safe:[&_svg]:ease-[var(--ease-out)]"
         >
-          <OrbitMascot size={20} color="var(--fg-3)" />
+          <OrbitMascot size={20} />
         </button>
       ) : null}
 

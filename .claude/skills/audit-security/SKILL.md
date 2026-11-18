@@ -192,7 +192,7 @@ Security-specific mapping into the 6.2 body:
 At the approval gate, present the surface **coverage** (authz-isolation, ai-mcp-scoping,
 injection, secrets-config, ratelimit-ai-abuse, error-web-auth, privacy-data-rights), the
 **Deferred ledger** (the
-workflow's `deferred`: verify-cap overflow, loop bound, plus Tier-3), and the convergence
+workflow's `deferred`: verify-cap overflow, a finding whose skeptic died, loop bound, plus Tier-3), and the convergence
 state (`coverage UNKNOWN, <convergenceReason>` if `converged !== true`) so the owner approves
 with the full provenance in view. None of it is written to disk.
 

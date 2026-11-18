@@ -22,10 +22,6 @@ export const {
   clearApiKeyCreationGrant,
 } = createStepUpSessionState()
 
-/**
- * Persists a timing record under the account that owns it. `localStorage` survives somebody
- * else signing in to this tab, so the entry has to name its account.
- */
 function persistStepUpTiming(
   record: StepUpTimingRecord,
   accountId: string | null,

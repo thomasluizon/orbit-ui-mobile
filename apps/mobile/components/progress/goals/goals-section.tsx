@@ -25,7 +25,6 @@ interface GoalsSectionProps {
   onCreate: () => void
   onOpenGoal: (goalId: string) => void
   onRegisterGoal: (goalId: string, instance: View | null) => void
-  /** The value each card's ring sweeps from once, or null for a card with no change since the last visit. */
   sweepFrom: (goal: Goal) => number | null
   onSwept: (goalId: string) => void
 }

@@ -48,7 +48,6 @@ function stylesheetTransition(css: string, selector: string) {
 }
 
 const COLOR_AND_PRESS = 'background-color var(--dur-hover-control) var(--ease-standard), color var(--dur-hover-control) var(--ease-standard), transform var(--dur-press) var(--ease-out)'
-/** Tailwind 4 `active:scale-[0.96]` sets the CSS `scale` property, so a rule whose consumers press with it transitions `scale`. */
 const SCALE_PRESS = 'scale var(--dur-press) var(--ease-out)'
 const COLOR_HOVER = 'background-color var(--dur-hover-control) var(--ease-standard), color var(--dur-hover-control) var(--ease-standard)'
 const COLOR_AND_SCALE_PRESS = `${COLOR_HOVER}, ${SCALE_PRESS}`
@@ -58,14 +57,12 @@ const STYLESHEET_TRANSITIONS = [
   ['.orbit-list-row-body', `background-color var(--dur-hover) var(--ease-standard), ${SCALE_PRESS}`],
   ['.orbit-list-row-action', `background-color var(--dur-hover-control) var(--ease-standard), ${SCALE_PRESS}`],
   ['.habit-control-motion', `background-color var(--dur-hover-control) var(--ease-standard), color var(--dur-hover-control) var(--ease-standard), ${SCALE_PRESS}`],
-  /** The close presses its glyph, so the control transitions its colours only. */
   ['.orbit-sheet-close', COLOR_HOVER],
   ['.icon-btn', COLOR_AND_PRESS],
   ['.chip', `${COLOR_AND_SCALE_PRESS}, box-shadow var(--motion-selection-exit) var(--motion-ease-exit)`],
   ['.habit-form-disclosure', 'opacity var(--dur-enter) var(--ease-out), transform var(--dur-enter) var(--ease-out)'],
 ] as const
 
-/** Every quoted, single-quoted or template class string in a source file, with the attribute that receives it. */
 function classLiterals(text: string) {
   return Array.from(text.matchAll(/(controlClassName=)?(?:"([^"\n]*)"|'([^'\n]*)'|`([^`]*)`)/g), (match) => ({ attribute: match[1], literal: match[2] ?? match[3] ?? match[4] ?? '' }))
 }
@@ -73,7 +70,6 @@ function classLiterals(text: string) {
 const HOVER_FILL = /(?<![\w/-])(?:enabled:)?hover:bg-\[(var\(--[a-z-]+\))\]/g
 const PRESS_FILL_FOR: Record<string, string> = { 'var(--primary-hover)': 'var(--primary-pressed)' }
 
-/** A hover fill without the matching press fill in the same class string: a touch press, which never hovers, would paint nothing. */
 function hoverFillsWithoutPress(text: string) {
   return classLiterals(text)
     .filter(({ attribute }) => attribute === undefined)
@@ -212,8 +208,8 @@ describe('habit form and frequency picker motion tokens', () => {
     const text = source('components/habits/checklist-templates.tsx')
     expect(text).toMatch(/orbit-list-row-body [^"]*active:scale-\[0\.96\]/)
     expect(text).toMatch(/orbit-list-row-action [^"]*active:scale-\[0\.96\]/)
-    expect(text).toContain('enabled:hover:bg-[var(--primary-hover)] enabled:active:bg-[var(--primary-pressed)] enabled:active:scale-[0.96]')
-    expect(text).toContain('enabled:hover:bg-[var(--bg-hover)] enabled:hover:text-[var(--fg-1)] enabled:active:bg-[var(--bg-hover)] enabled:active:scale-[0.96]')
+    expect(text).toContain('enabled:hover:bg-[var(--primary-hover)] enabled:active:bg-[var(--primary-pressed)] motion-safe:enabled:active:scale-[0.96]')
+    expect(text).toContain('enabled:hover:bg-[var(--bg-hover)] enabled:hover:text-[var(--fg-1)] enabled:active:bg-[var(--bg-hover)] motion-safe:enabled:active:scale-[0.96]')
   })
 
   it('fills the time field picker and clear buttons on hover and press with the neutral hover role and eases their scale', () => {
@@ -239,7 +235,7 @@ describe('habit form and frequency picker motion tokens', () => {
   })
 
   it('lets the picker row own its press scale, eased through the list row body rule, so no caller repeats it', () => {
-    expect(source('components/ui/picker-row.tsx')).toContain('orbit-list-row-body group/picker enabled:active:scale-[0.96]')
+    expect(source('components/ui/picker-row.tsx')).toContain('orbit-list-row-body group/picker motion-safe:enabled:active:scale-[0.96]')
     for (const path of PICKER_ROW_CALLERS) expect(source(path)).not.toMatch(/controlClassName="[^"]*scale-/)
     expect(stylesheetTransition(source('app/globals.css'), '.orbit-list-row-body')).toContain(SCALE_PRESS)
   })

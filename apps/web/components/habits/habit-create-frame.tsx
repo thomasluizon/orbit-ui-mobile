@@ -18,7 +18,6 @@ type HabitCreateFrameProps = ComponentProps<typeof Sheet> & {
   fromConversation: boolean
   actionRefreshKey: string
   leaving: boolean
-  /** The one-question flow owns its header, its close and its primary action, so the frame adds none. */
   guided?: boolean
   onNavigate: (action: () => void) => void
   onReturn: () => void

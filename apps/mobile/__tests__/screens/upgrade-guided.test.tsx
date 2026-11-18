@@ -114,7 +114,6 @@ type Host = ReturnType<Tree['hosts']>[number]
 const byTestId = (tree: Tree, testID: string) => tree.hosts().find((node) => node.props.testID === testID)
 const byLabel = (tree: Tree, label: string) => tree.hosts().find((node) => node.props.accessibilityLabel === label && node.props.onPress !== undefined)
 const headers = (tree: Tree) => tree.hosts().filter((node) => node.props.accessibilityRole === 'header')
-/** The states of the live mascots on screen. The small static face of a list icon is not a live mascot. */
 const orbitStates = (tree: Tree) => tree.hosts().map((node) => node.props as Record<string, unknown>).filter((props) => props['data-orbit-face'] === 'rig').map((props) => props['data-orbit-state'])
 const screenText = (tree: Tree) => tree.hosts().filter((node) => node.type === 'Text').map((node) => renderedText(node)).join('\n')
 const scrollers = (tree: Tree) => tree.hosts().filter((node) => node.type === 'ScrollView')

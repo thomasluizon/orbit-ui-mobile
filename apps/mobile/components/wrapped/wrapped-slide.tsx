@@ -186,7 +186,6 @@ export function WrappedSlide({ slide, recap, period, tokens, shareRef, shareErro
   }
 }
 
-/** The consistency figure did not load. Under `orbit_guided_flows`, Orbit in Parado states it above the message. */
 function SlideLoadError({ tokens, onRetry }: Readonly<{ tokens: Tokens; onRetry: () => void }>) {
   const { t } = useTranslation()
   const guided = useFlag('orbit_guided_flows')

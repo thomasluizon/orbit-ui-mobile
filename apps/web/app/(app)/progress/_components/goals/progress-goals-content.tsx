@@ -21,7 +21,6 @@ import { ProgressSubscreen } from '../progress-subscreen'
 import { GoalsSection } from './goals-section'
 import { useGoalSeenProgress } from './use-goal-seen-progress'
 
-/** The empty goals list: Orbit at rest at the state size, the title and one action. */
 function GoalsEmptyState({ onCreate }: Readonly<{ onCreate: () => void }>) {
   const t = useTranslations()
   const isDesktop = useIsDesktop()

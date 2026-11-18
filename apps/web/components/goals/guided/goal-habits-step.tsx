@@ -6,7 +6,7 @@ import type { FlowStepView } from '@orbit/shared/contracts/flow'
 import type { GoalType } from '@orbit/shared/types/goal'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import { MAX_HABITS_PER_GOAL } from '@orbit/shared/validation'
-import { joinNamedItems, toggleSelectedId } from '@orbit/shared/utils'
+import { joinNamedItems, leadingQuickOptions, searchByTitle, toggleSelectedId } from '@orbit/shared/utils'
 import { CapacityNotice } from '@/components/ui/capacity-notice'
 import { IconButton } from '@/components/ui/icon-button'
 import { Plus } from '@/components/ui/icons'
@@ -29,19 +29,14 @@ interface GoalHabitsStepInput {
   onContinue: () => void
 }
 
-/** The habits selected when the step opened lead, then the order of the list. The order stays while the person presses. */
-function quickHabits(items: NormalizedHabit[], leading: ReadonlySet<string>): NormalizedHabit[] {
-  return [...items.filter((habit) => leading.has(habit.id)), ...items.filter((habit) => !leading.has(habit.id))].slice(0, QUICK_OPTIONS)
-}
-
 function HabitSearch({ items, selectedIds, atLimit, onToggle }: Readonly<{ items: NormalizedHabit[]; selectedIds: string[]; atLimit: boolean; onToggle: (id: string) => void }>) {
   const t = useTranslations()
   const [query, setQuery] = useState('')
-  const needle = query.trim().toLocaleLowerCase()
-  const matches = needle ? items.filter((habit) => habit.title.toLocaleLowerCase().includes(needle)) : []
+  const searching = query.trim() !== ''
+  const matches = searchByTitle(items, query)
   return <>
     <Input label={t('goals.form.searchHabits')} kind="search" name="goal-habit-search" value={query} onChange={setQuery} />
-    {needle && matches.length === 0 ? <p role="status" className="text-center text-sm text-[var(--fg-2)]">{t('habits.moveParent.noSearchResults')}</p> : null}
+    {searching && matches.length === 0 ? <p role="status" className="text-center text-sm text-[var(--fg-2)]">{t('habits.moveParent.noSearchResults')}</p> : null}
     {matches.map((habit) => {
       const selected = selectedIds.includes(habit.id)
       return <PickerRow key={habit.id} name={habit.title} selected={selected} disabled={!selected && atLimit} onToggle={() => onToggle(habit.id)} value={selected ? '✓' : ''} valueHidden valueClassName="flex-1 text-sm text-[var(--fg-2)]" controlClassName="orbit-list-row-body flex min-h-12 w-full items-center rounded-[12px] px-2 py-1 text-left disabled:opacity-40" actionsClassName="flex items-center justify-between gap-2" />
@@ -62,7 +57,7 @@ export function useGoalHabitsView({ selectedIds, goalType, onChange, onContinue 
     question: t('goals.flow.habits.question'),
     line: loaded && items.length === 0 ? t('goals.form.habitsInvitation') : t('goals.form.habitsExplainer'),
     options: loaded && items.length > 0 ? <>
-      {quickHabits(items, leading).map((habit) => {
+      {leadingQuickOptions(items, leading, QUICK_OPTIONS).map((habit) => {
         const selected = selectedIds.includes(habit.id)
         return <OptionCard key={habit.id} label={habit.title} selected={selected} disabled={!selected && atLimit} disabledReason={t('goals.form.habitLimit')} onSelect={() => toggle(habit.id)} />
       })}

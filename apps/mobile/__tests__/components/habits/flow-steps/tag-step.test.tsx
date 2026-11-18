@@ -6,7 +6,6 @@ import { resolveMotionPreset } from '@orbit/shared/theme'
 import { createApiClientError } from '@orbit/shared/utils'
 import { buildTags, resetTagStepState, tagStepState, TagStepHarness } from './tag-step-harness'
 
-/** The host shape these tests read. The renderer types name only DOM element types, so the native host names need their own type. */
 interface Host {
   type: unknown
   props: {
@@ -60,7 +59,6 @@ function type(node: Host | undefined, value: string) {
   void renderer.act(() => { node!.props.onChangeText!(value) })
 }
 
-/** Types the search words and waits the one still frame the rows take before the words apply. */
 async function search(root: Root, value: string) {
   type(field(root, en.habits.form.searchTags), value)
   await renderer.act(async () => { await new Promise((resolve) => setTimeout(resolve, 20)) })
@@ -88,6 +86,19 @@ describe.each(['en', 'pt-BR'] as const)('the tag step on Android in %s', (locale
     type(field(root, text.habits.form.newTag), 'Saúde')
     await press(pressable(root, text.common.add))
     expect(tagStepState.create).toHaveBeenCalledWith({ name: 'Saúde', color: expect.any(String) })
+    expect(selected(root)).toBe('created')
+  })
+
+  it('holds the tag create from the press: two presses in one turn send one request, and the action waits until it ends', async () => {
+    let finish!: (tag: { id: string }) => void
+    tagStepState.create.mockImplementation(() => new Promise((resolve) => { finish = resolve }))
+    const root = mount(<TagStepHarness onContinue={vi.fn()} />)
+    type(field(root, text.habits.form.newTag), 'Saúde')
+    const add = pressable(root, text.common.add)!
+    await renderer.act(async () => { void add.props.onPress!(); void add.props.onPress!(); await Promise.resolve() })
+    expect(tagStepState.create).toHaveBeenCalledOnce()
+    expect(hosts(root).find((node) => node.props.accessibilityLabel === text.common.add && node.props.accessibilityState)?.props.accessibilityState).toMatchObject({ busy: true })
+    await renderer.act(async () => { finish({ id: 'created' }); await Promise.resolve() })
     expect(selected(root)).toBe('created')
   })
 

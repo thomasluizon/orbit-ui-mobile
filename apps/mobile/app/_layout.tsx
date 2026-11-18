@@ -19,6 +19,7 @@ import * as Linking from 'expo-linking'
 import { Providers, useCaptureReady } from '@/lib/providers'
 import { useAuthStore } from '@/stores/auth-store'
 import { RootStackScreens } from '@/components/navigation/root-stack-screens'
+import { GuidedSignInProvider } from '@/components/auth/guided-sign-in'
 import { statusBarStyleForTheme } from '@/lib/status-bar-style'
 import { useGamificationProfile } from '@/hooks/use-gamification'
 import { useHasProAccess, useProfile } from '@/hooks/use-profile'
@@ -545,7 +546,7 @@ function RootLayout() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <Providers>
         <PushNotificationsProvider>
-          <RootLayoutContent />
+          <GuidedSignInProvider><RootLayoutContent /></GuidedSignInProvider>
         </PushNotificationsProvider>
       </Providers>
     </GestureHandlerRootView>

@@ -25,7 +25,7 @@ export function Lockup(_props: Readonly<LockupProps>) {
           <path
             key={path.d}
             d={path.d}
-            fill="currentColor"
+            fill={path.part === 'moon' ? 'var(--primary)' : 'currentColor'}
             fillRule={path.fillRule}
             clipRule={path.fillRule}
           />

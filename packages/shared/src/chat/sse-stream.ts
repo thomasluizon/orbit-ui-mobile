@@ -1,11 +1,6 @@
 import { chatStreamEventSchema, type ChatResponse, type ChatStreamEvent } from '../types/chat'
 import type { AstraPlan, AstraPlanStep } from '../types/astra-plan'
 
-/**
- * Incremental parser for the chat SSE stream. Frames on blank lines, joins multi-line
- * `data:` payloads, and ignores comments and payloads that do not match the shared contract
- * so a future protocol addition never breaks an older client mid-stream.
- */
 interface ChatSseParser {
   feed: (chunk: string) => ChatStreamEvent[]
 }

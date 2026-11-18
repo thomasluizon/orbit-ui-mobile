@@ -1,5 +1,6 @@
 import { act, fireEvent, render, screen } from '@testing-library/react'
 import { NextIntlClientProvider } from 'next-intl'
+import { useState } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
@@ -103,6 +104,65 @@ describe.each(locales)('fresh start flow in $locale', ({ locale, messages }) => 
     expect(mocks.resetAccount).not.toHaveBeenCalled()
   })
 
+  it('closes on Escape while the reset runs, and never steps back to the lists in the middle of the deletion', async () => {
+    stubMedia(false)
+    let finishReset!: () => void
+    mocks.resetAccount.mockReturnValue(new Promise<void>((resolve) => { finishReset = resolve }))
+    const onOpenChange = vi.fn()
+    function Harness() {
+      const [open, setOpen] = useState(true)
+      return <FreshStartModal open={open} guided onOpenChange={(next) => { onOpenChange(next); setOpen(next) }} />
+    }
+    render(withIntl(locale, messages, <Harness />))
+    fireEvent.click(screen.getByRole('button', { name: messages.profile.freshStart.reviewDeletion }))
+    fireEvent.change(screen.getByLabelText(messages.profile.freshStart.confirmInstruction), { target: { value: 'ORBIT' } })
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: messages.profile.freshStart.deleteData })) })
+    expect(mocks.resetAccount).toHaveBeenCalledOnce()
+    expect(screen.queryByRole('button', { name: messages.common.back })).not.toBeInTheDocument()
+
+    await act(async () => { fireEvent.keyDown(document.activeElement ?? document.body, { key: 'Escape' }) })
+
+    expect(screen.queryByRole('heading', { level: 1, name: messages.profile.freshStart.question })).not.toBeInTheDocument()
+    expect(onOpenChange).toHaveBeenCalledWith(false)
+    await act(async () => { finishReset() })
+  })
+
+  it('opens on the lists again, with no result, when the reset lands after a close during the request', async () => {
+    stubMedia(false)
+    let finishReset!: () => void
+    mocks.resetAccount.mockReturnValue(new Promise<void>((resolve) => { finishReset = resolve }))
+    function Harness() {
+      const [open, setOpen] = useState(true)
+      return (
+        <>
+          <button type="button" onClick={() => setOpen(true)}>reopen</button>
+          <FreshStartModal open={open} guided onOpenChange={setOpen} />
+        </>
+      )
+    }
+    render(withIntl(locale, messages, <Harness />))
+    fireEvent.click(screen.getByRole('button', { name: messages.profile.freshStart.reviewDeletion }))
+    fireEvent.change(screen.getByLabelText(messages.profile.freshStart.confirmInstruction), { target: { value: 'ORBIT' } })
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: messages.profile.freshStart.deleteData })) })
+    await act(async () => { fireEvent.keyDown(document.activeElement ?? document.body, { key: 'Escape' }) })
+    await act(async () => { finishReset() })
+
+    fireEvent.click(screen.getByRole('button', { name: 'reopen' }))
+
+    expect(document.querySelector('[data-result-dialog]')).toBeNull()
+    expect(screen.getByRole('heading', { level: 1, name: messages.profile.freshStart.question })).toBeInTheDocument()
+  })
+
+  it('steps back to the lists on Escape from the confirmation while no reset runs', async () => {
+    stubMedia(false)
+    const onOpenChange = vi.fn()
+    render(withIntl(locale, messages, <FreshStartModal open guided onOpenChange={onOpenChange} />))
+    fireEvent.click(screen.getByRole('button', { name: messages.profile.freshStart.reviewDeletion }))
+    await act(async () => { fireEvent.keyDown(document.activeElement ?? document.body, { key: 'Escape' }) })
+    expect(screen.getByRole('heading', { level: 1, name: messages.profile.freshStart.question })).toBeInTheDocument()
+    expect(onOpenChange).not.toHaveBeenCalled()
+  })
+
   it('goes back to the lists from the confirmation and keeps the typed text', () => {
     stubMedia(false)
     render(withIntl(locale, messages, <FreshStartModal open guided onOpenChange={vi.fn()} />))
@@ -129,6 +189,21 @@ describe.each(locales)('delete account flow in $locale', ({ locale, messages }) 
     await act(async () => { fireEvent.click(screen.getByRole('button', { name: messages.profile.deleteAccount.sendCode })) })
     expect(mocks.requestDeletion).toHaveBeenCalledOnce()
     expect(mocks.push).toHaveBeenCalledWith('/step-up?operation=delete')
+  })
+
+  it('hands the flow to the code question without reporting it as left', async () => {
+    function Harness() {
+      const [open, setOpen] = useState(true)
+      return <DeleteAccountModal open={open} guided profile={proProfile} onOpenChange={setOpen} />
+    }
+    render(withIntl(locale, messages, <Harness />))
+    fireEvent.click(screen.getByRole('button', { name: messages.common.continue }))
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: messages.profile.deleteAccount.sendCode })) })
+    expect(mocks.push).toHaveBeenCalledWith('/step-up?operation=delete')
+    expect(screen.queryByRole('heading', { level: 1 })).toBeNull()
+    const events = mocks.event.mock.calls.map(([event]) => (event as { name: string }).name)
+    expect(events).toContain('guided_flow_step_viewed')
+    expect(events).not.toContain('guided_flow_abandoned')
   })
 
   it('states the free warning for a free plan', () => {

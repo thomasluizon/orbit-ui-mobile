@@ -40,8 +40,8 @@ vi.mock('@/hooks/use-profile', () => ({
 
 vi.mock('@/components/ui/app-bar', () => ({ AppBar: () => null }))
 vi.mock('@/components/ui/sheet', () => ({
-  Sheet: ({ open, title, titleTranslate, children }: { open: boolean; title: string; titleTranslate?: 'no'; children: React.ReactNode }) =>
-    open ? <section role="dialog" aria-label={title} translate={titleTranslate}>{children}</section> : null,
+  Sheet: ({ open, title, children }: { open: boolean; title: string; children: React.ReactNode }) =>
+    open ? <section role="dialog" aria-label={title}>{children}</section> : null,
 }))
 
 describe('AboutPage', () => {
@@ -63,7 +63,7 @@ describe('AboutPage', () => {
   it('renders no version row when the build carries no commit', () => {
     vi.stubEnv('NEXT_PUBLIC_WEB_COMMIT_SHA', undefined)
     render(<AboutPage />)
-    expect(screen.getByText('Orbit')).toBeInTheDocument()
+    expect(within(screen.getByTestId('about-identity')).getByText('Orbit')).toBeInTheDocument()
     expect(screen.queryByTestId('about-fact-version')).not.toBeInTheDocument()
   })
 
@@ -71,7 +71,7 @@ describe('AboutPage', () => {
     const { container } = render(<AboutPage />)
 
     expect(container.querySelector('[data-asset="orbit-mascot"]')).toBeInTheDocument()
-    expect(screen.getByText('Orbit')).toBeInTheDocument()
+    expect(within(screen.getByTestId('about-identity')).getByText('Orbit')).toBeInTheDocument()
     expect(screen.getByText(ptBR.about.tagline)).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Sobre' })).toBeInTheDocument()
     expect(screen.getByText('3f9c2ab')).toBeInTheDocument()
@@ -90,8 +90,12 @@ describe('AboutPage', () => {
     ])
 
     fireEvent.click(destinations.getByRole('button', { name: 'Guia do Orbit' }))
-    expect(screen.getByRole('dialog', { name: 'Guia do Orbit' })).toHaveAttribute('translate', 'no')
-    expect(destinations.getByText('Guia do Orbit')).toHaveAttribute('translate', 'no')
+    expect(screen.getByRole('dialog', { name: ptBR.onboarding.featureGuide.question })).not.toHaveAttribute('translate')
+    expect(screen.queryByRole('dialog', { name: 'Guia do Orbit' })).not.toBeInTheDocument()
+    const guideTitle = destinations.getByRole('button', { name: 'Guia do Orbit' }).querySelector('[data-slot="list-row-title"]')!
+    expect(guideTitle).toHaveTextContent('Guia do Orbit')
+    expect(guideTitle).not.toHaveAttribute('translate')
+    expect([...guideTitle.querySelectorAll('[translate="no"]')].map((node) => node.textContent)).toEqual(['Orbit'])
 
     fireEvent.click(destinations.getByRole('button', { name: 'Falar com o suporte' }))
     fireEvent.click(destinations.getByRole('button', { name: 'Termos de uso' }))

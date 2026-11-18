@@ -11,12 +11,13 @@ import { Icon } from '@/components/ui/icon'
 import { Input } from '@/components/ui/input'
 import { OptionCard } from '@/components/ui/option-card'
 import { PillButton } from '@/components/ui/pill-button'
+import { PrimaryActionSlot } from '@/components/ui/primary-action-slot'
 import { InlineLoadError } from '@/components/ui/inline-load-error'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useChecklistTemplates, useCreateChecklistTemplate, useDeleteChecklistTemplate } from '@/hooks/use-checklist-templates'
 import { useAccountScopedState } from '@/hooks/use-session-reset'
+import { useSubmitHold } from '@/hooks/use-submit-hold'
 
-/** The quick options show the first saved templates. Every template stays reachable in the list under them. */
 const QUICK_TEMPLATES = 4
 
 function TemplateRow({ template, label, loadable, onLoad, onDelete }: Readonly<{
@@ -30,9 +31,9 @@ function TemplateRow({ template, label, loadable, onLoad, onDelete }: Readonly<{
   return (
     <div data-template-row="" className="orbit-list-action-surface flex min-h-12 min-w-0 items-center gap-2">
       {loadable
-        ? <button type="button" className="orbit-list-row-body min-h-12 min-w-0 flex-1 rounded-[12px] px-3 text-start text-base text-[var(--fg-1)] motion-safe:enabled:active:scale-[0.96]" onClick={onLoad}>{label}</button>
+        ? <button type="button" className="press-hit-layer orbit-list-row-body min-h-12 min-w-0 flex-1 rounded-[12px] px-3 text-start text-base text-[var(--fg-1)] motion-safe:enabled:active:scale-[0.96]" onClick={onLoad}>{label}</button>
         : <span className="min-w-0 flex-1 px-3 text-base text-[var(--fg-1)]">{label}</span>}
-      <button type="button" aria-label={`${t('common.delete')}: ${template.name}`} className="orbit-list-row-action grid size-[var(--touch-min)] shrink-0 place-items-center rounded-full motion-safe:enabled:active:scale-[0.96]" onClick={onDelete}>
+      <button type="button" aria-label={`${t('common.delete')}: ${template.name}`} className="press-hit-layer orbit-list-row-action grid size-[var(--touch-min)] shrink-0 place-items-center rounded-full motion-safe:enabled:active:scale-[0.96]" onClick={onDelete}>
         <Icon name="trash" size={20} color="var(--status-bad)" />
       </button>
     </div>
@@ -52,7 +53,7 @@ export function useTemplateQuestionView({ onLoad, onWrite }: Readonly<{ onLoad: 
     deleteTemplate.mutate(id, { onError: () => setDeleteError(t('habits.form.deleteTemplateError')) })
   }
   const empty = !isLoading && !isError && templates.length === 0
-  let free = <PillButton variant="ghost" onClick={onWrite}>{t('habits.flow.templates.write')}</PillButton>
+  let free = <PrimaryActionSlot><PillButton variant="ghost" onClick={onWrite}>{t('habits.flow.templates.write')}</PillButton></PrimaryActionSlot>
   if (isLoading) free = <Skeleton variant="settings" rows={2} label={t('common.loading')} />
   else if (isError) free = <><InlineLoadError message={t('habits.flow.templates.loadError')} onRetry={() => void refetch()} />{free}</>
   else if (!empty) free = <div className="flex flex-col gap-1">
@@ -75,20 +76,25 @@ export function useTemplateQuestionView({ onLoad, onWrite }: Readonly<{ onLoad: 
 export function useSaveTemplateView({ items, onSaved }: Readonly<{ items: ChecklistItem[]; onSaved: () => void }>): FlowStepView {
   const t = useTranslations()
   const createTemplate = useCreateChecklistTemplate()
+  const submission = useSubmitHold()
   const [name, setName] = useAccountScopedState('')
   const [hint, setHint] = useState<string | undefined>()
   const [focusRequest, setFocusRequest] = useState(0)
   const [saveError, setSaveError] = useState('')
-  const save = () => {
+  const save = () => void submission.run(async (startRequest) => {
     const trimmed = name.trim()
-    if (!trimmed) { setHint(t('habits.flow.templates.nameHint')); setFocusRequest((request) => request + 1); return }
-    if (createTemplate.isPending) return
+    if (!trimmed) { setHint(t('habits.flow.templates.nameHint')); setFocusRequest((request) => request + 1); return 'stay' }
     setSaveError('')
-    createTemplate.mutate({ name: trimmed, items: items.map((item) => item.text) }, {
-      onSuccess: () => { setName(''); onSaved() },
-      onError: () => setSaveError(t('habits.form.saveTemplateError')),
-    })
-  }
+    startRequest()
+    try {
+      await createTemplate.mutateAsync({ name: trimmed, items: items.map((item) => item.text) })
+      setName('')
+      onSaved()
+    } catch {
+      setSaveError(t('habits.form.saveTemplateError'))
+    }
+    return 'stay'
+  })
   return {
     question: t('habits.flow.templates.saveQuestion'),
     line: t('habits.flow.templates.saveLine'),
@@ -97,6 +103,6 @@ export function useSaveTemplateView({ items, onSaved }: Readonly<{ items: Checkl
         error={hint} focusRequest={focusRequest} onChange={(value) => { setHint(undefined); setName(value) }} onSubmit={save} />
       {saveError ? <p role="alert" className="text-sm text-[var(--status-bad-text)]">{saveError}</p> : null}
     </>,
-    primary: { label: t('common.save'), onPress: save, loading: createTemplate.isPending },
+    primary: { label: t('common.save'), onPress: save, loading: submission.waiting },
   }
 }

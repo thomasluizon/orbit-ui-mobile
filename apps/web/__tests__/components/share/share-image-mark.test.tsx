@@ -18,7 +18,6 @@ function renderInPortuguese(card: React.ReactElement) {
   return render(<NextIntlClientProvider locale="pt-BR" messages={ptBR}>{card}</NextIntlClientProvider>)
 }
 
-/** The mark of a shared image: one small static face, never the live rig and never a running loop. */
 function expectStaticMark(card: HTMLElement) {
   const drawings = card.querySelectorAll('svg')
   expect(drawings).toHaveLength(1)

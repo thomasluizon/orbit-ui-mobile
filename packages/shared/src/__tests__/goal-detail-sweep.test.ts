@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { getGoalDeadlineFact } from '../utils/goal-detail-line'
+import { getGoalDeadlineFact, getGoalSheetTitle } from '../utils/goal-detail-line'
 import { goalProgressSweepStart, parseGoalSeenProgress, recordGoalSeenProgress } from '../utils/goal-seen-progress'
 import { createUseRingSweep } from '../hooks/ring-sweep-core'
 import { createHookStateHarness } from '../test-support/hook-state'
@@ -55,14 +55,16 @@ describe('ring sweep', () => {
     const harness = createHookStateHarness()
     const frames: (() => void)[] = []
     const cleanups: (() => void)[] = []
+    const cancelled: number[] = []
+    let handle = 0
     const useRingSweep = createUseRingSweep({
       useState: harness.useState,
       useEffect: (effect) => { const cleanup = effect(); if (cleanup) cleanups.push(cleanup) },
-      requestFrame: (callback) => frames.push(callback),
-      cancelFrame: () => {},
+      requestFrame: (callback) => { frames.push(callback); handle += 1; return handle },
+      cancelFrame: (handle) => cancelled.push(handle),
     })
     const onDone = vi.fn()
-    return { render: (value: number) => harness.render(() => useRingSweep(value, from, onDone)), frames, onDone }
+    return { render: (value: number) => harness.render(() => useRingSweep(value, from, onDone)), frames, cleanups, cancelled, onDone }
   }
 
   it('draws the old value, then the new value two frames later', () => {
@@ -80,5 +82,25 @@ describe('ring sweep', () => {
     const { render, frames } = setup(null)
     expect(render(40)).toBe(40)
     expect(frames).toHaveLength(0)
+  })
+
+  it('cancels both frames when the ring leaves the screen during the sweep, and reports no sweep', () => {
+    const { render, frames, cleanups, cancelled, onDone } = setup(25)
+    expect(render(40)).toBe(25)
+    frames.shift()?.()
+    cleanups.forEach((cleanup) => cleanup())
+    expect(cancelled, 'the first frame handle and the second frame handle').toEqual([1, 2])
+    expect(onDone).not.toHaveBeenCalled()
+  })
+})
+
+describe('goal sheet title', () => {
+  it('names the guided sheet with the goal in the words of the person, and shows no second title', () => {
+    expect(getGoalSheetTitle({ title: 'Run 5 km' }, true, 'Goals')).toEqual({ accessibleTitle: 'Run 5 km' })
+  })
+
+  it('shows the route name while no goal loaded, and with the guided flows off', () => {
+    expect(getGoalSheetTitle(null, true, 'Goals')).toEqual({ title: 'Goals' })
+    expect(getGoalSheetTitle({ title: 'Run 5 km' }, false, 'Goals')).toEqual({ title: 'Goals' })
   })
 })

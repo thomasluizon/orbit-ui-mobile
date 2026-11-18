@@ -13,7 +13,7 @@ export function HabitDetailLoadError({ message, offlineMessage, error: failure, 
   const guided = useFlag('orbit_guided_flows')
   const size = useStateMascotSize()
   const shown = guided && offlineMessage && isNetworkUnavailableError(failure) ? offlineMessage : message
-  const error = <ErrorState message={shown} action={<IconButton label={retryLabel} onClick={onRetry}><RefreshCw size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton>} />
+  const error = <ErrorState fullSurface={!guided} message={shown} action={<IconButton label={retryLabel} onClick={onRetry}><RefreshCw size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton>} />
   if (!guided) return error
   return (
     <ShellCentredRegion>

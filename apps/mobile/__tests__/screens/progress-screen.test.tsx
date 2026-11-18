@@ -322,7 +322,6 @@ function findGoalCard(root: TestNode, title: string): TestNode {
     && String(node.props.accessibilityLabel).includes(`\"title\":\"${title}\"`))[0]!
 }
 
-/** The painted goal card surface: the press scale layer inside the card's press target. */
 function goalSurface(card: TestNode): ViewStyle & { transition?: string } {
   const layers = card.findAll((node) => typeof node.type === 'string' && node.props['data-slot'] === 'press-scale')
   expect(layers, 'one press scale layer paints the card inside its press target').toHaveLength(1)
@@ -398,6 +397,7 @@ describe('mobile ProgressContent', () => {
           const card = box('achievement-tile-first_orbit')
           const title = measured.texts.find((text) => text.label === 'gamification.achievements.first_orbit.name')!
           expect(title.top - card.top).toBeCloseTo(16)
+          expect(box('achievement-mark-unearned').left - card.left).toBeCloseTo(16)
           const category = measured.texts.find((text) => text.label === 'gamification.categories.GettingStarted')!
           expect(card.top - category.bottom).toBeCloseTo(12)
         }
@@ -555,7 +555,8 @@ describe('mobile ProgressContent', () => {
 
     let card = findCard()
     const resting = goalSurface(card)
-    expect(resting).toMatchObject({ backgroundColor: tokens.bgCard, borderColor: tokens.hairlineGhost, transform: [{ scale: 1 }] })
+    expect(resting).toMatchObject({ backgroundColor: tokens.bgCard, outlineColor: tokens.hairlineGhost, outlineWidth: 1, outlineOffset: -1, outlineStyle: 'solid', transform: [{ scale: 1 }] })
+    expect(resting.borderWidth, 'a border takes layout space and moves the copy off the record inset').toBeUndefined()
     expect(resting.transition).toBe(PRESS_SCALE_TRANSITION)
     expect(Object.keys(resting).filter((key) => key.startsWith('transition'))).toEqual(['transition'])
     expect(target().transform, 'the press target keeps its full size').toBeUndefined()
@@ -568,7 +569,7 @@ describe('mobile ProgressContent', () => {
     await TestRenderer.act(async () => { tree.update(<GoalsPage />); await Promise.resolve() })
     card = findCard()
     expect(goalSurface(card)).toMatchObject({
-      borderColor: tokens.hairlineStrong,
+      outlineColor: tokens.hairlineStrong,
       elevation: 4,
       opacity: 0.5,
       transform: [{ scale: 0.96 }],
@@ -944,7 +945,6 @@ describe('mobile ProgressContent', () => {
       expect(headings, label).toHaveLength(1)
       const heading = headings[0]!
 
-      /** No ancestor re-names the section, which is the "named twice" half of the defect. */
       for (let ancestor = heading.parent; ancestor; ancestor = ancestor.parent) {
         expect(ancestor.props.accessibilityLabel, label).not.toBe(label)
         expect(ancestor.props.accessibilityLabelledBy, label).toBeUndefined()
@@ -1060,6 +1060,10 @@ describe('mobile ProgressContent', () => {
     expect(cards).toHaveLength(1)
     expect(pillButtons(cards[0]!)).toHaveLength(1)
     expect(pillButtons(cards[0]!)[0]!.props.testID).toBe('button-ghost-sm')
+    const measured = measureProfileRow(tree.toJSON() as HabitRowHost, 412, 1)
+    const card = measured.boxes.find((entry) => entry.testID === 'progress-locked-card')!
+    const copy = measured.texts.filter((text) => text.top >= card.top && text.bottom <= card.bottom)
+    expect(Math.min(...copy.map((text) => text.left)) - card.left).toBeCloseTo(16)
   })
 
   it('keeps the Pro window locked when free gamification succeeds but retrospective returns PAY_GATE', async () => {

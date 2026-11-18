@@ -85,11 +85,6 @@ export function MilestoneSharePrompt() {
   }, [shown, promptId, unregisterOpenOverlay])
   useEffect(() => () => unregisterOpenOverlay(promptId), [promptId, unregisterOpenOverlay])
   const retiredPromptRef = useRef<typeof armedPrompt>(null)
-  /**
-   * The settle timer is the one thing the state reset above cannot reach: with no prompt on
-   * screen its effect never re-runs, so a timer armed for the previous account would open this
-   * prompt under the next one.
-   */
   useResetOnAccountChange(() => {
     clearTimeout(settleTimerRef.current)
     retiredPromptRef.current = armedPrompt

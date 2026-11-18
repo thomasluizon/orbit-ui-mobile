@@ -14,10 +14,6 @@ const TestRenderer: typeof import('react-test-renderer') = require('react-test-r
 type SharedValue = { value: unknown; assigned: unknown[] }
 const motion = vi.hoisted(() => ({ reduced: false, reading: undefined as SharedValue[] | undefined }))
 vi.mock('@/lib/motion', async (importOriginal) => ({ ...await importOriginal<typeof import('@/lib/motion')>(), usePrefersReducedMotion: () => motion.reduced }))
-/**
- * Each shared value is stable and remembers what it was set to, and each animated style names the shared values it read,
- * so the test reads the opacity of the card's own change and not that of the block frame inside it.
- */
 vi.mock('react-native-reanimated', async (importOriginal) => {
   const actual = await importOriginal<typeof import('react-native-reanimated')>()
   const { useState: useStable } = await import('react')
@@ -53,7 +49,6 @@ const items = ['Run', 'Read'].map((name, index) => ({
 const preview = makePendingAgentOperation({ riskClass: 'Low', confirmationRequirement: 'None', previewFingerprint: 'preview-1', items, changeTargetCount: 2 })
 const confirm = vi.fn()
 
-/** The card as the conversation holds it: each settled patch returns as the saved state of the message. */
 function ConversationCard({ onRevise }: Readonly<{ onRevise?: RevisePendingOperation }>) {
   const [savedState, setSavedState] = useState<PendingOperationMessageState>()
   return <PendingOperationCard pendingOperation={preview} savedState={savedState} onStateChange={(patch) => setSavedState((current) => ({ ...current, ...patch }))}
@@ -101,7 +96,6 @@ const flows = {
 }
 const outcomes = Object.keys(flows) as (keyof typeof flows)[]
 
-/** The presentation of the card's own change, the outermost one, with the shared values it reads. */
 function cardChange(tree: ReactTestRenderer) {
   const host = tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'conversation-change')[0]!
   const presentation = (host.props.style as unknown[]).find((layer) => typeof layer === 'object' && layer !== null && 'sharedValues' in layer) as { opacity: number; sharedValues: SharedValue[] }

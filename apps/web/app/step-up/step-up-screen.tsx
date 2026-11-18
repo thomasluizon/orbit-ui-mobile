@@ -13,12 +13,16 @@ import {
   getStepUpLockSeconds,
   getStepUpPhaseFromTiming,
   isStepUpOperation,
+  markStepUpFlowContinued,
+  type StepUpOperation,
   type StepUpPhase,
   type StepUpTimingRecord,
   getFriendlyErrorMessage,
 } from '@orbit/shared/utils'
 import { PROFILE_STEP_UP_DESTINATIONS } from '@orbit/shared/utils/profile-routes'
+import { getBackLabel } from '@orbit/shared/utils/back-label'
 import { useProfile } from '@/hooks/use-profile'
+import { useFlag } from '@/hooks/use-flag'
 import { useDateFormat } from '@/hooks/use-date-format'
 import { getHeldAccountId, useAuthStore, useHeldAccountId } from '@/stores/auth-store'
 import { useAccountScopedState } from '@/hooks/use-session-reset'
@@ -41,8 +45,10 @@ import { UpdateAvailableBanner } from '@/components/ui/update-available-banner'
 import { FlowShell } from '@/components/shell/flow-shell'
 import { OtpInput } from '@/components/ui/otp-input'
 import { PillButton } from '@/components/ui/pill-button'
+import { ResultDialog } from '@/components/ui/result-dialog'
 import { QuietLink } from '@/components/ui/quiet-link'
 import { CapacityNotice } from '@/components/ui/capacity-notice'
+import { GuidedStepUp, type GuidedStepUpState } from './guided-step-up'
 
 const subscribeClientReady = () => () => {}
 const getClientReady = () => true
@@ -108,6 +114,8 @@ function StepUpScreenContent({
   const [code, setCode] = useAccountScopedState('')
   const [attemptsRemaining, setAttemptsRemaining] = useAccountScopedState<number | null>(null)
   const [fieldError, setFieldError] = useAccountScopedState<string | null>(null)
+  const [shortSubmits, setShortSubmits] = useAccountScopedState(0)
+  const guided = useFlag('orbit_guided_flows')
   const [requestError, setRequestError] = useAccountScopedState<string | null>(null)
   const [requesting, setRequesting] = useAccountScopedState(false)
   const [scheduledDeletionAt, setScheduledDeletionAt] = useAccountScopedState<string | null>(null)
@@ -183,7 +191,11 @@ function StepUpScreenContent({
   }
 
   async function handleConfirm() {
-    if (!operation || !record || code.length !== STEP_UP_CODE_LENGTH || checking || accountId === null) return
+    if (!operation || !record || checking || accountId === null) return
+    if (code.length !== STEP_UP_CODE_LENGTH) {
+      if (guided) refuseShortCode()
+      return
+    }
     const intendedAccountId = accountId
     const accountGeneration = getAccountGeneration()
 
@@ -205,6 +217,7 @@ function StepUpScreenContent({
         }
         clearStepUpTiming(operation, accountId)
         markStepUpVerified(operation)
+        markStepUpFlowContinued(operation)
         router.replace(returnDestination)
         return
       }
@@ -265,8 +278,14 @@ function StepUpScreenContent({
     setNow(Date.now())
   }
 
+  function refuseShortCode() {
+    setFieldError(translate('auth.errors.codeFormat'))
+    setShortSubmits((count) => count + 1)
+  }
+
   function handleCodeChange(value: string) {
     setCode(value)
+    setShortSubmits(0)
     setFieldError(null)
     setAttemptsRemaining(null)
     if (phase === 'wrong') setPhase('challenge')
@@ -276,48 +295,36 @@ function StepUpScreenContent({
 
   if (!clientReady || sessionInactive || !operation || (!record && !success)) return null
 
-  const sharedView = { operationLabel, t }
+  const surface = { operationLabel, t, guided, operation }
   if (success) {
     return (
-      <StepUpSuccess
-        {...sharedView}
-        deletionDate={formattedDeletionDate}
-        showProNotice={Boolean(profile?.hasProAccess)}
-        onSignOut={() => void logout()}
-      />
+      <>
+        <StepUpSurface {...surface} state={{ kind: 'success', scheduledAt: scheduledDeletionAt, deletionDate: formattedDeletionDate, showProNotice: Boolean(profile?.hasProAccess), onSignOut: () => void logout() }} />
+        <DeletionResult deletionDate={formattedDeletionDate} pro={Boolean(profile?.hasProAccess)} onSignOut={() => void logout()} />
+      </>
     )
   }
   if (exhausted) {
-    return (
-      <StepUpExhausted
-        {...sharedView}
-        lockSeconds={lockSeconds}
-        backLabel={translate('common.backToDestination', {
-          destination: operation === 'keys'
-            ? translate('profile.groups.astra')
-            : translate('profile.submenus.account'),
-        })}
-        onBack={() => router.replace(returnDestination)}
-      />
-    )
+    return <StepUpSurface {...surface} state={{ kind: 'exhausted', lockSeconds, backLabel: getBackLabel(returnDestination, translate), onBack: () => router.replace(returnDestination) }} />
   }
   return (
-    <StepUpChallenge
-      {...sharedView}
-      checking={checking}
-      code={code}
-      cooldownSeconds={cooldownSeconds}
-      email={email}
-      expired={expired}
-      onCancel={() => router.replace(returnDestination)}
-      onCodeChange={handleCodeChange}
-      onConfirm={() => void handleConfirm()}
-      onResend={() => void handleResend()}
-      otpError={otpError}
-      requestError={requestError}
-      requesting={requesting}
-    />
+    <StepUpSurface {...surface} state={{
+      kind: 'challenge', checking, code, cooldownSeconds, email, expired, otpError, requestError, requesting,
+      codeFocusRequest: shortSubmits > 0 ? shortSubmits : undefined,
+      onCancel: () => router.replace(returnDestination),
+      onCodeChange: handleCodeChange,
+      onConfirm: () => void handleConfirm(),
+      onResend: () => void handleResend(),
+    }} />
   )
+}
+
+function StepUpSurface({ guided, operation, state, operationLabel, t }: Readonly<SharedStepUpViewProps & { guided: boolean; operation: StepUpOperation; state: GuidedStepUpState }>) {
+  if (guided) return <GuidedStepUp operation={operation} state={state} />
+  const sharedView = { operationLabel, t }
+  if (state.kind === 'success') return <StepUpSuccess {...sharedView} deletionDate={state.deletionDate} showProNotice={state.showProNotice} onSignOut={state.onSignOut} />
+  if (state.kind === 'exhausted') return <StepUpExhausted {...sharedView} lockSeconds={state.lockSeconds} backLabel={state.backLabel} onBack={state.onBack} />
+  return <StepUpChallenge {...state} operationLabel={operationLabel} t={t} />
 }
 
 type StepUpTranslator = ReturnType<typeof useTranslations>
@@ -371,7 +378,7 @@ function StepUpSuccess({
   showProNotice: boolean
 }>) {
   return (
-    <FlowShell nav={false} notice={<UpdateAvailableBanner inset={false} />} action={
+    <FlowShell nav={false} notice={<UpdateAvailableBanner inset={false} mascot={false} />} action={
       <PillButton onClick={onSignOut}>{t('signOut')}</PillButton>
     }>
       <StepUpHeader operationLabel={operationLabel} t={t} title={t('successTitle', { date: deletionDate })} />
@@ -383,6 +390,23 @@ function StepUpSuccess({
   )
 }
 
+function DeletionResult({ deletionDate, pro, onSignOut }: Readonly<{ deletionDate: string; pro: boolean; onSignOut: () => void }>) {
+  const t = useTranslations()
+  const guided = useFlag('orbit_guided_flows')
+  const [dismissed, setDismissed] = useState(false)
+  if (!guided || dismissed) return null
+  return (
+    <ResultDialog
+      title={t('result.title')}
+      sentence={pro ? t('result.account.deletionScheduledPro', { date: deletionDate }) : t('result.account.deletionScheduled', { date: deletionDate })}
+      primaryLabel={t('stepUp.signOut')}
+      onPrimary={onSignOut}
+      onClose={() => setDismissed(true)}
+      orbitState="parado"
+    />
+  )
+}
+
 function StepUpExhausted({
   backLabel,
   lockSeconds,
@@ -391,7 +415,7 @@ function StepUpExhausted({
   t,
 }: Readonly<SharedStepUpViewProps & { backLabel: string; lockSeconds: number | null; onBack: () => void }>) {
   return (
-    <FlowShell nav={false} notice={<UpdateAvailableBanner inset={false} />}>
+    <FlowShell nav={false} notice={<UpdateAvailableBanner inset={false} mascot={false} />}>
       <StepUpHeader body={t('exhaustedBody')} operationLabel={operationLabel} t={t} title={t('exhaustedTitle')} />
       <div className="flex flex-col items-start" style={{ gap: 12 }}>
         <CapacityNotice message={t('exhaustedNotice')} />
@@ -410,6 +434,7 @@ function StepUpExhausted({
 interface StepUpChallengeProps extends SharedStepUpViewProps {
   checking: boolean
   code: string
+  codeFocusRequest: number | undefined
   cooldownSeconds: number
   email: string
   expired: boolean
@@ -423,16 +448,16 @@ interface StepUpChallengeProps extends SharedStepUpViewProps {
 }
 
 function StepUpChallenge(props: Readonly<StepUpChallengeProps>) {
-  const { checking, code, cooldownSeconds, email, expired, onCancel, onCodeChange, onConfirm, onResend, operationLabel, otpError, requestError, requesting, t } = props
+  const { checking, code, codeFocusRequest, cooldownSeconds, email, expired, onCancel, onCodeChange, onConfirm, onResend, operationLabel, otpError, requestError, requesting, t } = props
   const action = expired ? (
     <PillButton loading={requesting} onClick={onResend}>{t('resend')}</PillButton>
   ) : (
     <PillButton disabled={code.length !== STEP_UP_CODE_LENGTH} loading={checking} onClick={onConfirm}>{t('confirm')}</PillButton>
   )
   return (
-    <FlowShell nav={false} notice={<UpdateAvailableBanner inset={false} />} action={action}>
+    <FlowShell nav={false} notice={<UpdateAvailableBanner inset={false} mascot={false} />} action={action}>
       <StepUpHeader body={expired ? t('expiredBody') : t('body', { email })} operationLabel={operationLabel} t={t} title={expired ? t('expiredTitle') : t('title')} />
-      <OtpInput id="step-up-code" value={code} onChange={onCodeChange} error={otpError} hint={expired ? undefined : t('codeHint')} disabled={checking || expired} autoFocus={!expired} label={t('codeLabel')} />
+      <OtpInput id="step-up-code" value={code} onChange={onCodeChange} error={otpError} focusRequest={codeFocusRequest} hint={expired ? undefined : t('codeHint')} disabled={checking || expired} autoFocus={!expired} label={t('codeLabel')} />
       {!expired ? <StepUpResend cooldownSeconds={cooldownSeconds} onResend={onResend} requesting={requesting} t={t} /> : null}
       {requestError ? <p role="alert" style={{ color: 'var(--status-bad-text)' }}>{requestError}</p> : null}
       <div className="flex flex-col items-start" style={{ gap: 8, paddingTop: SPACING.s8 }}>

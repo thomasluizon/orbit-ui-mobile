@@ -27,9 +27,7 @@ interface GoalCardProps {
   index: number
   total: number
   canReorder: boolean
-  /** The value the ring sweeps from once, when the goal changed since the last visit. Null draws the ring at rest. */
   sweepFrom: number | null
-  /** Reports that this card's ring swept, so the list never sweeps it again in this visit. */
   onSwept?: () => void
   onMove: (goalId: string, target: number) => void
   onOpen: () => void

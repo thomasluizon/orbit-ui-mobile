@@ -1,8 +1,9 @@
 import { ShellContent } from '@/components/shell/shell-content'
-import { getPendingAuthProvider, getAuthCallbackErrorKey } from '@orbit/shared/utils'
+import { getPendingAuthProvider, getAuthCallbackErrorKey, showsAuthCallbackLine } from '@orbit/shared/utils'
+import type { AuthCallbackState } from '@orbit/shared/utils/auth-callback-failure'
 import { SPACING } from '@orbit/shared/theme'
-import { useEffect, useState } from 'react'
-import { Keyboard, Platform, Text, View, useWindowDimensions } from 'react-native'
+import { useState } from 'react'
+import { Platform, Text, View, useWindowDimensions } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -15,15 +16,22 @@ import { useLoginFlow } from '@/app/use-login-flow'
 import { LoginHeader, ReferralBanner, LoginStepStage, LoginValidationMessage } from './login-sections'
 import { EmailStep } from './email-step'
 import { CodeStep } from './code-step'
+import { GuidedLoginContent } from './guided-login'
+import { useGuidedSignIn } from './guided-sign-in'
 
 export interface LoginCallback {
   provider?: 'apple' | 'google'
-  state: 'pending' | 'failed' | 'account'
+  state: AuthCallbackState
   onContinue: () => void
   loading?: boolean
 }
 
+/** With `orbit_guided_flows` on, sign-in is the one-question flow. With it off, the current surface shows. */
 export function LoginContent({ callback }: Readonly<{ callback?: LoginCallback }>) {
+  return useGuidedSignIn() ? <GuidedLoginContent callback={callback} /> : <CurrentLoginContent callback={callback} />
+}
+
+function CurrentLoginContent({ callback }: Readonly<{ callback?: LoginCallback }>) {
   const insets = useSafeAreaInsets()
   const { width } = useWindowDimensions()
   const wide = width >= 768
@@ -33,12 +41,6 @@ export function LoginContent({ callback }: Readonly<{ callback?: LoginCallback }
   const flow = useLoginFlow(Boolean(callback))
   const { t } = flow
   const [callbackDismissed, setCallbackDismissed] = useState(false)
-  const [keyboardOpen, setKeyboardOpen] = useState(false)
-  useEffect(() => {
-    const show = Keyboard.addListener('keyboardDidShow', () => setKeyboardOpen(true))
-    const hide = Keyboard.addListener('keyboardDidHide', () => setKeyboardOpen(false))
-    return () => { show.remove(); hide.remove() }
-  }, [])
   function continueAccount() {
     if (callback?.state === 'account') callback.onContinue()
     else void flow.continueAccount()
@@ -46,7 +48,7 @@ export function LoginContent({ callback }: Readonly<{ callback?: LoginCallback }
   const account = Boolean(flow.accountBack) || callback?.state === 'account'
   const pendingProvider = getPendingAuthProvider(callback)
   const callbackErrorKey = getAuthCallbackErrorKey(callback?.provider)
-  const googleFailed = callback?.state === 'failed' && !callbackDismissed
+  const googleFailed = showsAuthCallbackLine(callback) && !callbackDismissed
   const emailErrorKey = googleFailed ? callbackErrorKey : flow.errorKey
   const emailErrorMessage = googleFailed ? t(callbackErrorKey) : flow.errorMessage
   const sendCodeLabel = flow.fromOnboarding ? t('auth.onboarding.continue') : undefined
@@ -54,11 +56,12 @@ export function LoginContent({ callback }: Readonly<{ callback?: LoginCallback }
   const turnstileWidget = flow.turnstileSiteKey && flow.isOnline
     ? <TurnstileWidget key={flow.turnstileResetKey} siteKey={flow.turnstileSiteKey} resetKey={flow.turnstileResetKey} onToken={flow.onTurnstileToken} />
     : null
+  const scrollPadding = wide ? styles.scrollWide.padding : 0
   return <View style={styles.root}>
-    <ShellContent style={{ flex: 1 }}><KeyboardAwareScrollView containerStyle={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]}
-      contentContainerStyle={[styles.scrollContent, keyboardOpen && styles.scrollKeyboardOpen, wide && styles.scrollWide]} keyboardShouldPersistTaps="always"
+    <ShellContent style={{ flex: 1 }}><KeyboardAwareScrollView containerStyle={[styles.container, { paddingTop: insets.top }]}
+      contentContainerStyle={[styles.scrollContent, wide && styles.scrollWide, { paddingBottom: scrollPadding + insets.bottom }]} keyboardShouldPersistTaps="always"
       showsVerticalScrollIndicator={false}>
-      <View style={[styles.formColumn, !wide && styles.formCompact, width < 336 && { paddingHorizontal: SPACING.s8 }, wide && styles.panel]}>
+      <View testID="login-column" style={[styles.formColumn, width < 336 && { paddingHorizontal: SPACING.s8 }, wide && styles.panel]}>
         {Platform.OS !== 'ios' && flow.showReferralBanner && !account && <ReferralBanner t={t} styles={styles} />}
         <Lockup />
         {account ? <AccountBackState t={t} styles={styles} loading={flow.isSubmitting || callback?.loading}

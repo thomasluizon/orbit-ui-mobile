@@ -39,7 +39,6 @@ interface CalendarGridProps {
   slideDirection?: CalendarSlideDirection | null
   swipeGesture?: PanGesture
   gridRef?: RefObject<View | null>
-  /** The slot of the selected day, so Orbit can look toward it. */
   selectedRef?: RefObject<View | null>
   onSelectDay: (dateStr: string) => void
   language: string

@@ -401,9 +401,7 @@ function unreviewedBadFillInventory(
   }
 }
 
-/** WHY: both ExpiryWarning mirrors paint their text on the overdue token at this alpha over --bg. */
 const EXPIRY_TINT_ALPHA = 0.1
-/** WHY: the native high-conflict warning paints bad status text on this status-bad tint inside a card. */
 const BAD_WARNING_TINT_ALPHA = 0x1A / 0xFF
 
 const GRANTED_ACCENTS = {

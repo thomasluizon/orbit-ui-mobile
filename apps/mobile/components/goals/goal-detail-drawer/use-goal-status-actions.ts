@@ -10,7 +10,6 @@ interface GoalStatusActionsInput {
   goalCount: number | undefined
   goalUnit: string | undefined
   refetchDetail: () => void
-  /** Runs after an abandon or a reactivate is saved, so the detail can state the fact. */
   onStatusSaved?: (status: 'Abandoned' | 'Active') => void
 }
 

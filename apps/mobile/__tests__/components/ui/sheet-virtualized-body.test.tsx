@@ -10,6 +10,7 @@ import { buildYearRange } from '@orbit/shared/utils'
 import { GoalLinkingField } from '@/components/habits/goal-linking-field'
 import { TagPickerField } from '@/components/habits/habit-form-fields/tag-picker-field'
 import { useUIStore } from '@/stores/ui-store'
+import { applyBorderWidths } from '@/__tests__/support/yoga-borders'
 
 vi.unmock('@/components/ui/sheet')
 
@@ -47,16 +48,9 @@ const TestRenderer = require('react-test-renderer')
 
 const HEADER_HEIGHT = 56
 const COLLECTION_SIZE = 25
-/** Every row is at least a 48px touch target, so this is a lower bound on the list's scrolled content. */
 const ROW_HEIGHT_FLOOR = 48
-/** The test renderer measures no text, so each line takes a fixed height. Any positive height gives the same containment result. */
 const TEXT_LINE_HEIGHT = 20
-/**
- * A FlatList renders a ScrollView, which puts its vertical base style under the caller's style.
- * react-native 0.86.3 `Libraries/Components/ScrollView/ScrollView.js`, `baseVertical`.
- */
 const SCROLL_VIEW_BASE_STYLE = { flexGrow: 1, flexShrink: 1 }
-/** The web pickers cap their list at `max-h-80`, so a tall window shows the same list on both platforms. */
 const WEB_LIST_VIEWPORT_HEIGHT = 320
 
 const WINDOWS = [
@@ -86,7 +80,6 @@ function numeric(value: unknown): number | undefined {
   return typeof value === 'number' ? value : undefined
 }
 
-/** Applies every style key that moves a box. Colour, type and radius keys leave the geometry alone. */
 function applyLayoutStyle(node: YogaNode, style: LayoutStyle) {
   if (numeric(style.flex) !== undefined) node.setFlex(numeric(style.flex))
   if (numeric(style.flexGrow) !== undefined) node.setFlexGrow(numeric(style.flexGrow))
@@ -97,7 +90,7 @@ function applyLayoutStyle(node: YogaNode, style: LayoutStyle) {
   if (numeric(style.maxHeight) !== undefined) node.setMaxHeight(numeric(style.maxHeight))
   if (numeric(style.gap) !== undefined) node.setGap(Yoga.GUTTER_ALL, numeric(style.gap))
   if (numeric(style.rowGap) !== undefined) node.setGap(Yoga.GUTTER_ROW, numeric(style.rowGap))
-  if (numeric(style.borderWidth) !== undefined) node.setBorder(Yoga.EDGE_ALL, numeric(style.borderWidth))
+  applyBorderWidths(node, style)
   for (const [suffix, edge] of EDGES) {
     if (numeric(style[`padding${suffix}`]) !== undefined) node.setPadding(edge, numeric(style[`padding${suffix}`]))
     if (numeric(style[`margin${suffix}`]) !== undefined) node.setMargin(edge, numeric(style[`margin${suffix}`]))
@@ -112,7 +105,6 @@ function scrolledRowsHeight(list: HostJson): number {
   return (list.props.data as unknown[]).length * ROW_HEIGHT_FLOOR
 }
 
-/** Builds the Yoga tree the native side lays out for a rendered host subtree. */
 function buildLayoutTree(element: HostJson, nodes: Map<HostJson, YogaNode>): YogaNode {
   const node = Yoga.Node.create()
   nodes.set(element, node)
@@ -157,7 +149,6 @@ function findHost(root: HostJson | HostJson[] | null, matches: (element: HostJso
   return null
 }
 
-/** The top edge of `element` inside `ancestor`, walking the Yoga parents between them. */
 function topWithin(node: YogaNode, ancestor: YogaNode): number {
   let top = 0
   let current: YogaNode | null = node
@@ -200,11 +191,6 @@ const PICKERS = [
   },
 ]
 
-/**
- * A virtualized picker hands scrolling to its own FlatList, so the sheet body cannot scroll a list
- * that runs past it. The list has to shrink into whatever height the body has left, or its last rows
- * and the tag picker's trailing controls sit below the sheet where nobody can reach them.
- */
 describe('Sheet virtualized body (mobile)', () => {
   beforeEach(() => {
     useUIStore.setState({ openOverlayIds: [] })

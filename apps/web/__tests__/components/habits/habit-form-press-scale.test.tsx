@@ -36,17 +36,14 @@ import { TagPickerField } from '@/components/habits/habit-form-fields/tag-picker
 const translate = ((key: string) => key) as unknown as Parameters<typeof ReminderSection>[0]['t']
 const tag = { id: 'tag-0', name: 'Health', color: '#6d5bd0' }
 
-/** The edit modal disables its habit form fields through `<fieldset disabled>` while it saves (`edit-habit-modal.tsx`). */
 function InFieldset({ disabled, children }: Readonly<{ disabled: boolean; children: ReactNode }>) {
   return <fieldset disabled={disabled}>{children}</fieldset>
 }
 
-/** A tag suggestion row (`tag-suggestions.tsx`): proposed, and disabled at the tag limit or while a suggestion saves. */
 function ProposedPickerRow({ disabled }: Readonly<{ disabled: boolean }>) {
   return <PickerRow proposed name="Reading" selected={false} disabled={disabled} onToggle={vi.fn()} value="" valueClassName="flex-1" controlClassName="orbit-list-row-body flex min-h-12 w-full items-center rounded-[12px] px-2 py-1 text-left disabled:opacity-40" actionsClassName="flex" />
 }
 
-/** The habit form's radio rows (`habit-type-field.tsx`, `habit-date-field.tsx`): a plain row, a personal row, and a disabled personal row with its reason disclosure. */
 function FormRadioRows() {
   return <RadioGroup aria-label="Type">
     <RadioRow label="Task" selected onSelect={vi.fn()} />
@@ -55,7 +52,6 @@ function FormRadioRows() {
   </RadioGroup>
 }
 
-/** A plain and a personal radio row, idle or busy. A busy row stays enabled for focus and is `aria-disabled`, so `:enabled` does not gate it. */
 function RadioRowsWhile({ busy }: Readonly<{ busy: boolean }>) {
   const state = busy ? { busy: true as const, reason: 'Saving' } : { busy: false as const }
   return <RadioGroup aria-label="Type">
@@ -64,7 +60,6 @@ function RadioRowsWhile({ busy }: Readonly<{ busy: boolean }>) {
   </RadioGroup>
 }
 
-/** Each scenario renders habit form press controls in their disabled state and returns them. */
 const DISABLED_PRESS_CONTROLS: ReadonlyArray<readonly [string, () => HTMLElement[]]> = [
   ['a proposed picker row whose caller passes no press scale', () => {
     render(<ProposedPickerRow disabled />)
@@ -87,8 +82,8 @@ const DISABLED_PRESS_CONTROLS: ReadonlyArray<readonly [string, () => HTMLElement
     fireEvent.click(screen.getByText('habits.form.saveCurrentList'))
     return [screen.getByRole('button', { name: 'common.save' })]
   }],
-  ['the tag editor cancel (its save is the shared PillButton, which owns its press scale)', () => {
-    render(<TagEditorRow value="Health" inputAriaLabel="Tag name" actionLabel="Save tag" cancelAriaLabel="Cancel tag" disabled onChange={vi.fn()} onCommit={vi.fn()} onCancel={vi.fn()} />)
+  ['the tag editor cancel while its tag request runs (its save is the shared PillButton, which owns its press scale)', () => {
+    render(<TagEditorRow value="Health" inputAriaLabel="Tag name" actionLabel="Save tag" cancelAriaLabel="Cancel tag" pending onChange={vi.fn()} onCommit={vi.fn()} onCancel={vi.fn()} />)
     expect(screen.getByRole('button', { name: 'Save tag' })).toBeDisabled()
     return [screen.getByRole('button', { name: 'Cancel tag' })]
   }],
@@ -132,10 +127,8 @@ const DISABLED_PRESS_CONTROLS: ReadonlyArray<readonly [string, () => HTMLElement
 ]
 
 const HABITS = 'components/habits'
-/** Files `HabitFormFields` renders inside the edit modal's `<fieldset disabled>`, so a fieldset can disable any of their controls. */
 const FIELDSET_FILES = ['habit-form-fields/', 'checklist-templates.tsx', 'habit-checklist.tsx', 'goal-linking-field.tsx']
 const FORM_CONTROLS = new Set(['button', 'input', 'select', 'textarea'])
-/** A hover or press variant that paints a fill or a text colour, or scales. */
 const INTERACTION_TOKEN = /^(?<chain>(?:[\w-]+(?:\/[\w-]+)?:)*?)(?<group>group-)?(?<state>hover|active)(?:\/(?<name>[\w-]+))?:(?:[\w-]+:)*(?:bg|text|scale)-/
 
 function habitSourceFiles(directory: string): string[] {
@@ -146,7 +139,6 @@ function habitSourceFiles(directory: string): string[] {
   })
 }
 
-/** Class tokens of a `className` value. A token in the false branch of a `disabled ? … : …` condition is gated by that condition. */
 function classTokens(node: ts.Node, source: ts.SourceFile, gated = false): Array<{ token: string; gated: boolean }> {
   if (ts.isConditionalExpression(node) && /\b(?:is)?[dD]isabled\b/.test(node.condition.getText(source))) {
     return [...classTokens(node.whenTrue, source, gated), ...classTokens(node.whenFalse, source, true)]
@@ -159,7 +151,6 @@ function classTokens(node: ts.Node, source: ts.SourceFile, gated = false): Array
 
 interface ClassAttribute { at: string; inFieldset: boolean; disableable: boolean; tokens: Array<{ token: string; gated: boolean }> }
 
-/** Every `className` in a habit file, with whether its element is a form control that can be disabled, directly or by the form fieldset. */
 function classAttributes(file: string): ClassAttribute[] {
   const path = relative(HABITS, file)
   const inFieldset = FIELDSET_FILES.some((prefix) => path.startsWith(prefix))
@@ -182,7 +173,6 @@ function classAttributes(file: string): ClassAttribute[] {
   return attributes
 }
 
-/** An own hover or press paint or scale with no `enabled:` guard on a control that can be disabled. */
 function ungatedOwnTokens({ at, inFieldset, disableable, tokens }: ClassAttribute) {
   if (!disableable) return []
   return tokens.filter(({ token, gated }) => {
@@ -191,7 +181,6 @@ function ungatedOwnTokens({ at, inFieldset, disableable, tokens }: ClassAttribut
   }).map(({ token }) => `${at} ${token}`)
 }
 
-/** A group hover or press paint keyed to a control that can be disabled, with neither a `group-enabled/` guard nor a `group-disabled/` reset. */
 function ungatedGroupTokens(attributes: ClassAttribute[]) {
   const groups = new Set(attributes.filter(({ disableable }) => disableable).flatMap(({ tokens }) => tokens.flatMap(({ token }) => /^group\/([\w-]+)$/.exec(token)?.[1] ?? [])))
   return attributes.flatMap(({ at, tokens }) => tokens.flatMap(({ token }) => {
@@ -203,7 +192,6 @@ function ungatedGroupTokens(attributes: ClassAttribute[]) {
   }))
 }
 
-/** Every hover or press paint or scale on a habit control that can be disabled, directly or by the form's fieldset, that still applies while it is disabled. */
 function ungatedInteractionPaint() {
   return habitSourceFiles(HABITS).flatMap((file) => {
     const attributes = classAttributes(file)
@@ -211,10 +199,8 @@ function ungatedInteractionPaint() {
   })
 }
 
-/** Properties a hover or a press paints: the fill and the content colour. */
 const INTERACTION_PAINT = ['background-color', 'background', 'color']
 
-/** The global press rule `app/globals.css` declares under reduced motion: its selector and whether it can beat a layered utility. */
 function reducedMotionPressRules() {
   const found: Array<{ selector: string; important: boolean; unlayered: boolean }> = []
   postcss.parse(readFileSync('app/globals.css', 'utf8')).walkAtRules('media', (media) => {
@@ -245,9 +231,8 @@ describe('habit form press scale', () => {
     rules = await compileClassRules(names)
   }, 60_000)
 
-  /** The rules that scale the pressed control itself; a rule with a child combinator scales its content instead. */
   function pressScaleRules(control: Element) {
-    return rules.rulesFor(control).filter((rule) => rule.declarations.has('scale') && rule.state.includes(':active') && !rule.state.includes('>'))
+    return rules.rulesFor(control).filter((rule) => rule.declarations.has('scale') && rule.state.includes(':active') && !rule.state.includes('>') && !rule.state.includes('::'))
   }
 
   it.each(DISABLED_PRESS_CONTROLS)('scales %s on press only while enabled, as the mobile press scale does', (_, renderControls) => {
@@ -275,10 +260,12 @@ describe('habit form press scale', () => {
     for (const { state } of promotions) expect(title.matches(state.replace(/:hover|:active/, ''))).toBe(!disabled)
   })
 
+  const isHitLayerCounterScale = (state: string) => /^:active::?before\b/.test(state)
+
   it.each([['enabled', false], ['disabled', true]] as const)('applies every hover and press rule of a radio row, its personal text and its reason disclosure only while the form fieldset is enabled: %s', (_, disabled) => {
     render(<InFieldset disabled={disabled}><FormRadioRows /></InFieldset>)
     const applies = [...document.querySelectorAll('fieldset *')].flatMap((element) => rules.rulesFor(element)
-      .filter(({ state }) => /:hover|:active/.test(state))
+      .filter(({ state }) => /:hover|:active/.test(state) && !isHitLayerCounterScale(state))
       .map(({ state }) => element.matches(`*${state.replace(/:hover|:active/g, '')}`)))
     expect(applies.length).toBeGreaterThan(0)
     expect(applies).toEqual(applies.map(() => !disabled))

@@ -22,7 +22,6 @@ type NavigationHost = {
     testID?: string
     style?: unknown
   }
-  /** The hosts under this one: each host is a test instance of the renderer. */
   findAll: (predicate: (node: NavigationHost) => boolean) => NavigationHost[]
 }
 export function renderNavigation(element: ReactElement) {

@@ -6,6 +6,7 @@ import { createJSONStorage, persist } from 'zustand/middleware'
 import {
   createOnboardingDraftState,
   getPersistedOnboardingDraft,
+  mergeOnboardingDraft,
   migrateOnboardingDraft,
   ONBOARDING_DRAFT_STORAGE_VERSION,
   type OnboardingDraftState,
@@ -28,17 +29,7 @@ export const useOnboardingDraftStore = create<OnboardingDraftState>()(
       migrate: migrateOnboardingDraft,
       partialize: getPersistedOnboardingDraft,
       skipHydration: true,
-      merge: (persisted, current) => {
-        const draft = migrateOnboardingDraft(persisted)
-        const accountId = getAccountId()
-        return {
-          ...current,
-          ...(accountId !== null && draft.accountKey !== accountId
-            ? migrateOnboardingDraft(null)
-            : draft),
-          onboardingLocallyDone: current.onboardingLocallyDone || draft.onboardingLocallyDone || accountId !== null,
-        }
-      },
+      merge: (persisted, current) => ({ ...current, ...mergeOnboardingDraft(persisted, current, getAccountId()) }),
     },
   ),
 )

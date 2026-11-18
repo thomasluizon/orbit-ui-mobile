@@ -33,7 +33,6 @@ async function renderTray(initialDay = '2026-11-13') {
 }
 
 const opacityOf = (result: Motion) => (result.bulkBarAnimatedStyle.opacity as unknown as { value: number }).value
-/** The test double of an interpolation answers the start of its output range. */
 const startOf = (result: Motion) => {
   const [shift, scale] = result.bulkBarAnimatedStyle.transform as unknown as [{ translateY: number }, { scale: number }]
   return { shift: shift.translateY, scale: scale.scale }

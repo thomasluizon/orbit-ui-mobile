@@ -1,5 +1,6 @@
 import { expect, type Locator } from '@playwright/test'
 import { API } from '@orbit/shared/api'
+import { orbitMascotHeight } from '@orbit/shared/contracts/brand'
 import { dateInterpretationSchema } from '@orbit/shared/types/habit'
 import { formatLocaleDate } from '@orbit/shared/utils'
 import en from '@orbit/shared/i18n/en.json'
@@ -26,7 +27,7 @@ async function assertInlineGlyph(phrase: Locator, glyph: Locator, date: Locator)
   expect(glyphBounds.y).toBeGreaterThanOrEqual(fieldBounds.y)
   expect(glyphBounds.y + glyphBounds.height).toBeLessThanOrEqual(fieldBounds.y + fieldBounds.height)
   expect(glyphBounds.width).toBe(16)
-  expect(glyphBounds.height).toBe(16)
+  expect(glyphBounds.height).toBe(orbitMascotHeight(16))
   expect(dateBounds.y).toBeGreaterThanOrEqual(fieldBounds.y + fieldBounds.height)
   expect(dateBounds.width).toBeGreaterThanOrEqual(48)
   expect(dateBounds.height).toBeGreaterThanOrEqual(48)

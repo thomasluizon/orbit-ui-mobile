@@ -29,3 +29,13 @@ export function getGoalDeadlineFact(
   if (days === 0) return { kind: 'dueToday' }
   return { kind: 'passed', date: goal.deadline.slice(0, 10) }
 }
+
+/**
+ * The titles of the goal detail sheet. With the guided flows on, the goal in the person's words names the sheet,
+ * so the bare route noun never stands alone as its name. Pass the goal that the body heading reads: the body shows
+ * that title, so the header gives it as the accessible name only and does not show it a second time. With no goal,
+ * the header shows the route name.
+ */
+export function getGoalSheetTitle(goal: { title: string } | null, guided: boolean, routeName: string): { title?: string; accessibleTitle?: string } {
+  return guided && goal ? { accessibleTitle: goal.title } : { title: routeName }
+}

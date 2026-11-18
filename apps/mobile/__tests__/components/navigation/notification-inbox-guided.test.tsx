@@ -50,7 +50,6 @@ let tree: import('react-test-renderer').ReactTestRenderer | undefined
 let queryClient: QueryClient
 let words: typeof en = en
 
-/** What the server returns on the next read. The cache keeps what the surface shows now. */
 function serve(items: NotificationItem[], failing = false) {
   vi.mocked(apiClient).mockImplementation((url: string) => {
     if (url !== API.notifications.list) return Promise.resolve(undefined)

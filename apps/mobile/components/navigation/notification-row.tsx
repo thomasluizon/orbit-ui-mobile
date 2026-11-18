@@ -26,10 +26,6 @@ function NotificationTargetIcon({ targetKey, color }: Readonly<{
 
 type Tokens = ReturnType<typeof createTokensV2>
 
-/**
- * The unread mark on the Orbit logic: the card fill with its ring, and the dot. Both stay mounted and settle with the
- * selection motion as the row turns read, at once under reduced motion.
- */
 function UnreadSurface({ unread, tokens }: Readonly<{ unread: boolean; tokens: Tokens }>) {
   const reducedMotion = usePrefersReducedMotion()
   return <Animated.View testID="notification-unread-surface" pointerEvents="none" accessible={false} importantForAccessibility="no-hide-descendants"

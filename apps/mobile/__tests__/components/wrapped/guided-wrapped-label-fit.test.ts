@@ -31,7 +31,6 @@ function textWidth(text: string, font: Font) {
   return Math.ceil(bounds.x + bounds.width)
 }
 
-/** Greedy word wrap, the way a text line breaks at a word boundary. */
 function lineCount(text: string, available: number, font: Font) {
   let lines = 1
   let current = ''

@@ -3,13 +3,11 @@
 import { useState } from 'react'
 import { useTranslations } from 'next-intl'
 import type { FlowStepView } from '@orbit/shared/contracts/flow'
-import type { GoalDismissGuard } from '@orbit/shared/hooks'
-import { getGoalFlowStepError, type GoalFlowStep, type GoalFlowStepError } from '@orbit/shared/utils'
+import type { GoalDismissGuard, GuidedGoalFlowNavigation } from '@orbit/shared/hooks'
+import { getGoalFlowStepError, type GoalDraftPort, type GoalFlowStep, type GoalFlowStepError, type GoalStepHint } from '@orbit/shared/utils'
 import { DiscardChangesSheet } from '@/components/ui/discard-changes-sheet'
 import { FlowScreen } from '@/components/ui/flow-screen'
 import { QuestionFlow } from '@/components/ui/question-flow'
-import type { GoalDraftPort, GoalStepHint } from './goal-flow-steps'
-import type { GuidedGoalFlowNavigation } from './use-guided-goal-flow'
 
 export interface SavedGoal { goalId: string; title: string; deadline: string }
 
@@ -25,11 +23,6 @@ export function useStepHints(draft: Pick<GoalDraftPort, 'description' | 'targetV
     flow.advance()
   }
   return { hint, show, clear: () => setHint(null), submit }
-}
-
-/** The step a field belongs to: a hint on the summary opens that step. */
-export function stepOfField(field: GoalFlowStepError['field']): GoalFlowStep {
-  return field === 'description' ? 'what' : 'amount'
 }
 
 interface GoalFlowFrameProps {

@@ -39,7 +39,6 @@ export function HabitListMotionRow({ id, phase, offset, itemIds, measure, childr
   }, [bulk, itemIds, offset, positionMotion, reduced, translation])
   useEffect(() => {
     if (exitAtOnce) {
-      /** A row a bulk action removes leaves at once: the group plays the one motion. */
       opacity.value = 0
       translation.value = 0
       return

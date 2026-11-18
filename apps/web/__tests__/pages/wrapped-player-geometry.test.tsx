@@ -3,7 +3,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, onTes
 import type { Page } from '@playwright/test'
 import postcss from 'postcss'
 import tailwind from '@tailwindcss/postcss'
-import { act, fireEvent, render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { NextIntlClientProvider } from 'next-intl'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
@@ -61,6 +61,7 @@ import WrappedPage from '@/app/(app)/wrapped/page'
 import { useAppToastStore } from '@/stores/app-toast-store'
 import { useVersionGateStore } from '@/stores/version-gate-store'
 import { resolveWebThemeVariables } from '@/lib/theme-dom'
+import { SPACING } from '@orbit/shared/theme'
 
 const VIEWPORTS = [
   { width: 320, height: 568 },
@@ -163,6 +164,9 @@ describe('WrappedPage player reload banner geometry in Chromium', () => {
         closeBottom: close.getBoundingClientRect().bottom,
         noticeTop: notice.getBoundingClientRect().top,
         noticeBottom: notice.getBoundingClientRect().bottom,
+        pagerPadding: { top: Number.parseFloat(getComputedStyle(pager).paddingTop), bottom: Number.parseFloat(getComputedStyle(pager).paddingBottom) },
+        noticeToPagerSpace: pager.querySelector('[data-index]')!.getBoundingClientRect().top
+          - [...notice.children].filter((part) => part.childElementCount > 0).at(-1)!.getBoundingClientRect().bottom,
         pagerTop: pager.getBoundingClientRect().top,
         pagerBottom: pager.getBoundingClientRect().bottom,
         pagerActions: [...pager.querySelectorAll('button')].map((button) => ({
@@ -211,8 +215,7 @@ describe('WrappedPage player reload banner geometry in Chromium', () => {
       <NextIntlClientProvider locale={locale} messages={messages}><WrappedPage /></NextIntlClientProvider>,
     )
     fireEvent.click(screen.getByRole('button', { name: messages.wrapped.start }))
-    await act(async () => {})
-    expect(container.querySelectorAll('[role="dialog"] [data-shell-notice] :is([data-update-live-region], [data-kind])')).toHaveLength(toast ? 2 : 1)
+    await waitFor(() => expect(container.querySelectorAll('[role="dialog"] [data-shell-notice] :is([data-update-live-region], [data-kind])')).toHaveLength(toast ? 2 : 1))
     if (toast) fireEvent.pointerEnter(container.querySelector('[role="dialog"] [data-kind="neutral"]')!)
 
     const session = await page.context().newCDPSession(page)
@@ -231,6 +234,11 @@ describe('WrappedPage player reload banner geometry in Chromium', () => {
         ? [messages.wrapped.previous, messages.shareCard.download, messages.shareCard.share]
         : [messages.wrapped.previous, messages.wrapped.next])
 
+      const pagerPadding = viewport.height <= 400 ? 12 : 16
+      expect(measured.pagerPadding, `slide ${slide.id} pager vertical padding under the in-flow notice (Orbit Wrapped.dc.html:66, 12 at 400 px height or less)`)
+        .toEqual({ top: 0, bottom: pagerPadding })
+      expect(measured.noticeToPagerSpace, `slide ${slide.id} space between the notice and the pager`)
+        .toBeGreaterThanOrEqual(SPACING.s8)
       expect(measured.pagerBottom, `slide ${slide.id} pager bottom`)
         .toBeLessThanOrEqual(viewport.height - insets.bottom)
       for (const control of measured.controls) {
@@ -312,6 +320,29 @@ describe('WrappedPage player reload banner geometry in Chromium', () => {
     })
 
   it.each([
+    { width: 320, height: 568 },
+    { width: 640, height: 360 },
+    { width: 844, height: 390 },
+    { width: 1440, height: 900 },
+  ])('gives the pager the drawing padding with no notice at $width by $height', async (viewport) => {
+    const { page } = await createPage({ viewport })
+    const { container } = render(<NextIntlClientProvider locale="en" messages={en}><WrappedPage /></NextIntlClientProvider>)
+    fireEvent.click(screen.getByRole('button', { name: en.wrapped.start }))
+    await act(async () => {})
+    expect(container.querySelector('[role="dialog"] [data-update-banner], [role="dialog"] [data-kind]')).toBeNull()
+    await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+    const measured = await page.locator('[data-testid="wrapped-pager"]').evaluate((pager) => ({
+      top: Number.parseFloat(getComputedStyle(pager).paddingTop),
+      bottom: Number.parseFloat(getComputedStyle(pager).paddingBottom),
+      pagerBottom: pager.getBoundingClientRect().bottom,
+    }))
+    const pagerPadding = viewport.height <= 400 ? 12 : 16
+    expect(measured, 'pager vertical padding (Orbit Wrapped.dc.html:66, 12 at 400 px height or less)')
+      .toMatchObject({ top: pagerPadding, bottom: pagerPadding })
+    expect(measured.pagerBottom).toBeLessThanOrEqual(viewport.height)
+  })
+
+  it.each([
     { width: 412, height: 915, top: 24, bottom: 34, left: 0, right: 0 },
     { width: 844, height: 390, top: 0, bottom: 21, left: 44, right: 44 },
     { width: 844, height: 390, top: 0, bottom: 0, left: 0, right: 0 },
@@ -356,13 +387,13 @@ describe('WrappedPage player reload banner geometry in Chromium', () => {
         probe.remove()
         return {
           background: style.backgroundColor, expected, overflow: style.overflow,
-          before: getComputedStyle(element, '::before').content,
+          before: [getComputedStyle(element, '::before').content, getComputedStyle(element, '::before').inset, getComputedStyle(element, '::before').backgroundColor],
           after: getComputedStyle(element, '::after').content,
         }
       })
       await close.hover()
       const hovered = await readFill()
-      expect(hovered).toMatchObject({ background: hovered.expected, overflow: 'hidden', before: 'none', after: 'none' })
+      expect(hovered, 'the fill is the target\'s own, and the ::before is its unpainted, unclipped hit layer').toMatchObject({ background: hovered.expected, overflow: 'visible', before: ['""', '0px', 'rgba(0, 0, 0, 0)'], after: 'none' })
       await page.mouse.down()
       const pressed = await readFill()
       expect(pressed.background).toBe(pressed.expected)

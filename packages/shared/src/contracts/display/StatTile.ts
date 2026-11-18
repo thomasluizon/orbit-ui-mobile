@@ -1,8 +1,3 @@
-/**
- * never swaps a tile row out for a hand-built loading version. A tile with no data NEVER
- * renders a 0, which reads as a real measurement) · a tile has no hover, focus, active or
- * disabled state: it is not interactive, and a stat that can be opened is a row, not a tile.
- */
 interface StatTileBase {
   label: string
 }

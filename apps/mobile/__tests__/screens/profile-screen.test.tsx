@@ -32,6 +32,7 @@ import ProfilePreferencesRoute from '@/app/profile/preferences'
 import ProfileAiRoute from '@/app/profile/ai'
 import ProfileNotificationsRoute from '@/app/profile/notifications'
 import { ProfileNotificationsContent } from '@/app/(tabs)/profile/_components/profile-notifications-content'
+import { applyBorderWidths } from '@/__tests__/support/yoga-borders'
 
 interface MockDeviceState {
   count: number | undefined
@@ -766,6 +767,7 @@ describe('ProfileScreen', () => {
         'flex-end': Yoga.ALIGN_FLEX_END, stretch: Yoga.ALIGN_STRETCH, baseline: Yoga.ALIGN_BASELINE,
       }[style.alignSelf])
       if (typeof style.paddingHorizontal === 'number') content.setPadding(Yoga.EDGE_HORIZONTAL, style.paddingHorizontal)
+      applyBorderWidths(content, style)
       firstRow.setHeight(48)
       column.insertChild(scroller, 0)
       scroller.insertChild(content, 0)
@@ -2232,7 +2234,7 @@ describe('ProfileScreen', () => {
         await Promise.resolve()
       })
       const [sheet] = tree.root.findAll((node: { type: unknown; props: { title?: string } }) =>
-        node.type === 'SheetStub' && node.props.title === 'profile.widgetIos.title')
+        node.type === 'SheetStub' && node.props.title === 'profile.widgetQuestion')
       expect(sheet).toBeDefined()
       const sheetText = nodeText(sheet)
       for (const step of ['step1', 'step2', 'step3']) {
@@ -2264,7 +2266,7 @@ describe('ProfileScreen', () => {
     })
     expect(mockRouterPush).not.toHaveBeenCalled()
     expect(tree.root.findAll((node: { type: unknown; props: { title?: string } }) =>
-      node.type === 'SheetStub' && node.props.title === 'profile.widgetTitle')).toHaveLength(1)
+      node.type === 'SheetStub' && node.props.title === 'profile.widgetQuestion')).toHaveLength(1)
     mockRouterPush.mockClear()
 
     await TestRenderer.act(async () => {

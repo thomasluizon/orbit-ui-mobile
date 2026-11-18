@@ -49,6 +49,11 @@ export function __setMeasureInWindowImpl(impl: MeasureInWindowImpl) {
   measureInWindowImpl = impl
 }
 
+/** Measures a host that another mock renders, such as the react-native-svg `Svg`, through the same test hook. */
+export function __measureInWindow(callback: MeasureInWindowCallback, props: HostProps, name: string) {
+  measureInWindowImpl(callback, props, name)
+}
+
 export function __setHostRefsNull(value: boolean) {
   hostRefsNull = value
 }
@@ -141,35 +146,38 @@ function createHostComponent(name: string) {
       nativeHosts.delete(nativeTag)
       if (focusedNativeTag === nativeTag) focusedNativeTag = null
     }, [nativeTag])
-    React.useImperativeHandle(hostRefsNull ? null : ref, () => ({
-      __nativeTag: nativeTag,
-      measure: (callback?: (...args: number[]) => void) => callback?.(0, 0, 32, 32, 0, 0),
-      measureInWindow: (callback?: MeasureInWindowCallback) => {
-        if (callback) measureInWindowImpl(callback, props, name)
-      },
-      setNativeProps: (updates: HostProps) => {
-        const host = nativeHosts.get(nativeTag)
-        if (!host) return
-        host.props = { ...host.props, ...updates }
-        if (updates.hasTVPreferredFocus === true) {
-          host.focusableInTouchMode = true
-          __focusHost(nativeTag)
-        }
-      },
-      focus: () => __focusHost(nativeTag),
-      setSelection: (start: number, end: number) => {
-        const host = nativeHosts.get(nativeTag)
-        if (host) host.selection = { start, end }
-      },
-      blur: () => {
-        if (focusedNativeTag !== nativeTag) return
-        emitNativeFocusEvent(nativeTag, 'onBlur')
-        focusedNativeTag = null
-      },
-      scrollTo: scrollToImpl,
-      scrollToOffset: ({ offset, animated }: { offset: number; animated?: boolean }) => scrollToImpl({ y: offset, animated }),
-      scrollToEnd: () => {},
-    }), [nativeTag, props])
+    React.useImperativeHandle(hostRefsNull ? null : ref, () => {
+      const handle = {
+        __nativeTag: nativeTag,
+        measure: (callback?: (...args: number[]) => void) => callback?.(0, 0, 32, 32, 0, 0),
+        measureInWindow: (callback?: MeasureInWindowCallback) => {
+          if (callback) measureInWindowImpl(callback, props, name)
+        },
+        setNativeProps: (updates: HostProps) => {
+          const host = nativeHosts.get(nativeTag)
+          if (!host) return
+          host.props = { ...host.props, ...updates }
+          if (updates.hasTVPreferredFocus === true) {
+            host.focusableInTouchMode = true
+            __focusHost(nativeTag)
+          }
+        },
+        focus: () => __focusHost(nativeTag),
+        setSelection: (start: number, end: number) => {
+          const host = nativeHosts.get(nativeTag)
+          if (host) host.selection = { start, end }
+        },
+        blur: () => {
+          if (focusedNativeTag !== nativeTag) return
+          emitNativeFocusEvent(nativeTag, 'onBlur')
+          focusedNativeTag = null
+        },
+        scrollTo: scrollToImpl,
+        scrollToOffset: ({ offset, animated }: { offset: number; animated?: boolean }) => scrollToImpl({ y: offset, animated }),
+        scrollToEnd: () => {},
+      }
+      return name === 'ScrollView' ? { ...handle, getNativeScrollRef: () => handle } : handle
+    }, [nativeTag, props])
 
     return React.createElement(HostAncestors.Provider, { value: [...ancestors, nativeTag] },
       React.createElement(name, {
@@ -205,7 +213,6 @@ const TextInput = createHostComponent('TextInput')
 const Switch = createHostComponent('Switch')
 const Image = createHostComponent('Image')
 const Modal = createHostComponent('Modal')
-const ActivityIndicator = createHostComponent('ActivityIndicator')
 const AnimatedView = createHostComponent('AnimatedView')
 const AnimatedText = createHostComponent('AnimatedText')
 const KeyboardAvoidingView = createHostComponent('KeyboardAvoidingView')
@@ -382,7 +389,6 @@ export const LayoutAnimation = {
 }
 
 export {
-  ActivityIndicator,
   FlatList,
   Image,
   KeyboardAvoidingView,
@@ -398,7 +404,6 @@ export {
 }
 
 export default {
-  ActivityIndicator,
   Animated,
   AppState,
   AccessibilityInfo,

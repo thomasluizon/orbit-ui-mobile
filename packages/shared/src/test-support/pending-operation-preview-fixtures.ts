@@ -347,12 +347,10 @@ export function makeNestedHabitPreview(depth: number, reuse: boolean): PendingAg
 const REUSED_CHILD_HABIT_ID = '00000000-0000-4000-8000-0000000000a1'
 const NESTED_REUSED_HABIT_ID = '00000000-0000-4000-8000-0000000000a2'
 
-/** The API entry for a reused child in `sub_habits.oldValue`: the stored values of its fields, then its stored `emoji`, or null when it has none. */
 function reusedChildOldValue(title: string, emoji: string | null): Record<string, string | null> {
   return { title, habit_id: title, parent_habit_id: 'No parent', emoji }
 }
 
-/** Mirrors the API create preview for a new daily parent that groups existing habits: `sub_habits.oldValue` lists the stored values of each proposed child in the same order, and a new draft child's values are null. */
 function makeGroupedCreatePreview(children: readonly Record<string, unknown>[], storedChildren: readonly Record<string, unknown>[]): PendingAgentOperation {
   const operation = makeCreateHabitsPreview(1)
   const item = operation.items![0]!
@@ -390,7 +388,6 @@ export function makeReusedHabitParentChoicePreview(): PendingAgentOperation {
   ] }] })
 }
 
-/** The API keeps a deeper reuse at its own depth: the outer entry's `sub_habits` holds the JSON text of the nested old values. */
 function makeCreateWithNestedReusedChildPreview(): PendingAgentOperation {
   return makeGroupedCreatePreview(
     [{ title: 'Outdoors', sub_habits: [{ habit_id: NESTED_REUSED_HABIT_ID, title: 'Stretch' }] }, { habit_id: REUSED_CHILD_HABIT_ID, title: 'Morning walk' }],

@@ -115,6 +115,7 @@
     "backToToday": "Voltar para Hoje",
     "backToParentHabit": "Voltar para o hábito principal",
     "backToHabit": "Voltar para o hábito",
+    "backToOrbit": "Voltar para o Orbit",
     "backToDestination": "Voltar para {destination}",
     "closeConversation": "Fechar conversa",
     "appName": "Orbit",
@@ -485,6 +486,7 @@
     "genericError": "Ocorreu um erro. Tente de novo.",
     "orContinueWith": "ou",
     "openInOrbit": "Abrir no Orbit",
+    "continueInApp": "Continue no app do Orbit",
     "signInWithGoogle": "Continuar com o Google",
     "signInWithApple": "Continuar com a Apple",
     "googleError": "Não foi possível entrar com o Google. Tente de novo.",
@@ -524,6 +526,12 @@
       "habits": "{count, plural, =0 {# hábitos esperando neste aparelho.} one {# hábito esperando neste aparelho.} other {# hábitos esperando neste aparelho.}}",
       "continue": "Continuar e salvar"
     },
+    "line": {
+      "plan": "{count, plural, =0 {Eu guardo o seu plano com # hábitos neste aparelho até você entrar.} one {Eu guardo o seu plano com # hábito neste aparelho até você entrar.} other {Eu guardo o seu plano com # hábitos neste aparelho até você entrar.}}",
+      "codeSent": "Mandei um código de 6 dígitos para {email}.",
+      "codeExpired": "Esse código passou dos 5 minutos, então me peça outro.",
+      "codeLocked": "Daqui a {time} eu posso mandar outro código para este e-mail."
+    },
     "accountBack": {
       "title": "A sua conta está de volta",
       "body": "O pedido para apagar a conta foi cancelado quando você entrou.",
@@ -534,17 +542,17 @@
     "flow": {
       "what": {
         "question": "O que você quer fazer?",
-        "lineEmpty": "Diga do seu jeito. Pode incluir o dia e a hora.",
-        "lineTyped": "Entendi. Só faltam os detalhes.",
+        "lineEmpty": "Pode escrever do seu jeito, até com dia e hora, que eu entendo.",
+        "lineTyped": "Entendi, agora só preciso dos detalhes.",
         "lineUnderstood": "Entendi: {parts}.",
         "label": "O que você quer fazer?",
         "placeholder": "Tomar remédio todo dia às 8",
         "hint": "Escreva o que você quer fazer.",
-        "reading": "Orbit está lendo o que você escreveu."
+        "reading": "Estou lendo o que você escreveu."
       },
       "when": {
         "question": "Quando?",
-        "line": "Pode ser qualquer dia, ou uma repetição.",
+        "line": "Me diz um dia ou uma repetição.",
         "today": "Hoje",
         "tomorrow": "Amanhã",
         "everyDay": "Todo dia",
@@ -557,19 +565,19 @@
       },
       "time": {
         "question": "Tem hora certa?",
-        "line": "Se tiver hora, eu aviso você.",
+        "line": "Se tiver hora certa, eu te aviso.",
         "none": "Sem hora",
-        "freeLabel": "Outra hora"
+        "freeLabel": "Outro horário"
       },
       "reminder": {
         "question": "Quer que eu te lembre às {time}?",
-        "line": "Eu posso avisar na hora.",
-        "yes": "Sim, me lembre",
+        "line": "Eu aviso 15 minutos antes e de novo na hora.",
+        "yes": "Sim, quero",
         "no": "Agora não"
       },
       "confirm": {
         "question": "É isso?",
-        "line": "Confere comigo. Toque num item para mudar."
+        "line": "Confira comigo e escolha o que quiser mudar."
       },
       "summary": {
         "noDate": "sem data",
@@ -579,7 +587,7 @@
         "when": "Quando",
         "time": "Hora",
         "reminder": "Lembrete",
-        "type": "O que é isso",
+        "type": "Tarefa ou hábito",
         "emoji": "Emoji",
         "title": "O que você quer fazer",
         "duration": "Duração",
@@ -588,15 +596,15 @@
       },
       "type": {
         "question": "É uma tarefa ou um hábito?",
-        "line": "Uma repetição faz um hábito. Uma data, ou nenhuma, faz uma tarefa.",
+        "line": "Eu salvo o que se repete como hábito, e o resto como tarefa.",
         "taskHint": "Acontece uma vez, em um dia ou sem data",
-        "habitHint": "Se repete, e você acompanha a sequência"
+        "habitHint": "Se repete e você acompanha a sequência"
       },
       "repeat": {
         "question": "Com que frequência?",
-        "line": "Escolha a repetição. Eu mostro o hábito começando no dia que você marcou.",
-        "everyN": "A cada",
-        "timesIn": "Vezes por"
+        "line": "Eu conto a repetição a partir do dia que você marcou.",
+        "everyN": "Dias certos",
+        "timesIn": "Quando der"
       },
       "duration": {
         "question": "Tem duração?",
@@ -604,8 +612,8 @@
       },
       "reminderKind": {
         "question": "Quando você quer um lembrete?",
-        "scheduled": "Em horários definidos",
-        "repeat": "Repetir a cada"
+        "scheduled": "Horário fixo",
+        "repeat": "Várias vezes"
       },
       "more": "Quer ajustar mais alguma coisa?",
       "progress": "Passo {position} de {total}",
@@ -623,29 +631,31 @@
         "goals": "Isso ajuda em alguma meta?",
         "endDate": "Tem data para acabar?",
         "parent": "Isso faz parte de outro item?",
-        "none": "Nada por enquanto",
+        "parentRow": "Item principal",
+        "parentPicker": "Faz parte de qual item?",
+        "none": "Sem data",
         "yes": "Sim",
         "no": "Não",
         "removeEndDate": "Tirar a data final"
       },
       "tags": {
-        "lineIntro": "Uma tag junta itens parecidos. Toque numa para ver o que já está nela.",
+        "lineIntro": "Escolha uma tag e eu mostro o que já está nela.",
         "lineHas": "{tag} já tem {items}.",
-        "lineEmpty": "{tag} ainda está vazia.",
+        "lineEmpty": "Ainda não tem nada em {tag}.",
         "more": "{count, plural, =0 {mais # itens} one {mais # item} other {mais # itens}}",
         "none": "Sem tag",
         "searchMiss": "Nenhuma tag com esse nome.",
         "manage": "Quer mudar o nome ou apagar uma tag?"
       },
       "checklist": {
-        "line": "Os passos viram uma lista que você marca enquanto faz.",
-        "useTemplate": "Usar um modelo",
+        "line": "Eu transformo os passos numa lista para você marcar enquanto faz.",
+        "useTemplate": "Usar modelo",
         "noWithItems": "Limpe a lista para seguir sem passos."
       },
       "templates": {
         "question": "Qual modelo você quer usar?",
-        "line": "Um modelo é uma lista de passos que você guardou para usar de novo.",
-        "lineEmpty": "Você ainda não guardou nenhum modelo. Escreva os passos e eu guardo para a próxima.",
+        "line": "Um modelo é uma lista de passos que eu guardei para você usar de novo.",
+        "lineEmpty": "Ainda não tenho modelos seus, então escreva os passos que eu guardo.",
         "option": "{name}, {count, plural, =0 {# itens} one {# item} other {# itens}}",
         "write": "Escrever passos",
         "saveQuestion": "Que nome vai ter esse modelo?",
@@ -654,16 +664,15 @@
         "nameHint": "Escreva um nome para o modelo."
       },
       "goals": {
-        "line": "Uma meta soma o progresso dos hábitos ligados a ela.",
-        "lineEmpty": "Você ainda não tem metas. Uma meta soma o progresso dos hábitos ligados a ela.",
+        "line": "Eu somo o progresso dos hábitos ligados a uma meta.",
+        "lineEmpty": "Você ainda não tem metas, então crie uma e eu somo o progresso dela.",
         "limit": "Escolha até 10 metas",
         "searchMiss": "Nenhuma meta com esse nome.",
         "option": "{title}, {percent}%",
         "loadError": "Não foi possível carregar suas metas. Tente de novo."
       },
       "orbit": {
-        "offline": "Sem conexão. Eu leio no aparelho e você segue do mesmo jeito.",
-        "fromConversation": "Veio da sua conversa com o Orbit."
+        "offline": "Estou sem conexão, então leio aqui no aparelho e você segue do mesmo jeito."
       }
     },
     "nextReminder": "Próximo às {time}",
@@ -1206,7 +1215,6 @@
       "slipAlert": "Avisar deslize",
       "slipAlertDescription": "Um aviso quando você começar a ter deslizes neste hábito.",
       "rescheduleAccept": "Usar plano",
-      "rescheduleLoading": "Buscando um plano realista...",
       "rescheduleError": "Não consegui sugerir um plano.",
       "updateError": "Não foi possível salvar esta alteração. Tente novamente.",
       "logError": "Não foi possível atualizar este registro. Tente novamente.",
@@ -1506,7 +1514,7 @@
         "new_parent": "Novo hábito principal"
       },
       "recommended": "Recomendado",
-      "recommendation": "Orbit sugere: {placement}.",
+      "recommendation": "O Orbit sugere: {placement}.",
       "checklistNote": "Este item segue as configurações do hábito principal. As configurações do rascunho ficam guardadas se você escolher de novo uma opção de hábito."
     },
     "operationUpdated": "Veja o resultado atualizado acima.",
@@ -2679,6 +2687,7 @@
       "title": "Conexões",
       "googleCalendar": "Google Agenda",
       "notion": "Notion",
+      "notionQuestion": "O que o Orbit lê no seu Notion?",
       "connected": "Conectado",
       "notConnected": "Não conectado",
       "renew": "Reconexão necessária",
@@ -2692,7 +2701,8 @@
       "error": "A conexão não funcionou. Tente de novo.",
       "offline": "Você está sem conexão. Conecte-se à internet para gerenciar o Notion.",
       "lastSync": "Última sincronização: {time}",
-      "awaitingSync": "Aguardando a primeira sincronização."
+      "awaitingSync": "Aguardando a primeira sincronização.",
+      "loadingStatus": "{name}, carregando..."
     },
     "submenus": {
       "accountLabel": "{name}, {email}, conta",
@@ -2749,6 +2759,8 @@
       "scopeLabel": "O que ela pode acessar?",
       "setExpiry": "Definir validade?",
       "expiryQuestion": "Ela expira?",
+      "expiryDayLabel": "Último dia em que funciona",
+      "expiryDayPassed": "Esse dia já passou. Escolha outro.",
       "accessQuestion": "O que ela pode fazer?",
       "scopeAction": "Criar",
       "mcpTitle": "Conectar por MCP",
@@ -2813,16 +2825,20 @@
       "offlineReason": "Sem conexão. O que você escreveu fica guardado neste aparelho, então você pode enviar quando a conexão voltar.",
       "subjects": {
         "problem": {
-          "label": "Algo não funciona"
+          "label": "Algo não funciona",
+          "option": "Um erro"
         },
         "billing": {
-          "label": "Cobrança ou plano"
+          "label": "Cobrança ou plano",
+          "option": "Pagamento"
         },
         "account": {
-          "label": "Conta e acesso"
+          "label": "Conta e acesso",
+          "option": "Minha conta"
         },
         "other": {
-          "label": "Outro assunto"
+          "label": "Outro assunto",
+          "option": "Outra coisa"
         }
       },
       "subjectRequired": "Escolha um assunto para a gente encaminhar certo.",
@@ -2839,6 +2855,7 @@
     },
     "wrappedTitle": "Seu Wrapped",
     "widgetTitle": "Widget do Android",
+    "widgetQuestion": "Como funciona o widget do Orbit?",
     "calendarSync": {
       "title": "Sincronizar calendário"
     },
@@ -2904,8 +2921,8 @@
       "warningPro": "Sua conta será desativada agora e apagada de vez em até 30 dias a partir de hoje. Entre de novo antes disso para cancelar.",
       "warningDetail": "Todos os seus dados serão apagados de vez: hábitos, histórico de conclusão, conversas com a IA e configurações. Vamos enviar um código de confirmação para o seu e-mail.",
       "sendCode": "Enviar código",
-      "sendQuestion": "Podemos mandar o código para o seu e-mail?",
-      "sendLine": "O código chega em {email}.",
+      "sendQuestion": "Mando o código por e-mail?",
+      "sendLine": "Eu mando o código para {email}.",
       "errorGeneric": "Algo deu errado. Tente de novo.",
       "offlineDescription": "Conecte-se à internet para desativar sua conta."
     }
@@ -3174,10 +3191,10 @@
       "heading": "O teste Pro acabou",
       "paused": "Pausado",
       "subtitleQuiet": "Estes recursos Pro ficam pausados se você não assinar.",
-      "astraCeiling": "250 mensagens de IA por semana",
+      "astraCeiling": "IA: 250 mensagens/semana",
       "calendarSync": "Sincronização do calendário",
       "retrospective": "Retrospectiva periódica",
-      "proactiveAstra": "Avisos do Orbit",
+      "proactiveAstra": "Notificações do Orbit",
       "savings": "Anual: {percent}% a menos",
       "subscribe": "Ver planos",
       "continueFree": "Continuar grátis"
@@ -3202,13 +3219,13 @@
       "see": "Ver a sequência"
     },
     "task": {
-      "dated": "A tarefa foi criada para {date}.",
-      "datedTimed": "A tarefa foi criada para {date} às {time}.",
+      "dated": "A tarefa ficou marcada para {date}.",
+      "datedTimed": "A tarefa ficou marcada para {date} às {time}.",
       "undated": "A tarefa foi criada sem data. Ela fica em Geral."
     },
     "habit": {
-      "repeat": "O hábito começa {start} e se repete {cadence}.",
-      "repeatTimed": "O hábito começa {start} e se repete {cadence} às {time}.",
+      "repeat": "O hábito começa em {start} e se repete {cadence}.",
+      "repeatTimed": "O hábito começa em {start} e se repete {cadence} às {time}.",
       "updated": "As mudanças foram salvas.",
       "rescheduled": "O hábito foi para {date}.",
       "deleted": "O hábito foi apagado."
@@ -3226,7 +3243,9 @@
     "account": {
       "freshStart": "Tudo o que você acompanhava foi apagado. Sua conta, seu plano e suas preferências continuam.",
       "freshStartQueued": "Tudo o que você acompanhava será apagado quando a conexão voltar. Sua conta, seu plano e suas preferências continuam.",
-      "openToday": "Abrir o Hoje"
+      "openToday": "Abrir o Hoje",
+      "deletionScheduled": "Sua conta será apagada em {date}. Se você entrar antes disso, ela volta com todos os dados.",
+      "deletionScheduledPro": "Sua conta Pro será apagada em {date}. Se você entrar antes disso, ela volta com todos os dados."
     },
     "support": {
       "sent": "Sua mensagem chegou. A resposta vai para {email}."
@@ -3386,6 +3405,7 @@
         "continue": "Continuar"
       },
       "done": {
+        "readFailed": "Salvei o hábito, mas não consegui mostrar os detalhes. Tente de novo.",
         "tellAstra": "Da próxima vez, conte ao Orbit no Hoje o que você quer fazer.",
         "title": "Pronto. Ele já está no Hoje.",
         "body": "Quando fizer, marque o anel dele no Hoje para registrar.",
@@ -3416,7 +3436,7 @@
           },
           "routine": {
             "title": "Vira rotina",
-            "body": "Eu marco os dias e a hora, e te aviso no momento certo."
+            "body": "Eu marco os dias e a hora, e te aviso antes da hora."
           },
           "restart": {
             "title": "Perdeu um dia?",
@@ -3424,10 +3444,13 @@
           },
           "skip": "Pular introdução"
         },
+        "what": {
+          "question": "Que hábito você quer criar?"
+        },
         "mode": {
           "fixed": "Dias certos",
           "flexible": "Quando der",
-          "interval": "Com intervalo",
+          "interval": "Intercalado",
           "oneTime": "Uma vez só"
         },
         "days": {
@@ -3442,23 +3465,24 @@
         },
         "time": {
           "question": "Tem hora certa?",
-          "line": "Se tiver hora, eu consigo te lembrar.",
-          "none": "Sem hora certa",
-          "freeLabel": "Outra hora"
+          "line": "Se tiver hora certa, eu te aviso.",
+          "none": "Sem hora",
+          "freeLabel": "Outro horário"
         },
         "summary": {
           "question": "É isso?",
           "what": "O que você vai fazer",
           "mode": "Como se repete",
+          "unit": "Em qual período",
           "days": "Em quais dias",
           "quantity": "Quantas vezes",
-          "interval": "De quanto em quanto",
+          "interval": "Com que frequência",
           "time": "Que horas"
         },
         "remind": {
           "question": "Quer que eu te lembre às {time}?",
           "line": "Eu aviso 15 minutos antes, e só se você ainda não tiver marcado.",
-          "allow": "Sim, me lembra",
+          "allow": "Sim, quero",
           "pending": "Esperando a resposta do aparelho."
         },
         "creating": "Estou criando o seu hábito.",
@@ -3482,7 +3506,7 @@
       "importNotNow": "Agora não"
     },
     "featureGuide": {
-      "title": "Guia do Orbit",
+      "question": "O que dá para fazer no Orbit?",
       "habits": "Hábitos",
       "calendar": "Calendário",
       "astra": "Orbit",
@@ -3661,7 +3685,7 @@
       "trialLastDay": "Último dia do teste",
       "trialHeading": "250 por semana.",
       "freeEyebrow": "Você está no plano grátis",
-      "freeHeading": "7x mais mensagens.",
+      "freeHeading": "Cota de IA 7x maior.",
       "trustLine": "Sem fidelidade, e nenhum cartão fica guardado no Orbit.",
       "cancelAnytime": "Cancele quando quiser.",
       "handOff": "O pagamento é feito pelo nosso provedor. O Orbit nunca guarda os dados do seu cartão.",
@@ -3743,8 +3767,8 @@
         "aiMessages": "Hoje",
         "aiMessagesWeekly": "Nesta semana",
         "aiMessagesOf": "{used} de {limit}",
-        "nearLimit": "Você está perto do limite de IA de hoje",
-        "nearLimitWeekly": "Você está perto do limite semanal de IA"
+        "nearLimit": "Você está perto do limite de mensagens de IA de hoje",
+        "nearLimitWeekly": "Você está perto do limite semanal de mensagens de IA"
       },
       "invoices": {
         "title": "Histórico de faturas",
@@ -3798,6 +3822,7 @@
   },
   "errors": {
     "fetchHabits": "Não foi possível carregar os hábitos",
+    "fetchHabitDetails": "Não consegui carregar este hábito. Tente de novo.",
     "createHabit": "Não foi possível criar o hábito",
     "updateHabit": "Não foi possível atualizar o hábito",
     "logHabit": "Não foi possível registrar o hábito",
@@ -3936,10 +3961,10 @@
     },
     "flow": {
       "what": {
-        "line": "Escreva do seu jeito. Depois eu pergunto quanto e até quando."
+        "line": "Escreva do seu jeito, que depois eu pergunto quanto e até quando."
       },
       "track": {
-        "line": "Progresso soma um número. Sequência conta dias seguidos."
+        "line": "No Progresso eu somo um número, e na Sequência conto dias seguidos."
       },
       "amount": {
         "line": "Com um número eu mostro quanto falta.",
@@ -3952,7 +3977,7 @@
         "yearEnd": "Fim do ano"
       },
       "habits": {
-        "question": "Quais hábitos contam para essa meta?"
+        "question": "Que hábitos contam aqui?"
       },
       "summary": {
         "what": "Sua meta",
@@ -4003,9 +4028,9 @@
       "askAstraSeedDefault": "Me ajuda a montar um plano de acompanhamento semanal para a meta \"{title}\".",
       "statusLabel": "Status",
       "line": {
-        "daysLeft": "{days, plural, =0 {Faltam # dias para o prazo.} one {Falta # dia para o prazo.} other {Faltam # dias para o prazo.}}",
-        "dueToday": "O prazo é hoje.",
-        "passed": "O prazo era {date}."
+        "daysLeft": "{days, plural, =0 {Pelas minhas contas, o prazo é hoje.} one {Pelas minhas contas, falta # dia para o prazo.} other {Pelas minhas contas, faltam # dias para o prazo.}}",
+        "dueToday": "Pelas minhas contas, o prazo é hoje.",
+        "passed": "Pelas minhas contas, o prazo terminou em {date}."
       }
     },
     "deadline": {
@@ -4386,13 +4411,13 @@
     "attemptsOne": "Você tem 1 tentativa restante nos próximos 15 minutos.",
     "attemptsMany": "{count, plural, =0 {Você tem # tentativas restantes nos próximos 15 minutos.} one {Você tem # tentativa restante nos próximos 15 minutos.} other {Você tem # tentativas restantes nos próximos 15 minutos.}}",
     "expiredTitle": "Este código expirou",
-    "expiredBody": "Ele valia por 10 minutos. Peça outro para continuar.",
+    "expiredBody": "Cada código vale por 10 minutos.",
     "exhaustedTitle": "As tentativas acabaram",
     "exhaustedBody": "Este código não vale mais.",
     "exhaustedNotice": "Depois de 3 tentativas, a verificação deste e-mail fica bloqueada por 15 minutos. Um novo código não devolve as tentativas.",
     "lockCountdown": "Liberado em {time}",
     "backToProfile": "Voltar para o Perfil",
-    "successTitle": "A conta encerra em {date}",
+    "successTitle": "A conta se encerra em {date}",
     "successBody": "Até lá, se você entrar de novo, o encerramento é cancelado e a conta volta com todos os dados.",
     "successPro": "Esta conta Pro será apagada em {date}.",
     "signOut": "Sair",
@@ -4485,6 +4510,14 @@
     "failed": "Não foi possível concluir a atualização. Tente de novo.",
     "required": "Esta versão do Orbit precisa ser atualizada. No menu do app, escolha Buscar atualizações e depois Reiniciar para atualizar.",
     "signInRequired": "Atualize o Orbit para entrar. No menu do app, escolha Buscar atualizações e depois Reiniciar para atualizar."
+  },
+  "desktopWindow": {
+    "controls": "Controles da janela",
+    "menu": "Menu",
+    "minimize": "Minimizar",
+    "maximize": "Maximizar",
+    "restore": "Restaurar",
+    "close": "Fechar"
   },
   "forceUpdate": {
     "title": "Esta versão do Orbit parou de funcionar",

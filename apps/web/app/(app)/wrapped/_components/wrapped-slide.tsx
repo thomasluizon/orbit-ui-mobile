@@ -227,7 +227,6 @@ function SlideShell({ children, testId, gap = 8 }: Readonly<SlideShellProps>) {
   )
 }
 
-/** The consistency figure did not load. Under `orbit_guided_flows`, Orbit in Parado states it above the message. */
 function SlideLoadError({ onRetry }: Readonly<{ onRetry: () => void }>) {
   const t = useTranslations()
   const guided = useFlag('orbit_guided_flows')

@@ -31,7 +31,6 @@ export function WindowFigureGrid({ children }: Readonly<{ children: ReactNode }>
   return <div className="flex flex-wrap gap-4">{children}</div>
 }
 
-/** One busy region covers the figures and the habit row. */
 export function WindowFigureLoading({ label }: Readonly<{ label: string }>) {
   const t = useTranslations()
   return (

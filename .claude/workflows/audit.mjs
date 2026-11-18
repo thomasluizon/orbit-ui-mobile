@@ -715,7 +715,7 @@ const KIND = {
     ladder: 'High (degrades with scale — fix before it bites) / Medium (measurable but bounded) / Low or Info (micro, or only-at-enterprise-scale — noted, not prioritized)',
     rationale: 'impact — how it scales, concrete (e.g. "50-habit user → 50 round-trips")',
     checklist: `${UI}/.claude/skills/audit-performance/checklist.md`,
-    extra: 'Start from the measured ranking when it is available. Flag ONLY patterns that degrade quadratically/linearly with data or traffic: N+1 queries (missing .Include / projecting after materializing), missing index on a hot Where/OrderBy/FK, a user-scoped list with no Take/pagination, a full-entity load whose consumer reads a few fields, a query returning at least 25% of its table per call, a background sweep above the stated 50 MiB monthly payload budget, sync slow work (HTTP/AI/email/push) inline in a request path, blocking async (.Result/.Wait), IQueryable materialized too early, missing AsNoTracking on hot reads; frontend render thrash, bundle bloat (mobile Metro or a non-Today web route, since the Today web budget is gated), over-eager or stale caching, waterfalls. Every measured finding names calls, rows per call, bytes per row, calls per month, and monthly egress. CONFIRM every index claim against the EF migrations (read them, cite the migration). Gate-owned, do NOT flag: the web LCP/TBT/script-bundle-size budgets on the authed-Today surface (perf.yml owns those), an N+1 regression on the three query shapes already under tests/Orbit.Infrastructure.Tests/Persistence/QueryRoundTripCountTests.cs, and render-thrash patterns react-doctor perf rules already fail on. Do NOT micro-optimize, do NOT over-prescribe memoization/virtualization, do NOT list enterprise-only tuning (note once).',
+    extra: 'Start from the measured ranking when it is available. Flag ONLY patterns that degrade quadratically/linearly with data or traffic: N+1 queries (missing .Include / projecting after materializing), missing index on a hot Where/OrderBy/FK, a user-scoped list with no Take/pagination, a full-entity load whose consumer reads a few fields, a query returning at least 25% of its table per call, a background sweep above the stated 50 MiB monthly payload budget, sync slow work (HTTP/AI/email/push) inline in a request path, blocking async (.Result/.Wait), IQueryable materialized too early, missing AsNoTracking on hot reads; frontend render thrash, bundle bloat (mobile Metro or a non-Today web route, since the Today web budget is gated), over-eager or stale caching, waterfalls. Every measured finding names calls, rows per call, bytes per row, calls per month, and monthly egress. CONFIRM every index claim against the EF migrations (read them, cite the migration). Gate-owned, do NOT flag: the web LCP/TBT/script-bundle-size budgets on the authed-Today surface (the test.yml Lighthouse job owns those), an N+1 regression on the three query shapes already under tests/Orbit.Infrastructure.Tests/Persistence/QueryRoundTripCountTests.cs, and render-thrash patterns react-doctor perf rules already fail on. Do NOT micro-optimize, do NOT over-prescribe memoization/virtualization, do NOT list enterprise-only tuning (note once).',
     surfaces: [
       { label: 'api-queries', where: 'orbit-api CQRS query handlers in src/Orbit.Application/**/Queries, the generic repository, EF DbContext usage — N+1 and index coverage (read src/Orbit.Infrastructure/Migrations to confirm indexes)', sections: '' },
       { label: 'api-requestpath', where: 'orbit-api controllers + command handlers — sync slow work in the request path, blocking async, over-fetching, missing AsNoTracking', sections: '' },
@@ -738,10 +738,10 @@ const KIND = {
   },
 }
 
-const EXCLUDE = 'Exclude generated/vendored dirs (node_modules, .next, dist, build, bin, obj, coverage, .turbo, Migrations/ except when reading them to confirm an index, design/handoff/).'
+const EXCLUDE = 'Exclude generated/vendored dirs (node_modules, .next, dist, build, bin, obj, coverage, .turbo, Migrations/ except when reading them to confirm an index).'
 
 const GATE_OWNED =
-  'D11 boundary: audit ONLY what no gate can check; NEVER emit a finding a gate already fails on. The mechanical layer, owned by gates, is off-limits: ESLint local/* (comment policy, spacing scale, console/any bans, animate-presence), the Guards job in guards.yml (Dash Ban, Copy Register, Lint Severity, Expo SDK Pin, React Doctor, Architecture map drift), the PR Metadata parity check in pr-metadata.yml, Roslyn ORBIT0001..0005 (narration comments, redundant tx rollbacks, controller-missing-[Authorize], raw DateTime.UtcNow for user-facing dates, DbSet without entity config), perf.yml (the web LCP/TBT/bundle budgets). When a concern is half-mechanical, keep ONLY the judgement half and name the gate that owns the other.'
+  'D11 boundary: audit ONLY what no gate can check; NEVER emit a finding a gate already fails on. The mechanical layer, owned by gates, is off-limits: ESLint local/* (comment policy, spacing scale, console/any bans, animate-presence), the Guards job in guards.yml (Dash Ban, Copy Register, Lint Severity, Expo SDK Pin, React Doctor, Architecture map drift), the PR Metadata parity check in pr-metadata.yml, Roslyn ORBIT0001..0005 (narration comments, redundant tx rollbacks, controller-missing-[Authorize], raw DateTime.UtcNow for user-facing dates, DbSet without entity config), the test.yml Lighthouse job (the web LCP/TBT/bundle budgets). When a concern is half-mechanical, keep ONLY the judgement half and name the gate that owns the other.'
 
 const isApiSurface = (s) => s.label.startsWith('api-') || /orbit-api/.test(s.where)
 const surfaceRepos = (s) => s.repos || (isApiSurface(s) ? 'api' : 'ui')
@@ -901,29 +901,33 @@ let findings = dedupeFresh([...measuredFindings, ...attachPerformanceMetrics(fir
 
 async function verifySerious(candidates, phaseName) {
   const serious = candidates.filter(isSerious).sort((a, b) => rank(a.severity) - rank(b.severity))
-  const now = serious.slice(0, VERIFY_CAP)
-  const capped = serious.slice(VERIFY_CAP)
-  const verdicts = (
-    await parallel(
-      now.map((f, i) => () =>
-        agent(skepticPrompt(kind, f), { label: `verify:${(f.location || String(i)).slice(0, 40)}`, phase: phaseName, model: 'haiku', agentType: 'audit-readonly', schema: VERDICT_SCHEMA }).then((v) => ({ f, v }))
-      )
-    )
-  ).filter(Boolean)
-  const survivors = []
-  for (const { f, v } of verdicts) {
-    if (v && v.refuted) continue
-    if (v && v.adjustedSeverity) f.severity = v.adjustedSeverity
-    survivors.push(f)
-  }
+  // A skeptic's adjustedSeverity rewrites f.severity, so the pass-through is split off before any skeptic runs.
   const passthrough = candidates.filter((f) => !isSerious(f))
-  return { kept: [...survivors, ...passthrough], capped }
+  const now = serious.slice(0, VERIFY_CAP)
+  const verdicts = await parallel(
+    now.map((f, i) => () =>
+      agent(skepticPrompt(kind, f), { label: `verify:${(f.location || String(i)).slice(0, 40)}`, phase: phaseName, model: 'haiku', agentType: 'audit-readonly', schema: VERDICT_SCHEMA })
+    )
+  )
+  // A finding that no skeptic judged is never returned as verified: it goes to the Deferred ledger with the reason.
+  const defer = (f, deferReason) => ({ title: f.title, location: f.location, severity: f.severity, deferReason })
+  const deferred = serious.slice(VERIFY_CAP).map((f) => defer(f, 'exceeded the adversarial-verify cap — shipped unchallenged, re-verify before acting'))
+  const survivors = []
+  now.forEach((f, index) => {
+    // parallel resolves a skeptic that throws to null, the same as a skeptic that returned no verdict.
+    const v = verdicts[index]
+    if (!v) deferred.push(defer(f, 'the skeptic died or failed — unchallenged, re-verify before acting'))
+    else if (!v.refuted) {
+      if (v.adjustedSeverity) f.severity = v.adjustedSeverity
+      survivors.push(f)
+    }
+  })
+  return { kept: [...survivors, ...passthrough], deferred }
 }
 
 phase('Verify')
-let { kept, capped } = await verifySerious(findings, 'Verify')
-const deferred = capped.map((f) => ({ title: f.title, location: f.location, severity: f.severity, deferReason: 'exceeded the adversarial-verify cap — shipped unchallenged, re-verify before acting' }))
-log(`verified: ${kept.length} kept · ${capped.length} deferred (cap)`)
+let { kept, deferred } = await verifySerious(findings, 'Verify')
+log(`verified: ${kept.length} kept · ${deferred.length} deferred (cap or no verdict)`)
 
 phase('Complete')
 let round = 0
@@ -967,9 +971,9 @@ while (dry < maxDry && round < HARD_ROUNDS) {
     continue
   }
   dry = 0
-  const { kept: freshKept, capped: freshCapped } = await verifySerious(fresh, 'Complete')
+  const { kept: freshKept, deferred: freshDeferred } = await verifySerious(fresh, 'Complete')
   kept = kept.concat(freshKept)
-  freshCapped.forEach((f) => deferred.push({ title: f.title, location: f.location, severity: f.severity, deferReason: 'exceeded the adversarial-verify cap — shipped unchallenged, re-verify before acting' }))
+  deferred.push(...freshDeferred)
   log(`round ${round}: +${fresh.length} fresh (${freshKept.length} kept)`)
 }
 

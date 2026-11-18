@@ -98,7 +98,7 @@ describe('the guided goal create flow', () => {
     await press('Continuar')
     expect(heading()).toHaveTextContent('Até quando?')
     await press('Fim do ano')
-    expect(heading()).toHaveTextContent('Quais hábitos contam para essa meta?')
+    expect(heading()).toHaveTextContent('Que hábitos contam aqui?')
     await press('Habit 1')
     await press('Continuar')
     expect(heading()).toHaveTextContent('É isso?')
@@ -144,7 +144,7 @@ describe('the guided goal create flow', () => {
     await type('How much?', '12')
     await type('Of what?', 'books')
     await press('Continue')
-    await press('End of the month')
+    await press('This month')
     expect(heading()).toHaveTextContent('Is this right?')
     expect(screen.getByText('Read')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /Linked habits/ })).not.toBeInTheDocument()
@@ -302,7 +302,7 @@ describe('the Which habits step', () => {
   it('shows four habits as quick options and searches the rest, with a miss', async () => {
     addHabits(6)
     await reachHabits()
-    const options = within(screen.getByRole('group', { name: 'Which habits count toward this goal?' })).getAllByRole('button')
+    const options = within(screen.getByRole('group', { name: 'Which habits count here?' })).getAllByRole('button')
     expect(options.map((option) => option.textContent)).toEqual(['Habit 1', 'Habit 2', 'Habit 3', 'Habit 4'])
     await type('Search habits', 'Habit 6')
     await press('Habit 6')
@@ -361,7 +361,7 @@ describe('the Which habits step', () => {
     expect(document.querySelectorAll('[data-orbit-face="rig"]'), 'one live Orbit in the view').toHaveLength(1)
     await press(ptBR.habits.createHabit)
     await press('Finish habit creation')
-    expect(heading()).toHaveTextContent('Quais hábitos contam para essa meta?')
+    expect(heading()).toHaveTextContent('Que hábitos contam aqui?')
   })
 })
 
@@ -379,7 +379,7 @@ describe('the guided goal edit flow', () => {
     expect(screen.getByText('Progress')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /Tracking/ })).not.toBeInTheDocument()
     await press(/^By when/)
-    expect(screen.getByRole('button', { name: 'End of the year' }), 'the stored deadline is the answer of an edit').toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: 'This year' }), 'the stored deadline is the answer of an edit').toHaveAttribute('aria-pressed', 'true')
     await press('No deadline')
     expect(heading()).toHaveTextContent('Is this right?')
     await press('Save')
@@ -388,6 +388,20 @@ describe('the guided goal edit flow', () => {
     expect(screen.getByText('The goal "Run 100km" is saved with no deadline.')).toBeInTheDocument()
     await press('View the goal')
     expect(onOpenChange).toHaveBeenCalledWith(false)
+  })
+
+  it('holds the save from the press: two presses in one turn send one request, and the save waits until it ends', async () => {
+    let finish!: () => void
+    mocks.update.mockImplementation(() => new Promise<void>((resolve) => { finish = resolve }))
+    renderWith('en', <EditGoalModal open onOpenChange={vi.fn()} goal={goal} />)
+    await press(/^By when/)
+    await press('No deadline')
+    const save = screen.getByRole('button', { name: 'Save' })
+    await act(async () => { fireEvent.click(save); fireEvent.click(save) })
+    expect(mocks.update).toHaveBeenCalledOnce()
+    expect(save).toHaveAttribute('aria-busy', 'true')
+    await act(async () => { finish() })
+    expect(screen.getByText('The goal "Run 100km" is saved with no deadline.')).toBeInTheDocument()
   })
 
   it('keeps an empty title in an edit and saves the title the current modal builds from the target and the unit', async () => {

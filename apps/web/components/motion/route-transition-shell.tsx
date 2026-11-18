@@ -17,9 +17,10 @@ import { resolveTabSwitchDirection } from '@orbit/shared/utils'
 import {
   getRouteDirectionForIntent,
   getRouteScenarioForIntent,
-  resetRouteTransitionIntent,
+  resetRouteTransitionIntentIfCurrent,
   useRouteTransitionIntent,
 } from '@/lib/motion/route-intent'
+import { resolveTabViewTransitionDirection } from '@/lib/motion/tab-view-transition'
 
 interface RouteTransitionShellProps {
   children: ReactNode
@@ -36,6 +37,7 @@ interface RoutePathState {
   current: string
   hasNavigated: boolean
   intent: MotionNavigationIntent
+  intentVersion: number
   previous: string
 }
 
@@ -69,6 +71,7 @@ export function RouteTransitionShell({
     current: pathname,
     hasNavigated: false,
     intent: routeIntent.intent,
+    intentVersion: routeIntent.version,
     previous: pathname,
   }))
   if (routePaths.current !== pathname) {
@@ -76,11 +79,13 @@ export function RouteTransitionShell({
       current: pathname,
       hasNavigated: true,
       intent: routeIntent.intent,
+      intentVersion: routeIntent.version,
       previous: routePaths.current,
     })
   }
   const tabSwitchDirection = routePaths.intent === 'instant' ? null : resolveTabSwitchDirection(routePaths.previous, pathname)
-  const tabViewTransitionOwnsSwitch = tabSwitchDirection !== null && routePaths.intent === 'tab'
+  const tabViewTransitionOwnsSwitch = resolveTabViewTransitionDirection(routePaths.previous, pathname, routePaths.intent) !== null
+  const committedIntentVersion = routePaths.intentVersion
 
   useEffect(() => {
     if (committedPathnameRef.current === pathname) {
@@ -89,13 +94,13 @@ export function RouteTransitionShell({
 
     committedPathnameRef.current = pathname
     const timer = globalThis.setTimeout(() => {
-      resetRouteTransitionIntent()
+      resetRouteTransitionIntentIfCurrent(committedIntentVersion)
     }, 0)
 
     return () => {
       globalThis.clearTimeout(timer)
     }
-  }, [pathname])
+  }, [committedIntentVersion, pathname])
 
   const transitionMotion = useMemo<RouteTransitionMotion>(
     () => {

@@ -7,7 +7,9 @@ import { backendFormFieldFocusRequest } from '@orbit/shared/hooks'
 import {
   buildHabitUnderstandingLabels,
   formatLocaleDate,
+  habitFlowNamesAnswer,
   habitFlowOptionalQuestions,
+  habitFlowSelectionAnswer,
   isHabitDailySchedule,
   parseAPIDate,
   toTime24,
@@ -16,8 +18,9 @@ import {
 } from '@orbit/shared/utils'
 import { hasHabitMonthDaySchedule, MAX_HABIT_DESCRIPTION_LENGTH, validateEndTime } from '@orbit/shared/validation'
 import type { HabitFormHelpers } from '@/hooks/use-habit-form'
-import { useAppToast } from '@/hooks/use-app-toast'
 import { useHasProAccess } from '@/hooks/use-profile'
+import { useTags } from '@/hooks/use-tags'
+import { useLinkableGoals } from '@/components/habits/goal-linking-field'
 import { DateField } from '@/components/ui/date-field'
 import { X } from '@/components/ui/icons'
 import { Input } from '@/components/ui/input'
@@ -30,10 +33,10 @@ import { useGoalLinkStepView } from '../flow-steps/goal-link-step'
 import { useTagStepView } from '../flow-steps/tag-step'
 import { HabitMonthDaysField } from '../habit-form-fields/habit-month-days-field'
 import { HabitScheduleFields } from '../habit-form-fields/habit-schedule-fields'
-import { HabitReminderEditors } from '../habit-form-fields/habit-timing-field'
 import { HabitRepeatInterval, ScheduleCorrections } from '../habit-form-fields/habit-understanding'
 import { SlipAlertSection } from '../habit-form-fields/slip-alert-section'
 import type { GuidedFlow, GuidedHabitFields } from './guided-step-views'
+import { useReminderKindView } from './reminder-kind-step'
 
 interface DetailInput {
   flow: GuidedFlow
@@ -102,29 +105,22 @@ function useDurationView({ flow, formHelpers }: Readonly<DetailInput>): FlowStep
   }
 }
 
-function useReminderKindView({ flow, formHelpers, fields }: Readonly<DetailInput>): FlowStepView {
-  const t = useTranslations()
-  const { showError } = useAppToast()
-  return {
-    question: t('habits.flow.reminderKind.question'),
-    line: null,
-    free: <HabitReminderEditors formHelpers={formHelpers} controller={flow.controller} reminderTimes={fields.reminderTimes} onReminderTimesChange={fields.onReminderTimesChange} showError={showError} />,
-    primary: useContinue(flow),
-  }
-}
-
 function useOptionalValues({ formHelpers, fields }: Readonly<Omit<DetailInput, 'flow'>>): Partial<Record<HabitFlowOptionalId, string>> {
   const t = useTranslations()
   const locale = useLocale()
   const { form } = formHelpers
+  const { tags } = useTags()
+  const goals = useLinkableGoals().data
   const count = (value: number) => (value > 0 ? String(value) : undefined)
   const endDate = form.watch('endDate') ?? ''
   return {
     description: form.watch('description') || undefined,
     checklist: count((form.watch('checklistItems') ?? []).length),
+    subHabits: habitFlowNamesAnswer(fields.subHabitTitles ?? [], locale),
     avoid: form.watch('isBadHabit') ? t('habits.flow.optional.yes') : t('habits.flow.optional.no'),
-    tags: count(fields.tags.selectedTagIds.length),
-    goals: count(fields.selectedGoalIds.length),
+    parent: fields.parentValue,
+    tags: habitFlowSelectionAnswer(fields.tags.selectedTagIds, tags, (tag) => tag.name, locale),
+    goals: habitFlowSelectionAnswer(fields.selectedGoalIds, [...(fields.linkedGoals ?? []), ...(goals ?? [])], (goal) => goal.title, locale),
     endDate: endDate ? formatLocaleDate(endDate, locale) : undefined,
   }
 }
@@ -189,7 +185,6 @@ function useEndDateView({ flow, formHelpers }: Readonly<DetailInput>): FlowStepV
   }
 }
 
-/** The hosted questions: each one keeps the current component of its field, unchanged, inside its own step. */
 function useHostedViews({ flow, formHelpers, fields }: Readonly<DetailInput>): Partial<Record<HabitFlowStepKey, FlowStepView>> {
   const t = useTranslations()
   const { form } = formHelpers
@@ -204,7 +199,6 @@ function useHostedViews({ flow, formHelpers, fields }: Readonly<DetailInput>): P
   }
 }
 
-/** The checklist, tag and goal questions: each step owns its quick options, its free path and its continue. The host mounts them on every render. */
 function useRelationViews({ flow, formHelpers, fields }: Readonly<DetailInput>): Partial<Record<HabitFlowStepKey, FlowStepView>> {
   const { form } = formHelpers
   const title = form.watch('title')

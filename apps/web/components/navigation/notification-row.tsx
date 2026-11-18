@@ -20,14 +20,12 @@ function NotificationTargetIcon({ targetKey, color }: Readonly<{
   return <Icon size={16} color={color} aria-hidden="true" />
 }
 
-/** The unread mark settles with the selection motion: in on the preset, out on its shorter exit, and at once under reduced motion. */
 function unreadSettle(properties: readonly string[], unread: boolean, reducedMotion: boolean): string {
   if (reducedMotion) return 'none'
   const timing = unread ? 'var(--motion-selection-enter) var(--motion-ease-standard)' : 'var(--motion-selection-exit) var(--motion-ease-exit)'
   return properties.map((property) => `${property} ${timing}`).join(', ')
 }
 
-/** The row to focus after a delete: the next row that stays, else the previous one, else the list. */
 function focusAfterDelete(row: Element | null): Element | null {
   for (let next = row?.nextElementSibling; next; next = next.nextElementSibling) if (!next.hasAttribute('inert')) return next.querySelector('button')
   for (let previous = row?.previousElementSibling; previous; previous = previous.previousElementSibling) if (!previous.hasAttribute('inert')) return previous.querySelector('button')
@@ -37,13 +35,11 @@ function focusAfterDelete(row: Element | null): Element | null {
 const UNREAD_SURFACE = { background: 'var(--bg-card)', boxShadow: 'inset 0 0 0 1px var(--hairline)' }
 const READ_SURFACE = { background: 'transparent', boxShadow: 'inset 0 0 0 1px transparent' }
 
-/** The fill and the ring of the row. On the Orbit logic a read row keeps a clear fill and ring, so both can settle. */
 function rowSurface(unread: boolean, guided: boolean, reducedMotion: boolean) {
   if (!guided) return unread ? UNREAD_SURFACE : undefined
   return { ...(unread ? UNREAD_SURFACE : READ_SURFACE), transition: unreadSettle(['background-color', 'box-shadow'], unread, reducedMotion) }
 }
 
-/** The unread dot. On the Orbit logic it stays mounted and fades, so the mark settles as the row turns read. */
 function UnreadDot({ unread, guided, reducedMotion }: Readonly<{ unread: boolean; guided: boolean; reducedMotion: boolean }>) {
   if (guided) return <span data-unread-mark={unread ? 'unread' : 'read'} data-unread-dot={unread ? '' : undefined} className="size-2 rounded-full bg-[var(--fg-1)]" style={{ opacity: unread ? 1 : 0, transition: unreadSettle(['opacity'], unread, reducedMotion) }} />
   return unread ? <span data-unread-dot="" className="size-2 rounded-full bg-[var(--fg-1)]" /> : null
@@ -58,7 +54,6 @@ export function NotificationRow({ item, onOpen, onDelete, element: Row = 'li' }:
   item: NotificationItem
   onOpen: (item: NotificationItem) => void
   onDelete: (item: NotificationItem) => void
-  /** `div` where a motion `li` already wraps the row. Default `li`. */
   element?: 'li' | 'div'
 }>) {
   const t = useTranslations()

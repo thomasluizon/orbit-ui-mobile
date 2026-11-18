@@ -9,16 +9,28 @@ import { redactSecrets } from "./lib/github-auth.mjs"
 import { readSessionContext, readSessionMetrics } from "./lib/session-context.mjs"
 import { readBackgroundRuns } from "./lib/background-runs.mjs"
 import { appendChainEntry, closeSessionChain, confirmChainSuccessor, openSessionChain, readSessionChain, refreshChainMetrics, sessionChainEntry, supersededSession, writeSessionChain } from "./lib/session-chain.mjs"
+import { questionFilterGaps } from "./lib/owner-questions.mjs"
 import { HANDOFF_PROMPT_PATH, checkoutSpecVersions, handoffAutoWork, handoffCrank, openingSpecPaths, prepareOwnerHandoffRun, readHandoffRequest, recordHandoffRequest, validateHandoffPrompt } from "./lib/handoff-prompt.mjs"
-import { REPO_ROOT, acquireRelayLock, clearWakeSource, isRelayWaiter, isWakeSourceAlive, readRunState, readWakeSourceStates, readWorkerLaunches, registerWakeSource, updateRunState } from "./lib/run-state.mjs"
+import { REPO_ROOT, acquireRelayLock, clearWakeSource, foreignRunHold, isRelayWaiter, isWakeSourceAlive, readRunState, readWakeSourceStates, readWorkerLaunches, registerWakeSource, updateRunState } from "./lib/run-state.mjs"
 
-const USAGE = `usage: relay-session.mjs [--retry-wake | --close-chain | --close-terminal <payload>]
+const USAGE = `usage: relay-session.mjs [--retry-wake | --owner-check | --close-chain | --close-terminal <payload>]
 
   Relays the current unattended orchestrator through a committed and pushed NEXT.md.
+  Refuses while a candidate owner question has no disposition recorded through
+  owner-questions.mjs --record; the successor inherits only the queued questions.
   Reads session identity from CLAUDE_CODE_SESSION_ID, context from its transcript,
   and model and permission mode from machine observations. Accepts no model claim.
   --retry-wake   background wake source until the failed relay's ten minute retry time
-  --close-chain prepare owner auto-work intake carry, then record and close any open chain
+  --owner-check refuse, before an owner handoff writes anything, while another session's
+                unattended run or unadopted auto-work handoff owns this checkout's run state;
+                the refusal names the owner's next step. An unattended run counts only while
+                a Claude session record names its live process, or while a live relay nominee
+                has not adopted it yet. Beside another session's unattended run, it also refuses
+                when CLAUDE_CONFIG_DIR/sessions holds no record of this session, because then it
+                cannot see whether that run is live. Reads only; writes nothing
+  --close-chain repeat that check, prepare owner auto-work intake carry, then record and close
+                this session's open chain. Needs no question filter, and no run state when no
+                chain is open
   --close-terminal <payload> internal detached cleanup; base64 JSON with repoRoot,
     sessionId, successorSessionId, terminal and terminalHandle; rechecks the fence
   --help, -h    print usage and exit 0
@@ -27,6 +39,7 @@ exit codes: 0 successor confirmed or requested lifecycle action complete,
   1 RELAY_FAILED with predecessor retained, 2 usage error`
 
 const delay = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds))
+
 const cleanEnvironment = (environment) => Object.fromEntries(Object.entries(environment).filter(([key]) =>
   !["CLAUDE_CONFIG_DIR", "GH_TOKEN", "ORBIT_LAUNCH_WORKER"].includes(key)))
 const orcaCommand = () => process.env.ORCA_CLI_COMMAND || (process.env.ORCA_DEV_REPO_ROOT ? "orca-dev" : process.platform === "linux" ? "orca-ide" : "orca")
@@ -141,6 +154,8 @@ export const relaySession = async ({ repoRoot = REPO_ROOT, sessionId = process.e
   if (metrics.calls < 20) throw new Error(`session has ${metrics.calls} assistant calls; relay requires at least 20`)
   if (previous.relay.lastAttemptAt && Date.now() - Date.parse(previous.relay.lastAttemptAt) < 600_000) throw new Error("relay retry is not due for ten minutes")
   assertDrained(repoRoot, sessionId)
+  const questionGaps = questionFilterGaps(sessionId, repoRoot)
+  if (questionGaps.length) throw new Error(`relay question filter: ${questionGaps.join("; ")}`)
   let releaseLock
   let result
   try {
@@ -286,21 +301,32 @@ const main = async () => {
     closeRelayTerminal(request)
     return
   }
-  if (args.length > 1 || args.some((argument) => !["--retry-wake", "--close-chain"].includes(argument))) {
+  if (args.length > 1 || args.some((argument) => !["--retry-wake", "--owner-check", "--close-chain"].includes(argument))) {
     process.stderr.write(`${USAGE}\n`); process.exitCode = 2; return
   }
   const sessionId = process.env.CLAUDE_CODE_SESSION_ID
   const state = readRunState()
-  if (!sessionId || state?.sessionId !== sessionId) throw new Error("no matching CLAUDE_CODE_SESSION_ID")
+  if (!sessionId) throw new Error("no matching CLAUDE_CODE_SESSION_ID")
+  // An owner handoff here would replace a NEXT.md that the holding run still needs.
+  const hold = foreignRunHold(sessionId, state)
+  const conflict = hold && `${hold}, then run this handoff again`
+  if (args[0] === "--owner-check") {
+    if (conflict) throw new Error(conflict)
+    return
+  }
   if (args[0] === "--close-chain") {
+    const owned = state?.sessionId === sessionId
+    if (conflict) throw new Error(conflict)
     prepareOwnerHandoffRun(sessionId)
     if (!openSessionChain(sessionId)) return
+    if (!owned) throw new Error("no matching CLAUDE_CODE_SESSION_ID")
     if (readHandoffRequest(sessionId)?.origin !== "owner") throw new Error("chain closure requires an owner-origin handoff")
     appendChainEntry(await sessionChainEntry(state, state.transcriptPath ?? state.relay?.transcriptPath))
     await refreshChainMetrics(sessionId)
     closeSessionChain(sessionId)
     return
   }
+  if (state?.sessionId !== sessionId) throw new Error("no matching CLAUDE_CODE_SESSION_ID")
   if (args[0] === "--retry-wake") {
     if (!state.relay?.pending || !state.relay.lastAttemptAt) throw new Error("no failed relay to retry")
     if (!registerWakeSource({ pid: process.pid, sessionId, what: "Context relay retry" })) throw new Error("retry wake registration failed")

@@ -15,13 +15,9 @@ export type StatusDotState =
 
 interface StatusDotProps {
   state: StatusDotState
-  /** Dot size in px (default 8 per v8 spec). */
   size?: number
-  /** Tap handler; the surrounding pressable has generous hit-slop. */
   onToggle?: () => void
-  /** Accessibility label for screen readers (defaults to the state name). */
   accessibilityLabel?: string
-  /** Read-only mode: dimmed, non-interactive (mirrors the backend log rule). */
   disabled?: boolean
 }
 

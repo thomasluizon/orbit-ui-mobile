@@ -13,7 +13,7 @@ import { OrbitMascot } from '@/components/ui/orbit-mascot'
 import { PillButton } from '@/components/ui/pill-button'
 import { SegmentedControl } from '@/components/ui/segmented-control'
 import { Skeleton } from '@/components/ui/skeleton'
-import { useFlowAnnouncement } from '@/hooks/use-flow-announcement'
+import { useFlowAnnouncement } from '@/components/ui/question-flow'
 import type { StoreOffer } from '@/hooks/use-play-billing'
 import { buildTiers, type Tier } from './plan-selection'
 import { PurchaseNotes, RestoreAction, StayFreeLink } from './pricing-section'
@@ -23,12 +23,7 @@ import { styles } from './styles'
 import type { SubscriptionInterval, Tokens, UpgradeTextFn } from './types'
 
 const WIDE_WIDTH = 1024
-/**
- * The boundary between the compact and the wide presentation of `design/canvas/Orbit Pro.dc.html`, which `DESIGN.md` maps to the `sm`
- * boundary of the upgrade screen on both platforms. From it the plan cards sit side by side and hug their content, and the interval control is capped at 320.
- */
 const TWO_PLAN_COLUMNS_WIDTH = RESPONSIVE_TYPE_BREAKPOINT
-/** The mobile breakpoint. Below it the pinned action spans the column (a form submit), from it the action hugs its label (`DESIGN.md`, Buttons, width). */
 const PINNED_ACTION_HUG_WIDTH = 768
 
 export interface GuidedPricingSectionProps {
@@ -66,7 +61,6 @@ export interface GuidedPricingSectionProps {
 
 type PlanState = 'loading' | 'error' | 'ready' | 'absent'
 
-/** The state of the plan options. The App Store path needs both store offers; the other paths need the plans read. */
 function resolvePlanState({ plans, isLoadingPlans, isPlansError, isLoadingProducts = false, isProductsError = false, isOnline, monthlyOffer, yearlyOffer }: Pick<GuidedPricingSectionProps,
   'plans' | 'isLoadingPlans' | 'isPlansError' | 'isLoadingProducts' | 'isProductsError' | 'isOnline' | 'monthlyOffer' | 'yearlyOffer'>): PlanState {
   const isApple = Platform.OS === 'ios'
@@ -78,12 +72,10 @@ function resolvePlanState({ plans, isLoadingPlans, isPlansError, isLoadingProduc
   return (isApple ? !offersMissing : Boolean(shownPlans)) ? 'ready' : 'absent'
 }
 
-/** A plan card as an option of the question. A press selects it. The primary action starts the handoff. */
 function PlanOption({ tier, recommended, selected, column, disabled, onSelect, onLook, onLookAway, t, tokens }: Readonly<{
   tier: Tier
   recommended: boolean
   selected: boolean
-  /** True where the two cards sit side by side: each card takes half the row. */
   column: boolean
   disabled: boolean
   onSelect: () => void
@@ -159,7 +151,6 @@ function PlanOptions({ state, disabled, onLook, onLookAway, ...props }: Readonly
   )
 }
 
-/** What stays under the block: the plan fact, the allowance comparison, what Pro includes, restore and the notes. */
 function UpgradeSupport({ profile, trialDaysLeft, dateHint, showNotes, isRestoring, restoreDisabled, onRestore, t, tokens }: Readonly<Pick<GuidedPricingSectionProps,
   'profile' | 'trialDaysLeft' | 'dateHint' | 'isRestoring' | 'onRestore' | 't' | 'tokens'> & { showNotes: boolean; restoreDisabled: boolean }>) {
   return (
@@ -188,7 +179,6 @@ function orbitLineText(line: ReturnType<typeof resolveUpgradeOrbitLine>, t: Upgr
 type PlanPrimaryProps = Pick<GuidedPricingSectionProps, 'plans' | 'isLoadingPlans' | 'isPlansError' | 'isLoadingProducts' | 'isProductsError' | 'isOnline'
   | 'monthlyOffer' | 'yearlyOffer' | 'selectedInterval' | 'checkoutLoading' | 'checkoutDisabled' | 'onCheckout' | 't'>
 
-/** The primary action of the plan question. It starts the handoff of the selected plan, and a wait keeps its label on the skeleton face. */
 function PlanPrimary(props: Readonly<PlanPrimaryProps>) {
   const { selectedInterval, checkoutLoading, checkoutDisabled, onCheckout, t } = props
   return (
@@ -208,7 +198,6 @@ export function usePinnedPlanPrimary(): boolean {
   return useWindowDimensions().width < WIDE_WIDTH
 }
 
-/** The refusal of the handoff: the checkout error and the offline reason. They stay next to the primary action wherever it is drawn. */
 function PlanRefusal({ checkoutError, isOnline, t, tokens }: Readonly<Pick<GuidedPricingSectionProps, 'checkoutError' | 'isOnline' | 't' | 'tokens'>>) {
   return (
     <>

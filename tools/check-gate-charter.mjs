@@ -489,7 +489,7 @@ function blockingInventoryRuns(group, job) {
     "sonar-paths": ["node tools/check-sonar-paths.mjs"],
     "architecture-map": ["node tools/arch-map.mjs", 'if ! cmp -s "$artifact" "$RUNNER_TEMP/first-$artifact"; then', "exit 1"],
     "contract-drift": ["node scripts/generate-contract.mjs --check", "if ! git diff --quiet -- packages/shared/src/types/__generated__/api.generated.ts; then", "exit 1"],
-    "dependency-audit": ["node --test .github/scripts/check-critical-production-cves.test.mjs", "node .github/scripts/check-critical-production-cves.mjs"],
+    "dependency-audit": ["node .github/scripts/check-critical-production-cves.mjs", "node tools/check-dependency-edits.mjs"],
     "workflow-syntax": ['"$actionlint_dir/actionlint" -shellcheck= -pyflakes= .github/workflows/*.yml'],
   }[group]
   return required?.every((command) => scripts.some((script) => script.includes(command))) ?? false

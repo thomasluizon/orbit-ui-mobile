@@ -29,7 +29,7 @@ vi.mock('next-intl', async (importOriginal) => {
 vi.mock('@/lib/posthog', () => ({ captureGuidedFlowEvent: vi.fn() }))
 vi.mock('@/hooks/use-checklist-templates', () => ({
   useChecklistTemplates: () => ({ data: state.templates, isLoading: state.loading, isError: state.templatesError, refetch: state.refetchTemplates }),
-  useCreateChecklistTemplate: () => ({ mutate: state.create, isPending: false }),
+  useCreateChecklistTemplate: () => ({ mutateAsync: state.create, isPending: false }),
   useDeleteChecklistTemplate: () => ({ mutate: state.remove }),
 }))
 
@@ -132,9 +132,9 @@ describe('the template question inside the checklist step', () => {
   it('lists the saved templates with their item count and loads one back into the checklist question', async () => {
     state.templates = [template('t1', 'Treino', 'Alongar', 'Correr'), template('t2', 'Manhã', 'Beber água')]
     render(<Harness />)
-    await press('Usar um modelo')
+    await press('Usar modelo')
     expect(heading()).toHaveTextContent('Qual modelo você quer usar?')
-    expect(heading()).toHaveAccessibleDescription('Um modelo é uma lista de passos que você guardou para usar de novo.')
+    expect(heading()).toHaveAccessibleDescription('Um modelo é uma lista de passos que eu guardei para você usar de novo.')
     await press('Treino, 2 itens')
     expect(state.items).toEqual(items('Alongar', 'Correr'))
     expect(heading()).toHaveTextContent('Tem passos dentro disso?')
@@ -143,7 +143,7 @@ describe('the template question inside the checklist step', () => {
   it('goes back to the checklist question with no change', async () => {
     state.templates = [template('t1', 'Treino', 'Alongar')]
     render(<Harness initial={items('Separar a roupa')} />)
-    await press('Usar um modelo')
+    await press('Usar modelo')
     await press('Voltar')
     expect(heading()).toHaveTextContent('Tem passos dentro disso?')
     expect(state.items).toEqual(items('Separar a roupa'))
@@ -151,8 +151,8 @@ describe('the template question inside the checklist step', () => {
 
   it('says there is no template and offers the item editor', async () => {
     render(<Harness />)
-    await press('Usar um modelo')
-    expect(heading()).toHaveAccessibleDescription('Você ainda não guardou nenhum modelo. Escreva os passos e eu guardo para a próxima.')
+    await press('Usar modelo')
+    expect(heading()).toHaveAccessibleDescription('Ainda não tenho modelos seus, então escreva os passos que eu guardo.')
     expect(screen.queryByRole('group', { name: 'Qual modelo você quer usar?' })).not.toBeInTheDocument()
     await press('Escrever passos')
     expect(heading()).toHaveTextContent('Tem passos dentro disso?')
@@ -161,8 +161,8 @@ describe('the template question inside the checklist step', () => {
   it('says the templates did not load, offers a retry and keeps the item editor, never the line of no template', async () => {
     state.templatesError = true
     render(<Harness />)
-    await press('Usar um modelo')
-    expect(heading()).toHaveAccessibleDescription('Um modelo é uma lista de passos que você guardou para usar de novo.')
+    await press('Usar modelo')
+    expect(heading()).toHaveAccessibleDescription('Um modelo é uma lista de passos que eu guardei para você usar de novo.')
     expect(screen.getByText('Não foi possível carregar seus modelos. Tente de novo.')).toBeInTheDocument()
     await press(ptBR.common.retry)
     expect(state.refetchTemplates).toHaveBeenCalledTimes(1)
@@ -173,14 +173,14 @@ describe('the template question inside the checklist step', () => {
   it('shows a skeleton while the templates load', async () => {
     state.loading = true
     render(<Harness />)
-    await press('Usar um modelo')
+    await press('Usar modelo')
     expect(screen.getByRole('progressbar', { name: copy('pt-BR')('common.loading') })).toBeInTheDocument()
   })
 
   it('deletes a template and shows its error text when the delete fails', async () => {
     state.templates = [template('t1', 'Treino', 'Alongar')]
     render(<Harness />)
-    await press('Usar um modelo')
+    await press('Usar modelo')
     await press('Apagar: Treino')
     expect(state.remove).toHaveBeenCalledWith('t1', expect.anything())
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
@@ -191,7 +191,7 @@ describe('the template question inside the checklist step', () => {
   it('keeps every template reachable when there are more than four', async () => {
     state.templates = ['A', 'B', 'C', 'D', 'E'].map((name, index) => template(`t${index}`, name, 'Passo'))
     render(<Harness />)
-    await press('Usar um modelo')
+    await press('Usar modelo')
     expect(within(screen.getByRole('group', { name: 'Qual modelo você quer usar?' })).getAllByRole('button')).toHaveLength(4)
     await press('E, 1 item')
     expect(state.items).toEqual(items('Passo'))
@@ -212,9 +212,12 @@ describe('the save question inside the checklist step', () => {
     expect(state.create).not.toHaveBeenCalled()
     expect(screen.getByText('Escreva um nome para o modelo.')).toBeInTheDocument()
     await act(async () => { fireEvent.change(screen.getByRole('textbox', { name: 'Que nome vai ter esse modelo?' }), { target: { value: ' Treino ' } }) })
-    await press('Salvar')
-    expect(state.create).toHaveBeenCalledWith({ name: 'Treino', items: ['Alongar', 'Correr'] }, expect.anything())
-    await act(async () => { state.create.mock.calls[0]![1].onSuccess() })
+    let finish!: () => void
+    state.create.mockImplementation(() => new Promise<void>((resolve) => { finish = resolve }))
+    const save = screen.getByRole('button', { name: 'Salvar' })
+    await act(async () => { fireEvent.click(save); fireEvent.click(save) })
+    expect(state.create).toHaveBeenCalledExactlyOnceWith({ name: 'Treino', items: ['Alongar', 'Correr'] })
+    await act(async () => { finish() })
     expect(heading()).toHaveTextContent('Tem passos dentro disso?')
   })
 
@@ -222,8 +225,8 @@ describe('the save question inside the checklist step', () => {
     render(<Harness initial={items('Alongar')} />)
     await press('Salvar modelo')
     await act(async () => { fireEvent.change(screen.getByRole('textbox', { name: 'Que nome vai ter esse modelo?' }), { target: { value: 'Treino' } }) })
+    state.create.mockRejectedValue(new Error('offline'))
     await press('Salvar')
-    await act(async () => { state.create.mock.calls[0]![1].onError() })
     expect(screen.getByRole('alert')).toHaveTextContent('Não foi possível salvar o modelo. Tente de novo.')
     expect(heading()).toHaveTextContent('Que nome vai ter esse modelo?')
   })
@@ -258,12 +261,12 @@ describe('motion of the questions inside the step', () => {
   it('slides the template question in, and shows it at once under reduced motion', async () => {
     state.templates = [template('t1', 'Treino', 'Alongar')]
     const { container, unmount } = render(<Harness />)
-    await press('Usar um modelo')
+    await press('Usar modelo')
     expect(container.querySelector<HTMLElement>('[data-question-flow] [role="presentation"]')!.style.transform).not.toBe('')
     unmount()
     stubMedia(true)
     const reduced = render(<Harness />)
-    await press('Usar um modelo')
+    await press('Usar modelo')
     const block = reduced.container.querySelector<HTMLElement>('[data-question-flow] [role="presentation"]')!
     expect(block.style.transform === '' || block.style.transform === 'none').toBe(true)
   })
@@ -291,7 +294,7 @@ describe('motion of the questions inside the step', () => {
       stubMedia(reduced)
       state.templates = [template('t1', 'Treino', 'Alongar'), template('t2', 'Manhã', 'Beber água')]
       const view = render(<Harness />)
-      await press('Usar um modelo')
+      await press('Usar modelo')
       vi.useFakeTimers()
       state.templates = [template('t2', 'Manhã', 'Beber água')]
       view.rerender(<Harness />)

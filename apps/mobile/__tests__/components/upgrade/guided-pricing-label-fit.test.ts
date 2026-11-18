@@ -17,15 +17,12 @@ const FONTS = {
   price: { family: 'Space Grotesk', size: 28, file: '@expo-google-fonts/space-grotesk/600SemiBold/SpaceGrotesk_600SemiBold.ttf' },
   period: { family: 'Geist', size: 16, file: '@expo-google-fonts/geist/400Regular/Geist_400Regular.ttf' },
 } as const
-/** The block cap and the plan card frame of `guided-pricing-section.tsx`: padding 16 and a 2 px ring on each side. */
 const BLOCK_MAX = 592
 const CARD_INSET = 16 + 2
-/** The recommended badge of `ui/badge.tsx`: padding 8 on each side and 0.72 letter spacing. */
 const BADGE_PADDING = SPACING.s8 * 2
 const BADGE_TRACKING = 0.72
 const TIER_GAP = 8
 const SEGMENT_INSET = SPACING.s8 * 2
-/** Fixture prices in the shape the plans read returns, in the currency each locale is billed in. */
 const FIXTURE_PLANS = { brl: { monthly: 2990, yearly: 19900 }, usd: { monthly: 999, yearly: 6999 } } as const
 
 type Font = (typeof FONTS)[keyof typeof FONTS]
@@ -36,7 +33,6 @@ function textWidth(text: string, font: Font) {
   return Math.ceil(bounds.x + bounds.width)
 }
 
-/** Greedy word wrap, the way a text line breaks at a word boundary. */
 function lineCount(text: string, available: number, font: Font) {
   let lines = 1
   let current = ''
@@ -50,7 +46,6 @@ function lineCount(text: string, available: number, font: Font) {
   return lines
 }
 
-/** The usage line of the catalog at the widest figures a plan reads: the weekly Pro allowance, all of it used, in the plural branch. */
 function widestUsageLine(locale: keyof typeof CATALOGS) {
   const figure = '250'
   return CATALOGS[locale].upgrade.orbitLine.usage
@@ -58,7 +53,6 @@ function widestUsageLine(locale: keyof typeof CATALOGS) {
     .replace(/\{limit, plural,.*\bother \{([^}]*)\}\}/, (_match, branch: string) => branch.replace('#', figure))
 }
 
-/** The column of the route: the screen gutter of `useContentFrameStyle` on each side, under the block cap. */
 const columnAt = (width: number) => Math.min(BLOCK_MAX, width - PADDING.screenGutter * 2)
 
 const cases = WIDTHS.flatMap((width) => (['en', 'pt-BR'] as const).map((locale) => ({ width, locale })))

@@ -80,7 +80,6 @@ function renderIn(locale: keyof typeof catalogs, node: ReactNode) {
   return render(<NextIntlClientProvider locale={locale} messages={catalogs[locale]} timeZone="UTC">{node}</NextIntlClientProvider>)
 }
 
-/** The line on screen. A replaced line can still be leaving through its fade, so the newest one is the last. */
 function orbitLine(container: HTMLElement) {
   return [...container.querySelectorAll('[data-progress-orbit-line]')].at(-1) ?? null
 }

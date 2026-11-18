@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 import type { FlowStepView } from '@orbit/shared/contracts/flow'
 import type { Goal } from '@orbit/shared/types/goal'
 import { createUseGoalLinking } from '@orbit/shared/hooks'
+import { leadingQuickOptions, searchByTitle } from '@orbit/shared/utils'
 import { CreateGoalSheet } from '@/components/goals/create-goal-sheet'
 import { useLinkableGoals } from '@/components/habits/goal-linking-field'
 import { Input } from '@/components/ui/input'
@@ -16,7 +17,6 @@ import { useThemeTokens } from '@/hooks/use-theme-tokens'
 
 const useGoalLinking = createUseGoalLinking(useAccountScopedState)
 
-/** Three goals and `Criar meta` keep the step at four quick options, the 2 by 2 grid. More goals than this put every goal behind the search. */
 const QUICK_GOALS = 3
 
 export interface GoalLinkStepProps {
@@ -32,21 +32,16 @@ export interface GoalLinkStepProps {
   onContinue: () => void
 }
 
-/** The goals selected when the step opened lead, then the list order. The order stays while the person presses. */
-function quickGoals(goals: Goal[], leading: ReadonlySet<string>): Goal[] {
-  return [...goals.filter((goal) => leading.has(goal.id)), ...goals.filter((goal) => !leading.has(goal.id))].slice(0, QUICK_GOALS)
-}
-
 function GoalSearch({ goals, selected, atGoalLimit, onToggleGoal }: Readonly<{ goals: Goal[]; selected: Set<string>; atGoalLimit: boolean; onToggleGoal: (goalId: string) => void }>) {
   const { t } = useTranslation()
   const tokens = useThemeTokens()
   const styles = useMemo(() => createStyles(tokens), [tokens])
   const [query, setQuery] = useState('')
-  const term = query.trim().toLocaleLowerCase()
-  const matches = term ? goals.filter((goal) => goal.title.toLocaleLowerCase().includes(term)) : []
+  const searching = query.trim() !== ''
+  const matches = searchByTitle(goals, query)
   return <>
     <Input kind="search" label={t('habits.form.searchGoals')} value={query} onChange={setQuery} />
-    {term && matches.length === 0 ? <Text accessibilityLiveRegion="polite" style={styles.miss}>{t('habits.flow.goals.searchMiss')}</Text> : null}
+    {searching && matches.length === 0 ? <Text accessibilityLiveRegion="polite" style={styles.miss}>{t('habits.flow.goals.searchMiss')}</Text> : null}
     {matches.map((goal) => {
       const isSelected = selected.has(goal.id)
       return <PickerRow key={goal.id} name={goal.title} selected={isSelected} disabled={!isSelected && atGoalLimit} onToggle={() => onToggleGoal(goal.id)}
@@ -69,7 +64,7 @@ export function useGoalLinkStepView(props: Readonly<GoalLinkStepProps>): FlowSte
     question: t('habits.flow.optional.goals'),
     line: !goalsQuery.isSuccess || activeGoals.length > 0 ? t('habits.flow.goals.line') : t('habits.flow.goals.lineEmpty'),
     options: <>
-      {quickGoals(activeGoals, leading).map((goal) => {
+      {leadingQuickOptions(activeGoals, leading, QUICK_GOALS).map((goal) => {
         const selected = selectedSet.has(goal.id)
         return <OptionCard key={goal.id} label={t('habits.flow.goals.option', { title: goal.title, percent: Math.round(goal.progressPercentage) })} selected={selected} disabled={!selected && atGoalLimit} disabledReason={limitReason} onSelect={() => onToggleGoal(goal.id)} />
       })}

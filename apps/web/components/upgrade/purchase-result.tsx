@@ -12,7 +12,6 @@ import { getHeldAccountId } from '@/stores/auth-store'
 
 const PURCHASE_FROM_KEY = 'orbit.upgrade.purchase-from'
 
-/** Stripe returns to one fixed address. The `from` of the visit that started the checkout waits in session storage, under its account. */
 function rememberPurchaseFrom(accountId: string | null, from: string | null): void {
   if (accountId === null || from === null) globalThis.sessionStorage.removeItem(PURCHASE_FROM_KEY)
   else globalThis.sessionStorage.setItem(PURCHASE_FROM_KEY, `${accountId} ${from}`)
@@ -37,15 +36,12 @@ export function usePurchaseOrigin(guided: boolean, from: string | null): (() => 
 }
 
 interface PurchaseResultProps {
-  /** True after the return from the provider settled and the profile read reports Pro. */
   purchaseConfirmed: boolean
-  /** The subscription read. Null while it loads or after it failed. */
   status: SubscriptionStatus | null
   billing: BillingDetails | null
   accountId: string | null
   from: string | null
   timeZone: string | null | undefined
-  /** The route a `from` value names, or null for a value that names no known place. */
   knownOrigin: (from: string | null) => string | null
 }
 

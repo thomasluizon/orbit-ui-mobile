@@ -9,6 +9,7 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import pt from '@orbit/shared/i18n/pt-BR.json'
 import { buildChatFinalMessageFields } from '@orbit/shared/chat'
+import { ORBIT_SMALL_FACE_BOX_RATIO } from '@orbit/shared/contracts/brand'
 import { chatResponseSchema } from '@orbit/shared/types/chat'
 import { AstraConversation } from '@/components/chat/conversation'
 import { loadAppFonts } from '@/__tests__/support/app-fonts'
@@ -66,7 +67,7 @@ describe('Follow-up conversation geometry in Chromium', () => {
       const closeBox = (await header.getByRole('button', { name: pt.common.closeConversation }).boundingBox())!
       const headerBox = (await header.boundingBox())!
       expect(markBox.width).toBe(16)
-      expect(markBox.height).toBe(16)
+      expect(markBox.height).toBe(16 * ORBIT_SMALL_FACE_BOX_RATIO)
       expect(markBox.x - headerBox.x).toBe(16)
       expect(headerBox.height).toBe(56)
       expect(Math.abs(markBox.y + markBox.height / 2 - closeBox.y - closeBox.height / 2)).toBeLessThanOrEqual(0.5)

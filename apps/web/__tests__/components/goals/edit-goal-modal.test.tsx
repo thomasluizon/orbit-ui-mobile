@@ -181,6 +181,33 @@ describe('EditGoalModal', () => {
     })
   })
 
+  it('shows the waiting Save from the request until the sheet leaves, and sends one request for a second press', async () => {
+    let finish!: () => void
+    mockMutateAsync.mockImplementation(() => new Promise<void>((resolve) => { finish = resolve }))
+    const onOpenChange = vi.fn()
+    render(<EditGoalModal open onOpenChange={onOpenChange} goal={mockGoal} />)
+    const save = screen.getByRole('button', { name: 'common.save' })
+    fireEvent.click(save)
+    await waitFor(() => expect(save).toHaveAttribute('aria-busy', 'true'))
+    expect(save).toBeDisabled()
+    expect(save).toHaveTextContent('common.save')
+    expect(save.querySelector('[data-slot="skeleton-face"]')).not.toBeNull()
+    fireEvent.submit((save as HTMLButtonElement).form!)
+    expect(mockMutateAsync).toHaveBeenCalledOnce()
+    await act(async () => finish())
+    await waitFor(() => expect(onOpenChange).toHaveBeenCalledWith(false))
+  })
+
+  it('ends the waiting Save when the request fails', async () => {
+    mockMutateAsync.mockRejectedValueOnce(new Error('offline'))
+    render(<EditGoalModal open onOpenChange={vi.fn()} goal={mockGoal} />)
+    const save = screen.getByRole('button', { name: 'common.save' })
+    fireEvent.click(save)
+    await waitFor(() => expect(mockShowError).toHaveBeenCalled())
+    await waitFor(() => expect(save).not.toHaveAttribute('aria-busy'))
+    expect(save).toBeEnabled()
+  })
+
   it('submits update request', async () => {
     mockMutateAsync.mockResolvedValue(undefined)
     const onOpenChange = vi.fn()

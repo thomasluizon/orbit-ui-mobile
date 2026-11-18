@@ -46,7 +46,6 @@ const read = createMockGoal({ id: 'read', title: 'Read 12 books', currentValue: 
 const run = createMockGoal({ id: 'run', title: 'Run 100 km', currentValue: 25, targetValue: 100, unit: 'km', progressPercentage: 25 })
 const seenKey = () => accountStorageKey(GOAL_SEEN_PROGRESS_STORAGE_KEY)
 
-/** The local test renderer types expose `findAll` only, and props as unknown. */
 const byProp = (root: ReactTestInstance, name: string, value: unknown) => root.findAll((node) => node.props[name] === value)[0]!
 const allByProp = (root: ReactTestInstance, name: string, value: unknown) => root.findAll((node) => node.props[name] === value)
 const call = (node: ReactTestInstance, prop: string, ...values: unknown[]) => (node.props[prop] as (...args: unknown[]) => unknown)(...values)

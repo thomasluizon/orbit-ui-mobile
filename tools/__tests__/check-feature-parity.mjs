@@ -323,19 +323,17 @@ function workflowRegressions(workflow) {
   const charter = run('check-gate-charter.mjs', [])
   T('the parity workflow satisfies its declared changed-file scope', charter.status === 0, charter.stderr)
   const comparison = workflow.jobs.guards.steps.find((step) => step.id === 'feature-parity__1')
-  const artifact = workflow.jobs.guards.steps.find((step) => step.id === 'feature-parity__2')
-  for (const step of [comparison, artifact]) {
-    T(`${step.id} covers main pull requests`, step.if.includes("github.event_name == 'pull_request'") && step.if.includes("github.base_ref == 'main'"))
-  }
+  T(`${comparison.id} covers main pull requests`, comparison.if.includes("github.event_name == 'pull_request'") && comparison.if.includes("github.base_ref == 'main'"))
   T('main production and debt comparisons use the immutable queued base', comparison.run.includes('--production "HEAD^1" --base "HEAD^1"') && comparison.run.includes('"$BASE_REF" = main'))
-  T('evidence uploads even when the comparison fails', artifact.if.includes('always()') && artifact.with.path === manifestPath && artifact.with['include-hidden-files'] === true)
+  const inputs = new RegExp(comparison.run.match(/grep -Eq '([^']+)'/)?.[1] ?? '$^')
+  T('the comparison runs only when an app, shared or parity input changed',
+    ['apps/web/app/page.tsx', 'apps/mobile/app/index.tsx', 'packages/shared/src/index.ts', 'tools/check-feature-parity.mjs', 'tools/feature-parity-rules.json', 'DESIGN.md', '.claude/specs/orbit-prod-release.md']
+      .every((path) => inputs.test(path)) && !['TESTING.md', 'tools/README.md', '.github/workflows/test.yml', 'docs/DESIGN.md'].some((path) => inputs.test(path)))
 }
 
 export const cases = () => {
   const workflow = yaml.load(readFileSync(join(REPO_ROOT, '.github/workflows/guards.yml'), 'utf8'))
   workflowRegressions(workflow)
-  const artifact = workflow.jobs.guards.steps.find((step) => step.id === 'feature-parity__2')
-  T('Guards uploads the generated inventory from its hidden directory', artifact.with.path === manifestPath && artifact.with['include-hidden-files'] === true)
   const catalog = readFileSync(join(REPO_ROOT, 'packages/shared/src/i18n/en.json'), 'utf8')
   provenanceRegressions(catalog)
   promotionRegressions(catalog)
@@ -472,6 +470,32 @@ export const cases = () => {
       export function Controls({ words }) { return <Stripped aria-label={words.file} /> }
     `
     T(`${platform} a removed rest property cannot retain the mapped control`, compare(capability, scan(current, platform), mapping)[0].disposition === 'missing')
+    // A press wrapper that renders its props in another file, as MotionPressable does: the caller still owns the label it passes.
+    const controls = `apps/${platform}/controls.tsx`
+    const press = `apps/${platform}/press.tsx`
+    files[press] = `
+      function usePressElement({ unused, ...props }, ref) { return <button ref={ref} onClick={open} {...props} /> }
+      export const Press = forwardRef(function Press(props, ref) { return usePressElement(props, ref) })
+      export function Pill({ children, ...props }) { return <Press {...props}>{children}</Press> }
+    `
+    files[controls] = `import { Pill } from './press'
+      export function Controls({ words }) { return <Pill aria-label={words.file} /> }
+    `
+    current.paths.add(press)
+    const owned = { mappings: { [capability[0].id]: { ...mapping.mappings[capability[0].id], owners: [controls] } } }
+    const observed = scan(current, platform)
+    const consumers = observed.find((entry) => entry.id === `${platform}:content:habits.viewAll`)?.consumers ?? []
+    const wrapped = compare(capability, observed, owned)
+    T(`${platform} a label passed through nested press wrappers is consumed at its caller and at the wrapper's sink`, wrapped[0].disposition === 'retained' && wrapped[0].redesign.every((item) => item.file === controls) && [controls, press].every((file) => consumers.some((item) => item.file === file)), JSON.stringify(consumers))
+    files[controls] = `import { Pill } from './press'
+      export function Controls({ words }) { return <Pill unused={words.file} aria-label={words.image} /> }
+    `
+    T(`${platform} a caller prop that the wrapper never renders cannot qualify its caller`, compare(capability, scan(current, platform), owned)[0].disposition === 'missing')
+    files[controls] = `import { Pill } from './press'
+      export function Controls({ words }) { return <Pill onPress={open}>{words.file}</Pill> }
+    `
+    const child = compare(capability, scan(current, platform), owned)
+    T(`${platform} a child label passed through nested press wrappers is consumed at its caller`, child[0].disposition === 'retained' && child[0].redesign.some((item) => item.file === controls), JSON.stringify(child[0].redesign))
   }
 
   const rules = JSON.parse(readFileSync(join(REPO_ROOT, 'tools/feature-parity-rules.json'), 'utf8'))

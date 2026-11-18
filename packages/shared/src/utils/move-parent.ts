@@ -22,6 +22,8 @@ export interface MoveParentRowProps {
 
 export interface MoveParentPickerProps {
   selectionOnly?: boolean
+  /** The title of a selection-only picker, in the words of the surface that opens it. The full form keeps its field noun. */
+  selectionTitle?: string
   movingHabitTitle: string | null
   movingHabitCount?: number
   error?: string | null

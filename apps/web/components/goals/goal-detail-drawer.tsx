@@ -6,6 +6,7 @@ import { useCallback, useEffect, useRef, useState, type MouseEvent } from 'react
 import { useTranslations, useLocale } from 'next-intl'
 import { useRouter } from 'next/navigation'
 import { formatLocaleDateTime, getFriendlyErrorMessage } from '@orbit/shared/utils'
+import { getGoalSheetTitle } from '@orbit/shared/utils/goal-detail-line'
 import { prepareChatRequest } from '@orbit/shared/stores'
 import { createUseRetainedGoal } from '@orbit/shared/hooks'
 import { useChatStore } from '@/stores/chat-store'
@@ -165,7 +166,7 @@ export function GoalDetailDrawer({ open, inline = false, goalId, onOpenChange, o
 
   return (
     <>
-      {open && (inline || !editingProgress) ? inline ? <><AppBar title={t('progressScreen.sections.goals')} titleIsHeading={!goal} titleRef={barHeadingRef} onBack={() => close()} backLabel={t('common.back')} />{body}</> : <Sheet ref={sheetRef} open onClose={onClose} title={t('progressScreen.sections.goals')}>{body}</Sheet> : null}
+      {open && (inline || !editingProgress) ? inline ? <><AppBar title={t('progressScreen.sections.goals')} titleIsHeading={!goal} titleRef={barHeadingRef} onBack={() => close()} backLabel={t('common.back')} />{body}</> : <Sheet ref={sheetRef} open onClose={onClose} {...getGoalSheetTitle(goal, guided, t('progressScreen.sections.goals'))}>{body}</Sheet> : null}
       {open && editingProgress && sheetGoal ? <GoalProgressForm key={goalId} goal={sheetGoal} refetchDetail={refetch} asQuestion={guided} onClose={() => { setEditingProgress(false); outcomes.progressFormClosed() }} /> : null}
       {sheetGoal ? <EditGoalModal open={editing} onOpenChange={setEditing} goal={sheetGoal} /> : null}
       <GoalStatusResultDialog result={outcomes.result} onClose={outcomes.clearResult} onOpenList={openGoalsList} />

@@ -41,7 +41,6 @@ import { getHeldAccountId, useHeldAccountId } from '@/stores/auth-store'
 interface ProfileApiKeysProps {
   profile: Profile | undefined
   unlocked: boolean
-  /** The flag `orbit_guided_flows`: key creation runs as a one-question flow that ends on the reveal step. */
   guided?: boolean
 }
 
@@ -475,6 +474,7 @@ export function ProfileApiKeys({ profile, unlocked, guided = false }: Readonly<P
           isReadOnly={isReadOnly}
           onReadOnlyChange={setIsReadOnly}
           expiresAt={expiresAt}
+          timeZone={profile?.timeZone}
           onExpiryChange={setExpiresAt}
           createdKey={createdKey}
           onCreate={(request, onCreateGrantRequired) => createKey({ ...request, isReadOnly }, onCreateGrantRequired)}

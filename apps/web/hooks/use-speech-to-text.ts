@@ -98,11 +98,6 @@ export function useSpeechToText() {
         })
         const data = (await response.json().catch(() => null)) as TranscriptionResponse | null
         const text = data?.text?.trim() ?? ''
-        /**
-         * The tab may hold another account by now, and these are the previous account's spoken
-         * words. The composer appends a landed transcript to the draft it saves, so this one has
-         * to go nowhere rather than become the next account's message.
-         */
         if (getAccountGeneration() !== transcribingAccount) return
         if (!response.ok || !text) {
           const key =
@@ -238,11 +233,6 @@ export function useSpeechToText() {
     transcribe,
   ])
 
-  /**
-   * The app shell keeps this hook mounted through an account change, so a recording the
-   * previous account started would keep running and post their audio under the next account's
-   * cookie, where the composer appends the text to a draft it saves.
-   */
   const discardRecording = useCallback(() => {
     const recorder = mediaRecorderRef.current
     if (recorder) {

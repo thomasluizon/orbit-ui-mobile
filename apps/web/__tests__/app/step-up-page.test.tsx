@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi, afterEach } from 'vitest'
 import {
   STEP_UP_ATTEMPT_WINDOW_MS,
@@ -14,6 +14,7 @@ afterEach(() => vi.useRealTimers())
 
 import { UnrecognizedActionError } from 'next/dist/client/components/unrecognized-action-error'
 import { setApiFetchTranslate } from '@/lib/api-fetch'
+import { captureGuidedFlowEvent } from '@/lib/posthog'
 import { useVersionGateStore } from '@/stores/version-gate-store'
 
 const mocks = vi.hoisted(() => ({
@@ -36,6 +37,8 @@ const mocks = vi.hoisted(() => ({
   router: { replace: vi.fn() },
   serverAuthMutate: vi.fn(),
   heldAccountId: 'account-a',
+  guided: false,
+  flowCompleted: vi.fn(),
 }))
 
 vi.mock('next/navigation', async (importOriginal) => ({
@@ -50,8 +53,10 @@ vi.mock('next-intl', () => ({
 }))
 
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: mocks.profile }) }))
+vi.mock('@/hooks/use-flag', () => ({ useFlag: () => mocks.guided }))
+vi.mock('@/lib/posthog', async (importOriginal) => ({ ...await importOriginal<typeof import('@/lib/posthog')>(), captureGuidedFlowEvent: vi.fn(), captureGuidedFlowCompleted: mocks.flowCompleted }))
 vi.mock('@/hooks/use-date-format', () => ({
-  useDateFormat: () => ({ displayDate: (value: string) => `local:${value}` }),
+  useDateFormat: () => ({ displayDate: (value: string) => `local:${value}`, displayDateNumeric: (value: string) => `numeric:${value}` }),
 }))
 vi.mock('@/stores/auth-store', () => {
   const state = {
@@ -93,16 +98,6 @@ vi.mock('@/lib/step-up-storage', () => ({
   readStepUpTiming: (operation: string, accountId: string | null) =>
     mocks.readTiming(operation, accountId),
 }))
-vi.mock('@/components/shell/flow-shell', () => ({
-  FlowShell: ({ children, action, notice }: Readonly<{ children: React.ReactNode; action?: React.ReactNode; notice?: React.ReactNode }>) => (
-    <main>
-      {notice}
-      <section>{children}</section>
-      <footer data-testid="shell-action">{action}</footer>
-    </main>
-  ),
-}))
-
 import { StepUpScreen } from '@/app/step-up/step-up-screen'
 
 function liveRecord(offset = 0) {
@@ -123,8 +118,16 @@ function enterCode(code = '123456') {
   fireEvent.change(screen.getByLabelText('codeLabel'), { target: { value: code } })
 }
 
+function shellAction() {
+  return document.querySelector<HTMLElement>('[data-flow-action]')!
+}
+
+function filledAction() {
+  return document.querySelector<HTMLButtonElement>('[data-flow-primary] button') ?? within(shellAction()).getByRole('button')
+}
+
 function clickConfirm() {
-  fireEvent.click(within(screen.getByTestId('shell-action')).getByRole('button'))
+  fireEvent.click(filledAction())
 }
 
 describe('web step up screen', () => {
@@ -134,6 +137,7 @@ describe('web step up screen', () => {
     useVersionGateStore.setState(useVersionGateStore.getInitialState())
     setApiFetchTranslate((key) => key)
     mocks.operation = 'delete'
+    mocks.guided = false
     mocks.heldAccountId = 'account-a'
     mocks.router.replace = mocks.replace
     mocks.profile.email = 'person@example.com'
@@ -187,13 +191,45 @@ describe('web step up screen', () => {
 
   it('enables confirm only when all six digits are present', async () => {
     const input = await renderLiveScreen()
-    const confirm = within(screen.getByTestId('shell-action')).getByText('confirm').closest('button')
+    const confirm = within(shellAction()).getByText('confirm').closest('button')
 
     expect(confirm).toBeDisabled()
     fireEvent.change(input, { target: { value: '12345' } })
     expect(confirm).toBeDisabled()
     fireEvent.change(input, { target: { value: '123456' } })
     expect(confirm).toBeEnabled()
+  })
+
+  it('keeps confirm enabled with the flag on, and answers a short code with the hint beside the field and focus on the field', async () => {
+    mocks.guided = true
+    const input = await renderLiveScreen()
+    const confirm = filledAction()
+    expect(confirm).toHaveTextContent('confirm')
+    expect(confirm).toBeEnabled()
+    fireEvent.change(input, { target: { value: '12345' } })
+    expect(confirm).toBeEnabled()
+    input.blur()
+    await act(async () => { fireEvent.click(confirm) })
+    const confirmRequests = () => mocks.serverAuthMutate.mock.calls.filter(([endpoint]) => endpoint === API.auth.confirmDeletion)
+    expect(confirmRequests()).toHaveLength(0)
+    expect(input).toHaveAccessibleDescription('auth.errors.codeFormat')
+    expect(input).toHaveAttribute('aria-invalid', 'true')
+    expect(input).toHaveFocus()
+    input.blur()
+    await act(async () => { fireEvent.click(confirm) })
+    expect(input).toHaveFocus()
+    fireEvent.change(input, { target: { value: '123456' } })
+    expect(input).not.toHaveAttribute('aria-invalid')
+    await act(async () => { fireEvent.click(confirm) })
+    expect(confirmRequests()).toEqual([[API.auth.confirmDeletion, { method: 'POST', body: JSON.stringify({ code: '123456' }) }, 'account-a']])
+  })
+
+  it.each([false, true])('holds one filled action on the code step, and the resend stays quiet (flag %s)', async (guided) => {
+    mocks.guided = guided
+    await renderLiveScreen(liveRecord(60_000))
+    const filled = [...document.querySelectorAll('button[data-variant="primary"]')].map((button) => button.textContent)
+    expect(filled).toHaveLength(1)
+    for (const button of screen.getAllByText('resend').map((label) => label.closest('button'))) expect(button).toHaveAttribute('data-variant', 'ghost')
   })
 
   it('blocks editing and exposes the confirm loading state while checking', async () => {
@@ -219,7 +255,7 @@ describe('web step up screen', () => {
       'account-a',
     ))
     await waitFor(() => expect(input).toBeDisabled())
-    expect(screen.getByTestId('shell-action').querySelector('button')).toHaveAttribute('aria-busy', 'true')
+    expect(shellAction().querySelector('button')).toHaveAttribute('aria-busy', 'true')
 
     resolveConfirmation?.({
       message: 'Account deactivated',
@@ -363,8 +399,7 @@ describe('web step up screen', () => {
     expect(await screen.findByText('exhaustedNotice')).toBeInTheDocument()
     expect(screen.queryByText('resend')).not.toBeInTheDocument()
     expect(mocks.serverAuthMutate).not.toHaveBeenCalled()
-    const destination = operation === 'keys' ? 'profile.groups.astra' : 'profile.submenus.account'
-    fireEvent.click(screen.getByText(`common.backToDestination:${JSON.stringify({ destination })}`))
+    fireEvent.click(screen.getByText(operation === 'keys' ? 'common.backToOrbit' : 'common.backToDestination:{"destination":"profile.submenus.account"}'))
     expect(mocks.router.replace).toHaveBeenCalledWith(operation === 'keys' ? '/profile/ai' : '/profile/account')
   })
 
@@ -395,9 +430,135 @@ describe('web step up screen', () => {
   it('disables an expired code and uses the sole filled action for a new code', async () => {
     const input = await renderLiveScreen(liveRecord(STEP_UP_CHALLENGE_DURATION_MS))
     expect(input).toBeDisabled()
-    const action = screen.getByTestId('shell-action')
+    const action = shellAction()
     expect(within(action).getByText('resend').closest('button')).toHaveAttribute('data-variant', 'primary')
     expect(screen.queryByText('confirm')).not.toBeInTheDocument()
+  })
+
+  it('asks the code question as the title with the flag on, and keeps the current title with the flag off', async () => {
+    mocks.guided = true
+    await renderLiveScreen()
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('codeLabel')
+    expect(screen.getByLabelText('codeLabel')).toHaveAttribute('name', 'verificationCode')
+    expect(screen.getByRole('button', { name: 'common.back' })).toBeInTheDocument()
+    expect(document.querySelector('[data-orbit-state]')).toBeNull()
+    cleanup()
+    mocks.guided = false
+    await renderLiveScreen()
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('title')
+  })
+
+  const progressName = () => screen.getByRole('list', { name: /^habits\.flow\.progress/ }).getAttribute('aria-label')
+
+  it('asks the code in the guided centred question layout with the flag on: the back arrow, the progress of the delete flow, one question and no eyebrow', async () => {
+    mocks.guided = true
+    await renderLiveScreen()
+    const flow = document.querySelector('[data-guided-step-up] [data-question-flow]')
+    expect(flow).not.toBeNull()
+    expect(flow).toHaveAttribute('data-step', 'code')
+    expect(screen.getAllByRole('heading')).toHaveLength(1)
+    expect(screen.getByRole('heading', { level: 1 })).toHaveAccessibleDescription('body:{"email":"person@example.com"}')
+    expect(screen.queryByText(/^eyebrow/)).not.toBeInTheDocument()
+    expect(progressName()).toBe('habits.flow.progress:{"position":3,"total":3}')
+    expect(document.querySelector('[data-flow-primary] button')).toHaveTextContent('confirm')
+    expect(screen.getByText('neverShare')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'common.back' }))
+    expect(mocks.router.replace).toHaveBeenCalledWith('/profile/account')
+  })
+
+  it.each([[true, '[data-guided-step-up] [data-question-flow]'], [false, '[data-shell="flow"]']] as const)('holds exactly one main landmark around the surface in every state of the real shell (flag %s)', async (guided, surface) => {
+    const expectOneMain = () => {
+      const landmarks = document.querySelectorAll('main')
+      expect(landmarks).toHaveLength(1)
+      expect(landmarks[0]).toContainElement(document.querySelector<HTMLElement>(surface))
+    }
+    mocks.guided = guided
+    await renderLiveScreen()
+    expectOneMain()
+    enterCode()
+    clickConfirm()
+    expect(await screen.findByText(/successTitle/)).toBeInTheDocument()
+    expectOneMain()
+    cleanup()
+    await renderLiveScreen(liveRecord(STEP_UP_CHALLENGE_DURATION_MS + 1000))
+    expectOneMain()
+    cleanup()
+    mocks.readTiming.mockReturnValue({ ...liveRecord(), exhaustedAt: Date.now() })
+    render(<StepUpScreen serverAccountId={null} />)
+    expect(await screen.findByText('exhaustedTitle')).toBeInTheDocument()
+    expectOneMain()
+  })
+
+  it('keeps the current layout with the flag off: the eyebrow, the title and the cancel link, with no flow frame', async () => {
+    await renderLiveScreen()
+    expect(document.querySelector('[data-question-flow]')).toBeNull()
+    expect(screen.getByText(/^eyebrow/)).toBeInTheDocument()
+    expect(screen.getByText('cancel')).toBeInTheDocument()
+  })
+
+  it('counts the code of an API key as its own one-step progress with the flag on', async () => {
+    mocks.guided = true
+    mocks.operation = 'keys'
+    await renderLiveScreen({ operation: 'keys', sentAt: Date.now() })
+    expect(progressName()).toBe('habits.flow.progress:{"position":1,"total":1}')
+    expect(document.querySelector('[data-question-flow]')).toHaveAttribute('data-step', 'code')
+  })
+
+  it('shows the expired, exhausted and closed states in the same guided frame with the flag on', async () => {
+    mocks.guided = true
+    await renderLiveScreen(liveRecord(STEP_UP_CHALLENGE_DURATION_MS + 1000))
+    expect(document.querySelector('[data-question-flow]')).toHaveAttribute('data-step', 'expired')
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('expiredTitle')
+    expect(document.querySelector('[data-flow-primary] button')).toHaveTextContent('resend')
+    cleanup()
+    mocks.readTiming.mockReturnValue({ ...liveRecord(), exhaustedAt: Date.now() })
+    render(<StepUpScreen serverAccountId={null} />)
+    expect(await screen.findByRole('heading', { level: 1 })).toHaveTextContent('exhaustedTitle')
+    expect(document.querySelector('[data-question-flow]')).toHaveAttribute('data-step', 'exhausted')
+    expect(document.querySelector('[data-flow-primary]')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: /back/i }))
+    expect(mocks.router.replace).toHaveBeenCalledWith('/profile/account')
+  })
+
+  it('holds no mascot on the exhausted step with the flag on', async () => {
+    mocks.guided = true
+    mocks.readTiming.mockReturnValue({ ...liveRecord(), exhaustedAt: Date.now() })
+    render(<StepUpScreen serverAccountId={null} />)
+    expect(await screen.findByText('exhaustedTitle')).toBeInTheDocument()
+    expect(document.querySelector('[data-orbit-state]')).toBeNull()
+  })
+
+  it.each([false, true])('closes the delete flow with the result dialog: Orbit in Parado, the date the server set, and sign out (Pro %s)', async (pro) => {
+    mocks.guided = true
+    mocks.profile.hasProAccess = pro
+    await renderLiveScreen()
+    enterCode()
+    clickConfirm()
+
+    const dialog = await screen.findByRole('dialog', { name: 'result.title' })
+    expect(mocks.flowCompleted).toHaveBeenCalledExactlyOnceWith('delete_account', 3, false)
+    const sentence = `result.account.${pro ? 'deletionScheduledPro' : 'deletionScheduled'}:{"date":"local:2026-09-04T03:00:00Z"}`
+    expect(dialog).toHaveAccessibleDescription(sentence)
+    expect(dialog.querySelector('[data-result-dialog]')).toHaveAttribute('data-orbit-state', 'parado')
+    await waitFor(() => expect(within(dialog).getByRole('button', { name: 'stepUp.signOut' })).toHaveFocus())
+    fireEvent.click(within(dialog).getByRole('button', { name: 'stepUp.signOut' }))
+    expect(mocks.logout).toHaveBeenCalledOnce()
+
+    fireEvent.keyDown(document.activeElement ?? document.body, { key: 'Escape' })
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    expect(document.querySelector('[data-question-flow]')).toHaveAttribute('data-step', 'done')
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('successTitle:{"date":"numeric:2026-09-04T03:00:00Z"}')
+    if (pro) expect(screen.getByText(/successPro/)).toHaveTextContent('local:2026-09-04T03:00:00Z')
+    fireEvent.click(screen.getByText('signOut'))
+    expect(mocks.logout).toHaveBeenCalledTimes(2)
+  })
+
+  it('opens no result dialog with the flag off', async () => {
+    await renderLiveScreen()
+    enterCode()
+    clickConfirm()
+    expect(await screen.findByText(/successTitle/)).toBeInTheDocument()
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   })
 
   it('renders the endpoint date in the device format and signs out', async () => {
@@ -424,16 +585,25 @@ describe('web step up screen', () => {
     )
   })
 
+  it('shows a pending update in its notice with no Orbit, because Orbit never sits inside a step-up', async () => {
+    useVersionGateStore.getState().markUpgradeRequired('1.5.0')
+    await renderLiveScreen()
+    expect(screen.getByRole('status')).toHaveTextContent('forceUpdate.banner')
+    expect(document.querySelector('[data-asset="orbit-mascot"]')).toBeNull()
+  })
+
   it('routes cancel to Profile', async () => {
     await renderLiveScreen()
     fireEvent.click(screen.getByText('cancel'))
     expect(mocks.replace).toHaveBeenCalledWith('/profile/account')
   })
 
-  it('confirms API key creation and returns to the creation handoff', async () => {
+  it('confirms API key creation in the guided frame and returns to the creation handoff, and never reports the verified code as a left flow', async () => {
+    mocks.guided = true
     mocks.operation = 'keys'
     mocks.readTiming.mockReturnValue({ operation: 'keys', sentAt: Date.now() })
-    render(<StepUpScreen serverAccountId={null} />)
+    const { unmount } = render(<StepUpScreen serverAccountId={null} />)
+    expect(document.querySelector('[data-guided-step-up] [data-question-flow]')).toHaveAttribute('data-step', 'code')
     await screen.findByLabelText('codeLabel')
     enterCode()
     clickConfirm()
@@ -446,5 +616,9 @@ describe('web step up screen', () => {
     expect(mocks.clearTiming).toHaveBeenCalledWith('keys', 'account-a')
     expect(mocks.markVerified).toHaveBeenCalledWith('keys')
     expect(mocks.replace).toHaveBeenCalledWith('/profile/ai')
+    unmount()
+    const events = vi.mocked(captureGuidedFlowEvent).mock.calls.map(([event]) => event)
+    expect(events).toContainEqual({ name: 'guided_flow_step_viewed', properties: { flow: 'api_key_create', step: 'code', step_count: 1 } })
+    expect(events.filter((event) => event.name === 'guided_flow_abandoned')).toEqual([])
   })
 })

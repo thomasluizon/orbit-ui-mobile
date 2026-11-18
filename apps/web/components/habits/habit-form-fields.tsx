@@ -46,7 +46,7 @@ import { HabitChecklist } from './habit-checklist'
 import { HabitScheduleFields } from './habit-form-fields/habit-schedule-fields'
 import { HabitMonthDaysField } from './habit-form-fields/habit-month-days-field'
 import { HabitUnderstanding, HabitRepeatInterval } from './habit-form-fields/habit-understanding'
-import { HabitTagsField } from './habit-form-fields/habit-tags-field'
+import { HabitTagsField, useHabitTagEditor } from './habit-form-fields/habit-tags-field'
 import { EndDateEditor } from './habit-form-fields/end-date-editor'
 import { HabitAvoidanceFields } from './habit-form-fields/habit-avoidance-fields'
 import { useExpandAdvancedSignal } from './habit-form-fields/use-expand-advanced-signal'
@@ -199,6 +199,7 @@ export function HabitFormFields({
     setDetailsOpen(true)
   })
 
+  const tagEditor = useHabitTagEditor({ tags, title, description })
   const localRead = useMemo(() => readTypedHabitPhrase(title, locale, itemType, formHelpers.isGeneral), [formHelpers.isGeneral, itemType, locale, title])
 
   useEffect(() => {
@@ -406,7 +407,7 @@ export function HabitFormFields({
             <section className="flex flex-col gap-4">
               <FormSectionLabel>{t('habits.form.organize')}</FormSectionLabel>
             {parentField}
-            <HabitTagsField tags={tags} title={title} description={description} />
+            <HabitTagsField tags={tags} tagEditor={tagEditor} />
 
             <section>
               <GoalLinkingField

@@ -11,6 +11,7 @@ import { PillButton } from '@/components/ui/pill-button'
 import { RadioGroup } from '@/components/ui/radio-group'
 import { RadioRow } from '@/components/ui/select-check'
 import { WifiOff } from '@/components/ui/icons'
+import { KeyboardRevealGroup } from '@/components/ui/keyboard-reveal-group'
 
 interface SupportFormProps {
   email: string
@@ -127,54 +128,56 @@ export function SupportForm({
           </p>
         ) : null}
       </div>
-      {messageAsked ? <Input
-        label={t('profile.support.message')}
-        required
-        name="message"
-        value={message}
-        onChange={onMessageChange}
-        placeholder={t('profile.support.messagePlaceholder')}
-        disabled={isSending}
-        error={messageError ?? undefined}
-        hint={messageError ? undefined : messageOverLimitHint ?? undefined}
-        maxLength={messageMaxLength}
-        autoComplete="off"
-        multiline
-        rows={6}
-        focusRequest={messageFocusRequest}
-        onBlur={onMessageBlur}
-      /> : null}
-      <SupportReplyEmail email={email} />
-      {appVersion ? (
-        <p className="text-pretty text-sm leading-[1.5] text-[var(--fg-3)]">
-          {t('profile.support.versionIncluded', { version: appVersion })}
-        </p>
-      ) : null}
-      {!isOnline ? (
-        <div
-          id="support-send-reason"
-          role="status"
-          className="flex min-w-0 items-center gap-3 rounded-[var(--r-well)] bg-[var(--bg-well)] p-3"
-        >
-          <WifiOff size={20} aria-hidden className="shrink-0 text-[var(--fg-3)]" />
-          <p className="min-w-0 flex-1 text-pretty text-sm leading-[1.5] text-[var(--fg-2)]">
-            {t('profile.support.offlineReason')}
+      <KeyboardRevealGroup testID="support-field-action" className="flex min-w-0 flex-col gap-6">
+        {messageAsked ? <Input
+          label={t('profile.support.message')}
+          required
+          name="message"
+          value={message}
+          onChange={onMessageChange}
+          placeholder={t('profile.support.messagePlaceholder')}
+          disabled={isSending}
+          error={messageError ?? undefined}
+          hint={messageError ? undefined : messageOverLimitHint ?? undefined}
+          maxLength={messageMaxLength}
+          autoComplete="off"
+          multiline
+          rows={6}
+          focusRequest={messageFocusRequest}
+          onBlur={onMessageBlur}
+        /> : null}
+        <SupportReplyEmail email={email} />
+        {appVersion ? (
+          <p className="text-pretty text-sm leading-[1.5] text-[var(--fg-3)]">
+            {t('profile.support.versionIncluded', { version: appVersion })}
           </p>
+        ) : null}
+        {!isOnline ? (
+          <div
+            id="support-send-reason"
+            role="status"
+            className="flex min-w-0 items-center gap-3 rounded-[var(--r-well)] bg-[var(--bg-well)] p-3"
+          >
+            <WifiOff size={20} aria-hidden className="shrink-0 text-[var(--fg-3)]" />
+            <p className="min-w-0 flex-1 text-pretty text-sm leading-[1.5] text-[var(--fg-2)]">
+              {t('profile.support.offlineReason')}
+            </p>
+          </div>
+        ) : disabledReason ? (
+          <p id="support-send-reason" className="text-sm text-[var(--fg-2)]">
+            {disabledReason}
+          </p>
+        ) : null}
+        <div className="[&_button]:w-full md:[&_button]:w-auto md:[&_button]:bg-[var(--fg-1)] md:[&_button]:text-[var(--bg)] md:[&_button]:[transition-property:background-color,color,opacity,scale] md:[&_button]:[transition-duration:var(--dur-hover-control),var(--dur-hover-control),var(--dur-1),var(--dur-1)] md:[&_button]:[transition-timing-function:var(--ease-standard),var(--ease-standard),var(--ease-out),var(--ease-out)] md:[&_button:enabled]:hover:bg-[color-mix(in_srgb,var(--fg-1)_90%,var(--bg))] md:[&_button:enabled:active]:bg-[color-mix(in_srgb,var(--fg-1)_90%,var(--bg))]">
+          <PillButton size="md"
+            disabled={disabled}
+            loading={isSending}
+            descriptionId={!isOnline || disabledReason ? 'support-send-reason' : undefined}
+          >
+            {error ? t('profile.support.retry') : t('profile.support.send')}
+          </PillButton>
         </div>
-      ) : disabledReason ? (
-        <p id="support-send-reason" className="text-sm text-[var(--fg-2)]">
-          {disabledReason}
-        </p>
-      ) : null}
-      <div className="[&_button]:w-full md:[&_button]:w-auto md:[&_button]:bg-[var(--fg-1)] md:[&_button]:text-[var(--bg)] md:[&_button]:[transition-property:background-color,color,opacity,scale] md:[&_button]:[transition-duration:var(--dur-hover-control),var(--dur-hover-control),var(--dur-1),var(--dur-1)] md:[&_button]:[transition-timing-function:var(--ease-standard),var(--ease-standard),var(--ease-out),var(--ease-out)] md:[&_button:enabled]:hover:bg-[color-mix(in_srgb,var(--fg-1)_90%,var(--bg))] md:[&_button:enabled:active]:bg-[color-mix(in_srgb,var(--fg-1)_90%,var(--bg))]">
-        <PillButton size="md"
-          disabled={disabled}
-          loading={isSending}
-          descriptionId={!isOnline || disabledReason ? 'support-send-reason' : undefined}
-        >
-          {error ? t('profile.support.retry') : t('profile.support.send')}
-        </PillButton>
-      </div>
+      </KeyboardRevealGroup>
     </form>
   )
 }

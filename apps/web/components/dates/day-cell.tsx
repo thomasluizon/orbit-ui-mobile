@@ -19,7 +19,6 @@ function ringStyle(outcome: DayOutcome): CSSProperties {
   return {}
 }
 
-/** Feedback stays on the day disc inside its transparent target. */
 function PressFill({ selected = false }: Readonly<{ selected?: boolean }>) {
   if (selected) return null
   return (
@@ -33,7 +32,6 @@ function PressFill({ selected = false }: Readonly<{ selected?: boolean }>) {
 
 const ARC_SWEEP = `stroke-dashoffset ${motionDurations.slow}ms cubic-bezier(${motionEasings.standard.join(', ')})`
 
-/** The share of the day done, drawn on a path length of 100. With the guided flows on, a log sweeps the arc from the old share to the new one; the flag off and reduced motion draw the new share at once. */
 function PartialArc({ fraction, size }: Readonly<{ fraction: number; size: number }>) {
   const guided = useFlag('orbit_guided_flows')
   const reducedMotion = useViewportMatch('(prefers-reduced-motion: reduce)')

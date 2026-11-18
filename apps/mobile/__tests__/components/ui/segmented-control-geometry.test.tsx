@@ -24,6 +24,8 @@ import { SegmentedControl } from '@/components/ui/segmented-control'
 import { useUIStore } from '@/stores/ui-store'
 import { TrueSheet } from '@lodev09/react-native-true-sheet'
 import { __resetTestHostConfig, __setWindowDimensions } from '../../../test-mocks/react-native'
+import { controlStyle } from '@/__tests__/support/press-feedback'
+import { applyBorderWidths } from '@/__tests__/support/yoga-borders'
 
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 
@@ -76,7 +78,7 @@ function applyStyle(node: YogaNode, style: ViewStyle) {
   if (typeof style.padding === 'number') node.setPadding(Yoga.EDGE_ALL, style.padding)
   if (typeof style.paddingVertical === 'number') node.setPadding(Yoga.EDGE_VERTICAL, style.paddingVertical)
   if (typeof style.paddingHorizontal === 'number') node.setPadding(Yoga.EDGE_HORIZONTAL, style.paddingHorizontal)
-  if (typeof style.borderWidth === 'number') node.setBorder(Yoga.EDGE_ALL, style.borderWidth)
+  applyBorderWidths(node, style)
 }
 
 function buildLayout(host: Host, fontScale: number, labels: { node: YogaNode; intrinsic: number; host: Host }[], radios: YogaNode[], groups: { node: YogaNode; radios: YogaNode[] }[] = [], inRadio = false, config?: YogaConfig): YogaNode {
@@ -212,7 +214,7 @@ it('leaves at least 8px spare for the four Portuguese calendar views in a 288px 
   try {
     const group = StyleSheet.flatten(tree.root.findAll((node) => String(node.type) === 'View' && node.props.accessibilityRole === 'radiogroup')[0]!.props.style as StyleProp<ViewStyle>)
     const radio = tree.root.findAll((node) => String(node.type) === 'Pressable' && node.props.accessibilityRole === 'radio')[0]!
-    const segment = StyleSheet.flatten(radio.props.style as StyleProp<ViewStyle>)
+    const segment = controlStyle(radio)
     const label = StyleSheet.flatten(tree.root.findAll((node) => String(node.type) === 'Text' && node.props.testID === 'segment-measure')[0]!.props.style as StyleProp<TextStyle>)
     const insets = { label: 2 * (Number(segment.paddingHorizontal ?? 0) + Number(segment.borderWidth ?? 0)),
       track: 2 * Number(group.paddingHorizontal ?? group.padding ?? 0), gap: Number(group.gap) }

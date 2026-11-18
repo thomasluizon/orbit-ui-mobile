@@ -80,7 +80,6 @@ export function useRestoreGoal() {
 }
 
 interface DeleteGoalOptions {
-  /** Takes the undo instead of the undo toast, so a result dialog can offer it. */
   onDeleted?: (undo: () => void) => void
 }
 

@@ -51,11 +51,6 @@ export function CommandMenu({ navItems, onCreateHabit, onClose }: Readonly<Comma
   const search = useHabitSearch()
   const t = useTranslations()
   const router = useRouter()
-  /**
-   * The palette outlives an account replacement, because `shell-store.paletteOpen` holds it
-   * open and `#600` leaves that store alone. Its rows are already the next account's, and so
-   * is the typed text, which `use-habit-search.ts:16-18` scopes.
-   */
   const [page, setPage] = useAccountScopedState<SearchCommandPage>(null)
   const { createRefusal, createHabit } = useCreateRefusal(onCreateHabit, onClose)
   const { showError } = useAppToast()

@@ -2,7 +2,8 @@ import * as ReactNative from 'react-native'
 import React from "react";
 import { createRequire } from 'node:module';
 import type { LegacyHoverGesture as HoverGesture, GestureStateChangeEvent } from 'react-native-gesture-handler';
-import { PressScalePressable } from '@/components/motion/press-scale';
+import { MotionPressable } from '@/components/ui/motion-pressable';
+import { controlStyle, pressFace, pressableStyle } from '@/__tests__/support/press-feedback';
 import { afterEach, describe, it, expect, vi } from "vitest";
 import { StyleSheet } from "react-native";
 import { INTERACTION_FILL_CLEARANCE } from "@orbit/shared/theme";
@@ -45,7 +46,7 @@ function attachedHeaderHover(header: TestNode): HoverGesture {
   while (detector && detector.type !== 'GestureDetector') detector = detector.parent;
   expect(detector?.type, 'the native hover detector must wrap this header control').toBe('GestureDetector');
   const child = React.Children.only(detector!.props.children) as React.ReactElement<{ testID?: string; collapsable?: boolean }>;
-  expect(child.type, 'hover must attach to the full header control').toBe(PressScalePressable);
+  expect(child.type, 'hover must attach to the full header control').toBe(MotionPressable);
   expect(child.props.testID).toBe('time-grid-col-header');
   expect(header.props.collapsable).toBe(false);
   const gesture = detector!.props.gesture as HoverGesture;
@@ -68,6 +69,7 @@ type TestNode = {
   type: unknown;
   props: Record<string, any>;
   parent?: TestNode | null;
+  findAll: (predicate: (node: TestNode) => boolean) => TestNode[];
 };
 type Tree = {
   update: (element: React.ReactNode) => void;
@@ -75,10 +77,9 @@ type Tree = {
 };
 
 function pressLayerStyle(host: TestNode) {
-  let layer: TestNode | null | undefined = host.parent;
-  while (layer && layer.props['data-slot'] !== 'press-scale') layer = layer.parent;
-  expect(layer, 'a timed block eases its press scale on a press layer').toBeTruthy();
-  return StyleSheet.flatten(layer!.props.style);
+  const layer = pressFace(host);
+  expect(layer, 'a timed block eases its press scale on the face inside its whole target').toBeTruthy();
+  return StyleSheet.flatten(layer!.props.style as ReactNative.StyleProp<ReactNative.ViewStyle>);
 }
 
 function makeEntry(overrides: Partial<CalendarDayEntry> = {}): CalendarDayEntry {
@@ -197,7 +198,7 @@ describe("CalendarTimeGrid (mobile)", () => {
     const columns = Array.from({ length: 7 }, (_, index) => column(`2026-10-${String(5 + index).padStart(2, '0')}`));
     const tree = renderGrid(columns, new Map(columns.map(({ dateStr }) => [dateStr, [makeEntry()]])));
     for (const header of hostsByTestID(tree, 'time-grid-col-header')) {
-      const target = StyleSheet.flatten(header.props.style({ pressed: true }));
+      const target = pressableStyle(header, true);
       expect(target.backgroundColor ?? 'transparent').toBe('transparent');
       expect(Number(target.borderRadius)).toBeGreaterThan(0);
       TestRenderer.act(() => header.props.onPressIn?.());
@@ -227,7 +228,7 @@ describe("CalendarTimeGrid (mobile)", () => {
     expect(fillStyle().backgroundColor).toBe('transparent');
     TestRenderer.act(() => header.props.onFocus(focusEvent));
     expect(fillStyle().backgroundColor).toBe(palette.bgHover);
-    const ring = tree.root.findAll((node) => typeof node.type === 'string' && resolveStyle(node.props.style).outlineStyle === 'solid')[0]!;
+    const ring = header.findAll((node) => typeof node.type === 'string' && resolveStyle(node.props.style).outlineStyle === 'solid')[0]!;
     const outline = resolveStyle(ring.props.style);
     expect(-Number(outline.outlineOffset) - Number(outline.outlineWidth)).toBe(INTERACTION_FILL_CLEARANCE);
     TestRenderer.act(() => header.props.onPressIn());
@@ -270,8 +271,9 @@ describe("CalendarTimeGrid (mobile)", () => {
       const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="400" height="64"><text y="32" font-family="Geist" font-size="${12 * fontScale}">${title}</text></svg>`;
       const bounds = new Resvg(svg, { font: { fontFiles: [font], loadSystemFonts: false } }).getBBox()!;
       for (const block of hostsByTestID(tree, 'time-grid-event')) {
-        const style: Record<string, unknown> = { ...resolveStyle(block.props.style), width: pressLayerStyle(block).width };
-        expect(bounds.x + bounds.width).toBeLessThanOrEqual(Number(style.width) - 2 * Number(style.paddingHorizontal) - 2 * Number(style.borderWidth));
+        const style: Record<string, unknown> = controlStyle(block);
+        expect(style.borderWidth).toBeUndefined();
+        expect(bounds.x + bounds.width).toBeLessThanOrEqual(Number(style.width) - 2 * Number(style.paddingHorizontal));
       }
       const cellStyle = resolveStyle(hostsByTestID(tree, 'time-grid-all-day')[0]!.props.style);
       expect(bounds.x + bounds.width).toBeLessThanOrEqual(expectedWidth - 2 * Number(cellStyle.paddingHorizontal) - Number(cellStyle.borderLeftWidth) - 18);
@@ -328,7 +330,7 @@ describe("CalendarTimeGrid (mobile)", () => {
     })[0]!;
     expect(resolveStyle(time().props.style).color).toBe(palette.fg3);
     TestRenderer.act(() => block.props.onPressIn());
-    const fill = StyleSheet.flatten(block.props.style({ pressed: true })).backgroundColor;
+    const fill = controlStyle(block).backgroundColor;
     expect(contrastOnSurface(String(resolveStyle(time().props.style).color), [palette.bg, palette.bgCard, fill])).toBeGreaterThanOrEqual(4.5);
     TestRenderer.act(() => block.props.onPressOut());
     expect(resolveStyle(time().props.style).color).toBe(palette.fg3);
@@ -377,7 +379,7 @@ describe("CalendarTimeGrid (mobile)", () => {
     const tree = renderGrid([col], dayMap);
 
     expect(hostsByTestID(tree, "time-grid-event")).toHaveLength(1);
-    expect(pressLayerStyle(hostsByTestID(tree, "time-grid-event")[0]!)).toMatchObject({
+    expect(controlStyle(hostsByTestID(tree, "time-grid-event")[0]! as never)).toMatchObject({
       top: 384,
       width: 188,
       minHeight: 48,
@@ -399,6 +401,30 @@ describe("CalendarTimeGrid (mobile)", () => {
     expect(textValuesWithin(tree, "time-grid-any-time-label")).toContain("No set time");
   });
 
+  it("draws the timed block and all-day chip hairline as an inset ring that takes no layout space", () => {
+    const past = column("2025-06-16");
+    const future = column("2025-06-18", true);
+    const entries = [makeEntry({ habitId: "timed", dueTime: "08:00" }), makeEntry({ habitId: "untimed", title: "Read", dueTime: null })];
+    const tree = renderGrid([past, future], new Map([[past.dateStr, entries], [future.dateStr, entries]]));
+    const ring = { outlineWidth: 1, outlineOffset: -1, outlineStyle: "solid" };
+
+    const blocks = hostsByTestID(tree, "time-grid-event");
+    expect(blocks).toHaveLength(2);
+    for (const block of blocks) expect(controlStyle(block as never).borderWidth).toBeUndefined();
+    const rings = hostsByTestID(tree, "time-grid-event-ring").map((host) => resolveStyle(host.props.style));
+    expect(rings).toHaveLength(2);
+    expect(rings[0]).toMatchObject({ ...ring, position: "absolute", top: 0, right: 0, bottom: 0, left: 0, borderRadius: 8, outlineColor: tokens.hairline });
+    expect(rings[1]).toMatchObject({ ...ring, outlineColor: tokens.hairlineGhost });
+
+    const chips = hostsByTestID(tree, "time-grid-all-day-event");
+    expect(chips).toHaveLength(2);
+    for (const chip of chips) {
+      const surface = resolveStyle(chip.findAll((node) => node.type === "View" && resolveStyle(node.props.style).backgroundColor === tokens.bgWell)[0]!.props.style);
+      expect(surface.borderWidth).toBeUndefined();
+      expect(surface).toMatchObject({ ...ring, outlineColor: tokens.hairline, paddingHorizontal: 8 });
+    }
+  });
+
   it("keeps every concurrent timed-event lane at least 48px wide", () => {
     const col = column("2025-06-16");
     const dayMap = new Map<string, CalendarDayEntry[]>([[
@@ -411,7 +437,7 @@ describe("CalendarTimeGrid (mobile)", () => {
     const tree = renderGrid([col], dayMap);
 
     const widths = hostsByTestID(tree, "time-grid-event").map(
-      (event) => pressLayerStyle(event).width,
+      (event) => controlStyle(event as never).width,
     );
     expect(widths).toEqual([92, 92]);
   });
@@ -940,7 +966,7 @@ describe("CalendarTimeGrid (mobile)", () => {
       'calendar.timeGrid.moreCountLabel:{"count":7}',
     );
     expect(resolveStyle(more[0]!.props.style)).toMatchObject({ minHeight: 48, minWidth: 48, borderRadius: 8 });
-    expect(StyleSheet.flatten(more[0]!.props.style({ pressed: true }))).toMatchObject({
+    expect(pressableStyle(more[0]! as never, true)).toMatchObject({
       backgroundColor: gridTokens.bgHover,
       borderRadius: 8,
     });
@@ -984,7 +1010,7 @@ function headerInteractions(mode: 'dark' | 'light', language: 'en' | 'pt-BR') {
   const hover = attachedHeaderHover(header());
   const otherHover = attachedHeaderHover(headers()[1]!);
   expect(otherHover).not.toBe(hover);
-  const style = () => resolveStyle(header().props.style({ pressed: false }));
+  const style = () => controlStyle(header());
   const scale = () => (pressLayerStyle(header()).transform as [{ scale: number }])[0].scale;
   const fill = (index = 0) => hostsByTestID(tree, 'time-grid-col-header-fill').find((candidate) => {
     for (let parent = candidate.parent; parent; parent = parent.parent) if (parent === headers()[index]) return true;
@@ -992,9 +1018,9 @@ function headerInteractions(mode: 'dark' | 'light', language: 'en' | 'pt-BR') {
   })!;
   const paint = (index = 0) => resolveStyle(fill(index).props.style).backgroundColor ?? 'transparent';
   for (let index = 0; index < headers().length; index++) {
-    const target = resolveStyle(headers()[index]!.props.style);
+    const target = controlStyle(headers()[index]!);
     expect(target.backgroundColor ?? 'transparent').toBe('transparent');
-    expect(resolveStyle(headers()[index]!.props.style({ pressed: true })).backgroundColor ?? 'transparent').toBe('transparent');
+    expect(pressableStyle(headers()[index]! as never, true).backgroundColor ?? 'transparent').toBe('transparent');
     expect(fill(index)).toBeDefined();
     expect(resolveStyle(fill(index).props.style)).toMatchObject({
       position: 'absolute', top: INTERACTION_FILL_CLEARANCE, right: INTERACTION_FILL_CLEARANCE,
@@ -1014,7 +1040,8 @@ function headerInteractions(mode: 'dark' | 'light', language: 'en' | 'pt-BR') {
     TestRenderer.act(() => { __focusHost(headers()[index]!.props.__nativeTag); });
   };
   const outlines = () => tree.root.findAll((node) => {
-    if (node.type !== 'View' || resolveStyle(node.props.style).outlineWidth !== 2) return false;
+    if (!['View', 'Pressable'].includes(String(node.type)) || resolveStyle(node.props.style).outlineWidth !== 2) return false;
+    if (node === header()) return true;
     for (let parent = node.parent; parent; parent = parent.parent) if (parent === header()) return true;
     return false;
   });
@@ -1022,7 +1049,7 @@ function headerInteractions(mode: 'dark' | 'light', language: 'en' | 'pt-BR') {
 }
 
 function headerGeometry(style: Record<string, unknown>) {
-  return Object.fromEntries(Object.entries(style).filter(([key]) => key !== 'backgroundColor' && key !== 'transform'));
+  return Object.fromEntries(Object.entries(style).filter(([key]) => key !== 'backgroundColor' && key !== 'transform' && !key.startsWith('outline')));
 }
 
 describe.each(['dark', 'light'] as const)('Calendar column-header interactions in %s', (mode) => {
@@ -1075,8 +1102,8 @@ describe.each(['dark', 'light'] as const)('Calendar column-header interactions i
       for (let parent = candidate.parent; parent; parent = parent.parent) if (parent === view.header()) return true;
       return false;
     })!;
-    const layer = pressLayer(view.header());
-    expect(layer, 'a press scale layer holds the header').toBeTruthy();
+    const layer = pressFace(view.header());
+    expect(layer, 'the header face holds the fill, the weekday and the date').toBeTruthy();
     expect(pressLayer(inHeader('time-grid-col-header-fill')), 'the fill shares the header press layer').toBe(layer);
     expect(pressLayer(inHeader('time-grid-col-date')), 'the date shares the header press layer').toBe(layer);
     view.run('onPressIn');

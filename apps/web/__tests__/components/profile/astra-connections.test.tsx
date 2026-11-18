@@ -55,6 +55,19 @@ it('locks Notion for a free account without loading its connection', () => {
   expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   expect(mocks.fetch).not.toHaveBeenCalled()
 })
+it('holds the Notion status and the sheet details with skeletons while the connection loads', async () => {
+  mocks.fetch.mockReturnValue(new Promise(() => {}))
+  mount()
+  const row = await screen.findByRole('button', { name: en.profile.connections.loadingStatus.replace('{name}', 'Notion') })
+  expect(row.querySelector('[data-notion-status-skeleton] .skeleton-pulse')).toHaveClass('bg-[var(--bg-well)]')
+  expect(screen.queryByText(en.common.loading)).toBeNull()
+  fireEvent.click(row)
+  const details = await screen.findByRole('status', { name: en.common.loading })
+  expect(details).toHaveAttribute('aria-busy', 'true')
+  expect(details.querySelectorAll('.skeleton-pulse')).toHaveLength(2)
+  expect(screen.queryByText(en.common.loading)).toBeNull()
+  expect(document.querySelector('.animate-spin, .search-dot')).toBeNull()
+})
 it('retains Connect and shows its skeleton face while requesting authorization', async () => {
   mocks.authorize.mockReturnValue(new Promise(() => {}))
   mount(); await openNotion()
@@ -87,12 +100,18 @@ it.each(['connect', 'choosePages', 'reconnect'] as const)('opens the %s URL only
   expect(opened).toHaveBeenCalledExactlyOnceWith(createNotionAuthorization().authorizeUrl)
   sheetTestControls.defer(false)
 })
+it('names the Notion sheet with its question, never the bare product noun', async () => {
+  mount(); await openNotion()
+  expect(screen.getByRole('dialog', { name: en.profile.connections.notionQuestion })).toBeInTheDocument()
+  expect(screen.queryByRole('dialog', { name: en.profile.connections.notion })).not.toBeInTheDocument()
+  expect(screen.queryByText(en.profile.connections.notion, { selector: '[role="dialog"] h2' })).not.toBeInTheDocument()
+})
 it.each([
   ['the feature flag turns off', (): void => { mocks.enabled = false }, true],
   ['Pro access ends', (): void => undefined, false],
 ] as const)('closes the open Notion sheet through its exit when %s', async (_reason, change, pro) => {
   const { sheetTestControls } = await import('@/__tests__/support/sheet-double')
-  const notionSheet = () => screen.queryByText(en.profile.connections.notion, { selector: '[role="dialog"] h2' })
+  const notionSheet = () => screen.queryByText(en.profile.connections.notionQuestion, { selector: '[role="dialog"] h2' })
   const view = mount(); await openNotion()
   expect(notionSheet()).toBeInTheDocument()
   sheetTestControls.defer(true)
@@ -119,6 +138,7 @@ it('shows workspace, sync time and page picker, then confirms one disconnect', a
   fireEvent.click(screen.getByRole('button', { name: 'Shared tasks' }))
   expect(screen.getByRole('button', { name: 'Shared tasks' })).toHaveAttribute('aria-expanded', 'true')
   expect(screen.getByText(/Last sync:/)).toBeInTheDocument()
+  expect(screen.getByText(en.profile.connections.description), 'the connected sheet answers its question too').toBeInTheDocument()
   expect(screen.getByRole('button', { name: en.profile.connections.choosePages })).toBeEnabled()
   fireEvent.click(screen.getByRole('button', { name: en.profile.connections.disconnect }))
   const confirmation = screen.getByRole('dialog', { name: en.profile.connections.disconnectTitle })
@@ -129,7 +149,7 @@ it('shows workspace, sync time and page picker, then confirms one disconnect', a
   expect(screen.getByRole('button', { name: en.profile.connections.disconnect })).toHaveAttribute('aria-busy', 'true')
   expect(screen.getByRole('button', { name: en.profile.connections.choosePages })).toBeDisabled()
   fireEvent.click(screen.getByRole('button', { name: 'close-overlay' }))
-  expect(screen.queryByRole('dialog', { name: 'Notion' })).not.toBeInTheDocument()
+  expect(screen.queryByRole('dialog', { name: en.profile.connections.notionQuestion })).not.toBeInTheDocument()
   fireEvent.click(screen.getByRole('button', { name: /Notion/ }))
   expect(screen.getByRole('button', { name: en.profile.connections.choosePages })).toBeDisabled()
   expect(screen.getByRole('button', { name: en.profile.connections.disconnect })).toBeDisabled()
@@ -172,7 +192,9 @@ it('draws a skeleton and no spinner while the Notion connection loads', () => {
     return <NotionConnectionSheet callbackFailed={false} controller={controller} onClose={vi.fn()} onAuthorize={vi.fn()} onOpenUrl={vi.fn()} />
   }
   render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><Harness /></QueryClientProvider>)
-  expect(screen.getByRole('progressbar', { name: en.common.loading })).toHaveAttribute('data-variant', 'settings')
+  const details = screen.getByRole('status', { name: en.common.loading })
+  expect(details).toHaveAttribute('aria-busy', 'true')
+  expect(details.querySelectorAll('.skeleton-pulse')).toHaveLength(2)
   expect(document.querySelector('.animate-spin')).toBeNull()
   expect(screen.queryByText(en.common.loading)).not.toBeInTheDocument()
 })

@@ -1,3 +1,4 @@
+import { controlStyle } from '@/__tests__/support/press-feedback'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { StyleSheet } from 'react-native'
 import { Easing, ReduceMotion } from 'react-native-reanimated'
@@ -171,7 +172,7 @@ describe('PlanSelection (mobile)', () => {
     )
     expect(segments).toHaveLength(2)
     for (const segment of segments) {
-      expect(StyleSheet.flatten(segment.props.style)).toEqual(expect.objectContaining({
+      expect(controlStyle(segment as never)).toEqual(expect.objectContaining({
         flexGrow: 1, flexBasis: 'auto', paddingHorizontal: 8, minHeight: 48,
       }))
     }

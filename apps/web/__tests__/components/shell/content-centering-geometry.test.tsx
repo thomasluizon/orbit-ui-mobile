@@ -311,7 +311,7 @@ describe('page content centring and add control clearance', () => {
         })
         const astraAction = page.getByRole('button', { name: messages.habits.askAstra, exact: true })
         expect(await astraAction.textContent()).toBe(messages.habits.askAstra)
-        expect(await astraAction.locator('[data-asset^="orbit-mascot"]').count()).toBe(1)
+        expect(await astraAction.locator('[data-asset^="orbit-mascot"]').count(), 'Orbit never sits on the filled ask action').toBe(0)
         const target = await astraAction.boundingBox()
         expect(target!.width).toBeGreaterThan(48)
         expect(target!.x + target!.width).toBeLessThanOrEqual(viewport.width)

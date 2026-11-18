@@ -54,7 +54,7 @@ describe('upgrade utils', () => {
     }
 
     expect(en.profile.freshStart.preservePreferences).toBe(
-      'Theme, language, and timezone',
+      'Theme, language, and time zone',
     )
     expect(ptBR.profile.freshStart.preservePreferences).toBe(
       'Tema, idioma e fuso horário',
@@ -75,7 +75,7 @@ describe('upgrade utils', () => {
     })
     expect(ptBR.upgrade.convert).toMatchObject({
       promise: 'O plano muda o que o Orbit pode fazer, nunca os seus hábitos e registros.',
-      freeHeading: '7x mais mensagens.',
+      freeHeading: 'Cota de IA 7x maior.',
       trialHeading: '250 por semana.',
       freeAllowance: '5',
       proAllowance: '250',

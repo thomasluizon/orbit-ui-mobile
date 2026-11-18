@@ -10,9 +10,7 @@ import { ResultDialog } from '@/components/ui/result-dialog'
  * names, or opens Hoje when it names none.
  */
 export function PurchaseResult({ purchaseConfirmed, status, billing, timeZone, returnsToOrigin, onOpen, onClose }: Readonly<{
-  /** True after the store verified the purchase. */
   purchaseConfirmed: boolean
-  /** The subscription read. Null while it loads or after it failed. */
   status: SubscriptionStatus | null
   billing: BillingDetails | null
   timeZone: string | null | undefined

@@ -11,7 +11,6 @@ import { withSpringCalls, withTimingCalls } from '@/test-mocks/react-native-rean
 
 const motion = vi.hoisted(() => ({ reduced: false }))
 vi.mock('@/lib/motion', async (importOriginal) => ({ ...await importOriginal<typeof import('@/lib/motion')>(), usePrefersReducedMotion: () => motion.reduced }))
-/** A shared value keeps its identity across renders, as it does on a device. */
 vi.mock('react-native-reanimated', async (importOriginal) => ({
   ...await importOriginal<typeof import('@/test-mocks/react-native-reanimated')>(),
   useSharedValue: <Value,>(initial: Value) => React.useState(() => ({ value: initial }))[0],

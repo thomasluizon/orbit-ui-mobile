@@ -29,9 +29,11 @@ heading. Both workflows ship an x86_64 slice so the gate executes the AAB's nati
 
 ## One mobile version
 
-Android and iOS ship at the same `app_version`. Each store keeps its own build counter. This skill is the
-default entry point for both platforms: release Android, then release iOS at the same version through
-`/ios-release`. Do not report a mobile release as done until both uploads exist.
+Android and iOS ship at the same `app_version` from the same commit. Each store keeps its own build counter.
+This skill is the default entry point for both platforms: dispatch Android, then dispatch iOS at the same
+version through `/ios-release` while the Android run builds. The two builds run in parallel; the upload order
+stays Android first, because the iOS upload step waits for the Android record of that version and commit.
+Do not report a mobile release as done until both uploads exist.
 
 Release Android alone only for a defect specific to Android. Pass `--android-only <reason>`. The
 workflow input `platform_only_reason` carries the reason, and the run summary records it.
@@ -350,19 +352,22 @@ gh run watch <databaseId>
 
 ## Step 5 - Release iOS at the same version
 
-Unless `--android-only` was given, run `/ios-release` after the Android upload succeeds. Use the same commit
-(a `main` commit for `open` and `production`) and the same `app_version`. Dispatch the iOS `variant` of the
-Android track's environment:
+Unless `--android-only` was given, run `/ios-release` right after the Android dispatch, while the Android run
+builds. Use the same commit (a `main` commit for `open` and `production`) and the same `app_version`. Dispatch
+the iOS `variant` of the Android track's environment:
 
 - Android `open` or `production` -> `variant=production` (this is the default path).
 - Android `internal` -> `variant=staging`.
 
-The iOS workflow refuses any other version. The other variant reads the other environment's Android
-records, so the workflow refuses it too when those records hold a different version. Confirm the iOS build
-number with the owner as that skill states.
+The iOS workflow starts its archive only when Android already recorded that version, or when an
+`android-release.yml` run of that version for the same environment is queued or running on the same commit.
+Its upload step waits up to 45 minutes for the Android record and then runs the full check, so iOS never
+uploads first. A failed or cancelled Android run stops the iOS upload. The other variant reads the other
+environment's Android records and runs, so the workflow refuses it. Confirm the iOS build number with the
+owner as that skill states.
 
 `gh workflow run --ref` builds the tip of the branch, and the iOS check refuses a commit other than the
-commit that Android built. Before the iOS dispatch, run `git fetch origin <branch>`. Compare
+commit that Android builds. Before the iOS dispatch, run `git fetch origin <branch>`. Compare
 `git rev-parse origin/<branch>` with the commit of the Android run. If the branch moved, release Android
 again at the new `nextVersion` from the new tip, then release iOS.
 

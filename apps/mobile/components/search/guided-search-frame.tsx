@@ -15,7 +15,6 @@ import { QUESTION_END_GAP, SearchOrbit, SearchQuestion } from './search-question
 import type { SearchScreenModel } from './use-search-screen'
 
 const KEYBOARD_LOOK = { x: 0, y: 1 } as const
-/** The question and its field stay pinned while the rows scroll under them. */
 const PINNED_QUESTION = [1]
 
 function useKeyboardOpen() {
@@ -28,12 +27,6 @@ function useKeyboardOpen() {
   return open
 }
 
-/**
- * The heights that place the block, read from layout: the scroller, Orbit and the question with its field. The visible block runs from the top of
- * Orbit to the bottom of the field, so the gap under the field is left out. The Orbit slot is empty while a query is typed, so its last drawn height
- * is kept, and the block returns to the centre in the same frame when the query is cleared. Until every height is read, the centred block is hidden,
- * so it never shows at the top first.
- */
 function useBlockOffset(centred: boolean, endPadding: number) {
   const [heights, setHeights] = useState({ scroller: 0, orbit: 0, question: 0 })
   const read = (part: keyof typeof heights) => (event: LayoutChangeEvent) => {
@@ -52,10 +45,8 @@ function useBlockOffset(centred: boolean, endPadding: number) {
   }
 }
 
-/** Where Orbit is drawn: above the question, beside the Orbit line, or nowhere while the line has no job. */
 type OrbitPlace = 'block' | 'line' | 'none'
 
-/** Orbit looks at the search field while it holds focus, and at the keyboard while it is open. The look is measured again when Orbit moves between the block and the line. */
 function useFieldLook(place: OrbitPlace, keyboardOpen: boolean) {
   const { lookAt, mascotRef, lookAtControl, lookAway } = useFlowLookState()
   const fieldRef = useRef<View>(null)

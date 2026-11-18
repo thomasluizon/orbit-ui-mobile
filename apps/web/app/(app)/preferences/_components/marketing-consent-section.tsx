@@ -26,7 +26,6 @@ export function MarketingConsentSection({
   contained?: boolean
   acceptVariant?: 'primary' | 'secondary'
   trailingRow?: ReactNode
-  /** The flag `orbit_guided_flows`: the two answers are quick options. */
   guided?: boolean
 }>) {
   const t = useTranslations()

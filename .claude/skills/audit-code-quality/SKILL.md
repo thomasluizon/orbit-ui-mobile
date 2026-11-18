@@ -57,7 +57,7 @@ Parse `$ARGUMENTS` into a `{scope}` token for the workflow.
 | `orbit-api` | `.claude/orchestrator.json` `repos.api` |
 
 The workflow excludes generated / vendored / test-fixture code (`node_modules`, `.next`,
-`dist`, `build`, `bin`, `obj`, `coverage`, `.turbo`, `Migrations/`, `design/handoff/`,
+`dist`, `build`, `bin`, `obj`, `coverage`, `.turbo`, `Migrations/` and
 `.claude/`). Load **`.claude/skills/_shared/verification-protocol.md`** (the workflow
 executes §1/§2/§3; you carry the Verify summary + Deferred ledger §4/§5 into the approval
 gate) and **`.claude/skills/_shared/audit-to-tickets.md`** (the D10 ticket-emission pipeline

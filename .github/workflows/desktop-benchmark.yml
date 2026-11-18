@@ -1,16 +1,8 @@
 name: Desktop Benchmark
 
+# A manual measurement: no budget or threshold reads its result, so no pull request waits for it.
 on:
   workflow_dispatch:
-  pull_request:
-    branches: [main]
-    paths:
-      - 'tools/desktop-bench/**'
-      - '.github/workflows/desktop-benchmark.yml'
-      - '.github/actions/desktop-nsis-tools/**'
-      - 'apps/desktop/scripts/nsis-tools.ts'
-      - 'apps/desktop/scripts/release-asset.ts'
-      - 'apps/desktop/src-tauri/native/windows/nsis-tools.json'
 
 permissions:
   contents: read

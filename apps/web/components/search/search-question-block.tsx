@@ -7,7 +7,6 @@ import { ShellCentredRegion } from '@/components/shell/shell-centred-region'
 import { OrbitMascot, useStateMascotSize } from '@/components/ui/orbit-mascot'
 
 interface SearchQuestionBlockProps {
-  /** No query yet: the block is the whole screen, centred, with Orbit above the question. */
   resting: boolean
   mascotRef: Ref<HTMLSpanElement>
   lookAt: OrbitLookTarget | null

@@ -44,7 +44,6 @@ interface SharePeriodControlProps {
   onSelect: (period: RecapSharePeriod) => void
 }
 
-/** The period choice. Guided, the three periods are quick options under the sheet heading: the data has only these three, so the choice has no free path. */
 function SharePeriodControl({ guided, period, disabled, onSelect }: Readonly<SharePeriodControlProps>) {
   const t = useTranslations()
   const question = t('shareCard.periodQuestion')
@@ -60,7 +59,6 @@ function SharePeriodControl({ guided, period, disabled, onSelect }: Readonly<Sha
   )
 }
 
-/** A period press brings the new preview in with the selection preset. The first preview and reduced motion have no scale. */
 function SharePreviewChange({ period, changed, children }: Readonly<{ period: RecapSharePeriod; changed: boolean; children: ReactNode }>) {
   const reducedMotion = useViewportMatch('(prefers-reduced-motion: reduce)')
   const preset = resolveMotionPreset('selection', reducedMotion)
@@ -79,7 +77,6 @@ function SharePreviewChange({ period, changed, children }: Readonly<{ period: Re
   )
 }
 
-/** The load error with retry. Guided, Orbit in Parado states it. */
 function ShareLoadError({ guided, onRetry }: Readonly<{ guided: boolean; onRetry: () => void }>) {
   const t = useTranslations()
   const mascotSize = useStateMascotSize()

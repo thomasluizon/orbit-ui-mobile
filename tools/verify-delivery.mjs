@@ -450,7 +450,7 @@ const readRollup = async () => {
   /** The artifact records which review evidence stood at the head; readiness reads it. */
   const { verdict: reviewVerdict, complete: reviewComplete, reason: reviewReason } = await resolveReviewVerdict(pullRequestState, readOlderReviewPage)
   for (const required of requiredChecks) {
-    // Pullfrog reviews only on request, after delivery, so an unregistered review check concerns
+    // Pullfrog reviews only on request, beside CI, so an unregistered review check concerns
     // readiness (record-readiness requires it) and never holds delivery. A registered one is judged below.
     if (required.context === REVIEW_APP_CONTEXT) continue
     if (requiredCheckSatisfied(newestByCheck, required)) continue

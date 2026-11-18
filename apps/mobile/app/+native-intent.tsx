@@ -18,7 +18,6 @@ const RETIRED_ROUTE_DESTINATIONS: Readonly<Record<string, string>> = {
   ...Object.fromEntries(LEGACY_PROFILE_ROUTES.map(({ source, destination }) => [source, destination])),
 }
 
-/** A page that moved to a new slug keeps its query, so a return such as `?subscription=success` still lands. */
 const MOVED_SLUG_SOURCES: ReadonlySet<string> = new Set(['/profile/astra'])
 
 export function redirectSystemPath({ path }: Readonly<{

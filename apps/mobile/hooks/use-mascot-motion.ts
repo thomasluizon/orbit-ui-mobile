@@ -38,5 +38,5 @@ export function useMascotMotionSwitch(
       patchProfile({ mascotMotionEnabled: context?.previous })
     },
   })
-  return { enabled, pending: mutation.isPending, toggle: () => mutation.mutate(!enabled) }
+  return { enabled, toggle: () => mutation.mutate(!enabled) }
 }

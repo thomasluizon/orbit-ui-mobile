@@ -24,7 +24,6 @@ import { useUIStore } from '@/stores/ui-store'
 
 const LOCALES = [{ locale: 'pt-BR', messages: ptBR }, { locale: 'en', messages: en }] as const
 
-/** Arms a streak milestone and waits the settle delay, then returns to real timers for the dialog queries. */
 async function openPrompt(locale: (typeof LOCALES)[number] = LOCALES[0]) {
   vi.useFakeTimers()
   const view = render(

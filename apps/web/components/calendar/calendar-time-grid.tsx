@@ -81,8 +81,6 @@ function parseMinutes(time: string | null): number | null {
   return Math.min(hours * 60 + minutes, 24 * 60 - 1)
 }
 
-/** Lays out timed entries into non-overlapping lanes so concurrent blocks sit
- *  side by side instead of stacking on top of each other. */
 function layoutTimed(entries: CalendarDayEntry[]): PlacedEntry[] {
   const timed = entries
     .map((entry) => ({ entry, minutes: parseMinutes(entry.dueTime) }))
@@ -328,12 +326,11 @@ export function CalendarTimeGrid({
         data-testid="calendar-time-grid"
         data-focus-inset="grid"
         data-columns={columns.length}
-        className="relative flex min-h-0 flex-1 flex-col"
+        className="relative flex min-h-0 flex-1 flex-col after:z-[4] after:pointer-events-none after:absolute after:inset-0 after:rounded-[inherit] after:[box-shadow:inset_0_0_0_1px_var(--hairline)]"
         style={{
           borderRadius: 12,
           overflow: 'hidden',
           background: CARD_BG,
-          boxShadow: 'inset 0 0 0 1px var(--hairline)',
         }}
       >
         <div

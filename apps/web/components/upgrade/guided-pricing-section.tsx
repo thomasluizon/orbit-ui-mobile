@@ -13,7 +13,7 @@ import { OrbitMascot } from '@/components/ui/orbit-mascot'
 import { PillButton } from '@/components/ui/pill-button'
 import { SegmentedControl } from '@/components/ui/segmented-control'
 import { Skeleton } from '@/components/ui/skeleton'
-import { useFlowAnnouncement } from '@/hooks/use-flow-announcement'
+import { useFlowAnnouncement } from '@/components/ui/question-flow'
 import { useOrbitLook } from '@/hooks/use-orbit-look'
 import { useSubscriptionPlans } from '@/hooks/use-subscription-plans'
 import { useViewportMatch } from '@/hooks/use-viewport-match'
@@ -24,13 +24,7 @@ import { AllowanceComparison, planFactLine } from './pro-pitch'
 
 type SubscriptionInterval = 'monthly' | 'yearly'
 
-/**
- * In the compact shell the primary action is pinned to the bottom of the scroller, with the refusal of the handoff above it. It is the last child of the section, so at the end of the scroll it rests under the content and never covers a plan card.
- * The shell scroller keeps an end padding (`--shell-scroller-end`), and a sticky box stops at that padding, so the footer sticks that much lower to sit on the bottom edge with no content showing under it.
- * The action spans the column below `md` and hugs its label from `md` up, as the pinned action of the flow shell does.
- */
 const PINNED_FOOTER_CLASS = 'sticky bottom-[calc(var(--shell-scroller-end,0px)*-1)] flex w-full flex-col items-center gap-[var(--orbit-space-8)] bg-[var(--bg)] pb-[var(--orbit-space-16)] pt-[var(--orbit-space-8)] [&_button]:w-full md:[&_button]:w-auto'
-/** A plan card that takes focus scrolls clear of the pinned footer: the footer padding plus the target height. */
 const PINNED_FOOTER_CLEARANCE = 'calc(var(--touch-min) + var(--orbit-space-24))'
 type UpgradeTranslations = ReturnType<typeof useTranslations>
 type Plans = ReturnType<typeof useSubscriptionPlans>['plans']
@@ -58,7 +52,6 @@ export interface GuidedPricingSectionProps {
   t: UpgradeTranslations
 }
 
-/** A plan card as an option of the question. A press selects it. The primary action starts the handoff. */
 function PlanOption({ tier, recommended, selected, disabled, selectionDuration, onSelect, t }: Readonly<{
   tier: Tier
   recommended: boolean
@@ -148,7 +141,6 @@ function PlanOptions({ plans, isLoading, isError, isOnline, selected, disabled, 
   )
 }
 
-/** What stays under the block: the plan fact, the allowance comparison, what Pro includes and the notes. */
 function UpgradeSupport({ profile, trialDaysLeft, dateHint, showNotes, t }: Readonly<Pick<GuidedPricingSectionProps, 'profile' | 'trialDaysLeft' | 'dateHint' | 't'> & { showNotes: boolean }>) {
   return (
     <div data-upgrade-support="" className="flex flex-col gap-8">

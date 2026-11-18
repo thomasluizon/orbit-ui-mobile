@@ -11,6 +11,8 @@ const QUESTION_KEYS = [
   'profile.editName.label',
   'profile.language.question',
   'profile.timezonePicker.question',
+  'profile.connections.notionQuestion',
+  'onboarding.featureGuide.question',
   'settings.weekStartDay.question',
   'settings.clock.question',
   'orbitMcp.keyName',
@@ -36,7 +38,6 @@ const QUESTION_KEYS = [
   'habits.moveParent.destinations',
 ] as const
 
-/** The fields each screen shows together, so no two of them may ask the same question. */
 const SCREEN_QUESTIONS = {
   signInEmail: ['auth.email'],
   signInCode: ['auth.verificationCode'],
@@ -49,7 +50,6 @@ const SCREEN_QUESTIONS = {
   choiceBlock: ['chat.choice.freeText'],
 } as const
 
-/** ListRow titles this work introduced; `local/max-button-words` cannot read them through a variable. */
 const ROW_LABEL_KEYS = ['profile.apiKeys.setExpiry'] as const
 
 const { wordCount } = createRequire(import.meta.url)('../../../../eslint-rules/_control-labels.cjs') as { wordCount: (label: string) => number | null }

@@ -18,6 +18,7 @@ import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import en from '@orbit/shared/i18n/en.json'
 import { useUIStore } from '@/stores/ui-store'
 import { getMcpEndpointUrl } from '@orbit/shared/utils/advanced-settings'
+import { PROFILE_SUBMENUS } from '@orbit/shared/utils/profile-navigation'
 import { accountEventApiBase } from '@/lib/account-event-api-base'
 import { ProfileNavIcon } from '@/components/profile/profile-nav-icon'
 import { ChevronRight, Trash2 } from '@/components/ui/icons'
@@ -400,8 +401,10 @@ describe('ProfilePage', () => {
         await page.locator('.orbit-list-row-shell').first().waitFor()
         await loadAppFonts(page)
         await page.evaluate((scale) => {
-          for (const element of document.querySelectorAll<HTMLElement>('.orbit-list-row-shell span')) {
-            if (element.children.length > 0 || !element.textContent) continue
+          const mark = 'span[translate="no"]:not([data-slot])'
+          const owners = Array.from(document.querySelectorAll<HTMLElement>('.orbit-list-row-shell span')).filter((element) => element.textContent && Array.from(element.children).every((child) => child.matches(mark)))
+          for (const element of owners) {
+            if (element.matches(mark)) continue
             element.style.fontSize = `${parseFloat(getComputedStyle(element).fontSize) * scale}px`
           }
         }, textScale)
@@ -414,14 +417,18 @@ describe('ProfilePage', () => {
           const range = document.createRange()
           range.selectNodeContents(title)
           const icon = row.querySelector('svg')!
+          const iconBounds = icon.getBoundingClientRect()
+          const iconSlot = icon.closest('[data-slot="list-row-icon"]')!.getBoundingClientRect()
           return {
             label: title.textContent,
             height: row.getBoundingClientRect().height,
             textEdge: title.getBoundingClientRect().left,
             textWidth: range.getBoundingClientRect().width,
-            lines: range.getClientRects().length,
+            lines: new Set(Array.from(range.getClientRects()).map((rect) => Math.round(rect.top))).size,
             titleTop: title.getBoundingClientRect().top,
-            iconTop: icon.getBoundingClientRect().top,
+            iconCentre: iconBounds.top + iconBounds.height / 2,
+            iconSlotCentre: iconSlot.top + iconSlot.height / 2,
+            squareIconTop: iconBounds.top + iconBounds.height / 2 - 12,
             titleOverflow: title.scrollWidth > title.clientWidth,
             ellipsis: getComputedStyle(title).textOverflow === 'ellipsis',
             right: title.getBoundingClientRect().right,
@@ -446,7 +453,8 @@ describe('ProfilePage', () => {
           expect(row.titleOverflow, row.label!).toBe(false)
           expect(row.ellipsis, row.label!).toBe(row.label === 'Marina')
           expect(row.right, row.label!).toBeLessThanOrEqual(width)
-          if (textScale === 2 && row.label !== 'Marina') expect(Math.abs(row.iconTop - row.titleTop), row.label!).toBeLessThanOrEqual(12)
+          expect(Math.abs(row.iconCentre - row.iconSlotCentre), row.label!).toBeLessThanOrEqual(0.5)
+          if (textScale === 2 && row.label !== 'Marina') expect(Math.abs(row.squareIconTop - row.titleTop), row.label!).toBeLessThanOrEqual(12)
         }
         if (textScale === 2 && locale === 'pt-BR') expect(rows.find(({ label }) => label === ptBR.profile.calendarSync.title)!.lines).toBeGreaterThan(1)
       } finally { await page.close() }
@@ -659,9 +667,10 @@ describe('ProfilePage', () => {
     ['notifications', ['profile.marketingEmails.question', 'profile.settingsRows.alertsOnThisDevice', 'profile.settingsRows.remindersNote']],
   ] as const)('opens %s from Perfil and keeps its settings in that screen alone', (destination, labels) => {
     const top = render(<ProfilePage />)
-    const entry = screen.getAllByRole('link').find((link) => link.getAttribute('href') === `/profile/${destination}`)!
+    const route = PROFILE_SUBMENUS.find((submenu) => submenu.id === destination)!.route
+    const entry = screen.getAllByRole('link').find((link) => link.getAttribute('href') === route)!
     fireEvent.click(entry)
-    expect(entry).toHaveAttribute('href', `/profile/${destination}`)
+    expect(entry).toHaveAttribute('href', route)
     top.unmount()
     const Destination = PROFILE_ROUTES[destination]
     const content = render(<Destination />)
@@ -814,7 +823,7 @@ describe('ProfilePage', () => {
   it('opens widget help inline', () => {
     render(<ProfilePage />)
     fireEvent.click(screen.getByRole('button', { name: /profile\.widgetTitle/i }))
-    expect(screen.getByRole('dialog', { name: 'profile.widgetTitle' })).toBeInTheDocument()
+    expect(screen.getByRole('dialog', { name: 'profile.widgetQuestion' })).toBeInTheDocument()
   })
 
   it('commits a week start choice from the inline picker', () => {

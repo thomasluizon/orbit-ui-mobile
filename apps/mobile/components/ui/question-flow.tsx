@@ -1,6 +1,8 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AccessibilityInfo, Animated, Easing, findNodeHandle, Keyboard, StyleSheet, Text, View, useWindowDimensions } from 'react-native'
 import type { QuestionFlowProps } from '@orbit/shared/contracts/flow'
+import { createQuestionFlowHooks } from '@orbit/shared/hooks/question-flow-core'
+import { createUseStepChange } from '@orbit/shared/hooks/step-change-core'
 import { motionDurations, motionEasings } from '@orbit/shared/theme'
 import { ArrowLeft, X } from '@/components/ui/icons'
 import { FlowLookProvider, useFlowLookState } from '@/components/ui/flow-look'
@@ -8,16 +10,19 @@ import { KeyboardAwareScrollView } from '@/components/ui/keyboard-aware-scroll-v
 import { OrbitMascot } from '@/components/ui/orbit-mascot'
 import { PagerSegments } from '@/components/ui/pager'
 import { PillButton } from '@/components/ui/pill-button'
-import { useFlowAnnouncement } from '@/hooks/use-flow-announcement'
-import { useGuidedFlowTracking } from '@/hooks/use-guided-flow-tracking'
 import { createTokensV2 } from '@/lib/theme'
 import { usePrefersReducedMotion } from '@/lib/motion'
 import { useAppTheme } from '@/lib/use-app-theme'
+import { captureGuidedFlowEvent } from '@/lib/posthog'
 
 const WIDE_SHIFT = 12
 const WIDE_WIDTH = 1024
 const SM_WIDTH = 640
 const KEYBOARD_LOOK = { x: 0, y: 1 } as const
+const useStepChange = createUseStepChange({ useEffect, useRef })
+const { useFlowAnnouncement, useGuidedFlowTracking } = createQuestionFlowHooks({ useState, useEffect, useRef, capture: (event) => captureGuidedFlowEvent(event) })
+
+export { useFlowAnnouncement }
 
 function FlowHeader({ props }: Readonly<{ props: QuestionFlowProps }>) {
   const { position, total, progressLabel, backLabel, closeLabel, onBack, onClose } = props
@@ -29,7 +34,9 @@ function FlowHeader({ props }: Readonly<{ props: QuestionFlowProps }>) {
         {onBack ? <PillButton variant="ghost" iconOnly label={backLabel} minimumHeight={48} onClick={onBack}><ArrowLeft color={tokens.fg1} size={24} /></PillButton> : null}
       </View>
       <View style={styles.progress}><PagerSegments count={total} index={position - 1} label={progressLabel} /></View>
-      <PillButton variant="ghost" iconOnly label={closeLabel} minimumHeight={48} onClick={onClose}><X color={tokens.fg1} size={24} /></PillButton>
+      <View style={styles.slot}>
+        {onClose && closeLabel ? <PillButton variant="ghost" iconOnly label={closeLabel} minimumHeight={48} onClick={onClose}><X color={tokens.fg1} size={24} /></PillButton> : null}
+      </View>
     </View>
   )
 }
@@ -44,7 +51,6 @@ function useKeyboardOpen() {
   return open
 }
 
-/** The block is centred in the free space. While the keyboard is open it aligns under the header and scrolls. */
 function scrollContentStyle(keyboardOpen: boolean) {
   return keyboardOpen ? [styles.scrollContent, styles.underHeader] : styles.scrollContent
 }
@@ -53,15 +59,14 @@ function useStepTravel(stepKey: string, direction: 1 | -1) {
   const { width } = useWindowDimensions()
   const reducedMotion = usePrefersReducedMotion()
   const [progress] = useState(() => new Animated.Value(1))
-  const firstStep = useRef(stepKey)
-  useEffect(() => {
-    if (firstStep.current === stepKey) return
+  const travel = useCallback(() => {
     progress.setValue(reducedMotion ? 1 : 0)
     if (reducedMotion) return
     const animation = Animated.timing(progress, { toValue: 1, duration: motionDurations.slow, useNativeDriver: true, easing: Easing.bezier(...motionEasings.standard) })
     animation.start()
-    return () => animation.stop()
-  }, [stepKey, progress, reducedMotion])
+    return () => { animation.stop(); progress.setValue(1) }
+  }, [progress, reducedMotion])
+  useStepChange(stepKey, travel)
   const distance = width >= SM_WIDTH ? WIDE_SHIFT : width
   return {
     opacity: width >= SM_WIDTH ? progress : 1,
@@ -71,17 +76,15 @@ function useStepTravel(stepKey: string, direction: 1 | -1) {
 
 function useQuestionFocus(stepKey: string, onStepChange: () => void) {
   const headingRef = useRef<Text>(null)
-  const firstStep = useRef(stepKey)
-  useEffect(() => {
-    if (firstStep.current === stepKey) return
+  const focusQuestion = useCallback(() => {
     const target = findNodeHandle(headingRef.current)
     if (target !== null) AccessibilityInfo.setAccessibilityFocus(target)
     onStepChange()
-  }, [stepKey, onStepChange])
+  }, [onStepChange])
+  useStepChange(stepKey, focusQuestion)
   return headingRef
 }
 
-/** The Orbit line. A step remounts it, so only a new `lineKey` inside one step fades the new line in, at once under reduced motion. */
 function FlowLine({ line, lineKey, color }: Readonly<{ line: string; lineKey: string | undefined; color: string }>) {
   const reducedMotion = usePrefersReducedMotion()
   const [opacity] = useState(() => new Animated.Value(1))
@@ -116,7 +119,7 @@ export function QuestionFlow(props: Readonly<QuestionFlowProps>) {
   const shownLook = orbitState === 'parado' ? lookAt ?? (keyboardOpen ? KEYBOARD_LOOK : null) : null
   const primaryAction = primary ? (
     <View style={wide ? styles.primaryWide : styles.primaryCompact}>
-      <PillButton variant={primary.variant} loading={primary.loading} focusableWhenLoading hint={primary.hint} onClick={primary.onPress}>{primary.label}</PillButton>
+      <PillButton variant={primary.variant} loading={primary.loading} disabled={primary.disabled} focusableWhenLoading hint={primary.hint} onClick={primary.onPress}>{primary.label}</PillButton>
     </View>
   ) : null
 
@@ -161,5 +164,5 @@ const styles = StyleSheet.create({
   freePath: { width: '100%', gap: 12 },
   status: { position: 'absolute', width: 1, height: 1, opacity: 0 },
   primaryCompact: { paddingHorizontal: 16, paddingBottom: 16, paddingTop: 8 },
-  primaryWide: { width: '100%', maxWidth: 360, paddingTop: 0 },
+  primaryWide: { maxWidth: 360 },
 })

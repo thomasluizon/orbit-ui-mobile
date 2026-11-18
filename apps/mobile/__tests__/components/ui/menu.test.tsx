@@ -102,7 +102,7 @@ describe('Menu (mobile)', () => {
       const sheet = tree.root.findAll((node) => node.type === TrueSheet)[0]!
       await TestRenderer.act(() => {
         const onDidPresent = sheet.props.onDidPresent
-        if (typeof onDidPresent === 'function') onDidPresent()
+        if (typeof onDidPresent === 'function') onDidPresent({ nativeEvent: { index: 0, position: 400, detent: 1 } })
       })
       const cancel = tree.root.findAll((node) => String(node.type) === 'Pressable' && node.props.testID === 'button-ghost-sm')[0]!
       expect(__getFocusedNativeTag()).toBe(cancel.props.__nativeTag)
@@ -123,7 +123,7 @@ describe('Menu (mobile)', () => {
       await TestRenderer.act(() => deliverTitleLines(header, ['Ler um capítulo inteiro ', 'do livro de história ', title.slice('Ler um capítulo inteiro do livro de história '.length)]))
       await TestRenderer.act(() => header.update(sheet.props.header as React.ReactElement))
       const titleButton = header.root.findAll((node) => String(node.type) === 'Pressable' && node.props.accessibilityLabel === title)[0]!
-      expect((titleButton.props.children as React.ReactElement).type).toBe(PersonalText)
+      expect(titleButton.findAll((node) => node.type === PersonalText)).toHaveLength(1)
       await TestRenderer.act(() => (titleButton.props.onPress as () => void)())
       const fullTitle = sheet.findAll((node) => node.type === Text && node.props.importantForAccessibility !== 'no-hide-descendants' && node.props.children === title)[0]!
       expect(fullTitle.props.numberOfLines).toBe(1)

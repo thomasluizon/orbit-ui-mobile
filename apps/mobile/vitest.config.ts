@@ -4,6 +4,7 @@ import { transformWithOxc } from 'vite'
 import { draggableFlatListNativeAdapter } from './scripts/draggable-flatlist-resolver.js'
 
 const focusIndicatorTest = '__tests__/components/ui/selected-focus-indicator.test.tsx'
+const signingCertificateTest = '__tests__/scripts/android-release-certificate.test.ts'
 
 export default defineConfig({
   plugins: [{
@@ -37,7 +38,7 @@ export default defineConfig({
         test: {
           name: 'mobile',
           include: ['__tests__/**/*.test.{ts,tsx}'],
-          exclude: [...defaultExclude, focusIndicatorTest],
+          exclude: [...defaultExclude, focusIndicatorTest, signingCertificateTest],
           sequence: { groupOrder: 1 },
         },
       },
@@ -50,8 +51,16 @@ export default defineConfig({
           sequence: { groupOrder: 2 },
         },
       },
+      {
+        extends: true,
+        test: {
+          name: 'mobile-signing',
+          include: [signingCertificateTest],
+          maxWorkers: 1,
+          sequence: { groupOrder: 3 },
+        },
+      },
     ],
-    /** CI runs workspace suites one at a time; local suites share the host. */
     maxWorkers: process.env.CI ? '100%' : '25%',
     testTimeout: 15000,
     hookTimeout: 15000,
@@ -100,7 +109,6 @@ export default defineConfig({
         'components/habits/habit-checklist.tsx',
         'components/habits/habit-form-fields/slip-alert-section.tsx',
         'components/habits/habit-form-fields/tag-editor-row.tsx',
-        'components/milestone-share/milestone-share-card.tsx',
         'components/navigation/bottom-tab-bar.tsx',
         'components/navigation/notification-detail-modal.tsx',
         'components/onboarding/feature-guide-drawer.tsx',
@@ -237,7 +245,7 @@ export default defineConfig({
         replacement: path.resolve(__dirname, './test-mocks/expo-iap.ts'),
       },
       {
-        find: /\.(png|jpg|jpeg|gif|webp)$/,
+        find: /^.+\.(png|jpg|jpeg|gif|webp)$/,
         replacement: path.resolve(__dirname, './test-mocks/file-asset.ts'),
       },
       {

@@ -4,6 +4,7 @@ import { API } from '@orbit/shared/api'
 import { progressStreakStates } from '@orbit/shared/__tests__/progress-streak-fixtures'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
+import { LAYOUT_ORIGIN } from '../support/env'
 import { test } from './upgrade-fixtures'
 import { setLayoutFixtureSession } from './profile-session'
 import {
@@ -19,24 +20,33 @@ for (const locale of ['en', 'pt-BR'] as const) {
         test(`keeps the summary bottom fixed after delayed ${name}`, async ({ page, context }) => {
           await setLayoutFixtureSession(context, [
             { path: API.gamification.profile, body: progressGoalsEmptyGamification },
-            { path: API.gamification.streak, body: response, delayMs: 8_000 },
+            { path: API.gamification.streak, body: response },
           ])
-          await page.goto('/progress/streak')
-          const words = locale === 'en' ? en : ptBR
-          const t = createTranslator({ locale, messages: words })
-          const summary = page.getByRole('region', { name: words.progressScreen.sections.streak })
-          const heading = page.getByRole('heading', { name: words.progressScreen.sections.streak, level: 1, exact: true })
-          const loadingEntry = page.getByRole('button', { name: words.progressScreen.streak.freezes, exact: true })
-          await expect(summary).toHaveAttribute('aria-busy', 'true')
-          await expect(loadingEntry).toBeDisabled()
-          await expect(summary.locator('[data-scope="account"] [data-state]')).toHaveCount(14)
-          await page.evaluate(() => document.fonts.ready)
-          const before = await summary.evaluate((element) => element.getBoundingClientRect().bottom)
-          const headerTop = await heading.evaluate((element) => element.getBoundingClientRect().top)
-          await expect(summary).toHaveAttribute('aria-busy', 'false', { timeout: 15_000 })
-          expect(await summary.evaluate((element) => element.getBoundingClientRect().bottom)).toBe(before)
-          await expect(page.getByRole('button', { name: t('progressScreen.streak.freezesCount', { banked: response.streakFreezesAccumulated, ceiling: response.maxStreakFreezesAccumulated }), exact: true })).toBeEnabled()
-          expect(await heading.evaluate((element) => element.getBoundingClientRect().top)).toBe(headerTop)
+          let releaseStreak!: () => void
+          const streakGate = new Promise<void>((resolve) => { releaseStreak = resolve })
+          await context.route(`${LAYOUT_ORIGIN}${API.gamification.streak}`, async (route) => {
+            await streakGate
+            await route.continue()
+          })
+          try {
+            await page.goto('/progress/streak')
+            const words = locale === 'en' ? en : ptBR
+            const t = createTranslator({ locale, messages: words })
+            const summary = page.getByRole('region', { name: words.progressScreen.sections.streak })
+            const heading = page.getByRole('heading', { name: words.progressScreen.sections.streak, level: 1, exact: true })
+            const loadingEntry = page.getByRole('button', { name: words.progressScreen.streak.freezes, exact: true })
+            await expect(summary).toHaveAttribute('aria-busy', 'true')
+            await expect(loadingEntry).toBeDisabled()
+            await expect(summary.locator('[data-scope="account"] [data-state]')).toHaveCount(14)
+            await page.evaluate(() => document.fonts.ready)
+            const before = await summary.evaluate((element) => element.getBoundingClientRect().bottom)
+            const headerTop = await heading.evaluate((element) => element.getBoundingClientRect().top)
+            releaseStreak()
+            await expect(summary).toHaveAttribute('aria-busy', 'false', { timeout: 15_000 })
+            expect(await summary.evaluate((element) => element.getBoundingClientRect().bottom)).toBe(before)
+            await expect(page.getByRole('button', { name: t('progressScreen.streak.freezesCount', { banked: response.streakFreezesAccumulated, ceiling: response.maxStreakFreezesAccumulated }), exact: true })).toBeEnabled()
+            expect(await heading.evaluate((element) => element.getBoundingClientRect().top)).toBe(headerTop)
+          } finally { releaseStreak() }
         })
       }
     })

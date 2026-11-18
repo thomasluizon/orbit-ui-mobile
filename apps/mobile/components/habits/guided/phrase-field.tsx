@@ -2,15 +2,11 @@ import type { HabitPhraseToken } from '@orbit/shared/utils'
 import { Input } from '@/components/ui/input'
 
 interface PhraseFieldProps {
-  /** The question of the step: the accessible name of the field. The question heading shows it, so the label is hidden. */
   label: string
   value: string
   placeholder: string
-  /** The limit of the record the phrase names: the onboarding title or the habit title. */
   maxLength: number
-  /** The hint beside the field after an empty submit, or the server message of the phrase. */
   hint?: string
-  /** The words the device read, marked live in the field. */
   marks: readonly HabitPhraseToken[]
   marksLabel: string
   focusRequest?: number

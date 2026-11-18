@@ -115,6 +115,7 @@
     "backToToday": "Back to Today",
     "backToParentHabit": "Back to the parent habit",
     "backToHabit": "Back to the habit",
+    "backToOrbit": "Back to Orbit",
     "backToDestination": "Back to {destination}",
     "closeConversation": "Close conversation",
     "appName": "Orbit",
@@ -312,7 +313,7 @@
           "stuckThisWeek": "What is getting stuck this week"
         },
         "profile": {
-          "changeTimezone": "Change my timezone",
+          "changeTimezone": "Change my time zone",
           "turnOffSummary": "Turn off the daily summary",
           "seePlan": "See my plan",
           "exportData": "Export my data"
@@ -485,6 +486,7 @@
     "genericError": "An error occurred. Please try again.",
     "orContinueWith": "or",
     "openInOrbit": "Open in Orbit",
+    "continueInApp": "Continue in the Orbit app",
     "signInWithGoogle": "Continue with Google",
     "signInWithApple": "Continue with Apple",
     "googleError": "Google sign-in failed. Please try again.",
@@ -524,6 +526,12 @@
       "habits": "{count, plural, one {# habit waiting on this device.} other {# habits waiting on this device.}}",
       "continue": "Continue and save"
     },
+    "line": {
+      "plan": "{count, plural, one {I am keeping your plan with # habit on this device until you sign in.} other {I am keeping your plan with # habits on this device until you sign in.}}",
+      "codeSent": "I sent a 6-digit code to {email}.",
+      "codeExpired": "That code expired after 5 minutes, so ask me for another.",
+      "codeLocked": "In {time}, I can send another code to this email."
+    },
     "accountBack": {
       "title": "Your account is back",
       "body": "The deletion request was cancelled when you signed in.",
@@ -534,17 +542,17 @@
     "flow": {
       "what": {
         "question": "What do you want to do?",
-        "lineEmpty": "Say it your way. You can include the day and the time.",
-        "lineTyped": "Got it. Only the details are left.",
+        "lineEmpty": "Write it your way, even with the day and time, and I'll understand.",
+        "lineTyped": "Got it, so I only need the details now.",
         "lineUnderstood": "Got it: {parts}.",
         "label": "What do you want to do?",
         "placeholder": "Take my pills every day at 8",
         "hint": "Write what you want to do.",
-        "reading": "Orbit is reading what you wrote."
+        "reading": "I am reading what you wrote."
       },
       "when": {
         "question": "When?",
-        "line": "Any day works, or a repeat.",
+        "line": "Tell me one day or a repeat.",
         "today": "Today",
         "tomorrow": "Tomorrow",
         "everyDay": "Every day",
@@ -557,19 +565,19 @@
       },
       "time": {
         "question": "Is there a set time?",
-        "line": "If there is a time, I can remind you.",
+        "line": "If there is a set time, I can remind you.",
         "none": "No set time",
-        "freeLabel": "Another time"
+        "freeLabel": "A different time"
       },
       "reminder": {
-        "question": "Want a reminder at {time}?",
-        "line": "I can tell you at that time.",
-        "yes": "Yes, remind me",
+        "question": "Want me to remind you at {time}?",
+        "line": "I'll let you know 15 minutes before and again at the time.",
+        "yes": "Yes, please",
         "no": "Not now"
       },
       "confirm": {
         "question": "Is this right?",
-        "line": "Check it with me. Tap an item to change it."
+        "line": "Check it with me and pick anything you want to change."
       },
       "summary": {
         "noDate": "no date",
@@ -579,7 +587,7 @@
         "when": "When",
         "time": "Time",
         "reminder": "Reminder",
-        "type": "What this is",
+        "type": "Task or habit",
         "emoji": "Emoji",
         "title": "What you want to do",
         "duration": "Length",
@@ -588,15 +596,15 @@
       },
       "type": {
         "question": "Is it a task or a habit?",
-        "line": "A repeat makes a habit. A date, or none, makes a task.",
+        "line": "I save what repeats as a habit and the rest as a task.",
         "taskHint": "Happens once, on a day or with no date",
-        "habitHint": "Repeats, and you follow the streak"
+        "habitHint": "Repeats, and you track your streak"
       },
       "repeat": {
         "question": "How often?",
-        "line": "Pick the repeat. The habit starts on the day you set.",
-        "everyN": "Every",
-        "timesIn": "Times per"
+        "line": "I count the repeat from the day you set.",
+        "everyN": "Set days",
+        "timesIn": "When I can"
       },
       "duration": {
         "question": "Does it have a length?",
@@ -605,7 +613,7 @@
       "reminderKind": {
         "question": "When do you want a reminder?",
         "scheduled": "At set times",
-        "repeat": "Repeat every"
+        "repeat": "Several times"
       },
       "more": "Want to adjust anything else?",
       "progress": "Step {position} of {total}",
@@ -623,13 +631,15 @@
         "goals": "Does this help a goal?",
         "endDate": "Does it have an end date?",
         "parent": "Is this part of another item?",
-        "none": "Nothing for now",
+        "parentRow": "Parent item",
+        "parentPicker": "Part of which item?",
+        "none": "No end date",
         "yes": "Yes",
         "no": "No",
         "removeEndDate": "Remove the end date"
       },
       "tags": {
-        "lineIntro": "A tag groups similar items. Tap one to see what is already in it.",
+        "lineIntro": "Pick a tag and I'll show you what is already in it.",
         "lineHas": "{tag} already has {items}.",
         "lineEmpty": "{tag} is still empty.",
         "more": "{count, plural, one {# more item} other {# more items}}",
@@ -638,14 +648,14 @@
         "manage": "Want to rename or delete a tag?"
       },
       "checklist": {
-        "line": "The steps become a list you check off as you go.",
-        "useTemplate": "Use a template",
+        "line": "I turn the steps into a list you check off as you go.",
+        "useTemplate": "Use template",
         "noWithItems": "Clear the list to go on with no steps."
       },
       "templates": {
         "question": "Which template do you want to use?",
-        "line": "A template is a list of steps you saved to use again.",
-        "lineEmpty": "You have no saved templates yet. Write the steps and I keep them for next time.",
+        "line": "A template is a list of steps I saved for you to use again.",
+        "lineEmpty": "I have no templates of yours yet, so write the steps and I'll save them.",
         "option": "{name}, {count, plural, one {# item} other {# items}}",
         "write": "Write steps",
         "saveQuestion": "What do you want to call this template?",
@@ -654,16 +664,15 @@
         "nameHint": "Write a name for the template."
       },
       "goals": {
-        "line": "A goal adds up the progress of the habits linked to it.",
-        "lineEmpty": "You have no goals yet. A goal adds up the progress of the habits linked to it.",
+        "line": "I add up the progress of the habits linked to a goal.",
+        "lineEmpty": "You have no goals yet, so create one and I'll add up its progress.",
         "limit": "Choose up to 10 goals",
         "searchMiss": "No goal with that name.",
         "option": "{title}, {percent}%",
         "loadError": "Could not load your goals. Try again."
       },
       "orbit": {
-        "offline": "No connection. I read on the device and you can go on the same way.",
-        "fromConversation": "It came from your conversation with Orbit."
+        "offline": "I am offline, so I read it on this device and you can go on the same way."
       }
     },
     "nextReminder": "Next at {time}",
@@ -1206,7 +1215,6 @@
       "slipAlert": "Slip alert",
       "slipAlertDescription": "A heads-up when this habit starts to slip.",
       "rescheduleAccept": "Use plan",
-      "rescheduleLoading": "Finding a realistic plan...",
       "rescheduleError": "I could not suggest a plan.",
       "updateError": "We could not save this change. Try again.",
       "logError": "We could not update this log. Try again.",
@@ -2679,6 +2687,7 @@
       "title": "Connections",
       "googleCalendar": "Google Calendar",
       "notion": "Notion",
+      "notionQuestion": "What does Orbit read in Notion?",
       "connected": "Connected",
       "notConnected": "Not connected",
       "renew": "Reconnect required",
@@ -2692,7 +2701,8 @@
       "error": "The connection did not work. Try again.",
       "offline": "You are offline. Connect to the internet to manage Notion.",
       "lastSync": "Last sync: {time}",
-      "awaitingSync": "Waiting for the first sync."
+      "awaitingSync": "Waiting for the first sync.",
+      "loadingStatus": "{name}, loading..."
     },
     "submenus": {
       "accountLabel": "{name}, {email}, account",
@@ -2710,8 +2720,8 @@
     },
     "settingsRows": {
       "editName": "{name}: Edit name, {email}",
-      "timezone": "Timezone",
-      "timezoneValue": "Timezone {timeZone}",
+      "timezone": "Time zone",
+      "timezoneValue": "Time zone {timeZone}",
       "apiKeysMcp": "API keys and MCP",
       "wrapped": "Orbit Wrapped",
       "weekStart": "Week starts on",
@@ -2749,6 +2759,8 @@
       "scopeLabel": "What can it access?",
       "setExpiry": "Set expiry?",
       "expiryQuestion": "Does it expire?",
+      "expiryDayLabel": "Last day it works",
+      "expiryDayPassed": "That day has passed. Choose another.",
       "accessQuestion": "What can it do?",
       "scopeAction": "Create",
       "mcpTitle": "Connect over MCP",
@@ -2759,9 +2771,9 @@
       "revokeBody": "Whatever uses this key stops working right away. There is no way to restore the key."
     },
     "timezonePicker": {
-      "search": "Search timezones",
-      "noResults": "No timezones found",
-      "showMore": "Show more timezones",
+      "search": "Search time zones",
+      "noResults": "No time zones found",
+      "showMore": "Show more time zones",
       "question": "Which time zone are you in?"
     },
     "loading": "Loading profile",
@@ -2813,16 +2825,20 @@
       "offlineReason": "No connection. Your words stay on this device, so you can send when the connection returns.",
       "subjects": {
         "problem": {
-          "label": "Not working"
+          "label": "Not working",
+          "option": "A bug"
         },
         "billing": {
-          "label": "Billing or plan"
+          "label": "Billing or plan",
+          "option": "Billing"
         },
         "account": {
-          "label": "Account and access"
+          "label": "Account and access",
+          "option": "My account"
         },
         "other": {
-          "label": "Something else"
+          "label": "Something else",
+          "option": "Other"
         }
       },
       "subjectRequired": "Pick a subject so we can route it properly.",
@@ -2839,16 +2855,17 @@
     },
     "wrappedTitle": "Your Wrapped",
     "widgetTitle": "Android widget",
+    "widgetQuestion": "How does the Orbit widget work?",
     "calendarSync": {
       "title": "Calendar sync"
     },
     "aboutRow": "About Orbit",
     "widgetHow": {
-      "title": "How to Add",
+      "title": "How to add",
       "step1": "Long-press on an empty area of your home screen",
       "step2": "Tap \"Widgets\" and search for Orbit",
       "step3": "Drag the widget to your home screen and resize as needed",
-      "featuresTitle": "What It Shows",
+      "featuresTitle": "What it shows",
       "feature1": "Today's habits with completion status",
       "feature2": "Due times for scheduled habits",
       "feature3": "Checklist progress for habits with checklists",
@@ -2888,7 +2905,7 @@
       "deleteOnboarding": "Onboarding progress (will replay welcome flow)",
       "preserveAccount": "Your account (email and name)",
       "preserveSubscription": "Pro subscription status",
-      "preservePreferences": "Theme, language, and timezone",
+      "preservePreferences": "Theme, language, and time zone",
       "confirmInstruction": "Type ORBIT to confirm.",
       "confirmLabel": "Ready to start over?",
       "confirmPlaceholder": "ORBIT",
@@ -2904,8 +2921,8 @@
       "warningPro": "Your account will be deactivated now and permanently deleted up to 30 days from today. Log back in anytime before then to cancel.",
       "warningDetail": "All your data will be permanently deleted, including your habits, completion history, AI conversations, and settings. We'll email you a confirmation code to continue.",
       "sendCode": "Send code",
-      "sendQuestion": "Can we send the code to your email?",
-      "sendLine": "The code goes to {email}.",
+      "sendQuestion": "Can I send the code to your email?",
+      "sendLine": "I'll send the code to {email}.",
       "errorGeneric": "Something went wrong. Please try again.",
       "offlineDescription": "Connect to the internet to deactivate your account."
     }
@@ -3076,7 +3093,7 @@
       "account": "Account information: name and email address (via email signup, Google OAuth, or Sign in with Apple)",
       "habits": "Habit data: habits you create, completion logs, schedules, tags, and goals",
       "chat": "AI chat messages: conversations with the Orbit AI assistant",
-      "preferences": "Preferences: language, timezone, color scheme, and notification settings",
+      "preferences": "Preferences: language, time zone, color scheme, and notification settings",
       "device": "Device data: a push notification token (to deliver reminders) and Android and iOS crash reports with device and OS details, a random installation ID, and an approximate city inferred from the request IP address. These reports do not include your name, email, or account details."
     },
     "howWeUse": {
@@ -3177,7 +3194,7 @@
       "astraCeiling": "250 AI messages a week",
       "calendarSync": "Calendar sync",
       "retrospective": "Periodic retrospective",
-      "proactiveAstra": "Orbit check-ins",
+      "proactiveAstra": "Orbit notifications",
       "savings": "Annual saves {percent}%",
       "subscribe": "View plans",
       "continueFree": "Stay free"
@@ -3207,8 +3224,8 @@
       "undated": "The task has no date. It is in General."
     },
     "habit": {
-      "repeat": "The habit starts {start} and repeats {cadence}.",
-      "repeatTimed": "The habit starts {start} and repeats {cadence} at {time}.",
+      "repeat": "The habit starts on {start} and repeats {cadence}.",
+      "repeatTimed": "The habit starts on {start} and repeats {cadence} at {time}.",
       "updated": "The changes are saved.",
       "rescheduled": "The habit moved to {date}.",
       "deleted": "The habit was deleted."
@@ -3226,7 +3243,9 @@
     "account": {
       "freshStart": "Everything you tracked was deleted. Your account, plan and preferences stay.",
       "freshStartQueued": "Everything you tracked will be deleted when the connection returns. Your account, plan and preferences stay.",
-      "openToday": "Open Today"
+      "openToday": "Open Today",
+      "deletionScheduled": "Your account will be deleted on {date}. If you sign in before then, it comes back whole.",
+      "deletionScheduledPro": "Your Pro account will be deleted on {date}. If you sign in before then, it comes back whole."
     },
     "support": {
       "sent": "Your message arrived. The reply goes to {email}."
@@ -3386,6 +3405,7 @@
         "continue": "Continue"
       },
       "done": {
+        "readFailed": "I saved the habit, but I could not show its details. Try again.",
         "tellAstra": "Next time, tell Orbit what you want to do from Today.",
         "title": "Done. It is in your day.",
         "body": "When you do it, mark its ring on Today to log it.",
@@ -3412,17 +3432,20 @@
         "intro": {
           "talk": {
             "title": "I am Orbit",
-            "body": "You tell me what you want to do, in your own words, and I understand it."
+            "body": "You tell me what you want to do, in your own words, and I'll understand."
           },
           "routine": {
-            "title": "I set it up",
-            "body": "I set the days and the time, and I remind you when it is time."
+            "title": "It becomes a routine",
+            "body": "I set the days and the time, and I'll remind you ahead of time."
           },
           "restart": {
             "title": "Missed a day?",
-            "body": "No problem, I help you start again the next day."
+            "body": "No problem, I'll help you start again the next day."
           },
           "skip": "Skip intro"
+        },
+        "what": {
+          "question": "What habit do you want to build?"
         },
         "mode": {
           "fixed": "Set days",
@@ -3442,14 +3465,15 @@
         },
         "time": {
           "question": "Is there a set time?",
-          "line": "With a time, I can remind you.",
+          "line": "If there is a set time, I can remind you.",
           "none": "No set time",
-          "freeLabel": "Another time"
+          "freeLabel": "A different time"
         },
         "summary": {
           "question": "Is this right?",
           "what": "What you will do",
           "mode": "How it repeats",
+          "unit": "Which period",
           "days": "Which days",
           "quantity": "How many times",
           "interval": "How often",
@@ -3457,8 +3481,8 @@
         },
         "remind": {
           "question": "Want me to remind you at {time}?",
-          "line": "I let you know 15 minutes before, only if it is not logged yet.",
-          "allow": "Yes, remind me",
+          "line": "I'll let you know 15 minutes before, only if you haven't logged it yet.",
+          "allow": "Yes, please",
           "pending": "Waiting for the device to answer."
         },
         "creating": "I am creating your habit.",
@@ -3482,7 +3506,7 @@
       "importNotNow": "Not now"
     },
     "featureGuide": {
-      "title": "Orbit guide",
+      "question": "What can you do in Orbit?",
       "habits": "Habits",
       "calendar": "Calendar",
       "astra": "Orbit",
@@ -3743,8 +3767,8 @@
         "aiMessages": "Today",
         "aiMessagesWeekly": "This week",
         "aiMessagesOf": "{used} of {limit}",
-        "nearLimit": "You are close to today's AI limit",
-        "nearLimitWeekly": "You are close to this week's AI limit"
+        "nearLimit": "You are close to today's AI message limit",
+        "nearLimitWeekly": "You are close to this week's AI message limit"
       },
       "invoices": {
         "title": "Invoice history",
@@ -3798,6 +3822,7 @@
   },
   "errors": {
     "fetchHabits": "Failed to load habits",
+    "fetchHabitDetails": "I could not load this habit. Try again.",
     "createHabit": "Failed to create habit",
     "updateHabit": "Failed to update habit",
     "logHabit": "Failed to log habit",
@@ -3936,10 +3961,10 @@
     },
     "flow": {
       "what": {
-        "line": "Say it your way. Then I ask how much and by when."
+        "line": "Write it your way, and then I'll ask how much and by when."
       },
       "track": {
-        "line": "Progress adds up a number. A streak counts days in a row."
+        "line": "For progress I add up a number, and for a streak I count days in a row."
       },
       "amount": {
         "line": "With a number I can show how much is left.",
@@ -3948,11 +3973,11 @@
       "deadline": {
         "line": "With a deadline I work out how much to do each day.",
         "none": "No deadline",
-        "monthEnd": "End of the month",
-        "yearEnd": "End of the year"
+        "monthEnd": "This month",
+        "yearEnd": "This year"
       },
       "habits": {
-        "question": "Which habits count toward this goal?"
+        "question": "Which habits count here?"
       },
       "summary": {
         "what": "Your goal",
@@ -4003,9 +4028,9 @@
       "askAstraSeedDefault": "Help me set up a weekly check-in plan for my goal \"{title}\".",
       "statusLabel": "Status",
       "line": {
-        "daysLeft": "{days, plural, one {# day left until the deadline.} other {# days left until the deadline.}}",
-        "dueToday": "The deadline is today.",
-        "passed": "The deadline was {date}."
+        "daysLeft": "{days, plural, one {By my count, # day is left until the deadline.} other {By my count, # days are left until the deadline.}}",
+        "dueToday": "By my count, the deadline is today.",
+        "passed": "By my count, the deadline ended on {date}."
       }
     },
     "deadline": {
@@ -4375,7 +4400,7 @@
     "operationKeys": "API keys",
     "eyebrow": "Confirming: {operation}",
     "title": "Enter the code we sent",
-    "body": "We sent 6 digits to {email}. It confirms this one action.",
+    "body": "We sent a 6-digit code to {email}. It confirms only this action.",
     "codeLabel": "What code did you get?",
     "codeHint": "The code lasts 10 minutes.",
     "confirm": "Confirm",
@@ -4386,8 +4411,8 @@
     "attemptsOne": "You have 1 attempt remaining in the next 15 minutes.",
     "attemptsMany": "{count, plural, one {You have # attempt remaining in the next 15 minutes.} other {You have # attempts remaining in the next 15 minutes.}}",
     "expiredTitle": "This code expired",
-    "expiredBody": "It lasted 10 minutes. Ask for another to carry on.",
-    "exhaustedTitle": "The attempts ran out",
+    "expiredBody": "Each code lasts 10 minutes.",
+    "exhaustedTitle": "No attempts left",
     "exhaustedBody": "This code no longer works.",
     "exhaustedNotice": "After 3 attempts, verification for this email is locked for 15 minutes. A new code does not restore the attempts.",
     "lockCountdown": "Open again in {time}",
@@ -4485,6 +4510,14 @@
     "failed": "The update could not be completed. Try again.",
     "required": "This version of Orbit needs an update. In the app menu, choose Check for updates, then Restart to update.",
     "signInRequired": "Update Orbit to sign in. In the app menu, choose Check for updates, then Restart to update."
+  },
+  "desktopWindow": {
+    "controls": "Window controls",
+    "menu": "Menu",
+    "minimize": "Minimize",
+    "maximize": "Maximize",
+    "restore": "Restore",
+    "close": "Close"
   },
   "forceUpdate": {
     "title": "This version of Orbit has stopped working",

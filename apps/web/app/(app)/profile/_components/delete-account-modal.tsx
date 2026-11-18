@@ -6,7 +6,7 @@ import { SPACING } from '@orbit/shared/theme'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import type { Profile } from '@orbit/shared/types/profile'
-import { getFriendlyErrorMessage } from '@orbit/shared/utils'
+import { getFriendlyErrorMessage, markGuidedFlowCompleted } from '@orbit/shared/utils'
 import { getDeleteAccountWarningKeys } from '@orbit/shared/utils/delete-account'
 import { requestDeletion } from '@/lib/actions/auth'
 import { beginStepUpChallenge } from '@/lib/step-up-storage'
@@ -25,7 +25,6 @@ interface DeleteAccountModalProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   profile: Profile | undefined
-  /** The flag `orbit_guided_flows`: the one-question flow replaces the sheet. */
   guided?: boolean
 }
 
@@ -76,6 +75,7 @@ export function DeleteAccountModal({
       closeSheet(() => {
         if (getHeldAccountId() !== intendedAccountId || getAccountGeneration() !== accountGeneration) return
 
+        markGuidedFlowCompleted('delete_account')
         handleOpenChange(false)
         router.push('/step-up?operation=delete')
       })

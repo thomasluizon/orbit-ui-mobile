@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { StyleSheet } from 'react-native'
 import { act } from 'react-test-renderer'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
 import { buildGoalCreationRequest, createGoalDraft } from '@orbit/shared/hooks'
@@ -6,6 +7,7 @@ import { createApiClientError } from '@orbit/shared/utils'
 import { CreateGoalSheet } from '@/components/goals/create-goal-sheet'
 import { EditGoalModal } from '@/components/goals/edit-goal-modal'
 import { i18n } from '@/lib/i18n'
+import { __setWindowDimensions } from '@/test-mocks/react-native'
 import { press, renderNavigation } from '../ui/navigation-render'
 
 const mocks = vi.hoisted(() => ({
@@ -126,7 +128,7 @@ describe('the guided goal create flow on Android', () => {
     await tap(tree, 'Continuar')
     expect(heading(tree)).toBe('Até quando?')
     await tap(tree, 'Fim do ano')
-    expect(heading(tree)).toBe('Quais hábitos contam para essa meta?')
+    expect(heading(tree)).toBe('Que hábitos contam aqui?')
     await tap(tree, 'Habit 1')
     await tap(tree, 'Continuar')
     expect(heading(tree)).toBe('É isso?')
@@ -169,7 +171,7 @@ describe('the guided goal create flow on Android', () => {
     const tree = renderNavigation(<CreateGoalSheet open onClose={vi.fn()} initialHabitIds={['habit-read']} fromHabit={{ title: 'Read' }} />)
     expect(progress(tree)).toBe('Step 1 of 5')
     await answerUpToDeadline(tree, EN)
-    await tap(tree, 'End of the month')
+    await tap(tree, 'This month')
     expect(heading(tree)).toBe('Is this right?')
     expect(texts(tree)).toContain('Read')
     await tap(tree, 'Create goal')
@@ -191,6 +193,18 @@ describe('the guided goal create flow on Android', () => {
     await tap(tree, 'Criar meta')
     expect(mocks.create.mock.calls[0]![0]).toMatchObject({ deadline: '2026-12-31' })
     tree.unmount()
+  })
+
+  it.each([{ width: 412, style: { alignSelf: 'stretch' } }, { width: 1440, style: { alignSelf: 'center', maxWidth: 360 } }])('keeps the continue of the deadline free path in the action slot: at most 360 wide in the centre from 1024 ($width px)', async ({ width, style }) => {
+    __setWindowDimensions({ width, height: 900, scale: 1, fontScale: 1 })
+    const tree = renderNavigation(<CreateGoalSheet open onClose={vi.fn()} />)
+    await answerUpToDeadline(tree, PT)
+    expect(heading(tree)).toBe('Até quando?')
+    const slots = tree.hosts().filter((node) => node.props.testID === 'primary-action-slot')
+    expect(slots.map((node) => textOf(node))).toEqual(['Continuar'])
+    expect(StyleSheet.flatten(slots[0]!.props.style)).toEqual(style)
+    tree.unmount()
+    __setWindowDimensions({ width: 412, height: 900, scale: 1, fontScale: 1 })
   })
 
   it('reads typed words, refuses a past date and takes the date picker', async () => {
@@ -298,7 +312,7 @@ describe('the Which habits step on Android', () => {
     expect(empty.hosts().filter((node) => node.props.testID === 'orbit-mascot'), 'one live Orbit in the view').toHaveLength(1)
     await tap(empty, i18n.t('habits.createHabit'))
     await tap(empty, 'Finish habit creation')
-    expect(heading(empty)).toBe('Quais hábitos contam para essa meta?')
+    expect(heading(empty)).toBe('Que hábitos contam aqui?')
     empty.unmount()
     mocks.habits.isLoading = true
     const loading = renderNavigation(<CreateGoalSheet open onClose={vi.fn()} />)
@@ -312,6 +326,22 @@ describe('the Which habits step on Android', () => {
 describe('the guided goal edit flow on Android', () => {
   const goal = { id: 'g1', title: 'Run 100km', targetValue: 100, unit: 'km', deadline: '2026-12-31', type: 'Standard' }
 
+  it('holds the save from the press: two presses in one turn send one request, and the save waits until it ends', async () => {
+    await i18n.changeLanguage('en')
+    let finish!: () => void
+    mocks.update.mockImplementation(() => new Promise<void>((resolve) => { finish = resolve }))
+    const tree = renderNavigation(<EditGoalModal open onClose={vi.fn()} goal={goal} />)
+    await tap(tree, /^By when/)
+    await tap(tree, 'No deadline')
+    const save = control(tree, 'Save')
+    await act(async () => { press(save); press(save); await Promise.resolve() })
+    expect(mocks.update).toHaveBeenCalledOnce()
+    expect(control(tree, 'Save').props.accessibilityState).toMatchObject({ busy: true })
+    await act(async () => { finish(); await Promise.resolve() })
+    expect(resultSentence(tree)).toBe('The goal "Run 100km" is saved with no deadline.')
+    tree.unmount()
+  })
+
   it('opens on the summary with the stored values and saves one change with the request of the current modal', async () => {
     vi.useFakeTimers({ toFake: ['Date'] })
     vi.setSystemTime(new Date('2026-11-13T12:00:00Z'))
@@ -323,7 +353,7 @@ describe('the guided goal edit flow on Android', () => {
     expect(control(tree, /^How much, 100 km$/)).toBeDefined()
     expect(tree.hosts().some((node) => /^Tracking/.test(node.props.accessibilityLabel ?? '') && node.props.onPress)).toBe(false)
     await tap(tree, /^By when/)
-    expect(control(tree, 'End of the year').props.accessibilityState?.selected, 'the stored deadline is the answer of an edit').toBe(true)
+    expect(control(tree, 'This year').props.accessibilityState?.selected, 'the stored deadline is the answer of an edit').toBe(true)
     await tap(tree, 'No deadline')
     await tap(tree, 'Save')
     expect(mocks.update).toHaveBeenCalledWith({ goalId: 'g1', data: { title: 'Run 100km', targetValue: 100, unit: 'km', deadline: null } })

@@ -13,6 +13,7 @@ const mocks = vi.hoisted(() => ({
   language: 'en', isLive: true, pro: true, reducedMotion: false, suggestionAvailable: false,
   createHabit: vi.fn(), updateHabit: vi.fn(), finishOnboarding: vi.fn(), suggest: vi.fn(), permission: vi.fn(),
   navigate: vi.fn(), replace: vi.fn(), completed: vi.fn(), event: vi.fn(),
+  saved: undefined as Record<string, unknown> | undefined,
 }))
 
 vi.mock('react-i18next', async (importOriginal) => ({
@@ -32,6 +33,7 @@ vi.mock('@/hooks/use-push-notifications', () => ({
   usePushNotifications: () => ({ isLoading: false, isSupported: true, permissionStatus: 'undetermined', permissionCanAskAgain: true, registrationStatus: 'idle', requestPermissionOutcome: mocks.permission }),
 }))
 vi.mock('@/lib/queued-api-mutation', () => ({ performQueuedApiMutation: vi.fn() }))
+vi.mock('@/hooks/use-habit-queries', async (importOriginal) => ({ ...(await importOriginal<typeof import('@/hooks/use-habit-queries')>()), useHabitDetail: (id: string | null) => ({ data: id ? mocks.saved : undefined }) }))
 vi.mock('@/lib/posthog', async (importOriginal) => ({ ...(await importOriginal<typeof import('@/lib/posthog')>()), captureGuidedFlowCompleted: mocks.completed, captureGuidedFlowEvent: mocks.event }))
 vi.mock('@/components/onboarding/onboarding-actions-context', () => ({
   useOnboardingActions: () => ({ createHabit: mocks.createHabit, updateHabit: mocks.updateHabit, deferPushRegistration: vi.fn(), finishOnboarding: mocks.finishOnboarding }),
@@ -48,6 +50,8 @@ interface TestNode { type: unknown; props: Record<string, unknown>; children: un
 interface TestTree { root: TestNode; unmount(): void }
 const TestRenderer: { create(element: React.ReactNode): TestTree; act(callback: () => void | Promise<void>): Promise<void> } = require('react-test-renderer')
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
+
+const SAVED_HABIT = { id: 'habit-1', frequencyUnit: 'Day', frequencyQuantity: 1, intervalWeeks: 1, days: ['Monday', 'Thursday'], isGeneral: false, isFlexible: false, dueDate: '2026-11-16', dueTime: '18:30:00' }
 
 const trees: TestTree[] = []
 type Messages = typeof en
@@ -72,7 +76,7 @@ async function press(tree: TestTree, label: string) {
 }
 
 async function typePhrase(tree: TestTree, messages: Messages, phrase: string) {
-  const field = hosts(tree).find((node) => node.type === 'TextInput' && node.props.accessibilityLabel === messages.onboarding.flow.what.title)!
+  const field = hosts(tree).find((node) => node.type === 'TextInput' && node.props.accessibilityLabel === messages.onboarding.flow.guided.what.question)!
   await TestRenderer.act(() => { (field.props.onChangeText as (value: string) => void)(phrase) })
   await press(tree, messages.onboarding.flow.continue)
 }
@@ -92,7 +96,8 @@ beforeEach(() => {
   mocks.updateHabit.mockResolvedValue(undefined)
   mocks.finishOnboarding.mockResolvedValue(undefined)
   mocks.permission.mockResolvedValue('granted')
-  useOnboardingDraftStore.setState({ introSeen: false })
+  mocks.saved = SAVED_HABIT
+  useOnboardingDraftStore.setState({ introSeen: false, habits: [] })
 })
 afterEach(async () => {
   await TestRenderer.act(() => { for (const tree of trees.splice(0)) tree.unmount() })
@@ -103,26 +108,39 @@ describe.each([{ language: 'en', messages: en }, { language: 'pt-BR', messages: 
   const guided = flow.guided
   beforeEach(() => { mocks.language = language })
 
-  it('explains Orbit on three intro screens before the first question, and reaches it in three taps', async () => {
+  it('explains Orbit on three intro screens before the first question, reaches it in three taps, and offers the header skip there', async () => {
     const tree = await mount()
     for (const [index, intro] of [guided.intro.talk, guided.intro.routine, guided.intro.restart].entries()) {
       expect(heading(tree)).toBe(intro.title)
+      expect(hosts(tree).find((node) => node.props.testID === 'orbit-mascot')?.props['data-orbit-state'], `the pose of intro screen ${index}`).toBe('parado')
+      expect(useOnboardingDraftStore.getState().introSeen, `the intro is not seen on screen ${index}`).toBe(false)
       expect(texts(tree)).toContain(intro.body)
       expect(progress(tree)).toBe(messages.habits.flow.progress.replace('{position}', String(index + 1)).replace('{total}', '3'))
       expect(texts(tree)).toContain(guided.intro.skip)
+      expect(hosts(tree).filter((node) => node.props.accessibilityLabel === flow.skip), `intro screen ${index} has one skip, and it opens the first question`).toHaveLength(0)
       await press(tree, flow.continue)
     }
-    expect(heading(tree)).toBe(flow.what.title)
+    expect(heading(tree)).toBe(guided.what.question)
     expect(useOnboardingDraftStore.getState().introSeen).toBe(true)
+    expect(hosts(tree).filter((node) => node.props.accessibilityRole === 'button' && node.props.accessibilityLabel === flow.skip), 'the first question has one header skip').toHaveLength(1)
+    await press(tree, flow.skip)
+    expect(texts(tree), 'the header skip leaves onboarding').toContain(flow.done.skippedTitle)
   })
 
   it.each([0, 1, 2])('skips the intro from screen %i straight to the first question, and never shows it again', async (screenIndex) => {
     const tree = await mount()
     for (let index = 0; index < screenIndex; index += 1) await press(tree, flow.continue)
     await press(tree, guided.intro.skip)
-    expect(heading(tree)).toBe(flow.what.title)
+    expect(heading(tree)).toBe(guided.what.question)
     const again = await mount()
-    expect(heading(again)).toBe(flow.what.title)
+    expect(heading(again)).toBe(guided.what.question)
+  })
+
+  it.each([0, 1, 2])('shows the intro again from its first screen to a person who quit on screen %i', async (screenIndex) => {
+    const tree = await mount()
+    for (let index = 0; index < screenIndex; index += 1) await press(tree, flow.continue)
+    const again = await mount()
+    expect(heading(again)).toBe(guided.intro.talk.title)
   })
 
   it('goes from a phrase with a schedule and a time straight to the summary', async () => {
@@ -163,6 +181,72 @@ describe.each([{ language: 'en', messages: en }, { language: 'pt-BR', messages: 
     expect(heading(tree)).toBe(guided.summary.question)
   })
 
+  const optionCards = (tree: TestTree) => hosts(tree).filter((node) => node.props.testID === 'option-card').map((node) => node.props.accessibilityLabel)
+  const summaryRow = (tree: TestTree, label: string) => hosts(tree).find((node) => node.props.accessibilityRole === 'button' && String(node.props.accessibilityLabel).startsWith(`${label},`))
+  const radios = (tree: TestTree) => hosts(tree).filter((node) => node.props.accessibilityRole === 'radio' || node.props.accessibilityRole === 'radiogroup')
+
+  it('asks the period on its own step before the count, with one quick option for each period and no segmented control', async () => {
+    useOnboardingDraftStore.setState({ introSeen: true })
+    const tree = await mount()
+    await typePhrase(tree, messages, language === 'en' ? 'Meditate' : 'Meditar')
+    await press(tree, guided.mode.flexible)
+    expect(heading(tree)).toBe(flow.when.frequencyUnitLabel)
+    expect(progress(tree)).toBe(messages.habits.flow.progress.replace('{position}', '3').replace('{total}', '6'))
+    expect(optionCards(tree)).toEqual([flow.when.units.day, flow.when.units.week, flow.when.units.month, flow.when.units.year])
+    expect(radios(tree)).toHaveLength(0)
+    await press(tree, flow.when.units.month)
+    expect(heading(tree)).toBe(guided.quantity.question)
+    expect(progress(tree)).toBe(messages.habits.flow.progress.replace('{position}', '4').replace('{total}', '6'))
+    expect(radios(tree)).toHaveLength(0)
+    await press(tree, flow.when.quantityMore)
+    await press(tree, flow.continue)
+    expect(heading(tree)).toBe(guided.summary.question)
+    await press(tree, flow.back)
+    expect(heading(tree)).toBe(guided.quantity.question)
+    await press(tree, flow.back)
+    expect(heading(tree)).toBe(flow.when.frequencyUnitLabel)
+  })
+
+  it('shows the period as a summary value that opens its own step and returns with the answer', async () => {
+    useOnboardingDraftStore.setState({ introSeen: true })
+    const tree = await mount()
+    await typePhrase(tree, messages, language === 'en' ? 'Meditate' : 'Meditar')
+    await press(tree, guided.mode.interval)
+    await press(tree, flow.when.units.week)
+    expect(heading(tree)).toBe(guided.interval.question)
+    await press(tree, flow.continue)
+    expect(summaryRow(tree, guided.summary.unit)?.props.accessibilityLabel).toBe(`${guided.summary.unit}, ${flow.when.units.week}`)
+    await TestRenderer.act(() => { (summaryRow(tree, guided.summary.unit)!.props.onPress as () => void)() })
+    expect(heading(tree)).toBe(flow.when.frequencyUnitLabel)
+    await press(tree, flow.when.units.day)
+    expect(heading(tree)).toBe(guided.summary.question)
+    expect(summaryRow(tree, guided.summary.unit)?.props.accessibilityLabel).toBe(`${guided.summary.unit}, ${flow.when.units.day}`)
+    await press(tree, flow.create)
+    expect(mocks.createHabit).toHaveBeenCalledWith(expect.objectContaining({ frequencyUnit: 'Day', frequencyQuantity: 2 }))
+  })
+
+  it('has no period value on the summary of a habit with set days', async () => {
+    useOnboardingDraftStore.setState({ introSeen: true })
+    const tree = await mount()
+    await typePhrase(tree, messages, language === 'en' ? 'Walk every Monday' : 'Caminhar toda segunda')
+    expect(summaryRow(tree, guided.summary.unit)).toBeUndefined()
+  })
+
+  it('shows the emoji as a summary value that opens the emoji picker, and saves the chosen emoji', async () => {
+    useOnboardingDraftStore.setState({ introSeen: true })
+    const tree = await mount()
+    await typePhrase(tree, messages, language === 'en' ? 'Walk every Monday at 18:00' : 'Caminhar toda segunda às 18:00')
+    expect(summaryRow(tree, guided.summary.what)?.props.accessibilityLabel).toBe(`${guided.summary.what}, ${language === 'en' ? 'Walk' : 'Caminhar'}`)
+    await press(tree, messages.habits.form.emojiOpenPicker)
+    expect(texts(tree)).toContain(messages.habits.form.emojiPickerTitle)
+    const option = hosts(tree).find((node) => node.props.accessibilityRole === 'button' && String(node.props.accessibilityLabel).startsWith(`${messages.habits.form.emoji}: `))!
+    const chosen = String(option.props.accessibilityLabel).slice(`${messages.habits.form.emoji}: `.length)
+    await TestRenderer.act(async () => { (option.props.onPress as () => void)(); await Promise.resolve(); await Promise.resolve() })
+    expect(heading(tree)).toBe(guided.summary.question)
+    await press(tree, flow.create)
+    expect(mocks.createHabit).toHaveBeenCalledWith(expect.objectContaining({ emoji: chosen }))
+  })
+
   it('keeps the typed habit on the summary after a failed create, offers retry, and opens no dialog', async () => {
     useOnboardingDraftStore.setState({ introSeen: true })
     mocks.createHabit.mockRejectedValueOnce(new Error('offline'))
@@ -178,6 +262,35 @@ describe.each([{ language: 'en', messages: en }, { language: 'pt-BR', messages: 
     expect(mocks.createHabit).toHaveBeenCalledTimes(2)
   })
 
+  it('saves only the created habit on a close after Create, and states a failed save on the step in view', async () => {
+    useOnboardingDraftStore.setState({ introSeen: true })
+    const tree = await mount()
+    const phrase = language === 'en' ? 'Walk every Monday at 18:00' : 'Caminhar toda segunda às 18:00'
+    const created = buildOnboardingHabitInput({ sentence: phrase, locale: language, emoji: '', reminderEnabled: false, schedule: buildOnboardingScheduleFromPhrase(phrase, language, true) })
+    const alerts = () => hosts(tree).filter((node) => node.type === 'Text' && node.props.accessibilityRole === 'alert').map(textOf)
+    await typePhrase(tree, messages, phrase)
+    await press(tree, flow.create)
+    await press(tree, flow.back)
+    expect(heading(tree)).toBe(guided.summary.question)
+    const whatRow = hosts(tree).find((node) => node.props.accessibilityRole === 'button' && String(node.props.accessibilityLabel).startsWith(`${guided.summary.what},`))!
+    await TestRenderer.act(() => { (whatRow.props.onPress as () => void)() })
+    const field = hosts(tree).find((node) => node.type === 'TextInput' && node.props.accessibilityLabel === guided.what.question)!
+    await TestRenderer.act(() => { (field.props.onChangeText as (value: string) => void)(language === 'en' ? 'Read every Friday at 07:00' : 'Ler toda sexta às 07:00') })
+    mocks.updateHabit.mockRejectedValueOnce(new Error('offline'))
+
+    await press(tree, flow.skip)
+
+    expect(mocks.updateHabit).toHaveBeenCalledWith('habit-1', created)
+    expect(heading(tree)).toBe(guided.what.question)
+    expect(alerts()).toContain(flow.completionFailed)
+    expect(hosts(tree).some((node) => node.props.testID === 'result-dialog')).toBe(false)
+
+    await press(tree, flow.skip)
+
+    expect(mocks.updateHabit).toHaveBeenLastCalledWith('habit-1', created)
+    expect(alerts()).not.toContain(flow.completionFailed)
+  })
+
   it('asks for reminders with two quick options and closes with the result dialog from the saved habit', async () => {
     useOnboardingDraftStore.setState({ introSeen: true })
     const tree = await mount()
@@ -188,11 +301,52 @@ describe.each([{ language: 'en', messages: en }, { language: 'pt-BR', messages: 
     expect(mocks.permission).toHaveBeenCalledTimes(1)
     const dialog = hosts(tree).find((node) => node.props.testID === 'result-dialog')!
     expect(dialog.props.accessibilityLabel).toBe(messages.result.title)
-    expect(String(dialog.props.accessibilityHint)).toMatch(/6:00\sPM|18:00/)
+    expect(String(dialog.props.accessibilityHint)).toMatch(/6:30\sPM|18:30/)
+    expect(String(dialog.props.accessibilityHint)).toMatch(language === 'en' ? /Thursday/ : /quinta/)
+    expect(String(dialog.props.accessibilityHint)).not.toMatch(/6:00\sPM|18:00/)
     expect(mocks.completed).toHaveBeenCalledWith('onboarding', 3, false)
     await press(tree, messages.result.seeToday)
     expect(mocks.finishOnboarding).toHaveBeenCalledOnce()
     expect(mocks.navigate).toHaveBeenCalledWith('/')
+  })
+
+  const resultDialog = (tree: TestTree) => hosts(tree).find((node) => node.props.testID === 'result-dialog')
+  async function toResult(tree: TestTree) {
+    await typePhrase(tree, messages, language === 'en' ? 'Walk every Monday at 18:00' : 'Caminhar toda segunda às 18:00')
+    await press(tree, flow.create)
+    await press(tree, flow.remind.deny)
+  }
+
+  it('opens no result dialog until the saved habit is in the query cache', async () => {
+    mocks.saved = undefined
+    useOnboardingDraftStore.setState({ introSeen: true })
+    const tree = await mount()
+    await toResult(tree)
+    expect(resultDialog(tree)).toBeUndefined()
+  })
+
+  it('builds the sentence of a create that waits in the offline queue from the optimistic record', async () => {
+    mocks.saved = undefined
+    mocks.createHabit.mockResolvedValue({ id: 'offline-1', title: 'Walk' })
+    useOnboardingDraftStore.setState({ introSeen: true })
+    const tree = await mount()
+    await toResult(tree)
+    expect(String(resultDialog(tree)?.props.accessibilityHint)).toMatch(/6:00\sPM|18:00/)
+    expect(String(resultDialog(tree)?.props.accessibilityHint)).toMatch(language === 'en' ? /Monday/ : /segunda/)
+  })
+
+  it('builds the sentence before sign-in from the habit that waits on this device, and offers sign-in', async () => {
+    mocks.isLive = false
+    mocks.createHabit.mockImplementation((input: Parameters<ReturnType<typeof useOnboardingDraftStore.getState>['bufferHabit']>[0]) => {
+      const index = useOnboardingDraftStore.getState().bufferHabit({ ...input, dueTime: '07:15' })
+      return Promise.resolve({ id: String(index), title: input.title })
+    })
+    useOnboardingDraftStore.setState({ introSeen: true })
+    const tree = await mount()
+    await toResult(tree)
+    expect(String(resultDialog(tree)?.props.accessibilityHint)).toMatch(/7:15\sAM|07:15/)
+    expect(String(resultDialog(tree)?.props.accessibilityHint)).toMatch(language === 'en' ? /Monday/ : /segunda/)
+    expect(texts(tree)).toContain(flow.done.signIn)
   })
 
   it('declines reminders with no permission request, and follows the dialog with the Pro step on the free plan', async () => {
@@ -236,6 +390,9 @@ it('sends the suggestion the same body as the current flow', async () => {
   await typePhrase(tree, en, 'Walk')
   expect(mocks.suggest).toHaveBeenCalledWith({ title: 'Walk', language: 'en' })
   expect(heading(tree)).toBe(en.onboarding.flow.guided.summary.question)
+  const emojiControl = hosts(tree).find((node) => node.props.accessibilityRole === 'button' && node.props.accessibilityLabel === en.habits.form.emojiOpenPicker)!
+  expect(textOf(emojiControl)).toBe('🚶')
+  expect(emojiControl.props.accessibilityHint).toBe(en.habits.form.proposedByAstra)
 })
 
 it('renders the current Android onboarding with the flag off', async () => {

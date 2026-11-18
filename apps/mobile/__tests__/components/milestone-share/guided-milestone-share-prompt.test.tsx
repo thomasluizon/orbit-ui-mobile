@@ -35,7 +35,6 @@ const LOCALES = [{ locale: 'pt-BR', copy: ptBR.milestoneShare }, { locale: 'en',
 
 let tree: ReactTestRenderer | null = null
 
-/** Arms a streak milestone and waits the settle delay. */
 async function openPrompt(locale: 'pt-BR' | 'en' = 'pt-BR') {
   await testI18n.changeLanguage(locale)
   await renderer.act(() => { tree = renderer.create(<MilestoneSharePrompt suppressed={false} />) })

@@ -1,5 +1,7 @@
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { useOnboardingDraftStore } from '@/stores/onboarding-draft-store'
+import { setAccountId } from '@/lib/account-scope'
+import { ONBOARDING_DRAFT_STORAGE_VERSION } from '@orbit/shared/stores'
 import type { CreateHabitRequest } from '@orbit/shared/types/habit'
 
 const STORAGE_KEY = 'orbit-onboarding-draft'
@@ -72,6 +74,35 @@ describe('onboarding draft store', () => {
     expect(state.habits).toHaveLength(1)
     expect(state.onboardingLocallyDone).toBe(true)
     expect(state.hasPendingAnswers()).toBe(true)
+  })
+
+  describe('a snapshot another account stored on this install', () => {
+    afterEach(() => setAccountId(null))
+
+    it('drops the answers of that account and keeps the intro as seen', async () => {
+      globalThis.localStorage.setItem(STORAGE_KEY, JSON.stringify({
+        state: { accountKey: 'account-a', habits: [habit('Journal')], firstLog: null, goal: null, weekStartDay: 1, onboardingLocallyDone: false, introSeen: true },
+        version: ONBOARDING_DRAFT_STORAGE_VERSION,
+      }))
+      setAccountId('account-b')
+
+      await useOnboardingDraftStore.persist.rehydrate()
+
+      expect(useOnboardingDraftStore.getState()).toMatchObject({ accountKey: null, habits: [], weekStartDay: null, onboardingLocallyDone: true, introSeen: true })
+    })
+
+    it('keeps an intro this session already showed when the snapshot has none', async () => {
+      setAccountId('account-b')
+      useOnboardingDraftStore.setState({ introSeen: true })
+      globalThis.localStorage.setItem(STORAGE_KEY, JSON.stringify({
+        state: { accountKey: 'account-a', habits: [habit('Journal')], firstLog: null, goal: null, weekStartDay: null, onboardingLocallyDone: false },
+        version: ONBOARDING_DRAFT_STORAGE_VERSION,
+      }))
+
+      await useOnboardingDraftStore.persist.rehydrate()
+
+      expect(useOnboardingDraftStore.getState()).toMatchObject({ habits: [], introSeen: true })
+    })
   })
 
   it('clears every answer on reset', () => {

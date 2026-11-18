@@ -38,10 +38,8 @@ export default function SearchPage() {
   </>
 }
 
-/** Where Orbit is drawn: above the question, beside the Orbit line, or nowhere while the line has no job. */
 type OrbitPlace = 'block' | 'line' | 'none'
 
-/** Orbit looks at the search field while it holds focus. The look is measured again when Orbit moves between the block and the line. */
 function useFieldLook(place: OrbitPlace) {
   const { mascotRef, lookAt, lookTowards, lookAway } = useOrbitLook()
   const field = useRef<EventTarget | null>(null)

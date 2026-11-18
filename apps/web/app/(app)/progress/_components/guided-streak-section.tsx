@@ -40,7 +40,6 @@ function repairStateOf(streak: StreakScreen): StreakRepairState {
   })
 }
 
-/** Orbit at 48 beside one fact. Orbit is Parado in every state of Sequência, the gap included, and the line is absent behind the Pro gate. */
 function StreakOrbitRow({ line }: Readonly<{ line: string | null }>) {
   return (
     <div data-streak-orbit="" className="flex min-h-12 items-center gap-3">
@@ -50,7 +49,6 @@ function StreakOrbitRow({ line }: Readonly<{ line: string | null }>) {
   )
 }
 
-/** The return path of a gap, on the screen: the repair action, or why the gap cannot be repaired. */
 function StreakGapActions({ state, repair, onRepair }: Readonly<{
   state: StreakRepairState
   repair: StreakScreen['repair']
@@ -71,7 +69,6 @@ function StreakGapActions({ state, repair, onRepair }: Readonly<{
   )
 }
 
-/** The flow stays open while the gap can still be repaired. A refreshed streak with no gap closes it. */
 function useRepairFlow(state: StreakRepairState, repair: StreakScreen['repair']) {
   const [open, setOpen] = useAccountScopedState(false)
   const [repairedCount, setRepairedCount] = useAccountScopedState<number | null>(null)

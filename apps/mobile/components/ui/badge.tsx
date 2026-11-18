@@ -1,8 +1,9 @@
 import { SPACING } from '@orbit/shared/theme'
 import type { BadgeProps } from '@orbit/shared/contracts/display'
 import { StyleSheet, Text, View } from 'react-native'
-import { createTokensV2 } from '@/lib/theme'
+import { createTokensV2, radius } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
+import { insetHairlineRing } from '@/components/ui/inset-hairline-ring'
 
 /** A neutral, static chip. Interactive controls use pill geometry instead. */
 export function Badge({ variant = 'solid', children }: Readonly<BadgeProps>) {
@@ -15,7 +16,7 @@ export function Badge({ variant = 'solid', children }: Readonly<BadgeProps>) {
         styles.badge,
         variant === 'solid'
           ? { backgroundColor: tokens.bgWell }
-          : { borderColor: tokens.hairlineStrong, borderWidth: 1 },
+          : { ...insetHairlineRing, outlineColor: tokens.hairlineStrong },
       ]}
       testID={`badge-${variant}`}
     >
@@ -29,7 +30,7 @@ export function Badge({ variant = 'solid', children }: Readonly<BadgeProps>) {
 const styles = StyleSheet.create({
   badge: {
     alignSelf: 'flex-start',
-    borderRadius: 8,
+    borderRadius: radius.sm,
     paddingHorizontal: SPACING.s8,
     paddingVertical: SPACING.s4,
   },

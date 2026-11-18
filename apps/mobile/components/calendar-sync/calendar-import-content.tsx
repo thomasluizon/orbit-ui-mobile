@@ -96,7 +96,6 @@ interface ImportResult {
 
 // react-doctor-disable-next-line no-giant-component -- Screen orchestration is already decomposed into calendar-sync-* section components; the remaining wizard state + JSX tree is inherently long, and further splitting is a regression-prone refactor with cross-platform parity cost. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 export function CalendarImportContent({ reviewMode, initialEventId, onClose, onGoToHabits, actionRef, onActionStateChange, onImported }: Readonly<{ reviewMode: boolean; initialEventId: string | null; onClose: (afterClose?: () => void) => void; onGoToHabits: () => void; actionRef: Ref<CalendarImportActionHandle>; onActionStateChange: (state: CalendarImportActionState | null) => void
-  /** A full success hands the count the server returned to the result dialog of the caller. A partial failure keeps the per-item result in the sheet. */
   onImported?: (count: number) => void }>) {
   const [firstLineCentre, setFirstLineCentre] = useState(12)
   const router = useRouter()

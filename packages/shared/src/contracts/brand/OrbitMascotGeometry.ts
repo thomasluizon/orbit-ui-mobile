@@ -1,4 +1,4 @@
-import type { OrbitMascotSize } from './OrbitMascot'
+import type { OrbitMascotLiveSize, OrbitMascotSize, OrbitMascotSmallSize } from './OrbitMascot'
 
 /** The Orbit mascot rig. The box, the planet, the eyes and the moon come from design/brand/orbit-mascot*.svg;
  *  a test compares them with those files. The ring is computed, because the live face tilts it.
@@ -66,6 +66,22 @@ export function orbitMascotSizeFor(size: number): OrbitMascotSize {
   return tiers.find((tier) => tier <= size) ?? 16
 }
 
+const ORBIT_MASCOT_LIVE_MIN_SIZE: OrbitMascotLiveSize = 48
+/** The small static face draws in a 4:3 box, so its height is three quarters of its width. */
+export const ORBIT_SMALL_FACE_BOX_RATIO = 3 / 4
+/** The longest step the idle loop clock takes in one frame, so a late frame never jumps the loop forward. */
+export const ORBIT_MASCOT_MAX_FRAME_STEP_MS = 100
+
+/** Whether a mascot of `size` px draws the small static face, not the live rig. */
+export function isOrbitMascotSmallSize(size: number): size is OrbitMascotSmallSize {
+  return size < ORBIT_MASCOT_LIVE_MIN_SIZE
+}
+
+/** The drawn height of a mascot `size` px wide: the 7:5 box of the live rig, or the 4:3 box of the small face. */
+export function orbitMascotHeight(size: OrbitMascotSize): number {
+  return isOrbitMascotSmallSize(size) ? size * ORBIT_SMALL_FACE_BOX_RATIO : (size * ORBIT_MASCOT_BOX_HEIGHT) / ORBIT_MASCOT_BOX_WIDTH
+}
+
 /** Where the ring and the moon are at one moment of the idle loop. */
 export interface OrbitMascotFrame {
   readonly ringBack: string
@@ -116,7 +132,6 @@ export function orbitRingPath(from: number, to: number, tilt: number, opening: n
   return `M${outer.concat(inner.reverse()).join(' L')} Z`
 }
 
-/** The blink of the idle loop: open, then a short close and reopen at the end of each interval. */
 function blinkScaleAt(phase: number): number {
   if (phase < 0.92) return 1
   if (phase < 0.96) return 1 - (0.9 * (phase - 0.92)) / 0.04
@@ -153,6 +168,19 @@ export function orbitMascotFrame(milliseconds: number, timings: OrbitMascotTimin
     blinkScale: blinkScaleAt(blinkPhase),
     eyeWiden: Number((1 + (ORBIT_MASCOT_TURN_EYE_WIDEN - 1) * Math.sin(turn * Math.PI)).toFixed(3)),
   }
+}
+
+/** The clip of the planet and the eyes: the whole drawing box with the ring outline cut out, read with the
+ *  even-odd rule. The outline is a hole, not a paint, so it always shows the real surface behind the mascot:
+ *  the canvas, a card, a sheet, a hover fill or a pill. */
+export function orbitOutlineCutout(viewBox: string, outline: string): string {
+  const [x = 0, y = 0, width = 0, height = 0] = viewBox.split(' ').map(Number)
+  return `M${x} ${y}H${x + width}V${y + height}H${x}Z${outline}`
+}
+
+/** The frame a mascot draws while its loop does not run: the loop frame with both eyes open, so a still mascot never holds a blink. */
+export function orbitPausedFrame(frame: OrbitMascotFrame, running: boolean): OrbitMascotFrame {
+  return running ? frame : { ...frame, blinkScale: 1 }
 }
 
 /** The SVG matrix that closes one eye about its centre line by `scale`. */

@@ -45,7 +45,6 @@ export function WindowFigureGrid({ children }: Readonly<{ children: ReactNode[] 
   )
 }
 
-/** One busy region covers the figures and the habit row. */
 export function WindowFigureLoading({ label }: Readonly<{ label: string }>) {
   const { t } = useTranslation()
   return (

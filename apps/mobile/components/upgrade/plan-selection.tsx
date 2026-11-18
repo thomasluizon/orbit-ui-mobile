@@ -29,10 +29,8 @@ import {
   type UpgradeTextFn,
 } from './types'
 
-/** The wide shell. From it the interval control is capped at 320, as on web. */
 const WIDE_SHELL_WIDTH = 1024
 
-/** From the `sm` boundary of the upgrade screen the two tiers sit side by side and hug their content, as on web. */
 function usePlanColumns() {
   const { width } = useWindowDimensions()
   const twoColumns = width >= RESPONSIVE_TYPE_BREAKPOINT
@@ -302,7 +300,6 @@ function TierCard({
   selected: boolean
   loading: boolean
   disabled: boolean
-  /** True where the two tiers sit side by side: each tier takes half the row. */
   column?: boolean
   measurement?: boolean
   onCheckout: (interval: SubscriptionInterval) => void

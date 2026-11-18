@@ -113,6 +113,24 @@ export function migrateOnboardingDraft(
   }
 }
 
+/**
+ * The draft a rehydration gives the store. The answers of another account are dropped. The facts of this install
+ * stay for every account: onboarding ended here, and the intro showed here.
+ */
+export function mergeOnboardingDraft(
+  persisted: unknown,
+  current: Pick<OnboardingDraftState, 'onboardingLocallyDone' | 'introSeen'>,
+  accountId: string | null,
+): PersistedOnboardingDraft & { accountKey: string | null; introSeen: boolean } {
+  const draft = migrateOnboardingDraft(persisted)
+  const answers = accountId !== null && draft.accountKey !== accountId ? createInitialDraft() : draft
+  return {
+    ...answers,
+    onboardingLocallyDone: current.onboardingLocallyDone || draft.onboardingLocallyDone || accountId !== null,
+    introSeen: current.introSeen || draft.introSeen,
+  }
+}
+
 export function buildApplyOnboardingPayload(
   draft: PersistedOnboardingDraft,
 ): ApplyOnboardingRequest {

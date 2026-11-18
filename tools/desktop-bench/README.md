@@ -107,11 +107,19 @@ It reuses the benchmark build entry, process host, hermetic fixture producer, mo
 and proxy. The release build uses the same staging prepare and package commands as
 `desktop-release.yml`, with no optional Cargo features and no deployed credentials.
 
-The Windows job and a fork pull request's macOS job build with `--no-sign`. A workflow dispatch or a
-pull request from this repository runs macOS in the separate `installed-signed` job instead. That job
-takes the `desktop-staging` environment with `deployment: false`, and the Windows job takes no
-environment. GitHub passes no secrets to a workflow that a fork triggers, so a fork pull request gets
-no signing material and keeps the unsigned APNs skip. The signed build follows `desktop-release.yml`:
+The Windows job builds with `--no-sign`. A workflow dispatch or a pull request from this repository runs
+macOS in the separate `installed-signed` job. That job takes the `desktop-staging` environment with
+`deployment: false`, and the Windows job takes no environment. GitHub passes no secrets to a workflow that
+a fork triggers, so a fork pull request runs the Windows job only. The VM jobs run no producer
+regression. `Tool and Hook Tests` runs every producer test file (`test-acceptance*.ts`,
+`test-child-limit.ts`) on `ubuntu-latest`, where the cases gated on `process.platform` skip, and fails when
+a file that imports `node:test` is not started there. `test-acceptance-support.ts` holds no test case: it
+gives `test-acceptance.ts` and `test-acceptance-keys.ts` one inspection context on the real runner source.
+`desktop-acceptance-producers.yml` runs each file with such a gate on `windows-latest` and
+`macos-latest`, beside the VM jobs. It also starts when a pull request changes only a producer test or a
+fixture, which the VM jobs skip. `node tools/test-tools.mjs --only desktop-acceptance` fails when a
+gated file is missing from that job or a gated platform has no runner there. Both VM jobs restore the Rust compile cache that `Desktop Build` saves on `main`. A pull request never
+saves it. The signed build follows `desktop-release.yml`:
 
 - `tauri build --no-bundle` compiles the shell without signing credentials.
 - The harness writes the Developer ID provisioning profile into a signing config overlay. It requires
@@ -148,15 +156,55 @@ and an authenticated request. No deployed API or account is used.
 macOS installs from the mounted DMG into the Applications directory. Windows runs the built NSIS
 installer with its silent flag and explicit install directory. Only that installed executable is
 launched. The first launch checks Hoje, Astra, palette structure and native clean quit. On Windows it
-also sets the page's root mode class to light and then dark, the signal the shell reads, and the
-`caption` command of `acceptance-uia.ps1` captures the native caption with `acceptance-caption.cs`.
-The reader samples the middle of the caption above the menu bar and requires the `DESIGN.md` canvas
-(`#FAFAFA` light, `#09090B` dark) on at least 90% of the sampled pixels. `DWMWA_CAPTION_COLOR` paints the
-canvas whatever the window theme is, and the caption-button glyphs follow the caption colour. The reader therefore
-reads `DWMWA_USE_IMMERSIVE_DARK_MODE` (attribute 20, which `tao` writes on every Windows 11 build) back from the
-window with `DwmGetWindowAttribute`. The runner requires a successful read-back with flag 0 for the light mode and
-flag 1 for the dark mode, in the same poll as the canvas colour. `report.json` `caption` keeps the sampled colours,
-the flag and its HRESULT, and the `caption-light.png` and `caption-dark.png` captures upload with the job. Separate
+also presses the page's theme toggle for light and then dark. The toggle writes the root mode class
+that the shell reads and the canvas tokens that the page paints with, and the probe reports that canvas
+as `pageCanvas`. The shell sets the window theme to that mode, which sets the WebView2 colour scheme, so
+the probe gives `prefers-color-scheme` 15 seconds to follow the mode and reports it as `prefersDark`.
+The runner requires `prefersDark` to match the mode in the same poll as the canvas. The `windowbar` command of `acceptance-uia.ps1` reads the window with
+`acceptance-window-bar.cs`. The window has no native caption, so the reader requires the client area
+to start at the top of the visible frame, no menu bar above the client area, and the `DESIGN.md`
+canvas (`#FAFAFA` light, `#09090B` dark) on at least 90% of the sampled middle of the Orbit bar. The
+shell keeps its native menu attached, so the reader keeps the `GetMenuBarInfo` rectangle as `menuRect`
+and counts a menu bar only when part of it lies above the client area. The reader parks the pointer in
+the middle of the window before a reading, so no action shows its hover fill, and crops the middle half
+of the menu, minimize, maximize and close areas as `actions`. In each mode every area must be at least
+60% canvas, and its pixels at least 64 levels from the canvas must span the glyph of its icon (8 CSS
+pixels tall for the menu dots, wide for the minimize line, both for the maximize square and the close
+cross). That fails a window painted over the maximize action, as the snap region did before it was
+layered; `__fixtures__/window-bar-actions.json` keeps those areas from a light and a dark capture of
+that build. Then the runner reads the four bar actions through UI Automation and uses them. The probe
+presses the menu action, and the `popup` action of the reader finds the process's visible `#32768`
+popup menu, reads it through `MN_GETHMENU`, presses Escape and waits until it closes. UI Automation
+lists that open popup as a top-level window of the process in front of the app window, so each
+window command of the reader takes the process's `Tauri Window`, never its first window. The runner
+requires the popup to equal the window menu (ids, labels, enabled and checked states), to open at the
+start of the menu action under the bar, and to close. Then it drags the empty bar. The bar is page
+content, so the page asks the shell for the drag, and tao `handle_os_dragging` posts
+`WM_NCLBUTTONDOWN` with `HTCAPTION`. The window follows the pointer only from where that move loop
+finds it. Thus the `drag` action holds the pointer on the press point until `GetGUIThreadInfo` reports
+`GUI_INMOVESIZE` for the window (5 seconds at most), then travels 160 pixels, and the runner requires
+the window to travel exactly that far with its size and its top edge unchanged. `report.json` keeps
+the wait as `windowBar.actions.drag.moveLoopWait`. The reader writes the wait as an int, so the
+runner fails a value that is not a whole number of milliseconds from 0 up, with its own message: such
+a value is no measure of the drag start. The runner also fails a wait above 1000 ms
+(`moveLoopLimit`), because a late move loop is a bar that stays still under a moving pointer. A
+pointer that left the press point in steps of 30 ms moved the window 160, 128 or 96 pixels in
+recorded runs. The slowest run lost four steps, so its loop started 120 to 150 ms after the press,
+and the limit keeps about seven times that for a loaded runner. Next the `systemmenu` action
+right-clicks the same empty part of the bar (`mouse_event` right down and up), reads the open popup
+and closes it with Escape, once with the window restored and once maximized. The runner requires the
+six window commands (`SC_RESTORE`, `SC_MOVE`, `SC_SIZE`, `SC_MINIMIZE`, `SC_MAXIMIZE`, `SC_CLOSE`)
+with the enabled states of that window state, the popup within 8 pixels of the pointer, and the
+popup closed. `test-acceptance-readers.ts` runs the `drag` and `systemmenu` actions on a Windows
+runner against a restored window with a native caption, where Windows itself runs the move loop and
+shows the window menu. The runner presses the maximize
+action twice with the pointer (the `click` action: `SetCursorPos` and `mouse_event` at the middle of the
+action, where the snap region of `caption.cpp` takes the press) and requires the window to maximize and
+then to restore, double clicks the bar twice, and invokes minimize and restores the window. UI
+Automation Invoke would run the page button and never reach the snap region. `report.json`
+`windowBar` keeps each reading and the window state after each action. The `window-light.png` and
+`window-dark.png` captures of the whole window upload with the job. The Windows 11 snap layouts flyout
+has no automation reading, so only a person on Windows 11 can see it. Separate
 launches reject a cryptographically corrupted signature and download a correctly signed newer
 version. The update package is the built acceptance installer, signed with the newer advertised
 version to exercise the verifier. The job tests discovery and download verification; it does not
@@ -391,12 +439,26 @@ Platform readers dump the real AX or UI Automation tree and require web content,
 controls, semantic roles and nonempty names. Palette arrows must retain DOM input focus and expose the
 next selected result in both the DOM and platform tree. Platform focus may be on the input or its
 selected active descendant inside the controlled listbox, matched by captured automation identifiers.
-The page records each keydown the palette receives. A native Down counts as sent only when the page
-records an ArrowDown that the input method did not claim. WebKit marks a claimed key with key code 229
-or a composition, and cmdk ignores it. If the page records no usable ArrowDown within 5 seconds, the
-runner sends the Down again, with at most 3 posts per step. The report keeps each undelivered Down and
-the keys the page recorded for it in `paletteUndelivered`. A step that records two usable ArrowDown keys
-fails. A received Down that does not move the selection still fails the focus check.
+Every native key (the Astra Escape, the Command+K or Ctrl+K that opens the palette, each palette Down
+and the Escape that closes the palette) goes through one helper, `deliverKey` in `acceptance-contract.mjs`.
+A key counts as sent when the page records a keydown with its name. The page records keydowns in
+`astra-key` events while Astra is open, and in `palette-key` events from the Astra close on. An Escape
+or a Command+K that the input method claimed (key code 229 or a composition) still counts, because the
+Astra and palette shortcut handlers act on the key name, and the runner never posts such a key again after
+the page recorded it. cmdk ignores a claimed Down, so only an unclaimed ArrowDown counts for a Down, and the
+runner posts a claimed Down again under the same bound.
+If the page records no keydown that counts within 5 seconds, the runner sends it again, with at most 6
+posts (30 seconds) per key. A key that never arrives fails with `OS key delivery failed`, before the
+runner checks the app. After a repost, a key from an earlier post can still arrive. The runner then
+assumes that every key of this run has the delay of the first post, and watches until the last post's
+key would arrive with that delay, plus one 5 second window. A second keydown in that time also fails
+with `OS key delivery failed`. One key takes at most about 100 seconds. Thus a run report
+tells a lost or doubled OS event from an app defect. `report.json` `keyDelivery` keeps every post of
+every key with its native reply and, for a post with no receipt, every event of that probe kind that the
+page recorded after the post. The job log prints one `Key <name>: post N of 6` line per post.
+A received Down that does not move the selection still fails the focus check.
+Each run also logs `Runner vCPUs: N` (the length of Node's `os.cpus()`, one entry for each logical core) and keeps
+it in `report.json` `runner.cpus`, because native keys are lost more often on the 5 vCPU macOS runner class.
 
 On macOS, the AX helper posts every key into the event stream of the installed process with
 `CGEventPostToPid`, and the key window of the shell receives it as a typed key. A key posted at the HID
@@ -405,10 +467,9 @@ lost whole keys while the shell was the focused application with a key window an
 The helper first reads the focused application from the system-wide AX element. If the installed process
 is not focused, the helper requests activation and sets `AXFrontmost`, because macOS 14 lets the system
 refuse an activation request. If another process keeps keyboard focus, the helper posts no key and names
-that process. `report.json` `keyDelivery` keeps each key reply with its delivery path, its activation and
-the focused process. While Astra is open, the page records each keydown in `astra-key` events. If Astra
-does not close after the native Escape, the runner keeps those events in `report.json` `astraKeys` and
-the AX tree in `trees/astra-after-escape.json`. The error states how many Escape keydowns the page received.
+that process. Each native reply names its delivery path, its activation and the focused process. If Astra does not close after the page received the native Escape, the runner keeps
+the `astra-key` events in `report.json` `astraKeys` and the AX tree in `trees/astra-after-escape.json`.
+The error states how many Escape keydowns the page received.
 An exact macOS access denial is recorded as
 a skip, with Windows still required. These are structural checks; a person's spoken screen reader
 pass remains separate. Reports, native trees, capture and diagnostic logs upload even on failure.
@@ -427,8 +488,8 @@ Controls explicitly marked `IsOffscreen=true` are also excluded, following the
 [UIA visibility property](https://learn.microsoft.com/en-us/dotnet/api/system.windows.automation.automationelement.automationelementinformation.isoffscreen).
 Names and rectangle values never determine visibility. Visible disabled controls still require
 their role and name. A document with no visible interactive descendants fails even if browser
-chrome contains valid controls. The VM jobs exercise the PowerShell rectangle producer before
-building the installed app.
+chrome contains valid controls. The `windows-latest` job of `desktop-acceptance-producers.yml`
+exercises the PowerShell rectangle producer.
 
 Probe failures retain the error message separately from the stack because a webview stack may
 contain only frames. Email failures include the BFF path, HTTP status and response body, including

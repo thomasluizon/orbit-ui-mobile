@@ -3,6 +3,7 @@ import { act, create, type ReactTestRenderer } from 'react-test-renderer'
 import { ScrollView, StyleSheet, TextInput, type StyleProp, type ViewStyle } from 'react-native'
 import { TrueSheet } from '@lodev09/react-native-true-sheet'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { controlStyle } from '@/__tests__/support/press-feedback'
 import { createTokensV2 } from '@/lib/theme'
 import { Select } from '@/components/ui/select'
 import { Sheet } from '@/components/ui/sheet'
@@ -89,7 +90,7 @@ it('paints native select hover and focus on both trigger and option', async () =
   const tokens = createTokensV2('orange', 'dark')
   let tree!: ReactTestRenderer
   await act(() => { tree = create(<Example onChange={vi.fn()} />) })
-  const paint = (node: ReturnType<typeof hosts>[number]) => StyleSheet.flatten((node.props.style as (state: { pressed: boolean }) => StyleProp<ViewStyle>)({ pressed: false }))
+  const paint = (node: ReturnType<typeof hosts>[number]) => controlStyle(node)
   try {
     const trigger = hosts(tree).find((node) => node.props.role === 'combobox')!
     await act(() => (trigger.props.onHoverIn as (() => void) | undefined)?.())
@@ -102,7 +103,7 @@ it('paints native select hover and focus on both trigger and option', async () =
     await act(() => (option.props.onHoverIn as (() => void) | undefined)?.())
     expect(paint(option).backgroundColor).toBe(tokens.bgHover)
     await act(() => { __setTouchMode(false); __focusHost(option.props.__nativeTag as number) })
-    expect(hosts(tree).some((node) => (node.type as unknown) === 'View' && StyleSheet.flatten<ViewStyle | undefined>(node.props.style as StyleProp<ViewStyle>)?.outlineWidth === 2)).toBe(true)
+    expect(hosts(tree).some((node) => ['View', 'Pressable'].includes(node.type as string) && StyleSheet.flatten<ViewStyle | undefined>(node.props.style as StyleProp<ViewStyle>)?.outlineWidth === 2)).toBe(true)
   } finally { await act(() => tree.update(<></>)) }
 })
 
@@ -117,7 +118,7 @@ it('draws the field trigger with the control border and layers the opaque hover 
   let tree!: ReactTestRenderer
   await act(() => { tree = create(<Example onChange={vi.fn()} />) })
   try {
-    const paint = () => StyleSheet.flatten((selectTrigger(tree).props.style as (state: { pressed: boolean }) => StyleProp<ViewStyle>)({ pressed: true }))
+    const paint = () => controlStyle(selectTrigger(tree))
     expect(paint()).toMatchObject({ backgroundColor: tokens.bgField, borderColor: tokens.borderControl, borderWidth: 1, overflow: 'hidden' })
     const chevronColor = () => selectTrigger(tree).findAll((node) => node.props.size === 20 && typeof node.props.color === 'string')[0]!.props.color
     expect(triggerFill(tree).opacity).toBe(0)

@@ -3,6 +3,7 @@ import { join } from "node:path"
 import { T, stageRepo } from "./_harness.mjs"
 import { appendChainEntry, closeSessionChain, confirmChainSuccessor, openSessionChain, supersededSession, adoptRelayRun, readSessionChain, sessionChainEntry } from "../lib/session-chain.mjs"
 import { readRunState, writeRunState } from "../lib/run-state.mjs"
+import { questionFilterGaps } from "../lib/owner-questions.mjs"
 
 export const cases = async () => {
   const repository = stageRepo("chain")
@@ -19,10 +20,13 @@ export const cases = async () => {
   closeSessionChain("s4", checkout)
   T("session-chain: owner closure removes the open reporting window", openSessionChain("s4", checkout) === null)
   T("session-chain: closure preserves superseded guards", supersededSession("s1", checkout).sessionId === "s4")
-  writeRunState({ sessionId: "old", sleep: true, autoWork: true, intake: { gmail: { completed: ["message-1"] } }, remaining: ["#1091"], relay: { pending: true, successorSessionId: "new", successorTerminal: "term_new" } }, checkout)
+  writeRunState({ sessionId: "old", sleep: true, autoWork: true, intake: { gmail: { completed: ["message-1"] } }, remaining: ["#1091"],
+    openOwnerQuestions: [{ question: "Surviving owner question?", sources: ["old"], blocks: ["#1091"] }], questionFilter: { sessionId: "old", dispositions: [{ id: "filtered", disposition: "queued" }] },
+    relay: { pending: true, successorSessionId: "new", successorTerminal: "term_new" } }, checkout)
   appendChainEntry({ sessionId: "old", decisions: "preserved decision" }, checkout)
   T("session-chain: an unrelated session cannot adopt a run", adoptRelayRun("unrelated", checkout) === false)
   T("session-chain: successor adopts queue without hand-copied state", adoptRelayRun("new", checkout) && readRunState(checkout).remaining[0] === "#1091" && readRunState(checkout).relay.from === "old")
+  T("session-chain: successor inherits the filtered owner questions and owes its own filter", readRunState(checkout).openOwnerQuestions[0]?.question === "Surviving owner question?" && readRunState(checkout).openOwnerQuestions[0].blocks[0] === "#1091" && /no recorded filter/.test(questionFilterGaps("new", checkout).join()))
   T("session-chain: adoption retains auto-work and source cursors", readRunState(checkout).autoWork === true && readRunState(checkout).intake.gmail.completed[0] === "message-1")
   T("session-chain: durable adoption fences predecessor before chain finalization", supersededSession("old", checkout)?.terminal === "term_new")
   const recovered = openSessionChain("new", checkout)
@@ -37,6 +41,10 @@ export const cases = async () => {
   const armed = await sessionChainEntry({ sessionId: "armed", decisionLogPath: entryDecisions,
     relay: { forced: true, armedAt: "2026-11-01T01:00:00.000Z", armedTokens: 351000, measuredTokens: 400500, triggeredAt: "2026-11-01T01:20:00.000Z" } }, entryTranscript)
   T("session-chain: an entry records whether the hard ceiling forced the relay", armed.forced === true)
+  T("session-chain: an entry with no recorded filter marks no settled questions", armed.questionFilter === null)
+  const inherited = await sessionChainEntry({ sessionId: "heir", decisionLogPath: entryDecisions, questionFilter: { sessionId: "armed", dispositions: [] } }, entryTranscript)
+  const filtered = await sessionChainEntry({ sessionId: "heir", decisionLogPath: entryDecisions, questionFilter: { sessionId: "heir", dispositions: [] } }, entryTranscript)
+  T("session-chain: an entry carries only the filter its own session recorded", inherited.questionFilter === null && filtered.questionFilter?.sessionId === "heir")
   T("session-chain: an entry records when and where the soft threshold armed", armed.armedAt === "2026-11-01T01:00:00.000Z" && armed.armedTokens === 351000)
   const unarmed = await sessionChainEntry({ sessionId: "unarmed", decisionLogPath: entryDecisions, relay: { forced: false, measuredTokens: 352000, triggeredAt: "2026-11-01T01:20:00.000Z" } }, entryTranscript)
   T("session-chain: a relay that began at its first quiet point records no arming", unarmed.forced === false && unarmed.armedAt === null && unarmed.armedTokens === null)

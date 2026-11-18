@@ -29,7 +29,7 @@ type ExpectedButtonBase = {
 }
 type ExpectedLabelledVariant = ExpectedButtonBase & {
   children: string
-  brand?: 'google'
+  brand?: 'google' | 'apple'
   leadingIcon?: React.ReactNode
   accessibleName?: string
   iconOnly?: never

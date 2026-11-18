@@ -30,7 +30,7 @@ vi.mock('@/lib/posthog', () => ({ captureGuidedFlowEvent: vi.fn() }))
 vi.mock('@/lib/motion', async (importOriginal) => ({ ...await importOriginal<typeof import('@/lib/motion')>(), usePrefersReducedMotion: () => state.reduced }))
 vi.mock('@/hooks/use-checklist-templates', () => ({
   useChecklistTemplates: () => ({ data: state.templates, isLoading: state.loading, isError: state.templatesError, refetch: state.refetchTemplates }),
-  useCreateChecklistTemplate: () => ({ mutate: state.create, isPending: false }),
+  useCreateChecklistTemplate: () => ({ mutateAsync: state.create, isPending: false }),
   useDeleteChecklistTemplate: () => ({ mutate: state.remove }),
 }))
 
@@ -171,7 +171,7 @@ describe('the template question inside the checklist step on Android', () => {
   it('lists the saved templates with their item count and loads one back into the checklist question', async () => {
     state.templates = [template('t1', 'Treino', 'Alongar', 'Correr'), template('t2', 'Manhã', 'Beber água')]
     const tree = renderNavigation(<Harness />)
-    await tap(tree, 'Usar um modelo')
+    await tap(tree, 'Usar modelo')
     expect(headings(tree)).toEqual(['Qual modelo você quer usar?'])
     await tap(tree, 'Treino, 2 itens')
     expect(state.items).toEqual(items('Alongar', 'Correr'))
@@ -182,7 +182,7 @@ describe('the template question inside the checklist step on Android', () => {
   it('goes back to the checklist question with no change', async () => {
     state.templates = [template('t1', 'Treino', 'Alongar')]
     const tree = renderNavigation(<Harness initial={items('Separar a roupa')} />)
-    await tap(tree, 'Usar um modelo')
+    await tap(tree, 'Usar modelo')
     await tap(tree, 'Voltar')
     expect(headings(tree)).toEqual(['Tem passos dentro disso?'])
     expect(state.items).toEqual(items('Separar a roupa'))
@@ -191,8 +191,8 @@ describe('the template question inside the checklist step on Android', () => {
 
   it('says there is no template and offers the item editor', async () => {
     const tree = renderNavigation(<Harness />)
-    await tap(tree, 'Usar um modelo')
-    expect(textOf(tree)).toContain('Você ainda não guardou nenhum modelo. Escreva os passos e eu guardo para a próxima.')
+    await tap(tree, 'Usar modelo')
+    expect(textOf(tree)).toContain('Ainda não tenho modelos seus, então escreva os passos que eu guardo.')
     await tap(tree, 'Escrever passos')
     expect(headings(tree)).toEqual(['Tem passos dentro disso?'])
     tree.unmount()
@@ -201,9 +201,9 @@ describe('the template question inside the checklist step on Android', () => {
   it('says the templates did not load, offers a retry and keeps the item editor, never the line of no template', async () => {
     state.templatesError = true
     const tree = renderNavigation(<Harness />)
-    await tap(tree, 'Usar um modelo')
+    await tap(tree, 'Usar modelo')
     expect(textOf(tree)).toContain('Não foi possível carregar seus modelos. Tente de novo.')
-    expect(textOf(tree)).not.toContain('Você ainda não guardou nenhum modelo. Escreva os passos e eu guardo para a próxima.')
+    expect(textOf(tree)).not.toContain('Ainda não tenho modelos seus, então escreva os passos que eu guardo.')
     await tap(tree, i18n.t('common.retry'))
     expect(state.refetchTemplates).toHaveBeenCalledTimes(1)
     await tap(tree, 'Escrever passos')
@@ -214,7 +214,7 @@ describe('the template question inside the checklist step on Android', () => {
   it('shows a skeleton while the templates load', async () => {
     state.loading = true
     const tree = renderNavigation(<Harness />)
-    await tap(tree, 'Usar um modelo')
+    await tap(tree, 'Usar modelo')
     expect(tree.hosts().some((node) => node.props.accessibilityRole === 'progressbar' && node.props.accessibilityLabel === i18n.t('common.loading'))).toBe(true)
     tree.unmount()
   })
@@ -222,7 +222,7 @@ describe('the template question inside the checklist step on Android', () => {
   it('deletes a template and shows its error text when the delete fails', async () => {
     state.templates = [template('t1', 'Treino', 'Alongar')]
     const tree = renderNavigation(<Harness />)
-    await tap(tree, 'Usar um modelo')
+    await tap(tree, 'Usar modelo')
     await tap(tree, 'Apagar: Treino')
     expect(state.remove).toHaveBeenCalledWith('t1', expect.anything())
     await act(async () => { (state.remove.mock.calls[0]![1] as { onError: () => void }).onError(); await Promise.resolve() })
@@ -233,7 +233,7 @@ describe('the template question inside the checklist step on Android', () => {
   it('keeps every template reachable when there are more than four', async () => {
     state.templates = ['A', 'B', 'C', 'D', 'E'].map((name, index) => template(`t${index}`, name, 'Passo'))
     const tree = renderNavigation(<Harness />)
-    await tap(tree, 'Usar um modelo')
+    await tap(tree, 'Usar modelo')
     expect(tree.hosts().filter((node) => node.props.testID === 'option-card')).toHaveLength(4)
     await tap(tree, 'E, 1 item')
     expect(state.items).toEqual(items('Passo'))
@@ -245,7 +245,7 @@ describe('the template question inside the checklist step on Android', () => {
     const tree = renderNavigation(<Harness />)
     state.templates = [template('t1', 'Treino', 'Alongar'), template('t2', 'Casa', 'Varrer')]
     tree.update(<Harness />)
-    await tap(tree, 'Usar um modelo')
+    await tap(tree, 'Usar modelo')
     const rows = tree.hosts().filter((node) => (node.props as { exiting?: unknown }).exiting !== undefined)
     expect(rows).toHaveLength(2)
     expect(rows.every((row) => (row.props as { entering?: unknown }).entering === undefined)).toBe(true)
@@ -257,7 +257,7 @@ describe('the template question inside the checklist step on Android', () => {
       state.reduced = reduced
       state.templates = [template('t1', 'Treino', 'Alongar')]
       const tree = renderNavigation(<Harness />)
-      await tap(tree, 'Usar um modelo')
+      await tap(tree, 'Usar modelo')
       const row = tree.hosts().find((node) => (node.props as { exiting?: unknown }).exiting !== undefined)!
       const { entering, exiting } = row.props as unknown as { entering?: unknown; exiting: { durationMs: number; definitions: Record<number, { transform: { translateY: number }[] }> } }
       const exit = resolveMotionPreset('list-exit', reduced)
@@ -278,9 +278,12 @@ describe('the save question inside the checklist step on Android', () => {
     expect(state.create).not.toHaveBeenCalled()
     expect(textOf(tree)).toContain('Escreva um nome para o modelo.')
     await typeInto(tree, 'Que nome vai ter esse modelo?', ' Treino ')
-    await tap(tree, 'Salvar')
-    expect(state.create).toHaveBeenCalledWith({ name: 'Treino', items: ['Alongar', 'Correr'] }, expect.anything())
-    await act(async () => { (state.create.mock.calls[0]![1] as { onSuccess: () => void }).onSuccess(); await Promise.resolve() })
+    let finish!: () => void
+    state.create.mockImplementation(() => new Promise<void>((resolve) => { finish = resolve }))
+    const save = control(tree, 'Salvar')
+    await act(async () => { press(save); press(save); await Promise.resolve() })
+    expect(state.create).toHaveBeenCalledExactlyOnceWith({ name: 'Treino', items: ['Alongar', 'Correr'] })
+    await act(async () => { finish(); await Promise.resolve() })
     expect(headings(tree)).toEqual(['Tem passos dentro disso?'])
     tree.unmount()
   })
@@ -289,8 +292,8 @@ describe('the save question inside the checklist step on Android', () => {
     const tree = renderNavigation(<Harness initial={items('Alongar')} />)
     await tap(tree, 'Salvar modelo')
     await typeInto(tree, 'Que nome vai ter esse modelo?', 'Treino')
+    state.create.mockRejectedValue(new Error('offline'))
     await tap(tree, 'Salvar')
-    await act(async () => { (state.create.mock.calls[0]![1] as { onError: () => void }).onError(); await Promise.resolve() })
     expect(tree.hosts().find((node) => node.props.accessibilityRole === 'alert')?.props.children).toBe('Não foi possível salvar o modelo. Tente de novo.')
     expect(headings(tree)).toEqual(['Que nome vai ter esse modelo?'])
     tree.unmount()

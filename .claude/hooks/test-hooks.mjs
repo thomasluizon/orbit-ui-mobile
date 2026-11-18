@@ -66,8 +66,9 @@ const onDisk = readdirSync(hooksDir).filter((name) => name.endsWith(".mjs") && n
 T("wiring: every hook settings.json names exists on disk", [...wired].filter((name) => !existsSync(join(hooksDir, name))), [])
 T("wiring: every hook on disk is wired in settings.json", onDisk.filter((name) => !wired.has(name)), [])
 T("wiring: the scan is not vacuous", wired.size > 0 && onDisk.length > 0, true)
-const staleMatchers = settings.hooks.PreToolUse.filter((entry) => entry.hooks.some((hook) => hook.command.includes("forbid-stale-text.mjs"))).map((entry) => entry.matcher)
-T("wiring: stale text hook is registered once per matcher", staleMatchers.length, new Set(staleMatchers).size)
+const staleMatchers = (event) => settings.hooks[event].filter((entry) => entry.hooks.some((hook) => hook.command.includes("forbid-stale-text.mjs"))).map((entry) => entry.matcher)
+T("wiring: stale text hook checks a Write before it lands", staleMatchers("PreToolUse"), ["Write"])
+T("wiring: stale text hook checks an Edit after it lands", staleMatchers("PostToolUse"), ["Edit|MultiEdit"])
 
 const metadataWorkflow = readFileSync(join(repoRoot, ".github/workflows/pr-metadata.yml"), "utf8")
 T("parity gate: metadata invokes the live-label validator", metadataWorkflow.includes("node .github/scripts/check-pr-metadata.mjs"), true)
@@ -966,7 +967,7 @@ for (const hook of ["git-guardrails", "orchestrator-guardrails", "forbid-invente
   T(`adapter ${hook}: malformed stdin blocks`, result.status, 2)
   T(`adapter ${hook}: failure identifies the hook`, result.stderr.includes(hook), true)
 }
-for (const hook of ["surface-pending-lessons", "record-handoff-request", "relay-at-threshold"]) {
+for (const hook of ["surface-pending-lessons", "record-handoff-request", "relay-at-threshold", "offer-stale-cleanup"]) {
   T(`reminder ${hook}: malformed stdin allows`, runHookResult(`${hook}.mjs`, "not json").status, 0)
 }
 const bash = (command, cwd = root) => ({ tool_name: "Bash", tool_input: { command }, cwd })
@@ -974,16 +975,19 @@ const powershell = (command, cwd = root) => ({ tool_name: "PowerShell", tool_inp
 const STALE_TEXT = "forbid-stale-text.mjs"
 const plantedOwner = ["Tho", "mas"].join("")
 T("adapter timeless: a new owner attribution -> 2", runHook(STALE_TEXT, {
+  hook_event_name: "PreToolUse",
   tool_name: "Write",
   tool_input: { file_path: join(repoRoot, "timeless-hook-probe.md"), content: `Ask ${plantedOwner}.\n` },
   cwd: repoRoot,
 }), 2)
-T("adapter timeless: a clean edit -> 0", runHook(STALE_TEXT, {
+T("adapter timeless: an Edit before it lands -> 0", runHook(STALE_TEXT, {
+  hook_event_name: "PreToolUse",
   tool_name: "Edit",
-  tool_input: { file_path: join(repoRoot, "CLAUDE.md"), old_string: "clean", new_string: "still clean" },
+  tool_input: { file_path: join(repoRoot, "CLAUDE.md"), old_string: "# Orbit", new_string: plantedOwner },
   cwd: repoRoot,
 }), 0)
 T("adapter timeless: a scratchpad write -> 0", runHook(STALE_TEXT, {
+  hook_event_name: "PreToolUse",
   tool_name: "Write",
   tool_input: { file_path: join(root, "scratchpad.md"), content: `Ask ${plantedOwner}.\n` },
   cwd: repoRoot,
@@ -2291,6 +2295,17 @@ const crankSkill = readFileSync(join(repoRoot, ".claude", "skills", "crank", "SK
 T("standalone crank: no-run entry retains the canonical sleep lifecycle", /If enabling with no active[^.]+invoke `?\.claude\/skills\/sleep\/SKILL\.md`? first/s.test(crankSkill), true)
 const wrapUpSkill = readFileSync(join(repoRoot, ".claude", "skills", "wrap-up", "SKILL.md"), "utf8")
 T("wrap-up crank: instructions never enter sleep to establish a run", !/enter `\/sleep` through/.test(wrapUpSkill), true)
+const handoffSkill = readFileSync(join(repoRoot, ".claude", "skills", "handoff", "SKILL.md"), "utf8")
+const relayPassInvocations = handoffSkill.replace(/\s+/g, " ").split(/(?<=\.) /).filter((sentence) => sentence.includes("invoke `/questions --relay`"))
+T("handoff owner path: only a --relay handoff invokes the relay questions pass", relayPassInvocations.length > 0 && relayPassInvocations.every((sentence) => sentence.startsWith("With `--relay`,")), true)
+T("handoff owner path: an owner handoff never runs the relay questions pass", handoffSkill.replace(/\s+/g, " ").includes("An owner `/handoff` never runs `/questions --relay`."), true)
+const ownerCheckAt = handoffSkill.replace(/\s+/g, " ").indexOf("An owner `/handoff` runs `node tools/relay-session.mjs --owner-check` first, before it writes anything.")
+T("handoff owner path: the owner check runs before the handoff writes its outputs", ownerCheckAt >= 0 && ownerCheckAt < handoffSkill.replace(/\s+/g, " ").indexOf("Two outputs, both committed files in this repo"), true)
+const openQuestionsRule = handoffSkill.replace(/\s+/g, " ")
+T("handoff open questions: every listed row enters the spec, only a filter or the owner removes one, and the owner-only steps and settled decisions stay",
+  openQuestionsRule.includes("every row that `node tools/owner-questions.mjs --list` prints goes in the spec's `## Open questions`") &&
+  openQuestionsRule.includes("Remove a question from that section only when a filter or the owner settled it.") &&
+  openQuestionsRule.includes("Keep the owner-only steps and the settled decisions that the section also holds.") && !openQuestionsRule.includes("holds exactly the rows"), true)
 writeRunState(activeBeforeIntent, wakeCheckout)
 
 const handoffGitRepo = mkdtempSync(join(tmpdir(), "orbit-handoff-git-"))
@@ -2344,9 +2359,23 @@ rmSync(handoffGitRepo, { recursive: true, force: true })
 const timelessHook = join(hooksDir, "forbid-stale-text.mjs")
 T("relative sibling roots resolve from the primary checkout", siblingRoots.includes(join(primaryCommonDirectory, "..", "..", "orbit-api")), true)
 const staleName = ["Tho", "mas"].join("")
-const hookPayload = { tool_name: "Edit", tool_input: { file_path: join(repoRoot, "CLAUDE.md"), old_string: "# Orbit", new_string: staleName } }
-T("timeless hook rejects a planted name", spawnSync(process.execPath, [timelessHook], { input: JSON.stringify(hookPayload), encoding: "utf8" }).status, 2)
-T("timeless hook passes after removal", spawnSync(process.execPath, [timelessHook], { input: JSON.stringify({ ...hookPayload, tool_input: { ...hookPayload.tool_input, new_string: "# Orbit" } }), encoding: "utf8" }).status, 0)
+const timelessRepo = join(root, "timeless-repository")
+mkdirSync(join(timelessRepo, "tools"), { recursive: true })
+cpSync(join(repoRoot, "tools/check-timeless.mjs"), join(timelessRepo, "tools/check-timeless.mjs"))
+writeFileSync(join(timelessRepo, "tools/timeless-allowlist.json"), "[]\n")
+const timelessFile = join(timelessRepo, "CLAUDE.md")
+writeFileSync(timelessFile, "# Orbit\n")
+const inTimelessRepo = (...args) => spawnSync("git", ["-C", timelessRepo, "-c", "user.name=Orbit Gate", "-c", "user.email=gate@orbit.test", ...args], { encoding: "utf8" })
+inTimelessRepo("init", "-q", "--initial-branch=main")
+inTimelessRepo("add", "CLAUDE.md", "tools/check-timeless.mjs", "tools/timeless-allowlist.json")
+T("timeless fixture: the base commit lands", inTimelessRepo("commit", "-qm", "base").status, 0)
+const landedEdit = (written, new_string) => {
+  writeFileSync(timelessFile, written)
+  const hookPayload = { hook_event_name: "PostToolUse", tool_name: "Edit", tool_input: { file_path: timelessFile, old_string: "# Orbit", new_string }, tool_response: {} }
+  return spawnSync(process.execPath, [timelessHook], { input: JSON.stringify(hookPayload), encoding: "utf8" }).status
+}
+T("timeless hook rejects a planted name in a landed Edit", landedEdit(`${staleName}\n`, staleName), 2)
+T("timeless hook passes after removal", landedEdit("# Orbit\n", "# Orbit"), 0)
 
 console.log("\n# second-opinion verdict parsing")
 const claudeFixtureDirectory = join(root, "second-opinion-bin")
@@ -2410,6 +2439,57 @@ const emptyResult = secondOpinionReply("")
 T("second-opinion: an empty response degrades", [emptyResult.status, emptyResult.reason], ["UNAVAILABLE", "empty response from claude"])
 const noFindingResult = secondOpinionReply(placeholderVerdict, "success", " ")
 T("second-opinion: no dossier degrades", [noFindingResult.status, noFindingResult.reason], ["UNAVAILABLE", "no finding text on stdin"])
+
+// ---------------------------------------------------------------------------
+// Stale files offer (UserPromptSubmit), in the isolated checkout so no test reads or writes this machine's listing
+// ---------------------------------------------------------------------------
+console.log("\n# offer-stale-cleanup (stale files offer on every prompt)")
+const { LISTING_MAX_AGE_MS, listingIdOf, staleFilesStorePath } = await import("../../tools/lib/stale-files.mjs")
+const STALE_OFFER_HOOK = "offer-stale-cleanup.mjs"
+cpSync(join(hooksDir, STALE_OFFER_HOOK), join(wakeHooks, STALE_OFFER_HOOK))
+const staleListingArguments = join(root, "stale-listing-arguments.json")
+// The real tool reads the whole machine. This stand-in only records how the hook starts a listing.
+writeFileSync(join(wakeCheckout, "tools", "stale-files.mjs"), `import { writeFileSync } from "node:fs"\nwriteFileSync(${JSON.stringify(staleListingArguments)}, JSON.stringify(process.argv.slice(2)))\n`)
+const staleSessionRoot = join(root, "stale-offer-sessions")
+const staleSessionDirectory = join(staleSessionRoot, "0f0f0f0f-0000-4000-8000-00000000000f")
+mkdirSync(staleSessionDirectory, { recursive: true })
+const offerPrompt = { session_id: "stale-offer-session", hook_event_name: "UserPromptSubmit", prompt: "Continue.", cwd: wakeCheckout, scratchpad_dir: join(staleSessionRoot, "stale-offer-session", "scratchpad") }
+const runOfferHook = (payload = offerPrompt, env = {}) => spawnSync(process.execPath, [join(wakeHooks, STALE_OFFER_HOOK)], { input: JSON.stringify(payload), encoding: "utf8", env: { ...process.env, ORBIT_LAUNCH_WORKER: "", ...env } })
+const offerOutput = (result) => (result.stdout === "" ? null : JSON.parse(result.stdout).hookSpecificOutput)
+const startedListing = async (attempts = 100) => {
+  for (let attempt = 0; attempt < attempts && !existsSync(staleListingArguments); attempt += 1) await new Promise((resolve) => setTimeout(resolve, 50))
+  const started = existsSync(staleListingArguments) ? JSON.parse(readFileSync(staleListingArguments, "utf8")) : null
+  rmSync(staleListingArguments, { force: true })
+  rmSync(join(wakeCheckout, ".git", "orbit-stale-files-refresh.json"), { force: true })
+  return started
+}
+const storeStaleListing = (stale, generatedAt = new Date().toISOString()) => writeFileSync(staleFilesStorePath(wakeCheckout),
+  JSON.stringify({ version: 1, generatedAt, listingId: listingIdOf(stale), context: { sessionId: "stale-offer-session", sessionRoot: staleSessionRoot }, stale, kept: [] }))
+const staleItem = { kind: "session", path: staleSessionDirectory, bytes: 3 * 1024 ** 3, reason: "not this session, its predecessor, or a session with a live process" }
+
+const firstPrompt = runOfferHook()
+T("stale offer: a prompt with no stored listing adds nothing", [firstPrompt.status, firstPrompt.stdout], [0, ""])
+T("stale offer: a prompt with no stored listing starts one detached listing for this session", await startedListing(), ["--list", "--session", "stale-offer-session", "--session-root", staleSessionRoot])
+storeStaleListing([staleItem])
+const offered = runOfferHook()
+const offerContext = offerOutput(offered)?.additionalContext ?? ""
+T("stale offer: a prompt with a stale item exits 0 and adds context to the prompt", [offered.status, offerOutput(offered)?.hookEventName], [0, "UserPromptSubmit"])
+T("stale offer: the context is one line with the item count, the total size and the removal command", {
+  oneLine: !offerContext.includes("\n"), count: offerContext.includes("1 item, 3.0 GB (1 session directory)"), owner: /Offer this cleanup to the owner in one line/.test(offerContext),
+  consent: /only after the owner says yes/.test(offerContext), command: offerContext.includes(`node tools/stale-files.mjs --delete --listing ${listingIdOf([staleItem])}`),
+}, { oneLine: true, count: true, owner: true, consent: true, command: true })
+T("stale offer: the offer appears again on the next prompt", runOfferHook().stdout, offered.stdout)
+T("stale offer: a recent listing starts no second listing", await startedListing(20), null)
+T("stale offer: a launched worker has no owner, so it gets no offer", runOfferHook(offerPrompt, { ORBIT_LAUNCH_WORKER: "1" }).stdout, "")
+T("stale offer: a subagent gets no offer", runOfferHook({ ...offerPrompt, agent_id: "agent-1" }).stdout, "")
+storeStaleListing([staleItem], new Date(Date.now() - LISTING_MAX_AGE_MS - 1000).toISOString())
+T("stale offer: an old listing still gives the offer", offerOutput(runOfferHook())?.additionalContext, offerContext)
+T("stale offer: an old listing starts a new listing", await startedListing(), ["--list", "--session", "stale-offer-session", "--session-root", staleSessionRoot])
+storeStaleListing([])
+T("stale offer: a listing with no stale item adds nothing", [runOfferHook().status, runOfferHook().stdout], [0, ""])
+storeStaleListing([{ ...staleItem, path: join(staleSessionRoot, "removed-by-hand") }])
+T("stale offer: an item that no longer exists is not offered", runOfferHook().stdout, "")
+rmSync(staleFilesStorePath(wakeCheckout), { force: true })
 
 console.log(`\n${fails === 0 ? "ORBIT HOOKS OK" : `ORBIT HOOKS FAILED (${fails})`}`)
 process.exit(fails === 0 ? 0 : 1)

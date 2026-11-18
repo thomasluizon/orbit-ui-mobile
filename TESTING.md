@@ -11,7 +11,7 @@
 > - Script guards report as named steps in the single `Guards` job.
 > - The `Tool and Hook Tests` job in `.github/workflows/test.yml` runs both harness suites on every PR to `main`, including producer-only changes. Also run `node tools/test-tools.mjs` and `node .claude/hooks/test-hooks.mjs` locally after changing `tools/**` or `.claude/**`.
 > - There is no visual regression gate and no screenshot anywhere: #422 deleted it. The hermetic harness remains and lives under `apps/web/test-support/hermetic/`, where the Lighthouse budget gate and the layout guard both use it. Hermetic builds set both API bases to the mock and check client output for production or staging API hosts. Local layout runs use `LAYOUT_PORT` to select a free port, defaulting to 3000.
-> - The authed-Today Lighthouse job (`perf.yml`) uses a hermetic mock-api + fake-JWT harness on the signed-in Today surface at PR time (web-only, no prod, no secrets). It enforces median TBT and script-bundle-size budgets and reports LCP without gating because runner noise obscures regressions at that size. Its interactive twin is the `/profile` skill.
+> - The authed-Today Lighthouse job (`Authed Today Lighthouse budget` in `test.yml`) uses a hermetic mock-api + fake-JWT harness on the signed-in Today surface at PR time (web-only, no prod, no secrets). It enforces median TBT and script-bundle-size budgets and reports LCP without gating because runner noise obscures regressions at that size. Its interactive twin is the `/profile` skill.
 > - orbit-api has its own xUnit suite, documented in that repo.
 > - Read the whole doc before adding a suite, a CI test job, or an e2e spec.
 
@@ -19,13 +19,13 @@ Every feature ships behavior tests. A test that cannot fail when the behavior br
 
 ## How to write a test here
 
-Chromium geometry cases run inside Vitest with Playwright's `chrome` channel. Install Google Chrome before running the web suite. The GitHub-hosted `ubuntu-24.04` image satisfies this prerequisite. The layout project and the release smokes install only the lockfile-pinned Chromium binary with `npx playwright install chromium`. The GitHub-hosted images provide the shared libraries Chromium loads, so no workflow runs `apt-get` or `--with-deps` for them. The layout suite passes without the fallback font packages that `--with-deps` installed. `tools/__tests__/check-release-workflow.mjs` fails when any workflow runs `--with-deps` or `install-deps`, or when `layout.yml` or `release.yml` calls `apt`. Every Chromium suite uses `__tests__/support/chromium.ts` to retain its in-flight launch through teardown, report a named launch failure within 30 seconds, and give its launch hook a separate 45 second budget. PillButton's target cases compile the actual Tailwind stylesheet and load the installed Geist font. These isolated component cases measure visible bounds, pseudo-element bounds and hit testing without an app server, network fixtures or production access; jsdom cannot resolve this layout.
+Chromium geometry cases run inside Vitest with Playwright's `chrome` channel. Install Google Chrome before running the web suite. The GitHub-hosted `ubuntu-24.04` image satisfies this prerequisite. The layout project and the release smokes install only the lockfile-pinned Chromium binary with `npx playwright install chromium`. The GitHub-hosted images provide the shared libraries Chromium loads, so no workflow runs `apt-get` or `--with-deps` for them. The layout suite passes without the fallback font packages that `--with-deps` installed. `tools/__tests__/check-release-workflow.mjs` fails when any workflow runs `--with-deps` or `install-deps`, or when `test.yml` or `release.yml` calls `apt`. Every Chromium suite uses `__tests__/support/chromium.ts` to retain its in-flight launch through teardown, report a named launch failure within 30 seconds, and give its launch hook a separate 45 second budget. `setUpPage` in the same module runs a document load and first render with a 10 second limit for each step, then restores the case interaction limit, also when a step fails. Use it when a case sets an interaction limit that its document load can exceed. PillButton's target cases compile the actual Tailwind stylesheet and load the installed Geist font. These isolated component cases measure visible bounds, pseudo-element bounds and hit testing without an app server, network fixtures or production access; jsdom cannot resolve this layout.
 
 The web configuration assigns test files importing the shared Chromium lifecycle to the `chromium` project, including files whose names do not mention geometry. The `jsdom` project runs the remaining files with the workspace worker cap. Locally each suite uses 25% of the host, with Chromium running serially after jsdom. CI allows each general pool to use all available cores. The Chromium and native focus groups retain their single-worker limits. Both web projects retain the 15 second test and hook budgets. Use the shared lifecycle import for every new Chromium suite so it joins that scheduling group automatically.
 
 The web fork adapter in `apps/web/vitest/stall-diagnostics.ts` and its `phase-runner.ts` runner stay outside the Docker-excluded test tree so the image can type-check the config. The adapter loads the Vitest pool class only when creating a worker, so tooling can import the config through `node --import tsx` without loading the worker dependencies. The web fork adapter reports the active file and phase after 10 seconds without progress and fails an unfinished phase after 5 minutes. It observes module imports, tests, hooks and worker teardown in the parent process, so fake timers cannot suspend the watchdog. Final worker shutdown has a separate 5 second limit so it fails before the runner exits. A teardown failure sets a failing exit code even when every test body passed. Phase messages reach the parent directly, so fake timers and command-line reporter overrides cannot hide them. The existing test and hook budgets, Chromium scheduling and coverage thresholds still apply. `__tests__/harness/stall-diagnostics.test.ts` runs real Vitest forks with stalled imports, hooks, tests and environment teardown, plus a completed control file. It also imports the config through tsx and type-checks a copy of the config and harness without the excluded tests.
 
-Every pull request handled by `test.yml` runs eight Chromium shards on separate runners, alongside two jsdom shards and independent mobile, desktop, shared and ESLint rule workspace runners. Each Chromium runner still executes one file at a time with one worker and the existing launch and teardown lifecycle. Web runners collect coverage with partial thresholds set to zero and emit Vitest blob reports plus JSON reports with per-file start and end times and per-test durations. The `web-unit-shard-*` artifacts retain these reports even when a shard fails. The `Unit Tests` check requires the build and every test job to succeed, verifies all ten blobs exist, and merges them with `vitest run --merge-reports` using the unchanged web coverage thresholds. It publishes the per-project timings and merged test counts in `web-unit-timings`, and the combined web, mobile, desktop configuration, shared and ESLint rule LCOV files in `unit-test-coverage` for SonarCloud. Failed, cancelled or skipped prerequisites fail the check. The SonarCloud dependency chain has no target-branch conditions, so every pull request against `main` uses the sharded path. Scheduled analysis in `sonarcloud.yml` retains sequential workspace execution with `turbo run test --concurrency=1 -- --coverage`.
+Every `test.yml` run starts with a `Plan` job. It hashes the three unit test groups (web, mobile, and the desktop, shared and ESLint rule workspaces) with `turbo run test --dry=json` and the workflow file. On a pull request, it also reads the changed paths and looks up the cached result of each group. A group whose result a push to `main` saved at the same hash starts no runner. The web group runs sixteen Chromium shards and four jsdom shards on separate runners. `apps/web/vitest/timed-sequencer.mjs` splits each project by the recorded file durations in `apps/web/vitest/shard-timings.json`, so each shard gets the same share of test time. To regenerate the durations, download the `web-unit-timings` artifact of a green run and run `node .github/scripts/record-web-shard-timings.mjs <directory>/timings <run-id>`. Mobile runs three shards, and one job runs the desktop, shared and ESLint rule workspaces through Turbo. Each Chromium runner still executes one file at a time with one worker and the existing launch and teardown lifecycle. Web and mobile runners collect coverage with partial thresholds set to zero and emit Vitest blob reports. Web runners also emit JSON reports with per-file start and end times and per-test durations. The `web-unit-shard-*` and `mobile-unit-shard-*` artifacts retain these reports even when a shard fails. The `Unit Tests` check requires a passed plan and, for each group, a passed job or a cached result. It verifies every blob and merges them with `vitest run --merge-reports` under the unchanged web and mobile coverage thresholds. It publishes the per-project timings and merged test counts in `web-unit-timings`, and the combined web, mobile, desktop configuration, shared and ESLint rule LCOV files in `unit-test-coverage`. The SonarCloud scan is its last step. A failed, cancelled or skipped prerequisite without a cached result fails the check. No path or branch condition skips `Unit Tests` or its scan, so the `SonarCloud Code Analysis` context arrives on every pull request whose tests pass.
 
 Wrapped player cases reuse one page across their slides. The stylesheet and fonts load once per case, and each slide replaces the body markup before measuring. The viewport and safe-area configuration belong to the case. Test-finished cleanup aborts the case and closes its context even after a timeout, preventing an expired slide loop from advancing the following case's player.
 
@@ -54,16 +54,18 @@ Happy-path-only; rubber-stamp / assertion-free; "asserts a mock was called" taut
 ### Android startup gates
 
 `android-startup.yml` exports the production Android Hermes bundle with source maps for
-pull requests touching mobile, shared code or dependency manifests. The bundle job uses no
+pull requests touching mobile or shared source or dependency manifests (tests and docs excluded). The bundle job uses no
 emulator. `tools/check-android-bundle.mjs` inspects the exported module inventory, resolves
 original sources against installed packages and rejects native package roots or native component
 names with multiple owners. Metro's virtual paths are matched against original source bytes;
 missing package sources or missing source content fail the check. This complements the lockfile
 native-copy guard by checking modules Metro actually includes.
 
-The independent boot proof job runs for gate and release-workflow changes, plus proof branch
-pushes. Other mobile pull requests run the bundle check without an emulator. The boot job builds
-an AAB without Play credentials and exercises the same composite action as `android-release.yml`.
+The independent boot proof job runs when the boot harness changed (`.github/actions/android-boot/**`,
+`tools/android-boot.mjs`, `android-startup.yml`) and no pass exists for the same harness hash. Other
+mobile pull requests run the bundle check without an emulator. The boot job builds an AAB without
+Play credentials and exercises the same composite action as `android-release.yml`, which runs it
+again on the shipping AAB before every Play upload.
 Before prebuild, it selects the newest successful `android-release.yml` run on `main` for the
 open or production track and exports its version through `ORBIT_APP_VERSION`. An unavailable or
 unrecognized release fails preparation. The release workflow retains its dispatched `app_version`.
@@ -129,7 +131,7 @@ Workspace `test` tasks in `turbo.json` retain default workspace inputs, upstream
 
 | Workspace | Readers and external inputs |
 |---|---|
-| Shared | `turbo-inputs` reads root `turbo.json` and `package.json`, and runs installed Turbo and Vitest; root `package-lock.json` covers their resolved versions and other installed test dependencies. `contract-workflows` reads `.github/workflows/contract-rebaseline.yml`. `backlog-port-source`, `theme`, `primitive-contracts`, `hermes-intl-guard`, `progress` and `segmented-control-labels` inspect `apps/{web,mobile}/**/*.{ts,tsx,js,jsx,css,xml,svg,kt}`; `interaction-clearance` also reads both platform guard files within that glob. `authored-typography` also reads root and app `.gitignore` files, native widget resources, and `design/canvas/Orbit {Busca,Wrapped,Widget Android}.dc.html`; `typography` reads `design/canvas/_ds/*/tokens/typography.css`. `shared-import-boundary` loads `eslint-rules/*.cjs` and the shared TypeScript project extending root `tsconfig.base.json`. Other contract and markdown fixtures stay inside the workspace. |
+| Shared | `turbo-inputs` reads root `turbo.json` and `package.json`, and runs installed Turbo and Vitest; root `package-lock.json` covers their resolved versions and other installed test dependencies. `contract-workflows` reads `.github/workflows/contract-rebaseline.yml`. `backlog-port-source`, `theme`, `primitive-contracts`, `hermes-intl-guard`, `progress` and `segmented-control-labels` inspect `apps/{web,mobile}/**/*.{ts,tsx,js,jsx,css,xml,svg,kt}`; `interaction-clearance` also reads both platform guard files within that glob. `authored-typography` also reads root and app `.gitignore` files, native widget resources, and `design/canvas/Orbit {Busca,Wrapped,Widget Android}.dc.html`; `typography` reads `design/canvas/_ds/*/tokens/typography.css`. `brand-paths` reads the mascot and lockup sources in `design/brand/*.svg`, `design-primitives-kit` reads `DESIGN.md`, and `agent-pending-operation` reads the Astra tool catalog `evals/astra/catalog.yaml`. `shared-import-boundary` loads `eslint-rules/*.cjs` and the shared TypeScript project extending root `tsconfig.base.json`. Other contract and markdown fixtures stay inside the workspace. |
 | Desktop | `release-workflow` reads `desktop-release.yml`; `macos-signing-workflow` reads `desktop-release.yml` and `release.yml`; `windows-download-workflow` reads `desktop-build.yml`, `desktop-release.yml` and `release.yml`; `release-plan` reads `desktop-release.yml`, `release.yml` and `apps/web/web-compatibility.json`. `nsis-tools-workflow` reads every `.github/workflows/*.yml`; `nsis-tools` reads the installed Tauri CLI native binary from root `node_modules`. `config` reads the web desktop auth, push and update bridges, `apps/web/proxy.ts` and `apps/mobile/lib/turnstile-frames.ts`. `launch` reads `design/brand/orbit-mascot.svg` and shared themes. `bench-probe` reads `tools/desktop-bench/probe.js` and imports the web chat-stream fixture and shared source. |
 | Mobile | `ios-workflows` reads both iOS workflows; `mobile-version-pair` reads `android-release.yml` and `ios-release.yml`, and both suites read `tools/__tests__/android-deployment-fixture.json`; `theme` reads `DESIGN.md`; `orbit-widget` reads granted color tokens. Tests also import shared source and fixtures, including the segmented-control inventory that scans mobile call sites. |
 | Web | `theme-dom` reads `DESIGN.md`; `manifest` reads the brand icon. `surface-graphic-contrast` runs the root surface scanner against web and mobile sources and shared themes. `privacy-policy-disclosure` runs the architecture generator, which reads TypeScript across all app workspaces and shared source. Other tests import shared source and fixtures, including the segmented-control inventory. |
@@ -153,13 +155,15 @@ These tests do not parse Turbo's report fields.
 | All unit | root | `npm test` (`turbo run test`) | workspace Vitest suites; CI adds coverage thresholds; the desktop Rust suite runs separately |
 | Web Playwright e2e / post-deploy smoke | `apps/web/e2e` | `npm --workspace @orbit/web run test:smoke` (`playwright test`, needs `SMOKE_BASE_URL`) | the real core flows (auth, create habit, log habit, Astra create-habit, paywall) against the live deployment |
 | Web layout guard | `apps/web/e2e/layout` | `npm run build:hermetic -w apps/web`, then `npm run test:layout -w apps/web` | real text geometry and overflow for free/trial upgrade, subscription management and Wrapped final-page fixtures in en and pt-BR at 320px, 412px, 640px and 1440px, plus Wrapped frame and slide treatment at 1000px, 1024px and 1440px, and sheet panel height, body sizing and footer safe-area clearance for a short, a long and an actions-less sheet at 412px, all under a 34px CDP safe-area inset override; `label-fit.spec.ts` checks app-authored labels and interaction fills at 320, 360, 384 and 412px in both locales, waiting for fixture-backed rows and the freeze bank before every page measurement, scoping Perfil readiness to its account row, requiring rendered, visible user-text marks so hidden sidebar copies cannot satisfy or fail the check, measuring Hoje before and after its options sheet closes and the sheet while open, waiting for the Calendário day card's personal headline button and actionable event row with two connected calendars supplied through the hermetic session JWT to the server-side mock API to render its source name, marking that name separately from the time, measuring typed text within two visible lines with ellipsis for clipped text and app metadata separately on one whole line, and opening the Progresso goal filter and both screens' legend sheets through their controls with every sheet label required to stay whole; Android app label geometry remains an open risk because its only instrumented host is the widget module; starts its own hermetic API and production web server, without screenshots |
-| Web perf budget (authed Today Lighthouse) | `apps/web` (`perf.yml`) | `npm run build:hermetic -w apps/web`, boot the mock-api on `:5099`, then `API_BASE=http://127.0.0.1:5099 npm run perf -w @orbit/web` | that the signed-in Today surface (`/`) stays within median TBT / script-bundle-size budgets against the local mock orbit-api; the same five runs report the LCP distribution without gating |
+| Web perf budget (authed Today Lighthouse) | `apps/web` (`test.yml` Lighthouse job) | `npm run build:hermetic -w apps/web`, boot the mock-api on `:5099`, then `API_BASE=http://127.0.0.1:5099 npm run perf -w @orbit/web` | that the signed-in Today surface (`/`) stays within median TBT / script-bundle-size budgets against the local mock orbit-api; the same five runs report the LCP distribution without gating |
 | Stryker mutation | `packages/shared` | `npm run mutation -w @orbit/shared` (`stryker run`) | that the shared unit tests actually kill mutants (effectiveness, not coverage percent) |
 | Harness hook parity | `.claude/hooks` | `node .claude/hooks/test-hooks.mjs` (no deps) | that the three session hooks (git-guardrails, forbid-ef-migration-raw-index, forbid-raw-linear-mutation) block and allow exactly as their `_lib` rules specify, and that no agent's frontmatter carries a fails-open `Bash(...)` specifier |
 | Harness tools execution | `tools/` | `node tools/test-tools.mjs` (run `npm ci` first) | that every script in `tools/` actually RUNS: the `CONVENTIONS.md` CLI contract (`--help` exits 0, invalid input refused before any work) plus each tool's real decision paths, orca stubbed and hermetic. Fails when a new tool arrives with no coverage |
 | Astra capability eval | `evals/astra` | `cd evals/astra && npx promptfoo eval` | on-demand requests to the real chat endpoint, with one attempt per case and request-bound tool evidence in a pass^k launch report |
+| Astra core set gate | `evals/astra/core` | `cd evals/astra && npx promptfoo eval --config core/must-pass.promptfooconfig.yaml` (then `core/other.promptfooconfig.yaml`, then `node core/merge.mjs`) | one live run for each assistant pull request: 126 cases on `POST /api/chat/stream` as a shipped client sends it, graded by the held previews and the saved state, with pass^3 on the must-pass cases (pass^1 with `ORBIT_EVAL_MUST_PASS_K=1`, only for a change with equal model input) |
 | Desktop configuration and native context | `apps/desktop` | `npm run test -w @orbit/desktop`, then `cargo test --locked` in `src-tauri` | Installed Tauri schema, generated context and native browser handoff policy; native bundles compile in `desktop-build.yml` on macOS and Windows, without launching the app |
-| Installed desktop VM acceptance | GitHub macOS and Windows VMs | `desktop-acceptance.yml` | Recorded release installer, Developer ID signed on macOS only for same-repository runs through `desktop-staging`, launched on Windows at Medium integrity, email BFF cookies, Hoje, Astra, native clean quit, signed updater acceptance and refusal, platform accessibility trees, palette traversal, the Windows caption (the `DESIGN.md` canvas colour on the native caption and the `DWMWA_USE_IMMERSIVE_DARK_MODE` flag for each page mode, with the `caption-*.png` captures uploaded as evidence), and the repeat reminder Done action through real WNS or APNs delivery, with the Windows Done click made through the shell's COM activator from a Medium client; no deployed Orbit services. See `tools/desktop-bench/README.md`. This job is a desktop acceptance exception to local unit-only verification. |
+| Installed desktop VM acceptance | GitHub macOS and Windows VMs | `desktop-acceptance.yml` | Recorded release installer, Developer ID signed on macOS, which runs only for same-repository runs through `desktop-staging` (a fork pull request runs Windows only), launched on Windows at Medium integrity, email BFF cookies, Hoje, Astra, native clean quit, signed updater acceptance and refusal, platform accessibility trees, palette traversal, the Windows window bar (no native caption, the `DESIGN.md` canvas colour, a visible glyph on every action of the Orbit bar and the WebView2 colour scheme for each page mode, the menu action opening the window menu as a popup, a drag that starts within 1000 ms of the press and moves the window exactly as far as the pointer, the window menu at the pointer on a right-click of the restored and of the maximized bar, maximize and restore through a pointer press on the snap region, and minimize through the bar actions, with the `window-*.png` captures uploaded as evidence), and the repeat reminder Done action through real WNS or APNs delivery, with the Windows Done click made through the shell's COM activator from a Medium client; no deployed Orbit services. See `tools/desktop-bench/README.md`. This job is a desktop acceptance exception to local unit-only verification. |
+| Native acceptance producer cases | GitHub Windows and macOS runners | `desktop-acceptance-producers.yml` | The producer test files that gate cases on `process.platform` (`test-acceptance.ts`, `test-acceptance-push.ts`, `test-acceptance-readers.ts`, `test-acceptance-launch.ts`), each on `windows-latest` and `macos-latest`: the PowerShell producers, the Windows window bar reader, the Medium-integrity launcher modes, the COM activator HRESULT, the Windows SDK IID check, and the real `clang`, `codesign` and `plutil` captures. `Tool and Hook Tests` runs the same files on Linux, where these cases skip. |
 | Astra harness unit and behavior | `evals/astra` | `npm test --prefix evals/astra` | Vitest drives the real promptfoo CLI with offline providers, intercepts HTTP without a server, and proves that deliberately wrong tool arguments fail |
 
 **The prod-E2E suite and the post-deploy smoke suite are one and the same.** The `smoke` project's `*.spec.ts` require `SMOKE_BASE_URL` and execute against the live production deployment, never localhost. It is the only sanctioned E2E against prod. Orbit has no screenshot requirement, and nothing in this repository takes one any more (#422).
@@ -181,17 +185,21 @@ The adapters register Playwright locator handlers for only the known trial-expir
 The guided flow has shared logic and three primitives, and each one has a Vitest suite on both platforms. The suites assert behavior and data attributes, never class names.
 
 - `packages/shared/src/__tests__/habit-flow.test.ts` covers the remaining steps, the answer reset, the result sentence case, the result destination and the `read-phrase` Zod type. The type test parses a sample that the generated `PostApiHabitsReadPhraseResponse` accepts.
+- `packages/shared/src/__tests__/guided-habit-flow-core.test.ts` mounts the shared flow hook of `hooks/guided-habit-flow-core.ts` over a plain form. It covers a free read that applies with the type the person set while it ran, one read for two presses with the phrase step held, and the emoji of a read that arrives after the phrase changed.
+- `packages/shared/src/__tests__/guided-habit-flow-steps.test.ts` mounts the same hook and drives each step: a repeat from the phrase, from the free read or from the words of the date question starts on the account day; the words the form applied reach the modal; the free read marks only the schedule, the time and the emoji it changed, keeps the mark of a value a second read gives again, and never marks a repeat typed in the phrase when the free read gives the same days in another order; each answer of the date, time and reminder questions; a failed read and an offline device; back, a detail step opened from the summary, a field the server refused, an edit, a child of a General parent that stays undated offline and when the free read proposes a repeat and a time, and a day or a repeat that the person answered on the date question that stays when a later free read of the phrase proposes another repeat (the free read still gives a time that the person did not answer). One table holds each value that the person sets on a step (a quick option, a calendar day or the words of the date question, a repeat on the repeat step, a time, an end time and an emoji): a later free read of a new phrase keeps it, with no proposal mark, and gives an undated item no time. A second table holds each value that the person types in the phrase (a time, a repeat, a day, an emoji, the type that a typed repeat gives, a date, a bare interval such as `every 2 weeks`, and a phrase whose only sign is ®, which is no emoji): the free read of that phrase keeps it, with no proposal mark, and fills only the rest, and the saved title drops only the words of a value that the form kept. A date typed in the phrase skips the date question offline, gives back the date the flow opened with when the phrase loses it, and keeps its words in the title when the person then sets the When on a step. Words that only look like a date (`1/2`, `ter`, `the 2nd`) and the phrase of a deliberate habit give no date.
+- `packages/shared/src/__tests__/step-change-core.test.ts` covers `hooks/step-change-core.ts`: nothing on first mount, one run for each later step key (a return to the first key included), no run for a new callback alone, and the cleanup.
 - `packages/shared/src/__tests__/habit-flow-navigation.test.ts` covers the step trail: advance, back, a step opened from the summary, the optional list and the progress position.
 - `packages/shared/src/__tests__/habit-flow-answers.test.ts` covers the when, time and reminder answers through a form port.
 - `packages/shared/src/__tests__/orbit-look.test.ts` covers the mascot look vector, the Olhando state and the reduced motion rule.
-- `apps/web/__tests__/components/ui/question-flow.test.tsx` and `apps/mobile/__tests__/components/ui/question-flow.test.tsx` cover `OptionCard` and `QuestionFlow`: the progress name, focus on the question, the Orbit line as the description, Pensando, Olhando and the pinned primary action.
+- `apps/web/__tests__/components/ui/question-flow.test.tsx` and `apps/mobile/__tests__/components/ui/question-flow.test.tsx` cover `OptionCard` and `QuestionFlow`: the progress name, focus on the question on each step change (a return to the first step included), the Orbit line as the description, Pensando, Olhando, the pinned primary action, and a frame that claims no main landmark and mounts one scroller.
 - `apps/web/__tests__/components/ui/result-dialog.test.tsx` and the `ResultDialog` cases in `apps/mobile/__tests__/components/ui/question-flow.test.tsx` cover the dialog: name, description, focus, Escape and the scrim, Android back, and the Feliz and Parado states.
 - `packages/shared/src/__tests__/guided-flow-events.test.ts` covers the `guided_flow_*` tracker: one view for each step, one abandon at the step the person left, no abandon before the first step, and the completed flag that keeps a finished flow from reading as abandoned. The `QuestionFlow` cases in the two `question-flow` suites cover the events the shell sends.
 - `packages/shared/src/__tests__/orbit-ring-turn.test.ts` covers the ring turn: the eased progress, the rest frame after one full turn and the eyes widening through the middle.
-- `packages/shared/src/__tests__/habit-flow-details.test.ts` covers the optional rows for each mode, the step that a summary value opens, the words of the date question (a repeat, a day, a refused past day, unread words), the step that owns a server field error, and the guard that keeps a deliberate type and an answered time when the free read proposes another.
-- `apps/web/__tests__/components/habits/guided-habit-flow.test.tsx` and `apps/mobile/__tests__/components/habits/guided-habit-flow.test.tsx` mount the real guided create and edit flow over the real form hook, in `en` and `pt-BR`, with reduced motion off and on. They run the flow scenarios of #2121: a dated and timed task, an undated task with no time question, one phrase with a repeat and a time, a count habit in the repeat step, the free date words with the refused past day, the General lock, a stored undated habit, close on step 1, the answer reset after a phrase edit, a save error and a field error that opens its step, a miss, a failed call and a deliberate type against the free read, offline, the message limit, a double press, the empty submit hint, every optional question (slip alert with and without Pro), the reminder kinds and the length question.
-- `apps/web/__tests__/components/habits/guided-habit-modals.test.tsx` and `apps/mobile/__tests__/components/habits/guided-habit-modals.test.tsx` mount the real create and edit surfaces: the current form with the flag off, the flow in `FlowScreen` with the flag on, one request on a double press with the request body, the `guided_flow_completed` step count and read flag, the result dialog from the saved record (web) or the optimistic record of a queued create (Android), the clock setting in the sentence, a save failure, the web offline refusal, an edit that opens on the summary, closes clean when unchanged and saves one change with `result.habit.updated`.
-- `apps/mobile/__tests__/components/habits/guided-habit-centre-geometry.test.tsx` measures the flow block and the result dialog panel centred within 1 px at 320, 360, 384 and 412 in both locales. `apps/web/__tests__/components/habits/guided-habit-flow-geometry.test.tsx` runs in the Chromium project: the block centred at the four compact widths, and on wide the block centred in the content column with the primary action 24 under the options and at most 360 wide.
+- `packages/shared/src/__tests__/habit-flow-details.test.ts` covers the optional rows for each mode, the step that a summary value opens, the words of the date question (a repeat, a day, a refused past day, unread words), the step that owns a server field error, and the guard, in one table, that keeps a deliberate type, a When, a time and an emoji the person set on a step, a repeat or a day, a date, a time and an emoji the person typed in the phrase, and an undated item, when the free read proposes another value. `readHabitPhraseValues` names the values typed in the phrase: one rule for a typed repeat, with a bare interval and a day of the month, and a table of symbols that are or are not an emoji with the emoji look (©, ®, ™ and a ❤ with no U+FE0F are not). `readHabitPhraseDate` reads the date words in a phrase, in English and Portuguese, and gives no date for a repeat, a fraction, an ordinal, a short weekday name that is also a word, or a past day.
+- `apps/web/__tests__/components/habits/guided-habit-flow.test.tsx` and `apps/mobile/__tests__/components/habits/guided-habit-flow.test.tsx` mount the real guided create and edit flow over the real form hook, in `en` and `pt-BR`, with reduced motion off and on. They run the flow scenarios of #2121: a dated and timed task, an undated task with no time question, one phrase with a repeat and a time, a count habit in the repeat step, the free date words with the refused past day, the General lock, a stored undated habit, close on step 1, the answer reset after a phrase edit, a save error and a field error that opens its step, a miss, a failed call and a deliberate type against the free read, offline, the message limit, a double press, the empty submit hint, every optional question (slip alert with and without Pro), each reminder kind (the default times with the permission notice, an offset preset, a custom offset, a clock reminder the day before, and a repeat every 30 minutes inside active hours), the length question, and a request body snapshot for one create and one edit that equals the body of the current form. The reminder scenarios hold the reminder kind question to one quick option for each kind with no switch, radio group or second heading, the editor of the chosen kind, the one-press way to no reminder, and the repeat only for an undated item. Three scenarios hold a free read behind a promise the test resolves late: the phrase step waits and a second press starts no second read, a read that arrives after the phrase changed is dropped, and a read that arrives after the flow left the phrase step is dropped.
+- `apps/web/__tests__/components/habits/guided-habit-modals.test.tsx` and `apps/mobile/__tests__/components/habits/guided-habit-modals.test.tsx` mount the real create and edit surfaces: the current form with the flag off, the flow in `FlowScreen` with the flag on, one request on a double press with the request body, the `guided_flow_completed` step count and read flag, the result dialog from the saved record (web) or the optimistic record of a queued create (Android), the clock setting in the sentence, a save failure, the web offline refusal, an edit that opens on the summary, closes clean when unchanged and saves one change with `result.habit.updated`. They cover the edit summary while the stored details load (a skeleton for each row, no spinner, the save off), a failed detail read (the message with a retry, the save off, no request) and the retry that runs. They also hold that a repeat typed in the phrase shows no "Proposed" mark on the summary when the free read gives the same repeat with an emoji or a time, that a child of a General parent saves with no repeat and no time, with no mark on the When or Time row, when the free read proposes both, and that a day or a repeat the person answered on the date question stays on the When row with no mark and in the request when a later free read of a changed phrase proposes another repeat. One table in each suite sets a value on a step ("No date", "Tomorrow", a repeat in the words of the date question, "When I can" on the repeat step, a time, an end time, and the removal of the emoji on web or a chosen emoji on Android), then changes the phrase: the When and Time rows and their marks match the request that the save sends. A second table in each suite types a value in the phrase (a time, a repeat, a day, an emoji, the type that a typed repeat gives, a date, a bare interval, and a phrase whose only sign is ®), and the free read proposes another value: the When and Time rows, their marks, the title and the request keep the typed value.
+- `apps/mobile/__tests__/components/habits/guided-habit-centre-geometry.test.tsx` measures the flow block and the result dialog panel centred within 1 px at 320, 360, 384 and 412 in both locales. `apps/web/__tests__/components/habits/guided-habit-flow-geometry.test.tsx` runs in the Chromium project: the block centred at the four compact widths, and on wide the block centred in the content column with the primary action 24 under the options and at most 360 wide. The web suite also holds the primary action to the full width in the compact shell and to its label, in the centre, on wide. `apps/mobile/__tests__/components/ui/question-flow-primary-geometry.test.tsx` holds the same two rules on Android.
+- `apps/web/__tests__/components/habits/guided-habit-action-width-geometry.test.tsx`, `apps/web/__tests__/components/goals/guided-goal-action-width-geometry.test.tsx` and `apps/web/__tests__/pages/guided-login-provider-geometry.test.tsx` (Chromium) measure the continue of a free path, the write action of the template question and the sign-in providers at 1440: each one is at most 360 wide and in the centre of the column, and the two providers share one width and one height.
 - The `QuestionFlow` cases of the two `question-flow` suites also cover the step slide at `motionDurations.slow`, a still step and a still mascot under reduced motion, and on Android the block that aligns under the header while the keyboard is open.
 
 ### Destinations: Hoje, habit detail and the conversation
@@ -244,7 +252,7 @@ npm run test:layout -w apps/web
 
 In PowerShell, use `$env:LAYOUT_PORT = '3100'` before the same npm commands. With `LAYOUT_PORT` unset, local runs and CI use 3000. The shared `LAYOUT_ORIGIN` drives the server port, readiness URL, spec origins and generated storage state. The hermetic build and layout server also set `NEXT_PUBLIC_SITE_URL` to that origin so auth redirects stay on the selected port. Rebuild when changing ports because Next.js inlines public environment variables.
 
-`apps/web/e2e/layout/label-fit.spec.ts` runs in the hermetic layout project through `.github/workflows/layout.yml`. It covers Hoje, Calendário, Progresso and Perfil at 320, 360, 384 and 412px, in en and pt-BR, at the default text scale. It checks captions, tabs, selectors, buttons, row titles, headings and menu titles using rendered text fragments and clipping bounds. A label fails when its text occupies more than one line or extends outside its visible bounds, including an ellipsis or line clamp. Required captions, selectors and legends must render before measurement, so a loading surface cannot pass as an empty inventory. Legend groups must fit one row or move behind disclosure; a screen ticket that moves a legend must update the guard to open its owning disclosure and measure the labels there.
+`apps/web/e2e/layout/label-fit.spec.ts` runs in the hermetic layout project through the `Layout shard` jobs of `.github/workflows/test.yml`. It covers Hoje, Calendário, Progresso and Perfil at 320, 360, 384 and 412px, in en and pt-BR, at the default text scale. It checks captions, tabs, selectors, buttons, row titles, headings and menu titles using rendered text fragments and clipping bounds. A label fails when its text occupies more than one line or extends outside its visible bounds, including an ellipsis or line clamp. Required captions, selectors and legends must render before measurement, so a loading surface cannot pass as an empty inventory. Legend groups must fit one row or move behind disclosure; a screen ticket that moves a legend must update the guard to open its owning disclosure and measure the labels there.
 
 `label-fit-contract.ts` defines the app-authored label inventory. `label-fit.spec.ts` defines user text by its producing field: habit title, goal title, Google event title and calendar name, profile name and email. The guard marks their rendered elements with `data-layout-text-origin="user"` before measuring labels. Only those elements are excluded, never the surrounding row or its app-authored actions. Product labels have no wrap or ellipsis allowance. User text instead gets the available row width first, then at most two visible lines, then an ellipsis with the complete value one tap away. The one-line label guard does not prove those user-text disclosure behaviors; they need coverage in their owning screen tests. Body prose and row descriptions are outside the label inventory.
 
@@ -276,20 +284,22 @@ With the flag `orbit_guided_flows` on, goals, tags and checklist templates run o
 - `packages/shared/src/__tests__/tag-flow-line.test.ts` covers the tag line: three names through `Intl.ListFormat`, the count of the rest, an empty tag and no cache.
 - `packages/shared/src/__tests__/goal-deadline-options.test.ts` covers Fim do mês and Fim do ano around a month end, a year end, a leap day and a time zone boundary.
 - `packages/shared/src/__tests__/goal-flow.test.ts`, `goal-edit-core.test.ts` and `goal-detail-sweep.test.ts` cover the goal steps and their hints, the edit draft and its update request, the days to the deadline, the last seen value of each goal and the one sweep of a changed ring.
-- `apps/web/__tests__/components/habits/flow-steps/tag-step.test.tsx` and `apps/mobile/__tests__/components/habits/flow-steps/tag-step.test.tsx` mount the tag step in the real frame: no tags, the line after a press with no request, five tags and the limit, Sem tag, search with a match and a miss, create, rename and delete with the server messages and the 409, the discard sheet for a dirty tag editor, rows that stay still when they show and for a search while a created tag enters, the suggestion with Pensando, and the bar that no title or label is a bare noun. `question-flow-line-fade.test.tsx` on both platforms covers the line fade of `lineKey`.
-- `checklist-step.test.tsx` and `goal-link-step.test.tsx` in the same folders cover the checklist step, the template and save questions, and the goal step with its limit, its search and Criar meta returning the new goal selected. Both steps show a skeleton while they load and a retry after a failed load.
-- `apps/web/__tests__/components/goals/guided-goal-flow.test.tsx` and `apps/mobile/__tests__/components/goals/guided-goal-flow.test.tsx` cover a standard and a streak goal through every step with the request of the current sheet, a goal from a habit, By when, Which habits, the save error on the summary, the discard guard, the result dialog, and edit on the summary.
+- `apps/web/__tests__/components/habits/flow-steps/tag-step.test.tsx` and `apps/mobile/__tests__/components/habits/flow-steps/tag-step.test.tsx` mount the tag step in the real frame: no tags, the line after a press with no request, five tags and the limit, Sem tag, search with a match and a miss, create, rename and delete with the server messages and the 409, one create request for two presses in one turn with the waiting face, the discard sheet for a dirty tag editor, rows that stay still when they show and for a search while a created tag enters, the suggestion with Pensando, and the bar that no title or label is a bare noun. `question-flow-line-fade.test.tsx` on both platforms covers the line fade of `lineKey`.
+- `checklist-step.test.tsx` and `goal-link-step.test.tsx` in the same folders cover the checklist step, the template and save questions (one save request for two presses in one turn), and the goal step with its limit, its search and Criar meta returning the new goal selected. Both steps show a skeleton while they load and a retry after a failed load.
+- `apps/web/__tests__/components/goals/guided-goal-flow.test.tsx` and `apps/mobile/__tests__/components/goals/guided-goal-flow.test.tsx` cover a standard and a streak goal through every step with the request of the current sheet, a goal from a habit, By when, Which habits, the save error on the summary, the discard guard, the result dialog, and edit on the summary, with one save request for two presses in one turn.
 - `goals-list-orbit.test.tsx` and `goal-detail-orbit.test.tsx` in the same folders cover Orbit in the empty goals list, the ring sweep from the last visit (once in a visit, and at rest when device storage is refused), the Orbit line of the goal detail, the progress question, and the result dialogs of reactivate, mark abandoned and delete, with no mascot in the delete confirmation.
-- `apps/mobile/__tests__/components/ui/option-card-selection.test.tsx` covers the primary selection ring of a quick option on Android and its still version.
+- `goal-detail-drawer.test.tsx` in the same folders names the goal sheet with the goal title when the flag is on and shows that title once, as the body heading. When a refresh drops the goal while the sheet is open, the sheet shows the route name as its title. With the flag off the sheet name is the route name. The inline bar keeps the route name with the flag on and off.
+- `apps/mobile/__tests__/components/ui/option-card-selection.test.tsx` covers the primary selection ring of a quick option on Android, its still version, and the ring of a selected option under keyboard focus, directly inside the focus ring.
+- `apps/web/__tests__/components/ui/option-card-focus-ring.test.tsx` (Chromium) reads the computed rings of a quick option in dark and light: a selected option keeps its `--primary` ring directly inside the `--fg-1` focus ring, and an option that is not selected shows focus alone.
 - The `*-centre-geometry.test.tsx` suites of the tag step, the checklist and goal steps, the goal flow, the goal status dialogs and the empty goals list measure each block centre within 1 px of the free area centre at 320, 360, 384 and 412. On web they run in the Chromium project.
 
 ### Perfil guided flows
 
 With the flag `orbit_guided_flows` on, the multi-field Perfil surfaces run on the guided flow primitives with no mascot, and each suite also proves the current surface with the flag off. Every scenario runs in `en` and `pt-BR`, and the flow scenarios run with reduced motion off and on.
 
-- `apps/web/__tests__/components/profile/account-guided-flows.test.tsx` and `apps/mobile/__tests__/app/(tabs)/profile/_components/account-guided-flows.test.tsx` cover start over (the two lists, the typed confirmation, the Parado result dialog, failure, offline) and delete account (the warning for each plan, the code request, failure, offline).
+- `apps/web/__tests__/components/profile/account-guided-flows.test.tsx` and `apps/mobile/__tests__/app/(tabs)/profile/_components/account-guided-flows.test.tsx` cover start over (the two lists, the typed confirmation, the Parado result dialog, failure, offline, and a dismissal that steps back before the reset and closes while it runs) and delete account (the warning for each plan, the code request, failure, offline).
 - `apps/web/__tests__/pages/support-guided-flow.test.tsx` and `apps/mobile/__tests__/screens/support-guided-flow.test.tsx` cover the support request: the subject as quick options, the message, the Feliz result dialog with the way back to About, failure with retry and offline.
-- `apps/web/__tests__/components/profile/api-key-create-flow.test.tsx` and `apps/mobile/__tests__/components/profile/api-key-create-flow.test.tsx` cover key creation: the place, the access, the scope of a scoped key, the expiry with `Never` as a quick option, the format error, the reveal step with copy and the discard guard.
+- `apps/web/__tests__/components/profile/api-key-create-flow.test.tsx` and `apps/mobile/__tests__/components/profile/api-key-create-flow.test.tsx` cover key creation: the place, the access, the scope of a scoped key, the expiry with `Never` as a quick option and the date picker as the free path, the request value of a picked day, a kept draft in the past, the reveal step with copy and the discard guard.
 - `apps/web/__tests__/components/profile/perfil-guided-settings.test.tsx` and `apps/mobile/__tests__/components/profile/perfil-guided-settings.test.tsx` cover the product email quick options, the name sheet titled with its question, and the skeleton (never a spinner) of the push devices and API key lists.
 - `apps/mobile/__tests__/components/profile/perfil-flow-centre-geometry.test.tsx` measures each Perfil flow block centre within 1 px of the free area centre at 320, 360, 384 and 412.
 - `packages/shared/src/__tests__/profile-routes.test.ts`, `packages/shared/src/__tests__/astra-offers.test.ts`, `apps/web/__tests__/pages/profile-legacy-redirects.test.ts` and `apps/mobile/__tests__/screens/profile-legacy-redirects.test.tsx` cover the AI settings slug `/profile/ai` and every redirect source, including `/profile/astra`. The Rust tests in `apps/desktop/src-tauri/src/links.rs` cover both slugs in the desktop allowlist.
@@ -349,14 +359,44 @@ Wrapped, the share sheet, the milestone share prompt and the review moment follo
 
 With the flag `orbit_guided_flows` on, onboarding runs the Orbit intro and then one question at a time on the guided flow primitives. Every suite also proves the current onboarding with the flag off, and the behavior scenarios run in `en` and `pt-BR`.
 
-- `apps/web/__tests__/components/onboarding/guided-onboarding-flow.test.tsx` and `apps/mobile/__tests__/components/onboarding/guided-onboarding-flow.test.tsx` mount the real `OnboardingFlow` with the flag on: the three intro screens before the first question, skip from each intro screen and no second intro, the phrase that goes straight to the summary, the open schedule that asks how it repeats, the starter that fills and advances, a summary value that opens its step and returns, the kept habit and retry after a failed create, the two reminder answers, the result dialog sentence from the saved schedule with the completed event, the Pro step on the free plan, the account link before sign-in, the unchanged create and suggestion requests, and the still intro sentence under reduced motion.
-- `apps/web/__tests__/components/onboarding/guided-onboarding-layout.test.tsx` (Chromium) holds each intro title and action label on one line, the first question in two lines at most and no clipped body sentence, and centres the block, at 320, 360, 384 and 412 in both locales.
+- `apps/web/__tests__/components/onboarding/guided-onboarding-result.test.tsx` and `apps/mobile/__tests__/components/onboarding/guided-onboarding-result.test.tsx` mount the result dialog of the first habit: a failed read of the saved habit states the miss with Orbit in Parado and a retry, the retry stays busy while the read runs again, and a habit that waits on the device and is not in the store reads the store again.
+- `packages/shared/src/__tests__/onboarding.test.ts`, `apps/web/__tests__/components/onboarding/onboarding-flow.test.tsx` and `apps/mobile/__tests__/components/onboarding/onboarding-flow.test.tsx` hold, in one table each, that a time, a repeat, a day, an emoji or a bare interval that the person types in the sentence stays when the Orbit suggestion proposes another value: `buildOnboardingProposal` lets the suggestion fill only the rest, and the create request keeps the typed value. A sentence whose only sign is ® takes the emoji of the suggestion. `onboarding.test.ts` also holds that only the guided onboarding reads a day of the month as the month unit; the legacy onboarding keeps that sentence open and takes the repeat of the suggestion. `habit-phrase-title.test.ts` holds both flag paths for `Run every 2 weeks`: the full form keeps a one-time item with the words in the title, and the guided flow makes a habit every 2 weeks with the title `Run`.
+- `apps/web/__tests__/components/onboarding/guided-onboarding-flow.test.tsx` and `apps/mobile/__tests__/components/onboarding/guided-onboarding-flow.test.tsx` mount the real `OnboardingFlow` with the flag on: the three intro screens before the first question, skip from each intro screen and no second intro, the one header skip of the first question that leaves onboarding, the phrase that goes straight to the summary, the open schedule that asks how it repeats, the starter that fills and advances, a summary value that opens its step and returns, the kept habit and retry after a failed create, the two reminder answers, the result dialog sentence from the saved schedule with the completed event, the Pro step on the free plan, the account link before sign-in, the unchanged create and suggestion requests, and the still intro sentence under reduced motion. They also cover Orbit in Parado, with no look, on each intro screen, the intro that shows again to a person who quit before the first question, the period question before the count, the period and the emoji as summary values, and the result sentence read back from the saved habit: the query cache, the habit that waits for the account, and on Android the optimistic record of a queued create.
+- `apps/web/__tests__/components/onboarding/guided-onboarding-layout.test.tsx` (Chromium) holds each intro title and action label on one line, the first question in two lines at most and no clipped body sentence, and centres the block, at 320, 360, 384 and 412 in both locales. A block that fits is centred, at 667 and at 844 high. The first question is taller than a 667 screen, so there it starts under the header.
 - `apps/mobile/__tests__/components/onboarding/guided-onboarding-geometry.test.tsx` measures the intro and first question block centre within 1 px of the free area centre at 320, 360, 384 and 412.
-- `packages/shared/src/__tests__/onboarding-guided.test.ts` covers the cadence question, the step after each repeat mode, the progress of the steps that remain, the cadence and result keys in both locales, and the intro seen mark on the install.
+- `packages/shared/src/__tests__/onboarding-guided.test.ts` covers the cadence question, the step after each repeat mode, the progress of the steps that remain, the cadence and result keys in both locales, and the intro seen mark on the install. It also covers the steps of each repeat mode with the period before the count, the step after an answer, and the schedule and the start of a saved habit.
+
+### Guided sign-in and step-up
+
+With the flag `orbit_guided_flows` on, sign-in asks one question at a time on the guided flow primitives. The flag reads off before sign-in, so these suites set it on through `GuidedSignInContext`. Each suite also proves the current surface with the flag off.
+
+- `apps/web/__tests__/pages/login-guided.test.tsx` and `apps/mobile/__tests__/screens/login-guided.test.tsx` mount the real `LoginContent` over the shared auth fixtures, in `en` and `pt-BR`. They cover the email question as heading, label and accessible name, Google and Apple as the options above the field, the empty submit hint, the offline and human check refusals, the code question with the Orbit line, a wrong code, the expired and locked states, the resend countdown, the arrival from onboarding with one and four habits, the referral banner and legal line, the account that came back, a failed and a pending provider callback, the field contract (name, autocomplete, content type and order), reduced motion, the `sign_in` flow events with the completed event once the account came back or the session exists, one main landmark, and that every control of the current surface stays in every state with Orbit in Parado. The mobile suite also measures the block centre within 1 px of the free area centre at 320, 360, 384 and 412. A failed provider callback shows as a full-surface state with Orbit in Parado, the message and the way back. A cancel shows the email question with no error text. With the flag off both keep the provider line.
+- `apps/web/__tests__/pages/login-guided-real-flow.test.tsx` mounts the guided sign-in over the real `useLoginFlow`: an empty submit shows the address hint, focuses the field and sends nothing, a double press sends one code request, the back arrow keeps the typed address, and an offline device sends nothing. `apps/mobile/__tests__/hooks/use-login-flow.test.ts` covers the same empty-submit refusal of the mobile hook.
+- `apps/web/__tests__/layout/sign-in-fixture-bundle.test.ts` bundles the sign-in column fixture of the layout specs for the browser with the steady flow, through `buildSignInFixture` of `e2e/layout/sign-in-fixture-bundle.ts`, the helper the sign-in layout specs call. It fails before a layout shard does when the build has an error or more than one output, when `app/(auth)/login/login-content.tsx` or `e2e/layout/steady-sign-in-flow.ts` is not in the graph, or when the graph holds a module of `@sentry/nextjs` (the server entry) or `next/dist/compiled/gzip-size`. The browser Sentry packages can stay in the graph.
+- `apps/web/__tests__/app/auth-layout-guided-flag.test.tsx` and `apps/mobile/__tests__/components/auth/guided-sign-in.test.tsx` cover the one `orbit_guided_flows` read of the sign-in routes. The web suite also holds the main landmark on the frame for the current surface and for the guided one.
+- `apps/web/__tests__/pages/login-guided-layout.test.tsx` (Chromium) measures the sign-in block centre within 1 px of the free area centre and holds each label on one line, the question in two lines at most and the Orbit line in two lines at most, at 320, 360, 384 and 412 in both locales. It also centres the failed callback state and the Android handoff state at the four widths.
+- `apps/web/__tests__/app/step-up-page.test.tsx` and `apps/mobile/__tests__/screens/step-up-screen.test.tsx` cover the code question as the step-up title, no mascot on the challenge and exhausted steps, and the result dialog that closes the delete flow with Orbit in Parado, the date the server set, and sign out. With the flag on the confirm action stays enabled, and a short code shows the hint beside the field and focuses the field. The code step holds one filled action. With the flag on they also cover the guided centred question layout: the back arrow, the progress of the flow that asked for the code, one heading, no eyebrow, and the expired, exhausted and closed states in the same frame. The web suite mounts the real `FlowShell` and holds exactly one main landmark around the surface in every state, with the flag on and off.
+- `apps/web/__tests__/app/step-up-centre-geometry.test.tsx` (Chromium) and `apps/mobile/__tests__/screens/step-up-centre-geometry.test.tsx` measure each guided step-up block centre within 1 px of the free area centre at 320, 360, 384 and 412 in both locales. The web suite also holds each label on one line, the question in two lines at most, and the confirm action at most 360 wide at 1440. It mounts the real `FlowShell`, and it holds the surface at the full viewport height inside the one main landmark.
+- `apps/web/__tests__/app/onboarding-landmark.test.tsx` mounts the real `/onboarding` layout, page, shells and flow. It holds exactly one main landmark, on the page under the dialog, on every step and on the done shell, with the flag on and off. It holds the same for retained onboarding over a destination shell.
+- `apps/web/__tests__/components/habits/editor-parent-picker-title.test.tsx` and `apps/mobile/__tests__/components/habits/editor-parent-picker-title.test.tsx` mount the real parent picker from the parent field: the guided flow titles it with a question, and the full form keeps its field noun, in `en` and `pt-BR`.
+- `apps/web/__tests__/app/auth-error-orbit.test.tsx` covers the auth error surface: Orbit in Parado at 96 and at 128, the message and the retry action.
+- `apps/web/__tests__/components/auth/turnstile-widget.test.tsx` and `apps/mobile/__tests__/components/turnstile-widget.test.tsx` fail when the wait of the human check draws text with no skeleton: the wait holds the 65 px box of the check with the skeleton face and its sentence.
+
+### Guided flow layout specs
+
+- `apps/web/__tests__/components/ui/guided-flow-label-fit.test.tsx` (Chromium) renders every question of the habit flow, the goal flow and the guided onboarding with its quick options. It holds each label on one line, and each question and each Orbit line in two lines at most, and centres the block, at 320, 360, 384 and 412 in both locales.
+- `apps/web/__tests__/components/onboarding/guided-onboarding-result-geometry.test.tsx` (Chromium) holds the read error message of the onboarding result dialog 72 under Orbit (a 24 gap plus the 48 of the error state, as on mobile) at 320 in both locales.
+- `apps/web/__tests__/components/ui/result-dialog-centre-geometry.test.tsx` (Chromium) centres the result dialog panel in the viewport on both axes and holds each action on one line, for a create, a sent support request, a fresh start and a scheduled account deletion.
+- `packages/shared/src/__tests__/perfil-sheet-titles.test.ts` holds the Notion, feature guide and widget sheet titles as questions in both locales, apart from the short labels of the rows that open them. `apps/web/__tests__/components/profile/astra-connections.test.tsx`, `apps/web/__tests__/components/onboarding/feature-guide-drawer.test.tsx` and their mobile mirrors assert the sheet name.
+- `apps/web/__tests__/components/ui/sheet-title-brand-name.test.tsx` keeps only the name Orbit out of a page translator in the Notion and feature guide sheet titles, and leaves a title with no Orbit free to translate. `apps/web/__tests__/components/ui/list-row-brand-name.test.tsx` does the same for a row title and a row description, and keeps a whole product name title ("Orbit Pro") as one untranslated text with no inner mark.
+- `apps/web/__tests__/components/preferences/time-zone-option-fit.test.tsx` (Chromium) holds each time zone option of the guided time zone question on one line with an ellipsis, inside its card, at 320 and 360 in both locales.
+- `apps/web/__tests__/components/profile/perfil-flow-layout.test.tsx` (Chromium) measures each Perfil flow block centre within 1 px of the free area centre and holds each label on one line.
+- `apps/web/__tests__/support/flow-layout.ts` owns the shared stylesheet compile, viewport stub and Chromium measure these suites use.
+- `apps/web/__tests__/components/preferences/preference-picker-sheet.test.tsx` and `apps/mobile/__tests__/components/profile/preference-picker-sheet.test.tsx` cover the clock, week start and language pickers as quick options with the flag on. They cover the time zone question with the flag on: the stored time zone and the time zone of the device as the quick options, the search as the free path, the search with no match and the paged matches. With the flag on, a quick option shows the answer as selected at once, then commits and closes the sheet after `motionPresets.selection.enterDuration`, and at once under reduced motion. A sheet that unmounts before then commits nothing and runs no close. With the flag off they cover the current search field and radio list.
 
 ### How the authed-Today Lighthouse budget gate works
 
-- **Hermetic mock API.** `perf.yml` builds the web app, boots the mock orbit-api (`test-support/hermetic/mock-api/server.ts`, `127.0.0.1:5099`) with a job-level `API_BASE` pointing the Next BFF at it, and lets LHCI manage `next start`. The fixture server validates every response against its `@orbit/shared` schema at boot. No prod, no secrets, no real orbit-api.
+- **Hermetic mock API.** The Lighthouse job in `test.yml` restores the hermetic `Build` output, boots the mock orbit-api (`test-support/hermetic/mock-api/server.ts`, `127.0.0.1:5099`) with a job-level `API_BASE` pointing the Next BFF at it, and lets `apps/web/perf/run-lighthouse.mjs` manage `next start`. The fixture server validates every response against its `@orbit/shared` schema at boot. No prod, no secrets, no real orbit-api.
 - **Mock-BFF lever.** Every server-side upstream fetch resolves `process.env.API_BASE`, which is what lets that repoint work at all. An unmapped path logs and returns an empty body; promote it to a real fixture if a surface needs it.
 - **Lighthouse authenticates before collection.** The perf runner launches Chrome and connects Puppeteer to it. `apps/web/perf/warm-hermetic-auth.cjs` injects fake-JWT `auth_token` + `refresh_token` cookies straight into that Chrome via the non-deprecated `browser.setCookie()`. The minting + constants come from `apps/web/test-support/hermetic/hermetic-session.cjs`; the mock server imports its TypeScript wrapper, so there is ONE implementation. Cookies persist across every run, so the signed-in Today surface (`/`) renders instead of the login redirect.
 - **Cold-cache, real budgets.** No `disableStorageReset` is set: the free-tier profile fixture (`trialEndsAt: null`) never triggers the trial-expired overlay, so no localStorage flag is needed, which lets Lighthouse clear the cache before each run so `resource-summary:script:size` measures the real cold-cache script transfer. Cookies survive the per-run storage reset, so auth still holds.
@@ -386,16 +426,14 @@ These facts hold for the hermetic layout project and the Chromium geometry cases
 
 ## CI mapping
 
-- **`.github/workflows/test.yml`** - build, unit tests with coverage thresholds, `Tool and Hook Tests` (sharded), type-check, lint and SonarCloud analysis, on PRs to `main`. Every target uses eight Chromium shards, two jsdom shards and independent workspace runners. `Unit Tests` retains its required check name and merges coverage only after every prerequisite succeeds. Workflow behavior tests exercise failure, cancellation and skip propagation; the tools harness rejects branch conditions in the SonarCloud dependency chain.
-- **`.github/workflows/guards.yml`** - one `Guards` job with one checkout and install. Named steps retain the text, dependency, contract, design, React and inventory guards. Each guard uses `!cancelled()` so another guard failing cannot skip it. Calibration retains its advisory exit behavior. `Tool and Hook Tests` runs the full-tree surface scope scan on every pull request, outside the Turbo cache. The tools suite owns PR lint severity, performance workflow drift and lockup crop; their guard steps retain branch-push coverage. Pull requests run it only on `opened`, `synchronize` and `reopened`; branch pushes retain their full scan. Release, build, test, layout and security analysis jobs run separately.
-- **`Tool and Hook Tests`** - an aggregate job that keeps the required check name. It needs four `Tool tests (i/4)` shards and the `Hook and workflow tests` job. It fails unless every one of them succeeded. Each shard runs `npm ci`, then `node tools/test-tools.mjs --shard i/4`, with an 8 minute job `timeout-minutes`, about 1.5 times the slowest four-shard job (325 s) on run 42961275542. `tools/test-tools-timings.json` holds the CI seconds of every case module from the run in its `sourceRun` field, and each shard prints one `# tool-timings` JSON line at the end of its log. The tools harness asserts the partition and a projection. It fails when a module runs in no shard or in two. The projection is the committed snapshot's seconds for the slowest shard (its module seconds plus `fixedSeconds`). It fails when that projection exceeds the 290 second harness budget, or when one module alone exceeds it. The projection changes only when you regenerate the snapshot with `node tools/record-tool-timings.mjs <run-id>`, which merges the timing line of every `Tool tests (i/n)` job and refuses a missing or doubled shard. The live guard is the job's `timeout-minutes: 8`. When a shard is too slow, split its slowest case module or add shards to the matrix, then regenerate. `node tools/test-tools.mjs` with no flag still runs every module. The `Hook and workflow tests` job runs `npm ci`, then `node tools/check-surface-scope.mjs --graphic-floor-only` and `node .claude/hooks/test-hooks.mjs` as separate steps, each judged by exit code. The scanner step owns the full-tree graphic floor assertion moved from `surface-graphic-contrast.test.ts`: graphic floor findings and scanner errors fail; other findings remain advisory. That Vitest file uses `--files-stdin` to check only its 14 named web and mobile sites, retaining per-site graphic floor and surface resolution assertions. No job has a changed-path filter or a build dependency, so a UI producer change runs both harnesses. The workflow behavior tests, the graphic floor scan and the hooks harness each run after a preceding test failure. Run both locally after touching `tools/**` or `.claude/**`.
+- **`.github/workflows/test.yml`** - plan, one hermetic web build, unit tests with coverage thresholds and the SonarCloud scan, `Tool and Hook Tests` (sharded), type-check, lint, the layout guard and the Lighthouse budget. On a pull request, `.github/scripts/plan-test-jobs.mjs` reads the changed paths: `Build`, the layout guard and the Lighthouse budget run only when a web input changed, `Type Check` only when a TypeScript input changed, and `Lint` only when a lintable file changed. A required check that its job condition skips reports success; no workflow `paths:` filter hides one. Pushes and dispatches run every job and save the caches that pull requests restore; pull requests save no cache. `Unit Tests` retains its required check name. Workflow behavior tests exercise failure, cancellation, skip and cached-result propagation; the tools harness rejects branch conditions on `Unit Tests` and its scan.
+- **`.github/workflows/guards.yml`** - one `Guards` job with one checkout and install. Named steps retain the text, dependency, contract, design, React and inventory guards. Each guard uses `!cancelled()` so another guard failing cannot skip it. On a pull request, workflow syntax runs only when a workflow or local action changed, feature parity only when an app, shared or parity input changed, and the dependency edit check only when a manifest, install script or local package changed. Calibration retains its advisory exit behavior. `Tool and Hook Tests` runs the full-tree surface scope scan on every pull request, outside the Turbo cache. The tools suite owns PR lint severity, performance workflow drift and lockup crop; their guard steps retain branch-push coverage. Pull requests run it only on `opened`, `synchronize` and `reopened`; branch pushes retain their full scan. Release, build, test, layout and security analysis jobs run separately.
+- **`Tool and Hook Tests`** - an aggregate job that keeps the required check name. It needs four `Tool tests (i/4)` shards and the `Hook and workflow tests` job. It fails unless every one of them succeeded. Each shard runs `npm ci`, then `node tools/test-tools.mjs --shard i/4`, with an 8 minute job `timeout-minutes`, about 1.5 times the slowest four-shard job (325 s) on run 42961275542. `tools/test-tools-timings.json` holds the CI seconds of every case module from the run in its `sourceRun` field, and each shard prints one `# tool-timings` JSON line at the end of its log. The tools harness asserts the partition and a projection. It fails when a module runs in no shard or in two. The projection is the committed snapshot's seconds for the slowest shard (its module seconds plus `fixedSeconds`). It fails when that projection exceeds the 290 second harness budget, or when one module alone exceeds it. The projection changes only when you regenerate the snapshot with `node tools/record-tool-timings.mjs <run-id>`, which merges the timing line of every `Tool tests (i/n)` job and refuses a missing or doubled shard. The live guard is the job's `timeout-minutes: 8`. When a shard is too slow, split its slowest case module or add shards to the matrix, then regenerate. `node tools/test-tools.mjs` with no flag still runs every module. The `Hook and workflow tests` job runs `npm ci`, validates the dependency tree with `npm ls --all` when a package manifest changed (a push always validates it), runs the workflow behavior tests (including the critical production CVE gate tests), then `node tools/check-surface-scope.mjs --graphic-floor-only` and `node .claude/hooks/test-hooks.mjs` as separate steps, each judged by exit code. The scanner step owns the full-tree graphic floor assertion moved from `surface-graphic-contrast.test.ts`: graphic floor findings and scanner errors fail; other findings remain advisory. That Vitest file uses `--files-stdin` to check only its 14 named web and mobile sites, retaining per-site graphic floor and surface resolution assertions. No job has a changed-path filter or a build dependency, so a UI producer change runs both harnesses. The workflow behavior tests, the graphic floor scan and the hooks harness each run after a preceding test failure. Run both locally after touching `tools/**` or `.claude/**`.
 - **`.github/workflows/pr-metadata.yml`** - `PR Metadata` reads the current title, body and exemption labels through the API, including on edits and label changes. It checks dashes, platform parity and its exemption justification without installing dependencies. Its check name is separate from `Guards`.
-- **`.github/workflows/mutation.yml`** - nightly and manually dispatched full Stryker runs on `main`, with `--force` and a report artifact. Mutation thresholds remain report-only.
-- **`.github/workflows/sonarcloud.yml`** - nightly and manually dispatched coverage analysis for `main`. PR analysis continues to consume `Unit Tests` coverage. Scheduled workflows activate from the default branch.
 - **`.github/workflows/release.yml` smoke job** - the Playwright smoke suite, post-deploy against the live production deployment.
-- **`.github/workflows/layout.yml`** - builds the production web app and runs the hermetic `layout` Playwright project on PRs to `main`. Builds the hermetic app once, checks client output, and distributes that build to three shards. Each shard uses two workers and parallel cases in CI. Fixture overrides, mutation transitions and journal reads and clears are isolated by the page's fixture session; sessionless journal requests use a separate bucket. Local layout defaults remain serial. `Upgrade layout geometry` succeeds only when the build and every shard succeed, including when an upstream job is skipped or cancelled. Chromium is pinned through `package-lock.json`; each shard owns both local servers and its session setup. Measures text geometry without screenshots and uploads per-shard failure diagnostics.
-- **`.github/workflows/perf.yml`** - the authed-Today Lighthouse job, on PRs touching `apps/web/**` or `packages/shared/**` (pinned `ubuntu-24.04`, no secrets). Builds the web app, boots the hermetic mock orbit-api, and runs `apps/web/perf/run-lighthouse.mjs` with hermetic cookie injection. The runner asserts median TBT and script size; the following step reports LCP from the same five reports. The signed-in `/` (Today) surface is the only measured URL. The job uploads `.lighthouseci/` reports.
-- **`.github/workflows/mobile-build.yml`** - release compilation keeps npm and NDK caches, enables the Gradle task-output cache and saves Gradle cache entries for subsequent PR runs. Layout and Lighthouse cache the Next compiler with the same hermetic build inputs; Lighthouse retains all five cold-browser measurements and both budgets.
+- **Layout guard (`Layout shard` jobs in `test.yml`)** - runs the hermetic `layout` Playwright project on PRs to `main` whose web inputs changed. The shards restore the `web-hermetic-build` artifact of `Build` and split the cases eight ways. Each shard uses two workers and parallel cases in CI. A spec that needs a loading frame holds its response with a route gate until it measured the frame, never with a fixed delay. Fixture overrides, mutation transitions and journal reads and clears are isolated by the page's fixture session; sessionless journal requests use a separate bucket. Local layout defaults remain serial. `Upgrade layout geometry` succeeds only when the build and every shard succeed, including when an upstream job is skipped or cancelled. Chromium is pinned through `package-lock.json`; a push to `main` saves its download and the shards restore it. Each shard owns both local servers and its session setup. Measures text geometry without screenshots and uploads per-shard failure diagnostics.
+- **Lighthouse budget (`Authed Today Lighthouse budget` in `test.yml`)** - runs on PRs whose web inputs changed (`apps/web/**`, `packages/shared/**`, `package.json`, `package-lock.json`, `tsconfig.base.json`; pinned `ubuntu-24.04`, no secrets). It restores the `Build` artifact, boots the hermetic mock orbit-api, and runs `apps/web/perf/run-lighthouse.mjs` with hermetic cookie injection under an 8 minute step limit. The runner asserts median TBT and script size; it kills a Chrome whose launch failed and exits after cleanup, so a failed launch ends the job. The following step reports LCP from the same five reports. The signed-in `/` (Today) surface is the only measured URL. The job uploads `.lighthouseci/` reports.
+- **`.github/workflows/mobile-build.yml`** and **`ios-build.yml`** - compile only when a native input changed (manifests, app config, assets, plugins, local modules, the build script), and skip the compile when a pass marker exists for the same input hash. The Android compile enables the Gradle task-output cache. Pull requests read the npm, NDK, Gradle and compiler caches; only `main` saves them. The `test.yml` `Build` job caches the Next compiler for the one hermetic build that layout and Lighthouse use; Lighthouse retains all five cold-browser measurements and both budgets.
 - **Android widget host instrumented test** - local only. CI has no emulator, so an orchestrator runs it on a booted API 31+ device or emulator before merge.
 
 ## Astra capability eval
@@ -408,8 +446,12 @@ at low effort.
 
 ### Live gate and spend rules
 
-The app-launch live gate runs once, with one attempt per case and a 2 USD spend ceiling for the run.
-Each failing case is rerun once; there is no
+Each pull request that changes the assistant gets one live run of the core set (`### Core set gate`), from a
+local checkout, on a staging build of that branch, before merge. The app-launch live gate runs the launch
+corpus once, with one attempt per case and a 2 USD spend ceiling for that run; the ceiling returns to
+0.50 USD a day after it. After a fix, the failed cases and the cases with a grader limit run once more
+live on the fixed build. A rerun on the same build never replaces a failed case. When staging serves
+another API commit before the run ends, the cases without a verdict continue on that build. There is no
 other live run. A fix round never calls the provider: it replays recorded real provider
 responses offline at the model-service port, following the `orbit-api`
 `tests/Orbit.Application.Tests/Fixtures/` pattern, or uses a fake completion client.
@@ -428,17 +470,29 @@ on that ticket afterward.
 Before a live run, regenerate the tool catalogs from a clean checkout of the evaluated API
 commit with `node evals/astra/generate-catalog.mjs <api-checkout>` from the repository root.
 The exporter uses the API's tool registrations, request builder and strict schema normalizer for both
-composition and legacy clients, with `AstraBlockFirst` enabled for the gate;
+composition and legacy clients, with `AiBlockFirst` enabled for the gate;
 `catalog.yaml` records the full source SHA as `apiCommit`. Generation refuses a dirty API tree.
 The parts export advertises `CHAT_BLOCK_KINDS` from the shared client registry; the legacy export
 omits part kinds. The catalog regression requires `ask` for the parts client and excludes it for legacy.
 The exporter supplies chat context values by constructor parameter name and refuses unknown parameters,
-listing their names before invoking the constructor. Its offline regression test requires the .NET SDK.
+listing their names before invoking the constructor. Each API service that the exporter stubs is a class that
+implements its whole interface, so a new interface member stops the build until the exporter answers or refuses it,
+and a refused member that the export reaches fails with its own name.
+`node evals/astra/generate-catalog.mjs --check [<api-repository>]` fetches the commit that `catalog.yaml` names
+(from the public `orbit-api` repository by default), builds and runs the exporter against it, and fails when the
+exporter does not build or run, or when its output differs from `catalog.yaml`. So it proves this repository's
+exporter, generator, `CHAT_BLOCK_KINDS` and `catalog.yaml` against that commit. The commit does not move, so
+`orbit-api` drift after it reaches the eval only through the API that the eval target serves. With
+`ORBIT_EVAL_BASE_URL` set, the check first reads the target's `/health` and refuses a served commit other than
+`apiCommit`, with the message of the live run's own check. Regenerate at the served commit; exporter drift then
+stops the build with CS0535 or a refusal that names the member. The offline suite runs the check without
+`ORBIT_EVAL_BASE_URL`; set `ORBIT_API_REPOSITORY` to a local `orbit-api` repository to fetch the commit without the
+network. The exporter tests require the .NET SDK.
 Structural validation selects the schema matching the case's `clientContext.supportsParts` and removes
 only properties the API's trace sensitivity collector marks for omission, retaining all observable constraints.
 The live gate checks `/health` before its first case and before refreshing credentials. It refuses to
 start unless the reported `commit` matches `apiCommit`, naming both commits and the regeneration command.
-Offline unit tests validate against the committed catalog without contacting the API.
+The other offline unit tests validate against the committed catalog without contacting the API.
 
 Fixture requests retry one transport timeout or network failure for `GET`, `DELETE`, and verified
 replacement `PUT` routes: `habits/{id}`, `habits/{id}/checklist`, `tags/{id}/assign`,
@@ -474,14 +528,14 @@ npm ci --prefix evals/astra --workspaces=false
 The harness imports shared TypeScript source, whose dependencies resolve from the root install.
 The shared workspace install skips lifecycle scripts and does not install the app workspaces.
 From `evals/astra`, run `npx promptfoo eval` after preparing the environment below.
-The `.github/workflows/astra-eval.yml` Action uses the same two install commands and runs the
-clean-install regression check before preparing credentials. Run it locally with
+Run the clean-install regression check with
 `npm test --prefix evals/astra -- __tests__/install.test.mjs`. The check
 copies tracked harness and workspace inputs to a temporary directory, runs these documented installs,
 imports every runtime harness module and executes the real promptfoo CLI with offline providers
 through all hooks.
 The check requires npm registry access or a populated npm cache; it uses no Orbit or grader credentials.
-The Action has only `workflow_dispatch`; it never runs on a schedule, push, or pull request.
+The live eval runs only on demand from a local checkout; no schedule, push or pull request starts it.
+This local run is the only live run.
 Runs record real message usage and incur endpoint and rubric-grader charges. The main account's
 flag exempts its per-account daily message, model-call and spend ceilings; the refusal accounts
 remain metered. All eval accounts remain subject to the shared eval ceiling.
@@ -562,6 +616,178 @@ Replacing the selected draft must preserve every sibling and its order. The asse
 tool evidence for the refine request. Each refine case records two messages at `k=1`, including
 setup, even with the main account's exemption. Harness tests exercise
 this flow offline; never treat their passing result as evidence from a live model run.
+
+### Core set gate
+
+The core set is the gate for a pull request that changes the assistant. `evals/astra/core/situations.yaml`
+holds 21 situations, each in 3 frozen phrasings, each in English and pt-BR (126 cases): every owner turn
+on record, one situation for each defect class, and the same-title family. A case never changes. The
+`corpusDigest` of each report names the cases it measured: each phrasing, each recorded message, each
+expected outcome, each answer and the image. The merge refuses two digests. The core set does not load
+when a situation expects a change whose saved state the readback cannot read (`core/corpus.mjs`), so no
+live turn spends on it.
+
+Each case runs as a person with a shipped client (`core/client-turn.mjs`, `core/conversation.mjs`):
+
+- The request is `POST /api/chat/stream` with an `Idempotency-Key`, built by the shared
+  `buildChatClientContext` (with a `conversationId` and the clock setting of the account profile) and
+  `buildRecentChatHistory`, and read through the shared `sendChatStreamTurn` loop and stream parser.
+- A reply without a preview is a question only when it shows a choice or question card, or a list card
+  whose action can hold the request. `orbit-api` ends a reply with a question only through a valid,
+  accepted `ask`, which is always one of these cards; a question in text comes from an invalid ask or
+  from the server fallback after the model did not ask. So a text-only reply fails the case, whatever it
+  says, and so does a list card of another action. The person does not answer them. One question past
+  the allowed count is recorded and not answered.
+- The person answers a card through `blockAnswer` when the card can hold the decision of the case, and
+  types the decision when no card can. The record of a list row, and of a card option that is not a
+  record id, comes only from the `ask` arguments in the eval trace. So the run stops before its first
+  turn when `/api/config` shows the `astra_eval_trace` flag off. A card turn without the trace that its
+  answer needs gives no evidence. A trace whose `ask` call does not map each row to one record is a
+  grader limit.
+- A later owner turn starts from the recorded messages that came before it. The class e turn
+  `owner-water-typed-answer` runs live instead: the earlier owner messages go first, in one conversation,
+  so the server holds the state that it held for the owner.
+
+The outcome grader (`core/outcome.mjs`) reads no tool name:
+
+- It turns the held previews into a change list (`core/change-list.mjs`): the kind of each change, its
+  record and its changed fields. It compares that list with the expected list of the situation. A field
+  that the preview marks `suggested` with a removal is an offer of the assistant. A field marked `stored`
+  is a change that the server derives, unless a held write in the eval trace names it: a clear
+  (`clear_fields`, `clear_parent` or an empty array), or any edit in the `edits_json` of a held revision.
+  The list keeps offers and derived changes apart from the requested changes. A field that the request
+  did not name and that is neither an offer nor derived fails the case. A preview turn without the trace
+  that shows a `stored` field gives no evidence.
+- It counts the questions that came before the preview, against the minimum and the maximum of the case.
+- When the preview matches, the eval approves it as the client does and reads the saved state back
+  from `eval/snapshot`. It reads each field that the request names: the title, the due date and the
+  frequency from the snapshot row, and the due time of a created record from `GET habits/{id}`.
+  The person approves the preview as shown: an updated record holds each value that its rows show, and
+  each offered sub-habit draft is saved as one new record with its title. A preview that does not match
+  is never approved.
+- A read request fails when its reply holds a preview, or a choice, question or list card. Only a card
+  is a question, as for a write request.
+- `llm-rubric` grades only the text of a read answer.
+
+Run the gate from `evals/astra`, after the environment and catalog steps of this section:
+
+```sh
+npx promptfoo eval --config core/must-pass.promptfooconfig.yaml
+npx promptfoo eval --config core/other.promptfooconfig.yaml
+node core/merge.mjs --run-cost-usd <measured cost> --baseline <baseline summary.json> \
+  reports/core-must-pass/summary.json reports/core-other/summary.json
+```
+
+The must-pass run repeats each of its 90 cases 3 times; a case passes only when all 3 attempts pass
+(pass^3, `core/corpus.mjs`). The other run holds 36 cases at one attempt. Each test carries its k as its own
+promptfoo `options.repeat`, so no config holds a global repeat.
+
+k=3 is the default. Set `ORBIT_EVAL_MUST_PASS_K=1` on both runs to run the must-pass cases at
+k=1 only for a change whose model input equals the model input of `main`: for each turn, the API sends the model
+the same model and effort, instructions, tool declarations and messages as `main` does (rows 3a, 3b and 4 of the
+build queue of #2129). The pull request body of that change says why its model input is equal. Each window and
+the merged report state their k. The merge refuses a k=1 window, rerun or baseline in a k=3 verdict, and a k=3 one
+in a k=1 verdict, so a k=1 gate compares with a baseline of `main` that also ran with `ORBIT_EVAL_MUST_PASS_K=1`.
+
+Each run writes
+`reports/core-<run>/summary.md`, `summary.json` and private `attempts/` evidence. Select cases for a daily
+window with `--filter-metadata 'id=<ids>'`; a situation ID selects its six cases. Preserve each window's
+directory before the next run overwrites it, and give every window summary to the merge. The merged report
+links each attempt of a failed case to the `attempts/` file of the window that measured it, relative to
+`reports/core`, so keep each window directory where the merge read it. The `sourceWindow` of each case, and
+each refusal that names an input (`Input N`), give the one-based position of its path among the window summary
+paths of the command line. Neither `--rerun` itself nor the `--baseline` report counts.
+
+`core/merge.mjs` writes `reports/core/summary.md` and `summary.json`: k and pass^k for each case, pass^k
+for each family and locale, the questions before a preview against the allowed count, the measured model
+calls, the seconds that the person waits and the cost of each case, the number of UTC-day windows, and the
+gate verdict. The gate passes when:
+
+- every must-pass case passes;
+- the pass^k rate of the core set is at or above the rate of the `--baseline` report;
+- no attempt asks more often than its case allows (an attempt stops one question past the allowed count, before
+  any preview, and keeps that count);
+- one model call costs at most 0.0009 USD, the D147 limit of the `orbit-api` `AiInputBudgetTests`.
+
+The baseline is the merged report of `main` in which every case has a verdict. The merge refuses a window
+summary, a report of another corpus and a report with an incomplete case. The baseline run of `main`
+passes `--as-baseline` in place of `--baseline`. A merge without one of the two is refused.
+
+The API returns no cost for one turn. Read the run's cost from the API's daily `AI cost` line for the
+eval purpose and pass it as `--run-cost-usd`; each case takes the share that its measured model calls
+hold (one `model_call` phase of the opt-in trace is one model call), with the calls of the attempts that
+a later window or a rerun replaced. Without it the gate stays incomplete. A turn that fails, a card turn
+that returns no trace, and a preview turn without the trace that shows a `stored` field add no counted
+model calls, so the cost of one model call reads a little high.
+
+No rerun on the same build replaces a failure. An attempt that fails, fails its case for that build:
+a wrong preview, a reply without a preview and without a question card, HTTP 5xx, a stream that ends
+without a final event, or a failed approval. Only a throttle (HTTP 429), a spend ceiling
+(`AI_DAILY_BUDGET_EXCEEDED` or `AI_PROVIDER_QUOTA_EXHAUSTED`), a failed precondition, a failed rubric
+grader, a card turn without the trace that its answer needs and a preview turn without the trace that
+shows a `stored` field are no evidence. Such an attempt leaves its case incomplete, and only such a
+case may appear again in a later window of the same build. The merge refuses a second result on one
+build for a case that passed, failed or holds a grader limit, an ordinary window of another API commit,
+and a case whose `k` differs from the corpus.
+
+A reply that the grader cannot read is a grader limit. The case has no verdict, nothing is approved, and
+the report lists grader limits apart from behavior failures. The merge refuses a later window of the same
+build for the case, as for a verdict. Each kind clears only through `--rerun` on a later API commit of the
+pull request; until then the gate of that build stays incomplete. Extend the grader before that rerun.
+
+- A preview limit (`The grader cannot classify a held preview`): the private evidence of the attempt
+  (`attempts/<case>-r<n>.json`, `heldPreviews`) keeps its held previews, with each record id replaced by
+  the name that the case gives the record, and the fields that the held writes name (`written`). The
+  extended grader regrades them offline with `gradePreview({ questionsBeforePreview, previews, written })`;
+  record that verdict on the work ticket, because the merge does not take it.
+- A card limit (a same-title or list card that the grader cannot answer): the attempt ended at the card,
+  before any preview, so the evidence keeps no preview. Only the rerun measures it.
+
+After a fix, run the failed cases and the cases with a grader limit once more on the fixed build, and
+give those summaries to the merge with `--rerun`:
+
+```sh
+node core/merge.mjs --run-cost-usd <measured cost of all builds> --baseline <baseline summary.json> \
+  <first-run summaries> --rerun <later-build must-pass summary> --rerun <later-build other summary>
+```
+
+The rerun takes the place of the first result. A case has one rerun: the merge refuses a second one.
+`--rerun` declares which windows belong to a later build, so the merge refuses a later build given
+first without the flag.
+
+Staging can serve another API commit before each case has a verdict: after a fix, or after a release
+of another commit. An ordinary window on the new commit is refused, because the ordinary windows measure
+the first build. Run the cases without a verdict on the new build, and give those summaries to the merge
+with `--rerun` also. A case is without a verdict when no window held it, or when its attempts gave no
+evidence. These rules apply to each later build:
+
+- A case without a verdict runs on the later build and uses no rerun. A pass or a fail there is its first
+  verdict, so a failure there keeps the one rerun of the case for the next fixed build. A case that
+  stays incomplete there (no evidence again, or a grader limit) has no verdict on that build.
+- A case that failed or holds a grader limit on an earlier build uses its one rerun.
+- A case that passed keeps its build. The merge refuses a later result for it.
+- The entry of the later build takes the place of the earlier entry, whole. The attempts of one case
+  come from one build, so the attempts of two builds never make one verdict.
+- A later build continues across UTC-day windows as the first build does.
+
+Give the `--rerun` windows of one build together, in the order of the builds. The merge refuses a
+`--rerun` window on the first build and a return to an earlier build. The report names the API commit of
+each later build, with three counts: the reruns, the first verdicts, and the cases with no verdict and
+no rerun. Each count holds only the cases whose final entry comes from that build: a case that a later
+build measures again counts only on the last build that measured it. The pass^k column of each case that a later build measured holds one of these marks:
+
+- `rerun on <commit>`: the case used its one rerun on that build. The mark stays with each result of the
+  rerun, `incomplete` included.
+- `first verdict on <commit>`: the case got a pass or a fail on that build, and used no rerun.
+- `no verdict on <commit>`: the case stays incomplete on that build, and used no rerun.
+
+The merged `summary.json` holds `laterApiCommits`, and each measured case holds the `apiCommit` of its
+build. Each other case keeps its verdict of the first build.
+
+Offline checks (`npm test --prefix evals/astra -- __tests__/core-outcome.test.mjs __tests__/core-corpus.test.mjs
+__tests__/core-report.test.mjs __tests__/core-cli.test.mjs`) replay recorded staging streams of the
+owner's Water request through the real driver, grader and promptfoo CLI. One stream is the recorded
+reply that held only a list card for a log; the grader must fail it. They never prove live behavior.
 
 ### Proactive offer gate
 
@@ -843,11 +1069,11 @@ These keys are account selectors in `vars.credentialKey`, not preconfigured bear
 Before every attempt, the hook sends `POST /api/auth/refresh` with `api-version: 2.0`, atomically
 replaces that account's `refreshToken` in the same mode-600 file, then sets `process.env[credentialKey]`.
 A missing, rejected or malformed refresh clears the old bearer and stops before fixture or chat
-requests. Private `.rotated` and `.refresh-failed` sibling markers distinguish durable token rotation
-from failed or interrupted refresh submissions. Credential validation, lock acquisition and health-wait
-failures before submission affect only that attempt; they allow later healthy accounts to refresh and
-earlier rotations to persist. A failed or uncertain submitted refresh blocks further refreshes from
-that file and prevents Action persistence, even if an earlier attempt rotated successfully. Recover a fresh session,
+requests. A private `.refresh-failed` sibling marker records a failed or interrupted refresh
+submission. Credential validation, lock acquisition and health-wait
+failures before submission affect only that attempt; they allow later healthy accounts to refresh, and
+earlier rotations stay in the file. A failed or uncertain submitted refresh blocks further refreshes from
+that file, even if an earlier attempt rotated successfully. Recover a fresh session,
 replace the private file, and remove its markers before any permitted attempt. A quota or ceiling
 stop still ends the run. No token or server error body is logged. Concurrent callers in one
 process share the same in-flight account refresh; different accounts queue their rotations against the shared file. A private lock rejects rotation by another process;
@@ -859,8 +1085,7 @@ Refresh submissions are never retried: transport failures, unreadable responses 
 and report `TRANSIENT_INFRASTRUCTURE` as unavailable case evidence without calling the chat provider.
 The eval credentials contain no unattended sign-in credential. Recover through the existing sign-in
 flow, replace the private credentials file and remove its markers before the gate's permitted rerun.
-For Action runs, replace `ORBIT_EVAL_CREDENTIALS_JSON` under **Settings > Environments > astra-eval >
-Environment secrets** before dispatching that rerun. Health probes remain safe to retry before submission.
+Health probes remain safe to retry before submission.
 
 The hook calls `evals/astra/fixtures/reset.mjs` in process after refresh. The same executable can
 be invoked independently from `evals/astra` as `./fixtures/reset.mjs single-read-en`; standalone
@@ -927,11 +1152,11 @@ execution, no retries and caching disabled. Keep each case's configured attempts
 Use the same configured accounts while their
 required plan access remains active; do not buy quota or add accounts.
 
-The hard API eval ceiling is per UTC day. The app-launch gate can use daily windows within
-that ceiling and its 2 USD run ceiling. When the ceiling stops a run, that UTC day's window
+The hard API eval ceiling is per UTC day. A gate run can use daily windows within
+that ceiling; the app-launch gate also keeps its 2 USD run ceiling. When the ceiling stops a run, that UTC day's window
 ends; the gate continues in the next UTC day's window with only the cases that have no complete
 result yet. A later window never reruns a case that already has a complete result, except the
-single permitted rerun of a failing case.
+single permitted rerun of a failing case after a fix, on the new build.
 
 From `evals/astra`, select case IDs with the installed promptfoo metadata filter and preserve each
 sanitized window summary before another run overwrites it:
@@ -991,27 +1216,6 @@ merging, and a case without complete evidence remains incomplete. A window pass 
 Keep one settled API/prompt/tool surface across the launch gate's windows. A changed surface is validated
 offline in fix rounds and never authorizes an additional live run.
 
-For the manual Action, create the **astra-eval** environment in GitHub
-**Settings > Environments > New environment**. Under **astra-eval > Environment secrets**, add
-`ORBIT_EVAL_CREDENTIALS_JSON` containing the private file contents, then remove the same-named
-repository secret from **Settings > Secrets and variables > Actions**. The job references this
-environment and persists with `gh secret set --env astra-eval`, so queued runs read the latest
-rotation at job start. GitHub documents this distinction in its
-[secrets reference](https://docs.github.com/en/actions/reference/security/secrets).
-
-Configure `ORBIT_EVAL_BASE_URL`, `ORBIT_EVAL_GRADER`, and `ORBIT_EVAL_SECRETS_TOKEN` under
-**astra-eval > Environment secrets**. The last key needs this repository's Environments write
-permission to update an environment secret; repository Actions secrets write permission alone
-is insufficient. `OPENAI_API_KEY` is only needed if explicitly selecting an OpenAI API grader.
-Dispatch **Actions > Astra eval > Run workflow** with a comma-separated `case_ids` set for the
-day's window. It creates a mode-600 temporary credentials file, persists only successful token
-rotations when no refresh failed, uploads sanitized summaries, then deletes local credentials and
-markers. Persistence still runs after unrelated eval failures. A failed or interrupted refresh or
-secret write requires session recovery before any permitted dispatch; never reuse the stale secret.
-Do not run local and Action jobs against the same sessions. Download each window artifact and merge
-locally as above. Successful resets, environment-secret persistence and a permitted subsequent
-window using the rotated session prove configuration took effect. There is no automatic dispatch.
-
 ### Codex rubric grader
 
 From `evals/astra`, set `ORBIT_EVAL_GRADER=file://codex-grader.mjs`. Install the Codex CLI on the
@@ -1019,8 +1223,7 @@ runner and authenticate its existing account session through `codex login` befor
 the executable must be on the runner's normal `PATH`. The grader removes every `node_modules/.bin`
 entry, including normalized relative entries, before launching the CLI so npm and npx cannot select
 promptfoo's bundled copy. A missing or failing installed CLI fails the rubric closed.
-This provider needs no purchased OpenAI API key. The hosted Action runner does not provision a
-Codex session: selecting this provider there requires an installed, authenticated CLI on that runner.
+This provider needs no purchased OpenAI API key.
 The local command is ready to use with the coordinator's authenticated CLI. The provider executes
 `codex exec -m gpt-6.1-sol -s read-only --skip-git-repo-check --ephemeral --output-schema <schema file> -o <output file>`
 with the grading prompt on stdin in a private temporary directory. It removes Orbit eval environment
@@ -1094,8 +1297,8 @@ its requested output file. Summaries update after each attempt too; a later fixt
 preserves completed attempts and leaves unrun cases incomplete. Starting a run clears the prior reports.
 Reasons can contain private answer details: keep this file local and
 do not upload it. Copy it into each private window directory before the next run replaces it.
-Each family and locale also receives a pass^k aggregate; any failing or incomplete case prevents its pass. The Action
-publishes these summaries and a job summary. It does not upload raw responses or a promptfoo
+Each family and locale also receives a pass^k aggregate; any failing or incomplete case prevents its pass. The run
+writes these summaries. It does not upload raw responses or a promptfoo
 database. Sharing and database writes are disabled in the configuration. For local runs, set
 `PROMPTFOO_DISABLE_TELEMETRY=1`, `PROMPTFOO_DISABLE_SHARING=1`, and point
 `PROMPTFOO_CONFIG_DIR` at a private temporary directory; delete it afterward. Do not enable
@@ -1355,8 +1558,8 @@ rendered consumers; this harness change does not unblock broad rollout by itself
 4. Run `npm test --prefix evals/astra`. Its Vitest tests execute the actual promptfoo CLI with
    local providers: a correct case passes all three trials, a deliberately wrong ID fails all
    three, missing evidence is incomplete, and the rubric grader rejects leaked trace content.
-   HTTP wiring tests replace fetch at the boundary; no server or live endpoint is started. A workflow test enforces manual-only
-   triggering. Live endpoint spot checks remain a separate, explicitly requested run.
+   HTTP wiring tests replace fetch at the boundary; no server or live endpoint is started. No workflow
+   starts the live eval. Live endpoint spot checks remain a separate, explicitly requested run.
 
 ### Interface evidence
 

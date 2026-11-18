@@ -6,7 +6,9 @@ import { Trans } from 'react-i18next'
 import { type AppTokensV2 } from '@/lib/theme'
 import { PillButton } from '@/components/ui/pill-button'
 import { Input } from '@/components/ui/input'
+import { KeyboardRevealGroup } from '@/components/ui/keyboard-reveal-group'
 import type { LoginStyles } from '@/app/login-styles'
+import { deriveLoginEmailErrors } from '@orbit/shared/utils'
 import { LoginOfflineNotice } from './login-sections'
 
 interface EmailStepProps {
@@ -33,43 +35,61 @@ interface EmailStepProps {
   sendCodeLabel?: string
 }
 
-export function EmailStep({ email, emailFocusRequest, onEmailChange, isSubmitting, isGoogleLoading, isAppleLoading = false, isOnline, errorKey,
-  errorMessage, fieldError: backendFieldError, canSubmitTurnstile, turnstileWidget, onSendCode, onSignInWithGoogle, onSignInWithApple, onOpenTerms, onOpenPrivacy, tokens, styles, t,
-  sendCodeLabel }: Readonly<EmailStepProps>) {
-  const isBusy = isSubmitting || isGoogleLoading || isAppleLoading
-  const fieldError = isOnline && backendFieldError ? backendFieldError : isOnline && errorKey === 'auth.errors.invalidEmail' ? errorMessage : null
-  const googleError = isOnline && (errorKey === 'auth.errors.googleError' || errorKey === 'auth.errors.appleError') ? errorMessage : null
-  const sendError = isOnline && errorMessage && !fieldError && !googleError ? errorMessage : null
-  return <View style={styles.step}>
-    <Input label={t('auth.email')} value={email} onChange={onEmailChange} placeholder={t('auth.emailPlaceholder')}
-      kind="email" name="email" focusRequest={emailFocusRequest} autoComplete="email" disabled={isBusy}
-      onSubmit={onSendCode} error={fieldError ?? undefined} />
-    {turnstileWidget}
-    <View style={styles.actionGroup}>
-      {!isOnline && <LoginOfflineNotice t={t} styles={styles} tokens={tokens} />}
-      {sendError && <Text accessibilityRole="alert" style={styles.error}>{sendError}</Text>}
-      <PillButton onClick={onSendCode} disabled={isBusy || !email.trim() || !isOnline || !canSubmitTurnstile} loading={isSubmitting}>
-        {sendCodeLabel ?? t('auth.sendCode')}
-      </PillButton>
+/** The two provider ways in, with the offline reason and the provider failure under them. */
+export function LoginProviderActions({ disabled, isGoogleLoading, isAppleLoading, isOnline, error, onSignInWithGoogle, onSignInWithApple, styles, t }: Readonly<{
+  disabled: boolean; isGoogleLoading: boolean; isAppleLoading: boolean; isOnline: boolean; error: string | null
+  onSignInWithGoogle: () => void; onSignInWithApple: () => void; styles: LoginStyles; t: (key: string, params?: Record<string, unknown>) => string
+}>) {
+  return <>
+    <View style={{ width: '100%' }}>
+      {/* eslint-disable-next-line local/max-button-words -- Google's approved sign-in wording is required. */}
+      <PillButton brand="google" leadingIcon={<GoogleMark />} variant="ghost" onClick={onSignInWithGoogle} disabled={disabled}
+        loading={isGoogleLoading}>{t('auth.signInWithGoogle')}</PillButton>
     </View>
-    <View style={styles.divider} importantForAccessibility="no-hide-descendants">
-      <View style={styles.dividerLine} /><Text style={styles.dividerText}>{t('auth.orContinueWith')}</Text><View style={styles.dividerLine} />
-    </View>
-    <View style={styles.titleBlock}>
-      <View style={{ width: '100%' }}>
-        {/* eslint-disable-next-line local/max-button-words -- Google's approved sign-in wording is required. */}
-        <PillButton brand="google" leadingIcon={<GoogleMark />} variant="ghost" onClick={onSignInWithGoogle} disabled={isBusy || !isOnline}
-          loading={isGoogleLoading}>{t('auth.signInWithGoogle')}</PillButton>
-      </View>
-      <AppleSignInButton disabled={isBusy || !isOnline} loading={isAppleLoading} onPress={() => onSignInWithApple?.()} />
-      {!isOnline && <Text style={styles.reason}>{t('auth.googleOffline')}</Text>}
-      {googleError && <Text accessibilityRole="alert" style={styles.error}>{googleError}</Text>}
-    </View>
+    <AppleSignInButton disabled={disabled} loading={isAppleLoading} onPress={onSignInWithApple} />
+    {!isOnline && <Text style={styles.reason}>{t('auth.googleOffline')}</Text>}
+    {error && <Text accessibilityRole="alert" style={styles.error}>{error}</Text>}
+  </>
+}
+
+/** The legal consent line: the one place a person agrees to anything. */
+export function LoginLegalConsent({ styles, onOpenTerms, onOpenPrivacy }: Readonly<{ styles: LoginStyles; onOpenTerms: () => void; onOpenPrivacy: () => void }>) {
+  return (
     <Text style={styles.legal}>
       <Trans i18nKey="auth.legalConsent" components={{
         terms: <Text accessibilityRole="link" style={styles.legalLink} onPress={onOpenTerms} />,
         privacy: <Text accessibilityRole="link" style={styles.legalLink} onPress={onOpenPrivacy} />,
       }} />
     </Text>
+  )
+}
+
+export function EmailStep({ email, emailFocusRequest, onEmailChange, isSubmitting, isGoogleLoading, isAppleLoading = false, isOnline, errorKey,
+  errorMessage, fieldError: backendFieldError, canSubmitTurnstile, turnstileWidget, onSendCode, onSignInWithGoogle, onSignInWithApple, onOpenTerms, onOpenPrivacy, tokens, styles, t,
+  sendCodeLabel }: Readonly<EmailStepProps>) {
+  const isBusy = isSubmitting || isGoogleLoading || isAppleLoading
+  const { field: fieldError, provider: googleError, send: sendError } = deriveLoginEmailErrors({ isOnline, fieldError: backendFieldError, errorKey, errorMessage })
+  return <View style={styles.step}>
+    <KeyboardRevealGroup testID="login-field-action" style={styles.step}>
+      <Input label={t('auth.email')} value={email} onChange={onEmailChange} placeholder={t('auth.emailPlaceholder')}
+        kind="email" name="email" focusRequest={emailFocusRequest} autoComplete="email" disabled={isBusy}
+        onSubmit={onSendCode} error={fieldError ?? undefined} />
+      {turnstileWidget}
+      <View style={styles.actionGroup}>
+        {!isOnline && <LoginOfflineNotice t={t} styles={styles} tokens={tokens} />}
+        {sendError && <Text accessibilityRole="alert" style={styles.error}>{sendError}</Text>}
+        <PillButton onClick={onSendCode} disabled={isBusy || !email.trim() || !isOnline || !canSubmitTurnstile} loading={isSubmitting}>
+          {sendCodeLabel ?? t('auth.sendCode')}
+        </PillButton>
+      </View>
+    </KeyboardRevealGroup>
+    <View style={styles.divider} importantForAccessibility="no-hide-descendants">
+      <View style={styles.dividerLine} /><Text style={styles.dividerText}>{t('auth.orContinueWith')}</Text><View style={styles.dividerLine} />
+    </View>
+    <View style={styles.titleBlock}>
+      <LoginProviderActions disabled={isBusy || !isOnline} isGoogleLoading={isGoogleLoading} isAppleLoading={isAppleLoading} isOnline={isOnline}
+        error={googleError} onSignInWithGoogle={onSignInWithGoogle} onSignInWithApple={() => onSignInWithApple?.()} styles={styles} t={t} />
+    </View>
+    <LoginLegalConsent styles={styles} onOpenTerms={onOpenTerms} onOpenPrivacy={onOpenPrivacy} />
   </View>
 }

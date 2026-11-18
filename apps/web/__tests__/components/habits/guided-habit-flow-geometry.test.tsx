@@ -8,6 +8,7 @@ import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { OptionCard } from '@/components/ui/option-card'
 import { QuestionFlow } from '@/components/ui/question-flow'
+import { QuestionRow } from '@/components/ui/question-row'
 import { resolveWebThemeVariables } from '@/lib/theme-dom'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 
@@ -53,11 +54,16 @@ describe('the guided habit flow block in Chromium', () => {
       await page.setContent(`<!DOCTYPE html><html class="dark" style="${theme}"><style>${stylesheet}</style><body style="margin:0">${view.container.innerHTML}</body></html>`)
       return await page.evaluate(() => {
         const header = document.querySelector('[data-question-flow] header')!.getBoundingClientRect()
-        const main = document.querySelector('[data-question-flow] main')!.getBoundingClientRect()
-        const block = document.querySelector('[data-question-flow] main > div')!.getBoundingClientRect()
+        const main = document.querySelector('[data-question-flow] [data-flow-scroll]')!.getBoundingClientRect()
+        const block = document.querySelector('[data-question-flow] [data-flow-scroll] > div')!.getBoundingClientRect()
         const primary = document.querySelector('[data-flow-primary] button')!.getBoundingClientRect()
         const options = document.querySelector('[data-question-flow] [data-option-group]')!.getBoundingClientRect()
-        return { header: { bottom: header.bottom }, main: { top: main.top, bottom: main.bottom, left: main.left, right: main.right }, block: { top: block.top, bottom: block.bottom, left: block.left, right: block.right }, options: { bottom: options.bottom }, primary: { top: primary.top, width: primary.width } }
+        const button = document.querySelector<HTMLElement>('[data-flow-primary] button')!
+        const label = document.createRange()
+        label.selectNodeContents(button)
+        const buttonStyle = getComputedStyle(button)
+        const hugWidth = label.getBoundingClientRect().width + Number.parseFloat(buttonStyle.paddingLeft) + Number.parseFloat(buttonStyle.paddingRight)
+        return { header: { bottom: header.bottom }, main: { top: main.top, bottom: main.bottom, left: main.left, right: main.right }, block: { top: block.top, bottom: block.bottom, left: block.left, right: block.right }, options: { bottom: options.bottom }, primary: { top: primary.top, left: primary.left, right: primary.right, width: primary.width, hugWidth } }
       })
     } finally { await page.close(); view.unmount(); vi.unstubAllGlobals() }
   }
@@ -78,6 +84,29 @@ describe('the guided habit flow block in Chromium', () => {
     expect(Math.abs((geometry.block.top + geometry.block.bottom) / 2 - (geometry.main.top + geometry.main.bottom) / 2)).toBeLessThanOrEqual(1)
     expect(geometry.block.right - geometry.block.left).toBeLessThanOrEqual(592)
     expect(geometry.primary.width).toBeLessThanOrEqual(360)
+    expect(Math.abs(geometry.primary.width - geometry.primary.hugWidth), `the wide primary action hugs its label: ${JSON.stringify(geometry.primary)}`).toBeLessThanOrEqual(1)
+    expect(Math.abs((geometry.primary.left + geometry.primary.right) / 2 - columnCentre), `the wide primary action sits in the centre under the block: ${JSON.stringify(geometry.primary)}`).toBeLessThanOrEqual(1)
     expect(Math.round(geometry.primary.top - geometry.options.bottom)).toBe(24)
   })
+
+  it.each([320, 412])('keeps the primary action full width in the compact shell at %i px', async (width) => {
+    const geometry = await measure(width, ptBR)
+    expect(Math.round(geometry.primary.width)).toBe(width - 32)
+  })
+
+  it.each([320, 412].flatMap((width) => [{ width, locale: 'pt-BR', messages: ptBR }, { width, locale: 'en', messages: en as typeof ptBR }]))(
+    'keeps a long list of chosen names on one line of its optional row at $width px in $locale', async ({ width, messages }) => {
+      const view = render(<div style={{ padding: 16 }}><QuestionRow question={messages.habits.flow.optional.tags} value="Saúde, Trabalho, Casa, Estudos e Família" onPress={() => {}} /></div>)
+      const page = await browser.newPage({ reducedMotion: 'reduce', viewport: { width, height: HEIGHT } })
+      try {
+        await page.setContent(`<!DOCTYPE html><html class="dark"><style>${stylesheet}</style><body style="margin:0">${view.container.innerHTML}</body></html>`)
+        const value = await page.evaluate(() => {
+          const node = document.querySelector<HTMLElement>('[data-question-value]')!
+          const range = document.createRange()
+          range.selectNodeContents(node)
+          return { lines: new Set([...range.getClientRects()].map((rect) => Math.round(rect.top))).size, clipped: node.scrollWidth > node.clientWidth, overflow: getComputedStyle(node).textOverflow, text: node.textContent }
+        })
+        expect(value, JSON.stringify(value)).toMatchObject({ lines: 1, clipped: true, overflow: 'ellipsis', text: 'Saúde, Trabalho, Casa, Estudos e Família' })
+      } finally { await page.close(); view.unmount() }
+    })
 })

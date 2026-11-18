@@ -118,6 +118,51 @@ describe.each([{ language: 'en', messages: en }, { language: 'pt-BR', messages: 
     expect(texts(tree)).toContain(messages.result.account.freshStartQueued)
   })
 
+  it('closes on Android back while the reset runs, and steps back to the lists while none runs', async () => {
+    mocks.language = language
+    let finishReset!: (value: object) => void
+    mocks.apiClient.mockReturnValue(new Promise<object>((resolve) => { finishReset = resolve }))
+    const onClose = vi.fn()
+    const tree = await render(<FreshStartModal open guided onClose={onClose} />)
+    const androidBack = () => TestRenderer.act(async () => { (tree.root.findAll((node) => node.type === Modal)[0]!.props.onRequestClose as () => void)(); await Promise.resolve() })
+    await press(tree, messages.profile.freshStart.reviewDeletion)
+    await androidBack()
+    expect(textOf(heading(tree)!)).toBe(messages.profile.freshStart.question)
+    expect(onClose).not.toHaveBeenCalled()
+
+    await press(tree, messages.profile.freshStart.reviewDeletion)
+    await type(tree, 'ORBIT')
+    await press(tree, messages.profile.freshStart.deleteData)
+    expect(mocks.apiClient).toHaveBeenCalledOnce()
+    await androidBack()
+    expect(onClose).toHaveBeenCalledOnce()
+    await TestRenderer.act(async () => { finishReset({}); await Promise.resolve() })
+  })
+
+  it('opens on the lists again, with no result, when the reset lands after a close during the request', async () => {
+    mocks.language = language
+    let finishReset!: (value: object) => void
+    mocks.apiClient.mockReturnValue(new Promise<object>((resolve) => { finishReset = resolve }))
+    let reopen!: () => void
+    function Harness() {
+      const [open, setOpen] = React.useState(true)
+      reopen = () => setOpen(true)
+      return <FreshStartModal open={open} guided onClose={() => setOpen(false)} />
+    }
+    const tree = await render(<Harness />)
+    await press(tree, messages.profile.freshStart.reviewDeletion)
+    await type(tree, 'ORBIT')
+    await press(tree, messages.profile.freshStart.deleteData)
+    await TestRenderer.act(async () => { (tree.root.findAll((node) => node.type === Modal)[0]!.props.onRequestClose as () => void)(); await Promise.resolve() })
+    await TestRenderer.act(async () => { finishReset({}); await Promise.resolve() })
+    await settle()
+
+    await TestRenderer.act(async () => { reopen(); await Promise.resolve() })
+
+    expect(hosts(tree).some((node) => node.props.testID === 'result-dialog')).toBe(false)
+    expect(textOf(heading(tree)!)).toBe(messages.profile.freshStart.question)
+  })
+
   it('keeps the confirmation step with the failure text when the reset fails', async () => {
     mocks.language = language
     mocks.apiClient.mockRejectedValue(new Error('Failed'))
@@ -145,6 +190,23 @@ describe.each([{ language: 'en', messages: en }, { language: 'pt-BR', messages: 
     await settle()
     expect(mocks.apiClient).toHaveBeenCalledOnce()
     expect(mocks.push).toHaveBeenCalledWith('/step-up?operation=delete')
+  })
+
+  it('hands the flow to the code question without reporting it as left', async () => {
+    mocks.language = language
+    function Harness() {
+      const [open, setOpen] = React.useState(true)
+      return <DeleteAccountModal open={open} guided profile={proProfile} onClose={() => setOpen(false)} />
+    }
+    const tree = await render(<Harness />)
+    await press(tree, messages.common.continue)
+    await press(tree, messages.profile.deleteAccount.sendCode)
+    await settle()
+    expect(mocks.push).toHaveBeenCalledWith('/step-up?operation=delete')
+    expect(hosts(tree)).toHaveLength(0)
+    const events = mocks.event.mock.calls.map(([event]) => (event as { name: string }).name)
+    expect(events).toContain('guided_flow_step_viewed')
+    expect(events).not.toContain('guided_flow_abandoned')
   })
 
   it('blocks the flow offline with the reason and no action', async () => {
