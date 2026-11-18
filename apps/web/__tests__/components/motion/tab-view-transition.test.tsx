@@ -32,7 +32,7 @@ vi.mock('@/components/ui/lockup', () => ({ Lockup: () => <div>Orbit</div> }))
 import { RouteTransitionShell } from '@/components/motion/route-transition-shell'
 import { TabViewTransition } from '@/components/motion/tab-view-transition'
 import { ShellWide } from '@/components/shell/shell-wide'
-import { getCurrentRouteTransitionIntent, resetRouteTransitionIntent, setRouteTransitionIntent } from '@/lib/motion/route-intent'
+import { claimRouteTransitionIntent, getCurrentRouteTransitionIntent, resetRouteTransitionIntent, setRouteTransitionIntent } from '@/lib/motion/route-intent'
 
 const parsedStylesheet = postcss.parse(readFileSync(resolve(process.cwd(), 'app/globals.css'), 'utf8'))
 const TAB_SWITCH = ':root:active-view-transition'
@@ -205,7 +205,10 @@ describe('TabViewTransition', () => {
     navigation.pathname = '/'
     view.rerender(page('/'))
 
-    act(() => setRouteTransitionIntent('tab'))
+    act(() => {
+      setRouteTransitionIntent('tab')
+      claimRouteTransitionIntent('/calendar', 'push')
+    })
     act(() => { vi.runOnlyPendingTimers() })
     expect(getCurrentRouteTransitionIntent()).toBe('tab')
 

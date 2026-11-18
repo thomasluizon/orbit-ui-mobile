@@ -49,6 +49,7 @@ describe('route intent lifetime', () => {
   function traverseTo(entry: string) {
     window.history.replaceState(null, '', entry)
     window.dispatchEvent(new PopStateEvent('popstate'))
+    onRouterTransitionStart(window.location.href, 'traverse')
   }
 
   function endTask() {
@@ -102,7 +103,6 @@ describe('route intent lifetime', () => {
     showPage('/calendar')
 
     traverseTo('/')
-    onRouterTransitionStart(window.location.href, 'traverse')
     endTask()
 
     expect(getCurrentRouteTransitionIntent()).toBe('back')
@@ -112,19 +112,28 @@ describe('route intent lifetime', () => {
     showPage('/?date=2026-11-17')
 
     traverseTo('/?date=2026-11-16')
-    onRouterTransitionStart(window.location.href, 'traverse')
     endTask()
 
     expect(getCurrentRouteTransitionIntent()).toBe('neutral')
   })
 
-  it('clears the back intent of a history entry that the router does not restore', () => {
-    traverseTo('/#section')
-    expect(getCurrentRouteTransitionIntent()).toBe('back')
-
-    endTask()
+  it('writes no intent for a history entry that the router does not restore', () => {
+    window.history.replaceState(null, '', '/#section')
+    window.dispatchEvent(new PopStateEvent('popstate'))
 
     expect(getCurrentRouteTransitionIntent()).toBe('neutral')
+  })
+
+  it('replaces the kept intent of an earlier task with the back intent of a traversal', () => {
+    setRouteTransitionIntent('tab')
+    onRouterTransitionStart('/calendar', 'push')
+    endTask()
+    showPage('/calendar')
+
+    traverseTo('/')
+    endTask()
+
+    expect(getCurrentRouteTransitionIntent()).toBe('back')
   })
 
   it('gives no intent to a later navigation that wrote none', () => {
@@ -142,15 +151,15 @@ describe('route intent lifetime', () => {
     showPage('/habits/new')
     setRouteTransitionIntent('instant')
     onRouterTransitionStart('/calendar', 'push')
-    onRouterTransitionStart(window.location.href, 'traverse')
+    traverseTo('/habits/new')
     endTask()
 
     expect(getCurrentRouteTransitionIntent()).toBe('instant')
   })
 
   it('gives a later intent in the same task to the navigation that follows it', () => {
-    traverseTo('/')
-    onRouterTransitionStart(window.location.href, 'traverse')
+    showPage('/habits/new')
+    traverseTo('/habits/new')
     setRouteTransitionIntent('instant')
     onRouterTransitionStart('/calendar', 'push')
     endTask()
