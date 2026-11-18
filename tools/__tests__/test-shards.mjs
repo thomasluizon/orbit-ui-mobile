@@ -181,6 +181,12 @@ export const cases = async () => {
   }
   const sizes = [[1, 1], [4, 4], [8, 8], [16, 8], [0, 1], [4.9, 4]].map(([cores, expected]) => [cores, expected, localShardCount(cores)])
   T(`${TOOL}: a full local run starts one shard for each core, at most ${MAX_LOCAL_SHARDS}, and at least one`, sizes.every(([, expected, actual]) => actual === expected), JSON.stringify(sizes))
+  const capComment = /(\/\*\*[^\n]*\*\/)\nexport const MAX_LOCAL_SHARDS/.exec(readFileSync(toolPath("lib/test-shards.mjs"), "utf8"))?.[1] ?? ""
+  T(`${TOOL}: the comment of MAX_LOCAL_SHARDS names the tool-tests matrix of test.yml and does not call the cap the CI shard count`,
+    capComment.includes("tool-tests matrix in test.yml") && !/CI shard count/.test(capComment), capComment)
+  const helpText = run("test-tools.mjs", ["--help"]).stdout
+  T(`${TOOL}: the --parallel usage text says CI runs its own shard count and does not call a local run the local form of the CI shards`,
+    /CI runs the tool-tests matrix of test\.yml/.test(helpText) && !/local form of the\s+CI shards/.test(helpText), helpText)
   const automatic = run("test-tools.mjs", ["--parallel", "auto", "--list"])
   T(`${TOOL}: --parallel auto is a parallel run, so it refuses --list`, automatic.status === 2 && /--parallel cannot combine/.test(automatic.stderr), automatic.stderr)
   await parallelCases()

@@ -25,8 +25,9 @@ const USAGE = `usage: test-tools.mjs
   --shard <i/n>  run shard i of n (1-based). The shards partition every case module, so
                  running all n shards runs every module once. Cannot combine with --only
   --parallel <n> run the complete gate as shards 1/n to n/n in n processes at one time, print each
-                 shard's output when it ends, and fail when one shard fails. The local form of the
-                 CI shards: use --parallel auto for a full local run, one shard for each core up to 8.
+                 shard's output when it ends, and fail when one shard fails. The partition is the one the
+                 CI shards use, with a count of its own: CI runs the tool-tests matrix of test.yml, and
+                 --parallel auto starts one shard for each core, up to 8. Use it for a full local run.
                  More shards than free cores fail the timed cases from CPU starvation.
                  Cannot combine with --only or --shard
   --list         print the selected case module names, one per line, and exit 0 without running them
