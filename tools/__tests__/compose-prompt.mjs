@@ -59,7 +59,7 @@ const readOnlyCases = () => {
   const review = composed(reviewPath)
   T(`${TOOL}: the review order embeds the playbook brief and its contract`,
     review.startsWith("# Read-only review of thomasluizon/orbit-ui-mobile pull request #2145") && review.includes("The lenses:") &&
-      review.includes("## Read-only review contract") && review.includes(`git diff $(git merge-base origin/main ${HEAD}) ${HEAD}`) &&
+      review.includes("## Read-only review contract") && review.includes(`git diff origin/main...${HEAD}`) && !review.includes("$(") &&
       review.includes("`VERDICT: CLEAN`") && review.includes("`VERDICT: DEFECTS (<n>)`") && review.includes("at most 12 lines") &&
       review.includes("No GitHub write") && !review.includes("#### The review brief"),
     review)

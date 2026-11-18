@@ -70,7 +70,34 @@ const ALLOWED_PROGRAMS = ["git", "gh", "node", "npm", "npx", "pnpm", "yarn", "tu
   "grep", "egrep", "fgrep", "rg", "cut", "sed", "awk", "wc", "sort", "uniq", "tr", "jq", "ls", "mkdir", "cp", "mv", "touch", "ln", "chmod", "date", "basename", "dirname",
   "sleep", "rm", "rmdir", "find", "diff", "cmp", "comm", "paste", "column", "fold", "nl", "rev", "seq", "expr", "realpath", "readlink", "tee", "stat", "file", "du", "df",
   "shasum", "sha256sum", "md5", "md5sum", "base64", "xxd", "od", "hexdump", "strings", "iconv", "mktemp", "printenv", "uname", "whoami", "id", "hostname", "ps", "lsof",
-  "curl", "which", "man", "sw_vers", "orca"]
+  "curl", "which", "man", "sw_vers", "orca", "adb", "emulator", "xcrun", "tar"]
+/**
+ * The words that start a list of a compound command, so the command word follows them. The reader never gives them as a command word, but a rule
+ * that reads a command it cannot model, such as a script of `package.json`, strips them from the start of a text segment.
+ */
+export const LIST_START_WORDS = new Set(["if", "then", "elif", "else", "do", "while", "until", "!", "{"])
+/**
+ * `tar` takes only the options that list or extract: a cluster of these letters (`f` and `C` take the next word), `--directory`, `--file` and
+ * `--strip-components` with a value, and a few flags. Each other option can run a program (`-I`, `--use-compress-program`, `--to-command`,
+ * `--checkpoint-action`, `--info-script`, `--rsh-command`), so the reader refuses it.
+ */
+const TAR_LETTERS = /^[xtvzjJpkmfCO]+$/
+const TAR_FLAGS = new Set(["--extract", "--get", "--list", "--verbose", "--gzip", "--bzip2", "--xz", "--keep-old-files", "--no-same-owner", "--no-same-permissions"])
+const TAR_VALUE_OPTIONS = new Set(["--directory", "--file", "--strip-components"])
+/** The first option word of `tar` that is not in the allow list, or null. The first word with no `-` is an old style cluster such as `xf`, or a file name. */
+function refusedTarOption(args) {
+  const texts = args.map((word) => word.text)
+  for (let index = 0; index < texts.length; index++) {
+    const text = texts[index]
+    if (TAR_FLAGS.has(text) || /^--(?:directory|file|strip-components)=/.test(text)) continue
+    if (TAR_VALUE_OPTIONS.has(text)) { index++; continue }
+    const cluster = text.startsWith("-") ? text.slice(1) : index === 0 && TAR_LETTERS.test(text) ? text : null
+    if (cluster === null) continue
+    if (!TAR_LETTERS.test(cluster)) return text
+    index += [...cluster].filter((letter) => letter === "f" || letter === "C").length
+  }
+  return null
+}
 /** Each command word that the reader allows: the wrappers that do not change the user, the allowed builtins, the allowed programs and the POSIX shells. Each other command word is refused. */
 export const KNOWN_COMMAND_WORDS = [...new Set([...WRAPPERS, ...ALLOWED_BUILTINS, ...ALLOWED_PROGRAMS, ...SCRIPT_SHELLS])].filter((word) => !USER_WRAPPERS.has(word))
 /** zsh runs the words after each one as a command, or reads it as a part of a compound command. bash reads the name of a program. */
@@ -664,6 +691,9 @@ function checkCommand(command, place) {
       if (!whole || args[0].text.startsWith("-") || args[0].fixed) notModelled("a `cd` that is not one whole simple command `cd PATH` at the top level of the line, with a literal path")
     }
     if (name === "set" && args.some((word) => !/^[-+][eux]+$/.test(word.text))) notModelled("`set` with a word other than the options -e, -u and -x")
+    if (name === "xcrun" && args[0]?.text !== "simctl") notModelled("an `xcrun` with a word other than `simctl` first, because `xcrun` resolves and runs any developer tool by its name, `xcrun git` included")
+    const tarOption = name === "tar" ? refusedTarOption(args) : null
+    if (tarOption) notModelled(`the \`tar\` word \`${tarOption}\`, which is not an option that lists or extracts. Other \`tar\` options can run a program`)
     if (name === "printf" && args.some((word) => /^-[A-Za-z]*v/.test(word.text))) notModelled("`printf -v`, which assigns to a name that bash can read as a subscript")
     if (DECLARATION_BUILTINS.has(name)) {
       for (const word of args) {

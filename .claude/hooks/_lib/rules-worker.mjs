@@ -3,8 +3,8 @@ import { dirname, join, relative, resolve } from "node:path"
 
 import { expandCommands } from "./command-expander.mjs"
 import { dropLeadingFlags } from "./rules-dependencies.mjs"
-import { stripHeredocBodies, unquotedHeredocRunsCommand } from "./rules-git.mjs"
-import { readsStandardInput, SHELLS } from "./shell-subset.mjs"
+import { stripHeredocBodies } from "./rules-git.mjs"
+import { invocationsOf, LIST_START_WORDS, PLAIN_SUBSET_ADVICE, programName, readCommand, walkCommands } from "./shell-subset.mjs"
 import { insideLinkedWorktree } from "./repo-roots.mjs"
 
 /** The launcher exports this into every worker it starts (tools/launch-worker.mjs). */
@@ -44,21 +44,8 @@ const CURL_BODY_FLAGS = new Set(["-d", "--data", "--data-raw", "--data-binary", 
 
 /** Binaries whose arguments are PROSE. A commit message naming `npm run dev` is not a dev server. */
 const BROWSER_DRIVERS = new Set(["playwright", "maestro", "cypress", "puppeteer", "chromedriver", "geckodriver", "webdriver", "adb", "emulator"])
-/** Package runners that front another program. The real invocation is whatever follows them. */
-const RUNNER_PREFIXES = new Set(["npx", "bunx", "sudo", "command", "time"])
-/** Shell reserved words that start a segment: `if true; then X; fi` splits into `if true`, `then X` and `fi`, and X is the command. */
-const RESERVED_WORDS = new Set(["if", "then", "elif", "else", "do", "while", "until", "!", "{"])
-/**
- * Prefixes that run the program after them. `values` holds the flags that take the next word, and
- * `operands` the words that follow the flags before the program: the duration of `timeout`.
- */
-const EXEC_PREFIXES = new Map([
-  ["exec", { values: new Set(["-a"]), operands: 0 }],
-  ["nohup", { values: new Set(), operands: 0 }],
-  ["nice", { values: new Set(["-n", "--adjustment"]), operands: 0 }],
-  ["timeout", { values: new Set(["-s", "--signal", "-k", "--kill-after"]), operands: 1 }],
-  ["xargs", { values: new Set(["-n", "--max-args", "-I", "--replace", "-P", "--max-procs", "-L", "--max-lines", "-d", "--delimiter", "-E", "-s", "--max-chars", "-a", "--arg-file"]), operands: 0 }],
-])
+/** Package runners that front another program. The real invocation is whatever follows them. The shell wrappers are the `WRAPPERS` of `shell-subset.mjs`. */
+const RUNNER_PREFIXES = new Set(["npx", "bunx"])
 const RUNNER_SUBCOMMANDS = new Map([
   ["pnpm", "dlx"],
   ["yarn", "dlx"],
@@ -73,8 +60,6 @@ const NETWORK_CLIENTS = new Set(["curl", "wget", "http", "https", "httpie", "ope
 const LOCAL_URL = /(?:https?:\/\/)?(?:localhost|127\.0\.0\.1|0\.0\.0\.0|\[::1\])(?::\d+)(?:[/?#]|$)|https?:\/\/(?:localhost|127\.0\.0\.1|0\.0\.0\.0|\[::1\])(?:[/?#]|$)/i
 
 const SEGMENT_SPLIT = /[&|;\n]+/
-/** `expandCommands` writes this in place of a `$(…)` or backtick substitution it has lifted into its own segment. */
-const SUBSTITUTION_PLACEHOLDER = "__substitution__"
 
 /**
  * The commands a guard judges: each executable body of `command`, with `bash -c`, `sh -c`, `eval`,
@@ -89,6 +74,8 @@ function executableSegments(command) {
   }
 }
 
+/** The action of a command whose nesting is too deep to inspect. */
+const UNINSPECTABLE_ACTION = "a command nested too deep to inspect"
 /** The refusal for a command whose nesting is too deep to inspect. */
 const UNINSPECTABLE = {
   block: true,
@@ -113,45 +100,14 @@ function tokensOf(segment) {
   return rest.trim().split(/\s+/).filter(Boolean)
 }
 
-/** Drops `env` with its flags and NAME=value operands, so `env A=1 adb devices` is judged as `adb devices`. */
-function withoutEnv(tokens) {
-  let index = 1
-  while (index < tokens.length) {
-    const token = tokens[index]
-    if (token === "-u" || token === "--unset") index += 2
-    else if (token.startsWith("-") || /^[A-Za-z_][A-Za-z0-9_]*=/.test(token)) index += 1
-    else break
-  }
-  return tokens.slice(index)
-}
-
-/** Drops an exec-style prefix with its flags, their values and its operands, so `timeout 30 adb devices` is judged as `adb devices`. */
-function withoutExecPrefix(tokens, { values, operands }) {
-  let index = 1
-  while (index < tokens.length && tokens[index].startsWith("-")) index += values.has(tokens[index]) ? 2 : 1
-  return tokens.slice(index + operands)
-}
-
 /**
- * Strips shell reserved words, exec-style prefixes and package-runner prefixes, so `do adb devices`,
- * `exec adb devices` and `npx playwright test` are judged as the program that follows them.
+ * Drops a package runner and its flags, so `npx playwright test` is judged as `playwright test`. The tokens are the program and
+ * its arguments, with no shell wrapper: `invocationsOf` of `shell-subset.mjs` already took those away.
  */
 function withoutRunners(tokens) {
   let rest = tokens
   for (let guard = 0; guard < 8 && rest.length > 1; guard += 1) {
     const binary = normalize(rest[0])
-    if (RESERVED_WORDS.has(binary)) {
-      rest = rest.slice(1)
-      continue
-    }
-    if (EXEC_PREFIXES.has(binary)) {
-      rest = withoutExecPrefix(rest, EXEC_PREFIXES.get(binary))
-      continue
-    }
-    if (binary === "env") {
-      rest = withoutEnv(rest)
-      continue
-    }
     if (RUNNER_PREFIXES.has(binary)) {
       rest = dropLeadingFlags(rest.slice(1))
       continue
@@ -165,6 +121,17 @@ function withoutRunners(tokens) {
   return rest
 }
 
+/**
+ * The programs of a text segment that the reader of `shell-subset.mjs` cannot model, each one as its words: the segment with its leading list
+ * words (`do`, `then`) and each shell wrapper taken away by `invocationsOf`.
+ */
+function textInvocations(segment) {
+  const tokens = tokensOf(segment).map((token) => token.replaceAll(/["']/g, ""))
+  let start = 0
+  while (start < tokens.length && LIST_START_WORDS.has(tokens[start])) start += 1
+  return invocationsOf(tokens.slice(start).map((text) => ({ text, dynamic: "" }))).map(({ program, args }) => [program.text, ...args.map((word) => word.text)])
+}
+
 const OWNER_EMULATOR_ACTION = "the owner's emulator"
 
 /** Whether a device proof segment reaches the owner's emulator: by name, or through the tool whose default AVD it is. */
@@ -175,31 +142,6 @@ function reachesOwnerEmulator(tokens) {
 
 const UNPINNED_ACTION = "an unpinned device"
 const unquote = (token) => String(token ?? "").replaceAll(/["']/g, "")
-
-/** `env -i`, `env --ignore-environment` and the legacy `env -` start the program with an empty environment, so the pinned variables are gone. */
-function clearsEnvironment(tokens) {
-  return tokens.some((token, start) => {
-    if (normalize(token) !== "env") return false
-    for (let index = start + 1; index < tokens.length; index += 1) {
-      const word = unquote(tokens[index])
-      if (word === "-" || word === "--ignore-environment" || /^-[A-Za-z]*i[A-Za-z]*$/.test(word)) return true
-      if (word === "-u" || word === "--unset") index += 1
-      else if (!word.startsWith("-") && !/^[A-Za-z_][A-Za-z0-9_]*=/.test(word)) return false
-    }
-    return false
-  })
-}
-
-/** `export -n NAME`, `declare +x NAME` and `typeset +x NAME` keep the variable in the shell and take it out of the environment of the program. */
-function unexportsPinned(tokens) {
-  return tokens.some((token, start) => {
-    const builtin = normalize(token)
-    const unexport = builtin === "export" ? /^-[A-Za-z]*n/ : builtin === "declare" || builtin === "typeset" ? /^\+[A-Za-z]*x/ : null
-    if (unexport === null) return false
-    const words = tokens.slice(start + 1).map(unquote)
-    return words.some((word) => unexport.test(word)) && words.some((word) => [PINNED_SERIAL, PINNED_PORT].includes(word.split("=")[0]))
-  })
-}
 
 /**
  * A token with a reference to a pinned variable, `$NAME` or `${NAME}` bare or quoted, read as the
@@ -222,17 +164,37 @@ function flagValue(tokens, flag) {
   return joined === undefined ? null : unquote(joined.slice(flag.length + 1))
 }
 
+const PINNED_NAMES = [PINNED_SERIAL, PINNED_PORT]
+/** The builtins whose words are `NAME=value`: the reader allows no option for them. */
+const ASSIGNING_BUILTINS = new Set(["export", "declare", "typeset", "local", "readonly"])
+const NAME_ASSIGNMENT = /^([A-Za-z_][A-Za-z0-9_]*)(\+?)=(.*)$/s
+
 /**
- * Whether a proof segment leaves the device that the launcher pinned: it clears or changes the pinned
- * serial, names another serial or another adb server, or boots an emulator on another console port.
- * adb reaches every running emulator by serial, so only the pinned serial keeps the owner's emulator safe.
+ * Whether a command of a proof changes a pinned variable: an assignment or an `env` word with another value or with a value that
+ * the reader cannot know, an `export` of such an assignment, or an `unset` of the name. `env -i`, `env -u`, `export -n`
+ * and `declare +x` are options that the reader refuses, so no rule here reads them.
  */
-function leavesPinnedDevice(segment, tokens, pin) {
-  if (clearsEnvironment(tokensOf(segment)) || unexportsPinned(tokensOf(segment))) return true
-  for (const [name, value] of [[PINNED_SERIAL, pin.serial], [PINNED_PORT, pin.port]]) {
-    if (new RegExp(`\\bunset\\b[^\\n]*\\b${name}\\b`).test(segment) || new RegExp(`(?:^|\\s)(?:-u|--unset)[\\s=]*${name}\\b`).test(segment)) return true
-    for (const match of segment.matchAll(new RegExp(`\\b${name}=(["']?)([^\\s"']*)\\1`, "g"))) if (match[2] !== value) return true
-  }
+function changesPinnedVariable({ assignments, invocations }, pin) {
+  const pinned = { [PINNED_SERIAL]: pin.serial, [PINNED_PORT]: pin.port }
+  const assigned = [
+    ...assignments,
+    ...invocations.flatMap(({ before }) => before),
+    ...invocations.filter(({ program }) => ASSIGNING_BUILTINS.has(programName(program.text))).flatMap(({ args }) => args),
+  ]
+  const changed = assigned.some((word) => {
+    const match = NAME_ASSIGNMENT.exec(word.text)
+    return match !== null && PINNED_NAMES.includes(match[1]) && (match[2] === "+" || word.dynamic !== "" || match[3] !== pinned[match[1]])
+  })
+  const unset = invocations.some(({ program, args }) => programName(program.text) === "unset" && args.some((word) => PINNED_NAMES.includes(word.text)))
+  return changed || unset
+}
+
+/**
+ * Whether an `adb`, `emulator` or emulator tool call of a proof leaves the device that the launcher pinned: it names another serial or
+ * another adb server, or boots an emulator on another console port. adb reaches every running emulator by serial, so only the pinned
+ * serial keeps the owner's emulator safe.
+ */
+function leavesPinnedDevice(tokens, pin) {
   const binary = normalize(tokens[0])
   const bootTool = binary === "node" && normalize(tokens[1]) === "android-emulator.mjs"
   if (binary !== "adb" && binary !== "emulator" && !bootTool) return false
@@ -252,15 +214,15 @@ function leavesPinnedDevice(segment, tokens, pin) {
   return port === null || pinnedValue(port, pin) !== pin.port
 }
 
-/** What a segment starts, or null. Judged on the program and its arguments, never on stray text. */
-function forbiddenAction(segment, deviceProof) {
-  const tokens = withoutRunners(tokensOf(segment))
+/** What a program with these words starts, or null. Judged on the program and its arguments, never on stray text. */
+function forbiddenAction(words, deviceProof) {
+  const tokens = withoutRunners(words)
   if (tokens.length === 0) return null
   const binary = normalize(tokens[0])
   const args = tokens.slice(1).filter((token) => !token.startsWith("-")).map(normalize)
 
   if (deviceProof && reachesOwnerEmulator(tokens)) return OWNER_EMULATOR_ACTION
-  if (deviceProof && leavesPinnedDevice(segment, tokens, deviceProof)) return UNPINNED_ACTION
+  if (deviceProof && leavesPinnedDevice(tokens, deviceProof)) return UNPINNED_ACTION
   if (deviceProof && DEVICE_DRIVERS.has(binary)) return null
   if (BROWSER_DRIVERS.has(binary)) return "a browser driver or an emulator"
   if (DEV_BINARIES.has(binary) && (args[0] === "dev" || (["vite", "remix"].includes(binary) && (!tokens[1] || tokens[1].startsWith("-"))))) return "a dev server"
@@ -362,24 +324,58 @@ function scriptTargets(invocation, cwd) {
   return invocation.workspaces.map((workspace) => packages.find(({ manifest, path }) => manifest.name === workspace || path === workspace))
 }
 
-function inspectSegment(segment, cwd, depth, activeScripts, deviceProof) {
-  const directAction = forbiddenAction(segment, deviceProof)
-  if (directAction) return directAction
-  const invocation = scriptInvocation(withoutRunners(tokensOf(segment)))
+/** The refusal of a proof for a command that the reader cannot model: nothing proves that the command leaves the pinned device. */
+const UNREADABLE_PROOF_ACTION = "a command that the hook cannot read"
+
+/** The action that a program with these words starts, or the action of the package script that it runs. `source` is the text that a message shows. */
+function inspectWords(words, source, context) {
+  const { cwd, depth, activeScripts, deviceProof } = context
+  const directAction = forbiddenAction(words, deviceProof)
+  if (directAction) return { action: directAction, source }
+  const invocation = scriptInvocation(withoutRunners(words))
   if (!invocation) return null
   const targets = scriptTargets(invocation, cwd)
-  if (!invocation.script || !targets?.length || targets.some((target) => !target)) return "an unresolved package script"
+  if (!invocation.script || !targets?.length || targets.some((target) => !target)) return { action: "an unresolved package script", source }
   for (const target of targets) {
     const script = target.manifest.scripts?.[invocation.script]
     const identity = `${target.directory}:${invocation.script}`
-    if (typeof script !== "string" || depth >= SCRIPT_DEPTH_LIMIT || activeScripts.has(identity)) return "an unresolved package script"
-    const nextActive = new Set(activeScripts).add(identity)
-    for (const scriptSegment of stripHeredocBodies(script).split(SEGMENT_SPLIT)) {
-      const action = inspectSegment(scriptSegment, target.directory, depth + 1, nextActive, deviceProof)
-      if (action) return action
-    }
+    if (typeof script !== "string" || depth >= SCRIPT_DEPTH_LIMIT || activeScripts.has(identity)) return { action: "an unresolved package script", source }
+    const found = judgeCommand(script, { ...context, cwd: target.directory, depth: depth + 1, activeScripts: new Set(activeScripts).add(identity) })
+    if (found) return found
   }
   return null
+}
+
+/**
+ * The first action of `command` that a worker may not start, as `{ action, source, reason }`, or null. A command in the modelled subset is judged
+ * on the program and the words that `readCommand` and `invocationsOf` find. Another command is judged on the text segments of the expander, and a
+ * proof refuses it when no segment is an action, because nothing proves what such a command does to the pinned device.
+ */
+function judgeCommand(command, context) {
+  const read = readCommand(command)
+  const calls = []
+  const reason = read.notModelled || walkCommands(read.list, null, (call) => { calls.push(call); return null })
+  if (reason === "") {
+    for (const call of calls) {
+      const invocations = invocationsOf(call.words)
+      const source = call.words.map((word) => word.text).join(" ")
+      if (context.deviceProof && changesPinnedVariable({ assignments: call.assignments, invocations }, context.deviceProof)) return { action: UNPINNED_ACTION, source }
+      for (const { program, args } of invocations) {
+        const found = inspectWords([program, ...args].map((word) => word.text), source, context)
+        if (found) return found
+      }
+    }
+    return null
+  }
+  const segments = executableSegments(command)
+  if (segments === null) return { action: UNINSPECTABLE_ACTION, source: command }
+  for (const segment of segments) {
+    for (const words of textInvocations(segment)) {
+      const found = inspectWords(words, segment, context)
+      if (found) return found
+    }
+  }
+  return context.deviceProof ? { action: UNREADABLE_PROOF_ACTION, source: command, reason } : null
 }
 
 /**
@@ -393,43 +389,41 @@ export function checkWorkerBrowser(command, { env = {}, cwd = "", repoRoots = []
   if (!isWorker) return null
   const deviceProof = env[DEVICE_PROOF_MARKER] === "1" ? { serial: env[PINNED_SERIAL] ?? "", port: env[PINNED_PORT] ?? "" } : null
 
-  const segments = executableSegments(command)
-  if (segments === null) return UNINSPECTABLE
-  for (const segment of segments) {
-    const action = inspectSegment(segment, cwd, 0, new Set(), deviceProof)
-    if (!action) continue
-    if (action === OWNER_EMULATOR_ACTION) {
-      return {
-        block: true,
-        message:
-          `A device proof may not use the owner's emulator ${OWNER_EMULATOR}. Refused: ${segment.trim().slice(0, 160)}\n\n` +
-          "Use the simulators that the order names, or create one throwaway AVD from the installed arm64 play image,\n" +
-          "run it headless with no personal account, and delete it when the proof ends. Pass --avd <throwaway name>\n" +
-          "to node tools/android-emulator.mjs, whose default AVD is the owner's.",
-      }
-    }
-    if (action === UNPINNED_ACTION) {
-      return {
-        block: true,
-        message:
-          `A device proof may use only its pinned device ${deviceProof.serial || "(the launcher pinned none)"}. Refused: ${segment.trim().slice(0, 160)}\n\n` +
-          `The launcher sets ${PINNED_SERIAL} and ${PINNED_PORT}. Boot the throwaway AVD with\n` +
-          `node tools/android-emulator.mjs --avd <throwaway name> --port $${PINNED_PORT}, run adb with no device flag\n` +
-          `or with -s $${PINNED_SERIAL}, and never clear or change either variable.`,
-      }
-    }
+  const found = judgeCommand(command, { cwd, depth: 0, activeScripts: new Set(), deviceProof })
+  if (!found) return null
+  const { action, source, reason } = found
+  if (action === UNINSPECTABLE_ACTION) return UNINSPECTABLE
+  if (action === UNREADABLE_PROOF_ACTION) return unreadable(reason, "a device proof")
+  if (action === OWNER_EMULATOR_ACTION) {
     return {
       block: true,
       message:
-        `A worker may not start ${action}. Refused: ${segment.trim().slice(0, 160)}\n\n` +
-        "Do the code and the tests, commit, push, open the pull request, and stop. Workers never merge.\n" +
-        "Visual inspection is owed by a HUMAN, once for the whole redesign during D90, with no\n" +
-        "per-screen human wait. See .claude/playbooks/redesign-screen.md. A fresh worktree cannot authenticate.\n" +
-        "Run the full Vitest suites, including headless Chromium geometry tests. No Playwright,\n" +
-        "no e2e/, no layout guard, no dev server, no emulator.",
+        `A device proof may not use the owner's emulator ${OWNER_EMULATOR}. Refused: ${source.trim().slice(0, 160)}\n\n` +
+        "Use the simulators that the order names, or create one throwaway AVD from the installed arm64 play image,\n" +
+        "run it headless with no personal account, and delete it when the proof ends. Pass --avd <throwaway name>\n" +
+        "to node tools/android-emulator.mjs, whose default AVD is the owner's.",
     }
   }
-  return null
+  if (action === UNPINNED_ACTION) {
+    return {
+      block: true,
+      message:
+        `A device proof may use only its pinned device ${deviceProof.serial || "(the launcher pinned none)"}. Refused: ${source.trim().slice(0, 160)}\n\n` +
+        `The launcher sets ${PINNED_SERIAL} and ${PINNED_PORT}. Boot the throwaway AVD with\n` +
+        `node tools/android-emulator.mjs --avd <throwaway name> --port $${PINNED_PORT}, run adb with no device flag\n` +
+        `or with -s $${PINNED_SERIAL}, and never clear or change either variable.`,
+    }
+  }
+  return {
+    block: true,
+    message:
+      `A worker may not start ${action}. Refused: ${source.trim().slice(0, 160)}\n\n` +
+      "Do the code and the tests, commit, push, open the pull request, and stop. Workers never merge.\n" +
+      "Visual inspection is owed by a HUMAN, once for the whole redesign during D90, with no\n" +
+      "per-screen human wait. See .claude/playbooks/redesign-screen.md. A fresh worktree cannot authenticate.\n" +
+      "Run the full Vitest suites, including headless Chromium geometry tests. No Playwright,\n" +
+      "no e2e/, no layout guard, no dev server, no emulator.",
+  }
 }
 
 /**
@@ -444,31 +438,16 @@ function bodyFlagValue(token, next) {
   return /^-[fF]./.test(token) ? token.slice(2) : null
 }
 
-/** Whether a raw shell word expands a `$` or backtick substitution: one outside single quotes and not escaped. */
-function expandsSubstitution(word) {
-  let quote = null
-  for (let index = 0; index < word.length; index += 1) {
-    const character = word[index]
-    if (quote === "'") {
-      if (character === "'") quote = null
-    } else if (character === "\\") index += 1
-    else if (character === "$" || character === "`") return true
-    else if (character === quote) quote = null
-    else if (quote === null && (character === "'" || character === '"')) quote = character
-  }
-  return false
-}
-
 /**
  * Whether a `gh api` call writes: a method other than GET, or a body field or input file without an explicit GET.
  * A GraphQL mutation is searched in the whole `command`, because a multi-line query or a heredoc body
  * sits on lines that the segment split separates from the `gh api` call.
  */
-function ghApiWrites(command, tokens) {
-  const rest = tokens.slice(2)
+function ghApiWrites(command, words) {
+  const rest = words.slice(2).map((word) => word.text)
   let method = null
   let body = false
-  // A query from `--input <file>`, a `key=@<file>` field or a shell substitution is text this hook cannot read.
+  // A query from `--input <file>`, a `key=@<file>` field or a word that the shell expands is text this hook cannot read.
   let bodyUnreadable = false
   let endpoint = null
   for (let index = 0; index < rest.length; index += 1) {
@@ -480,16 +459,14 @@ function ghApiWrites(command, tokens) {
     if (value !== null) {
       body = true
       if (token === "--input" || token.startsWith("--input=") || /^[^=]*=@/.test(value)) bodyUnreadable = true
-      const raw = bodyFlagValue(rest[index], rest[index + 1]) ?? ""
-      if (value.startsWith("query=") && expandsSubstitution(raw)) bodyUnreadable = true
     }
     if (GH_API_VALUE_FLAGS.has(token)) index += 1
     else if (!token.startsWith("-") && endpoint === null) endpoint = token
   }
   if (method !== null) return method.toUpperCase() !== "GET"
   if (!body) return false
-  // The expander lifts a substitution out of the segment, and an unquoted one leaves the placeholder as its own word.
-  if (rest.some((token) => token.includes(SUBSTITUTION_PLACEHOLDER))) bodyUnreadable = true
+  // The reader marks a word that a substitution or a variable makes, so it may hold a query or a field that this hook cannot read.
+  if (words.slice(2).some((word) => word.dynamic !== "")) bodyUnreadable = true
   // A GraphQL query is a POST with a body field; only a mutation writes, and a query the hook cannot read may be one.
   return endpoint !== "graphql" || bodyUnreadable || /\bmutation\b/i.test(command)
 }
@@ -514,31 +491,33 @@ function showsToken(tokens) {
 const GH_BARE_FLAGS = new Set(["--version", "--help", "-h"])
 
 /**
- * `tokens` of a gh call without the leading `-R <value>`, `--repo <value>`, `--repo=<value>` and `-R<value>`
+ * The words of a gh call without the leading `-R <value>`, `--repo <value>`, `--repo=<value>` and `-R<value>`
  * flags, which gh accepts before the subcommand (`gh -R owner/name pr view 2476`). The program stays first.
  */
-function withoutLeadingRepoFlag(tokens) {
+function withoutLeadingRepoFlag(words) {
   let index = 1
-  while (index < tokens.length) {
-    const token = unquote(tokens[index])
+  while (index < words.length) {
+    const token = unquote(words[index].text)
     if (token === "-R" || token === "--repo") index += 2
     else if (token.startsWith("--repo=") || /^-R./.test(token)) index += 1
     else break
   }
-  return [tokens[0], ...tokens.slice(index)]
+  return [words[0], ...words.slice(index)]
 }
 
 /**
- * Whether a segment of `command` writes to GitHub or reads a credential that could. Judged on the program
+ * Whether a program of `command`, given as its words, writes to GitHub or reads a credential that could. Judged on the program
  * and its arguments; a GraphQL mutation is judged on the whole raw `command`.
  */
-function githubWrite(segment, command) {
-  const runnerTokens = withoutRunners(tokensOf(segment))
+function githubWrite(invocationWords, command) {
+  const runnerTokens = withoutRunners(invocationWords.map((word) => word.text))
+  const runnerWords = invocationWords.slice(invocationWords.length - runnerTokens.length)
   const binary = normalize(runnerTokens[0])
-  const tokens = binary === "gh" ? withoutLeadingRepoFlag(runnerTokens) : runnerTokens
+  const words = binary === "gh" ? withoutLeadingRepoFlag(runnerWords) : runnerWords
+  const tokens = words.map((word) => word.text)
   const args = tokens.slice(1).filter((token) => !token.startsWith("-")).map(normalize)
   if (binary === "gh") {
-    if (args[0] === "api") return ghApiWrites(command, tokens)
+    if (args[0] === "api") return ghApiWrites(command, words)
     if (tokens.length === 1) return false
     // A leading flag other than these three is a global flag this hook does not know, so it fails safe.
     if (tokens[1].startsWith("-")) return !GH_BARE_FLAGS.has(tokens[1])
@@ -550,7 +529,7 @@ function githubWrite(segment, command) {
   }
   if (binary === "security") return args.some((arg) => /^(?:find-(?:generic|internet)-password|dump-keychain|export)$/.test(arg))
   if (binary === "git") return args[0] === "credential" || args[0]?.startsWith("credential-")
-  if (["curl", "wget"].includes(binary) && /github(?:usercontent)?\.com/i.test(segment)) {
+  if (["curl", "wget"].includes(binary) && /github(?:usercontent)?\.com/i.test(tokens.join(" "))) {
     const method = flagValue(tokens, "-X") ?? flagValue(tokens, "--request") ?? flagValue(tokens, "--method") ?? tokens.find((token) => /^-X[A-Za-z]/.test(token))?.slice(2) ?? null
     if (method !== null && method.toUpperCase() !== "GET") return true
     return tokens.some((token) => CURL_BODY_FLAGS.has(unquote(token)) || unquote(token).startsWith("--post-") || unquote(token).startsWith("--data"))
@@ -558,64 +537,33 @@ function githubWrite(segment, command) {
   return false
 }
 
-const REDIRECT_OPERATOR = /^\d*(?:<<<?-?|<>|<&|>&|&>>?|<|>>?)$/
-const REDIRECT_WITH_TARGET = /^\d*(?:<<<?-?|<>|<&|>&|&>>?|<|>>?)./
-
-/** The words of a segment program without its redirects, each operator with its separate target word. */
-function withoutRedirectWords(words) {
-  const kept = []
-  for (let index = 0; index < words.length; index += 1) {
-    if (REDIRECT_OPERATOR.test(words[index])) index += 1
-    else if (!REDIRECT_WITH_TARGET.test(words[index])) kept.push(words[index])
-  }
-  return kept
-}
-
-/** Whether a segment is a shell with no script file and no `-c` string: it reads its commands from a pipe, a heredoc or a file that the hook cannot read. */
-function isShellReadingStandardInput(segment) {
-  const tokens = withoutRunners(tokensOf(segment))
-  return SHELLS.includes(normalize(tokens[0])) && readsStandardInput(withoutRedirectWords(tokens.slice(1)).map(unquote))
-}
-
-const unreadable = (shape) => ({
+/** The refusal for a command that the reader cannot model, in a read-only run or a proof: the guards cannot judge what such a command runs. */
+const unreadable = (reason, runKind = "a read-only run") => ({
   block: true,
-  message:
-    `Refused: this command holds ${shape}, which the hook cannot inspect in a read-only run.\n\n` +
-    "Write the commands as plain commands, each on its own line. Run a script as a file with a literal path,\n" +
-    "such as bash /abs/path.sh, and quote the delimiter of a heredoc, as in <<'EOF'.",
+  message: `Refused: this command holds ${reason}, which the hook cannot inspect in ${runKind}.\n\n${PLAIN_SUBSET_ADVICE}`,
 })
 
 /**
- * The refusal for a command that hides the commands it runs in a form the guards cannot read, or null.
- * The guards judge each segment on its program, so text that a shell reads from stdin, or that an
- * unquoted heredoc expands first, would run with no judgment.
- */
-function unreadableShape(command, segments) {
-  if (segments.some(isShellReadingStandardInput)) return unreadable("a shell that reads its commands from standard input")
-  if (unquotedHeredocRunsCommand(command)) return unreadable("an unquoted heredoc that runs a command substitution")
-  return null
-}
-
-/**
- * A read-only review or proof (launch-worker.mjs --review or --proof) reads GitHub and never writes it.
- * This judges the command text only: a script that calls GitHub itself passes. The worker still holds
- * the owner's token, because the login keychain serves it and the worker's own Claude login together.
- * Returns `{ block, message }` for a GitHub write or a credential read in a read-only run, else null.
+ * A read-only review or proof (launch-worker.mjs --review or --proof) reads GitHub and never writes it. Each program that the reader of
+ * `shell-subset.mjs` finds is judged on its own words, and a command outside the subset is refused. A script that calls GitHub itself passes,
+ * and the worker still holds the owner's token. Returns `{ block, message }` for a GitHub write or a credential read, else null.
  */
 export function checkReadOnlyRun(command, { env = {} } = {}) {
   if (typeof command !== "string" || env[READ_ONLY_MARKER] !== "1") return null
-  const segments = executableSegments(command)
-  if (segments === null) return UNINSPECTABLE
-  const unreadableCommand = unreadableShape(command, segments)
-  if (unreadableCommand) return unreadableCommand
-  for (const segment of segments) {
-    if (!githubWrite(segment, command)) continue
-    return {
-      block: true,
-      message:
-        `A read-only run writes nothing to GitHub and reads no credential. Refused: ${segment.trim().slice(0, 160)}\n\n` +
-        "Read with gh pr view, gh pr diff, gh pr checks, gh run view and gh api GET requests. Put each\n" +
-        "action that needs a write in the result file; the orchestrator does it.",
+  const read = readCommand(command)
+  const calls = []
+  const reason = read.notModelled || walkCommands(read.list, null, (call) => { calls.push(call); return null })
+  if (reason !== "") return unreadable(reason)
+  for (const { words } of calls) {
+    for (const { program, args } of invocationsOf(words)) {
+      if (!githubWrite([program, ...args], command)) continue
+      return {
+        block: true,
+        message:
+          `A read-only run writes nothing to GitHub and reads no credential. Refused: ${words.map((word) => word.text).join(" ").slice(0, 160)}\n\n` +
+          "Read with gh pr view, gh pr diff, gh pr checks, gh run view and gh api GET requests. Put each\n" +
+          "action that needs a write in the result file; the orchestrator does it.",
+      }
     }
   }
   return null

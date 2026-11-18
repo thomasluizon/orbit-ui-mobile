@@ -459,7 +459,7 @@ each of the most severe findings. The orchestrator reads the result file, not yo
 /** The order of a pre-push review, or with `since` of a fix-round review that reads only the newer commits. */
 export const reviewOrder = ({ brief, slug, pullRequest, head, since = null, baseBranch = "main" }) => {
   const scope = since === null
-    ? `Read the whole diff against its merge base: \`git diff $(git merge-base origin/${baseBranch} ${head}) ${head}\`.`
+    ? `Read the whole diff against its merge base: \`git diff origin/${baseBranch}...${head}\`.`
     : `This is a fix round. The previous review read \`${since}\`. Read only the new commits,
 \`git diff ${since}..${head}\`, and the code around each hunk.`
   return `# Read-only review of ${slug} pull request #${pullRequest}
