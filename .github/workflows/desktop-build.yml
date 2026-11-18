@@ -119,6 +119,16 @@ jobs:
           # One key per target. This job is its only writer: Desktop Installed Acceptance and Desktop Release only read it.
           shared-key: desktop-${{ matrix.target }}
           save-if: ${{ github.ref == 'refs/heads/main' }}
+      # Prints the toolchain facts that resolveCppCompiler reads: the same vswhere arguments, then the version of each Clang candidate.
+      - name: Print the Windows Clang candidates
+        if: runner.os == 'Windows'
+        run: |
+          vswhere='C:\Program Files (x86)\Microsoft Visual Studio\Installer\vswhere.exe'
+          installation="$("$vswhere" -latest -products '*' -property installationPath | head -n 1 | tr -d '\r')"
+          echo "vswhere installationPath: $installation"
+          ls "$installation/VC/Tools/Llvm"
+          clang++ --version
+          "$installation/VC/Tools/Llvm/x64/bin/clang++.exe" --version
       # Type Check and the web jsdom shards of Unit Tests prove the desktop types and the web bridge on every pull request.
       - name: Test the desktop shell
         run: npm run test -w @orbit/desktop

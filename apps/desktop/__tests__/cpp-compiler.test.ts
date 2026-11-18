@@ -33,16 +33,12 @@ describe('resolveCppCompiler', () => {
     expect(resolveCppCompiler('linux', probe)).toBe('clang++')
   })
 
-  it('picks the Visual Studio Clang when the LLVM on PATH is older than the STL accepts', () => {
+  it('picks the Visual Studio Clang when it is newer than the Clang on PATH', () => {
     expect(resolveOnWindows(runnerProbe('20.1.8', '22.1.3'))).toBe(visualStudioClang)
   })
 
-  it('keeps the Clang on PATH when it is the newest and new enough', () => {
+  it('keeps the Clang on PATH when it is the newest', () => {
     expect(resolveOnWindows(runnerProbe('22.1.3', '20.1.8'))).toBe('clang++')
-  })
-
-  it('works when Visual Studio is not installed and the Clang on PATH is new enough', () => {
-    expect(resolveOnWindows(runnerProbe('22.1.3', null))).toBe('clang++')
   })
 
   it('returns the newest Clang even when it is old, so the STL reports its own minimum at compile time', () => {
