@@ -2100,17 +2100,20 @@ T("progress: the answer has two parts and no tracking number", {
   builtNotMergedIsSecond: /^2\. \*\*Built, not merged\.\*\*/m.test(progressSkill),
   bansNumbersAndVersions: /no pull request number, ticket number, commit SHA, version number or release\s+run/.test(progressSkill),
   readsWhatHoldsEachItem: progressSkill.includes("isDraft,statusCheckRollup") && progressSkill.includes("`pullfrog-approval`"),
+  restatesThePassRule: progressSkill.includes("`SUCCESS`, `NEUTRAL` or `SKIPPED`") && progressSkill.includes("`PASSING_CONCLUSIONS`") && progressSkill.includes("`CANCELLED` and `TIMED_OUT`"),
   keepsTheWindowStartLine: progressSkill.includes("window.localStartedAt"),
   hasNoOwnerQuestionPart: !progressSkill.includes("What is waiting on the owner"),
-}, { mergedIsFirst: true, builtNotMergedIsSecond: true, bansNumbersAndVersions: true, readsWhatHoldsEachItem: true, keepsTheWindowStartLine: true, hasNoOwnerQuestionPart: true })
-T("progress: --remaining reads the open board in board order and the open pull requests", {
+}, { mergedIsFirst: true, builtNotMergedIsSecond: true, bansNumbersAndVersions: true, readsWhatHoldsEachItem: true, restatesThePassRule: true, keepsTheWindowStartLine: true, hasNoOwnerQuestionPart: true })
+T("progress: --remaining reads the open board in dependency order and the open pull requests", {
   isAnArgument: /^argument-hint: "\[--remaining \| --full\]/m.test(progressSkill),
   readsTheBoardPlan: progressSkill.includes("node tools/plan-queue.mjs --board"),
-  ordersByPosition: progressSkill.includes("`position`"),
+  ordersByDependency: /in dependency order,\s+blockers first, by `position`/.test(progressSkill),
+  claimsNoBoardOrder: !/board order/.test(progressSkill),
+  saysWhenTheBoardIsIncomplete: progressSkill.includes("`counts.requested` of 250 is incomplete") && progressSkill.includes("Exit 2 means the board could not be read"),
   readsTicketBodies: progressSkill.includes("gh issue view <ticket-number> --repo <ticket-repository> --json title,body"),
   linksPullRequestsToTickets: progressSkill.includes("Tracks <ticket-repository>#<ticket-number>"),
   usesNoWindow: /--remaining`[^\n]*\bno window\b/.test(progressSkill),
-}, { isAnArgument: true, readsTheBoardPlan: true, ordersByPosition: true, readsTicketBodies: true, linksPullRequestsToTickets: true, usesNoWindow: true })
+}, { isAnArgument: true, readsTheBoardPlan: true, ordersByDependency: true, claimsNoBoardOrder: true, saysWhenTheBoardIsIncomplete: true, readsTicketBodies: true, linksPullRequestsToTickets: true, usesNoWindow: true })
 
 /**
  * Unresolved conflict markers, committed twice during the GitHub migration and caught both times by

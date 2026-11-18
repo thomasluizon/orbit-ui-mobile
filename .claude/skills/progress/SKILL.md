@@ -204,19 +204,22 @@ its parent. `/orchestrate` and `/merge-prs` own that rule.
    This listing carries every field of the base-chain listing, so one read serves both. A listing
    of 100 rows is incomplete: read it again with a larger limit. Read each pull request and its
    ticket for the behaviour it carries. Each `statusCheckRollup` entry carries `name`, `status` and
-   `conclusion`, and `pullfrog-approval` is the review. Together with `isDraft` they say what holds
-   the work:
+   `conclusion`, and `pullfrog-approval` is the review. A completed entry passes when its
+   `conclusion` is `SUCCESS`, `NEUTRAL` or `SKIPPED`, the rule `PASSING_CONCLUSIONS` in
+   `tools/lib/readiness-receipt.mjs` states. Any other conclusion fails, and `CANCELLED` and `TIMED_OUT`
+   are included. Together with `isDraft` they say what holds the work. Use the first row that applies:
 
    | the row shows | what holds the work |
    |---|---|
    | `isDraft` is true | nobody offered it for review yet |
    | an entry whose `status` is not `COMPLETED` | the checks did not finish |
-   | an entry other than `pullfrog-approval` with `conclusion` `FAILURE` | a check fails: say what that check protects |
-   | `pullfrog-approval` with `conclusion` `FAILURE` | the review asked for a fix |
+   | a completed entry other than `pullfrog-approval` that fails | a check fails: say what that check protects |
+   | `pullfrog-approval` is completed and fails | the review asked for a fix |
    | no `pullfrog-approval` entry | the review did not run yet |
-   | `pullfrog-approval` is `SUCCESS` and no entry is `FAILURE` | only the merge is left |
+   | `pullfrog-approval` is `SUCCESS` and every other entry passes | only the merge is left |
 
-   A value this table does not name is unknown: say that the state could not be read. Work that a
+   A `status` or a `conclusion` that this text does not name is unknown: say that the state could
+   not be read. Work that a
    ledger row or step 4 shows with no pull request is built on a local head: say nobody offered it
    for review yet.
 
@@ -291,10 +294,14 @@ baseline. It keeps the product terms and the ban on numbers and versions of the 
 Read live state:
 
 1. Run `node tools/plan-queue.mjs --board`. It reads every open ticket of the configured project
-   through the ticket adapter and prints one plan. `admitted` rows are in board order by `position`
-   and carry `identifier`, `repo`, `title`, `state` and `blockedBy`. `deferred` rows carry only
-   `identifier`, `reason` and `detail`: they are pending too, and they follow the admitted rows.
-   Exit 1 means the board has no open ticket: say that nothing is pending.
+   through the ticket adapter and prints one plan. `admitted` rows are in dependency order,
+   blockers first, by `position`. The tool does not read the order that the owner sets on the
+   board, so never present this order as the owner's priority. Rows carry `identifier`, `repo`, `title`,
+   `state` and `blockedBy`. `deferred` rows carry only `identifier`, `reason` and `detail`: they are
+   pending too, and they follow the admitted rows. The tool reads at most 250 tickets. A
+   `counts.requested` of 250 is incomplete: run again with a larger `--limit`. Exit 1 means the
+   board has no open ticket: say that nothing is pending. Exit 2 means the board could not be read:
+   say that, and do not report an empty board.
 2. Read each deferred ticket, and each admitted ticket whose title does not say what a person
    gains, with `gh issue view <ticket-number> --repo <ticket-repository> --json title,body`. The
    ticket repository is `tickets.repository` in `.claude/orchestrator.json`.
@@ -304,8 +311,8 @@ Read live state:
    request proves that work started. The board `state` does not: a ticket in `Todo` can have an
    open pull request.
 
-Shape: one heading for each product area, the areas and the items in board order, one line for
-each item. Each line says what a person can do when the item is done, or which capability the run
+Shape: one heading for each product area, the areas and the items in dependency order, one line
+for each item. Each line says what a person can do when the item is done, or which capability the run
 gains, and one of these states:
 
 - Not started.
