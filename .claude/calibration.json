@@ -1,5 +1,5 @@
 {
-  "calibratedAt": "2026-11-16",
+  "calibratedAt": "2026-11-18",
   "classifier": {
     "model": "claude-sonnet-5-5",
     "promptDigest": "780092b4659dfd6e",
@@ -109,8 +109,8 @@
     ".claude/agents/design-reviewer.md": {
       "model": "sonnet",
       "effort": "medium",
-      "digest": "36f90d089cf47a09",
-      "calibratedAt": "2026-11-15",
+      "digest": "a0371051c0ba9dc2",
+      "calibratedAt": "2026-11-18",
       "verdict": "current: judges a diff against DESIGN.md with the spec in front of it, so sonnet at medium effort is right; the rules are written down, which is what keeps it off high."
     },
     ".claude/agents/design-specialist.md": {
@@ -151,8 +151,8 @@
     ".claude/skills/astra-eval/SKILL.md": {
       "model": null,
       "effort": null,
-      "digest": "68b1d9c25e950fa9",
-      "calibratedAt": "2026-11-16",
+      "digest": "cd6fee422de1fdcc",
+      "calibratedAt": "2026-11-18",
       "verdict": "undeclared, inherits the session: runs or extends the configured Astra eval corpus and distinguishes failed behavior from incomplete tool evidence; it declares no model or effort override."
     },
     ".claude/skills/audit-code-quality/SKILL.md": {
@@ -270,8 +270,8 @@
     ".claude/skills/orchestrate/SKILL.md": {
       "model": null,
       "effort": "high",
-      "digest": "9b5caaa751e0908b",
-      "calibratedAt": "2026-11-15",
+      "digest": "4c38523aa18a9ba1",
+      "calibratedAt": "2026-11-18",
       "verdict": "current: high effort; the skill plans the queue, verifies each pull request disposition and merge commit, interprets gate results, and controls merge authority."
     },
     ".claude/skills/prod-readiness/SKILL.md": {
@@ -312,8 +312,8 @@
     ".claude/skills/sleep/SKILL.md": {
       "model": null,
       "effort": null,
-      "digest": "fe7d2c76fffa9e03",
-      "calibratedAt": "2026-11-15",
+      "digest": "5b481c6be78d1018",
+      "calibratedAt": "2026-11-18",
       "verdict": "undeclared, inherits the session: it makes overnight queue decisions, including whether configured lanes are available."
     },
     ".claude/skills/ticket/SKILL.md": {

@@ -379,9 +379,22 @@ describe('the kinds that the change list gained', () => {
   // Producer: PendingOperationChangePreviewer.PreviewCreateAsync gives the reused item `existing?.Id` as its entity id.
   describe('a child draft under a reused parent', () => {
     const wrapperDrafts = recordedWrappers.find((attempt) => attempt.caseId === 'composition-existing-parents-pt-BR').toolCalls.at(-1).arguments.habits
-    const wrapped = (parentIds) => {
-      const held = createBulkPreview(wrapperDrafts.map((draft, index) => ({ ...draft, habit_id: parentIds[index] })))
-      held.items.forEach((item, index) => { item.entityId = parentIds[index] })
+    // Producer: BindReuseFieldsAsync gives each row of a reused item the stored record as its entity and the stored value
+    // of its field as the old value (HabitValues, with the title for the habit_id row and the encoded children for
+    // sub_habits), and PreserveReuseParent adds a parent row that leaves the stored parent as it is. The seeded parents
+    // are daily habits with no emoji and no reminder.
+    const stored = { frequency_unit: 'Day', frequency_quantity: '1', is_general: 'False', is_bad_habit: 'False', is_flexible: 'False' }
+    const wrapped = (parentIds, edits = [{}, {}]) => {
+      const held = createBulkPreview(structuredClone(wrapperDrafts).map((draft, index) => ({ ...draft, habit_id: parentIds[index], ...edits[index] })))
+      held.items.forEach((item, index) => {
+        const title = wrapperDrafts[index].title
+        item.entityId = parentIds[index]
+        for (const field of item.fields) {
+          Object.assign(field, { entityId: parentIds[index], entityName: title,
+            oldValue: field.field === 'title' || field.field === 'habit_id' ? title : field.field === 'sub_habits' ? '[{}]' : stored[field.field] ?? null })
+        }
+        item.fields.push({ ...item.fields[0], field: 'parent_habit_id', oldValue: 'No parent', newValue: 'No parent', proposedValue: null })
+      })
       return held
     }
     const grade = (held) => outcome({ turns: 1, questionsBeforePreview: 0, previews: [held], asked: false, written: [] },
@@ -400,6 +413,26 @@ describe('the kinds that the change list gained', () => {
       const held = wrapped([water, walk])
       held.items[0].fields.find((field) => field.field === 'sub_habits').proposedValue[0].parent_habit_id = 'different-parent'
       expect(grade(held)).toMatchObject({ pass: false })
+    })
+
+    it('keeps a reused parent that the wrapper leaves as it is out of the change list', () => {
+      const { changes } = changeList([wrapped([water, walk])], [], { nestedCreates: true })
+      expect(changes.map((change) => change.kind)).toEqual(['create', 'create'])
+    })
+
+    it.each([
+      ['a new title', { title: 'Renamed heading' }, 'title'],
+      ['an emoji', { emoji: '💊' }, 'emoji'],
+      ['a reminder', { reminder_enabled: true }, 'reminder_enabled'],
+      ['another frequency unit', { frequency_unit: 'Year' }, 'frequency_unit'],
+    ])('lists %s that the wrapper sets on a reused parent as an update of that parent', (_name, edit, field) => {
+      const { changes } = changeList([wrapped([water, walk], [edit, {}])], [], { nestedCreates: true })
+      expect(changes.filter((change) => change.kind === 'update')).toMatchObject([{ target: water, fields: { [field]: expect.anything() } }])
+      expect(grade(wrapped([water, walk], [edit, {}]))).toMatchObject({ pass: false })
+    })
+
+    it('fails an edit of the second reused parent', () => {
+      expect(grade(wrapped([water, walk], [{}, { emoji: '💊' }]))).toMatchObject({ pass: false })
     })
 
     it('gives a child of a new parent no parent field', () => {
