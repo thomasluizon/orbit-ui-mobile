@@ -19,6 +19,8 @@ const SQUASH_SUFFIX_PULL = { number: 2501, author: "thomasluizon", authorType: "
   title: 'Revert "chore(deps): bump next from 16.4.3 to 16.4.5 (#2481)"', url: "https://github.com/thomasluizon/orbit-ui-mobile/pull/2501" }
 /** The gh failure line of a gateway error, in the form of NOT_FOUND. */
 const BAD_GATEWAY = "gh: Bad Gateway (HTTP 502)"
+/** The gh failure line of a deleted issue; the tool reads only the status code, which the REST description lists as the 410 response of Get an issue. */
+const GONE = "gh: Gone (HTTP 410)"
 const quoted = (value) => JSON.stringify(value).replaceAll("'", "'\\''")
 
 /** The CLI against a gh stand-in whose answers are the live projections above. */
@@ -38,7 +40,7 @@ case "$*" in
     if [ -n "\${DISMISS_FAIL:-}" ]; then echo '${NOT_FOUND}' >&2; exit 1; fi
     cat > "${installation.base}/patch-\$(echo "$6" | tr '/' '_').json"; echo '{}';;
   *"repos/thomasluizon/orbit-api/pulls?"*) printf '%s\\n' '${JSON.stringify(DEPENDABOT_PULL)}';;
-  "api repos/thomasluizon/orbit-tickets/issues/2481 --jq "*) if [ -n "\${TICKET_READ_FAILS:-}" ]; then echo '${BAD_GATEWAY}' >&2; else echo '${NOT_FOUND}' >&2; fi; exit 1;;
+  "api repos/thomasluizon/orbit-tickets/issues/2481 --jq "*) if [ -n "\${TICKET_READ_FAILS:-}" ]; then echo '${BAD_GATEWAY}' >&2; elif [ -n "\${TICKET_GONE:-}" ]; then echo '${GONE}' >&2; else echo '${NOT_FOUND}' >&2; fi; exit 1;;
   *"repos/thomasluizon/orbit-ui-mobile/pulls?"*)
     if [ -n "\${SUFFIX_PULL:-}" ]; then printf '%s\\n' '${quoted(SQUASH_SUFFIX_PULL)}'; fi
     if [ -n "\${OWNER_PULL:-}" ]; then printf '%s\\n' '${quoted(CLOSED_TICKET_PULL)}' | sed "s/${CLOSED_TICKET_PULL.head}/\${OWNER_HEAD:-${CLOSED_TICKET_PULL.head}}/"; fi;;
@@ -163,6 +165,12 @@ esac
   const suffixedResult = (() => { try { return JSON.parse(suffixed.stdout) } catch { return {} } })()
   T("github cli: a pull request number in a title is no ticket: its 404 is no failure and the pull request is pending", suffixedResult.pullRequests?.failures.length === 0 &&
     suffixedResult.pullRequests.pending.some((pull) => pull.key === "ui#2501") && suffixedResult.pullRequests.ticketClosed.length === 0, `${suffixed.status} ${suffixed.stdout}${suffixed.stderr}`)
+  /* A deleted ticket answers 410 and names no ticket, as a missing one answers 404: the pull request is listed and pending, never withheld for good. */
+  const deleted = run("auto-work-github.mjs", ["--collect"], { path: installation.path, env: { ...env, SUFFIX_PULL: "1", TICKET_GONE: "1" } })
+  const deletedResult = (() => { try { return JSON.parse(deleted.stdout) } catch { return {} } })()
+  T("github cli: a pull request that names a deleted ticket is listed and pending, with no failure of its own", deletedResult.pullRequests?.failures.length === 0 &&
+    deletedResult.pullRequests.pending.some((pull) => pull.key === "ui#2501") && readRunState(installation.base).intake.pullRequests.open["ui#2501"]?.unread === undefined,
+  `${deleted.status} ${deleted.stdout}${deleted.stderr}`)
   /* A ticket read that fails for another reason withholds only its pull request: the others are listed, and the collection exits 3 and names it. */
   const withheld = run("auto-work-github.mjs", ["--collect"], { path: installation.path, env: { ...env, SUFFIX_PULL: "1", TICKET_READ_FAILS: "1" } })
   const withheldResult = (() => { try { return JSON.parse(withheld.stdout) } catch { return {} } })()
@@ -177,6 +185,14 @@ esac
   const ownerOpen = collectOwner("OPEN", "COMPLETED")
   T("github cli: an owner pull request whose ticket is open stays pending for adoption", ownerOpen.result.pullRequests?.pending.some((pull) => pull.key === "ui#1115") &&
     ownerOpen.result.pullRequests.ticketClosed?.length === 0, `${ownerOpen.status} ${ownerOpen.stdout}${ownerOpen.stderr}`)
+  /* The ticket of an owner pull request is read once in a collection: the issue reads of one collection with the pull request exceed those without it by one. */
+  const issueReads = () => readFileSync(log, "utf8").split("\n").filter((line) => line.startsWith("api repos/thomasluizon/" + "orbit-tickets/issues/2140 --jq")).length
+  writeFileSync(log, "")
+  run("auto-work-github.mjs", ["--collect"], { path: installation.path, env })
+  const readsWithout = issueReads()
+  writeFileSync(log, "")
+  collectOwner("OPEN", "COMPLETED")
+  T("github cli: a collection reads the ticket of an owner pull request once", issueReads() - readsWithout === 1, `${readsWithout} ${issueReads()}`)
   const ownerClosed = collectOwner("CLOSED", "NOT_PLANNED")
   T("github cli: an owner pull request whose ticket closed is listed in ticketClosed with the close reason and is not pending",
     !ownerClosed.result.pullRequests?.pending.some((pull) => pull.key === "ui#1115") &&

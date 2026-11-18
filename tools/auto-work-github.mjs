@@ -78,17 +78,17 @@ try {
   const readTicketState = (number) => readTicket(number, { withProjectItem: false })
   const [pullListing, alertListing] = await Promise.all([listOpenPullRequests({ ...reading, readTicketState }), listOpenAlerts(reading)])
   const otherRuns = otherLiveRuns(intakeRun())
-  const pullTickets = await pullRequestsWithClosedTickets(recordListing("pullRequests", pullListing, undefined, { otherRuns }), readTicketState)
+  const pullTickets = pullRequestsWithClosedTickets(recordListing("pullRequests", pullListing, undefined, { otherRuns }))
   const pulls = recordClosedTicketPullRequests(pullTickets)
   const openPulls = Object.values(pulls.open)
   const alerts = recordListing("alerts", alertListing)
   const closedTickets = await alertsWithClosedTickets(alerts, { readTicketState, readNewestScan: (key) => newestScanCommit(reading, key) })
   recordTicketClosedAlerts(closedTickets.items)
   const result = {
-    pullRequests: { open: openPulls.length, pending: pendingItems("pullRequests", pulls).filter((pull) => !pullTickets.unreadKeys.includes(pull.key)),
+    pullRequests: { open: openPulls.length, pending: pendingItems("pullRequests", pulls),
       runOwned: openPulls.filter((pull) => pull.runOwned).map((pull) => pull.key), otherRun: openPulls.filter((pull) => pull.otherRun).map((pull) => pull.key),
       unexpectedAuthor: unreportedPullRequests(pulls), ticketClosed: closedTicketPullRequests(pulls),
-      failures: [...pullListing.failures, ...(otherRuns.failure ? [otherRuns.failure] : []), ...pullTickets.failures] },
+      failures: [...pullListing.failures, ...(otherRuns.failure ? [otherRuns.failure] : [])] },
     alerts: { open: Object.keys(alerts.open).length, pending: [...pendingItems("alerts", alerts), ...closedTickets.items], ticketClosed: closedTickets.items,
       failures: [...alertListing.failures, ...closedTickets.failures] },
   }

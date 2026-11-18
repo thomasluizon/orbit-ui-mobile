@@ -110,29 +110,30 @@ const settleReads = async (reads) => {
   return { items, failures, reads: reads.map((read) => read.read) }
 }
 
-/** A read of a ticket that does not exist answers 404; any other failed read is a failure. */
-const ticketIsMissing = (error) => /\(HTTP 404\)/.test(String(error?.message))
+/** A ticket that does not exist answers 404, and a deleted one answers 410 Gone; both name no ticket. Any other failed read is a failure. */
+const ticketIsMissing = (error) => /\(HTTP (?:404|410)\)/.test(String(error?.message))
 
 /**
- * The numbers among `numbers` that name a ticket routed to the repository of a pull request: the issue exists in orbit-tickets and
- * carries `repo:<key>`. A pull request number in a title, such as the `(#N)` of a squash merge subject, names no ticket when it has no
- * issue or its issue routes to another repository; a number that is also an issue of this repository still counts, so the tickets
- * of an adopted pull request need a check by hand. A missing issue names no ticket; any other failed read throws.
+ * The tickets among `numbers` that carry `repo:<key>` of a pull request, each with its state and close reason. A pull request number in a
+ * title, such as the `(#N)` of a squash merge subject, names no ticket when it has no issue or its issue routes to another repository; a
+ * number that is also an issue of this repository still counts, so check the tickets of an adopted pull request by hand. A missing or
+ * deleted issue names no ticket; any other failed read throws. This is the one read of these tickets in a collection.
  */
-const routedTicketNumbers = async (repositoryKey, numbers, readTicketState) => {
-  const routed = await Promise.all(numbers.map(async (number) => {
-    try { return (await readTicketState(number)).labels.some((label) => label.name === `repo:${repositoryKey}`) } catch (error) {
-      if (ticketIsMissing(error)) return false
+const routedTickets = async (repositoryKey, numbers, readTicketState) => {
+  const read = await Promise.all(numbers.map(async (number) => {
+    try { return await readTicketState(number) } catch (error) {
+      if (ticketIsMissing(error)) return null
       throw error
     }
   }))
-  return numbers.filter((_, index) => routed[index])
+  return read.flatMap((ticket, index) => ticket?.labels.some((label) => label.name === `repo:${repositoryKey}`)
+    ? [{ number: numbers[index], state: ticket.state, stateReason: ticket.stateReason ?? null }] : [])
 }
 
 /**
- * Lists the open pull requests. Each owner pull request carries `ticketNumbers`, the tickets of its repository that its branch and
- * title name; the ownership and closed ticket rules read only that field. A failed ticket read withholds only the pull request that
- * named the number: the listing names it in `failures` with its `key`, and it is not an item.
+ * Lists the open pull requests. Each owner pull request carries `tickets`, the tickets of its repository that its branch and title name,
+ * each with its state; the ownership and closed ticket rules read only that field. A failed ticket read withholds only the pull request
+ * that named the number: the listing names it in `failures` with its `key`, and it is not an item.
  */
 export const listOpenPullRequests = async ({ repositories, readPages, readTicketState }) => {
   const listing = await settleReads(repositories.map((repository) => ({
@@ -141,7 +142,7 @@ export const listOpenPullRequests = async ({ repositories, readPages, readTicket
       const ownerAuthor = pull.author === ownerOf(repository.slug)
       const item = { key: `${repository.key}#${pull.number}`, read: `${repository.key} pulls`, repository: repository.key, ...pull, ownerAuthor,
         unexpectedAuthor: unexpectedAuthor(repository, pull.author) }
-      try { return { ...item, ticketNumbers: ownerAuthor ? await routedTicketNumbers(repository.key, ticketNumbersOf(pull), readTicketState) : [] } } catch (error) {
+      try { return { ...item, tickets: ownerAuthor ? await routedTickets(repository.key, ticketNumbersOf(pull), readTicketState) : [] } } catch (error) {
         return { key: item.key, read: item.read, ticketReadFailure: String(error?.message ?? error) }
       }
     })),
@@ -185,7 +186,7 @@ const ticketNumbersOf = (pull) => {
 const runOwnedPullRequest = (state) => {
   const recorded = runPullRequestKeys(state)
   const inFlight = new Set((Array.isArray(state?.remaining) ? state.remaining : []).map((entry) => resolveTicket(entry).number))
-  return (pull) => pull.ownerAuthor === true && (recorded.has(pull.key) || pull.ticketNumbers.some((number) => inFlight.has(number)))
+  return (pull) => pull.ownerAuthor === true && (recorded.has(pull.key) || pull.tickets.some(({ number }) => inFlight.has(number)))
 }
 
 /** The root of the checkout that contains `directory`: the nearest directory with a `.git` entry, as gitDirectoryOf reads it; null outside any checkout. */
@@ -404,24 +405,19 @@ export const alertsWithClosedTickets = async (contents, { readTicketState, readN
 /**
  * The pending and reported owner pull requests whose every named ticket is closed, with the close
  * reasons; one with an open ticket stays pending. `staleReports` names each reported pull request whose
- * tickets or close reasons differ from its mark, so the collection drops that mark. A failed ticket read
- * is a named failure: its pull request is not pending in that collection, and its mark holds.
+ * tickets or close reasons differ from its mark, so the collection drops that mark. It makes no read:
+ * it uses the ticket states of the listing, and a pull request whose ticket read failed never reaches it.
  */
-export const pullRequestsWithClosedTickets = async (contents, readTicketState) => {
+export const pullRequestsWithClosedTickets = (contents) => {
   const reported = (pull) => contents.marks[pull.key]?.action === "reported"
+  const closedTicketsOf = ({ tickets }) => tickets.length > 0 && tickets.every(({ state }) => state === "CLOSED")
+    ? tickets.map(({ number, stateReason }) => ({ number, stateReason })) : null
   const candidates = Object.values(contents.open).filter((pull) => pull.ownerAuthor === true && !pull.runOwned && pullRequestClass(pull) === "configured" &&
-    (reported(pull) || unmarkedAtHead("pullRequests", contents, pull))).map((pull) => ({ pull, numbers: pull.ticketNumbers }))
-  const tickets = await readTicketStates(candidates.flatMap(({ numbers }) => numbers), readTicketState)
-  const unread = candidates.filter(({ numbers }) => numbers.some((number) => !tickets.stateOf.has(number)))
-  const closedTicketsOf = ({ numbers }) => numbers.length > 0 && numbers.every((number) => tickets.stateOf.get(number)?.state === "CLOSED")
-    ? numbers.map((number) => ({ number, stateReason: tickets.stateOf.get(number).stateReason ?? null })) : null
-  const read = candidates.filter((candidate) => !unread.includes(candidate)).map((candidate) => ({ ...candidate, closedTickets: closedTicketsOf(candidate) }))
+    (reported(pull) || unmarkedAtHead("pullRequests", contents, pull))).map((pull) => ({ pull, closedTickets: closedTicketsOf(pull) }))
   return {
-    items: read.filter(({ closedTickets }) => closedTickets).map(({ pull, closedTickets }) => ({ key: pull.key, closedTickets })),
-    staleReports: read.filter(({ pull, closedTickets }) => reported(pull) &&
+    items: candidates.filter(({ closedTickets }) => closedTickets).map(({ pull, closedTickets }) => ({ key: pull.key, closedTickets })),
+    staleReports: candidates.filter(({ pull, closedTickets }) => reported(pull) &&
       JSON.stringify(contents.marks[pull.key].closedTickets ?? null) !== JSON.stringify(closedTickets)).map(({ pull }) => pull.key),
-    failures: tickets.failures.map(({ read: name, message }) => ({ read: name, message })),
-    unreadKeys: unread.map(({ pull }) => pull.key),
   }
 }
 

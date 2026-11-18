@@ -186,7 +186,7 @@
     ".claude/skills/auto-work/SKILL.md": {
       "model": null,
       "effort": null,
-      "digest": "6b0c3ef45da4ca19",
+      "digest": "1a3f64e744a05d47",
       "calibratedAt": "2026-11-18",
       "verdict": "undeclared, inherits the session: runs continuous source intake through the existing sleep lifecycle, classifies feedback and preserves independent crank and relay state without changing model or effort routing."
     },
@@ -270,8 +270,8 @@
     ".claude/skills/orchestrate/SKILL.md": {
       "model": null,
       "effort": "high",
-      "digest": "9b5caaa751e0908b",
-      "calibratedAt": "2026-11-15",
+      "digest": "4c38523aa18a9ba1",
+      "calibratedAt": "2026-11-18",
       "verdict": "current: high effort; the skill plans the queue, verifies each pull request disposition and merge commit, interprets gate results, and controls merge authority."
     },
     ".claude/skills/prod-readiness/SKILL.md": {
@@ -312,8 +312,8 @@
     ".claude/skills/sleep/SKILL.md": {
       "model": null,
       "effort": null,
-      "digest": "fe7d2c76fffa9e03",
-      "calibratedAt": "2026-11-15",
+      "digest": "5b481c6be78d1018",
+      "calibratedAt": "2026-11-18",
       "verdict": "undeclared, inherits the session: it makes overnight queue decisions, including whether configured lanes are available."
     },
     ".claude/skills/ticket/SKILL.md": {
