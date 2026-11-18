@@ -180,15 +180,15 @@ test("Unit Tests passes only when the plan passed and each test group passed or 
   }
 })
 
-test("each test group starts only without a cached result and the plan looks results up only for pull requests", () => {
+test("each test group starts only without a cached result, and every event looks the result up", () => {
   const plan = workflow.jobs.plan
   for (const [job, group] of [["web-tests", "web-unit"], ["mobile-tests", "mobile-unit"], ["workspace-tests", "workspace-unit"]]) {
     assert.equal(workflow.jobs[job].needs, "plan")
     assert.equal(workflow.jobs[job].if, `needs.plan.outputs.${group}-hit != 'true'`)
-    assert.equal(plan.outputs[`${group}-hit`], `\${{ steps.${group}.outputs.cache-hit }}`)
+    assert.equal(plan.outputs[`${group}-hit`], `\${{ steps.${group}.outputs.cache-hit == 'true' || steps.${group}-merged.outputs.cache-hit == 'true' }}`)
     assert.equal(plan.outputs[`${group}-key`], `\${{ steps.plan.outputs.${group}-key }}`)
     const lookup = plan.steps.find((step) => step.id === group)
-    assert.equal(lookup.if, "github.event_name == 'pull_request'")
+    assert.equal(lookup.if, undefined)
     assert.ok(lookup.uses.startsWith("actions/cache/restore@"))
     assert.equal(lookup.with["lookup-only"], true)
     assert.equal(lookup.with.key, `\${{ steps.plan.outputs.${group}-key }}`)
@@ -206,6 +206,45 @@ test("each test group starts only without a cached result and the plan looks res
   assert.equal(plan.steps.find((step) => step.uses?.startsWith("actions/checkout@")).with["fetch-depth"], 2)
   const cached = [workflow.env.WEB_UNIT_RESULTS, workflow.env.MOBILE_UNIT_RESULTS, ...workflow.env.WORKSPACE_UNIT_RESULTS.trim().split("\n")]
   assert.deepEqual(cached, ["apps/web", "apps/mobile", ...workspaceDirectories].map((directory) => `${directory}/coverage/lcov.info`))
+})
+
+test("a push or a dispatch on main saves the unit results of the merged pull request when its keys are equal", () => {
+  const plan = workflow.jobs.plan
+  assert.deepEqual(plan.permissions, { contents: "read", actions: "read", "pull-requests": "read" })
+  const ids = plan.steps.map((step) => step.id)
+  const find = plan.steps.find((step) => step.id === "merged")
+  assert.match(find.if, /^github\.event_name != 'pull_request' && \(/)
+  for (const group of ["web-unit", "mobile-unit", "workspace-unit"]) assert.match(find.if, new RegExp(`steps\\.${group}\\.outputs\\.cache-hit != 'true'`))
+  assert.equal(find.run, 'node .github/scripts/merged-unit-results.mjs find --repository "$GITHUB_REPOSITORY" --sha "$GITHUB_SHA" | tee -a "$GITHUB_OUTPUT"')
+  assert.equal(find.env.GITHUB_TOKEN, "${{ github.token }}")
+  const download = plan.steps.find((step) => step.uses?.startsWith("actions/download-artifact@"))
+  assert.equal(download.if, "steps.merged.outputs.artifact-id != ''")
+  assert.deepEqual(download.with, { "artifact-ids": "${{ steps.merged.outputs.artifact-id }}", "run-id": "${{ steps.merged.outputs.run-id }}", "github-token": "${{ github.token }}" },
+    "one artifact downloads at the workspace root, where its paths name the cached files")
+  const match = plan.steps.find((step) => step.id === "adopt")
+  assert.equal(match.run, 'node .github/scripts/merged-unit-results.mjs match --keys-file unit-test-keys.json | tee -a "$GITHUB_OUTPUT"')
+  assert.ok(ids.indexOf("merged") < plan.steps.indexOf(download) && plan.steps.indexOf(download) < ids.indexOf("adopt"))
+  for (const group of ["web-unit", "mobile-unit", "workspace-unit"]) {
+    const variable = `\${{ env.${group.replace("-unit", "").toUpperCase()}_UNIT_RESULTS }}`
+    const key = `\${{ steps.plan.outputs.${group}-key }}`
+    assert.equal(match.env[`${group.replace("-unit", "").toUpperCase()}_UNIT_KEY`], key)
+    const save = plan.steps.find((step) => step.uses?.startsWith("actions/cache/save@") && step.with.key === key)
+    assert.equal(save.if, `github.event_name != 'pull_request' && steps.${group}.outputs.cache-hit != 'true' && steps.adopt.outputs.${group} == 'true'`)
+    const confirm = plan.steps.find((step) => step.id === `${group}-merged`)
+    assert.equal(confirm.if, `steps.${group}.outputs.cache-hit != 'true' && steps.adopt.outputs.${group} == 'true'`)
+    assert.deepEqual(confirm.with, { path: variable, key, "lookup-only": true })
+    assert.equal(save.with.path, variable)
+    assert.ok(ids.indexOf("adopt") < plan.steps.indexOf(save) && plan.steps.indexOf(save) < ids.indexOf(`${group}-merged`))
+  }
+  const record = stepNamed(unitSteps, "Record the unit result keys")
+  assert.equal(record.run, "node .github/scripts/merged-unit-results.mjs record > unit-test-keys.json")
+  assert.deepEqual(record.env, {
+    WEB_UNIT_KEY: "${{ needs.plan.outputs.web-unit-key }}",
+    MOBILE_UNIT_KEY: "${{ needs.plan.outputs.mobile-unit-key }}",
+    WORKSPACE_UNIT_KEY: "${{ needs.plan.outputs.workspace-unit-key }}",
+  })
+  const upload = unitSteps.find((step) => step.with?.name === "unit-test-coverage")
+  assert.equal(unitSteps.indexOf(record) + 1, unitSteps.indexOf(upload))
 })
 
 test("required checks report on every pull request through job conditions, never a workflow path filter", () => {
@@ -389,7 +428,7 @@ test("Unit Tests merges coverage under the unchanged thresholds and ends with th
   assert.equal(workflow.jobs.sonarcloud, undefined)
   const upload = unitSteps.find((step) => step.with?.name === "unit-test-coverage")
   assert.equal(upload.with["if-no-files-found"], "error")
-  assert.deepEqual(upload.with.path.trim().split("\n"), ["apps/web", "apps/mobile", ...workspaceDirectories].map((directory) => `${directory}/coverage/lcov.info`))
+  assert.deepEqual(upload.with.path.trim().split("\n"), [...["apps/web", "apps/mobile", ...workspaceDirectories].map((directory) => `${directory}/coverage/lcov.info`), "unit-test-keys.json"])
 })
 
 test("Sonar coverage merge normalizes desktop scripts measured by the web workspace", () => {

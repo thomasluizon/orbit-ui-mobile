@@ -16,7 +16,9 @@ permissions:
   contents: read
 
 # Unit test results cached by the Turbo hash of their inputs. A push or a dispatch saves them; a pull request
-# whose inputs match main restores them instead of starting the test jobs. Pull requests save no cache.
+# whose inputs match main restores them instead of starting the test jobs. Pull requests save no cache. A push or a
+# dispatch on main also saves the results of the pull request that merged its commit when the keys are equal, and
+# starts no test job for that group.
 env:
   WEB_UNIT_RESULTS: apps/web/coverage/lcov.info
   MOBILE_UNIT_RESULTS: apps/mobile/coverage/lcov.info
@@ -31,6 +33,11 @@ jobs:
     name: Plan
     runs-on: ubuntu-latest
     timeout-minutes: 3
+    # actions and pull-requests: read the merged pull request, its PR Tests run and its unit-test-coverage artifact.
+    permissions:
+      contents: read
+      actions: read
+      pull-requests: read
     outputs:
       web: ${{ steps.plan.outputs.web }}
       type-check: ${{ steps.plan.outputs.type-check }}
@@ -38,9 +45,9 @@ jobs:
       web-unit-key: ${{ steps.plan.outputs.web-unit-key }}
       mobile-unit-key: ${{ steps.plan.outputs.mobile-unit-key }}
       workspace-unit-key: ${{ steps.plan.outputs.workspace-unit-key }}
-      web-unit-hit: ${{ steps.web-unit.outputs.cache-hit }}
-      mobile-unit-hit: ${{ steps.mobile-unit.outputs.cache-hit }}
-      workspace-unit-hit: ${{ steps.workspace-unit.outputs.cache-hit }}
+      web-unit-hit: ${{ steps.web-unit.outputs.cache-hit == 'true' || steps.web-unit-merged.outputs.cache-hit == 'true' }}
+      mobile-unit-hit: ${{ steps.mobile-unit.outputs.cache-hit == 'true' || steps.mobile-unit-merged.outputs.cache-hit == 'true' }}
+      workspace-unit-hit: ${{ steps.workspace-unit.outputs.cache-hit == 'true' || steps.workspace-unit-merged.outputs.cache-hit == 'true' }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -83,7 +90,6 @@ jobs:
 
       - name: Look up cached web unit results
         id: web-unit
-        if: github.event_name == 'pull_request'
         uses: actions/cache/restore@v6
         with:
           path: ${{ env.WEB_UNIT_RESULTS }}
@@ -92,7 +98,6 @@ jobs:
 
       - name: Look up cached mobile unit results
         id: mobile-unit
-        if: github.event_name == 'pull_request'
         uses: actions/cache/restore@v6
         with:
           path: ${{ env.MOBILE_UNIT_RESULTS }}
@@ -101,7 +106,82 @@ jobs:
 
       - name: Look up cached workspace unit results
         id: workspace-unit
-        if: github.event_name == 'pull_request'
+        uses: actions/cache/restore@v6
+        with:
+          path: ${{ env.WORKSPACE_UNIT_RESULTS }}
+          key: ${{ steps.plan.outputs.workspace-unit-key }}
+          lookup-only: true
+
+      # The pull request run stored its keys beside its coverage. A failed lookup prints a warning and main runs the tests.
+      - name: Find the unit results of the merged pull request
+        id: merged
+        if: >-
+          github.event_name != 'pull_request' && (steps.web-unit.outputs.cache-hit != 'true' ||
+          steps.mobile-unit.outputs.cache-hit != 'true' || steps.workspace-unit.outputs.cache-hit != 'true')
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node .github/scripts/merged-unit-results.mjs find --repository "$GITHUB_REPOSITORY" --sha "$GITHUB_SHA" | tee -a "$GITHUB_OUTPUT"
+
+      - name: Download the unit results of the merged pull request
+        if: steps.merged.outputs.artifact-id != ''
+        uses: actions/download-artifact@v8
+        with:
+          artifact-ids: ${{ steps.merged.outputs.artifact-id }}
+          run-id: ${{ steps.merged.outputs.run-id }}
+          github-token: ${{ github.token }}
+
+      - name: Match the unit result keys of the merged pull request
+        id: adopt
+        if: steps.merged.outputs.artifact-id != ''
+        env:
+          WEB_UNIT_KEY: ${{ steps.plan.outputs.web-unit-key }}
+          MOBILE_UNIT_KEY: ${{ steps.plan.outputs.mobile-unit-key }}
+          WORKSPACE_UNIT_KEY: ${{ steps.plan.outputs.workspace-unit-key }}
+        run: node .github/scripts/merged-unit-results.mjs match --keys-file unit-test-keys.json | tee -a "$GITHUB_OUTPUT"
+
+      - name: Save the merged web unit results
+        if: github.event_name != 'pull_request' && steps.web-unit.outputs.cache-hit != 'true' && steps.adopt.outputs.web-unit == 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: ${{ env.WEB_UNIT_RESULTS }}
+          key: ${{ steps.plan.outputs.web-unit-key }}
+
+      - name: Save the merged mobile unit results
+        if: github.event_name != 'pull_request' && steps.mobile-unit.outputs.cache-hit != 'true' && steps.adopt.outputs.mobile-unit == 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: ${{ env.MOBILE_UNIT_RESULTS }}
+          key: ${{ steps.plan.outputs.mobile-unit-key }}
+
+      - name: Save the merged workspace unit results
+        if: github.event_name != 'pull_request' && steps.workspace-unit.outputs.cache-hit != 'true' && steps.adopt.outputs.workspace-unit == 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: ${{ env.WORKSPACE_UNIT_RESULTS }}
+          key: ${{ steps.plan.outputs.workspace-unit-key }}
+
+      # cache/save only warns when its upload fails, so a group counts as cached only when a lookup finds the saved entry.
+      - name: Look up the merged web unit results
+        id: web-unit-merged
+        if: steps.web-unit.outputs.cache-hit != 'true' && steps.adopt.outputs.web-unit == 'true'
+        uses: actions/cache/restore@v6
+        with:
+          path: ${{ env.WEB_UNIT_RESULTS }}
+          key: ${{ steps.plan.outputs.web-unit-key }}
+          lookup-only: true
+
+      - name: Look up the merged mobile unit results
+        id: mobile-unit-merged
+        if: steps.mobile-unit.outputs.cache-hit != 'true' && steps.adopt.outputs.mobile-unit == 'true'
+        uses: actions/cache/restore@v6
+        with:
+          path: ${{ env.MOBILE_UNIT_RESULTS }}
+          key: ${{ steps.plan.outputs.mobile-unit-key }}
+          lookup-only: true
+
+      - name: Look up the merged workspace unit results
+        id: workspace-unit-merged
+        if: steps.workspace-unit.outputs.cache-hit != 'true' && steps.adopt.outputs.workspace-unit == 'true'
         uses: actions/cache/restore@v6
         with:
           path: ${{ env.WORKSPACE_UNIT_RESULTS }}
@@ -258,7 +338,7 @@ jobs:
           fi
 
       - name: Test CI workflow behavior
-        run: node --test .github/scripts/check-web-test-budget.test.mjs tools/__tests__/guards-changed-paths.test.mjs tools/__tests__/ci-minutes.test.mjs tools/__tests__/npm-cache-workflows.test.mjs .github/scripts/check-pr-metadata.test.mjs .github/scripts/desktop-build-workflow.test.mjs .github/scripts/unit-tests-workflow.test.mjs .github/scripts/release-admission.test.mjs .github/scripts/check-critical-production-cves.test.mjs .github/scripts/plan-test-jobs.test.mjs .github/scripts/record-web-shard-timings.test.mjs .github/scripts/plan-layout-shards.test.mjs
+        run: node --test .github/scripts/check-web-test-budget.test.mjs tools/__tests__/guards-changed-paths.test.mjs tools/__tests__/ci-minutes.test.mjs tools/__tests__/npm-cache-workflows.test.mjs .github/scripts/check-pr-metadata.test.mjs .github/scripts/desktop-build-workflow.test.mjs .github/scripts/unit-tests-workflow.test.mjs .github/scripts/release-admission.test.mjs .github/scripts/check-critical-production-cves.test.mjs .github/scripts/plan-test-jobs.test.mjs .github/scripts/record-web-shard-timings.test.mjs .github/scripts/plan-layout-shards.test.mjs .github/scripts/merged-unit-results.test.mjs
 
       # This step owns the full-tree graphic floor assertion outside cached unit shards.
       # Other findings stay advisory; graphic floor findings and scanner errors fail.
@@ -447,6 +527,14 @@ jobs:
           test -s packages/shared/coverage/lcov.info
           test -s eslint-rules/coverage/lcov.info
 
+      # A push to main that merges this head reads these keys to reuse the coverage below instead of running the tests.
+      - name: Record the unit result keys
+        env:
+          WEB_UNIT_KEY: ${{ needs.plan.outputs.web-unit-key }}
+          MOBILE_UNIT_KEY: ${{ needs.plan.outputs.mobile-unit-key }}
+          WORKSPACE_UNIT_KEY: ${{ needs.plan.outputs.workspace-unit-key }}
+        run: node .github/scripts/merged-unit-results.mjs record > unit-test-keys.json
+
       - name: Upload coverage reports
         uses: actions/upload-artifact@v7
         with:
@@ -457,6 +545,7 @@ jobs:
             apps/desktop/coverage/lcov.info
             packages/shared/coverage/lcov.info
             eslint-rules/coverage/lcov.info
+            unit-test-keys.json
           if-no-files-found: error
 
       - name: Save web unit results
