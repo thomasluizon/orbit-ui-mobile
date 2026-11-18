@@ -61,6 +61,10 @@
       {
         "name": "free disk floor and cleanup interval",
         "source": "tools/lib/stale-files.mjs FREE_DISK_FLOOR_BYTES and CLEANUP_INTERVAL_MS"
+      },
+      {
+        "name": "minimum age of a branch with no pull request",
+        "source": "tools/lib/stale-files.mjs MINIMUM_BRANCH_AGE_MS"
       }
     ]
   },

@@ -24,6 +24,11 @@ const LISTING_CEILING_MS = 10 * 60_000
 /** The data volume of the Mac, and the free space under which an unattended run removes the stale items. */
 export const DATA_VOLUME = "/System/Volumes/Data"
 export const FREE_DISK_FLOOR_BYTES = 50 * 1024 ** 3
+/**
+ * A branch with no pull request and no commit of its own is what a new worktree holds until its first edit. It stays for this
+ * long after its creation, whether or not a relay is on record, so a worktree that a person or a launch opened is not removed first.
+ */
+export const MINIMUM_BRANCH_AGE_MS = 24 * 60 * 60_000
 const COMMAND_TIMEOUT_MS = 30_000
 const MEASURE_TIMEOUT_MS = 120_000
 /** A worktree with installed dependencies holds several hundred thousand files; a removal that stops halfway leaves a broken tree. */
@@ -345,7 +350,7 @@ const nestedWorktreeHold = (worktree, evidence, probes) => {
   const change = changeOf(worktree.path, probes)
   if (change) return change
   if (worktree.branch !== null) {
-    const verdict = judgeBranch(worktree, probes, evidence.lastRelayAt)
+    const verdict = judgeBranch(worktree, probes, evidence.lastRelayAt, evidence.now)
     return verdict.stale ? null : verdict.reason
   }
   // A detached HEAD has no branch that outlives the directory, so a commit that no remote has would be lost with it.
@@ -510,17 +515,16 @@ const mergedContainerOf = (worktree, tip, probes) => {
  * oldest entry of the branch's reflog, which `%gd` prints as `<branch>@{<unix seconds>}`; `%ct` would give the time of the
  * commit that the entry points to, and a branch made now from an old commit would look old. A reflog that cannot be read keeps it.
  */
-const youngBranchHoldOf = (worktree, lastRelayAt, probes) => {
-  if (lastRelayAt === null) return null
-  const entries = probes.git(worktree.path, ["log", "--walk-reflogs", "--date=unix", "--format=%gd", `refs/heads/${worktree.branch}`, "--"])
+const youngBranchHoldOf = (worktree, lastRelayAt, probes, now) => {  const entries = probes.git(worktree.path, ["log", "--walk-reflogs", "--date=unix", "--format=%gd", `refs/heads/${worktree.branch}`, "--"])
   const oldest = /@\{(\d+)\}$/.exec((entries ?? "").split("\n").filter(Boolean).at(-1) ?? "")
   const created = oldest ? Number(oldest[1]) * 1000 : 0
   if (created === 0) return "the age of its branch could not be read, and a branch with no pull request can be the branch of a queued launch"
-  return created >= lastRelayAt ? `its branch has no pull request and was made after the last relay at ${new Date(lastRelayAt).toISOString()}` : null
+  if (lastRelayAt !== null && created >= lastRelayAt) return `its branch has no pull request and was made after the last relay at ${new Date(lastRelayAt).toISOString()}`
+  return now - created < MINIMUM_BRANCH_AGE_MS ? `its branch has no pull request and was made less than ${MINIMUM_BRANCH_AGE_MS / 3_600_000} hours ago` : null
 }
 
 /** `{ stale, reason, tip }` for one clean, idle worktree with a branch, from its pull requests and its commits: a stale verdict judged the commits of `tip`. */
-const judgeBranch = (worktree, probes, lastRelayAt = null) => {
+const judgeBranch = (worktree, probes, lastRelayAt, now) => {
   const tip = probes.git(worktree.path, ["rev-parse", "HEAD"])
   if (tip === null) return { stale: false, reason: "git rev-parse could not be read" }
   const pullRequests = probes.pullRequests(worktree.path, worktree.branch)
@@ -530,7 +534,7 @@ const judgeBranch = (worktree, probes, lastRelayAt = null) => {
   if (pullRequests.length === 0) {
     const { container, unread } = mergedContainerOf(worktree, tip, probes)
     if (!container) return { stale: false, reason: unread ?? "it holds work nobody merged: no pull request, and no merged branch contains its branch" }
-    const young = youngBranchHoldOf(worktree, lastRelayAt, probes)
+    const young = youngBranchHoldOf(worktree, lastRelayAt, probes, now)
     return young ? { stale: false, reason: young } : { stale: true, reason: container, tip }
   }
   const readHeads = pullRequests.filter((pullRequest) => hasPullRequestHead(worktree, pullRequest, probes))
@@ -552,7 +556,7 @@ const classifyWorktrees = (evidence, probes, deadline) => evidence.worktrees
       ?? otherSessionHoldOf(worktree.path, evidence)
       ?? changeOf(worktree.path, probes)
       ?? (Date.now() > deadline ? "the listing reached its time limit before this check" : null)
-    const verdict = keep === null ? judgeBranch(worktree, probes, evidence.lastRelayAt) : { stale: false, reason: keep }
+    const verdict = keep === null ? judgeBranch(worktree, probes, evidence.lastRelayAt, evidence.now) : { stale: false, reason: keep }
     // Only a finished worktree pays for the walk of its tree, and only inside the listing's time limit.
     const hold = !verdict.stale ? null : Date.now() > deadline ? "the listing reached its time limit before this check"
       : holdOf(worktree.path, evidence, probes) ?? repositoryHoldOf(worktree.path, evidence, probes)
@@ -577,7 +581,7 @@ export const collectListing = (context, { probes = systemProbes, knownSizes = ne
   const deadline = now + LISTING_CEILING_MS
   const gathered = gatherEvidence(context, probes)
   const { sessions, ...links } = readSessionLinks(gathered)
-  const evidence = { ...gathered, ...links }
+  const evidence = { ...gathered, ...links, now }
   const items = keepContainers([...classifySessions(sessions ?? [], evidence, probes), ...classifyCarryCopies(evidence, probes), ...classifyWorktrees(evidence, probes, deadline)])
   const stale = items.filter((item) => item.stale).map(({ stale: _stale, ...item }) => ({ ...item,
     bytes: knownSizes.get(item.path) ?? (measure && Date.now() <= deadline ? probes.measure(item.path) : null) }))

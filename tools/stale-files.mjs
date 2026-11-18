@@ -31,7 +31,7 @@ const USAGE = `usage: stale-files.mjs [--list] [--json] [--session <id>] [--sess
   An item stays when a live process or a live session uses it, when the scratchpad of a session that stays
   links into it from any project root beside --session-root, when it holds a registered worktree that the
   worktree rules keep (an uncommitted change, an unpushed commit, an open pull request, work nobody merged, a ticket
-  that the run queue names, a worker launch reservation, a branch with no pull request made after the last relay),
+  that the run queue names, a worker launch reservation, a branch with no pull request made after the last relay or less than 24 hours ago),
   when a live wake source names it,
   when it is a finished worktree that holds a repository with an uncommitted change or a commit that no
   remote has, when a kept item lives in it, when it is in the directory of a session that stays in another

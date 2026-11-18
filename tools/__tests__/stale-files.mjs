@@ -37,6 +37,9 @@ const primary = join(base, "repository")
 const worktreeRoot = join(base, "worktrees")
 const outside = join(base, "outside")
 const git = (cwd, args) => spawnSync("git", ["-C", cwd, ...args], { encoding: "utf8" })
+/** A branch made by the fixture is older than the minimum age of a branch with no pull request, as a finished worktree is. */
+const daysAgo = (days) => `@${Math.floor((Date.now() - days * 86_400_000) / 1000)} +0000`
+const gitMadeAt = (cwd, args, made) => spawnSync("git", ["-C", cwd, ...args], { encoding: "utf8", env: { ...process.env, GIT_AUTHOR_DATE: made, GIT_COMMITTER_DATE: made } })
 /** Global git config of the tool's run: it hides every untracked file, and each file under `notes/`, from `git status`. */
 const hidingConfig = join(base, "hide-untracked.gitconfig")
 const personalIgnore = join(base, "personal.gitignore")
@@ -47,7 +50,7 @@ const personalIgnore = join(base, "personal.gitignore")
  */
 const stageWorktree = (name, { push = true, detach = false, commit = true, path = join(worktreeRoot, name), options = [] } = {}) => {
   const branch = `feature/${name}`
-  if (git(primary, [...options, ...(detach ? ["worktree", "add", "-q", "--detach", path] : ["worktree", "add", "-q", "-b", branch, path])]).status !== 0) return null
+  if (gitMadeAt(primary, [...options, ...(detach ? ["worktree", "add", "-q", "--detach", path] : ["worktree", "add", "-q", "-b", branch, path])], daysAgo(2)).status !== 0) return null
   if (commit) writeFileSync(join(path, `${name}.txt`), `${name}\n`)
   if (commit && (git(path, [...options, "add", `${name}.txt`]).status !== 0 || git(path, [...options, "commit", "-q", "-m", name]).status !== 0)) return null
   if (push && !detach && git(path, ["push", "-q", "-u", "origin", branch]).status !== 0) return null
@@ -196,8 +199,7 @@ const relayCases = async (tool, checkout) => {
   const hourAgo = Date.now() - 3_600_000
   writeFileSync(join(checkout, ".git", "orbit-session-chain.json"), JSON.stringify({ chains: [{ id: "chain", currentSessionId: THIS,
     entries: [{ sessionId: PREDECESSOR, successorSessionId: THIS, superseded: true, triggeredAt: new Date(hourAgo).toISOString() }] }] }))
-  const twoHoursAgo = `@${Math.floor((Date.now() - 7_200_000) / 1000)} +0000`
-  const dated = (args) => spawnSync("git", ["-C", primary, ...args], { encoding: "utf8", env: { ...process.env, GIT_AUTHOR_DATE: twoHoursAgo, GIT_COMMITTER_DATE: twoHoursAgo } }).status === 0
+  const dated = (args) => gitMadeAt(primary, args, daysAgo(2)).status === 0
   const after = join(worktreeRoot, "made-after-relay")
   const before = join(worktreeRoot, "made-before-relay")
   const staged = dated(["commit", "-q", "--allow-empty", "-m", "before the relay"]) && git(primary, ["push", "-q", "origin", "main"]).status === 0
@@ -232,11 +234,9 @@ const removalRecordCases = async (checkout, env) => {
   const removedSession = join(sessionRoot, RECORD_REMOVED)
   mkdirSync(join(removedSession, "scratchpad"), { recursive: true })
   // Branches with no pull request that main contains, made before the relay: stale worktrees, as the relay cases stage one.
-  const twoHoursAgo = `@${Math.floor((Date.now() - 7_200_000) / 1000)} +0000`
   const outer = join(worktreeRoot, "record-outer")
   const stuck = join(outer, ".claude", "worktrees", "record-stuck")
-  const staged = [[RECORD_OUTER, outer], [RECORD_STUCK, stuck]].every(([branch, path]) => spawnSync("git", ["-C", primary, "worktree", "add", "-q", "-b", branch, path, "main"],
-    { encoding: "utf8", env: { ...process.env, GIT_AUTHOR_DATE: twoHoursAgo, GIT_COMMITTER_DATE: twoHoursAgo } }).status === 0)
+  const staged = [[RECORD_OUTER, outer], [RECORD_STUCK, stuck]].every(([branch, path]) => gitMadeAt(primary, ["worktree", "add", "-q", "-b", branch, path, "main"], daysAgo(2)).status === 0)
   T("stale-files: the removal record fixture stages", staged)
   if (!staged) return
   const readOnly = join(stuck, "node_modules", "read-only")

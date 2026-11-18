@@ -5,7 +5,7 @@ import { dirname, join } from "node:path"
 import { fileURLToPath } from "node:url"
 
 import {
-  CLEANUP_INTERVAL_MS, FREE_DISK_FLOOR_BYTES, cleanupDueReason, cleanupIsRunning, collectListing, describeBytes, readCleanupAdoption, readCleanupMarker, removeListed, summarize, systemProbes, takeCleanupLock,
+  CLEANUP_INTERVAL_MS, FREE_DISK_FLOOR_BYTES, MINIMUM_BRANCH_AGE_MS, cleanupDueReason, cleanupIsRunning, collectListing, describeBytes, readCleanupAdoption, readCleanupMarker, removeListed, summarize, systemProbes, takeCleanupLock,
 } from "../lib/stale-files.mjs"
 import * as staleFiles from "../lib/stale-files.mjs"
 import { T, root, same } from "./_harness.mjs"
@@ -438,7 +438,9 @@ const unreadableGitCases = () => {
   const detached = join(machine.sessionRoot, STALE, "scratchpad", "wt")
   for (const path of [repository, detached]) mkdirSync(path, { recursive: true })
   const records = `worktree ${machine.checkout}\nHEAD 1\nbranch refs/heads/main\n\nworktree ${finished}\nHEAD 2\nbranch refs/heads/done\n\nworktree ${detached}\nHEAD 3\ndetached\n`
-  const answers = { worktree: () => records, "rev-list": () => "0", "rev-parse": (cwd, args) => (args[1] === "--show-toplevel" ? cwd : "2"), "symbolic-ref": () => "origin/main" }
+  const answers = { worktree: () => records, "rev-list": () => "0", "rev-parse": (cwd, args) => (args[1] === "--show-toplevel" ? cwd : "2"), "symbolic-ref": () => "origin/main",
+    // The branch `done` was made two minimum ages ago, so no age rule holds it.
+    log: () => `done@{${Math.floor((Date.now() - 2 * MINIMUM_BRANCH_AGE_MS) / 1000)}}` }
   const kindOf = (args) => (args.includes("status") ? "status" : args[0])
   const merged = [{ number: 1, state: "MERGED", headRefOid: "2" }]
   /**
@@ -631,6 +633,30 @@ const launchCases = () => {
     `reason: ${reasonOf(listing, join(machine.sessionRoot, WAKE))}`)
   same("stale-files: a finished worktree that no launch names is stale: a released reservation, an old branch, a ticket the queue does not hold, a merged pull request",
     stalePaths(listing, "worktree").sort(), ["ticket-42420-not-queued", "released", "old", "merged"].map(tree).sort())
+}
+
+/**
+ * A worktree made from the base branch has no commit and no pull request until its first edit, and a person or a launch can open one
+ * whether or not a relay is on record. Its branch stays for the minimum age; an older one with the same state goes.
+ */
+const freshBranchCases = () => {
+  const machine = stageMachine("fresh-branches")
+  const tree = (name) => join(machine.base, name)
+  const branches = { fresh: "feature/fresh", aged: "feature/aged", "no-reflog": "feature/no-reflog" }
+  for (const name of Object.keys(branches)) mkdirSync(tree(name), { recursive: true })
+  const records = [`worktree ${machine.checkout}\nHEAD 1\nbranch refs/heads/main\n`,
+    ...Object.entries(branches).map(([name, branch]) => `worktree ${tree(name)}\nHEAD 2\nbranch refs/heads/${branch}\n`)].join("\n")
+  const now = Date.now()
+  const entry = (name, age) => `${branches[name]}@{${Math.floor((now - age) / 1000)}}`
+  const reflogs = { [tree("fresh")]: entry("fresh", 60_000), [tree("aged")]: entry("aged", MINIMUM_BRANCH_AGE_MS + 60_000), [tree("no-reflog")]: "" }
+  const listing = collectListing({ ...machine.context, repositories: { ui: machine.checkout } }, { now, probes: { ...quietProbes, repositories: () => [],
+    git: (cwd, args) => ({ worktree: () => records, "rev-list": () => "0", "rev-parse": () => "2", "symbolic-ref": () => "origin/main", "cat-file": () => "",
+      log: () => reflogs[cwd] ?? "" }[args[0]] ?? (() => ""))() } })
+  same("stale-files: with no relay on record, a new branch with no pull request and no commit stays for the minimum age", reasonOf(listing, tree("fresh")),
+    `its branch has no pull request and was made less than ${MINIMUM_BRANCH_AGE_MS / 3_600_000} hours ago`)
+  T("stale-files: with no relay on record, a branch whose age cannot be read stays", /^the age of its branch could not be read/.test(reasonOf(listing, tree("no-reflog")) ?? ""),
+    `reason: ${reasonOf(listing, tree("no-reflog"))}`)
+  same("stale-files: with no relay on record, a branch older than the minimum age with no pull request and no commit is stale", stalePaths(listing, "worktree"), [tree("aged")])
 }
 
 /**
@@ -869,6 +895,7 @@ export const cases = async () => {
   reportCases()
   cleanupDueCases()
   launchCases()
+  freshBranchCases()
   await lateLivenessCases()
   lateTreeCases()
   await lockCases()
