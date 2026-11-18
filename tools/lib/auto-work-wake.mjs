@@ -9,7 +9,7 @@ import { REPO_ROOT, updateRunState } from "./run-state.mjs"
  * No read-only Sentry token exists and no Sentry REST response has been verified, so the waiter
  * cannot list Sentry itself. It wakes the model on this period for the MCP listing instead.
  */
-export const SENTRY_PERIOD_MILLISECONDS = 3_600_000
+const SENTRY_PERIOD_MILLISECONDS = 3_600_000
 export const SENTRY_MODE = "mcp-hourly"
 export const SENTRY_DETAIL = "The waiter has no read-only Sentry token; run the Sentry MCP listing of auto-work step 3."
 const COMMAND_MILLISECONDS = 120_000

@@ -719,6 +719,15 @@ export const cases = async () => {
   const admittedExisting = run(TOOL, refusedArgs, { path: admissionFixture.path, env: githubAuthEnv({ branchPulls: [{ number: 99 }], pulls: aboveCapPulls, queuedRuns: admissionConfig.caps.maxQueuedRuns + 1 }) })
   T(`${TOOL}: existing pull request proceeds above both caps`, admittedExisting.status === 0, admittedExisting.stderr)
   discardLog(admittedExisting.stdout)
+  // A configured repository that is not a Git checkout on this machine has no identity, so the match goes on to the next one.
+  const absentSibling = launch("absent-sibling", admissionConfig)
+  const absentConfig = JSON.parse(readFileSync(absentSibling.configPath, "utf8"))
+  const absentKey = Object.keys(absentConfig.repos).find((key) => key !== absentConfig.cloud.repositoryKey)
+  const { [absentKey]: _checkout, ...otherRepositories } = absentConfig.repos
+  writeFileSync(absentSibling.configPath, JSON.stringify({ ...absentConfig, repos: { [absentKey]: dirname(absentSibling.prompt), ...otherRepositories } }))
+  const absentResult = run(TOOL, ["--issue", "ORB-201", "--worktree", absentSibling.worktree, "--prompt", absentSibling.prompt], { path: absentSibling.path, env: githubAuthEnv({ pulls: aboveCapPulls }) })
+  T(`${TOOL}: a configured repository that is not a Git checkout does not stop the repository match`,
+    absentResult.status === 8 && JSON.parse(absentResult.stdout || "{}").reason === "ADMISSION_REFUSED", `${absentResult.status} ${absentResult.stdout} ${absentResult.stderr}`)
   const argv = ["--issue", "ORB-201", "--worktree", fixture.worktree, "--prompt", fixture.prompt]
   const options = { path: fixture.path }
   writeRunState({ sessionId: "draining", sleep: true, relay: { pending: true } }, fixture.base)

@@ -8,8 +8,8 @@ import { fileURLToPath } from "node:url"
 import { readOrchestratorConfig } from "./orchestrator-config.mjs"
 import { runBounded } from "./bounded-process.mjs"
 
-export const OUT_OF_SCOPE_HEADING = /out of scope|non.?goals?|not in scope/i
-export const BOLD_HEADING_LEVEL = 6
+const OUT_OF_SCOPE_HEADING = /out of scope|non.?goals?|not in scope/i
+const BOLD_HEADING_LEVEL = 6
 
 export const sectionsOf = (description) => {
   const sections = [{ heading: "", level: 0, lines: [] }]
@@ -38,8 +38,8 @@ export const inScopeSections = (sections) => {
   return kept
 }
 
-export const CONVERSATION_LABEL_ON = "needs:conversation"
-export const CONVERSATION_LABEL_OFF = "needs:no-conversation"
+const CONVERSATION_LABEL_ON = "needs:conversation"
+const CONVERSATION_LABEL_OFF = "needs:no-conversation"
 
 const REASONS = ["NOT_REPRODUCED", "NOT_CODE_WORK", "MULTI_PR"]
 const KINDS = ["HUMAN_GRANT", "DELEGATED_CHOICE", "PRODUCT_CALL", "TOOL_CONTRADICTION"]

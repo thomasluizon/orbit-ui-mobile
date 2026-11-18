@@ -79,7 +79,7 @@ const acquireLock = async (repoRoot, startIdentity, waitMs) => {
   }
 }
 
-export const QUEUED_RUN_WINDOW_MS = 24 * 60 * 60 * 1000
+const QUEUED_RUN_WINDOW_MS = 24 * 60 * 60 * 1000
 
 export const queuedRunsPath = (slug, now) => {
   const since = new Date(now - QUEUED_RUN_WINDOW_MS).toISOString().replace(/\.\d{3}Z$/, "Z")

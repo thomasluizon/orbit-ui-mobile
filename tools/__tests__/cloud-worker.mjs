@@ -274,6 +274,31 @@ export const cases = async () => {
     readFileSync(explicitCwdLog, "utf8").trim(),
   )
 
+  // git's verdict that a directory is not a checkout gives null. A failure of another kind is not that verdict, so it propagates.
+  const notCheckout = join(root, "cloud-worker", "not-a-checkout")
+  mkdirSync(notCheckout, { recursive: true })
+  T(
+    "cloud-worker.mjs: checkoutIdentity gives null for a directory that is not a Git checkout, and for one that does not exist",
+    cloud.checkoutIdentity(notCheckout) === null && cloud.checkoutIdentity(join(root, "cloud-worker", "absent-checkout")) === null,
+  )
+  const emptyPath = join(root, "cloud-worker", "empty-path")
+  mkdirSync(emptyPath, { recursive: true })
+  const withoutGit = spawnSync(
+    process.execPath,
+    [
+      "--input-type=module",
+      "-e",
+      `import { checkoutIdentity } from ${JSON.stringify(pathToFileURL(toolPath("lib/cloud-worker.mjs")).href)}
+try { console.log(JSON.stringify(checkoutIdentity(${JSON.stringify(notCheckout)}))) } catch (error) { console.log(error.message) }`,
+    ],
+    { encoding: "utf8", env: { ...Object.fromEntries(Object.entries(process.env).filter(([key]) => key.toUpperCase() !== "PATH")), PATH: emptyPath } },
+  )
+  T(
+    "cloud-worker.mjs: checkoutIdentity propagates a failure to run git",
+    withoutGit.stdout.startsWith(`could not run git for ${notCheckout}`),
+    `${withoutGit.stdout}${withoutGit.stderr}`,
+  )
+
   const receipt = {
     taskId: "task_e_a1",
     deadline: "2026-08-31T18:00:00.000Z",
