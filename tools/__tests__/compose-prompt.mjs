@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync } from "node:fs"
+import { existsSync, mkdirSync, readFileSync, rmSync } from "node:fs"
 import { createHash } from "node:crypto"
 import { join } from "node:path"
 import { cloudOrder } from "../lib/cloud-worker.mjs"
@@ -8,6 +8,8 @@ import { REVIEW_BATCH_ORDER_MARKER } from "../lib/run-state.mjs"
 import { check, githubIssueReadPlan, orcaEnv, realOrchestratorConfig, REPO_ROOT, root, stage, stageWithConfig, T } from "./_harness.mjs"
 
 const TOOL = "compose-prompt.mjs"
+const APPROVAL_HOOK = join(".claude", "hooks", "forbid-approval-prompt.mjs")
+const APPROVAL_RULES = join(".claude", "hooks", "_lib", "rules-approval.mjs")
 const REPO_PATH = join(root, "compose-prompt", "repo-ui")
 const API_REPO_PATH = join(root, "compose-prompt", "repo-api")
 const LANDING_REPO_PATH = join(root, "compose-prompt", "repo-landing")
@@ -43,6 +45,9 @@ export const cases = () => {
     repos: { ui: REPO_PATH, api: API_REPO_PATH, landing: LANDING_REPO_PATH },
   })
   stage("staged/compose-prompt/.claude/linear-to-github-map.json", JSON.stringify({ issues: { "ORB-215": { number: 221 } } }))
+  // The ui checkout and the repository of the tool hold the approval hook; the api and landing checkouts do not.
+  stage(join("compose-prompt", "repo-ui", APPROVAL_HOOK), "")
+  for (const file of [APPROVAL_HOOK, APPROVAL_RULES]) stage(join("staged", "compose-prompt", file), readFileSync(join(REPO_ROOT, file), "utf8"))
   const options = (plan) => ({ path: staged.path, env: plan ? orcaEnv(plan) : undefined })
   const out = join(root, "compose-prompt", "orb-215.md")
 
@@ -380,7 +385,41 @@ export const cases = () => {
     )
   }
 
+  // The brief points at the hook that owns the rule; the Codex container has no Claude Code hook to point at.
+  const approvalPointer = /Run no command that Claude Code holds for an approval:\s+`\.claude\/hooks\/forbid-approval-prompt\.mjs` refuses each one/
+  for (const [mode, order, expected] of [["local", prompt, true], ["explicit main", mainPrompt, true], ["Cloud", cloudPrompt, false]]) {
+    T(`${TOOL}: the ${mode} order ${expected ? "forbids" : "omits"} commands that ask for an approval`, approvalPointer.test(order) === expected, order)
+    T(`${TOOL}: the ${mode} order ${expected ? "forbids" : "omits"} a tool that waits for a person`, /Call no tool that waits for a person to answer, such as `AskUserQuestion`/.test(order) === expected, order)
+  }
+  T(`${TOOL}: the approval hook that the brief names exists`, existsSync(join(REPO_ROOT, ".claude", "hooks", "forbid-approval-prompt.mjs")))
+  // A repository whose checkout holds no approval hook gets a brief that says so, and a pointer to a file that exists.
+  const ownedHook = join(staged.base, APPROVAL_HOOK)
+  const ownedRules = join(staged.base, APPROVAL_RULES)
+  for (const [repo, checkout] of [["api", API_REPO_PATH], ["landing", LANDING_REPO_PATH]]) {
+    const siblingOut = join(root, "compose-prompt", `approval-${repo}.md`)
+    check(TOOL, `composes a ${repo} order`, ["--issue", "ORB-215", "--repo", repo, "--out", siblingOut, "--worktree", checkout], { status: 0 },
+      options(ticketPlan(ticket({ labels: [{ name: `repo:${repo}` }] }))))
+    const siblingOrder = composed(siblingOut)
+    T(`${TOOL}: the ${repo} order forbids commands that ask for an approval`, /\*\*No person answers a prompt\.\*\* Run no command that Claude Code holds for an approval/.test(siblingOrder), siblingOrder)
+    T(`${TOOL}: the ${repo} order never points at a hook that its checkout does not hold`, !siblingOrder.includes(`\`${APPROVAL_HOOK}\``) && !existsSync(join(checkout, APPROVAL_HOOK)), siblingOrder)
+    T(`${TOOL}: the ${repo} order says that its repository does not load the hook`, siblingOrder.includes(`The ${repo} repository does not load the hook that refuses them`), siblingOrder)
+    T(`${TOOL}: the ${repo} order points at the hook and its rules by paths that exist`, siblingOrder.includes(`\`${ownedHook}\``) && siblingOrder.includes(`\`${ownedRules}\``) && existsSync(ownedHook) && existsSync(ownedRules), siblingOrder)
+  }
+  // The guard broken: a ui checkout without the hook gets the absolute pointer too, so no order names a missing file.
+  rmSync(join(REPO_PATH, APPROVAL_HOOK))
+  const bareOut = join(root, "compose-prompt", "approval-bare-ui.md")
+  check(TOOL, "composes a ui order for a checkout without the approval hook", ["--issue", "ORB-215", "--repo", "ui", "--out", bareOut], { status: 0 }, options(ticketPlan()))
+  T(`${TOOL}: a ui checkout without the hook gets the pointer that exists`, !approvalPointer.test(composed(bareOut)) && composed(bareOut).includes(`\`${ownedHook}\``), composed(bareOut))
+  stage(join("compose-prompt", "repo-ui", APPROVAL_HOOK), "")
+  check(TOOL, "composes a ui order for a checkout with the approval hook restored", ["--issue", "ORB-215", "--repo", "ui", "--out", bareOut], { status: 0 }, options(ticketPlan()))
+  T(`${TOOL}: with the hook restored the ui order points at its own hook again`, approvalPointer.test(composed(bareOut)) && !composed(bareOut).includes(ownedHook), composed(bareOut))
+
   const orchestrateSkill = readFileSync(join(REPO_ROOT, ".claude", "skills", "orchestrate", "SKILL.md"), "utf8")
+  T(
+    `${TOOL}: the skill makes every unattended agent brief point at the approval hook`,
+    /Every agent brief in an unattended run forbids commands that ask for an approval/.test(orchestrateSkill) &&
+      orchestrateSkill.includes(".claude/hooks/forbid-approval-prompt.mjs") && orchestrateSkill.includes("node tools/wait-background-runs.mjs"),
+  )
   T(
     `${TOOL}: orchestration resolves review batch threads before its single push`,
     /compose its order with `--review-batch`/.test(orchestrateSkill) &&
@@ -511,8 +550,8 @@ export const cases = () => {
    * The regression this file exists to hold. Three documents claimed comments already reached the
    * worker while this tool read only the body, so /orchestrate step 2b's answers stopped at the
    * reviewer. A prompt that drops a comment is a prompt missing half its work order.
+   * The response arrives newest first with a minimized comment in the middle: neither order nor visibility is trusted.
    */
-  /** The response arrives newest first with a minimized comment in the middle: neither order nor visibility is trusted. */
   const withComments = join(root, "compose-prompt", "with-comments.md")
   check(
     TOOL,

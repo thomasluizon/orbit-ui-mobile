@@ -215,7 +215,7 @@ export const resolveWorkerInvocation = (engineName, engine, tier = "default") =>
  * directory, copied from its source: its credential list, OAuth refresh variable, credential file
  * descriptors, authorization headers, and the provider selectors that leave the Anthropic account.
  */
-export const CLAUDE_ACCOUNT_OVERRIDE_KEYS = [
+const CLAUDE_ACCOUNT_OVERRIDE_KEYS = [
   "ANTHROPIC_API_KEY",
   "ANTHROPIC_AUTH_TOKEN",
   "CLAUDE_CODE_OAUTH_TOKEN",
@@ -240,7 +240,7 @@ export const CLAUDE_ACCOUNT_OVERRIDE_KEYS = [
 
 /** The worker account's directory, and the main account: the orchestrator's default Claude config. */
 export const WORKER_ACCOUNT = "worker"
-export const MAIN_ACCOUNT = "main"
+const MAIN_ACCOUNT = "main"
 
 /**
  * The accounts a launch runs under: the first runs the order, the second takes the one relaunch
