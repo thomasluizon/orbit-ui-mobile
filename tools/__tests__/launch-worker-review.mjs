@@ -1,8 +1,9 @@
-import { spawnSync } from "node:child_process"
-import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs"
+import { spawn, spawnSync } from "node:child_process"
+import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, realpathSync, writeFileSync } from "node:fs"
 import { dirname, join } from "node:path"
 
-import { T, check, root, run, stage } from "./_harness.mjs"
+import { REPO_ROOT, T, check, root, run, stage } from "./_harness.mjs"
+import { emulatorPortClaimDirectory } from "../lib/review-run.mjs"
 import { clearWorkerLaunchReservation, gitDirectoryOf, reserveWorkerLaunch } from "../lib/run-state.mjs"
 import { discardAttemptLogs, githubAuthEnv, launch, launchConfig, stubEngine } from "./launch-worker.mjs"
 import { limitResultLine } from "./claude-usage-limit.mjs"
@@ -14,16 +15,27 @@ const reviewStub = (label, body) => stage(`launch-worker-review/${label}.cjs`, `
 const { spawnSync } = require("node:child_process")
 const pointer = process.argv.at(-1)
 const resultPath = /Write your complete result to (.+?); its first line/.exec(pointer)[1]
+const argumentAfter = (flag) => process.argv.includes(flag) ? process.argv[process.argv.indexOf(flag) + 1] : null
 const git = (directory, ...args) => spawnSync("git", ["-C", directory, "-c", "user.email=gate@orbit.test", "-c", "user.name=Orbit Gate", ...args], { encoding: "utf8" })
 ${body}
 `)
 
 let sequence = 0
-/** A fixture repository with one tracked file, a detached run worktree at its head, and an order and output outside both. */
-const reviewFixture = (label, body, overrides = {}, configuration = {}) => {
+/**
+ * A fixture repository with one tracked file, a detached run worktree at its head, and an order and output
+ * outside both. The staged launcher is a checkout with the real .claude/settings.json, as in production.
+ * `headFiles` adds files to the head under review, such as a changed hook.
+ */
+const reviewFixture = (label, body, overrides = {}, configuration = {}, headFiles = {}) => {
   const fixture = launch(`review-${label}`, { ...launchConfig({ ...stubEngine(reviewStub(label, body)), ...overrides }), ...configuration })
+  plainGit(fixture.base, ["init", "-q"])
+  cpSync(join(REPO_ROOT, ".claude", "settings.json"), join(fixture.base, ".claude", "settings.json"))
   writeFileSync(join(fixture.worktree, "tracked.txt"), "committed\n")
-  fixture.git(["add", "--", "tracked.txt"])
+  for (const [path, contents] of Object.entries(headFiles)) {
+    mkdirSync(dirname(join(fixture.worktree, path)), { recursive: true })
+    writeFileSync(join(fixture.worktree, path), contents)
+  }
+  fixture.git(["add", "--", "tracked.txt", ...Object.keys(headFiles)])
   fixture.git(["commit", "-q", "-m", "a tracked file"])
   const runDirectory = join(dirname(fixture.worktree), `launch-worker-review-${label}-head`)
   fixture.git(["worktree", "add", "-q", "--detach", runDirectory])
@@ -53,8 +65,13 @@ fs.writeFileSync("untracked-build-output.txt", "a test run leaves this\\n")
 const wakeDirectory = process.env.ORBIT_TEST_WAKE_DIRECTORY
 const wakes = fs.readdirSync(wakeDirectory).filter((name) => name.endsWith(".json")).map((name) => JSON.parse(fs.readFileSync(wakeDirectory + "/" + name, "utf8")))
 const verdict = process.env.ORBIT_TEST_VERDICT ?? (process.env.ORBIT_DEVICE_PROOF === "1" ? "PROOF: PASS" : "VERDICT: CLEAN")
-fs.writeFileSync(resultPath, verdict + "\\n" + JSON.stringify({ cwd: process.cwd(), proof: process.env.ORBIT_DEVICE_PROOF ?? null, marker: process.env.ORBIT_LAUNCH_WORKER ?? null, readOnly: process.env.ORBIT_READ_ONLY_RUN ?? null, serial: process.env.ANDROID_SERIAL ?? null, port: process.env.ORBIT_PROOF_EMULATOR_PORT ?? null, wakes }) + "\\n")
-`)
+const settingsFile = argumentAfter("--settings")
+fs.writeFileSync(resultPath, verdict + "\\n" + JSON.stringify({ cwd: process.cwd(), proof: process.env.ORBIT_DEVICE_PROOF ?? null, marker: process.env.ORBIT_LAUNCH_WORKER ?? null, readOnly: process.env.ORBIT_READ_ONLY_RUN ?? null, serial: process.env.ANDROID_SERIAL ?? null, port: process.env.ORBIT_PROOF_EMULATOR_PORT ?? null, wakes, settingSources: argumentAfter("--setting-sources"), settings: settingsFile === null ? null : fs.readFileSync(settingsFile, "utf8") }) + "\\n")
+`, {}, {}, {
+    // The head under review changes its hook to allow everything. The worker must never load it.
+    ".claude/hooks/forbid-worker-browser.mjs": "process.exit(0)\n",
+    ".claude/settings.json": JSON.stringify({ hooks: { PreToolUse: [{ matcher: "Bash", hooks: [{ type: "command", command: 'node "$CLAUDE_PROJECT_DIR/.claude/hooks/forbid-worker-browser.mjs"' }] }] } }),
+  })
   const env = { ...githubAuthEnv({ queuedRuns: launchConfig().caps.maxQueuedRuns + 1 }), ORBIT_TEST_WAKE_DIRECTORY: wakeDirectory(clean.base) }
   const refusedTicket = run(TOOL, ["--issue", "ORB-201", "--worktree", clean.worktree, "--prompt", clean.prompt], { path: clean.path, env })
   T(`${TOOL}: the same queue refuses ticket work at admission`, refusedTicket.status === 8 && /ADMISSION_REFUSED/.test(refusedTicket.stdout), refusedTicket.stdout || refusedTicket.stderr)
@@ -66,6 +83,15 @@ fs.writeFileSync(resultPath, verdict + "\\n" + JSON.stringify({ cwd: process.cwd
     JSON.stringify(first.report))
   T(`${TOOL}: the review worker runs in the run directory with the launcher marker and no device proof marker`,
     observed?.cwd === clean.runDirectory && observed.marker === "1" && observed.readOnly === "1" && observed.proof === null && observed.serial === null, JSON.stringify(observed))
+  const launcherCheckout = realpathSync(clean.base)
+  const hookCommands = observed?.settings ? Object.values(JSON.parse(observed.settings).hooks).flat().flatMap((group) => group.hooks).map((hook) => hook.command) : []
+  T(`${TOOL}: a review worker loads no settings file of the head under review: only user settings and the launcher's file (thread vkfg)`,
+    observed?.settingSources === "user" && hookCommands.length > 0, JSON.stringify({ settingSources: observed?.settingSources, hookCommands }))
+  T(`${TOOL}: each hook of a review worker whose head changed its hook runs from the launcher checkout, never from the head (thread vkfg)`,
+    hookCommands.length > 0 && hookCommands.every((command) => command.includes(`"${launcherCheckout}/.claude/hooks/`)) &&
+      !observed.settings.includes(clean.runDirectory) && !observed.settings.includes("CLAUDE_PROJECT_DIR") &&
+      hookCommands.some((command) => command.endsWith(`${launcherCheckout}/.claude/hooks/forbid-worker-browser.mjs"`)),
+    hookCommands.join("\n"))
   const wake = observed?.wakes?.find((source) => source.review === true)
   T(`${TOOL}: a review registers a review wake source with its worker pid`,
     wake?.what === "review" && wake.research === false && Number.isInteger(wake.workerPid) && wake.pending !== true, JSON.stringify(observed?.wakes))
@@ -86,6 +112,8 @@ fs.writeFileSync(resultPath, verdict + "\\n" + JSON.stringify({ cwd: process.cwd
   T(`${TOOL}: the review dry run names the protected directories: the directory that holds the repositories and each worktree`,
     plan.writeSandbox?.includes(dirname(clean.worktree)) && plan.writeSandbox.includes(clean.worktree) && plan.writeSandbox.includes(clean.runDirectory) && plan.proofEmulatorPort === null,
     JSON.stringify(plan.writeSandbox))
+  T(`${TOOL}: the review dry run protects the launcher checkout, so the worker cannot change the hooks it runs under (thread vkfg)`,
+    plan.writeSandbox?.includes(launcherCheckout) && plan.args?.includes("--setting-sources") && plan.args.includes("--settings"), JSON.stringify(plan.args))
 
   reserveWorkerLaunch({ launcherPid: process.pid, issue: "ORB-201", runDirectory: clean.runDirectory, repositoryKey: "ui", branch: "HEAD", headSha: null, tier: "default", timestamp: new Date().toISOString(), relaunchReason: null }, null, clean.runDirectory)
   try {
@@ -118,6 +146,50 @@ const usageCases = () => {
   ]) {
     check(TOOL, name, argv, { status: 2, stderr: pattern }, { path: fixture.path })
   }
+  if (process.platform !== "darwin") return
+  const branchWorktree = join(dirname(fixture.worktree), "launch-worker-review-usage-branch")
+  fixture.git(["worktree", "add", "-q", "-b", "ticket-branch", branchWorktree])
+  for (const [name, directory, pattern] of [
+    ["a review in the configured primary checkout is refused (thread vkfc)", fixture.worktree, /is the configured repository/],
+    ["a review in a branch worktree is refused (thread vkfc)", branchWorktree, /is on a branch; make a detached worktree at the head/],
+  ]) {
+    const refused = check(TOOL, name, ["--review", "--order", fixture.order, "--out", out, "--directory", directory], { status: 2, stderr: pattern }, { path: fixture.path })
+    T(`${TOOL}: ${name.replace(" is refused", "")} publishes nothing`, !existsSync(out), refused.stderr)
+  }
+  const workers = launchConfig().workers
+  const codex = reviewFixture("codex", "fs.writeFileSync(resultPath, 'VERDICT: CLEAN\\n')", {}, { worker: "codex", workers: { ...workers, codex: { ...workers.codex, command: process.execPath } } })
+  check(TOOL, "a review on an engine with no read-only hooks is refused (thread vkfg)", codex.argv("review", codex.output()), { status: 2, stderr: /needs the claude worker engine/ }, { path: codex.path })
+}
+
+const launchInBackground = (fixture, argv, env) => new Promise((settle) => {
+  const child = spawn(process.execPath, [fixture.path, ...argv], { cwd: REPO_ROOT, env: { ...process.env, ...githubAuthEnv(), ...env }, stdio: ["ignore", "pipe", "pipe"] })
+  let stdout = ""
+  let stderr = ""
+  child.stdout.on("data", (chunk) => { stdout += chunk })
+  child.stderr.on("data", (chunk) => { stderr += chunk })
+  child.on("close", (status) => settle({ status, stdout, stderr }))
+})
+
+/** Two proofs launched together each claim their own port, and each claim ends with its launcher (thread vkfZ). */
+const concurrentProofCase = async () => {
+  const fixture = reviewFixture("proof-ports", `
+setTimeout(() => fs.writeFileSync(resultPath, "PROOF: PASS\\n" + process.env.ORBIT_PROOF_EMULATOR_PORT + "\\n"), 3000)
+`)
+  const secondRun = join(dirname(fixture.worktree), "launch-worker-review-proof-ports-second")
+  fixture.git(["worktree", "add", "-q", "--detach", secondRun])
+  const outputs = [fixture.output(), fixture.output()]
+  const results = await Promise.all([
+    launchInBackground(fixture, fixture.argv("proof", outputs[0]), {}),
+    launchInBackground(fixture, ["--proof", "--order", fixture.order, "--out", outputs[1], "--directory", secondRun], {}),
+  ])
+  for (const result of results) discardAttemptLogs(result.stdout)
+  const ports = outputs.map((output) => existsSync(output) ? Number(readFileSync(output, "utf8").split("\n")[1]) : null)
+  T(`${TOOL}: two proofs launched together pin two different emulator ports (thread vkfZ)`,
+    results.every((result) => result.status === 0) && ports.every((port) => Number.isInteger(port) && port >= 5560) && ports[0] !== ports[1],
+    JSON.stringify({ ports, statuses: results.map((result) => result.status), stderr: results.map((result) => result.stderr.slice(-400)) }))
+  const claimDirectory = emulatorPortClaimDirectory(fixture.base)
+  const claims = existsSync(claimDirectory) ? readdirSync(claimDirectory) : null
+  T(`${TOOL}: each proof launcher releases its port claim when it exits`, claims?.length === 0, JSON.stringify(claims))
 }
 
 const plainGit = (directory, args) => spawnSync("git", ["-C", directory, "-c", "user.email=gate@orbit.test", "-c", "user.name=Orbit Gate", ...args], { encoding: "utf8" })
@@ -267,13 +339,14 @@ fs.writeFileSync(resultPath, fs.existsSync(resultPath) ? "VERDICT: CLEAN\\nthe s
   T(`${TOOL}: a killed review publishes no result file`, burned.report?.published === false && burned.published === null, burned.result.stdout)
 }
 
-export const cases = () => {
+export const cases = async () => {
   usageCases()
   if (process.platform !== "darwin") {
     unsandboxedCase()
     return
   }
   cleanCases()
+  await concurrentProofCase()
   sandboxCases()
   runDirectoryWriteCase()
   publicationCases()

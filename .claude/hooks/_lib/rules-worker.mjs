@@ -120,6 +120,19 @@ function reachesOwnerEmulator(tokens) {
 const UNPINNED_ACTION = "an unpinned device"
 const unquote = (token) => String(token ?? "").replaceAll(/["']/g, "")
 
+/**
+ * A token with a reference to a pinned variable, `$NAME` or `${NAME}` bare or quoted, read as the
+ * pinned value. The shell expands the reference after this hook reads the command, and the assignment
+ * rule of leavesPinnedDevice keeps the variable at its pinned value.
+ */
+function pinnedValue(token, pin) {
+  const reference = /^\$(?:\{([A-Z_]+)\}|([A-Z_]+))$/.exec(unquote(token))
+  const name = reference?.[1] ?? reference?.[2]
+  if (name === PINNED_SERIAL) return pin.serial
+  if (name === PINNED_PORT) return pin.port
+  return unquote(token)
+}
+
 /** The value of `flag` in `tokens`, as `flag value` or `flag=value`, or null. */
 function flagValue(tokens, flag) {
   const index = tokens.indexOf(flag)
@@ -134,8 +147,10 @@ function flagValue(tokens, flag) {
  * adb reaches every running emulator by serial, so only the pinned serial keeps the owner's emulator safe.
  */
 function leavesPinnedDevice(segment, tokens, pin) {
-  if (/\bunset\b[^\n]*\bANDROID_SERIAL\b/.test(segment) || /(?:^|\s)(?:-u|--unset)[\s=]*ANDROID_SERIAL\b/.test(segment)) return true
-  for (const match of segment.matchAll(/\bANDROID_SERIAL=(["']?)([^\s"']*)\1/g)) if (match[2] !== pin.serial) return true
+  for (const [name, value] of [[PINNED_SERIAL, pin.serial], [PINNED_PORT, pin.port]]) {
+    if (new RegExp(`\\bunset\\b[^\\n]*\\b${name}\\b`).test(segment) || new RegExp(`(?:^|\\s)(?:-u|--unset)[\\s=]*${name}\\b`).test(segment)) return true
+    for (const match of segment.matchAll(new RegExp(`\\b${name}=(["']?)([^\\s"']*)\\1`, "g"))) if (match[2] !== value) return true
+  }
   const binary = normalize(tokens[0])
   const bootTool = binary === "node" && normalize(tokens[1]) === "android-emulator.mjs"
   if (binary !== "adb" && binary !== "emulator" && !bootTool) return false
@@ -144,14 +159,15 @@ function leavesPinnedDevice(segment, tokens, pin) {
     for (let index = 1; index < tokens.length && tokens[index].startsWith("-"); index += 1) {
       const token = unquote(tokens[index])
       if (token === "-s") {
-        if (unquote(tokens[index + 1]) !== pin.serial) return true
+        if (pinnedValue(tokens[index + 1], pin) !== pin.serial) return true
         index += 1
       } else if (ADB_DEVICE_FLAGS.has(token)) return true
     }
     return false
   }
   if (bootTool && tokens.includes("--status")) return false
-  return flagValue(tokens, binary === "emulator" ? "-port" : "--port") !== pin.port
+  const port = flagValue(tokens, binary === "emulator" ? "-port" : "--port")
+  return port === null || pinnedValue(port, pin) !== pin.port
 }
 
 /** What a segment starts, or null. Judged on the program and its arguments, never on stray text. */

@@ -1,6 +1,6 @@
 import { cpSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { createHash } from "node:crypto"
-import { join } from "node:path"
+import { dirname, join } from "node:path"
 import { cloudOrder } from "../lib/cloud-worker.mjs"
 import { parityExemptTerms } from "../lib/parity-scope.mjs"
 
@@ -86,6 +86,8 @@ const readOnlyCases = () => {
       proof.includes("`PROOF: PASS`") && proof.includes("`PROOF: FAIL (<n> defects)`") && proof.includes("Orbit_Pixel_9_API_35") &&
       proof.includes("You write nothing tracked") && proof.includes("at most 12 lines"),
     proof)
+  T(`${TOOL}: the proof order boots with the composing checkout's own emulator tool by absolute path (thread vkfg)`,
+    proof.includes(`\`node ${join(dirname(staged.path), "android-emulator.mjs")} --avd orbit-proof-$ORBIT_PROOF_EMULATOR_PORT --port $ORBIT_PROOF_EMULATOR_PORT\``), proof)
   writeFileSync(join(evidence, "step-1.png"), "an earlier proof\n")
   const empty = stage("compose-prompt-read-only/empty-plan.md", "\n")
   for (const [name, argv, pattern] of [

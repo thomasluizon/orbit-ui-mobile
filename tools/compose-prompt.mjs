@@ -2,6 +2,7 @@
 
 import { mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs"
 import { isAbsolute, resolve } from "node:path"
+import { fileURLToPath } from "node:url"
 import { assertRepositoryLabel, readComments, readTicket, resolveTicket } from "./lib/github-issues.mjs"
 import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
 import { CLOUD_FINISHING_CONTRACT } from "./lib/cloud-worker.mjs"
@@ -119,7 +120,8 @@ const readOnlyOrder = () => {
   insideDeclaredRepository(evidenceArgument, "--evidence")
   mkdirSync(evidenceArgument, { recursive: true })
   if (!statSync(evidenceArgument).isDirectory() || readdirSync(evidenceArgument).length > 0) fail(2, `--evidence ${evidenceArgument} must be a new or empty directory`)
-  return proofOrder({ slug, pullRequest, head, plan, devices, evidenceDirectory: resolve(evidenceArgument) })
+  // The proof boots with this checkout's tool, never with the tool of the head under review.
+  return proofOrder({ slug, pullRequest, head, plan, devices, evidenceDirectory: resolve(evidenceArgument), emulatorTool: fileURLToPath(new URL("./android-emulator.mjs", import.meta.url)) })
 }
 if (readOnlyMode !== null) {
   writeFileSync(resolve(out), readOnlyOrder(), "utf8")

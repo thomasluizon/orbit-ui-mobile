@@ -7,7 +7,7 @@ import { delimiter, dirname, extname, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 
 import { assertOutsideRepository, researchEnvironment, researchInvocation, researchPaths, researchPrompt } from "./lib/research-run.mjs"
-import { freeEmulatorPort, protectedDirectories, readOnlyPaths, resultVerdict, runDirectorySnapshot, runDirectoryWrites, sandboxedInvocation, SANDBOX_EXEC, writeSandboxAvailable, writeSandboxProfile } from "./lib/review-run.mjs"
+import { assertDetachedRunDirectory, claimEmulatorPort, emulatorPortClaimDirectory, launcherSettings, protectedDirectories, readOnlyPaths, resultVerdict, runDirectorySnapshot, runDirectoryWrites, sandboxedInvocation, SANDBOX_EXEC, writeSandboxAvailable, writeSandboxProfile } from "./lib/review-run.mjs"
 import { githubEnvironment, redactSecrets } from "./lib/github-auth.mjs"
 import { ADMISSION_REFUSED_EXIT, checkAdmission, releaseAdmission } from "./lib/admission.mjs"
 import { resolveTicket } from "./lib/github-issues.mjs"
@@ -30,10 +30,13 @@ const USAGE = `usage: launch-worker.mjs --issue <ORB-N|#N|N> --worktree <path> -
   --proof            a device proof (tools/compose-prompt.mjs --proof composes the order). The worker
                      gets ORBIT_DEVICE_PROOF=1, which lets the worker hook allow adb and emulator, and
                      a free emulator port pair from 5560: ORBIT_PROOF_EMULATOR_PORT=<port> and
-                     ANDROID_SERIAL=emulator-<port>. The hook refuses each adb or emulator command
-                     that names another device or port
+                     ANDROID_SERIAL=emulator-<port>. The launcher claims the port in
+                     <git common dir>/orbit-proof-ports/<port>.json until it exits, so two proofs
+                     never share it. The hook refuses each adb or emulator command that names
+                     another device or port
   --directory <path> the directory the worker runs in: the root of a detached worktree at the head, or
-                     a copy outside every repository
+                     a copy outside every repository. A branch worktree and the checkout of a
+                     configured repository are refused
                      A read-only run uses the full tool set of its tier on the worker account, takes no
                      ticket admission and no branch launch slot, claims a git run directory against a
                      second launch, registers a wake source and keeps both clocks and the CPU probe.
@@ -42,7 +45,10 @@ const USAGE = `usage: launch-worker.mjs --issue <ORB-N|#N|N> --worktree <path> -
                      configured repository or of the run directory's repository, to each hygiene root,
                      to each git directory under the home directory and to the run directory's .git,
                      and it refuses each git network transport (git-remote-* and ssh). Only the run
-                     directory and paths outside those stay writable. A before and after status of the
+                     directory and paths outside those stay writable. The claude worker loads only its
+                     user settings and this checkout's .claude/settings.json (--setting-sources user
+                     --settings), so the hooks come from this checkout, never from the head under
+                     review. Another engine has no such hooks and is refused. A before and after status of the
                      run directory finds a commit or a changed tracked file there. The worker writes
                      its result to a file the launcher names; the launcher publishes it to --out only
                      when the worker exits 0, the run directory holds no write, and the first line is
@@ -97,7 +103,8 @@ exit codes: 0 the worker exited on its own, 1 this launcher killed it or it neve
 Research exits 0 only after publishing findings, 1 on engine, supervision or publication failure, or 130 or 143 when stopped.
 A read-only run exits 0 only after publishing its result, 5 when it found a write, 1 on any other
 engine, supervision or publication failure, 2 on a usage error, a held run directory or a platform with
-no write sandbox, 3 when no emulator port is free for a proof, or 130 or 143 when stopped.`
+no write sandbox, a run directory on a branch or another engine than claude, 3 when no emulator port
+is free for a proof, or 130 or 143 when stopped.`
 
 if (process.argv.includes("--help") || process.argv.includes("-h")) {
   console.log(USAGE)
@@ -200,6 +207,12 @@ if (config.relay.enabled && launchRunState?.relay?.pending === true) {
 if (readOnly && !writeSandboxAvailable()) {
   fail(2, `--${mode} needs the macOS write sandbox (${SANDBOX_EXEC}), and ${process.platform} has none. A read-only worker never runs without it.`)
 }
+const configuredRepositories = Object.values(config.repos ?? {}).filter((path) => typeof path === "string")
+if (readOnly && readOnlyPlan.gitWorktree) {
+  try { assertDetachedRunDirectory(readOnlyPlan.runDirectory, configuredRepositories) } catch (error) { fail(2, error.message) }
+}
+/** The checkout this launcher runs from. A read-only worker takes its hooks and its emulator tool from here. */
+const launcherRoot = realpathSync(fileURLToPath(new URL("..", import.meta.url)))
 
 const researchStorage = research ? mkdtempSync(join(tmpdir(), "orbit-research-")) : null
 const runDirectory = research ? join(researchStorage, "workspace") : readOnly ? readOnlyPlan.runDirectory : resolve(worktreeArg)
@@ -343,9 +356,23 @@ const headlessInvocation = () => {
 }
 
 const { executable, scriptArgs } = headlessInvocation()
+/**
+ * A read-only claude worker loads its user settings and this checkout's settings only. Claude Code sets
+ * CLAUDE_PROJECT_DIR to the run directory, so a project settings file would run the hooks of the head
+ * under review. --setting-sources user drops that file; --settings adds this checkout's hooks by path.
+ */
+let readOnlyArgs = []
+if (readOnly) {
+  if (engineName !== "claude") fail(2, `--${mode} needs the claude worker engine, whose hooks hold the read-only guards; .claude/orchestrator.json names "${engineName}"`)
+  const settingsFile = join(readOnlyStorage, "settings.json")
+  try {
+    writeFileSync(settingsFile, launcherSettings(readFileSync(join(launcherRoot, ".claude", "settings.json"), "utf8"), launcherRoot), { flag: "wx", mode: 0o600 })
+  } catch (error) { fail(2, `could not write the read-only worker settings from ${launcherRoot}: ${error.message}`) }
+  readOnlyArgs = ["--setting-sources", "user", "--settings", settingsFile]
+}
 const readOnlyPointer = () =>
   `Read ${promptFile} and execute it in full. That file is your complete order for a read-only ${mode} run. You are in ${runDirectory}. Write your complete result to ${stagedResult}; its first line is the verdict line the order names. Write no tracked file, commit, branch or push in any repository. Do not summarise the file back to me, start the work now.`
-const workerArgs = research ? null : [...scriptArgs, ...invocation.args, readOnly ? readOnlyPointer() : workerPointer(runDirectory, branch)]
+const workerArgs = research ? null : [...scriptArgs, ...invocation.args, ...readOnlyArgs, readOnly ? readOnlyPointer() : workerPointer(runDirectory, branch)]
 /**
  * A claude worker starts on the first account. With a worker account configured, the one relaunch
  * after a usage limit runs on the main account, the orchestrator's default Claude config. In
@@ -367,16 +394,23 @@ const reportFile = research ? join(researchStorage, "findings.txt") : null
 let writeSandbox = null
 if (readOnly) {
   const directories = protectedDirectories({
-    repositories: Object.values(config.repos ?? {}).filter((path) => typeof path === "string"),
+    repositories: configuredRepositories,
     runDirectory: readOnlyPlan.gitWorktree ? runDirectory : null,
-    extraRoots: Object.values(config.hygieneRoots ?? {}),
+    // The worker never changes the hooks it runs under.
+    extraRoots: [...Object.values(config.hygieneRoots ?? {}), launcherRoot],
   })
   try {
     writeSandbox = { protectedDirectories: directories, profile: writeSandboxProfile({ protectedDirectories: directories, homeDirectory: realpathSync(homedir()), runDirectory }) }
   } catch (error) { fail(2, error.message) }
 }
-const proofEmulatorPort = mode === "proof" ? await freeEmulatorPort() : null
-if (mode === "proof" && proofEmulatorPort === null) fail(3, "no free emulator port pair from 5560 to 5681 for the proof's throwaway emulator")
+let proofEmulatorPort = null
+if (mode === "proof") {
+  let claim
+  try { claim = await claimEmulatorPort({ claimDirectory: emulatorPortClaimDirectory(launcherRoot) }) } catch (error) { fail(2, `could not claim an emulator port: ${error.message}`) }
+  if (claim === null) fail(3, "no free emulator port pair from 5560 to 5681 for the proof's throwaway emulator")
+  process.on("exit", claim.release)
+  proofEmulatorPort = claim.port
+}
 
 let researchArgs = null
 if (research) {
@@ -816,6 +850,6 @@ if (!research && attempts[0].usageLimitReached && fallbackAccount !== null) {
   console.error(`${issue} stopped at the ${primaryAccount.name} account's usage limit; relaunching it once on the ${fallbackAccount.name} account`)
   // A read-only order starts again from its beginning, so a partial result of the first attempt cannot be published.
   if (readOnly) rmSync(stagedResult, { force: true })
-  attempts.push(await runAttempt(fallbackAccount, logFileFor(fallbackAccount), [...scriptArgs, ...invocation.args, readOnly ? readOnlyPointer() : continuationPointer(runDirectory, branch)]))
+  attempts.push(await runAttempt(fallbackAccount, logFileFor(fallbackAccount), [...scriptArgs, ...invocation.args, ...readOnlyArgs, readOnly ? readOnlyPointer() : continuationPointer(runDirectory, branch)]))
 }
 finish(attempts)

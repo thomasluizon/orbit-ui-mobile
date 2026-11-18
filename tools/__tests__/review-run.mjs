@@ -1,9 +1,10 @@
 import { spawnSync } from "node:child_process"
-import { existsSync, mkdirSync, readFileSync, realpathSync, symlinkSync, writeFileSync } from "node:fs"
+import { existsSync, mkdirSync, readFileSync, readdirSync, realpathSync, symlinkSync, writeFileSync } from "node:fs"
 import { dirname, join } from "node:path"
 
 import { REPO_ROOT, T, same, stage, stageRepo } from "./_harness.mjs"
-import { proofOrder, protectedDirectories, readOnlyPaths, resultVerdict, reviewBrief, reviewOrder, runDirectorySnapshot, runDirectoryWrites, SANDBOX_EXEC, sandboxedInvocation, writeSandboxAvailable, writeSandboxProfile } from "../lib/review-run.mjs"
+import { assertDetachedRunDirectory, claimEmulatorPort, emulatorPortClaimDirectory, launcherSettings, proofOrder, protectedDirectories, readOnlyPaths, resultVerdict, reviewBrief, reviewOrder, runDirectorySnapshot, runDirectoryWrites, SANDBOX_EXEC, sandboxedInvocation, writeSandboxAvailable, writeSandboxProfile } from "../lib/review-run.mjs"
+import { processStartIdentity } from "../lib/run-state.mjs"
 
 const UNIT = "lib/review-run.mjs"
 
@@ -37,8 +38,27 @@ const pathCases = () => {
   mkdirSync(join(repository.path, "nested"), { recursive: true })
   const outside = readOnlyPaths(order, output, copy, "review")
   T(`${UNIT}: a copy outside every repository is accepted and is no git worktree`, outside.runDirectory === realpathSync(copy) && outside.gitWorktree === false, JSON.stringify(outside))
-  const worktreeRoot = readOnlyPaths(order, output, repository.path, "proof")
-  T(`${UNIT}: a worktree root is accepted as a git run directory`, worktreeRoot.gitWorktree === true && worktreeRoot.orderFile === realpathSync(order), JSON.stringify(worktreeRoot))
+  const plainGit = gitWith({})
+  const detached = join(dirname(repository.path), "review-run-paths-detached")
+  plainGit(repository.path, ["worktree", "add", "-q", "--detach", detached])
+  const worktreeRoot = readOnlyPaths(order, output, detached, "proof")
+  T(`${UNIT}: a detached worktree root is accepted as a git run directory`, worktreeRoot.gitWorktree === true && worktreeRoot.orderFile === realpathSync(order), JSON.stringify(worktreeRoot))
+  let detachedMessage = "accepted"
+  try { assertDetachedRunDirectory(worktreeRoot.runDirectory, [repository.path]) } catch (error) { detachedMessage = error.message }
+  same(`${UNIT}: a detached worktree outside the configured checkouts passes the run directory rule (thread vkfc)`, detachedMessage, "accepted")
+  const branchWorktree = join(dirname(repository.path), "review-run-paths-branch")
+  plainGit(repository.path, ["worktree", "add", "-q", "-b", "ticket-branch", branchWorktree])
+  const primaryDetached = stageRepo("review-run-paths-primary")
+  plainGit(primaryDetached.path, ["checkout", "-q", "--detach"])
+  for (const [label, directory, repositories, pattern] of [
+    ["a branch worktree whose ticket worker exited", branchWorktree, [repository.path], /is on a branch; make a detached worktree at the head/],
+    ["the primary checkout of a configured repository on its branch", repository.path, [repository.path], /is the configured repository/],
+    ["the checkout of a configured repository at a detached HEAD", primaryDetached.path, [primaryDetached.path], /is the configured repository/],
+  ]) {
+    let message = "accepted"
+    try { assertDetachedRunDirectory(readOnlyPaths(order, output, directory, "review").runDirectory, repositories) } catch (error) { message = error.message }
+    T(`${UNIT}: the run directory rule refuses ${label} (thread vkfc)`, pattern.test(message), message)
+  }
   for (const [label, argv, pattern] of [
     ["a missing --directory", [order, output, null], /--directory is required for --review/],
     ["a directory inside a repository that is not its root", [order, output, join(repository.path, "nested")], /is inside a repository but is not a worktree root/],
@@ -63,18 +83,90 @@ const profileCases = () => {
   T(`${UNIT}: the run directory opens after every protected directory, and its .git closes after that`,
     at('(allow file-write* (subpath "/work/repos/review"))') > at('(deny file-write* (subpath "/work/repos/ui"))') &&
       at('(deny file-write* (subpath "/work/repos/review/.git"))') > at('(allow file-write* (subpath "/work/repos/review"))'), profile)
-  T(`${UNIT}: the git directory rule is scoped to the home directory, with its dot escaped`, profile.includes('(regex #"^/home/a\\.b/(.*/)?[^/]*\\.git(/|$)")'), profile)
+  T(`${UNIT}: the git directory rule is scoped to the home directory, with its dot escaped`, profile.includes('(regex "^/home/a\\\\.b/(.*/)?[^/]*\\\\.git(/|$)")'), profile)
   T(`${UNIT}: only the Vite and cache directories inside node_modules open again, after the protected directories`,
     at('(allow file-write* (regex #"/node_modules/\\.(vite|vite-temp|cache)(/|$)"))') > at('(deny file-write* (subpath "/work/repos/ui"))'), profile)
   T(`${UNIT}: the profile refuses each git network transport`, profile.includes('(deny process-exec (regex #"/git-remote-[^/]+$") (regex #"/ssh$"))'), profile)
-  for (const path of ['/work/a"b', "/work/a\\b", "/work/a\nb"]) {
+  // CodeQL alert 60: each backslash is escaped before each quote, in the strings and in the regex.
+  let odd = ""
+  try { odd = writeSandboxProfile({ protectedDirectories: ['/work/a\\b"c'], homeDirectory: '/home/x\\y"z', runDirectory: "/work/run" }) } catch (error) { odd = error.message }
+  T(`${UNIT}: a path with a backslash and a quote becomes one escaped profile string`, odd.includes('(deny file-write* (subpath "/work/a\\\\b\\"c"))'), odd)
+  T(`${UNIT}: a home directory with a backslash and a quote becomes one escaped regex string`, odd.includes('(regex "^/home/x\\\\\\\\y\\"z/(.*/)?[^/]*\\\\.git(/|$)")'), odd)
+  for (const path of ["/work/a\nb", "/work/a\rb"]) {
     let message = "accepted"
     try { writeSandboxProfile({ protectedDirectories: [path], homeDirectory: "/home/a", runDirectory: "/work/run" }) } catch (error) { message = error.message }
-    T(`${UNIT}: the profile refuses the path ${JSON.stringify(path)}`, /cannot name a path with a quote, a backslash or a line break/.test(message), message)
+    T(`${UNIT}: the profile refuses the path ${JSON.stringify(path)}`, /cannot name a path with a line break/.test(message), message)
   }
   const invocation = sandboxedInvocation(profile, "claude", ["-p", "order"])
   same(`${UNIT}: the sandboxed invocation runs the worker under the profile`, [invocation.executable, ...invocation.args], [SANDBOX_EXEC, "-p", profile, "claude", "-p", "order"])
   same(`${UNIT}: only macOS has the write sandbox`, [writeSandboxAvailable("linux"), writeSandboxAvailable("win32")], [false, false])
+}
+
+/**
+ * sandbox-exec reads the escaped strings back as the real paths: a write under a protected directory
+ * with a backslash and a quote in its name fails, a git directory under such a home fails, and a write
+ * next to them passes.
+ */
+const sandboxEscapeCases = () => {
+  if (!writeSandboxAvailable()) return
+  const base = dirname(stage('review-run/escape/a\\b"c/home/keep.txt', "kept\n"))
+  const odd = realpathSync(dirname(base))
+  const home = realpathSync(base)
+  const plain = realpathSync(dirname(stage("review-run/escape/plain/keep.txt", "kept\n")))
+  mkdirSync(join(home, "repo.git"), { recursive: true })
+  let profile
+  try { profile = writeSandboxProfile({ protectedDirectories: [join(odd, "protected")], homeDirectory: home, runDirectory: plain }) } catch (error) {
+    T(`${UNIT}: the write sandbox names a path with a backslash and a quote (CodeQL alert 60)`, false, error.message)
+    return
+  }
+  mkdirSync(join(odd, "protected"), { recursive: true })
+  const touch = (path) => spawnSync(SANDBOX_EXEC, ["-p", profile, "/usr/bin/touch", path], { encoding: "utf8" })
+  const denied = [touch(join(odd, "protected", "write.txt")), touch(join(home, "repo.git", "HEAD"))]
+  const allowed = [touch(join(plain, "write.txt")), touch(join(home, "note.txt"))]
+  T(`${UNIT}: sandbox-exec refuses a write in a protected directory and a git directory whose paths hold a backslash and a quote`,
+    denied.every((result) => result.status === 1 && /Operation not permitted/.test(result.stderr)), denied.map((result) => `${result.status} ${result.stderr}`).join("\n"))
+  T(`${UNIT}: sandbox-exec allows the writes next to them`, allowed.every((result) => result.status === 0), allowed.map((result) => `${result.status} ${result.stderr}`).join("\n"))
+}
+
+/** Two proofs claim two ports: the claim file holds the port until its launcher exits. */
+const portClaimCases = async () => {
+  const repository = stageRepo("review-run-port-claims")
+  const claimDirectory = emulatorPortClaimDirectory(repository.path)
+  T(`${UNIT}: the port claims live under the common git directory`, claimDirectory === join(realpathSync(repository.path), ".git", "orbit-proof-ports"), claimDirectory)
+  const probe = async () => true
+  const first = await claimEmulatorPort({ claimDirectory, probe })
+  const second = await claimEmulatorPort({ claimDirectory, probe })
+  T(`${UNIT}: a second proof launched before the first boots its emulator gets another port (thread vkfZ)`, first?.port === 5560 && second?.port === 5562, JSON.stringify([first?.port, second?.port]))
+  const claimFile = join(claimDirectory, "5560.json")
+  const claim = existsSync(claimFile) ? JSON.parse(readFileSync(claimFile, "utf8")) : null
+  T(`${UNIT}: the claim names the launcher pid and its start identity`, claim?.launcherPid === process.pid && claim.launcherProcessStartIdentity === processStartIdentity(process.pid), JSON.stringify(claim))
+  first.release()
+  const third = await claimEmulatorPort({ claimDirectory, probe })
+  T(`${UNIT}: a released port is free again`, third?.port === 5560 && existsSync(join(claimDirectory, "5562.json")), JSON.stringify(third?.port))
+  mkdirSync(claimDirectory, { recursive: true })
+  const gone = spawnSync(process.execPath, ["-e", "process.stdout.write(String(process.pid))"], { encoding: "utf8" })
+  writeFileSync(join(claimDirectory, "5564.json"), `${JSON.stringify({ launcherPid: Number(gone.stdout), launcherProcessStartIdentity: "darwin:1:S", claimId: "dead" })}\n`)
+  writeFileSync(join(claimDirectory, "5566.json"), `${JSON.stringify({ launcherPid: process.pid, launcherProcessStartIdentity: "an earlier process with this pid", claimId: "reused" })}\n`)
+  const reclaimedDead = await claimEmulatorPort({ claimDirectory, probe })
+  const reclaimedReused = await claimEmulatorPort({ claimDirectory, probe })
+  T(`${UNIT}: a claim whose launcher is gone, or whose pid now names another process, is free`, reclaimedDead?.port === 5564 && reclaimedReused?.port === 5566, JSON.stringify([reclaimedDead?.port, reclaimedReused?.port]))
+  const busy = await claimEmulatorPort({ claimDirectory, probe: async (port) => port > 5569 })
+  T(`${UNIT}: a port that something already listens on is skipped, and its claim is released`, busy?.port === 5570 && !existsSync(join(claimDirectory, "5568.json")), JSON.stringify(busy?.port))
+  for (const held of [second, third, reclaimedDead, reclaimedReused, busy]) held.release()
+  same(`${UNIT}: each release removes its own claim file`, readdirSync(claimDirectory), [])
+}
+
+/** The worker's hooks name the launcher checkout, never $CLAUDE_PROJECT_DIR, which is the head under review. */
+const settingsCases = () => {
+  const settings = launcherSettings(readFileSync(join(REPO_ROOT, ".claude", "settings.json"), "utf8"), "/launcher/checkout")
+  const commands = Object.values(JSON.parse(settings).hooks).flat().flatMap((group) => group.hooks).map((hook) => hook.command)
+  T(`${UNIT}: each hook command of the read-only settings names the launcher checkout (thread vkfg)`,
+    commands.length > 0 && commands.every((command) => command.includes('"/launcher/checkout/.claude/hooks/')) && !settings.includes("CLAUDE_PROJECT_DIR"), commands.join("\n"))
+  for (const root of ["/launcher/a b", '/launcher/a"b', "/launcher/$HOME", "/launcher/a\\b"]) {
+    let message = "accepted"
+    try { launcherSettings("{}", root) } catch (error) { message = error.message }
+    T(`${UNIT}: the read-only settings refuse the checkout path ${JSON.stringify(root)}`, /cannot name a checkout path/.test(message), message)
+  }
 }
 
 /** The protected list holds the directory of each repository, each worktree and each extra root, once and by real path. */
@@ -147,15 +239,22 @@ const orderCases = () => {
   }
   const promised = (order) => [...order.matchAll(/`((?:VERDICT|PROOF): [^`]+)`/g)].map((match) => match[1].replace("<n>", "2"))
   const review = reviewOrder({ brief: "Read the diff.", slug: "owner/name", pullRequest: "7", head: "abc1234" })
-  const proof = proofOrder({ slug: "owner/name", pullRequest: "7", head: "abc1234", plan: "1. Tap. Expected: it opens.\n", devices: ["iPhone 17"], evidenceDirectory: "/evidence" })
+  const proof = proofOrder({ slug: "owner/name", pullRequest: "7", head: "abc1234", plan: "1. Tap. Expected: it opens.\n", devices: ["iPhone 17"], evidenceDirectory: "/evidence", emulatorTool: "/launcher/checkout/tools/android-emulator.mjs" })
+  T(`${UNIT}: the proof boots with the launcher checkout's tool and an AVD named by its port (threads vkfg, vkfZ)`,
+    proof.includes("`node /launcher/checkout/tools/android-emulator.mjs --avd orbit-proof-$ORBIT_PROOF_EMULATOR_PORT --port $ORBIT_PROOF_EMULATOR_PORT`") && !proof.includes("node tools/android-emulator.mjs"), proof)
+  T(`${UNIT}: both orders tell the worker to read the project rules, which this run does not load`,
+    [review, proof].every((order) => order.includes("Read `CLAUDE.md` and `.claude/rules/core.md` of your directory first.")), review)
   same(`${UNIT}: the review order promises exactly the review verdict lines`, promised(review).map((line) => resultVerdict(line, "review")), ["VERDICT: CLEAN", "VERDICT: DEFECTS (2)"])
   same(`${UNIT}: the proof order promises exactly the proof verdict lines`, promised(proof).map((line) => resultVerdict(line, "proof")), ["PROOF: PASS", "PROOF: FAIL (2 defects)"])
   const maximum = (order) => Number(/at most (\d+) lines/.exec(order)?.[1])
   T(`${UNIT}: both orders cap the final message at 12 lines`, maximum(review) === 12 && maximum(proof) === 12, `${maximum(review)} ${maximum(proof)}`)
 }
 
-export const cases = () => {
+export const cases = async () => {
   orderCases()
+  sandboxEscapeCases()
+  await portClaimCases()
+  settingsCases()
   verdictCases()
   pathCases()
   profileCases()

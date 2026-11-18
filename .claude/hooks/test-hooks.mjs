@@ -21,6 +21,7 @@ import { checkDependencyCommand, checkDependencyFileWrite } from "./_lib/rules-d
 import { checkReadOnlyRun, checkWorkerBrowser } from "./_lib/rules-worker.mjs"
 import { declaredRepoRoots } from "./_lib/repo-roots.mjs"
 import { operationInProgress } from "../../tools/lib/relay-checkout.mjs"
+import { proofOrder } from "../../tools/lib/review-run.mjs"
 import { readRunState, writeRunState } from "../../tools/lib/run-state.mjs"
 import { checkRelayStop } from "./_lib/rules-relay.mjs"
 import { adoptRelayRun, appendChainEntry, closeSessionChain, confirmChainSuccessor, openSessionChain } from "../../tools/lib/session-chain.mjs"
@@ -389,6 +390,41 @@ for (const command of [
   "node tools/android-emulator.mjs --avd orbit-proof-2145 --port 5554",
 ]) {
   T(`worker-browser: a device proof may not leave its pinned device: ${command}`, /pinned device emulator-5594/.test(proofWorker(command)?.message ?? ""), true)
+}
+// The shell expands a variable after the hook reads the command, so the hook reads each pinned variable
+// reference as its pinned value. Both spellings of each command pass: the literal value and the variable.
+for (const command of [
+  "node tools/android-emulator.mjs --avd orbit-proof-5594 --port $ORBIT_PROOF_EMULATOR_PORT",
+  'node tools/android-emulator.mjs --avd orbit-proof-5594 --port "${ORBIT_PROOF_EMULATOR_PORT}"',
+  "node tools/android-emulator.mjs --avd orbit-proof-5594 --port=$ORBIT_PROOF_EMULATOR_PORT",
+  "node /launcher/checkout/tools/android-emulator.mjs --avd orbit-proof-$ORBIT_PROOF_EMULATOR_PORT --port $ORBIT_PROOF_EMULATOR_PORT",
+  "emulator -avd orbit-proof-5594 -port $ORBIT_PROOF_EMULATOR_PORT -no-window",
+  "adb -s $ANDROID_SERIAL install app.apk",
+  'adb -s "$ANDROID_SERIAL" shell input tap 1 1',
+  "adb -s ${ANDROID_SERIAL} shell input tap 1 1",
+  "ORBIT_PROOF_EMULATOR_PORT=5594 node tools/android-emulator.mjs --avd orbit-proof-5594 --port $ORBIT_PROOF_EMULATOR_PORT",
+]) {
+  T(`worker-browser: a device proof may run the variable spelling ${command}`, proofWorker(command), null)
+}
+for (const command of [
+  "export ORBIT_PROOF_EMULATOR_PORT=5554",
+  "ORBIT_PROOF_EMULATOR_PORT=5554 node tools/android-emulator.mjs --avd orbit-proof-5594 --port $ORBIT_PROOF_EMULATOR_PORT",
+  "unset ORBIT_PROOF_EMULATOR_PORT; node tools/android-emulator.mjs --avd orbit-proof-5594 --port 5594",
+  "env -u ORBIT_PROOF_EMULATOR_PORT node tools/android-emulator.mjs --avd orbit-proof-5594 --port 5594",
+  "node tools/android-emulator.mjs --avd orbit-proof-5594 --port $OTHER_PORT",
+  "node tools/android-emulator.mjs --avd orbit-proof-5594 --port $ORBIT_PROOF_EMULATOR_PORT_OTHER",
+  "adb -s $OTHER_SERIAL install app.apk",
+  "adb -s $ORBIT_PROOF_EMULATOR_PORT install app.apk",
+  "adb -s $(adb devices | tail -1) install app.apk",
+]) {
+  T(`worker-browser: a device proof may not move its pinned variables or name another: ${command}`, /pinned device emulator-5594/.test(proofWorker(command)?.message ?? ""), true)
+}
+// The proof order and the hook agree: each command of the order passes the hook of the same pin.
+{
+  const order = proofOrder({ slug: "owner/name", pullRequest: "7", head: "abc1234", plan: "1. Tap. Expected: it opens.", devices: ["iPhone 17"], evidenceDirectory: "/evidence", emulatorTool: "/launcher/checkout/tools/android-emulator.mjs" })
+  const commands = [...order.matchAll(/`((?:node|adb) [^`]+)`/g)].map((match) => match[1])
+  T("worker-browser: the proof order names its boot command and its adb form", commands.some((command) => command.includes("android-emulator.mjs")) && commands.some((command) => command.startsWith("adb ")), true)
+  for (const command of commands) T(`worker-browser: the device proof hook allows the proof order's own command ${command}`, proofWorker(command), null)
 }
 T("worker-browser: a device proof without a pinned serial may not run adb", /pinned device/.test(proofWorker("adb devices", { ORBIT_LAUNCH_WORKER: "1", ORBIT_DEVICE_PROOF: "1" })?.message ?? ""), true)
 for (const command of ["npm run dev", "npx playwright test", "expo start"]) {

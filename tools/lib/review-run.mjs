@@ -6,13 +6,14 @@
  */
 
 import { spawnSync } from "node:child_process"
-import { createHash } from "node:crypto"
-import { existsSync, readFileSync, realpathSync, statSync } from "node:fs"
+import { createHash, randomUUID } from "node:crypto"
+import { existsSync, linkSync, mkdirSync, readFileSync, realpathSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs"
 import { createServer } from "node:net"
 import { dirname, join, relative, resolve, isAbsolute } from "node:path"
 
 import { parseWorktreeList } from "./git-worktrees.mjs"
 import { researchPaths } from "./research-run.mjs"
+import { isWakeSourceAlive, processStartIdentity } from "./run-state.mjs"
 
 /** The first line of each result. tools/compose-prompt.mjs writes the same lines into each order. */
 export const REVIEW_VERDICT_LINE = /^VERDICT: (?:CLEAN|DEFECTS \(\d+\))$/
@@ -59,6 +60,20 @@ export const readOnlyPaths = (orderArgument, outputArgument, directoryArgument, 
   return { orderFile, outputFile, runDirectory, gitWorktree: topLevel.status === 0 }
 }
 
+/**
+ * Refuses a git run directory that the ticket does not permit. The worker may write its run directory,
+ * so it must be a detached worktree at the head under review, never a branch worktree and never the
+ * checkout of a configured repository. A copy outside every repository has no git directory to check.
+ */
+export const assertDetachedRunDirectory = (runDirectory, repositories) => {
+  for (const repository of repositories) {
+    if (realPath(repository) === runDirectory) throw new Error(`run directory ${runDirectory} is the configured repository ${repository}; make a detached worktree at the head`)
+  }
+  if (git(runDirectory, ["symbolic-ref", "-q", "HEAD"]).status === 0) {
+    throw new Error(`run directory ${runDirectory} is on a branch; make a detached worktree at the head`)
+  }
+}
+
 /** The macOS program that applies a sandbox profile to a process and to every process it starts. */
 export const SANDBOX_EXEC = "/usr/bin/sandbox-exec"
 
@@ -99,13 +114,18 @@ export const protectedDirectories = ({ repositories, runDirectory = null, extraR
   return [...directories].sort()
 }
 
-/** A path as a sandbox profile string. A quote, a backslash or a line break would end the string early. */
-const profileString = (path) => {
-  if (/["\\\r\n]/.test(path)) throw new Error(`the write sandbox cannot name a path with a quote, a backslash or a line break: ${JSON.stringify(path)}`)
-  return `"${path}"`
+/**
+ * A value as a sandbox profile string: each backslash first, then each quote, gets a backslash.
+ * sandbox-exec reads a line break in a string as part of the path, but a path with one is refused, so
+ * no profile line can hold two rules.
+ */
+const profileString = (value) => {
+  if (/[\r\n]/.test(value)) throw new Error(`the write sandbox cannot name a path with a line break: ${JSON.stringify(value)}`)
+  return `"${value.replaceAll("\\", "\\\\").replaceAll('"', '\\"')}"`
 }
 
-const profileRegexText = (path) => profileString(path).slice(1, -1).replace(/[.*+?^${}()|[\]]/g, "\\$&")
+/** A path as a regular expression that matches only that text: each special character, the backslash included, gets a backslash. */
+const regexLiteral = (path) => path.replace(/[\\.*+?^${}()|[\]]/g, "\\$&")
 
 /**
  * The sandbox profile of a read-only run. A later rule wins over an earlier one, so the run directory
@@ -120,7 +140,8 @@ export const writeSandboxProfile = ({ protectedDirectories: directories, homeDir
   // A review worktree links node_modules from a protected checkout. Vite and Vitest write their untracked
   // bundled config and cache there, so a test run needs these directories and no package file.
   `(allow file-write* (regex #"/node_modules/\\.(vite|vite-temp|cache)(/|$)"))`,
-  `(deny file-write* (regex #"^${profileRegexText(homeDirectory)}/(.*/)?[^/]*\\.git(/|$)"))`,
+  // A regex given as a profile string, not as a #"" literal, because a #"" literal has no escape for a quote.
+  `(deny file-write* (regex ${profileString(`^${regexLiteral(homeDirectory)}/(.*/)?[^/]*\\.git(/|$)`)}))`,
   `(allow file-write* (subpath ${profileString(runDirectory)}))`,
   `(deny file-write* (subpath ${profileString(join(runDirectory, ".git"))}))`,
   // Git reaches a network remote only through these programs: the http, https, ftp, ext and fd helpers, and ssh.
@@ -138,16 +159,85 @@ const portFree = (port) => new Promise((settle) => {
   server.listen(port, "127.0.0.1", () => server.close(() => settle(true)))
 })
 
+/** The directory of the emulator port claims: the common git directory of `checkout`, which each of its worktrees shares. */
+export const emulatorPortClaimDirectory = (checkout) => {
+  const common = git(checkout, ["rev-parse", "--path-format=absolute", "--git-common-dir"])
+  if (common.status !== 0 || common.stdout.trim() === "") throw new Error(`cannot read the git common directory of ${checkout}: ${common.stderr.trim()}`)
+  return join(common.stdout.trim(), "orbit-proof-ports")
+}
+
+const claimIsLive = (path) => {
+  try {
+    const claim = JSON.parse(readFileSync(path, "utf8"))
+    return isWakeSourceAlive({ pid: claim.launcherPid, processStartIdentity: claim.launcherProcessStartIdentity })
+  } catch (error) {
+    // A claim file that is gone is free. One that is unreadable may still be in the middle of its write.
+    return error.code !== "ENOENT"
+  }
+}
+
+/** Publishes `owner` at `path` only when no file is there: a hard link never replaces another launcher's claim. */
+const publishClaim = (path, owner) => {
+  const unpublished = `${path}.${randomUUID()}.unpublished`
+  try {
+    writeFileSync(unpublished, `${JSON.stringify(owner)}\n`, { flag: "wx" })
+    linkSync(unpublished, path)
+    return true
+  } catch (error) {
+    if (error.code === "EEXIST") return false
+    throw error
+  } finally {
+    rmSync(unpublished, { force: true })
+  }
+}
+
+/** Removes the claim at `path` when its launcher is gone. A live claim that arrived in between goes back. */
+const removeDeadClaim = (path) => {
+  if (claimIsLive(path)) return
+  const moved = `${path}.${randomUUID()}.dead`
+  try { renameSync(path, moved) } catch { return }
+  try {
+    if (claimIsLive(moved)) linkSync(moved, path)
+  } catch { /* a newer claim already holds the path */ } finally {
+    rmSync(moved, { force: true })
+  }
+}
+
 /**
- * An even emulator console port from 5560 to 5680 whose adb port, the next one, is also free. The
- * first three emulators of a machine take 5554 to 5559 on their own, so a pinned proof emulator never
- * shares a serial with the owner's. Null when every port is taken.
+ * Claims an even emulator console port from 5560 to 5680 with a free adb port after it, for the life of
+ * `launcherPid`. The owner's emulators take 5554 to 5559. The proof's emulator binds the port minutes
+ * after the launch, so the claim file, not the socket probe, keeps two proofs apart. A claim whose
+ * launcher is gone is free. Returns `{ port, release }`, or null when every port is taken.
  */
-export const freeEmulatorPort = async () => {
+export const claimEmulatorPort = async ({ claimDirectory, launcherPid = process.pid, probe = portFree }) => {
+  const identity = processStartIdentity(launcherPid)
+  if (identity === null) throw new Error(`cannot read the start identity of the launcher pid ${launcherPid}`)
+  mkdirSync(claimDirectory, { recursive: true })
+  const owner = { launcherPid, launcherProcessStartIdentity: identity, claimId: randomUUID() }
   for (let port = 5560; port <= 5680; port += 2) {
-    if (await portFree(port) && await portFree(port + 1)) return port
+    const path = join(claimDirectory, `${port}.json`)
+    removeDeadClaim(path)
+    if (!publishClaim(path, owner)) continue
+    const release = () => {
+      try {
+        if (JSON.parse(readFileSync(path, "utf8")).claimId === owner.claimId) rmSync(path, { force: true })
+      } catch { /* the claim is already gone */ }
+    }
+    if (await probe(port) && await probe(port + 1)) return { port, release }
+    release()
   }
   return null
+}
+
+/**
+ * The settings of a read-only worker: the orchestrating checkout's `.claude/settings.json` with each
+ * `$CLAUDE_PROJECT_DIR` replaced by that checkout. The launcher passes it with `--setting-sources user`,
+ * so Claude Code loads no settings file of the head under review, and the hooks of the head never run.
+ */
+export const launcherSettings = (settingsText, launcherRoot) => {
+  if (/["$`\\\s]/.test(launcherRoot)) throw new Error(`the hook commands cannot name a checkout path with a quote, a dollar sign, a backtick, a backslash or a space: ${JSON.stringify(launcherRoot)}`)
+  const settings = JSON.parse(settingsText)
+  return `${JSON.stringify(settings, null, 2).replaceAll("$CLAUDE_PROJECT_DIR", launcherRoot)}\n`
 }
 
 const STATUS_ARGUMENTS = ["-c", "core.fsmonitor=false", "status", "--porcelain=v1", "-z", "--untracked-files=no", "--ignore-submodules=none"]
@@ -221,6 +311,10 @@ own fixture repository in the temporary directory still works.
 comment, a review, a reaction, a label or a status, never resolve a thread, never ask for a review, and
 never read a credential. A hook refuses each of these commands.`
 
+const PROJECT_RULES = `**Project rules.** This run loads no settings file of your directory, so Claude Code does not load
+its \`CLAUDE.md\` or \`.claude/rules/\`. Read \`CLAUDE.md\` and \`.claude/rules/core.md\` of your directory first.
+The hooks of this run come from the orchestrating checkout, not from the head.`
+
 const FINAL_MESSAGE = `**Your final message has at most 12 lines:** the verdict line, the result file path, and one line for
 each of the most severe findings. The orchestrator reads the result file, not your message.`
 
@@ -242,6 +336,8 @@ ${brief}
 detached worktree at that head or a copy of it. Read by commit (\`git show ${head}:<path>\`), never by a
 checkout.
 
+${PROJECT_RULES}
+
 ${NO_WRITES}
 
 **Your result.** Write the complete report to the result file that the launch instruction names, and
@@ -254,8 +350,12 @@ ${FINAL_MESSAGE}
 `
 }
 
-/** The order of a device proof: the coordinator's steps, the permitted devices and the evidence directory. */
-export const proofOrder = ({ slug, pullRequest, head, plan, devices, evidenceDirectory }) => `# Device proof of ${slug} pull request #${pullRequest}
+/**
+ * The order of a device proof: the coordinator's steps, the permitted devices and the evidence directory.
+ * `emulatorTool` is the absolute path of the orchestrating checkout's tools/android-emulator.mjs, so the
+ * proof never boots with the tool of the head under review.
+ */
+export const proofOrder = ({ slug, pullRequest, head, plan, devices, evidenceDirectory, emulatorTool }) => `# Device proof of ${slug} pull request #${pullRequest}
 
 **What you prove.** Pull request #${pullRequest} of \`${slug}\` at head \`${head}\`. Your directory is a detached
 worktree at that head or a copy of it. Do each step below and compare what you observe with the
@@ -265,11 +365,14 @@ ${plan.trim()}
 
 **Devices.** Use only these: ${devices.join(", ")}. You may also create one throwaway Android virtual device
 from the installed arm64 play image, run it headless with no personal account, and delete it before
-you finish. Boot it on the port that the launcher pinned:
-\`node tools/android-emulator.mjs --avd <throwaway name> --port $ORBIT_PROOF_EMULATOR_PORT\`. Its serial is
-\`$ANDROID_SERIAL\`, which adb uses when a command names no device. Never pass another serial, never clear
-or change either variable, never boot or use \`Orbit_Pixel_9_API_35\`, the owner's emulator, and never
+you finish. Boot it with the orchestrating checkout's tool, on the port that the launcher pinned:
+\`node ${emulatorTool} --avd orbit-proof-$ORBIT_PROOF_EMULATOR_PORT --port $ORBIT_PROOF_EMULATOR_PORT\`.
+The AVD name holds the port, so no other proof uses the same AVD. Its serial is \`$ANDROID_SERIAL\`, which adb
+uses when a command names no device: \`adb -s $ANDROID_SERIAL install <file>\` is the same as
+\`adb install <file>\`. Never pass another serial, never clear or change either variable, never boot or use \`Orbit_Pixel_9_API_35\`, the owner's emulator, and never
 sign in to a personal account. Read \`.claude/playbooks/operations.md\` \`## Android devices and Play\` before you use a device.
+
+${PROJECT_RULES}
 
 ${NO_WRITES}
 A step that needs a changed tracked file, such as a version bump for a local build, runs in a copy
