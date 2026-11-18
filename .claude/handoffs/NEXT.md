@@ -31,9 +31,9 @@ UI `main` `d356d1b5d`; API `main` `f7abe19fc`; landing `main` `20c1b0a90`; produ
 | Item | Disposition |
 | --- | --- |
 | ui#2486, ui#2469, ui#2464, ui#2475, ui#2476, ui#2483, ui#2485, ui#2484, ui#2480, api#1121, api#1124, landing#137 | Pushed after a local review with no blocking finding; no Pullfrog review yet. Read `pr-bar.mjs`, rerun a cancelled `Tool tests` shard, ask Pullfrog when it works, merge at the bar, ui#2486 FIRST. landing#137 keeps a red `Build` until a patched `picomatch` exists. |
-| ui#2451 | Round 26 commit `364d7bd97` is not pushed; its delta review ran at the relay (key `2451-r26`): `git status`, read the verdict (S `review-2451-r26-local.md`), then push with `body-2451-r26.md`. |
+| ui#2451 | Pushed at `e6e51aa5d` (round 26). `SonarCloud` stays red: one small round adds its web and Android mirror pairs to `sonar.cpd.exclusions`, as its spec bullet says. |
 | `#2152` | Its build ran at the relay, stacked on the ui#2486 branch (worktree `ticket-2152-run-state-github`): a pull request gets the whole review, else relaunch S `order-2152-build.md` with a continuation. Retarget it to `main` before the ui#2486 branch is deleted. |
-| `#2125` Part 5 | A background agent ran at the relay in `orca/workspaces/brain/ticket-2125-vault-clean`: read its pull request in `thomasluizon/brain` and review it; with no pull request, read `git status` there and relaunch an agent with S `order-2125-part5.md`. |
+| `#2125` Part 5 | `thomasluizon/brain#2` is open and not reviewed: read S `report-2125-part5.md`, run one review agent on the whole diff, rebase, then merge. Tell the owner its items (student data in four record lines). |
 | api#1120 | Green and approved at `d7596be4f`, behind `main`; its k=1 gate needs ui#2480 merged and the `#2135` baseline window. |
 | Releases | `node tools/release-plan.mjs`: web when `releaseCi` is `success` (staging first, then production), then landing, then the Android and iOS pair. No API release: its head holds no runtime change. |
 | `#2161`, `#2162`, `#2163`, `#2160`, `#2146` item 5, `#2125` Parts 3 and 4, ui#2453 | As their spec bullets say. |
