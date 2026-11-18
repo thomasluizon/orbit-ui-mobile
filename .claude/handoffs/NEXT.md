@@ -18,13 +18,13 @@ Standing: reviews and proofs run as workers (S `launch-review-worker.sh <ticket>
 
 ## Goal
 
-Finish the spec: an empty board except `#33`, verified releases, the assistant fixed as a class, every `#315` ticket closed, then `#315`, then the store images (`#2147`) before `#33`. Left: `gh issue list --repo thomasluizon/orbit-tickets --state open --limit 400`. The order reconciles: open 28, placed 28, unplaced 0, placed twice 0.
+Finish the spec: an empty board except `#33`, verified releases, the assistant fixed as a class, every `#315` ticket closed, then `#315`, then the store images (`#2147`) before `#33`. Left: `gh issue list --repo thomasluizon/orbit-tickets --state open --limit 400`. The order reconciles: open 30, placed 28, unplaced 2 (`#2157`, `#2158`), placed twice 0.
 
 Answer the owner first, in English. `#2074` is MAX priority, then `#2152`.
 
 ## In flight
 
-UI `main` `b9c2fd519`; API `main` `944398f4f`; landing `main` `20c1b0a90`. Nothing merged. Owner question queue: empty. S `task-map.md` names each worktree, note, review key and helper (`round-result.mjs`, `review-after-round.sh`, `review-verdict.mjs`, `push-round.mjs`). The spec bullets hold each next step.
+UI `main` `b9c2fd519`; API `main` `944398f4f`; landing `main` `20c1b0a90`. Owner order: `/crank` and `/sleep` stay on; finish every ticket. Owner question queue: empty. S `task-map.md` names each worktree, note, review key and helper (`round-result.mjs`, `review-after-round.sh`, `review-verdict.mjs`, `push-round.mjs`). The spec bullets hold each next step.
 
 | Item | Disposition |
 | --- | --- |
@@ -38,6 +38,9 @@ UI `main` `b9c2fd519`; API `main` `944398f4f`; landing `main` `20c1b0a90`. Nothi
 | `#2125` | Parts 1 and 2 by a background agent in the thomas-brain worktree: find its pull request, else continue. Parts 3 to 5 are not started. |
 | Research record | A background agent wrote the brain note: read it, else write it. |
 | `#2129`, `#2152`, `#2135` baseline, releases, ui#2453 | As their spec bullets say. |
+| ui#2486 (`#2074` speed build) | New: whole review, Pullfrog, merge FIRST. |
+| api#1118 | Merged by the bot: verify, then close `#2153`. |
+| `#2157`, `#2158` | Worker-filed, unplaced: fold each into its area ticket and cancel it. |
 | Intake | One full cycle ran; only `#2156` was new. Run the next cycle. |
 
 ## Then, in this order
