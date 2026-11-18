@@ -232,17 +232,46 @@ describe('the Android search screen on the Orbit logic', () => {
     expect(mascots()).toHaveLength(1)
   })
 
-  it('keeps the searching status in the line while the search runs, with Orbit in Olhando', async () => {
+  it.each(['en', 'pt-BR'] as const)('holds Orbit in Pensando beside the one search status sentence in %s while the search runs, with the skeleton rows under the line', async (locale) => {
+    const searching = (locale === 'en' ? en : ptBR).habits.search.searching
+    mocks.query.mockReturnValue(result([], { pending: true }))
+    await mount(locale)
+    await focusField()
+    await type('walk')
+    await TestRenderer.act(() => { vi.advanceTimersByTime(300) })
+    const row = byTestId('search-orbit-line')[0]!
+    const inRow = (testID: string) => row.findAll((node) => typeof node.type === 'string' && node.props.testID === testID)
+    expect(inRow('search-skeleton')).toHaveLength(0)
+    expect(inRow('search-skeleton-row')).toHaveLength(0)
+    const sentence = inRow('search-line-searching')
+    expect(sentence.map((node) => renderedText(node.props.children))).toEqual([searching])
+    expect(sentence[0]!.props.importantForAccessibility).toBe('no-hide-descendants')
+    expect(sentence[0]!.props.accessibilityElementsHidden).toBe(true)
+    expect(row.findAll((node) => typeof node.type === 'string' && isText(node))).toHaveLength(1)
+    const skeleton = byTestId('search-skeleton')
+    expect(skeleton.map((node) => node.props.accessibilityLabel)).toEqual([searching])
+    expect(skeleton[0]!.findAll((node) => typeof node.type === 'string' && node.props.testID === 'search-skeleton-row')).toHaveLength(3)
+    expect(hosts((node) => node.props.testID === 'search-orbit-line' || node.props.testID === 'search-skeleton').map((node) => node.props.testID)).toEqual(['search-orbit-line', 'search-skeleton'])
+    expect(mascots()).toHaveLength(1)
+    expect(mascots()[0]!.props['data-orbit-state']).toBe('pensando')
+    expect(byTestId('search-rows')[0]!.props.accessibilityState).toEqual({ busy: true })
+    expect(input().props.value).toBe('walk')
+  })
+
+  it('takes the skeleton rows away and returns Orbit to Olhando when the search answers', async () => {
     mocks.query.mockReturnValue(result([], { pending: true }))
     await mount('en')
     await focusField()
     await type('walk')
     await TestRenderer.act(() => { vi.advanceTimersByTime(300) })
-    const row = byTestId('search-orbit-line')[0]!
-    expect(row.findAll((node) => typeof node.type === 'string' && node.props.testID === 'search-skeleton').map((node) => node.props.accessibilityLabel)).toEqual(['Searching'])
+    expect(byTestId('search-skeleton')).toHaveLength(1)
+    mocks.query.mockReturnValue(result([habit('walk', 'Walk')]))
+    await type('walks')
+    await TestRenderer.act(() => { vi.advanceTimersByTime(300) })
+    expect(byTestId('search-line-count').map((node) => renderedText(node.props.children))).toEqual(['I found 1 habit.'])
+    expect(byTestId('search-skeleton')).toHaveLength(0)
+    expect(byTestId('search-line-searching')).toHaveLength(0)
     expect(mascots()[0]!.props['data-orbit-state']).toBe('olhando')
-    expect(byTestId('search-rows')[0]!.props.accessibilityState).toEqual({ busy: true })
-    expect(input().props.value).toBe('walk')
   })
 
   it('opens the habit through the current route on a row press', async () => {

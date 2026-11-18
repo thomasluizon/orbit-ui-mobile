@@ -255,6 +255,7 @@ describe('bulk move footer geometry in Chromium', () => {
       import React, { useState } from 'react';
       import { createRoot } from 'react-dom/client';
       import { NextIntlClientProvider, useTranslations } from 'next-intl';
+      import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
       import en from '../../packages/shared/src/i18n/en.json';
       import ptBR from '../../packages/shared/src/i18n/pt-BR.json';
       import { MoveParentOverlay } from './components/habits/habit-list/move-parent-overlay';
@@ -276,7 +277,8 @@ describe('bulk move footer geometry in Chromium', () => {
           error={error} canSubmit={selected !== parent} onClose={() => {}}
           onConfirm={async () => { setError(t('habits.moveParent.errorPartial')); return false; }} onSelectOption={setSelected} />;
       }
-      createRoot(root).render(<NextIntlClientProvider locale={locale} messages={locale === 'en' ? en : ptBR} timeZone="UTC"><Picker /></NextIntlClientProvider>);
+      const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+      createRoot(root).render(<QueryClientProvider client={queryClient}><NextIntlClientProvider locale={locale} messages={locale === 'en' ? en : ptBR} timeZone="UTC"><Picker /></NextIntlClientProvider></QueryClientProvider>);
     `, {
       '@/components/ui/update-available-banner': 'export const UpdateAvailableBanner = () => null;',
       '@/components/ui/app-toast-host': 'export const AppToastHost = () => null;',
@@ -417,6 +419,7 @@ describe('disabled destination reason geometry', () => {
       import React, { useState } from 'react';
       import { createRoot } from 'react-dom/client';
       import { NextIntlClientProvider, useTranslations } from 'next-intl';
+      import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
       import en from '../../packages/shared/src/i18n/en.json';
       import ptBR from '../../packages/shared/src/i18n/pt-BR.json';
       import { MoveParentOverlay } from './components/habits/habit-list/move-parent-overlay';
@@ -435,7 +438,8 @@ describe('disabled destination reason geometry', () => {
           movingHabitParentId="current" selectedMoveParentId={selected} options={options} canSubmit={selected !== 'current'}
           onClose={() => {}} onConfirm={async () => false} onSelectOption={setSelected} />;
       }
-      createRoot(root).render(<NextIntlClientProvider locale={locale} messages={locale === 'en' ? en : ptBR} timeZone="UTC"><Picker /></NextIntlClientProvider>);
+      const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+      createRoot(root).render(<QueryClientProvider client={queryClient}><NextIntlClientProvider locale={locale} messages={locale === 'en' ? en : ptBR} timeZone="UTC"><Picker /></NextIntlClientProvider></QueryClientProvider>);
     `, {
       '@/components/ui/update-available-banner': 'export const UpdateAvailableBanner = () => null;',
       '@/components/ui/app-toast-host': 'export const AppToastHost = () => null;',

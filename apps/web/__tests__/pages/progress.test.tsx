@@ -153,7 +153,6 @@ vi.mock('@/hooks/use-flag', () => ({ useFlag: () => false }))
 vi.mock('@/components/goals/goal-detail-drawer', () => ({ GoalDetailDrawer: ({ goalId, inline, onOpenChange }: { goalId: string; inline?: boolean; onOpenChange: (open: boolean) => void }) => <div role={inline ? 'region' : 'dialog'} aria-label="goal-detail">{goalId}<button onClick={() => onOpenChange(false)}>Back to goals</button></div> }))
 vi.mock('@/components/ui/pro-badge', () => ({ ProBadge: () => <span>PRO</span> }))
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => mocks.account }))
-vi.mock('@/hooks/use-flag', () => ({ useFlag: () => false }))
 vi.mock('@/hooks/use-goals', () => ({
   useCreateGoal: () => mocks.create,
   useGoals: () => mocks.goals,
@@ -337,7 +336,8 @@ describe('ProgressContent', () => {
         await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
         const column = page.locator(`[data-progress-screen="${destination}"]`).last()
         const measured = await column.evaluate((element) => {
-          const body = element.lastElementChild!
+          const content = element.querySelector(':scope > [data-progress-layer]') ? element.firstElementChild! : element
+          const body = content.lastElementChild!
           const bounds = element.getBoundingClientRect()
           const section = body.querySelector('section')!
           return { gutter: section.getBoundingClientRect().left - bounds.left,

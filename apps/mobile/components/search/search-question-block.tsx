@@ -39,12 +39,12 @@ export function SearchQuestion({ hidden, onLayout, children }: Readonly<{ hidden
   )
 }
 
-/** Orbit at 48 beside the one sentence about the result set. Orbit is Parado after a miss and on a load error. */
-export function SearchOrbitLine({ mascotRef, lookAt, children }: Readonly<{ mascotRef: MascotRef; lookAt: LookAt; children: ReactNode }>) {
+/** Orbit at 48 beside the one sentence about the result set. Orbit is Pensando while the search runs, and Parado after a miss and on a load error. */
+export function SearchOrbitLine({ mascotRef, lookAt, thinking, children }: Readonly<{ mascotRef: MascotRef; lookAt: LookAt; thinking: boolean; children: ReactNode }>) {
   return (
     <View testID="search-orbit-line" style={styles.line}>
       <View ref={mascotRef} collapsable={false} importantForAccessibility="no-hide-descendants" accessibilityElementsHidden style={styles.lineMascot}>
-        <OrbitMascot size={48} lookAt={lookAt} />
+        <OrbitMascot size={48} state={thinking ? 'pensando' : 'parado'} lookAt={lookAt} />
       </View>
       <View style={styles.lineContent}>{children}</View>
     </View>

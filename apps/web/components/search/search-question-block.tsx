@@ -30,11 +30,11 @@ export function SearchQuestionBlock({ resting, mascotRef, lookAt, children }: Re
   )
 }
 
-/** Orbit at 48 beside the one sentence about the result set. Orbit is Parado after a miss and on a load error. */
-export function SearchOrbitLine({ mascotRef, lookAt, children }: Readonly<{ mascotRef: Ref<HTMLSpanElement>; lookAt: OrbitLookTarget | null; children: ReactNode }>) {
+/** Orbit at 48 beside the one sentence about the result set. Orbit is Pensando while the search runs, and Parado after a miss and on a load error. */
+export function SearchOrbitLine({ mascotRef, lookAt, thinking, children }: Readonly<{ mascotRef: Ref<HTMLSpanElement>; lookAt: OrbitLookTarget | null; thinking: boolean; children: ReactNode }>) {
   return (
     <div data-search-orbit-line="" className="flex min-h-12 items-center gap-3 px-1">
-      <span ref={mascotRef} aria-hidden="true" className="flex w-12 shrink-0 justify-center"><OrbitMascot size={48} lookAt={lookAt} /></span>
+      <span ref={mascotRef} aria-hidden="true" className="flex w-12 shrink-0 justify-center"><OrbitMascot size={48} state={thinking ? 'pensando' : 'parado'} lookAt={lookAt} /></span>
       <div className="min-w-0 flex-1 text-base leading-[1.4] text-[var(--fg-2)]">{children}</div>
     </div>
   )

@@ -72,6 +72,24 @@
       ],
       "reason": "The retained behavior has this source-backed label or entry in the redesign."
     },
+    "mobile:control:calendar.emptyMonth": {
+      "targets": [
+        "mobile:content:calendar.emptyMonth"
+      ],
+      "owners": [
+        "apps/mobile/app/(tabs)/calendar/_components/calendar-view-router.tsx"
+      ],
+      "reason": "The month feedback takes one text prop (#2122). With the guided flows off the calendar passes this sentence to it. With them on the Orbit line of Calendário states calendar.orbit.monthEmpty, and the create action stays."
+    },
+    "mobile:control:calendar.futureMonth": {
+      "targets": [
+        "mobile:content:calendar.futureMonth"
+      ],
+      "owners": [
+        "apps/mobile/app/(tabs)/calendar/_components/calendar-view-router.tsx"
+      ],
+      "reason": "The month feedback takes one text prop (#2122). With the guided flows off the calendar passes this sentence to it. With them on the Orbit line of Calendário states calendar.orbit.monthFuture."
+    },
     "mobile:control:calendar.goToCurrentMonth": {
       "targets": [
         "mobile:control:calendar.period.goToCurrent"
@@ -579,6 +597,24 @@
         "mobile:control:common.cancel"
       ],
       "reason": "Clear checklist moved into the controlled editor, where Save commits and Cancel discards the structural draft instead of immediately erasing persisted items."
+    },
+    "mobile:control:habits.checklistCompleteMessage": {
+      "targets": [
+        "mobile:content:habits.checklistCompleteMessage"
+      ],
+      "owners": [
+        "apps/mobile/components/habits/habit-detail-prompts.tsx"
+      ],
+      "reason": "The checklist completion prompt moved to habit-detail-prompts.tsx (#2122). With the guided flows off it passes this message to the confirm sheet. With them on it states habits.checklistCompleteLine, and the log action stays."
+    },
+    "mobile:control:habits.checklistCompleteTitle": {
+      "targets": [
+        "mobile:content:habits.checklistCompleteTitle"
+      ],
+      "owners": [
+        "apps/mobile/components/habits/habit-detail-prompts.tsx"
+      ],
+      "reason": "The checklist completion prompt moved to habit-detail-prompts.tsx (#2122). With the guided flows off it passes this title to the confirm sheet. With them on it asks habits.checklistCompleteQuestion, and the log action stays."
     },
     "mobile:control:habits.closeSearch": {
       "targets": [
@@ -1126,6 +1162,15 @@
       ],
       "reason": "The retained behavior has this source-backed label or entry in the redesign."
     },
+    "mobile:control:shareCard.periodQuestion": {
+      "targets": [
+        "mobile:content:shareCard.periodQuestion"
+      ],
+      "owners": [
+        "apps/mobile/components/share/share-card-sheet.tsx"
+      ],
+      "reason": "The share sheet reads the period question once in SharePeriodControl (#2122). The question names the period control and shows above it. With the guided flows on it names the option group and it is the sheet title."
+    },
     "mobile:control:streakDisplay.badge.tooltip": {
       "targets": [
         "mobile:content:progressScreen.sections.streak"
@@ -1248,9 +1293,12 @@
     },
     "mobile:control:wrapped.periodGroup": {
       "targets": [
-        "mobile:control:shareCard.periodQuestion"
+        "mobile:content:shareCard.periodQuestion"
       ],
-      "reason": "The share sheet period control is named by its question; the Wrapped cover keeps the period label."
+      "owners": [
+        "apps/mobile/components/share/share-card-sheet.tsx"
+      ],
+      "reason": "The share sheet period control is named by its question, which SharePeriodControl reads once (#2122); the Wrapped cover keeps the period label."
     },
     "mobile:display:about.version": {
       "targets": [
@@ -1493,6 +1541,15 @@
       ],
       "reason": "The rescue card wait is now Orbit in Pensando over the reschedule sheet skeleton rows, named by the sheet wait label."
     },
+    "mobile:display:habits.detail.slippingLine": {
+      "targets": [
+        "mobile:content:habits.detail.slippingLine"
+      ],
+      "owners": [
+        "apps/mobile/components/habits/habit-detail-screen.tsx"
+      ],
+      "reason": "Habit detail still states the slipping sentence. #2122 rewrote it without counts, so it takes no values and the scanner reads it as content."
+    },
     "mobile:display:habits.form.dueTime": {
       "targets": [
         "mobile:control:habits.form.exactTime"
@@ -1556,6 +1613,15 @@
         "apps/mobile/components/habits/habit-form-fields/habit-type-field.tsx"
       ],
       "reason": "Create always selects Task and edit retains its stored type. Both type choices remain reachable, so the empty-choice error has no reachable state."
+    },
+    "mobile:display:habits.moveParent.destinations": {
+      "targets": [
+        "mobile:content:habits.moveParent.destinations"
+      ],
+      "owners": [
+        "apps/mobile/components/habit-list/move-parent-dialog.tsx"
+      ],
+      "reason": "The move sheet reads the destinations question once in its heading hook (#2122). The question names the destination group and, with the guided flows on, it is the sheet title. With them off it also shows above the group."
     },
     "mobile:display:onboarding.flow.complete.subtitle": {
       "targets": [
@@ -1979,6 +2045,15 @@
       ],
       "reason": "The retained behavior has this source-backed label or entry in the redesign."
     },
+    "web:control:calendar.emptyMonth": {
+      "targets": [
+        "web:content:calendar.emptyMonth"
+      ],
+      "owners": [
+        "apps/web/app/(app)/calendar/_components/calendar-view-router.tsx"
+      ],
+      "reason": "The month feedback takes one text prop (#2122). With the guided flows off the calendar passes this sentence to it. With them on the Orbit line of Calendário states calendar.orbit.monthEmpty, and the create action stays."
+    },
     "web:control:calendar.emptyStat": {
       "targets": [
         "web:content:calendar.emptyStat"
@@ -1987,6 +2062,15 @@
         "apps/web/components/calendar/calendar-stats.tsx"
       ],
       "reason": "The calendar router supplies the unchanged empty-state label to the rendered calendar figures."
+    },
+    "web:control:calendar.futureMonth": {
+      "targets": [
+        "web:content:calendar.futureMonth"
+      ],
+      "owners": [
+        "apps/web/app/(app)/calendar/_components/calendar-view-router.tsx"
+      ],
+      "reason": "The month feedback takes one text prop (#2122). With the guided flows off the calendar passes this sentence to it. With them on the Orbit line of Calendário states calendar.orbit.monthFuture."
     },
     "web:control:calendar.goToCurrentMonth": {
       "targets": [
@@ -2481,6 +2565,24 @@
       ],
       "reason": "Clear checklist moved into the controlled editor, where Save commits and Cancel discards the structural draft instead of immediately erasing persisted items."
     },
+    "web:control:habits.checklistCompleteMessage": {
+      "targets": [
+        "web:content:habits.checklistCompleteMessage"
+      ],
+      "owners": [
+        "apps/web/components/habits/habit-detail-prompts.tsx"
+      ],
+      "reason": "The checklist completion prompt moved to habit-detail-prompts.tsx (#2122). With the guided flows off it passes this message to the confirm sheet. With them on it states habits.checklistCompleteLine, and the log action stays."
+    },
+    "web:control:habits.checklistCompleteTitle": {
+      "targets": [
+        "web:content:habits.checklistCompleteTitle"
+      ],
+      "owners": [
+        "apps/web/components/habits/habit-detail-prompts.tsx"
+      ],
+      "reason": "The checklist completion prompt moved to habit-detail-prompts.tsx (#2122). With the guided flows off it passes this title to the confirm sheet. With them on it asks habits.checklistCompleteQuestion, and the log action stays."
+    },
     "web:control:habits.closeSearch": {
       "targets": [
         "web:control:common.back"
@@ -2716,6 +2818,15 @@
         "web:control:nav.today"
       ],
       "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:milestoneShare.shareError": {
+      "targets": [
+        "web:content:milestoneShare.shareError"
+      ],
+      "owners": [
+        "apps/web/components/milestone-share/milestone-share-prompt.tsx"
+      ],
+      "reason": "The milestone share prompt holds its actions in one variable that the sheet and the guided question share (#2122). The alert paragraph inside it still states the share failure."
     },
     "web:control:nav.astra": {
       "targets": [
@@ -3083,6 +3194,15 @@
         "web:control:profile.settingsRows.weekStart"
       ],
       "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:shareCard.error": {
+      "targets": [
+        "web:content:shareCard.error"
+      ],
+      "owners": [
+        "apps/web/components/share/share-card-sheet.tsx"
+      ],
+      "reason": "The share card load failure moved to its own component in share-card-sheet.tsx (#2122). With the guided flows off it passes this sentence to ErrorState. With them on it states the sentence under Orbit in Parado. The retry action stays."
     },
     "web:control:shell.collapseSidebar": {
       "targets": [
@@ -3535,6 +3655,15 @@
       ],
       "reason": "The rescue card wait is now Orbit in Pensando over the reschedule sheet skeleton rows, named by the sheet wait label."
     },
+    "web:display:habits.detail.slippingLine": {
+      "targets": [
+        "web:content:habits.detail.slippingLine"
+      ],
+      "owners": [
+        "apps/web/components/habits/habit-detail-screen.tsx"
+      ],
+      "reason": "Habit detail still states the slipping sentence. #2122 rewrote it without counts, so it takes no values and the scanner reads it as content."
+    },
     "web:display:habits.form.dueTime": {
       "targets": [
         "web:control:habits.form.exactTime"
@@ -3598,6 +3727,15 @@
         "web:control:habits.form.timesPerUnit"
       ],
       "reason": "The quantity caption is retained as the labelled mode radio control in the habit schedule editor."
+    },
+    "web:display:habits.moveParent.destinations": {
+      "targets": [
+        "web:content:habits.moveParent.destinations"
+      ],
+      "owners": [
+        "apps/web/components/habits/habit-list/move-parent-overlay.tsx"
+      ],
+      "reason": "The move sheet reads the destinations question once in its heading hook (#2122). The question names the destination group and, with the guided flows on, it is the sheet title. With them off it also shows above the group."
     },
     "web:display:habits.todayBoundary.future": {
       "targets": [

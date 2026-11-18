@@ -27,9 +27,20 @@ export function hasSearchLine(search: Pick<ReturnType<typeof useHabitSearch>, 'b
   return !search.busy || search.showLoading || search.isError
 }
 
+function SearchLineSentence({ search, count, miss }: Readonly<{ search: ReturnType<typeof useHabitSearch>; count: string | null; miss: boolean }>) {
+  const t = useTranslations()
+  if (search.showLoading) return <p data-search-line="searching" aria-hidden="true">{t('habits.search.searching')}</p>
+  if (search.isError) return <InlineLoadError message={t('habits.search.loadError')} onRetry={() => void search.refetch()} />
+  if (count !== null) return <p data-search-line="count">{count}</p>
+  if (miss) return <p data-search-line="miss">{t.rich('habits.search.emptyTitle', { query: search.query, queryText: renderQueryText })}</p>
+  return null
+}
+
 /**
  * What the search gave, under the question: Orbit at 48 beside one sentence (the status, the count, the miss or the load error),
  * then the rows. The sentence comes from the result set the search already holds, so it starts no request of its own.
+ * While the search runs, Orbit is Pensando and the skeleton rows hold the place of the results under the line. The skeleton
+ * is the one accessible status, so the visible status sentence is hidden from assistive technology.
  */
 export function GuidedSearchOutcome({ search, entries, mascotRef, lookAt, onOpen, onCreate, createRefusal }: Readonly<GuidedSearchOutcomeProps>) {
   const t = useTranslations()
@@ -39,14 +50,10 @@ export function GuidedSearchOutcome({ search, entries, mascotRef, lookAt, onOpen
   const count = t('habits.search.line.count', { count: search.data?.totalCount ?? 0 })
   const spoken = found ? count : miss ? t.markup('habits.search.emptyTitle', { query: search.query, queryText: (chunks) => chunks }) : null
   const announcement = useFlowAnnouncement(spoken, 'search')
-  let line: ReactNode = null
-  if (search.showLoading) line = <Searching />
-  else if (search.isError) line = <InlineLoadError message={t('habits.search.loadError')} onRetry={() => void search.refetch()} />
-  else if (found) line = <p data-search-line="count">{count}</p>
-  else if (miss) line = <p data-search-line="miss">{t.rich('habits.search.emptyTitle', { query: search.query, queryText: renderQueryText })}</p>
   return <>
-    {hasSearchLine(search) ? <SearchOrbitLine mascotRef={mascotRef} lookAt={miss || search.isError ? null : lookAt}>{line}</SearchOrbitLine> : null}
+    {hasSearchLine(search) ? <SearchOrbitLine mascotRef={mascotRef} lookAt={miss || search.isError ? null : lookAt} thinking={search.showLoading}><SearchLineSentence search={search} count={found ? count : null} miss={miss} /></SearchOrbitLine> : null}
     <p role="status" className="sr-only">{announcement}</p>
+    {search.showLoading ? <Searching /> : null}
     {found ? <SearchResults today={search.today} sections={buildSearchSections(entries)} query={search.query} onOpen={onOpen} /> : null}
     {miss ? <SearchEmpty query={search.query} onCreate={onCreate} createRefusal={createRefusal} showTitle={false} /> : null}
   </>

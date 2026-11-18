@@ -2,6 +2,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest
 import { useRef, type ReactElement } from 'react'
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { NextIntlClientProvider } from 'next-intl'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import postcss from 'postcss'
@@ -75,7 +76,7 @@ describe('Progresso guided geometry in Chromium', () => {
     vi.useFakeTimers({ toFake: ['Date'] })
     vi.setSystemTime(new Date(progressStreakNow))
     vi.stubGlobal('matchMedia', (query: string) => ({ matches: width >= Number(query.match(/min-width: (\d+)px/)?.[1]), addEventListener: vi.fn(), removeEventListener: vi.fn() }))
-    render(<NextIntlClientProvider locale={locale} messages={LOCALES[locale]} timeZone="UTC">{ui}</NextIntlClientProvider>)
+    render(<QueryClientProvider client={new QueryClient()}><NextIntlClientProvider locale={locale} messages={LOCALES[locale]} timeZone="UTC">{ui}</NextIntlClientProvider></QueryClientProvider>)
     prepare()
     const page = await browser.newPage({ reducedMotion: 'reduce', viewport: { width, height: 915 } })
     try {
@@ -149,9 +150,11 @@ describe('Progresso guided geometry in Chromium', () => {
       fireEvent.click(screen.getByRole('button', { name: ptBr.progressScreen.streak.repairFlow.repair }))
       act(() => { (state.repairMutate.mock.calls.at(-1)![1] as { onSuccess: (info: { currentStreak: number }) => void }).onSuccess({ currentStreak: 3 }) })
     }, () => {
-      const panel = document.querySelector('[data-result-dialog]')!.getBoundingClientRect()
-      return { centreX: panel.left + panel.width / 2, centreY: (panel.top + panel.bottom) / 2, width: innerWidth, height: innerHeight }
+      const dialog = document.querySelector('[role="dialog"]')!
+      const panel = dialog.getBoundingClientRect()
+      return { centreX: panel.left + panel.width / 2, centreY: (panel.top + panel.bottom) / 2, width: innerWidth, height: innerHeight, holdsResult: dialog.querySelector('[data-result-dialog]') !== null }
     })
+    expect(geometry.holdsResult).toBe(true)
     expect(Math.abs(geometry.centreX - geometry.width / 2), JSON.stringify(geometry)).toBeLessThanOrEqual(1)
     expect(Math.abs(geometry.centreY - geometry.height / 2), JSON.stringify(geometry)).toBeLessThanOrEqual(1)
   })

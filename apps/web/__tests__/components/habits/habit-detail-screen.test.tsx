@@ -12,6 +12,7 @@ import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, fireEvent, render, screen, within } from '@testing-library/react'
 import type { Time24 } from '@orbit/shared/contracts/forms'
+import { enableTestFlags } from '@orbit/shared/test-support/flag-state'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { createApiClientError, formatAPIDate, formatLocaleDate, formatLocaleDateTime, isHabitSlipping, normalizeHabitQueryData } from '@orbit/shared/utils'
@@ -200,14 +201,15 @@ vi.mock('@/hooks/use-reschedule-suggestion', () => ({
   useRescheduleSuggestion: (options: { enabled: boolean }) => {
     mocks.rescheduleOptions.push(options)
     const settled = mocks.suggestion !== null || mocks.rescheduleError !== null
-    return { suggestion: mocks.suggestion, error: mocks.rescheduleError, isFetching: !settled && !mocks.reschedulePaused, isPaused: !settled && mocks.reschedulePaused, refetch: mocks.rescheduleRefetch }
+    const fetching = !settled && !mocks.reschedulePaused
+    return { suggestion: mocks.suggestion, error: mocks.rescheduleError, isLoading: fetching, isFetching: fetching, isPaused: !settled && mocks.reschedulePaused, refetch: mocks.rescheduleRefetch }
   },
 }))
 
 vi.mock('@/components/shell/flow-shell', () => ({
   FlowShell: ({ children, header }: { children: React.ReactNode; header?: React.ReactNode }) => <main>{header}{children}</main>,
 }))
-vi.mock('@/components/ui/orbit-mascot', () => ({ OrbitMascot: ({ size, state }: { size: number; state?: string }) => <svg data-testid="orbit-mascot" data-size={size} data-state={state} aria-hidden="true" /> }))
+vi.mock('@/components/ui/orbit-mascot', () => ({ useStateMascotSize: () => 96, OrbitMascot: ({ size, state }: { size: number; state?: string }) => <svg data-testid="orbit-mascot" data-size={size} data-state={state} aria-hidden="true" /> }))
 vi.mock('@/components/ui/badge', () => ({ Badge: ({ children }: { children: React.ReactNode }) => <span data-testid="badge">{children}</span> }))
 vi.mock('@/components/ui/confirm-sheet', () => ({
   ConfirmSheet: ({ open, title, message, confirmLabel, onConfirm, onCancel }: { open: boolean; title: string; message: string; confirmLabel: string; onConfirm: () => void; onCancel: () => void }) => open
@@ -657,6 +659,17 @@ describe('HabitDetailScreen', () => {
     expect(within(status).queryByTestId('rescue-loading-skeleton')).not.toBeInTheDocument()
     expect(within(status).getAllByTestId('orbit-mascot').map((mascot) => mascot.getAttribute('data-state'))).toEqual(['descansando'])
     expect(status).toHaveTextContent('shell.composer.offline.reason')
+  })
+
+  it('keeps Pensando on the Orbit line alone while the reschedule suggestion loads in the guided surface', () => {
+    enableTestFlags('orbit_guided_flows')
+    openRescueGate()
+    render(<HabitDetailScreen habitId="habit-1" />)
+    const wait = within(screen.getByRole('group', { name: 'habits.form.proposedByAstra' })).getByTestId('rescue-loading-skeleton')
+    expect(within(wait).queryByTestId('orbit-mascot')).not.toBeInTheDocument()
+    expect(Array.from(wait.querySelectorAll('[data-variant]')).map((block) => [block.getAttribute('data-variant'), block.textContent])).toEqual([['habit-row', 'habits.reschedule.loading'], ['habit-row', '']])
+    const line = document.querySelector<HTMLElement>('[data-today-astra-slot]')!
+    expect(screen.getAllByTestId('orbit-mascot').filter((mascot) => mascot.getAttribute('data-state') === 'pensando')).toEqual([within(line).getByTestId('orbit-mascot')])
   })
 
   it('shows a rescue only for an older overdue habit and handles request states', () => {

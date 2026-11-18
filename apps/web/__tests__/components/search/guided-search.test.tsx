@@ -208,16 +208,40 @@ describe('the search route on the Orbit logic', () => {
     expect(container.querySelectorAll('[data-asset="orbit-mascot"]')).toHaveLength(1)
   })
 
-  it('keeps the searching status in the line while the search runs, with Orbit in Olhando', async () => {
+  it.each(['en', 'pt-BR'] as const)('holds Orbit in Pensando beside the one search status sentence in %s while the search runs, with the skeleton rows under the line', async (locale) => {
     mocks.query.mockReturnValue(result([], { pending: true }))
-    const { container, field, mascot } = mount('en')
+    const { container, messages, field, mascot } = mount(locale)
     fireEvent.focus(field())
     type('walk')
-    const status = await screen.findByRole('status', { name: 'Searching' })
-    expect(container.querySelector('[data-search-orbit-line]')!.contains(status)).toBe(true)
-    expect(mascot().getAttribute('data-orbit-state')).toBe('olhando')
+    const status = await screen.findByRole('status', { name: messages.habits.search.searching })
+    const row = container.querySelector('[data-search-orbit-line]')!
+    expect(row.contains(status)).toBe(false)
+    expect(row.querySelectorAll('[data-search-skeleton-row]')).toHaveLength(0)
+    const sentence = row.querySelector('[data-search-line="searching"]')!
+    expect(sentence).toHaveTextContent(messages.habits.search.searching)
+    expect(sentence).toHaveAttribute('aria-hidden', 'true')
+    expect(row.textContent).toBe(messages.habits.search.searching)
+    expect(row.compareDocumentPosition(status) & Node.DOCUMENT_POSITION_FOLLOWING).toBe(Node.DOCUMENT_POSITION_FOLLOWING)
+    expect(status.querySelectorAll('[data-search-skeleton-row]')).toHaveLength(3)
+    expect(screen.getAllByRole('status', { name: messages.habits.search.searching })).toHaveLength(1)
+    expect(container.querySelectorAll('[data-asset="orbit-mascot"]')).toHaveLength(1)
+    expect(mascot().getAttribute('data-orbit-state')).toBe('pensando')
     expect(screen.getByRole('listbox')).toHaveAttribute('aria-busy', 'true')
     expect(field()).toHaveValue('walk')
+  })
+
+  it('takes the skeleton rows away and returns Orbit to Olhando when the search answers', async () => {
+    mocks.query.mockReturnValue(result([], { pending: true }))
+    const { container, field, mascot, rerender, messages } = mount('en')
+    fireEvent.focus(field())
+    type('walk')
+    await screen.findByRole('status', { name: 'Searching' })
+    mocks.query.mockReturnValue(result([habit('walk', 'Walk')]))
+    rerender(<NextIntlClientProvider locale="en" messages={messages}><SearchPage /></NextIntlClientProvider>)
+    expect(await screen.findByText('I found 1 habit.')).toBeInTheDocument()
+    expect(container.querySelector('[data-search-skeleton]')).toBeNull()
+    expect(container.querySelector('[data-search-line="searching"]')).toBeNull()
+    expect(mascot().getAttribute('data-orbit-state')).toBe('olhando')
   })
 
   it('opens the habit through the current route on a row press and on Enter', async () => {

@@ -88,6 +88,7 @@ import { findUnfinalizedFirstWrite, waitForFirstWriteFinalization } from '@/lib/
 import { useProfile } from '@/hooks/use-profile'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { useRescheduleSuggestion } from '@/hooks/use-reschedule-suggestion'
+import { useFlag } from '@/hooks/use-flag'
 import { useTimeFormat } from '@/hooks/use-time-format'
 import { createTokensV2, radius, responsiveTypeStyle } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -361,11 +362,12 @@ function RescheduleBlock({ habit, rescue: { query, open }, hasPro, locale, today
 
 function RescueWait({ query, tokens }: Readonly<{ query: Pick<ReturnType<typeof useRescheduleSuggestion>, 'error' | 'isPaused' | 'isFetching'>; tokens: ReturnType<typeof createTokensV2> }>) {
   const { t } = useTranslation()
+  const lineHoldsOrbit = useFlag('orbit_guided_flows')
   if (query.error) return <Text style={[styles.muted, { color: tokens.fg3 }]}>{t('habits.detail.rescheduleError')}</Text>
   if (query.isPaused) return <CapacityNotice message={t('shell.composer.offline.reason')} mascotState="descansando" />
   if (!query.isFetching) return null
   return <View testID="rescue-loading-skeleton" style={styles.rescueWait}>
-    <View style={styles.rescueWaitMascot}><OrbitMascot size={48} state="pensando" /></View>
+    {lineHoldsOrbit ? null : <View style={styles.rescueWaitMascot}><OrbitMascot size={48} state="pensando" /></View>}
     <View style={styles.rescueWaitRows}><Skeleton variant="habit-row" label={t('habits.reschedule.loading')} /><Skeleton variant="habit-row" grouped /></View>
   </View>
 }

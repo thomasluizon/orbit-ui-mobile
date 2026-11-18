@@ -13,6 +13,7 @@ import { __setWindowDimensions } from '../../../test-mocks/react-native'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createApiClientError, formatAPIDate, formatLocaleDate, formatLocaleDateTime, isHabitSlipping, normalizeHabitQueryData } from '@orbit/shared/utils'
 import type { Time24 } from '@orbit/shared/contracts/forms'
+import { enableTestFlags } from '@orbit/shared/test-support/flag-state'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import {
@@ -358,7 +359,8 @@ vi.mock('@/hooks/use-reschedule-suggestion', () => ({
   useRescheduleSuggestion: (options: { enabled: boolean }) => {
     mocks.rescheduleOptions.push(options)
     const settled = mocks.suggestion !== null || mocks.rescheduleError !== null
-    return { suggestion: mocks.suggestion, error: mocks.rescheduleError, isFetching: !settled && !mocks.reschedulePaused, isPaused: !settled && mocks.reschedulePaused, refetch: mocks.rescheduleRefetch }
+    const fetching = !settled && !mocks.reschedulePaused
+    return { suggestion: mocks.suggestion, error: mocks.rescheduleError, isLoading: fetching, isFetching: fetching, isPaused: !settled && mocks.reschedulePaused, refetch: mocks.rescheduleRefetch }
   },
 }))
 vi.mock('@/lib/theme', async (importOriginal) => {
@@ -950,6 +952,18 @@ describe('HabitDetailScreen', () => {
     expect(status.findAll((node: TestNode) => typeof node.type === 'string' && node.props.testID === 'rescue-loading-skeleton')).toHaveLength(0)
     expect(status.findAllByType('OrbitMascot').map((mascot: TestNode) => mascot.props.state)).toEqual(['descansando'])
     expect(textsOf(status)).toContain('shell.composer.offline.reason')
+    TestRenderer.act(() => tree.unmount())
+  })
+
+  it('keeps Pensando on the Orbit line alone while the reschedule suggestion loads in the guided surface', () => {
+    enableTestFlags('orbit_guided_flows')
+    openRescueGate()
+    let tree!: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" />) })
+    const wait = tree.root.findAllByType('Proposed').find(isRescueProposal)!.findAll((node: TestNode) => typeof node.type === 'string' && node.props.testID === 'rescue-loading-skeleton')[0]!
+    expect(wait.findAllByType('OrbitMascot')).toHaveLength(0)
+    expect(wait.findAllByType('Skeleton').map((block: TestNode) => [block.props.variant, block.props.label])).toEqual([['habit-row', 'habits.reschedule.loading'], ['habit-row', undefined]])
+    expect(tree.root.findAllByType('OrbitMascot').filter((mascot: TestNode) => mascot.props.state === 'pensando').map((mascot: TestNode) => mascot.props.size)).toEqual([48])
     TestRenderer.act(() => tree.unmount())
   })
 

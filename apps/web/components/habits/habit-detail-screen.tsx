@@ -89,6 +89,7 @@ import { useUpdateHabit } from '@/hooks/use-update-habit'
 import { useProfile } from '@/hooks/use-profile'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { useRescheduleSuggestion } from '@/hooks/use-reschedule-suggestion'
+import { useFlag } from '@/hooks/use-flag'
 import { useIsWideDesktop } from '@/hooks/use-is-desktop'
 import { useTimeFormat } from '@/hooks/use-time-format'
 import { useAccountGeneration, useAccountScopedState, useResetOnAccountChange } from '@/hooks/use-session-reset'
@@ -412,11 +413,12 @@ function RescheduleBlock({ habit, rescue: { query, open }, hasProAccess, locale,
 
 function RescueWait({ query }: Readonly<{ query: Pick<ReturnType<typeof useRescheduleSuggestion>, 'error' | 'isPaused' | 'isFetching'> }>) {
   const t = useTranslations()
+  const lineHoldsOrbit = useFlag('orbit_guided_flows')
   if (query.error) return <p className="text-sm text-[var(--fg-3)]">{t('habits.detail.rescheduleError')}</p>
   if (query.isPaused) return <CapacityNotice message={t('shell.composer.offline.reason')} mascotState="descansando" />
   if (!query.isFetching) return null
   return <div data-testid="rescue-loading-skeleton" className="flex flex-col gap-3">
-    <span className="flex self-start"><OrbitMascot size={48} state="pensando" /></span>
+    {lineHoldsOrbit ? null : <span className="flex self-start"><OrbitMascot size={48} state="pensando" /></span>}
     <div className="flex flex-col gap-2"><Skeleton variant="habit-row" label={t('habits.reschedule.loading')} /><Skeleton variant="habit-row" grouped /></div>
   </div>
 }

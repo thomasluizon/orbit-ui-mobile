@@ -59,17 +59,22 @@ function SearchOutcomeLine({ model, mascotRef, lookAt }: Readonly<{ model: Searc
   const spoken = found ? count : miss ? t('habits.search.emptyTitle', { query: search.query }).replace(/<\/?queryText>/g, '') : null
   const announcement = useFlowAnnouncement(spoken, 'search')
   let line: ReactNode = null
-  if (search.showLoading) line = <Searching />
+  if (search.showLoading) line = <Text testID="search-line-searching" accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={[styles.line, { color: tokens.fg2 }]}>{t('habits.search.searching')}</Text>
   else if (search.isError) line = <InlineLoadError message={t('habits.search.loadError')} onRetry={() => void search.refetch()} />
   else if (found) line = <Text testID="search-line-count" style={[styles.line, { color: tokens.fg2 }]}>{count}</Text>
   else if (miss) line = <Text testID="search-line-miss" style={[styles.line, { color: tokens.fg2 }]}><Trans i18nKey="habits.search.emptyTitle" values={{ query: search.query }} components={{ queryText: <Text /> }} /></Text>
   return <>
-    {hasSearchLine(search) ? <SearchOrbitLine mascotRef={mascotRef} lookAt={miss || search.isError ? null : lookAt}>{line}</SearchOrbitLine> : null}
+    {hasSearchLine(search) ? <SearchOrbitLine mascotRef={mascotRef} lookAt={miss || search.isError ? null : lookAt} thinking={search.showLoading}>{line}</SearchOrbitLine> : null}
     <Text testID="search-line-status" accessibilityLiveRegion="polite" style={styles.status}>{announcement}</Text>
+    {search.showLoading ? <Searching /> : null}
   </>
 }
 
-/** The rows under the search field. `mascotRef` is present on the guided surface: with a typed query the Orbit line holds the outcome. */
+/**
+ * The rows under the search field. `mascotRef` is present on the guided surface: with a typed query the Orbit line holds the outcome.
+ * While the search runs, Orbit is Pensando and the skeleton rows hold the place of the results under the line. The skeleton
+ * is the one accessible status, so the visible status sentence is hidden from assistive technology.
+ */
 export function SearchList({ model, mascotRef, lookAt = null }: Readonly<{ model: SearchScreenModel } & Partial<OrbitLineProps>>) {
   const { t } = useTranslation()
   const tokens = useTokens()
