@@ -769,7 +769,7 @@ const worktreeChangeOf = (item, evidence, probes) => {
  * evidence, the scratchpad links and the worktrees again, and applies the listing's rules to every kind of item.
  */
 const removalHoldOf = (item, context, repositories, probes) => {
-  const live = { ...readLiveEvidence(context, probes), sessionRoot: context.sessionRoot }
+  const live = { ...readLiveEvidence(context, probes), sessionRoot: context.sessionRoot, now: Date.now() }
   const liveHold = liveHoldOf(item, live)
   if (liveHold) return `it is in use now: ${liveHold}`
   const evidence = { ...live, ...readSessionLinks(live), ...readWorktrees(repositories, probes) }

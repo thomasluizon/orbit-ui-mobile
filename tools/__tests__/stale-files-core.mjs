@@ -657,6 +657,21 @@ const freshBranchCases = () => {
   T("stale-files: with no relay on record, a branch whose age cannot be read stays", /^the age of its branch could not be read/.test(reasonOf(listing, tree("no-reflog")) ?? ""),
     `reason: ${reasonOf(listing, tree("no-reflog"))}`)
   same("stale-files: with no relay on record, a branch older than the minimum age with no pull request and no commit is stale", stalePaths(listing, "worktree"), [tree("aged")])
+
+  // A worktree registered inside a listed item after the listing: the removal judges its branch age as the listing does.
+  const session = join(machine.sessionRoot, STALE)
+  const nested = join(session, "scratchpad", "late-worktree")
+  mkdirSync(nested, { recursive: true })
+  const withNested = `${records}\nworktree ${nested}\nHEAD 2\nbranch refs/heads/feature/late\n`
+  reflogs[nested] = `feature/late@{${Math.floor((now - 60_000) / 1000)}}`
+  const removalProbes = { ...quietProbes, repositories: () => [],
+    git: (cwd, args) => ({ worktree: () => withNested, "rev-list": () => "0", "rev-parse": () => "2", "symbolic-ref": () => "origin/main", "cat-file": () => "",
+      log: () => reflogs[cwd] ?? "" }[args[0]] ?? (() => ""))() }
+  T("stale-files: the fresh branch fixture lists the session directory as stale", stalePaths(listing, "session").includes(session), JSON.stringify(listing.stale.map((item) => item.path)))
+  const outcome = removeListed({ ...listing, stale: listing.stale.filter((item) => item.path === session) }, { ui: machine.checkout }, { probes: removalProbes })
+  same("stale-files: the removal keeps a session directory that holds a new worktree on a branch younger than the minimum age, with the reason", outcome.skipped.map((item) => item.reason),
+    [`the check before the removal keeps it: worktree ${nested} in it stays: its branch has no pull request and was made less than ${MINIMUM_BRANCH_AGE_MS / 3_600_000} hours ago`])
+  T("stale-files: the session directory with the young nested worktree still exists", existsSync(nested) && outcome.removed.length === 0, JSON.stringify(outcome))
 }
 
 /**
