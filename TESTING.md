@@ -396,10 +396,10 @@ call. So each reader of a trace (`### Run path`) reads a traced change against t
 - In the `wrapper` shape, that is the `arguments` schema of the alternative of the kind. The completion
   control and the plan title stay at the top level of `propose_changes`.
 
-A `propose_changes` call is in the trace only when it holds no change. No run names its shape. A traced
-call is valid when the lists of one shape accept it, and the private evidence keeps an argument that one
-shape declares. When each shape refuses a call, the reason of the structural assertion holds the refusal of
-each shape.
+A `propose_changes` call is in the trace only when it holds no change. No run names its shape. A trace
+is valid when the lists of one shape accept every call of it, so a trace with a change of one shape and a
+change of the other shape fails. The private evidence keeps an argument that one shape declares. When
+each open shape refuses a call, the reason of the structural assertion holds the refusal of each shape.
 
 Fixture requests retry one transport timeout or network failure for `GET`, `DELETE`, and verified
 replacement `PUT` routes: `habits/{id}`, `habits/{id}/checklist`, `tags/{id}/assign`,

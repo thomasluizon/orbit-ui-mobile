@@ -167,6 +167,21 @@ it('replays a window of the ai_change_plan path against the flag-on lists', asyn
   await expect(replayWindow(source, `${directory}/output-unknown`)).rejects.toThrow('The window names the path "flag"; a run measures block-first or change-plan.')
 })
 
+it.each(changeShapes.flatMap((first) => changeShapes.filter((second) => second !== first).map((second) => [first, second])))(
+  'replays no recorded trace with a change of the %s shape and a change of the %s shape', async (first, second) => {
+    const context = buildChatClientContext({ platform: 'web', locale: 'en' })
+    const attempt = structuredClone(saved.find((entry) => entry.caseId === 'composition-choice-en'))
+    attempt.pass = true
+    attempt.assertions = attempt.assertions.map((assertion) => ({ ...assertion, pass: true }))
+    attempt.toolCalls = [changeListTrace(first, context)[0], changeListTrace(second, context)[1]]
+      .map(({ name, arguments: arguments_, status }) => ({ name, arguments: arguments_, resultStatus: status }))
+    const source = window([attempt])
+    writeFileSync(`${source}/summary.json`, JSON.stringify({ path: 'change-plan', cases: [{ id: attempt.caseId, allAttemptsPass: 'pass' }] }))
+    await expect(replayWindow(source, `${directory}/output`)).rejects.toThrow('changed a previously passing case')
+    const audit = JSON.parse(readFileSync(`${directory}/output/replay.json`, 'utf8'))
+    expect(audit.results[0].schemas.map(({ name, pass }) => [name, pass])).toEqual([['bulk_delete_habits', true], ['bulk_update_habits', false]])
+  })
+
 // Producer: orbit-api ChangeListReplayTests.ChangeList_TheEvalTraceRecordsEachChangeWithItsKindAndArguments. A recorded
 // change holds the name of its kind and the arguments of the change, with each record id redacted.
 it.each(changeShapes)('replays each recorded change of the %s shape against the arguments of its kind', async (shape) => {

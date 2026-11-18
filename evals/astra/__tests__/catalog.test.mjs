@@ -324,6 +324,20 @@ it.each(changeShapes.flatMap((shape) => clients.map(([client, clientContext]) =>
   },
 )
 
+// One API serves one shape, so no trace holds a change of one shape next to a change of another.
+const shapePairs = changeShapes.flatMap((first) => changeShapes.filter((second) => second !== first).map((second) => [first, second]))
+it.each(shapePairs)('refuses a trace with a change of the %s shape and a change of the %s shape', async (first, second) => {
+  vi.stubEnv('ORBIT_EVAL_ASTRA_PATH', 'change-plan')
+  const clientContext = { supportsParts: true }
+  const [remove] = changeListTrace(first, clientContext)
+  const [, rename] = changeListTrace(second, clientContext)
+  const mixed = await validateCalls([remove, rename], clientContext)
+  expect(mixed.pass).toBe(false)
+  expect(mixed.reason).toContain('bulk_update_habits')
+  const single = await validateCalls([remove, changeListTrace(first, clientContext)[1]], clientContext)
+  expect(single.pass, single.reason).toBe(true)
+})
+
 // Producer: orbit-api ProcessUserChatCommandHandler.TurnDeclarations. The block-first path declares the plan and each
 // single write form; the ai_change_plan path declares neither, so a call of one of them is no valid call there.
 it('validates a trace with present_plan and delete_habit on the block-first path only', async () => {

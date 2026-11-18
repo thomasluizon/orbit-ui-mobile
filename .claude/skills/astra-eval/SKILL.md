@@ -55,8 +55,8 @@ one verdict. A `change-plan` run compares with the `block-first` baseline of `ma
 
 On the `change-plan` path the model sends each account change in one typed change list. The API declares that list in
 one of two shapes (`AI:ChangePlanShape`), and `changePlan` holds one set of lists for each shape. The trace names each
-change by its kind in each shape, so no run names its shape: a traced call is valid when the lists of one shape accept
-it. That path declares no `present_plan` and no single write form that a bulk form covers. `TESTING.md`
+change by its kind in each shape, so no run names its shape: a trace is valid when the lists of one shape accept every
+call of it. That path declares no `present_plan` and no single write form that a bulk form covers. `TESTING.md`
 `### Change list declarations` has the detail.
 
 The gate passes when every must-pass case passes, the pass^k rate of the core set is at or above the baseline, no

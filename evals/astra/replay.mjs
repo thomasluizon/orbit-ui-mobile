@@ -3,7 +3,7 @@ import { existsSync, mkdirSync, readFileSync, readdirSync, realpathSync, writeFi
 import { basename, dirname, resolve, sep } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { parse } from 'yaml'
-import { validateToolArguments } from './tool-validation.mjs'
+import { validateTraceCall } from './tool-validation.mjs'
 import { catalogsOf, observableSchema, pathOf, RUN_PATHS } from './trace-policy.mjs'
 import { configureOffers } from './offer-context.mjs'
 import { toolBehavior } from './assertions.mjs'
@@ -74,8 +74,14 @@ async function replayAttempt(attempt, descriptor, recorded, path) {
   test.vars.clientContext ??= buildChatClientContext({ platform: test.metadata.platform ?? 'web', locale: test.metadata.locale ?? 'en' })
   const assertions = structuredClone(attempt.assertions)
   const notes = []
-  const validate = (call) => validateToolArguments(call, declarations(test.vars, path), { test, vars: test.vars })
-  const schemas = await Promise.all(attempt.toolCalls.map((call) => schemaVerdict(call, validate)))
+  let open = declarations(test.vars, path)
+  const validate = async (call) => {
+    const checked = await validateTraceCall(call, open, { test, vars: test.vars })
+    if (checked.verdict.pass) open = checked.open
+    return checked.verdict
+  }
+  const schemas = []
+  for (const call of attempt.toolCalls) schemas.push(await schemaVerdict(call, validate))
   if (schemas.some((verdict) => verdict.redacted)) notes.push('A recorded argument holds a redacted value, so its schema cannot be replayed.')
   const structure = assertions.find((assertion) => assertion.metric === 'toolStructure')
   if (structure?.pass === false && /Call to "ask" does not match schema/u.test(structure.reason)

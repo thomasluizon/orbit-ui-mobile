@@ -5,7 +5,7 @@ import { composition } from './composition.mjs'
 export { composition }
 export { proactiveOffers } from './proactive-offers.mjs'
 import { matchesArguments, matchesOperation, outcomeCalls, failedBeforeDispatch } from './operation-matcher.mjs'
-import { validateToolArguments } from './tool-validation.mjs'
+import { validateToolArguments, validateTraceCall } from './tool-validation.mjs'
 import { habitSetupBinding, toolWrites, toolSensitiveFields, observableSchema, catalogsOf, runPathOf,
   RUN_PATHS, CHANGE_PLAN_PATH } from './trace-policy.mjs'
 import { resolveSchema } from './tool-schema.mjs'
@@ -113,8 +113,9 @@ export async function structural(output, context) {
   const offers = context.vars.clientContext?.supportsProactiveOffers === true
   const path = runPathOf()
   const shapes = traceCatalogs[path]
-  // One list for each declaration shape of the path. A call is valid when the list of one shape accepts it.
+  // One list for each declaration shape of the path. A trace is valid when the list of one shape accepts every call of it.
   const catalogs = shapes.map((lists) => offers ? lists.offerTools : supportsParts ? lists.tools : lists.legacyTools)
+  let open = catalogs
   if (offers && catalogs.some((catalog) => !catalog.length)) return result(false, 'Missing producer-exported proactive tool catalog; regenerate against the evaluated API.', { unavailable: true })
   // The read before ask, with its selection_required clause, is a rule of the block-first path. On the ai_change_plan
   // path ProcessUserChatCommand.ChangePlanAsk.cs needs no read, a read returns no selection, and the ask declaration
@@ -129,8 +130,10 @@ export async function structural(output, context) {
       return result(false, 'ask requires a typed account read or a bound missing-field draft.')
     }
     // AiIntentService.AppendToolConstraints retains the initial SDK schema throughout the turn.
-    verdict = await validateToolArguments(call, catalogs, context)
+    const checked = await validateTraceCall(call, open, context)
+    verdict = checked.verdict
     if (!verdict.pass) return verdict
+    open = checked.open
     if (readBeforeAsk && call.name === 'ask' && !hasSuccessfulAccountRead) {
       verdict = await validateToolArguments(call, shapes.map((lists) => boundHabitSetupCatalog(drafts, lists, offers)), context)
       if (!verdict.pass) return verdict
