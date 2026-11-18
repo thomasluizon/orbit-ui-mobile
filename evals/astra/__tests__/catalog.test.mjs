@@ -16,6 +16,37 @@ const { apiCommit } = parse(readFileSync(new URL('../catalog.yaml', import.meta.
 
 afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs() })
 
+const exported = parse(readFileSync(new URL('../catalog.yaml', import.meta.url), 'utf8'))
+const namesOf = (list) => list.map((tool) => tool.function.name)
+const askForms = (list) => list.find((tool) => tool.function.name === 'ask').function.parameters.properties.input.anyOf
+
+// Producer: catalog-export.cs exports each client shape in two flag states. The ai_change_plan path keeps one ask
+// declaration for the whole turn (orbit-api RefreshAskSchema returns at once there), so it has three lists only.
+it('keeps each flag-off key and holds the three flag-on lists under changePlan', () => {
+  expect(Object.keys(exported)).toEqual(['apiCommit', 'offerTools', 'offerPostReadTools', 'offerHabitSetupTools', 'tools',
+    'legacyTools', 'postReadTools', 'habitSetupBinding', 'habitSetupTools', 'changePlan'])
+  expect(Object.keys(exported.changePlan)).toEqual(['tools', 'legacyTools', 'offerTools'])
+  for (const shape of ['tools', 'legacyTools', 'offerTools']) {
+    expect(exported.changePlan[shape].length).toBeGreaterThan(0)
+    expect(namesOf(exported.changePlan[shape])).toEqual(namesOf(exported[shape]))
+  }
+  for (const key of ['postReadTools', 'habitSetupTools', 'offerPostReadTools', 'offerHabitSetupTools']) {
+    expect(namesOf(exported[key])).toEqual(['ask'])
+  }
+  expect(namesOf(exported.changePlan.legacyTools)).not.toContain('ask')
+})
+
+// Producer: orbit-api AskTool.GetChangePlanParameterSchema adds one choice form with `about` and `several`, and removes
+// `target_ids` from each option.
+it.each(['tools', 'offerTools'])('declares the choice about records only in the flag-on ask of %s', (shape) => {
+  const about = askForms(exported.changePlan[shape]).filter((form) => Object.hasOwn(form.properties, 'about'))
+  expect(about).toHaveLength(1)
+  expect(Object.keys(about[0].properties)).toEqual(['form', 'missing_input', 'question', 'about', 'several', 'allowFreeText'])
+  expect(JSON.stringify(exported.changePlan[shape])).not.toContain('target_ids')
+  expect(askForms(exported[shape]).some((form) => Object.hasOwn(form.properties, 'about'))).toBe(false)
+  expect(JSON.stringify(askForms(exported[shape]))).toContain('target_ids')
+})
+
 // Producer: orbit-api src/Orbit.Application/Chat/Tools/Implementations/QueryHabitsTool.cs:26-45,
 // src/Orbit.Application/Chat/RelativeReadPeriod.cs:37-43 and Chat/TerminalReadDirective.cs:19-33.
 const relativeRead = ['query_habits', { relative_period: 'today', orbit_read_complete: true }]

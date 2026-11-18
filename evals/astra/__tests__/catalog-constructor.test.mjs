@@ -30,15 +30,16 @@ if (current.Text != "known" || !current.Enabled) throw new Exception("Constructo
 var previous = (PreviousContext)CatalogConstructor.Create(typeof(PreviousContext), values);
 if (previous.Removed != 42 || previous.Text != "known" || !previous.Enabled) throw new Exception("Known parameters changed.");
 var facts = new object();
+var flags = new[] { "astra_block_first", "ai_change_plan" };
 var exported = (LanguageContext)CatalogConstructor.Create(typeof(LanguageContext), ${contextValues});
 if (exported.Language is not null) throw new Exception("The export context must match an absent client locale and profile.");
+if (!ReferenceEquals(exported.EnabledFeatureFlags, flags)) throw new Exception("The export context must hold the flag list of its flag state.");
 public sealed record CurrentContext(string Text, bool Enabled);
 public sealed record PreviousContext(int Removed, string Text, bool Enabled);
-public sealed record LanguageContext(string? Language);
+public sealed record LanguageContext(string? Language, string[] EnabledFeatureFlags);
 public sealed class Habit { }
 public sealed class Goal { }
 public sealed class Tag { }
-public static class FeatureFlagKeys { public const string AiBlockFirst = "astra_block_first"; }
 public sealed class UnknownContext
 {
     public UnknownContext(string Text, string NewValue, bool OtherValue) =>

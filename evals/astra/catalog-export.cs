@@ -35,7 +35,8 @@ var handlerType = typeof(ProcessUserChatCommandHandler);
 var factsType = handlerType.Assembly.GetType("Orbit.Application.Chat.HabitTodaySnapshot", true)!;
 var facts = Activator.CreateInstance(factsType, new object?[] { new HashSet<Guid>(), new HashSet<Guid>(), new HashSet<Guid>(), null });
 var contextType = handlerType.GetNestedType("ChatContext", BindingFlags.NonPublic)!;
-var context = CatalogConstructor.Create(contextType, new Dictionary<string, object?>(StringComparer.Ordinal) {
+// One request context for each flag state. The ai_change_plan path reads its flag from EnabledFeatureFlags.
+object Context(params string[] flags) => CatalogConstructor.Create(contextType, new Dictionary<string, object?>(StringComparer.Ordinal) {
     ["UserHabits"] = Array.Empty<Habit>(),
     ["ActiveHabits"] = new List<Habit>(),
     ["PromptHabits"] = new List<Habit>(),
@@ -46,26 +47,33 @@ var context = CatalogConstructor.Create(contextType, new Dictionary<string, obje
     ["ActiveGoals"] = Array.Empty<Goal>(),
     ["UserTags"] = Array.Empty<Tag>(),
     ["ChecklistTemplateNames"] = Array.Empty<string>(),
-    ["EnabledFeatureFlags"] = new[] { FeatureFlagKeys.AiBlockFirst },
+    ["EnabledFeatureFlags"] = flags,
     ["UserToday"] = DateOnly.MinValue,
     ["TodayFacts"] = facts,
     ["ContextLoadMilliseconds"] = 0L });
+var blockFirst = Context(FeatureFlagKeys.AiBlockFirst);
+var changePlan = Context(FeatureFlagKeys.AiBlockFirst, FeatureFlagKeys.AiChangePlan);
 var method = handlerType.GetMethod("RequestInitialAiResponseAsync", BindingFlags.NonPublic | BindingFlags.Instance)!;
 var collectSensitiveFields = handlerType.GetNestedType("ChatEvalTraceCollector", BindingFlags.NonPublic)!
     .GetMethod("CollectSensitiveFields", BindingFlags.NonPublic | BindingFlags.Static)!;
 var partKinds = JsonSerializer.Deserialize<string[]>(args[1])!;
 var habitSetupBinding = new { draftCallId = "__draft_call_id__", missingField = "__missing_field__" };
 File.WriteAllText(args[0], JsonSerializer.Serialize(new {
-    offerTools = await ExportTools(true, offers: true),
-    offerPostReadTools = await ExportTools(true, afterAccountRead: true, offers: true),
-    offerHabitSetupTools = await ExportTools(true, draft: new HabitSetupDraft(
+    offerTools = await ExportTools(blockFirst, true, offers: true),
+    offerPostReadTools = await ExportTools(blockFirst, true, afterAccountRead: true, offers: true),
+    offerHabitSetupTools = await ExportTools(blockFirst, true, draft: new HabitSetupDraft(
         habitSetupBinding.draftCallId, "New habit draft", habitSetupBinding.missingField, Guid.Empty), offers: true),
-    tools = await ExportTools(true), legacyTools = await ExportTools(false),
-    postReadTools = await ExportTools(true, afterAccountRead: true), habitSetupBinding,
-    habitSetupTools = await ExportTools(true, draft: new HabitSetupDraft(
-        habitSetupBinding.draftCallId, "New habit draft", habitSetupBinding.missingField, Guid.Empty)) }));
+    tools = await ExportTools(blockFirst, true), legacyTools = await ExportTools(blockFirst, false),
+    postReadTools = await ExportTools(blockFirst, true, afterAccountRead: true), habitSetupBinding,
+    habitSetupTools = await ExportTools(blockFirst, true, draft: new HabitSetupDraft(
+        habitSetupBinding.draftCallId, "New habit draft", habitSetupBinding.missingField, Guid.Empty)),
+    // The ai_change_plan path keeps one ask declaration for the whole turn: RefreshAskSchema returns no update there,
+    // so this path has no post-read list and no habit-setup list.
+    changePlan = new { tools = await ExportTools(changePlan, true), legacyTools = await ExportTools(changePlan, false),
+        offerTools = await ExportTools(changePlan, true, offers: true) } }));
 
-async Task<object[]> ExportTools(bool supportsParts, bool afterAccountRead = false, HabitSetupDraft? draft = null, bool offers = false)
+async Task<object[]> ExportTools(object context, bool supportsParts, bool afterAccountRead = false, HabitSetupDraft? draft = null,
+    bool offers = false)
 {
     intent.Captured = null;
     var state = Activator.CreateInstance(handlerType.GetNestedType("ChatTurnState", BindingFlags.NonPublic)!, nonPublic: true);
