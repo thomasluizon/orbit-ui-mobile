@@ -3,7 +3,7 @@
 import { useEffect, useId, useRef, useState, type ReactNode, type RefObject } from 'react'
 import { animate } from 'motion/react'
 import { useLocale, useTranslations } from 'next-intl'
-import type { BarChartPoint } from '@orbit/shared/contracts/display'
+import type { BarChartPoint, BarChartSelectionSource } from '@orbit/shared/contracts/display'
 import type { OrbitLookTarget } from '@orbit/shared/contracts/brand'
 import { motionDurations } from '@orbit/shared/theme'
 import {
@@ -88,7 +88,7 @@ function GuidedWindowSection({ status, retrospective, chartRef, onSelectPoint }:
   status: ProgressWindowStatus
   retrospective: ReturnType<typeof useProgressRetrospective>
   chartRef: RefObject<HTMLDivElement | null>
-  onSelectPoint: (point: BarChartPoint, bar: HTMLElement) => void
+  onSelectPoint: (point: BarChartPoint, bar: HTMLElement, source: BarChartSelectionSource) => void
 }>) {
   const t = useTranslations()
   const locale = useLocale()
@@ -118,8 +118,11 @@ function GuidedWindowSection({ status, retrospective, chartRef, onSelectPoint }:
 function useBarSelection(chartRef: RefObject<HTMLDivElement | null>) {
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
   const { mascotRef, lookAt, lookTowards, lookAway } = useOrbitLook()
-  const select = (point: BarChartPoint, bar: HTMLElement) => {
-    if (point.startDate === selectedDate) {
+  const pressedDate = useRef<string | null>(null)
+  const select = (point: BarChartPoint, bar: HTMLElement, source: BarChartSelectionSource) => {
+    const pressedAgain = source === 'press' && point.startDate === selectedDate && point.startDate === pressedDate.current
+    pressedDate.current = source === 'press' ? point.startDate : null
+    if (pressedAgain) {
       setSelectedDate(null)
       lookAway()
       return

@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { KeyboardEvent } from 'react'
 import { motion } from 'motion/react'
-import type { BarChartPoint } from '@orbit/shared/contracts/display'
+import type { BarChartPoint, BarChartSelectionSource } from '@orbit/shared/contracts/display'
 import {
   BAR_CHART_HEIGHT,
   barChartPath,
@@ -18,11 +18,11 @@ import { useViewportMatch } from '@/hooks/use-viewport-match'
 
 const READOUT_MOVE = { duration: motionPresets.selection.enterDuration / 1000, ease: [...motionEasings.standard] as [number, number, number, number] }
 
-/** `onSelectPoint` reports each selection the person makes, by press or by key, with the bar that holds it. */
+/** `onSelectPoint` reports each selection the person makes, with the bar that holds it and how it was made: a press or a step by key. */
 export function BarChart({ points, label, onSelectPoint }: Readonly<{
   points: readonly BarChartPoint[]
   label: string
-  onSelectPoint?: (point: BarChartPoint, bar: HTMLElement) => void
+  onSelectPoint?: (point: BarChartPoint, bar: HTMLElement, source: BarChartSelectionSource) => void
 }>) {
   const t = useTranslations('charts.bar')
   const reducedMotion = useViewportMatch('(prefers-reduced-motion: reduce)')
@@ -54,15 +54,15 @@ export function BarChart({ points, label, onSelectPoint }: Readonly<{
     if (!direction) return
     event.preventDefault()
     const next = stepSelection(selectedIndex, points.length, direction)
-    select(next)
+    select(next, 'step')
     radioRefs.current[next]?.focus()
   }
 
-  function select(index: number) {
+  function select(index: number, source: BarChartSelectionSource) {
     const point = points[index]!
     setSelectedDate(point.startDate)
     const bar = radioRefs.current[index]
-    if (bar) onSelectPoint?.(point, bar)
+    if (bar) onSelectPoint?.(point, bar, source)
   }
 
   function describePoint(point: BarChartPoint) {
@@ -88,7 +88,7 @@ export function BarChart({ points, label, onSelectPoint }: Readonly<{
           aria-label={describePoint(point)}
           aria-checked={index === selectedIndex}
           tabIndex={index === selectedIndex ? 0 : -1}
-          onClick={() => select(index)}
+          onClick={() => select(index, 'press')}
           onKeyDown={handleKey}
           className="orbit-bar-chart-column group relative min-w-0 flex-1 cursor-pointer touch-manipulation rounded-none bg-transparent p-0 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--primary)]"
         >

@@ -4,7 +4,7 @@ import Animated, { Easing, LinearTransition } from 'react-native-reanimated'
 import type { PressableProps } from 'react-native'
 import { Gesture, GestureDetector } from 'react-native-gesture-handler'
 import Svg, { Path } from 'react-native-svg'
-import type { BarChartPoint, BarGeometry } from '@orbit/shared/contracts/display'
+import type { BarChartPoint, BarChartSelectionSource, BarGeometry } from '@orbit/shared/contracts/display'
 import {
   BAR_CHART_HEIGHT,
   barChartPath,
@@ -59,11 +59,11 @@ function BarChartColumn({ left, width, bar, selected, tokens, columnRef, ...targ
   )
 }
 
-/** `onSelectPoint` reports each selection the person makes, by press, focus or accessibility action, with the bar that holds it. */
+/** `onSelectPoint` reports each selection the person makes, with the bar that holds it and how it was made: a press, the focus of a bar, or an accessibility step. */
 export function BarChart({ points, label, onSelectPoint }: Readonly<{
   points: readonly BarChartPoint[]
   label: string
-  onSelectPoint?: (point: BarChartPoint, bar: View | null) => void
+  onSelectPoint?: (point: BarChartPoint, bar: View | null, source: BarChartSelectionSource) => void
 }>) {
   const { t } = useTranslation()
   const reducedMotion = usePrefersReducedMotion()
@@ -77,10 +77,10 @@ export function BarChart({ points, label, onSelectPoint }: Readonly<{
   const selectedIndex = resolveBarChartSelection(points, selectedDate)
   const bars = resolveBarChartGeometry(points.map((point) => point.rate), width)
 
-  function select(index: number) {
+  function select(index: number, source: BarChartSelectionSource) {
     const point = points[index]!
     setSelectedDate(point.startDate)
-    onSelectPoint?.(point, columnRefs.current[index] ?? null)
+    onSelectPoint?.(point, columnRefs.current[index] ?? null, source)
   }
 
   function describePoint(point: BarChartPoint) {
@@ -108,10 +108,10 @@ export function BarChart({ points, label, onSelectPoint }: Readonly<{
           accessibilityState={{ checked: index === selectedIndex }}
           onAccessibilityAction={(event) => {
             const direction = event.nativeEvent.actionName === 'increment' ? 'right' : 'left'
-            select(stepSelection(selectedIndex, points.length, direction))
+            select(stepSelection(selectedIndex, points.length, direction), 'step')
           }}
-          onPress={() => select(index)}
-          onFocus={() => { setFocused(index); select(index) }}
+          onPress={() => select(index, 'press')}
+          onFocus={() => { setFocused(index); select(index, 'focus') }}
           onBlur={() => setFocused(null)}
         />)}
       </View>

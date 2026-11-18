@@ -117,6 +117,10 @@ async function press(node: ReactTestInstance) {
   await renderer.act(() => { (node.props.onPress as () => void)() })
 }
 
+async function focus(node: ReactTestInstance) {
+  await renderer.act(() => { (node.props.onFocus as () => void)() })
+}
+
 beforeEach(() => {
   vi.useFakeTimers({ toFake: ['Date'] })
   vi.setSystemTime(new Date(progressStreakNow))
@@ -232,6 +236,16 @@ describe('Progresso root bar selection (Android)', () => {
     await press(bars(root)[1]!)
     expect(lineOf(root)).toBe('You showed up on 12 of the last 30 days.')
     expect(mocks.refetch).not.toHaveBeenCalled()
+  })
+
+  it('keeps the day line when a press follows the focus of the same bar, and clears it on the next press', async () => {
+    const root = await renderIn('en')
+    await focus(bars(root)[1]!)
+    expect(lineOf(root)).toBe('Wednesday, September 9: 2 of 2.')
+    await press(bars(root)[1]!)
+    expect(lineOf(root)).toBe('Wednesday, September 9: 2 of 2.')
+    await press(bars(root)[1]!)
+    expect(lineOf(root)).toBe('You showed up on 12 of the last 30 days.')
   })
 
   it('returns the default line on a touch outside the chart', async () => {

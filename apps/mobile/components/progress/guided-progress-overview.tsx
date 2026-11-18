@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState, type ReactNode, type RefObjec
 import { Animated, Easing, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native'
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
-import type { BarChartPoint } from '@orbit/shared/contracts/display'
+import type { BarChartPoint, BarChartSelectionSource } from '@orbit/shared/contracts/display'
 import type { OrbitLookTarget } from '@orbit/shared/contracts/brand'
 import { motionDurations, motionEasings, SPACING } from '@orbit/shared/theme'
 import {
@@ -93,7 +93,7 @@ function GuidedWindowSection({ status, retrospective, tokens, onSelectPoint, onC
   status: ProgressWindowStatus
   retrospective: ReturnType<typeof useProgressRetrospective>
   tokens: AppTokensV2
-  onSelectPoint: (point: BarChartPoint, bar: View | null) => void
+  onSelectPoint: (point: BarChartPoint, bar: View | null, source: BarChartSelectionSource) => void
   onChartTouch: () => void
 }>) {
   const { t, i18n } = useTranslation()
@@ -118,8 +118,11 @@ function useBarSelection() {
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
   const { lookAt, mascotRef, lookAtControl, lookAway } = useFlowLookState()
   const touchInChart = useRef(false)
-  const select = (point: BarChartPoint, bar: View | null) => {
-    if (point.startDate === selectedDate) {
+  const pressedDate = useRef<string | null>(null)
+  const select = (point: BarChartPoint, bar: View | null, source: BarChartSelectionSource) => {
+    const pressedAgain = source === 'press' && point.startDate === selectedDate && point.startDate === pressedDate.current
+    pressedDate.current = source === 'press' ? point.startDate : null
+    if (pressedAgain) {
       setSelectedDate(null)
       lookAway()
       return

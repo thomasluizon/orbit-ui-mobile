@@ -605,7 +605,7 @@
       "owners": [
         "apps/mobile/components/habits/habit-detail-prompts.tsx"
       ],
-      "reason": "The checklist completion prompt moved to habit-detail-prompts.tsx (#2122). With the guided flows off it passes this message to the confirm sheet. With them on it states habits.checklistCompleteLine, and the log action stays."
+      "reason": "The checklist completion prompt moved to habit-detail-prompts.tsx (#2122). With the guided flows off it passes this message to the confirm sheet. With them on the sheet shows no message, the title asks habits.checklistCompleteQuestion, and the log action stays."
     },
     "mobile:control:habits.checklistCompleteTitle": {
       "targets": [
@@ -2572,7 +2572,7 @@
       "owners": [
         "apps/web/components/habits/habit-detail-prompts.tsx"
       ],
-      "reason": "The checklist completion prompt moved to habit-detail-prompts.tsx (#2122). With the guided flows off it passes this message to the confirm sheet. With them on it states habits.checklistCompleteLine, and the log action stays."
+      "reason": "The checklist completion prompt moved to habit-detail-prompts.tsx (#2122). With the guided flows off it passes this message to the confirm sheet. With them on the sheet shows no message, the title asks habits.checklistCompleteQuestion, and the log action stays."
     },
     "web:control:habits.checklistCompleteTitle": {
       "targets": [
