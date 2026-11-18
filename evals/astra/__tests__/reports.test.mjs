@@ -201,3 +201,32 @@ it('retains a minimal pending result while excluding arbitrary payload and crede
     expect(readFileSync(join(directory, 'attempts/pending-r1.json'), 'utf8')).not.toContain('private-nested-result')
   } finally { rmSync(directory, { recursive: true, force: true }) }
 })
+
+// The path of a launch corpus run (trace-policy.mjs runPathOf). The API sends other tool declarations on each path,
+// so one verdict holds the windows of one path.
+it('states the path of the run in each window summary, in the merged report and in both report files', () => {
+  expect(summarize(completed(0), descriptors).path).toBe('block-first')
+  const windows = [summarize(completed(0), descriptors, 'change-plan'), summarize(completed(1), [descriptors[1]], 'change-plan')]
+  expect(windows.map(({ path }) => path)).toEqual(['change-plan', 'change-plan'])
+  const merged = mergeReports(windows, descriptors)
+  expect(merged).toMatchObject({ status: 'pass', path: 'change-plan' })
+  expect(mergeReports([window(0), window(1)], descriptors).path).toBe('block-first')
+  const directory = mkdtempSync(join(tmpdir(), 'astra-path-report-'))
+  try {
+    expect(writeReport(merged, directory).split('\n')).toContain('Path: change-plan')
+    expect(JSON.parse(readFileSync(join(directory, 'summary.json'), 'utf8')).path).toBe('change-plan')
+    expect(writeReport(windows[0], directory).split('\n')).toContain('Path: change-plan')
+    expect(writeReport(summarize(completed(0), descriptors), directory).split('\n')).toContain('Path: block-first')
+  } finally { rmSync(directory, { recursive: true, force: true }) }
+})
+
+it('refuses windows of two paths in one verdict, and reads a summary with no path as the block-first path', () => {
+  const changePlan = (index) => ({ ...window(index), path: 'change-plan' })
+  expect(() => mergeReports([window(0), changePlan(1)], descriptors))
+    .toThrow('Window 2 measured the change-plan path, and window 1 the block-first path; one verdict holds the windows of one path.')
+  expect(() => mergeReports([changePlan(0), { ...window(1), path: 'block-first' }], descriptors))
+    .toThrow('Window 2 measured the block-first path, and window 1 the change-plan path; one verdict holds the windows of one path.')
+  expect(mergeReports([window(0), { ...window(1), path: 'block-first' }], descriptors)).toMatchObject({ status: 'pass', path: 'block-first' })
+  expect(() => mergeReports([{ ...window(0), path: 'flag' }], descriptors))
+    .toThrow('Window 1 names the path "flag"; a run measures block-first or change-plan.')
+})

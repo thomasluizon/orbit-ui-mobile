@@ -3,6 +3,7 @@ import { attemptEvidence, evidencePath, openPrivateEvidence, unavailableAssertio
 import { guid, guidPattern } from '../fixtures/api.mjs'
 import { changeList, recordId } from './change-list.mjs'
 import { EQUAL_MODEL_INPUT_ATTEMPTS, MUST_PASS_ATTEMPTS, corpusDigestFor } from './corpus.mjs'
+import { BLOCK_FIRST_PATH } from '../trace-policy.mjs'
 
 const mean = (values) => values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : null
 const rounded = (value, digits) => value === null ? null : Number(value.toFixed(digits))
@@ -141,12 +142,13 @@ export function totalsOf(cases) {
 }
 
 // The summary of one promptfoo run of the core set (the must-pass run or the other run) in one UTC-day window. `k` is the
-// k of the must-pass cases of the gate run that the window belongs to, also in the window of the other cases.
-export function summarize(results, descriptors, { run, apiCommit, k = MUST_PASS_ATTEMPTS }) {
+// k of the must-pass cases of the gate run that the window belongs to, also in the window of the other cases. `path` is
+// the path that the run measured (trace-policy.mjs runPathOf). The path is no part of a case, so it is not in the digest.
+export function summarize(results, descriptors, { run, apiCommit, k = MUST_PASS_ATTEMPTS, path = BLOCK_FIRST_PATH }) {
   const attempts = attemptsOf(results).map(({ attempt }) => attempt)
   const cases = descriptors.map((descriptor) => caseOf(descriptor, attempts.filter((attempt) => attempt.caseId === descriptor.id)))
   const unexpected = attempts.some((attempt) => !descriptors.some((descriptor) => descriptor.id === attempt.caseId))
-  return { gate: 'core', run, k, apiCommit, corpusDigest: corpusDigestFor(k), utcDay: new Date().toISOString().slice(0, 10),
+  return { gate: 'core', run, k, path, apiCommit, corpusDigest: corpusDigestFor(k), utcDay: new Date().toISOString().slice(0, 10),
     status: unexpected && statusOf(cases) === 'pass' ? 'incomplete' : statusOf(cases), cases, groups: groupsOf(cases), totals: totalsOf(cases) }
 }
 
@@ -209,6 +211,8 @@ export function writeReport(summary, directory) {
     `Orbit AI core gate, ${summary.run} run, k=${summary.k}: ${summary.status}`,
     `API commit: ${summary.apiCommit}`,
     ...laterBuildLines(summary),
+    `Path: ${summary.path}`,
+    ...(summary.baselinePath ? [`Baseline path: ${summary.baselinePath}`] : []),
     `Corpus digest: ${summary.corpusDigest}`,
     ...(summary.utcDayWindows ? [`UTC-day windows: ${summary.utcDayWindows}`] : [`UTC day: ${summary.utcDay}`]),
     ...(summary.cost ? [`Measured run cost (USD): ${cell(summary.cost.runUsd)}`, `Model calls: ${cell(summary.cost.modelCalls)}`] : []),

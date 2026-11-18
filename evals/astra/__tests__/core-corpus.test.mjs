@@ -77,6 +77,18 @@ it('gives a k=1 run its own corpus digest and keeps the digest of the k=3 run', 
   expect(coreDescriptors(1).filter(({ mustPass: required }) => !required)).toEqual(coreDescriptors().filter(({ mustPass: required }) => !required))
 })
 
+// The path of a run is no input of the digest: no case holds it, so a run of each path measures the corpus of main.
+it('keeps both corpus digests and each case when the run names a path', () => {
+  const digests = [corpusDigestFor(MUST_PASS_ATTEMPTS), corpusDigestFor(EQUAL_MODEL_INPUT_ATTEMPTS)]
+  const measured = JSON.stringify([...mustPass(), ...other()])
+  for (const path of ['block-first', 'change-plan']) {
+    vi.stubEnv('ORBIT_EVAL_ASTRA_PATH', path)
+    expect([corpusDigestFor(MUST_PASS_ATTEMPTS), corpusDigestFor(EQUAL_MODEL_INPUT_ATTEMPTS)]).toEqual(digests)
+    expect(JSON.stringify([...mustPass(), ...other()])).toBe(measured)
+  }
+  expect(measured).not.toMatch(/block-first|change-plan|ORBIT_EVAL_ASTRA_PATH|ai_change_plan/u)
+})
+
 // The documents that state pass^3 state when k=1 holds, so that no operator reads k=1 as a cheaper k=3.
 it('states in the skill and in TESTING.md that k=1 holds only for a change with equal model input', () => {
   for (const path of ['.claude/skills/astra-eval/SKILL.md', 'TESTING.md']) {

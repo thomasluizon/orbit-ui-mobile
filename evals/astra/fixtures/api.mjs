@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { apiOrigin, safeFailureMessage } from '../credentials.mjs'
+import { CHANGE_PLAN_FLAG, CHANGE_PLAN_PATH, RUN_PATH_VARIABLE } from '../trace-policy.mjs'
 
 // The eval's one GUID rule. orbit-api constrains every route parameter to a GUID ({id:guid}), so a GUID segment is the
 // only identifier in a route, and the graders and the report evidence read record and request ids in the same dashed form.
@@ -115,5 +116,18 @@ export async function requireEvalTrace(credentialKey) {
     if (payload?.features?.astra_eval_trace?.enabled !== true) throw new Error('The eval trace flag is off.')
   } catch (error) {
     throw new Error(`Eval preflight failed: turn on astra_eval_trace for ${credentialKey} through /flag on staging, then verify /api/config and retry. ${safeFailureMessage(error)}`)
+  }
+}
+
+// Producer: orbit-api ChatContext.ChangePlan reads ai_change_plan (FeatureFlagKeys.AiChangePlan) from the flags of the
+// account, and GET api/config resolves the same flag. The run grades each call against the lists of its path, so an
+// account whose flag does not agree with that path stops the run before any chat turn.
+export async function requireRunPath(credentialKey, path) {
+  const expected = path === CHANGE_PLAN_PATH
+  try {
+    const { payload } = await publicApi(credentialKey)('GET', 'config')
+    if (payload?.features?.[CHANGE_PLAN_FLAG]?.enabled !== expected) throw new Error('The flag state does not agree with the path of the run.')
+  } catch (error) {
+    throw new Error(`Eval preflight failed: this run measures the ${path} path (${RUN_PATH_VARIABLE}); turn ${expected ? 'on' : 'off'} ${CHANGE_PLAN_FLAG} for ${credentialKey} through /flag on staging, then verify /api/config and retry. ${safeFailureMessage(error)}`)
   }
 }

@@ -3,6 +3,7 @@ import { summarizeLatency } from './latency.mjs'
 import { attemptEvidence, evidencePath, openPrivateEvidence, unavailableAssertion, writePrivateJson } from './evidence.mjs'
 import { groundingEvidence } from './grading-input.mjs'
 import { ATTEMPTS_PER_CASE } from './attempts.mjs'
+import { BLOCK_FIRST_PATH } from './trace-policy.mjs'
 
 const providerUnavailable = (entry) => entry.response?.output?.unavailable === true
 
@@ -34,7 +35,8 @@ export function writeResults(results, directory = 'reports') {
   writePrivateJson(`${directory}/results.json`, attempts)
 }
 
-export function summarize(results, expectedCases) {
+// The summary of one window. `path` is the path that the run measured (trace-policy.mjs runPathOf).
+export function summarize(results, expectedCases, path = BLOCK_FIRST_PATH) {
   const descriptors = expectedCases.map((entry) => typeof entry === 'string' ? { id: entry } : entry)
   const cases = descriptors.map(({ id, family = 'legacy', locale = 'unspecified', readLatency = false }) => {
     const attempts = results.filter((entry) => entry.testCase.metadata.id === id)
@@ -61,10 +63,10 @@ export function summarize(results, expectedCases) {
     return { id, family, locale, ...(latency ? { latency } : {}), unavailableReasons, missingComposition, attempts: attempts.length, passed, skipped, unavailable, allAttemptsPass: status }
   })
   const unexpected = results.some((entry) => !descriptors.some((expected) => expected.id === entry.testCase.metadata.id))
-  return aggregate(cases, unexpected)
+  return aggregate(cases, path, unexpected)
 }
 
-export function aggregate(cases, unexpected = false) {
+export function aggregate(cases, path, unexpected = false) {
   const status = cases.some((entry) => entry.allAttemptsPass === 'fail') ? 'fail'
     : unexpected || !cases.length || cases.some((entry) => entry.allAttemptsPass === 'incomplete') ? 'incomplete' : 'pass'
   const groups = [...new Set(cases.map((entry) => `${entry.family}/${entry.locale}`))].map((key) => {
@@ -74,7 +76,7 @@ export function aggregate(cases, unexpected = false) {
       allAttemptsPass: members.some((entry) => entry.allAttemptsPass === 'fail') ? 'fail'
         : members.some((entry) => entry.allAttemptsPass === 'incomplete') ? 'incomplete' : 'pass' }
   })
-  return { status, k: ATTEMPTS_PER_CASE, cases, groups }
+  return { status, k: ATTEMPTS_PER_CASE, path, cases, groups }
 }
 
 export function writeReport(summary, directory = 'reports') {
@@ -83,6 +85,7 @@ export function writeReport(summary, directory = 'reports') {
     `Astra launch gate: ${summary.gateStatus ?? summary.status}`,
     `Selected cases: ${summary.status}`,
     `Attempts per case (k): ${summary.k}`,
+    `Path: ${summary.path}`,
     '',
     '| Case | Family | Locale | Attempts passed | Evidence skipped | Evidence unavailable | Composition missing | pass^k | Attempts |',
     '|---|---|---|---|---|---|---|---|---|',

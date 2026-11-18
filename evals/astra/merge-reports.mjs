@@ -5,6 +5,7 @@ import { parse } from 'yaml'
 import { describeCase, validateLatencySummary } from './latency.mjs'
 import { aggregate, writeReport } from './report.mjs'
 import { ATTEMPTS_PER_CASE } from './attempts.mjs'
+import { RUN_PATHS, pathOf } from './trace-policy.mjs'
 
 export const descriptors = ['scenarios.yaml', 'composition-scenarios.yaml'].flatMap((path) =>
   parse(readFileSync(new URL(path, import.meta.url), 'utf8')).map(describeCase))
@@ -39,6 +40,11 @@ export function mergeReports(windows, expected = descriptors, { rerunWindows = [
   const collected = new Map()
   for (const [index, window] of windows.entries()) {
     if (window.k !== ATTEMPTS_PER_CASE || !Array.isArray(window.cases)) throw new Error(`Window must contain a summary with k=${ATTEMPTS_PER_CASE}.`)
+    // The API sends other tool declarations on each path, so one verdict holds the windows of one path.
+    if (!RUN_PATHS.includes(pathOf(window))) throw new Error(`Window ${index + 1} names the path "${window.path}"; a run measures ${RUN_PATHS.join(' or ')}.`)
+    if (pathOf(window) !== pathOf(windows[0])) {
+      throw new Error(`Window ${index + 1} measured the ${pathOf(window)} path, and window 1 the ${pathOf(windows[0])} path; one verdict holds the windows of one path.`)
+    }
     const seen = new Set()
     const rerun = rerunWindows.includes(index + 1)
     for (const entry of window.cases) {
@@ -57,7 +63,8 @@ export function mergeReports(windows, expected = descriptors, { rerunWindows = [
     }
   }
   return aggregate(expected.map(({ id, family = 'legacy', locale = 'unspecified' }) => collected.get(id)
-    ?? { id, family, locale, attempts: 0, passed: 0, skipped: 0, unavailable: 0, missingComposition: 0, allAttemptsPass: 'incomplete' }))
+    ?? { id, family, locale, attempts: 0, passed: 0, skipped: 0, unavailable: 0, missingComposition: 0, allAttemptsPass: 'incomplete' }),
+  pathOf(windows[0]))
 }
 
 export function mergeReportFiles(argumentsList, expected = descriptors) {

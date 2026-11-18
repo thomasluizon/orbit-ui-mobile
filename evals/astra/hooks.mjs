@@ -7,7 +7,7 @@ import { dateOffset, requireEvalOrigin, resetFixture } from './fixtures/reset.mj
 import { seedOfferFixture } from './fixtures/offers.mjs'
 import { restoreOfferTimeZone } from './fixtures/offer-timezone.mjs'
 import { fixtureHabitTitles } from './fixtures/names.mjs'
-import { requireEvalAccess } from './fixtures/api.mjs'
+import { requireEvalAccess, requireRunPath } from './fixtures/api.mjs'
 import { freshConversation, configureOffers } from './offer-context.mjs'
 import { prepareCorrection } from './setup.mjs'
 import { describeCase } from './latency.mjs'
@@ -25,7 +25,7 @@ const freshFreeWindows = new Set()
 
 function persistResults(results, expectedCases) {
   writeResults(results)
-  const summary = summarize(results, expectedCases)
+  const summary = summarize(results, expectedCases, runPath)
   const completeCorpus = descriptors.every(({ id }) => summary.cases.some((entry) => entry.id === id))
   summary.gateStatus = !completeCorpus && summary.status === 'pass' ? 'incomplete' : summary.status
   return { summary, markdown: writeReport(summary) }
@@ -75,6 +75,7 @@ async function requireAccountPolicies(tests) {
   for (const key of new Set(tests.map((test) => test.vars.credentialKey))) {
     await refreshCredential(key)
     accountAccess.set(key, await requireEvalAccess(key))
+    await requireRunPath(key, runPath)
   }
 }
 
