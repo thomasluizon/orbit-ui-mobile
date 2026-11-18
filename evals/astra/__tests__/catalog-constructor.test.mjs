@@ -38,7 +38,7 @@ public sealed record LanguageContext(string? Language);
 public sealed class Habit { }
 public sealed class Goal { }
 public sealed class Tag { }
-public static class FeatureFlagKeys { public const string AstraBlockFirst = "astra_block_first"; }
+public static class FeatureFlagKeys { public const string AiBlockFirst = "astra_block_first"; }
 public sealed class UnknownContext
 {
     public UnknownContext(string Text, string NewValue, bool OtherValue) =>

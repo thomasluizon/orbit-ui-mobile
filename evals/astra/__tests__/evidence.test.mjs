@@ -284,7 +284,8 @@ it('withholds encoded item arguments without a matching create action schema', (
 it.each(['choice', 'question'])('retains draft-bound %s arguments without unknown credential fields', (form) => {
   const input = { form, missing_input: 'habit_setup', draft_call_id: 'new-draft', missing_field: 'frequency_unit',
     ...(form === 'choice' ? { question: 'How often?', options: [
-      { id: 'daily', label: 'Daily', description: null }, { id: 'weekly', label: 'Weekly', description: null },
+      { id: 'daily', label: 'Daily', description: null, target_ids: null },
+      { id: 'weekly', label: 'Weekly', description: null, target_ids: null },
     ], multiSelect: false, allowFreeText: false } : { title: null, intro: null, progress: null,
       questions: [{ id: 'frequency_unit', type: 'yesNo', prompt: 'Should this repeat?', allowFreeText: false }] }) }
   const call = toolCall('ask', { input: { ...input, token: 'private-draft-token' } }, 'Succeeded', 'ask', { supportsParts: true })
