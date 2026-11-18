@@ -63,6 +63,8 @@ export const launch = (label, config) => {
 
 export const githubAuthEnv = ({ branchPulls = [], pulls = [], queuedRuns = 0, readError = false } = {}) => orcaEnv([
   { match: "auth token --user test-owner", stdout: "test-github-token" },
+  // gh prints the bare login and a newline for `gh api user --jq .login`, observed with the installed gh 2.101.0.
+  { match: "api user --jq .login", stdout: "test-owner\n" },
   { match: "actions/runs?status=queued", stdout: JSON.stringify({ total_count: queuedRuns, workflow_runs: [] }), exit: readError ? 1 : 0, stderr: readError ? "GitHub unavailable" : "" },
   { match: "pulls?head=", stdout: JSON.stringify(branchPulls) },
   ...Array.from({ length: Math.floor(pulls.length / 100) + 1 }, (_, page) => ({

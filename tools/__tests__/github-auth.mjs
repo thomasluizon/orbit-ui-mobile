@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs"
 
 import { processIsRunning, T, orcaEnv, stage, stageRepo } from "./_harness.mjs"
-import { githubEnvironment, redactSecrets } from "../lib/github-auth.mjs"
+import { githubEnvironment, redactSecrets, requireKeyringOwner, withoutGithubToken } from "../lib/github-auth.mjs"
 
 const TOOL = "lib/github-auth.mjs"
 
@@ -24,6 +24,21 @@ export const cases = async () => {
   T(`${TOOL}: different target owners receive isolated child environments`, firstAuth.owner === "first-owner" && secondAuth.owner === "second-owner" && firstAuth.environment.GH_TOKEN !== secondAuth.environment.GH_TOKEN)
   T(`${TOOL}: account selection never mutates the parent environment`, process.env.GH_TOKEN === before)
   T(`${TOOL}: secret redaction covers selected and token-shaped credentials`, redactSecrets(`x ${firstAuth.environment.GH_TOKEN} github_pat_abcdefghijklmnopqrstuvwxyz`, firstAuth.secrets) === "x <redacted> <redacted>")
+
+  T(`${TOOL}: an environment without the GitHub token holds neither token variable and keeps the rest`,
+    JSON.stringify(withoutGithubToken({ GH_TOKEN: "a", GITHUB_TOKEN: "b", KEPT: "c" })) === JSON.stringify({ KEPT: "c" }))
+  const ownerLogin = (login) => orcaEnv([{ match: "api user --jq .login", stdout: login }])
+  const sameLogin = ownerLogin("first-owner\n")
+  T(`${TOOL}: the keyring sign-in of the repository owner is accepted`,
+    (await requireKeyringOwner(first.path, { ghBin: sameLogin.GH_BIN, environment: { ...process.env, ...sameLogin } })) === "first-owner")
+  const otherLogin = ownerLogin("second-owner\n")
+  let mismatch = ""
+  try {
+    await requireKeyringOwner(first.path, { ghBin: otherLogin.GH_BIN, environment: { ...process.env, ...otherLogin } })
+  } catch (error) {
+    mismatch = error.message
+  }
+  T(`${TOOL}: another keyring sign-in is refused with the command that switches it`, /"second-owner", not the repository owner "first-owner".*gh auth switch --user first-owner/.test(mismatch), mismatch)
 
   const descendantPidFile = stage("github-auth/descendant.pid", "")
   const hanging = orcaEnv([{ match: "auth token --user first-owner", stdout: "", hangTreePidFile: descendantPidFile }])

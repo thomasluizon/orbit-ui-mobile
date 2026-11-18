@@ -120,7 +120,7 @@ The reader is an allow list in each class:
   segments with `invocationsOf` and `LIST_START_WORDS`. Two rules read what a program takes in the same word as its option, so each is an
   allow list: a proof lets only `-s <pinned serial>` lead an `adb` call and boots only the AVD `orbit-proof-<pinned port>`, and a read-only
   run refuses each `curl` call to a GitHub host. A `for` loop that binds a pinned name, and an `xargs` that runs `gh`, `curl`, `adb`,
-  `emulator` or the boot tool, are refused, because the loop and the standard input decide the value that no word on the line shows.
+  `emulator` or the boot tool, are refused, because the loop and the standard input decide the value that no word on the line shows. A word that the walk cannot resolve (it tracks lower-case names only: `M=-XPOST; gh api … $M`, `T=-t1; adb $T shell …`) refuses the call to `gh`, `curl`, `wget`, `adb`, `emulator` or the boot tool, in a read-only run and in a proof, with one exception: a proof reads `$ANDROID_SERIAL` and `$ORBIT_PROOF_EMULATOR_PORT` (bare or braced, with no modifier) as their pinned values.
 - The allowed builtins are `cd`, `echo`, `printf`, `test`, `[`, `true`, `false`, `:`, `pwd`, `export`, `local`, `readonly`,
   `declare`, `typeset`, `unset`, `set`, `exit`, `type` and `kill`. `cd` is followed. `set` takes only `-e`, `-u` and `-x`.
   `printf` takes no `-v`. `export`, `local`, `readonly`, `declare`, `typeset` and `unset` take only a name and `NAME=value`,

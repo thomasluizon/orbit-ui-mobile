@@ -13,7 +13,7 @@ import { homedir, tmpdir } from "node:os"
 import { dirname, join, relative, resolve, isAbsolute } from "node:path"
 
 import { parseWorktreeList } from "./git-worktrees.mjs"
-import { githubEnvironment, redactSecrets } from "./github-auth.mjs"
+import { requireKeyringOwner, withoutGithubToken } from "./github-auth.mjs"
 import { researchPaths } from "./research-run.mjs"
 import { isWakeSourceAlive, processStartIdentity } from "./run-state.mjs"
 
@@ -371,13 +371,13 @@ export const readOnlyLaunch = (mode, { argv, argOf, fail }) => {
       launch.plan = { issue: null, research: false, mode, outputFile, writeSandbox: directories, proofEmulatorPort: portClaim?.port ?? null }
     },
     admit: async ({ launched }) => {
-      // A copy outside every repository has no remote to choose a GitHub owner from, so it keeps the caller's own gh sign-in.
-      let github = { environment: process.env }
+      // The run holds no GitHub token: `gh` reads its own sign-in, so a variable expansion, `printenv` or `env` finds no token to print or send.
+      // A copy outside every repository has no remote to choose a GitHub owner from, so it keeps the caller's own gh sign-in unchecked.
       if (gitWorktree) {
-        try { github = await githubEnvironment(runDirectory) } catch (error) { fail(2, `could not resolve GitHub reads for ${runDirectory}: ${redactSecrets(error.message)}`) }
+        try { await requireKeyringOwner(runDirectory) } catch (error) { fail(2, `could not resolve GitHub reads for ${runDirectory}: ${error.message}`) }
       }
       launch.environment = {
-        ...launched(github.environment),
+        ...launched(withoutGithubToken(process.env)),
         // A read-only status never takes the index lock, which the sandbox refuses.
         GIT_OPTIONAL_LOCKS: "0",
         ORBIT_READ_ONLY_RUN: "1",

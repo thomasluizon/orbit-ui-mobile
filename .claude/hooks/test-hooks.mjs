@@ -1546,7 +1546,55 @@ for (const command of [
 ]) {
   T(`read-only run: ${command.slice(0, 80)} is refused as outside the subset`, READ_ONLY_REFUSAL.test(readOnlyWorker(command)?.message ?? ""), true)
 }
-T("read-only run: a ticket worker keeps its own GitHub writes", checkReadOnlyRun("gh pr comment 2476 --body x", { env: { ORBIT_LAUNCH_WORKER: "1" } }), null)
+// A variable that the walk cannot resolve (it tracks lower-case names only) supplies the words that decide a write, a token print or the device (thread Oyo_).
+const proofReadOnlyWorker = (command) => checkReadOnlyRun(command, { env: { ...PROOF_PIN, ORBIT_READ_ONLY_RUN: "1" } })
+for (const command of [
+  "M=-XPOST; gh api repos/o/r/issues/1/comments $M",
+  "F=-fbody=x; gh api repos/o/r/issues/1/comments $F",
+  "S=--show-token; gh auth status $S",
+  "U=https://api.github.com/repos/o/r/issues/1/comments; curl -d x $U",
+  'M=-XPOST; gh api repos/o/r/issues/1/comments "$M"',
+  "M=-XPOST; npx gh api repos/o/r/issues/1/comments $M",
+  "R=gh; npx $R pr merge 2476 --squash",
+  "gh pr view $(echo 2476)",
+  "gh api repos/o/r/issues/1/comments ${M:--XPOST}",
+  "gh api -X GET repos/o/r/issues/1/comments ${ANDROID_SERIAL:+-XPOST}",
+]) {
+  T(`read-only run: ${command} blocks, a word that the walk cannot resolve supplies the words that decide the write`, READ_ONLY_REFUSAL.test(readOnlyWorker(command)?.message ?? "") || /A read-only run writes nothing/.test(readOnlyWorker(command)?.message ?? ""), true)
+}
+for (const command of [
+  "M=-XPOST; gh api repos/o/r/issues/1/comments $M",
+  "S=--show-token; gh auth status $S",
+  "gh api -X GET repos/o/r/issues/1/comments ${ANDROID_SERIAL:?missing}",
+  "gh api repos/o/r/issues/1/comments -f body=$ANDROID_SERIAL",
+]) {
+  T(`read-only run: a proof refuses ${command}`, /A read-only run writes nothing/.test(proofReadOnlyWorker(command)?.message ?? ""), true)
+}
+for (const command of [
+  "echo $HOME; gh pr view 2476",
+  "m=-XGET; gh api repos/o/r/pulls/2476/comments $m",
+  "gh pr view 2476 --json body --jq .body",
+  'for number in 2476 2477; do gh pr view "$number"; done',
+]) {
+  T(`read-only run: ${command} allows, no resolved word and no unrelated variable decides a GitHub call`, readOnlyWorker(command), null)
+}
+for (const command of [
+  "T=-t1; adb $T shell pm clear org.useorbit.app",
+  "T=-t1; adb -s $ANDROID_SERIAL $T shell pm clear org.useorbit.app",
+  "S='-s emulator-5554'; adb $S shell pm clear org.useorbit.app",
+  "P=5554; node tools/android-emulator.mjs --avd orbit-proof-5594 --port $P",
+  'adb -s $ANDROID_SERIAL ${ANDROID_SERIAL:?missing} shell pm clear org.useorbit.app',
+  "adb -s $ANDROID_SERIAL shell pm clear $PACKAGE",
+  "A=-avd; emulator $A orbit-proof-5594 -port 5594 -no-window",
+  "E=emulator; npx $E -avd orbit-proof-5594 -port 5594",
+]) {
+  T(`worker-browser: a proof refuses ${command}, a word that the walk cannot resolve supplies the device`, /pinned device emulator-5594|may boot only its throwaway AVD/.test(proofWorker(command)?.message ?? ""), true)
+}
+T("worker-browser: a proof allows the order's own variables, ANDROID_SERIAL and ORBIT_PROOF_EMULATOR_PORT, next to a word it can resolve",
+  proofWorker('package=org.useorbit.app; adb -s "$ANDROID_SERIAL" shell pm clear $package'), null)
+T("worker-browser: the unresolved word rule leaves a program that is no device program alone", proofWorker("echo $HOME; ls $DIR"), null)
+T("read-only run: a typed marker grants nothing to refuse (unresolved word)", checkReadOnlyRun("M=-XPOST; gh api x $M", { env: {} }), null)
+T("read-only run: a ticket worker keeps its own GitHub writes",checkReadOnlyRun("gh pr comment 2476 --body x", { env: { ORBIT_LAUNCH_WORKER: "1" } }), null)
 T("read-only run: a typed marker grants nothing to refuse", checkReadOnlyRun("ORBIT_READ_ONLY_RUN=1 gh pr comment 2476 --body x", { env: {} }), null)
 // The same commands from a session that is NOT a worker are none of this gate's business.
 T("worker-browser: npm run dev outside a worker allows", checkWorkerBrowser("npm run dev", { env: {}, cwd: "", repoRoots: [] }), null)

@@ -2,7 +2,7 @@ import { spawn, spawnSync } from "node:child_process"
 import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, realpathSync, statSync, writeFileSync } from "node:fs"
 import { dirname, join } from "node:path"
 
-import { REPO_ROOT, T, TOOLS_DIR, check, root, run, stage } from "./_harness.mjs"
+import { REPO_ROOT, T, TOOLS_DIR, check, orcaEnv, root, run, stage } from "./_harness.mjs"
 import { emulatorPortClaimDirectory } from "../lib/review-run.mjs"
 import { clearWorkerLaunchReservation, gitDirectoryOf, reserveWorkerLaunch } from "../lib/run-state.mjs"
 import { discardAttemptLogs, githubAuthEnv, launch, launchConfig, stubEngine } from "./launch-worker.mjs"
@@ -66,13 +66,14 @@ const wakeDirectory = process.env.ORBIT_TEST_WAKE_DIRECTORY
 const wakes = fs.readdirSync(wakeDirectory).filter((name) => name.endsWith(".json")).map((name) => JSON.parse(fs.readFileSync(wakeDirectory + "/" + name, "utf8")))
 const verdict = process.env.ORBIT_TEST_VERDICT ?? (process.env.ORBIT_DEVICE_PROOF === "1" ? "PROOF: PASS" : "VERDICT: CLEAN")
 const settingsFile = argumentAfter("--settings")
-fs.writeFileSync(resultPath, verdict + "\\n" + JSON.stringify({ cwd: process.cwd(), proof: process.env.ORBIT_DEVICE_PROOF ?? null, marker: process.env.ORBIT_LAUNCH_WORKER ?? null, readOnly: process.env.ORBIT_READ_ONLY_RUN ?? null, serial: process.env.ANDROID_SERIAL ?? null, port: process.env.ORBIT_PROOF_EMULATOR_PORT ?? null, wakes, settingSources: argumentAfter("--setting-sources"), settings: settingsFile === null ? null : fs.readFileSync(settingsFile, "utf8") }) + "\\n")
+fs.writeFileSync(resultPath, verdict + "\\n" + JSON.stringify({ cwd: process.cwd(), proof: process.env.ORBIT_DEVICE_PROOF ?? null, marker: process.env.ORBIT_LAUNCH_WORKER ?? null, readOnly: process.env.ORBIT_READ_ONLY_RUN ?? null, githubTokens: [process.env.GH_TOKEN ?? null, process.env.GITHUB_TOKEN ?? null], serial: process.env.ANDROID_SERIAL ?? null, port: process.env.ORBIT_PROOF_EMULATOR_PORT ?? null, wakes, settingSources: argumentAfter("--setting-sources"), settings: settingsFile === null ? null : fs.readFileSync(settingsFile, "utf8") }) + "\\n")
 `, {}, {}, {
     // The head under review changes its hook to allow everything. The worker must never load it.
     ".claude/hooks/forbid-worker-browser.mjs": "process.exit(0)\n",
     ".claude/settings.json": JSON.stringify({ hooks: { PreToolUse: [{ matcher: "Bash", hooks: [{ type: "command", command: 'node "$CLAUDE_PROJECT_DIR/.claude/hooks/forbid-worker-browser.mjs"' }] }] } }),
   })
-  const env = { ...githubAuthEnv({ queuedRuns: launchConfig().caps.maxQueuedRuns + 1 }), ORBIT_TEST_WAKE_DIRECTORY: wakeDirectory(clean.base) }
+  // The coordinator holds both token variables, as a real launch does. The read-only worker must find neither (thread OypN).
+  const env = { ...githubAuthEnv({ queuedRuns: launchConfig().caps.maxQueuedRuns + 1 }), ORBIT_TEST_WAKE_DIRECTORY: wakeDirectory(clean.base), GH_TOKEN: "coordinator-owner-token", GITHUB_TOKEN: "coordinator-github-token" }
   const refusedTicket = run(TOOL, ["--issue", "ORB-201", "--worktree", clean.worktree, "--prompt", clean.prompt], { path: clean.path, env })
   T(`${TOOL}: the same queue refuses ticket work at admission`, refusedTicket.status === 8 && /ADMISSION_REFUSED/.test(refusedTicket.stdout), refusedTicket.stdout || refusedTicket.stderr)
   const runs = [1, 2, 3].map((attempt) => launchReview(clean, `a review in a detached worktree publishes its result (launch ${attempt}, above both admission caps)`, { status: 0 }, { env }))
@@ -92,6 +93,8 @@ fs.writeFileSync(resultPath, verdict + "\\n" + JSON.stringify({ cwd: process.cwd
       !observed.settings.includes(clean.runDirectory) && !observed.settings.includes("CLAUDE_PROJECT_DIR") &&
       hookCommands.some((command) => command.endsWith(`${launcherCheckout}/.claude/hooks/forbid-worker-browser.mjs"`)),
     hookCommands.join("\n"))
+  T(`${TOOL}: a review worker's environment holds no GitHub token, so \`echo $GH_TOKEN\`, \`printenv GH_TOKEN\` and \`env\` print none (thread OypN)`,
+    observed?.githubTokens?.length === 2 && observed.githubTokens.every((token) => token === null), JSON.stringify(observed?.githubTokens))
   const wake = observed?.wakes?.find((source) => source.review === true)
   T(`${TOOL}: a review registers a review wake source with its worker pid`,
     wake?.what === "review" && wake.research === false && Number.isInteger(wake.workerPid) && wake.pending !== true, JSON.stringify(observed?.wakes))
@@ -129,6 +132,10 @@ fs.writeFileSync(resultPath, verdict + "\\n" + JSON.stringify({ cwd: process.cwd
   const port = Number(proofEnvironment.port)
   T(`${TOOL}: a device proof pins one even emulator port from 5560 and its serial (finding 15)`,
     Number.isInteger(port) && port % 2 === 0 && port >= 5560 && port <= 5680 && proofEnvironment.serial === `emulator-${port}`, JSON.stringify(proofEnvironment))
+  // With no token in the environment, `gh` reads its own sign-in: another account would fail each read, so the launch refuses it (thread OypN).
+  const otherAccount = launchReview(clean, "a review whose gh sign-in is not the repository owner is refused", { status: 2, stderr: /not the repository owner "test-owner"/ },
+    { env: orcaEnv([{ match: "api user --jq .login", stdout: "someone-else\n" }]) })
+  T(`${TOOL}: a refused gh sign-in publishes nothing`, otherAccount.published === null && !existsSync(otherAccount.outputFile), otherAccount.result.stderr)
   const misread = launchReview(clean, "a device proof that opens with a review verdict exits 1", { status: 1 }, { mode: "proof", env: { ...env, ORBIT_TEST_VERDICT: "VERDICT: CLEAN" } })
   T(`${TOOL}: a review verdict line does not publish a device proof`, misread.report?.published === false && misread.published === null, misread.result.stderr)
 }

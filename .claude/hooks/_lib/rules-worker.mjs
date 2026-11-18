@@ -21,6 +21,8 @@ const PINNED_PORT = "ORBIT_PROOF_EMULATOR_PORT"
 const READ_ONLY_MARKER = "ORBIT_READ_ONLY_RUN"
 /** The programs that call GitHub. A read-only run never starts one through `xargs`. */
 const GITHUB_PROGRAMS = new Set(["gh", "curl", "wget"])
+/** The programs that a proof pins to its device: it gives none of them a word that the walk cannot resolve. */
+const DEVICE_PROGRAMS = new Set(["adb", "emulator"])
 /** The gh subcommands that only read GitHub. `gh api` is judged on its method and fields. */
 const GH_READS = new Map([
   ["pr", new Set(["view", "diff", "checks", "list", "status"])],
@@ -195,6 +197,32 @@ function flagValue(tokens, flag) {
 }
 
 const PINNED_NAMES = [PINNED_SERIAL, PINNED_PORT]
+
+/** Whether a variable part is `$NAME` or `${NAME}` of a pinned name, with no modifier such as `${NAME:+-t1}` that the shell expands to another value. */
+const isPinnedReference = (part) => part.type === "variable" && PINNED_NAMES.some((name) => part.written === "$" + name || part.written === "${" + name + "}")
+
+/**
+ * Whether a word holds a value that the walk cannot resolve: a variable it does not know (it tracks only lower-case names), a substitution
+ * or a value that bash and zsh split in different ways. A proof reads a reference to a pinned variable as its pinned value, because
+ * `changesPinnedVariable` keeps that variable at its pinned value.
+ */
+function holdsUnresolvedValue(word, deviceProof) {
+  if (word.dynamic === "") return false
+  return word.fixed !== "" || word.parts.some((part) => part.type !== "text" && part.type !== "tilde" && !(deviceProof && isPinnedReference(part)))
+}
+
+/**
+ * Whether a call to a program that decides a GitHub write, a token print or a device holds a word that the walk cannot resolve. Such a word
+ * supplies the words that decide it (`M=-XPOST; gh api … $M`, `T=-t1; adb $T shell …`), and a first word that the walk cannot resolve
+ * may be one of those programs behind a package runner.
+ */
+function hasUnresolvedDecision(program, args, deviceProof, programs) {
+  const words = [program, ...args]
+  const [first] = withoutRunners(words.map((word) => word.text))
+  const decides = programs.has(normalize(first)) || isBootTool(words.map((word) => word.text)) || words.some((word) => word.text === first && holdsUnresolvedValue(word, deviceProof))
+  return decides && words.some((word) => holdsUnresolvedValue(word, deviceProof))
+}
+
 /** The builtins whose words are `NAME=value`: the reader allows no option for them. */
 const ASSIGNING_BUILTINS = new Set(["export", "declare", "typeset", "local", "readonly"])
 const NAME_ASSIGNMENT = /^([A-Za-z_][A-Za-z0-9_]*)(\+?)=(.*)$/s
@@ -394,6 +422,7 @@ function judgeCommand(command, context) {
         if (context.deviceProof && wrappers.includes("xargs") && isDeviceProgram(withoutRunners([program, ...args].map((word) => word.text)))) return { action: UNPINNED_ACTION, source }
         const found = inspectWords([program, ...args].map((word) => word.text), source, context)
         if (found) return found
+        if (context.deviceProof && hasUnresolvedDecision(program, args, context.deviceProof, DEVICE_PROGRAMS)) return { action: UNPINNED_ACTION, source }
       }
     }
     return null
@@ -478,7 +507,7 @@ function ghApiWrites(command, words) {
   const rest = words.slice(2).map((word) => word.text)
   let method = null
   let body = false
-  // A query from `--input <file>`, a `key=@<file>` field or a word that the shell expands is text this hook cannot read.
+  // A query from `--input <file>` or a `key=@<file>` field is text this hook cannot read.
   let bodyUnreadable = false
   let endpoint = null
   for (let index = 0; index < rest.length; index += 1) {
@@ -496,8 +525,6 @@ function ghApiWrites(command, words) {
   }
   if (method !== null) return method.toUpperCase() !== "GET"
   if (!body) return false
-  // The reader marks a word that a substitution or a variable makes, so it may hold a query or a field that this hook cannot read.
-  if (words.slice(2).some((word) => word.dynamic !== "")) bodyUnreadable = true
   // A GraphQL query is a POST with a body field; only a mutation writes, and a query the hook cannot read may be one.
   return endpoint !== "graphql" || bodyUnreadable || /\bmutation\b/i.test(command)
 }
@@ -572,20 +599,22 @@ const unreadable = (reason, runKind = "a read-only run") => ({
 
 /**
  * A read-only review or proof (launch-worker.mjs --review or --proof) reads GitHub and never writes it. Each program that the reader of
- * `shell-subset.mjs` finds is judged on its own words, and a command outside the subset is refused. A script that calls GitHub itself passes,
- * and the worker still holds the owner's token. Returns `{ block, message }` for a GitHub write or a credential read, else null.
+ * `shell-subset.mjs` finds is judged on its own words, and a command outside the subset is refused. A script that calls GitHub itself passes.
+ * The launcher leaves the GitHub token out of the environment, so `$GH_TOKEN` prints nothing. Returns `{ block, message }` for a GitHub
+ * write or a credential read, else null.
  */
 export function checkReadOnlyRun(command, { env = {} } = {}) {
   if (typeof command !== "string" || env[READ_ONLY_MARKER] !== "1") return null
+  const deviceProof = env[DEVICE_PROOF_MARKER] === "1"
   const read = readCommand(command)
   const calls = []
   const reason = read.notModelled || walkCommands(read.list, null, (call) => { calls.push(call); return null })
   if (reason !== "") return unreadable(reason)
   for (const { words } of calls) {
     for (const { program, args, wrappers } of invocationsOf(words)) {
-      // xargs adds the words from standard input, which decide the subcommand, the method and the body.
+      // xargs adds the words from standard input, which decide the subcommand, the method and the body. A word that the walk cannot resolve does the same.
       const throughXargs = wrappers.includes("xargs") && GITHUB_PROGRAMS.has(normalize(withoutRunners([program, ...args].map((word) => word.text))[0]))
-      if (!throughXargs && !githubWrite([program, ...args], command)) continue
+      if (!throughXargs && !hasUnresolvedDecision(program, args, deviceProof, GITHUB_PROGRAMS) && !githubWrite([program, ...args], command)) continue
       return {
         block: true,
         message:
