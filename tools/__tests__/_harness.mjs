@@ -7,6 +7,16 @@ import { dirname, join, resolve } from "node:path"
  * Injected by the runner. These are live bindings: configure() runs before any case
  * module is imported, so every module reads the runner's own resolution.
  */
+/** Run files (the intake marks) go to a directory in each test checkout's git directory, never to GitHub. */
+process.env.ORBIT_TEST_RUN_FILES = "1"
+
+/** Writes the intake file of one test checkout, the way a predecessor on another computer left it. */
+export const seedIntake = (checkout, intake) => {
+  const directory = join(checkout, ".git", "orbit-test-run-files", "run-state")
+  mkdirSync(directory, { recursive: true })
+  writeFileSync(join(directory, "intake.json"), `${JSON.stringify(intake, null, 2)}\n`)
+}
+
 export let TOOLS_DIR = ""
 export let REPO_ROOT = ""
 export let SELF = ""

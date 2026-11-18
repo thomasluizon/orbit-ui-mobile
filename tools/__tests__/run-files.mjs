@@ -1,0 +1,90 @@
+import { chmodSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
+import { join } from "node:path"
+
+import { directoryRunFiles, githubRunFiles, readRunJson, RunFileConflict, updateRunJson } from "../lib/run-files.mjs"
+
+import { T, root, same } from "./_harness.mjs"
+
+const UNIT = "lib/run-files.mjs"
+
+/**
+ * A gh stand-in that answers from a response table keyed on the joined argv, logs each call with its stdin,
+ * and prints the error line the real gh prints: `gh: <message> (HTTP <status>)`.
+ */
+const fakeGh = (label, responses) => {
+  const directory = join(root, "run-files", label)
+  mkdirSync(directory, { recursive: true })
+  const log = join(directory, "calls.log")
+  const script = join(directory, "gh")
+  writeFileSync(join(directory, "responses.json"), JSON.stringify(responses))
+  writeFileSync(script, `#!/usr/bin/env node
+const fs = require("node:fs")
+const line = process.argv.slice(2).join(" ")
+const input = line.includes("--input -") ? fs.readFileSync(0, "utf8") : ""
+fs.appendFileSync(${JSON.stringify(log)}, JSON.stringify({ line, input }) + "\\n")
+const responses = JSON.parse(fs.readFileSync(${JSON.stringify(join(directory, "responses.json"))}, "utf8"))
+const answer = responses.find((entry) => line === entry.match)
+if (!answer) { process.stderr.write("gh: unstubbed " + line + " (HTTP 599)\\n"); process.exit(1) }
+if (answer.status) { process.stdout.write(JSON.stringify({ message: answer.message, status: String(answer.status) })); process.stderr.write("gh: " + answer.message + " (HTTP " + answer.status + ")\\n"); process.exit(1) }
+process.stdout.write(JSON.stringify(answer.body))
+`)
+  chmodSync(script, 0o755)
+  return { store: githubRunFiles({ repository: "owner/tickets", gh: script, environment: process.env }),
+    calls: () => readFileSync(log, "utf8").trim().split("\n").map((entry) => JSON.parse(entry)) }
+}
+
+const location = "repos/owner/tickets/contents/run-state/intake.json"
+
+export const cases = () => {
+  const missing = fakeGh("missing", [{ match: `api ${location}`, status: 404, message: "This repository is empty." }])
+  same(`${UNIT}: a file the repository lacks reads as absent`, missing.store.read("run-state/intake.json"), { bytes: null, sha: null })
+
+  const small = fakeGh("small", [{ match: `api ${location}`, body: { type: "file", encoding: "base64", sha: "a1", content: Buffer.from("{\"gmail\":{}}\n").toString("base64") } }])
+  const read = small.store.read("run-state/intake.json")
+  T(`${UNIT}: a file up to 1 MB reads from its base64 content and keeps its blob sha`, read.bytes.toString() === "{\"gmail\":{}}\n" && read.sha === "a1", JSON.stringify(read))
+
+  const large = fakeGh("large", [
+    { match: `api ${location}`, body: { type: "file", encoding: "none", sha: "b2", content: "" } },
+    { match: "api repos/owner/tickets/git/blobs/b2", body: { sha: "b2", encoding: "base64", content: Buffer.from("[1]").toString("base64") } },
+  ])
+  T(`${UNIT}: a file over 1 MB reads through the blob API`, large.store.read("run-state/intake.json").bytes.toString() === "[1]")
+
+  const written = fakeGh("write", [{ match: `api -X PUT ${location} --input -`, body: { content: { sha: "c3" }, commit: { sha: "d4" } } }])
+  same(`${UNIT}: a write returns the new blob sha and commit`, written.store.write("run-state/intake.json", "{}\n", "a1", "intake: gmail"), { sha: "c3", commit: "d4" })
+  const sent = JSON.parse(written.calls()[0].input)
+  T(`${UNIT}: a write sends the message, the base64 content and the sha it read`, sent.message === "intake: gmail" && Buffer.from(sent.content, "base64").toString() === "{}\n" && sent.sha === "a1", JSON.stringify(sent))
+  written.store.write("run-state/intake.json", "{}\n", null, "intake: first")
+  T(`${UNIT}: the first write of a file sends no sha`, !("sha" in JSON.parse(written.calls()[1].input)))
+
+  for (const status of [409, 422]) {
+    const stale = fakeGh(`stale-${status}`, [{ match: `api -X PUT ${location} --input -`, status, message: "run-state/intake.json does not match a1" }])
+    let error
+    try { stale.store.write("run-state/intake.json", "{}\n", "a1", "intake") } catch (caught) { error = caught }
+    T(`${UNIT}: a refused write with HTTP ${status} is a conflict to retry`, error instanceof RunFileConflict, String(error))
+  }
+  const broken = fakeGh("broken", [{ match: `api -X PUT ${location} --input -`, status: 403, message: "Resource not accessible" }])
+  let denied
+  try { broken.store.write("run-state/intake.json", "{}\n", "a1", "intake") } catch (caught) { denied = caught }
+  T(`${UNIT}: any other refused write is an error, never a retry`, denied && !(denied instanceof RunFileConflict) && /Resource not accessible/.test(denied.message), String(denied))
+
+  for (const path of ["../secret", "/etc/passwd", "run-state/../x", "run state.json", ""]) {
+    let refused = false
+    try { directoryRunFiles(join(root, "run-files", "paths")).read(path) } catch { refused = true }
+    T(`${UNIT}: the path ${JSON.stringify(path)} is refused`, refused)
+  }
+
+  const store = directoryRunFiles(join(root, "run-files", "directory"))
+  same(`${UNIT}: an absent JSON file reads as null`, readRunJson("run-state/intake.json", store), { value: null, sha: null })
+  same(`${UNIT}: the first update writes the file`, updateRunJson("run-state/intake.json", (value) => ({ ...value, gmail: { highWater: "m1" } }), "intake", store), { gmail: { highWater: "m1" } })
+  let racer = 0
+  const raced = updateRunJson("run-state/intake.json", (value) => {
+    // Another writer replaces the file between this read and this write, twice.
+    if (racer++ < 2) store.write("run-state/intake.json", JSON.stringify({ ...value, play: { round: racer } }), readRunJson("run-state/intake.json", store).sha)
+    return { ...value, gmail: { highWater: "m2" } }
+  }, "intake", store)
+  T(`${UNIT}: an update that loses the race reads again and keeps the other writer's change`, raced.gmail.highWater === "m2" && raced.play.round === 2 && racer === 3, JSON.stringify(raced))
+  same(`${UNIT}: an update that returns undefined writes nothing`, updateRunJson("run-state/intake.json", () => undefined, "intake", store), raced)
+  let endless
+  try { updateRunJson("run-state/intake.json", (value) => { store.write("run-state/intake.json", JSON.stringify({ ...value, n: Math.random() }), readRunJson("run-state/intake.json", store).sha); return value }, "intake", store) } catch (error) { endless = error.message }
+  T(`${UNIT}: an update stops after five lost races`, /kept changing: 5 writes lost the race/.test(endless ?? ""), endless)
+}

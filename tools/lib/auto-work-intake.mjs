@@ -1,4 +1,5 @@
-import { readRunState, updateRunState, REPO_ROOT } from "./run-state.mjs"
+import { INTAKE_FILE, readRunJson, runFiles, updateRunJson } from "./run-files.mjs"
+import { readRunState, REPO_ROOT } from "./run-state.mjs"
 
 const carryingTicket = (ticket) => /^https:\/\/github\.com\/thomasluizon\/orbit-tickets\/issues\/\d+$/.test(ticket ?? "")
 
@@ -22,7 +23,7 @@ export const pendingReviewKeys = (intake) => [
   ...Object.keys(intake?.appStore?.pending ?? {}).map((id) => `appStore ${id}`),
 ]
 
-/** The run record itself when it is the active auto-work run this process may write intake to. */
+/** The local run record when it is the active auto-work run this process may write intake to; the intake itself lives on GitHub. */
 export const activeIntakeRun = (state, repoRoot = REPO_ROOT) => {
   if (!state?.sessionId || !state.sleep || !state.autoWork ||
       (repoRoot === REPO_ROOT && process.env.CLAUDE_CODE_SESSION_ID && process.env.CLAUDE_CODE_SESSION_ID !== state.sessionId)) throw new Error("No matching active auto-work run")
@@ -31,22 +32,36 @@ export const activeIntakeRun = (state, repoRoot = REPO_ROOT) => {
 
 export const intakeRun = (repoRoot = REPO_ROOT) => activeIntakeRun(readRunState(repoRoot), repoRoot)
 
-const intakeSourceOf = (state, source) => ({ completed: {}, pending: {}, highWater: null, ...state.intake?.[source] })
+/**
+ * Every intake mark (Gmail, Play, App Store, the waiter's seen keys), read from INTAKE_FILE in the private tickets
+ * repository. Any computer reads the same marks, so a relay or a new computer never reads a message twice.
+ */
+export const readIntake = (repoRoot = REPO_ROOT) => readRunJson(INTAKE_FILE, runFiles(repoRoot)).value ?? {}
 
-export const intakeSource = (source, repoRoot = REPO_ROOT) => intakeSourceOf(intakeRun(repoRoot), source)
+const intakeSourceOf = (intake, source) => ({ completed: {}, pending: {}, highWater: null, ...intake?.[source] })
 
-/** One locked read-change-write of one intake source; `change` receives the source as it is now. */
-export const updateIntakeSource = (source, change, repoRoot = REPO_ROOT) => {
-  let contents
-  const written = updateRunState((current) => {
-    const state = activeIntakeRun(current, repoRoot)
-    contents = change(intakeSourceOf(state, source))
-    return { ...state, intake: { ...state.intake, [source]: contents } }
-  }, repoRoot)
-  const confirmed = intakeSourceOf(written, source)
-  if (JSON.stringify(confirmed) !== JSON.stringify(contents)) throw new Error("Intake write was not confirmed")
-  return confirmed
+export const intakeSource = (source, repoRoot = REPO_ROOT) => {
+  intakeRun(repoRoot)
+  return intakeSourceOf(readIntake(repoRoot), source)
 }
+
+/**
+ * One compare-and-swap of the whole intake file for one source. `change` receives the source as it is now and runs
+ * again when another writer replaced the file first, so it derives everything from its argument.
+ */
+export const updateIntake = (key, change, repoRoot = REPO_ROOT) => {
+  intakeRun(repoRoot)
+  let contents
+  const written = updateRunJson(INTAKE_FILE, (intake) => {
+    contents = change(intake ?? {})
+    return contents === undefined ? undefined : { ...intake, [key]: contents }
+  }, `intake: ${key}`, runFiles(repoRoot))
+  if (contents !== undefined && JSON.stringify(written?.[key]) !== JSON.stringify(contents)) throw new Error("Intake write was not confirmed")
+  return contents
+}
+
+export const updateIntakeSource = (source, change, repoRoot = REPO_ROOT) =>
+  intakeSourceOf({ [source]: updateIntake(source, (intake) => change(intakeSourceOf(intake, source)), repoRoot) }, source)
 
 /** A completed item has both a durable disposition and the reply or ticket carrying it. */
 export const acknowledgeIntake = (source, receipt, repoRoot = REPO_ROOT) => updateIntakeSource(source, (current) => {

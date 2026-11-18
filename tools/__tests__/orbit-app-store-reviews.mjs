@@ -3,7 +3,7 @@ import { join } from "node:path"
 import { importAppStoreReviews, readAppStoreReviews } from "../orbit-app-store-reviews.mjs"
 import { acknowledgeIntake, intakeSource } from "../lib/auto-work-intake.mjs"
 import { writeRunState } from "../lib/run-state.mjs"
-import { T, root } from "./_harness.mjs"
+import { T, root, seedIntake } from "./_harness.mjs"
 
 export const cases = async () => {
   const schema = JSON.parse(readFileSync(new URL("./fixtures/auto-work-apple-schemas.json", import.meta.url), "utf8"))
@@ -20,7 +20,8 @@ export const cases = async () => {
   T("app store: all customer review pages use GET", snapshot.reviews.length === 2 && calls.every(({ options }) => options.method === "GET"))
   const checkout = join(root, "app-store-intake")
   mkdirSync(join(checkout, ".git"), { recursive: true })
-  writeRunState({ sessionId: "parent", sleep: true, autoWork: true, intake: { appStore: { waitingOn: "#1561" } } }, checkout)
+  writeRunState({ sessionId: "parent", sleep: true, autoWork: true }, checkout)
+  seedIntake(checkout, { appStore: { waitingOn: "#1561" } })
   const items = importAppStoreReviews(snapshot, checkout)
   acknowledgeIntake("appStore", { id: items[0].id, classification: "praise", person: true, reply: "Thank you!" }, checkout)
   writeRunState({ sessionId: "child", sleep: true, relay: { from: "parent" } }, checkout)

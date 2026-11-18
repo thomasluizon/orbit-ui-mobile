@@ -665,6 +665,7 @@ const publishRunState = (state, repoRoot) => {
   const pullRequests = relaySuccessor
     ? [...new Map([...(previous.pullRequests ?? []), ...(state.pullRequests ?? [])].map((entry) => [`${entry.repositoryKey}#${entry.prNumber}`, entry])).values()]
     : state.pullRequests
+  // WHY: an older run record still holds intake marks until tools/migrate-run-state.mjs copies them to GitHub (thomasluizon/orbit-tickets#2152).
   const inherited = preserveLedger
     ? Object.fromEntries(["autoWork", "intake"].filter((key) => previous[key] !== undefined).map((key) => [key, previous[key]]))
     : {}

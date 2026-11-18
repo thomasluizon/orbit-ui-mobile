@@ -36,7 +36,8 @@ of the owning mode.
 | `lib/app-store-connect.mjs` | The one App Store Connect API transport for the reviews reader and `testflight-access.mjs`: a fresh bearer token per request, a 30-second limit, GET with pagination and JSON POST. A failure names the status and the first error's code and title, never the detail. A pagination link must keep the API host and the first path, so the token never goes to another host. | imported, not invoked |
 | `orbit-review-replies.mjs` | Prepares clear store replies, posts them through Actions with existing store credentials and imports matching confirmations; preserves changed reviews and existing owner replies. | `node tools/orbit-review-replies.mjs --prepare`, `--post --output <absolute file>` or `--import <absolute file>` |
 | `lib/auto-work-google.mjs` | Keychain credential transport, Google token exchange and Gmail reads, drafts and policy-guarded sending. | imported, not invoked |
-| `lib/auto-work-intake.mjs` | Durable pending items, source high-water marks and receipts requiring their carrying ticket and person reply before acknowledgement. | imported, not invoked |
+| `lib/auto-work-intake.mjs` | Durable pending items, source high-water marks, the waiter's seen keys and receipts requiring their carrying ticket and person reply before acknowledgement. The marks live in `run-state/intake.json` in the private tickets repository, so any computer reads them; only the active auto-work run of this checkout writes them. | imported, not invoked |
+| `lib/run-files.mjs` | Reads and writes run files in the private tickets repository through the GitHub contents API, with the blob sha as the compare-and-swap token: a write that lost the race reads again, up to five times. A file over 1 MB reads through the blob API. A hermetic test sets `ORBIT_TEST_RUN_FILES=1` and gets one directory in each test checkout's git directory. | imported, not invoked |
 
 | Tool | What it does | Usage |
 |---|---|---|

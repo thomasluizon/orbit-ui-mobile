@@ -4,7 +4,7 @@ import { collectMail, draftReply, replyToMail, unseenMailIds } from "../orbit-ma
 import { gmailClient } from "../lib/auto-work-google.mjs"
 import { acknowledgeIntake, intakeSource } from "../lib/auto-work-intake.mjs"
 import { writeRunState } from "../lib/run-state.mjs"
-import { T, root } from "./_harness.mjs"
+import { T, root, seedIntake } from "./_harness.mjs"
 
 export const cases = async () => {
   const checkout = join(root, "mail-intake")
@@ -53,14 +53,15 @@ export const cases = async () => {
   T("mail: repeated drafting creates no duplicate", calls.filter(({ options }) => options.method === "POST").length === 1)
   const state = intakeSource("gmail", checkout)
   delete state.pending.m1.draftId
-  writeRunState({ sessionId: "mail-child", sleep: true, intake: { gmail: state } }, checkout)
+  writeRunState({ sessionId: "mail-child", sleep: true }, checkout)
+  seedIntake(checkout, { gmail: state })
   await draftReply(client, { id: "m1", text: "Olá" }, checkout)
   T("mail: recovery after a lost draft receipt finds the existing Message-ID", calls.filter(({ options }) => options.method === "POST").length === 1 && intakeSource("gmail", checkout).pending.m1.draftId === "draft-1")
   const listed = calls.length
   const unseenCheckout = join(root, "mail-unseen")
   mkdirSync(join(unseenCheckout, ".git"), { recursive: true })
-  writeRunState({ sessionId: "unseen-mail", sleep: true, autoWork: true,
-    intake: { gmail: { completed: { m1: { id: "m1" } }, pending: {}, highWater: "m1" } } }, unseenCheckout)
+  writeRunState({ sessionId: "unseen-mail", sleep: true, autoWork: true }, unseenCheckout)
+  seedIntake(unseenCheckout, { gmail: { completed: { m1: { id: "m1" } }, pending: {}, highWater: "m1" } })
   const unseen = await unseenMailIds(client, unseenCheckout)
   const unseenCalls = calls.slice(listed)
   T("mail: the unseen listing returns ids absent from completed and pending state", JSON.stringify(unseen) === JSON.stringify(["m2"]))
@@ -74,7 +75,8 @@ export const cases = async () => {
   T("mail: no operation calls messages.send or drafts.send", calls.every(({ url }) => !/\/(messages|drafts)\/send$/.test(url.pathname)))
   const unsafe = intakeSource("gmail", checkout)
   unsafe.pending.m2.replyTo = "person@example.org\r\nBcc: someone@example.org"
-  writeRunState({ sessionId: "mail-child", sleep: true, intake: { gmail: unsafe } }, checkout)
+  writeRunState({ sessionId: "mail-child", sleep: true }, checkout)
+  seedIntake(checkout, { gmail: unsafe })
   let unsafePost = false
   let unsafeRefused = false
   try { await draftReply({ listDrafts: async () => ({}), createDraft: async () => { unsafePost = true } }, { id: "m2", text: "Reply" }, checkout) } catch { unsafeRefused = true }
@@ -96,11 +98,13 @@ export const cases = async () => {
   T("mail: sending replaces an old draft with the exact classified reply", sentMessage?.threadId === "t1" && Buffer.from(sentMime.split("\r\n\r\n")[1] ?? "", "base64").toString("utf8") === simple.text)
   const lost = intakeSource("gmail", checkout)
   delete lost.pending.m1.sentId
-  writeRunState({ sessionId: "mail-child", sleep: true, intake: { gmail: lost } }, checkout)
+  writeRunState({ sessionId: "mail-child", sleep: true }, checkout)
+  seedIntake(checkout, { gmail: lost })
   await replyToMail(sendingClient, simple, checkout)
   T("mail: a lost send receipt recovers through the deterministic sent Message-ID", sends === 1 && intakeSource("gmail", checkout).pending.m1.sentId === "sent-1")
   delete lost.pending.m1.sentId
-  writeRunState({ sessionId: "mail-child", sleep: true, intake: { gmail: lost } }, checkout)
+  writeRunState({ sessionId: "mail-child", sleep: true }, checkout)
+  seedIntake(checkout, { gmail: lost })
   sentVisible = false
   let ambiguous = false
   try { await replyToMail(sendingClient, simple, checkout) } catch { ambiguous = true }

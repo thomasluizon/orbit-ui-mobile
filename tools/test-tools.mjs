@@ -69,6 +69,7 @@ const CASE_MODULES = [
   ["check-handoff-size.mjs", "check-handoff-size"],
   ["comment-fix.mjs", "comment-fix"],
   ["lib/launch-gate.mjs", "launch-gate"],
+  ["lib/run-files.mjs", "run-files"],
   ["check-calibration.mjs", "check-calibration"],
   ["check-feature-parity.mjs", "check-feature-parity"],
   ["check-feature-parity.mjs", "check-feature-parity-web"],
