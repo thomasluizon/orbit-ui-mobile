@@ -199,7 +199,8 @@ the environment is not read.
 
 `checkGitCommand` refuses a command outside the grammar in an unattended run, the same runs in which the approval rule applies.
 In an attended session it refuses such a command only when the text, with its heredoc bodies, quotes and backslashes removed, names
-`git` and a push or a hygiene marker: `push`, `no-verify`, `no-gpg-sign`, `gpgsign`, `hookspath`, or `-n` after `commit`. So the
+`git` and a push or a hygiene marker: `push`, `no-verify`, `no-gpg-sign`, `gpgsign`, `hookspath`, or a `-n` group in a word after `commit`
+in the same command that `expandCommands` finds. A `;`, `|` or line end inside quotes or a substitution does not end that command. So the
 default commit form of Claude Code, `git commit -m "$(cat <<'EOF' ... EOF)"`, and a git command with a variable argument pass
 attended, and the handoff gate reads such a commit from its text. A variable that holds a push or a hygiene flag is not read in an
 attended session. The rule reads a `PowerShell` command with the same bash grammar: this is a deliberate choice, because a

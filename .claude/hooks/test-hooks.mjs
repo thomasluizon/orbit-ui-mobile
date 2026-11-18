@@ -630,7 +630,8 @@ const ATTENDED_TEXT_PASSES = [CLAUDE_COMMIT_FORM, 'git checkout "$BRANCH"', 'git
   'for f in .github/workflows/*.yml; do echo "$f"; done', "git status | Select-String modified", "Get-Content .gitignore", 'git commit -m "$MESSAGE" && head -n 3 log.txt']
 for (const command of ATTENDED_TEXT_PASSES) T(`git attended: ${JSON.stringify(command.slice(0, 70))} outside the subset allows`, checkGitCommand(command, { unattended: false }), null)
 const ATTENDED_TEXT_REFUSED = ['git push origin "$BRANCH"', 'git commit --no-verify -m "$X"', 'git commit -n -m "$X"', 'git commit -an -m "$X"', 'git commit --no-gpg-sign -m "$X"',
-  'git -c core.hooksPath=/dev/null commit -m "$X"', 'git -c commit.gpgsign=false commit -m "$X"', "git commit -m \"$(cat <<'EOF'\nx\nEOF\n)\" && git push origin main"]
+  'git -c core.hooksPath=/dev/null commit -m "$X"', 'git -c commit.gpgsign=false commit -m "$X"', "git commit -m \"$(cat <<'EOF'\nx\nEOF\n)\" && git push origin main",
+  "git commit -m \"$(cat <<'EOF'\nx\nEOF\n)\" -n", 'git commit -m "a; b $X" -n']
 for (const command of ATTENDED_TEXT_REFUSED) T(`git attended: ${JSON.stringify(command.slice(0, 70))} outside the subset blocks`, blocks(checkGitCommand(command, { unattended: false })), true)
 for (const command of ATTENDED_TEXT_PASSES.slice(0, 5)) T(`git: ${JSON.stringify(command.slice(0, 70))} outside the subset blocks in an unattended run`, blocks(checkGitCommand(command)), true)
 

@@ -316,14 +316,15 @@ function judgeGitCommands(command, gitCommands, { resolveRemoteUrl, unattended }
 const ATTENDED_RISK = /push|no-?verify|no-?gpg-?sign|gpgsign|hookspath/i
 /**
  * True when the text, without its heredoc bodies, quotes and backslashes, names git and a push or a hygiene marker: an attended session
- * refuses a command outside the subset only then. A commit `-n` counts in each word after `commit` up to the next `;`, `&`, `|` or line end.
+ * refuses a command outside the subset only then. A commit `-n` counts in each word after `commit` in the same command that `expandCommands` finds.
  */
 function attendedTextIsRisky(command) {
-  const text = stripHeredocBodies(command).replace(/['"\\]/g, "")
+  const withoutBodies = stripHeredocBodies(command)
+  const text = withoutBodies.replace(/['"\\]/g, "")
   if (!/git/i.test(text)) return false
   if (ATTENDED_RISK.test(text)) return true
-  return text.split(/[;&|\n]/).some((segment) => {
-    const words = segment.trim().split(/\s+/)
+  return expandCommands(withoutBodies).some((segment) => {
+    const words = segment.replace(/['"\\]/g, "").trim().split(/\s+/)
     return words.some((word, index) => word === "commit" && words.slice(index + 1).some(holdsCommitNoVerify))
   })
 }
