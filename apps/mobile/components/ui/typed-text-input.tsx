@@ -14,7 +14,7 @@ const MIRRORED_INK = { selectionColor: 'transparent', cursorColor: 'transparent'
 // WHY: Android Fabric reads the colour 0 ('transparent') as no colour, so the typed text keeps the default black text colour. https://github.com/facebook/react-native/blob/v0.88.1/packages/react-native/ReactCommon/react/renderer/attributedstring/TextAttributes.cpp#L20-L24
 const MIRRORED_TEXT_COLOR = 'rgba(255, 255, 255, 0)'
 
-// WHY: UITextField drops the line height from typed text, so React Native reads the typed text as different from the React tree text and sets the text and the selection again in the middle of the entry. https://github.com/facebook/react-native/blob/v0.88.1/packages/react-native/React/Fabric/Mounting/ComponentViews/TextInput/RCTTextInputComponentView.mm#L791-L818
+// WHY: UITextField drops the line height from typed text, so React Native reads the typed text as different from the React tree text and sets the text and the selection again in the middle of the entry. https://github.com/react/react-native/issues/58904
 function nativeFieldStyle(style: StyleProp<TextStyle>, multiline: boolean | undefined): StyleProp<TextStyle> {
   if (Platform.OS !== 'ios' || multiline) return style
   const singleLineStyle = { ...StyleSheet.flatten(style) }
