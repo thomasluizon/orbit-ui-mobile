@@ -48,16 +48,6 @@ export function optionTargets(lists, trace) {
 // The choice and question cards of a turn, in the order the response shows them.
 export const shownCards = (output) => (output.composition?.parts ?? []).filter((part) => part?.type === 'block' && cardKinds.includes(part.kind))
 
-// A singular request means one child, so a card that asks which child it means offers each stored child as an option of
-// its own. Over more than four records orbit-api CompleteRecordCard sends that card as one question block with one
-// `records` question, because a choice holds four options at most: a choice can offer six children only in sets.
-export function sameTitleClarification(card, trace, children) {
-  const single = new Set([...optionTargets(selectionLists(card), trace).values()].filter((targets) => targets.length === 1).flat())
-  const offered = children.filter((id) => single.has(id)).length
-  return offered === children.length ? result(true, 'The card offers each same-title child as a separate option.')
-    : result(false, `The card offers ${offered} of the ${children.length} same-title children as separate options.`)
-}
-
 // Action words of both locales, matched on the normalized question at a word start. The production request renames with
 // "coloca"; the recorded cards and the corpus histories use excluir, apagar, renomear, manter, change, delete and keep.
 const deletionWords = /\b(?:delet|remov|exclu|apag|elimin|descart|drop|eras|discard)/u

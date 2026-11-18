@@ -73,8 +73,8 @@ async function sendTurnAgain(turn, api) {
 // then the phrasing, one message after each question, in one conversation; answers each further question the case
 // allows; and stops at the first preview. A reply that is no question, and one question past the allowed count, are
 // recorded and not answered. A case that expects no change ends with its first reply. A write case whose preview holds
-// the expected changes is approved and read back. A launch corpus case passes `approve: false` and, when an earlier turn
-// of the case opened it, the `conversation`: it holds its preview and approves nothing.
+// the expected changes is approved and read back. A launch corpus case passes the `conversation` that an earlier turn
+// opened; it approves only when it states a `decision`, and holds its preview otherwise.
 export async function runCase(vars, { send = sendTurn, api = publicApi(vars.credentialKey), now = () => performance.now(),
   conversation = openConversation({ platform: vars.clientContext.platform, locale: vars.clientContext.locale,
     credentialKey: vars.credentialKey, timeZone: vars.accountTimeZone, uses24HourClock: vars.uses24HourClock, messages: vars.core.prefix }),

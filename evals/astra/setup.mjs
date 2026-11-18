@@ -8,7 +8,7 @@ import { publicApi } from './fixtures/api.mjs'
 import { offerActions, proactiveOfferSetup } from './proactive-offers.mjs'
 import { attemptEvidence } from './evidence.mjs'
 import { followConversation } from './offer-context.mjs'
-import { holdCase, openCaseConversation, outcome } from './client-path.mjs'
+import { caseClientContext, holdCase, openCaseConversation, outcome } from './client-path.mjs'
 
 // The values that a case takes from its setup turn: `{ previousStep: true }` is the step that the setup turn showed, and
 // `{ appendsPreviousStep: true }` is the checklist of the named habit with that step appended unchecked.
@@ -31,7 +31,7 @@ function prepareStartingAction(vars, block, conversation) {
   delete vars.clientContext.previousStartingStep
   if (action.id === 'smaller' && action.previousStep) vars.clientContext.previousStartingStep = structuredClone(action.previousStep)
   vars.clientContextJson = JSON.stringify(vars.clientContext)
-  conversation.context = vars.clientContext
+  conversation.context = caseClientContext(vars.clientContext)
   // The step client with no starting-step block predates conversationId: it sends its own history, and the server holds no
   // conversation to continue.
   if (vars.composition.mode === 'one-small-step-legacy') conversation.conversationId = undefined
@@ -60,7 +60,7 @@ async function prepareHeldPreview(test) {
   }
   vars.baselinePreview = held.previews
   vars.conversation = conversation
-  conversation.context = vars.clientContext
+  conversation.context = caseClientContext(vars.clientContext)
   if (vars.startingStepAction) prepareStartingAction(vars, held.composition.parts[0].block, conversation)
   if (vars.refine) {
     const drafts = held.composition.parts.find((part) => part.kind === 'habitSuggestions').block.drafts
@@ -91,7 +91,7 @@ export async function prepareCorrection(test) {
     throw new Error(`Correction setup failed${setup.caseId ? ` dependency ${setup.caseId}` : ''}: ${failures.map((check) => check.reason).join('; ')}`)
   }
   // A follow-up on the setup's own client continues its conversation. A setup with a client of its own keeps the
-  // follow-up's context: an offer case already shares one id, and the legacy step client predates conversationId.
+  // follow-up's context: an offer case already shares one id.
   if (!setup.clientContext) {
     test.vars.clientContext = followConversation(test.vars.clientContext, response.output)
     test.vars.clientContextJson = JSON.stringify(test.vars.clientContext)

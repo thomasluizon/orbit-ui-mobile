@@ -62,7 +62,7 @@ describe('the setup turn of a starting-step case', () => {
   it('sends the previous step with a smaller request, and none with a save request', async () => {
     const smaller = await prepare('composition-one-small-step-smaller-en')
     expect(smaller.vars.clientContext.previousStartingStep).toEqual(smaller.block.actions[0].previousStep)
-    expect(smaller.vars.conversation.context).toBe(smaller.vars.clientContext)
+    expect(smaller.vars.conversation.context).toEqual({ ...smaller.vars.clientContext, supportsProactiveOffers: false })
     const save = await prepare('composition-one-small-step-save-task-en')
     expect(save.vars.clientContext).not.toHaveProperty('previousStartingStep')
   })
@@ -82,9 +82,37 @@ describe('the setup turn of a starting-step case', () => {
     await runOutcomeCase(vars)
     const sent = JSON.parse(requests[0].form.get('clientContext'))
     expect(sent).not.toHaveProperty('conversationId')
-    expect(sent).not.toHaveProperty('supportsProactiveOffers')
+    expect(sent.supportsProactiveOffers).toBe(false)
     expect(sent.partKinds).toEqual([])
     expect(JSON.parse(requests[0].form.get('history')).map(({ role }) => role)).toEqual(['user', 'assistant'])
+  })
+
+  it.each(['smaller', 'save-task', 'save-checklist'])('sends the follow-up of the %s step case with offers off, as its setup turn did', async (family) => {
+    const { vars, requests } = await prepare(`composition-one-small-step-${family}-en`)
+    const step = 'Read one line'
+    vi.stubGlobal('fetch', recordedStream([stream(turnOf({ aiMessage: step, parts: [{ type: 'text', text: step }] }))], requests))
+    await runOutcomeCase(vars)
+    expect(requests).toHaveLength(2)
+    const [setupContext, followUpContext] = requests.map(({ form }) => JSON.parse(form.get('clientContext')))
+    expect(setupContext.supportsProactiveOffers).toBe(false)
+    expect(followUpContext.supportsProactiveOffers).toBe(false)
+    expect(followUpContext.conversationId).toBe('cccccccc-cccc-4ccc-8ccc-cccccccccccc')
+  })
+
+  it('sends the follow-up of a correction case with offers off, as its setup turn did', async () => {
+    vi.stubEnv('ORBIT_EVAL_BASE_URL', 'https://orbit-api-staging-uqu2.onrender.com')
+    vi.stubEnv('ORBIT_EVAL_TOKEN', 'offline-token')
+    const id = 'composition-medical-correction-en'
+    const setup = { ...caseOf(id).vars.setup, outcome: { changes: [{ kind: 'create', fields: { title: { contains: ['cholesterol'] } } }] } }
+    const vars = preparedCase(id, { records, habits: [], setup })
+    const requests = []
+    const held = turnOf({ pendingOperations: [previewOf('createHabits', [itemOf(null, 'Cholesterol exam', { title: [null, 'Cholesterol exam'] })])] })
+    vi.stubGlobal('fetch', recordedStream([stream(held), stream(held)], requests))
+    await prepareCorrection({ vars, metadata: caseOf(id).metadata })
+    await runOutcomeCase(vars)
+    const [setupContext, followUpContext] = requests.map(({ form }) => JSON.parse(form.get('clientContext')))
+    expect(setupContext.supportsProactiveOffers).toBe(false)
+    expect(followUpContext.supportsProactiveOffers).toBe(false)
   })
 
   it('stops the case when the setup turn shows no starting step', async () => {

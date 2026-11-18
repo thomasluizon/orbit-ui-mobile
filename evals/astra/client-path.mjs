@@ -27,13 +27,16 @@ function coreVars(vars) {
     reuses: vars.outcome.changes?.some((change) => change.kind === 'reuse') === true, baseline: vars.fixtureEvidence?.habits } }
 }
 
-// The conversation of one case on a shipped client: the client context that the case states, and its recorded history
-// as the messages that the client already holds. A conversation id makes the shared builder turn offers on, and a
+// The client context that a turn of a case sends. A conversation id makes the shared builder turn offers on, and a
 // converted case grades no offer, so a client with parts keeps offers off, as hooks.mjs builds the context that grades it.
+export const caseClientContext = (clientContext) => clientContext.supportsParts === true
+  ? { ...clientContext, supportsProactiveOffers: false } : clientContext
+
+// The conversation of one case on a shipped client: the client context that the case states, and its recorded history
+// as the messages that the client already holds.
 export const openCaseConversation = (vars) => openConversation({ platform: vars.clientContext.platform, locale: vars.clientContext.locale,
   credentialKey: vars.credentialKey, timeZone: vars.accountTimeZone, uses24HourClock: vars.uses24HourClock,
-  messages: vars.history ?? [],
-  context: vars.clientContext.supportsParts === true ? { ...vars.clientContext, supportsProactiveOffers: false } : vars.clientContext })
+  messages: vars.history ?? [], context: caseClientContext(vars.clientContext) })
 
 // The typed error of a turn that the server ended, as the answer of POST /api/chat keeps it (response.mjs): an HTTP 400
 // names the response that carried it.
