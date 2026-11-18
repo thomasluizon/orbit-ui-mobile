@@ -55,14 +55,16 @@ describe('ring sweep', () => {
     const harness = createHookStateHarness()
     const frames: (() => void)[] = []
     const cleanups: (() => void)[] = []
+    const cancelled: number[] = []
+    let handle = 0
     const useRingSweep = createUseRingSweep({
       useState: harness.useState,
       useEffect: (effect) => { const cleanup = effect(); if (cleanup) cleanups.push(cleanup) },
-      requestFrame: (callback) => frames.push(callback),
-      cancelFrame: () => {},
+      requestFrame: (callback) => { frames.push(callback); handle += 1; return handle },
+      cancelFrame: (handle) => cancelled.push(handle),
     })
     const onDone = vi.fn()
-    return { render: (value: number) => harness.render(() => useRingSweep(value, from, onDone)), frames, onDone }
+    return { render: (value: number) => harness.render(() => useRingSweep(value, from, onDone)), frames, cleanups, cancelled, onDone }
   }
 
   it('draws the old value, then the new value two frames later', () => {
@@ -80,6 +82,15 @@ describe('ring sweep', () => {
     const { render, frames } = setup(null)
     expect(render(40)).toBe(40)
     expect(frames).toHaveLength(0)
+  })
+
+  it('cancels both frames when the ring leaves the screen during the sweep, and reports no sweep', () => {
+    const { render, frames, cleanups, cancelled, onDone } = setup(25)
+    expect(render(40)).toBe(25)
+    frames.shift()?.()
+    cleanups.forEach((cleanup) => cleanup())
+    expect(cancelled, 'the first frame handle and the second frame handle').toEqual([1, 2])
+    expect(onDone).not.toHaveBeenCalled()
   })
 })
 

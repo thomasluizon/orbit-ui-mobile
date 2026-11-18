@@ -15,7 +15,7 @@ function mountFlow(readPhrase: GuidedHabitFlowOptions['readPhrase']) {
   const write = (change: Partial<Values>) => { Object.assign(values, change); render() }
   const form: GuidedHabitFlowForm = { getValues: () => values, setField: (field, value) => write({ [field]: value }) }
   const helpers: GuidedHabitFlowHelpers = {
-    isGeneral: false, toggleDay: () => {}, chooseItemType: (itemType) => write({ itemType }), setOneTime: () => write({ frequencyUnit: undefined }),
+    isGeneral: false, toggleDay: vi.fn(), chooseItemType: (itemType) => write({ itemType }), setOneTime: () => write({ frequencyUnit: undefined }),
     setRecurring: () => {}, setFlexible: () => {}, setGeneral: () => {}, backendFocusRequest: 0, backendFocusField: undefined,
   }
   const applySchedule: GuidedHabitFlowOptions['applySchedule'] = (patch) => {
@@ -34,7 +34,7 @@ function mountFlow(readPhrase: GuidedHabitFlowOptions['readPhrase']) {
   }
   let tree!: ReturnType<typeof create>
   void act(() => { tree = create(createElement(FlowProbe)) })
-  return { values, get flow() { return flow }, unmount: () => { void act(() => tree.unmount()) } }
+  return { values, helpers, get flow() { return flow }, unmount: () => { void act(() => tree.unmount()) } }
 }
 
 function deferredRead() {
@@ -84,6 +84,37 @@ describe('shared guided habit flow', () => {
     await act(async () => { read.arrive({ ...DAILY_AT_SEVEN, emoji: '🪴' }) })
     expect(mounted.values.emoji).toBe('')
     expect(mounted.flow.proposals.emoji).toBe(false)
+    mounted.unmount()
+  })
+
+  type ScheduleController = ReturnType<typeof mountFlow>['flow']['controller']
+  it.each<[string, (controller: ScheduleController) => void, (mounted: ReturnType<typeof mountFlow>) => void]>([
+    ['a repeat', (controller) => controller.setRecurrence({ unit: 'Week', quantity: 1, days: ['Monday'], monthDays: [], flexible: false, intervalWeeks: 1 }), ({ values }) => expect(values).toMatchObject({ frequencyUnit: 'Week', days: ['Monday'] })],
+    ['a week day', (controller) => controller.toggleDay('Monday', false, []), ({ helpers }) => expect(helpers.toggleDay).toHaveBeenCalledWith('Monday', false)],
+    ['a month day', (controller) => controller.toggleMonthDay(15, 1, []), ({ values }) => expect(values.monthDays).toEqual([1, 15])],
+    ['a count in each week', (controller) => controller.setQuantity(3), ({ values }) => expect(values).toMatchObject({ frequencyUnit: 'Week', frequencyQuantity: 3 })],
+    ['a week interval', (controller) => controller.setIntervalWeeks(2), ({ values }) => expect(values).toMatchObject({ frequencyUnit: 'Day', intervalWeeks: 2 })],
+  ])('answers the When and drops the proposed repeat when the person sets %s', async (_name, change, written) => {
+    const read = deferredRead()
+    const mounted = mountFlow(read.readPhrase)
+    void act(() => mounted.flow.changeTitle('water the plants'))
+    await act(async () => { void mounted.flow.leavePhrase() })
+    await act(async () => { read.arrive(DAILY_AT_SEVEN) })
+    expect(mounted.flow.proposals.schedule).toBe(true)
+    expect(mounted.flow.answers.when).toBe(false)
+    void act(() => change(mounted.flow.controller))
+    expect(mounted.flow.proposals.schedule).toBe(false)
+    expect(mounted.flow.answers.when).toBe(true)
+    written(mounted)
+    mounted.unmount()
+  })
+
+  it('sets a daily repeat under a week interval when the item has no repeat yet', () => {
+    const mounted = mountFlow(deferredRead().readPhrase)
+    expect(mounted.values.frequencyUnit).toBeUndefined()
+    void act(() => mounted.flow.controller.setIntervalWeeks(3))
+    expect(mounted.values).toMatchObject({ frequencyUnit: 'Day', frequencyQuantity: 1, intervalWeeks: 3 })
+    expect(mounted.flow.answers.when).toBe(true)
     mounted.unmount()
   })
 })
