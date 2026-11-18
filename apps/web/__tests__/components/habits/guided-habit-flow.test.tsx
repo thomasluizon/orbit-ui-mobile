@@ -80,6 +80,7 @@ function Harness({ mode = 'create', saveError = null, lockedGeneral = null, init
 const messages = () => (state.locale === 'en' ? en : ptBR).habits.flow
 const progress = () => screen.getByRole('list', { name: /^(Passo|Step) \d/ }).getAttribute('aria-label')
 const heading = () => screen.getByRole('heading', { level: 1 })
+const summaryRow = (label: string) => screen.queryByRole('button', { name: new RegExp(`^${label}`) })
 async function type(label: string, text: string) {
   await act(async () => { fireEvent.change(screen.getByLabelText(label), { target: { value: text } }) })
 }
@@ -195,6 +196,28 @@ describe.each([
     expect(screen.getByRole('button', { name: new RegExp(`^${messages().summary.when}`) })).toHaveTextContent(messages().summary.noDate)
     expect(helpers().form.getValues()).toMatchObject({ itemType: 'habit', isGeneral: true })
     expect(helpers().form.formState.isDirty).toBe(false)
+  })
+
+  it('scenario 2: offers no time and no length on the summary after the answer no date', async () => {
+    render(<Harness />)
+    await phrase(locale === 'en' ? 'tidy the garage' : 'arrumar a garagem')
+    await press(messages().when.noDate)
+    expect(heading()).toHaveTextContent(messages().confirm.question)
+    expect(summaryRow(messages().summary.time)).toBeNull()
+    expect(summaryRow(messages().summary.duration)).toBeNull()
+  })
+
+  it('scenario 7: offers no time on the summary under a General parent', async () => {
+    render(<Harness lockedGeneral initial={{ isGeneral: true, itemType: 'task' }} />)
+    await phrase(locale === 'en' ? 'pack the bag' : 'arrumar a mala')
+    expect(heading()).toHaveTextContent(messages().confirm.question)
+    expect(summaryRow(messages().summary.time)).toBeNull()
+  })
+
+  it('scenario 8: offers no time on the summary of a stored undated habit', () => {
+    render(<Harness mode="edit" subHabits={false} initial={{ title: 'Alongar', itemType: 'habit', isGeneral: true }} />)
+    expect(summaryRow(messages().summary.when)).toHaveTextContent(messages().summary.noDate)
+    expect(summaryRow(messages().summary.time)).toBeNull()
   })
 
   it('scenario 11: closes from step 1 and keeps the back slot empty there', async () => {

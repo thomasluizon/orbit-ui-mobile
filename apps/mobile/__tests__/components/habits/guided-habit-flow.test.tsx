@@ -85,6 +85,7 @@ const matches = (label: string | undefined, name: string | RegExp) => (typeof na
 const control = (tree: Tree, name: string | RegExp) => tree.hosts().find((node) => matches(node.props.accessibilityLabel, name) && typeof node.props.onPress === 'function')
 const heading = (tree: Tree) => tree.hosts().filter((node) => node.props.accessibilityRole === 'header').map((node) => (typeof node.props.children === 'string' ? node.props.children : ''))[0] ?? ''
 const progress = (tree: Tree) => tree.hosts().find((node) => /^(Passo|Step) \d (de|of) \d$/.test(node.props.accessibilityLabel ?? ''))?.props.accessibilityLabel
+const summaryRow = (tree: Tree, label: string) => tree.hosts().find((node) => (node.props.accessibilityLabel ?? '').startsWith(`${label}, `))
 const hasText = (tree: Tree, text: string) => tree.hosts().some((node) => node.props.children === text)
 function textIn(node: unknown): string {
   const hosts = (node as { findAll: (predicate: (child: { type: unknown }) => boolean) => { props: { children?: unknown } }[] }).findAll((child) => child.type === 'Text')
@@ -211,6 +212,24 @@ describe.each([
     await phrase(tree, locale === 'en' ? 'pack the bag' : 'arrumar a mala')
     expect(heading(tree)).toBe(flowCopy().confirm.question)
     expect(control(tree, new RegExp(`^${flowCopy().summary.when},`))?.props.disabled ?? true).toBe(true)
+    tree.unmount()
+  })
+
+  it('scenario 2: offers no time and no length on the summary after the answer no date', async () => {
+    const tree = renderNavigation(<Harness />)
+    await phrase(tree, locale === 'en' ? 'tidy the garage' : 'arrumar a garagem')
+    await tap(tree, flowCopy().when.noDate)
+    expect(heading(tree)).toBe(flowCopy().confirm.question)
+    expect(summaryRow(tree, flowCopy().summary.time)).toBeUndefined()
+    expect(summaryRow(tree, flowCopy().summary.duration)).toBeUndefined()
+    tree.unmount()
+  })
+
+  it('scenario 7: offers no time on the summary under a General parent', async () => {
+    const tree = renderNavigation(<Harness lockedGeneral initial={{ isGeneral: true, itemType: 'task' }} />)
+    await phrase(tree, locale === 'en' ? 'pack the bag' : 'arrumar a mala')
+    expect(heading(tree)).toBe(flowCopy().confirm.question)
+    expect(summaryRow(tree, flowCopy().summary.time)).toBeUndefined()
     tree.unmount()
   })
 
@@ -764,6 +783,12 @@ describe('the guided edit flow on Android', () => {
     const tree = renderNavigation(<Harness mode="edit" subHabits={false} initial={{ title: 'Alongar', itemType: 'habit', isGeneral: true }} />)
     expect(helpers().form.getValues()).toMatchObject({ itemType: 'habit', isGeneral: true })
     expect(helpers().form.formState.isDirty).toBe(false)
+    tree.unmount()
+  })
+  it('scenario 8: offers no time on the summary of a stored undated habit', () => {
+    const tree = renderNavigation(<Harness mode="edit" subHabits={false} initial={{ title: 'Alongar', itemType: 'habit', isGeneral: true }} />)
+    expect(summaryRow(tree, ptBR.habits.flow.summary.when)?.props.accessibilityLabel).toBe(`${ptBR.habits.flow.summary.when}, ${ptBR.habits.flow.summary.noDate}`)
+    expect(summaryRow(tree, ptBR.habits.flow.summary.time)).toBeUndefined()
     tree.unmount()
   })
 })

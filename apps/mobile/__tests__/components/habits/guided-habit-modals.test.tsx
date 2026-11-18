@@ -327,7 +327,7 @@ describe('a guided create on Android from a phrase with a repeat', () => {
     expect(heading(tree)).toBe(ptBR.habits.flow.confirm.question)
     const rowTitles = [ptBR.habits.flow.summary.when, ptBR.habits.flow.summary.time]
     const titlesIn = (nodes: ReactTestInstance[]) => nodes.map((node) => (node.props as { children?: unknown }).children).filter((text): text is string => typeof text === 'string' && rowTitles.includes(text))
-    expect(titlesIn(tree.hosts() as unknown as ReactTestInstance[])).toEqual(rowTitles)
+    expect(titlesIn(tree.hosts() as unknown as ReactTestInstance[])).toEqual([ptBR.habits.flow.summary.when])
     const markedRows = tree.hosts().filter((node) => node.props.testID === 'proposed-row') as unknown as ReactTestInstance[]
     expect(markedRows.flatMap((node) => titlesIn(node.findAll((child) => typeof child.type === 'string')))).toEqual([])
     await primary(tree)
@@ -382,10 +382,17 @@ describe('a guided create on Android from a phrase with a repeat', () => {
     const input = tree.hosts().find((node) => (node.props as { onChangeText?: unknown }).onChangeText && node.props.accessibilityLabel === label)!
     await act(async () => { (input.props as unknown as { onChangeText: (value: string) => void }).onChangeText(text); await Promise.resolve() })
   }
-  interface SummaryAfter { when: string; whenProposed: boolean; time: string; timeProposed: boolean; sent: Record<string, unknown>; absent: string[] }
+  interface SummaryAfter { when: string; whenProposed: boolean; time: string | null; timeProposed: boolean; sent: Record<string, unknown>; absent: string[] }
+  const expectSummaryRows = (tree: Tree, after: SummaryAfter) => {
+    const whenRow = new RegExp(`^${flow.summary.when}, `)
+    const timeRow = new RegExp(`^${flow.summary.time}, `)
+    const timeControl = control(tree, timeRow)
+    expect({ when: control(tree, whenRow)!.props.accessibilityLabel, whenProposed: rowMarked(tree, whenRow), time: timeControl?.props.accessibilityLabel ?? null, timeProposed: timeControl ? rowMarked(tree, timeRow) : false })
+      .toEqual({ when: `${flow.summary.when}, ${after.when}`, whenProposed: after.whenProposed, time: after.time === null ? null : `${flow.summary.time}, ${after.time}`, timeProposed: after.timeProposed })
+  }
   const SET_ON_A_STEP: [string, HabitPhraseReadResponse, (tree: Tree) => Promise<void>, SummaryAfter][] = [
     ['"No date" on the When step', MISSED_READ, async (tree) => { await tap(tree, flow.when.noDate) },
-      { when: flow.summary.noDate, whenProposed: false, time: flow.summary.noTime, timeProposed: false, sent: { isGeneral: true, emoji: '🌿' }, absent: ['dueTime', 'frequencyUnit', 'dueDate'] }],
+      { when: flow.summary.noDate, whenProposed: false, time: null, timeProposed: false, sent: { isGeneral: true, emoji: '🌿' }, absent: ['dueTime', 'frequencyUnit', 'dueDate'] }],
     ['"Tomorrow" on the When step', MISSED_READ, async (tree) => { await tap(tree, flow.when.tomorrow); await tap(tree, flow.time.none) },
       { when: '14/11/2026', whenProposed: false, time: flow.summary.noTime, timeProposed: false, sent: { dueDate: '2026-11-14', emoji: '🌿' }, absent: ['dueTime', 'frequencyUnit'] }],
     ['a repeat in the words of the When step', MISSED_READ, async (tree) => {
@@ -432,10 +439,7 @@ describe('a guided create on Android from a phrase with a repeat', () => {
     await settle()
     expect(state.phraseRead).toHaveBeenCalledTimes(2)
     expect(heading(tree)).toBe(flow.confirm.question)
-    const whenRow = new RegExp(`^${flow.summary.when}, `)
-    const timeRow = new RegExp(`^${flow.summary.time}, `)
-    expect({ when: control(tree, whenRow)!.props.accessibilityLabel, whenProposed: rowMarked(tree, whenRow), time: control(tree, timeRow)!.props.accessibilityLabel, timeProposed: rowMarked(tree, timeRow) })
-      .toEqual({ when: `${flow.summary.when}, ${after.when}`, whenProposed: after.whenProposed, time: `${flow.summary.time}, ${after.time}`, timeProposed: after.timeProposed })
+    expectSummaryRows(tree, after)
     await primary(tree)
     expect(state.create).toHaveBeenCalledTimes(1)
     const sent = state.create.mock.calls[0]![0] as Record<string, unknown>
@@ -476,10 +480,7 @@ describe('a guided create on Android from a phrase with a repeat', () => {
     if (control(tree, flow.time.none)) await tap(tree, flow.time.none)
     if (control(tree, flow.reminder.no)) await tap(tree, flow.reminder.no)
     expect(heading(tree)).toBe(flow.confirm.question)
-    const whenRow = new RegExp(`^${flow.summary.when}, `)
-    const timeRow = new RegExp(`^${flow.summary.time}, `)
-    expect({ when: control(tree, whenRow)!.props.accessibilityLabel, whenProposed: rowMarked(tree, whenRow), time: control(tree, timeRow)!.props.accessibilityLabel, timeProposed: rowMarked(tree, timeRow) })
-      .toEqual({ when: `${flow.summary.when}, ${after.when}`, whenProposed: after.whenProposed, time: `${flow.summary.time}, ${after.time}`, timeProposed: after.timeProposed })
+    expectSummaryRows(tree, after)
     await primary(tree)
     expect(state.create).toHaveBeenCalledTimes(1)
     const sent = state.create.mock.calls[0]![0] as Record<string, unknown>

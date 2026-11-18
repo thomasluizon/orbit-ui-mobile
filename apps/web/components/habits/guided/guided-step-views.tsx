@@ -218,8 +218,10 @@ function SummaryRows({ flow, formHelpers, props }: Readonly<ViewInput & { props:
     <SummaryTitle flow={flow} formHelpers={formHelpers} />
     <QuestionRow question={t('habits.flow.summary.type')} value={values.type} onPress={() => flow.open('type')} />
     <Proposed proposed={flow.proposals.schedule} scope="row" label={proposedLabel}>{row('when', t('habits.flow.summary.when'), values.when, whenLocked ? undefined : () => flow.open(summaryValueStep('when', item)))}</Proposed>
-    <Proposed proposed={flow.proposals.time} scope="row" label={proposedLabel}>{row('time', t('habits.flow.summary.time'), values.time, () => flow.open('time'))}</Proposed>
-    {values.timed ? row('duration', t('habits.flow.summary.duration'), values.duration, () => flow.open('duration')) : null}
+    {formHelpers.isGeneral ? null : <>
+      <Proposed proposed={flow.proposals.time} scope="row" label={proposedLabel}>{row('time', t('habits.flow.summary.time'), values.time, () => flow.open('time'))}</Proposed>
+      {values.timed ? row('duration', t('habits.flow.summary.duration'), values.duration, () => flow.open('duration')) : null}
+    </>}
     {row('reminder', t('habits.flow.summary.reminder'), values.reminder, () => flow.open(summaryValueStep('reminder', item)))}
   </>
 }

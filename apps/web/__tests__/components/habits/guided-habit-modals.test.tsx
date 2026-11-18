@@ -357,6 +357,7 @@ describe('the create surface behind orbit_guided_flows', () => {
     if (screen.queryByRole('button', { name: en.habits.flow.reminder.no })) await press(en.habits.flow.reminder.no)
     expect(heading()).toHaveTextContent(en.habits.flow.confirm.question)
     expect(screen.getByText(en.habits.flow.summary.when)).toBeInTheDocument()
+    expect(screen.queryByText(en.habits.flow.summary.time)).toBeNull()
     expect([...document.querySelectorAll('[data-proposed]')].map((node) => node.textContent)).toEqual(['🪴'])
     await press(en.common.create)
     expect(state.subCreate).toHaveBeenCalledTimes(1)
@@ -423,10 +424,16 @@ describe('the create surface behind orbit_guided_flows', () => {
   const LATER_READ: HabitPhraseReadResponse = { ...MISSED_READ, read: true, emoji: '🌿', frequencyUnit: 'Week', frequencyQuantity: 1, days: ['Monday'], dueTime: '18:00' }
   const summaryRow = (label: string) => screen.getByRole('button', { name: new RegExp(`^${label}`) })
   const toSummaryFromReminder = async () => { await press(en.habits.flow.reminder.no) }
-  interface SummaryAfter { when: string; whenProposed: boolean; time: string; timeProposed: boolean; sent: Record<string, unknown>; absent: string[] }
+  interface SummaryAfter { when: string; whenProposed: boolean; time: string | null; timeProposed: boolean; sent: Record<string, unknown>; absent: string[] }
+  const expectSummaryRows = (after: SummaryAfter) => {
+    const whenRow = summaryRow(en.habits.flow.summary.when)
+    const timeRow = screen.queryByRole('button', { name: new RegExp(`^${en.habits.flow.summary.time}`) })
+    expect({ when: whenRow.textContent, whenProposed: whenRow.closest('[data-proposed]') !== null, time: timeRow?.textContent ?? null, timeProposed: timeRow?.closest('[data-proposed]') != null })
+      .toMatchObject({ when: expect.stringContaining(after.when), whenProposed: after.whenProposed, time: after.time === null ? null : expect.stringContaining(after.time), timeProposed: after.timeProposed })
+  }
   const SET_ON_A_STEP: [string, HabitPhraseReadResponse, () => Promise<void>, SummaryAfter][] = [
     ['"No date" on the When step', MISSED_READ, async () => { await press(en.habits.flow.when.noDate) },
-      { when: en.habits.flow.summary.noDate, whenProposed: false, time: en.habits.flow.summary.noTime, timeProposed: false, sent: { isGeneral: true, emoji: '🌿' }, absent: ['dueTime', 'frequencyUnit', 'dueDate'] }],
+      { when: en.habits.flow.summary.noDate, whenProposed: false, time: null, timeProposed: false, sent: { isGeneral: true, emoji: '🌿' }, absent: ['dueTime', 'frequencyUnit', 'dueDate'] }],
     ['"Tomorrow" on the When step', MISSED_READ, async () => { await press(en.habits.flow.when.tomorrow); await press(en.habits.flow.time.none) },
       { when: '11/14/2026', whenProposed: false, time: en.habits.flow.summary.noTime, timeProposed: false, sent: { dueDate: '2026-11-14', emoji: '🌿' }, absent: ['dueTime', 'frequencyUnit'] }],
     ['a repeat in the words of the When step', MISSED_READ, async () => {
@@ -471,10 +478,7 @@ describe('the create surface behind orbit_guided_flows', () => {
     await phrase('water the plants in the garden')
     expect(state.phraseRead).toHaveBeenCalledTimes(2)
     expect(heading()).toHaveTextContent(en.habits.flow.confirm.question)
-    const whenRow = summaryRow(en.habits.flow.summary.when)
-    const timeRow = summaryRow(en.habits.flow.summary.time)
-    expect({ when: whenRow.textContent, whenProposed: whenRow.closest('[data-proposed]') !== null, time: timeRow.textContent, timeProposed: timeRow.closest('[data-proposed]') !== null })
-      .toMatchObject({ when: expect.stringContaining(after.when), whenProposed: after.whenProposed, time: expect.stringContaining(after.time), timeProposed: after.timeProposed })
+    expectSummaryRows(after)
     await press(new RegExp(`^(${en.habits.createTask}|${en.habits.createHabit})$`))
     expect(state.create).toHaveBeenCalledTimes(1)
     const sent = state.create.mock.calls[0]![0] as Record<string, unknown>
@@ -513,10 +517,7 @@ describe('the create surface behind orbit_guided_flows', () => {
     if (screen.queryByRole('button', { name: en.habits.flow.time.none })) await press(en.habits.flow.time.none)
     if (screen.queryByRole('button', { name: en.habits.flow.reminder.no })) await press(en.habits.flow.reminder.no)
     expect(heading()).toHaveTextContent(en.habits.flow.confirm.question)
-    const whenRow = summaryRow(en.habits.flow.summary.when)
-    const timeRow = summaryRow(en.habits.flow.summary.time)
-    expect({ when: whenRow.textContent, whenProposed: whenRow.closest('[data-proposed]') !== null, time: timeRow.textContent, timeProposed: timeRow.closest('[data-proposed]') !== null })
-      .toMatchObject({ when: expect.stringContaining(after.when), whenProposed: after.whenProposed, time: expect.stringContaining(after.time), timeProposed: after.timeProposed })
+    expectSummaryRows(after)
     await press(new RegExp(`^(${en.habits.createTask}|${en.habits.createHabit})$`))
     expect(state.create).toHaveBeenCalledTimes(1)
     const sent = state.create.mock.calls[0]![0] as Record<string, unknown>
