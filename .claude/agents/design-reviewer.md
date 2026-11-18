@@ -41,7 +41,7 @@ Cite the DESIGN.md section for every finding. If a rule is not in DESIGN.md and 
 ## Rendered critique
 
 Visual verification needs a live browser, which the calling session has and this read-only subagent does not. If the orchestrator supplies measured observations of the changed surface at 1440 and 390 px, such as computed styles or a described render, factor the visible token violations and slop tells into your findings. Otherwise review from the diff and state the limits of that evidence. **Never ask for a screenshot**: Orbit has no screenshot requirement. Human inspection follows `.claude/rules/visual-delivery.md` rule 4: during D90, the owner reviews the whole redesign once at the end, with no per-screen human wait; subagent judgement and the ui-skills sweep remain mandatory.
-8c. **Orbit's rules** (Identity, Orbit's states, Voice, Motion): one live Orbit in a view; the state follows the state table and its priority; the Orbit line does one of its four jobs and is one sentence; no mascot in a destructive confirmation or a step-up; no sad, angry or disappointed face; reduced motion keeps a still face for each state.
+8c. **Orbit's rules** (Identity, Orbit's states, Voice, Motion): one live Orbit in a view, except a view that shows the conversation entry, where the entry and every Orbit line run the loop together on one shared clock; a small face moves only with the small face read motion while its Orbit read runs; the state follows the state table and its priority; the Orbit line does one of its four jobs and is one sentence; no mascot in a destructive confirmation or a step-up; no sad, angry or disappointed face; reduced motion keeps a still face for each state.
 
 ## Output
 
