@@ -9,6 +9,7 @@ import { PageHeader } from '@/components/ui/page-header'
 
 interface SubscreenLayerHost {
   element: HTMLElement | null
+  active: boolean
   setActive: (active: boolean) => void
 }
 
@@ -19,7 +20,7 @@ export function ProgressSubscreen({ screen, children, hideHeader = false }: Read
   const t = useTranslations()
   const [layerElement, setLayerElement] = useState<HTMLDivElement | null>(null)
   const [layerActive, setLayerActive] = useState(false)
-  const layerHost = useMemo(() => ({ element: layerElement, setActive: setLayerActive }), [layerElement])
+  const layerHost = useMemo(() => ({ element: layerElement, active: layerActive, setActive: setLayerActive }), [layerElement, layerActive])
   return <div className="mx-auto flex w-full min-w-0 max-w-[740px] flex-1 flex-col" data-progress-screen={screen}>
     <div hidden={layerActive} className="flex min-w-0 flex-1 flex-col">
       {!hideHeader ? <PageHeader title={t(`progressScreen.sections.${screen}`)} backLabel={t('progressScreen.back')} onBack={() => router.replace('/progress')} /> : null}
@@ -29,7 +30,7 @@ export function ProgressSubscreen({ screen, children, hideHeader = false }: Read
   </div>
 }
 
-/** A full-surface layer over the sub-screen, such as a one-question flow. The sub-screen stays mounted and hidden under it. */
+/** A full-surface layer over the sub-screen, such as a one-question flow. The sub-screen stays mounted and hidden under it. The children mount once the layer is visible, so a mount effect can take focus. */
 export function ProgressSubscreenLayer({ children }: Readonly<{ children: ReactNode }>) {
   const host = use(SubscreenLayerContext)
   const setActive = host?.setActive
@@ -37,5 +38,5 @@ export function ProgressSubscreenLayer({ children }: Readonly<{ children: ReactN
     setActive?.(true)
     return () => setActive?.(false)
   }, [setActive])
-  return host?.element ? createPortal(children, host.element) : null
+  return host?.element && host.active ? createPortal(children, host.element) : null
 }
