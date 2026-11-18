@@ -130,7 +130,8 @@ const namedFirstOf = (clause) => {
   const named = NAMED_FIRST.exec(clause)
   if (!named) return null
   const namedReference = new RegExp(WORK_REFERENCE.source).exec(named[0])
-  const [next] = clause.slice(named.index + named[0].length).matchAll(WORK_REFERENCE)
+  // A bare ticket such as `#2171` names no repository, so it is not the next item.
+  const next = [...clause.slice(named.index + named[0].length).matchAll(WORK_REFERENCE)].find((reference) => repositoryOf(reference) !== "")
   return next && isDeployApiFirst(namedReference, next) ? null : named
 }
 

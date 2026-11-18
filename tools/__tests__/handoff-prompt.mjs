@@ -164,6 +164,7 @@ export const cases = () => {
     ["an API item named FIRST before a user interface item", "- api#412 FIRST, then ui#2488"],
     ["an API merge first, then a landing merge", "- Merge api#412 first, then landing#31"],
     ["an API item named FIRST before a user interface item with a ticket after it", "- api#412 FIRST, then ui#2488 (#2171)"],
+    ["an API item named FIRST with a ticket before the user interface item", "- api#412 FIRST (ticket #2171), then ui#2488"],
     ["a ticket that stays open until its pull request merges", "- `#1628` stays open until `ui#1959` merges and a later build carries it"],
   ]) {
     T(`${UNIT}: crank accepts ${label}`, holdsOf(line).length === 0, JSON.stringify(holdsOf(line)))
