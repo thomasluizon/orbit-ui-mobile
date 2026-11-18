@@ -33,7 +33,7 @@ async function renderLine(): Promise<Tree> {
   })
   return tree
 }
-const probe = (tree: Tree) => tree.root.findAll(node => (node.type as unknown) === 'OrbitMascotProbe')[0]!.props as { size: number; state?: string; still?: boolean }
+const probe = (tree: Tree) => tree.root.findAll(node => (node.type as unknown) === 'OrbitMascotProbe')[0]!.props as { size: number; state?: string; still?: boolean; live?: string }
 const row = (tree: Tree) => tree.root.findAll(node => typeof node.type === 'string' && node.props.testID === 'today-astra-slot')[0]!
 
 describe('Android Orbit line on Hoje', () => {
@@ -47,7 +47,7 @@ describe('Android Orbit line on Hoje', () => {
   it('draws the live Orbit at 48 and names the row by the sentence', async () => {
     enableTestFlags('orbit_guided_flows')
     const tree = await renderLine()
-    expect(probe(tree)).toMatchObject({ size: 48, state: 'parado' })
+    expect(probe(tree)).toMatchObject({ size: 48, state: 'parado', live: 'withLead' })
     expect(probe(tree).still).toBeUndefined()
     expect(row(tree).props.accessibilityLabel).toBe('Check in')
     expect(row(tree).props.accessibilityHint).toBe('todayAstra.openConversation')
@@ -88,11 +88,12 @@ describe('Android Orbit line on Hoje', () => {
     expect(row(tree).props.accessibilityLabel).toBe('todayAstra.returningBounded')
   })
 
-  it('keeps the still Orbit at 48 while the flag is off', async () => {
+  it('draws the Orbit at 48 that runs with the conversation entry, with no state, while the flag is off', async () => {
     mocks.online = false
     const tree = await renderLine()
-    expect(probe(tree).size).toBe(48)
-    expect(probe(tree).still).toBe(true)
+    expect(probe(tree)).toMatchObject({ size: 48, live: 'withLead' })
+    expect(probe(tree).still).toBeUndefined()
+    expect(probe(tree).state).toBeUndefined()
     expect(row(tree).props.accessibilityLabel).toBe('Check in')
   })
 })
