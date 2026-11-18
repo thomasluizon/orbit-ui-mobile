@@ -102,14 +102,15 @@ const heldRead = (operation, items) => !items.length && kindByActionKey[operatio
 // a boolean as True or False.
 const shownValue = (value) => typeof value === 'boolean' ? (value ? 'True' : 'False') : typeof value === 'number' ? String(value) : value
 // The records that the child drafts of a create add (CreationFields, above): each draft that names no stored habit is
-// one create with the values of its draft, and the drafts below it follow it. The change list holds them only with
-// `nestedCreates`. The launch corpus sets it. The core set does not, so each core verdict stays as it is while no pull
-// request changes an input of the core gate (#2129, rule B1).
-const childCreates = (drafts, preview) => Array.isArray(drafts) ? drafts.flatMap((draft) => [
+// one create with the values of its draft, and the drafts below it follow it. A draft with no parent of its own goes under
+// the stored habit that the reused item (PreviewCreateAsync gives it as its entity id) or the enclosing draft names; a
+// new parent has no stored id and gives no parent field. Only `nestedCreates` holds them: the launch corpus sets it, and
+// the core set does not, so each core verdict stays as it is under rule B1 of #2129.
+const childCreates = (drafts, preview, parent) => Array.isArray(drafts) ? drafts.flatMap((draft) => [
   ...recordId(draft?.habit_id) ? [] : [{ kind: 'create', target: null, preview, offered: {}, derived: {}, undetermined: {}, drafts: [],
-    fields: Object.fromEntries(Object.entries(draft ?? {}).map(([field, value]) => [field, shownValue(value)])
-      .filter(([, value]) => typeof value === 'string' && value !== '')) }],
-  ...childCreates(draft?.sub_habits, preview)]) : []
+    fields: { ...parent ? { parent_habit_id: parent } : {}, ...Object.fromEntries(Object.entries(draft ?? {}).map(([field, value]) => [field, shownValue(value)])
+      .filter(([, value]) => typeof value === 'string' && value !== '')) } }],
+  ...childCreates(draft?.sub_habits, preview, recordId(draft?.habit_id))]) : []
 
 // The change list of the held previews: one entry for each record a preview changes, with the kind of the change, the
 // record, the fields that the model writes, the fields that the preview offers, the fields that the server derives, and
@@ -128,7 +129,7 @@ export function changeList(pendingOperations, written = null, { nestedCreates = 
       const kind = itemKind(item, operation.actionKey)
       if (!kind) { unclassified.push(operation.actionKey ?? 'a preview without an action key'); continue }
       const children = nestedCreates && kind === 'create'
-        ? item.fields.filter((field) => field.field === 'sub_habits' && !isOffer(field)).flatMap((field) => childCreates(field.proposedValue, operation.id)) : []
+        ? item.fields.filter((field) => field.field === 'sub_habits' && !isOffer(field)).flatMap((field) => childCreates(field.proposedValue, operation.id, recordId(item.entityId))) : []
       if (kind === 'create' && item.fields.some(marksExistingHabit)) { changes.push(...children); continue }
       const offers = item.fields.filter(isOffer)
       const stored = item.fields.filter((field) => field.provenance === 'stored')
