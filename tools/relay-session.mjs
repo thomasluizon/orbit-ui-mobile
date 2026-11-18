@@ -246,7 +246,7 @@ const launchSuccessor = async ({ previous, metrics, sessionId, repoRoot, execute
     // The Stop hook of the successor blocks on a worker with no file waiter, and run-status.mjs names its wait command.
     // A worker that ended before this read has no live supervisor: its result, or its ledger record when the supervisor died without one, stays owed through the ended entries.
     const wakes = readWakeSourceStates(repoRoot)
-    const carriedWorkers = [...liveDetachedWorkers(repoRoot, wakes.live), ...endedWorkersOwed({ repoRoot, sessionId, previous: current.relay.carriedWorkers, worktrees, wakes })]
+    const carriedWorkers = [...liveDetachedWorkers(repoRoot, wakes.live), ...endedWorkersOwed({ repoRoot, sessionId, previous: current.relay.carriedWorkers, worktrees, wakes, rows: [...(current.pullRequests ?? []), ...(current.readinessLedger ?? [])] })]
     return { ...current, relay: { ...current.relay, successorSessionId, lastAttemptAt: now, runningSince: now, carriedWorkers, attempts: (current.relay.attempts ?? 0) + 1 } }
   }, repoRoot, { sessionId })
   stopRelayWaiters(sessionId, repoRoot)

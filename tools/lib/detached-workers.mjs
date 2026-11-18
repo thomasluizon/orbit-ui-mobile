@@ -31,7 +31,7 @@ const carried = (source, repoRoot) => ({
 })
 
 /** The launch results of the worker supervisors, oldest first. A file that does not hold a whole result reads as corrupt. */
-const readLaunchResults =(repoRoot) => {
+const readLaunchResults = (repoRoot) => {
   const directory = join(workerLaunchDirectory(repoRoot), "results")
   let names
   try { names = readdirSync(directory).filter((name) => /^\d+\.json$/.test(name)) } catch { return [] }
@@ -69,14 +69,15 @@ export const launchesOwed = ({ repoRoot, sessionId, carriedPids, worktrees, wake
 
 /**
  * The workers that ended and that `sessionId` or an earlier relay still owes to the next session. The supervisor clears its
- * wake source before it writes the result, so a worker that ends while the relay runs is in neither list otherwise, and a
- * supervisor that dies without a result is named only by its ledger record. `previous` is the `carriedWorkers` of the run
- * record that this session adopted; `worktrees` and `wakes` are reads the caller already made.
+ * wake source before it writes the result, so a worker that ends during the relay is in neither list otherwise.
+ * `previous` is the `carriedWorkers` of the adopted run record; `worktrees` and `wakes` are reads the caller made.
+ * `rows` are its `pullRequests` and `readinessLedger`: a launch whose repository key and branch has a row is delivered.
  */
-export const endedWorkersOwed = ({ repoRoot, sessionId, previous = [], worktrees, wakes }) => {
+export const endedWorkersOwed = ({ repoRoot, sessionId, previous = [], worktrees, wakes, rows = [] }) => {
   const carriedPids = carriedLauncherPids(previous)
+  const delivered = new Set(rows.filter((row) => typeof row?.repositoryKey === "string" && typeof row.branch === "string").map((row) => `${row.repositoryKey}\n${row.branch}`))
   return launchesOwed({ repoRoot, sessionId, carriedPids, worktrees, wakes })
-    .filter((launch) => (launch.sessionId === sessionId || carriedPids.has(launch.launcherPid)) && ["issue", "runDirectory", "branch"].every((key) => typeof launch[key] === "string"))
+    .filter((launch) => (launch.sessionId === sessionId || carriedPids.has(launch.launcherPid)) && ["issue", "runDirectory", "branch"].every((key) => typeof launch[key] === "string") && !delivered.has(`${launch.repositoryKey}\n${launch.branch}`))
     .map((launch) => ({ issue: launch.issue, launcherPid: launch.launcherPid, branch: launch.branch, worktree: launch.runDirectory, completionFile: workerCompletionFile(launch.launcherPid, repoRoot), ended: true }))
 }
 

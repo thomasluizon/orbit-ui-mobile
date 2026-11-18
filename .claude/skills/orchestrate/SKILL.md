@@ -1536,7 +1536,7 @@ and a local check detached with `setsid` keep running when the waiters stop. The
 waiter for each worker that a `WAIT_WORKER` action of `run-status.mjs` names, with the original start in `--started-at`. The run record's
 `relay.carriedWorkers` holds those live workers, and the Stop hook blocks the successor until a file waiter watches each one. The wait command
 ends with exit 4 and `PRODUCER_GONE` when the supervisor died and wrote no file; read the worker log and recover the launch then. `relay.carriedWorkers` also lists, with `ended: true`, each worker whose result, or whose launch record when the supervisor died without a result, this
-session or an earlier relay still owes. A worker that ends before the relay snapshot has no live supervisor, so `run-status.mjs` reports it as `VERIFY_DELIVERY` until a pull request row for its branch exists. Successor
+session or an earlier relay still owes. A relay leaves an ended worker out once a `pullRequests` or `readinessLedger` row names its repository key and branch. A worker that ends before the relay snapshot has no live supervisor, so `run-status.mjs` reports it as `VERIFY_DELIVERY` until a pull request row for its branch exists. Successor
 adoption durably fences the predecessor before the reporting chain is finalized; reading
 the open chain reconciles interrupted finalization. The successor enters through `/sleep`, adopts the run with
 `adoptRelayRun`, and starts its first wakeup with `run-status.mjs` as usual. The open chain

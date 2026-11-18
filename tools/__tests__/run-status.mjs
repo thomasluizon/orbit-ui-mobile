@@ -2,7 +2,7 @@ import { spawn, spawnSync } from "node:child_process"
 import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs"
 import { dirname, join } from "node:path"
 
-import { T, check, orcaEnv, realOrchestratorConfig, stage, stageRepo, stageWithConfig, TOOLS_DIR } from "./_harness.mjs"
+import { T, check, countPsSpawns, orcaEnv, realOrchestratorConfig, stage, stageRepo, stageWithConfig, TOOLS_DIR } from "./_harness.mjs"
 import { runStatus, statusQuery } from "../run-status.mjs"
 import { readAdmissionCounts, RELEASE_HOLD_MS } from "../lib/admission.mjs"
 import { writeReadinessReceipt } from "../lib/readiness-receipt.mjs"
@@ -10,6 +10,8 @@ import { clearWakeSource, readRunState, registerWakeSource, reserveWorkerLaunch,
 
 const fixture = JSON.parse(readFileSync(join(TOOLS_DIR, "__fixtures__", "gh-run-status.json"), "utf8"))
 const sessionId = "status-session"
+// One live detached source: the wake read and the entry check each start ps once. A second read of the sources adds two.
+const WAKE_READ_PS_SPAWNS = 2
 const readyPull = () => {
   const pull = structuredClone(fixture.response.data.repository.pr1459)
   // Controlled scenarios add the separately captured current-Ref shape to the legacy recording.
@@ -20,6 +22,10 @@ const readyPull = () => {
 }
 
 export const cases = async () => {
+  const source = readFileSync(join(TOOLS_DIR, "run-status.mjs"), "utf8")
+  const importedNames = [...source.matchAll(/^import \{([^}]*)\} from "node:[^"]+"$/gm)].flatMap((match) => match[1].split(",").map((name) => name.trim()).filter(Boolean))
+  const unusedImports = importedNames.filter((name) => source.split(new RegExp(`\\b${name}\\b`)).length < 3)
+  T("run-status: every name it imports from a node module is used", unusedImports.length === 0, `unused: ${unusedImports.join()}`)
   const repo = stageRepo("run-status")
   repo.git(["remote", "set-url", "origin", "https://github.com/test-owner/ui.git"])
   const config = { repos: { ui: repo.path }, caps: { parallelTickets: 6, maxOpenPullRequests: 10, maxQueuedRuns: 30 } }
@@ -231,6 +237,10 @@ export const cases = async () => {
     report = await snapshot()
     const waitAction = report.nextActions.find((entry) => entry.type === "WAIT_WORKER")
     T("run-status: a detached worker without a file waiter gets a WAIT_WORKER action with the exact wait command", waitAction?.launcherPid === detachedSupervisor.pid && waitAction.issue === "ORB-9" && waitAction.command.startsWith(`node tools/wait-file.mjs --file ${completionFile} --started-at `), JSON.stringify(report.nextActions))
+    if (process.platform === "darwin") {
+      const spawns = await countPsSpawns("status", () => snapshot())
+      T("run-status: one wake reads each wake source once, so the WAIT_WORKER action reuses the snapshot", spawns <= WAKE_READ_PS_SPAWNS, `ps spawns: ${spawns}`)
+    }
     registerWakeSource({ pid: detachedWaiter.pid, kind: "file-waiter", file: completionFile, what: "worker ORB-9", sessionId }, repo.path)
     T("run-status: the worker needs no WAIT_WORKER action once its file waiter is live", !(await snapshot()).nextActions.some((entry) => entry.type === "WAIT_WORKER"))
   } finally {

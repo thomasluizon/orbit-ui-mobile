@@ -333,13 +333,22 @@ const endedWorkerCases = async () => {
   reserveWorkerLaunch(ledgerOf(diedPid, "predecessor"), 9, staged.checkout)
   reserveWorkerLaunch(ledgerOf(diedOtherPid, "another-session"), 9, staged.checkout)
   const earlier = { issue: `ORB-${earlierPid}`, launcherPid: earlierPid }
-  updateRunState((current) => ({ ...current, relay: { ...current.relay, carriedWorkers: [earlier] } }), staged.checkout, { sessionId: "predecessor" })
+  // Two ended launches whose branch has a pull request row are delivered: one carried by the first relay and one of this session.
+  const deliveredEarlierPid = 2 ** 22 + 16
+  const deliveredOwnPid = 2 ** 22 + 17
+  writeFileSync(workerCompletionFile(deliveredEarlierPid, staged.checkout), JSON.stringify(resultOf(deliveredEarlierPid, "first-session")))
+  writeFileSync(workerCompletionFile(deliveredOwnPid, staged.checkout), JSON.stringify(resultOf(deliveredOwnPid, "predecessor")))
+  const pullRequestRow = (prNumber, launcherPid) => ({ repositoryKey: "ui", prNumber, receiptPath: join(staged.checkout, `receipt-${prNumber}.json`), branch: `fix/${launcherPid}` })
+  updateRunState((current) => ({ ...current,
+    pullRequests: [pullRequestRow(701, deliveredEarlierPid)], readinessLedger: [pullRequestRow(702, deliveredOwnPid)],
+    relay: { ...current.relay, carriedWorkers: [earlier, { issue: `ORB-${deliveredEarlierPid}`, launcherPid: deliveredEarlierPid }] } }), staged.checkout, { sessionId: "predecessor" })
   const outcome = await failure({ repoRoot: staged.checkout, sessionId: "predecessor", execute: executeFor(staged.checkout, { commands: [] }), wait: async () => {}, confirmMilliseconds: 10 })
   const carried = readRunState(staged.checkout).relay?.carriedWorkers ?? []
   T("relay-session: a worker that ended before the snapshot is carried through its result", outcome === null && carried.some((worker) => worker.launcherPid === endedPid && worker.ended === true && worker.issue === `ORB-${endedPid}`), JSON.stringify({ outcome: String(outcome), carried }))
   T("relay-session: a launch whose supervisor died without a result is carried through its ledger record", carried.some((worker) => worker.launcherPid === diedPid && worker.ended === true && worker.issue === `ORB-${diedPid}` && worker.branch === `fix/${diedPid}` && worker.worktree === staged.checkout), JSON.stringify(carried))
   T("relay-session: a ledger launch of another session is not carried", !carried.some((worker) => worker.launcherPid === diedOtherPid), JSON.stringify(carried))
-  T("relay-session: a result of another session is not carried", !carried.some((worker) => worker.launcherPid === otherPid), JSON.stringify(carried))
+  T("relay-session: an ended launch whose branch has a pull request row leaves the carry, in either ledger", !carried.some((worker) => [deliveredEarlierPid, deliveredOwnPid].includes(worker.launcherPid)), JSON.stringify(carried))
+  T("relay-session: a result of another session is not carried",!carried.some((worker) => worker.launcherPid === otherPid), JSON.stringify(carried))
   T("relay-session: the successor owes the ended worker a verification and no waiter", workersWithoutWaiter(staged.checkout, readRunState(staged.checkout).sessionId).length === 0)
   T("relay-session: a worker that the first relay carried stays carried through the second relay while its result exists", carried.some((worker) => worker.launcherPid === earlierPid && worker.ended === true), JSON.stringify(carried))
 }

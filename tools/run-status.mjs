@@ -1,6 +1,5 @@
 #!/usr/bin/env node
 
-import { spawnSync } from "node:child_process"
 import { readFileSync } from "node:fs"
 import { dirname, isAbsolute, join, relative, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
@@ -269,7 +268,7 @@ export const runStatus = async ({ repoRoot = REPO_ROOT, sessionId = "", config, 
     nextActions.push(action("ORPHANED_WORKER", inspection, { workerPid: source.workerPid }))
   }
   // A detached worker outlives the session that launched it: only a file waiter on its completion file wakes this one.
-  for (const worker of workersWithoutWaiter(repoRoot, sessionId)) nextActions.push(action("WAIT_WORKER", worker.waitCommand, { launcherPid: worker.launcherPid, issue: worker.issue }))
+  for (const worker of workersWithoutWaiter(repoRoot, sessionId, wakes.live)) nextActions.push(action("WAIT_WORKER", worker.waitCommand, { launcherPid: worker.launcherPid, issue: worker.issue }))
   const counts = readAdmissionCounts({ repoRoot, snapshots: snapshots.map((entry, index) => ({ ...entry, slug: repositories[index].slug })), limits: config.caps, now })
   if (state.remaining?.length > 0 && counts.slotFree && wakes.orphaned.filter((source) => source.research !== true).length === 0 && wakes.live.filter((source) => source.research !== true && (source.workerPid || (source.pending === true && source.what?.startsWith("worker ")))).length < config.caps.parallelTickets) {
     nextActions.push(action("SLOT_FREE", `node tools/plan-queue.mjs --tickets ${quote(state.remaining.join(","))}${state.sleep ? " --sleep" : ""}`))
